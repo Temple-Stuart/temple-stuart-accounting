@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { finnhubCached, finnhubErrorLine } from '@/lib/convergence/finnhub-cache';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
+import { earningsDateSources } from '@/lib/convergence/side-rules';
+import { checkUndefinedRiskCap } from '@/lib/convergence/undefined-risk';
 import { fetchFredMacro, fetchFredDailySeries, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubTicker, fetchFinnhubFundOwnership, fetchSECEdgar8KScan, type FinnhubData } from '@/lib/convergence/data-fetchers';
 import { computeCrossAssetCorrelations } from '@/lib/convergence/cross-asset';
 import { fetchChainAndBuildCards } from '@/lib/convergence/chain-fetcher';
 import type { ChainTickerInput } from '@/lib/convergence/chain-fetcher';
-import { generateTradeCards } from '@/lib/convergence/trade-cards';
+import { generateTradeCards, computeCloseToCloseHV } from '@/lib/convergence/trade-cards';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireAdmin } from '@/lib/require-admin';
 import type {
   CandleData,
   TTScannerData,
@@ -153,6 +157,15 @@ async function fetchTTCandles(symbol: string, days: number): Promise<{ candles: 
 // ===== MAIN ROUTE =====
 
 export async function GET(request: Request) {
+  // SEC-3: this route fires the SHARED FIRM TastyTrade account (getTastytradeClient
+  // — env creds, not per-user OAuth) and returns internal debug dumps. Any authed
+  // user hitting it spends/reads ALEX'S brokerage. Admin-gate BEFORE any TT/paid
+  // call — 403 (non-admin) / 401 (guest). Same requireAdmin pattern as the sibling
+  // /api/trading/convergence this component's main scan already uses. (Kept, not
+  // deleted: ConvergenceIntelligence.tsx:4768 single-ticker lookup depends on it.)
+  const adminGate = await requireAdmin();
+  if (adminGate instanceof NextResponse) return adminGate;
+
   const userEmail = await getVerifiedEmail();
   if (!userEmail) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -198,7 +211,8 @@ export async function GET(request: Request) {
     }),
     fetchFinnhubTicker(symbol, finnhubKey || undefined).catch((e): FinnhubData => {
       fetchErrors.finnhub = e instanceof Error ? e.message : String(e);
-      return { fundamentals: null, recommendations: [], insiderSentiment: [], earnings: [], estimateData: null };
+      // KILL-4: typed failure — all feeds unavailable, declared
+      return { fundamentals: null, recommendations: [], insiderSentiment: [], earnings: [], estimateData: null, feedErrors: [`all: ${e instanceof Error ? e.message : String(e)}`], fetchedAt: {}, storeErrors: [] };
     }),
     fredKey
       ? fetchFredMacro(fredKey).catch(e => ({
@@ -287,18 +301,31 @@ export async function GET(request: Request) {
     : null;
   const currentPrice = latestCandle?.close ?? 0;
 
-  if (currentPrice > 0 && ttScannerResult.data) {
+  // KILL-2: a missing IV rank is null at the parse boundary now — it cannot
+  // select the vol-regime strategy menu, so the chain section is skipped and
+  // declared (never an imputed rank).
+  if (currentPrice > 0 && ttScannerResult.data && (ttScannerResult.data.ivRank == null || ttScannerResult.data.iv30 == null)) {
+    chainRejections = [{ strategy: 'all', reason: `${ttScannerResult.data.ivRank == null ? 'IV rank' : 'IV30'} unavailable from market-metrics — chain/trade-card build skipped (no imputed value)`, gate: 'construction' }];
+  }
+  if (currentPrice > 0 && ttScannerResult.data && ttScannerResult.data.ivRank != null && ttScannerResult.data.iv30 != null) {
     try {
       // TT scanner returns iv30/hv30 as percentages (e.g. 27.16 for 27.16%)
       // Chain fetcher / strategy builder expects decimals (e.g. 0.2716)
-      const rawIv30 = ttScannerResult.data.iv30 ?? 30;
-      const rawHv30 = ttScannerResult.data.hv30 ?? 25;
+      // KILL-5: no fabricated vols — iv30 missing skips the chain section
+      // (declared below); hv30/dividendYield pass through as null.
+      const rawIv30 = ttScannerResult.data.iv30;
+      const rawHv30 = ttScannerResult.data.hv30;
+      const rawDivYield = ttScannerResult.data.dividendYield;
       if (fredResult.data.fedFunds == null) {
         throw new Error(
           'FRED FEDFUNDS rate is null — cannot compute PoP. ' +
           'Risk-free rate is required for Black-Scholes calculation.'
         );
       }
+      // EDGE-3: 10-day realized vol (same computation as the displayed vol cone,
+      // percent → decimal); null = HV10>IV gate declares itself not-evaluated.
+      const hv10Pct = computeCloseToCloseHV(ttCandleResult.candles, 10);
+
       const chainInput: ChainTickerInput[] = [{
         symbol,
         suggested_dte: scoringResult.strategy_suggestion.suggested_dte,
@@ -306,13 +333,27 @@ export async function GET(request: Request) {
         currentPrice,
         ivRank: ttScannerResult.data.ivRank,
         iv30: rawIv30 / 100,
-        hv30: rawHv30 / 100,
+        hv30: rawHv30 != null ? rawHv30 / 100 : null,
+        dividendYield: rawDivYield != null && Number.isFinite(rawDivYield) ? rawDivYield / 100 : null,
+        hv10: hv10Pct != null ? hv10Pct / 100 : null,
         riskFreeRate: fredResult.data.fedFunds / 100,
+        // MODEL-01: the single-ticker test path scores on the SELL model (scoreAll's
+        // default above) and builds defined risk only; the earnings sources are
+        // TastyTrade's date (this path makes no calendar call).
+        side: 'SELL',
+        scanDate: new Date().toISOString().slice(0, 10),
+        earningsDates: earningsDateSources([], ttScannerResult.data.earningsDate),
+        ivHvSpread: ttScannerResult.data.ivHvSpread,
+        undefinedRisk: checkUndefinedRiskCap(false, null),
       }];
 
       const chainResult = await fetchChainAndBuildCards(chainInput);
       const strategyCards = chainResult.cards.get(symbol) || [];
       chainRejections = chainResult.rejections.get(symbol) || [];
+      // KILL-4: a fatal chain failure is DECLARED on the rejections surface
+      if (chainResult.fatal_error) {
+        chainRejections = [...chainRejections, { strategy: 'all', reason: `chain fetch FAILED: ${chainResult.fatal_error} — empty cards are a feed failure, not "no strategies passed"`, gate: 'construction' }];
+      }
 
       chainStats = {
         chain_symbols_fetched: chainResult.stats.chain_symbols_fetched,
@@ -418,12 +459,12 @@ export async function GET(request: Request) {
   let debugFinnhubFinancials: Record<string, unknown> = { error: 'not fetched' };
   if (finnhubKey) {
     try {
-      const fResp = await fetch(
-        `https://finnhub.io/api/v1/stock/financials-reported?symbol=${symbol}&freq=annual&token=${finnhubKey}`,
-      );
-      if (fResp.ok) {
-        const fJson = await fResp.json();
-        const reports = fJson?.data || [];
+      // TRADE-COST-01: quarterly tier — the same store row the scan reads (7d)
+      const fAns = await finnhubCached<{ data?: unknown }>({ endpoint: 'stock/financials-reported', symbol, params: { freq: 'annual' }, apiKey: finnhubKey });
+      if (fAns.ok) {
+        const fJson = fAns.data;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const reports: any[] = Array.isArray(fJson?.data) ? (fJson.data as any[]) : [];
         if (reports.length > 0) {
           // Sort descending by year, take most recent
           reports.sort((a: { year: number }, b: { year: number }) => b.year - a.year);
@@ -470,7 +511,7 @@ export async function GET(request: Request) {
           debugFinnhubFinancials = { error: 'no annual reports returned' };
         }
       } else {
-        debugFinnhubFinancials = { error: `HTTP ${fResp.status}` };
+        debugFinnhubFinancials = { error: finnhubErrorLine(fAns) };
       }
     } catch (e: unknown) {
       debugFinnhubFinancials = { error: e instanceof Error ? e.message : String(e) };

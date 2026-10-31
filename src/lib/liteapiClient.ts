@@ -11,9 +11,11 @@
 // the same recommendation shape consumed by the UI + commit→budget spine.
 //
 // MODE: sandbox by default; flip LITEAPI_MODE=production once the production
-// key is set (mirrors src/lib/duffel.ts's mode-by-env pattern).
+// key is set (mode-by-env: the key that is set decides the mode; no default key).
 
 import { MissingLiteApiKeyError, LiteApiError } from './travelErrors';
+import type { LiteApiAnswer } from './arrivals/liteapiBooking';
+import type { CheckinCheckoutTimes } from './hotels/stayTimes';
 
 // LiteAPI uses two hosts:
 //   - api.liteapi.travel  → search + prebook
@@ -58,6 +60,33 @@ function headers(): Record<string, string> {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
+}
+
+// ─── The answer as bytes (REBUILD-01 PR-5) ───────────────────────────────────
+// The book and cancel calls keep the answer exactly as received, so the
+// arrivals store lands it (src/lib/arrivals/liteapiBooking.ts). Non-2xx throws
+// LiteApiError with the body text, as every call here always did; a 2xx that
+// is not JSON throws the parse error — nothing is swallowed.
+async function fetchAnswer(url: string, init: RequestInit, path: string): Promise<LiteApiAnswer> {
+  const asked = new Date();
+  const res = await fetch(url, init);
+  const body = Buffer.from(await res.arrayBuffer());
+  const arrived = new Date();
+  if (!res.ok) {
+    throw new LiteApiError(path, res.status, body.toString('utf8'));
+  }
+  return { httpStatus: res.status, body, asked, arrived, json: JSON.parse(body.toString('utf8')) };
+}
+
+/** The object a book / cancel answer carries — `{ data: {...} }` or flat at the
+ *  root (LiteAPI returns either, plan/version dependent) — the arrival's
+ *  payload. A 2xx with no object is a contract deviation and throws. */
+function dataObjectOf(json: unknown, path: string): Record<string, unknown> {
+  const d = (json as { data?: unknown } | null)?.data ?? json;
+  if (typeof d !== 'object' || d === null || Array.isArray(d)) {
+    throw new LiteApiError(path, 200, `2xx carries no object — contract deviation from the documented shape: ${JSON.stringify(json).slice(0, 500)}`);
+  }
+  return d as Record<string, unknown>;
 }
 
 // ─── Country name → ISO 3166-1 alpha-2 ───────────────────────────────────────
@@ -153,6 +182,22 @@ export interface SearchHotelsParams {
   /** Search radius in meters. Defaults to 25_000 (25km) — covers a metro
    *  area plus its nearby beach towns / suburbs. */
   radiusMeters?: number;
+  // ── HOTEL-01 (2026-09-22): the vendor's own filter and sort contract, forwarded
+  //    UNCHANGED from the route once validated by name (src/lib/hotels/searchContract.ts).
+  //    Absent → not sent → the vendor's default. starRating rides BOTH calls (the
+  //    /data/hotels catalog documents it, so the priced fifty are the filtered
+  //    fifty; /hotels/rates documents it too); the rest ride /hotels/rates. The
+  //    vendor's minRating is documented on two scales and is not carried.
+  /** Whole and half stars the vendor admits (".0 and .5 only"). */
+  starRating?: number[];
+  /** Keep RFN rates only. */
+  refundableRatesOnly?: boolean;
+  /** Comma list of RO · BI · HB · FB · AI. */
+  boardType?: string;
+  /** The vendor's sort: a field (top_picks · price · revenue) with a direction. */
+  sort?: Array<{ field: 'top_picks' | 'price' | 'revenue'; direction: 'ascending' | 'descending' }>;
+  /** Rates per hotel, cheapest first — absent = the vendor's default. */
+  maxRatesPerHotel?: number;
 }
 
 /** Raw hotel + rate as LiteAPI returns it. Keep loose — LiteAPI's V3 response
@@ -165,6 +210,7 @@ interface LiteApiHotelRate {
     city?: string;
     country?: string;
     stars?: number;
+    /** The catalog's guest rating — documented out of 10 (GET /data/hotels: "e.g., 8.5 out of 10"; HOTEL-02). */
     rating?: number;
     reviewCount?: number;
     main_photo?: string;
@@ -240,6 +286,9 @@ async function getCityHotelCatalog(params: SearchHotelsParams, countryCode: stri
       ? { latitude: String(params.latitude), longitude: String(params.longitude), radius: String(radius), countryCode }
       : { cityName: extractCityName(params.city), countryCode },
   );
+  // HOTEL-01: the catalog's own documented filters — so the fifty we price are the
+  // fifty that meet them (a filter applied only at pricing would empty the page).
+  if (params.starRating?.length) qs.set('starRating', params.starRating.map((n) => n.toFixed(1)).join(','));
   const mode = getMode();
   const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
   console.log(`[LiteAPI] data/hotels: mode=${mode} keyPrefix=${keyPrefix} ${useCoords ? `coords=${params.latitude},${params.longitude}` : `cityName=${extractCityName(params.city)}`} country=${countryCode}`);
@@ -297,6 +346,12 @@ export async function searchHotelRates(params: SearchHotelsParams): Promise<Lite
     occupancies: params.occupancies,
     currency: params.currency || 'USD',
     guestNationality: params.guestNationality || 'US',
+    // HOTEL-01: the vendor's filter and sort fields, verbatim, only when set.
+    ...(params.starRating?.length ? { starRating: params.starRating } : {}),
+    ...(params.refundableRatesOnly ? { refundableRatesOnly: true } : {}),
+    ...(params.boardType ? { boardType: params.boardType } : {}),
+    ...(params.sort?.length ? { sort: params.sort } : {}),
+    ...(typeof params.maxRatesPerHotel === 'number' ? { maxRatesPerHotel: params.maxRatesPerHotel } : {}),
   };
   const mode = getMode();
   const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
@@ -357,17 +412,19 @@ interface HotelRecommendation {
   photoUrl: string | null;
   priceLevel: number | null;
   priceLevelDisplay: string | null;
-  googleRating: number;
-  reviewCount: number;
-  sentimentScore: number;
-  sentiment: 'positive' | 'neutral' | 'negative';
+  /** LAW-02 (2026-09-27): the stated rating on 0-5, or NULL when unstated — never 0. */
+  googleRating: number | null;
+  reviewCount: number | null;
+  sentimentScore: number | null;
+  sentiment: 'positive' | 'neutral' | 'negative' | null;
   summary: string;
   warnings: string[];
   trending: boolean;
-  fitScore: number;
+  fitScore: number | null;
   valueRank: number;
   category: string;
-  compositeScore: number;
+  /** NULL when the hotel states no rating — ranked after every rated hotel. */
+  compositeScore: number | null;
   // Bookable signal — generalise to providerProductId in a later refactor.
   liteapiHotelId: string;
   /** Rate-level offer ID for `/rates/prebook`. Null when no bookable rate
@@ -500,9 +557,8 @@ export function liteApiHotelToRecommendation(
   category: string,
 ): HotelRecommendation {
   const h = hotel.hotel || {};
-  // `price` stays the WHOLE-STAY total (unchanged meaning — the booking charge
-  // fallback in ReserveHotelButton depends on it). Sourced from extractStayTotal
-  // exactly as before the PR-15 rename.
+  // `price` stays the WHOLE-STAY total (unchanged meaning). Sourced from
+  // extractStayTotal exactly as before the PR-15 rename.
   const stayTotal = extractStayTotal(hotel);
   // PR-13 richness pass-through (UI renders these in PR-14/15).
   const { total: priceTotal, currency } = extractRateMeta(hotel);
@@ -538,22 +594,38 @@ export function liteApiHotelToRecommendation(
 
   // Prefer guest rating (0-10 scale, normalise to 0-5) over star rating;
   // either is usable — fall back through the options.
-  const rawRating = h.rating ?? h.starRating ?? h.stars ?? 0;
-  const googleRating = rawRating > 5 ? Math.round((rawRating / 2) * 10) / 10 : rawRating;
-  const reviewCount = h.reviewCount ?? 0;
+  // LAW-02 (2026-09-27): an unstated rating is NULL, not 0 — a 0 rating is a claim
+  // (it read "negative" and ranked the hotel last). Everything derived from the
+  // rating is NULL with it; an unstated reviewCount is NULL and its signal is
+  // EXCLUDED from the composite with the remaining weights re-normalized — never
+  // imputed. The planner renders NULL as "not rated" (src/lib/travel/ratingWords.ts).
+  const statedRating = [h.rating, h.starRating, h.stars].find((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  const googleRating = statedRating === undefined ? null : statedRating > 5 ? Math.round((statedRating / 2) * 10) / 10 : statedRating;
+  const reviewCount = typeof h.reviewCount === 'number' && Number.isFinite(h.reviewCount) ? h.reviewCount : null;
 
-  const sentiment = googleRating >= 4.5 ? 'positive' as const
+  const sentiment = googleRating === null ? null
+    : googleRating >= 4.5 ? 'positive' as const
     : googleRating >= 3.5 ? 'neutral' as const
     : 'negative' as const;
-  const sentimentScore = Math.round(googleRating * 2);
-  const fitScore = Math.min(10, Math.round(googleRating * 2));
+  const sentimentScore = googleRating === null ? null : Math.round(googleRating * 2);
+  const fitScore = googleRating === null ? null : Math.min(10, Math.round(googleRating * 2));
 
   // Composite score: rating × log(reviews) blended with rating-based score —
   // identical formula to Viator's so ranking is consistent across sources.
-  const mandateFit = Math.min(100, fitScore * 10);
-  const rawQuality = googleRating * Math.log10(Math.max(reviewCount, 1));
-  const quality = Math.min(100, (rawQuality / 15) * 100);
-  const compositeScore = Math.round(mandateFit * 0.4 + quality * 0.35 + 75 * 0.25);
+  // LAW-02: no rating → no composite (NULL; the ranker puts it after every rated
+  // hotel); no review count → the quality signal is excluded and the two remaining
+  // weights (0.40 fit, 0.25 base) are re-normalized over their sum.
+  let compositeScore: number | null = null;
+  if (googleRating !== null && fitScore !== null) {
+    const mandateFit = Math.min(100, fitScore * 10);
+    if (reviewCount === null) {
+      compositeScore = Math.round((mandateFit * 0.4 + 75 * 0.25) / (0.4 + 0.25));
+    } else {
+      const rawQuality = googleRating * Math.log10(Math.max(reviewCount, 1));
+      const quality = Math.min(100, (rawQuality / 15) * 100);
+      compositeScore = Math.round(mandateFit * 0.4 + quality * 0.35 + 75 * 0.25);
+    }
+  }
 
   return {
     name: h.name || 'Hotel',
@@ -625,11 +697,14 @@ export interface PrebookResult {
   prebookId: string;
   hotelId: string;
   offerId: string;
-  /** Final guest-paid price (in `currency`). */
-  price: number;
-  currency: string;
-  /** Our margin (set by the LiteAPI markup config). */
-  commission: number;
+  /** Final guest-paid price (in `currency`). LAW-02 (2026-09-27): as stated, or NULL
+   *  — never 0. The checkout refuses a NULL price or currency by name before any
+   *  card is asked for (src/lib/checkout/prebookGate.ts). */
+  price: number | null;
+  currency: string | null;
+  /** COMM-01 (2026-09-26): the vendor's stated commission at prebook, or NULL when
+   *  the answer carries none — never 0. The checkout renders NULL as "not stated". */
+  commission: number | null;
   /** SDK payment context — the browser uses these to render LiteAPI's hosted
    *  payment form. `transactionId` is what we send back to `/rates/book`. */
   transactionId: string;
@@ -663,9 +738,12 @@ export async function prebookRate(params: PrebookParams): Promise<PrebookResult>
     prebookId: d.prebookId,
     hotelId: d.hotelId,
     offerId: d.offerId ?? params.offerId,
-    price: d.price ?? 0,
-    currency: d.currency ?? 'USD',
-    commission: d.commission ?? 0,
+    // LAW-02 (2026-09-27): stated, or NULL — was `?? 0` / `?? 'USD'`, a $0 USD hold
+    // the vendor never stated. The checkout names the gap instead of taking a card.
+    price: typeof d.price === 'number' && Number.isFinite(d.price) ? d.price : null,
+    currency: typeof d.currency === 'string' && d.currency.length > 0 ? d.currency : null,
+    // COMM-01 (2026-09-26): stated, or null — never 0.
+    commission: typeof d.commission === 'number' ? d.commission : null,
     transactionId: d.transactionId,
     secretKey: d.secretKey,
     paymentTypes: d.paymentTypes,
@@ -703,7 +781,8 @@ export interface BookParams {
 
 export interface BookResult {
   bookingId: string;
-  status: string;
+  /** The vendor's word, verbatim ("CONFIRMED" | "CANCELED" per the book reference) — or NULL when the answer stated none (STATUS-01: never defaulted). */
+  status: string | null;
   hotelConfirmationCode?: string;
   supplierConfirmationNum?: string;
   checkin?: string;
@@ -715,9 +794,45 @@ export interface BookResult {
   cancellationPolicies?: unknown;
 }
 
+/** The booking object inside a book answer — the arrival's payload (REBUILD-01 PR-5). */
+export function bookingObjectOf(json: unknown): Record<string, unknown> {
+  return dataObjectOf(json, '/v3.0/rates/book');
+}
+
+/** The BookResult mapping over the booking object — pure, so the landing runs it
+ *  over the ARRIVAL payload (src/lib/arrivals/liteapiBooking.ts), never over
+ *  the HTTP object. Field for field what bookRate always returned. */
+export function parseBookResult(d: Record<string, unknown>): BookResult {
+  return {
+    bookingId: d.bookingId as string,
+    // STATUS-01 (2026-09-26): a status the vendor did not state is NOT 'CONFIRMED'
+    // — it is absent (null), and the caller says so. The word is mapped by ONE
+    // leaf (src/lib/reservations/hotelStatus.ts), never here.
+    status: typeof d.status === 'string' ? d.status : null,
+    hotelConfirmationCode: d.hotelConfirmationCode as string | undefined,
+    supplierConfirmationNum: d.supplierConfirmationNum as string | undefined,
+    checkin: d.checkin as string | undefined,
+    checkout: d.checkout as string | undefined,
+    hotelName: (d.hotel as { name?: string } | undefined)?.name,
+    price: d.price as number | undefined,
+    commission: d.commission as number | undefined,
+    currency: d.currency as string | undefined,
+    cancellationPolicies: d.cancellationPolicies,
+  };
+}
+
+export interface BookRateAnswer {
+  /** The answer as received — the bytes the arrivals store lands. */
+  answer: LiteApiAnswer;
+  /** The booking object inside it — the arrival's payload. */
+  object: Record<string, unknown>;
+  /** parseBookResult over that object — for the route's failure branches and ids BEFORE the landing; what is persisted and answered is parsed from the arrival. */
+  booked: BookResult;
+}
+
 /** Hit `/v3.0/rates/book`. Throws MissingLiteApiKeyError on no key,
- *  LiteApiError on non-2xx. */
-export async function bookRate(params: BookParams): Promise<BookResult> {
+ *  LiteApiError on non-2xx (and on a 2xx with no booking object). */
+export async function bookRate(params: BookParams): Promise<BookRateAnswer> {
   const body = {
     prebookId: params.prebookId,
     holder: params.holder,
@@ -727,29 +842,13 @@ export async function bookRate(params: BookParams): Promise<BookResult> {
     },
     guests: params.guests,
   };
-  const res = await fetch(`${LITEAPI_BOOK_BASE}/rates/book`, {
+  const answer = await fetchAnswer(`${LITEAPI_BOOK_BASE}/rates/book`, {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    throw new LiteApiError('/v3.0/rates/book', res.status, await res.text());
-  }
-  const json = await res.json();
-  const d = json.data ?? json;
-  return {
-    bookingId: d.bookingId,
-    status: d.status ?? 'CONFIRMED',
-    hotelConfirmationCode: d.hotelConfirmationCode,
-    supplierConfirmationNum: d.supplierConfirmationNum,
-    checkin: d.checkin,
-    checkout: d.checkout,
-    hotelName: d.hotel?.name,
-    price: d.price,
-    commission: d.commission,
-    currency: d.currency,
-    cancellationPolicies: d.cancellationPolicies,
-  };
+  }, '/v3.0/rates/book');
+  const object = bookingObjectOf(answer.json);
+  return { answer, object, booked: parseBookResult(object) };
 }
 
 // ─── Individual guest reviews (Travel-PR-23) ─────────────────────────────────
@@ -836,9 +935,16 @@ export interface HotelContent {
   zip?: string;
   location?: { latitude?: number; longitude?: number };
   starRating?: number;
-  rating?: number;       // guest review score (0-5 in observed responses)
+  /** Guest review score — 0-5 in observed responses (the vendor's own example: rating 4.1 beside
+   *  starRating 4; its doc names no scale). HOTEL-02 (2026-09-22): this typed scale is the ONE
+   *  scale a reader renders it on. Not verified by a captured payload — scripts/probe-liteapi-
+   *  content-reviews.ts prints the live value for Alex to confirm. */
+  rating?: number;
   reviewCount?: number;
   stars?: number;
+  /** HOTEL-02 (2026-09-22): the property's check-in / check-out as the vendor documents them on
+   *  GET /data/hotel — 12-hour text, read by src/lib/hotels/stayTimes.ts at commit and nowhere else. */
+  checkinCheckoutTimes?: CheckinCheckoutTimes;
 }
 
 /** Hit `GET /v3.0/data/hotel?hotelId=…`. Throws MissingLiteApiKeyError on no key,
@@ -908,4 +1014,197 @@ export async function getCities(countryCode: string): Promise<LiteApiCity[]> {
   }
   const json = await res.json();
   return Array.isArray(json?.data) ? json.data : [];
+}
+
+// ─── Booking management (PR-Cancel-1) ────────────────────────────────────────
+// Contract discovered from LiteAPI's OFFICIAL nodejs-sdk v4.3.2 (github.com/
+// liteapi-travel/nodejs-sdk, index.js — the v3.0-generation SDK; the npm
+// `liteapi-travel` latest is a stale v2.0 SDK and was NOT mirrored):
+//   index.js:5    bookServiceURL = "https://book.liteapi.travel/v3.0"
+//   index.js:206  retrieveBooking → GET  {book}/bookings/{bookingId}
+//   index.js:244  cancelBooking   → PUT  {book}/bookings/{bookingId} (NO body)
+// Both authenticate with the same X-API-Key header this client already uses.
+// Cancel response (README "Booking cancel" return type): bookingId, status,
+// cancellation_fee, refund_amount, currency. The provider's response is the
+// ONLY money truth — absent fields map to null, NEVER defaulted or invented.
+
+export interface BookingStatus {
+  bookingId: string | null;
+  status: string | null;
+  hotelConfirmationCode: string | null;
+  checkin: string | null;
+  checkout: string | null;
+  price: number | null;
+  currency: string | null;
+  cancellationPolicies: unknown;
+}
+
+/** Hit `GET /v3.0/bookings/{bookingId}` on the BOOK host. Throws
+ *  MissingLiteApiKeyError on no key, LiteApiError on non-2xx. */
+export async function getBookingStatus(bookingId: string): Promise<BookingStatus> {
+  const res = await fetch(`${LITEAPI_BOOK_BASE}/bookings/${encodeURIComponent(bookingId)}`, {
+    method: 'GET',
+    headers: headers(),
+  });
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/bookings/{id}', res.status, await res.text());
+  }
+  const json = await res.json();
+  const d = json.data ?? json;
+  return {
+    bookingId: typeof d.bookingId === 'string' ? d.bookingId : null,
+    status: typeof d.status === 'string' ? d.status : null,
+    hotelConfirmationCode: typeof d.hotelConfirmationCode === 'string' ? d.hotelConfirmationCode : null,
+    checkin: typeof d.checkin === 'string' ? d.checkin : null,
+    checkout: typeof d.checkout === 'string' ? d.checkout : null,
+    price: typeof d.price === 'number' ? d.price : null,
+    currency: typeof d.currency === 'string' ? d.currency : null,
+    cancellationPolicies: d.cancellationPolicies ?? null,
+  };
+}
+
+export interface CancelBookingResult {
+  bookingId: string | null;
+  /** Provider's post-cancel booking status, verbatim. */
+  status: string | null;
+  /** Provider `cancellation_fee`, verbatim — null when not stated. */
+  cancellationFee: number | null;
+  /** Provider `refund_amount`, verbatim — null when not stated. */
+  refundAmount: number | null;
+  currency: string | null;
+}
+
+/** The object inside a cancel answer — the arrival's payload (REBUILD-01 PR-5). */
+export function cancellationObjectOf(json: unknown): Record<string, unknown> {
+  return dataObjectOf(json, '/v3.0/bookings/{id} (cancel)');
+}
+
+/** The CancelBookingResult mapping over the cancel object — pure, so the landing
+ *  runs it over the ARRIVAL payload. Absent fields map to null, never invented. */
+export function parseCancelResult(d: Record<string, unknown>): CancelBookingResult {
+  return {
+    bookingId: typeof d.bookingId === 'string' ? d.bookingId : null,
+    status: typeof d.status === 'string' ? d.status : null,
+    cancellationFee: typeof d.cancellation_fee === 'number' ? d.cancellation_fee : null,
+    refundAmount: typeof d.refund_amount === 'number' ? d.refund_amount : null,
+    currency: typeof d.currency === 'string' ? d.currency : null,
+  };
+}
+
+export interface CancelBookingAnswer {
+  /** The answer as received — the bytes the arrivals store lands. */
+  answer: LiteApiAnswer;
+  /** The cancel object inside it — the arrival's payload. */
+  object: Record<string, unknown>;
+  /** parseCancelResult over that object — for the route's failure branch BEFORE the landing; what is answered is parsed from the arrival. */
+  cancelled: CancelBookingResult;
+}
+
+/** Hit `PUT /v3.0/bookings/{bookingId}` (the cancel call — no body) on the BOOK
+ *  host. Throws MissingLiteApiKeyError on no key, LiteApiError on non-2xx (a
+ *  policy-rejected cancellation — e.g. NRFN or past the deadline — comes back
+ *  non-2xx and therefore THROWS; the caller surfaces the provider's message). */
+export async function cancelBooking(bookingId: string): Promise<CancelBookingAnswer> {
+  const answer = await fetchAnswer(`${LITEAPI_BOOK_BASE}/bookings/${encodeURIComponent(bookingId)}`, {
+    method: 'PUT',
+    headers: headers(),
+  }, '/v3.0/bookings/{id} (cancel)');
+  const object = cancellationObjectOf(answer.json);
+  return { answer, object, cancelled: parseCancelResult(object) };
+}
+
+// ─── Booking READ with the raw answer — STATUS-01 (2026-09-26) ───────────────
+// getBookingStatus above returns the parsed shape only; the landing needs the
+// answer as received so the parser runs over the ARRIVAL, never the HTTP object
+// (the same three as getFlightBooking: answer, object, state). The reference
+// (docs.liteapi.travel/reference/get_bookings-bookingid): GET {book}/bookings/{id},
+// `{ data: {...} }`; status "CONFIRMED" | "CANCELED"; hotelConfirmationCode
+// nullable ("not available at booking time — Nuitee performs a manual process to
+// contact the hotel"); amountRefunded, refundType, refundedAt nullable; 204 =
+// "Booking Id not found" (a 2xx with NO body — named here, never parsed as
+// success); 401 unauthorized.
+
+export interface HotelBookingState {
+  bookingId: string;
+  /** Verbatim, or null when the answer stated none. */
+  status: string | null;
+  hotelConfirmationCode: string | null;
+  paymentStatus: string | null;
+  amountRefunded: number | null;
+  refundType: string | null;
+  refundedAt: string | null;
+  updatedAt: string | null;
+  /** COMM-01 (2026-09-26): the documented commission figures, verbatim in the booking
+   *  currency, null when the answer states none — `commission` ("The total commission
+   *  amount associated with all rooms on the booking"), `distributorCommission`
+   *  ("Commission amount for the distributor"), `clientCommission` ("Commission amount
+   *  for the client"), `processingFee` ("Processing fee for the booking"),
+   *  `sellingPrice` ("Total selling price of the booking" — documented as a string). */
+  commission: number | null;
+  distributorCommission: number | null;
+  clientCommission: number | null;
+  processingFee: number | null;
+  sellingPrice: string | number | null;
+}
+
+/** The state mapping over the booking object — pure, so the landing runs it over
+ *  the ARRIVAL payload. Absent fields are null, never invented. */
+export function parseHotelBookingState(d: Record<string, unknown>): HotelBookingState {
+  const str = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null);
+  const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  return {
+    bookingId: d.bookingId as string,
+    status: str(d.status),
+    hotelConfirmationCode: str(d.hotelConfirmationCode),
+    paymentStatus: str(d.paymentStatus),
+    amountRefunded: typeof d.amountRefunded === 'number' ? d.amountRefunded : null,
+    refundType: str(d.refundType),
+    refundedAt: str(d.refundedAt),
+    updatedAt: str(d.updatedAt),
+    commission: num(d.commission),
+    distributorCommission: num(d.distributorCommission),
+    clientCommission: num(d.clientCommission),
+    processingFee: num(d.processingFee),
+    sellingPrice: typeof d.sellingPrice === 'string' || typeof d.sellingPrice === 'number' ? d.sellingPrice : null,
+  };
+}
+
+/** The object a booking READ carries — the arrival's payload; a 2xx without a bookingId is a contract deviation. */
+export function hotelBookingReadObjectOf(json: unknown): Record<string, unknown> {
+  const d = dataObjectOf(json, '/v3.0/bookings/{id} (read)');
+  if (typeof d.bookingId !== 'string') {
+    throw new LiteApiError('/v3.0/bookings/{id} (read)', 200, `2xx carries no bookingId — contract deviation from the documented shape: ${JSON.stringify(json).slice(0, 500)}`);
+  }
+  return d;
+}
+
+export interface HotelBookingReadAnswer {
+  /** The answer as received — the bytes the arrivals store lands. */
+  answer: LiteApiAnswer;
+  /** The booking object inside it — the arrival's payload. */
+  object: Record<string, unknown>;
+  /** parseHotelBookingState over that object — for the caller's log; what is applied is parsed from the arrival. */
+  state: HotelBookingState;
+}
+
+/** Read one hotel booking's CURRENT state, with the raw answer. Throws
+ *  MissingLiteApiKeyError on no key, LiteApiError on non-2xx, a NAMED LiteApiError
+ *  on the documented 204 ("Booking Id not found" — a 2xx with no body), and a
+ *  contract-deviation error on a 2xx without a bookingId. Moves no money; its
+ *  cost is undocumented, so callers meter it. */
+export async function getHotelBooking(bookingId: string): Promise<HotelBookingReadAnswer> {
+  const url = `${LITEAPI_BOOK_BASE}/bookings/${encodeURIComponent(bookingId)}`;
+  const asked = new Date();
+  const res = await fetch(url, { method: 'GET', headers: headers() });
+  const body = Buffer.from(await res.arrayBuffer());
+  const arrived = new Date();
+  if (res.status === 204) {
+    throw new LiteApiError('/v3.0/bookings/{id} (read)', 204, 'Booking Id not found — the documented 204; nothing to apply');
+  }
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/bookings/{id} (read)', res.status, body.toString('utf8'));
+  }
+  const answer: LiteApiAnswer = { httpStatus: res.status, body, asked, arrived, json: JSON.parse(body.toString('utf8')) };
+  const object = hotelBookingReadObjectOf(answer.json);
+  return { answer, object, state: parseHotelBookingState(object) };
 }

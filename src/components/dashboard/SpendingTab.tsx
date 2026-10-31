@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/components/ui';
+import { FUNCTIONAL_CURRENCY, bankMoneyWords, centsOfTypedDollars, functionalMoneyWords, isWholeCents } from '@/lib/books/functionalCurrency';
+
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -31,6 +34,8 @@ export interface SpendingTransaction {
   name: string;
   merchantName: string | null;
   amount: number;
+  /** FX-01b: the account's stated currency (accounts.isoCurrencyCode via /api/transactions), or NULL — a bank row prints in it, never as dollars by assumption. */
+  currency: string | null;
   category: string | null;
   pending: boolean;
   authorized_date: string | null;
@@ -120,10 +125,6 @@ const EMPTY_COL_FILTERS: ColumnFilters = {};
 function formatDate(d: string) {
   const dt = new Date(d);
   return `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`;
-}
-
-function formatMoney(n: number) {
-  return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function matchesSearch(txn: SpendingTransaction, term: string): boolean {
@@ -251,7 +252,7 @@ function columnFilterSummary(filter: ColumnFilterValue): string {
   switch (filter.type) {
     case 'checkbox': return filter.selected.slice(0, 2).join(', ') + (filter.selected.length > 2 ? ` +${filter.selected.length - 2}` : '');
     case 'dateRange': return [filter.from, filter.to].filter(Boolean).join(' – ');
-    case 'amountRange': return ['$' + filter.min, '$' + filter.max].filter(v => v !== '$').join(' – ');
+    case 'amountRange': return [filter.min, filter.max].filter(Boolean).join(' – ');
     case 'search': return `"${filter.term}"`;
   }
 }
@@ -287,8 +288,7 @@ function sortTransactions(txns: SpendingTransaction[], field: SortField, dir: So
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function MultiSelectFilter({ label, options, selected, onToggle }: {
-  label: string;
+function MultiSelectFilter({ label, options, selected, onToggle }: { label: string;
   options: [string, number][];
   selected: string[];
   onToggle: (val: string) => void;
@@ -325,8 +325,7 @@ function MultiSelectFilter({ label, options, selected, onToggle }: {
   );
 }
 
-function SortHeader({ label, field, currentField, currentDir, onSort, className = '' }: {
-  label: string;
+function SortHeader({ label, field, currentField, currentDir, onSort, className = '' }: { label: string;
   field: SortField;
   currentField: SortField;
   currentDir: SortDir;
@@ -347,8 +346,7 @@ function SortHeader({ label, field, currentField, currentDir, onSort, className 
   );
 }
 
-function CreateCoaModal({ onClose, onCreate }: {
-  onClose: () => void;
+function CreateCoaModal({ onClose, onCreate }: { onClose: () => void;
   onCreate: (account: CoaOption) => void;
 }) {
   const [code, setCode] = useState('');
@@ -427,8 +425,7 @@ function CreateCoaModal({ onClose, onCreate }: {
 
 // ─── Column Filter Dropdown ──────────────────────────────────────────────────
 
-function ColumnFilterDropdown({
-  field,
+function ColumnFilterDropdown({ field,
   filterType,
   allTransactions,
   currentFilter,
@@ -439,8 +436,7 @@ function ColumnFilterDropdown({
   sortDir,
   onSortWithDir,
   coaLookup,
-}: {
-  field: SortField;
+}: { field: SortField;
   filterType: 'checkbox' | 'dateRange' | 'amountRange' | 'search';
   allTransactions: SpendingTransaction[];
   currentFilter: ColumnFilterValue | undefined;
@@ -631,11 +627,11 @@ function ColumnFilterDropdown({
         {filterType === 'amountRange' && (
           <div className="space-y-2">
             <div>
-              <label className="block text-[10px] text-text-muted mb-1">Min ($)</label>
+              <label className="block text-[10px] text-text-muted mb-1">Min</label>
               <input ref={searchRef} type="number" placeholder="0.00" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
             <div>
-              <label className="block text-[10px] text-text-muted mb-1">Max ($)</label>
+              <label className="block text-[10px] text-text-muted mb-1">Max</label>
               <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
           </div>
@@ -661,12 +657,10 @@ function ColumnFilterDropdown({
 
 // ─── Filterable Header ──────────────────────────────────────────────────────
 
-function FilterableHeader({
-  label, field, sortField, sortDir, onSort,
+function FilterableHeader({ label, field, sortField, sortDir, onSort,
   filterType, allTransactions, columnFilter, onApplyColumnFilter,
   className, coaLookup,
-}: {
-  label: string;
+}: { label: string;
   field: SortField;
   sortField: SortField;
   sortDir: SortDir;
@@ -761,8 +755,7 @@ function formatProofDate(d: string | null | undefined): string {
 
 // ─── Virtualized Table ───────────────────────────────────────────────────────
 
-function VirtualTable({
-  rows,
+function VirtualTable({ rows,
   coaOptions,
   coaGroupedByEntity,
   selected,
@@ -777,8 +770,7 @@ function VirtualTable({
   allTransactions,
   columnFilters,
   onApplyColumnFilter,
-}: {
-  rows: SpendingTransaction[];
+}: { rows: SpendingTransaction[];
   coaOptions: CoaOption[];
   coaGroupedByEntity: Record<string, CoaOption[]>;
   selected: Set<string>;
@@ -900,7 +892,7 @@ function VirtualTable({
                 {/* Amount */}
                 <td className="py-1 px-2 text-right font-mono font-semibold whitespace-nowrap text-terminal-base">
                   <span className={txn.amount > 0 ? 'text-brand-red' : 'text-brand-green'}>
-                    {txn.amount > 0 ? '-' : '+'}{formatMoney(txn.amount)}
+                    {txn.amount > 0 ? '-' : '+'}{bankMoneyWords(Math.abs(txn.amount), txn.currency)}
                   </span>
                 </td>
                 {/* Account */}
@@ -996,7 +988,7 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function SpendingTab({ transactions, committedTransactions, coaOptions, onReload }: SpendingTabProps) {
+export default function SpendingTab({ transactions, committedTransactions, coaOptions, onReload }: SpendingTabProps & { }) {
   // State
   const [pendingFilters, setPendingFilters] = useState<ActiveFilters>(EMPTY_FILTERS);
   const [committedFilters, setCommittedFilters] = useState<ActiveFilters>(EMPTY_FILTERS);
@@ -1007,6 +999,19 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   const [rowChanges, setRowChanges] = useState<Record<string, { coa: string; sub: string }>>({});
   const [batchCoa, setBatchCoa] = useState('');
   const [batchSub, setBatchSub] = useState('');
+  // ── DIM-3: commit-time dimensions — vendor (per batch) + allocation links.
+  // Vendor is a CONFIRMABLE pick: the merchant-match chip requires a click,
+  // never auto-writes. Links absent = dimensionless (legacy-epoch semantic);
+  // present → the server enforces sum-to-100 fail-loud regardless of the UI.
+  const [vendors, setVendors] = useState<{ id: string; vendor_name: string }[]>([]);
+  const [batchVendor, setBatchVendor] = useState('');
+  const [batchLinks, setBatchLinks] = useState<{ targetType: 'project' | 'routine' | 'trip' | 'module'; targetId: string; percent: string }[]>([]);
+  const [linkTargets, setLinkTargets] = useState<{
+    projects: { id: string; title: string }[];
+    routines: { id: string; name: string }[];
+    trips: { id: string; name: string }[];
+  } | null>(null);
+  const [batchError, setBatchError] = useState<string | null>(null);
   const [showCreateCoa, setShowCreateCoa] = useState(false);
   const [localCoaOptions, setLocalCoaOptions] = useState<CoaOption[]>(coaOptions);
   const [committing, setCommitting] = useState(false);
@@ -1046,6 +1051,67 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     });
     return g;
   }, [localCoaOptions]);
+
+  // DIM-3: the canonical module_key vocabulary — the SAME leaf the server
+  // validates against (tabDescriptors keys). One source, no drift.
+  const MODULE_KEY_OPTIONS = useMemo(() => Object.keys(TAB_DESCRIPTORS), []);
+
+  // ── DIM-3: vendor list (once) + lazy link-target lists (first editor use). ──
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/operations/vendor-directory')
+      .then(async (res) => {
+        if (!res.ok) return; // vendor picking simply unavailable — no fake list
+        const data = await res.json();
+        if (!cancelled) setVendors(Array.isArray(data.vendors) ? data.vendors : []);
+      })
+      .catch(() => { /* picker stays empty — commit works dimensionless */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const loadLinkTargets = async () => {
+    if (linkTargets) return;
+    try {
+      const [p, r, t] = await Promise.all([
+        fetch('/api/operations/projects').then((res) => (res.ok ? res.json() : { projects: [] })),
+        fetch('/api/operations/routines').then((res) => (res.ok ? res.json() : { routines: [] })),
+        fetch('/api/trips').then((res) => (res.ok ? res.json() : { trips: [] })),
+      ]);
+      setLinkTargets({
+        projects: Array.isArray(p.projects) ? p.projects : [],
+        routines: Array.isArray(r.routines) ? r.routines : [],
+        trips: Array.isArray(t.trips) ? t.trips : [],
+      });
+    } catch {
+      setBatchError('Could not load link targets — try again.');
+    }
+  };
+
+  // Integer centipercent sum — the same mechanism the server enforces.
+  const linksCentiSum = useMemo(
+    () => batchLinks.reduce((s, l) => {
+      const p = parseFloat(l.percent);
+      return Number.isFinite(p) ? s + Math.round(p * 100) : s;
+    }, 0),
+    [batchLinks],
+  );
+  const linksSumOk = batchLinks.length === 0 || linksCentiSum === 10000;
+
+  // The vendor SUGGESTION: the selected batch's dominant merchant name matched
+  // (case-insensitive) against the directory — rendered as a chip that
+  // REQUIRES a click; never auto-applied.
+  const suggestedVendor = useMemo(() => {
+    if (batchVendor || vendors.length === 0 || selectedPending.size === 0) return null;
+    const merchants = transactions
+      .filter((t) => selectedPending.has(t.id))
+      .map((t) => t.merchantName)
+      .filter((m): m is string => !!m);
+    if (merchants.length === 0) return null;
+    const counts: Record<string, number> = {};
+    merchants.forEach((m) => { counts[m] = (counts[m] || 0) + 1; });
+    const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0].toLowerCase();
+    return vendors.find((v) => v.vendor_name.toLowerCase() === dominant) ?? null;
+  }, [batchVendor, vendors, transactions, selectedPending]);
 
   // Determine the dominant entity type for selected pending transactions
   const selectedEntityType = useMemo(() => {
@@ -1122,11 +1188,20 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   const hasPendingColFilters = pendingColFilterCount > 0;
   const hasCommittedColFilters = committedColFilterCount > 0;
 
-  // Selection totals
-  const selectedPendingAmount = useMemo(() =>
-    transactions.filter(t => selectedPending.has(t.id)).reduce((s, t) => s + Math.abs(t.amount), 0),
-    [transactions, selectedPending]
-  );
+  // Selection total — FX-01b (ruling A): a sum of integer CENTS over the selected rows stated in the functional
+  // currency; a row in another currency, with no stated currency, or not whole cents is counted out BY NAME,
+  // never added as dollars by assumption.
+  const selectedPendingTotal = useMemo(() => {
+    let cents = BigInt(0);
+    let countedOut = 0;
+    for (const t of transactions) {
+      if (!selectedPending.has(t.id)) continue;
+      const abs = Math.abs(t.amount);
+      if (t.currency === null || t.currency.toUpperCase() !== FUNCTIONAL_CURRENCY || !isWholeCents(abs)) { countedOut += 1; continue; }
+      cents += centsOfTypedDollars(String(abs));
+    }
+    return { cents, countedOut };
+  }, [transactions, selectedPending]);
 
   // Handlers
   const handlePendingSort = (field: SortField, forcedDir?: SortDir) => {
@@ -1181,11 +1256,28 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     const [accountCode, coaEntityId] = batchCoa.split('|');
 
     setCommitting(true);
+    setBatchError(null);
     try {
       const res = await fetch('/api/transactions/commit-to-ledger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionIds: ids, accountCode, subAccount: batchSub || null, entityId: coaEntityId || undefined })
+        body: JSON.stringify({
+          transactionIds: ids,
+          accountCode,
+          subAccount: batchSub || null,
+          entityId: coaEntityId || undefined,
+          // DIM-3: dimensions ride the commit — absent = dimensionless.
+          ...(batchVendor ? { vendorId: batchVendor } : {}),
+          ...(batchLinks.length > 0
+            ? {
+                links: batchLinks.map((l) => ({
+                  targetType: l.targetType,
+                  ...(l.targetType === 'module' ? { moduleKey: l.targetId } : { targetId: l.targetId }),
+                  percent: parseFloat(l.percent),
+                })),
+              }
+            : {}),
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -1193,14 +1285,18 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
         setSelectedPending(new Set());
         setBatchCoa('');
         setBatchSub('');
+        setBatchVendor('');
+        setBatchLinks([]);
         await onReload();
       } else {
+        // DIM-3: server rejections (incl. the fail-loud sum/ownership 400s)
+        // surface INLINE, verbatim.
         const errMsg = data.error || data.errors?.map((e: { error: string }) => e.error).join(', ') || 'Commit failed';
-        alert(`Commit failed: ${errMsg}`);
+        setBatchError(errMsg);
       }
     } catch (e) {
       console.error('Batch commit error:', e);
-      alert(`Commit error: ${e instanceof Error ? e.message : 'Network error'}`);
+      setBatchError(e instanceof Error ? e.message : 'Network error');
     }
     setCommitting(false);
   };
@@ -1436,7 +1532,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-terminal-base font-mono font-medium">
               {selectedPending.size} txn{selectedPending.size !== 1 ? 's' : ''}
-              <span className="ml-1 text-white/60">({formatMoney(selectedPendingAmount)})</span>
+              <span className="ml-1 text-white/60" data-selection-total>({functionalMoneyWords(selectedPendingTotal.cents)}{selectedPendingTotal.countedOut > 0 ? ` · ${selectedPendingTotal.countedOut} not in ${FUNCTIONAL_CURRENCY} or not whole cents, counted out` : ''})</span>
             </span>
             <select
               value={batchCoa}
@@ -1469,7 +1565,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
             <Button
               size="sm"
               loading={committing}
-              disabled={!batchCoa}
+              disabled={!batchCoa || !linksSumOk}
               onClick={handleBatchCommit}
               className="!bg-green-500 hover:!bg-green-600 !text-white"
             >
@@ -1482,6 +1578,83 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               Clear
             </button>
           </div>
+
+          {/* ── DIM-3: vendor + allocation links — captured at commit, never
+                imputed. The chip is a SUGGESTION requiring a click. ────────── */}
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <select
+              value={batchVendor}
+              onChange={e => setBatchVendor(e.target.value)}
+              className="min-w-[160px] bg-brand-purple-hover text-white border-0 text-terminal-base font-mono px-2 py-1 rounded"
+            >
+              <option value="">Vendor: none</option>
+              {vendors.map(v => <option key={v.id} value={v.id}>{v.vendor_name}</option>)}
+            </select>
+            {suggestedVendor && (
+              <button
+                type="button"
+                onClick={() => setBatchVendor(suggestedVendor.id)}
+                className="rounded border border-white/40 px-2 py-1 text-[11px] font-mono text-white hover:bg-white/10"
+              >
+                Matches {suggestedVendor.vendor_name} — apply
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => { void loadLinkTargets(); setBatchLinks(prev => [...prev, { targetType: 'module', targetId: '', percent: prev.length === 0 ? '100' : '' }]); }}
+              className="rounded border border-white/40 px-2 py-1 text-[11px] font-mono text-white hover:bg-white/10"
+            >
+              + Allocate to
+            </button>
+            {batchLinks.length > 0 && (
+              <span className={`text-[11px] font-mono ${linksSumOk ? 'text-green-300' : 'text-amber-300'}`}>
+                Allocations must total 100% — currently {(linksCentiSum / 100).toFixed(2)}%
+              </span>
+            )}
+          </div>
+          {batchLinks.map((l, i) => (
+            <div key={i} className="mt-1 flex items-center gap-2 flex-wrap">
+              <select
+                value={l.targetType}
+                onChange={e => setBatchLinks(prev => prev.map((row, j) => j === i ? { ...row, targetType: e.target.value as typeof row.targetType, targetId: '' } : row))}
+                className="bg-brand-purple-hover text-white border-0 text-terminal-base font-mono px-2 py-1 rounded"
+              >
+                <option value="module">Module</option>
+                <option value="project">Project</option>
+                <option value="routine">Routine</option>
+                <option value="trip">Trip</option>
+              </select>
+              <select
+                value={l.targetId}
+                onChange={e => setBatchLinks(prev => prev.map((row, j) => j === i ? { ...row, targetId: e.target.value } : row))}
+                className="flex-1 min-w-[160px] bg-brand-purple-hover text-white border-0 text-terminal-base font-mono px-2 py-1 rounded"
+              >
+                <option value="">Select…</option>
+                {l.targetType === 'module' && MODULE_KEY_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}
+                {l.targetType === 'project' && (linkTargets?.projects ?? []).map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                {l.targetType === 'routine' && (linkTargets?.routines ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {l.targetType === 'trip' && (linkTargets?.trips ?? []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="%"
+                value={l.percent}
+                onChange={e => setBatchLinks(prev => prev.map((row, j) => j === i ? { ...row, percent: e.target.value } : row))}
+                className="w-16 bg-brand-purple-hover text-white border-0 text-terminal-base font-mono px-2 py-1 rounded placeholder-white/40"
+              />
+              <button
+                type="button"
+                onClick={() => setBatchLinks(prev => prev.filter((_, j) => j !== i))}
+                className="text-white/60 hover:text-white text-terminal-sm underline"
+              >
+                remove
+              </button>
+            </div>
+          ))}
+          {batchError && (
+            <p className="mt-2 text-[11px] font-mono text-red-300">{batchError}</p>
+          )}
         </div>
       )}
 

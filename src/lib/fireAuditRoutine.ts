@@ -12,7 +12,10 @@
  * so PHASE3-3's callback can match the returned findings to THIS project + run.
  *
  * SECURITY / COST (per CLAUDE.md):
- *   - requireRoutineBudget(userId) gates FIRST — over the daily Routine cap throws
+ *   - SEC-TASKS-01: requireRoutineOwner(userId) gates FIRST — the Routine audits the
+ *     owner's repository, so anyone else → RoutineOwnerOnlyError, before the cap is
+ *     touched or the env is read (src/lib/operations/ownerOnly.ts).
+ *   - requireRoutineBudget(userId) gates next — over the daily Routine cap throws
  *     RoutineBudgetError and NO fire happens (the cost gate before the paid call;
  *     Routine runs are a SEPARATE Anthropic meter from the pipe's API calls).
  *   - The project is loaded ownership-scoped ({ id, user_id }); not found → throw.
@@ -27,6 +30,7 @@
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { requireRoutineBudget } from '@/lib/routineFireBudget';
+import { requireRoutineOwner } from '@/lib/operations/ownerOnly';
 import { buildAuditPrompt } from '@/lib/ai/buildAuditPrompt';
 
 /** Resolve a field's items: prefer the JSONB array, fall back to the legacy
@@ -56,7 +60,11 @@ export interface FireAuditRoutineResult {
 export async function fireAuditRoutine(input: FireAuditRoutineInput): Promise<FireAuditRoutineResult> {
   const { projectId, userId, userEmail } = input;
 
-  // 1 · COST GATE FIRST — over the daily Routine cap → RoutineBudgetError, no fire.
+  // 0 · OWNER GATE FIRST (SEC-TASKS-01) — anyone else → RoutineOwnerOnlyError, before
+  //     the cap is touched or the env is read: a refusal spends nothing.
+  requireRoutineOwner(userId);
+
+  // 1 · COST GATE — over the daily Routine cap → RoutineBudgetError, no fire.
   await requireRoutineBudget(userId);
 
   // 2 · Config — fail loud if the Routine endpoint/token aren't set (server-only env).

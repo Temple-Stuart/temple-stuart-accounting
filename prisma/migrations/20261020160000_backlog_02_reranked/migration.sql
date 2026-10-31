@@ -1,0 +1,25 @@
+-- BACKLOG-02 (Alex, 2026-10-20) — THE MORNING CARD'S RUNNING LOG: one audit value for the rank.
+--
+-- Alex, 15:42: the morning card is "a running log of all the projects that are
+-- ongoing and tasks that need to be executed, and I need a way to rank them".
+-- The rank is written by ONE route, PATCH /api/operations/projects/reorder
+-- (src/app/api/operations/projects/reorder/route.ts): the full ordered list of
+-- the user's open projects, ranks 1..n in one transaction, audited ONCE as
+-- operations_project_reranked with the before and after ranks in metadata.
+-- The "rank" column, its CHECK (rank IS NULL OR rank > 0) and its index
+-- (user_id, status, rank) are BACKLOG-01's (20261020120000_backlog_01_capture);
+-- nothing about them changes here.
+--
+-- NOTE: `ALTER TYPE ... ADD VALUE` cannot run inside a BEGIN/COMMIT block. This
+-- file is a bare statement (no explicit transaction) so it runs in autocommit —
+-- the enum-ADD-VALUE precedent's way
+-- (20260605000000_pr_ops_archive_task_status/migration.sql:9, :20). The new value
+-- is referenced by no other statement in this file, so there is no "use a new
+-- enum value in the same transaction" hazard. IF NOT EXISTS keeps deploy
+-- idempotent.
+--
+-- Additive only — NO BACKFILL, no row written, no column, no constraint; safe on
+-- `prisma migrate deploy`; applied at deploy after merge (package.json "build"),
+-- never by hand from a session.
+
+ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_project_reranked';

@@ -19,16 +19,30 @@
  * COA + Project are DISPLAY-ONLY this PR (inline dropdown edits are later PRs). Project
  * shows "—" on every row — there is no project linkage yet (that's a schema migration).
  *
- * Saved vs Booked: every budget line is shown as "Saved" (planned). A real "Booked" (paid)
- * status is NOT derivable from budget_line_items today — paid bookings live in a separate
- * `reservations` table with no link back to a budget line — so the status column honestly
- * shows "Saved" for all rows rather than guessing. A later PR adds the reservations
- * join / a status column to mark genuinely-booked lines.
+ * Saved vs Booked — LINK-02 (2026-09-27): a line's status is DERIVED from the links its
+ * owner made (reservation_budget_links, through each booking's "Budget line" control in
+ * TripBookings — never a matcher, a name or an amount), by ONE pure leaf,
+ * src/lib/trips/lineStatus.ts lineStatusOf: no link → "Saved"; linked, some linked
+ * booking's charge not bank-confirmed → "Booked"; every linked booking's charge
+ * bank-confirmed (an accepted match in Runway) → "Booked · paid". The linked bookings
+ * sit beside the planned amount ("Booked as"), each price AS RECORDED — never netted
+ * against the plan, never converted, never summed into it. Until the links load (or if
+ * they fail) the status cell says "—", never a guessed "Saved".
+ *
+ * PR-MATCH-3's travel LENS stays below the planned table: (a) "Booked &
+ * bank-confirmed" — the trip's reservations with bank actuals from ACCEPTED
+ * transaction links only (proposed ≠ actual; accepts happen in Runway's match
+ * review), and (b) "In-trip spend not in your budget" — in-window outflows with
+ * no accepted link anywhere (FX fees, extras). Both from GET /api/trips/[id]/actuals
+ * (which now also returns each line's links); both absent-when-empty.
  */
 
 import { useEffect, useRef, useState } from 'react';
 import type { TripRow } from './AllTripsList';
 import { formatMoney, moneyColorClass } from '@/lib/money';
+import { LINE_STATUS, LINE_WORDS, lineStatusOf, type LineStatus, type StatusLink } from '@/lib/trips/lineStatus';
+// TRIPDATE-01 (2026-10-01): the fixed clock's one sentence — a display-only date or time cell's title.
+import { CLOCK_FIXED_WORDS } from '@/lib/trips/itineraryEdit';
 
 interface LedgerItem {
   id: string;
@@ -48,15 +62,63 @@ interface LedgerItem {
   // Vendor-option keys → which removal path a row uses (Remove vs Delete).
   vendorOptionId?: string | null;
   vendorOptionType?: string | null;
+  /** TRIPDATE-01 (2026-10-01): true when a vendor fixed the item's clock with its zone (a flight, a
+   *  timed tour) — its dates and times are shown, not editable; null on a manual line. */
+  clockFixed?: boolean | null;
 }
 
 type RowState = 'loading' | 'ok' | 'error';
+
+// ─── PR-MATCH-3 lens shapes (GET /api/trips/[id]/actuals envelope) ───────────
+interface BookedRow {
+  reservationId: string;
+  label: string;
+  provider: string;
+  status: string;
+  /** SEC-03: NULL when the vendor stated no price — rendered "price not stated". */
+  finalPriceCents: number | null;
+  currency: string;
+  createdAt: string;
+  checkinDate: string | null;
+  checkoutDate: string | null;
+  actual: { totalCents: number; transactions: { id: string; name: string; amount: number; date: string }[] } | null;
+}
+// ─── LINK-02: each budget line's owner-made links (GET /api/trips/[id]/actuals `lines`) ───
+interface LinkedBooking {
+  reservationId: string;
+  displayName: string;
+  status: string;
+  /** SEC-03: NULL when the vendor stated no price — rendered "price not stated". */
+  finalPriceCents: number | null;
+  currency: string;
+  bankConfirmed: boolean;
+}
+interface LineLinks {
+  budgetLineItemId: string;
+  links: LinkedBooking[];
+}
+
+/** The status badge's paint, by the leaf's word — the word itself comes from the leaf. */
+const STATUS_PAINT: Record<LineStatus, string> = {
+  [LINE_STATUS.saved]: 'bg-brand-purple/10 text-brand-purple',
+  [LINE_STATUS.booked]: 'bg-brand-amber/10 text-brand-amber',
+  [LINE_STATUS.paid]: 'bg-brand-green/10 text-brand-green',
+};
+
+interface UnplannedRow {
+  id: string;
+  name: string;
+  merchantName: string | null;
+  amount: number;
+  date: string;
+  pending: boolean;
+}
 
 const DASH = '—';
 
 function fmtDate(s: string | null): string {
   if (!s) return DASH;
-  // Parse the DATE-PORTION only (mirrors CalendarGrid.parseDate, CalendarGrid.tsx:104-107)
+  // Parse the DATE-PORTION only (mirrors CalendarGrid.parseDate, CalendarGrid.tsx:120-123)
   // so a UTC-midnight stored value isn't localized BACKWARD a day. Building a LOCAL-midnight
   // Date from the Y-M-D parts formats to the true calendar date in any viewer zone — unlike
   // `new Date(isoString)`, which rolls a 00:00Z value back a day west of UTC. Malformed
@@ -104,11 +166,14 @@ function EditableCell({
   kind,
   value,
   editable,
+  title,
   onSave,
 }: {
   kind: 'date' | 'time';
   value: string | null;
   editable: boolean;
+  /** TRIPDATE-01: why a display-only cell is not editable (the fixed clock's sentence). */
+  title?: string;
   onSave: (next: string) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -118,7 +183,7 @@ function EditableCell({
   const display = kind === 'date' ? fmtDate(value) : fmtTime(value);
   const inputVal = kind === 'date' ? toDateInput(value) : toTimeInput(value);
 
-  if (!editable) return <span className="text-text-faint">{display}</span>;
+  if (!editable) return <span className="text-text-faint" title={title}>{display}</span>;
 
   if (!editing) {
     return (
@@ -126,9 +191,9 @@ function EditableCell({
         type="button"
         onClick={() => { cancelled.current = false; setEditing(true); }}
         title="Click to edit"
-        className="rounded px-1 text-left text-text-secondary transition-colors hover:bg-bg-row hover:text-brand-purple"
+        className="rounded px-1 text-left text-text-muted transition-colors hover:bg-bg-row hover:text-text-primary"
       >
-        {value ? display : <span className="text-brand-purple underline decoration-dotted">Set</span>}
+        {value ? display : <span className="text-text-primary underline decoration-dotted">Set</span>}
       </button>
     );
   }
@@ -164,7 +229,11 @@ function EditableCell({
   );
 }
 
-export default function TripBudgetActual({ trip }: { trip: TripRow }) {
+export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
+  /** TRAVEL-PIPE: budget-line count reported up after each successful budget
+   *  fetch (the Books onTotals idiom — zero new fetches). */
+  onTotals?: (t: { budgetLines: number }) => void;
+}) {
   const [items, setItems] = useState<LedgerItem[]>([]);
   const [state, setState] = useState<RowState>('loading');
   const [reloadKey, setReloadKey] = useState(0);
@@ -256,33 +325,71 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((data) => {
         if (cancelled) return;
-        setItems((data.items || []) as LedgerItem[]);
+        const rows = (data.items || []) as LedgerItem[];
+        setItems(rows);
+        onTotals?.({ budgetLines: rows.length });
         setState('ok');
       })
       .catch(() => { if (!cancelled) setState('error'); });
     return () => { cancelled = true; };
   }, [trip.id, reloadKey]);
 
+  // PR-MATCH-3: the lens fetch — separate from the budget fetch so neither
+  // blocks the other; a lens failure is DECLARED in its own line, never
+  // hides the planned table.
+  const [booked, setBooked] = useState<BookedRow[]>([]);
+  const [unplanned, setUnplanned] = useState<UnplannedRow[]>([]);
+  const [lensError, setLensError] = useState('');
+  // LINK-02: the owner-made links per line — null until the lens answers (the status then reads "—").
+  const [lineLinks, setLineLinks] = useState<LineLinks[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setLensError('');
+    setLineLinks(null);
+    fetch(`/api/trips/${trip.id}/actuals`)
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setBooked((data.booked || []) as BookedRow[]);
+        setUnplanned((data.unplanned || []) as UnplannedRow[]);
+        setLineLinks(Array.isArray(data.lines) ? (data.lines as LineLinks[]) : null);
+      })
+      .catch((err) => {
+        if (!cancelled) setLensError(err instanceof Error ? err.message : 'Could not load bank actuals.');
+      });
+    return () => { cancelled = true; };
+  }, [trip.id, reloadKey]);
+
   const total = items.reduce((s, it) => s + Number(it.amount || 0), 0);
+
+  // LINK-02: the links in the leaf's shape, and each line's linked bookings for the "Booked as" cell.
+  const statusLinks: StatusLink[] | null = lineLinks === null
+    ? null
+    : lineLinks.flatMap((l) => l.links.map((k) => ({ budgetLineItemId: l.budgetLineItemId, reservationId: k.reservationId, bankConfirmed: k.bankConfirmed })));
+  const linkedOf = (lineId: string): LinkedBooking[] => lineLinks?.find((l) => l.budgetLineItemId === lineId)?.links ?? [];
 
   const th = 'px-3 py-2 text-left font-medium text-text-faint whitespace-nowrap';
   const td = 'px-3 py-2 whitespace-nowrap';
 
   return (
-    <div className="mt-4 rounded-lg border border-border bg-bg-row p-4">
+    <div className="mt-4 rounded-lg border border-border bg-white p-4">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-sm font-bold text-brand-purple">Budget ledger</p>
+        <p className="text-sm font-bold text-text-primary">Budget ledger</p>
         {state === 'ok' && items.length > 0 && (
-          <p className="text-sm text-text-secondary">
-            Total <span className={`font-bold ${moneyColorClass(total, 'expense')}`}>{formatMoney(total, { kind: 'expense' })}</span>
+          <p className="text-sm text-text-muted">
+            Total <span className={`font-mono font-bold ${moneyColorClass(total, 'expense')}`}>{formatMoney(total, { kind: 'expense' })}</span>
           </p>
         )}
       </div>
 
       {actionError && <p className="mb-2 rounded border border-border bg-white p-2 text-sm text-brand-red">{actionError}</p>}
-      {state === 'loading' && <p className="text-sm text-text-muted">Loading your budget…</p>}
+      {state === 'loading' && <p className="text-sm text-text-faint">Loading your budget…</p>}
       {state === 'error' && <p className="text-sm text-brand-red">Couldn&apos;t load your budget.</p>}
-      {state === 'ok' && items.length === 0 && <p className="text-sm text-text-muted">Nothing planned yet.</p>}
+      {state === 'ok' && items.length === 0 && <p className="text-sm text-text-faint">No planned budget yet.</p>}
 
       {state === 'ok' && items.length > 0 && (
         // Wide statement table: on a narrow screen the whole table scrolls horizontally as
@@ -291,7 +398,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
         <div className="overflow-x-auto rounded-lg border border-border bg-white">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-bg-row text-xs uppercase tracking-wide">
+              <tr className="border-b border-border bg-white font-mono text-[10px] uppercase tracking-wider">
                 <th className={th}>Saved / Booked</th>
                 <th className={th}>Start date</th>
                 <th className={th}>Start time</th>
@@ -302,6 +409,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                 <th className={th}>Vendor</th>
                 <th className={th}>Description</th>
                 <th className={`${th} text-right`}>Amount</th>
+                <th className={th}>{LINE_WORDS.bookedAs}</th>
                 <th className={th}>Project</th>
                 <th className={th}><span className="sr-only">Actions</span></th>
               </tr>
@@ -309,23 +417,48 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
             <tbody>
               {items.map((it) => (
                 <tr key={it.id} className="border-b border-border last:border-0">
-                  {/* Every budget line is Saved (planned). Booked (paid) is not derivable
-                      from budget_line_items yet — see the file header. */}
+                  {/* LINK-02: the status from the one leaf, over the owner's links — "—" until they load. */}
                   <td className={td}>
-                    <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-brand-purple">Saved</span>
+                    {/* REPAINT-04 (2026-09-21): aubergine ink on the wash — white on a 10% wash was invisible on cream. */}
+                    {statusLinks === null ? (
+                      <span className="text-text-faint">{LINE_WORDS.none}</span>
+                    ) : (() => {
+                      const status = lineStatusOf({ id: it.id }, statusLinks);
+                      return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_PAINT[status]}`} data-line-status={status}>{status}</span>;
+                    })()}
                   </td>
-                  <td className={td}><EditableCell kind="date" value={it.startDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startDate', v)} /></td>
-                  <td className={td}><EditableCell kind="time" value={it.startTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startTime', v)} /></td>
-                  <td className={td}><EditableCell kind="date" value={it.endDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'endDate', v)} /></td>
-                  <td className={td}><EditableCell kind="time" value={it.endTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'endTime', v)} /></td>
-                  <td className={`${td} text-text-secondary`}>{fmtCadence(it.cadence)}</td>
-                  <td className={`${td} text-text-secondary`}>{txt(it.coaCode)}</td>
-                  <td className={`${td} text-text-secondary`}>{txt(it.vendor)}</td>
+                  {/* TRIPDATE-01 (2026-10-01): a clock a vendor fixed (clockFixed, from the one rule) is shown,
+                      not editable — the route refuses it; re-commit the item to change it. */}
+                  <td className={td}><EditableCell kind="date" value={it.startDate} editable={!!it.itineraryId && it.clockFixed !== true} title={it.clockFixed === true ? CLOCK_FIXED_WORDS : undefined} onSave={(v) => saveCell(it, 'startDate', v)} /></td>
+                  <td className={td}><EditableCell kind="time" value={it.startTime} editable={!!it.itineraryId && it.clockFixed !== true} title={it.clockFixed === true ? CLOCK_FIXED_WORDS : undefined} onSave={(v) => saveCell(it, 'startTime', v)} /></td>
+                  <td className={td}><EditableCell kind="date" value={it.endDate} editable={!!it.itineraryId && it.clockFixed !== true} title={it.clockFixed === true ? CLOCK_FIXED_WORDS : undefined} onSave={(v) => saveCell(it, 'endDate', v)} /></td>
+                  <td className={td}><EditableCell kind="time" value={it.endTime} editable={!!it.itineraryId && it.clockFixed !== true} title={it.clockFixed === true ? CLOCK_FIXED_WORDS : undefined} onSave={(v) => saveCell(it, 'endTime', v)} /></td>
+                  <td className={`${td} text-text-muted`}>{fmtCadence(it.cadence)}</td>
+                  <td className={`${td} text-text-muted`}>{txt(it.coaCode)}</td>
+                  <td className={`${td} text-text-muted`}>{txt(it.vendor)}</td>
                   <td className={`${td} font-medium text-text-primary`}>
                     {it.description?.trim() ? it.description : txt(it.coaCode)}
                   </td>
                   {/* PR-Money-Convention: trip lines are EXPENSES → red, negative-signed. */}
-                  <td className={`${td} text-right font-bold ${moneyColorClass(Number(it.amount || 0), 'expense')}`}>{formatMoney(Number(it.amount || 0), { kind: 'expense' })}</td>
+                  <td className={`${td} text-right font-mono font-bold ${moneyColorClass(Number(it.amount || 0), 'expense')}`}>{formatMoney(Number(it.amount || 0), { kind: 'expense' })}</td>
+                  {/* LINK-02: the bookings the owner linked to this line, beside the plan — each price as
+                      recorded (non-USD keeps its code), never netted against the planned amount. */}
+                  <td className={`${td} text-xs text-text-muted`} data-booked-as={it.id}>
+                    {linkedOf(it.id).length === 0 ? LINE_WORDS.none : (
+                      <ul className="space-y-0.5">
+                        {linkedOf(it.id).map((b) => (
+                          <li key={b.reservationId} data-linked-booking={b.reservationId}>
+                            <span className="font-medium text-text-primary">{b.displayName}</span>
+                            {' · '}{b.status}{' · '}
+                            {b.finalPriceCents === null
+                              ? LINE_WORDS.priceNotStated
+                              : <span className="font-mono">{b.currency !== 'USD' ? `${b.currency} ` : ''}{formatMoney(b.finalPriceCents / 100, { kind: 'expense' })}</span>}
+                            {' · '}{b.bankConfirmed ? LINE_WORDS.bankConfirmed : LINE_WORDS.notBankConfirmed}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
                   {/* Project: no linkage yet (the FK is a later migration PR) → honest "—". */}
                   <td className={`${td} text-text-faint`}>{DASH}</td>
                   <td className={`${td} text-right`}>
@@ -334,7 +467,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                         type="button"
                         onClick={() => handleUncommit(it)}
                         disabled={uncommittingId === it.id}
-                        className="rounded border border-border px-2 py-1 text-xs text-text-muted transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
+                        className="rounded border border-border px-2 py-1 text-xs text-text-faint transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
                       >
                         {uncommittingId === it.id ? 'Removing…' : 'Remove'}
                       </button>
@@ -343,7 +476,7 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
                         type="button"
                         onClick={() => handleDeleteLine(it)}
                         disabled={deletingId === it.id}
-                        className="rounded border border-border px-2 py-1 text-xs text-text-muted transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
+                        className="rounded border border-border px-2 py-1 text-xs text-text-faint transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
                       >
                         {deletingId === it.id ? 'Deleting…' : 'Delete'}
                       </button>
@@ -353,6 +486,102 @@ export default function TripBudgetActual({ trip }: { trip: TripRow }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── PR-MATCH-3: the travel LENS — reservation-level bank truth below
+            the planned table. Both sections render ONLY when data exists
+            (absence is honest); a lens fetch failure is declared here. ───── */}
+      {lensError && (
+        <p className="mt-3 text-xs text-brand-red">Bank actuals unavailable: {lensError}</p>
+      )}
+
+      {booked.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-bold text-text-primary">Booked &amp; bank-confirmed</p>
+          <p className="text-xs text-text-faint">
+            Your real bookings on this trip. &ldquo;Bank actual&rdquo; comes only from matches you accepted in
+            Runway&apos;s match review — nothing is matched automatically.
+          </p>
+          <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-white">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className={th}>Booking</th>
+                  <th className={th}>Booked</th>
+                  <th className={`${th} text-right`}>Booked price</th>
+                  <th className={`${th} text-right`}>Bank actual</th>
+                </tr>
+              </thead>
+              <tbody>
+                {booked.map((b) => (
+                  <tr key={b.reservationId} className="border-b border-border last:border-0">
+                    <td className={`${td} font-medium text-text-primary`}>
+                      {b.label}
+                      <span className="ml-2 text-xs text-text-faint">{b.provider}</span>
+                    </td>
+                    <td className={td}>
+                      {b.actual ? (
+                        <span className="rounded-full bg-brand-green/10 px-2 py-0.5 text-xs font-medium text-brand-green">Booked · bank-confirmed</span>
+                      ) : (
+                        <span className="rounded-full bg-bg-row px-2 py-0.5 text-xs font-medium text-text-muted">Booked · not bank-confirmed yet</span>
+                      )}
+                    </td>
+                    {/* POLISH-1 #6: house money idiom (formatMoney/moneyColorClass —
+                        expenses red + negative-signed, matching the planned table).
+                        Non-USD keeps its ISO code prefix — never relabeled as $. */}
+                    {b.finalPriceCents === null ? (
+                      // SEC-03: a price the vendor did not state is SAID — never $0.
+                      <td className={`${td} text-right text-text-faint`}>price not stated</td>
+                    ) : (
+                      <td className={`${td} text-right font-mono font-bold ${moneyColorClass(b.finalPriceCents / 100, 'expense')}`}>
+                        {b.currency !== 'USD' ? `${b.currency} ` : ''}{formatMoney(b.finalPriceCents / 100, { kind: 'expense' })}
+                      </td>
+                    )}
+                    <td className={`${td} text-right font-mono font-bold ${b.actual ? moneyColorClass(b.actual.totalCents / 100, 'expense') : 'text-text-faint'}`}>
+                      {b.actual ? formatMoney(b.actual.totalCents / 100, { kind: 'expense' }) : DASH}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {unplanned.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-bold text-text-primary">In-trip spend not in your budget</p>
+          <p className="text-xs text-text-faint">
+            Charges inside this trip&apos;s dates with no accepted booking match — FX fees, card fees,
+            extras. Display-only: nothing here is tagged to the trip yet.
+          </p>
+          <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-white">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className={th}>Date</th>
+                  <th className={th}>Transaction</th>
+                  <th className={`${th} text-right`}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unplanned.map((u) => (
+                  <tr key={u.id} className="border-b border-border last:border-0">
+                    <td className={`${td} text-text-muted`}>{fmtDate(u.date)}</td>
+                    <td className={`${td} text-text-primary`}>
+                      {u.name}
+                      {u.merchantName ? <span className="ml-2 text-xs text-text-faint">{u.merchantName}</span> : null}
+                      {u.pending ? <span className="ml-2 text-xs text-text-faint">pending</span> : null}
+                    </td>
+                    <td className={`${td} text-right font-mono font-bold ${moneyColorClass(u.amount, 'expense')}`}>
+                      {formatMoney(u.amount, { kind: 'expense' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 // With OAuth, the SDK auto-refreshes access tokens.
 // This endpoint validates the OAuth client still works and updates lastUsedAt.
@@ -13,6 +14,8 @@ export async function POST() {
     // just a flag that unlocks the shared session). So any caller spends/reads
     // ALEX'S brokerage. Gate to admin BEFORE any TT call or data read — 403 for
     // non-admins, 401 for guests. (Same requireAdmin pattern as /trading/convergence.)
+    // TRADE-GATE (2026-08-11): broker connection is owner-scoped pending
+    // the data-redistribution ruling.
     const adminGate = await requireAdmin();
     if (adminGate instanceof NextResponse) return adminGate;
     const userEmail = await getVerifiedEmail();
@@ -59,7 +62,7 @@ export async function POST() {
       message: 'Session refreshed successfully',
     });
   } catch (error: any) {
-    console.error('[Tastytrade] Callback error:', error);
+    console.error('[Tastytrade] Callback error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to refresh session' }, { status: 500 });
   }
 }

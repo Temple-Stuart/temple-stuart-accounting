@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { plaidClient } from '@/lib/plaid';
 import { prisma } from '@/lib/prisma';
+import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { failureEnvelope } from '@/lib/plaid/failLoud';
 
 export async function POST() {
   try {
@@ -35,7 +37,7 @@ export async function POST() {
 
     for (const item of plaidItems) {
       const response = await plaidClient.transactionsGet({
-        access_token: item.accessToken,
+        access_token: decryptToken(item.accessToken),
         start_date: startDate,
         end_date: endDate,
         options: {
@@ -64,11 +66,15 @@ export async function POST() {
     }
 
     return NextResponse.json({
+      ok: true,
       success: true,
       updated,
       message: `Updated ${updated} transactions with rich data!`
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    // HYG-01: summarized, user-safe failure body (was a bare error.message).
+    const { status, body } = failureEnvelope('transactions', error);
+    console.error('Resync error:', body.error);
+    return NextResponse.json(body, { status });
   }
 }

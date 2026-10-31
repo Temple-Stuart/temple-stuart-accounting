@@ -14,7 +14,7 @@ const ENTITY_DEFS: EntityDef[] = [
   { name: 'Business', entity_type: 'sole_prop', is_default: false, template_name: 'Sole Proprietor Standard' },
 ];
 
-function parseTaxFormLine(taxFormLine: string): { tax_form: string; form_line: string } {
+export function parseTaxFormLine(taxFormLine: string): { tax_form: string; form_line: string } {
   // "schedule_c_line_24b" → tax_form="schedule_c", form_line="line_24b"
   // "form_1040_line_1a"   → tax_form="form_1040",  form_line="line_1a"
   // "form_8949"           → tax_form="form_8949",   form_line="all"

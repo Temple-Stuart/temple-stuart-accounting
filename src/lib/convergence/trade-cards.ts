@@ -14,10 +14,14 @@ import type {
   TradeCardKeyStats,
 } from './types';
 import type { StrategyCard } from '@/lib/strategy-builder';
+import { sellerEarningsHazard } from './side-rules';
+import { POP_MODEL_LABEL } from './modelLabels';
 
 // ===== LETTER GRADE =====
 
-function letterGrade(score: number): string {
+function letterGrade(score: number | null): string {
+  // MIG-1: no composite (all gates excluded) → no grade, never an 'F' for missing data
+  if (score === null) return '— (not scored — all gates excluded)';
   if (score >= 90) return 'A+';
   if (score >= 80) return 'A';
   if (score >= 70) return 'B+';
@@ -71,7 +75,10 @@ function formatPlainEnglish(scoring: FullScoringResult, input: ConvergenceInput)
 
   // --- Quality signals ---
   const q = scoring.quality;
-  if (q.score >= 70) {
+  if (q.score === null) {
+    // MIG-1: quality gate excluded — declared, not silently skipped
+    signals.push('Quality gate EXCLUDED — zero computable fundamental signals for this ticker (no quality read exists).');
+  } else if (q.score >= 70) {
     signals.push(`Strong fundamentals — quality score of ${q.score.toFixed(0)}/100. This company passes key safety and profitability checks.`);
   } else if (q.score < 40) {
     signals.push(`Weaker fundamentals — quality score of ${q.score.toFixed(0)}/100. Extra caution warranted on position sizing.`);
@@ -86,10 +93,10 @@ function formatPlainEnglish(scoring: FullScoringResult, input: ConvergenceInput)
   // --- Info Edge signals ---
   const ie = scoring.info_edge;
 
-  // Analyst consensus
+  // Analyst consensus (KILL-5: trace is null when no analyst data — skip)
   const analystTrace = ie.breakdown.analyst_consensus;
-  const totalAnalysts = analystTrace.raw_counts.total;
-  if (totalAnalysts > 0) {
+  const totalAnalysts = analystTrace?.raw_counts.total ?? 0;
+  if (analystTrace && totalAnalysts > 0) {
     const buyPct = Math.round(((analystTrace.raw_counts.strongBuy + analystTrace.raw_counts.buy) / totalAnalysts) * 100);
     if (buyPct >= 70) {
       signals.push(`Wall Street is bullish — ${buyPct}% of ${totalAnalysts} analysts rate this a Buy or Strong Buy.`);
@@ -98,25 +105,25 @@ function formatPlainEnglish(scoring: FullScoringResult, input: ConvergenceInput)
     }
   }
 
-  // Insider activity
+  // Insider activity (trace is null when the signal was excluded — no data; skip)
   const insiderTrace = ie.breakdown.insider_activity;
-  const insiderDir = insiderTrace.insider_detail.net_direction;
-  if (insiderDir === 'BULLISH' && insiderTrace.insider_detail.latest_mspr !== null) {
+  const insiderDir = insiderTrace?.insider_detail.net_direction;
+  if (insiderDir === 'BULLISH' && insiderTrace?.insider_detail.latest_mspr != null) {
     signals.push('Insiders have been net buyers recently — they\'re putting their own money behind the stock.');
-  } else if (insiderDir === 'BEARISH' && insiderTrace.insider_detail.latest_mspr !== null) {
+  } else if (insiderDir === 'BEARISH' && insiderTrace?.insider_detail.latest_mspr != null) {
     signals.push('Insiders have been net sellers recently — worth noting, though routine selling is common.');
   }
 
-  // Earnings momentum
+  // Earnings momentum (trace is null when the signal was excluded — no data; skip)
   const emTrace = ie.breakdown.earnings_momentum;
-  const beats = emTrace.momentum_detail.consecutive_beats;
+  const beats = emTrace?.momentum_detail.consecutive_beats ?? 0;
   if (beats >= 3) {
     signals.push(`${beats}-quarter earnings beat streak — the company keeps surprising to the upside.`);
   }
 
-  // Flow signal
+  // Flow signal (trace is null when the signal was excluded — no data; skip)
   const flowTrace = ie.breakdown.flow_signal;
-  if (flowTrace.flow_detail.data_available) {
+  if (flowTrace != null && flowTrace.flow_detail.data_available) {
     const pcr = flowTrace.inputs.put_call_ratio as number | null;
     if (pcr !== null && pcr < 0.5) {
       signals.push('Options flow is call-heavy — traders are positioning for upside.');
@@ -172,9 +179,17 @@ function computeRiskFlags(
     flags.push('WIDE BID-ASK SPREAD — fill may be worse than midpoint. Use limit orders.');
   }
 
-  const dte_to_earnings = input.ttScanner?.daysTillEarnings ?? null;
-  if (dte_to_earnings !== null && dte_to_earnings > 0 && dte_to_earnings <= card.dte) {
-    flags.push(`EARNINGS WITHIN DTE — report in ${dte_to_earnings} days, trade expires in ${card.dte}. Expect IV crush post-earnings.`);
+  // MODEL-01 STEP 3: the earnings date against THIS structure's window, from
+  // the named sources the builder evaluated (Finnhub calendar + TastyTrade).
+  // SELL inside the window → the seller's hazard, flagged, never excluded.
+  // BUY inside the window → that IS the catalyst (carried on why.catalysts).
+  // Unknown on either side → said so, never silent.
+  if (card.side === 'SELL') {
+    const hazard = sellerEarningsHazard(card.earningsWindow, card.dte);
+    if (hazard) flags.push(hazard);
+  }
+  if (card.earningsWindow.state === 'unknown') {
+    flags.push(`EARNINGS DATE UNKNOWN — ${card.earningsWindow.detail}; the window [scan, ${card.expiration}] could not be checked.`);
   }
 
   const liq = input.ttScanner?.liquidityRating ?? null;
@@ -183,12 +198,20 @@ function computeRiskFlags(
   }
 
   if (card.pop !== null && card.pop < 0.4) {
-    flags.push(`LOW PROBABILITY — PoP is ${(card.pop * 100).toFixed(0)}%. This is a speculative trade.`);
+    flags.push(`LOW PROBABILITY — ${POP_MODEL_LABEL} is ${(card.pop * 100).toFixed(0)}%. This is a speculative trade.`);
   }
 
   const vixOverlay = scoring.regime.breakdown.vix_overlay;
   if (vixOverlay.vix !== null && vixOverlay.vix > 25) {
     flags.push(`ELEVATED VIX (${vixOverlay.vix.toFixed(1)}) — market stress is above normal. Position size accordingly.`);
+  }
+
+  // EDGE-6 (STRATEGY-EVIDENCE §6): survival brake — flag every short-premium
+  // card (net credit received) when the brake is ON or UNVERIFIED. Debit
+  // (long-vol) structures are not short-vol exposure and are not flagged.
+  const brake = scoring.regime.breakdown.survival_brake;
+  if (brake.state !== 'OFF' && card.netCredit !== null && card.netCredit > 0) {
+    flags.push(brake.declaration);
   }
 
   const above50 = scoring.composite.categories_above_50;
@@ -202,9 +225,9 @@ function computeRiskFlags(
     flags.push(`HIGH BORROW COST (${borrowRate}%) — reduces premium-selling edge by ~${Math.round(borrowRate * 0.8)} points`);
   }
 
-  // Insider selling pressure
+  // Insider selling pressure (trace is null when the signal was excluded — flag skipped)
   const insiderTrace = scoring.info_edge.breakdown.insider_activity;
-  const avgMspr3m = insiderTrace.insider_detail.avg_mspr_3m;
+  const avgMspr3m = insiderTrace?.insider_detail.avg_mspr_3m ?? null;
   if (avgMspr3m !== null && avgMspr3m < -20) {
     flags.push(`INSIDER SELLING (MSPR ${avgMspr3m.toFixed(1)}) — insiders have been net sellers recently. 3-month trend is bearish.`);
   }
@@ -217,9 +240,19 @@ function computeRiskFlags(
 function regimeContext(scoring: FullScoringResult): string {
   const r = scoring.regime.breakdown;
   const dom = r.dominant_regime;
-  const prob = r.regime_scores[dom as keyof typeof r.regime_scores] ?? 0;
   const vix = r.vix_overlay.vix;
   const best = r.best_strategy;
+
+  // MIG-1: regime gate excluded → no classification exists; say so plainly.
+  // EDGE-6: the survival brake is still computable in this state — declare it.
+  if (dom === null || r.regime_scores === null) {
+    let exCtx = 'Macro regime NOT COMPUTABLE — regime gate excluded (zero computable macro signals).';
+    if (vix !== null) exCtx += ` VIX at ${vix.toFixed(1)}.`;
+    if (r.survival_brake.state !== 'OFF') exCtx += ` ${r.survival_brake.declaration}.`;
+    return exCtx;
+  }
+
+  const prob = r.regime_scores[dom as keyof typeof r.regime_scores] ?? 0;
 
   let ctx = `Dominant macro regime: ${dom} (${(prob * 100).toFixed(0)}% score).`;
   if (vix !== null) {
@@ -232,14 +265,21 @@ function regimeContext(scoring: FullScoringResult): string {
     ctx += ` SPY correlation: ${spy.corr_spy.toFixed(2)} (modifier: ${spy.multiplier.toFixed(2)}x).`;
   }
 
+  // EDGE-6 (STRATEGY-EVIDENCE §6): a non-OFF brake is always declared in the
+  // regime context the user reads — never a silent score change.
+  if (r.survival_brake.state !== 'OFF') {
+    ctx += ` ${r.survival_brake.declaration}.`;
+  }
+
   return ctx;
 }
 
 // ===== ANALYST CONSENSUS LABEL =====
 
 function analystConsensusLabel(scoring: FullScoringResult): string | null {
-  const counts = scoring.info_edge.breakdown.analyst_consensus.raw_counts;
-  if (counts.total === 0) return null;
+  // KILL-5: null trace = no analyst data — no label, never a placeholder
+  const counts = scoring.info_edge.breakdown.analyst_consensus?.raw_counts;
+  if (!counts || counts.total === 0) return null;
   const buyPct = (counts.strongBuy + counts.buy) / counts.total;
   const sellPct = (counts.strongSell + counts.sell) / counts.total;
   if (buyPct >= 0.7) return 'Strong Buy';
@@ -291,6 +331,25 @@ function computeForwardVol(termStructure: { date: string; iv: number }[]): Forwa
 
 // ===== REALIZED VOLATILITY CONE =====
 
+/**
+ * Close-to-close log-return HV, annualized ×√252, in PERCENT (e.g. 42.3).
+ * EDGE-3: exported so the strategy-builder's HV10>IV gate and the displayed
+ * vol cone use the SAME computation — what the UI shows == what fires.
+ */
+export function computeCloseToCloseHV(candles: CandleData[], windowDays: number): number | null {
+  if (!candles || candles.length < windowDays + 1) return null;
+  const slice = candles.slice(candles.length - windowDays - 1);
+  const logReturns: number[] = [];
+  for (let i = 1; i < slice.length; i++) {
+    if (slice[i - 1].close <= 0 || slice[i].close <= 0) continue;
+    logReturns.push(Math.log(slice[i].close / slice[i - 1].close));
+  }
+  if (logReturns.length < windowDays * 0.8) return null;
+  const mean = logReturns.reduce((a, b) => a + b, 0) / logReturns.length;
+  const variance = logReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / (logReturns.length - 1);
+  return Math.round(Math.sqrt(variance) * Math.sqrt(252) * 100 * 10) / 10;
+}
+
 function computeVolCone(candles: CandleData[], currentIv: number | null, ttHv60?: number | null, ttHv90?: number | null): RealizedVolCone {
   if (!candles || candles.length < 11) {
     return {
@@ -302,19 +361,7 @@ function computeVolCone(candles: CandleData[], currentIv: number | null, ttHv60?
     };
   }
 
-  function computeHV(windowDays: number): number | null {
-    if (candles.length < windowDays + 1) return null;
-    const slice = candles.slice(candles.length - windowDays - 1);
-    const logReturns: number[] = [];
-    for (let i = 1; i < slice.length; i++) {
-      if (slice[i - 1].close <= 0 || slice[i].close <= 0) continue;
-      logReturns.push(Math.log(slice[i].close / slice[i - 1].close));
-    }
-    if (logReturns.length < windowDays * 0.8) return null;
-    const mean = logReturns.reduce((a, b) => a + b, 0) / logReturns.length;
-    const variance = logReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / (logReturns.length - 1);
-    return Math.round(Math.sqrt(variance) * Math.sqrt(252) * 100 * 10) / 10;
-  }
+  const computeHV = (windowDays: number): number | null => computeCloseToCloseHV(candles, windowDays);
 
   return {
     hv10: computeHV(10),
@@ -415,8 +462,17 @@ export function generateTradeCards(
   const plainEnglish = formatPlainEnglish(scoring, input);
   const regimeCtx = regimeContext(scoring);
   const keyStats = buildKeyStats(input, scoring);
+  // MODEL-01 (the runtime half of the law): a card's score_model and era are never null.
+  const comp = scoring.composite;
+  if (comp.score_model !== 'seller' && comp.score_model !== 'buyer') throw new Error(`MODEL-01: ${input.symbol} scoring carries no score_model — a card cannot leave without the model that scored it`);
+  if (!comp.model_era) throw new Error(`MODEL-01: ${input.symbol} scoring carries no model_era`);
+  const scoredSide = comp.score_model === 'buyer' ? 'BUY' : 'SELL';
 
   return strategyCards.map((card) => {
+    // A card built on one side and scored on the other's model is the defect MODEL-01 removes — refused.
+    if (card.side !== scoredSide) throw new Error(`MODEL-01: ${input.symbol} ${card.name} was built on the ${card.side} side but scored by the ${comp.score_model} model`);
+    if (card.side === 'BUY' && card.catalysts.length === 0) throw new Error(`MODEL-01: ${input.symbol} ${card.name} is a BUY candidate with no catalyst — it must not exist`);
+    if (card.isUnlimited && !card.undefinedRiskCap) throw new Error(`MODEL-01: ${input.symbol} ${card.name} is unbounded with no cap check recorded`);
     const setup: TradeCardSetup = {
       strategy_name: card.name,
       legs: card.legs.map(l => ({
@@ -458,6 +514,13 @@ export function generateTradeCards(
       plain_english_signals: plainEnglish,
       regime_context: regimeCtx,
       risk_flags: computeRiskFlags(card, scoring, input),
+      side: card.side,
+      score_model: comp.score_model,
+      model_era: comp.model_era,
+      scored_by: [...comp.scored_by],
+      catalysts: card.catalysts.map((c) => ({ ...c })),
+      earnings_window: { ...card.earningsWindow },
+      undefined_risk_cap: card.undefinedRiskCap,
     };
 
     return {

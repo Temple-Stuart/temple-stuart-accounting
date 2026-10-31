@@ -1,4 +1,5 @@
 'use client';
+import { DATA, toggleChip } from '@/lib/ds';
 
 /**
  * HubBudgetSection (PR-HB-1) — a month-scoped budget table under the hub home calendar.
@@ -56,7 +57,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 /** Plain magnitude dollars for the Budget/Actual columns (expense amounts shown unsigned). */
 const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function HubBudgetSection() {
+export default function HubBudgetSection({ preview = false }: { preview?: boolean } = {}) {
   const now = new Date();
   const [toggle, setToggle] = useState<ToggleKey>('personal');
   const [year, setYear] = useState(now.getFullYear());
@@ -73,7 +74,9 @@ export default function HubBudgetSection() {
   // Fetch when the toggle (route) or year changes — NOT month: the routes return all 12 months,
   // so switching month is pure client-side filtering. Trading (route null) fetches nothing.
   useEffect(() => {
-    if (!active.route) { setData({ budgetData: {}, actualData: {}, coaNames: {} }); return; }
+    // PREVIEW (guest) OR no route → render the existing empty state ("No budget or actual
+    // activity"); never call the authed budget route (no 401).
+    if (preview || !active.route) { setData({ budgetData: {}, actualData: {}, coaNames: {} }); return; }
     let cancelled = false;
     setLoading(true);
     fetch(`${active.route}?year=${year}`)
@@ -85,7 +88,7 @@ export default function HubBudgetSection() {
       .catch(() => { if (!cancelled) setData({ budgetData: {}, actualData: {}, coaNames: {} }); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [active.route, year]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active.route, year, preview]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rows for the selected month — one per COA the route returned (never invented).
   const allRows = Object.entries(data.coaNames).map(([code, name]) => {
@@ -143,11 +146,7 @@ export default function HubBudgetSection() {
           <button
             key={t.key}
             onClick={() => setToggle(t.key)}
-            className={`text-xs px-3 py-1 rounded border transition-colors font-medium ${
-              toggle === t.key
-                ? 'bg-brand-purple text-white border-brand-purple'
-                : 'text-text-secondary border-border hover:bg-bg-row'
-            }`}
+            className={toggleChip(toggle === t.key)}
           >
             {t.label}
           </button>
@@ -169,13 +168,14 @@ export default function HubBudgetSection() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b border-border text-xs text-text-faint">
-                <th className="py-2 px-3 text-left font-medium">Category</th>
-                <th className="py-2 px-3 text-left font-medium">COA</th>
-                <th className="py-2 px-3 text-right font-medium">Budget</th>
-                <th className="py-2 px-3 text-right font-medium">Actual</th>
-                <th className="py-2 px-3 text-right font-medium">Variance</th>
-                <th className="py-2 px-3 text-right font-medium">Variance %</th>
+              {/* REPAINT-04 (2026-09-21): the retired dark hairline + white/5 tint → lavender hairline, cream-row fill. */}
+              <tr className="border-b border-border bg-bg-row">
+                <th className={`py-2 px-3 text-left ${DATA.columnHeader}`}>Category</th>
+                <th className={`py-2 px-3 text-left ${DATA.columnHeader}`}>COA</th>
+                <th className={`py-2 px-3 text-right ${DATA.columnHeader}`}>Budget</th>
+                <th className={`py-2 px-3 text-right ${DATA.columnHeader}`}>Actual</th>
+                <th className={`py-2 px-3 text-right ${DATA.columnHeader}`}>Variance</th>
+                <th className={`py-2 px-3 text-right ${DATA.columnHeader}`}>Variance %</th>
               </tr>
             </thead>
             <tbody>

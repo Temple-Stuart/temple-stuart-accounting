@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 // GAAP-Compliant Trial Balance API
 //
@@ -36,6 +38,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TAB-SERVER-GATE: tab:books entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:books');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
     const entityId = searchParams.get('entityId');
@@ -129,6 +134,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // HONEST-BALANCED: gross posted activity across every account. An empty
+    // ledger sums 0 === 0 — that is proof of NO BOOKS, not balanced books,
+    // so the UI needs a distinct signal beside isBalanced. OR, not AND: a
+    // one-sided gross sum can only mean a broken ledger, which must surface
+    // as red Unbalanced — never as "No activity". isBalanced semantics
+    // untouched.
+    const grossDebits = accounts.reduce((s, a) => s + a.totalDebits, 0);
+    const grossCredits = accounts.reduce((s, a) => s + a.totalCredits, 0);
+    const hasActivity = grossDebits > 0 || grossCredits > 0;
+
     return NextResponse.json({
       asOfDate: asOfDate || null,
       startDate: startDate || null,
@@ -139,11 +154,10 @@ export async function GET(request: NextRequest) {
         totalCredits: totalCreditBalances,
         imbalance: totalDebitBalances - totalCreditBalances,
         isBalanced: totalDebitBalances === totalCreditBalances,
+        hasActivity,
       },
     });
   } catch (error) {
-    console.error('Trial balance API error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Trial balance API', 'Trial balance read failed', error);
   }
 }

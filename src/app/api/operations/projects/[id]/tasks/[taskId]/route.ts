@@ -16,6 +16,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma, OperationsTaskStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -24,6 +25,9 @@ import { recordTaskStatusChange } from '@/lib/operations/recordTaskStatusChange'
 import { fireExecutionRoutine } from '@/lib/fireExecutionRoutine';
 import { ExecBudgetError } from '@/lib/execFireBudget';
 import { isValidUuid } from '@/lib/operations/parseUuid';
+import { ROUTINE_OWNER_ONLY_BODY, firesBuild, isRoutineOwner } from '@/lib/operations/ownerOnly';
+import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 
 const VALID_STATUSES: OperationsTaskStatus[] = [
   'open',
@@ -71,11 +75,7 @@ export async function GET(
 
     return NextResponse.json({ task });
   } catch (error) {
-    console.error('[Task GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load task', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Task GET', 'Failed to load task', error);
   }
 }
 
@@ -179,17 +179,6 @@ export async function PATCH(
       }
     }
 
-    if (body.estimated_cost_usd !== undefined) {
-      const v = body.estimated_cost_usd;
-      if (v === null || v === '') {
-        data.estimated_cost_usd = null;
-      } else if (typeof v === 'string' && v.trim().length > 0) {
-        data.estimated_cost_usd = new Prisma.Decimal(v.trim());
-      } else if (typeof v === 'number') {
-        data.estimated_cost_usd = new Prisma.Decimal(v);
-      }
-    }
-
     if (body.actual_minutes !== undefined) {
       const v = body.actual_minutes;
       if (v === null || v === '') {
@@ -230,46 +219,21 @@ export async function PATCH(
       }
     }
 
-    if (body.coa_code !== undefined) {
-      const c = trimNonEmpty(body.coa_code);
-      if (c === null) {
-        data.coa_code = null;
-      } else {
-        if (c.length > 50) {
-          return NextResponse.json(
-            { error: 'Validation', field: 'coa_code', message: 'max 50 chars' },
-            { status: 400 }
-          );
-        }
-        // Strict existence check against the user's chart_of_accounts for the
-        // task's entity. Uses the @@unique([userId, entity_id, code]) composite
-        // (precedent: src/app/api/trading/commit-to-ledger/route.ts:45).
-        const account = await prisma.chart_of_accounts.findUnique({
-          where: {
-            userId_entity_id_code: {
-              userId: user.id,
-              entity_id: existing.entity_id,
-              code: c,
-            },
-          },
-        });
-        if (!account || account.is_archived) {
-          const available = await prisma.chart_of_accounts.findMany({
-            where: { userId: user.id, entity_id: existing.entity_id, is_archived: false },
-            select: { code: true },
-            orderBy: { code: 'asc' },
-          });
-          return NextResponse.json(
-            {
-              error: 'Validation',
-              field: 'coa_code',
-              message: `Unknown coa_code "${c}" for this entity. Available codes: ${available.map((a) => a.code).join(', ')}`,
-            },
-            { status: 400 }
-          );
-        }
-        data.coa_code = c;
+    // INTAKE-01: the task's cost and its account. Neither key sent → both untouched.
+    // Either sent → the EFFECTIVE pair (the body's value, else the stored one) is
+    // checked whole by the one rule (planMoney.ts) against the task's own book, and
+    // both columns are written — the account as the chart saves it.
+    const sent = editedPlanMoney(body.estimated_cost_usd, body.coa_code, { amount: existing.estimated_cost_usd, account: existing.coa_code });
+    if (sent !== null) {
+      let book: PlanBook | null = null;
+      if (carriesPlanMoney(sent)) {
+        book = await loadPlanBook(prisma, user.id, existing.entity_id);
+        if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
+      const money = planMoney(sent, book, 'task', { amount: 'estimated_cost_usd', account: 'coa_code' });
+      if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
+      data.estimated_cost_usd = money.value.amount;
+      data.coa_code = money.value.coaCode;
     }
 
     if (body.display_order !== undefined) {
@@ -311,6 +275,13 @@ export async function PATCH(
         }
       }
       data.status = incoming;
+    }
+
+    // SEC-TASKS-01: the move that fires a build (pending_review → open) is the
+    // owner's alone — refused BEFORE any write, so the task stays exactly as it was.
+    // Every other PATCH never reaches the admin rule.
+    if (firesBuild(statusTransition) && !isRoutineOwner(user.id)) {
+      return NextResponse.json(ROUTINE_OWNER_ONLY_BODY, { status: 403 });
     }
 
     if (body.completed_at !== undefined) {
@@ -400,7 +371,7 @@ export async function PATCH(
     // (requireExecBudget). Failure is SURFACED (exec_status='fire_failed' + 502) — the
     // status change already committed, but the user SEES the build didn't start. No
     // silent accept-without-fire, no fake success.
-    if (statusTransition && statusTransition.from === 'pending_review' && statusTransition.to === 'open') {
+    if (firesBuild(statusTransition)) {
       try {
         const fired = await fireExecutionRoutine({ taskId, projectId, userId: user.id, userEmail });
         await prisma.operations_project_tasks.update({
@@ -428,11 +399,7 @@ export async function PATCH(
 
     return NextResponse.json({ task });
   } catch (error) {
-    console.error('[Task PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update task', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Task PATCH', 'Failed to update task', error);
   }
 }
 
@@ -488,7 +455,6 @@ export async function DELETE(
 
     return NextResponse.json({ deleted: true, id: existing.id });
   } catch (error) {
-    console.error('[Task DELETE]', error);
     // Translate DB constraint violations into a clear, non-leaky message
     // instead of forwarding the raw Postgres string (no-silent-failure:
     // surface WHY legibly). Covers FK (P2003) + other constraint (P2004)
@@ -506,9 +472,6 @@ export async function DELETE(
         { status: 409 }
       );
     }
-    return NextResponse.json(
-      { error: 'Failed to delete task', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Task DELETE', 'Failed to delete task', error);
   }
 }

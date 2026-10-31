@@ -6,11 +6,27 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * POST /api/transactions/manual
  *
- * Creates a manual transaction + manual account (if needed) + journal entry.
+ * Creates a manual transaction and, when the named account does not exist yet, the manual account
+ * it sits in. It posts NOTHING: the row waits in the review queue like a bank row and posts through
+ * commit-to-ledger (the one Plaid-shaped posting path, journal-entry-service.ts commitPlaidTransaction).
  * Available to ALL tiers (including free).
  *
- * Body: { date, description, amount, category, accountName, accountType }
+ * Body: { date, description, amount, currency, category, accountName, accountType }
+ *
+ * FX-01 (Alex, 2026-10-30, ruling G): A MANUAL ACCOUNT STATES ITS CURRENCY. `currency` is required —
+ * a three-letter ISO 4217 code in capitals — and is refused by name when absent or malformed. A NEW
+ * manual account is created with isoCurrencyCode = currency. An EXISTING manual account of that name
+ * whose isoCurrencyCode differs from the body's is refused (409 by name); one whose isoCurrencyCode is
+ * NULL (born before FX-01) is refused by name until it is set (Alex sets his by psql). Nothing here
+ * backfills an existing account, and no currency is ever assumed. (The words are module-level, not exported:
+ * a Next.js route file exports only its handlers.)
  */
+const ISO_4217 = /^[A-Z]{3}$/;
+const CURRENCY_REQUIRED_WORDS = 'currency is required — a three-letter ISO 4217 code in capitals (USD, PHP, …)';
+const accountStatesNoCurrencyWords = (name: string): string => `account "${name}" states no currency — set it first`;
+const accountCurrencyDiffersWords = (name: string, stated: string, sent: string): string =>
+  `account "${name}" is stated in ${stated}; this transaction says ${sent}`;
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
@@ -18,13 +34,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { date, description, amount, category, accountName, accountType } = await request.json();
+    const { date, description, amount, currency, category, accountName, accountType } = await request.json();
 
     if (!date || !description || amount === undefined || amount === null) {
       return NextResponse.json(
         { error: 'date, description, and amount are required' },
         { status: 400 }
       );
+    }
+    // FX-01 (ruling G): the currency, stated by the customer, in ISO 4217 capitals — nothing assumed.
+    if (typeof currency !== 'string' || !ISO_4217.test(currency)) {
+      return NextResponse.json({ error: CURRENCY_REQUIRED_WORDS }, { status: 400 });
     }
 
     const parsedAmount = parseFloat(amount);
@@ -44,6 +64,13 @@ export async function POST(request: Request) {
       }
     });
 
+    // FX-01 (ruling G): an existing manual account must state the same currency; a NULL one is refused by name.
+    if (account) {
+      const stated = account.isoCurrencyCode;
+      if (stated === null) return NextResponse.json({ error: accountStatesNoCurrencyWords(account.name) }, { status: 409 });
+      if (stated !== currency) return NextResponse.json({ error: accountCurrencyDiffersWords(account.name, stated, currency) }, { status: 409 });
+    }
+
     if (!account) {
       const accountId = uuidv4();
       account = await prisma.accounts.create({
@@ -53,6 +80,8 @@ export async function POST(request: Request) {
           name: acctName,
           type: acctType,
           source: 'manual',
+          // FX-01 (ruling G): born with the currency the customer stated — never NULL, never a default.
+          isoCurrencyCode: currency,
           userId: user.id,
           updatedAt: new Date(),
         }

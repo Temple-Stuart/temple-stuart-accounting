@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -191,10 +192,7 @@ export async function POST(request: Request) {
       ...result
     });
   } catch (error) {
-    console.error('Corporate actions POST error:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Failed to record corporate action' 
-    }, { status: 500 });
+    return failClosedResponse('Corporate actions POST', 'Failed to record corporate action', error);
   }
 }
 

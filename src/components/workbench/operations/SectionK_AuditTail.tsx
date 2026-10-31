@@ -18,6 +18,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import InspectionDrawer from './ai/InspectionDrawer';
 
+
 interface AuditRow {
   id: string;
   created_at: string;
@@ -70,11 +71,13 @@ function readUsageId(payload: unknown): string | null {
   return typeof id === 'string' ? id : null;
 }
 
-export default function SectionK_AuditTail() {
+export default function SectionK_AuditTail({ }: { } = {}) {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
+  // SEC-TASKS-01: the owner-only refusal — its own line, never painted as INVALID.
+  const [verifyRefusal, setVerifyRefusal] = useState<string | null>(null);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [aiUsageCache, setAiUsageCache] = useState<Map<string, AiUsageRow>>(new Map());
@@ -105,10 +108,14 @@ export default function SectionK_AuditTail() {
   const verifyChain = async () => {
     setVerifying(true);
     setVerifyResult(null);
+    setVerifyRefusal(null);
     try {
       const res = await fetch('/api/audit-log/verify-chain', { method: 'POST' });
       if (res.ok) {
         setVerifyResult(await res.json());
+      } else if (res.status === 403) {
+        // The route's one 403 is the owner-only refusal ({ error: 'owner_only', message }).
+        setVerifyRefusal(((await res.json()) as { message: string }).message);
       } else {
         setVerifyResult({ ok: false, rows_checked: 0, message: `request failed (${res.status})` });
       }
@@ -228,7 +235,7 @@ export default function SectionK_AuditTail() {
     <section className="bg-white rounded border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
-          K · AUDIT TAIL
+          AUDIT TRAIL
         </h2>
         <div className="flex items-center gap-3 text-xs font-mono">
           <span className="text-text-muted">refresh 10s</span>
@@ -253,6 +260,11 @@ export default function SectionK_AuditTail() {
           {verifyResult.ok
             ? `chain valid · ${verifyResult.rows_checked} rows checked`
             : `chain INVALID · ${verifyResult.message ?? 'see audit log'}`}
+        </div>
+      )}
+      {verifyRefusal && (
+        <div className="text-xs font-mono mb-3 px-3 py-2 rounded border border-border bg-bg-row text-text-secondary">
+          <span className="font-bold">could not verify</span> · {verifyRefusal}
         </div>
       )}
 

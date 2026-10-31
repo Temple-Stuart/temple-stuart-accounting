@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { requireAdmin } from '@/lib/require-admin';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 // Convert OCC symbol (e.g. "SPY   260221P00690000") to DXFeed format (".SPY260221P690")
 function occToDxFeed(occ: string): string | null {
@@ -22,10 +23,8 @@ export async function POST(request: Request) {
     // SECURITY-PR-SEC4: TastyTrade uses a SHARED FIRM account (env creds via
     // getTastytradeClient — NOT per-user OAuth; the tastytrade_connections row is
     // just a flag that unlocks the shared session). So any caller spends/reads
-    // ALEX'S brokerage. Gate to admin BEFORE any TT call or data read — 403 for
-    // non-admins, 401 for guests. (Same requireAdmin pattern as /trading/convergence.)
-    const adminGate = await requireAdmin();
-    if (adminGate instanceof NextResponse) return adminGate;
+    // ALEX'S brokerage session. TRADE-GATE (2026-08-11): market-data reads are
+    // entitlement-gated below (tab:trade); the connection itself stays owner-scoped.
     const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -35,6 +34,13 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TRADE-GATE: entitlement-gated — the paid tab:trade key (or bundle)
+    // unlocks this endpoint; admin passes via hasTabAccess's ADMIN_USER_ID
+    // bypass (entitlements.ts:48). Market/pipeline data only — the broker
+    // CONNECTION and the shared account's balances/positions stay
+    // owner-scoped (see connect/callback + balances/positions routes).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const body = await request.json();
     const symbol = body.symbol as string;
@@ -59,6 +65,7 @@ export async function POST(request: Request) {
     now.setHours(0, 0, 0, 0);
     const expirations: any[] = [];
     const seen = new Set<string>();
+    let strikesSkippedNoPrice = 0; // KILL-7: declared in the response
 
     for (const chain of chainTypes) {
       const nestedExpirations = chain['expirations'] || [];
@@ -82,8 +89,15 @@ export async function POST(request: Request) {
         for (const s of (Array.isArray(strikeList) ? strikeList : [])) {
           const callOcc: string = s['call'] || '';
           const putOcc: string = s['put'] || '';
+          // KILL-7: a strike row without a parseable strike price is unusable —
+          // skipped + counted, never a fabricated $0 strike.
+          const strikePrice = s['strike-price'] != null && Number.isFinite(Number(s['strike-price'])) ? Number(s['strike-price']) : null;
+          if (strikePrice == null || strikePrice <= 0) {
+            strikesSkippedNoPrice++;
+            continue;
+          }
           strikes.push({
-            strike: Number(s['strike-price'] || 0),
+            strike: strikePrice,
             call: callOcc || null,
             put: putOcc || null,
             callStreamerSymbol: s['call-streamer-symbol'] || occToDxFeed(callOcc),
@@ -102,9 +116,9 @@ export async function POST(request: Request) {
     // Sort by DTE ascending
     expirations.sort((a, b) => a.dte - b.dte);
 
-    return NextResponse.json({ chain: { symbol, expirations } });
+    return NextResponse.json({ chain: { symbol, expirations }, strikes_skipped_no_price: strikesSkippedNoPrice });
   } catch (error: any) {
-    console.error('[Tastytrade] Chains error:', error);
+    console.error('[Tastytrade] Chains error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to fetch option chain' }, { status: 500 });
   }
 }

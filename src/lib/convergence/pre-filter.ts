@@ -1,4 +1,4 @@
-import type { TTScannerData } from './types';
+import type { PremiumSide, TTScannerData } from './types';
 
 // ===== PRE-FILTER RESULT =====
 
@@ -26,23 +26,42 @@ export interface PreFilterResult {
  *   - If any required input (ivRank, ivHvSpread, liquidityRating) is null → preScore = 0
  *   - Step B ranks only — it does not eliminate.
  */
-export function computePreFilter(scannerData: TTScannerData[]): PreFilterResult[] {
+/**
+ * MODEL-01: the ranking is per side. SELL is today's formula, unchanged. BUY
+ * uses the same three inputs in the buyer's sign — IV rank inverted (low rank
+ * = cheap options) and HV OVER IV (the spread's opposite sign) — so a buy-side
+ * symbol is not ranked by a seller's pre-score that zeroes its own edge.
+ */
+export function computePreFilter(scannerData: TTScannerData[], side: PremiumSide = 'SELL'): PreFilterResult[] {
   const results: PreFilterResult[] = [];
 
   for (const t of scannerData) {
-    const ivRank = t.ivRank > 0 ? t.ivRank : null;
-    const ivPercentile = t.ivPercentile > 0 ? t.ivPercentile : null;
+    // KILL-2: missing arrives as null from the parse boundary now (it used to
+    // arrive imputed as 0, which forced the old `> 0` workaround here). A true
+    // source 0 is DATA (standing ruling) and scores as a real 0-rank.
+    const ivRank = t.ivRank;
+    const ivPercentile = t.ivPercentile;
     const liquidityRating = t.liquidityRating;
 
     // All three components required — null inputs score 0.
     let preScore = 0;
     if (ivRank != null && t.ivHvSpread != null && liquidityRating != null) {
-      const ivRankNorm = ivRank; // 0-100 from TastyTrade
-      const ivHvNorm = Math.min(Math.max(t.ivHvSpread / 30, 0), 1);
       const liqNorm = liquidityRating / 5;
-      preScore = Math.round(
-        (ivRankNorm * 0.40 + ivHvNorm * 0.35 + liqNorm * 0.25) * 1000
-      ) / 1000;
+      if (side === 'BUY') {
+        // BUY: 1 − IV rank (a rank > 1 is read as 0–100 and scaled) and HV over IV
+        const ivr01 = ivRank > 1 ? ivRank / 100 : ivRank;
+        const ivRankBuyer = Math.min(Math.max(1 - ivr01, 0), 1);
+        const hvOverIvNorm = Math.min(Math.max(-t.ivHvSpread / 30, 0), 1);
+        preScore = Math.round(
+          (ivRankBuyer * 0.40 + hvOverIvNorm * 0.35 + liqNorm * 0.25) * 1000
+        ) / 1000;
+      } else {
+        const ivRankNorm = ivRank; // 0-100 from TastyTrade
+        const ivHvNorm = Math.min(Math.max(t.ivHvSpread / 30, 0), 1);
+        preScore = Math.round(
+          (ivRankNorm * 0.40 + ivHvNorm * 0.35 + liqNorm * 0.25) * 1000
+        ) / 1000;
+      }
     }
 
     results.push({

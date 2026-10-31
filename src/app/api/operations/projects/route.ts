@@ -1,41 +1,92 @@
 /**
  * /api/operations/projects
  *
- * GET  — list the user's projects, optionally filtered by ?entity_id=<uuid>.
- *        Sorted by status priority (not_started/in_progress first), then
+ * GET  — list the user's projects, optionally filtered by ?entity_id=<uuid>
+ *        (the Tasks page no longer sends it — BACKLOG-01 ruling G: the list
+ *        shows every book; the parameter stays for any other caller).
+ *        Sorted by status priority (STATUS_ORDER — the active work first), then
  *        priority_score DESC NULLS LAST, then target_completion_date ASC.
- *        No audit write (read-only).
+ *        No audit write (read-only). JOURNAL-06 (2026-10-20): each row also
+ *        carries open_task_count — its tasks not done — for the day card's
+ *        reflection prompt (THE BACKLOG). BACKLOG-02 (2026-10-20): and
+ *        open_tasks — those same tasks, in display_order — for the morning
+ *        card's running log: one read for the card, never one per project.
+ *        WORK-02 (2026-10-26): optionally ?done_from=<ISO>&done_to=<ISO> —
+ *        both or neither (src/lib/operations/workBlock.ts doneWindowInput: one
+ *        without the other, a value that is no ISO instant, or from after to
+ *        is a 400 naming the field). With both, each row also carries
+ *        done_tasks (id, title, completed_at — status completed, completed_at
+ *        in [from, to], earliest first), built like open_tasks: ONE query,
+ *        user-scoped twice. Without them the answer is byte-identical to
+ *        before — THE LOG, the reflection prompt and PROJECTS read it as they did.
  *
- * POST — create a project. Validates all 4 Bridgewater scoping fields
- *        (goal, problem, diagnosis, design) non-empty server-side. Verifies
- *        entity ownership before insert. Catches (user_id, title) unique
- *        constraint pre-emptively for clean 409 error.
- *        Audits operations_project_created.
+ * POST — CAPTURE a project (BACKLOG-01, Alex, 2026-10-20). Required: entity_id
+ *        (the book), title, type (ProjectType, by name) and why (a paragraph,
+ *        at most 4000 code points). Optional: size (ProjectSize), definition_of_done,
+ *        notes, links (a list of ≤ 20 strings of ≤ 500 — a doc path or a url,
+ *        not validated as a url), the Dalio items (goalItems may be EMPTY now —
+ *        ruling A: scoping is the row's edit view), target date, estimates.
+ *        The row lands status 'backlog', set EXPLICITLY here. Verifies entity
+ *        ownership before insert. Catches (user_id, title) unique constraint
+ *        pre-emptively for a clean 409. Audits operations_project_created,
+ *        naming the type.
+ *        BACKLOG-01b (Alex, 2026-10-20) — the capture asks only what Alex knows:
+ *        problem (1 WHAT IS WRONG TODAY) and goal (3 THE ONE CORRECT OUTCOME)
+ *        join why as REQUIRED texts by name (the same 4000-code-point cap);
+ *        rulings (4) and open_questions (5) optional, capped the same;
+ *        deadline_reason (6) ≤ 500 code points and REQUIRED when a target
+ *        date is set. diagnosis (THE AUDIT) and design (THE PLAN) stay optional
+ *        text — they paste back on the row. The *_items arrays are still
+ *        accepted and round-tripped (no form fills them; CLEAN-03 rules).
  *
  * Pattern mirrors src/app/api/operations/north-star/route.ts. Sequential
  * prisma + writeAuditLog awaits, NOT transactional (matches codebase
  * convention; relies on writeAuditLog internal P2034/P2024 retry).
+ *
+ * TASKS-02b (2026-10-20): the mirrored route above is deleted with the North
+ * Star's page and section (TASKS-02, #1838); Tasks has no sub-rows, and the
+ * audit trail is doored by the Compliance row. The pattern stands on its own,
+ * with no file to point at: the create (POST below) awaits
+ * prisma.operations_projects.create, then awaits writeAuditLog — sequential,
+ * NOT in a transaction — and relies on writeAuditLog's internal retry on
+ * P2034/P2024 (src/lib/audit/writeAuditLog.ts).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma, ProjectStatus } from '@prisma/client';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { OPEN_TASK_STATUSES } from '@/lib/operations/morningLog';
+import { doneWindowInput } from '@/lib/operations/workBlock';
+import { Prisma, ProjectSize, ProjectStatus, ProjectType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 
 /**
- * Status sort key. not_started + in_progress surface first (active work);
- * blocked next (needs attention); completed/cancelled/archived last.
- * Used in the GET orderBy.
+ * Status sort key — the active work first, then what waits, then what ended.
+ * BACKLOG-01 (Alex, 2026-10-20): the four new statuses join the ladder. A
+ * legacy not_started row sits AFTER the backlog so an old row does not jump
+ * the new line; blocked (needs attention) sits between them. Used in the GET's
+ * in-memory sort.
  */
 const STATUS_ORDER: Record<ProjectStatus, number> = {
-  not_started: 0,
-  in_progress: 1,
-  blocked: 2,
-  completed: 3,
-  cancelled: 4,
-  archived: 5,
+  in_progress: 0,
+  scheduled: 1,
+  scoped: 2,
+  backlog: 3,
+  blocked: 4,
+  not_started: 5,
+  completed: 6,
+  dropped: 7,
+  cancelled: 8,
+  archived: 9,
 };
+
+/** BACKLOG-01: the strict enums, as the schema spells them. */
+const PROJECT_TYPES: readonly ProjectType[] = ['engineering', 'accounting', 'content', 'travel', 'ops'];
+const PROJECT_SIZES: readonly ProjectSize[] = ['S', 'M', 'L'];
+const WHY_MAX_CODE_POINTS = 4000;
+/** BACKLOG-01b: deadline_reason is a VARCHAR(500) — 500 is the column's length, counted in code points. */
+const DEADLINE_REASON_MAX_CODE_POINTS = 500;
 
 export async function GET(request: NextRequest) {
   try {
@@ -53,6 +104,9 @@ export async function GET(request: NextRequest) {
     // explicitly requested (the "show archived" toggle). History is preserved —
     // this is a read filter only.
     const includeArchived = searchParams.get('include_archived') === 'true';
+    // WORK-02: the done window — none, both, or refused by name BEFORE any read.
+    const done = doneWindowInput(searchParams.get('done_from'), searchParams.get('done_to'));
+    if (done.kind === 'refused') return NextResponse.json({ error: 'Validation', field: done.field, message: done.message }, { status: 400 });
 
     const where: Prisma.operations_projectsWhereInput = { user_id: user.id };
     if (!includeArchived) {
@@ -101,6 +155,123 @@ export async function GET(request: NextRequest) {
       runCountByProject.set(g.project_id, (runCountByProject.get(g.project_id) ?? 0) + 1);
     }
 
+    // JOURNAL-06 (Alex, 2026-10-20): open_task_count — a project's tasks NOT DONE (open, in progress, blocked,
+    // pending review); the reflection prompt's THE BACKLOG prints "open tasks n". Reads existing data — NO migration.
+    const openGroups = projectIds.length
+      ? await prisma.operations_project_tasks.groupBy({
+          by: ['project_id'],
+          where: { project_id: { in: projectIds }, status: { in: ['open', 'in_progress', 'blocked', 'pending_review'] } },
+          _count: { _all: true },
+        })
+      : [];
+    const openCountByProject = new Map<string, number>();
+    for (const g of openGroups) openCountByProject.set(g.project_id, g._count._all);
+
+    // BACKLOG-02 (Alex, 2026-10-20): open_tasks — beside the count, the same four statuses, each project's tasks not
+    // done in display_order: THE LOG on the morning card lists them under their project in ONE read. User-scoped twice:
+    // through the user's own projects (projectIds) and the task's own user_id.
+    const openTasks = projectIds.length
+      ? await prisma.operations_project_tasks.findMany({
+          where: { user_id: user.id, project_id: { in: projectIds }, status: { in: [...OPEN_TASK_STATUSES] } },
+          select: { id: true, project_id: true, title: true, status: true, display_order: true },
+          orderBy: [{ display_order: 'asc' }, { created_at: 'asc' }],
+        })
+      : [];
+    const openTasksByProject = new Map<string, { id: string; title: string; status: string; display_order: number }[]>();
+    for (const t of openTasks) {
+      const list = openTasksByProject.get(t.project_id) ?? [];
+      list.push({ id: t.id, title: t.title, status: t.status, display_order: t.display_order });
+      openTasksByProject.set(t.project_id, list);
+    }
+
+    // WORK-02 (Alex, 2026-10-26): done_tasks — only when a window was asked: each project's tasks completed inside it
+    // (status completed, completed_at in [from, to]), earliest first, built like open_tasks — ONE query, user-scoped twice.
+    const doneTasks = done.kind === 'window' && projectIds.length
+      ? await prisma.operations_project_tasks.findMany({
+          where: { user_id: user.id, project_id: { in: projectIds }, status: 'completed', completed_at: { gte: done.from, lte: done.to } },
+          select: { id: true, project_id: true, title: true, completed_at: true },
+          orderBy: [{ completed_at: 'asc' }, { created_at: 'asc' }],
+        })
+      : [];
+    const doneTasksByProject = new Map<string, { id: string; title: string; completed_at: string }[]>();
+    for (const t of doneTasks) {
+      // The where holds completed_at non-null; a null here is the database's contradiction, thrown by name.
+      if (t.completed_at === null) throw new Error(`Projects GET: task ${t.id} is completed inside the window with no completed_at`);
+      const list = doneTasksByProject.get(t.project_id) ?? [];
+      list.push({ id: t.id, title: t.title, completed_at: t.completed_at.toISOString() });
+      doneTasksByProject.set(t.project_id, list);
+    }
+
+    // PROJECTS-UX-2: REAL cost-per-project — the DIM allocation rollup.
+    // READ-ONLY (findMany only), layered onto the payload exactly like the
+    // PD-2 counts above. The math derives from the schema's own doctrine:
+    //   • ledger_entries.amount is BigInt CENTS ("Clean slate with BigInt
+    //     amounts", schema.prisma ledger_entries); sign lives in entry_type
+    //     ('D'/'C') — the same D/C semantics /api/runway uses for its burn
+    //     legs. Net allocated = debit allocations − credit allocations (a
+    //     credit allocated to a project offsets its cost).
+    //   • ledger_line_links.percent is Decimal(5,2) — the link's SHARE of the
+    //     line (sum-to-100 across a line's links, the DIM-1 doctrine). One
+    //     link's allocated cents = amount × percent / 100; computed as
+    //     amount × round(percent×100) / 10000 so the 2dp percent is exact
+    //     integer math (fractional cents accumulate, rounded ONCE per project).
+    //   • User scoping via the owning chain the EXPORT-1 route proved:
+    //     link → ledger_entry → journal_entry.userId (links carry no userId).
+    //   • Coverage is DECLARED per the DIM-1 doctrine: link_count/line_count
+    //     ride the payload so the display can say how many lines feed the sum.
+    //   • SEC-TASKS-01: a reversal pair is left out BY NAME, exactly as the budget
+    //     report does (src/app/api/budget/report/route.ts:104) — the journal entry
+    //     must be neither a reversal (is_reversal, schema journal_entries) nor
+    //     reversed (reversed_by_entry_id). A reversal keeps the original's links
+    //     (journal-entry-service.ts reversePlaidTransaction), so without this an
+    //     uncommitted charge still counted, and a re-commit counted twice.
+    // Self-reported estimates (estimated/actual_cost_usd) are NOT mixed in.
+    type LedgerAllocated = { cents: number; dollars: string; link_count: number; line_count: number };
+    let allocByProject: Map<string, LedgerAllocated> | null = null;
+    try {
+      const links = projectIds.length
+        ? await prisma.ledger_line_links.findMany({
+            where: {
+              project_id: { in: projectIds },
+              ledger_entry: { journal_entry: { userId: user.id, is_reversal: false, reversed_by_entry_id: null } },
+            },
+            select: {
+              project_id: true,
+              percent: true,
+              ledger_entry_id: true,
+              ledger_entry: { select: { amount: true, entry_type: true } },
+            },
+          })
+        : [];
+      const acc = new Map<string, { cents: number; links: number; lines: Set<string> }>();
+      for (const l of links) {
+        if (!l.project_id) continue;
+        const pctCenti = Math.round(Number(l.percent) * 100);
+        const signed = (l.ledger_entry.entry_type === 'C' ? -1 : 1) * Number(l.ledger_entry.amount);
+        const a = acc.get(l.project_id) ?? { cents: 0, links: 0, lines: new Set<string>() };
+        a.cents += (signed * pctCenti) / 10_000;
+        a.links += 1;
+        a.lines.add(l.ledger_entry_id);
+        acc.set(l.project_id, a);
+      }
+      allocByProject = new Map();
+      for (const [pid, a] of acc) {
+        const rounded = Math.round(a.cents);
+        allocByProject.set(pid, {
+          cents: rounded,
+          dollars: (rounded / 100).toFixed(2),
+          link_count: a.links,
+          line_count: a.lines.size,
+        });
+      }
+    } catch (rollupError) {
+      // RULED degradation (PROJECTS-UX-2): if the rollup read fails, the field
+      // is OMITTED and the client renders NOTHING — never a made-up number —
+      // while the projects list itself still loads. Logged, never swallowed.
+      console.error('[Projects GET] ledger allocation rollup failed', rollupError);
+      allocByProject = null;
+    }
+
     // Status-priority sort layered on top of priority_score order.
     const sorted = projects.slice().sort((a, b) => {
       const sa = STATUS_ORDER[a.status];
@@ -111,19 +282,22 @@ export async function GET(request: NextRequest) {
     });
 
     // PD-2: surface the real counts on each row (and drop the internal _count shape).
+    // PROJECTS-UX-2: ledger_allocated joins the row — an object for projects
+    // with links, null for projects with none (absence is honest — the client
+    // renders nothing), and ABSENT entirely when the rollup read failed.
     const withCounts = sorted.map(({ _count, ...p }) => ({
       ...p,
       task_count: _count.tasks,
+      open_task_count: openCountByProject.get(p.id) ?? 0,
+      open_tasks: openTasksByProject.get(p.id) ?? [],
+      ...(done.kind === 'window' ? { done_tasks: doneTasksByProject.get(p.id) ?? [] } : {}),
       run_count: runCountByProject.get(p.id) ?? 0,
+      ...(allocByProject ? { ledger_allocated: allocByProject.get(p.id) ?? null } : {}),
     }));
 
     return NextResponse.json({ projects: withCounts });
   } catch (error) {
-    console.error('[Projects GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load projects', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Projects GET', 'Failed to load projects', error);
   }
 }
 
@@ -161,6 +335,60 @@ export async function POST(request: NextRequest) {
     if (entity_id_raw instanceof NextResponse) return entity_id_raw;
     const title = requireString(body.title, 'title', 500);
     if (title instanceof NextResponse) return title;
+
+    // BACKLOG-01 (Alex, 2026-10-20): type is REQUIRED and strict — missing or
+    // not one of the five is refused by name; the column is nullable only so a
+    // row captured before reads "—".
+    const type = PROJECT_TYPES.find((t) => t === body.type);
+    if (!type) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'type', message: `type is required — one of ${PROJECT_TYPES.join(', ')}` },
+        { status: 400 }
+      );
+    }
+    // why is REQUIRED — the value or the problem, a paragraph. Its line breaks
+    // are kept; its cap is counted in CODE POINTS the way JOURNAL-04 counts the
+    // evening's block (src/lib/operations/journal.ts:285 `[...text].length`; the
+    // rule there is module-private, so the expression is repeated, not imported).
+    const whyRaw = requireString(body.why, 'why');
+    if (whyRaw instanceof NextResponse) return whyRaw;
+    const whyLength = [...whyRaw].length;
+    if (whyLength > WHY_MAX_CODE_POINTS) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'why', message: `why is at most ${WHY_MAX_CODE_POINTS} characters (${whyLength} given)` },
+        { status: 400 }
+      );
+    }
+    const why = whyRaw;
+    // BACKLOG-01b (Alex, 2026-10-20): problem (1) and goal (3) are REQUIRED the same
+    // way — by name, line breaks kept, the same cap in code points.
+    const capWords = (field: string, length: number) => `${field} is at most ${WHY_MAX_CODE_POINTS} characters (${length} given)`;
+    const problemRaw = requireString(body.problem, 'problem');
+    if (problemRaw instanceof NextResponse) return problemRaw;
+    const problemLength = [...problemRaw].length;
+    if (problemLength > WHY_MAX_CODE_POINTS) {
+      return NextResponse.json({ error: 'Validation', field: 'problem', message: capWords('problem', problemLength) }, { status: 400 });
+    }
+    const problem = problemRaw;
+    const goalRaw = requireString(body.goal, 'goal');
+    if (goalRaw instanceof NextResponse) return goalRaw;
+    const goalLength = [...goalRaw].length;
+    if (goalLength > WHY_MAX_CODE_POINTS) {
+      return NextResponse.json({ error: 'Validation', field: 'goal', message: capWords('goal', goalLength) }, { status: 400 });
+    }
+    const goal = goalRaw;
+    // size is optional — '' / null / absent is "not sized"; anything else must be S, M or L.
+    let size: ProjectSize | null = null;
+    if (body.size !== undefined && body.size !== null && body.size !== '') {
+      const found = PROJECT_SIZES.find((x) => x === body.size);
+      if (!found) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'size', message: `size must be one of ${PROJECT_SIZES.join(', ')} or empty` },
+          { status: 400 }
+        );
+      }
+      size = found;
+    }
 
     // PR-Ops-3.7: structured-list fields are the source of truth. Each
     // is required, non-empty array of trimmed strings ≤ 500 chars,
@@ -233,7 +461,10 @@ export async function POST(request: NextRequest) {
       return { ok: true, items };
     };
 
-    const goalItemsResult = validateItems(body.goalItems, 'goalItems');
+    // BACKLOG-01 (Alex, 2026-10-20) — ruling A: goal items leave the capture
+    // form; the Dalio loop is "scope it" on the row's edit view. The list is
+    // still type/length-validated; EMPTY is accepted.
+    const goalItemsResult = validateItems(body.goalItems, 'goalItems', true);
     if (!goalItemsResult.ok) return goalItemsResult.response;
     // PD-Clean: problem/diagnosis are OPTIONAL — title+goals is a valid project. Items are
     // still type/length-validated; empty is accepted (the pipe degrades to "(none provided)").
@@ -241,6 +472,11 @@ export async function POST(request: NextRequest) {
     if (!problemItemsResult.ok) return problemItemsResult.response;
     const diagnosisItemsResult = validateItems(body.diagnosisItems, 'diagnosisItems', true);
     if (!diagnosisItemsResult.ok) return diagnosisItemsResult.response;
+    // BACKLOG-01: links — the *_items shape (≤ 20 strings of ≤ 500, each
+    // non-empty), empty allowed. A doc path or a url; not validated as a url —
+    // the prompt docs' paths are not urls.
+    const linksResult = validateItems(body.links, 'links', true);
+    if (!linksResult.ok) return linksResult.response;
 
     // Legacy paragraph fields are optional/nullable post-PR-Ops-3.7. The
     // *_items arrays above are the source of truth; legacy text is stored
@@ -250,8 +486,7 @@ export async function POST(request: NextRequest) {
       const t = v.trim();
       return t.length > 0 ? t : null;
     };
-    const goal = trimNullable(body.goal);
-    const problem = trimNullable(body.problem);
+    // BACKLOG-01b: diagnosis is THE AUDIT — pasted back on the row, optional here.
     const diagnosis = trimNullable(body.diagnosis);
 
     // Design is AI-populated post-PR-Ops-3.7 via "use this" acceptance.
@@ -261,6 +496,27 @@ export async function POST(request: NextRequest) {
     // Optional pasted Claude Code audit — persisted so later re-runs (design/tasks)
     // stay grounded in the same codebase reality. Column is @db.Text; whole text in.
     const claude_code_audit_input = trimNullable(body.claude_code_audit_input);
+
+    // BACKLOG-01: optional at capture — nothing typed is NULL, never "".
+    const definition_of_done = trimNullable(body.definition_of_done);
+    const notes = trimNullable(body.notes);
+    // BACKLOG-01b: 4 ALREADY RULED and 5 WANT A RECOMMENDATION ON — optional, capped
+    // like the three texts; 6's reason ≤ 500 code points (its column's length).
+    const rulings = trimNullable(body.rulings);
+    if (rulings !== null && [...rulings].length > WHY_MAX_CODE_POINTS) {
+      return NextResponse.json({ error: 'Validation', field: 'rulings', message: capWords('rulings', [...rulings].length) }, { status: 400 });
+    }
+    const open_questions = trimNullable(body.open_questions);
+    if (open_questions !== null && [...open_questions].length > WHY_MAX_CODE_POINTS) {
+      return NextResponse.json({ error: 'Validation', field: 'open_questions', message: capWords('open_questions', [...open_questions].length) }, { status: 400 });
+    }
+    const deadline_reason = trimNullable(body.deadline_reason);
+    if (deadline_reason !== null && [...deadline_reason].length > DEADLINE_REASON_MAX_CODE_POINTS) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'deadline_reason', message: `deadline_reason is at most ${DEADLINE_REASON_MAX_CODE_POINTS} characters (${[...deadline_reason].length} given)` },
+        { status: 400 }
+      );
+    }
 
     // Verify entity ownership.
     const entity = await prisma.entities.findFirst({
@@ -294,6 +550,14 @@ export async function POST(request: NextRequest) {
       typeof body.target_completion_date === 'string' && body.target_completion_date.length > 0
         ? new Date(body.target_completion_date)
         : null;
+    // BACKLOG-01b (Alex, 2026-10-20): a target date requires its reason — 6 BY WHEN,
+    // AND WHY. A reason without a date is allowed (it is just text).
+    if (target_completion_date !== null && deadline_reason === null) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'deadline_reason', message: 'deadline_reason is required when a target date is set' },
+        { status: 400 }
+      );
+    }
 
     const estimated_total_minutes =
       body.estimated_total_minutes !== undefined &&
@@ -320,10 +584,23 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         entity_id: entity_id_raw,
         title,
+        // BACKLOG-01 (Alex, 2026-10-20): a captured project lands in the
+        // BACKLOG — set here, explicitly; the column's default (not_started)
+        // is a legacy row's, never a capture's.
+        status: 'backlog',
+        type,
+        size,
+        why,
+        definition_of_done,
+        links: linksResult.items,
+        notes,
         goal,
         problem,
         diagnosis,
         design,
+        rulings,
+        open_questions,
+        deadline_reason,
         goal_items: goalItemsResult.items,
         problem_items: problemItemsResult.items,
         diagnosis_items: diagnosisItemsResult.items,
@@ -343,7 +620,7 @@ export async function POST(request: NextRequest) {
       },
       action: {
         type: 'operations_project_created',
-        description: `Created project "${title}" for ${userEmail}`,
+        description: `captured ${type} project "${title}" for ${userEmail}`,
       },
       target: {
         table: 'operations_projects',
@@ -357,10 +634,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ project, isCreate: true }, { status: 201 });
   } catch (error) {
-    console.error('[Projects POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create project', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Projects POST', 'Failed to create project', error);
   }
 }

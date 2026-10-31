@@ -43,7 +43,15 @@ export class AutoCategorizationService {
         }
       });
 
-      if (merchantMapping && merchantMapping.confidence_score.toNumber() > 0.5) {
+      // COA-01: a mapping onto a RETIRED account is skipped — retiring hides an
+      // account from categorization; the mapping row stays (history), it just
+      // no longer predicts. A mapping onto a code the chart never had is skipped
+      // the same way (nothing to categorize into).
+      if (
+        merchantMapping &&
+        merchantMapping.confidence_score.toNumber() > 0.5 &&
+        (await this.isActiveCode(userId, merchantMapping.entity_id, merchantMapping.coa_code))
+      ) {
         return {
           coaCode: merchantMapping.coa_code,
           confidence: merchantMapping.confidence_score.toNumber(),
@@ -73,7 +81,9 @@ export class AutoCategorizationService {
       };
 
       const coaCode = categoryMap[categoryPrimary];
-      if (coaCode) {
+      // COA-01: the category default must also be an ACTIVE account somewhere
+      // in the user's chart (the caller resolves the entity to personal).
+      if (coaCode && (await this.isActiveCode(userId, null, coaCode))) {
         return {
           coaCode,
           confidence: 0.6,
@@ -85,6 +95,15 @@ export class AutoCategorizationService {
 
     // No prediction available
     return null;
+  }
+
+  /** COA-01: is this code an active (not retired) account in the user's chart — in the entity when one is given. */
+  private async isActiveCode(userId: string, entityId: string | null, code: string): Promise<boolean> {
+    const active = await prisma.chart_of_accounts.findFirst({
+      where: { userId, code, is_archived: false, ...(entityId ? { entity_id: entityId } : {}) },
+      select: { id: true },
+    });
+    return active !== null;
   }
 
   /**

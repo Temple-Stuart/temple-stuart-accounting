@@ -15,10 +15,15 @@
  * exec_correlation_id for the stored-match).
  *
  * SECURITY / COST (per CLAUDE.md):
- *   - requireExecBudget(userId) gates FIRST — over the daily exec cap throws
+ *   - SEC-TASKS-01: requireRoutineOwner(userId) gates FIRST — the Routine builds the
+ *     owner's repository, so anyone else → RoutineOwnerOnlyError, before the cap is
+ *     touched or the env is read (src/lib/operations/ownerOnly.ts).
+ *   - The task is loaded ownership-scoped ({ id, project_id, user_id }); not found → throw.
+ *   - A malformed task (no title, no description/notes, blank project_id) throws before
+ *     the cap, so it never takes a daily slot and never reaches the Routine.
+ *   - requireExecBudget(userId) gates next — over the daily exec cap throws
  *     ExecBudgetError and NO fire happens (a SEPARATE Anthropic meter from the pipe
  *     and the audit Routine).
- *   - The task is loaded ownership-scoped ({ id, project_id, user_id }); not found → throw.
  *   - The token is read from env (EXEC_ROUTINE_TOKEN), never hardcoded, never logged.
  *   - FAIL LOUD — missing env, non-2xx, or an unparseable response all throw. No
  *     silent fallback, no fake session, no fabricated PR.
@@ -29,6 +34,7 @@
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { requireExecBudget } from '@/lib/execFireBudget';
+import { requireRoutineOwner } from '@/lib/operations/ownerOnly';
 
 export interface FireExecutionRoutineInput {
   taskId: string;
@@ -47,14 +53,11 @@ export interface FireExecutionRoutineResult {
 export async function fireExecutionRoutine(input: FireExecutionRoutineInput): Promise<FireExecutionRoutineResult> {
   const { taskId, projectId, userId, userEmail } = input;
 
-  // 1 · Config — fail loud if the Routine endpoint/token aren't set (server-only env).
-  const fireUrl = process.env.EXEC_ROUTINE_FIRE_URL;
-  const token = process.env.EXEC_ROUTINE_TOKEN;
-  if (!fireUrl || !token) {
-    throw new Error('EXEC_ROUTINE_FIRE_URL / EXEC_ROUTINE_TOKEN not set — cannot fire the execution Routine');
-  }
+  // 0 · OWNER GATE FIRST (SEC-TASKS-01) — anyone else → RoutineOwnerOnlyError, before
+  //     the cap is touched or the env is read: a refusal spends nothing.
+  requireRoutineOwner(userId);
 
-  // 2 · Load the task ownership-scoped (defensive — never another user's task).
+  // 1 · Load the task ownership-scoped (defensive — never another user's task).
   const task = await prisma.operations_project_tasks.findFirst({
     where: { id: taskId, project_id: projectId, user_id: userId },
   });
@@ -62,7 +65,7 @@ export async function fireExecutionRoutine(input: FireExecutionRoutineInput): Pr
     throw new Error(`task ${taskId} not found for project ${projectId} / user ${userId} — cannot fire execution Routine`);
   }
 
-  // 3 · PAYLOAD-INTEGRITY GUARD — refuse to fire a malformed/empty payload.
+  // 2 · PAYLOAD-INTEGRITY GUARD — refuse to fire a malformed/empty payload.
   //       A blank task (no title, or no actionable instruction in description/notes)
   //       produces a template-looking fire the exec-ingest callback can never match,
   //       burning a Routine run. This runs BEFORE the budget gate so a malformed task
@@ -83,9 +86,16 @@ export async function fireExecutionRoutine(input: FireExecutionRoutineInput): Pr
     throw new Error(`cannot fire execution Routine: task ${taskId} has a blank project_id — the exec-ingest callback could never be matched`);
   }
 
-  // 4 · COST GATE — over the daily exec cap → ExecBudgetError, no fire. Runs after the
+  // 3 · COST GATE — over the daily exec cap → ExecBudgetError, no fire. Runs after the
   //     integrity guard so a malformed task is rejected without reserving a paid slot.
   await requireExecBudget(userId);
+
+  // 4 · Config — fail loud if the Routine endpoint/token aren't set (server-only env).
+  const fireUrl = process.env.EXEC_ROUTINE_FIRE_URL;
+  const token = process.env.EXEC_ROUTINE_TOKEN;
+  if (!fireUrl || !token) {
+    throw new Error('EXEC_ROUTINE_FIRE_URL / EXEC_ROUTINE_TOKEN not set — cannot fire the execution Routine');
+  }
 
   // 5 · Build the exec payload from the task's what / how / why-and-test. A
   //     correlation trailer carries the task + run id so the exec-ingest callback

@@ -26,6 +26,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma, ProjectDependencyType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -97,11 +98,7 @@ export async function GET(
 
     return NextResponse.json({ outgoing, incoming });
   } catch (error) {
-    console.error('[Dependencies GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load dependencies', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Dependencies GET', 'Failed to load dependencies', error);
   }
 }
 
@@ -231,10 +228,6 @@ export async function POST(
 
     return NextResponse.json({ dependency, isCreate: true }, { status: 201 });
   } catch (error) {
-    console.error('[Dependencies POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create dependency', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Dependencies POST', 'Failed to create dependency', error);
   }
 }

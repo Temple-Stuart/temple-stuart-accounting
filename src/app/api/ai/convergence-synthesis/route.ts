@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { requireAiRateLimit } from '@/lib/ai-rate-limit';
 import Anthropic from '@anthropic-ai/sdk';
 import { MODEL_SONNET_4 } from '@/lib/ai/client';
 import type { PipelineResult } from '@/lib/convergence/pipeline';
@@ -277,8 +279,13 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    const tierGate = requireTier(user.tier, 'ai', user.id);
+    // TAB-SERVER-GATE: tab:trade entitlement replaces the 'ai' tier gate
+    const tierGate = await requireTabAccess(user.id, 'tab:trade');
     if (tierGate) return tierGate;
+
+    // SEC-5: per-user LLM volume cap (before the paid call).
+    const aiLimit = await requireAiRateLimit(user.id);
+    if (aiLimit) return aiLimit;
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
@@ -373,7 +380,6 @@ export async function POST(request: Request) {
       top_9: pipeline.rankings.top_9,
       pre_filter: pipeline.pre_filter,
       sector_distribution: pipeline.rankings.sector_distribution,
-      social_sentiment: pipeline.social_sentiment,
       rejection_reasons: pipeline.rejection_reasons,
       timing: {
         pipeline_ms: pipeline.pipeline_summary?.pipeline_runtime_ms ?? 0,
@@ -393,8 +399,6 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Convergence Synthesis] Error:', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Convergence Synthesis', 'Convergence synthesis failed', error);
   }
 }

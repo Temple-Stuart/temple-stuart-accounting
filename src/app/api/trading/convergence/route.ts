@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { runPipeline } from '@/lib/convergence/pipeline';
-import type { PipelineResult } from '@/lib/convergence/pipeline';
-import { requireAdmin } from '@/lib/require-admin';
+import type { PipelineResult, ScanOptions } from '@/lib/convergence/pipeline';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { requireScanRateLimit } from '@/lib/scan-rate-limit';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/require-admin';
+import { FOUNDER_BROKER_LINE, FOUNDER_BROKER_REASON, scanGate } from '@/lib/tastytrade/founderBroker';
+import { SCAN_LIMIT_DEFAULT, SCAN_LIMIT_MAX, SCAN_LIMIT_MIN } from '@/lib/convergence/funnel';
 
 export const maxDuration = 300;
 
@@ -17,12 +23,20 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 
-function getCacheKey(limit: number, universe?: string): string {
-  return `convergence_${limit}_${universe ?? 'all'}`;
+// TT-01: the key carries the USER. It was (limit, universe) only, and a
+// cache-miss run by user A — whose result rows carry A's OWN scan_snapshots
+// history as `vrpHistory` (pipeline.ts:1130-1132 → snapshot-logger, WHERE userId
+// = A) — was served to user B on the next hit for 15 minutes with no user check.
+// One user's per-user series, computed from their session, shown to another.
+// MODEL-01: the key carries the SIDE and the RISK state too — a SELL run and a
+// BUY run are different funnels; a defined-risk run must never serve an
+// unlimited-risk request (or the reverse).
+function getCacheKey(userId: string, limit: number, universe: string | undefined, options: ScanOptions): string {
+  return `convergence_${userId}_${limit}_${universe ?? 'all'}_${options.side}_${options.allowUndefinedRisk ? 'unlimited' : 'defined'}`;
 }
 
-function getFromCache(limit: number, universe?: string): CacheEntry | null {
-  const key = getCacheKey(limit, universe);
+function getFromCache(userId: string, limit: number, universe: string | undefined, options: ScanOptions): CacheEntry | null {
+  const key = getCacheKey(userId, limit, universe, options);
   const entry = cache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
@@ -32,8 +46,8 @@ function getFromCache(limit: number, universe?: string): CacheEntry | null {
   return entry;
 }
 
-function setCache(limit: number, data: PipelineResult, universe?: string): void {
-  const key = getCacheKey(limit, universe);
+function setCache(userId: string, limit: number, data: PipelineResult, universe: string | undefined, options: ScanOptions): void {
+  const key = getCacheKey(userId, limit, universe, options);
   cache.set(key, { data, timestamp: Date.now() });
 }
 
@@ -41,38 +55,94 @@ function setCache(limit: number, data: PipelineResult, universe?: string): void 
 
 export async function GET(request: Request) {
   try {
-    // TRADING-PR-SEC: this scan runs the convergence pipeline, which hits PAID
-    // data feeds (TastyTrade / Finnhub / FRED / xAI). Gate it to the admin/owner
-    // (OWNER_EMAIL — Alex, the sole admin today) using the existing requireAdmin
-    // helper. requireAdmin returns 401 for guests and 403 for non-admins BEFORE
-    // any param parsing, cache read, SSE stream, or runPipeline — so no paid call
-    // fires for unauthorized users. Hard gate, no fallback. (Same pattern as the
-    // src/app/api/admin/* routes.)
-    const adminResult = await requireAdmin();
-    if (adminResult instanceof NextResponse) return adminResult;
-    const userEmail = adminResult; // the verified admin email
+    // TAB-SERVER-GATE (supersedes TRADING-PR-SEC's admin-only ruling): the scan
+    // hits PAID data feeds (TastyTrade market data / Finnhub / FRED / xAI), so it
+    // is gated to the tab:trade entitlement (or bundle:all; admin bypass inside
+    // requireTabAccess) — pay for the Trade tab and scans run. 401/403 BEFORE any
+    // param parsing, cache read, SSE stream, or runPipeline — no paid call fires
+    // for an unentitled user. NOTE: the pipeline reads MARKET data only via the
+    // shared TT session (chains/quotes/candles), never account state — the
+    // account-reading tastytrade/* routes stay requireAdmin (SEC4).
+    // SCAN-SPEND-QUOTA closes the gap previously flagged here: a per-user run
+    // quota (requireScanRateLimit) sits at BOTH pipeline-fire points below —
+    // after this tab gate, before runPipeline. Cache hits stay free.
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const gateUser = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (!gateUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    const tabGate = await requireTabAccess(gateUser.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
 
     // Parse query params
-    let limit = parseInt(searchParams.get('limit') || '20', 10);
-    if (isNaN(limit) || limit < 4) limit = 4;
-    if (limit > 150) limit = 150;
+    // MODEL-02 STEP 3: the default and the clamp are the named consts in funnel.ts (the panel sends the same default).
+    let limit = parseInt(searchParams.get('limit') || String(SCAN_LIMIT_DEFAULT), 10);
+    if (isNaN(limit) || limit < SCAN_LIMIT_MIN) limit = SCAN_LIMIT_MIN;
+    if (limit > SCAN_LIMIT_MAX) limit = SCAN_LIMIT_MAX;
 
     const refresh = searchParams.get('refresh') === 'true';
     const universe = searchParams.get('universe') ?? undefined;
     const stream = searchParams.get('stream') === 'true';
 
+    // MODEL-01: the premium side (SELL | BUY | BOTH; absent = BOTH, the filter
+    // panel's default) and the risk state (defined | unlimited; absent =
+    // defined, the default filter state). An unknown value is refused — never
+    // read as a default.
+    const sideParam = searchParams.get('side') ?? 'BOTH';
+    if (sideParam !== 'SELL' && sideParam !== 'BUY' && sideParam !== 'BOTH') {
+      return NextResponse.json({ error: `side must be SELL, BUY or BOTH (got ${sideParam})` }, { status: 400 });
+    }
+    const riskParam = searchParams.get('risk') ?? 'defined';
+    if (riskParam !== 'defined' && riskParam !== 'unlimited') {
+      return NextResponse.json({ error: `risk must be defined or unlimited (got ${riskParam})` }, { status: 400 });
+    }
+    const options: ScanOptions = { side: sideParam, allowUndefinedRisk: riskParam === 'unlimited' };
+
+    // TT-01 — THE FOUNDER'S BROKER. The pipeline's TastyTrade client is the env
+    // client (src/lib/tastytrade.ts:7-13): Alex's own grant. No per-user
+    // credential exists (connect/route.ts:59-60 stores the literal 'oauth'), so
+    // an entitled customer's scan spent HIS broker session. Until TT-02's
+    // per-user OAuth flow, only the admin may spend it — the same requireAdmin
+    // SEC4 put on the account routes and never on the scan. Refused BEFORE the
+    // cache read, the quota and any upstream call: nothing computed, nothing
+    // borrowed. The SSE path cannot carry a 403 (EventSource turns it into
+    // "connection lost"), so it says the line as its one error event instead.
+    const admin = await requireAdmin();
+    const gate = scanGate(!(admin instanceof NextResponse));
+    if (gate.refused) {
+      if (stream) {
+        const encoder = new TextEncoder();
+        const body = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ step: 'error', label: gate.line, data: { reason: gate.reason } })}\n\n`));
+            controller.close();
+          },
+        });
+        return new Response(body, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Scan-Refused': FOUNDER_BROKER_REASON } });
+      }
+      return NextResponse.json({ error: FOUNDER_BROKER_LINE, reason: FOUNDER_BROKER_REASON }, { status: 403, headers: { 'X-Scan-Refused': FOUNDER_BROKER_REASON } });
+    }
+
     // ===== SSE STREAMING PATH =====
     if (stream) {
-      // Resolve userId for snapshot logging
-      let userId: string | undefined;
-      try {
-        const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
-        userId = user?.id;
-      } catch {
-        // Non-critical
-      }
+      // SCAN-SPEND-QUOTA: the stream path NEVER reads the cache — every stream
+      // request runs the full paid pipeline — so the per-user run quota is
+      // checked BEFORE the stream (and any paid call) starts. Over-quota → a
+      // plain 429 + Retry-After instead of an SSE response.
+      const scanQuota = await requireScanRateLimit(gateUser.id);
+      if (scanQuota) return scanQuota;
+
+      // LOG-01: the gate user IS the scan's user — every candidate is keyed to
+      // a scan_runs row under this id (no second lookup, no run without a user).
+      const userId: string = gateUser.id;
 
       const encoder = new TextEncoder();
       const readable = new ReadableStream({
@@ -81,9 +151,9 @@ export async function GET(request: Request) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
           };
           try {
-            const result = await runPipeline(limit, userId, universe, (event) => send(event));
+            const result = await runPipeline(limit, userId, universe, (event) => send(event), options);
             // Cache the final result so the follow-up fetch is instant
-            setCache(limit, result, universe);
+            setCache(gateUser.id, limit, result, universe, options);
             send({ step: 'done', label: 'Complete', data: {} });
           } catch (err) {
             send({ step: 'error', label: err instanceof Error ? err.message : String(err), data: {} });
@@ -104,7 +174,7 @@ export async function GET(request: Request) {
 
     // Check cache (unless refresh=true)
     if (!refresh) {
-      const cached = getFromCache(limit, universe);
+      const cached = getFromCache(gateUser.id, limit, universe, options);
       if (cached) {
         const age = Math.round((Date.now() - cached.timestamp) / 1000);
         console.log(`[Convergence Route] Cache HIT (age=${age}s, limit=${limit})`);
@@ -119,24 +189,25 @@ export async function GET(request: Request) {
     }
 
     // Cache miss or refresh — run full pipeline
-    console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh}, universe=${universe ?? 'all'})`);
+    // SCAN-SPEND-QUOTA: quota is checked AFTER the cache read (a cache hit above
+    // returned without consuming quota — it fires no paid call) and BEFORE
+    // runPipeline. refresh=true skipped the cache, so it lands here and pays
+    // quota like any other full run.
+    const scanQuota = await requireScanRateLimit(gateUser.id);
+    if (scanQuota) return scanQuota;
 
-    // Resolve userId for snapshot logging (non-blocking — pipeline runs even if lookup fails)
-    let userId: string | undefined;
-    try {
-      const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
-      userId = user?.id;
-    } catch {
-      // Non-critical — snapshot logging will be skipped
-    }
+    console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh}, universe=${universe ?? 'all'}, side=${options.side}, risk=${riskParam})`);
+
+    // LOG-01: the gate user IS the scan's user (see the stream branch).
+    const userId: string = gateUser.id;
 
     const start = Date.now();
-    const result = await runPipeline(limit, userId, universe);
+    const result = await runPipeline(limit, userId, universe, undefined, options);
     const elapsed = Date.now() - start;
     console.log(`[Convergence Route] Pipeline completed in ${elapsed}ms`);
 
     // Store in cache
-    setCache(limit, result, universe);
+    setCache(gateUser.id, limit, result, universe, options);
 
     return NextResponse.json(result, {
       headers: {
@@ -145,8 +216,6 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Convergence Route] Error:', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Convergence Route', 'Convergence run failed', error);
   }
 }

@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
 // No silent fallback: over cap = throw. Built before any search route goes public
 // (PR-3 wires it into flights/search); a bot cannot run up a bill past the cap.
 //
-// Caps come from env: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> (e.g. _DUFFEL) wins, else
+// Caps come from env: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> (e.g. _LITEAPI) wins, else
 // TRAVEL_SEARCH_DAILY_CAP, else DEFAULT_DAILY_CAP. Set conservatively from each
 // provider's real pricing (see audit-reports/PUBLIC-TRAVEL-SEARCH-AUDIT.md).
 
@@ -16,7 +16,7 @@ const DEFAULT_DAILY_CAP = 1000;
 const WARN_RATIO = 0.8;
 
 /** Providers whose SEARCH calls are metered. String is accepted too (forward-compat). */
-export type TravelProvider = 'duffel' | 'liteapi' | 'viator' | 'mozio' | 'travelbuddy';
+export type TravelProvider = 'liteapi' | 'viator' | 'mozio' | 'travelbuddy';
 
 export class TravelSearchQuotaError extends Error {
   constructor(
@@ -54,10 +54,39 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // than booking but still capped so a public, no-auth route can't run up COGS.
   hotelcontent: 500,
   hotelreviews: 500,
-  // PR-Duffel-Pay-1: flight BOOKING is real money + public (guest-ok), like hotel
-  // booking → a tight daily cap, bounded even with no env override. Raise via
-  // TRAVEL_SEARCH_DAILY_CAP_FLIGHTBOOKING on a real volume plan.
-  flightbooking: 25,
+  // PR-FL-3: LiteAPI flight PREBOOK is money-adjacent like hotelprebook above —
+  // it reserves the offer AND mints the Stripe payment intent — so it gets the
+  // same quote-tier safe cap (prebook is a quote: looser than booking, tighter
+  // than search). Without this entry a new string provider would inherit the
+  // 1000/day global default. Raise via TRAVEL_SEARCH_DAILY_CAP_FLIGHTPREBOOK
+  // on a real volume plan.
+  flightprebook: 100,
+  // PR-FL-5: LiteAPI flight BOOKING is the money call (real ticket issuance) —
+  // the money-tier cap. (LAUNCH-01 RETIRE-01: the retired Duffel rail's
+  // 'flightbooking' bucket is gone with its route.) Raise via
+  // TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTBOOKING on a real volume plan.
+  liteapiflightbooking: 25,
+  // LANE-01 (2026-09-25): GET /flights/bookings/{bookingId} — the refresh that gives
+  // a flight its day, its name and its current status. One call per flight booking
+  // from the book route (after the reservation is committed) and one per row from
+  // the retro script. The vendor's reference says nothing about its cost, so it is
+  // treated as METERED and capped like the money calls it follows: 50/day = the
+  // booking cap's 25 twice over, room for a retro pass. Raise via
+  // TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTBOOKINGREAD on a real volume plan.
+  liteapiflightbookingread: 50,
+  // CANCEL-01 (2026-09-26): GET /flights/bookings/{bookingId}/cancellations — the
+  // cancellation QUOTE a customer reads before confirming a cancel. Authed and
+  // user-scoped (the cancel route's own chain); it moves no money. The reference
+  // says nothing about its cost, so it is metered like the booking read above:
+  // 50/day. Raise via TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTCANCELQUOTE.
+  liteapiflightcancelquote: 50,
+  // ACTIVITY-01 STEP 4 (2026-09-22): the Things-to-do SAVE reads Viator three times per
+  // attempt — GET /products/{code}, GET /availability/schedules/{code}, POST
+  // /exchange-rates (skipped on a cache hit or a same-currency schedule) — each reserved
+  // once here from the ONE authed options route. 300/day = ~100 Save attempts, the
+  // prebook precedent (hotelprebook / flightprebook: 100 quotes a day) scaled by the
+  // three calls. Raise via TRAVEL_SEARCH_DAILY_CAP_VIATORSAVE on a real volume plan.
+  viatorsave: 300,
 };
 
 /** Per-provider daily cap. Precedence: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> env →

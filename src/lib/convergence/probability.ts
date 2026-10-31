@@ -32,12 +32,16 @@ export function normalCDF(x: number): number {
 /**
  * Calculate d2 for Black-Scholes at a given target price.
  *
- * d2 = [ln(S/K) + (r - sigma^2/2)T] / (sigma * sqrt(T))
+ * d2 = [ln(S/K) + (r - q - sigma^2/2)T] / (sigma * sqrt(T))
  *
  * Where:
  *   S = current underlying price
  *   K = target price (breakeven)
  *   r = risk-free rate (from FRED FEDFUNDS series, converted to decimal). Required — no default.
+ *   q = continuous dividend yield (decimal, e.g. 0.02 for 2%). Required — no
+ *       default (KILL-5). A true 0 from the source IS data (non-payer). When
+ *       the yield is UNKNOWN the caller must not call this with an assumed 0 —
+ *       omitting q overstated drift and flattered PoP for dividend payers.
  *   sigma = implied volatility (annualized, as decimal e.g. 0.25 for 25%)
  *   T = time to expiration in years
  *
@@ -49,11 +53,12 @@ export function calcD2(
   iv: number,
   dteYears: number,
   riskFreeRate: number,
+  dividendYield: number,
 ): number | null {
   if (spotPrice <= 0 || targetPrice <= 0 || iv <= 0 || dteYears <= 0) return null;
 
   const sqrtT = Math.sqrt(dteYears);
-  const d2 = (Math.log(spotPrice / targetPrice) + (riskFreeRate - iv * iv / 2) * dteYears) / (iv * sqrtT);
+  const d2 = (Math.log(spotPrice / targetPrice) + (riskFreeRate - dividendYield - iv * iv / 2) * dteYears) / (iv * sqrtT);
   return d2;
 }
 
@@ -67,8 +72,9 @@ export function probAbove(
   iv: number,
   dteYears: number,
   riskFreeRate: number,
+  dividendYield: number,
 ): number | null {
-  const d2 = calcD2(spotPrice, targetPrice, iv, dteYears, riskFreeRate);
+  const d2 = calcD2(spotPrice, targetPrice, iv, dteYears, riskFreeRate, dividendYield);
   if (d2 === null) return null;
   return normalCDF(d2);
 }
@@ -83,8 +89,9 @@ export function probBelow(
   iv: number,
   dteYears: number,
   riskFreeRate: number,
+  dividendYield: number,
 ): number | null {
-  const above = probAbove(spotPrice, targetPrice, iv, dteYears, riskFreeRate);
+  const above = probAbove(spotPrice, targetPrice, iv, dteYears, riskFreeRate, dividendYield);
   if (above === null) return null;
   return 1 - above;
 }
@@ -104,9 +111,10 @@ export function probBetween(
   iv: number,
   dteYears: number,
   riskFreeRate: number,
+  dividendYield: number,
 ): number | null {
-  const aboveLower = probAbove(spotPrice, lowerPrice, iv, dteYears, riskFreeRate);
-  const aboveUpper = probAbove(spotPrice, upperPrice, iv, dteYears, riskFreeRate);
+  const aboveLower = probAbove(spotPrice, lowerPrice, iv, dteYears, riskFreeRate, dividendYield);
+  const aboveUpper = probAbove(spotPrice, upperPrice, iv, dteYears, riskFreeRate, dividendYield);
   if (aboveLower === null || aboveUpper === null) return null;
   return aboveLower - aboveUpper;
 }

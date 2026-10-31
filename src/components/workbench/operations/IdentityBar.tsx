@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import EntitySelectorStrip from './EntitySelector';
 
+
 const BUILD_SHA = (process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ?? 'dev').slice(0, 8);
 
 const REFRESH_INTERVAL_MS = 15_000;
 const MAX_CONSECUTIVE_FAILURES = 3;
 
-export default function OperationsIdentityBar() {
+export default function OperationsIdentityBar({ }: { } = {}) {
   const [auditTailHash, setAuditTailHash] = useState<string | null>(null);
   const [tailError, setTailError] = useState<string | null>(null);
 

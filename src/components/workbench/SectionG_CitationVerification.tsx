@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * src/components/workbench/SectionG_CitationVerification.tsx
  *
@@ -7,7 +9,6 @@
  * architecture doc § 8.1 Phase 3.
  */
 
-'use client';
 
 const STEPS = [
   { n: 1, name: 'Existence', tool: 'HEAD/GET to canonical URL' },
@@ -20,7 +21,7 @@ const STEPS = [
   { n: 8, name: 'Content hash', tool: 'SHA-256 chunk text vs recorded hash' },
 ];
 
-export function SectionG_CitationVerification() {
+export function SectionG_CitationVerification({ }: { } = {}) {
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">

@@ -22,6 +22,8 @@
  * and calls /api/operations/routines/[id]/upcoming for forward windows.
  */
 
+import type { StopRole } from '@/lib/operations/stopRole';
+
 export interface Routine {
   id: string;
   user_id: string;
@@ -60,6 +62,16 @@ export interface Routine {
   // bare chart_of_accounts.code (e.g. "B-9200") or null.
   budget_amount: string | null;
   coa_code: string | null;
+  /** ROLE-01: what kind of stop this routine is on the day card (src/lib/operations/stopRole.ts). */
+  role: StopRole;
+  /**
+   * ONEOFF-01: the routine's place — location text and, when both are stored,
+   * a coordinate pair (Decimal → JSON string, like budget_amount). Null is no
+   * place; a pair is all-or-nothing (a CHECK in the migration).
+   */
+  location?: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
   steps: RoutineStep[];
   /**
    * The content scene this routine has been scenified into, if any.
@@ -89,6 +101,12 @@ export interface RoutineStep {
   sub_activity: string | null;
   location: string | null;
   duration_minutes: number | null;
+  /**
+   * LINES-01: the line's own cost and account. Prisma Decimal → JSON string;
+   * null = no amount (blank, never 0). coa_code is a bare chart code or null.
+   */
+  budget_amount?: string | null;
+  coa_code?: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -133,19 +151,73 @@ export interface TodayRoutineEntry {
   completion: RoutineCompletion | null;  // populated if status === 'completed'
 }
 
+/** WEEK-01: the words each status shows in — moved from TodaysStrip.tsx (its STATUS_LABEL), the one copy. TASKS-ONE-02 (2026-10-14): TodaysStrip.tsx and the week's WeekCell.tsx, its two readers, are deleted; no screen reads it now (week01.test.ts still pins its words), and it is left unchanged. */
+export const TODAY_STATUS_LABEL: Record<TodayStatus, string> = {
+  pending: 'pending',
+  completed: 'completed',
+  missed: 'missed',
+  upcoming: 'upcoming',
+};
+
+/**
+ * WEEK-01: a routine the today read could not place — its zone cannot be read,
+ * or its schedule does not parse (the day rules' words, src/lib/budget/days.ts).
+ * Listed in the response's `refused`, named on every screen that reads it.
+ */
+export interface RefusedRoutine {
+  routine_id: string;
+  name: string;
+  reason: string;
+  detail: string;
+}
+
 /**
  * RRULE form-side shape. The UI compiles structured selections into an
  * RFC 5545 RRULE string under the hood. Users do not write RRULE strings
  * directly (except via the "custom" escape hatch).
  */
-export type CadenceMode = 'daily' | 'weekly' | 'monthly_day_of_month' | 'monthly_nth_weekday' | 'custom';
+/**
+ * ONEOFF-01: 'once' — a routine that happens ONE time, on its start_date. It
+ * compiles to FREQ=DAILY;COUNT=1 and is anchored on that date (rruleHelpers.ts
+ * scheduleAnchor), so it expands to exactly one occurrence through the SAME
+ * expansion every other cadence uses. No second path.
+ */
+export type CadenceMode = 'daily' | 'weekly' | 'monthly_day_of_month' | 'monthly_nth_weekday' | 'once' | 'custom';
 
 export type WeekDay = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
+
+/**
+ * FORM-01 (Alex, 2026-10-19): DAYS IS ONE CONTROL. The routine form asks which
+ * days · what time · how much · which account, nothing about where. The choice
+ * is the form's own field (UI state, seeded from the stored rule on open —
+ * rruleHelpers.ts formOfRule); the wire fields stay cadence_mode, weekly_byday,
+ * the monthly fields and custom_rrule, so the routes are untouched. Every day,
+ * Weekdays, Weekends and Pick days compile to the existing FREQ=DAILY or
+ * FREQ=WEEKLY;BYDAY rules — no new rule shape.
+ */
+export type DaysChoice = 'every_day' | 'weekdays' | 'weekends' | 'pick_days' | 'once' | 'monthly' | 'custom';
+export const DAYS_CHOICE_ORDER: DaysChoice[] = ['every_day', 'weekdays', 'weekends', 'pick_days', 'once', 'monthly', 'custom'];
+export const DAYS_CHOICE_LABELS: Record<DaysChoice, string> = {
+  every_day: 'Every day',
+  weekdays: 'Weekdays (Mon–Fri)',
+  weekends: 'Weekends (Sat–Sun)',
+  pick_days: 'Pick days',
+  once: 'Once (a date)',
+  monthly: 'Monthly',
+  custom: 'Custom rule',
+};
+/** The two monthly shapes the form has always had, under the one "Monthly" choice. */
+export type MonthlyKind = 'monthly_day_of_month' | 'monthly_nth_weekday';
+export const MONTHLY_KIND_LABELS: Record<MonthlyKind, string> = { monthly_day_of_month: 'on a day of the month', monthly_nth_weekday: 'on the Nth weekday' };
+export const WEEKDAYS: readonly WeekDay[] = ['MO', 'TU', 'WE', 'TH', 'FR'];
+export const WEEKEND: readonly WeekDay[] = ['SA', 'SU'];
 
 export interface RoutineForm {
   name: string;
   description: string;
   entity_id: string;
+  /** FORM-01: the days control's choice — the form's own field; the wire fields below carry the rule. */
+  days: DaysChoice;
   cadence_mode: CadenceMode;
   weekly_byday: WeekDay[];           // for weekly mode
   monthly_day_of_month: string;       // for monthly_day_of_month (e.g., "15")
@@ -157,6 +229,7 @@ export interface RoutineForm {
   timezone: string;                   // default 'America/Los_Angeles'
   ideal_time_label: string;           // free-text "morning", "before lunch"
   fail_threshold_minutes: string;     // grace period in minutes before "miss"
+  role: StopRole;                     // ROLE-01: what kind of stop; 'none' until set
   start_date: string;                 // YYYY-MM-DD window start; '' = unset (active from creation)
   end_date: string;                   // YYYY-MM-DD window end; '' = unset (never expires)
   start_time: string;                 // HH:MM intent-window start; '' = unset
@@ -167,12 +240,31 @@ export interface RoutineForm {
   // seeds (DEFAULT_ROUTINE_FORM) and consumers are unaffected until the HB-4b picker lands.
   budget_amount?: string;             // per-occurrence amount; '' = unset
   coa_code?: string;                  // chart_of_accounts.code; '' = none
+  // ONEOFF-01: the routine's place. location text; latitude/longitude typed or
+  // picked (FindThisPlace) as strings — '' = none; the pair is all-or-nothing.
+  location: string;
+  latitude: string;
+  longitude: string;
+  // ONEOFF-01: the lines (LINES-01) a routine is created WITH, so a one-off can
+  // be authored whole — "one line $300 / 8150" — in one act. Each line is a
+  // routine step; the create route writes them with the routine.
+  lines: RoutineLineForm[];
 }
+
+/** One line authored with the routine: an activity, and its own amount and account ('' = none). */
+export interface RoutineLineForm {
+  activity: string;
+  budget_amount: string;
+  coa_code: string;
+}
+
+export const EMPTY_LINE_FORM: RoutineLineForm = { activity: '', budget_amount: '', coa_code: '' };
 
 export const DEFAULT_ROUTINE_FORM: RoutineForm = {
   name: '',
   description: '',
   entity_id: '',
+  days: 'every_day',
   cadence_mode: 'daily',
   weekly_byday: ['MO', 'TU', 'WE', 'TH', 'FR'],
   monthly_day_of_month: '1',
@@ -184,11 +276,16 @@ export const DEFAULT_ROUTINE_FORM: RoutineForm = {
   timezone: 'America/Los_Angeles',
   ideal_time_label: '',
   fail_threshold_minutes: '30',
+  role: 'none',
   start_date: '',
   end_date: '',
   start_time: '',
   end_time: '',
   is_active: true,
+  location: '',
+  latitude: '',
+  longitude: '',
+  lines: [],
 };
 
 export const WEEKDAY_LABELS: Record<WeekDay, string> = {
@@ -208,6 +305,7 @@ export const CADENCE_MODE_LABELS: Record<CadenceMode, string> = {
   weekly: 'weekly',
   monthly_day_of_month: 'monthly (day of month)',
   monthly_nth_weekday: 'monthly (Nth weekday)',
+  once: 'once (a single date)',
   custom: 'custom (raw RRULE)',
 };
 
@@ -215,9 +313,10 @@ export const CADENCE_MODE_LABELS: Record<CadenceMode, string> = {
  * Cadence group buckets for cadence-grouped list rendering.
  * Derived from the RRULE's FREQ component server-side.
  */
-export type CadenceGroup = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom';
+export type CadenceGroup = 'once' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom';
 
 export const CADENCE_GROUP_LABELS: Record<CadenceGroup, string> = {
+  once: 'Once',
   daily: 'Daily',
   weekly: 'Weekly',
   monthly: 'Monthly',
@@ -227,5 +326,18 @@ export const CADENCE_GROUP_LABELS: Record<CadenceGroup, string> = {
 };
 
 export const CADENCE_GROUP_ORDER: CadenceGroup[] = [
-  'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom',
+  'once', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom',
 ];
+
+// ROUTINES-UX-2: display formatter for the per-occurrence budget (a Decimal
+// 12,2 JSON-serialized as a string, e.g. "60.00"). Display only — locale
+// formatting, no derived figures. Callers render NOTHING for null (absence is
+// honest — no dashes, no placeholders). One formatter, three render sites
+// (RoutineRow collapsed + expanded, TodaysStrip), so the string can't drift.
+// TASKS-ONE-02 (2026-10-14): TodaysStrip is deleted. (RoutineRow no longer calls this
+// either — its one caller today is RoutineStepList.tsx, :381 and :420.)
+export function formatBudgetPerOccurrence(amount: string): string {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return `$${amount}`;
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}

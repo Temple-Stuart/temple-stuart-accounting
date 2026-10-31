@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireAdmin } from '@/lib/require-admin';
 
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userEmail = await getVerifiedEmail();
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // SEC-3: prospects is a global sales-lead table (PII) — admin-only. Gate
+    // BEFORE any mutation; 401 (guest) / 403 (non-admin).
+    const adminGate = await requireAdmin();
+    if (adminGate instanceof NextResponse) return adminGate;
 
     const { id } = await context.params;
     const { status } = await request.json();
@@ -32,13 +32,12 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userEmail2 = await getVerifiedEmail();
-    if (!userEmail2) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // SEC-3: admin-only — gate BEFORE deleting any lead. 401 (guest) / 403 (non-admin).
+    const adminGate = await requireAdmin();
+    if (adminGate instanceof NextResponse) return adminGate;
 
     const { id } = await context.params;
-    
+
     await prisma.prospects.delete({
       where: { id }
     });

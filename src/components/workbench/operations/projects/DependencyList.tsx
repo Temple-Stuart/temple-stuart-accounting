@@ -4,7 +4,7 @@
  *
  * PR3 split: this file keeps the EXACT live behavior it had before (self-fetch
  * GET dependencies on mount, POST to create, DELETE to remove an edge) and now
- * renders the pure <DependencyListView/> with the live data + real handlers as
+ * renders the pure <DependencyListView /> with the live data + real handlers as
  * props. The public name + prop shape ({ projectId, allProjects, onJumpTo }) are
  * unchanged, so the existing call site (ProjectRow.tsx:534) is untouched and
  * /operations/projects behaves identically. NO new behavior, NO demo data.
@@ -26,6 +26,7 @@ import type {
 } from './types';
 import { DEFAULT_DEPENDENCY_FORM } from './types';
 
+
 interface Props {
   projectId: string;
   /** All user projects (for the target dropdown). Excludes the current project. */
@@ -34,7 +35,7 @@ interface Props {
   onJumpTo: (projectId: string) => void;
 }
 
-export default function DependencyList({ projectId, allProjects, onJumpTo }: Props) {
+export default function DependencyList({ projectId, allProjects, onJumpTo }: Props & { }) {
   const [outgoing, setOutgoing] = useState<HydratedDependency[]>([]);
   const [incoming, setIncoming] = useState<InverseDependency[]>([]);
   const [loading, setLoading] = useState(true);

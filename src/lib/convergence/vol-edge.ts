@@ -1,3 +1,4 @@
+import { combineWeighted } from './weighted-combiner';
 import type {
   ConvergenceInput,
   VolEdgeResult,
@@ -151,13 +152,27 @@ function computeZScores(
 ): MispricingTrace['z_scores'] {
   const { peerEntry: stats, peerGroupKey } = lookupPeerStats(input);
 
+  // EDGE-4: vrp_z is scored against the ticker's OWN historical VRP
+  // distribution (scan_snapshots, 365d, >= 20 distinct scan days) — never a
+  // peer proxy, never a fabricated mean=0 / scaled std. No distribution ⇒ null.
+  const vrpHist = input.vrpHistory;
+  let vrpZ: number | null = null;
+  let vrpZSource: string | null = null;
+  if (vrp !== null && vrpHist && vrpHist.values.length >= 2) {
+    vrpZ = zScore(vrp, mean(vrpHist.values), stddev(vrpHist.values));
+    if (vrpZ !== null) {
+      vrpZSource = `own ${vrpHist.distinct_days}-obs VRP history, ${vrpHist.window_days}d, source: ${vrpHist.source}`;
+    }
+  }
+
   if (!stats?.metrics) {
     return {
-      vrp_z: null,
+      vrp_z: vrpZ,
+      vrp_z_source: vrpZSource,
       ivp_z: null,
       iv_hv_z: null,
       hv_accel_z: null,
-      note: 'peer_z: null (no peer group data available)',
+      note: `peer_z: null (no peer group data available); vrp_z: ${vrpZSource ?? 'null (no own-history VRP distribution)'}`,
       transform: 'raw' as const,
     };
   }
@@ -165,7 +180,6 @@ function computeZScores(
   const m = stats.metrics;
   const rawIvpStats = m['iv_percentile'];
   const ivHvStats = m['iv_hv_spread'];
-  const hv30Stats = m['hv30'];
 
   // Peer stats for IVP are computed from raw scanner data (0-1 scale),
   // but the scorer normalizes IVP to 0-100. Align scales before z-score.
@@ -177,12 +191,13 @@ function computeZScores(
   const ivpZ = ivpStats ? zScore(ivp, ivpStats.mean, ivpStats.std) : null;
   const ivHvZ = ivHvStats ? zScore(ivHvSpread, ivHvStats.mean, ivHvStats.std) : null;
 
-  // HV acceleration z-score: how unusual is HV30-HV60 spread vs peers' HV30 spread
+  // KILL-7 gray ruling (b): the HV-acceleration z uses the REAL peer
+  // distribution of hv30 − hv60 (sector-stats now computes it) — never the
+  // old assumed mean=0 against the peers' hv30-LEVEL std. No distribution →
+  // no z (the component keeps its raw own-data tier score).
   const hvAccel = (hv30 !== null && hv60 !== null) ? hv30 - hv60 : null;
-  const hvAccelZ = hv30Stats ? zScore(hvAccel, 0, hv30Stats.std) : null;
-
-  // VRP z-score: use iv_hv_spread stats as proxy for VRP distribution
-  const vrpZ = ivHvStats && ivHvStats.std > 0.001 ? zScore(vrp, 0, ivHvStats.std * 100) : null;
+  const hvAccelStats = m['hv_accel'];
+  const hvAccelZ = hvAccelStats ? zScore(hvAccel, hvAccelStats.mean, hvAccelStats.std) : null;
 
   // Determine transform type based on peer count
   const peerCount = stats.ticker_count ?? 0;
@@ -192,10 +207,11 @@ function computeZScores(
 
   return {
     vrp_z: vrpZ,
+    vrp_z_source: vrpZSource,
     ivp_z: ivpZ,
     iv_hv_z: ivHvZ,
     hv_accel_z: hvAccelZ,
-    note: `peer z-scores vs ${peerGroupName} peers (n=${peerCount}, transform=${transform})`,
+    note: `peer z-scores vs ${peerGroupName} peers (n=${peerCount}, transform=${transform}); vrp_z: ${vrpZSource ?? 'null (no own-history VRP distribution)'}`,
     transform,
   };
 }
@@ -228,36 +244,47 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   // Compute z-scores for sector-relative comparison
   const zScores = computeZScores(input, ivp, ivHvSpread, vrp, hv30, hv60);
   const { peerEntry, peerGroupKey } = lookupPeerStats(input);
-  const hasZScores = zScores.vrp_z !== null || zScores.ivp_z !== null ||
+  // Peer-relative transforms apply to IVP / IV_HV / HV_accel only — VRP is
+  // own-history-based (EDGE-4) and never enters a peer transform.
+  const hasPeerZScores = zScores.ivp_z !== null ||
                      zScores.iv_hv_z !== null || zScores.hv_accel_z !== null;
   const peerCount = peerEntry?.ticker_count ?? 0;
 
-  // --- Raw scores (baseline, always computed) ---
-
-  // VRP component (0.30): simple difference (Goyal & Saretto 2009)
-  // iv30 - hv30: positive = IV overpriced vs realized = good for selling premium
-  // Scale: 20-point diff → score 100, 0-point diff → score 50, -20 → score 0
-  // Raw score used as fallback for < 3 peers; percentile ranking overrides otherwise
-  let vrpScoreRaw = 40; // penalty default — missing IV30/HV30 data
-  if (iv30 !== null && hv30 !== null) {
-    const vrpDiff = iv30 - hv30;
-    vrpScoreRaw = clamp(50 + (vrpDiff / 20) * 50, 0, 100);
+  // --- VRP component (0.30) — EDGE-4: own-history distribution ONLY ---
+  // Percentile of today's VRP within the ticker's own 365d VRP series from
+  // scan_snapshots (>= 20 distinct scan days). No peer proxy, no fixed linear
+  // map, no fabricated mean/std. If the distribution cannot be computed the
+  // signal is null → EXCLUDED from the composite → weights renormalize.
+  const vrpHist = input.vrpHistory;
+  let vrpScore: number | null = null;
+  let vrpSourceLabel: string;
+  if (vrp !== null && vrpHist && vrpHist.values.length >= 20) {
+    const sortedHist = [...vrpHist.values].sort((a, b) => a - b);
+    vrpScore = round(percentileRank(vrp, sortedHist), 1);
+    vrpSourceLabel = `calculated: percentile of VRP vs own ${vrpHist.distinct_days}-obs history, ${vrpHist.window_days}d, source: ${vrpHist.source}`;
+  } else if (vrp === null) {
+    vrpSourceLabel = 'EXCLUDED — VRP not computable (missing IV30 or HV30)';
+  } else {
+    vrpSourceLabel = 'EXCLUDED — no own-history VRP distribution (< 20 distinct scan days in 365d of scan_snapshots)';
   }
 
-  // IVP component (0.30): IVP directly maps 0-100
-  const ivpScoreRaw = ivp !== null ? clamp(ivp, 0, 100) : 40; // penalty default — missing IVP
+  // --- Raw scores (KILL-6: missing → null → EXCLUDED + renormalized; the
+  // old penalty-40s entered the composite whenever a feed was absent) ---
 
-  // IVR component: same identity mapping as IVP (null if unavailable → fallback to IVP only)
+  // IVP component: IVP directly maps 0-100
+  const ivpScoreRaw: number | null = ivp !== null ? clamp(ivp, 0, 100) : null;
+
+  // IVR component: same identity mapping as IVP (null if unavailable)
   const ivrScoreRaw = ivr !== null ? clamp(ivr, 0, 100) : null;
 
-  // IV-HV spread component (0.25): higher absolute spread = more mispricing
-  let ivHvSpreadScoreRaw = 40; // penalty default — missing IV-HV spread
+  // IV-HV spread component: higher absolute spread = more mispricing
+  let ivHvSpreadScoreRaw: number | null = null;
   if (ivHvSpread !== null) {
     ivHvSpreadScoreRaw = clamp((Math.abs(ivHvSpread) / 20) * 100, 0, 100);
   }
 
-  // HV acceleration component (0.15): HV30 vs HV60 vs HV90 trend
-  let hvAccelScoreRaw = 40; // penalty default — missing HV data
+  // HV acceleration component: HV30 vs HV60 vs HV90 trend
+  let hvAccelScoreRaw: number | null = null;
   let hvTrend = 'UNKNOWN (missing HV data)';
   if (hv30 !== null && hv60 !== null && hv90 !== null) {
     if (hv30 < hv60 && hv60 < hv90) {
@@ -283,23 +310,22 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   // ≥5 peers → percentile ranking (nonparametric, immune to distributional assumptions)
   // 3-4 peers → z-score fallback (multiplier=10, clip=±5 SD — less aggressive)
   // <3 peers → raw scores (no normalization)
-  let vrpScore = vrpScoreRaw;
-  let ivpScore = ivpScoreRaw;
-  let ivHvSpreadScore = ivHvSpreadScoreRaw;
-  let hvAccelScore = hvAccelScoreRaw;
+  // EDGE-4: VRP is NOT in these branches — it is scored only against its own
+  // history above (the old peer iv_hv_spread proxy percentile and the
+  // zScore(vrp, 0, …) fallback are removed).
+  let ivpScore: number | null = ivpScoreRaw;
+  let ivHvSpreadScore: number | null = ivHvSpreadScoreRaw;
+  let hvAccelScore: number | null = hvAccelScoreRaw;
 
   const peerMetrics = peerEntry?.metrics;
 
-  if (hasZScores && zScores.transform === 'percentile' && peerMetrics) {
+  if (hasPeerZScores && zScores.transform === 'percentile' && peerMetrics) {
     // Percentile ranking: value's rank within sorted peer values → 0-100 score
     const rawIvpSorted = peerMetrics['iv_percentile']?.sortedValues;
     const ivHvSorted = peerMetrics['iv_hv_spread']?.sortedValues;
-    // VRP uses iv_hv_spread peers as proxy; HV accel uses hv30 peers
-    const hv30Sorted = peerMetrics['hv30']?.sortedValues;
+    // KILL-7: HV accel ranks against the REAL peer hv_accel distribution
+    const hvAccelSorted = peerMetrics['hv_accel']?.sortedValues;
 
-    if (vrp !== null && ivHvSorted?.length) {
-      vrpScore = round(percentileRank(vrp, ivHvSorted), 1);
-    }
     if (ivp !== null && rawIvpSorted?.length) {
       // Align scale: sorted values may be 0-1, ivp is 0-100
       const ivpSorted = rawIvpSorted[0] <= 1.0 && rawIvpSorted.length > 0
@@ -310,15 +336,12 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
     if (ivHvSpread !== null && ivHvSorted?.length) {
       ivHvSpreadScore = round(percentileRank(ivHvSpread, ivHvSorted), 1);
     }
-    if (hv30 !== null && hv60 !== null && hv30Sorted?.length) {
+    if (hv30 !== null && hv60 !== null && hvAccelSorted?.length) {
       const hvAccelVal = hv30 - hv60;
-      hvAccelScore = round(percentileRank(hvAccelVal, hv30Sorted), 1);
+      hvAccelScore = round(percentileRank(hvAccelVal, hvAccelSorted), 1);
     }
-  } else if (hasZScores && zScores.transform === 'z-score-fallback') {
+  } else if (hasPeerZScores && zScores.transform === 'z-score-fallback') {
     // 3-4 peers: z-score with reduced multiplier (10) and extended clip (±5 SD)
-    if (zScores.vrp_z !== null) {
-      vrpScore = round(50 + clamp(zScores.vrp_z * 10, -50, 50), 1);
-    }
     if (zScores.ivp_z !== null) {
       ivpScore = round(50 + clamp(zScores.ivp_z * 10, -50, 50), 1);
     }
@@ -334,23 +357,37 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   // --- IV Composite: blend IVP and IVR when both available ---
   // IVR uses raw score (no IVR-specific peer stats); IVP retains peer transform.
   const ivrScore = ivrScoreRaw; // null if IVR unavailable
-  let ivCompositeScore: number;
+  let ivCompositeScore: number | null;
   let ivCompositeMethod: string;
-  if (ivrScore !== null) {
-    ivCompositeScore = round(0.60 * ivpScore + 0.40 * ivrScore, 1);
-    ivCompositeMethod = '0.60×IVP + 0.40×IVR';
-  } else {
-    ivCompositeScore = ivpScore;
-    ivCompositeMethod = 'IVP only (IVR unavailable)';
-  }
+  // KILL-6: IVP missing no longer scores 40 — the composite renormalizes over
+  // whichever of IVP/IVR is present; both missing → EXCLUDED (null).
+  const ivcCombined = combineWeighted([
+    { key: 'ivp', weight: 0.60, score: ivpScore },
+    { key: 'ivr', weight: 0.40, score: ivrScore },
+  ]);
+  ivCompositeScore = ivcCombined.score;
+  if (ivpScore !== null && ivrScore !== null) ivCompositeMethod = '0.60×IVP + 0.40×IVR';
+  else if (ivpScore !== null) ivCompositeMethod = 'IVP only (IVR unavailable)';
+  else if (ivrScore !== null) ivCompositeMethod = 'IVR only (IVP unavailable)';
+  else ivCompositeMethod = 'EXCLUDED (IVP and IVR unavailable)';
 
   // Weights: 0.30×VRP + 0.30×IVComposite + 0.25×IV_HV_spread + 0.15×HV_accel
-  let score = round(0.30 * vrpScore + 0.30 * ivCompositeScore + 0.25 * ivHvSpreadScore + 0.15 * hvAccelScore, 1);
+  // EDGE-4/KILL-6 combiner: every missing component is EXCLUDED and the
+  // remaining weights renormalize (never imputed, never proxied). All four
+  // missing → the whole mispricing section is EXCLUDED from vol-edge.
+  const mispricingCombined = combineWeighted([
+    { key: 'vrp', weight: 0.30, score: vrpScore },
+    { key: 'ivp', weight: 0.30, score: ivCompositeScore },
+    { key: 'iv_hv_spread', weight: 0.25, score: ivHvSpreadScore },
+    { key: 'hv_accel', weight: 0.15, score: hvAccelScore },
+  ]);
+  const activeWeight = mispricingCombined.activeWeight;
+  let score = mispricingCombined.score;
 
   // High Conviction Bonus: when IVP and IVR both > 50 and within 15 points, add +5
   const highConvictionIv = ivp !== null && ivr !== null &&
     ivp > 50 && ivr > 50 && Math.abs(ivp - ivr) <= 15;
-  if (highConvictionIv) {
+  if (score !== null && highConvictionIv) {
     score = Math.min(100, round(score + 5, 1));
   }
 
@@ -368,14 +405,30 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   }
 
   const peerGroupName = peerEntry?.peer_group_name ?? peerGroupKey;
-  const mode = hasZScores
+  const mode = hasPeerZScores
     ? `${zScores.transform} mode (peers: ${peerGroupName}, n=${peerCount})`
     : 'raw mode (single ticker, no peer group)';
-  const formula = `0.30×VRP(${round(vrpScore, 1)}) + 0.30×IVComposite(${round(ivCompositeScore, 1)} [${ivCompositeMethod}]) + 0.25×IV_HV(${round(ivHvSpreadScore, 1)}) + 0.15×HV_accel(${round(hvAccelScore, 1)}) = ${round(score)}${highConvictionIv ? ' +5 high conviction' : ''} [${mode}]`;
+  // EDGE-4: the formula string the UI shows carries the VRP source label —
+  // own-history percentile when present, or the explicit exclusion +
+  // renormalization when absent. What the UI shows == what fires.
+  const fmtM = (v: number | null) => (v !== null ? String(round(v, 1)) : 'EXCLUDED');
+  const vrpTerm = vrpScore !== null
+    ? `0.30×VRP(${round(vrpScore, 1)} [${vrpSourceLabel}])`
+    : `VRP ${vrpSourceLabel}`;
+  const formula = `${vrpTerm} + 0.30×IVComposite(${fmtM(ivCompositeScore)} [${ivCompositeMethod}]) + 0.25×IV_HV(${fmtM(ivHvSpreadScore)}) + 0.15×HV_accel(${fmtM(hvAccelScore)})${mispricingCombined.excludedKeys.length > 0 && score !== null ? ` [missing excluded, weights renormalized ÷${round(activeWeight, 2)}]` : ''} = ${score !== null ? round(score) : 'EXCLUDED (no component data)'}${highConvictionIv && score !== null ? ' +5 high conviction' : ''} [${mode}]`;
 
+  const vrpNote = vrpScore !== null
+    ? `VRP=${round(vrpScore)}(own-history percentile,z=${zScores.vrp_z ?? 'null'})`
+    : 'VRP=EXCLUDED(no own-history distribution)';
+  const fmtN = (v: number | null) => (v !== null ? String(round(v)) : 'EXCLUDED');
   return {
-    score: round(score),
+    // KILL-6: 0 + weight set to 0 by scoreVolEdge when the whole section is
+    // EXCLUDED (no component data) — never an imputed value.
+    score: score !== null ? round(score) : 0,
     weight: 0.50,
+    active_signal_count: mispricingCombined.activeCount,
+    total_signal_count: mispricingCombined.totalCount,
+    excluded_components: mispricingCombined.excludedKeys.map(k => `mispricing.${k}`),
     inputs: {
       IV_30: iv30,
       HV_30: hv30,
@@ -386,16 +439,24 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
       IV_HV_spread: ivHvSpread,
       VRP: vrpStr,
     },
+    vrp_score: vrpScore,
     z_scores: zScores,
     formula,
-    notes: hasZScores
-      ? `VRP=${round(vrpScore)}(raw=${round(vrpScoreRaw)},z=${zScores.vrp_z}), IVComposite=${round(ivCompositeScore)}(IVP=${round(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${round(ivHvSpreadScore)}(raw=${round(ivHvSpreadScoreRaw)},z=${zScores.iv_hv_z}), HV_accel=${round(hvAccelScore)}(raw=${round(hvAccelScoreRaw)},z=${zScores.hv_accel_z})`
-      : `VRP=${round(vrpScore)}, IVComposite=${round(ivCompositeScore)}(IVP=${round(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${round(ivHvSpreadScore)}, HV_accel=${round(hvAccelScore)}`,
+    notes: hasPeerZScores
+      ? `${vrpNote}, IVComposite=${fmtN(ivCompositeScore)}(IVP=${fmtN(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${fmtN(ivHvSpreadScore)}(raw=${fmtN(ivHvSpreadScoreRaw)},z=${zScores.iv_hv_z}), HV_accel=${fmtN(hvAccelScore)}(raw=${fmtN(hvAccelScoreRaw)},z=${zScores.hv_accel_z})`
+      : `${vrpNote}, IVComposite=${fmtN(ivCompositeScore)}(IVP=${fmtN(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${fmtN(ivHvSpreadScore)}, HV_accel=${fmtN(hvAccelScore)}`,
     hv_trend: hvTrend,
+    // MODEL-01: the post-transform component scores the buyer model recomposes from
+    component_scores: {
+      vrp: vrpScore !== null ? round(vrpScore, 1) : null,
+      iv_composite: ivCompositeScore !== null ? round(ivCompositeScore, 1) : null,
+      iv_hv_spread: ivHvSpreadScore !== null ? round(ivHvSpreadScore, 1) : null,
+      hv_accel: hvAccelScore !== null ? round(hvAccelScore, 1) : null,
+    },
     iv_composite: {
       iv_rank: ivr,
       iv_percentile: ivp,
-      iv_composite_score: round(ivCompositeScore, 1),
+      iv_composite_score: ivCompositeScore !== null ? round(ivCompositeScore, 1) : null,
       iv_composite_method: ivCompositeMethod,
       high_conviction_iv: highConvictionIv,
       vol_regime: volRegime,
@@ -411,11 +472,16 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
   const earningsDate = input.ttScanner?.earningsDate ?? null;
 
   if (ts.length < 2) {
+    // KILL-6: < 2 expirations means the slope is NOT COMPUTABLE — the section
+    // is EXCLUDED (weight 0, renormalized by scoreVolEdge), never a penalty 40.
     return {
-      score: 40,
+      score: 0,
       weight: 0.30,
+      active_signal_count: 0,
+      total_signal_count: 1,
+      excluded_components: ['term_structure'],
       inputs: { expirations_available: ts.length },
-      formula: 'Insufficient term structure data (< 2 expirations) → penalty default 40 (missing data)',
+      formula: 'EXCLUDED — insufficient term structure data (< 2 expirations); no imputed score, weight renormalized',
       notes: 'Need at least 2 expirations to compute slope',
       shape: 'UNKNOWN',
       richest_tenor: null,
@@ -537,6 +603,9 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
   return {
     score: round(shapeScore),
     weight: 0.30,
+    active_signal_count: 1,
+    total_signal_count: 1,
+    excluded_components: [],
     inputs: {
       front_month_iv: round(frontIV, 2),
       back_month_iv: round(backIV, 2),
@@ -569,13 +638,19 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
   );
 
   if (candles.length < 20) {
+    // KILL-6: fewer than 20 SANITIZED candles (raw feed may have had more —
+    // this path was reachable and scored a penalty 40) → the whole technicals
+    // section is EXCLUDED (weight 0, renormalized by scoreVolEdge).
     return {
-      score: 40,
+      score: 0,
       weight: 0.20,
+      active_signal_count: 0,
+      total_signal_count: 1,
+      excluded_components: ['technicals'],
       inputs: { candles_available: candles.length },
-      formula: `Insufficient candle data (${candles.length} < 20 required) → penalty default 40 (missing data)`,
+      formula: `EXCLUDED — insufficient candle data (${candles.length} sanitized < 20 required); no imputed score, weight renormalized`,
       notes: 'Need at least 20 candles for Bollinger Bands and SMA calculations',
-      sub_scores: { rsi_score: 40, trend_score: 40, bollinger_score: 40, volume_score: 40, high52w_score: 40 },
+      sub_scores: { rsi_score: null, trend_score: null, bollinger_score: null, volume_score: null, high52w_score: null },
       indicators: {
         rsi_14: null, rsi_trace: null, sma_20: null, sma_50: null, latest_close: null,
         bb_upper: null, bb_lower: null, bb_middle: null, bb_position: null, bb_width: null,
@@ -642,7 +717,11 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
   const vol20d = candles.length >= 20 ? round(mean(candles.slice(-20).map(c => c.volume))) : null;
   const volumeRatio = vol5d !== null && vol20d !== null && vol20d > 0 ? round(vol5d / vol20d, 4) : null;
 
-  let volumeScore = 50;
+  // KILL-7 gray ruling (a): volumeRatio is null only when vol20d === 0 — the
+  // ratio vol5d/0 is mathematically UNDEFINED, so the component is EXCLUDED
+  // (renormalized by the technicals combiner), never a neutral 50. A true
+  // vol5d=0 over a positive vol20d IS data and scores the low-volume tier.
+  let volumeScore: number | null = null;
   if (volumeRatio !== null) {
     if (volumeRatio > 1.5) volumeScore = 70;      // Elevated volume → more liquid
     else if (volumeRatio > 1.2) volumeScore = 62;
@@ -663,7 +742,9 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
     ? round((latestClose - low52wNum) / (high52wNum - low52wNum), 4)
     : null;
 
-  let high52wScore = 40; // penalty default — missing Finnhub 52-week data
+  // KILL-6: missing Finnhub 52-week data → component EXCLUDED + renormalized
+  // (was a penalty 40 entering at 0.15 weight).
+  let high52wScore: number | null = null;
   if (high52wRatio !== null) {
     if (high52wRatio >= 0.95) high52wScore = 85;
     else if (high52wRatio >= 0.90) high52wScore = 75;
@@ -674,15 +755,28 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
   }
 
   // Weighted combination: RSI 25%, trend 25%, bollinger 20%, volume 15%, 52-week high 15%
-  const score = round(
-    0.25 * rsiScore + 0.25 * trendScore + 0.20 * bollingerScore + 0.15 * volumeScore + 0.15 * high52wScore, 1,
-  );
+  // KILL-6 combiner: a missing 52-week-high component is EXCLUDED and the
+  // remaining weights renormalize (RSI/trend/BB/volume are always computable
+  // from the >= 20 real candles guaranteed above).
+  const techCombined = combineWeighted([
+    { key: 'rsi', weight: 0.25, score: rsiScore },
+    { key: 'trend', weight: 0.25, score: trendScore },
+    { key: 'bollinger', weight: 0.20, score: bollingerScore },
+    { key: 'volume', weight: 0.15, score: volumeScore },
+    { key: 'high52w', weight: 0.15, score: high52wScore },
+  ]);
+  const score = techCombined.score as number; // >= 4 components always present
 
-  const formula = `0.25×RSI(${round(rsiScore)}) + 0.25×Trend(${round(trendScore)}) + 0.20×BB(${round(bollingerScore)}) + 0.15×Vol(${round(volumeScore)}) + 0.15×52WkHigh(${round(high52wScore)}) = ${score}`;
+  const fmtT = (v: number | null) => (v !== null ? String(round(v)) : 'EXCLUDED');
+  const excludedTech = [volumeScore === null ? 'volume' : null, high52wScore === null ? 'high52w' : null].filter(Boolean);
+  const formula = `0.25×RSI(${round(rsiScore)}) + 0.25×Trend(${round(trendScore)}) + 0.20×BB(${round(bollingerScore)}) + 0.15×Vol(${fmtT(volumeScore)}) + 0.15×52WkHigh(${fmtT(high52wScore)})${excludedTech.length > 0 ? ` [${excludedTech.join('+')} excluded, weights renormalized ÷${round(techCombined.activeWeight, 2)}]` : ''} = ${score}`;
 
   return {
     score: round(score),
     weight: 0.20,
+    active_signal_count: techCombined.activeCount,
+    total_signal_count: techCombined.totalCount,
+    excluded_components: techCombined.excludedKeys.map(k => `technicals.${k}`),
     inputs: {
       candles_available: candles.length,
       latest_close: latestClose,
@@ -693,8 +787,8 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
       rsi_score: round(rsiScore),
       trend_score: round(trendScore),
       bollinger_score: round(bollingerScore),
-      volume_score: round(volumeScore),
-      high52w_score: round(high52wScore),
+      volume_score: volumeScore !== null ? round(volumeScore) : null,
+      high52w_score: high52wScore !== null ? round(high52wScore) : null,
     },
     indicators: {
       rsi_14: rsiResult.rsi,
@@ -727,13 +821,16 @@ function scoreOptionsSkew(input: ConvergenceInput): SkewTrace {
   const spot = flow?.underlyingPrice ?? null;
 
   if (!chain || chain.length === 0 || spot === null || spot <= 0) {
+    // KILL-6: no chain data → EXCLUDED (weight 0, renormalized) — the old
+    // trace displayed a fabricated neutral 50.
     return {
-      score: 50, weight: 0.10,
+      score: 0, weight: 0.10,
+      active_signal_count: 0, total_signal_count: 1, excluded_components: ['skew'],
       inputs: { data_available: false },
-      formula: 'No options chain data → neutral default 50',
+      formula: 'EXCLUDED — no options chain data; no imputed score, weight renormalized',
       notes: 'Skew scoring requires per-strike IV data from options chain',
       vol_skew_25d: null, pc_iv_ratio_atm: null,
-      skew_direction: 'neutral', skew_score: 50,
+      skew_direction: 'neutral', skew_score: 0,
     };
   }
 
@@ -743,13 +840,16 @@ function scoreOptionsSkew(input: ConvergenceInput): SkewTrace {
     .sort((a, b) => Math.abs(a.dte - 30) - Math.abs(b.dte - 30));
 
   if (sorted.length === 0) {
+    // KILL-6: chain present but no usable expiration — the metric inputs are
+    // MISSING, not thin: EXCLUDED, never a neutral 50 at live weight.
     return {
-      score: 50, weight: 0.10,
+      score: 0, weight: 0.10,
+      active_signal_count: 0, total_signal_count: 1, excluded_components: ['skew'],
       inputs: { data_available: false, expirations: chain.length },
-      formula: 'No expirations >= 7 DTE → neutral default 50',
+      formula: 'EXCLUDED — no expirations >= 7 DTE; no imputed score, weight renormalized',
       notes: 'Need at least one expiration with 7+ DTE for skew computation',
       vol_skew_25d: null, pc_iv_ratio_atm: null,
-      skew_direction: 'neutral', skew_score: 50,
+      skew_direction: 'neutral', skew_score: 0,
     };
   }
 
@@ -827,15 +927,27 @@ function scoreOptionsSkew(input: ConvergenceInput): SkewTrace {
   // Weighted blend: 60% vol skew (more informative), 40% PC IV ratio
   const hasVolSkew = volSkew25d !== null;
   const hasPCR = pcIvRatioAtm !== null;
+  // KILL-6: single-metric paths STAY (computed from present data, labeled by
+  // the formula); NEITHER metric computable = the per-strike IV needed is
+  // MISSING → the section is EXCLUDED, never a fabricated neutral 50.
+  if (!hasVolSkew && !hasPCR) {
+    return {
+      score: 0, weight: 0.10,
+      active_signal_count: 0, total_signal_count: 1, excluded_components: ['skew'],
+      inputs: { data_available: false, expiration_used: nearExp.expirationDate, dte: nearExp.dte, spot_price: round(spot, 2) },
+      formula: 'EXCLUDED — no per-strike IV usable for either skew metric; no imputed score, weight renormalized',
+      notes: 'Neither 25d vol skew nor ATM put/call IV ratio computable from the chain feed',
+      vol_skew_25d: null, pc_iv_ratio_atm: null,
+      skew_direction: 'neutral', skew_score: 0,
+    };
+  }
   let skewScore: number;
   if (hasVolSkew && hasPCR) {
     skewScore = round(0.60 * skewScoreFromVol + 0.40 * skewScoreFromPCR, 1);
   } else if (hasVolSkew) {
     skewScore = skewScoreFromVol;
-  } else if (hasPCR) {
-    skewScore = skewScoreFromPCR;
   } else {
-    skewScore = 50;
+    skewScore = skewScoreFromPCR;
   }
 
   const skewDirection: 'bullish' | 'bearish' | 'neutral' =
@@ -846,6 +958,9 @@ function scoreOptionsSkew(input: ConvergenceInput): SkewTrace {
   return {
     score: round(skewScore),
     weight: 0.10,
+    active_signal_count: 1,
+    total_signal_count: 1,
+    excluded_components: [],
     inputs: {
       data_available: true,
       expiration_used: nearExp.expirationDate,
@@ -889,18 +1004,34 @@ function scoreGammaExposure(input: ConvergenceInput): GEXTrace {
   const spot = flow?.underlyingPrice ?? null;
 
   if (!chain || chain.length === 0 || spot === null || spot <= 0) {
+    // KILL-6: no chain data → EXCLUDED (weight 0, renormalized) — the old
+    // trace displayed a fabricated neutral 50.
     return {
-      score: 50, weight: 0.10,
+      score: 0, weight: 0.10,
+      active_signal_count: 0, total_signal_count: 1, excluded_components: ['gex'],
       inputs: { data_available: false },
-      formula: 'No options chain data → neutral default 50',
+      formula: 'EXCLUDED — no options chain data; no imputed score, weight renormalized',
       notes: 'GEX scoring requires per-strike OI and IV data from options chain',
       net_gex: null, gex_flip_strike: null,
-      distance_to_flip_pct: null, gex_regime: 'neutral', gex_score: 50,
+      distance_to_flip_pct: null, gex_regime: 'neutral', gex_score: 0,
     };
   }
 
-  // Risk-free rate from FRED treasury 10Y, fallback 4.5%
-  const rfr = (input.fredMacro?.treasury10y ?? 4.5) / 100;
+  // KILL-6: the risk-free rate is the REAL fetched FRED 10Y (DGS10) — the old
+  // `?? 4.5` silently priced BS gamma off a hardcoded rate whenever the series
+  // was missing. Missing rate → GEX is not computable honestly → EXCLUDED.
+  if (input.fredMacro?.treasury10y == null) {
+    return {
+      score: 0, weight: 0.10,
+      active_signal_count: 0, total_signal_count: 1, excluded_components: ['gex'],
+      inputs: { data_available: true, risk_free_rate: null },
+      formula: 'EXCLUDED — FRED treasury10y (DGS10) unavailable; BS gamma needs the real risk-free rate (never a hardcoded 4.5%); weight renormalized',
+      notes: 'GEX requires the fetched DGS10 rate — feed unavailable this run',
+      net_gex: null, gex_flip_strike: null,
+      distance_to_flip_pct: null, gex_regime: 'neutral', gex_score: 0,
+    };
+  }
+  const rfr = input.fredMacro.treasury10y / 100;
 
   // Compute GEX across all near-term expirations
   // For each strike: call_GEX = call_OI × call_gamma × 100 × spot
@@ -915,11 +1046,11 @@ function scoreGammaExposure(input: ConvergenceInput): GEXTrace {
     for (const s of exp.strikes) {
       let strikeGex = 0;
 
-      if (s.callIV !== null && s.callIV > 0 && s.callOI > 0) {
+      if (s.callIV !== null && s.callIV > 0 && s.callOI != null && s.callOI > 0) {
         const gamma = bsGamma(spot, s.strike, s.callIV, exp.dte, rfr);
         strikeGex += s.callOI * gamma * 100 * spot;
       }
-      if (s.putIV !== null && s.putIV > 0 && s.putOI > 0) {
+      if (s.putIV !== null && s.putIV > 0 && s.putOI != null && s.putOI > 0) {
         const gamma = bsGamma(spot, s.strike, s.putIV, exp.dte, rfr);
         strikeGex += -1 * s.putOI * gamma * 100 * spot;
       }
@@ -979,13 +1110,21 @@ function scoreGammaExposure(input: ConvergenceInput): GEXTrace {
   // High positive GEX (spot well above flip) → low realized vol → high score
   // Negative GEX (spot below flip) → amplified moves → low score
   // Near flip → neutral
-  let gexScore: number;
-  if (distanceToFlipPct !== null) {
-    // Map distance: +5% → 85, +2% → 70, 0% → 50, -2% → 30, -5% → 15
-    gexScore = clamp(round(50 + distanceToFlipPct * 7), 0, 100);
-  } else {
-    gexScore = 50;
+  // KILL-6: distanceToFlipPct is null only when NO strike had usable OI+IV
+  // (perStrikeGex empty) — the inputs are MISSING → EXCLUDED, never a 50.
+  if (distanceToFlipPct === null) {
+    return {
+      score: 0, weight: 0.10,
+      active_signal_count: 0, total_signal_count: 1, excluded_components: ['gex'],
+      inputs: { data_available: true, spot_price: round(spot, 2), risk_free_rate: round(rfr * 100, 2), strikes_computed: 0 },
+      formula: 'EXCLUDED — no strike had usable OI+IV to compute dealer gamma; no imputed score, weight renormalized',
+      notes: 'GEX flip point not computable from the chain feed',
+      net_gex: null, gex_flip_strike: null,
+      distance_to_flip_pct: null, gex_regime: 'neutral', gex_score: 0,
+    };
   }
+  // Map distance: +5% → 85, +2% → 70, 0% → 50, -2% → 30, -5% → 15
+  const gexScore: number = clamp(round(50 + distanceToFlipPct * 7), 0, 100);
 
   // Normalize net GEX for display (in millions of dollar-gamma)
   const netGexDisplay = round(totalGex / 1_000_000, 2);
@@ -995,6 +1134,9 @@ function scoreGammaExposure(input: ConvergenceInput): GEXTrace {
   return {
     score: round(gexScore),
     weight: 0.10,
+    active_signal_count: 1,
+    total_signal_count: 1,
+    excluded_components: [],
     inputs: {
       data_available: true,
       spot_price: round(spot, 2),
@@ -1019,8 +1161,10 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
   const termStructure = scoreTermStructure(input);
   const skew = scoreOptionsSkew(input);
   const gex = scoreGammaExposure(input);
-  const hasCandles = input.candles.length >= 20;
-  const hasChainData = (input.optionsFlow?.chainDetail?.length ?? 0) > 0;
+  // KILL-6: scoreTechnicals handles its own exclusion (< 20 SANITIZED candles
+  // → EXCLUDED trace) — the old raw-length check here missed the case where
+  // raw >= 20 but sanitized < 20, which then scored a penalty 40.
+  const technicals: TechnicalsTrace = scoreTechnicals(input);
 
   // Weight rebalance (before → after):
   //   Mispricing:      0.50 → 0.40
@@ -1033,119 +1177,55 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
   //   - Skew measures directionality of the vol surface, not the level
   //   - GEX measures dealer positioning's effect on realized volatility
 
-  // Assign weights based on data availability
-  mispricing.weight = 0.40;
-  termStructure.weight = 0.25;
+  // KILL-6 / EDGE-2 combiner: a section whose trace declares zero computable
+  // components (active_signal_count 0) is EXCLUDED and the remaining section
+  // weights renormalize — generalizing the old hand-written branch tree.
+  const sectionActive = (t: { active_signal_count?: number }) => (t.active_signal_count ?? 1) > 0;
+  const gateCombined = combineWeighted([
+    { key: 'mispricing', weight: 0.40, score: sectionActive(mispricing) ? mispricing.score : null },
+    { key: 'term_structure', weight: 0.25, score: sectionActive(termStructure) ? termStructure.score : null },
+    { key: 'technicals', weight: 0.15, score: sectionActive(technicals) ? technicals.score : null },
+    { key: 'skew', weight: 0.10, score: sectionActive(skew) ? skew.score : null },
+    { key: 'gex', weight: 0.10, score: sectionActive(gex) ? gex.score : null },
+  ]);
 
-  let technicals: TechnicalsTrace;
-  let score: number;
+  // MIG-1: with zero real data across all five sections the gate records an
+  // HONEST NULL (scan_snapshots.volEdgeScore is nullable now) — excluded from
+  // the composite, which renormalizes over the present gates. Declared via
+  // active_signal_count 0 + excluded_fields + a composite data_gaps entry.
+  const score = gateCombined.score;
 
-  if (hasCandles) {
-    technicals = scoreTechnicals(input);
-    technicals.weight = 0.15;
+  // Renormalized section weights written back onto the traces; excluded
+  // sections show weight 0 with an EXCLUDED formula.
+  const renorm = (w: number, active: boolean) => (active ? round(w / gateCombined.activeWeight, 4) : 0);
+  mispricing.weight = renorm(0.40, sectionActive(mispricing));
+  termStructure.weight = renorm(0.25, sectionActive(termStructure));
+  technicals.weight = renorm(0.15, sectionActive(technicals));
+  skew.weight = renorm(0.10, sectionActive(skew));
+  gex.weight = renorm(0.10, sectionActive(gex));
 
-    if (hasChainData) {
-      // Full 5-component weighting
-      score = round(
-        mispricing.weight * mispricing.score +
-        termStructure.weight * termStructure.score +
-        technicals.weight * technicals.score +
-        skew.weight * skew.score +
-        gex.weight * gex.score,
-        1,
-      );
-    } else {
-      // No chain data — exclude skew+GEX, renormalize
-      // mispricing 0.40/0.80=0.50, term 0.25/0.80=0.3125, tech 0.15/0.80=0.1875
-      const denom = mispricing.weight + termStructure.weight + technicals.weight;
-      score = round(
-        (mispricing.weight / denom) * mispricing.score +
-        (termStructure.weight / denom) * termStructure.score +
-        (technicals.weight / denom) * technicals.score,
-        1,
-      );
-      mispricing.weight = round(mispricing.weight / denom, 4);
-      termStructure.weight = round(termStructure.weight / denom, 4);
-      technicals.weight = round(technicals.weight / denom, 4);
-      skew.weight = 0;
-      gex.weight = 0;
-    }
-  } else {
-    // No candle data — exclude technicals
-    technicals = {
-      score: 0,
-      weight: 0,
-      inputs: { candles_available: input.candles.length },
-      formula: 'EXCLUDED — no candle data available.',
-      notes: 'Technicals excluded. No fabricated scores.',
-      sub_scores: { rsi_score: 0, trend_score: 0, bollinger_score: 0, volume_score: 0, high52w_score: 0 },
-      indicators: {
-        rsi_14: null, rsi_trace: null, sma_20: null, sma_50: null, latest_close: null,
-        bb_upper: null, bb_lower: null, bb_middle: null, bb_position: null, bb_width: null,
-        high52w_ratio: null, high52w_range_position: null,
-        avg_volume_5d: null, avg_volume_20d: null, volume_ratio: null,
-      },
-      candles_used: 0,
-    };
-
-    if (hasChainData) {
-      // No candles but have chain: mispricing + term + skew + gex
-      const denom = mispricing.weight + termStructure.weight + skew.weight + gex.weight;
-      score = round(
-        (mispricing.weight / denom) * mispricing.score +
-        (termStructure.weight / denom) * termStructure.score +
-        (skew.weight / denom) * skew.score +
-        (gex.weight / denom) * gex.score,
-        1,
-      );
-      mispricing.weight = round(mispricing.weight / denom, 4);
-      termStructure.weight = round(termStructure.weight / denom, 4);
-      skew.weight = round(skew.weight / denom, 4);
-      gex.weight = round(gex.weight / denom, 4);
-    } else {
-      // No candles, no chain: mispricing + term only
-      const denom = mispricing.weight + termStructure.weight;
-      score = round(
-        (mispricing.weight / denom) * mispricing.score +
-        (termStructure.weight / denom) * termStructure.score,
-        1,
-      );
-      mispricing.weight = round(mispricing.weight / denom, 4);
-      termStructure.weight = round(termStructure.weight / denom, 4);
-      skew.weight = 0;
-      gex.weight = 0;
-    }
-  }
-
-  // Build DataConfidence
-  const tt = input.ttScanner;
-  const imputedFields: string[] = [];
-  // Mispricing sub-scores
-  if (tt?.iv30 == null || tt?.hv30 == null) imputedFields.push('mispricing.vrp');
-  if (tt?.ivPercentile == null) imputedFields.push('mispricing.ivp');
-  if (tt?.ivHvSpread == null) imputedFields.push('mispricing.iv_hv_spread');
-  if (tt?.hv30 == null || tt?.hv60 == null || tt?.hv90 == null) imputedFields.push('mispricing.hv_accel');
-  // Term structure
-  const tsLen = tt?.termStructure?.length ?? 0;
-  if (tsLen < 2) imputedFields.push('term_structure');
-  // Technicals
-  if (!hasCandles) {
-    imputedFields.push('technicals');
-  } else {
-    if (!input.finnhubFundamentals?.metric?.['52WeekHigh']) imputedFields.push('technicals.high52w');
-  }
-  // Skew + GEX
-  if (!hasChainData) {
-    imputedFields.push('skew');
-    imputedFields.push('gex');
-  }
-  // mispricing(4) + term(1) + technicals(5 or 1) + skew(1) + gex(1)
-  const totalSubScores = 4 + 1 + (hasCandles ? 5 : 1) + 1 + 1;
+  // Build DataConfidence — KILL-6: nothing is imputed anywhere in vol-edge
+  // anymore; every missing component/section is EXCLUDED + renormalized, and
+  // the tracking is derived from the traces' own exclusions (cannot drift).
+  const technicalsExcluded = !sectionActive(technicals);
+  const excludedFields: string[] = [
+    ...(mispricing.excluded_components ?? []),
+    ...(sectionActive(termStructure) ? [] : ['term_structure']),
+    ...(technicalsExcluded ? ['technicals'] : (technicals.excluded_components ?? [])),
+    ...(sectionActive(skew) ? [] : ['skew']),
+    ...(sectionActive(gex) ? [] : ['gex']),
+  ];
+  // mispricing(4) + term(1) + technicals(5, or 1 when the whole section is
+  // excluded) + skew(1) + gex(1)
+  const totalSubScores = 4 + 1 + (technicalsExcluded ? 1 : 5) + 1 + 1;
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
-    imputed_sub_scores: imputedFields.length,
-    confidence: round(1 - imputedFields.length / totalSubScores, 4),
-    imputed_fields: imputedFields,
+    imputed_sub_scores: excludedFields.length,
+    confidence: round(1 - excludedFields.length / totalSubScores, 4),
+    imputed_fields: [],
+    excluded_fields: excludedFields,
+    // "computed from N/M signals"
+    active_signal_count: totalSubScores - excludedFields.length,
   };
 
   return {

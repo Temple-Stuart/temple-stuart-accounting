@@ -1,9 +1,11 @@
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { CountryCode } from 'plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { encryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +23,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tierGate = requireTier(user.tier, 'plaid', user.id);
+    // TAB-SERVER-GATE: tab:books entitlement replaces the 'plaid' tier gate
+    const tierGate = await requireTabAccess(user.id, 'tab:books');
     if (tierGate) return tierGate;
 
     const { publicToken } = await request.json();
@@ -61,7 +64,8 @@ export async function POST(request: Request) {
       data: {
         id: plaidItemId,
         itemId,
-        accessToken,
+        // SEC-02: the Plaid access token lands encrypted; readers accept ciphertext only.
+        accessToken: encryptToken(accessToken),
         institutionId: institutionId || 'unknown',
         institutionName: institutionName,
         userId: user.id,
@@ -122,7 +126,10 @@ export async function POST(request: Request) {
           mask: account.mask,
           currentBalance: account.balances.current || 0,
           availableBalance: account.balances.available || account.balances.current || 0,
-          isoCurrencyCode: account.balances.iso_currency_code || 'USD',
+          // LAW-02 (2026-09-27): the currency Plaid states, or NULL — never 'USD'. Every
+          // reader handles NULL: the MATCH-02 refund pass EXCLUDES the amount signal
+          // (reservationMatcher.ts proposeRefundMatches); attach copies it as stated.
+          isoCurrencyCode: account.balances.iso_currency_code ?? null,
           plaidItemId: plaidItemId,
           userId: user.id,
           updatedAt: new Date(),
@@ -132,7 +139,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Token exchange error:', error);
+    console.error('Token exchange error:', summarizePlaidError(error));
     return NextResponse.json({ error: 'Failed to exchange token' }, { status: 500 });
   }
 }

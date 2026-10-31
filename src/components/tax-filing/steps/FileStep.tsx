@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
+import { E1098, R1099, T1098, W2 } from '@/lib/tax/documentFields';
+import { taxAmount } from '@/lib/tax/documentAmounts';
+
 
 // ═══════════════════════════════════════════════════════════════════
 // Step 6 — File (export & filing instructions)
@@ -87,15 +90,9 @@ function fmtMoney(n: number | null | undefined): string {
   return n < 0 ? `($${s})` : `$${s}`;
 }
 
-function num(data: Record<string, unknown>, key: string): number {
-  const v = data[key];
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') {
-    const n = parseFloat(v);
-    return isNaN(n) ? 0 : n;
-  }
-  return 0;
-}
+// TAX-WAGES-01 (Alex, 2026-10-28, ruling B): an amount is read by the one rule (src/lib/tax/documentAmounts.ts
+// taxAmount) — the num() that stood here, and the export's `Number(data.x) || 0`, read "abc" as 0. A blank box
+// reads as none (the 1040 declares it); an unreadable one is refused by name — /api/tax/calculate refuses it first.
 
 function str(data: Record<string, unknown>, key: string): string {
   const v = data[key];
@@ -158,7 +155,7 @@ function generateAndDownloadTxt(filename: string, content: string) {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps) {
+export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps & { }) {
   const [calc, setCalc] = useState<CalculateResponse | null>(null);
   const [docs, setDocs] = useState<TaxDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -453,7 +450,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
             </div>
             <a
               href={`/api/tax/export?year=${taxYear}`}
-              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700"
+              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-brand-purple rounded hover:bg-brand-purple-hover"
             >
               Download CSV
             </a>
@@ -487,14 +484,14 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
               <button
                 type="button"
                 onClick={() => downloadScheduleCLines(f.scheduleC, taxYear)}
-                className="px-2 py-1.5 text-[10px] font-semibold text-center text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
+                className="px-2 py-1.5 text-[10px] font-semibold text-center text-brand-purple border border-brand-purple/40 rounded hover:bg-brand-purple-wash"
               >
                 Line Summary
               </button>
               <button
                 type="button"
                 onClick={() => downloadScheduleCDetail(f.scheduleC, taxYear)}
-                className="px-2 py-1.5 text-[10px] font-semibold text-center text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
+                className="px-2 py-1.5 text-[10px] font-semibold text-center text-brand-purple border border-brand-purple/40 rounded hover:bg-brand-purple-wash"
               >
                 Account Detail
               </button>
@@ -518,7 +515,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
               onClick={() =>
                 downloadTaxSummary(f, calc, w2Docs, r1099Docs, e1098Docs, t1098Docs, taxYear)
               }
-              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700"
+              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-brand-purple rounded hover:bg-brand-purple-hover"
             >
               Download Summary
             </button>
@@ -541,7 +538,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
             </div>
             <a
               href={`/api/tax/generate-pdf?year=${taxYear}&form=all`}
-              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700"
+              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-brand-purple rounded hover:bg-brand-purple-hover"
             >
               Download PDF
             </a>
@@ -569,7 +566,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
                 <a
                   key={item.slug}
                   href={`/api/cpa-export?year=${taxYear}&format=${item.slug}`}
-                  className="px-2 py-1.5 text-[10px] font-semibold text-center text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
+                  className="px-2 py-1.5 text-[10px] font-semibold text-center text-brand-purple border border-brand-purple/40 rounded hover:bg-brand-purple-wash"
                 >
                   {item.label}
                 </a>
@@ -597,7 +594,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
               href="https://www.taxact.com"
               target="_blank"
               rel="noreferrer"
-              className="text-blue-700 underline"
+              className="text-brand-purple underline"
             >
               taxact.com
             </a>{' '}
@@ -619,42 +616,42 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
                 {w2Docs.map((d) => (
                   <li key={d.id} className="border border-gray-100 rounded p-2">
                     <div className="font-semibold text-gray-800">
-                      {str(d.data, 'employer_name') || d.label || 'Employer'}
+                      {str(d.data, W2.employerName) || d.label || 'Employer'}
                     </div>
                     <div className="font-mono text-gray-600 mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
                       <span>
-                        EIN: {str(d.data, 'employer_ein') || '—'}
+                        EIN: {str(d.data, W2.employerEin) || '—'}
                       </span>
                       <span>
-                        Box 1 (wages): {fmtMoney(num(d.data, 'gross_wages'))}
+                        Box 1 (wages): {fmtMoney(taxAmount(d, W2.grossWages))}
                       </span>
                       <span>
                         Box 2 (fed WH):{' '}
-                        {fmtMoney(num(d.data, 'federal_withheld'))}
+                        {fmtMoney(taxAmount(d, W2.federalWithheld))}
                       </span>
                       <span>
                         Box 3 (SS wages):{' '}
-                        {fmtMoney(num(d.data, 'social_security_wages'))}
+                        {fmtMoney(taxAmount(d, W2.socialSecurityWages))}
                       </span>
                       <span>
                         Box 4 (SS tax):{' '}
-                        {fmtMoney(num(d.data, 'social_security_tax'))}
+                        {fmtMoney(taxAmount(d, W2.socialSecurityTax))}
                       </span>
                       <span>
                         Box 5 (Medicare wages):{' '}
-                        {fmtMoney(num(d.data, 'medicare_wages'))}
+                        {fmtMoney(taxAmount(d, W2.medicareWages))}
                       </span>
                       <span>
                         Box 6 (Medicare tax):{' '}
-                        {fmtMoney(num(d.data, 'medicare_tax'))}
+                        {fmtMoney(taxAmount(d, W2.medicareTax))}
                       </span>
                       <span>
                         Box 16 (state wages):{' '}
-                        {fmtMoney(num(d.data, 'state_wages'))}
+                        {fmtMoney(taxAmount(d, W2.stateWages))}
                       </span>
                       <span>
                         Box 17 (state WH):{' '}
-                        {fmtMoney(num(d.data, 'state_withheld'))}
+                        {fmtMoney(taxAmount(d, W2.stateWithheld))}
                       </span>
                     </div>
                   </li>
@@ -670,21 +667,21 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
                 {r1099Docs.map((d) => (
                   <li key={d.id} className="border border-gray-100 rounded p-2">
                     <div className="font-semibold text-gray-800">
-                      {str(d.data, 'payer_name') || d.label || 'Payer'}
+                      {str(d.data, R1099.payerName) || d.label || 'Payer'}
                     </div>
                     <div className="font-mono text-gray-600 mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
                       <span>
-                        Box 1 (gross): {fmtMoney(num(d.data, 'gross_distribution'))}
+                        Box 1 (gross): {fmtMoney(taxAmount(d, R1099.grossDistribution))}
                       </span>
                       <span>
-                        Box 2a (taxable): {fmtMoney(num(d.data, 'taxable_amount'))}
+                        Box 2a (taxable): {fmtMoney(taxAmount(d, R1099.taxableAmount))}
                       </span>
                       <span>
                         Box 4 (fed WH):{' '}
-                        {fmtMoney(num(d.data, 'federal_withheld'))}
+                        {fmtMoney(taxAmount(d, R1099.federalWithheld))}
                       </span>
                       <span>
-                        Box 7 (code): {str(d.data, 'distribution_code') || '—'}
+                        Box 7 (code): {str(d.data, R1099.distributionCode) || '—'}
                       </span>
                     </div>
                   </li>
@@ -697,7 +694,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
             calc.form_8949.summary.total_dispositions > 0 && (
               <Step n={6}>
                 <div>
-                  <strong>Import Form 8949:</strong> In TaxAct's Capital Gains
+                  <strong>Import Form 8949:</strong> In TaxAct&apos;s Capital Gains
                   section, click <em>Import</em> and upload the Form 8949 CSV
                   you downloaded above. TaxAct will auto-populate Schedule D
                   from the import.
@@ -770,13 +767,13 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
                 {t1098Docs.map((d) => (
                   <li key={d.id} className="border border-gray-100 rounded p-2">
                     <div className="font-semibold text-gray-800">
-                      {str(d.data, 'school_name') || d.label || 'School'}
+                      {str(d.data, T1098.schoolName) || d.label || 'School'}
                     </div>
                     <div className="font-mono text-gray-600 mt-1">
                       Box 1 (tuition):{' '}
-                      {fmtMoney(num(d.data, 'amounts_billed'))} · Box 5
+                      {fmtMoney(taxAmount(d, T1098.amountsBilled))} · Box 5
                       (scholarships):{' '}
-                      {fmtMoney(num(d.data, 'scholarships'))}
+                      {fmtMoney(taxAmount(d, T1098.scholarships))}
                     </div>
                   </li>
                 ))}
@@ -795,10 +792,10 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
                 {e1098Docs.map((d) => (
                   <li key={d.id} className="border border-gray-100 rounded p-2">
                     <div className="font-semibold text-gray-800">
-                      {str(d.data, 'lender_name') || d.label || 'Lender'}
+                      {str(d.data, E1098.lenderName) || d.label || 'Lender'}
                     </div>
                     <div className="font-mono text-gray-600 mt-1">
-                      Box 1: {fmtMoney(num(d.data, 'interest_paid'))}
+                      Box 1: {fmtMoney(taxAmount(d, E1098.interestPaid))}
                     </div>
                   </li>
                 ))}
@@ -817,7 +814,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
           )}
 
           <Step n={11}>
-            <div>Review TaxAct's computed return.</div>
+            <div>Review TaxAct&apos;s computed return.</div>
             <p className="mt-1 text-xs text-gray-600">
               TaxAct should compute {estimatedResultText}. If the number differs
               by more than <strong>$50</strong>, review each section for data-
@@ -827,7 +824,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
           </Step>
 
           <Step n={12}>
-            E-file through TaxAct. You'll get confirmation emails from both
+            E-file through TaxAct. You&apos;ll get confirmation emails from both
             TaxAct and the IRS (typically within 24-48 hours of submission).
           </Step>
         </ol>
@@ -911,7 +908,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleCheck(item.key)}
-                    className="mt-0.5 w-4 h-4 accent-blue-600"
+                    className="mt-0.5 w-4 h-4 accent-brand-purple"
                   />
                   <span
                     className={`text-sm ${
@@ -948,7 +945,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
               href="https://www.irs.gov/refunds"
               target="_blank"
               rel="noreferrer"
-              className="text-blue-700 underline"
+              className="text-brand-purple underline"
             >
               irs.gov/refunds
             </a>{' '}
@@ -956,7 +953,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
           </li>
           <li>
             If you need to amend: Form 1040-X support is coming soon. For now,
-            use your filing software's amendment flow.
+            use your filing software&apos;s amendment flow.
           </li>
         </ul>
       </div>
@@ -984,16 +981,14 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
 
 // ─── Step list item ───────────────────────────────────────────────
 
-function Step({
-  n,
+function Step({ n,
   children,
-}: {
-  n: number;
+}: { n: number;
   children: React.ReactNode;
 }) {
   return (
     <li className="px-4 py-3 flex gap-3">
-      <span className="shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-mono text-xs font-bold flex items-center justify-center">
+      <span className="shrink-0 w-6 h-6 rounded-full bg-brand-purple text-white font-mono text-xs font-bold flex items-center justify-center">
         {n}
       </span>
       <div className="flex-1 text-sm text-gray-800">{children}</div>
@@ -1074,14 +1069,14 @@ function downloadTaxSummary(
     lines.push('--- W-2 Wages ---');
     for (const d of w2s) {
       const data = d.data as Record<string, unknown>;
-      lines.push(`  ${(data.employer_name as string) || d.label || 'Employer'}`);
-      lines.push(`    EIN: ${(data.employer_ein as string) || '—'}`);
-      lines.push(`    Box 1  Wages:        ${m(Number(data.gross_wages) || 0)}`);
-      lines.push(`    Box 2  Fed withheld:  ${m(Number(data.federal_withheld) || 0)}`);
-      lines.push(`    Box 3  SS wages:      ${m(Number(data.social_security_wages) || 0)}`);
-      lines.push(`    Box 5  Medicare wages: ${m(Number(data.medicare_wages) || 0)}`);
-      lines.push(`    Box 16 State wages:   ${m(Number(data.state_wages) || 0)}`);
-      lines.push(`    Box 17 State WH:      ${m(Number(data.state_withheld) || 0)}`);
+      lines.push(`  ${(data[W2.employerName] as string) || d.label || 'Employer'}`);
+      lines.push(`    EIN: ${(data[W2.employerEin] as string) || '—'}`);
+      lines.push(`    Box 1  Wages:        ${m(taxAmount(d, W2.grossWages))}`);
+      lines.push(`    Box 2  Fed withheld:  ${m(taxAmount(d, W2.federalWithheld))}`);
+      lines.push(`    Box 3  SS wages:      ${m(taxAmount(d, W2.socialSecurityWages))}`);
+      lines.push(`    Box 5  Medicare wages: ${m(taxAmount(d, W2.medicareWages))}`);
+      lines.push(`    Box 16 State wages:   ${m(taxAmount(d, W2.stateWages))}`);
+      lines.push(`    Box 17 State WH:      ${m(taxAmount(d, W2.stateWithheld))}`);
     }
     lines.push('');
   }
@@ -1091,11 +1086,11 @@ function downloadTaxSummary(
     lines.push('--- 1099-R Retirement ---');
     for (const d of r1099s) {
       const data = d.data as Record<string, unknown>;
-      lines.push(`  ${(data.payer_name as string) || d.label || 'Payer'}`);
-      lines.push(`    Box 1  Gross:    ${m(Number(data.gross_distribution) || 0)}`);
-      lines.push(`    Box 2a Taxable:  ${m(Number(data.taxable_amount) || 0)}`);
-      lines.push(`    Box 4  Fed WH:   ${m(Number(data.federal_withheld) || 0)}`);
-      lines.push(`    Box 7  Code:     ${(data.distribution_code as string) || '—'}`);
+      lines.push(`  ${(data[R1099.payerName] as string) || d.label || 'Payer'}`);
+      lines.push(`    Box 1  Gross:    ${m(taxAmount(d, R1099.grossDistribution))}`);
+      lines.push(`    Box 2a Taxable:  ${m(taxAmount(d, R1099.taxableAmount))}`);
+      lines.push(`    Box 4  Fed WH:   ${m(taxAmount(d, R1099.federalWithheld))}`);
+      lines.push(`    Box 7  Code:     ${(data[R1099.distributionCode] as string) || '—'}`);
     }
     lines.push('');
   }
@@ -1105,9 +1100,9 @@ function downloadTaxSummary(
     lines.push('--- 1098-T Education ---');
     for (const d of t1098s) {
       const data = d.data as Record<string, unknown>;
-      lines.push(`  ${(data.school_name as string) || d.label || 'School'}`);
-      lines.push(`    Box 1  Tuition:      ${m(Number(data.amounts_billed) || 0)}`);
-      lines.push(`    Box 5  Scholarships: ${m(Number(data.scholarships) || 0)}`);
+      lines.push(`  ${(data[T1098.schoolName] as string) || d.label || 'School'}`);
+      lines.push(`    Box 1  Tuition:      ${m(taxAmount(d, T1098.amountsBilled))}`);
+      lines.push(`    Box 5  Scholarships: ${m(taxAmount(d, T1098.scholarships))}`);
     }
     lines.push('');
   }
@@ -1117,8 +1112,8 @@ function downloadTaxSummary(
     lines.push('--- 1098-E Student Loan ---');
     for (const d of e1098s) {
       const data = d.data as Record<string, unknown>;
-      lines.push(`  ${(data.lender_name as string) || d.label || 'Lender'}`);
-      lines.push(`    Box 1  Interest: ${m(Number(data.interest_paid) || 0)}`);
+      lines.push(`  ${(data[E1098.lenderName] as string) || d.label || 'Lender'}`);
+      lines.push(`    Box 1  Interest: ${m(taxAmount(d, E1098.interestPaid))}`);
     }
     lines.push('');
   }

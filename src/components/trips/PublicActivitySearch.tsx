@@ -3,40 +3,162 @@
 /**
  * PublicActivitySearch — the LIVE, logged-out activity search on the public travel
  * card (PR-A3). It mirrors PublicHotelSearch: a guest types a destination and sees
- * REAL, image-rich tours/experiences from the now-PUBLIC PR-A1 route
- * (/api/travel/activities/search — no auth, bounded by per-IP rate-limit + the
- * daily Viator cap). Results render through the pure <ActivityResultsView/> (PR-A2).
+ * REAL tours/experiences from the PUBLIC PR-A1 route (/api/travel/activities/search
+ * — no auth, bounded by per-IP rate-limit + the daily Viator cap).
  *
- * SEARCH is public; BOOKING is gated. Viator "booking" is an external affiliate
- * URL, already STRIPPED from the route payload (route.ts:76). "Book" routes to
- * onRequireAuth (sign-up) — this component fires NO booking fetch and renders NO
- * affiliate link. No authed loads, no trip scope. No fake results: the grid renders
- * exactly what the route returns.
+ * ACTIVITY-01 (2026-09-22): ONE ACTIVITY, WHAT THE OPERATOR STATES. The answer's
+ * `cards` (one per product, tri-state from the payload through
+ * src/lib/activities/products.ts) render through the pure <ActivityPickerView/>;
+ * the screen's filters ride the request as the vendor's own /products/search
+ * contract (activitySearchParamsOf — a control at "any" sends nothing) and a
+ * search fires ONLY here, on the SEARCH press, counted for the session. SHOW THEM
+ * ALL (the founder's ruling, 2026-09-22): the vendor states a totalCount; a "Next"
+ * press is one more counted search with the SAME filters and the vendor's own
+ * `start` cursor (rows shown + 1), and the rows accumulate — no client cap; the
+ * vendor's filters narrow, its pages reveal. A filter change means the next
+ * SEARCH starts from page one, and Next waits for it. The unified-bar fan-out
+ * that fired a search on a nonce is gone. There is no Book that opens sign-up: a
+ * row links out on the validated productUrl or says "no booking link stated by
+ * the operator". Plan here; book on Viator.
+ *
+ * STEP 4 (2026-09-22, the Basic-access path): A TOUR TAKES ITS TIME ON THE DAY. A
+ * signed-in user with a trip selected picks a date inside the trip (no
+ * preselection), presses "Show start times" — the ONE authed read
+ * (/api/travel/activities/options: the product, the schedule, the vendor's rate,
+ * three 'viatorsave' reservations) — enters the party per the operator's stated
+ * bands (min / max from the payload), sees every option with its title, its
+ * published start times (a sold-out date with the vendor's reason verbatim), the
+ * party's cost in the supplier's currency and the CALCULATED plan figure at the
+ * vendor's rate (src/lib/activities/schedule.ts, fx.ts, save.ts — the same pure
+ * leaves vendor-commit recomputes with), picks one, and Saves: vendor-commit
+ * 'activity' synthetic with the published start time, the end from the stated
+ * fixed duration, the stated zone's instant, the calculated amount and the note
+ * that names every figure and the rate. One Save per row; "Saved — <the stored
+ * clock>" afterwards. Nothing typed, nothing defaulted, nothing converted silently.
  */
 
-import { useState } from 'react';
-import ActivityResultsView, { type ActivityResult } from './ActivityResultsView';
+import { Fragment, useState, type ReactNode } from 'react';
+import RowActionStrip from './RowActionStrip';
+import ActivityPickerView, { ActivityFiltersBar, type ActivityCardView } from './ActivityPickerView';
+// PR-STRIP-DESIGN-2: icon-inside-field — MapPin marks the destination.
+import { MapPin } from 'lucide-react';
+import TravelSectionShell, { TravelField, TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
+import { DEFAULT_ACTIVITY_FILTERS, activitySearchParamsOf, durationText, moreStated, pageSizeOf, type ActivityUiFilters } from '@/lib/activities/products';
+import { ACTIVITY_SEARCH_CURRENCY } from '@/lib/activities/searchContract';
+import { cancellationStatement, optionTitleOf, partyText, type Party, type ProductFacts } from '@/lib/activities/product';
+import { priceLineText } from '@/lib/activities/schedule';
+import type { RateRecord } from '@/lib/activities/fx';
+import { conversionText } from '@/lib/activities/save';
+import { endOfQuote, priceQuote, type QuotePrice, type ViatorQuote } from '@/lib/activities/quote';
+import type { Stated } from '@/lib/travel/stated';
+// FINISH-01 (2026-09-28): below `sm` an option row is a card (src/lib/travel/phoneCard.ts).
+import { PHONE_CARD } from '@/lib/travel/phoneCard';
+
+/** FINISH-01: the option table's column words — the header row renders them at `sm`
+ *  and up, and each option card carries the same word below it. */
+const OPTION_COLUMNS = { option: 'Option', start: 'Start', partyPrice: 'Party price', planFigure: 'Plan figure' } as const;
 
 interface Props {
-  /** Opens the existing home register/login modal (booking requires sign-in). */
+  /** Opens the existing home register/login modal (saving requires sign-in). */
   onRequireAuth: () => void;
+  /** Login state from the home shell: null = resolving, true/false once known. */
+  authed?: boolean | null;
+  /** The trip selected in the trips list above — where a saved tour is budgeted; its dates bound the day. */
+  currentTrip?: { id: string; name?: string; startDate?: string | null; endDate?: string | null } | null;
+  /** Called after a successful save so the trip's budget re-fetches. */
+  onCommitted?: () => void;
 }
 
-export default function PublicActivitySearch({ onRequireAuth }: Props) {
+/** The options route's answer, as the screen reads it. */
+/** One bookable pick as the server sealed it: the quote and its seal, or the reason there is none. */
+interface QuotedStart {
+  startTime: string | null;
+  unavailable: string | null;
+  refused: string | null;
+  quote: ViatorQuote | null;
+  seal: string | null;
+}
+
+interface QuotedOption {
+  productOptionCode: string | null;
+  refused: string | null;
+  dayUnavailable: string | null;
+  startTimes: QuotedStart[];
+}
+
+interface OptionsAnswer {
+  product: ProductFacts;
+  date: string;
+  currency: string;
+  options: QuotedOption[];
+  extraChargesPerTraveller: number | null;
+  rate: RateRecord | null;
+  rateFrom: 'cache' | 'vendor' | 'not needed';
+  targetCurrency: string;
+  asOf: string;
+}
+
+const dateOnly = (v: string | null | undefined): string => (typeof v === 'string' && v.length >= 10 ? v.slice(0, 10) : '');
+
+/** A published start time plus the operator's stated minutes, as a clock — the bounds a variable end sits between. */
+const clockPlus = (startTime: string, minutes: number): string => {
+  const [h, m] = startTime.split(':').map(Number);
+  const t = h * 60 + m + minutes;
+  if (t >= 24 * 60) return '23:59';
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+};
+
+export default function PublicActivitySearch({ onRequireAuth, authed, currentTrip, onCommitted }: Props) {
   // Guest has no trip/destination props — start empty so they search by typing a
   // city + country. Activity search is destination-based (no dates).
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
 
-  const [results, setResults] = useState<ActivityResult[]>([]);
+  const [cards, setCards] = useState<ActivityCardView[]>([]);
+  const [totalCount, setTotalCount] = useState<Stated<number>>(null);
+  // SHOW THEM ALL: the total the page before stated — named on the count line when the vendor's total moved.
+  const [previousTotal, setPreviousTotal] = useState<Stated<number>>(null);
+  const [lastPage, setLastPage] = useState<{ answered: number; alreadyShown: number } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  // SHOW THEM ALL: the filters the shown pages were asked with (a Next press repeats them),
+  // and whether the vendor's last page held nothing new (then there is no next page).
+  const [sentFilters, setSentFilters] = useState<ActivityUiFilters | null>(null);
+  const [exhausted, setExhausted] = useState(false);
+  // ACTIVITY-01: the screen's filters — a control writes them here and nothing else happens.
+  const [filters, setFilters] = useState<ActivityUiFilters>(DEFAULT_ACTIVITY_FILTERS);
+  // ACTIVITY-01: how many metered searches this session has sent — shown beside the controls.
+  const [searchCount, setSearchCount] = useState(0);
+  // ACTIVITY-01: the selected product — the benchmark's difference line is about it, and the Save panel opens under it.
+  const [selected, setSelected] = useState<string | null>(null);
 
-  // ── LIVE search against the PUBLIC /api/travel/activities/search (PR-A1). ──
+  // ── LIVE search against the PUBLIC /api/travel/activities/search (PR-A1). The
+  //    ONLY place a search fires — a filter change never does. One function, one
+  //    fetch: SEARCH asks for page one with the screen's filters; Next asks for the
+  //    next page (start = rows shown + 1) with the filters the pages were asked with. ──
+  const fetchPage = async (asked: ActivityUiFilters, start: number): Promise<{ cards: ActivityCardView[]; totalCount: Stated<number> }> => {
+    const params = new URLSearchParams({
+      city: city.trim(),
+      country: country.trim(),
+      // ACTIVITY-01: the vendor's own filter, sort and count names — only what the screen set.
+      ...activitySearchParamsOf(asked),
+      // SHOW THEM ALL: the vendor's own cursor; page one sends nothing (the vendor's default 1).
+      ...(start > 1 ? { start: String(start) } : {}),
+    });
+    setSearchCount((n) => n + 1);
+    const res = await fetch(`/api/travel/activities/search?${params}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to search activities');
+    }
+    const data = await res.json();
+    return { cards: (data.cards || []) as ActivityCardView[], totalCount: typeof data.totalCount === 'number' ? data.totalCount : null };
+  };
+
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!city.trim() || !country.trim()) {
       setError('Enter a city and country.');
       return;
@@ -44,22 +166,21 @@ export default function PublicActivitySearch({ onRequireAuth }: Props) {
 
     setLoading(true);
     setError('');
-    setResults([]);
+    setCards([]);
+    setTotalCount(null);
+    setPreviousTotal(null);
+    setLastPage(null);
+    setSelected(null);
+    setExhausted(false);
     setSearched(true);
+    resetSave();
 
     try {
-      const params = new URLSearchParams({
-        city: city.trim(),
-        country: country.trim(),
-      });
-
-      const res = await fetch(`/api/travel/activities/search?${params}`);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to search activities');
-      }
-      const data = await res.json();
-      setResults((data.results || []) as ActivityResult[]);
+      const page = await fetchPage(filters, 1);
+      setCards(page.cards);
+      setTotalCount(page.totalCount);
+      setSentFilters(filters);
+      if (page.cards.length === 0) setExhausted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Activity search failed');
     } finally {
@@ -67,57 +188,358 @@ export default function PublicActivitySearch({ onRequireAuth }: Props) {
     }
   };
 
-  // BOOKING is gated: tapping "Book" routes to sign-up, never a booking fetch and
-  // never an affiliate link. The view never books or links out — it calls back.
-  const book = () => onRequireAuth();
+  // SHOW THEM ALL: the next page, appended — a product already shown appears once
+  // (the vendor's DEFAULT order can move a product between pages); a page that adds
+  // nothing ends the paging and says so.
+  const nextPage = async () => {
+    if (!sentFilters || loading || loadingMore) return;
+    setLoadingMore(true);
+    setError('');
+    try {
+      const page = await fetchPage(sentFilters, cards.length + 1);
+      setPreviousTotal(totalCount);
+      setTotalCount(page.totalCount);
+      const known = new Set(cards.map((c) => c.productCode));
+      const fresh = page.cards.filter((c) => !known.has(c.productCode));
+      setLastPage({ answered: page.cards.length, alreadyShown: page.cards.length - fresh.length });
+      if (fresh.length === 0) setExhausted(true);
+      else setCards([...cards, ...fresh]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Activity search failed');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
-  const inputClass =
-    'bg-white border border-border rounded px-3 py-2 text-sm text-text-primary ' +
-    'focus:outline-none focus:ring-2 focus:ring-brand-purple/40';
+  const filtersChanged = sentFilters !== null && JSON.stringify(filters) !== JSON.stringify(sentFilters);
+  const more = moreStated(cards.length, totalCount);
+  // More to reveal: what the vendor states, else whatever the next page says — unless the last page added nothing.
+  const hasMore = !exhausted && (more === null ? true : more);
+
+  // ── STEP 4: the Save — a date inside the trip, the one authed read, the party, the pick, the commit. ──
+  const [saveDate, setSaveDate] = useState('');
+  const [answer, setAnswer] = useState<OptionsAnswer | null>(null);
+  const [party, setParty] = useState<Party>({});
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState('');
+  const [chosen, setChosen] = useState<{ productOptionCode: string; startTime: string | null; quote: ViatorQuote; seal: string } | null>(null);
+  // A VARIABLE-duration tour: the operator states a range, not an end. The founder picks
+  // one inside it (or none — the block then draws as a flagged marker). Bounded here for
+  // the screen; the commit checks it against the SEALED range and refuses anything outside.
+  const [endPick, setEndPick] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveNote, setSaveNote] = useState<{ kind: 'ok' | 'err' | 'info'; text: string } | null>(null);
+  const [savedFor, setSavedFor] = useState<Record<string, string>>({});
+  const resetSave = () => { setSaveDate(''); setAnswer(null); setParty({}); setChecking(false); setCheckError(''); setChosen(null); setEndPick(''); setSaveNote(null); };
+  const selectRow = (card: ActivityCardView | null) => { setSelected(card ? card.productCode : null); resetSave(); };
+
+  const tripStart = dateOnly(currentTrip?.startDate);
+  const tripEnd = dateOnly(currentTrip?.endDate);
+  const selectedCard = selected ? cards.find((c) => c.productCode === selected) ?? null : null;
+
+  // The ONE read: the product, the schedule and the rate, behind the sign-in — nothing before the press.
+  const showStartTimes = async () => {
+    if (authed !== true) { onRequireAuth(); return; }
+    if (!currentTrip) { setSaveNote({ kind: 'info', text: 'Pick or create a trip above first, then save this tour to it.' }); return; }
+    if (!selectedCard) return;
+    if (!saveDate) { setCheckError('Pick a date inside the trip.'); return; }
+    if ((tripStart && saveDate < tripStart) || (tripEnd && saveDate > tripEnd)) { setCheckError(`Pick a date inside the trip (${tripStart || '?'} to ${tripEnd || '?'}).`); return; }
+    setChecking(true);
+    setCheckError('');
+    setAnswer(null);
+    setChosen(null);
+    try {
+      const res = await fetch(`/api/travel/activities/options?${new URLSearchParams({ productCode: selectedCard.productCode, date: saveDate })}`);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'The operator\'s schedule could not be read');
+      }
+      const data = (await res.json()) as OptionsAnswer;
+      setAnswer(data);
+      // The party form from the product's stated bands — the operator's minimum per band, nothing typed.
+      const initial: Party = {};
+      for (const b of data.product.bands) initial[b.ageBand] = b.minTravelersPerBooking ?? 0;
+      setParty(initial);
+    } catch (err) {
+      setCheckError(err instanceof Error ? err.message : 'The operator\'s schedule could not be read');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // The screen prices the SEALED quote — the same leaf the commit recomputes through
+  // (src/lib/activities/quote.ts). No price, rate or clock is read from anywhere else.
+  const pricedOf = (quote: ViatorQuote | null): QuotePrice | { refused: string } => {
+    if (!answer) return { refused: 'no schedule read' };
+    if (quote === null) return { refused: 'the operator states no priced option here' };
+    return priceQuote(quote, party, answer.targetCurrency, new Date());
+  };
+
+  const save = async () => {
+    if (authed !== true) { onRequireAuth(); return; }
+    if (!currentTrip || !answer || !selectedCard || !chosen) return;
+    const priced = pricedOf(chosen.quote);
+    if ('refused' in priced) { setSaveNote({ kind: 'err', text: `${priced.refused} — nothing was saved.` }); return; }
+    const end = endOfQuote(chosen.quote, endPick);
+    if ('refused' in end) { setSaveNote({ kind: 'err', text: end.refused }); return; }
+    setSaving(true);
+    setSaveNote(null);
+    try {
+      // The quote, its seal and the party — and NO figure, note or clock: the commit
+      // derives every one of them from what this server sealed when it read Viator.
+      const res = await fetch(`/api/trips/${currentTrip.id}/vendor-commit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          optionType: 'activity',
+          synthetic: true,                                  // no DB option row — built from the sealed quote
+          optionId: `viator-${chosen.quote.productCode}-${chosen.quote.productOptionCode}-${Date.now()}`,
+          startDate: chosen.quote.date,
+          endDate: chosen.quote.date,
+          recurrence: 'once',
+          category: 'activities',                           // TRAVEL_COA.activities — P-9400 / B-9400
+          location: selectedCard.destinationName ?? undefined,
+          priceStatedBy: 'operator',                        // a stated 0 is a price (the marker)
+          viatorQuote: chosen.quote,
+          viatorSeal: chosen.seal,
+          party,
+          endTimeChosen: endPick || undefined,              // a variable duration only; the commit bounds it
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.message || d.error || 'Save failed');
+      }
+      const saved = await res.json();
+      const stored = saved.viatorSave as { startTime: string | null; endTime: string | null; timeZone: string | null; total: { amount: number; currency: string; label: string } } | null;
+      const clock = !stored ? 'the commit reported no clock for this tour'
+        : stored.startTime === null ? `no start time stated by the operator for ${chosen.quote.date} — the block draws as a flagged marker with no end`
+        : `starts ${stored.startTime}${stored.timeZone ? ` ${stored.timeZone}` : ''}${stored.endTime ? `, ends ${stored.endTime}` : ', no end stated (the block draws as a flagged marker)'}`;
+      const figure = stored ? `${stored.total.currency} ${stored.total.amount.toFixed(2)} ${stored.total.label}` : '';
+      setSavedFor((m) => ({ ...m, [chosen.quote.productCode]: clock }));
+      setSaveNote({ kind: 'ok', text: `Saved ${chosen.quote.title} to ${currentTrip.name ?? 'your trip'} — ${clock}${figure ? ` · ${figure}` : ''}.` });
+      onCommitted?.();
+    } catch (err) {
+      setSaveNote({ kind: 'err', text: err instanceof Error ? err.message : 'Save failed' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const savePanel: ReactNode = selectedCard ? (
+    <div className="mt-2 space-y-2 border-t border-border pt-2 text-xs" data-activity-save>
+      {authed !== true ? (
+        <button type="button" onClick={onRequireAuth} className="rounded border border-brand-purple bg-white px-3 py-1.5 text-xs font-semibold text-brand-purple hover:bg-bg-row" data-activity-save-signin>
+          Sign in to save this tour to a trip
+        </button>
+      ) : !currentTrip ? (
+        <div className="text-text-secondary" data-activity-save-notrip>Pick or create a trip above first, then save this tour to it.</div>
+      ) : savedFor[selectedCard.productCode] ? (
+        <div className="font-mono text-[11px] text-brand-green" data-activity-saved>Saved — {savedFor[selectedCard.productCode]}</div>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1">
+              <span className={TRAVEL_LABEL_CLASS}>Day (inside {currentTrip.name ?? 'the trip'}{tripStart && tripEnd ? `, ${tripStart} to ${tripEnd}` : ''})</span>
+              <input type="date" value={saveDate} min={tripStart || undefined} max={tripEnd || undefined} onChange={(e) => { setSaveDate(e.target.value); setAnswer(null); setChosen(null); }} className={TRAVEL_INPUT_CLASS} aria-label="Tour date" data-activity-save-date />
+            </label>
+            <button type="button" onClick={showStartTimes} disabled={checking || !saveDate} className={`${TRAVEL_BUTTON_CLASS}`} data-activity-show-times>
+              {checking ? 'Reading the operator\'s schedule…' : 'Show start times'}
+            </button>
+          </div>
+          {checkError && <div className="text-brand-red" data-activity-check-error>{checkError}</div>}
+          {answer && (
+            <div className="space-y-2" data-activity-options data-activity-rate-from={answer.rateFrom}>
+              <div className="font-mono text-[10px] text-text-faint" data-activity-options-asof>
+                schedule as published by the operator {answer.asOf} · priced in {answer.currency}
+                {answer.rate ? ` · Viator rate ${answer.currency}→${answer.targetCurrency} ${answer.rate.rate} as of ${answer.rate.lastUpdated}, expires ${answer.rate.expiry} (${answer.rateFrom === 'cache' ? 'from the cache, inside its expiry' : 'read now'})` : ` · no conversion — the schedule answers in ${answer.targetCurrency}`}
+                {answer.product.timeZone ? ` · operates in ${answer.product.timeZone}` : ' · zone not stated by the operator'}
+                {' · '}{cancellationStatement(answer.product)}
+              </div>
+              <div className="flex flex-wrap items-end gap-3" data-activity-party>
+                {answer.product.bands.map((b) => (
+                  <label key={b.ageBand} className="flex flex-col gap-1">
+                    <span className={TRAVEL_LABEL_CLASS}>{b.ageBand}{b.startAge !== null && b.endAge !== null ? ` (${b.startAge}–${b.endAge})` : ''}{b.minTravelersPerBooking !== null || b.maxTravelersPerBooking !== null ? ` min ${b.minTravelersPerBooking ?? '–'} max ${b.maxTravelersPerBooking ?? '–'}` : ''}</span>
+                    <input type="number" min={b.minTravelersPerBooking ?? 0} max={b.maxTravelersPerBooking ?? undefined} value={party[b.ageBand] ?? 0} onChange={(e) => setParty((p) => ({ ...p, [b.ageBand]: Number(e.target.value) }))} className={`${TRAVEL_INPUT_CLASS} w-20`} aria-label={`${b.ageBand} travellers`} data-activity-party-band={b.ageBand} />
+                  </label>
+                ))}
+                <span className="text-text-faint">{partyText(party)}{answer.product.requiresAdultForBooking === true ? ' · an adult is required' : ''}{answer.product.minTravelersPerBooking !== null ? ` · ${answer.product.minTravelersPerBooking}–${answer.product.maxTravelersPerBooking ?? '…'} per booking` : ''}</span>
+              </div>
+              {/* TRAVEL-ROW-01 (2026-09-23): this table gets NO overflow box of its own.
+                  It is rendered inside ActivityPickerView's strip, which is inside THAT
+                  view's `overflow-x-auto` (ActivityPickerView.tsx:216) — the scroll box
+                  the options table already scrolls in. Adding a second one here was tried
+                  and measured in the walk: it changed nothing about the page's width, and
+                  it BROKE the strip's `sticky right-0`, which binds to the nearest
+                  scrolling ancestor — Book went to x=1884 on a 1280 screen. */}
+              {/* FINISH-01 (2026-09-28): below `sm` each option is a CARD — the option, then
+                  its start, party price and plan figure each on a line with its column word;
+                  at `sm` and up the table is unchanged (src/lib/travel/phoneCard.ts). */}
+              <table className={`${PHONE_CARD.table} w-full text-xs`} data-activity-option-table>
+                <thead className={PHONE_CARD.head}><tr className="text-left text-text-faint"><th className="px-2 py-1">{OPTION_COLUMNS.option}</th><th className="px-2 py-1">{OPTION_COLUMNS.start}</th><th className="px-2 py-1">{OPTION_COLUMNS.partyPrice}</th><th className="px-2 py-1">{OPTION_COLUMNS.planFigure}</th></tr></thead>
+                <tbody className={`${PHONE_CARD.body} divide-y divide-border`}>
+                  {answer.options.map((opt) => {
+                    const code = opt.productOptionCode ?? '(no code)';
+                    const title = opt.productOptionCode ? optionTitleOf(answer.product, opt.productOptionCode) : null;
+                    const starts: QuotedStart[] = opt.startTimes.length === 0
+                      ? [{ startTime: null, unavailable: opt.dayUnavailable, refused: opt.refused, quote: null, seal: null }]
+                      : opt.startTimes;
+                    return starts.map((st, i) => {
+                      const priced = pricedOf(st.quote);
+                      const isChosen = chosen?.productOptionCode === opt.productOptionCode && chosen?.startTime === st.startTime;
+                      const pickable = st.unavailable === null && st.quote !== null && st.seal !== null && !('refused' in priced);
+                      return (
+                        <Fragment key={`${code}:${st.startTime ?? 'none'}:${i}`}>
+                        <tr data-activity-option={code} data-activity-option-start={st.startTime ?? 'none'} data-activity-option-state={st.unavailable !== null ? 'unavailable' : 'refused' in priced ? 'refused' : 'available'}
+                          tabIndex={-1}
+                          onClick={() => { if (pickable && opt.productOptionCode && st.quote && st.seal) { setChosen({ productOptionCode: opt.productOptionCode, startTime: st.startTime, quote: st.quote, seal: st.seal }); setEndPick(''); } }}
+                          className={`${PHONE_CARD.row} py-1 outline-none sm:py-0 ${pickable ? 'cursor-pointer' : 'cursor-default'} ${isChosen ? 'bg-brand-purple-wash/40' : ''}`}>
+                          <td className={`${PHONE_CARD.cell} ${PHONE_CARD.title} px-2 py-1`}><span className={PHONE_CARD.label}>{OPTION_COLUMNS.option}</span><span className="font-mono">{code}</span> {title ?? <span className="text-text-faint">title not stated by the operator</span>}</td>
+                          <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 font-mono sm:py-1`}><span className={PHONE_CARD.label}>{OPTION_COLUMNS.start}</span>{st.startTime ?? <span className="text-text-faint">{st.refused ?? opt.refused}</span>}{st.unavailable !== null && <span className="ml-1 text-brand-red" data-activity-option-reason>{st.unavailable}</span>}</td>
+                          <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1`}><span className={PHONE_CARD.label}>{OPTION_COLUMNS.partyPrice}</span>{'refused' in priced ? <span className="text-brand-red">{priced.refused}</span> : `${priced.lines.map((l) => priceLineText(l, answer.currency)).join('; ')}${priced.extra ? ` + ${priced.extra.total.toFixed(2)} ${answer.currency} in-destination charges stated by the operator (${priced.extra.perTraveller.toFixed(2)} × ${priced.extra.travellers})` : ''}`}</td>
+                          <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 font-mono sm:py-1`}><span className={PHONE_CARD.label}>{OPTION_COLUMNS.planFigure}</span>{'refused' in priced ? '—' : <span data-activity-option-total={priced.total.amount}>{conversionText({ native: priced.native, extra: priced.extra, rate: st.quote?.rate ?? null, total: priced.total })}</span>}</td>
+                        </tr>
+                        {/* TRAVEL-ROW-01: Save sits at the OPTION line it saves, with the
+                            operator's own end-time range when the duration is variable. A tour
+                            is booked on Viator, so Book is that outbound link, not a checkout. */}
+                        {isChosen && chosen && (
+                          <RowActionStrip
+                            rowId={`${code}:${st.startTime ?? 'none'}`}
+                            colSpan={4}
+                            summary={<>
+                              <span className="font-mono font-medium">{code}</span>
+                              {title && <span className="ml-2">{title}</span>}
+                              <span className="ml-2 text-text-faint">{st.startTime ?? 'no start time stated'}</span>
+                              {!('refused' in priced) && <span className="ml-2 font-bold text-brand-gold">{priced.total.currency} {priced.total.amount.toFixed(2)} {priced.total.label}</span>}
+                            </>}
+                            onClear={() => { setChosen(null); setEndPick(''); }}
+                            onSave={save}
+                            saveLabel={saving ? 'Saving…' : `Save to ${currentTrip.name ?? 'the trip'}`}
+                            saveDisabled={saving}
+                            bookHref={selectedCard.productUrl ?? undefined}
+                            bookLabel="Book on Viator"
+                          >
+                            {chosen.quote.duration !== null && chosen.quote.duration.kind === 'variable' && (
+                              <label className="flex flex-col gap-1" data-activity-end-pick>
+                                <span className={TRAVEL_LABEL_CLASS}>
+                                  End (the operator states {durationText(chosen.quote.duration)} — pick one inside it, or leave it empty and the day draws a flagged marker)
+                                </span>
+                                <input
+                                  type="time"
+                                  value={endPick}
+                                  min={chosen.startTime ? clockPlus(chosen.startTime, chosen.quote.duration.fromMinutes) : undefined}
+                                  max={chosen.startTime ? clockPlus(chosen.startTime, chosen.quote.duration.toMinutes) : undefined}
+                                  onChange={(e) => setEndPick(e.target.value)}
+                                  className={`${TRAVEL_INPUT_CLASS} w-32`}
+                                  aria-label="Tour end time"
+                                  data-activity-end-input
+                                />
+                              </label>
+                            )}
+                            <span className="text-xs text-text-faint">Plan here; book on Viator.</span>
+                          </RowActionStrip>
+                        )}
+                        </Fragment>
+                      );
+                    });
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+      {saveNote && (
+        <div className={`rounded-lg border bg-white p-2 ${saveNote.kind === 'ok' ? 'border-brand-green/40 text-brand-green' : saveNote.kind === 'err' ? 'border-brand-red/40 text-brand-red' : 'border-border text-text-secondary'}`} data-save-note={saveNote.kind}>
+          {saveNote.text}
+        </div>
+      )}
+    </div>
+  ) : null;
 
   return (
-    <div className="mt-10 pt-8 border-t border-border space-y-4">
-      <div>
-        <p className="text-lg font-bold text-brand-purple mb-1">Find real things to do — free, no account needed.</p>
-        <p className="text-xs text-text-muted">
-          Type a city and country to see real tours and experiences with photos and prices.
-          Booking asks you to sign up.
-        </p>
-      </div>
-
-      <form onSubmit={search} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <input
-          type="text"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          placeholder="City (e.g. Lisbon)"
-          className={`${inputClass} lg:col-span-2`}
-          aria-label="Destination city"
-        />
-        <input
-          type="text"
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-          placeholder="Country (e.g. Portugal)"
-          className={inputClass}
-          aria-label="Destination country"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover disabled:opacity-50"
-        >
-          {loading ? 'Searching…' : 'Search'}
-        </button>
+    <TravelSectionShell
+      title="Things to do"
+      explainer="Real tours & experiences. Book on Viator."
+      // PR-STRIP-DESIGN-1: under the strip the tab + per-mode line carry
+      // this identity — the in-card header hides (title stays, sr-only).
+      hideHeader
+    >
+      <form onSubmit={search} className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="flex flex-col gap-1 lg:col-span-2">
+          <span className={TRAVEL_LABEL_CLASS}>City</span>
+          <TravelField icon={<MapPin className="h-4 w-4" strokeWidth={1.75} />}>
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="e.g. Lisbon"
+              className={`w-full pl-10 ${TRAVEL_INPUT_CLASS}`}
+              aria-label="Destination city"
+            />
+          </TravelField>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className={TRAVEL_LABEL_CLASS}>Country</span>
+          <input
+            type="text"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            placeholder="e.g. Portugal"
+            className={TRAVEL_INPUT_CLASS}
+            aria-label="Destination country"
+          />
+        </label>
+        {/* FILTER-01 (2026-09-25): THE FILTERS SIT ABOVE SEARCH. The bar the picker
+            used to draw beneath this form after the first search now sits INSIDE
+            the form, before the submit — a customer sets what they want, then
+            presses Search. Same eight controls, same state, same handler, same
+            defaults: a control writes `filters` and nothing else; only the press
+            below searches, counted, from page one. Next (under the rows) repeats
+            the filters the shown pages were asked with, exactly as before. */}
+        <div className="col-span-full">
+          <ActivityFiltersBar
+            filters={filters}
+            onFiltersChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+            searchCount={searchCount}
+            sentCurrency={ACTIVITY_SEARCH_CURRENCY}
+          />
+        </div>
+        {/* FILTER-01: under the bar the button takes the row's last column on wide
+            screens and the full width on a phone. */}
+        <div className="col-span-full flex items-end lg:col-span-1 lg:col-start-4">
+          <button
+            type="submit"
+            disabled={loading}
+            className={`${TRAVEL_BUTTON_CLASS} w-full`}
+          >
+            {loading ? 'Searching…' : 'Search'}
+          </button>
+        </div>
       </form>
 
-      {/* Results: only after the first search. Empty/loading/error live in the view. */}
+      {/* Results: only after the first search. The filter controls live in the form above (FILTER-01). */}
       {searched && (
-        <ActivityResultsView results={results} loading={loading} error={error} onBook={book} />
+        <ActivityPickerView
+          cards={cards}
+          totalCount={totalCount}
+          previousTotal={previousTotal}
+          loading={loading}
+          error={error}
+          selected={selected}
+          onSelect={selectRow}
+          pageSize={pageSizeOf(sentFilters ?? filters)}
+          hasMore={hasMore}
+          filtersChanged={filtersChanged}
+          loadingMore={loadingMore}
+          onNextPage={nextPage}
+          lastPage={lastPage}
+          savePanel={savePanel}
+        />
       )}
       {!searched && error && (
         <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
       )}
-    </div>
+    </TravelSectionShell>
   );
 }

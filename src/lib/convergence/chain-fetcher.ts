@@ -2,7 +2,10 @@ import { getTastytradeClient } from '@/lib/tastytrade';
 import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { buildStrikeData, generateStrategies } from '@/lib/strategy-builder';
 import type { StrategyCard, RejectionReason, StrikeData } from '@/lib/strategy-builder';
-import type { OptionsFlowData, OptionsChainExpiration, OptionsChainStrike } from './types';
+import type { OptionsFlowData, OptionsChainExpiration, OptionsChainStrike, PremiumSide } from './types';
+import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
+import type { EarningsDateSource } from './side-rules';
+import type { UndefinedRiskCapCheck } from './undefined-risk';
 
 // ===== TYPES =====
 
@@ -12,10 +15,26 @@ export interface ChainTickerInput {
   direction: string;
   currentPrice: number;
   ivRank: number;        // 0-1 scale
+  // KILL-5: iv30 required-real (callers skip + declare when the source did not
+  // deliver it — never a fabricated 30-vol). hv30/dividendYield null = source
+  // did not deliver; downstream declares and excludes, never substitutes.
   iv30: number;          // decimal e.g. 0.42
-  hv30: number;          // decimal e.g. 0.25
+  hv30: number | null;   // decimal e.g. 0.25, null = unavailable
+  dividendYield: number | null; // decimal e.g. 0.02, true 0 = real non-payer
+  // EDGE-3: 10-day realized vol, decimal (e.g. 0.55). Required — null means not
+  // computable from candle history; the HV10>IV gate then declares itself
+  // not-evaluated instead of running on an invented value.
+  hv10: number | null;
   // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Required — no default.
   riskFreeRate: number;
+  // MODEL-01: the funnel side, the ISO scan date, every named earnings date
+  // the run has, the raw IV-HV spread (vol points) and the undefined-risk cap
+  // check — passed through to generateStrategies unchanged.
+  side: PremiumSide;
+  scanDate: string;
+  earningsDates: EarningsDateSource[];
+  ivHvSpread: number | null;
+  undefinedRisk: UndefinedRiskCapCheck;
 }
 
 export interface ChainFetchStats {
@@ -58,6 +77,10 @@ export interface ChainFetchResult {
   marketOpen: boolean;
   marketNote?: string;
   optionsFlowMap: Map<string, OptionsFlowData>;
+  // KILL-4: a fatal chain-fetch failure (auth, streamer, chain API) is a
+  // TYPED failure — an empty result with this set means "fetch FAILED",
+  // never "no strategies passed". Callers must declare it.
+  fatal_error: string | null;
 }
 
 // ===== HELPERS =====
@@ -122,7 +145,7 @@ export async function fetchChainAndBuildCards(
 
   if (tickers.length === 0) {
     stats.elapsed_ms = Date.now() - start;
-    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
+    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap, fatal_error: null };
   }
 
   try {
@@ -158,10 +181,18 @@ export async function fetchChainAndBuildCards(
     // Collect all streamer symbols across all tickers
     const allStreamerSymbols: string[] = [];
 
-    for (const res of chainResults) {
+    for (const [idx, res] of chainResults.entries()) {
       if (res.status !== 'fulfilled') {
         const reason = res.reason instanceof Error ? res.reason.message : String(res.reason);
-        console.error(`[ChainFetcher] Chain fetch failed:`, reason);
+        const failedSymbol = tickers[idx]?.symbol ?? 'unknown';
+        console.error(`[ChainFetcher] Chain fetch failed for ${failedSymbol}:`, reason);
+        // MODEL-02 STEP 4: a symbol TastyTrade returns no chain for is REPORTED
+        // on the scan's rejection_reasons — never silently dropped from the cut.
+        rejections.set(failedSymbol, [{
+          strategy: 'ALL',
+          gate: 'construction',
+          reason: `TastyTrade returned no option chain for ${failedSymbol} — chain fetch failed: ${reason}. Reported, not dropped (MODEL-02).`,
+        }]);
         continue;
       }
 
@@ -244,7 +275,7 @@ export async function fetchChainAndBuildCards(
     if (allStreamerSymbols.length === 0) {
       console.warn('[ChainFetcher] No streamer symbols to subscribe to');
       stats.elapsed_ms = Date.now() - start;
-      return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
+      return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap, fatal_error: null };
     }
 
     stats.streamer_symbols_subscribed = allStreamerSymbols.length;
@@ -263,28 +294,32 @@ export async function fetchChainAndBuildCards(
 
         if (!greeksData[sym]) greeksData[sym] = {};
 
+        // KILL-2: absent/unparseable (incl. DXFeed "NaN") → null, never 0.
+        // These reach strategy pricing (makeLeg), PoP/EV, GEX, and flow
+        // ratios — an imputed 0 delta could even WIN low-delta strike
+        // selection. A true source 0 stays 0.
         if (type === 'Greeks') {
           greeksReceived++;
           Object.assign(greeksData[sym], {
-            iv: Number(evtObj['volatility'] || 0),
-            delta: Number(evtObj['delta'] || 0),
-            gamma: Number(evtObj['gamma'] || 0),
-            theta: Number(evtObj['theta'] || 0),
-            vega: Number(evtObj['vega'] || 0),
-            rho: Number(evtObj['rho'] || 0),
-            theoPrice: Number(evtObj['price'] || 0),
+            iv: numOrNull(evtObj['volatility']),
+            delta: numOrNull(evtObj['delta']),
+            gamma: numOrNull(evtObj['gamma']),
+            theta: numOrNull(evtObj['theta']),
+            vega: numOrNull(evtObj['vega']),
+            rho: numOrNull(evtObj['rho']),
+            theoPrice: numOrNull(evtObj['price']),
           });
         } else if (type === 'Quote') {
           Object.assign(greeksData[sym], {
-            bid: Number(evtObj['bidPrice'] || 0),
-            ask: Number(evtObj['askPrice'] || 0),
-            bidSize: Number(evtObj['bidSize'] || 0),
-            askSize: Number(evtObj['askSize'] || 0),
+            bid: numOrNull(evtObj['bidPrice']),
+            ask: numOrNull(evtObj['askPrice']),
+            bidSize: numOrNull(evtObj['bidSize']),
+            askSize: numOrNull(evtObj['askSize']),
           });
         } else if (type === 'Trade') {
-          greeksData[sym].volume = Number(evtObj['dayVolume'] || evtObj['volume'] || 0);
+          greeksData[sym].volume = firstNumOrNull(evtObj['dayVolume'], evtObj['volume']);
         } else if (type === 'Summary') {
-          greeksData[sym].openInterest = Number(evtObj['openInterest'] || 0);
+          greeksData[sym].openInterest = numOrNull(evtObj['openInterest']);
         }
       }
     });
@@ -336,6 +371,10 @@ export async function fetchChainAndBuildCards(
       try {
         let bestStrategies: StrategyCard[] = [];
         let bestRejections: RejectionReason[] = [];
+        // MODEL-01: when NO expiration builds a card, the reasons must still
+        // reach the result (a BUY with no catalyst, a blocked strangle) — keep
+        // the first real expiration's rejections for that case.
+        let firstRejections: RejectionReason[] | null = null;
         let bestCompositeScore = -Infinity;
         let winningExp = expirations[0];
         let winningDominantSource: StrikeData['priceSource'] = 'none';
@@ -361,10 +400,19 @@ export async function fetchChainAndBuildCards(
             symbol: ticker.symbol,
             iv30: ticker.iv30,
             hv30: ticker.hv30,
+            dividendYield: ticker.dividendYield,
+            hv10: ticker.hv10,
             riskFreeRate: ticker.riskFreeRate,
+            side: ticker.side,
+            direction: ticker.direction,
+            scanDate: ticker.scanDate,
+            earningsDates: ticker.earningsDates,
+            ivHvSpread: ticker.ivHvSpread,
+            undefinedRisk: ticker.undefinedRisk,
           });
 
           const topScore = result.strategies[0]?.compositeScore ?? null;
+          if (firstRejections === null && strikeData.length > 0) firstRejections = result.rejections;
 
           allExpStats.push({
             expiration: exp.expiration,
@@ -412,6 +460,7 @@ export async function fetchChainAndBuildCards(
           }
         }
 
+        if (bestStrategies.length === 0 && bestRejections.length === 0 && firstRejections) bestRejections = firstRejections;
         cards.set(ticker.symbol, bestStrategies);
         if (bestRejections.length > 0) {
           rejections.set(ticker.symbol, bestRejections);
@@ -441,7 +490,17 @@ export async function fetchChainAndBuildCards(
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`[ChainFetcher] ${ticker.symbol}: Strategy generation failed:`, msg);
+        // KILL-4: the empty card list must carry a failure marker — an
+        // exception is not "no strategies passed". Declared on the existing
+        // rejections surface.
         cards.set(ticker.symbol, []);
+        const existing = rejections.get(ticker.symbol) ?? [];
+        existing.push({
+          strategy: 'all',
+          reason: `strategy generation FAILED: ${msg} — empty card list is a failure, not "no strategies passed"`,
+          gate: 'construction',
+        });
+        rejections.set(ticker.symbol, existing);
       }
     }
 
@@ -457,6 +516,9 @@ export async function fetchChainAndBuildCards(
       let totalPutOI = 0;
       let strikesAnalyzed = 0;
       let highActivityStrikes = 0;
+      // KILL-2 coverage: per-contract volume/OI fields the feed did not deliver
+      let volumeFieldsMissing = 0;
+      let oiFieldsMissing = 0;
 
       for (const exp of expirations) {
         const strikes: OptionsChainStrike[] = [];
@@ -467,10 +529,12 @@ export async function fetchChainAndBuildCards(
 
           const callIV = callData.iv != null && Number(callData.iv) > 0 ? Number(callData.iv) : null;
           const putIV = putData.iv != null && Number(putData.iv) > 0 ? Number(putData.iv) : null;
-          const callVolume = Number(callData.volume || 0);
-          const putVolume = Number(putData.volume || 0);
-          const callOI = Number(callData.openInterest || 0);
-          const putOI = Number(putData.openInterest || 0);
+          // KILL-2: missing volume/OI is null — EXCLUDED from the totals and
+          // counted in the coverage declaration, never summed as a real 0.
+          const callVolume = numOrNull(callData.volume);
+          const putVolume = numOrNull(putData.volume);
+          const callOI = numOrNull(callData.openInterest);
+          const putOI = numOrNull(putData.openInterest);
 
           strikes.push({
             strike: s.strike,
@@ -482,14 +546,16 @@ export async function fetchChainAndBuildCards(
             putVolume,
           });
 
-          totalCallVolume += callVolume;
-          totalPutVolume += putVolume;
-          totalCallOI += callOI;
-          totalPutOI += putOI;
+          if (callVolume != null) totalCallVolume += callVolume; else volumeFieldsMissing++;
+          if (putVolume != null) totalPutVolume += putVolume; else volumeFieldsMissing++;
+          if (callOI != null) totalCallOI += callOI; else oiFieldsMissing++;
+          if (putOI != null) totalPutOI += putOI; else oiFieldsMissing++;
           strikesAnalyzed++;
 
-          // High activity: volume exceeds open interest (unusual activity signal)
-          if ((callVolume + putVolume) > (callOI + putOI) && (callOI + putOI) > 0) {
+          // High activity: volume exceeds open interest (unusual activity signal).
+          // Evaluated only when the feed delivered all four fields for the strike.
+          if (callVolume != null && putVolume != null && callOI != null && putOI != null &&
+              (callVolume + putVolume) > (callOI + putOI) && (callOI + putOI) > 0) {
             highActivityStrikes++;
           }
         }
@@ -515,6 +581,8 @@ export async function fetchChainAndBuildCards(
         strikes_analyzed: strikesAnalyzed,
         high_activity_strikes: highActivityStrikes,
         expirations_analyzed: expirations.length,
+        volume_fields_missing: volumeFieldsMissing,
+        oi_fields_missing: oiFieldsMissing,
         underlyingPrice: ticker.currentPrice,
         chainDetail,
       };
@@ -526,12 +594,14 @@ export async function fetchChainAndBuildCards(
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[ChainFetcher] Fatal error:', msg);
-    // Return empty map — pipeline continues without trade cards
+    // KILL-4: the pipeline still continues without trade cards, but the
+    // result is no longer success-shaped — fatal_error is set and the
+    // caller DECLARES it (errors[] + data_gaps).
     stats.elapsed_ms = Date.now() - start;
-    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
+    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap, fatal_error: msg };
   }
 
   stats.elapsed_ms = Date.now() - start;
   console.log(`[ChainFetcher] Complete in ${stats.elapsed_ms}ms: ${stats.chain_symbols_fetched} chains, ${stats.total_trade_cards} cards`);
-  return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
+  return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap, fatal_error: null };
 }

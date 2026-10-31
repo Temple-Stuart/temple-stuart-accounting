@@ -1,0 +1,11 @@
+-- MODEL-02 STEP 1 — the log never lies.
+-- scan_snapshots.suggestedStrategy was VarChar(100). Since 2026-07-08 every
+-- seller-side suggestion line under the UNVERIFIED regime brake is 160-163
+-- chars (composite.ts), the insert failed with P2000 and a bare catch
+-- swallowed it: the table holds ZERO rows since that date (prod count 0).
+-- The longest producible line is now ≈272 chars (both brake legs missing plus
+-- a clipped VVIX reason); 400 carries ≈47% margin. Strings stay at source —
+-- they are the customer's suggestion line and fullTrace already holds the
+-- whole scoring result.
+-- Authored 2026-09-16; applied by `prisma migrate deploy` at deploy after merge.
+ALTER TABLE "scan_snapshots" ALTER COLUMN "suggestedStrategy" TYPE VARCHAR(400);

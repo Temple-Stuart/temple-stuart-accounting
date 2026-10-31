@@ -28,6 +28,7 @@
 
 import { useState } from 'react';
 
+
 export interface InspectionData {
   model: string;
   temperature: number;
@@ -51,7 +52,7 @@ interface Props {
   legacyReason?: string;
 }
 
-export default function InspectionDrawer({ data, legacyReason }: Props) {
+export default function InspectionDrawer({ data, legacyReason }: Props & { }) {
   const [expanded, setExpanded] = useState(false);
   const [systemOpen, setSystemOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);

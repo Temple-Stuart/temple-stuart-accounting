@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Temple Stuart — Founder's Back Office</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#FAF8F3;color:#3B2D6B;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;--purple:#3B2D6B;--gold:#B8860B;--goldink:color-mix(in oklab,var(--gold) 82%,#2E2205);--goldbright:color-mix(in oklab,var(--gold) 66%,#F4E4AE);--neg:#A8433B}
+a{color:var(--purple);text-decoration:none}a:hover{color:#5A47A8}
+::selection{background:#EAD9A6;color:#2A2054}
+</style>
+</helmet>
+
+<div style="background:var(--purple)">
+  <div style="max-width:1240px;margin:0 auto;padding:8px 32px;display:flex;justify-content:space-between;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;color:#C0B5DF">
+    <div>TEMPLE-STUART / FOUNDER'S BACK OFFICE</div>
+    <div style="display:flex;gap:28px">
+      <span>09 MODULES · ONE LEDGER</span>
+      <span>SOURCE-AVAILABLE · BSL-1.1</span>
+      <span style="color:#F6F1E4">▪ BUILT IN PUBLIC</span>
+    </div>
+  </div>
+</div>
+
+<div style="border-bottom:1px solid #DDD6E8;background:#FAF8F3" data-screen-label="Nav">
+  <div style="max-width:1240px;margin:0 auto;padding:16px 32px;display:flex;align-items:center;gap:26px">
+    <div style="display:flex;align-items:center;gap:12px;margin-right:auto">
+      <div style="width:27px;height:27px;border:1.5px solid var(--purple);color:var(--purple);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600">TS</div>
+      <div style="font-size:13.5px;font-weight:600;letter-spacing:0.16em;color:var(--purple)">TEMPLE STUART</div>
+    </div>
+    <a href="#demo" style="font-size:13px;color:#5A4E80">Live demo</a>
+    <a href="#modules" style="font-size:13px;color:#5A4E80">Modules</a>
+    <a href="https://www.templestuart.com/how-pricing-works" style="font-size:13px;color:#5A4E80">Pricing</a>
+    <a href="https://github.com/Temple-Stuart/temple-stuart-accounting" style="font-size:13px;color:#5A4E80">GitHub ↗</a>
+    <a href="#" style="font-size:13px;color:var(--purple);margin-left:6px">Log in</a>
+    <a href="#" style="background:var(--gold);color:#2A2054;padding:11px 18px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.1em">CREATE FREE ACCOUNT</a>
+  </div>
+</div>
+
+<div style="background:var(--purple)" data-screen-label="Hero">
+  
+<div style="max-width:1240px;margin:0 auto;padding:84px 32px 68px;display:grid;grid-template-columns:1fr 400px;gap:72px;align-items:start">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.18em;color:#C0B5DF">ALL-IN-ONE FINANCIAL OPERATING SYSTEM</div>
+      <h1 style="margin:22px 0 24px;font-size:64px;line-height:1.04;font-weight:500;letter-spacing:-0.03em;color:#F6F1E4">Track your money.<br>Plan your time.<br><span style="color:#9C90C2">Live smarter.</span></h1>
+      <p style="margin:0;max-width:520px;font-size:17px;line-height:1.55;color:#C6BCE0">Track your money the way an accountant would — one app, not ten. Nine modules on one double-entry ledger, built in public by a solo accountant on the way to CPA.</p>
+      <div style="display:flex;gap:12px;margin-top:34px">
+        <a href="#" style="background:var(--gold);color:#2A2054;padding:14px 24px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;letter-spacing:0.1em">CREATE FREE ACCOUNT</a>
+        <a href="https://github.com/Temple-Stuart/temple-stuart-accounting" style="border:1px solid #6A5C9E;color:#F6F1E4;padding:13px 24px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:500;letter-spacing:0.1em" style-hover="color:#FFFFFF;border-color:#8B7DC0">CLONE IT ON GITHUB ↗</a>
+      </div>
+      <div style="margin-top:24px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.1em;color:#9C90C2">NO CREDIT CARD · PRIVACY FIRST · SELF-HOSTABLE · YOU ALWAYS OWN YOUR LEDGER</div>
+    </div>
+    <sc-if value="{{ showBoard }}" hint-placeholder-val="{{ true }}">
+    <div style="border:1px solid #4E3F85;background:#2E2357">
+      
+      <div style="display:flex;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #3E3172;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.12em">
+        <span style="color:#9C90C2">LIVE LEDGER — SAMPLE</span>
+        <span style="color:#C0B5DF">▪ OPERATIONAL</span>
+      </div><div style="display:flex;justify-content:space-between;align-items:baseline;padding:14px 16px;font-family:'IBM Plex Mono',monospace">
+        <span style="font-size:10.5px;letter-spacing:0.12em;color:#9C90C2">CASH ON HAND</span>
+        <span style="font-size:14px;color:var(--goldbright)">$84,210.55</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:14px 16px;border-top:1px solid #3E3172;font-family:'IBM Plex Mono',monospace">
+        <span style="font-size:10.5px;letter-spacing:0.12em;color:#9C90C2">RUNWAY</span>
+        <span style="font-size:14px;color:#F6F1E4">14.2 MO</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:14px 16px;border-top:1px solid #3E3172;font-family:'IBM Plex Mono',monospace">
+        <span style="font-size:10.5px;letter-spacing:0.12em;color:#9C90C2">TRIAL BALANCE</span>
+        <span style="font-size:14px;color:#F6F1E4">0.00 <span style="font-size:10.5px;color:#C0B5DF;letter-spacing:0.1em">BALANCED</span></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:14px 16px;border-top:1px solid #3E3172;font-family:'IBM Plex Mono',monospace">
+        <span style="font-size:10.5px;letter-spacing:0.12em;color:#9C90C2">PERIOD JUL-2026</span>
+        <span style="font-size:14px;color:#F6F1E4">CLOSED</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:14px 16px;border-top:1px solid #3E3172;font-family:'IBM Plex Mono',monospace">
+        <span style="font-size:10.5px;letter-spacing:0.12em;color:#9C90C2">OPEN OBLIGATIONS</span>
+        <span style="font-size:14px;color:#F6F1E4">3</span>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid #3E3172;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.1em;color:#8177A6">NOT A NUMBER YOU TYPED — THE NUMBER YOUR BANKS REPORT</div>
+    </div>
+    </sc-if>
+  </div></div>
+
+<div id="demo" data-screen-label="Live booking demo">
+  <div style="max-width:1240px;margin:0 auto;padding:0 32px 72px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding-top:26px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#9C94B3">01 / LIVE DEMO — TRAVEL</div>
+      <a href="https://www.templestuart.com/modules/travel" style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.08em;color:var(--purple)">EXPLORE TRAVEL →</a>
+    </div>
+    <h2 style="margin:14px 0 32px;font-size:30px;font-weight:500;letter-spacing:-0.02em;color:var(--purple)">Search &amp; book travel — free today, no account needed.</h2>
+    <div style="border:1px solid #DDD6E8;background:#FFFDF9">
+      <div style="display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #DDD6E8;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.1em">
+        <span style="color:#6A5F8A">TRAVEL / FLIGHT SEARCH — LIVE PRICES VIA DUFFEL</span>
+        <span style="display:flex;gap:20px"><span style="color:var(--purple);font-weight:600">▪ LIVE</span><span style="color:#9C94B3">SEARCHING IS ALWAYS FREE</span></span>
+      </div>
+      <div style="display:flex;border-bottom:1px solid #DDD6E8">
+        <div style="padding:12px 18px;border-right:1px solid #EAE5F1">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:#9C94B3;margin-bottom:4px">ROUTE</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--purple)">AUS → LIS</div>
+        </div>
+        <div style="padding:12px 18px;border-right:1px solid #EAE5F1">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:#9C94B3;margin-bottom:4px">DEPART</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--purple)">2026-09-14</div>
+        </div>
+        <div style="padding:12px 18px;border-right:1px solid #EAE5F1">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:#9C94B3;margin-bottom:4px">RETURN</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--purple)">2026-09-21</div>
+        </div>
+        <div style="padding:12px 18px;border-right:1px solid #EAE5F1">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:#9C94B3;margin-bottom:4px">TRAVELERS</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--purple)">1 ADULT · ECONOMY</div>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:flex-end;padding-right:14px">
+          <a href="#demo" style="background:var(--gold);color:#2A2054;padding:10px 20px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:0.12em">SEARCH</a>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 320px">
+        <div>
+          <div style="display:grid;grid-template-columns:34px 1.6fr 0.7fr 0.8fr 0.6fr 0.9fr 100px;padding:10px 16px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:#9C94B3">
+            <div></div><div>CARRIER</div><div>DEP</div><div>ARR</div><div>VIA</div><div>DURATION</div><div style="text-align:right">FARE USD</div>
+          </div>
+          <sc-for list="{{ rows }}" as="f" hint-placeholder-count="5">
+            <div style="{{ f.rowStyle }}" onClick="{{ f.select }}">
+              <div style="color:var(--purple)">{{ f.mark }}</div>
+              <div>{{ f.carrier }} <span style="color:#B9B2CC">{{ f.code }}</span></div>
+              <div>{{ f.dep }}</div>
+              <div>{{ f.arr }}</div>
+              <div>{{ f.via }}</div>
+              <div>{{ f.dur }}</div>
+              <div style="{{ f.fareStyle }}">{{ f.fareFmt }}</div>
+            </div>
+          </sc-for>
+          <div style="display:flex;justify-content:space-between;padding:10px 16px;border-top:1px solid #EAE5F1;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.1em;color:#B9B2CC">
+            <span>SHOWING 5 OF 38 · PRICES INCL. TAXES · REAL PRICES, REAL TIMES</span>
+            <span>CLICK A FARE — THE LEDGER FOLLOWS</span>
+          </div>
+        </div>
+        <div style="border-left:1px solid #DDD6E8;background:#FAF7EF">
+          <div style="padding:11px 16px;border-bottom:1px solid #EAE5F1;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#9C94B3">TRIP LEDGER — POSTS ON BOOKING</div>
+          <div style="padding:12px 16px 2px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--purple)">{{ selCarrier }}</div>
+          <div style="padding:2px 16px 12px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.08em;color:#9C94B3">AUS → LIS · SEP 14–21 · JE DRAFT</div>
+          <div style="display:flex;justify-content:space-between;padding:7px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px">
+            <span style="color:#6A5F8A">DR 6120 · TRAVEL:FLIGHTS</span><span style="color:var(--goldink);font-weight:500">{{ selFare }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:7px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px">
+            <span style="color:#6A5F8A">CR 1010 · CASH:CHECKING</span><span style="color:var(--goldink);font-weight:500">{{ selFare }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 16px;border-top:1px solid #EAE5F1;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em">
+            <span style="color:#9C94B3">ENTRY</span><span style="color:var(--purple);font-weight:500">BALANCED ✓</span>
+          </div>
+          <div style="padding:12px 16px 4px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#9C94B3">TRIP BUDGET — LISBON SEP</div>
+          <div style="display:flex;justify-content:space-between;padding:6px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px">
+            <span style="color:#6A5F8A">PLANNED</span><span style="color:var(--goldink);font-weight:500">{{ planned }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px">
+            <span style="color:#6A5F8A">THIS FARE</span><span style="color:var(--goldink);font-weight:500">{{ selFare }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 16px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px">
+            <span style="color:#6A5F8A">VARIANCE</span><span style="{{ varStyle }}">{{ varFmt }}</span>
+          </div>
+          <div style="padding:12px 16px 14px;border-top:1px solid #EAE5F1;font-size:12.5px;line-height:1.5;color:#6A5F8A">Every booking flows into your budget — planned vs. what you really spent, on one ledger.</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:13px;color:#9C94B3">
+      <span>One trip holds everything — plans, bookings, budget.</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.1em">NO ACCOUNT NEEDED</span>
+    </div>
+  </div>
+</div>
+
+<div id="modules" style="background:var(--purple)" data-screen-label="Module catalog intro">
+  <div style="max-width:1240px;margin:0 auto;padding:26px 32px 30px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#C0B5DF">02 / THE NINE PILLARS</div>
+      <a href="https://www.templestuart.com/how-pricing-works" style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.08em;color:#F6F1E4" style-hover="color:#FFFFFF">HOW PRICING WORKS →</a>
+    </div>
+    <h2 style="margin:14px 0 0;font-size:30px;font-weight:500;letter-spacing:-0.02em;color:#F6F1E4">Buy the modules you'll use. One, some, or all.</h2>
+  </div>
+</div>
+
+<div data-screen-label="Module catalog">
+  <div style="max-width:1240px;margin:0 auto;padding:32px 32px 56px">
+    <div style="border:1px solid #DDD6E8;background:#FFFDF9">
+      <div style="display:grid;grid-template-columns:48px 160px 130px 1fr 150px 30px;gap:0 16px;padding:10px 16px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.12em;color:#9C94B3;background:#F5F1E5;border-bottom:1px solid #EAE5F1">
+        <div>NO</div><div>MODULE</div><div>CATEGORY</div><div>IN ITS OWN WORDS</div><div>STATUS</div><div></div>
+      </div>
+      <a href="https://www.templestuart.com/modules/travel" style="display:grid;grid-template-columns:48px 160px 130px 1fr 150px 30px;gap:0 16px;align-items:baseline;padding:15px 16px" style-hover="background:#F5F1E5">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B9B2CC">01</div>
+        <div style="font-size:15.5px;font-weight:500;color:var(--purple)">Travel</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">TRAVEL</div>
+        <div style="font-size:13.5px;color:#6A5F8A">Search, book, and budget your trips in one place.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:var(--purple);font-weight:600">LIVE — FREE</div>
+        <div style="color:#B9B2CC">→</div>
+      </a>
+      <a href="https://www.templestuart.com/modules/runway" style="display:grid;grid-template-columns:48px 160px 130px 1fr 150px 30px;gap:0 16px;align-items:baseline;padding:15px 16px;border-top:1px solid #EAE5F1" style-hover="background:#F5F1E5">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B9B2CC">02</div>
+        <div style="font-size:15.5px;font-weight:500;color:var(--purple)">Runway</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">ACCOUNTING</div>
+        <div style="font-size:13.5px;color:#6A5F8A">How long your money buys you — planned and actual spend, mapped to the day.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">LAUNCHING SOON</div>
+        <div style="color:#B9B2CC">→</div>
+      </a>
+      <a href="https://www.templestuart.com/modules/books" style="display:grid;grid-template-columns:48px 160px 130px 1fr 150px 30px;gap:0 16px;align-items:baseline;padding:15px 16px;border-top:1px solid #EAE5F1" style-hover="background:#F5F1E5">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B9B2CC">03</div>
+        <div style="font-size:15.5px;font-weight:500;color:var(--purple)">Books</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">ACCOUNTING</div>
+        <div style="font-size:13.5px;color:#6A5F8A">Every transaction becomes a journal entry. Every period must balance.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">LAUNCHING SOON</div>
+        <div style="color:#B9B2CC">→</div>
+      </a>
+      <a href="https://www.templestuart.com/modules/trade" style="display:grid;grid-template-columns:48px 160px 130px 1fr 150px 30px;gap:0 16px;align-items:baseline;padding:15px 16px;border-top:1px solid #EAE5F1" style-hover="background:#F5F1E5">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B9B2CC">04</div>
+        <div style="font-size:15.5px;font-weight:500;color:var(--purple)">Trade</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">TRADING</div>
+        <div style="font-size:13.5px;color:#6A5F8A">An entire index in full focus. One decision out.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">LAUNCHING SOON</div>
+        <div style="color:#B9B2CC">→</div>
+      </a>
+      <a href="https://www.templestuart.com/modules/tax" style="display:grid;grid-template-columns:48px 160px 130px 1fr 150px 30px;gap:0 16px;align-items:baseline;padding:15px 16px;border-top:1px solid #EAE5F1" style-hover="background:#F5F1E5">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B9B2CC">05</div>
+        <div style="font-size:15.5px;font-weight:500;color:var(--purple)">Tax</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">ACCOUNTING</div>
+        <div style="font-size:13.5px;color:#6A5F8A">From closed books to a filed return — your taxes are half-done before you start.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">LAUNCHING SOON</div>
+        <div style="color:#B9B2CC">→</div>
+      </a>
+      <a href="https://www.templestuart.com/modules/compliance" style="display:grid;grid-template-columns:48px 160px 130px 1fr 150px 30px;gap:0 16px;align-items:baseline;padding:15px 16px;border-top:1px solid #EAE5F1" style-hover="background:#F5F1E5">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B9B2CC">06</div>
+        <div style="font-size:15.5px;font-weight:500;color:var(--purple)">Compliance</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">OPERATIONS</div>
+        <div style="font-size:13.5px;color:#6A5F8A">Don't trust us. Verify us. A real regulatory corpus, on real schedules.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">LAUNCHING SOON</div>
+        <div style="color:#B9B2CC">→</div>
+      </a>
+      <a href="https://www.templestuart.com/modules/routines" style="display:grid;grid-template-columns:48px 160px 130px 1fr 150px 30px;gap:0 16px;align-items:baseline;padding:15px 16px;border-top:1px solid #EAE5F1" style-hover="background:#F5F1E5">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B9B2CC">07</div>
+        <div style="font-size:15.5px;font-weight:500;color:var(--purple)">Routines</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">OPERATIONS</div>
+        <div style="font-size:13.5px;color:#6A5F8A">Build it once. It shows up everywhere. Your routines ARE the budget.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">LAUNCHING SOON</div>
+        <div style="color:#B9B2CC">→</div>
+      </a>
+      <a href="https://www.templestuart.com/modules/projects" style="display:grid;grid-template-columns:48px 160px 130px 1fr 150px 30px;gap:0 16px;align-items:baseline;padding:15px 16px;border-top:1px solid #EAE5F1" style-hover="background:#F5F1E5">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B9B2CC">08</div>
+        <div style="font-size:15.5px;font-weight:500;color:var(--purple)">Projects</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">OPERATIONS</div>
+        <div style="font-size:13.5px;color:#6A5F8A">Goals in. Audited tasks out. Every inference has a receipt.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">LAUNCHING SOON</div>
+        <div style="color:#B9B2CC">→</div>
+      </a>
+      <a href="https://www.templestuart.com/modules/content" style="display:grid;grid-template-columns:48px 160px 130px 1fr 150px 30px;gap:0 16px;align-items:baseline;padding:15px 16px;border-top:1px solid #EAE5F1" style-hover="background:#F5F1E5">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B9B2CC">09</div>
+        <div style="font-size:15.5px;font-weight:500;color:var(--purple)">Content</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">SERVICES</div>
+        <div style="font-size:13.5px;color:#6A5F8A">Your day becomes the script — sources to scenes to ready-to-record.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">LAUNCHING SOON</div>
+        <div style="color:#B9B2CC">→</div>
+      </a>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:15px 16px;border-top:1px solid #DDD6E8;background:#F5F1E5">
+        <div style="font-size:14.5px;color:var(--purple)"><span style="font-weight:500">All-modules bundle</span> <span style="color:#6A5F8A">— every module above, one subscription.</span></div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#9C94B3">LAUNCHING SOON</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;font-size:13px;color:#9C94B3">Every price, traced to a real bill — <a href="https://www.templestuart.com/how-pricing-works" style="color:#6A5F8A;border-bottom:1px solid #C9C0DC">see the full breakdown</a></div>
+  </div>
+</div>
+
+<div style="border-top:1px solid #DDD6E8" data-screen-label="Product screenshots">
+  <div style="max-width:1240px;margin:0 auto;padding:0 32px 72px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding-top:22px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#9C94B3">03 / INSIDE THE APP</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.08em;color:#9C94B3">REAL SCREENS — NOT RENDERS</div>
+    </div>
+    <h2 style="margin:14px 0 32px;font-size:30px;font-weight:500;letter-spacing:-0.02em;color:var(--purple)">The product, as it runs.</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div style="border:1px solid #DDD6E8;background:#FFFDF9">
+        <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #DDD6E8;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em">
+          <span style="color:#6A5F8A">APP / TRAVEL — LIVE BOOKING FORM</span><span style="color:var(--purple);font-weight:600">▪ PRODUCTION</span>
+        </div>
+        <div style="aspect-ratio:16/10;position:relative">
+          <image-slot id="shot-travel" shape="rect" fit="contain" src="https://www.templestuart.com/demo/travel-real.png" placeholder="Drop the real Travel screenshot here"></image-slot>
+        </div>
+      </div>
+      <div style="border:1px solid #DDD6E8;background:#FFFDF9">
+        <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #DDD6E8;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em">
+          <span style="color:#6A5F8A">APP / BOOKS — TRIAL BALANCE</span><span style="color:#9C94B3">▪ IN REVIEW</span>
+        </div>
+        <div style="aspect-ratio:16/10;position:relative">
+          <image-slot id="shot-books" shape="rect" fit="contain" placeholder="Drop the real Books screenshot here"></image-slot>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="border-top:1px solid #DDD6E8" data-screen-label="Built in public">
+  <div style="max-width:1240px;margin:0 auto;padding:0 32px 72px">
+    <div style="padding-top:22px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#9C94B3">04 / BUILT IN PUBLIC</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:40px;margin-top:30px">
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#9C94B3;margin-bottom:10px">THE CODE</div>
+        <div style="font-size:13.5px;line-height:1.55;color:#6A5F8A">The code is public — source-available under BSL 1.1, free to self-host for personal use.</div>
+        <a href="https://github.com/Temple-Stuart/temple-stuart-accounting" style="display:inline-block;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.06em;color:var(--purple);font-weight:500">GITHUB.COM/TEMPLE-STUART ↗</a>
+      </div>
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#9C94B3;margin-bottom:10px">THE CHANGELOG</div>
+        <div style="font-size:13.5px;line-height:1.55;color:#6A5F8A">Every change ships as a reviewed pull request — the build history is the changelog.</div>
+      </div>
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#9C94B3;margin-bottom:10px">YOUR LEDGER</div>
+        <div style="font-size:13.5px;line-height:1.55;color:#6A5F8A">Your complete financial records export in one click — never paywalled.</div>
+      </div>
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#9C94B3;margin-bottom:10px">DONE-FOR-YOU</div>
+        <div style="font-size:13.5px;line-height:1.55;color:#6A5F8A">Want it running without the setup? Full setup, monthly maintenance, custom builds, or a module embedded in your stack.</div>
+        <a href="https://www.templestuart.com/work-with-me" style="display:inline-block;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.06em;color:var(--purple);font-weight:500">SEND A PROJECT PROPOSAL →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="background:var(--purple)" data-screen-label="Footer">
+  <div style="max-width:1240px;margin:0 auto;padding:26px 32px 40px">
+    <p style="margin:0;max-width:840px;font-size:12px;line-height:1.6;color:#B4A9D6">Temple Stuart is not a CPA firm, tax preparer, or licensed financial advisor. All tax figures generated by this platform are estimates for informational purposes only and must be verified by a qualified tax professional before filing. Use of this software does not constitute tax advice.</p>
+    <div style="display:flex;justify-content:space-between;margin-top:26px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;color:#9C90C2">
+      <span>© 2026 TEMPLE STUART, LLC</span>
+      <span style="display:flex;gap:26px">
+        <a href="https://www.templestuart.com/how-pricing-works" style="color:#E0D9F2" style-hover="color:#FFFFFF">PRICING</a>
+        <a href="https://www.templestuart.com/terms" style="color:#E0D9F2" style-hover="color:#FFFFFF">TERMS</a>
+        <a href="https://www.templestuart.com/privacy" style="color:#E0D9F2" style-hover="color:#FFFFFF">PRIVACY</a>
+        <a href="mailto:astuart@templestuart.com" style="color:#E0D9F2" style-hover="color:#FFFFFF">ASTUART@TEMPLESTUART.COM</a>
+      </span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;brandPurple&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#3B2D6B&quot;, &quot;options&quot;: [&quot;#3B2D6B&quot;, &quot;#2E2357&quot;, &quot;#4B3A8A&quot;, &quot;#553184&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Theme&quot; },
+  &quot;brandGold&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#B8860B&quot;, &quot;options&quot;: [&quot;#B8860B&quot;, &quot;#A67C00&quot;, &quot;#C2912A&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Theme&quot; },
+  &quot;demoAutoplay&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Live demo&quot; },
+  &quot;showHeroBoard&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Hero&quot; }
+}">
+class Component extends DCLogic {
+  state = { sel: 1, auto: true };
+  flights = [
+    { carrier: 'IBERIA', code: 'IB 6702', dep: '19:30', arr: '15:05+1', via: 'MAD', dur: '13H 35M', fare: 799.10 },
+    { carrier: 'TAP AIR PORTUGAL', code: 'TP 212', dep: '17:35', arr: '11:50+1', via: 'EWR', dur: '12H 15M', fare: 872.40 },
+    { carrier: 'UNITED', code: 'UA 1867', dep: '15:10', arr: '09:55+1', via: 'IAD', dur: '12H 45M', fare: 914.20 },
+    { carrier: 'BRITISH AIRWAYS', code: 'BA 190', dep: '18:05', arr: '13:40+1', via: 'LHR', dur: '13H 35M', fare: 968.03 },
+    { carrier: 'LUFTHANSA', code: 'LH 469', dep: '16:20', arr: '12:15+1', via: 'FRA', dur: '13H 55M', fare: 1041.66 }
+  ];
+  PLANNED = 950;
+  componentDidMount() { this.applyBrand(); this.syncTimer(); }
+  componentDidUpdate() { this.applyBrand(); this.syncTimer(); }
+  componentWillUnmount() { if (this.timer) clearInterval(this.timer); }
+  applyBrand() {
+    document.body.style.setProperty('--purple', this.props.brandPurple ?? '#3B2D6B');
+    document.body.style.setProperty('--gold', this.props.brandGold ?? '#B8860B');
+  }
+  syncTimer() {
+    const on = (this.props.demoAutoplay ?? true) && this.state.auto;
+    if (on && !this.timer) this.timer = setInterval(() => {
+      this.setState(s => ({ sel: (s.sel + 1) % this.flights.length }));
+    }, 3200);
+    if (!on && this.timer) { clearInterval(this.timer); this.timer = null; }
+  }
+  fmt(n) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  renderVals() {
+    const sel = this.state.sel;
+    const rows = this.flights.map((f, i) => {
+      const s = i === sel;
+      return {
+        ...f, fareFmt: this.fmt(f.fare), mark: s ? '▪' : '',
+        rowStyle: {
+          display: 'grid', gridTemplateColumns: '34px 1.6fr 0.7fr 0.8fr 0.6fr 0.9fr 100px',
+          alignItems: 'baseline', padding: '11px 16px', borderTop: '1px solid #EAE5F1', cursor: 'pointer',
+          background: s ? '#F5F1E5' : 'transparent', fontFamily: "'IBM Plex Mono',monospace",
+          fontSize: '12.5px', color: s ? 'var(--purple)' : '#6A5F8A'
+        },
+        fareStyle: { textAlign: 'right', fontWeight: s ? 600 : 500, color: 'var(--goldink)' },
+        select: () => this.setState({ sel: i, auto: false })
+      };
+    });
+    const f = this.flights[sel];
+    const v = this.PLANNED - f.fare;
+    return {
+      rows,
+      selCarrier: f.carrier + ' ' + f.code,
+      selFare: this.fmt(f.fare),
+      planned: this.fmt(this.PLANNED),
+      varFmt: (v >= 0 ? '+' : '-') + this.fmt(Math.abs(v)).slice(1),
+      varStyle: { color: v >= 0 ? 'var(--goldink)' : 'var(--neg)', fontWeight: 600 },
+      showBoard: this.props.showHeroBoard ?? true
+    };
+  }
+}
+</script>
+</body>
+</html>

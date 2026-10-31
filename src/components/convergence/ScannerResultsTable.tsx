@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, Fragment } from 'react';
+import { useState, useMemo, useCallback, useEffect, Fragment } from 'react';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 
@@ -23,7 +23,10 @@ import type {
   TradeCardData,
 } from '@/lib/convergence/types';
 import type { TickerDetail } from '@/lib/convergence/filter-engine';
+import { POP_MODEL_LABEL, EV_MODEL_LABEL, MODEL_NUMBER_TOOLTIP } from '@/lib/convergence/modelLabels';
 import { TickerChapter } from './ConvergenceIntelligence';
+import { GATE_TITLES } from '@/lib/convergence/gateCards';
+
 
 interface Headline {
   datetime: number;
@@ -34,19 +37,6 @@ interface Headline {
 
 // ── Props ────────────────────────────────────────────────────────────
 
-interface SocialSentimentData {
-  symbol: string;
-  score: number;
-  magnitude: number;
-  postCount: number;
-  bullishCount: number;
-  bearishCount: number;
-  neutralCount: number;
-  themes: string[];
-  samplePosts: { text: string; sentiment: 'bullish' | 'bearish' | 'neutral'; author: string }[];
-  dataAge: string;
-  error?: string;
-}
 
 interface RejectionReason {
   strategy: string;
@@ -57,29 +47,33 @@ interface RejectionReason {
 
 interface ScannerResultsTableProps {
   results: TickerDetail[];
-  sentimentMap?: Record<string, SocialSentimentData>;
   rejectionMap?: Record<string, RejectionReason[]>;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSaveCard: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
+  onSaveCard: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
   onRemoveCard: (cardKey: string, savedId: string) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pipelineProgress?: Record<string, any>;
+  /** RESULTS-ANATOMY: reports the derived row tally (trade = card rows,
+   *  skip = rejection rows) for the results kicker. Reporting only. */
+  onTally?: (t: { trade: number; skip: number }) => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function gradeColor(s: number): string {
   if (s >= 70) return 'text-brand-green';
-  if (s >= 50) return 'text-brand-amber';
+  if (s >= 50) return 'text-status-warning';
   return 'text-brand-red';
 }
 
+// TRADE-CHIPS: DISCRETE 3-bucket score color — tokenized to the status
+// family (kept as an rgb(var()) string: consumers feed inline style/SVG).
 function gradeColorHex(s: number): string {
-  if (s >= 70) return '#16a34a';
-  if (s >= 50) return '#d97706';
-  return '#c53030';
+  if (s >= 70) return 'rgb(var(--ts-success))';
+  if (s >= 50) return 'rgb(var(--ts-warning))';
+  return 'rgb(var(--ts-danger))';
 }
 
 function letterGrade(s: number): string {
@@ -147,13 +141,20 @@ interface TableRow {
   riskReward: number | null;
   dte: number | null;
   hasWideSpread: boolean;
+  /** RESULTS-ANATOMY: derived from existing state only — 'trade' ⇐ the
+   *  strategy was emitted as a real trade card (card != null); 'skip' ⇐ a
+   *  stored rejection (rejectionMap / _rejection_reasons) or fetch error.
+   *  Never invented. */
+  verdict: 'trade' | 'skip';
+  /** skip rows only: the STORED reason string, verbatim source. */
+  skipReason?: string;
 }
 
 type SortKey = 'symbol' | 'score' | 'direction' | 'strategyName' | 'maxProfit' | 'maxLoss' | 'winPct' | 'ev' | 'evPerRisk' | 'riskReward' | 'dte';
 
 // ── Expanded Detail ──────────────────────────────────────────────────
 
-function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: TickerDetail; card: TradeCardData | null; sentiment?: SocialSentimentData; rejections?: RejectionReason[] }) {
+function ExpandedDetail({ detail, card, rejections }: { detail: TickerDetail; card: TradeCardData | null; rejections?: RejectionReason[] }) {
   const comp = detail.scores.composite;
   const why = card?.why;
   const ks = card?.key_stats;
@@ -169,7 +170,7 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
           <div className="space-y-1 max-h-[200px] overflow-y-auto">
             {allRejections.map((rej, i) => (
               <div key={i} className="flex items-start gap-2 text-xs rounded px-2 py-1 bg-bg-row">
-                <span className={`shrink-0 px-1 py-0.5 rounded text-[9px] font-bold ${rej.gate === 'construction' ? 'bg-amber-50 text-brand-amber' : 'bg-red-50 text-brand-red'}`}>
+                <span className={`shrink-0 px-1 py-0.5 rounded text-[9px] font-bold ${rej.gate === 'construction' ? 'bg-amber-50 text-status-warning' : 'bg-red-50 text-brand-red'}`}>
                   {rej.gate === 'construction' ? 'BUILD' : `GATE ${rej.gate}`}
                 </span>
                 <span className="text-text-faint flex-1">
@@ -261,7 +262,7 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
               <span className="text-text-muted">Earnings: </span>
               <span className="text-text-faint font-mono">{ks.earnings_date ?? '—'}</span>
               {ks.days_to_earnings != null && ks.days_to_earnings > 0 && (
-                <span className="text-brand-amber text-[10px]"> ({ks.days_to_earnings}d away)</span>
+                <span className="text-status-warning text-[10px]"> ({ks.days_to_earnings}d away)</span>
               )}
             </div>
           </div>
@@ -278,6 +279,16 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
         </div>
       )}
 
+      {/* MODEL-02: the gates that scored this card (why.scored_by — computed by MODEL-01, rendered since 2026-09-16) */}
+      {why?.scored_by && (
+        <div className="text-[10px] font-mono text-text-muted" title="The gates whose numbers entered this card's score; an excluded gate had zero computable signals and its weight was renormalized away, never imputed.">
+          Scored on {why.scored_by.length} of 4 gates: <span className="text-text-secondary">{why.scored_by.map((g) => GATE_TITLES[g]).join(', ')}</span>
+          {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).filter((g) => !why.scored_by.includes(g)).length > 0 && (
+            <span> · excluded: {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).filter((g) => !why.scored_by.includes(g)).map((g) => GATE_TITLES[g]).join(', ')}</span>
+          )}
+        </div>
+      )}
+
       {/* Risk flags */}
       {why && why.risk_flags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -286,7 +297,7 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
             return (
               <span
                 key={i}
-                className={`px-2 py-0.5 rounded text-[10px] font-medium ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-brand-amber'}`}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-status-warning'}`}
               >
                 {isRed ? '\u26D4 ' : '\u26A0 '}{flag}
               </span>
@@ -316,56 +327,8 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
         </div>
       )}
 
-      {/* Social Pulse — from xAI x_search */}
-      {sentiment && !sentiment.error && sentiment.postCount > 0 && (
-        <div>
-          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">
-            Social Pulse
-            <span className="ml-2 text-[9px] text-text-secondary normal-case font-normal">
-              Based on {sentiment.postCount} X posts in last 24h
-            </span>
-          </div>
-          <div className="rounded px-3 py-2 text-xs space-y-2 bg-bg-row">
-            <div className="flex items-center gap-3">
-              <span className="text-text-faint">Score:</span>
-              <span
-                className={`font-mono font-bold ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`}
-              >
-                {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
-              </span>
-              <span className="text-text-faint">
-                ({sentiment.bullishCount} bullish / {sentiment.bearishCount} bearish / {sentiment.neutralCount} neutral)
-              </span>
-            </div>
-            {sentiment.themes.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-text-faint shrink-0">Themes:</span>
-                <div className="flex flex-wrap gap-1">
-                  {sentiment.themes.slice(0, 5).map((t, i) => (
-                    <Badge key={i} variant="default" size="sm">{t}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {sentiment.samplePosts.length > 0 && (
-              <div className="space-y-1 mt-1">
-                {sentiment.samplePosts.slice(0, 3).map((post, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <Badge
-                      variant={post.sentiment === 'bullish' ? 'success' : post.sentiment === 'bearish' ? 'danger' : 'default'}
-                      size="sm"
-                    >
-                      {post.sentiment.charAt(0).toUpperCase()}
-                    </Badge>
-                    <span className="text-text-faint leading-relaxed flex-1">&ldquo;{post.text}&rdquo;</span>
-                    <span className="shrink-0 text-[9px] text-text-muted font-mono">{post.author}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* PIPE-01: the Social Pulse block is gone with xAI — it was the only
+          xAI-sourced value on this row and it fed no score. */}
     </div>
   );
 }
@@ -374,7 +337,6 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
 
 export default function ScannerResultsTable({
   results,
-  sentimentMap,
   rejectionMap,
   savedCards,
   savingCards,
@@ -382,7 +344,8 @@ export default function ScannerResultsTable({
   onSaveCard,
   onRemoveCard,
   pipelineProgress,
-}: ScannerResultsTableProps) {
+  onTally,
+}: ScannerResultsTableProps & { }) {
   const [sortKey, setSortKey] = useState<SortKey>('score');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -390,34 +353,46 @@ export default function ScannerResultsTable({
   const [batchSaving, setBatchSaving] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
 
-  // Build flat rows: one row per strategy, not per ticker
+  // Build flat rows: one row per strategy, not per ticker.
+  // RESULTS-ANATOMY: SKIP rows join the candidate list — one per STORED
+  // rejection ({strategy, reason} from _rejection_reasons / rejectionMap,
+  // the same data the old collapsed "No strategies — …" message summarized).
+  // A ticker with neither cards nor rejections keeps its single message row
+  // (fetch-error / 'No strategies available', existing strings) as a skip.
   const rows = useMemo<TableRow[]>(() => {
     const result: TableRow[] = [];
+    const skipRowBase = (detail: TickerDetail, comp: { score: number; direction: string }) => ({
+      detail,
+      card: null,
+      cardKey: '',
+      symbol: detail.symbol,
+      score: comp.score,
+      direction: comp.direction,
+      legsText: '',
+      entryText: '—',
+      maxProfit: null,
+      maxLoss: null,
+      winPct: null,
+      popMethod: 'delta_approx' as const,
+      ev: null,
+      evPerRisk: null,
+      riskReward: null,
+      dte: null,
+      hasWideSpread: false,
+      verdict: 'skip' as const,
+    });
     for (const detail of results) {
       const cards = detail.trade_cards ?? [];
       const comp = detail.scores.composite;
-      if (cards.length === 0) {
-        // Ticker with no strategies — single row with message
+      const rejections = detail._rejection_reasons || rejectionMap?.[detail.symbol] || [];
+      if (cards.length === 0 && rejections.length === 0) {
+        // Ticker with no strategies and no stored rejections — single skip
+        // row carrying the existing message string.
         result.push({
+          ...skipRowBase(detail, comp),
           id: `${detail.symbol}|__none__`,
-          detail,
-          card: null,
-          cardKey: '',
-          symbol: detail.symbol,
-          score: comp.score,
-          direction: comp.direction,
           strategyName: '',
-          legsText: '',
-          entryText: '',
-          maxProfit: null,
-          maxLoss: null,
-          winPct: null,
-          popMethod: 'delta_approx' as const,
-          ev: null,
-          evPerRisk: null,
-          riskReward: null,
-          dte: null,
-          hasWideSpread: false,
+          skipReason: detail._fetch_errors?.chain_fetch || 'No strategies available',
         });
       } else {
         for (const card of cards) {
@@ -451,12 +426,34 @@ export default function ScannerResultsTable({
             riskReward: s.risk_reward_ratio,
             dte: s.dte,
             hasWideSpread: s.has_wide_spread,
+            verdict: 'trade' as const,
           });
         }
+        // RESULTS-ANATOMY: the ticker's stored rejections render as SKIP
+        // rows beneath its trade rows — the reason string verbatim from
+        // state ({strategy, reason}, RejectionReason).
+        rejections.forEach((rej, i) => {
+          result.push({
+            ...skipRowBase(detail, comp),
+            id: `${detail.symbol}|skip|${rej.strategy}|${i}`,
+            strategyName: rej.strategy,
+            skipReason: rej.reason,
+          });
+        });
       }
     }
     return result;
-  }, [results]);
+  }, [results, rejectionMap]);
+
+  // RESULTS-ANATOMY: the derived tally, reported upward for the results
+  // kicker ("N TRADE · M SKIP") — counts of the rows built above, nothing
+  // separately computed.
+  const tradeCount = useMemo(() => rows.filter((r) => r.verdict === 'trade').length, [rows]);
+  const skipCount = rows.length - tradeCount;
+  useEffect(() => {
+    onTally?.({ trade: tradeCount, skip: skipCount });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tradeCount, skipCount]);
 
   // Sorted rows
   const sortedRows = useMemo(() => {
@@ -526,19 +523,21 @@ export default function ScannerResultsTable({
     setBatchProgress({ done: 0, total: toSave.length });
     for (let i = 0; i < toSave.length; i++) {
       setBatchProgress({ done: i, total: toSave.length });
-      await onSaveCard(toSave[i].detail, toSave[i].card!, sentimentMap?.[toSave[i].symbol]);
+      await onSaveCard(toSave[i].detail, toSave[i].card!);
     }
     setBatchProgress({ done: toSave.length, total: toSave.length });
     setBatchSaving(false);
     setSelectedRows(new Set());
-  }, [sortedRows, selectedRows, savedCards, onSaveCard, sentimentMap]);
+  }, [sortedRows, selectedRows, savedCards, onSaveCard]);
 
   const sortIndicator = (key: SortKey) => {
     if (sortKey !== key) return '';
     return sortDir === 'asc' ? ' \u25B2' : ' \u25BC';
   };
 
-  const thBase = 'px-2 py-2 text-[10px] font-bold text-text-muted uppercase tracking-wider cursor-pointer hover:text-text-secondary select-none whitespace-nowrap';
+  // TRADE-TABLES: DATA.columnHeader layered onto the sort affordances —
+  // token-native, so the themed() wrap dropped (identity on dark).
+  const thBase = 'px-2 py-2 font-mono text-[10px] uppercase tracking-wider text-text-faint cursor-pointer hover:text-text-muted select-none whitespace-nowrap';
 
   return (
     <div className="px-4 py-3">
@@ -570,23 +569,22 @@ export default function ScannerResultsTable({
       {/* Table */}
       <div className="overflow-x-auto rounded border border-border overflow-y-auto">
         <table className="w-full text-xs" style={{ minWidth: 900 }}>
+          {/* RESULTS-ANATOMY (mock 1A "02 / RESULTS"): the six mapped columns
+              — TICKER · STRATEGY · PREMIUM · the model PoP · the model EV · VERDICT (+ the
+              functional checkbox column, unchanged wiring). The demoted
+              top-level columns (X, Score, Direction, Legs, Max P/L, EV/Risk,
+              R:R, DTE) all still render in the expanded chapter beneath each
+              row — nothing removed from the organ, only from the candidate
+              row. Sort survives on the four mapped sortable fields. */}
           <thead className="sticky top-0 z-10">
             <tr className="bg-bg-row">
               <th className="px-2 py-2 w-8">{/* checkbox col */}</th>
-              <th className={thBase + ' text-left'} onClick={() => toggleSort('symbol')}>Symbol{sortIndicator('symbol')}</th>
-              <th className={thBase + ' text-center w-6'} title="Social Sentiment from X/Twitter (via xAI Grok)">X</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('score')}>Score{sortIndicator('score')}</th>
-              <th className={thBase + ' text-left'} onClick={() => toggleSort('direction')}>Direction{sortIndicator('direction')}</th>
+              <th className={thBase + ' text-left'} onClick={() => toggleSort('symbol')}>Ticker{sortIndicator('symbol')}</th>
               <th className={thBase + ' text-left'} onClick={() => toggleSort('strategyName')}>Strategy{sortIndicator('strategyName')}</th>
-              <th className={thBase + ' text-left'}>Legs</th>
-              <th className={thBase + ' text-right'}>Entry</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('maxProfit')}>Max P{sortIndicator('maxProfit')}</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('maxLoss')}>Max L{sortIndicator('maxLoss')}</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('winPct')} title="Estimated Probability of Profit — N(d2) at breakeven when available, delta approximation otherwise. Actual results will vary.">Est. PoP{sortIndicator('winPct')}</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('ev')} title="Expected Value — estimated profit/loss per trade using three-outcome model">Est. EV{sortIndicator('ev')}</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('evPerRisk')} title="Expected Value per dollar risked — higher is better">EV/Risk{sortIndicator('evPerRisk')}</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('riskReward')}>R:R{sortIndicator('riskReward')}</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('dte')}>DTE{sortIndicator('dte')}</th>
+              <th className={thBase + ' text-right'}>Premium</th>
+              <th className={thBase + ' text-right'} onClick={() => toggleSort('winPct')} title={MODEL_NUMBER_TOOLTIP}>{POP_MODEL_LABEL}{sortIndicator('winPct')}</th>
+              <th className={thBase + ' text-right'} onClick={() => toggleSort('ev')} title={MODEL_NUMBER_TOOLTIP}>{EV_MODEL_LABEL}{sortIndicator('ev')}</th>
+              <th className={thBase + ' text-left'}>Verdict</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -599,10 +597,14 @@ export default function ScannerResultsTable({
 
               return (
                 <Fragment key={row.id}>
+                  {/* RESULTS-ANATOMY: selected row wears the lane-A
+                      purple-wash idiom (the deck table / FlightPickerView
+                      selected-row precedent); queued keeps its existing
+                      real-flag markers (savedCards left border + ✓). */}
                   <tr
-                    className={`transition-colors cursor-pointer hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-terminal'} ${isQueued ? 'bg-green-50' : ''} ${isSelected ? 'bg-brand-purple-wash' : ''}`}
+                    className={`transition-colors cursor-pointer hover:bg-brand-purple-wash/40 ${isQueued ? 'bg-status-success/10' : ''} ${isSelected ? 'bg-brand-purple-wash/40' : ''}`}
                     style={{
-                      borderLeft: isSelected ? '2px solid #3b2d6b' : isQueued ? '2px solid #16a34a' : '2px solid transparent',
+                      borderLeft: isSelected ? '2px solid rgb(var(--ts-purple))' : isQueued ? '2px solid rgb(var(--ts-success))' : '2px solid transparent',
                     }}
                   >
                     {/* Checkbox */}
@@ -620,104 +622,60 @@ export default function ScannerResultsTable({
                         />
                       )}
                     </td>
-                    {/* Symbol */}
-                    <td className="px-2 py-2 font-mono font-bold text-text-primary" onClick={() => toggleRow(row.id)}>
+                    {/* TICKER */}
+                    <td className="px-2 py-2 font-mono font-bold text-brand-purple" onClick={() => toggleRow(row.id)}>
                       {row.symbol}
                     </td>
-                    {/* Sentiment dot */}
-                    <td className="px-1 py-2 text-center" onClick={() => toggleRow(row.id)}>
-                      {(() => {
-                        const s = sentimentMap?.[row.symbol];
-                        if (!s || s.error || s.postCount === 0) return null;
-                        const dotClass = s.score > 0.2 ? 'bg-brand-green' : s.score < -0.2 ? 'bg-brand-red' : 'bg-text-muted';
-                        const label = s.score > 0.2 ? 'bullish' : s.score < -0.2 ? 'bearish' : 'neutral';
-                        return (
-                          <span
-                            className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
-                            title={`Social Sentiment: ${s.score > 0 ? '+' : ''}${s.score.toFixed(2)} (${label}) — ${s.postCount} posts. ${s.themes.length > 0 ? 'Themes: ' + s.themes.slice(0, 3).join(', ') : ''}`}
-                          />
-                        );
-                      })()}
-                    </td>
-                    {/* Score */}
-                    <td className={`px-2 py-2 text-right font-mono font-bold ${gradeColor(row.score)}`} onClick={() => toggleRow(row.id)}>
-                      {row.score.toFixed(1)} <span className="text-[10px]">{letterGrade(row.score)}</span>
-                    </td>
-                    {/* Direction */}
-                    <td className="px-2 py-2" onClick={() => toggleRow(row.id)}>
-                      <Badge variant={dirBadgeVariant(row.direction)} size="sm">{row.direction}</Badge>
-                    </td>
-                    {/* Strategy */}
-                    <td className="px-2 py-2 text-text-faint" onClick={() => toggleRow(row.id)}>
-                      {row.card ? (
-                        <>
-                          {row.strategyName}
-                          {row.hasWideSpread && (
-                            <span className="ml-1 text-brand-amber cursor-help" title="Bid/ask estimated from theoretical price — actual market spread may differ">&#x26A0;</span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-text-muted italic">
-                          {row.detail._fetch_errors?.chain_fetch || (() => {
-                            const rej = row.detail._rejection_reasons || rejectionMap?.[row.symbol];
-                            if (rej && rej.length > 0) {
-                              const top = rej[0];
-                              const extra = rej.length > 1 ? ` (+${rej.length - 1} more)` : '';
-                              return `No strategies — ${top.reason}${extra}`;
-                            }
-                            return 'No strategies available';
-                          })()}
-                        </span>
+                    {/* STRATEGY */}
+                    <td className="px-2 py-2 text-text-secondary" onClick={() => toggleRow(row.id)}>
+                      {row.strategyName || <span className="text-text-muted italic">—</span>}
+                      {row.hasWideSpread && (
+                        <span className="ml-1 text-status-warning cursor-help" title="Bid/ask estimated from theoretical price — actual market spread may differ">&#x26A0;</span>
                       )}
                     </td>
-                    {/* Legs */}
-                    <td className="px-2 py-2 text-text-faint font-mono text-[10px] max-w-[200px]" onClick={() => toggleRow(row.id)} style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                      {row.legsText || '—'}
-                    </td>
-                    {/* Entry */}
+                    {/* PREMIUM (the existing entryText — Collect/Pay) */}
                     <td className="px-2 py-2 text-right font-mono text-text-faint" onClick={() => toggleRow(row.id)}>
                       {row.entryText}
                     </td>
-                    {/* Max Profit */}
-                    <td className="px-2 py-2 text-right font-mono text-brand-green" onClick={() => toggleRow(row.id)}>
-                      {fmtDollar(row.maxProfit)}
-                    </td>
-                    {/* Max Loss */}
-                    <td className="px-2 py-2 text-right font-mono text-brand-red" onClick={() => toggleRow(row.id)}>
-                      {fmtDollar(row.maxLoss)}
-                    </td>
-                    {/* Est. PoP */}
+                    {/* PoP — TRADE-UX-1: the dossier anchor leads the row.
+                        Same field/format, strongest-cell weight kept. */}
                     <td
-                      className="px-2 py-2 text-right font-mono text-text-faint"
+                      className="px-2 py-2 text-right font-mono text-sm font-black text-text-primary"
                       onClick={() => toggleRow(row.id)}
                       title={row.popMethod === 'breakeven_d2'
-                        ? 'PoP via N(d2) at breakeven price'
-                        : 'PoP estimated from option deltas (approximate)'}
+                        ? `${POP_MODEL_LABEL} via N(d2) at breakeven price — ${MODEL_NUMBER_TOOLTIP}`
+                        : `${POP_MODEL_LABEL} estimated from option deltas (approximate) — ${MODEL_NUMBER_TOOLTIP}`}
                     >
                       {fmtPct(row.winPct)}
                     </td>
-                    {/* Est. EV */}
+                    {/* EV */}
                     <td className={`px-2 py-2 text-right font-mono ${row.ev == null ? 'text-text-muted' : row.ev > 0 ? 'text-brand-green' : row.ev < 0 ? 'text-brand-red' : 'text-text-muted'}`} onClick={() => toggleRow(row.id)}>
                       {row.ev != null ? `${row.ev >= 0 ? '+' : ''}$${Math.round(row.ev)}` : '—'}
                     </td>
-                    {/* EV/Risk */}
-                    <td className={`px-2 py-2 text-right font-mono ${row.evPerRisk == null ? 'text-text-muted' : row.evPerRisk > 0 ? 'text-brand-green' : row.evPerRisk < 0 ? 'text-brand-red' : 'text-text-muted'}`} onClick={() => toggleRow(row.id)}>
-                      {row.evPerRisk != null ? row.evPerRisk.toFixed(3) : '—'}
-                    </td>
-                    {/* R:R */}
-                    <td className="px-2 py-2 text-right font-mono text-text-faint" onClick={() => toggleRow(row.id)}>
-                      {row.riskReward != null ? row.riskReward.toFixed(2) : '—'}
-                    </td>
-                    {/* DTE */}
-                    <td className="px-2 py-2 text-right font-mono text-text-faint" onClick={() => toggleRow(row.id)}>
-                      {row.dte ?? '—'}
+                    {/* VERDICT — TRADE ⇐ real card; SKIP ⇐ the STORED reason,
+                        rendered verbatim (uppercased presentation only).
+                        QUEUED TO LAB ⇐ the real savedCards flag. */}
+                    <td className="px-2 py-2" onClick={() => toggleRow(row.id)}>
+                      <span className="inline-flex flex-wrap items-center gap-1.5">
+                        {row.verdict === 'trade' ? (
+                          <span className="rounded bg-brand-purple px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-white">TRADE</span>
+                        ) : (
+                          <span className="rounded border border-border bg-bg-row px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-text-muted">SKIP</span>
+                        )}
+                        {row.verdict === 'skip' && row.skipReason && (
+                          <span className="font-mono text-[9px] tracking-wider text-text-faint">{row.skipReason.toUpperCase()}</span>
+                        )}
+                        {isQueued && (
+                          <span className="font-mono text-[9px] tracking-wider text-brand-green">● QUEUED TO LAB</span>
+                        )}
+                      </span>
                     </td>
                   </tr>
 
                   {/* Error row */}
                   {error && (
                     <tr className="bg-red-50">
-                      <td colSpan={15} className="px-4 py-1 text-[10px] text-brand-red">
+                      <td colSpan={7} className="px-4 py-1 text-[10px] text-brand-red">
                         Failed to save: {error}
                       </td>
                     </tr>
@@ -726,8 +684,8 @@ export default function ScannerResultsTable({
                   {/* Expanded detail row */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan={15} className="bg-white p-0">
-                        <TickerChapter detail={row.detail} sentiment={sentimentMap?.[row.symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={onSaveCard} onRemove={onRemoveCard} pipelineProgress={pipelineProgress ?? {}} />
+                      <td colSpan={7} className="bg-white p-0">
+                        <TickerChapter detail={row.detail} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={onSaveCard} onRemove={onRemoveCard} pipelineProgress={pipelineProgress ?? {}} />
                       </td>
                     </tr>
                   )}

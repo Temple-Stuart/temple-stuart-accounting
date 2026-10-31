@@ -10,7 +10,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { prisma } from '@/lib/prisma';
+import { requireTabAccess } from '@/lib/auth-helpers';
 import { searchCorpus } from '@/lib/corpus/retrieve';
 import type { RetrievalMode } from '@/lib/corpus/retrieve';
 
@@ -27,6 +30,18 @@ export async function POST(request: NextRequest) {
   if (!email) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
+
+  // TAB-SERVER-GATE: tab:compliance entitlement (bundle:all included; admin
+  // bypass inside) — BEFORE the paid Voyage embedding/rerank call below.
+  const gateUser = await prisma.users.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
+    select: { id: true },
+  });
+  if (!gateUser) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+  const tabGate = await requireTabAccess(gateUser.id, 'tab:compliance');
+  if (tabGate) return tabGate;
 
   try {
     const body = (await request.json()) as SearchRequestBody;
@@ -54,11 +69,6 @@ export async function POST(request: NextRequest) {
       mode: body.mode ?? 'hybrid',
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'unknown error';
-    console.error('[/api/workbench/search]', message);
-    return NextResponse.json(
-      { error: 'search failed', detail: message },
-      { status: 500 }
-    );
+    return failClosedResponse('workbench/search', 'Search failed', err);
   }
 }

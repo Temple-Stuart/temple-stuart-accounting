@@ -1,33 +1,49 @@
 'use client';
 
 /**
- * ActivityResultsView — PURE, image-capable activity results grid (PR-A2).
+ * ActivityResultsView — PURE, image-capable results list (PR-A2; COMPACT-1
+ * converted the photo-card scroller to dense list rows).
  *
- * Renders the image-rich results from the PUBLIC activity search route (PR-A1,
- * /api/travel/activities/search → { results, count }). Each result is the
- * viatorProductToRecommendation shape with the affiliate-URL fields ALREADY
- * STRIPPED at the route (route.ts:76 drops `bookingUrl` + `website`). This view
- * mirrors HotelResultsView (same photo-card look + placeholder fallback).
+ * ACTIVITY-01 (2026-09-22): this view serves the TRANSFERS rail only. The
+ * Things-to-do tab renders ActivityPickerView (one product per row, every
+ * attribute tri-state from src/lib/activities/products.ts); the activities
+ * search route no longer returns this shape. What renders here is the transfers
+ * route's viatorProductToRecommendation rows (/api/travel/transfers/search →
+ * { results, count }) with the affiliate-URL fields STRIPPED at that route.
+ * This view mirrors HotelResultsView (same photo-card look + placeholder fallback).
  *
- * PURE VIEW: props only. NO fetch, NO context, NO data-loading useEffect. PR-A3's
- * container does the searching and feeds `results` + `onBook` down. The single bit
- * of local state is a per-card image-error fallback (UI only, not data).
+ * PURE VIEW: props only. NO fetch, NO context, NO data-loading useEffect. The
+ * container does the searching and feeds `results` down. The single bit of
+ * local state is a per-card image-error fallback (UI only, not data).
  *
- * AFFILIATE LOCK: Viator "booking" is an external affiliate URL. This view must
- * NEVER render an <a href> to a booking/affiliate/viator.com URL, and must NOT
- * construct one from the product code. "Book" is a CALLBACK ONLY — onBook(activity)
- * — which the container routes to sign-up. No outbound link leaves this component.
+ * When a result CARRIES a validated `bookingUrl`, Book renders as a real
+ * outbound <a target="_blank" rel="noopener noreferrer sponsored">. The view
+ * NEVER CONSTRUCTS a URL from the product code — it renders exactly the
+ * validated field or nothing. Results without a bookingUrl render the honest
+ * disabled `bookDisabledLabel` when the mount passes one (ground, PR-CHIP-1
+ * ruling 2), else no action at all.
  */
 
+// ACTIVITY-01 (2026-09-22): this view now serves the TRANSFERS rail only — the
+// Things-to-do tab renders ActivityPickerView (one product per row, tri-state).
+// The sign-up Book (the onBook callback that opened the register modal for a
+// row whose URL failed validation) is DELETED: signing up booked nothing.
 import { useState } from 'react';
-import HorizontalScroller from './HorizontalScroller';
-import ResultsFilterBar from './ResultsFilterBar';
+// FINISH-01 (2026-09-28): the sort/rating CONTROLS moved above Search — the
+// container (PublicTransferSearch) mounts them in its form and hands the values
+// down; the rows' own shown/total note stays here.
+import { ResultsShownNote } from './ResultsFilterBar';
 import { sortAndFilterResults, type SortKey } from '@/lib/resultsSortFilter';
+// TRAVEL-RESULTS-TABLE: the results wear the deck-table anatomy — the
+// DATA.columnHeader micro-label is the one shared class string (ds.ts:225).
+import { DATA } from '@/lib/ds';
+// FINISH-01 (2026-09-28): below `sm` a result row is a card (src/lib/travel/phoneCard.ts).
+import { PHONE_CARD } from '@/lib/travel/phoneCard';
 
-/** The fields this view renders off a PR-A1 result item — the
- *  viatorProductToRecommendation shape MINUS the stripped affiliate fields
- *  (`bookingUrl` + `website`, dropped at route.ts:76). Kept local; deliberately
- *  has no booking/affiliate URL field so the view cannot render one. */
+/** The fields this view renders off a transfers result item — the
+ *  viatorProductToRecommendation shape minus `website` (stripped at the route).
+ *  `bookingUrl` is OPTIONAL and, since ACTIVITY-01, never carried by the one
+ *  rail that mounts this view (the transfers route strips it). */
 export interface ActivityResult {
   name: string;
   address: string;
@@ -40,16 +56,42 @@ export interface ActivityResult {
   viatorProductCode: string;
   durationMinutes: number | null;
   price: number | null;        // from-price in USD
+  /** Validated Viator affiliate URL (activities only) — rendered verbatim as
+   *  the Book link when present; never constructed here. */
+  bookingUrl?: string | null;
 }
 
 interface Props {
   results: ActivityResult[];
   loading: boolean;
   error: string;
-  /** Booking is gated — the view never books or links out. The container routes
-   *  this to sign-up. NO affiliate URL is ever rendered here. */
-  onBook: (activity: ActivityResult) => void;
+  /** PR-CHIP-1 (ruling 2): when set, URL-less results render this DISABLED
+   *  honest label instead of a Book action — for rails with no vendor wired
+   *  (ground). */
+  bookDisabledLabel?: string;
+  /** TRAVEL-RESULTS-TABLE: the quiet mono caption above the table — mode +
+   *  vendor, SUPPLIED BY THE MOUNT (the providerLabel no-drift precedent,
+   *  FlightPickerView :106-110): this view is shared by the activities AND
+   *  transfers rails (both Viator-served — activities/search/route.ts:3,
+   *  transfers/search/route.ts:3 — but different modes), so the view cannot
+   *  know its own mode word. Absent → no caption renders (never guessed). */
+  caption?: string;
+  /** FINISH-01: the sort and the minimum rating the container's filter bar holds —
+   *  read here to derive the rows; the controls that write them sit above Search. */
+  sort: SortKey;
+  minRating: number;
 }
+
+/** FINISH-01: the column words — the header row renders them at `sm` and up, and
+ *  each card carries the same word below it (one constant, no second copy). */
+const COLUMNS = { activity: 'Activity', rating: 'Rating', duration: 'Duration', from: 'From' } as const;
+
+/** Route-side result cap of this view's one consumer — the transfers search
+ *  route slices to 12 (TRANSFER_MAX_RESULTS, transfers/search/route.ts).
+ *  Disclosed in the filter bar when a full page arrives (PR-CHIP-1 ruling 3);
+ *  fewer than 12 = the complete result set, so nothing is disclosed (an
+ *  un-truncated list labeled "Top 12" would lie). */
+const ROUTE_RESULT_CAP = 12;
 
 function money(amount: number): string {
   try {
@@ -70,32 +112,32 @@ function formatDuration(min: number | null): string | null {
   return rem === 0 ? `${h}h` : `${h}h ${rem}m`;
 }
 
-/** Per-card image: shows the photo when present + loadable, else a neutral
+/** Per-row thumbnail: shows the photo when present + loadable, else a neutral
  *  placeholder block. NEVER a broken <img> — a present-but-404 URL flips to the
- *  same placeholder via onError (local UI state, not data loading). */
+ *  same placeholder via onError (local UI state, not data loading). COMPACT-1:
+ *  fills its parent (the row's fixed h-14 w-20 cell) instead of a 4/3 card face. */
 function ActivityCardImage({ photoUrl, name }: { photoUrl: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
   const showPhoto = !!photoUrl && !failed;
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden bg-bg-row">
+    <div className="relative h-full w-full overflow-hidden bg-bg-row">
       {showPhoto ? (
         <img
           src={photoUrl as string}
           alt={name}
           loading="lazy"
           onError={() => setFailed(true)}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          className="h-full w-full object-cover"
         />
       ) : (
         // Neutral placeholder — not a broken image icon.
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-text-faint">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        <div className="flex h-full w-full items-center justify-center text-text-faint">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
             <path d="M12 7v5l3 2" />
           </svg>
-          <span className="text-[11px]">No photo</span>
         </div>
       )}
     </div>
@@ -103,9 +145,10 @@ function ActivityCardImage({ photoUrl, name }: { photoUrl: string | null; name: 
 }
 
 function RatingPill({ activity }: { activity: ActivityResult }) {
+  // COMPACT-1: an inline chip in the row (no photo to overlay anymore).
   if (activity.googleRating <= 0) return null;
   return (
-    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-text-primary shadow-sm backdrop-blur">
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-bg-row px-1.5 py-0.5 text-[10px] font-semibold text-text-primary">
       <span className="text-brand-amber" aria-hidden="true">★</span>
       {activity.googleRating.toFixed(1)}
       {activity.reviewCount > 0 && (
@@ -115,22 +158,23 @@ function RatingPill({ activity }: { activity: ActivityResult }) {
   );
 }
 
-export default function ActivityResultsView({ results, loading, error, onBook }: Props) {
-  // Client-side sort/filter over the already-fetched results — NO refetch.
-  const [sort, setSort] = useState<SortKey>('price-asc');
-  const [minRating, setMinRating] = useState(0);
+export default function ActivityResultsView({ results, loading, error, bookDisabledLabel, caption, sort, minRating }: Props) {
+  // Client-side sort/filter over the already-fetched results — NO refetch. The
+  // values come from the bar above Search (FINISH-01); changing one re-derives
+  // these rows and never runs a search.
 
   if (loading) {
+    // COMPACT-1: skeleton rows, matching the dense list-row result layout.
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="overflow-hidden rounded-lg border border-border bg-white">
-            <div className="aspect-[4/3] w-full animate-pulse bg-bg-row" />
-            <div className="space-y-2 p-4">
-              <div className="h-4 w-3/4 animate-pulse rounded bg-bg-row" />
+      <div className="divide-y divide-border rounded-lg border border-border bg-white" aria-busy="true">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 p-2">
+            <div className="h-14 w-20 shrink-0 animate-pulse rounded bg-bg-row" />
+            <div className="flex-1 space-y-2">
               <div className="h-3 w-1/2 animate-pulse rounded bg-bg-row" />
-              <div className="h-8 w-full animate-pulse rounded bg-bg-row" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-bg-row" />
             </div>
+            <div className="h-7 w-16 shrink-0 animate-pulse rounded bg-bg-row" />
           </div>
         ))}
       </div>
@@ -139,7 +183,7 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
 
   if (error) {
     return (
-      <div className="rounded-lg border border-border bg-white p-6 text-sm text-brand-red">
+      <div className="rounded-lg border border-border bg-white p-3 text-sm text-brand-red">
         {error}
       </div>
     );
@@ -147,9 +191,9 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
 
   if (results.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-white p-8 text-center">
+      <div className="rounded-lg border border-dashed border-border bg-white p-4 text-center">
         <p className="text-sm font-medium text-text-primary">No activities yet</p>
-        <p className="mt-1 text-sm text-text-muted">
+        <p className="mt-1 text-xs text-text-faint">
           Enter a city and country to see real tours and experiences with photos and prices.
         </p>
       </div>
@@ -168,74 +212,118 @@ export default function ActivityResultsView({ results, loading, error, onBook }:
   );
 
   return (
-    <div>
-      <ResultsFilterBar
-        sort={sort}
-        minRating={minRating}
-        onSortChange={setSort}
-        onMinRatingChange={setMinRating}
+    <div data-transfer-results>
+      <ResultsShownNote
         shownCount={displayed.length}
         totalCount={results.length}
+        capNote={results.length >= ROUTE_RESULT_CAP ? `Top ${ROUTE_RESULT_CAP} results` : undefined}
       />
       {displayed.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-white p-6 text-center text-sm text-text-muted">
+        <div className="rounded-lg border border-dashed border-border bg-white p-4 text-center text-sm text-text-faint">
           No results match these filters.
         </div>
       ) : (
-        <HorizontalScroller ariaLabel="Activity results">
-          {displayed.map((activity, idx) => {
-        const duration = formatDuration(activity.durationMinutes);
-        const place = activity.address;
+        // TRAVEL-RESULTS-TABLE (spec design-refs/landing-direction-c.dc.html
+        // :100-170 — the 01-demo table anatomy): mono column headers on
+        // bg-bg-row, hairline rows, zebra, wash hover; prices gold right-mono.
+        // Columns are the REAL result fields (ActivityResult :38-53):
+        // thumbnail · name/place · rating · duration · from-price · action —
+        // every field the COMPACT-1 rows rendered still renders (field
+        // parity). The caption is mount-supplied (see the Props note). The
+        // PR-CHIP-1 action precedence block is byte-identical.
+        <div>
+          {caption && (
+            <div className="mb-1 font-mono text-[10px] tracking-wider text-text-faint">{caption}</div>
+          )}
+          {/* FINISH-01 (2026-09-28): below `sm` each row is a CARD — photo and name,
+              then rating and duration on their own lines with their column word,
+              then the price and Book on the last line; at `sm` and up the table is
+              unchanged (src/lib/travel/phoneCard.ts). The box is `relative`, so the
+              sr-only "Book" header no longer widens the page (705px at 390 on main). */}
+          <div className={`${PHONE_CARD.box} rounded-lg border border-border bg-white`} aria-label="Activity results">
+            <table className={`${PHONE_CARD.table} w-full text-sm`}>
+              <thead className={PHONE_CARD.head}>
+                <tr className="border-b border-border bg-bg-row text-left">
+                  <th className="px-2 py-2"><span className="sr-only">Photo</span></th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.activity}</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.rating}</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.duration}</th>
+                  <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>{COLUMNS.from}</th>
+                  <th className="px-3 py-2"><span className="sr-only">Book</span></th>
+                </tr>
+              </thead>
+              <tbody className={`${PHONE_CARD.body} divide-y divide-border`}>
+                {displayed.map((activity, idx) => {
+                  const duration = formatDuration(activity.durationMinutes);
+                  const place = activity.address;
 
-        return (
-          <article
-            key={`${activity.viatorProductCode || activity.name}-${idx}`}
-            className="group flex flex-col overflow-hidden rounded-lg border border-border bg-white shadow-sm transition-shadow hover:shadow-md"
-          >
-            <div className="relative">
-              <ActivityCardImage photoUrl={activity.photoUrl} name={activity.name} />
-              <RatingPill activity={activity} />
-            </div>
-
-            <div className="flex flex-1 flex-col p-4">
-              <h3 className="line-clamp-2 font-medium text-text-primary" title={activity.name}>
-                {activity.name}
-              </h3>
-
-              {/* Meta row: place + duration chip. */}
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted">
-                {place && <span className="line-clamp-1">{place}</span>}
-                {duration && (
-                  <span className="inline-flex items-center rounded-full bg-bg-row px-2 py-0.5 text-xs text-text-secondary">
-                    {duration}
-                  </span>
-                )}
-              </div>
-
-              {/* Price — "From $X". Mirrors the hotel card's green price emphasis. */}
-              <div className="mt-3">
-                {typeof activity.price === 'number' ? (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xs text-text-muted">From</span>
-                    <span className="text-lg font-bold text-brand-green">{money(activity.price)}</span>
-                  </div>
-                ) : (
-                  <div className="text-sm text-text-faint">Price on request</div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onBook(activity)}
-                className="mt-4 w-full rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
-              >
-                Book
-              </button>
-            </div>
-          </article>
-        );
-          })}
-        </HorizontalScroller>
+                  return (
+                    <tr
+                      key={`${activity.viatorProductCode || activity.name}-${idx}`}
+                      className={`${PHONE_CARD.row} odd:bg-bg-row transition-colors hover:bg-brand-purple-wash/40`}
+                    >
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.photo} px-2 py-2`}>
+                        <div className="h-14 w-20 overflow-hidden rounded">
+                          <ActivityCardImage photoUrl={activity.photoUrl} name={activity.name} />
+                        </div>
+                      </td>
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.title} px-3 py-2`}>
+                        <h3 className="max-w-[16rem] truncate text-sm font-medium text-brand-purple" title={activity.name}>
+                          {activity.name}
+                        </h3>
+                        {place && (
+                          <p className="mt-0.5 max-w-[16rem] truncate text-xs text-text-faint">{place}</p>
+                        )}
+                      </td>
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 sm:py-2 ${activity.googleRating > 0 ? '' : PHONE_CARD.emptyOnPhone}`} data-transfer-field="rating">
+                        <span className={PHONE_CARD.label}>{COLUMNS.rating}</span>
+                        <RatingPill activity={activity} />
+                      </td>
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 sm:py-2 ${duration ? '' : PHONE_CARD.emptyOnPhone}`} data-transfer-field="duration">
+                        <span className={PHONE_CARD.label}>{COLUMNS.duration}</span>
+                        {duration && (
+                          <span className="text-xs text-text-secondary">{duration}</span>
+                        )}
+                      </td>
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.nowrap} ${PHONE_CARD.end} px-3 py-2`} data-transfer-price>
+                        {typeof activity.price === 'number' ? (
+                          <div className="flex items-baseline gap-1 sm:justify-end">
+                            <span className="text-[10px] text-text-faint">From</span>
+                            <span className="font-mono text-sm font-semibold text-brand-gold">{money(activity.price)}</span>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-text-faint">Price on request</div>
+                        )}
+                      </td>
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.nowrap} ${PHONE_CARD.end} px-3 py-2`} data-transfer-action>
+                        {/* PR-CHIP-1 action precedence: validated affiliate URL → real
+                            outbound Book link; no URL + bookDisabledLabel → honest disabled
+                            label (no vendor exists); no URL otherwise → nothing. */}
+                        {activity.bookingUrl ? (
+                          <a
+                            href={activity.bookingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer sponsored"
+                            className="shrink-0 rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                          >
+                            Book
+                          </a>
+                        ) : bookDisabledLabel ? (
+                          <span
+                            aria-disabled="true"
+                            className="shrink-0 cursor-default rounded bg-bg-row px-3 py-1.5 text-xs font-medium text-text-faint"
+                          >
+                            {bookDisabledLabel}
+                          </span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

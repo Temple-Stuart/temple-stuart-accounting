@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
+// SEC-02b (2026-09-27): the bearer is compared in constant time — the LiteAPI webhook's own comparator.
+import { constantTimeEqual } from '@/lib/webhooks/liteapiWebhook';
 import { autoCategorizationService } from '@/lib/auto-categorization-service';
 
 export async function POST(request: NextRequest) {
@@ -15,7 +18,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    if (authHeader === null || !constantTimeEqual(authHeader, `Bearer ${cronSecret}`)) {
       console.error('Unauthorized cron attempt');
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -49,10 +52,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('[CRON] Auto-categorization error:', error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return failClosedResponse('CRON auto-categorization', 'Auto-categorization failed', error);
   }
 }

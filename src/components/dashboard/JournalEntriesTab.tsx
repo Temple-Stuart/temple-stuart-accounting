@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { functionalMoneyWords } from '@/lib/books/functionalCurrency';
 
 interface LedgerEntry {
   id: string;
@@ -57,7 +58,8 @@ export default function JournalEntriesTab() {
   };
 
   const isBalanced = (entry: JournalEntry) => {
-    return Math.abs(getTotalDebits(entry) - getTotalCredits(entry)) < 0.01;
+    // Integer cents on both sides (FX-01): balanced is exactly equal.
+    return getTotalDebits(entry) === getTotalCredits(entry);
   };
 
   if (loading) {
@@ -107,10 +109,10 @@ export default function JournalEntriesTab() {
                       </td>
                       <td className="px-4 py-3 text-sm">{entry.description}</td>
                       <td className="px-4 py-3 text-right text-sm font-semibold text-brand-purple">
-                        ${(totalDebits / 100).toFixed(2)}
+                        {functionalMoneyWords(totalDebits)}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-semibold text-brand-green">
-                        ${(totalCredits / 100).toFixed(2)}
+                        {functionalMoneyWords(totalCredits)}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -147,20 +149,20 @@ export default function JournalEntriesTab() {
                                       <span className="text-text-secondary">{le.chartOfAccount?.name}</span>
                                     </td>
                                     <td className="py-2 text-right font-semibold text-brand-purple">
-                                      {le.entryType === 'D' ? `$${(le.amount / 100).toFixed(2)}` : '—'}
+                                      {le.entryType === 'D' ? functionalMoneyWords(le.amount) : '—'}
                                     </td>
                                     <td className="py-2 text-right font-semibold text-brand-green">
-                                      {le.entryType === 'C' ? `$${(le.amount / 100).toFixed(2)}` : '—'}
+                                      {le.entryType === 'C' ? functionalMoneyWords(le.amount) : '—'}
                                     </td>
                                   </tr>
                                 ))}
                                 <tr className="border-t-2 font-bold">
                                   <td className="py-2">Total</td>
                                   <td className="py-2 text-right text-brand-purple">
-                                    ${(totalDebits / 100).toFixed(2)}
+                                    {functionalMoneyWords(totalDebits)}
                                   </td>
                                   <td className="py-2 text-right text-brand-green">
-                                    ${(totalCredits / 100).toFixed(2)}
+                                    {functionalMoneyWords(totalCredits)}
                                   </td>
                                 </tr>
                               </tbody>

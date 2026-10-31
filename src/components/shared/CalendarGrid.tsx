@@ -5,6 +5,12 @@ import { useRouter } from 'next/navigation';
 import ResponsiveViewController from './ResponsiveViewController';
 import { formatMoney, moneyColorClass, kindForSource } from '@/lib/money';
 import { instantToZoned } from '@/lib/time';
+import { FLAG_TEXT, assignLanes, blockExtent, unverifiedDurationExtent, type ExtentFlag } from '@/lib/calendar/extent';
+import { isDateOnlyTripType } from '@/lib/calendar/tripItem';
+import type { TileAccount, TileAccountState } from '@/lib/hub/tileAccount';
+import { chipShows, legendOf, sharesColourWords, tileQuartetOf, toggleShown } from '@/lib/calendar/accountPalette';
+
+// RUNWAY-DEEP: house toolbar treatments for the DARK mount (HubCalendar).
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -37,6 +43,46 @@ export interface CalendarEvent {
    *  calendar_events.coa_code (snake→camel like durationMinutes). Used in the per-day footer
    *  to identify lodging (suffix '9200') for nightly amortization. Null on non-trip/old rows. */
   coaCode?: string | null;
+  /**
+   *  CAL-02 (Alex, 2026-10-27): a routine tile's ACCOUNT — book, code and the chart's
+   *  name (null for a code the chart lacks) — and its state: 'account' · 'several' (a
+   *  lined routine coded to more than one, account null) · 'none' (account null) ·
+   *  'missing'. Read on the server by the window route, decided for the tile by
+   *  tileAccount.ts; the drill panel prints the words. CAL-03 (Alex, 2026-10-27): the
+   *  grid colours a routine tile by them — accountPalette.ts tileQuartetOf — and lists
+   *  the accounts in the legend (legendOf). Absent on every other source.
+   */
+  account?: TileAccount | null;
+  accountState?: TileAccountState;
+  /**
+   *  DAY-01: the event's stored coordinates (calendar_events.latitude/longitude,
+   *  snake→camel like coaCode). Nothing writes them now: their one writer, the legacy planner's trip
+   *  commit (trips/[id]/commit/route.ts), was deleted (LEGACY-DEL-01, 2026-09-29); stored rows keep theirs,
+   *  every other source leaves them null. The grid itself does not draw them — the day view plots what is stored.
+   */
+  latitude?: number | null;
+  longitude?: number | null;
+  /**
+   *  EVENT-01: the row's own category (calendar_events.category). The grid does
+   *  not read it — it colours by source — but the day view hands it back when a
+   *  hand-entered event is corrected, so the picker starts on what is stored.
+   */
+  category?: string | null;
+  /**
+   *  TRAVEL-01: a committed trip item's vendor, the provider it was booked
+   *  through, and its trip_itinerary id — overlaid by the calendar feed. The
+   *  grid draws none of them itself (the vendor rides `details`); the panel does.
+   */
+  vendor?: string | null;
+  provider?: string | null;
+  tripItemId?: string | null;
+  /**
+   *  TRAVEL-01: the item's type (trip_itinerary.vendorOptionType). The grid reads
+   *  THIS one: a date-only type (activity, transfer, vehicle) carries the block
+   *  window the feed overlaid — a same-zone clock, drawn exactly as stored by the
+   *  non-trip path; only a flight takes the duration path.
+   */
+  itemType?: string | null;
   details?: string[];        // compact detail lines (e.g. "PYPL | Iron Condor", "B-6210 · $250")
   /**
    * Internal navigation target. When set, clicking the event routes to
@@ -110,6 +156,14 @@ export interface CalendarGridProps {
    * the other callers keep their floating card.
    */
   flush?: boolean;
+  /**
+   * DAY-01 STEP 2: clicking a DAY (a month cell, or the week view's day header)
+   * hands the parent that day's key, 'YYYY-MM-DD'. Additive and optional — the
+   * month cell already wore `cursor-pointer` with nothing behind it; every
+   * caller that does not pass this keeps exactly the behaviour it had.
+   */
+  onDayClick?: (dateKey: string) => void;
+  /** CAL-DS-THEME: light default (byte-identical); HubCalendar passes 'dark'. */
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -123,7 +177,15 @@ const HOUR_HEIGHT = 52; // Calendar redesign: roomier rows, day-view spacing
 const START_HOUR = 0;   // 12 AM
 const END_HOUR = 24;    // 12 AM next day
 const TOTAL_HOURS = END_HOUR - START_HOUR; // 24
-const MIN_EVENT_HEIGHT = HOUR_HEIGHT * 1.5; // 60px minimum
+// GRID-01 (2026-09-18): the render FLOOR is ONE TEXT LINE. A block shorter than
+// that is drawn one line tall so its first characters show (the whole label rides
+// its hover). It prevents an unreadable sliver and claims no time — the subtitle
+// never prints an end the row does not have. The old floor was 1.5 hours
+// (HOUR_HEIGHT * 1.5): every block shorter than 90 minutes was drawn as 90.
+const MIN_BLOCK_PX = 26;
+// The same floor in minutes at this scale — what the lane layout treats as a
+// block's drawn span, so two slivers that would overlap on screen share no lane.
+const MIN_BLOCK_MINUTES = (MIN_BLOCK_PX / HOUR_HEIGHT) * 60;
 
 const parseDate = (dateStr: string): Date => {
   const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
@@ -198,6 +260,8 @@ interface DayBlock {
   event: CalendarEvent;
   startMin: number;  // minutes from midnight
   endMin: number;    // minutes from midnight
+  /** GRID-01: null = the extent is the row's own; else why this block is a marker (src/lib/calendar/extent.ts). */
+  flag: ExtentFlag | null;
   label: string;     // display label
   isDepart: boolean; // true = departure half
   isArrive: boolean; // true = arrival half
@@ -229,7 +293,12 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[], tzMode: TzMode
     // DERIVED end (start + duration), so the block lives only on the days the duration
     // actually covers — no phantom on the stored end_date. Zone reconciliation of the
     // arrival LABEL vs the geometry is PR-4, intentionally NOT done here.
-    if (event.source === 'trip') {
+    // TRAVEL-01 (2026-09-19): a DATE-ONLY trip item (an activity, a transfer, a
+    // vehicle) reaches here with the block window the calendar feed overlaid —
+    // a same-zone clock, so it takes the non-trip path below and draws exactly
+    // as stored (blockExtent). Only a FLIGHT takes the duration path: its stored
+    // end is an arrival in another zone, never a length.
+    if (event.source === 'trip' && !isDateOnlyTripType(event.itemType)) {
       // PR-tz-3b: when the true UTC instant is stored, position the block by the HOME_ANCHOR
       // wall-clock — the depart DAY + depart MINUTE + arrival LABEL all move to the anchor, so
       // geometry and label agree on one timeline. durationMinutes (elapsed time) is zone-
@@ -264,9 +333,12 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[], tzMode: TzMode
       if (event.durationMinutes == null) {
         // POLICY (decided): unknown duration → a MINIMAL fixed-height marker on the depart
         // day ONLY, visibly flagged. NEVER reconstruct start→end (that is the 34h bug). This
-        // is an explicit "we don't trust this" state, not a silent fallback.
+        // is an explicit "we don't trust this" state, not a silent fallback. GRID-01: the
+        // marker's extent comes from the one leaf (unverifiedDurationExtent), which the
+        // non-trip path shares now.
         if (dayOffset === 0) {
-          blocks.push({ event, startMin: tripStartMin, endMin: tripStartMin + 30, label: `⚠ duration unverified · ${event.title}`, isDepart: true, isArrive: false, startLabel: subStart, endLabel: subEnd });
+          const ext = unverifiedDurationExtent(tripStartMin);
+          blocks.push({ event, startMin: ext.startMin, endMin: ext.endMin, flag: ext.flag, label: `⚠ duration unverified · ${event.title}`, isDepart: true, isArrive: false, startLabel: subStart, endLabel: subEnd });
         }
         continue;
       }
@@ -280,30 +352,48 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[], tzMode: TzMode
       const label = isArriveSeg
         ? `arr ${arriveLabelTime} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim()
         : event.title;
-      blocks.push({ event, startMin: segStart, endMin: Math.max(segEnd, segStart + 30), label, isDepart: dayOffset === 0, isArrive: isArriveSeg, startLabel: subStart, endLabel: subEnd });
+      // GRID-01: the segment is exactly as long as the duration says — the old
+      // `Math.max(segEnd, segStart + 30)` stretched a short final segment to 30
+      // minutes. Legibility is the render floor's job, not the extent's.
+      blocks.push({ event, startMin: segStart, endMin: segEnd, flag: null, label, isDepart: dayOffset === 0, isArrive: isArriveSeg, startLabel: subStart, endLabel: subEnd });
       continue;
     }
 
-    // ── Non-trip (operations / project / routine) — UNCHANGED start→end behavior. ──
+    // ── Non-trip (operations / project / routine / manual) ──
+    // GRID-01 (2026-09-18): A BLOCK IS AS LONG AS IT SAYS. The extent comes from the
+    // one leaf (src/lib/calendar/extent.ts): a row with an end draws start → end,
+    // exactly; a row with NO end draws the minimal marker, flagged "no end time",
+    // its subtitle carrying the start only. Gone: the silent `startMin + 120` a
+    // no-end row used to get, and the `Math.max(endMin, startMin + 60)` that
+    // stretched every block shorter than an hour to an hour.
     // PR-tz-4: non-trip rows have no zones (null start_zone/end_zone) — the toggle has nothing to
     // localize, so the subtitle stays the naive stored clock (same as the pre-tz-4 render).
-    const endMin = event.endTime ? timeToMinutes(event.endTime) : startMin + 120;
+    const storedEndMin = event.endTime ? timeToMinutes(event.endTime) : null;
     const naiveStart = event.startTime ? formatTime12h(event.startTime) : undefined;
     const naiveEnd = event.endTime ? formatTime12h(event.endTime) : undefined;
+    // A flagged marker says so in its label — the trip marker's own idiom — with the
+    // title's first characters right after the glyph, so a narrow lane still names it.
+    const flagged = (ext: { flag: ExtentFlag | null }, title: string) => (ext.flag ? `⚠ ${title} · ${FLAG_TEXT[ext.flag]}` : title);
 
     if (evtStartKey === evtEndKey || !event.endDate) {
       // Same-day event — only show on its start date
       if (dayKey === evtStartKey) {
-        blocks.push({ event, startMin, endMin: Math.max(endMin, startMin + 60), label: event.title, isDepart: false, isArrive: false, startLabel: naiveStart, endLabel: naiveEnd });
+        const ext = blockExtent(startMin, storedEndMin);
+        blocks.push({ event, startMin: ext.startMin, endMin: ext.endMin, flag: ext.flag, label: flagged(ext, event.title), isDepart: false, isArrive: false, startLabel: naiveStart, endLabel: ext.flag ? undefined : naiveEnd });
       }
     } else {
       // Multi-day event
       if (dayKey === evtStartKey) {
-        // Departure day: from departure time to end of day
-        blocks.push({ event, startMin, endMin: 24 * 60, label: event.title, isDepart: true, isArrive: false, startLabel: naiveStart, endLabel: naiveEnd });
+        // Departure day: from departure time to end of day — the row continues past
+        // midnight, so this is its extent on this day, not an invented one.
+        blocks.push({ event, startMin, endMin: 24 * 60, flag: null, label: event.title, isDepart: true, isArrive: false, startLabel: naiveStart, endLabel: naiveEnd });
       } else if (dayKey === evtEndKey) {
-        // Arrival day: from start of day to arrival time
-        blocks.push({ event, startMin: 0, endMin: Math.max(endMin, 60), label: `arr ${event.endTime ? formatTime12h(event.endTime) : ''} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim(), isDepart: false, isArrive: true, startLabel: naiveStart, endLabel: naiveEnd });
+        // Arrival day: from start of day to the stored arrival time, exactly. No end
+        // time → the marker at midnight, flagged (the old code drew the DEPARTURE
+        // start + 120 minutes from midnight here, then stretched it to an hour).
+        const ext = blockExtent(0, storedEndMin);
+        const arrTitle = `arr ${event.endTime ? formatTime12h(event.endTime) : ''} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim();
+        blocks.push({ event, startMin: ext.startMin, endMin: ext.endMin, flag: ext.flag, label: flagged(ext, arrTitle), isDepart: false, isArrive: true, startLabel: naiveStart, endLabel: ext.flag ? undefined : naiveEnd });
       }
     }
   }
@@ -326,6 +416,7 @@ export default function CalendarGrid({
   showCategoryLegend = false,
   compact = false,
   enableDayView = false,
+  onDayClick,
   enableHubChrome = false,
   phoneDayOnly = false,
   onMonthChange,
@@ -369,6 +460,10 @@ export default function CalendarGrid({
   const [visibleCategories, setVisibleCategories] = useState<Record<string, boolean>>(
     () => Object.fromEntries(allSources.map(s => [s, true]))
   );
+  // CAL-03b (Alex, 2026-10-27; built in COCKPIT-PERF-01): the legend's account chips — and the neutral ones (several ·
+  // no account · not read) — toggle their routine tiles exactly as a source chip toggles its source's: shown until
+  // clicked, hidden on a click, shown again on the next (accountPalette.ts toggleShown / chipShows). React state only.
+  const [visibleChips, setVisibleChips] = useState<Record<string, boolean>>({});
 
   // ── Highlight range ──
   const hlStart = highlightStart ? parseDate(highlightStart) : null;
@@ -449,7 +544,7 @@ export default function CalendarGrid({
 
   const getEventsForDate = (date: Date) => {
     const key = dateToKey(date);
-    return (eventsByDateKey[key] || []).filter(e => visibleCategories[e.source] !== false);
+    return (eventsByDateKey[key] || []).filter(e => visibleCategories[e.source] !== false && chipShows(e, visibleChips));
   };
 
   // ── Navigation ──
@@ -503,6 +598,9 @@ export default function CalendarGrid({
   // extra re-renders.
   const [isMobile, setIsMobile] = useState(false);
   const hubMobileToolbar = enableHubChrome && isMobile;
+  // RUNWAY-DEEP (dk): the SECTION_HEADER family — bg-white/5 + hairline; the
+  // light branches are byte-identical (bg-brand-purple-wash / border-t-brand-purple
+  // never mapped on dark and read as the washed unreadable bar).
   const toolbarBarClass = enableHubChrome
     ? (hubMobileToolbar
         ? 'flex flex-col gap-3 px-4 py-3 border-b border-border border-t-[3px] border-t-brand-purple bg-brand-purple-wash'
@@ -513,6 +611,8 @@ export default function CalendarGrid({
   const viewBtnExtra = hubMobileToolbar ? 'flex-1 ' : '';
   const toolbarTitleClass = hubMobileToolbar ? 'text-sm font-semibold text-text-primary text-center' : 'text-sm font-semibold text-text-primary';
   const toolbarRightClass = hubMobileToolbar ? 'flex items-center justify-center gap-2' : 'flex items-center gap-2';
+  // dk: the SEGMENT active/inactive treatment (ds.ts SEGMENT.item) at this
+  // toolbar's existing sizing.
   const viewBtnActive = enableHubChrome ? 'bg-brand-purple-hover text-white shadow-sm' : 'bg-white shadow-sm text-text-primary';
   const viewBtnInactive = enableHubChrome ? 'text-brand-purple/70 hover:text-brand-purple' : 'text-text-muted hover:text-text-secondary';
 
@@ -594,7 +694,7 @@ export default function CalendarGrid({
               hide the WHOLE Day/Week/Month track — the lone "Day" button was dead UI eating
               a row. Desktop (a real Day/Week/Month choice) keeps it. */}
           {!phoneOnlyActive && (
-            <div className={`${viewTrackExtra}flex bg-border/70 rounded p-0.5`}>
+            <div className={`${viewTrackExtra}${'flex bg-border/70 rounded p-0.5'}`}>
               {enableDayView && (
                 <button onClick={() => selectView('day')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'day' ? viewBtnActive : viewBtnInactive}`}>Day</button>
               )}
@@ -628,18 +728,36 @@ export default function CalendarGrid({
         </div>
       </div>
 
-      {/* Compact horizontal legend — only categories with events, deduplicated */}
+      {/* Compact horizontal legend — CAL-03 (Alex, 2026-10-27): the accounts the fetched range holds
+          come first (accountPalette.ts legendOf — one chip per account with its swatch, by book then
+          code, a collision declared on the chip), then the neutral chips present, then the sources as
+          before — only sources with events, deduplicated; the routines source has no chip of its own
+          now, its tiles wear their accounts.
+          CAL-03b (Alex, 2026-10-27): an account chip and a neutral chip are a <label> that toggles its tiles, as a
+          source chip is — the swatch greys and the words strike through while its tiles are hidden; a source chip is
+          unchanged. */}
       {showCategoryLegend && (() => {
+        const accountChips = legendOf(events);
         const activeSources = new Set(events.map(e => e.source));
         const seen = new Set<string>();
         const legendItems = Object.entries(sourceConfig).filter(([source, config]) => {
+          if (tileQuartetOf({ source }) !== null) return false;
           if (!activeSources.has(source)) return false;
           if (seen.has(config.label)) return false;
           seen.add(config.label);
           return true;
         });
-        return legendItems.length > 0 ? (
-          <div className="px-4 py-2 border-b border-border flex flex-wrap gap-x-4 gap-y-1">
+        return accountChips.length > 0 || legendItems.length > 0 ? (
+          <div className="px-4 py-2 border-b border-border flex flex-wrap gap-x-4 gap-y-1" data-calendar-legend>
+            {accountChips.map((chip) => (
+              <label key={chip.key} className="flex items-center gap-1.5 cursor-pointer" data-legend-chip={chip.kind} data-legend-words={chip.words} onClick={() => setVisibleChips(prev => toggleShown(prev, chip.key))}>
+                <span className={`w-2.5 h-2.5 rounded-sm border ${visibleChips[chip.key] !== false ? `${chip.quartet.swatch} ${chip.quartet.border}` : 'bg-border border-border'}`} />
+                <span className={`text-xs ${visibleChips[chip.key] !== false ? 'text-text-secondary' : 'text-text-faint line-through'}`}>{chip.words}</span>
+                {chip.sharesWith.map((other) => (
+                  <span key={other} className="text-[10px] text-text-muted" data-legend-shares={other}>{sharesColourWords(other)}</span>
+                ))}
+              </label>
+            ))}
             {legendItems.map(([source, config]) => (
               <label key={source} className="flex items-center gap-1.5 cursor-pointer" onClick={() => setVisibleCategories(prev => ({ ...prev, [source]: prev[source] === false ? true : false }))}>
                 <div className={`w-2.5 h-2.5 rounded-sm ${visibleCategories[source] !== false ? (config.badge || config.dot) : 'bg-border'}`} />
@@ -685,7 +803,13 @@ export default function CalendarGrid({
                   const isToday = day.toDateString() === now.toDateString();
                   const hl = isInHighlight(day);
                   return (
-                    <div key={idx} className={`flex-1 text-center py-2 border-l border-border-light ${isToday ? 'bg-red-50' : hl ? 'bg-purple-50/40' : ''}`}>
+                    <div
+                      key={idx}
+                      /* DAY-01: the week/day header opens that day whole, the same as a month cell. */
+                      onClick={onDayClick ? () => onDayClick(dateToKey(day)) : undefined}
+                      data-day-cell={dateToKey(day)}
+                      className={`flex-1 text-center py-2 border-l border-border-light ${onDayClick ? 'cursor-pointer hover:bg-bg-row' : ''} ${isToday ? 'bg-red-50' : hl ? 'bg-purple-50/40' : ''}`}
+                    >
                       <div className="text-xs text-text-muted uppercase tracking-wide font-medium">{DAYS[day.getDay()]}</div>
                       <div className={`text-sm font-medium mt-0.5 ${isToday ? 'bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center mx-auto' : 'text-text-primary'}`}>{day.getDate()}</div>
                     </div>
@@ -713,12 +837,19 @@ export default function CalendarGrid({
                         <div key={idx} className="flex-1 min-w-0 border-l border-border-light p-0.5 min-h-[28px]">
                           {evts.slice(0, 3).map((event, i) => {
                             const config = sourceConfig[event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
+                            // CAL-03 (Alex, 2026-10-27): a routine tile wears its account's quartet (accountPalette.ts); every other tile its source's badge, as before.
+                            const quartet = tileQuartetOf(event);
                             return (
                               <div key={event.id || i}
                                 onClick={(e) => handleTileClick(event, e.nativeEvent)}
-                                className={`${config.badge || config.dot} text-white text-[10px] px-1.5 py-0.5 rounded truncate mb-0.5 ${(event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''}`}
-                                title={event.title}>
-                                {event.title}
+                                className={`${quartet ? `${quartet.bg} ${quartet.text} border ${quartet.border}` : `${config.badge || config.dot} text-white`} text-[10px] px-1.5 py-0.5 rounded truncate mb-0.5 ${(event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''}`}
+                                title={event.title}
+                                data-tile-quartet={quartet ? quartet.swatch : undefined}
+                                data-lodging-unstated={event.itemType === 'lodging' ? 'true' : undefined}>
+                                {/* HOTEL-01 (2026-09-22): a stay here has NO stated check-in time (a stated
+                                    one draws below at its clock) — flagged, exactly as GRID-01 flags a row
+                                    without a stated end; no clock is invented to draw a marker at. */}
+                                {event.itemType === 'lodging' ? `⚠ ${event.title} · check-in time not stated` : event.title}
                               </div>
                             );
                           })}
@@ -751,9 +882,13 @@ export default function CalendarGrid({
                     const dayKey = dateToKey(day);
                     const dayEvents = getEventsForDate(day);
                     const blocks = getBlocksForDay(dayKey, dayEvents, tzMode);
+                    // GRID-01: blocks that intersect share the column side by side — the
+                    // interval partition in the extent leaf. Geometry only; the order is
+                    // the blocks' own.
+                    const lanes = assignLanes(blocks, (b) => b.startMin, (b) => b.endMin, MIN_BLOCK_MINUTES);
 
                     return (
-                      <div key={dayIdx} className={`flex-1 relative border-l border-border-light ${isToday ? 'bg-red-50/20' : hl ? 'bg-purple-50/10' : ''}`}>
+                      <div key={dayIdx} data-day-column={dayKey} className={`flex-1 relative border-l border-border-light ${isToday ? 'bg-red-50/20' : hl ? 'bg-purple-50/10' : ''}`}>
                         {/* Hour grid lines */}
                         {hours.map(hour => (
                           <div key={hour} className="absolute w-full border-t border-border-light/60" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }} />
@@ -782,19 +917,35 @@ export default function CalendarGrid({
                         {/* Timed events as positioned blocks */}
                         {blocks.map((block, blockIdx) => {
                           const top = (block.startMin / 60) * HOUR_HEIGHT;
-                          const height = Math.max(((block.endMin - block.startMin) / 60) * HOUR_HEIGHT, MIN_EVENT_HEIGHT);
+                          // The drawn height is the extent's, floored at one text line (GRID-01).
+                          const height = Math.max(((block.endMin - block.startMin) / 60) * HOUR_HEIGHT, MIN_BLOCK_PX);
+                          const { lane, lanes: laneCount } = lanes[blockIdx];
                           const config = sourceConfig[block.event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
                           const badgeColor = config.badge || config.dot;
+                          // CAL-03 (Alex, 2026-10-27): a routine block wears its account's quartet; every other block its source's badge, as before.
+                          const quartet = tileQuartetOf(block.event);
                           // No rounding on split edges
                           const roundClass = block.isDepart ? 'rounded-t' : block.isArrive ? 'rounded-b' : 'rounded';
+                          // The whole label rides the hover/focus title, so a marker too short
+                          // for its title at this scale is never an empty block (GRID-01).
+                          const hoverTitle = `${block.label}${block.startLabel ? ` · ${block.startLabel}${block.endLabel ? ` — ${block.endLabel}` : ''}` : ''}${block.event.budgetAmount ? ' · ' + formatMoney(block.event.budgetAmount, { kind: kindForSource(block.event.source), fractionDigits: 0 }) : ''}`;
 
                           return (
                             <div
                               key={`${block.event.id}-${blockIdx}`}
                               onClick={(e) => handleTileClick(block.event, e.nativeEvent)}
-                              className={`absolute left-0.5 right-0.5 ${badgeColor} text-white ${roundClass} overflow-hidden z-10 ${(block.event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
-                              style={{ top: `${top}px`, height: `${height}px` }}
-                              title={`${block.label}${block.event.budgetAmount ? ' · ' + formatMoney(block.event.budgetAmount, { kind: kindForSource(block.event.source), fractionDigits: 0 }) : ''}`}
+                              className={`absolute ${quartet ? `${quartet.bg} ${quartet.text} border ${quartet.border}` : `${badgeColor} text-white`} ${roundClass} overflow-hidden z-10 ${(block.event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
+                              style={{ top: `${top}px`, height: `${height}px`, left: `calc(${(lane / laneCount) * 100}% + 2px)`, width: `calc(${100 / laneCount}% - 4px)` }}
+                              title={hoverTitle}
+                              aria-label={hoverTitle}
+                              tabIndex={0}
+                              data-block={block.event.id}
+                              data-block-lane={lane}
+                              data-block-lanes={laneCount}
+                              data-block-flag={block.flag ?? undefined}
+                              data-block-start={block.startMin}
+                              data-block-end={block.endMin}
+                              data-tile-quartet={quartet ? quartet.swatch : undefined}
                             >
                               <div className="px-2 py-1.5 h-full overflow-hidden">
                                 <div className="text-[11px] font-semibold leading-tight truncate">{block.label}</div>
@@ -904,7 +1055,15 @@ export default function CalendarGrid({
                   const allDetails = dayEvents.flatMap(e => e.details || []);
 
                   return (
-                    <div key={day} className={`min-h-[90px] p-1.5 rounded-lg border overflow-hidden transition-all cursor-pointer hover:border-border ${cellClass}`} style={cellStyle}>
+                    <div
+                      key={day}
+                      /* DAY-01: the month cell's cursor-pointer had nothing behind it — this is
+                         the click it always advertised. Without onDayClick nothing changes. */
+                      onClick={onDayClick ? () => onDayClick(dateToKey(date)) : undefined}
+                      data-day-cell={dateToKey(date)}
+                      className={`min-h-[90px] p-1.5 rounded-lg border overflow-hidden transition-all cursor-pointer hover:border-border ${cellClass}`}
+                      style={cellStyle}
+                    >
                       <div className="flex flex-col h-full">
                         <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-brand-purple' : 'text-text-secondary'}`}>{day}</div>
                         {dayEvents.length > 0 && (
@@ -926,7 +1085,9 @@ export default function CalendarGrid({
                               <div className="flex flex-wrap gap-0.5 mt-auto">
                                 {dayEvents.slice(0, 4).map((e, i) => {
                                   const config = sourceConfig[e.source] || { dot: 'bg-gray-400' };
-                                  return <div key={i} className={`w-2 h-2 rounded-full ${config.dot}`} title={e.title} />;
+                                  // CAL-03: a routine's dot is its account's swatch.
+                                  const quartet = tileQuartetOf(e);
+                                  return <div key={i} className={`w-2 h-2 rounded-full ${quartet ? quartet.swatch : config.dot}`} title={e.title} />;
                                 })}
                                 {dayEvents.length > 4 && <span className="text-[8px] text-text-faint">+{dayEvents.length - 4}</span>}
                               </div>

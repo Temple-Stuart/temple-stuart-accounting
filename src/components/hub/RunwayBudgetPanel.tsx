@@ -1,4 +1,5 @@
 'use client';
+import { SEGMENT } from '@/lib/ds';
 
 /**
  * RunwayBudgetPanel (ONE-BUDGET-TOGGLE) — one budget panel with a Month/Year toggle.
@@ -13,14 +14,461 @@
  * by ModuleLauncher, so the children remain in the provider's context scope.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import HubBudgetSection from './HubBudgetSection';
 import BudgetComparison from './BudgetComparison';
 
-export default function RunwayBudgetPanel() {
-  const [view, setView] = useState<'month' | 'year'>('month');
+// ── /api/runway response (RUNWAY-2). Compute-on-read; every figure traceable to a
+//    labeled source. State carries the TRUTHFUL window status — no fabricated numbers. ──
+type WindowState = 'ok' | 'insufficient_history' | 'cashflow_positive' | 'no_cash';
+interface RunwayWindow {
+  months: number;
+  rangeStart: string;
+  rangeEnd: string;
+  expenses: number;
+  income: number;
+  netBurnTotal: number;
+  netBurnPerMonth: number;
+  sufficientHistory: boolean;
+  state: WindowState;
+  runwayMonths: number | null;
+  zeroDate: string | null;
+  // Additive per-entity breakdown — Personal + Business (+ Unattributed if any) === netBurnTotal.
+  // SELL-04: each is the VIEWER'S OWN entity (null when they have none of that kind); `setup` is
+  // the declared line for a viewer with no operating entity at all (then the three are null).
+  entities: { personal: EntityBurn | null; business: EntityBurn | null; unattributed: EntityBurn | null; setup: string | null };
+}
+interface EntityBurn {
+  expenses: number;
+  income: number;
+  netBurnTotal: number;
+  netBurnPerMonth: number;
+}
+interface RunwayData {
+  asOf: string;
+  cash: { dollars: number; accountsLinked: number; available: boolean; source: string };
+  burnSource: string;
+  windows: RunwayWindow[];
+}
+
+// Trading panel (SEPARATE from runway — realized P&L, governed by different rules; never a runway).
+interface TradingData {
+  realizedPnl: number;
+  gains: number;
+  losses: number;
+  tradeCount: number;
+  period: string;
+  source: string;
+  capital: { tracked: boolean; reason: string };
+  drawdown: { tracked: boolean; reason: string };
+}
+
+const usd = (n: number) =>
+  `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+/** Friendly YYYY-MM-DD → "Mon D, YYYY" (parsed at midnight to avoid tz drift). */
+const niceDate = (ymd: string) =>
+  new Date(`${ymd}T00:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+
+// RUNWAY-UX-1: the state→string mappings, hoisted VERBATIM from RunwayWindowCard
+// so the hero strip and the trailing-window card render IDENTICAL strings from
+// the same payload — one mapping, two mounts, zero new math.
+// Net burn/mo is real data in every state; how runway + zero date render depends on state.
+function windowStrings(w: RunwayWindow): { burnLine: string; runwayLine: string; zeroLine: string } {
+  const burnLine =
+    w.state === 'insufficient_history'
+      ? '—'
+      : w.netBurnPerMonth > 0
+        ? `${usd(w.netBurnPerMonth)}/mo out`
+        : `${usd(Math.abs(w.netBurnPerMonth))}/mo in`; // ≤ 0 → net inflow
+
+  let runwayLine: string;
+  let zeroLine: string;
+  switch (w.state) {
+    case 'ok':
+      runwayLine = `${w.runwayMonths!.toFixed(1)} mo`;
+      zeroLine = niceDate(w.zeroDate!);
+      break;
+    case 'cashflow_positive':
+      runwayLine = 'Cash-flow positive';
+      zeroLine = 'no burn';
+      break;
+    case 'insufficient_history':
+      runwayLine = `Need ${w.months} full months`;
+      zeroLine = 'insufficient history';
+      break;
+    case 'no_cash':
+      runwayLine = 'No bank linked';
+      zeroLine = '—';
+      break;
+  }
+  return { burnLine, runwayLine, zeroLine };
+}
+
+// Per-entity net burn/mo — same trailing-ledger basis as the combined line. Net burn is real in
+// every state EXCEPT insufficient_history (the window lacks full data); no per-entity runway/zero
+// date (cash is not entity-split this PR). Mirrors the combined burnLine sign convention.
+const entityBurnLine = (w: RunwayWindow, e: EntityBurn | null) =>
+  e === null
+    ? 'no entity' // SELL-04: the viewer has no entity of this kind — declared, never a zero
+    : w.state === 'insufficient_history'
+      ? '—'
+      : e.netBurnPerMonth > 0
+        ? `${usd(e.netBurnPerMonth)}/mo out`
+        : `${usd(Math.abs(e.netBurnPerMonth))}/mo in`;
+
+// RUNWAY-PIPE: the receipts the tab's ProofStrip renders, derived from the
+// panel's OWN payload via the SAME windowStrings mapping the hero + cards use
+// (the RUNWAY-UX-1 hoist precedent — one mapping, N mounts, zero drift).
+// Basis = windows[0], the hero's own trailing-3mo window. null = the honest
+// empty (the caller renders the declared wording, never a fabricated figure).
+export interface RunwayReceipts {
+  /** usd(cash.dollars) when a bank is linked; null → "No bank linked". */
+  cash: string | null;
+  /** The hero's burn line; null when insufficient history ('—'). */
+  burnLine: string | null;
+  /** runwayLine when a real figure/state exists (ok | cashflow_positive). */
+  runwayValue: string | null;
+  /** The window's own declared wording for the no-data states. */
+  runwayEmpty: string;
+  accountsLinked: number;
+  sufficientHistory: boolean;
+  burnComputed: boolean;
+}
+export function deriveRunwayReceipts(d: RunwayData): RunwayReceipts {
+  const w = d.windows[0];
+  const { burnLine, runwayLine } = windowStrings(w);
+  const isData = w.state === 'ok' || w.state === 'cashflow_positive';
+  return {
+    cash: d.cash.available ? usd(d.cash.dollars) : null,
+    burnLine: burnLine === '—' ? null : burnLine,
+    runwayValue: isData ? runwayLine : null,
+    runwayEmpty: runwayLine,
+    accountsLinked: d.cash.accountsLinked,
+    sufficientHistory: w.sufficientHistory,
+    burnComputed: w.state !== 'insufficient_history',
+  };
+}
+
+/** One trailing-window card. Renders the window's REAL state — never a fake number. */
+function RunwayWindowCard({ w }: { w: RunwayWindow }) {
+  const { burnLine, runwayLine, zeroLine } = windowStrings(w);
 
   return (
+    <div className="flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2">
+      <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
+        Trailing {w.months}mo
+      </div>
+      <div className="mt-1 flex items-baseline justify-between gap-2">
+        <span className="text-xs text-text-muted">Net burn</span>
+        <span className="font-mono text-sm text-text-primary tabular-nums">{burnLine}</span>
+      </div>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs text-text-muted">Runway</span>
+        <span className="font-mono text-sm text-text-primary tabular-nums">{runwayLine}</span>
+      </div>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs text-text-muted">Zero date</span>
+        <span className="font-mono text-sm text-text-primary tabular-nums">{zeroLine}</span>
+      </div>
+      {/* Per-entity operating breakdown (additive; Personal + Business reconcile to Net burn above). */}
+      <div className="mt-1.5 pt-1.5 border-t border-border-light space-y-0.5">
+        {/* SELL-04: a viewer with no operating entity gets the declared setup line, never an unattributed bucket. */}
+        {w.entities.setup && (
+          <div className="text-[10px] text-status-warning" data-runway-setup>{w.entities.setup}</div>
+        )}
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[10px] text-text-faint uppercase tracking-wide">Personal</span>
+          <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w, w.entities.personal)}</span>
+        </div>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[10px] text-text-faint uppercase tracking-wide">Business</span>
+          <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w, w.entities.business)}</span>
+        </div>
+        {w.entities.unattributed && (
+          // A non-trading entity that is neither Personal nor Business — surfaced, never dropped.
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[10px] text-status-warning uppercase tracking-wide">Unattributed</span>
+            <span className="font-mono text-xs text-status-warning tabular-nums">{entityBurnLine(w, w.entities.unattributed)}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// PREVIEW (guest) shells — the REAL "no data yet" states the panel already renders for a user with
+// nothing: cash unavailable → "No bank linked", windows show "—" (insufficient_history), trading
+// $0 / "not tracked". Every figure is ZERO/empty and every label is one the component (or its
+// routes) already emits — NO fabricated numbers, NO sample data. Used to render the panel for a
+// logged-out guest WITHOUT calling the authed /api/runway or /api/trading routes.
+const PREVIEW_EMPTY_ENTITY: EntityBurn = { expenses: 0, income: 0, netBurnTotal: 0, netBurnPerMonth: 0 };
+function previewRunway(): RunwayData {
+  const win = (months: number): RunwayWindow => ({
+    months, rangeStart: '', rangeEnd: '', expenses: 0, income: 0,
+    netBurnTotal: 0, netBurnPerMonth: 0, sufficientHistory: false,
+    state: 'insufficient_history', runwayMonths: null, zeroDate: null,
+    entities: { personal: PREVIEW_EMPTY_ENTITY, business: PREVIEW_EMPTY_ENTITY, unattributed: null, setup: null },
+  });
+  return {
+    asOf: new Date().toISOString().slice(0, 10),
+    cash: { dollars: 0, accountsLinked: 0, available: false, source: 'Plaid balance · operating (excl. trading)' },
+    burnSource: 'trailing ledger actuals',
+    windows: [win(3), win(6)],
+  };
+}
+const PREVIEW_TRADING: TradingData = {
+  realizedPnl: 0, gains: 0, losses: 0, tradeCount: 0,
+  period: 'all-time', source: 'trading ledger, realized (4100 gains − 5100 losses)',
+  capital: { tracked: false, reason: 'no contributions/withdrawals posted to the trading ledger' },
+  drawdown: { tracked: false, reason: 'no peak/trough data tracked' },
+};
+
+/** RUNWAY-UX-1: THE HERO STRIP — the dossier's validated core promoted from a
+ *  card line to the tab's headline: the ZERO DATE ("the date your money runs
+ *  out" — the shipped HOW_IT_WORKS copy, HomeClient.tsx:32) as the
+ *  display-scale mono numeral, flanked by RUNWAY / CASH / NET BURN compact
+ *  mono cells with the Personal/Business split as micro-lines under burn.
+ *  EVERY figure is the /api/runway payload the panel ALREADY fetches (the
+ *  fetch below in RunwayBudgetPanel; typed RunwayData/RunwayWindow above):
+ *  basis = windows[0], the trailing-3mo window (runway/route.ts:235
+ *  `[buildWindow(3), buildWindow(6)]`) — zeroDate, runwayMonths,
+ *  netBurnPerMonth, state, entities.{personal,business,unattributed};
+ *  cash.dollars/available/source + asOf + burnSource from the payload root.
+ *  NO new fetches, NO new math — non-'ok' states render their DECLARED truth
+ *  strings (via the same windowStrings mapping the cards use) at display
+ *  scale, never a fabricated date. The numeral composes the DS app display
+ *  scale (TYPE.display sizes) with the mono numeral idiom. */
+function RunwayHeroStrip({ runway, runwayError }: { runway: RunwayData | null; runwayError: boolean }) {
+  const cellLabel = 'text-xs font-semibold text-text-secondary uppercase tracking-wide';
+  const cellValue = 'font-mono text-lg text-text-primary tabular-nums';
+
+  // Honest error/empty handling — the SAME declared states the readout used
+  // to render (strings verbatim); never zeros, never a fake date.
+  if (runwayError || !runway) {
+    return (
+      <div className="bg-white rounded-lg border border-border overflow-hidden">
+        <p className={'text-xs text-text-faint italic' + ' px-4 py-4 lg:px-8'}>
+          {runwayError ? 'Runway unavailable — could not load cash + burn.' : 'Loading runway…'}
+        </p>
+      </div>
+    );
+  }
+
+  const w = runway.windows[0];
+  const { burnLine, runwayLine, zeroLine } = windowStrings(w);
+
+  return (
+    <div className="bg-white rounded-lg border border-border overflow-hidden">
+      <div className="px-4 py-4 lg:px-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
+        {/* The zero date — the emotional core; the biggest thing on the screen. */}
+        <div>
+          <div className={cellLabel}>Zero date</div>
+          <div className="mt-1 font-mono text-2xl lg:text-3xl tracking-tight tabular-nums text-text-primary">
+            {zeroLine}
+          </div>
+          <div className="text-[10px] text-text-faint mt-0.5">
+            the date your money runs out · trailing {w.months}-mo burn basis
+          </div>
+        </div>
+
+        {/* The flanking metric cells — compact mono, same payload window. */}
+        <div className="flex flex-wrap gap-x-8 gap-y-3">
+          <div>
+            <div className={cellLabel}>Runway</div>
+            <div className={'mt-1 ' + cellValue}>{runwayLine}</div>
+          </div>
+          <div>
+            <div className={cellLabel}>Cash</div>
+            <div className={'mt-1 ' + cellValue}>
+              {runway.cash.available ? usd(runway.cash.dollars) : 'No bank linked'}
+            </div>
+            <div className="text-[10px] text-text-faint mt-0.5">
+              {runway.cash.source} · as of {niceDate(runway.asOf)}
+            </div>
+          </div>
+          <div>
+            <div className={cellLabel}>Net burn</div>
+            <div className={'mt-1 ' + cellValue}>{burnLine}</div>
+            {/* Per-entity operating split (additive; Personal + Business reconcile to Net
+                burn). No per-entity runway/zero date — cash is not entity-split. */}
+            <div className="mt-1 space-y-0.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[10px] text-text-faint uppercase tracking-wide">Personal</span>
+                <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w, w.entities.personal)}</span>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[10px] text-text-faint uppercase tracking-wide">Business</span>
+                <span className="font-mono text-xs text-text-secondary tabular-nums">{entityBurnLine(w, w.entities.business)}</span>
+              </div>
+              {w.entities.unattributed && (
+                // A non-trading entity that is neither Personal nor Business — surfaced, never dropped.
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[10px] text-status-warning uppercase tracking-wide">Unattributed</span>
+                  <span className="font-mono text-xs text-status-warning tabular-nums">{entityBurnLine(w, w.entities.unattributed)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* The methodology qualifier — verbatim, with the figures it governs. */}
+      <p className={'text-[10px] text-text-faint' + ' px-4 pb-3 lg:px-8'}>
+        Net burn = expenses − income over the trailing full calendar months ({runway.burnSource}); runway = cash ÷ net burn/mo.
+      </p>
+    </div>
+  );
+}
+
+// RUNWAY-PIPE: `show` — the Pipe Frame's phase visibility for the panel's two
+// chunks (03 Burn = hero + readout + trading; 05 Project = the budget tables).
+// Undefined → both render (the panel's pre-frame shape, back-compat). CSS
+// show/hide only — both chunks stay MOUNTED, so the panel's single /api/runway
+// + /api/trading fetches and the Month/Year view state survive phase switches
+// (the house keep-mounted contract). `onTotals` — the Books report-up idiom:
+// fired once at the EXISTING /api/runway fetch success, zero new fetches.
+export default function RunwayBudgetPanel({
+  preview = false,
+  show,
+  onTotals,
+}: {
+  preview?: boolean;
+  show?: 'burn' | 'project';
+  onTotals?: (t: RunwayReceipts) => void;
+} = {}) {
+  const [view, setView] = useState<'month' | 'year'>('month');
+  const [runway, setRunway] = useState<RunwayData | null>(null);
+  // Honest error/empty handling — on failure we DECLARE "unavailable", never show zeros.
+  const [runwayError, setRunwayError] = useState(false);
+  const [trading, setTrading] = useState<TradingData | null>(null);
+  const [tradingError, setTradingError] = useState(false);
+  // TRUTH-LABELS: a 403 (Trade module not unlocked) is a distinct, honest state —
+  // previously lumped into tradingError and mislabeled as an outage.
+  const [tradingLocked, setTradingLocked] = useState(false);
+
+  useEffect(() => {
+    // PREVIEW (guest): render the real empty shell; never call the authed route (no 401).
+    if (preview) { setRunway(previewRunway()); return; }
+    let cancelled = false;
+    fetch('/api/runway')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`))))
+      .then((d: RunwayData) => {
+        if (cancelled) return;
+        setRunway(d);
+        // RUNWAY-PIPE report-up — the same payload, derived once; the parent
+        // passes a stable setState setter (hence the dep below, no refetch churn).
+        onTotals?.(deriveRunwayReceipts(d));
+      })
+      .catch(() => { if (!cancelled) setRunwayError(true); });
+    return () => { cancelled = true; };
+  }, [preview, onTotals]);
+
+  useEffect(() => {
+    // PREVIEW (guest): render the real empty shell; never call the authed route (no 401).
+    if (preview) { setTrading(PREVIEW_TRADING); return; }
+    let cancelled = false;
+    fetch('/api/trading/realized-pnl')
+      .then((r) => {
+        // TRUTH-LABELS: a 403 here is the tab:trade PAYWALL (requireTabAccess),
+        // not an outage — rendered as an honest "locked" state below, never as
+        // "unavailable". Any other failure stays a declared error.
+        if (r.status === 403) {
+          if (!cancelled) setTradingLocked(true);
+          return null;
+        }
+        return r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`));
+      })
+      .then((d: TradingData | null) => { if (!cancelled && d) setTrading(d); })
+      .catch(() => { if (!cancelled) setTradingError(true); });
+    return () => { cancelled = true; };
+  }, [preview]);
+
+  return (
+    <>
+      {/* RUNWAY-UX-1: the hero strip leads the tab — its data is THIS panel's
+          existing /api/runway state (that fetch-locality is why the hero lives
+          here: no second fetch, no state lift). */}
+      {/* RUNWAY-PIPE — the 03 Burn chunk (hero + trailing readout + trading);
+          the 05 Project chunk (budget header + tables) follows below. CSS
+          show/hide by `show`, BOTH stay mounted — the fetches and the
+          Month/Year view state survive phase switches (the house keep-mounted
+          contract). No `show` → both render (the panel's pre-frame shape). */}
+      <div className={!show || show === 'burn' ? 'block' : 'hidden'}>
+      <RunwayHeroStrip runway={runway} runwayError={runwayError} />
+    <div className="border-t border-border bg-white rounded-lg overflow-hidden">
+      <div className="px-4 py-3 lg:px-8">
+
+        {/* ── RUNWAY READOUT (RUNWAY-2 → RUNWAY-UX-1) — the HEADLINE metrics
+            (the Cash card + the trailing-3mo window: zero date, runway, net
+            burn, entity split) COLLAPSED from here into the hero strip above —
+            no duplication. The LONGER trailing window (6mo) STAYS as the
+            cross-check detail; error/loading declarations render in the hero.
+            Every number is source-labeled and traceable; empty/edge states
+            declare the truth, never a fabricated figure. ── */}
+        {runway && !runwayError && (
+          <div className="mt-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              {runway.windows.slice(1).map((w) => (
+                <RunwayWindowCard key={w.months} w={w} />
+              ))}
+            </div>
+            <p className="text-[10px] text-text-faint mt-1">
+              Net burn = expenses − income over the trailing full calendar months ({runway.burnSource}); runway = cash ÷ net burn/mo.
+            </p>
+          </div>
+        )}
+
+        {/* ── TRADING — a SEPARATE panel under DIFFERENT rules. Trading P&L is EXCLUDED from
+            operating runway; it is realized performance, NOT months of runway and NOT a zero date.
+            Capital/drawdown are declared "not tracked" (not derivable) — never fabricated. ── */}
+        <div className="mt-3 pt-3 border-t-2 border-border">
+          <div className="flex items-baseline justify-between gap-2">
+            <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Trading</h3>
+            <span className="text-[10px] text-text-faint">separate from operating runway</span>
+          </div>
+          {tradingLocked ? (
+            <p className="text-xs text-text-muted italic mt-1">
+              Trade module locked — subscribe on the Trade tab to see realized P&L here.
+            </p>
+          ) : tradingError ? (
+            <p className="text-xs text-text-faint italic mt-1">Trading unavailable — could not load realized P&L.</p>
+          ) : !trading ? (
+            <p className="text-xs text-text-faint italic mt-1">Loading trading…</p>
+          ) : (
+            <div className="mt-2 flex flex-col sm:flex-row gap-2">
+              {/* Realized P&L — the one truthfully-derivable trading figure. */}
+              <div className="flex-1 min-w-[180px] rounded-lg border border-border bg-bg-row/40 px-3 py-2">
+                <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Realized P&amp;L</div>
+                <div className={`mt-1 font-mono text-lg tabular-nums ${trading.realizedPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {trading.realizedPnl >= 0 ? '+' : '−'}{usd(Math.abs(trading.realizedPnl))}
+                </div>
+                <div className="text-[10px] text-text-faint mt-0.5">
+                  {trading.source} · {trading.period} · {trading.tradeCount} trade{trading.tradeCount === 1 ? '' : 's'}
+                </div>
+              </div>
+              {/* Capital — DECLARED not-tracked (not derivable); no invented number. */}
+              <div className="flex-1 min-w-[180px] rounded-lg border border-dashed border-border bg-bg-row/20 px-3 py-2">
+                <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Capital</div>
+                <div className="mt-1 font-mono text-sm text-text-faint italic tabular-nums">not tracked yet</div>
+                <div className="text-[10px] text-text-faint mt-0.5">{trading.capital.reason}</div>
+              </div>
+              {/* Drawdown — DECLARED not-tracked. */}
+              <div className="flex-1 min-w-[180px] rounded-lg border border-dashed border-border bg-bg-row/20 px-3 py-2">
+                <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Max drawdown</div>
+                <div className="mt-1 font-mono text-sm text-text-faint italic tabular-nums">not tracked yet</div>
+                <div className="text-[10px] text-text-faint mt-0.5">{trading.drawdown.reason}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+      </div>
+      {/* RUNWAY-PIPE — the 05 Project chunk: the budget header + the
+          Month/Year toggle + ONE table at a time (the ONE-BUDGET-TOGGLE
+          contract byte-unchanged; the toggle travels WITH the tables it
+          selects). */}
+      <div className={!show || show === 'project' ? 'block' : 'hidden'}>
     <div className="border-t border-border bg-white rounded-lg overflow-hidden">
       <div className="px-4 py-3 lg:px-8 border-b border-border">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -32,19 +480,15 @@ export default function RunwayBudgetPanel() {
                 : 'Full-year travel-vs-home comparison.'}
             </p>
           </div>
-          {/* Month / Year toggle — mirrors HubBudgetSection's Personal/Business/Travel
-              toggle styling (same tokens, no new hex). */}
-          <div className="flex gap-1.5">
+          {/* RUNWAY-DEEP: Month / Year joins the house SEGMENT (the flights-bar
+              idiom, ds.ts SEGMENT) — the legacy-purple pill retires. */}
+          <div className={SEGMENT.wrap}>
             {([['month', 'Month'], ['year', 'Year']] as const).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setView(key)}
-                className={`text-xs px-3 py-1 rounded border transition-colors font-medium ${
-                  view === key
-                    ? 'bg-brand-purple text-white border-brand-purple'
-                    : 'text-text-secondary border-border hover:bg-bg-row'
-                }`}
+                className={SEGMENT.item(view === key)}
               >
                 {label}
               </button>
@@ -52,7 +496,9 @@ export default function RunwayBudgetPanel() {
           </div>
         </div>
       </div>
-      {view === 'month' ? <HubBudgetSection /> : <BudgetComparison />}
+      {view === 'month' ? <HubBudgetSection preview={preview} /> : <BudgetComparison preview={preview} />}
     </div>
+      </div>
+    </>
   );
 }

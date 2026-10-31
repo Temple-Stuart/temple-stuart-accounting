@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 
+
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 interface DrillDownTransaction {
@@ -22,6 +23,7 @@ interface BudgetDrillDownProps {
   categoryName: string;
   cellAmount: number;
   entityType: string;
+  /** CAL-DS-THEME: light default (byte-identical); HubBudgetSection passes 'dark'. */
 }
 
 export default function BudgetDrillDown({
@@ -128,7 +130,10 @@ export default function BudgetDrillDown({
               ))}
             </div>
           ) : error ? (
-            <div className="p-8 text-center text-brand-red text-sm">{error}</div>
+            /* RUNWAY-INK verify-pass: dark gets the status token; the /hub
+               light mount (hub/page.tsx:909, no surface prop) keeps the
+               darker light-surface red — #ef4444 fails AA on white. */
+            <div className={`p-8 text-center text-sm ${'text-brand-red'}`}>{error}</div>
           ) : transactions.length === 0 ? (
             <div className="p-8 text-center text-text-faint text-sm">No transactions found for this period</div>
           ) : (
@@ -166,7 +171,7 @@ export default function BudgetDrillDown({
               <span className="text-xs text-text-muted">{count} transaction{count !== 1 ? 's' : ''}</span>
               <div className="flex items-center gap-2">
                 {totalMismatch && (
-                  <span className="text-amber-600 text-xs flex items-center gap-1" title={`Expected ${fmt(cellAmount)}, got ${fmt(total)}`}>
+                  <span className={`${'text-amber-600'} text-xs flex items-center gap-1`} title={`Expected ${fmt(cellAmount)}, got ${fmt(total)}`}>
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>

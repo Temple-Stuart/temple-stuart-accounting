@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -151,8 +152,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Update home expense error:', error);
-    return NextResponse.json({ error: 'Failed to update: ' + (error as Error).message }, { status: 500 });
+    return failClosedResponse('Update home expense', 'Failed to update the expense', error);
   }
 }
 

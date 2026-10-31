@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from 'react';
 
+
 interface IdentityBarData {
   user_email: string | null;
   current_entity_name: string | null;
@@ -20,7 +21,7 @@ interface IdentityBarData {
 
 const BUILD_SHA = (process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ?? 'dev').slice(0, 8);
 
-export function SectionA_IdentityBar() {
+export function SectionA_IdentityBar({ }: { } = {}) {
   const [data, setData] = useState<IdentityBarData>({
     user_email: null,
     current_entity_name: null,

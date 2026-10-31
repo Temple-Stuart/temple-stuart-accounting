@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
+import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
 
 export async function GET(request: Request) {
   try {
@@ -20,7 +20,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    await ensureBookkeepingInitialized(user);
+    // SELL-04: a user with no entity gets the declared setup line (412) — nothing is created here.
+    const setup = await requireEntitySetup(user);
+    if (setup) return setup;
 
     const { searchParams } = new URL(request.url);
     const accountCode = searchParams.get('accountCode');
@@ -41,6 +43,9 @@ export async function GET(request: Request) {
             name: true,
             type: true,
             entityType: true,
+            // FX-01 (2026-10-30): the account's stated currency rides with each row — a bank figure is
+            // written in ITS currency by the chart's drill (functionalCurrency.ts bankMoneyWords).
+            isoCurrencyCode: true,
             plaid_items: {
               select: {
                 institutionName: true
@@ -105,6 +110,8 @@ export async function GET(request: Request) {
       name: txn.name,
       merchantName: txn.merchantName,
       amount: txn.amount,
+      // FX-01: the row's account currency — as Plaid stated it, or NULL; the screen names a NULL.
+      currency: txn.accounts?.isoCurrencyCode ?? null,
       category: txn.category,
       pending: txn.pending,
       authorized_date: txn.authorized_date,

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -21,6 +22,22 @@ export async function POST(request: Request) {
 
     if (!transactionIds || !Array.isArray(transactionIds) || transactionIds.length === 0) {
       return NextResponse.json({ error: 'transactionIds required' }, { status: 400 });
+    }
+    if (typeof accountCode !== 'string' || !accountCode.trim()) {
+      return NextResponse.json({ error: 'accountCode required', field: 'accountCode' }, { status: 400 });
+    }
+
+    // COA-01: the code must be an ACTIVE account in the user's chart — a
+    // retired account has left categorization; an unknown code never entered it.
+    const matches = await prisma.chart_of_accounts.findMany({
+      where: { userId: user.id, code: accountCode },
+      select: { is_archived: true, name: true },
+    });
+    if (matches.length === 0) {
+      return NextResponse.json({ error: `no account ${accountCode} in your chart`, field: 'accountCode' }, { status: 400 });
+    }
+    if (matches.every((m) => m.is_archived)) {
+      return NextResponse.json({ error: `account ${accountCode} (${matches[0].name}) is retired — restore it or pick another`, field: 'accountCode' }, { status: 400 });
     }
 
     const ownedTxns = await prisma.transactions.findMany({
@@ -56,8 +73,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, updated: updateCount });
-  } catch (error: any) {
-    console.error('Assign COA error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return failClosedResponse('Assign COA', 'Assign COA failed', error);
   }
 }

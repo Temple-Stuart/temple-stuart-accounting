@@ -1,21 +1,34 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchInsiderTransactions, fetchPeerTickers, fetch10KBusinessDescription, fetchFinnhubEbitdaEstimates, fetchFinnhubEbitEstimates, fetchFinnhubDividendHistory, fetchFinnhubPriceMetrics, fetchFinnhubFundOwnership, fetchSECEdgar8KScan, fetchFinnhubEarningsCalendar } from './data-fetchers';
 import { computeCrossAssetCorrelations } from './cross-asset';
-import type { CrossAssetCorrelations } from './types';
+import type { CrossAssetCorrelations, PremiumSide, ScanSide, ScoreModel } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
+import { finnhubMeterSnapshot, withFinnhubMeter } from './finnhub-cache';
+import type { FinnhubFetchedAt } from './types';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult, PerTickerChainStats } from './chain-fetcher';
 import type { RejectionReason, StrategyCard } from '@/lib/strategy-builder';
-import { fetchSentimentBatch } from './sentiment';
-import type { SentimentResult } from './sentiment';
 import { computePeerStats, computeTextPeerGroups } from './sector-stats';
 import type { PeerStatsMap, PeerGroupAssignment } from './sector-stats';
 import { scoreAll } from './composite';
 import type { FullScoringResult } from './composite';
 import { computePreFilter } from './pre-filter';
 import type { PreFilterResult } from './pre-filter';
-import { logScanSnapshotBatch } from './snapshot-logger';
-import { generateTradeCards } from './trade-cards';
+import { earningsDateSources, sideOf, stepCReason } from './side-rules';
+import { fetchCboeDaily } from './cboe-daily';
+import type { CboeDailyData } from './types';
+import { checkUndefinedRiskCap } from './undefined-risk';
+import type { UndefinedRiskCapCheck } from './undefined-risk';
+import { countUserOpenUndefinedRiskPositions } from './undefined-risk.prisma';
+import { logScanSnapshotBatch, snapshotNotAttempted, type SnapshotWriteResult } from './snapshot-logger';
+import { prismaSnapshotStore, fetchVrpHistoryBatch } from './snapshot-logger.prisma';
+import { STRUCTURE_CUT, DEEP_FETCH_MULTIPLIER } from './funnel';
+import { ETF_UNIVERSE_KEY, ETF_UNIVERSE_SET_ON, ETF_UNIVERSE_SYMBOLS, isEtfUniverseSymbol } from './etf-universe';
+import { structureCutEligibility } from './structure-cut';
+import { persistScanCandidates } from './candidate-log';
+import { prismaCandidateLogStore } from './candidate-log.prisma';
+import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
+import { generateTradeCards, computeCloseToCloseHV } from './trade-cards';
 import type {
   TTScannerData,
   ConvergenceInput,
@@ -42,6 +55,7 @@ import type {
   FinnhubFundOwnership,
   SECEdgar8KScan,
   FinnhubEarningsCalendar,
+  VrpHistoryData,
 } from './types';
 
 // ===== TYPES =====
@@ -85,12 +99,19 @@ interface PreScoreRow {
 interface RankedRow {
   rank: number;
   symbol: string;
-  composite: number;
-  vol_edge: number;
-  quality: number;
-  regime: number;
-  info_edge: number;
+  // TRADE-COST-01: when each Finnhub answer behind this row was fetched (endpoint?params → meta).
+  // Read by nothing that scores; carried so the card can say how old each value is.
+  data_age: FinnhubFetchedAt;
+  // MIG-1: null = gate EXCLUDED (zero computable signals) — rendered '—', never 0
+  composite: number | null;
+  vol_edge: number | null;
+  quality: number | null;
+  regime: number | null;
+  info_edge: number | null;
   convergence: string;
+  /** MODEL-02 addendum: the composite's count of gates above 50 and how many of the four gates scored — Step G reads these, never the string. */
+  categories_above_50: number;
+  scored_gates: number;
   direction: string;
   strategy: string;
   sector: string | null;
@@ -100,6 +121,9 @@ interface RankedRow {
   mspr: number | null;
   beat_streak: string;
   key_signal: string;
+  // MODEL-01: the funnel side and the model that scored this row — never null
+  side: PremiumSide;
+  score_model: ScoreModel;
 }
 
 interface DiversificationResult {
@@ -115,7 +139,22 @@ export interface PipelineResult {
     scored: number;
     final_9: string[];
     pipeline_runtime_ms: number;
+    // TRADE-COST-01: MEASURED by the run's meter — every upstream Finnhub call this
+    // run actually made (the batch's 8×N ceiling is no longer reported as a count).
     finnhub_calls_made: number;
+    // TRADE-COST-01: slow-tier answers served from finnhub_responses within their TTL.
+    finnhub_cache_hits: number;
+    /** LOG-01: the scan_runs row this run's candidates were written under; null = withheld */
+    scan_run_id: string | null;
+    candidates_logged: number;
+    candidates_withheld: boolean;
+    /** MODEL-02: what the scan_snapshots write actually did — `written` only when every row landed; the reason otherwise. */
+    snapshot: SnapshotWriteResult;
+    /** MODEL-01: the mode the scan ran in, the undefined-risk cap check, and the cards per side */
+    scan_side: ScanSide;
+    allow_undefined_risk: boolean;
+    undefined_risk_cap: UndefinedRiskCapCheck;
+    cards_by_side: { SELL: number; BUY: number };
     finnhub_errors: number;
     fred_cached: boolean;
     candle_symbols_fetched: number;
@@ -142,7 +181,6 @@ export interface PipelineResult {
   full_trade_cards_per_ticker: Record<string, TradeCardData[]>;
   chain_stats_per_ticker: Record<string, PerTickerChainStats>;
   pre_filter: PreFilterResult[];
-  social_sentiment: Record<string, SentimentResult>;
   rejection_reasons: Record<string, RejectionReason[]>;
   data_gaps: string[];
   errors: string[];
@@ -268,14 +306,16 @@ function parseMarketMetrics(items: Record<string, unknown>[]): TTScannerData[] {
 
       return {
         symbol,
-        ivRank: Number(
-          m['implied-volatility-index-rank'] ||
-          m['tos-implied-volatility-index-rank'] ||
-          m['tw-implied-volatility-index-rank'] ||
-          0,
+        // KILL-2: absent/unparseable → null, never 0 — these reach scoring
+        // (vol-edge IVR/IVP), peer stats, chain pricing, and scan_snapshots.
+        // A true source 0 stays 0.
+        ivRank: firstNumOrNull(
+          m['implied-volatility-index-rank'],
+          m['tos-implied-volatility-index-rank'],
+          m['tw-implied-volatility-index-rank'],
         ),
-        ivPercentile: Number(m['implied-volatility-percentile'] || 0),
-        impliedVolatility: Number(m['implied-volatility-index'] || 0),
+        ivPercentile: numOrNull(m['implied-volatility-percentile']),
+        impliedVolatility: numOrNull(m['implied-volatility-index']),
         liquidityRating: m['liquidity-rating'] != null ? Number(m['liquidity-rating']) : null,
         earningsDate,
         daysTillEarnings,
@@ -323,6 +363,8 @@ function getUniverseSymbols(universe?: string): string[] {
   switch (universe) {
     case 'sp500': return [...SP500];
     case 'nasdaq100': return [...NASDAQ_100];
+    // MODEL-02 STEP 4: the index & sector ETF layer, its own selectable set (etf-universe.ts, dated).
+    case ETF_UNIVERSE_KEY: return [...new Set(ETF_UNIVERSE_SYMBOLS)];
     case 'russell2000': return [...RUSSELL_2000];
     case 'sp400': return [...SP400];
     case 'dow30': return [...DOW_30];
@@ -358,13 +400,52 @@ async function fetchRegShoThreshold(): Promise<Set<string>> {
 
 // ===== MAIN PIPELINE =====
 
+/**
+ * MODEL-01: what the scan runs as. `side` is the premium direction — SELL and
+ * BUY are separate funnels with separate models; BOTH runs both and labels
+ * every candidate with its side. `allowUndefinedRisk` is the scan filter's
+ * Risk = Unlimited state (default false = defined risk only, filter-types.ts
+ * DEFAULT_FILTERS); an unbounded structure also needs the per-user cap.
+ */
+export interface ScanOptions {
+  side: ScanSide;
+  allowUndefinedRisk: boolean;
+}
+
+export const DEFAULT_SCAN_OPTIONS: ScanOptions = { side: 'BOTH', allowUndefinedRisk: false };
+
 export async function runPipeline(
   limit: number = 20,
   userId?: string,
   universe?: string,
   onProgress?: (event: { step: string; label: string; data: Record<string, unknown> }) => void,
+  options: ScanOptions = DEFAULT_SCAN_OPTIONS,
+): Promise<PipelineResult> {
+  // TRADE-COST-01: every Finnhub call the run makes is counted on ONE meter
+  // (finnhub-cache.ts) — pipeline_summary.finnhub_calls_made is measured, not asserted.
+  const { result } = await withFinnhubMeter(() => runPipelineMetered(limit, userId, universe, onProgress, options));
+  return result;
+}
+
+async function runPipelineMetered(
+  limit: number = 20,
+  userId?: string,
+  universe?: string,
+  onProgress?: (event: { step: string; label: string; data: Record<string, unknown> }) => void,
+  options: ScanOptions = DEFAULT_SCAN_OPTIONS,
 ): Promise<PipelineResult> {
   const pipelineStart = Date.now();
+  if (options.side !== 'SELL' && options.side !== 'BUY' && options.side !== 'BOTH') {
+    throw new Error(`MODEL-01: unknown scan side ${String(options.side)} — SELL, BUY or BOTH`);
+  }
+  const scanDateIso = new Date().toISOString().slice(0, 10);
+  // TRADE-COST-01: fetched_at of every Finnhub answer, per symbol, merged from
+  // every fetcher's result as it lands — read by nothing that scores.
+  const finnhubAgeMap = new Map<string, FinnhubFetchedAt>();
+  const noteAge = (symbol: string, r: { fetchedAt?: FinnhubFetchedAt }): void => {
+    if (!r.fetchedAt) return;
+    finnhubAgeMap.set(symbol, { ...(finnhubAgeMap.get(symbol) ?? {}), ...r.fetchedAt });
+  };
   const errors: string[] = [];
   const dataGaps: string[] = [];
 
@@ -375,6 +456,7 @@ export async function runPipeline(
   console.log('[Pipeline] Step A: Fetching TT scanner data...');
   let allScannerData: TTScannerData[] = [];
   let stepAFetchedAt = new Date().toISOString();
+  let stepAMissing: string[] = [];
   try {
     const client = getTastytradeClient();
     await client.accountsAndCustomersService.getCustomerResource();
@@ -408,6 +490,16 @@ export async function runPipeline(
     stepAFetchedAt = new Date().toISOString();
     allScannerData = parseMarketMetrics(items);
     console.log(`[Pipeline] Step A: Got ${allScannerData.length} tickers from TT scanner`);
+    // MODEL-02 STEP 4: a requested symbol TastyTrade returned no row for is
+    // REPORTED — an ETF_UNIVERSE member by name on the errors list — never
+    // silently absent from the funnel.
+    const returned = new Set(allScannerData.map(d => d.symbol));
+    stepAMissing = allSymbols.filter(sym => !returned.has(sym));
+    if (stepAMissing.length > 0) {
+      dataGaps.push(`Step A: ${stepAMissing.length} of ${allSymbols.length} requested symbols returned no TastyTrade market-metrics row (${stepAMissing.slice(0, 20).join(', ')}${stepAMissing.length > 20 ? `, +${stepAMissing.length - 20} more` : ''})`);
+      const etfMissing = stepAMissing.filter(isEtfUniverseSymbol);
+      if (etfMissing.length > 0) errors.push(`Step A (ETF universe ${ETF_UNIVERSE_SET_ON}): TastyTrade returned no market-metrics row for ${etfMissing.join(', ')} — reported, not dropped`);
+    }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     errors.push(`Step A (TT Scanner): ${msg}`);
@@ -417,6 +509,8 @@ export async function runPipeline(
   const totalUniverse = allScannerData.length;
   onProgress?.({ step: 'step_a', label: 'TT Scanner', data: {
     total_universe: allScannerData.length,
+    /** MODEL-02: requested symbols TastyTrade returned no market-metrics row for (ETF members are also on errors[]). */
+    missing_symbols: stepAMissing,
     market_open: isMarketOpen().open,
     fetched_at: stepAFetchedAt,
     source: 'TastyTrade',
@@ -452,8 +546,16 @@ export async function runPipeline(
 
   // ===== STEP A2: Pre-Filter (market-metrics-based ranking) =====
   console.log('[Pipeline] Step A2: Running market-metrics pre-filter...');
-  const preFilterResults = computePreFilter(allScannerData);
-  console.log(`[Pipeline] Step A2: ${preFilterResults.length} tickers ranked by preScore`);
+  // MODEL-01: one ranking per side — a buy-side symbol is ranked by the buyer's
+  // pre-score, never by a seller's that zeroes its own edge. The SELL ranking
+  // keeps its place in the step_b payload (today's shape); BUY rides alongside.
+  const preFilterResults = computePreFilter(allScannerData, 'SELL');
+  const preFilterResultsBuy = computePreFilter(allScannerData, 'BUY');
+  const preFilterBySide: Record<PremiumSide, Map<string, PreFilterResult>> = {
+    SELL: new Map(preFilterResults.map(r => [r.symbol, r])),
+    BUY: new Map(preFilterResultsBuy.map(r => [r.symbol, r])),
+  };
+  console.log(`[Pipeline] Step A2: ${preFilterResults.length} tickers ranked by preScore (mode=${options.side})`);
 
   onProgress?.({ step: 'step_b', label: 'Pre-Filter', data: {
     input: allScannerData.length,
@@ -467,33 +569,38 @@ export async function runPipeline(
     })),
   } });
 
-  // ===== STEP C (new): Hard Exclusions =====
-  // Step C applies exclusion rules that Step B (ranking) does not.
-  const stepCExcluded: { symbol: string; reason: string }[] = [];
-  const stepCIncluded: typeof preFilterResults = [];
+  // ===== STEP C (new): Hard Exclusions — per premium direction (MODEL-01) =====
+  // SELL keeps today's rule (IV ≤ HV excluded — no vol premium); BUY requires
+  // the opposite (HV above IV by the stated margin, side-rules.ts). BOTH runs
+  // both branches; the two rules are mutually exclusive on the spread, so every
+  // survivor has exactly one side. Every exclusion reason names the side.
+  const stepCExcluded: { symbol: string; side: ScanSide; reason: string }[] = [];
+  const stepCIncluded: (PreFilterResult & { side: PremiumSide })[] = [];
+  const symbolSide = new Map<string, PremiumSide>();
 
   for (const r of preFilterResults) {
     const t = allScannerData.find(s => s.symbol === r.symbol)!;
-    let excludeReason: string | null = null;
-
-    if (t.ivHvSpread == null) {
-      excludeReason = 'IV-HV spread unavailable — cannot assess vol premium';
-    } else if (t.ivHvSpread <= 0) {
-      excludeReason = `No vol premium — IV-HV spread is ${t.ivHvSpread.toFixed(1)} (realized vol exceeds implied)`;
-    }
-
-    if (excludeReason == null && r.liquidityRating == null) {
-      excludeReason = 'Liquidity rating unavailable — cannot score liquidity';
-    } else if (excludeReason == null && r.liquidityRating != null && r.liquidityRating < 2) {
-      excludeReason = `Low liquidity rating (${r.liquidityRating}/5)`;
-    }
-
-    if (excludeReason != null) {
-      stepCExcluded.push({ symbol: r.symbol, reason: excludeReason });
+    const inputs = { ivHvSpread: t.ivHvSpread, liquidityRating: r.liquidityRating };
+    if (options.side === 'BOTH') {
+      const { side, reasons } = sideOf(inputs);
+      if (side === null) {
+        stepCExcluded.push({ symbol: r.symbol, side: 'BOTH', reason: `${reasons.SELL} | ${reasons.BUY}` });
+      } else {
+        stepCIncluded.push({ ...(preFilterBySide[side].get(r.symbol) ?? r), side });
+        symbolSide.set(r.symbol, side);
+      }
     } else {
-      stepCIncluded.push(r);
+      const reason = stepCReason(options.side, inputs);
+      if (reason !== null) {
+        stepCExcluded.push({ symbol: r.symbol, side: options.side, reason });
+      } else {
+        stepCIncluded.push({ ...(preFilterBySide[options.side].get(r.symbol) ?? r), side: options.side });
+        symbolSide.set(r.symbol, options.side);
+      }
     }
   }
+  // Rank within side by the side's own pre-score
+  stepCIncluded.sort((a, b) => b.preScore - a.preScore);
 
   const earningsWarnings = stepCIncluded
     .filter(r => {
@@ -502,29 +609,45 @@ export async function runPipeline(
     })
     .map(r => ({ symbol: r.symbol, days_to_earnings: allScannerData.find(t => t.symbol === r.symbol)?.daysTillEarnings ?? null }));
 
-  console.log(`[Pipeline] Step C: ${stepCIncluded.length} survived, ${stepCExcluded.length} excluded`);
+  const stepCBySide = { SELL: stepCIncluded.filter(r => r.side === 'SELL').length, BUY: stepCIncluded.filter(r => r.side === 'BUY').length };
+  console.log(`[Pipeline] Step C: ${stepCIncluded.length} survived (SELL ${stepCBySide.SELL}, BUY ${stepCBySide.BUY}), ${stepCExcluded.length} excluded`);
 
   onProgress?.({ step: 'step_c', label: 'Hard Exclusions', data: {
+    side_mode: options.side,
     survivors: stepCIncluded.length,
+    survivors_by_side: stepCBySide,
     excluded: stepCExcluded.length,
     exclusions: stepCExcluded,
     earnings_warnings: earningsWarnings,
   } });
 
-  // Use pre-filter to narrow the candidate set: take top (limit * 2) non-excluded
+  // Use pre-filter to narrow the candidate set: take top (limit × DEEP_FETCH_MULTIPLIER) non-excluded
   // tickers by preScore. This reduces the universe BEFORE hard filters + Finnhub.
-  const preFilterTopN = Math.min(limit * 2, stepCIncluded.length);
-  const preFilterCandidates = new Set(
-    stepCIncluded.slice(0, preFilterTopN).map(r => r.symbol)
-  );
+  // MODEL-01: in BOTH mode the limit*2 seats split evenly between the sides
+  // (each ranked by its own pre-score); a side with fewer eligible symbols
+  // yields its unused seats to the other. The total never exceeds limit*2, so
+  // the Finnhub fetch that follows costs the same as a one-sided run.
+  const allocateBySide = <T extends { side: PremiumSide }>(rows: T[], seats: number): T[] => {
+    const sell = rows.filter(r => r.side === 'SELL');
+    const buy = rows.filter(r => r.side === 'BUY');
+    if (options.side !== 'BOTH') return rows.slice(0, seats);
+    const half = Math.ceil(seats / 2);
+    const sellTake = Math.min(sell.length, Math.max(half, seats - buy.length));
+    const buyTake = Math.min(buy.length, seats - sellTake);
+    return [...sell.slice(0, sellTake), ...buy.slice(0, buyTake)];
+  };
+  const preFilterTopN = Math.min(limit * DEEP_FETCH_MULTIPLIER, stepCIncluded.length);
+  const preFilterSelected = allocateBySide(stepCIncluded, preFilterTopN);
+  const preFilterCandidates = new Set(preFilterSelected.map(r => r.symbol));
   const preFilteredScannerData = allScannerData.filter(t => preFilterCandidates.has(t.symbol));
-  console.log(`[Pipeline] Step D: Narrowed ${stepCIncluded.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN})`);
+  console.log(`[Pipeline] Step D: Narrowed ${stepCIncluded.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN}, per side)`);
 
   // ===== STEP D (new): Top-N Selection =====
-  const cutoffScore = stepCIncluded[preFilterTopN - 1]?.preScore ?? 0;
+  const cutoffScore = preFilterSelected[preFilterSelected.length - 1]?.preScore ?? 0;
   onProgress?.({ step: 'step_d', label: 'Top-N Selection', data: {
     input: stepCIncluded.length,
-    selected: preFilterTopN,
+    selected: preFilterSelected.length,
+    selected_by_side: { SELL: preFilterSelected.filter(r => r.side === 'SELL').length, BUY: preFilterSelected.filter(r => r.side === 'BUY').length },
     cutoff_score: Math.round(cutoffScore * 100),
   } });
 
@@ -548,11 +671,14 @@ export async function runPipeline(
   const peerFetchPromises = survivors.map(async (item) => {
     try {
       const result = await fetchPeerTickers(item.symbol);
+      noteAge(item.symbol, result);
       if (result.data && result.data.length > 0) {
         finnhubPeersMap[item.symbol] = result.data;
       }
-    } catch {
-      // Non-critical — fall through to GICS grouping
+    } catch (e: unknown) {
+      // KILL-4: still falls through to GICS grouping, but the failure is
+      // DECLARED — a degraded peer tier must not be silent.
+      errors.push(`Step E11a (finnhub-peers ${item.symbol}) FAILED: ${e instanceof Error ? e.message : String(e)} — peer grouping degraded to GICS tier`);
     }
   });
   // Hard 10-second cap on entire peers fetch step
@@ -613,11 +739,14 @@ export async function runPipeline(
 
   // ===== STEP D: Pre-Score and Limit =====
   console.log('[Pipeline] Step D: Pre-scoring and limiting...');
-  const preScores = computePreScores(survivors);
+  const preScores = computePreScores(survivors, symbolSide);
   // Overfetch: fetch 2x the desired final count so convergence gate + quality floor
   // exclusions don't leave us short on tickers for the final 9
-  const fetchCount = Math.min(limit * 2, preScores.length);
-  const topN = preScores.slice(0, fetchCount);
+  // MODEL-01: seats split per side in BOTH mode (see allocateBySide) — the
+  // Finnhub fetch count is unchanged.
+  // MODEL-02: this second cut never binds — preScores derives from the survivors of the first (reported, kept for the shape of pre_scores).
+  const fetchCount = Math.min(limit * DEEP_FETCH_MULTIPLIER, preScores.length);
+  const topN = allocateBySide(preScores.map(r => ({ ...r, side: symbolSide.get(r.symbol) as PremiumSide })), fetchCount);
   const topSymbols = topN.map(r => r.symbol);
   console.log(`[Pipeline] Step D: Top ${topSymbols.length} selected for Finnhub fetch (limit=${limit}, fetch=2x)`);
   onProgress?.({ step: 'step_g', label: 'Pre-Score', data: {
@@ -639,9 +768,13 @@ export async function runPipeline(
 
   // ===== STEP H: Macro & Regime Data =====
   const fredStart = Date.now();
-  const [fredResult, fredDailyResult] = await Promise.all([
+  // MODEL-02: Cboe's daily VVIX / VIX term structure / SKEW ride alongside FRED —
+  // free, no key, 24 h in-process TTL (cboe-daily.ts). A file that fails is an
+  // error line here and a declared null on the regime trace, never imputed.
+  const [fredResult, fredDailyResult, cboeDaily] = await Promise.all([
     fetchFredMacro(),
     fetchFredDailySeries(),
+    fetchCboeDaily(),
   ]);
   const fredMs = Date.now() - fredStart;
 
@@ -651,6 +784,15 @@ export async function runPipeline(
   if (fredDailyResult.error) {
     errors.push(`Step H (FRED daily): ${fredDailyResult.error}`);
   }
+  for (const e of cboeDaily.errors) {
+    errors.push(`Step H (Cboe daily): ${e}`);
+    dataGaps.push(`cboe_daily: ${e} — the regime input is null this run (declared on the brake / vol_conditioners trace, never imputed)`);
+  }
+  const cboeRow = (name: string, key: string, p: CboeDailyData['vvix'], file: string) => ({
+    name, key, value: p?.value ?? null, source: 'Cboe', series_id: file,
+    fetched_at: p?.fetched_at ?? null, data_date: p?.date ?? null,
+    null_reason: p ? null : (cboeDaily.errors.find(e => e.startsWith(`${file.replace('_History.csv', '')}:`)) ?? 'absent from the Cboe read'),
+  });
 
   const crossAssetCorrelations: CrossAssetCorrelations | null = computeCrossAssetCorrelations(fredDailyResult.data);
 
@@ -679,10 +821,17 @@ export async function runPipeline(
     series: [
       { name: 'VIX', key: 'vix', value: fredResult.data.vix,
         source: 'FRED', series_id: 'VIXCLS', null_reason: fredResult.data.vix == null ? 'FRED returned null' : null },
-      { name: 'VIX Short-Term (9d)', key: 'vxvShortTerm', value: fredResult.data.vxvShortTerm,
+      // Label fix (EDGE-6): VXVCLS is the CBOE 3-MONTH VIX (VIX3M, formerly
+      // VXV) — the prior "Short-Term (9d)" label was factually wrong.
+      { name: 'VIX 3-Month (VIX3M)', key: 'vxvShortTerm', value: fredResult.data.vxvShortTerm,
         source: 'FRED', series_id: 'VXVCLS', null_reason: fredResult.data.vxvShortTerm == null ? 'FRED returned null' : null },
-      { name: 'VVIX', key: 'vvix', value: fredResult.data.vvix,
-        source: 'FRED', series_id: 'VVIXCLS', null_reason: fredResult.data.vvix == null ? 'FRED returned null' : null },
+      // MODEL-02: VVIX and the term structure / SKEW from Cboe (FRED never had VVIXCLS)
+      cboeRow('VVIX', 'vvix', cboeDaily.vvix, 'VVIX_History.csv'),
+      cboeRow('VIX 9-Day (Cboe)', 'vix9d', cboeDaily.vix9d, 'VIX9D_History.csv'),
+      cboeRow('VIX (Cboe)', 'vix_cboe', cboeDaily.vix, 'VIX_History.csv'),
+      cboeRow('VIX 3-Month (Cboe)', 'vix3m_cboe', cboeDaily.vix3m, 'VIX3M_History.csv'),
+      cboeRow('VIX 6-Month (Cboe)', 'vix6m', cboeDaily.vix6m, 'VIX6M_History.csv'),
+      cboeRow('SKEW', 'skew', cboeDaily.skew, 'SKEW_History.csv'),
       { name: 'Fed Funds Rate', key: 'fedFunds', value: fredResult.data.fedFunds,
         source: 'FRED', series_id: 'FEDFUNDS', null_reason: fredResult.data.fedFunds == null ? 'FRED returned null' : null },
       { name: '10Y Treasury', key: 'treasury10y', value: fredResult.data.treasury10y,
@@ -758,15 +907,34 @@ export async function runPipeline(
   const finnhubMs = Date.now() - finnhubStart;
   console.log(`[Pipeline] Step E: Finnhub fetched in ${finnhubMs}ms`);
 
+  // KILL-4: per-endpoint Finnhub failures are DECLARED — a failed feed is
+  // "feed unavailable", never "fetched, empty". Affected signals are already
+  // excluded + renormalized by the gates; this surfaces the CAUSE.
+  if (finnhubResult.stats.error_messages.length > 0) {
+    const msgs = finnhubResult.stats.error_messages;
+    dataGaps.push(`finnhub: ${msgs.length} feed failure(s) — affected signals excluded per gate (feed unavailable). First ${Math.min(5, msgs.length)}: ${msgs.slice(0, 5).join(' | ')}`);
+    errors.push(...msgs.slice(0, 50).map(m => `Step E (finnhub feed) FAILED: ${m}`));
+    if (msgs.length > 50) errors.push(`Step E (finnhub feed): ${msgs.length - 50} further feed failure(s) truncated — see server logs`);
+  }
+  // TRADE-COST-01: an answer the vendor gave that could NOT be stored is declared
+  // on its own line — the feed was available, the cache row was not written.
+  if (finnhubResult.stats.store_errors.length > 0) {
+    errors.push(...finnhubResult.stats.store_errors.slice(0, 20).map(m => `Step E (finnhub cache store) FAILED: ${m}`));
+  }
+
   // Fetch annual financials per symbol (for Piotroski YoY signals)
   const annualFinancialsMap = new Map<string, AnnualFinancials | null>();
   for (const symbol of topSymbols) {
     try {
       const result = await fetchAnnualFinancials(symbol);
       annualFinancialsMap.set(symbol, result.data);
+      noteAge(symbol, result);
       if (result.error) errors.push(`Step E (annual-financials ${symbol}): ${result.error}`);
     } catch (e: unknown) {
+      // KILL-4: a thrown fetch is DECLARED like the result.error path above —
+      // null still flows to exclusion, the cause reaches errors[].
       annualFinancialsMap.set(symbol, null);
+      errors.push(`Step E (annual-financials ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -802,9 +970,12 @@ export async function runPipeline(
         try {
           const result = await fetchNewsSentiment(symbol);
           newsSentimentMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E3 (news-sentiment ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           newsSentimentMap.set(symbol, null);
+          errors.push(`Step E3 (news-sentiment ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 800)); // Finnhub rate limit
       }
@@ -817,9 +988,12 @@ export async function runPipeline(
         try {
           const result = await fetchFinnhubNewsSentiment(symbol);
           finbertMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E4 (finbert ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           finbertMap.set(symbol, null);
+          errors.push(`Step E4 (finbert ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
       }
@@ -832,9 +1006,12 @@ export async function runPipeline(
         try {
           const result = await fetchFinnhubEarningsQuality(symbol);
           earningsQualityMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E5 (earnings-quality ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           earningsQualityMap.set(symbol, null);
+          errors.push(`Step E5 (earnings-quality ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
       }
@@ -847,9 +1024,12 @@ export async function runPipeline(
         try {
           const result = await fetchFinnhubInstitutionalOwnership(symbol);
           institutionalOwnershipMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E6 (institutional-ownership ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           institutionalOwnershipMap.set(symbol, null);
+          errors.push(`Step E6 (institutional-ownership ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
       }
@@ -862,9 +1042,12 @@ export async function runPipeline(
         try {
           const result = await fetchFinnhubRevenueBreakdown(symbol);
           revenueBreakdownMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E7 (revenue-breakdown ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           revenueBreakdownMap.set(symbol, null);
+          errors.push(`Step E7 (revenue-breakdown ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
       }
@@ -877,9 +1060,12 @@ export async function runPipeline(
         try {
           const result = await fetchQuarterlyFinancials(symbol);
           quarterlyFinancialsMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E8 (quarterly-financials ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           quarterlyFinancialsMap.set(symbol, null);
+          errors.push(`Step E8 (quarterly-financials ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit (3 calls per symbol already batched)
       }
@@ -894,7 +1080,9 @@ export async function runPipeline(
           secFilingMap.set(symbol, result.data);
           if (result.error) errors.push(`Step E9 (sec-edgar ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           secFilingMap.set(symbol, null);
+          errors.push(`Step E9 (sec-edgar ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
       }
@@ -907,9 +1095,12 @@ export async function runPipeline(
         try {
           const result = await fetchInsiderTransactions(symbol);
           secForm4Map.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E10 (insider-tx ${symbol}): ${result.error}`);
         } catch (e: unknown) {
+          // KILL-4: a thrown fetch is DECLARED like the result.error path above
           secForm4Map.set(symbol, null);
+          errors.push(`Step E10 (insider-tx ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
       }
@@ -926,7 +1117,9 @@ export async function runPipeline(
           }
           if (result.error) errors.push(`Step E11 (10k-text ${symbol}): ${result.error}`);
         } catch (e: unknown) {
-          // Non-fatal: text peer classification is an enhancement, not required
+          // KILL-4: non-fatal (text peers are an enhancement) but DECLARED —
+          // the symbol silently missing from textProfiles hid the cause.
+          errors.push(`Step E11 (10k-text ${symbol}) FAILED: ${e instanceof Error ? e.message : String(e)}`);
         }
         await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
       }
@@ -938,6 +1131,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubEbitdaEstimates(symbol);
         ebitdaEstimateMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I1 (ebitda-estimate ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -949,6 +1143,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubEbitEstimates(symbol);
         ebitEstimateMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I2 (ebit-estimate ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -960,6 +1155,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubDividendHistory(symbol);
         dividendHistoryMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I3 (dividend ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -971,6 +1167,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubPriceMetrics(symbol);
         priceMetricsMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I4 (price-metric ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -982,6 +1179,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubFundOwnership(symbol);
         fundOwnershipMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I5 (fund-ownership ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -1004,6 +1202,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubEarningsCalendar(symbol);
         earningsCalendarMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I7 (earnings-calendar ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -1084,26 +1283,62 @@ export async function runPipeline(
     peerGroupAssignment = enhanced.assignment;
   }
 
+  // ===== STEP E12: Fetch own-history VRP distributions (EDGE-4) =====
+  // Each ticker's VRP series (iv30 − hv30, one obs per distinct scan day,
+  // 365d, >= 20 days) from its own scan_snapshots. Tickers without enough
+  // history get NO entry → vrp_z null → VRP excluded → weights renormalized.
+  // No proxy distribution is ever substituted.
+  let vrpHistoryMap = new Map<string, VrpHistoryData>();
+  if (userId) {
+    try {
+      vrpHistoryMap = await fetchVrpHistoryBatch(userId, topSymbols);
+      console.log(`[Pipeline] Step E12: VRP own-history available for ${vrpHistoryMap.size}/${topSymbols.length} tickers (>= 20 distinct scan days, 365d)`);
+      if (vrpHistoryMap.size < topSymbols.length) {
+        dataGaps.push(`vrp_history: ${topSymbols.length - vrpHistoryMap.size}/${topSymbols.length} tickers lack >= 20 distinct scan days in 365d of scan_snapshots — their VRP sub-score is excluded and mispricing weights renormalized (no proxy distribution)`);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`Step E12 (VRP history fetch): ${msg}`);
+      dataGaps.push('vrp_history: scan_snapshots query FAILED — VRP sub-score excluded for ALL tickers this run and mispricing weights renormalized (no proxy distribution)');
+      console.error('[Pipeline] Step E12 failed:', msg);
+    }
+  } else {
+    dataGaps.push('vrp_history: no userId — scan_snapshots history unavailable, VRP sub-score excluded for all tickers and mispricing weights renormalized');
+  }
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
     symbol: string;
+    side: PremiumSide;
     scannerData: TTScannerData;
     finnhubData: FinnhubData;
     scoring: FullScoringResult;
+    dataAge: FinnhubFetchedAt;
   }[] = [];
+  // MODEL-01: every scored symbol came through Step C on exactly one side; a
+  // symbol without a side cannot be scored on "its side's model" — refused.
+  const sideOfSymbol = (symbol: string): PremiumSide => {
+    const side = symbolSide.get(symbol);
+    if (!side) throw new Error(`MODEL-01: ${symbol} reached scoring with no premium side — it did not pass Step C on either side`);
+    return side;
+  };
 
   for (const symbol of topSymbols) {
     const scannerData = scannerMap.get(symbol);
     if (!scannerData) continue;
 
-    const finnhubData = finnhubResult.data.get(symbol) || {
+    const finnhubData: FinnhubData = finnhubResult.data.get(symbol) || {
       fundamentals: null,
       recommendations: [],
       insiderSentiment: [],
       earnings: [],
       estimateData: null,
+      feedErrors: [],
+      fetchedAt: {},
+      storeErrors: [],
     };
+    noteAge(symbol, finnhubData);
 
     // Assemble ConvergenceInput (same structure as single-ticker route)
     const convergenceInput: ConvergenceInput = {
@@ -1129,14 +1364,18 @@ export async function runPipeline(
       finnhubFundOwnership: fundOwnershipMap.get(symbol) ?? null,
       edgar8kScan: edgar8kMap.get(symbol) ?? null,
       crossAssetCorrelations,
+      cboeDaily,
       peerStats,
       peerGroupAssignment,
       textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
+      vrpHistory: vrpHistoryMap.get(symbol) ?? null,
+      finnhubFetchedAt: finnhubAgeMap.get(symbol) ?? null,
     };
 
     try {
-      const scoring = scoreAll(convergenceInput);
-      scoredTickers.push({ symbol, scannerData, finnhubData, scoring });
+      const side = sideOfSymbol(symbol);
+      const scoring = scoreAll(convergenceInput, side);
+      scoredTickers.push({ symbol, side, scannerData, finnhubData, scoring, dataAge: finnhubAgeMap.get(symbol) ?? {} });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`Step F (score ${symbol}): ${msg}`);
@@ -1147,7 +1386,7 @@ export async function runPipeline(
 
   // ===== STEP F2: Fetch candle data and re-score with real technicals =====
   console.log('[Pipeline] Step F2: Fetching candle data for scored tickers...');
-  let candleStats: CandleBatchStats = { total_candles: 0, symbols_with_data: 0, symbols_failed: [], elapsed_ms: 0 };
+  let candleStats: CandleBatchStats = { total_candles: 0, symbols_with_data: 0, symbols_failed: [], elapsed_ms: 0, malformed_candles: 0 };
   const scoredSymbols = scoredTickers.map(t => t.symbol);
   // Hoist candle data so G2.5 re-scoring can access it
   const candleDataMap = new Map<string, CandleData[]>();
@@ -1190,13 +1429,16 @@ export async function runPipeline(
         finnhubFundOwnership: fundOwnershipMap.get(ticker.symbol) ?? null,
         edgar8kScan: edgar8kMap.get(ticker.symbol) ?? null,
         crossAssetCorrelations,
+        cboeDaily,
         peerStats,
         peerGroupAssignment,
         textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
+        vrpHistory: vrpHistoryMap.get(ticker.symbol) ?? null,
+        finnhubFetchedAt: finnhubAgeMap.get(ticker.symbol) ?? null,
       };
 
       try {
-        ticker.scoring = scoreAll(convergenceInput);
+        ticker.scoring = scoreAll(convergenceInput, ticker.side);
         reScored++;
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -1280,7 +1522,7 @@ export async function runPipeline(
     rankings: rankedRows.map(r => {
       const scoring = scoringMap.get(r.symbol);
       return {
-        symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge, sector: r.sector, convergence: r.convergence, selection_status: r.composite >= 50 ? 'eligible' : 'below_threshold',
+        symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge, sector: r.sector, convergence: r.convergence, selection_status: r.composite === null ? 'not_scored — all gates excluded' : r.composite >= 50 ? 'eligible' : 'below_threshold',
         data_confidence: scoring?.composite.data_confidence.confidence ?? null,
         position_size_pct: scoring?.composite.position_size_pct ?? null,
         vol_edge_detail: scoring ? {
@@ -1310,6 +1552,11 @@ export async function runPipeline(
             formula: scoring.vol_edge.breakdown.gex.formula,
           },
           data_confidence: scoring.vol_edge.data_confidence.confidence,
+          // EDGE-4: how many vol-edge sub-scores were computed from real data
+          // (excluded signals — e.g. VRP without an own-history distribution —
+          // are dropped and the weights re-normalized).
+          active_signal_count: scoring.vol_edge.data_confidence.active_signal_count ?? null,
+          total_signal_count: scoring.vol_edge.data_confidence.total_sub_scores,
         } : null,
         quality_detail: scoring ? {
           safety: {
@@ -1334,6 +1581,10 @@ export async function runPipeline(
           },
           mspr_adjustment: scoring.quality.mspr_adjustment,
           data_confidence: scoring.quality.data_confidence.confidence,
+          // KILL-3: how many quality sub-scores were computed from real data
+          // (the rest were excluded and the weights re-normalized).
+          active_signal_count: scoring.quality.data_confidence.active_signal_count ?? null,
+          total_signal_count: scoring.quality.data_confidence.total_sub_scores,
         } : null,
         regime_detail: scoring ? {
           dominant_regime: scoring.regime.breakdown.dominant_regime,
@@ -1352,6 +1603,10 @@ export async function runPipeline(
             vix: scoring.regime.breakdown.vix_overlay.vix,
           },
           data_confidence: scoring.regime.data_confidence.confidence,
+          // KILL-3: how many regime signals were computed from real data
+          // (the rest were excluded and the weights re-normalized).
+          active_signal_count: scoring.regime.data_confidence.active_signal_count ?? null,
+          total_signal_count: scoring.regime.data_confidence.total_sub_scores,
           yield_curve_spread: scoring.regime.breakdown.regime_signals.yield_curve_spread ?? null,
           hy_spread: scoring.regime.breakdown.regime_signals.hy_spread ?? null,
           cross_asset_available: scoring.regime.breakdown.cross_asset_correlations != null,
@@ -1363,39 +1618,49 @@ export async function runPipeline(
           dollar_index_raw: scoring.regime.breakdown.dollar_index_signal.raw_value ?? null,
           fed_net_liquidity: scoring.regime.breakdown.fed_net_liquidity_signal.score ?? null,
           fed_net_liquidity_raw: scoring.regime.breakdown.fed_net_liquidity_signal.raw_value ?? null,
+          // EDGE-6: wired vol-regime conditioners + survival brake (declared)
+          vix_term_structure: scoring.regime.breakdown.vol_conditioners.vix_term_structure.score ?? null,
+          vix_term_structure_raw: scoring.regime.breakdown.vol_conditioners.vix_term_structure.raw_value ?? null,
+          vvix: scoring.regime.breakdown.vol_conditioners.vvix.score ?? null,
+          vvix_raw: scoring.regime.breakdown.vol_conditioners.vvix.raw_value ?? null,
+          survival_brake: scoring.regime.breakdown.survival_brake.state,
+          survival_brake_declaration: scoring.regime.breakdown.survival_brake.declaration,
         } : null,
         info_edge_detail: scoring ? {
+          // KILL-5: null score/weight = analyst signal excluded (no data)
           analyst_consensus: {
-            score: scoring.info_edge.breakdown.analyst_consensus.score,
-            weight: scoring.info_edge.breakdown.analyst_consensus.weight,
+            score: scoring.info_edge.breakdown.analyst_consensus?.score ?? null,
+            weight: scoring.info_edge.breakdown.analyst_consensus?.weight ?? null,
           },
+          // EDGE-2b: null score/weight = signal excluded (no data) and weights
+          // renormalized — never a number invented for display.
           price_target: {
-            score: scoring.info_edge.breakdown.price_target_signal.score,
-            weight: scoring.info_edge.breakdown.price_target_signal.weight,
+            score: scoring.info_edge.breakdown.price_target_signal?.score ?? null,
+            weight: scoring.info_edge.breakdown.price_target_signal?.weight ?? null,
           },
           upgrade_downgrade: {
-            score: scoring.info_edge.breakdown.upgrade_downgrade_signal.score,
-            weight: scoring.info_edge.breakdown.upgrade_downgrade_signal.weight,
+            score: scoring.info_edge.breakdown.upgrade_downgrade_signal?.score ?? null,
+            weight: scoring.info_edge.breakdown.upgrade_downgrade_signal?.weight ?? null,
           },
           insider_activity: {
-            score: scoring.info_edge.breakdown.insider_activity.score,
-            weight: scoring.info_edge.breakdown.insider_activity.weight,
+            score: scoring.info_edge.breakdown.insider_activity?.score ?? null,
+            weight: scoring.info_edge.breakdown.insider_activity?.weight ?? null,
           },
           earnings_momentum: {
-            score: scoring.info_edge.breakdown.earnings_momentum.score,
-            weight: scoring.info_edge.breakdown.earnings_momentum.weight,
+            score: scoring.info_edge.breakdown.earnings_momentum?.score ?? null,
+            weight: scoring.info_edge.breakdown.earnings_momentum?.weight ?? null,
           },
           flow_signal: {
-            score: scoring.info_edge.breakdown.flow_signal.score,
-            weight: scoring.info_edge.breakdown.flow_signal.weight,
+            score: scoring.info_edge.breakdown.flow_signal?.score ?? null,
+            weight: scoring.info_edge.breakdown.flow_signal?.weight ?? null,
           },
           news_sentiment: scoring.info_edge.breakdown.news_sentiment != null ? {
             score: scoring.info_edge.breakdown.news_sentiment.score,
             weight: scoring.info_edge.breakdown.news_sentiment.weight,
           } : null,
           institutional_ownership: {
-            score: scoring.info_edge.breakdown.institutional_ownership.score,
-            weight: scoring.info_edge.breakdown.institutional_ownership.weight,
+            score: scoring.info_edge.breakdown.institutional_ownership?.score ?? null,
+            weight: scoring.info_edge.breakdown.institutional_ownership?.weight ?? null,
           },
           fund_flow: {
             score: scoring.info_edge.breakdown.fund_ownership_flow?.score ?? null,
@@ -1405,7 +1670,16 @@ export async function runPipeline(
             score: scoring.info_edge.breakdown.material_event_flag?.score ?? null,
             weight: scoring.info_edge.breakdown.material_event_flag?.weight ?? null,
           },
+          // EDGE-7b: null score/weight = < 2 usable months — excluded + renormalized
+          recommendation_revision: {
+            score: scoring.info_edge.breakdown.recommendation_revision?.score ?? null,
+            weight: scoring.info_edge.breakdown.recommendation_revision?.weight ?? null,
+          },
           data_confidence: scoring.info_edge.data_confidence.confidence,
+          // EDGE-2: how many of the 11 sub-scores were computed from real data (EDGE-7b added recommendation_revision)
+          // (the rest were excluded and the weights re-normalized).
+          active_signal_count: scoring.info_edge.data_confidence.active_signal_count ?? null,
+          total_signal_count: scoring.info_edge.data_confidence.total_sub_scores,
           filing_recency: scoring.info_edge.filing_recency ?? null,
         } : null,
       };
@@ -1414,19 +1688,22 @@ export async function runPipeline(
 
   // ===== STEP G: Rank and Diversify =====
   console.log('[Pipeline] Step G: Ranking and diversifying...');
-  const { top9, alsoScored, diversification, sectorDistribution } = rankAndDiversify(rankedRows);
+  // MODEL-01: SELL and BUY are ranked as separate books — a seller score and a
+  // buyer score are not comparable, so each side takes its own top N.
+  const { top9, alsoScored, diversification, sectorDistribution } = rankAndDiversifyBySide(rankedRows);
 
   onProgress?.({ step: 'step_m', label: 'Final Selection', data: {
     fetched_at: new Date().toISOString(),
     total_scored: rankedRows.length,
-    eligible: top9.length + alsoScored.filter(
-      (r: any) => parseInt(r.convergence.split('/')[0], 10) >= 3 && r.quality >= 40
-    ).length,
+    // MODEL-02 addendum: the same rule as rankAndDiversify (structure-cut.ts), never a retyped copy.
+    eligible: top9.length + alsoScored.filter(r => structureCutEligibility(r, isEtfUniverseSymbol(r.symbol)).eligible).length,
     selected: top9.length,
     sector_distribution: sectorDistribution,
     adjustments: diversification.adjustments,
     top9: top9.map(r => ({
       symbol: r.symbol,
+      side: r.side,
+      score_model: r.score_model,
       rank: r.rank,
       composite: r.composite,
       vol_edge: r.vol_edge,
@@ -1440,12 +1717,9 @@ export async function runPipeline(
     excluded: rankedRows
       .filter(r => !top9.find(t => t.symbol === r.symbol))
       .map(r => {
-        const catAbove50 = parseInt(r.convergence.split('/')[0], 10);
-        const reason = catAbove50 < 3
-          ? `convergence ${r.convergence} — below 3/4 minimum`
-          : r.quality < 40
-          ? `quality ${r.quality} — below floor of 40`
-          : `sector cap or rank`;
+        // MODEL-02 addendum: the reason is the rule's own verdict (structure-cut.ts) — an ETF member is judged on the gates that can score.
+        const verdict = structureCutEligibility(r, isEtfUniverseSymbol(r.symbol));
+        const reason = verdict.eligible ? 'sector cap or rank' : verdict.reason;
         return {
           symbol: r.symbol,
           composite: r.composite,
@@ -1458,26 +1732,11 @@ export async function runPipeline(
       }),
   } });
 
-  // ===== STEP G1.5: Fetch social sentiment (parallel with G2) =====
-  const top9Symbols = top9.map(r => r.symbol);
-  const sentimentPromise = (async (): Promise<Map<string, SentimentResult>> => {
-    if (!process.env.XAI_API_KEY) {
-      console.log('[Pipeline] Step G1.5: XAI_API_KEY not set — skipping social sentiment');
-      return new Map();
-    }
-    try {
-      console.log(`[Pipeline] Step G1.5: Fetching social sentiment for ${top9Symbols.length} symbols...`);
-      const startMs = Date.now();
-      const results = await fetchSentimentBatch(top9Symbols, 5);
-      console.log(`[Pipeline] Step G1.5: Sentiment fetched in ${Date.now() - startMs}ms`);
-      return results;
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      errors.push(`Step G1.5 (sentiment): ${msg}`);
-      console.error('[Pipeline] Step G1.5 sentiment failed:', msg);
-      return new Map();
-    }
-  })();
+  // PIPE-01: STEP G1.5 (xAI/Grok social sentiment) is DELETED. It cost 2 metered
+  // xAI calls per symbol and fed no score — scoreAll (composite.ts:118-137)
+  // scores four gates from ConvergenceInput, and social_sentiment was never one
+  // of them. Sentiment that DOES score comes from Finnhub: news sentiment
+  // (info-edge.ts:907 scoreNewsSentiment) over /company-news and /news-sentiment.
 
   // ===== STEP G2: Fetch chain data and build trade cards =====
   console.log('[Pipeline] Step G2: Fetching option chains and building trade cards...');
@@ -1494,6 +1753,21 @@ export async function runPipeline(
   let perTickerStats = new Map<string, PerTickerChainStats>();
   let rawStrategyCards = new Map<string, StrategyCard[]>();
 
+  // MODEL-01 STEP 5: the undefined-risk cap, checked ONCE per run against the
+  // user's OPEN positions. A count that cannot be obtained blocks the build
+  // (fail-safe) and is declared here and on every blocked candidate.
+  let openUndefinedRisk: number | null = null;
+  if (userId) {
+    try {
+      openUndefinedRisk = await countUserOpenUndefinedRiskPositions(userId);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`MODEL-01 (undefined-risk cap): open positions could not be counted — ${msg}; unbounded structures NOT built this run`);
+    }
+  }
+  const undefinedRiskCap = checkUndefinedRiskCap(options.allowUndefinedRisk, openUndefinedRisk);
+  if (!undefinedRiskCap.allowed) dataGaps.push(`trade_cards: ${undefinedRiskCap.reason}`);
+
   const marketStatus = isMarketOpen();
   if (!marketStatus.open) {
     chainMarketOpen = false;
@@ -1503,6 +1777,8 @@ export async function runPipeline(
   }
   try {
     // Build input for chain fetcher from top 9 tickers
+    const chainSkippedNoIvp: string[] = [];
+    const chainSkippedNoIv30: string[] = [];
     const chainInputs = top9.map(row => {
       const ticker = scoredTickers.find(t => t.symbol === row.symbol);
       if (!ticker) return null;
@@ -1523,8 +1799,28 @@ export async function runPipeline(
       }
       const fedFundsRate = fredResult.data.fedFunds / 100;
 
-      // Exclude ticker if IV_percentile is null — no fallback
-      if (s.vol_edge.breakdown.mispricing.inputs.IV_percentile == null) return null;
+      // Exclude ticker if IV_percentile is null — no fallback. KILL-2: with
+      // honest nulls at the parse boundary this path is now reachable
+      // (missing IVP used to arrive imputed as 0 and slip through as rank 0);
+      // the exclusion is declared in data_gaps after the filter below.
+      if (s.vol_edge.breakdown.mispricing.inputs.IV_percentile == null) {
+        chainSkippedNoIvp.push(row.symbol);
+        return null;
+      }
+
+      // KILL-5: iv30 drives σ in every breakeven_d2 PoP — without it nothing
+      // can be priced honestly. Skip + declare (hard Filter 3 makes this
+      // near-unreachable, but the old path fabricated a 30-vol here).
+      if (tt.iv30 == null) {
+        chainSkippedNoIv30.push(row.symbol);
+        return null;
+      }
+
+      // EDGE-3: 10-day realized vol for the HV10>IV sanity gate — same
+      // computation as the displayed vol cone (computeCloseToCloseHV, percent),
+      // converted to decimal. null when candle history is insufficient; the
+      // gate then declares itself not-evaluated (never imputed).
+      const hv10Pct = computeCloseToCloseHV(candleDataMap.get(row.symbol) ?? [], 10);
 
       return {
         symbol: row.symbol,
@@ -1532,14 +1828,46 @@ export async function runPipeline(
         direction: s.strategy_suggestion.direction,
         currentPrice: latestClose,
         ivRank: (s.vol_edge.breakdown.mispricing.inputs.IV_percentile as number) / 100,
-        iv30: (tt.iv30 ?? 30) / 100,
-        hv30: (tt.hv30 ?? 25) / 100,
+        // KILL-5: no fabricated vols. iv30 is guaranteed non-null by hard
+        // Filter 3 for pipeline tickers, but verified — a null skips the
+        // ticker with a declaration, never a fabricated 30-vol. hv30 and
+        // dividendYield pass through as null when the source did not deliver
+        // them; the strategy builder declares and excludes per consumer.
+        iv30: tt.iv30 / 100,
+        hv30: tt.hv30 != null ? tt.hv30 / 100 : null,
+        // TT delivers dividend-yield in percentage points (UI renders it with
+        // toFixed(2) + '%'); q wants a decimal. A true 0 stays 0 (non-payer).
+        dividendYield: tt.dividendYield != null && Number.isFinite(tt.dividendYield) ? tt.dividendYield / 100 : null,
+        hv10: hv10Pct != null ? hv10Pct / 100 : null,
         riskFreeRate: fedFundsRate,
+        // MODEL-01: the side, the named earnings dates (Finnhub calendar, already
+        // fetched at Step I7, + TastyTrade), the raw spread and the cap check
+        side: ticker.side,
+        scanDate: scanDateIso,
+        earningsDates: earningsDateSources(
+          (earningsCalendarMap.get(row.symbol)?.earningsCalendar ?? []).map(e => e.date),
+          tt.earningsDate,
+        ),
+        ivHvSpread: tt.ivHvSpread,
+        undefinedRisk: undefinedRiskCap,
       };
     }).filter((input): input is NonNullable<typeof input> => input !== null);
 
+    if (chainSkippedNoIvp.length > 0) {
+      dataGaps.push(`trade_cards: ${chainSkippedNoIvp.length} ticker(s) skipped — IV percentile unavailable, cannot select the vol-regime strategy menu (no imputed rank): ${chainSkippedNoIvp.join(', ')}`);
+    }
+    if (chainSkippedNoIv30.length > 0) {
+      dataGaps.push(`trade_cards: ${chainSkippedNoIv30.length} ticker(s) skipped — IV30 unavailable, cannot price strategies (no fabricated vol): ${chainSkippedNoIv30.join(', ')}`);
+    }
+
     if (chainInputs.length > 0) {
       const chainResult = await fetchChainAndBuildCards(chainInputs);
+      // KILL-4: a fatal chain failure is DECLARED — the empty card set is a
+      // failure, not a quiet no-strategies day.
+      if (chainResult.fatal_error) {
+        errors.push(`Step G2 (chain fetch) FAILED: ${chainResult.fatal_error}`);
+        dataGaps.push(`trade_cards: chain fetch FAILED (${chainResult.fatal_error}) — no trade cards this run is a feed failure, not "no strategies passed"`);
+      }
       chainStats = chainResult.stats;
       chainRejections = chainResult.rejections;
       perTickerStats = chainResult.perTickerStats;
@@ -1652,15 +1980,18 @@ export async function runPipeline(
             finnhubFundOwnership: fundOwnershipMap.get(ticker.symbol) ?? null,
             edgar8kScan: edgar8kMap.get(ticker.symbol) ?? null,
             crossAssetCorrelations,
+            cboeDaily,
             peerStats,
             peerGroupAssignment,
             textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
+            vrpHistory: vrpHistoryMap.get(ticker.symbol) ?? null,
+            finnhubFetchedAt: finnhubAgeMap.get(ticker.symbol) ?? null,
           };
 
           try {
             // Preserve trade cards from G2 (they're attached to strategy_suggestion)
             const existingTradeCards = ticker.scoring.strategy_suggestion.trade_cards;
-            ticker.scoring = scoreAll(convergenceInput);
+            ticker.scoring = scoreAll(convergenceInput, ticker.side);
             if (existingTradeCards) {
               ticker.scoring.strategy_suggestion.trade_cards = existingTradeCards;
             }
@@ -1696,21 +2027,6 @@ export async function runPipeline(
     const msg = e instanceof Error ? e.message : String(e);
     errors.push(`Step G2 (chain fetch): ${msg}`);
     console.error('[Pipeline] Step G2 failed:', msg);
-  }
-
-  // Await sentiment (launched in parallel with G2)
-  const sentimentMap = await sentimentPromise;
-  const socialSentiment: Record<string, SentimentResult> = Object.fromEntries(sentimentMap);
-  if (sentimentMap.size > 0) {
-    const withData = [...sentimentMap.values()].filter(s => !s.error).length;
-    console.log(`[Pipeline] Sentiment: ${withData}/${sentimentMap.size} symbols with data`);
-    if (withData === 0) {
-      dataGaps.push('social_sentiment: xAI returned no results (API may be unavailable or no posts found)');
-    }
-  } else if (process.env.XAI_API_KEY) {
-    dataGaps.push('social_sentiment: fetch failed or returned empty');
-  } else {
-    dataGaps.push('social_sentiment: XAI_API_KEY not configured — social sentiment disabled');
   }
 
   const top9Syms = top9.map(r => r.symbol);
@@ -1781,7 +2097,7 @@ export async function runPipeline(
 
   // Generate full TradeCardData (setup + why + key_stats) for each top-9 ticker
   // This is the single source of truth — no second chain fetch needed
-  const fullTradeCardsPerTicker: Record<string, TradeCardData[]> = {};
+  let fullTradeCardsPerTicker: Record<string, TradeCardData[]> = {};
   for (const row of top9) {
     const ticker = scoredTickers.find(t => t.symbol === row.symbol);
     const stratCards = rawStrategyCards.get(row.symbol);
@@ -1815,9 +2131,12 @@ export async function runPipeline(
       finnhubFundOwnership: fundOwnershipMap.get(row.symbol) ?? null,
       edgar8kScan: edgar8kMap.get(row.symbol) ?? null,
       crossAssetCorrelations,
+      cboeDaily,
       peerStats,
       peerGroupAssignment,
       textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
+      vrpHistory: vrpHistoryMap.get(row.symbol) ?? null,
+      finnhubFetchedAt: finnhubAgeMap.get(row.symbol) ?? null,
     };
 
     try {
@@ -1826,7 +2145,11 @@ export async function runPipeline(
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error(`[Pipeline] generateTradeCards failed for ${row.symbol}:`, msg);
+      // KILL-4: an exception-emptied card list must be distinguishable from a
+      // legitimate "no strategies passed" — declare on both surfaces.
       fullTradeCardsPerTicker[row.symbol] = [];
+      errors.push(`Step H (trade-cards ${row.symbol}) FAILED: ${msg}`);
+      dataGaps.push(`trade_cards: ${row.symbol} card generation FAILED (${msg}) — empty card list is a failure, not "no strategies passed"`);
     }
   }
 
@@ -1847,13 +2170,83 @@ export async function runPipeline(
   }
   dataGaps.push('peer_z_scores: computed per-ticker using industry peers (>=5) or sector fallback from hard-filter survivors');
 
+  // ===== LOG-01: EVERY SCORED CANDIDATE IS PERSISTED BEFORE IT IS RETURNED =====
+  // The write and the response are ONE list: persistScanCandidates stamps a
+  // candidate_id on every card and returns the same list, which is assigned
+  // back to fullTradeCardsPerTicker — the variable the response is built from
+  // (the candidate log law, scripts/assert-tool-registry.ts). If the write
+  // fails, every candidate is WITHHELD and the gap declared: the scan never
+  // returns a scored candidate it did not persist.
+  let scanRunId: string | null = null;
+  let candidatesLogged = 0;
+  let candidatesWithheld = false;
+  const candidateContext: Record<string, { scoring: FullScoringResult; spotAtScan: number | null; iv30AtScan: number | null }> = {};
+  for (const symbol of Object.keys(fullTradeCardsPerTicker)) {
+    const t = scoredTickers.find(x => x.symbol === symbol);
+    if (t) candidateContext[symbol] = { scoring: t.scoring, spotAtScan: t.scoring.vol_edge.breakdown.technicals.indicators.latest_close ?? null, iv30AtScan: t.scannerData.iv30 ?? null };
+  }
+  if (!userId) {
+    candidatesWithheld = true;
+    fullTradeCardsPerTicker = {};
+    dataGaps.push('LOG-01: no userId — candidates cannot be keyed to a scan run; every scored candidate WITHHELD from this response (never returned unpersisted)');
+  } else {
+    try {
+      const persisted = await persistScanCandidates(
+        { userId, universe, limit, side: options.side, tickersScored: scoredTickers.length, cards: fullTradeCardsPerTicker, context: candidateContext, now: new Date() },
+        prismaCandidateLogStore,
+      );
+      fullTradeCardsPerTicker = persisted.cards;
+      scanRunId = persisted.runId;
+      candidatesLogged = persisted.written;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      candidatesWithheld = true;
+      fullTradeCardsPerTicker = {};
+      errors.push(`LOG-01 (candidate persistence): ${msg}`);
+      dataGaps.push(`LOG-01: candidate persistence FAILED (${msg}) — every scored candidate WITHHELD from this response (the scan never returns a candidate it did not persist)`);
+    }
+  }
+
   if (chainStats.chain_symbols_fetched > 0 && chainStats.total_trade_cards === 0) {
     dataGaps.push('trade_cards: option chains fetched but no strategies passed quality gates');
   } else if (chainStats.chain_symbols_fetched === 0 && top9.length > 0) {
     dataGaps.push('trade_cards: chain fetch failed or no valid expirations found');
   }
 
+  // ===== SNAPSHOT LOGGING (MODEL-02: awaited — the log never lies) =====
+  // Every scored ticker is written to scan_snapshots, one insert each, and the
+  // write's result is part of the scan: `pipeline_summary.snapshot` says how
+  // many rows landed and, per ticker, why any did not. A failed write is an
+  // error line and a data gap on the response — never `saved: true` by
+  // assumption. Until 2026-09-16 this was `void`ed and reported as saved.
+  let snapshot: SnapshotWriteResult;
+  if (userId) {
+    snapshot = await logScanSnapshotBatch(
+      userId,
+      scoredTickers.map(t => ({
+        symbol: t.symbol,
+        scoring: t.scoring,
+        spotPrice: t.scoring.vol_edge.breakdown.technicals.indicators.latest_close ?? undefined,
+        iv30: t.scannerData.iv30 ?? undefined,
+        hv30: t.scannerData.hv30 ?? undefined,
+        ivPercentile: t.scannerData.ivPercentile ?? undefined,
+        vixLevel: fredResult.data.vix ?? undefined,
+      })),
+      prismaSnapshotStore,
+    );
+    if (!snapshot.written) {
+      errors.push(`Step T (snapshot): ${snapshot.reason}`);
+      dataGaps.push(`scan_snapshots: ${snapshot.rows_written} of ${snapshot.rows_attempted} rows written — ${snapshot.reason}`);
+      console.error(`[Pipeline] scan_snapshots write incomplete: ${snapshot.reason}`);
+    }
+  } else {
+    snapshot = snapshotNotAttempted('no user session — snapshot not attempted');
+    dataGaps.push('scan_snapshots: not attempted (no user session)');
+  }
+
   const pipelineMs = Date.now() - pipelineStart;
+  const meter = finnhubMeterSnapshot();
+  if (!meter) throw new Error('runPipelineMetered ran outside withFinnhubMeter — the Finnhub call count would be unmeasured');
 
   const result: PipelineResult = {
     pipeline_summary: {
@@ -1864,7 +2257,19 @@ export async function runPipeline(
       scored: scoredTickers.length,
       final_9: top9.map(r => r.symbol),
       pipeline_runtime_ms: pipelineMs,
-      finnhub_calls_made: finnhubResult.stats.calls_made,
+      finnhub_calls_made: meter.upstream,
+      finnhub_cache_hits: meter.hits,
+      scan_run_id: scanRunId,
+      candidates_logged: candidatesLogged,
+      candidates_withheld: candidatesWithheld,
+      snapshot,
+      scan_side: options.side,
+      allow_undefined_risk: options.allowUndefinedRisk,
+      undefined_risk_cap: undefinedRiskCap,
+      cards_by_side: {
+        SELL: Object.values(fullTradeCardsPerTicker).flat().filter(c => c.why.side === 'SELL').length,
+        BUY: Object.values(fullTradeCardsPerTicker).flat().filter(c => c.why.side === 'BUY').length,
+      },
       finnhub_errors: finnhubResult.stats.errors,
       fred_cached: fredResult.cached,
       candle_symbols_fetched: candleStats.symbols_with_data,
@@ -1891,37 +2296,20 @@ export async function runPipeline(
     full_trade_cards_per_ticker: fullTradeCardsPerTicker,
     chain_stats_per_ticker: chainStatsPerTicker,
     pre_filter: preFilterResults,
-    social_sentiment: socialSentiment,
     rejection_reasons: Object.fromEntries(chainRejections),
     data_gaps: dataGaps,
     errors,
   };
 
-  console.log(`[Pipeline] Complete in ${pipelineMs}ms. Final 9: ${top9.map(r => r.symbol).join(', ')}`);
-
-  // ===== SNAPSHOT LOGGING (fire-and-forget) =====
-  // Persist scored results for outcome tracking / backtesting (Phase 5).
-  // Does not block the response; errors logged but never propagate.
-  if (userId) {
-    void logScanSnapshotBatch(
-      userId,
-      scoredTickers.map(t => ({
-        symbol: t.symbol,
-        scoring: t.scoring,
-        spotPrice: t.scoring.vol_edge.breakdown.technicals.indicators.latest_close ?? undefined,
-        iv30: t.scannerData.iv30 ?? undefined,
-        hv30: t.scannerData.hv30 ?? undefined,
-        ivPercentile: t.scannerData.ivPercentile ?? undefined,
-        vixLevel: fredResult.data.vix ?? undefined,
-      })),
-    );
-  }
+  console.log(`[Pipeline] Complete in ${pipelineMs}ms. Structure cut (${STRUCTURE_CUT} per side): ${top9.length} — ${top9.map(r => r.symbol).join(', ')}`);
 
   onProgress?.({ step: 'step_t', label: 'Save & Return', data: {
     fetched_at: new Date().toISOString(),
-    saved: userId != null,
+    // MODEL-02: `saved` is the write's own verdict, never the presence of a session.
+    saved: snapshot.written,
     user_id_present: userId != null,
-    symbols_logged: userId != null ? scoredTickers.length : 0,
+    symbols_logged: snapshot.rows_written,
+    snapshot,
     pipeline_runtime_ms: pipelineMs,
     final_9: top9.map(r => r.symbol),
     source: 'Azure PostgreSQL',
@@ -1946,6 +2334,16 @@ function applyHardFilters(tickers: TTScannerData[], regShoSymbols: Set<string>):
     for (const t of current) {
       if (t.marketCap != null && t.marketCap > 2_000_000_000) {
         passed.push(t);
+      } else if (t.marketCap == null && isEtfUniverseSymbol(t.symbol)) {
+        // MODEL-02 STEP 4: an index/sector ETF has no issuer market cap — the
+        // $2B floor is an issuer-size test and is DECLARED not applicable to an
+        // ETF_UNIVERSE member (dated const, 15 names), never imputed. Passes with
+        // a warning on the record; a null cap on any other symbol still fails.
+        passed.push(t);
+        warningTickers.set(t.symbol, {
+          filter: 'Market Cap',
+          reason: `ETF_UNIVERSE member (${ETF_UNIVERSE_SET_ON}): issuer market cap is not applicable to an index/sector ETF — the $2B floor was not evaluated, declared`,
+        });
       } else {
         failedTickers.push(t);
       }
@@ -2031,11 +2429,13 @@ function applyHardFilters(tickers: TTScannerData[], regShoSymbols: Set<string>):
     const failedTickers: TTScannerData[] = [];
     for (const t of current) {
       if (t.borrowRate == null) {
-        // Borrow rate data unavailable — pass but flag warning
+        // Borrow rate data unavailable — pass but flag warning (MODEL-02: merged
+        // with an earlier warning on the same symbol, never overwriting it)
         passed.push(t);
+        const prior = warningTickers.get(t.symbol);
         warningTickers.set(t.symbol, {
-          filter: 'Borrow Rate',
-          reason: 'Borrow rate data unavailable — flagged for review',
+          filter: prior ? `${prior.filter} + Borrow Rate` : 'Borrow Rate',
+          reason: prior ? `${prior.reason}; borrow rate data unavailable — flagged for review` : 'Borrow rate data unavailable — flagged for review',
         });
       } else if (t.borrowRate < 50) {
         passed.push(t);
@@ -2128,13 +2528,16 @@ function applyHardFilters(tickers: TTScannerData[], regShoSymbols: Set<string>):
 
 // ===== STEP D: Pre-Score =====
 
-function computePreScores(survivors: TTScannerData[]): PreScoreRow[] {
+function computePreScores(survivors: TTScannerData[], symbolSide: Map<string, PremiumSide>): PreScoreRow[] {
   const rows: PreScoreRow[] = [];
 
   for (const t of survivors) {
     // Normalize IVP: if <= 1.0, multiply by 100
     let ivp = t.ivPercentile;
     if (ivp != null && ivp <= 1.0) ivp = round(ivp * 100, 1);
+    // MODEL-01: on the BUY side a low IV percentile is the edge — inverted.
+    // (The |spread| term below is direction-blind and serves both sides.)
+    if (ivp != null && symbolSide.get(t.symbol) === 'BUY') ivp = round(100 - ivp, 1);
 
     // Normalize IV-HV spread
     const ivHvSpread = t.ivHvSpread;
@@ -2166,15 +2569,23 @@ function computePreScores(survivors: TTScannerData[]): PreScoreRow[] {
 function buildRankedRows(
   scoredTickers: {
     symbol: string;
+    side: PremiumSide;
     scannerData: TTScannerData;
     finnhubData: FinnhubData;
     scoring: FullScoringResult;
+    dataAge: FinnhubFetchedAt;
   }[],
 ): RankedRow[] {
-  // Sort by composite score descending
-  const sorted = [...scoredTickers].sort(
-    (a, b) => b.scoring.composite.score - a.scoring.composite.score,
-  );
+  // Sort by composite score descending. MIG-1: a null composite (all gates
+  // excluded) sorts LAST — it has no score, it is not a low score.
+  const sorted = [...scoredTickers].sort((a, b) => {
+    const as = a.scoring.composite.score;
+    const bs = b.scoring.composite.score;
+    if (as === null && bs === null) return 0;
+    if (as === null) return 1;
+    if (bs === null) return -1;
+    return bs - as;
+  });
 
   return sorted.map((t, idx) => {
     const s = t.scoring;
@@ -2187,20 +2598,27 @@ function buildRankedRows(
     // Extract hv_trend from vol_edge breakdown
     const hvTrend = s.vol_edge.breakdown.mispricing.hv_trend;
 
-    // Extract MSPR from info_edge breakdown
-    const mspr = s.info_edge.breakdown.insider_activity.insider_detail.latest_mspr;
+    // Extract MSPR from info_edge breakdown (null when insider signal excluded — no data)
+    const mspr = s.info_edge.breakdown.insider_activity?.insider_detail.latest_mspr ?? null;
 
     // Extract beat streak from quality breakdown
     const beatStreak = s.quality.breakdown.profitability.earnings_quality.earnings_detail.streak;
 
-    // Build convergence string
-    const convergence = `${s.composite.categories_above_50}/4`;
+    // Build convergence string. MODEL-02 addendum: an ETF_UNIVERSE member is
+    // judged on the gates that can score, and the string says so.
+    const scoredGates = s.composite.scored_by.length;
+    const convergence = isEtfUniverseSymbol(t.symbol) && scoredGates < 4
+      ? `${s.composite.categories_above_50}/${scoredGates} (scored on ${scoredGates} of 4 gates)`
+      : `${s.composite.categories_above_50}/4`;
 
     // Build key_signal summary
     const signals: string[] = [];
     if (ivp != null) signals.push(`IVP=${round(ivp, 0)}%`);
     if (tt.iv30 != null && tt.hv30 != null) {
-      const vrp = round(tt.iv30 ** 2 - tt.hv30 ** 2, 0);
+      // KILL-5 no-drift: ONE VRP definition everywhere — the simple difference
+      // iv30 − hv30 the scorer uses (Goyal & Saretto 2009; vol-edge). The old
+      // display showed the variance form iv30² − hv30² with no stated rationale.
+      const vrp = round(tt.iv30 - tt.hv30, 1);
       signals.push(`VRP=${vrp}`);
     }
     if (hvTrend && !hvTrend.startsWith('UNKNOWN')) {
@@ -2218,12 +2636,15 @@ function buildRankedRows(
     return {
       rank: idx + 1,
       symbol: t.symbol,
+      data_age: t.dataAge,
       composite: s.composite.score,
       vol_edge: s.vol_edge.score,
       quality: s.quality.score,
       regime: s.regime.score,
       info_edge: s.info_edge.score,
       convergence,
+      categories_above_50: s.composite.categories_above_50,
+      scored_gates: scoredGates,
       direction: s.composite.direction,
       strategy: s.strategy_suggestion.suggested_strategy,
       sector: tt.sector,
@@ -2233,8 +2654,34 @@ function buildRankedRows(
       mspr: mspr != null ? round(mspr, 2) : null,
       beat_streak: beatStreak,
       key_signal: signals.join(', '),
+      side: t.side,
+      score_model: s.composite.score_model,
     };
   });
+}
+
+/**
+ * MODEL-01: rank each side as its own book. A seller score and a buyer score
+ * live on different models and are never ranked against each other; each
+ * side takes its own top N (rankAndDiversify, unchanged) and the two lists
+ * are concatenated, SELL first, every row labelled with its side.
+ */
+function rankAndDiversifyBySide(rankedRows: RankedRow[]): ReturnType<typeof rankAndDiversify> {
+  const sides: PremiumSide[] = ['SELL', 'BUY'];
+  const top9: RankedRow[] = [];
+  const alsoScored: RankedRow[] = [];
+  const adjustments: string[] = [];
+  const sectorDistribution: Record<string, number> = {};
+  for (const side of sides) {
+    const rows = rankedRows.filter(r => r.side === side).map((r, i) => ({ ...r, rank: i + 1 }));
+    if (rows.length === 0) continue;
+    const res = rankAndDiversify(rows);
+    top9.push(...res.top9);
+    alsoScored.push(...res.alsoScored);
+    adjustments.push(...res.diversification.adjustments.map(a => `[${side}] ${a}`));
+    for (const [sector, n] of Object.entries(res.sectorDistribution)) sectorDistribution[sector] = (sectorDistribution[sector] ?? 0) + n;
+  }
+  return { top9, alsoScored, diversification: { adjustments }, sectorDistribution };
 }
 
 // ===== STEP G: Rank and Diversify =====
@@ -2246,35 +2693,23 @@ function rankAndDiversify(rankedRows: RankedRow[]): {
   sectorDistribution: Record<string, number>;
 } {
   const MAX_PER_SECTOR = 2;
-  const TOP_N = 9;
+  // MODEL-02 STEP 3: the structure cut is the named, dated const in funnel.ts (was a bare 9 here).
+  const TOP_N = STRUCTURE_CUT;
   const adjustments: string[] = [];
 
   // BUG 4 fix: Enforce convergence gate — exclude tickers with < 3/4 categories above 50
   // BUG 5 fix: Enforce quality floor — exclude quality < 40, or quality 40-50 with 3+ miss streak
+  // MODEL-02 addendum: the four rules live in structure-cut.ts (pure, tested).
+  // Single names read exactly as before; an ETF_UNIVERSE member is judged on
+  // the gates that can score and the quality-null rule does not bar it.
   const eligible: RankedRow[] = [];
   for (const row of rankedRows) {
-    const catAbove50 = parseInt(row.convergence.split('/')[0], 10);
-    if (catAbove50 < 3) {
-      adjustments.push(
-        `Excluded ${row.symbol} (rank ${row.rank}, composite=${row.composite}) — convergence ${row.convergence}, below 3/4 minimum.`,
-      );
+    const verdict = structureCutEligibility(row, isEtfUniverseSymbol(row.symbol));
+    if (!verdict.eligible) {
+      adjustments.push(verdict.reason);
       continue;
     }
-    if (row.quality < 40) {
-      adjustments.push(
-        `Excluded ${row.symbol} (rank ${row.rank}, quality=${row.quality}) — quality below 40 floor.`,
-      );
-      continue;
-    }
-    if (row.quality < 50 && /\d+Q MISS STREAK/.test(row.beat_streak)) {
-      const missCount = parseInt(row.beat_streak, 10);
-      if (missCount >= 3) {
-        adjustments.push(
-          `Excluded ${row.symbol} (rank ${row.rank}, quality=${row.quality}, ${row.beat_streak}) — quality <50 with consecutive miss streak ≥3.`,
-        );
-        continue;
-      }
-    }
+    if (verdict.note) adjustments.push(verdict.note);
     eligible.push(row);
   }
 

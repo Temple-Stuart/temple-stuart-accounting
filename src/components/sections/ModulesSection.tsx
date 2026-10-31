@@ -12,7 +12,7 @@ export default function ModulesSection() {
             What's Inside
           </h2>
           <p className="mt-4 text-terminal-lg text-text-muted max-w-2xl mx-auto">
-            Temple Stuart is a personal back office. It's for people with money moving in a lot of directions — business, personal, investing, trading, travel — who are tired of juggling five apps and spreadsheets.
+            Temple Stuart is a founder&apos;s back office. It&apos;s for people with money moving in a lot of directions — business, personal, investing, trading, travel — who are tired of juggling five apps and spreadsheets.
           </p>
         </div>
 
@@ -241,13 +241,13 @@ export default function ModulesSection() {
                 Plan trips. Split costs. Skip the spreadsheet.
               </h3>
               <p className="text-terminal-lg text-text-muted mb-8 leading-relaxed">
-                Create a trip, invite people, build the itinerary together. Date finder shows when everyone's free. AI assistant pulls real vendor data from Google Places and flight quotes from Duffel — picks places to stay, eat, and do stuff based on your budget and preferences. Commit the costs, they flow into your budget and calendar.
+                Create a trip, invite people, build the itinerary together. Date finder shows when everyone's free. AI assistant pulls real vendor data from Google Places and flight quotes from LiteAPI — picks places to stay, eat, and do stuff based on your budget and preferences. Commit the costs, they flow into your budget and calendar.
               </p>
               <ul className="space-y-3">
                 {[
                   'Invite travelers, find dates that work',
                   'AI recommends lodging, food, activities',
-                  'Live flight quotes from Duffel',
+                  'Live flight quotes from LiteAPI',
                   'Split expenses — see who owes who',
                   'Commit costs → budget + calendar'
                 ].map((item, i) => (

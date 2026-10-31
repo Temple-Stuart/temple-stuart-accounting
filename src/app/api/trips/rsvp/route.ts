@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
+// SEC-02b (2026-09-27): a participant goes back without its password hash.
+import { PARTICIPANT_RESPONSE_SELECT } from '@/lib/trips/participantSelect';
 
 // GET - Load trip info from invite token
 export async function GET(request: NextRequest) {
@@ -148,10 +150,12 @@ export async function POST(request: NextRequest) {
           rsvpStatus: rsvpStatus || 'confirmed',
           rsvpAt: new Date(),
           passwordHash
-        }
+        },
+        select: PARTICIPANT_RESPONSE_SELECT,
       });
 
-      return NextResponse.json({ success: true, participant });
+      // SEC-02b: the row without its hash — whether one is set is a boolean, as GET says it.
+      return NextResponse.json({ success: true, participant: { ...participant, hasPassword: passwordHash !== null } });
     }
 
     // Existing participant token
@@ -180,10 +184,12 @@ export async function POST(request: NextRequest) {
 
     const updated = await prisma.trip_participants.update({
       where: { id: participant.id },
-      data: updateData
+      data: updateData,
+      select: PARTICIPANT_RESPONSE_SELECT,
     });
 
-    return NextResponse.json({ success: true, participant: updated });
+    // SEC-02b: the row without its hash — whether one is set is a boolean, as GET says it.
+    return NextResponse.json({ success: true, participant: { ...updated, hasPassword: !!password || participant.passwordHash !== null } });
   } catch (error) {
     console.error('RSVP POST error:', error);
     return NextResponse.json({ error: 'Failed to submit RSVP' }, { status: 500 });

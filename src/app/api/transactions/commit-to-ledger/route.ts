@@ -1,10 +1,28 @@
 import { randomUUID } from 'crypto';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
 import { prisma } from '@/lib/prisma';
-import { commitPlaidTransaction } from '@/lib/journal-entry-service';
+import { commitPlaidTransaction, type CommitLink } from '@/lib/journal-entry-service';
+import { documentsForBatch } from '@/lib/posting/documentGate';
+import { postingCurrencyRule } from '@/lib/books/functionalCurrency';
+import { humanActor, recordBookingEvent } from '@/lib/reservations/auditTrail';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
+import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
 import { PeriodClosedError } from '@/lib/period-close-guard';
+import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
+
+// DIM-3: the canonical module_key vocabulary = the pillar ids (the
+// tabDescriptors leaf — one source, client-safe). Anything else → 400.
+const MODULE_KEYS = new Set(Object.keys(TAB_DESCRIPTORS));
+
+interface LinkInput {
+  targetType?: unknown;
+  targetId?: unknown;
+  moduleKey?: unknown;
+  percent?: unknown;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,16 +38,138 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    await ensureBookkeepingInitialized(user);
+    // SELL-04: a user with no entity gets the declared setup line (412) — nothing is created here.
+    const setup = await requireEntitySetup(user);
+    if (setup) return setup;
 
     const body = await request.json();
-    const { transactionIds, accountCode, entityId, subAccount } = body;
+    // DIM-3: vendorId + links are OPTIONAL — absent means the entries post
+    // dimensionless (the legacy-epoch semantic). Present → validated FAIL-LOUD
+    // below BEFORE any write; the same dimensions apply to every entry in the
+    // batch (the batch is one coding decision).
+    const { transactionIds, accountCode, entityId, subAccount, vendorId, links } = body;
 
     if (!transactionIds || !accountCode) {
       return NextResponse.json(
         { error: 'transactionIds and accountCode required' },
         { status: 400 }
       );
+    }
+
+    // ─── DIM-3 validation chain — all of it BEFORE any write ─────────────────
+    // Vendor: user-scoped ownership, defensive 404 (never confirms a foreign
+    // vendor exists).
+    if (vendorId !== undefined && vendorId !== null) {
+      if (typeof vendorId !== 'string' || vendorId.length === 0) {
+        return NextResponse.json({ error: 'vendorId must be a string' }, { status: 400 });
+      }
+      const vendor = await prisma.operations_vendor_directory.findFirst({
+        where: { id: vendorId, user_id: user.id },
+        select: { id: true },
+      });
+      if (!vendor) {
+        return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
+      }
+    }
+
+    // Links: each row → exactly-one owned target + a 2-decimal percent in
+    // (0, 100]; the set → no duplicate targets + sum EXACTLY 100.00. Percents
+    // are compared as INTEGER CENTIPERCENT (percent × 100, exact) — no float
+    // tolerance games; 33.333 is rejected as >2 decimals, 33.33+33.33+33.34
+    // sums to exactly 10000.
+    let validatedLinks: CommitLink[] | undefined;
+    if (links !== undefined && links !== null) {
+      if (!Array.isArray(links) || links.length === 0) {
+        return NextResponse.json(
+          { error: 'links must be a non-empty array when provided' },
+          { status: 400 }
+        );
+      }
+      const out: CommitLink[] = [];
+      const seenTargets = new Set<string>();
+      let centiSum = 0;
+      for (const raw of links as LinkInput[]) {
+        const t = raw?.targetType;
+        if (t !== 'project' && t !== 'routine' && t !== 'trip' && t !== 'module') {
+          return NextResponse.json(
+            { error: `allocation targetType must be project | routine | trip | module` },
+            { status: 400 }
+          );
+        }
+        const p = raw?.percent;
+        if (typeof p !== 'number' || !Number.isFinite(p) || p <= 0 || p > 100) {
+          return NextResponse.json(
+            { error: 'each allocation percent must be a number in (0, 100]' },
+            { status: 400 }
+          );
+        }
+        const centi = Math.round(p * 100);
+        if (Math.abs(p * 100 - centi) > 1e-9) {
+          return NextResponse.json(
+            { error: `allocation percent ${p} has more than 2 decimal places` },
+            { status: 400 }
+          );
+        }
+        centiSum += centi;
+
+        if (t === 'module') {
+          const key = raw?.moduleKey;
+          if (typeof key !== 'string' || !MODULE_KEYS.has(key)) {
+            return NextResponse.json(
+              { error: `moduleKey must be one of: ${[...MODULE_KEYS].join(', ')}` },
+              { status: 400 }
+            );
+          }
+          const dupKey = `module:${key}`;
+          if (seenTargets.has(dupKey)) {
+            return NextResponse.json({ error: `duplicate allocation target ${dupKey}` }, { status: 400 });
+          }
+          seenTargets.add(dupKey);
+          out.push({ module_key: key, percent: centi / 100 });
+          continue;
+        }
+
+        const targetId = raw?.targetId;
+        if (typeof targetId !== 'string' || targetId.length === 0) {
+          return NextResponse.json(
+            { error: `allocation targetId required for targetType ${t}` },
+            { status: 400 }
+          );
+        }
+        const dupKey = `${t}:${targetId}`;
+        if (seenTargets.has(dupKey)) {
+          return NextResponse.json({ error: `duplicate allocation target ${dupKey}` }, { status: 400 });
+        }
+        seenTargets.add(dupKey);
+
+        // Ownership per target — user-scoped findFirst, defensive 404.
+        if (t === 'project') {
+          const row = await prisma.operations_projects.findFirst({
+            where: { id: targetId, user_id: user.id }, select: { id: true },
+          });
+          if (!row) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+          out.push({ project_id: targetId, percent: centi / 100 });
+        } else if (t === 'routine') {
+          const row = await prisma.operations_routines.findFirst({
+            where: { id: targetId, user_id: user.id }, select: { id: true },
+          });
+          if (!row) return NextResponse.json({ error: 'Routine not found' }, { status: 404 });
+          out.push({ routine_id: targetId, percent: centi / 100 });
+        } else {
+          const row = await prisma.trips.findFirst({
+            where: { id: targetId, userId: user.id }, select: { id: true },
+          });
+          if (!row) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+          out.push({ trip_id: targetId, percent: centi / 100 });
+        }
+      }
+      if (centiSum !== 10000) {
+        return NextResponse.json(
+          { error: `Allocations must total exactly 100% — got ${(centiSum / 100).toFixed(2)}%` },
+          { status: 400 }
+        );
+      }
+      validatedLinks = out;
     }
 
     // Resolve entityId: use provided or fall back to user's default entity
@@ -60,6 +200,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ─── POST-01: THE DOCUMENT GATE — over EVERY transaction, BEFORE any posting ──
+    // The user's booking links for the batch (userId-scoped; transactionId is the
+    // bank row's own id, the same id this body names), decided by the pure gate
+    // (src/lib/posting/documentGate.ts): a 'proposed' link anywhere → 409 by name
+    // listing the transaction and link ids, NOTHING posted; exactly one 'accepted'
+    // → that booking is the posting's document (the accept IS the authorization);
+    // more than one 'accepted' → 409 by name; only 'rejected' or none → a posting
+    // of no booking. The document never chooses the account: accountCode below is
+    // the user's, and for a refund the writer derives it from the posted charge.
+    const batchLinks = await prisma.transaction_reservation_links.findMany({
+      where: { userId: user.id, transactionId: { in: transactionIds }, status: { in: ['proposed', 'accepted'] } },
+      select: { id: true, transactionId: true, reservationId: true, moneyEventId: true, status: true },
+    });
+    const gate = documentsForBatch(transactionIds, batchLinks);
+    if (!gate.ok) {
+      return NextResponse.json(
+        {
+          error: gate.refusal.message,
+          reason: gate.refusal.reason,
+          transactionIds: gate.refusal.transactionIds,
+          linkIds: gate.refusal.linkIds,
+          committed: 0,
+        },
+        { status: 409 }
+      );
+    }
+
     const batchRequestId = randomUUID();
     const results = [];
     const errors = [];
@@ -78,6 +245,18 @@ export async function POST(request: NextRequest) {
 
         // Look up bank COA account dynamically from the linked Plaid account
         const linkedAccount = plaidTxn.accounts;
+
+        // FX-01 (Alex, 2026-10-30, ruling F): THE PLAID RULE AT COMMIT. The account's stated currency
+        // (accounts.isoCurrencyCode — as Plaid stated it, or NULL) must BE the books' functional
+        // currency, and the row's own stated currency (transactions.iso_currency_code) must agree with
+        // it — refused by name here, before anything posts; never converted
+        // (src/lib/books/functionalCurrency.ts postingCurrencyRule).
+        const currency = postingCurrencyRule(linkedAccount, { id: plaidTxn.id, iso_currency_code: plaidTxn.iso_currency_code });
+        if (!currency.ok) {
+          errors.push({ txnId, error: currency.error });
+          continue;
+        }
+
         const bankAccountCode = linkedAccount.accountCode;
 
         if (!bankAccountCode) {
@@ -105,6 +284,11 @@ export async function POST(request: NextRequest) {
         // Enables individual idempotency checks while preserving batch traceability
         const requestId = `${batchRequestId}-${plaidTxn.transactionId}`;
 
+        // POST-01: the gate decided every transaction in this batch; a row it did
+        // not decide is a fault, never a posting of no booking by default.
+        const document = gate.documents.get(txnId);
+        if (document === undefined) throw new Error(`POST-01 the document gate decided nothing for transaction ${txnId}`);
+
         const journalEntry = await commitPlaidTransaction(prisma, {
           userId: user.id,
           entityId: resolvedEntityId,
@@ -118,7 +302,28 @@ export async function POST(request: NextRequest) {
           merchantName: plaidTxn.merchantName || undefined,
           requestId,
           createdBy: userEmail,
+          // DIM-3: validated above — born WITH the entry, atomically.
+          vendorId: typeof vendorId === 'string' ? vendorId : undefined,
+          links: validatedLinks,
+          // POST-01: the accepted link's booking, born WITH the entry; null = none.
+          document: document === null ? undefined : document,
         });
+
+        // AUDIT-01 (2026-09-26): a posting that documents a booking is a change to
+        // that booking — reservation_posted through the ONE audit port, after the
+        // writer returns, the entry its evidence (a retried commit returns the
+        // same entry, so the same fact is one row). A failed audit write is named
+        // by the port and never fails the posting.
+        if (document !== null) {
+          await recordBookingEvent({
+            reservation: { id: document.reservationId, userId: user.id },
+            kind: 'reservation_posted',
+            actor: humanActor({ id: user.id, email: userEmail }),
+            before: null,
+            after: { entryId: journalEntry.id, transactionId: plaidTxn.id, moneyEventId: document.moneyEventId },
+            evidence: { table: 'journal_entries', id: journalEntry.id },
+          });
+        }
 
         // Track whether the user overrode the auto-categorization prediction
         const wasOverridden = !!(
@@ -226,8 +431,9 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        console.error('Error committing transaction:', txnId, error);
-        errors.push({ txnId, error: message });
+        // HYG-02: a ValidationError's guidance reaches the body verbatim; a fault stays on the server.
+        if (!(error instanceof ValidationError)) console.error('[Commit] transaction failed:', txnId, summarizeError(error));
+        errors.push({ txnId, error: userFacingMessage(error, 'Commit failed') });
       }
     }
 
@@ -244,8 +450,6 @@ export async function POST(request: NextRequest) {
       { status }
     );
   } catch (error: unknown) {
-    console.error('Commit API error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Commit API', 'Commit write failed', error);
   }
 }

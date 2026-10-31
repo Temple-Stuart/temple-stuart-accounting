@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { getVisaRequirement } from '@/lib/travelBuddyClient';
 import { MissingVisaKeyError, TravelBuddyApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
@@ -106,10 +107,6 @@ export async function GET(request: NextRequest) {
         { status: 502 }
       );
     }
-    console.error('Visa check error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Visa check failed' },
-      { status: 500 }
-    );
+    return failClosedResponse('Visa check', 'Visa check failed', error);
   }
 }

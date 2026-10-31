@@ -19,46 +19,89 @@ export interface CachedPlace {
   longitude: number | null;
 }
 
-// Check cache first, return cached places for this city/country/category
+/**
+ * SELL-05b: a corrupt cached value is DECLARED, never an empty list. The
+ * reader used to wrap everything in a catch that logged and returned [] — a
+ * silent fallback that turned a bad row (or a database fault) into "no
+ * results", which then went to Google for a fresh scan. Now a row whose
+ * `types` / `photos` column is not the JSON array the writer stores throws
+ * PlacesCacheCorruptError naming the row and the field, and a database fault
+ * propagates as itself. The mapper is pure so the rule runs in node:test.
+ */
+export class PlacesCacheCorruptError extends Error {
+  constructor(public placeId: string, public field: 'types' | 'photos', public raw: string) {
+    super(`places_cache row ${placeId} holds a corrupt ${field} value — expected a JSON array of strings`);
+    this.name = 'PlacesCacheCorruptError';
+  }
+}
+
+/** The stored JSON array, or the named throw. */
+function jsonStringArray(placeId: string, field: 'types' | 'photos', raw: string | null): string[] {
+  if (raw === null || raw === '') return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new PlacesCacheCorruptError(placeId, field, raw);
+  }
+  if (!Array.isArray(parsed) || !parsed.every((x) => typeof x === 'string')) throw new PlacesCacheCorruptError(placeId, field, raw);
+  return parsed;
+}
+
+export interface PlacesCacheRow {
+  placeId: string;
+  name: string;
+  address: string;
+  rating: number | null;
+  reviewCount: number | null;
+  priceLevel: number | null;
+  website: string | null;
+  types: string | null;
+  photos: string | null;
+  city: string;
+  country: string;
+  category: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/** One stored row → the place the routes read. Pure. */
+export function cachedRowToPlace(p: PlacesCacheRow, photoUrl: (ref: string) => string = photoProxyUrl): CachedPlace {
+  // Photo references are stable per place and stored once (forever). Return
+  // them as server-proxied URLs — no API key on the client, and the photo
+  // bytes are only fetched lazily when the user expands a result.
+  const photos = jsonStringArray(p.placeId, 'photos', p.photos).map(photoUrl);
+  const types = jsonStringArray(p.placeId, 'types', p.types);
+  return {
+    placeId: p.placeId,
+    name: p.name,
+    address: p.address,
+    rating: p.rating,
+    reviewCount: p.reviewCount,
+    priceLevel: p.priceLevel,
+    priceLevelDisplay: p.priceLevel != null ? '$'.repeat(p.priceLevel) : null,
+    website: p.website,
+    types,
+    photos,
+    city: p.city,
+    country: p.country,
+    category: p.category,
+    latitude: p.latitude,
+    longitude: p.longitude,
+  };
+}
+
+// Check cache first, return cached places for this city/country/category.
+// No catch: a corrupt row throws PlacesCacheCorruptError, a database fault throws itself.
 export async function getCachedPlaces(
   city: string,
   country: string,
   category: string
 ): Promise<CachedPlace[]> {
-  try {
-    const cached = await prisma.places_cache.findMany({
-      where: { city, country, category }
-    });
-
-    return cached.map(p => {
-      // Photo references are stable per place and stored once (forever). Return
-      // them as server-proxied URLs — no API key on the client, and the photo
-      // bytes are only fetched lazily when the user expands a result.
-      const photoRefs: string[] = p.photos ? JSON.parse(p.photos) : [];
-      const photos = photoRefs.map(ref => photoProxyUrl(ref));
-
-      return {
-        placeId: p.placeId,
-        name: p.name,
-        address: p.address,
-        rating: p.rating,
-        reviewCount: p.reviewCount,
-        priceLevel: p.priceLevel,
-        priceLevelDisplay: p.priceLevel != null ? '$'.repeat(p.priceLevel) : null,
-        website: p.website,
-        types: p.types ? JSON.parse(p.types) : [],
-        photos,
-        city: p.city,
-        country: p.country,
-        category: p.category,
-        latitude: p.latitude,
-        longitude: p.longitude,
-      };
-    });
-  } catch (err) {
-    console.error('[Cache] Error reading places cache:', err);
-    return [];
-  }
+  const cached = await prisma.places_cache.findMany({
+    where: { city, country, category }
+  });
+  return cached.map((p) => cachedRowToPlace(p));
 }
 
 // Save places to cache

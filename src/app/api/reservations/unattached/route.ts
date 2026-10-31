@@ -1,0 +1,60 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { reservationIdentity } from '@/lib/reservations/lane';
+
+// GET /api/reservations/unattached — T4 companion read: the authed user's
+// ACCOUNT bookings with no trip (tripId null), i.e. the adoptable orphans.
+// Same auth pattern and field shape as trips/[id]/reservations so the UI
+// reuses one row renderer. userId scoping excludes guest rows by design.
+// Ordered by createdAt desc (checkinDate is null for flights — creation time
+// is the honest sort for orphans). Read-only; no broader listing exists.
+
+// LANE-01 (2026-09-25): type and name come from the ONE reader, keyed on the
+// row's lane — never from `provider` (LiteAPI is both rails), never falling
+// through to the provider slug.
+
+export async function GET() {
+  try {
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const rows = await prisma.reservations.findMany({
+      where: { userId: user.id, tripId: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const reservations = rows.map((r) => ({
+      id: r.id,
+      name: reservationIdentity(r).name,
+      provider: r.provider,
+      type: reservationIdentity(r).type,
+      // SEC-03 (2026-09-25): NULL = the vendor stated no price; rendered as
+      // "price not stated", never 0, never NaN, never summed.
+      amountUsd: r.finalPriceCents === null ? null : r.finalPriceCents / 100,
+      currency: r.currency,
+      checkIn: r.checkinDate,
+      checkOut: r.checkoutDate,
+      status: r.status,
+      bookingType: r.bookingType,
+      confirmationCode: r.providerConfirmationCode,
+      // PR-Cancel-1: the STORED policy (written at book time) — the pre-cancel
+      // dialog renders exactly this, never a fabricated policy.
+      cancellationPolicyJson: r.cancellationPolicyJson ?? null,
+    }));
+
+    return NextResponse.json({ reservations });
+  } catch (error) {
+    console.error('Error fetching unattached reservations:', error);
+    return NextResponse.json({ error: 'Failed to fetch reservations' }, { status: 500 });
+  }
+}

@@ -19,8 +19,11 @@ prose. **Reuse over rebuild** — search for what exists before writing anything
 - One push, one branch. Don't push to a branch other than the one assigned without permission.
 
 ## Audit before action
-- Do a **read-only audit with `file:line` citations BEFORE any implementation.** Commit the
-  audit to **`audit-reports/`** — it is the SOC 2 paper trail.
+- Do a **read-only audit with `file:line` citations BEFORE any implementation.** Audit
+  reports are delivered **IN FULL in the session report** and reviewed by Alex in the chat
+  workflow — **that thread is the review trail.** `audit-reports/` is gitignored; **never
+  commit audit reports to the repository** (the repo is public). Local archival outside
+  the repo is permitted.
 - **Never state a fact about the codebase without reading the file first.** If you haven't
   read it, say **"not verified."** No assumptions presented as facts.
 
@@ -29,6 +32,55 @@ prose. **Reuse over rebuild** — search for what exists before writing anything
 - **HARD GATE pattern:** when a change relaxes validation, touches **auth**, **migrations**,
   **cost/paid calls**, or **security**, STOP and **confirm/report before building**. Report
   the finding, then proceed only on the established plan.
+
+## Dependency upgrades
+- **Every version bump's PR body quotes the release notes' behavior changes, not only the
+  advisories.** When the notes are silent, diff the installed package against the old one
+  (`npm pack <pkg>@<old>` vs `node_modules/<pkg>`) and quote the change. ENV-01's lesson:
+  next-auth 4.24.15 changed origin detection in one line (`utils/detect-origin.js` — NEXTAUTH_URL
+  now wins over the request host on Vercel) and broke GitHub sign-in with no advisory naming it.
+- A variable a **dependency** reads (NEXTAUTH_URL, DATABASE_URL, VERCEL_*) is declared in
+  `src/lib/envLaw.ts` — the env law at build requires every one documented in the README.
+
+## The tool registry's rubric
+- **Status means the job is done, not that code exists** (`src/lib/toolRegistry.ts`, TRUTH-01):
+  **LIVE** = all four loop beats cited in code AND the tool does the job the sheet names, for a
+  customer, on production. **Four beats never imply LIVE.** A **PARTIAL** tool with four beats
+  carries a `why` note saying what is not done for a customer (the law throws without it).
+  **NOT_BUILT** ⇔ no beats. The counts are a law; bump them only with a new dated census. Every
+  count on a public or selling surface derives from the registry — never typed.
+
+## One tool, one page (TOOL-LAW-01)
+- **A tool has ONE page** — its registry home, serving no other tool. That page renders **ONLY
+  that tool's own phases, from `src/lib/pipePhases.ts`, via the shared `StageStrip`**. This does
+  **not** require a page-level strip: Tasks' projects strip is per project row and behind that
+  row's `pipelineMode` toggle, and that satisfies the rule.
+- A tool's page opens with its **family, its name and its registry line** — no other prose.
+- **A phase list defined outside `pipePhases.ts` and rendered as a strip is a violation.** This is
+  what `/operations` was: six invented cells holding four tools' components.
+- **A component belonging to tool A may not be mounted on tool B's page.** The calendar clause names
+  the MERGED GRID — `HubCalendar` — which mounts only on `/calendar`. `CalendarGrid` is a shared
+  primitive and is excluded; `DayCalendarView` (a clock-ordered list, not an hour-grid) is an
+  explicit non-violation.
+- The grandfather lists in `scripts/assert-tool-registry.ts` are **closed**, each entry named, dated
+  and reasoned. **The allowlist may only shrink** — the build throws if it grows.
+
+## The steps law (the shell)
+- **The app lands on `/answers` (HOME)** — the four answers, then THE SHEET: every job with its
+  true status and the door to its step. **A collapsible rail** (`src/components/shell/Rail.tsx`)
+  walks the sheet in **FLOW ORDER** — what you own, the proof, what you owe, money in, money out,
+  the work — `src/lib/steps.ts`.
+- **Every job sits in exactly one step; every step sits in one family, holding that family's jobs;
+  the steps are numbered 1..N with no gaps.** A step's status is **derived** from its jobs (LIVE
+  when every one is, NOT_BUILT when every one is, else PARTIAL). A step with no screen opens an
+  **honest page** at `/step/<slug>` that names its jobs and says it is not built — never a
+  placeholder, never a redirect that pretends.
+- **The rail and the sheet render FROM `steps.ts` and the registry — never a retyped list**, and
+  the rail keeps open/collapsed in **React state only: no localStorage, no sessionStorage, no
+  cookie.** `stepsLaw()` runs at module scope and again at build.
+- **No page may lose its door.** The reachability law's vocabulary is the rail, the sheet, the
+  utilities menu, a listed guest route, or a redirect to one — a page with no door **fails the
+  build**, and is reported, never redirected to hide it.
 
 ## Fail-loud / no fallback
 - **No silent fallbacks. No silent catches. No fake/placeholder data — ever.**

@@ -1,5 +1,8 @@
-import { requireTier } from '@/lib/auth-helpers';
+import { aiCaps } from '@/lib/ai/caps';
+import { aiHourlyCap } from '@/lib/ai-rate-limit';
+import { requireRoutineBudget } from '@/lib/routineFireBudget';
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -51,18 +54,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tierGate = requireTier(user.tier, 'ai', user.id);
-    if (tierGate) return tierGate;
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-
     const { profile } = await request.json() as { profile: MealProfile };
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile required' }, { status: 400 });
     }
+
+    // SELL-05b: no tier — the AI caps (the hourly volume cap, then the daily cap), reserved once the input is valid and BEFORE the paid call; declared when hit.
+    const capped = await aiCaps({ hourly: aiHourlyCap, reserveDaily: requireRoutineBudget }, user.id);
+    if (capped) return NextResponse.json(capped.body, { status: capped.status, headers: capped.headers });
+
+    // The paid client is built only once every gate has passed.
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
 
     const budgetRange = BUDGET_RANGES[profile.budget] || BUDGET_RANGES.moderate;
     const weeklyBudget = ((budgetRange.min + budgetRange.max) / 2) * profile.peopleCount;
@@ -408,10 +414,6 @@ ${profile.cookingStyle === 'meal-prep' ? 'Include prepSchedule array showing wha
     return NextResponse.json(plan);
 
   } catch (error) {
-    console.error('Meal plan error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate meal plan' },
-      { status: 500 }
-    );
+    return failClosedResponse('Meal plan', 'Failed to generate meal plan', error);
   }
 }

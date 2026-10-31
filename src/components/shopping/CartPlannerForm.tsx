@@ -248,7 +248,7 @@ export default function CartPlannerForm({ category, onPlanGenerated }: Props) {
                 {preferences && (
                   <>
                     <div className="text-text-muted">Preferences:</div>
-                    <div className="font-medium text-emerald-700">{preferences}</div>
+                    <div className="font-medium text-brand-purple">{preferences}</div>
                   </>
                 )}
 
@@ -291,7 +291,7 @@ export default function CartPlannerForm({ category, onPlanGenerated }: Props) {
           <button
             onClick={generate}
             disabled={loading}
-            className="flex-1 px-4 py-2 text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-2 text-sm font-medium bg-brand-purple text-white hover:bg-brand-purple-hover transition-colors disabled:opacity-50"
           >
             {loading ? 'Generating...' : `Generate ${categoryLabel} List`}
           </button>

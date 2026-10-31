@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
 
+
 // ═══════════════════════════════════════════════════════════════════
 // Step 5 — Review (Form 1040 complete return)
 //
@@ -80,6 +81,8 @@ interface Form1040Full {
   scheduleC: ScheduleC;
   scheduleSE: ScheduleSE;
   overridesUsed: string[];
+  /** TAX-WAGES-01: every blank box on an entered form read as none, said (form-1040-service.ts documentNotes). */
+  documentNotes: string[];
 }
 
 interface CalculateResponse {
@@ -120,7 +123,7 @@ const PDF_FORMS: Array<{ slug: string; label: string; description: string }> = [
 
 // ─── Source badge ──────────────────────────────────────────────────
 
-function SourceBadge({ source }: { source: string }) {
+function SourceBadge({ source }: { source: string; }) {
   const lower = source.toLowerCase();
   const status: 'verified' | 'warning' | 'neutral' =
     lower.includes('w-2') ||
@@ -147,8 +150,7 @@ function SourceBadge({ source }: { source: string }) {
 
 // ─── Line row ──────────────────────────────────────────────────────
 
-function LineRow({
-  num,
+function LineRow({ num,
   label,
   amount,
   source,
@@ -160,8 +162,7 @@ function LineRow({
   expanded,
   onToggle,
   children,
-}: {
-  num: string;
+}: { num: string;
   label: React.ReactNode;
   amount: number | null;
   source?: string;
@@ -232,11 +233,10 @@ function SectionHeader({ title }: { title: string }) {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function ReviewStep({
-  taxYear,
+export default function ReviewStep({ taxYear,
   onComplete,
   lifeEvents,
-}: StepProps) {
+}: StepProps & { }) {
   const [calc, setCalc] = useState<CalculateResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -436,6 +436,12 @@ export default function ReviewStep({
           </div>
         </div>
         <div className="px-4 py-3 space-y-0">
+          {/* TAX-WAGES-01 (ruling B): a blank box read as none is declared, never silent. */}
+          {f.documentNotes.length > 0 && (
+            <ul className="mb-2 text-[11px] text-gray-600 list-disc list-inside" data-document-notes>
+              {f.documentNotes.map((n) => <li key={n}>{n}</li>)}
+            </ul>
+          )}
           {/* ── INCOME ── */}
           <SectionHeader title="Income" />
           <LineRow
@@ -840,7 +846,7 @@ export default function ReviewStep({
               <a
                 key={form.slug}
                 href={href}
-                className="block border border-gray-200 rounded px-3 py-2 hover:bg-gray-50 hover:border-blue-300"
+                className="block border border-gray-200 rounded px-3 py-2 hover:bg-gray-50 hover:border-brand-purple/40"
               >
                 <div className="text-xs font-semibold text-gray-900">
                   {form.label}
@@ -848,7 +854,7 @@ export default function ReviewStep({
                 <div className="text-[10px] text-gray-500 mt-0.5">
                   {form.description}
                 </div>
-                <div className="text-[10px] text-blue-600 mt-1">
+                <div className="text-[10px] text-brand-purple mt-1">
                   Download PDF →
                 </div>
               </a>
@@ -864,7 +870,7 @@ export default function ReviewStep({
             type="checkbox"
             checked={confirmed}
             onChange={(e) => setConfirmed(e.target.checked)}
-            className="mt-0.5 w-4 h-4 accent-blue-600"
+            className="mt-0.5 w-4 h-4 accent-brand-purple"
           />
           <div className="text-sm text-gray-800">
             I have reviewed my {taxYear} return and the numbers are correct.
@@ -882,7 +888,7 @@ export default function ReviewStep({
             type="button"
             onClick={onComplete}
             disabled={!canConfirm}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-purple rounded-md hover:bg-brand-purple-hover disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Continue to File
           </button>

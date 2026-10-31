@@ -1,0 +1,36 @@
+{
+  // TOOLING-01 (2026-09-23): THE LAW SUITE IS TYPECHECKED.
+  //
+  // tsconfig.json excludes "scripts" (:26), so `npx tsc --noEmit` has never seen
+  // scripts/assert-tool-registry.ts — 4,400 lines that decide whether the build
+  // may proceed — nor any probe beside it. Only tsx's esbuild ever read them, and
+  // esbuild STRIPS types without checking them: a law could name a property that
+  // does not exist and still run, failing or passing for the wrong reason.
+  //
+  // This config checks them under the app's own compilerOptions, with the two
+  // differences a Node script needs and nothing else:
+  //   "types": ["node"] — these files are Node programs: process, Buffer,
+  //     __dirname and node: imports must resolve. The app's config names no
+  //     types, so the ambient Node globals were not in scope.
+  //   "target": "ES2022" — the app targets ES2017 because it ships to browsers.
+  //     These files ship nowhere: they run on this repo's Node (22.x), where
+  //     BigInt literals are native. Targeting ES2017 here was simply the wrong
+  //     platform, and it is what rejected scripts/tax-export-2025.ts's 0n.
+  // "module"/"moduleResolution" are INHERITED (esnext/bundler) rather than set to
+  // node's: the scripts mix both idioms — assert-tool-registry.ts uses __dirname,
+  // measure-finnhub-scan-cost.ts uses import.meta.url — and esnext admits both,
+  // which is what tsx itself does at run time.
+  //
+  // `npm run typecheck:scripts` runs it, and the build chain runs it BEFORE the
+  // law suite — a law that does not compile should stop the build at the compiler,
+  // not surprise it at run time.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "incremental": false,
+    "target": "ES2022"
+  },
+  "include": ["scripts/**/*.ts"],
+  "exclude": ["node_modules"]
+}

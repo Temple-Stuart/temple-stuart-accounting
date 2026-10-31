@@ -2,6 +2,11 @@
 // No API calls; purely computes from chain + Greeks data
 
 import { probAbove, probBetween } from './convergence/probability';
+import { numOrNull } from './parse-num';
+import type { Catalyst, EarningsWindow, PremiumSide } from './convergence/types';
+import { buyCatalysts, earningsWindow, noCatalystReason, type EarningsDateSource } from './convergence/side-rules';
+import type { UndefinedRiskCapCheck } from './convergence/undefined-risk';
+import { POP_MODEL_LABEL } from './convergence/modelLabels';
 
 // ─── Math Utilities ─────────────────────────────────────────────────
 
@@ -83,6 +88,7 @@ function calculateBreakevenPoP(
   dte: number,
   isCredit: boolean,
   riskFreeRate: number,
+  dividendYield: number,
 ): { pop: number; method: 'breakeven_d2' } | null {
   if (breakevens.length === 0 || spotPrice <= 0 || iv <= 0 || dte <= 0) return null;
 
@@ -97,11 +103,11 @@ function calculateBreakevenPoP(
       // Put credit spread: breakeven is below spot → profit if price ABOVE breakeven
       // Call credit spread: breakeven is above spot → profit if price BELOW breakeven
       if (be < spotPrice) {
-        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate, dividendYield);
         if (p === null) return null;
         return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
       } else {
-        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate, dividendYield);
         if (p === null) return null;
         // Price needs to stay below breakeven
         return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
@@ -111,11 +117,11 @@ function calculateBreakevenPoP(
       // Bull call spread: breakeven above spot → profit if price ABOVE breakeven
       // Bear put spread: breakeven below spot → profit if price BELOW breakeven
       if (be > spotPrice) {
-        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate, dividendYield);
         if (p === null) return null;
         return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
       } else {
-        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate, dividendYield);
         if (p === null) return null;
         return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
       }
@@ -126,12 +132,12 @@ function calculateBreakevenPoP(
     const [lowerBE, upperBE] = sorted;
     if (isCredit) {
       // Iron condor, short strangle, short straddle: profit if price stays BETWEEN breakevens
-      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears, riskFreeRate);
+      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears, riskFreeRate, dividendYield);
       if (p === null) return null;
       return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
     } else {
       // Long straddle, long strangle: profit if price goes OUTSIDE breakevens
-      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears, riskFreeRate);
+      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears, riskFreeRate, dividendYield);
       if (p === null) return null;
       return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
     }
@@ -180,6 +186,12 @@ export interface StrategyLeg {
   theta: number;
   vega: number;
   wideSpread: boolean;
+  // Chain IV of this leg (dxfeed, decimal e.g. 0.42). EDGE-3: the HV10>IV gate
+  // compares realized vol against the IV actually being SOLD (short legs).
+  // null = feed provided no IV for this contract; the gate declares itself
+  // not-evaluated rather than inventing a value. Optional so the custom-card
+  // path (buildCustomCard) is unaffected.
+  iv?: number | null;
 }
 
 export interface StrategyCard {
@@ -208,6 +220,15 @@ export interface StrategyCard {
   evPerRisk: number;         // EV per dollar risked
   hvPop: number | null;      // HV-adjusted PoP for credit strategies
   compositeScore: number;    // edge-aware composite score used for ranking
+  // MODEL-01: the funnel side that built this card (generateStrategies sets it
+  // from params.side; a custom card carries its structure's side), the buy-side
+  // catalysts (≥ 1 on a BUY card — the card does not exist without one), the
+  // earnings date against [scan, expiration] (stated on every card), and the
+  // cap check that let an unbounded structure be built (null for defined risk).
+  side: PremiumSide;
+  catalysts: Catalyst[];
+  earningsWindow: EarningsWindow;
+  undefinedRiskCap: string | null;
 }
 
 export interface GenerateParams {
@@ -217,10 +238,37 @@ export interface GenerateParams {
   expiration: string;
   dte: number;
   symbol?: string;        // for debug logging
-  iv30?: number;          // implied volatility decimal (e.g. 0.42 for 42%)
-  hv30?: number;          // 30-day HV decimal (e.g. 0.25 for 25%)
+  // KILL-5: REQUIRED and real — no `?? 0.30` fabrication. Callers skip the
+  // ticker (declared) when iv30 is missing; σ drives every breakeven_d2 PoP.
+  iv30: number;
+  // KILL-5: null = HV30 not delivered by the source. HV-adjusted PoP and the
+  // unlimited-risk HV proxy are then NOT computable — declared, never `?? iv`.
+  hv30: number | null;
+  // KILL-5: continuous dividend yield q, decimal. A true 0 IS data (non-payer).
+  // null = source did not deliver the field — the breakeven_d2 PoP upgrade is
+  // SKIPPED (PoP stays delta_approx, labeled) rather than assuming q=0.
+  dividendYield: number | null;
+  // EDGE-3: 10-day realized vol, decimal (e.g. 0.55 for 55%). Required — the caller
+  // must decide; null = not computable from candle history, in which case the
+  // HV10>IV gate declares itself not-evaluated (never imputed, never silent).
+  hv10: number | null;
   // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Required — no default.
   riskFreeRate: number;
+  // MODEL-01: the premium direction this symbol came through the pre-filter on.
+  // A side builds ONLY its own structures: SELL → credit (iron condor, put
+  // credit spread, short strangle under the cap); BUY → debit (long straddle,
+  // long strangle, and the bull call debit spread when the overlay is BULLISH).
+  side: PremiumSide;
+  // The directional overlay (composite.direction): BULLISH / BEARISH / NEUTRAL / UNKNOWN…
+  direction: string;
+  // ISO scan date and every earnings date the run has for the symbol, each
+  // named by its source (Finnhub calendar/earnings; TastyTrade expected-report-date).
+  scanDate: string;
+  earningsDates: EarningsDateSource[];
+  // TastyTrade iv-hv-30-day-difference in vol points (null = not delivered).
+  ivHvSpread: number | null;
+  // STEP 5: the per-user undefined-risk cap check, evaluated once per run.
+  undefinedRisk: UndefinedRiskCapCheck;
 }
 
 // ─── Rejection Tracking ─────────────────────────────────────────────
@@ -413,10 +461,16 @@ function makeLeg(
   const ask = type === 'call' ? strike.callAsk : strike.putAsk;
   const price = side === 'sell' ? bid : ask;
   if (price == null || price <= 0) return null;
-  const delta = (type === 'call' ? strike.callDelta : strike.putDelta) ?? 0;
-  const gamma = (type === 'call' ? strike.callGamma : strike.putGamma) ?? 0;
-  const theta = (type === 'call' ? strike.callTheta : strike.putTheta) ?? 0;
-  const vega = (type === 'call' ? strike.callVega : strike.putVega) ?? 0;
+  // KILL-2: a leg without complete greeks from the feed cannot be built —
+  // greeks feed delta strike-selection, delta PoP (Gate B), the three-outcome
+  // EV deltas, and thetaEff in composite ranking. They are NEVER imputed as 0
+  // (an imputed 0 delta inflated credit PoP and could even win low-delta
+  // strike selection). Missing → leg dead, declared in generateStrategies.
+  const delta = type === 'call' ? strike.callDelta : strike.putDelta;
+  const gamma = type === 'call' ? strike.callGamma : strike.putGamma;
+  const theta = type === 'call' ? strike.callTheta : strike.putTheta;
+  const vega = type === 'call' ? strike.callVega : strike.putVega;
+  if (delta == null || gamma == null || theta == null || vega == null) return null;
 
   return {
     type,
@@ -428,6 +482,7 @@ function makeLeg(
     theta: side === 'sell' ? -theta : theta,
     vega: side === 'sell' ? -vega : vega,
     wideSpread: type === 'call' ? strike.callWideSpread : strike.putWideSpread,
+    iv: (type === 'call' ? strike.callIv : strike.putIv) ?? null,
   };
 }
 
@@ -559,6 +614,12 @@ function buildCard(
     evPerRisk: 0,
     hvPop: null,
     compositeScore: 0,
+    // MODEL-01 defaults — generateStrategies overwrites side/catalysts/window/cap
+    // from its params; a custom card keeps its structure's side.
+    side: cashFlow >= 0 ? 'SELL' : 'BUY',
+    catalysts: [],
+    earningsWindow: { state: 'unknown', detail: 'earnings window not evaluated for this card', date: null, source: null },
+    undefinedRiskCap: null,
   };
 }
 
@@ -701,11 +762,39 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   const pct = ivRank * 100;
   const rejections: RejectionReason[] = [];
 
-  // Filter to strikes with at least some Greeks data
+  // Filter to strikes with at least some Greeks data AND a real two-sided quote on a leg.
+  // (EDGE-1: buildStrikeData already nulls both sides of any leg without a live bid+ask,
+  // so a strike with no live leg has all four price fields null and is excluded here.)
   const valid = strikes.filter(s =>
     (s.callDelta != null || s.putDelta != null) &&
     (s.callBid != null || s.callAsk != null || s.putBid != null || s.putAsk != null)
   );
+
+  // EDGE-1: declare, don't silently shrink. Count strikes that had greeks but no live
+  // two-sided quote on any leg (their prices were nulled at the quote layer). Surface it
+  // as a rejection so the scan stats show WHY fewer cards appear.
+  const droppedNoLiveQuote = strikes.filter(s =>
+    (s.callDelta != null || s.putDelta != null) &&
+    s.callBid == null && s.callAsk == null && s.putBid == null && s.putAsk == null
+  ).length;
+  if (droppedNoLiveQuote > 0) {
+    rejections.push({ strategy: 'all', reason: `${droppedNoLiveQuote} strikes skipped: no live bid+ask (missing_live_quote)`, gate: 'construction' });
+  }
+
+  // KILL-2: declare, don't silently shrink (same surface as missing_live_quote).
+  // A live-quoted side whose greeks are incomplete has its legs excluded by
+  // makeLeg — missing greeks are never imputed as 0.
+  const sideGreeksIncomplete = (s: StrikeData, side: 'call' | 'put') =>
+    side === 'call'
+      ? (s.callDelta == null || s.callGamma == null || s.callTheta == null || s.callVega == null)
+      : (s.putDelta == null || s.putGamma == null || s.putTheta == null || s.putVega == null);
+  const droppedIncompleteGreeks = strikes.filter(s =>
+    (s.callBid != null && s.callAsk != null && sideGreeksIncomplete(s, 'call')) ||
+    (s.putBid != null && s.putAsk != null && sideGreeksIncomplete(s, 'put'))
+  ).length;
+  if (droppedIncompleteGreeks > 0) {
+    rejections.push({ strategy: 'all', reason: `${droppedIncompleteGreeks} live-quoted strike(s) lacked complete greeks from the feed — those legs excluded from construction (missing_greeks, never imputed as 0)`, gate: 'construction' });
+  }
 
   const noGreeks = strikes.filter(s => s.callDelta == null && s.putDelta == null).length;
   console.log(`[StrategyBuilder] ${sym}: ENTER — price=$${currentPrice}, ivRank=${ivRank.toFixed(3)} (${pct.toFixed(1)}%), dte=${dte}, exp=${expiration}`);
@@ -724,46 +813,49 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   }
 
   const tier = pct > 50 ? 'HIGH_IV (>50)' : pct >= 20 ? 'NORMAL_IV (20-50)' : 'LOW_IV (<20)';
-  console.log(`[StrategyBuilder] ${sym}: IV tier=${tier} → generating strategies...`);
+  // MODEL-01: the earnings date against THIS expiration's window, and the
+  // buy-side catalysts that hold for it. Evaluated per expiration — the window
+  // is the structure's, not the ticker's.
+  const window = earningsWindow(params.earningsDates, params.scanDate, expiration);
+  const catalysts: Catalyst[] = params.side === 'BUY' ? buyCatalysts({ ivHvSpread: params.ivHvSpread, window }) : [];
+  console.log(`[StrategyBuilder] ${sym}: side=${params.side}, IV tier=${tier}, earnings window=${window.state} → generating strategies...`);
 
   const cards: StrategyCard[] = [];
 
-  if (pct > 50) {
-    // ─── High IV: Sell Premium — scan delta ranges ─────
-    const ic = scanBestIronCondor(valid, 'A', expiration, dte, currentPrice, sym);
-    if (ic) cards.push(ic);
+  if (params.side === 'SELL') {
+    // ─── SELL: credit structures only (the seller's ladder, minus the debit
+    // structures it used to mix in — those belong to the BUY funnel now) ───
+    if (pct > 50) {
+      const ic = scanBestIronCondor(valid, 'A', expiration, dte, currentPrice, sym);
+      if (ic) cards.push(ic);
 
-    const pcs = scanBestPutCreditSpread(valid, 'B', expiration, dte, currentPrice, sym);
-    if (pcs) cards.push(pcs);
+      const pcs = scanBestPutCreditSpread(valid, 'B', expiration, dte, currentPrice, sym);
+      if (pcs) cards.push(pcs);
 
-    const ss = scanBestShortStrangle(valid, 'C', expiration, dte, currentPrice, sym);
-    if (ss) cards.push(ss);
-
-  } else if (pct >= 20) {
-    // ─── Normal IV: Mild Directional ─────────────────────
-    // A) Bull Call Spread (debit — fixed delta, no scan)
-    const longBCS = findByDelta(valid, 0.50, 'call');
-    const shortBCS = findByDelta(valid, 0.30, 'call');
-    if (longBCS && shortBCS && longBCS.strike !== shortBCS.strike) {
-      const legs = [
-        makeLeg(longBCS, 'call', 'buy'),
-        makeLeg(shortBCS, 'call', 'sell'),
-      ].filter((l): l is StrategyLeg => l != null);
-      if (legs.length === 2) {
-        cards.push(buildCard('Bull Call Spread', 'A', legs, expiration, dte, currentPrice, false));
+      // STEP 5: an unbounded structure exists only when the filter says
+      // Risk = Unlimited AND the per-user cap has room — the candidate says so.
+      if (params.undefinedRisk.allowed) {
+        const ss = scanBestShortStrangle(valid, 'C', expiration, dte, currentPrice, sym);
+        if (ss) cards.push(ss);
+      } else {
+        rejections.push({ strategy: 'Short Strangle', reason: params.undefinedRisk.reason, gate: 'construction' });
       }
+    } else if (pct >= 20) {
+      const icW = scanBestIronCondor(valid, 'A', expiration, dte, currentPrice, sym);
+      if (icW) cards.push(icW);
+
+      const pcs2 = scanBestPutCreditSpread(valid, 'B', expiration, dte, currentPrice, sym);
+      if (pcs2) cards.push(pcs2);
+
+      rejections.push({ strategy: 'Bull Call Spread', reason: 'SELL side: the bull call spread is a debit structure — built on the BUY side only (MODEL-01: a side builds its own structures)', gate: 'construction' });
+    } else {
+      rejections.push({ strategy: 'all', reason: `SELL side: IV rank ${pct.toFixed(1)} < 20 — the low-IV tier's structures (Long Straddle, Long Strangle, Debit Spread) are debit and belong to the BUY funnel; no credit structure built at this IV rank`, gate: 'construction' });
     }
-
-    // B) Iron Condor — scan
-    const icW = scanBestIronCondor(valid, 'B', expiration, dte, currentPrice, sym);
-    if (icW) cards.push(icW);
-
-    // C) Put Credit Spread — scan
-    const pcs2 = scanBestPutCreditSpread(valid, 'C', expiration, dte, currentPrice, sym);
-    if (pcs2) cards.push(pcs2);
-
+  } else if (catalysts.length === 0) {
+    // ─── BUY without a catalyst: not built, and the reason says so ───
+    rejections.push({ strategy: 'all', reason: noCatalystReason({ ivHvSpread: params.ivHvSpread, window }), gate: 'construction' });
   } else {
-    // ─── Low IV: Buy Premium ──────────────────────────
+    // ─── BUY with a catalyst: debit structures only, at any IV rank ───
     // A) Long Straddle
     const atm = findByDelta(valid, 0.50, 'call');
     if (atm) {
@@ -789,55 +881,99 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
       }
     }
 
-    // C) Bull Call Debit Spread
-    const longDBS = findByDelta(valid, 0.50, 'call');
-    const shortDBS = findByDelta(valid, 0.30, 'call');
-    if (longDBS && shortDBS && longDBS.strike !== shortDBS.strike) {
-      const legs = [
-        makeLeg(longDBS, 'call', 'buy'),
-        makeLeg(shortDBS, 'call', 'sell'),
-      ].filter((l): l is StrategyLeg => l != null);
-      if (legs.length === 2) {
-        cards.push(buildCard('Debit Spread', 'C', legs, expiration, dte, currentPrice, false));
+    // C) the directional debit spread — the overlay decides. Only a bull call
+    // builder exists; BEARISH is declared, not built (MODEL-02).
+    if (params.direction === 'BULLISH') {
+      const longDBS = findByDelta(valid, 0.50, 'call');
+      const shortDBS = findByDelta(valid, 0.30, 'call');
+      if (longDBS && shortDBS && longDBS.strike !== shortDBS.strike) {
+        const legs = [
+          makeLeg(longDBS, 'call', 'buy'),
+          makeLeg(shortDBS, 'call', 'sell'),
+        ].filter((l): l is StrategyLeg => l != null);
+        if (legs.length === 2) {
+          cards.push(buildCard('Debit Spread', 'C', legs, expiration, dte, currentPrice, false));
+        }
       }
+    } else if (params.direction === 'BEARISH') {
+      rejections.push({ strategy: 'Bear Put Spread', reason: 'BUY side: directional overlay is BEARISH — no bear put debit-spread builder exists in the scanner (MODEL-02); not built', gate: 'construction' });
+    } else {
+      rejections.push({ strategy: 'Debit Spread', reason: `BUY side: directional overlay is ${params.direction} — the bull call debit spread is a directional structure; not built without a BULLISH overlay`, gate: 'construction' });
     }
+  }
+
+  for (const card of cards) {
+    card.side = params.side;
+    card.catalysts = catalysts;
+    card.earningsWindow = window;
+    card.undefinedRiskCap = card.isUnlimited ? params.undefinedRisk.reason : null;
   }
 
   console.log(`[StrategyBuilder] ${sym}: pre-filter cards=${cards.length} [${cards.map(c => c.name).join(', ')}]`);
 
   // ─── Upgrade PoP: delta approximation → N(d2) at breakeven ────
-  const iv = params.iv30 ?? 0.30;
+  // KILL-5: iv30 is required-real (no `?? 0.30`); q is required for the d2
+  // drift (r − q − σ²/2). When q is UNKNOWN the upgrade is SKIPPED — PoP
+  // stays the delta approximation (a real, labeled statistic) rather than
+  // pricing every dividend payer with an assumed q=0.
+  const iv = params.iv30;
+  const q = params.dividendYield;
 
-  for (const card of cards) {
-    if (card.breakevens.length === 0 || card.pop == null) continue;
-    const isCredit = CREDIT_STRATEGIES.includes(card.name) || (card.netCredit != null && card.netCredit > 0);
-    const bePoP = calculateBreakevenPoP(card.breakevens, currentPrice, iv, dte, isCredit, params.riskFreeRate);
-    if (bePoP) {
-      const deltaPop = card.pop;
-      card.pop = Math.round(bePoP.pop * 100) / 100;
-      card.popMethod = bePoP.method;
-      console.log(`[StrategyBuilder] ${sym}: PoP upgrade "${card.name}" — delta=${(deltaPop * 100).toFixed(1)}% → N(d2)=${(bePoP.pop * 100).toFixed(1)}% (IV=${(iv * 100).toFixed(1)}%, DTE=${dte}, BEs=[${card.breakevens.join(', ')}])`);
+  if (q == null) {
+    rejections.push({
+      strategy: 'all',
+      reason: 'dividend yield unavailable — breakeven N(d2) PoP not computed (needs q; never assumed 0); PoP stays delta_approx',
+      gate: 'construction',
+    });
+  } else {
+    for (const card of cards) {
+      if (card.breakevens.length === 0 || card.pop == null) continue;
+      const isCredit = CREDIT_STRATEGIES.includes(card.name) || (card.netCredit != null && card.netCredit > 0);
+      const bePoP = calculateBreakevenPoP(card.breakevens, currentPrice, iv, dte, isCredit, params.riskFreeRate, q);
+      if (bePoP) {
+        const deltaPop = card.pop;
+        card.pop = Math.round(bePoP.pop * 100) / 100;
+        card.popMethod = bePoP.method;
+        console.log(`[StrategyBuilder] ${sym}: PoP upgrade "${card.name}" — delta=${(deltaPop * 100).toFixed(1)}% → N(d2)=${(bePoP.pop * 100).toFixed(1)}% (IV=${(iv * 100).toFixed(1)}%, q=${(q * 100).toFixed(2)}%, DTE=${dte}, BEs=[${card.breakevens.join(', ')}])`);
+      }
     }
   }
 
   // ─── Compute HV-Adjusted EV for each card ──────────────────────
-  const hv = params.hv30 ?? iv;
+  // KILL-5: hv30 is null when the source did not deliver it — never `?? iv`.
+  // With hv null: no HV-adjusted PoP (EV uses the card's own PoP, declared),
+  // and no HV proxy for unlimited risk (those candidates are REJECTED below).
+  const hv = params.hv30;
   // Safety cap: if IV/HV ratio > 4, cap at 4 to prevent unrealistic adjustments
-  const cappedHv = iv > 0 && hv > 0 && iv / hv > 4 ? iv / 4 : hv;
-  const hvProxyML = currentPrice * cappedHv * Math.sqrt(dte / 365) * 2.5 * 100;
+  const cappedHv = hv != null ? (iv > 0 && hv > 0 && iv / hv > 4 ? iv / 4 : hv) : null;
+  const hvProxyML = cappedHv != null ? currentPrice * cappedHv * Math.sqrt(dte / 365) * 2.5 * 100 : null;
+
+  if (hv == null) {
+    rejections.push({
+      strategy: 'all',
+      reason: 'hv30 unavailable — HV-adjusted PoP not computed (EV uses un-adjusted PoP, hvPop=null); unlimited-risk sizing not computable (those candidates rejected, never proxied)',
+      gate: 'construction',
+    });
+  }
 
   for (const card of cards) {
     if (card.pop == null) continue;
     const mp = card.maxProfit ?? 0;
     const isCredit = CREDIT_STRATEGIES.includes(card.name);
 
-    // HV-adjusted PoP for credit strategies; delta PoP for debit
-    const hvPop = isCredit ? computeHvAdjustedPoP(card, currentPrice, cappedHv, dte) : card.pop;
-    card.hvPop = isCredit ? Math.round(hvPop * 1000) / 1000 : null;
+    // HV-adjusted PoP for credit strategies; delta PoP for debit.
+    // hv missing → hvPop stays null (declared) and EV falls through to the
+    // card's own computed PoP — a real statistic, not a substitute value.
+    const hvPop = isCredit && cappedHv != null ? computeHvAdjustedPoP(card, currentPrice, cappedHv, dte) : null;
+    card.hvPop = hvPop != null ? Math.round(hvPop * 1000) / 1000 : null;
+
+    // KILL-5: unlimited-risk sizing needs the HV proxy — without hv30 the EV
+    // is not computable; the candidate is rejected (with reason) in the gate.
+    if (card.isUnlimited && hvProxyML == null) continue;
 
     // Use HV-based proxy for unlimited risk (actual expected movement, not inflated IV)
-    const effectiveML = card.isUnlimited ? hvProxyML : (card.maxLoss ?? 0);
-    const evPop = isCredit ? hvPop : card.pop;
+    const effectiveML = card.isUnlimited ? (hvProxyML as number) : (card.maxLoss ?? 0);
+    const evPop = isCredit ? (hvPop ?? card.pop) : card.pop;
 
     if (mp > 0 && effectiveML > 0) {
       // Extract short/long deltas for three-outcome model
@@ -870,10 +1006,97 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
     'Long Straddle': 0.25, 'Long Strangle': 0.25,
   };
 
+  // EDGE-3: track whether the HV10>IV gate ever passed a premium-selling card
+  // without being evaluable — the non-evaluation is DECLARED below, never silent.
+  let hv10GateSkippedNoHv10 = 0;
+  // MODEL-01: BUY cards that proceeded with EV (model) ≤ 0 — declared below.
+  let buyEvBelowZero = 0;
+  const hv10GateSkippedNoLegIv: string[] = [];
+
   const filtered = cards.filter(card => {
+    // ─── EDGE-3 Sanity Gate 1: strike-price monotonicity ─────────────
+    // No-arbitrage ordering at the prices this card actually transacts at
+    // (sell legs @ bid, buy legs @ ask — see makeLeg): a put at a lower strike
+    // must not cost more than a put at a higher strike; a call at a higher
+    // strike must not cost more than a call at a lower strike. A violating
+    // chain is broken — the candidate is REJECTED and declared, never repaired.
+    for (const legType of ['put', 'call'] as const) {
+      const sameType = card.legs
+        .filter(l => l.type === legType)
+        .sort((a, b) => a.strike - b.strike);
+      for (let i = 0; i < sameType.length; i++) {
+        for (let j = i + 1; j < sameType.length; j++) {
+          const lo = sameType[i];
+          const hi = sameType[j];
+          if (lo.strike === hi.strike) continue;
+          const violated = legType === 'put' ? lo.price > hi.price : hi.price > lo.price;
+          if (violated) {
+            const detail = `${legType} ${lo.strike} @ $${lo.price.toFixed(2)} (${lo.side}) vs ${legType} ${hi.strike} @ $${hi.price.toFixed(2)} (${hi.side})`;
+            console.log(`[StrategyBuilder] ${sym}: MONOTONICITY GATE rejected "${card.name}" — ${detail}`);
+            rejections.push({
+              strategy: card.name,
+              reason: `monotonicity_violation: ${detail}`,
+              gate: 'construction',
+            });
+            return false;
+          }
+        }
+      }
+    }
+
+    // ─── EDGE-3 Sanity Gate 2: HV10 > sold IV disqualification ───────
+    // Premium-selling only: if 10-day realized vol exceeds the IV of the legs
+    // being SOLD, the premium is underpriced for current movement — REJECT.
+    // Unevaluable (hv10 null or no short-leg IV from the feed) → the candidate
+    // proceeds and the non-evaluation is DECLARED after the filter (no silent
+    // gap, no invented value, no waiver logic).
+    if (CREDIT_STRATEGIES.includes(card.name)) {
+      const shortIvs = card.legs
+        .filter(l => l.side === 'sell' && l.iv != null && l.iv > 0)
+        .map(l => l.iv as number);
+      if (params.hv10 == null) {
+        hv10GateSkippedNoHv10++;
+      } else if (shortIvs.length === 0) {
+        hv10GateSkippedNoLegIv.push(card.name);
+      } else {
+        const soldIv = shortIvs.reduce((a, b) => a + b, 0) / shortIvs.length;
+        if (params.hv10 > soldIv) {
+          const detail = `hv10=${(params.hv10 * 100).toFixed(1)}% iv=${(soldIv * 100).toFixed(1)}%`;
+          console.log(`[StrategyBuilder] ${sym}: HV10>IV GATE rejected "${card.name}" — ${detail} (short-leg IVs: [${shortIvs.map(v => (v * 100).toFixed(1)).join(', ')}])`);
+          rejections.push({
+            strategy: card.name,
+            reason: `hv10_exceeds_iv: ${detail}`,
+            gate: 'construction',
+            details: { value: params.hv10, threshold: soldIv },
+          });
+          return false;
+        }
+      }
+    }
+
+    // KILL-5: unlimited-risk candidate without hv30 — the HV sizing proxy is
+    // not computable; REJECTED with the true reason, never proxied.
+    if (card.isUnlimited && hvProxyML == null) {
+      rejections.push({
+        strategy: card.name,
+        reason: 'hv30 unavailable — unlimited-risk sizing (HV proxy) not computable; rejected, never proxied',
+        gate: 'construction',
+      });
+      return false;
+    }
+
     // Gate A: EV must be positive (uses hvPoP for credit, deltaPoP for debit)
-    if (card.ev <= 0) {
-      const effectiveML = card.isUnlimited ? hvProxyML : (card.maxLoss ?? 0);
+    // MODEL-01: on the BUY side Gate A is NOT an existence test. The EV here
+    // is the breakeven-d2 (risk-neutral) model's — an option bought at the ask
+    // has EV ≤ 0 under the very model that priced it, and the sampled payoff
+    // range caps a long-vol structure's upside — so a fair-priced straddle
+    // reads EV −$176 on a $701 debit and the buy side could never exist. The
+    // ruling makes the CATALYST the buy side's existence test; EV (model) is
+    // shown on the card, labelled for what it is, and declared below.
+    if (card.ev <= 0 && card.side === 'BUY') {
+      buyEvBelowZero += 1;
+    } else if (card.ev <= 0) {
+      const effectiveML = card.isUnlimited ? (hvProxyML as number) : (card.maxLoss ?? 0);
       console.log(`[StrategyBuilder] ${sym}: EV GATE rejected "${card.name}" — EV=$${card.ev.toFixed(0)} (hvPoP=${card.hvPop?.toFixed(3) ?? 'n/a'}, deltaPoP=${card.pop?.toFixed(3)}, mp=$${card.maxProfit}, ml=$${effectiveML.toFixed(0)})`);
       const strikes = card.legs.map(l => l.strike).sort((a, b) => a - b);
       const sw = strikes.length >= 2 ? strikes[1] - strikes[0] : 0;
@@ -892,7 +1115,7 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
       console.log(`[StrategyBuilder] ${sym}: PoP GATE rejected "${card.name}" — pop=${card.pop != null ? (card.pop * 100).toFixed(1) + '%' : 'null'}, threshold=${(threshold * 100).toFixed(0)}%`);
       rejections.push({
         strategy: card.name,
-        reason: `Est. PoP ${card.pop != null ? (card.pop * 100).toFixed(0) + '%' : 'null'} below floor ${(threshold * 100).toFixed(0)}%`,
+        reason: `${POP_MODEL_LABEL} ${card.pop != null ? (card.pop * 100).toFixed(0) + '%' : 'null'} below floor ${(threshold * 100).toFixed(0)}%`,
         gate: 'B',
         details: { value: card.pop ?? 0, threshold },
       });
@@ -914,8 +1137,38 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
     return true;
   });
 
+  // EDGE-3: declare, don't silently pass. If the HV10>IV gate could not be
+  // evaluated for premium-selling candidates, say so on the same surface as
+  // missing_live_quote (EDGE-1 precedent) — these are declarations, not
+  // rejections; the candidates proceeded UNCHECKED.
+  if (hv10GateSkippedNoHv10 > 0) {
+    console.log(`[StrategyBuilder] ${sym}: HV10>IV gate NOT EVALUATED for ${hv10GateSkippedNoHv10} premium-selling candidate(s) — hv10 unavailable (insufficient candle history)`);
+    rejections.push({
+      strategy: 'all',
+      reason: `hv10 unavailable — HV10>IV gate not evaluated (${hv10GateSkippedNoHv10} premium-selling candidate(s) proceeded unchecked)`,
+      gate: 'construction',
+    });
+  }
+  if (buyEvBelowZero > 0) {
+    rejections.push({
+      strategy: 'all',
+      reason: `BUY side: Gate A (model EV > 0) is not an existence test on the buy side — EV (model) is a pricing quantity under the IV that priced the legs, and the catalyst is the gate (MODEL-01); ${buyEvBelowZero} candidate(s) proceeded with EV (model) ≤ 0, shown labelled on the card`,
+      gate: 'construction',
+    });
+  }
+  if (hv10GateSkippedNoLegIv.length > 0) {
+    console.log(`[StrategyBuilder] ${sym}: HV10>IV gate NOT EVALUATED for [${hv10GateSkippedNoLegIv.join(', ')}] — no short-leg IV from the chain feed`);
+    rejections.push({
+      strategy: 'all',
+      reason: `no short-leg IV from chain feed — HV10>IV gate not evaluated (${hv10GateSkippedNoLegIv.join(', ')} proceeded unchecked)`,
+      gate: 'construction',
+    });
+  }
+
   // ─── Edge-Aware Composite Scoring ───────────────────────────────
-  const edgeRatio = iv > 0 ? Math.max(0, (iv - hv)) / iv : 0;
+  // KILL-5: the IV-HV edge ratio needs a real hv30 — when missing, the term
+  // is EXCLUDED and the remaining composite weights renormalize (50/30 of 80).
+  const edgeRatio = hv != null && iv > 0 ? Math.max(0, (iv - hv)) / iv : null;
   filtered.sort((a, b) => {
     const scoreA = computeCompositeScore(a);
     const scoreB = computeCompositeScore(b);
@@ -923,9 +1176,12 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   });
 
   function computeCompositeScore(card: StrategyCard): number {
-    const effectiveML = card.isUnlimited ? hvProxyML : (card.maxLoss ?? 0);
+    // hvProxyML is non-null for every surviving unlimited-risk card (rejected above)
+    const effectiveML = card.isUnlimited ? (hvProxyML as number) : (card.maxLoss ?? 0);
     const thetaEff = effectiveML > 0 ? Math.abs(card.thetaPerDay) / effectiveML * 100 : 0;
-    return (card.evPerRisk * 50) + (thetaEff * 30) + (edgeRatio * 20);
+    const base = (card.evPerRisk * 50) + (thetaEff * 30);
+    // edgeRatio excluded (hv30 missing) → renormalize the 50/30 weights to 100
+    return edgeRatio != null ? base + (edgeRatio * 20) : base * (100 / 80);
   }
 
   // Persist composite scores on each card
@@ -953,37 +1209,24 @@ export function buildStrikeData(
     let putBid: number | null = pg.bid ?? null;
     let putAsk: number | null = pg.ask ?? null;
 
-    // Estimate missing bid/ask from the other side
-    if (callBid === 0 && callAsk != null && callAsk > 0) callBid = callAsk * 0.4;
-    if (callAsk === 0 && callBid != null && callBid > 0) callAsk = callBid * 2.5;
-    if (putBid === 0 && putAsk != null && putAsk > 0) putBid = putAsk * 0.4;
-    if (putAsk === 0 && putBid != null && putBid > 0) putAsk = putBid * 2.5;
+    // EDGE-1: a leg is VALID only with a real bid > 0 AND a real ask > 0 from the chain.
+    // No estimation from one side (removed the old 0.4/2.5 blocks), no exchange-theo
+    // substitution (removed the old theo × 0.85/1.15 blocks), no one-sided fill. A leg
+    // missing either live side is dead — BOTH its sides are nulled so nothing downstream
+    // can build, price, or score a strategy on a fabricated quote.
+    const callLive = callBid != null && callBid > 0 && callAsk != null && callAsk > 0;
+    const putLive = putBid != null && putBid > 0 && putAsk != null && putAsk > 0;
+    if (!callLive) { callBid = null; callAsk = null; }
+    if (!putLive) { putBid = null; putAsk = null; }
 
-    // Track price source for audit trail
-    const callHasLive = (callBid != null && callBid > 0) || (callAsk != null && callAsk > 0);
-    const putHasLive = (putBid != null && putBid > 0) || (putAsk != null && putAsk > 0);
-
-    // Exchange theo price — real Black-Scholes valuation from vol surface (industry standard: TOS, Schwab, IBKR)
+    // Exchange theo is retained as INFORMATIONAL context only (recorded in the row below);
+    // it is never substituted into bid/ask.
     const callTheo = cg.theoPrice > 0 ? cg.theoPrice : null;
     const putTheo = pg.theoPrice > 0 ? pg.theoPrice : null;
 
-    // When live quotes unavailable, use exchange theo with standard spread model
-    if (!callHasLive && callTheo != null) {
-      callBid = callTheo * 0.85;
-      callAsk = callTheo * 1.15;
-    }
-    if (!putHasLive && putTheo != null) {
-      putBid = putTheo * 0.85;
-      putAsk = putTheo * 1.15;
-    }
-
-    const callHasTheo = !callHasLive && callTheo != null;
-    const putHasTheo = !putHasLive && putTheo != null;
-
-    const priceSource: 'live' | 'theo' | 'mixed' | 'none' =
-      (callHasLive && putHasLive) ? 'live' :
-      (!callHasLive && !putHasLive && !callHasTheo && !putHasTheo) ? 'none' :
-      (!callHasLive && !putHasLive) ? 'theo' : 'mixed';
+    // Price source is now live-only: a strike is 'live' if it carries at least one leg with
+    // a real two-sided quote, else 'none'. 'theo'/'mixed' can no longer occur.
+    const priceSource: 'live' | 'theo' | 'mixed' | 'none' = (callLive || putLive) ? 'live' : 'none';
 
     // Inverted quotes — null out that side entirely
     if (callBid != null && callAsk != null && callBid > callAsk) {
@@ -1106,18 +1349,28 @@ export function buildCustomCard(
     const bid: number | null = g.bid ?? null;
     const ask: number | null = g.ask ?? null;
     const price = cl.side === 'sell' ? bid : ask;
-    if (price == null || price <= 0) continue;
+    // KILL-7: a custom leg without a live price fails the WHOLE card — the
+    // old `continue` silently dropped the leg while still naming and pricing
+    // the card as the full strategy the user built.
+    if (price == null || price <= 0) return null;
     const midVal = bid != null && ask != null ? (ask + bid) / 2 : 0;
     const wide = midVal > 0 ? (ask! - bid!) / midVal > 0.50 : false;
+    // KILL-2: same rule as makeLeg — a leg without complete greeks cannot be
+    // built; the whole custom card fails rather than carrying imputed-0 greeks.
+    const delta = numOrNull(g.delta);
+    const gamma = numOrNull(g.gamma);
+    const theta = numOrNull(g.theta);
+    const vega = numOrNull(g.vega);
+    if (delta == null || gamma == null || theta == null || vega == null) return null;
     legs.push({
       type: cl.type,
       side: cl.side,
       strike: cl.strike,
       price,
-      delta: cl.side === 'sell' ? -(g.delta ?? 0) : (g.delta ?? 0),
-      gamma: cl.side === 'sell' ? -(g.gamma ?? 0) : (g.gamma ?? 0),
-      theta: cl.side === 'sell' ? -(g.theta ?? 0) : (g.theta ?? 0),
-      vega: cl.side === 'sell' ? -(g.vega ?? 0) : (g.vega ?? 0),
+      delta: cl.side === 'sell' ? -delta : delta,
+      gamma: cl.side === 'sell' ? -gamma : gamma,
+      theta: cl.side === 'sell' ? -theta : theta,
+      vega: cl.side === 'sell' ? -vega : vega,
       wideSpread: wide,
     });
   }

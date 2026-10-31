@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * src/components/workbench/SectionJ_CostLedger.tsx
  *
@@ -6,9 +8,8 @@
  * lands in PR-23 per architecture doc § 8.1 Phase 2.
  */
 
-'use client';
 
-export function SectionJ_CostLedger() {
+export function SectionJ_CostLedger({ }: { } = {}) {
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">

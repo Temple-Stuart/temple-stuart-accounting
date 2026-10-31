@@ -15,6 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -50,11 +51,7 @@ export async function GET(
 
     return NextResponse.json({ item });
   } catch (error) {
-    console.error('[Daily Plan Item GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load daily plan item', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Daily Plan Item GET', 'Failed to load daily plan item', error);
   }
 }
 
@@ -161,11 +158,7 @@ export async function PATCH(
 
     return NextResponse.json({ item });
   } catch (error) {
-    console.error('[Daily Plan Item PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update daily plan item', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Daily Plan Item PATCH', 'Failed to update daily plan item', error);
   }
 }
 
@@ -214,10 +207,6 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('[Daily Plan Item DELETE]', error);
-    return NextResponse.json(
-      { error: 'Failed to delete daily plan item', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Daily Plan Item DELETE', 'Failed to delete daily plan item', error);
   }
 }

@@ -1,0 +1,174 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { BookOpen, Lock } from 'lucide-react';
+import TaxFilingWizard from '@/components/tax-filing/TaxFilingWizard';
+
+
+/**
+ * TAX-1 — the closed-books handoff gate for the homepage Tax tab.
+ *
+ * TAX-UNLOCK (Alex's explicit override, 2026-08-12): the closed-period GATE
+ * DIED. The wizard opens for everyone with an entity — the TurboTax
+ * precedent; linking closed books is the optional enhancement, not the toll.
+ *
+ * TRUTH-FIRST — the states that remain, no guessing:
+ *   loading → neutral placeholder
+ *   error   → explicit error + Retry (a FAILED closing-periods/entities fetch
+ *             is neither open nor closed — we never guess a state)
+ *   gate    → NO ENTITY ONLY (the user cannot have books at all — honest
+ *             state, preserved as-is)
+ *   wizard  → entity exists, ALWAYS. When zero periods are closed, an info
+ *             banner above the wizard offers the optional Books close.
+ *
+ * All fetches hit existing, auth-gated, user-scoped routes (/api/entities,
+ * /api/closing-periods) — no new routes.
+ */
+
+interface Props {
+  /** Switches the homepage to the Books tab (ModuleLauncher selectTab('books')). */
+  onGoToBooks: () => void;
+}
+
+type GateState = 'loading' | 'error' | 'gate' | 'wizard';
+
+export default function TaxHandoffGate({ onGoToBooks }: Props) {
+  // FINISH-DS-1: single-consumer (ML) — always dark.
+  const [state, setState] = useState<GateState>('loading');
+  const [periodCount, setPeriodCount] = useState(0);
+  // TAX-UNLOCK: kept ONLY to decide the optional-books info banner.
+  const [closedCount, setClosedCount] = useState(0);
+
+  const load = useCallback(async () => {
+    setState('loading');
+    try {
+      // Resolve the default entity — same rule BooksPipeline uses (is_default || [0]).
+      const entRes = await fetch('/api/entities');
+      if (!entRes.ok) throw new Error('entities fetch failed');
+      const entData = await entRes.json();
+      const entities = entData.entities || [];
+      const def = entities.find((e: { is_default?: boolean }) => e.is_default) || entities[0];
+      // No entity at all → the user cannot have closed a period → TRUE gate state
+      // (not an error, not a guess).
+      if (!def) {
+        setPeriodCount(0);
+        setState('gate');
+        return;
+      }
+      const cpRes = await fetch(`/api/closing-periods?entityId=${encodeURIComponent(def.id)}`);
+      if (!cpRes.ok) throw new Error('closing-periods fetch failed');
+      const cpData = await cpRes.json();
+      const periods: Array<{ status?: string }> = cpData.periods || [];
+      // Closed contract: status === 'closed'. 'reopened' and absent do NOT count.
+      const closed = periods.filter((p) => p.status === 'closed').length;
+      setPeriodCount(periods.length);
+      setClosedCount(closed);
+      // TAX-UNLOCK: entity exists → the wizard, ALWAYS (the closed>0 toll died).
+      setState('wizard');
+    } catch {
+      setState('error');
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (state === 'loading') {
+    return (
+      // REPAINT-04 (2026-09-21): the retired dark card on the cream tax tab → white card, lavender hairline, muted ink.
+      <div className={'rounded-xl border-2 border-border bg-white px-4 py-3 text-sm text-text-muted'}>
+        Checking your books…
+      </div>
+    );
+  }
+
+  if (state === 'error') {
+    return (
+      <div role="alert" className="rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+        <span>Couldn&rsquo;t check whether your books are closed. Nothing is assumed — the tax wizard stays locked until we can confirm.</span>
+        <button
+          type="button"
+          onClick={load}
+          className="shrink-0 rounded-lg border border-red-400 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // TAX-UNLOCK: 'gate' is now the NO-ENTITY state only — preserved as-is
+  // (the honest cannot-have-books state); every entity-holder gets the wizard.
+  if (state === 'gate') {
+    return (
+      <div className="rounded-xl border-2 border-brand-gold/50 bg-brand-gold/5 px-6 py-8 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-gold/15 text-brand-gold">
+          <Lock className="h-6 w-6" aria-hidden="true" />
+        </div>
+        {/* TAX-UX-1: the dossier anchor (derived-not-typed) — the gate's own
+            message IS the derivation story pre-close, so it gets the
+            display-scale treatment (TYPE.display idiom; the RUNWAY/TRADE
+            precedent). Same sentence, zero new copy. */}
+        {/* REPAINT-04: white display ink on the gold wash was invisible on cream — primary / secondary ink (the DARKEN_MAP pairs). */}
+        <h3 className={'text-2xl lg:text-3xl font-light tracking-tight text-text-primary'}>Tax begins at completed books</h3>
+        <p className={'mx-auto mt-2 max-w-md text-sm text-text-secondary'}>
+          Your tax figures come straight from your ledger, so the filing wizard opens once you&rsquo;ve
+          closed at least one accounting period. {periodCount > 0
+            ? `You have ${periodCount} period${periodCount === 1 ? '' : 's'} on record, but none are closed yet.`
+            : 'No periods are closed yet.'}
+        </p>
+        <button
+          type="button"
+          onClick={onGoToBooks}
+          className="mx-auto mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90"
+        >
+          <BookOpen className="h-4 w-4" aria-hidden="true" />
+          Go to Books &amp; close a period
+        </button>
+      </div>
+    );
+  }
+
+  // state === 'wizard' — handoff satisfied (at least one closed period).
+  // TAX-UX-1: once books close, the bare wizard carried ZERO derivation story —
+  // exactly when the dossier anchor ("taxes auto-derived from your own books")
+  // is TRUE. The promotion scopes to the tab's entry surface (the ruled call:
+  // a display numeral inside the sequential wizard would fight its flow): a
+  // slim strip above the wizard, display-scale. ZERO new copy claims — both
+  // strings exist verbatim on audited surfaces: "The whole return, derived —
+  // not typed." is the landing's tax deck bullet (Landing.tsx PILLAR_CARDS);
+  // "derived from your actual closed books" is the tab's own LockedTabCard
+  // valueLine (ModuleLauncher tax branch). Wizard untouched.
+  return (
+    <>
+      {/* TAX-UNLOCK: the optional-books banner — STATE info family (the
+          errorCard idiom in status-info tokens); the existing Go-to-Books
+          button reused (layout-only: it lost mx-auto/mt-5 to sit in the
+          banner row). */}
+      {closedCount === 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-status-info/30 bg-status-info/10 p-3 text-xs text-status-info">
+          <span>
+            Optional: close an accounting period in Books and these figures auto-fill straight from your ledger.
+          </span>
+          <button
+            type="button"
+            onClick={onGoToBooks}
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90"
+          >
+            <BookOpen className="h-4 w-4" aria-hidden="true" />
+            Go to Books &amp; close a period
+          </button>
+        </div>
+      )}
+      {/* REPAINT-04 (2026-09-21): the dossier anchor wore the retired dark card — white card, muted eyebrow, primary display ink. */}
+      <div className={'rounded-xl border-2 border-border bg-white px-6 py-5'}>
+        <p className={'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-muted'}>
+          Derived from your actual closed books
+        </p>
+        <div className={'mt-1 text-2xl lg:text-3xl font-light tracking-tight text-text-primary'}>
+          The whole return, derived — not typed.
+        </div>
+      </div>
+      <TaxFilingWizard />
+    </>
+  );
+}

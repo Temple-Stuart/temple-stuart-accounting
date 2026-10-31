@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { requireAdmin } from '@/lib/require-admin';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 export const maxDuration = 300;
 
@@ -157,10 +159,8 @@ export async function GET(request: Request) {
     // SECURITY-PR-SEC4: TastyTrade uses a SHARED FIRM account (env creds via
     // getTastytradeClient — NOT per-user OAuth; the tastytrade_connections row is
     // just a flag that unlocks the shared session). So any caller spends/reads
-    // ALEX'S brokerage. Gate to admin BEFORE any TT call or data read — 403 for
-    // non-admins, 401 for guests. (Same requireAdmin pattern as /trading/convergence.)
-    const adminGate = await requireAdmin();
-    if (adminGate instanceof NextResponse) return adminGate;
+    // ALEX'S brokerage session. TRADE-GATE (2026-08-11): market-data reads are
+    // entitlement-gated below (tab:trade); the connection itself stays owner-scoped.
     const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -170,6 +170,13 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TRADE-GATE: entitlement-gated — the paid tab:trade key (or bundle)
+    // unlocks this endpoint; admin passes via hasTabAccess's ADMIN_USER_ID
+    // bypass (entitlements.ts:48). Market/pipeline data only — the broker
+    // CONNECTION and the shared account's balances/positions stay
+    // owner-scoped (see connect/callback + balances/positions routes).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const client = await getAuthenticatedClient(user.id);
     if (!client) {
@@ -189,6 +196,10 @@ export async function GET(request: Request) {
       batches.push(symbols.slice(i, i + BATCH_SIZE));
     }
 
+    // KILL-4: a failed batch of up to 50 symbols must not silently vanish
+    // while totalScanned still reports the full universe — declared below.
+    const batchErrors: string[] = [];
+    let symbolsFailedCount = 0;
     const batchResults = await Promise.all(
       batches.map(async (batch) => {
         try {
@@ -197,7 +208,9 @@ export async function GET(request: Request) {
           });
           return Array.isArray(raw) ? raw : [];
         } catch (err) {
-          console.error('[Scanner] Batch error:', err);
+          console.error('[Scanner] Batch error:', summarizeTastytradeError(err));
+          batchErrors.push(`batch of ${batch.length} symbols FAILED: ${err instanceof Error ? err.message : String(err)}`);
+          symbolsFailedCount += batch.length;
           return [];
         }
       })
@@ -218,9 +231,11 @@ export async function GET(request: Request) {
       return {
         // Existing
         symbol: m['symbol'] || '',
-        ivRank: Number(m['implied-volatility-index-rank'] || m['tos-implied-volatility-index-rank'] || m['tw-implied-volatility-index-rank'] || 0),
-        ivPercentile: Number(m['implied-volatility-percentile'] || 0),
-        impliedVolatility: Number(m['implied-volatility-index'] || 0),
+        // KILL-2: absent/unparseable → null, never 0 (a missing IV rank used to
+        // sort the whole universe at rank 0). A true source 0 stays 0.
+        ivRank: firstNumOrNull(m['implied-volatility-index-rank'], m['tos-implied-volatility-index-rank'], m['tw-implied-volatility-index-rank']),
+        ivPercentile: numOrNull(m['implied-volatility-percentile']),
+        impliedVolatility: numOrNull(m['implied-volatility-index']),
         liquidityRating: m['liquidity-rating'] != null ? Number(m['liquidity-rating']) : null,
         earningsDate,
         daysTillEarnings,
@@ -261,17 +276,28 @@ export async function GET(request: Request) {
       };
     }).filter((m: any) => m.symbol);
 
+    // KILL-2: a ticker with no IV rank cannot honestly hold a place in an
+    // IV-rank-sorted list — EXCLUDED from the ranking and DECLARED, never
+    // ranked at an imputed 0.
+    const ranked = metrics.filter((m): m is typeof m & { ivRank: number } => m.ivRank != null);
+    const excludedSymbols = metrics.filter(m => m.ivRank == null).map(m => m.symbol);
+
     // Sort by IV Rank descending
-    metrics.sort((a, b) => b.ivRank - a.ivRank);
+    ranked.sort((a, b) => b.ivRank - a.ivRank);
 
     return NextResponse.json({
-      metrics,
+      metrics: ranked,
+      excluded_missing_iv_rank: { count: excludedSymbols.length, symbols: excludedSymbols },
       totalScanned: totalSymbols,
+      // KILL-4: fetch failures declared — totalScanned is the REQUESTED count,
+      // batch_errors/symbols_failed_count say how much of it actually failed.
+      batch_errors: batchErrors,
+      symbols_failed_count: symbolsFailedCount,
       universe,
       fetchedAt: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('[Tastytrade] Scanner error:', error);
+    console.error('[Tastytrade] Scanner error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to fetch scanner data' }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 export async function GET() {
   try {
@@ -11,6 +12,9 @@ export async function GET() {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:trade entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const entries = await prisma.trade_journal_entries.findMany({
       where: { userId: user.id },
@@ -33,6 +37,9 @@ export async function POST(request: Request) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:trade entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const body = await request.json();
     const { tradeNum, entryType, thesis, setup, emotion, mistakes, lessons, rating, tags } = body;
@@ -95,6 +102,9 @@ export async function DELETE(request: Request) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:trade entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

@@ -1,4 +1,6 @@
-import type { ConvergenceInput, RegimeResult, DataConfidence, CrossAssetCorrelations, FredMacroData } from './types';
+import type { ConvergenceInput, RegimeResult, DataConfidence, CrossAssetCorrelations, FredMacroData, SurvivalBrake, CboeRegimeInput } from './types';
+import { combineWeighted } from './weighted-combiner';
+import { CBOE_SOURCE, CBOE_INPUTS_SET_ON } from './cboe-daily';
 
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
@@ -36,6 +38,103 @@ const MACRO_BASELINES = {
   hy_spread:          { median: 4.0,   spread: 2.0 },    // BAMLH0A0HYM2: HY credit spread %
 };
 
+// ===== EDGE-6 — VOL-REGIME CONDITIONER BASELINES (STRATEGY-EVIDENCE §2-§3) =====
+// Both series arrive as a single latest observation from FRED (no historical
+// storage yet — see the rate-of-change note above), so the transform is the
+// gate's established baselineScore sigmoid (median/spread), NOT a z-score vs
+// own history. Both are INVERTED: higher raw value = worse for premium selling.
+//
+// vix_term_structure = VIXCLS / VXVCLS (VIX ÷ VIX3M). < 1 = contango (the
+//   normal, favorable state for selling premium); > 1 = backwardation (stress).
+//   The ratio spends ~80-85% of its history in contango with a long-run median
+//   ≈ 0.93 (CBOE VIX/VXV daily history, 2011-2024). spread 0.07 places the
+//   contango/backwardation boundary (1.00) one sigmoid unit above the median →
+//   ratio 0.93 scores 50, 1.00 scores ≈27, deep backwardation 1.07 scores ≈12.
+//   Evidence: Simon & Campasano 2014 (JoD) — the VIX futures basis predicts
+//   short-vol trade returns; Johnson 2017 (JFQA) — the term-structure slope
+//   carries priced variance-risk-premium information.
+// vvix = VVIXCLS level. Long-run median ≈ 90 (CBOE VVIX history 2007-2024;
+//   post-2018 plateau runs ~95). spread 15 → VVIX 90 scores 50, 105 ≈ 27,
+//   120 ≈ 12. Evidence: Park 2015 (Fed/JEF) — VVIX predicts tail-risk-hedge
+//   returns; elevated VVIX marks expensive, binding tails.
+// Review annually alongside MACRO_BASELINES.
+const VOL_REGIME_BASELINES = {
+  vix_term_structure: { median: 0.93, spread: 0.07 },
+  vvix:               { median: 90,   spread: 15 },
+};
+
+// EDGE-6 survival-brake thresholds (STRATEGY-EVIDENCE §6).
+// backwardation_ratio 1.0 is definitional, not tuned: VIX above VIX3M IS
+// backwardation. vvix_elevated 110 ≈ +1.3σ above the long-run median 90
+// (≈85-90th percentile of 2007-2024 history) — the "elevated VVIX" zone where
+// Park 2015's tail-risk premium binds. This is the state where the measured
+// premium looks richest and the tail is largest (Feb 5 2018: VIX +115%,
+// XIV −96%) — the brake cuts short-vol exposure exactly there.
+const BRAKE_BACKWARDATION_RATIO = 1.0;
+const BRAKE_VVIX_ELEVATED = 110;
+
+// EDGE-6: VIX/VIX3M ratio — < 1 contango (favorable) so INVERTED scoring.
+function normalizeVixTermStructure(ratio: number | null): number | null {
+  if (ratio === null) return null;
+  const b = VOL_REGIME_BASELINES.vix_term_structure;
+  return baselineScore(ratio, b.median, b.spread, true);
+}
+
+// EDGE-6: VVIX level — higher = tail risk more expensive/binding so INVERTED.
+function normalizeVvix(v: number | null): number | null {
+  if (v === null) return null;
+  const b = VOL_REGIME_BASELINES.vvix;
+  return baselineScore(v, b.median, b.spread, true);
+}
+
+// EDGE-6 (STRATEGY-EVIDENCE §6): the anti-wipeout rule. If VVIX is elevated
+// OR VIX/VIX3M is in backwardation, short-vol exposure is CUT regardless of
+// how attractive the VRP looks. FAIL-SAFE: a missing input means the brake
+// cannot confirm safety — it declares UNVERIFIED (treated like ON downstream)
+// rather than silently allowing full exposure. No default, no neutral pass.
+/** MODEL-02: the reason a brake input is missing rides on the declaration, bounded so the string stays a summary (the full text is on the vol_conditioners trace). */
+const BRAKE_REASON_MAX = 80;
+function clipReason(reason: string | null): string {
+  if (!reason) return '';
+  const r = reason.length > BRAKE_REASON_MAX ? `${reason.slice(0, BRAKE_REASON_MAX - 1)}…` : reason;
+  return ` (${r})`;
+}
+
+function computeSurvivalBrake(ratio: number | null, vvix: number | null, vvixNullReason: string | null = null): SurvivalBrake {
+  const reasons: string[] = [];
+  if (ratio !== null && ratio > BRAKE_BACKWARDATION_RATIO) {
+    reasons.push(`VIX/VIX3M = ${round(ratio, 3)} > ${BRAKE_BACKWARDATION_RATIO} — backwardation`);
+  }
+  if (vvix !== null && vvix >= BRAKE_VVIX_ELEVATED) {
+    reasons.push(`VVIX = ${round(vvix, 1)} ≥ ${BRAKE_VVIX_ELEVATED} — elevated vol-of-vol`);
+  }
+  const missing: string[] = [];
+  if (ratio === null) missing.push('VIX/VIX3M term structure');
+  if (vvix === null) missing.push(`VVIX${clipReason(vvixNullReason)}`);
+
+  let state: SurvivalBrake['state'];
+  let declaration: string;
+  if (reasons.length > 0) {
+    state = 'ON';
+    declaration = `REGIME BRAKE: ${reasons.join('; ')} — short-vol exposure cut`
+      + (missing.length > 0 ? ` (${missing.join(', ')} unavailable)` : '');
+  } else if (missing.length > 0) {
+    state = 'UNVERIFIED';
+    declaration = `REGIME BRAKE UNVERIFIED: brake inputs unavailable (${missing.join(', ')}) — regime unverified, short-vol exposure not confirmed safe`;
+  } else {
+    state = 'OFF';
+    declaration = `Regime brake off — VIX/VIX3M = ${round(ratio as number, 3)} (contango) and VVIX = ${round(vvix as number, 1)} (calm)`;
+  }
+  return {
+    state,
+    reasons,
+    vix_term_structure_ratio: ratio,
+    vvix,
+    thresholds: { backwardation_ratio: BRAKE_BACKWARDATION_RATIO, vvix_elevated: BRAKE_VVIX_ELEVATED },
+    declaration,
+  };
+}
+
 // ===== STALENESS DETECTION =====
 const STALE_THRESHOLD_DAYS = 14;
 
@@ -48,9 +147,11 @@ function isStale(dateStr: string | null): boolean {
 
 // ===== STEP A — NORMALIZE MACRO INDICATORS TO 0-100 =====
 // Each indicator scored relative to its long-run median via sigmoid.
-// At median → 50. Above → >50. Below → <50.
+// At median → 50 (a LEGITIMATE neutral computed from a present value).
 // spread ≈ 1 std dev of the series; controls sensitivity.
 // invert=true for indicators where lower is better (e.g., unemployment).
+// KILL-3: a NULL series returns null — the signal is EXCLUDED from its
+// composite and the remaining weights renormalize. Never imputed as 50.
 
 function baselineScore(value: number, median: number, spread: number, invert = false): number {
   const deviation = (value - median) / spread;
@@ -59,81 +160,81 @@ function baselineScore(value: number, median: number, spread: number, invert = f
 }
 
 // GDP growth (%): Higher = stronger economy. Baseline 2.5%.
-function normalizeGdp(v: number | null): number {
-  if (v === null) return 50;
+function normalizeGdp(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.gdp_growth;
   return baselineScore(v, b.median, b.spread);
 }
 
 // Unemployment (%): INVERTED — lower = better. Baseline 5.0%.
-function normalizeUnemployment(v: number | null): number {
-  if (v === null) return 50;
+function normalizeUnemployment(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.unemployment;
   return baselineScore(v, b.median, b.spread, true);
 }
 
 // Non-farm payrolls (thousands/month): Higher = better. Baseline 150K.
-function normalizeNfp(v: number | null): number {
-  if (v === null) return 50;
+function normalizeNfp(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.nfp;
   return baselineScore(v, b.median, b.spread);
 }
 
 // Consumer Confidence (U of Michigan): Higher = better. Baseline 85.
-function normalizeConsumerConfidence(v: number | null): number {
-  if (v === null) return 50;
+function normalizeConsumerConfidence(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.consumer_sentiment;
   return baselineScore(v, b.median, b.spread);
 }
 
 // Initial Jobless Claims (thousands): INVERTED — lower = better. Baseline 225K.
 // Rising claims (above trailing average) = bearish labor signal.
-function normalizeIcsa(v: number | null): number {
-  if (v === null) return 50;
+function normalizeIcsa(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.icsa;
   return baselineScore(v, b.median, b.spread, true);
 }
 
 // NFCI: INVERTED — negative values = loose conditions (bullish), positive = tight (bearish).
 // Zero = neutral. Positive values signal tightening financial conditions.
-function normalizeNfci(v: number | null): number {
-  if (v === null) return 50;
+function normalizeNfci(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.nfci;
   return baselineScore(v, b.median, b.spread, true);
 }
 
 // CPI YoY (%): Higher = more inflation. Baseline 2.5%.
-function normalizeCpiYoy(v: number | null): number {
-  if (v === null) return 50;
+function normalizeCpiYoy(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.cpi_yoy;
   return baselineScore(v, b.median, b.spread);
 }
 
 // CPI MoM (%): Higher = more inflation. Baseline 0.2%.
-function normalizeCpiMom(v: number | null): number {
-  if (v === null) return 50;
+function normalizeCpiMom(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.cpi_mom;
   return baselineScore(v, b.median, b.spread);
 }
 
 // Fed Funds Rate (%): Higher = tighter / more inflationary signal. Baseline 3.0%.
-function normalizeFedFunds(v: number | null): number {
-  if (v === null) return 50;
+function normalizeFedFunds(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.fed_funds;
   return baselineScore(v, b.median, b.spread);
 }
 
 // 10Y Treasury Yield (%): Higher = more inflation signal. Baseline 3.5%.
-function normalizeTreasury10y(v: number | null): number {
-  if (v === null) return 50;
+function normalizeTreasury10y(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.treasury_10y;
   return baselineScore(v, b.median, b.spread);
 }
 
 // 5-Year Breakeven Inflation (%): Score as deviation from 2.0% Fed target.
 // > 3.0% → elevated inflation expectations. < 1.5% → deflation risk. 2.0-2.5% → neutral.
-function normalizeBreakeven5y(v: number | null): number {
-  if (v === null) return 50;
+function normalizeBreakeven5y(v: number | null): number | null {
+  if (v === null) return null;
   const b = MACRO_BASELINES.breakeven_5y;
   return baselineScore(v, b.median, b.spread);
 }
@@ -141,65 +242,70 @@ function normalizeBreakeven5y(v: number | null): number {
 // ===== STEP A — COMPOSITE GROWTH & INFLATION SIGNALS =====
 
 interface SignalResult {
-  score: number;
-  sub_scores: Record<string, number>;
+  // KILL-3: null only when EVERY component series is missing (scoreRegime
+  // then fails loud — the gate never scores on zero real macro data).
+  score: number | null;
+  sub_scores: Record<string, number | null>;
+  active_signal_count: number;
+  total_signal_count: number;
+  excluded: string[];
 }
 
 function computeGrowthSignal(input: ConvergenceInput): SignalResult {
   const m = input.fredMacro;
-  const gdpScore = normalizeGdp(m.gdp);
-  const unempScore = normalizeUnemployment(m.unemployment);
-  const nfpScore = normalizeNfp(m.nonfarmPayrolls);
-  const ccScore = normalizeConsumerConfidence(m.consumerConfidence);
-  const icsaScore = normalizeIcsa(m.initialClaims);
-  const nfciScore = normalizeNfci(m.nfci);
-
-  // Reweighted: original 4 indicators + 2 new ones
-  // GDP 0.25, Unemployment 0.20, NFP 0.20, Consumer Confidence 0.15, ICSA 0.10, NFCI 0.10
-  const score = round(
-    0.25 * gdpScore + 0.20 * unempScore + 0.20 * nfpScore +
-    0.15 * ccScore + 0.10 * icsaScore + 0.10 * nfciScore,
-    1,
-  );
+  // Weights: GDP 0.25, Unemployment 0.20, NFP 0.20, Consumer Confidence 0.15, ICSA 0.10, NFCI 0.10
+  // KILL-3 / EDGE-2 combiner: a null series is EXCLUDED and the remaining
+  // weights renormalize — never imputed as neutral 50.
+  const components = [
+    { key: 'gdp', weight: 0.25, score: normalizeGdp(m.gdp) },
+    { key: 'unemployment', weight: 0.20, score: normalizeUnemployment(m.unemployment) },
+    { key: 'nfp', weight: 0.20, score: normalizeNfp(m.nonfarmPayrolls) },
+    { key: 'consumer_confidence', weight: 0.15, score: normalizeConsumerConfidence(m.consumerConfidence) },
+    { key: 'initial_claims', weight: 0.10, score: normalizeIcsa(m.initialClaims) },
+    { key: 'nfci', weight: 0.10, score: normalizeNfci(m.nfci) },
+  ];
+  const combined = combineWeighted(components);
 
   return {
-    score,
+    score: combined.score,
     sub_scores: {
-      gdp_score: gdpScore,
-      unemployment_score: unempScore,
-      nfp_score: nfpScore,
-      consumer_confidence_score: ccScore,
-      icsa_score: icsaScore,
-      nfci_score: nfciScore,
+      gdp_score: components[0].score,
+      unemployment_score: components[1].score,
+      nfp_score: components[2].score,
+      consumer_confidence_score: components[3].score,
+      icsa_score: components[4].score,
+      nfci_score: components[5].score,
     },
+    active_signal_count: combined.activeCount,
+    total_signal_count: combined.totalCount,
+    excluded: combined.excludedKeys.map(k => `growth.${k}`),
   };
 }
 
 function computeInflationSignal(input: ConvergenceInput): SignalResult {
   const m = input.fredMacro;
-  const cpiYoyScore = normalizeCpiYoy(m.cpi);
-  const cpiMomScore = normalizeCpiMom(m.cpiMom ?? null);
-  const fedFundsScore = normalizeFedFunds(m.fedFunds);
-  const t10yScore = normalizeTreasury10y(m.treasury10y);
-  const breakeven5yScore = normalizeBreakeven5y(m.breakeven5y);
-
-  // Reweighted: original 4 + breakeven5y
-  // CPI YoY 0.30, CPI MoM 0.20, Fed Funds 0.15, Treasury 10Y 0.15, Breakeven 5Y 0.20
-  const score = round(
-    0.30 * cpiYoyScore + 0.20 * cpiMomScore + 0.15 * fedFundsScore +
-    0.15 * t10yScore + 0.20 * breakeven5yScore,
-    1,
-  );
+  // Weights: CPI YoY 0.30, CPI MoM 0.20, Fed Funds 0.15, Treasury 10Y 0.15, Breakeven 5Y 0.20
+  const components = [
+    { key: 'cpi_yoy', weight: 0.30, score: normalizeCpiYoy(m.cpi) },
+    { key: 'cpi_mom', weight: 0.20, score: normalizeCpiMom(m.cpiMom ?? null) },
+    { key: 'fed_funds', weight: 0.15, score: normalizeFedFunds(m.fedFunds) },
+    { key: 'treasury_10y', weight: 0.15, score: normalizeTreasury10y(m.treasury10y) },
+    { key: 'breakeven_5y', weight: 0.20, score: normalizeBreakeven5y(m.breakeven5y) },
+  ];
+  const combined = combineWeighted(components);
 
   return {
-    score,
+    score: combined.score,
     sub_scores: {
-      cpi_yoy_score: cpiYoyScore,
-      cpi_mom_score: cpiMomScore,
-      fed_funds_score: fedFundsScore,
-      treasury_10y_score: t10yScore,
-      breakeven_5y_score: breakeven5yScore,
+      cpi_yoy_score: components[0].score,
+      cpi_mom_score: components[1].score,
+      fed_funds_score: components[2].score,
+      treasury_10y_score: components[3].score,
+      breakeven_5y_score: components[4].score,
     },
+    active_signal_count: combined.activeCount,
+    total_signal_count: combined.totalCount,
+    excluded: combined.excludedKeys.map(k => `inflation.${k}`),
   };
 }
 
@@ -546,6 +652,34 @@ function computeAncillarySignals(macro: FredMacroData): {
   };
 }
 
+// ===== MODEL-02: the weight-0 Cboe inputs (present, dated, tuned by nobody) =====
+// The VIX term structure (VIX9D, VIX, VIX3M, VIX6M — three adjacent ratios)
+// and SKEW enter the regime trace at WEIGHT 0: no baseline normalization
+// exists for them here, and inventing one would be a tuning; they wait for
+// EDGE-01's third book to have n. Set 2026-09-16.
+export { CBOE_INPUTS_SET_ON };
+
+export function buildCboeRegimeInputs(cboe: ConvergenceInput['cboeDaily']): CboeRegimeInput[] {
+  const leg = (p: { index: string; value: number; date: string } | null | undefined, index: string) =>
+    ({ index, value: p?.value ?? null, date: p?.date ?? null });
+  const ratio = (a: number | null, b: number | null) => (a !== null && b !== null && b > 0 ? round(a / b, 4) : null);
+  const errorsRead = cboe?.errors ?? null;
+  const reason = (legs: { index: string; value: number | null }[]) =>
+    errorsRead === null
+      ? 'Cboe daily file not fetched this run'
+      : legs.filter((l) => l.value === null).map((l) => errorsRead.find((e) => e.startsWith(`${l.index}:`)) ?? `${l.index} absent from the Cboe read`).join('; ') || null;
+  const note = `weight 0 — present and logged; no baseline normalization until EDGE-01's third book has n (set ${CBOE_INPUTS_SET_ON})`;
+  const fetchedAt = (...ps: ({ fetched_at: string } | null | undefined)[]) => ps.find((p) => p)?.fetched_at ?? null;
+  const vix9d = cboe?.vix9d ?? null, vix = cboe?.vix ?? null, vix3m = cboe?.vix3m ?? null, vix6m = cboe?.vix6m ?? null, skew = cboe?.skew ?? null;
+  const l9 = leg(vix9d, 'VIX9D'), lv = leg(vix, 'VIX'), l3 = leg(vix3m, 'VIX3M'), l6 = leg(vix6m, 'VIX6M'), ls = leg(skew, 'SKEW');
+  return [
+    { key: 'vix9d_over_vix', label: 'VIX9D ÷ VIX (short-end term structure)', raw_value: ratio(l9.value, lv.value), inputs: [l9, lv], weight: 0, fetched_at: fetchedAt(vix9d, vix), source: CBOE_SOURCE, null_reason: reason([l9, lv]), note },
+    { key: 'vix_over_vix3m_cboe', label: 'VIX ÷ VIX3M (Cboe; the FRED VIXCLS/VXVCLS leg above is the scored one)', raw_value: ratio(lv.value, l3.value), inputs: [lv, l3], weight: 0, fetched_at: fetchedAt(vix, vix3m), source: CBOE_SOURCE, null_reason: reason([lv, l3]), note },
+    { key: 'vix3m_over_vix6m', label: 'VIX3M ÷ VIX6M (mid-curve term structure)', raw_value: ratio(l3.value, l6.value), inputs: [l3, l6], weight: 0, fetched_at: fetchedAt(vix3m, vix6m), source: CBOE_SOURCE, null_reason: reason([l3, l6]), note },
+    { key: 'skew', label: 'SKEW (Cboe S&P 500 tail-risk index level)', raw_value: ls.value, inputs: [ls], weight: 0, fetched_at: fetchedAt(skew), source: CBOE_SOURCE, null_reason: reason([ls]), note },
+  ];
+}
+
 // ===== MAIN REGIME SCORER =====
 
 export function scoreRegime(input: ConvergenceInput): RegimeResult {
@@ -554,14 +688,149 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   // Ancillary signals (audit-only breakdown, not wired into composite score)
   const ancillary = computeAncillarySignals(macro);
 
+  // EDGE-6: vol-regime conditioners (STRATEGY-EVIDENCE §2). Same guard as the
+  // pipeline's display ratio (pipeline step_h): both legs present and VIX3M > 0.
+  // `?? null` / `!= null`: legacy FredMacroData casts can carry undefined for
+  // these keys — undefined IS a missing input and must hit the same
+  // excluded/UNVERIFIED path as null, never read as "present".
+  // MODEL-02: VVIX comes from Cboe's daily file (cboe-daily.ts), dated; FRED
+  // never had it. A missing read is DECLARED with its reason — the brake shows
+  // UNVERIFIED — never imputed.
+  const cboe = input.cboeDaily ?? null;
+  const vvixPoint = cboe?.vvix ?? null;
+  const vvixRaw = vvixPoint?.value ?? null;
+  const vvixNullReason: string | null = vvixPoint
+    ? null
+    : cboe === null
+      ? 'Cboe daily file not fetched this run'
+      : (cboe.errors.find((e) => e.startsWith('VVIX')) ?? 'VVIX absent from the Cboe read');
+  const vixTermStructureRatio = (
+    macro.vix != null &&
+    macro.vxvShortTerm != null &&
+    macro.vxvShortTerm > 0
+  )
+    ? round(macro.vix / macro.vxvShortTerm, 4)
+    : null;
+  const vixTermStructureScore = normalizeVixTermStructure(vixTermStructureRatio);
+  const vvixScore = normalizeVvix(vvixRaw);
+  // The brake is market-level and computable even when the macro classification
+  // is not — it is attached on BOTH return paths below.
+  const survivalBrake = computeSurvivalBrake(vixTermStructureRatio, vvixRaw, vvixNullReason);
+  const volConditionerBreakdown = {
+    vix_term_structure: {
+      score: vixTermStructureScore,
+      raw_value: vixTermStructureRatio,
+      formula: 'VIXCLS / VXVCLS (VIX ÷ VIX3M) — < 1 = contango = favorable for vol selling',
+    },
+    vvix: {
+      score: vvixScore,
+      raw_value: vvixRaw,
+      source: `${CBOE_SOURCE} — VVIX_History.csv (restored 2026-09-16; FRED VVIXCLS never existed)`,
+      fetched_at: vvixPoint?.fetched_at ?? null,
+      data_date: vvixPoint?.date ?? null,
+      null_reason: vvixNullReason,
+    },
+    cboe_inputs: buildCboeRegimeInputs(cboe),
+    combine_formula: 'regime_base = renormalized(0.70 × strategy_regime + 0.20 × vix_term_structure(VIXCLS/VXVCLS) + 0.10 × vvix(Cboe VVIX_History.csv)); cboe_inputs (VIX9D/VIX, VIX/VIX3M, VIX3M/VIX6M, SKEW) carry weight 0',
+    excluded: [
+      ...(vixTermStructureScore === null ? ['vix_term_structure'] : []),
+      ...(vvixScore === null ? ['vvix'] : []),
+    ],
+  };
+
   // Step A: Growth & Inflation signals
   const growth = computeGrowthSignal(input);
   const inflation = computeInflationSignal(input);
 
+  // MIG-1: with ZERO real macro series on a side the regime cannot be
+  // classified — the gate returns an HONEST NULL score (regimeScore column is
+  // nullable now): no fabricated probabilities, no dominant regime, excluded
+  // from the composite (which renormalizes over the present gates). The
+  // exclusion is declared via the DataConfidence and a composite data_gaps
+  // entry.
+  if (growth.score == null || inflation.score == null) {
+    const missing = [
+      growth.score == null ? 'ALL 6 growth series' : null,
+      inflation.score == null ? 'ALL 5 inflation series' : null,
+    ].filter(Boolean).join(' and ');
+    const excludedFields = [...growth.excluded, ...inflation.excluded];
+    if (macro.yieldCurveSpread === null) excludedFields.push('regime.yield_curve_spread');
+    if (macro.hySpread === null) excludedFields.push('regime.hy_spread');
+    if (!input.crossAssetCorrelations) excludedFields.push('regime.cross_asset_correlations');
+    // EDGE-6: the two vol conditioners join the N/M declaration
+    if (vixTermStructureScore === null) excludedFields.push('regime.vix_term_structure');
+    if (vvixScore === null) excludedFields.push('regime.vvix');
+    const totalSubScores = 16;
+    return {
+      score: null,
+      data_confidence: {
+        total_sub_scores: totalSubScores,
+        imputed_sub_scores: excludedFields.length,
+        confidence: round(1 - excludedFields.length / totalSubScores, 4),
+        imputed_fields: [],
+        excluded_fields: excludedFields,
+        active_signal_count: totalSubScores - excludedFields.length,
+      },
+      breakdown: {
+        growth_signal: {
+          score: growth.score ?? 0,
+          active_signal_count: growth.active_signal_count,
+          total_signal_count: growth.total_signal_count,
+          sub_scores: growth.sub_scores as RegimeResult['breakdown']['growth_signal']['sub_scores'],
+          raw_values: {
+            gdp: macro.gdp, unemployment: macro.unemployment, nfp: macro.nonfarmPayrolls,
+            consumer_confidence: macro.consumerConfidence, initial_claims: macro.initialClaims, nfci: macro.nfci,
+          },
+        },
+        inflation_signal: {
+          score: inflation.score ?? 0,
+          active_signal_count: inflation.active_signal_count,
+          total_signal_count: inflation.total_signal_count,
+          sub_scores: inflation.sub_scores as RegimeResult['breakdown']['inflation_signal']['sub_scores'],
+          raw_values: {
+            cpi_yoy: macro.cpi, cpi_mom: macro.cpiMom, fed_funds: macro.fedFunds,
+            treasury_10y: macro.treasury10y, breakeven_5y: macro.breakeven5y,
+          },
+        },
+        regime_scores: null,
+        dominant_regime: null,
+        regime_signals: {
+          yield_curve_spread: macro.yieldCurveSpread,
+          yield_curve_inverted: macro.yieldCurveSpread !== null && macro.yieldCurveSpread < 0,
+          hy_spread: macro.hySpread,
+          hy_stress_level: macro.hySpread === null ? null : macro.hySpread > 8.0 ? 'crisis' : macro.hySpread > 5.0 ? 'elevated' : 'normal',
+        },
+        vix_overlay: { vix: macro.vix, adjustment_type: 'NOT_EVALUATED' },
+        strategy_scores: [],
+        best_strategy: `NOT COMPUTABLE — ${missing} missing from FRED (regime gate excluded, no imputation)`,
+        spy_correlation_modifier: {
+          corr_spy: input.ttScanner?.corrSpy ?? null,
+          multiplier: 1.0,
+          base_regime_score: 0,
+          adjusted_regime_score: 0,
+          formula: 'not applied — regime gate excluded',
+          note: `regime EXCLUDED: ${missing} missing from FRED — no imputation`,
+        },
+        bbb_spread_signal: ancillary.bbb_spread_signal,
+        t10y3m_signal: ancillary.t10y3m_signal,
+        dollar_index_signal: ancillary.dollar_index_signal,
+        fed_net_liquidity_signal: ancillary.fed_net_liquidity_signal,
+        // EDGE-6: conditioners + brake are macro-level and still computable
+        // (and DECLARED) when the regime classification is not. The gate score
+        // stays null per MIG-1 — the conditioners never substitute for a
+        // missing macro classification.
+        vol_conditioners: volConditionerBreakdown,
+        survival_brake: survivalBrake,
+      },
+    };
+  }
+  const growthScore = growth.score;
+  const inflationScore = inflation.score;
+
   // Step B: Regime classification (with yield curve + credit stress modifiers)
   const { regime_scores, dominant } = classifyRegime(
-    growth.score,
-    inflation.score,
+    growthScore,
+    inflationScore,
     macro.yieldCurveSpread,
     macro.hySpread,
   );
@@ -598,9 +867,29 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   // Steps C + D: Strategy scoring with VIX overlay (uses adjusted regime scores)
   const { scores: strategyScores, adjustmentType } = scoreStrategies(adjustedScores, macro.vix);
 
-  // Step E: Best strategy's final_score is the base regime score
+  // Step E: Best strategy's final_score is the strategy-regime score
   const best = strategyScores[0];
   const baseScore = best.final_score;
+
+  // Step E2 (EDGE-6, STRATEGY-EVIDENCE §2): vol-regime conditioners join the
+  // MARKET-LEVEL base through the KILL-3 renormalizing combiner, BEFORE the
+  // per-ticker SPY-correlation modifier (they are market-wide conditions, so
+  // they scale with regime influence the same way the macro composite does;
+  // the SURVIVAL BRAKE below is deliberately NOT scaled by correlation).
+  // Weights: 0.70 incumbent strategy-regime composite / 0.20 term structure /
+  // 0.10 VVIX. Rationale: STRATEGY-EVIDENCE §2 ranks term structure #1 and
+  // VVIX #2 among vol-regime conditioners (2:1), and the newly wired pair is
+  // capped at 0.30 total so the measured incumbent stays dominant until
+  // EDGE-5 grades the new signals (measure-before-weight, §5/§9 Stage 3).
+  // A missing conditioner is EXCLUDED and weights renormalize — never a
+  // neutral default (baseScore is always present on this path, so the
+  // combined score is non-null).
+  const volConditioned = combineWeighted([
+    { key: 'strategy_regime', weight: 0.70, score: baseScore },
+    { key: 'vix_term_structure', weight: 0.20, score: vixTermStructureScore },
+    { key: 'vvix', weight: 0.10, score: vvixScore },
+  ]);
+  const conditionedBase = volConditioned.score as number;
 
   // Step F: SPY correlation modifier — scales regime influence per-ticker
   // Longin & Solnik 2001: correlations rise in bear markets, but we use a static
@@ -618,37 +907,35 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
 
   if (corrSpy != null) {
     multiplier = round(0.1 + 0.9 * Math.max(0, corrSpy), 4);
-    score = round(baseScore * multiplier, 1);
-    modifierNote = `corrSpy=${corrSpy} → multiplier=${multiplier} → ${baseScore} * ${multiplier} = ${score}`;
+    score = round(conditionedBase * multiplier, 1);
+    modifierNote = `corrSpy=${corrSpy} → multiplier=${multiplier} → ${conditionedBase} * ${multiplier} = ${score} (base = strategy_regime ${baseScore} conditioned by term structure/VVIX → ${conditionedBase})`;
   } else {
     multiplier = 1.0;
-    score = baseScore;
-    modifierNote = 'spy_correlation: not_available — using base regime score unmodified';
+    score = conditionedBase;
+    modifierNote = `spy_correlation: not_available — using conditioned base regime score unmodified (strategy_regime ${baseScore} → conditioned ${conditionedBase})`;
   }
 
-  // Build DataConfidence — track which macro fields are imputed (null → default 50)
-  const imputedFields: string[] = [];
-  if (macro.gdp === null) imputedFields.push('growth.gdp');
-  if (macro.unemployment === null) imputedFields.push('growth.unemployment');
-  if (macro.nonfarmPayrolls === null) imputedFields.push('growth.nfp');
-  if (macro.consumerConfidence === null) imputedFields.push('growth.consumer_confidence');
-  if (macro.initialClaims === null) imputedFields.push('growth.initial_claims');
-  if (macro.nfci === null) imputedFields.push('growth.nfci');
-  if (macro.cpi === null) imputedFields.push('inflation.cpi_yoy');
-  if ((macro.cpiMom ?? null) === null) imputedFields.push('inflation.cpi_mom');
-  if (macro.fedFunds === null) imputedFields.push('inflation.fed_funds');
-  if (macro.treasury10y === null) imputedFields.push('inflation.treasury_10y');
-  if (macro.breakeven5y === null) imputedFields.push('inflation.breakeven_5y');
-  // Regime signals (not scored directly but tracked for completeness)
-  if (macro.yieldCurveSpread === null) imputedFields.push('regime.yield_curve_spread');
-  if (macro.hySpread === null) imputedFields.push('regime.hy_spread');
-  if (!input.crossAssetCorrelations) imputedFields.push('regime.cross_asset_correlations');
-  const totalSubScores = 14; // 6 growth + 5 inflation + 2 regime signals + 1 cross-asset
+  // Build DataConfidence — KILL-3: missing macro series are EXCLUDED and the
+  // composite weights renormalized (never imputed as 50). excluded_fields is
+  // derived from the combiners' actual exclusions so tracking cannot drift.
+  // The two classification modifiers and the cross-asset adjustment simply do
+  // not apply when their series is missing — also recorded as exclusions.
+  const excludedFields: string[] = [...growth.excluded, ...inflation.excluded];
+  if (macro.yieldCurveSpread === null) excludedFields.push('regime.yield_curve_spread');
+  if (macro.hySpread === null) excludedFields.push('regime.hy_spread');
+  if (!input.crossAssetCorrelations) excludedFields.push('regime.cross_asset_correlations');
+  // EDGE-6: the two vol conditioners join the N/M declaration
+  if (vixTermStructureScore === null) excludedFields.push('regime.vix_term_structure');
+  if (vvixScore === null) excludedFields.push('regime.vvix');
+  const totalSubScores = 16; // 6 growth + 5 inflation + 2 regime signals + 1 cross-asset + 2 vol conditioners (EDGE-6)
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
-    imputed_sub_scores: imputedFields.length,
-    confidence: round(1 - imputedFields.length / totalSubScores, 4),
-    imputed_fields: imputedFields,
+    imputed_sub_scores: excludedFields.length,
+    confidence: round(1 - excludedFields.length / totalSubScores, 4),
+    imputed_fields: [],
+    excluded_fields: excludedFields,
+    // "computed from N/M signals"
+    active_signal_count: totalSubScores - excludedFields.length,
   };
 
   // Staleness flags for weekly series
@@ -661,7 +948,9 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
     data_confidence: dataConfidence,
     breakdown: {
       growth_signal: {
-        score: growth.score,
+        score: growthScore,
+        active_signal_count: growth.active_signal_count,
+        total_signal_count: growth.total_signal_count,
         sub_scores: {
           gdp_score: growth.sub_scores.gdp_score,
           unemployment_score: growth.sub_scores.unemployment_score,
@@ -681,7 +970,9 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
         stale_flags: staleFlags.length > 0 ? staleFlags : undefined,
       },
       inflation_signal: {
-        score: inflation.score,
+        score: inflationScore,
+        active_signal_count: inflation.active_signal_count,
+        total_signal_count: inflation.total_signal_count,
         sub_scores: {
           cpi_yoy_score: inflation.sub_scores.cpi_yoy_score,
           cpi_mom_score: inflation.sub_scores.cpi_mom_score,
@@ -714,9 +1005,9 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
       spy_correlation_modifier: {
         corr_spy: corrSpy,
         multiplier,
-        base_regime_score: baseScore,
+        base_regime_score: conditionedBase,
         adjusted_regime_score: score,
-        formula: 'adjusted_regime = base_regime * (0.1 + 0.9 * max(0, corrSpy))',
+        formula: 'adjusted_regime = conditioned_base * (0.1 + 0.9 * max(0, corrSpy)); conditioned_base = renormalized(0.70 × strategy_regime + 0.20 × vix_term_structure(VIXCLS/VXVCLS) + 0.10 × vvix(Cboe VVIX daily file)); the Cboe term-structure ratios and SKEW ride vol_conditioners.cboe_inputs at weight 0',
         note: modifierNote,
       },
       cross_asset_correlations: input.crossAssetCorrelations ? {
@@ -733,6 +1024,8 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
       t10y3m_signal: ancillary.t10y3m_signal,
       dollar_index_signal: ancillary.dollar_index_signal,
       fed_net_liquidity_signal: ancillary.fed_net_liquidity_signal,
+      vol_conditioners: volConditionerBreakdown,
+      survival_brake: survivalBrake,
     },
   };
 }

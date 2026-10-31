@@ -1,9 +1,19 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
+import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
+import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { FunctionalCurrencyError, centsOfTypedDollars } from '@/lib/books/functionalCurrency';
+
+// FX-01 (Alex, 2026-10-30, ruling B): a typed side ('100', '12.50') is read as a DECIMAL STRING into integer
+// cents by string arithmetic — never parseFloat × 100. A blank side is no amount on that side (BigInt(0)); any
+// other text that is not dollars is refused by name (400). The entry posts in the functional currency by
+// construction (src/lib/books/functionalCurrency.ts header).
+const sideCents = (v: unknown): bigint => (v === undefined || v === null || v === '' ? BigInt(0) : centsOfTypedDollars(typeof v === 'number' ? String(v) : String(v)));
 
 export async function GET() {
   try {
@@ -14,8 +24,13 @@ export async function GET() {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:books entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:books');
+    if (tabGate) return tabGate;
 
-    await ensureBookkeepingInitialized(user);
+    // SELL-04: a user with no entity gets the declared setup line (412) — nothing is created here.
+    const setup = await requireEntitySetup(user);
+    if (setup) return setup;
 
     const entries = await prisma.journal_entries.findMany({
       where: { userId: user.id },
@@ -39,6 +54,9 @@ export async function POST(request: Request) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:books entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:books');
+    if (tabGate) return tabGate;
 
     const body = await request.json();
     const { date, description, entityId, lines, status: entryStatus } = body;
@@ -47,11 +65,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'entityId is required' }, { status: 400 });
     }
 
-    // Validate debits = credits
-    const totalDebits = lines.reduce((sum: number, l: any) => sum + (parseFloat(l.debit) || 0), 0);
-    const totalCredits = lines.reduce((sum: number, l: any) => sum + (parseFloat(l.credit) || 0), 0);
+    // Validate debits = credits — in integer cents, read from the typed decimal strings (FX-01).
+    if (!Array.isArray(lines)) return NextResponse.json({ error: 'lines must be an array' }, { status: 400 });
+    let sides: Array<{ debit: bigint; credit: bigint }>;
+    try {
+      sides = lines.map((l: any) => ({ debit: sideCents(l?.debit), credit: sideCents(l?.credit) }));
+    } catch (e) {
+      if (e instanceof FunctionalCurrencyError) return NextResponse.json({ error: e.message }, { status: 400 });
+      throw e;
+    }
+    const totalDebits = sides.reduce((sum, s) => sum + s.debit, BigInt(0));
+    const totalCredits = sides.reduce((sum, s) => sum + s.credit, BigInt(0));
 
-    if (Math.abs(totalDebits - totalCredits) > 0.01) {
+    if (totalDebits !== totalCredits) {
       return NextResponse.json({ error: 'Entry must be balanced (debits must equal credits)' }, { status: 400 });
     }
 
@@ -63,35 +89,60 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
     }
 
+    // SEC-1: verify every target account belongs to the authenticated user
+    // BEFORE writing any ledger entry. Previously each line's client-supplied
+    // accountId went straight into ledger_entries.create — an authed user could
+    // post debits/credits onto another user's chart_of_accounts rows. Mirror the
+    // manual sibling's ownership scope (accounts by userId + entity_id).
+    const accountIds: string[] = lines.map((l: any) => l.accountId);
+    if (accountIds.some((id) => !id || typeof id !== 'string')) {
+      return NextResponse.json({ error: 'Each line requires an accountId' }, { status: 400 });
+    }
+    const uniqueAccountIds = [...new Set(accountIds)];
+    const ownedAccounts = await prisma.chart_of_accounts.findMany({
+      where: { id: { in: uniqueAccountIds }, userId: user.id, entity_id: entityId },
+      select: { id: true, balance_type: true },
+    });
+    if (ownedAccounts.length !== uniqueAccountIds.length) {
+      // Defensive 404 — do not confirm which accounts exist for another user.
+      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+    }
+
     // Period close enforcement
     await assertPeriodOpen(prisma, user.id, entityId, new Date(date));
 
-    const entry = await prisma.journal_entries.create({
-      data: {
-        userId: user.id,
-        entity_id: entityId,
-        date: new Date(date),
-        description: description || 'Manual journal entry',
-        source_type: 'manual',
-        status: entryStatus || 'posted',
-        request_id: randomUUID(),
-        created_by: userEmail,
-        ledger_entries: {
-          create: lines.map((l: any) => {
-            const debitAmt = parseFloat(l.debit) || 0;
-            const creditAmt = parseFloat(l.credit) || 0;
-            const isDebit = debitAmt > 0;
-            const amountCents = Math.round((isDebit ? debitAmt : creditAmt) * 100);
-            return {
-              account_id: l.accountId,
-              entry_type: isDebit ? 'D' : 'C',
-              amount: BigInt(amountCents),
-              created_by: userEmail,
-            };
-          })
-        }
-      },
-      include: { ledger_entries: { include: { account: true } } }
+    // HYG-04: ONE posting discipline — postJournal (SET CONSTRAINTS ALL
+    // IMMEDIATE first, every line in one statement, read back after commit).
+    // The lines move settled_balance by the rule every writer uses — this
+    // route's nested create never did, so its entries left the balances behind.
+    const { result: entry } = await postJournal(prisma, async (tx, post) => {
+      const posted = await post({
+        entry: {
+          userId: user.id,
+          entity_id: entityId,
+          date: new Date(date),
+          description: description || 'Manual journal entry',
+          source_type: 'manual',
+          status: entryStatus || 'posted',
+          request_id: randomUUID(),
+          created_by: userEmail,
+        },
+        lines: lines.map((l: any, i: number) => {
+          const { debit, credit } = sides[i];
+          const isDebit = debit > BigInt(0);
+          const entryType: 'D' | 'C' = isDebit ? 'D' : 'C';
+          const amountCents = isDebit ? debit : credit;
+          const account = ownedAccounts.find((a) => a.id === l.accountId)!;
+          return {
+            account_id: l.accountId,
+            entry_type: entryType,
+            amount: amountCents,
+            balanceDelta: balanceDeltaOf(entryType, account.balance_type, amountCents),
+            created_by: userEmail,
+          };
+        }),
+      });
+      return tx.journal_entries.findUniqueOrThrow({ where: { id: posted.id }, include: { ledger_entries: { include: { account: true } } } });
     });
 
     return NextResponse.json({ entry });
@@ -99,7 +150,6 @@ export async function POST(request: Request) {
     if (error instanceof PeriodClosedError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
-    console.error('Error:', error);
-    return NextResponse.json({ error: 'Failed to create journal entry' }, { status: 500 });
+    return failClosedResponse('Journal entry', 'Failed to create journal entry', error);
   }
 }

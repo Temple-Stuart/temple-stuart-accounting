@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { overlayTripItems, parseTripVendorSourceId } from '@/lib/calendar/tripItem';
 
 export async function GET(request: Request) {
   try {
@@ -81,6 +82,27 @@ export async function GET(request: Request) {
         ORDER BY start_date ASC
       `;
       summaryEvents = events.filter(e => { const k = startKeyOf(e); return k >= startOfYear && k < endOfYear; });
+    }
+
+    // TRAVEL-01 (2026-09-19): a committed trip ITEM takes its time on the day. Every
+    // trip vendor row (source_id trip:<trip>:vendor:<option>) gets the trip_itinerary
+    // row behind it overlaid — its id, vendor, place, provider and, for a date-only
+    // category, its block window as start_time/end_time (src/lib/calendar/tripItem.ts).
+    // User-scoped through the trip; a row whose item is gone is returned as it was.
+    const vendorKeys = events.map((e) => parseTripVendorSourceId(e.source_id)).filter((k): k is { tripId: string; optionId: string } => k !== null);
+    if (vendorKeys.length > 0) {
+      const items = await prisma.trip_itinerary.findMany({
+        where: {
+          trip: { userId: user.id },
+          tripId: { in: [...new Set(vendorKeys.map((k) => k.tripId))] },
+          vendorOptionId: { in: [...new Set(vendorKeys.map((k) => k.optionId))] },
+        },
+        select: {
+          id: true, tripId: true, vendorOptionId: true, vendorOptionType: true, category: true,
+          vendor: true, vendor_name: true, location: true, block_start_time: true, block_end_time: true,
+        },
+      });
+      events = overlayTripItems(events, items);
     }
 
     // Calculate totals by source — scoped to events that START in the window (summaryEvents), NOT

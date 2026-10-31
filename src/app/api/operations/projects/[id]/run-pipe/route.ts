@@ -14,14 +14,18 @@
  * SECURITY:
  *   - Auth is FIRST — getVerifiedEmail + project ownership scoping — before the
  *     event is sent (mirrors research/route.ts). Cross-user → defensive 404.
+ *   - SEC-TASKS-01: the run fires the owner's audit Routine — a non-owner gets
+ *     403 owner_only right after the user lookup (src/lib/operations/ownerOnly.ts).
  *   - /api/inngest is signature-validated (INNGEST_SIGNING_KEY); the event the
  *     job trusts is emitted only here, after the user is authed + scoped.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { inngest } from '@/inngest/client';
+import { ROUTINE_OWNER_ONLY_BODY, isRoutineOwner } from '@/lib/operations/ownerOnly';
 
 /** Resolve a field's items: prefer the JSONB array, fall back to the legacy
  *  paragraph. Returns null if neither has content. (Mirrors research/route.ts.) */
@@ -48,6 +52,10 @@ export async function POST(
       where: { email: { equals: userEmail, mode: 'insensitive' } },
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    // SEC-TASKS-01: a pipe run fires the owner's audit Routine, so only the owner
+    // may start one — refused before the project read, any cap, env read or event.
+    if (!isRoutineOwner(user.id)) return NextResponse.json(ROUTINE_OWNER_ONLY_BODY, { status: 403 });
 
     const { id: projectId } = await params;
     const project = await prisma.operations_projects.findFirst({
@@ -78,13 +86,6 @@ export async function POST(
       { status: 202 }
     );
   } catch (error) {
-    console.error('[Project Run-Pipe POST]', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to queue pipe run',
-        message: error instanceof Error ? error.message : 'unknown',
-      },
-      { status: 500 }
-    );
+    return failClosedResponse('Project Run-Pipe POST', 'Failed to queue pipe run', error);
   }
 }

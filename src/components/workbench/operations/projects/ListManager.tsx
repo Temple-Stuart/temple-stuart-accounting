@@ -21,6 +21,7 @@
 
 import { useState } from 'react';
 
+
 interface Props {
   /** Current items (each is a complete natural-voice line with verb prefix). */
   items: string[];
@@ -46,14 +47,13 @@ interface Props {
 const MAX_ITEMS = 20;
 const MAX_CHARS = 500;
 
-export default function ListManager({
-  items,
+export default function ListManager({ items,
   onChange,
   verbPrefix,
   altVerbPrefix,
   placeholder,
   disabled = false,
-}: Props) {
+}: Props & { }) {
   const [draft, setDraft] = useState<string>('');
   const [draftPrefix, setDraftPrefix] = useState<string>(verbPrefix);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -149,7 +149,7 @@ export default function ListManager({
                 type="button"
                 onClick={commitEdit}
                 disabled={disabled}
-                className="px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
+                className={`px-2 py-0.5 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
               >
                 save
               </button>
@@ -187,7 +187,7 @@ export default function ListManager({
 
       {draft.length > 0 ? (
         <div className="flex items-start gap-2">
-          <span className="text-brand-purple text-xs mt-1 select-none">+</span>
+          <span className={` text-xs mt-1 select-none ${'text-brand-purple'}`}>+</span>
           <input
             type="text"
             value={draft}
@@ -206,7 +206,7 @@ export default function ListManager({
             type="button"
             onClick={commitAdd}
             disabled={disabled || draft.trim().length === 0}
-            className="px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
+            className={`px-2 py-0.5 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
           >
             add
           </button>
@@ -225,7 +225,7 @@ export default function ListManager({
             type="button"
             onClick={() => startAdd(verbPrefix)}
             disabled={disabled || atLimit}
-            className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
+            className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
             title={atLimit ? `Maximum ${MAX_ITEMS} items reached` : `Add a "${verbPrefix.trim()}" item`}
           >
             + {verbPrefix.trim()}...
@@ -235,7 +235,7 @@ export default function ListManager({
               type="button"
               onClick={() => startAdd(altVerbPrefix)}
               disabled={disabled || atLimit}
-              className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs hover:bg-purple-50 disabled:opacity-50"
+              className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
               title={atLimit ? `Maximum ${MAX_ITEMS} items reached` : `Add a "${altVerbPrefix.trim()}" item`}
             >
               + {altVerbPrefix.trim()}...

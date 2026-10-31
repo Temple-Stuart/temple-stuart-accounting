@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { ValidationError } from '@/lib/errors/ValidationError';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
       ]);
 
       if (!transferTxn || !stockTxn) {
-        throw new Error(`Transaction not found or not owned: ${transferId} or ${stockId}`);
+        throw new ValidationError(`Transaction not found or not owned: ${transferId} or ${stockId}`, { status: 404 });
       }
 
       const result = await positionTrackerService.handleAssignmentExercise({
@@ -75,10 +77,6 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Assignment/Exercise error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to process assignment/exercise' },
-      { status: 500 }
-    );
+    return failClosedResponse('Assignment/Exercise', 'Failed to process assignment/exercise', error);
   }
 }

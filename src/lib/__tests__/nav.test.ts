@@ -1,0 +1,198 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import {
+  HOME_ANSWER, HOME_PHASES, NavLawError, THE_SORT,
+  navFamilies, navLaw, navRows, navToolByName, navToolsOfScreen, phasesOf,
+} from '../nav';
+import { PIPE_PHASES } from '../pipePhases';
+import { TOOL_GATE } from '../offer';
+import { TOOL_REGISTRY } from '../toolRegistry';
+import { code, comments } from '../sourceText';
+
+// NAV-25 — the rail is the sheet: six families, twenty-five tools, one pipe per tool.
+
+const model = () => navFamilies(TOOL_GATE).map((f) => ({ name: f.name, tools: [...f.tools] }));
+
+test('the rail IS the registry — twenty-five rows, six families, both in registry order', () => {
+  assert.deepEqual(navLaw({ throwOnFail: false, gate: TOOL_GATE }), []);
+  const rows = navRows(TOOL_GATE);
+  assert.equal(rows.length, 25);
+  // Name AND order, against the registry itself — nothing retyped.
+  assert.deepEqual(rows.map((t) => t.name), TOOL_REGISTRY.map((t) => t.name));
+  assert.deepEqual(rows.map((t) => t.n), TOOL_REGISTRY.map((_, i) => i + 1));
+  assert.deepEqual(
+    navFamilies(TOOL_GATE).map((f) => f.name),
+    [...new Set(TOOL_REGISTRY.map((t) => t.family))],
+  );
+  // The families the registry actually holds, in the order NAV-25 ruled.
+  assert.deepEqual(navFamilies(TOOL_GATE).map((f) => f.name),
+    ['THE WORK', 'MONEY IN', 'MONEY OUT', 'WHAT YOU OWN', 'WHAT YOU OWE', 'THE PROOF']);
+});
+
+test('a not-built tool is a row with a status chip and no link — never a placeholder page', () => {
+  const unbuilt = navRows(TOOL_GATE).filter((t) => t.status === 'NOT_BUILT');
+  assert.equal(unbuilt.length, 12, 'the census stands: 12 NOT_BUILT (BILLPAY-01, 2026-10-28: Bill Pay is PARTIAL at /bill-pay; 13 until then — EXPENSES-01, 2026-10-25: 14 before /expenses)');
+  for (const t of unbuilt) {
+    assert.equal(t.href, null, `${t.name} opens nothing`);
+    assert.equal(t.phases.length, 0, `${t.name} owns no phase`);
+  }
+  // The steps layer's honest page is gone with the steps.
+  assert.ok(!existsSync(`${process.cwd()}/src/app/step`), '/step/[slug] is deleted');
+  assert.ok(!existsSync(`${process.cwd()}/src/lib/steps.ts`), 'steps.ts is deleted');
+  assert.ok(!existsSync(`${process.cwd()}/src/components/shell/StepOpener.tsx`), 'StepOpener is deleted');
+});
+
+test('every phase of every pipe belongs to exactly one owner', () => {
+  const total = Object.values(PIPE_PHASES).reduce((n, ps) => n + ps.length, 0);
+  assert.equal(total, 49);
+  assert.equal(THE_SORT.length, 49, 'the sort covers every phase, once');
+  const owned = navRows(TOOL_GATE).reduce((n, t) => n + t.phases.length, 0) + HOME_PHASES.length;
+  assert.equal(owned, 49);
+  // Every phase key appears exactly once across the sort.
+  const keys = THE_SORT.map((a) => `${a.pipe} ${a.num}`);
+  assert.equal(new Set(keys).size, 49);
+  // The one non-tool owner, and what it serves.
+  assert.deepEqual(HOME_PHASES.map((p) => `${p.pipe} ${p.num}`), ['runway 02', 'runway 03']);
+  assert.equal(HOME_ANSWER, 'How long can I last?');
+  assert.deepEqual(phasesOf('Tax', THE_SORT).map((p) => p.num), ['01', '02', '03', '04', '05', '06', '07']);
+});
+
+test('THE SORT splits a pipe only at an existing phase boundary — no phase cut, renamed or duplicated', () => {
+  for (const [pid, phases] of Object.entries(PIPE_PHASES)) {
+    const rows = THE_SORT.filter((a) => a.pipe === pid);
+    // every number of the pipe, in the pipe's own order, unrenamed
+    assert.deepEqual(rows.map((a) => a.num), phases.map((p) => p.num), `${pid} keeps its numbering`);
+    // owners appear in contiguous runs — a split is a boundary, never interleaving
+    const owners = rows.map((a) => a.owner);
+    const runs = owners.filter((o, i) => o !== owners[i - 1]);
+    assert.equal(new Set(runs).size, runs.length, `${pid} splits at a boundary, not into interleaved pieces`);
+  }
+  // The names a screen renders are pipePhases.ts's, never retyped.
+  for (const t of navRows(TOOL_GATE)) {
+    for (const p of t.phases) {
+      const real = (PIPE_PHASES[p.pipe] as readonly { num: string; name: string }[]).find((x) => x.num === p.num);
+      assert.equal(p.name, real?.name, `${p.pipe} ${p.num} keeps its name`);
+    }
+  }
+});
+
+test('the phases that render no surface say so, and cite where the code declares it', () => {
+  const silent = THE_SORT.filter((a) => !a.rendersSurface);
+  // TASKS-01 (2026-09-18): Tasks' two pipes joined the runway pair — /tasks is
+  // two lists and draws no strip, so every routines and projects phase is
+  // declared undrawn, each citing the page and the component that holds the
+  // capability as a plain control. PIPES-01 retires them outright.
+  // TRAVEL-01 (2026-09-19): the five travel phases joined them — the cockpit's
+  // travel tab is plain sections and draws no strip; Travel still owns all five.
+  // TIME-02 (2026-10-19): the four content phases joined them — the content
+  // pipeline is retired (its components and routes deleted); /time is the day
+  // card and the ledger and draws no strip. Time still owns all four; PIPES-01
+  // retires the pipe.
+  assert.deepEqual(silent.map((a) => `${a.pipe} ${a.num}`), [
+    'travel 01', 'travel 02', 'travel 03', 'travel 04', 'travel 05',
+    'runway 01', 'runway 02',
+    'routines 01', 'routines 02', 'routines 03', 'routines 04',
+    'projects 01', 'projects 02', 'projects 03', 'projects 04', 'projects 05', 'projects 06',
+    'content 01', 'content 02', 'content 03', 'content 04',
+  ]);
+  for (const a of silent.filter((x) => x.pipe === 'content')) {
+    assert.equal(a.owner, 'Time');
+    assert.equal(a.surfaceNote, 'TIME-02 (2026-10-19): drawn nowhere — /time renders no StageStrip (src/app/time/page.tsx); the day card is not a pipe; PIPES-01 retires the pipe');
+  }
+  for (const a of silent.filter((x) => x.pipe === 'runway')) {
+    assert.match(a.surfaceNote ?? '', /ModuleLauncher\.tsx:\d+/, 'the citation names the file and line');
+  }
+  for (const a of silent.filter((x) => x.pipe === 'routines' || x.pipe === 'projects')) {
+    assert.match(a.surfaceNote ?? '', /TASKS-01 \(2026-09-18\): drawn nowhere — \/tasks renders no StageStrip \(src\/app\/tasks\/page\.tsx\)/);
+  }
+  for (const a of silent.filter((x) => x.pipe === 'travel')) {
+    assert.equal(a.owner, 'Travel');
+    assert.match(a.surfaceNote ?? '', /TRAVEL-01 \(2026-09-19\): drawn nowhere — the travel tab renders no StageStrip \(src\/components\/home\/ModuleLauncher\.tsx, data-travel-section\)/);
+  }
+  // TEST-TRUTH-01: this read the file RAW and said "the code still says it". It
+  // never did: "STATE-ONLY cells" is the note ModuleLauncher carries ABOUT those
+  // cells, and it lives in a comment. The assertion is about PROSE and now says
+  // so — and it is stronger for it: the marker must sit inside the very line
+  // range the surfaceNote cites, so the citation cannot rot into a memory.
+  const launcherComments = comments('src/components/home/ModuleLauncher.tsx');
+  assert.match(launcherComments, /STATE-ONLY cells/, 'the documented note is still there');
+  const markerLine = launcherComments.split('\n').findIndex((l) => l.includes('STATE-ONLY cells')) + 1;
+  const runway01 = silent.find((a) => a.pipe === 'runway' && a.num === '01')!;
+  const [from, to] = /ModuleLauncher\.tsx:(\d+)-(\d+)/.exec(runway01.surfaceNote ?? '')!.slice(1).map(Number);
+  assert.ok(markerLine >= from && markerLine <= to, `the note is at :${markerLine}, cited as :${from}-${to}`);
+});
+
+test('a tool sharing a screen still has its own row and its own destination', () => {
+  // TOOL-LAW-01: /operations is gone — Tasks and Time each have their own page.
+  assert.deepEqual(navToolsOfScreen('/operations', TOOL_GATE).map((t) => t.name), []);
+  assert.deepEqual(navToolsOfScreen('/tasks', TOOL_GATE).map((t) => t.name), ['Tasks']);
+  assert.deepEqual(navToolsOfScreen('/time', TOOL_GATE).map((t) => t.name), ['Time']);
+  // TRADE-SPLIT: two tools, two pages — /trading is a redirect and is no tool's screen.
+  assert.deepEqual(navToolsOfScreen('/brokerage', TOOL_GATE).map((t) => t.name), ['Brokerage']);
+  assert.deepEqual(navToolsOfScreen('/trade-log', TOOL_GATE).map((t) => t.name), ['Trade Log']);
+  assert.deepEqual(navToolsOfScreen('/trading', TOOL_GATE).map((t) => t.name), []);
+  // Compliance opens its OWN page, not the cockpit carve-out — nine child pages hang off it.
+  assert.equal(navToolByName('Compliance', TOOL_GATE).href, '/compliance');
+  assert.throws(() => navToolByName('Chart of accounts', TOOL_GATE), NavLawError);
+});
+
+test('every legacy page hangs under the tool that OWNS it — never another tool\'s screen', () => {
+  const subs = Object.fromEntries(navRows(TOOL_GATE).filter((t) => t.subRows.length).map((t) => [t.name, t.subRows.map((r) => r.door.href)]));
+  assert.deepEqual(subs, {
+    // TOOL-LAW-01: the Issue log and Audit trail return as Tasks' own sub-rows —
+    // the /operations prefix that doored them went with the room.
+    // NORTH-01: the North Star joins them, by the same door.
+    // DAYCARD-01 (2026-10-11): the day card is the fourth, by the same door.
+    // TASKS-ONE-01 (2026-10-14): two left — the Issue log's page is deleted (an unbuilt placeholder), and the day
+    // card is the first section of /tasks itself, so no sub-row leads to it.
+    // TASKS-02 (2026-10-20): none — the North Star's page is deleted and the audit trail is Compliance's link,
+    // so Tasks carries no sub-row and leaves this map (the map lists only tools WITH sub-rows).
+    // TRIPS-01 (2026-09-29): Travel is gone from this map — it carries no sub-row, ever.
+    // The Travel tab is the one Trips tab; the legacy pages are redirects to it.
+    // BUDGET-02 (Alex, ruling H, 2026-10-20): Budget is ONE page — no sub-rows, so it leaves this map; the agenda,
+    // Shopping and the itinerary builder are dated redirects to /budget, and /runway is a cockpit path under /[tab].
+    Bookkeeping: ['/chart-of-accounts'],
+    Tax: ['/dashboard/tax-filing'],
+    // TASKS-02 (2026-10-20): the audit trail is Compliance's second sub-row — it is the log of what was done.
+    Compliance: ['/soc2', '/operations/audit-log'],
+  });
+  // The law that keeps it so: a sub-row may never point at another tool's screen.
+  const hung = model();
+  const banking = hung.flatMap((f) => f.tools).find((t) => t.name === 'Banking')!;
+  banking.subRows = [{ label: 'Bookkeeping pipe', door: { kind: 'route', href: '/books' } }];
+  assert.throws(() => navLaw({ gate: TOOL_GATE, families: hung }), NavLawError);
+  // TRIPS-01: and no sub-row anywhere opens the legacy planner.
+  for (const t of navRows(TOOL_GATE)) for (const r of t.subRows) assert.ok(!r.door.href.startsWith('/budgets/trips'), `${t.name} opens ${r.door.href}`);
+  assert.deepEqual(navRows(TOOL_GATE).find((t) => t.name === 'Travel')?.subRows, []);
+});
+
+test('the law throws on a reordered family, a legacy row, and a phase owned by nothing, two things, or a second non-tool', () => {
+  const reordered = model();
+  const own = reordered.find((f) => f.name === 'WHAT YOU OWN')!;
+  [own.tools[3], own.tools[4]] = [own.tools[4], own.tools[3]];
+  assert.throws(() => navLaw({ gate: TOOL_GATE, families: reordered }), NavLawError, 'a reordered family');
+
+  const legacy = model();
+  legacy[0].tools.push({ ...legacy[0].tools[0], n: 26, name: 'Chart of accounts' as never });
+  assert.throws(() => navLaw({ gate: TOOL_GATE, families: legacy }), NavLawError, 'a legacy row');
+
+  assert.throws(() => navLaw({ sort: [...THE_SORT, { pipe: 'books', num: '01', owner: 'Bookkeeping', rendersSurface: true }] }), NavLawError, 'two owners');
+  assert.throws(() => navLaw({ sort: THE_SORT.filter((a) => !(a.pipe === 'tax' && a.num === '07')) }), NavLawError, 'no owner');
+  assert.throws(() => navLaw({ sort: THE_SORT.map((a) => (a.pipe === 'content' && a.num === '01' ? { ...a, owner: 'DECK' as never } : a)) }), NavLawError, 'a second non-tool owner');
+  // EXPENSES-01 (2026-10-25): Expenses is PARTIAL at /expenses now — the not-built probe runs through Payroll, which is NOT_BUILT.
+  assert.throws(() => navLaw({ gate: TOOL_GATE, sort: THE_SORT.map((a) => (a.pipe === 'travel' && a.num === '04' ? { ...a, owner: 'Payroll' as never } : a)) }), NavLawError, 'a phase under a not-built tool');
+  assert.throws(() => navLaw({ sort: THE_SORT.map((a) => (a.pipe === 'runway' && a.num === '01' ? { ...a, surfaceNote: undefined } : a)) }), NavLawError, 'an uncited surfaceless phase');
+});
+
+test('the rail and the sheet render from nav.ts, and "STEP N" is gone from the app', () => {
+  for (const f of ['src/components/shell/Rail.tsx', 'src/components/shell/TheSheet.tsx']) {
+    assert.match(code(f), /navFamilies\(/, `${f} maps the model`);
+    assert.match(code(f), /from '@\/lib\/nav'/);
+  }
+  assert.ok(!/(?:local|session)Storage\s*[.[]/.test(code('src/components/shell/Rail.tsx')), 'no browser storage');
+  // The opener names the TOOL now.
+  const opener = code('src/components/shell/ToolOpener.tsx');
+  assert.ok(!/Step \{/.test(opener) && !opener.includes('STEP N'), 'no step number in the opener');
+  assert.match(opener, /data-tool-opener/);
+});

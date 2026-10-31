@@ -17,6 +17,7 @@
 import { useState } from 'react';
 import VisaResultView from './VisaResultView';
 import type { VisaRequirement } from '@/lib/travelBuddyClient';
+import TravelSectionShell, { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
 
 // Static {name, iso2} country list — carries ISO-2 directly (the dropdown value),
 // so no name→code lookup and no live /passports or /destinations call. Curated to
@@ -60,11 +61,27 @@ export default function PublicVisaCheck() {
   const [searched, setSearched] = useState(false);
 
   const sameCountry = !!passport && passport === destination;
-  const canCheck = !!passport && !!destination && !sameCountry && !loading;
+  // SEARCH-ALWAYS-ON: canCheck died — its conditions live on as the named
+  // guards inside check() (loud errors), and the button dims on loading only.
 
   const check = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canCheck) return;
+    if (loading) return;
+    // SEARCH-ALWAYS-ON: the silent !canCheck return died — an incomplete
+    // click names the missing piece loudly (the hotels/flights pattern);
+    // the valid path's setError('') below is the clear-on-attempt.
+    if (!passport) {
+      setError('Pick a passport country.');
+      return;
+    }
+    if (!destination) {
+      setError('Pick a destination country.');
+      return;
+    }
+    if (sameCountry) {
+      setError('Pick two different countries to check entry rules.');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -87,24 +104,18 @@ export default function PublicVisaCheck() {
     }
   };
 
-  const selectClass =
-    'bg-white border border-border rounded px-3 py-2 text-sm text-text-primary ' +
-    'focus:outline-none focus:ring-2 focus:ring-brand-purple/40';
-
   return (
-    <div className="mt-10 space-y-4 border-t border-border pt-8">
-      <div>
-        <p className="mb-1 text-lg font-bold text-brand-purple">Check if you need a visa — free, no account needed.</p>
-        <p className="text-xs text-text-muted">
-          Pick your passport and where you&apos;re going to see the rule, how long you can stay,
-          and the official place to apply.
-        </p>
-      </div>
-
-      <form onSubmit={check} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <TravelSectionShell
+      title="Visa check"
+      explainer="The rule, how long you can stay, and the official place to apply."
+      // PR-STRIP-DESIGN-1: under the strip the tab + per-mode line carry
+      // this identity — the in-card header hides (title stays, sr-only).
+      hideHeader
+    >
+      <form onSubmit={check} className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-text-muted">Passport</span>
-          <select value={passport} onChange={(e) => setPassport(e.target.value)} className={selectClass} aria-label="Passport country">
+          <span className={TRAVEL_LABEL_CLASS}>Passport</span>
+          <select value={passport} onChange={(e) => setPassport(e.target.value)} className={TRAVEL_INPUT_CLASS} aria-label="Passport country">
             {COUNTRIES.map((c) => (
               <option key={c.iso2} value={c.iso2}>{c.name}</option>
             ))}
@@ -112,8 +123,8 @@ export default function PublicVisaCheck() {
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-text-muted">Going to</span>
-          <select value={destination} onChange={(e) => setDestination(e.target.value)} className={selectClass} aria-label="Destination country">
+          <span className={TRAVEL_LABEL_CLASS}>Going to</span>
+          <select value={destination} onChange={(e) => setDestination(e.target.value)} className={TRAVEL_INPUT_CLASS} aria-label="Destination country">
             <option value="">Select a country…</option>
             {COUNTRIES.map((c) => (
               <option key={c.iso2} value={c.iso2}>{c.name}</option>
@@ -121,11 +132,13 @@ export default function PublicVisaCheck() {
           </select>
         </label>
 
-        <div className="flex items-end">
+        <div className="col-span-full flex items-end sm:col-span-2 lg:col-span-1">
           <button
             type="submit"
-            disabled={!canCheck}
-            className="rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover disabled:opacity-50"
+            // SEARCH-ALWAYS-ON: full-strength at rest — loading (which
+            // exists here) is the only dim; incomplete clicks error above.
+            disabled={loading}
+            className={`${TRAVEL_BUTTON_CLASS} w-full`}
           >
             {loading ? 'Checking…' : 'Check'}
           </button>
@@ -136,7 +149,12 @@ export default function PublicVisaCheck() {
         <p className="text-xs text-brand-amber">Pick two different countries to check entry rules.</p>
       )}
 
+      {/* SEARCH-ALWAYS-ON: pre-search guard errors need a surface — the
+          in-family template (PublicHotelSearch.tsx:268-270) verbatim. */}
+      {!searched && error && (
+        <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
+      )}
       {searched && <VisaResultView result={result} loading={loading} error={error} />}
-    </div>
+    </TravelSectionShell>
   );
 }

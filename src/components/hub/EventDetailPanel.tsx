@@ -1,180 +1,568 @@
 'use client';
 
 /**
- * EventDetailPanel — the master calendar's click→detail panel (PR-HCR3).
+ * EventDetailPanel — DRILL-01 + LINK-01: click anything on the day, see its
+ * whole chain — and CLOSE it by linking the posting that settled it.
  *
- * Renders ONE clicked calendar event. It is TYPE-AWARE:
- *   • trade  → a markets layout (Position / Signal / P&L / Expiry).
- *   • trip / project / routine → the 12-column hub_scheduled_items scaffold
- *     (Start/End Date+Time, Entity, Cadence, Category, Project/Routine, Task/Step,
- *     Billable, Budget $, Actual $).
+ * ONE PANEL, EVERY KIND. A calendar_event (any admitted source), a routine
+ * occurrence, a project block's task, a trade — each opens this, and each is
+ * described by what THAT object actually knows. The per-kind census lives in
+ * src/lib/calendar/chain.ts, not here; this file renders it.
  *
- * It is the SCAFFOLD the 12-column wiring fills later: it shows the real values the
- * event already carries (dates, times, budget, name) and labels everything not yet
- * wired as "not set yet" — honest placeholders, never fake values.
+ * It states, for the clicked row: what it is and which tool owns it, when, where
+ * (with its pin when both coordinates are stored), its planned amount, its
+ * actual if the object itself carries one, and its COA.
  *
- * ZERO FETCH: it renders the passed `event` object only. Nothing here calls a route,
- * so it is safe on the logged-out demo (no personal data, no leak).
+ * THE CHAIN, HONESTLY. Under the figures it shows one of three states and never
+ * a fourth — PLANNED · PLANNED AND SETTLED · NOT LINKED — and where the actual
+ * cannot be known it quotes DAY-01's verdict rather than guessing a match. An
+ * amount is never rendered without saying where it came from. A row with no
+ * amounts shows no chain and no figures: a blank, never $0.
  *
- * Chrome is a centered modal box matching the booking popup (CheckoutPanel.tsx:249,256):
- * a dimmed full-screen backdrop, a centered max-w-lg / max-h-[90vh] scroll box,
+ * LINK-01. An item in NOT LINKED offers a link: the panel lists this user's
+ * postings near the item's date — date order, no score, nothing pre-selected —
+ * and the founder picks one. NOTHING IS SUGGESTED AS PROBABLE. The actual then
+ * becomes the SUM of what is linked, never an imputation, and unlinking returns
+ * the item to NOT LINKED rather than to $0. A linked posting whose amount cannot
+ * be read is named and excluded from the total — the EDGE-01 bug, inverted.
+ *
+ * LINES-01. A routine occurrence made of lines lists them — each line with its
+ * time, activity, amount (or —) and account — then the total
+ * with its coverage ("$280 across 2 of 3 lines"). The routine-level Category
+ * row is REMOVED for a lined routine: one chip would be a lie about a routine
+ * that has three. Each line carries its own Link / Unlink on kind 'routine_line'
+ * keyed on (step, instant); a line's actual is the sum of its links, and the
+ * occurrence's actual is the sum of its lines' actuals. Never both grains.
+ *
+ * CAL-02 (Alex, 2026-10-27). A routine occurrence's ACCOUNT row prints the words
+ * the window route's server-side read decided for the tile (tileAccount.ts):
+ * "P-6150 Food & drink" — the book's letter, the four digits, the chart's name,
+ * never the bare code; "several accounts" for a lined routine coded to more than
+ * one (LINES-01's "never one chip" kept, said in words); "no account"; "P-9999 —
+ * not in the chart". Each line in the list prints its own account words the
+ * same way. Every other kind keeps its Category (COA) row as it was.
+ *
+ * IT READS its own links and writes only those links — no posting is altered,
+ * no journal entry is touched, and no task's typed actual_cost_usd is ever
+ * overwritten. In demo mode (`linkable={false}`) it reaches no route at all, so
+ * the logged-out guest's zero-fetch guarantee is untouched. The door it carries
+ * is a link — the founder acts in the owning tool, not in this panel.
+ *
+ * Chrome is unchanged from PR-HCR3: a dimmed backdrop, a centered max-w-lg box,
  * click-outside + Escape to close, × button, brand-purple header.
  */
 
-import { useEffect, useRef } from 'react';
-import type { CalendarEvent as GridEvent } from '@/components/shared/CalendarGrid';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { ACTUAL_SOURCE_LABEL, buildChain, type DrillRow } from '@/lib/calendar/chain';
+import { FREE_TEXT_RULE, linkedSourceLine, sumLinks, typedVsLinked, variance, type LinkedPosting } from '@/lib/calendar/links';
+import { CANDIDATES_REVERSED_MISSING_WORDS, REVERSED_TAG_WORDS, useLineLinks } from '@/components/hub/useLineLinks';
+import { reversedCandidatesWords, reversedLinkedWords } from '@/lib/calendar/postingAmount';
+import { parseRoutineTileId, type LinkableKind } from '@/lib/calendar/linkKeys';
+import { isManualEvent } from '@/lib/calendar/sources';
+import { navToolByName } from '@/lib/nav';
+import { TOOL_GATE } from '@/lib/offer';
+import { readAccountWords } from '@/lib/hub/tileAccount';
 
 interface Props {
-  event: GridEvent;
+  row: DrillRow;
   onClose: () => void;
+  /**
+   * LINK-01: false on the logged-out demo, where there is no account to link
+   * against. The panel then reaches no route at all.
+   */
+  linkable?: boolean;
+  /**
+   * ONEOFF-01: an event entered by hand BEFORE the ruling is the calendar's
+   * own row, and its owner may still correct or remove it from here. Correct
+   * hands the row's id up (the caller opens the correction form — this panel
+   * PATCHes nothing); Remove is the ONE write the day view was already allowed
+   * (DELETE on the manual-event route, which refuses every other source itself),
+   * and the caller reloads on onRemoved. Nothing is authored.
+   */
+  onCorrect?: (id: string) => void;
+  onRemoved?: () => void;
 }
 
-// Source label + legend dot color — the SAME hues as the calendar legend
-// (HubCalendar SOURCE_CONFIG: trip=cyan, project=indigo, routines=teal, trade=amber).
-const SOURCE_BADGE: Record<string, { label: string; dot: string }> = {
-  trip: { label: 'Trip', dot: 'bg-cyan-400' },
-  project: { label: 'Project', dot: 'bg-indigo-400' },
-  routines: { label: 'Routine', dot: 'bg-teal-400' },
-  trade: { label: 'Trade', dot: 'bg-amber-400' },
+/** The legend hues, unchanged — the panel wears the layer the row came from. */
+const KIND_DOT: Record<string, string> = {
+  trip: 'bg-cyan-400',
+  project: 'bg-indigo-400',
+  operations: 'bg-indigo-400',
+  routines: 'bg-teal-400',
+  trade: 'bg-amber-400',
 };
 
-const NOT_SET = 'not set yet';
-
+const NONE = '—';
 const labelClass = 'text-text-faint uppercase tracking-wide text-xs font-mono';
 
-/** YYYY-MM-DD → a friendly local date (parsed at midnight to avoid tz drift). */
+/** The state's colour. NOT LINKED is not an error — it is an honest unknown. */
+const STATE_CLASS: Record<string, string> = {
+  PLANNED: 'border-brand-purple/40 bg-brand-purple/5 text-brand-purple',
+  PLANNED_AND_SETTLED: 'border-emerald-400/40 bg-emerald-50 text-emerald-700',
+  NOT_LINKED: 'border-border bg-bg-row text-text-muted',
+};
+
 function formatDate(ymd?: string | null): string {
-  if (!ymd) return NOT_SET;
-  const d = new Date(`${ymd}T00:00:00`);
+  if (!ymd) return NONE;
+  const d = new Date(`${ymd.slice(0, 10)}T00:00:00`);
   if (Number.isNaN(d.getTime())) return ymd;
   return d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function formatUsd(n?: number): string {
-  if (n == null || !Number.isFinite(n)) return NOT_SET;
+/** Dollars. NULL RENDERS BLANK — a zero here would be a number the app does not have. */
+function money(n: number | null): string {
+  if (n === null || !Number.isFinite(n)) return NONE;
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** One label/value row. A "not set yet" value reads as a muted, italic placeholder. */
-function Row({ label, value }: { label: string; value: string }) {
-  const isPlaceholder = value === NOT_SET;
+function clock(t: string | null): string {
+  if (!t) return NONE;
+  const [h, m] = t.split(':').map(Number);
+  if (!Number.isFinite(h)) return t;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  return `${hh}:${String(m ?? 0).padStart(2, '0')} ${ampm}`;
+}
+
+function Row({ label, value, mono, testId }: { label: string; value: string; mono?: boolean; testId?: string }) {
+  const blank = value === NONE;
   return (
     <div className="flex items-start justify-between gap-3 border-b border-border py-2 last:border-0">
       <span className={labelClass}>{label}</span>
-      <span className={`text-right text-sm ${isPlaceholder ? 'italic text-text-faint' : 'text-text-primary'}`}>
-        {value}
+      <span
+        data-drill-field={testId}
+        className={`text-right text-sm ${mono ? 'font-mono tabular-nums' : ''} ${blank ? 'text-text-faint' : 'text-text-primary'}`}
+      >
+        {blank ? <span data-drill-blank>{NONE}</span> : value}
       </span>
     </div>
   );
 }
 
-export default function EventDetailPanel({ event, onClose }: Props) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const cfg = SOURCE_BADGE[event.source] ?? { label: event.source, dot: 'bg-border' };
-  const isTrade = event.source === 'trade';
+/** The (kind, id, instant) a link points at, or null when the row is not linkable. */
+function targetOf(row: DrillRow): { kind: LinkableKind; id: string; instant: string | null } | null {
+  if (!row.facts.linkable) return null;
+  if (row.kind === 'routine') {
+    // LINES-01: a LINED occurrence links at the LINE, never at the routine — the
+    // coffee posting to the coffee line. The occurrence-level target is only for
+    // a stepless routine, and the 'routine' kind is never repurposed.
+    if (row.lines && row.lines.length > 0) return null;
+    const parsed = parseRoutineTileId(row.id);
+    // A routine tile whose id does not carry its instant cannot be addressed —
+    // and is NOT silently linked on its date, which would match the wrong
+    // occurrence. It offers no link and says nothing it cannot back up.
+    return parsed ? { kind: 'routine', id: parsed.routineId, instant: parsed.instant } : null;
+  }
+  if (row.kind === 'project_task') return { kind: 'project_task', id: row.id, instant: null };
+  // TRAVEL-01: a trip item links on its trip_itinerary id, not the calendar row's.
+  if (row.kind === 'trip_item') return row.tripItemId ? { kind: 'trip_item', id: row.tripItemId, instant: null } : null;
+  return { kind: 'calendar_event', id: row.id, instant: null };
+}
 
-  // Click-outside to close (delayed bind so the opening click doesn't close it).
+interface LinkRow extends LinkedPosting { linkedAt: string; linkedBy: string | null }
+
+export default function EventDetailPanel({ row, onClose, linkable = true, onCorrect, onRemoved }: Props) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dot = KIND_DOT[row.source] ?? 'bg-border';
+  const ownerTool = navToolByName(row.owner, TOOL_GATE);
+  // Memoised so the loader's dependency is the TARGET itself, not three fields
+  // of it — the row is a new object each render, its target is not.
+  const target = useMemo(() => targetOf(row), [row]);
+
+  const [links, setLinks] = useState<LinkRow[] | null>(null);
+  const [candidates, setCandidates] = useState<LinkedPosting[] | null>(null);
+  // LINK-LAW-01 (ruling C): how many reversed postings the window held — not offered, and said.
+  const [candidatesReversed, setCandidatesReversed] = useState<number | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  // ONEOFF-01: the manual-event route's refusal on Remove, shown with its reason.
+  const [removeRefusal, setRemoveRefusal] = useState<string | null>(null);
+
+  /**
+   * ONEOFF-01: remove a hand-entered row (pre-ruling). The route is
+   * user-scoped and refuses any other source with its reason; the panel shows
+   * the reason rather than swallowing it.
+   */
+  const removeEvent = async () => {
+    setBusy(true); setRemoveRefusal(null);
+    try {
+      const res = await fetch(`/api/calendar/events?id=${encodeURIComponent(row.id)}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { setRemoveRefusal(data?.error ?? `The event was not removed (HTTP ${res.status}).`); return; }
+      onRemoved?.();
+    } finally { setBusy(false); }
+  };
+
+  const load = useCallback(async (withCandidates: boolean) => {
+    if (!target || !linkable) return;
+    const q = new URLSearchParams({ kind: target.kind, id: target.id });
+    if (target.instant) q.set('instant', target.instant);
+    if (withCandidates) q.set('near', row.startDate.slice(0, 10));
+    try {
+      const res = await fetch(`/api/calendar/links?${q.toString()}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { setRefusal(data?.error ?? `Links could not be read (HTTP ${res.status}).`); return; }
+      if (withCandidates && typeof data.candidatesReversed !== 'number') { setRefusal(CANDIDATES_REVERSED_MISSING_WORDS); return; }
+      setLinks(data.links ?? []);
+      if (withCandidates) { setCandidates(data.candidates ?? []); setCandidatesReversed(data.candidatesReversed); }
+    } catch { setRefusal('Links could not be read.'); }
+  }, [linkable, row.startDate, target]);
+
+  useEffect(() => { void load(false); }, [load]);
+
+  const linkPosting = async (journalEntryId: string) => {
+    if (!target) return;
+    setBusy(true); setRefusal(null);
+    try {
+      const res = await fetch('/api/calendar/links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: target.kind, id: target.id, instant: target.instant, journalEntryId }),
+      });
+      const data = await res.json().catch(() => null);
+      // The server's own words, verbatim — it names the rule it refused on.
+      if (!res.ok) { setRefusal(data?.error ?? `The link was not made (HTTP ${res.status}).`); return; }
+      setPicking(false);
+      await load(false);
+    } finally { setBusy(false); }
+  };
+
+  const unlink = async (journalEntryId: string) => {
+    setBusy(true); setRefusal(null);
+    try {
+      const res = await fetch(`/api/calendar/links?journalEntryId=${encodeURIComponent(journalEntryId)}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { setRefusal(data?.error ?? `The link was not removed (HTTP ${res.status}).`); return; }
+      await load(false);
+    } finally { setBusy(false); }
+  };
+
+  // LINES-01: a lined occurrence's actual is the SUM OF ITS LINES' ACTUALS, each
+  // line's being the sum of its own links. The hook reads every line's links
+  // and never adds the routine grain in — there is no routine-grain target here.
+  const instant = row.kind === 'routine' ? parseRoutineTileId(row.id)?.instant ?? null : null;
+  const lineLinks = useLineLinks(linkable && row.lines ? row.lines.map((l) => l.stepId) : [], instant);
+
+  // THE ACTUAL, FROM THE LINKS. Zero links → null, which reads NOT LINKED.
+  const summed = row.lines && row.lines.length > 0 ? lineLinks.summed : sumLinks(links ?? []);
+  const linkedActual = summed.actual;
+  const typedActual = row.actual;                       // the object's own column
+  const shownActual = linkedActual ?? typedActual;      // links win (STEP 0.4, proposed)
+  const shownSource = linkedActual !== null ? 'linked' : row.actualSource;
+  const conflict = typedVsLinked(typedActual, linkedActual);
+  const varianceUsd = variance(row.planned, shownActual);
+  const chain = linkedActual !== null
+    ? buildChain({ kind: row.kind, planned: row.planned, actual: linkedActual, actualSource: 'linked', linkLine: linkedSourceLine(summed) })
+    : row.chain;
+
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose();
     };
     const timer = setTimeout(() => document.addEventListener('mousedown', handleClick), 50);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('mousedown', handleClick);
-    };
+    return () => { clearTimeout(timer); document.removeEventListener('mousedown', handleClick); };
   }, [onClose]);
 
-  // Escape to close.
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  // ── Build the rows for the active branch. `val(x)` falls back to "not set yet". ──
-  const val = (s?: string | null) => (s && s.length > 0 ? s : NOT_SET);
-
-  const tradeRows: { label: string; value: string }[] = [
-    { label: 'Date', value: formatDate(event.startDate) },
-    { label: 'Time', value: val(event.startTime) },
-    { label: 'Position', value: val(event.title) },
-    { label: 'Signal', value: NOT_SET },   // scanner wiring comes later
-    { label: 'P&L', value: NOT_SET },
-    { label: 'Expiry', value: NOT_SET },
-  ];
-
-  const scheduledRows: { label: string; value: string }[] = [
-    { label: 'Start Date', value: formatDate(event.startDate) },
-    { label: 'Start Time', value: val(event.startTime) },
-    { label: 'End Date', value: event.endDate ? formatDate(event.endDate) : NOT_SET },
-    { label: 'End Time', value: val(event.endTime) },
-    { label: 'Entity', value: NOT_SET },
-    { label: 'Cadence', value: event.isRecurring ? 'Repeats' : NOT_SET },
-    { label: 'Category (COA)', value: val(event.coaCode) },
-    { label: cfg.label, value: val(event.title) },
-    ...(event.location ? [{ label: 'Location', value: event.location }] : []),
-    { label: 'Task / Step', value: NOT_SET },
-    { label: 'Billable', value: NOT_SET },
-    { label: 'Budget $', value: event.budgetAmount != null ? formatUsd(event.budgetAmount) : NOT_SET },
-    { label: 'Actual $', value: NOT_SET },
-  ];
-
-  const rows = isTrade ? tradeRows : scheduledRows;
+  // HOTEL-01 (2026-09-22): a stay without a stated check-in time says so — the
+  // 15:00 nobody stated is gone, and its absence is named, never blank.
+  const when = row.startTime
+    ? `${clock(row.startTime)}${row.endTime ? ` – ${clock(row.endTime)}` : ''}`
+    : row.kind === 'trip_item' && row.itemType === 'lodging'
+      ? 'check-in time not stated by the property'
+      : NONE;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
-      {/* Centered modal box — matches the booking popup (CheckoutPanel.tsx:249,256). */}
+    /* LINK-01: z-60, ABOVE the day view's own z-50 modal. The walk found the day
+       view intercepting every click inside this panel — readable but inert —
+       which did not matter while the panel was read-only and does the moment it
+       carries Link and Unlink. The drill opens FROM the day, so it sits on top. */
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" data-drill-layer>
       <div
         ref={panelRef}
+        data-drill-panel
+        data-drill-kind={row.kind}
         className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-sm"
       >
-        {/* Header */}
         <div className="flex items-start justify-between bg-brand-purple px-5 py-4 text-white">
           <div className="min-w-0 flex-1 pr-3">
-            <h3 className="break-words text-sm font-semibold">{event.title}</h3>
+            <h3 className="break-words text-sm font-semibold" data-drill-title>{row.title}</h3>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-white/70">
-              <span className={`h-2 w-2 rounded-sm ${cfg.dot}`} />
-              {cfg.label} · {formatDate(event.startDate)}
+              <span className={`h-2 w-2 rounded-sm ${dot}`} />
+              <span data-drill-source>{row.source}</span> · owned by <span data-drill-owner>{row.owner}</span> · {formatDate(row.startDate)}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="-mr-1 -mt-1 shrink-0 p-1 text-white/70 transition-colors hover:text-white"
-            aria-label="Close"
-          >
+          <button type="button" onClick={onClose} aria-label="Close"
+            className="-mr-1 -mt-1 shrink-0 p-1 text-white/70 transition-colors hover:text-white">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto p-5">
+          {/* WHAT IT IS, WHEN, WHERE — only what the object knows. */}
           <div className="rounded-lg border border-border p-3">
-            {rows.map((r) => (
-              <Row key={r.label} label={r.label} value={r.value} />
-            ))}
+            <Row label="Date" value={formatDate(row.startDate)} testId="date" />
+            {row.endDate && row.endDate !== row.startDate && <Row label="Through" value={formatDate(row.endDate)} testId="through" />}
+            <Row label="Time" value={when} testId="time" />
+            <Row label="Where" value={row.location ?? NONE} testId="where" />
+            {/* TRAVEL-01: a trip item names its vendor and the provider it was booked
+                through — labelled the way a hand-entered actual is, never guessed. */}
+            {row.kind === 'trip_item' && <Row label="Vendor" value={row.vendor ?? NONE} testId="vendor" />}
+            {row.kind === 'trip_item' && (
+              <Row label="Source" value={row.provider ? `booked through ${row.provider}` : 'added by hand — no booking provider'} testId="source" />
+            )}
+            {row.pin && (
+              <Row label="Pin" mono testId="pin"
+                value={`${row.pin.lat.toFixed(5)}, ${row.pin.lon.toFixed(5)}`} />
+            )}
+            {/* CAL-02 (Alex, 2026-10-27): a routine occurrence's ACCOUNT — the words the
+                window route's read decided for the tile (tileAccount.ts readAccountWords). */}
+            {row.kind === 'routine' && (
+              <Row label="Account" value={readAccountWords(row)} testId="account" />
+            )}
+            {/* LINES-01: a lined routine has a category PER LINE, listed below —
+                one routine-level chip would be a lie about a routine that has three.
+                CAL-02: every other kind keeps this row as it was. */}
+            {row.kind !== 'routine' && !(row.lines && row.lines.length > 0) && (
+              <Row label="Category (COA)" value={row.coaCode ?? NONE} mono testId="coa" />
+            )}
           </div>
 
-          {/* The event's own detail lines (project cost line, trade notes), if any. */}
-          {event.details && event.details.length > 0 && (
-            <div className="mt-4">
-              <p className={labelClass}>Notes</p>
-              <ul className="mt-1 space-y-0.5">
-                {event.details.map((line, i) => (
-                  <li key={i} className="text-sm text-text-secondary">{line}</li>
-                ))}
+          {/* THE LINES — LINES-01. Each with its time, activity, amount (or —) and
+              account (CAL-02: its own account words), then the total with its coverage. */}
+          {row.lines && row.lines.length > 0 && (
+            <div className="mt-4 rounded-lg border border-border p-3" data-drill-lines>
+              <p className={labelClass}>Lines</p>
+              <ul className="mt-2 divide-y divide-border">
+                {row.lines.map((l) => {
+                  const own = lineLinks.byStep.get(l.stepId);
+                  return (
+                    <li key={l.stepId} className="py-1.5 text-xs" data-drill-line={l.stepId} data-drill-line-amount={l.amount === null ? '' : String(l.amount)}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 truncate">
+                          <span className="font-mono text-text-muted">{l.timeOfDay ?? '—'}</span> {l.activity}
+                          <span className="ml-1.5 text-[10px] text-text-faint" data-drill-line-coa>
+                            {readAccountWords(l)}
+                          </span>
+                        </span>
+                        <span className="font-mono tabular-nums" data-drill-line-planned>{money(l.amount)}</span>
+                        {own && own.summed.actual !== null && (
+                          <span className="font-mono tabular-nums text-emerald-700" data-drill-line-actual>{money(own.summed.actual)}</span>
+                        )}
+                        {linkable && instant && (
+                          <button type="button" data-drill-line-link-open={l.stepId} disabled={busy}
+                            onClick={() => { void lineLinks.openPicker(l.stepId, row.startDate.slice(0, 10)); }}
+                            className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-text-muted hover:bg-bg-row">Link</button>
+                        )}
+                      </div>
+                      {own && own.links.length > 0 && (
+                        <ul className="mt-1 space-y-0.5 pl-4">
+                          {own.links.map((k) => (
+                            <li key={k.journalEntryId} className="flex items-center justify-between gap-2 text-[11px]" data-drill-line-linked={k.journalEntryId}>
+                              <span className="min-w-0 flex-1 truncate"><span className="font-mono text-text-muted">{k.date ?? '—'}</span> {k.description ?? ''}</span>
+                              <span className="font-mono tabular-nums">{k.amountCents === null ? <span className="text-status-danger">no readable amount</span> : money(k.amountCents / 100)}{k.reversed === true && <span className="ml-1 text-amber-800" data-drill-line-link-reversed>{REVERSED_TAG_WORDS}</span>}</span>
+                              <button type="button" data-drill-line-unlink={k.journalEntryId} disabled={busy}
+                                onClick={() => { void lineLinks.unlink(l.stepId, k.journalEntryId); }}
+                                className="shrink-0 px-1.5 py-0.5 text-[10px] text-status-danger hover:bg-bg-row">Unlink</button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {lineLinks.picking === l.stepId && (
+                        <div className="mt-2 rounded border border-border p-2" data-drill-line-candidates={l.stepId}>
+                          <p className="text-[11px] text-text-faint" data-drill-no-suggestion>
+                            In date order. Nothing is selected for you and no match is suggested — pick the one that settled this line.
+                          </p>
+                          <ul className="mt-1 max-h-40 space-y-0.5 overflow-y-auto">
+                            {(lineLinks.candidates ?? []).map((c) => (
+                              <li key={c.journalEntryId} className="flex items-center justify-between gap-2 text-[11px]" data-drill-line-candidate={c.journalEntryId}>
+                                <span className="min-w-0 flex-1 truncate"><span className="font-mono text-text-muted">{c.date}</span> {c.description}</span>
+                                <span className="font-mono tabular-nums">{c.amountCents === null ? 'no readable amount' : money(c.amountCents / 100)}</span>
+                                <button type="button" data-drill-line-pick={c.journalEntryId} disabled={busy}
+                                  onClick={() => { void lineLinks.link(l.stepId, c.journalEntryId); }}
+                                  className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-bg-row">Link</button>
+                              </li>
+                            ))}
+                            {lineLinks.candidates !== null && lineLinks.candidates.length === 0 && (
+                              <li className="text-[11px] text-text-faint">No unlinked postings within the window.</li>
+                            )}
+                          </ul>
+                          {lineLinks.candidatesReversed !== null && lineLinks.candidatesReversed > 0 && (
+                            <p className="mt-1 text-[11px] text-amber-800" data-drill-line-candidates-reversed>{reversedCandidatesWords(lineLinks.candidatesReversed)}</p>
+                          )}
+                          <button type="button" onClick={() => lineLinks.closePicker()} className="mt-1 text-[11px] text-text-faint hover:text-text-muted">Cancel</button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
+              <p className="mt-2 font-mono text-xs" data-drill-lines-total>
+                {row.planned === null ? 'no amount on any line' : `${money(row.planned)} across ${row.lineCoverage?.counted ?? 0} of ${row.lineCoverage?.of ?? row.lines.length} lines`}
+              </p>
+              {row.ignoredRoutineLevel != null && (
+                <p className="mt-1 text-[11px] text-amber-800" data-drill-routine-level-ignored>
+                  The routine-level {money(row.ignoredRoutineLevel)} is set aside: this occurrence&rsquo;s figure is the sum of its lines.
+                </p>
+              )}
+              {lineLinks.refusal && <p className="mt-2 text-xs text-status-danger" data-drill-refusal>{lineLinks.refusal}</p>}
             </div>
           )}
 
-          <p className="mt-4 text-xs text-text-faint">
-            {isTrade
-              ? 'The trade details fill in once this is wired to your trading account.'
-              : 'The blank fields fill in once this is wired to your account.'}
-          </p>
+          {/* ONEOFF-01: a hand-entered row (pre-ruling) is the calendar's own —
+              its owner corrects or removes it from here. Nothing is added. */}
+          {linkable && isManualEvent(row.source) && (
+            <div className="mt-4 flex flex-wrap items-center gap-2" data-drill-manual-actions>
+              {onCorrect && (
+                <button type="button" data-drill-correct disabled={busy} onClick={() => onCorrect(row.id)}
+                  className="rounded border border-border px-3 py-1.5 text-xs text-text-muted hover:bg-bg-row">
+                  Correct this event
+                </button>
+              )}
+              <button type="button" data-drill-remove disabled={busy} onClick={removeEvent}
+                className="rounded border border-border px-3 py-1.5 text-xs text-status-danger hover:bg-bg-row">
+                Remove this event
+              </button>
+              {removeRefusal && <span className="text-xs text-status-danger" data-drill-remove-refusal>{removeRefusal}</span>}
+            </div>
+          )}
+
+          {/* THE FIGURES. Each is blank when nothing knows it — never $0. */}
+          <div className="mt-4 rounded-lg border border-border p-3">
+            <Row label="Planned" value={money(row.planned)} mono testId="planned" />
+            <Row label="Actual" value={money(shownActual)} mono testId="actual" />
+            <Row label="Variance" value={money(varianceUsd)} mono testId="variance" />
+            {shownActual !== null && shownSource && (
+              <p className="pt-2 text-xs text-text-muted" data-drill-actual-source>
+                That actual is <span className="font-mono">{ACTUAL_SOURCE_LABEL[shownSource]}</span>
+                {linkedActual !== null && <> — {linkedSourceLine(summed)}</>}.
+              </p>
+            )}
+            {/* LINK-LAW-01 (ruling C): a reversed posting pays nothing — left out of the actual, and said, even when nothing else is linked. */}
+            {summed.reversed.length > 0 && (
+              <p className="pt-2 text-xs text-amber-800" data-drill-reversed-note>{reversedLinkedWords(summed.reversed.length)}</p>
+            )}
+            {/* STEP 0.4: the typed figure and the links disagree. Both are shown,
+                the rule is named, and NOTHING is overwritten. */}
+            {conflict && (
+              <p className="mt-2 rounded border border-amber-400/40 bg-amber-50 p-2 text-xs text-amber-800" data-drill-conflict>
+                This task also carries a typed actual of <span className="font-mono">{money(typedActual)}</span>, which
+                does not match its links. {FREE_TEXT_RULE}
+              </p>
+            )}
+          </div>
+
+          {/* THE LINKED POSTINGS — each with its date and amount, each removable. */}
+          {links && links.length > 0 && (
+            <div className="mt-4 rounded-lg border border-border p-3" data-drill-links>
+              <p className={labelClass}>Linked postings in Books</p>
+              <ul className="mt-2 space-y-1">
+                {links.map((l) => (
+                  <li key={l.journalEntryId} className="flex items-center justify-between gap-2 text-xs" data-drill-link={l.journalEntryId}>
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="font-mono text-text-muted">{l.date ?? '—'}</span> {l.description ?? ''}
+                    </span>
+                    <span className="font-mono tabular-nums">
+                      {l.amountCents === null
+                        ? <span className="text-status-danger" data-drill-link-unreadable>no readable amount</span>
+                        : money(l.amountCents / 100)}
+                      {l.reversed === true && <span className="ml-1 text-amber-800" data-drill-link-reversed>{REVERSED_TAG_WORDS}</span>}
+                    </span>
+                    <button type="button" data-drill-unlink={l.journalEntryId} disabled={busy}
+                      onClick={() => unlink(l.journalEntryId)}
+                      className="shrink-0 px-1.5 py-0.5 text-[10px] text-status-danger hover:bg-bg-row">Unlink</button>
+                  </li>
+                ))}
+              </ul>
+              {summed.unreadable.length > 0 && (
+                <p className="mt-2 text-xs text-status-danger" data-drill-unreadable-note>
+                  {summed.unreadable.length} linked posting{summed.unreadable.length === 1 ? '' : 's'} carr
+                  {summed.unreadable.length === 1 ? 'ies' : 'y'} no readable amount and {summed.unreadable.length === 1 ? 'is' : 'are'} NOT
+                  in the total above. They are named here rather than counted as zero.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* THE CHAIN — one of three states, or nothing at all when there are no figures. */}
+          {chain ? (
+            <div className={`mt-4 rounded-lg border p-3 ${STATE_CLASS[chain.state] ?? 'border-border'}`}>
+              <p className="font-mono text-[11px] uppercase tracking-wider" data-drill-chain-state={chain.state}>
+                {chain.label}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed" data-drill-chain-line>{chain.line}</p>
+            </div>
+          ) : (
+            <p className="mt-4 text-xs text-text-faint" data-drill-no-chain>
+              This row carries no amount, so there is no chain to show.
+            </p>
+          )}
+
+          {/* THE LINK. Offered on a linkable item; nothing is pre-selected and no
+              candidate is ranked or scored — the list is a convenience, not a guess. */}
+          {linkable && target && (
+            <div className="mt-4">
+              {!picking ? (
+                <button type="button" data-drill-link-open disabled={busy}
+                  onClick={() => { setPicking(true); void load(true); }}
+                  className="rounded border border-border px-3 py-1.5 text-xs text-text-muted hover:bg-bg-row">
+                  Link a posting from Books
+                </button>
+              ) : (
+                <div className="rounded-lg border border-border p-3" data-drill-candidates>
+                  <p className={labelClass}>Your postings near this date</p>
+                  <p className="mt-1 text-[11px] text-text-faint" data-drill-no-suggestion>
+                    In date order. Nothing is selected for you and no match is suggested — pick the one that settled this.
+                  </p>
+                  <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+                    {(candidates ?? []).map((c) => (
+                      <li key={c.journalEntryId} className="flex items-center justify-between gap-2 text-xs" data-drill-candidate={c.journalEntryId}>
+                        <span className="min-w-0 flex-1 truncate">
+                          <span className="font-mono text-text-muted">{c.date}</span> {c.description}
+                        </span>
+                        <span className="font-mono tabular-nums">
+                          {c.amountCents === null ? <span className="text-status-danger">no readable amount</span> : money(c.amountCents / 100)}
+                        </span>
+                        <button type="button" data-drill-pick={c.journalEntryId} disabled={busy}
+                          onClick={() => linkPosting(c.journalEntryId)}
+                          className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-bg-row">Link</button>
+                      </li>
+                    ))}
+                    {candidates !== null && candidates.length === 0 && (
+                      <li className="text-xs text-text-faint" data-drill-no-candidates>
+                        No unlinked postings within the window. A posting already linked to another item is not offered.
+                      </li>
+                    )}
+                  </ul>
+                  {candidatesReversed !== null && candidatesReversed > 0 && (
+                    <p className="mt-1 text-[11px] text-amber-800" data-drill-candidates-reversed>{reversedCandidatesWords(candidatesReversed)}</p>
+                  )}
+                  <button type="button" onClick={() => setPicking(false)}
+                    className="mt-2 text-[11px] text-text-faint hover:text-text-muted">Cancel</button>
+                </div>
+              )}
+              {refusal && <p className="mt-2 text-xs text-status-danger" data-drill-refusal>{refusal}</p>}
+            </div>
+          )}
+
+          {/* THE DOOR — one link, to the tool that owns the object. */}
+          {ownerTool?.href && (
+            <Link href={ownerTool.href} data-drill-owner-link={row.owner}
+              className="mt-4 inline-block rounded border border-border px-3 py-1.5 text-xs text-text-muted hover:bg-bg-row">
+              Open in {row.owner} →
+            </Link>
+          )}
+
+          <p className="mt-4 text-xs text-text-faint" data-drill-census>{row.facts.note}</p>
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { isValidUuid } from '@/lib/operations/parseUuid';
@@ -56,10 +57,6 @@ export async function GET(
 
     return NextResponse.json({ history });
   } catch (error) {
-    console.error('[Task History GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load task history', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Task History GET', 'Failed to load task history', error);
   }
 }

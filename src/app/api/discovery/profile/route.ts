@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 export async function GET(_request: NextRequest) {
   try {
@@ -10,6 +12,9 @@ export async function GET(_request: NextRequest) {
 
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:compliance entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:compliance');
+    if (tabGate) return tabGate;
 
     const profile = await prisma.user_profiles.findUnique({ where: { user_id: user.id } });
     return NextResponse.json({ profile });
@@ -37,6 +42,9 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:compliance entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:compliance');
+    if (tabGate) return tabGate;
 
     const body = await request.json();
     const {
@@ -140,8 +148,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ profile }, { status: isCreate ? 201 : 200 });
   } catch (error) {
-    console.error('[Discovery Profile POST]', error);
-    const message = error instanceof Error ? error.message : 'Failed to save profile';
-    return NextResponse.json({ error: message, message }, { status: 500 });
+    return failClosedResponse('Discovery Profile POST', 'Failed to save profile', error);
   }
 }

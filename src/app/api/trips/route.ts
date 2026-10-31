@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { PARTICIPANT_RESPONSE_SELECT } from '@/lib/trips/participantSelect';
 
 // GET all trips for current user
 export async function GET() {
@@ -145,8 +146,9 @@ export async function POST(request: NextRequest) {
           }
         }
       },
+      // SEC-02b (2026-09-27): the owner's participant row goes back without its password hash.
       include: {
-        participants: true
+        participants: { select: PARTICIPANT_RESPONSE_SELECT }
       }
     });
 

@@ -1,27 +1,65 @@
 /**
- * RoutineStepList — ordered sub-step editor for a routine.
+ * RoutineStepList — a routine's lines, as rows of the routines table.
  *
- * Self-contained child of RoutineRow's expanded view (mirrors the TaskList
- * pattern under ProjectRow): reads routine.steps from props, mutates via the
- * PR-Ops-4.8.6b CRUD endpoints, and calls onUpdate() to trigger a parent
- * refetch after every mutation.
+ * ROUTINES-01: every line is a row of RoutineList's one table — Where ·
+ * Activity · When · Minutes · Amount · Account, then its controls (edit ·
+ * delete · ↑ ↓). The routine's own cell (RoutineRow) is the first cell of the
+ * first row and spans every row drawn here. A routine with no lines is one row:
+ * its own place, "no lines", its own amount and account. Every code is drawn
+ * through the one account helper (src/lib/coa/accountCell.ts). Editing is in
+ * place: a line's edit turns its row into the line inputs, and "+ line" (in the
+ * routine's cell) opens the same inputs as a row at the end. A refusal shows the
+ * route's own message on the row it refused.
+ *
+ * Mutates via the PR-Ops-4.8.6b CRUD endpoints and calls onUpdate() to trigger
+ * a parent refetch after every mutation.
  *
  * time_of_day arrives JSON-serialized from Prisma @db.Time as
  * '1970-01-01THH:MM:SS.000Z' — every read extracts HH:MM via .slice(11, 16).
+ *
+ * ROUTINE-02a (Alex, 2026-10-18): `readOnly` (an ended routine) draws the lines
+ * with no controls and hands the routine's cell no "+ line" — editing a line's
+ * amount would change past days' budgets.
+ *
+ * FORM-01 (Alex, 2026-10-19): THE TABLE IS Routine · Cadence · Days · Time ·
+ * Amount · Account, and the controls (ROUTINE_TABLE_COLUMNS = 7). The
+ * routine's own row comes first — its cell (spanning its lines' rows), the
+ * cadence word, the days the rule falls on, the window, and its own amount
+ * and account when no line carries them (rruleHelpers.ts cadenceWords,
+ * daysWords, timeWords). The lines keep their rows under it, unchanged except
+ * the dropped columns: the activity (with sub-activity and notes) sits under
+ * Days, the time of day under Time; Where and Minutes are gone from the rows
+ * and from the line editor (the route still accepts location and duration,
+ * and a line's stored values are sent back as they are).
  */
 
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Routine, RoutineStep } from './types';
-import type { Take } from '../content/ContentTable';
-import TakeifyButton from '../content/TakeifyButton';
+import CoaSelect from './CoaSelect';
+import { formatBudgetPerOccurrence } from './types';
+import { accountCell, type AccountCell, type AccountCellBook } from '@/lib/coa/accountCell';
+import { cadenceWords, daysWords, timeWords } from '@/lib/operations/rruleHelpers';
 
-const STEP_DEFAULT_INTERVAL_MINUTES = 15;
+
+/** The table's columns: Routine · Cadence · Days · Time · Amount · Account, and the controls (FORM-01). */
+export const ROUTINE_TABLE_COLUMNS = 7;
 
 const inputClass =
   'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
 const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
+const cellClass = 'px-2 py-1.5 align-top border-t border-border-light';
+
+/** An account cell as the helper states it: nothing when blank, else its words. */
+export function AccountText({ cell }: { cell: AccountCell }) {
+  if (cell.state === 'blank') return null;
+  const tone =
+    cell.state === 'account' ? 'font-mono text-text-primary'
+      : cell.state === 'not-recognised' ? 'font-mono text-amber-800'
+        : 'italic text-text-muted';
+  return <span className={tone} data-account-state={cell.state}>{cell.text}</span>;
+}
 
 interface StepForm {
   activity: string;
@@ -30,6 +68,9 @@ interface StepForm {
   sub_activity: string;
   duration_minutes: string;
   notes: string;
+  // LINES-01: the line's own cost and category. '' is blank — never 0.
+  budget_amount: string;
+  coa_code: string;
 }
 
 const EMPTY_FORM: StepForm = {
@@ -39,6 +80,8 @@ const EMPTY_FORM: StepForm = {
   sub_activity: '',
   duration_minutes: '',
   notes: '',
+  budget_amount: '',
+  coa_code: '',
 };
 
 function stepToForm(s: RoutineStep): StepForm {
@@ -49,6 +92,8 @@ function stepToForm(s: RoutineStep): StepForm {
     sub_activity: s.sub_activity ?? '',
     duration_minutes: s.duration_minutes !== null ? String(s.duration_minutes) : '',
     notes: s.notes ?? '',
+    budget_amount: s.budget_amount ?? '',
+    coa_code: s.coa_code ?? '',
   };
 }
 
@@ -60,36 +105,33 @@ function formToBody(f: StepForm) {
     sub_activity: f.sub_activity || null,
     duration_minutes: f.duration_minutes !== '' ? Number(f.duration_minutes) : null,
     notes: f.notes || null,
+    // '' → null on the wire: a blank line has NO amount and NO account.
+    budget_amount: f.budget_amount.trim() !== '' ? f.budget_amount.trim() : null,
+    coa_code: f.coa_code || null,
   };
 }
 
-/**
- * Auto-fill a new step's time_of_day from the parent routine's start_time,
- * advancing STEP_DEFAULT_INTERVAL_MINUTES per existing step. '' if the parent
- * has no start_time.
- */
-function getAutoFillTime(routine: Routine, currentSteps: RoutineStep[]): string {
-  if (!routine.start_time) return '';
-  const startHHMM = routine.start_time.slice(11, 16);
-  const [hStr, mStr] = startHHMM.split(':');
-  const startMinutes = parseInt(hStr, 10) * 60 + parseInt(mStr, 10);
-  const newStepOrder = currentSteps.length;
-  const totalMinutes = startMinutes + newStepOrder * STEP_DEFAULT_INTERVAL_MINUTES;
-  const hh = Math.floor(totalMinutes / 60) % 24;
-  const mm = totalMinutes % 60;
-  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-}
+/** The row a refusal belongs to: a line's id, or the new line's row. */
+const NEW_LINE_ROW = 'new-line';
 
 interface Props {
   routine: Routine;
+  /** The tab's entity list (useOperationsEntity) — each code is drawn against its book. */
+  entities: readonly AccountCellBook[];
   onUpdate: () => void;
-  onTakeify: (newTake: Take) => void;
+  /**
+   * The routine's own cell, spanning `rowSpan` rows. `addLine` opens the new
+   * line's row at the end; null while that row is open.
+   */
+  routineCell: (rowSpan: number, addLine: (() => void) | null) => ReactNode;
+  /** ROUTINE-02a: an ended routine — the lines are read-only and "+ line" is not offered. */
+  readOnly?: boolean;
 }
 
-export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
+export function RoutineStepList({ routine, entities, onUpdate, routineCell, readOnly = false }: Props & { }) {
   const steps = [...routine.steps].sort((a, b) => a.step_order - b.step_order);
 
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ row: string; message: string } | null>(null);
   const [openAdd, setOpenAdd] = useState(false);
   const [addForm, setAddForm] = useState<StepForm>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
@@ -98,15 +140,16 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // ROUTINES-01: a new line starts blank — its time is typed, never derived.
   const startAdd = () => {
-    setAddForm({ ...EMPTY_FORM, time_of_day: getAutoFillTime(routine, steps) });
+    setAddForm(EMPTY_FORM);
     setError(null);
     setOpenAdd(true);
   };
 
   const handleCreate = async () => {
     if (addForm.activity.trim().length === 0) {
-      setError('activity is required');
+      setError({ row: NEW_LINE_ROW, message: 'activity is required' });
       return;
     }
     setCreating(true);
@@ -119,14 +162,14 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(body?.message ?? body?.error ?? 'failed to create step');
+        setError({ row: NEW_LINE_ROW, message: body?.message ?? body?.error ?? 'failed to create step' });
         return;
       }
       setOpenAdd(false);
       setAddForm(EMPTY_FORM);
       onUpdate();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'failed to create step');
+      setError({ row: NEW_LINE_ROW, message: e instanceof Error ? e.message : 'failed to create step' });
     } finally {
       setCreating(false);
     }
@@ -140,7 +183,7 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
 
   const handleSave = async (stepId: string) => {
     if (editForm.activity.trim().length === 0) {
-      setError('activity is required');
+      setError({ row: stepId, message: 'activity is required' });
       return;
     }
     setSaving(true);
@@ -153,13 +196,13 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(body?.message ?? body?.error ?? 'failed to save step');
+        setError({ row: stepId, message: body?.message ?? body?.error ?? 'failed to save step' });
         return;
       }
       setEditingId(null);
       onUpdate();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'failed to save step');
+      setError({ row: stepId, message: e instanceof Error ? e.message : 'failed to save step' });
     } finally {
       setSaving(false);
     }
@@ -175,12 +218,12 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(body?.message ?? body?.error ?? 'failed to delete step');
+        setError({ row: step.id, message: body?.message ?? body?.error ?? 'failed to delete step' });
         return;
       }
       onUpdate();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'failed to delete step');
+      setError({ row: step.id, message: e instanceof Error ? e.message : 'failed to delete step' });
     } finally {
       setBusy(false);
     }
@@ -206,12 +249,12 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
         patch(adjacent.id, target.step_order),
       ]);
       if (!r1.ok || !r2.ok) {
-        setError('failed to reorder steps');
+        setError({ row: target.id, message: 'failed to reorder steps' });
         return;
       }
       onUpdate();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'failed to reorder steps');
+      setError({ row: target.id, message: e instanceof Error ? e.message : 'failed to reorder steps' });
     } finally {
       setBusy(false);
     }
@@ -222,163 +265,170 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
   const actionClass =
     'px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs';
 
-  return (
-    <div className="pt-2 border-t border-border-light space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={labelClass}>steps</span>
-          <span className="text-text-muted text-xs">
-            {steps.length} {steps.length === 1 ? 'step' : 'steps'}
-          </span>
-        </div>
-        {!openAdd && (
+  const refusalOn = (row: string) =>
+    error && error.row === row ? (
+      <div className="mt-1 px-2 py-1 rounded border bg-red-50 border-red-200 text-red-800 text-xs" data-line-error>
+        {error.message}
+      </div>
+    ) : null;
+
+  // The line inputs, one per column — the same fields a line has always had.
+  const inputCells = (
+    form: StepForm,
+    setForm: (f: StepForm) => void,
+    row: string,
+    save: { label: string; pending: boolean; pendingLabel: string; onSave: () => void; onCancel: () => void },
+    activityPlaceholder?: string,
+  ) => (
+    <>
+      {/* FORM-01: the line's inputs sit under Days (activity) and Time (time of day); no location, no duration. */}
+      <td className={cellClass} />
+      <td className={cellClass}>
+        <div className={labelClass}>activity</div>
+        <input
+          type="text"
+          value={form.activity}
+          onChange={(e) => setForm({ ...form, activity: e.target.value })}
+          className={inputClass}
+          maxLength={200}
+          placeholder={activityPlaceholder}
+        />
+        <div className={`${labelClass} mt-1`}>sub-activity</div>
+        <input
+          type="text"
+          value={form.sub_activity}
+          onChange={(e) => setForm({ ...form, sub_activity: e.target.value })}
+          className={inputClass}
+          maxLength={200}
+        />
+        <div className={`${labelClass} mt-1`}>notes</div>
+        <textarea
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          rows={2}
+          className={inputClass}
+        />
+        {refusalOn(row)}
+      </td>
+      <td className={cellClass}>
+        <div className={labelClass}>time of day</div>
+        <input
+          type="time"
+          value={form.time_of_day}
+          onChange={(e) => setForm({ ...form, time_of_day: e.target.value })}
+          className={inputClass}
+          data-line-time
+        />
+      </td>
+      <td className={cellClass}>
+        <div className={labelClass}>amount (optional)</div>
+        <input
+          type="number"
+          min={0}
+          step="0.01"
+          value={form.budget_amount}
+          onChange={(e) => setForm({ ...form, budget_amount: e.target.value })}
+          className={`${inputClass} font-mono tabular-nums`}
+          placeholder="blank = no amount"
+          data-step-amount
+        />
+      </td>
+      <td className={cellClass}>
+        <div className={labelClass}>COA (optional)</div>
+        <CoaSelect
+          entityId={routine.entity_id}
+          value={form.coa_code}
+          onChange={(code) => setForm({ ...form, coa_code: code })}
+          className={inputClass}
+        />
+      </td>
+      <td className={cellClass}>
+        <div className="flex flex-wrap items-center gap-1">
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); startAdd(); }}
-            className={actionClass}
+            onClick={save.onSave}
+            disabled={save.pending}
+            className={`px-2 py-0.5 border text-white rounded hover:opacity-90 disabled:opacity-50 text-xs ${'border-brand-purple bg-brand-purple'}`}
           >
-            + add step
+            {save.pending ? save.pendingLabel : save.label}
           </button>
-        )}
-      </div>
-
-      {error && (
-        <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs">
-          {error}
+          <button
+            type="button"
+            onClick={save.onCancel}
+            disabled={save.pending}
+            className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs"
+          >
+            cancel
+          </button>
         </div>
-      )}
+      </td>
+    </>
+  );
 
-      {steps.length === 0 && !openAdd && (
-        <div className="text-text-muted italic text-xs">no steps yet</div>
-      )}
+  const rowSpan = 1 + steps.length + (openAdd ? 1 : 0);
+  const cell = routineCell(rowSpan, openAdd || readOnly ? null : startAdd);
+
+  return (
+    <>
+      {/* FORM-01: the routine's own row — cadence · days · time, and its own amount and account when no line carries them. */}
+      <tr data-routine-main>
+        {cell}
+        <td className={`${cellClass} text-text-muted`} data-routine-cadence>{cadenceWords(routine.schedule_rrule)}</td>
+        <td className={cellClass} data-routine-days>{daysWords(routine.schedule_rrule, routine.start_date)}</td>
+        <td className={`${cellClass} font-mono tabular-nums`} data-routine-time>{timeWords(routine)}</td>
+        {steps.length === 0 ? (
+          <>
+            <td className={`${cellClass} font-mono tabular-nums font-bold text-text-primary`} data-routine-own-amount>
+              {routine.budget_amount != null && formatBudgetPerOccurrence(routine.budget_amount)}
+            </td>
+            <td className={cellClass} data-routine-own-account>
+              <AccountText cell={accountCell(entities, routine.entity_id, routine.coa_code)} />
+            </td>
+          </>
+        ) : (
+          <>
+            <td className={`${cellClass} italic text-text-muted`} data-routine-lines-carry>{steps.length === 1 ? '1 line' : `${steps.length} lines`}</td>
+            <td className={cellClass} />
+          </>
+        )}
+        <td className={cellClass} />
+      </tr>
 
       {steps.map((step, index) => (
-        <div
-          key={step.id}
-          className="border border-border-light rounded bg-white px-3 py-2 text-xs"
-        >
+        <tr key={step.id} data-routine-line={step.id}>
           {editingId === step.id ? (
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="col-span-2">
-                  <div className={labelClass}>activity</div>
-                  <input
-                    type="text"
-                    value={editForm.activity}
-                    onChange={(e) => setEditForm({ ...editForm, activity: e.target.value })}
-                    className={inputClass}
-                    maxLength={200}
-                  />
-                </div>
-                <div>
-                  <div className={labelClass}>time of day</div>
-                  <input
-                    type="time"
-                    value={editForm.time_of_day}
-                    onChange={(e) => setEditForm({ ...editForm, time_of_day: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <div className={labelClass}>duration (min)</div>
-                  <input
-                    type="number"
-                    min={0}
-                    value={editForm.duration_minutes}
-                    onChange={(e) => setEditForm({ ...editForm, duration_minutes: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <div className={labelClass}>location</div>
-                  <input
-                    type="text"
-                    value={editForm.location}
-                    onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                    className={inputClass}
-                    maxLength={200}
-                  />
-                </div>
-                <div>
-                  <div className={labelClass}>sub-activity</div>
-                  <input
-                    type="text"
-                    value={editForm.sub_activity}
-                    onChange={(e) => setEditForm({ ...editForm, sub_activity: e.target.value })}
-                    className={inputClass}
-                    maxLength={200}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <div className={labelClass}>notes</div>
-                  <textarea
-                    value={editForm.notes}
-                    onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                    rows={2}
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleSave(step.id)}
-                  disabled={saving}
-                  className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50 text-xs"
-                >
-                  {saving ? 'saving…' : 'save'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingId(null)}
-                  disabled={saving}
-                  className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs"
-                >
-                  cancel
-                </button>
-              </div>
-            </div>
+            inputCells(editForm, setEditForm, step.id, {
+              label: 'save',
+              pending: saving,
+              pendingLabel: 'saving…',
+              onSave: () => handleSave(step.id),
+              onCancel: () => setEditingId(null),
+            })
           ) : (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <div className="flex flex-col">
-                    <button
-                      type="button"
-                      onClick={() => handleMove(index, -1)}
-                      disabled={busy || index === 0}
-                      className={arrowClass}
-                      title="move up"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMove(index, 1)}
-                      disabled={busy || index === steps.length - 1}
-                      className={arrowClass}
-                      title="move down"
-                    >
-                      ↓
-                    </button>
-                  </div>
-                  {step.time_of_day && (
-                    <span className="text-text-muted shrink-0">
-                      {step.time_of_day.slice(11, 16)}
-                    </span>
-                  )}
-                  <span className="text-text-primary truncate">{step.activity}</span>
-                  {step.sub_activity && (
-                    <span className="text-text-muted truncate">· {step.sub_activity}</span>
-                  )}
-                  {step.location && (
-                    <span className="text-text-muted shrink-0">@ {step.location}</span>
-                  )}
-                  {step.duration_minutes !== null && (
-                    <span className="text-text-muted shrink-0">{step.duration_minutes} min</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
+            <>
+              <td className={cellClass} />
+              <td className={cellClass} data-line-activity>
+                <span className="text-text-primary">{step.activity}</span>
+                {step.sub_activity && <span className="text-text-muted"> · {step.sub_activity}</span>}
+                {step.notes && (
+                  <div className="text-text-muted italic whitespace-pre-wrap">{step.notes}</div>
+                )}
+                {refusalOn(step.id)}
+              </td>
+              <td className={`${cellClass} font-mono tabular-nums text-text-muted`} data-line-when>
+                {step.time_of_day && step.time_of_day.slice(11, 16)}
+              </td>
+              {/* LINES-01: the line's own money and account. Blank → nothing renders. */}
+              <td className={`${cellClass} font-mono tabular-nums font-bold text-text-primary`} data-step-planned>
+                {step.budget_amount != null && formatBudgetPerOccurrence(step.budget_amount)}
+              </td>
+              <td className={cellClass} data-step-coa>
+                <AccountText cell={accountCell(entities, routine.entity_id, step.coa_code)} />
+              </td>
+              {/* ROUTINE-02a: an ended routine's lines carry no controls. */}
+              {readOnly ? <td className={cellClass} data-line-read-only /> : (
+              <td className={cellClass}>
+                <div className="flex flex-wrap items-center gap-1">
                   <button
                     type="button"
                     onClick={() => enterEdit(step)}
@@ -395,105 +445,47 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
                   >
                     delete
                   </button>
-                  <TakeifyButton step={step} onTakeify={onTakeify} />
+                  <button
+                    type="button"
+                    onClick={() => handleMove(index, -1)}
+                    disabled={busy || index === 0}
+                    className={arrowClass}
+                    title="move up"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMove(index, 1)}
+                    disabled={busy || index === steps.length - 1}
+                    className={arrowClass}
+                    title="move down"
+                  >
+                    ↓
+                  </button>
                 </div>
-              </div>
-              {step.notes && (
-                <div className="text-text-muted italic whitespace-pre-wrap pl-8">{step.notes}</div>
+              </td>
               )}
-            </div>
+            </>
           )}
-        </div>
+        </tr>
       ))}
 
       {openAdd && (
-        <div className="border border-brand-purple rounded p-3 bg-purple-50/30 space-y-2">
-          <div className="text-xs font-bold text-text-primary">new step</div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="col-span-2">
-              <div className={labelClass}>activity</div>
-              <input
-                type="text"
-                value={addForm.activity}
-                onChange={(e) => setAddForm({ ...addForm, activity: e.target.value })}
-                className={inputClass}
-                maxLength={200}
-                placeholder="e.g., Shower"
-              />
-            </div>
-            <div>
-              <div className={labelClass}>time of day</div>
-              <input
-                type="time"
-                value={addForm.time_of_day}
-                onChange={(e) => setAddForm({ ...addForm, time_of_day: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>duration (min)</div>
-              <input
-                type="number"
-                min={0}
-                value={addForm.duration_minutes}
-                onChange={(e) => setAddForm({ ...addForm, duration_minutes: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>location</div>
-              <input
-                type="text"
-                value={addForm.location}
-                onChange={(e) => setAddForm({ ...addForm, location: e.target.value })}
-                className={inputClass}
-                maxLength={200}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>sub-activity</div>
-              <input
-                type="text"
-                value={addForm.sub_activity}
-                onChange={(e) => setAddForm({ ...addForm, sub_activity: e.target.value })}
-                className={inputClass}
-                maxLength={200}
-              />
-            </div>
-            <div className="col-span-2">
-              <div className={labelClass}>notes</div>
-              <textarea
-                value={addForm.notes}
-                onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
-                rows={2}
-                className={inputClass}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={creating}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50 text-xs"
-            >
-              {creating ? 'creating…' : 'create step'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpenAdd(false);
-                setAddForm(EMPTY_FORM);
-                setError(null);
-              }}
-              disabled={creating}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs"
-            >
-              cancel
-            </button>
-          </div>
-        </div>
+        <tr className="bg-purple-50/30" data-line-new>
+          {inputCells(addForm, setAddForm, NEW_LINE_ROW, {
+            label: 'create step',
+            pending: creating,
+            pendingLabel: 'creating…',
+            onSave: handleCreate,
+            onCancel: () => {
+              setOpenAdd(false);
+              setAddForm(EMPTY_FORM);
+              setError(null);
+            },
+          }, 'e.g., Shower')}
+        </tr>
       )}
-    </div>
+    </>
   );
 }

@@ -5,9 +5,12 @@
 // V1 fallback host (viatorapi.viator.com) has been retired and now returns
 // HTTP 503 globally — all V1 paths were removed in PR-5 quickfix.
 
+import { viatorAffiliateUrl } from '@/config/affiliates';
 import { ACTIVITY_LABELS } from './activities';
 import { TRAVEL_COA } from './travelCOA';
 import { MissingViatorKeyError, ViatorApiError } from './travelErrors';
+import type { ProductSearchBody } from './activities/searchContract';
+import { isExpired, type RateRecord } from './activities/fx';
 
 const VIATOR_V2_BASE = 'https://api.viator.com/partner';
 
@@ -72,7 +75,7 @@ let destinationLoadPromise: Promise<ViatorDestination[]> | null = null;
 const DEST_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 async function loadDestinations(): Promise<ViatorDestination[]> {
-  if (cachedDestinations && Date.now() - destinationCacheTime < DEST_CACHE_TTL) {
+  if (cachedDestinations && cachedDestinations.length > 0 && Date.now() - destinationCacheTime < DEST_CACHE_TTL) {
     return cachedDestinations;
   }
   // In-flight de-dup: if another caller in this lambda already kicked off
@@ -84,6 +87,11 @@ async function loadDestinations(): Promise<ViatorDestination[]> {
       const res = await fetch(`${VIATOR_V2_BASE}/destinations`, {
         headers: v2Headers(),
       });
+      if (res.status === 429) {
+        // FAIL LOUD on rate-limit — never degrade to an empty list (that, plus caching the
+        // [], was the poisoned-cache bug). The route's try/catch maps this to an error response.
+        throw new ViatorApiError('V2 /destinations rate-limited (429)', 429, await res.text());
+      }
       if (!res.ok) {
         throw new ViatorApiError('V2 /destinations', res.status, await res.text());
       }
@@ -95,19 +103,59 @@ async function loadDestinations(): Promise<ViatorDestination[]> {
       // whole search with "Cannot read properties of undefined (reading
       // 'toLowerCase')". Drop the unusable rows here, log the count for
       // visibility, and never assume `destinationName` is a string downstream.
-      const raw: unknown[] = data.destinations || data.data || [];
-      const usable = raw.filter((d): d is ViatorDestination =>
-        typeof d === 'object' && d !== null &&
-        typeof (d as { destinationName?: unknown }).destinationName === 'string'
-      );
-      const skipped = raw.length - usable.length;
-      cachedDestinations = usable;
-      destinationCacheTime = Date.now();
+      // VERIFIED /destinations 200 shape (captured via the live destProbe): { destinations: [ {
+      // destinationId:number, name:string, type:"CITY"|… }, … ], totalCount:number }. The array is
+      // at data.destinations (data.data kept as a harmless legacy secondary). Accept ONLY an array.
+      const arr: unknown[] | null =
+        Array.isArray(data?.destinations) ? data.destinations
+        : Array.isArray(data?.data) ? data.data
+        : null;
+      if (arr === null) {
+        // The shape is now KNOWN — a 200 with no array at .destinations is a genuine regression.
+        // FAIL LOUD (the route maps it to an error); never silently return [] / poison the cache.
+        throw new ViatorApiError(
+          `V2 /destinations unexpected shape (200, no array at .destinations/.data) — keys: ${
+            data && typeof data === 'object' ? Object.keys(data).join(',') : typeof data
+          }`,
+          res.status,
+        );
+      }
+      // DATA-COMPLETENESS: the verified response is a SINGLE page — totalCount === destinations.length
+      // (both 3389), so the full catalog loads in one call. If Viator ever paginates (totalCount >
+      // returned), DECLARE it loud rather than silently using a partial set (paging is a later PR).
+      const totalCount = typeof data?.totalCount === 'number' ? data.totalCount : null;
+      if (totalCount !== null && totalCount > arr.length) {
+        console.warn(`[VIATOR] /destinations PAGINATED: totalCount=${totalCount} > returned=${arr.length} — using a PARTIAL set (single-page parse).`);
+      }
+      // Map the VERIFIED API fields (destinationId / name / type) into our internal
+      // ViatorDestination shape (destinationId / destinationName / destinationType). The OLD code
+      // filtered on `d.destinationName` — a field the API does NOT return (it returns `name`) — so
+      // it dropped EVERY row → an empty list even on a valid 200. THIS was the original 0-match
+      // root cause (alongside the 429/poisoned-cache fixed in PR-1).
+      const usable: ViatorDestination[] = arr
+        .filter((d): d is { destinationId: number; name: string; type?: unknown } =>
+          typeof d === 'object' && d !== null &&
+          typeof (d as { name?: unknown }).name === 'string' &&
+          typeof (d as { destinationId?: unknown }).destinationId === 'number'
+        )
+        .map((d) => ({
+          destinationId: d.destinationId,
+          destinationName: d.name,
+          destinationType: typeof d.type === 'string' ? d.type : '',
+        }));
+      const skipped = arr.length - usable.length;
+      // Only cache a NON-EMPTY result — never poison the 24h cache with [] (an empty array is
+      // truthy, so a cached [] was being served for 24h with no live call). On empty, leave the
+      // cache untouched so the next call retries the live fetch.
+      if (usable.length > 0) {
+        cachedDestinations = usable;
+        destinationCacheTime = Date.now();
+      }
       console.log(
         `[Viator] Loaded ${usable.length} destinations (V2 /destinations)` +
-        (skipped > 0 ? ` — skipped ${skipped} rows with missing destinationName` : '')
+        (skipped > 0 ? ` — skipped ${skipped} rows with missing name/destinationId` : '')
       );
-      return cachedDestinations!;
+      return usable;
     } catch (err) {
       if (err instanceof MissingViatorKeyError) throw err;
       // V1 fallback host has been retired (returns 503 globally). Fail loud — no
@@ -236,12 +284,12 @@ function buildSearchTerms(coaCategory: string, userInterests: string[]): string[
 }
 
 // ─── Affiliate URL Construction ──────────────────────────────────────────────
-const VIATOR_PARTNER_ID = 'P00294427';
-const VIATOR_MCID = '42383';
-
-function buildAffiliateUrl(productCode: string): string {
-  return `https://www.viator.com/tours/${productCode}?pid=${VIATOR_PARTNER_ID}&mcid=${VIATOR_MCID}&medium=api`;
-}
+// TILE-CFG-1 → VIATOR-URL-FIX: URL construction moved to the ONE shared
+// builder in src/config/affiliates.ts (viatorAffiliateUrl, imported at top) —
+// the API's own productUrl is PRIMARY (params appended only when absent); the
+// hand-built /tours/{code} short path — the audited breakage — survives only
+// as the no-productUrl fallback. Builder and emit-gate validator live in the
+// same module now, so they can never drift.
 
 // ─── Product Search ──────────────────────────────────────────────────────────
 
@@ -271,6 +319,83 @@ async function searchV2Products(destId: number, maxCount: number, tagIds?: numbe
 
   const data = await res.json();
   return (data.products || []).map(normalizeV2Product);
+}
+
+/**
+ * ACTIVITY-01 (2026-09-22): the ONE raw /products/search call for the Things-to-do
+ * search route. The body is the vendor's documented request as the route's contract
+ * built it (src/lib/activities/searchContract.ts activitySearchBodyOf — the
+ * validated filters, sort and count, the one currency constant); the answer is
+ * returned AS THE VENDOR SENT IT — no normalization, no `|| 0`, no re-sort, no
+ * rating drop (the pure leaf src/lib/activities/products.ts reads it). A non-2xx
+ * answer throws ViatorApiError with the endpoint and status; the route turns that
+ * into a fixed reason. The transfers route and the planner keep the paths above.
+ */
+export async function searchProductsRaw(body: ProductSearchBody): Promise<unknown> {
+  const res = await fetch(`${VIATOR_V2_BASE}/products/search`, {
+    method: 'POST',
+    headers: v2Headers(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new ViatorApiError('V2 /products/search', res.status, await res.text());
+  }
+  return res.json();
+}
+
+/**
+ * ACTIVITY-01 STEP 4 (2026-09-22, the Basic-access path): the Save's three reads, raw.
+ * Each has ONE call site — the authed options route (src/app/api/travel/activities/
+ * options/route.ts) — reserved there under 'viatorsave' before the call; the search
+ * route, the picker and the planner never call them. Every answer is returned AS
+ * THE VENDOR SENT IT for the pure leaves (product.ts, schedule.ts, fx.ts) to read.
+ * A non-2xx answer throws ViatorApiError with the endpoint and status; the route
+ * turns that into a fixed reason — the vendor's body never reaches the browser.
+ */
+async function getRaw(path: string, endpoint: string): Promise<unknown> {
+  const res = await fetch(`${VIATOR_V2_BASE}${path}`, { method: 'GET', headers: v2Headers() });
+  if (!res.ok) throw new ViatorApiError(endpoint, res.status, await res.text());
+  return res.json();
+}
+
+/** GET /products/{product-code} — the ACTIVE product's stated facts (bands, requirements, zone, options, cancellation). */
+export async function getProductRaw(productCode: string): Promise<unknown> {
+  return getRaw(`/products/${encodeURIComponent(productCode)}`, `/products/${productCode}`);
+}
+
+/** GET /availability/schedules/{product-code} — published start times, unavailable dates, per-band prices in the SUPPLIER's currency. */
+export async function getScheduleRaw(productCode: string): Promise<unknown> {
+  return getRaw(`/availability/schedules/${encodeURIComponent(productCode)}`, `/availability/schedules/${productCode}`);
+}
+
+/** POST /exchange-rates — the vendor's own rate for one pair, with its lastUpdated and expiry. */
+export async function fetchExchangeRatesRaw(sourceCurrency: string, targetCurrency: string): Promise<unknown> {
+  const res = await fetch(`${VIATOR_V2_BASE}/exchange-rates`, {
+    method: 'POST',
+    headers: v2Headers(),
+    body: JSON.stringify({ sourceCurrencies: [sourceCurrency], targetCurrencies: [targetCurrency] }),
+  });
+  if (!res.ok) throw new ViatorApiError('/exchange-rates', res.status, await res.text());
+  return res.json();
+}
+
+// The rate cache the docs instruct ("Exchange rates should be cached and refreshed
+// based on the expiry timestamp"): per pair, held until ITS OWN expiry, never past
+// it — a cache with an expiry the vendor stated is not a fallback. In-process (per
+// lambda on Vercel); a miss or an expired entry makes the route fetch again.
+const exchangeRateCache = new Map<string, RateRecord>();
+
+/** The cached rate for a pair when it has not expired at `now`; null otherwise (the caller fetches). */
+export function cachedExchangeRate(sourceCurrency: string, targetCurrency: string, now: Date): RateRecord | null {
+  const hit = exchangeRateCache.get(`${sourceCurrency}→${targetCurrency}`);
+  if (!hit) return null;
+  if (isExpired(hit, now)) { exchangeRateCache.delete(`${sourceCurrency}→${targetCurrency}`); return null; }
+  return hit;
+}
+
+/** Remember a freshly read rate until its expiry. */
+export function rememberExchangeRate(rate: RateRecord): void {
+  exchangeRateCache.set(`${rate.sourceCurrency}→${rate.targetCurrency}`, rate);
 }
 
 /** V2 /search/freetext — best for keyword-based searching */
@@ -304,9 +429,32 @@ async function searchV2Freetext(searchTerm: string, destId: number | null, maxCo
   }
 
   const data = await res.json();
-  // Freetext response: products may be at data.products or nested in searchTypes
-  const products = data.products || data.data || [];
-  return products.map(normalizeV2Product);
+
+  // Freetext response shape varies: the products array may sit at a top-level key, inside a
+  // paginated wrapper (e.g. { results: [...] }), or nested under the searchTypes entry (the
+  // request asks for searchTypes:[{searchType:'PRODUCTS'}]). Resolve it DEFENSIVELY — try the
+  // plausible ARRAY locations in order and use the FIRST that is actually an array. NEVER call
+  // .map on a non-array: that was the production crash
+  // "(j.products || j.data || []).map is not a function" (data.products was a truthy non-array).
+  const firstSearchType = Array.isArray(data?.searchTypes) ? data.searchTypes[0] : undefined;
+  const candidates: unknown[] = [
+    data?.products,
+    data?.data,
+    data?.results,
+    data?.products?.results,
+    data?.data?.results,
+    data?.data?.products,
+    firstSearchType?.products,
+    firstSearchType?.products?.results,
+    firstSearchType?.results,
+  ];
+  const productsArr = candidates.find((c): c is any[] => Array.isArray(c));
+  if (!productsArr) {
+    // No products array in the freetext response — return TRUE empty (never fabricated data),
+    // loud (not silent) so an unexpected shape stays visible.
+    console.warn('[Viator] freetext: no products array in response — returning empty.');
+  }
+  return (productsArr ?? []).map(normalizeV2Product);
 }
 
 /** Search Viator products by destination + category terms */
@@ -462,6 +610,48 @@ export async function searchViatorProducts(
     .slice(0, maxResults);
 }
 
+/**
+ * Search Viator products filtered by TAG ids — the verified mechanism for category-specific
+ * inventory like ground transfers (tags 21745 "Transfers" + 12044 "Airport & Hotel Transfers").
+ * Resolves destId exactly like searchViatorProducts (static map via preResolvedDestId → dynamic
+ * findDestinationId), then queries EACH tag and MERGES + DEDUPES by productCode (some products
+ * carry both tags). Unlike searchViatorProducts (activities) it does NOT apply a rating>0 filter —
+ * transfers are bookable regardless of review count, so we surface every REAL product. Returns []
+ * HONESTLY when the city has no destId or no products — never fabricated/sample data.
+ */
+export async function searchViatorProductsByTags(
+  city: string,
+  country: string,
+  tagIds: number[],
+  maxResults: number = 12,
+  preResolvedDestId?: number | null,
+): Promise<ViatorProduct[]> {
+  if (tagIds.length === 0) return [];
+  const destId = preResolvedDestId ?? await findDestinationId(city, country);
+  if (!destId) {
+    console.warn(`[Viator] tag search: no destId for "${city}, ${country}" — returning empty (honest, no fabricated data).`);
+    return [];
+  }
+  const byCode = new Map<string, ViatorProduct>();
+  for (const tagId of tagIds) {
+    if (byCode.size >= maxResults) break;
+    try {
+      const page = await searchV2Products(destId, maxResults, [tagId]);
+      for (const p of page) {
+        const key = p.productCode || p.title;
+        if (key && !byCode.has(key)) byCode.set(key, p); // MERGE + DEDUPE by productCode
+      }
+    } catch (err) {
+      // Re-throw HARD failures (missing key, 4xx incl 429) so the route surfaces them as
+      // 429/5xx; swallow a transient 5xx for one tag so the other tag can still return.
+      if (err instanceof MissingViatorKeyError) throw err;
+      if (err instanceof ViatorApiError && err.status >= 400 && err.status < 500) throw err;
+      console.error(`[Viator] tag ${tagId} search transient error:`, err);
+    }
+  }
+  return [...byCode.values()].slice(0, maxResults);
+}
+
 // ─── Product → GrokRecommendation Mapping ────────────────────────────────────
 
 export function viatorProductToRecommendation(
@@ -516,9 +706,10 @@ export function viatorProductToRecommendation(
   const priceText = price != null ? `From $${price}` : '';
   const summaryParts = [product.description || '', durationText ? `Duration: ${durationText}` : '', priceText].filter(Boolean);
 
-  const affiliateUrl = product.productCode
-    ? buildAffiliateUrl(product.productCode)
-    : product.productUrl || null;
+  // VIATOR-URL-FIX (was: constructed-first, productUrl as fallback — the
+  // audited breakage). productUrl FIRST with our params ensured; /tours/{code}
+  // only when productUrl is missing/unparseable; null when neither exists.
+  const affiliateUrl = viatorAffiliateUrl(product.productUrl, product.productCode);
 
   console.log('[Viator] URL resolution:', JSON.stringify({
     productCode: product.productCode,
@@ -530,7 +721,9 @@ export function viatorProductToRecommendation(
   return {
     name: product.title,
     address: product.destinationName || '',
-    website: affiliateUrl || product.productUrl || null,
+    // VIATOR-URL-FIX: no raw-productUrl tail — an unparseable vendor URL must
+    // never escape (the builder already fell back or returned null, loudly).
+    website: affiliateUrl,
     photoUrl: product.thumbnailUrl || null,
     priceLevel,
     priceLevelDisplay: price != null ? `$${price}` : null,
@@ -546,7 +739,7 @@ export function viatorProductToRecommendation(
     category,
     compositeScore,
     viatorProductCode: product.productCode,
-    bookingUrl: affiliateUrl || product.productUrl || null,
+    bookingUrl: affiliateUrl,
     durationMinutes,
     price,
   };

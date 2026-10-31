@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ValidationError } from '@/lib/errors/ValidationError';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
+import { ownsEveryLeg } from '@/lib/tradeLog/ownership';
 
 function dollarsToCents(amount: number): bigint {
   return BigInt(Math.round(amount * 100));
 }
 
-function updateBalance(entryType: string, accountBalanceType: string, amountCents: bigint): bigint {
-  return entryType === accountBalanceType ? amountCents : -amountCents;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,6 +27,9 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TAB-SERVER-GATE: tab:trade entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const { tradeNums } = await request.json();
     if (!tradeNums || !Array.isArray(tradeNums) || tradeNums.length === 0) {
@@ -63,9 +69,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // TRADE-LOG-01: this user's arrival ids, read once — the chain half of the
+    // ownership predicate (the other half is trading_positions.userId).
+    const userAccounts = await prisma.accounts.findMany({ where: { userId: user.id }, select: { id: true } });
+    const userArrivalTxnIds = userAccounts.length > 0
+      ? (await prisma.investment_transactions.findMany({
+          where: { accountId: { in: userAccounts.map((a) => a.id) } },
+          select: { id: true },
+        })).map((t) => t.id)
+      : [];
+
     let committed = 0;
     let skipped = 0;
     const errors: string[] = [];
+    // KILL-1: trades skipped because a CLOSED leg has no close_date — declared,
+    // never committed on a substitute date.
+    const skippedMissingCloseDate: { trade_num: number; symbol: string }[] = [];
 
     for (const tradeNum of tradeNums) {
       try {
@@ -89,14 +108,18 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Verify ownership: check that open_investment_txn_id belongs to user
-        const txnIds = positions.map(p => p.open_investment_txn_id);
-        const ownedTxns = await prisma.investment_transactions.findMany({
-          where: { id: { in: txnIds }, accounts: { userId: user.id } },
-          select: { id: true },
-        });
-        if (ownedTxns.length === 0) {
-          errors.push(`Trade #${tradeNum}: positions do not belong to this user`);
+        // SEC-2: EVERY leg must belong to the user. The prior guard passed when
+        // AT LEAST ONE leg was owned, then netPL was summed across ALL fetched
+        // legs — a trade_num collision would post another user's realized_pl
+        // into this user's ledger.
+        //
+        // TRADE-LOG-01: the rule is unchanged and now reads BOTH shapes of
+        // ownership (src/lib/tradeLog/ownership.ts). Before this PR the check
+        // resolved every leg through investment_transactions, so a hand-entered
+        // trade — which has no arrival — failed it outright and could never
+        // reach Books. A hand-entered trade posts exactly like a synced one.
+        if (!ownsEveryLeg(positions, user.id, userArrivalTxnIds)) {
+          errors.push(`Trade #${tradeNum}: one or more legs do not belong to this user — not committed`);
           continue;
         }
 
@@ -109,12 +132,28 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Get close date (latest across legs)
-        const closeDate = positions.reduce<Date | null>((latest, p) => {
-          if (!p.close_date) return latest;
-          if (!latest || p.close_date > latest) return p.close_date;
-          return latest;
-        }, null) || new Date();
+        // KILL-1: the journal entry date is the trade's REAL close date (latest
+        // close_date across legs) — the same convention as every other ledger
+        // writer (stock-lots/commit dates JEs with the real sale date). If any
+        // CLOSED leg has no close_date, the trade's close date is unknowable:
+        // SKIP and DECLARE. Never date a ledger entry with "now", the open
+        // date, or any other substitute — a fabricated date also corrupts the
+        // assertPeriodOpen check below.
+        const legsMissingCloseDate = positions.filter(p => p.close_date == null);
+        if (legsMissingCloseDate.length > 0) {
+          skipped++;
+          skippedMissingCloseDate.push({ trade_num: tradeNum, symbol: positions[0].symbol });
+          errors.push(
+            `Trade #${tradeNum} (${positions[0].symbol}): skipped — ${legsMissingCloseDate.length} CLOSED leg(s) missing close_date; not committed (no date is fabricated)`,
+          );
+          continue;
+        }
+
+        // Latest real close_date across legs (all non-null past the guard,
+        // and positions.length > 0 is guaranteed above)
+        const closeDate = positions
+          .map(p => p.close_date as Date)
+          .reduce((latest, d) => (d > latest ? d : latest));
 
         // Build description from first position
         const symbol = positions[0].symbol;
@@ -133,10 +172,11 @@ export async function POST(request: NextRequest) {
         // Period close enforcement
         await assertPeriodOpen(prisma, user.id, entityId, closeDate);
 
-        // Create JE + ledger entries + update balances in a single transaction
-        await prisma.$transaction(async (tx) => {
-          const journalEntry = await tx.journal_entries.create({
-            data: {
+        // HYG-04: JE + lines + balances through postJournal — SET CONSTRAINTS
+        // ALL IMMEDIATE first, one statement for the lines, read back after commit.
+        await postJournal(prisma, async (_tx, post) =>
+          post({
+            entry: {
               userId: user.id,
               entity_id: entityId,
               date: closeDate,
@@ -146,48 +186,12 @@ export async function POST(request: NextRequest) {
               status: 'posted',
               created_by: userEmail,
             },
-          });
-
-          // Debit ledger entry
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: debitAccount.id,
-              entry_type: 'D',
-              amount: amountCents,
-              created_by: userEmail,
-            },
-          });
-
-          // Credit ledger entry
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: creditAccount.id,
-              entry_type: 'C',
-              amount: amountCents,
-              created_by: userEmail,
-            },
-          });
-
-          // Update settled_balance on debit account
-          await tx.chart_of_accounts.update({
-            where: { id: debitAccount.id },
-            data: {
-              settled_balance: { increment: updateBalance('D', debitAccount.balance_type, amountCents) },
-              version: { increment: 1 },
-            },
-          });
-
-          // Update settled_balance on credit account
-          await tx.chart_of_accounts.update({
-            where: { id: creditAccount.id },
-            data: {
-              settled_balance: { increment: updateBalance('C', creditAccount.balance_type, amountCents) },
-              version: { increment: 1 },
-            },
-          });
-        });
+            lines: [
+              { account_id: debitAccount.id, entry_type: 'D', amount: amountCents, balanceDelta: balanceDeltaOf('D', debitAccount.balance_type, amountCents), created_by: userEmail },
+              { account_id: creditAccount.id, entry_type: 'C', amount: amountCents, balanceDelta: balanceDeltaOf('C', creditAccount.balance_type, amountCents), created_by: userEmail },
+            ],
+          }),
+        );
 
         committed++;
       } catch (err) {
@@ -201,15 +205,14 @@ export async function POST(request: NextRequest) {
           skipped++;
           continue;
         }
-        console.error(`Error committing trade #${tradeNum}:`, err);
-        errors.push(`Trade #${tradeNum}: ${message}`);
+        // HYG-02: a ValidationError's guidance reaches the body verbatim; a fault stays on the server.
+        if (!(err instanceof ValidationError)) console.error(`[Trade commit] trade #${tradeNum} failed:`, summarizeError(err));
+        errors.push(`Trade #${tradeNum}: ${userFacingMessage(err, 'Commit failed')}`);
       }
     }
 
-    return NextResponse.json({ committed, skipped, errors });
+    return NextResponse.json({ committed, skipped, skipped_missing_close_date: skippedMissingCloseDate, errors });
   } catch (error) {
-    console.error('Trade commit API error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Trade commit API', 'Trade commit write failed', error);
   }
 }

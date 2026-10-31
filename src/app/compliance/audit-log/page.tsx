@@ -135,6 +135,8 @@ export default function AuditLogPage() {
   const [loading, setLoading] = useState(true);
   const [chainStatus, setChainStatus] = useState<ChainStatus | null>(null);
   const [chainLoading, setChainLoading] = useState(true);
+  // SEC-TASKS-01: the owner-only refusal is shown, never dropped.
+  const [chainRefusal, setChainRefusal] = useState<string | null>(null);
   const [chainExpanded, setChainExpanded] = useState(false);
   const [actionFilter, setActionFilter] = useState('');
   const [targetTableFilter, setTargetTableFilter] = useState('');
@@ -171,6 +173,9 @@ export default function AuditLogPage() {
         if (res.ok) {
           const data = await res.json();
           setChainStatus(data);
+        } else if (res.status === 403) {
+          // The route's one 403 is the owner-only refusal ({ error: 'owner_only', message }).
+          setChainRefusal(((await res.json()) as { message: string }).message);
         }
       } catch (err) {
         console.error('Failed to verify chain:', err);
@@ -247,6 +252,8 @@ export default function AuditLogPage() {
                     </div>
                   )}
                 </div>
+              ) : chainRefusal ? (
+                <span className="text-terminal-sm font-mono text-text-secondary">{chainRefusal}</span>
               ) : null}
             </div>
           </div>

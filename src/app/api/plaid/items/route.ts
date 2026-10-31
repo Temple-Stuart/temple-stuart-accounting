@@ -1,9 +1,10 @@
-import { requireTier } from '@/lib/auth-helpers';
-import { NextRequest, NextResponse } from 'next/server';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const userEmail = await getVerifiedEmail();
     
@@ -19,16 +20,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tierGate = requireTier(user.tier, 'plaid', user.id);
+    // TAB-SERVER-GATE: tab:books entitlement replaces the 'plaid' tier gate
+    const tierGate = await requireTabAccess(user.id, 'tab:books');
     if (tierGate) return tierGate;
 
+    // SEC-01: the consumer that read this (ImportDataSection's per-item sync loop) posts to
+    // the one writer since REBUILD-01 PR-3; no in-repo caller remains (grep). Kept as the
+    // user-scoped items read.
+    // reads `item.id` and nothing else. Select exactly that — the row's accessToken
+    // is a Plaid secret and must never reach the browser.
     const items = await prisma.plaid_items.findMany({
-      where: { userId: user.id }
+      where: { userId: user.id, retired_at: null }, // BANK-03: retired items appear nowhere but history
+      select: { id: true },
     });
-    
-    return NextResponse.json(items);
-  } catch (error: any) {
-    console.error('Error fetching items:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Compile-time proof that no token field is in the response type: a select
+    // that re-adds accessToken fails `satisfies` (string is not assignable to never).
+    return NextResponse.json(items satisfies ReadonlyArray<{ id: string; accessToken?: never }>);
+  } catch (error: unknown) {
+    return failClosedResponse('Fetching items', 'Failed to fetch items', error);
   }
 }

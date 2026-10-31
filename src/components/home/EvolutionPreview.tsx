@@ -39,7 +39,7 @@ export default function EvolutionPreview() {
             <div className="border border-border-light border-dashed rounded bg-white p-3 opacity-70">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="px-1.5 py-0.5 rounded bg-brand-purple/60 text-white text-[10px] font-semibold shrink-0">
+                  <span className="px-1.5 py-0.5 rounded bg-brand-purple-wash text-brand-purple text-[10px] font-semibold shrink-0">
                     v{n}
                   </span>
                   <span className="text-text-faint">&mdash;</span>

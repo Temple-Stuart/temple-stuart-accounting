@@ -19,6 +19,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateProjectTasks } from '@/lib/ai/generateProjectTasks';
@@ -161,14 +162,6 @@ export async function POST(request: NextRequest) {
     if (error instanceof PipeBudgetError) {
       return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
     }
-    console.error('[Stateless Generate Tasks POST]', error);
-    return NextResponse.json(
-      {
-        error: `AI task synthesis failed: ${
-          error instanceof Error ? error.message : 'unknown'
-        }`,
-      },
-      { status: 500 }
-    );
+    return failClosedResponse('Stateless Generate Tasks POST', 'Failed to generate tasks', error);
   }
 }

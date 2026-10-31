@@ -16,7 +16,20 @@ export type ProjectStatus =
   | 'blocked'
   | 'completed'
   | 'cancelled'
-  | 'archived';
+  | 'archived'
+  // BACKLOG-01 (Alex, 2026-10-20): a captured project lands in the backlog, is
+  // scoped on its row, is scheduled, or is dropped. The six above stay.
+  | 'backlog'
+  | 'scoped'
+  | 'scheduled'
+  | 'dropped';
+
+/** BACKLOG-01: what kind of work — required at capture; null on a row captured before. */
+export type ProjectType = 'engineering' | 'accounting' | 'content' | 'travel' | 'ops';
+/** BACKLOG-01: how big — optional at capture; null is "not sized". */
+export type ProjectSize = 'S' | 'M' | 'L';
+export const PROJECT_TYPES: readonly ProjectType[] = ['engineering', 'accounting', 'content', 'travel', 'ops'];
+export const PROJECT_SIZES: readonly ProjectSize[] = ['S', 'M', 'L'];
 
 export interface Project {
   id: string;
@@ -33,6 +46,24 @@ export interface Project {
   deep_research_input: string | null;
   claude_code_audit_input: string | null;
   status: ProjectStatus;
+  // BACKLOG-01 (Alex, 2026-10-20): the capture's columns, 1:1 with the migration.
+  // null is "not stated" (a row captured before reads "—"); links [] is "no links".
+  // rank and the three dates are read here and written only by BACKLOG-02/03.
+  type: ProjectType | null;
+  size: ProjectSize | null;
+  why: string | null;
+  definition_of_done: string | null;
+  links: string[];
+  notes: string | null;
+  // BACKLOG-01b (Alex, 2026-10-20): the brief's three — 4 ALREADY RULED, 5 WANT A
+  // RECOMMENDATION ON, and the reason for the target date (6 BY WHEN, AND WHY).
+  rulings: string | null;
+  open_questions: string | null;
+  deadline_reason: string | null;
+  rank: number | null;
+  promoted_at: string | null;
+  scheduled_at: string | null;
+  done_at: string | null;
   target_completion_date: string | null;
   estimated_total_minutes: number | null;
   estimated_total_cost_usd: string | null;
@@ -47,6 +78,18 @@ export interface Project {
   // because other fetches of a Project don't compute them.
   task_count?: number;
   run_count?: number;
+  // PROJECTS-UX-2: REAL ledger money allocated to this project (the DIM
+  // ledger_line_links rollup, computed server-side in /api/operations/projects
+  // — read-only, user-scoped, D−C netted, coverage declared). Distinct from
+  // the self-reported estimated/actual_cost_usd fields. An object when links
+  // exist; null when none; ABSENT when the rollup read failed — the display
+  // renders NOTHING in both non-object cases (absence is honest).
+  ledger_allocated?: {
+    cents: number;
+    dollars: string;
+    link_count: number;
+    line_count: number;
+  } | null;
 }
 
 /**
@@ -56,6 +99,20 @@ export interface Project {
  * but writable on edit. The full ProjectForm includes status because the
  * editor handles both create and edit. status changes audit-discriminate
  * server-side via operations_project_status_changed (vs. plain _updated).
+ *
+ * BACKLOG-01 (Alex, 2026-10-20): the capture form sends type (required —
+ * '' is unchosen, refused by name), why (required), size ('' is not sized),
+ * definition_of_done, links (a list; the form types one per line) and notes;
+ * the POST sets status 'backlog' itself and ignores the form's status. The
+ * edit view sends the same fields on PATCH.
+ *
+ * BACKLOG-01b (Alex, 2026-10-20) — one fact, one home: problem (1 WHAT IS WRONG
+ * TODAY), why (2 WHY IT MATTERS) and goal (3 THE ONE CORRECT OUTCOME) are the
+ * capture's three required texts; rulings (4), open_questions (5) and
+ * deadline_reason (6, required with a target date) join; diagnosis is THE AUDIT
+ * and design THE PLAN, pasted back on the row. goalItems / problemItems /
+ * diagnosisItems stay here for one release: no form writes them — the edit
+ * form round-trips the row's own values untouched (CLEAN-03 rules on dropping).
  */
 export interface ProjectForm {
   entity_id: string;
@@ -65,6 +122,18 @@ export interface ProjectForm {
   problemItems: string[];
   diagnosisItems: string[];
   status: ProjectStatus;
+  type: ProjectType | '';
+  size: ProjectSize | '';
+  problem: string;
+  why: string;
+  goal: string;
+  diagnosis: string;
+  rulings: string;
+  open_questions: string;
+  deadline_reason: string;
+  definition_of_done: string;
+  links: string[];
+  notes: string;
   target_completion_date: string;          // ISO date (yyyy-mm-dd) or empty
   estimated_total_minutes: string;         // string for input binding; coerced server-side
   estimated_total_cost_usd: string;        // string for decimal fidelity
@@ -79,6 +148,18 @@ export const DEFAULT_PROJECT_FORM: ProjectForm = {
   problemItems: [],
   diagnosisItems: [],
   status: 'not_started',
+  type: '',
+  size: '',
+  problem: '',
+  why: '',
+  goal: '',
+  diagnosis: '',
+  rulings: '',
+  open_questions: '',
+  deadline_reason: '',
+  definition_of_done: '',
+  links: [],
+  notes: '',
   target_completion_date: '',
   estimated_total_minutes: '',
   estimated_total_cost_usd: '',
@@ -95,6 +176,11 @@ export const STATUS_LABELS: Record<ProjectStatus, string> = {
   completed: 'completed',
   cancelled: 'cancelled',
   archived: 'archived',
+  // BACKLOG-01 (Alex, 2026-10-20): the four new words, lower-case like the six.
+  backlog: 'backlog',
+  scoped: 'scoped',
+  scheduled: 'scheduled',
+  dropped: 'dropped',
 };
 
 export const STATUS_PILL_CLASSES: Record<ProjectStatus, string> = {
@@ -104,6 +190,26 @@ export const STATUS_PILL_CLASSES: Record<ProjectStatus, string> = {
   completed: 'bg-green-50 text-green-800',
   cancelled: 'bg-gray-50 text-gray-500',
   archived: 'bg-gray-50 text-gray-400',
+  // BACKLOG-01: backlog reads like not started (unscoped), scoped purple, scheduled blue like in progress, dropped like cancelled.
+  backlog: 'bg-gray-100 text-gray-700',
+  scoped: 'bg-purple-50 text-purple-800',
+  scheduled: 'bg-blue-50 text-blue-800',
+  dropped: 'bg-gray-50 text-gray-500',
+};
+
+/** BACKLOG-01: the type and size words on the project cell's pills and the two selects. */
+export const TYPE_LABELS: Record<ProjectType, string> = {
+  engineering: 'engineering',
+  accounting: 'accounting',
+  content: 'content',
+  travel: 'travel',
+  ops: 'ops',
+};
+
+export const SIZE_LABELS: Record<ProjectSize, string> = {
+  S: 'small',
+  M: 'medium',
+  L: 'large',
 };
 
 /**
@@ -150,6 +256,17 @@ export interface Task {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  /**
+   * TASKS-03 (Alex, 2026-10-26, ruling B): the postings linked to the task in Books, as the
+   * project tasks GET adds them (src/lib/operations/taskMatch.ts): the sum in cents, or null
+   * with no link or an unreadable posting; how many links; how many the rule could not read.
+   * Optional: a task that did not come from that GET (a POST's answer, a PATCH's) carries none.
+   */
+  match_cents?: number | null;
+  match_links?: number;
+  match_unreadable?: number;
+  /** LINK-LAW-01 (Alex, 2026-10-28, ruling C): linked postings MATCH left out because they were reversed. Optional, as above. */
+  match_reversed?: number;
 }
 
 /**
@@ -288,3 +405,14 @@ export const DEPENDENCY_TYPE_DESCRIPTIONS: Record<DependencyType, string> = {
   informs: 'this project should reference the target (advisory, mutual cycles allowed)',
   derived_from: "this project's design originated from the target (lineage)",
 };
+
+// PROJECTS-UX-2: display formatter for allocated ledger cents (server-rounded
+// integer cents). Display only — locale formatting, sign rendered as a leading
+// minus for net-credit projects. Callers render NOTHING for a missing rollup.
+export function formatAllocatedCents(cents: number): string {
+  const abs = (Math.abs(cents) / 100).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${cents < 0 ? '−' : ''}$${abs}`;
+}

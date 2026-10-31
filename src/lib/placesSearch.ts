@@ -28,6 +28,10 @@ interface PlaceResult {
   isOpen: boolean;
   types: string[];
   photos?: string[];
+  // Real coords from the Text Search result's geometry. Optional: undefined when a result
+  // genuinely lacks geometry — never defaulted/fabricated (a missing pin is honest).
+  latitude?: number;
+  longitude?: number;
   popularityScore: number; // rating × log(reviewCount)
 }
 
@@ -167,6 +171,11 @@ export async function searchPlaces(
         types: p.types || [],
         // Server-proxied photo URLs (no API key, lazy-fetched, cacheable).
         photos: p.photos?.slice(0, 2).map((photo: any) => photoProxyUrl(photo.photo_reference)),
+        // Real coords from the result's geometry (optional-chained). Undefined if a result has
+        // no geometry — NEVER a fabricated/default coordinate. Existing cachePlaces() persists
+        // these via its lat/lng columns automatically (placesCache.ts:109-110,126-127).
+        latitude: p.geometry?.location?.lat,
+        longitude: p.geometry?.location?.lng,
         popularityScore: calculatePopularity(p.rating || 0, p.user_ratings_total || 0)
       }));
       

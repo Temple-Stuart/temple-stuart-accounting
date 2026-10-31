@@ -1,0 +1,16 @@
+{
+  "rates": [
+    {
+      "sourceCurrency": "THB",
+      "targetCurrency": "USD",
+      "rate": 0.0308188425,
+      "lastUpdated": "2026-09-21T23:59:59Z",
+      "expiry": "2026-09-23T01:09:59Z"
+    }
+  ],
+  "_redacted": {
+    "keys": [],
+    "count": 0,
+    "reason": "commercial terms — not the traveller's price"
+  }
+}

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient, getTastytradeConnection } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 export async function GET() {
   try {
@@ -11,6 +12,10 @@ export async function GET() {
     // just a flag that unlocks the shared session). So any caller spends/reads
     // ALEX'S brokerage. Gate to admin BEFORE any TT call or data read — 403 for
     // non-admins, 401 for guests. (Same requireAdmin pattern as /trading/convergence.)
+    // TRADE-GATE HOLD (2026-08-11): this endpoint returns the SHARED FIRM
+    // account's balances/positions — i.e. the OWNER'S brokerage data.
+    // Entitlement-flipping it would expose that to customers; held on
+    // requireAdmin pending Alex's explicit ruling (reported).
     const adminGate = await requireAdmin();
     if (adminGate instanceof NextResponse) return adminGate;
     const userEmail = await getVerifiedEmail();
@@ -32,6 +37,7 @@ export async function GET() {
     const accountNumbers = connection?.accountNumbers || [];
 
     const allPositions: any[] = [];
+    const failedAccounts: { account: string; error: string }[] = [];
 
     for (const acct of accountNumbers) {
       try {
@@ -50,12 +56,15 @@ export async function GET() {
         allPositions.push(...mapped);
       } catch (err: any) {
         console.error(`[Tastytrade] Failed to fetch positions for ${acct}:`, err?.message);
+        // KILL-4: the failed account is DECLARED — its positions must not
+        // silently vanish from a 200 that still lists the account.
+        failedAccounts.push({ account: acct, error: err?.message ?? 'unknown error' });
       }
     }
 
-    return NextResponse.json({ positions: allPositions, accounts: accountNumbers });
+    return NextResponse.json({ positions: allPositions, accounts: accountNumbers, failed_accounts: failedAccounts });
   } catch (error: any) {
-    console.error('[Tastytrade] Positions error:', error);
+    console.error('[Tastytrade] Positions error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to fetch positions' }, { status: 500 });
   }
 }

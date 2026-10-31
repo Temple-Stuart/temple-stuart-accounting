@@ -1,29 +1,64 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import { ANSWERS_HOME } from '@/lib/answers';
+import { PASSWORD_MIN_LENGTH } from '@/lib/auth/registration';
+import { TOKEN_TTL_HOURS } from '@/lib/auth/verification';
+
+/**
+ * SELL-03 / 03b — THE sign-in / sign-up box: the deck's modal (GuestLanding),
+ * the cockpit's modal (HomeClient) and the /login page all mount this one
+ * component.
+ *
+ * Sign-up is NON-ENUMERATING: the server answers the same line for every
+ * address — "Check your email to finish signing in." — and sets no cookie;
+ * the box shows that line with the address typed and stays put. The link in
+ * the mail signs in and lands on ANSWERS_HOME. "Didn't get it? Resend" posts
+ * to the resend route, whose one line is the same whatever the address.
+ *
+ * Login completions land on ONE front door, ANSWERS_HOME: the route answers
+ * `landing` and the box navigates there with a full page load (so the fresh
+ * cookie is honored); OAuth's callbackUrl is the same door. EVERY login
+ * failure shows the same line and the same resend offer — an account that
+ * never verified is refused with the wrong-password words, and the resend
+ * is the way in. A caller that must do something first (the purchase
+ * resume) passes onSuccess and owns the navigation.
+ *
+ * The password hint is PASSWORD_MIN_LENGTH — the number the server enforces
+ * (src/lib/auth/registration.ts) — so client and server cannot disagree.
+ */
+
+export interface AuthResult {
+  mode: 'login';
+  /** The one front door, from the server when it names it, else ANSWERS_HOME. */
+  landing: string;
+}
 
 interface LoginBoxProps {
   onClose?: () => void;
-  onSuccess?: () => void;
-  redirectTo?: string;
+  /** Own a LOGIN completion (the purchase resume); when absent the box opens `result.landing`. */
+  onSuccess?: (result: AuthResult) => void;
   initialMode?: 'login' | 'register';
 }
 
-export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub', initialMode = 'login' }: LoginBoxProps) {
+export default function LoginBox({ onClose, onSuccess, initialMode = 'login' }: LoginBoxProps) {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const router = useRouter();
+  /** After a sign-up: the server's line, shown with the address; the form gives way to it. */
+  const [sentTo, setSentTo] = useState<{ email: string; message: string } | null>(null);
+  const [resendNotice, setResendNotice] = useState('');
+  const [resending, setResending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setResendNotice('');
 
     const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
     const body = mode === 'login'
@@ -36,36 +71,115 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub', init
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      const data = await res.json().catch(() => ({}));
 
-      if (res.ok) {
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          router.push(redirectTo);
-        }
-        onClose?.();
-      } else {
-        const data = await res.json();
-        setError(data.error || `${mode === 'login' ? 'Login' : 'Registration'} failed`);
+      if (!res.ok) {
+        setError(typeof data?.error === 'string' ? data.error : `${mode === 'login' ? 'Login' : 'Registration'} failed (HTTP ${res.status})`);
+        setLoading(false);
+        return;
       }
+
+      if (mode === 'register') {
+        // Nothing is signed in yet — the same line for every address; the mail carries the way in.
+        setSentTo({ email: email.trim().toLowerCase(), message: typeof data?.message === 'string' ? data.message : 'Check your email to finish signing in.' });
+        setLoading(false);
+        return;
+      }
+
+      const result: AuthResult = {
+        mode: 'login',
+        landing: typeof data?.landing === 'string' && data.landing.startsWith('/') ? data.landing : ANSWERS_HOME,
+      };
+      if (onSuccess) {
+        onSuccess(result);
+      } else {
+        // A full navigation, not a client transition: the cookie the server
+        // just set must be on the request that renders the front door.
+        window.location.href = result.landing;
+      }
+      onClose?.();
     } catch {
       setError('Something went wrong');
-    } finally {
       setLoading(false);
     }
   };
 
+  /** The resend — the same request and the same one-line answer whatever the address. */
+  const resend = async (address: string) => {
+    setResending(true);
+    setResendNotice('');
+    try {
+      const res = await fetch('/api/auth/verify/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: address }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof data?.error === 'string' ? data.error : `Resend failed (HTTP ${res.status})`);
+        return;
+      }
+      setResendNotice(typeof data?.message === 'string' ? data.message : 'Sent.');
+    } catch {
+      setError('Something went wrong');
+    } finally {
+      setResending(false);
+    }
+  };
+
   const handleOAuthLogin = (provider: string) => {
-    signIn(provider, { callbackUrl: redirectTo });
+    signIn(provider, { callbackUrl: ANSWERS_HOME });
   };
 
   const switchMode = () => {
     setMode(mode === 'login' ? 'register' : 'login');
     setError('');
+    setResendNotice('');
+    setSentTo(null);
   };
 
+  if (sentTo) {
+    return (
+      <div className="bg-white shadow-sm p-8 w-full max-w-md mx-4 border border-border" data-login-box="sent">
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="w-8 h-8 bg-brand-purple flex items-center justify-center">
+              <span className="text-white text-xs font-bold">TS</span>
+            </div>
+            <span className="text-sm font-medium text-text-primary">Temple Stuart</span>
+          </div>
+          <h2 className="text-sm font-light text-text-primary mb-1" role="status" data-auth-notice>{sentTo.message}</h2>
+          <p className="text-text-muted text-xs">
+            We sent a link to <span className="font-mono text-text-primary" data-sent-to>{sentTo.email}</span>. It works once, for {TOKEN_TTL_HOURS} hours, and opens your answers.
+          </p>
+        </div>
+        {error && <p className="text-brand-red text-xs mb-3" role="alert" data-auth-error>{error}</p>}
+        {resendNotice && <p className="text-emerald-700 text-xs mb-3" role="status" data-resend-notice>{resendNotice}</p>}
+        <button
+          type="button"
+          disabled={resending}
+          onClick={() => resend(sentTo.email)}
+          className="w-full py-2.5 border border-border text-sm font-medium text-text-secondary hover:bg-bg-row disabled:opacity-50"
+          data-auth-resend
+        >
+          {resending ? 'Sending…' : "Didn't get it? Send a new link"}
+        </button>
+        <div className="mt-4 text-center">
+          <button type="button" onClick={() => { setSentTo(null); setMode('login'); setError(''); setResendNotice(''); }} className="text-xs text-text-muted hover:text-brand-purple transition-colors" data-auth-switch="login">
+            Already verified? Sign in
+          </button>
+        </div>
+        {onClose && (
+          <button type="button" onClick={onClose} className="mt-3 w-full text-center text-xs text-text-faint hover:text-text-secondary">
+            Close
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white shadow-sm p-8 w-full max-w-md mx-4 border border-border">
+    <div className="bg-white shadow-sm p-8 w-full max-w-md mx-4 border border-border" data-login-box={mode}>
       <div className="text-center mb-6">
         <div className="flex items-center justify-center gap-2 mb-4">
           <div className="w-8 h-8 bg-brand-purple flex items-center justify-center">
@@ -84,6 +198,7 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub', init
       {/* OAuth Buttons */}
       <div className="space-y-2 mb-5">
         <button
+          type="button"
           onClick={() => handleOAuthLogin('google')}
           className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-white border border-border hover:bg-bg-row hover:border-border transition-all text-sm font-medium text-text-secondary"
         >
@@ -97,6 +212,7 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub', init
         </button>
 
         <button
+          type="button"
           onClick={() => handleOAuthLogin('github')}
           className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-brand-purple text-white hover:bg-brand-purple-hover transition-all text-sm font-medium"
         >
@@ -140,12 +256,13 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub', init
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder={mode === 'register' ? 'Password (min 8 characters)' : 'Password'}
+          placeholder={mode === 'register' ? `Password (min ${PASSWORD_MIN_LENGTH} characters)` : 'Password'}
           className="w-full px-4 py-2.5 border border-border text-sm text-text-primary placeholder-text-faint focus:outline-none focus:border-brand-purple"
           required
-          minLength={mode === 'register' ? 8 : undefined}
+          minLength={mode === 'register' ? PASSWORD_MIN_LENGTH : undefined}
         />
-        {error && <p className="text-brand-red text-xs">{error}</p>}
+        {error && <p className="text-brand-red text-xs" role="alert" data-auth-error>{error}</p>}
+        {resendNotice && <p className="text-emerald-700 text-xs" role="status" data-resend-notice>{resendNotice}</p>}
         <button
           type="submit"
           disabled={loading}
@@ -156,13 +273,27 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub', init
             : (mode === 'login' ? 'Continue with Email' : 'Create Account')
           }
         </button>
+        {/* SELL-03b: on EVERY login failure, the same offer — the way in for an account that never verified. */}
+        {mode === 'login' && error && (
+          <button
+            type="button"
+            disabled={resending || !email}
+            onClick={() => resend(email.trim().toLowerCase())}
+            className="w-full py-2 text-xs text-text-muted hover:text-brand-purple disabled:opacity-50"
+            data-auth-resend
+          >
+            {resending ? 'Sending…' : "Didn't finish signing up? Send a new sign-in link"}
+          </button>
+        )}
       </form>
 
-      {/* Mode Switcher */}
+      {/* Mode Switcher — the register link on every mount, /login included */}
       <div className="mt-4 text-center">
         <button
+          type="button"
           onClick={switchMode}
           className="text-xs text-text-muted hover:text-brand-purple transition-colors"
+          data-auth-switch={mode === 'login' ? 'register' : 'login'}
         >
           {mode === 'login'
             ? "Don't have an account? Sign up free"
@@ -173,6 +304,7 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub', init
 
       {onClose && (
         <button
+          type="button"
           onClick={onClose}
           className="mt-3 w-full text-center text-xs text-text-faint hover:text-text-secondary"
         >

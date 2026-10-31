@@ -11,14 +11,51 @@
  *        Server-side note: schedule_rrule is computed from the form, never
  *        accepted as a string from the client. This guarantees every routine
  *        in the DB has a parseable, validated RRULE.
+ *
+ *        ONEOFF-01 — a one-off is a routine that happens once, authored here
+ *        like everything else. Cadence 'once' compiles to FREQ=DAILY;COUNT=1,
+ *        anchored on the routine's start_date (rruleHelpers.ts scheduleAnchor),
+ *        so it expands to exactly one occurrence through the same expansion as
+ *        every other cadence. Its window is that day (end_date = start_date).
+ *        The routine may be created WITH its lines (LINES-01 steps — activity,
+ *        amount, account each) and WITH its place (location + a coordinate
+ *        pair, found through GEO-01's one-press lookup, now on Tasks), all in
+ *        one transaction. Nothing is defaulted: a blank amount is null, half a
+ *        coordinate pair is refused, and a one-off with no date is refused.
+ *
+ *        ROUTINE-02a (Alex, 2026-10-18): the zone is one of Intl's own names
+ *        (rruleHelpers.ts TIME_ZONES), matched without case and stored in the
+ *        list's spelling — anything else is refused by name. The first
+ *        next_due_at is bounded by the end_date, so a routine created already
+ *        past its end has none.
+ *
+ *        ROUTINE-02b (Alex, 2026-10-18): ONE TIME. The start time is required
+ *        and IS the routine's clock — the compile derives BYHOUR/BYMINUTE from
+ *        it and refuses a byhour/byminute or a custom rule that disagrees, by
+ *        name. The end time is the window, required with the start time — but
+ *        for a one-off, whose window is its day (ONEOFF-01) and whose ledger
+ *        "+ expense" names one time.
+ *
+ *        ALLDAY-01 (Alex, 2026-10-19): AN ALL-DAY ROUTINE HAS A DATE, NOT A
+ *        CLOCK. When the role is all_day (a subscription, a membership, a bill —
+ *        a charge on a date) no time is asked: the role is read first, the rule
+ *        the PATCH shares (rruleHelpers.ts allDayTimeInput) refuses a start or
+ *        end time sent for it by name, the compile derives the rule's clock as
+ *        ALL_DAY_CLOCK (00:00 in the routine's zone) and the window is stored
+ *        null. Every other role keeps ROUTINE-02b's rule.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { roleInput } from '@/lib/operations/stopRole';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { compileFormToRRule, expandForward } from '@/lib/operations/rruleHelpers';
+import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, allDayTimeInput, canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
+import { parseLinesInput, parsePlaceInput } from '@/lib/operations/routineInput';
+import { carriesPlanMoney, planMoney, type PlanBook, type PlanMoney } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
@@ -101,11 +138,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ routines });
   } catch (error) {
-    console.error('[Routines GET]', error);
-    return NextResponse.json(
-      { error: 'Failed to load routines', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routines GET', 'Failed to load routines', error);
   }
 }
 
@@ -162,9 +195,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (typeof body.timezone !== 'string' || body.timezone.trim().length === 0) {
+    // ROUTINE-02a: one of Intl's zone names, matched without case, stored as the list spells it; else refused by name.
+    const timezone = canonicalZone(body.timezone);
+    if (timezone === null) {
       return NextResponse.json(
-        { error: 'Validation', field: 'timezone', message: 'required' },
+        { error: 'Validation', field: 'timezone', message: zoneNotListedWords(body.timezone) },
         { status: 400 }
       );
     }
@@ -181,25 +216,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const startTimeResult = parseTimeOrNull(body.start_time, 'start_time');
+    // ROLE-01: what kind of stop this routine is — absent → 'none'; anything else by name.
+    // ALLDAY-01: read before the times — the role decides whether a time is asked at all.
+    const role = roleInput(body.role);
+    if (!role.ok) return NextResponse.json({ error: 'Validation', field: role.field, message: role.message }, { status: 400 });
+
+    // ALLDAY-01 (Alex, 2026-10-19): an all-day routine sends no time — its clock is ALL_DAY_CLOCK and its
+    // window null (rruleHelpers.ts allDayTimeInput, the one rule the PATCH shares); a time sent for it is
+    // refused by name. A timed routine's start time is its clock (ROUTINE-02b), read below as before.
+    const allDay = allDayTimeInput(role.role, body);
+    if (!allDay.ok) return NextResponse.json({ error: 'Validation', field: allDay.field, message: allDay.message }, { status: 400 });
+
+    const startTimeResult = allDay.allDay ? { value: null, error: null } : parseTimeOrNull(body.start_time, 'start_time');
     if (startTimeResult.error) return startTimeResult.error;
-    const endTimeResult = parseTimeOrNull(body.end_time, 'end_time');
+    // ROUTINE-02b: the start time is the routine's time — required. ALLDAY-01: not of an all-day routine, which has none.
+    if (!allDay.allDay && startTimeResult.value === null) {
+      return NextResponse.json({ error: 'Validation', field: 'start_time', message: START_TIME_REQUIRED_WORDS }, { status: 400 });
+    }
+    const endTimeResult = allDay.allDay ? { value: null, error: null } : parseTimeOrNull(body.end_time, 'end_time');
     if (endTimeResult.error) return endTimeResult.error;
 
+    // MOVE-01 (Alex, 2026-10-19): the window may cross midnight — an end before the
+    // start ends the next day. Only an EMPTY window is refused. The pair is read as a
+    // length since WORK-03b (2026-10-26): a stepless routine's planned minutes are
+    // end − start, an end before the start ending the next day (dayCard.ts
+    // plannedMinutesOf — the day card's stop, the work block, the ledger's PLANNED
+    // MIN); the hub grid still draws such a window as its flagged marker (extent.ts).
+    // COCKPIT-PERF-01 (2026-10-27): "nothing reads the pair as a duration" stood here.
     if (
       startTimeResult.value &&
       endTimeResult.value &&
-      startTimeResult.value >= endTimeResult.value
+      startTimeResult.value.getTime() === endTimeResult.value.getTime()
     ) {
       return NextResponse.json(
-        { error: 'Validation', field: 'end_time', message: 'end_time must be after start_time' },
+        { error: 'Validation', field: 'end_time', message: EMPTY_WINDOW_WORDS },
         { status: 400 }
       );
     }
 
     let schedule_rrule: string;
     try {
-      schedule_rrule = compileFormToRRule(body as RoutineForm);
+      // ALLDAY-01: the compile sees ALL_DAY_CLOCK's words as an all-day routine's start time — the clock it derives.
+      schedule_rrule = compileFormToRRule(allDay.allDay ? ({ ...body, start_time: allDay.start_time } as RoutineForm) : (body as RoutineForm));
     } catch (e) {
       return NextResponse.json(
         {
@@ -207,6 +265,52 @@ export async function POST(request: NextRequest) {
           field: 'schedule_rrule',
           message: e instanceof Error ? e.message : 'invalid cadence configuration',
         },
+        { status: 400 }
+      );
+    }
+
+    // ONEOFF-01: a one-off is one occurrence on its date, and its active window
+    // IS that day. The compile already refused a once without a start_date; the
+    // end date, if sent, must be the same day — and is stored as that day.
+    const once = isOnceRRule(schedule_rrule);
+    // ROUTINE-02b: the end time is the window, required with the start time — a one-off's window is its day.
+    // ALLDAY-01: an all-day routine has no window.
+    if (!once && !allDay.allDay && endTimeResult.value === null) {
+      return NextResponse.json({ error: 'Validation', field: 'end_time', message: END_TIME_REQUIRED_WORDS }, { status: 400 });
+    }
+    let endDate = endResult.value;
+    if (once) {
+      if (!startResult.value) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'start_date', message: 'a one-off needs its date' },
+          { status: 400 }
+        );
+      }
+      if (endResult.value && endResult.value.getTime() !== startResult.value.getTime()) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'end_date', message: 'a one-off ends on the day it happens — leave end_date empty or equal to start_date' },
+          { status: 400 }
+        );
+      }
+      endDate = startResult.value;
+    }
+
+    // ONEOFF-01: the routine's place. Location text saves on its own; the
+    // coordinate pair is all-or-nothing and in range (routineInput.ts).
+    const place = parsePlaceInput({ location: body.location, latitude: body.latitude, longitude: body.longitude });
+    if ('error' in place) {
+      return NextResponse.json({ error: 'Validation', ...place.error }, { status: 400 });
+    }
+
+    // ONEOFF-01: the lines the routine is created with — each an activity with
+    // its own amount and account, validated by the one leaf the step writers use.
+    const lines = parseLinesInput(body.lines);
+    if ('error' in lines) {
+      return NextResponse.json({ error: 'Validation', ...lines.error }, { status: 400 });
+    }
+    if (once && lines.value.length === 0) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'lines', message: 'a one-off is made of lines — give it at least one, the thing itself, with or without an amount' },
         { status: 400 }
       );
     }
@@ -225,29 +329,31 @@ export async function POST(request: NextRequest) {
     const idealTimeLabel = typeof body.ideal_time_label === 'string' && body.ideal_time_label.trim().length > 0
       ? body.ideal_time_label.trim()
       : null;
-
-    // HB-4a: per-occurrence budget + COA (both optional). NO FALLBACK — absent/empty → null (a
-    // routine genuinely has no budget, never 0); a present-but-invalid amount fails loud (400),
-    // never coerced. budget_amount is a Decimal(12,2) money column; coa_code is a soft string ref.
-    let budgetAmount: number | null = null;
-    if (body.budget_amount != null && String(body.budget_amount).trim() !== '') {
-      const n = Number(body.budget_amount);
-      if (!Number.isFinite(n) || n < 0) {
-        return NextResponse.json(
-          { error: 'Validation', field: 'budget_amount', message: 'must be a non-negative number' },
-          { status: 400 }
-        );
-      }
-      budgetAmount = n;
+    // INTAKE-01: the routine's money and every line's, by the one rule (planMoney.ts),
+    // against the routine's book — read once, and only when any of them carries money.
+    // Absent/empty → null (no budget, never 0); a refusal is a 400 naming the field.
+    const routineSent = { amount: body.budget_amount, account: body.coa_code };
+    const lineSent = lines.value.map((l) => ({ amount: l.budget_amount, account: l.coa_code }));
+    let book: PlanBook | null = null;
+    if (carriesPlanMoney(routineSent) || lineSent.some(carriesPlanMoney)) {
+      book = await loadPlanBook(prisma, user.id, entityId);
+      if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-    const coaCode = typeof body.coa_code === 'string' && body.coa_code.trim().length > 0
-      ? body.coa_code.trim()
-      : null;
+    const routineMoney = planMoney(routineSent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' });
+    if ('error' in routineMoney) return NextResponse.json({ error: 'Validation', ...routineMoney.error }, { status: 400 });
+    const lineMoney: PlanMoney[] = [];
+    for (let i = 0; i < lineSent.length; i += 1) {
+      const m = planMoney(lineSent[i], book, 'routine', { amount: `lines[${i}].budget_amount`, account: `lines[${i}].coa_code` });
+      if ('error' in m) return NextResponse.json({ error: 'Validation', ...m.error }, { status: 400 });
+      lineMoney.push(m.value);
+    }
 
-    // Compute initial next_due_at.
+    // Compute initial next_due_at. ONEOFF-01: anchored on the routine's
+    // start_date, the one mechanism every expansion of it shares. ROUTINE-02a:
+    // bounded by its end_date — none when nothing remains before the end.
     let nextDueAt: Date | null = null;
     try {
-      const upcoming = expandForward(schedule_rrule, body.timezone, new Date(), 1);
+      const upcoming = expandForward(schedule_rrule, timezone, new Date(), 1, scheduleAnchor(startResult.value), endDate);
       nextDueAt = upcoming[0] ?? null;
     } catch (e) {
       console.error('[Routines POST] next_due_at compute failed', e);
@@ -264,27 +370,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const routine = await prisma.operations_routines.create({
-      data: {
-        user_id: user.id,
-        entity_id: entityId,
-        name,
-        description,
-        schedule_rrule,
-        timezone: body.timezone,
-        ideal_time_label: idealTimeLabel,
-        fail_threshold_minutes: failThreshold,
-        start_date: startResult.value,
-        end_date: endResult.value,
-        start_time: startTimeResult.value,
-        end_time: endTimeResult.value,
-        is_active: body.is_active !== false,
-        next_due_at: nextDueAt,
-        // HB-4a: nullable money fields — null when unset (no fake 0 / no default COA).
-        budget_amount: budgetAmount,
-        coa_code: coaCode,
-        created_by: userEmail,
-      },
+    // ONEOFF-01: the routine and its lines land together or not at all.
+    const routine = await prisma.$transaction(async (tx) => {
+      const created = await tx.operations_routines.create({
+        data: {
+          user_id: user.id,
+          entity_id: entityId,
+          name,
+          description,
+          schedule_rrule,
+          timezone,
+          ideal_time_label: idealTimeLabel,
+          fail_threshold_minutes: failThreshold,
+          role: role.role,
+          start_date: startResult.value,
+          end_date: endDate,
+          start_time: startTimeResult.value,
+          end_time: endTimeResult.value,
+          is_active: body.is_active !== false,
+          next_due_at: nextDueAt,
+          // HB-4a: nullable money fields — null when unset (no fake 0 / no default COA).
+          // INTAKE-01: as the rule read them — the account is the chart row's code as saved.
+          budget_amount: routineMoney.value.amount,
+          coa_code: routineMoney.value.coaCode,
+          // ONEOFF-01: the place, or nulls. Never 0,0.
+          location: place.value.location,
+          latitude: place.value.latitude,
+          longitude: place.value.longitude,
+          created_by: userEmail,
+        },
+      });
+      if (lines.value.length > 0) {
+        await tx.operations_routine_steps.createMany({
+          data: lines.value.map((l, i) => ({
+            routine_id: created.id,
+            user_id: user.id,
+            entity_id: entityId,
+            step_order: i,
+            activity: l.activity,
+            budget_amount: lineMoney[i].amount,
+            coa_code: lineMoney[i].coaCode,
+            created_by: userEmail,
+          })),
+        });
+      }
+      return created;
     });
 
     await writeAuditLog({
@@ -306,17 +436,18 @@ export async function POST(request: NextRequest) {
         metadata: {
           entity_id: entityId,
           schedule_rrule,
-          timezone: body.timezone,
+          timezone,
+          // ONEOFF-01: what was authored with it.
+          once,
+          lines: lines.value.length,
+          // ALLDAY-01: a charge on a date — no time asked, the clock derived.
+          all_day: allDay.allDay,
         },
       },
     });
 
-    return NextResponse.json({ routine, isCreate: true }, { status: 201 });
+    return NextResponse.json({ routine, lines: lines.value.length, isCreate: true }, { status: 201 });
   } catch (error) {
-    console.error('[Routines POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create routine', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routines POST', 'Failed to create routine', error);
   }
 }

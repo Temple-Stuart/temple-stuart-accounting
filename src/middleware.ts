@@ -44,19 +44,59 @@ async function verifyCookieEdge(cookieValue: string): Promise<string | null> {
 /**
  * Middleware: Protect app routes.
  * Public: /, /api/auth/*, static assets
- * Protected: /hub, /dashboard, /trading, /business, etc.
+ * Protected: /hub, /dashboard, /brokerage, /trade-log, /business, etc.
  */
 
 const PUBLIC_PATHS = [
   '/',
-  '/admin',
-  '/api/admin/verify',
-  '/api/admin/users',
+  // RELIC-RETIRE: '/admin', '/api/admin/verify' and '/api/admin/users' left
+  // this list when their routes were deleted — /owner (requireAdmin) is the
+  // one owner surface.
   '/api/auth',
   '/_next',
   '/favicon.ico',
+  // SELL-02: /pricing renders THE OFFER (src/lib/offer.ts) as a public server
+  // page — no redirect, no authed call, no paid call; guests reach it directly.
   '/pricing',
+  // FD-0: the cost-transparency page the landing header links (page.tsx:109) —
+  // a static server component: zero authed calls, zero paid external calls
+  // (its only imports are next/link + the pure constants in
+  // src/config/pricing-costs.ts; audited in full). Without this entry the
+  // landing's own Pricing link 307-bounced guests back to '/'.
+  '/how-pricing-works',
+  // FD-1d: the nine /modules/<pillar> info pages — static marketing surfaces
+  // (Bloomberg header → the pillar's showcase deck → access block → footer).
+  // Safety proof, audited per deck: all nine decks + the TabShowcases wrappers
+  // contain ZERO on-load fetches, ZERO paid calls, ZERO authed reads (the
+  // Jul-16 showcase discipline, TabShowcases.tsx:7-9; the decks' live mounts —
+  // HubCalendar demoEvents guard, the Books/Tax mounted components — are
+  // fetch-free by the same rulings; the one fetch in the system is
+  // LockedTabCard's CLICK-initiated checkout POST, whose route 401s guests).
+  // Prefix-matching makes every /modules/* segment public — acceptable ONLY
+  // because the [pillar] route 404s unknown ids and renders static marketing.
+  '/modules',
+  // ROUTE-1: the eight real tab URLs — the SAME public surface bare '/' (and
+  // the old /?tab=<x> deep links, which '/' served publicly) always exposed:
+  // HomeClient's guest view (pointer cards + the guest-functional travel
+  // search). Without these, the forever-redirect (/?tab=travel → /travel)
+  // would 307-bounce guests to the Landing and kill every old deep link.
+  // Guest loads make zero authed/paid calls (client-side /api/auth/me
+  // branches — the FD-2 posture). '/compliance' is deliberately ABSENT: that
+  // path is the auth-walled cockpit page (the ROUTE-1 collision, pending
+  // Alex's ruling), and the Compliance tab keeps its legacy /?tab= URL.
+  '/runway',
+  '/travel',
+  '/routines',
+  '/projects',
+  '/content',
+  '/trade',
+  '/books',
+  '/tax',
   '/api/stripe/webhook',
+  // STATUS-01 (2026-09-26): the LiteAPI booking webhook — the vendor holds no
+  // session; the route's own token check (LITEAPI_WEBHOOK_TOKEN, constant-time)
+  // is the gate, before a byte is stored. The stripe webhook's convention.
+  '/api/webhooks/liteapi',
   '/api/inngest',
   '/opengraph-image',
   '/terms',
@@ -67,23 +107,68 @@ const PUBLIC_PATHS = [
   // rate-limited cheap reads (PR-loc-1). Without these, middleware redirects a
   // guest's fetch to '/', which returned no data (the "Countries unavailable" bug
   // + would break guest search/booking next). Additive — exact paths only.
-  '/api/flights/search',
   '/api/travel/hotels/search',
   '/api/travel/hotels/content',
   '/api/travel/hotels/reviews',
   '/api/travel/activities/search',
+  '/api/travel/transfers/search',
   '/api/travel/visa/check',
   '/api/travel/locations/countries',
   '/api/travel/locations/cities',
   '/api/travel/liteapi/prebook',
   '/api/travel/liteapi/book',
-  // PR-Duffel-Pay-1: flight BOOKING is public too — booking is never locked (mirrors
-  // the hotel book routes above). Guarded by a per-IP rate limit + a tight durable
-  // daily cap, and pinned to Duffel TEST mode this PR.
-  '/api/flights/book',
-  // PR-Duffel-Pay-2: the payment-intent step (returns the Card component's client_token)
-  // is part of the same guest-ok checkout — public, rate-limited, TEST mode.
-  '/api/flights/payment-intent',
+  // PR-FL-2: LiteAPI flight search + verify — same public guest-ok posture as
+  // the search routes above. Each is guarded per-IP (rateLimit) + metered
+  // against the 'liteapi' durable daily provider cap BEFORE the paid call.
+  '/api/travel/liteapi/flights/search',
+  '/api/travel/liteapi/flights/verify',
+  // PR-FL-3: flight prebook (checkout-session creation) — public guest-ok like
+  // the hotel prebook above; per-IP rateLimit + the tight 'flightprebook'
+  // durable daily cap BEFORE the paid call. Returns the browser's Stripe
+  // card-collection context; card data never touches our server.
+  '/api/travel/liteapi/flights/prebook',
+  // PR-FL-5: flight booking completion — public guest-ok like the hotel book
+  // above (booking is never locked); per-IP rateLimit (money window) + the
+  // tight 'liteapiflightbooking' durable daily cap BEFORE the paid call.
+  // Idempotent upstream per prebookId.
+  '/api/travel/liteapi/flights/book',
+  // PR-FL-6a: the lane-flag read — a static config field (zero provider calls,
+  // zero DB, zero user data) telling the public search surface which flights
+  // rail to drive. Nothing to cap; guests need it before any search.
+  '/api/travel/flights/lane',
+  // Payment-SDK return page — renders the guest checkout UI only; NO paid API
+  // calls on load. Its only money call is the user-submitted POST to
+  // /api/travel/liteapi/book, which is public + rate-limited + daily-capped
+  // (guest checkout posture, D2). Without this entry, a logged-out guest
+  // returning from the hosted payment was 307-bounced to '/' and never
+  // finalized the booking.
+  '/booking/confirm',
+  // FL-4c (2026-09-23): the flights analogue. LiteAPI's documented payment rail
+  // REDIRECTS on success, so a guest who just paid must be able to land here.
+  '/booking/flight-confirm',
+  // GUEST-01 (2026-09-29): a guest manages a booking made without an account. The
+  // page is a client form — one on-load GET of /api/guest/booking (a 401 before any
+  // read when no session is open), zero paid calls; the lookup is the user-submitted
+  // POST below. Standalone: no AppLayout, which would send a guest to '/'.
+  '/booking/manage',
+  // GUEST-01: the lookup — the reference and the manage code from the guest's own
+  // email. No paid call, no vendor, no email, no write (the rate limiter's counter
+  // aside); no IP is refused; 10/IP then 5/reference per 15 min BEFORE any read; every
+  // failure the same 404 and the same line. Its /end sibling clears the cookie only.
+  '/api/guest/session',
+  // GUEST-01: the one booking a verified guest session names — the signed cookie first
+  // (401 before any read), then that reservation alone, still a guest's, the vendor's
+  // side only; read-only, no vendor call, never cached.
+  '/api/guest/booking',
+  // GUEST-02 (2026-09-30): the prefix also serves /api/guest/booking/cancel — the session, both limits and the guest's row before the one cancel flow; never cached.
+  // PROPOSAL-FORM: the public project-proposal form page — a static client
+  // form (zero on-load fetches, zero authed reads, zero paid calls); its only
+  // network call is the user-submitted POST below. Guests are the audience.
+  '/work-with-me',
+  // PROPOSAL-FORM: public BY RULING: DB-write only, no paid API, rate-limited
+  // + honeypot (the route's own order: honeypot → per-ip_hash rateLimit 5/hr →
+  // zod → insert; status/owner_notes never client-writable).
+  '/api/proposals',
 ];
 
 function isPublic(pathname: string): boolean {
@@ -113,6 +198,18 @@ export async function middleware(request: NextRequest) {
   // shared-secret bearer (EXEC_INGEST_SECRET) FIRST as its entire auth boundary. Let
   // only this exact suffix bypass cookie-auth so the token-gated write is reachable.
   if (pathname.startsWith('/api/operations/projects/') && pathname.endsWith('/exec-ingest')) {
+    return NextResponse.next();
+  }
+
+  // STATUS-01b (2026-09-26): the hourly reservations refresh is invoked by Vercel
+  // cron with NO user cookie (a GET carrying `authorization: Bearer <CRON_SECRET>`);
+  // the catch-all matcher below would redirect it to "/" before the handler ran.
+  // It is NOT open — the route validates the bearer FIRST as its entire auth
+  // boundary (500 unconfigured, 401 wrong, before any query). The audit-ingest
+  // convention: an EXACT-path bypass, not a PUBLIC_PATHS entry, not a prefix.
+  // /api/cron/auto-categorize is deliberately NOT here — whether that job should
+  // ever run is a separate decision.
+  if (pathname === '/api/cron/reservations-refresh') {
     return NextResponse.next();
   }
 

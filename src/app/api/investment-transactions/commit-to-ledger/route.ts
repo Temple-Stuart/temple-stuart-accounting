@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
+import { postJournal } from '@/lib/posting/postJournal';
 import { positionTrackerService } from '@/lib/position-tracker-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
@@ -106,22 +108,22 @@ export async function POST(request: Request) {
       await assertPeriodOpen(prisma, user.id, resolvedEntityId, new Date(leg.date));
     }
 
-    const result = await prisma.$transaction(
-      async (tx) => {
-        return await positionTrackerService.commitOptionsTrade({
+    // HYG-04: the whole commit posts through postJournal (every entry the
+    // tracker writes goes through `post`; each id is read back after commit).
+    const { result } = await postJournal(
+      prisma,
+      async (tx, post) =>
+        positionTrackerService.commitOptionsTrade({
           legs,
           strategy,
           tradeNum,
           userId: user.id,
           entityId: resolvedEntityId,
           tx,
+          post,
           createdBy: userEmail,
-        });
-      },
-      {
-        maxWait: 30000,
-        timeout: 120000,
-      }
+        }),
+      { maxWait: 30000, timeout: 120000 },
     );
 
     return NextResponse.json({
@@ -136,7 +138,6 @@ export async function POST(request: Request) {
     if (error instanceof PeriodClosedError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
-    console.error('Investment commit error:', error);
 
     // Duplicate commit (unique constraint violation)
     if (error?.code === 'P2002') {
@@ -146,9 +147,6 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json(
-      { error: error.message || 'Failed to commit investments' },
-      { status: 500 }
-    );
+    return failClosedResponse('Investment commit', 'Failed to commit investments', error);
   }
 }

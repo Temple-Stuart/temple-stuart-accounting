@@ -13,6 +13,7 @@
 
 import { TASK_STATUS_LABELS, TASK_STATUS_PILL_CLASSES } from './types';
 
+
 export interface EvolutionTask {
   id: string;
   title: string;
@@ -57,7 +58,7 @@ function formatDateTime(iso: string): string {
 
 // Status pill, tolerant of statuses outside the TaskStatus union (e.g.
 // 'superseded') so a future status never crashes the read view.
-function StatusPill({ status }: { status: string }) {
+function StatusPill({ status }: { status: string; }) {
   const cls =
     (TASK_STATUS_PILL_CLASSES as Record<string, string>)[status] ??
     'bg-gray-50 text-gray-500';
@@ -91,7 +92,7 @@ function TaskLines({ tasks }: { tasks: EvolutionTask[] }) {
   );
 }
 
-export default function EvolutionTimelineView({ loading, error, data }: EvolutionTimelineViewProps) {
+export default function EvolutionTimelineView({ loading, error, data }: EvolutionTimelineViewProps & { }) {
   if (loading) {
     return <div className="text-xs text-text-muted">loading evolution…</div>;
   }
@@ -130,11 +131,11 @@ export default function EvolutionTimelineView({ loading, error, data }: Evolutio
         {versions.map((v) => (
           <div key={v.usage_id} className="relative">
             {/* node dot, centered on the spine */}
-            <span className="absolute -left-[1.3rem] top-1 w-2.5 h-2.5 rounded-full bg-brand-purple border-2 border-white" />
+            <span className={`absolute -left-[1.3rem] top-1 w-2.5 h-2.5 rounded-full border-2 ${'bg-brand-purple border-white'}`} />
             <div className="border border-border-light rounded bg-white p-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="px-1.5 py-0.5 rounded bg-brand-purple text-white text-[10px] font-semibold shrink-0">
+                  <span className={`px-1.5 py-0.5 rounded text-white text-[10px] font-semibold shrink-0 ${'bg-brand-purple'}`}>
                     v{v.version_number}
                   </span>
                   <span className="text-text-primary">{formatDateTime(v.created_at)}</span>

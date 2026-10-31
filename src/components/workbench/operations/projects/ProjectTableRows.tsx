@@ -1,0 +1,159 @@
+/**
+ * ProjectTableRows — one project as a row of PROJECTS, and its tasks read.
+ *
+ * PROJECTS-02 (Alex, 2026-10-25): PROJECTS is the brief as a table — the shared
+ * DataTable (IDIOM-01) over src/lib/operations/projectsTable.ts, like THE WORK
+ * and ROUTINE EXPENSES. Two pieces live here:
+ *
+ *   · ProjectTasksReader — one per project LOADED, mounted by ProjectsTable
+ *     whether or not the row is shown: the same tasks read as before
+ *     (useProjectTasks — the section's "show archived" still reaches it, and the
+ *     page's task-change signal re-reads it), reported up as the row's tasks read,
+ *     so TASKS and EST filter, sort and download over every row loaded, not only
+ *     the rows on screen. It draws nothing.
+ *   · ProjectTableRows — the row: the spec's cells (WorkCell; a TEXT cell is the
+ *     shared TextCell — the journal tables' own, lifted to components/table by
+ *     COLUMNS-01 ruling D: the first 160 code points, "… (n chars)" and
+ *     "all of it" / "less", one opened state per cell held by the table), EST
+ *     and ACTUAL with their tooltips, then the one control: "details", which
+ *     opens the project's existing detail — <ProjectRow> with every control it
+ *     has, the brief and its task list — as a full-width row directly under it.
+ *
+ * Ruling D: a project saved, archived, unarchived or deleted in the detail
+ * re-reads the projects AND bumps the page's WorkChanges signal (projectChanged),
+ * so THE WORK re-reads without a reload — a task of a project archived here
+ * leaves THE WORK at once.
+ *
+ * HISTORY. PROJECTS-01 (2026-09-30) made the projects one table with a row per
+ * task; WORK-01 (Alex, 2026-10-24, ruling E) took the task rows to THE WORK and
+ * left a project cell (title, pills, book, the small print) and a Tasks cell;
+ * WORK-01d (Alex, 2026-10-25, ruling B): the detail keeps its task list again —
+ * THE WORK reads only the OPEN projects' tasks, so a task of an archived,
+ * completed, dropped or cancelled project has its home here (PROJECTS → show
+ * archived → the row's details). WORK-01b (Alex, 2026-10-24, ruling 3): the
+ * tasks read follows the page's task-change signal (WorkChanges); the detail's
+ * task writes bump the same signal. BACKLOG-01 (Alex, 2026-10-20): TYPE and
+ * SIZE beside STATUS, "—" when the row has none — now three columns.
+ */
+
+'use client';
+
+import { Fragment, useEffect, useState } from 'react';
+import { cellClass as cell } from '@/components/table/DataTable';
+import TextCell from '@/components/table/TextCell';
+import { dataAttr } from '@/components/table/dataAttr';
+import type { TableColumn } from '@/lib/table/columns';
+import {
+  ACTUAL_TOOLTIP_WORDS, DETAILS_WORDS, HIDE_DETAILS_WORDS, PROJECT_TABLE_NAME, estimateCoverageWords,
+  projectActualCentsOf, projectCellKeyOf, projectEstimateOf, type ProjectColumn, type ProjectTableRow, type ProjectTasksRead,
+} from '@/lib/operations/projectsTable';
+import { useWorkChanges } from '../WorkChanges';
+import type { Entity } from '../EntitySelector';
+import { WorkCell } from '../workShared';
+import ProjectRow from './ProjectRow';
+import type { Project } from './types';
+import { useProjectTasks } from './useProjectTasks';
+
+const name = PROJECT_TABLE_NAME;
+const actionClass = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs';
+
+interface ReaderProps {
+  project: Project;
+  /** The section's one "show archived": archived tasks are read (and counted, and summed) too. */
+  showArchived: boolean;
+  /** The read, every time it changes — the table keeps one per project for its rows. */
+  onRead: (projectId: string, read: ProjectTasksRead) => void;
+}
+
+/** One project's tasks read — the hook as before, reported up; draws nothing. */
+export function ProjectTasksReader({ project, showArchived, onRead }: ReaderProps) {
+  // The page's task-change signal (WORK-01b): the read runs again whenever a task changes anywhere on /tasks.
+  const { version } = useWorkChanges();
+  const t = useProjectTasks({ projectId: project.id, entity_id: project.entity_id, showArchived, refreshKey: version });
+  useEffect(() => {
+    onRead(project.id, t.loading ? { kind: 'loading' } : t.error !== null ? { kind: 'failed', words: t.error } : { kind: 'loaded', tasks: t.tasks });
+  }, [onRead, project.id, t.loading, t.error, t.tasks]);
+  return null;
+}
+
+interface Props {
+  row: ProjectTableRow;
+  columns: readonly TableColumn<ProjectTableRow, ProjectColumn>[];
+  /** The tab's entity list (useOperationsEntity) — the detail's book names and letters. */
+  entities: Entity[];
+  allProjects: Project[];
+  /** Re-read the projects (a project was saved, archived or deleted). */
+  onProjectsChanged: () => void;
+  isJumpTarget: boolean;
+  onClearTarget: () => void;
+  onJumpTo: (projectId: string) => void;
+  /** The TEXT cells opened to all of their text (projectCellKeyOf), and the click that opens or closes one. */
+  opened: ReadonlySet<string>;
+  onToggleCell: (cellKey: string) => void;
+  /** ARCHIVE-01 (Alex, 2026-10-27): after the detail's "unarchive", the project's title and the route's words — the table prints the line above its rows (this detail closes with the re-read). */
+  onUnarchived: (title: string, words: string) => void;
+}
+
+export default function ProjectTableRows({ row, columns, entities, allProjects, onProjectsChanged, isJumpTarget, onClearTarget, onJumpTo, opened, onToggleCell, onUnarchived }: Props) {
+  const { project } = row;
+  // The page's task-change signal (WORK-01b): the detail's task writes bump it, so THE WORK re-reads too.
+  const { bump } = useWorkChanges();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // A dependency jump opens the target's details, where ProjectRow scrolls to
+  // itself and flashes (ProjectRow's isJumpTarget effect) — as the queue card's
+  // forceOpen did.
+  useEffect(() => {
+    if (isJumpTarget) setDetailsOpen(true);
+  }, [isJumpTarget]);
+
+  // Ruling D: a project saved, archived, unarchived or deleted re-reads the projects AND bumps the page's signal — THE WORK re-reads without a reload.
+  const projectChanged = () => {
+    onProjectsChanged();
+    bump();
+  };
+
+  return (
+    <Fragment>
+      <tr className={'border-t border-border ' + (project.status === 'archived' ? 'opacity-60' : '')} {...dataAttr(name, 'row', row.id)}>
+        {columns.map((c) => <ProjectCell key={c.key} column={c} row={row} open={opened.has(projectCellKeyOf(row, c.key))} onToggle={() => onToggleCell(projectCellKeyOf(row, c.key))} />)}
+        <td className={cell}>
+          <button type="button" onClick={() => setDetailsOpen((x) => !x)} className={actionClass} aria-expanded={detailsOpen} {...dataAttr(name, 'details-toggle')}>
+            {detailsOpen ? HIDE_DETAILS_WORDS : DETAILS_WORDS}
+          </button>
+        </td>
+      </tr>
+      {detailsOpen && (
+        <tr {...dataAttr(name, 'details', row.id)}>
+          <td colSpan={columns.length + 1} className="p-2 border-t border-border-light bg-bg-row">
+            <ProjectRow
+              project={project}
+              entities={entities}
+              allProjects={allProjects}
+              onUpdate={projectChanged}
+              onDelete={projectChanged}
+              isJumpTarget={isJumpTarget}
+              onClearTarget={onClearTarget}
+              onJumpTo={onJumpTo}
+              defaultExpanded
+              onTasksChanged={bump}
+              onUnarchived={(words) => onUnarchived(project.title, words)}
+            />
+          </td>
+        </tr>
+      )}
+    </Fragment>
+  );
+}
+
+/** One cell: a TEXT column through the preview; EST and ACTUAL with their tooltips; every other through the shared cell. */
+function ProjectCell({ column, row, open, onToggle }: { column: TableColumn<ProjectTableRow, ProjectColumn>; row: ProjectTableRow; open: boolean; onToggle: () => void }) {
+  // COLUMNS-01 (Alex, 2026-10-25, ruling D): the shared TextCell (components/table) — the journal tables' cell, one for both.
+  if (column.kind === 'text') return <TextCell name={name} column={column.key} text={column.text(row)} open={open} onToggle={onToggle} />;
+  if (column.key === 'est') {
+    const sum = projectEstimateOf(row);
+    return <WorkCell name={name} column={column} row={row} title={sum !== null && sum.of > 0 ? estimateCoverageWords(sum) : undefined} />;
+  }
+  if (column.key === 'actual') return <WorkCell name={name} column={column} row={row} title={projectActualCentsOf(row) === null ? undefined : ACTUAL_TOOLTIP_WORDS} />;
+  return <WorkCell name={name} column={column} row={row} />;
+}

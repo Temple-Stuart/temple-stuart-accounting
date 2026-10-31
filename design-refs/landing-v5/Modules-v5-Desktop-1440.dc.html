@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Temple Stuart — Modules v5 · Desktop 1440</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FAF8F3;color:#1A1A2E;font-family:'Inter',-apple-system,'Helvetica Neue',sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#3B2D6B;text-decoration:none}a:hover{color:#4E3E85}
+::selection{background:#EAE7F2;color:#2D1B4E}
+</style>
+</helmet>
+<div style="min-width:1440px;background:#FAF8F3" data-screen-label="Modules v5 — Desktop 1440">
+<div style="border-top:1px solid #DDD6E8;border-bottom:1px solid #DDD6E8">
+
+  <div style="max-width:1280px;margin:0 auto;padding:60px 32px 64px" data-screen-label="01 — The problem">
+    <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;font-weight:600;letter-spacing:0.12em;color:#A8A2B0">01 / THE PROBLEM</p>
+    <h2 style="margin:18px 0 0;max-width:900px;font-size:38px;line-height:1.2;font-weight:500;letter-spacing:-0.025em;color:#3B2D6B">Running your life takes nine jobs — and the tools don't talk to each other.</h2>
+    <div style="margin-top:24px;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:14px;row-gap:10px">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">BUDGET APP</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#B8860B">·</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">BOOKING SITE</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#B8860B">·</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">BROKER</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#B8860B">·</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">TRADE LOG</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#B8860B">·</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">BOOKKEEPING</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#B8860B">·</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">COMPLIANCE</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#B8860B">·</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">TAX APP</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#B8860B">·</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">FP&amp;A</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#B8860B">·</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">AI WORK JOURNAL</span>
+    </div>
+    <p style="margin:24px 0 0;max-width:680px;font-size:15px;line-height:1.6;color:#4A4A5A">You can buy all nine — that's the problem. Nine logins, nine subscriptions, nine copies of your life that never meet. The heavy ones — compliance, FP&amp;A — are priced for companies, not people. And to get the one answer that matters, you become the integration: copying numbers from app to app into a spreadsheet.</p>
+    <p style="margin:28px 0 0;font-size:15px;line-height:1.6;color:#7A7488">None of them can answer the only question that matters:</p>
+    <p style="margin:10px 0 0;font-family:'IBM Plex Mono',monospace;font-size:22px;line-height:1.3;font-weight:600;letter-spacing:0.04em;color:#B8860B">How long does my money last?</p>
+    <p style="margin:12px 0 0;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;letter-spacing:0.12em;color:#7A7488">NOT FROM NUMBERS YOU TYPED — FROM YOUR REAL LIFE.</p>
+  </div>
+
+  <div style="border-top:1px solid #DDD6E8">
+    <div style="max-width:1280px;margin:0 auto;padding:60px 32px 0" data-screen-label="02 — The nine modules · header">
+      <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;font-weight:600;letter-spacing:0.12em;color:#A8A2B0">02 / THE NINE MODULES</p>
+        <a href="https://www.templestuart.com/how-pricing-works" style="font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;letter-spacing:0.05em;color:#3B2D6B">HOW PRICING WORKS →</a>
+      </div>
+      <h2 style="margin:18px 0 0;font-size:38px;line-height:1.2;font-weight:500;letter-spacing:-0.025em;color:#3B2D6B">The product, as it runs.</h2>
+      <p style="margin:12px 0 0;max-width:680px;font-size:17px;line-height:1.55;color:#4A4A5A">Everything you plan and everything you spend lands in one place — so it can tell you how long your money lasts.</p>
+    </div>
+
+    <div style="max-width:1280px;margin:0 auto;padding:64px 32px 76px;text-align:center" data-screen-label="Act 1 — Spine">
+      <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;font-weight:600;letter-spacing:0.16em;color:#7A7488">NINE MODULES <span style="color:#B8860B">·</span> ONE SPINE</p>
+      <div style="margin-top:22px;display:flex;flex-wrap:wrap;justify-content:center;column-gap:26px;row-gap:10px">
+        <span style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A8A2B0">01</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">ROUTINES</span></span>
+        <span style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A8A2B0">02</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">PROJECTS</span></span>
+        <span style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A8A2B0">03</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">TRAVEL</span></span>
+        <span style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A8A2B0">04</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">TRADE</span></span>
+        <span style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A8A2B0">05</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">BOOKS</span></span>
+        <span style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A8A2B0">06</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">COMPLIANCE</span></span>
+        <span style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A8A2B0">07</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">TAX</span></span>
+        <span style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A8A2B0">08</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">RUNWAY</span></span>
+        <span style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A8A2B0">09</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B">CONTENT</span></span>
+      </div>
+      <div style="margin:26px auto 0;height:40px;width:1px;background:#DDD6E8"></div>
+      <p style="margin:20px 0 0;font-size:16px;line-height:1.5;color:#4A4A5A">Every module speaks the same three words —</p>
+      <p style="margin:12px 0 0;font-family:'IBM Plex Mono',monospace;font-size:24px;line-height:1.3;font-weight:600;letter-spacing:0.16em;color:#3B2D6B">A DATE <span style="color:#B8860B">·</span> A TIME <span style="color:#B8860B">·</span> A DOLLAR</p>
+      <p style="margin:12px 0 0;font-size:16px;line-height:1.5;color:#4A4A5A">— and the app writes them into</p>
+      <div style="margin:20px auto 0;height:32px;width:1px;background:#DDD6E8"></div>
+      <div style="margin:0 auto;height:5px;width:5px;background:#B8860B"></div>
+      <div style="margin-top:14px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:24px">
+        <span style="border-bottom:4px solid #B8860B;background:#3B2D6B;padding:15px 30px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;letter-spacing:0.14em;color:#FFFDF9">ONE LEDGER</span>
+        <span style="border:1px solid #DDD6E8;background:#FFFDF9;padding:15px 30px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;letter-spacing:0.14em;color:#3B2D6B">ONE CALENDAR</span>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #DDD6E8" data-screen-label="Act 2 — Personas">
+      <div style="max-width:1280px;margin:0 auto;padding:60px 32px 68px">
+        <p style="margin:0;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;font-weight:600;letter-spacing:0.16em;color:#7A7488">SAME NINE MODULES <span style="color:#B8860B">·</span> DIFFERENT REASONS</p>
+        <div style="max-width:880px;margin:20px auto 0">
+          <div style="display:grid;grid-template-columns:220px minmax(0,1fr);align-items:baseline;gap:16px;padding:12px 0">
+            <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.05em;color:#7A7488">FOUNDER</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.5;color:#1A1A2E">Building a company? See how many months you've got, what the build is costing, and receipts for every dollar when investors ask. When someone asks where the money went, the answer is one click.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:220px minmax(0,1fr);align-items:baseline;gap:16px;padding:12px 0;border-top:1px solid #EBE4F7">
+            <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.05em;color:#7A7488">TRADER</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.5;color:#1A1A2E">Trading your own money? Every fill lands in your <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:#3B2D6B">books</span>, keeps its receipt, and shows up on your <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:#3B2D6B">return</span> — you just trade. No April spreadsheet panic; it's been ready all year.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:220px minmax(0,1fr);align-items:baseline;gap:16px;padding:12px 0;border-top:1px solid #EBE4F7">
+            <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.05em;color:#7A7488">CREATOR</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.5;color:#1A1A2E">Filming what you do? Your day plans your shoots, and your <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:#3B2D6B">calendar</span> writes the script. More posting, less planning.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:220px minmax(0,1fr);align-items:baseline;gap:16px;padding:12px 0;border-top:1px solid #EBE4F7">
+            <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.05em;color:#7A7488">NOMAD</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.5;color:#1A1A2E">Living out of a suitcase? Book the trip, and the budget, calendar, and <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:#3B2D6B">books</span> update themselves — from anywhere. Change countries; your money system doesn't care.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:220px minmax(0,1fr);align-items:baseline;gap:16px;padding:12px 0;border-top:1px solid #EBE4F7">
+            <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.05em;color:#7A7488">SMALL BUSINESS OWNER</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.5;color:#1A1A2E">Running a small business? Know what came in, what went out, and what's left — without hiring a bookkeeper. You see what an accountant would see, in plain words, every day.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:220px minmax(0,1fr);align-items:baseline;gap:16px;padding:12px 0;border-top:1px solid #EBE4F7">
+            <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.05em;color:#7A7488">STUDENT</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.5;color:#1A1A2E">First bank account? Learn where your money goes before it's gone — the app shows you how. You'll pick up real accounting without ever taking the class.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #DDD6E8" data-screen-label="Act 3 — The walkthrough stage">
+      <div style="max-width:1280px;margin:0 auto;padding:60px 32px 76px">
+        <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;font-weight:600;letter-spacing:0.16em;color:#7A7488">THE MODULES</p>
+        <div style="margin-top:16px;display:grid;grid-template-columns:repeat(9,1fr);gap:8px" onPointerEnter="{{ hoverOn }}" onPointerLeave="{{ hoverOff }}">
+          <button type="button" onClick="{{ p0 }}" style="{{ c0 }}"><span style="{{ c0n }}">01</span><span>ROUTINES</span></button>
+          <button type="button" onClick="{{ p1 }}" style="{{ c1 }}"><span style="{{ c1n }}">02</span><span>PROJECTS</span></button>
+          <button type="button" onClick="{{ p2 }}" style="{{ c2 }}"><span style="{{ c2n }}">03</span><span style="color:#B8860B">▪</span><span>TRAVEL</span></button>
+          <button type="button" onClick="{{ p3 }}" style="{{ c3 }}"><span style="{{ c3n }}">04</span><span>TRADE</span></button>
+          <button type="button" onClick="{{ p4 }}" style="{{ c4 }}"><span style="{{ c4n }}">05</span><span>BOOKS</span></button>
+          <button type="button" onClick="{{ p5 }}" style="{{ c5 }}"><span style="{{ c5n }}">06</span><span>COMPLIANCE</span></button>
+          <button type="button" onClick="{{ p6 }}" style="{{ c6 }}"><span style="{{ c6n }}">07</span><span>TAX</span></button>
+          <button type="button" onClick="{{ p7 }}" style="{{ c7 }}"><span style="{{ c7n }}">08</span><span>RUNWAY</span></button>
+          <button type="button" onClick="{{ p8 }}" style="{{ c8 }}"><span style="{{ c8n }}">09</span><span>CONTENT</span></button>
+        </div>
+        <p style="margin:12px 0 0;font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:16px;color:#7A7488">Search &amp; book travel free today — no account needed. Paid modules are launching soon.</p>
+
+        <div style="margin-top:20px;border:1px solid #DDD6E8;border-radius:8px;background:#FFFFFF;overflow:hidden" onPointerEnter="{{ hoverOn }}" onPointerLeave="{{ hoverOff }}" data-screen-label="Stage card">
+          <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid #DDD6E8;padding:10px 18px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;line-height:16px;letter-spacing:0.05em;color:#4A4A5A;text-transform:uppercase">{{ kicker }}</span>
+            <span style="{{ statusStyle }}">{{ statusText }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 400px;height:550px">
+            <div style="display:flex;flex-direction:column;min-width:0">
+              <div style="height:455px;padding:24px;box-sizing:border-box;overflow:hidden">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+                  <span style="font-family:'IBM Plex Mono',monospace;font-size:15px;line-height:20px;font-weight:500;letter-spacing:0.3em;color:#7A7488">{{ panelName }}</span>
+                  <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:20px;letter-spacing:0.16em;color:#A8A2B0">{{ stepOf }}</span>
+                </div>
+                <div style="margin-top:12px;display:flex;align-items:stretch">
+                  <div style="{{ s0 }}"><div style="{{ s0n }}">01</div><div style="{{ s0m }}">{{ s0name }}</div><div style="{{ s0u }}">▪ YOU ARE HERE</div></div>
+                  <span style="{{ e0 }}">›</span>
+                  <div style="{{ s1 }}"><div style="{{ s1n }}">02</div><div style="{{ s1m }}">{{ s1name }}</div><div style="{{ s1u }}">▪ YOU ARE HERE</div></div>
+                  <span style="{{ e1 }}">›</span>
+                  <div style="{{ s2 }}"><div style="{{ s2n }}">03</div><div style="{{ s2m }}">{{ s2name }}</div><div style="{{ s2u }}">▪ YOU ARE HERE</div></div>
+                  <span style="{{ e2 }}">›</span>
+                  <div style="{{ s3 }}"><div style="{{ s3n }}">04</div><div style="{{ s3m }}">{{ s3name }}</div><div style="{{ s3u }}">▪ YOU ARE HERE</div></div>
+                  <span style="{{ e3 }}">›</span>
+                  <div style="{{ s4 }}"><div style="{{ s4n }}">05</div><div style="{{ s4m }}">{{ s4name }}</div><div style="{{ s4u }}">▪ YOU ARE HERE</div></div>
+                  <span style="{{ e4 }}">›</span>
+                  <div style="{{ s5 }}"><div style="{{ s5n }}">06</div><div style="{{ s5m }}">{{ s5name }}</div><div style="{{ s5u }}">▪ YOU ARE HERE</div></div>
+                  <span style="{{ e5 }}">›</span>
+                  <div style="{{ s6 }}"><div style="{{ s6n }}">07</div><div style="{{ s6m }}">{{ s6name }}</div><div style="{{ s6u }}">▪ YOU ARE HERE</div></div>
+                </div>
+                <div style="{{ g0 }}">
+                  <div style="height:299px;box-sizing:border-box;border:1px solid #DDD6E8;background:#FFFDF9;display:flex;flex-direction:column">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;padding:12px 16px 10px">
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.2em;color:#4A4A5A">YOUR ROUTINES</span>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.08em;color:#3B2D6B;white-space:nowrap">+ NEW ROUTINE</span>
+                    </div>
+                    <div style="margin:8px 16px 0;border:1px solid #DDD6E8;background:#FFFFFF;padding:14px 16px">
+                      <div style="display:grid;grid-template-columns:1.4fr 1fr 0.8fr;gap:16px">
+                        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#7A7488">NAME</div><div style="margin-top:6px;border:1px solid #DDD6E8;background:#FFFDF9;padding:8px 10px;font-size:13px;color:#1A1A2E">Pay the rent</div></div>
+                        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#7A7488">CADENCE</div><div style="margin-top:6px;border:1px solid #DDD6E8;background:#FFFDF9;padding:8px 10px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#4A4A5A">MONTHLY · DAY 1</div></div>
+                        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#7A7488">EACH TIME</div><div style="margin-top:6px;border:1px solid #DDD6E8;background:#FFFDF9;padding:8px 10px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;color:#B8860B">$400.00</div></div>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:10px 16px 0">
+                      <span style="font-size:12px;color:#7A7488">Restock supplies · Service the truck already filed</span>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.08em;color:#A8A2B0">MONTHLY ×3</span>
+                    </div>
+                    <div style="margin-top:auto;display:flex;justify-content:space-between;padding:8px 16px;background:#F3EFE6;border-top:1px solid #DDD6E8;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.1em">
+                      <span style="color:#1A1A2E">$400 + $300 + $150 = $850.00</span><span style="color:#7A7488">YOUR ROUTINES ARE THE BUDGET</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="{{ g1 }}">
+                  <div style="height:299px;box-sizing:border-box;border:1px solid #DDD6E8;background:#FFFDF9;display:grid;grid-template-columns:280px minmax(0,1fr)">
+                    <div style="padding:12px 16px;border-right:1px solid #EBE4F7">
+                      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#7A7488">AUGUST</div>
+                      <div style="margin-top:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+                        <div style="height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:#FFFDF9;border:1px solid #EBE4F7"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">1</span><span style="width:5px;height:5px;background:#3B2D6B"></span></div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">2</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">3</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">4</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">5</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">6</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">7</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">8</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">9</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">10</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">11</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">12</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">13</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">14</div>
+                        <div style="height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:#FFFDF9;border:1px solid #EBE4F7"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">15</span><span style="width:5px;height:5px;background:#3B2D6B"></span></div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">16</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">17</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">18</div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">19</div>
+                        <div style="height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:#FFFDF9;border:1px solid #EBE4F7"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">20</span><span style="width:5px;height:5px;background:#3B2D6B"></span></div>
+                        <div style="height:34px;display:flex;align-items:center;justify-content:center;background:#FFFDF9;border:1px solid #EBE4F7;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#4A4A5A">21</div>
+                      </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column">
+                      <div style="display:flex;justify-content:space-between;padding:6px 16px;background:#F3EFE6;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#7A7488"><span>MONTHLY</span><span>3 ROUTINES</span></div>
+                      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 16px;border-bottom:1px solid #EBE4F7">
+                        <span style="font-size:14px;color:#1A1A2E">Pay the rent</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#4A4A5A">AUG 1</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:#B8860B">$400.00</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 16px;border-bottom:1px solid #EBE4F7">
+                        <span style="font-size:14px;color:#1A1A2E">Restock supplies</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#4A4A5A">AUG 15</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:#B8860B">$300.00</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 16px">
+                        <span style="font-size:14px;color:#1A1A2E">Service the truck</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#4A4A5A">AUG 20</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:#B8860B">$150.00</span>
+                      </div>
+                      <div style="margin-top:auto;padding:10px 16px;border-top:1px solid #DDD6E8">
+                        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#7A7488">PLANNED THIS MONTH</div>
+                        <div style="margin-top:2px;font-size:26px;line-height:1.15;font-weight:500;letter-spacing:-0.02em;color:#B8860B">$850.00</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style="{{ g2 }}">
+                  <div style="height:299px;box-sizing:border-box;border:1px solid #DDD6E8;background:#FFFDF9;display:flex;flex-direction:column">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;padding:12px 16px 10px">
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.2em;color:#4A4A5A">TODAY</span>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#A8A2B0">AUG 15</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:12px;padding:13px 16px;border-top:1px solid #EBE4F7">
+                      <span style="width:20px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:#16a34a">✓</span>
+                      <span style="flex:1;font-size:15px;color:#1A1A2E">Pay the rent</span>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#16a34a">DONE · AUG 1</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:12px;padding:13px 16px;border-top:1px solid #EBE4F7">
+                      <span style="width:20px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:#B8860B">○</span>
+                      <span style="flex:1;font-size:15px;font-weight:500;color:#1A1A2E">Restock supplies</span>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.1em;color:#B8860B">DUE TODAY</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:12px;padding:13px 16px;border-top:1px solid #EBE4F7">
+                      <span style="width:20px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:#A8A2B0">○</span>
+                      <span style="flex:1;font-size:15px;color:#7A7488">Service the truck</span>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#A8A2B0">DUE · AUG 20</span>
+                    </div>
+                    <div style="margin-top:auto;display:flex;justify-content:space-between;padding:8px 16px;background:#F3EFE6;border-top:1px solid #DDD6E8;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.1em">
+                      <span style="color:#1A1A2E">1 DONE · 1 DUE · 0 MISSED</span><span style="color:#7A7488">DONE OR MISSED</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="{{ g3 }}">
+                  <div style="height:299px;box-sizing:border-box;border:1px solid #DDD6E8;background:#FFFDF9;display:flex;flex-direction:column">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;padding:12px 16px 10px">
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.2em;color:#4A4A5A">STREAKS</span>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#A8A2B0">COMPLETION · MISS</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid #EBE4F7">
+                      <span style="flex:1;font-size:15px;color:#1A1A2E">Pay the rent</span>
+                      <span style="display:flex;gap:4px"><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span></span>
+                      <span style="width:110px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.08em;color:#4A4A5A">6 IN A ROW</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid #EBE4F7">
+                      <span style="flex:1;font-size:15px;color:#1A1A2E">Restock supplies</span>
+                      <span style="display:flex;gap:4px"><span style="width:11px;height:11px;background:#EBE4F7"></span><span style="width:11px;height:11px;background:#EBE4F7"></span><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span></span>
+                      <span style="width:110px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.08em;color:#4A4A5A">4 IN A ROW</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid #EBE4F7">
+                      <span style="flex:1;font-size:15px;color:#1A1A2E">Service the truck</span>
+                      <span style="display:flex;gap:4px"><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#c53030"></span><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span><span style="width:11px;height:11px;background:#16a34a"></span></span>
+                      <span style="width:110px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.08em;color:#c53030">MISSED JUL</span>
+                    </div>
+                    <div style="margin-top:auto;display:flex;justify-content:flex-end;padding:8px 16px;background:#F3EFE6;border-top:1px solid #DDD6E8;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.1em">
+                      <span style="color:#7A7488">THE STREAK COUNTS BOTH WAYS</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="{{ ph }}">
+                  <div style="height:299px;box-sizing:border-box;border:1px solid #DDD6E8;background:repeating-linear-gradient(-45deg,#FFFDF9,#FFFDF9 14px,#F3EFE6 14px,#F3EFE6 16px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center">
+                    <span style="{{ phChip }}">IN BUILD</span>
+                    <span style="max-width:560px;font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.8;letter-spacing:0.1em;color:#7A7488">{{ phLabel }}</span>
+                  </div>
+                </div>
+              </div>
+              <div style="height:94px;box-sizing:border-box;border-top:1px solid #EBE4F7;display:grid;grid-template-columns:1fr 1.3fr 1fr;padding:12px 24px;overflow:hidden" data-screen-label="Truth strip">
+                <div style="padding-right:16px">
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;font-weight:600;letter-spacing:0.12em;color:#7A7488">YOU</div>
+                  <div style="margin-top:4px;font-size:12px;line-height:17px;color:#4A4A5A">{{ tsYou }}</div>
+                </div>
+                <div style="border-left:1px solid #EBE4F7;padding:0 16px">
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;font-weight:600;letter-spacing:0.12em;color:#7A7488">THE APP</div>
+                  <div style="margin-top:4px;font-size:12px;line-height:17px;color:#4A4A5A">{{ tsApp }}</div>
+                </div>
+                <div style="border-left:1px solid #EBE4F7;padding-left:16px">
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;font-weight:600;letter-spacing:0.12em;color:#B8860B">{{ tsFeedsLabel }}</div>
+                  <div style="margin-top:4px;font-size:12px;line-height:17px;color:#4A4A5A">{{ tsFeeds }}</div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;border-left:1px solid #DDD6E8;padding:22px 24px;min-height:0">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;font-weight:600;letter-spacing:0.14em;color:#7A7488">THE PIPELINE</span>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;color:#A8A2B0">{{ stepsCount }} STEPS</span>
+              </div>
+              <div style="margin:8px -24px 0">
+                <button type="button" onClick="{{ k0 }}" style="{{ r0 }}"><span style="{{ r0n }}">01</span><div style="min-width:0;text-align:left"><div style="font-size:15px;line-height:22px;font-weight:500;color:inherit">{{ r0name }}<span style="{{ r0c }}">{{ r0ct }}</span></div><div style="{{ r0t }}">{{ r0teach }}</div></div></button>
+                <button type="button" onClick="{{ k1 }}" style="{{ r1 }}"><span style="{{ r1n }}">02</span><div style="min-width:0;text-align:left"><div style="font-size:15px;line-height:22px;font-weight:500;color:inherit">{{ r1name }}<span style="{{ r1c }}">{{ r1ct }}</span></div><div style="{{ r1t }}">{{ r1teach }}</div></div></button>
+                <button type="button" onClick="{{ k2 }}" style="{{ r2 }}"><span style="{{ r2n }}">03</span><div style="min-width:0;text-align:left"><div style="font-size:15px;line-height:22px;font-weight:500;color:inherit">{{ r2name }}<span style="{{ r2c }}">{{ r2ct }}</span></div><div style="{{ r2t }}">{{ r2teach }}</div></div></button>
+                <button type="button" onClick="{{ k3 }}" style="{{ r3 }}"><span style="{{ r3n }}">04</span><div style="min-width:0;text-align:left"><div style="font-size:15px;line-height:22px;font-weight:500;color:inherit">{{ r3name }}<span style="{{ r3c }}">{{ r3ct }}</span></div><div style="{{ r3t }}">{{ r3teach }}</div></div></button>
+                <button type="button" onClick="{{ k4 }}" style="{{ r4 }}"><span style="{{ r4n }}">05</span><div style="min-width:0;text-align:left"><div style="font-size:15px;line-height:22px;font-weight:500;color:inherit">{{ r4name }}<span style="{{ r4c }}">{{ r4ct }}</span></div><div style="{{ r4t }}">{{ r4teach }}</div></div></button>
+                <button type="button" onClick="{{ k5 }}" style="{{ r5 }}"><span style="{{ r5n }}">06</span><div style="min-width:0;text-align:left"><div style="font-size:15px;line-height:22px;font-weight:500;color:inherit">{{ r5name }}<span style="{{ r5c }}">{{ r5ct }}</span></div><div style="{{ r5t }}">{{ r5teach }}</div></div></button>
+                <button type="button" onClick="{{ k6 }}" style="{{ r6 }}"><span style="{{ r6n }}">07</span><div style="min-width:0;text-align:left"><div style="font-size:15px;line-height:22px;font-weight:500;color:inherit">{{ r6name }}<span style="{{ r6c }}">{{ r6ct }}</span></div><div style="{{ r6t }}">{{ r6teach }}</div></div></button>
+              </div>
+              <div style="min-height:14px;flex:1" aria-hidden="true"></div>
+              <p style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:9.5px;line-height:14px;letter-spacing:0.08em;color:#A8A2B0">A PREVIEW OF EXACTLY WHAT THE BUYER SEES INSIDE</p>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 400px;border-top:1px solid #DDD6E8;height:130px">
+            <div style="padding:18px;min-width:0">
+              <p style="margin:0;font-size:16.5px;line-height:23px;font-weight:500;color:#1A1A2E">{{ plain }}</p>
+              <p style="margin:6px 0 0;font-size:13px;line-height:21px;color:#7A7488">{{ frameLink }}</p>
+            </div>
+            <div style="display:flex;flex-direction:column;border-left:1px solid #DDD6E8;padding:16px 24px">
+              <span style="align-self:flex-start;border:1px solid #DDD6E8;border-radius:4px;padding:2px 8px;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:15px;font-weight:600;letter-spacing:0.08em;color:#4A4A5A;text-transform:uppercase">{{ tag }}</span>
+              <p style="margin:8px 0 0;font-size:12px;line-height:19px;color:#7A7488">{{ rationale }}</p>
+              <div style="flex:1" aria-hidden="true"></div>
+              <a href="{{ explore }}" style="margin-top:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:17px;font-weight:600;letter-spacing:0.06em;color:#3B2D6B">EXPLORE →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;defaultModule&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;routines&quot;, &quot;options&quot;: [&quot;routines&quot;, &quot;projects&quot;, &quot;travel&quot;, &quot;trade&quot;, &quot;books&quot;, &quot;compliance&quot;, &quot;tax&quot;, &quot;runway&quot;, &quot;content&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Stage&quot; },
+  &quot;autoplay&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Stage&quot; }
+}">
+class Component extends DCLogic {
+  state = { m: null, s: 0 };
+  MODULES = [
+    { id: 'routines', label: 'Routines', cat: 'Operations',
+      plain: 'Set up a habit once — it lands on your calendar and your budget.',
+      link: 'Bills stop ambushing you.',
+      steps: [
+        { n: 'Define', t: 'Name the habit — what it takes, what it costs', y: 'Name it, set the cost + cadence', a: 'Prices the habit and files it', f: 'the cost + cadence', fn: 2 },
+        { n: 'Scheduled', t: 'It lands on your calendar', y: "Nothing — this one's automatic", a: 'Writes dated entries onto your calendar AND your budget', f: "today's due list", fn: 3 },
+        { n: 'Run', t: "Check off what's due today", y: 'Check off what you did', a: 'Marks done · due · missed — every day, no mercy', f: 'the done/missed record', fn: 4 },
+        { n: 'Proven', t: "Streaks show it's really happening", y: 'Just look', a: 'Counts streaks from the record — proof, not vibes', f: 'the streak record' }
+      ] },
+    { id: 'projects', label: 'Projects', cat: 'Operations',
+      plain: 'Type a goal — get a plan you can actually run.',
+      link: 'With a price tag, on your calendar.',
+      steps: [
+        { n: 'Input', t: 'Type your goal in plain words', y: 'Type the goal — plain, rambly, however it lives in your head', a: "Holds it as the project's source of truth", f: 'your goals, verbatim', fn: 2 },
+        { n: 'Research', t: 'AI digs up how to get it done', y: 'Review it; add your own findings', a: 'Runs deep research on YOUR goals — the prompt shows your words in it', f: 'the research output', fn: 3 },
+        { n: 'Audit', t: 'The plan gets fact-checked first', y: 'Paste or run the audit', a: 'Fact-checks the plan against reality before anything runs', f: 'audited findings', fn: 4 },
+        { n: 'Tasks', t: 'You approve every task — nothing runs itself', y: 'Approve or reject each task', a: 'Fuses research + audit into proposed tasks — then STOPS and waits for you', f: 'only what you approved', fn: 5 },
+        { n: 'Plan', t: 'Approved tasks hit your calendar', y: 'Commit tasks to time blocks', a: 'Puts them on your calendar with a price tag', f: 'the live plan', fn: 6 },
+        { n: 'Evolve', t: 'Rerun with new goals anytime', y: 'Add new goals, rerun', a: 'Reruns the pipe; keeps every old plan in history — nothing deleted', f: 'the next version' }
+      ] },
+    { id: 'travel', label: 'Travel', cat: 'Travel',
+      plain: 'Search, book, and budget your trips in one place.',
+      link: 'Every booking lands in your budget and on your calendar — automatically.',
+      steps: [
+        { n: 'Trip', t: 'Start a trip with a budget', y: 'Name the trip, set the budget', a: 'Opens a budget + calendar slot for it', f: 'the trip to shop for', fn: 2 },
+        { n: 'Search', t: 'Live flights, hotels, things to do', y: 'Search — free, no account', a: 'Pulls live prices: flights, stays, tours, transfers', f: 'real options, real prices', fn: 3 },
+        { n: 'Book', t: 'Book it right here', y: "Pay the provider — they're the merchant of record", a: 'Saves the booking to your trip', f: 'the booking + its receipt', fn: 4 },
+        { n: 'Ledger', t: 'The cost writes itself down', y: 'Nothing — automatic', a: "Writes each booking into the trip's budget lines", f: 'planned vs booked', fn: 5 },
+        { n: 'Reconcile', t: 'Match bookings to your bank', y: 'Attach any orphan bookings', a: 'Matches trip spend against your real bank feed', f: 'clean, matched books' }
+      ] },
+    { id: 'trade', label: 'Trade', cat: 'Trading',
+      plain: 'Find trades worth taking — and get told when to skip.',
+      link: 'Every trade lands in your books.',
+      steps: [
+        { n: 'SETUP', t: "Pick what you're hunting", y: 'Set universe, filters, risk limits', a: 'Holds your rules — the scan obeys them, always', f: 'your rules', fn: 2 },
+        { n: 'SCAN', t: 'Live market data runs your filters', y: 'Hit scan', a: 'Pulls live broker prices + fundamentals + macro + filings and runs YOUR rules', f: 'survivors only', fn: 3 },
+        { n: 'REVIEW', t: 'Trades worth taking — and the skips', y: 'Read the verdicts; pick or pass', a: 'Shows every candidate WITH the reason — including why to skip', f: 'your picks', fn: 4 },
+        { n: 'LAB', t: 'Test it before you risk it', y: 'Link a pick, grade it', a: 'Tests the setup before money moves', f: 'the graded setup', fn: 5 },
+        { n: 'RECORD', t: 'Wins and losses, written down', y: 'Nothing — it records', a: 'Writes every result down — wins AND losses, no cherry-picking', f: 'the record', fn: 6 },
+        { n: 'COMMIT', t: 'Every trade lands in your books', y: 'One click', a: 'Books the trade as a real journal entry — same ledger as everything else', f: 'your books', c: 'IN BOOKS →' }
+      ] },
+    { id: 'books', label: 'Books', cat: 'Accounting',
+      plain: 'Know where every dollar went — synced straight from your bank.',
+      link: 'Real transactions, real double-entry. Feeds Runway and Tax.',
+      steps: [
+        { n: 'Feed', t: 'Your bank feeds in every dollar', y: 'Link your bank — or type transactions in manually (no Plaid? no problem)', a: 'Pulls every real transaction, on its own', f: 'the raw feed', fn: 2 },
+        { n: 'Code', t: 'Sort each dollar into its bucket', y: 'Confirm the buckets', a: 'Proposes the account for each dollar; you stay the boss', f: 'coded books', fn: 3 },
+        { n: 'Reconcile', t: 'Check the books match the bank', y: 'Review mismatches', a: 'Checks book totals against bank totals — differences get named', f: 'books that match reality', fn: 4 },
+        { n: 'Close', t: "Lock the month when it's right", y: 'Close the period', a: 'Locks it — debits = credits or it refuses', f: 'a locked month', fn: 5 },
+        { n: 'Reports', t: 'See where the money went', y: 'Read them', a: 'Builds trial balance, income statement, balance sheet, full ledger', f: 'the statements', fn: 6 },
+        { n: 'Export', t: 'Hand your accountant the package', y: 'One click', a: 'Zips accountant-ready CSVs — your data is yours, never paywalled', f: "your CPA's inbox" }
+      ] },
+    { id: 'compliance', label: 'Compliance', cat: 'Operations',
+      plain: 'Every number keeps its receipt — proof you can show later.',
+      link: 'The audit trail writes itself.',
+      steps: [
+        { n: 'Profile', t: 'Who you are, where you file', y: 'Set entities + jurisdictions', a: 'Keeps the profile every check runs against', f: 'who the rules apply to', fn: 2 },
+        { n: 'Corpus', t: 'The rulebooks, collected', y: 'Add sources', a: 'Stores the regulations — documents + searchable chunks', f: 'the library', fn: 3 },
+        { n: 'Retrieve', t: 'Find the rule that applies', y: 'Ask in plain words', a: 'Searches the rulebooks and returns the passage', f: 'the applicable rule', fn: 4 },
+        { n: 'Discover', t: "Scans for what you're missing", y: '—', a: 'Will scan your profile against the corpus for gaps — this step is being built now', f: 'findings to verify', fn: 5, b: true, c: 'IN BUILD' },
+        { n: 'Verify', t: 'Every citation gets checked', y: '—', a: 'Will check each citation 8 ways before it counts — being built now', f: 'verified findings', fn: 6, b: true, c: 'IN BUILD' },
+        { n: 'Register', t: 'A tamper-proof record of it all', y: 'Hit verify chain', a: 'Hash-chains every action — change one record and the chain screams', f: 'the permanent record' }
+      ] },
+    { id: 'tax', label: 'Tax', cat: 'Accounting',
+      plain: 'Your return builds itself from your records.',
+      link: 'Derived from your closed books — not typed.',
+      steps: [
+        { n: 'Life events', t: 'Check what happened this year', y: 'Tick what applies', a: 'Auto-detects what your books already prove (side gig, investments)', f: 'which forms matter', fn: 2 },
+        { n: 'Documents', t: 'Your forms, in one place', y: "Add what the app can't derive", a: 'Collects the paper trail', f: 'the evidence', fn: 3 },
+        { n: 'Income', t: 'What you made — from your books', y: 'Confirm', a: 'Pulls income from your CLOSED BOOKS — derived, not typed', f: 'the income picture', fn: 4 },
+        { n: 'Deductions', t: 'What you can write off', y: 'Confirm', a: 'Builds Schedule C from your coded expenses', f: 'the write-offs', fn: 5 },
+        { n: 'Trading', t: 'Gains, losses, wash sales — handled', y: "Nothing — it's your trade record", a: 'Computes gains, losses, and IRS-window wash sales from your fills', f: 'Schedule D + 8949', fn: 6 },
+        { n: 'Review', t: 'The whole return, checked', y: 'Read the 1040', a: 'Assembles the full return from every step above', f: 'a return you trust', fn: 7 },
+        { n: 'File', t: 'Export it or file it', y: 'Export — or file', a: 'Hands you the filing package', f: 'the IRS' }
+      ] },
+    { id: 'runway', label: 'Runway', cat: 'Accounting',
+      plain: 'See how many months your money lasts.',
+      link: 'Reads what you planned and what you actually spent. The number moves as you live.',
+      steps: [
+        { n: 'Source', t: 'Your banks feed the number', y: 'Nothing — Books already linked them', a: "Reads live balances — trading money EXCLUDED, that's at-risk cash, not spending cash", f: 'real operating cash', fn: 2 },
+        { n: 'History', t: 'What you actually spent', y: 'Nothing', a: 'Reads your real spend from the ledger — not estimates', f: 'real burn history', fn: 3 },
+        { n: 'Burn', t: 'Cash ÷ spend = months left', y: 'Just look', a: 'Divides: cash ÷ burn = MONTHS LEFT + your zero date', f: 'the number that matters', fn: 4 },
+        { n: 'Match', t: 'Plans matched to real spending', y: 'Approve the matches', a: 'Matches planned items to what actually hit the bank', f: 'plan vs reality', fn: 5 },
+        { n: 'Project', t: 'See the months ahead', y: 'Set the budget view', a: 'Projects forward from budget vs actual', f: 'your future, priced' }
+      ] },
+    { id: 'content', label: 'Content', cat: 'Operations',
+      plain: 'Turn what you did today into a ready-to-film script.',
+      link: 'Your calendar tells the story.',
+      steps: [
+        { n: 'Inputs', t: 'Your day is the raw material', y: 'Live your day', a: "Pulls today's routines + tasks as the story inputs", f: 'what actually happened', fn: 2 },
+        { n: 'Script map', t: 'Scenes, planned from what you did', y: 'Adjust the scenes', a: 'Maps your day into scenes with camera notes', f: 'a shot plan', fn: 3 },
+        { n: 'Answer + Record', t: 'Answer prompts, film the takes', y: 'Answer the questions, film', a: 'Turns answers into takes tied to each scene', f: 'the raw takes', fn: 4 },
+        { n: 'Script', t: 'A ready-to-read voiceover', y: 'Read it to camera', a: 'Writes the voiceover from YOUR answers — your words, organized', f: 'the finished script' }
+      ] }
+  ];
+  RATIONALE = {
+    Travel: 'Where money moves first.',
+    Accounting: 'The ledger is the spine — Books writes it, Runway and Tax read it.',
+    Trading: 'A money engine with receipts — every trade lands in your books.',
+    Operations: 'The life around the money, on the same calendar.'
+  };
+  componentDidMount() { this.syncTimer(); }
+  componentDidUpdate() { this.syncTimer(); }
+  componentWillUnmount() { if (this.timer) clearInterval(this.timer); }
+  modId() { return this.state.m ?? (this.props.defaultModule ?? 'routines'); }
+  syncTimer() {
+    const want = (this.props.autoplay ?? true) && !this.ctl &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (want && !this.timer) this.timer = setInterval(() => {
+      if (this.hov) return;
+      const i = this.MODULES.findIndex(m => m.id === this.modId());
+      this.setState({ m: this.MODULES[(i + 1) % this.MODULES.length].id, s: 0 });
+    }, 2000);
+    if (!want && this.timer) { clearInterval(this.timer); this.timer = null; }
+  }
+  renderVals() {
+    const out = {};
+    const mono = "'IBM Plex Mono',monospace";
+    const id = this.modId();
+    const idx = this.MODULES.findIndex(m => m.id === id);
+    const m = this.MODULES[idx];
+    const step = Math.min(this.state.s, m.steps.length - 1);
+    const cur = m.steps[step];
+    this.MODULES.forEach((p, i) => {
+      const active = p.id === id;
+      out['c' + i] = {
+        display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '6px',
+        whiteSpace: 'nowrap', cursor: 'pointer', margin: 0,
+        border: active ? '1px solid #3B2D6B' : '1px solid #DDD6E8',
+        borderBottom: active ? '3px solid #B8860B' : '3px solid #DDD6E8',
+        background: active ? '#3B2D6B' : '#FFFDF9', color: active ? '#FFFDF9' : '#4A4A5A',
+        padding: '9px 8px 8px', fontFamily: mono, fontSize: '10px', lineHeight: '15px',
+        letterSpacing: '0.06em', textTransform: 'uppercase',
+        transition: 'background .15s,color .15s,border-color .15s'
+      };
+      out['c' + i + 'n'] = { color: active ? 'rgba(255,255,255,0.6)' : '#A8A2B0' };
+      out['p' + i] = () => { this.ctl = true; this.setState({ m: p.id, s: 0 }); };
+    });
+    for (let i = 0; i < 7; i++) {
+      const s = m.steps[i];
+      const active = s && i === step;
+      out['r' + i] = s ? {
+        display: 'flex', alignItems: 'baseline', width: '100%', boxSizing: 'border-box',
+        margin: 0, cursor: active ? 'default' : 'pointer', textAlign: 'left',
+        border: 'none', borderTop: '1px solid #EBE4F7', padding: '11px 24px',
+        background: active ? '#3B2D6B' : 'transparent',
+        boxShadow: active ? 'inset 0 -3px 0 #B8860B' : 'none',
+        color: active ? '#FFFDF9' : '#1A1A2E',
+        fontFamily: "'Inter',sans-serif", transition: 'background .15s'
+      } : { display: 'none' };
+      out['r' + i + 'n'] = { width: '22px', flexShrink: 0, fontFamily: mono, fontSize: '11px', lineHeight: '22px', color: active ? 'rgba(255,255,255,0.6)' : '#A8A2B0' };
+      out['r' + i + 't'] = { marginTop: '3px', fontSize: '12px', lineHeight: '17px', color: active ? 'rgba(255,255,255,0.72)' : '#7A7488' };
+      out['r' + i + 'name'] = s ? s.n : '';
+      out['r' + i + 'teach'] = s ? s.t : '';
+      out['r' + i + 'ct'] = (s && s.c) ? s.c : '';
+      out['r' + i + 'c'] = (s && s.c) ? (s.c === 'IN BUILD' ? {
+        display: 'inline-block', marginLeft: '8px', borderRadius: '4px', padding: '0 6px',
+        border: active ? '1px solid rgba(255,255,255,0.3)' : '1px solid #DDD6E8',
+        background: active ? 'rgba(255,255,255,0.12)' : '#F3EFE6',
+        fontFamily: mono, fontSize: '9px', letterSpacing: '0.1em',
+        color: active ? 'rgba(255,255,255,0.75)' : '#7A7488', verticalAlign: '1px'
+      } : {
+        display: 'inline-block', marginLeft: '8px', borderRadius: '4px', padding: '0 6px',
+        border: active ? '1px solid rgba(255,255,255,0.4)' : '1px solid #DDD6E8',
+        fontFamily: mono, fontSize: '9px', letterSpacing: '0.1em',
+        color: active ? '#FFFDF9' : '#3B2D6B', verticalAlign: '1px'
+      }) : { display: 'none' };
+      out['k' + i] = () => {
+        const mm = this.MODULES.find(x => x.id === this.modId());
+        if (i < mm.steps.length) { this.ctl = true; this.setState({ s: i }); }
+      };
+      out['s' + i] = s ? {
+        flex: 1, minWidth: 0, height: '60px', boxSizing: 'border-box',
+        background: active ? '#3B2D6B' : '#FFFDF9',
+        border: active ? 'none' : '1px solid #DDD6E8',
+        borderBottom: active ? '3px solid #B8860B' : '1px solid #DDD6E8',
+        padding: '8px 10px 0'
+      } : { display: 'none' };
+      out['s' + i + 'n'] = { fontFamily: mono, fontSize: '10px', lineHeight: '14px', letterSpacing: '0.2em', color: active ? 'rgba(255,255,255,0.6)' : '#A8A2B0' };
+      out['s' + i + 'm'] = { fontSize: '12.5px', lineHeight: '17px', fontWeight: 600, color: active ? '#FFFDF9' : '#1A1A2E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+      out['s' + i + 'u'] = active ? { fontFamily: mono, fontSize: '9.5px', lineHeight: '13px', letterSpacing: '0.14em', color: 'rgba(255,255,255,0.78)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : { display: 'none' };
+      out['s' + i + 'name'] = s ? s.n.toUpperCase() : '';
+    }
+    for (let i = 0; i < 6; i++) {
+      out['e' + i] = m.steps[i + 1] ? { alignSelf: 'center', padding: '0 4px', fontFamily: mono, fontSize: '14px', color: '#A8A2B0' } : { display: 'none' };
+    }
+    const g = id === 'routines' ? step : -1;
+    out.g0 = g === 0 ? { marginTop: '16px' } : { display: 'none' };
+    out.g1 = g === 1 ? { marginTop: '16px' } : { display: 'none' };
+    out.g2 = g === 2 ? { marginTop: '16px' } : { display: 'none' };
+    out.g3 = g === 3 ? { marginTop: '16px' } : { display: 'none' };
+    out.ph = g === -1 ? { marginTop: '16px' } : { display: 'none' };
+    out.phLabel = 'GLIMPSE — ' + m.label.toUpperCase() + ' · ' + String(step + 1).padStart(2, '0') + ' ' + cur.n.toUpperCase() + ' — TO FOLLOW, PATTERN PER ROUTINES';
+    out.phChip = cur.b ? {
+      border: '1px solid #DDD6E8', background: '#F3EFE6', borderRadius: '4px', padding: '1px 8px',
+      fontFamily: mono, fontSize: '10px', letterSpacing: '0.12em', color: '#7A7488'
+    } : { display: 'none' };
+    out.tsYou = cur.y;
+    out.tsApp = cur.a;
+    out.tsFeeds = cur.f;
+    out.tsFeedsLabel = cur.fn ? '→ FEEDS ' + String(cur.fn).padStart(2, '0') : '→ FEEDS';
+    const live = id === 'travel';
+    out.kicker = String(idx + 1).padStart(2, '0') + ' / ' + m.label;
+    out.statusText = live ? 'LIVE — FREE' : 'LAUNCHING SOON';
+    out.statusStyle = live
+      ? { fontFamily: mono, fontSize: '10.5px', lineHeight: '16px', fontWeight: 600, color: '#3B2D6B' }
+      : { fontFamily: mono, fontSize: '10.5px', lineHeight: '16px', letterSpacing: '0.05em', color: '#7A7488' };
+    out.panelName = m.label.toUpperCase();
+    out.stepOf = 'STEP ' + String(step + 1).padStart(2, '0') + ' OF ' + String(m.steps.length).padStart(2, '0');
+    out.stepsCount = String(m.steps.length).padStart(2, '0');
+    out.plain = m.plain;
+    out.frameLink = m.link;
+    out.tag = m.cat;
+    out.rationale = this.RATIONALE[m.cat];
+    out.explore = 'https://www.templestuart.com/modules/' + m.id;
+    out.hoverOn = () => { this.hov = true; };
+    out.hoverOff = () => { this.hov = false; };
+    return out;
+  }
+}
+</script>
+</body>
+</html>

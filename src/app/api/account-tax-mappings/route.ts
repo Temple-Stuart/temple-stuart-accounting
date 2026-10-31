@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-helpers';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 // ═══════════════════════════════════════════════════════════════════
 // /api/account-tax-mappings
@@ -31,6 +33,9 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get('year');
@@ -112,9 +117,7 @@ export async function GET(request: NextRequest) {
       accounts,
     });
   } catch (error) {
-    console.error('Account tax mappings GET error:', error);
-    const msg = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return failClosedResponse('Account tax mappings GET', 'Account tax mappings read failed', error);
   }
 }
 
@@ -122,6 +125,9 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const body = await request.json();
     const { account_id, tax_form, form_line, tax_year, multiplier } = body as {
@@ -190,9 +196,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Account tax mappings POST error:', error);
-    const msg = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return failClosedResponse('Account tax mappings POST', 'Account tax mappings write failed', error);
   }
 }
 
@@ -200,6 +204,9 @@ export async function DELETE(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     // Accept id from body or query param
     let id: string | null = null;
@@ -216,26 +223,22 @@ export async function DELETE(request: NextRequest) {
     }
 
     // SECURITY: only delete if the mapping's account belongs to this user.
+    // SEC-02 (2026-09-27): the ownership is IN the read — { id, account: { userId } } —
+    // so another user's mapping and a missing one get the same defensive 404. It used
+    // to read by id alone and answer a foreign row 403 "does not belong to this user",
+    // which confirmed the row exists. The delete names the row the read proved.
     const mapping = await prisma.account_tax_mappings.findFirst({
-      where: { id },
-      include: { account: { select: { userId: true } } },
+      where: { id, account: { userId: user.id } },
+      select: { id: true },
     });
     if (!mapping) {
       return NextResponse.json({ error: 'Mapping not found' }, { status: 404 });
     }
-    if (mapping.account.userId !== user.id) {
-      return NextResponse.json(
-        { error: 'Mapping does not belong to this user' },
-        { status: 403 }
-      );
-    }
 
-    await prisma.account_tax_mappings.delete({ where: { id } });
+    await prisma.account_tax_mappings.delete({ where: { id: mapping.id } });
 
     return NextResponse.json({ success: true, deleted: id });
   } catch (error) {
-    console.error('Account tax mappings DELETE error:', error);
-    const msg = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return failClosedResponse('Account tax mappings DELETE', 'Account tax mappings delete failed', error);
   }
 }

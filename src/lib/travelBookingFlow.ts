@@ -1,0 +1,604 @@
+/**
+ * travelBookingFlow — THE BOOKING FLOW IS BYTE-IDENTICAL (TRAVEL-01, 2026-09-19).
+ *
+ * TRAVEL-01 rebuilt the travel tab as plain sections and gave a committed item
+ * its time on the day. It changed NOTHING in the booking flow — search →
+ * prebook → pay, the provider calls, the reservation routes, the checkout
+ * panels, the clients — and the travel law proves it at build: every file below
+ * is pinned by the sha256 of its WHOLE text (code and comments alike, through
+ * rejoin(code(f), comments(f)) — a whole-artefact equality, never a pattern),
+ * as it stood on main at b9eac34a (2026-09-19, the merge of GRID-01).
+ *
+ * The list is the audit's census of the flow, not a guess: every route under
+ * src/app/api/travel (fifteen), the reservation routes (four), the surfaces the
+ * Search section mounts and the panels they open, and the provider clients and
+ * their helpers. A change to any of them is a change to the booking flow and
+ * needs its own ruling — the ruling that changes it re-pins it here, dated.
+ *
+ * HOTEL-02 (2026-09-22): THE STAY'S TIMES ARE THE PROPERTY'S, NOT OURS. vendor-commit
+ * (unpinned, below) now makes the ONE content call for a stay that names its hotel
+ * and writes the property's clock or null; five pinned files are re-dated for the
+ * paint and the plumbing around it (a hotel id sent, a scale named, a dead constant
+ * gone, a type). No booking call changed — the hotel law hashes them body-for-body.
+ *
+ * vendor-commit (POST/DELETE /api/trips/[id]/vendor-commit) is NOT in the
+ * list: it is the itinerary and calendar WRITER a committed option lands
+ * through, not a booking, a prebook, a payment or a provider call. TRAVEL-01
+ * did not touch it either, but it is not the booking flow's file.
+ *
+ * ACTIVITY-01 (2026-09-22): ONE ACTIVITY, WHAT THE OPERATOR STATES, AND A TOUR TAKES
+ * ITS TIME ON THE DAY. The Things-to-do search forwards the vendor's own
+ * /products/search contract and answers through a pure leaf, tri-state, paging
+ * through the vendor's stated total; STEP 4 adds the Save — the authed options route
+ * below (the product, the schedule and the vendor's stated rate, three reads under
+ * 'viatorsave') and a vendor-commit that recomputes what the screen priced. Six pinned
+ * files are re-dated for it (the search route, the strip's mount, the container, the
+ * transfers-only results view, the client's added raw calls and rate cache, the
+ * quota's new bucket) and the options route is pinned new. No booking call changed —
+ * the activity law hashes the client's existing function bodies.
+ *
+ * ACTIVITY-01 STEP 4b (2026-09-22): THE SAVE'S FIGURES ARE SEALED BY THE SERVER THAT
+ * READ THEM. The options route now seals its own Viator read per bookable pick
+ * (HMAC-SHA256 under a key derived from JWT_SECRET, domain-separated from the session
+ * cookie) and vendor-commit takes NO figure, note or clock from the caller — it
+ * verifies the seal and derives the line. Two pinned files are re-dated for it, the
+ * options route and the Things-to-do container; the two new leaves (quote.ts,
+ * quoteSeal.ts) are pure readers of what the route already read, not booking files,
+ * and stay off the census as save.ts, schedule.ts, fx.ts and product.ts do.
+ *
+ * FLIGHT-01 (2026-09-22) — SEARCH IS NOT BOOKING. The pin protects what moves
+ * money and holds: prebook, verify, book, pay, cancel, the reservation routes
+ * and the checkout panels. The flights SEARCH route and the picker that renders
+ * its answer are on the list because the census named every travel route and
+ * surface, not because a search is a booking; FLIGHT-01 changed the search's
+ * request body (the vendor's own filters and sort, validated) and the picker
+ * (one row per flight, its fares) and re-pinned those five files below, each
+ * dated with the reason. No prebook, verify, book, pay or cancel file changed.
+ *
+ * EVENTS-01 (2026-10-30) — THE EVENTS MODE POINTS AT THE EXPERIENCES. The guest
+ * landing gained an experiences section directly under the strip (src/lib/experiences.ts,
+ * ExperiencesSection.tsx); the strip's Events mode lost its Soon badge and its panel
+ * became one sentence and a jump link to it. One pinned file is re-pinned for it, the
+ * strip's mode builder, dated below. No booking call changed.
+ *
+ * EVENTS-01b (2026-10-30) — TWO SURFACES, ONE TRUTH. The builder takes a required
+ * eventsAnchor: the guest landing names '#events' and keeps the jump panel; the app's
+ * travel tab passes null and gets the f1c63aef Events mode byte for byte. The strip's
+ * mode builder is re-pinned again, dated below. No booking call changed.
+ */
+
+import { createHash } from 'node:crypto';
+
+export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19); UnattachedBookings.tsx re-pinned by REPAINT-04 (2026-09-21), paint only; the flights search route, the adapter and the two flight pickers re-pinned by FLIGHT-01 (2026-09-22), search is not booking; the hotels search route, the two hotel surfaces, the showroom picker, the client, the flight adapter and the flight view re-pinned by HOTEL-01 (2026-09-22), search and display are not booking; the two hotel surfaces, the checkout panel, the planner and the client re-dated by HOTEL-02 (2026-09-22), the stay\'s clock is the property\'s; the activities search route, the strip, the Things-to-do container, the transfers-only results view, the Viator client and the travel-search quota re-dated and the options route pinned by ACTIVITY-01 (2026-09-22), a tour takes its time on the day; the options route and the Things-to-do container re-dated again by ACTIVITY-01 STEP 4b (2026-09-22), the Save\'s figures are sealed by the server that read them; the two containers, the two result views and the Things-to-do container re-dated and the row action strip pinned by TRAVEL-ROW-01 (2026-09-23), the action moves to the line and the checkout opens under it — display is not booking; the strip re-pinned by EVENTS-01 (2026-10-30), the Events mode points at the experiences section under it — display is not booking; the strip re-pinned by EVENTS-01b (2026-10-30), the Events mode names its anchor per surface — display is not booking';
+
+export interface BookingFlowPin {
+  readonly file: string;
+  readonly sha256: string;
+}
+
+export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
+  // the provider routes — search, content, prebook, book, verify, cancel
+  // ACTIVITY-01 (2026-09-22): re-dated — the query carries the vendor's own /products/search filters, sort and count, validated by name between the two guards; one raw call; the answer through the pure leaf, tri-state; no re-sort, no rating drop. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was 8d147c3988d5ec89efd4961128e0a45cd2980358e2fb46843771dbbe4194cb48 at main dfc02881.
+  { file: 'src/app/api/travel/activities/search/route.ts', sha256: '571e8ccfb64553f27f33d36d0d9061717217877bcebddcd72d3127b44e5e79a6' },
+  // ACTIVITY-01 (2026-09-22): pinned — the Save's three reads (GET /products/{code}, GET /availability/schedules/{code}, POST /exchange-rates), each once, behind getVerifiedEmail and a per-user limit, each reserved under 'viatorsave'; not a public path. STEP 4b: what it read, it SEALS — every bookable pick leaves as a { quote, seal } pair keyed to the signed-in user, and the raw pricing records stay on the server. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  { file: 'src/app/api/travel/activities/options/route.ts', sha256: '5185fd21d8a1dd2df49e1dc2e393d4a4fc1073031077d10465a0ac02ea171aef' },
+  { file: 'src/app/api/travel/flights/lane/route.ts', sha256: '9ad617a3320f5abf6c0fc24ef2b38308f100389e4b98cf9a68a50ef9f2ab6b1e' },
+  { file: 'src/app/api/travel/hotels/content/route.ts', sha256: '7923035f88437325994e957e73943cd4817ee72b2a9bf2908b0afba0803503e7' },
+  { file: 'src/app/api/travel/hotels/reviews/route.ts', sha256: 'c548e5cc1f16808c119711395144ddbc0f4307d22bd67890185b59479000d39d' },
+  // HOTEL-01 (2026-09-22): re-pinned — the query gains the vendor's filters and sort, validated by name between the two guards; the answer gains the cards and the env. Search and display are not booking; no prebook/book/pay/cancel call changed.
+  // Was 1a677c1ed803b4af213e8d2358f98058613aeffdd98228cb00c585fc59a0c617 at main d56b2cc9.
+  { file: 'src/app/api/travel/hotels/search/route.ts', sha256: 'e9d4be8a37f2ca3ef80568c387c53a1378cba2401de8724a1a736dfcf6e97ca4' },
+  // CAL-01 (2026-09-23): re-pinned — a booking now lands on the calendar. ONE
+  // calendar_events row per stay, spanning check-in to check-out, written AFTER the
+  // transaction with its own try/catch so a calendar failure can never roll back a
+  // paid booking, and keyed on (source, source_id) so a retry writes no second row.
+  // Nothing about the booking itself changed: the same guards, the same provider
+  // call, the same landing, the same reservation and commission rows, the same
+  // whitelisted envelope. No budget_line_items, no budgets, no journal entry.
+  // Was 69abc595d70da025ac088ec85dc136ca6d6a6576a504d3c4b441e0434508b567 at main 82e2250b.
+  // LANE-01 (2026-09-25): re-pinned — the row now carries the lane this route already
+  // hands the landing (lane: 'hotel') and its stated name as displayName, beside
+  // hotelName. Two fields on the create, nothing else: the same guards, the same
+  // provider call, the same landing, the same calendar row, the same envelope.
+  // Was 792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1 at main 8f06554c.
+  // SEC-03 (2026-09-25): re-pinned — no fabricated number in a ledger. The price is
+  // what the vendor BOOK answer states, or NULL in both ledgers with a loud log by
+  // bookingId — the body no longer carries finalPriceCents and the confirm page no
+  // longer posts the number it displayed; a price is never 0 for "unknown". The
+  // currency is the vendor answer, else the currency the SEARCH was made in (the
+  // body's stated field, validated as ISO 4217), else the contract-deviation throw —
+  // never a literal. The guards, the provider call, the landing, the calendar row
+  // and the envelope are unchanged.
+  // Was 41f5eebfba6dacf4d613790dc0fa173e4c8cad012c42915d68d8a2cba8cf314a at main a5e66262.
+  // STATUS-01 (2026-09-26): the vendor's status word goes through the hotel leaf
+  // (hotelProviderStatusToReservation) — CONFIRMED / CANCELED / FAILED by name; an
+  // absent or unlisted word is recorded pending and said loudly by bookingId. Both
+  // defaults ((parsed.status || 'CONFIRMED') here, ?? 'CONFIRMED' in the client)
+  // are gone. Nothing else in the route changed.
+  // Was 667efb921cdd690b6e5c26fc40c6b9deacd520367cf346956592b150d117c597 at main 53900e67.
+  // COMM-01 (2026-09-26): the ledger's commission is the vendor's stated `commission`
+  // on the BOOK answer or NULL (logged loudly by bookingId) — the browser-sent
+  // commissionAmountCents is gone from the body and refused 400 by name; the literal
+  // 0 fallback is gone. Nothing else in the route changed.
+  // Was e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509 at main 0ef428a6.
+  // AUDIT-01 (2026-09-26): re-pinned — after the booking transaction commits, the
+  // booking is recorded through the ONE audit port (reservation_booked, the landed book
+  // answer its evidence, the human who booked the actor — a guest's user_id null, named)
+  // and the confirmation email's outcome after its send (reservation_email_sent with the
+  // message id, or _failed by class). A failed audit write is named and never fails the
+  // booking. No prebook/book/pay call, no landing, no write changed.
+  // Was 441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707 at main 651c2f0e.
+  // SEC-02b (2026-09-27): re-pinned — the stay is the vendor's. checkinDate / checkoutDate
+  // and hotelName / displayName are what the BOOK answer states (parseBookResult:
+  // checkin, checkout, hotel.name) through src/lib/reservations/stayDates.ts, or NULL
+  // logged by bookingId (unstatedStayLine) — the body's dates and name are no longer
+  // declared or read, and the 'checkinDate and checkoutDate are required' 400 is gone.
+  // The calendar, the email and the answer read the row's day back (dayOfColumn). No
+  // prebook/book/pay call, no guard, no currency rule changed.
+  // Was 18ad62a03aa84b5d9ed6c7856958c35a0f44281eedf5122c4404da0a95d60d43 at main 0c6fedca.
+  // GUEST-01 (2026-09-29): re-pinned — the confirmation email of a GUEST row carries its manage block (guestManage: guestManageFor(result) — the row's reference and its manage code); an account row gets none. No book/pay call, no landing, no write changed.
+  // Was d128348733a1f3688b48d084fe9fd60d6f8ce178833f92a18e5b2dbff1abbe0b at main 37909b85.
+  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '0a613de8812682e4e87d8b6cb38d1a7bc42159ab0aca1c82751f508dbf98af82' },
+  // CAL-01 (2026-09-23): re-pinned — the flight branch. The landed booking object
+  // carries NO date of travel (STEP 1.5: NOT FOUND), so this route writes NO
+  // calendar row and logs a named reason listing the payload's actual keys. No date
+  // is invented, defaulted, or taken from createdAt. Nothing about the booking
+  // itself changed.
+  // Was cd8fa37b2d950f98063b7562d3d5347dc1c5e1edcf04df695db41306f8400ab3 at main 82e2250b.
+  // FL-5b (2026-09-23): re-pinned — the confirmation email, restored to this lane.
+  // The route's own comment had said since 34fdb749 that "FL-5b (confirmation
+  // email) is where a contact re-enters this lane"; it does now. contactEmail is a
+  // REQUIRED field, validated with the prebook route's own regex and refused by
+  // name BEFORE the provider call, so a malformed address costs nothing. The email
+  // is sent AFTER the reservation transaction commits, in its own try/catch, and a
+  // failure is reported as email.sent=false while the booking still returns 200.
+  // The provider call, the guards, the landing and the reservation are unchanged.
+  // Was bbc045a7bb5415c938ac57bcec26fbf807ba7fe5155b119c598cbbf4333bf1fc at main 54f438f1.
+  // LANE-01 (2026-09-25): re-pinned — a flight reservation knows what it is. The row
+  // carries lane: 'flight'; tripId is accepted under the hotel route's OWN owner gate
+  // (guest with a trip → 401 by name, foreign trip → defensive 404) instead of the
+  // hardcoded null; the status maps through the one leaf both callers use; and AFTER
+  // the reservation commits — outside the transaction, in its own try/catch, reserved
+  // against 'liteapiflightbookingread' — ONE GET /flights/bookings/{id} gives the
+  // flight its day (the OUTBOUND departure → the CAL-01 row), its name (carrier +
+  // route → displayName) and its current status. A failed or empty answer changes
+  // nothing and is logged by name. The provider BOOK call and the landing are unchanged.
+  // Was 7a92d920d3bd45ac1a10997c3eb6b2ee1b1495dd3eec73a45ec3d9185ec5cc92 at main 8f06554c.
+  // SEC-03 (2026-09-25): re-pinned — no PII in a URL, no fabricated number in a
+  // ledger. The contact is READ from prebook_contacts by prebookId (the prebook route
+  // wrote it), refused by name BEFORE the quota and the vendor when missing; the body
+  // carries no contactEmail. The price is what the vendor states or NULL in both
+  // ledgers, logged loudly by bookingId; the currency is the vendor's, else the search
+  // currency stored with the contact, else the contract-deviation throw. One email
+  // attempt per booking, to the stored address; a retry reports 'earlier'. The
+  // guards, the provider call, the landing and the LANE-01 refresh are unchanged.
+  // Was 653c25f1b43caf2104d152f543cf04dcb960b0c6bfc7ceac2a4ce5dddb2480f7 at main a5e66262.
+  // STATUS-01 (2026-09-26): the refresh ports gained cancelCommission and the
+  // answer instant (readAt) and hand the committed row whole; the refresh outcome is
+  // kept and the 'ticketed' email it may owe is attempted AFTER its block, in its
+  // own try/catch — never failing the paid booking. Nothing before the refresh changed.
+  // Was 8f24d2dd90f36d55c2dbbe4cafb711387ea34faf4d9eb25a27c906b72b977367 at main 53900e67.
+  // COMM-01 (2026-09-26): the flight commission is NULL with the documented reason
+  // (the book answer and the GET document distributorCommission and no commission —
+  // NOT DOCUMENTED for the seller; never 0, never inferred from a markup). Nothing
+  // else in the route changed.
+  // Was b75d0ca85ee2a50a0fe715a73ac749893f656c57038908d3b89c256aed466d1a at main 0ef428a6.
+  // AUDIT-01 (2026-09-26): re-pinned — PR-FL-5's 'system_other' audit write is
+  // replaced by the ONE audit port (reservation_booked, the landed book answer its
+  // evidence, the human who booked the actor — a guest's user_id null, named); the
+  // lifecycle sends carry that actor; the confirmation email's outcome is recorded after
+  // its send. A failed audit write is named and never fails the booking. No book/pay
+  // call, no landing, no write changed.
+  // Was 62b828c1c9468cd1a10b2cb43ca4b76099f49ef9eb905fdac80f44409a349f8b at main 651c2f0e.
+  // BOOKINGS-01 (2026-09-27): re-pinned — a GUEST booking's row carries the contact its
+  // checkout stored: guestEmail = the prebook_contacts row this route already read by
+  // prebookId (src/lib/reservations/guestContact.ts guestEmailOf); an account booking
+  // stays null. No book/pay call, no landing, no other write changed.
+  // Was ac3d2ef9fe7e38d561734664e46916a7ed96a90ae1165d072a5173e1e200a462 at main 486be479.
+  // GUEST-01 (2026-09-29): re-pinned — the confirmation email of a GUEST row carries its manage block (guestManage: guestManageFor(result) — the row's reference and its manage code); an account row gets none. No book/pay call, no landing, no write changed.
+  // Was d762bf4320c7c75a7b802d2d0654f4420913eab1826c9daa74ee53f28022eda8 at main 37909b85.
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '9c25672fa9d2120d6ff4895416c3c2aef3281e53a550e96189bbce7b7a2bad23' },
+  // FL-4c (2026-09-23): re-pinned — the envelope gains `paymentEnv`, the key env
+  // derived server-side exactly as the hotel prebook returns it. The browser must
+  // not guess which mode it is in, and /config is keyed on that label. Nothing
+  // else changed: the same guards, the same provider call, the same whitelist.
+  // Was ed9b0d2afe376769e42a99a80fc3ce33755324add6a25e4104a5f5c193289c7a at main bd380379.
+  // SEC-03 (2026-09-25): re-pinned — the validated contact (and the search currency
+  // the panel states) is WRITTEN to prebook_contacts under the vendor prebookId
+  // immediately after the vendor answers and BEFORE the browser is: a failed write is
+  // a named 500 (contact_not_stored) carrying no secretKey, so no card form can open
+  // on a hold with no stored contact. Auth is optional, as on the book route, to
+  // record the account on the row. The guards, the validation and the provider call
+  // are unchanged.
+  // Was afad4046f2084b53ff5dfd48ca6c280b475967d61dfd4cf98f4b5da3e672964e at main a5e66262.
+  { file: 'src/app/api/travel/liteapi/flights/prebook/route.ts', sha256: '4dd7994bc43cbc305e3c23717d881774289b47145d70f43d3ef12796f53e0b7a' },
+  // FLIGHT-01 (2026-09-22): re-pinned — the request body gains the vendor's filters and sort, validated by name between the two guards. Search is not booking; no prebook/verify/book/pay/cancel call changed.
+  // Was cbd59f8394b0f9fb52b3df446ba5183e99eb8b62c07cbb4afdbf63d50b6b86d1 at main b9eac34a.
+  { file: 'src/app/api/travel/liteapi/flights/search/route.ts', sha256: 'e4535e859762c570a894e9fdf2e5e0ca452e395f6a5e8ab51b55221bc9c2fa0b' },
+  { file: 'src/app/api/travel/liteapi/flights/verify/route.ts', sha256: '5143ffafee8ed954d5edc7c639857622375c6b177b9ac067f79553794674d589' },
+  { file: 'src/app/api/travel/liteapi/prebook/route.ts', sha256: 'dd6e8c9a0f1437a0661283bb91dc00aeb6dcaf6c227cefc180a3e01f1a60f351' },
+  { file: 'src/app/api/travel/locations/cities/route.ts', sha256: 'b6329f0a6c24ee53a683467800f91692fa17ca210f7e31db7dc54b73157e731a' },
+  { file: 'src/app/api/travel/locations/countries/route.ts', sha256: '2097ff199301d1b7cbe4f2661164d3fb31287c606da1370e91d05c76b0c3e965' },
+  { file: 'src/app/api/travel/transfers/search/route.ts', sha256: 'b55f3bd99f64b07f64d078063f3b408028f2531eae69ddbd82f939687ff2a66e' },
+  { file: 'src/app/api/travel/visa/check/route.ts', sha256: '7ce03029e9f50915f673a6aebf28dd0a916631ef24d46862d60780dd93108ab9' },
+  // the reservation routes — what a paid booking lands as, and how it is cancelled or adopted
+  // CANCEL-01 (2026-09-26): re-pinned — the lane is read and gates the vendor call: only
+  // a hotel reaches the hotel endpoint (PUT /v3.0/bookings/{id}); any other lane is a
+  // named 409 (cancel_lane_unsupported) BEFORE the vendor. The header no longer claims
+  // flights. The auth chain, the hotel cancel call, the landing and the status write
+  // are unchanged.
+  // Was c9885c190fd4452be45d06f5a1de052b1f2732d7f0a4b2b8c925a978981d9d33 at main dccb3380.
+  // CANCEL-01 (2026-09-26): re-pinned — one resource, two verbs. GET is the flight
+  // cancellation QUOTE (authed, user-scoped, metered against liteapiflightcancelquote,
+  // no money moved). POST dispatches on the lane: a hotel to the hotel client as since
+  // PR-Cancel-1, now KEEPING its refund and fee as money_events rows pointed at the
+  // arrival; a flight to POST /flights/bookings/{id}/cancellations — 200 → cancelled with
+  // its money facts and vouchers, 202 → cancel_pending with the vendor's cancelIntentAt
+  // from one metered GET, 409 → a named refusal and nothing written. A final cancel
+  // marks the calendar row and moves the estimated commission to cancelled. The auth
+  // chain and the hotel cancel call are unchanged.
+  // Was 150757218a27e3aeaa22123317d1b089c4762f3137a273dacf58bf5f2c20ab5d at main dccb3380.
+  // CANCEL-02 (2026-09-26): re-pinned — a cancellation is confirmed in writing. Both
+  // lanes, both outcomes, after the transaction commits: the lifecycle email (final
+  // figures from the money_events and vouchers rows just written, or the pending
+  // template) goes to the one recipient the rule states — the account's stored email
+  // for an account row, guestEmail for a guest row, else nobody by name
+  // (no_recipient_stated) — in its own try/catch, reported as email.sent, never
+  // failing the cancel. The gate reads the recipient and identity fields. The vendor
+  // calls, the landing and every write are unchanged.
+  // Was 5fb02294e674bbf816a50f4a455534d93e261016ae8e058bbb2f6310dd0abe1f at main c17dc9dd.
+  // AUDIT-01 (2026-09-26): re-pinned — the cancel facts go through the ONE audit port:
+  // the flight quote the customer read (cancel_quoted, the sha256 of the vendor's answer
+  // bytes its evidence — the quote is not landed); the request BEFORE the vendor's answer
+  // (cancel_requested, the row as it stood); then cancelled / cancel_pending with the
+  // landed cancellation, a money_event_stated per money row that arrival wrote, or — on a
+  // flight 409 — cancel_refused and nothing else; the email's outcome. The gate reads
+  // updatedAt for the request's evidence. The vendor calls, the landing and every write
+  // are unchanged; an audit failure is named and never fails the cancel.
+  // Was d9b52813b8bf26b624a6f476a1def46a9f1e37085d30f5ee58d9199b2eb9e9fe at main 651c2f0e.
+  // GUEST-02 (2026-09-30): re-pinned — the route is the account's GATE only: the quote and the cancel moved word for word into the one cancel flow (src/lib/reservations/cancelFlow.ts), which each verb awaits inside its try with the account's caller (the signed-in human, the account's email). The URL, the auth chain and every answer are unchanged; an unexpected lane throw now reaches the route's named 500.
+  // Was b3c8bad8121ece5e4aa0413d3e340290ac71773e2a73da8632efa888635350b5 at main 6e71ad0d.
+  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: 'bec175908237033d64af8221935b92a3ad37ddc02689b233c3b745f9c32d85ad' },
+  // GUEST-02 (2026-09-30): pinned — the guest's cancel gate: the signed session, the IP, 10 per IP then 5 per reservation per 15 minutes, the row read again as still a guest's (bookingType 'guest', userId null, liteapi or duffel) — then the SAME cancel flow, with the guest's caller (humanActor(null, ip)); never cached.
+  { file: 'src/app/api/guest/booking/cancel/route.ts', sha256: 'f1d3bafcf93eb9a652c51fd36f07970fc87ed76936957ae249f96d0ec8ad17fb' },
+  // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
+  // reservations.lane (src/lib/reservations/lane.ts); the local PROVIDER_TYPE map and
+  // hotelName ?? provider are gone. The auth chain and the one field it writes are unchanged.
+  // Was bf98a65cb2feed22731b09e1d6b3d21f4935fc5f021637e83884b23a9e30767f at main 8f06554c.
+  // SEC-03 (2026-09-25): re-pinned — amountUsd is null when the vendor stated no
+  // price (finalPriceCents NULL), never 0, never NaN. The auth chain and the one
+  // field it writes are unchanged.
+  // Was fce57d7972405b76cd952cb03fe5a49a244c877634265292acd750e3e05d0805 at main a5e66262.
+  // LINK-02 (2026-09-27): re-pinned — the attach/detach PATCH refuses (409 by name) to
+  // move a booking that is linked to a budget line off its trip; the owner unlinks
+  // first (src/lib/trips/budgetLinkGuard.ts). The gate reads the row's tripId. It still
+  // writes only tripId; no booking, payment or provider call changed.
+  // Was 07c3516b62db9eefea307b5008511d8526ffaca78329c17df4e9fe90dc5adcbc at main 7689c9c8.
+  { file: 'src/app/api/reservations/[id]/route.ts', sha256: '3cbde7c39417faad1df8d5e8981705b3ea4d4a43ffb75b4da2557fbf97da64fd' },
+  // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
+  // reservations.lane; the local PROVIDER_TYPE map and hotelName ?? provider are gone.
+  // The query and its scoping are unchanged.
+  // Was 632107557b1fb4b7de840fb2ff0785bf643a3a28f3e5a2a6d337fed4c71720d0 at main 8f06554c.
+  // SEC-03 (2026-09-25): re-pinned — amountUsd is null when the vendor stated no
+  // price (finalPriceCents NULL), never 0, never NaN. The query and its scoping are
+  // unchanged.
+  // Was 2d2574dd7b250537bf307c0ef4e23da200aa3f074ded2e8dbef801fcdcf52a72 at main a5e66262.
+  { file: 'src/app/api/reservations/unattached/route.ts', sha256: '44b5f0738beab3381fd656e31ce7b7a9082f02e679e1ae9ff6d1b1538f969634' },
+  // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
+  // reservations.lane; the local PROVIDER_TYPE map and hotelName ?? provider are gone.
+  // The query and its ownership gate are unchanged.
+  // Was 4d58cfc052f756c30c749383654a5de88184d8cda068a3c00342abba4dbf07da at main 8f06554c.
+  // SEC-03 (2026-09-25): re-pinned — amountUsd is null when the vendor stated no
+  // price (finalPriceCents NULL), never 0, never NaN. The query and its ownership
+  // gate are unchanged.
+  // Was c4c2c2a391eed73310f34545a9ab63838325f8f1bbee8467ab86cc9d6e9df110 at main a5e66262.
+  { file: 'src/app/api/trips/[id]/reservations/route.ts', sha256: '8330e076bcee9acfbf0ccb02dfd58fe311dd1f7c8093bdd8d2d567e37c978c77' },
+  // the surfaces the Search section mounts, and the panels they open
+  // ACTIVITY-01 (2026-09-22): re-dated — the Things-to-do mount loses the inert fan-out props (the search fires only on the SEARCH press) and gains authed / currentTrip / onCommitted like flights, so a tour can be saved to the selected trip (STEP 4). A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was 4eaae575daae7dcbf0795a40547cf1613af7aa03e2e675bf4aed9ad182642522 at main dfc02881.
+  // EVENTS-01 (2026-10-30): re-pinned — the Events mode keeps its key and label, loses the Soon badge, reads 'Events — book around them.' and its panel is its own node: one sentence and a jump link to the experiences section (#events) directly under the strip on the guest landing. Insurance and esim keep ComingSoonSection and their badges byte for byte. Display is not booking; no prebook/book/pay/cancel call changed.
+  // Was 034fad01ae1bed8946ae5af5f2dacc239fe373ea3f69d5d7aedb129e89fd67b1 at main f1c63aef.
+  // EVENTS-01b (2026-10-30): re-pinned — the builder takes a required eventsAnchor per surface: '#events' on the guest landing keeps EVENTS-01's jump panel with its link named by the caller, null on the app's travel tab restores the Events mode byte for byte as it stood at f1c63aef (EVENTS_MODE_SOON: the Soon badge, 'Events — coming soon.', ComingSoonSection). Insurance, esim and the five live modes are untouched. Display is not booking; no prebook/book/pay/cancel call changed.
+  // Was ed3e4fa32aae451885b69ba12055383b13960375d30acc611bf14d73c7a002fb at main c3a02894.
+  { file: 'src/components/trips/travelStripModes.tsx', sha256: '64cceb629d68bab227951417a6bc911c1c69385c3bf2348a575b527db63e9e37' },
+  // FILTER-01 (2026-09-25): re-dated — the filter bar (HotelFiltersBar, defined in HotelResultsView.tsx) is mounted INSIDE this form, above the Search button, with its statement line; the results view no longer draws it after the first search. Same five controls, same state, same handler, same defaults, same request. A filter change fires no search; only the press does, counted. Display is not booking; no prebook/book/pay/cancel call changed.
+  // Was 8d01db1092abc44b2bae573bb004468bb8bc4ab3a3530c510c0ed04332ed63f1 at main e67263dc.
+  // HOTEL-01 (2026-09-22): re-pinned — the filters on the screen, sent on Search, counted; Book and Save act on the selected rate; the property's stated clock on commit. Search and display are not booking; no prebook/book/pay/cancel call changed.
+  // Was f2c48b9a3e8aff1ec2fd64a3ead5b1d03f6e4d9f66a60777b25ec1b37da3bb27 at main d56b2cc9.
+  // HOTEL-02 (2026-09-22): re-dated — Save names the vendor's hotel and sends no clock; the note repeats what the commit stored. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
+  // Was 1924a700c5f1e412a019ccaf09804eb1f8ab39984f9c2343f07d8e50aed6fced at main 81045434.
+  // TRAVEL-ROW-01 (2026-09-23): re-dated — the CheckoutPanel it mounts moves out of the tail of the page into <HotelResultsView/>'s `checkout` slot, so it opens in the strip under the selected rate; the panel's own file and the props it is given are unchanged. display is not booking; no prebook/book/pay/cancel call changed.
+  // Was b397182c40ff6f5e96c712f1bbbfefe5d27993c7c2480138b0a00a2cee8ea062 at main 97d6db04.
+  { file: 'src/components/trips/PublicHotelSearch.tsx', sha256: 'd53a4d23b49abb84c0e64cd7402c28693a28b87e05a2e6a0842d84f8dca8c4d1' },
+  // FLIGHT-01 (2026-09-22): re-pinned — the leg carries the screen's filters; the search request carries them; a session search count. Search is not booking; no prebook/verify/book/pay/cancel call changed.
+  // Was fac335657e50b3fda3be9cf82053fce7f56f04f2c079a1f1a6c6f2c125d11359 at main b9eac34a.
+  // TRAVEL-ROW-01 (2026-09-23): re-dated — the LiteApiFlightCheckoutPanel it mounts moves out of the tail of the page into <FlightPickerView/>'s `checkout` slot, so it opens in the strip under the selected fare; the panel's own file and the props it is given are unchanged. display is not booking; no prebook/book/pay/cancel call changed.
+  // Was 4d7573d8600f0502fa42bfaadec3375d4d220dfaf2c357a9ceef2244ec9c7099 at main 97d6db04.
+  // LANE-01 (2026-09-25): re-pinned — the flight checkout is handed the selected trip exactly as the hotel checkout is (PublicHotelSearch.tsx:301): tripId only under authed === true && currentTrip, so a guest and the homepage book standalone. One prop on the mount; search and display unchanged; no prebook/book/pay/cancel call changed.
+  // Was 6191de221cc37a2bcaddf499a903c0374d5f3488a9f79120b50e094af2975522 at main 8f06554c.
+  { file: 'src/components/trips/PublicFlightSearch.tsx', sha256: 'b56a91016a338168bd3e98a6d007161669e932722103adfea9791ca17f1075c7' },
+  // FILTER-01 (2026-09-25): re-dated — the filter bar (ActivityFiltersBar, defined in ActivityPickerView.tsx) is mounted INSIDE this form, above the Search button, with its statement line; the picker no longer draws it after the first search. Same eight controls, same state, same handler, same defaults, same request; Next still repeats the sent filters at the vendor's cursor and a change restarts from page one. Display is not booking; no prebook/book/pay/cancel call changed.
+  // Was 3b5d514913678b088707de7ffae6f897cf648edc99e12b576b3bfaa64fe15775 at main e67263dc.
+  // ACTIVITY-01 (2026-09-22): re-dated — the filters on the screen, sent on Search as the vendor's names, counted; the vendor's start cursor pages through its total; the picker view renders the cards; the nonce fan-out and the sign-up Book are gone; STEP 4 adds the Save — a date inside the trip, the ONE authed options read, the party from the operator's stated bands, the priced options and the commit. STEP 4b: the screen prices the SEALED quote and posts it back with its seal, the party and (for a variable duration) the end it picked inside the operator's stated range — no figure, no note, no clock. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was 0251b470ea74f8cd787f0b5f6436f32e44615c29f00b6a757ea70bf79c1e2e03 at main dfc02881.
+  // TRAVEL-ROW-01 (2026-09-23): re-dated — the tour's Save and the operator's end-time range move from a block after the options table onto the option row they act on; a tour is booked on Viator, so its Book is that same outbound link and no checkout mounts here. display is not booking; no prebook/book/pay/cancel call changed.
+  // Was 2616ed37333062113444952b570e492da46267e58149bf497a21f125051a9416 at main 97d6db04.
+  // FINISH-01 (2026-09-28): re-pinned — layout only. Below sm the tour's option rows are cards (src/lib/travel/phoneCard.ts) with their column words from one constant. fetchPage, showStartTimes and save — every function that reads or posts — are byte-identical; only markup changed.
+  // Was a489dd3e6cba55eb4ba7b3cf207b74dd98bfb4c709e554cdb284560b775465d0 at main 3cd8872f.
+  { file: 'src/components/trips/PublicActivitySearch.tsx', sha256: 'eade0fd43f00b6df7ad37a0872b4c10f58cdd09f3dff972135479a77cec0e552' },
+  // FINISH-01 (2026-09-28): re-pinned — the filters sit above Search. The sort and the minimum rating (ResultsFilterBar, unchanged controls) mount in this form before its submit and their two values are held here (two useState lines); runSearch is byte-identical — the request is still city and country. No booking call exists here.
+  // Was b508381f1a7c388eded9c139e7d5b76bd560e36d8db085e440a2eac0cb84a9c4 at main 3cd8872f.
+  { file: 'src/components/trips/PublicTransferSearch.tsx', sha256: '3f9c65d41b4855992a2166a9b93e6f54048861f564c98f4c7d4652a50e033e27' },
+  { file: 'src/components/trips/PublicVisaCheck.tsx', sha256: 'd18df6a909cbd6bbb4332ce84648f7f87b7df6936b2523223f8f5575fb40b507' },
+  { file: 'src/components/trips/PublicCategorySearch.tsx', sha256: '26c51b4c613f0011b5aa7d7015d839eceb26c10616960c82010986b708023771' },
+  // FILTER-01 (2026-09-25): re-dated — the five filter controls, the count and the statement line move out of this view into an exported HotelFiltersBar the container mounts in its form above Search; the view renders the cards and reads `filters` for the per-night range only. Display is not booking; no prebook/book/pay/cancel call changed.
+  // Was b5405ea31e528611c0a569bdb413674ba2fc10a9b5270fdf4c97e02b6916f80c at main e67263dc.
+  // HOTEL-01 (2026-09-22): re-pinned — one card per hotel with its rates, the filter bar, the lowest-rate line, the difference line, the env-honest footer. Search and display are not booking; no prebook/book/pay/cancel call changed.
+  // Was c73147fe7242acc8a3f70e9471beaafa43b65a479e1ee6b02019c37187734a95 at main d56b2cc9.
+  // HOTEL-02 (2026-09-22): re-dated — the catalog's guest rating names its documented scale (/10). The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
+  // Was 3520aeb26fb0be39ee4c108583cb92da4a6e843f91029411bd63030a26924f20 at main 81045434.
+  // TRAVEL-ROW-01 (2026-09-23): re-dated — the selection bar that sat after the whole table is deleted and its actions — Clear, Save to trip, Book, the difference over the lowest — render in a full-width strip directly beneath the selected rate row. display is not booking; no prebook/book/pay/cancel call changed.
+  // Was 54594766ceda7c43d3caa055c91490ed4202896eea92ce3d1254c815f6876122 at main 97d6db04.
+  // FINISH-01 (2026-09-28): re-pinned — layout only. Below sm a hotel, its rates and the action strip are cards (src/lib/travel/phoneCard.ts); the header words come from one constant the card labels read; the stars value sits in its own data-hotel-stars span. HotelFiltersBar, the selection and Book are unchanged — only markup changed.
+  // Was cc27467be798a446c716f083867d2fd4799306405f20021685869bf9ac4e9689 at main 3cd8872f.
+  { file: 'src/components/trips/HotelResultsView.tsx', sha256: 'c467f135f0d711d77db70244d8f1f739f9ea6ae829a157a7b284a5953bf69562' },
+  // FINISH-01 (2026-09-28): re-pinned — layout only. Below sm a flight, its fares and the action strip are cards (src/lib/travel/phoneCard.ts); the header words come from one constant the card labels read. Every handler, the SEARCH press and the filter bar are unchanged — only markup changed in the view's functions (the FINISH-01 function diff).
+  // Was a02b7addacddafac6c59a625e4d29c5194202f1e7dfe997b0ba782e41ae4dcbe at main 3cd8872f.
+  // FILTER-01 (2026-09-25): re-dated — per leg, the field strip is the fields alone (FROM · TO · DEPART · RETURN · TRIP), the six filter controls and their statement follow, and the leg's actions (✕ · the session count · SEARCH) close the leg beneath them; SEARCH used to sit at the strip's right end above the bar. Same controls, same state, same handler, same request. Display is not booking; no prebook/book/pay/cancel call changed.
+  // Was 194e7f78bbc2e42650cbd318f6e484c51ebcad01e4774e2ff193424d9c7d2a24 at main e67263dc.
+  // FLIGHT-01 (2026-09-22): re-pinned — one row per flight with its fares, the filter bar, the lowest-fare line, the difference line. Search is not booking; no prebook/verify/book/pay/cancel call changed.
+  // Was d0f24e94fc1714dc514a18b3b84e445f1d9b75c150252f46c8b76698e9bc9587 at main b9eac34a.
+  // HOTEL-01 (2026-09-22): re-pinned — the session search count is the shared SearchCount control; no other change. Search and display are not booking; no prebook/book/pay/cancel call changed.
+  // Was 5ec7d6289a40f4f78457e5c381609d9d65686148b352eef4a1c9f5f55a1176a3 at main d56b2cc9.
+  // TRAVEL-ROW-01 (2026-09-23): re-dated — the leg's Save/Book bar that sat after the whole table is deleted and its actions — Clear, Save to trip, Book, the difference over the lowest — render in a full-width strip directly beneath the selected fare row. display is not booking; no prebook/book/pay/cancel call changed.
+  // Was e85e7187bed9099999b041ae6a05a9d87f0672ebca1b5ae4fc1451df8d64e853 at main 97d6db04.
+  { file: 'src/components/trips/FlightPickerView.tsx', sha256: '39c7891b28a5ad1e944ab12fb3b159c15a443a18835ca63e985f467e8bd5e07e' },
+  // ACTIVITY-01 (2026-09-22): re-dated — the sign-up Book (onBook) deleted; the view serves the transfers rail only and its header says so. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was f389031ad67caa345a912a41b45aeced4538fb407a91dea89acb98f6f515c97b at main dfc02881.
+  // FINISH-01 (2026-09-28): re-pinned — layout only. Below sm a transfer row is a card (src/lib/travel/phoneCard.ts; the column words from one constant) and the results box is relative (its sr-only Book header widened the page to 705px at 390). The sort and rating controls moved above Search into PublicTransferSearch's form; this view reads their values as props and keeps the rows' shown/total note. No fetch here; the Book link precedence is byte-identical.
+  // Was 8ff4b85bd317d0d94bf68c9fda888b9eb600a8606581ab664e5b63bdf1285026 at main 3cd8872f.
+  { file: 'src/components/trips/ActivityResultsView.tsx', sha256: '0a6fe304e51baecfedd727825c655c289d5a2ef2270ded03f84133273463a4aa' },
+  // TRAVEL-ROW-01 (2026-09-23): pinned — the ONE action strip all three result views render
+  // beneath the selected row: Clear, Save to trip, Book, the difference over the lowest, and the
+  // slot the container's checkout element opens in. It books nothing itself; it holds the panel the
+  // container hands it, and returns focus to the row on Close. display is not booking; no prebook/book/pay/cancel call changed.
+  // FINISH-01 (2026-09-28): re-pinned — layout only. The strip's row and its one cell are blocks below sm (PHONE_CARD.wideRow / .cell) so the strip sits full width under its card; at sm and up they restore table-row / table-cell. The focus and scroll effect, Clear, Save, Book and the checkout slot are unchanged.
+  // Was ce545ec133fa9e7ac78249e7017a45884cce041c37bba20e4f076578b4fbfaf9 at main 3cd8872f.
+  { file: 'src/components/trips/RowActionStrip.tsx', sha256: '80ba3728f8bddca4a22b7d81c0094e261d4b5cfc3fea4bfbac12d8ad3754d16f' },
+  // HOTEL-02 (2026-09-22): re-dated — the content rating renders on the scale the client types (/5, was /10) — paint only. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
+  // Was 417cf3e6cfced5f38dda66fc047218437703edbc2fd5b459a9d5f0189f15c3b6 at main 81045434.
+  //
+  // CHECKOUT-01 (2026-09-23): RE-PINNED BY ITS OWN RULING — this is the change the
+  // earlier pins demanded a ruling for. The founder pressed Book on production and
+  // the pane came up with nothing to pay with. Cause: LiteAPI's payment SDK swallows
+  // every failure in two empty catch blocks (its own handlePayment and its Stripe
+  // provider's), so handlePayment() RESOLVES having drawn nothing and the panel had
+  // no way to know. This PR gives the panel a NAMED failure state, a DOM watchdog
+  // that says so when no form arrives, and stops it printing "Enter your card to
+  // pay" beside a failure. NO prebook/book/pay/cancel CALL CHANGED: the same POST
+  // to /api/travel/liteapi/prebook with the same body, the same LiteAPIPayment
+  // config, the same returnUrl. What changed is what the customer is TOLD.
+  // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 at main 8788cb11.
+  //
+  // CHECKOUT-03 (2026-09-23): re-pinned — the card form never got APPENDED. The
+  // vendor's Stripe loader hangs forever when a js.stripe.com/v3 tag is already in
+  // the page and that tag failed: it attaches load/error listeners to a script that
+  // already settled, so its promise never resolves, createPaymentElement is never
+  // reached, and NOTHING is thrown for its empty catches to swallow. The panel now
+  // loads Stripe.js itself and waits on that real readiness signal, so the vendor
+  // takes its window.Stripe short-circuit and never enters the branch that hangs.
+  // A Stripe.js that genuinely cannot load is a NAMED failure, not a retry.
+  // No prebook/book/pay/cancel call changed.
+  // Was 3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22 at main e8fd844e.
+  // COMM-01 (2026-09-26): the panel renders the vendor's stated prebook commission
+  // or "not stated" — never a hidden 0; the type admits null. Where it mounts is
+  // untouched.
+  // Was b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46 at main 0ef428a6.
+  // LAW-02 (2026-09-27): re-pinned — a hold with no stated price or currency is the named
+  // 'prebook' failure before any card form (src/lib/checkout/prebookGate.ts), and the
+  // returnUrl no longer carries a `commission` param nothing read. Where it mounts, and
+  // the SDK hand-off, are untouched.
+  // Was ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0 at main 0ca0f678.
+  // FX-01 (2026-10-30, ruling I): re-pinned — the panel's money() no longer relabels a currency Intl
+  // does not know as dollars; its catch prints the figure WITH its code. Where it mounts, and the
+  // SDK hand-off, are untouched. No prebook/book/pay/cancel call changed.
+  // Was ef2f083e519dc885715582626205db24e0fa293e5e2b114728ecbc1646fe9782 at main f1c63aef.
+  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '6df693d3424c39da6846ad836b063f4c7bbaf990c1f19da30ccdb0b9d517350f' },
+  // FL-5b (2026-09-23): re-pinned — the panel sends the contact it already holds.
+  // The SAME address it validated and sent at prebook now rides the book call too,
+  // and the booked state says whether the confirmation went out. No payment path,
+  // no Stripe rail and no booking call changed.
+  // Was c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d at main 54f438f1.
+  //
+  // FL-4c (2026-09-23): re-pinned — the publishable key now comes from the
+  // vendor's /config, the source the HOTEL lane has always used, as the SINGLE
+  // source. The prebook answers publishableKey: null in PRODUCTION (measured),
+  // so Elements could never mount and this panel dead-ended before a card could
+  // be typed. CHECKOUT-02 and FL-4c both showed that /config's pk_live_ resolves
+  // this lane's own prebook clientSecret at Stripe (200, livemode true), so it is
+  // the same Stripe account and the right key. A /config that cannot answer is a
+  // NAMED dead end — no retry, no env key, no second source. The secretKey path
+  // is untouched, and no book/pay/cancel call changed.
+  // Was 069af3c2b1d4a13d75596473ab372b07be749c21f3f05703873f23f54cfd7e5c at main bd380379.
+  //
+  // FL-4c v2 (2026-09-23): re-pinned again — THE PANEL NOW USES THE VENDOR'S OWN
+  // DOCUMENTED PAYMENT RAIL, the one the hotel lane has used since PR-B2. LiteAPI's
+  // User Payment guide documents ONE way to take a card: load their wrapper, pass
+  // { publicKey: the ENVIRONMENT LABEL, targetElement, secretKey, returnUrl } and
+  // call handlePayment(). publicKey is not a Stripe key; the wrapper resolves the
+  // label to one itself. And the flights reference documents publishableKey as
+  // nullable — "null if not applicable" — so the null this panel used to throw on
+  // was the documented shape, never a failure. It is no longer read at all, and the
+  // hand-rolled Elements mount from the pin above is gone.
+  // Proved before rebuilding: ONE real production flight prebook (a hold, no card,
+  // nothing charged) whose clientSecret Stripe resolved with the pk_live_ the
+  // wrapper's /config returns — HTTP 200, livemode true, the prebook's own amount.
+  // Same Stripe account as hotels, so the wrapper's key fits this lane's secret.
+  // CONSEQUENCE, stated: the documented rail REDIRECTS on payment success, so this
+  // panel no longer completes the booking in-page — /booking/flight-confirm does,
+  // with the SAME book call and the same per-prebookId idempotency. CHECKOUT-01's
+  // four named failures, its watchdog and CHECKOUT-03's Stripe.js gate all ride
+  // along. No prebook, book, pay or cancel ROUTE changed.
+  // Was 21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806 at main b75c3ab1.
+  // LANE-01 (2026-09-25): re-pinned — the panel takes an optional tripId (the surface
+  // passes it under the hotel lane's rule, authed && currentTrip) and carries it in
+  // the returnUrl only when present. No payment path, no prebook call changed.
+  // Was 559fa688d4c88dfc7fc83bf1ff91fba13dff4e9cace83e83b82198a505dba98c at main 8f06554c.
+  // SEC-03 (2026-09-25): re-pinned — the returnUrl carries IDS ONLY (prebookId,
+  // transactionId, tripId when present): the contact email no longer rides the
+  // redirect. The panel states the search currency to the prebook route, which stores
+  // it beside the contact. No payment path changed; the prebook call gains one stated
+  // field.
+  // Was 6fc3a51fcf5e2a552ca7d6cd7ccf88ed0997b4b4ed77f12706cd76944d6be92c at main a5e66262.
+  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '85abd313700af8443d1f76c325c6b9bc15db3ee785011b445e3c4fe1ea16a864' },
+  // CANCEL-01 (2026-09-26): re-pinned — for a flight the dialog reads the vendor's
+  // cancellation quote on open and renders refund, penalty, currency, the confidence
+  // word with its meaning, where the refund goes and any vouchers BEFORE any Cancel
+  // control; a quote it cannot fetch is named and leaves only Keep booking. The hotel
+  // path (the stored policy) is unchanged.
+  // Was 7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d at main dccb3380.
+  // GUEST-02 (2026-09-30): re-pinned — the quote is read from the caller's quoteUrl (required, no default): the two lists pass the account's /api/reservations/<id>/cancel, the guest's page its own /api/guest/booking/cancel. Display only; no call changed.
+  // Was b8df9e669084d61c4d92c352dbd6f6b8870db9d3499b111dd9042babae6fca02 at main 6e71ad0d.
+  { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '90963621c3f8be7c6c8d8bca1d711c223d06a9bd901e74f574062ac8be3f175f' },
+  // SEC-03 (2026-09-25): re-pinned — a booking whose price the vendor did not state
+  // (amountUsd null) renders "price not stated" and is left out of the total, which
+  // says how many it left out. Display only; no call changed.
+  // Was 1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd at main a5e66262.
+  // CANCEL-01 (2026-09-26): re-pinned — Cancel is offered on the HOTEL lane only (type
+  // through the one reader), never on a flight the route would send to the hotel
+  // endpoint. Display only; no call changed.
+  // Was 65a108fefa586716edb5754feb121110366925a052b6ed22570438e76236bc15 at main dccb3380.
+  // CANCEL-01 (2026-09-26): re-pinned again — Cancel is offered on the hotel AND flight
+  // lanes (never activity); a cancel_pending row reads "cancellation requested — awaiting
+  // the airline"; the outcome line carries where the refund goes and any vouchers; the
+  // dialog is handed the lane. Display only; no call changed.
+  // Was 95ac4f8d13a1317c1d225b28ba2d9155e6537dfd2752c2c45374a04f7b95a386 at main dccb3380.
+  // RECEIPT-01 (2026-09-26): re-pinned — a "Receipt" link beside Cancel opens the
+  // owner's printable receipt (/booking/<id>/receipt: the vendor's landed words, the
+  // bank row, the ledger entry). Display only; no prebook/book/pay/cancel call changed.
+  // Was 1d76057906ef2eade1c6ff28b4532e1a66b637bccd4617cf8751281ed6f8996c at main fe50c127.
+  // LINK-02 (2026-09-27): re-pinned — each booking carries a "Budget line" control under
+  // its name: a select of this trip's budget lines (as stored, nothing pre-selected) or
+  // the linked line with Unlink, through POST/DELETE /api/reservations/[id]/budget-link.
+  // Display and the owner's link only; no prebook/book/pay/cancel call changed.
+  // Was 12cef6fc6415b72bc836edf9b9b05b613727c2a3914675a3e0e0f502a984d3c4 at main 7689c9c8.
+  // GUEST-02 (2026-09-30): re-pinned — the dialog is handed the account's quote URL (/api/reservations/<id>/cancel), and two comments say what is true now. Display only; no call changed.
+  // Was 603ec077eb2bf3fdd47672afdf842405c71c304fe01336fd764d9effd22f3e08 at main 6e71ad0d.
+  { file: 'src/components/trips/TripBookings.tsx', sha256: '7b2e3cacc5a0e56ad1f23b5cc40d2299abccefe0c3a44ada916957ac7ad0faf1' },
+  // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button
+  // (text-white → text-brand-purple, invisible on cream). Paint only; no call changed.
+  // Was d5f8e0be428de6054eb756c0301c1e064e825f6ddb013d45cc332b7ca6157492 at main b9eac34a.
+  // SEC-03 (2026-09-25): re-pinned — a booking whose price the vendor did not state
+  // (amountUsd null) renders "price not stated", never $0.00. Display only; no call
+  // changed.
+  // Was 09d7767b9a1679d0481efd506da7002b4ecfa4ee6a68f539a53e997726bda44b at main a5e66262.
+  // CANCEL-01 (2026-09-26): re-pinned — Cancel is offered on the HOTEL lane only (type
+  // through the one reader), never on a flight the route would send to the hotel
+  // endpoint. Display only; no call changed.
+  // Was dafd41592fcc127da1822b65a43d64f3d841c268f69f5b60cd23c51e0f339fa6 at main dccb3380.
+  // CANCEL-01 (2026-09-26): re-pinned again — Cancel is offered on the hotel AND flight
+  // lanes (never activity); a cancel_pending row reads "cancellation requested — awaiting
+  // the airline"; the outcome line carries where the refund goes and any vouchers; the
+  // dialog is handed the lane. Display only; no call changed.
+  // Was 611626a10215576299c4a0d2a5ef75479f872bbcd4f99f4df79f50c66d53331c at main dccb3380.
+  // RECEIPT-01 (2026-09-26): re-pinned — a "Receipt" link beside Cancel opens the
+  // owner's printable receipt (/booking/<id>/receipt: the vendor's landed words, the
+  // bank row, the ledger entry). Display only; no prebook/book/pay/cancel call changed.
+  // Was cff86c0203191650923d4eb23609098e06e21e97a53794aea6f3956daf4a8f2d at main fe50c127.
+  // GUEST-02 (2026-09-30): re-pinned — the dialog is handed the account's quote URL (/api/reservations/<id>/cancel), and three comments say what is true now. Display only; no call changed.
+  // Was 9acd17f2c336eba34f91d431cb4ab640e99d6348204c968cfaaf9b7219eb0b4e at main 6e71ad0d.
+  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: '88504f5230fa0fe4828cc2ea49c6ba14c740cd50d084034d2e3c7eaaf15ecaba' },
+  // the provider clients and their helpers
+  // HOTEL-01 (2026-09-22): re-pinned — the search half carries the vendor's filter and sort fields; every booking function is byte-identical (the hotel law pins each body). Search and display are not booking; no prebook/book/pay/cancel call changed.
+  // Was 9806e3b58ab2b8d4845e7870f89078d473d27007cae0adb247af0673907f176a at main d56b2cc9.
+  // HOTEL-02 (2026-09-22): re-dated — HotelContent types the vendor's documented check-in / check-out object; the two rating comments name their scales — types and comments only, no function body changed. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
+  // Was bbb4c9afb8a5cd6237088ce3a750bb9a22c2ef4fcbbadb25bf99db9b17413ac2 at main 81045434.
+  // STATUS-01 (2026-09-26): parseBookResult states null for an absent status (was
+  // ?? 'CONFIRMED' — the word is mapped by hotelStatus.ts only); getHotelBooking,
+  // parseHotelBookingState and hotelBookingReadObjectOf APPENDED for GET
+  // /v3.0/bookings/{id}. getBookingStatus and every other booking function untouched.
+  // Was 9840759972a7b97231ddaf0a3b51e766d78cd4922621f38519a5cbd81234f8cf at main 53900e67.
+  // COMM-01 (2026-09-26): prebookRate states null for an absent commission (was
+  // ?? 0); parseHotelBookingState states commission, distributorCommission,
+  // clientCommission, processingFee and sellingPrice verbatim, null when absent.
+  // Every booking call is untouched.
+  // Was 732d29dc045750f33357b9f3a2db911251127020fb9eba94f0d9b5e5c62f8f05 at main 0ef428a6.
+  // LAW-02 (2026-09-27): re-pinned — prebookRate states price and currency as stated or
+  // NULL (was `?? 0` / `?? 'USD'`, a $0 USD hold the vendor never gave), and the hotel
+  // recommendation mapper states an unstated rating / review count as NULL with its
+  // derived scores. No request, no endpoint, no book/pay/cancel call changed.
+  // Was 5fc1659e02a25b4ca51bb6e0b8ca422f81e690b5b5ddf1cc4484eb889aafa02b at main 0ca0f678.
+  { file: 'src/lib/liteapiClient.ts', sha256: '347facf0f863cdf05b8be74d7bf97005fa768473cd5d4119259534e785d2e66a' },
+  // LANE-01 (2026-09-25): re-pinned — one READ added: getFlightBooking (GET
+  // /flights/bookings/{id}) and its pure parser, on the same auth headers and the same
+  // non-2xx contract as the POSTs (throwFlightsNon2xx, lifted out of postFlightsAnswer
+  // so both share it — the POST's behaviour is byte-for-byte what it was). It moves no
+  // money and holds nothing. search / verify / prebook / book are unchanged.
+  // Was f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f at main 8f06554c.
+  // CANCEL-01 (2026-09-26): re-pinned — two calls added on the same auth headers and
+  // the same non-2xx contract: getFlightCancellationQuote (GET /flights/bookings/{id}/
+  // cancellations, a read that moves no money) and cancelFlightBooking (POST, no body;
+  // 200 final, 202 awaiting the airline), each with its pure parser and the raw answer
+  // riding the result; parseFlightBookingDetails also reads cancelIntentAt. search /
+  // verify / prebook / book are unchanged.
+  // Was 8130c9e36431d886f48648f2b2ae2ad4a86413d7a9037a8959a79c620b242bf7 at main dccb3380.
+  // STATUS-01 (2026-09-26): parseFlightBookingDetails reads ticketData.ticketedAt,
+  // ticketLimitTime and the PNR (order.reference.provider.pnr, else the first
+  // airlineBookings[].pnr) as stated, null when absent. Nothing else changed.
+  // Was 0bae21fb9bf0bd9664dc7418502a35e507f713d370e542b878e35e2188b3121d at main 53900e67.
+  // CAL-02 (2026-09-27): re-pinned — parseFlightBookingDetails now reads each segment's
+  // arrivalTime as stated (or null), the documented field it skipped until a segment's
+  // calendar row needed its end. A pure parser change: no request, no book/pay/cancel
+  // call, no header, no endpoint changed.
+  // Was 125814373dbf3db41c397f9cbd2c41a77bd19a139b5b96c068bb25b659d4d6b2 at main 4f7c8c2a.
+  { file: 'src/lib/liteapiFlightsClient.ts', sha256: '5a65706359e07907469a588f9d26ec9080307a6eb2caff1edfdd9a35645052a9' },
+  // FLIGHT-01 (2026-09-22): re-pinned — tri-state fare attributes, segment views with the operating carrier, the flight identity; the `!!terms` coercion gone. Search is not booking; no prebook/verify/book/pay/cancel call changed.
+  // Was d851de5d68fada3cffddd88ddcc38005b5a9c739e73c0920c213f282c30fa879 at main b9eac34a.
+  // HOTEL-01 (2026-09-22): re-pinned — the tri-state readers come from the one helper, src/lib/travel/stated.ts; no other change. Search and display are not booking; no prebook/book/pay/cancel call changed.
+  // Was e808226d162022fce929170a104ee63dd715825c933bf9d7b371e754c533aef7 at main d56b2cc9.
+  { file: 'src/lib/liteapiFlightAdapter.ts', sha256: 'dbd95eb79c6a0bd2f561e8b8a9a537f71533e6e2ad22b65893ffd174482fa31a' },
+  // ACTIVITY-01 (2026-09-22): re-dated — one raw /products/search call added for the Things-to-do route (searchProductsRaw), and STEP 4's three Save reads (getProductRaw, getScheduleRaw, fetchExchangeRatesRaw) with the rate cache the docs instruct (held to the vendor's own expiry); every existing function body byte-identical (the activity law hashes them). A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was 4232b6fc9b14e860ad3c5f9a9e6777152f2ef5b3b98ae920b58952dd0a65ce14 at main dfc02881.
+  { file: 'src/lib/viatorClient.ts', sha256: 'df1d43e813575b4a53d4db1c2992eedcfb9c4d889e4418b2ea7dbe5111b64387' },
+  { file: 'src/lib/travelBuddyClient.ts', sha256: 'b745272d633d5322d7768c755fa96571a76f7e170e182474e4660fd94f2351f1' },
+  { file: 'src/lib/flightsLane.ts', sha256: 'c39972d6fd517124ca841487c994013583f5faeb05e2001080f1bf80d6352cee' },
+  // STATUS-01 (2026-09-26): landLiteApiBookingRead (liteapi · booking_read, their_id
+  // read:<bookingId>), landLiteApiWebhookBytes and landLiteApiWebhookEvent (liteapi ·
+  // webhook, their_id = event_id) APPENDED; the booking and cancellation landings
+  // are untouched.
+  // Was 2297a1c8cf1e0de4e3255545835a909b367cc27aeaf18bf14533803f1f954aff at main 53900e67.
+  // GUEST-02 (2026-09-30): re-pinned — the cancellation landing names its owner: userId is the row's own (null for a guest row), and a guest cancel lands under guest_ref booking:<id>, as the guest's booking landed. No other landing changed.
+  // Was 7f3624eb31305dcd65f6a4be92a9c3a5e9682d8f5a0ff5ae5bc1528af051e7fb at main 6e71ad0d.
+  { file: 'src/lib/arrivals/liteapiBooking.ts', sha256: '521a763a25a3a87e6a4a56b314ae4d8528a1d7a444902849c8dc72d388ef5c98' },
+  // GUEST-02 (2026-09-30): pinned — the ONE cancel flow: the quote and the cancel, moved word for word from the account's route; each gate hands it the row it read and its caller. The actor is the caller's, the owner the row's own userId, and a guest row's email carries its manage block. Every vendor call, landing, write, refusal, answer, log and email of an account cancel is unchanged.
+  // GUEST-02b (2026-09-30): re-pinned — the cancel's success answers carry no commission: the rows moved go to the server log after the transaction, the apply leaf's way; the header says what is true of the lists. No vendor call, landing, write, refusal or email changed.
+  // Was b87f1a574c529f79bd62832ce874849f266ea583afb49a952fa6bad96be7537d at main ca276847.
+  { file: 'src/lib/reservations/cancelFlow.ts', sha256: '269938b151b24ad0be0bd24a3adbb485f0201dd40df0bbbec3125d08e0ef0002' },
+  // ACTIVITY-01 (2026-09-22): re-dated — the 'viatorsave' safe default cap (300/day: three reservations per Save attempt, ~100 attempts, the prebook precedent) joins PROVIDER_SAFE_DEFAULT_CAP; no existing bucket or function changed. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was d85603f7cc6567c02769ac997bfdc8d6112855249b44f4bde9fdd8f35ffeeeea at main dfc02881.
+  // LANE-01 (2026-09-25): re-dated — the 'liteapiflightbookingread' safe default cap (50/day) joins PROVIDER_SAFE_DEFAULT_CAP for the one GET /flights/bookings/{id} per flight booking and per retro row; no existing bucket or function changed. No prebook/book/pay/cancel call changed.
+  // Was 7bf2a177c44237379f1286b64c1f741c85ff01ea9e1498fe2f444dc82129d36f at main 8f06554c.
+  // CANCEL-01 (2026-09-26): re-dated — one bucket added, liteapiflightcancelquote (50/day),
+  // for the cancellation quote read. No existing bucket changed.
+  // Was a99293c2855a976731a192b944191f60a7f9018ec2230f86c5ee74e8db8d80cc at main dccb3380.
+  { file: 'src/lib/travelSearchQuota.ts', sha256: '54ad80c8a89572b666e7bc8f9921c55f0d317906b94fd766d559cf99be16d3cf' },
+  { file: 'src/lib/travelErrors.ts', sha256: '21461573d159b13444b054b736b659f728d5ae30cf2c3ddccb0ddc1f1fd7ee7d' },
+  { file: 'src/lib/travelSourceRegistry.ts', sha256: '93646472a2376cecc49695c98626b04f9f8caa5e8fcdf80d015bbdae05dfae65' },
+  // LEGACY-DEL-01 (2026-09-29): four pins left this census — their files were deleted with the legacy
+  // trip planner, reachable from no page since TRIPS-01 made its four pages redirects. The travel law
+  // holds each deleted (not on disk, not pinned). What each held, and its last hash:
+  //   src/components/trips/HotelGallery.tsx — the planner's hotel photo gallery. Was 64e34a08a092e0b8aed934fdf1fe5dc4416212bcc4cc4a2d3dcd855ab011b810 at main 047e2c5b.
+  //   src/components/trips/HotelMap.tsx — the planner's hotel map. Was 59b57e947baaec731a14f226b9f95434445e56286cebfd5f0ac1e234aa0cac3a at main 047e2c5b.
+  //   src/components/trips/FlightPicker.tsx — the planner's in-trip flight picker (re-pinned by the flight ruling of 2026-09-22). Was fab753b0ba0166c634fd82b95c69fa009965c170ca7f07f795105214c5429d73 at main 047e2c5b.
+  //   src/components/trips/TripPlannerAI.tsx — the AI planner (re-dated by the stay ruling, re-pinned by the stated-figure and trips-tab rulings). Was ebf0111bf70990fbdf974d2981ae14cc664b5b8dfe8173d243d99c90c13af14b at main 047e2c5b.
+  // LEGACY-DEL-02 (2026-09-30): one pin left this census — its file was deleted with the rest of the dead
+  // travel code, mounted by nothing (imported only by the showroom, itself mounted nowhere). The travel law
+  // holds it deleted (not on disk, not pinned). What it held, and its last hash:
+  //   src/components/trips/HotelPicker.tsx — the showroom's hotel picker (re-pinned by the hotel ruling of 2026-09-22). Was e869b851fb14b80d4a73e01f8113a902004498822d0f2af128f1215394972c41 at main 1cd7993b.
+];
+
+/** The pin: the sha256 hex of a file's whole text, UTF-8. */
+export function bookingFlowSha256(wholeText: string): string {
+  return createHash('sha256').update(wholeText, 'utf8').digest('hex');
+}

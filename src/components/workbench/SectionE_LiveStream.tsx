@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * src/components/workbench/SectionE_LiveStream.tsx
  *
@@ -16,7 +18,6 @@
  * token as it streams.
  */
 
-'use client';
 
 const PHASE_2_BLOCKS = [
   {
@@ -51,7 +52,7 @@ const PHASE_2_BLOCKS = [
   },
 ];
 
-export function SectionE_LiveStream() {
+export function SectionE_LiveStream({ }: { } = {}) {
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">

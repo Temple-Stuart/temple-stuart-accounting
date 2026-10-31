@@ -73,3 +73,18 @@ discover-schema.sh
 
 # tax export outputs (contain financial data — do not commit)
 /exports
+
+# Internal audit artifacts — NOT for the public repo (internal reasoning + file:line
+# codebase map + entity UUIDs). Untracked PR-2; local copies kept on disk.
+audits/
+# internal audit reports — never publicly tracked (SOC 2 posture).
+audit-reports/
+# local ops scripts — NOT for the public repo (one-off probes, data tooling,
+# machine-local automation on Alex's disk). The 8 scripts tracked before this
+# rule stay tracked (gitignore never affects tracked files; untracking = a
+# separate ruling); adding a NEW repo script deliberately requires git add -f.
+# (PR-SCRIPTS-GITIGNORE, 2026-08-06)
+scripts/
+
+# ACTIVITY-01 STEP 4c: the proof harness builds one git worktree per worker here.
+.proofs/

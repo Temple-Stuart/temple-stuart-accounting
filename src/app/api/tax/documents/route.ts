@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { TAX_DOC_TYPES, isTaxDocType } from '@/lib/tax/documentFields';
 
 export async function GET(request: Request) {
   try {
@@ -11,6 +14,9 @@ export async function GET(request: Request) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get('year');
@@ -38,6 +44,9 @@ export async function POST(request: Request) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const { tax_year, doc_type, label, data } = await request.json();
 
@@ -48,10 +57,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const validTypes = ['w2', '1099r', '1098t', '1098e', '1099b', '1099int', '1099div'];
-    if (!validTypes.includes(doc_type)) {
+    // TAX-WAGES-01: the seven types, from the one vocabulary (src/lib/tax/documentFields.ts TAX_DOC_TYPES).
+    if (!isTaxDocType(doc_type)) {
       return NextResponse.json(
-        { error: `doc_type must be one of: ${validTypes.join(', ')}` },
+        { error: `doc_type must be one of: ${TAX_DOC_TYPES.join(', ')}` },
         { status: 400 }
       );
     }
@@ -80,10 +89,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, document });
   } catch (error) {
-    console.error('Tax documents POST error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to save document',
-    }, { status: 500 });
+    return failClosedResponse('Tax documents POST', 'Failed to save document', error);
   }
 }
 
@@ -96,6 +102,9 @@ export async function DELETE(request: Request) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const { id } = await request.json();
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });

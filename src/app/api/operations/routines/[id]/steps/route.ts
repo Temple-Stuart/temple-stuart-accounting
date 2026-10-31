@@ -1,7 +1,8 @@
 /**
  * POST /api/operations/routines/[id]/steps
  *
- * Creates an ordered sub-step on a routine. user_id and entity_id are
+ * Creates an ordered sub-step on a routine. LINES-01: the step may carry its
+ * own budget_amount and coa_code — the line's cost and category. user_id and entity_id are
  * inherited from the parent routine (server-derived, client values ignored).
  * step_order is server-computed as max+1 within the routine (α-1 race-
  * acceptance: concurrent creates can collide, resolvable via PATCH).
@@ -10,17 +11,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { isValidUuid } from '@/lib/operations/parseUuid';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
+// ONEOFF-01: the LINES-01 amount rule lives in one leaf now — this writer, its
+// sibling and the create route (which writes lines with the routine) read it.
+// INTAKE-01: it reaches the line's money through planMoney.ts, with the account.
+import { trimNullable } from '@/lib/operations/routineInput';
+import { carriesPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 
-function trimNullable(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length > 0 ? t : null;
-}
 
 export async function POST(
   request: NextRequest,
@@ -97,6 +100,17 @@ export async function POST(
     const timeResult = parseTimeOrNull(body.time_of_day, 'time_of_day');
     if (timeResult.error) return timeResult.error;
 
+    // INTAKE-01: the line's amount and account, by the one rule (planMoney.ts),
+    // against the routine's book — read only when the line carries money.
+    const sent = { amount: body.budget_amount, account: body.coa_code };
+    let book: PlanBook | null = null;
+    if (carriesPlanMoney(sent)) {
+      book = await loadPlanBook(prisma, user.id, routine.entity_id);
+      if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    const money = planMoney(sent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' });
+    if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
+
     // step_order = max+1 within the routine (α-1 documented race-acceptance).
     const maxOrder = await prisma.operations_routine_steps.findFirst({
       where: { routine_id: routine.id },
@@ -117,6 +131,8 @@ export async function POST(
         location,
         duration_minutes: durationMinutes,
         notes,
+        budget_amount: money.value.amount,
+        coa_code: money.value.coaCode,
         created_by: userEmail,
       },
     });
@@ -136,10 +152,6 @@ export async function POST(
 
     return NextResponse.json({ step, isCreate: true }, { status: 201 });
   } catch (error) {
-    console.error('[Routine Step POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create routine step', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routine Step POST', 'Failed to create routine step', error);
   }
 }

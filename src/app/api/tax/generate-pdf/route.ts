@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateForm1040 } from '@/lib/form-1040-service';
 import { generateTaxReport } from '@/lib/tax-report-service';
 import { generateAllFormsPDF, generateSingleFormPDF } from '@/lib/tax-pdf-service';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 export async function GET(request: Request) {
   try {
@@ -18,6 +20,9 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get('year') || '2025';
@@ -58,9 +63,6 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error('PDF generation error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to generate PDF',
-    }, { status: 500 });
+    return failClosedResponse('PDF generation', 'Failed to generate PDF', error);
   }
 }

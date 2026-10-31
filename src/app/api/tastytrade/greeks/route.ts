@@ -3,17 +3,17 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient } from '@/lib/tastytrade';
 import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { requireAdmin } from '@/lib/require-admin';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 export async function POST(request: Request) {
   try {
     // SECURITY-PR-SEC4: TastyTrade uses a SHARED FIRM account (env creds via
     // getTastytradeClient — NOT per-user OAuth; the tastytrade_connections row is
     // just a flag that unlocks the shared session). So any caller spends/reads
-    // ALEX'S brokerage. Gate to admin BEFORE any TT call or data read — 403 for
-    // non-admins, 401 for guests. (Same requireAdmin pattern as /trading/convergence.)
-    const adminGate = await requireAdmin();
-    if (adminGate instanceof NextResponse) return adminGate;
+    // ALEX'S brokerage session. TRADE-GATE (2026-08-11): market-data reads are
+    // entitlement-gated below (tab:trade); the connection itself stays owner-scoped.
     const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -23,6 +23,13 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TRADE-GATE: entitlement-gated — the paid tab:trade key (or bundle)
+    // unlocks this endpoint; admin passes via hasTabAccess's ADMIN_USER_ID
+    // bypass (entitlements.ts:48). Market/pipeline data only — the broker
+    // CONNECTION and the shared account's balances/positions stay
+    // owner-scoped (see connect/callback + balances/positions routes).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const { symbols } = await request.json();
     if (!Array.isArray(symbols) || symbols.length === 0) {
@@ -51,28 +58,30 @@ export async function POST(request: Request) {
 
         if (!data[sym]) data[sym] = {};
 
+        // KILL-2: absent/unparseable (incl. DXFeed "NaN") → null, never 0.
+        // A true source 0 stays 0.
         if (type === 'Greeks') {
           greeksReceived++;
           Object.assign(data[sym], {
-            iv: Number(evt['volatility'] || 0),
-            delta: Number(evt['delta'] || 0),
-            gamma: Number(evt['gamma'] || 0),
-            theta: Number(evt['theta'] || 0),
-            vega: Number(evt['vega'] || 0),
-            rho: Number(evt['rho'] || 0),
-            theoPrice: Number(evt['price'] || 0),
+            iv: numOrNull(evt['volatility']),
+            delta: numOrNull(evt['delta']),
+            gamma: numOrNull(evt['gamma']),
+            theta: numOrNull(evt['theta']),
+            vega: numOrNull(evt['vega']),
+            rho: numOrNull(evt['rho']),
+            theoPrice: numOrNull(evt['price']),
           });
         } else if (type === 'Quote') {
           Object.assign(data[sym], {
-            bid: Number(evt['bidPrice'] || 0),
-            ask: Number(evt['askPrice'] || 0),
-            bidSize: Number(evt['bidSize'] || 0),
-            askSize: Number(evt['askSize'] || 0),
+            bid: numOrNull(evt['bidPrice']),
+            ask: numOrNull(evt['askPrice']),
+            bidSize: numOrNull(evt['bidSize']),
+            askSize: numOrNull(evt['askSize']),
           });
         } else if (type === 'Trade') {
-          data[sym].volume = Number(evt['dayVolume'] || evt['volume'] || 0);
+          data[sym].volume = firstNumOrNull(evt['dayVolume'], evt['volume']);
         } else if (type === 'Summary') {
-          data[sym].openInterest = Number(evt['openInterest'] || 0);
+          data[sym].openInterest = numOrNull(evt['openInterest']);
         }
       }
     });
@@ -105,7 +114,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ greeks: data });
   } catch (error: any) {
-    console.error('[Tastytrade] Greeks error:', error);
+    console.error('[Tastytrade] Greeks error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to fetch greeks' }, { status: 500 });
   }
 }

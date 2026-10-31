@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
+
 // ═══════════════════════════════════════════════════════════════════
 // WashSaleReport — surface the wash-sale endpoint in the UI.
 //
@@ -108,7 +109,7 @@ function daysBetween(iso1: string, iso2: string): number {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function WashSaleReport({ taxYear }: Props) {
+export default function WashSaleReport({ taxYear }: Props & { }) {
   const [data, setData] = useState<WashSalesResponse | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -570,13 +571,11 @@ export default function WashSaleReport({ taxYear }: Props) {
 
 // ─── Sub-components ───────────────────────────────────────────────
 
-function Metric({
-  label,
+function Metric({ label,
   value,
   muted,
   hint,
-}: {
-  label: string;
+}: { label: string;
   value: string;
   muted?: boolean;
   hint?: string;
@@ -602,13 +601,11 @@ function Metric({
   );
 }
 
-function DetailRow({
-  label,
+function DetailRow({ label,
   value,
   redIfNegative,
   amber,
-}: {
-  label: string;
+}: { label: string;
   value: string;
   redIfNegative?: boolean;
   amber?: boolean;

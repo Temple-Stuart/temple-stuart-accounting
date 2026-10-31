@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from 'react';
 
+
 interface AuditRow {
   id: string;
   created_at: string;
@@ -23,11 +24,15 @@ interface AuditRow {
   content_hash: string;
 }
 
-interface VerifyResult {
-  ok: boolean;
-  rows_checked: number;
-  message?: string;
-}
+/** VERIFY-TRUTH: three truths, discriminated — a failed request must NEVER
+ *  render as INVALID. 'invalid' may only come from the server's explicit
+ *  verdict (route.ts ok:false on a 200); anything else — non-2xx status,
+ *  network, parse — is 'failed' ("could not verify"), with the actual
+ *  error surfaced and a Retry. No fallback of any kind. */
+type VerifyResult =
+  | { state: 'valid'; rows_checked: number }
+  | { state: 'invalid'; rows_checked: number; message?: string }
+  | { state: 'failed'; detail: string };
 
 function shortHash(h: string | null): string {
   if (!h) return '—';
@@ -42,7 +47,13 @@ function relTime(iso: string): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-export function SectionI_AuditTail() {
+export function SectionI_AuditTail({ onTotals, onChain }: {
+  /** COMPLIANCE-PIPE: audit-row count reported up after each fetch, and the
+   *  chain verification's three-truth outcome after each run (the VERIFY-
+   *  TRUTH union — a failed request is 'failed', never 'invalid'). */
+  onTotals?: (t: { rows: number }) => void;
+  onChain?: (state: 'valid' | 'invalid' | 'failed') => void;
+} = {}) {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
@@ -54,7 +65,9 @@ export function SectionI_AuditTail() {
         const res = await fetch('/api/audit-log?limit=50');
         if (res.ok) {
           const body = await res.json();
-          setRows(body?.entries ?? body?.rows ?? []);
+          const list = body?.entries ?? body?.rows ?? [];
+          setRows(list);
+          onTotals?.({ rows: list.length });
         }
       } finally {
         setLoading(false);
@@ -63,18 +76,42 @@ export function SectionI_AuditTail() {
     fetchData();
     const id = setInterval(fetchData, 10000);
     return () => clearInterval(id);
-  }, []);
+  }, [onTotals]);
 
   const verifyChain = async () => {
     setVerifying(true);
     setVerifyResult(null);
     try {
-      const res = await fetch('/api/audit-log/verify-chain');
-      if (res.ok) {
-        setVerifyResult(await res.json());
-      } else {
-        setVerifyResult({ ok: false, rows_checked: 0, message: 'request failed' });
+      // VERIFY-TRUTH: POST — the route accepts POST only (verify-chain/
+      // route.ts:6); the GET here 405'd forever and painted a false
+      // INVALID. Call shape per the working twin (operations/
+      // SectionK_AuditTail.tsx:110).
+      const res = await fetch('/api/audit-log/verify-chain', { method: 'POST' });
+      if (!res.ok) {
+        // SEC-TASKS-01: the route's one 403 is the owner-only refusal — shown in
+        // its own words ({ error: 'owner_only', message }), never as INVALID.
+        const detail = res.status === 403
+          ? ((await res.json()) as { message: string }).message
+          : `request failed (${res.status})`;
+        setVerifyResult({ state: 'failed', detail });
+        onChain?.('failed');
+        return;
       }
+      const body = await res.json();
+      if (typeof body?.ok !== 'boolean' || typeof body?.rows_checked !== 'number') {
+        setVerifyResult({ state: 'failed', detail: 'malformed verification response' });
+        onChain?.('failed');
+        return;
+      }
+      setVerifyResult(
+        body.ok
+          ? { state: 'valid', rows_checked: body.rows_checked }
+          : { state: 'invalid', rows_checked: body.rows_checked, message: body.message },
+      );
+      onChain?.(body.ok ? 'valid' : 'invalid');
+    } catch (err) {
+      setVerifyResult({ state: 'failed', detail: err instanceof Error ? err.message : 'network error' });
+      onChain?.('failed');
     } finally {
       setVerifying(false);
     }
@@ -88,27 +125,49 @@ export function SectionI_AuditTail() {
         </h2>
         <div className="flex items-center gap-3 text-xs font-mono">
           <span className="text-text-muted">refresh 10s</span>
+          {/* COMPLIANCE-UX-1: the dossier anchor — the verify-chain affordance
+              is the tab's strongest verification machinery, so it takes the
+              house primary-CTA idiom (strongest-cell treatment at its existing
+              site). Same label, same handler, zero new copy. */}
           <button
             onClick={verifyChain}
             disabled={verifying}
-            className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+            className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
           >
             {verifying ? 'verifying…' : 'verify chain'}
           </button>
         </div>
       </div>
 
-      {verifyResult && (
-        <div
-          className={`text-xs font-mono mb-3 px-3 py-2 rounded border ${
-            verifyResult.ok
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}
-        >
-          {verifyResult.ok
-            ? `chain valid · ${verifyResult.rows_checked} rows checked`
-            : `chain INVALID · ${verifyResult.message ?? 'see /compliance/audit-log'}`}
+      {/* COMPLIANCE-UX-1: the verdict steps up one rung (text-sm bold) — the
+          chain's answer should be unmissable. Strings verbatim. */}
+      {/* VERIFY-TRUTH: three visually distinct verdicts. VALID + INVALID keep
+          the pre-existing chip pair; INVALID renders ONLY on the server's
+          explicit verdict and now wears the status-danger token family.
+          FAILED is the new third state — "could not verify", never a tamper
+          claim — in the DS strip family with the real error + Retry. */}
+      {verifyResult && verifyResult.state === 'valid' && (
+        <div className="text-sm font-bold font-mono mb-3 px-3 py-2 rounded border bg-green-50 border-green-200 text-green-800">
+          chain valid · {verifyResult.rows_checked} rows checked
+        </div>
+      )}
+      {verifyResult && verifyResult.state === 'invalid' && (
+        <div className="text-sm font-bold font-mono mb-3 px-3 py-2 rounded border border-status-danger/40 bg-status-danger/10 text-status-danger">
+          chain INVALID · {verifyResult.message ?? 'see /compliance/audit-log'}
+        </div>
+      )}
+      {verifyResult && verifyResult.state === 'failed' && (
+        <div className="text-sm font-mono mb-3 px-3 py-2 rounded border border-border bg-bg-row text-text-secondary flex items-center justify-between gap-3">
+          <span>
+            <span className="font-bold">could not verify</span> · {verifyResult.detail}
+          </span>
+          <button
+            onClick={verifyChain}
+            disabled={verifying}
+            className="px-2 py-0.5 text-xs border border-brand-purple/40 text-brand-purple rounded hover:bg-brand-purple-wash disabled:opacity-50"
+          >
+            Retry
+          </button>
         </div>
       )}
 

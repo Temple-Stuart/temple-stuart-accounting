@@ -1,0 +1,446 @@
+/**
+ * NAV-25 — THE RAIL IS THE SHEET.
+ *
+ * SHELL-01 invented a grouping layer — twelve "steps" — between the six
+ * families and the twenty-five tools. It cost the app its mirror of the home
+ * page: the rail showed 12 rows, so 19 of the 25 tools appeared nowhere at all.
+ * The steps layer is gone (src/lib/steps.ts deleted with it). This file is what
+ * replaced it, and it INVENTS NOTHING:
+ *
+ *   · the families are TOOL_REGISTRY's, in TOOL_REGISTRY's order;
+ *   · each family's tools are TOOL_REGISTRY's, in TOOL_REGISTRY's order;
+ *   · a tool's number is its position in TOOL_REGISTRY, 1..25;
+ *   · a tool's status, home and links are the registry's;
+ *   · a tool's PHASES are pipePhases.ts's, assigned by THE SORT below;
+ *   · a tool's gate is offer.ts's TOOL_GATE.
+ *
+ * Every heading the rail or a screen renders is therefore a family name from
+ * the registry, a tool name from the registry, or a phase name from
+ * pipePhases.ts. Nothing is retyped, reordered, renamed or invented.
+ */
+import { PIPE_PHASES, type PipePhase, type PipePillarId } from './pipePhases';
+import { TOOL_REGISTRY, doorOf, doorOfLink, type ToolDoor, type ToolEntry, type ToolStatus } from './toolRegistry';
+import type { FamilyName, ToolName } from './problemSheet';
+
+/**
+ * THE ONE NON-TOOL OWNER. Runway's 02 History and 03 Burn answer "how long can
+ * I last?" — the read on HOME — and belong to no tool. navLaw accepts exactly
+ * this name beside the twenty-five and rejects any other, so the exception
+ * cannot quietly become a second grouping layer.
+ */
+/** A door that actually opens — `doorOf` returns { kind: 'none' } for a not-built tool, and a sub-row never holds one. */
+export type OpenDoor = Exclude<ToolDoor, { kind: 'none' }>;
+
+export const HOME_OWNER = 'HOME' as const;
+export const HOME_ANSWER = 'How long can I last?';
+export type PhaseOwner = ToolName | typeof HOME_OWNER;
+
+export interface PhaseAssignment {
+  pipe: PipePillarId;
+  /** The phase's own number, exactly as pipePhases.ts numbers it — never renumbered. */
+  num: string;
+  owner: PhaseOwner;
+  /**
+   * Does this phase render a surface anywhere? TRUE for 47 of the 49. The two
+   * exceptions are DECLARED IN THE CODE, not judged here, and are recorded
+   * rather than tidied away: a phase that computes but does not render is
+   * still its owner's phase.
+   */
+  rendersSurface: boolean;
+  /** Required when rendersSurface is false: the file:line that declares it. */
+  surfaceNote?: string;
+}
+
+/**
+ * THE SORT — every one of the 49 phases, to exactly one owner.
+ *
+ * Verified row by row against pipePhases.ts and the components. Two rows of the
+ * ruled table are CORRECTED because the code contradicts them; both are
+ * reported rather than silently applied:
+ *
+ *  · travel 04 Ledger / 05 Reconcile were ruled to Expenses. The registry's own
+ *    Expenses row says the opposite in as many words — "trip cost split on the
+ *    trip planner … is Travel's, not an expenses tool" (toolRegistry.ts:140) —
+ *    and Expenses is NOT_BUILT with no home. Both phases rendered inside the
+ *    travel tab's own strip; since TRAVEL-01 (2026-09-19) that strip is gone and
+ *    they are the tab's Ledger and Unattached sections (ModuleLauncher.tsx,
+ *    data-travel-section="ledger" / "unattached"). CODE WINS: they are
+ *    Travel's, and Expenses stays a not-built row with no phases.
+ *
+ *  · runway 01 Source and 02 History render NO SURFACE. ModuleLauncher declares
+ *    it: "01 Source / 02 History are STATE-ONLY cells (no surface exists in
+ *    this tab …); clicking them no-ops" (:619-626), and the handler excludes
+ *    their keys by type (:646-648). The assignment stands as ruled; the fact is
+ *    recorded on the phase.
+ */
+export const THE_SORT: readonly PhaseAssignment[] = [
+  // books — 01 is the account feed (Banking's), 02..06 are the ledger's.
+  { pipe: 'books', num: '01', owner: 'Banking', rendersSurface: true },
+  { pipe: 'books', num: '02', owner: 'Bookkeeping', rendersSurface: true },
+  { pipe: 'books', num: '03', owner: 'Bookkeeping', rendersSurface: true },
+  { pipe: 'books', num: '04', owner: 'Bookkeeping', rendersSurface: true },
+  { pipe: 'books', num: '05', owner: 'Bookkeeping', rendersSurface: true },
+  { pipe: 'books', num: '06', owner: 'Bookkeeping', rendersSurface: true },
+  // trade — the split is at the existing 03/04 boundary; 06 already carries the
+  // link target 'books', which is Bookkeeping's, and stays Trade Log's phase.
+  { pipe: 'trade', num: '01', owner: 'Brokerage', rendersSurface: true },
+  { pipe: 'trade', num: '02', owner: 'Brokerage', rendersSurface: true },
+  { pipe: 'trade', num: '03', owner: 'Brokerage', rendersSurface: true },
+  { pipe: 'trade', num: '04', owner: 'Trade Log', rendersSurface: true },
+  { pipe: 'trade', num: '05', owner: 'Trade Log', rendersSurface: true },
+  { pipe: 'trade', num: '06', owner: 'Trade Log', rendersSurface: true },
+  // travel — all five are Travel's (the correction above).
+  // TRAVEL-01 (2026-09-19): Travel still OWNS all five, and none is DRAWN — the
+  // cockpit's travel tab is plain sections now (ModuleLauncher.tsx, the travel
+  // block); what each phase held survives as a section, never a phase.
+  ...(['01', '02', '03', '04', '05'] as const).map((num): PhaseAssignment => ({ pipe: 'travel', num, owner: 'Travel', rendersSurface: false,
+    surfaceNote: 'TRAVEL-01 (2026-09-19): drawn nowhere — the travel tab renders no StageStrip (src/components/home/ModuleLauncher.tsx, data-travel-section); its sections hold the capability' })),
+  // runway — the four-way split as ruled, with the two declared state-only cells.
+  // TRIPS-01 (2026-09-29): both citations re-read — the note moved +20 lines with the
+  // Travel tab's ?trip reader (was :622-629); the handler was cited :649-651, stale
+  // already on main 536c862b (it stood at :654-658), and is cited where it stands.
+  // TIME-02 (2026-10-19): the two citations below moved up twenty lines when the cockpit's hidden Content tab was
+  // deleted above them in ModuleLauncher.tsx (nav.test.ts holds the marker to the cited range); the words are unchanged.
+  // WORK-01 (2026-10-24): fifty-nine lines further up again — the cockpit's Routines and Projects panels (and the dead renderBody) left above them.
+  // HOME-01 (2026-10-24): twenty lines further down — the day card's mount (and its note) went in above the Runway panel's shell card.
+  // HOME-03 (2026-10-27): sixteen lines back up — the day card's mount left the panel for /home; a four-line note stands where it was.
+  // COCKPIT-PERF-01 (2026-10-27): 106 lines further down — tabOfPath and the Books panel (the Books reads left the launcher's body for it) went in above, with the panels' one-mount note.
+  // BOOKS-GATE-01 (2026-10-28): seven lines further down — the cockpitSums import and the Books panel's notes (its export, its sums, its accounts list) went in above.
+  // BOOKS-GATE-01b (2026-10-28): two lines further down — the Books panel's catch logs its thrown reason.
+  { pipe: 'runway', num: '01', owner: 'Banking', rendersSurface: false,
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:682-689 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :714-718' },
+  { pipe: 'runway', num: '02', owner: HOME_OWNER, rendersSurface: false,
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:682-689 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :714-718' },
+  { pipe: 'runway', num: '03', owner: HOME_OWNER, rendersSurface: true },
+  { pipe: 'runway', num: '04', owner: 'Bookkeeping', rendersSurface: true },
+  { pipe: 'runway', num: '05', owner: 'Budget', rendersSurface: true },
+  // the five pipes that belong whole to one tool
+  ...(['01', '02', '03', '04', '05', '06', '07'] as const).map((num): PhaseAssignment => ({ pipe: 'tax', num, owner: 'Tax', rendersSurface: true })),
+  ...(['01', '02', '03', '04', '05', '06'] as const).map((num): PhaseAssignment => ({ pipe: 'compliance', num, owner: 'Compliance', rendersSurface: true })),
+  // PLAN-01 (2026-09-17): routines were CALENDAR's. Tasks owns them now, beside
+  // the projects pipe — the two are one act of planning: a routine is a
+  // recurring commitment that generates recurring spend (operations_routines
+  // carries a per-occurrence budget_amount + COA, HB-4a), a project is a body of
+  // work whose tasks generate spend (operations_project_tasks carries
+  // estimated_cost_usd, actual_cost_usd and coa_code). The calendar authors
+  // nothing: everything in the app logs TO it.
+  //
+  // THIS LINE IS THE ONE PLACE PIPE OWNERSHIP IS DECLARED. The registry's per-tool
+  // `phases` are DERIVED from it (nav.ts:201 `phases: phasesOf(tool.name, sort)`),
+  // so there is no second list to keep in step — see the PR body's STEP 1.
+  // TASKS-01 (2026-09-18): Tasks still OWNS both pipes, and neither is DRAWN.
+  // /tasks is two lists; what each phase held survives as a plain control on a
+  // row (SectionE_Routines.tsx, TruthMachineView.tsx), never as a phase. The
+  // flag says so rather than letting the opener or the sheet imply a strip —
+  // hidden, not lying — until PIPES-01 retires the two pipes outright.
+  ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'routines', num, owner: 'Tasks', rendersSurface: false,
+    surfaceNote: 'TASKS-01 (2026-09-18): drawn nowhere — /tasks renders no StageStrip (src/app/tasks/page.tsx); the capability is plain controls in src/components/workbench/operations/SectionE_Routines.tsx' })),
+  ...(['01', '02', '03', '04', '05', '06'] as const).map((num): PhaseAssignment => ({ pipe: 'projects', num, owner: 'Tasks', rendersSurface: false,
+    surfaceNote: 'TASKS-01 (2026-09-18): drawn nowhere — /tasks renders no StageStrip (src/app/tasks/page.tsx); the capability is plain controls in src/components/workbench/operations/projects/TruthMachineView.tsx behind the row\'s "pipeline" button' })),
+  // TIME-02 (2026-10-19): the content pipeline is retired — its components and routes are deleted; /time is the day card
+  // and the task ledger (the city ledger until LEDGER-02, 2026-10-19, renamed it), and draws no strip. The pipe stays DEFINED and owned (pipePhases.ts, THE SORT) until PIPES-01
+  // retires it, declared undrawn in the TASKS-01 idiom.
+  ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'content', num, owner: 'Time', rendersSurface: false,
+    surfaceNote: 'TIME-02 (2026-10-19): drawn nowhere — /time renders no StageStrip (src/app/time/page.tsx); the day card is not a pipe; PIPES-01 retires the pipe' })),
+];
+
+/** A phase as a screen renders it: the pipe's own row, plus who owns it. */
+export interface NavPhase extends PipePhase {
+  pipe: PipePillarId;
+  rendersSurface: boolean;
+  surfaceNote?: string;
+}
+
+/** A tool's row in the rail, and the model its screen reads. */
+export interface NavTool {
+  /** 1..25 — the tool's position in TOOL_REGISTRY, never a typed number. */
+  n: number;
+  name: ToolName;
+  family: FamilyName;
+  status: ToolStatus;
+  phases: readonly NavPhase[];
+  /** What a customer opens, or null when there is nothing to open. */
+  href: string | null;
+  /** The registry's own door — a cockpit section keeps its cockpit key, so the rail switches the tab in place exactly as before. */
+  door: OpenDoor | null;
+  /** The offer gate the tool's routes carry, or null when it is free. */
+  gate: string | null;
+  /** The registry line the screen prints under the tool's name, or null when the registry has none. NEVER the citation. */
+  line: string | null;
+  /**
+   * The pages this tool OWNS that are not its screen — the registry's own
+   * `links`, through the registry's own doors. They render as sub-rows beneath
+   * the tool's row when it is the open one, which is how /chart-of-accounts,
+   * /dashboard/tax-filing, /soc2, /shopping and /hub/itinerary keep their doors
+   * (TRIPS-01, 2026-09-29: Travel has none — its legacy pages are redirects): inside the tool they belong to under THE SORT, never as a
+   * top-level row and never pointing at another tool's screen (navLaw rule 7).
+   */
+  subRows: readonly { label: string; door: OpenDoor }[];
+}
+
+export interface NavFamily {
+  name: FamilyName;
+  tools: readonly NavTool[];
+}
+
+const phaseRow = (a: PhaseAssignment): NavPhase => {
+  const row = (PIPE_PHASES[a.pipe] as readonly PipePhase[]).find((p) => p.num === a.num);
+  if (!row) throw new NavLawError(`${a.pipe} has no phase ${a.num} — THE SORT names one pipePhases.ts does not hold`);
+  return { ...row, pipe: a.pipe, rendersSurface: a.rendersSurface, surfaceNote: a.surfaceNote };
+};
+
+/** Every phase this owner holds, in the sort's own order — never re-sorted by name. */
+export function phasesOf(owner: PhaseOwner, sort: readonly PhaseAssignment[] = THE_SORT): readonly NavPhase[] {
+  return sort.filter((a) => a.owner === owner).map(phaseRow);
+}
+
+/** The phases HOME's "how long can I last?" read owns — the one non-tool owner. */
+export const HOME_PHASES: readonly NavPhase[] = phasesOf(HOME_OWNER);
+
+/**
+ * The door the rail opens for a tool: its OWN HOME first, and the cockpit key
+ * only when that home IS the cockpit path — so a cockpit-hosted tool still
+ * switches the tab in place, exactly as before.
+ *
+ * `doorOf` prefers the cockpit path over the home, which is right for a
+ * registry link but wrong for a rail row: Compliance's home is the standalone
+ * page /compliance (with nine child pages beneath it) while its cockpit path is
+ * the /?tab=compliance carve-out. Preferring the cockpit there is what the old
+ * rail did for LINKS, not for the step's own row — its row opened /compliance —
+ * and taking it as the tool's door would leave all nine pages doorless.
+ */
+const railDoor = (tool: ToolEntry): OpenDoor | { kind: 'none' } => {
+  const door = doorOf(tool);
+  if (door.kind !== 'cockpit' || !tool.home || tool.home === door.href) return door;
+  return { kind: 'route', href: tool.home };
+};
+
+const navTool = (tool: ToolEntry, i: number, gate: Readonly<Record<string, string | null>>, sort: readonly PhaseAssignment[]): NavTool => {
+  const door = railDoor(tool);
+  return {
+    n: i + 1,
+    name: tool.name,
+    family: tool.family,
+    status: tool.status,
+    phases: phasesOf(tool.name, sort),
+    href: door.kind === 'none' ? null : door.href,
+    door: door.kind === 'none' ? null : door,
+    gate: gate[tool.name] ?? null,
+    // BOOKS-PIPE-01: the line is the registry's `why` and NOTHING ELSE. It used
+    // to fall back to `citation` — which is internal evidence for the build laws,
+    // a list of file:line pairs — and seven tool pages printed it to customers
+    // verbatim. `why` is customer copy by construction: offer.ts's claimLine()
+    // renders it on the deck's offer cards as "partial — <why>". A tool with no
+    // `why` gets NO LINE; an empty opener line is honest, a source path is not.
+    line: tool.why?.trim() ? tool.why : null,
+    subRows: (tool.links ?? [])
+      .map((l) => ({ label: l.label, door: doorOfLink(tool, l) }))
+      .filter((r): r is { label: string; door: OpenDoor } => r.door.kind !== 'none'),
+  };
+};
+
+/**
+ * THE MODEL the rail renders. Families in TOOL_REGISTRY's order, each holding
+ * its tools in TOOL_REGISTRY's order. `gate` is injected so this leaf stays
+ * offer-free (the steps layer's one good idea, kept).
+ */
+export function navFamilies(
+  gate: Readonly<Record<string, string | null>>,
+  registry: readonly ToolEntry[] = TOOL_REGISTRY,
+  sort: readonly PhaseAssignment[] = THE_SORT,
+): readonly NavFamily[] {
+  const out: NavFamily[] = [];
+  registry.forEach((tool, i) => {
+    let family = out.find((f) => f.name === tool.family);
+    if (!family) { family = { name: tool.family, tools: [] }; out.push(family); }
+    (family.tools as NavTool[]).push(navTool(tool, i, gate, sort));
+  });
+  return out;
+}
+
+/** The 25 rows, flattened — the rail's reading order, which IS the registry's. */
+export function navRows(
+  gate: Readonly<Record<string, string | null>>,
+  registry: readonly ToolEntry[] = TOOL_REGISTRY,
+  sort: readonly PhaseAssignment[] = THE_SORT,
+): readonly NavTool[] {
+  return navFamilies(gate, registry, sort).flatMap((f) => f.tools);
+}
+
+/** The tool a name belongs to. Throws when it is not one of the 25 — a bug, not a state. */
+export function navToolByName(name: string, gate: Readonly<Record<string, string | null>>): NavTool {
+  const row = navRows(gate).find((t) => t.name === name);
+  if (!row) throw new NavLawError(`"${name}" is not one of the twenty-five`);
+  return row;
+}
+
+/** Every tool whose screen is this href — TRADE-SPLIT: no screen serves two tools any more. */
+export function navToolsOfScreen(href: string, gate: Readonly<Record<string, string | null>>): readonly NavTool[] {
+  return navRows(gate).filter((t) => t.href === href);
+}
+
+/**
+ * BOOKS-PIPE-01 — WHICH PIPES A ROUTE ACTUALLY RENDERS.
+ *
+ * THE SORT says who OWNS a phase. It does not say where that phase is drawn,
+ * and the two diverge: Bookkeeping owns runway 04 Match, which renders inside
+ * the cockpit's runway section; Banking owns books 01 Feed, which renders on
+ * /books. An opener that lists a tool's owned phases therefore advertised a
+ * pipeline the page does not have.
+ *
+ * This map is what each ROUTE renders, and the build cross-checks every entry
+ * against the real strip census (the tool law already walks each page's tree),
+ * so it cannot drift from the code.
+ */
+export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]>> = {
+  '/books': ['books'],           // BooksPipeline.tsx:328
+  // TASKS-01 (2026-09-18): /tasks draws NO strip. It is two lists — projects
+  // and routines — whose capability is plain controls on the rows; the two
+  // strips PLAN-01 declared here (projects per project row, routines
+  // page-level) are gone, and the two-lists law refuses a StageStrip anywhere
+  // in the page's tree. The pipes stay DEFINED (pipePhases.ts, THE SORT) until
+  // PIPES-01 retires them — see that ruling's scope in the TASKS-01 PR body.
+  '/tasks': [],
+  // EXPENSES-01 (Alex, 2026-10-25): /expenses draws NO strip. It is ROUTINE EXPENSES alone — the table WORK-01d put on
+  // /tasks, moved to its own tool's page — whose capability is plain controls on the rows ("+ routine", edit, deactivate,
+  // delete, the CSV), as TASKS-01 ruled for /tasks; the two-lists law refuses a StageStrip anywhere in its tree.
+  '/expenses': [],
+  // BILLPAY-01 (Alex, 2026-10-28, ruling B): /bill-pay draws NO strip. It is the bills table alone — DataTable rows with a
+  // "link payment" control (the existing link picker); Bill Pay owns no phase in THE SORT.
+  '/bill-pay': [],
+  // TIME-02 (2026-10-19): the content pipeline is retired — /time is the day card and the task ledger (the city ledger
+  // until LEDGER-02, 2026-10-19, renamed it) and draws no strip (the opener law counts its tree); the content pipe is declared undrawn in THE SORT above.
+  '/time': [],
+  // TRAVEL-01 (2026-09-19): the travel tab draws NO strip. It is the cockpit's
+  // tab (src/app/[tab]/page.tsx → ModuleLauncher), now plain sections top-down:
+  // header, trips, itinerary, search, booked, ledger, unattached. The travel
+  // pipe stays DEFINED and owned (THE SORT), declared undrawn — the TASKS-01
+  // idiom — until a PIPES ruling retires it.
+  '/travel': [],
+  '/tax': ['tax'],               // TaxFilingWizard.tsx, through TaxHandoffGate
+  // Declared EMPTY, each for a reason the audit verified:
+  '/accounts': [],   // Banking owns books 01 (drawn on /books) and runway 01 (drawn nowhere — a state-only cell)
+  '/budget': [],     // Budget owns runway 05, drawn in the cockpit's runway section
+  '/brokerage': ['trade'],  // TRADE-SPLIT: Brokerage draws trade 01-03 as its own strip (src/app/brokerage/page.tsx)
+  '/trade-log': ['trade'],  // TRADE-SPLIT: Trade Log draws trade 04-06 as its own strip (src/app/trade-log/page.tsx)
+  '/compliance': [], // Compliance owns compliance 01-06; ComplianceWorkbench is the cockpit's tab, not this page
+  // PLAN-01: the calendar authors NOTHING. It was ['routines'] until the routine
+  // builder moved to /tasks; the grid and the day view are reads over three feeds
+  // this tool does not own, so this page draws no strip at all. No law requires a
+  // tool's page to draw a pipe — tool law 2 iterates the pipes a page DRAWS, and
+  // the opener law only asks that the declaration match the code.
+  '/calendar': [],
+};
+
+/** The phases a tool owns THAT THIS ROUTE DRAWS — what an opener may honestly list. */
+export function phasesRenderedOn(route: string, tool: NavTool): readonly NavPhase[] {
+  const pipes = PHASES_RENDERED_AT[route.split('?')[0]] ?? [];
+  return tool.phases.filter((p) => pipes.includes(p.pipe));
+}
+
+export class NavLawError extends Error {
+  constructor(message: string) {
+    super(`NAV LAW: ${message}`);
+    this.name = 'NavLawError';
+  }
+}
+
+/**
+ * THE LAW. Runs at module scope and again at build.
+ *   1. the rail's flattened rows deep-equal TOOL_REGISTRY — name AND order;
+ *   2. the families appear in registry order, each once;
+ *   3. no rail row that is not one of the 25;
+ *   4. a NOT_BUILT tool has no link;
+ *   5. every phase rendered anywhere comes from pipePhases.ts, and each phase
+ *      belongs to EXACTLY ONE owner — no phase owned by nothing, by two things,
+ *      or by a second non-tool name;
+ *   6. a phase declaring it renders no surface cites where the code says so.
+ * The build adds what only the filesystem can answer: every non-null href
+ * resolves to a page file.
+ */
+export function navLaw(opts: {
+  throwOnFail?: boolean;
+  registry?: readonly ToolEntry[];
+  sort?: readonly PhaseAssignment[];
+  gate?: Readonly<Record<string, string | null>>;
+  /**
+   * The model AS RENDERED. It defaults to the derived one, so the law's subject
+   * is the rail the app actually draws — and a test can hand in a rail that
+   * reordered a family or grew a legacy row and watch it throw. Without this the
+   * order check compares the derivation to its own source and can never fail.
+   */
+  families?: readonly NavFamily[];
+} = {}): string[] {
+  const registry = opts.registry ?? TOOL_REGISTRY;
+  const sort = opts.sort ?? THE_SORT;
+  const gate = opts.gate ?? {};
+  const violations: string[] = [];
+
+  // 1 + 3. the rows ARE the registry, in order
+  const families = opts.families ?? navFamilies(gate, registry, sort);
+  const rows = families.flatMap((f) => f.tools);
+  const rowNames = rows.map((t) => t.name);
+  const registryNames = registry.map((t) => t.name);
+  if (rowNames.length !== registryNames.length || rowNames.some((n, i) => n !== registryNames[i])) {
+    violations.push(`the rail's rows are not TOOL_REGISTRY in order — rail [${rowNames.join(', ')}] vs registry [${registryNames.join(', ')}]`);
+  }
+  for (const t of rows) if (!registryNames.includes(t.name)) violations.push(`"${t.name}" is a rail row that is not one of the twenty-five`);
+  rows.forEach((t, i) => { if (t.n !== i + 1) violations.push(`${t.name} is numbered ${t.n} but sits at ${i + 1} — a number is a position, never typed`); });
+
+  // 2. families in registry order, each once
+  const familyOrder = [...new Set(registry.map((t) => t.family))];
+  const railFamilies = families.map((f) => f.name);
+  if (railFamilies.length !== familyOrder.length || railFamilies.some((f, i) => f !== familyOrder[i])) {
+    violations.push(`the families are not in registry order — rail [${railFamilies.join(', ')}] vs registry [${familyOrder.join(', ')}]`);
+  }
+
+  // 4. nothing finished-looking behind a not-built row
+  for (const t of rows) {
+    if (t.status === 'NOT_BUILT' && t.href) violations.push(`${t.name} is NOT_BUILT but links to ${t.href} — a not-built tool is a row with a status chip and no link`);
+    if (t.status === 'NOT_BUILT' && t.phases.length) violations.push(`${t.name} is NOT_BUILT but owns ${t.phases.length} phase(s) — a phase is something the product renders`);
+  }
+
+  // 5. every phase, exactly one owner; every owner a tool or the ONE declared non-tool
+  const owners = new Map<string, PhaseOwner[]>();
+  for (const a of sort) {
+    const key = `${a.pipe} ${a.num}`;
+    const pipe = PIPE_PHASES[a.pipe] as readonly PipePhase[] | undefined;
+    if (!pipe) { violations.push(`THE SORT names the pipe "${a.pipe}", which pipePhases.ts does not hold`); continue; }
+    if (!pipe.some((p) => p.num === a.num)) violations.push(`${key} is not a phase of ${a.pipe} in pipePhases.ts`);
+    owners.set(key, [...(owners.get(key) ?? []), a.owner]);
+    if (a.owner !== HOME_OWNER && !registryNames.includes(a.owner)) {
+      violations.push(`${key} is owned by "${a.owner}", which is neither one of the twenty-five nor the one declared non-tool owner (${HOME_OWNER})`);
+    }
+    if (!a.rendersSurface && !a.surfaceNote?.trim()) {
+      violations.push(`${key} declares it renders no surface without citing where the code says so`);
+    }
+  }
+  for (const [key, held] of owners) {
+    if (held.length > 1) violations.push(`${key} is owned by ${held.length} — [${held.join(', ')}]; a phase belongs to exactly one`);
+  }
+  for (const [pid, phases] of Object.entries(PIPE_PHASES)) {
+    for (const p of phases) {
+      if (!owners.has(`${pid} ${p.num}`)) violations.push(`${pid} ${p.num} ${p.name} is owned by nothing — every phase belongs to exactly one owner`);
+    }
+  }
+
+  // 7. a sub-row belongs to its own tool. A tool's sub-rows are the pages IT
+  // owns; one pointing at another tool's screen is the old rail's disease —
+  // Banking sending you to /books, Calendar to another room — and it is exactly
+  // what made the legacy sub-links unreadable as doors.
+  const screens = new Map<string, string>();
+  for (const t of rows) if (t.href) screens.set(t.href.split('?')[0], t.name);
+  for (const t of rows) {
+    for (const r of t.subRows) {
+      const owner = screens.get(r.door.href.split('?')[0]);
+      if (owner && owner !== t.name) {
+        violations.push(`${t.name}: the sub-row "${r.label}" opens ${r.door.href}, which is ${owner}'s screen — a tool's sub-row is a page it owns, never another tool's door`);
+      }
+    }
+  }
+
+  if (opts.throwOnFail !== false && violations.length) throw new NavLawError(violations.join('; '));
+  return violations;
+}
+
+navLaw();

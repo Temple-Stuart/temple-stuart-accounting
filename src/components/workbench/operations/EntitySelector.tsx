@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 
+
 export interface Entity {
   id: string;
   name: string;

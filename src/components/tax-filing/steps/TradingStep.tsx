@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
 import WashSaleReport from '../WashSaleReport';
 
+
 // ═══════════════════════════════════════════════════════════════════
 // Step 4 — Trading (Schedule D + Form 8949)
 //
@@ -204,11 +205,10 @@ const CSV_HEADERS = [
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function TradingStep({
-  taxYear,
+export default function TradingStep({ taxYear,
   onComplete,
   lifeEvents,
-}: StepProps) {
+}: StepProps & { }) {
   const [report, setReport] = useState<TaxReport | null>(null);
   const [washSales, setWashSales] = useState<WashSalesResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -889,7 +889,7 @@ function ScheduleDRow({
   line,
   label,
   bold,
-}: {
+  }: {
   line: ScheduleDLine;
   label: string;
   bold?: boolean;
@@ -908,11 +908,9 @@ function ScheduleDRow({
   );
 }
 
-function DetailRow({
-  label,
+function DetailRow({ label,
   value,
-}: {
-  label: string;
+}: { label: string;
   value: React.ReactNode;
 }) {
   return (
@@ -923,12 +921,10 @@ function DetailRow({
   );
 }
 
-function Metric({
-  label,
+function Metric({ label,
   value,
   valueClass,
-}: {
-  label: string;
+}: { label: string;
   value: string;
   valueClass?: string;
 }) {

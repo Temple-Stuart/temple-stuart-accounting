@@ -6,10 +6,13 @@
  * mounted on the public home page (account-gated) while /hub stays untouched.
  *
  * It fetches the SAME three sources the Hub merges and renders the SAME shared grid:
- *   • /api/calendar          → calendar_events (filtered to source 'trip')
+ *   • /api/calendar          → calendar_events (DAY-01: filtered to the NAMED
+ *     source allowlist in src/lib/calendar/sources.ts — was a bare `source === 'trip'`,
+ *     which threw away every home bill, planned purchase, budget line and agenda item
+ *     the app writes)
  *   • /api/operations/daily-plan/items → operations blocks (mapOperationsBlocks)
  *   • /api/hub/operations-routines     → routine occurrences (mapOperationsRoutines)
- * merged into CalendarGrid (the same component /hub + /trading use).
+ * merged into CalendarGrid (the same component /hub + /trade-log use).
  *
  * AUTH: all three routes are account-gated (NOT public). Logged IN, the component
  * fetches and renders the viewer's real calendar. Logged OUT, the home page passes
@@ -21,9 +24,19 @@ import { useEffect, useMemo, useState } from 'react';
 import CalendarGrid, { type CalendarEvent as GridEvent, type SourceConfig } from '@/components/shared/CalendarGrid';
 import HubEventCard from '@/components/hub/HubEventCard';
 import EventDetailPanel from '@/components/hub/EventDetailPanel';
+import { buildDrill, type DrillRow, type RoutineLines, type TaskCosts } from '@/lib/calendar/chain';
+import { routinePlanned } from '@/lib/operations/routineLines';
+import { parseRoutineTileId } from '@/lib/calendar/linkKeys';
 import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
 import { mapOperationsRoutines, type RoutinesWindowResponse } from '@/lib/hub/mapOperationsRoutines';
 import type { DailyPlanItem, CalendarBlockSummary } from '@/components/workbench/operations/dailyplan/types';
+// DAY-01: which calendar_events sources render, by name and with a reason each.
+import { CALENDAR_SOURCES, isRenderedCalendarSource } from '@/lib/calendar/sources';
+import DayView from '@/components/hub/DayView';
+// ONEOFF-01: the calendar AUTHORS nothing. EVENT-01's add-event form is gone
+// from here; what stays is the correction of an event entered by hand before
+// the ruling — the calendar's own row — opened from the day or the chain panel.
+import CorrectEventForm, { type EditableEvent } from '@/components/hub/CorrectEventForm';
 
 // The /api/calendar event shape (same as hub/page.tsx:25-35).
 interface CalendarEvent {
@@ -37,8 +50,14 @@ interface CalendarEvent {
   // From a raw SELECT these come back either as "HH:MM:SS" or an ISO time
   // ("1970-01-01THH:MM:SS.000Z") — toClock() normalizes both to "HH:MM".
   start_time: string | null;
+  // TRAVEL-01: the calendar feed's trip-item overlay (src/lib/calendar/tripItem.ts).
+  trip_item_id?: string | null;
+  vendor_name?: string | null;
+  item_category?: string | null;
+  item_type?: string | null;
+  provider?: string | null;
   end_time: string | null;
-  // PR-Flight-Duration-Render: a flight's TRUE elapsed minutes (Duffel). Null for
+  // PR-Flight-Duration-Render: a flight's TRUE elapsed minutes (from the flight provider). Null for
   // non-flights / older rows. The grid draws depart+duration from this, not a naive span.
   duration_minutes: number | null;
   // PR-tz-3a: the true UTC instant anchor (timestamptz → ISO string) + the airport IANA
@@ -53,6 +72,21 @@ interface CalendarEvent {
   // PR-Hotel-Daily-Amortize: the COA code (e.g. 'P-9200'). From the raw SELECT *; carried to
   // the grid so the per-day footer can identify lodging (suffix '9200') for nightly amortization.
   coa_code: string | null;
+  // DAY-01: the stored coordinates. From the raw SELECT * these arrive as Prisma
+  // Decimals, which serialize to STRINGS over JSON — so they are typed as unknown
+  // here and converted once, where they are read.
+  latitude: unknown;
+  longitude: unknown;
+  // EVENT-01: carried so a correction starts from what is stored.
+  category: string | null;
+  description: string | null;
+}
+
+/** A Decimal-from-JSON (string), a number, or null. Never NaN, never 0-for-absent. */
+function toCoord(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 // Normalize a raw TIME value to "HH:MM" (what the grid's timeToMinutes expects), or null.
@@ -69,22 +103,30 @@ function toClock(v: string | null): string | null {
 // the UMBRELLA (Projects + Routines), so the events tagged here are really PROJECT
 // events; the legend now reads "Projects". One entry here gives a layer its legend
 // chip + grid color automatically (HUB_GRID_CONFIG below + CalendarGrid). Each layer
-// uses a distinct color scale: trip=cyan, project=indigo, routines=teal, trade=amber.
-const SOURCE_CONFIG: Record<string, { label?: string; icon: string; color: string; bgColor: string; dotColor: string; calendarColor: string }> = {
-  trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
+// uses a distinct color scale: trip=cyan, project=indigo, trade=amber. Routines' teal below is drawn on no tile and no chip — the grid colours a routine tile by its account and lists the accounts in its legend; the entry still gives the day view its 🔁 icon (COCKPIT-PERF-01, 2026-10-27: "routines=teal" stood here).
+// The layers that do NOT come from calendar_events — Projects and Routines arrive
+// from their own loaders (that is why sources.ts excludes them by name), and Trade
+// is the /trade-log mount's layer. These three keep their existing styling verbatim.
+const NON_CALENDAR_LAYERS: Record<string, { label?: string; icon: string; color: string; bgColor: string; dotColor: string; calendarColor: string }> = {
   project: { label: 'Projects', icon: '🎯', color: 'text-indigo-600', bgColor: 'bg-indigo-50', dotColor: 'bg-indigo-500', calendarColor: 'bg-indigo-400' },
   routines: { icon: '🔁', color: 'text-teal-600', bgColor: 'bg-teal-50', dotColor: 'bg-teal-500', calendarColor: 'bg-teal-400' },
   trade: { icon: '📈', color: 'text-amber-600', bgColor: 'bg-amber-50', dotColor: 'bg-amber-500', calendarColor: 'bg-amber-400' },
 };
-const HUB_GRID_CONFIG: Record<string, SourceConfig> = Object.fromEntries(
-  Object.entries(SOURCE_CONFIG).map(([key, cfg]) => [key, {
+// DAY-01: every rendered calendar_events source gets its legend chip and grid colour
+// FROM THE ALLOWLIST — one list, never a second hand-kept map that could drift out of
+// step with what the filter admits. Trip keeps the cyan it always had.
+const HUB_GRID_CONFIG: Record<string, SourceConfig> = {
+  ...Object.fromEntries(CALENDAR_SOURCES.map((s) => [s.source, {
+    label: s.label, icon: s.icon, bg: s.tint.bg, dot: s.tint.dot, badge: s.tint.badge, text: s.tint.text,
+  }])),
+  ...Object.fromEntries(Object.entries(NON_CALENDAR_LAYERS).map(([key, cfg]) => [key, {
     label: cfg.label ?? (key.charAt(0).toUpperCase() + key.slice(1)),
-    icon: cfg.icon,
-    bg: cfg.bgColor,
-    dot: cfg.dotColor,
-    badge: cfg.calendarColor,
-    text: cfg.color,
-  }])
+    icon: cfg.icon, bg: cfg.bgColor, dot: cfg.dotColor, badge: cfg.calendarColor, text: cfg.color,
+  }])),
+};
+/** The per-source icon the day view falls back to when a row's own icon is null. */
+const SOURCE_ICON: Record<string, string> = Object.fromEntries(
+  Object.entries(HUB_GRID_CONFIG).map(([k, v]) => [k, v.icon ?? '']),
 );
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -120,7 +162,29 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   const [routinesWindow, setRoutinesWindow] = useState<RoutinesWindowResponse>({ routines: [], truncated: false });
   const [cardSelection, setCardSelection] = useState<{ item: DailyPlanItem; block: CalendarBlockSummary } | null>(null);
   // PR-HCR3: the clicked event for the read-only type-aware detail panel.
-  const [detailEvent, setDetailEvent] = useState<GridEvent | null>(null);
+  const [detailEvent, setDetailEvent] = useState<DrillRow | null>(null);
+
+  // DAY-01 STEP 2: the day the reader opened, 'YYYY-MM-DD'. Null = no day panel.
+  const [openDay, setOpenDay] = useState<string | null>(null);
+
+  // EVENT-01 → ONEOFF-01: the hand-entered event being corrected. Null = no
+  // correction open. Nothing is ever ADDED from here.
+  const [editEvent, setEditEvent] = useState<EditableEvent | null>(null);
+
+  /** One merged-grid row → what the correction form needs. Pure; it reads no route. */
+  const editableOf = (e: GridEvent): EditableEvent => ({
+    id: e.id,
+    title: e.title,
+    date: (e.startDate ?? '').slice(0, 10),
+    startTime: e.startTime ?? null,
+    endTime: e.endTime ?? null,
+    category: e.category ?? '',
+    cost: e.budgetAmount ?? null,
+    location: e.location ?? null,
+    coaCode: e.coaCode ?? null,
+    latitude: e.latitude ?? null,
+    longitude: e.longitude ?? null,
+  });
 
   // ── The 3 calendar loaders — SAME logic as hub/page.tsx:192-294. ──
   const loadCalendar = async () => {
@@ -129,7 +193,10 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       if (res.ok) {
         const data = await res.json();
         const raw = (data.events || []) as CalendarEvent[];
-        setEvents(raw.filter((e) => e.source === 'trip'));
+        // DAY-01 STEP 1: the bare `e.source === 'trip'` is gone. Every source the
+        // app writes and the calendar renders is named in src/lib/calendar/sources.ts
+        // with its writer and its reason; what is not rendered is named there too.
+        setEvents(raw.filter((e) => isRenderedCalendarSource(e.source)));
       }
     } catch (err) { console.error('Failed to load calendar:', err); }
   };
@@ -202,12 +269,28 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       // PR-Hotel-Daily-Amortize: pure passthrough (mirrors durationMinutes) — the footer reads
       // it to amortize lodging (coa_code suffix '9200') to a nightly rate.
       coaCode: e.coa_code ?? null,
+      // DAY-01: carried through so the day view can plot what is stored.
+      latitude: toCoord(e.latitude),
+      longitude: toCoord(e.longitude),
+      category: e.category ?? null,
+      description: e.description ?? null,
+      // TRAVEL-01: the calendar feed overlays a committed trip item's own row onto
+      // its vendor calendar row — its id, vendor, place, provider and (for a
+      // date-only category) its block window. Carried as-is; the block's detail
+      // line names the vendor beside the category so the grid reads it.
+      vendor: e.vendor_name ?? null,
+      provider: e.provider ?? null,
+      tripItemId: e.trip_item_id ?? null,
+      itemType: e.item_type ?? null,
+      ...(e.trip_item_id
+        ? { details: [[e.vendor_name, e.item_category].filter(Boolean).join(' · ')].filter((d) => d.length > 0) }
+        : {}),
     }));
     // mapOperationsBlocks is SHARED with /hub and still emits source:'operations'
     // there; remap to 'project' HERE so these land on the renamed Projects layer
     // without touching the shared mapper or /hub (PR-HCR-LAYERS).
     const projectEvents: GridEvent[] = mapOperationsBlocks(operationsItems).map((e) => ({ ...e, source: 'project' }));
-    // mapOperationsRoutines sets href:'/operations/routines'; on the master calendar
+    // mapOperationsRoutines sets href:'/calendar' (ORPHAN-01); on the master calendar
     // we want a routine click to open the detail panel, not navigate away. Drop the
     // href HERE (PR-HCR3.2) so CalendarGrid falls through to onEventClick — same
     // local-remap pattern as the project source above. The shared mapper is untouched,
@@ -228,8 +311,67 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
         if (block) { setCardSelection({ item, block }); return; }
       }
     }
-    setDetailEvent(event);
+    setDetailEvent(drillOf(event));
   };
+
+  /**
+   * DRILL-01: the two figures a project block's task carries, keyed by the BLOCK
+   * id the grid uses. mapOperationsBlocks collapses them into one `budgetAmount`
+   * (actual ?? estimated), so the panel reads the columns apart from the items
+   * this component already holds. Nothing is fetched for it.
+   */
+  const taskCostsByBlock = useMemo(() => {
+    const m = new Map<string, TaskCosts>();
+    const num = (v: string | null | undefined): number | null => {
+      if (v == null || String(v).trim() === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    for (const item of operationsItems) {
+      const costs: TaskCosts = {
+        estimated: num(item.task?.estimated_cost_usd),
+        actual: num(item.task?.actual_cost_usd),
+        coaCode: item.task?.coa_code ?? null,
+      };
+      for (const block of item.calendar_blocks) m.set(block.id, costs);
+    }
+    return m;
+  }, [operationsItems]);
+
+  /**
+   * LINES-01: a routine's lines, keyed by routine id, from the window feed this
+   * component already holds. The panel lists them and links postings to them.
+   */
+  const routineLinesById = useMemo(() => {
+    const m = new Map<string, RoutineLines>();
+    for (const r of routinesWindow.routines) {
+      const p = routinePlanned({ budget_amount: r.budget_amount, coa_code: r.coa_code, steps: r.steps ?? null });
+      // CAL-02 (Alex, 2026-10-27): each line's own account, as the window route read it — by the line's id, never guessed.
+      const stepsById = new Map((r.steps ?? []).map((s) => [s.id, s]));
+      m.set(r.routine_id, {
+        lines: p.lines.map((l) => {
+          const s = stepsById.get(l.id);
+          if (s === undefined) throw new Error(`HubCalendar: line ${l.id} of ${r.name} is not among the window's steps`);
+          return { stepId: l.id, activity: l.activity, timeOfDay: l.timeOfDay ? l.timeOfDay.slice(11, 16) : null, amount: l.amount, coaCode: l.coaCode, account: s.account, accountState: s.account_state };
+        }),
+        coverage: p.coverage,
+        ignoredRoutineLevel: p.ignoredRoutineLevel,
+      });
+    }
+    return m;
+  }, [routinesWindow]);
+
+  /** One merged-grid row → the panel's input. Pure; it reads no route. */
+  const drillOf = (e: GridEvent): DrillRow => buildDrill({
+    id: e.id, source: e.source, title: e.title,
+    startDate: e.startDate, endDate: e.endDate,
+    startTime: e.startTime, endTime: e.endTime,
+    location: e.location, latitude: e.latitude, longitude: e.longitude,
+    coaCode: e.coaCode, budgetAmount: e.budgetAmount ?? null,
+    // CAL-02: the tile's account, as the mapper decided it.
+    account: e.account, accountState: e.accountState,
+    vendor: e.vendor ?? null, provider: e.provider ?? null, tripItemId: e.tripItemId ?? null, itemType: e.itemType ?? null,
+  }, taskCostsByBlock.get(e.id) ?? null, routineLinesById.get(parseRoutineTileId(e.id)?.routineId ?? '') ?? null);
 
   // PR-Calendar-Flush: the descriptive caption + the parent purple band are gone — the
   // grid's toolbar flows flush under the tab row.
@@ -240,6 +382,8 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     <div>
       {/* Edge-to-edge day-view grid. On phone it's day-only with a week strip; the grid's
           nav drives this component's fetch month via onMonthChange. */}
+      {/* ONEOFF-01: NOTHING is authored above the grid. A one-off is a routine
+          planned in Tasks, and it logs here like every other routine. */}
       <CalendarGrid
         events={gridEvents}
         sourceConfig={HUB_GRID_CONFIG}
@@ -252,23 +396,11 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
         phoneDayOnly={true}
         onMonthChange={(year, month) => { setSelectedYear(year); setSelectedMonth(month); }}
         onRangeChange={(from, to) => setRange({ from, to })}
+        /* DAY-01: a day opens whole. The month cell already wore cursor-pointer
+           with nothing behind it; this is the click it advertised. */
+        onDayClick={(dateKey) => setOpenDay(dateKey)}
         flush={true}
       />
-
-      {isDemo && (
-        <div className="m-4 flex flex-col items-start gap-2 rounded-lg border border-border bg-bg-row p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-text-secondary">
-            Like what you see? Make a free account and fill it with your own trips, routines, and plans.
-          </p>
-          <button
-            type="button"
-            onClick={() => onRequireAuth?.()}
-            className="shrink-0 rounded bg-brand-purple px-6 py-2 text-sm font-semibold text-white hover:bg-brand-purple-hover"
-          >
-            Make my free account
-          </button>
-        </div>
-      )}
 
       {cardSelection && (
         <HubEventCard
@@ -280,7 +412,84 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       )}
 
       {detailEvent && (
-        <EventDetailPanel event={detailEvent} onClose={() => setDetailEvent(null)} />
+        <EventDetailPanel
+          row={detailEvent}
+          linkable={!isDemo}
+          onClose={() => setDetailEvent(null)}
+          /* ONEOFF-01: a hand-entered row (pre-ruling) is corrected or removed
+             from its chain panel too. The row is looked up in the SAME merged
+             list the panel was built from. */
+          onCorrect={(id) => {
+            const e = gridEvents.find((x) => x.id === id);
+            if (e) { setEditEvent(editableOf(e)); setDetailEvent(null); }
+          }}
+          onRemoved={() => { setDetailEvent(null); loadCalendar(); }}
+        />
+      )}
+
+      {/* ONEOFF-01: the correction of an event entered by hand BEFORE the ruling —
+          the calendar's own row, re-stated by its owner. Opened from the day view
+          or the chain panel, never empty, never adding. Hidden in demo mode: a
+          logged-out guest has no account to write to. */}
+      {!isDemo && editEvent && (
+        <CorrectEventForm
+          event={editEvent}
+          onCancel={() => setEditEvent(null)}
+          onCorrected={(dateKey) => {
+            setEditEvent(null);
+            loadCalendar();
+            if (dateKey) setRange((r) => (dateKey >= r.from && dateKey <= r.to ? r : { from: dateKey, to: dateKey }));
+          }}
+        />
+      )}
+
+      {/* DAY-01: THE DAY, WHOLE. Every event on that date — whatever wrote it —
+          in time order, with its cost, its place and the day's plan beneath it.
+          It reads the SAME merged list the grid draws, so the panel can never
+          show a different day from the grid it opened from. */}
+      {openDay && (
+        <DayView
+          dateKey={openDay}
+          events={gridEvents
+            .filter((e) => {
+              const start = (e.startDate || '').slice(0, 10);
+              const end = (e.endDate || e.startDate || '').slice(0, 10);
+              // A multi-day row (a hotel stay) is on every day it spans, which is
+              // how the grid draws it — the day view agrees with the grid.
+              return start <= openDay && openDay <= end;
+            })
+            .map((e) => ({
+              id: e.id,
+              source: e.source,
+              title: e.title,
+              icon: e.icon,
+              startDate: e.startDate,
+              endDate: e.endDate,
+              startTime: e.startTime,
+              endTime: e.endTime,
+              location: e.location,
+              budgetAmount: e.budgetAmount,
+              coaCode: e.coaCode,
+              latitude: e.latitude,
+              longitude: e.longitude,
+              category: e.category,
+            }))}
+          sourceIcon={SOURCE_ICON}
+          /* EVENT-01 STEP 5 → ONEOFF-01: an event entered by hand before the
+             ruling is corrected and deleted from the day it sits on. Both refuse
+             any other source, with its reason. Nothing is added here. */
+          /* DRILL-01: every row on the day opens the panel — none navigates
+             away, none is inert. The row is looked up in the SAME merged list
+             the day view was handed, so the panel can never describe a
+             different object from the one clicked. */
+          onRowOpen={(id) => {
+            const e = gridEvents.find((x) => x.id === id);
+            if (e) setDetailEvent(drillOf(e));
+          }}
+          onCorrect={(ev) => { setEditEvent(ev); setOpenDay(null); }}
+          onDeleted={() => { loadCalendar(); }}
+          onClose={() => setOpenDay(null)}
+        />
       )}
     </div>
   );

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { positionOwnershipWhere } from '@/lib/tradeLog/ownership';
 
 export async function GET() {
   try {
@@ -23,10 +25,8 @@ export async function GET() {
     })).map(t => t.id);
 
     const positions = await prisma.trading_positions.findMany({
-      where: {
-        status: 'OPEN',
-        open_investment_txn_id: { in: userInvTxnIds }
-      },
+      // TRADE-LOG-01: the arrivals chain OR this user's own hand-entered rows.
+      where: { status: 'OPEN', ...positionOwnershipWhere(user.id, userInvTxnIds) },
       orderBy: [
         { trade_num: 'asc' },
         { open_date: 'asc' }
@@ -74,10 +74,6 @@ export async function GET() {
     return NextResponse.json({ trades });
 
   } catch (error: any) {
-    console.error('Open trades fetch error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch open trades' },
-      { status: 500 }
-    );
+    return failClosedResponse('Open trades fetch', 'Failed to fetch open trades', error);
   }
 }

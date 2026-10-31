@@ -1,1330 +1,478 @@
+# Temple Stuart
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:161b22,100:21262d&height=220&section=header&text=Temple%20Stuart&fontSize=70&fontColor=58a6ff&fontAlignY=32&desc=Personal%20Back%20Office%20•%20Financial%20OS&descSize=22&descAlignY=52&descColor=8b949e&animation=fadeIn&stroke=30363d&strokeWidth=1">
-  <source media="(prefers-color-scheme: light)" srcset="https://capsule-render.vercel.app/api?type=waving&color=0:667eea,50:764ba2,100:f093fb&height=220&section=header&text=Temple%20Stuart&fontSize=70&fontColor=ffffff&fontAlignY=32&desc=Personal%20Back%20Office%20•%20Financial%20OS&descSize=22&descAlignY=52&animation=fadeIn">
-  <img alt="Temple Stuart" src="https://capsule-render.vercel.app/api?type=waving&color=0:667eea,50:764ba2,100:f093fb&height=220&section=header&text=Temple%20Stuart&fontSize=70&fontColor=ffffff&fontAlignY=32&desc=Personal%20Back%20Office%20•%20Financial%20OS&descSize=22&descAlignY=52&animation=fadeIn" width="100%">
-</picture>
+Twenty-five business tools on one data pipe that ends in one Ledger and one Calendar.
 
-<div align="center">
+Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 116 Prisma models, 287 API route files, 121 feeds from 20 providers (counted August 24, 2026)
 
-[![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1-blue.svg?style=for-the-badge&logo=mariadb&logoColor=white)](LICENSE)
-[![Commercial License](https://img.shields.io/badge/Commercial-License%20Available-ff6b6b?style=for-the-badge&logo=handshake&logoColor=white)](#-licensing)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+## The system
 
-<br>
+A small business runs on about twenty-five tools — invoicing, payroll, banking, travel, trading, tax, projects — and none of them knows what the others did. Temple Stuart replaces that with one data pipe. By design: every provider answer lands once, word for word, fingerprinted; every feed is labeled by its kind and lands in the table for that kind; what happened to you is kept apart from what you did; every tool runs the same loop and stores its records in one master table; observed money is matched to authored documents; rules write the debits and credits; four answers are math on those lines; and the same rows show as a Ledger and a Calendar. Any number walks back to the provider's words. Search & book travel — free today, no account needed.
 
-<h3>
-  <strong>Track your money. Plan your life. Act smarter.</strong>
-</h3>
+## This is the blueprint
 
-<p>
-  A unified financial operating system for founder-traders, freelancers, and anyone<br>
-  who refuses to be "simplified" by consumer finance apps.
-</p>
+The landing deck at templestuart.com teaches the ideal pipe, step by step, with build-time proofs. This README carries the deck's shapes — the arrival row, the kinds, the loop, the document, the match key, the rule book, the lenses, the two windows — verbatim from the code that renders them. The GAP LEDGER below is the distance between the blueprint and today, taken from the deck's own honest-state lines. The rebuild closes the gaps, and a step moves to alive only with a dated census.
 
-<br>
+## The pipe
 
-[**🚀 Get Started**](#-quick-start) · [**📖 Documentation**](#-documentation) · [**☁️ Managed Hosting**](#%EF%B8%8F-managed-hosting) · [**💼 Commercial License**](#-commercial-licensing)
+| Step | Headline |
+|---|---|
+| 01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN | Twenty-five tools. None of them knows what the others did. |
+| 02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM | Every job has more than one company. You pick yours. |
+| 03 / IMPORT THE DATA AND SEE HOW IT ARRIVES | Store what arrived. Then decide what it means. |
+| 04 / LABEL EVERY FEED BY ITS KIND | One rule per feed. Written down. |
+| 05 / CREATE ONE TABLE PER KIND AND MAP THE DATA IN | The kind picks the table. |
+| 06 / SEPARATE WHAT HAPPENED TO YOU FROM WHAT YOU DID | Some things happen to you. Some things you make happen. |
+| 07 / RUN THE LOOP | Every tool runs the same four beats. Discover. Decide. Commit. Record. |
+| 08 / STORE EVERYTHING YOU DO IN ONE MASTER TABLE | One table holds everything you do. |
+| 09 / MATCH WHAT HAPPENED TO WHAT YOU DID | The deposit meets the invoice. The fill meets the order. |
+| 10 / LET THE RULES WRITE THE LINES | Nobody sends them. Rules write them. |
+| 11 / TURN THE LINES INTO ANSWERS | Every answer is math on the lines. |
+| 12 / OPEN THE TWO WINDOWS | One Ledger. One Calendar. All twenty-five. |
+| 13 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE | One $100.00 sale runs the machine. Then every other door opens. |
+| 14 / PROVE EVERY NUMBER | Click any number. Walk it back. |
 
-<br>
+templestuart.com teaches the full pipe with build-time proofs: every drawing derives from these consts, and the layout laws throw at build, so a false slide is a failed build.
+
+## The data model
+
+Every shape below is extracted from the consts the deck renders from — `src/components/landing/Landing.tsx` and the leaves it imports (`src/lib/problemSheet.ts` for the sheet, `src/lib/providers.ts` for the provider menu and the rule book, `src/lib/answers.ts` for the four lenses and their inputs).
+
+### The arrival row (step 3)
+
+One row per provider answer, eleven fields:
+
+| Band | Field | Gloss |
+|---|---|---|
+| WHERE IT CAME FROM | provider | which company sent it |
+| WHERE IT CAME FROM | connection | because you might have two or more banks |
+| WHAT IT IS | resource | their own word |
+| WHAT IT IS | their id | so we tie the row back to the provider and never import the same thing twice |
+| WHAT IT IS | our id | two providers could accidentally use the same id |
+| WHAT THEY ACTUALLY SENT | payload | saved word for word — THE REASON THIS TABLE EXISTS |
+| WHAT THEY ACTUALLY SENT | fingerprint | a code made from the payload — proves we never changed it |
+| WHEN AND HOW FAR | asked | when we asked |
+| WHEN AND HOW FAR | arrived | when it arrived |
+| WHEN AND HOW FAR | read | when we read it |
+| WHEN AND HOW FAR | status | pending, done, or failed |
+
+### The arrivals store (step 3, built)
+
+The arrival row above as tables — `prisma/migrations/20260903000000_arrivals/migration.sql` and the `provider_responses` / `arrivals` models in `prisma/schema.prisma`, column for column (asserted at build). Two tables: the wire (one row per HTTP answer, exact bytes, sha256) and the deck's row (one per provider object). The `arrival_provider` enum is `src/lib/providers.ts`' code set — 27 providers, every one the deck names — and `arrival_status` is the deck's pending / done / failed. As of September 7, 2026 it holds 9,092 Plaid transactions, 712 investment transactions and 247 securities — every answer word for word, fingerprinted, status done; rows synced before September 3, 2026 carry no arrival.
+
+`provider_responses` — the wire:
+
+| Column | Type | Rule |
+|---|---|---|
+| id | text | PRIMARY KEY |
+| provider | arrival_provider | NOT NULL |
+| resource | text | NOT NULL |
+| user_id | text | NULL REFERENCES users(id) |
+| guest_ref | text | NULL |
+| http_status | integer | NOT NULL |
+| body | bytea | NOT NULL |
+| body_sha256 | bytea | NOT NULL |
+| asked | timestamptz | NOT NULL |
+| arrived | timestamptz | NOT NULL |
+| redactions | text[] | NOT NULL DEFAULT '{}' — `prisma/migrations/20260907220000_provider_responses_redactions/migration.sql`: every path blanked in body; '{}' = the exact wire bytes |
+|  | CHECK / KEY | CHECK (octet_length(body_sha256) = 32) |
+|  | CHECK / KEY | CHECK (octet_length(body) <= 1048576) |
+|  | CHECK / KEY | CHECK (user_id IS NOT NULL OR guest_ref IS NOT NULL) |
+
+`arrivals` — the deck's row:
+
+| Column | Type | Rule |
+|---|---|---|
+| id | text | PRIMARY KEY |
+| provider | arrival_provider | NOT NULL |
+| connection | text | NULL |
+| resource | text | NOT NULL |
+| their_id | text | NOT NULL |
+| their_id_kind | their_id_kind | NOT NULL |
+| payload | jsonb | NOT NULL |
+| fingerprint | bytea | NOT NULL |
+| redactions | text[] | NOT NULL DEFAULT '{}' |
+| asked | timestamptz | NOT NULL |
+| arrived | timestamptz | NULL |
+| read | timestamptz | NULL |
+| status | arrival_status | NOT NULL DEFAULT 'pending' |
+| response_id | text | NULL REFERENCES provider_responses(id) |
+| user_id | text | NULL REFERENCES users(id) |
+| guest_ref | text | NULL |
+| kind | arrival_kind | NOT NULL — `prisma/migrations/20260907180000_arrival_kind/migration.sql`: the rule book's kind, applied on landing and to every earlier row |
+|  | CHECK / KEY | CHECK (octet_length(fingerprint) = 32) |
+|  | CHECK / KEY | CHECK (pg_column_size(payload) <= 1048576) |
+|  | CHECK / KEY | CHECK (user_id IS NOT NULL OR guest_ref IS NOT NULL) |
+|  | CHECK / KEY | UNIQUE (provider, their_id, fingerprint) |
+
+Promise 1 is a database law, not a convention: the `arrivals_promise_1` BEFORE UPDATE trigger raises if provider, connection, resource, their_id, their_id_kind, payload, fingerprint, redactions, asked, arrived, response_id, user_id, guest_ref or kind would change — only `read` and `status` may move, each once (read from NULL, status from pending). There is no updated_at column and no DELETE policy: keep forever is the default.
+
+The write rule (PR-2 — one Plaid writer, `src/app/api/transactions/sync-complete/route.ts`, through `src/lib/arrivals/land.ts`):
+
+1. Every HTTP answer lands first in `provider_responses` — exact bytes, except declared redactions of secrets — then the canonical redacted bytes — with the sha256 of the bytes as stored and every blanked path on `redactions` (the Plaid SDK runs through an axios instance that keeps the body as bytes — `src/lib/plaid/wire.ts`; the Stripe webhook blanks `client_secret` — `src/lib/arrivals/stripeWebhook.ts`).
+2. Every object in the answer lands as one `arrivals` row: payload as sent, fingerprint = sha256 of its RFC 8785 canonical bytes (the `canonicalize` package), their_id = the provider's own id (their_id_kind `provider`) or one we composed and labeled as such (`composed` — the LiteAPI cancellation, whose answer carries no id of its own; `src/lib/arrivals/liteapiBooking.ts`), redactions `[]` — `INSERT … ON CONFLICT (provider, their_id, fingerprint) DO NOTHING` — the same thing is the same provider, id and content, so a duplicate is promise 2 working, not an error, and a provider's correction is a new row (promise 1); three outcomes, counted apart: landed · already_landed (linked, not re-parsed) · corrected (parsed — latest-arrived wins and `transactions.arrival_id` moves to the newest row); a non-2xx answer lands as a `provider_responses` row with no arrivals — a failed ask is evidence of the ask; a duplicate is promise 2 working, reported as `already_landed`, never an error.
+3. The parser reads the arrival row, never the HTTP object, and points the domain row at it (`transactions.arrival_id`).
+4. Landing, parsing and `read` / `status` (once each) happen in ONE database transaction per page; a parser failure rolls that page back and is declared in the response (stage, page, summarized error) while earlier pages stay.
+5. No synthetic backfill: rows synced before the cutoff carry `arrival_id` NULL.
+
+### The six kinds (steps 4–5)
+
+Five kinds arrive from outside; the sixth is never sent — the system writes postings from events.
+
+| Kind | Holds | Means |
+|---|---|---|
+| reference | facts about the world | a fact about the world |
+| registry | your accounts and your people | one of your accounts |
+| event | what happened | something that happened |
+| derived | math we did | math we did — never a source |
+| snapshot | how things stood at one moment | how things stood at one moment |
+| posting | debits and credits | never arrives — the system writes postings from events |
+
+### The rule book (step 4, applied)
+
+One written rule per feed — its kind — and the system applies it to every arrival of that feed: `src/lib/providers.ts` RULE_BOOK, 24 rows (the deck's 20 verbatim plus the 4 the deck's sample omits and the store lands). Landing consults it (`src/lib/arrivals/land.ts`): every arrival carries its kind (`arrivals.kind`, `prisma/migrations/20260907180000_arrival_kind/migration.sql` — the same rules applied to every row landed before it), and a feed with no rule is a loud failure, never a default. The build asserts the book against the deck, the schema's enum, the migration's UPDATEs and every landing call site.
+
+| Provider | Resource | Kind | Means | Row |
+|---|---|---|---|---|
+| plaid | transaction | event | something that happened | deck |
+| plaid | account | registry | one of your accounts | deck |
+| plaid | holding | snapshot | how things stood at one moment | deck |
+| stripe | payout | event |  | deck |
+| tastytrade | quote | reference | a fact about the world | deck |
+| finnhub | fundamentals | reference |  | deck |
+| fred | series | reference |  | deck |
+| sec | filing | reference |  | deck |
+| liteapi | booking | event |  | deck |
+| viator | activity | reference |  | deck |
+| google places | place | reference |  | deck |
+| travel buddy | visa | reference |  | deck |
+| anthropic | classification | derived | math we did — never a source | deck |
+| openai | insight | derived |  | deck |
+| xai grok | sentiment | derived |  | deck |
+| voyage | embedding | derived |  | deck |
+| ecfr | title | reference |  | deck |
+| us code | title | reference |  | deck |
+| federal register | document | reference |  | deck |
+| irs | bulletin | reference |  | deck |
+| plaid | security | reference |  | added |
+| plaid | investment_transaction | event |  | added |
+| stripe | event | event |  | added |
+| liteapi | cancellation | event |  | added |
+
+### The six tables (step 5, views)
+
+Six tables, six names, the kind picks the table — as VIEWS over the typed feed tables (`prisma/migrations/20260907200000_kind_views/migration.sql`, generated from the census in `src/lib/kindViews.ts`; the six are `view` models in `prisma/schema.prisma` under Prisma's `views` preview; a view changes only through a later migration that drops and recreates it — the snapshot view over holdings, `prisma/migrations/20260908120000_holdings_snapshot/migration.sql` — and the build checks each view's newest text). The feed tables keep their real columns, constraints and `arrival_id`; each view unions exactly the feed tables of its kind, the kind per table from the rule book, in one common shape. Posting is empty by the deck's own law; snapshot holds Plaid holdings (REBUILD-01 PR-2d). A table whose feed the rule book cannot name is reported, never viewed. Today the six are views over the feed tables — event: transactions, investment transactions, bookings; reference: securities, places, the law corpus; registry: accounts; snapshot: holdings; derived: none yet; posting: empty by law.
+
+| Column | Type |
+|---|---|
+| kind | arrival_kind |
+| feed | text |
+| table_name | text |
+| row_id | text |
+| their_id | text |
+| arrival_id | text |
+| user_id | text |
+| arrived | timestamptz |
+
+| View | Unions | Feeds |
+|---|---|---|
+| reference | securities, places_cache, regulatory_documents | plaid · security · google_places · place · by s.domain: ecfr · title / us_code · title / federal_register · document / irs · bulletin |
+| registry | accounts | plaid · account |
+| event | transactions, investment_transactions, reservations | plaid · transaction · plaid · investment_transaction · liteapi · booking |
+| derived | (nothing) |  |
+| snapshot | holdings | plaid · holding |
+| posting | (nothing) |  |
+
+| Feed table | Kind | Feed | arrival_id | user | arrived | Outside Prisma |
+|---|---|---|---|---|---|---|
+| securities | reference | plaid · security | yes | no | s."createdAt" |  |
+| places_cache | reference | google_places · place | no | no | p."cachedAt" |  |
+| regulatory_documents | reference | by s.domain: ecfr · title / us_code · title / federal_register · document / irs · bulletin | no | no | d.retrieved_at | prisma/migrations/20260503000000_pr_f_corpus_foundation/migration.sql (CREATE TABLE regulatory_documents; not a Prisma model) |
+| accounts | registry | plaid · account | no | yes | a."createdAt" |  |
+| transactions | event | plaid · transaction | yes | yes | t."createdAt" |  |
+| investment_transactions | event | plaid · investment_transaction | yes | yes | i."createdAt" |  |
+| reservations | event | liteapi · booking | no | yes | r."createdAt" |  |
+| holdings | snapshot | plaid · holding | yes | yes | h."createdAt" |  |
+
+Reported, not viewed — rows from a provider answer whose feed the rule book does not name:
+
+| Table | Why |
+|---|---|
+| reservations (provider duffel) | history rows from a retired provider (LAUNCH-01 RETIRE-01 deleted its book route; nothing writes provider 'duffel' any more) — the rows are kept, labeled by their provider, and stay outside the event view (the bookings view reads provider 'liteapi' only) |
+| trip_scanner_results | src/app/api/trips/[id]/ai-assistant/route.ts writes AI recommendations per trip/category; the book names no such feed (anthropic · classification is the only anthropic row) |
+| scan_snapshots | src/lib/convergence/snapshot-logger.ts writes our own scores over quotes — math we did, not a provider answer; no rule-book feed |
+| operations_ai_usage | src/lib/ai/recordUsage.ts:158 stores our AI calls (purpose, tokens, full_response) — the book's anthropic row is classification, not a usage log |
+| discovery_proposals | AI-authored proposals (src/lib/discovery); not the book's anthropic · classification by name |
+| plaid_items | Plaid's item — a handshake (the access token lives here); the deck: handshakes never enter the tables; the book has no plaid · item row |
+| tastytrade_connections | a handshake (tokens); never data |
+| observatoryHealthLog | our probes of the providers (src/app/api/data-observatory) — not a provider feed |
+
+### The loop (step 7)
+
+Every tool runs the same four beats: **DISCOVER → DECIDE → COMMIT → RECORD**.
+
+### The document (step 8)
+
+Four fields on every record in the master table:
+
+| # | Field |
+|---|---|
+| 1 | What it is |
+| 2 | Its life story |
+| 3 | Its pieces |
+| 4 | Who did it, and when |
+| life | draft → committed → settled |
+| who | you · the moment you committed |
+
+### The match key (step 9)
+
+An observed money event meets its authored document on **amount · date · reference**.
+
+### The posting rule book (step 10)
+
+Fourteen matched events, one rule each — the rule writes two lines:
+
+| Tool | Event | Debit | Credit |
+|---|---|---|---|
+| Invoicing | invoice issued | A/R | Revenue |
+| Payments | payment received | Cash | A/R |
+| Brokerage | fill | Investments | Cash |
+| Travel | booking charged | Travel | Card Payable |
+| Expenses | expense charged | Expense | Card Payable |
+| Fixed Assets | asset bought | Fixed Assets | Cash |
+| Bill Pay | bill paid | A/P | Cash |
+| Payroll | payroll run | Wages + employer taxes | Cash + withholdings |
+| Debt | debt payment | Loan Payable + Interest | Cash |
+| Sales Tax | sales tax paid | Sales Tax Payable | Cash |
+| Ent Filings | filing fee paid | Filing Fees | Cash |
+| Retirement | contribution | Retirement | Cash |
+| Banking | transfer | Cash (to) | Cash (from) |
+| Tax | tax paid | Tax Expense | Cash |
+
+### The four lenses (step 11)
+
+| Question | The math | Reads |
+|---|---|---|
+| What do I owe in tax? | Income so far × the rules. | Revenue · Expense · Wages + employer taxes · irs bulletin · us code title |
+| How long can I last? | Cash ÷ what I burn each month. | Cash · Expense · Travel · Wages + employer taxes · A/P |
+| How is my trading doing? | Wins, losses, and open risk; from fills, positions, and live quotes. | Investments · plaid holding · tastytrade quote |
+| How is my business doing? | Money in minus money out. | Revenue · Expense · Travel · Wages + employer taxes · Filing Fees |
+
+### The two windows (step 12)
+
+Pull out WHEN it is: a moment — a dot — or a span — a bar. Every dated thing appears in both windows at once: as a row in the Ledger, and on its day in the Calendar.
+
+## The gap ledger
+
+BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbatim; GAP is the difference between the two and nothing more. Steps 1–6 appear only where the deck states a dated fact.
+
+| Step | Blueprint | Today | Gap |
+|---|---|---|---|
+| 03 | Store what arrived. Then decide what it means. | the arrivals store holds 9,092 Plaid transactions, 712 investment transactions and 247 securities — every answer word for word, fingerprinted, status done — counted September 7, 2026; rows before September 3, 2026 carry no arrival. | the other providers (tastytrade, the market and law feeds) land parsed; Stripe events (PR-4), LiteAPI bookings and cancellations (PR-5) and Plaid holdings (PR-2d) land raw-first with no dated count yet; the three old Plaid writers are retired (PR-3). |
+| 04 | One rule per feed. Written down. | rules are rows the system applies — src/lib/providers.ts RULE_BOOK, 24 rows (the deck's 20 plus plaid · security → reference, plaid · investment_transaction → event, stripe · event → event, liteapi · cancellation → event); every Plaid, Stripe and LiteAPI arrival carries its kind (transaction · event, investment_transaction · event, security · reference, stripe event · event, liteapi booking · event, liteapi cancellation · event, holding · snapshot), stamped on landing and applied by the migration to every row landed before it; a feed with no rule cannot land. | the other providers' arrivals wait on their landing — nothing of theirs has arrived to be labeled; the 121 feeds' classification stays the August 24 census until each lands. |
+| 05 | The kind picks the table. | Today the six are views over the feed tables — event: transactions, investment transactions, bookings; reference: securities, places, the law corpus; registry: accounts; snapshot: holdings; derived: none yet; posting: empty by law. | derived has no feed table the rule book names — the AI tables carry no rule-book row; posting is empty by law; 8 tables are reported, not viewed. |
+| 07 | Every tool runs the same four beats. Discover. Decide. Commit. Record. | This loop is the blueprint — the shape we're building every tool toward. Today, hotel bookings commit for real and an accepted task fires its build; the rest run discover → decide → draft, and commit is the beat we're wiring to the same loop, tool by tool. | commit is real for two tools (hotel bookings, accepted tasks); the other twenty-three stop at draft. |
+| 08 | One table holds everything you do. | The master table is the blueprint. Today each tool keeps its own table; one table holding every document is the shape we're building. | no master table; each tool keeps its own. |
+| 09 | The deposit meets the invoice. The fill meets the order. | (A piece of this is already alive today: card charges find their bookings and propose the match — you approve it.) | one of fourteen matches proposes today (card charge ↔ booking); the other thirteen do not. |
+| 10 | Nobody sends them. Rules write them. | The posting table is the blueprint — today it holds zero lines. The rules writing them is the bookkeeping pipe we're building. | zero lines; no rule writes yet. |
+| 11 | Every answer is math on the lines. | These four lenses are the blueprint. Today all four compute — tax and the business result from the journal entries you commit by hand, runway from Plaid's account balances against those entries, trading from the positions and lots you committed, with no live quote in the number. The rules-written lines and the live quotes the blueprint reads wait on the posting pipe. | all four compute from hand-committed lines and Plaid balances; the rules-written lines and live quotes wait on step 10. |
+| 12 | One Ledger. One Calendar. All twenty-five. | Two windows over one set of rows is the blueprint. Today the calendar window is live in the cockpit; the ledger window fills as the posting pipe lands its lines. | the Calendar window is live; the Ledger window is empty until step 10 writes. |
+| 13 | One $100.00 sale runs the machine. Then every other door opens. | Alive today: the travel match — card charges find their bookings and propose the match; you approve it. The project lane is wired end to end: a task lands for your review, and accepting it fires the build that answers it. | the travel match is alive; the project lane is wired end to end; the sale's lines and lenses wait on steps 10–11. |
+| 14 | Click any number. Walk it back. | Alive today: the fingerprint, on the rules and the audit log — every regulation pull is hashed the moment it lands, and the audit log hash-chains every entry it records; the citation re-check is written, but the hash it compares against is stored empty today, so it proves nothing yet. Today the Plaid feeds land in that table — every answer word for word, fingerprinted: 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026. The other providers still land parsed; the same table is the shape they're moving into. | fingerprints on the rules corpus, the audit log and the Plaid feeds; none on the other providers' feeds yet; the citation re-check still compares against an empty hash. |
+
+## Navigation
+
+The app lands on `/answers` — HOME: the four answers, then the whole sheet (25 jobs, each with its true status and the door to its step). A collapsible rail walks the sheet in FLOW ORDER: 6 families, 12 steps, every job in exactly one step. A step's status is derived from its jobs (LIVE when every one is, NOT_BUILT when every one is, else PARTIAL); a step with no screen opens an honest page that names its jobs and says it is not built. The list below is generated from `src/lib/steps.ts`, whose law runs at build (`scripts/assert-tool-registry.ts`).
+
+| # | Step | Family | Status | Opens | Jobs |
+|---|---|---|---|---|---|
+| 1 | ACCOUNTS | WHAT YOU OWN | PARTIAL | `/accounts` | Banking (PARTIAL), Retirement (NOT_BUILT), Fixed Assets (NOT_BUILT) |
+| 2 | TRADING | WHAT YOU OWN | PARTIAL | `/trading` | Brokerage (PARTIAL), Trade Log (PARTIAL) |
+| 3 | BOOKS | THE PROOF | LIVE | `/books` | Bookkeeping (LIVE) |
+| 4 | TAX | THE PROOF | PARTIAL | `/tax` | Tax (PARTIAL) |
+| 5 | COMPLIANCE | THE PROOF | PARTIAL | `/compliance` | Compliance (PARTIAL) |
+| 6 | FP&A | THE PROOF | NOT_BUILT | `/step/fpa` (honest page — not built) | FP&A (NOT_BUILT) |
+| 7 | OWED | WHAT YOU OWE | NOT_BUILT | `/step/owed` (honest page — not built) | Debt (NOT_BUILT), Sales Tax (NOT_BUILT), Ent Filings (NOT_BUILT) |
+| 8 | SALES | MONEY IN | NOT_BUILT | `/step/sales` (honest page — not built) | CRM (NOT_BUILT), Contracts (NOT_BUILT), Invoicing (NOT_BUILT), Payments (NOT_BUILT) |
+| 9 | SPEND | MONEY OUT | NOT_BUILT | `/step/spend` (honest page — not built) | Bill Pay (NOT_BUILT), Payroll (NOT_BUILT), Expenses (NOT_BUILT), Mileage (NOT_BUILT) |
+| 10 | TRAVEL | MONEY OUT | LIVE | `/travel` | Travel (LIVE) |
+| 11 | BUDGET | MONEY OUT | PARTIAL | `/business` | Budget (PARTIAL) |
+| 12 | OPERATIONS | THE WORK | PARTIAL | `/projects` | Calendar (PARTIAL), Tasks (PARTIAL), Time (PARTIAL) |
+
+## The nine modules
+
+| Module | What exists in code |
+|---|---|
+| Travel | stays and flights through LiteAPI, activities through Viator, visa checks through RapidAPI — public routes under src/app/api/travel (15 route files); models `trips` (schema:652) and `reservations` (schema:1414). |
+| Runway | the reservation matcher — src/app/api/runway/match/propose, queue, review (the step-9 piece alive today) — plus src/app/api/runway/route.ts; models `budgets` (schema:622) and `home_expenses` (schema:1668). |
+| Books | Plaid-synced transactions, a chart of accounts, journal and ledger entries — the one Plaid writer, src/app/api/transactions/sync-complete/route.ts, writes `transactions` (schema:460) through src/lib/arrivals/plaidTransactionsPage.ts:114; `journal_entries` (schema:186), `ledger_entries` (schema:225). |
+| Trade | tastytrade connection, quotes and backtests — src/app/api/tastytrade (13 route files); models `trade_cards` (schema:1799) and `scan_snapshots` (schema:1985). |
+| Tax | scenarios, documents and the 2025 export script (`npm run tax:export:2025`) — src/app/api/tax (7 route files); models `tax_scenarios` (schema:1588) and `tax_documents` (schema:1907). |
+| Compliance | the regulatory corpus (eCFR, US Code, Federal Register, IRS bulletins) ingested by Inngest functions with sha256 on write, citations re-verified, and the hash-chained audit log — models `regulatory_sources` (schema:2298), `citations` (schema:2362), `audit_log` (schema:2528). |
+| Routines | scheduled routines evaluated by the `routine-evaluator` Inngest function — models `operations_routines` (schema:3182) and `hub_scheduled_items` (schema:3288); the deck calls the calendar window live in the cockpit (step 12 honest line). |
+| Projects | projects and tasks; accepting a pending task fires the Execute-Task Routine (src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:395-405) — models `operations_projects` (schema:3006) and `operations_project_tasks` (schema:3051). |
+| Content | scene groups, scenes, pieces and takes — model `operations_content_pieces` (schema:3415); src/app/api/operations carries 50 route files across Routines, Projects and Content. |
+
+## Architecture
+
+Versions from package.json, read 2026-09-02:
+
+| Layer | What |
+|---|---|
+| Framework | Next.js 15.5.25 · React ^18.3.1 · TypeScript ^5 |
+| Data | Prisma ^5.22.0 (client ^5.22.0) on Azure PostgreSQL |
+| Hosting | Vercel (one cron in vercel.json: `/api/cron/auto-categorize` at 02:00 UTC) |
+| Jobs | Inngest ^4.2.6 — 8 functions: ecfr-ingest, embed-pending, fedreg-ingest, health-check, irb-ingest, operations-pipe-run, routine-evaluator, uscode-ingest |
+| Auth | HMAC-signed cookie (src/lib/cookie-auth.ts) · next-auth ^4.24.15 for OAuth sign-in |
+| Payments / banking | Stripe ^20.3.0 · Plaid ^11.0.0 |
+| Styling | Tailwind CSS ^3.4.18 |
+| Runtime | Node (typed against @types/node ^20) |
+
+Observed versus authored (step 6): what the world sends is observed; what you do is authored; the blueprint keeps the two apart and matches them on one key. Today the Plaid feeds land word for word, fingerprinted — 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026; the other providers still land parsed — see the gap ledger, step 14.
+
+Scale, as of 2026-09-02: 116 Prisma models, 34 enums, 287 API route files, 34 runtime dependencies, 17 dev dependencies, one test file (`npm test`).
+
+## Engineering discipline
+
+These are the written laws in `CLAUDE.md`, stated as practice:
+
+- Audit before action: a read-only audit with `file:line` citations precedes any implementation.
+- Derive, never retype: the deck's drawings derive from their consts, and module-scope layout laws throw at build — a false slide is a failed build.
+- Census before claim: every public surface claims only what a dated count of the code supports.
+- Fail loud: no silent fallbacks, no silent catches, no placeholder data.
+- One concept per PR: each change is atomic and revertible.
+- All work lands on `claude/*` branches; only the founder merges to `main` — the merge is the SOC 2 change-management control.
+- Migrations: the raw SQL and `schema.prisma` move in lockstep; the repo holds no `DATABASE_URL`, so a session can author a migration but never apply one.
+- The README and the deck are the blueprint; code drifts, the blueprint doesn't — drift is a bug.
+
+## Security model
+
+- Sessions: an HMAC-SHA256-signed cookie; verification uses a timing-safe comparison — `src/lib/cookie-auth.ts:16-18, 26-45`.
+- Middleware: every path not in `PUBLIC_PATHS` requires the verified cookie — `src/middleware.ts:50-160, 162, 165-170`; the two Routine callbacks (`…/audit-ingest`, `…/exec-ingest`) bypass the cookie and validate a shared-secret bearer (`AUDIT_INGEST_SECRET`, `EXEC_INGEST_SECRET`) instead — `src/middleware.ts:173-187`.
+- Route gates: `getCurrentUser` (`src/lib/auth-helpers.ts:11`), `requireTier` (`:42`), `requireAdmin` (`src/lib/require-admin.ts:8`); the working law is that a paid external call is never made before the gate (CLAUDE.md, Security-first).
+- User scoping: every query is scoped to the authed user — e.g. `where: { userId: user.id }` at `src/app/api/tastytrade/connect/route.ts:54`.
+- Rate limits: a durable fixed-window limiter backed by the `rate_limit_hits` table (`src/lib/rateLimit.ts:3-15`; schema:1399), plus `src/lib/scan-rate-limit.ts` and `src/lib/ai-rate-limit.ts`; tuned by `SEARCH_/BOOK_/SCAN_/AI_RATE_LIMIT` and `_WINDOW`, with daily caps `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP` (USD, from recorded spend — `src/lib/discovery/discoveryGate.ts`), `TRAVEL_SEARCH_DAILY_CAP`, and `GOOGLE_PLACES_MONTHLY_CAP`.
+- Audit log: a hash chain — each entry stores `prev_hash` and its own sha256 `content_hash` with a `sequence_number` (`prisma/schema.prisma:2441-2443`; written at `src/lib/audit/writeAuditLog.ts:99`); `src/lib/audit/verifyAuditChain.ts:47, 80` recomputes the chain.
+- Citations: `src/lib/citations/verifyCitation.ts:97` re-fetches the source and re-hashes it against `citations.retrieved_content_hash` (`prisma/schema.prisma:2287`); the column's only writer stores an empty string today (`src/lib/discovery/materializeProposal.ts:165`), so the check is structurally dead until the arrivals rebuild lands the real hash.
+- Corpus: the four ingest persisters hash content with sha256 on write — `src/lib/corpus/ingest/ecfr-persist.ts:28`, `uscode-persist.ts:32`, `fedreg-persist.ts:31`, `irb-persist.ts:32`.
+- Provider tokens at rest: AES-256-GCM with a key held in the deployment env (`src/lib/secrets/tokenCipher.ts`); readers accept ciphertext only.
+- Report a vulnerability to astuart@templestuart.com.
+
+## Providers
+
+The provider menu the deck draws at step 2 — who feeds each job today, and which doors are open next:
+
+| The job | Today | Next |
+|---|---|---|
+| banks & accounts | plaid | teller |
+| card money | stripe | square |
+| trades & market data | tastytrade | schwab · ibkr · alpaca · tradier · snaptrade |
+| company numbers | finnhub | polygon |
+| the economy | fred | — |
+| filings | sec | — |
+| flights | liteapi | amadeus |
+| hotels | liteapi | amadeus |
+| activities | viator | — |
+| locations | google places | — |
+| visas | travel buddy | — |
+| our AI | anthropic · openai · xai grok · voyage | — |
+| the law itself | ecfr · us code · federal register · irs | — |
+
+The deck's own count: today that is 121 feeds from 20 providers — counted August 24, 2026.
+
+## The scanner's gates
+
+<!-- gate-cards:start — generated from src/lib/convergence/gateCards.ts by scripts/regen-gate-cards-readme.ts; the build asserts this block byte-for-byte; do not edit by hand -->
+The scanner scores every candidate on ONE of two models — the seller model (the composite as it was, unchanged) or the buyer model (the recomposition per the input-sign table, `src/lib/convergence/input-signs.ts`) — never both, never a sign flip in place. Each gate has one card per side. PoP and EV on a card are pricing quantities under a lognormal model at scan-time IV, not forecasts; realized frequency is measured in EDGE-01. No weight below is tuned on an outcome: there are none yet.
+
+| Gate | Side | Purpose | Inputs and sources | Weight, date set | Evidence | What it is NOT |
+|---|---|---|---|---|---|---|
+| Vol Edge | SELL (seller model) | Are these options priced above what the stock actually moves — is there a premium to sell? | Mispricing 0.40 (VRP own-history percentile 0.30; IV percentile/rank level 0.30; \|IV − HV\| 0.25; HV30/60/90 trend 0.15 — TastyTrade market-metrics and the ticker's own scan_snapshots history); term structure 0.25 (TastyTrade expiration IVs); technicals 0.15 (TastyTrade candles, Finnhub 52-week range); skew 0.10 and dealer gamma 0.10 (Finnhub option chain, FRED DGS10). | 0.25 static, blended toward the regime table (0.15–0.30) by regime confidence — set at #1082 (2026-06-20); untuned on any outcome. | Goyal & Saretto 2009 and Carr & Wu 2009 (the variance risk premium); Vasquez 2017 (term structure — the code cites it with the reverse sign of its result; reported in MODEL-01, not changed); Cremers & Weinbaum 2010 (skew). | Not a forecast of realized volatility, and not the buyer's read — the same inputs invert for a buyer of premium. The VRP leg is excluded until 20 scan days of own history exist. |
+| Vol Edge | BUY (buyer model) | Are these options priced below what the stock actually moves — is premium cheap enough to own? | Six admitted components at equal weight: VRP percentile (inverted), IV percentile/rank level (inverted), HV over IV from the raw spread, the HV30/60/90 ladder (inverted — rising realized vol), dealer gamma (inverted), volume ratio (kept) — TastyTrade market-metrics and candles, Finnhub chain, FRED DGS10. | 0.25 of the buy score, equal and untuned, set 2026-09-15 — awaiting EDGE-01's third book (LOG-01 scan_candidates, the BUY bucket). | Goyal & Saretto 2009 (HV above IV predicts positive straddle returns); Coval & Shumway 2001 (unconditional long vol loses — hence the catalyst gate on this side). | Not a sign flip of the seller's number: term structure, RSI, Bollinger position, trend, the 52-week high and skew do NOT enter — input-signs.ts says why for each; MODEL-02 owns term structure and the SKEW index. |
+| Quality | SELL (seller model) | Is the underlying a company that will not blow up under a short-premium structure? | Safety 0.40 (liquidity rating, size, share volume, lendability, beta, debt-to-equity; the Altman cap, the borrow-rate penalty and the revenue-concentration modifier), profitability 0.30 (margins, returns, valuation, free cash flow, earnings quality, plus the Piotroski change modifier), growth 0.15, fundamental risk 0.15; ±5 for insider MSPR — Finnhub fundamentals and financials, TastyTrade, SEC EDGAR. | 0.25 static → 0.20–0.40 by regime — set at #1082 (2026-06-20); untuned on any outcome. | Piotroski 2000; Altman 1968; Christoffersen, Goyenko, Jacobs & Karoui 2018 (options illiquidity); Cao & Han 2013 (idiosyncratic vol, not beta). | Not a stock-picking score — a quality company can still carry expensive or cheap options. The ranking's 40-floor reads this gate; an ETF scores here on safety alone (profitability, growth and risk excluded, weights renormalized). |
+| Quality | BUY (buyer model) | Can this option be bought and unwound at a fair price, on an underlying that will not vanish? | The six safety components only, at equal weight: TastyTrade liquidity rating, market cap, 20-day share volume (candles), lendability, beta, debt-to-equity (Finnhub). | 0.25 of the buy score, equal and untuned, set 2026-09-15. | Christoffersen, Goyenko, Jacobs & Karoui 2018 (the buyer pays the illiquidity premium too); Altman 1968 (solvency). | Not profitability, growth, fundamental risk, the Piotroski change or MSPR — those are a long-side return tilt (Asness, Frazzini & Pedersen 2019) and feed the directional overlay, never the buy score; the borrow penalty and the concentration modifier do not enter. |
+| Regime | SELL (seller model) | Does the macro and volatility backdrop favor the best premium-selling structure right now? | FRED growth (6 series) and inflation (5 series) → regime probabilities with the yield-curve, high-yield-spread and cross-asset modifiers → the best strategy's fit in the strategy-regime matrix 0.70, VIX/VIX3M 0.20 (FRED VIXCLS ÷ VXVCLS), VVIX 0.10 (Cboe VVIX daily file, 24h cache), then × the ticker's SPY correlation (TastyTrade). On the trace at WEIGHT 0, present and dated: the VIX term structure (Cboe VIX9D ÷ VIX, VIX ÷ VIX3M, VIX3M ÷ VIX6M) and SKEW (Cboe) — set 2026-09-16, tuned by nobody. | 0.25 static → 0.20–0.30 by regime — set at #1082 (2026-06-20) and EDGE-6 (2026-07-08); untuned on any outcome. | Hamilton 1989 (the regime framework); Bansal & Stivers 2023 (the VIX overlay); CBOE PUT and BXM index history behind the matrix. | The VVIX leg was dead from 2026-07-08 (VVIXCLS is not a FRED series — DATA-01) and was restored 2026-09-16 from Cboe; a Cboe read that fails is declared on the brake (UNVERIFIED, with the reason), never imputed. The weight-0 term-structure and SKEW inputs move nothing. The survival brake (VIX/VIX3M > 1 or VVIX ≥ 110) is declared on every card and suppresses short-premium suggestions; it does not move this number. |
+| Regime | BUY (buyer model) | Is the market in a state where owning volatility is affordable — the same brake, read for the buyer? | The survival brake's two inputs only, same sign: VIX/VIX3M (FRED VIXCLS ÷ VXVCLS) and VVIX (Cboe VVIX daily file — restored 2026-09-16; a failed read is declared, the gate is VIX/VIX3M alone). | 0.25 of the buy score, equal and untuned, set 2026-09-15. | STRATEGY-EVIDENCE §6 (the anti-wipeout rule — a brake applies to both sides); Park 2015 (the tail-risk premium binds when VVIX is elevated). | Not the macro classification, the strategy matrix or the SPY-correlation multiplier — those are seller-shaped and do not enter; the weight-0 Cboe term-structure and SKEW inputs do not enter either. When a brake input is missing this gate is the other alone, or EXCLUDED when both are. |
+| Info Edge | SELL (seller model) | Do the informed footprints — insiders, institutions, analysts, the news — lean positive on this name? | Analyst consensus 0.15, price target 0.10, upgrades/downgrades 0.10, insiders 0.15, earnings momentum 0.20, options flow 0.05, news 0.15, institutional ownership 0.05, fund flow 0.05, 8-K events 0.05, recommendation revision 0.05 (raw sum 1.10, renormalized over what is present); a filing-recency overlay of +8/−12 — Finnhub, SEC EDGAR. | 0.25 static → 0.15–0.30 by regime — set at #1082 (2026-06-20) and EDGE-7b (2026-07-08); untuned on any outcome. | Womack 1996; Da & Schaumburg 2011; Seyhun 1986; Bernard & Thomas 1989; Johnson & So 2012; Chen, Jegadeesh & Wermers 2000; Chan, Jegadeesh & Lakonishok 1996. | Not direction-neutral — this gate is the directional overlay's source (BULLISH above 65, BEARISH below 35), so a seller's iron condor is scored by a bull/bear read here; MODEL-01 reports that and leaves the seller's composite unchanged. |
+| Info Edge | BUY (buyer model) | Is there attention and activity on this name — reasons the stock may move, without saying which way? | Four admitted components at equal weight: unusual option activity (Finnhub chain), news buzz and the tier-1 share of coverage (Finnhub company-news), the 8-K count (SEC EDGAR, inverted — more material events, more catalysts). | 0.25 of the buy score, equal and untuned, set 2026-09-15. | Gao, Xing & Zhang (straddles bought into the announcement window); the ruling's direction-neutral rule — a buyer of a straddle needs movement, not a side. | Not sentiment, targets, upgrades, insiders, earnings beats, the put/call ratio, O/S, institutions, fund flows, revisions or the filing overlay — every one is direction-bearing and feeds the overlay (bull call vs bear put debit spread), never this score. |
+
+The filter panel offers exactly the 6 strategies the builder makes (set 2026-09-16): Iron Condor, Put Credit Spread, Short Strangle, Long Straddle, Long Strangle, Debit Spread. The 10 below were offered until then and are not built:
+
+| Not built | Why |
+|---|---|
+| Call Credit Spread | No builder — the SELL branch (strategy-builder.ts generateStrategies) builds the put credit spread, the iron condor and the short strangle; no call-side credit spread routine exists. |
+| Short Straddle | No builder — an unbounded two-leg structure at the money; the short strangle is the only unbounded structure built, and it carries the undefined-risk cap. |
+| Jade Lizard | No builder — three legs (short put + short call spread); no leg-combination routine exists for it. |
+| Bull Call Spread | No builder since MODEL-01 — the bullish debit structure is built on the BUY side as "Debit Spread"; the SELL branch emits a rejection line naming this one. |
+| Bear Call Spread | No builder — a synonym of the call credit spread; appears only in the custom-leg namer (detectStrategyName), which nothing in the app calls. |
+| Bear Put Spread | No builder — the BUY branch builds the debit spread for BULLISH direction only and declares this one not built (strategy-builder.ts rejection line). |
+| Bull Put Spread | No builder under this name — it is the put credit spread, which IS built as "Put Credit Spread"; the duplicate name is retired. |
+| Calendar Spread | No builder — needs two expirations; the builder evaluates one expiration at a time (chain-fetcher.ts calls generateStrategies per expiration). |
+| Diagonal Spread | No builder — two expirations and two strikes; the same one-expiration limit as the calendar. |
+| Iron Butterfly | No builder — an at-the-money condor variant; no strike-selection routine exists for it. |
+<!-- gate-cards:end -->
+
+## Self-hosting
+
+You need Node (the code is typed against `@types/node ^20`), PostgreSQL, and a host — it is built for Vercel. Then the keys. Every name in the first table is read by the code (`grep -rhoE "process\.env\.[A-Z0-9_]+" src`, 2026-09-02); the second table is what a dependency reads for it, which that grep cannot see — declared in `src/lib/envLaw.ts`, and the build's env law (`scripts/assert-tool-registry.ts`) requires every name in both tables documented here and nothing documented that nothing reads.
+
+| Vendor / concern | Keys | Needed when |
+|---|---|---|
+| Core | `JWT_SECRET` (the ONE session secret — the former NEXTAUTH_SECRET is retired: the server refuses to boot while it is set, `src/lib/secretGuard.ts`), `OWNER_EMAIL`, `ADMIN_USER_ID` (the admin's users.id; every admin gate throws when it is unset — `src/lib/admin.ts`), `NEXT_PUBLIC_OWNER_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_BASE_URL` | Required |
+| Set by the platform | `NODE_ENV`, `NEXT_RUNTIME` (`nodejs` or `edge`, set by Next.js — the session-secret boot guard runs on the Node runtime only, `src/instrumentation.ts`), `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` | Provided by Vercel / Node / Next; nothing to set |
+| Plaid (bank sync) | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_REDIRECT_URI` (the OAuth return URL, `src/lib/plaid/oauth.ts`) | Required unless Books sync is disabled — no link token is created without the redirect URI |
+| Provider tokens at rest | `TOKEN_ENCRYPTION_KEY` (base64 of 32 bytes), `TOKEN_ENCRYPTION_KEY_ID` (`src/lib/secrets/tokenCipher.ts`) | Required — every Plaid and tastytrade token read or write fails loud without both |
+| Stripe (payments) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`; per entitlement `STRIPE_TAB_<KEY>_PRICE_ID`, `STRIPE_CAT_<KEY>_PRICE_ID`, `STRIPE_BUNDLE_ALL_PRICE_ID` (`src/lib/stripe.ts`) | Required to sell modules; skip to run everything unlocked |
+| Flights and stays (LiteAPI) | `LITEAPI_SANDBOX_KEY`, `LITEAPI_PRODUCTION_KEY`, `LITEAPI_MODE`, `FLIGHTS_LANE` (`liteapi` is the only lane — unset resolves to it, anything else refuses; `src/lib/flightsLane.ts:41`); `LITEAPI_WEBHOOK_TOKEN` — the "Authentication Token" registered with the booking webhook endpoint (`/api/webhooks/liteapi`) in the LiteAPI dashboard, sent as the `authorization` header of every delivery and compared in constant time (`src/app/api/webhooks/liteapi/route.ts`); unset → the endpoint answers 500 and lands nothing | Required unless travel is disabled; the webhook token only if the endpoint is registered |
+| Tours (Viator) | `VIATOR_API_KEY` | Required unless activities are disabled |
+| Visa rules (RapidAPI) | `RAPIDAPI_VISA_KEY`, `RAPIDAPI_VISA_HOST` | Required unless the visa check is disabled |
+| Places | `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_MONTHLY_CAP`, `PLACES_CACHE_TTL_DAYS` | Key required unless location search is disabled; caps optional |
+| Markets (tastytrade) | `TASTYTRADE_CLIENT_SECRET`, `TASTYTRADE_REFRESH_TOKEN`, `TT_USERNAME`, `TT_PASSWORD` | Required unless Trade is disabled |
+| Market data | `FINNHUB_API_KEY`, `FRED_API_KEY` | Required unless the scanner is disabled |
+| AI | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `VOYAGE_API_KEY` | Required unless the AI features are disabled |
+| Email (Resend) | `RESEND_API_KEY`, `EMAIL_FROM` | Required unless email is disabled |
+| Jobs (Inngest) | `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` | Required unless background jobs are disabled |
+| OAuth sign-in | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Optional; email login works without |
+| Routine and audit hooks | `CRON_SECRET`, `ROUTINE_AUDIT_TOKEN`, `ROUTINE_AUDIT_FIRE_URL`, `EXEC_ROUTINE_TOKEN`, `EXEC_ROUTINE_FIRE_URL`, `EXEC_INGEST_SECRET`, `AUDIT_INGEST_SECRET` | Required unless scheduled routines are disabled |
+| Rate limits and caps | `SEARCH_RATE_LIMIT`, `SEARCH_RATE_WINDOW`, `SCAN_RATE_LIMIT`, `SCAN_RATE_WINDOW`, `AI_RATE_LIMIT`, `AI_RATE_WINDOW`, `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP`, `TRAVEL_SEARCH_DAILY_CAP`; per provider `TRAVEL_SEARCH_DAILY_CAP_<PROVIDER>` (`src/lib/travelSearchQuota.ts:79`) | Optional; the code has defaults |
+| Misc | `YELP_API_KEY` | Required unless its feature is disabled |
+
+### Read by a library
+
+Variables no line of this code reads — a dependency does. The night next-auth 4.24.15 started building every OAuth callback from `NEXTAUTH_URL` (its `utils/detect-origin.js`), the table above could not have known the variable existed; in production the server now refuses to boot unless `NEXTAUTH_URL` is the https origin whose host equals `NEXT_PUBLIC_APP_URL`'s (`src/lib/siteUrlGuard.ts`).
+
+| Name | Read by | Where | Needed | Expected shape |
+|---|---|---|---|---|
+| `DATABASE_URL` | prisma | prisma/schema.prisma:12 `url = env("DATABASE_URL")` — the client and every migration | Required | postgresql://user:password@host:5432/db?sslmode=require (Azure Postgres requires SSL) |
+| `NEXTAUTH_URL` | next-auth | utils/detect-origin.js:9 (the origin of every OAuth callback and redirect — since 4.24.15 it wins over the request host on Vercel), jwt/index.js:65 (secure-cookie decision), react/index.js:53-54 (client base URL) | Required | the deployment's https origin with no path — its host must equal NEXT_PUBLIC_APP_URL's (https://www.templestuart.com in production; a bare templestuart.com is refused at boot by src/lib/siteUrlGuard.ts) |
+| `NEXTAUTH_URL_INTERNAL` | next-auth | react/index.js:55-56 (server-side fetch base when the public origin is not reachable from the server) | Optional | an http(s) origin; unset here |
+| `AUTH_TRUST_HOST` | next-auth | utils/detect-origin.js:10 (trust x-forwarded-host when NEXTAUTH_URL is unset) | Optional | unset — NEXTAUTH_URL rules the origin; never set this to paper over a wrong NEXTAUTH_URL |
+| `AUTH_SECRET` | next-auth | next/index.js:17,49,128 (the fallback when options.secret is unset — ours is JWT_SECRET, so this is never consulted) | Optional | unset — SECRET-01: JWT_SECRET is the one session secret |
+| `VERCEL` | next-auth | utils/detect-origin.js:10 (trust the forwarded host when NEXTAUTH_URL is unset), jwt/index.js:65 (secure cookies) | Set by the host | "1" on Vercel; set by the host |
+| `VERCEL_URL` | next-auth | react/index.js:53 (client base URL fallback when NEXTAUTH_URL is unset) | Set by the host | <deployment>.vercel.app, set by the host — never the production origin |
+| `VERCEL_ENV` | the boot check | src/lib/siteUrlGuard.ts (through the env record: production / preview / development — the NEXTAUTH_URL check runs for production only, a Preview has a per-deploy host) | Set by the host | production / preview / development; set by the host |
+| `PORT` | next | dist/server/lib/start-server.js (`next start` — self-hosting only; Vercel runs its own runtime) | Set by the host | a port number; set by the host |
+| `HOSTNAME` | next | dist/build/utils.js (`next start` bind host — self-hosting only) | Set by the host | a hostname; set by the host |
+
+Yes, that's a lot of keys. That's why the next section exists.
+
+## Work with me
+
+I built this for me — but I'll set it up for you.
+
+- Done-for-you setup: your own hosted copy, every API wired, you own everything.
+- Maintenance: I keep it updated and running.
+- Custom builds: need a feature? I build it.
+- Embed: want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.
+
+Email a project proposal (the template's pre-filled): [astuart@templestuart.com](mailto:astuart@templestuart.com?subject=Project%20proposal%20%E2%80%94%20Temple%20Stuart&body=What%20do%20you%20need%3F%20(setup%20%2F%20maintenance%20%2F%20custom%20build%20%2F%20embed%20a%20module)%3A%0A%0AYour%20business%20%2B%20current%20stack%3A%0A%0AWhich%20modules%20interest%20you%3A%0A%0ATimeline%3A%0A%0ABudget%20range%3A%0A%0AAnything%20else%3A)
+
+## License
+
+Source-available under the Business Source License 1.1 — see [LICENSE](LICENSE). Free to self-host for personal use; commercial use or a done-for-you setup: astuart@templestuart.com
 
 ---
 
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%">
-
-</div>
-
-<br>
-
-## 📋 Table of Contents
-
-<details>
-<summary>Click to expand</summary>
-
-- [What is Temple Stuart?](#-what-is-temple-stuart)
-- [Core Modules](#-core-modules)
-- [Tech Stack](#-tech-stack)
-- [Architecture](#-architecture)
-- [Quick Start](#-quick-start)
-- [Licensing](#-licensing)
-- [Managed Hosting](#%EF%B8%8F-managed-hosting)
-- [Documentation](#-documentation)
-- [Roadmap](#-roadmap)
-- [Contributing](#-contributing)
-- [Security](#-security)
-- [Contact](#-contact)
-
-</details>
-
-<br>
-
-## 🎯 What is Temple Stuart?
-
-<table>
-<tr>
-<td>
-
-```yaml
-name: Temple Stuart
-status: in active development (fast-moving; some modules live, some behind login)
-type: Personal Back Office / Financial Operating System
-
-mission: |
-  Replace 5+ fragmented tools with one unified system
-  that respects your data, your time, and your intelligence.
-
-problem_we_solve:
-  - Mint oversimplifies, hides important details
-  - QuickBooks is overkill for personal + small biz hybrid
-  - TraderSync doesn't integrate with your books
-  - TurboTax can't handle active trading complexity
-  - Spreadsheets for trip budgets don't talk to your ledger
-  - No single source of truth across entities
-
-built_for:
-  - Founder-traders (personal + business + trading accounts)
-  - Active options traders needing wash-sale compliance
-  - Digital nomads planning activity-based trips
-  - Freelancers wanting CPA-ready double-entry books
-  - Anyone managing complex financial lives
-
-principles:
-  accuracy_over_convenience: true
-  transparency_over_magic: true
-  user_control_over_ai_assumptions: true
-  double_entry_or_nothing: true
-```
-
-</td>
-</tr>
-</table>
-
-<br>
-
-## 📦 Core Modules
-
-<div align="center">
-
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│  THE HOME APP — 7 tabs, one timeline                                             │
-│  ╔════════╗ ╔════════╗ ╔═══════╗ ╔════════════╗ ╔═══════╗ ╔═════╗ ╔════════════╗  │
-│  ║CALENDAR║ ║ TRAVEL ║ ║ TRADE ║ ║ OPERATIONS ║ ║ BOOKS ║ ║ TAX ║ ║ COMPLIANCE ║  │
-│  ╚═══╤════╝ ╚═══╤════╝ ╚═══╤═══╝ ╚═════╤══════╝ ╚═══╤═══╝ ╚══╤══╝ ╚═════╤══════╝  │
-│      └──────────┴──────────┴───────────┴────────────┴────────┴──────────┘         │
-│  ┌────────────────────────────────────────────────────────────────────────────┐  │
-│  │           🔒 UNIFIED DOUBLE-ENTRY LEDGER  ·  one shared calendar            │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-│  ┌────────────────────────────────────────────────────────────────────────────┐  │
-│  │  🔌 LIVE: Plaid · Duffel · LiteAPI · Viator · Google Places · TastyTrade    │  │
-│  │           Finnhub · FRED · SEC EDGAR · Anthropic Claude · xAI Grok          │  │
-│  │     PARTIAL: Stripe      PARKED: Mozio · CoverGenius · Airalo               │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
-
-</div>
-
-<br>
-
-> **How to read this:** Temple Stuart is one app with three layers. The **home app** at `/`
-> is the front door — a 7-tab, mobile-friendly launcher. Some tabs are usable right away
-> (Calendar, Travel search); the rest run as a **deep app behind login** (~57 routes:
-> bookkeeping, trading, tax, operations, compliance) that the home tab will surface over
-> time. An older **Hub** cockpit and a first-pass tier `/pricing` page still exist and are
-> being folded into the home app. The status badge on each card below says where it stands
-> **on the public home surface** — not a blanket "done."
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 📅 Calendar
-
-<img src="https://img.shields.io/badge/Status-Live-success?style=flat-square" alt="Live">
-
-One timeline for your whole life.
-
-- **Live for everyone** — logged in, it shows your real calendar; logged out, a static demo
-- **Day view** — edge-to-edge, with a roomy time gutter and a crisp "now" line
-- **Phone** — day-only with a horizontal week strip; **desktop** keeps Day / Week / Month
-- **Four layers** — trips, projects, routines, trades, color-coded on one grid
-- Shared `CalendarGrid` reused across the home app and the deep app
-
-</td>
-<td width="50%" valign="top">
-
-### 🗺️ Travel
-
-<img src="https://img.shields.io/badge/Status-Live%20(search)-success?style=flat-square" alt="Live (search)">
-
-Plan a trip; search real fares and stays.
-
-- **Live search** — flights (Duffel), hotels (LiteAPI), things to do (Viator), visa check
-- **Trips money-arc** — create a trip, budget items, mark planned vs actual, photos, uncommit
-- **Budget integration** — committed trip costs flow toward your chart of accounts
-- ⏳ **Coming:** booking/commit a flight to a trip *from the home page* (the deep
-  `/budgets/trips` flow does this today; the home commit is being wired)
-- ⏳ **Parked:** ground transit (Mozio), insurance (CoverGenius), eSIM (Airalo)
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### 📈 Trade
-
-<img src="https://img.shields.io/badge/Status-Behind%20login-blue?style=flat-square" alt="Behind login">
-
-Built by a daily options trader. Full engine lives at `/trading`.
-
-- **AI volatility scanner** — S&P 500 universe through a convergence pipeline (4 categories, 3/4 gate)
-- **AI market brief + per-strategy analysis** — Claude reads regime, risk, picks; plain-English signals
-- **Strategy builder** — iron condors, credit spreads, straddles with P&L
-- **Live options data** — quotes, chains, Greeks, IV/HV via TastyTrade
-- **Cost basis + wash sales** — FIFO/LIFO/HIFO/SpecID, IRS Pub 550 30-day window
-- **Feeds** — Finnhub (news/analysts), FRED (macro), SEC EDGAR (filings), xAI Grok (sentiment)
-- On the home page: the scan form is admin-only today; everyone else sees a preview
-
-</td>
-<td width="50%" valign="top">
-
-### 🎯 Operations
-
-<img src="https://img.shields.io/badge/Status-Behind%20login-blue?style=flat-square" alt="Behind login">
-
-Turn a messy goal into a dated plan. Lives at `/operations`.
-
-- **Projects** — design, tasks, dependencies, evolution history
-- **Routines** — steps, completions, upcoming/today views
-- **Daily plan + north star** — blocks that drop onto your calendar with times
-- **Content studio** — scenes, takes, scripts
-- **AI plan / brain-dump** — Claude turns rambly input into a step list
-- On the home page: a static, fetch-free **preview** (no live data for guests)
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### 📒 Books (Double-Entry Bookkeeping)
-
-<img src="https://img.shields.io/badge/Status-Behind%20login-blue?style=flat-square" alt="Behind login">
-
-Real accounting, not "tracking." Lives at `/ledger`, `/transactions`, `/statements`.
-
-- **Plaid sync** — banks, brokerages, credit cards into one place
-- **Auto-categorization** — merchant mapping that learns from your corrections
-- **Entity separation** — P- (personal) · B- (business) · T- (trading)
-- **Double-entry** — balanced debits/credits, commit-to-ledger, journal entries
-- **Statements** — balance sheet (prior-year carry-forward), income statement, three-statement view
-- **Bank reconciliation + period close** — month-end verify and lock
-- On the home page: a paid tab (use it in the deep app today)
-
-</td>
-<td width="50%" valign="top">
-
-### 🧾 Tax
-
-<img src="https://img.shields.io/badge/Status-Behind%20login-blue?style=flat-square" alt="Behind login">
-
-From clean books toward Form 1040. Lives at `/dashboard/tax`.
-
-- **Form 1040 estimator** — bracket breakdown, line-item mapping
-- **Schedule C / SE / D + Form 8949** — business P&L, self-employment, capital gains (CSV/PDF export)
-- **Wash sale detection** — IRS Pub 550, 30-day window
-- **Manual overrides** — W-2 / 1099-R entry for the full picture
-- On the home page: a paid tab (use it in the deep app today)
-
-> ⚠️ **Disclaimer:** Temple Stuart is not a CPA firm or tax preparer. All tax figures are estimates and must be verified by a licensed professional before filing.
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### 🛡️ Compliance
-
-<img src="https://img.shields.io/badge/Status-Behind%20login-blue?style=flat-square" alt="Behind login">
-
-A timestamped record that you did things right. Lives at `/compliance`.
-
-- **Missions + tasks** — what needs doing, tracked
-- **Citations** — pulled and verified against source regulation
-- **Discovery** — runs, proposals, profile
-- **Registry + audit log** — a tamper-evident, chain-verified trail (`/soc2`)
-- On the home page: a paid tab (use it in the deep app today)
-
-</td>
-<td width="50%" valign="top">
-
-### 🎛️ Hub (legacy cockpit)
-
-<img src="https://img.shields.io/badge/Status-Legacy-lightgrey?style=flat-square" alt="Legacy">
-
-The original command center at `/hub` — being folded into the home app.
-
-- **Unified calendar** — its calendar logic now powers the home Calendar tab
-- **Budget comparison + trip cards + map view** — homebase vs travel vs business
-- Still works today; the home app is the new front door
-
-</td>
-</tr>
-</table>
-
-<br>
-
-## 🛠️ Tech Stack
-
-<div align="center">
-
-<table>
-<tr>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=nextjs" width="48" height="48" alt="Next.js" />
-<br><sub><b>Next.js 15</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=ts" width="48" height="48" alt="TypeScript" />
-<br><sub><b>TypeScript</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=react" width="48" height="48" alt="React" />
-<br><sub><b>React 18</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=tailwind" width="48" height="48" alt="Tailwind" />
-<br><sub><b>Tailwind</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=postgres" width="48" height="48" alt="PostgreSQL" />
-<br><sub><b>PostgreSQL</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=prisma" width="48" height="48" alt="Prisma" />
-<br><sub><b>Prisma</b></sub>
-</td>
-</tr>
-<tr>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=azure" width="48" height="48" alt="Azure" />
-<br><sub><b>Azure</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=vercel" width="48" height="48" alt="Vercel" />
-<br><sub><b>Vercel</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://avatars.githubusercontent.com/u/134034493" width="48" height="48" alt="Plaid" style="border-radius: 8px" />
-<br><sub><b>Plaid</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://avatars.githubusercontent.com/u/54536011" width="48" height="48" alt="Duffel" style="border-radius: 8px" />
-<br><sub><b>Duffel</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://www.gstatic.com/images/branding/product/2x/maps_96dp.png" width="48" height="48" alt="Google Places" />
-<br><sub><b>Places API</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/X_logo_2023.svg/300px-X_logo_2023.svg.png" width="48" height="48" alt="xAI" style="background: black; border-radius: 8px; padding: 8px" />
-<br><sub><b>xAI Grok</b></sub>
-</td>
-</tr>
-<tr>
-<td align="center" width="96">
-<img src="https://avatars.githubusercontent.com/u/76263028" width="48" height="48" alt="Anthropic" style="border-radius: 8px" />
-<br><sub><b>Claude AI</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://avatars.githubusercontent.com/u/48205786" width="48" height="48" alt="Finnhub" style="border-radius: 8px" />
-<br><sub><b>Finnhub</b></sub>
-</td>
-<td align="center" width="96">
-<img src="https://avatars.githubusercontent.com/u/37933258" width="48" height="48" alt="Tastytrade" style="border-radius: 8px" />
-<br><sub><b>Tastytrade</b></sub>
-</td>
-</tr>
-</table>
-
-</div>
-
-<br>
-
-### Integration Details
-
-| Integration | Status | Purpose | Implementation |
-|-------------|--------|---------|----------------|
-| **Plaid** | 🟢 Live | Banking data sync | Production: transactions + investments + balances |
-| **Duffel** | 🟢 Live | Flight search/booking | GDS: search → offers → passenger details → order |
-| **LiteAPI** | 🟢 Live | Hotel search | Search + content + reviews; booking flow (prebook/book) maturing |
-| **Viator** | 🟢 Live | Things to do | Bookable tours / activities / wellness search |
-| **Google Places** | 🟢 Live | Location intelligence | Geocoding, text search (60 results/category), photos, price levels |
-| **TastyTrade** | 🟢 Live | Options data | Live quotes, chains, Greeks, IV/HV, positions, scanner |
-| **Finnhub** | 🟢 Live | Market data | Company news, analyst ratings, price targets (free tier) |
-| **FRED** | 🟢 Live | Macro data | St. Louis Fed indicators feeding the convergence regime score |
-| **SEC EDGAR** | 🟢 Live | Filings | Filings ingest for discovery + convergence info-edge |
-| **Anthropic Claude** | 🟢 Live | AI analysis | Market briefs, strategy analysis, ops planning, discovery |
-| **xAI Grok** | 🟢 Live | Trip AI + sentiment | Trip analysis, X/Twitter sentiment via x_search |
-| **OpenAI** | 🟢 Live | General AI | Client for some explanatory features |
-| **Stripe** | 🟡 Partial | Payments | Checkout/portal/webhook routes built; checkout not surfaced yet |
-| **Mozio** | ⚪ Parked | Ground transit | Declared in the source registry, not connected |
-| **CoverGenius** | ⚪ Parked | Travel insurance | Declared, not connected |
-| **Airalo** | ⚪ Parked | eSIM / data | Declared, not connected |
-| **Leaflet** | 🟢 Live | Maps | Trip visualization, destination markers, popups |
-
-<br>
-
-<details>
-<summary><strong>📁 Project Structure</strong></summary>
-
-```
-temple-stuart/
-├── src/
-│   ├── app/                    # Next.js App Router (flat routes)
-│   │   ├── accounts/           # Plaid account management
-│   │   ├── api/                # API routes (160 endpoints)
-│   │   │   ├── plaid/          # Plaid webhooks + sync
-│   │   │   ├── flights/        # Duffel search + booking
-│   │   │   ├── trips/          # Trip CRUD + participants
-│   │   │   ├── trading/        # P&L, positions, journal
-│   │   │   ├── transactions/   # Commit to ledger
-│   │   │   └── ...
-│   │   ├── budgets/            # Budget management + trips UI
-│   │   ├── hub/                # Command center dashboard
-│   │   ├── trading/            # Trading analytics UI
-│   │   ├── transactions/       # Transaction review UI
-│   │   └── layout.tsx          # Root layout
-│   ├── components/             # React components
-│   │   ├── ui/                 # Shared UI primitives
-│   │   ├── convergence/        # Market Intelligence dashboard
-│   │   └── trips/              # Trip-specific (TripMap, etc.)
-│   ├── lib/                    # Core libraries
-│   │   ├── convergence/        # Convergence pipeline (15 modules)
-│   │   │   ├── pipeline.ts     # Full scan orchestrator
-│   │   │   ├── composite.ts    # 4-category composite + gate
-│   │   │   ├── vol-edge.ts     # IV vs HV scoring
-│   │   │   ├── quality-gate.ts # Finnhub fundamentals
-│   │   │   ├── regime.ts       # FRED macro + SPY correlation
-│   │   │   ├── info-edge.ts    # News + insider + analyst
-│   │   │   ├── trade-cards.ts  # Plain English trade cards
-│   │   │   ├── chain-fetcher.ts # TT option chains + Greeks
-│   │   │   ├── data-fetchers.ts # Finnhub + FRED APIs
-│   │   │   ├── probability.ts  # N(d2) normalCDF (Abramowitz & Stegun)
-│   │   │   ├── filter-types.ts # 3-tier filter definitions
-│   │   │   ├── filter-engine.ts # Client-side filter engine
-│   │   │   ├── sentiment.ts    # xAI Grok social sentiment
-│   │   │   └── types.ts        # Pipeline type definitions
-│   │   ├── strategy-builder.ts # Delta-based strategy generation
-│   │   ├── plaid.ts            # Plaid client (production)
-│   │   ├── duffel.ts           # Duffel GDS client
-│   │   ├── grok.ts             # xAI Grok client
-│   │   ├── placesSearch.ts     # Google Places with caching
-│   │   ├── auto-categorization-service.ts
-│   │   ├── investment-ledger-service.ts
-│   │   ├── journal-entry-service.ts
-│   │   ├── form-1040-service.ts
-│   │   ├── schedule-c-service.ts
-│   │   ├── tax-report-service.ts
-│   │   ├── wash-sale-service.ts
-│   │   ├── robinhood-parser.ts # CSV import
-│   │   └── prisma.ts           # Database client
-│   └── types/                  # TypeScript types
-├── prisma/
-│   ├── schema.prisma           # 61 models, full audit trail
-│   └── migrations/             # Migration history
-└── public/                     # Static assets
-```
-
-</details>
-
-<br>
-
-## 🏗️ Architecture
-
-<details>
-<summary><strong>System Design Overview</strong></summary>
-
-```
-                                    ┌─────────────────┐
-                                    │    USERS        │
-                                    │  (Web Browser)  │
-                                    └────────┬────────┘
-                                             │
-                                             ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                              PRESENTATION LAYER                            │
-│  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                         Next.js 15 (App Router)                       │  │
-│  │  • React 18 Server Components    • API Routes    • Vercel Edge        │  │
-│  └──────────────────────────────────────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────────────────────────┘
-                                             │
-                                             ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                              APPLICATION LAYER                             │
-│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────┐│
-│  │Bookkeeping│ │  Trading  │ │   Trips   │ │ Budgeting │ │    Tax    │ │  Hub  ││
-│  │  Service  │ │  Service  │ │  Service  │ │  Service  │ │ Reporting │ │Service││
-│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └───┬───┘│
-│        │              │              │              │              │            │      │
-│  ┌─────┴──────────────┴──────────────┴──────────────┴──────────────┴────────────┴───┐│
-│  │                  AUTO-CATEGORIZATION ENGINE                              ││
-│  │    Merchant Mapping (high confidence) → Category Fallback               ││
-│  │    Learning Loop: User corrections → Future predictions                 ││
-│  └──────────────────────────────────┬──────────────────────────────────────┘│
-│                                │                                           │
-│                    ┌───────────┴───────────┐                               │
-│                    │   Double-Entry        │                               │
-│                    │   Accounting Engine   │                               │
-│                    │   (ledger_entries)    │                               │
-│                    └───────────────────────┘                               │
-└────────────────────────────────────────────────────────────────────────────┘
-                                             │
-                                             ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                                DATA LAYER                                  │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                     Prisma ORM + PostgreSQL (Azure)                  │   │
-│  │  • 61 models            • Entity separation (P/B/T)    • Audit trail  │   │
-│  │  • stock_lots          • trading_positions            • trip RSVP    │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-└────────────────────────────────────────────────────────────────────────────┘
-                                             │
-                                             ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                            INTEGRATION LAYER                               │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  ┌──────────┐  ┌──────────┐ │
-│  │   Plaid  │  │  Duffel  │  │ Google Places│  │ xAI Grok │  │  OpenAI  │ │
-│  │ Banking  │  │ Flights  │  │  Locations   │  │ Analysis │  │ Explain  │ │
-│  │  (prod)  │  │  (GDS)   │  │  (cached)    │  │(grok-3)  │  │          │ │
-│  └──────────┘  └──────────┘  └──────────────┘  └──────────┘  └──────────┘ │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐                             │
-│  │Tastytrade│  │Claude AI │  │   Finnhub    │                             │
-│  │ Options  │  │  Market  │  │ News/Analyst │                             │
-│  │  (live)  │  │  Briefs  │  │  (free tier) │                             │
-│  └──────────┘  └──────────┘  └──────────────┘                             │
-└────────────────────────────────────────────────────────────────────────────┘
-```
-
-</details>
-
-<details>
-<summary><strong>🔄 Auto-Categorization Flow</strong></summary>
-
-```
-Transaction arrives from Plaid
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  1. MERCHANT MAPPING (High Conf)    │
-│     Look up merchant_coa_mappings   │
-│     Match: merchant + category      │
-│     Confidence: 0.5 - 1.0           │
-└──────────────┬──────────────────────┘
-               │ No match?
-               ▼
-┌─────────────────────────────────────┐
-│  2. CATEGORY FALLBACK (Med Conf)    │
-│     Map Plaid category → COA code   │
-│     FOOD_AND_DRINK → P-6100         │
-│     TRANSPORTATION → P-6400         │
-│     Confidence: 0.6                 │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  3. HUMAN REVIEW                    │
-│     predicted_coa_code set          │
-│     review_status = pending_review  │
-│     User approves or overrides      │
-└──────────────┬──────────────────────┘
-               │ User overrides?
-               ▼
-┌─────────────────────────────────────┐
-│  4. LEARNING LOOP                   │
-│     Save to merchant_coa_mappings   │
-│     Future transactions auto-match  │
-│     manually_overridden = true      │
-└─────────────────────────────────────┘
-```
-
-</details>
-
-<details>
-<summary><strong>✈️ Trip AI Pipeline</strong></summary>
-
-```
-User selects: Destination + Activities (e.g., surf, nomad, coworking)
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  GOOGLE PLACES API                  │
-│  Facts only. No opinions.           │
-│                                     │
-│  • Geocode destination              │
-│  • Search 60 places per category    │
-│  • Get: rating, reviewCount, price  │
-│  • Cache results (places_cache)     │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  XAI GROK (grok-3-latest)           │
-│  Analysis + Judgment                │
-│                                     │
-│  Input: places + traveler profile   │
-│  Output per place:                  │
-│    • sentimentScore (1-10)          │
-│    • fitScore (1-10 for activities) │
-│    • warnings (actionable issues)   │
-│    • trending (buzzy or not)        │
-│    • valueRank (final ordering)     │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  USER SEES                          │
-│  Ranked recommendations with:       │
-│  • Google rating + review count     │
-│  • Grok sentiment + fit score       │
-│  • Specific warnings                │
-│  • Photos from Google               │
-│  User decides. AI explains.         │
-└─────────────────────────────────────┘
-```
-
-</details>
-
-<details>
-<summary><strong>📊 Volatility Scanner Pipeline</strong></summary>
-
-```
-User opens Scanner → Selects Universe (S&P 500)
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  TASTYTRADE API                     │
-│  Live data for 475 tickers          │
-│                                     │
-│  • IV, HV (30/60/90 day)           │
-│  • IV Rank, term structure          │
-│  • Earnings dates, borrow rates     │
-│  • Sector classification            │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  INSTITUTIONAL HARD GATES           │
-│  ~26% pass rate                     │
-│                                     │
-│  • Liquidity score ≥ 3             │
-│  • IV-HV spread ≥ 5 points        │
-│  • IV Rank ≥ 25                    │
-│  • Borrow rate ≤ 10%              │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  SCORING ENGINE (0-100)             │
-│  7 factors + sector penalty         │
-│                                     │
-│  • IV-HV spread (30 pts)           │
-│  • HV trend (5 pts)               │
-│  • IV Rank (20 pts)               │
-│  • Liquidity (20 pts)             │
-│  • Term structure (10 pts)         │
-│  • Earnings proximity (10 pts)     │
-│  • Lendability (5 pts)            │
-│  • Sector diversity: -5 penalty    │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  CLAUDE AI MARKET BRIEF             │
-│  Regime + Risk + Top Picks          │
-│                                     │
-│  • Regime snapshot (avg spreads)    │
-│  • Sector heatmap                  │
-│  • Risk clusters (earnings,         │
-│    sector concentration, anomalies) │
-│  • Top 8 tickers + marginal 3      │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  TOP PICKS AUTO-ANALYSIS            │
-│  Sequential, ~25 seconds            │
-│                                     │
-│  For each of 8 tickers:            │
-│  • Fetch quote + chain + Greeks    │
-│  • Generate 2-3 strategy cards     │
-│  • Fetch Finnhub news + analysts   │
-│  • Claude AI analysis per strategy │
-│                                     │
-│  Cards show: legs, Greeks, PoP,    │
-│  P&L chart, breakevens, AI text    │
-└─────────────────────────────────────┘
-```
-
-</details>
-
-<details>
-<summary><strong>🧠 Convergence Pipeline</strong></summary>
-
-```
-User selects Universe → Scan Market
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  TASTYTRADE SCANNER                 │
-│  41 fields per ticker               │
-│                                     │
-│  • IV30, HV30, IV60, HV60, IV90    │
-│  • IV Rank, IV Percentile           │
-│  • Term structure, liquidity score  │
-│  • Earnings date, borrow rate       │
-│  • 475 S&P 500 stocks               │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  HARD FILTERS                       │
-│  Quick elimination                  │
-│                                     │
-│  • Liquidity ≥ 3                    │
-│  • IV-HV spread ≥ 5                │
-│  • IV Rank ≥ 25                     │
-│  • Borrow rate ≤ 10%               │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  4-CATEGORY SCORING (0-100 each)    │
-│  Convergence = all categories agree │
-│                                     │
-│  Vol-Edge (IV vs HV)                │
-│  • IV-HV spread magnitude           │
-│  • HV trend direction               │
-│  • Term structure slope              │
-│  • IV Rank percentile               │
-│                                     │
-│  Quality Gate (fundamentals)         │
-│  • Profitability & margins           │
-│  • Earnings surprise history         │
-│  • Analyst consensus vs price        │
-│  • Financial health ratios           │
-│                                     │
-│  Regime (macro + correlation)        │
-│  • VIX level & percentile           │
-│  • Credit spreads (HY-IG)           │
-│  • Yield curve slope                 │
-│  • SPY correlation modifier          │
-│  • FRED macro indicators (9)         │
-│                                     │
-│  Info-Edge (news + insiders)         │
-│  • News sentiment (Finnhub)          │
-│  • Insider activity (MSPR)           │
-│  • Analyst rating changes            │
-│  • Earnings proximity                │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  CONVERGENCE GATE                   │
-│  3/4 categories must score > 50     │
-│                                     │
-│  Only tickers where volatility,     │
-│  fundamentals, macro regime, AND    │
-│  information flow all agree get     │
-│  promoted to trade card generation  │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  TRADE CARD GENERATION              │
-│  Real strikes from live chains      │
-│                                     │
-│  • Fetch TastyTrade option chains   │
-│  • Delta-based strike selection     │
-│  • Generate 2-3 strategies:         │
-│    Iron Condor, Credit Spread,      │
-│    Straddle, etc.                   │
-│  • N(d2) breakeven PoP, 3-outcome EV│
-│  • Calculate: max profit, max loss, │
-│    breakevens, risk/reward          │
-│  • 3-tier gate: EV > 0, PoP floor, │
-│    minimum credit                   │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  PLAIN ENGLISH OUTPUT               │
-│  Everything explained, no jargon    │
-│                                     │
-│  • Score explanations per category  │
-│  • Risk flags: insider selling,     │
-│    earnings proximity, low volume   │
-│  • Regime context: what macro means │
-│  • Key stats with explanations      │
-│    "Beta: 1.1 — moves slightly      │
-│     more than the market"           │
-│  • Top headlines from Finnhub       │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  3-TIER FILTER PANEL               │
-│  15 configurable parameters         │
-│                                     │
-│  Tier 1: Liquidity Gates           │
-│  • Min OI, max spread, volume,     │
-│    liquidity rating                 │
-│                                     │
-│  Tier 2: Risk Profile              │
-│  • Defined/unlimited, direction,   │
-│    premium stance, DTE, strategies  │
-│                                     │
-│  Tier 3: Edge Metrics              │
-│  • Min PoP, min EV, EV/Risk,      │
-│    vol edge, IV rank, sentiment    │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  SOCIAL SENTIMENT (xAI Grok)       │
-│  Optional, runs in parallel         │
-│                                     │
-│  Stage 1: Grok 4.1 Fast + x_search │
-│  • Fetch 10-20 X/Twitter posts     │
-│  • Classify bullish/bearish/neutral│
-│                                     │
-│  Stage 2: Grok 4.1 Fast (scoring)  │
-│  • Numerical score (-1 to +1)      │
-│  • Confidence magnitude (0-1)      │
-└─────────────────────────────────────┘
-```
-
-**Data Sources:**
-
-| Source | Fields | Purpose |
-|--------|--------|---------|
-| **Tastytrade** | 41 fields per ticker | IV, HV, Greeks, chains, liquidity, earnings |
-| **Finnhub** | 132 fundamentals + news + insider + analyst + earnings | Quality scores, sentiment, insider activity |
-| **FRED** | 9 macro indicators | VIX, credit spreads, yield curve, unemployment |
-| **SPY** | Correlation coefficient | Regime modifier — adjusts for market-wide moves |
-| **xAI Grok** | X/Twitter posts via x_search | Social sentiment scoring (two-stage pipeline) |
-
-**Key Files:**
-
-| File | Purpose |
-|------|---------|
-| `pipeline.ts` | Orchestrates full scan: TT fetch → hard filters → scoring → ranking |
-| `composite.ts` | Combines 4 category scores into composite + convergence gate |
-| `vol-edge.ts` | IV vs HV analysis, term structure, rank scoring |
-| `quality-gate.ts` | Fundamental analysis from Finnhub (132 metrics) |
-| `regime.ts` | Macro regime from FRED + SPY correlation modifier |
-| `info-edge.ts` | News sentiment + insider MSPR + analyst changes |
-| `trade-cards.ts` | Wraps strategy cards with plain English signals |
-| `strategy-builder.ts` | Delta-based strike selection, N(d2) PoP, three-outcome EV, P&L |
-| `probability.ts` | Abramowitz & Stegun normalCDF for N(d2) breakeven PoP |
-| `filter-types.ts` | 3-tier filter type definitions (15 parameters) |
-| `filter-engine.ts` | Client-side filter engine (liquidity → risk → edge) |
-| `sentiment.ts` | xAI Grok two-stage social sentiment pipeline |
-| `chain-fetcher.ts` | TastyTrade option chain fetch + WebSocket Greeks |
-| `data-fetchers.ts` | Finnhub + FRED API integration |
-| `types.ts` | All pipeline types and interfaces |
-| `ConvergenceIntelligence.tsx` | Unified Market Intelligence dashboard |
-
-**Stress Tested:** 20/20 tickers passed — AAPL, NVDA, TSLA, JPM, XOM, PFE, PLTR, GME, MSFT, AMZN, META, GOOGL, KO, WMT, BAC, AMD, COIN, SOFI, IWM, SPY
-
-</details>
-
-<br>
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| Node.js | 20+ | LTS recommended |
-| PostgreSQL | 16+ | Azure or local |
-| Plaid Account | - | Sandbox works for dev |
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/Temple-Stuart/temple-stuart-accounting.git
-cd temple-stuart-accounting
-
-# Install dependencies
-npm install
-
-# Configure environment
-cp .env.example .env.local
-```
-
-<details>
-<summary><strong>📝 Environment Variables</strong></summary>
-
-```env
-# ═══════════════════════════════════════════════════════════════
-# DATABASE
-# ═══════════════════════════════════════════════════════════════
-DATABASE_URL="postgresql://user:password@host:5432/temple_stuart?sslmode=require"
-
-# ═══════════════════════════════════════════════════════════════
-# AUTHENTICATION
-# ═══════════════════════════════════════════════════════════════
-NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
-NEXTAUTH_URL="http://localhost:3000"
-
-# ═══════════════════════════════════════════════════════════════
-# PLAID (Banking Integration) — Required
-# ═══════════════════════════════════════════════════════════════
-PLAID_CLIENT_ID="your-client-id"
-PLAID_SECRET="your-secret"
-# Note: App forces production environment for real data
-
-# ═══════════════════════════════════════════════════════════════
-# DUFFEL (Flight Booking) — Optional
-# ═══════════════════════════════════════════════════════════════
-DUFFEL_API_TOKEN="duffel_live_..."
-
-# ═══════════════════════════════════════════════════════════════
-# GOOGLE PLACES — Optional (for trip recommendations)
-# ═══════════════════════════════════════════════════════════════
-GOOGLE_PLACES_API_KEY="AIza..."
-
-# ═══════════════════════════════════════════════════════════════
-# XAI GROK — Optional (for trip AI analysis)
-# ═══════════════════════════════════════════════════════════════
-XAI_API_KEY="xai-..."
-
-# ═══════════════════════════════════════════════════════════════
-# OPENAI — Optional
-# ═══════════════════════════════════════════════════════════════
-OPENAI_API_KEY="sk-..."
-
-# ═══════════════════════════════════════════════════════════════
-# ANTHROPIC (AI Market Brief + Strategy Analysis)
-# ═══════════════════════════════════════════════════════════════
-ANTHROPIC_API_KEY="sk-ant-..."
-
-# ═══════════════════════════════════════════════════════════════
-# FINNHUB (News + Analyst Ratings) — Free tier, 60 calls/min
-# ═══════════════════════════════════════════════════════════════
-FINNHUB_API_KEY="your-finnhub-key"
-
-# ═══════════════════════════════════════════════════════════════
-# TASTYTRADE (Options Data — Quotes, Chains, Greeks)
-# ═══════════════════════════════════════════════════════════════
-TASTYTRADE_USERNAME="your-username"
-TASTYTRADE_PASSWORD="your-password"
-```
-
-</details>
-
-```bash
-# Initialize database
-npx prisma migrate deploy
-npx prisma db seed
-
-# Start development server
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) 🎉
-
-<br>
-
-## 📜 Licensing
-
-<div align="center">
-
-Temple Stuart is **source-available** under the **Business Source License 1.1** — free for personal use, a paid license for commercial use, and fully open (Apache 2.0) from 2028.
-
-</div>
-
-<br>
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 🆓 Free for personal use
-
-**Personal, non-commercial use**
-
-<img src="https://img.shields.io/badge/Cost-$0-success?style=flat-square" alt="Free">
-
-✅ Self-host it for your own personal finances<br>
-✅ Read the full source — learn from it<br>
-✅ Modify and extend it for yourself<br>
-✅ Full feature access — no paywalled code
-
-🔓 **Converts to Apache 2.0 on 2028-01-01** (the BSL Change Date) — fully open from then on, for everyone.
-
-<br>
-
-**Perfect for:**
-- Personal finance tracking
-- Learning and experimentation
-- Self-hosting your own back office
-
-</td>
-<td width="50%" valign="top">
-
-### 💼 Commercial license
-
-**For business & production use**
-
-<img src="https://img.shields.io/badge/Pricing-Contact%20Us-blue?style=flat-square" alt="Contact Us">
-
-✅ Run it as a business or in production<br>
-✅ Host it as a service for others<br>
-✅ Use it inside a company<br>
-✅ Priority support included
-
-⚠️ Commercial or production use needs a paid license from Temple Stuart LLC — you can't take it and sell it.
-
-<br>
-
-[**📧 Contact for a commercial license →**](mailto:astuart@templestuart.com)
-
-</td>
-</tr>
-</table>
-
-<br>
-
-<div align="center">
-
-### Why this model?
-
-> *"Free to use for yourself. Pay if you build a business on it. Fully open in 2028."*
-
-The BSL + Commercial model means:
-
-**Personal users** → Use it free, forever, for your own life<br>
-**Tinkerers** → Read every line, learn from it, modify it<br>
-**Businesses** → Pay fairly for the value you build on it<br>
-**Everyone, eventually** → It becomes Apache 2.0 on 2028-01-01
-
-</div>
-
-<br>
-
-## ☁️ Managed Hosting
-
-<div align="center">
-
-**Don't want to self-host? We've got you.**
-
-*Pricing is estimated — final tiers TBD*
-
-</div>
-
-<br>
-
-<table>
-<tr>
-<th></th>
-<th align="center">🆓 Free<br><sub>$0/mo</sub></th>
-<th align="center">🚀 Pro<br><sub>$20/mo</sub></th>
-<th align="center">⚡ Pro+<br><sub>$40/mo</sub></th>
-<th align="center">📈 Trader Pro<br><sub>$60/mo</sub></th>
-</tr>
-<tr>
-<td><strong>Manual Entry & Budgeting</strong></td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Double-Entry Bookkeeping</strong></td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Hub Command Center</strong></td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Plaid Bank Sync</strong></td>
-<td align="center">—</td>
-<td align="center">✅ (10 accounts)</td>
-<td align="center">✅ (25 accounts)</td>
-<td align="center">✅ (25 accounts)</td>
-</tr>
-<tr>
-<td><strong>Trading P&L Analytics</strong></td>
-<td align="center">—</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Auto-Categorization</strong></td>
-<td align="center">—</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Tax Estimator (1040, C, D, SE)</strong></td>
-<td align="center">—</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>AI Spending Insights</strong></td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>AI Meal Planning</strong></td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Trip AI Recommendations</strong></td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>AI Volatility Scanner</strong></td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Strategy Builder</strong></td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Trade Lab + Grading</strong></td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Live Signals + Portfolio Greeks</strong></td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">🔜</td>
-</tr>
-<tr>
-<td><strong>Support</strong></td>
-<td align="center">Community</td>
-<td align="center">Email</td>
-<td align="center">Priority</td>
-<td align="center">Priority</td>
-</tr>
-</table>
-
-<br>
-
-<div align="center">
-
-**All plans include:** Your data, always exportable
-
-</div>
-
-<br>
-
-## 📚 Documentation
-
-Documentation is maintained in-app and in code comments. See `src/lib/` for service-level documentation.
-
-| Area | Key Files |
-|------|-----------|
-| **Bookkeeping** | `journal-entry-service.ts`, `investment-ledger-service.ts`, `auto-categorization-service.ts` |
-| **Tax Reporting** | `form-1040-service.ts`, `schedule-c-service.ts`, `tax-report-service.ts`, `wash-sale-service.ts` |
-| **Trading** | `strategy-builder.ts`, `convergence/pipeline.ts`, `convergence/composite.ts` |
-| **Integrations** | `plaid.ts`, `duffel.ts`, `tastytrade.ts`, `grok.ts` |
-| **Contributing** | See [CONTRIBUTING.md](CONTRIBUTING.md) |
-
-<br>
-
-## 🗺️ Roadmap
-
-<table>
-<tr>
-<td align="center" width="33%"><strong>✅ Live now</strong></td>
-<td align="center" width="33%"><strong>🔧 In progress</strong></td>
-<td align="center" width="33%"><strong>🔮 Planned</strong></td>
-</tr>
-<tr>
-<td valign="top">
-
-✅ Double-entry bookkeeping + general ledger<br>
-✅ Plaid sync + auto-categorization<br>
-✅ Bank reconciliation + period close<br>
-✅ Trading scanner + convergence pipeline<br>
-✅ AI market brief + strategy builder (Claude)<br>
-✅ Lot cost basis + wash sales<br>
-✅ Tax: 1040 / Sch C / SE / D + Form 8949<br>
-✅ Operations: projects + routines + daily plan<br>
-✅ Compliance: missions + citations + audit log<br>
-✅ Travel live search (Duffel / LiteAPI / Viator / visa)<br>
-✅ Trips money-arc (budget vs actual, photos, uncommit)<br>
-✅ The home app — 7-tab mobile-friendly front door<br>
-✅ Day-view calendar + phone week strip, edge-to-edge<br>
-✅ Cost-build pricing page (`/how-pricing-works`)<br>
-✅ Account creation (cookie auth + next-auth)
-
-</td>
-<td valign="top">
-
-🔧 Home commit-wiring (search → commit → trip → calendar)<br>
-🔧 Surface Books / Tax / Compliance on the public home<br>
-🔧 Login → home redirect + demo→real flip<br>
-🔧 Pricing page → real numbers (from Books cost data)<br>
-🔧 Stripe checkout activation (routes built, not surfaced)<br>
-🔧 Retire / fold in the legacy Hub + tier `/pricing`
-
-</td>
-<td valign="top">
-
-🔲 `hub_scheduled_items` master schedule live<br>
-🔲 Resume Mozio / CoverGenius / Airalo<br>
-🔲 Onboarding flow + results tracking<br>
-🔲 Multi-broker support (Schwab, IBKR)<br>
-🔲 Invoice generation + advanced analytics<br>
-🔲 iOS / Android app<br>
-🔲 CPA client portal + team / multi-user<br>
-🔲 Multi-currency + payroll + white-label
-
-</td>
-</tr>
-</table>
-
-<br>
-
-## 🤝 Contributing
-
-We welcome contributions! Whether it's bug fixes, new features, or documentation improvements.
-
-```bash
-# 1. Fork the repository
-
-# 2. Clone your fork
-git clone https://github.com/YOUR_USERNAME/temple-stuart-accounting.git
-
-# 3. Create a feature branch
-git checkout -b feature/amazing-feature
-
-# 4. Make your changes and test
-npm run test
-npm run lint
-npm run build
-
-# 5. Commit with conventional commits
-git commit -m "feat: add amazing feature"
-
-# 6. Push and open a PR
-git push origin feature/amazing-feature
-```
-
-<details>
-<summary><strong>📜 Contribution Agreement</strong></summary>
-
-By contributing to Temple Stuart, you agree that:
-
-1. Your contributions are licensed under the Business Source License 1.1
-2. You grant us the right to include your contributions under our commercial license
-3. You have the right to make the contribution (no proprietary code)
-
-This allows us to maintain the dual-license model while accepting community contributions.
-
-</details>
-
-<br>
-
-## 🔒 Security
-
-Security is critical for financial software.
-
-| Measure | Implementation |
-|---------|----------------|
-| **Authentication** | Cookie-based auth on 150/160 API routes |
-| **Data Isolation** | All financial queries scoped to userId |
-| **Tier Gating** | Paid API access (Plaid, AI) restricted by plan |
-| **Transport Security** | TLS via Vercel (HTTPS enforced) |
-| **Password Hashing** | bcrypt with salt rounds |
-| **Dependency Scanning** | Automated via Dependabot |
-
-**Found a vulnerability?** Email [astuart@templestuart.com](mailto:astuart@templestuart.com) with details. We respond within 24 hours.
-
-<br>
-
-## 💬 Community & Support
-
-<div align="center">
-
-[![GitHub Discussions](https://img.shields.io/badge/Discussions-Ask%20Questions-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Temple-Stuart/temple-stuart-accounting/discussions)
-
-</div>
-
-<br>
-
-## 📞 Contact
-
-| Purpose | Contact |
-|---------|---------|
-| **Everything** | [astuart@templestuart.com](mailto:astuart@templestuart.com) |
-
-<br>
-
----
-
-<div align="center">
-
-<br>
-
-**Built with obsessive attention to accuracy by someone who lost money to bad financial tools.**
-
-<sub>Temple Stuart is not a financial advisor, CPA, or tax professional.<br>Always consult qualified professionals for tax and investment decisions.</sub>
-
-<br>
-
-<a href="https://github.com/Temple-Stuart/temple-stuart-accounting/stargazers">
-  <img src="https://img.shields.io/github/stars/Temple-Stuart/temple-stuart-accounting?style=social" alt="GitHub Stars">
-</a>
-<a href="https://github.com/Temple-Stuart/temple-stuart-accounting/network/members">
-  <img src="https://img.shields.io/github/forks/Temple-Stuart/temple-stuart-accounting?style=social" alt="GitHub Forks">
-</a>
-
-<br><br>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:161b22,100:21262d&height=100&section=footer&stroke=30363d&strokeWidth=1">
-  <source media="(prefers-color-scheme: light)" srcset="https://capsule-render.vercel.app/api?type=waving&color=0:667eea,50:764ba2,100:f093fb&height=100&section=footer">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:667eea,50:764ba2,100:f093fb&height=100&section=footer" width="100%">
-</picture>
-
-</div>
+Temple Stuart is not a CPA firm, tax preparer, or licensed financial advisor.
+All tax figures generated by this platform are estimates for informational purposes only
+and must be verified by a qualified tax professional before filing.
+Use of this software does not constitute tax advice.

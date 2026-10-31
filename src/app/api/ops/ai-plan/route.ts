@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import Anthropic from '@anthropic-ai/sdk';
 import { MODEL_SONNET_4 } from '@/lib/ai/client';
+import { requirePipeBudget, PipeBudgetError } from '@/lib/pipeBudget';
 
 interface Answers {
   energy: string;
@@ -107,6 +109,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'adjustment and currentPlan required' }, { status: 400 });
       }
 
+      // COST-GUARD-1 (AI-FIX-1): daily spend cap — AFTER auth + validation, BEFORE
+      // the paid call. Same per-user pipe pool as the generate-design/tasks siblings.
+      await requirePipeBudget(user.id);
+
       const msg = await client.messages.create({
         model: MODEL_SONNET_4,
         max_tokens: 2000,
@@ -125,6 +131,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'answers and date required' }, { status: 400 });
     }
 
+    // COST-GUARD-1 (AI-FIX-1): same gate as the adjust branch — the two branches are
+    // exclusive, so exactly one reservation per request.
+    await requirePipeBudget(user.id);
+
     const systemPrompt = buildSynthesisPrompt(date, dayNumber, answers);
 
     const msg = await client.messages.create({
@@ -138,8 +148,9 @@ export async function POST(request: Request) {
     const text = msg.content[0].type === 'text' ? msg.content[0].text : '';
     return NextResponse.json({ reply: text });
   } catch (error) {
-    console.error('[AI Plan]', error);
-    const msg = error instanceof Error ? error.message : 'AI planning failed';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    if (error instanceof PipeBudgetError) {
+      return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
+    }
+    return failClosedResponse('AI Plan', 'AI Plan failed', error);
   }
 }

@@ -23,6 +23,19 @@
   --ts-purple-deep:  45 27 78;     /* #2d1b4e — darkest (= old brand-purple-deep) */
   --ts-purple:       59 45 107;    /* #3b2d6b — command-center banner (= old brand-purple) */
   --ts-purple-light: 78 62 133;    /* #4e3e85 — (= old brand-purple-hover value) */
+  /* PR-STRIP-DESIGN-3: the ONE pop accent (Alex: our purple reads dull vs
+     trip.com's electric blue). Derived INSIDE the family: --ts-purple is
+     hsl(254 41% 30%); pop holds the hue and lifts lightness+saturation.
+     PR-STRIP-DESIGN-4b retune (Alex: still dull — target electric/
+     mystifying violet, not pastel, not neon-toy): #7a5fdd hsl(253 65% 62%)
+     → #764cf6 hsl(255 90% 63%) — the #8b5cf6 electric-violet family,
+     saturation into the ≥85% zone, hue + lightness held. White text on it
+     measures ~5.1:1 (WCAG AA normal-text pass). POP-ELECTRIC: retuned again
+     → #6633ff hsl(255 100% 60%) — S 90→100, L 63→60, hue held.
+     POP-DEEPEN: → #5b21ff hsl(256 100% 56%) — L 60→56, sat held,
+     GPT-palette anchor. Used for active tab states, the Search button, the
+     band fill, the tab-icon accent — nothing else. */
+  /* REPAINT-5: --ts-purple-pop deleted (was re-valued to = --ts-purple; consumers renamed). */
   --ts-purple-wash:  234 231 242;  /* #eae7f2 — replaces BOTH old wash AND Tailwind purple-50 */
 
   /* Aqua — NEW, punchier than the old teal-400. Calendar routine blocks. */
@@ -35,10 +48,14 @@
   /* Indigo — Operations source, tokenized as-is (= SOURCE_CONFIG calendarColor indigo-400). */
   --ts-indigo: #818cf8;
 
-  /* Surface */
-  --ts-white:   #fafaf9;        /* warm off-white default surface (true #ffffff for max-crisp only) */
-  --ts-bg:      247 246 243;    /* #f7f6f3 — app background (= old bg-terminal) */
-  --ts-bg-row:  240 238 233;    /* #f0eee9 — zebra / row (= old bg-row) */
+  /* Surface — REPAINT-1: the cream landing. bg moves to the locked #FAF8F3
+     family; row keeps the old row's hue (~42°) and lightness (92.7%) and
+     takes the new bg's saturation lift (19%→35%) so the bg→row contrast
+     step is preserved while the warmth follows the cream. --ts-white is
+     re-slotted as the card cream (0 consumers at re-value — audit Step 1). */
+  --ts-white:   #FFFDF9;        /* card cream (was #fafaf9; true #ffffff for max-crisp only) */
+  --ts-bg:      250 248 243;    /* #FAF8F3 — cream app background (was #f7f6f3) */
+  --ts-bg-row:  243 239 230;    /* #F3EFE6 — zebra / row (was #f0eee9) */
 
   /* Neutrals — text (unchanged values, now named) */
   --ts-text:           #1a1a2e;
@@ -46,24 +63,48 @@
   --ts-text-muted:     #7a7488;
   --ts-text-faint:     #a8a2b0;
 
-  /* Borders (unchanged values, now named) */
-  --ts-border:       226 224 218;  /* #e2e0da */
-  --ts-border-light: 240 238 233;  /* #f0eee9 */
+  /* Borders — SLICE-1 HAIRLINE: the Direction-C lavender hairline (nav
+     border-bottom + section rules in the locked design). The light sibling
+     keeps the current relative step: #e2e0da→#f0eee9 was (+14,+14,+15) RGB
+     (+5.6pp lightness); the same step above #DDD6E8 gives #EBE4F7. */
+  --ts-border:       221 214 232;  /* #DDD6E8 (was #e2e0da) */
+  --ts-border-light: 235 228 247;  /* #EBE4F7 (was #f0eee9) */
 
   /* Status (unchanged brand values, now named) */
   --ts-green: 22 163 74;    /* #16a34a */
   --ts-red:   197 48 48;    /* #c53030 */
   --ts-amber: 217 119 6;    /* #d97706 */
 
-  /* Gold accent family (unchanged) */
-  --ts-gold:        125 107 44;   /* #7D6B2C */
-  --ts-gold-bright: 139 125 60;   /* #8B7D3C */
-  --ts-gold-wash:   rgba(125,107,44,0.07);  /* baked 7% alpha — solid-only, NOT alpha-modified; left as rgba (see token-alpha-fix-part2) */
-  --ts-accent:      180 178 55;   /* #b4b237 */
-  --ts-accent-dark: 154 150 48;   /* #9a9630 */
+  /* PALETTE-OVERHAUL: the idea-state status trio — ADDITIVE (no
+     --ts-success/warning/info existed; the legacy green/red/amber trio above
+     keeps every existing consumer). Mapped in tailwind.config as the
+     `status` family. */
+  --ts-success: 34 197 94;   /* #22c55e */
+  --ts-warning: 245 158 11;  /* #f59e0b */
+  --ts-info:    59 130 246;  /* #3b82f6 */
+  /* TRADE-CHIPS: the consistent fourth — same Tailwind-500 ladder. */
+  --ts-danger:  239 68 68;   /* #ef4444 — red-500, completes the status family */
 
-  /* Dark "panel / terminal" surfaces (unchanged values, now named) */
-  --ts-panel:           #0d1117;
+  /* REPAINT-5: --ts-grad-mid/--ts-grad-end deleted with .ts-cta-gradient (0 consumers). */
+
+  /* Gold family — REPAINT-1: relanded on the locked #B8860B money/CTA gold
+     (was the #7D6B2C olive family). RULING 3: the chartreuse accent pair
+     folds INTO gold — accent = gold, accent-dark = the darker sibling — so
+     every brand-accent consumer moves on-palette with zero class edits. */
+  --ts-gold:        184 134 11;   /* #B8860B */
+  --ts-gold-bright: 198 152 27;   /* #C6981B — keeps the old bright step (+14,+18,+16 RGB above gold) */
+  --ts-gold-wash:   rgba(184,134,11,0.07);  /* baked 7% alpha recomputed from the new gold — solid-only, NOT alpha-modified; left as rgba (see token-alpha-fix-part2) */
+  --ts-accent:      184 134 11;   /* #B8860B = --ts-gold (RULING 3 fold) */
+  --ts-accent-dark: 158 115 9;    /* #9E7309 — keeps the old accent→dark depth (≈0.86× per channel) */
+
+  /* Dark "panel / terminal" surfaces. BG-DEPTH (resolves the
+     PALETTE-OVERHAUL stop-gate deliberately): the page CANVAS gets its own
+     token so page and cards move independently — hierarchy is
+     page #0b0d14 < panel #11131b < panel-surface #161b22. History:
+     --ts-panel was #0d1117 (page AND cards); BG-DEPTH added --ts-page and
+     lifted --ts-panel to the idea-state surface value. */
+  /* REPAINT-5: --ts-page deleted (0 consumers — bg-page died with the dark chrome). */
+  --ts-panel:           #11131b;   /* idea-state surface (was #0d1117) */
   --ts-panel-surface:   #161b22;
   --ts-panel-border:    #30363d;
   --ts-panel-hover:     #21262d;
@@ -85,15 +126,51 @@
   --ts-radius:      0.25rem; /* default card */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* REPAINT-1: the @media (prefers-color-scheme: dark) body flip died here —
+   the app never flips on OS-dark again (dark is retired as a default). */
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* PALETTE-OVERHAUL: the one CTA gradient — pop → grad-mid → grad-end (tokens
+   above). Used as a button fill (with text-white hover:brightness-110) and as
+   gradient text (with bg-clip-text text-transparent). */
+/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. */
+
+/* BUILTON-MARQUEE: the Built-on strip's CSS-only infinite loop — the track
+   renders its chip run TWICE and slides half its own width, so the wrap is
+   seamless. Consumed via the Tailwind arbitrary animate value in Landing.tsx
+   (animate-[ts-marquee_50s_linear_infinite]); hover-pause and the
+   prefers-reduced-motion static fallback are utility classes at the mount.
+   The repo had no prior keyframes — this is the first (audit-cited). */
+@keyframes ts-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* CHIP-FADE (390 audit finding 2): edge-fade mask for the modules chip
+   scroll strip — the 968px row hides six chips in a 390px viewport with a
+   clean hard cut and zero scroll signal. The mask fades the strip's CONTENT
+   into the section's cream at both edges: the 16px left zone equals the
+   strip's pl-4, so chip 01 sits unfaded at rest and chips only fade INTO it
+   once scrolled; the 40px right zone equals the strip's mobile pr-10, so at
+   full scroll the fade eats only padding (chip 09 never fades) while at rest
+   the natural partial-chip peek sits under it — the "there's more" signal.
+   Distinct from the marquee's ruled hard edge: the marquee is an ambient
+   infinite loop with no destination to reach; this strip hides six REAL
+   navigation targets, so reachability must be signaled. No prior mask
+   precedent in the repo (grepped — this is the first, audit-cited). Off at
+   lg where all nine chips fit (the strip's own lg:overflow-visible seam). */
+.ts-chipfade {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 40px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 40px), transparent 100%);
+}
+@media (min-width: 1024px) {
+  .ts-chipfade {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }

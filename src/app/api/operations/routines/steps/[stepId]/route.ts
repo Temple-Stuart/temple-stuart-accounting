@@ -2,31 +2,37 @@
  * /api/operations/routines/steps/[stepId]
  *
  * PATCH  — update a routine step. Mutable: step_order, time_of_day, activity,
- *          sub_activity, location, duration_minutes, notes. Immutable:
+ *          sub_activity, location, duration_minutes, notes, and (LINES-01)
+ *          budget_amount, coa_code. Immutable:
  *          id, routine_id, user_id, entity_id, created_by, created_at.
  *          Reordering is a step_order PATCH (audits as _updated).
  * DELETE — OPS-CE-1: NON-DESTRUCTIVE. Soft-deletes (is_active=false) instead
  *          of hard-deleting, so the step's content_scene row and every logged
  *          take (answer) survive. Active routine/grid views filter is_active.
  *          The full row is still captured in the audit payload_before.
+ *          LINK-LAW-01 (Alex, 2026-10-28, ruling D): refused 409 by name while
+ *          the line holds links in Books (linkHold.ts lineHoldsLinksWords).
  *
  * Both scope by user_id (denormalized on the step row) with defensive 404.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { isValidUuid } from '@/lib/operations/parseUuid';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
+// ONEOFF-01: the LINES-01 amount rule lives in one leaf now — this writer, its
+// sibling and the create route (which writes lines with the routine) read it.
+// INTAKE-01: it reaches the line's money through planMoney.ts, with the account.
+import { trimNullable } from '@/lib/operations/routineInput';
+import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 import { loadAuthorizedRoutineStep } from '@/lib/operations/loadAuthorizedRoutineStep';
+import { lineHoldsLinksWords } from '@/lib/operations/linkHold';
 
-function trimNullable(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length > 0 ? t : null;
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -130,6 +136,25 @@ export async function PATCH(
       data.time_of_day = timeResult.value;
     }
 
+    // LINES-01: the line's cost and category. INTAKE-01: neither key sent → both
+    // untouched. Either sent → the EFFECTIVE pair (the body's value, else the stored
+    // one) is checked whole by the one rule (planMoney.ts) against the routine's book,
+    // and both columns are written. The line's entity_id IS its routine's: both line
+    // writers copy it from the routine (routines/route.ts, [id]/steps/route.ts) and
+    // the routine's entity never changes after creation.
+    const sent = editedPlanMoney(body.budget_amount, body.coa_code, { amount: existing.budget_amount, account: existing.coa_code });
+    if (sent !== null) {
+      let book: PlanBook | null = null;
+      if (carriesPlanMoney(sent)) {
+        book = await loadPlanBook(prisma, user.id, existing.entity_id);
+        if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      }
+      const money = planMoney(sent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' });
+      if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
+      data.budget_amount = money.value.amount;
+      data.coa_code = money.value.coaCode;
+    }
+
     const step = await prisma.operations_routine_steps.update({
       where: { id: stepId },
       data,
@@ -151,11 +176,7 @@ export async function PATCH(
 
     return NextResponse.json({ step });
   } catch (error) {
-    console.error('[Routine Step PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update routine step', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routine Step PATCH', 'Failed to update routine step', error);
   }
 }
 
@@ -182,6 +203,11 @@ export async function DELETE(
 
     const existing = await loadAuthorizedRoutineStep(stepId, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    // LINK-LAW-01 (Alex, 2026-10-28, ruling D): a line that holds links in Books is not archived — archiving drops it from
+    // ROUTINE EXPENSES' plans, and its links with it. Refused by name (linkHold.ts); the routine's deactivate is the way.
+    const linked = await prisma.planned_item_links.count({ where: { user_id: user.id, target_kind: 'routine_line', target_id: stepId } });
+    if (linked > 0) return NextResponse.json({ error: lineHoldsLinksWords(linked) }, { status: 409 });
 
     // OPS-CE-1: ARCHIVE, do NOT hard-delete. A hard delete would CASCADE through
     // operations_content_scenes (routine_step_id, onDelete: Cascade) into
@@ -210,10 +236,6 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('[Routine Step DELETE]', error);
-    return NextResponse.json(
-      { error: 'Failed to delete routine step', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Routine Step DELETE', 'Failed to delete routine step', error);
   }
 }

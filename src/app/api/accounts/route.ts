@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,9 +18,13 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TAB-SERVER-GATE: tab:books entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:books');
+    if (tabGate) return tabGate;
 
+    // BANK-03: a retired item (replaced by a fresh link) appears nowhere but history.
     const items = await prisma.plaid_items.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, retired_at: null },
       include: {
         accounts: true
       }
@@ -28,14 +33,26 @@ export async function GET(request: NextRequest) {
     const transformedItems = items.map(item => ({
       id: item.id,
       institutionName: item.institutionName,
+      // BANK-01: the item's last Plaid ITEM_ERROR, so the Books page can offer Reconnect.
+      lastErrorCode: item.last_error_code,
+      lastErrorAt: item.last_error_at,
+      // ACCOUNTS-01: currentBalance is Float? — nullable. It is sent AS IT IS; the screen
+      // renders a missing balance as "—" (src/lib/accountsView.ts money()). The old `|| 0`
+      // turned "the institution reported nothing" into "zero dollars".
       accounts: item.accounts.map(account => ({
         id: account.id,
         name: account.name,
         type: account.type,
         subtype: account.subtype,
         mask: account.mask,
-        balance: account.currentBalance || 0,
+        balance: account.currentBalance,
+        // FX-01 (2026-10-30): the balance's OWN currency — as Plaid stated it, or NULL (LAW-02); the screen
+        // writes the figure in that currency, never as dollars by default (functionalCurrency.ts bankMoneyWords).
+        currency: account.isoCurrencyCode,
         entityType: account.entityType || null,
+        // ACCOUNTS-01: the row's last write — a sync, or an entity assignment. NOT a sync
+        // timestamp: the product records none per account, and the screen says so.
+        updatedAt: account.updatedAt,
       }))
     }));
 

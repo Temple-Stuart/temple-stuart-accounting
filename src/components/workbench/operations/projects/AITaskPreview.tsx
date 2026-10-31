@@ -29,6 +29,7 @@
 import { useState } from 'react';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
 
+
 export interface AIGeneratedTask {
   title: string;
   description: string;
@@ -75,15 +76,14 @@ function toEditable(t: AIGeneratedTask): EditableTask {
   };
 }
 
-export default function AITaskPreview({
-  tasks,
+export default function AITaskPreview({ tasks,
   sourceAiUsageId,
   projectId,
   onAccepted,
   onDiscarded,
   inspection,
   onAcceptStateless,
-}: Props) {
+}: Props & { }) {
   const [editable, setEditable] = useState<EditableTask[]>(() =>
     tasks.map(toEditable).sort((a, b) => a.suggested_order - b.suggested_order)
   );
@@ -147,7 +147,7 @@ export default function AITaskPreview({
   const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
   return (
-    <div className="space-y-3 border border-brand-purple rounded p-4 bg-purple-50/30">
+    <div className={`space-y-3 rounded p-4 border ${'border-brand-purple bg-purple-50/30'}`}>
       <div className="flex items-center justify-between">
         <div className="text-xs font-bold text-text-primary">
           AI-generated tasks — {editable.length} {editable.length === 1 ? 'task' : 'tasks'} (review and edit before accepting)
@@ -234,7 +234,7 @@ export default function AITaskPreview({
           type="button"
           onClick={handleAcceptAll}
           disabled={submitting}
-          className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
+          className={`px-3 py-1 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
         >
           {submitting ? 'creating…' : `accept all ${editable.length} ${editable.length === 1 ? 'task' : 'tasks'}`}
         </button>

@@ -10,6 +10,8 @@
  *     - startTime / endTime are extracted DIRECTLY from routine.start_time /
  *       routine.end_time via .slice(11, 16), mirroring the routines-page
  *       convention (DailyPlanRoutineRow.tsx:65-79 / RoutineRow.tsx:211-222).
+ *       TASKS-ONE-02 (2026-10-14): DailyPlanRoutineRow.tsx is deleted with the
+ *       Daily plan; RoutineRow.tsx (:236-237 today) still reads it this way.
  *       These are the user's intent-window — the literal HH:MM they typed —
  *       so the Hub and the routines page now agree on what time a routine is.
  *     - The rrule's BYHOUR/BYMINUTE is cron metadata for miss-evaluation, NOT
@@ -20,7 +22,7 @@
  *
  *   TIME-LESS routines (routine.start_time is null — cadence-only):
  *     - Emitted WITHOUT startTime, which CalendarGrid interprets as an all-day
- *       event (CalendarGrid.tsx:109 skips timed-block builder for events
+ *       event (CalendarGrid.tsx:125 skips timed-block builder for events
  *       without startTime; :350 collects them into the all-day row at the
  *       top of the calendar, same mechanism as the existing AT&T / Food /
  *       Coffee sources).
@@ -36,9 +38,18 @@
  * timezone, so the tile lands on the correct calendar day regardless of
  * where the Hub is being viewed. Mirrors the server's own formatLocalDate
  * helper at /api/hub/operations-routines/route.ts:45-55.
+ *
+ * CAL-02 (Alex, 2026-10-27): the tile carries its ACCOUNT — the window route's
+ * server-side read (`account`, `account_state` per routine and per line) decided
+ * for the tile by tileAccount.ts tileAccountOf: a stepless routine's own; the one
+ * account every coded line shares; 'several' when the lines carry more than one
+ * code; 'none' when nothing is coded; 'missing' when the chart lists no row.
+ * coaCode on the event is unchanged for its existing readers.
  */
 
 import type { CalendarEvent } from '@/components/shared/CalendarGrid';
+import { routinePlanned, type RoutineLineInput } from '@/lib/operations/routineLines';
+import { tileAccountOf, type AccountState, type TileAccount } from '@/lib/hub/tileAccount';
 
 export interface RoutineWindowEntry {
   routine_id: string;
@@ -50,6 +61,41 @@ export interface RoutineWindowEntry {
   occurrences: string[];      // ISO instants from expandBetween
   coa_code: string | null;    // routine's COA (soft ref to chart_of_accounts.code) or null
   budget_amount: number | null; // per-occurrence budget, or null if the routine has no budget
+  /**
+   * LINES-01: the routine's active lines, each with its own amount and account.
+   * The tile's money is routinePlanned() over these and the two fields above —
+   * the sum of the lines when any carries an amount, else the routine-level
+   * pair. Never both. Absent ⇒ a stepless routine, as before.
+   */
+  steps?: (RoutineLineInput & RoutineLineAccount)[] | null;
+  /**
+   * CAL-02 (Alex, 2026-10-27): the routine's own account, read on the server with
+   * its book's chart — the chart's name beside the code; 'missing' (name null)
+   * when the chart lists no row; 'none' (account null) without a code. Absent ⇒
+   * an answer that was not read with its accounts (the tile then carries none).
+   */
+  account?: TileAccount | null;
+  account_state?: AccountState;
+  /**
+   * ONEOFF-01: the routine's place, carried onto every occurrence tile so the
+   * day view pins it and the drill panel prints Where and Pin — exactly as a
+   * calendar_events row's are. Absent or null ⇒ no place, never 0,0.
+   */
+  location?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  /**
+   * ONEOFF-01: the cadence group the window route classified (rruleHelpers
+   * classifyCadence). 'once' is one occurrence, so its tile wears no recurrence
+   * glyph. Absent ⇒ recurring, as every tile was before.
+   */
+  cadence?: string | null;
+}
+
+/** CAL-02: each line's own account, read as the routine's is. */
+export interface RoutineLineAccount {
+  account?: TileAccount | null;
+  account_state?: AccountState;
 }
 
 export interface RoutinesWindowResponse {
@@ -57,8 +103,13 @@ export interface RoutinesWindowResponse {
   truncated: boolean;
 }
 
-const ROUTINES_SOURCE = 'routines';
-const ROUTINES_HREF = '/operations/routines';
+/** The source every routine tile carries — CAL-03's palette tells a routine tile apart by it. */
+export const ROUTINES_SOURCE = 'routines';
+// ORPHAN-01 (2026-09-17): was '/operations/routines'. That page is a redirect to
+// /calendar, so a routine click on /hub took TWO hops to reach the tool that owns
+// it — and the hop pointed at a survivor of the deleted /operations room rather
+// than at Calendar's registered home. One hop, to the owner.
+const ROUTINES_HREF = '/calendar';
 
 /**
  * Convert a UTC ISO instant to YYYY-MM-DD in the given IANA timezone.
@@ -84,15 +135,26 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
 
   for (const routine of response.routines) {
     // Intent-window times — literal HH:MM the user typed, no tz math.
-    // Matches DailyPlanRoutineRow.tsx:65-79 exactly.
+    // Matches DailyPlanRoutineRow.tsx:65-79 exactly (deleted TASKS-ONE-02, 2026-10-14 — the rule is unchanged).
     const startTime = routine.start_time ? routine.start_time.slice(11, 16) : null;
     const endTime = routine.end_time ? routine.end_time.slice(11, 16) : null;
     // Carry the routine's COA + budget onto every occurrence tile so the detail panel can show
-    // them (snake→camel, mirroring the lodging feed at HubCalendar.tsx:201,204). Real values
+    // them (snake→camel, mirroring the lodging feed at HubCalendar.tsx:207,204). Real values
     // only — coaCode passes null truthfully; budgetAmount is number-or-absent (CalendarEvent's
     // budgetAmount is `number?`, so a null budget maps to undefined = "no budget", never 0).
-    const coaCode = routine.coa_code;
-    const budgetAmount = routine.budget_amount ?? undefined;
+    // LINES-01: ONE leaf decides the figure. A lined routine's COA is null here —
+    // it has several, one per line, and a single chip would be a lie about it.
+    const planned = routinePlanned({ budget_amount: routine.budget_amount, coa_code: routine.coa_code, steps: routine.steps ?? null });
+    const coaCode = planned.coaCode;
+    const budgetAmount = planned.amount ?? undefined;
+    // ONEOFF-01: the place rides on every occurrence; a one-off is not recurring.
+    const location = routine.location ?? null;
+    const latitude = routine.latitude ?? null;
+    const longitude = routine.longitude ?? null;
+    const isRecurring = routine.cadence !== 'once';
+    // CAL-02: the tile's account by the leaf grain — the lines' own codes, else the routine's own; none when the answer carried no read.
+    const tileAccount = tileAccountOf(routine);
+    const accountFields = tileAccount === null ? {} : { account: tileAccount.account, accountState: tileAccount.accountState };
 
     for (const occISO of routine.occurrences) {
       const startDate = formatDateInZone(occISO, routine.timezone);
@@ -106,15 +168,19 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
           startDate,
           startTime,
           endTime: endTime ?? undefined,
-          isRecurring: true,
+          isRecurring,
           href: ROUTINES_HREF,
           coaCode,
           budgetAmount,
+          location,
+          latitude,
+          longitude,
+          ...accountFields,
         });
       } else {
         // Time-less routine → all-day event at the top of the calendar.
         // CalendarGrid uses the absence of startTime as the all-day signal
-        // (CalendarGrid.tsx:350 — `dayEvts.filter(e => !e.startTime)`).
+        // (CalendarGrid.tsx:371 — `dayEvts.filter(e => !e.startTime)`).
         // Deliberate per PR-Ops-5.8: a routine with no intent-window start
         // is not a timed event; rendering it in the hourly grid would assert
         // a time it doesn't have. Same visual treatment as the existing
@@ -125,10 +191,14 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
           title: routine.name,
           startDate,
           // startTime intentionally omitted → CalendarGrid renders all-day
-          isRecurring: true,
+          isRecurring,
           href: ROUTINES_HREF,
           coaCode,
           budgetAmount,
+          location,
+          latitude,
+          longitude,
+          ...accountFields,
         });
       }
     }

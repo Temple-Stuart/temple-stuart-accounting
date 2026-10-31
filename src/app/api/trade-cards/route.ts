@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 /**
  * POST /api/trade-cards — Save a card to the queue
@@ -14,6 +16,9 @@ export async function POST(request: NextRequest) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:trade entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const body = await request.json();
     const {
@@ -56,6 +61,7 @@ export async function POST(request: NextRequest) {
       greeks_vega,
       ev_per_risk,
       full_card_json,
+      candidate_id,
     } = body;
 
     if (!symbol || !strategy_name || !direction || !legs) {
@@ -63,6 +69,16 @@ export async function POST(request: NextRequest) {
         { error: 'Required: symbol, strategy_name, direction, legs' },
         { status: 400 }
       );
+    }
+
+    // LOG-01: a card saved from a scored candidate carries its candidate_id; it
+    // must be a candidate of THIS user's runs (defensive 404 otherwise).
+    let candidateId: string | null = null;
+    if (candidate_id != null) {
+      if (typeof candidate_id !== 'string') return NextResponse.json({ error: 'candidate_id must be a string' }, { status: 400 });
+      const cand = await prisma.scan_candidates.findFirst({ where: { id: candidate_id, run: { userId: user.id } }, select: { id: true } });
+      if (!cand) return NextResponse.json({ error: 'Candidate not found' }, { status: 404 });
+      candidateId = cand.id;
     }
 
     const card = await prisma.trade_cards.create({
@@ -86,6 +102,7 @@ export async function POST(request: NextRequest) {
         dte: dte != null ? dte : null,
         expiration_date: expiration_date ? new Date(expiration_date) : null,
         status: 'queued',
+        candidate_id: candidateId,
         composite_score: composite_score ?? null,
         letter_grade: letter_grade ?? null,
         convergence_gate: convergence_gate ?? null,
@@ -112,17 +129,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, card });
-  } catch (error: any) {
-    console.error('trade_cards.create error:', JSON.stringify({
-      message: error.message,
-      code: error.code,
-      meta: error.meta,
-      clientVersion: error.clientVersion,
-    }, null, 2));
-    return NextResponse.json(
-      { error: error.message ?? 'Failed to save trade card' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return failClosedResponse('trade_cards.create', 'Failed to save trade card', error);
   }
 }
 
@@ -138,6 +146,9 @@ export async function GET(request: NextRequest) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:trade entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const statusFilter = request.nextUrl.searchParams.get('status');
 
@@ -171,6 +182,9 @@ export async function DELETE(request: NextRequest) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:trade entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const { id } = await request.json();
     if (!id) return NextResponse.json({ error: 'Required: id' }, { status: 400 });
@@ -212,6 +226,9 @@ export async function PATCH(request: NextRequest) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:trade entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     const { id, status } = await request.json();
     if (!id || !status) {

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-helpers';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 // ═══════════════════════════════════════════════════════════════════
 // CPA Export API — Single source of truth for the 4 accountant reports.
@@ -16,14 +18,17 @@ interface AccountAggregate {
   name: string;
   accountType: string;
   balanceType: 'D' | 'C';
-  totalDebits: number;   // dollars
-  totalCredits: number;  // dollars
+  totalDebits: number;   // FX-01 (2026-10-30, ruling B): integer cents
+  totalCredits: number;  // integer cents
 }
 
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get('year');
@@ -89,8 +94,10 @@ export async function GET(request: NextRequest) {
       name: r.name,
       accountType: r.account_type,
       balanceType: r.balance_type as 'D' | 'C',
-      totalDebits: Number(r.total_debits) / 100,
-      totalCredits: Number(r.total_credits) / 100,
+      // FX-01 (2026-10-30, ruling B): integer CENTS on the wire — the export writes them through the books'
+      // one formatter (src/lib/books/functionalCurrency.ts); nothing is divided into float dollars here.
+      totalDebits: Number(r.total_debits),
+      totalCredits: Number(r.total_credits),
     }));
 
     // ── General Ledger detail rows (chronological) ──
@@ -132,7 +139,7 @@ export async function GET(request: NextRequest) {
       accountName: r.name,
       accountType: r.account_type,
       entryType: r.entry_type as 'D' | 'C',
-      amount: Number(r.amount) / 100,
+      amount: Number(r.amount),
       sourceType: r.source_type,
       sourceId: r.source_id,
     }));
@@ -166,13 +173,13 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const tbTotalDebits = round2(
+    const tbTotalDebits = wholeCents(
       trialBalanceRows.reduce((s, r) => s + r.debitBalance, 0)
     );
-    const tbTotalCredits = round2(
+    const tbTotalCredits = wholeCents(
       trialBalanceRows.reduce((s, r) => s + r.creditBalance, 0)
     );
-    const tbDifference = round2(tbTotalDebits - tbTotalCredits);
+    const tbDifference = wholeCents(tbTotalDebits - tbTotalCredits);
 
     // ── Income Statement ──
     const revenueAccounts = accounts.filter((a) => a.accountType === 'revenue');
@@ -181,16 +188,16 @@ export async function GET(request: NextRequest) {
     const revenueLines = revenueAccounts.map((a) => ({
       accountCode: a.code,
       accountName: a.name,
-      amount: round2(a.totalCredits - a.totalDebits), // revenue is credit-normal
+      amount: wholeCents(a.totalCredits - a.totalDebits), // revenue is credit-normal
     }));
     const expenseLines = expenseAccounts.map((a) => ({
       accountCode: a.code,
       accountName: a.name,
-      amount: round2(a.totalDebits - a.totalCredits), // expense is debit-normal
+      amount: wholeCents(a.totalDebits - a.totalCredits), // expense is debit-normal
     }));
-    const totalRevenue = round2(revenueLines.reduce((s, l) => s + l.amount, 0));
-    const totalExpenses = round2(expenseLines.reduce((s, l) => s + l.amount, 0));
-    const netIncome = round2(totalRevenue - totalExpenses);
+    const totalRevenue = wholeCents(revenueLines.reduce((s, l) => s + l.amount, 0));
+    const totalExpenses = wholeCents(expenseLines.reduce((s, l) => s + l.amount, 0));
+    const netIncome = wholeCents(totalRevenue - totalExpenses);
 
     // ── Balance Sheet ──
     const assetAccounts = accounts.filter((a) => a.accountType === 'asset');
@@ -200,30 +207,30 @@ export async function GET(request: NextRequest) {
     const assetLines = assetAccounts.map((a) => ({
       accountCode: a.code,
       accountName: a.name,
-      amount: round2(a.totalDebits - a.totalCredits), // asset is debit-normal
+      amount: wholeCents(a.totalDebits - a.totalCredits), // asset is debit-normal
     }));
     const liabilityLines = liabilityAccounts.map((a) => ({
       accountCode: a.code,
       accountName: a.name,
-      amount: round2(a.totalCredits - a.totalDebits), // liability is credit-normal
+      amount: wholeCents(a.totalCredits - a.totalDebits), // liability is credit-normal
     }));
     const equityLines = equityAccounts.map((a) => ({
       accountCode: a.code,
       accountName: a.name,
-      amount: round2(a.totalCredits - a.totalDebits), // equity is credit-normal
+      amount: wholeCents(a.totalCredits - a.totalDebits), // equity is credit-normal
     }));
 
-    const totalAssets = round2(assetLines.reduce((s, l) => s + l.amount, 0));
-    const totalLiabilities = round2(
+    const totalAssets = wholeCents(assetLines.reduce((s, l) => s + l.amount, 0));
+    const totalLiabilities = wholeCents(
       liabilityLines.reduce((s, l) => s + l.amount, 0)
     );
     // Retained earnings for the period = net income (rolled into equity for the
     // balance-sheet equation). This matches the traditional close-the-books flow.
-    const totalEquityExcludingRetained = round2(
+    const totalEquityExcludingRetained = wholeCents(
       equityLines.reduce((s, l) => s + l.amount, 0)
     );
-    const totalEquity = round2(totalEquityExcludingRetained + netIncome);
-    const balanceSheetDifference = round2(
+    const totalEquity = wholeCents(totalEquityExcludingRetained + netIncome);
+    const balanceSheetDifference = wholeCents(
       totalAssets - (totalLiabilities + totalEquity)
     );
 
@@ -235,7 +242,7 @@ export async function GET(request: NextRequest) {
           totalDebits: tbTotalDebits,
           totalCredits: tbTotalCredits,
           difference: tbDifference,
-          isBalanced: Math.abs(tbDifference) < 0.01,
+          isBalanced: tbDifference === 0,
         },
       },
       incomeStatement: {
@@ -253,18 +260,18 @@ export async function GET(request: NextRequest) {
           totalLiabilities,
           totalEquity,
           difference: balanceSheetDifference,
-          isBalanced: Math.abs(balanceSheetDifference) < 0.01,
+          isBalanced: balanceSheetDifference === 0,
         },
       },
       generalLedger,
     });
   } catch (error) {
-    console.error('CPA export API error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('CPA export API', 'CPA export read failed', error);
   }
 }
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
+/** FX-01 (2026-10-30, ruling B): every figure here is integer CENTS summed from bigint text — a non-integer is a fault, refused by name, never rounded. */
+function wholeCents(n: number): number {
+  if (!Number.isSafeInteger(n)) throw new Error(`CPA export: ${n} is not an integer number of cents`);
+  return n;
 }

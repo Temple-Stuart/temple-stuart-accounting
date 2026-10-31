@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
+
 // ═══════════════════════════════════════════════════════════════════
 // AccountTaxMappings — assign COA accounts to Schedule C lines.
 //
@@ -95,10 +96,9 @@ function defaultMultiplierForLine(code: string): number {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function AccountTaxMappings({
-  taxYear,
+export default function AccountTaxMappings({ taxYear,
   defaultEntityId,
-}: Props) {
+}: Props & { }) {
   const [entities, setEntities] = useState<EntityOption[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
     defaultEntityId ?? null
@@ -319,7 +319,7 @@ export default function AccountTaxMappings({
             <select
               value={selectedEntityId ?? ''}
               onChange={(e) => setSelectedEntityId(e.target.value || null)}
-              className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple"
             >
               {entities.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -401,7 +401,7 @@ export default function AccountTaxMappings({
                         <select
                           value={currentCode}
                           onChange={(e) => onLineChange(acct, e.target.value)}
-                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple"
                         >
                           <option value={UNMAPPED_VALUE}>
                             — Unmapped (Line 27a default) —
@@ -433,7 +433,7 @@ export default function AccountTaxMappings({
                               (e.target as HTMLInputElement).blur();
                             }
                           }}
-                          className="w-16 px-1.5 py-0.5 text-xs text-right font-mono border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                          className="w-16 px-1.5 py-0.5 text-xs text-right font-mono border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand-purple disabled:bg-gray-100 disabled:text-gray-400"
                         />
                       </td>
                       <td className="px-3 py-2 text-right text-xs">

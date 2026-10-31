@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
 import AccountTaxMappings from '../AccountTaxMappings';
 
+
 // ═══════════════════════════════════════════════════════════════════
 // Step 3 — Deductions (Schedule C)
 //
@@ -108,11 +109,10 @@ function amountClass(n: number | null | undefined): string {
 
 // ─── Component ─────────────────────────────────────────────────────
 
-export default function DeductionsStep({
-  taxYear,
+export default function DeductionsStep({ taxYear,
   onComplete,
   lifeEvents,
-}: StepProps) {
+}: StepProps & { }) {
   const [calc, setCalc] = useState<CalculateResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -479,7 +479,7 @@ export default function DeductionsStep({
                                   ))}
                                   <div className="pt-1 mt-1 border-t border-dashed border-gray-200 flex justify-between text-[11px]">
                                     <span className="text-emerald-600">
-                                      ✓ {entries.length} entries ={' '}
+                                      ✓ {entries.length} entries =" "
                                       {fmtMoney(
                                         entries.reduce(
                                           (s, e) => s + e.amount,
@@ -550,7 +550,7 @@ export default function DeductionsStep({
           <button
             type="button"
             onClick={() => setShowMappings((v) => !v)}
-            className="text-xs font-medium text-blue-700 hover:text-blue-900 underline"
+            className="text-xs font-medium text-brand-purple hover:text-brand-purple-hover underline"
           >
             {showMappings
               ? 'Hide Schedule C tax mappings'
@@ -658,7 +658,7 @@ export default function DeductionsStep({
         <button
           type="button"
           onClick={handleNext}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+          className="px-4 py-2 text-sm font-medium text-white bg-brand-purple rounded-md hover:bg-brand-purple-hover"
         >
           {hasWarnings ? 'Continue anyway' : 'Confirm Schedule C'}
         </button>
@@ -671,14 +671,12 @@ export default function DeductionsStep({
 
 // ─── Row helper ────────────────────────────────────────────────────
 
-function Row({
-  label,
+function Row({ label,
   value,
   indent = 0,
   muted,
   bold,
-}: {
-  label: React.ReactNode;
+}: { label: React.ReactNode;
   value: React.ReactNode;
   indent?: number;
   muted?: boolean;

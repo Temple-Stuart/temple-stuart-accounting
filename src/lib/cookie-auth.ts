@@ -20,6 +20,18 @@ export function signCookie(email: string): string {
 }
 
 /**
+ * GUEST-01 (2026-09-29): the key for guest access ONLY — a guest's manage code and
+ * its one-booking session (src/lib/guest/guestAccess.ts). Derived from the one secret
+ * this file reads, under its own label, so no userEmail signature (signCookie above
+ * signs the raw email under JWT_SECRET itself) can ever be a guest value, or the
+ * reverse. Said, not hidden: rotating JWT_SECRET changes every manage code, as it
+ * ends every sign-in.
+ */
+export function guestKey(): Buffer {
+  return crypto.createHmac('sha256', getSecret()).update('ts-guest:v1').digest();
+}
+
+/**
  * Verify an HMAC-signed cookie value.
  * Returns the email if valid, null if tampered or malformed.
  */

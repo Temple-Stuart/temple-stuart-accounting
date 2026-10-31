@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { routinesMonthlyByCoa } from '@/lib/operations/routineBudget';
+import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 
 export async function GET(request: Request) {
   try {
@@ -76,31 +77,19 @@ export async function GET(request: Request) {
     let budgetGrandTotal = 0;
 
     // ── BUDGETED ROUTINES (HB-4d) — the ONLY planned source ──────────────
-    // A Personal-entity routine with a per-occurrence budget + COA contributes
-    // (occurrences-in-month × budget_amount) to its COA's monthly figure, computed via
-    // routinesMonthlyByCoa (HB-4c → expandBetween, the same recurrence helper the calendar uses).
+    // A Personal-entity routine contributes (occurrences-in-month × its per-occurrence
+    // figure) to each COA its figure is attributed to, computed via routinesMonthlyByCoa
+    // (HB-4c → expandBetween, the same recurrence helper the calendar uses).
     // Gated on COA_NAMES so the contribution renders as a row (a routine on an excluded/travel COA
-    // belongs to nomad-budget). Only is_active + fully-budgeted routines count (the helper returns
-    // null otherwise — no guessed amounts). A COA with no budgeted routine simply has no planned
+    // belongs to nomad-budget). A COA with no budgeted routine simply has no planned
     // figure — nothing fills it.
+    // LINES-02: the routines are read through the ONE loader both budget routes share —
+    // every active routine with its active lines and its start_date, no filter on money.
+    // routinePlanned() decides what each contributes: the lines when any carries an amount
+    // (LINES-01), else the routine-level pair; a one-off counts from its own date (ONEOFF-01).
     if (personalEntity) {
-      const budgetedRoutines = await prisma.operations_routines.findMany({
-        where: {
-          user_id: user.id,
-          entity_id: personalEntity.id,
-          is_active: true,
-          budget_amount: { not: null },
-          coa_code: { not: null },
-        },
-        select: { budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true },
-      });
-      if (budgetedRoutines.length > 0) {
-        const routineInputs = budgetedRoutines.map(r => ({
-          budget_amount: r.budget_amount != null ? Number(r.budget_amount) : null,
-          coa_code: r.coa_code,
-          schedule_rrule: r.schedule_rrule,
-          timezone: r.timezone,
-        }));
+      const routineInputs = await loadRoutineBudgetInputs(prisma, user.id, personalEntity.id);
+      if (routineInputs.length > 0) {
         for (let m = 0; m < 12; m++) {
           const byCoa = routinesMonthlyByCoa(routineInputs, year, m);
           for (const [rawCoa, amount] of Object.entries(byCoa)) {

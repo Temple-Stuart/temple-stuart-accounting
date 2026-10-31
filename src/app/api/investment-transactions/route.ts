@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { failureEnvelope } from '@/lib/plaid/failLoud';
 
 export async function GET() {
   try {
@@ -85,7 +86,9 @@ export async function GET() {
 
     return NextResponse.json(enrichedTxns);
   } catch (error) {
-    console.error('Error:', error);
-    return NextResponse.json([]);
+    // HYG-01: a failed read is declared, never an empty 200 that renders as "no rows".
+    const { status, body } = failureEnvelope('investment-transactions', error);
+    console.error('investment-transactions error:', body.error);
+    return NextResponse.json(body, { status });
   }
 }

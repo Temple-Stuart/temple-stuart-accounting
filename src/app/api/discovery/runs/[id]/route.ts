@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 function serializeBigIntAndDecimal(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
@@ -35,6 +36,9 @@ export async function GET(
 
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:compliance entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:compliance');
+    if (tabGate) return tabGate;
 
     const run = await prisma.discovery_runs.findUnique({
       where: { id },

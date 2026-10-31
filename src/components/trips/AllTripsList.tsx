@@ -16,9 +16,17 @@
  * PR-Trips3: each row has a delete button — confirm, then DELETE /api/trips/[id] (an
  * ownership-scoped route that cleans the trip + its bookings). On success it calls
  * `onDeleted(tripId)` so the parent re-fetches and clears the selection if needed.
+ *
+ * TRIPS-01 (2026-09-29): a link into a trip lands on the Travel tab as
+ * /travel?trip=<id>. The parent hands the requested id in; once THIS list has loaded,
+ * it is answered from these rows alone (src/lib/trips/tripFromUrl.ts) — one of yours
+ * is selected with the same `onSelect(trip)` a click makes; any other id selects
+ * nothing and the list says so in one line. No new fetch: the rows are the ones the
+ * list already loads from GET /api/trips.
  */
 
 import { useEffect, useState } from 'react';
+import { TRIP_NOT_YOURS, urlTripStep, type UrlTrip } from '@/lib/trips/tripFromUrl';
 
 export interface TripRow {
   id: string;
@@ -45,6 +53,14 @@ interface Props {
    *  trip count) — the home Travel block passes the "+ Create a trip" button that
    *  opens the create form in a modal. */
   headerAction?: React.ReactNode;
+  /** TRAVEL-PIPE: trip count reported up after each successful fetch (the
+   *  Books onTotals idiom — zero new fetches; the parent's stable setter is
+   *  the callback). Feeds the StageStrip's derived states + ProofStrip. */
+  onTotals?: (t: { trips: number }) => void;
+  /** TRIPS-01: the trip a link asked for (/travel?trip=<id>), or null when the URL asks for none. */
+  requestedTripId?: string | null;
+  /** TRIPS-01: told once per answered request, after the selection (if any) is made. */
+  onUrlTripAnswered?: (verdict: UrlTrip<TripRow>) => void;
 }
 
 function formatRange(start: string | null, end: string | null): string {
@@ -53,12 +69,15 @@ function formatRange(start: string | null, end: string | null): string {
   return end ? `${fmt(start)} – ${fmt(end)}` : fmt(start);
 }
 
-export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTripId = null, onDeleted, headerAction }: Props) {
+export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTripId = null, onDeleted, headerAction, onTotals, requestedTripId = null, onUrlTripAnswered }: Props) {
   const [trips, setTrips] = useState<TripRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // TRIPS-01: the id last answered from the URL, and what it answered.
+  const [answered, setAnswered] = useState<string | null>(null);
+  const [urlTrip, setUrlTrip] = useState<UrlTrip<TripRow> | null>(null);
 
   // PR-Trips3: confirm, then delete. stopPropagation so the trash click never also
   // selects the row. The route is ownership-scoped (verifies the trip is the session
@@ -90,39 +109,59 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
       .then(async (res) => {
         if (!res.ok) throw new Error(`Could not load your trips (HTTP ${res.status})`);
         const data = await res.json();
-        if (!cancelled) setTrips((data.trips || []) as TripRow[]);
+        if (!cancelled) {
+          const rows = (data.trips || []) as TripRow[];
+          setTrips(rows);
+          onTotals?.({ trips: rows.length });
+        }
       })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load your trips'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [refreshSignal]);
 
+  // TRIPS-01: answer the URL's trip from the rows this list loaded — never before they
+  // load, never from anywhere else, once per arrival.
+  useEffect(() => {
+    const step = urlTripStep(requestedTripId, !loading && error === null, trips, answered);
+    if (step.kind === 'wait') return;
+    if (step.kind === 'forget') { setAnswered(null); return; }
+    setAnswered(step.id);
+    setUrlTrip(step.verdict);
+    if (step.verdict.kind === 'selected') onSelect?.(step.verdict.trip);
+    onUrlTripAnswered?.(step.verdict);
+  }, [requestedTripId, loading, error, trips, answered, onSelect, onUrlTripAnswered]);
+
   return (
     <div className="mt-6">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-lg font-bold text-brand-purple">Your trips</p>
+        <p className="text-lg font-bold text-text-primary">Your trips</p>
         <div className="flex items-center gap-3">
-          {!loading && !error && <span className="text-xs text-text-muted">{trips.length} {trips.length === 1 ? 'trip' : 'trips'}</span>}
+          {!loading && !error && <span className="text-xs text-text-faint">{trips.length} {trips.length === 1 ? 'trip' : 'trips'}</span>}
           {headerAction}
         </div>
       </div>
 
-      {loading && <p className="text-sm text-text-muted">Loading your trips…</p>}
-      {error && <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-brand-red">{error}</p>}
+      {urlTrip?.kind === 'notYours' && (
+        <p className="mb-2 rounded-lg border border-border bg-white p-3 text-sm text-text-muted" data-url-trip-missing>{TRIP_NOT_YOURS}</p>
+      )}
+
+      {loading && <p className="text-sm text-text-faint">Loading your trips…</p>}
+      {error && <p className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</p>}
 
       {!loading && !error && trips.length === 0 && (
-        <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
+        <p className="rounded-lg border border-border bg-white p-4 text-sm text-text-faint">
           No trips yet. Tap &ldquo;+ Create a trip&rdquo; and it shows up here.
         </p>
       )}
 
-      {deleteError && <p className="mb-2 rounded-lg border border-border bg-bg-row p-3 text-sm text-brand-red">{deleteError}</p>}
+      {deleteError && <p className="mb-2 rounded-lg border border-border bg-white p-3 text-sm text-brand-red">{deleteError}</p>}
 
       {!loading && !error && trips.length > 0 && (
         <div className="overflow-hidden rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-bg-row text-left text-xs uppercase tracking-wide text-text-faint">
+              <tr className="bg-white text-left font-mono text-[10px] uppercase tracking-wider text-text-faint">
                 <th className="px-3 py-2 font-medium">Trip</th>
                 <th className="px-3 py-2 font-medium">Where</th>
                 <th className="px-3 py-2 font-medium">Dates</th>
@@ -131,17 +170,22 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
               </tr>
             </thead>
             <tbody>
+              {/* REPAINT-04 (2026-09-21): the rows wore the retired dark surface (bg-panel-surface /
+                  border-panel-border / hover:bg-panel-hover — a near-black row on the cream page, the
+                  name invisible on it). Cream-shell tokens now: white row, lavender hairline, the
+                  cream-row hover (ds SURFACE.hover); the selected row keeps its aubergine wash. */}
               {trips.map((trip) => (
                 <tr
                   key={trip.id}
                   onClick={() => onSelect?.(trip)}
                   aria-selected={selectedTripId === trip.id}
-                  className={`cursor-pointer border-t transition-colors hover:bg-bg-row ${selectedTripId === trip.id ? 'border-brand-purple bg-brand-purple/5' : 'border-border bg-white'}`}
+                  className={`cursor-pointer border-t transition-colors hover:bg-bg-row ${selectedTripId === trip.id ? 'border-brand-purple bg-brand-purple/10' : 'border-border bg-white'}`}
                 >
                   <td className="px-3 py-3 font-medium text-text-primary">{trip.name}</td>
-                  <td className="px-3 py-3 text-text-secondary">{trip.destination || '—'}</td>
-                  <td className="px-3 py-3 text-text-secondary">{formatRange(trip.startDate, trip.endDate)}</td>
+                  <td className="px-3 py-3 text-text-muted">{trip.destination || '—'}</td>
+                  <td className="px-3 py-3 text-text-muted">{formatRange(trip.startDate, trip.endDate)}</td>
                   <td className="px-3 py-3">
+                    {/* REPAINT-04: the status chip — aubergine ink on the aubergine wash (the PublicCategorySearch idiom), not white on it. */}
                     <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-brand-purple">
                       {trip.status}
                     </span>
@@ -153,7 +197,7 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
                       disabled={deletingId === trip.id}
                       aria-label={`Delete ${trip.name}`}
                       title="Delete trip"
-                      className="rounded p-1 text-text-muted transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
+                      className="rounded p-1 text-text-faint transition-colors hover:bg-bg-row hover:text-brand-red disabled:opacity-50"
                     >
                       {deletingId === trip.id ? (
                         <span className="text-xs">Deleting…</span>

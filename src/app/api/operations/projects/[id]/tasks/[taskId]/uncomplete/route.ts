@@ -14,6 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -125,10 +126,6 @@ export async function POST(
 
     return NextResponse.json({ task });
   } catch (error) {
-    console.error('[Task Uncomplete POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to uncomplete task', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Task Uncomplete POST', 'Failed to uncomplete task', error);
   }
 }

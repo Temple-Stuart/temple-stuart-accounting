@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { ValidationError } from '@/lib/errors/ValidationError';
+import { postJournal, type JournalLineInput } from '@/lib/posting/postJournal';
 
 // GAAP Year-End Close API
 //
@@ -38,6 +42,9 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TAB-SERVER-GATE: tab:books entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:books');
+    if (tabGate) return tabGate;
 
     const { entityId, year } = await request.json();
 
@@ -167,10 +174,73 @@ export async function POST(request: NextRequest) {
     // PATHWAY 8: Year-end close bypasses period close enforcement.
     // Closing entries are the privileged reason periods are closed.
     // Audit trail: source_type = 'year_end_close', created_by = userEmail
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await prisma.$transaction(async (tx: any) => {
-      const journalEntry = await tx.journal_entries.create({
-        data: {
+    // HYG-04: the closing entry is built line by line with no write, checked
+    // (SOC2 BAL), then posted ONCE through postJournal — SET CONSTRAINTS ALL
+    // IMMEDIATE first, every line in one statement, read back after commit.
+    const lines: JournalLineInput[] = [];
+    let totalLedgerDebits = BigInt(0);
+    let totalLedgerCredits = BigInt(0);
+    let accountsClosed = 0;
+
+    // Close each revenue and expense account
+    for (const row of rows) {
+      const debits = BigInt(row.total_debits);
+      const credits = BigInt(row.total_credits);
+
+      if (row.account_type === 'revenue') {
+        // Revenue is credit-normal: balance = credits - debits
+        const balance = credits - debits;
+        if (balance === BigInt(0)) continue;
+
+        // Debit revenue account to zero it out
+        const absBalance = balance > BigInt(0) ? balance : -balance;
+        const entryType: 'D' | 'C' = balance > BigInt(0) ? 'D' : 'C';
+        // Debiting a credit-normal account decreases its balance
+        const balanceChange = entryType === 'C' ? absBalance : -absBalance;
+        lines.push({ account_id: row.account_id, entry_type: entryType, amount: absBalance, balanceDelta: balanceChange, created_by: userEmail });
+        if (entryType === 'D') totalLedgerDebits += absBalance; else totalLedgerCredits += absBalance;
+      } else {
+        // Expense is debit-normal: balance = debits - credits
+        const balance = debits - credits;
+        if (balance === BigInt(0)) continue;
+
+        // Credit expense account to zero it out
+        const absBalance = balance > BigInt(0) ? balance : -balance;
+        const entryType: 'D' | 'C' = balance > BigInt(0) ? 'C' : 'D';
+        // Crediting a debit-normal account decreases its balance
+        const balanceChange = entryType === 'D' ? absBalance : -absBalance;
+        lines.push({ account_id: row.account_id, entry_type: entryType, amount: absBalance, balanceDelta: balanceChange, created_by: userEmail });
+        if (entryType === 'D') totalLedgerDebits += absBalance; else totalLedgerCredits += absBalance;
+      }
+
+      accountsClosed++;
+    }
+
+    // Retained Earnings line
+    if (netIncome !== BigInt(0)) {
+      const absNetIncome = netIncome > BigInt(0) ? netIncome : -netIncome;
+      // Profit: CREDIT RE; Loss: DEBIT RE
+      const reEntryType: 'D' | 'C' = netIncome > BigInt(0) ? 'C' : 'D';
+      // RE is credit-normal (balance_type 'C')
+      const reBalanceChange = reEntryType === 'C' ? absNetIncome : -absNetIncome;
+      lines.push({ account_id: retainedEarnings!.id, entry_type: reEntryType, amount: absNetIncome, balanceDelta: reBalanceChange, created_by: userEmail });
+      if (reEntryType === 'D') totalLedgerDebits += absNetIncome; else totalLedgerCredits += absNetIncome;
+    }
+
+    if (lines.length === 0) {
+      throw new ValidationError(`Nothing to close for ${year}: every revenue and expense account is already at zero`, { status: 409 });
+    }
+
+    // CRITICAL: Balance verification (SOC2 BAL control) — before any write.
+    if (totalLedgerDebits !== totalLedgerCredits) {
+      throw new Error(
+        `Year-end closing entry is unbalanced: debits=${totalLedgerDebits.toString()}, credits=${totalLedgerCredits.toString()}. Refusing to post.`
+      );
+    }
+
+    const { result } = await postJournal(prisma, async (_tx, post) => {
+      const posted = await post({
+        entry: {
           userId: user.id,
           entity_id: entityId,
           date: new Date(year, 11, 31), // Dec 31
@@ -181,147 +251,20 @@ export async function POST(request: NextRequest) {
           is_reversal: false,
           created_by: userEmail,
         },
+        lines,
       });
-
-      let totalLedgerDebits = BigInt(0);
-      let totalLedgerCredits = BigInt(0);
-      let accountsClosed = 0;
-
-      // Close each revenue and expense account
-      for (const row of rows) {
-        const debits = BigInt(row.total_debits);
-        const credits = BigInt(row.total_credits);
-
-        if (row.account_type === 'revenue') {
-          // Revenue is credit-normal: balance = credits - debits
-          const balance = credits - debits;
-          if (balance === BigInt(0)) continue;
-
-          // Debit revenue account to zero it out
-          const absBalance = balance > BigInt(0) ? balance : -balance;
-          const entryType = balance > BigInt(0) ? 'D' : 'C';
-
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: row.account_id,
-              entry_type: entryType,
-              amount: absBalance,
-              created_by: userEmail,
-            },
-          });
-
-          if (entryType === 'D') {
-            totalLedgerDebits += absBalance;
-          } else {
-            totalLedgerCredits += absBalance;
-          }
-
-          // Update account settled_balance
-          // Debiting a credit-normal account decreases its balance
-          const balanceChange = entryType === 'C' ? absBalance : -absBalance;
-          await tx.chart_of_accounts.update({
-            where: { id: row.account_id },
-            data: {
-              settled_balance: { increment: balanceChange },
-              version: { increment: 1 },
-            },
-          });
-        } else {
-          // Expense is debit-normal: balance = debits - credits
-          const balance = debits - credits;
-          if (balance === BigInt(0)) continue;
-
-          // Credit expense account to zero it out
-          const absBalance = balance > BigInt(0) ? balance : -balance;
-          const entryType = balance > BigInt(0) ? 'C' : 'D';
-
-          await tx.ledger_entries.create({
-            data: {
-              journal_entry_id: journalEntry.id,
-              account_id: row.account_id,
-              entry_type: entryType,
-              amount: absBalance,
-              created_by: userEmail,
-            },
-          });
-
-          if (entryType === 'D') {
-            totalLedgerDebits += absBalance;
-          } else {
-            totalLedgerCredits += absBalance;
-          }
-
-          // Update account settled_balance
-          // Crediting a debit-normal account decreases its balance
-          const balanceChange = entryType === 'D' ? absBalance : -absBalance;
-          await tx.chart_of_accounts.update({
-            where: { id: row.account_id },
-            data: {
-              settled_balance: { increment: balanceChange },
-              version: { increment: 1 },
-            },
-          });
-        }
-
-        accountsClosed++;
-      }
-
-      // Retained Earnings line
-      if (netIncome !== BigInt(0)) {
-        const absNetIncome = netIncome > BigInt(0) ? netIncome : -netIncome;
-        // Profit: CREDIT RE; Loss: DEBIT RE
-        const reEntryType = netIncome > BigInt(0) ? 'C' : 'D';
-
-        await tx.ledger_entries.create({
-          data: {
-            journal_entry_id: journalEntry.id,
-            account_id: retainedEarnings!.id,
-            entry_type: reEntryType,
-            amount: absNetIncome,
-            created_by: userEmail,
-          },
-        });
-
-        if (reEntryType === 'D') {
-          totalLedgerDebits += absNetIncome;
-        } else {
-          totalLedgerCredits += absNetIncome;
-        }
-
-        // Update RE settled_balance
-        // RE is credit-normal (balance_type 'C')
-        const reBalanceChange = reEntryType === 'C' ? absNetIncome : -absNetIncome;
-        await tx.chart_of_accounts.update({
-          where: { id: retainedEarnings!.id },
-          data: {
-            settled_balance: { increment: reBalanceChange },
-            version: { increment: 1 },
-          },
-        });
-      }
-
-      // CRITICAL: Balance verification (SOC2 BAL control)
-      if (totalLedgerDebits !== totalLedgerCredits) {
-        throw new Error(
-          `Year-end closing entry is unbalanced: debits=${totalLedgerDebits.toString()}, credits=${totalLedgerCredits.toString()}. Rolling back.`
-        );
-      }
-
-      return { journalEntry, accountsClosed };
+      return { journalEntryId: posted.id, accountsClosed };
     });
 
     return NextResponse.json({
-      closingEntryId: result.journalEntry.id,
+      closingEntryId: result.journalEntryId,
       netIncome: Number(netIncome),
       accountsClosed: result.accountsClosed,
       year,
       entityName: entity.name,
     });
   } catch (error) {
-    console.error('Year-end close error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Year-end close', 'Year-end close failed', error);
   }
 }
 
@@ -338,6 +281,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TAB-SERVER-GATE: tab:books entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:books');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
     const entityId = searchParams.get('entityId');
@@ -405,8 +351,6 @@ export async function GET(request: NextRequest) {
       closedAt: null,
     });
   } catch (error) {
-    console.error('Year-end close status error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Year-end close status', 'Year-end close status failed', error);
   }
 }

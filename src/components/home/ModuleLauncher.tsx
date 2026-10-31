@@ -1,39 +1,121 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import Script from 'next/script';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
-  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard,
+  Calendar, Plane, TrendingUp, BookOpen, Receipt, ShieldCheck, MapPin,
   type LucideIcon,
 } from 'lucide-react';
+import { SECTION_HEADER, STATE } from '@/lib/ds';
+import Rail from '@/components/shell/Rail';
+// ACCOUNTS-01: the connect / sync glue is the shared hook (src/components/bank/useBankConnection.ts).
+import { useBankConnection } from '@/components/bank/useBankConnection';
 import CreateTripForm from '@/components/trips/CreateTripForm';
+import TripBookings from '@/components/trips/TripBookings';
+import UnattachedBookings from '@/components/trips/UnattachedBookings';
+import AllBookings from '@/components/trips/AllBookings';
+import { BOOKING_WORDS } from '@/lib/reservations/bookingRow';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
+import { requestedTripOf, type UrlTrip } from '@/lib/trips/tripFromUrl';
 import TripFormModal from '@/components/trips/TripFormModal';
 import TripBudgetActual from '@/components/trips/TripBudgetActual';
+import TripItinerarySection from '@/components/trips/TripItinerarySection';
+import ToolOpener from '@/components/shell/ToolOpener';
+import { navToolByName } from '@/lib/nav';
+import { TOOL_GATE } from '@/lib/offer';
 import HubCalendar from '@/components/hub/HubCalendar';
 import RunwayDataProvider from '@/components/hub/RunwayDataProvider';
-import RunwayBudgetPanel from '@/components/hub/RunwayBudgetPanel';
-import { demoCalendar } from '@/components/hub/showroom/demoCalendar';
-import PublicFlightSearch from '@/components/trips/PublicFlightSearch';
-import PublicHotelSearch from '@/components/trips/PublicHotelSearch';
-import PublicActivitySearch from '@/components/trips/PublicActivitySearch';
-import PublicVisaCheck from '@/components/trips/PublicVisaCheck';
-import ComingSoonSection from '@/components/home/ComingSoonSection';
+import RunwayBudgetPanel, { type RunwayReceipts } from '@/components/hub/RunwayBudgetPanel';
+import MatchReviewSection from '@/components/hub/MatchReviewSection';
+import { travelStripModes } from '@/components/trips/travelStripModes';
+import PublicCategorySearch from '@/components/trips/PublicCategorySearch';
+import { TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS } from '@/components/trips/travelSection';
+import { HOMEPAGE_CATEGORIES } from '@/lib/categoryKeys';
+// DS-1: the travel tab is rebuilt from the design system — the SAME ToggleStrip
+// primitive the landing consumes (one strip, chip-selected panels, all mounted).
+import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
 import ScanFilterForm from '@/components/trading/ScanFilterForm';
+// LANG-1: persistent data-not-advice disclaimer, mounted at the top of the Trade tab.
+import TradingDataDisclaimer from '@/components/trading/TradingDataDisclaimer';
+// RISK-1: coverage declaration — states what has actually synced (self-fetches /api/trading/coverage).
+import CoverageDeclaration from '@/components/trading/CoverageDeclaration';
+// TRACK-1: the scanner's public track record (claimed vs actual, honest win rate). Self-fetches
+// /api/trade-cards + /api/trading/coverage.
+import TradeRecord, { type RecordStats } from '@/components/trading/TradeRecord';
+// PIPE-FRAME-1: the shared frame components (Trade is the first consumer).
+import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
+// PIPE-PHASES-1: the Trade phase strings (num/name/subLabel + the COMMIT
+// link chip) live in the shared pipe-phases config now — moved verbatim,
+// landing/app lockstep by construction. Keys, derived states, and handlers
+// stay HERE (the config carries data only).
+import { PIPE_PHASES, type PipePhase } from '@/lib/pipePhases';
+
+const [PIPE_SETUP, PIPE_SCAN, PIPE_REVIEW, PIPE_LAB, PIPE_RECORD, PIPE_COMMIT] = PIPE_PHASES.trade;
+// TRAVEL-01 (2026-09-19): the travel tab draws NO pipe — the five-phase strip
+// and its `PIPE_PHASES.travel` destructure are gone; the tab is plain sections
+// (see the travel block below). THE SORT still names Travel the owner of the
+// five phases, declared undrawn (src/lib/nav.ts).
+// RUNWAY-PIPE: the runway strip's five phases (widened, same idiom).
+const [PIPE_RW_SOURCE, PIPE_RW_HISTORY, PIPE_RW_BURN, PIPE_RW_MATCH, PIPE_RW_PROJECT] =
+  PIPE_PHASES.runway as readonly PipePhase[];
+import SectionHeader from '@/components/ui/SectionHeader';
+import ProofStrip from '@/components/ui/ProofStrip';
+// TRADE-1: the queue viewer + reconcile/link/grade surface. Mounted BELOW the scanner on
+// the homepage Trade tab so the scan → queue → RECONCILE loop is complete here (was only on
+// standalone page, now /trade-log). Reused verbatim — no restyle (that is TRADE-2).
+import TradeLabPanel from '@/components/trading/TradeLabPanel';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
-import OperationsPipelineShowroom from '@/components/workbench/operations/showroom/OperationsPipelineShowroom';
-// HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider, plus
-// the fetch-free logged-out teaser. Mounted verbatim on the homepage Routines tab — no restyle yet.
-import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
-import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
-// Projects-mount: the real Projects CRUD (Bridgewater backlog). Authed users get this verbatim,
-// wrapped in the same self-fetching OperationsEntityProvider as SectionE_Routines; logged-out
-// keeps the rich OperationsPipelineShowroom (Option B).
-import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
-// Content-mount: the real content pipeline (sources → scenify → grid → script). Authed users get
-// this verbatim, wrapped in the same self-fetching OperationsEntityProvider; logged-out reuses the
-// OperationsPipelineShowroom (which already renders the content Day + Script demo panels).
-import ContentPipeline from '@/components/workbench/operations/content/ContentPipeline';
-import HomeRoutineCreateForm from '@/components/home/RoutineCreateForm';
+// BOOKS-1: cockpit bar + the 5 zero-prop, self-fetching Books surfaces (Option A — cockpit +
+// drop-ins only; the parent-fed engines are BOOKS-2). All reused verbatim, no restyle.
+import BookkeepingCockpitBar from '@/components/bookkeeping/BookkeepingCockpitBar';
+// BOOKS-2: the full bookkeeping pipe (SRC → categorize → journal → ledger → TB → recon →
+// adjusting → statements → wash-sales → close → year-end → positions → CPA export), in the
+// dashboard's canonical order. It owns its own data layer; the 5 BOOKS-1 drop-ins now render
+// inside it at their dashboard positions (no longer standalone here).
+import BooksPipeline from '@/components/home/BooksPipeline';
+// BANK-01b: the new-item Link's onExit is surfaced too — the reason under the cockpit
+// bar (the sync line's slot), the report to /api/plaid/link-exit for the log.
+// BANK-01c: the OAuth round trip — the link token and the flow are kept before Link
+// opens (Plaid's guide: local storage, same browser session) so /plaid/oauth-return can
+// re-open Link with the SAME token; the return page's outcome line lands here.
+// TAX-1: the closed-books handoff gate — shows the tax wizard only once a period is
+// closed, otherwise a "close your books first" screen that jumps to the Books tab.
+import TaxHandoffGate from '@/components/home/TaxHandoffGate';
+// COMP-1: the Compliance A–J institutional workbench (Section A → sub-page link row →
+// Sections B…J), bare (no AppLayout — the homepage tab supplies the shell).
+import ComplianceWorkbench from '@/components/home/ComplianceWorkbench';
+// MOD-2: the decks exited the app — guest/locked tab bodies render the slim
+// pointer-card to /modules/<pillar> instead of mounting full decks; the nine
+// deck imports (five thesis decks + the four TabShowcases wrappers) are gone.
+import ModulePointerCard from '@/components/home/ModulePointerCard';
+// HB-4e-mount / Projects-mount — RETIRED by WORK-01 (Alex, 2026-10-24): the cockpit's Routines and
+// Projects tabs are gone — their TABS entries, MODULES entries, MODULE_TO_TAB and TAB_PATH_BY_KEY
+// keys, the two renderBody branches, the two flush sections and the logged-out pointer cards.
+// Tasks is one table at /tasks (SectionE_Work, then SectionD_ProjectBacklog), the rail's door.
+// Old links keep landing: /routines and /projects are redirect pages to /tasks, and the front
+// door still maps ?tab=routines / ?tab=projects to them. The public decks at /modules/routines
+// and /modules/projects are untouched (the Projects deck's CTA reads claimForTool('Tasks') — ruling 1).
+// Content-mount — RETIRED by TIME-02 (Alex, 2026-10-19): the content pipeline (ContentPipeline and
+// src/components/workbench/operations/content/) is deleted; the cockpit's hidden Content tab went with
+// it. It was dead code: no tool carries cockpitKey 'content' (the rail opens cockpit sections only
+// through one), TABS is never drawn as a bar, /content is a page that redirects to /time, and the
+// front door 307s /?tab=content to /content — the section could not be reached, and it carried the
+// pipeline in the homepage bundle. The public deck at /modules/content is untouched (SHOW-01).
+// TAB-SHOW-AND-GATE / MOD-3: the per-tab purchase CTA from its own leaf —
+// the last transitive deck thread (TabShowcases and its slide-section
+// modules) is out of the app graph; locked viewers get pointer-card +
+// LockedTabCard.
+// LOCK-01: the four locked tabs render THEIR OWN ROOM, frozen, under one inline
+// note — not the offer card. LockedTabCard left the app with them; the offer
+// lives at /pricing and on the deck.
+import RoomLock from '@/components/shell/RoomLock';
+// LAUNCH-01 LAPSE-01: the me payload's lapsed rows → the card's "ended on" line per tab.
+import { keysGranting } from '@/lib/offer';
+import { lapsedFor, type LapsedEntitlement } from '@/lib/lapse';
+import { isTabLocked } from '@/lib/categoryLock';
+// BOOKS-GATE-01: the Books summary's sums — an unreadable trial-balance balance is refused by name, never summed as 0.
+import { sumByType, trialBalanceAccountsOf } from '@/lib/books/cockpitSums';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
@@ -58,63 +140,74 @@ interface ModuleDef {
 const MODULES: ModuleDef[] = [
   { key: 'travel',      label: 'Travel',      live: true,  blurb: 'AI trip & flight planning — free to use.' },
   { key: 'trading',     label: 'Trading',     live: false, blurb: 'AI vol scanner + options strategy builder.' },
-  // PR-A-Tabs: the home "Operations" tab is renamed to "Projects" (label/key only — the
-  // backend /operations routes + operations_routines table are unchanged). Routines is a
-  // new sibling tab (its real surface lands in PR-B).
-  { key: 'projects',    label: 'Projects',    live: false, blurb: 'Brain-dump a goal → a scoped project → tasks on your calendar.' },
-  { key: 'routines',    label: 'Routines',    live: false, blurb: 'Recurring routines that land on your calendar.' },
+  // PR-A-Tabs added 'projects' and 'routines' here — RETIRED by WORK-01 (Alex, 2026-10-24): Tasks is one table at /tasks.
   { key: 'bookkeeping', label: 'Bookkeeping', live: false, blurb: 'GAAP accounting engine, Plaid bank sync, period close.' },
   { key: 'tax',         label: 'Tax',         live: false, blurb: 'Form 1040, Schedule C/D/SE, Form 8949.' },
   { key: 'compliance',  label: 'Compliance',  live: false, blurb: 'Monitoring, attestations, audit trail.' },
-  // Content-mount: appended LAST so the existing modules keep their MODULES index (the MODULES.map
-  // alternating bg is index-driven). Tab-bar order is set by TABS below, not by this position;
-  // content renders in its own flush block (skipped from the band map).
-  { key: 'content',     label: 'Content',     live: false, blurb: 'Turn your day into a reel — sources → scenes → script.' },
+  // Content-mount: appended LAST here until TIME-02 (2026-10-19) retired the content pipeline — the
+  // module, its tab, its flush block and its renderBody branch are gone; every other index is unchanged.
 ];
 
 // PR-Mobile2 + PR-Edge-A: the phone tabs — ONE per module (no grouping). On mobile one
 // panel shows at a time (the bottom bar switches activeModule); on desktop every panel
 // stays visible (md:block) and the bar is hidden (md:hidden). The bar horizontal-scrolls
 // so 7 tabs stay clean on a narrow phone.
+// MODULE-ORDER: tab sequence = the canonical lifecycle order (PILLAR_CARDS
+// 01-09: routines, projects, travel, trade, books, compliance, tax, runway,
+// content) — the landing's numbering and the app's tab bar stay lockstep.
+// Pure order change: keys, labels, icons, and the 'calendar' default all
+// unchanged (order-insensitive consumers — TABS.some membership checks).
 const TABS: { key: string; label: string; icon: LucideIcon }[] = [
-  { key: 'calendar',   label: 'Runway',     icon: Calendar },
+  // 'routines' and 'projects' — RETIRED by WORK-01 (Alex, 2026-10-24): Tasks is one table at /tasks, the rail's door.
   { key: 'travel',     label: 'Travel',     icon: Plane },
-  { key: 'routines',   label: 'Routines',   icon: Repeat },
-  { key: 'projects',   label: 'Projects',   icon: FolderKanban },
-  { key: 'content',    label: 'Content',    icon: Clapperboard },
   { key: 'trade',      label: 'Trade',      icon: TrendingUp },
   { key: 'books',      label: 'Books',      icon: BookOpen },
-  { key: 'tax',        label: 'Tax',        icon: Receipt },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
+  { key: 'tax',        label: 'Tax',        icon: Receipt },
+  { key: 'calendar',   label: 'Runway',     icon: Calendar },
+  // 'content' (Clapperboard) left this list with TIME-02 (2026-10-19) — the content pipeline is retired.
 ];
+
+/** COCKPIT-PERF-01 (Alex, 2026-10-27, ruling 1): the tab a path names, read DURING RENDER — /runway → calendar,
+ *  /travel → travel, … — so the first paint is the path's own panel on the server and the client alike (the same
+ *  pathname on both sides; hydration-safe). A path that names no tab (the bare '/') keeps the cockpit's 'calendar'
+ *  default, the one useState('calendar') held before; a legacy ?tab= is still read by the restore effect. */
+function tabOfPath(pathname: string | null): string {
+  const seg = (pathname ?? '').split('/')[1] ?? '';
+  return seg === 'runway' ? 'calendar' : TABS.some((t) => t.key === seg) ? seg : 'calendar';
+}
+// ONE-BAND: the per-tab module band cards RETIRED from the tab sections — the
+// hero above the tab bar is the module band now (HomeClient reads the same
+// copy from the MODULE_BANDS leaf, src/lib/moduleBands.ts — the strings moved
+// there verbatim, still lockstep with the deck's PILLAR_CARDS). ModuleBand /
+// TradeTrustChip / TRADE_TRUST_CHIPS deleted with their last consumers
+// (strings + anatomy in git history).
+
+// SHELL-CONNECT → ONE-BAND: the shell card no longer straddles a band — the
+// -mt pull (the ToggleStrip :178 overlap) retired with the bands; each tab's
+// content now starts flush at this card. space-y-6 lives INSIDE the card.
+// APP-GLOW → REPAINT-3: the glow standing-law inverted under Direction C —
+// the shell card is FLAT card-cream + lavender hairline (MODULE_SHELL_STYLE
+// died with ds.CARD_BG).
+const MODULE_SHELL_CARD =
+  'rounded-xl border border-border bg-ts-white p-4 sm:p-5 space-y-6';
+
 // Which tab each module section belongs to — 1:1, every module its own tab (the
 // calendar is its own 'calendar' tab, rendered separately).
 const MODULE_TO_TAB: Record<string, string> = {
   travel: 'travel',
   trading: 'trade',
   bookkeeping: 'books',
-  projects: 'projects',
-  routines: 'routines',
-  content: 'content',
   tax: 'tax',
   compliance: 'compliance',
 };
 
-// PR-PerTab-Descriptor: one plain descriptor line per tab, shown under the tab row and
-// swapped by activeModule (this replaces the old per-panel "How it works" collapsibles).
-// Keyed by TAB key (the activeModule values). Calendar + Travel are the lines we wrote;
-// the rest are the first sentence of each module's prior intro copy.
-export const TAB_DESCRIPTORS: Record<string, string> = {
-  calendar: 'Runway — how long your money buys you. Your planned and actual spend, mapped to the day, so your runway is never a guess.',
-  travel: 'Book your flights, hotels, things to do, and ground transportation — competitive prices, real times, real data.',
-  trade: "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok.",
-  routines: 'Build your recurring routines and watch them land on your calendar — the rhythms that run your day.',
-  projects: "Type the big messy goal that's rattling around your head — plain, rambly, however it actually lives up there.",
-  content: 'Turn what you actually did today into a reel — sources to scenes to a ready-to-record script.',
-  books: 'Connect your bank through Plaid and every transaction flows in.',
-  tax: 'Your books are already clean, so your taxes are half-done before you start.',
-  compliance: "This one's for when things get serious.",
-};
+// PR-PerTab-Descriptor → FD-1d: the descriptor strings moved to the shared
+// leaf module src/lib/tabDescriptors.ts (three consumers: this launcher via
+// page.tsx's import, the Landing, the /modules pages — one source, no
+// lockstep copies). Re-exported here so page.tsx's existing named import
+// keeps working unchanged.
+export { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
 
 interface Props {
   /** Opens the existing register/login modal on the home page. Called when a
@@ -123,33 +216,288 @@ interface Props {
   /** PR-Hero-PerTab: notifies the parent (page.tsx) of the active tab so the hero
    *  subhead up top can swap to that tab's descriptor. Optional/additive. */
   onTabChange?: (tab: string) => void;
+  /** SELL-02: per offer key, is its Stripe price id set — server-computed (page.tsx), passed down to the locked cards; never read here. */
+}
+
+/** TRAVEL-01: a plain section heading on the travel tab — a name, never a phase.
+ *  REPAINT-04 (2026-09-21): it wears the shell's own section-label bar, SECTION_HEADER
+ *  (src/lib/ds.ts) — the idiom every other tool's section label uses (the trade log,
+ *  the day view, the bookkeeping section, this launcher's YOUR TRIPS bar). TRAVEL-01 wrote text-white/70
+ *  for a "dark surface" REPAINT-3 had already retired — white on cream. */
+function TravelHeading({ children }: { children: React.ReactNode }) {
+  return <h2 className={SECTION_HEADER} data-travel-heading>{children}</h2>;
+}
+
+/** COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): THE BOOKS PANEL OWNS ITS READS. The cockpit bar's three reads (the
+ *  trial balance, the accounts, the closing periods) and the Plaid link token (useBankConnection) lived in the
+ *  launcher's body and fired at every cockpit mount, whatever tab was open. They moved here VERBATIM: they fire when
+ *  this panel mounts and not before, and a re-opened panel re-reads (no cache). A locked viewer fires none of them —
+ *  the same `booksLocked` gate the launcher held, handed in. BOOKS-GATE-01 (2026-10-28): exported by name so
+ *  booksGate01.test.ts can drive its summary read; the launcher below is still its one mount. */
+export function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; lapsed: LapsedEntitlement | null }) {
+  // ── BOOKS-1: cockpit data layer ───────────────────────────────────────────────
+  // The BookkeepingCockpitBar needs 10 props, sourced from three ALREADY-AUTHED,
+  // user-scoped routes (no new routes): /api/trial-balance, /api/accounts,
+  // /api/closing-periods. selectedYear defaults to the current year (no picker in
+  // BOOKS-1). TRUTH-FIRST: the cockpit bar's API is plain booleans/numbers with no
+  // loading/unknown state, so we do NOT feed it a `?? true` fallback. Instead the
+  // section renders a loading OR an explicit error state and only mounts the cockpit
+  // bar with REAL numbers when all three fetches succeed and isBalanced is a real
+  // boolean. Never fake "Balanced", never fake zeros.
+  const [booksYear] = useState(new Date().getFullYear());
+  const [booksState, setBooksState] = useState<'loading' | 'error' | 'ok'>('loading');
+  const [booksData, setBooksData] = useState<{
+    totalAssets: number; totalLiabilities: number; totalEquity: number;
+    isBalanced: boolean; hasActivity: boolean; connectedAccounts: number; periodStatus: 'open' | 'closed';
+  } | null>(null);
+
+  const loadBooksCockpit = useCallback(async () => {
+    setBooksState('loading');
+    try {
+      const [tbRes, accRes, cpRes] = await Promise.all([
+        fetch('/api/trial-balance'),
+        fetch('/api/accounts'),
+        fetch(`/api/closing-periods?year=${booksYear}`),
+      ]);
+      // Fail-loud: any non-OK response → explicit error state (NOT balanced, NOT zeros).
+      if (!tbRes.ok || !accRes.ok || !cpRes.ok) throw new Error('books cockpit fetch failed');
+      const tb = await tbRes.json();
+      const acc = await accRes.json();
+      const cp = await cpRes.json();
+      // isBalanced + hasActivity MUST come from the real trial balance — if
+      // either is absent, that's an error we surface, never a silent "true".
+      if (typeof tb?.totals?.isBalanced !== 'boolean' || typeof tb?.totals?.hasActivity !== 'boolean') throw new Error('trial balance missing isBalanced/hasActivity');
+      // BOOKS-GATE-01 (Alex, 2026-10-28, ruling 6): `Array.isArray(tb.accounts) ? tb.accounts : []` stood here — a trial
+      // balance without its accounts drew $0; trialBalanceAccountsOf throws "trial balance came back without its accounts".
+      const tbAccounts = trialBalanceAccountsOf(tb);
+      // BOOKS-GATE-01 (Alex, 2026-10-28, ruling B): `Math.abs(Number(a.normalBalance) || 0)` stood here — a balance
+      // that was not a number was summed as 0. sumByType (src/lib/books/cockpitSums.ts) reads each balance and THROWS
+      // by name on one it cannot read ("trial balance account <code> has no readable normalBalance"); the catch below
+      // turns it into the panel's existing error words, as it does the isBalanced/hasActivity check above.
+      const sumBy = (type: string) => sumByType(tbAccounts, type);
+      // connectedAccounts mirrors the dashboard: flatten items[].accounts[] and count.
+      const connectedAccounts = (acc.items || [])
+        .reduce((n: number, it: any) => n + ((it.accounts || []).length), 0); // eslint-disable-line @typescript-eslint/no-explicit-any
+      const month = new Date().getMonth() + 1;
+      const periodStatus: 'open' | 'closed' =
+        (cp.periods || []).some((p: any) => p.year === booksYear && p.month === month && p.status === 'closed') // eslint-disable-line @typescript-eslint/no-explicit-any
+          ? 'closed' : 'open';
+      setBooksData({
+        totalAssets: sumBy('asset'),
+        totalLiabilities: sumBy('liability'),
+        totalEquity: sumBy('equity'),
+        isBalanced: tb.totals.isBalanced,
+        hasActivity: tb.totals.hasActivity,
+        connectedAccounts,
+        periodStatus,
+      });
+      setBooksState('ok');
+    } catch (err) {
+      // BOOKS-GATE-01b (Alex, 2026-10-28): the thrown reason reaches the console; the card keeps its existing words.
+      console.error('[books] cockpit summary:', err);
+      setBooksData(null);
+      setBooksState('error');
+    }
+  }, [booksYear]);
+
+  // Load the cockpit (and a Plaid Link token) only for a viewer who actually sees the
+  // Books surface (tab entitled, or admin via the lock helper) — locked viewers get the
+  // SHOW surface and fire zero Books fetches.
+  useEffect(() => {
+    if (booksLocked) return;
+    loadBooksCockpit();
+  }, [booksLocked, loadBooksCockpit]);
+
+  // ACCOUNTS-01: the link token, Plaid Link, exchange-token, sync-complete and the OAuth
+  // return line all live in the shared hook now — the SAME glue step 1's screen (/accounts)
+  // and Books' Source Accounts drive, against the same routes. Enabled only for a viewer who
+  // actually sees this surface: a locked tab fetches no token.
+  const bank = useBankConnection({ onChanged: loadBooksCockpit, enabled: !booksLocked });
+  const booksSyncMessage = bank.message;
+
+  return (
+    <RoomLock locked={booksLocked} lapsed={lapsed} stepName="Books">
+      <>
+        {/* Plaid Link script — loaded only for a viewer who sees this surface (locked
+            viewers never pull Plaid). Mirrors dashboard/page.tsx:454. */}
+        <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
+        {/* Cockpit — TRUTH-FIRST: loading / explicit-error / real-data only. Never a
+            fake "Balanced" or zeros. */}
+        {booksState === 'loading' && (
+          <div className="rounded-xl border-2 border-border bg-bg-row px-4 py-3 text-sm text-text-muted">
+            Loading your books…
+          </div>
+        )}
+        {booksState === 'error' && (
+          <div role="alert" className={`${STATE.errorCard} flex items-center justify-between gap-3`}>
+            <span>Couldn&rsquo;t load your books right now. Nothing is assumed — the balance sheet is hidden until it loads.</span>
+            <button
+              type="button"
+              onClick={loadBooksCockpit}
+              className="shrink-0 rounded-lg border border-status-danger/40 px-3 py-1.5 text-xs font-semibold text-status-danger hover:bg-status-danger/10"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        {booksState === 'ok' && booksData && (
+          <BookkeepingCockpitBar
+            totalAssets={booksData.totalAssets}
+            totalLiabilities={booksData.totalLiabilities}
+            totalEquity={booksData.totalEquity}
+            isBalanced={booksData.isBalanced}
+            hasActivity={booksData.hasActivity}
+            connectedAccounts={booksData.connectedAccounts}
+            periodLabel={`${new Date().toLocaleString('en-US', { month: 'long' })} ${booksYear}`}
+            periodStatus={booksData.periodStatus}
+            onSync={bank.syncAccounts}
+            syncing={bank.syncing}
+            onLinkAccount={bank.linkAccount}
+          />
+        )}
+        {booksSyncMessage && (
+          <div
+            role={booksSyncMessage.tone === 'ok' ? 'status' : 'alert'}
+            className={booksSyncMessage.tone === 'ok'
+              ? 'rounded-lg border border-border bg-bg-row p-3 text-xs text-text-secondary'
+              : STATE.errorCard}
+          >
+            {/* HYG-03: one line per failed bank above one line for what succeeded —
+                one dead bank never reads as "sync failed". */}
+            {booksSyncMessage.lines.map((l, i) => <div key={i}>{l}</div>)}
+          </div>
+        )}
+        {/* BOOKS-2: the full pipe below the cockpit — import → categorize/COA →
+            journal → ledger → trial balance → reconcile → adjusting → statements →
+            wash-sales → close → year-end → positions → CPA export (dashboard order).
+            The 5 BOOKS-1 drop-ins are interleaved inside BooksPipeline at their
+            dashboard positions; the cockpit above keeps its own BOOKS-1 wiring. */}
+        <BooksPipeline />
+      </>
+    </RoomLock>
+  );
 }
 
 export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
   const [authed, setAuthed] = useState<boolean | null>(null);
-  // TRADING-PR-2: admin status (server-computed via /api/auth/me isAdmin). The
-  // Trading scan is admin-gated (requireAdmin), so only the admin sees the working
-  // ScanFilterForm; everyone else keeps the paid stub.
+  // PR-2b: per-category entitlements + user id (server-computed via /api/auth/me). Drive the
+  // homepage per-TAB locks (isTabLocked) — SELL-05b: the category sections carry no lock any
+  // more. Loaded from the SAME auth/me effect below (no extra fetch).
+  const [entitledCategories, setEntitledCategories] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState('');
+  // SELL-05b: the admin bypass is the SERVER's verdict (/api/auth/me isAdmin) — never an id compared here.
   const [isAdmin, setIsAdmin] = useState(false);
+  // LAPSE-01: rows whose subscription ended (when, why), from /api/auth/me.
+  const [lapsed, setLapsed] = useState<LapsedEntitlement[]>([]);
   // PR-HCR-Trips1: bumped after a create so the All Trips list re-fetches in place.
   const [tripsRefresh, setTripsRefresh] = useState(0);
   // PR-HCR-Trips2: the selected trip, lifted out of AllTripsList so later budget
   // actions in the Travel section can read which trip they attach to. Selection +
   // context only — no budget writes here.
   const [currentTrip, setCurrentTrip] = useState<TripRow | null>(null);
+  // TRIPS-01 (2026-09-29): the Travel tab is the one Trips tab — every link into a
+  // trip lands here as /travel?trip=<id> (the legacy planner's four URLs redirect
+  // here too). The id is read from the URL as it changes, not once on mount, because
+  // a booking's "Trip" button (AllBookings) links here FROM this tab, and a same-page
+  // link keeps this component mounted. It is only ever handed to AllTripsList, which
+  // answers it from the user's own loaded trips; a guest's tab never mounts that list
+  // and is unchanged. Once answered, the tab scrolls to its trips (when one was
+  // selected) and drops `trip` from the URL — the selection is state, like a click's,
+  // and the URL may not go on claiming a trip the user has since moved off.
+  const requestedTripId = requestedTripOf(usePathname(), useSearchParams());
+  const tripsSection = useRef<HTMLElement>(null);
+  const answerUrlTrip = useCallback((verdict: UrlTrip<TripRow>) => {
+    if (verdict.kind === 'selected') tripsSection.current?.scrollIntoView({ block: 'start' });
+    const params = new URLSearchParams(window.location.search);
+    params.delete('trip');
+    const qs = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+  }, []);
   // PR-Trip-Modal: the create-trip form now lives in a modal off the "Your trips"
   // table (the table is the primary view; creating is one tap → modal). This is open
   // when the "+ Create a trip" button is tapped; a successful create closes it.
   const [showCreate, setShowCreate] = useState(false);
+  // TRAVEL-01 (2026-09-19): the tab's phase state and the four reported tallies
+  // that fed its strip and receipts are gone with them. One count stays: the
+  // unattached bookings report theirs so their heading can say "none" instead of
+  // standing over a component that hides itself at zero rows.
+  const [unattachedCount, setUnattachedCount] = useState<number | null>(null);
+  // RUNWAY-PIPE: the Runway tab's phase control + reported tallies (the same
+  // Books onTotals idiom). The phase UNION carries only the three phases with
+  // real surfaces — 01 Source / 02 History are STATE-ONLY strip cells (no
+  // surface exists in this tab for them; the Books-06 precedent), so they can
+  // never become 'active': onSelect no-ops on their keys BY TYPE. Default
+  // 'burn' — preserving the tab's ratified first paint (RUNWAY-UX-1: the
+  // zero-date hero strip is the tab's headline; it lives on the Burn surface).
+  const [runwayPhase, setRunwayPhase] = useState<'burn' | 'match' | 'project'>('burn');
+  const [runwayTotals, setRunwayTotals] = useState<RunwayReceipts | null>(null);
+  const [matchTotals, setMatchTotals] = useState<{ pending: number } | null>(null);
   // PR-Mobile2 + PR-Edge-B: which tab is active — now on BOTH mobile (bottom bar) and
   // desktop (top tab row); one module panel shows at a time on each. Additive — does
   // not touch any existing state (authed/currentTrip/tripsRefresh/scanner). Default the
   // master calendar.
-  const [activeModule, setActiveModule] = useState('calendar');
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling 1): the first tab is the path's, read during render (tabOfPath above) —
+  // /travel's first paint is Travel, on the server and the client alike; the 'calendar' default stands for the bare '/'.
+  const pathname = usePathname();
+  const [activeModule, setActiveModule] = useState(() => tabOfPath(pathname));
+  // F2 → ROUTE-1: the active tab lives in the URL as a REAL PATH (/runway,
+  // /travel, …) so reload and deep links restore it. Still written with NATIVE
+  // history.replaceState — a shallow URL update: no Next.js navigation, no RSC
+  // refetch, no scroll jump (the App Router syncs usePathname from native replaceState).
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): "no remount (tab panels are CSS block/hidden anyway)" stood here
+  // until this ruling — a switch now MOUNTS the new panel and UNMOUNTS the old one (no cache, no prefetch). Other
+  // params + hash survive; any legacy 'tab' param is dropped (the path IS the
+  // truth now). CARVE-OUT: 'compliance' keeps the legacy /?tab=compliance URL —
+  // /compliance is the standalone cockpit page (static-beats-dynamic; out of
+  // ROUTE-1 scope), pending Alex's ruling on the collision.
+  const TAB_PATH_BY_KEY: Record<string, string> = {
+    calendar: '/runway', travel: '/travel', trade: '/trade',
+    books: '/books', tax: '/tax',
+  };
+  const writeTabParam = (key: string) => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete('tab');
+    let path = TAB_PATH_BY_KEY[key];
+    if (!path) {
+      // compliance (the carve-out) — legacy param on the root path.
+      params.set('tab', key);
+      path = '/';
+    }
+    const qs = params.toString();
+    window.history.replaceState(null, '', `${path}${qs ? `?${qs}` : ''}${window.location.hash}`);
+  };
   // PR-Hero-PerTab: switch the active tab AND tell the parent, so the hero subhead up top
   // (page.tsx) reflects the same tab. Both tab bars (desktop + mobile) route through this.
-  const selectTab = (key: string) => { setActiveModule(key); onTabChange?.(key); };
+  // F2: the same funnel also writes the URL, so state and URL can never drift.
+  const selectTab = (key: string) => { setActiveModule(key); onTabChange?.(key); writeTabParam(key); };
+
+  // F2 → ROUTE-1: on mount the URL is the source of truth — the PATH first
+  // (/runway → calendar, /travel → travel, …; the [tab] route already 404'd
+  // anything else), then the legacy ?tab= param (only reachable on '/' now:
+  // the front door 307s every valid param to its real path EXCEPT the
+  // compliance carve-out). An invalid leftover param is STRIPPED in place
+  // (never a lying URL). Bare '/' → the 'calendar' default stands, URL
+  // untouched (the FD-2 front door renders as today).
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling 1): "Effect-only read keeps hydration safe: first paint is 'calendar' on
+  // server and client alike" stood here — the path is now read during render too (activeModule's initial state), so
+  // the first paint is the path's tab on both sides; this effect still tells the parent (onTabChange), normalises the
+  // URL and answers the legacy ?tab= param.
+  useEffect(() => {
+    const seg = window.location.pathname.split('/')[1] ?? '';
+    const fromPath = seg === 'runway' ? 'calendar' : TABS.some((t) => t.key === seg) ? seg : null;
+    if (fromPath) { selectTab(fromPath); return; }
+    const raw = new URLSearchParams(window.location.search).get('tab');
+    if (raw === null) return;
+    if (TABS.some((t) => t.key === raw)) selectTab(raw);
+    else {
+      // Strip the invalid param in place — path and hash stay as they are.
+      const params = new URLSearchParams(window.location.search);
+      params.delete('tab');
+      const qs = params.toString();
+      window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let cancelled = false;
@@ -159,17 +507,34 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         setAuthed(res.ok);
         if (res.ok) {
           const data = await res.json().catch(() => null);
-          setIsAdmin(!!data?.user?.isAdmin);
+          // PR-2b: feed the homepage category-section locks (no extra fetch).
+          // TAB-SHOW-AND-GATE: the same payload carries tab:/bundle: entitlement
+          // keys (getEntitledCategories returns every active key unfiltered), so
+          // the per-tab locks below need no extra endpoint.
+          setEntitledCategories(Array.isArray(data?.user?.entitledCategories) ? data.user.entitledCategories : []);
+          setCurrentUserId(data?.user?.id || '');
+          setIsAdmin(data?.user?.isAdmin === true);
+          setLapsed(Array.isArray(data?.user?.lapsed) ? data.user.lapsed : []);
         }
       })
       .catch(() => { if (!cancelled) setAuthed(false); });
     return () => { cancelled = true; };
   }, []);
 
+  // TAB-SHOW-AND-GATE: the four paid-tab locks. isTabLocked is the client twin
+  // of hasTabAccess — specific tab key OR bundle:all unlocks; the admin (the
+  // server's isAdmin verdict from /api/auth/me — SELL-05b) is never locked. Logged out
+  // (entitledCategories=[] and currentUserId='') → locked. FALLBACK TRIPWIRE:
+  // there is no default-unlock — no key match means the SHOW surface, always.
+  const tradeLocked = isTabLocked('tab:trade', entitledCategories, isAdmin);
+  const booksLocked = isTabLocked('tab:books', entitledCategories, isAdmin);
+  const taxLocked = isTabLocked('tab:tax', entitledCategories, isAdmin);
+  const complianceLocked = isTabLocked('tab:compliance', entitledCategories, isAdmin);
+
   // TRADING-PR-2 / PR-Trade-inline: launcher-owned scan filter state (mirrors the
   // dashboard's lifted state + the same localStorage 'scanner-filters' key). The Trade
   // tab now mounts the full ConvergenceIntelligence INLINE (admin-gated), so the scan
-  // runs here on the tab — no redirect to /trading.
+  // runs here on the tab — no redirect to the standalone page.
   const [scannerFilters, setScannerFilters] = useState<ScannerFilters>(() => {
     try {
       const saved = typeof window !== 'undefined' ? localStorage.getItem('scanner-filters') : null;
@@ -185,8 +550,55 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
 
   const handleFiltersChange = (next: ScannerFilters) => {
     setScannerFilters(next);
+    setTradeFiltersTouched(true);
     try { localStorage.setItem('scanner-filters', JSON.stringify(next)); } catch {}
   };
+
+  // ── PIPE-FRAME-1: the Trade stage strip's derived state. Every phase state
+  //    derives from audited existing state — never hardcoded:
+  //    · SETUP done  ⇐ filters saved before (localStorage 'scanner-filters',
+  //      the :381-385 initializer's own source) or touched this session
+  //      (handleFiltersChange above);
+  //    · SCAN done   ⇐ tradeScanMeta (ConvergenceIntelligence onScanMeta —
+  //      fires on scan completion with its own pipeline_summary fields);
+  //    · REVIEW      ⇐ no "reviewed" event exists in state — DECLARED GAP:
+  //      renders pending unless selected;
+  //    · LAB done    ⇐ tradeRecordStats.linkedCount > 0 (TradeRecord
+  //      computeRecordStats — links are the lab's output);
+  //    · RECORD done ⇐ tradeRecordStats.decidedCount > 0 (graded outcomes).
+  //    Active = the user's selection, initialized from the same localStorage
+  //    presence (saved filters → land on SCAN; fresh user → SETUP). */
+  const [tradePhase, setTradePhase] = useState<'setup' | 'scan' | 'review' | 'lab' | 'record'>(() => {
+    try {
+      return typeof window !== 'undefined' && localStorage.getItem('scanner-filters') ? 'scan' : 'setup';
+    } catch { return 'setup'; }
+  });
+  const [tradeFiltersTouched, setTradeFiltersTouched] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && !!localStorage.getItem('scanner-filters');
+    } catch { return false; }
+  });
+  const [tradeScanMeta, setTradeScanMeta] = useState<{ completedAt: string | null; runtimeMs: number | null; results: number } | null>(null);
+  // RESULTS-ANATOMY: the results table's derived TRADE/SKIP tally (rows with
+  // a real card vs stored-rejection rows — ScannerResultsTable's own counts).
+  const [tradeTally, setTradeTally] = useState<{ trade: number; skip: number } | null>(null);
+  const [tradeRecordStats, setTradeRecordStats] = useState<(RecordStats & { unlinkedClosed: number }) | null>(null);
+  const [tradeCoverage, setTradeCoverage] = useState<{ investment_txn_count: number; earliest_txn_date: string | null; latest_txn_date: string | null } | null>(null);
+
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): what a panel REPORTED UP closes with the panel. The receipts and strip
+  // states above are drawn from these reports; once a panel unmounts, its figures are a mount that is gone, so a
+  // re-opened panel says "not loaded yet" until its own re-read lands — never the last mount's figures over a failed
+  // re-read. Selections (the trip, the runway and trade phases) are the viewer's choices, not reads, and stay.
+  useEffect(() => () => {
+    if (activeModule === 'calendar') { setRunwayTotals(null); setMatchTotals(null); }
+    if (activeModule === 'travel') setUnattachedCount(null);
+    if (activeModule === 'trade') { setTradeScanMeta(null); setTradeTally(null); setTradeRecordStats(null); setTradeCoverage(null); }
+  }, [activeModule]);
+
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): the BOOKS-1 cockpit data layer (booksYear, booksState, booksData,
+  // loadBooksCockpit and its effect) and the ACCOUNTS-01 bank hook (useBankConnection — the Plaid link-token POST)
+  // stood here, in the launcher's body, so they fired at EVERY cockpit mount whatever tab was open. They moved,
+  // verbatim, into BooksPanel (above): nothing of Books fires until the Books panel mounts.
 
   // Travel register-gate: guests fill the form freely, but "Create trip" while
   // unauthenticated opens the register modal instead of POSTing. Returns true
@@ -200,266 +612,190 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   // 401 there surfaces as its inline error (fail-loud).
   };
 
+  // TRAVEL-PIPE: the "+ Create a trip" opener (the old renderBody travel
+  // branch's const, moved with its JSX — byte-identical markup).
+  const createTripButton = (
+    <button
+      type="button"
+      onClick={() => setShowCreate(true)}
+      className="shrink-0 rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover"
+    >
+      + Create a trip
+    </button>
+  );
+
   // One module SectionCard: purple band (name + tag) + white body. Travel's form
   // and the admin Trading form render bandless inside (showHeader={false}) so each
   // card has exactly ONE purple band (the app design rule).
-  const renderBody = (m: ModuleDef) => {
-    if (m.key === 'travel') {
-      // PR-Trip-Modal: "Your trips" is the primary view — the create form moved off
-      // the top and into a modal opened by the "+ Create a trip" button in the table
-      // header (data on the surface; creating on demand). The guest gate is unchanged:
-      // gateGuestCreate (onUnauthenticated) opens the sign-up popup for logged-out
-      // guests, so a guest's "Create trip" still nudges to register instead of POSTing.
-      const createTripButton = (
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="shrink-0 rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-purple/90"
-        >
-          + Create a trip
-        </button>
-      );
-      return (
-        <div className="space-y-3">
-          {/* PR-HCR-Trips1: the All Trips list is personal — only mounted when logged
-              in (same gate as the calendar), so it never fetches for a guest. A new
-              trip bumps tripsRefresh, which re-fetches the list in place. The "+ Create
-              a trip" button rides in its header (upper-right, next to the count).
-              PR-HCR-Trips2: clicking a row sets currentTrip (lifted here), so later
-              budget actions know which trip to attach to. */}
-          {authed === true ? (
-            <>
-              <AllTripsList
-                refreshSignal={tripsRefresh}
-                onSelect={setCurrentTrip}
-                selectedTripId={currentTrip?.id ?? null}
-                onDeleted={(deletedId) => {
-                  // PR-Trips3: refresh the list, and drop the selection if the
-                  // deleted trip was the current one (so nothing points at it).
-                  setTripsRefresh((n) => n + 1);
-                  setCurrentTrip((cur) => (cur?.id === deletedId ? null : cur));
-                }}
-                headerAction={createTripButton}
-              />
-              {currentTrip && (
-                <p className="text-sm text-text-secondary">
-                  Selected: <span className="font-semibold text-brand-purple">{currentTrip.name}</span>
-                  <span className="text-text-muted"> — pick a trip to budget flights, hotels, and more into it (coming next).</span>
-                </p>
-              )}
-              {/* PR-Trips5: the selected trip's Budgeted + Actual rows. Only mounted
-                  when a trip is picked, so it never fetches with no trip / no login. */}
-              {/* Keyed by tripsRefresh so a flight commit (which bumps it via
-                  onCommitted) remounts this and re-fetches the budget + actual rows. */}
-              {currentTrip && <TripBudgetActual key={tripsRefresh} trip={currentTrip} />}
-            </>
-          ) : (
-            // Guest (or auth still resolving): no personal table to fetch, but the
-            // "Your trips" header + button still show so a guest can start one — the
-            // create attempt then nudges to sign up (gateGuestCreate), unchanged.
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-lg font-bold text-brand-purple">Your trips</p>
-                {createTripButton}
-              </div>
-              <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
-                Sign up free to save trips here — tap &ldquo;+ Create a trip&rdquo; to start one.
-              </p>
-            </div>
-          )}
-
-          {/* The create form, unchanged, in a centered phone-first modal. On a
-              successful create it closes + bumps tripsRefresh so the table re-fetches. */}
-          {showCreate && (
-            <TripFormModal
-              title="Create a trip"
-              subtitle="Start a trip and we'll help you plan, book, and budget it — sign up free to save it."
-              onClose={() => setShowCreate(false)}
-            >
-              <CreateTripForm
-                onUnauthenticated={gateGuestCreate}
-                showHeader={false}
-                onCreated={() => {
-                  setTripsRefresh((n) => n + 1);
-                  setShowCreate(false);
-                }}
-              />
-            </TripFormModal>
-          )}
-        </div>
-      );
-    }
-    if (m.key === 'projects') {
-      // Projects-mount (Option B): authed users get the REAL project builder — the workbench
-      // SectionD_ProjectBacklog (self-fetching project list + create form + edit) wrapped in its
-      // OperationsEntityProvider (self-fetches /api/entities). Reused VERBATIM — no CRUD rewrite,
-      // /operations/projects untouched. This kills the "logged-in kick to login/operations": authed
-      // users now author projects inline instead of every click → onRequireAuth. Logged-out KEEPS
-      // the rich fetch-free showroom (the marketing demo, unchanged). Auth resolving → nothing.
-      // (Styling aligns to the homepage tab contract in PR-Projects-style — terminal for now.)
-      if (authed === true) {
-        return (
-          <OperationsEntityProvider>
-            <SectionD_ProjectBacklog />
-          </OperationsEntityProvider>
-        );
-      }
-      if (authed === false) {
-        return <OperationsPipelineShowroom onRequireAuth={onRequireAuth} />;
-      }
-      return null; // authed === null → resolving
-    }
-    if (m.key === 'content') {
-      // Content-mount (mirrors Projects-mount, Option B): authed users get the REAL content
-      // pipeline — the workbench ContentPipeline (sources → scenify → grid → script, self-fetching
-      // the existing /api/operations/content/* routes) wrapped in OperationsEntityProvider. Reused
-      // VERBATIM — no rewrite, /operations/content untouched. Logged-out keeps the rich
-      // OperationsPipelineShowroom (which already renders the content Day + Script demo panels).
-      // Auth resolving → nothing. (Styling aligns in PR-Content-style — terminal for now.)
-      if (authed === true) {
-        return (
-          <OperationsEntityProvider>
-            <ContentPipeline />
-          </OperationsEntityProvider>
-        );
-      }
-      if (authed === false) {
-        return <OperationsPipelineShowroom onRequireAuth={onRequireAuth} />;
-      }
-      return null; // authed === null → resolving
-    }
-    if (m.key === 'routines') {
-      // HB-4e-mount: authed users get the REAL routine builder — the workbench SectionE_Routines
-      // (create form w/ HB-4b COA picker + budget input, self-fetching routine list, edit) wrapped
-      // in its OperationsEntityProvider (which self-fetches /api/entities). Reused VERBATIM — no
-      // CRUD rewrite, /operations/routines untouched. Logged-out keeps the fetch-free teaser
-      // ("create" → login modal). Auth resolving → nothing. (Styling aligns to the homepage tab
-      // contract in HB-4e-style — it reads workbench/terminal for now, intentionally.)
-      if (authed === true) {
-        return (
-          <OperationsEntityProvider>
-            <SectionE_Routines />
-          </OperationsEntityProvider>
-        );
-      }
-      if (authed === false) {
-        return <HomeRoutineCreateForm onRequireAuth={onRequireAuth} />;
-      }
-      return null; // authed === null → resolving
-    }
-    if (m.key === 'trading' && isAdmin) {
-      // PR-Trade-inline: admin runs the convergence scanner INLINE on the Trade tab.
-      // ScanFilterForm is the filter bar; its Scan triggers scanTriggerRef, which the
-      // inline ConvergenceIntelligence registers (scanMarket) and renders results +
-      // streams here — mirroring /trading (page.tsx:750 form, :861 mount). The route
-      // (/api/trading/convergence) is itself requireAdmin-gated; non-admins fall to the
-      // stub below. /trading stays available standalone.
-      return (
-        <div className="space-y-4">
-          <ScanFilterForm
-            scannerUniverse={scannerUniverse}
-            setScannerUniverse={setScannerUniverse}
-            scannerFilters={scannerFilters}
-            onFiltersChange={handleFiltersChange}
-            scanTriggerRef={scanTriggerRef}
-            showHeader={false}
-          />
-          <ConvergenceIntelligence
-            externalFilters={scannerFilters}
-            onFiltersChange={handleFiltersChange}
-            externalUniverse={scannerUniverse}
-            onUniverseChange={setScannerUniverse}
-            hideControls={true}
-            scanTriggerRef={scanTriggerRef}
-            scanningRef={scanningRef}
-          />
-        </div>
-      );
-    }
-    // Paid stub (Trading non-admin + Bookkeeping/Tax/Operations/Compliance).
-    return (
-      <div>
-        <p className="text-sm text-text-primary mb-1">{m.label} — coming soon.</p>
-        <p className="text-xs text-text-muted mb-4">{m.blurb} Requires an account.</p>
-        <button
-          type="button"
-          onClick={onRequireAuth}
-          className="px-6 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm rounded"
-        >
-          Launch {m.label} Module
-        </button>
-      </div>
-    );
-  };
+  // renderBody — RETIRED by WORK-01 (Alex, 2026-10-24) with its last two branches (projects, routines); travel
+  // renders in its own block (PR-TG1), and the band map below renders nothing.
 
   // PR-TG1: the Travel ModuleDef, fed to renderBody from Travel's own dedicated block
   // (now that Travel is pulled out of MODULES.map). label/live/blurb are unchanged.
-  const travelModule = MODULES.find((m) => m.key === 'travel')!;
-  const routinesModule = MODULES.find((m) => m.key === 'routines')!;
-  const projectsModule = MODULES.find((m) => m.key === 'projects')!;
-  const contentModule = MODULES.find((m) => m.key === 'content')!;
+  // TAB-SHOW-AND-GATE: Trade/Books/Tax/Compliance render in their own flush blocks
+  // below — entitled (or admin) → the real module; locked → the SHOW surface + the
+  // per-tab "Subscribe to unlock" CTA (TabShowcases). The old per-module stub consts
+  // are gone with the stub itself.
 
   return (
     <>
-      {/* PR-Mobile2: bottom padding so the fixed mobile tab bar never covers the last
-          content; removed on desktop (md:pb-0), where there is no bar. */}
-      <div className="pb-20 md:pb-0">
-      {/* PR-Edge-B: the DESKTOP top tab row — desktop only (hidden md:block). It mirrors
-          the mobile bottom bar (same TABS, same setActiveModule) so desktop also shows
-          one module panel at a time. Sticky so it stays while a panel scrolls. The
-          phone uses the bottom bar instead (md:hidden). */}
-      <nav className="sticky top-0 z-30 hidden border-b border-border bg-white md:block">
-        <div className="max-w-7xl mx-auto flex px-4 lg:px-8">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => selectTab(t.key)}
-              aria-current={activeModule === t.key ? 'page' : undefined}
-              className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeModule === t.key ? 'border-brand-purple text-brand-purple' : 'border-transparent text-text-muted hover:text-text-primary'}`}
-            >
-              <t.icon className="h-4 w-4" aria-hidden="true" />
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {/* NAV-01a: no fixed bottom bar any more, so no bottom padding to clear it. */}
+      <div className="flex flex-col sm:flex-row">
+      {/* SHELL-01: THE RAIL replaces the six family menus — the sheet walked in flow
+          order, twelve steps. A cockpit-hosted room still opens its section below
+          through the SAME selectTab funnel the menus used, so the URL is written as
+          today and every deep link still restores (the path/param effect above is
+          untouched). The lock chip reads the entitlement keys this component already
+          holds — no second request. */}
+      <Rail activeModule={activeModule} onSelectModule={selectTab} entitledKeys={authed === null ? undefined : entitledCategories} isAdmin={isAdmin} />
+      <div className="min-w-0 flex-1">
       {/* HOME-PR-7: each module is its own FULL-WIDTH band with an ALTERNATING
           background (white / light-gray bg-bg-row) + generous vertical padding,
           so the six read as distinct breathing sections (the old marketing
           rhythm). The card content + its single purple band header are unchanged —
           the separation comes from the full-width bg, NOT a second purple. */}
-      {/* PR-HCR1.1 + PR-HCR-DEMO: the shared master calendar is the TOP of the
-          module stack — ABOVE the Travel/Create-trip section and everything else.
+      {/* PR-HCR1.1 + PR-HCR-DEMO: the calendar tab is the TOP of the module
+          stack — ABOVE the Travel/Create-trip section and everything else.
           It links across travel, operations, routines, and bookkeeping, so it sits
           first under the hero. Logged in → the real calendar (fetches the viewer's
           data). Logged out → a LIVING DEMO fed a static fictional seed, which
           fetches NOTHING (zero personal-route calls — fake by construction). Auth
-          still resolving (authed === null) → nothing. /hub is untouched. */}
+          still resolving (authed === null) → nothing. /hub is untouched.
+          RUNWAY-UX-1: WITHIN the authed tab the zero-date hero + budget panel
+          now lead and the calendar grid follows (order ruling, shape b). */}
       {/* PR-Calendar-Flush: Calendar tab is flush — no purple band, no card chrome (the
           highlighted Calendar tab already says you're here). The grid toolbar sits right
           under the tab row, one continuous surface. Other modules keep their bands. */}
+      {/* COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): THE COCKPIT MOUNTS ONLY THE ACTIVE TAB'S PANEL. Every panel below
+          was a CSS-hidden section — `${activeModule === '<tab>' ? 'block' : 'hidden'}` — so all six mounted and read at once,
+          whatever tab was open. Each is now mounted only while its tab is active (`activeModule === '<tab>' && (`), carries
+          data-cockpit-panel="<tab>", and unmounts on a switch: no cache, no prefetch — a tab re-reads when opened again. */}
+      {activeModule === 'calendar' && (
+      <>
       {authed === true && (
-        <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
+        <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="calendar">
           <div className="max-w-7xl mx-auto">
-            <HubCalendar />
-            {/* PR-HB-1: month-scoped budget section under the calendar (authed only, so the
-                logged-out demo below never renders it → no personal data, no fake numbers). */}
+            {/* HOME-03 (Alex, 2026-10-27): the day card left this panel for the home page, /home (answers/AnswersClient.tsx,
+                dayCard.ts DAY_CARD_PATH) — HOME-01 (2026-10-24) had put it FIRST here, above the shell card below. The panel
+                is the runway pipe's, as before: the strip, the burn and project surfaces, the match review, the merged grid
+                and the receipts rail; a dated /runway?date= or ?step= is sent to /home by next.config.ts. */}
+            <div className="px-4 py-4">
+              <div className={MODULE_SHELL_CARD}>
+            {/* RUNWAY-PIPE: the ratified Pipe Frame on the Runway tab — the
+                StageStrip reading PIPE_PHASES.runway as the tab's phase
+                control. Phase → surface: 03 Burn = the panel's hero + trailing
+                readout + trading chunk; 04 Match = MatchReviewSection; 05
+                Project = the panel's budget header + tables chunk. 01 Source /
+                02 History are STATE-ONLY cells (no surface exists in this tab:
+                accounts link in Books 01 Feed; ledger history renders only
+                THROUGH the burn/budget figures) — their states are derived
+                indicators (accountsLinked / sufficientHistory from the panel's
+                report-up) and never 'active'; clicking them no-ops (nothing to
+                show — the Books-06 underivable-signal precedent extended,
+                declared). Surfaces are CSS show/hide, ALL MOUNTED (the
+                keep-mounted contract: the panel's fetches + Month/Year view
+                and the calendar's state survive switching). HubCalendar is the
+                tab's cross-module FOUNDATION (trips + projects + routines +
+                trade), NOT a runway phase — it stays persistent below the
+                phase surfaces, outside the phase axis (declared audit call). */}
+            <StageStrip
+              phases={([
+                { key: 'source', num: PIPE_RW_SOURCE.num, label: PIPE_RW_SOURCE.name, subLabel: PIPE_RW_SOURCE.subLabel,
+                  state: (runwayTotals?.accountsLinked ?? 0) > 0 ? 'done' : 'pending' },
+                { key: 'history', num: PIPE_RW_HISTORY.num, label: PIPE_RW_HISTORY.name, subLabel: PIPE_RW_HISTORY.subLabel,
+                  state: runwayTotals?.sufficientHistory ? 'done' : 'pending' },
+                { key: 'burn', num: PIPE_RW_BURN.num, label: PIPE_RW_BURN.name, subLabel: PIPE_RW_BURN.subLabel,
+                  state: runwayPhase === 'burn' ? 'active' : runwayTotals?.burnComputed ? 'done' : 'pending' },
+                { key: 'match', num: PIPE_RW_MATCH.num, label: PIPE_RW_MATCH.name, subLabel: PIPE_RW_MATCH.subLabel,
+                  state: runwayPhase === 'match' ? 'active' : matchTotals && matchTotals.pending === 0 ? 'done' : 'pending' },
+                { key: 'project', num: PIPE_RW_PROJECT.num, label: PIPE_RW_PROJECT.name, subLabel: PIPE_RW_PROJECT.subLabel,
+                  state: runwayPhase === 'project' ? 'active' : 'pending' },
+              ] as StagePhase[])}
+              onSelect={(k) => {
+                // source/history are state-only (no surface) — those clicks
+                // no-op by construction; the union excludes their keys.
+                if (k === 'burn' || k === 'match' || k === 'project') setRunwayPhase(k);
+              }}
+            />
+            {/* ── 03 Burn / 05 Project headers — the surfaces themselves live
+                  INSIDE RunwayBudgetPanel (fetch-locality: one /api/runway +
+                  /api/trading pair), split into `show`-driven chunks. ── */}
+            <div className={runwayPhase === 'burn' ? 'block' : 'hidden'}>
+              <SectionHeader kicker={`${PIPE_RW_BURN.num} / ${PIPE_RW_BURN.name}`} right={`PHASE ${PIPE_RW_BURN.num} OF 05`} />
+            </div>
+            <div className={runwayPhase === 'project' ? 'block' : 'hidden'}>
+              <SectionHeader kicker={`${PIPE_RW_PROJECT.num} / ${PIPE_RW_PROJECT.name}`} right={`PHASE ${PIPE_RW_PROJECT.num} OF 05`} />
+            </div>
+            <div className={runwayPhase === 'burn' || runwayPhase === 'project' ? 'block' : 'hidden'}>
+            {/* RUNWAY-UX-1 (order ruling, audit-decided shape b): hero → budget
+                tables → calendar. The zero-date HERO STRIP is the tab's
+                headline — it renders at the top of RunwayBudgetPanel (the
+                component that already owns the /api/runway state; mounting it
+                anywhere else would need a second fetch or a state lift). So
+                the provider block leads and the calendar follows. PR-HB-1's
+                authed-only guard unchanged (the logged-out branch below never
+                renders this → no personal data, no fake numbers). */}
             <RunwayDataProvider>
               {/* ONE-BUDGET-TOGGLE: one panel with a Month/Year toggle — shows
                   HubBudgetSection (month) OR BudgetComparison (year) one at a time
                   (RunwayBudgetPanel owns the toggle; neither component is modified). */}
-              <RunwayBudgetPanel />
+              <RunwayBudgetPanel
+                show={runwayPhase === 'project' ? 'project' : 'burn'}
+                onTotals={setRunwayTotals}
+              />
             </RunwayDataProvider>
+            </div>
+            {/* PR-MATCH-2: booking↔bank match review — now the 04 Match phase
+                surface (was a sibling between the budget panel and the
+                calendar; section internals untouched). Authed-only by this
+                section's own guard; matching lives in Runway per the
+                VISION-AUDIT-1 ruling. */}
+            <div className={runwayPhase === 'match' ? 'block space-y-3' : 'hidden'}>
+              <SectionHeader kicker={`${PIPE_RW_MATCH.num} / ${PIPE_RW_MATCH.name}`} right={`PHASE ${PIPE_RW_MATCH.num} OF 05`} />
+              <MatchReviewSection onTotals={setMatchTotals} />
+            </div>
+            <HubCalendar />
+            {/* RUNWAY-PIPE: the receipts rail — the panel's own payload via
+                deriveRunwayReceipts (one mapping, zero drift) + the match
+                queue's counted pending. RUNWAY-SEP (ruled rehoming): the CASH
+                sub-line carries the trading-separation truth — VERIFIED in
+                code: /api/runway excludes entityType 'trading' accounts from
+                the cash numerator (runway/route.ts:101-106) and labels the
+                figure "operating (excl. trading)" (:243). Honest empties are
+                the tab's own declared wordings, never invented figures. */}
+            <ProofStrip
+              receipts={[
+                { label: 'CASH', value: runwayTotals?.cash ?? undefined, sub: 'excludes trading capital',
+                  emptyLabel: runwayTotals ? 'No bank linked' : 'not loaded yet' },
+                { label: 'NET BURN', value: runwayTotals?.burnLine ?? undefined,
+                  emptyLabel: runwayTotals ? 'insufficient history' : 'not loaded yet' },
+                { label: 'MONTHS LEFT', value: runwayTotals?.runwayValue ?? undefined,
+                  emptyLabel: runwayTotals ? runwayTotals.runwayEmpty : 'not loaded yet' },
+                { label: 'MATCHES PENDING', value: matchTotals ? String(matchTotals.pending) : undefined,
+                  emptyLabel: 'not loaded yet' },
+              ]}
+            />
+              </div>
+            </div>
           </div>
         </section>
       )}
       {authed === false && (
-        <section className={`w-full bg-white border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
+        <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="calendar">
           <div className="max-w-7xl mx-auto">
-            <HubCalendar demoEvents={demoCalendar} onRequireAuth={onRequireAuth} />
+            <div className="px-4 py-4 space-y-6">
+              <div>
+                <div className={MODULE_SHELL_CARD}>
+                  {/* MOD-2: the Runway deck lives at /modules/runway — the guest tab
+                      points there instead of mounting it. */}
+                  <ModulePointerCard pillarId="runway" />
+                </div>
+              </div>
+            </div>
           </div>
         </section>
+      )}
+      </>
       )}
       {/* PR-TG1: Travel gets its own dedicated block (mirrors the calendar above) — pulled
           OUT of MODULES.map so it sheds the generic purple band + rounded card + wide
@@ -467,103 +803,530 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           full width, same as the calendar (centered max-w only on huge desktop). The
           1-2-3-4 body order (renderBody) is unchanged; the search stack follows. The other
           5 modules stay in MODULES.map with their bands. */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'travel' ? 'block' : 'hidden'}`}>
+      {/* LOBBY-FIX-1 (readability P0): the travel tab hosts the now-DARK shared
+          search strips (PublicFlightSearch/… render bg-white/5 panels with white
+          text — BOOK-1b/COMPACT-1). On the old bg-white surface those were
+          white-on-white ("can't see shit"). The section surface + the ML-owned
+          wrappers/text below flip to the dark panel family (the lobby's own
+          classes); the mounted components are NOT restyled — they're correct.
+          The trip-management components (AllTripsList/TripBookings/
+          TripBudgetActual/UnattachedBookings) are their own light cards and stay
+          readable islands (untouched — a separate ruling if full dark parity is
+          wanted). */}
+      {activeModule === 'travel' && (
+      <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="travel">
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
-            {/* 1·Create-a-trip → 2·Your trips → 3·Budgeted+Actual (renderBody, order
-                unchanged). */}
-            <div>
-              {renderBody(travelModule)}
+            {/* MOD-2 (TRAVEL EXCEPTION): only the deck mount is replaced by the
+                pointer-card — the LIVE guest tools below (create-a-trip, the
+                search stacks) are NOT decks and stay exactly as-is: the real
+                searches work logged-out through PUBLIC_PATHS + the quota guards,
+                and per the standing ruling (ToS-obligated + revenue-bearing)
+                they must never be walled behind login without a vendor-terms
+                review. Auth resolving (null) → no card. */}
+            {authed === false && <ModulePointerCard pillarId="travel" />}
+
+            {/* TRAVEL-01 (2026-09-19): TRAVEL READS TOP-DOWN, PLAN TO ACTUAL. The
+                five-phase StageStrip (Trip · Search · Book · Ledger · Reconcile),
+                its five show/hide surfaces and the receipts rail are gone. The tab
+                is plain sections, in order: the tool header; the trips (+ create,
+                the selected trip); the selected trip's ITINERARY — every planned
+                item in date order with its vendor, place, category, planned
+                amount and, where it has one, its time; SEARCH — the live booking
+                surfaces exactly as they were (the travel law pins their files
+                byte-for-byte); then BOOKED, the LEDGER and the UNATTACHED
+                bookings. Every control a phase held survives on its section; a
+                phase only hid the others. The four receipts (TRIPS / BOOKED ON
+                TRIP / BUDGET LINES / UNATTACHED) were counts the surfaces show
+                themselves. */}
+            <div className="rounded-lg border border-border bg-ts-white px-4 pt-4" data-travel-section="header">
+              <ToolOpener tools={[navToolByName('Travel', TOOL_GATE)]} />
             </div>
-            {/* 4·The search tools, stacked: flights → hotels → [Ground, coming soon] →
-                activities → visa (live) → [Insurance, eSIM, Events — coming soon]. The
-                live searches keep their own explainers + logic; the ComingSoonSection
-                rows are STATIC promises (no fetch/state). */}
-            <PublicFlightSearch
-              onRequireAuth={onRequireAuth}
-              authed={authed}
-              currentTrip={currentTrip}
-              onCommitted={() => setTripsRefresh((n) => n + 1)}
+
+            <section ref={tripsSection} className="space-y-3" data-travel-section="trips">
+              <TravelHeading>Trips</TravelHeading>
+              <div className="rounded-lg border border-border bg-ts-white">
+                <div className={`${SECTION_HEADER} rounded-t-lg`}>YOUR TRIPS</div>
+                <div className="p-4">
+                  <div className="space-y-3">
+                    {authed === true ? (
+                      <>
+                        <AllTripsList
+                          refreshSignal={tripsRefresh}
+                          onSelect={setCurrentTrip}
+                          selectedTripId={currentTrip?.id ?? null}
+                          onDeleted={(deletedId) => {
+                            setTripsRefresh((n) => n + 1);
+                            setCurrentTrip((cur) => (cur?.id === deletedId ? null : cur));
+                          }}
+                          headerAction={createTripButton}
+                          requestedTripId={requestedTripId}
+                          onUrlTripAnswered={answerUrlTrip}
+                        />
+                        {currentTrip && (
+                          <p className="text-sm text-text-secondary">
+                            Selected: <span className="font-semibold text-text-primary">{currentTrip.name}</span>
+                            <span className="text-text-faint"> — hotel and flight bookings attach to this trip, and saved flights budget into it.</span>
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div>
+                        <div className="mb-2 flex items-center justify-end gap-3">
+                          {createTripButton}
+                        </div>
+                        <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
+                          Sign up free to save trips here — tap &ldquo;+ Create a trip&rdquo; to start one.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* The selected trip's planned days — the same timeline the trip page
+                mounts, reading the same itinerary route. */}
+            <section className="space-y-3" data-travel-section="itinerary">
+              <TravelHeading>Itinerary</TravelHeading>
+              {authed === true ? (
+                <TripItinerarySection trip={currentTrip} refreshSignal={tripsRefresh} onChanged={() => setTripsRefresh((n) => n + 1)} />
+              ) : (
+                <span className="text-xs text-text-muted italic">sign in to plan a trip&rsquo;s days.</span>
+              )}
+            </section>
+
+            {/* SEARCH — the mode strip + the live booking panels, exactly as they
+                were (DS-1 / PR-ELEV-1 / SELL-05 below). Their files are pinned
+                byte-for-byte by the travel law; only the heading above them is new. */}
+            <section className="space-y-3" data-travel-section="search">
+              <TravelHeading>Search</TravelHeading>
+            <ToggleStrip
+              // ONE-BAND: the band + trust props retired (the LandingBookingSection
+              // V5 precedent — the strip renders its plain card form; per-mode
+              // explainers move in-card via ToggleStrip's own !band arm). The
+              // travel pitch now lives in the hero band above the tab bar.
+              modes={([
+                // PR-ELEV-1: the 8 shared travel modes (5 live + 3 "Soon") from
+                // the ONE builder both surfaces consume — same keys, same
+                // panels, same props as the old inline mounts. Premium stays
+                // this surface's own chip, appended LAST (it moved from 6th to
+                // 9th position — the paid upsell closes the row).
+                ...travelStripModes({
+                  onRequireAuth,
+                  authed,
+                  currentTrip,
+                  onCommitted: () => setTripsRefresh((n) => n + 1),
+                  // EVENTS-01b (2026-10-30): the travel tab mounts no experiences section, so the
+                  // Events mode here is the f1c63aef Soon tile, not a jump link to nowhere.
+                  eventsAnchor: null,
+                }),
+                // LOCAL PICKS (SELL-05, honest label): the Google-Places category
+                // search is free with an account — the route gates on a signed-in
+                // user and the daily/monthly caps; no tier, no per-category key
+                // (nothing sold either). A guest gets the sign-in card per category
+                // (PublicCategorySearch.tsx); a signed-in viewer the live search.
+                // The old "Premium — Subscription" chip named a purchase that did
+                // not exist; the chip now says what the section is.
+                { key: 'premium', label: 'Local picks',
+                  icon: <MapPin className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />,
+                  headline: 'Local picks by category.',
+                  explainer: 'Free with an account — real local picks with ratings and prices, by category.',
+                  panel: (
+                  <div className="space-y-3">
+                    {HOMEPAGE_CATEGORIES.map((catKey) => (
+                      <PublicCategorySearch
+                        key={catKey}
+                        catKey={catKey}
+                        currentUserId={currentUserId}
+                        onRequireAuth={onRequireAuth}
+                      />
+                    ))}
+                  </div>
+                ) },
+              ]) as ToggleMode[]}
             />
-            <PublicHotelSearch
-              onRequireAuth={onRequireAuth}
-              authed={authed}
-              currentTrip={currentTrip}
-              onCommitted={() => setTripsRefresh((n) => n + 1)}
-            />
-            <ComingSoonSection
-              title="Getting around"
-              explainer="Airport rides and transfers, booked and budgeted with your trip."
-            />
-            <PublicActivitySearch onRequireAuth={onRequireAuth} />
-            <PublicVisaCheck />
-            <ComingSoonSection
-              title="Travel insurance"
-              explainer="Cover your trip — medical, delays, lost bags — priced into your budget."
-            />
-            <ComingSoonSection
-              title="Stay connected"
-              explainer="Get data the moment you land, no hunting for a SIM."
-            />
-            <ComingSoonSection
-              title="Events"
-              explainer="Concerts, shows, and live events wherever you're headed."
-            />
+            </section>
+
+            {/* BOOKED — the selected trip's paid reservations (gate + key as before). */}
+            <section className="space-y-3" data-travel-section="booked">
+              <TravelHeading>Booked</TravelHeading>
+              {authed === true && currentTrip ? (
+                <TripBookings
+                  key={`bk-${tripsRefresh}`}
+                  tripId={currentTrip.id}
+                  onChanged={() => setTripsRefresh((n) => n + 1)}
+                />
+              ) : (
+                <span className="text-xs text-text-muted italic">no trip selected — pick one above.</span>
+              )}
+            </section>
+
+            {/* LEDGER — the trip's budget ledger: planned lines and the bank lens (gate + key as before). */}
+            <section className="space-y-3" data-travel-section="ledger">
+              <TravelHeading>Ledger</TravelHeading>
+              {authed === true && currentTrip ? (
+                <TripBudgetActual key={tripsRefresh} trip={currentTrip} />
+              ) : (
+                <span className="text-xs text-text-muted italic">no trip selected — pick one above.</span>
+              )}
+            </section>
+
+            {/* BOOKINGS — BOOKINGS-01 (2026-09-27): every booking on the account in ONE list,
+                each row's truth from the recorded facts (status, ticketing, bank, ledger,
+                budget line, receipt); replaces neither Booked nor Unattached (authed-only). */}
+            <section className="space-y-3" data-travel-section="bookings">
+              <TravelHeading>{BOOKING_WORDS.heading}</TravelHeading>
+              {authed === true ? (
+                <AllBookings key={`all-${tripsRefresh}`} />
+              ) : (
+                <span className="text-xs text-text-muted italic">{BOOKING_WORDS.signIn}</span>
+              )}
+            </section>
+
+            {/* UNATTACHED — bookings on the account that belong to no trip, adoptable
+                into the selected one (authed-only; the component hides itself at
+                zero rows, so the heading says so from its own count). */}
+            <section className="space-y-3" data-travel-section="unattached">
+              <TravelHeading>Unattached bookings{unattachedCount === 0 ? ' · none' : ''}</TravelHeading>
+              {authed === true ? (
+                <UnattachedBookings
+                  key={`ub-${tripsRefresh}`}
+                  selectedTrip={currentTrip}
+                  onChanged={() => setTripsRefresh((n) => n + 1)}
+                  onTotals={(t) => setUnattachedCount(t.unattached)}
+                />
+              ) : (
+                <span className="text-xs text-text-muted italic">sign in to see bookings that belong to no trip.</span>
+              )}
+            </section>
+
+            {/* The create form modal — section-independent (the old renderBody
+                mount, verbatim). */}
+            {showCreate && (
+              <TripFormModal
+                title="Create a trip"
+                subtitle="Start a trip and we'll help you plan, book, and budget it — sign up free to save it."
+                onClose={() => setShowCreate(false)}
+              >
+                <CreateTripForm
+                  onUnauthenticated={gateGuestCreate}
+                  showHeader={false}
+                  stacked
+                  onCreated={() => {
+                    setTripsRefresh((n) => n + 1);
+                    setShowCreate(false);
+                  }}
+                />
+              </TripFormModal>
+            )}
+
+            {/* PR-ELEV-1: the coming-soon tiles became badged "Soon" CHIPS inside
+                the strip above (travelStripModes) — the tile row is gone. */}
           </div>
         </div>
       </section>
-      {/* HB-4e-style: Routines renders in its own FLUSH block (mirrors Calendar/Travel) — out of
-          the MODULES.map purple-band card, so the real builder reads as the app, not a demo card.
-          renderBody handles the authed-builder / logged-out-teaser branch. */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'routines' ? 'block' : 'hidden'}`}>
+      )}
+      {/* The Routines and Projects FLUSH blocks (HB-4e-style, Projects-style-1) — RETIRED by WORK-01 (Alex, 2026-10-24):
+          the two sections, their renderBody branches and their module consts are gone with the tabs. */}
+      {/* Content-mount: Content rendered in its own FLUSH block here until TIME-02 (2026-10-19) retired
+          the content pipeline — the section, contentModule and the renderBody branch are gone. */}
+      {/* TRADE-1: Trade renders in its own FLUSH block (mirrors Travel/Content) — pulled OUT of
+          the MODULES.map purple-band card, so the real scanner + reconcile surface read as the
+          app, not a demo card. Active-module check uses the TAB key 'trade' (TABS :88; selectTab
+          sets activeModule to the tab key, :167) — same contract as Travel's 'travel'. STRUCTURE
+          only; the terminal styling of ScanFilterForm/ConvergenceIntelligence/TradeLabPanel is
+          UNCHANGED (that is TRADE-2). TAB-SHOW-AND-GATE: the gate is the tab:trade
+          entitlement (isTabLocked — admin bypass inside); locked viewers get the
+          pointer-card + unlock CTA (MOD-2). Server-side the
+          scan API is tab:trade-gated too (TAB-SERVER-GATE flipped it off requireAdmin,
+          api/trading/convergence/route.ts) — an entitled non-admin's scan runs, with the
+          per-user run quota from SCAN-SPEND-QUOTA on top. */}
+      {/* TRADE-DS-1 → REPAINT-3: the dark surface passes died — the shared
+          workbench components render their light defaults everywhere
+          (themed()'s byte-identical light originals). */}
+      {activeModule === 'trade' && (
+      <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="trade">
         <div className="max-w-7xl mx-auto">
-          <div className="px-4 py-4 lg:px-8 space-y-6">
-            {renderBody(routinesModule)}
+          <div className="px-4 py-4 space-y-6">
+            <RoomLock locked={tradeLocked} lapsed={lapsedFor(keysGranting('tab:trade'), lapsed)} stepName="Trading">
+              <>
+                {/* TRADE-UX-1: the tab's sections consolidate on the shared
+                    <ToggleStrip> (the travel/books precedent) — one phase
+                    visible, ALL mounted (CSS show/hide), so a running scan and
+                    the lab queue survive switching. Audit grouping (the sketch's
+                    SCAN/RESULTS merged): ScanFilterForm + ConvergenceIntelligence
+                    are ONE phase — they're ref-coupled (scanTriggerRef fires the
+                    scan the results render; splitting them would hide the
+                    results the Scan button produces). Phase selection is
+                    ToggleStrip's own state — zero other semantics changed.
+                    TRADE-BAND: the strip adopts the travel band anatomy —
+                    band + trust props (the LandingBookingSection mount
+                    mirrored), icon/headline on each mode. The disclaimers
+                    moved directly BELOW the strip (ruled this PR; they stay
+                    persistent — outside the strip, every phase — in the
+                    quiet idiom), copy byte-identical. */}
+                {/* PIPE-FRAME-1: the ratified Pipe Frame — the StageStrip
+                    REPLACES the 3-icon-tab ToggleStrip (one phase control,
+                    never two). Phase→surface: SETUP/SCAN/REVIEW all activate
+                    the existing scan surface (ScanFilterForm + CI, one mount,
+                    ref-coupled as before); LAB → TradeLabPanel; RECORD →
+                    TradeRecord + CoverageDeclaration. ALL surfaces stay
+                    mounted (CSS show/hide — the TRADE-UX-1 survival contract
+                    unchanged). ONE-BAND: the tab's own purple band retired —
+                    the hero above the tab bar carries the trade headline +
+                    chips now (MODULE_BANDS leaf); the tab starts at this
+                    stage-strip shell card, the ratified mock's order. (The
+                    TRADE_TRUST_CHIPS verified-facts row retired with the
+                    band — strings in git history.) COMMIT is the link chip →
+                    the existing selectTab('books') mechanism — no new
+                    routing. */}
+                <div className={MODULE_SHELL_CARD}>
+                  {/* R2 sub-labels — each derived FROM its surface's real
+                      machinery (cites in the R2 PR report): SETUP = universe
+                      + filter groups (ScanFilterForm); SCAN = fires the
+                      convergence pipeline (scanTriggerRef → scanMarket,
+                      steps A–T); REVIEW = pick candidates / queue cards
+                      (results table + Queue Card — the mock's one truthful
+                      candidate); LAB = link to position + check grade
+                      (TradeLabPanel's real actions — the mock's "PAPER-TEST"
+                      is fiction, replaced); RECORD = the graded results
+                      (TradeRecord's W–L/P&L hero — the mock's "GRADE IT"
+                      happens in LAB, replaced). */}
+                  <StageStrip
+                    phases={([
+                      { key: 'setup', num: PIPE_SETUP.num, label: PIPE_SETUP.name, subLabel: PIPE_SETUP.subLabel,
+                        state: tradePhase === 'setup' ? 'active' : tradeFiltersTouched ? 'done' : 'pending' },
+                      { key: 'scan', num: PIPE_SCAN.num, label: PIPE_SCAN.name, subLabel: PIPE_SCAN.subLabel,
+                        state: tradePhase === 'scan' ? 'active' : tradeScanMeta ? 'done' : 'pending' },
+                      { key: 'review', num: PIPE_REVIEW.num, label: PIPE_REVIEW.name, subLabel: PIPE_REVIEW.subLabel,
+                        state: tradePhase === 'review' ? 'active' : 'pending' },
+                      { key: 'lab', num: PIPE_LAB.num, label: PIPE_LAB.name, subLabel: PIPE_LAB.subLabel,
+                        state: tradePhase === 'lab' ? 'active' : (tradeRecordStats?.linkedCount ?? 0) > 0 ? 'done' : 'pending' },
+                      { key: 'record', num: PIPE_RECORD.num, label: PIPE_RECORD.name, subLabel: PIPE_RECORD.subLabel,
+                        state: tradePhase === 'record' ? 'active' : (tradeRecordStats?.decidedCount ?? 0) > 0 ? 'done' : 'pending' },
+                    ] as StagePhase[])}
+                    onSelect={(k) => setTradePhase(k as typeof tradePhase)}
+                    link={{ num: PIPE_COMMIT.num, label: PIPE_COMMIT.name, chip: PIPE_COMMIT.link.label, onClick: () => selectTab('books') }}
+                  />
+
+                  {/* 01–03 → the scan surface (one mount, as-is). */}
+                  <div className={['setup', 'scan', 'review'].includes(tradePhase) ? 'block space-y-6' : 'hidden'}>
+                    <SectionHeader
+                      kicker="01 / SCAN CONTROLS"
+                      right={`PHASE ${tradePhase === 'setup' ? '01' : tradePhase === 'scan' ? '02' : '03'} OF 06 — ${tradePhase.toUpperCase()}`}
+                    />
+                    {/* Option A — scanner first, reconcile below. Same props the inline branch used. */}
+                    <ScanFilterForm
+                      scannerUniverse={scannerUniverse}
+                      setScannerUniverse={setScannerUniverse}
+                      scannerFilters={scannerFilters}
+                      onFiltersChange={handleFiltersChange}
+                      scanTriggerRef={scanTriggerRef}
+                      showHeader={false}
+                      founderBroker={authed === true && !isAdmin}
+                    />
+                    <SectionHeader
+                      kicker="02 / RESULTS"
+                      right={[
+                        tradeScanMeta?.completedAt
+                          ? `COMPLETED ${new Date(tradeScanMeta.completedAt).toLocaleTimeString()}${tradeScanMeta.runtimeMs != null ? ` · ${(tradeScanMeta.runtimeMs / 1000).toFixed(1)}S` : ''}`
+                          : null,
+                        tradeTally ? `${tradeTally.trade} TRADE · ${tradeTally.skip} SKIP` : null,
+                      ].filter(Boolean).join(' — ') || undefined}
+                    />
+                    <ConvergenceIntelligence
+                      externalFilters={scannerFilters}
+                      onFiltersChange={handleFiltersChange}
+                      externalUniverse={scannerUniverse}
+                      onUniverseChange={setScannerUniverse}
+                      hideControls={true}
+                      scanTriggerRef={scanTriggerRef}
+                      scanningRef={scanningRef}
+                      onScanMeta={setTradeScanMeta}
+                      onResultsTally={setTradeTally}
+                    />
+                  </div>
+
+                  {/* 04 → the lab. */}
+                  <div className={tradePhase === 'lab' ? 'block space-y-6' : 'hidden'}>
+                    <SectionHeader kicker="01 / TRADE LAB" right="PHASE 04 OF 06 — LAB" />
+                    {/* TRADE-1: closes the loop — queue viewer + link-to-reality + grade. Self-fetches
+                        /api/trade-cards + /api/trade-card-links (0 required props, TradeLabPanel.tsx:50). */}
+                    <TradeLabPanel />
+                  </div>
+
+                  {/* 05 → the record + coverage. */}
+                  <div className={tradePhase === 'record' ? 'block space-y-6' : 'hidden'}>
+                    <SectionHeader kicker="01 / TRACK RECORD" right="PHASE 05 OF 06 — RECORD" />
+                    {/* TRACK-1: the self-graded track record (claimed vs actual). */}
+                    <TradeRecord onStats={setTradeRecordStats} />
+                    <SectionHeader kicker="02 / COVERAGE" />
+                    <CoverageDeclaration onCoverage={setTradeCoverage} />
+                  </div>
+
+                  {/* PIPE-FRAME-1: the receipts rail — values ONLY from the
+                      wired child state above; absent → the honest empty
+                      treatment, never a faked value. */}
+                  <ProofStrip
+                    receipts={[
+                      {
+                        label: 'Last scan',
+                        value: tradeScanMeta?.completedAt
+                          ? `${new Date(tradeScanMeta.completedAt).toLocaleTimeString()}${tradeScanMeta.runtimeMs != null ? ` · ${(tradeScanMeta.runtimeMs / 1000).toFixed(1)}s` : ''}`
+                          : undefined,
+                        sub: 'pipeline timestamp · this session',
+                        emptyLabel: 'no scan yet this session',
+                      },
+                      {
+                        label: 'Results',
+                        value: tradeScanMeta ? String(tradeScanMeta.results) : undefined,
+                        sub: 'top-ranked tickers, last scan',
+                        emptyLabel: 'no scan yet this session',
+                      },
+                      {
+                        label: 'Queued',
+                        value: tradeRecordStats ? String(tradeRecordStats.queuedNotLinked) : undefined,
+                        sub: 'cards without a linked position',
+                        emptyLabel: 'not loaded yet',
+                      },
+                      {
+                        label: 'Realized P&L',
+                        value: tradeRecordStats
+                          ? `${tradeRecordStats.netPl < 0 ? '-' : '+'}$${Math.abs(Math.round(tradeRecordStats.netPl)).toLocaleString('en-US')}`
+                          : undefined,
+                        sub: 'decided linked trades only',
+                        emptyLabel: 'not loaded yet',
+                      },
+                      {
+                        label: 'Win rate',
+                        value: tradeRecordStats && tradeRecordStats.decidedCount > 0
+                          ? `${tradeRecordStats.wins}W–${tradeRecordStats.losses}L–${tradeRecordStats.breakevens}BE`
+                          : undefined,
+                        sub: tradeRecordStats
+                          ? `over ${tradeRecordStats.decidedCount} decided · excludes ${tradeRecordStats.openLinked} open, ${tradeRecordStats.unlinkedClosed} unlinked closed`
+                          : 'denominator: decided linked trades',
+                        emptyLabel: tradeRecordStats ? 'no decided trades yet' : 'not loaded yet',
+                      },
+                      {
+                        label: 'Coverage',
+                        value: tradeCoverage ? `${tradeCoverage.investment_txn_count} txns` : undefined,
+                        sub: tradeCoverage
+                          ? `${(tradeCoverage.earliest_txn_date || '').slice(0, 10)} → ${(tradeCoverage.latest_txn_date || '').slice(0, 10)}`
+                          : 'synced broker window',
+                        emptyLabel: 'not loaded yet',
+                      },
+                    ]}
+                  />
+                </div>
+                {/* LANG-1 (TRADE-BAND relocation): the persistent disclaimer —
+                    same copy, quiet idiom, every phase. (RISK-1's coverage
+                    declaration moved INTO phase 05 per the Pipe Frame.) */}
+                <TradingDataDisclaimer />
+              </>
+            </RoomLock>
           </div>
         </div>
       </section>
-      {/* Projects-style-1: Projects renders in its own FLUSH block (mirrors Calendar/Travel/
-          Routines) — out of the MODULES.map purple-band card, so the authed builder reads as the
-          app. renderBody handles the authed-builder / logged-out-showroom branch. */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'projects' ? 'block' : 'hidden'}`}>
+      )}
+      {/* BOOKS-1: Books renders in its own FLUSH block (mirrors Travel/Trade) — pulled OUT of
+          the MODULES.map purple-band card. Active-module check uses the TAB key 'books'
+          (TABS :93; MODULE_TO_TAB bookkeeping→'books' :102; selectTab sets activeModule to the
+          tab key). TAB-SHOW-AND-GATE: gate is the tab:books entitlement (isTabLocked —
+          admin bypass inside); locked viewers get the pointer-card + unlock CTA (MOD-2).
+          STRUCTURE + cockpit + drop-ins only; the parent-fed engines are BOOKS-2. */}
+      {/* BOOKS-DS-1 → REPAINT-3: the dark surface passes died — the cockpit,
+          pipeline, and locked card render their light defaults (themed()'s
+          byte-identical light originals). */}
+      {activeModule === 'books' && (
+      <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="books">
         <div className="max-w-7xl mx-auto">
-          <div className="px-4 py-4 lg:px-8 space-y-6">
-            {renderBody(projectsModule)}
+          <div className="px-4 py-4 space-y-6">
+            <div>
+              <div className={MODULE_SHELL_CARD}>
+            <BooksPanel booksLocked={booksLocked} lapsed={lapsedFor(keysGranting('tab:books'), lapsed)} />
+              </div>
+            </div>
           </div>
         </div>
       </section>
-      {/* Content-mount: Content renders in its own FLUSH block (mirrors Projects/Routines) — out of
-          the MODULES.map purple-band card. renderBody handles the authed-pipeline / logged-out-
-          showroom branch. */}
-      <section className={`w-full bg-white border-b border-border ${activeModule === 'content' ? 'block' : 'hidden'}`}>
+      )}
+      {/* TAX-1: Tax renders in its own FLUSH block (mirrors Books/Trade). Active-module check
+          uses the TAB key 'tax' (TABS :103; MODULE_TO_TAB tax→'tax' :115 — module key and tab
+          key both 'tax'; selectTab sets activeModule to the tab key). TAB-SHOW-AND-GATE:
+          gate is the tab:tax entitlement (isTabLocked — admin bypass inside). Entitled →
+          the closed-books handoff gate (wizard once a period is closed, else a "close your
+          books first" screen that jumps to the Books tab); locked → pointer-card + CTA (MOD-2). */}
+      {activeModule === 'tax' && (
+      <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="tax">
         <div className="max-w-7xl mx-auto">
-          <div className="px-4 py-4 lg:px-8 space-y-6">
-            {renderBody(contentModule)}
+          <div className="px-4 py-4 space-y-6">
+            <div>
+              <div className={MODULE_SHELL_CARD}>
+            <RoomLock locked={taxLocked} lapsed={lapsedFor(keysGranting('tab:tax'), lapsed)} stepName="Tax">
+              <TaxHandoffGate onGoToBooks={() => selectTab('books')} />
+            </RoomLock>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+      )}
+      {/* COMP-1: Compliance renders in its own FLUSH block (mirrors Books/Tax). Active-module
+          check uses the TAB key 'compliance' (TABS :107; MODULE_TO_TAB compliance→'compliance'
+          :119 — module key and tab key both 'compliance'; selectTab sets activeModule to the tab
+          key). TAB-SHOW-AND-GATE: gate is the tab:compliance entitlement (isTabLocked —
+          admin bypass inside). Entitled → the A–J workbench (Section A → sub-page link
+          row → Sections B…J, bare — no AppLayout chrome inside the tab); locked →
+          pointer-card + unlock CTA (MOD-2). */}
+      {activeModule === 'compliance' && (
+      <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="compliance">
+        <div className="max-w-7xl mx-auto">
+          <div className="px-4 py-4 space-y-6">
+            <div>
+              <div className={MODULE_SHELL_CARD}>
+            <RoomLock locked={complianceLocked} lapsed={lapsedFor(keysGranting('tab:compliance'), lapsed)} stepName="Compliance">
+              <ComplianceWorkbench />
+            </RoomLock>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      )}
       {MODULES.map((m, i) => {
         // PR-TG1: Travel now renders in its own flush, edge-to-edge block above (out of
         // this map, no purple band). Skip it here so it never double-renders. Returning
         // null keeps the index `i` stable for the other modules, so their alternating
         // bg (bg-row / white) is byte-identical to before. HB-4e-style: Routines is now
         // ALSO flush (its own block above) → skip it here too.
-        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'content') return null;
+        // TRADE-1: 'trading' now renders in its own flush block above → skip here (module key
+        // 'trading', not tab key 'trade'). Returning null keeps index `i` stable, so the
+        // bg-bg-row/bg-white parity of bookkeeping(i=4)/tax(i=5)/compliance(i=6) is unchanged.
+        // BOOKS-1: 'bookkeeping' now renders in its own flush block above → skip here (module
+        // key 'bookkeeping', not tab key 'books'). Index `i` stays stable, so the
+        // bg-bg-row/bg-white parity of tax(i=5)/compliance(i=6)/content(i=7) is unchanged.
+        // TAX-1: 'tax' now renders in its own flush block above → skip here. Index `i` stays
+        // stable, so the only remaining band-rendered module (compliance, i=6 → bg-white) is
+        // unchanged.
+        // COMP-1: 'compliance' now renders in its own flush block above → skip here. With this,
+        // every module renders in its own flush block and the band map below renders NOTHING
+        // (no module remains → nothing to flip). The map code is left in place intentionally;
+        // removing it is a separate cleanup PR.
+        if (m.key === 'travel' || m.key === 'trading' || m.key === 'bookkeeping' || m.key === 'tax' || m.key === 'compliance') return null;
         return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
-            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
+            <div className="rounded-lg overflow-hidden border border-border shadow-sm">
+              <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
                 <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
-                  {/* HB-4e-mount + Projects-mount: an authed user on Routines OR Projects sees the
-                      REAL builder, not a demo — drop the "Live demo" tag for them. Logged-out keeps
-                      it (still a showroom/teaser). */}
-                  {(m.key === 'routines' || m.key === 'projects') && authed === true ? '' : (m.key === 'projects' || m.key === 'routines' ? 'Live demo · log in to use' : m.live ? 'Free · guest ok' : 'Paid')}
+                  {/* WORK-01 (Alex, 2026-10-24): the Routines and Projects tabs retired — the "Live demo" tag went with them. */}
+                  {m.live ? 'Free · guest ok' : 'Paid'}
                 </span>
               </div>
               <div className="bg-white p-4">
-                {renderBody(m)}
+                {null}
               </div>
             </div>
           </div>
@@ -571,26 +1334,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         );
       })}
       </div>
+      </div>
 
-      {/* PR-Mobile2 + PR-Edge-A: the fixed mobile bottom tab bar — phone only
-          (md:hidden), one tab per module. It horizontal-scrolls (overflow-x-auto + a
-          hidden scrollbar) so the 7 tabs stay clean and tappable on a narrow phone —
-          each tab is a fixed min-w-[64px], never crushed. Desktop uses the top tab row
-          instead (PR-Edge-B). Safe-area padding lifts it above the iOS home indicator. */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-white pb-[env(safe-area-inset-bottom)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:hidden">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => selectTab(t.key)}
-            aria-current={activeModule === t.key ? 'page' : undefined}
-            className={`flex min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${activeModule === t.key ? 'text-brand-purple' : 'text-text-muted'}`}
-          >
-            <t.icon className="h-5 w-5" aria-hidden="true" />
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      {/* NAV-01a: the fixed mobile bottom tab bar is retired — the family nav at
+          the top serves every viewport (its family row scrolls horizontally). */}
     </>
   );
 }

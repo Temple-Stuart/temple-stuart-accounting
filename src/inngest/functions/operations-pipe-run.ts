@@ -13,6 +13,8 @@
  *                      by flipping to 'open' via the existing task PATCH route.
  *
  * SECURITY / COST (per CLAUDE.md):
+ *   - SEC-TASKS-01: the FIRST step is the owner check (src/lib/operations/ownerOnly.ts)
+ *     — an event for anyone but the owner fails terminal before any read or spend.
  *   - Both paid calls gate on requirePipeBudget(userId) BEFORE the lib call —
  *     the same per-user daily cap (=20) the manual routes use (2 increments/run).
  *   - THE RETRY TRAP: a thrown error retries by default in Inngest, which would
@@ -35,6 +37,8 @@ import { toNorthStarContext } from '@/lib/ai/northStarContext';
 import { requirePipeBudget, PipeBudgetError } from '@/lib/pipeBudget';
 import { fireAuditRoutine } from '@/lib/fireAuditRoutine';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { AdminConfigError } from '@/lib/admin';
+import { RoutineOwnerOnlyError, requireRoutineOwner } from '@/lib/operations/ownerOnly';
 
 /** Resolve a field's items: prefer the JSONB array, fall back to the legacy
  *  paragraph. Returns [] if neither has content. (Mirrors the pipe routes;
@@ -75,6 +79,21 @@ export const operationsPipeRun = inngest.createFunction(
     if (!projectId || !userId) {
       throw new NonRetriableError('operations/pipe.run requires projectId + userId');
     }
+
+    // ── 0 · OWNER CHECK FIRST (SEC-TASKS-01) — the pipe fires the owner's audit
+    //       Routine, so an event for anyone else (replayed or hand-sent) fails
+    //       TERMINAL here, before research: no read, no cap, no paid call. ─────────
+    await step.run('owner-check', async () => {
+      try {
+        requireRoutineOwner(userId);
+      } catch (err) {
+        // Both refusals are terminal — a retry cannot change the answer.
+        if (err instanceof RoutineOwnerOnlyError || err instanceof AdminConfigError) {
+          throw new NonRetriableError(err.message);
+        }
+        throw err;
+      }
+    });
 
     // ── Load user (for email) + project (ownership-scoped, defensive) ─────────
     const ctx = await step.run('load-context', async () => {

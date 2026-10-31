@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { requireAdmin } from '@/lib/require-admin';
+import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { failureEnvelope } from '@/lib/plaid/failLoud';
 
 /**
  * POST /api/admin/backfill-transaction-fields
@@ -48,7 +50,7 @@ export async function POST() {
 
         while (hasMore) {
           const response = await plaidClient.transactionsGet({
-            access_token: item.accessToken,
+            access_token: decryptToken(item.accessToken),
             start_date: '2024-01-01',
             end_date: new Date().toISOString().split('T')[0],
             options: {
@@ -125,17 +127,24 @@ export async function POST() {
           hasMore = response.data.total_transactions > offset;
         }
       } catch (error) {
-        console.error(`Error backfilling item ${item.id}:`, error);
+        // HYG-01: STOP AND DECLARE — no further items, the failure is the response.
+        const { status, body } = failureEnvelope('backfill', error, {
+          updated: totalUpdated, fieldsBackfilled: totalFieldsBackfilled,
+        });
+        console.error(`Error backfilling item ${item.id}:`, body.error);
+        return NextResponse.json(body, { status });
       }
     }
 
     return NextResponse.json({
+      ok: true,
       success: true,
       updated: totalUpdated,
       fieldsBackfilled: totalFieldsBackfilled
     });
   } catch (error) {
-    console.error('Backfill error:', error);
-    return NextResponse.json({ error: 'Failed to backfill' }, { status: 500 });
+    const { status, body } = failureEnvelope('backfill', error);
+    console.error('Backfill error:', body.error);
+    return NextResponse.json(body, { status });
   }
 }

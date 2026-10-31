@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { routinesMonthlyByCoa } from '@/lib/operations/routineBudget';
+import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 
 export async function GET(request: Request) {
   try {
@@ -79,23 +80,15 @@ export async function GET(request: Request) {
     // a COA with no budgeted routine simply has no planned figure — nothing fills it.
     // ═══════════════════════════════════════════════════════════════════
     if (businessEntity) {
-      const budgetedRoutines = await prisma.operations_routines.findMany({
-        where: {
-          user_id: user.id,
-          entity_id: businessEntity.id,
-          is_active: true,
-          budget_amount: { not: null },
-          coa_code: { not: null },
-        },
-        select: { budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true },
-      });
-      if (budgetedRoutines.length > 0) {
-        const routineInputs = budgetedRoutines.map(r => ({
-          budget_amount: r.budget_amount != null ? Number(r.budget_amount) : null,
-          coa_code: r.coa_code,
-          schedule_rrule: r.schedule_rrule,
-          timezone: r.timezone,
-        }));
+      // LINES-01: the `budget_amount/coa_code: { not: null }` filter is GONE. A
+      // lined routine may carry blank routine-level fields and costed lines, and
+      // that filter would have hidden it from the month. Every active routine is
+      // read with its active lines, and routinePlanned() (through
+      // routinesMonthlyByCoa) decides what, if anything, it contributes.
+      // LINES-02: that read (select, mapping, query) now lives in the ONE loader both
+      // budget routes share, so Personal reads a routine exactly as this route does.
+      const routineInputs = await loadRoutineBudgetInputs(prisma, user.id, businessEntity.id);
+      if (routineInputs.length > 0) {
         for (let m = 0; m < 12; m++) {
           const byCoa = routinesMonthlyByCoa(routineInputs, year, m);
           for (const [rawCoa, amount] of Object.entries(byCoa)) {

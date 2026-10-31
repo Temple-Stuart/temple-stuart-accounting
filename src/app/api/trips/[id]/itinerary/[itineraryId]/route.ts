@@ -23,13 +23,38 @@
  *
  * Times use parseTimeOrNull (the canonical @db.Time serializer); malformed → 400.
  * Overnight windows (end < start, e.g. 22:00→07:00) are VALID — no end>start check.
+ *
+ * HOTEL-02 (2026-09-22): ONE CLOCK, TWO COLUMNS. blockStartTime and startTime are the
+ * same clock (block_start_time + homeTime), blockEndTime and endTime likewise
+ * (block_end_time + destTime): whichever key the caller sends, BOTH columns move in
+ * the one update — a cleared block clears the ledger's clock too. A body sending
+ * both keys of a pair with different clocks is refused by name (400). Before this
+ * the timeline's edit moved the block alone and the ledger kept the old clock.
+ *
+ * TRIPDATE-01 (2026-10-01): A DATE EDIT MOVES THE DAY. The itinerary row is the fact; the
+ * calendar row vendor-commit wrote for it (source 'trip', source_id
+ * trip:<tripId>:vendor:<vendorOptionId>) is the projection the grid reads — and the feed
+ * SELECTS it by its stored dates, so the row itself must move. The row after the edit (each
+ * date the body sets, every other date as stored) is computed once, before any write, and
+ * every edit — a time-only one included — writes the itinerary row and its calendar row's
+ * dates in ONE transaction: the projection equals the fact after each edit, and a row an
+ * earlier edit left behind heals on its next. A row with no vendorOptionId has no calendar
+ * row: the itinerary alone is written, and the answer says so. A date edit that leaves the
+ * end before the start is refused by name. A clock a vendor fixed with its zone — a flight,
+ * or any row whose start_at is stated (a timed tour) — moves only by re-commit: every date
+ * and time key is refused on it (src/lib/trips/itineraryEdit.ts clockIsFixed). The answer is
+ * { itinerary, calendar: { moved } } — moved 0 on a row with a vendor option is logged by
+ * name (vendor-commit's calendar insert is non-fatal, so the row may never have been written).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
+// TRIPDATE-01: the one rule set an itinerary edit obeys — the fixed clock, the calendar key, the range.
+import { CLOCK_FIXED_WORDS, ITINERARY_DATE_KEYS, ITINERARY_DATE_TIME_KEYS, clockIsFixed, datesAfterEdit, rangeRefusal, tripVendorSourceId } from '@/lib/trips/itineraryEdit';
 
 /** YYYY-MM-DD → UTC-midnight Date, or null if malformed. */
 function parseDayUtc(v: unknown): Date | null {
@@ -85,16 +110,48 @@ export async function PATCH(
     const body = await request.json();
     const data: Prisma.trip_itineraryUpdateInput = {};
 
-    // ── block_start_time / block_end_time (HH:MM | null) ──────────────────────
+    // ── HOTEL-02: a flight has no block window — its clock is the departure and the
+    // arrival its commit wrote with their zones and instants (start_at / end_at, and the
+    // calendar row's own start_time). Writing a window onto it would be a third clock the
+    // grid never reads; the timeline's keys are refused on a flight row, by name.
+    if (existing.vendorOptionType === 'flight' && (body.blockStartTime !== undefined || body.blockEndTime !== undefined)) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'blockStartTime', message: "a flight has no block window — its departure and arrival were written by its commit with their zones; re-commit the flight to change them" },
+        { status: 400 }
+      );
+    }
+
+    // ── TRIPDATE-01: a clock a vendor fixed with its zone (a flight; a stated start_at — a
+    // timed tour) moves only by re-commit — every date and time key is refused on it, by name.
+    if (clockIsFixed(existing)) {
+      const sent = ITINERARY_DATE_TIME_KEYS.find((k) => body[k] !== undefined);
+      if (sent !== undefined) {
+        return NextResponse.json({ error: 'Validation', field: sent, message: CLOCK_FIXED_WORDS }, { status: 400 });
+      }
+    }
+
+    // ── HOTEL-02: the two keys of one clock may not disagree ───────────────────
+    for (const [blockKey, ledgerKey] of [['blockStartTime', 'startTime'], ['blockEndTime', 'endTime']] as const) {
+      if (body[blockKey] !== undefined && body[ledgerKey] !== undefined && (body[blockKey] ?? null) !== (body[ledgerKey] ?? null)) {
+        return NextResponse.json(
+          { error: 'Validation', field: blockKey, message: `${blockKey} and ${ledgerKey} are one clock — they were sent with different values (${JSON.stringify(body[blockKey])} vs ${JSON.stringify(body[ledgerKey])}); send one, or the same` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // ── block_start_time / block_end_time (HH:MM | null) — and the ledger clock with them ──
     if (body.blockStartTime !== undefined) {
-      const r = parseTimeOrNull(body.blockStartTime, 'blockStartTime');
-      if (r.error) return r.error; // malformed → 400, never coerced
-      data.block_start_time = r.value; // null clears → no-time lane
+      const t = parseLedgerTime(body.blockStartTime, 'blockStartTime');
+      if (t.error) return t.error; // malformed → 400, never coerced
+      data.block_start_time = t.block; // null clears → no-time lane
+      data.homeTime = t.str;           // HOTEL-02: the ledger's clock is the same clock
     }
     if (body.blockEndTime !== undefined) {
-      const r = parseTimeOrNull(body.blockEndTime, 'blockEndTime');
-      if (r.error) return r.error;
-      data.block_end_time = r.value;
+      const t = parseLedgerTime(body.blockEndTime, 'blockEndTime');
+      if (t.error) return t.error;
+      data.block_end_time = t.block;
+      data.destTime = t.str;
     }
     // Overnight windows are intentionally allowed — NO end>start validation.
 
@@ -150,18 +207,44 @@ export async function PATCH(
       return NextResponse.json({ error: 'Validation', message: 'no editable fields supplied' }, { status: 400 });
     }
 
-    const updated = await prisma.trip_itinerary.update({ where: { id: itineraryId }, data });
+    // ── TRIPDATE-01: the row after the edit, computed once, before any write. Only Dates
+    // are ever assigned to data.homeDate / data.destDate above (parseDayUtc). ──
+    const after = datesAfterEdit(
+      { homeDate: existing.homeDate, destDate: existing.destDate },
+      { homeDate: data.homeDate as Date | undefined, destDate: data.destDate as Date | undefined },
+    );
+    // A range runs forward: a date key that leaves the end before the start is refused, by name.
+    const dateKey = ITINERARY_DATE_KEYS.find((k) => body[k] !== undefined);
+    if (dateKey !== undefined) {
+      const refused = rangeRefusal(after);
+      if (refused) return NextResponse.json({ error: 'Validation', field: dateKey, message: refused }, { status: 400 });
+    }
+
+    // ── TRIPDATE-01: THE ROW AND ITS DAY, TOGETHER ─────────────────────────────
+    const itineraryWrite = prisma.trip_itinerary.update({ where: { id: itineraryId }, data });
+    if (existing.vendorOptionId === null) {
+      // vendor-commit writes one calendar row per option, keyed by it — a row with none has no day to move.
+      const itinerary = await itineraryWrite;
+      return NextResponse.json({ itinerary, calendar: { moved: 0, reason: 'no_vendor_option' } });
+    }
+    const calendarKey = tripVendorSourceId(existing.tripId, existing.vendorOptionId);
+    const [updated, calendar] = await prisma.$transaction([
+      itineraryWrite,
+      prisma.calendar_events.updateMany({
+        where: { user_id: user.id, source: 'trip', source_id: calendarKey },
+        data: { start_date: after.homeDate, end_date: after.destDate },
+      }),
+    ]);
+    if (calendar.count === 0) {
+      console.log(`[Trip Itinerary PATCH] TRIPDATE-01: itinerary ${itineraryId} moved; no calendar row ${calendarKey} to move — vendor-commit's calendar insert is non-fatal, so it may never have been written`);
+    }
 
     // NOTE: no writeAuditLog here. The trip domain has no AuditActionType enum
     // value (it's a Prisma enum — adding one is a schema change, out of scope for
     // this PR), and the trip-side siblings (vendor-commit, itinerary GET) don't
     // audit either. Matching them rather than fabricating a mismatched action type.
-    return NextResponse.json({ itinerary: updated });
+    return NextResponse.json({ itinerary: updated, calendar: { moved: calendar.count } });
   } catch (error) {
-    console.error('[Trip Itinerary PATCH]', error);
-    return NextResponse.json(
-      { error: 'Failed to update itinerary block', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Trip Itinerary PATCH', 'Failed to update itinerary block', error);
   }
 }

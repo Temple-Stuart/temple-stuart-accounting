@@ -24,12 +24,25 @@
  * (compileFormToRRule always writes BYHOUR/BYMINUTE) but if a hand-
  * authored "custom" rrule omits BYHOUR, the occurrence still carries
  * a default time; the client renders the resulting HH:MM as-is.
+ *
+ * CAL-02 (Alex, 2026-10-27): THE ACCOUNT RIDES WITH THE ROUTINE. After the
+ * window is built, the returned routines' books and their charts are read ONCE
+ * (two queries for the whole answer — never per routine, never on the client)
+ * and every routine and every line gains `account` and `account_state` by the
+ * one rule (src/lib/hub/tileAccount.ts annotateWindow): the chart's name beside
+ * the code, 'missing' when the chart lists no row, 'none' without a code. Every
+ * field that was in the answer is still in it, as it was; coa_code stays for
+ * every reader that has it.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { expandBetween } from '@/lib/operations/rruleHelpers';
+import { classifyCadence, expandBetween, scheduleAnchor } from '@/lib/operations/rruleHelpers';
+import type { CadenceGroup } from '@/components/workbench/operations/routines/types';
+import { annotateWindow, type TileBook } from '@/lib/hub/tileAccount';
+import type { WorkChart } from '@/lib/operations/work';
 
 const MAX_WINDOW_DAYS = 92;
 const MAX_OCCURRENCES = 500;
@@ -104,6 +117,9 @@ export async function GET(request: NextRequest) {
     const routines = await prisma.operations_routines.findMany({
       where: { user_id: user.id, is_active: true },
       orderBy: { name: 'asc' },
+      // LINES-01: the active lines ride with the routine, so the mapper can hand
+      // routinePlanned() what it needs and the drill panel can list them.
+      include: { steps: { where: { is_active: true }, orderBy: { step_order: 'asc' } } },
     });
 
     type RoutineWindowEntry = {
@@ -119,6 +135,15 @@ export async function GET(request: NextRequest) {
       // Real values only — null stays null (a routine with no budget/COA is truthfully empty).
       coa_code: string | null;
       budget_amount: number | null;
+      // LINES-01: each active line with its own amount and account. The tile's
+      // money is decided by routinePlanned() in the mapper, not here.
+      steps: { id: string; is_active: boolean; step_order: number; activity: string; time_of_day: string | null; budget_amount: number | null; coa_code: string | null }[];
+      // ONEOFF-01: the routine's place, so the occurrence pins on the day map;
+      // and its cadence, so a one-off is not drawn with a recurrence glyph.
+      location: string | null;
+      latitude: number | null;
+      longitude: number | null;
+      cadence: CadenceGroup;
     };
 
     const out: RoutineWindowEntry[] = [];
@@ -149,7 +174,9 @@ export async function GET(request: NextRequest) {
 
       let occurrences: Date[] = [];
       try {
-        occurrences = expandBetween(r.schedule_rrule, r.timezone, from, windowEnd);
+        // ONEOFF-01: anchored on the routine's start_date — a one-off is one
+        // occurrence on its date to this reader as to every other.
+        occurrences = expandBetween(r.schedule_rrule, r.timezone, from, windowEnd, scheduleAnchor(r.start_date));
       } catch (e) {
         // Skip malformed rrule rather than failing the whole request —
         // log so the gap is visible. Same idiom as /today endpoint.
@@ -186,18 +213,38 @@ export async function GET(request: NextRequest) {
         occurrences: taken.map((d) => d.toISOString()),
         coa_code: r.coa_code,
         budget_amount: r.budget_amount != null ? Number(r.budget_amount) : null,
+        steps: r.steps.map((st) => ({
+          id: st.id,
+          is_active: st.is_active,
+          step_order: st.step_order,
+          activity: st.activity,
+          time_of_day: st.time_of_day ? st.time_of_day.toISOString() : null,
+          budget_amount: st.budget_amount != null ? Number(st.budget_amount) : null,
+          coa_code: st.coa_code,
+        })),
+        location: r.location,
+        latitude: r.latitude != null ? Number(r.latitude) : null,
+        longitude: r.longitude != null ? Number(r.longitude) : null,
+        cadence: classifyCadence(r.schedule_rrule),
       });
     }
 
-    return NextResponse.json({ routines: out, truncated });
+    // CAL-02: the returned routines' books, then their charts — one read each for the
+    // whole window, never per routine; the pure rule annotates every entry and line.
+    const bookIds = [...new Set(out.map((e) => e.entity_id))];
+    const books: TileBook[] = bookIds.length === 0 ? [] : await prisma.entities.findMany({
+      where: { id: { in: bookIds }, userId: user.id },
+      select: { id: true, entity_type: true },
+    });
+    const chartRows: { entity_id: string; code: string; name: string; account_type: string }[] = bookIds.length === 0 ? [] : await prisma.chart_of_accounts.findMany({
+      where: { entity_id: { in: bookIds }, entity: { userId: user.id } },
+      select: { entity_id: true, code: true, name: true, account_type: true },
+    });
+    const chartsByBook = new Map<string, WorkChart>();
+    for (const row of chartRows) chartsByBook.set(row.entity_id, [...(chartsByBook.get(row.entity_id) ?? []), row]);
+
+    return NextResponse.json({ routines: annotateWindow(out, books, chartsByBook), truncated });
   } catch (error) {
-    console.error('[Hub Routines GET]', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to load routines window',
-        message: error instanceof Error ? error.message : 'unknown',
-      },
-      { status: 500 }
-    );
+    return failClosedResponse('Hub Routines GET', 'Failed to load routines window', error);
   }
 }

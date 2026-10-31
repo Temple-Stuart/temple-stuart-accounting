@@ -22,6 +22,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateDeepResearch } from '@/lib/ai/generateDeepResearch';
@@ -115,13 +116,6 @@ export async function POST(
     if (error instanceof PipeBudgetError) {
       return NextResponse.json({ error: 'Rate limit', message: error.message }, { status: 429 });
     }
-    console.error('[Project Research POST]', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to run research',
-        message: error instanceof Error ? `AI research failed: ${error.message}` : 'unknown',
-      },
-      { status: 500 }
-    );
+    return failClosedResponse('Project Research POST', 'Failed to run research', error);
   }
 }

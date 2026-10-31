@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 export async function POST(request: Request) {
   try {
@@ -15,6 +17,9 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TAB-SERVER-GATE: tab:books entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:books');
+    if (tabGate) return tabGate;
 
     const { entityId, year, month } = await request.json();
 
@@ -93,8 +98,6 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error('Close period error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Close period', 'Close period failed', error);
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useState } from 'react';
+import { SECTION_HEADER } from '@/lib/ds';
 
 interface BookkeepingSectionProps {
   title: string;
@@ -27,13 +28,16 @@ export default function BookkeepingSection({
   collapsible = false,
   defaultCollapsed = false,
   children,
-}: BookkeepingSectionProps) {
+}: BookkeepingSectionProps & { }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   return (
     <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
       <div
-        className={`bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between${collapsible ? ' cursor-pointer select-none' : ''}`}
+        // BOOKS-V2: the stage bar joins SECTION_HEADER on dark (the CI
+        // precedent — collapse mechanics byte-identical); /dashboard's light
+        // mount keeps the legacy purple bar.
+        className={`bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between${collapsible ? ' cursor-pointer select-none' : ''}`}
         onClick={collapsible ? () => setCollapsed(c => !c) : undefined}
       >
         <div className="flex items-center gap-2">
@@ -48,8 +52,10 @@ export default function BookkeepingSection({
           )}
         </div>
       </div>
+      {/* BOOKS-GLOW: the stage body wears the glow on dark (flat panels are
+          the anti-pattern); /dashboard's light mount keeps bg-white. */}
       {!collapsed && (
-        <div className="bg-white">
+        <div className={'bg-white'}>
           {children}
         </div>
       )}

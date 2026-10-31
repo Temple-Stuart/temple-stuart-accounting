@@ -36,7 +36,11 @@ interface Props {
   onClose: () => void;
   /** Fired after a successful reschedule/reconcile so the parent refetches. */
   onUpdated: () => void;
+  /** CAL-DS-THEME: light default (byte-identical); HubCalendar passes 'dark'. */
 }
+
+// CAL-DS-THEME
+
 
 const BLOCK_STATUSES = ['scheduled', 'in_progress', 'completed', 'missed', 'cancelled'] as const;
 
@@ -92,15 +96,18 @@ function formatCostUsd(s: string | null): string | null {
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const pillClass =
+const pillClassBase =
   'inline-block px-2 py-0.5 border border-border rounded text-xs font-mono text-text-muted';
 
-const labelClass = 'text-text-faint uppercase tracking-wide text-xs font-mono';
+const labelClassBase = 'text-text-faint uppercase tracking-wide text-xs font-mono';
 
-const fieldClass =
+const fieldClassBase =
   'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
 
 export default function HubEventCard({ item, block, onClose, onUpdated }: Props) {
+  const pillClass = pillClassBase;
+  const labelClass = labelClassBase;
+  const fieldClass = fieldClassBase;
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -250,7 +257,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
         style={{ animation: 'slideInRight 0.2s ease-out' }}
       >
         {/* Header */}
-        <div className="bg-brand-purple text-white px-5 py-4 flex items-start justify-between">
+        <div className={`${'bg-brand-purple'} text-white px-5 py-4 flex items-start justify-between`}>
           <div className="min-w-0 flex-1 pr-3">
             <h3 className="text-sm font-semibold break-words">{title}</h3>
             <p className="text-xs text-white/70 mt-0.5 font-mono">
@@ -389,7 +396,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
                     </div>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => submitReschedule(false)} disabled={saving} className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50">
+                  <button type="button" onClick={() => submitReschedule(false)} disabled={saving} className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}>
                     {saving ? 'saving…' : 'save new time'}
                   </button>
                 )}
@@ -432,7 +439,7 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
                     </>
                   )}
                 </div>
-                <button type="button" onClick={submitReconcile} disabled={saving} className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50">
+                <button type="button" onClick={submitReconcile} disabled={saving} className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}>
                   {saving ? 'saving…' : 'save actuals'}
                 </button>
               </>
@@ -458,7 +465,10 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
           </button>
           <button
             type="button"
-            onClick={() => router.push('/operations/projects')}
+            /* ORPHAN-01 (2026-09-17): was '/operations/projects', a redirect to
+               /tasks — two hops into a survivor of the deleted room. Tasks is
+               the registered home of the projects pipe; go straight there. */
+            onClick={() => router.push('/tasks')}
             className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
           >
             Open in Projects →

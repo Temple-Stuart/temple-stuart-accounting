@@ -1,5 +1,8 @@
-import BudgetingPage from '@/components/dashboard/BudgetingPage';
+import { redirect } from 'next/navigation';
 
-export default function GrowthPage() {
-  return <BudgetingPage category="Growth" emoji="📈" apiPath="/api/growth" />;
+// ROOM-01: Budget is ONE room at /budget with a category switcher. This route
+// kept its own page and its own rail door until now; it redirects so no link,
+// bookmark or printed URL breaks.
+export default function GrowthRedirect() {
+  redirect('/budget?category=growth');
 }

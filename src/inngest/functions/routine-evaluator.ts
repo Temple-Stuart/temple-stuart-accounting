@@ -15,17 +15,60 @@
  *   - On miss detection: consecutive_miss_streak += 1;
  *     consecutive_completion_streak = 0
  *   - On completion (handled by /api/operations/routines/[id]/completions
- *     POST): consecutive_completion_streak += 1;
+ *     POST — deleted TASKS-ONE-02, below): consecutive_completion_streak += 1;
  *     consecutive_miss_streak = 0
  *
  * Cron does NOT increment completion streaks — only miss streaks. The
  * completion endpoint owns its side of the symmetry.
+ *
+ * TASKS-ONE-02 (2026-10-14): the completions POST is deleted; the completion's
+ * one writer is src/lib/operations/routineCompletion.ts, called by the stops
+ * routes — a routine's occurrence is complete when its stop records say done.
+ * An all-day routine (role all_day — a subscription, a membership) is a CHARGE,
+ * not a commitment to do (Alex's ruling): no miss check, so no miss row and no
+ * streak change; its last_evaluated_at and next_due_at still update.
+ *
+ * ROUTINE-02a (Alex, 2026-10-18): END DATES HONOURED. The row's end_date is read
+ * and every expansion is bounded by it (rruleHelpers.ts throughEnd), so a
+ * routine whose end has passed expects nothing in the window — never a miss —
+ * and its next_due_at is null. One routine's window is evaluateWindow, pure
+ * and exported, so a test and a local run can drive it without Inngest; the
+ * loop below only writes what it answers.
  */
 
 import { inngest } from '../client';
 import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { expandBetween, expandForward } from '@/lib/operations/rruleHelpers';
+import { expandBetween, expandForward, scheduleAnchor } from '@/lib/operations/rruleHelpers';
+import { isStop, isStopRole } from '@/lib/operations/stopRole';
+
+/** What one routine's window is read from (the rows cross step.run as JSON, so a date may arrive as an ISO string). */
+export interface EvaluatedRoutine {
+  readonly schedule_rrule: string;
+  readonly timezone: string;
+  readonly start_date: Date | string | null;
+  readonly end_date: Date | string | null;
+  readonly fail_threshold_minutes: number;
+  readonly role: string;
+}
+
+/**
+ * ROUTINE-02a: one routine's window, pure — what was expected in (windowStart, now],
+ * which of those are misses by the fail threshold, and the next occurrence at or
+ * after now — every expansion anchored on start_date (ONEOFF-01) and bounded by
+ * end_date, so a routine whose end has passed expects nothing, misses nothing and
+ * has no next. Throws what the expansion throws (a rule that does not parse, a
+ * zone Intl cannot read); a role outside the six is thrown by name. An all-day
+ * routine is a charge, not a commitment (TASKS-ONE-02): no miss.
+ */
+export function evaluateWindow(r: EvaluatedRoutine, windowStart: Date, now: Date): { readonly expected: Date[]; readonly misses: Date[]; readonly nextDueAt: Date | null } {
+  if (!isStopRole(r.role)) throw new Error(`routine carries role ${JSON.stringify(r.role)} — not one of the six`);
+  const expected = expandBetween(r.schedule_rrule, r.timezone, windowStart, now, scheduleAnchor(r.start_date), r.end_date);
+  const failThresholdMs = r.fail_threshold_minutes * 60 * 1000;
+  const misses = !isStop(r.role) ? [] : expected.filter((e) => now.getTime() > e.getTime() + failThresholdMs);
+  const nextDueAt = expandForward(r.schedule_rrule, r.timezone, now, 1, scheduleAnchor(r.start_date), r.end_date)[0] ?? null;
+  return { expected, misses, nextDueAt };
+}
 
 export const routineEvaluator = inngest.createFunction(
   {
@@ -46,11 +89,17 @@ export const routineEvaluator = inngest.createFunction(
           name: true,
           schedule_rrule: true,
           timezone: true,
+          // ONEOFF-01: the anchor every expansion is built on.
+          start_date: true,
+          // ROUTINE-02a: the last day an occurrence may fall on — nothing after it is expected or a miss.
+          end_date: true,
           fail_threshold_minutes: true,
           last_evaluated_at: true,
           created_at: true,
           consecutive_completion_streak: true,
           consecutive_miss_streak: true,
+          // TASKS-ONE-02: the role decides whether the routine is a commitment to do at all.
+          role: true,
         },
       });
     });
@@ -69,25 +118,20 @@ export const routineEvaluator = inngest.createFunction(
           continue;
         }
 
-        // Expand RRULE within the (windowStart, now] interval.
-        let expectedOccurrences: Date[] = [];
+        // ROUTINE-02a: the window — expected in (windowStart, now], the misses by the threshold, the next due —
+        // anchored on start_date and bounded by end_date; a rule or zone that cannot be read is this routine's error.
+        let window: ReturnType<typeof evaluateWindow>;
         try {
-          expectedOccurrences = expandBetween(r.schedule_rrule, r.timezone, windowStart, now);
+          window = evaluateWindow(r, windowStart, now);
         } catch (err) {
-          console.error(`[routine-evaluator] RRULE parse failed for routine ${r.id}: ${err}`);
+          console.error(`[routine-evaluator] expansion failed for routine ${r.id}: ${err}`);
           totalErrors += 1;
           continue;
         }
 
-        // Filter to occurrences past their fail threshold.
-        const failThresholdMs = r.fail_threshold_minutes * 60 * 1000;
-        const eligibleMisses = expectedOccurrences.filter(
-          (e) => now.getTime() > e.getTime() + failThresholdMs
-        );
-
         let routineMissCount = 0;
 
-        for (const expectedAt of eligibleMisses) {
+        for (const expectedAt of window.misses) {
           // Skip if a completion exists for this exact expected_at.
           const existingCompletion = await prisma.operations_routine_completions.findUnique({
             where: {
@@ -128,21 +172,12 @@ export const routineEvaluator = inngest.createFunction(
           totalMissesEmitted += 1;
         }
 
-        // Recompute next_due_at: next occurrence at or after now().
-        let nextDueAt: Date | null = null;
-        try {
-          const upcoming = expandForward(r.schedule_rrule, r.timezone, now, 1);
-          nextDueAt = upcoming[0] ?? null;
-        } catch (err) {
-          console.error(`[routine-evaluator] next_due_at recompute failed for ${r.id}: ${err}`);
-        }
-
-        // Update streak counters and cursors.
+        // Update streak counters and cursors. ROUTINE-02a: next_due_at is the window's — null once nothing remains before the end.
         await prisma.operations_routines.update({
           where: { id: r.id },
           data: {
             last_evaluated_at: now,
-            next_due_at: nextDueAt,
+            next_due_at: window.nextDueAt,
             ...(routineMissCount > 0
               ? {
                   consecutive_miss_streak: r.consecutive_miss_streak + routineMissCount,

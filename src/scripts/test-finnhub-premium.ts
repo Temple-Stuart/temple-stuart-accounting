@@ -8,11 +8,18 @@
  *   - /stock/price-target      (premium)
  *   - /stock/metric            (free — confirms 52WeekHigh data for Phase 1B)
  *
- * Usage: npx tsx src/scripts/test-finnhub-premium.ts
+ * Usage: DATABASE_URL=… npx tsx src/scripts/test-finnhub-premium.ts
+ *
+ * TRADE-COST-01: the three premium endpoints are slow-tier, so this script
+ * reads them through the tiered store like the scan does (a row inside its TTL
+ * is served with its fetched_at; a miss buys the call) — the law forbids a
+ * slow-tier URL anywhere else. The free /stock/metric probe is daily-tier and
+ * still hits the vendor directly.
  */
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { finnhubCached } from '@/lib/convergence/finnhub-cache';
 
 // ---------------------------------------------------------------------------
 // Load API key: process.env first, then .env.local fallback
@@ -86,6 +93,30 @@ async function probe(label: string, url: string): Promise<void> {
   }
 }
 
+/** A slow-tier probe: through the cache, reporting whether the vendor was called. */
+async function probeCached(label: string, endpoint: string, symbol: string, params: Record<string, string>, key: string): Promise<void> {
+  console.log(`\n${'='.repeat(70)}`);
+  console.log(`  ${label}`);
+  console.log(`  ${endpoint} ${JSON.stringify(params)} — via finnhub_responses (TRADE-COST-01)`);
+  console.log('='.repeat(70));
+  const ans = await finnhubCached({ endpoint, symbol, params, apiKey: key });
+  if (!ans.ok) {
+    console.log(`  REFUSED     : ${ans.error}${ans.stale ? ` — a cached row from ${ans.stale.fetchedAt} was NOT served` : ''}`);
+    return;
+  }
+  console.log(`  HTTP status : ${ans.status}`);
+  console.log(`  Served from : ${ans.meta.servedFromCache ? 'cache' : 'vendor'} — fetched_at ${ans.meta.fetchedAt}`);
+  const text = JSON.stringify(ans.data);
+  const isEmpty = !text || text === '{}' || text === '[]' || text === 'null';
+  console.log(`  Has data    : ${isEmpty ? 'NO (empty response)' : 'YES'}`);
+  if (ans.data && typeof ans.data === 'object' && !Array.isArray(ans.data)) {
+    const keys = Object.keys(ans.data as Record<string, unknown>);
+    console.log(`  Top-level fields (${keys.length}): ${keys.join(', ')}`);
+  }
+  console.log(`  Body (first 500 chars):`);
+  console.log(`  ${text.slice(0, 500)}`);
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -106,21 +137,10 @@ async function main() {
   const base = 'https://finnhub.io/api/v1';
   const symbol = 'AAPL';
 
-  // Premium endpoints
-  await probe(
-    '1. EPS Estimate (PREMIUM)',
-    `${base}/stock/eps-estimate?symbol=${symbol}&freq=quarterly&token=${key}`,
-  );
-
-  await probe(
-    '2. Revenue Estimate (PREMIUM)',
-    `${base}/stock/revenue-estimate?symbol=${symbol}&freq=quarterly&token=${key}`,
-  );
-
-  await probe(
-    '3. Price Target (PREMIUM)',
-    `${base}/stock/price-target?symbol=${symbol}&token=${key}`,
-  );
+  // Premium endpoints — slow-tier, through the store
+  await probeCached('1. EPS Estimate (PREMIUM)', 'stock/eps-estimate', symbol, { freq: 'quarterly' }, key);
+  await probeCached('2. Revenue Estimate (PREMIUM)', 'stock/revenue-estimate', symbol, { freq: 'quarterly' }, key);
+  await probeCached('3. Price Target (PREMIUM)', 'stock/price-target', symbol, {}, key);
 
   // Free endpoint — confirm 52WeekHigh exists
   await probe(

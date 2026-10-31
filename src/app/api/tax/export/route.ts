@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateForm8949, generateForm8949CSV } from '@/lib/tax-report-service';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 /**
  * GET /api/tax/export?year=2025&format=8949
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest) {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const yearParam = request.nextUrl.searchParams.get('year');
     const taxYear = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();

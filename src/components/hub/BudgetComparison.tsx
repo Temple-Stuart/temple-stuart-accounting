@@ -1,4 +1,5 @@
 'use client';
+import { toggleChip } from '@/lib/ds';
 
 /**
  * BudgetComparison (PR-Runway-Comparison) — the Travel-vs-Personal budget comparison,
@@ -41,7 +42,7 @@ interface CommittedTrip {
   startDate: string | null; endDate: string | null; totalBudget: number; destinationPhoto: string | null;
 }
 
-export default function BudgetComparison({ initialYear }: { initialYear?: number }) {
+export default function BudgetComparison({ initialYear, preview = false }: { initialYear?: number; preview?: boolean }) {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(initialYear ?? now.getFullYear());
   const [travelMonths, setTravelMonths] = useState<number[]>([]);
@@ -53,6 +54,9 @@ export default function BudgetComparison({ initialYear }: { initialYear?: number
   // Self-fetch the same four routes /hub fetches, re-fetching when the year changes
   // (mirrors hub/page.tsx:351). Each loader mirrors the /hub loader's tolerant shape-mapping.
   useEffect(() => {
+    // PREVIEW (guest): skip all four authed budget fetches; the EMPTY_BUDGET initial state
+    // renders the comparison with no data (no 401).
+    if (preview) return;
     let cancelled = false;
     const loadCommittedTrips = async () => {
       try {
@@ -98,7 +102,7 @@ export default function BudgetComparison({ initialYear }: { initialYear?: number
     };
     loadCommittedTrips(); loadYearCalendar(); loadNomadBudget(); loadBusinessBudget();
     return () => { cancelled = true; };
-  }, [selectedYear]);
+  }, [selectedYear, preview]);
 
   const fmt = (n: number) => n ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—';
 
@@ -150,11 +154,7 @@ export default function BudgetComparison({ initialYear }: { initialYear?: number
               <button
                 key={i}
                 onClick={() => setTravelMonths(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i].sort((a,b) => a-b))}
-                className={`px-3 py-1.5 text-xs font-mono font-medium transition-all border ${
-                  travelMonths.includes(i)
-                    ? 'bg-brand-purple text-white border-brand-purple'
-                    : 'bg-white text-text-secondary border-border hover:bg-bg-row'
-                }`}
+                className={toggleChip(travelMonths.includes(i))}
               >
                 {m}
               </button>
@@ -180,7 +180,7 @@ export default function BudgetComparison({ initialYear }: { initialYear?: number
           </div>
           <div className="bg-white p-4">
             <div className="text-xs text-text-muted font-medium mb-1">Travel Savings</div>
-            <div className={`text-sm font-bold font-mono ${travelSavings >= 0 ? 'text-emerald-700' : 'text-brand-red'}`}>{travelSavings >= 0 ? '+' : ''}{fmt(travelSavings)}</div>
+            <div className={`text-sm font-bold font-mono ${travelSavings >= 0 ? 'text-status-success' : 'text-status-danger'}`}>{travelSavings >= 0 ? '+' : ''}{fmt(travelSavings)}</div>
             <div className="text-xs text-text-muted mt-1">{travelSavings >= 0 ? 'Saved vs home' : 'Extra vs home'}</div>
           </div>
           <div className="bg-brand-purple p-4 text-white">
@@ -194,16 +194,19 @@ export default function BudgetComparison({ initialYear }: { initialYear?: number
         <div className="border border-border bg-white overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-brand-purple text-white">
-                <th className="text-left py-2 px-3 font-medium border-r border-brand-purple-hover w-36">Category</th>
+              {/* REPAINT-04 (2026-09-21): the header and footer rows wore the retired dark surface's paint on a
+                  white table (white/80 ink on white — invisible): cream-row fill + secondary ink (the Trips row's own
+                  idiom below), lavender hairlines, and the travel-month highlight as the aubergine wash. */}
+              <tr className="bg-bg-row text-text-secondary">
+                <th className="text-left py-2 px-3 font-medium border-r border-border w-36">Category</th>
                 {MONTHS_SHORT.map((m, i) => (
-                  <th key={m} className={`py-2 px-2 font-medium border-r border-brand-purple-hover text-right min-w-[55px] ${travelMonths.includes(i) ? 'bg-panel-highlight' : ''}`}>{m}</th>
+                  <th key={m} className={`py-2 px-2 font-medium border-r border-border text-right min-w-[55px] ${travelMonths.includes(i) ? 'bg-brand-purple/10' : ''}`}>{m}</th>
                 ))}
-                <th className="py-2 px-3 font-medium text-right bg-panel-highlight min-w-[70px]">FY Total</th>
+                <th className="py-2 px-3 font-medium text-right bg-brand-purple/10 min-w-[70px]">FY Total</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-border bg-white hover:bg-brand-purple-wash/30">
+              <tr className={`${'border-b border-border bg-white'} hover:bg-brand-purple/10`}>
                 <td className="py-2 px-3 font-medium text-text-primary border-r border-border">Homebase</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const val = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
@@ -216,7 +219,7 @@ export default function BudgetComparison({ initialYear }: { initialYear?: number
                 })}
                 <td className="py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row">{fmt(homeMonthsHomebaseBudget)}</td>
               </tr>
-              <tr className="border-b border-border bg-bg-row/50 hover:bg-brand-purple-wash/30">
+              <tr className={`${'border-b border-border bg-bg-row/50'} hover:bg-brand-purple/10`}>
                 <td className="py-2 px-3 font-medium text-text-primary border-r border-border">Business</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const val = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
@@ -224,7 +227,7 @@ export default function BudgetComparison({ initialYear }: { initialYear?: number
                 })}
                 <td className="py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row">{fmt(yearlyBusinessBudget)}</td>
               </tr>
-              <tr className="border-b border-border bg-white hover:bg-brand-purple-wash/30">
+              <tr className={`${'border-b border-border bg-white'} hover:bg-brand-purple/10`}>
                 <td className="py-2 px-3 font-medium text-text-primary border-r border-border">Travel</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const val = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
@@ -234,17 +237,17 @@ export default function BudgetComparison({ initialYear }: { initialYear?: number
               </tr>
             </tbody>
             <tfoot>
-              <tr className="bg-brand-purple text-white font-semibold">
-                <td className="py-2 px-3 border-r border-brand-purple-hover">Monthly Total</td>
+              <tr className="bg-bg-row text-text-primary font-semibold">
+                <td className="py-2 px-3 border-r border-border">Monthly Total</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const homebase = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                   const business = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                   const travel = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                   const isTraveling = travelMonths.includes(i);
                   const effective = isTraveling ? (travel + business) : (homebase + travel + business);
-                  return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${isTraveling ? 'bg-panel-highlight' : ''}`}>{fmt(effective)}</td>);
+                  return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-border ${isTraveling ? 'bg-brand-purple/10' : ''}`}>{fmt(effective)}</td>);
                 })}
-                <td className="py-2 px-3 text-right font-mono bg-panel-highlight">{fmt(effectiveYearlyCost)}</td>
+                <td className="py-2 px-3 text-right font-mono bg-brand-purple/10">{fmt(effectiveYearlyCost)}</td>
               </tr>
               <tr className="bg-bg-row text-text-secondary text-[10px]">
                 <td className="py-1.5 px-3 border-r border-border">Trips</td>

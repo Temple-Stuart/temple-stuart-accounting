@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,6 +18,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TAB-SERVER-GATE: tab:books entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:books');
+    if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()), 10);
@@ -103,8 +108,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ accounts, availableYears });
   } catch (error) {
-    console.error('Statements API error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return failClosedResponse('Statements API', 'Statements read failed', error);
   }
 }

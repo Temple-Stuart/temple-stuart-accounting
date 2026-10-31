@@ -1,5 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // TABLES-01: the six kind views (src/lib/kindViews.ts) are `view` models — Prisma's `views` preview
+  // (https://www.prisma.io/docs/orm/prisma-schema/data-model/views; Prisma 5.22). Migrate does not
+  // manage views: the CREATE VIEWs live in prisma/migrations/*_kind_views and the build asserts the
+  // two agree.
+  previewFeatures = ["views"]
 }
 
 datasource db {
@@ -52,8 +57,10 @@ model accounts {
   users                   users?                    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   entity                  entities?                 @relation(fields: [entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   investment_transactions investment_transactions[]
+  holdings                holdings[]
   transactions            transactions[]
   bank_reconciliations    bank_reconciliations[]
+  source_documents        source_documents[]
 
   @@unique([userId, accountId])
   @@index([userId, entity_id])
@@ -193,16 +200,33 @@ model journal_entries {
   request_id           String?
   created_at           DateTime @default(now())
   created_by           String?
+  // DIM-1: the VENDOR dimension — one payee per bill, at entry level. Nullable +
+  // additive: rows posted before DIM-1 keep NULL (the legacy epoch — never
+  // backfilled). SetNull per the T-D7 doctrine (financial records never die by
+  // reference; cf. reservations.trip :1254).
+  vendor_id            String?  @db.Uuid
+  /// POST-01 (2026-09-26): THE DOCUMENT. The booking this plaid_txn posting is the charge (or refund) of — the source document, never a posting of its own. NULL = no document (a posting of no booking, or one posted before the column existed and not yet given its document by scripts/post-01-retro-documents.ts). Written by commitPlaidTransaction alone, from an ACCEPTED transaction_reservation_link; never defaulted. RESTRICT in SQL.
+  document_reservation_id String? @db.Uuid
+  /// POST-01: NULL = the booking's CHARGE; set = that money event, a REFUND (money_events.kind 'refund'). CHECK in SQL: never set without document_reservation_id. ONE posted charge per booking: partial unique journal_entries_document_charge_key ON (document_reservation_id) WHERE document_money_event_id IS NULL AND status = 'posted' — a reversed entry leaves it (Prisma cannot express a partial index; the migration holds it).
+  document_money_event_id String? @db.Uuid
 
   user              users            @relation(fields: [userId], references: [id])
   entity            entities         @relation(fields: [entity_id], references: [id])
   reverses_entry    journal_entries? @relation("reversal", fields: [reverses_entry_id], references: [id])
   reversed_by_entry journal_entries? @relation("reversal")
   ledger_entries    ledger_entries[]
+  vendor            operations_vendor_directory? @relation(fields: [vendor_id], references: [id], onDelete: SetNull)
+  planned_item_links planned_item_links[]
+  source_documents   source_documents[]
+  document_reservation reservations?  @relation("posting_document", fields: [document_reservation_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  document_money_event money_events?  @relation("posting_document_event", fields: [document_money_event_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([userId, date])
   @@index([source_type, source_id])
   @@index([entity_id, date])
+  @@index([vendor_id])
+  @@index([document_reservation_id])
+  @@index([document_money_event_id])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -221,8 +245,283 @@ model ledger_entries {
   journal_entry journal_entries   @relation(fields: [journal_entry_id], references: [id], onDelete: Restrict)
   account       chart_of_accounts @relation(fields: [account_id], references: [id], onDelete: Restrict)
 
+  ledger_line_links ledger_line_links[]
+
   @@index([journal_entry_id])
   @@index([account_id, created_at])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DIM-1: LEDGER LINE LINKS — the LINKS dimension (WHY a cost exists)
+// ═══════════════════════════════════════════════════════════════════
+
+/// This table carries SQL-side constraints Prisma cannot model (the
+/// chart_of_accounts precedent, :146) — see the DIM-1 migration:
+///   • ledger_line_links_exactly_one_target CHECK — exactly one of
+///     project_id / routine_id / trip_id / module_key is set per row;
+///   • four PARTIAL unique indexes — at most one link per (line, specific
+///     target); a plain composite unique cannot express this (NULLs distinct).
+/// SUM-TO-100 DIVISION: percents across a line's links must total 100.00 — a
+/// CROSS-ROW invariant no per-row CHECK can express. DIM-1 documents it here;
+/// DIM-3's write path enforces it (and percent range) FAIL-LOUD at coding
+/// time. Nothing in between guesses.
+/// LEGACY EPOCH: lines posted before DIM-1 carry no links BY DESIGN — no
+/// backfill, no rewrites. Every allocation report must DECLARE coverage
+/// (N of M lines linked), never impute.
+/// onDelete: line Cascade (an allocation cannot outlive the line it
+/// allocates); targets Restrict — financial attribution never vanishes because
+/// a target was deleted (SetNull would violate the exactly-one CHECK; Cascade
+/// would silently erase financial rows; Restrict = fail-loud, mirroring
+/// ledger_entries' own Restrict doctrine :221-222).
+model ledger_line_links {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ledger_entry_id String
+  project_id      String?  @db.Uuid
+  routine_id      String?  @db.Uuid
+  trip_id         String?
+  module_key      String?  @db.VarChar(20)
+  percent         Decimal  @db.Decimal(5, 2)
+  created_at      DateTime @default(now())
+  created_by      String?
+
+  ledger_entry ledger_entries       @relation(fields: [ledger_entry_id], references: [id], onDelete: Cascade)
+  project      operations_projects? @relation(fields: [project_id], references: [id], onDelete: Restrict)
+  routine      operations_routines? @relation(fields: [routine_id], references: [id], onDelete: Restrict)
+  trip         trips?               @relation(fields: [trip_id], references: [id], onDelete: Restrict)
+
+  @@index([ledger_entry_id])
+  @@index([project_id])
+  @@index([routine_id])
+  @@index([trip_id])
+  @@index([module_key])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LINK-01: PLANNED ITEM LINKS — a budgeted item to the posting that settled it
+// ═══════════════════════════════════════════════════════════════════
+
+/// DAY-01 proved the automatic event→Books join by (date, coa_code) unsound for
+/// four independent reasons. LINK-01 does not fix the guess — it replaces it:
+/// the founder TAPS the item and TAPS the posting, the way a trade links to a
+/// card (trade_card_links :1887). Nothing here is ever written by a matcher.
+///
+/// THE TARGET KEY, PER KIND (LINK-01 STEP 0.3):
+///   calendar_event → target_id = calendar_events.id,           target_instant NULL
+///   project_task   → target_id = operations_project_tasks.id,  target_instant NULL
+///   routine        → target_id = operations_routines.id,        target_instant SET
+///   routine_line   → target_id = operations_routine_steps.id,   target_instant SET  (LINES-01)
+/// LINES-01: a routine made of lines links its postings to the LINE — the coffee
+/// posting to the coffee line — keyed on (step_id, the occurrence instant). The
+/// 'routine' kind STAYS for a stepless routine and is never repurposed.
+/// A routine OCCURRENCE has no row — it is computed from an RRULE — so it is
+/// addressed the way operations_routine_completions already addresses one:
+/// @@unique([routine_id, expected_at]) on the INSTANT (:3390). A link keyed on
+/// YYYY-MM-DD would silently miss a 07:00 occurrence in another zone, so the
+/// instant is the key and the migration's CHECK makes it mandatory for a
+/// routine and forbidden for anything else.
+///
+/// CARDINALITY (LINK-01 STEP 0.5): one item may have MANY postings (a hotel
+/// posts as a deposit and a balance); one posting belongs to AT MOST ONE item.
+/// journal_entry_id is therefore UNIQUE. The ฿2,400 grocery run that belongs to
+/// a month of meal routines is not a link — it is an ALLOCATION, and the repo
+/// already has that dimension (ledger_line_links.percent, :265). Attempting to
+/// link one posting twice FAILS LOUD at the database rather than double-counting.
+///
+/// onDelete: journal entry RESTRICT — a posting that something is attributed to
+/// cannot vanish (the ledger_entries doctrine :234 and DIM-1's :276). user
+/// Cascade — a deleted user's attributions go with them.
+model planned_item_links {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String
+  target_kind      String    @db.VarChar(20)
+  target_id        String
+  /// The occurrence INSTANT. Set for a routine, NULL for everything else — a CHECK, not a convention.
+  target_instant   DateTime? @db.Timestamptz(6)
+  journal_entry_id String    @unique
+  linked_at        DateTime  @default(now()) @db.Timestamptz(6)
+  linked_by        String?   @db.VarChar(255)
+
+  user          users          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  journal_entry journal_entries @relation(fields: [journal_entry_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id, target_kind, target_id])
+  @@index([user_id, target_instant])
+  @@map("planned_item_links")
+}
+
+/// VENDOR-01 (2026-09-29) — THE VENDOR IS PLANNED: who a plan's money is paid to.
+/// The vendor is a row of the ONE vendor list, operations_vendor_directory (DIM-1),
+/// of the plan's own book. A plan — a routine, a routine's line or a project task:
+/// exactly one of routine_id, step_id, task_id — names its vendor at one of TWO
+/// GRAINS, never both: occurrence_at NULL is EVERY occurrence (a subscription);
+/// occurrence_at SET is ONE occurrence, keyed on its INSTANT as a posting's link
+/// is (planned_item_links.target_instant) — today's lunch at one place, tomorrow's
+/// at another. A task happens once: its row never carries an instant.
+///
+/// HELD BY THE DATABASE (prisma/migrations/20260929190000_vendor_01_planned_item_
+/// vendors — Prisma cannot express a partial index or a trigger; the migration
+/// holds them, the journal_entries precedent :209): a CHECK that exactly one plan
+/// column is set; a CHECK that a task row has no occurrence; partial unique
+/// indexes — one every-occurrence row per plan, one row per (plan, occurrence);
+/// and a BEFORE INSERT OR UPDATE trigger that refuses a row whose plan already
+/// holds the other grain, after locking the plan's own row FOR NO KEY UPDATE.
+///
+/// Written by ONE route (src/app/api/operations/plan-vendors/route.ts), decided by
+/// one pure rule (src/lib/operations/planVendor.ts). onDelete: a plan's vendor goes
+/// with the plan (Cascade — every set and clear is in the audit log); a vendor a
+/// plan names cannot vanish (Restrict); a deleted user's rows go with them.
+model planned_item_vendors {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String
+  routine_id    String?   @db.Uuid
+  step_id       String?   @db.Uuid
+  task_id       String?   @db.Uuid
+  /// The occurrence INSTANT. NULL = every occurrence of the plan.
+  occurrence_at DateTime? @db.Timestamptz(6)
+  vendor_id     String    @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @updatedAt @db.Timestamptz(6)
+
+  user    users                       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  routine operations_routines?        @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  step    operations_routine_steps?   @relation(fields: [step_id], references: [id], onDelete: Cascade)
+  task    operations_project_tasks?   @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  vendor  operations_vendor_directory @relation(fields: [vendor_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id, occurrence_at])
+  @@index([vendor_id])
+  @@map("planned_item_vendors")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STAY-01 (2026-10-12) — THE STAY: where the user is, from a first day to a
+// last day. "Chiang Mai, Oct 20 → Nov 2" · "Los Angeles, Nov 3 → Feb 2". The
+// day card reads the stay covering its day for DAY n OF m and the place.
+// Dates, not instants: a stay is a span of calendar days wherever the user
+// is. One user's stays never overlap — held by the migration's trigger
+// (STAY_OVERLAP), which locks the user's row before it reads — and refused by
+// name in the route before any write. Nothing here is the North Star's
+// current_location_label; reconciling the two is its own PR.
+// ═══════════════════════════════════════════════════════════════════
+
+model operations_stays {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String
+  /// The place as the user names it ("Chiang Mai"); trimmed, 1–80 characters (the route's rule, the migration's CHECK).
+  place      String   @db.VarChar(80)
+  /// The first and the last day of the stay, inclusive — calendar days (@db.Date, UTC midnight), ends_on >= starts_on (CHECK).
+  starts_on  DateTime @db.Date
+  ends_on    DateTime @db.Date
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, starts_on])
+  @@map("operations_stays")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STOP-01 (2026-10-12) — THE RECORD AT A STOP: what happened at one stop of
+// one day — done at an instant (or skipped, with the reason), what was actually
+// paid, a rating, a note, the minutes. Addressed the Budget's way (days.ts
+// OccurrenceAddress): exactly one of step_id ('routine_line') or routine_id
+// ('routine'), and the occurrence INSTANT. A task's record is the task's own row
+// (actual_cost_usd, actual_minutes, completed_at) — no task column here.
+//
+// HELD BY THE DATABASE (prisma/migrations/20261012140000_stop_01_operations_
+// stop_records — Prisma cannot express a partial index): the CHECKs (one plan
+// column; outcome done|skipped; done_at iff done; a skipped stop's reason; a
+// note not blank; cents ≥ 0; rating 1–5; minutes within a day) and two partial
+// unique indexes — one record per (plan, occurrence). Written by one route
+// (src/app/api/operations/stops/route.ts), read by one rule
+// (src/lib/operations/stopRecord.ts). onDelete: the plan's records go with the
+// plan (Cascade — the audit log keeps every set and clear); a deleted user's
+// rows go with them.
+// ═══════════════════════════════════════════════════════════════════
+
+model operations_stop_records {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String
+  /// Exactly one of the two (the migration's CHECK): the line, or the routine with no lines.
+  routine_id     String?   @db.Uuid
+  step_id        String?   @db.Uuid
+  /// The occurrence INSTANT the stop is at (the today read's expected_at) — never a day.
+  occurrence_at  DateTime  @db.Timestamptz(6)
+  /// 'done' | 'skipped' (CHECK).
+  outcome        String    @db.VarChar(10)
+  /// SET exactly when done (CHECK) — the instant it was done.
+  done_at        DateTime? @db.Timestamptz(6)
+  /// Typed on the day, USD cents, 0 or more; NULL = not typed (CHECK ≥ 0).
+  actual_cents   Int?
+  /// 1–5 (CHECK), the rubric in src/lib/operations/stopRecord.ts RATING_WORDS.
+  rating         Int?      @db.SmallInt
+  /// One line, 1–280 characters, not blank; the reason when skipped (CHECKs).
+  note           String?   @db.VarChar(280)
+  /// 0–1440 (CHECK).
+  actual_minutes Int?
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @updatedAt @db.Timestamptz(6)
+
+  user    users                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  routine operations_routines?      @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  step    operations_routine_steps? @relation(fields: [step_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, occurrence_at])
+  @@map("operations_stop_records")
+}
+
+/// JOURNAL-01 (2026-10-13): the morning's answers for one day — the words a person typed, one row per
+/// (user, day). The plate's numbers are derived at read time from the day's own reads and never stored.
+/// The CHECKs (an if with its then, no blank answer, at least one answer) live in the migration.
+model operations_day_journals {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String
+  /// The day the answers are for — a calendar day (@db.Date, UTC midnight), the card's day.
+  day           DateTime @db.Date
+  /// "→ so today" — yesterday's lesson applied.
+  adjustment    String?  @db.VarChar(280)
+  one_thing     String?  @db.VarChar(120)
+  /// Up to three "if … then …" pairs — both or neither (CHECK).
+  plan_1_if     String?  @db.VarChar(160)
+  plan_1_then   String?  @db.VarChar(160)
+  plan_2_if     String?  @db.VarChar(160)
+  plan_2_then   String?  @db.VarChar(160)
+  plan_3_if     String?  @db.VarChar(160)
+  plan_3_then   String?  @db.VarChar(160)
+  /// "obstacle … → then …" — both or neither (CHECK).
+  obstacle_if   String?  @db.VarChar(160)
+  obstacle_then String?  @db.VarChar(160)
+  blocker       String?  @db.VarChar(280)
+  witness       String?  @db.VarChar(120)
+  /// Typed at the end of the day — JOURNAL-02: END OF DAY, the same column relabelled.
+  shipped       String?  @db.VarChar(500)
+  /// JOURNAL-02 (2026-10-13): TODAY — the day's goals, one per line (at most 8, no NULL element — CHECKs).
+  goals         String[] @default([])
+  /// JOURNAL-02: PLAN — the steps in their order (at most 12) …
+  plan_steps    String[] @default([])
+  /// … and one tick per step (the same length — CHECK). RETIRED 2026-10-13: adjustment, one_thing, witness, plan_1_if … obstacle_then — kept, never written.
+  plan_done     Boolean[] @default([])
+  /// JOURNAL-04 (Alex, 2026-10-19): the evening's three, nullable — NULL is unanswered, never "" (the not-blank CHECK). The pasted audit — paragraphs; the rule caps it at 4000 code points and 200 lines (journal.ts blockOf), the database bounds a TEXT column not at all. An evening alone is a journal (the at-least-one CHECK counts the three).
+  audit         String?  @db.Text
+  /// What I learned, or what surprised me — VARCHAR(500), counted in code points by the rule. RETIRED 2026-10-20 (JOURNAL-06, JOURNAL-03's way): kept, never asked, shown or written again; a body that carries it is refused by name.
+  learned       String?  @db.VarChar(500)
+  /// Where I want to take it next — the line tomorrow's morning card shows first and the reel's cliffhanger (REEL-02); VARCHAR(500).
+  next          String?  @db.VarChar(500)
+  /// JOURNAL-06 (Alex, 2026-10-20): the evening's five, each the audit's rule (a block — line breaks kept, 4000 code points and 200 lines, journal.ts blockOf), nullable — NULL is unanswered, never "" (the not-blank CHECK, re-made over the eight). The at-least-one CHECK counts them.
+  gaps          String?  @db.Text
+  evolution     String?  @db.Text
+  direction     String?  @db.Text
+  alignment     String?  @db.Text
+  on_track      String?  @db.Text
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  /// Written by @updatedAt (no DB default) — read back as the "typed" instant; the PUT guards its write on it.
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, day], map: "operations_day_journals_one_per_day")
+  @@map("operations_day_journals")
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -263,6 +562,12 @@ model plaid_items {
   updatedAt       DateTime
   accountCode     String?
   subAccount      String?
+  /// BANK-01: the item's last Plaid ITEM_ERROR code (e.g. ITEM_LOGIN_REQUIRED) and when; NULL when healthy.
+  last_error_code String?
+  last_error_at   DateTime?  @db.Timestamptz(6)
+  /// BANK-03: set when a fresh link replaced this item; the row stays for history, sync skips it, readers hide it.
+  retired_at      DateTime?  @db.Timestamptz(6)
+  retired_reason  String?
   accounts        accounts[]
   users           users      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
@@ -318,13 +623,56 @@ model securities {
   option_underlying_ticker String?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime
+  /// REBUILD-01 PR-2c: the arrival this row was parsed from; NULL before the cutoff (no backfill).
+  arrival_id               String?
   investment_transactions  investment_transactions[]
+  holdings                 holdings[]
+  arrival                  arrivals?                 @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([arrival_id])
+}
+
+/// REBUILD-01 PR-2d: one Plaid holding as it stood at one moment — the SNAPSHOT kind (the rule book's plaid · holding row).
+/// One row per account + security + as_of; the same position on a later day is a new row, never a rewrite. Every row is
+/// parsed from an arrival (arrival_id NOT NULL — the table is younger than the store, so there is no cutoff to honor).
+model holdings {
+  id                         String     @id
+  accountId                  String
+  security_id                String
+  /// The moment the snapshot stands for: the UTC date the answer arrived — the third part of the composed their_id.
+  as_of                      DateTime   @db.Date
+  quantity                   Float
+  cost_basis                 Float?
+  institution_price          Float
+  institution_price_as_of    DateTime?  @db.Date
+  institution_price_datetime DateTime?
+  institution_value          Float
+  iso_currency_code          String?
+  unofficial_currency_code   String?
+  arrival_id                 String
+  createdAt                  DateTime   @default(now())
+  updatedAt                  DateTime
+  accounts                   accounts   @relation(fields: [accountId], references: [id])
+  security                   securities @relation(fields: [security_id], references: [securityId])
+  arrival                    arrivals   @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([accountId, security_id, as_of])
+  @@index([arrival_id])
 }
 
 /// IRS-compliant position tracking for options trading
 model trading_positions {
   id                      String    @id @default(uuid()) @db.Uuid
-  open_investment_txn_id  String    @db.VarChar(255)
+  // TRADE-LOG-01: NULLABLE. A hand-entered trade has no arrival behind it, and
+  // a synthetic id would be a lie — null says "no investment transaction", which
+  // is the truth. Every synced row still carries its leg's id.
+  open_investment_txn_id  String?   @db.VarChar(255)
+  // TRADE-LOG-01: the row's OWNER, explicit. trading_positions had no userId —
+  // ownership ran open_investment_txn_id → investment_transactions.accountId →
+  // accounts.userId, which a hand-entered row (no arrival) cannot use. Null on
+  // the rows written before this column existed: they resolve through the chain,
+  // which is unchanged. src/lib/tradeLog/ownership.ts is the one predicate.
+  userId                  String?   @db.VarChar(255)
   symbol                  String    @db.VarChar(20)
   option_type             String?   @db.VarChar(10)
   strike_price            Float?
@@ -354,6 +702,8 @@ model trading_positions {
   @@index([symbol, expiration_date])
   @@index([status])
   @@index([trade_num])
+  @@index([userId])
+  @@index([userId, source])
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -362,6 +712,8 @@ model transactions {
   accountId                          String
   transactionId                      String    @unique
   amount                             Float
+  /// FX-01 (2026-10-30): Plaid's own ISO 4217 code for the row, kept by the sync; NULL for a row synced before FX-01 — those were backfilled from the ACCOUNT's stated currency on 2026-10-30 (never 'USD' by default), see 20261030150000_fx_01_transactions_currency.
+  iso_currency_code                  String?   @db.VarChar(3)
   date                               DateTime
   name                               String
   merchantName                       String?
@@ -390,8 +742,16 @@ model transactions {
   overridden_at                      DateTime?
   overridden_by                      String?   @db.VarChar(255)
   entity_id                          String?
+  /// REBUILD-01 PR-2: the arrival this row was parsed from; NULL before the cutoff (no backfill).
+  arrival_id                         String?
   accounts                           accounts  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   entity                             entities? @relation(fields: [entity_id], references: [id])
+  arrival                            arrivals? @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transaction_reservation_links      transaction_reservation_links[]
+  /// MATCH-02: the refund money events this bank row settled (evidence of 'settled').
+  settled_money_events               money_events[] @relation("money_event_settlement")
+
+  @@index([arrival_id])
 }
 
 model investment_transactions {
@@ -430,9 +790,14 @@ model investment_transactions {
   reconciledAt              DateTime?   @map("reconciled_at")
   reconciledBy              String?     @map("reconciled_by") @db.VarChar(255)
   entity_id                 String?
+  /// REBUILD-01 PR-2c: the arrival this row was parsed from; NULL before the cutoff (no backfill).
+  arrival_id                String?
   security                  securities? @relation(fields: [security_id], references: [securityId])
   accounts                  accounts    @relation(fields: [accountId], references: [id])
   entity                    entities?   @relation(fields: [entity_id], references: [id])
+  arrival                   arrivals?   @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([arrival_id])
 }
 
 model users {
@@ -444,10 +809,13 @@ model users {
   updatedAt               DateTime
   accountCode             String?
   subAccount              String?
-  tier                    String                   @default("free") @db.VarChar(20)
   stripeCustomerId        String?
   stripeSubscriptionId    String?
   bookkeeping_initialized Boolean                  @default(false)
+  // SELL-03b: set by the verification link (or by OAuth, whose provider verified
+  // the address); NULL = the account has not finished signing in. Accounts that
+  // pre-date verification were backfilled to their createdAt in the migration.
+  email_verified_at       DateTime?                @db.Timestamptz(6)
   scanner_start_date      DateTime?
   accounts                accounts[]
   plaid_items             plaid_items[]
@@ -466,6 +834,7 @@ model users {
   tastytrade_connections  tastytrade_connections[]
   merchant_coa_mappings   merchant_coa_mappings[]
   trade_cards             trade_cards[]
+  scan_runs               scan_runs[]
   tax_overrides           tax_overrides[]
   tax_documents           tax_documents[]
   closing_periods         closing_periods[]
@@ -479,7 +848,40 @@ model users {
   operations_ai_usage     operations_ai_usage[]
   discovery_runs          discovery_runs[]
   reservations            reservations[]
+  prebook_contacts prebook_contacts[]
   commission_ledger       commission_ledger[]
+  transaction_reservation_links transaction_reservation_links[]
+  planned_item_links            planned_item_links[]
+  source_documents              source_documents[]
+  // VENDOR-01: who each of this user's plans is paid to.
+  planned_item_vendors          planned_item_vendors[]
+  // STAY-01: where this user is, day by day — their stays.
+  operations_stays              operations_stays[]
+  operations_stop_records       operations_stop_records[]
+  // JOURNAL-01: this user's day journals — the morning's answers, one row per day.
+  operations_day_journals       operations_day_journals[]
+  provider_responses      provider_responses[]
+  arrivals                arrivals[]
+  verification_tokens     verification_tokens[]
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SELL-03b: EMAIL VERIFICATION TOKENS — the link's random half is stored
+// HASHED (sha256 hex); the link itself is signed (HMAC over the random half,
+// src/lib/auth/verification.ts). Single-use (used_at set once, atomically
+// with users.email_verified_at), 24h (expires_at). Cascade with the user.
+// ═══════════════════════════════════════════════════════════════════
+
+model verification_tokens {
+  id         String    @id @default(uuid()) @db.Uuid
+  user_id    String
+  token_hash String    @unique @db.VarChar(64)
+  expires_at DateTime  @db.Timestamptz(6)
+  used_at    DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  user       users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
 }
 
 model budgets {
@@ -557,6 +959,7 @@ model trips {
   scannerResults      trip_scanner_results[]
   reservations        reservations[]
   hub_scheduled_items hub_scheduled_items[]
+  ledger_line_links   ledger_line_links[]
 
   @@index([userId])
   @@index([year, month])
@@ -665,8 +1068,13 @@ model trip_itinerary {
   vendorOptionType String?  @db.VarChar(20)
   createdAt        DateTime @default(now())
 
-  // Itinerary-as-time-blocks foundation (schema only; nothing reads/writes these
-  // yet — see prisma/migrations-manual/itinerary_time_blocks.sql).
+  // Itinerary-as-time-blocks. TRAVEL-01 (2026-09-19): the comment that stood here
+  // ("schema only; nothing reads/writes these yet") was stale — vendor-commit
+  // writes the window (route.ts:360-381), the itinerary PATCH edits it,
+  // /api/trips/day-blocks and the calendar feed's overlay (src/lib/calendar/tripItem.ts)
+  // read it. The columns were created by prisma/migrations-manual/itinerary_time_blocks.sql
+  // and never recorded in prisma/migrations; 20260919100000_travel_01_block_times_recorded
+  // records them idempotently (IF NOT EXISTS) — Alex confirms they exist on Azure.
   recurrence       String    @default("once") @db.VarChar(10) // 'once' | 'daily'
   block_start_time DateTime? @db.Time(6) // daily window start (time-of-day)
   block_end_time   DateTime? @db.Time(6) // daily window end (time-of-day)
@@ -1047,6 +1455,26 @@ model rafting_destinations {
 // BUDGET LINE ITEMS - Track trip expenses by COA code
 // ═══════════════════════════════════════════════════════════════════
 
+// ─── LINK-02 (2026-09-27): a booking → the budget line it fulfils ────────────
+// Written ONLY by the owner through POST/DELETE /api/reservations/[id]/budget-link —
+// never by a matcher, a name or an amount. One line per booking (UNIQUE
+// reservationId); a line may carry several bookings. RESTRICT both ways.
+// linkedAt/linkedBy are stated by the route: no defaults.
+model reservation_budget_links {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String
+  reservationId    String   @unique @db.Uuid
+  budgetLineItemId String
+  linkedAt         DateTime @db.Timestamptz(6)
+  linkedBy         String   @db.VarChar(255)
+
+  reservation    reservations      @relation(fields: [reservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  budgetLineItem budget_line_items @relation(fields: [budgetLineItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([budgetLineItemId])
+  @@index([userId])
+}
+
 model budget_line_items {
   id          String   @id @default(cuid())
   userId      String
@@ -1068,6 +1496,8 @@ model budget_line_items {
 
   trip trips? @relation(fields: [tripId], references: [id], onDelete: SetNull)
   user users  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// LINK-02 (2026-09-27): the bookings the owner linked to this line — RESTRICT: a linked line cannot be deleted.
+  reservation_links reservation_budget_links[]
 
   @@index([userId, year, month])
   @@index([tripId])
@@ -1187,6 +1617,68 @@ model operations_exec_usage {
   @@unique([usageDate, userId])
 }
 
+// Per-category subscription entitlement (one row per user × Google category). Models the
+// EXISTING `user_category_entitlements` table created in Azure via psql — this PR emits NO
+// ALTER/CREATE, only the Prisma mapping. Mirrors operations_exec_usage conventions exactly
+// (cuid id, camelCase fields, no @map on fields, @updatedAt). The read helper is
+// src/lib/entitlements.ts; this PR exposes entitlements only — it gates nothing.
+model UserCategoryEntitlement {
+  id                   String    @id @default(cuid())
+  userId               String
+  categoryKey          String
+  status               String    @default("inactive")
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  updatedAt            DateTime  @updatedAt
+  // LAUNCH-01 LAPSE-01: when and why the row ended (the Stripe webhook:
+  // customer.subscription.deleted → 'canceled', invoice.payment_failed →
+  // 'payment_failed'); NULL while active or never lapsed; a re-grant clears both.
+  // A CHECK in the migration pins ended_reason to those two values.
+  ended_at             DateTime? @db.Timestamptz(6)
+  ended_reason         String?   @db.VarChar(32)
+
+  @@unique([userId, categoryKey], map: "user_cat_entitle_user_cat_key")
+  @@index([userId], map: "user_cat_entitle_user_idx")
+  @@map("user_category_entitlements")
+}
+
+// ─── Public project-proposal intake (OWNER-DASH arc) ────────────────────────
+// Maps the EXISTING `proposals` table Alex created in Azure via psql (the
+// OWNER-DASH v2 audit's canonical DDL, run 2026-08-12) — this PR emits NO
+// CREATE/ALTER, only the Prisma mapping. Rows are inserted by the public
+// POST /api/proposals (rate-limited + honeypot; DB-write only BY RULING).
+// status + owner_notes are Alex's triage fields — NEVER client-writable; the
+// route omits them so the DDL defaults rule. No attachment column BY RULING:
+// public-form uploads are banned per the security mandate; files arrive via
+// the email thread post-triage. ip_hash = HMAC-SHA256 of the client IP keyed
+// by JWT_SECRET (the cookie-auth secret) — the raw IP is never stored.
+model proposals {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  name           String    @db.VarChar(255)
+  email          String    @db.VarChar(255)
+  business       String    @db.Text
+  currentStack   String    @db.Text @map("current_stack")
+  need           String    @db.VarChar(20)
+  modules        Json      @default("[]")
+  startWindow    String    @default("exploring") @db.VarChar(20) @map("start_window")
+  budgetRange    String    @db.VarChar(50) @map("budget_range")
+  notesFromThem  String    @db.Text @map("notes_from_them")
+  hardDeadline   DateTime? @db.Date @map("hard_deadline")
+  deadlineDriver String?   @db.Text @map("deadline_driver")
+  links          Json?
+  teamSize       String?   @db.VarChar(50) @map("team_size")
+  referralSource String?   @db.VarChar(100) @map("referral_source")
+  status         String    @default("new") @db.VarChar(20)
+  ownerNotes     String?   @db.Text @map("owner_notes")
+  ipHash         String    @db.VarChar(64) @map("ip_hash")
+
+  @@index([createdAt(sort: Desc)], map: "proposals_created_at_idx")
+  @@index([status], map: "proposals_status_idx")
+  @@map("proposals")
+}
+
 // ─── Per-key request rate-limiter (durable, fixed-window) ────────────────────
 // Net-new: there is no app rate-limiter today. Mirrors the durable usage-counter
 // shape so it survives deploys AND holds across serverless instances (an in-memory
@@ -1218,26 +1710,218 @@ model reservations {
   bookingType              String   @default("account") @db.VarChar(20) // 'guest' | 'account' — distinguishes guest (no-account) vs account bookings
   guestEmail               String?  @db.VarChar(255) // contact email for a guest (no-account) booking; null for account bookings
   provider                 String   @db.VarChar(20) // 'liteapi' | 'viator' | 'duffel' | ...
+  /// LANE-01 (2026-09-25): what this reservation IS — 'hotel' | 'flight' | 'activity'. Written by the book route from the lane it already holds; NOT NULL, NO DEFAULT, CHECK-enforced in SQL (reservations_lane). Type is read from THIS column and never from `provider` — LiteAPI is both rails.
+  lane                     String   @db.VarChar(20)
+  /// LANE-01: the customer-facing name the lane STATES — a stay's hotel name (the hotel route writes it beside hotelName), a flight's "carrier ORG → DST" once GET /flights/bookings/{id} has answered (the LANE-01 refresh writes it). NULL until stated; a reader renders the lane word and the booking reference, never the provider slug.
+  displayName              String?  @db.VarChar(255)
   providerBookingId        String   @db.VarChar(120) // upstream booking ID
   providerConfirmationCode String?  @db.VarChar(120) // human confirmation code
-  status                   String   @db.VarChar(20) // 'pending' | 'confirmed' | 'cancelled' | 'failed'
+  /// CANCEL-01 (2026-09-26): 'cancel_pending' added — a flight cancel the airline accepted (202) but has not finalized; the booking stays CONFIRMED at the vendor. No CHECK constrains this column (verified), so no widening in SQL.
+  status                   String   @db.VarChar(20) // 'pending' | 'confirmed' | 'cancel_pending' | 'cancelled' | 'failed'
+  /// CANCEL-01 (2026-09-26): the vendor's own timestamp from GET /flights/bookings/{bookingId} — "set when a cancellation was requested and is awaiting airline confirmation". Written on a 202; NULL otherwise. Never our clock.
+  cancelIntentAt           DateTime? @db.Timestamptz(6)
+  /// STATUS-01 (2026-09-26): the airline's ticketData.ticketedAt, verbatim; NULL until the vendor states it. Written only by applyVendorState.
+  ticketedAt               DateTime? @db.Timestamptz(6)
+  /// STATUS-01: the airline's ticketLimitTime ("deadline for ticket issuance (UTC)"), verbatim; NULL until stated. Written only by applyVendorState.
+  ticketLimitTime          DateTime? @db.Timestamptz(6)
+  /// STATUS-01: when the last GET of this booking ARRIVED — the landed response's own timestamp, never our clock in the leaf. The scheduled refresh orders by it, NULL first. Written only by applyVendorState.
+  lastVendorReadAt         DateTime? @db.Timestamptz(6)
+  /// STATUS-01: the marker that the ONE 'ticketed' email attempt was made — stamped in the same transaction as the change that earned it and read under the row lock the read leaf takes (SELECT ... FOR UPDATE, STATUS-01b): the marker plus that lock is what makes the send once. A failed send goes to audit_log by name and is NOT retried automatically: the marker means "the one attempt was made".
+  ticketedEmailSentAt      DateTime? @db.Timestamptz(6)
+  /// STATUS-01: the same marker for the ONE 'hotel_confirmation_arrived' email attempt.
+  confirmationEmailSentAt  DateTime? @db.Timestamptz(6)
   hotelName                String?  @db.VarChar(255)
-  checkinDate              DateTime @db.Date
-  checkoutDate             DateTime @db.Date
+  checkinDate              DateTime? @db.Date // null for non-stay orders (flights) — D3
+  checkoutDate             DateTime? @db.Date // null for non-stay orders (flights) — D3
   guestCount               Int      @default(1)
-  finalPriceCents          Int // integer cents to avoid float math
-  currency                 String   @default("USD") @db.VarChar(3)
+  /// SEC-03 (2026-09-25): NULLABLE. NULL = price not stated by the vendor — reconcile against the bank. Never 0 for unknown; a 0 is a real $0.
+  finalPriceCents          Int? // integer cents to avoid float math
+  /// FX-01 (2026-10-30): no default — the book routes state the vendor's currency on every create; an omitted one is refused by the database.
+  currency                 String   @db.VarChar(3)
   cancellationPolicyJson   Json?
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+  /// REBUILD-01 PR-5: the arrival (the LiteAPI book answer's booking object) this row was parsed from; NULL before the cutoff (no backfill) and for provider 'duffel' rows (not landed).
+  arrival_id               String?
 
   user              users?              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trip              trips?              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  trip              trips?              @relation(fields: [tripId], references: [id], onDelete: SetNull) // T-D7: trip deletion orphans bookings, never erases them
+  arrival           arrivals?           @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   commission_ledger commission_ledger[]
+  transaction_reservation_links transaction_reservation_links[]
+  money_events      money_events[]
+  vouchers          vouchers[]
+  /// POST-01: the plaid_txn postings this booking documents (the charge, and a refund when the vendor stated one).
+  document_entries  journal_entries[]   @relation("posting_document")
+  /// LINK-02 (2026-09-27): the ONE budget line this booking fulfils, linked by the owner — RESTRICT.
+  budget_link       reservation_budget_links?
 
   @@index([userId])
   @@index([tripId])
   @@index([provider, providerBookingId])
+  @@index([arrival_id])
+}
+
+// ─── Webhook events (STATUS-01, 2026-09-26) ─────────────────────────────────
+// One row per vendor webhook delivery the receiver acted on or refused by name
+// after landing its bytes. A WEBHOOK IS A HINT; THE GET IS THE TRUTH: bookingId is
+// the id the receiver resolved in order to find OUR reservation and re-read the
+// vendor — no payload field is ever applied. The dedupe is a PARTIAL UNIQUE index
+// in SQL (webhook_events_eventId_acted_key: eventId, WHERE outcome <> 'duplicate'),
+// so every delivery is on record and at most one row per event_id has acted;
+// Prisma cannot express it, so only the plain index is modeled here.
+model webhook_events {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider   String    @db.VarChar(20)
+  eventId    String    @db.VarChar(160)
+  eventType  String    @db.VarChar(80)
+  bookingId  String?   @db.VarChar(120)
+  /// The delivery's landed bytes. NOT NULL, RESTRICT.
+  arrivalId  String
+  receivedAt DateTime  @db.Timestamptz(6)
+  actedAt    DateTime? @db.Timestamptz(6)
+  outcome    String    @db.VarChar(20) // 'applied' | 'unchanged' | 'unknown_booking' | 'unknown_event' | 'duplicate' | 'read_failed' — CHECK-enforced in SQL
+
+  arrival arrivals @relation(fields: [arrivalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([eventId])
+  @@index([bookingId])
+  @@index([receivedAt])
+  @@index([arrivalId])
+}
+
+// ─── Money events (CANCEL-01, 2026-09-26) ───────────────────────────────────
+// One row per MONEY FACT a vendor states about a reservation — a refund, a
+// cancellation fee, a voucher issued — read from the answer that stated it
+// (arrivalId, NOT NULL: no money fact without its evidence). amountCents NULL =
+// the vendor stated no amount, never 0. status 'stated' = the vendor said it;
+// 'settled' = the bank confirmed it (item 8, refund matching — not this PR).
+model money_events {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservationId     String   @db.Uuid
+  lane              String   @db.VarChar(20) // 'hotel' | 'flight' | 'activity' — CHECK-enforced in SQL
+  kind              String   @db.VarChar(20) // 'charge' | 'refund' | 'cancellation_fee' | 'change_fee' | 'servicing_fee' | 'ticketing_fee' | 'voucher_issued' — CHECK-enforced in SQL
+  /// What the vendor stated, in integer cents — or NULL when it stated none. NEVER 0 for unknown.
+  amountCents       Int?
+  currency          String?  @db.VarChar(3)
+  /// LiteAPI's own word, verbatim: 'original_payment' | 'agency_deposit' | 'voucher' | 'bsp_settlement' | 'manual' | 'unknown' — CHECK-enforced in SQL; NULL when not stated.
+  refundDestination String?  @db.VarChar(20)
+  status            String   @db.VarChar(10) // 'stated' | 'settled' — CHECK-enforced in SQL
+  vendorReference   String?  @db.VarChar(120)
+  /// The arrival this fact was read from. NOT NULL, RESTRICT.
+  arrivalId         String
+  /// The instant the vendor's answer arrived — the arrival's clock, not ours.
+  statedAt          DateTime @db.Timestamptz(6)
+  createdAt         DateTime @default(now())
+  /// MATCH-02 (2026-09-26): the bank row a human ACCEPTED as this refund (transactions.id) — the evidence of 'settled'. CHECK in SQL: (status = 'settled') = (settledTransactionId IS NOT NULL). Written by the review route alone; RESTRICT.
+  settledTransactionId String?
+  /// MATCH-02: the accept instant — the review route's clock, written beside the evidence.
+  settledAt         DateTime? @db.Timestamptz(6)
+
+  reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  arrival     arrivals     @relation(fields: [arrivalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  /// POST-01: the refund postings this money event documents, and the links (MATCH-02) that name it.
+  document_entries journal_entries[] @relation("posting_document_event")
+  links            transaction_reservation_links[] @relation("link_money_event")
+  settledTransaction transactions? @relation("money_event_settlement", fields: [settledTransactionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([reservationId])
+  @@index([arrivalId])
+  @@index([kind, status])
+  @@index([settledTransactionId])
+}
+
+// ─── Vouchers (CANCEL-01, 2026-09-26) ───────────────────────────────────────
+// An airline travel voucher the vendor stated when a cancellation's refund goes
+// to 'voucher'. A TABLE, not a JSON column: a voucher is money the customer holds
+// with an expiry, and expiresAt must be queryable (the Perk / Ramp benchmark).
+model vouchers {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservationId   String    @db.Uuid
+  /// The vendor's voucherId, verbatim; NULL when not stated.
+  vendorVoucherId String?   @db.VarChar(120)
+  code            String    @db.VarChar(120)
+  airline         String?   @db.VarChar(8)
+  amountCents     Int?
+  currency        String?   @db.VarChar(3)
+  validFrom       DateTime? @db.Date
+  expiresAt       DateTime? @db.Date
+  /// The vendor's passengerNames[] verbatim, or NULL when it stated none — a scalar list cannot be NULL in Prisma and would read as a fabricated "nobody".
+  passengerNames  Json?
+  notes           String?
+  arrivalId       String
+  statedAt        DateTime  @db.Timestamptz(6)
+  createdAt       DateTime  @default(now())
+
+  reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  arrival     arrivals     @relation(fields: [arrivalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([reservationId])
+  @@index([expiresAt])
+  @@index([arrivalId])
+}
+
+// ─── Prebook contacts (SEC-03, 2026-09-25) ─────────────────────────────────
+// What the customer STATED at prebook, keyed by the vendor's prebookId, so a
+// checkout's returnUrl carries ids only and the book route reads the contact
+// here — never from a query string. One table for both lanes (`lane` names
+// which); the hotel lane collects its holder on /booking/confirm's own form and
+// writes nothing here today. No default on any stated field.
+model prebook_contacts {
+  prebookId               String   @id @db.VarChar(120)
+  lane                    String   @db.VarChar(20) // 'hotel' | 'flight' | 'activity' — CHECK-enforced in SQL
+  contactFirstName        String   @db.VarChar(255)
+  contactLastName         String   @db.VarChar(255)
+  contactEmail            String   @db.VarChar(255)
+  contactPhone            String   @db.VarChar(40)
+  contactPhoneCountryCode String?  @db.VarChar(8)
+  /// The currency the SEARCH was made in, as the panel stated it — the book route is handed it from here when the vendor's book answer states none. NULL when the panel stated none.
+  searchCurrency          String?  @db.VarChar(3)
+  userId                  String?
+  createdAt               DateTime @default(now())
+
+  user users? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Transaction ↔ reservation links (MATCH-0, the arc's ONLY migration) ─────
+// The booking↔bank matching spine (VISION-AUDIT-1): one row = one PROPOSED (or
+// reviewed) identity between a Plaid transaction and a booking reservation.
+// JOIN TABLE by ruling — transactions stays pristine; the link carries the
+// FULL proposal lifecycle (the discovery_proposals pattern, :2740-2769 —
+// status/confidence/rationale/reviewer stamps) so MATCH-1/2/3 need no further
+// schema. NEVER silently auto-linked: MATCH-1 writes 'proposed' rows only;
+// only a human review (MATCH-2) moves status to 'accepted'/'rejected'.
+// Restrict FKs both sides (the ledger_line_links posture): a matched money
+// row cannot vanish silently — deleting a linked transaction/reservation
+// fails loudly until the link is dealt with. userId = the OWNER scope: links
+// exist only for account-owned reservations (guest rows have userId null and
+// never enter matching until the MATCH-4 claim-flow ruling).
+model transaction_reservation_links {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transactionId  String
+  reservationId  String    @db.Uuid
+  userId         String
+  status         String    @default("proposed") @db.VarChar(20) // 'proposed' | 'accepted' | 'rejected' (CHECK-enforced in SQL)
+  confidence     Float?    // matcher score 0-1 (ruled Float; prediction_confidence/ai_confidence precedents use Decimal — noted deviation)
+  matchRationale String?   @db.Text // which heuristics matched (amount/date/descriptor) — the ai_rationale analog
+  reviewNotes    String?   @db.Text // reviewer's note, esp. on reject (the discovery_proposals review_notes analog — STEP-0 addition)
+  proposedAt     DateTime  @default(now())
+  reviewedAt     DateTime?
+  reviewedBy     String?   @db.VarChar(255)
+  /// POST-01 (2026-09-26): NULL = this link is the booking's CHARGE (every link MATCH-1 proposes today); set = that money event, a REFUND (MATCH-02 proposes these — not built). The accepted link's document rides onto the posting: commitPlaidTransaction writes it as document_money_event_id. RESTRICT in SQL.
+  moneyEventId   String?   @db.Uuid
+
+  transaction transactions @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  user        users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moneyEvent  money_events? @relation("link_money_event", fields: [moneyEventId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([transactionId, reservationId]) // one lifecycle row per pair — re-runs upsert, never duplicate
+  @@index([userId, status]) // the review queue + unplanned-bucket anti-join
+  @@index([reservationId]) // "Booked" status lookups (MATCH-3)
+  @@index([moneyEventId]) // POST-01: a refund link by its money event
 }
 
 // ─── Commission ledger (margin earned per reservation) ──────────────────────
@@ -1250,20 +1934,38 @@ model commission_ledger {
   userId                String?
   reservationId         String    @db.Uuid
   provider              String    @db.VarChar(20)
-  grossAmountCents      Int // total guest paid (final price)
-  commissionAmountCents Int // our margin (in cents)
-  currency              String    @default("USD") @db.VarChar(3)
-  status                String    @db.VarChar(20) // 'estimated' | 'confirmed' | 'paid'
+  /// SEC-03 (2026-09-25): NULLABLE. NULL = price not stated by the vendor — reconcile against the bank.
+  grossAmountCents      Int? // total guest paid (final price)
+  /// COMM-01 (2026-09-26): NULLABLE. NULL = the vendor stated no commission at booking (a flight — NOT DOCUMENTED; a hotel answer without the field). The book-time figure, never overwritten; the lock below states the earned figure.
+  commissionAmountCents Int?
+  /// FX-01 (2026-10-30): no default — the book routes state it on every create; an omitted one is refused by the database.
+  currency              String    @db.VarChar(3)
+  /// CANCEL-01 (2026-09-26): 'cancelled' added — an 'estimated' row moves here when the reservation's cancel is FINAL (the margin will not be earned). COMM-01 (2026-09-26): the four documented words are now CHECK-enforced in SQL (commission_ledger_status); 'confirmed' is written only by the lock (applyVendorState through the read leaf); 'paid' has no writer yet (MATCH-02 / POST-01).
+  status                String    @db.VarChar(20) // 'estimated' | 'confirmed' | 'paid' | 'cancelled'
   payoutDate            DateTime?
   providerInvoiceRef    String?   @db.VarChar(120)
   createdAt             DateTime  @default(now())
+  /// COMM-01: the vendor's `commission` on the read that locked it ("The total commission amount associated with all rooms on the booking"), in cents; NULL until locked. A stated 0 is stated.
+  lockedCommissionCents      Int?
+  /// COMM-01: `distributorCommission` ("Commission amount for the distributor") on that read, verbatim in cents; NULL when unstated.
+  distributorCommissionCents Int?
+  /// COMM-01: `clientCommission` ("Commission amount for the client") on that read, verbatim in cents; NULL when unstated.
+  clientCommissionCents      Int?
+  /// COMM-01: `processingFee` ("Processing fee for the booking") on that read, verbatim in cents; NULL when unstated.
+  processingFeeCents         Int?
+  /// COMM-01: that read's landed instant — never our clock.
+  lockedAt                   DateTime? @db.Timestamptz(6)
+  /// COMM-01: that read's arrival (liteapi · booking_read) — the lock's evidence. RESTRICT.
+  lockArrivalId              String?
 
   user        users?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  lockArrival arrivals?    @relation("commission_lock", fields: [lockArrivalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([userId])
   @@index([reservationId])
   @@index([status])
+  @@index([lockArrivalId])
 }
 
 // ============================================
@@ -1617,12 +2319,19 @@ model trade_cards {
   // Full card snapshot — safety net so we never lose data
   full_card_json Json?
 
-  user users             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  link trade_card_links?
+  // LOG-01: the scored candidate this card was saved from (null for cards
+  // saved before LOG-01 or posted without one). The link route flips the
+  // candidate's `taken` on link/unlink.
+  candidate_id String? @db.Uuid
+
+  user      users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  link      trade_card_links?
+  candidate scan_candidates?  @relation(fields: [candidate_id], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([userId, status])
   @@index([symbol])
+  @@index([candidate_id])
 }
 
 model trade_card_links {
@@ -1708,6 +2417,16 @@ model closing_periods {
 // BANK RECONCILIATIONS — Per-account, per-period reconciliation records
 // ═══════════════════════════════════════════════════════════════════
 
+/// DOCUMENTS-02 (Alex, 2026-10-30, ruling D): a reconciled month is FROZEN and re-opened only by
+/// supersession — the source_documents pattern. HELD BY THE DATABASE
+/// (prisma/migrations/20261030120000_documents_02_reconciliation_supersession — Prisma cannot express a
+/// partial index or a trigger): ONE CURRENT row per (user, entity, account, year, month) — a partial unique
+/// over superseded_by IS NULL (the five-column @@unique that stood here lives there now); status is 'draft'
+/// or 'reconciled' (CHECK); a FREEZE trigger — a reconciled row changes only by superseded_by set once
+/// from NULL — and a NO-DELETE trigger. superseded_by's self reference is DEFERRABLE INITIALLY DEFERRED:
+/// a re-open marks the old row, then inserts the new one, in one transaction
+/// (src/app/api/bank-reconciliations/route.ts POST). The book side is the books (bankSide.ts), never
+/// accounts.currentBalance; the numbers stored are the server's (src/lib/books/reconciliation.ts).
 model bank_reconciliations {
   id                String    @id @default(uuid())
   userId            String
@@ -1727,13 +2446,17 @@ model bank_reconciliations {
   notes             String?
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
+  /// The row that re-opened this one; NULL while this row is the month's current reconciliation.
+  superseded_by     String?
 
   user    users    @relation(fields: [userId], references: [id])
   entity  entities @relation(fields: [entity_id], references: [id])
   account accounts @relation(fields: [account_id], references: [id])
+  superseded_by_row bank_reconciliations?  @relation("bank_reconciliation_supersede", fields: [superseded_by], references: [id], onDelete: Restrict)
+  supersedes        bank_reconciliations[] @relation("bank_reconciliation_supersede")
 
-  @@unique([userId, entity_id, account_id, year, month])
   @@index([userId, entity_id, status])
+  @@index([superseded_by])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1754,12 +2477,13 @@ model scan_snapshots {
   hv30         Float?
   ivPercentile Float?
 
-  // Gate scores (0-100)
-  volEdgeScore   Float
-  qualityScore   Float
-  regimeScore    Float
-  infoEdgeScore  Float
-  compositeScore Float
+  // Gate scores (0-100). MIG-1: nullable — a gate with ZERO computable
+  // signals records an honest null (excluded + declared), never a number.
+  volEdgeScore   Float?
+  qualityScore   Float?
+  regimeScore    Float?
+  infoEdgeScore  Float?
+  compositeScore Float?
 
   // Position sizing
   gatesAbove50    Int
@@ -1774,8 +2498,11 @@ model scan_snapshots {
   regimeLabel String? @db.VarChar(30) // "goldilocks", "stagflation", etc.
   vixLevel    Float?
 
-  // Strategy suggested
-  suggestedStrategy String? @db.VarChar(100)
+  // Strategy suggested. MODEL-02: VarChar(400) — the longest producible line is
+  // ≈272 chars (brake UNVERIFIED with both legs missing + a clipped VVIX reason);
+  // VarChar(100) overflowed on every seller row from 2026-07-08 (P2000, swallowed).
+  // Width is SNAPSHOT_SUGGESTED_STRATEGY_MAX in snapshot-logger.ts; the build holds them equal.
+  suggestedStrategy String? @db.VarChar(400)
   suggestedDTE      Int?
 
   // Outcome tracking (filled in later by scheduled job after DTE expiry)
@@ -1796,6 +2523,28 @@ model scan_snapshots {
   @@index([ticker, scanDate])
   @@index([compositeScore])
   @@index([regimeLabel])
+}
+
+/// TRADE-COST-01 — the per-symbol Finnhub cache. ONE row per (symbol, endpoint,
+/// params hash): the vendor's verbatim answer, its HTTP status and fetched_at.
+/// A row older than its endpoint's TTL (src/lib/convergence/finnhub-ttl.ts) is a
+/// MISS — refetched and OVERWRITTEN, fetched_at updated. Written and read only by
+/// src/lib/convergence/finnhub-cache.ts. NO user column: market data is not
+/// user-scoped — the same answer serves every scan (unlike scan_snapshots, which
+/// holds a user's own scores). key_params is the hashed spec (a rolling window
+/// keyed relatively, e.g. from=-540d); sent_params the absolute query the vendor saw.
+model finnhub_responses {
+  symbol        String   @db.VarChar(20)
+  endpoint      String   @db.VarChar(64)
+  params_hash   String   @db.VarChar(64)
+  key_params    String   @db.VarChar(512)
+  sent_params   String   @db.VarChar(512)
+  response      Json     @db.JsonB
+  vendor_status Int
+  fetched_at    DateTime @db.Timestamptz(6)
+
+  @@id([symbol, endpoint, params_hash])
+  @@index([fetched_at])
 }
 
 model ObservatoryHealthLog {
@@ -2239,6 +2988,8 @@ enum AuditActionType {
   operations_project_updated
   operations_project_status_changed
   operations_project_deleted
+  // BACKLOG-02 (Alex, 2026-10-20): the reorder route's one audit value — ranks 1..n written in one transaction (projects/reorder).
+  operations_project_reranked
   operations_project_task_created
   operations_project_task_updated
   operations_project_task_status_changed
@@ -2282,6 +3033,92 @@ enum AuditActionType {
   operations_north_star_updated
   operations_north_star_reviewed
   system_other
+  // AUDIT-01 (2026-09-26): every change to a booking, once each — appended after
+  // system_other in the order ALTER TYPE ... ADD VALUE gives them
+  // (prisma/migrations/20260926230000_audit_01_booking_audit_enums). No backfill.
+  reservation_booked
+  reservation_status_changed
+  reservation_confirmation_code_arrived
+  reservation_ticketed
+  reservation_ticket_limit_stated
+  reservation_cancel_quoted
+  reservation_cancel_requested
+  reservation_cancel_pending
+  reservation_cancelled
+  reservation_cancel_refused
+  reservation_email_sent
+  reservation_email_failed
+  reservation_posted
+  money_event_stated
+  money_event_settled
+  commission_locked
+  // LINK-02 (2026-09-27): a booking linked to / unlinked from the budget line it fulfils,
+  // by the owner — migration 20260927120000_link_02_reservation_budget_links.
+  reservation_budget_linked
+  reservation_budget_unlinked
+  // VENDOR-01 (2026-09-29): a plan's vendor set / cleared by its owner, appended in
+  // the order ALTER TYPE ... ADD VALUE gives them — migration
+  // 20260929190000_vendor_01_planned_item_vendors. Both are in the audit-log route's
+  // operations_ list.
+  operations_plan_vendor_set
+  operations_plan_vendor_cleared
+  // WEEK-02 (2026-09-30): a done's note edited by its owner, appended in the order
+  // ALTER TYPE ... ADD VALUE gives it — migration
+  // 20260930210000_week_02_completion_note_edited. It is in the audit-log route's
+  // operations_ list.
+  operations_routine_completion_note_edited
+  // STAY-01 (2026-10-12): a stay set (created or changed) / deleted by its owner,
+  // appended in the order ALTER TYPE ... ADD VALUE gives them — migration
+  // 20261012090000_stay_01_operations_stays. Both are in the audit-log route's
+  // operations_ list.
+  operations_stay_set
+  operations_stay_deleted
+  // STOP-01 (2026-10-12): a stop's record set (created or changed) / cleared by its
+  // owner, appended in ALTER TYPE order — migration
+  // 20261012140000_stop_01_operations_stop_records. Both are in the audit-log
+  // route's operations_ list.
+  operations_stop_set
+  operations_stop_cleared
+  // JOURNAL-01 (2026-10-13): a day's journal set (created or changed) / cleared by
+  // its owner, appended in ALTER TYPE order — migration
+  // 20261013120000_journal_01_day_journals. Both are in the audit-log route's
+  // operations_ list.
+  operations_journal_set
+  operations_journal_cleared
+  // TASKS-ONE-02 (2026-10-14): a routine's completion deleted / moved because its
+  // stop records no longer say done / their done time changed (the stops routes,
+  // src/lib/operations/routineCompletion.ts), appended in ALTER TYPE order —
+  // migration 20261014090000_tasks_one_02_completion_audit_types. Both are in the
+  // audit-log route's operations_ list.
+  operations_routine_uncompleted
+  operations_routine_completion_updated
+  // RETRO-01 (Alex, 2026-10-16): a stop's record moved to its stop's instant by its
+  // owner (the stops/[id] PATCH — a record typed before the routine's time or start
+  // date changed), appended in ALTER TYPE order — migration
+  // 20261016120000_retro_01_stop_moved_audit_type. In the audit-log route's
+  // operations_ list.
+  operations_stop_moved
+  // ROUTINE-02b (Alex, 2026-10-18): a routine's history moved with its time — every
+  // row keyed to its old instants (completions, stop records, single-occurrence
+  // plan vendors, plan links) rekeyed to the new rule's instant on the same day by
+  // the routines/[id] PATCH, in one transaction; the counts per table in the
+  // metadata. Appended in ALTER TYPE order — migration
+  // 20261018120000_routine_02b_rekeyed_audit_type. In the audit-log route's
+  // operations_ list.
+  operations_routine_rekeyed
+  // MOVE-01 (Alex, 2026-10-19): "I'm moving" — from a date, every current routine
+  // ended the day before and, when carried, copied into the new zone; the
+  // re-zoned ones; the stay shortened and the stay opened — one transaction
+  // (routines/move/route.ts), audited once with every pair by id. Appended in
+  // ALTER TYPE order — migration 20261019090000_move_01_moved_audit_type. In the
+  // audit-log route's operations_ list.
+  operations_routines_moved
+  // LEDGER-03 (2026-10-19): a posting linked to / unlinked from a planned item by its
+  // owner (calendar/links route POST / DELETE), appended in the order ALTER TYPE ...
+  // ADD VALUE gives them — migration 20261019230000_ledger_03_planned_item_link_audit.
+  // Both are in the audit-log route's planned_item_ list.
+  planned_item_linked
+  planned_item_unlinked
 }
 
 model audit_log {
@@ -2350,6 +3187,30 @@ enum ProjectStatus {
   completed
   cancelled
   archived
+  // BACKLOG-01 (Alex, 2026-10-20): a captured project lands in the backlog, is
+  // scoped on its row, is scheduled onto the calendar, or is dropped. The six
+  // above stay; no row is rewritten.
+  backlog
+  scoped
+  scheduled
+  dropped
+}
+
+// BACKLOG-01 (Alex, 2026-10-20): what kind of work a project is — required at
+// capture; the column is nullable so a row captured before reads "—".
+enum ProjectType {
+  engineering
+  accounting
+  content
+  travel
+  ops
+}
+
+// BACKLOG-01 (Alex, 2026-10-20): how big — optional at capture ("not sized").
+enum ProjectSize {
+  S
+  M
+  L
 }
 
 enum WorkstreamStatus {
@@ -2771,6 +3632,9 @@ model operations_projects {
   problem                  String?       @db.Text
   diagnosis                String?       @db.Text
   design                   String?       @db.Text
+  // BACKLOG-01b (2026-10-20): no longer written or shown by the UI; CLEAN-03
+  // rules on dropping. One fact, one home: problem / why / goal / diagnosis /
+  // design are the text columns above and below.
   goal_items               Json          @default("[]") @db.JsonB
   problem_items            Json          @default("[]") @db.JsonB
   diagnosis_items          Json          @default("[]") @db.JsonB
@@ -2780,6 +3644,28 @@ model operations_projects {
   // audit-ingest callback can bind incoming findings to the exact fire (stored-match).
   audit_correlation_id     String?       @db.Text
   status                   ProjectStatus @default(not_started)
+  // BACKLOG-01 (Alex, 2026-10-20): the capture's columns. type and why are
+  // required by the POST for every new project; the columns are nullable so a
+  // row captured before reads "—" and is never defaulted. links' '[]' is the
+  // *_items pattern — "no links". rank is set only by BACKLOG-02's reorder
+  // (NULL or > 0 — the CHECK in the migration); the three dates are written by
+  // BACKLOG-03's transitions only.
+  type                     ProjectType?
+  size                     ProjectSize?
+  why                      String?       @db.Text
+  definition_of_done       String?       @db.Text
+  links                    Json          @default("[]") @db.JsonB
+  notes                    String?       @db.Text
+  // BACKLOG-01b (Alex, 2026-10-20): the brief's three — 4 ALREADY RULED, 5 WANT
+  // A RECOMMENDATION ON, and the reason for the target date (required by the
+  // rule when a date is set; 500 is the column's length).
+  rulings                  String?       @db.Text
+  open_questions           String?       @db.Text
+  deadline_reason          String?       @db.VarChar(500)
+  rank                     Int?
+  promoted_at              DateTime?     @db.Timestamptz(6)
+  scheduled_at             DateTime?     @db.Timestamptz(6)
+  done_at                  DateTime?     @db.Timestamptz(6)
   target_completion_date   DateTime?     @db.Timestamptz(6)
   estimated_total_minutes  Int?
   estimated_total_cost_usd Decimal?      @db.Decimal(15, 2)
@@ -2797,10 +3683,13 @@ model operations_projects {
   linked_issues         operations_issue_log_entries[]
   content_pieces        operations_content_pieces[]       @relation("ProjectContentPieces")
   hub_scheduled_items   hub_scheduled_items[]
+  ledger_line_links     ledger_line_links[]
 
   @@unique([user_id, title])
   @@index([user_id, entity_id, status])
   @@index([user_id, status])
+  // BACKLOG-01: the ranked view's read (BACKLOG-02) — a user's projects by status, in rank order.
+  @@index([user_id, status, rank])
   @@index([priority_score])
   @@index([target_completion_date])
   @@map("operations_projects")
@@ -2845,6 +3734,8 @@ model operations_project_tasks {
   daily_plan_items    operations_daily_plan_items[]
   status_history      operations_task_status_history[]
   hub_scheduled_items hub_scheduled_items[]
+  // VENDOR-01: the task's vendor — every occurrence only (a task happens once).
+  planned_item_vendors planned_item_vendors[]
 
   @@index([project_id, status, display_order])
   @@index([user_id, status, priority_score])
@@ -2956,6 +3847,14 @@ model operations_routines {
   end_date                      DateTime? @db.Date
   start_time                    DateTime? @db.Time(6)
   end_time                      DateTime? @db.Time(6)
+  // ONEOFF-01: the routine's PLACE, at the routine level — the same three columns
+  // a calendar_events row carries (GEO-01), so a one-off's occurrence pins on the
+  // day map. All nullable; the coordinate pair is all-or-nothing by a CHECK in
+  // the migration, and a COUNT=1 rule (cadence "once") requires start_date by
+  // another — the anchor every expansion of it is built on.
+  location                      String?   @db.VarChar(255)
+  latitude                      Decimal?  @db.Decimal(10, 7)
+  longitude                     Decimal?  @db.Decimal(10, 7)
   is_active                     Boolean   @default(true)
   // HB-4a: a budgeted routine carries a PER-OCCURRENCE amount + a COA. Both nullable — a routine
   // with no budget stays null (never 0). The monthly budget figure is computed on-read later
@@ -2967,6 +3866,12 @@ model operations_routines {
   // only genuinely new column. No DB change for coa_code.
   budget_amount                 Decimal?  @db.Decimal(12, 2)
   coa_code                      String?   @db.VarChar(50)
+  // ROLE-01 (2026-10-13): what kind of stop this routine is on the day card —
+  // 'journal' | 'plan' | 'execute' | 'place' | 'all_day' | 'none' (the migration's
+  // CHECK; the one rule src/lib/operations/stopRole.ts). It decides what the step
+  // card asks; 'all_day' is in the day's plan but not a stop. A line takes its
+  // routine's role. NOT NULL, default 'none' — no row rewritten.
+  role                          String    @default("none") @db.VarChar(10)
   created_at                    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at                    DateTime  @updatedAt @db.Timestamptz(6)
   created_by                    String?
@@ -2975,6 +3880,11 @@ model operations_routines {
   steps               operations_routine_steps[]
   content_scene_group operations_content_scene_groups?
   hub_scheduled_items hub_scheduled_items[]
+  ledger_line_links   ledger_line_links[]
+  // VENDOR-01: the routine's vendor, when its own figure is in force.
+  planned_item_vendors planned_item_vendors[]
+  // STOP-01: the records at this routine's stops — a routine with no lines only.
+  stop_records         operations_stop_records[]
 
   @@unique([user_id, name])
   @@index([user_id, is_active, next_due_at])
@@ -2995,6 +3905,16 @@ model operations_routine_steps {
   location         String?   @db.VarChar(200)
   duration_minutes Int?
   notes            String?   @db.Text
+  // LINES-01: the line carries the triple. A step already holds time and place;
+  // it now holds its own cost and category, so the founder's morning routine can
+  // be a gym line (no amount), a coffee line ($80 / 5200) and a dining-out line
+  // ($200, no category). Both NULLABLE — blank is blank, never 0 — and both
+  // validated the way HB-4a validates the routine's own (CoaSelect, entity chart).
+  // THE RULE (src/lib/operations/routineLines.ts): when any active line carries
+  // an amount, the routine's planned figure is the SUM of its lines and the
+  // routine-level budget_amount is ignored for it — reported, never added.
+  budget_amount    Decimal?  @db.Decimal(12, 2)
+  coa_code         String?   @db.VarChar(50)
   // OPS-CE-1: soft-delete flag. Removing a step ARCHIVES it (is_active=false)
   // instead of hard-deleting, so its content_scene row + every logged take
   // (answer) survive. Active routine/grid views filter is_active=true. Mirrors
@@ -3007,6 +3927,10 @@ model operations_routine_steps {
   routine             operations_routines        @relation(fields: [routine_id], references: [id], onDelete: Cascade)
   content_scene       operations_content_scenes?
   hub_scheduled_items hub_scheduled_items[]
+  // VENDOR-01: the line's vendor, when the routine's figure is its lines.
+  planned_item_vendors planned_item_vendors[]
+  // STOP-01: the records at this line's stops.
+  stop_records         operations_stop_records[]
 
   @@index([routine_id, step_order])
   @@index([routine_id])
@@ -3344,6 +4268,11 @@ model operations_vendor_directory {
   updated_at           DateTime  @updatedAt @db.Timestamptz(6)
   created_by           String?
 
+  // DIM-1: this directory is THE vendor table — journal entries reference it.
+  journal_entries journal_entries[]
+  // VENDOR-01: and the plans that name it (RESTRICT — a named vendor cannot vanish).
+  planned_item_vendors planned_item_vendors[]
+
   @@unique([user_id, entity_id, vendor_name])
   @@index([user_id, is_active])
   @@index([user_id, entity_id])
@@ -3383,4 +4312,343 @@ model operations_north_star {
 
   @@index([next_review_at])
   @@map("operations_north_star")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// THE ARRIVALS STORE (REBUILD-01 PR-1) — the blueprint's step 3
+// prisma/migrations/20260903000000_arrivals/migration.sql moves with this.
+// Column for column with the SQL — asserted at build
+// (scripts/assert-tool-registry.ts, THE ARRIVALS LAW). Nothing writes here yet.
+// ═══════════════════════════════════════════════════════════════════
+
+/// Every provider the deck names — src/lib/providers.ts PROVIDER_CODES, alphabetical.
+enum arrival_provider {
+  alpaca
+  amadeus
+  anthropic
+  ecfr
+  federal_register
+  finnhub
+  fred
+  google_places
+  ibkr
+  irs
+  liteapi
+  openai
+  plaid
+  polygon
+  schwab
+  sec
+  snaptrade
+  square
+  stripe
+  tastytrade
+  teller
+  tradier
+  travel_buddy
+  us_code
+  viator
+  voyage
+  xai_grok
+}
+
+enum arrival_status {
+  pending
+  done
+  failed
+}
+
+/// their_id is the provider's own id, or one we composed and labeled as such.
+enum their_id_kind {
+  provider
+  composed
+}
+
+/// RULEBOOK-01: the six kinds, the deck's HANDOFF_KINDS order (src/lib/providers.ts ARRIVAL_KINDS; asserted at build). Nothing ever arrives as a posting.
+enum arrival_kind {
+  reference
+  registry
+  event
+  derived
+  snapshot
+  posting
+}
+
+/// The wire: the exact bytes of one HTTP answer, sha256'd. One row per answer.
+model provider_responses {
+  id          String           @id
+  provider    arrival_provider
+  resource    String
+  user_id     String?
+  guest_ref   String?
+  http_status Int
+  body        Bytes            @db.ByteA
+  body_sha256 Bytes            @db.ByteA
+  asked       DateTime         @db.Timestamptz(6)
+  arrived     DateTime         @db.Timestamptz(6)
+  /// REBUILD-01 PR-4b: every path blanked in `body` before it was stored ('{}' = the exact wire bytes; else the canonical redacted bytes, sha256'd as stored).
+  redactions  String[]         @default([])
+  user        users?           @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  arrivals    arrivals[]
+
+  @@index([user_id, provider, arrived(sort: Desc)])
+}
+
+/// The deck's row: one per provider object. Promise 1 is a BEFORE UPDATE
+/// trigger in the migration — only read and status may move, each once.
+model arrivals {
+  id            String              @id
+  provider      arrival_provider
+  connection    String?
+  resource      String
+  their_id      String
+  their_id_kind their_id_kind
+  payload       Json                @db.JsonB
+  fingerprint   Bytes               @db.ByteA
+  redactions    String[]            @default([])
+  asked         DateTime            @db.Timestamptz(6)
+  arrived       DateTime?           @db.Timestamptz(6)
+  read          DateTime?           @db.Timestamptz(6)
+  status        arrival_status      @default(pending)
+  response_id   String?
+  user_id       String?
+  guest_ref     String?
+  /// RULEBOOK-01: the kind the rule book assigns this (provider, resource) — set on landing, applied by the migration to the rows before it; promise 1 freezes it.
+  kind          arrival_kind
+  response      provider_responses? @relation(fields: [response_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user          users?              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactions  transactions[]
+  investment_transactions investment_transactions[]
+  securities    securities[]
+  reservations  reservations[]
+  holdings      holdings[]
+  money_events  money_events[]
+  vouchers      vouchers[]
+  webhook_events webhook_events[]
+  /// COMM-01 (2026-09-26): the commission rows this arrival locked (the read after checkout).
+  commission_locks commission_ledger[] @relation("commission_lock")
+
+  /// PR-2: the same thing is the same provider + id + content; a correction is a new row.
+  @@unique([provider, their_id, fingerprint])
+  @@index([user_id, provider, resource, arrived(sort: Desc)])
+  @@index([provider, their_id, arrived(sort: Desc)])
+  @@index([status])
+  @@index([response_id])
+}
+
+/// TABLES-01: six tables, one per kind — VIEWS over the typed feed tables (src/lib/kindViews.ts KIND_VIEW
+/// census; prisma/migrations/*_kind_views). One common shape; each unions exactly the feed tables of its
+/// kind, the kind per table from the rule book. posting is empty by the deck's own law; snapshot until holdings land.
+
+view reference {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+view registry {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+view event {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+view derived {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+view snapshot {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+view posting {
+  kind       arrival_kind
+  feed       String
+  table_name String
+  row_id     String
+  their_id   String
+  arrival_id String?
+  user_id    String?
+  arrived    DateTime? @db.Timestamptz(6)
+
+  @@unique([table_name, row_id])
+}
+
+/// LOG-01 — EVERY SCANNED CANDIDATE IS LOGGED, TAKEN OR NOT. One row per
+/// scan run, keyed by the user who ran it (the candidates below are market
+/// data, keyed by the run, never by the user directly). Written by
+/// src/lib/convergence/candidate-log.ts persistScanCandidates from
+/// pipeline.ts — the SAME list the scan returns.
+model scan_runs {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String
+  started_at         DateTime @default(now()) @db.Timestamptz(6)
+  universe           String?  @db.VarChar(40)
+  limit_requested    Int
+  /// src/lib/edge-read/eras.ts MODEL_ERAS id in force at the run
+  model_era          String   @db.VarChar(8)
+  tickers_scored     Int
+  candidates_written Int
+  /// MODEL-01: the mode the run was requested in — SELL, BUY or BOTH
+  side               String   @db.VarChar(4)
+
+  user       users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  candidates scan_candidates[]
+
+  @@index([userId, started_at])
+}
+
+/// LOG-01 — one row per scored candidate structure (a ticker yields several:
+/// iron condor, put credit spread, short strangle …), with its scores LOCKED
+/// at scan time and its outcome tracked to expiry whether or not it was
+/// traded. `taken` flips when the card saved from it is linked to a real
+/// position; `outcome_source` says whether outcome_pl came from that position
+/// or from the counterfactual price path (candidate-log.ts settleCandidateOutcomes).
+/// A price that cannot be obtained leaves outcome_pl null with outcome_reason —
+/// never imputed, never 0.
+model scan_candidates {
+  id                String    @id @default(uuid()) @db.Uuid
+  run_id            String    @db.Uuid
+  symbol            String    @db.VarChar(20)
+  strategy_name     String    @db.Text
+  label             String?   @db.VarChar(8)
+  /// [{ type: call|put, side: buy|sell, strike, price (mid at scan) }]
+  legs              Json
+  expiration        DateTime  @db.Date
+  dte               Int
+  net_credit        Float?
+  net_debit         Float?
+  max_profit        Float?
+  max_loss          Float?
+  is_unlimited      Boolean
+  /// probability of profit 0–1 (strategy-builder breakeven_d2 or delta_approx)
+  pop               Float?
+  pop_method        String?   @db.VarChar(20)
+  ev                Float?
+  ev_per_risk       Float?
+  spot_at_scan      Float?
+  iv30_at_scan      Float?
+  composite_score   Float?
+  vol_edge_score    Float?
+  quality_score     Float?
+  regime_score      Float?
+  info_edge_score   Float?
+  data_confidence   Float?
+  imputed_count     Int?
+  /// composite.data_confidence.excluded_fields at scan time (string[])
+  excluded_fields   Json
+  model_era         String    @db.VarChar(8)
+  generated_at      DateTime  @db.Timestamptz(6)
+  taken             Boolean   @default(false)
+  outcome_pl        Float?
+  outcome_at        DateTime? @db.Timestamptz(6)
+  outcome_source    String?   @db.VarChar(120)
+  outcome_reason    String?   @db.Text
+  settle_price      Float?
+  settle_price_date DateTime? @db.Date
+  /// MODEL-01: the funnel side the candidate came through (SELL | BUY)
+  side               String  @db.VarChar(4)
+  /// MODEL-01: the model that scored it (seller | buyer) — never null
+  score_model        String  @db.VarChar(8)
+  /// MODEL-01: [{ kind, detail, source }] — non-empty on every BUY row (the catalyst law); [] on SELL
+  catalyst           Json    @default("[]")
+  /// MODEL-01: the earnings date against [scan, expiration] — inside / outside / unknown, with its source
+  earnings_window    String  @db.Text
+  /// MODEL-01: the cap check that let an unbounded structure exist; null for defined risk
+  undefined_risk_cap String? @db.Text
+
+  run   scan_runs     @relation(fields: [run_id], references: [id], onDelete: Cascade)
+  cards trade_cards[]
+
+  @@index([run_id])
+  @@index([expiration, outcome_at])
+  @@index([symbol, generated_at])
+  @@index([side, generated_at])
+}
+
+/// DOCUMENTS-01 (Alex, 2026-10-28) — THE SOURCE DOCUMENT, KEPT: the file behind a posting, word for word.
+/// A receipt is addressed to its posting (journal_entry_id); a statement to an account's month
+/// (account_id + period_month — its screen is DOCUMENTS-02). The bytes live HERE, in Postgres (ruling C);
+/// the list read never selects them (src/lib/books/sourceDocuments.ts SOURCE_DOCUMENT_LIST_SELECT).
+/// HELD BY THE DATABASE (prisma/migrations/20261028120000_documents_01_source_documents — Prisma cannot
+/// express a partial index or a trigger; the migration holds them): one address per row (CHECK); one
+/// CURRENT document per address (partial unique indexes over superseded_by IS NULL); the type, the 4 MiB cap
+/// and the 32-byte sha256 (CHECKs); a FREEZE trigger — nothing changes once kept, except superseded_by set
+/// once from NULL — and a NO-DELETE trigger. superseded_by's self reference is DEFERRABLE INITIALLY DEFERRED:
+/// a replace marks the old row, then inserts the new one, in one transaction. One writer: the upload route
+/// (src/app/api/books/documents/route.ts POST) — the build's documents law.
+model source_documents {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String
+  /// 'receipt' | 'statement' — a CHECK, not a convention.
+  kind             String    @db.VarChar(12)
+  journal_entry_id String?
+  account_id       String?
+  /// The first day of the statement's month; NULL for a receipt.
+  period_month     DateTime? @db.Date
+  /// Display only — never a path. Sanitized by the upload route.
+  file_name        String    @db.VarChar(255)
+  /// Read from the file's first bytes, never from the browser: application/pdf | image/jpeg | image/png.
+  content_type     String    @db.VarChar(32)
+  byte_size        Int
+  /// sha256 of `bytes`, computed by the server.
+  sha256           Bytes     @db.ByteA
+  bytes            Bytes     @db.ByteA
+  superseded_by    String?   @db.Uuid
+  uploaded_at      DateTime  @default(now()) @db.Timestamptz(6)
+  uploaded_by      String?
+
+  user              users              @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  journal_entry     journal_entries?   @relation(fields: [journal_entry_id], references: [id], onDelete: Restrict)
+  account           accounts?          @relation(fields: [account_id], references: [id], onDelete: Restrict)
+  superseded_by_doc source_documents?  @relation("source_document_supersede", fields: [superseded_by], references: [id], onDelete: Restrict)
+  supersedes        source_documents[] @relation("source_document_supersede")
+
+  @@index([user_id, journal_entry_id])
+  @@index([user_id, account_id, period_month])
+  @@map("source_documents")
 }

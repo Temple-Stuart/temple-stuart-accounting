@@ -1,6 +1,12 @@
 import { randomUUID } from 'crypto';
+// TRADE-LOG-01: the option P&L arithmetic moved to a leaf so a hand-entered
+// close produces the SAME number as this synced one — one path, not a copy.
+import { closeProceedsCents, openCostBasisCents, positionTypeOf, proportionalCostCents, realizedPlCents } from '@/lib/tradeLog/optionPnl';
+import { SYNCED_SOURCE } from '@/lib/tradeLog/ownership';
+import { ValidationError } from '@/lib/errors/ValidationError';
 import { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { postJournal, type PostEntry } from '@/lib/posting/postJournal';
 
 interface InvestmentLeg {
   id: string;
@@ -29,11 +35,13 @@ export class PositionTrackerService {
     tradeNum: string;
     userId: string;
     entityId: string;
-    tx?: TransactionContext;
+    tx: TransactionContext;
+    /** HYG-04: every journal entry goes through postJournal's `post` — the caller opened the transaction with postJournal. */
+    post: PostEntry;
     createdBy?: string;
   }) {
-    const { legs, strategy, tradeNum, userId, entityId, tx, createdBy } = params;
-    const db = tx || prisma;
+    const { legs, strategy, tradeNum, userId, entityId, tx, post, createdBy } = params;
+    const db = tx;
     const results = [];
     const skipped = [];
 
@@ -43,7 +51,7 @@ export class PositionTrackerService {
     for (const leg of legs) {
       if (leg.positionEffect === 'open') {
         console.log(`  [OPEN] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
-        const result = await this.openPosition(leg, strategy, tradeNum, userId, entityId, db, createdBy);
+        const result = await this.openPosition(leg, strategy, tradeNum, userId, entityId, db, post, createdBy);
         results.push(result);
       }
     }
@@ -62,7 +70,7 @@ export class PositionTrackerService {
       // This handles spread closes where multiple positions close together via stock
       // settlement, and expirations where positions expire worthless.
       console.log(`  [ATOMIC CLOSE] ${closeLegs.length} legs for Trade #${tradeNum}`);
-      const spreadResult = await this.closeSpreadAtomically(closeLegs, strategy, tradeNum, userId, entityId, db, createdBy);
+      const spreadResult = await this.closeSpreadAtomically(closeLegs, strategy, tradeNum, userId, entityId, db, post, createdBy);
       results.push(...spreadResult.results);
       skipped.push(...spreadResult.skipped);
     } else {
@@ -100,6 +108,7 @@ export class PositionTrackerService {
             userId,
             entityId,
             db,
+            post,
             createdBy
           );
           results.push(result);
@@ -136,18 +145,14 @@ export class PositionTrackerService {
     userId: string,
     entityId: string,
     db: TransactionContext,
+    post: PostEntry,
     createdBy?: string
   ) {
     const TRADING_CASH = '1010';
-    const multiplier = 100;
-    let costBasis: number;
-    if (leg.action === 'buy') {
-      costBasis = Math.round((leg.price * leg.quantity * multiplier + leg.fees) * 100);
-    } else {
-      costBasis = Math.round((leg.price * leg.quantity * multiplier - leg.fees) * 100);
-    }
+    // TRADE-LOG-01: one arithmetic, in src/lib/tradeLog/optionPnl.ts.
+    const costBasis = openCostBasisCents({ action: leg.action as 'buy' | 'sell', price: leg.price, quantity: leg.quantity, fees: leg.fees });
     let positionAccount: string;
-    const positionType = leg.action === 'buy' ? 'LONG' : 'SHORT';
+    const positionType = positionTypeOf(leg.action as 'buy' | 'sell');
     if (leg.action === 'buy') {
       positionAccount = leg.contractType === 'call' ? '1200' : '1210';
     } else {
@@ -165,14 +170,21 @@ export class PositionTrackerService {
       date: leg.date,
       description: `OPEN ${positionType}: ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} ${leg.expiry?.toLocaleDateString()}`,
       lines, externalTransactionId: leg.id, strategy, tradeNum, amount: costBasis,
-      userId, entityId, db, createdBy
+      userId, entityId, db, post, createdBy
     });
     await db.trading_positions.create({
       data: {
         open_investment_txn_id: leg.id, symbol: leg.symbol, option_type: leg.contractType?.toUpperCase() as string,
         strike_price: leg.strike, expiration_date: leg.expiry, position_type: positionType, quantity: leg.quantity, remaining_quantity: leg.quantity,
         open_price: leg.price, open_fees: leg.fees, open_date: leg.date, cost_basis: costBasis / 100,
-        status: 'OPEN', trade_num: tradeNum, strategy: strategy
+        status: 'OPEN', trade_num: tradeNum, strategy: strategy,
+        // TRADE-LOG-01: every writer of a trading_positions row names its own
+        // provenance. This row was built from an investment_transactions leg,
+        // which only the Plaid arrivals pass writes — so it says 'plaid'
+        // instead of falling through to the column's DEFAULT 'legacy'. Both
+        // are broker-imported for tax (tax-report-service.ts), so no Form 8949
+        // box moves; nothing about the arrivals pass itself changes.
+        source: SYNCED_SOURCE
       }
     });
     return { legId: leg.id, journalId: journalEntry.id, coaCode: positionAccount, costBasis, action: 'OPEN' };
@@ -185,6 +197,7 @@ export class PositionTrackerService {
     userId: string,
     entityId: string,
     db: TransactionContext,
+    post: PostEntry,
     createdBy?: string
   ) {
     const TRADING_CASH = '1010';
@@ -220,15 +233,15 @@ export class PositionTrackerService {
 
     // Skip quantity validation for exercise/assignment (qty is shares, not contracts)
     if (!isExerciseOrAssignment && closeQty > remainingQty) {
-      throw new Error(`Cannot close ${closeQty} contracts - only ${remainingQty} remaining`);
+      throw new ValidationError(`Cannot close ${closeQty} contracts - only ${remainingQty} remaining`);
     }
 
     // For normal closes, use leg qty; for exercise/assignment, close full position
     const effectiveCloseQty = isExerciseOrAssignment ? remainingQty : closeQty;
 
     // Proportional cost basis for partial close
-    const proportionalCostBasis = (effectiveCloseQty / positionQty) * openPosition.cost_basis;
-    const originalCost = Math.round(proportionalCostBasis * 100);
+    // TRADE-LOG-01: one arithmetic, in src/lib/tradeLog/optionPnl.ts.
+    const originalCost = proportionalCostCents({ closeQty: effectiveCloseQty, positionQty, costBasis: openPosition.cost_basis });
 
     // Calculate new remaining quantity
     const newRemainingQty = remainingQty - effectiveCloseQty;
@@ -265,19 +278,13 @@ export class PositionTrackerService {
         action: isFullClose ? 'CLOSE_EXERCISE' : 'PARTIAL_CLOSE_EXERCISE'
       };
     } else {
-      // Normal option close: calculate from price * quantity * multiplier
-      const multiplier = 100;
-      if (leg.action === 'sell') {
-        proceeds = Math.round((leg.price * closeQty * multiplier - leg.fees) * 100);
-      } else {
-        proceeds = Math.round((leg.price * closeQty * multiplier + leg.fees) * 100);
-      }
-
-      if (openPosition.position_type === 'LONG') {
-        realizedPL = proceeds - originalCost;
-      } else {
-        realizedPL = originalCost - proceeds;
-      }
+      // Normal option close: one arithmetic, in src/lib/tradeLog/optionPnl.ts.
+      proceeds = closeProceedsCents({ action: leg.action as 'buy' | 'sell', price: leg.price, quantity: closeQty, fees: leg.fees });
+      realizedPL = realizedPlCents({
+        positionType: openPosition.position_type as 'LONG' | 'SHORT',
+        proceedsCents: proceeds,
+        originalCostCents: originalCost,
+      });
     }
     const isGain = realizedPL > 0;
     const plAccount = isGain ? '4100' : '5100';
@@ -300,7 +307,7 @@ export class PositionTrackerService {
       date: leg.date,
       description: `${isFullClose ? 'CLOSE' : 'PARTIAL CLOSE'} ${openPosition.position_type}: ${closeQty}x ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} - ${isGain ? 'GAIN' : 'LOSS'} $${(Math.abs(realizedPL) / 100).toFixed(2)}`,
       lines, externalTransactionId: leg.id, strategy, tradeNum, amount: proceeds,
-      userId, entityId, db, createdBy
+      userId, entityId, db, post, createdBy
     });
 
     // Update position with new remaining quantity
@@ -362,6 +369,7 @@ export class PositionTrackerService {
     userId: string,
     entityId: string,
     db: TransactionContext,
+    post: PostEntry,
     createdBy?: string
   ): Promise<{ results: any[]; skipped: any[] }> {
     const TRADING_CASH = '1010';
@@ -481,6 +489,7 @@ export class PositionTrackerService {
       userId,
       entityId,
       db,
+      post,
       createdBy
     });
 
@@ -582,9 +591,9 @@ export class PositionTrackerService {
     date: Date; description: string;
     lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }>;
     externalTransactionId?: string; strategy?: string; tradeNum?: string; amount?: number;
-    userId: string; entityId: string; db: TransactionContext; requestId?: string; createdBy?: string;
+    userId: string; entityId: string; db: TransactionContext; post: PostEntry; requestId?: string; createdBy?: string;
   }) {
-    const { date, description, lines, externalTransactionId, strategy, tradeNum, userId, entityId, db, requestId, createdBy } = params;
+    const { date, description, lines, externalTransactionId, strategy, tradeNum, userId, entityId, db, post, requestId, createdBy } = params;
     const debits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
     if (debits !== credits) throw new Error(`Unbalanced entry: debits=${debits} credits=${credits}`);
@@ -594,12 +603,13 @@ export class PositionTrackerService {
     const accounts = await db.chart_of_accounts.findMany({ where: { code: { in: uniqueAccountCodes }, userId, entity_id: entityId } });
     if (accounts.length !== uniqueAccountCodes.length) {
       const missing = uniqueAccountCodes.filter(code => !accounts.find(a => a.code === code));
-      throw new Error(`Account codes not found: ${missing.join(', ')}`);
+      throw new ValidationError(`Account codes not found: ${missing.join(', ')}`);
     }
 
-    // Create journal entry
-    const journalEntry = await db.journal_entries.create({
-      data: {
+    // HYG-04: the entry, its lines (one statement) and the balance moves go
+    // through postJournal's `post`; the id is read back after commit.
+    const posted = await post({
+      entry: {
         userId,
         entity_id: entityId,
         date,
@@ -610,32 +620,21 @@ export class PositionTrackerService {
         metadata: (strategy || tradeNum) ? { strategy, trade_num: tradeNum } : undefined,
         request_id: requestId || randomUUID(),
         created_by: createdBy || null,
-      }
+      },
+      lines: lines.map((line) => {
+        const account = accounts.find(a => a.code === line.accountCode)!;
+        const amount = BigInt(line.amount);
+        return {
+          account_id: account.id,
+          entry_type: line.entryType,
+          amount,
+          balanceDelta: line.entryType === account.balance_type ? amount : -amount,
+          created_by: createdBy || null,
+        };
+      }),
     });
 
-    // Create ledger entries and update account balances
-    for (const line of lines) {
-      const account = accounts.find(a => a.code === line.accountCode)!;
-      await db.ledger_entries.create({
-        data: {
-          journal_entry_id: journalEntry.id,
-          account_id: account.id,
-          amount: BigInt(line.amount),
-          entry_type: line.entryType,
-          created_by: createdBy || null,
-        }
-      });
-      const balanceChange = line.entryType === account.balance_type ? BigInt(line.amount) : BigInt(-line.amount);
-      await db.chart_of_accounts.update({
-        where: { id: account.id },
-        data: {
-          settled_balance: { increment: balanceChange },
-          version: { increment: 1 }
-        }
-      });
-    }
-
-    return journalEntry;
+    return { id: posted.id };
   }
 
   async handleAssignmentExercise(params: {
@@ -667,24 +666,29 @@ export class PositionTrackerService {
       lines.push({ accountCode: positionAccount, amount: originalCost, entryType: 'D' });
       lines.push({ accountCode: plAccount, amount: originalCost, entryType: 'C' });
     }
-    const journalEntry = await this.createJournalEntry({
-      date: exerciseTransfer.date,
-      description: `${isExercise ? 'EXERCISE' : 'ASSIGNMENT'}: ${symbol} $${strike} ${openPosition.option_type}`,
-      lines, externalTransactionId: exerciseTransfer.id, strategy, tradeNum, amount: originalCost,
-      userId, entityId, db: prisma, createdBy
+    // HYG-04: the entry and the position/transaction updates land in ONE
+    // postJournal transaction (they ran outside any transaction before).
+    const { result } = await postJournal(prisma, async (tx, post) => {
+      const journalEntry = await this.createJournalEntry({
+        date: exerciseTransfer.date,
+        description: `${isExercise ? 'EXERCISE' : 'ASSIGNMENT'}: ${symbol} $${strike} ${openPosition.option_type}`,
+        lines, externalTransactionId: exerciseTransfer.id, strategy, tradeNum, amount: originalCost,
+        userId, entityId, db: tx, post, createdBy
+      });
+      await tx.trading_positions.update({
+        where: { id: openPosition.id },
+        data: { status: 'CLOSED', close_investment_txn_id: exerciseTransfer.id,
+          close_date: exerciseTransfer.date, realized_pl: realizedPL / 100 }
+      });
+      await tx.investment_transactions.update({
+        where: { id: exerciseTransfer.id }, data: { strategy, tradeNum, accountCode: plAccount }
+      });
+      await tx.investment_transactions.update({
+        where: { id: stockTransaction.id }, data: { strategy, tradeNum, accountCode: '1100' }
+      });
+      return { type: isExercise ? 'EXERCISE' : 'ASSIGNMENT', symbol, strike, journalId: journalEntry.id, realizedPL };
     });
-    await prisma.trading_positions.update({
-      where: { id: openPosition.id },
-      data: { status: 'CLOSED', close_investment_txn_id: exerciseTransfer.id,
-        close_date: exerciseTransfer.date, realized_pl: realizedPL / 100 }
-    });
-    await prisma.investment_transactions.update({
-      where: { id: exerciseTransfer.id }, data: { strategy, tradeNum, accountCode: plAccount }
-    });
-    await prisma.investment_transactions.update({
-      where: { id: stockTransaction.id }, data: { strategy, tradeNum, accountCode: '1100' }
-    });
-    return { type: isExercise ? 'EXERCISE' : 'ASSIGNMENT', symbol, strike, journalId: journalEntry.id, realizedPL };
+    return result;
   }
 
   // Commit stock purchases as lots with journal entries
@@ -703,11 +707,13 @@ export class PositionTrackerService {
     tradeNum: string;
     userId: string;
     entityId: string;
-    tx?: TransactionContext;
+    tx: TransactionContext;
+    /** HYG-04: every journal entry goes through postJournal's `post` — the caller opened the transaction with postJournal. */
+    post: PostEntry;
     createdBy?: string;
   }) {
-    const { legs, strategy, tradeNum, userId, entityId, tx, createdBy } = params;
-    const db = tx || prisma;
+    const { legs, strategy, tradeNum, userId, entityId, tx, post, createdBy } = params;
+    const db = tx;
     const results = [];
     const TRADING_CASH = '1010';
     const STOCK_POSITION = '1100';
@@ -745,7 +751,7 @@ export class PositionTrackerService {
           strategy,
           tradeNum,
           amount: costBasis,
-          userId, entityId, db, createdBy
+          userId, entityId, db, post, createdBy
         });
 
         // Update investment transaction

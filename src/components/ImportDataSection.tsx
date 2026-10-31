@@ -202,12 +202,11 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
     });
   };
 
-  // NEW: Apply COA to filtered transactions
-  const applyBulkCOA = () => {
-    const filtered = getFilteredTransactions();
-    console.log(`Applying Account: ${selectedAccount}, SubAccount: ${selectedSubAccount} to ${filtered.length} transactions`);
-    // TODO: Update transactions in database
-  };
+  // POLISH-5: the bulk COA apply was never wired to the database — the button
+  // below is now DISABLED with an honest label instead of a silent no-op
+  // (disable beats hide: the adjacent Account/SubAccount selects share this
+  // toolbar row, so hiding would orphan the layout for a bigger diff).
+  // Implementing the real bulk apply is its own PR.
 
   return (
     <>
@@ -394,11 +393,13 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                       >
                         <option value="">Sub Account</option>
                       </select>
-                      <button 
-                        onClick={applyBulkCOA}
-                        className="px-4 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                      <button
+                        type="button"
+                        disabled
+                        title="Bulk COA apply is not wired to the database yet"
+                        className="px-4 py-1 bg-green-600 text-white rounded text-sm opacity-50 cursor-not-allowed"
                       >
-                        Apply to All
+                        Bulk apply — coming soon
                       </button>
                       <button 
                         onClick={() => {

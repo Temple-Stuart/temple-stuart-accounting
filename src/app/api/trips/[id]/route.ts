@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+// SEC-02b (2026-09-27): a participant goes back without its password hash.
+import { PARTICIPANT_RESPONSE_SELECT } from '@/lib/trips/participantSelect';
+import { tripLinesLinkedRefusal } from '@/lib/trips/budgetLinkGuard';
 
 // GET single trip
 export async function GET(
@@ -27,7 +30,10 @@ export async function GET(
     const trip = await prisma.trips.findFirst({
       where: { id, userId: user.id },
       include: {
+        // SEC-02b (2026-09-27): every participant WITHOUT its password hash — the trip
+        // page used to receive each invitee's bcrypt hash whole.
         participants: {
+          select: PARTICIPANT_RESPONSE_SELECT,
           orderBy: { createdAt: 'asc' }
         },
         expenses: {
@@ -116,6 +122,11 @@ export async function DELETE(
     if (!trip) {
       return NextResponse.json({ error: 'Trip not found or not authorized' }, { status: 404 });
     }
+
+    // LINK-02 (2026-09-27): a linked budget line cannot be deleted (RESTRICT), and the
+    // deletes below share no transaction — so ask FIRST and refuse by name before any.
+    const linked = await tripLinesLinkedRefusal(user.id, id);
+    if (linked) return linked;
 
     // Delete related records first (correct model names)
     await prisma.expense_splits.deleteMany({

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
+import { encryptToken } from '@/lib/secrets/tokenCipher';
+import { summarizeTastytradeError } from '@/lib/tastytrade/summarizeError';
 
 export async function POST() {
   try {
@@ -11,6 +13,8 @@ export async function POST() {
     // just a flag that unlocks the shared session). So any caller spends/reads
     // ALEX'S brokerage. Gate to admin BEFORE any TT call or data read — 403 for
     // non-admins, 401 for guests. (Same requireAdmin pattern as /trading/convergence.)
+    // TRADE-GATE (2026-08-11): broker connection is owner-scoped pending
+    // the data-redistribution ruling.
     const adminGate = await requireAdmin();
     if (adminGate instanceof NextResponse) return adminGate;
     const userEmail = await getVerifiedEmail();
@@ -53,7 +57,7 @@ export async function POST() {
       create: {
         userId: user.id,
         ttUsername: 'oauth',
-        sessionToken: 'oauth',
+        sessionToken: encryptToken('oauth'),
         accountNumbers,
         status: 'active',
         connectedAt: new Date(),
@@ -61,7 +65,7 @@ export async function POST() {
       },
       update: {
         ttUsername: 'oauth',
-        sessionToken: 'oauth',
+        sessionToken: encryptToken('oauth'),
         rememberToken: null,
         accountNumbers,
         status: 'active',
@@ -76,7 +80,7 @@ export async function POST() {
       message: 'Tastytrade account connected successfully',
     });
   } catch (error: any) {
-    console.error('[Tastytrade] Connect error:', error);
+    console.error('[Tastytrade] Connect error:', summarizeTastytradeError(error));
     return NextResponse.json({ error: 'Failed to connect Tastytrade account' }, { status: 500 });
   }
 }

@@ -21,6 +21,7 @@ import type {
 } from './types';
 import { DEPENDENCY_TYPE_LABELS, DEPENDENCY_TYPE_DESCRIPTIONS } from './types';
 
+
 const DEPENDENCY_TYPES: DependencyType[] = ['blocks', 'informs', 'derived_from'];
 
 export interface DependencyListViewProps {
@@ -48,8 +49,7 @@ export interface DependencyListViewProps {
   onDelete: (depId: string) => void;
 }
 
-export default function DependencyListView({
-  projectId,
+export default function DependencyListView({ projectId,
   allProjects,
   outgoing,
   incoming,
@@ -68,7 +68,7 @@ export default function DependencyListView({
   onCreateFormChange,
   onCreate,
   onDelete,
-}: DependencyListViewProps) {
+}: DependencyListViewProps & { }) {
   const inputClass =
     'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
   const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
@@ -107,7 +107,7 @@ export default function DependencyListView({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onJumpTo(linkedId); }}
-            className="text-brand-purple hover:underline truncate text-left"
+            className={` hover:underline truncate text-left ${'text-brand-purple'}`}
             title={`Jump to ${linkedTitle}`}
           >
             {linkedTitle}
@@ -163,7 +163,7 @@ export default function DependencyListView({
               type="button"
               onClick={(e) => { e.stopPropagation(); onStartCreate(); }}
               disabled={targetCandidates.length === 0}
-              className="px-2 py-1 border border-brand-purple bg-brand-purple text-white rounded text-xs hover:opacity-90 disabled:opacity-50"
+              className={`px-2 py-1 border text-white rounded text-xs hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
             >
               + add dependency
             </button>
@@ -234,7 +234,7 @@ export default function DependencyListView({
               type="button"
               onClick={onCreate}
               disabled={createSaving}
-              className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
             >
               {createSaving ? 'creating…' : 'add dependency'}
             </button>

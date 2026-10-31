@@ -2,9 +2,12 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { useEffect, useState, Suspense } from 'react';
-import TripCreationBar from '@/components/trips/TripCreationBar';
-import Sidebar from '@/components/ui/Sidebar';
+import { useEffect, useState } from 'react';
+import ShellBar from '@/components/ui/ShellBar';
+// ACCOUNTS-01: the rail is on every signed-in page. AppLayout is where most rooms
+// mount their shell, so mounting it here gives them all the same navigation — its
+// open/collapsed state lives above the pages (RailState), so walking does not reset it.
+import Rail from '@/components/shell/Rail';
 
 export interface LedgerMetrics {
   balance: number;
@@ -42,18 +45,39 @@ export interface AppLayoutProps {
   engineMetrics?: EngineMetrics | null;
   onOpenTaxSettings?: () => void;
   bookkeepingBar?: React.ReactNode;
+  /**
+   * SHELL-02: the reading-column shape ShellFrame used to give /accounts and
+   * /step/<slug> — a narrower centred main with page padding. The rooms that
+   * carry their own full-bleed chrome (the cockpit tabs, Books, Travel) leave it
+   * off and keep the wide 1800px main. This is the ONE thing AppLayout lacked
+   * that ShellFrame had, so it was added here rather than keeping two wrappers.
+   */
+  page?: boolean;
+  /**
+   * SHELL-02: does the CHILD bring its own rail? The cockpit does — ModuleLauncher
+   * mounts the rail in SELECT mode (:589), where a step switches tab in place
+   * instead of navigating. One shell, one rail: when the child has one, this
+   * wrapper does not add a second.
+   */
+  rail?: boolean;
 }
 
 interface CookieUser {
   email: string;
   name: string;
+  /** /api/auth/me → isAdmin (src/lib/admin.ts, ADMIN_USER_ID in the env); gates the utilities menu. */
+  isAdmin?: boolean;
+  /** /api/auth/me → entitledCategories; the rail's lock chip reads these (no second request). */
+  entitledCategories?: string[];
 }
 
-// ─── Route Groups ────────────────────────────────────────────────────────────
-// Nav route config now lives in Sidebar.tsx (same hrefs/prefixes). Only the
-// Travel prefixes remain here, to gate the Travel search bar below.
-
-const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];
+// FD-4: routes that RENDER for guests despite mounting AppLayout. EMPTY since
+// PR-PRICE-3: '/pricing' (the only entry) no longer mounts AppLayout — it
+// renders THE OFFER under LandingHeader/LandingFooter (SELL-02), and the deck's
+// buy flow (GuestLanding onBuyModule / the ?module= door) owns the guest
+// resume PricingClient used to. The mechanism stays for the next
+// guest-renderable AppLayout consumer.
+const GUEST_OK_PATHS: string[] = [];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -76,12 +100,17 @@ function fmtMom(n: number | undefined): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOpenTaxSettings, bookkeepingBar }: AppLayoutProps) {
+export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOpenTaxSettings, bookkeepingBar, page = false, rail = true }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [cookieUser, setCookieUser] = useState<CookieUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  // SHELL-02: ShellFrame DECLARED a failed profile read under the bar; AppLayout
+  // swallowed it in a bare catch. Folding the two wrappers keeps the louder
+  // behaviour — a viewer whose profile could not be read is told, and the
+  // utilities menu is hidden rather than guessed at.
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   // ─── Auth ──────────────────────────────────────────────────────────────────
 
@@ -91,12 +120,14 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
-          if (data.user) {
-            setCookieUser(data.user);
-          }
+          if (data.user) setCookieUser(data.user);
+        } else if (res.status !== 401) {
+          // 401 is "not signed in" — the guard below handles it. Anything else
+          // is a failure the viewer is told about, never swallowed.
+          setProfileError(`HTTP ${res.status}`);
         }
       } catch (e) {
-        // No cookie auth
+        setProfileError(`network — ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         setCheckingAuth(false);
       }
@@ -106,12 +137,14 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
 
   const isAuthenticated = session?.user || cookieUser;
   const currentUser = session?.user || cookieUser;
+  // FD-4: same match shape as the middleware allowlist (middleware.ts:115).
+  const guestOk = GUEST_OK_PATHS.some(p => pathname === p || pathname?.startsWith(p + '/'));
 
   useEffect(() => {
-    if (!checkingAuth && status !== 'loading' && !isAuthenticated) {
+    if (!checkingAuth && status !== 'loading' && !isAuthenticated && !guestOk) {
       router.push('/');
     }
-  }, [checkingAuth, status, isAuthenticated, router]);
+  }, [checkingAuth, status, isAuthenticated, guestOk, router]);
 
   // ─── Auth Guards ───────────────────────────────────────────────────────────
 
@@ -126,7 +159,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !guestOk) {
     return null;
   }
 
@@ -142,45 +175,32 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
 
   // ─── Active State Detection ────────────────────────────────────────────────
 
-  // PR-29: the search/create bar shows on travel routes EXCEPT a committed trip's
-  // detail page (/budgets/trips/{id} or /trips/{id}, but not .../new) — there the
-  // detail page renders the editable TripHeader instead. Landing (/budgets/trips)
-  // and /new keep the search/create bar.
-  // PR-32: also suppress on the discover detail route
-  // (/budgets/trips/{id}/discover/{category}/{rank}) — the `(\/discover\/.*)?`
-  // group lets the match extend past {id} into the detail page, which the old
-  // `$`-anchored single-segment pattern missed. Landing (/budgets/trips) and
-  // /new still show the search/create bar.
-  const isTripDetail = /^\/(budgets\/)?trips\/[^/]+(\/discover\/.*)?\/?$/.test(pathname || '') && !(pathname || '').endsWith('/new');
-  // PR-37a: the trips INDEX (/budgets/trips or /trips) now renders its own
-  // in-page create-trip form, so suppress the global search/create bar there too
-  // (it would double up). /budgets/trips/new still shows the bar (create page).
-  const isTripIndex = /^\/(budgets\/)?trips\/?$/.test(pathname || '');
-  const showTravelSearch = TRAVEL_PREFIXES.some(r => pathname?.startsWith(r)) && !isTripDetail && !isTripIndex;
   const userLabel = currentUser?.name || currentUser?.email?.split('@')[0] || '';
 
   // ─── Render ────────────────────────────────────────────────────────────────
-  // Sidebar shell replaces the former top-nav (Overhaul-PR-1). The prop-driven
-  // context bars (Travel search, bookkeeping, ledger, engine) are preserved and
-  // relocated to the top of the main content column — page {children} unchanged.
+  // NAV-01b: ONE shell — the slim ShellBar (brand → the map, utilities, sign out)
+  // replaces the Sidebar; the prop-driven context bars (Travel search, bookkeeping,
+  // ledger, engine) stay at the top of the content column — page {children} unchanged.
 
   return (
-    <div className="min-h-screen bg-bg-terminal lg:flex">
-      <Sidebar pathname={pathname} userLabel={userLabel} onSignOut={handleSignOut} />
+    <div className="min-h-screen bg-bg-terminal flex flex-col">
+      <ShellBar
+        userLabel={userLabel}
+        isAdmin={Boolean((currentUser as { isAdmin?: boolean } | null | undefined)?.isAdmin)}
+        onSignOut={handleSignOut}
+      />
 
+      <div className="flex flex-1 min-w-0 flex-col sm:flex-row">
+      {rail && (
+        <Rail
+          entitledKeys={(currentUser as CookieUser | null | undefined)?.entitledCategories}
+          isAdmin={Boolean((currentUser as { isAdmin?: boolean } | null | undefined)?.isAdmin)}
+        />
+      )}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Travel Search Bar (only on Travel routes) */}
-        {showTravelSearch && (
-          <div className="bg-brand-purple/80 border-t border-white/[.06]">
-            <div className="max-w-[1800px] mx-auto px-6 py-4">
-              <Suspense><TripCreationBar /></Suspense>
-            </div>
-          </div>
-        )}
-
         {/* ROW 3 — Bookkeeping Cockpit Bar (same pattern as Travel) */}
         {bookkeepingBar && (
-          <div className="bg-brand-purple/80 border-t border-white/[.06]">
+          <div className="bg-brand-purple border-t border-white/[.06]">
             <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-4">
               {bookkeepingBar}
             </div>
@@ -189,78 +209,84 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
 
         {/* Ledger Metrics Bar */}
         {ledgerMetrics && (
-          <div className="bg-gray-50 border-b border-gray-200">
+          <div className="bg-bg-row border-b border-border">
             <div className="max-w-[1800px] mx-auto flex items-center px-6 py-2 text-xs">
-              <span className="text-gray-400 uppercase tracking-wider text-[10px] font-medium mr-3">Ledger</span>
+              <span className="text-text-faint uppercase tracking-wider text-[10px] font-medium mr-3">Ledger</span>
 
-              <span className="text-gray-500 mr-1">BAL</span>
-              <span className={`font-semibold ${ledgerMetrics.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtDollars(ledgerMetrics.balance)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">BAL</span>
+              <span className={`font-semibold ${ledgerMetrics.balance >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtDollars(ledgerMetrics.balance)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">EXP</span>
-              <span className="text-red-600 font-medium">{fmtDollars(ledgerMetrics.expYtd)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">EXP</span>
+              <span className="text-brand-red font-medium">{fmtDollars(ledgerMetrics.expYtd)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">REV</span>
-              <span className="text-emerald-600 font-medium">{fmtDollars(ledgerMetrics.revYtd)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">REV</span>
+              <span className="text-brand-green font-medium">{fmtDollars(ledgerMetrics.revYtd)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">NET</span>
-              <span className={`font-semibold ${ledgerMetrics.net >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtDollars(ledgerMetrics.net)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">NET</span>
+              <span className={`font-semibold ${ledgerMetrics.net >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtDollars(ledgerMetrics.net)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">BIZ</span>
+              <span className="text-text-muted mr-1">BIZ</span>
               <span className="text-brand-purple font-medium">{fmtPct(ledgerMetrics.bizPercent)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">DONE</span>
-              <span className={`font-medium ${ledgerMetrics.donePercent > 80 ? 'text-emerald-600' : ledgerMetrics.donePercent < 50 ? 'text-amber-600' : 'text-amber-500'}`}>{fmtPct(ledgerMetrics.donePercent)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">DONE</span>
+              <span className={`font-medium ${ledgerMetrics.donePercent > 80 ? 'text-brand-green' : ledgerMetrics.donePercent < 50 ? 'text-amber-600' : 'text-amber-500'}`}>{fmtPct(ledgerMetrics.donePercent)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">{'\u0394'}</span>
-              <span className={`font-medium ${ledgerMetrics.momChange <= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtMom(ledgerMetrics.momChange)}</span>
+              <span className="text-text-muted mr-1">{'\u0394'}</span>
+              <span className={`font-medium ${ledgerMetrics.momChange <= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtMom(ledgerMetrics.momChange)}</span>
             </div>
           </div>
         )}
 
         {/* Engine / Tax Metrics Bar */}
         {engineMetrics && (
-          <div className="bg-white border-b border-gray-200">
+          <div className="bg-white border-b border-border">
             <div className="max-w-[1800px] mx-auto flex items-center px-6 py-2 text-xs">
-              <span className="text-gray-400 uppercase tracking-wider text-[10px] font-medium mr-3">Tax Engine</span>
+              <span className="text-text-faint uppercase tracking-wider text-[10px] font-medium mr-3">Tax Engine</span>
 
-              <span className="text-gray-500 mr-1">EST TAX</span>
+              <span className="text-text-muted mr-1">EST TAX</span>
               <span className="text-amber-600 font-semibold">{fmtDollars(engineMetrics.totalEstimatedTax)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">Q DUE</span>
+              <span className="text-text-muted mr-1">Q DUE</span>
               <span className="text-amber-600 font-medium">{fmtDollars(engineMetrics.quarterlyDue)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">EFF</span>
-              <span className="text-gray-700 font-medium">{fmtPct(engineMetrics.effectiveRate)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">EFF</span>
+              <span className="text-text-secondary font-medium">{fmtPct(engineMetrics.effectiveRate)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">DEDUCT</span>
-              <span className="text-emerald-600 font-medium">{fmtDollars(engineMetrics.totalDeductions)}</span>
-              <span className="mx-2 w-px h-3 bg-gray-200" />
+              <span className="text-text-muted mr-1">DEDUCT</span>
+              <span className="text-brand-green font-medium">{fmtDollars(engineMetrics.totalDeductions)}</span>
+              <span className="mx-2 w-px h-3 bg-border" />
 
-              <span className="text-gray-500 mr-1">SAFE</span>
-              <span className={`font-medium ${engineMetrics.safeHarborPercent >= 100 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtPct(engineMetrics.safeHarborPercent)}</span>
+              <span className="text-text-muted mr-1">SAFE</span>
+              <span className={`font-medium ${engineMetrics.safeHarborPercent >= 100 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtPct(engineMetrics.safeHarborPercent)}</span>
 
               {onOpenTaxSettings && (
                 <>
-                  <span className="mx-2 w-px h-3 bg-gray-200" />
-                  <button onClick={onOpenTaxSettings} className="text-gray-400 hover:text-gray-700 transition-colors" title="Tax Settings">{'\u2699'}</button>
+                  <span className="mx-2 w-px h-3 bg-border" />
+                  <button onClick={onOpenTaxSettings} className="text-text-faint hover:text-text-primary transition-colors" title="Tax Settings">{'\u2699'}</button>
                 </>
               )}
 
-              <span className="ml-auto text-gray-300 text-[10px] uppercase tracking-wider">Estimate</span>
+              <span className="ml-auto text-text-faint text-[10px] uppercase tracking-wider">Estimate</span>
             </div>
           </div>
         )}
 
-        <main className="max-w-[1800px] mx-auto w-full">{children}</main>
+        <main className={page ? 'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : 'max-w-[1800px] mx-auto w-full'}>
+          {profileError && (
+            <p role="alert" className="mb-4 font-mono text-[10px] text-rose-700">Profile read failed — {profileError}. Utilities hidden.</p>
+          )}
+          {children}
+        </main>
+      </div>
       </div>
     </div>
   );

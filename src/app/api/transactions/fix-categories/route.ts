@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { failureEnvelope } from '@/lib/plaid/failLoud';
 
 export async function POST() {
   try {
@@ -28,32 +30,44 @@ export async function POST() {
     for (const item of plaidItems) {
       try {
         const response = await plaidClient.transactionsGet({
-          access_token: item.accessToken,
+          access_token: decryptToken(item.accessToken),
           start_date: '2024-01-01',
           end_date: new Date().toISOString().split('T')[0]
         });
 
         for (const plaidTxn of response.data.transactions) {
-          await prisma.transactions.updateMany({
-            where: { transactionId: plaidTxn.transaction_id },
+          // SEC-01: transactions carry no userId (prisma/schema.prisma:414-450). The
+          // real ownership path is transactions.accountId → accounts.plaidItemId →
+          // plaid_items.userId. The write is scoped to THIS item under THIS user;
+          // a transactionId held by another user matches zero rows. No fallback.
+          const result = await prisma.transactions.updateMany({
+            where: {
+              transactionId: plaidTxn.transaction_id,
+              accounts: { plaid_items: { id: item.id, userId: user.id } },
+            },
             data: { 
               category: plaidTxn.category ? plaidTxn.category.join(', ') : null,
               merchantName: plaidTxn.merchant_name
             }
           });
-          updatedCount++;
+          updatedCount += result.count;
         }
       } catch (error) {
-        console.error('Error fixing categories for item:', item.id, error);
+        // HYG-01: STOP AND DECLARE — no further items, the failure is the response.
+        const { status, body } = failureEnvelope('categories', error, { updatedCount });
+        console.error('Error fixing categories for item:', item.id, body.error);
+        return NextResponse.json(body, { status });
       }
     }
 
     return NextResponse.json({ 
+      ok: true,
       success: true, 
       updatedCount 
     });
   } catch (error) {
-    console.error('Fix categories error:', error);
-    return NextResponse.json({ error: 'Failed to fix categories' }, { status: 500 });
+    const { status, body } = failureEnvelope('categories', error);
+    console.error('Fix categories error:', body.error);
+    return NextResponse.json(body, { status });
   }
 }

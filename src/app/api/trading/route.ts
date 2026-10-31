@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireTabAccess } from '@/lib/auth-helpers';
+import { positionOwnershipWhere } from '@/lib/tradeLog/ownership';
 
 export async function GET() {
   try {
@@ -13,6 +15,10 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    // TRADE-GATE: this summary is trade-priced data (realized P&L, open
+    // positions, strategy breakdown) — the tab:trade entitlement gates it.
+    const tabGate = await requireTabAccess(user.id, 'tab:trade');
+    if (tabGate) return tabGate;
 
     // Get user's accounts
     const userAccounts = await prisma.accounts.findMany({
@@ -61,18 +67,13 @@ export async function GET() {
 
     // Get positions - filter by investment txns that belong to user
     const openPositions = await prisma.trading_positions.findMany({
-      where: { 
-        status: 'OPEN',
-        open_investment_txn_id: { in: userInvestmentTxnIds }
-      },
+      // TRADE-LOG-01: the arrivals chain OR this user's own hand-entered rows.
+      where: { status: 'OPEN', ...positionOwnershipWhere(user.id, userInvestmentTxnIds) },
       orderBy: { open_date: 'desc' }
     });
 
     const closedPositions = await prisma.trading_positions.findMany({
-      where: { 
-        status: 'CLOSED',
-        open_investment_txn_id: { in: userInvestmentTxnIds }
-      },
+      where: { status: 'CLOSED', ...positionOwnershipWhere(user.id, userInvestmentTxnIds) },
       orderBy: { close_date: 'desc' }
     });
 

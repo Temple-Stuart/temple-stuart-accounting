@@ -2,16 +2,25 @@
  * TruthMachineView — the TRANSPARENT pipeline render of a project, as a clean white
  * "finance" pipe (PR-TM-redesign restyle of TM-1/TM-2).
  *
- * Visible top-to-bottom FLOW: inputs → research → audit → fusion → tasks. Each stage is a
- * white card with a COLORED LEFT-STRIPE (purple/teal/blue/amber/purple) on a soft tint
- * canvas, separated by ↓ chevrons. Prompts render the SAME interpolated text the live call
- * fires — fixed template text in black, the user's INJECTED INPUTS in RED. The red is
- * builder-declared (server `segments` with kind:'input'|'template'), verified to rebuild
- * the exact fired string — never a regex guess.
+ * Visible top-to-bottom FLOW: inputs → research → audit → fusion → tasks → evolve. Each
+ * stage is a white card with a COLORED LEFT-STRIPE (purple/teal/blue/amber/purple) on a
+ * soft tint canvas. Prompts render the SAME interpolated text the live call fires — fixed
+ * template text in black, the user's INJECTED INPUTS in RED. The red is builder-declared
+ * (server `segments` with kind:'input'|'template'), verified to rebuild the exact fired
+ * string — never a regex guess.
+ *
+ * TASKS-01 (2026-09-18): the per-project StageStrip and the ProofStrip receipts are GONE.
+ * The strip had become six CSS show/hide tabs over this one render — a filter, not a
+ * capability — and the receipts repeated counts the cards already show. Every stage now
+ * renders in flow, as plain controls: "✨ run deep research", the audit paste box,
+ * "save research + audit", "↑ generate tasks" with its accept gate, the live task list,
+ * "↻ evolve" and "⚡ run pipe (auto)". Nothing a phase offered was dropped. This view is
+ * reached from the project row by a plain "pipeline" button (ProjectRowView) and leaves
+ * by "standard view"; it no longer opens by default.
  *
  * REUSE, no rebuild — the engines are untouched: the research agent (onRunResearch), the
- * fusion engine (onGenerateTasks → tasksPreview → <AITaskPreview/> human-accept gate), the
- * /prompts preview endpoint (no-drift shared builders), and the live <TaskList/> slot. This
+ * fusion engine (onGenerateTasks → tasksPreview → <AITaskPreview /> human-accept gate), the
+ * /prompts preview endpoint (no-drift shared builders), and the live <TaskList /> slot. This
  * view owns NO data/fetch — every action is a container callback. Mobile-first single column.
  */
 
@@ -90,7 +99,7 @@ export interface TruthMachineViewProps {
   onGenerateTasks: () => void;
   onTasksAccepted: () => void;
   onTasksDiscarded: () => void;
-  /** The live <TaskList/> slot — same element ProjectRowView receives. */
+  /** The live <TaskList /> slot — same element ProjectRowView receives. */
   taskSection: React.ReactNode;
 }
 
@@ -110,16 +119,14 @@ function asStringArray(v: unknown): string[] {
 }
 
 /** White stage card with a 4px colored left-stripe + a small-caps colored label + badge. */
-function Stage({
-  n,
+function Stage({ n,
   label,
   color,
   badge,
   badgeTone,
   action,
   children,
-}: {
-  n: number;
+}: { n: number;
   label: string;
   color: string;
   badge?: string;
@@ -172,21 +179,14 @@ function ItemList({ items, legacy }: { items: string[]; legacy: string | null })
   return <div className="text-gray-400 italic">(none yet)</div>;
 }
 
-/** ↓ flow chevron between stages. */
-function Chevron() {
-  return <div className="flex justify-center text-gray-300 text-base leading-none py-0.5" aria-hidden="true">↓</div>;
-}
-
 /** The PROMPT panel — black template text with user-injected spans in RED. The segments
  *  are builder-declared + server-verified (kind:'input' = the real interpolated input), so
  *  the red is truthful, not guessed. Copy yields the full real prompt string. */
-function PromptBox({
-  segments,
+function PromptBox({ segments,
   copyText,
   systemPrompt,
   loading,
-}: {
-  segments: PromptSegmentDTO[] | undefined;
+}: { segments: PromptSegmentDTO[] | undefined;
   copyText: string | undefined;
   systemPrompt?: string;
   loading: boolean;
@@ -248,8 +248,7 @@ function PromptBox({
 const btn = 'px-2.5 py-1 text-[11px] font-medium rounded border disabled:opacity-50';
 const outputTextarea = 'w-full text-xs border border-gray-300 rounded px-2 py-1.5 bg-white text-gray-900 focus:outline-none focus:border-brand-purple';
 
-export default function TruthMachineView({
-  project,
+export default function TruthMachineView({ project,
   onExit,
   prompts,
   promptsLoading,
@@ -282,7 +281,7 @@ export default function TruthMachineView({
   onEvolveGoalsChange,
   onEvolveConfirm,
   onEvolveCancel,
-}: TruthMachineViewProps) {
+}: TruthMachineViewProps & { }) {
   const goalItems = asStringArray(project.goal_items);
   const problemItems = asStringArray(project.problem_items);
   const diagnosisItems = asStringArray(project.diagnosis_items);
@@ -318,7 +317,7 @@ export default function TruthMachineView({
       </div>
       {pipeQueued && (
         <div className="px-1 text-[11px] text-gray-500">
-          Running research → fusion automatically. New tasks will appear below as <span className="text-purple-800 font-medium">pending review</span> — accept or reject each when they land. Refresh to check progress.
+          Running research → audit → fusion automatically. New tasks will appear below as <span className="text-purple-800 font-medium">pending review</span> — accept or reject each when they land. Progress is checked automatically every 5 seconds (gives up after 5 minutes).
         </div>
       )}
       {pipeError && <div className="px-1 text-[11px] text-red-600">{pipeError}</div>}
@@ -344,8 +343,6 @@ export default function TruthMachineView({
           </div>
         )}
       </Stage>
-
-      <Chevron />
 
       {/* 2 · RESEARCH */}
       <Stage
@@ -387,19 +384,18 @@ export default function TruthMachineView({
         </div>
       </Stage>
 
-      <Chevron />
-
-      {/* 3 · AUDIT */}
+      {/* 3 · AUDIT — the save-research+audit row rides HERE (it persists both
+          reality inputs and its saved-hint points forward to task generation). */}
       <Stage n={3} label="audit" color={STRIPE.audit} badge="paste" badgeTone="paste">
-        <div className="text-gray-500 text-[11px]">Copy this prompt → run it in Claude Code (read-only) → paste the findings into the output below. (Phase 3 automates this.)</div>
+        <div className="text-gray-500 text-[11px]">Runs automatically when you run the pipe — the audit Routine fires with the run and its findings land here. Working step-by-step instead? Copy this prompt → run it in Claude Code (read-only) → paste the findings into the output below.</div>
         <PromptBox segments={prompts?.audit.segments} copyText={prompts?.audit.text} loading={promptsLoading} />
         <div className="flex justify-center text-gray-300 text-xs leading-none">↓ output</div>
         <div>
-          <div className={sub}>audit output (claude_code_audit_input — paste; Phase 3 auto-fills here)</div>
+          <div className={sub}>audit output (claude_code_audit_input — auto-filled by the pipe run; paste here when working step-by-step)</div>
           <textarea
             value={auditInput}
             onChange={(e) => onAuditInputChange(e.target.value)}
-            placeholder="Paste Claude Code audit findings here… (Phase 3 will populate this automatically)"
+            placeholder="Auto-filled when the pipe runs — or paste Claude Code audit findings here."
             rows={5}
             className={outputTextarea}
           />
@@ -418,8 +414,6 @@ export default function TruthMachineView({
         </button>
         {inputsSaved && <span className="text-gray-400 text-[11px]">saved — generate tasks to use these</span>}
       </div>
-
-      <Chevron />
 
       {/* 4 · FUSION → tasks */}
       <Stage
@@ -474,8 +468,6 @@ export default function TruthMachineView({
         )}
       </Stage>
 
-      <Chevron />
-
       {/* 5 · TASK LIST (live) */}
       <Stage n={5} label="plan" color={STRIPE.plan}>
         {taskSection}
@@ -485,9 +477,9 @@ export default function TruthMachineView({
           WHOLE pipe (research→audit→fusion) on the evolved state. Append-only — the
           prior tasks stay in the evolution timeline; this adds a new version. Reuses
           run-pipe (no new pipe logic). Shown only when the container wires onEvolveStart. */}
-      {onEvolveStart && (
-        <>
-          <Chevron />
+      {/* ↻ EVOLVE. Unwired (no onEvolveStart) → the file's own honest-empty
+          idiom ("(none yet)", the ItemList string). */}
+      {onEvolveStart ? (
           <section
             className="rounded-md border border-gray-200 bg-white p-3 sm:p-4 space-y-2.5 border-l-4 shadow-sm"
             style={{ borderLeftColor: STRIPE.plan }}
@@ -553,7 +545,8 @@ export default function TruthMachineView({
               </div>
             )}
           </section>
-        </>
+      ) : (
+        <div className="text-gray-400 italic">(none yet)</div>
       )}
     </div>
   );

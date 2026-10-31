@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { detectWashSales, applyWashSaleAdjustments } from '@/lib/wash-sale-service';
+import { requireTabAccess } from '@/lib/auth-helpers';
 
 /**
  * GET /api/tax/wash-sales
@@ -16,6 +17,9 @@ export async function GET() {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     const result = await detectWashSales(user.id);
 
@@ -76,6 +80,9 @@ export async function POST() {
       where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // TAB-SERVER-GATE: tab:tax entitlement (bundle:all included; admin bypass inside).
+    const tabGate = await requireTabAccess(user.id, 'tab:tax');
+    if (tabGate) return tabGate;
 
     // Detect first
     const { violations, summary } = await detectWashSales(user.id);

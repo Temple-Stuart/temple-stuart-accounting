@@ -3,6 +3,7 @@
 import type { StepProps } from '../TaxFilingWizard';
 import type { LifeEvents } from '../TaxFilingWizard';
 
+
 // Step 0 — Life events checklist. The only step that actually reads/writes
 // lifeEvents in this PR. Other steps will wire up to the data it drives.
 
@@ -21,11 +22,10 @@ const ITEMS: Array<{
   { key: 'hasRental', title: 'I rented out property', detail: 'Rental income and expenses (Schedule E)' },
 ];
 
-export default function LifeEventsStep({
-  lifeEvents,
+export default function LifeEventsStep({ lifeEvents,
   setLifeEvents,
   autoDetected,
-}: StepProps) {
+}: StepProps & { }) {
   const toggle = (key: keyof LifeEvents) => {
     setLifeEvents({ ...lifeEvents, [key]: !lifeEvents[key] });
   };

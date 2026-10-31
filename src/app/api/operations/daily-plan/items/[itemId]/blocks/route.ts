@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { CalendarBlockStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -134,10 +135,6 @@ export async function POST(
 
     return NextResponse.json({ block, conflicts }, { status: 201 });
   } catch (error) {
-    console.error('[Calendar Block POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create calendar block', message: error instanceof Error ? error.message : 'unknown' },
-      { status: 500 }
-    );
+    return failClosedResponse('Calendar Block POST', 'Failed to create calendar block', error);
   }
 }

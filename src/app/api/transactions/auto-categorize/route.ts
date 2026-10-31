@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { autoCategorizationService } from '@/lib/auto-categorization-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -26,7 +27,6 @@ export async function POST() {
       message: `Categorized ${result.categorized} transactions, ${result.failed} failed`
     });
   } catch (error: any) {
-    console.error('Auto-categorization error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return failClosedResponse('Auto-categorization', 'Auto-categorization failed', error);
   }
 }

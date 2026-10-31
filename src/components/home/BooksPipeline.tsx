@@ -1,0 +1,801 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
+import type { ReconciliationStatus } from '@/lib/books/reconciliationStatus';
+import type { ReconciliationSave, SaveAnswer } from '@/components/dashboard/BankReconciliation';
+import { utcDayOf } from '@/lib/books/period';
+import { FUNCTIONAL_CURRENCY, FUNCTIONAL_CURRENCY_WORDS, bankMoneyWords, centsOfTypedDollars, functionalMoneyWords, isWholeCents } from '@/lib/books/functionalCurrency';
+// SELL-04: the first-run entity step — a viewer with no entity sets one up before the pipeline reads.
+import EntitySetup from '@/components/books/EntitySetup';
+import SpendingTab from '@/components/dashboard/SpendingTab';
+import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
+import JournalEntryEngine from '@/components/dashboard/JournalEntryEngine';
+import GeneralLedger, { LEDGER_LINK_KEYS, ledgerLinkOf, type LedgerLink } from '@/components/dashboard/GeneralLedger';
+import { useRoomLock } from '@/components/shell/RoomLock';
+import TrialBalanceSection from '@/components/bookkeeping/TrialBalanceSection';
+import BankReconciliation from '@/components/dashboard/BankReconciliation';
+import AdjustingEntriesTab from '@/components/dashboard/AdjustingEntriesTab';
+import FinancialStatementsTab from '@/components/dashboard/FinancialStatementsTab';
+import WashSaleReportTab from '@/components/dashboard/WashSaleReportTab';
+import PeriodClose from '@/components/dashboard/PeriodClose';
+import CloseBooksTab from '@/components/dashboard/CloseBooksTab';
+import PositionReportTab from '@/components/dashboard/PositionReportTab';
+import CPAExport from '@/components/dashboard/CPAExport';
+// BOOKS-PIPE-FRAME: the ratified Pipe Frame primitives (the Trade precedent) —
+// StageStrip replaces the 6-icon-tab ToggleStrip (one phase control, never
+// two); SectionHeader kickers per phase region; ProofStrip receipts at the
+// tab's bottom. The lucide phase icons retired with the ToggleStrip chips
+// (StageStrip carries no icon slot).
+import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
+// PIPE-PHASES-1: the six phase strings (num/name) live in the shared
+// pipe-phases config now — moved verbatim, landing/app lockstep by
+// construction. Keys, derived states, the handler, and the 13-stage →
+// 6-phase nesting map stay HERE (the config carries phase data only).
+import { PIPE_PHASES } from '@/lib/pipePhases';
+// BANK-01: the HYG-01 envelope reader — the Reconnect flow reads link-token /
+// reconnect-complete answers exactly as the Sync button reads sync-complete.
+import { useBankConnection } from '@/components/bank/useBankConnection';
+// BANK-01b: Plaid Link's onExit is surfaced — the reason on the row, the report in the log.
+// BANK-01c: the OAuth round trip — the update-mode token and the reconnect flow (item +
+// bank) are kept before Link opens so /plaid/oauth-return re-opens Link with the SAME
+// token; the return page's outcome line lands on the row.
+
+const [PIPE_FEED, PIPE_CODE, PIPE_RECONCILE, PIPE_CLOSE, PIPE_REPORTS, PIPE_EXPORT] = PIPE_PHASES.books;
+import SectionHeader from '@/components/ui/SectionHeader';
+import ProofStrip from '@/components/ui/ProofStrip';
+import { useExportDownload } from '@/lib/useExportDownload';
+// MANUAL-ENTRY: the existing manual-transaction form (its only other mount is
+// /transactions), REUSED verbatim — fields and write route untouched. Audited:
+// POST /api/transactions/manual is auth-gated (getCurrentUser → 401, route.ts
+// :16-19) and user-scoped (accounts find/create WHERE userId, :41/:56); it
+// creates a RAW transaction on a source:'manual' account — no journal entry
+// (the route's :9 doc line is stale) — which lands in /api/transactions
+// (userId-scoped, source-unfiltered) and therefore in the 02 Code queue like
+// any Plaid row. The affordance copy states exactly that.
+import ManualTransactionForm from '@/components/ManualTransactionForm';
+
+/**
+ * BOOKS-2 — the full bookkeeping PIPE for the homepage Books tab.
+ *
+ * This owns the dashboard's shared data layer (states + fetches + handlers,
+ * reproduced faithfully from src/app/dashboard/page.tsx) and renders the engines
+ * in the dashboard's CANONICAL order (cited per section below). All fetches hit
+ * existing, already-authed, user-scoped routes — no new routes, nothing added to
+ * PUBLIC_PATHS.
+ *
+ * TRUTH-FIRST: the pipe is a 3-state machine (loading / error / ok). On ANY core
+ * fetch failure it shows an explicit error, never engines fed fabricated empty
+ * data. The self-fetching drop-ins (Trial Balance, Financial Statements, Adjusting
+ * Entries, Wash Sales, Positions) manage their own internal loading/error.
+ *
+ * Note on account linking: the "+ Account" / Sync affordances live in the cockpit
+ * bar directly above this pipe (BOOKS-1). To avoid a second, duplicate Plaid Link
+ * flow on the same tab, the Source Accounts section here lists accounts + owns the
+ * entity-type assignment (the pipe-unique capability) and defers linking/sync to
+ * the cockpit.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = any;
+
+// FX-01 (2026-10-30, ruling B): a linked account's balance is a BANK figure in the account's own currency —
+// written by the books' one formatter only when that currency is the functional one, else with its code,
+// a currency Plaid did not state named (functionalCurrency.ts bankMoneyWords). The local `$` is gone.
+
+export default function BooksPipeline() {
+  // BOOKS-DS-1 → BOOKS-PIPE-FRAME: the dark chrome converted to Direction C
+  // (white cards on cream, DS inks) — the census Table B hits, mapped per the
+  // established conversion (panel family → border/bg families, white inks →
+  // the text ladder).
+  const [year] = useState(new Date().getFullYear());
+  const [state, setState] = useState<'loading' | 'error' | 'ok' | 'setup'>('loading');
+  // BOOKS-PIPE-FRAME: the active phase — the ONLY state the retired
+  // ToggleStrip owned, now owned here (keep-mounted CSS show/hide survival
+  // unchanged, the house idiom). 'feed' = the strip's first phase, matching
+  // ToggleStrip's own first-mode default.
+  const [phase, setPhase] = useState<'feed' | 'code' | 'reconcile' | 'close' | 'reports' | 'export'>('feed');
+  // BUDGET-02 (Alex, ruling F, 2026-10-20): a link into the general ledger — /ledger?account=&book=&from=&to=,
+  // forwarded here by src/app/ledger/page.tsx. Read ONCE on mount: the ledger's phase (02 Code — CAT → JE → LDG)
+  // opens, GeneralLedger takes the four filters, and the keys leave the URL (history.replaceState — no server
+  // round trip). The link is handed over once; GeneralLedger says what it cannot show.
+  // The room renders LOCKED until its lock read lands (src/components/shell/RoomLock.tsx useTabLock), then
+  // re-renders unlocked — a different tree, so this component REMOUNTS. The link is read in the unlocked room,
+  // the one that stays: read in the locked one, the keys would leave the URL with a component about to unmount.
+  const roomLocked = useRoomLock();
+  const [ledgerLink, setLedgerLink] = useState<LedgerLink | null>(null);
+  const ledgerLinkUsed = useCallback(() => setLedgerLink(null), []);
+  useEffect(() => {
+    if (roomLocked) return;
+    const search = new URLSearchParams(window.location.search);
+    const link = ledgerLinkOf(search);
+    if (link === null) return;
+    setLedgerLink(link);
+    setPhase('code');
+    for (const key of LEDGER_LINK_KEYS) search.delete(key);
+    const rest = search.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${rest === '' ? '' : `?${rest}`}${window.location.hash}`);
+  }, [roomLocked]);
+  // MANUAL-ENTRY: the no-bank path's reveal toggle (the /transactions page's
+  // own showAddForm idiom, transactions/page.tsx:140-161 — inline reveal, not
+  // a modal; the form's current design decides, declared).
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  // BOOKS-PIPE-FRAME: the T1 trial-balance totals, reported UP by
+  // TrialBalanceSection via the optional onTotals callback (the Trade
+  // reporting-callback precedent — the child owns the fetch; this is the
+  // already-fetched payload, zero new fetches). null until its fetch lands.
+  const [tbTotals, setTbTotals] = useState<{
+    totalDebits: number; totalCredits: number; imbalance: number;
+    isBalanced: boolean; hasActivity: boolean;
+  } | null>(null);
+
+  const [transactions, setTransactions] = useState<Row[]>([]);
+  const [accounts, setAccounts] = useState<Row[]>([]);
+  const [coaOptions, setCoaOptions] = useState<Row[]>([]);
+  const [investmentTransactions, setInvestmentTransactions] = useState<Row[]>([]);
+  const [journalEntries, setJournalEntries] = useState<Row[]>([]);
+  const [reconciliations, setReconciliations] = useState<Row[]>([]);
+  // DOCUMENTS-02 (Alex, 2026-10-30, ruling G): the pipeline's word on reconciliation — the server's, from
+  // src/lib/books/reconciliationStatus.ts over the same rows — not a count of rows ever reconciled.
+  const [reconStatus, setReconStatus] = useState<ReconciliationStatus | null>(null);
+  const [periodCloses, setPeriodCloses] = useState<Row[]>([]);
+  const [entityId, setEntityId] = useState<string | null>(null);
+  const [mappingTab, setMappingTab] = useState<'spending' | 'investments'>('spending');
+  // HYG-01: the Investments badge counts the SAME query the commit workflow renders
+  // (/api/investment-transactions/opens · totalAll) — one source, never a disagreeing number.
+  const [investmentQueue, setInvestmentQueue] = useState<number>(0);
+
+  // Reconciliations + period closes have their own reloaders (mirrors dashboard
+  // loadReconciliations :178 / loadPeriodCloses :188). Fail-loud — throw so the
+  // parent state machine flips to 'error' rather than showing empty tables.
+  const loadReconciliations = useCallback(async () => {
+    const res = await fetch('/api/bank-reconciliations');
+    if (!res.ok) throw new Error('bank-reconciliations fetch failed');
+    const d = await res.json();
+    if (!Array.isArray(d.reconciliations) || typeof d.status !== 'object' || d.status === null) throw new Error('bank-reconciliations: expected { reconciliations, status }');
+    setReconciliations(d.reconciliations);
+    setReconStatus(d.status as ReconciliationStatus);
+  }, []);
+
+  const loadPeriodCloses = useCallback(async () => {
+    const res = await fetch('/api/closing-periods');
+    if (!res.ok) throw new Error('closing-periods fetch failed');
+    const d = await res.json();
+    setPeriodCloses(d.periods || []);
+  }, []);
+
+  // NAV-01b: the Financial Statements status — the one status /dashboard derived
+  // (dashboard :243-247, availableYears from /api/statements) — moves here with the
+  // section. Fail-loud like its siblings.
+  const [statementYears, setStatementYears] = useState<number[]>([]);
+  const loadStatementYears = useCallback(async () => {
+    const res = await fetch(`/api/statements?year=${year}`);
+    if (!res.ok) throw new Error('statements fetch failed');
+    const d = await res.json();
+    setStatementYears(Array.isArray(d.availableYears) ? d.availableYears : []);
+  }, [year]);
+
+  // Core pipe data (mirrors dashboard loadData :142 + entities effect :199).
+  // Fail-loud: any non-OK response throws → 'error' state (no fabricated empty data).
+  const loadData = useCallback(async () => {
+    const [txnRes, coaRes, accRes, invRes, jeRes, entRes, opensRes] = await Promise.all([
+      fetch('/api/transactions'),
+      fetch('/api/chart-of-accounts'),
+      fetch('/api/accounts'),
+      fetch('/api/investment-transactions'),
+      fetch('/api/journal-transactions'),
+      fetch('/api/entities'),
+      fetch('/api/investment-transactions/opens'),
+    ]);
+    if (![txnRes, coaRes, accRes, invRes, jeRes, entRes, opensRes].every((r) => r.ok)) {
+      throw new Error('core books fetch failed');
+    }
+    const txn = await txnRes.json();
+    setTransactions(txn.transactions || []);
+    const coa = await coaRes.json();
+    setCoaOptions(coa.accounts || []);
+    const acc = await accRes.json();
+    const flat: Row[] = [];
+    (acc.items || []).forEach((item: Row) => {
+      (item.accounts || []).forEach((a: Row) => {
+        flat.push({
+          id: a.id, name: a.name, mask: a.mask, type: a.type,
+          // ACCOUNTS-01 / FX-01: the balance as the route sends it (null when the institution reported
+          // nothing — never 0) and the currency it is stated in (null when Plaid stated none).
+          balance: a.balance ?? null, currency: a.currency ?? null, institutionName: item.institutionName || 'Unknown',
+          entityType: a.entityType || null,
+          // BANK-01: the item this account rides on, and its recorded Plaid error (null when healthy).
+          itemId: item.id, lastErrorCode: item.lastErrorCode ?? null,
+        });
+      });
+    });
+    setAccounts(flat);
+    const inv = await invRes.json();
+    // HYG-01: /api/investment-transactions returns a bare array; the old `inv.transactions ||
+    // inv.investments || []` read it as EMPTY every time (the 'Investments 0' badge above 920
+    // rows). A non-array is a contract break → error state, not a fabricated empty list.
+    if (!Array.isArray(inv)) throw new Error('investment-transactions: expected an array');
+    setInvestmentTransactions(inv);
+    const opens = await opensRes.json();
+    if (typeof opens?.totalAll !== 'number') throw new Error('investment-transactions/opens: totalAll missing');
+    setInvestmentQueue(opens.totalAll);
+    const je = await jeRes.json();
+    setJournalEntries(je.entries || []);
+    const ent = await entRes.json();
+    const entities = ent.entities || [];
+    const def = entities.find((e: Row) => e.is_default) || entities[0];
+    setEntityId(def?.id ?? null);
+  }, []);
+
+  // ACCOUNTS-01: Reconnect is the shared hook now — the SAME update-mode Link,
+  // reconnect-complete and link-exit report step 1's screen (/accounts) drives. Books'
+  // Source Accounts phase is unchanged: it still offers Reconnect on a flagged row.
+  // BOOKS-GATE-01 (Alex, 2026-10-28, ruling A): the hook takes an explicit `enabled` — false while this room is
+  // locked, so a locked viewer's pipeline POSTs no link token and reads no OAuth-return line. The locked state is
+  // the panel's own booksLocked: BooksPanel (ModuleLauncher.tsx) hands it to <RoomLock locked={booksLocked}>, and
+  // useRoomLock() above reads that RoomLock's value. `enabled`, not an unmount: LOCK-01 renders a locked room in
+  // full, frozen, so the pipeline stays mounted and only the hook stands down. Unlocked, the hook runs as before.
+  const bank = useBankConnection({ onChanged: () => reloadAll(), enabled: !roomLocked });
+  const reconnectNote = bank.reconnectNote;
+  const reconnecting = bank.reconnecting;
+  const reconnectItem = bank.reconnect;
+
+  const reloadAll = useCallback(async () => {
+    setState('loading');
+    try {
+      // SELL-04: entities FIRST — a viewer with none gets the setup step, and the Books routes
+      // (which now answer 412 "set up your entity" instead of creating one) are not read.
+      const entRes = await fetch('/api/entities');
+      if (!entRes.ok) throw new Error('entities fetch failed');
+      const ent = await entRes.json();
+      if (!Array.isArray(ent.entities)) throw new Error('entities: expected an array');
+      if (ent.entities.length === 0) { setState('setup'); return; }
+      await Promise.all([loadData(), loadReconciliations(), loadPeriodCloses(), loadStatementYears()]);
+      setState('ok');
+    } catch {
+      setState('error');
+    }
+  }, [loadData, loadReconciliations, loadPeriodCloses, loadStatementYears]);
+
+  useEffect(() => { reloadAll(); }, [reloadAll]);
+
+  // Handlers — reproduced verbatim from the dashboard.
+  const saveJournalEntry = async (entry: Row) => {
+    await fetch('/api/journal-entries', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry),
+    });
+  };
+
+  // Optimistic entity assignment with revert-on-failure (dashboard :355). The revert
+  // restores the TRUE prior value — not a fabricated default.
+  const updateAccountEntity = async (accountId: string, entityType: string) => {
+    const prev = accounts.find((a) => a.id === accountId);
+    setAccounts((accs) => accs.map((a) => (a.id === accountId ? { ...a, entityType } : a)));
+    try {
+      const res = await fetch('/api/accounts/update-entity', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, entityType }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setAccounts((accs) => accs.map((a) => (a.id === accountId ? { ...a, entityType: prev?.entityType ?? null } : a)));
+    }
+  };
+
+  const committedSpending = transactions.filter((t) => t.journalProof);
+  const uncommittedSpending = transactions.filter((t) => !t.journalProof);
+  const committedInvestments = investmentTransactions.filter((t) => t.journalProof);
+  const uncommittedInvestments = investmentTransactions.filter((t) => !t.journalProof);
+  const committedCount = committedSpending.length + committedInvestments.length;
+  // FX-01: the total is a books figure, so it sums only balances stated in the functional currency and
+  // whole cents; every other account is counted out by name beside it, never summed into dollars.
+  const summable = accounts.filter((a) => a.currency === FUNCTIONAL_CURRENCY && typeof a.balance === 'number' && isWholeCents(a.balance));
+  const totalBalanceCents = summable.reduce((s, a) => s + centsOfTypedDollars(String(a.balance)), BigInt(0));
+  const notSummed = accounts.length - summable.length;
+
+  // BOOKS-PIPE-FRAME: strip-state signals — DERIVED ONLY, from state this
+  // component already holds (hardcoded states forbidden; the in-card stage
+  // dots' 9 hardcoded 'pending' props are the ledgered G2 anti-pattern, NEXT
+  // PR, untouched here).
+  const pendingCount = uncommittedSpending.length + investmentQueue;
+  // DOCUMENTS-02: the REC word is the server's rule (previous calendar month, every resolvable bank account reconciled).
+  const reconciled = reconStatus !== null && reconStatus.state === 'complete';
+  const closedThisYear = periodCloses.filter((p) => p.year === year && p.status === 'closed').length;
+
+  // BOOKS-PIPE-01: THE PIPELINE IS THE PAGE. The strip is hoisted out of the
+  // main return so the FIRST-RUN state renders it too. It used to be below an
+  // early `return <EntitySetup/>` (the old :277), so a customer with no entity
+  // never saw the six phases at all — the page opened on a setup card with no
+  // sense of what it was setting up. Same JSX, same derived states, same
+  // handler; ORDER ONLY.
+  const strip = (
+    <StageStrip
+      phases={([
+        { key: 'feed', num: PIPE_FEED.num, label: PIPE_FEED.name,
+          state: phase === 'feed' ? 'active' : accounts.length > 0 ? 'done' : 'pending' },
+        { key: 'code', num: PIPE_CODE.num, label: PIPE_CODE.name,
+          state: phase === 'code' ? 'active' : committedCount > 0 && pendingCount === 0 ? 'done' : 'pending' },
+        { key: 'reconcile', num: PIPE_RECONCILE.num, label: PIPE_RECONCILE.name,
+          state: phase === 'reconcile' ? 'active' : reconciled ? 'done' : 'pending' },
+        { key: 'close', num: PIPE_CLOSE.num, label: PIPE_CLOSE.name,
+          state: phase === 'close' ? 'active' : closedThisYear > 0 ? 'done' : 'pending' },
+        { key: 'reports', num: PIPE_REPORTS.num, label: PIPE_REPORTS.name,
+          state: phase === 'reports' ? 'active' : tbTotals?.hasActivity && tbTotals?.isBalanced ? 'done' : 'pending' },
+        { key: 'export', num: PIPE_EXPORT.num, label: PIPE_EXPORT.name,
+          state: phase === 'export' ? 'active' : 'pending' },
+      ] as StagePhase[])}
+      onSelect={(k) => setPhase(k as typeof phase)}
+    />
+  );
+
+  const closedPeriods = periodCloses.filter((p) => p.status === 'closed' && p.closedAt);
+  // NAV-01b: the December close of the selected year IS the year-end close.
+  const yearEndClosed = periodCloses.some((p) => p.year === year && p.month === 12 && p.status === 'closed');
+  // G7: the latest close's closedAt/closedBy — fetched (loadPeriodCloses) and
+  // typed (PeriodClose.tsx PeriodCloseRecord) but never rendered until now.
+  const latestClose = closedPeriods.reduce(
+    (best: Row | null, p: Row) => (!best || new Date(p.closedAt) > new Date(best.closedAt) ? p : best),
+    null,
+  );
+
+  if (state === 'loading') {
+    return (
+      <div className={'rounded-xl border-2 border-border bg-bg-row px-4 py-3 text-sm text-text-muted'}>
+        Loading your books pipeline…
+      </div>
+    );
+  }
+  if (state === 'setup') {
+    // FIRST RUN IS PHASE 01's CONTENT, not a card in front of the pipeline: the
+    // strip renders first, 01 Feed is the phase you are on, and the entity form
+    // is what that phase asks for. Nothing is hidden and nothing is invented —
+    // the later phases read `pending`, which is what they are.
+    return (
+      <>
+        {strip}
+        <div className="space-y-3">
+          <SectionHeader kicker={`${PIPE_FEED.num} / ${PIPE_FEED.name}`} right={`PHASE ${PIPE_FEED.num} OF 06`} />
+          <EntitySetup existing={[]} mode="first-run" onCreated={reloadAll} />
+        </div>
+      </>
+    );
+  }
+  if (state === 'error') {
+    return (
+      <div role="alert" className="rounded-lg border border-status-danger/30 bg-status-danger/10 p-3 text-xs text-status-danger flex items-center justify-between gap-3">
+        <span>Couldn&rsquo;t load your books pipeline right now. Nothing is assumed — the engines stay hidden until the data loads.</span>
+        <button
+          type="button"
+          onClick={reloadAll}
+          className="shrink-0 rounded-lg border border-status-danger/40 px-3 py-1.5 text-xs font-semibold text-status-danger hover:bg-status-danger/10"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // Dashboard canonical order (src/app/dashboard/page.tsx): SRC → CAT → JE → LDG →
+  // TB → REC → ADJ → STMT → TAX-LOT → CLOSE → CLOSE-YE → POS → EXP.
+  return (
+    // BOOKS-UX-1 → BOOKS-PIPE-FRAME: the six phases keep their exact names +
+    // stage groupings; the phase CONTROL is now the ratified StageStrip (the
+    // Trade precedent — one phase control, never two). One phase visible at a
+    // time, ALL phases mounted (CSS show/hide, the house keep-mounted idiom —
+    // ToggleStrip.tsx:145's own pattern), so in-flight engine state survives
+    // switching. Stage → phase mapping (canonical order preserved WITHIN each
+    // phase):
+    //   01 Feed      = SRC
+    //   02 Code      = CAT → JE → LDG
+    //   03 Reconcile = REC          ← the dossier anchor: Xero-grade bank
+    //               reconciliation is the market's most-loved concrete feature;
+    //               it gets its OWN phase (never folded into a bigger phase),
+    //               third of six — right after the feed+coding that produce
+    //               what it checks, ahead of Close (PeriodClose consumes
+    //               reconciliations) and everything downstream. Structural
+    //               prominence only; zero copy claims added.
+    //   04 Close     = ADJ → CLOSE → CLOSE-YE
+    //   05 Reports   = TB → STMT → TAX-LOT → POS
+    //   06 Export    = EXP (CPAExport + the EXPORT-1 button — reachable, untouched)
+    // Every stage renders inside exactly one phase; section JSX is byte-moved,
+    // not modified. This component owns the ONLY new state (the active phase +
+    // the TB report-up).
+    <>
+      {/* BOOKS-PIPE-FRAME: strip states DERIVED ONLY from audited signals —
+          feed ⇐ connected accounts; code ⇐ all caught up AND something coded;
+          reconcile ⇐ every resolvable bank account reconciled for the previous
+          month (DOCUMENTS-02, reconciliationStatus.ts — the server's word); close ⇐ a closed
+          period exists; reports ⇐ the T1 truth (hasActivity && isBalanced,
+          reported up by TrialBalanceSection); export = DECLARED GAP — no
+          export-completion signal exists client-side, so it renders pending
+          (never hardcoded done). States are indicators, never locks — every
+          phase stays clickable (the ratified StageStrip amendment). */}
+      {strip}
+
+      <div className={phase === 'feed' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="01 / Feed" right="PHASE 01 OF 06" />
+      {/* 1. SRC — Source Accounts (dashboard :502). Linking/sync live in the cockpit above. */}
+      <BookkeepingSection title="Source Accounts" pipelineKey="SRC"
+        subtitle={`${accounts.length} connected`}
+        status={accounts.length > 0 ? 'complete' : 'pending'}
+        collapsible defaultCollapsed={false}>
+        <div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className={'bg-bg-row text-text-secondary'}>
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium">Institution</th>
+                  <th className="px-3 py-2 text-left font-medium">Account</th>
+                  <th className="px-3 py-2 text-left font-medium">Type</th>
+                  <th className="px-3 py-2 text-left font-medium">Entity</th>
+                  <th className="px-3 py-2 text-right font-medium">Balance</th>
+                </tr>
+              </thead>
+              <tbody className={'divide-y divide-border'}>
+                {accounts.map((acc) => {
+                  const et = acc.entityType;
+                  const pillColor = et === 'personal' ? 'bg-blue-100 text-blue-700'
+                    : et === 'business' ? 'bg-purple-100 text-purple-700'
+                    : et === 'trading' ? 'bg-green-100 text-green-700'
+                    : 'bg-orange-100 text-orange-700';
+                  return (
+                    <tr key={acc.id} className={'hover:bg-brand-purple-wash/40'} data-item-error={acc.lastErrorCode ?? undefined}>
+                      <td className={'px-3 py-2 font-medium text-text-primary'}>
+                        {acc.institutionName}
+                        {/* BANK-01: only a row whose item carries a recorded Plaid error offers Reconnect.
+                            The outcome line stays on the row after the refetch — a reconnected item
+                            loses the button, not the "reconnected" answer. */}
+                        {(acc.lastErrorCode || (reconnectNote && reconnectNote.itemId === acc.itemId)) && (
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            {acc.lastErrorCode && (
+                              <>
+                                <span className="font-mono text-[10px] uppercase tracking-wider text-rose-700">needs reconnecting · {acc.lastErrorCode}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => reconnectItem(acc.itemId, acc.institutionName)}
+                                  disabled={reconnecting === acc.itemId}
+                                  className="rounded border border-brand-purple px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-brand-purple hover:bg-brand-purple-wash disabled:opacity-60"
+                                >
+                                  {reconnecting === acc.itemId ? 'Opening…' : 'Reconnect'}
+                                </button>
+                              </>
+                            )}
+                            {reconnectNote && reconnectNote.itemId === acc.itemId && (
+                              <span role={reconnectNote.tone === 'error' ? 'alert' : 'status'} className={`text-[10px] ${reconnectNote.tone === 'ok' ? 'text-emerald-700' : reconnectNote.tone === 'error' ? 'text-rose-700' : 'text-text-secondary'}`}>
+                                {reconnectNote.text}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className={'px-3 py-2 text-text-secondary font-mono'}>{'••••'} {acc.mask || '----'}</td>
+                      <td className="px-3 py-2"><span className={'px-2 py-0.5 bg-bg-row text-text-secondary text-[10px] uppercase'}>{acc.type}</span></td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={acc.entityType || ''}
+                          onChange={(e) => updateAccountEntity(acc.id, e.target.value)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase border-0 cursor-pointer ${pillColor}`}
+                        >
+                          {!acc.entityType && <option value="" disabled>{'⚠'} Unassigned</option>}
+                          <option value="personal">Personal</option>
+                          <option value="business">Business</option>
+                          <option value="trading">Trading</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono font-semibold" data-account-balance>{bankMoneyWords(acc.balance, acc.currency)}</td>
+                    </tr>
+                  );
+                })}
+                {accounts.length === 0 && (
+                  <tr><td colSpan={5} className={'px-3 py-8 text-center text-text-faint'}>No accounts connected — link one from the cockpit above.</td></tr>
+                )}
+              </tbody>
+              <tfoot className={'bg-bg-row border-t border-border'}>
+                <tr>
+                  <td colSpan={4} className={'px-3 py-2 font-semibold text-text-primary'}>Total ({FUNCTIONAL_CURRENCY} accounts{notSummed > 0 ? `; ${notSummed} not in ${FUNCTIONAL_CURRENCY} or with no stated balance, counted out` : ''})</td>
+                  <td className={'px-3 py-2 text-right font-mono font-bold text-text-primary'} data-accounts-total>{functionalMoneyWords(totalBalanceCents)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </BookkeepingSection>
+
+      {/* MANUAL-ENTRY (the no-bank-connection path): visible REGARDLESS of
+          Plaid state — a zero-account user (a bank Plaid can't reach) sees it
+          immediately; a Plaid user can still use it. The door line reuses the
+          feed's own vocabulary and the /transactions page's own button label
+          ("+ Add Transaction", :148). onSuccess → reloadAll: the new manual
+          account joins /api/accounts (userId-scoped, source-unfiltered) so
+          the feed's done-signal (accounts.length, :265-era) and the
+          "Connected accounts" receipt count it naturally; the transaction
+          joins the 02 Code queue (no journalProof yet). */}
+      <div className="rounded border border-border bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-text-secondary">
+            No bank connection? Add transactions manually — they join the feed and code like any other.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowManualEntry((v) => !v)}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              showManualEntry
+                ? 'bg-border text-text-secondary hover:bg-border'
+                : 'bg-brand-purple text-white hover:bg-brand-purple-hover'
+            }`}
+          >
+            {showManualEntry ? 'Close' : '+ Add Transaction'}
+          </button>
+        </div>
+        {showManualEntry && (
+          <div className="mt-3 max-w-lg">
+            <ManualTransactionForm
+              onSuccess={() => { void reloadAll(); }}
+              onCancel={() => setShowManualEntry(false)}
+            />
+          </div>
+        )}
+      </div>
+      </div>
+
+      <div className={phase === 'code' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="02 / Code" right="PHASE 02 OF 06" />
+      {/* 2. CAT — Categorize (dashboard :568): the COA-assignment queue. */}
+      <BookkeepingSection title="Categorize Transactions" pipelineKey="CAT"
+        subtitle={`${uncommittedSpending.length + investmentQueue} pending`}
+        status={uncommittedSpending.length + investmentQueue > 0 ? 'action-needed' : 'complete'}>
+        <div>
+          <div className={'flex items-center gap-3 px-3 py-1.5 border-b border-border'}>
+            <div className={'flex items-center border border-border bg-white'}>
+              <button onClick={() => setMappingTab('spending')}
+                className={`px-2 py-0.5 text-[10px] font-mono font-medium transition-colors ${
+                  mappingTab === 'spending' ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
+                }`}>
+                Spending <span className="font-bold text-brand-gold">{uncommittedSpending.length}</span>
+              </button>
+              <button onClick={() => setMappingTab('investments')}
+                className={`px-2 py-0.5 text-[10px] font-mono font-medium border-l border-border transition-colors ${
+                  mappingTab === 'investments' ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
+                }`}>
+                Investments <span className="font-bold text-brand-gold">{investmentQueue}</span>
+              </button>
+            </div>
+          </div>
+          <div className="p-4">
+            {mappingTab === 'spending' && <SpendingTab transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={reloadAll} />}
+            {mappingTab === 'investments' && <InvestmentsTab investmentTransactions={uncommittedInvestments} committedInvestments={committedInvestments} onReload={reloadAll} />}
+          </div>
+        </div>
+      </BookkeepingSection>
+
+      {/* 3. JE — Journal Entries (dashboard :596). */}
+      <BookkeepingSection title="Journal Entries" pipelineKey="JE"
+        subtitle={`${journalEntries.length} entries`}
+        status={journalEntries.length > 0 ? 'complete' : 'pending'}>
+        <div className="p-4">
+          <JournalEntryEngine journalTransactions={journalEntries} coaOptions={coaOptions} onSave={saveJournalEntry} onReload={reloadAll} />
+        </div>
+      </BookkeepingSection>
+
+      {/* 4. LDG — General Ledger (dashboard :605). */}
+      <BookkeepingSection title="General Ledger" pipelineKey="LDG"
+        subtitle={`${committedCount * 2} entries`}
+        status={committedCount > 0 ? 'complete' : 'pending'}>
+        <div className="p-4">
+          <GeneralLedger coaOptions={coaOptions} onReload={reloadAll} link={ledgerLink} onLinkUsed={ledgerLinkUsed} />
+        </div>
+      </BookkeepingSection>
+      </div>
+
+      <div className={phase === 'reconcile' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="03 / Reconcile" right="PHASE 03 OF 06" />
+      {/* 6. REC — Bank Reconciliation (dashboard :620). */}
+      {/* NAV-01b: status derived from the loaded reconciliations, no hardcoded 'pending'. */}
+      {/* DOCUMENTS-02: the word and the subtitle are the server's rule (ruling G); a failed save shows the server's words in place (ruling H). */}
+      <BookkeepingSection title="Bank Reconciliation" pipelineKey="REC"
+        subtitle={reconStatus === null ? '' : reconStatus.subtitle}
+        status={reconciled ? 'complete' : 'pending'}>
+        <div className="p-2">
+          <BankReconciliation
+            accounts={accounts}
+            reconciliations={reconciliations}
+            today={utcDayOf(new Date())}
+            onSave={async (data: ReconciliationSave): Promise<SaveAnswer> => {
+              const res = await fetch('/api/bank-reconciliations', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+              });
+              if (res.ok) return { ok: true };
+              const err = await res.json().catch(() => ({}));
+              return { ok: false, status: res.status, error: typeof err.error === 'string' ? err.error : `the save answered ${res.status}` };
+            }}
+            onReload={loadReconciliations}
+          />
+        </div>
+      </BookkeepingSection>
+      </div>
+
+      <div className={phase === 'close' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="04 / Close" right="PHASE 04 OF 06" />
+      {/* 7. ADJ — Adjusting Entries (dashboard :644, self-fetching). */}
+      {/* NAV-01b: self-fetching section; this pipe holds no data to judge it, so it
+          carries no status claim (BookkeepingSection status is optional). */}
+      <BookkeepingSection title="Adjusting Entries" pipelineKey="ADJ">
+        <AdjustingEntriesTab />
+      </BookkeepingSection>
+
+      {/* 10. CLOSE — Period Close (dashboard :663). */}
+      <BookkeepingSection title="Period Close" pipelineKey="CLOSE"
+        subtitle={`${closedThisYear} closed in ${year}`}
+        status={closedThisYear > 0 ? 'complete' : 'pending'}>
+        <div className="p-2">
+          <PeriodClose
+            transactions={transactions}
+            reconciliations={reconciliations}
+            periodCloses={periodCloses}
+            selectedYear={year}
+            onClose={async (y: number, month: number) => {
+              if (!entityId) { alert('No entity found. Create an entity first.'); return; }
+              const res = await fetch('/api/closing-periods/close', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entityId, year: y, month }),
+              });
+              if (!res.ok) {
+                const err = await res.json();
+                alert(err.error || 'Failed to close period');
+              }
+            }}
+            onReopen={async (y: number, month: number) => {
+              if (!entityId) { alert('No entity found.'); return; }
+              const reason = prompt('Reason for reopening (required for audit trail):');
+              if (!reason || !reason.trim()) { alert('A reason is required to reopen a period.'); return; }
+              const res = await fetch('/api/closing-periods/reopen', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entityId, year: y, month, notes: reason }),
+              });
+              if (!res.ok) {
+                const err = await res.json();
+                alert(err.error || 'Failed to reopen period');
+              }
+            }}
+            onReload={() => { loadPeriodCloses(); loadReconciliations(); }}
+          />
+        </div>
+      </BookkeepingSection>
+
+      {/* 11. CLOSE-YE — Year-End Close (dashboard :703). */}
+      <BookkeepingSection title="Year-End Close" pipelineKey="CLOSE-YE"
+        status={yearEndClosed ? 'complete' : 'pending'}>
+        <div className="p-2">
+          <CloseBooksTab entityId={entityId} selectedYear={year} />
+        </div>
+      </BookkeepingSection>
+      </div>
+
+      <div className={phase === 'reports' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="05 / Reports" right="PHASE 05 OF 06" />
+      {/* 5. TB — Trial Balance (dashboard :614, self-fetching). BOOKS-PIPE-FRAME:
+          onTotals reports the already-fetched T1 totals up for the strip state +
+          the ProofStrip receipt (zero new fetches; the stable setter is the
+          callback). */}
+      <BookkeepingSection title="Trial Balance" pipelineKey="TB"
+        status={tbTotals ? (tbTotals.hasActivity ? (tbTotals.isBalanced ? 'complete' : 'action-needed') : 'pending') : undefined}>
+        <TrialBalanceSection onTotals={setTbTotals} />
+      </BookkeepingSection>
+
+      {/* 8. STMT — Financial Statements (dashboard :650, self-fetching). */}
+      <BookkeepingSection title="Financial Statements" pipelineKey="STMT"
+        subtitle={statementYears.length > 0 ? `${statementYears.length} yr` : undefined}
+        status={statementYears.length > 0 ? 'complete' : 'pending'}>
+        <FinancialStatementsTab />
+      </BookkeepingSection>
+
+      {/* 9. TAX-LOT — Tax Lot Accounting & Wash Sales (dashboard :657, self-fetching). */}
+      <BookkeepingSection title="Tax Lot Accounting & Wash Sales" pipelineKey="TAX-LOT">
+        <WashSaleReportTab />
+      </BookkeepingSection>
+
+      {/* 12. POS — Position Report (dashboard :714, self-fetching). */}
+      <BookkeepingSection title="Position Report" pipelineKey="POS">
+        <PositionReportTab />
+      </BookkeepingSection>
+      </div>
+
+      <div className={phase === 'export' ? 'block space-y-3' : 'hidden'}>
+        <SectionHeader kicker="06 / Export" right="PHASE 06 OF 06" />
+      {/* 13. EXP — CPA Export (dashboard :745). The dashboard's Tax-forms link (:720) is
+          intentionally omitted — Tax is its own homepage tab, not part of this pipe. */}
+      <BookkeepingSection title="CPA Export" pipelineKey="EXP">
+        <div className="p-4">
+          <CPAExport year={year} entityId={entityId} />
+          {/* EXPORT-1: the full-data export lives on the same management surface
+              as the CPA statement exports — the anti-lock-in guarantee. The
+              route (/api/export) is NEVER paywalled: verified email + user
+              scoping only. Guest/locked viewers never see this — BooksPipeline
+              mounts only on the entitled authed branch (ModuleLauncher's
+              !booksLocked guard). */}
+          <ExportMyData />
+        </div>
+      </BookkeepingSection>
+      </div>
+
+      {/* BOOKS-PIPE-FRAME: the receipts rail — values from state that ALREADY
+          exists (parent fetches + the TB report-up; zero new fetches).
+          Rendering closedAt/closedBy closes pipe-audit G7 — fetched
+          (loadPeriodCloses above) and typed (PeriodClose.tsx
+          PeriodCloseRecord) but never rendered until now. DECLARED for Alex's
+          Preview judgment, not resolved here: the TB receipt overlaps the
+          cockpit bar's Balanced/Unbalanced/No-activity badge (both read the
+          same /api/trial-balance truth). */}
+      <ProofStrip
+        receipts={[
+          {
+            label: 'Connected accounts',
+            value: accounts.length > 0 ? String(accounts.length) : undefined,
+            sub: 'linked via the cockpit above',
+            emptyLabel: 'none linked yet',
+          },
+          {
+            label: 'Trial balance',
+            value: tbTotals
+              ? `${functionalMoneyWords(tbTotals.totalDebits)} D · ${functionalMoneyWords(tbTotals.totalCredits)} C · ${FUNCTIONAL_CURRENCY_WORDS}`
+              : undefined,
+            sub: tbTotals
+              ? !tbTotals.hasActivity
+                ? 'no activity yet — nothing posted'
+                : tbTotals.isBalanced
+                  ? 'balanced'
+                  : `unbalanced by ${functionalMoneyWords(Math.abs(tbTotals.imbalance))}`
+              : undefined,
+            emptyLabel: 'not loaded yet',
+          },
+          {
+            label: 'Periods closed',
+            value: `${closedThisYear} / 12 months`,
+            sub: String(year),
+          },
+          {
+            label: 'Last close',
+            value: latestClose ? new Date(latestClose.closedAt).toLocaleDateString('en-US') : undefined,
+            sub: latestClose?.closedBy ? `closed by ${latestClose.closedBy}` : undefined,
+            emptyLabel: 'no period closed yet',
+          },
+        ]}
+      />
+    </>
+  );
+}
+
+/** EXPORT-1: one button — the whole ledger leaves with you. Busy state, inline
+ *  error (fail-loud: a 413-oversize or any failure renders the server's honest
+ *  message), success = the browser downloads the dated zip.
+ *  EXPORT-1b: behavior extracted to the shared useExportDownload hook — this
+ *  CPA-context mount and the authed-header mount (HomeClient) stay identical
+ *  by construction. UI unchanged. */
+function ExportMyData() {
+  const { busy, error, run } = useExportDownload();
+
+  return (
+    <div className="mt-4 border-t border-border bg-bg-row p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-text-secondary">Your data is yours</div>
+          <p className="font-mono text-[11px] text-text-muted mt-0.5">
+            Every financial + travel table you own — one CSV per table, zipped. Never paywalled.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={run}
+          disabled={busy}
+          className="shrink-0 bg-white px-4 py-1.5 text-xs font-medium text-brand-purple hover:bg-bg-row disabled:opacity-60"
+        >
+          {busy ? 'Preparing your export…' : 'Export my data'}
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="mt-2 text-xs text-rose-400">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}

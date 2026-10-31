@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Script from 'next/script';
+// REBUILD-01 PR-3: the Sync button posts to the ONE Plaid writer (sync-complete) and
+// renders its outcome line — the HYG-03 reader: one line per failed bank, then what
+// succeeded. The per-item loop over the retired per-item sync route is gone with it.
+import { syncThroughOneWriter } from '@/lib/plaid/oneWriter';
+import type { SyncOutcome } from '@/lib/plaid/failLoud';
+
+const TONE_CLASS: Record<SyncOutcome['tone'], string> = { ok: 'text-emerald-700', partial: 'text-amber-700', error: 'text-rose-700' };
 
 declare global {
   interface Window {
@@ -13,7 +20,8 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<string>('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncOutcome, setSyncOutcome] = useState<SyncOutcome | null>(null);
 
   useEffect(() => {
     loadAccounts();
@@ -57,24 +65,19 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
     }
   };
 
+  // One POST to the one writer; the outcome line stays on screen (a failure names the bank).
   const syncAllAccounts = async () => {
+    setSyncing(true);
+    setSyncOutcome(null);
     try {
-      setSyncStatus('Syncing...');
-      const itemsRes = await fetch('/api/plaid/items');
-      const items = await itemsRes.json();
-      for (const item of items) {
-        await fetch('/api/plaid/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ itemId: item.id })
-        });
-      }
+      const outcome = await syncThroughOneWriter();
+      setSyncOutcome(outcome);
       await loadAccounts();
-      setSyncStatus('Done!');
-      setTimeout(() => setSyncStatus(''), 2000);
     } catch (error) {
-      console.error('Error syncing:', error);
-      setSyncStatus('Error');
+      // A network failure with no answer — declared on the line, never swallowed.
+      setSyncOutcome({ tone: 'error', text: `Sync failed — ${error instanceof Error ? error.message : String(error)}`, lines: [] });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -146,15 +149,23 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
             </button>
             <button
               onClick={syncAllAccounts}
-              className="px-3 py-1.5 border rounded text-sm text-text-secondary hover:bg-bg-row"
+              disabled={syncing}
+              className="px-3 py-1.5 border rounded text-sm text-text-secondary hover:bg-bg-row disabled:opacity-50"
             >
-              🔄 Sync
+              {syncing ? 'Syncing…' : '🔄 Sync'}
             </button>
-            {syncStatus && (
-              <span className="text-xs text-text-muted">{syncStatus}</span>
-            )}
           </div>
         </div>
+        {syncOutcome && (
+          <div role="status" data-sync-outcome={syncOutcome.tone} className={`mb-3 font-mono text-xs ${TONE_CLASS[syncOutcome.tone]}`}>
+            <p>{syncOutcome.text}</p>
+            {syncOutcome.lines.length > 1 && (
+              <ul className="mt-1 list-disc pl-4 text-[10px]">
+                {syncOutcome.lines.map((line) => <li key={line}>{line}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
 
         {/* Accounts Table */}
         {accounts.length > 0 ? (

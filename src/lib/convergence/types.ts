@@ -12,9 +12,11 @@ export interface CandleData {
 
 export interface TTScannerData {
   symbol: string;
-  ivRank: number;
-  ivPercentile: number;
-  impliedVolatility: number;
+  // KILL-2: null = the source did not deliver the field (absent/unparseable).
+  // Never imputed as 0 — a true source 0 is preserved as 0.
+  ivRank: number | null;
+  ivPercentile: number | null;
+  impliedVolatility: number | null;
   liquidityRating: number | null;
   earningsDate: string | null;
   daysTillEarnings: number | null;
@@ -43,6 +45,27 @@ export interface FinnhubFundamentals {
   metric: Record<string, number | string | null>;
   fieldCount: number;
 }
+
+// TRADE-COST-01: fetched_at for ONE Finnhub answer — rides alongside every
+// value the composite scores (ConvergenceInput.finnhubFetchedAt), so a later
+// PR can show data age on the card. A hit carries the ORIGINAL fetch time;
+// nothing is presented as fresher than it is. Client-safe (types only).
+export type FinnhubTier = 'quarterly' | 'weekly' | 'monthly' | 'daily';
+
+export interface FinnhubFetchMeta {
+  /** endpoint plus its key params, e.g. "stock/financials?freq=quarterly&statement=bs" */
+  key: string;
+  endpoint: string;
+  tier: FinnhubTier;
+  /** 0 = daily tier, never cached */
+  ttlMs: number;
+  /** ISO — when the vendor answered */
+  fetchedAt: string;
+  servedFromCache: boolean;
+}
+
+/** Per symbol: every Finnhub answer that fed it, keyed by FinnhubFetchMeta.key. */
+export type FinnhubFetchedAt = Record<string, FinnhubFetchMeta>;
 
 export interface FinnhubRecommendation {
   buy: number;
@@ -113,6 +136,13 @@ export interface FinnhubEstimateData {
   revenueEstimates: FinnhubRevenueEstimate[];
   priceTarget: FinnhubPriceTarget | null;
   upgradeDowngrade: FinnhubUpgradeDowngrade[];
+  // KILL-4 failure channel: sub-feed fetch/HTTP/parse failures — an empty
+  // array with an entry here means "feed unavailable", not "no estimates".
+  feedErrors?: string[];
+  // TRADE-COST-01: when each sub-feed's answer was fetched (a hit keeps its original time).
+  fetchedAt?: FinnhubFetchedAt;
+  // TRADE-COST-01: a vendor answer that was returned but could NOT be stored — declared, never swallowed.
+  storeErrors?: string[];
 }
 
 export interface FredMacroData {
@@ -135,8 +165,14 @@ export interface FredMacroData {
   initialClaimsDate: string | null;    // Observation date of ICSA
   nfciDate: string | null;             // Observation date of NFCI
   // Vol regime series
-  vxvShortTerm: number | null;         // VXVCLS: VIX short-term (9-day)
-  vvix: number | null;                 // VVIXCLS: Volatility of VIX
+  // NOTE: key name is historical — VXVCLS is the CBOE S&P 500 3-MONTH
+  // Volatility Index (VXV, renamed VIX3M in 2017), NOT a short-term/9-day
+  // series. VIX/VIX3M < 1 = contango (favorable to premium selling),
+  // > 1 = backwardation (stress). See STRATEGY-EVIDENCE.md §2.
+  vxvShortTerm: number | null;         // VXVCLS: CBOE 3-month VIX (VIX3M, formerly VXV)
+  // MODEL-02: VVIX is NOT here any more — FRED has no VVIXCLS series (DATA-01:
+  // 404; ten weeks of UNVERIFIED brakes). It arrives on ConvergenceInput.cboeDaily
+  // from Cboe's free daily file (cboe-daily.ts).
   // Fed net liquidity series
   fedBalanceSheet: number | null;      // WALCL: Fed total assets (weekly, billions)
   treasuryGeneralAccount: number | null; // WTREGEN: TGA balance (weekly, billions)
@@ -218,10 +254,12 @@ export interface OptionsChainStrike {
   strike: number;
   callIV: number | null;
   putIV: number | null;
-  callOI: number;
-  putOI: number;
-  callVolume: number;
-  putVolume: number;
+  // KILL-2: null = the feed delivered no volume/OI for this contract —
+  // never counted as a real 0 in flow totals (a true source 0 stays 0).
+  callOI: number | null;
+  putOI: number | null;
+  callVolume: number | null;
+  putVolume: number | null;
 }
 
 export interface OptionsChainExpiration {
@@ -241,6 +279,10 @@ export interface OptionsFlowData {
   strikes_analyzed: number;
   high_activity_strikes: number;
   expirations_analyzed: number;
+  // KILL-2 coverage declaration: how many per-contract volume/OI fields the
+  // feed did NOT deliver (those are excluded from the totals above, never 0).
+  volume_fields_missing: number;
+  oi_fields_missing: number;
   underlyingPrice: number | null;
   chainDetail: OptionsChainExpiration[];
 }
@@ -275,6 +317,9 @@ export interface NewsSentimentData {
   source_distribution: Record<string, number>;
   tier1_ratio: number;
   headlines: NewsHeadlineEntry[];
+  // KILL-7: articles the feed sent without a headline — skipped, never
+  // classified as an imputed 'neutral' (declared count)
+  articles_skipped_no_headline?: number;
   classification_method: string; // 'finnhub-native'
 }
 
@@ -417,7 +462,45 @@ export interface CrossAssetCorrelations {
   note: string;
 }
 
+// ===== VRP OWN-HISTORY DISTRIBUTION (EDGE-4) =====
+// The ticker's own historical VRP (iv30 − hv30) series, one observation per
+// distinct scan day, from scan_snapshots. This is the ONLY honest distribution
+// for vrp_z / the VRP percentile — never a peer proxy, never a fabricated
+// mean/std. Absent (null) ⇒ the VRP signal is excluded and weights renormalize.
+
+export interface VrpHistoryData {
+  values: number[];       // one VRP observation per distinct scan day
+  distinct_days: number;  // === values.length
+  window_days: number;    // lookback window (365)
+  source: 'scan_snapshots';
+}
+
 // ===== COMBINED RAW INPUT =====
+
+// ===== MODEL-02: Cboe daily index reads (free, no key, dated) =====
+
+export interface CboeDailyPoint {
+  index: 'VVIX' | 'VIX9D' | 'VIX' | 'VIX3M' | 'VIX6M' | 'SKEW';
+  value: number;
+  /** ISO date of the row (the prior session's close). */
+  date: string;
+  /** When this process fetched the file. */
+  fetched_at: string;
+  source: string;
+  url: string;
+}
+
+export interface CboeDailyData {
+  vvix: CboeDailyPoint | null;
+  vix9d: CboeDailyPoint | null;
+  vix: CboeDailyPoint | null;
+  vix3m: CboeDailyPoint | null;
+  vix6m: CboeDailyPoint | null;
+  skew: CboeDailyPoint | null;
+  /** One line per index that could not be fetched or parsed — declared by the regime gate. */
+  errors: string[];
+  fetched_at: string;
+}
 
 export interface ConvergenceInput {
   symbol: string;
@@ -442,18 +525,33 @@ export interface ConvergenceInput {
   finnhubFundOwnership: FinnhubFundOwnership | null;
   edgar8kScan: SECEdgar8KScan | null;
   crossAssetCorrelations: CrossAssetCorrelations | null;
+  // MODEL-02: Cboe's daily VVIX / VIX term structure / SKEW — the regime gate's
+  // brake reads VVIX here; the rest are weight-0 inputs, present and logged.
+  // null/absent = not fetched this run (declared by the gate).
+  cboeDaily?: CboeDailyData | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
   textPeerGroups?: Record<string, TextBasedPeerGroup>;
+  // EDGE-4: ticker's own historical VRP distribution — null/absent ⇒ VRP excluded
+  vrpHistory?: VrpHistoryData | null;
+  // TRADE-COST-01: fetched_at of every Finnhub answer above, keyed by
+  // endpoint?params — read by nothing that scores (no weight, no gate), carried
+  // so the card can say how old each value is.
+  finnhubFetchedAt?: FinnhubFetchedAt | null;
 }
 
 // ===== DATA CONFIDENCE =====
 
 export interface DataConfidence {
   total_sub_scores: number;
-  imputed_sub_scores: number;
+  imputed_sub_scores: number;    // sub-scores not backed by full real data (imputed + excluded)
   confidence: number; // 1 - (imputed / total), range 0 to 1
   imputed_fields: string[];
+  // EDGE-2: signals whose data source was ABSENT are dropped and the remaining
+  // weights re-normalized — never imputed with a neutral value. These fields
+  // record that exclusion so the UI can show "computed from N/M signals".
+  excluded_fields?: string[];
+  active_signal_count?: number;  // sub-scores actually computed from real data
 }
 
 // ===== SCORING TRACES =====
@@ -464,13 +562,25 @@ export interface SubScoreTrace {
   inputs: Record<string, number | string | boolean | null>;
   formula: string;
   notes: string;
+  // KILL-3: N/M declaration — components actually computed from real data vs
+  // total, and which were EXCLUDED (missing source → dropped + renormalized).
+  active_signal_count?: number;
+  total_signal_count?: number;
+  excluded_components?: string[];
 }
 
 // -- Vol Edge --
 
 export interface MispricingTrace extends SubScoreTrace {
+  // EDGE-4: VRP component score (percentile of VRP vs the ticker's OWN 365d
+  // history). null = no own-history distribution ⇒ excluded + renormalized.
+  // DataConfidence tracking derives from this field so it cannot drift.
+  vrp_score: number | null;
   z_scores: {
     vrp_z: number | null;
+    // EDGE-4: labels the distribution vrp_z was computed against
+    // (e.g. "own 41-obs VRP history, 365d, source: scan_snapshots")
+    vrp_z_source: string | null;
     ivp_z: number | null;
     iv_hv_z: number | null;
     hv_accel_z: number | null;
@@ -478,10 +588,19 @@ export interface MispricingTrace extends SubScoreTrace {
     transform: 'percentile' | 'z-score-fallback' | 'raw';
   };
   hv_trend: string;
+  // MODEL-01: the four seller-oriented component scores AFTER the peer
+  // transform, exposed so composite.ts buyerScore() can recompose the gate
+  // per the input-sign table (input-signs.ts). null = component EXCLUDED.
+  component_scores: {
+    vrp: number | null;
+    iv_composite: number | null;
+    iv_hv_spread: number | null;
+    hv_accel: number | null;
+  };
   iv_composite: {
     iv_rank: number | null;
     iv_percentile: number | null;
-    iv_composite_score: number;
+    iv_composite_score: number | null; // KILL-6: null = IVP and IVR both missing
     iv_composite_method: string;
     high_conviction_iv: boolean;
     vol_regime: 'POST_SPIKE' | 'SPIKE_BUILDING' | 'NORMAL';
@@ -499,12 +618,13 @@ export interface TermStructureTrace extends SubScoreTrace {
 }
 
 export interface TechnicalsTrace extends SubScoreTrace {
+  // KILL-6: null = component/section source data missing → excluded + renormalized
   sub_scores: {
-    rsi_score: number;
-    trend_score: number;
-    bollinger_score: number;
-    volume_score: number;
-    high52w_score: number;
+    rsi_score: number | null;
+    trend_score: number | null;
+    bollinger_score: number | null;
+    volume_score: number | null;
+    high52w_score: number | null;
   };
   indicators: {
     rsi_14: number | null;
@@ -542,7 +662,10 @@ export interface GEXTrace extends SubScoreTrace {
 }
 
 export interface VolEdgeResult {
-  score: number;
+  // MIG-1: null = the gate had ZERO computable signals — excluded from the
+  // composite (weights renormalize over present gates) and recorded as an
+  // honest null in scan_snapshots, never a number.
+  score: number | null;
   data_confidence: DataConfidence;
   breakdown: {
     mispricing: MispricingTrace;
@@ -556,13 +679,14 @@ export interface VolEdgeResult {
 // -- Quality Gate --
 
 export interface SafetyTrace extends SubScoreTrace {
+  // KILL-3: null = source data missing → component EXCLUDED + renormalized
   sub_scores: {
-    liquidity_rating_score: number;
-    market_cap_score: number;
-    volume_score: number;
-    lendability_score: number;
-    beta_score: number;
-    debt_to_equity_score: number;
+    liquidity_rating_score: number | null;
+    market_cap_score: number | null;
+    volume_score: number | null;
+    lendability_score: number | null;
+    beta_score: number | null;
+    debt_to_equity_score: number | null;
   };
   piotroski: {
     available_signals: number;
@@ -589,7 +713,8 @@ export interface SafetyTrace extends SubScoreTrace {
   borrow_rate_adjustment: {
     borrow_rate: number | null;
     penalty: number;
-    score_before_penalty: number;
+    // KILL-3: null when the whole safety section had no component data
+    score_before_penalty: number | null;
   };
   revenue_concentration?: {
     hhi: number | null;
@@ -600,20 +725,21 @@ export interface SafetyTrace extends SubScoreTrace {
 }
 
 export interface ProfitabilityTrace extends SubScoreTrace {
+  // KILL-3: null = source data missing → component EXCLUDED + renormalized
   sub_scores: {
-    gross_margin_score: number;
-    roe_score: number;
-    roa_score: number;
-    roic_score: number;
-    pe_score: number;
-    ps_score: number;
-    ev_ebitda_score: number;
-    fcf_score: number;
+    gross_margin_score: number | null;
+    roe_score: number | null;
+    roa_score: number | null;
+    roic_score: number | null;
+    pe_score: number | null;
+    ps_score: number | null;
+    ev_ebitda_score: number | null;
+    fcf_score: number | null;
   };
   earnings_quality: {
-    surprise_consistency: number;
-    dte_score: number;
-    beat_rate: number;
+    surprise_consistency: number | null;
+    dte_score: number | null;
+    beat_rate: number | null;
     earnings_detail: {
       total_quarters: number;
       beats: number;
@@ -625,7 +751,7 @@ export interface ProfitabilityTrace extends SubScoreTrace {
     earnings_quality_ensemble?: {
       finnhub_eq_score: number | null;
       finnhub_eq_letter: string | null;
-      sue_score: number;
+      sue_score: number | null;
       ensemble_agreement: 'agree' | 'disagree' | 'unavailable';
       confidence_modifier: number;
     };
@@ -649,18 +775,20 @@ export interface EarningsQualityTrace extends SubScoreTrace {
 }
 
 export interface GrowthTrace extends SubScoreTrace {
+  // KILL-3: null = source data missing → component EXCLUDED + renormalized
   sub_scores: {
-    revenue_growth_score: number;
-    eps_growth_score: number;
-    dividend_growth_score: number;
+    revenue_growth_score: number | null;
+    eps_growth_score: number | null;
+    dividend_growth_score: number | null;
   };
 }
 
 export interface FundamentalRiskTrace extends SubScoreTrace {
+  // KILL-3: null = source data missing → component EXCLUDED + renormalized
   sub_scores: {
-    cash_flow_stability_score: number;
-    earnings_predictability_score: number;
-    asset_turnover_score: number;
+    cash_flow_stability_score: number | null;
+    earnings_predictability_score: number | null;
+    asset_turnover_score: number | null;
   };
   cash_flow_detail?: {
     cf_stability_source: string;
@@ -674,7 +802,10 @@ export interface FundamentalRiskTrace extends SubScoreTrace {
 export type EfficiencyTrace = FundamentalRiskTrace;
 
 export interface QualityGateResult {
-  score: number;
+  // MIG-1: null = the gate had ZERO computable signals — excluded from the
+  // composite (weights renormalize over present gates) and recorded as an
+  // honest null in scan_snapshots, never a number.
+  score: number | null;
   mspr_adjustment: number;
   data_confidence: DataConfidence;
   breakdown: {
@@ -694,19 +825,55 @@ export interface StrategyRegimeScore {
   final_score: number;
 }
 
+// EDGE-6 (STRATEGY-EVIDENCE §6): the anti-wipeout survival brake.
+// ON         = backwardation (VIX/VIX3M > 1) OR elevated VVIX — short-vol
+//              exposure is cut regardless of how attractive the VRP looks.
+// UNVERIFIED = one or both brake inputs missing — the brake cannot confirm
+//              safety, so short-vol exposure is NOT confirmed safe (fail-safe:
+//              treated like ON downstream, with its own declared reason).
+// OFF        = both inputs present, neither triggered.
+/** MODEL-02: a Cboe-sourced regime input carried at weight 0 (no normalization until EDGE-01's third book has n). */
+export interface CboeRegimeInput {
+  key: 'vix9d_over_vix' | 'vix_over_vix3m_cboe' | 'vix3m_over_vix6m' | 'skew';
+  label: string;
+  raw_value: number | null;
+  /** The legs the ratio was built from, each with its Cboe row date. */
+  inputs: { index: string; value: number | null; date: string | null }[];
+  weight: 0;
+  fetched_at: string | null;
+  source: string;
+  null_reason: string | null;
+  note: string;
+}
+
+export interface SurvivalBrake {
+  state: 'OFF' | 'ON' | 'UNVERIFIED';
+  reasons: string[];
+  vix_term_structure_ratio: number | null; // VIXCLS / VXVCLS
+  vvix: number | null;                     // Cboe VVIX daily close (MODEL-02; FRED never had it)
+  thresholds: { backwardation_ratio: number; vvix_elevated: number };
+  declaration: string; // user-facing declared state — never a silent score change
+}
+
 export interface RegimeResult {
-  score: number;
+  // MIG-1: null = the gate had ZERO computable signals — excluded from the
+  // composite (weights renormalize over present gates) and recorded as an
+  // honest null in scan_snapshots, never a number.
+  score: number | null;
   data_confidence: DataConfidence;
   breakdown: {
     growth_signal: {
       score: number;
+      // KILL-3: N/M declaration; null sub-score = series missing → excluded
+      active_signal_count?: number;
+      total_signal_count?: number;
       sub_scores: {
-        gdp_score: number;
-        unemployment_score: number;
-        nfp_score: number;
-        consumer_confidence_score: number;
-        icsa_score: number;
-        nfci_score: number;
+        gdp_score: number | null;
+        unemployment_score: number | null;
+        nfp_score: number | null;
+        consumer_confidence_score: number | null;
+        icsa_score: number | null;
+        nfci_score: number | null;
       };
       raw_values: {
         gdp: number | null;
@@ -720,12 +887,15 @@ export interface RegimeResult {
     };
     inflation_signal: {
       score: number;
+      // KILL-3: N/M declaration; null sub-score = series missing → excluded
+      active_signal_count?: number;
+      total_signal_count?: number;
       sub_scores: {
-        cpi_yoy_score: number;
-        cpi_mom_score: number;
-        fed_funds_score: number;
-        treasury_10y_score: number;
-        breakeven_5y_score: number;
+        cpi_yoy_score: number | null;
+        cpi_mom_score: number | null;
+        fed_funds_score: number | null;
+        treasury_10y_score: number | null;
+        breakeven_5y_score: number | null;
       };
       raw_values: {
         cpi_yoy: number | null;
@@ -735,13 +905,15 @@ export interface RegimeResult {
         breakeven_5y: number | null;
       };
     };
+    // MIG-1: null when the regime could not be classified (all growth or all
+    // inflation series missing) — never fabricated equal probabilities.
     regime_scores: {
       goldilocks: number;
       reflation: number;
       stagflation: number;
       deflation: number;
-    };
-    dominant_regime: string;
+    } | null;
+    dominant_regime: string | null;
     regime_signals: {
       yield_curve_spread: number | null;
       yield_curve_inverted: boolean;
@@ -776,17 +948,31 @@ export interface RegimeResult {
     t10y3m_signal: { score: number | null; raw_value: number | null };
     dollar_index_signal: { score: number | null; raw_value: number | null };
     fed_net_liquidity_signal: { score: number | null; raw_value: number | null; formula: string };
+    // EDGE-6 (STRATEGY-EVIDENCE §2): vol-regime conditioners WIRED into the
+    // regime score (unlike the ancillary signals above). null score = series
+    // missing → excluded + renormalized via combineWeighted, never defaulted.
+    vol_conditioners: {
+      vix_term_structure: { score: number | null; raw_value: number | null; formula: string };
+      // MODEL-02: VVIX from Cboe — dated; null_reason says why when absent
+      vvix: { score: number | null; raw_value: number | null; source: string; fetched_at: string | null; data_date: string | null; null_reason: string | null };
+      // MODEL-02: NEW inputs at weight 0 — present, dated, tuned by nobody
+      cboe_inputs: CboeRegimeInput[];
+      combine_formula: string;
+      excluded: string[];
+    };
+    survival_brake: SurvivalBrake;
   };
 }
 
 // -- Info Edge --
 
 export interface AnalystConsensusTrace extends SubScoreTrace {
+  // KILL-5: null = component's source data missing → excluded + renormalized
   sub_scores: {
-    estimate_level_score: number;
-    estimate_dispersion_score: number;
-    revenue_eps_alignment_score: number;
-    consensus_breadth_score: number;
+    estimate_level_score: number | null;
+    estimate_dispersion_score: number | null;
+    revenue_eps_alignment_score: number | null;
+    consensus_breadth_score: number | null;
   };
   indicators: {
     forward_eps: number | null;
@@ -840,8 +1026,9 @@ export interface UpgradeDowngradeSignalTrace extends SubScoreTrace {
 
 export interface InsiderActivityTrace extends SubScoreTrace {
   sub_scores: {
-    mspr_score: number;
-    trend_score: number;
+    // null when the MSPR feed is empty and the ensemble runs on Form 4 only
+    mspr_score: number | null;
+    trend_score: number | null;
   };
   insider_detail: {
     months_available: number;
@@ -851,14 +1038,14 @@ export interface InsiderActivityTrace extends SubScoreTrace {
   };
   form4?: {
     form4_available: boolean;
-    insider_ensemble_mode: 'full' | 'mspr_only';
+    insider_ensemble_mode: 'full' | 'mspr_only' | 'form4_only';
     form4_buy_count: number;
     form4_sell_count: number;
     net_dollar_flow: number;
     officer_buys: number;
     opportunistic_score: number | null;
-    form4_flow_score: number;
-    form4_opportunistic_score_component: number;
+    form4_flow_score: number | null;
+    form4_opportunistic_score_component: number | null;
   };
 }
 
@@ -884,10 +1071,12 @@ export interface FlowSignalTrace {
   formula: string;
   notes: string;
   sub_scores: {
-    put_call_ratio_score: number;
-    unusual_activity_score: number;
-    volume_bias_score: number;
-    option_stock_ratio_score: number;
+    // each component is null when its input is missing — excluded from the
+    // flow composite with the remaining component weights re-normalized
+    put_call_ratio_score: number | null;
+    unusual_activity_score: number | null;
+    volume_bias_score: number | null;
+    option_stock_ratio_score: number | null;
   };
   flow_detail: {
     data_available: boolean;
@@ -959,20 +1148,31 @@ export interface FilingRecencyTrace {
 }
 
 export interface InfoEdgeResult {
-  score: number;
+  // MIG-1: null = the gate had ZERO computable signals — excluded from the
+  // composite (weights renormalize over present gates) and recorded as an
+  // honest null in scan_snapshots, never a number.
+  score: number | null;
   data_confidence: DataConfidence;
   filing_recency: FilingRecencyTrace;
   breakdown: {
-    analyst_consensus: AnalystConsensusTrace;
-    price_target_signal: PriceTargetSignalTrace;
-    upgrade_downgrade_signal: UpgradeDowngradeSignalTrace;
-    insider_activity: InsiderActivityTrace;
-    earnings_momentum: EarningsMomentumTrace;
-    flow_signal: FlowSignalTrace;
+    // KILL-5: null = no analyst/estimate data at all — excluded + renormalized
+    analyst_consensus: AnalystConsensusTrace | null;
+    // EDGE-2b: every sub-score below is null when its data source is absent —
+    // excluded from the composite and the remaining weights re-normalized.
+    price_target_signal: PriceTargetSignalTrace | null;
+    upgrade_downgrade_signal: UpgradeDowngradeSignalTrace | null;
+    insider_activity: InsiderActivityTrace | null;
+    earnings_momentum: EarningsMomentumTrace | null;
+    flow_signal: FlowSignalTrace | null;
     news_sentiment: NewsSentimentTrace | null;
-    institutional_ownership: InstitutionalOwnershipTrace;
-    fund_ownership_flow?: SubScoreTrace;
-    material_event_flag?: SubScoreTrace;
+    institutional_ownership: InstitutionalOwnershipTrace | null;
+    fund_ownership_flow: SubScoreTrace | null;
+    material_event_flag: SubScoreTrace | null;
+    // EDGE-7b: month-over-month revision of the analyst consensus mix
+    // (/stock/recommendation monthly series). null = fewer than 2 usable
+    // months (or a non-monthly gap) — excluded + renormalized, no baseline
+    // fabricated.
+    recommendation_revision: SubScoreTrace | null;
   };
 }
 
@@ -987,29 +1187,88 @@ export interface GateWeights {
 
 export interface GateWeightTrace {
   gate_weights: GateWeights;
-  weight_mode: 'dynamic' | 'static_fallback';
+  // MODEL-01: 'equal_untuned' = the buyer model's equal weights (input-signs.ts MODEL_WEIGHTS_SET_ON)
+  weight_mode: 'dynamic' | 'static_fallback' | 'equal_untuned';
   regime_used: string;
   regime_confidence: number;
   blend_factor: number;
 }
 
 export interface CompositeResult {
-  score: number;
+  // MIG-1: null = the gate had ZERO computable signals — excluded from the
+  // composite (weights renormalize over present gates) and recorded as an
+  // honest null in scan_snapshots, never a number.
+  score: number | null;
   rank_method: string;
   note: string;
   convergence_gate: string;
   direction: string;
   category_scores: {
-    vol_edge: number;
-    quality: number;
-    regime: number;
-    info_edge: number;
+    vol_edge: number | null;
+    quality: number | null;
+    regime: number | null;
+    info_edge: number | null;
   };
   categories_above_50: number;
   position_size_pct: number;
   sizing_method: string;
   data_confidence: DataConfidence;
   gate_weight_trace: GateWeightTrace;
+  // EDGE-6 (STRATEGY-EVIDENCE §6): survival brake state copied from the
+  // regime gate so every composite consumer (snapshot, cards, UI) sees it.
+  regime_brake: { state: 'OFF' | 'ON' | 'UNVERIFIED'; declaration: string };
+  // MODEL-01: which model produced `score` — never null. 'seller' is today's
+  // composite unchanged (renamed); 'buyer' is the recomposition per the
+  // input-sign table. The era is the model version the card was scored under
+  // (edge-read/eras.ts CURRENT_MODEL_ERA).
+  score_model: ScoreModel;
+  model_era: string;
+  /** The gates that actually entered `score` (the rest were excluded and the weights renormalized). */
+  scored_by: GateKey[];
+  excluded_gates: GateKey[];
+  /** buyer model only: every component the table admitted, its seller-oriented value, sign and buyer value. */
+  buyer_components: BuyerComponentTrace | null;
+}
+
+// -- MODEL-01: two scores, one per premium direction --
+
+export type PremiumSide = 'SELL' | 'BUY';
+/** The scan mode: one side, or both funnels with every candidate labelled by its side. */
+export type ScanSide = PremiumSide | 'BOTH';
+export type ScoreModel = 'seller' | 'buyer';
+export type GateKey = 'vol_edge' | 'quality' | 'regime' | 'info_edge';
+
+export interface BuyerComponent {
+  gate: GateKey;
+  input: string;
+  sign: '+' | '-';
+  /** The component as the gate computed it (seller-oriented), null = excluded. */
+  seller_oriented: number | null;
+  /** What entered the buy score after the table's sign. */
+  buyer_value: number | null;
+  note: string;
+}
+
+export interface BuyerComponentTrace {
+  components: BuyerComponent[];
+  /** Per gate: the buyer gate score and how many admitted components were present. */
+  gates: Record<GateKey, { score: number | null; present: number; admitted: number; note: string }>;
+  weights_set_on: string;
+}
+
+/** MODEL-01 STEP 3: why a BUY candidate exists. A BUY card carries at least one. */
+export interface Catalyst {
+  kind: 'earnings_in_window' | 'hv_over_iv';
+  detail: string;
+  source: string;
+}
+
+/** MODEL-01 STEP 3: the earnings date against the structure's DTE window — stated on every card, never silent. */
+export interface EarningsWindow {
+  state: 'inside' | 'outside' | 'unknown';
+  detail: string;
+  date: string | null;
+  source: string | null;
 }
 
 // -- Strategy Suggestion --
@@ -1078,19 +1337,32 @@ export interface TradeCardSetup {
 }
 
 export interface TradeCardWhy {
-  composite_score: number;
+  // MIG-1: null = every gate excluded — no composite exists (rendered '—')
+  composite_score: number | null;
   letter_grade: string;
   direction: string;
   convergence_gate: string;
   category_scores: {
-    vol_edge: number;
-    quality: number;
-    regime: number;
-    info_edge: number;
+    vol_edge: number | null;
+    quality: number | null;
+    regime: number | null;
+    info_edge: number | null;
   };
   plain_english_signals: string[];
   regime_context: string;
   risk_flags: string[];
+  // MODEL-01: the side the candidate came through, the model that scored it,
+  // the model era, and the gates that entered the score — never null.
+  side: PremiumSide;
+  score_model: ScoreModel;
+  model_era: string;
+  scored_by: GateKey[];
+  /** BUY: ≥ 1 catalyst (the candidate does not exist without one). SELL: []. */
+  catalysts: Catalyst[];
+  /** Every card: the earnings date vs [scan, expiration] — a SELL card inside the window is flagged, never excluded. */
+  earnings_window: EarningsWindow;
+  /** Unbounded structures only: the per-user cap check that let this card be built. null for defined risk. */
+  undefined_risk_cap: string | null;
 }
 
 export interface SocialSentiment {
@@ -1174,6 +1446,8 @@ export interface TradeCard {
   setup: TradeCardSetup;
   why: TradeCardWhy;
   key_stats: TradeCardKeyStats;
+  /** LOG-01: the scan_candidates row this card was persisted as (stamped by candidate-log.ts before the scan returns). */
+  candidate_id?: string | null;
 }
 
 /** Client-side trade card shape (TradeCard minus generated_at). */
@@ -1183,6 +1457,8 @@ export interface TradeCardData {
   setup: TradeCardSetup;
   why: TradeCardWhy;
   key_stats: TradeCardKeyStats;
+  /** LOG-01: the scan_candidates row this card was persisted as. */
+  candidate_id?: string | null;
 }
 
 // -- Full Pipeline Response --

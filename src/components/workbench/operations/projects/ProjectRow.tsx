@@ -5,7 +5,7 @@
  * fetch it fired itself (PATCH save / PATCH save-inputs / POST generate-design /
  * POST generate-tasks / DELETE / PATCH archive / PATCH unarchive) plus the
  * scroll-into-view jump effect and all UI toggles — and now renders the pure
- * <ProjectRowView/> with the live state + the real handlers wired to its
+ * <ProjectRowView /> with the live state + the real handlers wired to its
  * callbacks. The two PAID Anthropic AI calls (generate-design, generate-tasks)
  * are container-owned, never reachable from the pure view. The public name +
  * prop shape ({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget,
@@ -22,6 +22,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Project, ProjectForm } from './types';
+import { briefPromptText } from '@/lib/operations/projectBrief';
 import { type InspectionData } from '../ai/InspectionDrawer';
 import { type AIGeneratedTask } from './AITaskPreview';
 import TaskList from './TaskList';
@@ -34,6 +35,7 @@ import ProjectRowView, {
   type GenerationInspection,
   type TasksPreview,
 } from './ProjectRowView';
+
 
 interface Props {
   project: Project;
@@ -50,7 +52,17 @@ interface Props {
   /** PD-2: start expanded (the queue card opens straight into the detail). Default false
    *  → existing behavior unchanged everywhere else. */
   defaultExpanded?: boolean;
+  /** PROJECTS-01: the projects table draws the tasks on its own rows, so its
+   *  "details" row passes NO task section — in the standard row or the pipeline. */
+  withoutTaskSection?: boolean;
+  /** PROJECTS-01: called whenever this project's tasks change (the pipe landed
+   *  tasks, or generated tasks were accepted) — the table re-reads them. */
+  onTasksChanged?: () => void;
+  /** ARCHIVE-01 (Alex, 2026-10-27): after "unarchive", the route's words — what the cascade restore did — for the table to print above its rows. */
+  onUnarchived: (words: string) => void;
 }
+
+export const BRIEF_COPIED_WORDS = 'copied';
 
 function projectToForm(p: Project): ProjectForm {
   return {
@@ -61,6 +73,21 @@ function projectToForm(p: Project): ProjectForm {
     problemItems: Array.isArray(p.problem_items) ? p.problem_items.filter((x): x is string => typeof x === 'string') : [],
     diagnosisItems: Array.isArray(p.diagnosis_items) ? p.diagnosis_items.filter((x): x is string => typeof x === 'string') : [],
     status: p.status,
+    // BACKLOG-01 (Alex, 2026-10-20): the capture's fields round-trip through the
+    // edit form; null reads as '' (unchosen / not sized / nothing typed).
+    type: p.type ?? '',
+    size: p.size ?? '',
+    // BACKLOG-01b (Alex, 2026-10-20): one fact, one home — the texts, from the row.
+    problem: p.problem ?? '',
+    why: p.why ?? '',
+    goal: p.goal ?? '',
+    diagnosis: p.diagnosis ?? '',
+    rulings: p.rulings ?? '',
+    open_questions: p.open_questions ?? '',
+    deadline_reason: p.deadline_reason ?? '',
+    definition_of_done: p.definition_of_done ?? '',
+    links: Array.isArray(p.links) ? p.links.filter((x): x is string => typeof x === 'string') : [],
+    notes: p.notes ?? '',
     target_completion_date: p.target_completion_date
       ? p.target_completion_date.slice(0, 10)
       : '',
@@ -72,7 +99,7 @@ function projectToForm(p: Project): ProjectForm {
   };
 }
 
-export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo, defaultExpanded = false }: Props) {
+export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo, defaultExpanded = false, withoutTaskSection = false, onTasksChanged, onUnarchived }: Props & { }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ProjectForm>(() => projectToForm(project));
@@ -95,7 +122,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [runningPipe, setRunningPipe] = useState(false);
   const [pipeQueued, setPipeQueued] = useState(false);
   const [pipeError, setPipeError] = useState<string | null>(null);
-  // PHASE2-5: bump to force the live <TaskList/> to re-fetch (mirrors promptsRefresh).
+  // PHASE2-5: bump to force the live <TaskList /> to re-fetch (mirrors promptsRefresh).
   const [taskRefresh, setTaskRefresh] = useState(0);
   // EVOLVE-1: the "loop again with new goals" affordance (edit goals → re-run the pipe).
   const [evolving, setEvolving] = useState(false);
@@ -103,7 +130,11 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [evolveSaving, setEvolveSaving] = useState(false);
   const [evolveError, setEvolveError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
-  const [showDesignReasoning, setShowDesignReasoning] = useState(false);
+  // BACKLOG-01b (Alex, 2026-10-20): "copy brief prompt" (the clipboard, a 2-second
+  // word) and "scope it" (PATCH { status: 'scoped' }; the route's refusal, by name).
+  const [briefWords, setBriefWords] = useState<string | null>(null);
+  const [scopeWords, setScopeWords] = useState<string | null>(null);
+  const [scoping, setScoping] = useState(false);
   // PR-Ops-Content-2: lazy-mount the read-only evolution timeline (the project's
   // trajectory by AI re-run). Fetches only when opened (mirrors the design-reasoning
   // toggle + TaskRow history-on-demand pattern).
@@ -115,10 +146,11 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [inputsSaved, setInputsSaved] = useState(false);
   // PR-TM-1: render the project as the transparent Truth Machine pipeline instead of
   // the standard row. Pure UI toggle — same container state + handlers feed both views.
-  // PR-TM-1 / PD-3a: the Truth Machine pipe is the DEFAULT project detail — opening a
-  // project shows the clean pipe-step layout (with the interpolated prompts surfaced for
-  // review). "standard view" (TruthMachineView onExit) returns to ProjectRowView read/edit.
-  const [pipelineMode, setPipelineMode] = useState(true);
+  // TASKS-01 (2026-09-18): the STANDARD row is the default again — the list's row with
+  // its own controls (edit / archive / delete / pipeline). The pipeline opens from the
+  // row's "pipeline" button and closes with "standard view"; PD-3a's pipe-by-default
+  // went with the phase strip it opened onto.
+  const [pipelineMode, setPipelineMode] = useState(false);
   // PR-TM-2: the live interpolated prompts (research / audit / fusion), fetched from the
   // read-only preview endpoint (NO Anthropic call). promptsRefresh re-pulls them after a
   // research run / save so the fusion preview never drifts from the DB state that fires.
@@ -126,6 +158,12 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [promptsLoading, setPromptsLoading] = useState(false);
   const [promptsRefresh, setPromptsRefresh] = useState(0);
   const rowRef = useRef<HTMLDivElement>(null);
+  // PROJECTS-01: the latest onTasksChanged, read by the pipe poll below — a ref,
+  // so a parent re-render never restarts the poll (it keeps its baseline).
+  const onTasksChangedRef = useRef(onTasksChanged);
+  useEffect(() => {
+    onTasksChangedRef.current = onTasksChanged;
+  }, [onTasksChanged]);
 
   // When SectionD sets isJumpTarget=true on this row, scroll into view,
   // auto-expand, flash highlight for ~1.5s, then clear the target so the
@@ -196,6 +234,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
         } else if (count > baseline) {
           setPipeQueued(false);            // clears the badge (cleanup stops the poll)
           setTaskRefresh((n) => n + 1);    // TaskList re-fetches → shows the new tasks
+          onTasksChangedRef.current?.();   // PROJECTS-01: the table's rows re-read too
           return;
         }
       }
@@ -245,6 +284,43 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     }
   };
 
+  // BACKLOG-01b: THE BRIEF FORMAT from the row + the TO THE CHAT paragraph → the
+  // clipboard. Nothing paid, nothing leaves the browser but the clipboard.
+  const handleCopyBrief = async () => {
+    const bookName = entities.find((e) => e.id === project.entity_id)?.name ?? '';
+    try {
+      await navigator.clipboard.writeText(briefPromptText(project, bookName));
+      setBriefWords(BRIEF_COPIED_WORDS);
+      window.setTimeout(() => setBriefWords(null), 2000);
+    } catch (e) {
+      setBriefWords(`copy failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  // BACKLOG-01b: "scope it" — backlog → scoped through the project PATCH; the route
+  // refuses by name (scope it needs: …) and the words print on the row.
+  const handleScopeIt = async () => {
+    setScoping(true);
+    setScopeWords(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'scoped' }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setScopeWords(body?.message ?? body?.error ?? 'scope it failed');
+        return;
+      }
+      onUpdate();
+    } catch (e) {
+      setScopeWords(e instanceof Error ? e.message : 'scope it failed');
+    } finally {
+      setScoping(false);
+    }
+  };
+
   // PR-Ops-Evolve-1: save the two reality-input paste boxes via the project PATCH
   // (same path as the Text sections), then refetch so generation reads the latest.
   const handleSaveInputs = async () => {
@@ -270,7 +346,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   };
 
   // PAID Anthropic AI — POST generate-design. Container-owned: never reachable
-  // from the pure <ProjectRowView/>.
+  // from the pure <ProjectRowView />.
   const handleGenerateDesign = async () => {
     setGeneratingDesign(true);
     setGenerationError(null);
@@ -311,7 +387,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   };
 
   // PR-Loop-1: PAID Anthropic AI (web_search) — POST research. Container-owned: never
-  // reachable from the pure <ProjectRowView/>. POPULATES deep_research_input for review;
+  // reachable from the pure <ProjectRowView />. POPULATES deep_research_input for review;
   // does NOT trigger fusion (generate-tasks) or insert tasks — the human checkpoint stays.
   const handleRunResearch = async () => {
     setRunningResearch(true);
@@ -410,7 +486,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   };
 
   // PAID Anthropic AI — POST generate-tasks. Container-owned: never reachable
-  // from the pure <ProjectRowView/>.
+  // from the pure <ProjectRowView />.
   const handleGenerateTasks = async () => {
     setGeneratingTasks(true);
     setTasksGenError(null);
@@ -455,11 +531,26 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     }
   };
 
+  // TASKS-01: delete asks the server FIRST what would go. A live link (a
+  // posting, a planned-item link, a posted actual, a calendar block) refuses
+  // the delete with the reason, naming the task — the row shows it and archive
+  // stays the door. Otherwise the confirm dialog names what will be removed,
+  // and the DELETE re-runs the same check inside its transaction.
   const handleDelete = async () => {
-    if (!confirm(`Delete project "${project.title}"? This will also delete its tasks and dependencies.`)) return;
     setDeleting(true);
     setError(null);
     try {
+      const pre = await fetch(`/api/operations/projects/${project.id}/deletion`);
+      const preview = await pre.json();
+      if (!pre.ok) {
+        setError(preview?.message ?? preview?.error ?? 'failed to check the project');
+        return;
+      }
+      if (Array.isArray(preview.blockers) && preview.blockers.length > 0) {
+        setError(preview.message);
+        return;
+      }
+      if (!confirm(preview.summary)) return;
       const res = await fetch(`/api/operations/projects/${project.id}`, { method: 'DELETE' });
       const body = await res.json();
       if (!res.ok) {
@@ -506,8 +597,13 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   };
 
   // Unarchive restores the project to the non-archived default status
-  // (not_started — the schema/create default). Does NOT auto-restore task
-  // statuses; archived tasks are unarchived individually.
+  // (not_started — the schema/create default). ARCHIVE-01 (Alex, 2026-10-27):
+  // the route restores, in the same transaction, exactly the tasks the latest
+  // cascade archived, to their previous statuses, and answers with the words
+  // (archiveCascade.ts unarchiveWords) — handed up through onUnarchived, because
+  // the list re-reads after the write and this detail closes with it (the table
+  // prints the line above its rows); a task archived on its own stays and is
+  // counted. A route that answers no words is said, never silent.
   const handleUnarchive = async () => {
     setArchiving(true);
     setError(null);
@@ -522,7 +618,9 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
         setError(body?.message ?? body?.error ?? 'failed to unarchive');
         return;
       }
+      onUnarchived(typeof body?.cascade?.words === 'string' ? body.cascade.words : 'the route said nothing about its tasks');
       onUpdate();
+      onTasksChanged?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed to unarchive');
     } finally {
@@ -570,9 +668,9 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
           tasksGenError={tasksGenError}
           tasksPreview={tasksPreview}
           onGenerateTasks={handleGenerateTasks}
-          onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
+          onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); onTasksChanged?.(); }}
           onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
-          taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
+          taskSection={withoutTaskSection ? null : <TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
           onRunPipe={handleRunPipe}
           runningPipe={runningPipe}
           pipeQueued={pipeQueued}
@@ -600,7 +698,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       // actually renders it (taskSection/dependencySection inside the expanded
       // block, evolutionSection only when showEvolution), so the lazy-fetch
       // behavior is byte-for-byte identical to the pre-slot inline renders.
-      taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
+      taskSection={withoutTaskSection ? null : <TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
       evolutionSection={<EvolutionTimeline projectId={project.id} />}
       dependencySection={
         <DependencyList
@@ -625,8 +723,12 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       tasksGenError={tasksGenError}
       tasksPreview={tasksPreview}
       flash={flash}
-      showDesignReasoning={showDesignReasoning}
       showEvolution={showEvolution}
+      briefWords={briefWords}
+      onCopyBrief={handleCopyBrief}
+      scopeWords={scopeWords}
+      scoping={scoping}
+      onScopeIt={handleScopeIt}
       researchInput={researchInput}
       auditInput={auditInput}
       savingInputs={savingInputs}
@@ -642,17 +744,17 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       onResearchInputChange={(value) => { setResearchInput(value); setInputsSaved(false); }}
       onAuditInputChange={(value) => { setAuditInput(value); setInputsSaved(false); }}
       onSaveInputs={handleSaveInputs}
-      onToggleDesignReasoning={() => setShowDesignReasoning((x) => !x)}
       onToggleEvolution={() => setShowEvolution((x) => !x)}
       onGenerateDesign={handleGenerateDesign}
       onUseGeneratedDesign={handleUseGeneratedDesign}
       onDiscardGeneratedDesign={handleDiscardGeneratedDesign}
       onGenerateTasks={handleGenerateTasks}
-      onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
+      onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); onTasksChanged?.(); }}
       onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
       onDelete={handleDelete}
       onArchive={handleArchive}
       onUnarchive={handleUnarchive}
+      onEnterPipeline={() => setPipelineMode(true)}
     />
   );
 }

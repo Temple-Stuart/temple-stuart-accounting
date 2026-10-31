@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * src/components/workbench/SectionD_DiscoveryLauncher.tsx
  *
@@ -7,9 +9,8 @@
  * doc § 8.1 Phase 2.
  */
 
-'use client';
 
-export function SectionD_DiscoveryLauncher() {
+export function SectionD_DiscoveryLauncher({ }: { } = {}) {
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">

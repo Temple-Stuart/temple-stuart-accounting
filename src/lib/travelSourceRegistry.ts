@@ -9,7 +9,7 @@
 //   3. Flipping the registry entry from a placeholder source to the real one.
 //
 // LOCKED ARCHITECTURE (target state):
-//   Bookable      → provider booking API (LiteAPI/Duffel/Viator/Mozio/...).
+//   Bookable      → provider booking API (LiteAPI/Viator/Mozio/...).
 //                   Show ONLY bookable inventory; no Google masking.
 //   Non-bookable  → Google Places (discovery / budgeting only).
 
@@ -21,8 +21,7 @@ export type Source =
   | 'liteapi'     // declared, NOT connected — bookable hotels (target for accommodation).
   | 'mozio'       // declared, NOT connected — bookable airport transfers.
   | 'covergenius' // declared, NOT connected — travel insurance quotes.
-  | 'airalo'      // declared, NOT connected — eSIM data plans.
-  | 'duffel';     // LIVE for flights via /api/flights/search (NOT this scanner route).
+  | 'airalo';     // declared, NOT connected — eSIM data plans.
 
 export interface SourceAssignment {
   source: Source;
@@ -50,10 +49,11 @@ export class UnimplementedSourceError extends Error {
  *  Keys MUST match TRAVEL_COA keys exactly (src/lib/travelCOA.ts:25-220). */
 export const SOURCE_BY_CATEGORY: Record<string, SourceAssignment> = {
   // ─── Flights ─────────────────────────────────────────────────────────────
-  // Handled by /api/flights/search (Duffel), NOT via this scanner route.
-  // Declared here so the registry is exhaustive; excluded from the active
-  // scan loop by travelCOA.getActiveScanCategories.
-  flights:          { source: 'duffel', hardBookable: true },
+  // Handled by /api/travel/liteapi/flights/search (LiteAPI — the only flights
+  // lane since LAUNCH-01 RETIRE-01), NOT via this scanner route. Declared here
+  // so the registry is exhaustive; excluded from the active scan loop by
+  // travelCOA.getActiveScanCategories.
+  flights:          { source: 'liteapi', hardBookable: true },
 
   // ─── Bookable categories ─────────────────────────────────────────────────
   // Accommodation: BOOKABLE inventory via LiteAPI (merchant-of-record).

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, AuditActionType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 /**
  * Subsystem prefix → enum value list. Maintained explicitly because Prisma's
@@ -21,6 +21,8 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'operations_project_updated',
     'operations_project_status_changed',
     'operations_project_deleted',
+    // BACKLOG-02 (2026-10-20): the reorder route's one row per saved rank list.
+    'operations_project_reranked',
     'operations_project_task_created',
     'operations_project_task_updated',
     'operations_project_task_status_changed',
@@ -48,16 +50,84 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'operations_north_star_created',
     'operations_north_star_updated',
     'operations_north_star_reviewed',
+    // VENDOR-01 (2026-09-29): a plan's vendor set and cleared (plan-vendors route).
+    'operations_plan_vendor_set',
+    'operations_plan_vendor_cleared',
+    // WEEK-02 (2026-09-30): a done's note edited (completions/[completionId] PATCH).
+    // TASKS-ONE-02 (2026-10-14): that PATCH is deleted — no new row carries this
+    // type; it stays listed so the rows written before still read.
+    'operations_routine_completion_note_edited',
+    // STAY-01 (2026-10-12): a stay set / deleted (stays routes).
+    'operations_stay_set',
+    'operations_stay_deleted',
+    // STOP-01 (2026-10-12): a stop's record set / cleared (stops routes).
+    'operations_stop_set',
+    'operations_stop_cleared',
+    // JOURNAL-01 (2026-10-13): a day's journal set / cleared (journal routes).
+    'operations_journal_set',
+    'operations_journal_cleared',
+    // TASKS-ONE-02 (2026-10-14): a completion deleted / moved by the stops routes
+    // (src/lib/operations/routineCompletion.ts) — its creation stays
+    // 'operations_routine_completed', above.
+    'operations_routine_uncompleted',
+    'operations_routine_completion_updated',
+    // RETRO-01 (2026-10-16): a stop's record moved to its stop's instant (stops/[id] PATCH).
+    'operations_stop_moved',
+    // ROUTINE-02b (2026-10-18): a routine's history moved with its time (routines/[id] PATCH).
+    'operations_routine_rekeyed',
+    // MOVE-01 (2026-10-19): the dated move — every current routine ended and copied into the new zone (routines/move POST).
+    'operations_routines_moved',
+  ],
+  // AUDIT-01 (2026-09-26): the booking audit trail's families. AUDIT-01b (2026-09-27):
+  // 'commission_' is gone — commission_locked is never returned by this route (below),
+  // so no prefix names it.
+  reservation_: [
+    'reservation_booked',
+    'reservation_status_changed',
+    'reservation_confirmation_code_arrived',
+    'reservation_ticketed',
+    'reservation_ticket_limit_stated',
+    'reservation_cancel_quoted',
+    'reservation_cancel_requested',
+    'reservation_cancel_pending',
+    'reservation_cancelled',
+    'reservation_cancel_refused',
+    'reservation_email_sent',
+    'reservation_email_failed',
+    'reservation_posted',
+    // LINK-02 (2026-09-27): the owner's budget-line link and unlink. The family is an
+    // explicit list (enum columns take no startsWith), so a new value is named here.
+    'reservation_budget_linked',
+    'reservation_budget_unlinked',
+  ],
+  money_event_: [
+    'money_event_stated',
+    'money_event_settled',
+  ],
+  // LEDGER-03 (2026-10-19): a posting linked to / unlinked from a planned item by its
+  // owner (calendar/links route POST / DELETE) — its own prefix; the operations_ list
+  // above is untouched. Migration 20261019230000_ledger_03_planned_item_link_audit.
+  planned_item_: [
+    'planned_item_linked',
+    'planned_item_unlinked',
   ],
 };
 
+/**
+ * AUDIT-01b (2026-09-27): action types this route NEVER returns, to any viewer.
+ * commission_locked carries Temple Stuart's margin (RECEIPT-01: commission never
+ * appears to the customer). It is written with no user id (src/lib/reservations/
+ * auditTrail.ts COMMISSION_ACTOR), so the actor scope below already excludes it;
+ * this is defense in depth — excluded by name, whatever the filters ask for.
+ */
+const NEVER_RETURNED: AuditActionType[] = ['commission_locked'];
+
 export async function GET(request: NextRequest) {
   try {
-    const userEmail = await getVerifiedEmail();
-    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
-    const actorUserId = searchParams.get('actor_user_id');
     const actionType = searchParams.get('action_type');
     const prefix = searchParams.get('prefix');
     const targetTable = searchParams.get('target_table');
@@ -72,9 +142,13 @@ export async function GET(request: NextRequest) {
     // the previous Record<string, unknown> typing accepted a startsWith filter on
     // an enum column at compile time, which Prisma rejected at runtime once
     // operations_* rows existed and the filter was actually evaluated.
-    const where: Prisma.audit_logWhereInput = {};
-
-    if (actorUserId) where.actor_user_id = actorUserId;
+    // SEC-1: hard user-scope. The audit trail is per-user — a caller may only
+    // ever see rows where THEY are the actor. The previously-accepted
+    // ?actor_user_id= param is removed: it let any authed user read another
+    // user's audit rows (incl. payload before/after snapshots). No caller
+    // param may widen beyond the authenticated user's own rows.
+    // AUDIT-01b: and never a row NEVER_RETURNED names — an action_type or prefix filter narrows within this, never past it.
+    const where: Prisma.audit_logWhereInput = { actor_user_id: user.id, NOT: { action_type: { in: NEVER_RETURNED } } };
 
     // action_type exact match wins over prefix; only one filter applies.
     // Prefix lookups resolve to a static `in` list of enum values — see

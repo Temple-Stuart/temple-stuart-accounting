@@ -144,7 +144,8 @@ export async function getTastytradeSessionToken(): Promise<string> {
   } catch (e: any) {
     const status = e?.response?.status;
     const data = e?.response?.data;
-    console.log('[TT Auth] SDK login failed:', status, JSON.stringify(data)?.slice(0, 300));
+    // SEC-02b: status and tastytrade's error code only — never a slice of the body.
+    console.log('[TT Auth] SDK login failed:', status, data?.error?.code);
   }
 
   // Approach 2: Manual POST with x-castle-request-token + JWT auth
@@ -163,7 +164,8 @@ export async function getTastytradeSessionToken(): Promise<string> {
       body: JSON.stringify({ login: username, password: password, 'remember-me': true }),
     });
     const text = await resp.text();
-    console.log('[TT Auth] Manual JWT+castle+creds:', resp.status, text.slice(0, 300));
+    // SEC-02: never log the /sessions body — it carries the session token on success.
+    console.log('[TT Auth] Manual JWT+castle+creds status:', resp.status);
 
     if (resp.ok) {
       const data = JSON.parse(text);

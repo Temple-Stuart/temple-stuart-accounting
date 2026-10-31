@@ -4,13 +4,14 @@ import { useState } from 'react';
 import CommittedInvestmentsTable from "./CommittedInvestmentsTable";
 import TradeCommitWorkflow from "./TradeCommitWorkflow";
 
+
 interface InvestmentsTabProps {
   investmentTransactions: any[];
   committedInvestments: any[];
   onReload: () => Promise<void>;
 }
 
-export default function InvestmentsTab({ investmentTransactions, committedInvestments, onReload }: InvestmentsTabProps) {
+export default function InvestmentsTab({ investmentTransactions, committedInvestments, onReload }: InvestmentsTabProps & { }) {
   const [selectedCommittedInvestments, setSelectedCommittedInvestments] = useState<string[]>([]);
 
   const massUncommitInvestments = async () => {

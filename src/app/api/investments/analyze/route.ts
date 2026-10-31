@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { decryptToken } from '@/lib/secrets/tokenCipher';
+import { failureEnvelope } from '@/lib/plaid/failLoud';
+// REBUILD-01 PR-2d: holdings come from the STORED snapshot — Plaid is never asked for them here.
+import { latestHoldingsSnapshot } from '@/lib/arrivals/holdingsSnapshot';
 
 export async function GET() {
   try {
@@ -19,23 +23,22 @@ export async function GET() {
     let holdings: any[] = [];
     
     const plaidItems = await prisma.plaid_items.findMany({
-      where: { userId: user.id }
+      where: { userId: user.id },
+      include: { accounts: { select: { id: true, accountId: true } } },
     });
 
     for (const item of plaidItems) {
-      try {
-        // Get investment holdings
-        const holdingsResponse = await plaidClient.investmentsHoldingsGet({
-          access_token: item.accessToken
-        });
-        
-        if (holdingsResponse.data.holdings) {
-          holdings = holdings.concat(holdingsResponse.data.holdings);
-        }
+      // REBUILD-01 PR-2d: the latest stored snapshot per account (never asked live).
+      const snapshot = await latestHoldingsSnapshot(prisma, item.accounts);
+      holdings = holdings.concat(snapshot.holdings);
 
+      // HYG-01: STOP AND DECLARE — a failed provider call is the response, never an
+      // empty page. `stage` names the call in flight.
+      const stage = 'investments';
+      try {
         // Get investment transactions
         const transactionsResponse = await plaidClient.investmentsTransactionsGet({
-          access_token: item.accessToken,
+          access_token: decryptToken(item.accessToken),
           start_date: '2020-01-01',
           end_date: new Date().toISOString().split('T')[0]
         });
@@ -44,11 +47,14 @@ export async function GET() {
           allTransactions = allTransactions.concat(transactionsResponse.data.investment_transactions);
         }
       } catch (error) {
-        console.error('Error fetching investment data:', error);
+        const { status, body } = failureEnvelope(stage, error);
+        console.error('Error fetching investment data:', body.error);
+        return NextResponse.json(body, { status });
       }
     }
 
     return NextResponse.json({
+      ok: true,
       holdings,
       transactions: allTransactions,
       summary: {
@@ -57,7 +63,8 @@ export async function GET() {
       }
     });
   } catch (error) {
-    console.error('Investment analysis error:', error);
-    return NextResponse.json({ error: 'Failed to analyze investments' }, { status: 500 });
+    const { status, body } = failureEnvelope('investments', error);
+    console.error('Investment analysis error:', body.error);
+    return NextResponse.json(body, { status });
   }
 }
