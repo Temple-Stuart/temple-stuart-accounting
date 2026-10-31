@@ -18,12 +18,14 @@
  *      unknown value → no chip pressed and the line "<value> is not a category —
  *      pick one above." in place of COMING UP and THE LINEUP — a bad value gets a
  *      refusal, never a substitute category;
- *   3. THE FEATURED CARD — the one row the leaf marks featured; Alex's line typed
- *      once (I_WAS_HERE_LINE); its one link, to the strip (#demo);
- *   4. COMING UP — upcoming(rows, today, 6) over the chosen category with the featured
- *      row excluded (it is the card above, and it shows in every state); under the
- *      grid the one line pointing at the strip (EVENTS-02 replaces it with per-card
- *      prefill); nothing upcoming in the chosen category → said, never an empty grid;
+ *   3. (WASHERE-01, 2026-10-31: the card EVENTS-01 pinned here with Alex's line LEFT
+ *      this section — "I was here" is Alex's own trip and lives in the MY TRIP act,
+ *      WasHereSection.tsx, directly below; the experiences are the reader's filter and
+ *      nothing here is Alex's.)
+ *   4. COMING UP — upcoming(rows, today, 6) over the chosen category, unfiltered (Surf
+ *      shows the Philippines Pro first while it is on); under the grid the one line
+ *      pointing at the strip (EVENTS-02 replaces it with per-card prefill); nothing
+ *      upcoming in the chosen category → said, never an empty grid;
  *   5. THE LINEUP — the chosen category's rows, EVERY row its own pill linking its
  *      date to its source (EVENTS-01b: nothing collapses — F1 shows all 24 cities);
  *   6. the closing line.
@@ -64,10 +66,6 @@ export const EYEBROW = 'THE BEST EXPERIENCES ON EARTH · THEN THE STAY AND THE F
 export const HEADLINE = 'Book the experience, not just the destination.';
 export const SUBHEAD = "Pick what you're into. See what's on and where. Book the stay and the flight around it, right here.";
 export const INTO_LABEL = "I'M INTO…";
-export const FEATURED_LABEL = 'I WAS HERE';
-/** Alex's line, typed once. */
-export const I_WAS_HERE_LINE = "I landed in Siargao in the middle of the WSL by luck. Don't get lucky. Book around it.";
-export const FEATURED_LINK = 'Book the stay and the flight ↑';
 export const COMING_UP_LABEL = 'COMING UP';
 export const STRIP_LINE = 'To book around one of these, use the strip at the top: hotels, flights, getting around.';
 export const LINEUP_LABEL = 'THE LINEUP';
@@ -101,8 +99,6 @@ const EXP = {
   cardPlace: 'mt-1 text-sm text-white/80',
   cardLine: 'mt-2 font-mono text-xs leading-relaxed text-white/90',
   cardNotes: 'mt-1 text-xs text-white/60',
-  quote: 'mt-4 text-base text-white/90',
-  ghost: 'mt-5 inline-flex min-h-[44px] items-center border border-white/40 px-5 text-sm font-medium text-white hover:bg-white/10',
   grid: 'mt-3 grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))]',
   line: 'mt-4 text-sm text-white/70',
   lineup: 'mt-5',
@@ -155,10 +151,9 @@ function Lineup({ label, rows, today }: { label: string; rows: readonly Experien
 
 /** The pure half: props in, markup out. */
 export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesViewProps) {
-  const featured = rows.find((r) => r.featured);
   const into = 'category' in choice ? choice.category : null;
   const chosen = into === null ? [] : rows.filter((r) => r.category === into);
-  const comingUp = upcoming(chosen.filter((r) => !r.featured), today, COMING_UP_COUNT);
+  const comingUp = upcoming(chosen, today, COMING_UP_COUNT);
   return (
     <section id={EVENTS_ANCHOR} aria-label="Book the experience" className={EXP.band} data-experiences>
       <div className={EXP.inner}>
@@ -174,18 +169,6 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
             </button>
           ))}
         </div>
-
-        {featured && (
-          <article className={`mt-8 ${EXP.card}`} data-featured={featured.id}>
-            <p className={EXP.label}>{FEATURED_LABEL}</p>
-            <p className={`mt-3 ${EXP.cardEyebrow}`}>{eyebrowOf(featured)}</p>
-            <h3 className={EXP.cardName}>{featured.name}</h3>
-            <p className={EXP.cardPlace}>{placeOf(featured)}</p>
-            <p className={EXP.cardLine} data-experience-line>{experienceLine(featured, today)}</p>
-            <p className={EXP.quote}>{I_WAS_HERE_LINE}</p>
-            <a href="#demo" className={EXP.ghost}>{FEATURED_LINK}</a>
-          </article>
-        )}
 
         {into === null ? (
           <p className={`mt-10 ${EXP.refused}`} role="status" data-into-refused>{notACategory('refused' in choice ? choice.refused : '')}</p>

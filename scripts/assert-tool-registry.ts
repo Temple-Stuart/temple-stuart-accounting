@@ -158,6 +158,8 @@ import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } f
 import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, providersLaw, ruleFor } from '../src/lib/providers';
 // EVENTS-01: the experiences leaf — every marquee event dated from its own calendar, with the day checked.
 import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/experiences';
+// WASHERE-01: the trip log — Alex's own stops, each naming an experience by id, a photo each as they land.
+import { WAS_HERE, wasHereLaw } from '../src/lib/wasHere';
 import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, latestViews, latestViewsSql, parseViews } from '../src/lib/kindViews';
 // SELL-02: the offer law — every sales claim from the registry, every price from one source.
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
@@ -697,8 +699,31 @@ console.log(`counts: LIVE ${counts.LIVE} · PARTIAL ${counts.PARTIAL} · NOT_BUI
   const landingMounts = (codeOf('src/components/landing/Landing.tsx').match(/<ExperiencesSection today=\{today\}/g) ?? []).length;
   if (landingMounts !== 1) violations.push(`experiences: Landing.tsx mounts <ExperiencesSection today={today} ${landingMounts} time(s) — exactly once, directly under the booking strip (EVENTS-01)`);
   if (!codeOf('src/app/page.tsx').includes('const today = new Date().toISOString().slice(0, 10);')) violations.push('experiences: src/app/page.tsx does not compute today as new Date().toISOString().slice(0, 10) — the one UTC calendar date every experience comparison reads (EVENTS-01)');
-  if (violations.length === before) console.log(`✔ The experiences law passed — ${EXPERIENCES.length} rows in ${EXPERIENCE_CATEGORIES.length} categories, ${EXPERIENCES.filter((r) => r.featured).length} featured, every one dated from its own calendar with the day it was checked; the landing mounts the section once with the day the front door computed.`);
+  if (violations.length === before) console.log(`✔ The experiences law passed — ${EXPERIENCES.length} rows in ${EXPERIENCE_CATEGORIES.length} categories, every one dated from its own calendar with the day it was checked; the landing mounts the section once with the day the front door computed.`);
   else console.log(`✖ The experiences law FAILED — ${violations.length - before} violation(s).`);
+}
+
+// ── THE TRIP LOG LAW (WASHERE-01, 2026-10-31) ───────────────────────────────
+// The leaf's own law first (src/lib/wasHere.ts wasHereLaw — one place at a time,
+// every date in shape, a photo only from public/was-here), then what only the
+// script can see: every experienceId names an EXPERIENCES row, every photo exists
+// under public/ at no more than 400 KB, and the landing mounts the log exactly once
+// with the server's day.
+{
+  const before = violations.length;
+  violations.push(...wasHereLaw({ throwOnFail: false }));
+  for (const row of WAS_HERE) {
+    if (row.experienceId !== null && !EXPERIENCES.some((e) => e.id === row.experienceId)) violations.push(`was here: ${row.id} names experienceId "${row.experienceId}", which is not an EXPERIENCES id (WASHERE-01)`);
+    if (row.image !== null) {
+      const abs = resolve(ROOT, 'public', row.image.src.replace(/^\//, ''));
+      if (!existsSync(abs)) violations.push(`was here: ${row.id}'s image ${row.image.src} does not exist under public/ (WASHERE-01)`);
+      else if (statSync(abs).size > 400 * 1024) violations.push(`was here: ${row.id}'s image ${row.image.src} is ${statSync(abs).size} bytes — at most 400 KB (WASHERE-01)`);
+    }
+  }
+  const logMounts = (codeOf('src/components/landing/Landing.tsx').match(/<WasHereSection today=\{today\}/g) ?? []).length;
+  if (logMounts !== 1) violations.push(`was here: Landing.tsx mounts <WasHereSection today={today} ${logMounts} time(s) — exactly once, directly after the experiences (WASHERE-01)`);
+  if (violations.length === before) console.log(`✔ The trip log law passed — ${WAS_HERE.length} stop(s), ${WAS_HERE.filter((r) => r.end === null).length} current, ${WAS_HERE.filter((r) => r.image !== null).length} with a photo on disk at no more than 400 KB; every event named exists; the landing mounts the log once with the day the front door computed.`);
+  else console.log(`✖ The trip log law FAILED — ${violations.length - before} violation(s).`);
 }
 
 // ── THE ARRIVALS LAW (REBUILD-01 PR-1) ──────────────────────────────────────
