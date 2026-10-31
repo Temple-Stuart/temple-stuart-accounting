@@ -21,7 +21,13 @@
  *     · city, country; the stay — "Since <day>" or the window's dateWords;
  *     · when experienceId is set, the event's own block: category · series, its
  *       name, its venue, experienceLine(event, today);
- *     · Alex's line; and, when experienceId is set, one link to the strip (#demo).
+ *     · Alex's line when he has written it (null renders nothing);
+ *     · WASHERE-02: WHAT WAS ON — one pill per 'during' event — and JUST MISSED — one
+ *       pill per 'near_miss', with the gap derived in days; each pill links its source
+ *       (the EXPERIENCES pills' grammar, on the cream act's tokens); a list with no
+ *       rows renders nothing; a stop with no events and no experienceId says
+ *       "No event I could verify was on." (no row has it today);
+ *     · when experienceId is set, one link to the strip (#demo).
  *
  * THE DAY RULE: `today` is the UTC calendar date src/app/page.tsx computed ONCE and
  * passed down; nothing here reads the clock. PAINT: house tokens only, zero new hex
@@ -32,8 +38,8 @@
 
 import { EXPERIENCES, experienceCategoryLabel, type Experience } from '@/lib/experiences';
 import { experienceLine } from '@/lib/experienceWords';
-import { WAS_HERE, type WasHereRow } from '@/lib/wasHere';
-import { newestFirst, stayWords, wasHereLabel } from '@/lib/wasHereWords';
+import { WAS_HERE, type StopEvent, type WasHereRow } from '@/lib/wasHere';
+import { missedPill, newestFirst, onPill, stayWords, wasHereLabel } from '@/lib/wasHereWords';
 
 /** The act's anchor. */
 export const MY_TRIP_ANCHOR = 'my-trip';
@@ -41,6 +47,10 @@ export const MY_TRIP_EYEBROW = 'MY TRIP';
 export const MY_TRIP_HEADLINE = "Where I've been while building this.";
 export const MY_TRIP_LINE = 'Newest first, dated.';
 export const MY_TRIP_LINK = 'Book the stay and the flight ↑';
+export const WHAT_WAS_ON = 'WHAT WAS ON';
+export const JUST_MISSED = 'JUST MISSED';
+/** A stop with no events and no experienceId says so — never an empty list. */
+export const NO_EVENT_LINE = 'No event I could verify was on.';
 
 // THE CLASS GRAMMAR — one const, every string whole, house tokens only.
 const TRIP = {
@@ -62,6 +72,12 @@ const TRIP = {
   eventVenue: 'mt-1 text-sm text-text-secondary',
   eventLine: 'mt-2 font-mono text-xs leading-relaxed text-text-primary',
   quote: 'mt-4 text-base text-text-primary',
+  // WASHERE-02: the EXPERIENCES pills' grammar (ExperiencesSection.tsx EXP.pill — the shape,
+  // the 44px row, wrapping text), on this cream act's tokens instead of the band's.
+  listEyebrow: 'mt-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
+  pillRow: 'mt-2 flex flex-wrap gap-2',
+  pill: 'inline-flex min-h-[44px] items-center whitespace-normal break-words rounded border border-border bg-bg-row px-3 py-2 text-left font-mono text-xs leading-snug text-text-primary hover:bg-brand-purple-wash',
+  none: 'mt-4 font-mono text-xs text-text-secondary',
   link: 'mt-4 inline-flex min-h-[44px] items-center border border-brand-purple/40 px-5 text-sm font-medium text-brand-purple hover:bg-brand-purple-wash',
 } as const;
 
@@ -72,8 +88,26 @@ function eventOf(id: string): Experience {
   return found;
 }
 
+function Pills({ eyebrow, rows, words, stop, kind }: { eyebrow: string; rows: readonly StopEvent[]; words: (ev: StopEvent) => string; stop: string; kind: string }) {
+  if (rows.length === 0) return null;
+  return (
+    <div data-was-here-list={kind}>
+      <p className={TRIP.listEyebrow}>{eyebrow}</p>
+      <div className={TRIP.pillRow}>
+        {rows.map((ev) => (
+          <a key={`${ev.name} · ${ev.start}`} href={ev.sourceUrl} rel="noopener" target="_blank" className={TRIP.pill} data-was-here-pill={`${stop} · ${ev.name}`}>
+            {words(ev)}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Entry({ row, today }: { row: WasHereRow; today: string }) {
   const event = row.experienceId === null ? null : eventOf(row.experienceId);
+  const on = row.events.filter((ev) => ev.relation === 'during');
+  const missed = row.events.filter((ev) => ev.relation === 'near_miss');
   return (
     <article className={TRIP.card} data-was-here={row.id} data-was-here-image={row.image === null ? 'none' : 'photo'}>
       {row.image !== null && (
@@ -96,7 +130,10 @@ function Entry({ row, today }: { row: WasHereRow; today: string }) {
           <p className={TRIP.eventLine} data-experience-line>{experienceLine(event, today)}</p>
         </div>
       )}
-      <p className={TRIP.quote} data-was-here-line>{row.line}</p>
+      {row.line !== null && <p className={TRIP.quote} data-was-here-line>{row.line}</p>}
+      <Pills eyebrow={WHAT_WAS_ON} rows={on} words={onPill} stop={row.id} kind="on" />
+      <Pills eyebrow={JUST_MISSED} rows={missed} words={(ev) => missedPill(ev, row)} stop={row.id} kind="missed" />
+      {row.events.length === 0 && event === null && <p className={TRIP.none} data-was-here-none>{NO_EVENT_LINE}</p>}
       {event !== null && <a href="#demo" className={TRIP.link}>{MY_TRIP_LINK}</a>}
     </article>
   );
