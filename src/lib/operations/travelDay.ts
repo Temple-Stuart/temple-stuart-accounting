@@ -27,6 +27,14 @@
  * THE ORDER: planned by block_start_time, then homeTime, then id; segments by start_time, then source_id;
  * bookings check-out before check-in, then displayName. Nothing here sums, converts or prints a figure.
  *
+ * TRAVEL-01b (Alex, 2026-10-31, ruling B) — THE BANK FIGURE. A booking's charge carries the ACCEPTED link's bank
+ * row beside matched/posted: the transaction's amount AS STORED (transactions.amount, a Float — never Number()ed,
+ * never converted), the ACCOUNT's stated currency (accounts.isoCurrencyCode — NULL carried as null, bankMoneyWords
+ * says 'currency not stated') and the transaction's day. null when no charge is matched. The route reads it through
+ * the same join GET /api/reservations' facts come from; this leaf refuses a bank figure that contradicts the match
+ * (matched without a figure, or a figure without a match) by name. The card (TRAVEL-01b) prints it through
+ * bankMoneyWords — nothing is printed here.
+ *
  * THIS FILE IS PURE: no Prisma, no fetch, no clock, no React. The route hands it rows; the tests hand it fixtures.
  */
 import { isIsoDay } from '@/lib/budget/days';
@@ -257,9 +265,18 @@ export const plannedOrder = (a: PlannedRow, b: PlannedRow): number =>
 
 // ─── 2. BOOKINGS ─────────────────────────────────────────────────────────────
 
-/** The facts the route loaded for one reservation of the caller: the one leaf's input, plus the provider. */
+/** TRAVEL-01b (ruling B): the ACCEPTED charge link's bank row — the amount as stored, the account's stated currency (null when it states none), the transaction's day. */
+export interface BankFigure {
+  readonly amount: number;
+  readonly currency: string | null;
+  readonly date: string;
+}
+
+/** The facts the route loaded for one reservation of the caller: the one leaf's input, plus the provider and (TRAVEL-01b) the matched charge's bank row. */
 export interface BookingIn extends BookingRowFacts {
   readonly reservation: BookingRowReservation & { readonly provider: string };
+  /** The accepted charge link's bank row; null when no charge is matched. */
+  readonly chargeBank: BankFigure | null;
 }
 
 /** The booking's stated facts the card prints raw (its figure through bankMoneyWords in 01b — nothing printed here). */
@@ -277,8 +294,8 @@ export interface BookingFacts {
 }
 
 export interface BookingLinks {
-  /** An ACCEPTED charge link exists (MATCH); a posted entry documents the charge (POST-01). */
-  readonly charge: { readonly matched: boolean; readonly posted: boolean };
+  /** An ACCEPTED charge link exists (MATCH); a posted entry documents the charge (POST-01); TRAVEL-01b: the link's bank row, null when not matched. */
+  readonly charge: { readonly matched: boolean; readonly posted: boolean; readonly bank: BankFigure | null };
   /** The owner's budget-line link, with the line's description — or null. */
   readonly budgetLine: { readonly description: string | null } | null;
   /** The one leaf's words for the booking (bookingRowOf). */
@@ -309,11 +326,17 @@ const bookingFactsOf = (r: BookingIn['reservation']): BookingFacts => ({
   checkoutDate: r.checkoutDate === null ? null : dayOf(r.checkoutDate),
 });
 
-const bookingLinksOf = (b: BookingIn): BookingLinks => ({
-  charge: { matched: b.chargeMatched, posted: b.chargePosted },
-  budgetLine: b.budgetLine,
-  row: bookingRowOf(b),
-});
+const bookingLinksOf = (b: BookingIn): BookingLinks => {
+  // TRAVEL-01b: a bank figure rides an accepted charge and nothing else — either without the other is the route's bug.
+  if (b.chargeMatched !== (b.chargeBank !== null)) {
+    throw new TravelDayError(`reservation ${b.reservation.id} is ${b.chargeMatched ? 'matched with no bank figure' : 'not matched but carries a bank figure'}`);
+  }
+  return {
+    charge: { matched: b.chargeMatched, posted: b.chargePosted, bank: b.chargeBank },
+    budgetLine: b.budgetLine,
+    row: bookingRowOf(b),
+  };
+};
 
 /** The words a booking's status and price add — the same on its booking rows and on its segments. */
 function bookingSaid(r: BookingIn['reservation']): string[] {

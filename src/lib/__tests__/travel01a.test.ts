@@ -52,7 +52,7 @@ const reservation = (over: Partial<BookingIn['reservation']>): BookingIn['reserv
   ...over,
 });
 const booking = (over: Partial<BookingIn['reservation']>, links: Partial<Omit<BookingIn, 'reservation'>> = {}): BookingIn => ({
-  reservation: reservation(over), calendarDay: null, chargeMatched: false, chargePosted: false, budgetLine: null, ...links,
+  reservation: reservation(over), calendarDay: null, chargeMatched: false, chargePosted: false, chargeBank: null, budgetLine: null, ...links, // TRAVEL-01b (Alex, 2026-10-31), ruling B: the matched charge's bank row
 });
 const hotelBooking = booking({});
 const flightBooking = booking({ id: 'res-flight', lane: 'flight', displayName: 'AirAsia CNX → DPS', checkinDate: null, checkoutDate: null, finalPriceCents: 18950, currency: 'USD' });
@@ -137,7 +137,7 @@ test('B2 a booking’s rows on the day: a check-in on its check-in day, a check-
     id: 'res-hotel', lane: 'hotel', displayName: 'Hotel PHP Proof', provider: 'liteapi', status: 'confirmed', tripId: 'trip-1',
     finalPriceCents: 1234500, currency: 'PHP', checkinDate: '2026-10-31', checkoutDate: '2026-11-02',
   });
-  assert.deepEqual(checkIn.charge, { matched: false, posted: false });
+  assert.deepEqual(checkIn.charge, { matched: false, posted: false, bank: null }); // TRAVEL-01b (Alex, 2026-10-31): the bank figure, null when not matched
   assert.equal(checkIn.budgetLine, null);
   assert.equal(checkIn.row.price, '12345.00 PHP', 'the one leaf’s words — the point placed by string');
   assert.equal(checkIn.row.dates, '2026-10-31 → 2026-11-02');
@@ -153,8 +153,10 @@ test('B2 a booking’s rows on the day: a check-in on its check-in day, a check-
   assert.equal(unpriced.reservation.finalPriceCents, null, 'null stays null');
   const [pending] = bookingRowsOf(booking({ status: 'cancel_pending' }), '2026-10-31');
   assert.ok(pending.said.includes(CANCEL_PENDING_WORDS));
-  const [linked] = bookingRowsOf(booking({}, { chargeMatched: true, chargePosted: true, budgetLine: { description: 'Nights in Siargao' } }), '2026-10-31');
-  assert.deepEqual([linked.charge, linked.budgetLine, linked.row.bank, linked.row.ledger, linked.row.budgetLine], [{ matched: true, posted: true }, { description: 'Nights in Siargao' }, 'matched', 'posted', 'Nights in Siargao']);
+  // TRAVEL-01b (Alex, 2026-10-31), ruling B: a matched charge carries its bank row (travel01b.test.ts drives the figure and its words). Moved, not loosened.
+  const bank = { amount: 189.5, currency: 'USD', date: '2026-10-31' };
+  const [linked] = bookingRowsOf(booking({}, { chargeMatched: true, chargePosted: true, chargeBank: bank, budgetLine: { description: 'Nights in Siargao' } }), '2026-10-31');
+  assert.deepEqual([linked.charge, linked.budgetLine, linked.row.bank, linked.row.ledger, linked.row.budgetLine], [{ matched: true, posted: true, bank }, { description: 'Nights in Siargao' }, 'matched', 'posted', 'Nights in Siargao']);
 });
 
 test('B3 a segment row: the stated day and clock, an end only when stated, an instant only when stored, no zone — each absence said; its reservation’s facts beside it; the reservation id by the one key rule', () => {
@@ -249,11 +251,11 @@ test('F the leaf and the route hold no Number(, no `||`, no `?? <default>`, no `
   assert.match(leaf, /import \{ isIsoDay \} from '@\/lib\/budget\/days';/, 'the one day rule');
   assert.match(leaf, /value\.toFixed\(2\)/, 'the Decimal’s own text');
   const words = comments(ROUTE);
-  assert.ok(words.includes('READ BY NOTHING YET') && words.includes('TRAVEL-01b'));
+  // TRAVEL-01b (Alex, 2026-10-31): the day card reads the route now (dayReads.ts readTravelDay) — the header says so; 'READ BY NOTHING YET' left with 01a. Moved, not loosened.
+  assert.ok(words.includes('READ BY THE DAY CARD') && words.includes('TRAVEL-01b'));
   assert.ok(words.includes('does NOT read /api/trips/day-blocks'));
   assert.ok(comments(LEAF).includes('THIS FILE IS PURE'));
-  // Nothing reads the route yet, and day-blocks, dayReads and dayCard are untouched by this PR's files.
-  assert.doesNotMatch(code('src/components/workbench/operations/day/dayReads.ts'), /travel-day/);
-  assert.doesNotMatch(code('src/components/workbench/operations/day/dayCard.ts'), /travel-day|travelDay/);
+  // day-blocks is untouched by 01a and 01b alike.
+  assert.match(code('src/components/workbench/operations/day/dayReads.ts'), /travel-day/, 'TRAVEL-01b: the ninth read');
   assert.match(code('src/app/api/trips/day-blocks/route.ts'), /vendorName: r\.vendor_name \|\| r\.vendor,/, 'day-blocks stays as it is until CLEAN-SHOP');
 });

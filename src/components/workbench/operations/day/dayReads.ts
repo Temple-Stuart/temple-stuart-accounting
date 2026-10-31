@@ -16,6 +16,8 @@
  *                                                         WORK-02 — and THE WORK BLOCK's TO DO; with ?done_from=&done_to= on a
  *                                                         day with an execute stop, each row also carries the tasks done today)
  *   · GET /api/audit-log?prefix=operations_&after=&before=&limit=500   readMovedToday, here (JOURNAL-06 — WHAT MOVED TODAY)
+ *   · GET /api/operations/travel-day?day=<day>            readTravelDay, here (TRAVEL-01b — the ninth read: the day's
+ *                                                         travel facts as stated, three sources, travelDay.ts TravelDay)
  *
  * The report's answer is read exactly as the week reads its own (readReport):
  * the body as BudgetReportResponse, a failure in the card's words. Every fetch
@@ -34,6 +36,7 @@ import type { BlockWindow } from '@/lib/operations/workBlock';
 import { AUDIT_READ_LIMIT, backlogOrder } from '@/lib/operations/journal';
 import type { StayRow } from '@/lib/operations/stay';
 import type { StopRecordPlan, StopRecordRow } from '@/lib/operations/stopRecord';
+import type { TravelDay } from '@/lib/operations/travelDay';
 import { readJson, type Read } from '../week/weekReads';
 
 export const dayReportFailedWords = (words: string): string => `The day's amounts and places could not be read — ${words}`;
@@ -79,6 +82,24 @@ export async function readStopRecords(day: string): Promise<Read<StopRecordsAnsw
   // RETRO-01: the plan words ride every answer; an answer without them is a failure in words, never a record with no name.
   if (typeof read.value.plans !== 'object' || read.value.plans === null || Array.isArray(read.value.plans)) return { ok: false, words: stopRecordsFailedWords('the records came back without their plans') };
   return { ok: true, value: { records: read.value.records as StopRecordRow[], unplaced: read.value.unplaced as StopRecordsAnswer['unplaced'], plans: read.value.plans as StopRecordsAnswer['plans'] } };
+}
+
+export const travelFailedWords = (words: string): string => `The day's travel could not be read — ${words}`;
+
+/**
+ * TRAVEL-01b (Alex, 2026-10-31, ruling A): the day's travel facts as stated — the planned rows, the check-ins and
+ * check-outs, the flight segments — typed by the leaf's own TravelDay (src/lib/operations/travelDay.ts; never a second
+ * shape). An answer for another day, or without its three lists or its counts, is a failure in words: an empty day is
+ * never passed off as no travel.
+ */
+export async function readTravelDay(day: string): Promise<Read<TravelDay>> {
+  const read = await readJson(`/api/operations/travel-day?${new URLSearchParams({ day }).toString()}`);
+  if (!read.ok) return { ok: false, words: travelFailedWords(read.words) };
+  const v = read.value;
+  if (v.day !== day) return { ok: false, words: travelFailedWords(`the travel came back for ${JSON.stringify(v.day)}, not ${day}`) };
+  if (![v.planned, v.bookings, v.segments].every((list) => Array.isArray(list))) return { ok: false, words: travelFailedWords('the travel came back without its three lists') };
+  if ([typeof v.counts !== 'object', v.counts === null, Array.isArray(v.counts)].some((bad) => bad)) return { ok: false, words: travelFailedWords('the travel came back without its counts') };
+  return { ok: true, value: v as unknown as TravelDay };
 }
 
 export interface JournalAnswer {

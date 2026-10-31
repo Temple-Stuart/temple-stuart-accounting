@@ -53,7 +53,8 @@ const entry = (r: Routine, expected_at: string): TodayRoutineEntry => ({ routine
 const line = (over: Partial<PlanLine> & { address: PlanLine['address']; cents: number; label: string }): PlanLine => ({
   entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, ...over,
 });
-const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: [], ...over });
+// TRAVEL-01b (Alex, 2026-10-31): the input gains `travel` — null here (unread).
+const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: [], travel: null, ...over });
 
 /** The browser check's day (daycard01's CLEAN_STOPS): four place stops, three priced — $25 + $20 + $30 = $75; the Gym has no plan. */
 const STOPS = [

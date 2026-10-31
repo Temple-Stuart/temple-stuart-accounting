@@ -92,7 +92,8 @@ const morning = routine({
   ],
 });
 const gym = routine({ id: GYM_ID, name: 'Gym', location: 'Fitness First', schedule_rrule: 'FREQ=DAILY;BYHOUR=20;BYMINUTE=0' });
-const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, ...over });
+// TRAVEL-01b (Alex, 2026-10-31): the input gains `travel` — null, as the records: unknown, never none.
+const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, ...over });
 
 const record = (over: Partial<StopRecordRow> & { kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
   id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
@@ -321,7 +322,7 @@ test('T2 the day’s spent is the sum of the actuals that exist, the stops witho
   // TOTALS-01 (2026-10-14): the spent line is gone — its number is the TOTAL row's ACTUAL (dayTotals). Moved, never loosened: the same rule.
   assert.equal(dayTotals(sk, 2500).actualCents, null, 'PLAN-01: the sum of no actuals is not $0 — it is unknown ("—")');
   // VENDOR-02 (2026-10-14): completenessWords lost its stranded count (Alex's ruling — stranded vendors are Budget's to show); the words stand.
-  assert.equal(completenessWords(sk, { day: true, report: true, records: true }), '1 not priced · 1 skipped');
+  assert.equal(completenessWords(sk, { day: true, report: true, records: true, travel: true }), '1 not priced · 1 skipped');
   // The done count is the marks' — a line done by its routine's completion counts (its row wears ✓); a task without an actual counts as without.
   const byRoutine = dayStops(input({ entries: [entry(morning, 'completed')], items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship it') })], records: [] }));
   assert.deepEqual([byRoutine.done, byRoutine.withoutActual, byRoutine.notRecorded], [3, 4, 3]);
@@ -676,9 +677,11 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(c, /if \(live\) setRecords\(\{ day, read: r \}\);/, 'the read lands with its day, under the live guard');
   assert.match(c, /const recordsRead = records !== null && records\.day === day \? records\.read : null;/);
   assert.match(c, /const recordRows = recordsRead !== null && recordsRead\.ok \? recordsRead\.value\.records : null;/, 'not read is null — unknown, never none');
-  assert.match(c, /const loaded = dayRead !== null && report !== null && items !== null && recordsRead !== null;/, 'the plate waits for the records too');
+  // TRAVEL-01b (Alex, 2026-10-31): the plate waits for the travel read too — a travel stop is one of the deck's cards. Moved, not loosened.
+  assert.match(c, /const loaded = dayRead !== null && report !== null && items !== null && recordsRead !== null && travelRead !== null;/, 'the plate waits for the records and the travel too');
   assert.doesNotMatch(c, /setRecords\(null\)/, 'a re-read never blanks the plate first');
-  assert.match(c, /dayStops\(\{ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows \}\)/);
+  // TRAVEL-01b (Alex, 2026-10-31): the travel rows ride beside the records — null while not read. Moved, not loosened.
+  assert.match(c, /dayStops\(\{ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows, travel: travelRows \}\)/);
   // VENDOR-02 (2026-10-14): the book, whether the report was read and the report re-read moved with the vendor box to the card's
   // StopVendor mount (above the form; vendor02.test.ts pins it) — the form keeps its key, the stop, the day, the zone and the records' re-read.
   assert.match(c, /<StopForm key=\{`\$\{focus\.stop\.key\}:\$\{focus\.stop\.record === null \? 'none' : focus\.stop\.record\.id\}`\} stop=\{focus\.stop\} day=\{day\} viewerZone=\{zone\} onChanged=\{\(\) => setRecordReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the stop and its record; the records read again after a write (the vendor box’s props moved to StopVendor — VENDOR-02)');
@@ -712,7 +715,8 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.doesNotMatch(code(CARD_RULES), /sum \+ \(s\.actualCents === null \? 0/, 'an unknown is never summed as zero');
   assert.match(code(CARD_RULES), /stops\.map\(\(s\) => s\.actualCents\)\.filter\(\(c\): c is number => c !== null\)\.reduce/, 'the sum is over the actuals that exist');
   // A Stop carries what the form and the plate need, nothing the lines law forbids the day folder.
-  const keys: (keyof Stop)[] = ['kind', 'key', 'time', 'label', 'line', 'vendor', 'location', 'minutes', 'cents', 'status', 'statusSource', 'role', 'planLine', 'planLineState', 'address', 'zone', 'record', 'actualCents', 'actualSource', 'doneAt', 'lateMinutes', 'actualMinutes'];
+  // TRAVEL-01b (Alex, 2026-10-31): `travel` — a travel stop's own facts, null for every other kind (travel01b.test.ts drives it).
+  const keys: (keyof Stop)[] = ['kind', 'key', 'time', 'label', 'line', 'vendor', 'location', 'minutes', 'cents', 'status', 'statusSource', 'role', 'planLine', 'planLineState', 'address', 'zone', 'record', 'actualCents', 'actualSource', 'doneAt', 'lateMinutes', 'actualMinutes', 'travel'];
   const sample = dayStops(input({ entries: [entry(morning)], records: [coffeeDone] })).stops[0];
   assert.deepEqual(Object.keys(sample).sort(), [...keys].sort());
 });

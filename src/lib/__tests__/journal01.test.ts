@@ -120,7 +120,7 @@ const coffee = (cents: number | null) => record({ kind: 'routine_line', target_i
 const stretch = (cents: number | null) => record({ kind: 'routine_line', target_id: STRETCH_ID, occurrence_at: AT, done_at: '2026-10-10T23:31:00.000Z', actual_cents: cents });
 const gymSkipped = record({ kind: 'routine', target_id: GYM_ID, occurrence_at: GYM_AT, outcome: 'skipped', note: 'closed' });
 const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({
-  day: DAY, entries: [entry(morning), entry(gym, 'pending', GYM_AT), entry(vision, 'pending', VISION_AT)], lines, notPlaced: [], items, viewerZone: BKK, records: null, ...over,
+  day: DAY, entries: [entry(morning), entry(gym, 'pending', GYM_AT), entry(vision, 'pending', VISION_AT)], lines, notPlaced: [], items, viewerZone: BKK, records: null, travel: null, ...over, // TRAVEL-01b (Alex, 2026-10-31): the input gains `travel`
 });
 
 const refused = (body: unknown) => {
@@ -273,7 +273,8 @@ test('T2 CLEAN-02: yesterday’s tally is gone — the journal card shows no mon
   // asksAmount stays — the full card's verdict reads it (dayCard.ts dayVerdict, daycard01.test.ts T7).
   assert.deepEqual([asksAmount('place'), asksAmount('none'), asksAmount('journal'), asksAmount('plan'), asksAmount('execute'), asksAmount('all_day')], [true, true, false, false, false, false], 'StopForm’s asks: a place and no role ask the amount');
   assert.match(code(CARD_RULES), /export const asksAmount = \(role: StopRole\): boolean => role === 'place' \|\| role === 'none';/);
-  assert.match(code(CARD_RULES), /if \(result\.stops\.some\(\(s\) => asksAmount\(s\.role\) && s\.actualCents === null\)\) return null;/, 'the verdict waits on every stop that asks an amount');
+  // TRAVEL-01b (Alex, 2026-10-31), ruling F: the verdict excludes a travel stop by KIND (it asks no amount — the booking is the record); asksAmount's own text is unchanged, pinned above. Moved, not loosened.
+  assert.match(code(CARD_RULES), /if \(result\.stops\.some\(\(s\) => s\.kind !== 'travel' && asksAmount\(s\.role\) && s\.actualCents === null\)\) return null;/, 'the verdict waits on every stop that asks an amount — a travel stop asks none');
   assert.doesNotMatch(code(CARD_RULES), /\bfetch\b|new Date\(\)|Date\.now\(|from 'react'|@prisma\/client/, 'still pure');
 });
 

@@ -51,7 +51,8 @@ const entry = (r: Routine, expected_at: string): TodayRoutineEntry => ({ routine
 const line = (over: Partial<PlanLine> & { address: PlanLine['address']; cents: number; label: string }): PlanLine => ({
   entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, ...over,
 });
-const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: [], ...over });
+// TRAVEL-01b (Alex, 2026-10-31): the input gains `travel` — null here (unread).
+const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: [], travel: null, ...over });
 
 /** One stepless routine per role, each at its own hour (Bangkok = UTC+7). */
 const ROLES: readonly { role: StopRole; hour: number; at: string }[] = [
@@ -201,11 +202,12 @@ test('T3 the day card\'s plate, foot and completeness line name no stranded vend
   assert.doesNotMatch(c, /data-day-stranded|strandedWords|\bstranded\b|vendors? stranded/);
   assert.doesNotMatch(code(RULES), /strandedWords|StrandedVendor|vendors? stranded/);
   assert.equal(completenessWords.length, 2, 'the result and what was read — no stranded count');
-  assert.match(c, /const completeness = completenessWords\(result, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/);
+  // TRAVEL-01b (Alex, 2026-10-31): the completeness line reads the travel read's state too. Moved, not loosened.
+  assert.match(c, /const completeness = completenessWords\(result, \{ day: !dayFailed, report: reportRead, records: recordsOk, travel: travelOk \}\);/);
   assert.match(comments(RULES), /VENDOR-02 \(2026-10-14\) — Alex's ruling: the day card is the daily and overlay\s*\n\s*\* surface; stranded vendor picks are Budget's to show and clear\./);
   // Driven: a day whose report lists stranded vendors prints none of them — the card does not even read the field.
   const r = dayStops(input({ entries: [entry(routineOf('place', 12), ROLES[3].at)], lines: [lineOf('place', ROLES[3].at)] }));
-  assert.equal(completenessWords(r, { day: true, report: true, records: true }), '1 not recorded');
+  assert.equal(completenessWords(r, { day: true, report: true, records: true, travel: true }), '1 not recorded');
 });
 
 // BUDGET-02 (Alex, ruling A, 2026-10-20): "the 'what this view is missing' notice strip … leave[s] the screen" — and

@@ -41,9 +41,12 @@ const MIGRATION = 'prisma/migrations/20260926210000_match_02_refund_settlement/m
  * FX-01b (2026-10-30, ruling B): the charge pass's rationale writes the bank figure through bankMoneyWords in the
  * account's currency and the booked figure as its cents with its code (`$` only for the functional currency) — the
  * prefix re-pinned at main d78527b6 + FX-01b. Was ed0c7b7bf29a5456973ca09a60846ff6526db9a6284b85fb86f52c341f57b6e8 / 15062.
+ * TRAVEL-01b (2026-10-31, ruling C): the booked figure's helper moved to the currency home as statedMoneyWords — the charge
+ * pass imports it and declares no money words of its own; its rationale words are unchanged (pinned below) — the prefix
+ * re-pinned at main 6d41a3e2 + TRAVEL-01b. Was 51c7c21e9dee2989c2e4d8e3f7e38b87273bb731aca3a6d59c9e37842d0b9039 / 15936.
  */
-const MAIN_MATCHER_CODE_SHA256 = '51c7c21e9dee2989c2e4d8e3f7e38b87273bb731aca3a6d59c9e37842d0b9039';
-const MAIN_MATCHER_CODE_LENGTH = 15936;
+const MAIN_MATCHER_CODE_SHA256 = '81b07a7379b72faf1b53ca263d2c5725721611d3f66b2051a026557baee8e7c5';
+const MAIN_MATCHER_CODE_LENGTH = 15867;
 
 const EVENT: MatcherRefundEvent = {
   id: 'me_1', reservationId: 'res_1', kind: 'refund', status: 'stated', amountCents: 25000, currency: 'USD', refundDestination: null,

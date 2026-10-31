@@ -79,7 +79,8 @@ const item = (over: Partial<DailyPlanItem> & { id: string }): DailyPlanItem => (
 const record = (over: Partial<StopRecordRow> & { kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
   id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
 });
-const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, ...over });
+// TRAVEL-01b (Alex, 2026-10-31): the input gains `travel` — null, as the records: unknown, never none.
+const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, ...over });
 
 /** Alex's day: the journal, the plan, an execute block, brunch (a place), HBO (all day, at 08:00 on its rrule), dinner. */
 const journal = routine({ id: 'journal', name: 'Daily Vision - Journal', role: 'journal' });
@@ -160,7 +161,7 @@ test('T2 every stop carries its routine’s role; an all-day routine is in the p
   assert.equal(r.stops.find((s) => s.label === 'Brunch')!.planLine, brunchLine, 'the matched line rides on the stop — the vendor box plans on it');
   assert.equal(r.stops.find((s) => s.label === 'Gym')!.planLine, null);
   // VENDOR-02 (2026-10-14): completenessWords lost its stranded count (Alex's ruling — stranded vendors are Budget's to show); the words stand.
-  assert.equal(completenessWords(r, { day: true, report: true, records: true }), '3 not priced · 4 not recorded');
+  assert.equal(completenessWords(r, { day: true, report: true, records: true, travel: true }), '3 not priced · 4 not recorded');
   // A record written at an all-day routine (by the API — the card offers no form) is named as matching no stop, never applied.
   const hboRecord = record({ kind: 'routine', target_id: HBO_ID, occurrence_at: HBO_AT, done_at: HBO_AT, actual_cents: 1100 });
   const withRecord = dayStops(input({ entries: [entry(hbo, 'pending', HBO_AT)], lines: [hboLine], records: [hboRecord] }));
@@ -187,7 +188,7 @@ test('T2 every stop carries its routine’s role; an all-day routine is in the p
   const doneHbo = dayStops(input({ entries: [entry(hbo, 'completed', HBO_AT), entry(gym, 'pending', GYM_AT)], records: [] }));
   assert.deepEqual([doneHbo.done, doneHbo.skipped, doneHbo.notRecorded, doneHbo.withoutActual, doneHbo.notPriced, doneHbo.stops.length, doneHbo.allDay.length], [0, 0, 1, 1, 1, 1, 1]);
   const unpriced = dayStops(input({ entries: [entry(hbo, 'missed', HBO_AT)], records: [] }));
-  assert.deepEqual([unpriced.notPriced, unpriced.plannedCents, unpriced.allDayCents, unpriced.allDay[0].cents, completenessWords(unpriced, { day: true, report: true, records: true })], [0, 0, 0, null, null], 'an unpriced all-day line is not a count on the plate — the band says it has no amount');
+  assert.deepEqual([unpriced.notPriced, unpriced.plannedCents, unpriced.allDayCents, unpriced.allDay[0].cents, completenessWords(unpriced, { day: true, report: true, records: true, travel: true })], [0, 0, 0, null, null], 'an unpriced all-day line is not a count on the plate — the band says it has no amount');
   assert.equal(dayStops(input({ entries: [entry(hbo, 'pending', HBO_AT)], lines: [hboLine] })).allDayCents, 1100, 'the band’s money, for the step card’s denominator');
   assert.equal(bandNameOf(l.allDay[0]), 'Memberships — Gym membership', 'the band names the routine and its line');
   assert.equal(bandNameOf(r.allDay[0]), 'HBO Subscription');
@@ -327,7 +328,8 @@ test('T4 the form asks what the role asks; the vendor box is the card’s child,
   assert.match(c, /\{ALSO_TODAY_WORDS\.toUpperCase\(\)\}/);
   assert.match(c, /data-day-all-day-amount>\{planDollars\(s\.cents\)\}/);
   assert.match(c, /\{bandNameOf\(s\)\}<\/span>/, 'the routine and its line');
-  assert.match(c, /data-day-all-day-words>\{allDayBandWords\(result\.allDay\.filter\(\(s\) => s\.cents === null\)\.length\)\}/, 'the band’s words count its lines with no amount');
+  // TRAVEL-01b (Alex, 2026-10-31): a planned stay on the band (kind 'travel') carries no plan line — the count is the all-day lines'. Moved, not loosened.
+  assert.match(c, /data-day-all-day-words>\{allDayBandWords\(result\.allDay\.filter\(\(s\) => s\.kind !== 'travel' && s\.cents === null\)\.length\)\}/, 'the band’s words count its lines with no amount');
   // DECK-01 (Alex, 2026-10-16): N counts the deck's stops — the day's stops with the journal excepted (its card is under the deck); never the band.
   assert.match(c, /const deckStops = result\.stops\.map\(\(stop, j\) => \(\{ stop, at: j \+ 1 \}\)\)\.filter\(\(x\) => x\.stop\.role !== 'journal'\);/);
   assert.match(c, /const N = deckStops\.length;/, 'the stops, never the band');

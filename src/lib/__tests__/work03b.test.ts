@@ -79,10 +79,12 @@ test('2 plannedMinutesOf — a line’s 45 → 45; a stepless routine 10:00–18
   assert.equal(EMPTY_WINDOW_WORDS, 'end_time equals start_time — the window is empty; an end before the start ends the next day');
   // The rule, in its one place — applied at the card's two sites.
   const rules = code(RULES);
-  assert.match(rules, /export function plannedMinutesOf\(plan: PlannedMinutesPlan\): number \| null \{\n\s*if \(plan\.kind === 'line'\) return plan\.duration_minutes;\n\s*const start = windowMinutesOf\('start_time', plan\.start_time\);\n\s*const end = windowMinutesOf\('end_time', plan\.end_time\);\n\s*if \(start === null \|\| end === null\) return null;\n\s*return end >= start \? end - start : end \+ 24 \* 60 - start;\n\}/);
+  // TRAVEL-01b (Alex, 2026-10-31), ruling D: the rule gains the 'travel' kind between the line's and the routine's branches — the line's and the routine's arithmetic are unchanged (travel01b.test.ts drives the travel branch). Moved, not loosened.
+  assert.match(rules, /export function plannedMinutesOf\(plan: PlannedMinutesPlan\): number \| null \{\n\s*if \(plan\.kind === 'line'\) return plan\.duration_minutes;\n\s*if \(plan\.kind === 'travel'\) \{\n[\s\S]*?\n\s*\}\n\s*const start = windowMinutesOf\('start_time', plan\.start_time\);\n\s*const end = windowMinutesOf\('end_time', plan\.end_time\);\n\s*if \(start === null \|\| end === null\) return null;\n\s*return end >= start \? end - start : end \+ 24 \* 60 - start;\n\}/);
   assert.match(rules, /minutes: plannedMinutesOf\(\{ kind: 'routine', start_time: r\.start_time, end_time: r\.end_time \}\),/, 'the stepless site');
   assert.match(rules, /minutes: plannedMinutesOf\(\{ kind: 'line', duration_minutes: step\.duration_minutes \}\),/, 'the line site');
-  assert.equal((rules.match(/plannedMinutesOf\(/g) ?? []).length, 3, 'defined once, applied twice — no third reading on the card');
+  // TRAVEL-01b (Alex, 2026-10-31): applied twice more — a planned once row's and a segment's minutes (kind 'travel'), the same one rule. Moved, not loosened.
+  assert.equal((rules.match(/plannedMinutesOf\(/g) ?? []).length, 5, 'defined once, applied four times — the line, the stepless routine, the planned travel row, the segment; no other reading on the card');
   assert.match(rules, /import \{ minutesOf \} from '@\/lib\/calendar\/day';/, 'the clock arithmetic is the calendar’s minutesOf — reused, not rebuilt');
 });
 
@@ -201,7 +203,8 @@ test('1 an execute stop with no length and a task done in the day: the block map
   assert.match(code(RULE), /map\.set\(s\.key, block === null \? null : doneInBlockOf\(all, block\)\);/);
   assert.match(code(RULE), /export const NO_DONE_IN_BLOCKS: ReadonlyMap<string, readonly LogDoneTask\[\] \| null> = new Map\(\);/);
   const rules = code(RULES);
-  assert.match(rules, /export function stopSceneLines\(s: Stop, done\?: readonly ReelDoneTask\[\] \| null\): string\[\] \{\n\s*const block = \(\(\): string \| null => \{\n\s*if \(!showsWorkBlock\(s\)\) return null;\n\s*if \(done === undefined\) throw new Error\(`dayCard: \$\{s\.key\} is an execute stop — its scene needs the tasks done in its block`\);\n\s*return done === null \? null : doneInBlockSceneWords\(done\);\n\s*\}\)\(\);/);
+  // TRAVEL-01b (Alex, 2026-10-31), ruling H: a travel stop's scene is its one line, decided before the block ({ } is its dated comment once stripped). Moved, not loosened.
+  assert.match(rules, /export function stopSceneLines\(s: Stop, done\?: readonly ReelDoneTask\[\] \| null\): string\[\] \{\n(?:\s*\{\s*\}\n)?\s*if \(s\.kind === 'travel'\) return \[travelSceneWords\(s\)\];\n\s*const block = \(\(\): string \| null => \{\n\s*if \(!showsWorkBlock\(s\)\) return null;\n\s*if \(done === undefined\) throw new Error\(`dayCard: \$\{s\.key\} is an execute stop — its scene needs the tasks done in its block`\);\n\s*return done === null \? null : doneInBlockSceneWords\(done\);\n\s*\}\)\(\);/);
   assert.match(rules, /export function reelDoneOf\(d: Pick<ReelDay, 'done'>, s: Stop\): readonly ReelDoneTask\[\] \| null \{\n\s*if \(!showsWorkBlock\(s\)\) return null;\n\s*const list = d\.done\.get\(s\.key\);\n\s*if \(list === undefined\) throw/);
   // The card hands the reel what reelDoneOf reads — unchanged (work03.test.ts pins the lines).
   assert.match(code(CARD), /stopScriptText\(day, reelStay, focus\.stop, reelDoneOf\(reelDay, focus\.stop\)\)/);
