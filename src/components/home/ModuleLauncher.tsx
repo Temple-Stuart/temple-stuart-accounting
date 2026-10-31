@@ -917,6 +917,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   authed,
                   currentTrip,
                   onCommitted: () => setTripsRefresh((n) => n + 1),
+                  // EVENTS-01b (2026-10-30): the travel tab mounts no experiences section, so the
+                  // Events mode here is the f1c63aef Soon tile, not a jump link to nowhere.
+                  eventsAnchor: null,
                 }),
                 // LOCAL PICKS (SELL-05, honest label): the Google-Places category
                 // search is free with an account — the route gates on a signed-in

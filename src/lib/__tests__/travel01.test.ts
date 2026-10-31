@@ -279,7 +279,9 @@ test('the booking surfaces still mount under Search, and the booking flow is byt
   const at = (name: string) => launcher.indexOf(`data-travel-section="${name}"`);
   const search = launcher.slice(at('search'), at('booked'));
   assert.match(search, /<ToggleStrip/);
-  assert.match(search, /\.\.\.travelStripModes\(\{\s*onRequireAuth,\s*authed,\s*currentTrip,\s*onCommitted: \(\) => setTripsRefresh\(\(n\) => n \+ 1\),\s*\}\)/);
+  // EVENTS-01b (2026-10-30): re-pinned — the call names its surface: eventsAnchor null (the travel tab mounts no
+  // experiences section, so its Events mode is the f1c63aef Soon tile). The four props before it are unchanged.
+  assert.match(search, /\.\.\.travelStripModes\(\{\s*onRequireAuth,\s*authed,\s*currentTrip,\s*onCommitted: \(\) => setTripsRefresh\(\(n\) => n \+ 1\),\s*eventsAnchor: null,\s*\}\)/);
   assert.match(search, /\{HOMEPAGE_CATEGORIES\.map\(\(catKey\) => \(\s*<PublicCategorySearch/);
   // The pins: a whole-file equality through the reader's two halves, rejoined.
   // LEGACY-DEL-01 (2026-09-29): the four pins that left with the legacy planner's deleted files count toward the audit's

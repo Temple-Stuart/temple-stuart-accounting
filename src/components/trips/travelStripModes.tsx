@@ -7,6 +7,13 @@
  * verbatim (ComingSoonSection — reused as the soon-panel body, not rebuilt).
  * EVENTS-01 (2026-10-30): Events left the Soon set — its panel points at the
  * experiences section under the strip (the mode below); insurance and esim stay.
+ * EVENTS-01b (2026-10-30): TWO SURFACES, ONE TRUTH. Only the guest landing has an
+ * experiences section; the app's travel tab has none. So `eventsAnchor` is a
+ * REQUIRED option — `#<id>` on the surface that mounts the section, null on the
+ * surface that does not (a missing argument is a tsc error, never a silent
+ * choice; not keyed off `authed`, auth is not a surface). With a string the mode
+ * is EVENTS-01's jump panel; with null it is the mode byte for byte as it stood
+ * at f1c63aef (EVENTS_MODE_SOON below).
  *
  * STRUCTURAL LIGHT-UP (the PR-LANDING-1 ruling, now at chip level): when a
  * tile's affiliate ID lands, its mode's panel swaps from the ComingSoonSection
@@ -43,6 +50,10 @@ export interface TravelStripOptions {
   sharedCity?: string;
   sharedCountry?: string;
   searchNonce?: number;
+  /** EVENTS-01b: the experiences section's anchor on THIS surface ('#events' on the guest
+   *  landing, Landing.tsx), or null where no section exists (the app's travel tab).
+   *  Required on purpose — every caller names its surface. */
+  eventsAnchor: `#${string}` | null;
 }
 
 /** The "Soon" marker — plain text inheriting the tab's own color so it reads
@@ -61,6 +72,20 @@ const SOON_BADGE = (
 
 /** The shared ~20px tab-icon sizing (PR-STRIP-DESIGN-1 spec). */
 const ICON_CLASS = 'h-5 w-5';
+
+/** EVENTS-01b: the Events mode as it stood at main f1c63aef (travelStripModes.tsx:181–187),
+ *  the seven lines byte for byte, trailing comma included — which is why they sit in a
+ *  one-element list. The surface with no experiences section (eventsAnchor null, the app's
+ *  travel tab) gets exactly this. experiences01.test.ts pins the text and the render. */
+const EVENTS_MODE_SOON: readonly ToggleMode[] = [
+    { key: 'events', label: 'Events', badge: SOON_BADGE, icon: <CalendarDays className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      headline: 'Events — coming soon.', panel: (
+      <ComingSoonSection
+        title="Events"
+        explainer="Concerts, shows, and live events wherever you're headed."
+      />
+    ) },
+];
 
 /** One trust chip — check + a short verified fact. STRIP-POLISH (mockup
  *  parity): the BAND checks are white at the row's /80 — the success green
@@ -104,7 +129,7 @@ export const TRAVEL_TRUST_CHIPS = (
 );
 
 export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
-  const { onRequireAuth, authed, currentTrip, onCommitted, sharedCity, sharedCountry, searchNonce } = opts;
+  const { onRequireAuth, authed, currentTrip, onCommitted, sharedCity, sharedCountry, searchNonce, eventsAnchor } = opts;
   // PR-STRIP-DESIGN-1: each LIVE mode's `explainer` is that component's own
   // TravelSectionShell line VERBATIM (the shell header hides under the strip
   // now — the line moved UP, it did not change): flights =
@@ -180,23 +205,24 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
         explainer="Get data the moment you land, no hunting for a SIM."
       />
     ) },
-    // EVENTS-01 (2026-10-30): the Events mode is no longer a Soon tile. The
-    // experiences live on the guest landing directly under this strip
-    // (ExperiencesSection, id="events"), so the mode keeps its key and label,
-    // loses the badge, and its panel is its OWN node — one sentence and the jump
-    // link — not the shared ComingSoonSection (insurance and esim keep that,
-    // and their badges, byte for byte).
-    { key: 'events', label: 'Events', icon: <CalendarDays className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+    // EVENTS-01 (2026-10-30): on the guest landing the Events mode is no longer a
+    // Soon tile. The experiences live directly under this strip (ExperiencesSection,
+    // id="events"), so the mode keeps its key and label, loses the badge, and its
+    // panel is its OWN node — one sentence and the jump link — not the shared
+    // ComingSoonSection (insurance and esim keep that, and their badges, byte for byte).
+    // EVENTS-01b (2026-10-30): the link names the anchor THIS surface passed; a surface
+    // with no section (eventsAnchor null) gets the f1c63aef mode, EVENTS_MODE_SOON.
+    ...(eventsAnchor === null ? EVENTS_MODE_SOON : [{ key: 'events', label: 'Events', icon: <CalendarDays className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
       headline: 'Events — book around them.', panel: (
       <div className="mt-6 border-t border-border pt-6" data-events-mode>
         <p className="text-sm text-text-secondary">The experiences are right below this strip.</p>
         <a
-          href="#events"
+          href={eventsAnchor}
           className="mt-3 inline-flex min-h-[44px] items-center border border-brand-purple/40 px-5 text-sm font-medium text-brand-purple hover:bg-brand-purple-wash"
         >
           Jump to them ↓
         </a>
       </div>
-    ) },
+    ) }]),
   ];
 }
