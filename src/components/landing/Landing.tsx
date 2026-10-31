@@ -9,6 +9,7 @@
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
  *   EXPERIENCES         — the events section under the strip (EVENTS-01)
+ *   MY TRIP             — the trip log, newest first (WASHERE-01)
  *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
  *                         renders only when records exist
  *   THE PLANS           — four plan cards and one comparison table
@@ -189,6 +190,9 @@ import GuestTripStrip from './GuestTripStrip';
 // EVENTS-01 (2026-10-30): the experiences under the strip — the leaf's rows, the
 // words module's lines, the URL's one filter; it reads the day the server passed.
 import ExperiencesSection from './ExperiencesSection';
+// WASHERE-01 (2026-10-31): the trip log — Alex's own stops, newest first, each naming
+// an experience by id; the leaf's rows, the words modules' lines, the server's day.
+import WasHereSection from './WasHereSection';
 import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
@@ -2089,6 +2093,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             down so nothing here reads the clock. ───────────────────────────────── */}
       <ExperiencesSection today={today} />
 
+      {/* ── WASHERE-01 (Alex, 2026-10-31): MY TRIP — the trip log, newest first, built for
+            photos. The card EVENTS-01 pinned inside the experiences lives here now: the
+            events filter serves the reader; "I was here" is Alex's own trip. A cream act
+            with its own border-b (the DONE-FOR-YOU idiom), id="my-trip". ───────────── */}
+      <WasHereSection today={today} />
+
       {/* ── BOOK-3: the guest's session trip — renders only when records
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
@@ -2233,7 +2243,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               live demo | experiences  → the demo act's border-b (EVENTS-01, 2026-10-30:
                                          the experiences band is full-bleed aubergine
                                          like the hero, so its own bottom edge closes
-                                         experiences | guest strip, or | plans, by colour)
+                                         the seam below it by colour — experiences | my trip
+                                         since WASHERE-01)
+              my trip | guest strip / plans → my trip's border-b (WASHERE-01, 2026-10-31: a
+                                         cream act, the DONE-FOR-YOU idiom, one rule)
               live demo | personas     → the demo act's border-b (PR-REORDER
                                          moved personas above done-for-you —
                                          the who-first order; the strip case

@@ -6,11 +6,14 @@
  * substitute), every row is its own pill (the series summary and its fixtures left with the
  * function), a conflict pill says only that, and the strip's Events mode names its anchor
  * per surface (T6 renders the builder's two shapes).
+ * WASHERE-01 (Alex, 2026-10-31) — `featured` left the rows: Alex's own stop is the trip
+ * log's (wasHere01.test.ts). COMING UP is the category's upcoming rows unfiltered, so Surf
+ * shows the Philippines Pro first while it is on; the refused state is the refusal only.
  *
  *   T1 the law — every refusal by name over injected rows; the live rows pass;
  *   T2 the rows — the count, three exact rows, the categories in the ruled order;
  *   T3 the words — dateWords, experienceLine, upcoming, the pills;
- *   T4 the section, rendered — the featured card, COMING UP, the chips, the lineup,
+ *   T4 the section, rendered — COMING UP, the chips, the lineup,
  *      the refusal of an unknown ?into=, the empty state; its source reads no clock
  *      and carries no urgency word;
  *   T5 the mount and the day rule — Landing mounts the section once, after the demo's
@@ -33,7 +36,7 @@ import { readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { BOOKING_FLOW_BASE, BOOKING_FLOW_FILES, bookingFlowSha256 } from '../travelBookingFlow';
 import {
-  ExperiencesView, DEFAULT_INTO, EVENTS_ANCHOR, I_WAS_HERE_LINE, CLOSING_LINE, STRIP_LINE, notACategory, nothingUpcoming,
+  ExperiencesView, DEFAULT_INTO, EVENTS_ANCHOR, CLOSING_LINE, STRIP_LINE, notACategory, nothingUpcoming,
 } from '@/components/landing/ExperiencesSection';
 
 Object.assign(globalThis, { React });
@@ -74,7 +77,7 @@ function noteBlockOver(pins: string, notes: string, pinLine: number): string {
 
 // ── T1 · THE LAW ─────────────────────────────────────────────────────────────
 
-const FEATURED = row('philippines-pro-2026');
+const PHIL = row('philippines-pro-2026');
 const BASE = row('sls-tokyo-2026');
 const lawOver = (...rows: Experience[]) => experiencesLaw({ throwOnFail: false, rows });
 const refuses = (rows: Experience[], words: string) => {
@@ -84,35 +87,33 @@ const refuses = (rows: Experience[], words: string) => {
 
 test('T1 the live rows pass the law, and the law throws by default on a failure', () => {
   assert.deepEqual(experiencesLaw({ throwOnFail: false }), []);
-  assert.throws(() => experiencesLaw({ rows: [FEATURED, { ...BASE, id: FEATURED.id }] }), ExperiencesLawError);
-  assert.deepEqual(lawOver(FEATURED, BASE), []);
+  assert.throws(() => experiencesLaw({ rows: [PHIL, { ...BASE, id: PHIL.id }] }), ExperiencesLawError);
+  assert.deepEqual(lawOver(PHIL, BASE), []);
 });
 
 test('T1 every refusal, by name', () => {
-  refuses([FEATURED, BASE, { ...BASE }], 'duplicate id');
-  refuses([FEATURED, { ...BASE, category: 'chess' as Experience['category'] }], 'is not in EXPERIENCE_CATEGORIES');
-  for (const field of ['name', 'venue', 'city', 'country', 'sourceName'] as const) refuses([FEATURED, { ...BASE, [field]: '  ' }], `empty ${field}`);
-  refuses([FEATURED, { ...BASE, venue: VENUE_NOT_FIXED }], 'not fixed is allowed only while not_announced');
-  refuses([FEATURED, { ...BASE, city: VENUE_NOT_FIXED }], 'not fixed is allowed only while not_announced');
-  assert.deepEqual(lawOver(FEATURED, { ...BASE, venue: VENUE_NOT_FIXED, city: VENUE_NOT_FIXED, start: null, end: null, status: 'not_announced' }), [], 'not fixed is allowed while not_announced');
-  refuses([FEATURED, { ...BASE, countryCode: 'jp' }], 'not two upper-case letters');
-  refuses([FEATURED, { ...BASE, countryCode: 'JPN' }], 'not two upper-case letters');
-  refuses([FEATURED, { ...BASE, sourceUrl: 'http://www.streetleague.com/tokyo2026' }], 'does not start with https://');
-  refuses([FEATURED, { ...BASE, checkedOn: '30/10/2026' }], 'is not YYYY-MM-DD');
-  refuses([FEATURED, { ...BASE, checkedOn: '2026-13-01' }], 'is not YYYY-MM-DD');
-  refuses([FEATURED, { ...BASE, start: '2026-11-15' }], 'is after end');
-  refuses([FEATURED, { ...BASE, end: null }], 'not both YYYY-MM-DD (or both null)');
-  refuses([FEATURED, { ...BASE, start: '14 Nov 2026', end: '14 Nov 2026' }], 'not both YYYY-MM-DD (or both null)');
-  refuses([FEATURED, { ...BASE, start: null, end: null }], 'status announced with null dates');
-  refuses([FEATURED, { ...BASE, start: null, end: null, status: 'conflict' }], 'status conflict with null dates');
-  refuses([FEATURED, { ...BASE, status: 'not_announced' }], 'status not_announced with dates');
-  refuses([FEATURED, { ...BASE, windowKind: 'swell', status: 'conflict' }], 'windowKind swell on a row whose status is conflict');
-  refuses([FEATURED, { ...BASE, windowKind: 'swell', status: 'not_announced', start: null, end: null }], 'windowKind swell on a row whose status is not_announced');
-  refuses([FEATURED, BASE, { ...BASE, id: 'sls-tokyo-2026-again' }], 'shares (category, name, start)');
-  refuses([BASE], 'featured rows');
-  refuses([FEATURED, { ...BASE, featured: true }], 'featured rows');
-  refuses([FEATURED, { ...BASE, extra: true } as unknown as Experience], 'exactly the eighteen ruled fields');
-  assert.equal(EXPERIENCE_FIELDS.length, 18);
+  refuses([PHIL, BASE, { ...BASE }], 'duplicate id');
+  refuses([PHIL, { ...BASE, category: 'chess' as Experience['category'] }], 'is not in EXPERIENCE_CATEGORIES');
+  for (const field of ['name', 'venue', 'city', 'country', 'sourceName'] as const) refuses([PHIL, { ...BASE, [field]: '  ' }], `empty ${field}`);
+  refuses([PHIL, { ...BASE, venue: VENUE_NOT_FIXED }], 'not fixed is allowed only while not_announced');
+  refuses([PHIL, { ...BASE, city: VENUE_NOT_FIXED }], 'not fixed is allowed only while not_announced');
+  assert.deepEqual(lawOver(PHIL, { ...BASE, venue: VENUE_NOT_FIXED, city: VENUE_NOT_FIXED, start: null, end: null, status: 'not_announced' }), [], 'not fixed is allowed while not_announced');
+  refuses([PHIL, { ...BASE, countryCode: 'jp' }], 'not two upper-case letters');
+  refuses([PHIL, { ...BASE, countryCode: 'JPN' }], 'not two upper-case letters');
+  refuses([PHIL, { ...BASE, sourceUrl: 'http://www.streetleague.com/tokyo2026' }], 'does not start with https://');
+  refuses([PHIL, { ...BASE, checkedOn: '30/10/2026' }], 'is not YYYY-MM-DD');
+  refuses([PHIL, { ...BASE, checkedOn: '2026-13-01' }], 'is not YYYY-MM-DD');
+  refuses([PHIL, { ...BASE, start: '2026-11-15' }], 'is after end');
+  refuses([PHIL, { ...BASE, end: null }], 'not both YYYY-MM-DD (or both null)');
+  refuses([PHIL, { ...BASE, start: '14 Nov 2026', end: '14 Nov 2026' }], 'not both YYYY-MM-DD (or both null)');
+  refuses([PHIL, { ...BASE, start: null, end: null }], 'status announced with null dates');
+  refuses([PHIL, { ...BASE, start: null, end: null, status: 'conflict' }], 'status conflict with null dates');
+  refuses([PHIL, { ...BASE, status: 'not_announced' }], 'status not_announced with dates');
+  refuses([PHIL, { ...BASE, windowKind: 'swell', status: 'conflict' }], 'windowKind swell on a row whose status is conflict');
+  refuses([PHIL, { ...BASE, windowKind: 'swell', status: 'not_announced', start: null, end: null }], 'windowKind swell on a row whose status is not_announced');
+  refuses([PHIL, BASE, { ...BASE, id: 'sls-tokyo-2026-again' }], 'shares (category, name, start)');
+  refuses([PHIL, { ...BASE, extra: true } as unknown as Experience], 'exactly the seventeen ruled fields');
+  assert.equal(EXPERIENCE_FIELDS.length, 17, 'WASHERE-01: the pinned-card field left the row');
 });
 
 // ── T2 · THE ROWS ────────────────────────────────────────────────────────────
@@ -128,13 +129,13 @@ test('T2 the categories, in the ruled order, with their EVENTS-01b labels; the d
   assert.match(code(SECTION), /export const DEFAULT_INTO: ExperienceCategoryId = EXPERIENCE_CATEGORIES\[0\]\.id;/, 'derived from the list, not typed');
 });
 
-test('T2 the rows: the ruling\'s DATA block transcribed whole, one featured, every checkedOn 2026-10-30', () => {
+test('T2 the rows: the ruling\'s DATA block transcribed whole, every checkedOn 2026-10-30, no pinned-card field', () => {
   // EVENTS-01 (2026-10-30): the ruling wrote "Row count: 73" above a DATA block that holds 74 rows
   // (6 surfing · 5 snowboarding · 4 skate · 5 golf · 24 f1 · 4 moto · 5 tennis · 11 fighting · 10 music_art).
   // The block is the data and was transcribed verbatim — no row dropped to meet the number; the number is
   // reported as the ruling's miscount, and this pin holds the block's own count.
   assert.equal(EXPERIENCES.length, 74);
-  assert.deepEqual(EXPERIENCES.filter((r) => r.featured).map((r) => r.id), ['philippines-pro-2026']);
+  assert.ok(EXPERIENCES.every((r) => !('featured' in r)), 'WASHERE-01: no row carries the pinned-card field');
   assert.ok(EXPERIENCES.every((r) => r.checkedOn === '2026-10-30'));
   assert.equal(EXPERIENCES.filter((r) => r.category === 'f1').length, 24);
   assert.deepEqual(row('philippines-pro-2026'), {
@@ -142,17 +143,17 @@ test('T2 the rows: the ruling\'s DATA block transcribed whole, one featured, eve
     venue: 'Cloud 9', city: 'General Luna, Siargao', country: 'Philippines', countryCode: 'PH', start: '2026-10-30', end: '2026-11-10',
     windowKind: 'window', status: 'conflict', sourceKind: 'secondary', sourceName: 'Daily Tribune (WSL announcement)',
     sourceUrl: 'https://tribune.net.ph/2026/07/20/philippines-to-host-first-world-surf-league-championship-tour', checkedOn: '2026-10-30',
-    notes: 'A Championship Tour stop from 2026; the WSL announcement gives Oct 31 – Nov 10 and two late reports give Oct 30 – Nov 8', featured: true,
+    notes: 'A Championship Tour stop from 2026; the WSL announcement gives Oct 31 – Nov 10 and two late reports give Oct 30 – Nov 8',
   });
   assert.deepEqual(row('tomorrowland-2027'), {
     id: 'tomorrowland-2027', category: 'music_art', series: 'Tomorrowland', name: 'Tomorrowland 2027', venue: 'De Schorre', city: 'Boom', country: 'Belgium',
     countryCode: 'BE', start: null, end: null, windowKind: 'fixed', status: 'not_announced', sourceKind: 'official', sourceName: 'Tomorrowland',
-    sourceUrl: 'https://www.tomorrowland.com', checkedOn: '2026-10-30', notes: 'The 2026 dates were announced Dec 4, 2025', featured: false,
+    sourceUrl: 'https://www.tomorrowland.com', checkedOn: '2026-10-30', notes: 'The 2026 dates were announced Dec 4, 2025',
   });
   assert.deepEqual(row('rizin-nye-2026'), {
     id: 'rizin-nye-2026', category: 'fighting', series: 'RIZIN', name: 'RIZIN NYE in Nagoya', venue: 'Vantelin Dome Nagoya', city: 'Nagoya', country: 'Japan',
     countryCode: 'JP', start: '2026-12-31', end: '2026-12-31', windowKind: 'fixed', status: 'announced', sourceKind: 'official', sourceName: 'RIZIN',
-    sourceUrl: 'https://www.rizin.tv/products/rizin-nye-in-nagoya', checkedOn: '2026-10-30', notes: 'In Nagoya this year, not Saitama', featured: false,
+    sourceUrl: 'https://www.rizin.tv/products/rizin-nye-in-nagoya', checkedOn: '2026-10-30', notes: 'In Nagoya this year, not Saitama',
   });
 });
 
@@ -204,17 +205,14 @@ test('T3 the lineup pills: dates and provenance, or "not announced"; a conflict 
 
 // ── T4 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T4 rendered with no choice named: Surf — the featured card, two upcoming cards (Nazaré, Pipe), nine chips with Surf pressed, six surf pills, the two lines, no all-categories word', () => {
+test('T4 rendered with no choice named: Surf — three upcoming cards with the Philippines Pro first, nine chips with Surf pressed, six surf pills, the two lines, no all-categories word, nothing of Alex\'s', () => {
   const html = render();
   assert.match(html, /<section id="events" aria-label="Book the experience"/);
   assert.equal(EVENTS_ANCHOR, 'events');
-  assert.match(html, /I WAS HERE/);
-  assert.match(html, /data-featured="philippines-pro-2026"/);
+  assert.doesNotMatch(html, /I WAS HERE|I&#x27;M HERE|data-featured|Siargao in the middle|href="#demo"/, 'WASHERE-01: the pinned card and Alex\'s line left for the trip log');
   assert.match(html, /Window Oct 30 – Nov 10, 2026 · window being confirmed/);
   assert.match(html, /Cloud 9 · General Luna, Siargao, Philippines/);
-  assert.ok(html.includes(I_WAS_HERE_LINE.replace("'", '&#x27;')), 'Alex\'s line, once');
-  assert.match(html, /href="#demo"/);
-  assert.deepEqual(cardsOf(html), ['nazare-big-wave-2026-27', 'pipe-masters-2026'], 'surf minus the featured row, by start');
+  assert.deepEqual(cardsOf(html), ['philippines-pro-2026', 'nazare-big-wave-2026-27', 'pipe-masters-2026'], 'the category\'s upcoming rows, unfiltered, by start');
   assert.equal((html.match(/aria-pressed="(true|false)"/g) ?? []).length, 9, 'nine categories, nothing else');
   assert.deepEqual(pressedOf(html), ['surfing']);
   assert.match(html, /aria-pressed="true"[^>]*data-into="surfing">Surf</);
@@ -248,13 +246,13 @@ test('T4 rendered for f1, fighting and tennis: every row its own pill — 24 F1 
   assert.equal(cardsOf(tennis).length, 4, 'four tennis editions are upcoming');
 });
 
-test('T4 rendered for a value that names no category: the refusal in place of COMING UP and THE LINEUP, no chip pressed, the featured card still there; nothing upcoming said', () => {
+test('T4 rendered for a value that names no category: the refusal only — in place of COMING UP and THE LINEUP, no chip pressed, no card above it; nothing upcoming said', () => {
   const bad = render({ choice: { refused: 'nope' } });
   assert.match(bad, /data-into-refused="true">nope is not a category — pick one above\.</);
   assert.equal(notACategory('nope'), 'nope is not a category — pick one above.');
   assert.deepEqual(pressedOf(bad), [], 'no substitute category');
   assert.equal((bad.match(/aria-pressed="false"/g) ?? []).length, 9);
-  assert.match(bad, /data-featured="philippines-pro-2026"/);
+  assert.doesNotMatch(bad, /data-featured|<article/, 'no card above the refusal');
   assert.equal(cardsOf(bad).length, 0);
   assert.equal(pillsOf(bad).length, 0);
   assert.doesNotMatch(bad, /data-coming-up-grid|data-lineup=|COMING UP|THE LINEUP/);
