@@ -1,8 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { FUNCTIONAL_CURRENCY, FUNCTIONAL_CURRENCY_WORDS, bankMoneyWords } from '@/lib/books/functionalCurrency';
 
-
+/**
+ * FX-01b (Alex, 2026-10-30, ruling A): every figure here is written through bankMoneyWords in the FUNCTIONAL
+ * currency — these are tax-lot figures (short-term / long-term, holding days: the IRS's terms) of positions the
+ * trading commits post to the general ledger in the functional currency by construction (the home's header,
+ * src/lib/books/functionalCurrency.ts), and /api/positions/summary hands them as Float dollars. A Float that is
+ * not whole cents (an average cost per share, a strike) is named so by bankMoneyWords, never rounded; the local
+ * formatter that printed `(…)` for a loss and `-` for zero is gone — a loss carries its minus, a zero is $0.00.
+ */
 interface PositionSummary {
   totalRealizedPL: number;
   optionRealizedPL: number;
@@ -122,15 +130,6 @@ export default function PositionReportTab({ }: { } = {}) {
     setLoading(false);
   };
 
-  const fmt = (val: number) => {
-    if (val === 0) return '-';
-    const abs = Math.abs(val);
-    const formatted = abs >= 1000
-      ? `$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : `$${abs.toFixed(2)}`;
-    return val < 0 ? `(${formatted})` : formatted;
-  };
-
   const plColor = (val: number) => val >= 0 ? 'text-brand-green' : 'text-brand-red';
 
   const fmtDate = (d: string | null) => {
@@ -169,7 +168,8 @@ export default function PositionReportTab({ }: { } = {}) {
             {tab.label}
           </button>
         ))}
-        <button onClick={loadData} className="ml-auto mr-2 px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors">
+        <span className="ml-auto mr-2 text-terminal-xs text-text-muted font-mono" data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</span>
+        <button onClick={loadData} className="mr-2 px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors">
           Refresh
         </button>
       </div>
@@ -182,19 +182,19 @@ export default function PositionReportTab({ }: { } = {}) {
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Total Realized P&L</div>
               <div className={`text-terminal-lg font-bold font-mono ${plColor(summary.totalRealizedPL)}`}>
-                {fmt(summary.totalRealizedPL)}
+                {bankMoneyWords(summary.totalRealizedPL, FUNCTIONAL_CURRENCY)}
               </div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Short-Term P&L</div>
               <div className={`text-terminal-lg font-bold font-mono ${plColor(summary.shortTermPL)}`}>
-                {fmt(summary.shortTermPL)}
+                {bankMoneyWords(summary.shortTermPL, FUNCTIONAL_CURRENCY)}
               </div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Long-Term P&L</div>
               <div className={`text-terminal-lg font-bold font-mono ${plColor(summary.longTermPL)}`}>
-                {fmt(summary.longTermPL)}
+                {bankMoneyWords(summary.longTermPL, FUNCTIONAL_CURRENCY)}
               </div>
             </div>
             <div className="border border-border rounded p-2">
@@ -214,17 +214,17 @@ export default function PositionReportTab({ }: { } = {}) {
             <div className="border border-border rounded p-3">
               <h4 className="text-terminal-lg font-semibold mb-2">Options P&L</h4>
               <div className={`text-sm font-bold font-mono ${plColor(summary.optionRealizedPL)}`}>
-                {fmt(summary.optionRealizedPL)}
+                {bankMoneyWords(summary.optionRealizedPL, FUNCTIONAL_CURRENCY)}
               </div>
             </div>
             <div className="border border-border rounded p-3">
               <h4 className="text-terminal-lg font-semibold mb-2">Stocks P&L</h4>
               <div className={`text-sm font-bold font-mono ${plColor(summary.stockRealizedPL)}`}>
-                {fmt(summary.stockRealizedPL)}
+                {bankMoneyWords(summary.stockRealizedPL, FUNCTIONAL_CURRENCY)}
               </div>
               <div className="flex gap-4 mt-2 text-terminal-sm text-text-muted">
-                <span>ST: <span className={`font-mono ${plColor(summary.shortTermPL - (summary.shortTermPL - (data.closedPositions.stocks.reduce((s, p) => s + p.shortTermPL, 0))))}`}>{fmt(data.closedPositions.stocks.reduce((s, p) => s + p.shortTermPL, 0))}</span></span>
-                <span>LT: <span className={`font-mono ${plColor(data.closedPositions.stocks.reduce((s, p) => s + p.longTermPL, 0))}`}>{fmt(data.closedPositions.stocks.reduce((s, p) => s + p.longTermPL, 0))}</span></span>
+                <span>ST: <span className={`font-mono ${plColor(summary.shortTermPL - (summary.shortTermPL - (data.closedPositions.stocks.reduce((s, p) => s + p.shortTermPL, 0))))}`}>{bankMoneyWords(data.closedPositions.stocks.reduce((s, p) => s + p.shortTermPL, 0), FUNCTIONAL_CURRENCY)}</span></span>
+                <span>LT: <span className={`font-mono ${plColor(data.closedPositions.stocks.reduce((s, p) => s + p.longTermPL, 0))}`}>{bankMoneyWords(data.closedPositions.stocks.reduce((s, p) => s + p.longTermPL, 0), FUNCTIONAL_CURRENCY)}</span></span>
               </div>
             </div>
           </div>
@@ -255,7 +255,7 @@ export default function PositionReportTab({ }: { } = {}) {
                         {s.count > 0 ? Math.round((s.wins / s.count) * 100) : 0}%
                       </td>
                       <td className={`py-1 px-2 text-right font-mono font-semibold ${plColor(s.pl)}`}>
-                        {fmt(s.pl)}
+                        {bankMoneyWords(s.pl, FUNCTIONAL_CURRENCY)}
                       </td>
                     </tr>
                   ))}
@@ -268,11 +268,11 @@ export default function PositionReportTab({ }: { } = {}) {
           <div className="grid grid-cols-2 gap-3">
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Avg Win</div>
-              <div className="text-base font-bold font-mono text-brand-green">{fmt(summary.avgWin)}</div>
+              <div className="text-base font-bold font-mono text-brand-green">{bankMoneyWords(summary.avgWin, FUNCTIONAL_CURRENCY)}</div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Avg Loss</div>
-              <div className="text-base font-bold font-mono text-brand-red">{fmt(summary.avgLoss)}</div>
+              <div className="text-base font-bold font-mono text-brand-red">{bankMoneyWords(summary.avgLoss, FUNCTIONAL_CURRENCY)}</div>
             </div>
           </div>
         </div>
@@ -313,10 +313,10 @@ export default function PositionReportTab({ }: { } = {}) {
                             {p.positionType} {p.optionType}
                           </span>
                         </td>
-                        <td className="py-1 px-2 text-right font-mono font-semibold">${p.strike?.toFixed(2) ?? '-'}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{bankMoneyWords(p.strike, FUNCTIONAL_CURRENCY)}</td>
                         <td className="py-1 px-2 font-mono text-text-muted">{fmtDate(p.expiration)}</td>
                         <td className="py-1 px-2 text-right font-mono">{p.remainingQuantity}</td>
-                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.costBasis)}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{bankMoneyWords(p.costBasis, FUNCTIONAL_CURRENCY)}</td>
                         <td className="py-1 px-2 font-mono text-text-muted">{fmtDate(p.openDate)}</td>
                         <td className="py-1 px-2">{p.strategy}</td>
                         <td className="py-1 px-2 text-right font-mono text-text-faint">#{p.tradeNum}</td>
@@ -352,10 +352,10 @@ export default function PositionReportTab({ }: { } = {}) {
                       <tr key={p.symbol} className={`border-b border-border-light hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'}`}>
                         <td className="py-1 px-2 font-medium">{p.symbol}</td>
                         <td className="py-1 px-2 text-right font-mono">{p.shares.remaining}</td>
-                        <td className="py-1 px-2 text-right font-mono font-semibold">${p.avgCostPerShare.toFixed(2)}</td>
-                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.remainingCostBasis)}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{bankMoneyWords(p.avgCostPerShare, FUNCTIONAL_CURRENCY)}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{bankMoneyWords(p.remainingCostBasis, FUNCTIONAL_CURRENCY)}</td>
                         <td className={`py-1 px-2 text-right font-mono font-semibold ${plColor(p.realizedPL)}`}>
-                          {fmt(p.realizedPL)}
+                          {bankMoneyWords(p.realizedPL, FUNCTIONAL_CURRENCY)}
                         </td>
                         <td className="py-1 px-2 font-mono text-text-muted">{fmtDate(p.openDate)}</td>
                         <td className="py-1 px-2 text-right font-mono text-text-faint">{p.lotCount}</td>
@@ -410,12 +410,12 @@ export default function PositionReportTab({ }: { } = {}) {
                             {p.positionType} {p.optionType}
                           </span>
                         </td>
-                        <td className="py-1 px-2 text-right font-mono font-semibold">${p.strike?.toFixed(2) ?? '-'}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{bankMoneyWords(p.strike, FUNCTIONAL_CURRENCY)}</td>
                         <td className="py-1 px-2 text-right font-mono">{p.quantity}</td>
-                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.costBasis)}</td>
-                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.proceeds)}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{bankMoneyWords(p.costBasis, FUNCTIONAL_CURRENCY)}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{bankMoneyWords(p.proceeds, FUNCTIONAL_CURRENCY)}</td>
                         <td className={`py-1 px-2 text-right font-mono font-semibold ${plColor(p.realizedPL)}`}>
-                          {fmt(p.realizedPL)}
+                          {bankMoneyWords(p.realizedPL, FUNCTIONAL_CURRENCY)}
                         </td>
                         <td className="py-1 px-2 text-right font-mono text-text-muted">{p.holdingDays ?? '-'}</td>
                         <td className="py-1 px-2">
@@ -460,16 +460,16 @@ export default function PositionReportTab({ }: { } = {}) {
                       <tr key={p.symbol} className={`border-b border-border-light hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'}`}>
                         <td className="py-1 px-2 font-medium">{p.symbol}</td>
                         <td className="py-1 px-2 text-right font-mono">{p.shares.original}</td>
-                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.costBasis)}</td>
-                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.proceeds)}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{bankMoneyWords(p.costBasis, FUNCTIONAL_CURRENCY)}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{bankMoneyWords(p.proceeds, FUNCTIONAL_CURRENCY)}</td>
                         <td className={`py-1 px-2 text-right font-mono font-semibold ${plColor(p.realizedPL)}`}>
-                          {fmt(p.realizedPL)}
+                          {bankMoneyWords(p.realizedPL, FUNCTIONAL_CURRENCY)}
                         </td>
                         <td className={`py-1 px-2 text-right font-mono ${plColor(p.shortTermPL)}`}>
-                          {fmt(p.shortTermPL)}
+                          {bankMoneyWords(p.shortTermPL, FUNCTIONAL_CURRENCY)}
                         </td>
                         <td className={`py-1 px-2 text-right font-mono ${plColor(p.longTermPL)}`}>
-                          {fmt(p.longTermPL)}
+                          {bankMoneyWords(p.longTermPL, FUNCTIONAL_CURRENCY)}
                         </td>
                         <td className="py-1 px-2 font-mono text-text-muted">{fmtDate(p.closeDate)}</td>
                       </tr>

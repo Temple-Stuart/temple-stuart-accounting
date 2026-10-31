@@ -38,9 +38,12 @@ const MIGRATION = 'prisma/migrations/20260926210000_match_02_refund_settlement/m
  * FX-01 (2026-10-30, ruling H): the charge pass now takes the account's currency beside its reservations (no 'USD'
  * default; a NULL account currency excludes the amount signal by name) — the prefix re-pinned at main f1c63aef + FX-01.
  * Was 2bd2fb68f1824d3e363fdbc2abe0f6dccb35d34b16c68b5c120d9c30e0bf11ba / 11674. The refund section still comes after it.
+ * FX-01b (2026-10-30, ruling B): the charge pass's rationale writes the bank figure through bankMoneyWords in the
+ * account's currency and the booked figure as its cents with its code (`$` only for the functional currency) — the
+ * prefix re-pinned at main d78527b6 + FX-01b. Was ed0c7b7bf29a5456973ca09a60846ff6526db9a6284b85fb86f52c341f57b6e8 / 15062.
  */
-const MAIN_MATCHER_CODE_SHA256 = 'ed0c7b7bf29a5456973ca09a60846ff6526db9a6284b85fb86f52c341f57b6e8';
-const MAIN_MATCHER_CODE_LENGTH = 15062;
+const MAIN_MATCHER_CODE_SHA256 = '51c7c21e9dee2989c2e4d8e3f7e38b87273bb731aca3a6d59c9e37842d0b9039';
+const MAIN_MATCHER_CODE_LENGTH = 15936;
 
 const EVENT: MatcherRefundEvent = {
   id: 'me_1', reservationId: 'res_1', kind: 'refund', status: 'stated', amountCents: 25000, currency: 'USD', refundDestination: null,

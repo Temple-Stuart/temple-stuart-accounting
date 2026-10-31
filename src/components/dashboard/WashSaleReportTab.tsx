@@ -1,8 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { FUNCTIONAL_CURRENCY, FUNCTIONAL_CURRENCY_WORDS, bankMoneyWords } from '@/lib/books/functionalCurrency';
 
-
+/**
+ * FX-01b (Alex, 2026-10-30, ruling A): a wash-sale report is a TAX report (IRS Publication 550), and a U.S.
+ * tax figure is expressed in U.S. dollars — the IRS rule the home's header quotes
+ * (src/lib/books/functionalCurrency.ts) — so every figure is written through bankMoneyWords in the FUNCTIONAL
+ * currency; /api/tax/wash-sales hands Float dollars, and a figure that is not whole cents (a per-share price)
+ * is named so, never rounded. The local formatter (`(…)` for a loss, `-` for zero) is gone.
+ */
 interface WashSaleViolation {
   dispositionId: string;
   symbol: string;
@@ -89,15 +96,6 @@ export default function WashSaleReportTab({ }: { } = {}) {
     setApplying(false);
   };
 
-  const fmt = (val: number) => {
-    if (val === 0) return '-';
-    const abs = Math.abs(val);
-    const formatted = abs >= 1000
-      ? `$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : `$${abs.toFixed(2)}`;
-    return val < 0 ? `(${formatted})` : formatted;
-  };
-
   const fmtDate = (d: string) =>
     new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
 
@@ -115,7 +113,7 @@ export default function WashSaleReportTab({ }: { } = {}) {
     <div>
       {/* Actions */}
       <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-        <span className="text-terminal-sm text-text-muted font-mono">IRS Publication 550</span>
+        <span className="text-terminal-sm text-text-muted font-mono">IRS Publication 550 · <span data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</span></span>
         <div className="flex gap-2">
           <button onClick={loadData} className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors">
             Re-scan
@@ -148,7 +146,7 @@ export default function WashSaleReportTab({ }: { } = {}) {
               <div className="border border-border rounded p-2 bg-bg-row">
                 <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Disallowed Losses</div>
                 <div className="text-terminal-lg font-bold font-mono text-brand-red">
-                  {fmt(summary.totalDisallowedLosses)}
+                  {bankMoneyWords(summary.totalDisallowedLosses, FUNCTIONAL_CURRENCY)}
                 </div>
               </div>
               <div className="border border-border rounded p-2">
@@ -162,7 +160,7 @@ export default function WashSaleReportTab({ }: { } = {}) {
               <div className="border border-border rounded p-2 bg-bg-row">
                 <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Est. Tax Impact</div>
                 <div className="text-terminal-lg font-bold font-mono text-brand-amber">
-                  {fmt(taxImpact.estimatedAdditionalTax)}
+                  {bankMoneyWords(taxImpact.estimatedAdditionalTax, FUNCTIONAL_CURRENCY)}
                 </div>
               </div>
             </div>
@@ -215,7 +213,7 @@ export default function WashSaleReportTab({ }: { } = {}) {
                         <td className="py-1 px-2 font-medium">{group.symbol}</td>
                         <td className="py-1 px-2 text-right font-mono">{group.count}</td>
                         <td className="py-1 px-2 text-right font-mono text-brand-red font-semibold">
-                          {fmt(group.totalDisallowed)}
+                          {bankMoneyWords(group.totalDisallowed, FUNCTIONAL_CURRENCY)}
                         </td>
                         <td className="py-1 px-2 text-center text-text-faint">
                           {expandedSymbol === group.symbol ? '\u25B2' : '\u25BC'}
@@ -228,7 +226,7 @@ export default function WashSaleReportTab({ }: { } = {}) {
                               <div>
                                 <span className="text-text-muted">Sale:</span>{' '}
                                 <span className="font-mono text-text-muted">{fmtDate(v.saleDate)}</span>{' '}
-                                {v.quantitySold} shares @ {fmt(v.proceedsPerShare)}
+                                {v.quantitySold} shares @ {bankMoneyWords(v.proceedsPerShare, FUNCTIONAL_CURRENCY)}
                               </div>
                               <div>
                                 <span className="text-text-muted">Replacement:</span>{' '}
@@ -236,18 +234,18 @@ export default function WashSaleReportTab({ }: { } = {}) {
                                   v.replacementType === 'stock' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
                                 }`}>{v.replacementType}</span>{' '}
                                 <span className="font-mono text-text-muted">{fmtDate(v.replacementDate)}</span>{' '}
-                                {v.replacementQuantity} {v.replacementType === 'option' ? 'contracts' : 'shares'} @ {fmt(v.replacementCostPerShare)}
+                                {v.replacementQuantity} {v.replacementType === 'option' ? 'contracts' : 'shares'} @ {bankMoneyWords(v.replacementCostPerShare, FUNCTIONAL_CURRENCY)}
                               </div>
                               <div>
                                 <span className="text-text-muted">Realized Loss:</span>{' '}
-                                <span className="font-mono text-brand-red">{fmt(v.realizedLoss)}</span>
+                                <span className="font-mono text-brand-red">{bankMoneyWords(v.realizedLoss, FUNCTIONAL_CURRENCY)}</span>
                               </div>
                               <div>
                                 <span className="text-text-muted">Disallowed:</span>{' '}
-                                <span className="font-mono text-brand-red font-semibold">{fmt(v.disallowedLoss)}</span>
+                                <span className="font-mono text-brand-red font-semibold">{bankMoneyWords(v.disallowedLoss, FUNCTIONAL_CURRENCY)}</span>
                                 {' '}
                                 <span className="text-text-muted">Adjusted Basis:</span>{' '}
-                                <span className="font-mono">{fmt(v.adjustedCostBasis)}</span>
+                                <span className="font-mono">{bankMoneyWords(v.adjustedCostBasis, FUNCTIONAL_CURRENCY)}</span>
                               </div>
                             </div>
                           </td>

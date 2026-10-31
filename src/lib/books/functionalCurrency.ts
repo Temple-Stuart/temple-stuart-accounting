@@ -58,6 +58,11 @@
  * figure with its code, and a currency Plaid did not state is named as not stated — the travel lane's
  * shape (src/lib/activities/products.ts money), never a `$` on a figure that is not dollars.
  *
+ * THE CURRENCY CODE (FX-01b, 2026-10-30, ruling C). A manual account's currency is chosen from the RUNTIME's
+ * own ISO 4217 list — runtimeCurrencyCodes() reads Intl.supportedValuesOf('currency') when it is called,
+ * never a hand-picked list — and when the runtime has no such list the code is typed under ISO_4217_CODE,
+ * the manual route's own rule (src/app/api/transactions/manual/route.ts). Neither path preselects a code.
+ *
  * THIS FILE IS PURE: no Prisma, no fetch, no clock, no React.
  */
 
@@ -140,6 +145,20 @@ export function isWholeCents(n: number): boolean {
 
 export const CURRENCY_NOT_STATED_WORDS = 'currency not stated';
 export const NOT_WHOLE_CENTS_WORDS = 'not whole cents';
+
+// ─── THE CURRENCY CODE (FX-01b, ruling C) ────────────────────────────────────
+
+/** ISO 4217: three capitals — the manual route's own rule, stated once here for the form's typed path. */
+export const ISO_4217_CODE = /^[A-Z]{3}$/;
+
+/**
+ * The runtime's own ISO 4217 list (Intl.supportedValuesOf('currency')), read when called; NULL when the runtime
+ * has no supportedValuesOf — the caller then takes a typed code under ISO_4217_CODE. Neither path is a default.
+ */
+export function runtimeCurrencyCodes(): readonly string[] | null {
+  const intl = Intl as unknown as { supportedValuesOf?: (key: 'currency') => string[] };
+  return typeof intl.supportedValuesOf === 'function' ? intl.supportedValuesOf('currency') : null;
+}
 
 /**
  * A bank figure in the ACCOUNT's currency: '$1,234.56' when that currency is the functional one;
