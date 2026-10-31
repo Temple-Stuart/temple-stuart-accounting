@@ -272,7 +272,8 @@ test('T3 ledgerTotals is the card’s TOTAL-row rule (dayTotals) over the rows s
   assert.match(card, /export function dayTotals\(result: TotalsInput, plannedCents: number \| null\): DayTotals \{/);
   assert.match(card, /export interface TotalsInput \{\n\s*readonly stops: readonly Pick<Stop, 'cents' \| 'actualCents'>\[\];\n\s*readonly spentCents: number \| null;\n\s*readonly withActual: number;\n\}/);
   assert.match(card, /over: deltaWords\(actualCents, recordedBudget\)\.over,\n\s*recordedBudgetCents: recordedBudget,/);
-  assert.match(code('src/components/workbench/operations/day/DayCard.tsx'), /const totals = dayTotals\(result, plannedCents\);/, 'the card still hands it a DayStops');
+  // TRAVEL-01c (Alex, 2026-10-31), ruling D: the card hands it the DayStops less the superseded stops (withoutSuperseded — still a DayStops). Moved, not loosened.
+  assert.match(code('src/components/workbench/operations/day/DayCard.tsx'), /const totals = dayTotals\(withoutSuperseded\(result\), plannedCents\);/, 'the card still hands it a DayStops');
 });
 
 test('T3 ledgerSummary: one group per selector value — the days it has records on, the totals by the same rule, the actual per recorded day, the average stars with how many were rated', () => {

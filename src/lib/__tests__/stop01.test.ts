@@ -716,7 +716,7 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(code(CARD_RULES), /stops\.map\(\(s\) => s\.actualCents\)\.filter\(\(c\): c is number => c !== null\)\.reduce/, 'the sum is over the actuals that exist');
   // A Stop carries what the form and the plate need, nothing the lines law forbids the day folder.
   // TRAVEL-01b (Alex, 2026-10-31): `travel` — a travel stop's own facts, null for every other kind (travel01b.test.ts drives it).
-  const keys: (keyof Stop)[] = ['kind', 'key', 'time', 'label', 'line', 'vendor', 'location', 'minutes', 'cents', 'status', 'statusSource', 'role', 'planLine', 'planLineState', 'address', 'zone', 'record', 'actualCents', 'actualSource', 'doneAt', 'lateMinutes', 'actualMinutes', 'travel'];
+  const keys: (keyof Stop)[] = ['kind', 'key', 'time', 'label', 'line', 'vendor', 'location', 'minutes', 'cents', 'status', 'statusSource', 'role', 'planLine', 'planLineState', 'address', 'zone', 'record', 'actualCents', 'actualSource', 'doneAt', 'lateMinutes', 'actualMinutes', 'travel', 'superseded']; // TRAVEL-01c (Alex, 2026-10-31): `superseded` — the block that supersedes a routine occurrence, or null
   const sample = dayStops(input({ entries: [entry(morning)], records: [coffeeDone] })).stops[0];
   assert.deepEqual(Object.keys(sample).sort(), [...keys].sort());
 });

@@ -284,7 +284,8 @@ test('T2 the full card, top to bottom: where, the hero, the hook, the table and 
   assert.doesNotMatch(c, /data-day-spent>|spentOutOfWords/, 'no spent line');
   for (const f of [CARD, RULES]) assert.doesNotMatch(code(f), /spentOutOfWords|SPENT_WORD|PLANNED_NOT_READ_WORDS/, `${f} keeps none of its words`);
   // TOTALS-01 amendment (Alex, 2026-10-15): moved, not loosened — the meter and the verdict are given the TOTAL row's BUDGET, not plannedCents.
-  assert.match(c, /const totals = dayTotals\(result, plannedCents\);\n\s*const spent = totals\.actualCents;\n\s*const meter = dayMeter\(spent, totals\.budgetCents\);\n\s*const verdict = dayVerdict\(result, totals\.budgetCents\);/, 'one rule for the row, the meter and the verdict: the row’s ACTUAL against the row’s BUDGET');
+  // TRAVEL-01c (Alex, 2026-10-31), ruling D: the row sums the stops less the superseded ones (withoutSuperseded); the meter and the verdict still read the row. Moved, not loosened.
+  assert.match(c, /const totals = dayTotals\(withoutSuperseded\(result\), plannedCents\);\n\s*const spent = totals\.actualCents;\n\s*const meter = dayMeter\(spent, totals\.budgetCents\);\n\s*const verdict = dayVerdict\(result, totals\.budgetCents\);/, 'one rule for the row, the meter and the verdict: the row’s ACTUAL against the row’s BUDGET');
 });
 
 test('T2 the TOTAL row: a <tfoot> in the five columns — TOTAL across TIME to DESCRIPTION, the BUDGET and ACTUAL totals bold, the ACTUAL in a row’s tone, above the closing rule', () => {

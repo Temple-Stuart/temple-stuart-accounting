@@ -119,7 +119,9 @@ test('D a planned once flight: a timed stop at its stated clock in its own zone,
 test('D/E a segment: a timed stop at the clock the airline states, no zone — "as the airline states it" and no zone said; minutes from startTime→endTime when the end is stated on the day, null when not; the bank figure on its match line', () => {
   const r = dayStops(input({ travel: travelDay() }));
   const s0 = stopAt(r.stops, 'travel:segment:res-flight:seg:0');
-  assert.deepEqual([s0.time, s0.zone, s0.minutes, s0.label, s0.status, s0.statusSource, s0.role], ['14:10', null, 175, 'AirAsia CNX → DPS', 'open', 'booking', 'none']);
+  // TRAVEL-01c (Alex, 2026-10-31) item 0: a segment stop is named by its own stated title; the booking's name is its BOOKING line. Moved, not loosened.
+  assert.deepEqual([s0.time, s0.zone, s0.minutes, s0.label, s0.status, s0.statusSource, s0.role], ['14:10', null, 175, 'AirAsia CNX → DPS (flight)', 'open', 'booking', 'none']);
+  assert.equal(travelOf(s0).bookingName, 'AirAsia CNX → DPS');
   assert.equal(travelClockWords(s0), `14:10 ${AS_AIRLINE_STATES_WORDS}`);
   assert.equal(travelSaidWords(s0), NO_ZONE_WORDS);
   assert.equal(travelArrivalWords(s0), 'arrives 17:05');
@@ -133,7 +135,8 @@ test('D/E a segment: a timed stop at the clock the airline states, no zone — "
   assert.equal(travelSmallWords(s0), 'Flight · segment');
   const s1 = stopAt(r.stops, 'travel:segment:res-flight:seg:1');
   assert.deepEqual([s1.time, s1.minutes, travelArrivalWords(s1)], ['21:30', null, null], 'no end stated: no length, no arrival');
-  assert.equal(travelSaidWords(s1), `${NO_END_WORDS} · no instant — the vendor stated a local clock · ${NO_ZONE_WORDS}`);
+  // TRAVEL-01c (Alex, 2026-10-31), ruling A: a segment with no instant cannot supersede, and the said line says so. Moved, not loosened.
+  assert.equal(travelSaidWords(s1), `${NO_END_WORDS} · no instant — the vendor stated a local clock · ${NO_ZONE_WORDS} · cannot supersede — no instant`);
   // A segment on a flight with no match: the leaf's own bank words.
   const unmatched = travelDayOf({ range, planned: [], bookings: [booking({ id: 'res-flight', lane: 'flight', displayName: 'AirAsia CNX → DPS', checkinDate: null, checkoutDate: null, finalPriceCents: 18950, currency: 'USD' })], segments: [seg0] });
   assert.equal(travelMatchWords(stopAt(dayStops(input({ travel: unmatched })).stops, 'travel:segment:res-flight:seg:0')), 'not matched');
@@ -152,7 +155,7 @@ test('D a check-in booking: an untimed stop (a booking states no time) with its 
   assert.equal(travelPriceWords(s), '12345.00 PHP', 'never a $ on a PHP figure');
   assert.equal(travelSmallWords(s), 'Check-in · booking');
   assert.equal(travelMatchWords(s), 'not matched');
-  assert.equal(travelSaidWords(s), BOOKING_NO_CLOCK_WORDS);
+  assert.equal(travelSaidWords(s), `${BOOKING_NO_CLOCK_WORDS} · cannot supersede — no instant`); // TRAVEL-01c (Alex, 2026-10-31), ruling A: a booking is never a block — said
   assert.equal(statusWords(s, DAY), 'open');
   const out = travelDayOf({ range, planned: [], bookings: [booking({ id: 'res-out', displayName: 'Leaving', checkinDate: new Date('2026-10-13T00:00:00.000Z'), checkoutDate: midnight })], segments: [] });
   const co = stopAt(dayStops(input({ travel: out })).stops, 'travel:booking:res-out:check-out');
@@ -162,7 +165,7 @@ test('D a check-in booking: an untimed stop (a booking states no time) with its 
   const g = dayStops(input({ travel: gone }));
   const cancelled = stopAt(g.stops, 'travel:booking:res-gone:check-in');
   assert.deepEqual([cancelled.status, statusWords(cancelled, DAY), travelPriceWords(cancelled), travelStatusLineWords(cancelled)], ['skipped', `skipped — ${CANCELLED_WORDS}`, PRICE_NOT_STATED_WORDS, 'cancelled']);
-  assert.equal(travelSaidWords(cancelled), `${BOOKING_NO_CLOCK_WORDS} · ${PRICE_NOT_STATED_WORDS} · ${CANCELLED_WORDS}`);
+  assert.equal(travelSaidWords(cancelled), `${BOOKING_NO_CLOCK_WORDS} · ${PRICE_NOT_STATED_WORDS} · ${CANCELLED_WORDS} · cannot supersede — no instant`); // TRAVEL-01c (Alex, 2026-10-31): said
   const pending = stopAt(g.stops, 'travel:booking:res-pend:check-in');
   assert.deepEqual([pending.status, statusWords(pending, DAY)], ['skipped', `skipped — ${CANCEL_PENDING_WORDS}`]);
   assert.equal(g.skipped, 2, 'the completeness line counts them as skipped');
@@ -180,7 +183,7 @@ test('D a daily planned row is NOT a stop: the band, with the planned-stay words
   const tr = stopAt(r.stops, 'travel:planned:ti-transfer');
   assert.deepEqual([tr.time, tr.minutes, travelClockWords(tr), travelArrivalWords(tr)], ['15:00', null, `15:00 · ${NO_ZONE_WORDS}`, 'arrives 15:00'], 'zero length is no length');
   assert.equal(travelSmallWords(tr), 'Transfer · planned');
-  assert.equal(travelSaidWords(tr), `${COST_NO_CURRENCY_WORDS} · ${NO_ZONE_WORDS}`);
+  assert.equal(travelSaidWords(tr), `${COST_NO_CURRENCY_WORDS} · ${NO_ZONE_WORDS} · cannot supersede — no instant`); // TRAVEL-01c (Alex, 2026-10-31), ruling A: a planned row with no instant is no block — said
 });
 
 test('D plannedMinutesOf kind travel: the stated duration first; else the stated clock difference when the end is stated on the same day and after the start; else null — a clock that is no clock throws by name', () => {
@@ -244,7 +247,7 @@ test('F the verdict excludes travel by KIND: a day fully recorded with a travel 
   assert.deepEqual(dayVerdict(merged, totals.budgetCents), dayVerdict(r, totals.budgetCents), 'a travel stop (role none, actual null) holds the verdict back no more');
   const rules = code(RULES);
   assert.match(rules, /export const asksAmount = \(role: StopRole\): boolean => role === 'place' \|\| role === 'none';/, 'unchanged');
-  assert.match(rules, /if \(result\.stops\.some\(\(s\) => s\.kind !== 'travel' && asksAmount\(s\.role\) && s\.actualCents === null\)\) return null;/);
+  assert.match(rules, /if \(result\.stops\.some\(\(s\) => s\.kind !== 'travel' && s\.superseded === null && asksAmount\(s\.role\) && s\.actualCents === null\)\) return null;/); // TRAVEL-01c (Alex, 2026-10-31): and a superseded stop — moved, not loosened
 });
 
 // ── G · THE DECK, H · THE REEL ──────────────────────────────────────────────
@@ -278,7 +281,7 @@ test('H the reel: one scene per travel stop — "Flight AirAsia CNX → DPS · 1
   const r = build(FULL);
   const t = dayStops({ ...input({ travel: travelDay(), records: [] }), entries: [], lines: [] });
   const seg = stopAt(t.stops, 'travel:segment:res-flight:seg:0');
-  assert.deepEqual(stopSceneLines(seg), [`Flight AirAsia CNX → DPS · 14:10 ${AS_AIRLINE_STATES_WORDS} · $189.50 stated`]);
+  assert.deepEqual(stopSceneLines(seg), [`Flight AirAsia CNX → DPS (flight) · 14:10 ${AS_AIRLINE_STATES_WORDS} · $189.50 stated`]); // TRAVEL-01c (Alex, 2026-10-31) item 0: the segment's own title
   assert.deepEqual(stopSceneLines(stopAt(t.stops, 'travel:booking:res-hotel:check-in')), [`Check-in Hotel PHP Proof · ${BOOKING_NO_CLOCK_WORDS} · 12345.00 PHP stated`]);
   assert.deepEqual(stopSceneLines(stopAt(t.stops, 'travel:planned:ti-flight')), [`Flight AirAsia · 14:10 Asia/Bangkok · ${PRICE_NOT_STATED_WORDS}`]);
   const merged = { ...r, stops: [...r.stops, ...t.stops] };
@@ -288,7 +291,7 @@ test('H the reel: one scene per travel stop — "Flight AirAsia CNX → DPS · 1
   const lines = script.ok ? script.text.split('\n') : [];
   const scenes = t.stops.map((s) => stopSceneLines(s)[0]);
   assert.deepEqual(lines.filter((l) => scenes.includes(l)), scenes, 'every travel scene, once, in the table’s order');
-  assert.ok(lines.includes(`Flight AirAsia CNX → DPS · 14:10 ${AS_AIRLINE_STATES_WORDS} · $189.50 stated`));
+  assert.ok(lines.includes(`Flight AirAsia CNX → DPS (flight) · 14:10 ${AS_AIRLINE_STATES_WORDS} · $189.50 stated`));
   const base = scriptText(reelDay(r));
   assert.ok(base.ok && script.ok);
   for (const l of (base.ok ? base.text.split('\n') : []).filter((l) => !l.startsWith('Happy '))) assert.ok(lines.includes(l), `the other scenes stay: ${l}`);
@@ -398,7 +401,8 @@ test('C statedMoneyWords is declared once, in the currency home; the matcher imp
 
 test('I/J the travel section of the rules holds every sentence as a constant or a function, the leaf’s words imported never retyped; no formatCents or planDollars on a travel figure; no || and no ?? default in the new code; stopRecord.ts, asksAmount and day-blocks untouched', () => {
   const rules = code(RULES);
-  const section = rules.slice(rules.indexOf("export const TRAVEL_WORD = 'TRAVEL';"), rules.indexOf('export type VendorSlot ='));
+  // TRAVEL-01c (Alex, 2026-10-31): the 01b section ends where the supersession section begins (its declared line prints the PLAN's cents through formatCents — ruling D; travel01c.test.ts pins it). Moved, not loosened.
+  const section = rules.slice(rules.indexOf("export const TRAVEL_WORD = 'TRAVEL';"), rules.indexOf("export const SUPERSEDED_BY_WORDS = 'superseded by';"));
   assert.ok(section.length > 2000, 'the section is where the travel rules live');
   assert.doesNotMatch(section, /formatCents|planDollars/, 'no plan formatter on a travel figure');
   assert.doesNotMatch(section, /\|\||\?\? /, 'no || and no ?? default');
@@ -417,7 +421,7 @@ test('I/J the travel section of the rules holds every sentence as a constant or 
   assert.match(rules, /notRecorded: read \? recordable\.filter\(\(s\) => s\.kind !== 'task' && s\.record === null\)\.length : 0,/);
   // The does-nots.
   assert.match(rules, /export type StopKind = 'line' \| 'routine' \| 'task' \| 'travel';/);
-  assert.match(rules, /export type StatusSource = 'record' \| 'routine' \| 'task' \| 'booking';/);
+  assert.match(rules, /export type StatusSource = 'record' \| 'routine' \| 'task' \| 'booking' \| 'travel';/); // TRAVEL-01c (Alex, 2026-10-31): 'travel' — a block supersedes
   assert.match(rules, /readonly travel: TravelDay \| null;\n\}/, 'the input');
   assert.match(rules, /readonly travel: TravelStop \| null;\n\}/, 'the stop');
   assert.doesNotMatch(code('src/lib/operations/stopRecord.ts'), /travel/i, 'no stop record for travel');

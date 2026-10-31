@@ -197,6 +197,14 @@
  * dayStops, dayTotals, the verdict, the caption, the script, the tag, every
  * route and the database are unchanged; the full card's table still lists the
  * journal stop.
+ *
+ * TRAVEL-01c (Alex, 2026-10-31) — SUPERSESSION, DERIVED (dayCard.ts). A routine
+ * occurrence sharing a minute with a travel block is marked superseded by it in
+ * its place (struck plan figure, the mark, the reason on its card — which keeps
+ * its record input), its plan cents leave the TOTAL row's BUDGET, the meter, the
+ * verdict and the hero, and one declared line under the TOTAL says so; nothing is
+ * written. /budget and ROUTINE EXPENSES' month are unchanged: the month still
+ * counts those days (decision 3; TRAVEL-03's intel).
  */
 
 'use client';
@@ -255,6 +263,7 @@ import {
   DAY_CARD_PATH,
   DECK_FULL_CARD_WORDS, SWIPE_HINT_WORDS, journalHeaderWords, journalImageName, openJournalWords,
   NOT_JOINED_WORDS, travelArrivalWords, travelClockWords, travelLineWords, travelMatchWords, travelPriceWords, travelRecordWords, travelSaidWords, travelSmallWords, travelStatusLineWords, travelTotals,
+  BOOKING_HEAD_WORD, supersededLineWords, supersededTotals, supersededWords, travelBookingLineWords, withoutSuperseded,
   type Focus, type StayState, type Stop,
 } from './dayCard';
 
@@ -749,12 +758,15 @@ export default function DayCard() {
   // TOTALS-01 amendment (Alex, 2026-10-15): the meter and the verdict sit under the TOTAL row and measure ITS two figures — the spent
   // against the stops' budget (totals.budgetCents), not the hero's whole plan: an all-day line no stop can record read as "under" by
   // that money every day (the fine print's off-the-table line names it). No BUDGET total, no meter and no verdict. Rules unchanged.
-  const totals = dayTotals(result, plannedCents);
+  // TRAVEL-01c (ruling D): the TOTAL row sums the stops less the superseded ones (their struck figure is shown, not added); the meter and the verdict follow the row.
+  const totals = dayTotals(withoutSuperseded(result), plannedCents);
   const spent = totals.actualCents;
   const meter = dayMeter(spent, totals.budgetCents);
   const verdict = dayVerdict(result, totals.budgetCents);
   // TRAVEL-01b (ruling F): the TRAVEL line(s) under the TOTAL row — per currency present, never into the TOTAL (dayTotals sees no travel figure).
   const travelLines = travelLineWords(travelTotals(result.stops));
+  // TRAVEL-01c (ruling D): the declared line under the TOTAL — how many routines a travel block superseded and the plan cents that left the day's figures.
+  const supersededLine = supersededLineWords(supersededTotals(result.stops));
   // PLAN-01 (2026-10-13): two bars on the step view against the day's planned total — PLAN (gold) the planned money of stops 1..n,
   // SPENT (green) their actuals. No spent bar while the records are unread or nothing so far carries an actual (unknown, not zero).
   // TOTALS-01 amendment II (Alex, 2026-10-15): against the TOTAL row's BUDGET (totals.budgetCents), as the meter and the verdict are —
@@ -915,6 +927,8 @@ export default function DayCard() {
           <div className="min-w-0 flex flex-col" style={{ gap: 4 }}>
             <div className="font-extrabold text-text-primary break-words" style={{ fontSize: 43, lineHeight: 1, letterSpacing: '-0.01em' }} data-day-bold>{boldOf(f.stop)}</div>
             {smallOf(f.stop) !== null && <div className="font-medium text-text-muted break-words" style={{ fontSize: 27, lineHeight: 1.1 }} data-day-small>{smallOf(f.stop)}</div>}
+            {/* TRAVEL-01c (ruling C): the mark — superseded by which block; the record input under the card stays (recording anyway is allowed). */}
+            {f.stop.superseded !== null && <div className="font-semibold text-brand-amber break-words" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-superseded-words>{supersededWords(f.stop)}</div>}
             {/* TABLE-01: the vendor as a labeled line; the time and the budget are the header's and PLAN's. CLEAN-02 (2026-10-14): LOCATION is off the stop card. */}
             <div className="flex items-baseline gap-2" data-day-vendor>
               <span className="font-bold text-text-faint" style={{ fontSize: 13, letterSpacing: '0.14em' }}>{VENDOR_HEAD_WORD}</span>
@@ -973,6 +987,13 @@ export default function DayCard() {
         <div className="font-medium text-text-muted break-words" style={{ fontSize: 27, lineHeight: 1.1 }} data-day-small>{travelSmallWords(stop)}</div>
       </div>
       <div className="flex flex-col border-t border-border" style={{ gap: 6, paddingTop: 13 }}>
+        {/* TRAVEL-01c item 0: a segment is named by its own title; the booking behind it is its BOOKING line. */}
+        {travelBookingLineWords(stop) !== null && (
+          <div className="flex items-baseline gap-2" data-day-travel-booking>
+            <span className="font-bold text-text-faint" style={{ fontSize: 13, letterSpacing: '0.14em' }}>{BOOKING_HEAD_WORD}</span>
+            <span className="font-medium text-text-primary break-words min-w-0" style={{ fontSize: 21, lineHeight: 1.1 }}>{travelBookingLineWords(stop)}</span>
+          </div>
+        )}
         <div className="font-semibold text-text-primary break-words" style={plateLine} data-day-travel-clock>{travelClockWords(stop)}</div>
         {travelArrivalWords(stop) !== null && <div className="font-medium text-text-secondary break-words" style={plateSmall} data-day-travel-arrival>{travelArrivalWords(stop)}</div>}
         <div className="font-extrabold text-text-primary tabular-nums break-words" style={{ fontSize: 37, lineHeight: 1 }} data-day-travel-price>{travelPriceWords(stop)}</div>
@@ -1039,7 +1060,8 @@ export default function DayCard() {
                       {smallOf(s) !== null && <span className="block font-medium text-text-muted break-words" style={{ fontSize: 14, lineHeight: 1.15 }} data-day-small>{smallOf(s)}</span>}
                     </td>
                     <td className="text-right" style={{ padding: CELL_PADDING }} data-day-col="budget">
-                      <span className={`block font-extrabold tabular-nums ${s.cents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-amount>{planDollars(s.cents)}</span>
+                      {/* TRAVEL-01c (ruling C): a superseded stop's plan figure, struck through — shown, not in the TOTAL. */}
+                      <span className={`block font-extrabold tabular-nums ${s.superseded === null ? '' : 'line-through '}${s.cents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-amount data-day-superseded={s.superseded === null ? undefined : 'true'}>{planDollars(s.cents)}</span>
                     </td>
                     <td className="text-right" style={{ padding: '7px 0' }} data-day-col="actual">
                       <span className={`block font-extrabold tabular-nums ${s.actualCents === null ? 'text-text-faint' : actualTone(deltaWords(s.actualCents, s.cents).over)}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-actual>{s.actualCents === null ? factOf(null) : rowActualWords(s.actualCents, s.cents)}</span>
@@ -1059,6 +1081,12 @@ export default function DayCard() {
                   <span className={`block font-extrabold tabular-nums ${totals.actualCents === null ? 'text-text-faint' : actualTone(totals.over)}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-total-actual>{planDollars(totals.actualCents)}</span>
                 </td>
               </tr>
+              {/* TRAVEL-01c (Alex, 2026-10-31, ruling D): the declared line — the routines a travel block superseded and the plan cents out of today's plan. */}
+              {supersededLine !== null && (
+                <tr className="border-t border-border align-top" data-day-superseded-line>
+                  <td colSpan={5} className="text-left font-bold text-brand-amber tabular-nums break-words" style={{ fontSize: 15, lineHeight: 1.2, padding: CELL_PADDING }}>{supersededLine}</td>
+                </tr>
+              )}
               {/* TRAVEL-01b (Alex, 2026-10-31, ruling F): one TRAVEL line per currency present, under the TOTAL row — the stated prices by their own code, never into the TOTAL, never converted. */}
               {travelLines.map((line) => (
                 <tr key={line} className="border-t border-border align-top" data-day-travel-line>

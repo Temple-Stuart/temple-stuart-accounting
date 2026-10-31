@@ -95,7 +95,7 @@ const GYM_AT = '2026-10-11T13:00:00.000Z';
 const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, ...over });
 /** STOP-01: what every stop carries when the records were not read — the status its routine's (or the task's), nothing recorded. */
 // TRAVEL-01b (Alex, 2026-10-31): a Stop gains `travel` (a travel stop's own facts) — null for every other kind; the pins below moved with it.
-const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null, role: 'none' as const, planLine: null, planLineState: 'none' as const, travel: null });
+const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null, role: 'none' as const, planLine: null, planLineState: 'none' as const, superseded: null, travel: null }); // TRAVEL-01c (Alex, 2026-10-31): `superseded` — null for every stop no travel block supersedes
 
 /** Each step found AFTER the one before it — a missing or out-of-order step fails by name (TABLE-01). */
 function inOrderOf(body: string, steps: readonly string[], what: string): void {
@@ -654,7 +654,8 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /style=\{\{ fontSize: 27, lineHeight: 1\.15 \}\} data-day-hook/, 'the hook at 27 px');
   assert.doesNotMatch(c, /truncate/, 'nothing is cut on the recorded plate');
   // The rows: every amount through planDollars — '—' for null, never $0.00 for a blank; a row's door is its description's button, and a click anywhere on the row pushes ?step=.
-  assert.match(c, /data-day-amount>\{planDollars\(s\.cents\)\}/);
+  // TRAVEL-01c (Alex, 2026-10-31), ruling C: the BUDGET cell's span also carries the superseded marker. Moved, not loosened.
+  assert.match(c, /data-day-amount data-day-superseded=\{s\.superseded === null \? undefined : 'true'\}>\{planDollars\(s\.cents\)\}/);
   // TABLE-01: the actual under the plan sat in the BUDGET cell (block, 13 px). CLEAN-01 (2026-10-14): it is the ACTUAL column's own cell —
   // the BUDGET cell carries the budget only; the pins on both cells are in T7.
   assert.match(c, /data-day-amount>\{planDollars\(f\.stop\.cents\)\}/);
@@ -871,7 +872,8 @@ test('T7 TOTALS-01 the spent is the TOTAL row’s ACTUAL — "—" while nothing
   for (const r of [one, cleanDay({}), cleanDay(null), cleanDay(ALL_UNDER)]) assert.equal(dayTotals(r, 7500).actualCents, spentOf(r), 'the row’s ACTUAL is the screen’s spent, one rule');
   const c = code(CARD);
   // The screen's spent (the meter's) is the row's ACTUAL — one rule, in dayTotals.
-  assert.match(c, /const totals = dayTotals\(result, plannedCents\);\n\s*const spent = totals\.actualCents;/, 'the screen’s spent: the TOTAL row’s ACTUAL');
+  // TRAVEL-01c (Alex, 2026-10-31), ruling D: the TOTAL row sums the stops less the superseded ones (withoutSuperseded) — the spent is still the row's ACTUAL. Moved, not loosened.
+  assert.match(c, /const totals = dayTotals\(withoutSuperseded\(result\), plannedCents\);\n\s*const spent = totals\.actualCents;/, 'the screen’s spent: the TOTAL row’s ACTUAL');
   assert.match(code(RULES), /const actualCents = result\.spentCents === null \|\| result\.withActual === 0 \? null : result\.spentCents;/, 'unknown while the records are unread or nothing carries an actual');
   assert.doesNotMatch(c, /data-day-spent>/);
 });
@@ -922,7 +924,8 @@ test('T7 CLEAN-01 the table — five headers in order, the ACTUAL cell, the BUDG
   inOrderOf(c, ['<thead>', '{TIME_HEAD_WORD}</th>', '{VENDOR_HEAD_WORD}</th>', '{DESCRIPTION_HEAD_WORD}</th>', '{BUDGET_HEAD_WORD}</th>', '{ACTUAL_HEAD_WORD}</th>', '</thead>'], 'five headers');
   assert.match(c, /<th scope="col" className=\{`\$\{headCell\} text-right`\} style=\{\{ \.\.\.headStyle, paddingRight: CELL_GAP \}\}>\{BUDGET_HEAD_WORD\}<\/th>\n\s*<th scope="col" className=\{`\$\{headCell\} text-right`\} style=\{headStyle\}>\{ACTUAL_HEAD_WORD\}<\/th>/, 'ACTUAL right-aligned after BUDGET; BUDGET’s head keeps its cell’s gap, so it sits over its figure');
   const row = /<tr\n\s*key=\{s\.key\}([\s\S]*?)<\/tr>/.exec(c)![1];
-  assert.match(row, /<td className="text-right" style=\{\{ padding: CELL_PADDING \}\} data-day-col="budget">\n\s*<span className=\{`block font-extrabold tabular-nums \$\{s\.cents === null \? 'text-text-faint' : 'text-text-primary'\}`\} style=\{\{ fontSize: 19, lineHeight: 1\.1 \}\} data-day-amount>\{planDollars\(s\.cents\)\}<\/span>\n\s*<\/td>/, 'the BUDGET cell carries the budget only');
+  // TRAVEL-01c (Alex, 2026-10-31), ruling C: a superseded stop's figure is struck through ({ } is the dated comment once stripped) — the cell still carries the budget only. Moved, not loosened.
+  assert.match(row, /<td className="text-right" style=\{\{ padding: CELL_PADDING \}\} data-day-col="budget">\n(?:\s*\{\s*\}\n)?\s*<span className=\{`block font-extrabold tabular-nums \$\{s\.superseded === null \? '' : 'line-through '\}\$\{s\.cents === null \? 'text-text-faint' : 'text-text-primary'\}`\} style=\{\{ fontSize: 19, lineHeight: 1\.1 \}\} data-day-amount data-day-superseded=\{s\.superseded === null \? undefined : 'true'\}>\{planDollars\(s\.cents\)\}<\/span>\n\s*<\/td>/, 'the BUDGET cell carries the budget only');
   assert.match(row, /<td className="text-right" style=\{\{ padding: '7px 0' \}\} data-day-col="actual">\n\s*<span className=\{`block font-extrabold tabular-nums \$\{s\.actualCents === null \? 'text-text-faint' : actualTone\(deltaWords\(s\.actualCents, s\.cents\)\.over\)\}`\} style=\{\{ fontSize: 19, lineHeight: 1\.1 \}\} data-day-actual>\{s\.actualCents === null \? factOf\(null\) : rowActualWords\(s\.actualCents, s\.cents\)\}<\/span>\n\s*<\/td>/, 'the ACTUAL cell: the row’s actual against its plan in the under/over tone, or — ; the last cell, no gap');
   const budgetCell = /data-day-col="budget">([\s\S]*?)<\/td>/.exec(row)![1];
   assert.doesNotMatch(budgetCell, /data-day-actual|rowActualWords|actualCents/, 'no actual in the BUDGET cell');

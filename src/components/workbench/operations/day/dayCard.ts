@@ -94,6 +94,31 @@
  * stated (a planned row's cost states no currency) is counted, never summed. The
  * verdict excludes travel by KIND. The deck's travel card, the reel's travel scene
  * and the caption's travel block print only from the words here.
+ *
+ * TRAVEL-01c (Alex, 2026-10-31, rulings 0 and A–G) — SUPERSESSION, DERIVED. A
+ * TRAVEL BLOCK is a travel stop with BOTH instants (a planned once row with
+ * start_at and end_at, a segment with startAt and endAt — the vendor stated
+ * offsets); a booking, the band's daily row, a row with one instant or none is
+ * never a block and says so ('cannot supersede — …', decision 4). A routine
+ * occurrence stop (kind 'routine' or 'line' — never a task, never a travel stop,
+ * never the band) whose window [planned instant, + plannedMinutesOf) shares at
+ * least one minute with a block's window — a stop with no length is a point — is
+ * marked superseded by the EARLIEST such block (by instant; a tie by the table's
+ * order), 'and n more' when others overlap (supersessionOf — instants compared as
+ * instants, no wall clocks, no zones). The mark: status 'skipped', statusSource
+ * 'travel', the reason 'superseded by <kind word> <name> <stated clock>'; no miss
+ * is ever computed for it. A stop with a RECORD at its occurrence is never marked
+ * — reality wins. Its matched plan cents LEAVE the day's figures: the TOTAL row's
+ * BUDGET (dayTotals over withoutSuperseded), the verdict and the meter (the same
+ * reduced figure), the hero (plannedCents less the superseded cents) and the step
+ * view's plan-so-far — and one declared line under the TOTAL says how many and
+ * how much (supersededLineWords, formatCents: these ARE the plan's cents, USD).
+ * /budget and ROUTINE EXPENSES' month are unchanged — the month still counts
+ * those days (decision 3; TRAVEL-03's intel). Supersession lives only in
+ * dayStops' output: nothing writes it — not a stop record, not a completion row,
+ * not the audit log, not a routine's end_date. Item 0: a segment stop is named by
+ * the segment's own stated title; the booking's name stays on its card as the
+ * BOOKING line.
  */
 import { centsFromDecimalString, type NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
@@ -142,8 +167,8 @@ export interface DayCardInput {
 
 export type StopKind = 'line' | 'routine' | 'task' | 'travel';
 export type StopStatus = 'done' | 'missed' | 'open' | 'later' | 'skipped';
-/** Where a stop's status came from: its own record, its routine's completion, the task, or (TRAVEL-01b) the booking. */
-export type StatusSource = 'record' | 'routine' | 'task' | 'booking';
+/** Where a stop's status came from: its own record, its routine's completion, the task, (TRAVEL-01b) the booking, or (TRAVEL-01c) a travel block that supersedes it. */
+export type StatusSource = 'record' | 'routine' | 'task' | 'booking' | 'travel';
 
 // ── TRAVEL-01b (Alex, 2026-10-31, ruling D): A TRAVEL STOP'S OWN FACTS ────────
 
@@ -154,8 +179,10 @@ export type TravelKind = 'flight' | 'transfer' | 'activity' | 'lodging' | 'other
 export interface TravelStop {
   readonly source: TravelSource;
   readonly kind: TravelKind;
-  /** The booking's name through the one reader (bookingRowOf — reservations.displayName as stated); a planned row's vendorName, else its legacy title (said). */
+  /** A booking's name through the one reader (bookingRowOf — reservations.displayName as stated); TRAVEL-01c item 0: a segment's own stated title; a planned row's vendorName, else its legacy title (said). */
   readonly name: string;
+  /** TRAVEL-01c item 0: the booking's name behind a segment or a booking row (the one reader's); null for a planned row. The card's BOOKING line on a segment. */
+  readonly bookingName: string | null;
   /** The vendor's stated price in its own minor unit with its code; null when none is stated — a planned row's cost states no currency (said), a booking may state no price (said). */
   readonly stated: { readonly minor: number; readonly currency: string } | null;
   /** The leaf's said words, carried through. */
@@ -224,8 +251,27 @@ export interface Stop {
   readonly lateMinutes: number | null;
   /** The record's minutes, or a task's own; null when neither states them. */
   readonly actualMinutes: number | null;
+  /** TRAVEL-01c: the travel block that supersedes this routine occurrence (rulings A–C), null when none does, the stop has a record, or it is not a routine occurrence. */
+  readonly superseded: Supersession | null;
   /** TRAVEL-01b: a travel stop's own facts; null for every other kind. */
   readonly travel: TravelStop | null;
+}
+
+/** TRAVEL-01c (ruling A): a travel stop with both instants — what can supersede. */
+export interface TravelBlock {
+  readonly key: string;
+  readonly kind: TravelKind;
+  readonly name: string;
+  /** The block's stated clock (the stop's time); null when it stated none. */
+  readonly time: string | null;
+  readonly startAt: string;
+  readonly endAt: string;
+}
+
+/** TRAVEL-01c (ruling C): the earliest block that supersedes a stop, and how many other blocks overlap it too. */
+export interface Supersession {
+  readonly by: TravelBlock;
+  readonly more: number;
 }
 
 export type UnmatchedReason = 'instant differs' | 'two plan lines for one stop';
@@ -453,6 +499,8 @@ export function dayStops(input: DayCardInput): DayStops {
   const timed: Stop[] = [];
   const untimed: Stop[] = [];
   const allDay: Stop[] = [];
+  // TRAVEL-01c (ruling B): every routine occurrence's window — its planned instant and its minutes — and whether a record is at it.
+  const occurrences: OccurrenceWindow[] = [];
   // An all-day line is in the plan, not on the itinerary — it goes to the band, whatever its clock says.
   const push = (stop: Stop) => (isStop(stop.role) ? (stop.time === null ? untimed : timed) : allDay).push(stop);
   // STOP-01: the records by the card's own key; each one a stop takes is marked, the rest are named.
@@ -499,8 +547,10 @@ export function dayStops(input: DayCardInput): DayStops {
         address: { kind: 'routine', id: r.id, instant: entry.expected_at },
         zone: r.timezone,
         ...recorded(recordFor(key), status, r.timezone, input.day, occurrence),
+        superseded: null,
         travel: null,
       });
+      occurrences.push({ key, at: occurrence, minutes: plannedMinutesOf({ kind: 'routine', start_time: r.start_time, end_time: r.end_time }), hasRecord: recordFor(key) !== null });
       continue;
     }
     for (const step of [...r.steps].sort((a, b) => a.step_order - b.step_order)) {
@@ -525,8 +575,10 @@ export function dayStops(input: DayCardInput): DayStops {
         address: { kind: 'routine_line', id: step.id, instant: entry.expected_at },
         zone: r.timezone,
         ...recorded(recordFor(key), status, r.timezone, input.day, planned),
+        superseded: null,
         travel: null,
       });
+      occurrences.push({ key, at: planned, minutes: plannedMinutesOf({ kind: 'line', duration_minutes: step.duration_minutes }), hasRecord: recordFor(key) !== null });
     }
   }
 
@@ -566,6 +618,7 @@ export function dayStops(input: DayCardInput): DayStops {
       // A task's block is when it was planned to start, its completed-at when it was marked done — no lateness is drawn between the two.
       lateMinutes: null,
       actualMinutes: item.task === null ? null : item.task.actual_minutes,
+      superseded: null,
       travel: null,
     });
   }
@@ -581,7 +634,14 @@ export function dayStops(input: DayCardInput): DayStops {
 
   // Clock order: time, then label, then line; stops with no time last, as they arrived (routines, then items, then travel).
   timed.sort((a, b) => cmp(a.time as string, b.time as string) || cmp(a.label, b.label) || cmpMaybe(a.line, b.line));
-  const stops = [...timed, ...untimed];
+  // TRAVEL-01c (rulings A–C): the marks — derived here, written nowhere. A routine occurrence sharing a minute with a travel
+  // block (both instants) is skipped by that block, in its place, never missed; a record at the occurrence wins.
+  const marks = supersessionOf(travelBlocksOf([...timed, ...untimed]), occurrences);
+  const marked = (s: Stop): Stop => {
+    const mark = marks.get(s.key);
+    return mark === undefined ? s : { ...s, status: 'skipped', statusSource: 'travel', superseded: mark };
+  };
+  const stops = [...timed, ...untimed].map(marked);
 
   // A 'routine'-kind line at the occurrence of a routine that HAS lines is the routine's own figure
   // (its lines carry no amount) — named as such, not as a line with no stop.
@@ -598,7 +658,8 @@ export function dayStops(input: DayCardInput): DayStops {
     stops,
     allDay,
     allDayCents: allDay.map((s) => s.cents).filter((c): c is number => c !== null).reduce((sum, c) => sum + c, 0),
-    plannedCents: dayLines.reduce((sum, l) => sum + l.cents, 0),
+    // TRAVEL-01c (ruling D): the hero's figure less the superseded stops' matched plan cents — the declared line under the TOTAL names them.
+    plannedCents: dayLines.reduce((sum, l) => sum + l.cents, 0) - supersededTotals(stops).cents,
     notPriced: recordable.filter((s) => s.cents === null).length,
     unmatched,
     routineFigures: unused.filter(isRoutineFigure),
@@ -620,7 +681,8 @@ export function dayStops(input: DayCardInput): DayStops {
 export function focusStop(result: DayStops, n: number): Focus | null {
   if (!Number.isInteger(n) || n < 1 || n > result.stops.length) return null;
   const upTo = result.stops.slice(0, n);
-  const priced = upTo.map((s) => s.cents).filter((c): c is number => c !== null);
+  // TRAVEL-01c (ruling D): a superseded stop's plan cents are not in the day's plan — not in the plan so far either.
+  const priced = upTo.filter((s) => s.superseded === null).map((s) => s.cents).filter((c): c is number => c !== null);
   const actuals = upTo.map((s) => s.actualCents).filter((c): c is number => c !== null);
   return {
     index: n,
@@ -694,13 +756,14 @@ export function travelOf(s: Pick<Stop, 'kind' | 'key' | 'travel'>): TravelStop {
 const TRAVEL_STOP_BASE = {
   kind: 'travel' as const, line: null, vendor: null, location: null, cents: null, statusSource: 'booking' as const,
   planLine: null, planLineState: 'none' as const, address: null, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null,
+  superseded: null,
 };
 
 /** A planned row: a once row is a timed stop in its own stated zone; a daily row goes to the band (role all_day) with the planned-stay words. */
 export function plannedTravelStop(row: PlannedRow): Stop {
   const daily = row.recurrence === 'daily';
   const travel: TravelStop = {
-    source: 'planned', kind: plannedKindOf(row.category), name: plannedNameOf(row), stated: null, said: row.said,
+    source: 'planned', kind: plannedKindOf(row.category), name: plannedNameOf(row), bookingName: null, stated: null, said: row.said,
     startAt: row.startAt, endAt: row.endAt, startZone: row.startZone, endZone: row.endZone, endTime: row.destTime, bookingStatus: null, charge: null, row: null,
   };
   return {
@@ -720,17 +783,17 @@ export function plannedTravelStop(row: PlannedRow): Stop {
 export function bookingTravelStop(row: TravelBookingRow): Stop {
   const r = row.reservation;
   const travel: TravelStop = {
-    source: 'booking', kind: row.kind, name: row.row.name, stated: statedOf(r), said: row.said,
+    source: 'booking', kind: row.kind, name: row.row.name, bookingName: row.row.name, stated: statedOf(r), said: row.said,
     startAt: null, endAt: null, startZone: null, endZone: null, endTime: null, bookingStatus: r.status, charge: row.charge, row: row.row,
   };
   return { ...TRAVEL_STOP_BASE, key: `travel:booking:${r.id}:${row.kind}`, time: null, label: travel.name, minutes: null, status: travelStatusOf(r.status), role: 'none', zone: null, travel };
 }
 
-/** A flight segment: a timed stop at the clock the airline states, no zone; its minutes from the stated clocks when the end is stated on the same day. */
+/** A flight segment: a timed stop at the clock the airline states, no zone; its minutes from the stated clocks when the end is stated on the same day. TRAVEL-01c item 0: named by its own stated title; the booking's name rides as bookingName. */
 export function segmentTravelStop(row: TravelSegmentRow): Stop {
   const r = row.reservation;
   const travel: TravelStop = {
-    source: 'segment', kind: 'flight', name: row.row.name, stated: statedOf(r), said: row.said,
+    source: 'segment', kind: 'flight', name: row.title, bookingName: row.row.name, stated: statedOf(r), said: row.said,
     startAt: row.startAt, endAt: row.endAt, startZone: row.startZone, endZone: row.endZone, endTime: row.endTime, bookingStatus: r.status, charge: row.charge, row: row.row,
   };
   return {
@@ -800,10 +863,18 @@ export const travelStatusLineWords = (s: Stop): string | null => {
 /** The card's closing sentence: a booking is the record; a planned row is not a booking. */
 export const travelRecordWords = (s: Stop): string => (travelOf(s).source === 'planned' ? PLANNED_NOT_BOOKING_WORDS : TRAVEL_RECORD_WORDS);
 
-/** The leaf's said words, joined; null when it said nothing. */
+/** The leaf's said words, then (TRAVEL-01c, ruling A) why the stop cannot supersede when it is no block; null when there is nothing to say. */
 export const travelSaidWords = (s: Stop): string | null => {
   const t = travelOf(s);
-  return t.said.length === 0 ? null : t.said.join(' · ');
+  const cannot = cannotSupersedeWords(t);
+  const said = cannot === null ? [...t.said] : [...t.said, cannot];
+  return said.length === 0 ? null : said.join(' · ');
+};
+
+/** TRAVEL-01c item 0: the booking behind a segment, as the card's BOOKING line; null on a booking row (its name IS the booking's) and a planned row. */
+export const travelBookingLineWords = (s: Stop): string | null => {
+  const t = travelOf(s);
+  return t.source === 'segment' ? t.bookingName : null;
 };
 
 /** A travel stop's status line (statusWords' 'booking' branch): skipped with the leaf's reason, else open. */
@@ -862,6 +933,119 @@ export function travelLineWords(t: TravelTotals): string[] {
   if (lines.length === 0) return [`${TRAVEL_WORD} · 0 ${STATED_WORD} · ${tail}`];
   return [...lines.slice(0, -1), `${lines[lines.length - 1]} · ${tail}`];
 }
+
+// ── TRAVEL-01c (Alex, 2026-10-31, rulings A–F): SUPERSESSION, DERIVED — NEVER WRITTEN ──────────────────────────────────
+//
+// A routine occurrence that shares a minute with a travel block is superseded by it. Everything here is a pure rule over
+// dayStops' own stops; nothing fetches, nothing writes. No `||`, no `?? <default>` in this section.
+
+export const SUPERSEDED_BY_WORDS = 'superseded by';
+export const CANNOT_SUPERSEDE_NO_END_WORDS = 'cannot supersede — no end stated';
+export const CANNOT_SUPERSEDE_NO_INSTANT_WORDS = 'cannot supersede — no instant';
+export const SUPERSEDED_BY_TRAVEL_WORDS = 'superseded by travel';
+export const NOT_IN_PLAN_WORDS = "not in today's plan";
+/** The card's BOOKING line on a segment's card (item 0). */
+export const BOOKING_HEAD_WORD = 'BOOKING';
+/** "and 1 more" — the other blocks that overlap the same stop. */
+export const andMoreWords = (n: number): string => `and ${n} more`;
+
+/** TRAVEL-01c (ruling B): what the rule reads of a routine occurrence — its planned instant, its minutes by the one rule, whether a record is at it. */
+export interface OccurrenceWindow {
+  readonly key: string;
+  readonly at: Date;
+  readonly minutes: number | null;
+  readonly hasRecord: boolean;
+}
+
+/** Why a travel stop cannot supersede (ruling A): no instant at all, or a start with no end; null for a block. */
+export function cannotSupersedeWords(t: Pick<TravelStop, 'startAt' | 'endAt'>): string | null {
+  if (t.startAt === null) return CANNOT_SUPERSEDE_NO_INSTANT_WORDS;
+  if (t.endAt === null) return CANNOT_SUPERSEDE_NO_END_WORDS;
+  return null;
+}
+
+/** An ISO instant as milliseconds; a block's instant that is no instant is the read's error, thrown by name. */
+const instantMsOf = (key: string, what: 'startAt' | 'endAt', iso: string): number => {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) throw new Error(`dayCard: ${key} ${what} ${JSON.stringify(iso)} is not an instant`);
+  return ms;
+};
+
+/** The day's travel blocks (ruling A): the travel stops among the stops with BOTH instants — a planned once row, a segment. The band never enters. */
+export function travelBlocksOf(stops: readonly Stop[]): TravelBlock[] {
+  const blocks: TravelBlock[] = [];
+  for (const s of stops) {
+    if (s.kind !== 'travel') continue;
+    const t = travelOf(s);
+    if (t.startAt === null) continue;
+    if (t.endAt === null) continue;
+    blocks.push({ key: s.key, kind: t.kind, name: t.name, time: s.time, startAt: t.startAt, endAt: t.endAt });
+  }
+  return blocks;
+}
+
+/** The first comparison that decides, in order — a comparator chain with no default in it. */
+const firstDecidingOf = (comparisons: readonly number[]): number => {
+  for (const c of comparisons) if (c !== 0) return c;
+  return 0;
+};
+
+/**
+ * TRAVEL-01c (ruling B): per routine occurrence, the block that supersedes it — the EARLIEST by instant (start, then end,
+ * then the blocks' order) — and how many other blocks overlap it too; nothing for an occurrence with a record (reality
+ * wins), nothing when no block shares a minute. The occurrence's window is [at, at + minutes) in instants; a stop with no
+ * length (null, or no positive minutes) is a point, superseded when it lies inside a block's [startAt, endAt). Instants
+ * compare as instants — no wall clocks, no zones. A block whose end is not after its start has no window: refused by name.
+ */
+export function supersessionOf(blocks: readonly TravelBlock[], occurrences: readonly OccurrenceWindow[]): ReadonlyMap<string, Supersession> {
+  const ordered = blocks
+    .map((b, i) => ({ b, i, start: instantMsOf(b.key, 'startAt', b.startAt), end: instantMsOf(b.key, 'endAt', b.endAt) }))
+    .sort((x, y) => firstDecidingOf([x.start - y.start, x.end - y.end, x.i - y.i]));
+  for (const x of ordered) {
+    if (x.end <= x.start) throw new Error(`dayCard: ${x.b.key} ends ${x.b.endAt}, not after its start ${x.b.startAt} — no window to supersede with`);
+  }
+  const marks = new Map<string, Supersession>();
+  for (const o of occurrences) {
+    if (o.hasRecord) continue;
+    const start = o.at.getTime();
+    const length = o.minutes === null ? 0 : o.minutes > 0 ? o.minutes : 0;
+    const end = start + length * 60_000;
+    const over = ordered.filter((x) => (length === 0 ? x.start <= start && start < x.end : start < x.end && x.start < end));
+    if (over.length === 0) continue;
+    marks.set(o.key, { by: over[0].b, more: over.length - 1 });
+  }
+  return marks;
+}
+
+/** "superseded by Flight AirAsia CNX → DPS (flight) 14:10" · "… and 1 more" — the mark's words (ruling C); a block that stated no clock names none. */
+export function supersededWords(s: Pick<Stop, 'key' | 'superseded'>): string {
+  if (s.superseded === null) throw new Error(`dayCard: ${s.key} is not superseded — nothing to say`);
+  const { by, more } = s.superseded;
+  const head = `${SUPERSEDED_BY_WORDS} ${TRAVEL_KIND_WORDS[by.kind]} ${by.name}${by.time === null ? '' : ` ${by.time}`}`;
+  return more === 0 ? head : `${head} ${andMoreWords(more)}`;
+}
+
+export interface SupersededTotals {
+  /** The superseded stops. */
+  readonly count: number;
+  /** Their matched plan cents summed — the plan's own cents (USD), out of the day's figures. */
+  readonly cents: number;
+}
+
+/** TRAVEL-01c (ruling D): how many stops a travel block supersedes and the plan cents that leave the day's figures with them. */
+export function supersededTotals(stops: readonly Pick<Stop, 'superseded' | 'cents'>[]): SupersededTotals {
+  const gone = stops.filter((s) => s.superseded !== null);
+  return { count: gone.length, cents: gone.map((s) => s.cents).filter((c): c is number => c !== null).reduce((sum, c) => sum + c, 0) };
+}
+
+/** "2 routines superseded by travel — $45.00 not in today's plan" — the declared line under the TOTAL (formatCents: the plan's cents); null when none is superseded. */
+export function supersededLineWords(t: SupersededTotals): string | null {
+  if (t.count === 0) return null;
+  return `${t.count} ${t.count === 1 ? 'routine' : 'routines'} ${SUPERSEDED_BY_TRAVEL_WORDS} — ${formatCents(t.cents)} ${NOT_IN_PLAN_WORDS}`;
+}
+
+/** TRAVEL-01c (ruling D): what the TOTAL row sums — the stops less the superseded ones (their struck figure is shown, not added). */
+export const withoutSuperseded = (result: DayStops): DayStops => ({ ...result, stops: result.stops.filter((s) => s.superseded === null) });
 
 // ── VENDOR-02 (2026-10-14): THE VENDOR UNDER THE CARD ───────────────────────
 
@@ -1002,6 +1186,8 @@ export function statusWords(stop: Stop, day: string): string {
   if (stop.statusSource === 'task') return stop.status === 'done' ? (when === null ? TASK_DONE_WORDS : `${TASK_DONE_WORDS} ${when}`) : TASK_OPEN_WORDS;
   // TRAVEL-01b: the booking is the record — skipped with the leaf's reason when cancelled or cancel-pending, else open.
   if (stop.statusSource === 'booking') return travelStatusWords(stop);
+  // TRAVEL-01c (ruling C): skipped by a travel block, the block named as the reason.
+  if (stop.statusSource === 'travel') return skippedWords(supersededWords(stop));
   if (stop.status === 'done') return ROUTINE_DONE_WORDS;
   if (stop.status === 'missed') return ROUTINE_MISSED_WORDS;
   return stop.status === 'later' ? LATER_WORD : OPEN_WORD;
@@ -1369,7 +1555,8 @@ export function dayMeter(spentCents: number | null, plannedCents: number | null)
 export function dayVerdict(result: DayStops, plannedCents: number | null): DeltaWords | null {
   if (result.spentCents === null || plannedCents === null || result.withActual === 0) return null;
   // TRAVEL-01b (ruling F): a travel stop asks no amount — excluded by KIND; asksAmount's own text is unchanged.
-  if (result.stops.some((s) => s.kind !== 'travel' && asksAmount(s.role) && s.actualCents === null)) return null;
+  // TRAVEL-01c (ruling D): a superseded stop is not in the day's plan — it holds the verdict back no more than a travel stop does.
+  if (result.stops.some((s) => s.kind !== 'travel' && s.superseded === null && asksAmount(s.role) && s.actualCents === null)) return null;
   if (result.spentCents === plannedCents) return { text: ON_BUDGET_WORDS, over: false };
   return deltaWords(result.spentCents, plannedCents);
 }
@@ -1729,6 +1916,8 @@ export function stopSceneLines(s: Stop, done?: readonly ReelDoneTask[] | null): 
     if (done === undefined) throw new Error(`dayCard: ${s.key} is an execute stop — its scene needs the tasks done in its block`);
     return done === null ? null : doneInBlockSceneWords(done);
   })();
+  // TRAVEL-01c (ruling C): a superseded stop's scene names the block, as a skipped stop names its reason.
+  if (s.superseded !== null) return [`${stopName(s)}${SKIPPED_TAIL_WORDS}.`, supersededWords(s), ...(block === null ? [] : [block])];
   if (skippedRecord(s) && s.record !== null) {
     if (s.record.note === null) throw new Error(`dayCard: ${s.key} is skipped by its record but carries no reason`);
     return [`${stopName(s)}${SKIPPED_TAIL_WORDS}.`, s.record.note, ...(block === null ? [] : [block])];
