@@ -84,7 +84,8 @@ test('2 plannedMinutesOf — a line’s 45 → 45; a stepless routine 10:00–18
   assert.match(rules, /minutes: plannedMinutesOf\(\{ kind: 'routine', start_time: r\.start_time, end_time: r\.end_time \}\),/, 'the stepless site');
   assert.match(rules, /minutes: plannedMinutesOf\(\{ kind: 'line', duration_minutes: step\.duration_minutes \}\),/, 'the line site');
   // TRAVEL-01b (Alex, 2026-10-31): applied twice more — a planned once row's and a segment's minutes (kind 'travel'), the same one rule. Moved, not loosened.
-  assert.equal((rules.match(/plannedMinutesOf\(/g) ?? []).length, 5, 'defined once, applied four times — the line, the stepless routine, the planned travel row, the segment; no other reading on the card');
+  // TRAVEL-01c (Alex, 2026-10-31), ruling B: applied twice more — each routine occurrence's window for supersession reads its minutes by the same one rule. Moved, not loosened.
+  assert.equal((rules.match(/plannedMinutesOf\(/g) ?? []).length, 7, 'defined once, applied six times — the line, the stepless routine, the planned travel row, the segment, and each occurrence’s window; no other reading on the card');
   assert.match(rules, /import \{ minutesOf \} from '@\/lib\/calendar\/day';/, 'the clock arithmetic is the calendar’s minutesOf — reused, not rebuilt');
 });
 
