@@ -16,6 +16,7 @@ import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
 import AllBookings from '@/components/trips/AllBookings';
 import { BOOKING_WORDS } from '@/lib/reservations/bookingRow';
+import { TRAVEL_LEDGER_HEADING } from '@/lib/reservations/travelLedger';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
 import { requestedTripOf, type UrlTrip } from '@/lib/trips/tripFromUrl';
 import TripFormModal from '@/components/trips/TripFormModal';
@@ -974,9 +975,13 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
 
             {/* BOOKINGS — BOOKINGS-01 (2026-09-27): every booking on the account in ONE list,
                 each row's truth from the recorded facts (status, ticketing, bank, ledger,
-                budget line, receipt); replaces neither Booked nor Unattached (authed-only). */}
+                budget line, receipt); replaces neither Booked nor Unattached (authed-only).
+                TRAVEL-02a (Alex, 2026-11-02, ruling A): the list is the TRAVEL LEDGER — the same
+                one GET, every booking and every money event of the caller as a table in the one
+                table idiom; its heading is the leaf's TRAVEL_LEDGER_HEADING, where
+                BOOKING_WORDS.heading ('Bookings') was. */}
             <section className="space-y-3" data-travel-section="bookings">
-              <TravelHeading>{BOOKING_WORDS.heading}</TravelHeading>
+              <TravelHeading>{TRAVEL_LEDGER_HEADING}</TravelHeading>
               {authed === true ? (
                 <AllBookings key={`all-${tripsRefresh}`} />
               ) : (

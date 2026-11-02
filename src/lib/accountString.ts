@@ -30,7 +30,19 @@ const ENTITY_LETTER: Record<string, string> = {
 
 /** COA-01: the E segment alone — the entity's code letter, or null when the type has none. */
 export function entityLetter(entityType: string | null | undefined): string | null {
-  return (entityType && ENTITY_LETTER[entityType]) || null;
+  if (!entityType) return null;
+  const letter = ENTITY_LETTER[entityType] as string | undefined;
+  return letter === undefined ? null : letter;
+}
+
+/**
+ * TRAVEL-02a (Alex, 2026-11-02, ruling C): the SAME map read backwards — a code's letter ('P' of 'P-9100') → the entity type
+ * it stands for (personal), or null when no type draws that letter. The travel ledger's BOOK column names a linked budget
+ * line's book from its COA code's letter through this one scheme (ledger.ts bookWordOf words the type); nothing else maps a letter.
+ */
+export function entityTypeOfLetter(letter: string): string | null {
+  for (const [entityType, drawn] of Object.entries(ENTITY_LETTER)) if (drawn === letter) return entityType;
+  return null;
 }
 
 export interface AccountStringParts {
