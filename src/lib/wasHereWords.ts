@@ -5,27 +5,20 @@
  *
  *   wasHereLabel(row)        end null → "I'M HERE" · end set → "I WAS HERE"
  *   stayWords(row)           end null → "Since Oct 22, 2026" · end set → dateWords(start, end)
- *   newestFirst(rows)        the rows by start, descending — derived, a copy
+ *   tripOrder(rows)          the rows by start, ascending — trip order, derived, a copy
+ *                            (WASHERE-03; newestFirst left with it — no caller)
+ *   stopWords(n)             "Stop 1" … "Stop 7" — n is the row's place in tripOrder, derived (WASHERE-03)
+ *   listWords(items)         the items joined by " · " — WORKED FROM and DID (WASHERE-03)
  *
- * WASHERE-02 (2026-10-31) — the stops' events:
- *   daysBetween(a, b)        a civil-date day count on 'YYYY-MM-DD' strings (the
- *                            days-from-civil formula), no Date object
+ * WASHERE-02 (2026-10-31) — the stops' events. WASHERE-03 cut the near-miss words:
+ * daysBetween, missedWords and missedPill left with their fixtures (no caller).
  *   stopEventLine(ev)        dateWords(start, end) · the status words · per / reported by the source
- *   missedWords(ev, stay)    "started the day after I left" / "started <n> days after I left" /
- *                            "ended the day before I arrived" / "ended <n> days before I arrived"
- *   onPill(ev)               "<name> · <venue, or area when venue is null> · <stopEventLine>"
- *   missedPill(ev, stay)     "<name> · <venue or area> · <dateWords> · <missedWords>"
+ *   stopEventPlace(ev)       the venue, or the area when the page named none
+ *   onPill(ev)               "<name> · <stopEventPlace> · <stopEventLine>"
  */
 
 import type { StopEvent, WasHereRow } from './wasHere';
 import { dateWords, dayWords } from './experienceWords';
-
-export class WasHereWordsError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'WasHereWordsError';
-  }
-}
 
 export function wasHereLabel(row: WasHereRow): string {
   return row.end === null ? 'I\'M HERE' : 'I WAS HERE';
@@ -35,31 +28,19 @@ export function stayWords(row: WasHereRow): string {
   return row.end === null ? `Since ${dayWords(row.start)}` : dateWords(row.start, row.end);
 }
 
-export function newestFirst(rows: readonly WasHereRow[]): WasHereRow[] {
-  return [...rows].sort((a, b) => b.start.localeCompare(a.start));
+/** The rows in trip order — by start, ascending; a copy. */
+export function tripOrder(rows: readonly WasHereRow[]): WasHereRow[] {
+  return [...rows].sort((a, b) => a.start.localeCompare(b.start));
 }
 
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-/** Days since 1970-01-01 for a civil date — Howard Hinnant's days_from_civil, integer arithmetic only. */
-function daysFromCivil(iso: string): number {
-  const m = ISO_DATE.exec(iso);
-  if (!m) throw new WasHereWordsError(`"${iso}" is not YYYY-MM-DD`);
-  let y = Number(m[1]);
-  const mo = Number(m[2]);
-  const d = Number(m[3]);
-  if (mo < 1 || mo > 12 || d < 1 || d > 31) throw new WasHereWordsError(`"${iso}" is not a calendar date`);
-  y -= mo <= 2 ? 1 : 0;
-  const era = Math.floor((y >= 0 ? y : y - 399) / 400);
-  const yoe = y - era * 400;
-  const doy = Math.floor((153 * (mo + (mo > 2 ? -3 : 9)) + 2) / 5) + d - 1;
-  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
-  return era * 146097 + doe - 719468;
+/** The stop's number in the trip, from its place in tripOrder: "Stop 1". */
+export function stopWords(n: number): string {
+  return `Stop ${n}`;
 }
 
-/** The civil days from a to b: 2026-07-30 → 2026-08-01 is 2; 2028-02-28 → 2028-03-01 is 2 (a leap year). */
-export function daysBetween(a: string, b: string): number {
-  return daysFromCivil(b) - daysFromCivil(a);
+/** WORKED FROM and DID: the items, joined. */
+export function listWords(items: readonly string[]): string {
+  return items.join(' · ');
 }
 
 const sourceWords = (ev: StopEvent): string => (ev.sourceKind === 'official' ? `per ${ev.sourceName}` : `reported by ${ev.sourceName}`);
@@ -76,19 +57,6 @@ export function stopEventLine(ev: StopEvent): string {
   }
 }
 
-/** How a near miss was missed, in days derived from the two dates — never typed. */
-export function missedWords(ev: StopEvent, stay: WasHereRow): string {
-  if (stay.end !== null && ev.start > stay.end) {
-    const n = daysBetween(stay.end, ev.start);
-    return n === 1 ? 'started the day after I left' : `started ${n} days after I left`;
-  }
-  if (ev.end < stay.start) {
-    const n = daysBetween(ev.end, stay.start);
-    return n === 1 ? 'ended the day before I arrived' : `ended ${n} days before I arrived`;
-  }
-  throw new WasHereWordsError(`${ev.name} overlaps the stay — not a near miss (the law refuses this row)`);
-}
-
 /** The venue, or the area when the page named no venue. */
 export function stopEventPlace(ev: StopEvent): string {
   return ev.venue ?? ev.area;
@@ -97,9 +65,4 @@ export function stopEventPlace(ev: StopEvent): string {
 /** The WHAT WAS ON pill. */
 export function onPill(ev: StopEvent): string {
   return `${ev.name} · ${stopEventPlace(ev)} · ${stopEventLine(ev)}`;
-}
-
-/** The JUST MISSED pill. */
-export function missedPill(ev: StopEvent, stay: WasHereRow): string {
-  return `${ev.name} · ${stopEventPlace(ev)} · ${dateWords(ev.start, ev.end)} · ${missedWords(ev, stay)}`;
 }
