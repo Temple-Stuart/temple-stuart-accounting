@@ -534,6 +534,20 @@ export const TOOL_REGISTRY: readonly ToolEntry[] = PROBLEM_SHEET.flatMap((f) =>
 ).map((t, i) => ({ ...t, order: i + 1 }));
 
 /**
+ * DATAFLOW-01 (Alex, 2026-11-02, ruling B.3) — the deck's step-7 today line, DERIVED:
+ * the tools whose four beats are all cited, in registry order, with their count. Four
+ * beats never imply LIVE (a PARTIAL may carry all four — its `why` says what is not
+ * done); the line says only that the beats run. The beat words are the ruling's.
+ * Pure: no clock. `registry` is injectable so a test can prove the derivation moves.
+ */
+export function allBeatsLine(registry: readonly ToolEntry[] = TOOL_REGISTRY): string {
+  const tools = registry.filter((t) => t.beats.discover && t.beats.decide && t.beats.commit && t.beats.record);
+  return `Today ${tools.length} tools run all four beats — discover, decide, draft, commit: ${tools.map((t) => t.name).join(', ')}.`;
+}
+
+export const ALL_BEATS_LINE = allBeatsLine();
+
+/**
  * The cockpit section a deep link lands on → the tool the family nav should open to.
  *
  * TRUTH-CAL (2026-09-17): `routines` pointed at Calendar. PLAN-01 gave the
