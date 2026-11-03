@@ -20,6 +20,7 @@
  *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
  *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
  *   with THE PLANS.)
+ *   THE CLOSE           — the 2026 close offer, booked by email (HOME-05a)
  *   THE PIPELINE header — names the 14-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
@@ -193,6 +194,9 @@ import ExperiencesSection from './ExperiencesSection';
 // WASHERE-01 (2026-10-31): the trip log — Alex's own stops, in trip order, each naming
 // an experience by id; the leaf's rows, the words modules' lines, the server's day.
 import WasHereSection from './WasHereSection';
+// HOME-05a (2026-11-03): the 2026 close offer — one leaf (src/lib/offer/close.ts), its words
+// module's lines, the server's day; booked by email.
+import CloseOfferSection from './CloseOfferSection';
 import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
@@ -2288,6 +2292,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </div>
         </div>
       </section>
+      {/* ── THE CLOSE (HOME-05a, Alex, 2026-11-03): the 2026 close offer, booked by
+            email — CloseOfferSection.tsx over src/lib/offer/close.ts, every word from
+            its words module, the server's day from page.tsx. Directly after
+            DONE-FOR-YOU by ruling: bookings, custom builds, then the close.
+            SEAM: its own border-b (the DONE-FOR-YOU idiom) closes the close|pipeline
+            header; done-for-you's border-b closes done-for-you|the close. ── */}
+      <CloseOfferSection today={today} />
 
       {/* ── THE PIPELINE HEADER (PR-CHROME → PR-PIPE-TITLE → PR-STEP-2).
             Names the 14-step run so the collapsed bars below read as one unit, and
@@ -2357,6 +2368,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          PR-MODULES placeholder comment between
                                          them is not DOM)
               done-for-you | pipeline header → done-for-you's border-b
+              the close | pipeline header → the close's border-b (HOME-05a, 2026-11-03: a cream act, the DONE-FOR-YOU idiom, one rule; done-for-you | the close is done-for-you's border-b)
               pipeline header | 01 problem   → the header's border-b (PR-CHROME
                                          seated the header act between them;
                                          01's no-border exception survives
