@@ -196,7 +196,9 @@ import WasHereSection from './WasHereSection';
 import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
-import { PROVIDER_MENU, ROUTING_RULES } from '@/lib/providers';
+import { PROVIDER_MENU, ROUTING_RULES, RULE_BOOK_COUNTS_LINE, liveMenuCell } from '@/lib/providers';
+// DATAFLOW-01: step 7's today line, derived from the registry — the tools whose four beats all run.
+import { ALL_BEATS_LINE } from '@/lib/toolRegistry';
 // TABLES-01: step 5's honest line — every table name from the kind-views census, none retyped.
 import { KIND_VIEWS_HONEST_LINE } from '@/lib/kindViews';
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
@@ -415,12 +417,15 @@ const s2MenuY = (job: string) => s2RowCenter(PROVIDER_MENU.findIndex(([j]) => j 
 // on the right — the drawing IS the hinge (Law 7). Geometry from the
 // approved CD-S3 BuildSpec; both lists share ONE order (the menu's), so
 // the nineteen arrows cross ZERO times by construction — the PR script
-// proves it pairwise; plaid's pair shares its source.
+// proves it pairwise; plaid's pair shares its source, and so does openai's
+// (DATAFLOW-01: its two insight answers sit side by side).
 
-// S3-PROVIDERS: the left list's eighteen rows, DERIVED from the menu's
-// TODAY column — flattened in menu row order, liteapi deduped — never
-// retyped (the no-drift law; the PR script proves 18, ruled order).
-const S3_PROVIDERS = [...new Set(PROVIDER_MENU.flatMap(([, today]) => today.split(' · ')))];
+// S3-PROVIDERS: the left list's rows, DERIVED from the menu's TODAY column
+// — flattened in menu row order, liteapi deduped — never retyped (the
+// no-drift law). DATAFLOW-01 (2026-11-02): each cell as spoken TODAY
+// (providers.ts liveMenuCell — a retired provider leaves the list: xai grok,
+// 2026-09-10), so seventeen rows, ruled order.
+const S3_PROVIDERS = [...new Set(PROVIDER_MENU.flatMap(([, today]) => liveMenuCell(today).split(' · ')))];
 
 // S3-GEOM (PR-S3-ONE-TABLE): the corridor law, widened to the full
 // container — the two tables became ONE, so the arrivals table carries
@@ -507,7 +512,12 @@ const IMPORT_COLUMNS: ReadonlyArray<{ band: string; rows: ReadonlyArray<readonly
 // arr_0001…arr_0019 in row order; their ids follow each provider's real
 // id convention (FRED's GDPC1 and the Federal Register's 2026-18432 are
 // the genuine shapes); times and ids are invented display data per the
-// shipped precedent, the stripe echoes pinned. The payload cell is the
+// shipped precedent, the stripe echoes pinned. DATAFLOW-01 (Alex,
+// 2026-11-02, ruling B.1): arr_0014 was xai grok · sentiment — xAI left the
+// product on 2026-09-10 (8358dc28) and no call site remains — so it is
+// openai's second insight answer, the fixture's neighbouring provider with a
+// live call site (src/app/api/ai/spending-insights/route.ts:53); its ids,
+// times and fingerprint stay as displayed. The payload cell is the
 // '{ … }' glyph — the word-for-word answer is the point, not its bytes.
 // PENDING and FAILED ink rust.
 const IMPORT_ARRIVALS = [
@@ -524,7 +534,7 @@ const IMPORT_ARRIVALS = [
   ['travel buddy', '—', 'visa', 'visa_US_PT', 'arr_0011', '{ … }', '08e2…b56a', '10:51:33Z', '10:51:36Z', '10:51:37Z', 'DONE'],
   ['anthropic', '—', 'classification', 'msg_01XkQz', 'arr_0012', '{ … }', 'f19c…62d8', '11:15:07Z', '11:15:09Z', '11:15:10Z', 'DONE'],
   ['openai', '—', 'insight', 'chatcmpl-9xQ2', 'arr_0013', '{ … }', '73ab…f0e4', '11:15:10Z', '11:15:12Z', '11:15:13Z', 'DONE'],
-  ['xai grok', '—', 'sentiment', 'grok_7f2q1', 'arr_0014', '{ … }', 'c507…89b1', '11:15:15Z', '11:15:18Z', '11:15:19Z', 'DONE'],
+  ['openai', '—', 'insight', 'chatcmpl-9xR7', 'arr_0014', '{ … }', 'c507…89b1', '11:15:15Z', '11:15:18Z', '11:15:19Z', 'DONE'],
   ['voyage', '—', 'embedding', 'emb_44219', 'arr_0015', '{ … }', '2df6…a743', '11:15:22Z', '11:15:25Z', '11:15:26Z', 'DONE'],
   ['ecfr', '—', 'title', '26-CFR-1.61', 'arr_0016', '{ … }', '8b31…5c9e', '11:40:00Z', '11:40:03Z', '11:40:05Z', 'DONE'],
   ['us code', '—', 'title', '26-USC-61', 'arr_0017', '{ … }', 'ae64…01f7', '11:40:28Z', '11:40:31Z', '11:40:32Z', 'DONE'],
@@ -572,15 +582,35 @@ const s3FieldIndex = (b: number, r: number) => IMPORT_COLUMNS.slice(0, b).reduce
 // so all five earnable kinds ink on the slide.
 
 // S4-FEEDS: the fold IS code — dedup IMPORT_ARRIVALS by (provider,
-// resource) in row order (18, script-proved), then the two ruled extras
-// slot in beneath the fold. ONE list drives the feeds panel, the rule
-// book's order and both arrow rails.
+// resource) in row order, then the two ruled extras join it. ONE list
+// drives the feeds panel, the rule book's order and both arrow rails.
+// DATAFLOW-01 (2026-11-02): a feed takes the ROW ITS RULE HOLDS. S4_FEEDS
+// runs the rule book's order, one slot per ROUTING_RULES row, the slot null
+// where no example arrival and no extra lands the rule — xai grok ·
+// sentiment, whose provider left on 2026-09-10 (providers.ts
+// RETIRED_PROVIDERS) while its rule stays in the book until the enum
+// migration. Row i still names rule i, the rule rail stays dead level, and
+// the empty slot draws no arrow. S4_SLOTS throws if a feed has no rule or
+// the fold arrows would cross.
 const s4Folded = IMPORT_ARRIVALS.reduce<ReadonlyArray<readonly [string, string]>>(
   (acc, row) => (acc.some(([p, r]) => p === row[0] && r === row[2]) ? acc : [...acc, [row[0], row[2]] as const]),
   [],
 );
 const S4_EXTRAS = [['plaid', 'account'], ['plaid', 'holding']] as const;
-const S4_FEEDS = [...s4Folded.slice(0, 1), ...S4_EXTRAS, ...s4Folded.slice(1)];
+const s4Key = (p: string, r: string) => `${p} · ${r}`;
+const s4Fed = new Set([...s4Folded, ...S4_EXTRAS].map(([p, r]) => s4Key(p, r)));
+const S4_FEEDS: ReadonlyArray<readonly [string, string] | null> = ROUTING_RULES.map(([p, r]) => (s4Fed.has(s4Key(p, r)) ? ([p, r] as const) : null));
+// arrival j lands the slot S4_SLOTS[j]; the slots never step back, so the fold arrows never cross.
+const S4_SLOTS = (() => {
+  const ruled = new Set(ROUTING_RULES.map(([p, r]) => s4Key(p, r)));
+  const unruled = [...s4Fed].filter((k) => !ruled.has(k));
+  if (unruled.length) throw new Error(`slide 04: every feed must land a rule-book row — unruled [${unruled.join(', ')}]`);
+  const slots = IMPORT_ARRIVALS.map((row) => S4_FEEDS.findIndex((f) => f !== null && f[0] === row[0] && f[1] === row[2]));
+  if (slots.some((slot, j) => j > 0 && slot < slots[j - 1])) throw new Error('slide 04: the fold arrows would cross — the arrivals must run in the rule book\'s order');
+  return slots;
+})();
+// the mobile card lists the fed slots only — it has no rails to keep level.
+const S4_LISTED = S4_FEEDS.filter((f): f is readonly [string, string] => f !== null);
 
 // S4-GEOM: the S2/S3 sibling. All three panels share HEAD + ROW_H and sit
 // top-aligned, so a feed's center is one pitch below its arrival's (the
@@ -593,13 +623,19 @@ const S4_GEOM = {
 } as const;
 const S4_H = S4_GEOM.HEAD + S4_FEEDS.length * S4_GEOM.ROW_H;
 const s4RowCenter = (i: number) => S4_GEOM.HEAD + i * S4_GEOM.ROW_H + S4_GEOM.ROW_H / 2;
-// plaid's converging pair fans its heads at feed 0 so they never stack.
-const S4_CONVERGE: Readonly<Record<string, number>> = { chase: -3, boa: 3 };
+// S4-FAN: arrivals that land one feed fan their heads 6px apart, centred, in
+// row order, so they never stack — plaid's chase / boa at −3 / +3 (what
+// S4_CONVERGE typed before DATAFLOW-01) and openai's two insights alike.
+const s4Fan = (j: number) => {
+  const same = S4_SLOTS.flatMap((slot, k) => (slot === S4_SLOTS[j] ? [k] : []));
+  return (same.indexOf(j) - (same.length - 1) / 2) * 6;
+};
 
 // PR-DECK: ROUTING_TESTS retired — the deck's 04 closes on one statement line
-// ('When a new provider shows up, we add rows — not code, and not new
-// tables.') typed at the render, not a trio. The three tests live in git
-// history if a surface ever wants them back.
+// typed at the render, not a trio. The three tests live in git history if a
+// surface ever wants them back. (DATAFLOW-01, 2026-11-02: that line now says a
+// new provider is one row in the rule book — a code file, checked at build —
+// and one enum value; DECK_TODAY.s04, cited. "not code" left it.)
 
 // HANDOFF-KINDS (PR-DECK → PR-SIX → PR-S5): the six tables a kind can
 // address, for 05 / THE ADDRESS, as [kind, holds]. The deck writes the
@@ -1004,7 +1040,9 @@ const S9_GEOM = { W: 1216, L_W: 240, M_X: 360, M_W: 240, R_X: 720, HEAD: 22, ROW
 // dead-level arrow per match, proven pairwise — level arrows on distinct
 // row centers cannot cross. THROWS at build on any violation; a green
 // build is the proof. Travel is the live-today row — the drawing and
-// the hedge agree.
+// the hedge agree. (DATAFLOW-01: the hedge also names the hand link, a
+// routine occurrence or a task to the journal entry that settled it —
+// planned_item_links — which no MATCHES row draws.)
 const S9_LAYOUT = (() => {
   const tools = PROBLEM_SHEET.flatMap(({ tools: t }) => t as readonly string[]);
   const keys = Object.keys(MATCHES);
@@ -1017,7 +1055,7 @@ const S9_LAYOUT = (() => {
     tool,
     observed: MATCHES[tool],
     doc: TOOL_DOCUMENTS[tool][0],
-    live: tool === 'Travel',
+    live: tool === 'Travel', // true per src/app/api/runway/match/propose/route.ts:130 (proposed) · src/app/api/runway/match/review/route.ts:104 (you approve); the hand link DECK_TODAY.s09 also names (planned_item_links) is no MATCHES row
     y: S9_GEOM.HEAD + i * S9_GEOM.ROW_H + S9_GEOM.ROW_H / 2,
   }));
   for (let a = 0; a < rows.length; a += 1) {
@@ -1587,7 +1625,7 @@ const S14_GEOM = { W: 1216, G_W: 170, R_W: 560, HEAD: 24, ROW_H: 40, NODE_TOP: 1
 // Binds 14's dollar to 13's hero row and the rule to the feed that
 // carried it. Wrap metric: 7px mono ≈ 4.2px per char; a record or
 // check wider than three lines at its column's budget throws.
-const S14_LAYOUT = (() => {
+function s14Layout() {
   type Seg = readonly [string, boolean];
   if (S14_WALK.length !== 7 || S14_CHECKS.length !== 7) throw new Error('slide 14: seven hops, seven checks');
   // hop 1 — THE NUMBER
@@ -1662,8 +1700,31 @@ const S14_LAYOUT = (() => {
   });
   if (hops.length !== 7 || new Set(hops.map((h) => h.y)).size !== 7) throw new Error('slide 14: seven nodes on one lane, distinct pitch');
   return { hops, amount, question, arrival: { theirId, arrived, fingerprint }, h: S14_GEOM.HEAD + S14_WALK.length * S14_GEOM.ROW_H } as const;
-})();
+}
+const S14_LAYOUT = s14Layout();
 const S14_H = S14_LAYOUT.h;
+
+/**
+ * DATAFLOW-01 (Alex, 2026-11-02, ruling D) — THE S14 LAW, BY NAME, FOR THE BUILD.
+ * Step 14 says "seven of seven hops checked at build — a failed check is a failed
+ * build". On main that was not so: `/` is force-dynamic, so `next build` never
+ * evaluates this module, and with one check broken the whole build chain passed (the
+ * DATAFLOW-01 proof). scripts/assert-tool-registry.ts imports this file — which runs
+ * every slide's layout law at module scope, a failed one throwing on import — and
+ * then re-runs this law at the providers-law seat. The line did not change; the
+ * build did. The shape is providersLaw's: violations returned, thrown unless asked
+ * not to.
+ */
+export function s14Law(opts: { throwOnFail?: boolean } = {}): string[] {
+  const violations: string[] = [];
+  try {
+    s14Layout();
+  } catch (err) {
+    violations.push(err instanceof Error ? err.message : String(err));
+  }
+  if (violations.length && opts.throwOnFail !== false) throw new Error(`S14 LAYOUT LAW failed:\n  ${violations.join('\n  ')}`);
+  return violations;
+}
 
 // DECK CLASS GRAMMAR — the section grammar of acts 01–04, extracted once so
 // nine new acts cannot drift from it or from each other. These are the exact
@@ -1710,6 +1771,30 @@ const DECK_STEP_IDS = [
   'deck-01', 'deck-02', 'deck-03', 'deck-04', 'deck-05', 'deck-06', 'deck-07',
   'deck-08', 'deck-09', 'deck-10', 'deck-11', 'deck-12', 'deck-13', 'deck-14',
 ] as const;
+
+// DATAFLOW-01 (Alex, 2026-11-02, ruling A) — THE DECK'S TODAY LINES. Every present-
+// tense claim the fourteen steps make about today is DERIVED from a leaf at render —
+// ALL_BEATS_LINE (src/lib/toolRegistry.ts), RULE_BOOK_COUNTS_LINE and liveMenuCell
+// (src/lib/providers.ts), KIND_VIEWS_HONEST_LINE (src/lib/kindViews.ts) — or TYPED
+// below, one line each, with the file:line that makes it true on the SAME line. The
+// blueprint stays in the present tense as a blueprint, and the intro says so.
+// src/lib/__tests__/dataflow01.test.ts pins the pairing line by line. Step 6's punch
+// ("they have no table") is not here: ruling B.2 was stopped and reported, not built.
+const DECK_TODAY = {
+  intro: 'One data pipe is the plan for the whole system. Each step below says what runs today.', // true per src/lib/__tests__/dataflow01.test.ts — every today-line below is derived from a leaf or carries its file:line on its own line here
+  s02: 'Here is who we speak to today:', // true per src/lib/providers.ts:219 liveMenuCell — the table under it renders each TODAY cell minus RETIRED_PROVIDERS (:206 — xai grok left 2026-09-10, 8358dc28)
+  s04: 'When a new provider shows up, it is one row in the rule book — a code file, checked at build — and one enum value; no new logic, no new tables.', // true per src/lib/providers.ts:16 (the file IS the rule book) · :149 RULE_BOOK · :167 kindOf (one rule per pair, no per-provider routing) · prisma/schema.prisma:4325 enum arrival_provider · scripts/assert-tool-registry.ts:739 (enum === the book's codes, at build)
+  s07: 'Hotel and flight bookings commit for real, and an accepted task fires its build — for the repo owner today; the route refuses anyone else.', // true per src/app/api/travel/liteapi/book/route.ts:173 (bookRate) · :271 (reservations.create) · src/app/api/travel/liteapi/flights/book/route.ts:157 (bookFlight) · :239 · src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:282-283 (403 before any write) · :376 (fireExecutionRoutine) · src/lib/fireExecutionRoutine.ts:56 (requireRoutineOwner)
+  s08: "Today each tool keeps its own table; one table holding every document is the shape we're building.", // true per prisma/schema.prisma:3831 operations_routines · :3698 operations_project_tasks · :477 operations_day_journals · :443 operations_stop_records — each built tool's own rows (src/lib/toolRegistry.ts citations); the NOT_BUILT tools keep none yet
+  s09: '(Two pieces of this are already alive today: card charges find their bookings and propose the match — you approve it; and you link a routine occurrence or a task to the journal entry that settled it.)', // true per prisma/schema.prisma:1901 transaction_reservation_links · src/app/api/runway/match/propose/route.ts:130 (proposed) · src/app/api/runway/match/review/route.ts:104 (you approve) · prisma/schema.prisma:333 planned_item_links · src/app/api/calendar/links/route.ts:232 (the one writer; TASKS-03)
+  s10: "The posting view is the blueprint — today it holds zero lines by design — the ledger already has its lines. The rules writing them is the bookkeeping pipe we're building.", // true per src/lib/kindViews.ts:196 · :220 (posting: empty by law) · src/lib/posting/postJournal.ts:121 — 13 callers post the ledger's lines: 10 routes (api/journal-entries, journal-entries/manual, chart-of-accounts/reclassify, admin/fix-entity-assignment, trading/commit-to-ledger, investment-transactions/commit-to-ledger, investment-transactions/uncommit, stock-lots, stock-lots/commit, year-end-close) and 3 services (src/lib/journal-entry-service.ts, position-tracker-service.ts, batch-trade-processor.ts)
+  s11: "Today all four compute — tax and the business result from the journal entries you commit by hand, runway from Plaid's account balances against those entries, trading from the positions and lots you committed, with no live quote in the number.", // true per src/lib/answers.ts:79-108 ANSWER_READS — each answer's endpoint and its own file:line (tax :84, runway :91, trading :98, business :105)
+  s12: 'Today the calendar window is live in the cockpit, and the ledger window is live in Books, showing the committed lines; the posting pipe will land more.', // true per src/components/home/ModuleLauncher.tsx:757 (<HubCalendar />) · :375 (<BooksPipeline />) · src/components/home/BooksPipeline.tsx:584 (<GeneralLedger>) · src/components/dashboard/GeneralLedger.tsx:205 (/api/ledger) · src/app/api/ledger/route.ts:27 (ledger_entries)
+  s13: 'Alive today: two matches — card charges find their bookings and propose the match, which you approve; and you link a routine occurrence or a task to the journal entry that settled it. The project lane is wired end to end: a task lands for your review, and accepting it fires the build that answers it — for the repo owner today; the route refuses anyone else.', // true per prisma/schema.prisma:1901 · src/app/api/runway/match/propose/route.ts:130 · src/app/api/runway/match/review/route.ts:104 · prisma/schema.prisma:333 · src/app/api/calendar/links/route.ts:232 · src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:282-283 · :376 · src/lib/fireExecutionRoutine.ts:56
+  s14Fingerprint: 'Alive today: the fingerprint, on the rules and the audit log — every regulation pull is hashed the moment it lands, and the audit log hash-chains every entry it records; the citation re-check is written, but the hash it compares against is stored empty today, so it proves nothing yet.', // true per src/lib/corpus/ingest/ecfr-persist.ts:113 · src/lib/corpus/ingest/uscode-persist.ts:97 · src/lib/corpus/ingest/fedreg-persist.ts:105 · src/lib/corpus/ingest/irb-persist.ts:104 · src/lib/audit/writeAuditLog.ts:99-104 · src/lib/citations/verifyCitation.ts:119 · src/lib/discovery/materializeProposal.ts:165 (retrieved_content_hash: '')
+  s14Arrivals: "Today the Plaid feeds land in that table — every answer word for word, fingerprinted: 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026 — and so do LiteAPI's bookings, cancellations, booking reads and webhooks, and Stripe's webhook events.", // true per src/app/api/transactions/sync-complete/route.ts:156 · :262 · :335 · src/lib/arrivals/liteapiBooking.ts:127 · :210 · :282 · :326 · :351 · src/lib/arrivals/stripeWebhook.ts:210 — their four routes: src/app/api/travel/liteapi/book/route.ts:204 · src/app/api/travel/liteapi/flights/book/route.ts:198 · src/app/api/webhooks/liteapi/route.ts:101 · src/app/api/stripe/webhook/route.ts:155 (cancellations through src/lib/reservations/cancelFlow.ts:396, reads through src/lib/reservations/vendorRead.ts:142); the three counts are the September 7, 2026 census, kept until a recount
+  s14Parsed: "The other providers still land parsed; the same table is the shape they're moving into.", // true per scripts/assert-tool-registry.ts:837 — the rule book law's landing call-site scan finds plaid, liteapi and stripe only
+} as const;
 
 /** PR-DECK: inline [text, isGold] segments — the only way gold ever enters a
  *  sentence (amounts and debit/credit values), so the split stays data. */
@@ -2196,7 +2281,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
       {/* ── THE PIPELINE HEADER (PR-CHROME → PR-PIPE-TITLE → PR-STEP-2).
             Names the 14-step run so the collapsed bars below read as one unit, and
             says what the pipeline IS — the data pipe the whole system runs
-            on. The headline and sub are the essay's front matter, VERBATIM
+            on. DATAFLOW-01 (Alex, 2026-11-02, ruling B.10): the headline says the
+            pipe is the PLAN and that each step says what runs today
+            (DECK_TODAY.intro). The sub is the essay's front matter, VERBATIM
             (the essay updated to the data-pipe-and-foundation claim in the
             same breath as this PR); the two mono lines are the run's name
             and the essay's Date · Time · Money subtitle in the label tier.
@@ -2210,7 +2297,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         <p className={DECK.eyebrow}>THE PIPELINE — 14 STEPS</p>
         <p className={`mt-2 ${DECK.eyebrow}`}>DATE · TIME · MONEY</p>
         <h2 className={DECK.h2}>
-          One data pipe runs the whole system.
+          {DECK_TODAY.intro}
         </h2>
         <p className={DECK.sub}>
           Fourteen steps turn raw data into one Ledger and one Calendar — the foundation everything else is built on. Written so anyone can understand it — and build it.
@@ -2645,7 +2732,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                     return (
                       <tr key={job}>
                         <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] text-brand-purple`}>{job}</td>
-                        <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] text-brand-purple`}>{today}</td>
+                        <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] text-brand-purple`}>{liveMenuCell(today)}</td>
                         <td style={{ height: S2_GEOM.ROW_H }} className={`${rule}overflow-hidden px-[6px] align-middle font-mono text-[8px] leading-[1.2] ${next === '—' ? 'text-text-faint' : 'text-brand-purple'}`}>{next}</td>
                       </tr>
                     );
@@ -2721,7 +2808,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 On desktop the menu renders as the walk's right panel
                 instead — once per breakpoint, never twice; the SnapTrade
                 footnote sits beneath the menu on BOTH breakpoints. */}
-            <p className={`mt-10 ${DECK.statement}`}>Here is who we speak to today:</p>
+            <p className={`mt-10 ${DECK.statement}`}>{DECK_TODAY.s02}</p>
             <table className={`mt-[14px] ${DECK.table}`}>
               <thead>
                 <tr>
@@ -2738,7 +2825,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   return (
                     <tr key={job}>
                       <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{job}</td>
-                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{today}</td>
+                      <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] text-brand-purple`}>{liveMenuCell(today)}</td>
                       <td className={`${DECK.pad} ${rule} align-top font-mono text-[11px] lg:text-[13px] ${next === '—' ? 'text-text-faint' : 'text-brand-purple'}`}>{next}</td>
                     </tr>
                   );
@@ -2976,7 +3063,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               slide-01 body tier. The standalone census and handshake
               lines, the old framing line and the retired trio render
               nowhere else. */}
-          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">And here is the real size of it: today that is 121 feeds from 20 providers — counted August 24, 2026. We will show you a small example, so the idea stays small enough to hold. One more honest line: a few things we fetch are not data at all — handshakes, like the token that opens a bank connection. Handshakes are not data; they are how we knock on the door. They never enter the tables. And this table makes three promises: (1) nothing was ever edited — if a provider corrects something, the correction is a new row; (2) nothing was ever asked twice — if our reading of a row fails, we just read our stored copy again; (3) nothing was ever claimed — the fingerprint proves we stored exactly what they sent, but that does not necessarily mean they were right!</p>
+          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">And here is the real size of it: today that is {RULE_BOOK_COUNTS_LINE}. We will show you a small example, so the idea stays small enough to hold. One more honest line: a few things we fetch are not data at all — handshakes, like the token that opens a bank connection. Handshakes are not data; they are how we knock on the door. They never enter the tables. And this table makes three promises: (1) nothing was ever edited — if a provider corrects something, the correction is a new row; (2) nothing was ever asked twice — if our reading of a row fails, we just read our stored copy again; (3) nothing was ever claimed — the fingerprint proves we stored exactly what they sent, but that does not necessarily mean they were right!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Now — what kind of thing is each one?</p>
         </div>
       </section>
@@ -3036,11 +3123,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               the two ruled extras beneath the fold marked 'more from
               plaid'. RIGHT: the rule book — ROUTING_RULES, KIND gold (the
               deck's one non-money gold licence), MEANS on each kind's
-              first appearance. Fold rail: 19 arrows — plaid's pair
-              converges (S4_CONVERGE fans the heads) and every other arrow
-              drops exactly one pitch (the offset the extras buy). Rule
-              rail: 20 arrows, dead level row for row. Zero crossings on
-              both rails — script-proved. */}
+              first appearance. Fold rail: 19 arrows — plaid's pair and
+              openai's pair converge (s4Fan fans the heads); the rest drop
+              to their rule's row. Rule rail: one arrow per fed slot, dead
+              level row for row; xai grok · sentiment's slot is empty
+              (DATAFLOW-01 — the provider left, the rule stays). Zero
+              crossings on both rails — S4_SLOTS throws otherwise. */}
           <div className="relative mt-[14px] hidden lg:mt-3 lg:block" style={{ height: S4_H, maxWidth: S4_GEOM.W }}>
             <div className="absolute left-0 top-0 border border-border bg-white" style={{ width: `${(S4_GEOM.L_W / S4_GEOM.W) * 100}%` }}>
               <div style={{ height: S4_GEOM.HEAD }} className="grid grid-cols-[100px_74px_1fr] items-center overflow-hidden bg-bg-row font-mono text-[7px] uppercase tracking-[0.14em] text-text-faint border-b border-b-border">
@@ -3056,10 +3144,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </div>
             <div className="absolute top-0 border border-border bg-white" style={{ left: `${(S4_GEOM.F_X / S4_GEOM.W) * 100}%`, width: `${(S4_GEOM.F_W / S4_GEOM.W) * 100}%` }}>
               <p style={{ height: S4_GEOM.HEAD }} className="flex items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[7px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE FEEDS</p>
-              {S4_FEEDS.map(([p, r], i) => (
-                <div key={`${p}-${r}`} style={{ height: S4_GEOM.ROW_H }} className={`flex items-center justify-between overflow-hidden px-[6px] font-mono text-[7px] ${i < S4_FEEDS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
-                  <span className="overflow-hidden whitespace-nowrap text-brand-purple">{p} · {r}</span>
-                  {(r === 'account' || r === 'holding') && <span className="whitespace-nowrap pl-1 text-text-faint">more from plaid</span>}
+              {S4_FEEDS.map((feed, i) => (
+                <div key={feed === null ? `slot-${i}` : `${feed[0]}-${feed[1]}`} style={{ height: S4_GEOM.ROW_H }} className={`flex items-center justify-between overflow-hidden px-[6px] font-mono text-[7px] ${i < S4_FEEDS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  {feed === null ? (
+                    <span className="text-text-faint">—</span>
+                  ) : (
+                    <>
+                      <span className="overflow-hidden whitespace-nowrap text-brand-purple">{feed[0]} · {feed[1]}</span>
+                      {(feed[1] === 'account' || feed[1] === 'holding') && <span className="whitespace-nowrap pl-1 text-text-faint">more from plaid</span>}
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -3083,16 +3177,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 </marker>
               </defs>
               {IMPORT_ARRIVALS.map((row, j) => {
-                const i = S4_FEEDS.findIndex(([p, r]) => p === row[0] && r === row[2]);
-                const ty = s4RowCenter(i) + (i === 0 ? S4_CONVERGE[row[1]] ?? 0 : 0);
+                const ty = s4RowCenter(S4_SLOTS[j]) + s4Fan(j);
                 const mx = (S4_GEOM.L_W + S4_GEOM.F_X) / 2;
                 const d = `M${S4_GEOM.L_W} ${s4RowCenter(j)} C ${mx} ${s4RowCenter(j)}, ${mx} ${ty}, ${S4_GEOM.F_X} ${ty}`;
                 return <path key={row[4]} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s4-arrow)" />;
               })}
-              {S4_FEEDS.map(([p, r], i) => {
+              {S4_FEEDS.map((feed, i) => {
+                if (feed === null) return null;
                 const mx = (S4_GEOM.F_X + S4_GEOM.F_W + S4_GEOM.R_X) / 2;
                 const d = `M${S4_GEOM.F_X + S4_GEOM.F_W} ${s4RowCenter(i)} C ${mx} ${s4RowCenter(i)}, ${mx} ${s4RowCenter(i)}, ${S4_GEOM.R_X} ${s4RowCenter(i)}`;
-                return <path key={`${p}-${r}`} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s4-arrow)" />;
+                return <path key={`${feed[0]}-${feed[1]}`} d={d} stroke="currentColor" strokeWidth={1} strokeDasharray="2 4" fill="none" markerEnd="url(#s4-arrow)" />;
               })}
             </svg>
           </div>
@@ -3120,8 +3214,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </div>
             <div className="mt-4 border border-border bg-white">
               <p className="flex h-[22px] items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[6.5px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE FEEDS</p>
-              {S4_FEEDS.map(([p, r], i) => (
-                <p key={`${p}-${r}`} className={`px-[6px] py-[3px] font-mono text-[10px] leading-[1.4] text-brand-purple ${i < S4_FEEDS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+              {S4_LISTED.map(([p, r], i) => (
+                <p key={`${p}-${r}`} className={`px-[6px] py-[3px] font-mono text-[10px] leading-[1.4] text-brand-purple ${i < S4_LISTED.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
                   {p} · {r}
                   {p === 'plaid' && r === 'transaction' && <span className="text-text-faint"> ← chase · boa — two connections, one feed</span>}
                   {(r === 'account' || r === 'holding') && <span className="text-text-faint"> — more from plaid</span>}
@@ -3151,7 +3245,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               derived-boundary line, the sixth-kind tease, the two rule
               lines and their divider) render nowhere else — who-decides
               lives in moves (c)/(d) now. */}
-          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Here is what makes this step different from every software you have ever met: each kind is given by a rule, and a rule is one written row in a table. Anyone can read it. Anyone can argue with it. It is not a guess buried in code. When a new provider shows up, we add rows; not code, and not new tables. And the line is who did the math: if we ordered it or ran it, it is derived; a provider&apos;s own published math is reference. And there is a sixth kind; but no feed ever earns it. We will meet it soon.</p>
+          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Here is what makes this step different from every software you have ever met: each kind is given by a rule, and a rule is one written row in a table. Anyone can read it. Anyone can argue with it. It is not a guess buried in code. {DECK_TODAY.s04} And the line is who did the math: if we ordered it or ran it, it is derived; a provider&apos;s own published math is reference. And there is a sixth kind; but no feed ever earns it. We will meet it soon.</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how many tables are there?</p>
         </div>
       </section>
@@ -3288,7 +3382,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               table, the divider, the twenty-five-tools statement, the
               notice block and the census receipt all return inside it —
               they render nowhere else now. */}
-          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Twenty-five tools, six tables; because we sorted by what a thing is, not by which tool it came from. But notice something strange here: (1) the outside world only ever fills four of the six — reference, registry, event, and snapshot; (2) derived is filled only by math we ordered, our AIs included; (3) and posting? Nothing from the outside world ever lands there. Nobody sends you debits and credits — the bookkeeping step builds those, from your own events. Remember that; it matters soon. We did not guess this. We classified every one of the 121 feeds — August 24, 2026 — and posting took zero. The data agreed!</p>
+          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Twenty-five tools, six tables; because we sorted by what a thing is, not by which tool it came from. But notice something strange here: (1) the outside world only ever fills four of the six — reference, registry, event, and snapshot; (2) derived is filled only by math we ordered, our AIs included; (3) and posting? Nothing from the outside world ever lands there. Nobody sends you debits and credits — the bookkeeping step builds those, from your own events. Remember that; it matters soon. We did not guess this. We classified every one of the {RULE_BOOK_COUNTS_LINE} — and posting took zero. The data agreed!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">Everything so far arrived from the world.</p>
           {/* DECK-TRUE-04: the honest line (the 12/13 idiom) — muted, after the
               closer's lead-in, before its question. Every table and feed name
@@ -3510,7 +3604,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Twenty-five loops. One shape!</p>
-          <p className={`mt-2 ${DECK.statement}`}>This loop is the blueprint — the shape we&apos;re building every tool toward. Today, hotel bookings commit for real and an accepted task fires its build; the rest run discover → decide → draft, and commit is the beat we&apos;re wiring to the same loop, tool by tool.</p>
+          <p className={`mt-2 ${DECK.statement}`}>This loop is the blueprint — the shape we&apos;re building every tool toward. {ALL_BEATS_LINE} {DECK_TODAY.s07}</p>
           <p className={DECK.q}>Twenty-five loops. Where do all the commits land?</p>
         </div>
       </section>
@@ -3620,7 +3714,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Different names, same shape. That is why one table can hold them all!</p>
-          <p className={`mt-2 ${DECK.statement}`}>The master table is the blueprint. Today each tool keeps its own table; one table holding every document is the shape we&apos;re building.</p>
+          <p className={`mt-2 ${DECK.statement}`}>The master table is the blueprint. {DECK_TODAY.s08}</p>
           <p className={DECK.q}>You committed. The world moved. But how do you know the money really landed?</p>
         </div>
       </section>
@@ -3731,7 +3825,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 ${DECK.statement}`}>Click; one match.</p>
           <p className={`mt-2 ${DECK.statement}`}>The deposit found its invoice. The fill found its order. The card charge found its booking. Nobody hunted through statements!</p>
           <p className={`mt-2 ${DECK.statement}`}>Matched means real; the world just confirmed what you did.</p>
-          <p className={`mt-2 ${DECK.statement}`}>(A piece of this is already alive today: card charges find their bookings and propose the match — you approve it.)</p>
+          <p className={`mt-2 ${DECK.statement}`}>{DECK_TODAY.s09}</p>
           <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">The other eleven move no money and need no match — they&apos;re real the moment you commit.</p>
           <p className={DECK.q}>Matched and real. So who writes the debits and credits?</p>
         </div>
@@ -3862,7 +3956,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>WHO NEVER TOUCHES MONEY</p>
           <p className="mt-[14px] text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary">{`One more truth: some tools never touch money. ${S10_LAYOUT.noMoney.join(', ')} never write a line. Your hours reach the books one way only; through Payroll.`}</p>
 
-          <p className={`mt-2 ${DECK.statement}`}>The posting table is the blueprint — today it holds zero lines. The rules writing them is the bookkeeping pipe we&apos;re building.</p>
+          <p className={`mt-2 ${DECK.statement}`}>{DECK_TODAY.s10}</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>So what do all those lines add up to?</p>
@@ -3979,7 +4073,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 ${DECK.statement}`}>And look at what these steps really are: Steps 9 and 10 are the bookkeeping system. Step 11 is the tax module and the runway screen. We did not bolt tools onto the pipe — the back half of the pipe IS the tools.</p>
           <p className="mt-[14px] font-mono text-[11px] lg:text-[13px] uppercase tracking-[0.20em] text-brand-amber">THIS IS THE PRODUCT.</p>
 
-          <p className={`mt-2 ${DECK.statement}`}>These four lenses are the blueprint. Today all four compute — tax and the business result from the journal entries you commit by hand, runway from Plaid&apos;s account balances against those entries, trading from the positions and lots you committed, with no live quote in the number. The rules-written lines and the live quotes the blueprint reads wait on the posting pipe.</p>
+          <p className={`mt-2 ${DECK.statement}`}>These four lenses are the blueprint. {DECK_TODAY.s11} The rules-written lines and the live quotes the blueprint reads wait on the posting pipe.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Four answers. Where do you look?</p>
@@ -4192,7 +4286,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-8 lg:mt-12 ${DECK.statement}`}>Bars are things that last. Dots are things that happen.</p>
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>Twenty-five tools. Two windows!</p>
 
-          <p className={`mt-2 ${DECK.statement}`}>Two windows over one set of rows is the blueprint. Today the calendar window is live in the cockpit; the ledger window fills as the posting pipe lands its lines.</p>
+          <p className={`mt-2 ${DECK.statement}`}>Two windows over one set of rows is the blueprint. {DECK_TODAY.s12}</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Can you watch one dollar run the whole machine?</p>
@@ -4310,7 +4404,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </p>
             <p className="mt-2 font-mono text-[11px] leading-[1.6] lg:text-[12px] text-text-secondary">{HOURS_TRUTH}</p>
           </div>
-          <p className={`mt-[14px] ${DECK.statement}`}>Alive today: the travel match — card charges find their bookings and propose the match; you approve it. The project lane is wired end to end: a task lands for your review, and accepting it fires the build that answers it.</p>
+          <p className={`mt-[14px] ${DECK.statement}`}>{DECK_TODAY.s13}</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
           <p className={DECK.q}>Beautiful. But why should you believe any of it?</p>
@@ -4355,6 +4449,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> End at the fingerprint — the code made from the payload the moment it arrived. Recompute it: it still matches.</p>
 
           <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>SEVEN HOPS BACK TO THE PROVIDER&apos;S WORDS</p>
+          {/* DATAFLOW-01 (ruling D): true per scripts/assert-tool-registry.ts:984 — the build imports this
+              file (every slide law runs on import) and re-runs s14Law; on main a broken check built green. */}
           <p className="mt-[6px] font-mono text-[10px] lg:text-[11px] text-text-faint">seven of seven hops checked at build — a failed check is a failed build.</p>
 
           {/* THE PROOF, desktop (PR-S14-DATAFLOW) — the beat gutter, THE
@@ -4410,7 +4506,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             ))}
           </div>
           <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>That is why you can believe the screen: every number walks back to its source — the exact words a provider sent, or the document you committed — and the rule that wrote the line.</p>
-          <p className={`mt-2 ${DECK.statement}`}>Alive today: the fingerprint, on the rules and the audit log — every regulation pull is hashed the moment it lands, and the audit log hash-chains every entry it records; the citation re-check is written, but the hash it compares against is stored empty today, so it proves nothing yet. Today the Plaid feeds land in that table — every answer word for word, fingerprinted: 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026. The other providers still land parsed; the same table is the shape they&apos;re moving into.</p>
+          <p className={`mt-2 ${DECK.statement}`}>{DECK_TODAY.s14Fingerprint} {DECK_TODAY.s14Arrivals} {DECK_TODAY.s14Parsed}</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[24px] text-brand-purple">Twenty-five tools. And now every one knows what the others did.</p>
         </div>
       </section>

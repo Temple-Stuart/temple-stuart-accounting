@@ -160,6 +160,8 @@ import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, pro
 import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/experiences';
 // WASHERE-01: the trip log — Alex's own stops, each naming an experience by id, a photo each as they land.
 import { WAS_HERE, wasHereLaw } from '../src/lib/wasHere';
+// DATAFLOW-01 (ruling D): the deck's S14 law, by name. Importing the deck runs every slide's layout law at module scope.
+import { s14Law } from '../src/components/landing/Landing';
 import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, latestViews, latestViewsSql, parseViews } from '../src/lib/kindViews';
 // SELL-02: the offer law — every sales claim from the registry, every price from one source.
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
@@ -968,6 +970,20 @@ console.log(`✔ The rule book law passed — ${RULE_BOOK.length} rules, ${callS
 console.log(`✔ The kind views law passed — ${ARRIVAL_KINDS.length} views over ${KIND_VIEW_CENSUS.length} feed tables, each once, the kind from the rule book; posting unions nothing; ${STOPPED_TABLES.length} tables reported, not viewed.`);
 console.log(`✔ The posting law passed — every journal and ledger row is created by postJournal.ts (SET CONSTRAINTS ALL IMMEDIATE first, one statement for the lines, read back after commit); ${postingPaths.size} files post through it.`);
 console.log(`✔ The env law passed — ${srcEnv.size} names read as src literals, ${libraryEnv.size} read by a library (src/lib/envLaw.ts), ${dynamicEnv.size} by a computed key; every one documented in README.md, nothing documented that nothing reads.`);
+});
+lawGuard('The proof law', () => {
+// ── THE PROOF LAW (S14) — DATAFLOW-01 (Alex, 2026-11-02, ruling D) ──────────
+// Step 14 says "seven of seven hops checked at build — a failed check is a failed
+// build". On main that was not so: `/` is force-dynamic, so `next build` never
+// evaluates the deck's module scope, and with one S14 check broken the whole build
+// chain passed (the DATAFLOW-01 proof). The import of Landing.tsx above runs every
+// slide's layout law at module scope — a failed one throws on import and the build
+// stops on its own words — and the S14 law re-runs here, by name, at the
+// providers-law seat.
+  const before = violations.length;
+  violations.push(...s14Law({ throwOnFail: false }));
+  if (violations.length === before) console.log('✔ The proof law passed — slide 14 walks its seven hops with every check run at build (Landing.tsx s14Law); a failed check is a failed build.');
+  else console.log(`✖ The proof law FAILED — ${violations.length - before} violation(s).`);
 });
 lawGuard('The observatory law', () => {
 // ── THE OBSERVATORY LAW (OBSERVATORY-01) ──────────────────────────
