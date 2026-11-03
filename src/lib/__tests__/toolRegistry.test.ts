@@ -29,13 +29,17 @@ test('the counts are the dated census — 5 LIVE · 8 PARTIAL · 12 NOT_BUILT �
 
 // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. Tasks left the four-beat PARTIALs; two remain.
 // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Time left the four-beat PARTIALs; Budget alone remains.
-test('the one four-beat PARTIAL carries the census note; no LIVE or NOT_BUILT tool carries one', () => {
+// DATAFLOW-01d (Alex, 2026-11-03): Budget's beats are what its page does — discover alone. It left the four-beat PARTIALs;
+// none remains. Budget keeps its census note (the why), which a one-beat PARTIAL may carry. Title was "the one four-beat PARTIAL carries the census note; …".
+test('no four-beat PARTIAL is left; Budget keeps its census note; no LIVE or NOT_BUILT tool carries one', () => {
   const fourBeatPartials = TOOL_REGISTRY.filter((t) => t.status === 'PARTIAL' && beats(t) === 4).map((t) => t.name);
   // TRUTH-CAL: Calendar was the fourth. PLAN-01 moved the routine builder that
   // carried its decide/commit/record to /tasks; the row is re-derived from the
   // page — discover, commit and record through EVENT-01's hand-entered event,
   // and no decide, because nothing persists a draft. PARTIAL is unchanged.
-  assert.deepEqual(fourBeatPartials, ['Budget']); // TIME-03
+  assert.deepEqual(fourBeatPartials, []); // DATAFLOW-01d (was ['Budget'] since TIME-03)
+  assert.deepEqual(byName('Budget').beats, { discover: true, decide: false, commit: false, record: false }); // DATAFLOW-01d
+  assert.equal(beats(byName('Budget')), 1);
   // ONEOFF-01: the calendar authors nothing — the add form and its POST are
   // gone, so commit is lost; record is kept by TRUTH-CAL's standard. Two beats.
   assert.equal(beats(byName('Calendar')), 2);
@@ -66,10 +70,14 @@ test('the law rejects a four-beat PARTIAL without `why`, a `why` on a non-PARTIA
   // to be legal WITHOUT a why — the rule binds four beats, not three.
   // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE, so the four-beat PARTIAL probe ran through Time.
   // TIME-03 (Alex, 2026-10-26): Time is LIVE too, so the probe runs through Budget, the one four-beat PARTIAL left.
-  const noWhy = registryLaw({ throwOnFail: false, registry: withTool('Budget', { why: undefined }) }).join('\n');
+  // DATAFLOW-01d (Alex, 2026-11-03): Budget runs discover alone, so no four-beat PARTIAL is left — the probe hands the
+  // law Budget with four beats (FOUR), and Budget's own one-beat row is checked legal WITHOUT a why, as Calendar's is.
+  const FOUR = { discover: true, decide: true, commit: true, record: true };
+  const noWhy = registryLaw({ throwOnFail: false, registry: withTool('Budget', { beats: FOUR, why: undefined }) }).join('\n');
   assert.match(noWhy, /Budget: PARTIAL with four beats must say why it is not LIVE/);
-  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Budget', { why: '   ' }) }).join('\n'), /Budget: PARTIAL with four beats must say why/);
-  assert.throws(() => registryLaw({ registry: withTool('Budget', { why: undefined }) }), /TOOL REGISTRY LAW failed/); // TIME-03: through Budget
+  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Budget', { beats: FOUR, why: '   ' }) }).join('\n'), /Budget: PARTIAL with four beats must say why/);
+  assert.throws(() => registryLaw({ registry: withTool('Budget', { beats: FOUR, why: undefined }) }), /TOOL REGISTRY LAW failed/); // TIME-03: through Budget; DATAFLOW-01d: handed four beats
+  assert.deepEqual(registryLaw({ throwOnFail: false, registry: withTool('Budget', { why: undefined }) }), [], 'DATAFLOW-01d: one beat binds no why');
   assert.deepEqual(registryLaw({ throwOnFail: false, registry: withTool('Calendar', { why: undefined }) }), []);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Travel', { why: 'not needed' }) }).join('\n'), /Travel: why belongs only to a PARTIAL tool/);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Travel', { beats: { discover: true, decide: true, commit: true, record: false } }) }).join('\n'), /Travel: LIVE needs four beats and a home \(beats 3/);
