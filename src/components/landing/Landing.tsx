@@ -3573,7 +3573,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Commit — pull the trigger; the world moves.</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(d)</span> Record — it is written down forever.</p>
 
-          <p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">twenty-five of twenty-five — every tool runs these same four beats.</p>
+          <p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">The blueprint: twenty-five of twenty-five — every tool runs these same four beats.</p>
 
           {/* THE LOOP, desktop (PR-DATAFLOW) — five level arrows through
               four stages. */}
@@ -3671,7 +3671,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(b)</span> Give each one the same shape: a document with four fields — what it is, its life story, its pieces, who did it and when.</p>
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Store all twenty-five in ONE master table.</p>
 
-          <p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">twenty-five of twenty-five — every loop&apos;s record lands here.</p>
+          <p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">The blueprint: twenty-five of twenty-five — every loop&apos;s record lands here.</p>
           <p className={`mt-4 hidden lg:block ${DECK.rust}`} style={{ marginLeft: S8_GEOM.R_X }}>EVERY DOCUMENT CARRIES THE SAME FOUR THINGS</p>
 
           {/* THE MASTER TABLE, desktop (PR-S8-DATAFLOW) — the 1–5 corridor:
@@ -4355,7 +4355,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> Watch where each lane throws a shadow: fourteen write lines; eleven run the whole loop and write none.</p>
 
           <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>SAME MACHINE, SAME EIGHT BEATS</p>
-          <p className="mt-[6px] font-mono text-[10px] lg:text-[11px] text-text-faint">twenty-five of twenty-five — every lane reaches YOU LOOK; eleven write no lines.</p>
+          <p className="mt-[6px] font-mono text-[10px] lg:text-[11px] text-text-faint">The blueprint: twenty-five of twenty-five — every lane reaches YOU LOOK; eleven write no lines.</p>
 
           {/* THE THREADS, desktop (PR-S13-ALL-25) — the tool gutter,
               eight beat columns, level arrows in the gaps. */}
