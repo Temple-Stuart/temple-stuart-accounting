@@ -303,7 +303,9 @@ test('E Bill Pay is PARTIAL at /bill-pay with discover and record, its why verba
   // DOCUMENTS-02 (2026-10-30): bank_reconciliations' supersession moved it again — :4232 → :4246.
   // FX-01 (2026-10-30): transactions.iso_currency_code and the two dropped defaults moved it again — :4246 → :4250.
   // TRAVEL-02b (2026-11-03): travel_expenses' back-relations on users and trips moved it again — :4250 → :4254.
-  assert.match(t.citation, /operations_vendor_directory \(schema:4254\)/, 'the stale :3973 re-cited, then moved by DOCUMENTS-01, DOCUMENTS-02, FX-01, TRAVEL-02b');
+  // TRAVEL-02c (2026-11-03): living_baselines' back-relation on users moved it again — :4254 → :4256. H (tests find lines):
+  // the number is no longer pinned here — it is read back from the citation and the line it names must be the model.
+  assert.match(t.citation, /operations_vendor_directory \(schema:\d+\)/, 'the stale :3973 re-cited, then moved by DOCUMENTS-01, DOCUMENTS-02, FX-01, TRAVEL-02b, TRAVEL-02c');
   assert.doesNotMatch(t.citation, /schema:3973/);
   // The cited lines say what the citation says.
   const lineOf = (file: string, n: number): string => code(file).split('\n')[n - 1] ?? '';
@@ -312,7 +314,7 @@ test('E Bill Pay is PARTIAL at /bill-pay with discover and record, its why verba
   assert.match(lineOf(RULE, n(/billPay\.ts:(\d+) billPayOf/)), /^export function billPayOf\(/);
   assert.match(lineOf(SECTION, n(/BillPaySection\.tsx:(\d+) \("link payment"/)), /LINK_PAYMENT_WORDS/);
   assert.match(lineOf(SECTION, n(/→ :(\d+) the existing/)), /<LinkPicker /);
-  assert.match(lineOf('prisma/schema.prisma', 4254), /^model operations_vendor_directory \{/);
+  assert.match(lineOf('prisma/schema.prisma', n(/operations_vendor_directory \(schema:(\d+)\)/)), /^model operations_vendor_directory \{/);
   assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
   assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
   assert.match(comments(REGISTRY), /BILLPAY-01 census \(Alex, 2026-10-28\): Bill Pay PARTIAL — the due list and the manual link; it pays nothing\./);

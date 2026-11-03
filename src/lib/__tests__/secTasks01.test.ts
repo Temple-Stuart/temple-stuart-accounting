@@ -294,6 +294,8 @@ interface Db {
   trip_itinerary: { id: string; tripId: string }[];
   // TRAVEL-02b (2026-11-03): the sixth kind's table — a typed travel expense, owned by user_id.
   travel_expenses: { id: string; user_id: string }[];
+  // TRAVEL-02c (2026-11-03): the seventh kind's table — a stay, owned by user_id.
+  operations_stays: { id: string; user_id: string }[];
   links: { user_id: string; target_kind: string; target_id: string; journal_entry_id: string }[];
 }
 
@@ -311,6 +313,7 @@ function db(): Db {
     trips: [{ id: 'trip_u1', userId: U1 }, { id: 'trip_u2', userId: U2 }],
     trip_itinerary: [{ id: 'ti_u1', tripId: 'trip_u1' }, { id: 'ti_u2', tripId: 'trip_u2' }],
     travel_expenses: [{ id: id(10), user_id: U1 }, { id: id(11), user_id: U2 }],
+    operations_stays: [{ id: id(12), user_id: U1 }, { id: id(13), user_id: U2 }],
     links: [],
   };
 }
@@ -327,6 +330,7 @@ function found(d: Db, q: TargetOwnerQuery | null): boolean {
     case 'trip_itinerary':
       return d.trip_itinerary.some((i) => i.id === q.where.id && d.trips.some((t) => t.id === i.tripId && t.userId === q.where.trip.userId));
     case 'travel_expenses': return d.travel_expenses.some((r) => r.id === q.where.id && r.user_id === q.where.user_id);
+    case 'operations_stays': return d.operations_stays.some((r) => r.id === q.where.id && r.user_id === q.where.user_id);
   }
 }
 
@@ -346,6 +350,8 @@ test('T5 another user\'s calendar event, task, routine, line, trip item or trave
     ['trip_item', 'ti_u1', 'ti_u2'],
     // TRAVEL-02b (2026-11-03): the sixth kind — another user's typed expense is the same 404; the POST's voided refusal is travel02b.test.ts'.
     ['travel_expense', id(10), id(11)],
+    // TRAVEL-02c (2026-11-03): the seventh kind — another user's stay is the same 404 (operations_stays by { id, user_id }).
+    ['stay', id(12), id(13)],
   ];
   assert.deepEqual(cases.map((c) => c[0]), [...LINKABLE_KINDS], 'every kind is covered');
   for (const [kind, mine, theirs] of cases) {
@@ -360,7 +366,8 @@ test('T5 another user\'s calendar event, task, routine, line, trip item or trave
   const d = db();
   assert.equal(post(d, U1, 'routine_line', id(9)), 404);
   // An id that is not a UUID names no row of a uuid-keyed table: the same 404, never a database error.
-  for (const kind of ['calendar_event', 'project_task', 'routine', 'routine_line', 'travel_expense'] as const) {
+  // TRAVEL-02c (2026-11-03): a stay's id is a UUID too.
+  for (const kind of ['calendar_event', 'project_task', 'routine', 'routine_line', 'travel_expense', 'stay'] as const) {
     assert.equal(targetOwnerQuery(kind, 'not-a-uuid', U1), null, kind);
   }
   assert.deepEqual(targetOwnerQuery('trip_item', 'ti_u1', U1), { table: 'trip_itinerary', where: { id: 'ti_u1', trip: { userId: U1 } } }, 'a trip item id is a cuid');

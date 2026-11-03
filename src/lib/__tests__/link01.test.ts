@@ -91,7 +91,9 @@ test('the kinds that can be linked are exactly the census\'s linkable ones', () 
   for (const k of linkable) assert.ok((LINKABLE_KINDS as readonly string[]).includes(k), `${k} is a link kind`);
   // TRAVEL-02b (2026-11-03): 'travel_expense' is a link kind and no row of the day's drill — a typed travel expense lives on the
   // TRAVEL LEDGER, not the calendar grid, so the census has no row for it. Moved, not loosened.
-  assert.deepEqual([...LINKABLE_KINDS].filter((k) => !(linkable as string[]).includes(k)), ['routine_line', 'travel_expense']);
+  // TRAVEL-02c (2026-11-03): 'stay' too — a stay is a span of days on the STAYS table and the day card, not a row of the
+  // day's drill, so the census has no row for it. Moved, not loosened.
+  assert.deepEqual([...LINKABLE_KINDS].filter((k) => !(linkable as string[]).includes(k)), ['routine_line', 'travel_expense', 'stay']);
   for (const k of LINKABLE_KINDS) assert.ok(isLinkableKind(k));
   assert.equal(isLinkableKind('task'), false, 'a daily-plan task is a Json line with no id of its own');
   assert.equal(isLinkableKind('trade'), false, 'no trade row reaches the grid');

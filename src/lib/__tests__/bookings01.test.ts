@@ -147,7 +147,8 @@ test("the list route: 401 / 404; exactly the caller's reservations, newest first
 test('the travel tab: a Bookings section mounts the one list between the ledger and the unattached; the view types no word and writes nothing', () => {
   const launcher = code(LAUNCHER);
   const sections = [...launcher.matchAll(/data-travel-section="([a-z]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(sections.slice(-3), ['ledger', 'bookings', 'unattached']);
+  // TRAVEL-02c (2026-11-03): STAYS · CALCULATED followed the bookings, before the unattached — moved, not loosened.
+  assert.deepEqual(sections.slice(-4), ['ledger', 'bookings', 'stays', 'unattached']);
   const from = launcher.indexOf('data-travel-section="bookings"');
   const section = launcher.slice(from, launcher.indexOf('</section>', from));
   // TRAVEL-02a (Alex, 2026-11-02, ruling A): the section is the TRAVEL LEDGER — headed by travelLedger.ts TRAVEL_LEDGER_HEADING where

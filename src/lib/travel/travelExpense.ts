@@ -93,7 +93,8 @@ export const paidOnNotADayWords = (sent: unknown): string => `paid_on ${JSON.str
  * FX-02 owns exponent-aware words and any conversion.
  */
 export const AMOUNT_REQUIRED_WORDS = 'amount_minor is required — the amount in hundredths of the currency (1/100 of its major unit), a whole number above 0';
-export const amountNotWholeWords = (sent: unknown): string => `amount_minor ${JSON.stringify(sent)} is not a whole number of minor units`;
+/** TRAVEL-02c (Alex, 2026-11-03, item 0 — 02b-fix call 7): one word for the unit — hundredths, as AMOUNT_REQUIRED_WORDS declares. */
+export const amountNotWholeWords = (sent: unknown): string => `amount_minor ${JSON.stringify(sent)} is not a whole number of hundredths`;
 export const amountNotAboveZeroWords = (sent: number): string => `amount_minor ${sent} is not above 0 — an expense is money paid`;
 export const amountTooLargeWords = (sent: number): string => `amount_minor ${sent} is more than ${AMOUNT_MINOR_MAX} — the most the column holds`;
 export const CURRENCY_REQUIRED_WORDS = 'currency is required — the three-letter ISO 4217 code it was paid in (USD, PHP, …)';

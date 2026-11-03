@@ -17,6 +17,8 @@ import UnattachedBookings from '@/components/trips/UnattachedBookings';
 import AllBookings from '@/components/trips/AllBookings';
 import { BOOKING_WORDS } from '@/lib/reservations/bookingRow';
 import { TRAVEL_LEDGER_HEADING } from '@/lib/reservations/travelLedger';
+import StayCosts from '@/components/trips/StayCosts';
+import { STAYS_COST_HEADING } from '@/lib/operations/stayCosts';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
 import { requestedTripOf, type UrlTrip } from '@/lib/trips/tripFromUrl';
 import TripFormModal from '@/components/trips/TripFormModal';
@@ -984,6 +986,18 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               <TravelHeading>{TRAVEL_LEDGER_HEADING}</TravelHeading>
               {authed === true ? (
                 <AllBookings key={`all-${tripsRefresh}`} />
+              ) : (
+                <span className="text-xs text-text-muted italic">{BOOKING_WORDS.signIn}</span>
+              )}
+            </section>
+
+            {/* STAYS — TRAVEL-02c (Alex, 2026-11-03, ruling E): after the TRAVEL LEDGER, every stay's cost per day
+                against the living baseline, CALCULATED (StayCosts — the leaf src/lib/operations/stayCosts.ts, its
+                heading STAYS_COST_HEADING); authed-only, like the ledger above it. */}
+            <section className="space-y-3" data-travel-section="stays">
+              <TravelHeading>{STAYS_COST_HEADING}</TravelHeading>
+              {authed === true ? (
+                <StayCosts key={`stays-${tripsRefresh}`} />
               ) : (
                 <span className="text-xs text-text-muted italic">{BOOKING_WORDS.signIn}</span>
               )}

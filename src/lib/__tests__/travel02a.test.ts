@@ -373,7 +373,8 @@ test('A the siblings stand: TripBookings, UnattachedBookings and TripBudgetActua
   assert.match(launcher, /<UnattachedBookings\b/);
   assert.match(launcher, /<TripBudgetActual key=\{tripsRefresh\} trip=\{currentTrip\} \/>/);
   const sections = [...launcher.matchAll(/data-travel-section="([a-z]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(sections.slice(-3), ['ledger', 'bookings', 'unattached']);
+  // TRAVEL-02c (2026-11-03): STAYS · CALCULATED followed the TRAVEL LEDGER, before the unattached — moved, not loosened.
+  assert.deepEqual(sections.slice(-4), ['ledger', 'bookings', 'stays', 'unattached']);
 });
 
 // ── G · THE DOES-NOTS ───────────────────────────────────────────────────────

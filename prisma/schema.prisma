@@ -855,6 +855,8 @@ model users {
   source_documents              source_documents[]
   /// TRAVEL-02b (2026-11-03): the caller's typed travel expenses — RESTRICT: a user with one is never deleted out from under it.
   travel_expenses               travel_expenses[]
+  /// TRAVEL-02c (2026-11-03): the caller's living baselines — RESTRICT: a user with one is never deleted out from under it.
+  living_baselines              living_baselines[]
   // VENDOR-01: who each of this user's plans is paid to.
   planned_item_vendors          planned_item_vendors[]
   // STAY-01: where this user is, day by day — their stays.
@@ -4699,4 +4701,36 @@ model travel_expenses {
   @@index([user_id, paid_on])
   @@index([user_id, trip_id])
   @@map("travel_expenses")
+}
+
+/// TRAVEL-02c (Alex, 2026-11-03, ruling B) — A LIVING BASELINE: one user's dated, frozen statement of what living at home
+/// costs a month ('LA rent', from a day, a monthly figure) — TRAVEL-00's decision 9, one dated baseline table. The row in
+/// force on a day is the live row with the latest effective_from on or before that day (src/lib/operations/stayCosts.ts
+/// baselineInForce). HELD BY THE DATABASE (prisma/migrations/20261103200000_travel_02c_stay_link_living_baselines — Prisma
+/// cannot express a CHECK, a trigger or a partial index; the migration holds them): a label of 1–80 characters, trimmed; a
+/// positive monthly figure; a three-letter currency; the void pair (both or neither, the reason never blank); ONE LIVE
+/// BASELINE A DAY (a partial unique on user_id, effective_from WHERE voided_at IS NULL — only the plain index is modeled
+/// here); a FREEZE trigger — nothing changes once kept, except the void, set once from NULL — and a NO-DELETE trigger
+/// (TRUNCATE too). The writers: POST /api/living-baselines (the row) and POST /api/living-baselines/[id]/void (the void).
+model living_baselines {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String
+  /// As typed, trimmed (STAY-01's rule for a place) — 1 to 80 characters, a CHECK.
+  label          String    @db.VarChar(80)
+  /// The DAY it applies from — a calendar day, never an instant.
+  effective_from DateTime  @db.Date
+  /// The monthly figure in HUNDREDTHS of the currency (travelExpense.ts THE HUNDREDTHS) — > 0, a CHECK.
+  monthly_minor  Int
+  /// ISO 4217 as stated — three letters, no default.
+  currency       String    @db.VarChar(3)
+  /// The void: both set together, once, from NULL — or both NULL.
+  voided_at      DateTime? @db.Timestamptz(6)
+  void_reason    String?
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  created_by     String
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id, effective_from])
+  @@map("living_baselines")
 }

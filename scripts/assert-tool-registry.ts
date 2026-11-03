@@ -2834,7 +2834,8 @@ if (!/CHECK \(\("target_kind" = 'routine'\) = \("target_instant" IS NOT NULL\)\)
 }
 // LINES-01 added 'routine_line' and TRAVEL-01 'trip_item', each in its OWN migration; LINK-01's names the original three.
 // TRAVEL-02b (2026-11-03): 'travel_expense' too, in its own migration (20261103120000_travel_02b_travel_expenses) — moved, not loosened.
-if (!LINKABLE_KINDS.filter((k) => k !== 'routine_line' && k !== 'trip_item' && k !== 'travel_expense').every((k) => linkMigration.includes(`'${k}'`))) linkFail(`${LINK_MIGRATION}'s kind CHECK does not name ${LINKABLE_KINDS.join(', ')}`);
+// TRAVEL-02c (2026-11-03): 'stay' too, in its own migration (20261103200000_travel_02c_stay_link_living_baselines) — moved, not loosened.
+if (!LINKABLE_KINDS.filter((k) => k !== 'routine_line' && k !== 'trip_item' && k !== 'travel_expense' && k !== 'stay').every((k) => linkMigration.includes(`'${k}'`))) linkFail(`${LINK_MIGRATION}'s kind CHECK does not name ${LINKABLE_KINDS.join(', ')}`);
 if (!requiresInstant('routine')) linkFail('the key leaf no longer requires an instant for a routine');
 // 6. THE CARDINALITY IS THE DATABASE'S, not a convention.
 if (!/CREATE UNIQUE INDEX "planned_item_links_one_item_per_posting"[\s\S]{0,120}\("journal_entry_id"\)/.test(linkMigration)) {
@@ -4192,7 +4193,9 @@ lawGuard('The travel law', () => {
 //      columns with IF NOT EXISTS and defaults no clock; neither touches a row;
 //      the panel opens a trip block as that kind with its vendor and its source.
 // BOOKINGS-01 (2026-09-27): 'bookings' — every booking in one list — sits between the ledger and the unattached.
-const TRAVEL_SECTIONS = ['header', 'trips', 'itinerary', 'search', 'booked', 'ledger', 'bookings', 'unattached'];
+// TRAVEL-02c (Alex, 2026-11-03, ruling E): 'stays' — STAYS · CALCULATED, every stay's cost per day against the living
+// baseline — sits after the TRAVEL LEDGER ('bookings') and before the unattached; the order is still the law.
+const TRAVEL_SECTIONS = ['header', 'trips', 'itinerary', 'search', 'booked', 'ledger', 'bookings', 'stays', 'unattached'];
 const TRAVEL_LEAF = 'src/lib/calendar/tripItem.ts';
 const TRAVEL_FEED = 'src/app/api/calendar/route.ts';
 const TRAVEL_ITINERARY = 'src/components/trips/TripItinerarySection.tsx';

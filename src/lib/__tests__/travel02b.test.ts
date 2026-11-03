@@ -106,7 +106,10 @@ test('A the schema carries the model last, its relations RESTRICT, and the two b
   assert.match(model, /trip trips\?\s+@relation\(fields: \[trip_id\], references: \[id\], onDelete: Restrict\)/);
   assert.match(model, /@@index\(\[user_id, paid_on\]\)/);
   assert.match(model, /@@index\(\[user_id, trip_id\]\)/);
-  assert.ok(schema.trimEnd().endsWith('@@map("travel_expenses")\n}'), 'the schema’s last model');
+  // TRAVEL-02c (2026-11-03): living_baselines followed it and is the schema's last model now; travel_expenses is the one before it.
+  assert.ok(schema.trimEnd().endsWith('@@map("living_baselines")\n}'), 'living_baselines, last');
+  const between = schema.slice(schema.indexOf('@@map("travel_expenses")'), schema.indexOf('model living_baselines {'));
+  assert.ok(between.length > 0 && !/^model /m.test(between), 'travel_expenses is the model just before it');
   assert.match(comments(SCHEMA), /TRAVEL-02b \(Alex, 2026-11-03, ruling A\) — A TYPED TRAVEL EXPENSE/);
   assert.match(comments(SCHEMA), /HELD BY THE DATABASE \(prisma\/migrations\/20261103120000_travel_02b_travel_expenses/);
 });
@@ -117,7 +120,8 @@ test('B the sixth kind: the migration rewrites the kind CHECK with travel_expens
   const sql = code(MIGRATION);
   assert.match(sql, /ALTER TABLE "planned_item_links" DROP CONSTRAINT IF EXISTS "planned_item_links_kind";\nALTER TABLE "planned_item_links" ADD CONSTRAINT "planned_item_links_kind"\n\s*CHECK \("target_kind" IN \('calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item', 'travel_expense'\)\);/);
   assert.doesNotMatch(sql, /instant_iff_routine/, "LINES-01's instant CHECK stands — it already forbids an instant for every kind but the two routine kinds");
-  assert.deepEqual([...LINKABLE_KINDS], ['calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item', 'travel_expense']);
+  // TRAVEL-02c (2026-11-03): 'stay' followed, last, in its own migration (travel02c.test.ts) — moved, not loosened.
+  assert.deepEqual([...LINKABLE_KINDS], ['calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item', 'travel_expense', 'stay']);
   assert.equal(isLinkableKind('travel_expense'), true);
   assert.equal(requiresInstant('travel_expense'), false, 'no instant, like calendar_event, project_task and trip_item');
   const uuid = '00000000-0000-4000-8000-000000000010';
@@ -157,7 +161,8 @@ test('B no second writer: planned_item_links is created and deleted only by the 
   assert.deepEqual(linkWrites.sort(), [`${LINKS}:create`, `${LINKS}:deleteMany`, 'src/app/api/operations/routines/[id]/route.ts:update'].sort());
   assert.deepEqual(expenseWrites.sort(), [`${ROUTE}:create`, `${VOID_ROUTE}:updateMany`].sort());
   // The law carries the sixth kind's own migration beside LINES-01's and TRAVEL-01's — moved, not loosened.
-  assert.match(code(LAW), /LINKABLE_KINDS\.filter\(\(k\) => k !== 'routine_line' && k !== 'trip_item' && k !== 'travel_expense'\)/);
+  // TRAVEL-02c (2026-11-03): the seventh kind's own migration beside them — moved, not loosened.
+  assert.match(code(LAW), /LINKABLE_KINDS\.filter\(\(k\) => k !== 'routine_line' && k !== 'trip_item' && k !== 'travel_expense' && k !== 'stay'\)/);
 });
 
 test('B the picker\'s door: LinkPicker takes no instant for a kind that carries none; the TRAVEL LEDGER mounts it under a typed row — kind travel_expense, its id, null, near its day — behind "link payment" (Bill Pay\'s word)', () => {
@@ -191,8 +196,9 @@ test('C the body rule: a visa in PHP 3,500.00 is 350000 minor units and reads ba
   refused(noAmount, 'amount_minor', AMOUNT_REQUIRED_WORDS);
   refused({ ...VISA_BODY, amount_minor: 0 }, 'amount_minor', 'amount_minor 0 is not above 0 — an expense is money paid');
   refused({ ...VISA_BODY, amount_minor: -500 }, 'amount_minor', 'amount_minor -500 is not above 0 — an expense is money paid');
-  refused({ ...VISA_BODY, amount_minor: 3500.5 }, 'amount_minor', 'amount_minor 3500.5 is not a whole number of minor units');
-  refused({ ...VISA_BODY, amount_minor: '350000' }, 'amount_minor', 'amount_minor "350000" is not a whole number of minor units');
+  // TRAVEL-02c (2026-11-03, item 0 — 02b-fix call 7): one word for the unit — hundredths, as AMOUNT_REQUIRED_WORDS declares.
+  refused({ ...VISA_BODY, amount_minor: 3500.5 }, 'amount_minor', 'amount_minor 3500.5 is not a whole number of hundredths');
+  refused({ ...VISA_BODY, amount_minor: '350000' }, 'amount_minor', 'amount_minor "350000" is not a whole number of hundredths');
   refused({ ...VISA_BODY, amount_minor: 2147483648 }, 'amount_minor', 'amount_minor 2147483648 is more than 2147483647 — the most the column holds');
   const { currency: _c, ...noCurrency } = VISA_BODY;
   void _c;
