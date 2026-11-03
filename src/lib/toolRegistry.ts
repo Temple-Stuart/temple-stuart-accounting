@@ -97,6 +97,15 @@ export interface ToolFacts {
    * any tool that lacks one. A sentence may only say what the tool does TODAY.
    */
   customer?: string;
+  /**
+   * DATAFLOW-01c (Alex, 2026-11-03, ruling A) — A TABLE OF ITS OWN. Set on the sixteen tools
+   * that take no provider (the deck's step 6, Landing.tsx S6_STAYHOME): the prisma model one of
+   * the tool's OWN routes writes, or null when none does. A shared route the tool only calls —
+   * the link picker's POST /api/calendar/links — is not its own. ownTableLine counts these.
+   */
+  ownTable?: string | null;
+  /** The route that writes ownTable: 'src/app/api/…/route.ts:NN (model.write)'. With an ownTable, never without (the laws). */
+  ownTableRoute?: string;
 }
 
 export interface ToolEntry extends ToolFacts {
@@ -163,6 +172,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // marks it). Two beats — discover · record — and still PARTIAL.
   Calendar: {
     slug: 'calendar', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/calendar',
+    ownTable: null, // its own routes are three GETs — the grid writes nothing; calendar_events is written by Travel's itinerary route
     why: 'the view every tool logs to — trips, routine occurrences and one-offs, project blocks and the days entered by hand before ONEOFF-01, on one grid, with the day\'s total naming each part; nothing is authored here — a one-off is a routine planned in Tasks — and an event entered by hand before the ruling can still be corrected or removed',
     links: [],
     citation: 'discover: src/components/hub/HubCalendar.tsx:192 (/api/calendar) · :208 (/api/operations/daily-plan/items) · :220 (/api/hub/operations-routines) — three GETs, the grid writes nothing · record: src/components/hub/HubCalendar.tsx:199 (the rendered-source filter) · src/lib/calendar/day.ts:304 (dayParts — every row counted into its named part) · src/lib/calendar/sources.ts:101 (manual) · src/components/hub/DayView.tsx:221 (the hand-entered badge) · src/app/api/calendar/events/route.ts:82 (PATCH — a pre-ruling row re-stated and read back) · :123 (DELETE) · no commit: no POST since ONEOFF-01, nothing is authored on the calendar · no decide: no persisted draft',
@@ -205,6 +215,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // gap; it is what ACTUAL means. Routines are planned under Expenses now
     // (EXPENSES-01/02); the customer line says so.
     slug: 'tasks', status: 'LIVE', beats: ALL, home: '/tasks',
+    ownTable: 'operations_project_tasks', ownTableRoute: 'src/app/api/operations/projects/[id]/tasks/route.ts:208 (operations_project_tasks.create)',
     // TASKS-ONE-01 (Alex, 2026-10-14): one Tasks page, no sub-tabs. The Issue
     // log link went with its page (an unbuilt placeholder, deleted), and the
     // Day card link went because the card is the first section of /tasks now —
@@ -276,6 +287,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // note says where the card is, and the customer line's "home dashboard"
     // is now literally the home page.
     slug: 'time', status: 'LIVE', beats: ALL, home: '/time',
+    ownTable: 'operations_stop_records', ownTableRoute: 'src/app/api/operations/stops/route.ts:177 (operations_stop_records.create — the record at a stop; its journals are operations_day_journals, journal/route.ts:96)',
     // LINK-LAW-01 (2026-10-28): ledger.ts and LedgerSection.tsx grew (the reversed count) — :811 → :827, :828 → :844, :262 → :263, :314 → :315, :355 → :358; what each cites unchanged.
     links: [],
     citation: 'discover: src/components/workbench/operations/ledger/ledgerReads.ts:27 (GET /api/operations/ledger?from=&to= — the task ledger\'s one read) · src/components/workbench/operations/journal/journalReads.ts:26 (GET /api/operations/journal/range?from=&to= — the journals\' one read) · decide: src/app/api/operations/journal/route.ts:51 (PUT — the day\'s goals, blocker and plan, written by the day card: Time\'s component, shown on the home page, /home — HOME-03; the dashboard until then, HOME-01) · commit: src/app/api/operations/stops/route.ts (POST — the record at a stop, through stops/stopWrites.ts:39, from the card) · record: src/components/workbench/operations/ledger/LedgerSection.tsx (every stop recorded, by date, city, COA and vendor; "+ expense" through ledger/ExpenseForm.tsx:87) · src/components/workbench/operations/journal/MorningJournalTable.tsx · src/components/workbench/operations/journal/EveningJournalTable.tsx (every answer, day over day, through journal/JournalDayTable.tsx) · TIME-03 (2026-10-26) the minutes: src/lib/operations/ledger.ts:827 (LEDGER_HEAD_WORDS — PLANNED MIN · LOGGED MIN after STARS; the row\'s plannedMinutes is the one planned-minutes rule\'s, dayCard.ts plannedMinutesOf — a line\'s duration_minutes or, WORK-03b (2026-10-26), a stepless routine\'s window length — read with the record\'s plan words by src/app/api/operations/ledger/route.ts:77 (the line\'s duration) and src/app/api/operations/ledger/route.ts:76 (the routine\'s window), its loggedMinutes the record\'s actual_minutes) · src/components/workbench/operations/ledger/LedgerSection.tsx:263 (the two cells) · LedgerSection.tsx:358 (PLANNED HOURS · LOGGED HOURS — the summary\'s sums, src/lib/operations/ledger.ts:844, their coverage said at LedgerSection.tsx:315)',
@@ -285,15 +297,18 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── MONEY IN ──
   CRM: {
     slug: 'crm', status: 'NOT_BUILT', beats: NONE, home: null,
+    ownTable: null,
     citation: "/owner is the founder's proposals inbox — no contact or deal object (src/app/api/owner/proposals/route.ts)",
     customer: 'There is nowhere yet to keep the people you sell to, or track where each one stands.',
   },
   Contracts: {
     slug: 'contracts', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 5 — no page, route, or model',
+    ownTable: null,
     customer: 'There is nowhere yet to keep a signed contract or what you agreed to in it.',
   },
   Invoicing: {
     slug: 'invoicing', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 6 — no invoice model, no A/R route',
+    ownTable: null,
     customer: 'You cannot send an invoice or see who has not paid yet.',
   },
   // TRAVEL-02b-fix (2026-11-03, ruling D): re-cited — commission_ledger is the model at schema:1936; :1399 was
@@ -317,12 +332,14 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // schema:4261-4265; :4233 was operations_issue_log_entries.linked_project_id.
   'Bill Pay': {
     slug: 'bill-pay', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/bill-pay',
+    ownTable: null, // its own route, /api/bill-pay, only reads; "link payment" writes planned_item_links through the SHARED link route (POST /api/calendar/links — Time's ledger, Calendar's event panel and Travel's bookings call it too); operations_vendor_directory is written by /api/operations/vendor-directory, which Bill Pay's page never calls
     citation: 'discover: src/app/api/bill-pay/route.ts:37 (GET /api/bill-pay?from=&to= — the window by ledger.ts spanInput; the routines with their role through routineBudgetInputs.ts loadRoutineBudgetInputs, the plan vendors through reportReads.ts readPlanVendors, ONE planned_item_links read with postingAmount.ts BILL_POSTING_SELECT) → src/lib/operations/billPay.ts:170 billPayOf (days.ts buildRoutineBudgetLines, ledger.ts matchOf, linkOccurrence.ts occurrenceCheck) → src/components/workbench/operations/billpay/BillPaySection.tsx (/bill-pay) · record: BillPaySection.tsx:78 ("link payment" on an unpaid row) → :86 the existing ledger/LinkPicker.tsx → POST /api/calendar/links · TOOL CENSUS row 8 — operations_vendor_directory (schema:4254): its GET lists vendors (vendor-directory/route.ts:20) and, since VENDOR-01, its POST creates one (:67) — never updates or deletes one; its bill columns (amount_usd, billing_rrule, next_due_date, last_paid_date, last_paid_amount_usd) are written by nothing',
     why: 'every bill and its due days, paid or overdue, from the postings you linked; nothing is paid from here, and the paying account is known only after payment',
     customer: 'See every bill on each day it falls due, with what you linked to pay it and the account it came from, marked paid, due today or overdue; payments are made outside the app.',
   },
   Payroll: {
     slug: 'payroll', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 9 — no page, route, or model',
+    ownTable: null,
     customer: 'You cannot run payroll here yet, or see the taxes that come with it.',
   },
   // EXPENSES-01 (Alex, 2026-10-25): EXPENSES IS A LIVE TAB. ROUTINE EXPENSES
@@ -394,10 +411,12 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   Mileage: {
     slug: 'mileage', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 12 — no miles or odometer column in prisma/schema.prisma',
+    ownTable: null,
     customer: 'Miles driven are not tracked yet, or priced for the return.',
   },
   Budget: {
     slug: 'budget', status: 'PARTIAL', beats: ALL, home: '/budget',
+    ownTable: null, // its page calls GET /api/budget/report and GET /api/budget/report/cell — both read; budgets is written only by /api/budgets, which no page calls
     // TAB13-02b (ruled 2026-09-27): /budget is the budget report — plan vs actual by
     // book and account (src/app/api/budget/report/route.ts, src/components/budget/
     // BudgetReport.tsx). The plan comes from routines and tasks; travel budgets and
@@ -440,6 +459,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   'Fixed Assets': {
     slug: 'fixed-assets', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 15 — no depreciation or placed-in-service field',
+    ownTable: null,
     customer: 'The things you own that lose value over time are not tracked yet.',
   },
   Retirement: {
@@ -483,20 +503,24 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // PracticeArea (schema:2777, read by regulatory_sources.practice_areas); :2201 was lot_adjustments.adjusted_cost_per_share.
   'Sales Tax': {
     slug: 'sales-tax', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 20 — sales_tax_nexus (schema:2800) is a corpus enum',
+    ownTable: null,
     customer: 'Sales tax collected, and when each state wants it, is not tracked yet.',
   },
   'Ent Filings': {
     slug: 'ent-filings', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 21 — entities (schema:66-77) has no filing date or agent',
+    ownTable: null,
     customer: 'What the entity must file, and when it is due, is not tracked yet.',
   },
   // ── THE PROOF ──
   Bookkeeping: {
     slug: 'bookkeeping', status: 'LIVE', beats: ALL, home: '/books', cockpitKey: 'books',
+    ownTable: 'journal_entries', ownTableRoute: 'src/app/api/journal-entries/route.ts:118 (postJournal — journal_entries through the one posting port; the route reads them at :35)',
     links: [{ label: 'Chart of accounts', href: '/chart-of-accounts' }],
     citation: 'src/components/home/BooksPipeline.tsx:198 · src/lib/auto-categorization-service.ts:132-140 · src/lib/journal-entry-service.ts:131, :210-216 · :147, :158',
   },
   Tax: {
     slug: 'tax', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/tax', cockpitKey: 'tax',
+    ownTable: 'tax_documents', ownTableRoute: 'src/app/api/tax/documents/route.ts:69 (tax_documents.upsert)',
     links: [{ label: 'Filing wizard · standalone', href: '/dashboard/tax-filing' }],
     citation: 'src/components/tax-filing/steps/IncomeReviewStep.tsx:298-300 · src/app/api/tax/documents/route.ts:67; FileStep.tsx:13-14 "Nothing is submitted from here"',
     customer: "You can review the income and the documents behind this year's figure; nothing is filed from here.",
@@ -519,6 +543,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   'FP&A': {
     slug: 'fpa', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 25 — no forecast model, route, or tab; MetricsAndProjectionsTab.tsx:53 reads a key the route never returns',
+    ownTable: null,
     customer: 'Runway, margin and the forecast behind them are not available yet.',
   },
 };
@@ -626,6 +651,44 @@ function beatCount(b: Beats): number {
   return [b.discover, b.decide, b.commit, b.record].filter(Boolean).length;
 }
 
+/**
+ * DATAFLOW-01c (ruling A) — THE OWN-TABLE LAW, the half that needs the files: the build runs it
+ * with the real schema and routes (scripts/assert-tool-registry.ts), a test with fixtures. It
+ * refuses an ownTable that is not `model <name>` in prisma/schema.prisma, and an ownTableRoute
+ * that is not a route file under src/app/api, does not exist, or does not name the model's
+ * client accessor (`.<model>.`).
+ */
+export function ownTableLaw(files: { schema: string; codeOf: (file: string) => string | null }, registry: readonly ToolEntry[] = TOOL_REGISTRY): string[] {
+  const violations: string[] = [];
+  for (const t of registry) {
+    if (typeof t.ownTable !== 'string') continue;
+    if (!new RegExp(`^model ${t.ownTable} \\{`, 'm').test(files.schema)) violations.push(`${t.name}: ownTable ${t.ownTable} is not a model in prisma/schema.prisma`);
+    const route = /^(src\/app\/api\/\S+\/route\.tsx?):\d+/.exec(t.ownTableRoute ?? '')?.[1];
+    if (!route) {
+      violations.push(`${t.name}: ownTableRoute "${t.ownTableRoute ?? ''}" is not a route file:line under src/app/api`);
+      continue;
+    }
+    const body = files.codeOf(route);
+    if (body === null) violations.push(`${t.name}: ${route} does not exist`);
+    else if (!body.includes(`.${t.ownTable}.`)) violations.push(`${t.name}: ${route} does not name ${t.ownTable}'s client accessor (.${t.ownTable}.)`);
+  }
+  return violations;
+}
+
+/**
+ * DATAFLOW-01c (ruling B) — the deck's step-6 line, DERIVED from ownTable over the sixteen the
+ * deck names (Landing.tsx S6_STAYHOME), in registry order. A stay-home tool whose entry does
+ * not say ownTable — a model or null — is a loud failure, never counted either way.
+ */
+export function ownTableLine(sixteen: readonly string[], registry: readonly ToolEntry[] = TOOL_REGISTRY): string {
+  const rows = registry.filter((t) => sixteen.includes(t.name));
+  if (rows.length !== sixteen.length) throw new Error(`ownTableLine: ${sixteen.length} tools named, ${rows.length} of them in the registry`);
+  const unsaid = rows.filter((t) => t.ownTable === undefined).map((t) => t.name);
+  if (unsaid.length) throw new Error(`ownTableLine: ${unsaid.join(', ')} — a stay-home tool's entry says ownTable, a model or null`);
+  const keep = rows.filter((t) => t.ownTable !== null).map((t) => t.name);
+  return `Today ${keep.length} of the sixteen keep their own table: ${keep.join(', ')}. The other ${rows.length - keep.length} don't yet. One table for all of them is the blueprint.`;
+}
+
 /** THE LAW. Throws on the first violation; returns the violations list when asked not to throw. */
 export function registryLaw(opts: { throwOnFail?: boolean; registry?: readonly ToolEntry[] } = {}): string[] {
   const violations: string[] = [];
@@ -657,6 +720,13 @@ export function registryLaw(opts: { throwOnFail?: boolean; registry?: readonly T
     for (const l of t.links ?? []) {
       if ((l.href ? 1 : 0) + (l.cockpitKey ? 1 : 0) !== 1) violations.push(`${t.name}: link "${l.label}" must have exactly one of href / cockpitKey`);
     }
+    // DATAFLOW-01c (ruling A): a table of its own is a model name with its writing route cited — never on a NOT_BUILT
+    // tool. The half that needs the files (the schema, the route) is ownTableLaw, run at build.
+    if (typeof t.ownTable === 'string') {
+      if (t.status === 'NOT_BUILT') violations.push(`${t.name}: NOT_BUILT keeps no table — ownTable "${t.ownTable}" refused`);
+      if (!/^[a-z][a-z0-9_]*$/.test(t.ownTable)) violations.push(`${t.name}: ownTable "${t.ownTable}" is not a prisma model name`);
+      if (!t.ownTableRoute?.trim()) violations.push(`${t.name}: ownTable "${t.ownTable}" cites no route that writes it (ownTableRoute)`);
+    } else if (t.ownTableRoute !== undefined) violations.push(`${t.name}: ownTableRoute without an ownTable`);
   }
   const counts = statusCounts(registry);
   for (const s of Object.keys(EXPECTED_STATUS_COUNTS) as ToolStatus[]) {
