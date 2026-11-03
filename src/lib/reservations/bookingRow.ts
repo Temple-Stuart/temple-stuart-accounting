@@ -92,7 +92,8 @@ export function bookingIcsHref(reservationId: string): string {
 
 /** Every word the list shows — the page types none. */
 export const BOOKING_WORDS = {
-  heading: 'Bookings',
+  // TRAVEL-02a (Alex, 2026-11-02, ruling A): `heading: 'Bookings'` was here — the section is the TRAVEL LEDGER now, headed
+  // by travelLedger.ts TRAVEL_LEDGER_HEADING ('TRAVEL LEDGER'); the words below still serve the ledger's cells and states.
   loading: 'reading your bookings…',
   unreadable: 'your bookings could not be read',
   none: 'no bookings yet',

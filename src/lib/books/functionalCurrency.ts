@@ -173,19 +173,33 @@ export function runtimeCurrencyCodes(): readonly string[] | null {
   return typeof intl.supportedValuesOf === 'function' ? intl.supportedValuesOf('currency') : null;
 }
 
+/** The account's stated code, upper-cased, or null when it states none (blank counts as none). */
+const bankCodeOf = (currency: string | null | undefined): string | null =>
+  (typeof currency === 'string' && currency.trim() !== '' ? currency.trim().toUpperCase() : null);
+
+/**
+ * TRAVEL-02a (Alex, 2026-11-02, ruling D): a bank figure ALREADY IN WHOLE CENTS, in the account's currency — the same
+ * words bankMoneyWords writes, which hands its cents here; the travel ledger's SETTLED sum per account currency is cents
+ * it added, so it reads this. '$1,234.56' in the functional currency; '2520.00 THB' otherwise; a null code named.
+ */
+export function bankCentsWords(cents: bigint | number, currency: string | null | undefined): string {
+  const code = bankCodeOf(currency);
+  if (code === FUNCTIONAL_CURRENCY) return functionalMoneyWords(cents);
+  const figure = decimalStringOfCents(cents);
+  return code === null ? `${figure} (${CURRENCY_NOT_STATED_WORDS})` : `${figure} ${code}`;
+}
+
 /**
  * A bank figure in the ACCOUNT's currency: '$1,234.56' when that currency is the functional one;
  * '2520.00 THB' otherwise; a figure whose currency the bank did not state is named so; a missing
  * figure is '—'. A figure that is not whole cents is shown as the bank stated it, named.
  */
 export function bankMoneyWords(amount: number | null | undefined, currency: string | null | undefined): string {
-  if (typeof amount !== 'number' || !Number.isFinite(amount)) return '—';
-  const code = typeof currency === 'string' && currency.trim() !== '' ? currency.trim().toUpperCase() : null;
-  if (!isWholeCents(amount)) return `${String(amount)} ${code ?? `(${CURRENCY_NOT_STATED_WORDS})`} (${NOT_WHOLE_CENTS_WORDS})`;
-  const cents = centsOfTypedDollars(String(amount));
-  if (code === FUNCTIONAL_CURRENCY) return functionalMoneyWords(cents);
-  const figure = decimalStringOfCents(cents);
-  return code === null ? `${figure} (${CURRENCY_NOT_STATED_WORDS})` : `${figure} ${code}`;
+  if (typeof amount !== 'number') return '—';
+  if (!Number.isFinite(amount)) return '—';
+  const code = bankCodeOf(currency);
+  if (!isWholeCents(amount)) return `${String(amount)} ${code === null ? `(${CURRENCY_NOT_STATED_WORDS})` : code} (${NOT_WHOLE_CENTS_WORDS})`;
+  return bankCentsWords(centsOfTypedDollars(String(amount)), code);
 }
 
 // ─── THE PLAID RULE AT COMMIT (ruling F) ─────────────────────────────────────

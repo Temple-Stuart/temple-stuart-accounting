@@ -150,7 +150,9 @@ test('the travel tab: a Bookings section mounts the one list between the ledger 
   assert.deepEqual(sections.slice(-3), ['ledger', 'bookings', 'unattached']);
   const from = launcher.indexOf('data-travel-section="bookings"');
   const section = launcher.slice(from, launcher.indexOf('</section>', from));
-  assert.match(section, /<TravelHeading>\{BOOKING_WORDS\.heading\}<\/TravelHeading>/);
+  // TRAVEL-02a (Alex, 2026-11-02, ruling A): the section is the TRAVEL LEDGER — headed by travelLedger.ts TRAVEL_LEDGER_HEADING where
+  // BOOKING_WORDS.heading ('Bookings') was; travel02a.test.ts pins the heading and the launcher's note. Moved, not loosened.
+  assert.match(section, /<TravelHeading>\{TRAVEL_LEDGER_HEADING\}<\/TravelHeading>/);
   assert.match(section, /<AllBookings key=\{`all-\$\{tripsRefresh\}`\} \/>/);
   assert.match(launcher, /<TripBookings\b/);
   assert.match(launcher, /<UnattachedBookings\b/);
@@ -158,8 +160,11 @@ test('the travel tab: a Bookings section mounts the one list between the ledger 
   assert.match(view, /fetch\('\/api\/reservations'\)/);
   assert.ok(!/>\s*[A-Za-z][^<{]*</.test(view), 'no typed word');
   assert.ok(!/method:\s*'(POST|PUT|PATCH|DELETE)'/.test(view), 'read-only');
-  for (const w of ['{b.status}', '{b.bank}', '{b.ledger}', '{b.budgetLine}', '{b.price}', '{b.ticketing ?? BOOKING_WORDS.notApplicable}', '{BOOKING_WORDS.receipt}']) assert.ok(view.includes(w), w);
-  assert.equal(BOOKING_WORDS.heading, 'Bookings');
+  // TRAVEL-02a: the view's cells are the ledger leaf's (cellWordsOf over TRAVEL_LEDGER_TABLE — travel02a.test.ts pins every column); the
+  // BookingRow cells it rendered ({b.status}, {b.bank}, {b.ledger}, {b.budgetLine}, {b.price}, the ticketing) left with the table. The
+  // Receipt door stays, in the ID cell. Moved, not loosened.
+  for (const w of ["cell(b, 'status'", "cell(b, 'settled'", "cell(b, 'posted'", "cell(b, 'account'", "cell(b, 'stated'", '{BOOKING_WORDS.receipt}']) assert.ok(view.includes(w), w);
+  assert.ok(!('heading' in BOOKING_WORDS), 'TRAVEL-02a: the heading is the ledger leaf\'s');
 });
 
 test('the flight route is re-pinned, dated, the old hash stacked; the law carries the bookings law', () => {

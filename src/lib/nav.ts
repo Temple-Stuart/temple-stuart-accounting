@@ -107,10 +107,11 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   // COCKPIT-PERF-01 (2026-10-27): 106 lines further down — tabOfPath and the Books panel (the Books reads left the launcher's body for it) went in above, with the panels' one-mount note.
   // BOOKS-GATE-01 (2026-10-28): seven lines further down — the cockpitSums import and the Books panel's notes (its export, its sums, its accounts list) went in above.
   // BOOKS-GATE-01b (2026-10-28): two lines further down — the Books panel's catch logs its thrown reason.
+  // TRAVEL-02a (2026-11-02): one line further down — the travel ledger's heading import (TRAVEL_LEDGER_HEADING) went in above.
   { pipe: 'runway', num: '01', owner: 'Banking', rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:682-689 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :714-718' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:683-690 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :715-719' },
   { pipe: 'runway', num: '02', owner: HOME_OWNER, rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:682-689 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :714-718' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:683-690 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :715-719' },
   { pipe: 'runway', num: '03', owner: HOME_OWNER, rendersSurface: true },
   { pipe: 'runway', num: '04', owner: 'Bookkeeping', rendersSurface: true },
   { pipe: 'runway', num: '05', owner: 'Budget', rendersSurface: true },
