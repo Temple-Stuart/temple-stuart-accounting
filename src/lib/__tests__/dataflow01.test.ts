@@ -12,6 +12,8 @@
  * the README's gap cells say only what is missing; the phone shows step 4's retired slot.
  * DATAFLOW-01d (Alex, 2026-11-03): Budget's beats are what its page does — discover alone,
  * cited to the report route; step 7 and README row 07 derive five tools from the registry.
+ * DATAFLOW-01e (Alex, 2026-11-03): the three "twenty-five of twenty-five" captions say they are
+ * the blueprint; Budget's BUDGET-02 note names the one file that mounts the vendor box.
  *
  *   T1 no Grok or xAI in any today-line, the menu as spoken today or step 3's example —
  *      except the census line, which names xAI as the provider that left (ruling A);
@@ -27,11 +29,13 @@
  *   T9 the own-table law refuses by name, and step 6's line moves with the registry (DATAFLOW-01c A, B).
  *   T10 Budget runs one beat, discover, cited to the route that reads and writes nothing; step 7 and
  *      README row 07 derive five tools; the vendor note names the day card (DATAFLOW-01d, 2026-11-03).
+ *   T11 the three "twenty-five of twenty-five" captions begin "The blueprint: ", each above its drawing; the
+ *      BUDGET-02 note names every file that mounts VendorBox, by grep (DATAFLOW-01e, 2026-11-03).
  * Source is read through code(), comments() and rejoin() only (the reader law). No clock.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as React from 'react';
 import { code, comments, rejoin } from '../sourceText';
@@ -427,4 +431,35 @@ test('T10 Budget runs one beat, discover — cited to the report route, which re
   assert.match(note, /the vendor box writes a vendor, never a figure — DATAFLOW-01d \(2026-11-03\): that box mounts on the day card, src\/components\/workbench\/operations\/day\/DayCard\.tsx:1228, not on \/budget's GET-only drill\)\./);
   assert.match(code('src/components/workbench/operations/day/DayCard.tsx').split('\n')[1227], /<StopVendor /, 'DayCard.tsx:1228 mounts the stop vendor');
   assert.match(code('src/components/workbench/operations/stops/StopVendor.tsx'), /<VendorBox line=\{line\}/, 'which draws the budget vendor box');
+});
+
+// ── T11 · THE THREE BLUEPRINT CAPTIONS; THE VENDOR BOX'S ONE MOUNT (DATAFLOW-01e) ──
+
+test('T11 the three "twenty-five of twenty-five" captions under steps 7, 8 and 13 begin "The blueprint: " and are otherwise unchanged, each above the drawing it captions; the BUDGET-02 note names every file that mounts VendorBox (DATAFLOW-01e)', () => {
+  // A: each caption's whole line — its class and its words as they stood, with "The blueprint: " in front.
+  const CAPTIONS: Array<[string, string, string, string]> = [
+    ['deck-07', 'THE LOOP, desktop', '<p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">', 'twenty-five of twenty-five — every tool runs these same four beats.'],
+    ['deck-08', 'THE MASTER TABLE, desktop', '<p className="mt-10 lg:mt-[76px] text-[12px] lg:text-[14px] text-text-faint">', 'twenty-five of twenty-five — every loop&apos;s record lands here.'],
+    ['deck-13', 'THE THREADS, desktop', '<p className="mt-[6px] font-mono text-[10px] lg:text-[11px] text-text-faint">', 'twenty-five of twenty-five — every lane reaches YOU LOOK; eleven write no lines.'],
+  ];
+  assert.equal((landingCode.match(/twenty-five of twenty-five/g) ?? []).length, 3, 'three captions, no fourth');
+  assert.equal((landingCode.match(/The blueprint: twenty-five of twenty-five/g) ?? []).length, 3, 'each one says it is the blueprint');
+  for (const [section, drawing, open, words] of CAPTIONS) {
+    const at = codeLines.findIndex((l) => l.trim() === `${open}The blueprint: ${words}</p>`);
+    assert.ok(at > -1, `${section}: the caption reads "The blueprint: ${words}"`);
+    const start = codeLines.findIndex((l) => l.includes(`<section id="${section}"`));
+    const end = codeLines.findIndex((l, i) => i > start && l.trim() === '</section>');
+    assert.ok(start > -1 && start < at && at < end, `${section}: the caption sits in its own step`);
+    const drawn = noteLines.findIndex((l, i) => i > at && l.includes(drawing));
+    assert.ok(drawn > at && drawn < end, `${section}: the caption sits above ${drawing}, the drawing it captions`);
+  }
+  // B: the note names every file that mounts VendorBox, as a grep of the code finds them; "mounted by Tasks" is gone.
+  const walk = (dir: string): string[] => readdirSync(resolve(process.cwd(), dir), { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? (e.name === '__tests__' ? [] : walk(`${dir}/${e.name}`)) : /\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []));
+  const mounts = walk('src').flatMap((f) => code(f).split('\n').flatMap((l, i) => (/<VendorBox\b/.test(l) ? [`${f}:${i + 1}`] : [])));
+  assert.deepEqual(mounts, ['src/components/workbench/operations/stops/StopVendor.tsx:32'], 'one file mounts the vendor box');
+  const note = comments(REGISTRY).replace(/\s*\n\s*\/\/\s*/g, ' ');
+  for (const m of mounts) assert.ok(note.includes(`every file that mounts it, by grep — ${m}, the only one.`), `the BUDGET-02 note names ${m}`);
+  assert.match(note, /BUDGET-02 \(2026-10-20\): re-cited — one page: .* The day plan, its vendor box and the notice left \/budget; the box stays \(VendorBox\.tsx\)\. DATAFLOW-01e \(2026-11-03\): every file that mounts it/);
+  assert.doesNotMatch(comments(REGISTRY), /mounted by Tasks/, 'the note no longer says "mounted by Tasks"');
 });
