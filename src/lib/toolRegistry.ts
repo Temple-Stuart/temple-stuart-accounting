@@ -537,12 +537,16 @@ export const TOOL_REGISTRY: readonly ToolEntry[] = PROBLEM_SHEET.flatMap((f) =>
  * DATAFLOW-01 (Alex, 2026-11-02, ruling B.3) — the deck's step-7 today line, DERIVED:
  * the tools whose four beats are all cited, in registry order, with their count. Four
  * beats never imply LIVE (a PARTIAL may carry all four — its `why` says what is not
- * done); the line says only that the beats run. The beat words are the ruling's.
+ * done); the line says only that the beats run. DATAFLOW-01b (Alex, 2026-11-03,
+ * ruling B): the beat words are the registry's own — the Beats keys in ALL's declared
+ * order (discover, decide, commit, record) — never typed; "draft" left the line.
  * Pure: no clock. `registry` is injectable so a test can prove the derivation moves.
  */
+export const BEAT_WORDS = Object.keys(ALL) as ReadonlyArray<keyof Beats>;
+
 export function allBeatsLine(registry: readonly ToolEntry[] = TOOL_REGISTRY): string {
-  const tools = registry.filter((t) => t.beats.discover && t.beats.decide && t.beats.commit && t.beats.record);
-  return `Today ${tools.length} tools run all four beats — discover, decide, draft, commit: ${tools.map((t) => t.name).join(', ')}.`;
+  const tools = registry.filter((t) => BEAT_WORDS.every((beat) => t.beats[beat]));
+  return `Today ${tools.length} tools run all four beats — ${BEAT_WORDS.join(', ')}: ${tools.map((t) => t.name).join(', ')}.`;
 }
 
 export const ALL_BEATS_LINE = allBeatsLine();

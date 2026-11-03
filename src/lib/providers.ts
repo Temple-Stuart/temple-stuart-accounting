@@ -37,11 +37,12 @@
  * calls. Its menu word, its rule-book rows and its `arrival_provider` enum value
  * STAY — dropping them is a migration (a hard gate, not this file). RETIRED_PROVIDERS
  * names it with the day it left and the commit that removed its last call site, and
- * the deck reads it to say whom it speaks to TODAY (LIVE_PROVIDERS, liveMenuCell) and
- * to count the live feeds (RULE_BOOK_COUNTS_LINE — "<n> feeds from <m> providers, per
- * the rule book", no typed date: this file is the date). The law adds: a retired word
- * names a TODAY provider and carries its day and commit; every menu row keeps one
- * live TODAY provider; every live provider sends at least one ruled feed.
+ * the deck reads it to say whom it speaks to TODAY (liveMenuCell) and to label xAI's
+ * rule row retired in step 4's drawing. The law adds: a retired word names a TODAY
+ * provider and carries its day and commit; every menu row keeps one live TODAY
+ * provider. DATAFLOW-01b (Alex, 2026-11-03, ruling A): the deck's size is the August
+ * 24 census again (121 feeds from 20 providers — commit d0738c9b, PR #1581), not a
+ * rule-book count, so the size line and its helpers left this file.
  *
  * Zero imports: server- and client-safe.
  */
@@ -212,33 +213,12 @@ export function isRetired(deck: string): boolean {
   return RETIRED_PROVIDERS.some(([word]) => word === deck);
 }
 
-/** The providers the deck speaks to today: the menu's TODAY words, each once, in menu order, retired excluded. */
-export const LIVE_PROVIDERS: readonly Provider[] = PROVIDERS.filter((p) => p.today && !isRetired(p.deck));
-
 /** A menu TODAY cell as the deck speaks it today — its words minus the retired. The law keeps a live word in every row, so an empty cell is a loud failure. */
 export function liveMenuCell(cell: string): string {
   const words = menuWords(cell).filter((w) => !isRetired(w));
   if (words.length === 0) throw new Error(`providers: the menu cell "${cell}" names no provider live today — every row keeps one (providersLaw)`);
   return words.join(' · ');
 }
-
-/**
- * DATAFLOW-01 C — the deck's size, derived: feeds are the rule book's rows whose
- * provider is live today; providers are the live providers. A retired provider's
- * rows stay in the book and leave both counts, so every counted feed comes from a
- * counted provider.
- */
-export function ruleBookCounts(book: readonly Rule[] = RULE_BOOK, live: readonly Provider[] = LIVE_PROVIDERS): { feeds: number; providers: number } {
-  const decks = new Set(live.map((p) => p.deck));
-  return { feeds: book.filter((r) => decks.has(r.provider)).length, providers: live.length };
-}
-
-/** Steps 3 and 5 render this: "<n> feeds from <m> providers, per the rule book". */
-export function ruleBookCountsLine(counts: { feeds: number; providers: number } = ruleBookCounts()): string {
-  return `${counts.feeds} feeds from ${counts.providers} providers, per the rule book`;
-}
-
-export const RULE_BOOK_COUNTS_LINE = ruleBookCountsLine();
 
 /** THE LAW. Throws on the first violation; returns the violations list when asked not to throw. `book` is injectable for tests. */
 export function providersLaw(opts: { throwOnFail?: boolean; book?: readonly Rule[] } = {}): string[] {
@@ -275,7 +255,7 @@ export function providersLaw(opts: { throwOnFail?: boolean; book?: readonly Rule
     pairs.set(key, r.kind);
   }
   // DATAFLOW-01: a retired word names a TODAY provider with its day and its commit; every menu row keeps
-  // one live TODAY provider; every live provider sends at least one ruled feed (the size line counts both).
+  // one live TODAY provider (liveMenuCell never empties). DATAFLOW-01b: the live-feed check left with the size line.
   for (const [word, day, commit] of RETIRED_PROVIDERS) {
     const p = providerByDeck(word);
     if (!p || !p.today) violations.push(`RETIRED_PROVIDERS: "${word}" is not a provider the menu's TODAY column names`);
@@ -284,9 +264,6 @@ export function providersLaw(opts: { throwOnFail?: boolean; book?: readonly Rule
   }
   for (const [job, today] of PROVIDER_MENU) {
     if (menuWords(today).every((w) => isRetired(w))) violations.push(`PROVIDER_MENU: "${job}" has no provider live today — every row keeps one`);
-  }
-  for (const p of LIVE_PROVIDERS) {
-    if (!book.some((r) => r.provider === p.deck)) violations.push(`LIVE_PROVIDERS: ${p.deck} sends no feed the rule book names — the size line would count a provider with no feed`);
   }
   if (violations.length && opts.throwOnFail !== false) throw new Error(`PROVIDER VOCABULARY LAW failed:\n  ${violations.join('\n  ')}`);
   return violations;
