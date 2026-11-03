@@ -9,6 +9,11 @@
  *        and audit nothing: { stay, changed: false }. Audited operations_stay_set
  *        (before → after) after the write.
  * DELETE → { deleted: true }. Audited operations_stay_deleted (before) after.
+ *        TRAVEL-02c (Alex, 2026-11-03, ruling A) — NO ORPHANS: while the stay holds a link in planned_item_links (kind
+ *        'stay' — no FK on target_id), it refuses 409 by name before any write — the links counted and the stay
+ *        deleted in one transaction, LINK-LAW-01's rule for a routine (routines/[id]/route.ts) applied to a stay
+ *        (stayCosts.ts stayHoldsLinksWords): unlink first. A PATCH that moves the stay's days keeps its links — the
+ *        link is to the stay, not to its dates.
  *
  * The caller's own row only: the verified cookie, then the user, then the stay
  * by { id, user_id } — another user's row, a missing one and an id that is no
@@ -22,6 +27,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { isValidUuid } from '@/lib/operations/parseUuid';
 import { OVERLAP_TAG, RACE_WORDS, asDate, meeting, overlapWords, stayInput, stayRowOf } from '@/lib/operations/stay';
+import { stayHoldsLinksWords, stayLinksWhere } from '@/lib/operations/stayCosts';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -87,7 +93,15 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const before = stayRowOf(row);
 
-    await prisma.operations_stays.delete({ where: { id: row.id } });
+    // TRAVEL-02c (ruling A): the links the stay holds, counted inside the transaction that deletes; any held refuses the
+    // delete by name, and nothing is written.
+    const held = await prisma.$transaction(async (tx) => {
+      const n = await tx.planned_item_links.count({ where: stayLinksWhere(user.id, row.id) });
+      if (n > 0) return n;
+      await tx.operations_stays.delete({ where: { id: row.id } });
+      return 0;
+    });
+    if (held > 0) return NextResponse.json({ error: 'Conflict', message: stayHoldsLinksWords(held, before) }, { status: 409 });
 
     await writeAuditLog({
       actor: { user_id: user.id, email: userEmail, type: 'human_user' },

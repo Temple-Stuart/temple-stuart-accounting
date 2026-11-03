@@ -57,7 +57,8 @@ test('the travel tab renders its sections in order under the tool header, and dr
   const launcher = code(LAUNCHER);
   const sections = [...launcher.matchAll(/data-travel-section="([a-z]+)"/g)].map((m) => m[1]);
   // BOOKINGS-01 (2026-09-27): 'bookings' — every booking in one list — sits between the ledger and the unattached.
-  assert.deepEqual(sections, ['header', 'trips', 'itinerary', 'search', 'booked', 'ledger', 'bookings', 'unattached']);
+  // TRAVEL-02c (2026-11-03): 'stays' — STAYS · CALCULATED — sits after the bookings and before the unattached.
+  assert.deepEqual(sections, ['header', 'trips', 'itinerary', 'search', 'booked', 'ledger', 'bookings', 'stays', 'unattached']);
   const at = (name: string) => launcher.indexOf(`data-travel-section="${name}"`);
   const region = launcher.slice(at('header'), launcher.indexOf('</section>', at('unattached')));
   assert.doesNotMatch(region, /<StageStrip|<ProofStrip/, 'no strip, no receipts rail');
@@ -246,7 +247,8 @@ test("a trip block opens the drill panel as 'trip_item' — vendor, source, plan
 
 test("LINK-01 applies to a trip item: the kind is linkable, keyed on its id with no instant, and its migration names it", () => {
   // TRAVEL-02b (2026-11-03): 'travel_expense' followed, in its own migration (travel02b.test.ts pins it) — moved, not loosened.
-  assert.deepEqual([...LINKABLE_KINDS], ['calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item', 'travel_expense']);
+  // TRAVEL-02c (2026-11-03): 'stay' followed, in its own migration (travel02c.test.ts pins it) — moved, not loosened.
+  assert.deepEqual([...LINKABLE_KINDS], ['calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item', 'travel_expense', 'stay']);
   assert.equal(isLinkableKind('trip_item'), true);
   assert.equal(requiresInstant('trip_item'), false);
   const m = code(LINK_MIGRATION);

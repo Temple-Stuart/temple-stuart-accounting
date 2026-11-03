@@ -48,6 +48,12 @@
  * name (travelExpense.ts voidedExpenseLinkWords), nothing written. A reversed posting pays nothing (as above); one
  * posting is linked to at most one item (the unique index). A voided expense's links stay readable — the void route
  * never unlinks — and the DELETE below unlinks one as it unlinks any other.
+ *
+ * TRAVEL-02c (Alex, 2026-11-03, ruling A). A seventh kind, 'stay' — ANY charge linked by hand to the stay it paid for
+ * (operations_stays; no instant — the link is to the stay, not its dates). The stay must exist and be the caller's (the
+ * ownership read, linkKeys.ts targetOwnerQuery — else the defensive 404); it is read again, user-scoped, for the words
+ * the audit names it by — '<place> <starts_on> → <ends_on>' (stayCosts.ts stayWords). A reversed posting pays nothing
+ * and one posting is linked to at most one item, as above. The stays DELETE refuses a stay that holds a link.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -57,6 +63,8 @@ import { LINKED_POSTING_SELECT, PAYING_POSTING_WHERE, REVERSED_POSTING_WHERE, am
 import { OCCURRENCE_ROUTINE_SELECT, occurrenceCheck } from '@/lib/operations/linkOccurrence';
 import { LINKABLE_KINDS, isLinkableKind, requiresInstant, targetOwnerQuery, type LinkableKind, type TargetOwnerQuery } from '@/lib/calendar/linkKeys';
 import { voidedExpenseLinkWords } from '@/lib/travel/travelExpense';
+import { stayRowOf } from '@/lib/operations/stay';
+import { stayWords } from '@/lib/operations/stayCosts';
 
 /** How far either side of the item's date a candidate may sit. Not a match — a window. */
 const CANDIDATE_DAYS = 45;
@@ -122,6 +130,7 @@ async function ownsTarget(q: TargetOwnerQuery | null): Promise<boolean> {
     case 'operations_routine_steps': return (await prisma.operations_routine_steps.findFirst({ where: q.where, select })) !== null;
     case 'trip_itinerary': return (await prisma.trip_itinerary.findFirst({ where: q.where, select })) !== null;
     case 'travel_expenses': return (await prisma.travel_expenses.findFirst({ where: q.where, select })) !== null;
+    case 'operations_stays': return (await prisma.operations_stays.findFirst({ where: q.where, select })) !== null;
   }
 }
 
@@ -228,6 +237,14 @@ export async function POST(request: NextRequest) {
     if (expense.voided_at !== null) return NextResponse.json({ error: voidedExpenseLinkWords(expense.vendor, expense.voided_at, expense.void_reason as string) }, { status: 409 });
   }
 
+  // TRAVEL-02c (ruling A): a stay is read user-scoped, as the ownership read was — its words name it in the link's audit.
+  let stayNamed: string | null = null;
+  if (t.kind === 'stay') {
+    const stay = await prisma.operations_stays.findFirst({ where: { id: t.id, user_id: user.id }, select: { id: true, place: true, starts_on: true, ends_on: true } });
+    if (!stay) return NextResponse.json({ error: 'No such item' }, { status: 404 });
+    stayNamed = stayWords(stayRowOf(stay));
+  }
+
   // The posting must be THIS user's. Someone else's resolves to a defensive 404.
   const entry = await prisma.journal_entries.findFirst({
     where: { id: body.journalEntryId, userId: user.id },
@@ -259,7 +276,7 @@ export async function POST(request: NextRequest) {
   // LEDGER-03: audited, with the posting's amount as the books hold it (NULL when unreadable — said, never zero).
   await writeAuditLog({
     actor: { user_id: user.id, email: user.email, type: 'human_user' },
-    action: { type: 'planned_item_linked', description: `Linked posting ${entry.id} to ${t.kind} ${t.id}${t.instant === null ? '' : ` at ${t.instant.toISOString()}`}` },
+    action: { type: 'planned_item_linked', description: `Linked posting ${entry.id} to ${t.kind} ${t.id}${t.instant === null ? '' : ` at ${t.instant.toISOString()}`}${stayNamed === null ? '' : ` — ${stayNamed}`}` },
     target: { table: 'planned_item_links', id: link.id },
     payload: { after: { kind: t.kind, id: t.id, instant: t.instant === null ? null : t.instant.toISOString(), journal_entry_id: entry.id, amountCents: amountCentsOf(entry) } },
   });

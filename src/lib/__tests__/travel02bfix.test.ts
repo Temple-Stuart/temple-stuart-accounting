@@ -150,24 +150,29 @@ test('D four stale schema citations re-pointed — each cited line holds what it
     assert.ok(t, name);
     return t;
   };
-  // Payments :300 — commission_ledger is the model at :1936 (it was :1399, dining_destinations.coworkingCount).
-  assert.match(entry('Payments').citation, /commission_ledger \(schema:1936\) is a Travel byproduct/);
-  assert.match(line(1936), /^model commission_ledger \{/);
-  // Bill Pay's note :309 — the five bill columns sit at :4261-4265 (it was :4233); :316's :4254 was right and stays.
-  assert.match(comments(REGISTRY), /The vendor directory's own bill columns are still written by nothing \(re-cited: schema:4261-4265\)\./);
-  assert.deepEqual([4261, 4262, 4263, 4264, 4265].map((n) => line(n).trim().split(/\s+/)[0]), ['amount_usd', 'billing_rrule', 'next_due_date', 'last_paid_date', 'last_paid_amount_usd']);
-  assert.equal(opening(4261), 4254);
-  assert.match(line(4254), /^model operations_vendor_directory \{/);
-  assert.match(entry('Bill Pay').citation, /operations_vendor_directory \(schema:4254\)/);
-  // Sales Tax :479 — sales_tax_nexus is a value of the corpus enum PracticeArea at :2800 (it was :2201); the words claim an enum, not a model.
-  assert.match(entry('Sales Tax').citation, /sales_tax_nexus \(schema:2800\) is a corpus enum/);
-  assert.match(line(2800), /^\s+sales_tax_nexus$/);
-  assert.equal(opening(2800), 2777);
-  assert.match(line(2777), /^enum PracticeArea \{/);
-  // Compliance :509 — compliance_tasks.attestation_status sits at :3390 (it was :2679-2682, trip_scanner_results).
-  assert.match(entry('Compliance').citation, /attestation_status schema:3390 never written/);
-  assert.match(line(3390), /^\s+attestation_status\s+AttestationStatus\b/);
-  assert.match(line(opening(3390)), /^model compliance_tasks \{/);
+  // TRAVEL-02c (2026-11-03) — H, TESTS FIND LINES: each pin below finds its line by content. Every number is read back
+  // from the registry's own words (TRAVEL-02c moved each by two — the users model's living_baselines back-relation) and
+  // the cited line must hold what the words name; no line number is pinned here.
+  const cited = (text: string, re: RegExp): number => { const m = text.match(re); assert.ok(m, String(re)); return Number(m[1]); };
+  // Payments — commission_ledger is the model its citation names (it was :1399, dining_destinations.coworkingCount).
+  const ledgerAt = cited(entry('Payments').citation, /commission_ledger \(schema:(\d+)\) is a Travel byproduct/);
+  assert.match(line(ledgerAt), /^model commission_ledger \{/);
+  // Bill Pay's note — the five bill columns (it was :4233), inside the vendor directory Bill Pay's citation names.
+  const billFrom = cited(comments(REGISTRY), /The vendor directory's own bill columns are still written by nothing \(re-cited: schema:(\d+)-\d+\)\./);
+  const billTo = cited(comments(REGISTRY), /The vendor directory's own bill columns are still written by nothing \(re-cited: schema:\d+-(\d+)\)\./);
+  assert.equal(billTo - billFrom, 4);
+  assert.deepEqual([0, 1, 2, 3, 4].map((k) => line(billFrom + k).trim().split(/\s+/)[0]), ['amount_usd', 'billing_rrule', 'next_due_date', 'last_paid_date', 'last_paid_amount_usd']);
+  const directoryAt = cited(entry('Bill Pay').citation, /operations_vendor_directory \(schema:(\d+)\)/);
+  assert.equal(opening(billFrom), directoryAt);
+  assert.match(line(directoryAt), /^model operations_vendor_directory \{/);
+  // Sales Tax — sales_tax_nexus is a value of the corpus enum PracticeArea (it was :2201); the words claim an enum, not a model.
+  const nexusAt = cited(entry('Sales Tax').citation, /sales_tax_nexus \(schema:(\d+)\) is a corpus enum/);
+  assert.match(line(nexusAt), /^\s+sales_tax_nexus$/);
+  assert.match(line(opening(nexusAt)), /^enum PracticeArea \{/);
+  // Compliance — compliance_tasks.attestation_status (it was :2679-2682, trip_scanner_results).
+  const attestAt = cited(entry('Compliance').citation, /attestation_status schema:(\d+) never written/);
+  assert.match(line(attestAt), /^\s+attestation_status\s+AttestationStatus\b/);
+  assert.match(line(opening(attestAt)), /^model compliance_tasks \{/);
   // The stale numbers are gone, each move carries its dated note, and nothing else moved.
   assert.doesNotMatch(code(REGISTRY), /schema:(1399|4233|2201|2679)\b/);
   assert.doesNotMatch(comments(REGISTRY), /schema:(1399|4233|2201|2679)\b/);

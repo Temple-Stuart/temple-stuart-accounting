@@ -49,12 +49,14 @@ const stmt = (over: Partial<ReceiptMeta> = {}): ReceiptMeta => ({
 
 test('D the migration: superseded_by with its deferred self reference, the partial unique over the five columns WHERE superseded_by IS NULL, the status CHECK, the freeze that allows one change, the no-delete — the newest, after DOCUMENTS-01’s', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration before the newest (FX-01 followed)');
+  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration before the newest (FX-01 followed)');
   // FX-01 (2026-10-30): the transactions currency migration followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
+  assert.equal(dirs[dirs.length - 3], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
   // TRAVEL-02b (2026-11-03): travel_expenses and the sixth link kind followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 1], '20261103120000_travel_02b_travel_expenses', 'the newest migration');
-  assert.equal(dirs[dirs.length - 4], '20261028120000_documents_01_source_documents', 'right after DOCUMENTS-01’s');
+  assert.equal(dirs[dirs.length - 2], '20261103120000_travel_02b_travel_expenses', 'the migration before the newest (TRAVEL-02c followed)');
+  // TRAVEL-02c (2026-11-03): living_baselines and the seventh link kind followed — every pin above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261103200000_travel_02c_stay_link_living_baselines', 'the newest migration');
+  assert.equal(dirs[dirs.length - 5], '20261028120000_documents_01_source_documents', 'right after DOCUMENTS-01’s');
   const sql = code(MIGRATION);
   assert.match(sql, /ALTER TABLE "bank_reconciliations" ADD COLUMN "superseded_by" TEXT;/);
   assert.match(sql, /FOREIGN KEY \("superseded_by"\) REFERENCES "bank_reconciliations"\("id"\) ON DELETE RESTRICT ON UPDATE CASCADE\n\s+DEFERRABLE INITIALLY DEFERRED;/);
