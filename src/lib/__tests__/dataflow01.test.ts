@@ -188,9 +188,12 @@ test('T4 the fixed lines\' text, verbatim, rendered where they were; the old wor
   // entry cites the route that writes planned_item_links, the one writer of the hand link. Only Bill Pay's does.
   const registryText = rejoin(code(REGISTRY), comments(REGISTRY)).split('\n');
   const citing = registryText.flatMap((l, i) => (l.includes('POST /api/calendar/links') ? [i + 1] : []));
-  assert.deepEqual(citing, [316], 'one registry line cites the route');
-  assert.match(registryText[315], /record: BillPaySection\.tsx:78 \("link payment"[^)]*\) → :86 the existing ledger\/LinkPicker\.tsx → POST \/api\/calendar\/links/);
-  assert.equal(registryText.slice(0, 315).reverse().find((l) => /^ {2}['\w& ]+: \{$/.test(l)), "  'Bill Pay': {", 'that line is Bill Pay\'s entry');
+  // PREVIEW-DB-01 (2026-11-03): :316 → :320 — TRAVEL-02b-fix's four dated-note lines above it (Payments' and Bill Pay's
+  // re-cited citations) merged just before this test's PR, which had pinned the line on the main it was written against;
+  // main has failed this pin since. Moved, not loosened: the same one line, the same words, the same entry.
+  assert.deepEqual(citing, [320], 'one registry line cites the route');
+  assert.match(registryText[319], /record: BillPaySection\.tsx:78 \("link payment"[^)]*\) → :86 the existing ledger\/LinkPicker\.tsx → POST \/api\/calendar\/links/);
+  assert.equal(registryText.slice(0, 319).reverse().find((l) => /^ {2}['\w& ]+: \{$/.test(l)), "  'Bill Pay': {", 'that line is Bill Pay\'s entry');
   assert.match(code('src/app/api/calendar/links/route.ts'), /prisma\.planned_item_links\.create\(/, 'that route is the writer');
   assert.equal((landingCode.match(/ {4}live: tool === 'Travel' \|\| tool === 'Bill Pay',/g) ?? []).length, 1, 'step 9 tags Travel and Bill Pay');
   assert.match(landingCode, /tag: live \? '· LIVE TODAY' : null/, 'step 13\'s lanes read the same flag');

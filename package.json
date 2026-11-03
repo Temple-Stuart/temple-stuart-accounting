@@ -8,7 +8,7 @@
     "assert:showroom": "tsx scripts/assert-showroom-fetch-free.ts",
     "assert:registry": "tsx scripts/assert-tool-registry.ts",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json",
-    "build": "npm run typecheck:scripts && tsx scripts/assert-showroom-fetch-free.ts && tsx scripts/assert-tool-registry.ts && prisma generate && prisma migrate deploy && next build",
+    "build": "npm run typecheck:scripts && tsx scripts/assert-showroom-fetch-free.ts && tsx scripts/assert-tool-registry.ts && prisma generate && tsx scripts/migrate-gate.ts && next build",
     "start": "next start",
     "test": "tsx --test src/lib/__tests__/*.test.ts",
     "lint": "eslint .",
