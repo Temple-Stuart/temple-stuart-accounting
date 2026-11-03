@@ -1,9 +1,10 @@
 /**
- * PREVIEW-DB-01 (Alex, 2026-11-03, rulings A–E) — a preview build never touches a database. `prisma migrate deploy`
- * runs only when a build says where it is (Vercel production, or BUILD_TARGET=local); a preview handed DATABASE_URL
- * refuses by name; every build prints which it was. The gate is driven over env records (no process environment
- * touched); the script's refusals and its skip run as a real process with a controlled environment — never the migrate
- * path, which would reach a database. Source is read through code() / comments() (the reader law).
+ * PREVIEW-DB-01 (Alex, 2026-11-03, rulings A–E) — a preview build never migrates. `prisma migrate deploy` runs only when
+ * a build says where it is (Vercel production, or BUILD_TARGET=local); every build prints which it was. PREVIEW-DB-01c
+ * (Alex, 2026-11-03): a preview handed DATABASE_URL SKIPS with its own words instead of refusing — the refusal row is
+ * withdrawn, and its words and name are pinned absent from the leaf. The gate is driven over env records (no process
+ * environment touched); the script's refusals and its two skips run as a real process with a controlled environment —
+ * never the migrate path, which would reach a database. Source is read through code() / comments() (the reader law).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { code, comments } from '../sourceText';
 import {
-  BOTH_SET_WORDS, LOCAL_BUILD_WORDS, NO_TARGET_WORDS, PREVIEW_BUILD_WORDS, PREVIEW_HANDED_DATABASE_WORDS, PRODUCTION_BUILD_WORDS,
+  BOTH_SET_WORDS, LOCAL_BUILD_WORDS, NO_TARGET_WORDS, PREVIEW_BUILD_WORDS, PREVIEW_WITH_DATABASE_WORDS, PRODUCTION_BUILD_WORDS,
   migrationGate, unknownBuildTargetWords, unknownVercelEnvWords,
 } from '../build/migrationGate';
 import { LIBRARY_READ_ENV } from '../envLaw';
@@ -27,12 +28,13 @@ test('A every row of the gate, with its exact words — Vercel decides on Vercel
   // VERCEL_ENV production, BUILD_TARGET not set → MIGRATE (whatever DATABASE_URL is: production reads its own).
   assert.deepEqual(migrationGate({ VERCEL_ENV: 'production' }), { kind: 'MIGRATE', words: 'PREVIEW-DB-01 · production build (VERCEL_ENV=production) — applying migrations' });
   assert.deepEqual(migrationGate({ VERCEL_ENV: 'production', DATABASE_URL: LOCAL_URL }), { kind: 'MIGRATE', words: PRODUCTION_BUILD_WORDS });
-  // VERCEL_ENV preview, DATABASE_URL absent or '' → SKIP.
+  // VERCEL_ENV preview → SKIP, whatever DATABASE_URL holds. PREVIEW-DB-01c (Alex, 2026-11-03): Vercel stays as it is —
+  // the Preview scope keeps DATABASE_URL — and the refusal row is withdrawn. DATABASE_URL absent or '' → the first words.
   assert.deepEqual(migrationGate({ VERCEL_ENV: 'preview' }), { kind: 'SKIP', words: 'PREVIEW-DB-01 · preview build (VERCEL_ENV=preview) — no database, no migration; production applies migrations after the merge' });
   assert.deepEqual(migrationGate({ VERCEL_ENV: 'preview', DATABASE_URL: '' }), { kind: 'SKIP', words: PREVIEW_BUILD_WORDS });
-  // VERCEL_ENV preview, DATABASE_URL non-empty → REFUSE.
-  assert.deepEqual(migrationGate({ VERCEL_ENV: 'preview', DATABASE_URL: LOCAL_URL }), { kind: 'REFUSE', words: 'PREVIEW-DB-01 · a preview build was handed DATABASE_URL — a preview must never reach a database; untick Preview on DATABASE_URL in Vercel' });
-  assert.deepEqual(migrationGate({ VERCEL_ENV: 'preview', DATABASE_URL: ' ' }), { kind: 'REFUSE', words: PREVIEW_HANDED_DATABASE_WORDS });
+  // DATABASE_URL set — any other value, ' ' among them — → the same SKIP, with words that say it was set.
+  assert.deepEqual(migrationGate({ VERCEL_ENV: 'preview', DATABASE_URL: LOCAL_URL }), { kind: 'SKIP', words: 'PREVIEW-DB-01 · preview build (VERCEL_ENV=preview) — DATABASE_URL is set for Preview, and a preview never migrates: no migration applied; production applies migrations after the merge' });
+  assert.deepEqual(migrationGate({ VERCEL_ENV: 'preview', DATABASE_URL: ' ' }), { kind: 'SKIP', words: PREVIEW_WITH_DATABASE_WORDS });
   // VERCEL_ENV any other value — 'development', a custom name, '' — → REFUSE, naming it.
   assert.deepEqual(migrationGate({ VERCEL_ENV: 'development' }), { kind: 'REFUSE', words: 'PREVIEW-DB-01 · VERCEL_ENV="development" is neither production nor preview — refusing to guess' });
   assert.deepEqual(migrationGate({ VERCEL_ENV: 'staging' }), { kind: 'REFUSE', words: 'PREVIEW-DB-01 · VERCEL_ENV="staging" is neither production nor preview — refusing to guess' });
@@ -71,6 +73,21 @@ test('A the leaf is pure over an env record — no process environment, no isPro
   assert.match(leaf, /export function migrationGate\(env: Readonly<Record<string, string \| undefined>>\): MigrationVerdict \{/);
 });
 
+test('A PREVIEW-DB-01c — a preview SKIPs whatever DATABASE_URL holds: one SKIP, two words, no second path; the withdrawn refusal\'s words and name are absent from the leaf', () => {
+  const previews: Array<Record<string, string>> = [{ VERCEL_ENV: 'preview' }, { VERCEL_ENV: 'preview', DATABASE_URL: '' }, { VERCEL_ENV: 'preview', DATABASE_URL: ' ' }, { VERCEL_ENV: 'preview', DATABASE_URL: LOCAL_URL }];
+  for (const env of previews) assert.equal(migrationGate(env).kind, 'SKIP', JSON.stringify(env));
+  const leaf = code(LEAF);
+  const notes = comments(LEAF);
+  for (const gone of ['PREVIEW_HANDED_DATABASE_WORDS', 'a preview build was handed DATABASE_URL', 'a preview must never reach a database', 'untick Preview']) {
+    assert.ok(!leaf.includes(gone), `the leaf's code: ${gone}`);
+    assert.ok(!notes.includes(gone), `the leaf's comments: ${gone}`);
+  }
+  assert.match(leaf, /return verdict\('SKIP', databaseSet \? PREVIEW_WITH_DATABASE_WORDS : PREVIEW_BUILD_WORDS\);/, 'whether DATABASE_URL is there picks the words, never the verdict');
+  assert.equal(leaf.split("verdict('SKIP'").length - 1, 1, 'one SKIP');
+  assert.equal(leaf.split("verdict('MIGRATE'").length - 1, 2, 'production and local');
+  assert.equal(leaf.split("verdict('REFUSE'").length - 1, 4, 'both set, any other VERCEL_ENV, neither set, any other BUILD_TARGET — no preview refusal');
+});
+
 // ── B · THE SCRIPT ──────────────────────────────────────────────────────────
 
 test('B the script hands the process environment to the gate, prints the words first, runs the project\'s own prisma on MIGRATE alone, and prints no part of DATABASE_URL', () => {
@@ -97,14 +114,19 @@ function runGate(vars: Record<string, string>): { status: number | null; stdout:
   return { status: run.status, stdout: run.stdout, stderr: run.stderr };
 }
 
-test('B the script\'s refusals exit 1 and its skip exits 0, each printing its one line first — and none prints the address it was handed', () => {
+test('B the script\'s refusals exit 1 and its two skips exit 0, each printing its one line first — and none prints the address it was handed', () => {
   const none = runGate({});
   assert.equal(none.status, 1);
   assert.equal(none.stderr.trim(), NO_TARGET_WORDS);
-  const handed = runGate({ VERCEL_ENV: 'preview', DATABASE_URL: LOCAL_URL });
-  assert.equal(handed.status, 1);
-  assert.equal(handed.stderr.trim(), PREVIEW_HANDED_DATABASE_WORDS);
-  assert.ok(!`${handed.stdout}${handed.stderr}`.includes('127.0.0.1'), 'no part of the address is printed');
+  // PREVIEW-DB-01c: a preview handed DATABASE_URL skips — exit 0, its words on stdout, nothing on stderr, no part of the address.
+  const carried = runGate({ VERCEL_ENV: 'preview', DATABASE_URL: LOCAL_URL });
+  assert.equal(carried.status, 0);
+  assert.equal(carried.stdout.trim(), PREVIEW_WITH_DATABASE_WORDS);
+  assert.equal(carried.stderr, '');
+  const address = new URL(LOCAL_URL);
+  for (const part of [`${address.protocol}//`, `${address.username}@`, address.hostname, address.port, address.pathname.slice(1)]) {
+    assert.ok(!`${carried.stdout}${carried.stderr}`.includes(part), `no part of the address is printed: ${part}`);
+  }
   const development = runGate({ VERCEL_ENV: 'development' });
   assert.equal(development.status, 1);
   assert.equal(development.stderr.trim(), unknownVercelEnvWords('development'));
@@ -147,5 +169,18 @@ test('D the env law names the gate as a reader of DATABASE_URL and VERCEL_ENV, a
     const row = readme.split('\n').find((l) => l.startsWith(`| \`${name}\` |`));
     assert.ok(row, `${name} has its README row`);
     assert.ok(row.includes(entry(name).readBy), `${name}'s row names ${entry(name).readBy}`);
+  }
+  // PREVIEW-DB-01c (Alex, 2026-11-03): Vercel stays as it is — a preview build may carry DATABASE_URL, and never migrates.
+  assert.ok(entry('DATABASE_URL').where.includes('(whether it is there, never what it says; a preview build may carry it and never migrates — PREVIEW-DB-01c)'));
+  for (const field of ['where', 'shape'] as const) {
+    for (const gone of ['the Production scope only', 'never Preview', 'handed it refuses']) assert.ok(!entry('DATABASE_URL')[field].includes(gone), `DATABASE_URL ${field}: ${gone}`);
+  }
+  assert.ok(entry('VERCEL_ENV').where.includes('(production migrates, preview never migrates, any other value refuses — PREVIEW-DB-01)'));
+  assert.ok(!entry('VERCEL_ENV').where.includes('never touches a database'));
+  // README's three rows mirror their entries exactly: name, reader, where, need, shape.
+  const NEED_WORDS = { required: 'Required', optional: 'Optional', platform: 'Set by the host' } as const;
+  for (const name of ['DATABASE_URL', 'VERCEL_ENV', 'BUILD_TARGET']) {
+    const e = entry(name);
+    assert.equal(readme.split('\n').find((l) => l.startsWith(`| \`${name}\` |`)), `| \`${name}\` | ${e.readBy} | ${e.where} | ${NEED_WORDS[e.need]} | ${e.shape} |`, name);
   }
 });

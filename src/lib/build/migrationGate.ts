@@ -6,10 +6,15 @@
  * DATABASE_URL. This leaf decides, once per build, whether the build may migrate. Nothing migrates unless the build
  * says where it is: Vercel decides on Vercel (VERCEL_ENV), BUILD_TARGET decides off it.
  *
+ * PREVIEW-DB-01c (Alex, 2026-11-03): a preview never migrates, whatever Vercel's Preview scope holds. Vercel stays as it
+ * is — DATABASE_URL keeps its Preview scope — so a preview build that carries it SKIPS with words that say so, where it
+ * refused before; that refusal row is withdrawn, and the preview row is the only one 01c changed. This gate decides
+ * migrations alone: a preview still reads the database its scope names at runtime (LAUNCH-SEC-00, not this gate).
+ *
  *   VERCEL_ENV        BUILD_TARGET    DATABASE_URL      verdict
  *   production        not set         —                 MIGRATE
- *   preview           not set         absent or ''      SKIP
- *   preview           not set         non-empty         REFUSE — a preview must never reach a database
+ *   preview           not set         absent or ''      SKIP — PREVIEW_BUILD_WORDS
+ *   preview           not set         any other value   SKIP — PREVIEW_WITH_DATABASE_WORDS: a preview never migrates
  *   any other value   not set         —                 REFUSE — refusing to guess
  *   not set           local           —                 MIGRATE
  *   not set           not set         —                 REFUSE — a build off Vercel must say BUILD_TARGET=local
@@ -35,7 +40,8 @@ export interface MigrationVerdict {
 
 export const PRODUCTION_BUILD_WORDS = 'PREVIEW-DB-01 · production build (VERCEL_ENV=production) — applying migrations';
 export const PREVIEW_BUILD_WORDS = 'PREVIEW-DB-01 · preview build (VERCEL_ENV=preview) — no database, no migration; production applies migrations after the merge';
-export const PREVIEW_HANDED_DATABASE_WORDS = 'PREVIEW-DB-01 · a preview build was handed DATABASE_URL — a preview must never reach a database; untick Preview on DATABASE_URL in Vercel';
+/** PREVIEW-DB-01c — the same SKIP for a preview whose scope carries DATABASE_URL: its log says the variable was set and nothing migrated. */
+export const PREVIEW_WITH_DATABASE_WORDS = 'PREVIEW-DB-01 · preview build (VERCEL_ENV=preview) — DATABASE_URL is set for Preview, and a preview never migrates: no migration applied; production applies migrations after the merge';
 export const unknownVercelEnvWords = (value: string): string => `PREVIEW-DB-01 · VERCEL_ENV=${JSON.stringify(value)} is neither production nor preview — refusing to guess`;
 export const LOCAL_BUILD_WORDS = 'PREVIEW-DB-01 · local build (BUILD_TARGET=local) — applying migrations to the database Prisma reads from DATABASE_URL';
 export const NO_TARGET_WORDS = 'PREVIEW-DB-01 · VERCEL_ENV is not set — a build off Vercel must say BUILD_TARGET=local; refusing to guess';
@@ -59,9 +65,10 @@ export function migrationGate(env: Readonly<Record<string, string | undefined>>)
   if (vercelEnv !== undefined) {
     if (vercelEnv === 'production') return verdict('MIGRATE', PRODUCTION_BUILD_WORDS);
     if (vercelEnv === 'preview') {
+      // PREVIEW-DB-01c: one verdict whatever DATABASE_URL holds. Whether it is there (never what it says) picks the words.
       const databaseUrl = env.DATABASE_URL;
-      const handedDatabase = databaseUrl !== undefined && databaseUrl !== '';
-      return handedDatabase ? verdict('REFUSE', PREVIEW_HANDED_DATABASE_WORDS) : verdict('SKIP', PREVIEW_BUILD_WORDS);
+      const databaseSet = databaseUrl !== undefined && databaseUrl !== '';
+      return verdict('SKIP', databaseSet ? PREVIEW_WITH_DATABASE_WORDS : PREVIEW_BUILD_WORDS);
     }
     return verdict('REFUSE', unknownVercelEnvWords(vercelEnv));
   }

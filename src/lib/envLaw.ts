@@ -34,9 +34,9 @@ export const LIBRARY_READ_ENV: readonly LibraryReadEnv[] = [
   {
     name: 'DATABASE_URL',
     readBy: 'prisma · the migration gate',
-    where: 'prisma/schema.prisma:12 `url = env("DATABASE_URL")` — the client and every migration; src/lib/build/migrationGate.ts through scripts/migrate-gate.ts at build (whether it is there, never what it says — a preview build handed it refuses, PREVIEW-DB-01)',
+    where: 'prisma/schema.prisma:12 `url = env("DATABASE_URL")` — the client and every migration; src/lib/build/migrationGate.ts through scripts/migrate-gate.ts at build (whether it is there, never what it says; a preview build may carry it and never migrates — PREVIEW-DB-01c)',
     need: 'required',
-    shape: 'postgresql://user:password@host:5432/db?sslmode=require (Azure Postgres requires SSL); on Vercel, the Production scope only — never Preview',
+    shape: 'postgresql://user:password@host:5432/db?sslmode=require (Azure Postgres requires SSL)',
   },
   {
     name: 'NEXTAUTH_URL',
@@ -83,7 +83,7 @@ export const LIBRARY_READ_ENV: readonly LibraryReadEnv[] = [
   {
     name: 'VERCEL_ENV',
     readBy: 'the boot check · the migration gate',
-    where: 'src/lib/siteUrlGuard.ts (through the env record: production / preview / development — the NEXTAUTH_URL check runs for production only, a Preview has a per-deploy host); src/lib/build/migrationGate.ts through scripts/migrate-gate.ts at build (production migrates, preview never touches a database, any other value refuses — PREVIEW-DB-01)',
+    where: 'src/lib/siteUrlGuard.ts (through the env record: production / preview / development — the NEXTAUTH_URL check runs for production only, a Preview has a per-deploy host); src/lib/build/migrationGate.ts through scripts/migrate-gate.ts at build (production migrates, preview never migrates, any other value refuses — PREVIEW-DB-01)',
     need: 'platform',
     shape: 'production / preview / development; set by the host — at build too, while "Enable access to System Environment Variables" is on',
   },
