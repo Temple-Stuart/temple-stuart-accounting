@@ -156,8 +156,8 @@ import { MODEL_NUMBER_TOOLTIP } from '../src/lib/convergence/modelLabels';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
 import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, providersLaw, ruleFor } from '../src/lib/providers';
-// EVENTS-01: the experiences leaf — every marquee event dated from its own calendar, with the day checked.
-import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/experiences';
+// EVENTS-01: the experiences leaf — every marquee event dated from its own calendar, with the day checked. HOME-05a: the close offer leaf beside it.
+import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/experiences'; import { CLOSE_OFFER, closeOfferLaw } from '../src/lib/offer/close';
 // WASHERE-01: the trip log — Alex's own stops, each naming an experience by id, a photo each as they land.
 import { WAS_HERE, wasHereLaw } from '../src/lib/wasHere';
 // DATAFLOW-01 (ruling D): the deck's S14 law, by name. Importing the deck runs every slide's layout law at module scope.
@@ -707,7 +707,7 @@ console.log(`counts: LIVE ${counts.LIVE} · PARTIAL ${counts.PARTIAL} · NOT_BUI
   if (violations.length === before) console.log(`✔ The experiences law passed — ${EXPERIENCES.length} rows in ${EXPERIENCE_CATEGORIES.length} categories, every one dated from its own calendar with the day it was checked; the landing mounts the section once with the day the front door computed.`);
   else console.log(`✖ The experiences law FAILED — ${violations.length - before} violation(s).`);
 }
-
+{ const before = violations.length; violations.push(...closeOfferLaw({ throwOnFail: false })); console.log(violations.length === before ? `✔ The close offer law passed — $${CLOSE_OFFER.pricePerMonthUsd} for each month of the ${CLOSE_OFFER.year} close, new books through ${CLOSE_OFFER.bookBy}, booked by email (src/lib/offer/close.ts).` : `✖ The close offer law FAILED — ${violations.length - before} violation(s).`); } // ── THE CLOSE OFFER LAW (HOME-05a, 2026-11-03): the leaf's own law, re-run beside the experiences law — one line, so no line the deck cites moves.
 // ── THE TRIP LOG LAW (WASHERE-01, 2026-10-31) ───────────────────────────────
 // The leaf's own law first (src/lib/wasHere.ts wasHereLaw — one place at a time,
 // every date in shape, a photo only from public/was-here), then what only the
