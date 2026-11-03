@@ -33,8 +33,8 @@ export interface LibraryReadEnv {
 export const LIBRARY_READ_ENV: readonly LibraryReadEnv[] = [
   {
     name: 'DATABASE_URL',
-    readBy: 'prisma',
-    where: 'prisma/schema.prisma:12 `url = env("DATABASE_URL")` — the client and every migration',
+    readBy: 'prisma · the migration gate',
+    where: 'prisma/schema.prisma:12 `url = env("DATABASE_URL")` — the client and every migration; src/lib/build/migrationGate.ts through scripts/migrate-gate.ts at build (whether it is there, never what it says; a preview build may carry it and never migrates — PREVIEW-DB-01c)',
     need: 'required',
     shape: 'postgresql://user:password@host:5432/db?sslmode=require (Azure Postgres requires SSL)',
   },
@@ -82,10 +82,17 @@ export const LIBRARY_READ_ENV: readonly LibraryReadEnv[] = [
   },
   {
     name: 'VERCEL_ENV',
-    readBy: 'the boot check',
-    where: 'src/lib/siteUrlGuard.ts (through the env record: production / preview / development — the NEXTAUTH_URL check runs for production only, a Preview has a per-deploy host)',
+    readBy: 'the boot check · the migration gate',
+    where: 'src/lib/siteUrlGuard.ts (through the env record: production / preview / development — the NEXTAUTH_URL check runs for production only, a Preview has a per-deploy host); src/lib/build/migrationGate.ts through scripts/migrate-gate.ts at build (production migrates, preview never migrates, any other value refuses — PREVIEW-DB-01)',
     need: 'platform',
-    shape: 'production / preview / development; set by the host',
+    shape: 'production / preview / development; set by the host — at build too, while "Enable access to System Environment Variables" is on',
+  },
+  {
+    name: 'BUILD_TARGET',
+    readBy: 'the migration gate',
+    where: 'src/lib/build/migrationGate.ts through scripts/migrate-gate.ts at build (through the env record: local applies migrations to the database Prisma reads from DATABASE_URL; any other value refuses, and so does a value beside VERCEL_ENV — PREVIEW-DB-01)',
+    need: 'optional',
+    shape: 'local, its only value — every build off Vercel says it (`BUILD_TARGET=local npm run build`); unset on Vercel, where VERCEL_ENV decides',
   },
   {
     name: 'PORT',
