@@ -147,12 +147,19 @@ export const CURRENCY_NOT_STATED_WORDS = 'currency not stated';
 export const NOT_WHOLE_CENTS_WORDS = 'not whole cents';
 
 /**
- * TRAVEL-01b (Alex, 2026-10-31, ruling C): A STATED PRICE — a vendor's figure in its own minor unit with its
- * ISO code (reservations.finalPriceCents + reservations.currency): the one formatter when the code is the
- * functional currency, else the figure with its code ('12345.00 PHP'). ONE function: the matcher's rationale
- * (src/lib/runway/reservationMatcher.ts, where it was FX-01b's local bookedMoneyWords — the words are unchanged)
- * and the day card's travel stops both write through it; nothing converts, nothing writes a `$` on a figure
+ * TRAVEL-01b (Alex, 2026-10-31, ruling C): A STATED PRICE — a vendor's figure in hundredths of its currency (THE
+ * HUNDREDTHS, below) with its ISO code (reservations.finalPriceCents + reservations.currency): the one formatter when
+ * the code is the functional currency, else the figure with its code ('12345.00 PHP'). ONE function: the matcher's
+ * rationale (src/lib/runway/reservationMatcher.ts, where it was FX-01b's local bookedMoneyWords — the words are
+ * unchanged) and the day card's travel stops both write through it; nothing converts, nothing writes a `$` on a figure
  * that is not dollars. A figure that is not whole minor units is the caller's bug, refused by centsOf.
+ *
+ * TRAVEL-02b-fix (Alex, 2026-11-03, ruling C) — THE HUNDREDTHS. Every stated figure in the travel lane is in
+ * HUNDREDTHS of its currency (1/100 of its major unit), whatever the currency's ISO 4217 exponent: VND, JPY and KRW
+ * have none, so 350,000 VND is stored 35,000,000 and printed '350000.00 VND'. One convention across
+ * reservations.finalPriceCents, money_events.amountCents and travel_expenses.amount_minor — a "minor unit" in this
+ * lane is always that hundredth (the book routes and the cancel leaf write Math.round(amount * 100); the typed form
+ * writes centsOfTypedDollars). FX-02 owns exponent-aware words and any conversion; this function prints two decimals.
  */
 export function statedMoneyWords(minor: bigint | number, currency: string): string {
   const upper = currency.toUpperCase();

@@ -4660,8 +4660,8 @@ model source_documents {
 /// TRAVEL-02b (Alex, 2026-11-03, ruling A) — A TYPED TRAVEL EXPENSE: a visa, an eSIM or a one-off travel purchase,
 /// as its own row (TRAVEL-00's decision 6 — a user-scoped table, not a routine; trip_expenses, the group-trip table,
 /// is a different thing). Stated in the currency it was paid in (no default — FX-01), on the DAY it was paid, the
-/// vendor as typed. HELD BY THE DATABASE (prisma/migrations/20261103120000_travel_02b_travel_expenses — Prisma cannot
-/// express a CHECK or a trigger; the migration holds them): the three kinds, a positive amount, a three-letter
+/// vendor as typed, trimmed. HELD BY THE DATABASE (prisma/migrations/20261103120000_travel_02b_travel_expenses — Prisma
+/// cannot express a CHECK or a trigger; the migration holds them): the three kinds, a positive amount, a three-letter
 /// currency, a vendor of 1–120 characters, the void pair (both or neither, the reason never blank); a FREEZE trigger —
 /// nothing changes once kept, except the void, set once from NULL — and a NO-DELETE trigger (TRUNCATE too). Matched
 /// to its bank posting by hand through the one link rule: planned_item_links kind 'travel_expense' (ruling B). The
@@ -4673,11 +4673,14 @@ model travel_expenses {
   kind         String    @db.VarChar(8)
   /// The DAY it was paid — a calendar day, never an instant.
   paid_on      DateTime  @db.Date
-  /// The amount in the currency's minor units, as typed — > 0, a CHECK.
+  /// TRAVEL-02b-fix (Alex, 2026-11-03, ruling C) — THE HUNDREDTHS: the amount in HUNDREDTHS of the currency (1/100 of
+  /// its major unit), whatever its ISO 4217 exponent — VND, JPY and KRW have none, so 350,000 VND is stored 35,000,000
+  /// and printed '350000.00 VND'. One convention with reservations.finalPriceCents and money_events.amountCents; FX-02
+  /// owns exponent-aware words and any conversion. > 0, a CHECK.
   amount_minor Int
   /// ISO 4217 as stated — three letters, no default.
   currency     String    @db.VarChar(3)
-  /// As typed — 1 to 120 characters once trimmed, a CHECK.
+  /// As typed, trimmed (TRAVEL-02b-fix ruling B — STAY-01's rule for a place) — 1 to 120 characters, a CHECK.
   vendor       String    @db.VarChar(120)
   note         String?
   trip_id      String?

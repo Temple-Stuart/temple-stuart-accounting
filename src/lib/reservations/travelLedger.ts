@@ -53,7 +53,7 @@
  *     one-off purchase; src/lib/travel/travelExpense.ts) is a row of kind visa | esim | other, its source 'typed', in
  *     the same columns: DATE its paid_on — a DAY, drawn as that day on screen and written as it in the CSV (the DAY
  *     rule: no zone moves a day); LANE '—'; TRIP the trip's name or 'unattached'; BOOK / ACCOUNT from its coa_code
- *     through the same scheme as a booking's budget line (else '—' / 'no account'); VENDOR as typed; CONFIRMATION and
+ *     through the same scheme as a booking's budget line (else '—' / 'no account'); VENDOR as stored; CONFIRMATION and
  *     DATES '—'; STATED statedMoneyWords(amount_minor, currency); SETTLED the bank row of each posting linked to it
  *     (planned_item_links kind 'travel_expense' → the journal entry → its bank row, source_id) through bankMoneyWords
  *     with its day, joined by ' + ' when there are several, else 'not matched'; POSTED each posting's day, else 'not
@@ -63,6 +63,9 @@
  *     leaves both sum lines — counted '<n> voided'. A linked posting that names no bank row says 'matched — no bank row'.
  *   · THE ORDER: the bookings (each with its money events) and the typed rows, newest first, by the booking's instant
  *     and the typed row's day (its UTC midnight) — ledgerRowsOf.
+ *
+ * TRAVEL-02b-fix (Alex, 2026-11-03, rulings A and B): NO SILENT EMPTY — a 200 that lacks a list it promises fails the
+ * read by name (THE READS, travelLedgerReadsOf); and VENDOR is as stored, which since ruling B is as typed, trimmed.
  *
  * THIS FILE IS PURE: no prisma, no fetch, no clock (the instants are the rows' own), no React, no env.
  */
@@ -79,7 +82,7 @@ import { tableCsv } from '@/lib/table/csv';
 import { textKey } from '@/lib/table/sort';
 import { BLANK } from '@/lib/table/words';
 import { instantToZoned } from '@/lib/time';
-import { isTravelExpenseKind, type TravelExpenseKind } from '@/lib/travel/travelExpense';
+import { isTravelExpenseKind, type ChartChoice, type TravelExpenseKind, type TripChoice } from '@/lib/travel/travelExpense';
 import { BOOKING_WORDS, STATUS_WORDS, bookingIcsHref } from './bookingRow';
 import { LANE_WORD, reservationIdentity } from './lane';
 
@@ -228,6 +231,45 @@ export interface TravelExpenseIn {
   readonly void_reason: string | null;
   readonly created_at: string;
   readonly postings: readonly TravelExpensePostingIn[];
+}
+
+// ── THE READS (TRAVEL-02b-fix, Alex, 2026-11-03, ruling A — no silent empty) ───
+//
+// The TRAVEL LEDGER reads two routes. A 200 whose JSON lacks a list it promises is a MALFORMED answer: the read fails
+// by name (missingListWords) through the screen's existing error state, and nothing is shown as an empty ledger. A list
+// that is truly empty ([]) stays a list. AllBookings.tsx parses both answers here, so the tests drive the same parse.
+
+/** The routes the lists come from — the paths AllBookings.tsx fetches (the bookings law pins its literal fetch). */
+export const RESERVATIONS_ROUTE = '/api/reservations';
+export const TRAVEL_EXPENSES_ROUTE = '/api/travel-expenses';
+
+/** Ruling A: a 200 that lacks the list it promises, named by route and list — and nothing shown as empty. */
+export const missingListWords = (route: string, name: string): string =>
+  `${route} answered without its "${name}" list — nothing is shown as empty`;
+
+/** One list a 200 promises: the list as answered (a truly empty one stays a list), or the read refused by name. */
+export function listOf<T>(answer: unknown, route: string, name: string): T[] {
+  const list: unknown = typeof answer === 'object' && answer !== null ? (answer as Record<string, unknown>)[name] : undefined;
+  if (!Array.isArray(list)) throw new TravelLedgerError(missingListWords(route, name));
+  return list as T[];
+}
+
+/** What the TRAVEL LEDGER holds once both reads answered 200: the bookings (with their money events), the typed rows, the form's two lists. */
+export interface TravelLedgerReads {
+  readonly ledger: LedgerBookingIn[];
+  readonly expenses: TravelExpenseIn[];
+  readonly trips: TripChoice[];
+  readonly accounts: ChartChoice[];
+}
+
+/** Ruling A: both 200 answers, every list each promises — or the read fails by name (TravelLedgerError, missingListWords). */
+export function travelLedgerReadsOf(reservations: unknown, travelExpenses: unknown): TravelLedgerReads {
+  return {
+    ledger: listOf<LedgerBookingIn>(reservations, RESERVATIONS_ROUTE, 'ledger'),
+    expenses: listOf<TravelExpenseIn>(travelExpenses, TRAVEL_EXPENSES_ROUTE, 'expenses'),
+    trips: listOf<TripChoice>(travelExpenses, TRAVEL_EXPENSES_ROUTE, 'trips'),
+    accounts: listOf<ChartChoice>(travelExpenses, TRAVEL_EXPENSES_ROUTE, 'accounts'),
+  };
 }
 
 // ── THE ROW ─────────────────────────────────────────────────────────────────

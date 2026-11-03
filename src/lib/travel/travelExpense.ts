@@ -3,16 +3,18 @@
  *
  * A visa, an eSIM or a one-off travel purchase is its own typed row (prisma/schema.prisma travel_expenses; the
  * migration 20261103120000_travel_02b_travel_expenses holds its CHECKs and its two triggers): stated in the currency it
- * was paid in, on the DAY it was paid, the vendor as typed — frozen once kept, voided never deleted. This file holds
- * what the two routes ask before they write, and every word they answer with:
+ * was paid in, on the DAY it was paid, the vendor as typed, trimmed — frozen once kept, voided never deleted. This
+ * file holds what the two routes ask before they write, and every word they answer with:
  *
  *   · THE BODY RULE (ruling C) — POST /api/travel-expenses: { kind, paid_on, amount_minor, currency, vendor, note?,
  *     trip_id?, coa_code? }. Every field is refused by name (the documents route's unknownFieldWords shape); an
  *     unknown field is a 400. kind one of visa | esim | other; paid_on a 'YYYY-MM-DD' day the calendar has
- *     (budget/days.ts isIsoDay); amount_minor a whole number of minor units above 0 that the INTEGER column holds;
- *     currency three capitals (functionalCurrency.ts ISO_4217_CODE — 'usd' is refused, never upper-cased for the
- *     customer: stated, never assumed); vendor as typed, 1–120 characters once trimmed (the CHECK's rule); note, trip_id
- *     and coa_code left out (or null) or stated — a blank one is refused, never read as absent.
+ *     (budget/days.ts isIsoDay); amount_minor a whole number of HUNDREDTHS of the currency above 0 that the INTEGER
+ *     column holds (THE HUNDREDTHS, beside AMOUNT_REQUIRED_WORDS); currency three capitals (functionalCurrency.ts
+ *     ISO_4217_CODE — 'usd' is refused, never upper-cased for the customer: stated, never assumed); vendor as typed,
+ *     trimmed (STAY-01's rule for a place), 1–120 characters (the CHECK's rule); note, trip_id and coa_code left out
+ *     (or null) or stated — a blank one is refused, never read as absent — and a stated note kept trimmed too
+ *     (TRAVEL-02b-fix, Alex, 2026-11-03, ruling B: the vendor and the note are stored trimmed).
  *   · THE CHART RULE — a coa_code must be ONE row of the caller's chart_of_accounts, read through the one scheme
  *     (src/lib/coa/scheme.ts parseCode, COA-01: four digits, or the entity's letter and four digits): the typed code
  *     against each of the caller's books, matched to a row whose saved code reads the same — planMoney's reading
@@ -83,7 +85,14 @@ export const KIND_REQUIRED_WORDS = `kind is required — one of ${TRAVEL_EXPENSE
 export const kindNotAKindWords = (sent: unknown): string => `kind ${JSON.stringify(sent)} is not one of ${TRAVEL_EXPENSE_KINDS.join(', ')}`;
 export const PAID_ON_REQUIRED_WORDS = "paid_on is required — the day it was paid, 'YYYY-MM-DD'";
 export const paidOnNotADayWords = (sent: unknown): string => `paid_on ${JSON.stringify(sent)} is not a day — 'YYYY-MM-DD', a day the calendar has`;
-export const AMOUNT_REQUIRED_WORDS = "amount_minor is required — the amount in the currency's minor units, a whole number above 0";
+/**
+ * TRAVEL-02b-fix (Alex, 2026-11-03, ruling C) — THE HUNDREDTHS. Every stated figure in the travel lane is in HUNDREDTHS
+ * of its currency (1/100 of its major unit), whatever the currency's ISO 4217 exponent: VND, JPY and KRW have none, so
+ * 350,000 VND is stored 35,000,000 and printed '350000.00 VND'. One convention across reservations.finalPriceCents,
+ * money_events.amountCents and travel_expenses.amount_minor — a "minor unit" in this lane is always that hundredth.
+ * FX-02 owns exponent-aware words and any conversion.
+ */
+export const AMOUNT_REQUIRED_WORDS = 'amount_minor is required — the amount in hundredths of the currency (1/100 of its major unit), a whole number above 0';
 export const amountNotWholeWords = (sent: unknown): string => `amount_minor ${JSON.stringify(sent)} is not a whole number of minor units`;
 export const amountNotAboveZeroWords = (sent: number): string => `amount_minor ${sent} is not above 0 — an expense is money paid`;
 export const amountTooLargeWords = (sent: number): string => `amount_minor ${sent} is more than ${AMOUNT_MINOR_MAX} — the most the column holds`;
@@ -163,20 +172,24 @@ export function travelExpenseBodyRule(body: unknown): { readonly ok: true; reado
   if (!(typeof body.currency === 'string' && ISO_4217_CODE.test(body.currency))) return refuse('currency', currencyNotACodeWords(body.currency));
   const currency = body.currency;
 
+  // TRAVEL-02b-fix (ruling B): the vendor is kept TRIMMED — STAY-01's rule for a place — and its length is the trimmed
+  // text's (the CHECK reads char_length(btrim(vendor)) the same way).
   if (typeof body.vendor !== 'string') return refuse('vendor', VENDOR_REQUIRED_WORDS);
-  const vendor = body.vendor;
-  if (vendor.trim() === '') return refuse('vendor', VENDOR_BLANK_WORDS);
+  const vendor = body.vendor.trim();
+  if (vendor === '') return refuse('vendor', VENDOR_BLANK_WORDS);
   if (vendor.length > VENDOR_MAX) return refuse('vendor', vendorTooLongWords(vendor.length));
 
+  // The note the same way: stated, it is kept trimmed; one that trims to '' is still refused as blank (optionalText).
   const note = optionalText(body, 'note', NOTE_NOT_TEXT_WORDS, NOTE_BLANK_WORDS);
   if (!note.ok) return note;
+  const noteKept = note.value === null ? null : note.value.trim();
   const tripId = optionalText(body, 'trip_id', TRIP_NOT_AN_ID_WORDS, TRIP_BLANK_WORDS);
   if (!tripId.ok) return tripId;
   const coaCode = optionalText(body, 'coa_code', COA_NOT_A_CODE_WORDS, COA_BLANK_WORDS);
   if (!coaCode.ok) return coaCode;
   if (coaCode.value !== null && coaCode.value.length > COA_CODE_MAX) return refuse('coa_code', coaTooLongWords(coaCode.value.length));
 
-  return { ok: true, value: { kind, paid_on: paidOn, amount_minor: amount, currency, vendor, note: note.value, trip_id: tripId.value, coa_code: coaCode.value } };
+  return { ok: true, value: { kind, paid_on: paidOn, amount_minor: amount, currency, vendor, note: noteKept, trip_id: tripId.value, coa_code: coaCode.value } };
 }
 
 // ── THE CHART RULE ──────────────────────────────────────────────────────────
@@ -225,6 +238,16 @@ export interface ChartChoice {
   readonly account: string;
   readonly name: string;
   readonly book: string;
+}
+
+/**
+ * A trip the form offers: the caller's, as GET /api/travel-expenses answers it (its `trips` list). TRAVEL-02b-fix: moved
+ * here from TravelExpenseControls.tsx so the ledger's pure read of that answer (travelLedger.ts travelLedgerReadsOf)
+ * names it without importing a component.
+ */
+export interface TripChoice {
+  readonly id: string;
+  readonly name: string;
 }
 
 /** A choice's words in the form's list: the account string, its name, its book — 'P-9200 · Travel — Visas (Personal)'. */

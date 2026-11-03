@@ -28,27 +28,33 @@
  * writers — the void and "+ travel expense" under the table — are TravelExpenseControls.tsx's;
  * this file still writes nothing (the bookings law). Either read refused: its words, and no
  * table — never a ledger missing half its rows. After a save, a void or a link, both read again.
+ *
+ * TRAVEL-02b-fix (Alex, 2026-11-03, ruling A) — NO SILENT EMPTY. A 200 that lacks a list it
+ * promises (the bookings' `ledger`; the typed rows' `expenses`, `trips`, `accounts`) is a
+ * malformed answer: the leaf's parse (travelLedger.ts travelLedgerReadsOf) fails the read by
+ * name (missingListWords) into the same error state — never an empty table. A list that is
+ * truly empty stays a list.
  */
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import DataTable, { cellClass, chipClass, moneyClass } from '@/components/table/DataTable';
-import TravelExpenseForm, { VoidTravelExpense, type TripChoice } from '@/components/trips/TravelExpenseControls';
+import TravelExpenseForm, { VoidTravelExpense } from '@/components/trips/TravelExpenseControls';
 import LinkPicker from '@/components/workbench/operations/ledger/LinkPicker';
 import { LINK_PAYMENT_WORDS } from '@/lib/operations/billPay';
 import { BOOKING_WORDS } from '@/lib/reservations/bookingRow';
 import {
-  TRAVEL_LEDGER_CSV_FILE_NAME, TRAVEL_LEDGER_TABLE, cellWordsOf, ledgerRowsOf, settledSumLineWords, statedSumLineWords,
-  type LedgerBookingIn, type TravelExpenseIn, type TravelLedgerColumn, type TravelLedgerRow,
+  TRAVEL_LEDGER_CSV_FILE_NAME, TRAVEL_LEDGER_TABLE, cellWordsOf, ledgerRowsOf, settledSumLineWords, statedSumLineWords, travelLedgerReadsOf,
+  type TravelLedgerColumn, type TravelLedgerReads, type TravelLedgerRow,
 } from '@/lib/reservations/travelLedger';
-import { TRAVEL_EXPENSES_UNREADABLE_WORDS, VOID_WORDS, type ChartChoice } from '@/lib/travel/travelExpense';
+import { TRAVEL_EXPENSES_UNREADABLE_WORDS, VOID_WORDS } from '@/lib/travel/travelExpense';
 import { filterRows, noFilters, type TableFilters } from '@/lib/table/filters';
 import { sortRows, type TableSort } from '@/lib/table/sort';
 
 type Loaded =
   | { state: 'loading' }
   | { state: 'error'; message: string }
-  | { state: 'done'; ledger: LedgerBookingIn[]; expenses: TravelExpenseIn[]; trips: TripChoice[]; accounts: ChartChoice[] };
+  | ({ state: 'done' } & TravelLedgerReads);
 
 const BLANK_CLASS = 'text-text-faint';
 const DOOR_CLASS = 'rounded border border-border px-2 py-1 text-xs font-medium text-text-secondary hover:bg-bg-row';
@@ -82,13 +88,9 @@ export default function AllBookings() {
         if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : `${BOOKING_WORDS.unreadable} (${res.status})`);
         const answer = await typedRes.json().catch(() => ({}));
         if (!typedRes.ok) throw new Error(typeof answer.error === 'string' ? answer.error : `${TRAVEL_EXPENSES_UNREADABLE_WORDS} (${typedRes.status})`);
-        if (alive) setLoaded({
-          state: 'done',
-          ledger: Array.isArray(data.ledger) ? (data.ledger as LedgerBookingIn[]) : [],
-          expenses: Array.isArray(answer.expenses) ? (answer.expenses as TravelExpenseIn[]) : [],
-          trips: Array.isArray(answer.trips) ? (answer.trips as TripChoice[]) : [],
-          accounts: Array.isArray(answer.accounts) ? (answer.accounts as ChartChoice[]) : [],
-        });
+        // TRAVEL-02b-fix (ruling A): every list each 200 promises, or the read fails by name — never shown as empty.
+        const reads = travelLedgerReadsOf(data, answer);
+        if (alive) setLoaded({ state: 'done', ...reads });
       } catch (err) {
         if (alive) setLoaded({ state: 'error', message: err instanceof Error ? err.message : BOOKING_WORDS.unreadable });
       }
