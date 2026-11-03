@@ -415,7 +415,13 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     customer: 'Miles driven are not tracked yet, or priced for the return.',
   },
   Budget: {
-    slug: 'budget', status: 'PARTIAL', beats: ALL, home: '/budget',
+    slug: 'budget', status: 'PARTIAL', beats: some({ discover: true }), home: '/budget',
+    // DATAFLOW-01d (Alex, 2026-11-03): the beats are what the page does — one, discover. /budget
+    // reads Books', Tasks' and the vendors' tables (src/app/api/budget/report/route.ts:90-103:
+    // ledger_entries, chart_of_accounts and transactions; operations_routines and
+    // operations_project_tasks; planned_item_vendors — reportReads.ts:50, :78, :86, :100,
+    // routineBudgetInputs.ts:101) and writes none: both budget routes export GET alone
+    // (route.ts:61, cell/route.ts:46). It was ALL. PARTIAL, the why, home and links stand.
     ownTable: null, // its page calls GET /api/budget/report and GET /api/budget/report/cell — both read; budgets is written only by /api/budgets, which no page calls
     // TAB13-02b (ruled 2026-09-27): /budget is the budget report — plan vs actual by
     // book and account (src/app/api/budget/report/route.ts, src/components/budget/
@@ -437,7 +443,9 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // TAB13-03b (2026-09-29): re-cited — a book is its itemized table (its totals stay
     // in the model, off the screen), and the strip is replaced by the missing-money notice.
     // TAB13-04 (2026-09-29): re-cited — the day plan and its vendors (the route reads the
-    // plan vendors; planLines.ts builds the lines; the drill writes a vendor, never a figure).
+    // plan vendors; planLines.ts builds the lines; the vendor box writes a vendor, never a
+    // figure — DATAFLOW-01d (2026-11-03): that box mounts on the day card,
+    // src/components/workbench/operations/day/DayCard.tsx:1228, not on /budget's GET-only drill).
     // BUDGET-02 (2026-10-20): re-cited — one page: the year, three tables of every P&L
     // account × month, each figure drilling to its plan or ledger lines through the cell
     // route; both routes read the books through the one loader. The day plan, its vendor

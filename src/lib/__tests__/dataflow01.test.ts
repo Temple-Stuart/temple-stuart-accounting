@@ -10,6 +10,8 @@
  * keeps a table of their own (the registry's ownTable, its writing route cited and checked
  * at build); step 6 is derived from it and step 8 cites it; step 2 ends on step 4's point;
  * the README's gap cells say only what is missing; the phone shows step 4's retired slot.
+ * DATAFLOW-01d (Alex, 2026-11-03): Budget's beats are what its page does — discover alone,
+ * cited to the report route; step 7 and README row 07 derive five tools from the registry.
  *
  *   T1 no Grok or xAI in any today-line, the menu as spoken today or step 3's example —
  *      except the census line, which names xAI as the provider that left (ruling A);
@@ -23,6 +25,8 @@
  *   T7 the README's gap ledger and count line equal the deck's strings, computed here;
  *   T8 step 2 and step 4 read one constant; step 4's retired label comes from RETIRED_PROVIDERS, on both widths;
  *   T9 the own-table law refuses by name, and step 6's line moves with the registry (DATAFLOW-01c A, B).
+ *   T10 Budget runs one beat, discover, cited to the route that reads and writes nothing; step 7 and
+ *      README row 07 derive five tools; the vendor note names the day card (DATAFLOW-01d, 2026-11-03).
  * Source is read through code(), comments() and rejoin() only (the reader law). No clock.
  */
 import { test } from 'node:test';
@@ -31,7 +35,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as React from 'react';
 import { code, comments, rejoin } from '../sourceText';
-import { ALL_BEATS_LINE, BEAT_WORDS, TOOL_REGISTRY, allBeatsLine, ownTableLaw, ownTableLine, registryLaw, type ToolEntry } from '../toolRegistry';
+import { ALL_BEATS_LINE, BEAT_WORDS, EXPECTED_STATUS_COUNTS, TOOL_REGISTRY, allBeatsLine, ownTableLaw, ownTableLine, registryLaw, statusCounts, type ToolEntry } from '../toolRegistry';
 import * as providers from '../providers';
 import { ADDED_RULES, PROVIDER_MENU, RETIRED_PROVIDERS, ROUTING_RULES, RULE_BOOK, isRetired, liveMenuCell, providersLaw } from '../providers';
 import { KIND_VIEWS_HONEST_LINE } from '../kindViews';
@@ -126,13 +130,14 @@ test('T2 step 7\'s line is the registry\'s four-beat tools in registry order, in
   for (const t of TOOL_REGISTRY) assert.deepEqual(Object.keys(t.beats), [...BEAT_WORDS], `${t.name}'s beats are the Beats keys in their declared order`);
   assert.match(code(REGISTRY), /const ALL: Beats = \{ discover: true, decide: true, commit: true, record: true \};/);
   const four = TOOL_REGISTRY.filter((t) => BEAT_WORDS.every((beat) => t.beats[beat])).map((t) => t.name);
-  assert.deepEqual(four, ['Tasks', 'Time', 'Expenses', 'Travel', 'Budget', 'Bookkeeping']);
+  // DATAFLOW-01d (Alex, 2026-11-03): Budget's beats are discover alone — it left the four-beat tools; six became five.
+  assert.deepEqual(four, ['Tasks', 'Time', 'Expenses', 'Travel', 'Bookkeeping']);
   assert.equal(ALL_BEATS_LINE, allBeatsLine());
   assert.equal(ALL_BEATS_LINE, `Today ${four.length} tools run all four beats — ${BEAT_WORDS.join(', ')}: ${four.join(', ')}.`);
-  assert.equal(ALL_BEATS_LINE, 'Today 6 tools run all four beats — discover, decide, commit, record: Tasks, Time, Expenses, Travel, Budget, Bookkeeping.');
+  assert.equal(ALL_BEATS_LINE, 'Today 5 tools run all four beats — discover, decide, commit, record: Tasks, Time, Expenses, Travel, Bookkeeping.'); // DATAFLOW-01d
   const ALL = { discover: true, decide: true, commit: true, record: true };
   const fixture = TOOL_REGISTRY.map((t) => (t.name === 'Calendar' ? { ...t, beats: ALL } : t));
-  assert.equal(allBeatsLine(fixture), 'Today 7 tools run all four beats — discover, decide, commit, record: Calendar, Tasks, Time, Expenses, Travel, Budget, Bookkeeping.', 'the derivation is real');
+  assert.equal(allBeatsLine(fixture), 'Today 6 tools run all four beats — discover, decide, commit, record: Calendar, Tasks, Time, Expenses, Travel, Bookkeeping.', 'the derivation is real'); // DATAFLOW-01d: 7 → 6, Budget out
   const { DECK_TODAY } = await deck();
   for (const text of [ALL_BEATS_LINE, DECK_TODAY.s07]) assert.doesNotMatch(text, /\bdraft\b/, '"draft" left step 7');
   assert.ok(landingCode.includes("This loop is the blueprint — the shape we&apos;re building every tool toward. {ALL_BEATS_LINE} {DECK_TODAY.s07}</p>"));
@@ -312,7 +317,7 @@ test('T7 the README\'s gap ledger quotes the deck\'s lines, its count line is th
   ];
   for (const [step, gap] of gaps) assert.equal(gapOf(step), gap, `README gap ledger row ${step}: what is still missing`);
   assert.equal(gapOf('08'), 'no master table; each tool that has a table keeps its own.', 'row 08 follows step 8 (DATAFLOW-01c C)');
-  assert.equal(gapOf('07'), '19 of the 25 tools do not run all four beats yet.');
+  assert.equal(gapOf('07'), '20 of the 25 tools do not run all four beats yet.'); // DATAFLOW-01d (Alex, 2026-11-03): Budget left the four-beat tools — 19 → 20
   const retiredDay = (word: string) => RETIRED_PROVIDERS.find(([w]) => w === word)?.[1];
   for (const [job, today, next] of PROVIDER_MENU) {
     const cell = today.split(' · ').map((w) => (retiredDay(w) ? `${w} (retired ${retiredDay(w)})` : w)).join(' · ');
@@ -370,10 +375,56 @@ test('T9 the own-table law refuses by name, a fixture for each — and step 6\'s
   assert.equal(ownTableLine(sixteen, withBudget), 'Today 5 of the sixteen keep their own table: Tasks, Time, Budget, Bookkeeping, Tax. The other 11 don\'t yet. One table for all of them is the blueprint.');
   assert.notEqual(ownTableLine(sixteen, withBudget), ownTableLine(sixteen));
   assert.throws(() => ownTableLine(sixteen, swap('Tax', { ownTable: undefined })), /Tax — a stay-home tool's entry says ownTable, a model or null/, 'an unsaid ownTable is a loud failure');
-  // D is report-only: Budget's status and beats are untouched
+  // D is report-only: Budget's status is untouched. DATAFLOW-01d (Alex, 2026-11-03): its beats
+  // moved by their own ruling — ALL → discover alone (T10); this PR left them as they were.
   const budget = TOOL_REGISTRY.find((t) => t.name === 'Budget')!;
   assert.equal(budget.status, 'PARTIAL');
-  assert.deepEqual(budget.beats, { discover: true, decide: true, commit: true, record: true });
+  assert.deepEqual(budget.beats, { discover: true, decide: false, commit: false, record: false });
   assert.equal(budget.ownTable, null);
   assert.match(code(LAW), /violations\.push\(\.\.\.ownTableLaw\(\{ schema: schemaText, codeOf: /, 'the build runs the file half');
+});
+
+// ── T10 · BUDGET'S BEATS ARE WHAT ITS PAGE DOES (DATAFLOW-01d) ───────────────
+
+test('T10 Budget runs one beat, discover — cited to the report route, which reads Books\', Tasks\' and the vendors\' tables and writes none; step 7 and README row 07 derive five tools; the vendor note names the day card (DATAFLOW-01d)', () => {
+  const budget = TOOL_REGISTRY.find((t) => t.name === 'Budget')!;
+  // A: discover and nothing else, in the registry's own some() form.
+  assert.deepEqual(budget.beats, { discover: true, decide: false, commit: false, record: false });
+  assert.deepEqual(BEAT_WORDS.filter((b) => budget.beats[b]), ['discover']);
+  assert.ok(code(REGISTRY).includes("slug: 'budget', status: 'PARTIAL', beats: some({ discover: true }), home: '/budget',"), 'the some() form on its slug line');
+  // status, why, home and links stand; the census does not move.
+  assert.equal(budget.status, 'PARTIAL');
+  assert.equal(budget.why, 'plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet');
+  assert.equal(budget.home, '/budget');
+  assert.deepEqual(budget.links, []);
+  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
+  assert.deepEqual(statusCounts(), EXPECTED_STATUS_COUNTS);
+  assert.deepEqual(registryLaw({ throwOnFail: false }), []);
+  // The citation holds: what the route reads, through which lines, and that neither budget route writes.
+  const note = comments(REGISTRY).replace(/\s*\n\s*\/\/\s*/g, ' ');
+  assert.match(note, /DATAFLOW-01d \(Alex, 2026-11-03\): the beats are what the page does — one, discover\. \/budget reads Books', Tasks' and the vendors' tables \(src\/app\/api\/budget\/report\/route\.ts:90-103:/);
+  const reads = code('src/app/api/budget/report/route.ts').split('\n').slice(89, 103).join('\n');
+  for (const read of ['readBudgetChart(', 'loadRoutineBudgetInputs(', 'readCostedTasks(', 'readActuals(', 'prisma.transactions.findMany(', 'readPlanVendors(']) assert.ok(reads.includes(read), `route.ts:90-103 reads through ${read}`);
+  const loader = code('src/lib/budget/reportReads.ts').split('\n');
+  for (const [line, table] of [[50, 'ledger_entries'], [78, 'chart_of_accounts'], [86, 'operations_project_tasks'], [100, 'planned_item_vendors']] as const) {
+    assert.match(loader[line - 1], new RegExp(`db\\.${table}\\.findMany\\(`), `reportReads.ts:${line} reads ${table}`);
+  }
+  assert.match(code('src/lib/operations/routineBudgetInputs.ts').split('\n')[100], /db\.operations_routines\.findMany\(/, 'routineBudgetInputs.ts:101 reads operations_routines');
+  for (const [file, line] of [['src/app/api/budget/report/route.ts', 61], ['src/app/api/budget/report/cell/route.ts', 46]] as const) {
+    const src = code(file);
+    assert.match(src.split('\n')[line - 1], /^export async function GET\(/, `${file}:${line} is its GET`);
+    assert.doesNotMatch(src, /export (async )?function (POST|PUT|PATCH|DELETE)\b/, `${file} exports no write`);
+  }
+  assert.doesNotMatch(code('src/components/budget/BudgetReport.tsx'), /VendorBox|method:/, "/budget's report mounts no vendor box and sends no write");
+  // B: step 7 and README row 07 derive five tools, Budget not among them.
+  assert.equal(ALL_BEATS_LINE, 'Today 5 tools run all four beats — discover, decide, commit, record: Tasks, Time, Expenses, Travel, Bookkeeping.');
+  assert.doesNotMatch(ALL_BEATS_LINE, /Budget/);
+  const row07 = rejoin(code(README), comments(README)).split('\n').find((l) => l.startsWith('| 07 | ') && l.split(' | ').length === 4)!.split(' | ');
+  assert.equal(row07[2], "This loop is the blueprint — the shape we're building every tool toward. Today 5 tools run all four beats — discover, decide, commit, record: Tasks, Time, Expenses, Travel, Bookkeeping. Hotel and flight bookings commit for real, and an accepted task fires its build — for the repo owner today; the route refuses anyone else.");
+  assert.equal(row07[3].replace(/ \|$/, ''), '20 of the 25 tools do not run all four beats yet.');
+  // A: the stale note is corrected to where the vendor box mounts — the day card — and that citation holds.
+  assert.doesNotMatch(comments(REGISTRY), /the drill writes a vendor/);
+  assert.match(note, /the vendor box writes a vendor, never a figure — DATAFLOW-01d \(2026-11-03\): that box mounts on the day card, src\/components\/workbench\/operations\/day\/DayCard\.tsx:1228, not on \/budget's GET-only drill\)\./);
+  assert.match(code('src/components/workbench/operations/day/DayCard.tsx').split('\n')[1227], /<StopVendor /, 'DayCard.tsx:1228 mounts the stop vendor');
+  assert.match(code('src/components/workbench/operations/stops/StopVendor.tsx'), /<VendorBox line=\{line\}/, 'which draws the budget vendor box');
 });
