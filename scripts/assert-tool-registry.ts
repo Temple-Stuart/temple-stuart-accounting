@@ -138,7 +138,7 @@ import { createHash, createHmac } from 'crypto';
 import { classifyCadence, compileFormToRRule, expandBetween, expandForward, scheduleAnchor } from '../src/lib/operations/rruleHelpers';
 import { DEFAULT_ROUTINE_FORM } from '../src/components/workbench/operations/routines/types';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
-import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
+import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, ownTableLaw, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, PHASES_RENDERED_AT, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
 import { PIPE_PHASES } from '../src/lib/pipePhases';
 import { INPUT_SIGNS, buyerAdmittedInputs } from '../src/lib/convergence/input-signs';
@@ -478,6 +478,9 @@ let raised = 0;
 lawGuard('The tool registry law', () => {
 const tabs = tabAllowlist();
 const rows: string[] = [];
+// DATAFLOW-01c (ruling A): a stay-home tool's ownTable is a model in the schema, and the route its entry cites names
+// that model's client accessor — the half of the own-table law that needs the files (the leaf refuses the rest).
+violations.push(...ownTableLaw({ schema: schemaText, codeOf: (file) => (existsSync(resolve(ROOT, file)) ? codeOf(file) : null) }));
 
 for (const t of TOOL_REGISTRY) {
   const resolved = t.home ? pageFor(t.home, tabs) : null;

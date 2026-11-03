@@ -198,7 +198,7 @@ import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
 import { PROVIDER_MENU, ROUTING_RULES, isRetired, liveMenuCell } from '@/lib/providers';
 // DATAFLOW-01: step 7's today line, derived from the registry — the tools whose four beats all run.
-import { ALL_BEATS_LINE } from '@/lib/toolRegistry';
+import { ALL_BEATS_LINE, ownTableLine } from '@/lib/toolRegistry';
 // TABLES-01: step 5's honest line — every table name from the kind-views census, none retyped.
 import { KIND_VIEWS_HONEST_LINE } from '@/lib/kindViews';
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
@@ -610,8 +610,6 @@ const S4_SLOTS = (() => {
   if (slots.some((slot, j) => j > 0 && slot < slots[j - 1])) throw new Error('slide 04: the fold arrows would cross — the arrivals must run in the rule book\'s order');
   return slots;
 })();
-// the mobile card lists the fed slots only — it has no rails to keep level.
-const S4_LISTED = S4_FEEDS.filter((f): f is readonly [string, string] => f !== null);
 
 // S4-GEOM: the S2/S3 sibling. All three panels share HEAD + ROW_H and sit
 // top-aligned, so a feed's center is one pitch below its arrival's (the
@@ -781,6 +779,9 @@ const S6_TABLES = ([
 // layout law asserts |sixteen| == 16.
 const s6FeedsOf = (kind: string) => ROUTING_RULES.filter(([, , k]) => k.toLowerCase() === kind).map(([p, r]) => `${p} · ${r}`);
 const S6_STAYHOME = PROBLEM_SHEET.flatMap(({ tools }) => tools).filter((t) => !S2_MOVERS.has(t));
+// DATAFLOW-01c (Alex, 2026-11-03, ruling B): step 6's line, DERIVED from the registry's ownTable
+// over these sixteen (toolRegistry.ts ownTableLine) — who keeps a table of their own today.
+const SIXTEEN_LINE = ownTableLine(S6_STAYHOME);
 // the left column's seven groups: the six kinds (posting shown empty),
 // then THE SIXTEEN — a label is gold only when it IS a kind/table name.
 const S6_GROUPS = [
@@ -1044,7 +1045,7 @@ const S9_GEOM = { W: 1216, L_W: 240, M_X: 360, M_W: 240, R_X: 720, HEAD: 22, ROW
 // hedge agree: Travel (the card charge to its booking) and, DATAFLOW-01b
 // ruling D, Bill Pay — the registry's only entry that cites the route
 // writing planned_item_links, the hand link of a routine occurrence or a
-// task to the journal entry that settled it (toolRegistry.ts:316, its
+// task to the journal entry that settled it (toolRegistry.ts:336, its
 // record beat). Step 13's lanes read the same flag.
 const S9_LAYOUT = (() => {
   const tools = PROBLEM_SHEET.flatMap(({ tools: t }) => t as readonly string[]);
@@ -1058,7 +1059,7 @@ const S9_LAYOUT = (() => {
     tool,
     observed: MATCHES[tool],
     doc: TOOL_DOCUMENTS[tool][0],
-    live: tool === 'Travel' || tool === 'Bill Pay', // true per src/app/api/runway/match/propose/route.ts:130 (createMany — proposed) · src/app/api/runway/match/review/route.ts:104 (update — you approve) — the card charge to its booking · src/app/api/calendar/links/route.ts:249 (planned_item_links.create) — the one writer of the hand link, which src/lib/toolRegistry.ts:316 (record) cites as Bill Pay's record beat ("link payment" → POST /api/calendar/links)
+    live: tool === 'Travel' || tool === 'Bill Pay', // true per src/app/api/runway/match/propose/route.ts:130 (createMany — proposed) · src/app/api/runway/match/review/route.ts:104 (update — you approve) — the card charge to its booking · src/app/api/calendar/links/route.ts:249 (planned_item_links.create) — the one writer of the hand link, which src/lib/toolRegistry.ts:336 (record) cites as Bill Pay's record beat ("link payment" → POST /api/calendar/links)
     y: S9_GEOM.HEAD + i * S9_GEOM.ROW_H + S9_GEOM.ROW_H / 2,
   }));
   for (let a = 0; a < rows.length; a += 1) {
@@ -1783,19 +1784,19 @@ const DECK_STEP_IDS = [
 // tense as a blueprint, and the intro says so. src/lib/__tests__/dataflow01.test.ts pins
 // the pairing line by line. DATAFLOW-01b (Alex, 2026-11-03): the size lines of steps 3
 // and 5 are the August 24 census again (s03, s05 — commit d0738c9b, PR #1581), and what a
-// new provider is lives in ONE constant both step 2 and step 4 read. Step 6's punch and
-// step 8's line are as they were: ruling C was stopped (Bill Pay, built, keeps no table
-// of its own); step 9's drawing keeps one tag: ruling D was stopped (no registry entry
-// cites the route that writes planned_item_links).
-export const NEW_PROVIDER_IS = 'one row in the rule book — a code file, checked at build — and one enum value'; // true per src/lib/providers.ts:16 (the file IS the rule book) · :150 RULE_BOOK · :168 kindOf (one rule per pair, no per-provider routing) · prisma/schema.prisma:4329 enum arrival_provider · scripts/assert-tool-registry.ts:739 (enumValues === the book's codes, at build)
+// new provider is lives in ONE constant both step 2 and step 4 read. DATAFLOW-01c (Alex,
+// 2026-11-03): step 6 is derived from the registry's ownTable (SIXTEEN_LINE) and step 8
+// says "each tool that has a table", cited to it; step 2 ends on step 4's point — the pipe
+// gains no new tables and no new logic.
+export const NEW_PROVIDER_IS = 'one row in the rule book — a code file, checked at build — and one enum value'; // true per src/lib/providers.ts:16 (the file IS the rule book) · :150 RULE_BOOK · :168 kindOf (one rule per pair, no per-provider routing) · prisma/schema.prisma:4329 enum arrival_provider · scripts/assert-tool-registry.ts:742 (enumValues === the book's codes, at build)
 export const DECK_TODAY = {
   intro: 'One data pipe is the plan for the whole system. Each step below says what runs today.', // true per src/lib/__tests__/dataflow01.test.ts — every today-line below is derived from a leaf or carries its file:line on its own line here
   s02: 'Here is who we speak to today:', // true per src/lib/providers.ts:217 liveMenuCell — the table under it renders each TODAY cell minus RETIRED_PROVIDERS (:207 — xai grok left 2026-09-10, 8358dc28)
   s03: 'And here is the real size of it: on August 24, 2026 we counted 121 feeds from 20 providers — one of those providers, xAI, has left since.', // true per commit d0738c9b, PR #1581 (merged 2026-08-24) — "the count is the 2026-08-24 FEED-INVENTORY audit's number" · src/lib/providers.ts:207 RETIRED_PROVIDERS (xai grok left 2026-09-10, 8358dc28)
   s05: 'We classified every one of the 121 feeds — August 24, 2026 — and posting took zero.', // true per commit d0738c9b, PR #1581 — the August 24 census · README.md:271 ("the 121 feeds' classification stays the August 24 census until each lands") · src/lib/providers.ts:207 RETIRED_PROVIDERS (one of the 20 has left since)
-  s04: `When a new provider shows up, it is ${NEW_PROVIDER_IS}; no new logic, no new tables.`, // true per NEW_PROVIDER_IS above — src/lib/providers.ts:150 RULE_BOOK · :168 kindOf · prisma/schema.prisma:4329 arrival_provider · scripts/assert-tool-registry.ts:739 (enumValues)
+  s04: `When a new provider shows up, it is ${NEW_PROVIDER_IS}; no new logic, no new tables.`, // true per NEW_PROVIDER_IS above — src/lib/providers.ts:150 RULE_BOOK · :168 kindOf · prisma/schema.prisma:4329 arrival_provider · scripts/assert-tool-registry.ts:742 (enumValues)
   s07: 'Hotel and flight bookings commit for real, and an accepted task fires its build — for the repo owner today; the route refuses anyone else.', // true per src/app/api/travel/liteapi/book/route.ts:173 (bookRate) · :271 (reservations.create) · src/app/api/travel/liteapi/flights/book/route.ts:157 (bookFlight) · :239 · src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:283-284 (403 before any write) · :376 (fireExecutionRoutine) · src/lib/fireExecutionRoutine.ts:56 (requireRoutineOwner)
-  s08: "Today each tool keeps its own table; one table holding every document is the shape we're building.", // true per prisma/schema.prisma:3835 operations_routines · :3702 operations_project_tasks · :477 operations_day_journals · :443 operations_stop_records — each built tool's own rows (src/lib/toolRegistry.ts citations); the NOT_BUILT tools keep none yet
+  s08: "Today each tool that has a table keeps its own; one table holding every document is the shape we're building.", // true per src/lib/toolRegistry.ts:218 ownTable (Tasks) · :290 ownTable (Time) · :525 ownTable (Bookkeeping) · :531 ownTable (Tax) — each with the route that writes it, refused at build unless that route names the model (scripts/assert-tool-registry.ts:483 ownTableLaw); the other built tools keep none of their own
   s09: '(Two pieces of this are already alive today: card charges find their bookings and propose the match — you approve it; and you link a routine occurrence or a task to the journal entry that settled it.)', // true per prisma/schema.prisma:1905 transaction_reservation_links · src/app/api/runway/match/propose/route.ts:130 (createMany — proposed) · src/app/api/runway/match/review/route.ts:104 (update — you approve) · prisma/schema.prisma:333 planned_item_links · src/app/api/calendar/links/route.ts:249 (planned_item_links.create — the one writer; TASKS-03)
   s10: "The posting view is the blueprint — today it holds zero lines by design — the ledger already has its lines. The rules writing them is the bookkeeping pipe we're building.", // true per src/lib/kindViews.ts:196 · :220 (posting: empty by law) · src/lib/posting/postJournal.ts:121 — 13 callers post the ledger's lines: 10 routes (api/journal-entries, journal-entries/manual, chart-of-accounts/reclassify, admin/fix-entity-assignment, trading/commit-to-ledger, investment-transactions/commit-to-ledger, investment-transactions/uncommit, stock-lots, stock-lots/commit, year-end-close) and 3 services (src/lib/journal-entry-service.ts, position-tracker-service.ts, batch-trade-processor.ts)
   s11: "Today all four compute — tax and the business result from the journal entries you commit by hand, runway from Plaid's account balances against those entries, trading from the positions and lots you committed, with no live quote in the number.", // true per src/lib/answers.ts:79-108 ANSWER_READS — each answer's endpoint and its own file:line (tax :84, runway :91, trading :98, business :105)
@@ -1803,7 +1804,7 @@ export const DECK_TODAY = {
   s13: 'Alive today: two matches — card charges find their bookings and propose the match, which you approve; and you link a routine occurrence or a task to the journal entry that settled it. The project lane is wired end to end: a task lands for your review, and accepting it fires the build that answers it — for the repo owner today; the route refuses anyone else.', // true per prisma/schema.prisma:1905 transaction_reservation_links · src/app/api/runway/match/propose/route.ts:130 (createMany) · src/app/api/runway/match/review/route.ts:104 (update) · prisma/schema.prisma:333 planned_item_links · src/app/api/calendar/links/route.ts:249 (planned_item_links.create) · src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:283-284 (403) · :376 (fireExecutionRoutine) · src/lib/fireExecutionRoutine.ts:56
   s14Fingerprint: 'Alive today: the fingerprint, on the rules and the audit log — every regulation pull is hashed the moment it lands, and the audit log hash-chains every entry it records; the citation re-check is written, but the hash it compares against is stored empty today, so it proves nothing yet.', // true per src/lib/corpus/ingest/ecfr-persist.ts:113 · src/lib/corpus/ingest/uscode-persist.ts:97 · src/lib/corpus/ingest/fedreg-persist.ts:105 · src/lib/corpus/ingest/irb-persist.ts:104 · src/lib/audit/writeAuditLog.ts:99-104 · src/lib/citations/verifyCitation.ts:119 · src/lib/discovery/materializeProposal.ts:165 (retrieved_content_hash: '')
   s14Arrivals: "Today the Plaid feeds land in that table — every answer word for word, fingerprinted: 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026 — and so do LiteAPI's bookings, cancellations, booking reads and webhooks, and Stripe's webhook events.", // true per src/app/api/transactions/sync-complete/route.ts:156 · :262 · :335 · src/lib/arrivals/liteapiBooking.ts:127 · :210 · :282 · :326 · :351 · src/lib/arrivals/stripeWebhook.ts:210 — their four routes: src/app/api/travel/liteapi/book/route.ts:204 · src/app/api/travel/liteapi/flights/book/route.ts:198 · src/app/api/webhooks/liteapi/route.ts:101 · src/app/api/stripe/webhook/route.ts:155 (runStripeDelivery) · cancellations through src/lib/reservations/cancelFlow.ts:396 (landLiteApiCancellation) · reads through src/lib/reservations/vendorRead.ts:142 (landLiteApiBookingRead); the three counts are the September 7, 2026 census, kept until a recount
-  s14Parsed: "The other providers still land parsed; the same table is the shape they're moving into.", // true per scripts/assert-tool-registry.ts:837 (callSites) — the rule book law's landing call-site scan finds plaid, liteapi and stripe only
+  s14Parsed: "The other providers still land parsed; the same table is the shape they're moving into.", // true per scripts/assert-tool-registry.ts:840 (callSites) — the rule book law's landing call-site scan finds plaid, liteapi and stripe only
 } as const;
 
 /** PR-DECK: inline [text, isGold] segments — the only way gold ever enters a
@@ -2853,7 +2854,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               paragraph, the pick-yours statement and the more-join line
               render nowhere else as standalones; the SnapTrade footnote
               moved under the menu at both breakpoints. */}
-          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Nine tools take providers. Sixteen stay home. Count them; it is twenty-five. For the sixteen, nobody sends an API — not for your tasks, your invoices, your budget. So this system does not import those tools; it IS those tools, and their data gets born here. Our AI belongs to no tool; it serves every step. For the nine, you pick yours and your neighbor picks theirs. The system does not care; a provider is {NEW_PROVIDER_IS}, so a new one is added, never built. More join over time. Each one is one new row!</p>
+          <p className="mt-8 max-w-[680px] text-[15px] leading-[1.6] text-text-secondary">Nine tools take providers. Sixteen stay home. Count them; it is twenty-five. For the sixteen, nobody sends an API — not for your tasks, your invoices, your budget. So this system does not import those tools; it IS those tools, and their data gets born here. Our AI belongs to no tool; it serves every step. For the nine, you pick yours and your neighbor picks theirs. The system does not care; a provider is {NEW_PROVIDER_IS}: the pipe gains no new tables and no new logic. More join over time. Each one is one new row!</p>
           <p className="mt-[22px] lg:mt-9 text-[17px] lg:text-[28px] text-brand-purple">So how do we actually get their data?</p>
         </div>
       </section>
@@ -3228,11 +3229,23 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             </div>
             <div className="mt-4 border border-border bg-white">
               <p className="flex h-[22px] items-center overflow-hidden whitespace-nowrap bg-bg-row px-[6px] font-mono text-[6.5px] font-normal uppercase tracking-[0.14em] text-text-faint border-b border-b-border">THE FEEDS</p>
-              {S4_LISTED.map(([p, r], i) => (
-                <p key={`${p}-${r}`} className={`px-[6px] py-[3px] font-mono text-[10px] leading-[1.4] text-brand-purple ${i < S4_LISTED.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
-                  {p} · {r}
-                  {p === 'plaid' && r === 'transaction' && <span className="text-text-faint"> ← chase · boa — two connections, one feed</span>}
-                  {(r === 'account' || r === 'holding') && <span className="text-text-faint"> — more from plaid</span>}
+              {/* DATAFLOW-01c (ruling G): the phone shows xAI's rule row in the rule book below, so
+                  this card shows its empty slot and the retired label too — every slot, in the
+                  rule book's order, the desktop's own list. */}
+              {S4_FEEDS.map((feed, i) => (
+                <p key={feed === null ? `slot-${i}` : `${feed[0]}-${feed[1]}`} className={`px-[6px] py-[3px] font-mono text-[10px] leading-[1.4] text-brand-purple ${i < S4_FEEDS.length - 1 ? 'border-b-[0.75px] border-b-text-faint' : ''}`}>
+                  {feed === null ? (
+                    <>
+                      <span className="text-text-faint">—</span>
+                      {isRetired(ROUTING_RULES[i][0]) && <span className="text-text-faint" data-s4-retired> retired</span>}
+                    </>
+                  ) : (
+                    <>
+                      {feed[0]} · {feed[1]}
+                      {feed[0] === 'plaid' && feed[1] === 'transaction' && <span className="text-text-faint"> ← chase · boa — two connections, one feed</span>}
+                      {(feed[1] === 'account' || feed[1] === 'holding') && <span className="text-text-faint"> — more from plaid</span>}
+                    </>
+                  )}
                 </p>
               ))}
             </div>
@@ -3517,7 +3530,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </div>
 
           {/* The punch (not a fourth move), then the faint texture note. */}
-          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>The sixteen are yours — and they have no table. That&apos;s the one gap left.</p>
+          <p className={`mt-[22px] lg:mt-8 ${DECK.statement}`}>{SIXTEEN_LINE}</p>
           <p className="mt-2 text-[12px] lg:text-[14px] text-text-faint">Derived and posting your system computes — no draft. The sixteen you draft, then commit.</p>
 
           <div className={DECK.hairline} aria-hidden="true" />
@@ -4464,7 +4477,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           <p className={`mt-2 lg:mt-0 lg:leading-[2] ${DECK.statement}`}><span className="font-mono text-text-faint">(c)</span> End at the fingerprint — the code made from the payload the moment it arrived. Recompute it: it still matches.</p>
 
           <p className={`mt-10 lg:mt-[76px] ${DECK.rust}`}>SEVEN HOPS BACK TO THE PROVIDER&apos;S WORDS</p>
-          {/* DATAFLOW-01 (ruling D): true per scripts/assert-tool-registry.ts:984 (s14Law) — the build imports this
+          {/* DATAFLOW-01 (ruling D): true per scripts/assert-tool-registry.ts:987 (s14Law) — the build imports this
               file (every slide law runs on import) and re-runs s14Law; on main a broken check built green. */}
           <p className="mt-[6px] font-mono text-[10px] lg:text-[11px] text-text-faint">seven of seven hops checked at build — a failed check is a failed build.</p>
 

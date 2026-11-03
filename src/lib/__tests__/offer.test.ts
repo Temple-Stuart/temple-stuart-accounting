@@ -68,20 +68,26 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   // so the row no longer claims decide; three beats keep the beats form.
   // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair). Tasks left the four-beat PARTIALs: "built and running" (claimForTool below).
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Time left the four-beat PARTIALs: "built and running" (claimForCockpit('content') below).
+  // DATAFLOW-01d (Alex, 2026-11-03): Budget runs discover alone — it left the four-beat PARTIALs and none is left, so
+  // the why form is proven on Budget handed four beats (FOUR); its own one-beat row keeps the beats form.
+  const FOUR = { discover: true, decide: true, commit: true, record: true };
   for (const name of ['Budget'] as const) {
-    const t = tool(name);
+    const t = { ...tool(name), beats: FOUR };
     assert.equal(t.status, 'PARTIAL');
     assert.equal(claimLine(t), `partial — ${t.why}`);
     assert.ok(!claimLine(t).includes('discover'), `${name}: the why, not the beats`);
   }
+  assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'PARTIAL' && Object.values(t.beats).every(Boolean)).map((t) => t.name), [], 'DATAFLOW-01d: no four-beat PARTIAL is left');
+  assert.equal(claimLine(tool('Budget')), 'partial — discover'); // DATAFLOW-01d: one beat, the beats form
   assert.equal(claimLine(tool('Tasks')), 'built and running');
   // ONEOFF-01: the calendar authors nothing — commit is lost with the add form; two beats.
   assert.equal(claimLine(tool('Calendar')), 'partial — discover · record');
   assert.equal(tool('Calendar').status, 'PARTIAL', 'the census did not move with the beats');
   // a four-beat PARTIAL with no why is thrown, not rendered as the beats form
   // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE, so the four-beat PARTIAL probe ran through Time. TIME-03 (Alex, 2026-10-26): Time is LIVE too — through Budget, the one left.
-  assert.throws(() => claimLine({ ...tool('Budget'), why: undefined }), /Budget is PARTIAL with four beats and no why/);
-  assert.throws(() => claimLine({ ...tool('Budget'), why: '  ' }), /Budget is PARTIAL with four beats and no why/);
+  // DATAFLOW-01d (Alex, 2026-11-03): none is left — the probe hands Budget four beats (FOUR).
+  assert.throws(() => claimLine({ ...tool('Budget'), beats: FOUR, why: undefined }), /Budget is PARTIAL with four beats and no why/);
+  assert.throws(() => claimLine({ ...tool('Budget'), beats: FOUR, why: '  ' }), /Budget is PARTIAL with four beats and no why/);
   // fewer than four beats keeps the beats form even when a why is present
   assert.equal(claimLine({ ...tool('Tax'), why: 'not used' }), 'partial — discover · decide');
   const card = offerCard(books(), {});
@@ -105,7 +111,8 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   // HOME-01 (Alex, 2026-10-24, ruling C): the Time row's why is the tables'.
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The cockpit's content key reads a LIVE row now.
   assert.equal(claimForCockpit('content'), 'built and running');
-  assert.equal(claimForCockpit('calendar'), 'partial — plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet'); // Budget, a four-beat PARTIAL since TRUTH-01; its why since TAB13-02b
+  // DATAFLOW-01d (Alex, 2026-11-03): Budget runs discover alone, so the Runway deck's CTA (RunwayShowcaseSections.tsx:324) reads the beats form.
+  assert.equal(claimForCockpit('calendar'), 'partial — discover'); // Budget; was its why (a four-beat PARTIAL since TRUTH-01, the why since TAB13-02b)
   assert.throws(() => claimForCockpit('nope'), OfferLawError);
 });
 
