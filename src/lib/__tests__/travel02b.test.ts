@@ -207,10 +207,11 @@ test('C the body rule: a visa in PHP 3,500.00 is 350000 minor units and reads ba
   refused({ ...VISA_BODY, trip_id: ' ' }, 'trip_id', TRIP_BLANK_WORDS);
   refused({ ...VISA_BODY, coa_code: '' }, 'coa_code', COA_BLANK_WORDS);
   refused({ ...VISA_BODY, coa_code: 'P'.repeat(51) }, 'coa_code', 'coa_code is 51 characters — at most 50');
-  // Left out and null are the same absence; a stated value reads back as typed.
+  // Left out and null are the same absence; a stated value reads back as typed — the note TRIMMED since TRAVEL-02b-fix
+  // (2026-11-03, ruling B: the vendor and the note are stored trimmed; travel02bfix.test.ts pins both) — moved, not loosened.
   assert.deepEqual(travelExpenseBodyRule({ ...VISA_BODY, note: null, trip_id: null, coa_code: null }), ok);
   const full = travelExpenseBodyRule({ ...VISA_BODY, note: ' 30-day e-visa ', trip_id: 'trip-1', coa_code: 'P-9200' });
-  assert.ok(full.ok && full.value.note === ' 30-day e-visa ' && full.value.trip_id === 'trip-1' && full.value.coa_code === 'P-9200');
+  assert.ok(full.ok && full.value.note === '30-day e-visa' && full.value.trip_id === 'trip-1' && full.value.coa_code === 'P-9200');
   assert.deepEqual([...TRAVEL_EXPENSE_KINDS], ['visa', 'esim', 'other']);
 });
 

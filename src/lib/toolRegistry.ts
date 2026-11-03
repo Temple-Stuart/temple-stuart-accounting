@@ -296,8 +296,10 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     slug: 'invoicing', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 6 — no invoice model, no A/R route',
     customer: 'You cannot send an invoice or see who has not paid yet.',
   },
+  // TRAVEL-02b-fix (2026-11-03, ruling D): re-cited — commission_ledger is the model at schema:1936; :1399 was
+  // dining_destinations.coworkingCount.
   Payments: {
-    slug: 'payments', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 7 — Stripe routes are the product\'s own billing; commission_ledger (schema:1399) is a Travel byproduct',
+    slug: 'payments', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 7 — Stripe routes are the product\'s own billing; commission_ledger (schema:1936) is a Travel byproduct',
     customer: 'Money arriving is not yet matched to the invoice that earned it.',
   },
   // ── MONEY OUT ──
@@ -306,11 +308,13 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // pay it (LINK-LAW-01's match: reversed postings left out) and the account it was paid from, and marks it paid, due today,
   // upcoming or overdue in the routine's own zone. The payment is linked by hand through the existing picker. It pays
   // nothing and schedules nothing; the account a bill will be paid from is known only after payment (PAY-ACCOUNT-01) and no
-  // bill is accrued (ACCRUAL-01). The vendor directory's own bill columns are still written by nothing (re-cited: schema:4233).
+  // bill is accrued (ACCRUAL-01). The vendor directory's own bill columns are still written by nothing (re-cited: schema:4261-4265).
   // DOCUMENTS-01 (2026-10-28): source_documents' back-relations on accounts, journal_entries and users moved the vendor
   // directory three lines down — :4229 → :4232.
   // DOCUMENTS-02 (2026-10-30): bank_reconciliations' supersession (its doc comment, superseded_by and the two
   // relations, the @@unique gone) moved the vendor directory fourteen lines down — :4232 → :4246.
+  // TRAVEL-02b-fix (2026-11-03, ruling D): the bill columns re-cited — amount_usd … last_paid_amount_usd sit at
+  // schema:4261-4265; :4233 was operations_issue_log_entries.linked_project_id.
   'Bill Pay': {
     slug: 'bill-pay', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/bill-pay',
     citation: 'discover: src/app/api/bill-pay/route.ts:37 (GET /api/bill-pay?from=&to= — the window by ledger.ts spanInput; the routines with their role through routineBudgetInputs.ts loadRoutineBudgetInputs, the plan vendors through reportReads.ts readPlanVendors, ONE planned_item_links read with postingAmount.ts BILL_POSTING_SELECT) → src/lib/operations/billPay.ts:170 billPayOf (days.ts buildRoutineBudgetLines, ledger.ts matchOf, linkOccurrence.ts occurrenceCheck) → src/components/workbench/operations/billpay/BillPaySection.tsx (/bill-pay) · record: BillPaySection.tsx:78 ("link payment" on an unpaid row) → :86 the existing ledger/LinkPicker.tsx → POST /api/calendar/links · TOOL CENSUS row 8 — operations_vendor_directory (schema:4254): its GET lists vendors (vendor-directory/route.ts:20) and, since VENDOR-01, its POST creates one (:67) — never updates or deletes one; its bill columns (amount_usd, billing_rrule, next_due_date, last_paid_date, last_paid_amount_usd) are written by nothing',
@@ -475,8 +479,10 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     slug: 'debt', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 19 — src/app/api/net-worth/route.ts:36 is a totals read; no schedule, no lender',
     customer: 'What you owe and when it comes due is not tracked yet.',
   },
+  // TRAVEL-02b-fix (2026-11-03, ruling D): re-cited — sales_tax_nexus sits at schema:2800, a value of the corpus enum
+  // PracticeArea (schema:2777, read by regulatory_sources.practice_areas); :2201 was lot_adjustments.adjusted_cost_per_share.
   'Sales Tax': {
-    slug: 'sales-tax', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 20 — sales_tax_nexus (schema:2201) is a corpus enum',
+    slug: 'sales-tax', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 20 — sales_tax_nexus (schema:2800) is a corpus enum',
     customer: 'Sales tax collected, and when each state wants it, is not tracked yet.',
   },
   'Ent Filings': {
@@ -506,7 +512,9 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
       { label: 'SOC 2 proofs', href: '/soc2' },
       { label: 'Audit trail', href: '/operations/audit-log' },
     ],
-    citation: 'src/lib/discovery/runDiscovery.ts:44 · :107 · src/lib/audit/writeAuditLog.ts:101 via materializeProposal.ts:186; nothing signed (attestation_status schema:2679-2682 never written)',
+    // TRAVEL-02b-fix (2026-11-03, ruling D): re-cited — compliance_tasks.attestation_status sits at schema:3390;
+    // :2679-2682 were trip_scanner_results' tripId … recommendations.
+    citation: 'src/lib/discovery/runDiscovery.ts:44 · :107 · src/lib/audit/writeAuditLog.ts:101 via materializeProposal.ts:186; nothing signed (attestation_status schema:3390 never written)',
     customer: 'It works out what the entity has to do and keeps a log of what was done; nothing is signed off here yet.',
   },
   'FP&A': {

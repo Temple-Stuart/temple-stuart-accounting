@@ -29,14 +29,8 @@ import { KIND_WORDS, NO_ACCOUNT_WORDS, UNATTACHED_WORDS } from '@/lib/reservatio
 import {
   ADD_TRAVEL_EXPENSE_WORDS, AMOUNT_PLACEHOLDER_WORDS, CANCEL_EXPENSE_WORDS, CHOOSE_KIND_WORDS, CHOOSE_TRIP_WORDS, EXPENSE_FIELD_LABELS,
   SAVE_EXPENSE_WORDS, SAVING_EXPENSE_WORDS, TRAVEL_EXPENSE_KINDS, TRIP_NOT_CHOSEN_WORDS, VOIDING_WORDS, VOID_REASON_LABEL_WORDS, VOID_WORDS,
-  chartChoiceWords, noWordsRefusalWords, type ChartChoice,
+  chartChoiceWords, noWordsRefusalWords, type ChartChoice, type TripChoice,
 } from '@/lib/travel/travelExpense';
-
-/** A trip the form offers: the caller's, as GET /api/travel-expenses answers it. */
-export interface TripChoice {
-  readonly id: string;
-  readonly name: string;
-}
 
 /** The select's value for 'unattached' — a cuid never holds a colon, so no trip id can be it. */
 const UNATTACHED_VALUE = ':unattached';

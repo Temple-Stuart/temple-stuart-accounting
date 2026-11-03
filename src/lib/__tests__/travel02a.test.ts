@@ -330,7 +330,10 @@ test('E GET /api/reservations keeps `bookings` and gains `ledger`; every read na
 test('A the view draws the ledger through the shared DataTable over the leaf\'s spec, in the viewer\'s zone, the sum lines in the foot, the three doors kept on a booking\'s row; types no word; writes nothing', () => {
   const view = code(VIEW);
   assert.match(view, /fetch\('\/api\/reservations'\)/);
-  assert.match(view, /Array\.isArray\(data\.ledger\) \? \(data\.ledger as LedgerBookingIn\[\]\) : \[\]/);
+  // TRAVEL-02b-fix (2026-11-03, ruling A): the `ledger` list is read through the leaf's parse — a 200 without it fails the
+  // read by name, never an empty ledger (travel02bfix.test.ts drives the parse) — moved, not loosened.
+  assert.match(view, /const reads = travelLedgerReadsOf\(data, answer\);/);
+  assert.doesNotMatch(view, /Array\.isArray\(/, 'no list read as empty when it is missing');
   assert.match(view, /setZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\);/, 'the viewer\'s zone');
   // TRAVEL-02b (2026-11-03, ruling D): the bookings and the typed rows, merged by the leaf — moved, not loosened (travel02b.test.ts pins the merge).
   assert.match(view, /ledgerRowsOf\(loaded\.ledger, loaded\.expenses, zone\)/);
