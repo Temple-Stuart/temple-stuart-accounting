@@ -17,6 +17,9 @@
  * route accepted, the leaf reads its own links again (the linked posting leaves
  * the candidates) and tells the ledger (onChanged), which reads its span again.
  * Nothing is stored in the browser.
+ *
+ * TRAVEL-02b (Alex, 2026-11-03, ruling B): the door for a typed travel expense on the TRAVEL LEDGER — the same picker,
+ * kind 'travel_expense', its id, NO instant (the kind carries none; the hook sends none) and `near` its paid-on day.
  */
 
 'use client';
@@ -33,7 +36,8 @@ import {
 interface Props {
   readonly kind: LinkableKind;
   readonly id: string;
-  readonly instant: string;
+  /** A routine occurrence's instant; null for a kind that carries none (TRAVEL-02b: a travel expense). */
+  readonly instant: string | null;
   /** The record's day, 'YYYY-MM-DD' — the route's `near`. */
   readonly near: string;
   /** The route accepted a link or an unlink: the ledger reads its span again. */
@@ -50,7 +54,7 @@ export default function LinkPicker({ kind, id, instant, near, onChanged, onClose
   useEffect(() => { void openPicker(near); }, [openPicker, near]);
 
   return (
-    <div className="space-y-2 rounded border border-border bg-white p-2 text-xs" data-link-picker={`${kind}:${id}:${instant}`}>
+    <div className="space-y-2 rounded border border-border bg-white p-2 text-xs" data-link-picker={`${kind}:${id}:${instant === null ? '' : instant}`}>
       <p className="text-text-faint" data-link-picker-no-suggestion>{NO_SUGGESTION_WORDS}</p>
       {item.refusal !== null && <p className="text-brand-red" data-link-picker-refusal>{item.refusal}</p>}
       <p className={head}>{LINKED_POSTINGS_WORDS}</p>

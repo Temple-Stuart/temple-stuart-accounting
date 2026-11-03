@@ -2830,7 +2830,8 @@ if (!/CHECK \(\("target_kind" = 'routine'\) = \("target_instant" IS NOT NULL\)\)
   linkFail(`${LINK_MIGRATION} does not make target_instant mandatory for a routine and forbidden for everything else — a routine link keyed on a date silently misses`);
 }
 // LINES-01 added 'routine_line' and TRAVEL-01 'trip_item', each in its OWN migration; LINK-01's names the original three.
-if (!LINKABLE_KINDS.filter((k) => k !== 'routine_line' && k !== 'trip_item').every((k) => linkMigration.includes(`'${k}'`))) linkFail(`${LINK_MIGRATION}'s kind CHECK does not name ${LINKABLE_KINDS.join(', ')}`);
+// TRAVEL-02b (2026-11-03): 'travel_expense' too, in its own migration (20261103120000_travel_02b_travel_expenses) — moved, not loosened.
+if (!LINKABLE_KINDS.filter((k) => k !== 'routine_line' && k !== 'trip_item' && k !== 'travel_expense').every((k) => linkMigration.includes(`'${k}'`))) linkFail(`${LINK_MIGRATION}'s kind CHECK does not name ${LINKABLE_KINDS.join(', ')}`);
 if (!requiresInstant('routine')) linkFail('the key leaf no longer requires an instant for a routine');
 // 6. THE CARDINALITY IS THE DATABASE'S, not a convention.
 if (!/CREATE UNIQUE INDEX "planned_item_links_one_item_per_posting"[\s\S]{0,120}\("journal_entry_id"\)/.test(linkMigration)) {

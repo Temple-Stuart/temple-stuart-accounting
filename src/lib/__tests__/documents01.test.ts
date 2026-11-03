@@ -157,11 +157,13 @@ test('A the words: the receipt line, the size, and the coverage counted once per
 test('B the migration: the newest; one table column for column, the CHECKs, RESTRICT, the deferred self reference, one current receipt and statement, the freeze and the no-delete', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // DOCUMENTS-02 (Alex, 2026-10-30): the reconciliation's supersession migration followed — this one is the second newest.
-  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration before the newest (DOCUMENTS-02 followed)');
-  assert.equal(dirs[dirs.length - 2], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
+  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration before the newest (DOCUMENTS-02 followed)');
+  assert.equal(dirs[dirs.length - 3], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
   // FX-01 (2026-10-30): the transactions currency migration followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 1], '20261030150000_fx_01_transactions_currency', 'the newest migration');
-  assert.equal(dirs[dirs.length - 4], '20261020160000_backlog_02_reranked', 'right after BACKLOG-02’s');
+  assert.equal(dirs[dirs.length - 2], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
+  // TRAVEL-02b (2026-11-03): travel_expenses and the sixth link kind followed — every pin above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261103120000_travel_02b_travel_expenses', 'the newest migration');
+  assert.equal(dirs[dirs.length - 5], '20261020160000_backlog_02_reranked', 'right after BACKLOG-02’s');
   const sql = code(MIGRATION);
   assert.match(sql, /CREATE TABLE "source_documents" \(\n  "id"\s+UUID\s+NOT NULL DEFAULT gen_random_uuid\(\),\n  "user_id"\s+TEXT\s+NOT NULL,\n  "kind"\s+VARCHAR\(12\)\s+NOT NULL,\n  "journal_entry_id" TEXT,\n  "account_id"\s+TEXT,\n  "period_month"\s+DATE,\n  "file_name"\s+VARCHAR\(255\)\s+NOT NULL,\n  "content_type"\s+VARCHAR\(32\)\s+NOT NULL,\n  "byte_size"\s+INTEGER\s+NOT NULL,\n  "sha256"\s+BYTEA\s+NOT NULL,\n  "bytes"\s+BYTEA\s+NOT NULL,\n  "superseded_by"\s+UUID,\n  "uploaded_at"\s+TIMESTAMPTZ\(6\) NOT NULL DEFAULT now\(\),\n  "uploaded_by"\s+TEXT,\n  CONSTRAINT "source_documents_pkey" PRIMARY KEY \("id"\)\n\);/);
   assert.match(sql, /CHECK \("kind" IN \('receipt', 'statement'\)\)/);
@@ -197,7 +199,9 @@ test('B the migration: the newest; one table column for column, the CHECKs, REST
   assert.match(model, /^\s+sha256\s+Bytes\s+@db\.ByteA$/m);
   assert.match(model, /^\s+superseded_by\s+String\?\s+@db\.Uuid$/m);
   assert.match(model, /@relation\("source_document_supersede", fields: \[superseded_by\], references: \[id\], onDelete: Restrict\)/);
-  assert.ok(schema.trimEnd().endsWith('@@map("source_documents")\n}'), 'the model is the schema’s last — no line above it moved but the three back-relations');
+  // TRAVEL-02b (2026-11-03): travel_expenses went in after it, the schema's last now — source_documents is the model right before it. Moved, not loosened.
+  assert.match(schema, /@@map\("source_documents"\)\n\}\n\s*model travel_expenses \{/, 'the model is right before the schema’s last — no line above it moved but the three back-relations');
+  assert.ok(schema.trimEnd().endsWith('@@map("travel_expenses")\n}'), 'TRAVEL-02b: travel_expenses is the schema’s last');
   assert.match(comments(SCHEMA), /DOCUMENTS-01 \(Alex, 2026-10-28\) — THE SOURCE DOCUMENT, KEPT/);
 });
 

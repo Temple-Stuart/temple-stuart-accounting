@@ -292,6 +292,8 @@ interface Db {
   operations_routine_steps: { id: string; routine_id: string; user_id: string }[];
   trips: { id: string; userId: string }[];
   trip_itinerary: { id: string; tripId: string }[];
+  // TRAVEL-02b (2026-11-03): the sixth kind's table — a typed travel expense, owned by user_id.
+  travel_expenses: { id: string; user_id: string }[];
   links: { user_id: string; target_kind: string; target_id: string; journal_entry_id: string }[];
 }
 
@@ -308,6 +310,7 @@ function db(): Db {
     ],
     trips: [{ id: 'trip_u1', userId: U1 }, { id: 'trip_u2', userId: U2 }],
     trip_itinerary: [{ id: 'ti_u1', tripId: 'trip_u1' }, { id: 'ti_u2', tripId: 'trip_u2' }],
+    travel_expenses: [{ id: id(10), user_id: U1 }, { id: id(11), user_id: U2 }],
     links: [],
   };
 }
@@ -323,6 +326,7 @@ function found(d: Db, q: TargetOwnerQuery | null): boolean {
       return d.operations_routine_steps.some((s) => s.id === q.where.id && d.operations_routines.some((r) => r.id === s.routine_id && r.user_id === q.where.routine.user_id));
     case 'trip_itinerary':
       return d.trip_itinerary.some((i) => i.id === q.where.id && d.trips.some((t) => t.id === i.tripId && t.userId === q.where.trip.userId));
+    case 'travel_expenses': return d.travel_expenses.some((r) => r.id === q.where.id && r.user_id === q.where.user_id);
   }
 }
 
@@ -333,13 +337,15 @@ function post(d: Db, userId: string, kind: LinkableKind, targetId: string): numb
   return 201;
 }
 
-test('T5 another user\'s calendar event, task, routine, line or trip item → 404 and no row; your own → linked as today', () => {
+test('T5 another user\'s calendar event, task, routine, line, trip item or travel expense → 404 and no row; your own → linked as today', () => {
   const cases: [LinkableKind, string, string][] = [
     ['calendar_event', id(1), id(2)],
     ['project_task', id(3), id(4)],
     ['routine', id(5), id(6)],
     ['routine_line', id(7), id(8)],
     ['trip_item', 'ti_u1', 'ti_u2'],
+    // TRAVEL-02b (2026-11-03): the sixth kind — another user's typed expense is the same 404; the POST's voided refusal is travel02b.test.ts'.
+    ['travel_expense', id(10), id(11)],
   ];
   assert.deepEqual(cases.map((c) => c[0]), [...LINKABLE_KINDS], 'every kind is covered');
   for (const [kind, mine, theirs] of cases) {
@@ -354,7 +360,7 @@ test('T5 another user\'s calendar event, task, routine, line or trip item → 40
   const d = db();
   assert.equal(post(d, U1, 'routine_line', id(9)), 404);
   // An id that is not a UUID names no row of a uuid-keyed table: the same 404, never a database error.
-  for (const kind of ['calendar_event', 'project_task', 'routine', 'routine_line'] as const) {
+  for (const kind of ['calendar_event', 'project_task', 'routine', 'routine_line', 'travel_expense'] as const) {
     assert.equal(targetOwnerQuery(kind, 'not-a-uuid', U1), null, kind);
   }
   assert.deepEqual(targetOwnerQuery('trip_item', 'ti_u1', U1), { table: 'trip_itinerary', where: { id: 'ti_u1', trip: { userId: U1 } } }, 'a trip item id is a cuid');
@@ -368,7 +374,8 @@ test('T5 the route: the target read comes before the posting read and the write,
   const write = once(post, 'const link = await prisma.planned_item_links.create({', 'links write');
   assert.ok(target < posting && posting < write);
   const owns = r.slice(r.indexOf('async function ownsTarget('), r.indexOf('export async function GET('));
-  for (const table of ['calendar_events', 'operations_project_tasks', 'operations_routines', 'operations_routine_steps', 'trip_itinerary']) {
+  // TRAVEL-02b (2026-11-03): travel_expenses read the same way — the kind's own where.
+  for (const table of ['calendar_events', 'operations_project_tasks', 'operations_routines', 'operations_routine_steps', 'trip_itinerary', 'travel_expenses']) {
     assert.match(owns, new RegExp(`case '${table}': return \\(await prisma\\.${table}\\.findFirst\\(\\{ where: q\\.where, select \\}\\)\\) !== null;`), table);
   }
   assert.match(owns, /if \(q === null\) return false;/);

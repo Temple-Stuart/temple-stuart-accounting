@@ -45,19 +45,41 @@
  * with no day, receipts on an unposted charge, a settled money event with no bank row (or the reverse), a money event
  * kind or status the ruling does not name — each throws TravelLedgerError by name.
  *
+ * TRAVEL-02b (Alex, 2026-11-03, rulings 0, D, F) — THE TYPED ROWS, AND THE SORT BY CODE.
+ *   · ITEM 0 (02a's call 5 was NO): STATED and SETTLED sort by CURRENCY CODE first (A→Z), then by the minor units
+ *     within the code; a blank last both ways — an order that never ranks a PHP figure against a USD one
+ *     (codedSortText, below).
+ *   · THE TYPED ROWS (ruling D): a travel expense the customer typed (travel_expenses — a visa, an eSIM, another
+ *     one-off purchase; src/lib/travel/travelExpense.ts) is a row of kind visa | esim | other, its source 'typed', in
+ *     the same columns: DATE its paid_on — a DAY, drawn as that day on screen and written as it in the CSV (the DAY
+ *     rule: no zone moves a day); LANE '—'; TRIP the trip's name or 'unattached'; BOOK / ACCOUNT from its coa_code
+ *     through the same scheme as a booking's budget line (else '—' / 'no account'); VENDOR as typed; CONFIRMATION and
+ *     DATES '—'; STATED statedMoneyWords(amount_minor, currency); SETTLED the bank row of each posting linked to it
+ *     (planned_item_links kind 'travel_expense' → the journal entry → its bank row, source_id) through bankMoneyWords
+ *     with its day, joined by ' + ' when there are several, else 'not matched'; POSTED each posting's day, else 'not
+ *     posted'; DOCUMENT 'typed' (+ 'n receipts' on the matched postings); STATUS 'stated', or 'voided — <reason>'.
+ *     A REVERSED POSTING PAYS NOTHING (LINK-LAW-01): it leaves SETTLED and POSTED and is counted under the table in the
+ *     link rule's own words (postingAmount.ts reversedLinkedWords). A VOIDED row stays, struck through on screen, and
+ *     leaves both sum lines — counted '<n> voided'. A linked posting that names no bank row says 'matched — no bank row'.
+ *   · THE ORDER: the bookings (each with its money events) and the typed rows, newest first, by the booking's instant
+ *     and the typed row's day (its UTC midnight) — ledgerRowsOf.
+ *
  * THIS FILE IS PURE: no prisma, no fetch, no clock (the instants are the rows' own), no React, no env.
  */
 import { entityTypeOfLetter } from '@/lib/accountString';
 import {
   CURRENCY_NOT_STATED_WORDS, bankCentsWords, bankMoneyWords, centsOfTypedDollars, decimalStringOfCents, isWholeCents, statedMoneyWords,
 } from '@/lib/books/functionalCurrency';
+import { isIsoDay } from '@/lib/budget/days';
+import { reversedLinkedWords } from '@/lib/calendar/postingAmount';
 import { bookWordOf } from '@/lib/operations/ledger';
 import { PRICE_NOT_STATED_WORDS } from '@/lib/operations/travelDay';
 import { columnOf, type SortKey, type TableColumn } from '@/lib/table/columns';
 import { tableCsv } from '@/lib/table/csv';
-import { numberKey, textKey } from '@/lib/table/sort';
+import { textKey } from '@/lib/table/sort';
 import { BLANK } from '@/lib/table/words';
 import { instantToZoned } from '@/lib/time';
+import { isTravelExpenseKind, type TravelExpenseKind } from '@/lib/travel/travelExpense';
 import { BOOKING_WORDS, STATUS_WORDS, bookingIcsHref } from './bookingRow';
 import { LANE_WORD, reservationIdentity } from './lane';
 
@@ -87,18 +109,42 @@ export const amountNotStatedCountWords = (n: number): string => `${n} ${AMOUNT_N
 export const currencyNotStatedCountWords = (n: number): string => `${n} ${CURRENCY_NOT_STATED_WORDS}`;
 export const notMatchedCountWords = (n: number): string => `${n} ${BOOKING_WORDS.notMatched}`;
 export const notWholeCentsCountWords = (n: number): string => `${n} not whole cents`;
+// TRAVEL-02b (ruling F): the typed rows' words.
+/** A typed row's source, and its DOCUMENT: the customer typed it — no vendor document stands behind it. */
+export const TYPED_WORDS = 'typed';
+/** A voided row's STATUS: the words, then the reason as typed. */
+export const VOIDED_WORDS = 'voided — ';
+export const voidedStatusWords = (reason: string): string => `${VOIDED_WORDS}${reason}`;
+/** A typed row's ACCOUNT when no chart account was chosen. */
+export const NO_ACCOUNT_WORDS = 'no account';
+/** A typed row's SETTLED part for a linked posting that names no bank row (a manual entry, say). */
+export const NO_BANK_ROW_WORDS = 'matched — no bank row';
+/** Between the parts of a typed row's SETTLED or POSTED — one per posting linked to it. */
+export const PARTS_JOIN_WORDS = ' + ';
+export const voidedCountWords = (n: number): string => `${n} voided`;
+export const noBankRowCountWords = (n: number): string => `${n} matched with no bank row`;
 
-/** Ruling B/C: the four kinds a row can be, and their words — a money event's kind through KIND_OF_EVENT. */
-export type TravelLedgerKind = 'booking' | 'refund' | 'fee' | 'voucher';
-export const KIND_WORDS: Readonly<Record<TravelLedgerKind, string>> = { booking: 'booking', refund: 'refund', fee: 'fee', voucher: 'voucher' };
+/**
+ * Ruling B/C: the kinds a row can be, and their words — a money event's kind through KIND_OF_EVENT. TRAVEL-02b (ruling F):
+ * the typed rows' three kinds (travelExpense.ts TRAVEL_EXPENSE_KINDS) and their words.
+ */
+export type TravelLedgerKind = 'booking' | 'refund' | 'fee' | 'voucher' | TravelExpenseKind;
+export const KIND_WORDS: Readonly<Record<TravelLedgerKind, string>> = {
+  booking: 'booking', refund: 'refund', fee: 'fee', voucher: 'voucher', visa: 'visa', esim: 'eSIM', other: 'other',
+};
+/** Where a row comes from: a reservation (a booking and its money events) or a travel expense the customer typed. */
+export type TravelLedgerSource = 'reservation' | 'typed';
 /** The money_events kinds that are rows here (ruling B) — the read asks for exactly these. */
 export const LEDGER_MONEY_EVENT_KINDS = ['refund', 'cancellation_fee', 'voucher_issued'] as const;
 export type LedgerMoneyEventKind = (typeof LEDGER_MONEY_EVENT_KINDS)[number];
 const KIND_OF_EVENT: Readonly<Record<LedgerMoneyEventKind, TravelLedgerKind>> = { refund: 'refund', cancellation_fee: 'fee', voucher_issued: 'voucher' };
 /** Ruling C: a refund and a voucher are stated NEGATIVE on the ledger, a fee positive. */
 const SIGN_OF_EVENT: Readonly<Record<LedgerMoneyEventKind, 1 | -1>> = { refund: -1, cancellation_fee: 1, voucher_issued: -1 };
-/** A money event's status column, verbatim — the table admits these two (CHECK in SQL); a third is thrown. */
+/** A money event's status column, verbatim — the table admits these two (CHECK in SQL); a third is thrown. A typed row is 'stated' too. */
 export const MONEY_EVENT_STATUS_WORDS = { stated: 'stated', settled: 'settled' } as const;
+/** A money event's row: no posting is read for it, so its POSTED and DOCUMENT are '—'. */
+const MONEY_EVENT_ROW_KINDS: readonly TravelLedgerKind[] = ['refund', 'fee', 'voucher'];
+const isMoneyEventKind = (kind: TravelLedgerKind): boolean => MONEY_EVENT_ROW_KINDS.includes(kind);
 
 // ── THE INPUT — the facts the route's `ledger` answer carries (ruling E) ─────
 
@@ -152,6 +198,38 @@ export interface LedgerBookingIn {
   readonly moneyEvents: readonly LedgerMoneyEventIn[];
 }
 
+/**
+ * TRAVEL-02b: a posting linked to a typed expense (planned_item_links kind 'travel_expense'), as GET /api/travel-expenses
+ * reads it — its day in the books, whether it was reversed (postingAmount.ts isReversedPosting), the bank row it names
+ * (a bank posting's source_id is its transaction's transactionId — journal-entry-service.ts commitPlaidTransaction) or
+ * null, and the current receipts on it.
+ */
+export interface TravelExpensePostingIn {
+  readonly journal_entry_id: string;
+  readonly posted_on: string;
+  readonly reversed: boolean;
+  readonly bank: LedgerBankIn | null;
+  readonly receipts: number;
+}
+
+/** TRAVEL-02b: a typed travel expense as GET /api/travel-expenses answers it — the row's own columns, its trip, its linked postings. */
+export interface TravelExpenseIn {
+  readonly id: string;
+  readonly kind: string;
+  /** 'YYYY-MM-DD' — the DAY it was paid. */
+  readonly paid_on: string;
+  readonly amount_minor: number;
+  readonly currency: string;
+  readonly vendor: string;
+  readonly note: string | null;
+  readonly trip: { readonly id: string; readonly name: string } | null;
+  readonly coa_code: string | null;
+  readonly voided_at: string | null;
+  readonly void_reason: string | null;
+  readonly created_at: string;
+  readonly postings: readonly TravelExpensePostingIn[];
+}
+
 // ── THE ROW ─────────────────────────────────────────────────────────────────
 
 /** A stated figure in its own minor units and code (null code: the vendor stated an amount and no currency). A money event's is signed. */
@@ -161,34 +239,47 @@ export interface StatedFigure {
 }
 
 export interface TravelLedgerRow {
-  /** `booking:<reservation id>` | `event:<money event id>` — the React key and the row's attribute. */
+  /** `booking:<reservation id>` | `event:<money event id>` | `typed:<travel expense id>` — the React key and the row's attribute. */
   readonly rowKey: string;
+  /** TRAVEL-02b (ruling D): where the row comes from — a reservation, or a travel expense the customer typed. */
+  readonly source: TravelLedgerSource;
   readonly kind: TravelLedgerKind;
-  readonly bookingId: string;
-  /** The ID column: the reservation id, or the money event id. */
+  /** The reservation a booking's row, or a money event's, belongs to; null on a typed row. */
+  readonly bookingId: string | null;
+  /** The ID column: the reservation id, the money event id, or the travel expense id. */
   readonly id: string;
-  /** The DATE column's instant (the CSV's cell) and the viewer's day of it (the screen's cell). */
-  readonly instant: string;
+  /** The DATE column's instant (the CSV's cell) — null on a typed row, whose DATE is a DAY. */
+  readonly instant: string | null;
+  /** The screen's DATE: the viewer's day of the instant; a typed row's own day. */
   readonly day: string;
-  readonly laneWord: string;
+  /** The lane word; null on a typed row ('—'). */
+  readonly laneWord: string | null;
   /** The trip's name; null is unattached. */
   readonly trip: string | null;
-  /** The book word through the one scheme, or 'no book letter'; null when no budget line is linked. */
+  /** The book word through the one scheme, or 'no book letter'; null when no account is named. */
   readonly book: string | null;
-  /** The linked budget line's COA code; null when none is linked. */
+  /** The linked budget line's COA code, or the typed row's coa_code; null when none is named. */
   readonly account: string | null;
-  /** `<provider> · <name as stated>` — the name through the one lane reader (lane.ts reservationIdentity). */
+  /** `<provider> · <name as stated>` — the name through the one lane reader (lane.ts reservationIdentity); a typed row's vendor as typed. */
   readonly vendor: string;
   readonly confirmation: string | null;
   readonly dates: string | null;
   readonly stated: StatedFigure | null;
-  readonly settled: LedgerBankIn | null;
-  /** A booking: the posted entry's day or null; a money event: null (no posting is read for one). */
-  readonly postedDay: string | null;
-  /** A booking: the current receipts on its posted entry; a money event: null. */
+  /**
+   * The bank rows that settled it, in the order read: a booking's accepted charge link (none or one), a money event's
+   * settled row (none or one), a typed row's linked postings that pay (null: a posting that names no bank row).
+   */
+  readonly settled: readonly (LedgerBankIn | null)[];
+  /** The days it was posted in the books: a booking's charge entry (none or one), a typed row's paying postings; none read for a money event. */
+  readonly posted: readonly string[];
+  /** A booking's (or a typed row's) current receipts on its posting(s); a money event: null. */
   readonly receipts: number | null;
   readonly status: string;
-  /** A booking's doors (RECEIPT-01, CAL-02, TRIPS-01); null on a money event's row. */
+  /** TRAVEL-02b: a voided typed row — struck through, out of both sum lines, counted. */
+  readonly voided: boolean;
+  /** TRAVEL-02b: the postings linked to it that were reversed — they pay nothing (LINK-LAW-01); counted under the table. */
+  readonly reversedLinks: number;
+  /** A booking's doors (RECEIPT-01, CAL-02, TRIPS-01); null on a money event's row and a typed row. */
   readonly receiptHref: string | null;
   readonly icsHref: string | null;
   readonly tripHref: string | null;
@@ -246,6 +337,7 @@ export function travelLedgerRows(bookings: readonly LedgerBookingIn[], zone: str
     if (!b.charge.posted && b.charge.postedEntryId !== null) throw new TravelLedgerError(`booking ${b.id} is not posted but carries a posted entry`);
     if (!b.charge.posted && b.receipts !== 0) throw new TravelLedgerError(`booking ${b.id} is not posted but carries receipts`);
     const shared = {
+      source: 'reservation' as const,
       bookingId: b.id,
       laneWord: LANE_WORD[identity.type],
       trip: b.trip === null ? null : b.trip.name,
@@ -254,6 +346,8 @@ export function travelLedgerRows(bookings: readonly LedgerBookingIn[], zone: str
       vendor: `${b.provider}${JOIN_WORDS}${identity.name}`,
       confirmation: confirmationOf(b.confirmation),
       dates: datesOf(b),
+      voided: false,
+      reversedLinks: 0,
     };
     rows.push({
       ...shared,
@@ -263,8 +357,8 @@ export function travelLedgerRows(bookings: readonly LedgerBookingIn[], zone: str
       instant: b.createdAt,
       day: dayInZone(b.createdAt, zone),
       stated: b.finalPriceCents === null ? null : { cents: b.finalPriceCents, currency: b.currency },
-      settled: b.charge.bank,
-      postedDay: b.charge.postedDay,
+      settled: b.charge.bank === null ? [] : [b.charge.bank],
+      posted: b.charge.postedDay === null ? [] : [b.charge.postedDay],
       receipts: b.receipts,
       status: bookingStatusWords(b.status),
       receiptHref: `/booking/${b.id}/receipt`,
@@ -284,8 +378,8 @@ export function travelLedgerRows(bookings: readonly LedgerBookingIn[], zone: str
         instant: e.statedAt,
         day: dayInZone(e.statedAt, zone),
         stated: e.amountCents === null ? null : { cents: SIGN_OF_EVENT[eventKind] * e.amountCents, currency: e.currency },
-        settled: e.settledBank,
-        postedDay: null,
+        settled: e.settledBank === null ? [] : [e.settledBank],
+        posted: [],
         receipts: null,
         status,
         receiptHref: null,
@@ -297,6 +391,62 @@ export function travelLedgerRows(bookings: readonly LedgerBookingIn[], zone: str
   return rows;
 }
 
+/** TRAVEL-02b (ruling D): one typed travel expense as its row — its own facts and its linked postings; nothing filled in. */
+export function typedExpenseRowOf(e: TravelExpenseIn): TravelLedgerRow {
+  if (!isTravelExpenseKind(e.kind)) throw new TravelLedgerError(`travel expense ${e.id}: kind ${JSON.stringify(e.kind)} is not one of visa | esim | other — the table admits nothing else`);
+  if (!isIsoDay(e.paid_on)) throw new TravelLedgerError(`travel expense ${e.id}: paid_on ${JSON.stringify(e.paid_on)} is not a day`);
+  if ((e.voided_at === null) !== (e.void_reason === null)) throw new TravelLedgerError(`travel expense ${e.id} carries half a void — voided_at and void_reason go together`);
+  const paying = e.postings.filter((p) => !p.reversed);
+  let receipts = 0;
+  for (const p of paying) receipts += p.receipts;
+  return {
+    rowKey: `typed:${e.id}`,
+    source: 'typed',
+    kind: e.kind,
+    bookingId: null,
+    id: e.id,
+    instant: null,
+    day: e.paid_on,
+    laneWord: null,
+    trip: e.trip === null ? null : e.trip.name,
+    book: e.coa_code === null ? null : bookOfCoaCode(e.coa_code),
+    account: e.coa_code,
+    vendor: e.vendor,
+    confirmation: null,
+    dates: null,
+    stated: { cents: e.amount_minor, currency: e.currency },
+    settled: paying.map((p) => p.bank),
+    posted: paying.map((p) => p.posted_on),
+    receipts,
+    status: e.void_reason === null ? MONEY_EVENT_STATUS_WORDS.stated : voidedStatusWords(e.void_reason),
+    voided: e.voided_at !== null,
+    reversedLinks: e.postings.length - paying.length,
+    receiptHref: null,
+    icsHref: null,
+    tripHref: null,
+  };
+}
+
+/** A typed row's DATE as an instant for the order: its day's UTC midnight — the day itself, no zone moving it. */
+const dayStartInstant = (day: string): string => `${day}T00:00:00.000Z`;
+
+/**
+ * TRAVEL-02b: the TRAVEL LEDGER's rows in the table's own order — the bookings (each with its money events, as
+ * travelLedgerRows builds them) and the typed rows, newest first: a booking by its instant, a typed row by its day's
+ * UTC midnight; on a tie the booking first, and each source keeps the order its route gave.
+ */
+export function ledgerRowsOf(bookings: readonly LedgerBookingIn[], expenses: readonly TravelExpenseIn[], zone: string): TravelLedgerRow[] {
+  const groups: { readonly at: string; readonly rows: readonly TravelLedgerRow[] }[] = [];
+  for (const b of bookings) groups.push({ at: b.createdAt, rows: travelLedgerRows([b], zone) });
+  for (const e of expenses) groups.push({ at: new Date(dayStartInstant(e.paid_on)).toISOString(), rows: [typedExpenseRowOf(e)] });
+  const ordered = [...groups].sort((a, b) => {
+    const ta = new Date(a.at).getTime();
+    const tb = new Date(b.at).getTime();
+    return tb - ta;
+  });
+  return ordered.flatMap((g) => g.rows);
+}
+
 // ── THE CELLS ───────────────────────────────────────────────────────────────
 
 /** A stated figure's words: the one formatter in the functional currency, the figure with its code otherwise, the code's absence named. */
@@ -306,15 +456,21 @@ export function statedFigureWords(stated: StatedFigure): string {
 /** The STATED cell: the figure, or the kind's own absence — a booking's 'price not stated', a money event's 'amount not stated'. */
 export const statedCellWords = (row: TravelLedgerRow): string =>
   (row.stated === null ? (row.kind === 'booking' ? PRICE_NOT_STATED_WORDS : AMOUNT_NOT_STATED_WORDS) : statedFigureWords(row.stated));
-/** The SETTLED cell: the bank figure in the account's currency with its day, or 'not matched'. */
+/** One SETTLED part: the bank figure in the account's currency with its day — or, for a typed row's posting with no bank row, said so. */
+const settledPartWords = (bank: LedgerBankIn | null): string =>
+  (bank === null ? NO_BANK_ROW_WORDS : `${bankMoneyWords(bank.amount, bank.currency)}${JOIN_WORDS}${bank.date}`);
+/** The SETTLED cell: each bank figure in its account's currency with its day (' + ' between several), or 'not matched'. */
 export const settledCellWords = (row: TravelLedgerRow): string =>
-  (row.settled === null ? BOOKING_WORDS.notMatched : `${bankMoneyWords(row.settled.amount, row.settled.currency)}${JOIN_WORDS}${row.settled.date}`);
-/** The POSTED cell: a booking's posted day or 'not posted'; a money event's '—'. */
+  (row.settled.length === 0 ? BOOKING_WORDS.notMatched : row.settled.map(settledPartWords).join(PARTS_JOIN_WORDS));
+/** The POSTED cell: a booking's or a typed row's posted day(s), or 'not posted'; a money event's '—'. */
 export const postedCellWords = (row: TravelLedgerRow): string =>
-  (row.kind !== 'booking' ? BLANK : row.postedDay === null ? BOOKING_WORDS.notPosted : row.postedDay);
-/** The DOCUMENT cell: 'the booking', '+ n receipts' when current receipts sit on its posted entry; a money event's '—'. */
-export const documentCellWords = (row: TravelLedgerRow): string =>
-  (row.receipts === null ? BLANK : row.receipts === 0 ? THE_BOOKING_WORDS : `${THE_BOOKING_WORDS} + ${receiptsWords(row.receipts)}`);
+  (isMoneyEventKind(row.kind) ? BLANK : row.posted.length === 0 ? BOOKING_WORDS.notPosted : row.posted.join(PARTS_JOIN_WORDS));
+/** The DOCUMENT cell: 'the booking' or 'typed', '+ n receipts' when current receipts sit on its posting(s); a money event's '—'. */
+export function documentCellWords(row: TravelLedgerRow): string {
+  if (row.receipts === null) return BLANK;
+  const document = row.source === 'typed' ? TYPED_WORDS : THE_BOOKING_WORDS;
+  return row.receipts === 0 ? document : `${document} + ${receiptsWords(row.receipts)}`;
+}
 
 /** The CSV's figure: the minor units with the point placed, then the code (or the code's absence named) — no symbol, no grouping, no conversion. */
 const figureWithCodeCsv = (cents: bigint | number, code: string | null): string =>
@@ -324,6 +480,65 @@ const bankCsv = (bank: LedgerBankIn): string => {
   const code = bank.currency !== null && bank.currency.trim() !== '' ? bank.currency : null;
   return isWholeCents(bank.amount) ? figureWithCodeCsv(centsOfTypedDollars(String(bank.amount)), code) : bankMoneyWords(bank.amount, bank.currency);
 };
+const settledPartCsv = (bank: LedgerBankIn | null): string => (bank === null ? NO_BANK_ROW_WORDS : `${bankCsv(bank)}${JOIN_WORDS}${bank.date}`);
+
+// ── THE SORT (TRAVEL-02b item 0) ─────────────────────────────────────────────
+
+const MAGNITUDE_OFFSET = BigInt(1000000000000000);
+const SORT_DIGITS = 16;
+
+/**
+ * TRAVEL-02b item 0 (Alex, 2026-11-03; 02a's call 5 was NO) — a figure's sort text: its code, a space, then its minor
+ * units offset by 10^15 and written as sixteen digits. The idiom compares it as it compares every text (sort.ts
+ * compareSortKeys — localeCompare 'en', numeric), so the order is the code A→Z, then the magnitude within the code, a
+ * refund (negative) below a fee — and no figure is ever ranked against another code's. Descending is the idiom's reverse
+ * of that order. A figure beyond ±10^15 minor units cannot be placed — thrown by name, never clamped.
+ */
+export function codedSortText(code: string, minor: bigint | number): string {
+  if (typeof minor === 'number' && !Number.isSafeInteger(minor)) throw new TravelLedgerError(`a figure of ${minor} minor units is not a whole number — it cannot be placed in the sort`);
+  const units = typeof minor === 'bigint' ? minor : BigInt(minor);
+  const placed = MAGNITUDE_OFFSET + units;
+  const beyond = (): TravelLedgerError => new TravelLedgerError(`a figure of ${units.toString()} minor units is beyond ±10^15 — it cannot be placed in the sort`);
+  if (placed < BigInt(0)) throw beyond();
+  if (placed >= MAGNITUDE_OFFSET + MAGNITUDE_OFFSET) throw beyond();
+  return `${code.toUpperCase()} ${placed.toString().padStart(SORT_DIGITS, '0')}`;
+}
+
+/** STATED's key: the figure's code then its minor units; a blank — or a figure whose currency is not stated, which no code's order can place — null. */
+function statedSortKey(row: TravelLedgerRow): SortKey {
+  if (row.stated === null) return null;
+  if (row.stated.currency === null) return null;
+  return textKey(codedSortText(row.stated.currency, row.stated.cents));
+}
+
+/**
+ * SETTLED's key: the bank figures' account code then their cents summed — all of one code and all whole cents; else
+ * null (with the blanks): no match, a part with no bank row, a part not in whole cents, an account that states no
+ * currency, or parts in several codes — none can be placed in one code's order.
+ */
+function settledSortKey(row: TravelLedgerRow): SortKey {
+  if (row.settled.length === 0) return null;
+  let code: string | null = null;
+  let cents = BigInt(0);
+  for (const part of row.settled) {
+    if (part === null) return null;
+    if (!isWholeCents(part.amount)) return null;
+    if (part.currency === null) return null;
+    const partCode = part.currency.trim().toUpperCase();
+    if (partCode === '') return null;
+    if (code !== null && code !== partCode) return null;
+    code = partCode;
+    cents += centsOfTypedDollars(String(part.amount));
+  }
+  return code === null ? null : textKey(codedSortText(code, cents));
+}
+
+/** POSTED's key: the day(s) as written; a money event's, or one not posted, null. */
+function postedSortKey(row: TravelLedgerRow): SortKey {
+  if (isMoneyEventKind(row.kind)) return null;
+  if (row.posted.length === 0) return null;
+  return textKey(row.posted.join(PARTS_JOIN_WORDS));
+}
 
 // ── THE SPEC — the idiom's columns in Alex's order ───────────────────────────
 
@@ -339,12 +554,12 @@ export function cellWordsOf(row: TravelLedgerRow, column: TravelLedgerColumn): s
   switch (column) {
     case 'date': return row.day;
     case 'kind': return KIND_WORDS[row.kind];
-    case 'lane': return row.laneWord;
+    case 'lane': return row.laneWord === null ? BLANK : row.laneWord;
     case 'trip': return row.trip === null ? UNATTACHED_WORDS : row.trip;
     case 'book': return row.book === null ? BLANK : row.book;
-    case 'account': return row.account === null ? BOOKING_WORDS.noBudgetLine : row.account;
+    case 'account': return row.account !== null ? row.account : row.source === 'typed' ? NO_ACCOUNT_WORDS : BOOKING_WORDS.noBudgetLine;
     case 'vendor': return row.vendor;
-    case 'confirmation': return row.confirmation === null ? BOOKING_WORDS.notYetStated : row.confirmation;
+    case 'confirmation': return row.confirmation !== null ? row.confirmation : row.source === 'typed' ? BLANK : BOOKING_WORDS.notYetStated;
     case 'dates': return row.dates === null ? BLANK : row.dates;
     case 'stated': return statedCellWords(row);
     case 'settled': return settledCellWords(row);
@@ -356,35 +571,36 @@ export function cellWordsOf(row: TravelLedgerRow, column: TravelLedgerColumn): s
 }
 
 /**
- * What a column sorts by: DATE its instant (the true order — two instants on one day keep their order), the figures
- * their own minor units or bank amount (an order by magnitude in each row's own currency — no figure is converted),
- * the words as text; a blank cell null — last in both directions.
+ * What a column sorts by: DATE its instant (the true order — two instants on one day keep their order; a typed row's
+ * day as its UTC midnight), STATED and SETTLED by code then magnitude (item 0 — no figure converted, none ranked across
+ * codes), the words as text; a blank cell null — last in both directions.
  */
 export function sortKeyOf(row: TravelLedgerRow, column: TravelLedgerColumn): SortKey {
   switch (column) {
-    case 'date': return textKey(row.instant);
-    case 'stated': return numberKey(row.stated === null ? null : row.stated.cents);
-    case 'settled': return numberKey(row.settled === null ? null : row.settled.amount);
+    case 'date': return textKey(row.instant === null ? dayStartInstant(row.day) : row.instant);
+    case 'stated': return statedSortKey(row);
+    case 'settled': return settledSortKey(row);
     case 'book': return textKey(row.book);
     case 'account': return textKey(row.account);
     case 'trip': return textKey(row.trip);
     case 'confirmation': return textKey(row.confirmation);
     case 'dates': return textKey(row.dates);
-    case 'posted': return textKey(row.kind !== 'booking' ? null : row.postedDay);
+    case 'posted': return postedSortKey(row);
     case 'document': return textKey(row.receipts === null ? null : documentCellWords(row));
     default: return textKey(cellWordsOf(row, column));
   }
 }
 
 /**
- * The CSV's field for each column — the fact bare, '' for a blank (never 0 or "—"): DATE the instant (ruling C), the
- * figures as `<minor units with the point placed> <CODE>` (no symbol — '189.50 USD', '12345.00 PHP', '-300.00 USD'),
- * SETTLED with its day after the join, the text cells as the table prints them.
+ * The CSV's field for each column — the fact bare, '' for a blank (never 0 or "—"): DATE the instant (ruling C) — a
+ * typed row's day (the DAY rule), the figures as `<minor units with the point placed> <CODE>` (no symbol — '189.50 USD',
+ * '12345.00 PHP', '-300.00 USD'), SETTLED with its day after the join (' + ' between a typed row's parts), the text
+ * cells as the table prints them.
  */
 export const TRAVEL_LEDGER_CSV: Readonly<Record<TravelLedgerColumn, (row: TravelLedgerRow) => string>> = {
-  date: (row) => row.instant,
+  date: (row) => (row.instant === null ? row.day : row.instant),
   kind: (row) => KIND_WORDS[row.kind],
-  lane: (row) => row.laneWord,
+  lane: (row) => (row.laneWord === null ? '' : row.laneWord),
   trip: (row) => (row.trip === null ? UNATTACHED_WORDS : row.trip),
   book: (row) => (row.book === null ? '' : row.book),
   account: (row) => (row.account === null ? '' : row.account),
@@ -392,8 +608,8 @@ export const TRAVEL_LEDGER_CSV: Readonly<Record<TravelLedgerColumn, (row: Travel
   confirmation: (row) => (row.confirmation === null ? '' : row.confirmation),
   dates: (row) => (row.dates === null ? '' : row.dates),
   stated: (row) => (row.stated === null ? '' : figureWithCodeCsv(row.stated.cents, row.stated.currency)),
-  settled: (row) => (row.settled === null ? '' : `${bankCsv(row.settled)}${JOIN_WORDS}${row.settled.date}`),
-  posted: (row) => (row.kind === 'booking' && row.postedDay !== null ? row.postedDay : ''),
+  settled: (row) => row.settled.map(settledPartCsv).join(PARTS_JOIN_WORDS),
+  posted: (row) => (isMoneyEventKind(row.kind) ? '' : row.posted.join(PARTS_JOIN_WORDS)),
   document: (row) => (row.receipts === null ? '' : documentCellWords(row)),
   status: (row) => row.status,
   id: (row) => row.id,
@@ -422,6 +638,8 @@ export interface StatedSums {
   readonly priceNotStated: number;
   readonly amountNotStated: number;
   readonly currencyNotStated: number;
+  /** TRAVEL-02b: the voided typed rows — out of the sum, counted. */
+  readonly voided: number;
 }
 
 export function statedSums(rows: readonly TravelLedgerRow[]): StatedSums {
@@ -429,7 +647,12 @@ export function statedSums(rows: readonly TravelLedgerRow[]): StatedSums {
   let priceNotStated = 0;
   let amountNotStated = 0;
   let currencyNotStated = 0;
+  let voided = 0;
   for (const row of rows) {
+    if (row.voided) {
+      voided += 1;
+      continue;
+    }
     if (row.stated === null) {
       if (row.kind === 'booking') priceNotStated += 1;
       else amountNotStated += 1;
@@ -442,7 +665,7 @@ export function statedSums(rows: readonly TravelLedgerRow[]): StatedSums {
     const code = row.stated.currency.toUpperCase();
     byCode.set(code, (byCode.has(code) ? byCode.get(code)! : 0) + row.stated.cents);
   }
-  return { byCode, priceNotStated, amountNotStated, currencyNotStated };
+  return { byCode, priceNotStated, amountNotStated, currencyNotStated, voided };
 }
 
 export interface SettledSums {
@@ -450,44 +673,68 @@ export interface SettledSums {
   readonly byCode: ReadonlyMap<string, bigint>;
   readonly notMatched: number;
   readonly notWholeCents: number;
+  /** TRAVEL-02b: a typed row's linked postings that name no bank row — counted, never summed. */
+  readonly noBankRow: number;
+  /** TRAVEL-02b: linked postings that were reversed — they pay nothing (LINK-LAW-01), counted. */
+  readonly reversed: number;
+  /** TRAVEL-02b: the voided typed rows — out of the sum, counted. */
+  readonly voided: number;
 }
 
 export function settledSums(rows: readonly TravelLedgerRow[]): SettledSums {
   const byCode = new Map<string, bigint>();
   let notMatched = 0;
   let notWholeCents = 0;
+  let noBankRow = 0;
+  let reversed = 0;
+  let voided = 0;
   for (const row of rows) {
-    if (row.settled === null) {
+    if (row.voided) {
+      voided += 1;
+      continue;
+    }
+    reversed += row.reversedLinks;
+    if (row.settled.length === 0) {
       notMatched += 1;
       continue;
     }
-    if (!isWholeCents(row.settled.amount)) {
-      notWholeCents += 1;
-      continue;
+    for (const part of row.settled) {
+      if (part === null) {
+        noBankRow += 1;
+        continue;
+      }
+      if (!isWholeCents(part.amount)) {
+        notWholeCents += 1;
+        continue;
+      }
+      const code = part.currency !== null && part.currency.trim() !== '' ? part.currency.trim().toUpperCase() : '';
+      byCode.set(code, (byCode.has(code) ? byCode.get(code)! : BigInt(0)) + centsOfTypedDollars(String(part.amount)));
     }
-    const code = row.settled.currency !== null && row.settled.currency.trim() !== '' ? row.settled.currency.trim().toUpperCase() : '';
-    byCode.set(code, (byCode.has(code) ? byCode.get(code)! : BigInt(0)) + centsOfTypedDollars(String(row.settled.amount)));
   }
-  return { byCode, notMatched, notWholeCents };
+  return { byCode, notMatched, notWholeCents, noBankRow, reversed, voided };
 }
 
 const codesInOrder = (codes: Iterable<string>): string[] => [...codes].sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)));
 
-/** "STATED: 12345.00 PHP · $189.50 · 1 price not stated" — per currency, never one figure across them; '—' with no row. */
+/** "STATED: 12345.00 PHP · $189.50 · 1 price not stated · 1 voided" — per currency, never one figure across them; '—' with no row. */
 export function statedSumLineWords(rows: readonly TravelLedgerRow[]): string {
   const sums = statedSums(rows);
   const parts = codesInOrder(sums.byCode.keys()).map((code) => statedMoneyWords(sums.byCode.get(code)!, code));
   if (sums.priceNotStated > 0) parts.push(priceNotStatedCountWords(sums.priceNotStated));
   if (sums.amountNotStated > 0) parts.push(amountNotStatedCountWords(sums.amountNotStated));
   if (sums.currencyNotStated > 0) parts.push(currencyNotStatedCountWords(sums.currencyNotStated));
+  if (sums.voided > 0) parts.push(voidedCountWords(sums.voided));
   return `${STATED_SUM_LABEL}: ${parts.length === 0 ? BLANK : parts.join(JOIN_WORDS)}`;
 }
 
-/** "SETTLED: $214.50 · 3 not matched" — per ACCOUNT currency through bankCentsWords; '—' with no row. */
+/** "SETTLED: $214.50 · 3 not matched · 1 voided" — per ACCOUNT currency through bankCentsWords; '—' with no row. */
 export function settledSumLineWords(rows: readonly TravelLedgerRow[]): string {
   const sums = settledSums(rows);
   const parts = codesInOrder(sums.byCode.keys()).map((code) => bankCentsWords(sums.byCode.get(code)!, code === '' ? null : code));
   if (sums.notMatched > 0) parts.push(notMatchedCountWords(sums.notMatched));
+  if (sums.noBankRow > 0) parts.push(noBankRowCountWords(sums.noBankRow));
   if (sums.notWholeCents > 0) parts.push(notWholeCentsCountWords(sums.notWholeCents));
+  if (sums.reversed > 0) parts.push(reversedLinkedWords(sums.reversed));
+  if (sums.voided > 0) parts.push(voidedCountWords(sums.voided));
   return `${SETTLED_SUM_LABEL}: ${parts.length === 0 ? BLANK : parts.join(JOIN_WORDS)}`;
 }
