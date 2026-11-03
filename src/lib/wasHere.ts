@@ -6,7 +6,7 @@
  * imports: server- and client-safe.
  *
  * THE SHAPE. Every row is exactly { id, city, country, countryCode, start, end,
- * experienceId, line, image, writtenOn, workedFrom, did, learned, events }:
+ * experienceId, line, image, writtenOn, did, learned, events }:
  *   · start is 'YYYY-MM-DD'; end is 'YYYY-MM-DD' or null — null means still there;
  *     a stop's end is the next stop's start (the travel day);
  *   · experienceId names an EXPERIENCES row (src/lib/experiences.ts) when the stop
@@ -17,7 +17,7 @@
  *   · image is { src, alt, credit } or null — src a file under public/was-here/
  *     (the section draws NO placeholder while null);
  *   · writtenOn is the day the entry was written;
- *   · workedFrom, did, learned (WASHERE-03) — the post: where he worked from, what
+ *   · did, learned (WASHERE-03; WASHERE-04, 2026-11-03: privacy) — the post: what
  *     he did, what he learned (paragraphs). Each a list of non-empty strings, and
  *     each may be empty — an empty list renders nothing, never an empty eyebrow.
  *     Alex's words, verbatim; six stops carry empty lists until he writes them;
@@ -38,9 +38,9 @@
  * letters; start or writtenOn not 'YYYY-MM-DD'; start after writtenOn (an entry
  * is written after the stop began); an end that is set and before start; more
  * than one row with end null (one place at a time); an image whose src is not
- * /was-here/<slug>.jpg|webp or whose alt or credit is empty; workedFrom, did or
- * learned not a list, or holding anything but non-empty strings; a row whose keys
- * are not exactly the fourteen above. And per event: an empty name, area or
+ * /was-here/<slug>.jpg|webp or whose alt or credit is empty; did or learned not
+ * a list, or holding anything but non-empty strings; a row whose keys are not
+ * exactly the thirteen above. And per event: an empty name, area or
  * sourceName; a venue that is present and empty; start, end or checkedOn not
  * 'YYYY-MM-DD'; start after end; a sourceUrl not https; a status or sourceKind
  * not one of the named values; an event that does not overlap its stay (overlap =
@@ -92,8 +92,6 @@ export interface WasHereRow {
   line: string | null;
   image: WasHereImage | null;
   writtenOn: string;
-  /** WASHERE-03: where he worked from — names, joined on the card. */
-  workedFrom: string[];
   /** WASHERE-03: what he did — items, joined on the card. */
   did: string[];
   /** WASHERE-03: what he learned — one paragraph per string. */
@@ -102,8 +100,8 @@ export interface WasHereRow {
   events: StopEvent[];
 }
 
-/** The fourteen keys every row carries, in the ruled order. */
-export const WAS_HERE_FIELDS = ['id', 'city', 'country', 'countryCode', 'start', 'end', 'experienceId', 'line', 'image', 'writtenOn', 'workedFrom', 'did', 'learned', 'events'] as const;
+/** The thirteen keys every row carries, in the ruled order. */
+export const WAS_HERE_FIELDS = ['id', 'city', 'country', 'countryCode', 'start', 'end', 'experienceId', 'line', 'image', 'writtenOn', 'did', 'learned', 'events'] as const;
 /** The eleven keys every event carries. */
 export const STOP_EVENT_FIELDS = ['name', 'venue', 'area', 'start', 'end', 'status', 'sourceKind', 'sourceName', 'sourceUrl', 'checkedOn', 'notes'] as const;
 export const STOP_EVENT_STATUSES: readonly StopEventStatus[] = ['took_place', 'scheduled', 'postponed', 'cancelled'];
@@ -118,10 +116,9 @@ const WRITTEN = '2026-10-31';
 
 export const WAS_HERE: readonly WasHereRow[] = [
   { id: 'canggu-2026-07', city: 'Canggu, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-07-01', end: '2026-07-30', experienceId: null, line: null, image: null, writtenOn: WRITTEN,
-    workedFrom: ['Zin Cafe & Coworking', 'B Work Bali'],
     did: ['Beachwalk mall', 'a day trip to Uluwatu', 'sunset dinners and drinks at Times Beach Warung', 'Hatch market in Uluwatu', 'mini golf at Shooters', 'Echo Beach for sunsets and surf', 'the G Swing', 'the Gajah Mina statue at Pererenan Beach', 'Finns Beach Club'],
     learned: [
-      'I showed up here with zero plan and ended up missing out on so much I wanted to do. Most days I never got around to an activity — I spent them eating brunch and dinner at the coworking.',
+      'I showed up here with zero plan and ended up missing out on so much I wanted to do. Most days I never got around to an activity — I spent them eating brunch and dinner at the same café.',
       'The correction: better plans.',
     ],
     events: [
@@ -129,19 +126,19 @@ export const WAS_HERE: readonly WasHereRow[] = [
       { name: 'Rip Curl Cup Padang Padang 2026 — women\'s local trials', venue: 'Padang Padang Beach', area: 'Pecatu, Bukit Peninsula', start: '2026-07-21', end: '2026-07-21', status: 'took_place', sourceKind: 'official', sourceName: 'Rip Curl Indonesia', sourceUrl: 'https://www.ripcurl.co.id/blogs/ripcurlcup/taina-izquierdo-and-paris-nalendra-secure-their-spots-in-the-rip-curl-cup-padang-padang-2026-main-event', checkedOn: CHECKED, notes: 'Taina Izquierdo and Paris Nalendra qualified for the main event' },
       { name: 'Rare Angon International Kite Festival 2026', venue: 'Mertasari Beach', area: 'Sanur', start: '2026-07-23', end: '2026-07-26', status: 'took_place', sourceKind: 'secondary', sourceName: 'Antara Bali', sourceUrl: 'https://bali.antaranews.com/tag/festival-rare', checkedOn: CHECKED, notes: 'Kites from 23 countries, per the Antara Bali headline' },
     ] },
-  { id: 'danang-2026-08', city: 'Da Nang / Hoi An', country: 'Vietnam', countryCode: 'VN', start: '2026-07-30', end: '2026-08-28', experienceId: null, line: null, image: null, writtenOn: WRITTEN, workedFrom: [], did: [], learned: [], events: [
+  { id: 'danang-2026-08', city: 'Da Nang / Hoi An', country: 'Vietnam', countryCode: 'VN', start: '2026-07-30', end: '2026-08-28', experienceId: null, line: null, image: null, writtenOn: WRITTEN, did: [], learned: [], events: [
     { name: 'Hoi An full-moon lantern night', venue: 'Hoi An Ancient Town', area: 'Hoi An', start: '2026-08-26', end: '2026-08-26', status: 'scheduled', sourceKind: 'official', sourceName: 'Hoi An\'s monthly full-moon rule (Da Nang tourism portal)', sourceUrl: 'https://danangfantasticity.com/en/dem-nguoc/dem-ram-pho-co', checkedOn: CHECKED, notes: 'The 14th day of the 7th lunar month; the Gregorian date follows the lunar calendar (VTC News)' },
     { name: 'Hoi An Creative Week 2026', venue: 'Song Hoai Square and the Ancient Town', area: 'Hoi An', start: '2026-08-28', end: '2026-09-02', status: 'took_place', sourceKind: 'official', sourceName: 'Da Nang tourism portal; Tuoi Tre News', sourceUrl: 'https://danangfantasticity.com/en/news/h%e1%bb%99i-an-creative-week-2026-embrace-heritage-inspire-creativity', checkedOn: CHECKED, notes: 'Opened 19:30 on Aug 28; took place per Tuoi Tre (Sep 3)' },
   ] },
-  { id: 'bangkok-2026-09', city: 'Bangkok', country: 'Thailand', countryCode: 'TH', start: '2026-08-28', end: '2026-09-25', experienceId: null, line: null, image: null, writtenOn: WRITTEN, workedFrom: [], did: [], learned: [], events: [
+  { id: 'bangkok-2026-09', city: 'Bangkok', country: 'Thailand', countryCode: 'TH', start: '2026-08-28', end: '2026-09-25', experienceId: null, line: null, image: null, writtenOn: WRITTEN, did: [], learned: [], events: [
     { name: 'Kodaline — Farewell Tour', venue: 'UOB Live, EmSphere', area: 'Bangkok', start: '2026-08-28', end: '2026-08-29', status: 'took_place', sourceKind: 'official', sourceName: 'UOB Live', sourceUrl: 'https://uoblive.asia/event/kodaline---farewell-tour-in-bangkok', checkedOn: CHECKED, notes: 'Setlists for both nights on setlist.fm' },
     { name: 'ONE Fight Night 47: Stamp vs Flores', venue: 'Lumpinee Boxing Stadium', area: 'Bangkok', start: '2026-09-05', end: '2026-09-05', status: 'took_place', sourceKind: 'official', sourceName: 'ONE Championship', sourceUrl: 'https://www.onefc.com/news/stamp-edges-out-flores-in-fiery-main-event-muay-thai-war-at-one-fight-night-47/', checkedOn: CHECKED, notes: 'Stamp Fairtex beat Selina Flores by split decision' },
     { name: 'Post Malone — The BIG ASS Stadium World Tour', venue: 'Rajamangala National Stadium', area: 'Bangkok', start: '2026-09-22', end: '2026-09-22', status: 'postponed', sourceKind: 'secondary', sourceName: 'Time Out Bangkok', sourceUrl: 'https://www.timeout.com/bangkok/news/post-malone-bangkok-concert-postponed-082826', checkedOn: CHECKED, notes: 'Postponed indefinitely by Live Nation Tero on Aug 28; refunds through Oct 31' },
   ] },
-  { id: 'phuket-2026-10', city: 'Phuket', country: 'Thailand', countryCode: 'TH', start: '2026-09-25', end: '2026-10-08', experienceId: null, line: null, image: null, writtenOn: WRITTEN, workedFrom: [], did: [], learned: [], events: [] },
-  { id: 'chiangmai-2026-10', city: 'Chiang Mai', country: 'Thailand', countryCode: 'TH', start: '2026-10-08', end: '2026-10-21', experienceId: null, line: null, image: null, writtenOn: WRITTEN, workedFrom: [], did: [], learned: [], events: [] },
-  { id: 'bangkok-2026-10-21', city: 'Bangkok', country: 'Thailand', countryCode: 'TH', start: '2026-10-21', end: '2026-10-22', experienceId: null, line: null, image: null, writtenOn: WRITTEN, workedFrom: [], did: [], learned: [], events: [] },
-  { id: 'siargao-2026', city: 'General Luna, Siargao', country: 'Philippines', countryCode: 'PH', start: '2026-10-22', end: null, experienceId: 'philippines-pro-2026', line: 'I landed in Siargao in the middle of the WSL by luck. Don\'t get lucky. Book around it.', image: null, writtenOn: WRITTEN, workedFrom: [], did: [], learned: [], events: [] },
+  { id: 'phuket-2026-10', city: 'Phuket', country: 'Thailand', countryCode: 'TH', start: '2026-09-25', end: '2026-10-08', experienceId: null, line: null, image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
+  { id: 'chiangmai-2026-10', city: 'Chiang Mai', country: 'Thailand', countryCode: 'TH', start: '2026-10-08', end: '2026-10-21', experienceId: null, line: null, image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
+  { id: 'bangkok-2026-10-21', city: 'Bangkok', country: 'Thailand', countryCode: 'TH', start: '2026-10-21', end: '2026-10-22', experienceId: null, line: null, image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
+  { id: 'siargao-2026', city: 'General Luna, Siargao', country: 'Philippines', countryCode: 'PH', start: '2026-10-22', end: null, experienceId: 'philippines-pro-2026', line: 'I landed in Siargao in the middle of the WSL by luck. Don\'t get lucky. Book around it.', image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
 ];
 
 export class WasHereLawError extends Error {
@@ -163,7 +160,7 @@ export function wasHereLaw(opts: { throwOnFail?: boolean; rows?: readonly WasHer
   for (const row of rows) {
     const who = row.id || '(no id)';
     const keys = Object.keys(row).sort().join(',');
-    if (keys !== wantKeys) violations.push(`${who}: keys are [${Object.keys(row).join(', ')}] — a row carries exactly the fourteen ruled fields`);
+    if (keys !== wantKeys) violations.push(`${who}: keys are [${Object.keys(row).join(', ')}] — a row carries exactly the thirteen ruled fields`);
     if (ids.has(row.id)) violations.push(`${who}: duplicate id`);
     ids.add(row.id);
     for (const [field, value] of Object.entries({ city: row.city, country: row.country })) {
@@ -185,8 +182,8 @@ export function wasHereLaw(opts: { throwOnFail?: boolean; rows?: readonly WasHer
         if (typeof value !== 'string' || value.trim() === '') violations.push(`${who}: image ${field} is empty`);
       }
     }
-    // WASHERE-03: the post's three lists — each a list, each item a non-empty string; empty lists are allowed.
-    for (const [field, list] of Object.entries({ workedFrom: row.workedFrom, did: row.did, learned: row.learned })) {
+    // WASHERE-03: the post's two lists — each a list, each item a non-empty string; empty lists are allowed.
+    for (const [field, list] of Object.entries({ did: row.did, learned: row.learned })) {
       if (!Array.isArray(list)) { violations.push(`${who}: ${field} is not a list`); continue; }
       list.forEach((item, i) => {
         if (typeof item !== 'string' || item.trim() === '') violations.push(`${who}: ${field}[${i}] is empty — a list holds non-empty strings`);

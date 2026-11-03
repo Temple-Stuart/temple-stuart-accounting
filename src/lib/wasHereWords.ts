@@ -8,7 +8,7 @@
  *   tripOrder(rows)          the rows by start, ascending — trip order, derived, a copy
  *                            (WASHERE-03; newestFirst left with it — no caller)
  *   stopWords(n)             "Stop 1" … "Stop 7" — n is the row's place in tripOrder, derived (WASHERE-03)
- *   listWords(items)         the items joined by " · " — WORKED FROM and DID (WASHERE-03)
+ *   listWords(items)         the items joined by " · " — DID (WASHERE-03)
  *
  * WASHERE-02 (2026-10-31) — the stops' events. WASHERE-03 cut the near-miss words:
  * daysBetween, missedWords and missedPill left with their fixtures (no caller).
@@ -38,7 +38,7 @@ export function stopWords(n: number): string {
   return `Stop ${n}`;
 }
 
-/** WORKED FROM and DID: the items, joined. */
+/** DID: the items, joined. */
 export function listWords(items: readonly string[]): string {
   return items.join(' · ');
 }

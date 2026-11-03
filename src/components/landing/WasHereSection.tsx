@@ -9,7 +9,7 @@
  * The card that EVENTS-01 featured inside the experiences left that section and is
  * an entry here — an act built to take many entries and a photo each as Alex adds
  * them. WASHERE-03: the log reads top-down as posts, in trip order, each stop with
- * what he worked from, did and learned.
+ * what he did and learned. WASHERE-04 (Alex, 2026-11-03): privacy.
  *
  * WHAT IT RENDERS — every word of a stop from src/lib/wasHere.ts through
  * src/lib/wasHereWords.ts, every word of an event from src/lib/experiences.ts
@@ -24,8 +24,8 @@
  *     · when experienceId is set, the event's own block: category · series, its
  *       name, its venue, experienceLine(event, today);
  *     · Alex's line when he has written it (null renders nothing);
- *     · WORKED FROM — the names joined by " · "; DID — the items joined; LEARNED —
- *       one <p> per paragraph. An empty list renders nothing — no empty eyebrow;
+ *     · DID — the items joined by " · "; LEARNED — one <p> per paragraph. An
+ *       empty list renders nothing — no empty eyebrow;
  *     · WHAT WAS ON — one pill per event, each linking its source (the EXPERIENCES
  *       pills' grammar, on the cream act's tokens); no events, no list;
  *     · when experienceId is set, one link to the strip (#demo).
@@ -45,10 +45,9 @@ import { listWords, onPill, stayWords, stopWords, tripOrder, wasHereLabel } from
 /** The act's anchor. */
 export const MY_TRIP_ANCHOR = 'my-trip';
 export const MY_TRIP_EYEBROW = 'MY TRIP';
-export const MY_TRIP_HEADLINE = "Where I've been while building this.";
+export const MY_TRIP_HEADLINE = "Where I've been.";
 export const MY_TRIP_LINE = 'Stop by stop, dated.';
 export const MY_TRIP_LINK = 'Book the stay and the flight ↑';
-export const WORKED_FROM = 'WORKED FROM';
 export const DID = 'DID';
 export const LEARNED = 'LEARNED';
 export const WHAT_WAS_ON = 'WHAT WAS ON';
@@ -92,7 +91,7 @@ function eventOf(id: string): Experience {
   return found;
 }
 
-/** WORKED FROM and DID: one line, the items joined — nothing when the list is empty. */
+/** DID: one line, the items joined — nothing when the list is empty. */
 function Joined({ eyebrow, items, hook }: { eyebrow: string; items: readonly string[]; hook: string }) {
   if (items.length === 0) return null;
   return (
@@ -157,7 +156,6 @@ function Entry({ row, stop, today }: { row: WasHereRow; stop: number; today: str
         </div>
       )}
       {row.line !== null && <p className={TRIP.quote} data-was-here-line>{row.line}</p>}
-      <Joined eyebrow={WORKED_FROM} items={row.workedFrom} hook="worked-from" />
       <Joined eyebrow={DID} items={row.did} hook="did" />
       <Paragraphs eyebrow={LEARNED} items={row.learned} hook="learned" />
       <Pills rows={row.events} stop={row.id} />
