@@ -16,9 +16,15 @@
  * calendar_event. The migration's CHECK gains the kind in
  * prisma/migrations/20260919100100_travel_01_trip_item_link_kind.
  */
+/**
+ * TRAVEL-02b (Alex, 2026-11-03, ruling B) adds 'travel_expense': a posting linked to a travel expense the customer typed
+ * (a visa, an eSIM, a one-off purchase), keyed on travel_expenses.id (a UUID — no instant, like calendar_event,
+ * project_task and trip_item). TRAVEL-00's decision 7: the one match rule, LINK-LAW-01's one writer — no second
+ * table. The migration's CHECK gains the kind in prisma/migrations/20261103120000_travel_02b_travel_expenses.
+ */
 import { isValidUuid } from '@/lib/operations/parseUuid';
 
-export const LINKABLE_KINDS = ['calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item'] as const;
+export const LINKABLE_KINDS = ['calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item', 'travel_expense'] as const;
 export type LinkableKind = (typeof LINKABLE_KINDS)[number];
 
 export function isLinkableKind(k: string): k is LinkableKind {
@@ -47,6 +53,8 @@ export function requiresInstant(kind: LinkableKind): boolean {
  *   routine_line   → operations_routine_steps, through its ROUTINE's user_id
  *   trip_item      → trip_itinerary, through its TRIP's userId (read-only, Alex
  *                    ruled D2 (a) 2026-09-28 — no Travel file changes)
+ *   travel_expense → travel_expenses.user_id (TRAVEL-02b) — the links POST also
+ *                    refuses a VOIDED expense, by name, after this read
  *
  * The four uuid-keyed tables cannot hold an id that is not a UUID, so such an id
  * names no row of them: null here, and the same 404 — never a database error.
@@ -56,7 +64,8 @@ export type TargetOwnerQuery =
   | { readonly table: 'operations_project_tasks'; readonly where: { id: string; user_id: string } }
   | { readonly table: 'operations_routines'; readonly where: { id: string; user_id: string } }
   | { readonly table: 'operations_routine_steps'; readonly where: { id: string; routine: { user_id: string } } }
-  | { readonly table: 'trip_itinerary'; readonly where: { id: string; trip: { userId: string } } };
+  | { readonly table: 'trip_itinerary'; readonly where: { id: string; trip: { userId: string } } }
+  | { readonly table: 'travel_expenses'; readonly where: { id: string; user_id: string } };
 
 export function targetOwnerQuery(kind: LinkableKind, id: string, userId: string): TargetOwnerQuery | null {
   if (kind === 'trip_item') return { table: 'trip_itinerary', where: { id, trip: { userId } } };
@@ -64,6 +73,7 @@ export function targetOwnerQuery(kind: LinkableKind, id: string, userId: string)
   if (kind === 'calendar_event') return { table: 'calendar_events', where: { id, user_id: userId } };
   if (kind === 'project_task') return { table: 'operations_project_tasks', where: { id, user_id: userId } };
   if (kind === 'routine') return { table: 'operations_routines', where: { id, user_id: userId } };
+  if (kind === 'travel_expense') return { table: 'travel_expenses', where: { id, user_id: userId } };
   // routine_line — the last kind: the line's routine must be the user's.
   return { table: 'operations_routine_steps', where: { id, routine: { user_id: userId } } };
 }

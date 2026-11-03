@@ -55,7 +55,8 @@ test('C the fifteen columns in Alex\'s order — when → kind → classificatio
   assert.equal(travelLedgerColumnOf('settled').label, 'SETTLED');
   assert.equal(TRAVEL_LEDGER_HEADING, 'TRAVEL LEDGER');
   assert.equal(TRAVEL_LEDGER_CSV_FILE_NAME, 'travel-ledger.csv');
-  assert.deepEqual(KIND_WORDS, { booking: 'booking', refund: 'refund', fee: 'fee', voucher: 'voucher' });
+  // TRAVEL-02b (2026-11-03, ruling F): the typed rows' three kinds and their words followed (travel02b.test.ts). Moved, not loosened.
+  assert.deepEqual(KIND_WORDS, { booking: 'booking', refund: 'refund', fee: 'fee', voucher: 'voucher', visa: 'visa', esim: 'eSIM', other: 'other' });
   assert.deepEqual([...LEDGER_MONEY_EVENT_KINDS], ['refund', 'cancellation_fee', 'voucher_issued']);
 });
 
@@ -175,9 +176,12 @@ test('C the DATE rule: an EVENT INSTANT (createdAt; a money event\'s statedAt) d
 
 test('C sorted by STATED: each row\'s own minor units, blanks last — an order, never a converted figure; a filter by KIND keeps a value column\'s checklist words', () => {
   const asc = sortRows(rows, { column: 'stated', direction: 'asc' }, TRAVEL_LEDGER_TABLE);
-  assert.deepEqual(asc.map((r) => r.id), ['me-refund', 'me-voucher-flight', 'me-fee', 'res-flight-usd', 'res-hotel-cancelled', 'res-hotel-php', 'res-activity', 'me-voucher-null']);
+  // TRAVEL-02b item 0 (Alex, 2026-11-03; this PR's call 5 was NO): STATED sorts by the currency CODE first (A→Z), then by the minor units
+  // within it — PHP before USD, never a PHP figure ranked against a USD one; blanks last both ways. Moved by the ruling.
+  assert.deepEqual(asc.map((r) => r.id), ['res-hotel-php', 'me-refund', 'me-voucher-flight', 'me-fee', 'res-flight-usd', 'res-hotel-cancelled', 'res-activity', 'me-voucher-null']);
   const desc = sortRows(rows, { column: 'stated', direction: 'desc' }, TRAVEL_LEDGER_TABLE);
-  assert.deepEqual(desc.slice(0, 2).map((r) => r.id), ['res-hotel-php', 'res-hotel-cancelled']);
+  // TRAVEL-02b item 0: descending is the idiom's reverse — USD (Z→A) first, its largest first. Moved by the ruling.
+  assert.deepEqual(desc.slice(0, 2).map((r) => r.id), ['res-hotel-cancelled', 'res-flight-usd']);
   assert.deepEqual(desc.slice(-2).map((r) => r.id), ['res-activity', 'me-voucher-null'], 'blanks last both ways');
   const bySettled = sortRows(rows, { column: 'settled', direction: 'desc' }, TRAVEL_LEDGER_TABLE);
   assert.deepEqual(bySettled.slice(0, 3).map((r) => r.id), ['res-hotel-cancelled', 'res-hotel-php', 'me-fee']);
@@ -328,7 +332,8 @@ test('A the view draws the ledger through the shared DataTable over the leaf\'s 
   assert.match(view, /fetch\('\/api\/reservations'\)/);
   assert.match(view, /Array\.isArray\(data\.ledger\) \? \(data\.ledger as LedgerBookingIn\[\]\) : \[\]/);
   assert.match(view, /setZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\);/, 'the viewer\'s zone');
-  assert.match(view, /travelLedgerRows\(loaded\.ledger, zone\)/);
+  // TRAVEL-02b (2026-11-03, ruling D): the bookings and the typed rows, merged by the leaf — moved, not loosened (travel02b.test.ts pins the merge).
+  assert.match(view, /ledgerRowsOf\(loaded\.ledger, loaded\.expenses, zone\)/);
   assert.match(view, /const shown = sortRows\(filterRows\(rows, filters, TRAVEL_LEDGER_TABLE\), sort, TRAVEL_LEDGER_TABLE\);/);
   assert.match(view, /<DataTable\s+name="travel-ledger"\s+columns=\{TRAVEL_LEDGER_TABLE\}/);
   assert.match(view, /csv=\{shown\.length > 0 \? \{ name: TRAVEL_LEDGER_CSV_FILE_NAME \} : null\}/);

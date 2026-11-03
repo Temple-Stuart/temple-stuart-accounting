@@ -853,6 +853,8 @@ model users {
   transaction_reservation_links transaction_reservation_links[]
   planned_item_links            planned_item_links[]
   source_documents              source_documents[]
+  /// TRAVEL-02b (2026-11-03): the caller's typed travel expenses — RESTRICT: a user with one is never deleted out from under it.
+  travel_expenses               travel_expenses[]
   // VENDOR-01: who each of this user's plans is paid to.
   planned_item_vendors          planned_item_vendors[]
   // STAY-01: where this user is, day by day — their stays.
@@ -960,6 +962,8 @@ model trips {
   reservations        reservations[]
   hub_scheduled_items hub_scheduled_items[]
   ledger_line_links   ledger_line_links[]
+  /// TRAVEL-02b (2026-11-03): the typed travel expenses that name this trip — RESTRICT: a trip they name is never deleted.
+  travel_expenses     travel_expenses[]
 
   @@index([userId])
   @@index([year, month])
@@ -4651,4 +4655,45 @@ model source_documents {
   @@index([user_id, journal_entry_id])
   @@index([user_id, account_id, period_month])
   @@map("source_documents")
+}
+
+/// TRAVEL-02b (Alex, 2026-11-03, ruling A) — A TYPED TRAVEL EXPENSE: a visa, an eSIM or a one-off travel purchase,
+/// as its own row (TRAVEL-00's decision 6 — a user-scoped table, not a routine; trip_expenses, the group-trip table,
+/// is a different thing). Stated in the currency it was paid in (no default — FX-01), on the DAY it was paid, the
+/// vendor as typed. HELD BY THE DATABASE (prisma/migrations/20261103120000_travel_02b_travel_expenses — Prisma cannot
+/// express a CHECK or a trigger; the migration holds them): the three kinds, a positive amount, a three-letter
+/// currency, a vendor of 1–120 characters, the void pair (both or neither, the reason never blank); a FREEZE trigger —
+/// nothing changes once kept, except the void, set once from NULL — and a NO-DELETE trigger (TRUNCATE too). Matched
+/// to its bank posting by hand through the one link rule: planned_item_links kind 'travel_expense' (ruling B). The
+/// writers: POST /api/travel-expenses (the row) and POST /api/travel-expenses/[id]/void (the void) — nothing else.
+model travel_expenses {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String
+  /// 'visa' | 'esim' | 'other' — a CHECK, not a convention.
+  kind         String    @db.VarChar(8)
+  /// The DAY it was paid — a calendar day, never an instant.
+  paid_on      DateTime  @db.Date
+  /// The amount in the currency's minor units, as typed — > 0, a CHECK.
+  amount_minor Int
+  /// ISO 4217 as stated — three letters, no default.
+  currency     String    @db.VarChar(3)
+  /// As typed — 1 to 120 characters once trimmed, a CHECK.
+  vendor       String    @db.VarChar(120)
+  note         String?
+  trip_id      String?
+  /// The chart account the customer chose, as its account string ('P-9200'), validated at write against the
+  /// caller's chart_of_accounts — never defaulted; NULL when none was chosen.
+  coa_code     String?   @db.VarChar(50)
+  /// The void: both set together, once, from NULL — or both NULL.
+  voided_at    DateTime? @db.Timestamptz(6)
+  void_reason  String?
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  created_by   String
+
+  user users  @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  trip trips? @relation(fields: [trip_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id, paid_on])
+  @@index([user_id, trip_id])
+  @@map("travel_expenses")
 }

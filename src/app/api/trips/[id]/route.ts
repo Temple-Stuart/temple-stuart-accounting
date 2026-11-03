@@ -4,6 +4,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 // SEC-02b (2026-09-27): a participant goes back without its password hash.
 import { PARTICIPANT_RESPONSE_SELECT } from '@/lib/trips/participantSelect';
 import { tripLinesLinkedRefusal } from '@/lib/trips/budgetLinkGuard';
+import { tripHoldsTravelExpensesWords } from '@/lib/travel/travelExpense';
 
 // GET single trip
 export async function GET(
@@ -127,6 +128,11 @@ export async function DELETE(
     // deletes below share no transaction — so ask FIRST and refuse by name before any.
     const linked = await tripLinesLinkedRefusal(user.id, id);
     if (linked) return linked;
+    // TRAVEL-02b (Alex, 2026-11-03, ruling A): a typed travel expense names its trip with RESTRICT and is never deleted
+    // (voided ones too) — so a trip one names cannot be deleted, and the deletes below share no transaction: count FIRST
+    // and refuse by name before any, or the group-trip rows would go before the trip's own delete failed.
+    const typedExpenses = await prisma.travel_expenses.count({ where: { user_id: user.id, trip_id: id } });
+    if (typedExpenses > 0) return NextResponse.json({ error: tripHoldsTravelExpensesWords(typedExpenses) }, { status: 409 });
 
     // Delete related records first (correct model names)
     await prisma.expense_splits.deleteMany({

@@ -245,7 +245,8 @@ test("a trip block opens the drill panel as 'trip_item' — vendor, source, plan
 });
 
 test("LINK-01 applies to a trip item: the kind is linkable, keyed on its id with no instant, and its migration names it", () => {
-  assert.deepEqual([...LINKABLE_KINDS], ['calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item']);
+  // TRAVEL-02b (2026-11-03): 'travel_expense' followed, in its own migration (travel02b.test.ts pins it) — moved, not loosened.
+  assert.deepEqual([...LINKABLE_KINDS], ['calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item', 'travel_expense']);
   assert.equal(isLinkableKind('trip_item'), true);
   assert.equal(requiresInstant('trip_item'), false);
   const m = code(LINK_MIGRATION);

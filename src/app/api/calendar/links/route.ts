@@ -41,6 +41,13 @@
  * reversed, by name (postingAmount.ts isReversedPosting); the GET marks each linked posting `reversed` (the leaf's sum
  * leaves it out and says so — links.ts sumLinks) and offers no reversed posting as a candidate, counting the ones it
  * left out (candidatesReversed).
+ *
+ * TRAVEL-02b (Alex, 2026-11-03, ruling B). A sixth kind, 'travel_expense' — a travel expense the customer typed
+ * (travel_expenses), matched to its bank posting by hand, here: the row must exist and be the caller's (the ownership
+ * read, linkKeys.ts targetOwnerQuery — else the defensive 404) and must NOT be voided — a voided one is refused by
+ * name (travelExpense.ts voidedExpenseLinkWords), nothing written. A reversed posting pays nothing (as above); one
+ * posting is linked to at most one item (the unique index). A voided expense's links stay readable — the void route
+ * never unlinks — and the DELETE below unlinks one as it unlinks any other.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -49,6 +56,7 @@ import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { LINKED_POSTING_SELECT, PAYING_POSTING_WHERE, REVERSED_POSTING_WHERE, amountCentsOf, isReversedPosting, reversedRefusalWords } from '@/lib/calendar/postingAmount';
 import { OCCURRENCE_ROUTINE_SELECT, occurrenceCheck } from '@/lib/operations/linkOccurrence';
 import { LINKABLE_KINDS, isLinkableKind, requiresInstant, targetOwnerQuery, type LinkableKind, type TargetOwnerQuery } from '@/lib/calendar/linkKeys';
+import { voidedExpenseLinkWords } from '@/lib/travel/travelExpense';
 
 /** How far either side of the item's date a candidate may sit. Not a match — a window. */
 const CANDIDATE_DAYS = 45;
@@ -113,6 +121,7 @@ async function ownsTarget(q: TargetOwnerQuery | null): Promise<boolean> {
     case 'operations_routines': return (await prisma.operations_routines.findFirst({ where: q.where, select })) !== null;
     case 'operations_routine_steps': return (await prisma.operations_routine_steps.findFirst({ where: q.where, select })) !== null;
     case 'trip_itinerary': return (await prisma.trip_itinerary.findFirst({ where: q.where, select })) !== null;
+    case 'travel_expenses': return (await prisma.travel_expenses.findFirst({ where: q.where, select })) !== null;
   }
 }
 
@@ -209,6 +218,14 @@ export async function POST(request: NextRequest) {
     if (t.instant === null) throw new Error(`links POST: a ${t.kind} target reached the occurrence test without its instant — readTarget requires one`);
     const occurrence = occurrenceCheck(routine, t.instant);
     if (!occurrence.ok) return NextResponse.json({ error: occurrence.message }, { status: 400 });
+  }
+
+  // TRAVEL-02b (ruling B): a travel expense takes a payment while it is not voided — read user-scoped, as the ownership read
+  // was; a voided one is refused by name (409), nothing written.
+  if (t.kind === 'travel_expense') {
+    const expense = await prisma.travel_expenses.findFirst({ where: { id: t.id, user_id: user.id }, select: { vendor: true, voided_at: true, void_reason: true } });
+    if (!expense) return NextResponse.json({ error: 'No such item' }, { status: 404 });
+    if (expense.voided_at !== null) return NextResponse.json({ error: voidedExpenseLinkWords(expense.vendor, expense.voided_at, expense.void_reason as string) }, { status: 409 });
   }
 
   // The posting must be THIS user's. Someone else's resolves to a defensive 404.
