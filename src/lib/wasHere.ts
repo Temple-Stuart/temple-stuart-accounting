@@ -152,7 +152,10 @@ export const WAS_HERE: readonly WasHereRow[] = [
     // TRIPPHOTO-06 (Alex, 2026-11-05): his photo of the stop — cropped to 3:2, strangers' number plates blurred, metadata stripped.
     image: { src: '/was-here/bangkok-2026-10-21.jpg', alt: 'Wat Arun lit gold at night at the end of a Bangkok street, a cyclist riding toward it', credit: 'Photo: Alex Stuart' },
     writtenOn: WRITTEN, did: [], learned: [], events: [] },
-  { id: 'siargao-2026', city: 'General Luna, Siargao', country: 'Philippines', countryCode: 'PH', start: '2026-10-22', end: null, experienceId: 'philippines-pro-2026', line: 'I landed in Siargao in the middle of the WSL by luck. Don\'t get lucky. Book around it.', image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
+  { id: 'siargao-2026', city: 'General Luna, Siargao', country: 'Philippines', countryCode: 'PH', start: '2026-10-22', end: null, experienceId: 'philippines-pro-2026', line: 'I landed in Siargao in the middle of the WSL by luck. Don\'t get lucky. Book around it.',
+    // TRIPPHOTO-07 (Alex, 2026-11-05): his photo of the stop — cropped to 3:2 without the boatman's face, metadata stripped.
+    image: { src: '/was-here/siargao-2026.jpg', alt: 'A surfer paddling beside an outrigger boat off Siargao, the island and a breaking reef on the horizon', credit: 'Photo: Alex Stuart' },
+    writtenOn: WRITTEN, did: [], learned: [], events: [] },
 ];
 
 export class WasHereLawError extends Error {
