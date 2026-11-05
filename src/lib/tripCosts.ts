@@ -9,7 +9,9 @@
  *   · { kind: 'paid', name, amountCents } — what it was and what he paid, in integer cents;
  *   · { kind: 'none' }    — he had none ("n/a" in his sheet: no motorbike — he took Grab);
  *   · { kind: 'unknown' } — not in his log yet. Never a guess, never $0.
- * Printed by src/lib/tripPostWords.ts through the one money formatter.
+ * Printed by src/lib/tripPostWords.ts through the one money formatter. A name is what the card
+ * shows on one line, so it stays short (Alex, 2026-11-05: "Nyoman Motorbike", not "Nyoman
+ * Motorbike Rental"); a name too long for the card's width ends in "…" there, never wraps.
  *
  * THE LAW (module scope; re-run at build by scripts/assert-tool-registry.ts, which adds what only
  * it can see — a row for every WAS_HERE stop and none for a stop that isn't one). It refuses by
@@ -41,12 +43,12 @@ const NONE: TripCostLine = { kind: 'none' };
 const UNKNOWN: TripCostLine = { kind: 'unknown' };
 
 export const TRIP_COSTS: readonly TripCosts[] = [
-  { stopId: 'canggu-2026-07', stay: paid('The Daun', 70814), moto: paid('Nyoman Motorbike Rental (Nmax)', 13179), flightIn: paid('China Air', 83720) },
+  { stopId: 'canggu-2026-07', stay: paid('The Daun', 70814), moto: paid('Nyoman Motorbike (Nmax)', 13179), flightIn: paid('China Air', 83720) },
   { stopId: 'danang-2026-08', stay: paid('Sky Village Đà Nẵng', 98073), moto: NONE, flightIn: paid('Vietjet', 17610) },
   { stopId: 'bangkok-2026-09', stay: paid('Premier Thonglor', 100772), moto: NONE, flightIn: paid('Thai Vietjet', 14990) },
-  { stopId: 'phuket-2026-10', stay: paid('Amata Patong', 56961), moto: paid('Joy Motorbike Rent Patong (ADV)', 8000), flightIn: paid('AirAsia', 5881) },
+  { stopId: 'phuket-2026-10', stay: paid('Amata Patong', 56961), moto: paid('Joy Motorbike (ADV)', 8000), flightIn: paid('AirAsia', 5881) },
   { stopId: 'chiangmai-2026-10', stay: paid('Hillside Condo 3', 41337), moto: NONE, flightIn: paid('Vietjet', 11179) },
-  { stopId: 'bangkok-2026-10-21', stay: paid('Eleven Bangkok Sukhumvit 11, by Kingston Hotels', 4398), moto: NONE, flightIn: paid('Vietjet', 4720) },
+  { stopId: 'bangkok-2026-10-21', stay: paid('Eleven Bangkok Sukhumvit 11', 4398), moto: NONE, flightIn: paid('Vietjet', 4720) },
   { stopId: 'siargao-2026', stay: paid('Rodeo Sun Hotel', 63824), moto: paid('Kook Moto Rental (Fazzio)', 6353), flightIn: paid('Philippine Airlines', 26050) },
   { stopId: 'cebu-2026-11', stay: paid('The Noble Cebu', 21726), moto: UNKNOWN, flightIn: paid('Philippine Airlines', 10405) },
   { stopId: 'uluwatu-2026-11', stay: paid('Bombora Surf Camp', 40016), moto: UNKNOWN, flightIn: paid('Philippine Airlines', 26512) },

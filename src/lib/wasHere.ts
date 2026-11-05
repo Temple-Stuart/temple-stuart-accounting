@@ -14,10 +14,10 @@
  *     happened there yet). Which stop is the current one is the words module's to say,
  *     from the server's day (wasHereWords.ts stopStatus), never from end null alone;
  *   · experienceId names an EXPERIENCES row (src/lib/experiences.ts) when the stop
- *     was around an event, else null — the section draws that event's own block
- *     through the words module, never a retyped date;
+ *     was around an event, else null — the stop's page draws that event's own block
+ *     through the words module, never a retyped date (TRIPCARDS-01: off the card);
  *   · line is Alex's words for the stop, typed once, here — or null while he has
- *     not written them (null renders nothing);
+ *     not written them (null renders nothing); shown on the stop's page (TRIPCARDS-01);
  *   · image is { src, alt, credit } or null — src a file under public/was-here/
  *     (the section draws NO placeholder while null);
  *   · writtenOn is the day the entry was written;
@@ -96,7 +96,7 @@ export interface WasHereRow {
   line: string | null;
   image: WasHereImage | null;
   writtenOn: string;
-  /** WASHERE-03: what he did — items, joined on the card. */
+  /** WASHERE-03: what he did — items, joined (on the stop's page since TRIPCARDS-01). */
   did: string[];
   /** WASHERE-03: what he learned — one paragraph per string. */
   learned: string[];

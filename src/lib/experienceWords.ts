@@ -13,6 +13,8 @@
  *                                "Dec 8–20, 2026" (same month) · "Nov 14, 2026"
  *                                (one day) · "Nov 1, 2026 – Mar 31, 2027" (cross-year)
  *   experienceLine(row, today)   THE one line a card shows (see the function)
+ *   experienceWindowLine(row)    the dated part of that line, with no day in it — a stop's
+ *                                page names the event it was around on any day (TRIPCARDS-01)
  *   upcoming(rows, today, n)     announced/conflict rows with end ≥ today, by start, first n
  *   lineupPill(row, today)       the lineup's pill words for one row
  *   shortDayWords(iso)           "Jul 1" — one day without its year (TRIPPOST-01)
@@ -108,6 +110,15 @@ export function experienceLine(row: Experience, today: string): string {
   if (row.status === 'not_announced') return notAnnouncedLine(row.checkedOn);
   if (row.start === null || row.end === null) throw new ExperienceWordsError(`${row.id}: status ${row.status} with no dates — the leaf's law refuses this row`);
   if (row.end < today) return notAnnouncedLine(row.checkedOn);
+  return experienceWindowLine(row);
+}
+
+/**
+ * TRIPCARDS-01 (2026-11-05): an announced or conflicting row's window in words — experienceLine's
+ * dated words, with no day in them. A row with no window is refused by name, never a guess.
+ */
+export function experienceWindowLine(row: Experience): string {
+  if (row.status === 'not_announced' || row.start === null || row.end === null) throw new ExperienceWordsError(`${row.id}: status ${row.status} has no window to name`);
   const words = dateWords(row.start, row.end);
   const prefix = row.windowKind === 'fixed' ? '' : 'Window ';
   let line: string;

@@ -1,14 +1,14 @@
 /**
  * TRIPPOST-01 (Alex, 2026-11-05) — THE WORDS a stop's page and its card are shown in. PURE: no
- * clock, no locale call, no fetch, no React. It takes the stop's row, its costs, its card and its
- * post as arguments and never looks one up. It imports the leaves with `import type` ONLY — so the
+ * clock, no locale call, no fetch, no React. It takes the stop's row, its costs and its post as
+ * arguments and never looks one up. It imports the leaves with `import type` ONLY — so the
  * landing (a client component) can import this file without pulling a post body into its
  * JavaScript. The dates come from the one date module (src/lib/experienceWords.ts), the stay and
  * the stop number from src/lib/wasHereWords.ts, every dollar figure from the one money formatter
  * (src/lib/books/functionalCurrency.ts functionalMoneyWords — integer cents in, "$708.14" out).
  *
- * TRIPCARDS-01 (Alex, 2026-11-05): every stop has a page and a card in the Canggu card's shape;
- * what a stop cost — the stay, the motorbike, the flight in — comes from src/lib/tripCosts.ts.
+ * TRIPCARDS-01 (Alex, 2026-11-05): every stop has a page, and its card is the stop and what it
+ * cost — the stay, the motorbike, the flight in, from src/lib/tripCosts.ts.
  *
  *   tripPostHref(id)              "/my-trip/canggu-2026-07" — the stop's page
  *   stopNumber(rows, id)          the row's place in tripOrder, 1-based
