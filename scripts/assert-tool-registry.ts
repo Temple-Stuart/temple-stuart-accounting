@@ -158,8 +158,8 @@ import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } f
 import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, providersLaw, ruleFor } from '../src/lib/providers';
 // EVENTS-01: the experiences leaf — every marquee event dated from its own calendar, with the day checked. HOME-05a: the close offer leaf beside it.
 import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/experiences'; import { CLOSE_OFFER, closeOfferLaw } from '../src/lib/offer/close';
-// WASHERE-01: the trip log — Alex's own stops, each naming an experience by id, a photo each as they land.
-import { WAS_HERE, wasHereLaw } from '../src/lib/wasHere';
+// WASHERE-01: the trip log — Alex's own stops, each naming an experience by id, a photo each as they land. TRIPPOST-01: the trip posts' two leaves beside it.
+import { WAS_HERE, wasHereLaw } from '../src/lib/wasHere'; import { TRIP_POST_CARDS, tripPostCardsLaw } from '../src/lib/tripPostCards'; import { TRIP_POSTS, tripPostsLaw } from '../src/lib/tripPosts';
 // DATAFLOW-01 (ruling D): the deck's S14 law, by name. Importing the deck runs every slide's layout law at module scope.
 import { s14Law } from '../src/components/landing/Landing';
 import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, latestViews, latestViewsSql, parseViews } from '../src/lib/kindViews';
@@ -222,7 +222,7 @@ const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
   { route: '/how-pricing-works', why: 'LandingHeader.tsx:52, LandingFooter.tsx:54, the HomeClient header' },
   { route: '/privacy', why: 'LandingFooter.tsx:56, PUBLIC_PATHS' },
   { route: '/terms', why: 'LandingFooter.tsx:55, PUBLIC_PATHS' },
-  { route: '/work-with-me', why: 'the deck (Landing.tsx), PUBLIC_PATHS' },
+  { route: '/work-with-me', why: 'the deck (Landing.tsx), PUBLIC_PATHS' }, { route: '/my-trip/[id]', why: 'TRIPPOST-01: a stop\u2019s post — its door is that stop\u2019s card on the front door (WasHereSection.tsx PostBlock: the title and Read the post), PUBLIC_PATHS' },
   { route: '/modules/[pillar]', why: 'the deck PILLAR_CARDS and ModulePointerCard.tsx' },
   { route: '/booking/confirm', why: 'the LiteAPI checkout return URL (CheckoutPanel.tsx returnUrl), PUBLIC_PATHS' },
   { route: '/booking/flight-confirm', why: 'FL-4c: the FLIGHTS checkout return URL (LiteApiFlightCheckoutPanel.tsx returnUrl) — the documented LiteAPI payment rail redirects on success, so a guest who just paid lands here; PUBLIC_PATHS' },
@@ -730,7 +730,7 @@ console.log(`counts: LIVE ${counts.LIVE} · PARTIAL ${counts.PARTIAL} · NOT_BUI
   if (violations.length === before) console.log(`✔ The trip log law passed — ${WAS_HERE.length} stop(s), ${WAS_HERE.filter((r) => r.end === null).length} current, ${WAS_HERE.filter((r) => r.image !== null).length} with a photo on disk at no more than 400 KB; every event named exists; the landing mounts the log once with the day the front door computed.`);
   else console.log(`✖ The trip log law FAILED — ${violations.length - before} violation(s).`);
 }
-
+{ const before = violations.length; violations.push(...tripPostCardsLaw({ throwOnFail: false }), ...tripPostsLaw({ throwOnFail: false })); const cardIds = TRIP_POST_CARDS.map((c) => c.stopId).sort().join(','); const postIds = TRIP_POSTS.map((p) => p.stopId).sort().join(','); if (cardIds !== postIds) violations.push(`trip posts: the cards [${cardIds}] and the posts [${postIds}] do not hold the same stop ids — a card for every post, a post for every card (TRIPPOST-01)`); for (const post of TRIP_POSTS) { const row = WAS_HERE.find((r) => r.id === post.stopId); if (row === undefined) { violations.push(`trip posts: ${post.stopId} is not a WAS_HERE id (TRIPPOST-01)`); continue; } const last = row.end === null ? post.writtenOn : row.end; for (const week of post.weeks) for (const day of week.days) if (day.date < row.start || day.date > last) violations.push(`trip posts: ${post.stopId} has a day ${day.date} outside its stay ${row.start} – ${row.end ?? 'now'} (TRIPPOST-01)`); } if (!existsSync(resolve(ROOT, 'src/app/my-trip/[id]/page.tsx'))) violations.push('trip posts: src/app/my-trip/[id]/page.tsx does not exist — every post needs its page (TRIPPOST-01)'); console.log(violations.length === before ? `✔ The trip post law passed — ${TRIP_POSTS.length} post(s) [${postIds}], ${TRIP_POSTS.reduce((n, p) => n + p.weeks.reduce((m, w) => m + w.days.length, 0), 0)} day(s), every one inside its stay; a card for every post; the page route on disk (src/lib/tripPostCards.ts, src/lib/tripPosts.ts).` : `✖ The trip post law FAILED — ${violations.length - before} violation(s).`); } // ── THE TRIP POST LAW (TRIPPOST-01, 2026-11-05): both leaves' laws, then what only the script sees — on the blank line after the trip log law, so no line the deck cites moves.
 // ── THE ARRIVALS LAW (REBUILD-01 PR-1) ──────────────────────────────────────
 violations.push(...providersLaw({ throwOnFail: false }));
 const migrationDir = readdirSync(resolve(ROOT, 'prisma/migrations')).find((d) => d.endsWith('_arrivals'));
