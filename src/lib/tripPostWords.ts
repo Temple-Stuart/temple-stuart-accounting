@@ -1,19 +1,27 @@
 /**
- * TRIPPOST-01 (Alex, 2026-11-05) — THE WORDS a trip post and its card are shown in. PURE: no
- * clock, no locale call, no fetch, no React. It takes the stop's row, its card and its post as
- * arguments and never looks one up. It imports the two leaves with `import type` ONLY — so the
+ * TRIPPOST-01 (Alex, 2026-11-05) — THE WORDS a stop's page and its card are shown in. PURE: no
+ * clock, no locale call, no fetch, no React. It takes the stop's row, its costs, its card and its
+ * post as arguments and never looks one up. It imports the leaves with `import type` ONLY — so the
  * landing (a client component) can import this file without pulling a post body into its
  * JavaScript. The dates come from the one date module (src/lib/experienceWords.ts), the stay and
  * the stop number from src/lib/wasHereWords.ts, every dollar figure from the one money formatter
  * (src/lib/books/functionalCurrency.ts functionalMoneyWords — integer cents in, "$708.14" out).
  *
- *   tripPostHref(id)              "/my-trip/canggu-2026-07" — the post's page
+ * TRIPCARDS-01 (Alex, 2026-11-05): every stop has a page and a card in the Canggu card's shape;
+ * what a stop cost — the stay, the motorbike, the flight in — comes from src/lib/tripCosts.ts.
+ *
+ *   tripPostHref(id)              "/my-trip/canggu-2026-07" — the stop's page
  *   stopNumber(rows, id)          the row's place in tripOrder, 1-based
  *   postEyebrow(n)                "My trip · Stop 1"
- *   postMeta(row, card)           ["Canggu, Bali, Indonesia", "Jul 1–30, 2026", "Stayed at The Daun · $708.14"]
- *   stayLine(card)                "Stayed at The Daun · $708.14"
- *   costRows(row, card, post)     the stay first ("Where I stayed"), then each cost — a null
- *                                 amount says NOT_IN_LOG, never $0
+ *   stopHeading(row)              "Canggu, Bali, Indonesia" — the page's h1 while the stop is not
+ *                                 written up (a written one's h1 is its post's title)
+ *   postMeta(row)                 ["Canggu, Bali, Indonesia", "Jul 1–30, 2026"]
+ *   stopCostRows(costs)           Stay · Motorbike · Flight in: the name and the amount — a stop
+ *                                 with none says NOT_APPLICABLE, one not in his log NOT_IN_LOG,
+ *                                 never $0
+ *   costRows(costs, post)         the stop's three, then the post's own costs, in order
+ *   unwrittenLine(row)            a stop not written up says so: booked ahead ("Coming up …")
+ *                                 or lived and not yet written
  *   dayLabel(date)                "Wed Jul 1"
  *   weekEyebrow(n, week)          "Week 1 · Jul 1–7, 2026"
  *   weekCount(week)               "7 days" · "1 day"
@@ -23,7 +31,7 @@
  */
 
 import type { WasHereRow } from './wasHere';
-import type { TripPostCard } from './tripPostCards';
+import type { TripCostLine, TripCosts } from './tripCosts';
 import type { TripPost, TripPostChipKind, TripPostWeek } from './tripPosts';
 import { dateWords, dayWords, shortDayWords, weekdayWords } from './experienceWords';
 import { stayWords, stopWords, tripOrder } from './wasHereWords';
@@ -36,12 +44,16 @@ export class TripPostWordsError extends Error {
   }
 }
 
-/** Where every post lives: src/app/my-trip/[id]/page.tsx. */
+/** Where every stop's page lives: src/app/my-trip/[id]/page.tsx. */
 export const TRIP_POST_BASE = '/my-trip';
-/** The first cost row's words — the stay the card carries. */
-export const WHERE_I_STAYED = 'Where I stayed';
 /** A cost whose amount is not in Alex's log says so — never $0, never a guess. */
 export const NOT_IN_LOG = 'not in my log yet';
+/** A cost he never had ("n/a" in his sheet — no motorbike: he took Grab). */
+export const NOT_APPLICABLE = 'n/a';
+/** The three a stop's costs name, in Alex's order (2026-11-05): the stay, the motorbike, the flight in. */
+export const STOP_COST_LABELS = { stay: 'Stay', moto: 'Motorbike', flightIn: 'Flight in' } as const;
+/** Under a page's costs when the stop has no post yet. */
+export const UNWRITTEN_COST_NOTE = 'These are the stay, the motorbike and the flight in. The rest of what I spent isn’t in my log yet.';
 
 export function tripPostHref(stopId: string): string {
   return `${TRIP_POST_BASE}/${stopId}`;
@@ -58,25 +70,50 @@ export function postEyebrow(n: number): string {
   return `My trip · ${stopWords(n)}`;
 }
 
-export function stayLine(card: TripPostCard): string {
-  return `Stayed at ${card.stay.name} · ${functionalMoneyWords(card.stay.amountCents)}`;
+/** The place, as the page's heading for a stop not written up yet. */
+export function stopHeading(row: WasHereRow): string {
+  return `${row.city}, ${row.country}`;
 }
 
-export function postMeta(row: WasHereRow, card: TripPostCard): [string, string, string] {
-  return [`${row.city}, ${row.country}`, stayWords(row), stayLine(card)];
+export function postMeta(row: WasHereRow): [string, string] {
+  return [stopHeading(row), stayWords(row)];
 }
 
 export interface CostRowWords {
   what: string;
+  /** The stay, the rental or the airline — empty when the stop had none or the log has no figure. */
   detail: string;
   amount: string;
 }
 
-export function costRows(row: WasHereRow, card: TripPostCard, post: TripPost): CostRowWords[] {
+function costLineWords(what: string, line: TripCostLine): CostRowWords {
+  switch (line.kind) {
+    case 'paid': return { what, detail: line.name, amount: functionalMoneyWords(line.amountCents) };
+    case 'none': return { what, detail: '', amount: NOT_APPLICABLE };
+    case 'unknown': return { what, detail: '', amount: NOT_IN_LOG };
+  }
+}
+
+/** The stop's own three, in Alex's order: the stay, the motorbike, the flight in. */
+export function stopCostRows(costs: TripCosts): CostRowWords[] {
   return [
-    { what: WHERE_I_STAYED, detail: `${card.stay.name}, ${card.stay.area} · ${stayWords(row)}`, amount: functionalMoneyWords(card.stay.amountCents) },
-    ...post.costs.map((c) => ({ what: c.what, detail: c.detail, amount: c.amountCents === null ? NOT_IN_LOG : functionalMoneyWords(c.amountCents) })),
+    costLineWords(STOP_COST_LABELS.stay, costs.stay),
+    costLineWords(STOP_COST_LABELS.moto, costs.moto),
+    costLineWords(STOP_COST_LABELS.flightIn, costs.flightIn),
   ];
+}
+
+/** The stop's three, then — when the stop is written up — the post's own costs, in order. */
+export function costRows(costs: TripCosts, post: TripPost | null): CostRowWords[] {
+  const own = post === null ? [] : post.costs.map((c) => ({ what: c.what, detail: c.detail, amount: c.amountCents === null ? NOT_IN_LOG : functionalMoneyWords(c.amountCents) }));
+  return [...stopCostRows(costs), ...own];
+}
+
+/** A stop not written up says which it is: booked ahead (its start after the day it was entered), or lived and not yet written. */
+export function unwrittenLine(row: WasHereRow): string {
+  return row.start > row.writtenOn
+    ? `Coming up — booked as of ${dayWords(row.writtenOn)}. I haven’t been here yet.`
+    : 'I haven’t written this stop up yet.';
 }
 
 export function dayLabel(date: string): string {

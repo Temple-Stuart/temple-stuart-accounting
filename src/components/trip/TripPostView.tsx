@@ -1,10 +1,19 @@
 /**
- * TripPostView (TRIPPOST-01, Alex, 2026-11-05) — one stop's post, the page body of
+ * TripPostView (TRIPPOST-01, Alex, 2026-11-05) — one stop's page, the body of
  * /my-trip/<stop id> (src/app/my-trip/[id]/page.tsx). PURE and server-safe: props in, markup
  * out — no 'use client', no state, no effect, no fetch; the tests render it. Every word of the
  * post comes from src/lib/tripPosts.ts and its card from src/lib/tripPostCards.ts through
  * src/lib/tripPostWords.ts; every word of the stop and its events from src/lib/wasHere.ts
- * through src/lib/wasHereWords.ts — never typed here, the section headings aside.
+ * through src/lib/wasHereWords.ts; what it cost from src/lib/tripCosts.ts — never typed here,
+ * the section headings aside.
+ *
+ * TRIPCARDS-01 (Alex, 2026-11-05): EVERY stop has this page. Two kinds, by whether the stop is
+ * written up (a card and a post in the leaves — the build holds them together):
+ *   · WRITTEN — the post's title as the h1, its dek, the place and dates; the short version, what
+ *     he'd do differently, what it cost (the stop's three, then the post's own), the month day by
+ *     day, what was on, his picks, the band, the day it was written;
+ *   · NOT WRITTEN YET — the place as the h1, the dates, the line that says which (booked ahead,
+ *     or lived and not yet written); what it cost (the stop's three), what was on, the band.
  *
  * TOP TO BOTTOM: the back link; the eyebrow, the title, the dek, the meta; the stop's photo when
  * it has one (WasHereSection's figure — no placeholder while it is null); THE SHORT VERSION;
@@ -21,8 +30,9 @@
 import type { WasHereRow } from '@/lib/wasHere';
 import type { TripPostCard } from '@/lib/tripPostCards';
 import type { TripPost } from '@/lib/tripPosts';
-import { listWords, onPill } from '@/lib/wasHereWords';
-import { bookLine, chipLabel, costRows, dayLabel, postEyebrow, postMeta, weekCount, weekEyebrow, writtenLine } from '@/lib/tripPostWords';
+import type { TripCosts } from '@/lib/tripCosts';
+import { listWords, onPill, stayWords } from '@/lib/wasHereWords';
+import { UNWRITTEN_COST_NOTE, bookLine, chipLabel, costRows, dayLabel, postEyebrow, postMeta, stopHeading, unwrittenLine, weekCount, weekEyebrow, writtenLine } from '@/lib/tripPostWords';
 
 export const POST_BACK = '← Back to my trip';
 export const POST_BACK_HREF = '/#my-trip';
@@ -45,6 +55,7 @@ const POST = {
   eyebrow: 'mt-4 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
   h1: 'mt-3 text-3xl sm:text-4xl font-medium tracking-tight text-brand-purple',
   dek: 'mt-3 text-base sm:text-lg leading-relaxed text-text-secondary',
+  unwritten: 'mt-4 rounded-lg border border-border-light bg-bg-row px-4 py-3 text-sm text-text-secondary',
   meta: 'mt-3 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs uppercase tracking-wider text-text-faint',
   figure: 'mt-6',
   image: 'aspect-[3/2] w-full rounded object-cover',
@@ -92,20 +103,31 @@ const POST = {
 
 const two = (n: number): string => (n < 10 ? `0${n}` : String(n));
 
-export default function TripPostView({ row, card, post, stop }: { row: WasHereRow; card: TripPostCard; post: TripPost; stop: number }) {
+export default function TripPostView({ row, costs, card, post, stop }: { row: WasHereRow; costs: TripCosts; card: TripPostCard | null; post: TripPost | null; stop: number }) {
+  // The two kinds of page — written up (its card and its post) or not yet — never a mix.
+  const written = card !== null && post !== null ? { card, post } : null;
   return (
-    <div data-trip-post={post.stopId}>
+    <div data-trip-post={row.id} data-trip-post-kind={written === null ? 'stop' : 'written'}>
       <article className={POST.article}>
         <a href={POST_BACK_HREF} className={POST.back} data-trip-post-back>{POST_BACK}</a>
 
-        <header data-trip-post-section="header">
-          <p className={POST.eyebrow}>{postEyebrow(stop)}</p>
-          <h1 className={POST.h1}>{card.title}</h1>
-          <p className={POST.dek}>{post.dek}</p>
-          <p className={POST.meta}>
-            {postMeta(row, card).map((part) => <span key={part}>{part}</span>)}
-          </p>
-        </header>
+        {written !== null ? (
+          <header data-trip-post-section="header">
+            <p className={POST.eyebrow}>{postEyebrow(stop)}</p>
+            <h1 className={POST.h1}>{written.card.title}</h1>
+            <p className={POST.dek}>{written.post.dek}</p>
+            <p className={POST.meta}>
+              {postMeta(row).map((part) => <span key={part}>{part}</span>)}
+            </p>
+          </header>
+        ) : (
+          <header data-trip-post-section="header">
+            <p className={POST.eyebrow}>{postEyebrow(stop)}</p>
+            <h1 className={POST.h1}>{stopHeading(row)}</h1>
+            <p className={POST.meta}><span>{stayWords(row)}</span></p>
+            <p className={POST.unwritten} data-trip-post-unwritten>{unwrittenLine(row)}</p>
+          </header>
+        )}
 
         {row.image !== null && (
           <figure className={POST.figure} data-trip-post-section="photo">
@@ -116,76 +138,82 @@ export default function TripPostView({ row, card, post, stop }: { row: WasHereRo
           </figure>
         )}
 
-        <section aria-label="The short version" className={POST.card} data-trip-post-section="short">
-          <p className={POST.sectionEyebrow}>{SHORT_VERSION}</p>
-          <div className={POST.shortGrid}>
-            {post.short.map((s) => (
-              <p key={s.label}><span className={POST.muted}>{s.label}:</span> {s.value}</p>
-            ))}
-          </div>
-        </section>
+        {written !== null && (
+          <section aria-label="The short version" className={POST.card} data-trip-post-section="short">
+            <p className={POST.sectionEyebrow}>{SHORT_VERSION}</p>
+            <div className={POST.shortGrid}>
+              {written.post.short.map((s) => (
+                <p key={s.label}><span className={POST.muted}>{s.label}:</span> {s.value}</p>
+              ))}
+            </div>
+          </section>
+        )}
 
-        <section aria-label="What I'd do differently" className={POST.section} data-trip-post-section="differently">
-          <p className={POST.sectionEyebrow}>{DIFFERENTLY}</p>
-          <ol className={POST.lessons}>
-            {post.lessons.map((l, i) => (
-              <li key={l.lead} className={POST.lesson}>
-                <span className={POST.lessonNumber}>{two(i + 1)}</span>
-                <span className={POST.lessonWords}><strong className={POST.lessonLead}>{l.lead}</strong> {l.rest}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
+        {written !== null && (
+          <section aria-label="What I'd do differently" className={POST.section} data-trip-post-section="differently">
+            <p className={POST.sectionEyebrow}>{DIFFERENTLY}</p>
+            <ol className={POST.lessons}>
+              {written.post.lessons.map((l, i) => (
+                <li key={l.lead} className={POST.lesson}>
+                  <span className={POST.lessonNumber}>{two(i + 1)}</span>
+                  <span className={POST.lessonWords}><strong className={POST.lessonLead}>{l.lead}</strong> {l.rest}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
 
         <section aria-label="What it cost" className={POST.card} data-trip-post-section="cost">
           <p className={POST.sectionEyebrow}>{WHAT_IT_COST}</p>
           <div className="mt-2">
-            {costRows(row, card, post).map((c) => (
+            {costRows(costs, written === null ? null : written.post).map((c) => (
               <div key={c.what} className={POST.costRow} data-trip-post-cost>
                 <div>
                   <p className={POST.costWhat}>{c.what}</p>
-                  <p className={POST.costDetail}>{c.detail}</p>
+                  {c.detail !== '' && <p className={POST.costDetail}>{c.detail}</p>}
                 </div>
                 <p className={POST.costAmount}>{c.amount}</p>
               </div>
             ))}
           </div>
-          <p className={POST.costNote}>{post.costNote}</p>
+          <p className={POST.costNote}>{written === null ? UNWRITTEN_COST_NOTE : written.post.costNote}</p>
         </section>
 
-        <section aria-label="The month, day by day" className={POST.section} data-trip-post-section="days">
-          <p className={POST.sectionEyebrow}>{DAY_BY_DAY}</p>
-          {post.weeks.map((week, w) => (
-            <details key={week.title} className={POST.week} open={w === 0} data-trip-post-week={w + 1}>
-              <summary className={POST.summary}>
-                <span>
-                  <span className={POST.weekEyebrow}>{weekEyebrow(w + 1, week)}</span>
-                  <span className={POST.weekTitle}>{week.title}</span>
-                </span>
-                <span className={POST.weekCount} data-trip-post-count>
-                  {weekCount(week)} · <span className={POST.openWord}>{OPEN_WORD}</span><span className={POST.closeWord}>{CLOSE_WORD}</span>
-                </span>
-              </summary>
-              {week.days.map((day) => (
-                <div key={day.date} className={POST.day} data-trip-post-day={day.date}>
-                  <p className={POST.dayLabel}>{dayLabel(day.date)}</p>
-                  <div>
-                    <p className={POST.story}>{day.story}</p>
-                    {day.chips.length > 0 && (
-                      <div className={POST.chips}>
-                        {day.chips.map((chip) => (
-                          <span key={chip.kind} className={POST.chip} data-trip-post-chip={chip.kind}>
-                            <span className={POST.chipKind}>{chipLabel(chip.kind)}</span>{chip.value}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+        {written !== null && (
+          <section aria-label="The month, day by day" className={POST.section} data-trip-post-section="days">
+            <p className={POST.sectionEyebrow}>{DAY_BY_DAY}</p>
+            {written.post.weeks.map((week, w) => (
+              <details key={week.title} className={POST.week} open={w === 0} data-trip-post-week={w + 1}>
+                <summary className={POST.summary}>
+                  <span>
+                    <span className={POST.weekEyebrow}>{weekEyebrow(w + 1, week)}</span>
+                    <span className={POST.weekTitle}>{week.title}</span>
+                  </span>
+                  <span className={POST.weekCount} data-trip-post-count>
+                    {weekCount(week)} · <span className={POST.openWord}>{OPEN_WORD}</span><span className={POST.closeWord}>{CLOSE_WORD}</span>
+                  </span>
+                </summary>
+                {week.days.map((day) => (
+                  <div key={day.date} className={POST.day} data-trip-post-day={day.date}>
+                    <p className={POST.dayLabel}>{dayLabel(day.date)}</p>
+                    <div>
+                      <p className={POST.story}>{day.story}</p>
+                      {day.chips.length > 0 && (
+                        <div className={POST.chips}>
+                          {day.chips.map((chip) => (
+                            <span key={chip.kind} className={POST.chip} data-trip-post-chip={chip.kind}>
+                              <span className={POST.chipKind}>{chipLabel(chip.kind)}</span>{chip.value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </details>
-          ))}
-        </section>
+                ))}
+              </details>
+            ))}
+          </section>
+        )}
 
         {row.events.length > 0 && (
           <section aria-label="What was on while I was there" className={POST.section} data-trip-post-section="on">
@@ -200,15 +228,17 @@ export default function TripPostView({ row, card, post, stop }: { row: WasHereRo
           </section>
         )}
 
-        <section aria-label="My picks" className={POST.card} data-trip-post-section="picks">
-          <p className={POST.sectionEyebrow}>{MY_PICKS}</p>
-          {post.picks.map((p) => (
-            <div key={p.heading} className={POST.pick}>
-              <p className={POST.pickHeading}>{p.heading}</p>
-              <p className={POST.pickItems}>{listWords(p.items)}</p>
-            </div>
-          ))}
-        </section>
+        {written !== null && (
+          <section aria-label="My picks" className={POST.card} data-trip-post-section="picks">
+            <p className={POST.sectionEyebrow}>{MY_PICKS}</p>
+            {written.post.picks.map((p) => (
+              <div key={p.heading} className={POST.pick}>
+                <p className={POST.pickHeading}>{p.heading}</p>
+                <p className={POST.pickItems}>{listWords(p.items)}</p>
+              </div>
+            ))}
+          </section>
+        )}
       </article>
 
       <section aria-label="Book the stay and the flight" className={POST.band} data-trip-post-section="book">
@@ -218,7 +248,7 @@ export default function TripPostView({ row, card, post, stop }: { row: WasHereRo
         </div>
       </section>
 
-      <p className={POST.written} data-trip-post-section="written">{writtenLine(post)}</p>
+      {written !== null && <p className={POST.written} data-trip-post-section="written">{writtenLine(written.post)}</p>}
     </div>
   );
 }

@@ -5,43 +5,47 @@ import LandingFooter from '@/components/landing/LandingFooter';
 import TripPostView from '@/components/trip/TripPostView';
 import { WAS_HERE, type WasHereRow } from '@/lib/wasHere';
 import { cardOf, type TripPostCard } from '@/lib/tripPostCards';
-import { TRIP_POSTS, postOf, type TripPost } from '@/lib/tripPosts';
-import { stopNumber } from '@/lib/tripPostWords';
+import { postOf, type TripPost } from '@/lib/tripPosts';
+import { costsOf, type TripCosts } from '@/lib/tripCosts';
+import { stopHeading, stopNumber } from '@/lib/tripPostWords';
 
 /**
- * /my-trip/<stop id> (TRIPPOST-01, Alex, 2026-11-05) — one stop's post: Alex's own write-up of
- * a stop on the trip log, opened from that stop's card on the front door (WasHereSection.tsx).
- * A public server page (middleware PUBLIC_PATHS '/my-trip'): zero fetch, zero authed reads,
- * zero paid calls, zero env reads, zero database reads — fixed words from two pure leaves
- * (src/lib/tripPostCards.ts, src/lib/tripPosts.ts) and the trip log (src/lib/wasHere.ts).
+ * /my-trip/<stop id> (TRIPPOST-01, Alex, 2026-11-05) — one stop's page, opened from that stop's
+ * card on the front door (WasHereSection.tsx). TRIPCARDS-01 (2026-11-05): EVERY stop on the trip
+ * log has one — written up (its post) or not yet (the stop's facts and a line saying so).
+ * A public server page (middleware PUBLIC_PATHS '/my-trip'): zero fetch, zero authed reads, zero
+ * paid calls, zero env reads, zero database reads — fixed words from pure leaves (src/lib/wasHere.ts,
+ * src/lib/tripCosts.ts, src/lib/tripPostCards.ts, src/lib/tripPosts.ts).
  *
- * STATIC BY RULING. generateStaticParams lists the posts the leaves hold and dynamicParams =
- * false, so every other id 404s at the router — the repo's first static params (the modules
- * page renders live availability and stays dynamic; this page has nothing live). An id the
- * leaves do not hold → notFound(), never a guessed page.
+ * STATIC BY RULING. generateStaticParams lists every stop the trip log holds and dynamicParams =
+ * false, so every other id 404s at the router — the repo's first static params (the modules page
+ * renders live availability and stays dynamic; this page has nothing live). An id the leaves do
+ * not hold → notFound(), never a guessed page.
  */
 
 export const dynamicParams = false;
 
 export function generateStaticParams(): Array<{ id: string }> {
-  return TRIP_POSTS.map((post) => ({ id: post.stopId }));
+  return WAS_HERE.map((row) => ({ id: row.id }));
 }
 
-/** The stop, its card and its post — or null when any of the three is missing (the page 404s). */
-function entryOf(id: string): { row: WasHereRow; card: TripPostCard; post: TripPost } | null {
+/** The stop and its costs, and its card and post (both, or neither — the build holds them together). An id that is not a stop → null (404). */
+function entryOf(id: string): { row: WasHereRow; costs: TripCosts; card: TripPostCard | null; post: TripPost | null } | null {
   const row = WAS_HERE.find((r) => r.id === id);
-  const card = cardOf(id);
-  const post = postOf(id);
-  if (row === undefined || card === null || post === null) return null;
-  return { row, card, post };
+  if (row === undefined) return null;
+  const costs = costsOf(id);
+  // A stop with no costs row fails loud — never a 404 that hides it (the build law holds a row for every stop).
+  if (costs === null) throw new Error(`my trip: stop "${id}" has no costs row (src/lib/tripCosts.ts)`);
+  return { row, costs, card: cardOf(id), post: postOf(id) };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const entry = entryOf(id);
   if (entry === null) notFound();
-  const title = `${entry.card.title} — Temple Stuart`;
-  return { title, description: entry.post.dek, openGraph: { title, description: entry.post.dek, type: 'article' } };
+  const title = entry.card === null ? `${stopHeading(entry.row)} — my trip — Temple Stuart` : `${entry.card.title} — Temple Stuart`;
+  const description = entry.post === null ? `Stop ${stopNumber(WAS_HERE, id)} of my trip: where I stayed and what it cost.` : entry.post.dek;
+  return { title, description, openGraph: { title, description, type: 'article' } };
 }
 
 export default async function TripPostPage({ params }: { params: Promise<{ id: string }> }) {
@@ -52,7 +56,7 @@ export default async function TripPostPage({ params }: { params: Promise<{ id: s
     <div className="min-h-screen bg-bg-terminal text-text-primary">
       <LandingHeader />
       <main data-trip-post-page>
-        <TripPostView row={entry.row} card={entry.card} post={entry.post} stop={stopNumber(WAS_HERE, id)} />
+        <TripPostView row={entry.row} costs={entry.costs} card={entry.card} post={entry.post} stop={stopNumber(WAS_HERE, id)} />
       </main>
       <LandingFooter />
     </div>

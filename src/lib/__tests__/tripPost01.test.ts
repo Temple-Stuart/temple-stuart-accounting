@@ -15,6 +15,11 @@
  *      nothing else with it, the page route listed, the law seated after the trip log's;
  *   T6 the cards — the grid; Canggu's post block and no DID, LEARNED or WHAT WAS ON; Da Nang and
  *      Bangkok keep their pills; the section never imports the post body.
+ * TRIPCARDS-01 (Alex, 2026-11-05) — every stop has a page and a card in the Canggu card's shape:
+ *   the costs leaf (stay, motorbike, flight in — a row for every stop) and its law; the stay left
+ *   the card leaf; the scooter left the Canggu post's own costs; a page for a stop not written up
+ *   (booked ahead, or lived and not yet written); every card's costs and its "Read the post"; no
+ *   pills on any card; the labels from the server's day (T7, T8).
  * No live call, no database, no clock.
  */
 import { test } from 'node:test';
@@ -23,12 +28,14 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code } from '../sourceText';
 import { WAS_HERE, type WasHereRow } from '../wasHere';
-import { onPill } from '../wasHereWords';
+import { onPill, stayWords } from '../wasHereWords';
 import { shortDayWords, weekdayWords } from '../experienceWords';
 import { TRIP_POST_CARDS, TRIP_POST_CARD_FIELDS, TripPostCardsLawError, cardOf, tripPostCardsLaw, type TripPostCard } from '../tripPostCards';
 import { TRIP_POSTS, TRIP_POST_FIELDS, TripPostsLawError, postOf, tripPostsLaw, type TripPost } from '../tripPosts';
+import { TRIP_COSTS, TRIP_COST_FIELDS, TripCostsLawError, costsOf, tripCostsLaw, type TripCosts } from '../tripCosts';
 import {
-  NOT_IN_LOG, WHERE_I_STAYED, bookLine, chipLabel, costRows, dayLabel, postEyebrow, postMeta, stayLine, stopNumber, tripPostHref, weekCount, weekEyebrow, writtenLine,
+  NOT_APPLICABLE, NOT_IN_LOG, STOP_COST_LABELS, UNWRITTEN_COST_NOTE, bookLine, chipLabel, costRows, dayLabel, postEyebrow, postMeta, stopCostRows, stopHeading, stopNumber,
+  tripPostHref, unwrittenLine, weekCount, weekEyebrow, writtenLine,
 } from '../tripPostWords';
 import TripPostView, { BOOK_HREF, POST_BACK, POST_BACK_HREF } from '@/components/trip/TripPostView';
 import { WasHereView, MY_TRIP_LINE, READ_THE_POST } from '@/components/landing/WasHereSection';
@@ -56,6 +63,14 @@ const rowOf = (id: string): WasHereRow => {
 const CARD: TripPostCard = TRIP_POST_CARDS[0];
 const POST: TripPost = TRIP_POSTS[0];
 const ROW = rowOf(ID);
+const costsFor = (id: string): TripCosts => {
+  const found = costsOf(id);
+  if (!found) throw new Error(`${id} has no costs`);
+  return found;
+};
+const COSTS = costsFor(ID);
+/** Every stop, in trip order (TRIPCARDS-01: the three booked ahead after Siargao). */
+const STOPS = ['canggu-2026-07', 'danang-2026-08', 'bangkok-2026-09', 'phuket-2026-10', 'chiangmai-2026-10', 'bangkok-2026-10-21', 'siargao-2026', 'cebu-2026-11', 'uluwatu-2026-11', 'pererenan-2026-12'];
 const days = (post: TripPost) => post.weeks.flatMap((w) => w.days);
 /** React's own escaping of text: & < > " ' (renderToStaticMarkup). */
 const html = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
@@ -92,20 +107,37 @@ test('T1 the live card and post pass their laws; each law throws by default; the
   assert.deepEqual(postsOver(FIX), []);
   assert.throws(() => tripPostCardsLaw({ cards: [{ ...CARD, title: '' }] }), TripPostCardsLawError);
   assert.throws(() => tripPostsLaw({ posts: [{ ...FIX, dek: '' }] }), TripPostsLawError);
-  assert.deepEqual([...TRIP_POST_CARD_FIELDS], ['stopId', 'title', 'cardLine', 'stay']);
+  assert.deepEqual([...TRIP_POST_CARD_FIELDS], ['stopId', 'title', 'cardLine'], 'TRIPCARDS-01: the stay left the card for src/lib/tripCosts.ts');
+  assert.deepEqual(tripCostsLaw({ throwOnFail: false }), []);
+  assert.throws(() => tripCostsLaw({ rows: [{ ...COSTS, stopId: '' }] }), TripCostsLawError);
+  assert.deepEqual([...TRIP_COST_FIELDS], ['stopId', 'stay', 'moto', 'flightIn']);
   assert.deepEqual([...TRIP_POST_FIELDS], ['stopId', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn']);
 });
 
 test('T1 every card refusal, by name', () => {
   refusesCard({ ...CARD, stopId: '' }, 'empty stopId');
-  refusesCard({ ...CARD, extra: 1 } as unknown as TripPostCard, 'a card carries exactly the four ruled fields');
+  refusesCard({ ...CARD, extra: 1 } as unknown as TripPostCard, 'a card carries exactly the three ruled fields');
   assert.ok(cardsOver(CARD, CARD).some((l) => l.includes('duplicate stopId')));
   refusesCard({ ...CARD, title: ' ' }, 'empty title');
   refusesCard({ ...CARD, cardLine: '' }, 'empty cardLine');
-  refusesCard({ ...CARD, stay: { ...CARD.stay, nights: 29 } as unknown as TripPostCard['stay'] }, 'a stay carries exactly name, area, amountCents');
-  refusesCard({ ...CARD, stay: { ...CARD.stay, name: '' } }, 'empty stay name');
-  refusesCard({ ...CARD, stay: { ...CARD.stay, area: '' } }, 'empty stay area');
-  for (const bad of [0, -1, 1.5, '70814']) refusesCard({ ...CARD, stay: { ...CARD.stay, amountCents: bad as number } }, 'is not a positive whole number of cents');
+  refusesCard({ ...CARD, stay: { name: 'The Daun' } } as unknown as TripPostCard, 'a card carries exactly the three ruled fields');
+});
+
+test('T1 every costs refusal, by name (TRIPCARDS-01)', () => {
+  const costsOver = (...rows: TripCosts[]) => tripCostsLaw({ throwOnFail: false, rows });
+  const refusesCosts = (row: TripCosts, words: string) => {
+    const v = costsOver(row);
+    assert.ok(v.some((line) => line.includes(words)), `expected a violation naming "${words}", got [${v.join(' | ')}]`);
+  };
+  refusesCosts({ ...COSTS, stopId: '' }, 'empty stopId');
+  refusesCosts({ ...COSTS, grab: { kind: 'none' } } as unknown as TripCosts, 'a row carries exactly the four ruled fields');
+  assert.ok(costsOver(COSTS, COSTS).some((l) => l.includes('duplicate stopId')));
+  refusesCosts({ ...COSTS, moto: { kind: 'free' } } as unknown as TripCosts, 'moto kind "free" is not paid | none | unknown');
+  refusesCosts({ ...COSTS, stay: { kind: 'paid', name: '', amountCents: 1 } }, 'stay has an empty name');
+  for (const bad of [0, -1, 1.5, '70814']) refusesCosts({ ...COSTS, flightIn: { kind: 'paid', name: 'China Air', amountCents: bad as number } }, 'flightIn amountCents');
+  refusesCosts({ ...COSTS, stay: { kind: 'paid', name: 'x', amountCents: 1, nights: 3 } } as unknown as TripCosts, 'a paid line is exactly kind, name, amountCents');
+  refusesCosts({ ...COSTS, moto: { kind: 'none', name: 'Grab' } } as unknown as TripCosts, 'it carries its kind only');
+  assert.deepEqual(costsOver({ stopId: 'x-2026', stay: { kind: 'unknown' }, moto: { kind: 'none' }, flightIn: { kind: 'unknown' } }), [], 'none and unknown carry their kind only');
 });
 
 test('T1 every post refusal, by name', () => {
@@ -145,10 +177,10 @@ test('T1 every post refusal, by name', () => {
 
 // ── T2 · THE CANGGU ENTRY ────────────────────────────────────────────────────
 
-test('T2 the Canggu card and post: thirty days Jul 1 → 30 each once, four weeks of 7, 7, 7 and 9, 77 chips, ten lessons, seven picks, the stay and the costs in cents', () => {
+test('T2 the Canggu card and post: thirty days Jul 1 → 30 each once, four weeks of 7, 7, 7 and 9, 77 chips, ten lessons, seven picks, the post\'s own cost in cents', () => {
   assert.equal(TRIP_POST_CARDS.length, 1);
   assert.equal(TRIP_POSTS.length, 1);
-  assert.deepEqual(CARD, { stopId: ID, title: 'Thirty days in Canggu with no plan.', cardLine: 'Every day of it: where I ate, what I did, what it cost, and what I’d do differently.', stay: { name: 'The Daun', area: 'Canggu', amountCents: 70814 } });
+  assert.deepEqual(CARD, { stopId: ID, title: 'Thirty days in Canggu with no plan.', cardLine: 'Every day of it: where I ate, what I did, what it cost, and what I’d do differently.' });
   assert.equal(POST.stopId, ID);
   assert.equal(POST.dek, 'I showed up in Bali without a plan. Here’s every day of it: where I ate, what I did, what it cost, and what I’d do differently.');
   const dates = days(POST).map((d) => d.date);
@@ -160,10 +192,29 @@ test('T2 the Canggu card and post: thirty days Jul 1 → 30 each once, four week
   assert.deepEqual(POST.lessons[0], { lead: 'Plan before you land.', rest: 'I left with no clear plan and spent too many days at a café trying to figure out what to do, when, and what it would cost.' });
   assert.deepEqual(POST.lessons[9], { lead: 'Give Uluwatu its own trip.', rest: 'One day there wasn’t enough.' });
   assert.deepEqual(POST.picks.map((p) => p.heading), ['Favorite restaurant', 'Breakfast and brunch', 'Dinner', 'Sunsets', 'At night', 'Shopping', 'Practical']);
-  assert.deepEqual(POST.costs.map((c) => c.amountCents), [10000, null]);
+  assert.deepEqual(POST.costs, [{ what: 'My next visa (Vietnam, for stop 2)', detail: 'Expedited, because I applied late · standard is $25', amountCents: 10000 }], 'TRIPCARDS-01: the scooter left for the stop\'s own costs');
   assert.equal(POST.writtenOn, '2026-11-05');
   assert.equal(days(POST)[0].story.startsWith('Landed in Bali around sunset'), true);
   assert.equal(days(POST)[29].story.endsWith('More on that in stop 2.'), true);
+});
+
+test('T2 what each stop cost — Alex\'s sheet, 2026-11-05: a row for every stop, in trip order, every figure in cents', () => {
+  assert.deepEqual(TRIP_COSTS.map((c) => c.stopId), STOPS);
+  const words = (l: TripCosts['stay']) => (l.kind === 'paid' ? `${l.name} ${l.amountCents}` : l.kind);
+  assert.deepEqual(TRIP_COSTS.map((c) => [c.stopId, words(c.stay), words(c.moto), words(c.flightIn)]), [
+    ['canggu-2026-07', 'The Daun 70814', 'Nyoman Motorbike Rental (Nmax) 13179', 'China Air 83720'],
+    ['danang-2026-08', 'Sky Village Đà Nẵng 98073', 'none', 'Vietjet 17610'],
+    ['bangkok-2026-09', 'Premier Thonglor 100772', 'none', 'Thai Vietjet 14990'],
+    ['phuket-2026-10', 'Amata Patong 56961', 'Joy Motorbike Rent Patong (ADV) 8000', 'AirAsia 5881'],
+    ['chiangmai-2026-10', 'Hillside Condo 3 41337', 'none', 'Vietjet 11179'],
+    ['bangkok-2026-10-21', 'Eleven Bangkok Sukhumvit 11, by Kingston Hotels 4398', 'none', 'Vietjet 4720'],
+    ['siargao-2026', 'Rodeo Sun Hotel 63824', 'Kook Moto Rental (Fazzio) 6353', 'Philippine Airlines 26050'],
+    ['cebu-2026-11', 'The Noble Cebu 21726', 'unknown', 'Philippine Airlines 10405'],
+    ['uluwatu-2026-11', 'Bombora Surf Camp 40016', 'unknown', 'Philippine Airlines 26512'],
+    ['pererenan-2026-12', 'Anaya Boutique Hotel 28590', 'unknown', 'unknown'],
+  ]);
+  for (const id of STOPS) assert.ok(costsOf(id) !== null, `${id} has its costs`);
+  assert.equal(costsOf('nowhere-2026'), null);
 });
 
 // ── T3 · THE WORDS ───────────────────────────────────────────────────────────
@@ -178,14 +229,26 @@ test('T3 the weekdays by arithmetic, the short day, and every line the post and 
   assert.equal(stopNumber(WAS_HERE, 'siargao-2026'), 7);
   assert.throws(() => stopNumber(WAS_HERE, 'nowhere-2026'), /is not a stop in the trip log/);
   assert.equal(postEyebrow(1), 'My trip · Stop 1');
-  assert.deepEqual(postMeta(ROW, CARD), ['Canggu, Bali, Indonesia', 'Jul 1–30, 2026', 'Stayed at The Daun · $708.14']);
-  assert.equal(stayLine(CARD), 'Stayed at The Daun · $708.14');
-  assert.deepEqual(costRows(ROW, CARD, POST), [
-    { what: WHERE_I_STAYED, detail: 'The Daun, Canggu · Jul 1–30, 2026', amount: '$708.14' },
-    { what: 'My next visa (Vietnam, for stop 2)', detail: 'Expedited, because I applied late · standard is $25', amount: '$100.00' },
-    { what: 'Scooter (Nmax)', detail: 'Nyoman Motorbike Rental · Jul 3–30', amount: NOT_IN_LOG },
+  assert.equal(stopNumber(WAS_HERE, 'pererenan-2026-12'), 10);
+  assert.deepEqual(postMeta(ROW), ['Canggu, Bali, Indonesia', 'Jul 1–30, 2026']);
+  assert.equal(stopHeading(rowOf('cebu-2026-11')), 'Cebu, Philippines');
+  assert.deepEqual(STOP_COST_LABELS, { stay: 'Stay', moto: 'Motorbike', flightIn: 'Flight in' });
+  assert.deepEqual(stopCostRows(COSTS), [
+    { what: 'Stay', detail: 'The Daun', amount: '$708.14' },
+    { what: 'Motorbike', detail: 'Nyoman Motorbike Rental (Nmax)', amount: '$131.79' },
+    { what: 'Flight in', detail: 'China Air', amount: '$837.20' },
   ]);
+  assert.deepEqual(costRows(COSTS, POST), [...stopCostRows(COSTS), { what: 'My next visa (Vietnam, for stop 2)', detail: 'Expedited, because I applied late · standard is $25', amount: '$100.00' }]);
+  assert.deepEqual(costRows(costsFor('bangkok-2026-09'), null), [
+    { what: 'Stay', detail: 'Premier Thonglor', amount: '$1,007.72' },
+    { what: 'Motorbike', detail: '', amount: NOT_APPLICABLE },
+    { what: 'Flight in', detail: 'Thai Vietjet', amount: '$149.90' },
+  ]);
+  assert.deepEqual(stopCostRows(costsFor('pererenan-2026-12')).map((r) => r.amount), ['$285.90', NOT_IN_LOG, NOT_IN_LOG]);
   assert.equal(NOT_IN_LOG, 'not in my log yet');
+  assert.equal(NOT_APPLICABLE, 'n/a');
+  assert.equal(unwrittenLine(rowOf('cebu-2026-11')), 'Coming up — booked as of Nov 5, 2026. I haven’t been here yet.');
+  assert.equal(unwrittenLine(rowOf('danang-2026-08')), 'I haven’t written this stop up yet.');
   assert.equal(dayLabel('2026-07-01'), 'Wed Jul 1');
   assert.equal(weekEyebrow(1, POST.weeks[0]), 'Week 1 · Jul 1–7, 2026');
   assert.equal(weekEyebrow(4, POST.weeks[3]), 'Week 4 · Jul 22–30, 2026');
@@ -204,22 +267,28 @@ test('T3 the weekdays by arithmetic, the short day, and every line the post and 
 test('T3 the words and the date module read no clock and no locale; the words import the leaves as types only; the leaves import nothing', () => {
   for (const f of [WORDS, DATE_WORDS, VIEW]) assert.doesNotMatch(code(f), /toLocale|new Date\(|Date\.now|Intl\./, `${f} reads no clock and no locale`);
   const words = code(WORDS);
-  assert.match(words, /import type \{ TripPostCard \} from '\.\/tripPostCards';/);
+  assert.doesNotMatch(words, /from '\.\/tripPostCards'/, 'TRIPCARDS-01: the words take no card — the page and the section hold it');
   assert.match(words, /import type \{ TripPost, TripPostChipKind, TripPostWeek \} from '\.\/tripPosts';/);
   assert.doesNotMatch(words, /import \{[^}]*\} from '\.\/trip(Posts|PostCards)';/, 'never a value import of a leaf');
   assert.match(words, /import \{ functionalMoneyWords \} from '\.\/books\/functionalCurrency';/, 'the one money formatter');
-  for (const f of [CARDS, POSTS]) assert.doesNotMatch(code(f), /\bimport\b|\brequire\(/, `${f} imports nothing`);
+  assert.match(words, /import type \{ TripCostLine, TripCosts \} from '\.\/tripCosts';/);
+  assert.doesNotMatch(words, /import \{[^}]*\} from '\.\/tripCosts';/, 'never a value import of the costs leaf');
+  for (const f of [CARDS, POSTS, 'src/lib/tripCosts.ts']) assert.doesNotMatch(code(f), /\bimport\b|\brequire\(/, `${f} imports nothing`);
 });
 
 // ── T4 · THE VIEW, RENDERED ──────────────────────────────────────────────────
 
 test('T4 the post rendered: the back link, the title, the photo, all thirty stories once, four weeks with only the first open, 77 chips, the three event links, the band, the order', () => {
-  const page = renderToStaticMarkup(React.createElement(TripPostView, { row: ROW, card: CARD, post: POST, stop: stopNumber(WAS_HERE, ID) }));
+  const page = renderToStaticMarkup(React.createElement(TripPostView, { row: ROW, costs: COSTS, card: CARD, post: POST, stop: stopNumber(WAS_HERE, ID) }));
+  assert.match(page, /data-trip-post-kind="written"/);
   assert.equal(POST_BACK_HREF, '/#my-trip');
   assert.match(page, new RegExp(`<a href="/#my-trip" class="[^"]*" data-trip-post-back="true">${POST_BACK}</a>`));
   assert.match(page, /<h1 class="[^"]*">Thirty days in Canggu with no plan\.<\/h1>/);
   assert.ok(page.includes('>My trip · Stop 1<'));
-  for (const part of postMeta(ROW, CARD)) assert.ok(page.includes(`<span>${html(part)}</span>`), part);
+  for (const part of postMeta(ROW)) assert.ok(page.includes(`<span>${html(part)}</span>`), part);
+  assert.deepEqual([...page.matchAll(/data-trip-post-cost="true"><div><p class="[^"]*">([^<]*)<\/p>/g)].map((m) => m[1]), ['Stay', 'Motorbike', 'Flight in', 'My next visa (Vietnam, for stop 2)'], 'the stop\'s three, then the post\'s own');
+  assert.ok(page.includes('>$837.20<') && page.includes('>$131.79<'));
+  assert.doesNotMatch(page, /data-trip-post-unwritten/);
   for (const d of days(POST)) assert.equal(count(page, html(d.story)), 1, `${d.date}: its story, once`);
   assert.equal(count(page, '<details'), 4);
   assert.equal(count(page, ' open=""'), 1);
@@ -245,12 +314,33 @@ test('T4 the post rendered: the back link, the title, the photo, all thirty stor
   assert.match(page, /Ice cream was a struggle\./, 'the Jul 9 story renders on the post page');
 });
 
+test('T4 a stop not written up yet: the place as the h1, the dates, the line that says which, the stop\'s three costs, what was on, the band — and none of a post\'s sections (TRIPCARDS-01)', () => {
+  const render = (id: string) => renderToStaticMarkup(React.createElement(TripPostView, { row: rowOf(id), costs: costsFor(id), card: null, post: null, stop: stopNumber(WAS_HERE, id) }));
+  const danang = render('danang-2026-08');
+  assert.match(danang, /data-trip-post-kind="stop"/);
+  assert.match(danang, /<h1 class="[^"]*">Da Nang \/ Hoi An, Vietnam<\/h1>/);
+  assert.ok(danang.includes('>My trip · Stop 2<') && danang.includes(`<span>${stayWords(rowOf('danang-2026-08'))}</span>`));
+  assert.ok(danang.includes('data-trip-post-unwritten="true">I haven’t written this stop up yet.<'));
+  assert.match(danang, /<img src="\/was-here\/danang-2026-08\.jpg"/);
+  assert.deepEqual([...danang.matchAll(/data-trip-post-cost="true"><div><p class="[^"]*">([^<]*)<\/p>/g)].map((m) => m[1]), ['Stay', 'Motorbike', 'Flight in']);
+  assert.ok(danang.includes('>n/a<') && danang.includes('>$980.73<') && danang.includes('>$176.10<'));
+  assert.ok(danang.includes(`>${UNWRITTEN_COST_NOTE}<`));
+  assert.equal(count(danang, 'data-trip-post-event='), 2, 'its two events live here now');
+  for (const section of ['short', 'differently', 'days', 'picks', 'written']) assert.doesNotMatch(danang, new RegExp(`data-trip-post-section="${section}"`), `no ${section} before he writes it`);
+  assert.match(danang, /<a href="\/#demo" class="[^"]*">Book the stay and the flight<\/a>/);
+  const cebu = render('cebu-2026-11');
+  assert.ok(cebu.includes('data-trip-post-unwritten="true">Coming up — booked as of Nov 5, 2026. I haven’t been here yet.<'));
+  assert.doesNotMatch(cebu, /<img|data-trip-post-section="on"/, 'booked ahead: no photo, no events yet');
+  assert.ok(cebu.includes('>The Noble Cebu<') && cebu.includes('>not in my log yet<'));
+});
+
 // ── T5 · THE ROUTE AND THE DOOR ──────────────────────────────────────────────
 
-test('T5 the route: static params from the posts, dynamicParams = false; \'/my-trip\' is public and covers nothing else; the page route is listed; the law sits after the trip log\'s', () => {
+test('T5 the route: static params for every stop, dynamicParams = false; \'/my-trip\' is public and covers nothing else; the page route is listed; the law sits after the trip log\'s', () => {
   assert.equal(PostPage.dynamicParams, false);
-  assert.deepEqual(PostPage.generateStaticParams(), [{ id: ID }]);
+  assert.deepEqual(PostPage.generateStaticParams(), STOPS.map((id) => ({ id })), 'TRIPCARDS-01: every stop has its page');
   assert.match(code(PAGE), /notFound\(\)/);
+  assert.match(code(PAGE), /if \(row === undefined\) return null;[\s\S]*if \(costs === null\) throw new Error\(/, 'an id that is not a stop 404s; a stop with no costs row fails loud — never a 404 that hides it');
   const mw = code(MIDDLEWARE);
   const list = /const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(mw);
   assert.ok(list, 'PUBLIC_PATHS is declared');
@@ -266,32 +356,63 @@ test('T5 the route: static params from the posts, dynamicParams = false; \'/my-t
   const law = code(LAW);
   assert.ok(law.includes("{ route: '/my-trip/[id]', why: "), 'the page route has its door listed');
   const tripLog = law.indexOf('violations.push(...wasHereLaw({ throwOnFail: false }));');
-  const tripPost = law.indexOf('violations.push(...tripPostCardsLaw({ throwOnFail: false }), ...tripPostsLaw({ throwOnFail: false }));');
+  const tripPost = law.indexOf('violations.push(...tripPostCardsLaw({ throwOnFail: false }), ...tripPostsLaw({ throwOnFail: false }), ...tripCostsLaw({ throwOnFail: false }));');
+  assert.match(law, /const costIds = TRIP_COSTS\.map\(\(c\) => c\.stopId\)\.sort\(\)\.join\(','\); if \(costIds !== stopIds\) violations\.push/, 'a costs row for every stop, and none for a stop that isn\'t one');
   assert.ok(tripLog > -1 && tripPost > tripLog, 'the trip log law, then the trip post law');
   assert.match(law, /existsSync\(resolve\(ROOT, 'src\/app\/my-trip\/\[id\]\/page\.tsx'\)\)/);
 });
 
 // ── T6 · THE CARDS ───────────────────────────────────────────────────────────
 
-test('T6 the cards: a grid; Canggu\'s post block and no DID, LEARNED or WHAT WAS ON; Da Nang and Bangkok keep their pills; the section never imports the post body', () => {
-  const home = renderToStaticMarkup(React.createElement(WasHereView, { rows: WAS_HERE, today: TODAY }));
+test('T6 the cards: a grid; every card in the Canggu card\'s shape — place, dates, stop, the post when written, the stop\'s three costs, "Read the post →" to its page; no pills on any card; the section never imports the post body', () => {
+  const home = renderToStaticMarkup(React.createElement(WasHereView, { rows: WAS_HERE, costs: TRIP_COSTS, today: TODAY }));
   assert.match(home, /class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"/);
   assert.equal(MY_TRIP_LINE, "Stop by stop, dated, with the whole story where I've written it up.");
   assert.equal(READ_THE_POST, 'Read the post →');
   const cardHtml = (id: string) => { const at = home.indexOf(`data-was-here="${id}"`); const next = home.indexOf('data-was-here="', at + 1); return home.slice(at, next < 0 ? undefined : next); };
+  assert.deepEqual([...home.matchAll(/data-was-here="([^"]+)"/g)].map((m) => m[1]), STOPS);
+  for (const id of STOPS) {
+    const card = cardHtml(id);
+    assert.match(card, new RegExp(`<a href="/my-trip/${id}" class="[^"]*" data-was-here-post-link="true">Read the post →</a>`), `${id}: its page`);
+    assert.deepEqual([...card.matchAll(/data-was-here-cost="([^"]+)"/g)].map((m) => m[1]), ['Stay', 'Motorbike', 'Flight in'], `${id}: its three costs`);
+    assert.doesNotMatch(card, /data-was-here-pill|WHAT WAS ON|I WAS HERE/, `${id}: no pills, no "I was here"`);
+  }
   const canggu = cardHtml(ID);
   assert.match(canggu, /<a href="\/my-trip\/canggu-2026-07" class="[^"]*" data-was-here-post-title="true">Thirty days in Canggu with no plan\.<\/a>/);
   assert.ok(canggu.includes(`>${CARD.cardLine}<`));
-  assert.ok(canggu.includes('>Stayed at The Daun · $708.14<'));
-  assert.match(canggu, /<a href="\/my-trip\/canggu-2026-07" class="[^"]*" data-was-here-post-link="true">Read the post →<\/a>/);
-  assert.doesNotMatch(canggu, />DID<|>LEARNED<|WHAT WAS ON|data-was-here-pill/);
-  for (const id of ['danang-2026-08', 'bangkok-2026-09']) {
-    const card = cardHtml(id);
-    assert.match(card, /data-was-here-list="on"><p class="[^"]*">WHAT WAS ON<\/p>/, `${id} keeps its pills`);
-    assert.doesNotMatch(card, /data-was-here-post/, `${id} has no post yet`);
-  }
+  assert.ok(canggu.includes('>The Daun · <span class="font-mono text-xs text-text-secondary">$708.14</span><'));
+  assert.ok(canggu.includes('>Nyoman Motorbike Rental (Nmax) · <span class="font-mono text-xs text-text-secondary">$131.79</span><'));
+  assert.ok(canggu.includes('>China Air · <span class="font-mono text-xs text-text-secondary">$837.20</span><'));
+  assert.doesNotMatch(canggu, />DID<|>LEARNED<|data-was-here-label/, 'a stop he has left: no label');
+  assert.ok(cardHtml('danang-2026-08').includes('<dd class="text-sm text-text-primary"><span class="font-mono text-xs text-text-secondary">n/a</span></dd>'), 'no motorbike: n/a');
+  assert.ok(cardHtml('pererenan-2026-12').includes('<span class="font-mono text-xs text-text-secondary">not in my log yet</span>'));
+  for (const id of STOPS.filter((t) => t !== ID)) assert.doesNotMatch(cardHtml(id), /data-was-here-post=/, `${id} has no post yet`);
   assert.doesNotMatch(home, /Ice cream was a struggle/, 'no post body on the home page');
+  assert.throws(() => renderToStaticMarkup(React.createElement(WasHereView, { rows: WAS_HERE, costs: TRIP_COSTS.filter((c) => c.stopId !== 'cebu-2026-11'), today: TODAY })), /"cebu-2026-11" has no costs row/, 'a stop with no costs row fails loud — never a card without them');
   const section = code(SECTION);
   assert.match(section, /import \{ cardOf, type TripPostCard \} from '@\/lib\/tripPostCards';/);
   assert.doesNotMatch(section, /from '@\/lib\/tripPosts'/, 'the section never imports the post body');
+});
+
+// ── T7 · THE LABELS, FROM THE SERVER'S DAY ───────────────────────────────────
+
+test('T7 the label from the server\'s day: none once he has left, I\'M HERE while he is there, COMING UP before — and the travel day is the next stop\'s (TRIPCARDS-01)', () => {
+  const labels = (today: string) => {
+    const home = renderToStaticMarkup(React.createElement(WasHereView, { rows: WAS_HERE, costs: TRIP_COSTS, today }));
+    return Object.fromEntries(STOPS.map((id) => {
+      const at = home.indexOf(`data-was-here="${id}"`); const next = home.indexOf('data-was-here="', at + 1);
+      const card = home.slice(at, next < 0 ? undefined : next);
+      return [id, /data-was-here-label="true">([^<]*)</.exec(card)?.[1] ?? null];
+    }));
+  };
+  const nov5 = labels('2026-11-05');
+  assert.deepEqual(nov5, {
+    'canggu-2026-07': null, 'danang-2026-08': null, 'bangkok-2026-09': null, 'phuket-2026-10': null, 'chiangmai-2026-10': null, 'bangkok-2026-10-21': null,
+    'siargao-2026': 'I&#x27;M HERE', 'cebu-2026-11': 'COMING UP', 'uluwatu-2026-11': 'COMING UP', 'pererenan-2026-12': 'COMING UP',
+  });
+  const nov13 = labels('2026-11-13');
+  assert.equal(nov13['siargao-2026'], null, 'the travel day out is the next stop\'s');
+  assert.equal(nov13['cebu-2026-11'], 'I&#x27;M HERE');
+  const dec12 = labels('2026-12-12');
+  assert.ok(Object.values(dec12).every((l) => l === null), 'after the last stop, no label anywhere');
 });

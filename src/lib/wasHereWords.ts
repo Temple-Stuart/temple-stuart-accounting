@@ -3,11 +3,15 @@
  * clock, no locale call, no fetch, no React. It imports the leaf's types and the
  * ONE dateWords / dayWords from experienceWords.ts — never a second.
  *
- *   wasHereLabel(row)        end null → "I'M HERE" · end set → "I WAS HERE"
+ *   stopStatus(row, today)   TRIPCARDS-01: 'next' before the stop starts · 'now' from its start
+ *                            up to (not including) its end — the travel day is the next
+ *                            stop's — or from its start on while end is null · 'past' after
+ *   stopLabel(row, today)    "I'M HERE" (now) · "COMING UP" (next) · null (past — Alex,
+ *                            2026-11-05: a stop he has left carries no label)
  *   stayWords(row)           end null → "Since Oct 22, 2026" · end set → dateWords(start, end)
  *   tripOrder(rows)          the rows by start, ascending — trip order, derived, a copy
  *                            (WASHERE-03; newestFirst left with it — no caller)
- *   stopWords(n)             "Stop 1" … "Stop 7" — n is the row's place in tripOrder, derived (WASHERE-03)
+ *   stopWords(n)             "Stop 1", "Stop 2" … — n is the row's place in tripOrder, derived (WASHERE-03)
  *   listWords(items)         the items joined by " · " — DID (WASHERE-03)
  *
  * WASHERE-02 (2026-10-31) — the stops' events. WASHERE-03 cut the near-miss words:
@@ -20,8 +24,22 @@
 import type { StopEvent, WasHereRow } from './wasHere';
 import { dateWords, dayWords } from './experienceWords';
 
-export function wasHereLabel(row: WasHereRow): string {
-  return row.end === null ? 'I\'M HERE' : 'I WAS HERE';
+export type StopStatus = 'past' | 'now' | 'next';
+
+/** Where a stop sits against the server's day (`today`, 'YYYY-MM-DD') — string compares, no clock. */
+export function stopStatus(row: WasHereRow, today: string): StopStatus {
+  if (today < row.start) return 'next';
+  if (row.end !== null && today >= row.end) return 'past';
+  return 'now';
+}
+
+/** The card's label: "I'M HERE" while he is there, "COMING UP" before — and none once he has left. */
+export function stopLabel(row: WasHereRow, today: string): string | null {
+  switch (stopStatus(row, today)) {
+    case 'now': return 'I\'M HERE';
+    case 'next': return 'COMING UP';
+    case 'past': return null;
+  }
 }
 
 export function stayWords(row: WasHereRow): string {
