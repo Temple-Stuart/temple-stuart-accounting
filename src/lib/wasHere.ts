@@ -8,7 +8,11 @@
  * THE SHAPE. Every row is exactly { id, city, country, countryCode, start, end,
  * experienceId, line, image, writtenOn, did, learned, events }:
  *   · start is 'YYYY-MM-DD'; end is 'YYYY-MM-DD' or null — null means still there;
- *     a stop's end is the next stop's start (the travel day);
+ *     a stop's end is the next stop's start (the travel day). TRIPCARDS-01 (Alex,
+ *     2026-11-05): the log holds the stops he has booked ahead too — a PLANNED stop is
+ *     one whose start is after its writtenOn; it carries no did and no learned (nothing
+ *     happened there yet). Which stop is the current one is the words module's to say,
+ *     from the server's day (wasHereWords.ts stopStatus), never from end null alone;
  *   · experienceId names an EXPERIENCES row (src/lib/experiences.ts) when the stop
  *     was around an event, else null — the section draws that event's own block
  *     through the words module, never a retyped date;
@@ -35,8 +39,8 @@
  * every image file exists under public/ at ≤ 400 KB, the landing mounts the
  * section once). It refuses by name: a duplicate id; an empty city, country or
  * line (a line is null or says something); a countryCode not two upper-case
- * letters; start or writtenOn not 'YYYY-MM-DD'; start after writtenOn (an entry
- * is written after the stop began); an end that is set and before start; more
+ * letters; start or writtenOn not 'YYYY-MM-DD'; a planned stop (start after
+ * writtenOn) with anything in did or learned; an end that is set and before start; more
  * than one row with end null (one place at a time); an image whose src is not
  * /was-here/<slug>.jpg|webp or whose alt or credit is empty; did or learned not
  * a list, or holding anything but non-empty strings; a row whose keys are not
@@ -113,6 +117,8 @@ export const WAS_HERE_IMAGE_SRC = /^\/was-here\/[a-z0-9-]+\.(jpg|webp)$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CHECKED = '2026-10-31';
 const WRITTEN = '2026-10-31';
+/** TRIPCARDS-01: the day the booked-ahead stops were entered. */
+const PLANNED = '2026-11-05';
 
 export const WAS_HERE: readonly WasHereRow[] = [
   { id: 'canggu-2026-07', city: 'Canggu, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-07-01', end: '2026-07-30', experienceId: null, line: null,
@@ -152,10 +158,14 @@ export const WAS_HERE: readonly WasHereRow[] = [
     // TRIPPHOTO-06 (Alex, 2026-11-05): his photo of the stop — cropped to 3:2, strangers' number plates blurred, metadata stripped.
     image: { src: '/was-here/bangkok-2026-10-21.jpg', alt: 'Wat Arun lit gold at night at the end of a Bangkok street, a cyclist riding toward it', credit: 'Photo: Alex Stuart' },
     writtenOn: WRITTEN, did: [], learned: [], events: [] },
-  { id: 'siargao-2026', city: 'General Luna, Siargao', country: 'Philippines', countryCode: 'PH', start: '2026-10-22', end: null, experienceId: 'philippines-pro-2026', line: 'I landed in Siargao in the middle of the WSL by luck. Don\'t get lucky. Book around it.',
+  { id: 'siargao-2026', city: 'General Luna, Siargao', country: 'Philippines', countryCode: 'PH', start: '2026-10-22', end: '2026-11-13', experienceId: 'philippines-pro-2026', line: 'I landed in Siargao in the middle of the WSL by luck. Don\'t get lucky. Book around it.',
     // TRIPPHOTO-07 (Alex, 2026-11-05): his photo of the stop — cropped to 3:2 without the boatman's face, metadata stripped.
     image: { src: '/was-here/siargao-2026.jpg', alt: 'A surfer paddling beside an outrigger boat off Siargao, the island and a breaking reef on the horizon', credit: 'Photo: Alex Stuart' },
     writtenOn: WRITTEN, did: [], learned: [], events: [] },
+  // TRIPCARDS-01 (Alex, 2026-11-05): the stops he has booked ahead — Cebu, Uluwatu, Pererenan. Planned: no photo, no events, no lists yet.
+  { id: 'cebu-2026-11', city: 'Cebu', country: 'Philippines', countryCode: 'PH', start: '2026-11-13', end: '2026-11-20', experienceId: null, line: null, image: null, writtenOn: PLANNED, did: [], learned: [], events: [] },
+  { id: 'uluwatu-2026-11', city: 'Uluwatu, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-11-20', end: '2026-12-01', experienceId: null, line: null, image: null, writtenOn: PLANNED, did: [], learned: [], events: [] },
+  { id: 'pererenan-2026-12', city: 'Pererenan Beach, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-12-01', end: '2026-12-11', experienceId: null, line: null, image: null, writtenOn: PLANNED, did: [], learned: [], events: [] },
 ];
 
 export class WasHereLawError extends Error {
@@ -188,7 +198,8 @@ export function wasHereLaw(opts: { throwOnFail?: boolean; rows?: readonly WasHer
     for (const [field, value] of Object.entries({ start: row.start, writtenOn: row.writtenOn })) {
       if (!isIso(value)) violations.push(`${who}: ${field} "${value}" is not YYYY-MM-DD`);
     }
-    if (isIso(row.start) && isIso(row.writtenOn) && row.start > row.writtenOn) violations.push(`${who}: start ${row.start} is after writtenOn ${row.writtenOn} — an entry is written after the stop began`);
+    // TRIPCARDS-01: a planned stop (start after writtenOn) is booked, not lived — nothing in did or learned yet.
+    if (isIso(row.start) && isIso(row.writtenOn) && row.start > row.writtenOn && ((Array.isArray(row.did) && row.did.length > 0) || (Array.isArray(row.learned) && row.learned.length > 0))) violations.push(`${who}: a planned stop (start ${row.start} after writtenOn ${row.writtenOn}) with did or learned — nothing has happened there yet`);
     if (row.end !== null) {
       if (!isIso(row.end)) violations.push(`${who}: end "${row.end}" is not YYYY-MM-DD (or null)`);
       else if (row.end < row.start) violations.push(`${who}: end ${row.end} is before start ${row.start}`);

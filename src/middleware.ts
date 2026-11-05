@@ -170,7 +170,7 @@ const PUBLIC_PATHS = [
   // zod → insert; status/owner_notes never client-writable).
   '/api/proposals',
   // TRIPPOST-01 (2026-11-05): Alex's trip posts, /my-trip/<stop id> — static server pages
-  // from two pure leaves (src/lib/tripPostCards.ts, src/lib/tripPosts.ts) and the trip log:
+  // from the trip's pure leaves (src/lib/wasHere.ts, tripCosts.ts, tripPostCards.ts, tripPosts.ts):
   // zero fetch, zero authed reads, zero paid calls, zero env reads, zero database reads.
   // Prefix-matching makes every /my-trip/* path public — acceptable ONLY because the [id]
   // route sets dynamicParams = false, so every id the leaves do not hold 404s, and the page

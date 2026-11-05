@@ -22,21 +22,30 @@
  * post (src/lib/tripPosts.ts), its card carries the post block, its events live in the
  * post; the cards sit in a grid; the act line and MY_TRIP_LINE say so (tripPost01.test.ts
  * holds the post itself).
+ * TRIPCARDS-01 (Alex, 2026-11-05) — every card in the Canggu card's shape: no label once he
+ * has left ("I was here" is gone), I'M HERE while he is there, COMING UP before; the stop's
+ * three costs; "Read the post →" to its page on every card, the photo opening it too; no
+ * pills on any card (each stop's events live on its page); Siargao's stay closes Nov 13 and
+ * the three stops booked ahead join — Cebu, Uluwatu, Pererenan — each with nothing in did or
+ * learned (a planned stop, the law).
  *
  *   T1 the law — every refusal by name over injected rows and events; the deleted
  *      refusals named absent; the live rows pass;
- *   T2 the rows — seven in trip order, eight events, every stop's two lists empty
- *      (Canggu's moved into its post, TRIPPOST-01), a kept event byte for byte, every
- *      row at thirteen keys and byte for byte against its pinned digest (WASHERE-04);
- *   T3 the words — the label, the stay, tripOrder, stopWords, listWords, stopEventLine
- *      for every status × sourceKind, onPill, the three ruled pills from the live rows;
- *   T4 the section, rendered — the h2 "Where I've been." (WASHERE-04); seven cards
- *      Canggu → Siargao in a grid with Stop 1 … Stop 7, Canggu's post block and no
- *      pills (TRIPPOST-01), every section eyebrow WHAT WAS ON and no other, five
- *      pills every one a source link, a fixture with two sections and one with empty
- *      lists, no "No event" / JUST MISSED text anywhere, no <img>, no clock;
+ *   T2 the rows — ten in trip order, the three booked ahead last; eight events; every
+ *      stop's two lists empty (Canggu's moved into its post, TRIPPOST-01), a kept event
+ *      byte for byte, every row at thirteen keys and byte for byte against its pinned
+ *      digest (WASHERE-04);
+ *   T3 the words — stopStatus and stopLabel from the server's day (one stop current on
+ *      every day of the trip), the stay, tripOrder, stopWords, listWords, stopEventLine for
+ *      every status × sourceKind, onPill, the three ruled pills from the live rows;
+ *   T4 the section, rendered — the h2 "Where I've been, and where I'm going."
+ *      (TRIPCARDS-01); ten cards Canggu → Pererenan in a grid with Stop 1 … Stop 10, seven
+ *      photos each inside the link to its stop's page, every card's three costs and its
+ *      "Read the post →", Canggu's post block, no pills and no sections on any live card; a
+ *      fixture with two sections and one with empty lists; a stop with no costs row fails
+ *      loud; no "No event" / JUST MISSED text anywhere, no clock;
  *   T5 the mount — after the experiences mount and before the guest strip; the header
- *      comment says a card per stop (TRIPPOST-01); the law seat.
+ *      comment says a card per stop, each opening its page (TRIPCARDS-01); the law seat.
  * No live call, no database, no clock.
  */
 import { test } from 'node:test';
@@ -48,11 +57,12 @@ import { code, comments } from '../sourceText';
 import {
   STOP_EVENT_FIELDS, WAS_HERE, WAS_HERE_FIELDS, WAS_HERE_IMAGE_SRC, WasHereLawError, wasHereLaw, type StopEvent, type WasHereRow,
 } from '../wasHere';
-import { listWords, onPill, stayWords, stopEventLine, stopWords, tripOrder, wasHereLabel } from '../wasHereWords';
+import { listWords, onPill, stayWords, stopEventLine, stopLabel, stopStatus, stopWords, tripOrder } from '../wasHereWords';
+import { TRIP_COSTS, type TripCosts } from '../tripCosts';
 import { EXPERIENCES, EXPERIENCE_FIELDS } from '../experiences';
 import { experienceLine } from '../experienceWords';
 import {
-  WasHereView, MY_TRIP_ANCHOR, MY_TRIP_EYEBROW, MY_TRIP_HEADLINE, MY_TRIP_LINE, MY_TRIP_LINK, DID, LEARNED, WHAT_WAS_ON,
+  WasHereView, MY_TRIP_ANCHOR, MY_TRIP_EYEBROW, MY_TRIP_HEADLINE, MY_TRIP_LINE, MY_TRIP_LINK, READ_THE_POST, DID, LEARNED,
 } from '@/components/landing/WasHereSection';
 
 Object.assign(globalThis, { React });
@@ -64,7 +74,10 @@ const EXPERIENCES_SECTION = 'src/components/landing/ExperiencesSection.tsx';
 const LANDING = 'src/components/landing/Landing.tsx';
 const LAW = 'scripts/assert-tool-registry.ts';
 const TODAY = '2026-10-31';
-const TRIP = ['canggu-2026-07', 'danang-2026-08', 'bangkok-2026-09', 'phuket-2026-10', 'chiangmai-2026-10', 'bangkok-2026-10-21', 'siargao-2026'];
+const TRIP = ['canggu-2026-07', 'danang-2026-08', 'bangkok-2026-09', 'phuket-2026-10', 'chiangmai-2026-10', 'bangkok-2026-10-21', 'siargao-2026', 'cebu-2026-11', 'uluwatu-2026-11', 'pererenan-2026-12'];
+/** TRIPCARDS-01 (2026-11-05): the stops booked ahead — no photo, no events, nothing in did or learned yet. */
+const BOOKED = ['cebu-2026-11', 'uluwatu-2026-11', 'pererenan-2026-12'];
+const LIVED = TRIP.filter((id) => !BOOKED.includes(id));
 
 const row = (id: string): WasHereRow => {
   const found = WAS_HERE.find((r) => r.id === id);
@@ -86,6 +99,11 @@ const LISBON: WasHereRow = {
   did: ['the 28 tram', 'Belém by bike'], learned: ['Book the tram early.', 'Then the pastel.'], events: [TRAM],
 };
 const QUIET: WasHereRow = { ...LISBON, id: 'porto-2026', city: 'Porto', start: '2026-06-01', end: '2026-06-10', experienceId: null, line: null, image: null, writtenOn: '2026-06-11', did: [], learned: [], events: [] };
+/** TRIPCARDS-01: the fixtures' costs — a card fails loud without its stop's row. */
+const FIXTURE_COSTS: readonly TripCosts[] = [
+  { stopId: 'lisbon-2026', stay: { kind: 'paid', name: 'A flat in Alfama', amountCents: 90000 }, moto: { kind: 'none' }, flightIn: { kind: 'unknown' } },
+  { stopId: 'porto-2026', stay: { kind: 'unknown' }, moto: { kind: 'none' }, flightIn: { kind: 'unknown' } },
+];
 // WASHERE-03's Canggu list, kept as the listWords fixture — the row's lists moved into its post (TRIPPOST-01).
 const CANGGU_DID = ['Beachwalk mall', 'a day trip to Uluwatu', 'sunset dinners and drinks at Times Beach Warung', 'Hatch market in Uluwatu', 'mini golf at Shooters', 'Echo Beach for sunsets and surf', 'the G Swing', 'the Gajah Mina statue at Pererenan Beach', 'Finns Beach Club'];
 const lawOver = (...rows: WasHereRow[]) => wasHereLaw({ throwOnFail: false, rows });
@@ -94,12 +112,23 @@ const refuses = (rows: WasHereRow[], words: string) => {
   assert.ok(v.some((line) => line.includes(words)), `expected a violation naming "${words}", got [${v.join(' | ')}]`);
 };
 const withEvent = (base: WasHereRow, ev: Partial<StopEvent>): WasHereRow => ({ ...base, events: [{ ...TRAM, ...ev }] });
-const render = (rows: readonly WasHereRow[] = WAS_HERE, today = TODAY) => renderToStaticMarkup(React.createElement(WasHereView, { rows, today }));
+const render = (rows: readonly WasHereRow[] = WAS_HERE, today = TODAY, costs: readonly TripCosts[] = [...TRIP_COSTS, ...FIXTURE_COSTS]) => renderToStaticMarkup(React.createElement(WasHereView, { rows, costs, today }));
 const cardOf = (html: string, id: string) => { const at = html.indexOf(`data-was-here="${id}"`); const next = html.indexOf('data-was-here="', at + 1); return html.slice(at, next < 0 ? undefined : next); };
 const pillsOf = (html: string) => [...html.matchAll(/data-was-here-pill="[^"]+">([^<]*)</g)].map((m) => m[1]);
 const sectionsOf = (html: string) => [...html.matchAll(/data-was-here-section="([^"]+)"/g)].map((m) => m[1]);
 const pos = (html: string, needle: string) => { const i = html.indexOf(needle); assert.ok(i > -1, `${needle} is rendered`); return i; };
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** React's escaping of an apostrophe, in text and in attributes. */
+const asHtml = (s: string) => s.replace(/'/g, '&#x27;');
+/** A card's three costs as words: the name and the amount, or the amount alone. */
+const costsOfCard = (html: string, id: string) => [...cardOf(html, id).matchAll(/<dd class="[^"]*">(.*?)<\/dd>/g)].map((m) => m[1].replace(/<[^>]+>/g, ''));
+/** The next calendar day, by arithmetic — no clock. */
+const nextDay = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  const inMonth = [31, (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+  const [ny, nm, nd] = d < inMonth ? [y, m, d + 1] : m < 12 ? [y, m + 1, 1] : [y + 1, 1, 1];
+  return `${ny}-${String(nm).padStart(2, '0')}-${String(nd).padStart(2, '0')}`;
+};
 
 // ── T1 · THE LAW ─────────────────────────────────────────────────────────────
 
@@ -118,7 +147,11 @@ test('T1 every row refusal, by name — the keys at thirteen (WASHERE-04), the t
   refuses([{ ...SIARGAO, countryCode: 'PHL' }], 'not two upper-case letters');
   refuses([{ ...SIARGAO, start: '22/10/2026' }], 'start "22/10/2026" is not YYYY-MM-DD');
   refuses([{ ...SIARGAO, writtenOn: 'Oct 31' }], 'writtenOn "Oct 31" is not YYYY-MM-DD');
-  refuses([{ ...SIARGAO, start: '2026-11-02' }], 'is after writtenOn');
+  // TRIPCARDS-01 (2026-11-05): a start after writtenOn is a stop booked ahead — allowed, with nothing in did or learned.
+  assert.deepEqual(lawOver({ ...SIARGAO, start: '2026-11-02' }), [], 'a planned stop with empty lists passes — booked, not lived');
+  refuses([{ ...SIARGAO, start: '2026-11-02', did: ['surf'] }], 'a planned stop (start 2026-11-02 after writtenOn 2026-10-31) with did or learned — nothing has happened there yet');
+  refuses([{ ...SIARGAO, start: '2026-11-02', learned: ['Book early.'] }], 'a planned stop (start 2026-11-02 after writtenOn 2026-10-31) with did or learned');
+  assert.doesNotMatch(code(LEAF), /is after writtenOn/, 'the old refusal is gone — a start after writtenOn is a planned stop now');
   refuses([{ ...LISBON, end: '2026-08-31' }], 'is before start');
   refuses([{ ...LISBON, end: '20 Sep 2026' }], 'end "20 Sep 2026" is not YYYY-MM-DD');
   refuses([SIARGAO, { ...LISBON, end: null }], 'one place at a time');
@@ -169,8 +202,8 @@ test('T1 every event refusal, by name — overlap required of every event; the n
 
 // ── T2 · THE ROWS ────────────────────────────────────────────────────────────
 
-test('T2 seven rows in trip order; eight events; every stop\'s two lists empty — Canggu\'s moved into its post (TRIPPOST-01); a kept event byte for byte; every row at thirteen keys and byte for byte against its digest; each end the next start', () => {
-  assert.equal(WAS_HERE.length, 7);
+test('T2 ten rows in trip order, the three booked ahead last (TRIPCARDS-01); eight events; every stop\'s two lists empty — Canggu\'s moved into its post (TRIPPOST-01); a kept event byte for byte; every row at thirteen keys and byte for byte against its digest; each end the next start', () => {
+  assert.equal(WAS_HERE.length, 10);
   assert.deepEqual(tripOrder(WAS_HERE).map((r) => r.id), TRIP);
   assert.equal(WAS_HERE.reduce((n, r) => n + r.events.length, 0), 8);
   assert.deepEqual(Object.fromEntries(WAS_HERE.map((r) => [r.id, r.events.map((ev) => ev.name)])), {
@@ -178,6 +211,7 @@ test('T2 seven rows in trip order; eight events; every stop\'s two lists empty �
     'danang-2026-08': ['Hoi An full-moon lantern night', 'Hoi An Creative Week 2026'],
     'bangkok-2026-09': ['Kodaline — Farewell Tour', 'ONE Fight Night 47: Stamp vs Flores', 'Post Malone — The BIG ASS Stadium World Tour'],
     'phuket-2026-10': [], 'chiangmai-2026-10': [], 'bangkok-2026-10-21': [], 'siargao-2026': [],
+    'cebu-2026-11': [], 'uluwatu-2026-11': [], 'pererenan-2026-12': [],
   });
   assert.deepEqual(row('canggu-2026-07').events[1], {
     name: 'Rip Curl Cup Padang Padang 2026 — women\'s local trials', venue: 'Padang Padang Beach', area: 'Pecatu, Bukit Peninsula', start: '2026-07-21', end: '2026-07-21', status: 'took_place',
@@ -195,26 +229,31 @@ test('T2 seven rows in trip order; eight events; every stop\'s two lists empty �
     assert.deepEqual([r.did, r.learned], [[], []], `${r.id}: no did or learned on the row`);
     if (r.id !== 'siargao-2026') assert.ok(r.line === null && r.experienceId === null, `${r.id}: no line, no experience`);
   }
-  // TRIPPHOTO-01 (2026-11-05): Canggu's photo is Alex's own; every other row's image is still null.
+  // TRIPPHOTO-01 (2026-11-05): Canggu's photo is Alex's own.
   assert.deepEqual(row('canggu-2026-07').image, { src: '/was-here/canggu-2026-07.jpg', alt: 'Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave', credit: 'Photo: Alex Stuart' });
-  // TRIPPHOTO-02 (2026-11-05): Da Nang's photo; TRIPPHOTO-03: the first Bangkok stop's; TRIPPHOTO-04: Chiang Mai's; TRIPPHOTO-05: Phuket's; TRIPPHOTO-06: the second Bangkok stop's; TRIPPHOTO-07: Siargao's — every stop has one.
+  // TRIPPHOTO-02 (2026-11-05): Da Nang's photo; TRIPPHOTO-03: the first Bangkok stop's; TRIPPHOTO-04: Chiang Mai's; TRIPPHOTO-05: Phuket's; TRIPPHOTO-06: the second Bangkok stop's; TRIPPHOTO-07: Siargao's — every stop he has been to has one.
   assert.deepEqual(row('danang-2026-08').image, { src: '/was-here/danang-2026-08.jpg', alt: 'Da Nang\'s Dragon Bridge breathing fire at night, a crowd along the railing filming it, red lanterns under the bridge and the city lit up behind', credit: 'Photo: Alex Stuart' });
   assert.deepEqual(row('bangkok-2026-09').image, { src: '/was-here/bangkok-2026-09.jpg', alt: 'A giant golden seated Buddha lit up at night in Bangkok, seen in profile against a dark sky with the moon beside it', credit: 'Photo: Alex Stuart' });
   assert.deepEqual(row('chiangmai-2026-10').image, { src: '/was-here/chiangmai-2026-10.jpg', alt: 'Sunset over the mountains behind Chiang Mai, rays of light breaking through the clouds above the city', credit: 'Photo: Alex Stuart' });
   assert.deepEqual(row('phuket-2026-10').image, { src: '/was-here/phuket-2026-10.jpg', alt: 'A shaded dirt path with a rope fence above a turquoise cove in Phuket, green hills around the bay', credit: 'Photo: Alex Stuart' });
   assert.deepEqual(row('bangkok-2026-10-21').image, { src: '/was-here/bangkok-2026-10-21.jpg', alt: 'Wat Arun lit gold at night at the end of a Bangkok street, a cyclist riding toward it', credit: 'Photo: Alex Stuart' });
   assert.deepEqual(row('siargao-2026').image, { src: '/was-here/siargao-2026.jpg', alt: 'A surfer paddling beside an outrigger boat off Siargao, the island and a breaking reef on the horizon', credit: 'Photo: Alex Stuart' });
-  const WITH_PHOTO = ['canggu-2026-07', 'danang-2026-08', 'bangkok-2026-09', 'chiangmai-2026-10', 'phuket-2026-10', 'bangkok-2026-10-21', 'siargao-2026'];
-  assert.ok(WAS_HERE.every((r) => (WITH_PHOTO.includes(r.id) || r.image === null) && r.writtenOn === '2026-10-31'));
+  assert.deepEqual(TRIP.filter((id) => row(id).image !== null), LIVED, 'a photo for every stop he has been to; none yet for the three booked ahead');
+  assert.deepEqual(WAS_HERE.map((r) => [r.id, r.writtenOn]), TRIP.map((id) => [id, BOOKED.includes(id) ? '2026-11-05' : '2026-10-31']), 'TRIPCARDS-01: the booked-ahead stops were entered on Nov 5');
   assert.ok(WAS_HERE.every((r) => r.events.every((ev) => ev.checkedOn === '2026-10-31')));
-  assert.deepEqual(row('siargao-2026'), { ...SIARGAO, image: row('siargao-2026').image }, 'the Siargao row as built, plus the two empty lists and its photo (TRIPPHOTO-07)');
+  // TRIPCARDS-01: a planned stop is one whose start is after its writtenOn — exactly the three, each with nothing lived yet.
+  assert.deepEqual(WAS_HERE.filter((r) => r.start > r.writtenOn).map((r) => r.id), BOOKED);
+  for (const id of BOOKED) assert.ok(row(id).image === null && row(id).events.length === 0 && row(id).line === null && row(id).experienceId === null, `${id}: booked ahead — no photo, no events, no line yet`);
+  assert.deepEqual(WAS_HERE.filter((r) => r.end === null), [], 'TRIPCARDS-01: every stop has its end — which one is current is the server\'s day to say (stopStatus)');
+  assert.deepEqual(row('siargao-2026'), { ...SIARGAO, end: '2026-11-13', image: row('siargao-2026').image }, 'the Siargao row as built, plus the two empty lists and its photo (TRIPPHOTO-07); its stay closes Nov 13, the day the flight to Cebu leaves (TRIPCARDS-01)');
   const ordered = tripOrder(WAS_HERE);
   for (let i = 1; i < ordered.length; i += 1) assert.equal(ordered[i - 1].end, ordered[i].start, `${ordered[i - 1].id} ends the day ${ordered[i].id} starts`);
   assert.deepEqual(ordered.map((r) => [r.id, r.city, r.countryCode, r.start, r.end]), [
     ['canggu-2026-07', 'Canggu, Bali', 'ID', '2026-07-01', '2026-07-30'], ['danang-2026-08', 'Da Nang / Hoi An', 'VN', '2026-07-30', '2026-08-28'],
     ['bangkok-2026-09', 'Bangkok', 'TH', '2026-08-28', '2026-09-25'], ['phuket-2026-10', 'Phuket', 'TH', '2026-09-25', '2026-10-08'],
     ['chiangmai-2026-10', 'Chiang Mai', 'TH', '2026-10-08', '2026-10-21'], ['bangkok-2026-10-21', 'Bangkok', 'TH', '2026-10-21', '2026-10-22'],
-    ['siargao-2026', 'General Luna, Siargao', 'PH', '2026-10-22', null],
+    ['siargao-2026', 'General Luna, Siargao', 'PH', '2026-10-22', '2026-11-13'], ['cebu-2026-11', 'Cebu', 'PH', '2026-11-13', '2026-11-20'],
+    ['uluwatu-2026-11', 'Uluwatu, Bali', 'ID', '2026-11-20', '2026-12-01'], ['pererenan-2026-12', 'Pererenan Beach, Bali', 'ID', '2026-12-01', '2026-12-11'],
   ]);
   assert.ok(EXPERIENCES.some((e) => e.id === row('siargao-2026').experienceId), 'the event it names exists');
   // WASHERE-04 (2026-11-03): privacy. Every row carries the thirteen keys in the ruled order, and is byte for byte as pinned.
@@ -226,7 +265,10 @@ test('T2 seven rows in trip order; eight events; every stop\'s two lists empty �
     'phuket-2026-10': '123c543f71ee2c676f9a16c13c7488a0d0babc60f1b3a2a35e2886e0db2b06a0', // TRIPPHOTO-05: its photo
     'chiangmai-2026-10': '153917683583fa2ef02b703c5c9ee58f26244af924e03a7250f5bba7b7900fcf', // TRIPPHOTO-04: its photo
     'bangkok-2026-10-21': '6fc949f32caca8e35ffa1cd30cde2edebca2cd7e8a4d157e0f4bf2945b76407b', // TRIPPHOTO-06: its photo
-    'siargao-2026': 'b7cb5831ceb8faa52f454d9cd16798d9017316fac286995b01a27aecfa9d2446', // TRIPPHOTO-07: its photo
+    'siargao-2026': '4cf5de0291bf7ac5d65dfe36d8576367ede4874e283e3192e11c3837ad956343', // TRIPPHOTO-07: its photo; TRIPCARDS-01: its end, Nov 13
+    'cebu-2026-11': '33891cfe1120c18a40aa9ce242884ec5664ff5b7626e9245b509ba13124ed97d', // TRIPCARDS-01: booked ahead
+    'uluwatu-2026-11': 'c82b2ec2e0b27ba7af1601f658d2104d2e3c2a6a641bdb168036348e51ff2020', // TRIPCARDS-01: booked ahead
+    'pererenan-2026-12': '266ddfa98ac6c89a4fd302b1981ccbc70e694682f6f319960b444fea4e91fe71', // TRIPCARDS-01: booked ahead
   };
   assert.deepEqual(Object.keys(DIGESTS), TRIP);
   for (const r of WAS_HERE) assert.equal(createHash('sha256').update(JSON.stringify(r)).digest('hex'), DIGESTS[r.id], `${r.id}: byte for byte`);
@@ -234,10 +276,23 @@ test('T2 seven rows in trip order; eight events; every stop\'s two lists empty �
 
 // ── T3 · THE WORDS ───────────────────────────────────────────────────────────
 
-test('T3 the words: the label and the stay; tripOrder, stopWords, listWords (WASHERE-03); the near-miss words gone', () => {
-  assert.equal(wasHereLabel(SIARGAO), "I'M HERE");
+test('T3 the words: the status and the label from the server\'s day (TRIPCARDS-01), the stay; tripOrder, stopWords, listWords (WASHERE-03); the near-miss words gone', () => {
+  // TRIPCARDS-01 (Alex, 2026-11-05): lose "I was here" — no label once he has left; I'M HERE while there; COMING UP before.
+  assert.deepEqual(['2026-08-31', '2026-09-01', '2026-09-19', '2026-09-20', TODAY].map((d) => stopStatus(LISBON, d)), ['next', 'now', 'now', 'past', 'past'], 'before · from its start · up to its end · the travel day out is the next stop\'s');
+  assert.deepEqual(['2026-08-31', '2026-09-01', '2026-09-20'].map((d) => stopLabel(LISBON, d)), ['COMING UP', "I'M HERE", null]);
+  assert.equal(stopLabel(SIARGAO, TODAY), "I'M HERE");
+  assert.equal(stopStatus(SIARGAO, '2026-10-21'), 'next');
+  assert.equal(stopStatus(SIARGAO, '2027-06-01'), 'now', 'an open stay (end null) is current from its start on');
+  // The live trip, every day from Jul 1 to Dec 10: exactly one stop current — none before the first, none from Dec 11.
+  const current = (d: string) => WAS_HERE.filter((r) => stopStatus(r, d) === 'now').map((r) => r.id);
+  let days = 0;
+  for (let d = '2026-07-01'; d < '2026-12-11'; d = nextDay(d), days += 1) assert.equal(current(d).length, 1, `${d}: one stop is current`);
+  assert.equal(days, 163, 'Jul 1 → Dec 10, every day');
+  for (const [d, id] of [['2026-07-01', 'canggu-2026-07'], ['2026-07-30', 'danang-2026-08'], ['2026-10-21', 'bangkok-2026-10-21'], ['2026-10-22', 'siargao-2026'], ['2026-11-05', 'siargao-2026'], ['2026-11-12', 'siargao-2026'], ['2026-11-13', 'cebu-2026-11'], ['2026-11-20', 'uluwatu-2026-11'], ['2026-12-01', 'pererenan-2026-12'], ['2026-12-10', 'pererenan-2026-12']] as const) assert.deepEqual(current(d), [id], d);
+  assert.deepEqual(current('2026-06-30'), []);
+  assert.deepEqual(current('2026-12-11'), [], 'after the last stop, none');
   assert.equal(stayWords(SIARGAO), 'Since Oct 22, 2026');
-  assert.equal(wasHereLabel(LISBON), 'I WAS HERE');
+  assert.equal(stayWords(row('siargao-2026')), 'Oct 22 – Nov 13, 2026');
   assert.equal(stayWords(LISBON), 'Sep 1–20, 2026');
   assert.deepEqual(tripOrder([SIARGAO, LISBON, QUIET]).map((r) => r.id), ['porto-2026', 'lisbon-2026', 'siargao-2026']);
   const given = [SIARGAO, LISBON];
@@ -245,6 +300,7 @@ test('T3 the words: the label and the stay; tripOrder, stopWords, listWords (WAS
   assert.deepEqual(given.map((r) => r.id), ['siargao-2026', 'lisbon-2026'], 'a copy — the input is not sorted in place');
   assert.equal(stopWords(1), 'Stop 1');
   assert.equal(stopWords(7), 'Stop 7');
+  assert.equal(stopWords(10), 'Stop 10');
   assert.equal(listWords(['one', 'two']), 'one · two');
   assert.equal(listWords(['one']), 'one');
   assert.equal(listWords(CANGGU_DID), 'Beachwalk mall · a day trip to Uluwatu · sunset dinners and drinks at Times Beach Warung · Hatch market in Uluwatu · mini golf at Shooters · Echo Beach for sunsets and surf · the G Swing · the Gajah Mina statue at Pererenan Beach · Finns Beach Club');
@@ -252,6 +308,7 @@ test('T3 the words: the label and the stay; tripOrder, stopWords, listWords (WAS
   assert.match(words, /import \{ dateWords, dayWords \} from '\.\/experienceWords';/, 'one dateWords in the codebase');
   assert.doesNotMatch(words, /toLocale|new Date\(|Date\.now|Intl\./);
   assert.doesNotMatch(words, /newestFirst|daysBetween|daysFromCivil|missedWords|missedPill|WasHereWordsError|near_miss|days after|days before/, 'deleted with their fixtures (WASHERE-03)');
+  assert.doesNotMatch(words, /wasHereLabel|I WAS HERE/, 'TRIPCARDS-01: the old label left with "I was here"');
 });
 
 test('T3 stopEventLine for every status × sourceKind; onPill with the area when venue is null; the three ruled pills from the live rows', () => {
@@ -273,36 +330,44 @@ test('T3 stopEventLine for every status × sourceKind; onPill with the area when
 
 // ── T4 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T4 rendered with the live rows: the h2 "Where I\'ve been."; seven cards Canggu → Siargao in a grid, Stop 1 … Stop 7, Canggu\'s post block in place of its sections and pills (TRIPPOST-01), every section eyebrow WHAT WAS ON and no other; five pills every one a source link, the Siargao card with its block, line and link, no <img>', () => {
+test('T4 rendered with the live rows: the h2 "Where I\'ve been, and where I\'m going." (TRIPCARDS-01); ten cards Canggu → Pererenan in a grid, Stop 1 … Stop 10; seven photos, each inside the link to its stop\'s page; every card\'s three costs and its "Read the post →"; no label once he has left; Canggu\'s post block; no pills and no sections on any card; the Siargao card with its block, line and links', () => {
   const html = render();
   assert.equal(MY_TRIP_ANCHOR, 'my-trip');
   assert.match(html, /<section id="my-trip" aria-label="My trip"/);
   assert.equal(MY_TRIP_LINE, "Stop by stop, dated, with the whole story where I've written it up."); // TRIPPOST-01
-  assert.equal(MY_TRIP_HEADLINE, "Where I've been."); // WASHERE-04 (2026-11-03): privacy.
-  assert.match(html, /<h2 class="[^"]*">Where I&#x27;ve been\.<\/h2><p class="[^"]*">Stop by stop, dated, with the whole story where I&#x27;ve written it up\.<\/p>/);
-  assert.ok(html.includes(MY_TRIP_EYEBROW) && html.includes(MY_TRIP_HEADLINE.replace("'", '&#x27;')) && html.includes(MY_TRIP_LINE.replace("'", '&#x27;')));
+  assert.equal(MY_TRIP_HEADLINE, "Where I've been, and where I'm going."); // TRIPCARDS-01 (2026-11-05): the stops booked ahead join.
+  assert.match(html, /<h2 class="[^"]*">Where I&#x27;ve been, and where I&#x27;m going\.<\/h2><p class="[^"]*">Stop by stop, dated, with the whole story where I&#x27;ve written it up\.<\/p>/);
+  assert.ok(html.includes(MY_TRIP_EYEBROW) && html.includes(asHtml(MY_TRIP_HEADLINE)) && html.includes(asHtml(MY_TRIP_LINE)));
   assert.match(html, /class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"/, 'TRIPPOST-01: the cards sit in a grid — one column, two from sm, three from lg');
   assert.doesNotMatch(html, /Newest first/);
   assert.deepEqual([...html.matchAll(/data-was-here="([^"]+)"/g)].map((m) => m[1]), TRIP);
-  assert.deepEqual([...html.matchAll(/data-was-here-stop="(\d+)">([^<]*)</g)].map((m) => [m[1], m[2]]), [['1', 'Stop 1'], ['2', 'Stop 2'], ['3', 'Stop 3'], ['4', 'Stop 4'], ['5', 'Stop 5'], ['6', 'Stop 6'], ['7', 'Stop 7']]);
-  // TRIPPHOTO-01 (2026-11-05): one photo — Canggu's, inside a link to its post that stays out of the tab order, its credit under it.
-  assert.equal((html.match(/<img /g) ?? []).length, 7, 'seven photos on the act — every stop (TRIPPHOTO-01 … 07)');
-  assert.match(cardOf(html, 'canggu-2026-07'), /<figure><a href="\/my-trip\/canggu-2026-07" tabindex="-1" aria-hidden="true"><img src="\/was-here\/canggu-2026-07\.jpg" alt="Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><\/a><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
-  // TRIPPHOTO-02: Da Nang has no post, so its photo is not a link — the figure holds the <img> itself, the credit under it.
-  assert.match(cardOf(html, 'danang-2026-08'), /<figure><img src="\/was-here\/danang-2026-08\.jpg" alt="Da Nang&#x27;s Dragon Bridge breathing fire at night, a crowd along the railing filming it, red lanterns under the bridge and the city lit up behind" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
-  // TRIPPHOTO-03: the first Bangkok stop has no post either — its figure holds the <img> itself.
-  assert.match(cardOf(html, 'bangkok-2026-09'), /<figure><img src="\/was-here\/bangkok-2026-09\.jpg" alt="A giant golden seated Buddha lit up at night in Bangkok, seen in profile against a dark sky with the moon beside it" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
-  // TRIPPHOTO-04: Chiang Mai has no post either — its figure holds the <img> itself.
-  assert.match(cardOf(html, 'chiangmai-2026-10'), /<figure><img src="\/was-here\/chiangmai-2026-10\.jpg" alt="Sunset over the mountains behind Chiang Mai, rays of light breaking through the clouds above the city" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
-  // TRIPPHOTO-05: Phuket has no post either — its figure holds the <img> itself.
-  assert.match(cardOf(html, 'phuket-2026-10'), /<figure><img src="\/was-here\/phuket-2026-10\.jpg" alt="A shaded dirt path with a rope fence above a turquoise cove in Phuket, green hills around the bay" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
-  // TRIPPHOTO-06: the second Bangkok stop has no post either — its figure holds the <img> itself.
-  assert.match(cardOf(html, 'bangkok-2026-10-21'), /<figure><img src="\/was-here\/bangkok-2026-10-21\.jpg" alt="Wat Arun lit gold at night at the end of a Bangkok street, a cyclist riding toward it" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
-  // TRIPPHOTO-07: Siargao has no post either — its figure holds the <img> itself, above the label, the event block, the line and the link.
-  assert.match(cardOf(html, 'siargao-2026'), /<figure><img src="\/was-here\/siargao-2026\.jpg" alt="A surfer paddling beside an outrigger boat off Siargao, the island and a breaking reef on the horizon" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
-  assert.deepEqual(TRIP.filter((id) => !/<img /.test(cardOf(html, id))), [], 'every stop has its photo');
+  assert.deepEqual([...html.matchAll(/data-was-here-stop="(\d+)">([^<]*)</g)].map((m) => [m[1], m[2]]), TRIP.map((_, i) => [String(i + 1), `Stop ${i + 1}`]));
+  // TRIPPHOTO-01 … 07; TRIPCARDS-01: every photo inside a link to its stop's page that stays out of the tab order, its credit under it.
+  assert.equal((html.match(/<img /g) ?? []).length, 7, 'seven photos on the act — every stop he has been to');
+  for (const id of LIVED) {
+    const image = row(id).image!;
+    assert.match(cardOf(html, id), new RegExp(`<figure><a href="/my-trip/${id}" tabindex="-1" aria-hidden="true"><img src="${esc(image.src)}" alt="${esc(asHtml(image.alt))}" loading="lazy" class="aspect-\\[3/2\\] w-full rounded object-cover"/></a><figcaption class="[^"]*">Photo: Alex Stuart</figcaption></figure>`), `${id}: its photo opens its page`);
+  }
+  assert.deepEqual(TRIP.filter((id) => !/<img /.test(cardOf(html, id))), BOOKED, 'the three booked ahead have no photo yet');
+  for (const id of BOOKED) assert.doesNotMatch(cardOf(html, id), /<figure|<img/, `${id}: no placeholder box while its image is null`);
+  // TRIPCARDS-01 (Alex, 2026-11-05): every card in the Canggu card's shape — its three costs, then "Read the post →" to its page.
+  for (const id of TRIP) {
+    const card = cardOf(html, id);
+    assert.deepEqual([...card.matchAll(/data-was-here-cost="([^"]+)"><dt class="[^"]*">([^<]*)<\/dt>/g)].map((m) => [m[1], m[2]]), [['Stay', 'Stay'], ['Motorbike', 'Motorbike'], ['Flight in', 'Flight in']], `${id}: its three costs`);
+    assert.match(card, new RegExp(`<a href="/my-trip/${id}" class="[^"]*" data-was-here-post-link="true">${esc(READ_THE_POST)}</a>`), `${id}: its page`);
+    assert.ok(pos(card, 'data-was-here-stop=') < pos(card, 'data-was-here-costs=') && pos(card, 'data-was-here-costs=') < pos(card, 'data-was-here-post-link'), `${id}: stop → costs → the link`);
+  }
+  assert.equal((html.match(/data-was-here-post-link=/g) ?? []).length, 10, 'one "Read the post →" per card');
+  assert.deepEqual(costsOfCard(html, 'canggu-2026-07'), ['The Daun · $708.14', 'Nyoman Motorbike Rental (Nmax) · $131.79', 'China Air · $837.20']);
+  assert.deepEqual(costsOfCard(html, 'danang-2026-08'), ['Sky Village Đà Nẵng · $980.73', 'n/a', 'Vietjet · $176.10']);
+  assert.deepEqual(costsOfCard(html, 'bangkok-2026-09'), ['Premier Thonglor · $1,007.72', 'n/a', 'Thai Vietjet · $149.90']);
+  assert.deepEqual(costsOfCard(html, 'siargao-2026'), ['Rodeo Sun Hotel · $638.24', 'Kook Moto Rental (Fazzio) · $63.53', 'Philippine Airlines · $260.50']);
+  assert.deepEqual(costsOfCard(html, 'cebu-2026-11'), ['The Noble Cebu · $217.26', 'not in my log yet', 'Philippine Airlines · $104.05']);
+  assert.deepEqual(costsOfCard(html, 'pererenan-2026-12'), ['Anaya Boutique Hotel · $285.90', 'not in my log yet', 'not in my log yet']);
+  // TRIPCARDS-01: the label from the server's day — none once he has left, I'M HERE while there, COMING UP before.
+  assert.deepEqual(TRIP.map((id) => /data-was-here-label="true">([^<]*)</.exec(cardOf(html, id))?.[1] ?? null), [null, null, null, null, null, null, 'I&#x27;M HERE', 'COMING UP', 'COMING UP', 'COMING UP']);
+  assert.doesNotMatch(html, /I WAS HERE/);
   const canggu = cardOf(html, 'canggu-2026-07');
-  assert.match(canggu, /data-was-here-label="true">I WAS HERE</);
   assert.match(canggu, />Canggu, Bali, Indonesia</);
   assert.match(canggu, /data-was-here-stay="true">Jul 1–30, 2026</);
   assert.match(canggu, /data-was-here-stop="1">Stop 1</);
@@ -311,68 +376,68 @@ test('T4 rendered with the live rows: the h2 "Where I\'ve been."; seven cards Ca
   assert.match(canggu, /data-was-here-post="canggu-2026-07"/);
   assert.match(canggu, /<a href="\/my-trip\/canggu-2026-07" class="[^"]*" data-was-here-post-title="true">Thirty days in Canggu with no plan\.<\/a>/);
   assert.ok(canggu.includes('>Every day of it: where I ate, what I did, what it cost, and what I’d do differently.<'));
-  assert.ok(canggu.includes('>Stayed at The Daun · $708.14<'));
-  assert.match(canggu, /<a href="\/my-trip\/canggu-2026-07" class="[^"]*" data-was-here-post-link="true">Read the post →<\/a>/);
-  assert.ok(pos(canggu, 'data-was-here-stop') < pos(canggu, 'data-was-here-post='), 'stop → the post block');
-  assert.deepEqual(pillsOf(canggu), [], 'its events are in the post — one home per event');
-  assert.doesNotMatch(canggu, /data-was-here-list|data-was-here-line|data-was-here-event|href="#demo"/, 'no pills, unwritten line, no event block, no strip link');
-  assert.deepEqual(pillsOf(cardOf(html, 'danang-2026-08')), [
-    'Hoi An full-moon lantern night · Hoi An Ancient Town · Aug 26, 2026 · per Hoi An&#x27;s monthly full-moon rule (Da Nang tourism portal)',
-    'Hoi An Creative Week 2026 · Song Hoai Square and the Ancient Town · Aug 28 – Sep 2, 2026 · took place · per Da Nang tourism portal; Tuoi Tre News',
-  ]);
-  assert.deepEqual(pillsOf(cardOf(html, 'bangkok-2026-09')), [
-    'Kodaline — Farewell Tour · UOB Live, EmSphere · Aug 28–29, 2026 · took place · per UOB Live',
-    'ONE Fight Night 47: Stamp vs Flores · Lumpinee Boxing Stadium · Sep 5, 2026 · took place · per ONE Championship',
-    'Post Malone — The BIG ASS Stadium World Tour · Rajamangala National Stadium · Sep 22, 2026 · postponed · reported by Time Out Bangkok',
-  ]);
-  assert.equal(pillsOf(html).length, 5, 'Da Nang two, Bangkok three — Canggu\'s three are in its post (TRIPPOST-01)');
-  // WASHERE-04 (2026-11-03): privacy. Every section eyebrow the act renders is DID, LEARNED or WHAT WAS ON — and none sits outside its hook.
-  const eyebrows = [...html.matchAll(/data-was-here-(?:section="[^"]+"|list="on")><p class="([^"]*)">([^<]*)<\/p>/g)];
-  assert.deepEqual([...new Set(eyebrows.map((m) => m[2]))], [WHAT_WAS_ON], 'no row carries DID or LEARNED now (TRIPPOST-01)');
-  assert.equal((html.match(new RegExp(`<p class="${esc(eyebrows[0][1])}">`, 'g')) ?? []).length, eyebrows.length, 'no section eyebrow outside a hooked section');
-  assert.deepEqual([...new Set(sectionsOf(html))], []);
-  assert.equal((html.match(/<a href="https:\/\/[^"]+" rel="noopener" target="_blank"[^>]*data-was-here-pill=/g) ?? []).length, 5, 'every pill links its source');
-  for (const id of ['phuket-2026-10', 'chiangmai-2026-10', 'bangkok-2026-10-21']) {
-    const card = cardOf(html, id);
-    assert.doesNotMatch(card, /data-was-here-list|data-was-here-pill|WHAT WAS ON|data-was-here-section|>DID<|LEARNED|data-was-here-line|data-was-here-event|href="#demo"/, `${id}: nothing but the stop`);
-  }
+  assert.doesNotMatch(canggu, /Stayed at/, 'TRIPCARDS-01: the stay is the first of its three costs now');
+  assert.ok(pos(canggu, 'data-was-here-stop') < pos(canggu, 'data-was-here-post=') && pos(canggu, 'data-was-here-post=') < pos(canggu, 'data-was-here-costs='), 'stop → the post block → the costs');
+  assert.deepEqual([...html.matchAll(/data-was-here-post="([^"]+)"/g)].map((m) => m[1]), ['canggu-2026-07'], 'one stop written up so far');
+  // TRIPCARDS-01: no pills on any card — every stop's events (WHAT WAS ON) live on its page, one home per event.
+  assert.deepEqual(pillsOf(html), []);
+  assert.doesNotMatch(html, /WHAT WAS ON|data-was-here-list|data-was-here-pill|target="_blank"/, 'no event pill and no outside link on any card');
+  assert.deepEqual(sectionsOf(html), [], 'no row carries DID or LEARNED (TRIPPOST-01)');
+  assert.doesNotMatch(html, />DID<|>LEARNED</);
+  for (const id of TRIP.filter((t) => t !== 'siargao-2026')) assert.doesNotMatch(cardOf(html, id), /data-was-here-line|data-was-here-event|href="#demo"/, `${id}: no line, no event block, no strip link`);
   const siargao = cardOf(html, 'siargao-2026');
   assert.match(siargao, /data-was-here-label="true">I&#x27;M HERE</);
-  assert.match(siargao, /data-was-here-stay="true">Since Oct 22, 2026</);
+  assert.match(siargao, /data-was-here-stay="true">Oct 22 – Nov 13, 2026</);
   assert.match(siargao, /data-was-here-stop="7">Stop 7</);
   assert.match(siargao, /data-was-here-event="philippines-pro-2026"/);
   const event = EXPERIENCES.find((e) => e.id === 'philippines-pro-2026')!;
   assert.ok(siargao.includes(`data-experience-line="true">${experienceLine(event, TODAY)}<`));
-  assert.ok(siargao.includes(SIARGAO.line!.replace("'", '&#x27;')));
+  assert.ok(siargao.includes(asHtml(SIARGAO.line!)));
   assert.match(siargao, new RegExp(`<a href="#demo"[^>]*>${MY_TRIP_LINK}</a>`));
-  assert.ok(pos(siargao, 'data-was-here-stop') < pos(siargao, 'data-was-here-event') && pos(siargao, 'data-was-here-event') < pos(siargao, 'data-was-here-line') && pos(siargao, 'data-was-here-line') < pos(siargao, 'href="#demo"'), 'stop → event block → line → link');
-  assert.doesNotMatch(siargao, /data-was-here-list|data-was-here-pill|data-was-here-section|WHAT WAS ON/);
+  const order = ['data-was-here-stop', 'data-was-here-costs', 'data-was-here-event', 'data-was-here-line', 'data-was-here-post-link', 'href="#demo"'].map((n) => pos(siargao, n));
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'stop → costs → event block → line → its page → the strip');
+  for (const [id, place, stay, n] of [['cebu-2026-11', 'Cebu, Philippines', 'Nov 13–20, 2026', 8], ['uluwatu-2026-11', 'Uluwatu, Bali, Indonesia', 'Nov 20 – Dec 1, 2026', 9], ['pererenan-2026-12', 'Pererenan Beach, Bali, Indonesia', 'Dec 1–11, 2026', 10]] as const) {
+    const card = cardOf(html, id);
+    assert.ok(card.includes(`>${place}</h3>`), `${id}: ${place}`);
+    assert.ok(card.includes(`data-was-here-stay="true">${stay}<`), `${id}: ${stay}`);
+    assert.ok(card.includes(`data-was-here-stop="${n}">Stop ${n}<`), `${id}: Stop ${n}`);
+  }
   assert.doesNotMatch(html, /JUST MISSED|No event I could verify|days after I left|days before I arrived|data-was-here-none/, 'the near-miss list and the "No event" line are gone');
   assert.doesNotMatch(html, /countdown|BUY NOW/i);
   assert.doesNotMatch(html, /\bfree\b/i);
 });
 
-test('T4 rendered fixtures: a photo, a written line and two sections in order; a row with empty lists renders neither eyebrow and no "No event" line', () => {
+test('T4 rendered fixtures: a photo opening its page, the costs, a written line and two sections in order, then the link; a row with empty lists renders neither eyebrow and no "No event" line; the label from the day; a stale id and a stop with no costs row fail loud', () => {
   const html = render([SIARGAO, LISBON, QUIET]);
   assert.deepEqual([...html.matchAll(/data-was-here="([^"]+)"/g)].map((m) => m[1]), ['porto-2026', 'lisbon-2026', 'siargao-2026'], 'trip order, derived');
   assert.deepEqual([...html.matchAll(/data-was-here-stop="(\d+)"/g)].map((m) => m[1]), ['1', '2', '3']);
   const lisbon = cardOf(html, 'lisbon-2026');
-  assert.match(lisbon, /<img src="\/was-here\/lisbon-2026\.jpg" alt="The 28 tram climbing Alfama" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/>/);
+  assert.match(lisbon, /<figure><a href="\/my-trip\/lisbon-2026" tabindex="-1" aria-hidden="true"><img src="\/was-here\/lisbon-2026\.jpg" alt="The 28 tram climbing Alfama" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><\/a>/);
   assert.match(lisbon, /<figcaption[^>]*>Photo: Alex Stuart</);
-  assert.match(lisbon, /data-was-here-label="true">I WAS HERE</);
+  assert.doesNotMatch(lisbon, /data-was-here-label/, 'a stop he has left carries no label (TRIPCARDS-01)');
   assert.match(lisbon, /data-was-here-stay="true">Sep 1–20, 2026</);
   assert.match(lisbon, /data-was-here-stop="2">Stop 2</);
+  assert.deepEqual(costsOfCard(html, 'lisbon-2026'), ['A flat in Alfama · $900.00', 'n/a', 'not in my log yet']);
   assert.match(lisbon, /data-was-here-line="true">Three weeks of pastel de nata\.</);
   assert.match(lisbon, /data-was-here-section="did"><p class="[^"]*">DID<\/p><p class="[^"]*">the 28 tram · Belém by bike<\/p>/);
   assert.match(lisbon, /data-was-here-section="learned"><p class="[^"]*">LEARNED<\/p><p class="[^"]*">Book the tram early\.<\/p><p class="[^"]*">Then the pastel\.<\/p><\/div>/);
-  assert.deepEqual(pillsOf(lisbon), ['Tram 28 centenary parade · Alfama · Sep 5–6, 2026 · took place · reported by Lisboa Cultura']);
-  assert.ok(pos(lisbon, 'data-was-here-line') < pos(lisbon, 'data-was-here-section="did"') && pos(lisbon, 'data-was-here-section="learned"') < pos(lisbon, 'data-was-here-list="on"'), 'line → sections → what was on');
+  assert.deepEqual(pillsOf(lisbon), [], 'its event lives on its page, not the card (TRIPCARDS-01)');
+  assert.doesNotMatch(lisbon, /Tram 28 centenary parade|WHAT WAS ON/);
+  const order = ['data-was-here-costs', 'data-was-here-line', 'data-was-here-section="did"', 'data-was-here-section="learned"', 'data-was-here-post-link'].map((n) => pos(lisbon, n));
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'costs → line → sections → its page');
+  assert.match(lisbon, /<a href="\/my-trip\/lisbon-2026" class="[^"]*" data-was-here-post-link="true">Read the post →<\/a>/);
   assert.doesNotMatch(lisbon, /data-was-here-event|href="#demo"/);
   const porto = cardOf(html, 'porto-2026');
   assert.match(porto, /data-was-here-stop="1">Stop 1</);
-  assert.doesNotMatch(porto, /data-was-here-section|>DID<|LEARNED|data-was-here-list|WHAT WAS ON|data-was-here-line|href="#demo"|No event/, 'empty lists render nothing — no empty eyebrow');
+  assert.doesNotMatch(porto, /data-was-here-section|>DID<|LEARNED|data-was-here-list|WHAT WAS ON|data-was-here-line|href="#demo"|No event|<figure/, 'empty lists render nothing — no empty eyebrow; no image, no placeholder');
+  assert.deepEqual(costsOfCard(html, 'porto-2026'), ['not in my log yet', 'n/a', 'not in my log yet']);
+  assert.match(cardOf(html, 'siargao-2026'), /data-was-here-label="true">I&#x27;M HERE</, 'an open stay, current on the day');
+  // TRIPCARDS-01: the same fixtures on other days — COMING UP before the stop, I'M HERE from its first day.
+  assert.match(cardOf(render([SIARGAO, LISBON, QUIET], '2026-08-31'), 'lisbon-2026'), /data-was-here-label="true">COMING UP</);
+  assert.match(cardOf(render([LISBON], '2026-09-01'), 'lisbon-2026'), /data-was-here-label="true">I&#x27;M HERE</);
   assert.throws(() => render([{ ...SIARGAO, experienceId: 'not-an-event' }]), /is not an EXPERIENCES id/, 'a stale id fails loud, never a blank block');
-  assert.deepEqual([DID, LEARNED, WHAT_WAS_ON], ['DID', 'LEARNED', 'WHAT WAS ON']);
+  assert.throws(() => render([LISBON], TODAY, TRIP_COSTS), /"lisbon-2026" has no costs row/, 'a stop with no costs row fails loud — never a card without them (TRIPCARDS-01)');
+  assert.deepEqual([DID, LEARNED], ['DID', 'LEARNED']);
   assert.deepEqual(sectionsOf(html), ['did', 'learned'], 'the fixtures: Lisbon\'s two sections, Porto and Siargao none');
 });
 
@@ -383,17 +448,20 @@ test('T4 the leaf, the words and the section read no clock; the section holds no
   assert.doesNotMatch(section, /\d{4}-\d{2}-\d{2}|Oct \d|Nov \d|Jul \d|days after|days before/, 'no retyped date, no typed gap');
   assert.doesNotMatch(section, /Beachwalk|better plans|Stop [0-9]/, 'nothing of the post typed here — the leaf and the words module hold every word');
   assert.doesNotMatch(section, /JUST_MISSED|JUST MISSED|NO_EVENT_LINE|No event|near_miss|missedPill|newestFirst|Newest first|relation/, 'WASHERE-03');
-  assert.match(section, /tripOrder\(rows\)\.map\(\(row, i\) => <Entry key=\{row\.id\} row=\{row\} stop=\{i \+ 1\} today=\{today\} \/>\)/, 'trip order, the stop number derived from it');
+  assert.match(section, /tripOrder\(rows\)\.map\(\(row, i\) => <Entry key=\{row\.id\} row=\{row\} costs=\{costsFor\(costs, row\.id\)\} stop=\{i \+ 1\} today=\{today\} \/>\)/, 'trip order, the stop number derived from it, its costs or a loud failure');
+  assert.match(section, /return <WasHereView rows=\{WAS_HERE\} costs=\{TRIP_COSTS\} today=\{today\} \/>;/, 'TRIPCARDS-01: the live rows and their costs');
+  assert.doesNotMatch(section, /not in my log yet|'n\/a'|\$\d|costsOf\(/, 'the cost words and every figure come from the words module and the costs leaf — no lookup that can come back empty');
+  assert.doesNotMatch(section, /onPill|WHAT_WAS_ON|data-was-here-pill|wasHereLabel/, 'TRIPCARDS-01: the pills and the old label left the cards');
   assert.doesNotMatch(section, /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u, 'no emoji');
   assert.doesNotMatch(section, /#[0-9a-fA-F]{3,8}\b/, 'zero new hex');
   assert.match(section, /loading="lazy"/);
-  assert.match(section, /rel="noopener" target="_blank"/);
+  assert.doesNotMatch(section, /target="_blank"/, 'no outside link on a card — the sources live on each stop\'s page (TRIPCARDS-01)');
   assert.doesNotMatch(code(LEAF), /\bimport\b|\brequire\(/, 'the leaf imports nothing');
 });
 
 // ── T5 · THE MOUNT, THE SEAT, THE EXPERIENCES WITHOUT featured ───────────────
 
-test('T5 Landing mounts the log once, after the experiences mount and before the guest strip; the act line says a card per stop (TRIPPOST-01); the seam ledger names it', () => {
+test('T5 Landing mounts the log once, after the experiences mount and before the guest strip; the act line says a card per stop, each opening its page (TRIPCARDS-01); the seam ledger names it', () => {
   const landing = code(LANDING);
   assert.equal((landing.match(/<WasHereSection today=\{today\}/g) ?? []).length, 1);
   const events = landing.indexOf('<ExperiencesSection today={today} />');
@@ -402,7 +470,7 @@ test('T5 Landing mounts the log once, after the experiences mount and before the
   assert.ok(events > -1 && mount > events && strip > mount, 'experiences → my trip → guest strip');
   assert.match(landing, /import WasHereSection from '\.\/WasHereSection';/);
   const notes = comments(LANDING);
-  assert.match(notes, /MY TRIP {13}— the trip log, a card per stop; a stop with a post opens its page \(TRIPPOST-01\)/);
+  assert.match(notes, /MY TRIP {13}— the trip log, a card per stop, each opening its stop's page \(TRIPCARDS-01\)/);
   assert.doesNotMatch(notes, /trip log, newest first|the trip log — Alex's own stops, newest first/, 'WASHERE-03');
   assert.match(notes, /my trip \| guest strip \/ plans → my trip's border-b \(WASHERE-01/);
   for (const phrase of [/THE PLANS\s+— four plan cards and one comparison table/, /id="modules" lives on THE PLANS act/, /said by the four plans below/]) assert.match(notes, phrase, 'cockpitPerf01\'s pins stand');

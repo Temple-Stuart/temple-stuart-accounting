@@ -16,9 +16,10 @@
  *   · dek is the line under the title;
  *   · short — THE SHORT VERSION — exactly { label, value } each;
  *   · lessons — WHAT I'D DO DIFFERENTLY — exactly { lead, rest } each;
- *   · costs — WHAT IT COST, after the stay (which the card carries) — exactly { what, detail,
- *     amountCents } each, amountCents integer cents or null: null is an amount that is not in
- *     his log, and the words say so (src/lib/tripPostWords.ts NOT_IN_LOG);
+ *   · costs — WHAT IT COST, after the stop's own three (stay, motorbike, flight in — every
+ *     stop's, in src/lib/tripCosts.ts; TRIPCARDS-01) — exactly { what, detail, amountCents }
+ *     each, amountCents integer cents or null: null is an amount that is not in his log, and
+ *     the words say so (src/lib/tripPostWords.ts NOT_IN_LOG);
  *   · costNote — the line under the costs;
  *   · weeks — THE MONTH, DAY BY DAY — exactly { title, days } each; a day is exactly { date,
  *     story, chips }, a chip exactly { kind, value }, kind one of TRIP_POST_CHIP_KINDS;
@@ -122,7 +123,6 @@ export const TRIP_POSTS: readonly TripPost[] = [
     ],
     costs: [
       { what: 'My next visa (Vietnam, for stop 2)', detail: 'Expedited, because I applied late · standard is $25', amountCents: 10000 },
-      { what: 'Scooter (Nmax)', detail: 'Nyoman Motorbike Rental · Jul 3–30', amountCents: null },
     ],
     costNote: 'These are the numbers in my log. The rest of the month’s spending isn’t in this post yet.',
     weeks: [

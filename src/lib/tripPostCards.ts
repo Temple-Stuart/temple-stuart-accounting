@@ -1,7 +1,8 @@
 /**
  * TRIPPOST-01 (Alex, 2026-11-05) — THE TRIP POST CARDS. What a stop's card on the guest
- * landing shows once Alex has written that stop up: the post's title, its one line, and
- * where he stayed with what it cost. One entry per post, keyed by its WAS_HERE stop id
+ * landing shows once Alex has written that stop up: the post's title and its one line
+ * (TRIPCARDS-01: what a stop cost — stay, motorbike, flight in — moved to
+ * src/lib/tripCosts.ts, a row for every stop). One entry per post, keyed by its WAS_HERE stop id
  * (src/lib/wasHere.ts). THIS FILE IS DATA AND PURE FUNCTIONS: no fetch, no env, no clock,
  * no React (the wasHere.ts rule). Zero imports: server- and client-safe.
  *
@@ -10,42 +11,29 @@
  * page's JavaScript. The post itself — the days, the lessons, the picks — lives in
  * tripPosts.ts and is read by the server page src/app/my-trip/[id]/page.tsx.
  *
- * THE SHAPE. Every entry is exactly { stopId, title, cardLine, stay }:
+ * THE SHAPE. Every entry is exactly { stopId, title, cardLine }:
  *   · stopId names a WAS_HERE row — the build checks it exists and that tripPosts.ts holds
  *     a post for every card and a card for every post;
  *   · title is the post's title (the page's h1 and the card's link); cardLine its one line
- *     on the card;
- *   · stay is exactly { name, area, amountCents } — where he stayed and what it cost, in
- *     integer cents, printed by the one money formatter (src/lib/books/functionalCurrency.ts).
+ *     on the card.
  *
  * THE LAW (module scope; re-run at build by scripts/assert-tool-registry.ts). It refuses by
- * name: an empty or duplicate stopId; an entry whose keys are not exactly the four; an empty
- * title or cardLine; a stay whose keys are not exactly the three; an empty stay name or area;
- * a stay amountCents that is not a positive safe integer.
+ * name: an empty or duplicate stopId; an entry whose keys are not exactly the three; an empty
+ * title or cardLine.
  */
-
-export interface TripPostStay {
-  name: string;
-  area: string;
-  /** Integer cents. */
-  amountCents: number;
-}
 
 export interface TripPostCard {
   /** A WAS_HERE id. */
   stopId: string;
   title: string;
   cardLine: string;
-  stay: TripPostStay;
 }
 
-/** The four keys every card carries, in the ruled order. */
-export const TRIP_POST_CARD_FIELDS = ['stopId', 'title', 'cardLine', 'stay'] as const;
-/** The three keys of a stay. */
-export const TRIP_POST_STAY_FIELDS = ['name', 'area', 'amountCents'] as const;
+/** The three keys every card carries, in the ruled order. */
+export const TRIP_POST_CARD_FIELDS = ['stopId', 'title', 'cardLine'] as const;
 
 export const TRIP_POST_CARDS: readonly TripPostCard[] = [
-  { stopId: 'canggu-2026-07', title: 'Thirty days in Canggu with no plan.', cardLine: 'Every day of it: where I ate, what I did, what it cost, and what I’d do differently.', stay: { name: 'The Daun', area: 'Canggu', amountCents: 70814 } },
+  { stopId: 'canggu-2026-07', title: 'Thirty days in Canggu with no plan.', cardLine: 'Every day of it: where I ate, what I did, what it cost, and what I’d do differently.' },
 ];
 
 export class TripPostCardsLawError extends Error {
@@ -64,21 +52,14 @@ export function tripPostCardsLaw(opts: { throwOnFail?: boolean; cards?: readonly
   const cards = opts.cards ?? TRIP_POST_CARDS;
   const ids = new Set<string>();
   const wantKeys = [...TRIP_POST_CARD_FIELDS].sort().join(',');
-  const wantStayKeys = [...TRIP_POST_STAY_FIELDS].sort().join(',');
   for (const card of cards) {
     const who = nonEmpty(card.stopId) ? card.stopId : '(no stopId)';
     if (!nonEmpty(card.stopId)) violations.push(`${who}: empty stopId`);
-    if (keysOf(card) !== wantKeys) violations.push(`${who}: keys are [${Object.keys(card).join(', ')}] — a card carries exactly the four ruled fields`);
+    if (keysOf(card) !== wantKeys) violations.push(`${who}: keys are [${Object.keys(card).join(', ')}] — a card carries exactly the three ruled fields`);
     if (ids.has(card.stopId)) violations.push(`${who}: duplicate stopId`);
     ids.add(card.stopId);
     if (!nonEmpty(card.title)) violations.push(`${who}: empty title`);
     if (!nonEmpty(card.cardLine)) violations.push(`${who}: empty cardLine`);
-    if (card.stay === null || typeof card.stay !== 'object') { violations.push(`${who}: stay is not an object`); continue; }
-    if (keysOf(card.stay) !== wantStayKeys) violations.push(`${who}: stay keys are [${Object.keys(card.stay).join(', ')}] — a stay carries exactly name, area, amountCents`);
-    if (!nonEmpty(card.stay.name)) violations.push(`${who}: empty stay name`);
-    if (!nonEmpty(card.stay.area)) violations.push(`${who}: empty stay area`);
-    const cents = card.stay.amountCents;
-    if (typeof cents !== 'number' || !Number.isSafeInteger(cents) || cents <= 0) violations.push(`${who}: stay amountCents ${JSON.stringify(cents)} is not a positive whole number of cents`);
   }
   if (violations.length && opts.throwOnFail !== false) throw new TripPostCardsLawError(`TRIP POST CARDS LAW failed:\n  ${violations.join('\n  ')}`);
   return violations;
