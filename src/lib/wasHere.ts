@@ -141,7 +141,10 @@ export const WAS_HERE: readonly WasHereRow[] = [
     { name: 'Post Malone — The BIG ASS Stadium World Tour', venue: 'Rajamangala National Stadium', area: 'Bangkok', start: '2026-09-22', end: '2026-09-22', status: 'postponed', sourceKind: 'secondary', sourceName: 'Time Out Bangkok', sourceUrl: 'https://www.timeout.com/bangkok/news/post-malone-bangkok-concert-postponed-082826', checkedOn: CHECKED, notes: 'Postponed indefinitely by Live Nation Tero on Aug 28; refunds through Oct 31' },
   ] },
   { id: 'phuket-2026-10', city: 'Phuket', country: 'Thailand', countryCode: 'TH', start: '2026-09-25', end: '2026-10-08', experienceId: null, line: null, image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
-  { id: 'chiangmai-2026-10', city: 'Chiang Mai', country: 'Thailand', countryCode: 'TH', start: '2026-10-08', end: '2026-10-21', experienceId: null, line: null, image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
+  { id: 'chiangmai-2026-10', city: 'Chiang Mai', country: 'Thailand', countryCode: 'TH', start: '2026-10-08', end: '2026-10-21', experienceId: null, line: null,
+    // TRIPPHOTO-04 (Alex, 2026-11-05): his photo of the stop — cropped to 3:2, metadata stripped.
+    image: { src: '/was-here/chiangmai-2026-10.jpg', alt: 'Sunset over the mountains behind Chiang Mai, rays of light breaking through the clouds above the city', credit: 'Photo: Alex Stuart' },
+    writtenOn: WRITTEN, did: [], learned: [], events: [] },
   { id: 'bangkok-2026-10-21', city: 'Bangkok', country: 'Thailand', countryCode: 'TH', start: '2026-10-21', end: '2026-10-22', experienceId: null, line: null, image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
   { id: 'siargao-2026', city: 'General Luna, Siargao', country: 'Philippines', countryCode: 'PH', start: '2026-10-22', end: null, experienceId: 'philippines-pro-2026', line: 'I landed in Siargao in the middle of the WSL by luck. Don\'t get lucky. Book around it.', image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
 ];
