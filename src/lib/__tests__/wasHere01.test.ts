@@ -14,7 +14,8 @@
  * WASHERE-04 (Alex, 2026-11-03) — privacy.
  * TRIPPHOTO-01 (Alex, 2026-11-05) — Canggu's photo, his own: on its card, inside the link
  * to its post, its credit under it. TRIPPHOTO-02 (2026-11-05) — Da Nang's: on its card,
- * not a link (no post yet); every other row's image stays null.
+ * not a link (no post yet). TRIPPHOTO-03 (2026-11-05) — the first Bangkok stop's, the same
+ * way; every other row's image stays null.
  * TRIPPOST-01 (Alex, 2026-11-05) — Canggu is written up: its two lists moved into its
  * post (src/lib/tripPosts.ts), its card carries the post block, its events live in the
  * post; the cards sit in a grid; the act line and MY_TRIP_LINE say so (tripPost01.test.ts
@@ -194,9 +195,10 @@ test('T2 seven rows in trip order; eight events; every stop\'s two lists empty �
   }
   // TRIPPHOTO-01 (2026-11-05): Canggu's photo is Alex's own; every other row's image is still null.
   assert.deepEqual(row('canggu-2026-07').image, { src: '/was-here/canggu-2026-07.jpg', alt: 'Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave', credit: 'Photo: Alex Stuart' });
-  // TRIPPHOTO-02 (2026-11-05): Da Nang's photo; the five stops after it still have none.
+  // TRIPPHOTO-02 (2026-11-05): Da Nang's photo; TRIPPHOTO-03: the first Bangkok stop's; the four stops after it still have none.
   assert.deepEqual(row('danang-2026-08').image, { src: '/was-here/danang-2026-08.jpg', alt: 'Da Nang\'s Dragon Bridge breathing fire at night, a crowd along the railing filming it, red lanterns under the bridge and the city lit up behind', credit: 'Photo: Alex Stuart' });
-  const WITH_PHOTO = ['canggu-2026-07', 'danang-2026-08'];
+  assert.deepEqual(row('bangkok-2026-09').image, { src: '/was-here/bangkok-2026-09.jpg', alt: 'A giant golden seated Buddha lit up at night in Bangkok, seen in profile against a dark sky with the moon beside it', credit: 'Photo: Alex Stuart' });
+  const WITH_PHOTO = ['canggu-2026-07', 'danang-2026-08', 'bangkok-2026-09'];
   assert.ok(WAS_HERE.every((r) => (WITH_PHOTO.includes(r.id) || r.image === null) && r.writtenOn === '2026-10-31'));
   assert.ok(WAS_HERE.every((r) => r.events.every((ev) => ev.checkedOn === '2026-10-31')));
   assert.deepEqual(row('siargao-2026'), SIARGAO, 'the Siargao row as built, plus the two empty lists');
@@ -214,7 +216,7 @@ test('T2 seven rows in trip order; eight events; every stop\'s two lists empty �
   const DIGESTS: Readonly<Record<string, string>> = {
     'canggu-2026-07': 'a3c1f5cec1a605f2452f5004aa75d365a3b482b8f114791d7b290e306e732f2c', // TRIPPOST-01: its two lists emptied; TRIPPHOTO-01: its photo
     'danang-2026-08': '001beae2dd068c38ca31c6bbbb091140945326cb8b32e8d0623d2292a133265b', // TRIPPHOTO-02: its photo
-    'bangkok-2026-09': 'be82cf93a3f8ac6d6769c042093beb97d2cd2809d3ee8f377a0418cf07da31ba',
+    'bangkok-2026-09': '597272349a6f21ffa4c8de6fab0507c0a790a3e61851794861bfc554187e1fd6', // TRIPPHOTO-03: its photo
     'phuket-2026-10': '45c7b76f005ef7809b793900f3ff77441ff7d841056a77f0f51edb11d7be8eb1',
     'chiangmai-2026-10': 'b64a2b2612c1432522f499f1bb5ae44453f94432309fddac147a4d8b2d3458fd',
     'bangkok-2026-10-21': 'c0cfd18bc154acf86d0bf540b98bd810cb6a81320d6d6f826bf353d02ed04058',
@@ -278,11 +280,13 @@ test('T4 rendered with the live rows: the h2 "Where I\'ve been."; seven cards Ca
   assert.deepEqual([...html.matchAll(/data-was-here="([^"]+)"/g)].map((m) => m[1]), TRIP);
   assert.deepEqual([...html.matchAll(/data-was-here-stop="(\d+)">([^<]*)</g)].map((m) => [m[1], m[2]]), [['1', 'Stop 1'], ['2', 'Stop 2'], ['3', 'Stop 3'], ['4', 'Stop 4'], ['5', 'Stop 5'], ['6', 'Stop 6'], ['7', 'Stop 7']]);
   // TRIPPHOTO-01 (2026-11-05): one photo — Canggu's, inside a link to its post that stays out of the tab order, its credit under it.
-  assert.equal((html.match(/<img /g) ?? []).length, 2, 'two photos on the act — Canggu and Da Nang (TRIPPHOTO-02)');
+  assert.equal((html.match(/<img /g) ?? []).length, 3, 'three photos on the act — Canggu, Da Nang (TRIPPHOTO-02) and the first Bangkok stop (TRIPPHOTO-03)');
   assert.match(cardOf(html, 'canggu-2026-07'), /<figure><a href="\/my-trip\/canggu-2026-07" tabindex="-1" aria-hidden="true"><img src="\/was-here\/canggu-2026-07\.jpg" alt="Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><\/a><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
   // TRIPPHOTO-02: Da Nang has no post, so its photo is not a link — the figure holds the <img> itself, the credit under it.
   assert.match(cardOf(html, 'danang-2026-08'), /<figure><img src="\/was-here\/danang-2026-08\.jpg" alt="Da Nang&#x27;s Dragon Bridge breathing fire at night, a crowd along the railing filming it, red lanterns under the bridge and the city lit up behind" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
-  for (const id of TRIP.filter((t) => t !== 'canggu-2026-07' && t !== 'danang-2026-08')) assert.doesNotMatch(cardOf(html, id), /<img|<figure/, `${id}: no photo yet`);
+  // TRIPPHOTO-03: the first Bangkok stop has no post either — its figure holds the <img> itself.
+  assert.match(cardOf(html, 'bangkok-2026-09'), /<figure><img src="\/was-here\/bangkok-2026-09\.jpg" alt="A giant golden seated Buddha lit up at night in Bangkok, seen in profile against a dark sky with the moon beside it" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
+  for (const id of TRIP.filter((t) => !['canggu-2026-07', 'danang-2026-08', 'bangkok-2026-09'].includes(t))) assert.doesNotMatch(cardOf(html, id), /<img|<figure/, `${id}: no photo yet`);
   const canggu = cardOf(html, 'canggu-2026-07');
   assert.match(canggu, /data-was-here-label="true">I WAS HERE</);
   assert.match(canggu, />Canggu, Bali, Indonesia</);
