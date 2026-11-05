@@ -140,7 +140,10 @@ export const WAS_HERE: readonly WasHereRow[] = [
     { name: 'ONE Fight Night 47: Stamp vs Flores', venue: 'Lumpinee Boxing Stadium', area: 'Bangkok', start: '2026-09-05', end: '2026-09-05', status: 'took_place', sourceKind: 'official', sourceName: 'ONE Championship', sourceUrl: 'https://www.onefc.com/news/stamp-edges-out-flores-in-fiery-main-event-muay-thai-war-at-one-fight-night-47/', checkedOn: CHECKED, notes: 'Stamp Fairtex beat Selina Flores by split decision' },
     { name: 'Post Malone — The BIG ASS Stadium World Tour', venue: 'Rajamangala National Stadium', area: 'Bangkok', start: '2026-09-22', end: '2026-09-22', status: 'postponed', sourceKind: 'secondary', sourceName: 'Time Out Bangkok', sourceUrl: 'https://www.timeout.com/bangkok/news/post-malone-bangkok-concert-postponed-082826', checkedOn: CHECKED, notes: 'Postponed indefinitely by Live Nation Tero on Aug 28; refunds through Oct 31' },
   ] },
-  { id: 'phuket-2026-10', city: 'Phuket', country: 'Thailand', countryCode: 'TH', start: '2026-09-25', end: '2026-10-08', experienceId: null, line: null, image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
+  { id: 'phuket-2026-10', city: 'Phuket', country: 'Thailand', countryCode: 'TH', start: '2026-09-25', end: '2026-10-08', experienceId: null, line: null,
+    // TRIPPHOTO-05 (Alex, 2026-11-05): his photo of the stop — cropped to 3:2, metadata stripped.
+    image: { src: '/was-here/phuket-2026-10.jpg', alt: 'A shaded dirt path with a rope fence above a turquoise cove in Phuket, green hills around the bay', credit: 'Photo: Alex Stuart' },
+    writtenOn: WRITTEN, did: [], learned: [], events: [] },
   { id: 'chiangmai-2026-10', city: 'Chiang Mai', country: 'Thailand', countryCode: 'TH', start: '2026-10-08', end: '2026-10-21', experienceId: null, line: null,
     // TRIPPHOTO-04 (Alex, 2026-11-05): his photo of the stop — cropped to 3:2, metadata stripped.
     image: { src: '/was-here/chiangmai-2026-10.jpg', alt: 'Sunset over the mountains behind Chiang Mai, rays of light breaking through the clouds above the city', credit: 'Photo: Alex Stuart' },
