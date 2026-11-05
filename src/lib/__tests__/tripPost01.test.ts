@@ -242,7 +242,8 @@ test('T3 the weekdays by arithmetic, the short day, and every line the post and 
   assert.deepEqual(stopCostRows(costsFor('pererenan-2026-12')).map((r) => r.amount), ['$285.90', NOT_IN_LOG, NOT_IN_LOG]);
   assert.equal(NOT_IN_LOG, 'not in my log yet');
   assert.equal(NOT_APPLICABLE, 'n/a');
-  assert.equal(unwrittenLine(rowOf('cebu-2026-11')), 'Coming up — booked as of Nov 5, 2026. I haven’t been here yet.');
+  assert.equal(unwrittenLine(rowOf('cebu-2026-11')), 'Coming up — booked as of Nov 5, 2026. I haven’t stayed here yet.', 'TRIPPHOTO-08: "stayed" — he spent days at Uluwatu and Pererenan from Canggu');
+  assert.equal(unwrittenLine(rowOf('uluwatu-2026-11')), 'Coming up — booked as of Nov 5, 2026. I haven’t stayed here yet.');
   assert.equal(unwrittenLine(rowOf('danang-2026-08')), 'I haven’t written this stop up yet.');
   assert.equal(dayLabel('2026-07-01'), 'Wed Jul 1');
   assert.equal(weekEyebrow(1, POST.weeks[0]), 'Week 1 · Jul 1–7, 2026');
@@ -328,8 +329,11 @@ test('T4 a stop not written up yet: the place as the h1, the dates, the line tha
   for (const section of ['short', 'differently', 'days', 'picks', 'written', 'line', 'event', 'did', 'learned']) assert.doesNotMatch(danang, new RegExp(`data-trip-post-section="${section}"`), `no ${section} before he writes it`);
   assert.match(danang, /<a href="\/#demo" class="[^"]*">Book the stay and the flight<\/a>/);
   const cebu = render('cebu-2026-11');
-  assert.ok(cebu.includes('data-trip-post-unwritten="true">Coming up — booked as of Nov 5, 2026. I haven’t been here yet.<'));
-  assert.doesNotMatch(cebu, /<img|data-trip-post-section="on"/, 'booked ahead: no photo, no events yet');
+  assert.ok(cebu.includes('data-trip-post-unwritten="true">Coming up — booked as of Nov 5, 2026. I haven’t stayed here yet.<'));
+  assert.doesNotMatch(cebu, /<img|data-trip-post-section="on"/, 'booked ahead: no photo yet, no events yet');
+  // TRIPPHOTO-08 / 09 (2026-11-06): Uluwatu's and Pererenan's pages carry his photos from his days there.
+  assert.match(render('uluwatu-2026-11'), /<figure class="[^"]*" data-trip-post-section="photo"><img src="\/was-here\/uluwatu-2026-11\.jpg"/);
+  assert.match(render('pererenan-2026-12'), /<figure class="[^"]*" data-trip-post-section="photo"><img src="\/was-here\/pererenan-2026-12\.jpg"/);
   assert.ok(cebu.includes('>The Noble Cebu<') && cebu.includes('>not in my log yet<'));
   // TRIPCARDS-01 (Alex, 2026-11-05): Siargao's event block and Alex's line left its card for this page — the booking band below them.
   const siargao = render('siargao-2026');
@@ -386,7 +390,7 @@ test('T5 the route: static params for every stop, dynamicParams = false; \'/my-t
 
 test('T6 the cards: a grid; every card the stop and what it cost — place, dates, stop, the three costs, "Read the post →" to its page — and nothing of the post, the event or the line; the section imports no post, no card leaf and no event', () => {
   const home = renderToStaticMarkup(React.createElement(WasHereView, { rows: WAS_HERE, costs: TRIP_COSTS, today: TODAY }));
-  assert.match(home, /class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"/);
+  assert.match(home, /<div class="[^"]*\boverflow-x-auto\b[^"]*" data-was-here-rail="true">/, 'TRIPCARDS-01 (2026-11-06): one row that scrolls sideways');
   assert.equal(MY_TRIP_LINE, "Stop by stop, dated, with the whole story where I've written it up.");
   assert.equal(READ_THE_POST, 'Read the post →');
   const cardHtml = (id: string) => { const at = home.indexOf(`data-was-here="${id}"`); const next = home.indexOf('data-was-here="', at + 1); return home.slice(at, next < 0 ? undefined : next); };

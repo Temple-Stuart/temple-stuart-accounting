@@ -8,10 +8,14 @@
  * WHY. The "I'm into…" filter serves the reader; "I was here" is Alex's own trip.
  * The card that EVENTS-01 featured inside the experiences left that section and is
  * an entry here — an act built to take many entries and a photo each as Alex adds
- * them. WASHERE-03: the log reads top-down in trip order. WASHERE-04 (Alex,
- * 2026-11-03): privacy. TRIPPOST-01 (Alex, 2026-11-05): the cards sit in a grid — one
- * column, two from sm, three from lg — and a stop opens its own page (/my-trip/<id>,
- * src/app/my-trip/[id]).
+ * them. WASHERE-03: the log reads in trip order. WASHERE-04 (Alex, 2026-11-03):
+ * privacy. TRIPPOST-01 (Alex, 2026-11-05): a stop opens its own page (/my-trip/<id>,
+ * src/app/my-trip/[id]). TRIPCARDS-01 (Alex, 2026-11-06): the cards sit in ONE row that
+ * scrolls sideways — "horizontal scroll cards rather than horizontal on screen and vertical
+ * stack what doesn't fit" — each card one fixed width, snapping to its start; the row runs to
+ * the act's edges and the page itself never scrolls sideways. The row's scrollbar is drawn
+ * (a thin lavender thumb) so a mouse sees there is more; keys reach every card through its
+ * links, and the browser scrolls each into view.
  *
  * TRIPCARDS-01 (Alex, 2026-11-05): "all i care to show on the card is destination, stay / bike /
  * and flight in". Every card is that and the door to its stop's page — the stops he has booked
@@ -39,7 +43,7 @@
  * THE DAY RULE: `today` is the UTC calendar date src/app/page.tsx computed ONCE and
  * passed down; nothing here reads the clock. PAINT: house tokens only, zero new hex
  * — the cream act with white cards and the lavender hairline (the DONE-FOR-YOU
- * idiom), the eyebrow in the mono faint voice. Cards stack; nothing scrolls sideways.
+ * idiom), the eyebrow in the mono faint voice. One row of cards; only the row scrolls sideways.
  * No emoji, no countdown, no urgency words.
  */
 
@@ -64,16 +68,19 @@ const TRIP = {
   eyebrow: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
   h2: 'mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',
   sub: 'mt-2 text-sm text-text-secondary',
-  // TRIPPOST-01: a grid — one column, two from sm, three from lg.
-  list: 'mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
-  card: 'rounded-lg border border-border bg-white p-5',
+  // TRIPCARDS-01 (2026-11-06): one row that scrolls sideways, edge to edge of the act's box —
+  // the negative margin meets the inner padding, so the page never scrolls; the thumb is drawn.
+  list: '-mx-4 mt-6 flex snap-x snap-proximity gap-4 overflow-x-auto scroll-px-4 px-4 pb-3 lg:-mx-8 lg:scroll-px-8 lg:px-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent',
+  // One width, snapping to its start; a column, so the row's cards share one height and every link sits on the bottom edge.
+  card: 'w-[21rem] shrink-0 snap-start flex flex-col rounded-lg border border-border bg-white p-5',
   image: 'aspect-[3/2] w-full rounded object-cover',
   credit: 'mt-1 font-mono text-[10px] text-text-faint',
   label: 'mt-4 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-brand-purple',
   place: 'mt-1 text-lg font-semibold text-text-primary',
   stay: 'mt-1 font-mono text-xs text-text-secondary',
   stop: 'mt-1 font-mono text-xs text-text-faint',
-  link: 'mt-4 inline-flex min-h-[44px] items-center border border-brand-purple/40 px-5 text-sm font-medium text-brand-purple hover:bg-brand-purple-wash',
+  foot: 'mt-auto pt-4',
+  link: 'inline-flex min-h-[44px] items-center border border-brand-purple/40 px-5 text-sm font-medium text-brand-purple hover:bg-brand-purple-wash',
   // TRIPCARDS-01: what it cost — a label column in the mono faint voice; beside it the name and
   // the amount on ONE line (the name may end in "…", the amount never shrinks).
   costs: 'mt-4 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5',
@@ -129,7 +136,9 @@ function Entry({ row, costs, stop, today }: { row: WasHereRow; costs: TripCosts;
       <p className={TRIP.stay} data-was-here-stay>{stayWords(row)}</p>
       <p className={TRIP.stop} data-was-here-stop={stop}>{stopWords(stop)}</p>
       <Costs costs={costs} />
-      <a href={href} className={TRIP.link} data-was-here-post-link>{READ_THE_POST}</a>
+      <div className={TRIP.foot}>
+        <a href={href} className={TRIP.link} data-was-here-post-link>{READ_THE_POST}</a>
+      </div>
     </article>
   );
 }
@@ -142,7 +151,7 @@ export function WasHereView({ rows, costs, today }: { rows: readonly WasHereRow[
         <p className={TRIP.eyebrow}>{MY_TRIP_EYEBROW}</p>
         <h2 className={TRIP.h2}>{MY_TRIP_HEADLINE}</h2>
         <p className={TRIP.sub}>{MY_TRIP_LINE}</p>
-        <div className={TRIP.list}>
+        <div className={TRIP.list} data-was-here-rail>
           {tripOrder(rows).map((row, i) => <Entry key={row.id} row={row} costs={costsFor(costs, row.id)} stop={i + 1} today={today} />)}
         </div>
       </div>

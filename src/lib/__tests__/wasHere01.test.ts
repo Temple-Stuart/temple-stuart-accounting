@@ -29,7 +29,9 @@
  * title and line, Alex's line, the event block, DID / LEARNED, the pills and the booking link
  * all live on the stop's page (tripPost01.test.ts). Siargao's stay closes Nov 13 and the three
  * stops booked ahead join — Cebu, Uluwatu, Pererenan — each with nothing in did or learned (a
- * planned stop, the law).
+ * planned stop, the law). TRIPCARDS-01 (Alex, 2026-11-06): the cards sit in ONE row that
+ * scrolls sideways. TRIPPHOTO-08 / 09 (Alex, 2026-11-06): Uluwatu's and Pererenan's photos, his
+ * own from days there during the Canggu stay; Cebu has none yet.
  *
  *   T1 the law — every refusal by name over injected rows and events; the deleted
  *      refusals named absent; the live rows pass;
@@ -41,8 +43,8 @@
  *      every day of the trip), the stay, tripOrder, stopWords, listWords, stopEventLine for
  *      every status × sourceKind, onPill, the three ruled pills from the live rows;
  *   T4 the section, rendered — the h2 "Where I've been, and where I'm going."
- *      (TRIPCARDS-01); ten cards Canggu → Pererenan in a grid with Stop 1 … Stop 10, seven
- *      photos each inside the link to its stop's page, every card's three costs (one line each,
+ *      (TRIPCARDS-01); ten cards Canggu → Pererenan in one sideways row with Stop 1 … Stop
+ *      10, nine photos each inside the link to its stop's page, every card's three costs (one line each,
  *      the name's whole words in its title) and its "Read the post →", and nothing else — on the
  *      live rows and on fixtures that hold a line, two lists, an event and a stop's event; a
  *      stop with no costs row fails loud; no "No event" / JUST MISSED text anywhere, no clock;
@@ -79,6 +81,8 @@ const TRIP = ['canggu-2026-07', 'danang-2026-08', 'bangkok-2026-09', 'phuket-202
 /** TRIPCARDS-01 (2026-11-05): the stops booked ahead — no photo, no events, nothing in did or learned yet. */
 const BOOKED = ['cebu-2026-11', 'uluwatu-2026-11', 'pererenan-2026-12'];
 const LIVED = TRIP.filter((id) => !BOOKED.includes(id));
+/** TRIPPHOTO-08 / 09: every stop but Cebu has its photo — Uluwatu and Pererenan from his days there during the Canggu stay. */
+const WITH_PHOTO = TRIP.filter((id) => id !== 'cebu-2026-11');
 
 const row = (id: string): WasHereRow => {
   const found = WAS_HERE.find((r) => r.id === id);
@@ -242,12 +246,15 @@ test('T2 ten rows in trip order, the three booked ahead last (TRIPCARDS-01); eig
   assert.deepEqual(row('phuket-2026-10').image, { src: '/was-here/phuket-2026-10.jpg', alt: 'A shaded dirt path with a rope fence above a turquoise cove in Phuket, green hills around the bay', credit: 'Photo: Alex Stuart' });
   assert.deepEqual(row('bangkok-2026-10-21').image, { src: '/was-here/bangkok-2026-10-21.jpg', alt: 'Wat Arun lit gold at night at the end of a Bangkok street, a cyclist riding toward it', credit: 'Photo: Alex Stuart' });
   assert.deepEqual(row('siargao-2026').image, { src: '/was-here/siargao-2026.jpg', alt: 'A surfer paddling beside an outrigger boat off Siargao, the island and a breaking reef on the horizon', credit: 'Photo: Alex Stuart' });
-  assert.deepEqual(TRIP.filter((id) => row(id).image !== null), LIVED, 'a photo for every stop he has been to; none yet for the three booked ahead');
+  assert.deepEqual(TRIP.filter((id) => row(id).image !== null), WITH_PHOTO, 'a photo for every stop he has been to, and for Uluwatu and Pererenan from his days there (TRIPPHOTO-08 / 09); none yet for Cebu');
+  assert.deepEqual(LIVED.filter((id) => row(id).image === null), [], 'every stop he has stayed at has its photo');
+  assert.deepEqual(row('uluwatu-2026-11').image, { src: '/was-here/uluwatu-2026-11.jpg', alt: 'A dirt road on the cliffs at Uluwatu, a scooter heading down it toward the sea, a hand-painted parking sign in the scrub and waves breaking on the reef', credit: 'Photo: Alex Stuart' });
+  assert.deepEqual(row('pererenan-2026-12').image, { src: '/was-here/pererenan-2026-12.jpg', alt: 'Sunset over Pererenan Beach, people walking along the sand and the rocks, a beach bar under the palms', credit: 'Photo: Alex Stuart' });
   assert.deepEqual(WAS_HERE.map((r) => [r.id, r.writtenOn]), TRIP.map((id) => [id, BOOKED.includes(id) ? '2026-11-05' : '2026-10-31']), 'TRIPCARDS-01: the booked-ahead stops were entered on Nov 5');
   assert.ok(WAS_HERE.every((r) => r.events.every((ev) => ev.checkedOn === '2026-10-31')));
   // TRIPCARDS-01: a planned stop is one whose start is after its writtenOn — exactly the three, each with nothing lived yet.
   assert.deepEqual(WAS_HERE.filter((r) => r.start > r.writtenOn).map((r) => r.id), BOOKED);
-  for (const id of BOOKED) assert.ok(row(id).image === null && row(id).events.length === 0 && row(id).line === null && row(id).experienceId === null, `${id}: booked ahead — no photo, no events, no line yet`);
+  for (const id of BOOKED) assert.ok(row(id).events.length === 0 && row(id).line === null && row(id).experienceId === null, `${id}: booked ahead — no events, no line yet`);
   assert.deepEqual(WAS_HERE.filter((r) => r.end === null), [], 'TRIPCARDS-01: every stop has its end — which one is current is the server\'s day to say (stopStatus)');
   assert.deepEqual(row('siargao-2026'), { ...SIARGAO, end: '2026-11-13', image: row('siargao-2026').image }, 'the Siargao row as built, plus the two empty lists and its photo (TRIPPHOTO-07); its stay closes Nov 13, the day the flight to Cebu leaves (TRIPCARDS-01)');
   const ordered = tripOrder(WAS_HERE);
@@ -271,8 +278,8 @@ test('T2 ten rows in trip order, the three booked ahead last (TRIPCARDS-01); eig
     'bangkok-2026-10-21': '6fc949f32caca8e35ffa1cd30cde2edebca2cd7e8a4d157e0f4bf2945b76407b', // TRIPPHOTO-06: its photo
     'siargao-2026': '4cf5de0291bf7ac5d65dfe36d8576367ede4874e283e3192e11c3837ad956343', // TRIPPHOTO-07: its photo; TRIPCARDS-01: its end, Nov 13
     'cebu-2026-11': '33891cfe1120c18a40aa9ce242884ec5664ff5b7626e9245b509ba13124ed97d', // TRIPCARDS-01: booked ahead
-    'uluwatu-2026-11': 'c82b2ec2e0b27ba7af1601f658d2104d2e3c2a6a641bdb168036348e51ff2020', // TRIPCARDS-01: booked ahead
-    'pererenan-2026-12': '266ddfa98ac6c89a4fd302b1981ccbc70e694682f6f319960b444fea4e91fe71', // TRIPCARDS-01: booked ahead
+    'uluwatu-2026-11': '7e75966cddcd231d3f10b5fc21b49b54e8a4defaf82566f5831e5d4d7861df3d', // TRIPCARDS-01: booked ahead; TRIPPHOTO-08: its photo
+    'pererenan-2026-12': '70697d4b9cc46a3076bdebeedf4cb9786d6d7d7c74c8b8c2739be532ec0df748', // TRIPCARDS-01: booked ahead; TRIPPHOTO-09: its photo
   };
   assert.deepEqual(Object.keys(DIGESTS), TRIP);
   for (const r of WAS_HERE) assert.equal(createHash('sha256').update(JSON.stringify(r)).digest('hex'), DIGESTS[r.id], `${r.id}: byte for byte`);
@@ -334,7 +341,7 @@ test('T3 stopEventLine for every status × sourceKind; onPill with the area when
 
 // ── T4 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T4 rendered with the live rows: the h2 "Where I\'ve been, and where I\'m going." (TRIPCARDS-01); ten cards Canggu → Pererenan in a grid, Stop 1 … Stop 10; seven photos, each inside the link to its stop\'s page; every card\'s three costs on one line each and its "Read the post →"; no label once he has left — and nothing else on any card: no post block, no event block, no line, no pills, no sections, no strip link', () => {
+test('T4 rendered with the live rows: the h2 "Where I\'ve been, and where I\'m going." (TRIPCARDS-01); ten cards Canggu → Pererenan in one row that scrolls sideways, Stop 1 … Stop 10; nine photos, each inside the link to its stop\'s page; every card\'s three costs on one line each and its "Read the post →"; no label once he has left — and nothing else on any card: no post block, no event block, no line, no pills, no sections, no strip link', () => {
   const html = render();
   assert.equal(MY_TRIP_ANCHOR, 'my-trip');
   assert.match(html, /<section id="my-trip" aria-label="My trip"/);
@@ -342,18 +349,24 @@ test('T4 rendered with the live rows: the h2 "Where I\'ve been, and where I\'m g
   assert.equal(MY_TRIP_HEADLINE, "Where I've been, and where I'm going."); // TRIPCARDS-01 (2026-11-05): the stops booked ahead join.
   assert.match(html, /<h2 class="[^"]*">Where I&#x27;ve been, and where I&#x27;m going\.<\/h2><p class="[^"]*">Stop by stop, dated, with the whole story where I&#x27;ve written it up\.<\/p>/);
   assert.ok(html.includes(MY_TRIP_EYEBROW) && html.includes(asHtml(MY_TRIP_HEADLINE)) && html.includes(asHtml(MY_TRIP_LINE)));
-  assert.match(html, /class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"/, 'TRIPPOST-01: the cards sit in a grid — one column, two from sm, three from lg');
+  // TRIPCARDS-01 (Alex, 2026-11-06): "horizontal scroll cards" — one row, each card one width, snapping; the row meets the act's edges and only it scrolls.
+  const rail = /<div class="([^"]*)" data-was-here-rail="true">/.exec(html);
+  assert.ok(rail, 'the row is drawn');
+  for (const cls of ['flex', 'overflow-x-auto', 'snap-x', 'snap-proximity', 'gap-4', '-mx-4', 'px-4', 'scroll-px-4', 'lg:-mx-8', 'lg:px-8', 'lg:scroll-px-8', '[&::-webkit-scrollbar]:h-2', '[&::-webkit-scrollbar-thumb]:bg-border']) assert.ok(rail[1].replace(/&amp;/g, '&').split(' ').includes(cls), `the row carries ${cls}`);
+  assert.doesNotMatch(html, /sm:grid-cols-2|lg:grid-cols-3|flex-wrap/, 'no grid of cards and no wrapping — one row');
+  assert.ok(!rail[1].split(' ').includes('grid'), 'the row is a flex row, not a grid');
+  for (const id of TRIP) assert.match(html, new RegExp(`<article class="w-\\[21rem\\] shrink-0 snap-start flex flex-col [^"]*" data-was-here="${id}"`), `${id}: one width, snapping to its start, a column`);
   assert.doesNotMatch(html, /Newest first/);
   assert.deepEqual([...html.matchAll(/data-was-here="([^"]+)"/g)].map((m) => m[1]), TRIP);
   assert.deepEqual([...html.matchAll(/data-was-here-stop="(\d+)">([^<]*)</g)].map((m) => [m[1], m[2]]), TRIP.map((_, i) => [String(i + 1), `Stop ${i + 1}`]));
   // TRIPPHOTO-01 … 07; TRIPCARDS-01: every photo inside a link to its stop's page that stays out of the tab order, its credit under it.
-  assert.equal((html.match(/<img /g) ?? []).length, 7, 'seven photos on the act — every stop he has been to');
-  for (const id of LIVED) {
+  assert.equal((html.match(/<img /g) ?? []).length, 9, 'nine photos on the act — every stop but Cebu (TRIPPHOTO-01 … 09)');
+  for (const id of WITH_PHOTO) {
     const image = row(id).image!;
     assert.match(cardOf(html, id), new RegExp(`<figure><a href="/my-trip/${id}" tabindex="-1" aria-hidden="true"><img src="${esc(image.src)}" alt="${esc(asHtml(image.alt))}" loading="lazy" class="aspect-\\[3/2\\] w-full rounded object-cover"/></a><figcaption class="[^"]*">Photo: Alex Stuart</figcaption></figure>`), `${id}: its photo opens its page`);
   }
-  assert.deepEqual(TRIP.filter((id) => !/<img /.test(cardOf(html, id))), BOOKED, 'the three booked ahead have no photo yet');
-  for (const id of BOOKED) assert.doesNotMatch(cardOf(html, id), /<figure|<img/, `${id}: no placeholder box while its image is null`);
+  assert.deepEqual(TRIP.filter((id) => !/<img /.test(cardOf(html, id))), ['cebu-2026-11'], 'only Cebu has no photo yet');
+  assert.doesNotMatch(cardOf(html, 'cebu-2026-11'), /<figure|<img/, 'no placeholder box while its image is null');
   // TRIPCARDS-01 (Alex, 2026-11-05): every card in the Canggu card's shape — its three costs, then "Read the post →" to its page.
   for (const id of TRIP) {
     const card = cardOf(html, id);
@@ -395,7 +408,7 @@ test('T4 rendered with the live rows: the h2 "Where I\'ve been, and where I\'m g
     const card = cardOf(html, id);
     const parts = [...card.matchAll(/data-was-here-(label|stay|stop|costs|post-link)=/g)].map((m) => m[1]);
     assert.deepEqual(parts, [...(['siargao-2026', ...BOOKED].includes(id) ? ['label'] : []), 'stay', 'stop', 'costs', 'post-link'], `${id}: the stop and what it cost, nothing else`);
-    assert.match(card, /data-was-here-post-link="true">Read the post →<\/a><\/article>/, `${id}: the link closes the card`);
+    assert.match(card, /<div class="mt-auto pt-4"><a href="[^"]*" class="[^"]*" data-was-here-post-link="true">Read the post →<\/a><\/div><\/article>/, `${id}: the link closes the card, on its bottom edge`);
   }
   for (const [id, place, stay, n] of [['cebu-2026-11', 'Cebu, Philippines', 'Nov 13–20, 2026', 8], ['uluwatu-2026-11', 'Uluwatu, Bali, Indonesia', 'Nov 20 – Dec 1, 2026', 9], ['pererenan-2026-12', 'Pererenan Beach, Bali, Indonesia', 'Dec 1–11, 2026', 10]] as const) {
     const card = cardOf(html, id);
