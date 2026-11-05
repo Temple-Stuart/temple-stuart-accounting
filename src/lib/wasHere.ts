@@ -148,7 +148,10 @@ export const WAS_HERE: readonly WasHereRow[] = [
     // TRIPPHOTO-04 (Alex, 2026-11-05): his photo of the stop — cropped to 3:2, metadata stripped.
     image: { src: '/was-here/chiangmai-2026-10.jpg', alt: 'Sunset over the mountains behind Chiang Mai, rays of light breaking through the clouds above the city', credit: 'Photo: Alex Stuart' },
     writtenOn: WRITTEN, did: [], learned: [], events: [] },
-  { id: 'bangkok-2026-10-21', city: 'Bangkok', country: 'Thailand', countryCode: 'TH', start: '2026-10-21', end: '2026-10-22', experienceId: null, line: null, image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
+  { id: 'bangkok-2026-10-21', city: 'Bangkok', country: 'Thailand', countryCode: 'TH', start: '2026-10-21', end: '2026-10-22', experienceId: null, line: null,
+    // TRIPPHOTO-06 (Alex, 2026-11-05): his photo of the stop — cropped to 3:2, strangers' number plates blurred, metadata stripped.
+    image: { src: '/was-here/bangkok-2026-10-21.jpg', alt: 'Wat Arun lit gold at night at the end of a Bangkok street, a cyclist riding toward it', credit: 'Photo: Alex Stuart' },
+    writtenOn: WRITTEN, did: [], learned: [], events: [] },
   { id: 'siargao-2026', city: 'General Luna, Siargao', country: 'Philippines', countryCode: 'PH', start: '2026-10-22', end: null, experienceId: 'philippines-pro-2026', line: 'I landed in Siargao in the middle of the WSL by luck. Don\'t get lucky. Book around it.', image: null, writtenOn: WRITTEN, did: [], learned: [], events: [] },
 ];
 
