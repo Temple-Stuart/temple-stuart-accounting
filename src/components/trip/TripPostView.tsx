@@ -2,35 +2,40 @@
  * TripPostView (TRIPPOST-01, Alex, 2026-11-05) — one stop's page, the body of
  * /my-trip/<stop id> (src/app/my-trip/[id]/page.tsx). PURE and server-safe: props in, markup
  * out — no 'use client', no state, no effect, no fetch; the tests render it. Every word of the
- * post comes from src/lib/tripPosts.ts and its card from src/lib/tripPostCards.ts through
- * src/lib/tripPostWords.ts; every word of the stop and its events from src/lib/wasHere.ts
- * through src/lib/wasHereWords.ts; what it cost from src/lib/tripCosts.ts — never typed here,
- * the section headings aside.
+ * post comes from src/lib/tripPosts.ts through src/lib/tripPostWords.ts; every word of the stop
+ * and its events from src/lib/wasHere.ts through src/lib/wasHereWords.ts; the event it was
+ * around from src/lib/experiences.ts through src/lib/experienceWords.ts; what it cost from
+ * src/lib/tripCosts.ts — never typed here, the section headings aside.
  *
- * TRIPCARDS-01 (Alex, 2026-11-05): EVERY stop has this page. Two kinds, by whether the stop is
- * written up (a card and a post in the leaves — the build holds them together):
+ * TRIPCARDS-01 (Alex, 2026-11-05): EVERY stop has this page, and it holds everything about the
+ * stop that its card does not (the card is the stop and what it cost). Two kinds, by whether the
+ * stop is written up (a post in tripPosts.ts):
  *   · WRITTEN — the post's title as the h1, its dek, the place and dates; the short version, what
  *     he'd do differently, what it cost (the stop's three, then the post's own), the month day by
  *     day, what was on, his picks, the band, the day it was written;
  *   · NOT WRITTEN YET — the place as the h1, the dates, the line that says which (booked ahead,
  *     or lived and not yet written); what it cost (the stop's three), what was on, the band.
+ * Either kind also carries, when the stop holds them: Alex's line, the event the stop was around
+ * (its block, as the card once drew it — the window's words with no day in them, so the static
+ * page never goes stale), and DID / LEARNED.
  *
  * TOP TO BOTTOM: the back link; the eyebrow, the title, the dek, the meta; the stop's photo when
- * it has one (WasHereSection's figure — no placeholder while it is null); THE SHORT VERSION;
- * WHAT I'D DO DIFFERENTLY; WHAT IT COST; THE MONTH, DAY BY DAY — one native <details> per week,
- * the first open and the rest closed, no state and no script (Tailwind's group-open swaps
- * Open / Close); WHAT WAS ON WHILE I WAS THERE — the stop's own events, each linking its source
- * (none, no section); MY PICKS; the closing band, its button the hero's money-action gold
- * (Landing.tsx:2100); the day it was written.
+ * it has one (WasHereSection's figure — no placeholder while it is null); Alex's line; the event;
+ * DID; LEARNED; THE SHORT VERSION; WHAT I'D DO DIFFERENTLY; WHAT IT COST; THE MONTH, DAY BY DAY —
+ * one native <details> per week, the first open and the rest closed, no state and no script
+ * (Tailwind's group-open swaps Open / Close); WHAT WAS ON WHILE I WAS THERE — the stop's own
+ * events, each linking its source (none, no section); MY PICKS; the closing band, its button the
+ * hero's money-action gold (Landing.tsx:2100); the day it was written.
  *
  * PAINT: house tokens only, zero new hex, no new font — WasHereSection's TRIP grammar. 44px tap
  * targets. Nothing scrolls sideways at 390px. No emoji, no clock.
  */
 
 import type { WasHereRow } from '@/lib/wasHere';
-import type { TripPostCard } from '@/lib/tripPostCards';
 import type { TripPost } from '@/lib/tripPosts';
 import type { TripCosts } from '@/lib/tripCosts';
+import { experienceCategoryLabel, type Experience } from '@/lib/experiences';
+import { experienceWindowLine } from '@/lib/experienceWords';
 import { listWords, onPill, stayWords } from '@/lib/wasHereWords';
 import { UNWRITTEN_COST_NOTE, bookLine, chipLabel, costRows, dayLabel, postEyebrow, postMeta, stopHeading, unwrittenLine, weekCount, weekEyebrow, writtenLine } from '@/lib/tripPostWords';
 
@@ -42,6 +47,9 @@ export const WHAT_IT_COST = 'WHAT IT COST';
 export const DAY_BY_DAY = 'THE MONTH, DAY BY DAY';
 export const WHAT_WAS_ON_THERE = 'WHAT WAS ON WHILE I WAS THERE';
 export const MY_PICKS = 'MY PICKS';
+/** TRIPCARDS-01: the stop's two lists, as the card once headed them. */
+export const DID = 'DID';
+export const LEARNED = 'LEARNED';
 export const BOOK_BUTTON = 'Book the stay and the flight';
 /** The booking strip on the front door (Landing.tsx's live demo act, id="demo"). */
 export const BOOK_HREF = '/#demo';
@@ -60,6 +68,15 @@ const POST = {
   figure: 'mt-6',
   image: 'aspect-[3/2] w-full rounded object-cover',
   credit: 'mt-1 font-mono text-[10px] text-text-faint',
+  // TRIPCARDS-01: Alex's line and the event block, in WasHereSection's old card idiom.
+  quote: 'mt-6 text-lg leading-relaxed text-text-primary',
+  event: 'mt-6 rounded-lg border border-border-light bg-bg-row p-4',
+  eventEyebrow: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-amber',
+  eventName: 'mt-1 text-base font-semibold text-text-primary',
+  eventVenue: 'mt-1 text-sm text-text-secondary',
+  eventLine: 'mt-2 font-mono text-xs leading-relaxed text-text-primary',
+  joined: 'mt-1 text-base leading-relaxed text-text-primary',
+  paragraph: 'mt-2 text-base leading-relaxed text-text-primary',
   card: 'mt-8 rounded-lg border border-border bg-white p-5',
   section: 'mt-8',
   sectionEyebrow: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
@@ -103,9 +120,9 @@ const POST = {
 
 const two = (n: number): string => (n < 10 ? `0${n}` : String(n));
 
-export default function TripPostView({ row, costs, card, post, stop }: { row: WasHereRow; costs: TripCosts; card: TripPostCard | null; post: TripPost | null; stop: number }) {
-  // The two kinds of page — written up (its card and its post) or not yet — never a mix.
-  const written = card !== null && post !== null ? { card, post } : null;
+export default function TripPostView({ row, costs, post, event, stop }: { row: WasHereRow; costs: TripCosts; post: TripPost | null; event: Experience | null; stop: number }) {
+  // The two kinds of page — written up (its post) or not yet.
+  const written = post === null ? null : { post };
   return (
     <div data-trip-post={row.id} data-trip-post-kind={written === null ? 'stop' : 'written'}>
       <article className={POST.article}>
@@ -114,7 +131,7 @@ export default function TripPostView({ row, costs, card, post, stop }: { row: Wa
         {written !== null ? (
           <header data-trip-post-section="header">
             <p className={POST.eyebrow}>{postEyebrow(stop)}</p>
-            <h1 className={POST.h1}>{written.card.title}</h1>
+            <h1 className={POST.h1}>{written.post.title}</h1>
             <p className={POST.dek}>{written.post.dek}</p>
             <p className={POST.meta}>
               {postMeta(row).map((part) => <span key={part}>{part}</span>)}
@@ -136,6 +153,32 @@ export default function TripPostView({ row, costs, card, post, stop }: { row: Wa
             <img src={row.image.src} alt={row.image.alt} className={POST.image} />
             <figcaption className={POST.credit}>{row.image.credit}</figcaption>
           </figure>
+        )}
+
+        {/* TRIPCARDS-01: what the card no longer carries — Alex's line, the event, DID and LEARNED. */}
+        {row.line !== null && <p className={POST.quote} data-trip-post-section="line">{row.line}</p>}
+
+        {event !== null && (
+          <div className={POST.event} data-trip-post-section="event" data-trip-post-experience={event.id}>
+            <p className={POST.eventEyebrow}>{event.series === null ? experienceCategoryLabel(event.category) : `${experienceCategoryLabel(event.category)} · ${event.series}`}</p>
+            <p className={POST.eventName}>{event.name}</p>
+            <p className={POST.eventVenue}>{event.venue}</p>
+            <p className={POST.eventLine}>{experienceWindowLine(event)}</p>
+          </div>
+        )}
+
+        {row.did.length > 0 && (
+          <section aria-label="What I did" className={POST.section} data-trip-post-section="did">
+            <p className={POST.sectionEyebrow}>{DID}</p>
+            <p className={POST.joined}>{listWords(row.did)}</p>
+          </section>
+        )}
+
+        {row.learned.length > 0 && (
+          <section aria-label="What I learned" className={POST.section} data-trip-post-section="learned">
+            <p className={POST.sectionEyebrow}>{LEARNED}</p>
+            {row.learned.map((paragraph, i) => <p key={`learned-${i}`} className={POST.paragraph}>{paragraph}</p>)}
+          </section>
         )}
 
         {written !== null && (

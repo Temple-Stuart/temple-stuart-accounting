@@ -2,7 +2,8 @@
  * TRIPPOST-01 (Alex, 2026-11-05) — THE TRIP POSTS. A stop's whole story, once Alex has
  * written it up: the short version, what he'd do differently, what it cost, every day,
  * what was on, his picks. One post per stop, keyed by its WAS_HERE stop id
- * (src/lib/wasHere.ts); the card the landing shows for it lives in src/lib/tripPostCards.ts.
+ * (src/lib/wasHere.ts). TRIPCARDS-01 (Alex, 2026-11-05): a card shows only the stop and what it
+ * cost, so the post's title lives here, beside its dek (src/lib/tripPostCards.ts is gone).
  * Alex's own words, edited for spelling and length, approved by him. THIS FILE IS DATA AND
  * PURE FUNCTIONS: no fetch, no env, no clock, no React (the wasHere.ts rule). Zero imports.
  *
@@ -10,9 +11,10 @@
  * component and never imports this file, so no post body ships in the home page's JavaScript
  * (src/lib/tripPostWords.ts imports it with `import type` only).
  *
- * THE SHAPE. Every post is exactly { stopId, dek, short, lessons, costs, costNote, weeks,
+ * THE SHAPE. Every post is exactly { stopId, title, dek, short, lessons, costs, costNote, weeks,
  * picks, writtenOn }:
- *   · stopId names a WAS_HERE row with a card in tripPostCards.ts (the build checks both);
+ *   · stopId names a WAS_HERE row (the build checks it);
+ *   · title is the post's title — its page's h1;
  *   · dek is the line under the title;
  *   · short — THE SHORT VERSION — exactly { label, value } each;
  *   · lessons — WHAT I'D DO DIFFERENTLY — exactly { lead, rest } each;
@@ -27,9 +29,9 @@
  *   · writtenOn — the day the post was written, 'YYYY-MM-DD'.
  *
  * THE LAW (module scope; re-run at build by scripts/assert-tool-registry.ts, which adds what
- * only it can see — the cards and the posts hold the same stop ids, each a WAS_HERE id, and
- * every day falls inside its stop's stay). It refuses by name: an empty or duplicate stopId; a
- * post whose keys are not exactly the nine; an empty dek or costNote; writtenOn not
+ * only it can see — every post's stop id is a WAS_HERE id, and every day falls inside its
+ * stop's stay). It refuses by name: an empty or duplicate stopId; a post whose keys are not
+ * exactly the ten; an empty title, dek or costNote; writtenOn not
  * 'YYYY-MM-DD'; no short entries, or an empty label or value; no lessons, or an empty lead or
  * rest; a cost with an empty what or detail, or an amountCents neither null nor a positive safe
  * integer; no weeks; a week with an empty title or no days; a day date not 'YYYY-MM-DD'; day
@@ -83,8 +85,10 @@ export interface TripPostPick {
 }
 
 export interface TripPost {
-  /** A WAS_HERE id, with a card in tripPostCards.ts. */
+  /** A WAS_HERE id. */
   stopId: string;
+  /** The post's title — its page's h1. */
+  title: string;
   dek: string;
   short: TripPostShort[];
   lessons: TripPostLesson[];
@@ -96,12 +100,13 @@ export interface TripPost {
   writtenOn: string;
 }
 
-/** The nine keys every post carries, in the ruled order. */
-export const TRIP_POST_FIELDS = ['stopId', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn'] as const;
+/** The ten keys every post carries, in the ruled order. */
+export const TRIP_POST_FIELDS = ['stopId', 'title', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn'] as const;
 
 export const TRIP_POSTS: readonly TripPost[] = [
   {
     stopId: 'canggu-2026-07',
+    title: 'Thirty days in Canggu with no plan.',
     dek: 'I showed up in Bali without a plan. Here’s every day of it: where I ate, what I did, what it cost, and what I’d do differently.',
     short: [
       { label: 'Favorite restaurant', value: 'Ulekan' },
@@ -200,9 +205,10 @@ export function tripPostsLaw(opts: { throwOnFail?: boolean; posts?: readonly Tri
   for (const post of posts) {
     const who = nonEmpty(post.stopId) ? post.stopId : '(no stopId)';
     if (!nonEmpty(post.stopId)) violations.push(`${who}: empty stopId`);
-    if (!keysAre(post as unknown as Record<string, unknown>, TRIP_POST_FIELDS)) violations.push(`${who}: keys are [${Object.keys(post).join(', ')}] — a post carries exactly the nine ruled fields`);
+    if (!keysAre(post as unknown as Record<string, unknown>, TRIP_POST_FIELDS)) violations.push(`${who}: keys are [${Object.keys(post).join(', ')}] — a post carries exactly the ten ruled fields`);
     if (ids.has(post.stopId)) violations.push(`${who}: duplicate stopId`);
     ids.add(post.stopId);
+    if (!nonEmpty(post.title)) violations.push(`${who}: empty title`);
     if (!nonEmpty(post.dek)) violations.push(`${who}: empty dek`);
     if (!nonEmpty(post.costNote)) violations.push(`${who}: empty costNote`);
     const written = isIso(post.writtenOn);
