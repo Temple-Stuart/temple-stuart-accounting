@@ -26,8 +26,8 @@
  *     · when the stop has a post (cardOf, src/lib/tripPostCards.ts — never the post body,
  *       src/lib/tripPosts.ts, so none of it ships in this page's JavaScript): the post's
  *       title as a link to its page, its one line, where he stayed and what it cost
- *       (tripPostWords.ts stayLine), and "Read the post →" to the same page; the photo,
- *       when it lands, links there too, out of the tab order. Its events show in the post,
+ *       (tripPostWords.ts stayLine), and "Read the post →" to the same page; its photo links
+ *       there too, out of the tab order (TRIPPHOTO-01: Canggu's is the first). Its events show in the post,
  *       not on the card — one home per event;
  *     · when experienceId is set, the event's own block: category · series, its
  *       name, its venue, experienceLine(event, today);

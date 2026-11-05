@@ -12,6 +12,8 @@
  * refusals; the Phuket, Chiang Mai and FADO near-miss pills); what-was-on trimmed to
  * eight; the "No event" line gone.
  * WASHERE-04 (Alex, 2026-11-03) — privacy.
+ * TRIPPHOTO-01 (Alex, 2026-11-05) — Canggu's photo, his own: on its card, inside the link
+ * to its post, its credit under it; every other row's image stays null.
  * TRIPPOST-01 (Alex, 2026-11-05) — Canggu is written up: its two lists moved into its
  * post (src/lib/tripPosts.ts), its card carries the post block, its events live in the
  * post; the cards sit in a grid; the act line and MY_TRIP_LINE say so (tripPost01.test.ts
@@ -189,7 +191,9 @@ test('T2 seven rows in trip order; eight events; every stop\'s two lists empty �
     assert.deepEqual([r.did, r.learned], [[], []], `${r.id}: no did or learned on the row`);
     if (r.id !== 'siargao-2026') assert.ok(r.line === null && r.experienceId === null, `${r.id}: no line, no experience`);
   }
-  assert.ok(WAS_HERE.every((r) => r.image === null && r.writtenOn === '2026-10-31'));
+  // TRIPPHOTO-01 (2026-11-05): Canggu's photo is Alex's own; every other row's image is still null.
+  assert.deepEqual(row('canggu-2026-07').image, { src: '/was-here/canggu-2026-07.jpg', alt: 'Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave', credit: 'Photo: Alex Stuart' });
+  assert.ok(WAS_HERE.every((r) => (r.id === 'canggu-2026-07' || r.image === null) && r.writtenOn === '2026-10-31'));
   assert.ok(WAS_HERE.every((r) => r.events.every((ev) => ev.checkedOn === '2026-10-31')));
   assert.deepEqual(row('siargao-2026'), SIARGAO, 'the Siargao row as built, plus the two empty lists');
   const ordered = tripOrder(WAS_HERE);
@@ -204,7 +208,7 @@ test('T2 seven rows in trip order; eight events; every stop\'s two lists empty �
   // WASHERE-04 (2026-11-03): privacy. Every row carries the thirteen keys in the ruled order, and is byte for byte as pinned.
   for (const r of WAS_HERE) assert.deepEqual(Object.keys(r), [...WAS_HERE_FIELDS], `${r.id}: the thirteen keys, in order`);
   const DIGESTS: Readonly<Record<string, string>> = {
-    'canggu-2026-07': '0f58de00c34fe1f499f28dbf966a83c732b4f1bef609a0a877c45ac5a92200ac', // TRIPPOST-01: its two lists emptied
+    'canggu-2026-07': 'a3c1f5cec1a605f2452f5004aa75d365a3b482b8f114791d7b290e306e732f2c', // TRIPPOST-01: its two lists emptied; TRIPPHOTO-01: its photo
     'danang-2026-08': '5a2aa20e390b5ccf068de424ace0b85d5bbba42d29daeedf16b849c05379f1d4',
     'bangkok-2026-09': 'be82cf93a3f8ac6d6769c042093beb97d2cd2809d3ee8f377a0418cf07da31ba',
     'phuket-2026-10': '45c7b76f005ef7809b793900f3ff77441ff7d841056a77f0f51edb11d7be8eb1',
@@ -269,7 +273,10 @@ test('T4 rendered with the live rows: the h2 "Where I\'ve been."; seven cards Ca
   assert.doesNotMatch(html, /Newest first/);
   assert.deepEqual([...html.matchAll(/data-was-here="([^"]+)"/g)].map((m) => m[1]), TRIP);
   assert.deepEqual([...html.matchAll(/data-was-here-stop="(\d+)">([^<]*)</g)].map((m) => [m[1], m[2]]), [['1', 'Stop 1'], ['2', 'Stop 2'], ['3', 'Stop 3'], ['4', 'Stop 4'], ['5', 'Stop 5'], ['6', 'Stop 6'], ['7', 'Stop 7']]);
-  assert.doesNotMatch(html, /<img|<figure/, 'no photo on any row yet');
+  // TRIPPHOTO-01 (2026-11-05): one photo — Canggu's, inside a link to its post that stays out of the tab order, its credit under it.
+  assert.equal((html.match(/<img /g) ?? []).length, 1, 'one photo on the act');
+  assert.match(cardOf(html, 'canggu-2026-07'), /<figure><a href="\/my-trip\/canggu-2026-07" tabindex="-1" aria-hidden="true"><img src="\/was-here\/canggu-2026-07\.jpg" alt="Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><\/a><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
+  for (const id of TRIP.filter((t) => t !== 'canggu-2026-07')) assert.doesNotMatch(cardOf(html, id), /<img|<figure/, `${id}: no photo yet`);
   const canggu = cardOf(html, 'canggu-2026-07');
   assert.match(canggu, /data-was-here-label="true">I WAS HERE</);
   assert.match(canggu, />Canggu, Bali, Indonesia</);

@@ -115,7 +115,10 @@ const CHECKED = '2026-10-31';
 const WRITTEN = '2026-10-31';
 
 export const WAS_HERE: readonly WasHereRow[] = [
-  { id: 'canggu-2026-07', city: 'Canggu, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-07-01', end: '2026-07-30', experienceId: null, line: null, image: null, writtenOn: WRITTEN,
+  { id: 'canggu-2026-07', city: 'Canggu, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-07-01', end: '2026-07-30', experienceId: null, line: null,
+    // TRIPPHOTO-01 (Alex, 2026-11-05): his own photo, his favorite of the stay — cropped to 3:2, metadata stripped.
+    image: { src: '/was-here/canggu-2026-07.jpg', alt: 'Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave', credit: 'Photo: Alex Stuart' },
+    writtenOn: WRITTEN,
     did: [], learned: [],
     events: [
       { name: 'Pesta Kesenian Bali XLVIII (Bali Arts Festival)', venue: 'Taman Werdhi Budaya Art Centre', area: 'Denpasar', start: '2026-06-13', end: '2026-07-11', status: 'took_place', sourceKind: 'secondary', sourceName: 'Antara', sourceUrl: 'https://www.antaranews.com/foto/5607117/ribuan-seniman-ramaikan-pawai-pembukaan-pesta-kesenian-bali-2026', checkedOn: CHECKED, notes: 'Closed Jul 11 with 1.8 million visitors per the Antara headline' },

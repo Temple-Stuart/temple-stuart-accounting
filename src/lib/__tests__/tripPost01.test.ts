@@ -8,8 +8,9 @@
  *      chips; ten lessons; seven picks; the stay and the costs in cents;
  *   T3 the words — every line exact, the weekdays by arithmetic, the lookups; the words module and
  *      the date module read no clock and no locale; the words import the leaves as types only;
- *   T4 the view, rendered — the back link, the title, all thirty stories once, four weeks with only
- *      the first open, 77 chips, the three event links, no photo, the band's link, the order;
+ *   T4 the view, rendered — the back link, the title, the photo (TRIPPHOTO-01), all thirty stories
+ *      once, four weeks with only the first open, 77 chips, the three event links, the band's link,
+ *      the order;
  *   T5 the route and the door — static params, dynamicParams = false, '/my-trip' public and
  *      nothing else with it, the page route listed, the law seated after the trip log's;
  *   T6 the cards — the grid; Canggu's post block and no DID, LEARNED or WHAT WAS ON; Da Nang and
@@ -212,7 +213,7 @@ test('T3 the words and the date module read no clock and no locale; the words im
 
 // ── T4 · THE VIEW, RENDERED ──────────────────────────────────────────────────
 
-test('T4 the post rendered: the back link, the title, all thirty stories once, four weeks with only the first open, 77 chips, the three event links, no photo, the band, the order', () => {
+test('T4 the post rendered: the back link, the title, the photo, all thirty stories once, four weeks with only the first open, 77 chips, the three event links, the band, the order', () => {
   const page = renderToStaticMarkup(React.createElement(TripPostView, { row: ROW, card: CARD, post: POST, stop: stopNumber(WAS_HERE, ID) }));
   assert.equal(POST_BACK_HREF, '/#my-trip');
   assert.match(page, new RegExp(`<a href="/#my-trip" class="[^"]*" data-trip-post-back="true">${POST_BACK}</a>`));
@@ -231,7 +232,9 @@ test('T4 the post rendered: the back link, the title, all thirty stories once, f
   const links = [...page.matchAll(/<a href="([^"]+)" rel="noopener" target="_blank" class="[^"]*" data-trip-post-event="[^"]*">([^<]*)<\/a>/g)].map((m) => [m[1], m[2]]);
   assert.deepEqual(links, ROW.events.map((ev) => [html(ev.sourceUrl), html(onPill(ev))]));
   assert.equal(links.length, 3);
-  assert.doesNotMatch(page, /<img|<figure/, 'no photo yet — and no placeholder');
+  // TRIPPHOTO-01 (2026-11-05): the stop's photo under the header — Alex's own, its credit under it.
+  assert.match(page, /<figure class="[^"]*" data-trip-post-section="photo"><img src="\/was-here\/canggu-2026-07\.jpg" alt="Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave" class="[^"]*"\/><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
+  assert.ok(pos(page, 'data-trip-post-section="header"') < pos(page, 'data-trip-post-section="photo"') && pos(page, 'data-trip-post-section="photo"') < pos(page, 'data-trip-post-section="short"'), 'header → photo → the short version');
   assert.equal(BOOK_HREF, '/#demo');
   assert.match(page, /<a href="\/#demo" class="[^"]*">Book the stay and the flight<\/a>/);
   assert.ok(page.includes('>Going to Canggu, Bali? Book the stay and the flight here.<'));
