@@ -491,5 +491,5 @@ test('T5 the law seat: the leaf law re-run, every experienceId checked, every ph
   assert.ok(!(EXPERIENCE_FIELDS as readonly string[]).includes('featured'));
   const experiences = code(EXPERIENCES_SECTION);
   assert.doesNotMatch(experiences, /featured|I_WAS_HERE_LINE|I WAS HERE|href="#demo"/);
-  assert.match(experiences, /const comingUp = upcoming\(chosen, today, COMING_UP_COUNT\);/, 'unfiltered');
+  assert.match(experiences, /const comingUp = upcoming\(chosen, today, chosen\.length\);/, 'unfiltered — every upcoming row (EVENTS-01c)');
 });

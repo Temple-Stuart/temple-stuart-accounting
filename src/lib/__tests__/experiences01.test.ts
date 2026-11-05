@@ -9,13 +9,16 @@
  * WASHERE-01 (Alex, 2026-10-31) — `featured` left the rows: Alex's own stop is the trip
  * log's (wasHere01.test.ts). COMING UP is the category's upcoming rows unfiltered, so Surf
  * shows the Philippines Pro first while it is on; the refused state is the refusal only.
+ * EVENTS-01c (Alex, 2026-11-06) — THE LINEUP folds into COMING UP: every row of the chosen
+ * category is a card in one row that scrolls sideways — upcoming first by start, then the rest
+ * in the leaf's order — each card linking its source; the lineup's pill words left with it.
  *
  *   T1 the law — every refusal by name over injected rows; the live rows pass;
  *   T2 the rows — the count, three exact rows, the categories in the ruled order;
- *   T3 the words — dateWords, experienceLine, upcoming, the pills;
- *   T4 the section, rendered — COMING UP, the chips, the lineup,
- *      the refusal of an unknown ?into=, the empty state; its source reads no clock
- *      and carries no urgency word;
+ *   T3 the words — dateWords, experienceLine, upcoming; the pill words gone;
+ *   T4 the section, rendered — COMING UP's one row of every card, the chips, each card's
+ *      source link, the refusal of an unknown ?into=, the empty state; its source reads no
+ *      clock and carries no urgency word;
  *   T5 the mount and the day rule — Landing mounts the section once, after the demo's
  *      footer row and before the guest strip; today flows page → GuestLanding → Landing;
  *      the plan law's tells stay out of Landing's code;
@@ -31,12 +34,12 @@ import {
   EXPERIENCES, EXPERIENCE_CATEGORIES, EXPERIENCE_FIELDS, VENUE_NOT_FIXED, ExperiencesLawError,
   experiencesLaw, isExperienceCategoryId, type Experience,
 } from '../experiences';
-import { dateWords, dayWords, experienceLine, lineupPill, upcoming } from '../experienceWords';
+import { dateWords, dayWords, experienceLine, upcoming } from '../experienceWords';
 import { readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { BOOKING_FLOW_BASE, BOOKING_FLOW_FILES, bookingFlowSha256 } from '../travelBookingFlow';
 import {
-  ExperiencesView, DEFAULT_INTO, EVENTS_ANCHOR, CLOSING_LINE, STRIP_LINE, notACategory, nothingUpcoming,
+  ExperiencesView, DEFAULT_INTO, EVENTS_ANCHOR, CLOSING_LINE, STRIP_LINE, SOURCE_LINK, notACategory, nothingUpcoming,
 } from '@/components/landing/ExperiencesSection';
 
 Object.assign(globalThis, { React });
@@ -62,8 +65,12 @@ const row = (id: string): Experience => {
 };
 const render = (props: Partial<React.ComponentProps<typeof ExperiencesView>> = {}) =>
   renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: TODAY, choice: { category: DEFAULT_INTO }, onPick: () => {}, ...props }));
-const pillsOf = (html: string) => [...html.matchAll(/data-pill="([^"]+)"[^>]*>([^<]*)</g)].map((m) => [m[1], m[2]] as const);
+/** EVENTS-01c: each card's source link — [row id, href]. */
+const sourcesOf = (html: string) => [...html.matchAll(/<a href="([^"]+)" rel="noopener" target="_blank" class="[^"]*" data-source="([^"]+)">Source ↗<\/a>/g)].map((m) => [m[2], m[1].replace(/&amp;/g, '&')] as const);
+/** A card's line, by row id. */
+const lineOf = (html: string, id: string) => new RegExp(`data-coming-up="${id}"[\\s\\S]*?data-experience-line="true">([^<]*)<`).exec(html)?.[1];
 const cardsOf = (html: string) => [...html.matchAll(/data-coming-up="([^"]+)"/g)].map((m) => m[1]);
+const pos = (hay: string, needle: string) => { const i = hay.indexOf(needle); assert.ok(i > -1, `${needle} is rendered`); return i; };
 const pressedOf = (html: string) => [...html.matchAll(/aria-pressed="true"[^>]*data-into="([^"]*)"/g)].map((m) => m[1]);
 
 /** The contiguous comment block directly above a pin line (the hotel02 test's helper, verbatim). */
@@ -193,26 +200,26 @@ test('T3 upcoming: announced and conflict rows whose end is today or later, by s
   assert.deepEqual(starts, [...starts].sort());
 });
 
-test('T3 the lineup pills: dates and provenance, or "not announced"; a conflict pill says only that (EVENTS-01b)', () => {
-  assert.equal(lineupPill(row('x-games-aspen-2027'), TODAY), 'MoonPay X Games Aspen 2027 · Aspen · Jan 29–31, 2027');
-  assert.equal(lineupPill(row('pipe-masters-2026'), TODAY), 'Pipe Masters · Haleiwa, O\'ahu · Dec 8–20, 2026 · reported');
-  const conflict = lineupPill(row('philippines-pro-2026'), TODAY);
-  assert.equal(conflict, 'Philippines Pro presented by the Philippine Sports Commission · General Luna, Siargao · Oct 30 – Nov 10, 2026 · window being confirmed');
-  assert.ok(!conflict.includes('reported'), 'a conflict is unconfirmed by definition — no "reported"');
-  assert.equal(lineupPill(row('us-open-tennis-2027'), TODAY), 'US Open 2027 · not announced');
-  assert.equal(lineupPill(row('pipe-masters-2026'), '2026-12-21'), 'Pipe Masters · not announced');
+test('T3 the lineup\'s pill words left with THE LINEUP (EVENTS-01c) — no caller, no function', () => {
+  assert.doesNotMatch(code(WORDS), /lineupPill/);
+  assert.doesNotMatch(code(SECTION), /lineupPill|data-pill|data-lineup|LINEUP_LABEL|THE LINEUP/);
 });
 
 // ── T4 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T4 rendered with no choice named: Surf — three upcoming cards with the Philippines Pro first, nine chips with Surf pressed, six surf pills, the two lines, no all-categories word, nothing of Alex\'s', () => {
+test('T4 rendered with no choice named: Surf — one row of all six surf cards, the three upcoming first with the Philippines Pro first, then the three not announced; nine chips with Surf pressed; every card linking its source; the two lines; no lineup, no all-categories word, nothing of Alex\'s', () => {
   const html = render();
   assert.match(html, /<section id="events" aria-label="Book the experience"/);
   assert.equal(EVENTS_ANCHOR, 'events');
   assert.doesNotMatch(html, /I WAS HERE|I&#x27;M HERE|data-featured|Siargao in the middle|href="#demo"/, 'WASHERE-01: the pinned card and Alex\'s line left for the trip log');
   assert.match(html, /Window Oct 30 – Nov 10, 2026 · window being confirmed/);
   assert.match(html, /Cloud 9 · General Luna, Siargao, Philippines/);
-  assert.deepEqual(cardsOf(html), ['philippines-pro-2026', 'nazare-big-wave-2026-27', 'pipe-masters-2026'], 'the category\'s upcoming rows, unfiltered, by start');
+  // EVENTS-01c (Alex, 2026-11-06): THE LINEUP folded into COMING UP — every row a card, upcoming first by start, then the rest in the leaf's order.
+  assert.deepEqual(cardsOf(html), ['philippines-pro-2026', 'nazare-big-wave-2026-27', 'pipe-masters-2026', 'us-open-of-surfing-2027', 'tahiti-pro-2027', 'rip-curl-pro-bells-2027']);
+  for (const id of ['us-open-of-surfing-2027', 'tahiti-pro-2027', 'rip-curl-pro-bells-2027']) assert.equal(lineOf(html, id), experienceLine(row(id), TODAY), `${id}: its own line`);
+  assert.ok(['us-open-of-surfing-2027', 'tahiti-pro-2027', 'rip-curl-pro-bells-2027'].every((id) => /^Next edition not announced \(checked /.test(lineOf(html, id) ?? '')), 'not announced means not announced');
+  assert.deepEqual(sourcesOf(html), cardsOf(html).map((id) => [id, row(id).sourceUrl]), 'every card links the page its dates came from');
+  assert.equal(SOURCE_LINK, 'Source ↗');
   assert.equal((html.match(/aria-pressed="(true|false)"/g) ?? []).length, 9, 'nine categories, nothing else');
   assert.deepEqual(pressedOf(html), ['surfing']);
   assert.match(html, /aria-pressed="true"[^>]*data-into="surfing">Surf</);
@@ -220,33 +227,33 @@ test('T4 rendered with no choice named: Surf — three upcoming cards with the P
   assert.ok(!html.includes('data-into=""'));
   assert.ok(html.includes(STRIP_LINE));
   assert.ok(html.includes(CLOSING_LINE.replace("'", '&#x27;')));
-  assert.equal((html.match(/data-lineup="/g) ?? []).length, 1);
-  assert.match(html, /data-lineup="Surf"/);
-  const pills = pillsOf(html);
-  assert.deepEqual(pills.map(([id]) => id), ['philippines-pro-2026', 'pipe-masters-2026', 'nazare-big-wave-2026-27', 'us-open-of-surfing-2027', 'tahiti-pro-2027', 'rip-curl-pro-bells-2027']);
-  assert.ok(pills[0][1].endsWith('· Oct 30 – Nov 10, 2026 · window being confirmed') && !pills[0][1].includes('reported'));
-  assert.equal(pills.filter(([, words]) => words.endsWith('· not announced')).length, 3);
-  assert.doesNotMatch(html, /data-series-pill/, 'nothing collapses');
-  assert.match(html, /<a href="https:\/\/tribune\.net\.ph\/[^"]+" rel="noopener" target="_blank"[^>]*data-pill="philippines-pro-2026">/);
+  assert.doesNotMatch(html, /data-lineup=|data-pill=|THE LINEUP|data-series-pill|data-coming-up-grid/, 'no lineup, nothing collapses, no grid');
+  // One row that scrolls sideways, edge to edge of the band's box; every card one width, snapping, a column.
+  const rail = /<div class="([^"]*)" data-coming-up-rail="true">/.exec(html);
+  assert.ok(rail, 'the row is drawn');
+  for (const cls of ['flex', 'overflow-x-auto', 'snap-x', 'snap-proximity', '-mx-4', 'px-4', 'scroll-px-4', 'lg:-mx-8', 'lg:px-8', 'lg:scroll-px-8', '[&::-webkit-scrollbar]:h-2', '[&::-webkit-scrollbar-thumb]:bg-white/30']) assert.ok(rail[1].replace(/&amp;/g, '&').split(' ').includes(cls), `the row carries ${cls}`);
+  for (const id of cardsOf(html)) assert.match(html, new RegExp(`<article class="w-\\[21rem\\] shrink-0 snap-start flex flex-col [^"]*" data-coming-up="${id}">`), `${id}: one width, snapping, a column`);
+  assert.ok(pos(html, 'COMING UP') < pos(html, 'data-coming-up-rail') && pos(html, 'data-coming-up-rail') < pos(html, STRIP_LINE), 'the label → the row → the strip line');
   assert.doesNotMatch(html, /data-into-refused/);
   assert.doesNotMatch(html, /<img|countdown|BUY NOW/i);
 });
 
-test('T4 rendered for f1, fighting and tennis: every row its own pill — 24 F1 cities, 11 fights, 5 tennis; six cards with Bahrain first', () => {
+test('T4 rendered for f1, fighting and tennis: every row its own card in the one row — 24 F1 rounds from Bahrain, 11 fights, 5 tennis with the one not announced last', () => {
   const f1 = render({ choice: { category: 'f1' } });
-  assert.equal(pillsOf(f1).length, 24);
-  assert.deepEqual(cardsOf(f1), ['f1-2027-r01', 'f1-2027-r02', 'f1-2027-r03', 'f1-2027-r04', 'f1-2027-r05', 'f1-2027-r06']);
+  assert.equal(cardsOf(f1).length, 24, 'nothing collapses — every city');
+  assert.deepEqual(cardsOf(f1).slice(0, 6), ['f1-2027-r01', 'f1-2027-r02', 'f1-2027-r03', 'f1-2027-r04', 'f1-2027-r05', 'f1-2027-r06']);
   assert.deepEqual(pressedOf(f1), ['f1']);
-  assert.equal((f1.match(/data-lineup="/g) ?? []).length, 1);
-  assert.equal(pillsOf(render({ choice: { category: 'fighting' } })).length, 11);
+  assert.equal(sourcesOf(f1).length, 24);
+  assert.equal(cardsOf(render({ choice: { category: 'fighting' } })).length, 11);
   const tennis = render({ choice: { category: 'tennis' } });
-  assert.equal(pillsOf(tennis).length, 5);
-  assert.match(tennis, />US Open 2027 · not announced</);
+  assert.equal(cardsOf(tennis).length, 5);
+  assert.equal(cardsOf(tennis)[4], 'us-open-tennis-2027', 'the one not announced comes after the four upcoming');
+  assert.match(lineOf(tennis, 'us-open-tennis-2027') ?? '', /^Next edition not announced \(checked /);
   assert.deepEqual(pressedOf(tennis), ['tennis']);
-  assert.equal(cardsOf(tennis).length, 4, 'four tennis editions are upcoming');
+  assert.equal(upcoming(EXPERIENCES.filter((r) => r.category === 'tennis'), TODAY, 99).length, 4, 'four tennis editions are upcoming');
 });
 
-test('T4 rendered for a value that names no category: the refusal only — in place of COMING UP and THE LINEUP, no chip pressed, no card above it; nothing upcoming said', () => {
+test('T4 rendered for a value that names no category: the refusal only — in place of COMING UP, no chip pressed, no card; nothing upcoming said above the cards, and no strip line', () => {
   const bad = render({ choice: { refused: 'nope' } });
   assert.match(bad, /data-into-refused="true">nope is not a category — pick one above\.</);
   assert.equal(notACategory('nope'), 'nope is not a category — pick one above.');
@@ -254,14 +261,16 @@ test('T4 rendered for a value that names no category: the refusal only — in pl
   assert.equal((bad.match(/aria-pressed="false"/g) ?? []).length, 9);
   assert.doesNotMatch(bad, /data-featured|<article/, 'no card above the refusal');
   assert.equal(cardsOf(bad).length, 0);
-  assert.equal(pillsOf(bad).length, 0);
-  assert.doesNotMatch(bad, /data-coming-up-grid|data-lineup=|COMING UP|THE LINEUP/);
+  assert.equal(sourcesOf(bad).length, 0);
+  assert.doesNotMatch(bad, /data-coming-up-rail|COMING UP|THE LINEUP/);
   assert.ok(bad.includes(CLOSING_LINE.replace("'", '&#x27;')));
   const empty = render({ choice: { category: 'golf' }, today: '2027-12-31' });
-  assert.match(empty, /data-nothing-upcoming="true">Nothing announced yet in Golf — the rows below say when each one was checked\.</);
-  assert.equal(nothingUpcoming('Golf'), 'Nothing announced yet in Golf — the rows below say when each one was checked.');
-  assert.ok(!empty.includes(STRIP_LINE), 'the strip line sits under a grid, and there is none');
-  assert.equal(pillsOf(empty).filter(([, words]) => words.endsWith('· not announced')).length, 5, 'every golf window has passed');
+  assert.match(empty, /data-nothing-upcoming="true">Nothing announced yet in Golf — the cards below say when each one was checked\.</);
+  assert.equal(nothingUpcoming('Golf'), 'Nothing announced yet in Golf — the cards below say when each one was checked.');
+  assert.ok(pos(empty, 'data-nothing-upcoming') < pos(empty, 'data-coming-up-rail'), 'said above the row');
+  assert.ok(!empty.includes(STRIP_LINE), 'nothing to book around, so no strip line');
+  assert.equal(cardsOf(empty).length, 5, 'every golf card still shows');
+  assert.ok(cardsOf(empty).every((id) => /^Next edition not announced \(checked /.test(lineOf(empty, id) ?? '')), 'every golf window has passed');
   // The URL half: no param, or an empty one, is the default — never a refusal.
   const section = code(SECTION);
   assert.match(section, /raw === null \|\| raw === '' \? \{ category: DEFAULT_INTO \}/);
@@ -279,7 +288,8 @@ test('T4 the section, the words and the leaf read no clock; the section carries 
   assert.match(section, /useSearchParams\(\)/);
   assert.match(section, /router\.replace\(/);
   assert.match(section, /min-h-\[44px\]/);
-  assert.match(section, /grid-cols-\[repeat\(auto-fit,minmax\(min\(300px,100%\),1fr\)\)\]/);
+  assert.match(section, /const comingUp = upcoming\(chosen, today, chosen\.length\);\n\s*const cards = \[\.\.\.comingUp, \.\.\.chosen\.filter\(\(r\) => !comingUp\.includes\(r\)\)\];/, 'EVENTS-01c: every row — upcoming first, then the rest');
+  assert.doesNotMatch(section, /grid-cols|pillRow|COMING_UP_COUNT/, 'no grid of cards, no pill row and no count — one row of every card');
   assert.doesNotMatch(section, /#[0-9a-fA-F]{3,8}\b/, 'zero new hex');
 });
 

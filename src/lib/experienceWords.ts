@@ -16,7 +16,6 @@
  *   experienceWindowLine(row)    the dated part of that line, with no day in it — a stop's
  *                                page names the event it was around on any day (TRIPCARDS-01)
  *   upcoming(rows, today, n)     announced/conflict rows with end ≥ today, by start, first n
- *   lineupPill(row, today)       the lineup's pill words for one row
  *   shortDayWords(iso)           "Jul 1" — one day without its year (TRIPPOST-01)
  *   weekdayWords(iso)            "Wed" — the day's weekday, by integer arithmetic on the
  *                                date's own parts (Sakamoto's method), never Date (TRIPPOST-01)
@@ -24,7 +23,8 @@
  * EVENTS-01b (2026-10-30): the series summary and its pill are DELETED — the section
  * always shows one category, so every row is its own pill and nothing collapses; a
  * conflict pill says " · window being confirmed" only (a conflict is unconfirmed by
- * definition).
+ * definition). EVENTS-01c (2026-11-06): THE LINEUP folded into COMING UP's cards, and the pill
+ * words (lineupPill) left with it — no caller.
  */
 
 import type { Experience } from './experiences';
@@ -137,16 +137,3 @@ export function upcoming(rows: readonly Experience[], today: string, n: number):
     .slice(0, n);
 }
 
-/**
- * The lineup's pill for one row.
- *   conflict, window open              → "name · city · <dateWords> · window being confirmed" — and
- *                                        nothing else: a conflict is unconfirmed by definition (EVENTS-01b)
- *   announced, window open             → "name · city · <dateWords>", then " · reported" for a secondary source
- *   not_announced, or window passed    → "name · not announced"
- */
-export function lineupPill(row: Experience, today: string): string {
-  if (row.status === 'not_announced' || row.start === null || row.end === null || row.end < today) return `${row.name} · not announced`;
-  const words = `${row.name} · ${row.city} · ${dateWords(row.start, row.end)}`;
-  if (row.status === 'conflict') return `${words} · window being confirmed`;
-  return row.sourceKind === 'secondary' ? `${words} · reported` : words;
-}
