@@ -1,6 +1,6 @@
 /**
- * WASHERE-01 (Alex, 2026-10-31) — THE TRIP LOG. Alex's own stops while building
- * this, one row per stop, read top-down in trip order on the guest landing
+ * WASHERE-01 (Alex, 2026-10-31) — THE TRIP LOG. Alex's own stops on the trip,
+ * one row per stop, read top-down in trip order on the guest landing
  * (WasHereSection.tsx, the MY TRIP act; WASHERE-03). THIS FILE IS DATA AND PURE
  * FUNCTIONS: no fetch, no env, no clock, no React (the plans.ts rule). Zero
  * imports: server- and client-safe.
@@ -20,7 +20,7 @@
  *   · did, learned (WASHERE-03; WASHERE-04, 2026-11-03: privacy) — the post: what
  *     he did, what he learned (paragraphs). Each a list of non-empty strings, and
  *     each may be empty — an empty list renders nothing, never an empty eyebrow.
- *     Alex's words, verbatim; six stops carry empty lists until he writes them;
+ *     every stop carries empty lists now — Canggu's moved into its post (TRIPPOST-01);
  *   · events (WASHERE-02; trimmed in WASHERE-03 to what a reader would travel for)
  *     — what was on during the stay, each a StopEvent: { name, venue (null when
  *     the page named none), area, start, end, status ('took_place' | 'scheduled' |
@@ -116,11 +116,7 @@ const WRITTEN = '2026-10-31';
 
 export const WAS_HERE: readonly WasHereRow[] = [
   { id: 'canggu-2026-07', city: 'Canggu, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-07-01', end: '2026-07-30', experienceId: null, line: null, image: null, writtenOn: WRITTEN,
-    did: ['Beachwalk mall', 'a day trip to Uluwatu', 'sunset dinners and drinks at Times Beach Warung', 'Hatch market in Uluwatu', 'mini golf at Shooters', 'Echo Beach for sunsets and surf', 'the G Swing', 'the Gajah Mina statue at Pererenan Beach', 'Finns Beach Club'],
-    learned: [
-      'I showed up here with zero plan and ended up missing out on so much I wanted to do. Most days I never got around to an activity — I spent them eating brunch and dinner at the same café.',
-      'The correction: better plans.',
-    ],
+    did: [], learned: [],
     events: [
       { name: 'Pesta Kesenian Bali XLVIII (Bali Arts Festival)', venue: 'Taman Werdhi Budaya Art Centre', area: 'Denpasar', start: '2026-06-13', end: '2026-07-11', status: 'took_place', sourceKind: 'secondary', sourceName: 'Antara', sourceUrl: 'https://www.antaranews.com/foto/5607117/ribuan-seniman-ramaikan-pawai-pembukaan-pesta-kesenian-bali-2026', checkedOn: CHECKED, notes: 'Closed Jul 11 with 1.8 million visitors per the Antara headline' },
       { name: 'Rip Curl Cup Padang Padang 2026 — women\'s local trials', venue: 'Padang Padang Beach', area: 'Pecatu, Bukit Peninsula', start: '2026-07-21', end: '2026-07-21', status: 'took_place', sourceKind: 'official', sourceName: 'Rip Curl Indonesia', sourceUrl: 'https://www.ripcurl.co.id/blogs/ripcurlcup/taina-izquierdo-and-paris-nalendra-secure-their-spots-in-the-rip-curl-cup-padang-padang-2026-main-event', checkedOn: CHECKED, notes: 'Taina Izquierdo and Paris Nalendra qualified for the main event' },

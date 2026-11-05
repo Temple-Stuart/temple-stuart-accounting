@@ -9,7 +9,9 @@
  * The card that EVENTS-01 featured inside the experiences left that section and is
  * an entry here — an act built to take many entries and a photo each as Alex adds
  * them. WASHERE-03: the log reads top-down as posts, in trip order, each stop with
- * what he did and learned. WASHERE-04 (Alex, 2026-11-03): privacy.
+ * what he did and learned. WASHERE-04 (Alex, 2026-11-03): privacy. TRIPPOST-01 (Alex,
+ * 2026-11-05): the cards sit in a grid — one column, two from sm, three from lg — and a
+ * stop Alex has written up opens its own page (/my-trip/<id>, src/app/my-trip/[id]).
  *
  * WHAT IT RENDERS — every word of a stop from src/lib/wasHere.ts through
  * src/lib/wasHereWords.ts, every word of an event from src/lib/experiences.ts
@@ -21,13 +23,20 @@
  *     · the label — I'M HERE while end is null, I WAS HERE once it is set;
  *     · city, country; the stay — "Since <day>" or the window's dateWords;
  *     · the stop number, derived from the order ("Stop 1" … "Stop 7");
+ *     · when the stop has a post (cardOf, src/lib/tripPostCards.ts — never the post body,
+ *       src/lib/tripPosts.ts, so none of it ships in this page's JavaScript): the post's
+ *       title as a link to its page, its one line, where he stayed and what it cost
+ *       (tripPostWords.ts stayLine), and "Read the post →" to the same page; the photo,
+ *       when it lands, links there too, out of the tab order. Its events show in the post,
+ *       not on the card — one home per event;
  *     · when experienceId is set, the event's own block: category · series, its
  *       name, its venue, experienceLine(event, today);
  *     · Alex's line when he has written it (null renders nothing);
  *     · DID — the items joined by " · "; LEARNED — one <p> per paragraph. An
  *       empty list renders nothing — no empty eyebrow;
  *     · WHAT WAS ON — one pill per event, each linking its source (the EXPERIENCES
- *       pills' grammar, on the cream act's tokens); no events, no list;
+ *       pills' grammar, on the cream act's tokens); no events, no list; a stop with a
+ *       post shows its events in the post instead (TRIPPOST-01);
  *     · when experienceId is set, one link to the strip (#demo).
  *
  * THE DAY RULE: `today` is the UTC calendar date src/app/page.tsx computed ONCE and
@@ -41,12 +50,17 @@ import { EXPERIENCES, experienceCategoryLabel, type Experience } from '@/lib/exp
 import { experienceLine } from '@/lib/experienceWords';
 import { WAS_HERE, type StopEvent, type WasHereRow } from '@/lib/wasHere';
 import { listWords, onPill, stayWords, stopWords, tripOrder, wasHereLabel } from '@/lib/wasHereWords';
+// TRIPPOST-01: the card leaf and the words only — never src/lib/tripPosts.ts (the post body stays on its page).
+import { cardOf, type TripPostCard } from '@/lib/tripPostCards';
+import { stayLine, tripPostHref } from '@/lib/tripPostWords';
 
 /** The act's anchor. */
 export const MY_TRIP_ANCHOR = 'my-trip';
 export const MY_TRIP_EYEBROW = 'MY TRIP';
 export const MY_TRIP_HEADLINE = "Where I've been.";
-export const MY_TRIP_LINE = 'Stop by stop, dated.';
+export const MY_TRIP_LINE = "Stop by stop, dated, with the whole story where I've written it up.";
+/** TRIPPOST-01: the card's link to its post. */
+export const READ_THE_POST = 'Read the post →';
 export const MY_TRIP_LINK = 'Book the stay and the flight ↑';
 export const DID = 'DID';
 export const LEARNED = 'LEARNED';
@@ -59,7 +73,8 @@ const TRIP = {
   eyebrow: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
   h2: 'mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',
   sub: 'mt-2 text-sm text-text-secondary',
-  list: 'mt-6 flex flex-col gap-4',
+  // TRIPPOST-01: a grid — one column, two from sm, three from lg.
+  list: 'mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
   card: 'rounded-lg border border-border bg-white p-5',
   image: 'aspect-[3/2] w-full rounded object-cover',
   credit: 'mt-1 font-mono text-[10px] text-text-faint',
@@ -82,6 +97,10 @@ const TRIP = {
   pillRow: 'mt-2 flex flex-wrap gap-2',
   pill: 'inline-flex min-h-[44px] items-center whitespace-normal break-words rounded border border-border bg-bg-row px-3 py-2 text-left font-mono text-xs leading-snug text-text-primary hover:bg-brand-purple-wash',
   link: 'mt-4 inline-flex min-h-[44px] items-center border border-brand-purple/40 px-5 text-sm font-medium text-brand-purple hover:bg-brand-purple-wash',
+  // TRIPPOST-01: the post block — its title, its line, the stay, the link.
+  postTitle: 'mt-4 inline-flex min-h-[44px] items-center text-base font-semibold text-brand-purple hover:text-brand-purple-hover',
+  postLine: 'mt-1 text-sm leading-relaxed text-text-primary',
+  postStay: 'mt-2 font-mono text-xs uppercase tracking-wider text-text-secondary',
 } as const;
 
 /** The event a stop names, or a loud failure — the registry law refuses a stale id at build. */
@@ -130,16 +149,36 @@ function Pills({ rows, stop }: { rows: readonly StopEvent[]; stop: string }) {
   );
 }
 
+/** TRIPPOST-01: a written-up stop's block — the post's title linking its page, its line, the stay, the link. */
+function PostBlock({ card }: { card: TripPostCard }) {
+  const href = tripPostHref(card.stopId);
+  return (
+    <div data-was-here-post={card.stopId}>
+      <a href={href} className={TRIP.postTitle} data-was-here-post-title>{card.title}</a>
+      <p className={TRIP.postLine}>{card.cardLine}</p>
+      <p className={TRIP.postStay}>{stayLine(card)}</p>
+      <a href={href} className={TRIP.link} data-was-here-post-link>{READ_THE_POST}</a>
+    </div>
+  );
+}
+
 function Entry({ row, stop, today }: { row: WasHereRow; stop: number; today: string }) {
   const event = row.experienceId === null ? null : eventOf(row.experienceId);
+  const card = cardOf(row.id);
+  const photo = row.image === null ? null : (
+    <>
+      {/* A plain <img>, the Built-on wall's precedent (Landing.tsx REAL-MARKS): a file under
+          public/, served as-is, no optimizer and no remote loader. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={row.image.src} alt={row.image.alt} loading="lazy" className={TRIP.image} />
+    </>
+  );
   return (
     <article className={TRIP.card} data-was-here={row.id} data-was-here-image={row.image === null ? 'none' : 'photo'}>
       {row.image !== null && (
         <figure>
-          {/* A plain <img>, the Built-on wall's precedent (Landing.tsx REAL-MARKS): a file under
-              public/, served as-is, no optimizer and no remote loader. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={row.image.src} alt={row.image.alt} loading="lazy" className={TRIP.image} />
+          {/* TRIPPOST-01: a written-up stop's photo opens its post too — out of the tab order, the title link is the one a keyboard meets. */}
+          {card === null ? photo : <a href={tripPostHref(card.stopId)} tabIndex={-1} aria-hidden="true">{photo}</a>}
           <figcaption className={TRIP.credit}>{row.image.credit}</figcaption>
         </figure>
       )}
@@ -147,6 +186,7 @@ function Entry({ row, stop, today }: { row: WasHereRow; stop: number; today: str
       <h3 className={TRIP.place}>{row.city}, {row.country}</h3>
       <p className={TRIP.stay} data-was-here-stay>{stayWords(row)}</p>
       <p className={TRIP.stop} data-was-here-stop={stop}>{stopWords(stop)}</p>
+      {card !== null && <PostBlock card={card} />}
       {event !== null && (
         <div className={TRIP.event} data-was-here-event={event.id}>
           <p className={TRIP.eventEyebrow}>{event.series === null ? experienceCategoryLabel(event.category) : `${experienceCategoryLabel(event.category)} · ${event.series}`}</p>
@@ -158,7 +198,8 @@ function Entry({ row, stop, today }: { row: WasHereRow; stop: number; today: str
       {row.line !== null && <p className={TRIP.quote} data-was-here-line>{row.line}</p>}
       <Joined eyebrow={DID} items={row.did} hook="did" />
       <Paragraphs eyebrow={LEARNED} items={row.learned} hook="learned" />
-      <Pills rows={row.events} stop={row.id} />
+      {/* TRIPPOST-01: one home per event — a written-up stop's events are in its post. */}
+      {card === null && <Pills rows={row.events} stop={row.id} />}
       {event !== null && <a href="#demo" className={TRIP.link}>{MY_TRIP_LINK}</a>}
     </article>
   );

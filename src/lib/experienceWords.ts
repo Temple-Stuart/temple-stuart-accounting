@@ -15,6 +15,9 @@
  *   experienceLine(row, today)   THE one line a card shows (see the function)
  *   upcoming(rows, today, n)     announced/conflict rows with end ≥ today, by start, first n
  *   lineupPill(row, today)       the lineup's pill words for one row
+ *   shortDayWords(iso)           "Jul 1" — one day without its year (TRIPPOST-01)
+ *   weekdayWords(iso)            "Wed" — the day's weekday, by integer arithmetic on the
+ *                                date's own parts (Sakamoto's method), never Date (TRIPPOST-01)
  *
  * EVENTS-01b (2026-10-30): the series summary and its pill are DELETED — the section
  * always shows one category, so every row is its own pill and nothing collapses; a
@@ -46,6 +49,23 @@ function parts(iso: string): { year: string; month: number; day: number } {
 }
 
 const monthDay = (p: { month: number; day: number }): string => `${MONTHS[p.month - 1]} ${p.day}`;
+
+/** One day without its year: "Jul 1" (TRIPPOST-01 — the trip post's day rows). */
+export function shortDayWords(iso: string): string {
+  return monthDay(parts(iso));
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+/** Sakamoto's month offsets, January first. */
+const SAKAMOTO = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4] as const;
+
+/** A day's weekday: "Wed" (TRIPPOST-01). Integer arithmetic on the date's own parts — Sakamoto's method — so no Date, no Intl, no locale. */
+export function weekdayWords(iso: string): string {
+  const p = parts(iso);
+  const y = p.month < 3 ? Number(p.year) - 1 : Number(p.year);
+  const index = (y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) + SAKAMOTO[p.month - 1] + p.day) % 7;
+  return WEEKDAYS[index];
+}
 
 /** One day: "Oct 30, 2026". */
 export function dayWords(iso: string): string {

@@ -9,7 +9,7 @@
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
  *   EXPERIENCES         — the events section under the strip (EVENTS-01)
- *   MY TRIP             — the trip log, in trip order (WASHERE-01)
+ *   MY TRIP             — the trip log, a card per stop; a stop with a post opens its page (TRIPPOST-01)
  *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
  *                         renders only when records exist
  *   THE PLANS           — four plan cards and one comparison table
