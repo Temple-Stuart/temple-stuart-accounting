@@ -109,10 +109,10 @@ export function costRows(costs: TripCosts, post: TripPost | null): CostRowWords[
   return [...stopCostRows(costs), ...own];
 }
 
-/** A stop not written up says which it is: booked ahead (its start after the day it was entered), or lived and not yet written. */
+/** A stop not written up says which it is: booked ahead (its start after the day it was entered — "stayed", since he may have visited on a day trip; TRIPPHOTO-08), or lived and not yet written. */
 export function unwrittenLine(row: WasHereRow): string {
   return row.start > row.writtenOn
-    ? `Coming up — booked as of ${dayWords(row.writtenOn)}. I haven’t been here yet.`
+    ? `Coming up — booked as of ${dayWords(row.writtenOn)}. I haven’t stayed here yet.`
     : 'I haven’t written this stop up yet.';
 }
 

@@ -162,10 +162,16 @@ export const WAS_HERE: readonly WasHereRow[] = [
     // TRIPPHOTO-07 (Alex, 2026-11-05): his photo of the stop — cropped to 3:2 without the boatman's face, metadata stripped.
     image: { src: '/was-here/siargao-2026.jpg', alt: 'A surfer paddling beside an outrigger boat off Siargao, the island and a breaking reef on the horizon', credit: 'Photo: Alex Stuart' },
     writtenOn: WRITTEN, did: [], learned: [], events: [] },
-  // TRIPCARDS-01 (Alex, 2026-11-05): the stops he has booked ahead — Cebu, Uluwatu, Pererenan. Planned: no photo, no events, no lists yet.
+  // TRIPCARDS-01 (Alex, 2026-11-05): the stops he has booked ahead — Cebu, Uluwatu, Pererenan. Planned: no events, no lists yet.
   { id: 'cebu-2026-11', city: 'Cebu', country: 'Philippines', countryCode: 'PH', start: '2026-11-13', end: '2026-11-20', experienceId: null, line: null, image: null, writtenOn: PLANNED, did: [], learned: [], events: [] },
-  { id: 'uluwatu-2026-11', city: 'Uluwatu, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-11-20', end: '2026-12-01', experienceId: null, line: null, image: null, writtenOn: PLANNED, did: [], learned: [], events: [] },
-  { id: 'pererenan-2026-12', city: 'Pererenan Beach, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-12-01', end: '2026-12-11', experienceId: null, line: null, image: null, writtenOn: PLANNED, did: [], learned: [], events: [] },
+  { id: 'uluwatu-2026-11', city: 'Uluwatu, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-11-20', end: '2026-12-01', experienceId: null, line: null,
+    // TRIPPHOTO-08 (Alex, 2026-11-06): his photo from a day there during the Canggu stay, until he has one from the stop — cropped to 3:2, a stranger's number plate blurred, metadata stripped.
+    image: { src: '/was-here/uluwatu-2026-11.jpg', alt: 'A dirt road on the cliffs at Uluwatu, a scooter heading down it toward the sea, a hand-painted parking sign in the scrub and waves breaking on the reef', credit: 'Photo: Alex Stuart' },
+    writtenOn: PLANNED, did: [], learned: [], events: [] },
+  { id: 'pererenan-2026-12', city: 'Pererenan Beach, Bali', country: 'Indonesia', countryCode: 'ID', start: '2026-12-01', end: '2026-12-11', experienceId: null, line: null,
+    // TRIPPHOTO-09 (Alex, 2026-11-06): his photo from a day there during the Canggu stay, until he has one from the stop — cropped to 3:2, the one face turned to the camera blurred, metadata stripped.
+    image: { src: '/was-here/pererenan-2026-12.jpg', alt: 'Sunset over Pererenan Beach, people walking along the sand and the rocks, a beach bar under the palms', credit: 'Photo: Alex Stuart' },
+    writtenOn: PLANNED, did: [], learned: [], events: [] },
 ];
 
 export class WasHereLawError extends Error {
