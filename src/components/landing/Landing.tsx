@@ -20,7 +20,7 @@
  *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
  *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
  *   with THE PLANS.)
- *   THE CLOSE           — the 2026 close offer, booked by email (HOME-05a)
+ *   THE CLOSE           — the 2026 close offer, booked on the proposal form (HOME-05a; ONE-FORM-01)
  *   THE PIPELINE header — names the 14-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
@@ -195,8 +195,12 @@ import ExperiencesSection from './ExperiencesSection';
 // an experience by id; the leaf's rows, the words modules' lines, the server's day.
 import WasHereSection from './WasHereSection';
 // HOME-05a (2026-11-03): the 2026 close offer — one leaf (src/lib/offer/close.ts), its words
-// module's lines, the server's day; booked by email.
+// module's lines, the server's day. ONE-FORM-01 (2026-11-06): booked on the proposal form.
 import CloseOfferSection from './CloseOfferSection';
+// ONE-FORM-01 (Alex, 2026-11-06): the DONE-FOR-YOU cards and the close button open the ONE proposal
+// form with their choice picked — the path and the query key from the leaf, never typed here.
+import { PROPOSAL_FORM_PATH } from '@/lib/offer/close';
+import type { ServiceNeed } from '@/lib/proposalNeeds';
 import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
@@ -2266,22 +2270,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 PROFESSIONAL SERVICES
               </span>
               <p className="mt-2 text-xs leading-relaxed text-text-muted">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
+              {/* ONE-FORM-01 (Alex, 2026-11-06): each card is a door to the ONE proposal form with
+                  its choice picked (?need=<word>, the form's own query key) — the word from
+                  src/lib/proposalNeeds.ts, the path from the leaf; a card's words unchanged. */}
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {([
-                  ['Full setup', 'Your own hosted copy, every API wired, you own everything.'],
-                  ['Monthly maintenance', 'I keep it updated and running.'],
-                  ['Custom builds', 'Need a feature? I build it.'],
-                  ['Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
-                ] as const).map(([title, desc]) => (
-                  <div key={title} className="rounded-lg border border-border bg-white p-4 text-text-primary">
+                  ['setup', 'Full setup', 'Your own hosted copy, every API wired, you own everything.'],
+                  ['maintenance', 'Monthly maintenance', 'I keep it updated and running.'],
+                  ['custom', 'Custom builds', 'Need a feature? I build it.'],
+                  ['embed', 'Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
+                ] as const satisfies ReadonlyArray<readonly [ServiceNeed, string, string]>).map(([need, title, desc]) => (
+                  <Link key={need} href={`${PROPOSAL_FORM_PATH}?need=${need}`} className="rounded-lg border border-border bg-white p-4 text-text-primary hover:bg-brand-purple-wash" data-done-for-you={need}>
                     <div className="text-sm font-medium">{title}</div>
                     <p className="mt-1 text-xs text-text-muted">{desc}</p>
-                  </div>
+                  </Link>
                 ))}
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <Link
-                  href="/work-with-me"
+                  href={PROPOSAL_FORM_PATH}
                   className="border border-brand-purple/40 px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
                 >
                   Send a project proposal →

@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
+// ONE-FORM-01 (Alex, 2026-11-06): the need vocabulary, typed once — the five service words and
+// the close offer's (proposals_need_chk, six values since 20261106120000_one_form_01_close_need).
+import { PROPOSAL_NEEDS } from '@/lib/proposalNeeds';
 
 // PROPOSAL-FORM: the public project-proposal intake — /work-with-me POSTs here.
 // public BY RULING: DB-write only, no paid API, rate-limited + honeypot.
@@ -45,7 +48,9 @@ const proposalSchema = z.object({
   business: z.string().trim().min(1).max(5000),
   // FORM-V2: the stack question moved to the optional detail section.
   currentStack: z.string().trim().max(5000).optional(),
-  need: z.enum(['setup', 'maintenance', 'custom', 'embed', 'unsure']),
+  // ONE-FORM-01: the six words of proposals_need_chk, from src/lib/proposalNeeds.ts — 'close' is
+  // the 2026 close offer booked on this form (the modules array is empty for it; the form sends none).
+  need: z.enum(PROPOSAL_NEEDS),
   // FORM-V2: + 'other' — the form's escape hatch; its description rides
   // notesFromThem ('OTHER MODULE: {text}\n\n' prefix), no new column.
   modules: z.array(z.enum([...MODULE_IDS, 'other'])).max(10),

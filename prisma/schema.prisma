@@ -1666,7 +1666,7 @@ model proposals {
   email          String    @db.VarChar(255)
   business       String    @db.Text
   currentStack   String    @db.Text @map("current_stack")
-  need           String    @db.VarChar(20)
+  need           String    @db.VarChar(20) // CHECK-enforced in SQL (proposals_need_chk): 'setup' | 'maintenance' | 'custom' | 'embed' | 'unsure' | 'close' — ONE-FORM-01 (2026-11-06) added 'close', the 2026 close offer booked on this form (prisma/migrations/20261106120000_one_form_01_close_need; src/lib/proposalNeeds.ts); the five older words are production's own `\d proposals` (HOME-05)
   modules        Json      @default("[]")
   startWindow    String    @default("exploring") @db.VarChar(20) @map("start_window")
   budgetRange    String    @db.VarChar(50) @map("budget_range")
