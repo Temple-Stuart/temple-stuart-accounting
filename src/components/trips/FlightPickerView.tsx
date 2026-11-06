@@ -192,7 +192,9 @@ export default function FlightPickerView({
         // its separation — same ds.ts surface family, no new colors.
         // LANDING-V5: the leg card whitens to the spec's one-white-card
         // surface (was the bg-bg-row inset).
-        <div key={leg.id} className="bg-white border border-border rounded-lg overflow-hidden">
+        // STRIP-PHONE-01 (2026-11-06): on a phone a leg is not a box of its own inside the strip's card —
+        // its form sits flush, as the hotel form does; from sm it is the bordered leg card as before.
+        <div key={leg.id} className="overflow-hidden bg-white sm:rounded-lg sm:border sm:border-border">
           {/* Leg header — BAR-COMMITTED-ONLY (the BAR-KILL gate ruling,
               variant b): the bar renders ONLY for committed legs, where it IS
               the saved-flight summary card and the toggle for the 8
@@ -235,7 +237,7 @@ export default function FlightPickerView({
           {/* Leg body — always open while uncommitted; committed legs keep
               the expanded toggle (the bar above). */}
           {(leg.expanded || !leg.committed) && (
-            <div className="p-4 space-y-4">
+            <div className="space-y-3 sm:space-y-4 sm:p-4">
               {/* Committed state */}
               {leg.committed ? (
                 <div className="flex items-center justify-between">
@@ -266,30 +268,37 @@ export default function FlightPickerView({
                       <span className="text-text-faint">SEARCHING IS ALWAYS FREE</span>
                     </span>
                   </div>
-                  <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-white lg:flex-row lg:items-stretch lg:divide-x lg:divide-border">
-                    <div className="px-4 py-2.5">
-                      <div className="mb-1 font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">FROM</div>
+                  {/* STRIP-PHONE-01 (Alex, 2026-11-06): on a phone the field bar is a 2-up grid
+                      with hairlines between its cells — FROM · TO, then DEPART · RETURN, then
+                      TRIP across (one-way: DEPART across, then TRIP) — instead of five stacked, and
+                      each field cell is a <label>, so a tap anywhere in it reaches the field.
+                      A date field drops the phone's native look (it ran wider than the cell,
+                      its value centred) and reads from the left. lg is the hairline bar as
+                      before. Same state, same handlers — chrome only. */}
+                  <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border lg:flex lg:flex-row lg:items-stretch lg:gap-0 lg:divide-x lg:divide-border lg:bg-white">
+                    <label className="block min-w-0 bg-white px-3 py-2 lg:px-4 lg:py-2.5">
+                      <span className="mb-1 block font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">FROM</span>
                       <input type="text" value={leg.origin} onChange={e => onUpdateLeg(leg.id, { origin: e.target.value.toUpperCase() })}
-                        className="w-full border-0 bg-transparent px-0 py-2.5 lg:py-0 font-mono text-[13px] uppercase text-brand-purple placeholder-text-faint focus:outline-none lg:w-20" maxLength={3} placeholder="LAX" />
-                    </div>
-                    <div className="px-4 py-2.5">
-                      <div className="mb-1 font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">TO</div>
+                        className="w-full border-0 bg-transparent px-0 py-1.5 lg:py-0 font-mono text-[13px] uppercase text-brand-purple placeholder-text-faint focus:outline-none lg:w-20" maxLength={3} placeholder="LAX" />
+                    </label>
+                    <label className="block min-w-0 bg-white px-3 py-2 lg:px-4 lg:py-2.5">
+                      <span className="mb-1 block font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">TO</span>
                       <input type="text" value={leg.destination} onChange={e => onUpdateLeg(leg.id, { destination: e.target.value.toUpperCase() })}
-                        className="w-full border-0 bg-transparent px-0 py-2.5 lg:py-0 font-mono text-[13px] uppercase text-brand-purple placeholder-text-faint focus:outline-none lg:w-20" maxLength={3} placeholder="DPS" />
-                    </div>
-                    <div className="px-4 py-2.5">
-                      <div className="mb-1 font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">DEPART</div>
+                        className="w-full border-0 bg-transparent px-0 py-1.5 lg:py-0 font-mono text-[13px] uppercase text-brand-purple placeholder-text-faint focus:outline-none lg:w-20" maxLength={3} placeholder="DPS" />
+                    </label>
+                    <label className={`${leg.tripType === 'roundtrip' ? '' : 'col-span-2 '}block min-w-0 bg-white px-3 py-2 lg:px-4 lg:py-2.5`}>
+                      <span className="mb-1 block font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">DEPART</span>
                       <input type="date" value={leg.departureDate} onChange={e => onUpdateLeg(leg.id, { departureDate: e.target.value })}
-                        className="w-full border-0 bg-transparent px-0 py-2.5 lg:py-0 font-mono text-[13px] text-brand-purple focus:outline-none" />
-                    </div>
+                        className="block w-full min-w-0 appearance-none border-0 bg-transparent px-0 py-1.5 lg:py-0 font-mono text-[13px] text-brand-purple focus:outline-none [&::-webkit-date-and-time-value]:text-left" />
+                    </label>
                     {leg.tripType === 'roundtrip' && (
-                      <div className="px-4 py-2.5">
-                        <div className="mb-1 font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">RETURN</div>
+                      <label className="block min-w-0 bg-white px-3 py-2 lg:px-4 lg:py-2.5">
+                        <span className="mb-1 block font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">RETURN</span>
                         <input type="date" value={leg.returnDate} onChange={e => onUpdateLeg(leg.id, { returnDate: e.target.value })}
-                          className="w-full border-0 bg-transparent px-0 py-2.5 lg:py-0 font-mono text-[13px] text-brand-purple focus:outline-none" />
-                      </div>
+                          className="block w-full min-w-0 appearance-none border-0 bg-transparent px-0 py-1.5 lg:py-0 font-mono text-[13px] text-brand-purple focus:outline-none [&::-webkit-date-and-time-value]:text-left" />
+                      </label>
                     )}
-                    <div className="px-4 py-2.5">
+                    <div className="col-span-2 min-w-0 bg-white px-3 py-2 lg:px-4 lg:py-2.5">
                       <div className="mb-1 font-mono text-xs lg:text-[9.5px] tracking-widest text-text-faint">TRIP</div>
                       <div className="flex items-center gap-2">
                         <button onClick={() => onUpdateLeg(leg.id, { tripType: 'roundtrip' })}
