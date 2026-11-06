@@ -2,15 +2,17 @@
 
 /**
  * CloseOfferSection (HOME-05a, Alex, 2026-11-03) — THE CLOSE, on the guest landing
- * directly after the DONE-FOR-YOU act (Landing.tsx): the 2026 close offer, booked by
- * email. 'use client' only because Landing.tsx is one; this file holds no state and
- * no effect.
+ * directly after the DONE-FOR-YOU act (Landing.tsx): the 2026 close offer. ONE-FORM-01
+ * (Alex, 2026-11-06): booked on the proposal form, not by email — the button opens
+ * /work-with-me with the close picked. 'use client' only because Landing.tsx is one;
+ * this file holds no state and no effect.
  *
  * WHAT IT RENDERS — every word from closeWords(CLOSE_OFFER, today)
  * (src/lib/offer/closeWords.ts over src/lib/offer/close.ts), none typed here:
  *   open    the eyebrow and the h2; then one white card — what it is, the price
  *           line, the book-by line, what it is not (the same type size as what it
- *           is), the remedy, and ONE button-styled mailto link at least 44px tall;
+ *           is), the remedy, and ONE button-styled link to the form at least 44px
+ *           tall (a plain <a>: a full navigation to a force-dynamic page);
  *   closed  the eyebrow, the h2 and the one closed line — no price, no remedy, no
  *           button.
  *

@@ -1,16 +1,19 @@
 /**
- * HOME-05a (Alex, 2026-11-03) — the 2026 close offer on the home page, booked by email.
+ * HOME-05a (Alex, 2026-11-03) — the 2026 close offer on the home page. ONE-FORM-01 (Alex,
+ * 2026-11-06): booked on the proposal form, not by email — the leaf's email and subject
+ * are gone, its `need` is the form's word, and the button opens /work-with-me?need=close.
  * One leaf (src/lib/offer/close.ts) and its law; one words module that derives every
  * line; one section mounted directly after DONE-FOR-YOU; the law re-run at build.
  *
  *   T1 the law — every refusal by name over a fixture; the live offer passes; it throws
  *      by default; the leaf imports nothing and reads no clock, env or network;
- *   T2 the words — the price line and its total, the book-by line, the mailto href, the
- *      button's words, every other line exact; open through bookBy, closed after it;
- *      a malformed day fails loud; one dayWords in the codebase;
- *   T3 the section, rendered — open: every line in order, one 44px mailto link, what it
- *      is not at the type size of what it is; closed: the top and the closed line only;
- *      no "free", "BUY NOW", "don't miss", countdown, emoji or `new Date(`; nothing typed;
+ *   T2 the words — the price line and its total, the book-by line, the form href, the
+ *      button's words, the form's choice and example, every other line exact; open
+ *      through bookBy, closed after it; a malformed day fails loud; one dayWords;
+ *   T3 the section, rendered — open: every line in order, one 44px link to the form,
+ *      what it is not at the type size of what it is; closed: the top and the closed
+ *      line only; no "free", "BUY NOW", "don't miss", countdown, emoji or `new Date(`;
+ *      nothing typed;
  *   T4 the mount — after DONE-FOR-YOU's closing tag, before the pipeline header; the act
  *      list and the seam ledger name it; the pins that stay; the law's seat at build.
  * No live call, no database, no clock.
@@ -20,8 +23,8 @@ import assert from 'node:assert/strict';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code, comments } from '../sourceText';
-import { CLOSE_OFFER, CloseOfferLawError, closeOfferLaw, type CloseOffer } from '../offer/close';
-import { CloseWordsError, closeWords, usd } from '../offer/closeWords';
+import { CLOSE_OFFER, CloseOfferLawError, PROPOSAL_FORM_PATH, closeOfferLaw, type CloseOffer } from '../offer/close';
+import { CloseWordsError, closeFormHref, closeWords, usd } from '../offer/closeWords';
 import { dayWords } from '../experienceWords';
 import { CLOSE_ANCHOR, CloseOfferView } from '@/components/landing/CloseOfferSection';
 
@@ -62,18 +65,21 @@ const WANT = {
   bookBy: 'Book by Dec 15, 2026.',
   notTax: "Bookkeeping, not tax filing or tax advice. I have six years in accounting and I'm a CPA candidate, not a licensed CPA.",
   remedy: 'If a month I closed has to be reopened because of my error, I correct it at no charge.',
-  words: 'Email me to book: astuart@templestuart.com',
-  href: 'mailto:astuart@templestuart.com?subject=2026%20close',
+  words: 'Book the 2026 close →',
+  href: '/work-with-me?need=close',
+  choice: 'Close my 2026 books',
+  done: 'e.g. Every month of 2026 closed, and the year-end statements with my tax preparer by the end of January.',
   closed: 'The 2026 close stopped taking new books on Dec 15, 2026.',
 };
 
 // ── T1 · THE LAW ─────────────────────────────────────────────────────────────
 
 test('T1 the live offer is the ruled one and passes; the law throws by default on a failure', () => {
-  assert.deepEqual(CLOSE_OFFER, { year: 2026, pricePerMonthUsd: 150, bookBy: '2026-12-15', email: 'astuart@templestuart.com', subject: '2026 close' });
+  assert.deepEqual(CLOSE_OFFER, { year: 2026, pricePerMonthUsd: 150, bookBy: '2026-12-15', need: 'close' });
+  assert.equal(PROPOSAL_FORM_PATH, '/work-with-me');
   assert.deepEqual(closeOfferLaw({ throwOnFail: false }), []);
-  assert.throws(() => closeOfferLaw({ offer: { ...CLOSE_OFFER, subject: '' } }), CloseOfferLawError);
-  assert.throws(() => closeOfferLaw({ offer: { ...CLOSE_OFFER, subject: '' } }), /CLOSE OFFER LAW failed:\n {2}close offer: subject is empty/);
+  assert.throws(() => closeOfferLaw({ offer: { ...CLOSE_OFFER, need: '' } }), CloseOfferLawError);
+  assert.throws(() => closeOfferLaw({ offer: { ...CLOSE_OFFER, need: '' } }), /CLOSE OFFER LAW failed:\n {2}close offer: need "" is not lower-case letters/);
 });
 
 test('T1 every refusal by name, a fixture for each', () => {
@@ -82,9 +88,8 @@ test('T1 every refusal by name, a fixture for each', () => {
   for (const year of [26, 20260, 2026.5, '2026']) refuses({ year }, 'is not four digits');
   refuses({ year: 2025 }, "year 2025 is not bookBy's year (2026-12-15)");
   refuses({ bookBy: '2027-01-10' }, "year 2026 is not bookBy's year (2027-01-10)");
-  for (const email of ['astuart', 'astuart@templestuart', 'a b@templestuart.com', 'astuart@templestuart.c', 'astuart@templestuart.COM', '@templestuart.com', '']) refuses({ email }, 'is not name@domain.tld');
-  for (const subject of ['', '   ', null]) refuses({ subject }, 'subject is empty');
-  assert.deepEqual(lawOver({ pricePerMonthUsd: 1250, year: 2027, bookBy: '2027-01-31', email: 'books@example.co', subject: 'close' }), [], 'a different good offer passes');
+  for (const need of ['', ' ', 'Close', 'close 2026', 'close-2026', 'close?', null, 7]) refuses({ need }, 'is not lower-case letters');
+  assert.deepEqual(lawOver({ pricePerMonthUsd: 1250, year: 2027, bookBy: '2027-01-31', need: 'yearend' }), [], 'a different good offer passes');
 });
 
 test('T1 the leaf is data and the law: zero imports, no clock, no env, no network', () => {
@@ -96,16 +101,19 @@ test('T1 the leaf is data and the law: zero imports, no clock, no env, no networ
 
 // ── T2 · THE WORDS ───────────────────────────────────────────────────────────
 
-test('T2 the open words: every line exact, the total derived, the book-by day through the one dayWords, the mailto href', () => {
+test('T2 the open words: every line exact, the total derived, the book-by day through the one dayWords, the form href', () => {
   const w = closeWords(CLOSE_OFFER, OPEN_DAY);
   assert.equal(w.state, 'open');
   if (w.state !== 'open') return;
   assert.deepEqual(w, {
     state: 'open', label: WANT.label, eyebrow: WANT.eyebrow, headline: WANT.headline, what: WANT.what, price: WANT.price, bookBy: WANT.bookBy,
-    notTax: WANT.notTax, remedy: WANT.remedy, button: { words: WANT.words, href: WANT.href },
+    notTax: WANT.notTax, remedy: WANT.remedy, button: { words: WANT.words, href: WANT.href }, choice: WANT.choice, done: WANT.done,
   });
   assert.equal(w.bookBy, `Book by ${dayWords(CLOSE_OFFER.bookBy)}.`);
-  assert.equal(w.button.href, `mailto:${CLOSE_OFFER.email}?subject=${encodeURIComponent(CLOSE_OFFER.subject)}`);
+  assert.equal(w.button.href, `${PROPOSAL_FORM_PATH}?need=${encodeURIComponent(CLOSE_OFFER.need)}`);
+  assert.equal(closeFormHref(CLOSE_OFFER), WANT.href);
+  assert.equal(closeFormHref({ ...CLOSE_OFFER, need: 'yearend' }), '/work-with-me?need=yearend', 'the href follows the leaf, never typed');
+  assert.doesNotMatch(code(WORDS), /mailto|@templestuart|'\/work-with-me'|"\/work-with-me"/, 'no email, and the path from the leaf');
   // the total is the price × 12, grouped by a pure formatter — never typed
   const bigger = closeWords({ ...CLOSE_OFFER, pricePerMonthUsd: 1250 }, OPEN_DAY);
   assert.ok(bigger.state === 'open' && bigger.price === '$1,250 for each month of 2026 I close. All twelve months: $15,000.', 'a bigger price groups its thousands, the total derived');
@@ -125,7 +133,7 @@ test('T2 open through bookBy, closed the day after: the closed line and nothing 
 
 // ── T3 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T3 open: the section, every line in order, one 44px mailto link, what it is not at the type size of what it is', () => {
+test('T3 open: the section, every line in order, one 44px link to the form, what it is not at the type size of what it is', () => {
   const html = render(OPEN_DAY);
   assert.equal(CLOSE_ANCHOR, 'close');
   assert.match(html, /^<section id="close" aria-label="Your 2026 books, closed" class="w-full border-b border-border bg-bg-terminal" data-close="open">/);
@@ -137,7 +145,7 @@ test('T3 open: the section, every line in order, one 44px mailto link, what it i
   assert.equal(links[0][1], WANT.href);
   assert.ok(links[0][2].split(' ').includes('min-h-[44px]'), 'at least 44px tall');
   assert.equal(links[0][3], WANT.words);
-  assert.doesNotMatch(html, /<button\b|<form\b|<input\b/, 'booking is an email — no form');
+  assert.doesNotMatch(html, /<button\b|<form\b|<input\b|mailto:/, 'booking is the proposal form, on its own page — no form here, no email');
   assert.deepEqual(classOf(html, 'data-close-not').match(SIZE), classOf(html, 'data-close-what').match(SIZE), 'what it is not: the same type size as what it is');
   assert.deepEqual(classOf(html, 'data-close-what').match(SIZE), ['text-sm']);
 });
@@ -159,7 +167,7 @@ test('T3 no "free", "BUY NOW", "don\'t miss", countdown or emoji in either state
     assert.doesNotMatch(src, /new Date\(/, `${f}: no new Date(`);
   }
   const section = code(SECTION);
-  assert.doesNotMatch(section, /catch up|Bookkeeping, not|no charge|Email me|WORK WITH ME|books, closed|stopped taking|\$\d|2026|astuart@/, 'every word comes from closeWords — none typed here');
+  assert.doesNotMatch(section, /catch up|Bookkeeping, not|no charge|Book the|Email me|WORK WITH ME|books, closed|stopped taking|\$\d|2026|astuart@|work-with-me|need=/, 'every word comes from closeWords — none typed here');
   assert.doesNotMatch(section, /#[0-9a-fA-F]{3,8}\b/, 'zero new hex');
   assert.doesNotMatch(section, /useState|useEffect|useSearchParams|useRouter/, 'no state, no effect');
 });
@@ -180,7 +188,7 @@ test('T4 Landing mounts the close once, directly after DONE-FOR-YOU\'s closing t
   assert.match(landing.slice(doneEnd + '</section>'.length, mount), /^\s*(\{\s*\}\s*)*$/, "nothing but a comment between DONE-FOR-YOU's closing tag and the mount");
   assert.match(landing.slice(mount + MOUNT.length, pipeline), /^\s*(\{\s*\}\s*)*$/, 'nothing but a comment between the mount and the next act');
   const notes = comments(LANDING);
-  assert.match(notes, / \*   DONE-FOR-YOU {8}— the professional-services panel\n[\s\S]*? \*   THE CLOSE {11}— the 2026 close offer, booked by email \(HOME-05a\)\n \*   THE PIPELINE header — /, 'the act list: right after DONE-FOR-YOU, before the pipeline header');
+  assert.match(notes, / \*   DONE-FOR-YOU {8}— the professional-services panel\n[\s\S]*? \*   THE CLOSE {11}— the 2026 close offer, booked on the proposal form \(HOME-05a; ONE-FORM-01\)\n \*   THE PIPELINE header — /, 'the act list: right after DONE-FOR-YOU, before the pipeline header');
   assert.ok(notes.includes("the close | pipeline header → the close's border-b (HOME-05a, 2026-11-03: a cream act, the DONE-FOR-YOU idiom, one rule; done-for-you | the close is done-for-you's border-b)"), 'the seam ledger gains its one line');
 });
 

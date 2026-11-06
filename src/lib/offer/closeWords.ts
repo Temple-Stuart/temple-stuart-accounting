@@ -4,21 +4,28 @@
  * and the ONE dayWords in the codebase (src/lib/experienceWords.ts) — never a second
  * date formatter.
  *
- *   closeWords(offer, today)  every line the section shows, derived from the offer
- *                             and typed once, here:
+ *   closeWords(offer, today)  every line the section and the form show, derived from
+ *                             the offer and typed once, here:
  *     open (today ≤ bookBy)    the eyebrow, the h2, what it is, the price line, the
- *                              book-by line, what it is not, the remedy, and the
- *                              button's words and mailto href;
+ *                              book-by line, what it is not, the remedy, the button's
+ *                              words and href, and — ONE-FORM-01 (Alex, 2026-11-06) —
+ *                              the form's words: the choice ("Close my 2026 books") and
+ *                              the done question's example;
  *     closed (today > bookBy)  the eyebrow, the h2 and the one closed line — no
- *                              price, no remedy, no button.
+ *                              price, no remedy, no button, no choice on the form.
  *   usd(n)                    "$1,800" — whole dollars, thousands grouped by a pure
  *                             formatter (no locale call).
+ *
+ * ONE-FORM-01: the button opens the proposal form with the close picked
+ * (`/work-with-me?need=close` — PROPOSAL_FORM_PATH and offer.need, never typed) where
+ * it was a mailto. The query key `need` is the form's own (WorkWithMeForm.tsx reads it
+ * through src/app/work-with-me/page.tsx).
  *
  * `today` and bookBy are 'YYYY-MM-DD', compared as strings (the calendar order). A
  * `today` of any other shape is a loud failure, never a guess at the state.
  */
 
-import type { CloseOffer } from './close';
+import { PROPOSAL_FORM_PATH, type CloseOffer } from './close';
 import { dayWords } from '../experienceWords';
 
 export type CloseWords =
@@ -34,6 +41,10 @@ export type CloseWords =
       notTax: string;
       remedy: string;
       button: { words: string; href: string };
+      /** The proposal form's chip for this offer. */
+      choice: string;
+      /** The form's example answer to "what does done look like?" when the close is picked. */
+      done: string;
     }
   | { state: 'closed'; label: string; eyebrow: string; headline: string; closed: string };
 
@@ -47,6 +58,11 @@ export class CloseWordsError extends Error {
 /** Whole dollars with the thousands grouped: 150 → "$150", 1800 → "$1,800". */
 export function usd(n: number): string {
   return `$${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+}
+
+/** The form, with this offer's choice picked: `/work-with-me?need=close`. */
+export function closeFormHref(offer: CloseOffer): string {
+  return `${PROPOSAL_FORM_PATH}?need=${encodeURIComponent(offer.need)}`;
 }
 
 export function closeWords(offer: CloseOffer, today: string): CloseWords {
@@ -64,6 +80,8 @@ export function closeWords(offer: CloseOffer, today: string): CloseWords {
     bookBy: `Book by ${dayWords(offer.bookBy)}.`,
     notTax: "Bookkeeping, not tax filing or tax advice. I have six years in accounting and I'm a CPA candidate, not a licensed CPA.",
     remedy: 'If a month I closed has to be reopened because of my error, I correct it at no charge.',
-    button: { words: `Email me to book: ${offer.email}`, href: `mailto:${offer.email}?subject=${encodeURIComponent(offer.subject)}` },
+    button: { words: `Book the ${offer.year} close →`, href: closeFormHref(offer) },
+    choice: `Close my ${offer.year} books`,
+    done: `e.g. Every month of ${offer.year} closed, and the year-end statements with my tax preparer by the end of January.`,
   };
 }
