@@ -30,10 +30,11 @@
  *   later); then tripOrder(WAS_HERE), each a card, in this order:
  *     · the image when present (an <img> at 3:2 with its credit under it), linking the
  *       stop's page out of the tab order — and NO <img>, NO placeholder box while null;
- *     · the label from the server's day — I'M HERE while he is there, COMING UP before;
- *       none once he has left (Alex: lose "I was here");
+ *     · the stop number, derived from the order ("Stop 1", "Stop 2" …) — TRIPCARDS-01d (Alex,
+ *       2026-11-06): on top of the place, under the photo credit — and on the same line the
+ *       label from the server's day: I'M HERE while he is there, COMING UP before; none once he
+ *       has left (Alex: lose "I was here");
  *     · city, country; the stay — "Since <day>" or the window's dateWords;
- *     · the stop number, derived from the order ("Stop 1", "Stop 2" …);
  *     · what it cost — Stay, Motorbike, Flight in: the name and the amount, "n/a" for none,
  *       "not in my log yet" for a figure he hasn't logged (tripPostWords.ts stopCostRows). One
  *       line each: a name too long for the card's width ends in "…" (the whole name in its
@@ -75,10 +76,11 @@ const TRIP = {
   card: 'w-[21rem] shrink-0 snap-start flex flex-col rounded-lg border border-border bg-white p-5',
   image: 'aspect-[3/2] w-full rounded object-cover',
   credit: 'mt-1 font-mono text-[10px] text-text-faint',
-  label: 'mt-4 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-brand-purple',
+  // TRIPCARDS-01d: the stop number leads the card's words (under the credit), the label beside it.
+  stop: 'mt-4 first:mt-0 font-mono text-xs text-text-faint',
+  label: 'font-semibold uppercase tracking-wider text-brand-purple',
   place: 'mt-1 text-lg font-semibold text-text-primary',
   stay: 'mt-1 font-mono text-xs text-text-secondary',
-  stop: 'mt-1 font-mono text-xs text-text-faint',
   foot: 'mt-auto pt-4',
   link: 'inline-flex min-h-[44px] items-center border border-brand-purple/40 px-5 text-sm font-medium text-brand-purple hover:bg-brand-purple-wash',
   // TRIPCARDS-01: what it cost — a label column in the mono faint voice; beside it the name and
@@ -131,10 +133,12 @@ function Entry({ row, costs, stop, today }: { row: WasHereRow; costs: TripCosts;
           <figcaption className={TRIP.credit}>{row.image.credit}</figcaption>
         </figure>
       )}
-      {label !== null && <p className={TRIP.label} data-was-here-label>{label}</p>}
+      <p className={TRIP.stop} data-was-here-stop={stop}>
+        {stopWords(stop)}
+        {label !== null && <><span aria-hidden="true"> · </span><span className={TRIP.label} data-was-here-label>{label}</span></>}
+      </p>
       <h3 className={TRIP.place}>{row.city}, {row.country}</h3>
       <p className={TRIP.stay} data-was-here-stay>{stayWords(row)}</p>
-      <p className={TRIP.stop} data-was-here-stop={stop}>{stopWords(stop)}</p>
       <Costs costs={costs} />
       <div className={TRIP.foot}>
         <a href={href} className={TRIP.link} data-was-here-post-link>{READ_THE_POST}</a>

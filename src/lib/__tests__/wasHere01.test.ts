@@ -31,7 +31,9 @@
  * stops booked ahead join — Cebu, Uluwatu, Pererenan — each with nothing in did or learned (a
  * planned stop, the law). TRIPCARDS-01 (Alex, 2026-11-06): the cards sit in ONE row that
  * scrolls sideways. TRIPPHOTO-08 / 09 (Alex, 2026-11-06): Uluwatu's and Pererenan's photos, his
- * own from days there during the Canggu stay; Cebu has none yet.
+ * own from days there during the Canggu stay; Cebu has none yet. TRIPCARDS-01d (Alex,
+ * 2026-11-06): the stop number sits on top of the place, under the photo credit, the label
+ * beside it.
  *
  *   T1 the law — every refusal by name over injected rows and events; the deleted
  *      refusals named absent; the live rows pass;
@@ -402,12 +404,14 @@ test('T4 rendered with the live rows: the h2 "Where I\'ve been, and where I\'m g
   const siargao = cardOf(html, 'siargao-2026');
   assert.match(siargao, /data-was-here-label="true">I&#x27;M HERE</);
   assert.match(siargao, /data-was-here-stay="true">Oct 22 – Nov 13, 2026</);
-  assert.match(siargao, /data-was-here-stop="7">Stop 7</);
+  assert.match(siargao, /data-was-here-stop="7">Stop 7<span aria-hidden="true"> · <\/span><span class="[^"]*" data-was-here-label="true">I&#x27;M HERE<\/span><\/p>/, 'the label beside the stop number');
   // Every card, the same parts in the same order — and its last child the link.
   for (const id of TRIP) {
     const card = cardOf(html, id);
     const parts = [...card.matchAll(/data-was-here-(label|stay|stop|costs|post-link)=/g)].map((m) => m[1]);
-    assert.deepEqual(parts, [...(['siargao-2026', ...BOOKED].includes(id) ? ['label'] : []), 'stay', 'stop', 'costs', 'post-link'], `${id}: the stop and what it cost, nothing else`);
+    // TRIPCARDS-01d (Alex, 2026-11-06): "Stop 1 / Canggu, Bali, Indonesia / July 1-30, 2026" — the stop number on top of the place, under the photo credit; the label beside it.
+    assert.deepEqual(parts, ['stop', ...(['siargao-2026', ...BOOKED].includes(id) ? ['label'] : []), 'stay', 'costs', 'post-link'], `${id}: the stop and what it cost, nothing else`);
+    assert.ok((card.includes('<figcaption') ? pos(card, '</figcaption>') : 0) < pos(card, 'data-was-here-stop=') && pos(card, 'data-was-here-stop=') < pos(card, '<h3') && pos(card, '<h3') < pos(card, 'data-was-here-stay='), `${id}: credit → stop → place → dates`);
     assert.match(card, /<div class="mt-auto pt-4"><a href="[^"]*" class="[^"]*" data-was-here-post-link="true">Read the post →<\/a><\/div><\/article>/, `${id}: the link closes the card, on its bottom edge`);
   }
   for (const [id, place, stay, n] of [['cebu-2026-11', 'Cebu, Philippines', 'Nov 13–20, 2026', 8], ['uluwatu-2026-11', 'Uluwatu, Bali, Indonesia', 'Nov 20 – Dec 1, 2026', 9], ['pererenan-2026-12', 'Pererenan Beach, Bali, Indonesia', 'Dec 1–11, 2026', 10]] as const) {
