@@ -176,7 +176,8 @@ test('T3 the fire functions refuse a non-owner by name BEFORE the cap, the env o
     globalThis.fetch = realFetch;
   }
   assert.equal(calls.length, 0, 'nothing reached the network');
-  // And the order in source: owner → cap → env → the task/project read → fetch.
+  // And the order in source: owner → cap → env → fetch. fireExecutionRoutine reads the
+  // task before the cap, so a malformed task is refused without taking a daily slot.
   for (const [file, cap, env] of [
     [FIRE_EXEC, 'await requireExecBudget(userId);', 'process.env.EXEC_ROUTINE_FIRE_URL'],
     [FIRE_AUDIT, 'await requireRoutineBudget(userId);', 'process.env.ROUTINE_AUDIT_FIRE_URL'],
@@ -187,6 +188,10 @@ test('T3 the fire functions refuse a non-owner by name BEFORE the cap, the env o
     const envAt = once(s, env, `${file} env`);
     const fetchAt = once(s, 'await fetch(fireUrl, {', `${file} fetch`);
     assert.ok(owner < capAt && capAt < envAt && envAt < fetchAt, `${file}: owner → cap → env → fetch`);
+    if (file === FIRE_EXEC) {
+      const guardAt = s.indexOf('refusing to send a malformed payload');
+      assert.ok(owner < guardAt && guardAt < capAt, `${file}: owner → malformed-task guard → cap`);
+    }
     const input = s.indexOf('} = input;');
     assert.ok(input > 0 && input < owner);
     assert.match(s.slice(input + '} = input;'.length, owner), /^\s*$/, `${file}: the owner check is the first statement after the input is read`);
