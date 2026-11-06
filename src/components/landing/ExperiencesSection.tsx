@@ -16,19 +16,21 @@
  *      FIRST category in EXPERIENCE_CATEGORIES (DEFAULT_INTO, derived from the
  *      list), its chip pressed; a valid id → that category, its chip pressed; an
  *      unknown value → no chip pressed and the line "<value> is not a category —
- *      pick one above." in place of COMING UP and THE LINEUP — a bad value gets a
- *      refusal, never a substitute category;
+ *      pick one above." in place of COMING UP — a bad value gets a refusal, never a
+ *      substitute category;
  *   3. (WASHERE-01, 2026-10-31: the card EVENTS-01 pinned here with Alex's line LEFT
  *      this section — "I was here" is Alex's own trip and lives in the MY TRIP act,
  *      WasHereSection.tsx, directly below; the experiences are the reader's filter and
  *      nothing here is Alex's.)
- *   4. COMING UP — upcoming(rows, today, 6) over the chosen category, unfiltered (Surf
- *      shows the Philippines Pro first while it is on); under the grid the one line
- *      pointing at the strip (EVENTS-02 replaces it with per-card prefill); nothing
- *      upcoming in the chosen category → said, never an empty grid;
- *   5. THE LINEUP — the chosen category's rows, EVERY row its own pill linking its
- *      date to its source (EVENTS-01b: nothing collapses — F1 shows all 24 cities);
- *   6. the closing line.
+ *   4. COMING UP — EVENTS-01c (Alex, 2026-11-06): "this part [THE LINEUP] can be removed and
+ *      added to the COMING UP section … and just horizontal scroll cards". EVERY row of the
+ *      chosen category is a card in ONE row that scrolls sideways (nothing collapses — F1
+ *      shows all 24 cities): what is upcoming first, by start (upcoming(), unfiltered — Surf
+ *      shows the Philippines Pro first while it is on), then the rest in the leaf's order, each
+ *      saying it is not announced (experienceLine). Every card links its source. Under the row
+ *      the one line pointing at the strip (EVENTS-02 replaces it with per-card prefill);
+ *      nothing upcoming in the chosen category → said above the row, and no strip line;
+ *   5. the closing line.
  *
  * THE DAY RULE: `today` is the UTC calendar date src/app/page.tsx computed ONCE and
  * passed down; nothing here reads the clock, so the server's words and the browser's
@@ -36,10 +38,14 @@
  * string compare on 'YYYY-MM-DD'.
  *
  * PAINT: house tokens only, zero new hex — the hero's aubergine band (bg-brand-purple,
- * text-white), the eyebrow in brand-amber, cards and pills on the band's own white/5
- * fill and white/15 hairline, in the DECK grammar's idiom (Landing.tsx DECK: one const,
- * every class string whole). Chips wrap; the grids are auto-fit over min(…, 100%);
- * nothing scrolls sideways. No image, no countdown, no urgency words, no emoji.
+ * text-white), the eyebrow in brand-amber, cards on the band's own white/5 fill and white/15
+ * hairline, in the DECK grammar's idiom (Landing.tsx DECK: one const, every class string
+ * whole). Chips wrap. COMING UP is one row that scrolls sideways, edge to edge of the band's
+ * box (the negative margin meets the inner padding, so the page itself never scrolls), every
+ * card one width, snapping to its start, a column so the row's cards share one height and
+ * every source link sits on the bottom edge; the row's thumb is drawn, white/30 on the band
+ * (WasHereSection's row, its twin on the cream act). No image, no countdown, no urgency
+ * words, no emoji.
  *
  * ExperiencesView is the pure half — props in, markup out; the tests render it. The
  * default export reads the URL and hands it the choice.
@@ -51,14 +57,12 @@ import {
   EXPERIENCES, EXPERIENCE_CATEGORIES, experienceCategoryLabel, isExperienceCategoryId,
   type Experience, type ExperienceCategoryId,
 } from '@/lib/experiences';
-import { experienceLine, lineupPill, upcoming } from '@/lib/experienceWords';
+import { experienceLine, upcoming } from '@/lib/experienceWords';
 
 /** The section's anchor — the strip's Events mode and the chips' URL both name it. */
 export const EVENTS_ANCHOR = 'events';
 /** The one URL parameter: ?into=<category id>. */
 export const INTO_PARAM = 'into';
-/** How many upcoming cards COMING UP shows. */
-export const COMING_UP_COUNT = 6;
 /** EVENTS-01b: the category shown when the URL names none — the FIRST in the leaf's list, derived, never typed. */
 export const DEFAULT_INTO: ExperienceCategoryId = EXPERIENCE_CATEGORIES[0].id;
 
@@ -68,17 +72,18 @@ export const SUBHEAD = "Pick what you're into. See what's on and where. Book the
 export const INTO_LABEL = "I'M INTO…";
 export const COMING_UP_LABEL = 'COMING UP';
 export const STRIP_LINE = 'To book around one of these, use the strip at the top: hotels, flights, getting around.';
-export const LINEUP_LABEL = 'THE LINEUP';
+/** EVENTS-01c: each card's link to its row's source — the page its dates came from. */
+export const SOURCE_LINK = 'Source ↗';
 export const CLOSING_LINE = "Dates come from each event's own calendar, with the day they were checked. Not announced means not announced. Tickets are sold by the events, not here.";
 
-/** "<value> is not a category — pick one above." — the unknown ?into= value, refused by name, in place of COMING UP and THE LINEUP. */
+/** "<value> is not a category — pick one above." — the unknown ?into= value, refused by name, in place of COMING UP. */
 export function notACategory(value: string): string {
   return `${value} is not a category — pick one above.`;
 }
 
-/** "Nothing announced yet in <category> — the rows below say when each one was checked." */
+/** "Nothing announced yet in <category> — the cards below say when each one was checked." */
 export function nothingUpcoming(categoryLabel: string): string {
-  return `Nothing announced yet in ${categoryLabel} — the rows below say when each one was checked.`;
+  return `Nothing announced yet in ${categoryLabel} — the cards below say when each one was checked.`;
 }
 
 // THE CLASS GRAMMAR — the DECK idiom: one const, every string whole, house tokens only.
@@ -93,17 +98,19 @@ const EXP = {
   chipOn: 'min-h-[44px] rounded-full border border-white bg-white px-4 py-2 font-mono text-xs font-medium text-brand-purple',
   chipOff: 'min-h-[44px] rounded-full border border-white/40 px-4 py-2 font-mono text-xs font-medium text-white transition-colors hover:bg-white/10',
   refused: 'mt-2 font-mono text-xs text-brand-amber',
-  card: 'rounded-lg border border-white/15 bg-white/5 p-5',
+  // EVENTS-01c: one width, snapping to its start; a column, so the row's cards share one height.
+  card: 'w-[21rem] shrink-0 snap-start flex flex-col rounded-lg border border-white/15 bg-white/5 p-5',
   cardEyebrow: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-amber',
   cardName: 'mt-1 text-lg font-semibold text-white',
   cardPlace: 'mt-1 text-sm text-white/80',
   cardLine: 'mt-2 font-mono text-xs leading-relaxed text-white/90',
   cardNotes: 'mt-1 text-xs text-white/60',
-  grid: 'mt-3 grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))]',
+  cardFoot: 'mt-auto pt-3',
+  source: 'inline-flex min-h-[44px] items-center font-mono text-xs text-white/80 underline-offset-4 hover:text-white hover:underline',
+  // EVENTS-01c (2026-11-06): one row that scrolls sideways, edge to edge of the band's box — the
+  // negative margin meets the inner padding, so the page never scrolls; the thumb is drawn.
+  rail: '-mx-4 mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto scroll-px-4 px-4 pb-3 lg:-mx-8 lg:scroll-px-8 lg:px-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/30 [&::-webkit-scrollbar-track]:bg-transparent',
   line: 'mt-4 text-sm text-white/70',
-  lineup: 'mt-5',
-  pillRow: 'mt-2 flex flex-wrap gap-2',
-  pill: 'inline-flex min-h-[44px] items-center whitespace-normal break-words rounded border border-white/15 bg-white/5 px-3 py-2 text-left font-mono text-xs leading-snug text-white/90 hover:bg-white/10',
   closing: 'mt-8 text-xs text-white/60',
 } as const;
 
@@ -130,22 +137,11 @@ function Card({ row, today }: { row: Experience; today: string }) {
       <p className={EXP.cardPlace}>{placeOf(row)}</p>
       <p className={EXP.cardLine} data-experience-line>{experienceLine(row, today)}</p>
       {row.notes !== null && <p className={EXP.cardNotes}>{row.notes}</p>}
-    </article>
-  );
-}
-
-function Lineup({ label, rows, today }: { label: string; rows: readonly Experience[]; today: string }) {
-  return (
-    <div className={EXP.lineup} data-lineup={label}>
-      <p className={EXP.cardEyebrow}>{label}</p>
-      <div className={EXP.pillRow}>
-        {rows.map((row) => (
-          <a key={row.id} href={row.sourceUrl} rel="noopener" target="_blank" className={EXP.pill} data-pill={row.id}>
-            {lineupPill(row, today)}
-          </a>
-        ))}
+      {/* EVENTS-01c: the lineup's links moved here — every card names the page its dates came from. */}
+      <div className={EXP.cardFoot}>
+        <a href={row.sourceUrl} rel="noopener" target="_blank" className={EXP.source} data-source={row.id}>{SOURCE_LINK}</a>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -153,7 +149,9 @@ function Lineup({ label, rows, today }: { label: string; rows: readonly Experien
 export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesViewProps) {
   const into = 'category' in choice ? choice.category : null;
   const chosen = into === null ? [] : rows.filter((r) => r.category === into);
-  const comingUp = upcoming(chosen, today, COMING_UP_COUNT);
+  // EVENTS-01c: every row of the category — what is upcoming first, by start, then the rest in the leaf's order.
+  const comingUp = upcoming(chosen, today, chosen.length);
+  const cards = [...comingUp, ...chosen.filter((r) => !comingUp.includes(r))];
   return (
     <section id={EVENTS_ANCHOR} aria-label="Book the experience" className={EXP.band} data-experiences>
       <div className={EXP.inner}>
@@ -175,19 +173,11 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
         ) : (
           <>
             <p className={`mt-10 ${EXP.label}`}>{COMING_UP_LABEL}</p>
-            {comingUp.length > 0 ? (
-              <>
-                <div className={EXP.grid} data-coming-up-grid>
-                  {comingUp.map((row) => <Card key={row.id} row={row} today={today} />)}
-                </div>
-                <p className={EXP.line}>{STRIP_LINE}</p>
-              </>
-            ) : (
-              <p className={EXP.line} data-nothing-upcoming>{nothingUpcoming(experienceCategoryLabel(into))}</p>
-            )}
-
-            <p className={`mt-10 ${EXP.label}`}>{LINEUP_LABEL}</p>
-            <Lineup label={experienceCategoryLabel(into)} rows={chosen} today={today} />
+            {comingUp.length === 0 && <p className={EXP.line} data-nothing-upcoming>{nothingUpcoming(experienceCategoryLabel(into))}</p>}
+            <div className={EXP.rail} data-coming-up-rail>
+              {cards.map((row) => <Card key={row.id} row={row} today={today} />)}
+            </div>
+            {comingUp.length > 0 && <p className={EXP.line}>{STRIP_LINE}</p>}
           </>
         )}
 
