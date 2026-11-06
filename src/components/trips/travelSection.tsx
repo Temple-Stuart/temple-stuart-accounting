@@ -29,9 +29,16 @@ import type { ReactNode } from 'react';
  *  (py-2 → py-3, rounded → rounded-lg — the "large, rounded" field spec on
  *  the same tokens; text-sm stays: nothing measured cramped at it). Every
  *  consumer inherits — the strip forms, the unified bar, the checkout
- *  panels. */
+ *  panels.
+ *  STRIP-PHONE-01 (Alex, 2026-11-06): on an iPhone a date field drew its own
+ *  native control, wider than its cell — the hotel form's check-in and
+ *  check-out ran past the card's right edge — with its value centred. A
+ *  field may shrink with its cell (min-w-0); a date field drops the native
+ *  look (appearance-none — the tap still opens the phone's date picker),
+ *  keeps the 44px tap height when empty, and reads from the left. Selects
+ *  and text fields keep their own look. */
 export const TRAVEL_INPUT_CLASS =
-  'bg-white border border-border rounded-lg px-3 py-3 text-sm text-text-primary placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand-purple';
+  'min-w-0 bg-white border border-border rounded-lg px-3 py-3 text-sm text-text-primary placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand-purple [&[type=date]]:block [&[type=date]]:min-h-[2.75rem] [&[type=date]]:appearance-none [&::-webkit-date-and-time-value]:text-left';
 
 /** The shared submit-button class. PR-STRIP-DESIGN-2: the big confident
  *  Search — px-8 py-3, white text. REPAINT-4a: the gradient died — search is

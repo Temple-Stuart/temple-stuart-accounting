@@ -202,30 +202,34 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
       // this identity — the in-card header hides (title stays, sr-only).
       hideHeader
     >
-      <form onSubmit={search} className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      {/* STRIP-PHONE-01 (Alex, 2026-11-06): on a phone the form is two columns — country and
+          city each full width, CHECK-IN beside CHECK-OUT, guests full width — and every cell
+          may shrink with it (min-w-0), so no field runs past the card. lg is unchanged. */}
+      <form onSubmit={search} className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         {/* PR-loc-2: linked country→city picker (real LiteAPI cities only)
             replaces the free-text city + country inputs. */}
         <CountryCityPicker onChange={setPicked} />
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className={TRAVEL_LABEL_CLASS}>Check-in</span>
-          <TravelField icon={<Calendar className="h-4 w-4" strokeWidth={1.75} />}>
+          {/* STRIP-PHONE-01: half a phone's width holds the date, not the calendar icon too — the icon from sm. */}
+          <TravelField icon={<Calendar className="hidden h-4 w-4 sm:block" strokeWidth={1.75} />}>
             <input
               type="date"
               value={checkin}
               onChange={(e) => setCheckin(e.target.value)}
-              className={`w-full pl-10 ${TRAVEL_INPUT_CLASS}`}
+              className={`w-full pl-3 sm:pl-10 ${TRAVEL_INPUT_CLASS}`}
               aria-label="Check-in date"
             />
           </TravelField>
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className={TRAVEL_LABEL_CLASS}>Check-out</span>
-          <TravelField icon={<Calendar className="h-4 w-4" strokeWidth={1.75} />}>
+          <TravelField icon={<Calendar className="hidden h-4 w-4 sm:block" strokeWidth={1.75} />}>
             <input
               type="date"
               value={checkout}
               onChange={(e) => setCheckout(e.target.value)}
-              className={`w-full pl-10 ${TRAVEL_INPUT_CLASS}`}
+              className={`w-full pl-3 sm:pl-10 ${TRAVEL_INPUT_CLASS}`}
               aria-label="Check-out date"
             />
           </TravelField>
@@ -233,7 +237,7 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         {/* PR-B: the guests select gets its OWN grid cell (it previously shared a
             flex row with the Search button, which squeezed the button past the cell's
             right edge — the reported cutoff). */}
-        <label className="flex flex-col gap-1">
+        <label className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
           <span className={TRAVEL_LABEL_CLASS}>Guests</span>
           <TravelField icon={<Users className="h-4 w-4" strokeWidth={1.75} />}>
           <select
