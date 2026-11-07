@@ -7,7 +7,7 @@ import { BudgetDaysError } from '@/lib/budget/days';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { BudgetInputError, budgetReportResponse, parseReportQuery, utcDay } from '@/lib/budget/reportInputs';
 import { vendorWindow } from '@/lib/budget/planLines';
-import { countLeftOut, readActuals, readBudgetChart, readCostedTasks, readPlanVendors } from '@/lib/budget/reportReads';
+import { countLeftOut, readActuals, readBankNotInBooks, readBudgetChart, readCostedTasks, readPlanVendors } from '@/lib/budget/reportReads';
 
 /**
  * TAB13-02b — GET /api/budget/report: what you planned, what posted, and the
@@ -42,11 +42,11 @@ import { countLeftOut, readActuals, readBudgetChart, readCostedTasks, readPlanVe
  *     book) and, through its relations, its plan's name, its routine's zone and its
  *     line's activity. planLines.ts decides which belong to the view. A YEAR reads
  *     none (null);
- *   · NOT IN THE BOOKS YET: bank rows of the viewer's accounts (accounts.userId)
- *     whose review_status is not 'committed', in range and not after asOf —
- *     counted per column and summed as a BANK figure (Plaid signs outflows
- *     positive), never mixed into an actual; a row whose amount is not whole
- *     cents is listed as not totalled and left out of the sums, never fatal.
+ *   · NOT IN THE BOOKS YET: bank rows of the viewer's accounts (accounts.userId), review_status not 'committed', in
+ *     range and not after asOf — HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): through the ONE loader function both
+ *     pages call (reportReads.ts readBankNotInBooks; the DAY table on /home reads the same), each with its ACCOUNT's
+ *     currency; counted per column, summed PER CURRENCY CODE as a BANK figure (Plaid signs outflows positive), never
+ *     across codes, never mixed into an actual; a row whose amount is not whole cents is listed, left out, never fatal.
  * No travel table is read: travel budgets are not connected yet, and the
  * response says so.
  *
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     const { view, asOf } = query;
     const { rangeFrom, rangeTo } = viewRange(view);
     const through = rangeTo < asOf ? rangeTo : asOf;
-    const fromDay = new Date(`${rangeFrom}T00:00:00.000Z`);
+    // HOME-LEDGER-02a: the bank window's UTC midnight is built in the one loader (readBankNotInBooks), not here.
     const vendorsFrom = vendorWindow(view);
 
     const entities = await prisma.entities.findMany({
@@ -87,20 +87,22 @@ export async function GET(request: NextRequest) {
     });
     const entityIds = entities.map((e) => e.id);
 
-    const [chart, routineGroups, tasks, ledger, excludedLines, bank, planVendors] = await Promise.all([
+    const [chart, routineGroups, tasks, ledger, excludedLines, bankRows, planVendors] = await Promise.all([
       readBudgetChart(prisma, user.id, entityIds),
       Promise.all(entities.map(async (e) => ({ entityId: e.id, rows: await loadRoutineBudgetInputs(prisma, user.id, e.id) }))),
       readCostedTasks(prisma, user.id, entityIds),
       // Actuals: never a reversal pair, never a closing entry — by name, in the one loader.
       readActuals(prisma, user.id, entityIds, rangeFrom, through),
       countLeftOut(prisma, user.id, entityIds, { from: rangeFrom, through, to: rangeTo, asOf }),
-      prisma.transactions.findMany({
-        where: { accounts: { userId: user.id }, review_status: { not: 'committed' }, date: { gte: fromDay, lte: new Date(`${through}T23:59:59.999Z`) } },
-        select: { id: true, date: true, amount: true },
-      }),
+      // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the bank rows not yet in the books through the ONE read both pages
+      // call (reportReads.ts readBankNotInBooks) — [rangeFrom, through], the window as this report builds it, each row
+      // with its ACCOUNT's stated currency; the model sums per code, never across codes.
+      readBankNotInBooks(prisma, user.id, rangeFrom, through),
       // TAB13-04: the plan's vendors — a DAY or WEEK only; a YEAR reads none.
       vendorsFrom === null ? null : readPlanVendors(prisma, user.id, vendorsFrom),
     ]);
+    // Ruling C: the account's stated currency rides beside the amount into the model (BankRow.currency).
+    const bank = bankRows.map((t) => ({ id: t.id, date: t.date, amount: t.amount, currency: t.accounts.isoCurrencyCode }));
 
     return NextResponse.json(budgetReportResponse({ view, asOf }, {
       entities,

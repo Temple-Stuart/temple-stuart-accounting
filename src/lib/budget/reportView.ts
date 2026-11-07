@@ -28,8 +28,16 @@
  * the screen, the one place that reads it.
  */
 import type { ReportBook, ReportColumn, ShownBudget } from './report';
-import { formatCents } from './format';
+import type { NotInBooksColumn } from './reportInputs';
+import { BLANK, formatCents } from './format';
+import { CURRENCY_NOT_STATED_WORDS, NOT_WHOLE_CENTS_WORDS, bankCentsWords } from '@/lib/books/functionalCurrency';
 import { readVendorName, takenBy, vendorNameKey } from '@/lib/operations/planVendor';
+
+/**
+ * HOME-LEDGER-02a (Alex, 2026-11-07): the BANK row's words (ruling C — per currency through the books' one bank
+ * formatter, a count for the rows whose account states none, nothing added across codes) and the #1886 gap line
+ * (ruling D) join; BudgetReport prints both, on /budget and on /home. Pure still: functionalCurrency.ts has no imports.
+ */
 
 /** A 'YYYY-MM-DD' day moved by n days, by UTC arithmetic (no zone can shift it). */
 export function shiftDay(day: string, n: number): string {
@@ -75,6 +83,33 @@ export function tableLabels(books: readonly Pick<ReportBook, 'entityName' | 'lab
   const shared = (label: string): boolean => books.filter((b) => b.label === label).length > 1;
   return books.map((b) => (shared(b.label) ? `${b.label} · ${b.entityName}` : b.label));
 }
+
+// ── THE BANK ROW AND THE GAP (HOME-LEDGER-02a, Alex, 2026-11-07, rulings C, D) ─
+
+/** The one row under the book tables: the bank rows not yet in the books, per currency — a bank figure, never an actual. */
+export const BANK_ROW_LABEL = 'BANK — not yet in the books';
+/** The row's figure word — the basis the response states (notInBooks.basis). */
+export const BANK_ROW_FIGURE_WORDS = 'bank';
+/** The sign the response states, printed under the row. */
+export const BANK_SIGN_WORDS = 'Plaid signs outflows positive';
+export const currencyNotStatedCountWords = (n: number): string => `${n} ${CURRENCY_NOT_STATED_WORDS}`;
+export const notTotalledCountWords = (n: number): string => `${n} bank row${n === 1 ? '' : 's'} not totalled (${NOT_WHOLE_CENTS_WORDS})`;
+
+/**
+ * One cell of the BANK row: the per-code figures through the one bank formatter (functionalCurrency.ts
+ * bankCentsWords — '$42.10' in the functional currency, '1200.00 THB' otherwise), joined ' · ', then 'N currency not
+ * stated' for the rows whose account states none; '—' for a future column or one with no whole-cent row. Nothing here is
+ * added to anything: a code is never added to another, a count never to a figure.
+ */
+export function bankColumnWords(column: Pick<NotInBooksColumn, 'bankByCode' | 'currencyNotStated'>): string {
+  if (column.bankByCode === null) return BLANK;
+  const parts = column.bankByCode.map((c) => bankCentsWords(c.cents, c.code));
+  if (column.currencyNotStated !== null && column.currencyNotStated > 0) parts.push(currencyNotStatedCountWords(column.currencyNotStated));
+  return parts.length === 0 ? BLANK : parts.join(' · ');
+}
+
+/** Ruling D: the #1886 gap, said under the tables on both pages — the words are the constant's, never retyped. */
+export const SUPERSEDED_GAP_WORDS = 'Budget counts every routine occurrence; the day card leaves out the ones superseded by travel — this table does not yet (SUPERSEDE-01)';
 
 // ── THE DRILL (rulings E, F, G) ─────────────────────────────────────────────
 

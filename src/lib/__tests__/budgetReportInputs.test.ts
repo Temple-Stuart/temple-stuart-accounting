@@ -155,6 +155,12 @@ test('MAPPING — a ledger line: BigInt cents to a safe integer, on its ACCOUNT\
 // A week, Mon 2026-09-21 … Sun 2026-09-27, seen on Wednesday the 23rd.
 const WEEK = { view: { kind: 'week' as const, weekOf: '2026-09-23' }, asOf: '2026-09-23' };
 
+// HOME-LEDGER-02a: the fixtures' bank accounts state the functional currency unless a test says otherwise.
+const USD = 'USD';
+/** HOME-LEDGER-02a: a column's per-code figures as 'CODE:cents:rows' — null for a future column. */
+const byCode = (c: { readonly bankByCode: readonly { code: string; cents: number; rows: number }[] | null }): string[] | null =>
+  (c.bankByCode === null ? null : c.bankByCode.map((b) => `${b.code}:${b.cents}:${b.rows}`));
+
 const rows = (over: Partial<ReportRows> = {}): ReportRows => ({
   entities: [B, P],
   // BUDGET-02 (2026-10-20): the chart is read with is_archived (ruling C) — every row here is active.
@@ -178,9 +184,10 @@ const rows = (over: Partial<ReportRows> = {}): ReportRows => ({
     line({ journal_entry_id: 'je-2', entry_type: 'C', amount: BigInt(100000), account: { entity_id: 'ent-p', code: '4000' }, journal_entry: { date: at('2026-09-22') } }),
   ],
   excludedLines: { reversalPairLines: 2, closingEntryLines: 1, linesAfterAsOf: 3 },
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): a bank row carries its ACCOUNT's currency; the figures are per code.
   bank: [
-    { id: 'tx-1', date: at('2026-09-21'), amount: 12.34 },
-    { id: 'tx-2', date: at('2026-09-23'), amount: -50 },
+    { id: 'tx-1', date: at('2026-09-21'), amount: 12.34, currency: USD },
+    { id: 'tx-2', date: at('2026-09-23'), amount: -50, currency: USD },
   ],
   // TAB13-04 (ruled 2026-09-29): an explicit empty list — a DAY or WEEK view is handed the vendor rows it read.
   planVendors: [],
@@ -225,15 +232,16 @@ test('RESPONSE — completeness: not placed, excluded ALL TIME, not in the books
   // Bank: $12.34 out Monday, $50.00 in Wednesday (Plaid: outflows positive) → week 1234 − 5000 = −3766.
   assert.equal(r.notInBooks.basis, 'bank');
   assert.equal(r.notInBooks.sign, 'Plaid signs outflows positive');
-  assert.deepEqual(r.notInBooks.columns.map((c) => [c.label, c.through, c.transactions, c.bankCents, c.notTotalled]), [
-    ['WEEK', '2026-09-23', 2, -3766, 0],
-    ['Mon', '2026-09-21', 1, 1234, 0],
-    ['Tue', '2026-09-22', 0, null, 0],
-    ['Wed', '2026-09-23', 1, -5000, 0],
-    ['Thu', null, null, null, null],
-    ['Fri', null, null, null, null],
-    ['Sat', null, null, null, null],
-    ['Sun', null, null, null, null],
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): bankCents (one sum) became bankByCode (per code) + currencyNotStated (a count) — the same cents, under their code.
+  assert.deepEqual(r.notInBooks.columns.map((c) => [c.label, c.through, c.transactions, byCode(c), c.currencyNotStated, c.notTotalled]), [
+    ['WEEK', '2026-09-23', 2, ['USD:-3766:2'], 0, 0],
+    ['Mon', '2026-09-21', 1, ['USD:1234:1'], 0, 0],
+    ['Tue', '2026-09-22', 0, [], 0, 0],
+    ['Wed', '2026-09-23', 1, ['USD:-5000:1'], 0, 0],
+    ['Thu', null, null, null, null, null],
+    ['Fri', null, null, null, null, null],
+    ['Sat', null, null, null, null, null],
+    ['Sun', null, null, null, null, null],
   ]);
   assert.deepEqual(r.notInBooks.notTotalled, [], 'every bank row is whole cents — none left out');
   assert.deepEqual(r.excludedLines, { reversalPairLines: 2, closingEntryLines: 1, linesAfterAsOf: 3 }, 'the route\'s counts, carried as read');
@@ -243,11 +251,12 @@ test('RESPONSE — completeness: not placed, excluded ALL TIME, not in the books
 
 test('RESPONSE — a DAY view: MTD then the day; bank rows before the day count in MTD only', () => {
   const r = budgetReportResponse({ view: { kind: 'day', day: '2026-09-22' }, asOf: '2026-09-23' }, rows({
-    bank: [{ id: 'tx-1', date: at('2026-09-01'), amount: 10 }, { id: 'tx-2', date: at('2026-09-22'), amount: 2.5 }],
+    bank: [{ id: 'tx-1', date: at('2026-09-01'), amount: 10, currency: USD }, { id: 'tx-2', date: at('2026-09-22'), amount: 2.5, currency: USD }],
   }));
-  assert.deepEqual(r.notInBooks.columns.map((c) => [c.label, c.from, c.through, c.transactions, c.bankCents]), [
-    ['MTD', '2026-09-01', '2026-09-22', 2, 1250],
-    ['Tue', '2026-09-22', '2026-09-22', 1, 250],
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): per code.
+  assert.deepEqual(r.notInBooks.columns.map((c) => [c.label, c.from, c.through, c.transactions, byCode(c)]), [
+    ['MTD', '2026-09-01', '2026-09-22', 2, ['USD:1250:2']],
+    ['Tue', '2026-09-22', '2026-09-22', 1, ['USD:250:1']],
   ]);
 });
 
@@ -255,20 +264,21 @@ test('RESPONSE — a DAY view: MTD then the day; bank rows before the day count 
 test('NOT TOTALLED — a bank row whose amount is not whole cents is listed with its raw amount, left out of every total, and counted per column', () => {
   const r = budgetReportResponse(WEEK, rows({
     bank: [
-      { id: 'tx-1', date: at('2026-09-21'), amount: 12.34 },
-      { id: 'tx-odd', date: at('2026-09-21'), amount: 12.344 },
-      { id: 'tx-aaa', date: at('2026-09-21'), amount: 0.001 },
-      { id: 'tx-nan', date: at('2026-09-22'), amount: Number.NaN },
-      { id: 'tx-2', date: at('2026-09-23'), amount: -50 },
-      { id: 'tx-huge', date: at('2026-09-23'), amount: 1e17 },
+      { id: 'tx-1', date: at('2026-09-21'), amount: 12.34, currency: USD },
+      { id: 'tx-odd', date: at('2026-09-21'), amount: 12.344, currency: USD },
+      { id: 'tx-aaa', date: at('2026-09-21'), amount: 0.001, currency: USD },
+      { id: 'tx-nan', date: at('2026-09-22'), amount: Number.NaN, currency: USD },
+      { id: 'tx-2', date: at('2026-09-23'), amount: -50, currency: USD },
+      { id: 'tx-huge', date: at('2026-09-23'), amount: 1e17, currency: USD },
     ],
   }));
   // The totals are the whole-cent rows only: 1234 − 5000 = −3766, exactly as with no odd rows at all.
-  assert.deepEqual(r.notInBooks.columns.map((c) => [c.label, c.transactions, c.bankCents, c.notTotalled]), [
-    ['WEEK', 2, -3766, 4],
-    ['Mon', 1, 1234, 2],
-    ['Tue', 0, null, 1],
-    ['Wed', 1, -5000, 1],
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): per code.
+  assert.deepEqual(r.notInBooks.columns.map((c) => [c.label, c.transactions, byCode(c), c.notTotalled]), [
+    ['WEEK', 2, ['USD:-3766:2'], 4],
+    ['Mon', 1, ['USD:1234:1'], 2],
+    ['Tue', 0, [], 1],
+    ['Wed', 1, ['USD:-5000:1'], 1],
     ['Thu', null, null, null],
     ['Fri', null, null, null],
     ['Sat', null, null, null],
@@ -283,7 +293,34 @@ test('NOT TOTALLED — a bank row whose amount is not whole cents is listed with
   ]);
   assert.equal(r.records.bankRows, 6, 'every row read is counted as read');
   // A row outside the range is still the route's bug — a 500 by name, even when its amount is odd too.
-  inputThrows(() => budgetReportResponse(WEEK, rows({ bank: [{ id: 'tx-late-odd', date: at('2026-09-24'), amount: 12.344 }] })), 'bank-row-outside-range', 'tx-late-odd');
+  inputThrows(() => budgetReportResponse(WEEK, rows({ bank: [{ id: 'tx-late-odd', date: at('2026-09-24'), amount: 12.344, currency: USD }] })), 'bank-row-outside-range', 'tx-late-odd');
+});
+
+// HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the figures are PER CURRENCY CODE — a USD row and a THB row never meet in one
+// sum; a row whose account states no code is counted, never summed; a lower-case code is the same code; the codes in order.
+test('PER CURRENCY — USD and THB side by side, the unstated row counted, never one sum; a lower-case code is its code', () => {
+  const r = budgetReportResponse(WEEK, rows({
+    bank: [
+      { id: 'tx-usd', date: at('2026-09-21'), amount: 12.34, currency: USD },
+      { id: 'tx-thb', date: at('2026-09-21'), amount: 1200, currency: 'THB' },
+      { id: 'tx-none', date: at('2026-09-22'), amount: 7, currency: null },
+      { id: 'tx-usd-lower', date: at('2026-09-23'), amount: 1, currency: 'usd' },
+      { id: 'tx-odd', date: at('2026-09-23'), amount: 0.001, currency: 'THB' },
+    ],
+  }));
+  assert.deepEqual(r.notInBooks.columns.map((c) => [c.label, c.transactions, byCode(c), c.currencyNotStated, c.notTotalled]), [
+    ['WEEK', 4, ['THB:120000:1', 'USD:1334:2'], 1, 1],
+    ['Mon', 2, ['THB:120000:1', 'USD:1234:1'], 0, 0],
+    ['Tue', 1, [], 1, 0],
+    ['Wed', 1, ['USD:100:1'], 0, 1],
+    ['Thu', null, null, null, null],
+    ['Fri', null, null, null, null],
+    ['Sat', null, null, null, null],
+    ['Sun', null, null, null, null],
+  ]);
+  assert.equal(r.records.bankRows, 5);
+  // The model names no code of its own: a column's codes are the rows' codes, nothing else.
+  assert.deepEqual(Object.keys(r.notInBooks.columns[0]).sort(), ['bankByCode', 'currencyNotStated', 'from', 'key', 'label', 'notTotalled', 'state', 'through', 'transactions']);
 });
 
 // Ruling 5 (the chat's mutant R6): the entity's type decides which letter a code may carry — pinned on both plans.
@@ -314,8 +351,8 @@ test('BOOK — each plan carries its OWN entity\'s type: a B- code places on a s
 test('FAIL LOUD — a row that cannot become an input is refused by name; the model and the day rules refuse through', () => {
   inputThrows(() => budgetReportResponse(WEEK, rows({ tasks: [{ ...license, entity_id: 'ent-x' }] })), 'unknown-entity', 'task t-license');
   inputThrows(() => budgetReportResponse(WEEK, rows({ routines: [{ entityId: 'ent-x', rows: [coffee] }] })), 'unknown-entity', 'ent-x');
-  inputThrows(() => budgetReportResponse(WEEK, rows({ bank: [{ id: 'tx-late', date: at('2026-09-24'), amount: 1 }] })), 'bank-row-outside-range', 'tx-late');
-  inputThrows(() => budgetReportResponse(WEEK, rows({ bank: [{ id: 'tx-early', date: at('2026-09-20'), amount: 1 }] })), 'bank-row-outside-range', 'tx-early');
+  inputThrows(() => budgetReportResponse(WEEK, rows({ bank: [{ id: 'tx-late', date: at('2026-09-24'), amount: 1, currency: USD }] })), 'bank-row-outside-range', 'tx-late');
+  inputThrows(() => budgetReportResponse(WEEK, rows({ bank: [{ id: 'tx-early', date: at('2026-09-20'), amount: 1, currency: USD }] })), 'bank-row-outside-range', 'tx-early');
   inputThrows(() => budgetReportResponse(WEEK, rows({ ledger: [line({ journal_entry_id: 'je-huge', amount: BigInt(2) ** BigInt(60) })] })), 'unsafe-cents', 'je-huge');
   const reportThrows = (over: Partial<ReportRows>, c: BudgetReportErrorCode) =>
     assert.throws(() => budgetReportResponse(WEEK, rows(over)), (e: unknown) => e instanceof BudgetReportError && e.code === c, `BudgetReportError ${c}`);
@@ -491,7 +528,7 @@ test('TAB13-04 T3 a WEEK and a DAY carry their plan lines, a YEAR its sentence; 
   ]);
   assert.deepEqual(week.plans.stranded, []);
   // A DAY is its day — not the month to date its MTD column spans.
-  const day = budgetReportResponse({ view: { kind: 'day', day: '2026-09-22' }, asOf: '2026-09-23' }, rows({ bank: [{ id: 'tx-1', date: at('2026-09-21'), amount: 12.34 }] }));
+  const day = budgetReportResponse({ view: { kind: 'day', day: '2026-09-22' }, asOf: '2026-09-23' }, rows({ bank: [{ id: 'tx-1', date: at('2026-09-21'), amount: 12.34, currency: USD }] }));
   assert.ok(day.plans.listed);
   assert.deepEqual(day.plans.lines.map((l) => `${l.day}:${l.label}`), ['2026-09-22:Coffee']);
   assert.equal(day.report.columns[0].from, '2026-09-01', 'while its MTD column spans the month');
@@ -518,7 +555,8 @@ test('TAB13-04 T3 the vendor rows reach the plan by grain; rows that do not matc
 
 // BUDGET-02 (Alex, ruling G, 2026-10-20): both budget routes read the books through ONE loader
 // (src/lib/budget/reportReads.ts) — the vendor query, its where and its select moved there word for word; the route
-// calls it for a DAY or WEEK only, as before. The route's own reads are the user, the entities and the bank rows.
+// calls it for a DAY or WEEK only, as before. The route's own reads are the user and the entities — HOME-LEDGER-02a (Alex,
+// 2026-11-07, ruling C): the bank rows moved into the loader too (readBankNotInBooks, called by both pages).
 test('TAB13-04 T3 the route reads the plan vendors user-scoped, in the window, for a DAY or WEEK only — and no other read changes', () => {
   const route = code('src/app/api/budget/report/route.ts');
   const reads = code('src/lib/budget/reportReads.ts');
@@ -527,10 +565,12 @@ test('TAB13-04 T3 the route reads the plan vendors user-scoped, in the window, f
   assert.match(reads, /db\.planned_item_vendors\.findMany\(\{\s*where: \{ user_id: userId, OR: \[\{ occurrence_at: null \}, \{ occurrence_at: \{ gte: window\.from, lt: window\.to \} \}\] \},/);
   assert.match(reads, /vendor: \{ select: \{ id: true, vendor_name: true, entity_id: true \} \},\s*routine: \{ select: \{ name: true, timezone: true \} \},\s*step: \{ select: \{ activity: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true \} \} \} \},\s*task: \{ select: \{ title: true \} \},/);
   assert.match(route, /bank,\s*planVendors,\s*\}\)\);/);
-  assert.equal((route.match(/\bprisma\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 3, 'the user, the entities, the bank — every other read through the loader');
-  for (const fn of ['readBudgetChart', 'readCostedTasks', 'readActuals', 'countLeftOut', 'readPlanVendors']) {
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): three became two — the bank rows read through the loader (readBankNotInBooks).
+  assert.equal((route.match(/\bprisma\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 2, 'the user, the entities — every other read through the loader');
+  for (const fn of ['readBudgetChart', 'readCostedTasks', 'readActuals', 'countLeftOut', 'readPlanVendors', 'readBankNotInBooks']) {
     assert.equal((route.match(new RegExp(`\\b${fn}\\(`, 'g')) ?? []).length, 1, `the route calls ${fn} once`);
   }
-  assert.equal((reads.match(/\bdb\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 7, 'the loader: the chart, the tasks, the ledger, three counts, the plan vendors');
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): seven became eight — the bank rows' one query (readBankNotInBooks) joined the loader.
+  assert.equal((reads.match(/\bdb\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 8, 'the loader: the chart, the tasks, the ledger, three counts, the plan vendors, the bank rows');
   assert.doesNotMatch(route, /export\s+async\s+function\s+(POST|PUT|PATCH|DELETE)/, 'GET only');
 });

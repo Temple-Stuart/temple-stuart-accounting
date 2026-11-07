@@ -353,7 +353,8 @@ test('F the route: GET only, the cart-plan gate first, the query refused by name
   const readsAt = route.indexOf('readActuals(prisma, user.id, entityIds, date, date)');
   assert.ok(gateAt > -1 && userAt > gateAt && queryAt > userAt && readsAt > queryAt, 'the cookie, the user, the query, then the reads');
   assert.match(route, /return NextResponse\.json\(\{ error: 'Validation', field: query\.field, message: query\.message \}, \{ status: 400 \}\);/);
-  assert.match(route, /import \{ readActuals, readBudgetChart \} from '@\/lib\/budget\/reportReads';/);
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the bank rows come through the loader too — readBankNotInBooks joins the import.
+  assert.match(route, /import \{ readActuals, readBankNotInBooks, readBudgetChart \} from '@\/lib\/budget\/reportReads';/);
   assert.match(route, /import \{ REVERSED_POSTING_WHERE \} from '@\/lib\/calendar\/postingAmount';/);
   assert.match(route, /where: \{ id: \{ in: entryIds \}, userId: user\.id, \.\.\.REVERSED_POSTING_WHERE \}/);
   assert.match(route, /import \{ GET as taskLedgerGet \} from '@\/app\/api\/operations\/ledger\/route';/);
@@ -361,10 +362,14 @@ test('F the route: GET only, the cart-plan gate first, the query refused by name
   assert.match(route, /import \{ GET as travelExpensesGet \} from '@\/app\/api\/travel-expenses\/route';/);
   assert.match(route, /taskLedgerGet\(new NextRequest\(new URL\(`\/api\/operations\/ledger\?from=\$\{date\}&to=\$\{date\}`, request\.url\)\)\)/);
   assert.match(route, /travelLedgerReadsOf\(reservationsAnswer, expensesAnswer\)/);
-  // The bank read is the report's own where (budget/report/route.ts), for the one day, with the account's currency beside the amount.
-  assert.match(route, /where: \{ accounts: \{ userId: user\.id \}, review_status: \{ not: 'committed' \}, date: \{ gte: dayFrom, lte: dayTo \} \}/);
-  assert.match(code('src/app/api/budget/report/route.ts'), /where: \{ accounts: \{ userId: user\.id \}, review_status: \{ not: 'committed' \}, date: \{ gte: fromDay, lte: /, 'the report\'s read, as it stands');
-  assert.match(route, /accounts: \{ select: \{ isoCurrencyCode: true \} \}/);
+  // The bank read is the report's own — HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): ONE loader function both routes call
+  // (reportReads.ts readBankNotInBooks holds the where and the select); neither route reads transactions itself.
+  assert.match(route, /readBankNotInBooks\(prisma, user\.id, date, date\),/);
+  assert.match(code('src/app/api/budget/report/route.ts'), /readBankNotInBooks\(prisma, user\.id, rangeFrom, through\),/, 'the report\'s read, through the same function');
+  const reads = code('src/lib/budget/reportReads.ts');
+  assert.match(reads, /where: \{ accounts: \{ userId \}, review_status: \{ not: 'committed' \}, date: \{ gte: dayStart\(from\), lte: new Date\(`\$\{through\}T23:59:59\.999Z`\) \} \}/);
+  assert.match(reads, /accounts: \{ select: \{ isoCurrencyCode: true \} \}/);
+  assert.doesNotMatch(route, /transactions\.findMany/);
   // A sub-answer that is not a 200, or a 200 without its list, fails by name.
   assert.match(route, /throw new HomeLedgerError\(`\$\{route\} answered \$\{res\.status\} — \$\{words\}`\)/);
   assert.match(route, /listOf<LedgerRow>\(taskAnswer, '\/api\/operations\/ledger', 'rows'\)/);
@@ -432,7 +437,8 @@ test('G the laws: the home ledger law at the end of the script, above the second
     "if (TOOL_REGISTRY.some((t) => t.slug === 'home-ledger' || t.home === '/home')) hlFail(",
   ]) assert.ok(laws.includes(piece), `the law holds: ${piece.slice(0, 80)}`);
   assert.match(laws, /const FX_LANE_DIRS = \[[^\]]*'src\/lib\/home'\];/);
-  assert.match(laws, /const FX_LANE_FILES = \['src\/components\/home\/HomeLedger\.tsx'\];/);
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling E): the month host and the travel plan's screen join the lane on the same line.
+  assert.match(laws, /const FX_LANE_FILES = \['src\/components\/home\/HomeLedger\.tsx', 'src\/components\/home\/HomeMonth\.tsx', 'src\/components\/home\/TravelPlan\.tsx'\];/);
   assert.match(laws, /\.\.\.FX_LANE_COMPONENTS, \.\.\.FX_LANE_FILES,/);
   assert.match(laws, /for \(const f of \[\.\.\.FX_LANE_COMPONENTS, \.\.\.FX_LANE_FILES\]\) if \(!existsSync\(resolve\(ROOT, f\)\)\) fxFail\(/);
   assert.match(comments(LAWS), /HOME-LEDGER-01 \(Alex, 2026-11-06, ruling G\): the lane covers the home ledger/);

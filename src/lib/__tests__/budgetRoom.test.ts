@@ -28,7 +28,8 @@ test('the six categories are one const, and the law holds on them', () => {
 test('/budget renders the budget report — not the category switcher, not BudgetingPage', () => {
   const page = code('src/app/budget/page.tsx');
   assert.match(page, /import BudgetReport from '@\/components\/budget\/BudgetReport';/);
-  assert.match(page, /<BudgetReport \/>/, 'the report is mounted');
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling A): the page says where the year comes from — the URL; /home's host hands its year.
+  assert.match(page, /<BudgetReport year=\{\{ from: 'url' \}\} \/>/, 'the report is mounted, its year the URL\'s');
   assert.doesNotMatch(page, /BudgetingPage/, 'the category room is not mounted');
   assert.doesNotMatch(page, /data-budget-switcher|BUDGET_CATEGORIES/, 'no switcher');
   // Still: not one category name is typed into the page.

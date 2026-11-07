@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { readActuals, readBudgetChart } from '@/lib/budget/reportReads';
+import { readActuals, readBankNotInBooks, readBudgetChart } from '@/lib/budget/reportReads';
 import { utcDay } from '@/lib/budget/reportInputs';
 import { REVERSED_POSTING_WHERE } from '@/lib/calendar/postingAmount';
 import { HomeLedgerError, homeLedgerOf, homeLedgerQuery, type HomeBankRow, type HomeBooksLine } from '@/lib/home/homeLedger';
@@ -35,8 +35,9 @@ import { GET as travelExpensesGet } from '@/app/api/travel-expenses/route';
  *     (ledger.ts ledgerOf) place each record on its routine's own day;
  *   · TRAVEL LEDGER: GET /api/reservations (its `ledger` facts) and GET /api/travel-expenses (its `expenses`), called
  *     in-process — the facts the Travel tab's ledger builds its rows from (travelLedger.ts ledgerRowsOf, in the leaf);
- *   · BANK, NOT YET IN THE BOOKS: the report's own read (budget/report/route.ts — the caller's accounts, review_status
- *     not 'committed', dated in range), here for the one day and with the ACCOUNT's isoCurrencyCode beside the amount.
+ *   · BANK, NOT YET IN THE BOOKS: the report's own read — HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the ONE loader
+ *     function both pages call (reportReads.ts readBankNotInBooks — the caller's accounts, review_status not
+ *     'committed', dated in the window), here for the one day, each row with its ACCOUNT's isoCurrencyCode.
  * A sub-read that does not answer 200, or answers without a list it promises (travelLedger.ts listOf — missingListWords,
  * the one reader), fails this route by name. No paid call, no travel vendor, no trading route (TRADING_ENTITY_ID is never
  * read — trading is 'not connected').
@@ -87,17 +88,13 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
     const entityIds = entities.map((e) => e.id);
-    const dayFrom = new Date(`${date}T00:00:00.000Z`);
-    const dayTo = new Date(`${date}T23:59:59.999Z`);
 
     const [chart, lineRows, bankRows, taskRes, reservationsRes, expensesRes] = await Promise.all([
       readBudgetChart(prisma, user.id, entityIds),
       readActuals(prisma, user.id, entityIds, date, date),
-      // The report's own read (budget/report/route.ts), for the one day, with the account's stated currency beside the amount.
-      prisma.transactions.findMany({
-        where: { accounts: { userId: user.id }, review_status: { not: 'committed' }, date: { gte: dayFrom, lte: dayTo } },
-        select: { id: true, date: true, amount: true, name: true, merchantName: true, review_status: true, accounts: { select: { isoCurrencyCode: true } } },
-      }),
+      // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the bank rows not yet in the books through the ONE read both pages
+      // call (reportReads.ts readBankNotInBooks — the report's own read), for the one day, each with its ACCOUNT's currency.
+      readBankNotInBooks(prisma, user.id, date, date),
       // The task ledger, the travel ledger's facts and the typed expenses — the routes themselves, in-process, under this request's cookie.
       taskLedgerGet(new NextRequest(new URL(`/api/operations/ledger?from=${date}&to=${date}`, request.url))),
       reservationsGet(),

@@ -32,7 +32,9 @@
  *   · THE RESPONSE. The report plus what is NOT in it, always stated: plans not
  *     placed, costed tasks excluded by status (ALL TIME), bank rows not in the
  *     books yet per column (a row whose amount is not whole cents is listed as
- *     not totalled and left out of the totals — never fatal), ledger lines left
+ *     not totalled and left out of the totals — never fatal; HOME-LEDGER-02a,
+ *     2026-11-07, ruling C: the figures are PER CURRENCY CODE, a row whose
+ *     account states no code counted and never summed), ledger lines left
  *     out by name, how many records each source gave, and the travel budgets,
  *     which are not connected.
  *
@@ -215,6 +217,8 @@ export interface BankRow {
   readonly date: Date;
   /** Plaid's amount, dollars. Plaid signs outflows positive. */
   readonly amount: number;
+  /** HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the ACCOUNT's stated ISO 4217 code (accounts.isoCurrencyCode), or null when the bank states none — the figure is summed per code, never across codes. */
+  readonly currency: string | null;
 }
 
 /** Ledger lines in the view's range that the report leaves out, each counted once. */
@@ -334,6 +338,14 @@ export function toPosting(row: LedgerRow, book: ReportEntity): Posting {
 
 // ── THE RESPONSE ────────────────────────────────────────────────────────────
 
+/** HOME-LEDGER-02a (ruling C): Σ Plaid amount in cents of the whole-cent rows whose account states this code (outflows positive), and how many rows. */
+export interface BankCodeCents {
+  /** The ISO 4217 code as the account states it, upper case. */
+  readonly code: string;
+  readonly cents: number;
+  readonly rows: number;
+}
+
 /** Bank rows not committed to the books, in one column of the report. */
 export interface NotInBooksColumn {
   readonly key: string;
@@ -342,11 +354,18 @@ export interface NotInBooksColumn {
   /** The column's last day read: min(to, asOf). Null for a future column. */
   readonly through: IsoDay | null;
   readonly state: ColumnState;
-  /** The rows totalled into bankCents. Null for a future column — nothing can have happened yet. */
+  /** The whole-cent rows in this column — the ones in bankByCode plus the ones counted in currencyNotStated. Null for a future column — nothing can have happened yet. */
   readonly transactions: number | null;
-  /** Σ Plaid amount in cents (outflows positive), or null when there are none. A bank figure, not a ledger one. */
-  readonly bankCents: number | null;
-  /** Rows in this column LEFT OUT of bankCents — listed in notTotalled. Null for a future column. */
+  /**
+   * HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the figures PER CURRENCY CODE — Σ Plaid amount in cents of the
+   * whole-cent rows whose account states the code (outflows positive), codes in order, never one sum across codes; empty
+   * when no row in the column states a code; null for a future column. A bank figure, not a ledger one — never added to
+   * Actual or Variance. (Was bankCents, one sum as if every row were the functional currency.)
+   */
+  readonly bankByCode: readonly BankCodeCents[] | null;
+  /** HOME-LEDGER-02a: the whole-cent rows in this column whose account states NO currency — counted, never summed as the functional currency. Null for a future column. */
+  readonly currencyNotStated: number | null;
+  /** Rows in this column LEFT OUT of every figure (not whole cents) — listed in notTotalled. Null for a future column. */
   readonly notTotalled: number | null;
 }
 
@@ -395,8 +414,12 @@ export interface BudgetReportResponse {
   readonly plans: DayPlan;
 }
 
+/** HOME-LEDGER-02a: the codes' order in a column — the travel ledger's rule (travelLedger.ts codesInOrder): by code; a code is never ranked above another by what it is. */
+const codeOrder = (a: string, b: string): number => a.localeCompare(b);
+
 function notInBooksOf(report: BudgetReport, bank: readonly BankRow[], rangeFrom: IsoDay, rangeTo: IsoDay): { columns: NotInBooksColumn[]; notTotalled: BankRowNotTotalled[] } {
-  const totalled: { day: IsoDay; cents: number }[] = [];
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): each whole-cent row keeps its ACCOUNT's code — the sums are per code.
+  const totalled: { day: IsoDay; cents: number; code: string | null }[] = [];
   const notTotalled: BankRowNotTotalled[] = [];
   for (const row of bank) {
     const day = utcDay(row.date);
@@ -405,25 +428,31 @@ function notInBooksOf(report: BudgetReport, bank: readonly BankRow[], rangeFrom:
       throw new BudgetInputError('bank-row-outside-range', `bank transaction ${row.id} is dated ${day}, outside [${rangeFrom}, min(${rangeTo}, asOf ${report.asOf})]`);
     }
     const cents = centsFromDollars(row.amount);
-    if (cents.ok) totalled.push({ day, cents: cents.cents });
+    if (cents.ok) totalled.push({ day, cents: cents.cents, code: row.currency === null ? null : row.currency.toUpperCase() });
     else notTotalled.push({ id: row.id, day, amount: String(row.amount), detail: cents.detail });
   }
   notTotalled.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const columns = report.columns.map((column): NotInBooksColumn => {
     if (column.state === 'future') {
-      return { key: column.key, label: column.label, from: column.from, through: null, state: column.state, transactions: null, bankCents: null, notTotalled: null };
+      return { key: column.key, label: column.label, from: column.from, through: null, state: column.state, transactions: null, bankByCode: null, currencyNotStated: null, notTotalled: null };
     }
     const through = column.to < report.asOf ? column.to : report.asOf;
     const inColumn = totalled.filter((r) => column.from <= r.day && r.day <= through);
-    let total = 0;
+    // Σ per code, never across codes; a row with no stated code is counted and summed under none.
+    const byCode = new Map<string, { cents: number; rows: number }>();
+    let currencyNotStated = 0;
     for (const r of inColumn) {
-      total += r.cents;
-      if (!Number.isSafeInteger(total)) throw new BudgetInputError('unsafe-cents', `the bank rows of column ${column.key} left the safe integer range of cents`);
+      if (r.code === null) { currencyNotStated += 1; continue; }
+      const at = byCode.get(r.code);
+      const next = at === undefined ? { cents: r.cents, rows: 1 } : { cents: at.cents + r.cents, rows: at.rows + 1 };
+      if (!Number.isSafeInteger(next.cents)) throw new BudgetInputError('unsafe-cents', `the ${r.code} bank rows of column ${column.key} left the safe integer range of cents`);
+      byCode.set(r.code, next);
     }
     return {
       key: column.key, label: column.label, from: column.from, through, state: column.state,
       transactions: inColumn.length,
-      bankCents: inColumn.length === 0 ? null : total,
+      bankByCode: [...byCode.entries()].map(([code, v]) => ({ code, cents: v.cents, rows: v.rows })).sort((a, b) => codeOrder(a.code, b.code)),
+      currencyNotStated,
       notTotalled: notTotalled.filter((r) => column.from <= r.day && r.day <= through).length,
     };
   });

@@ -3062,7 +3062,7 @@ const FX_HOME = 'src/lib/books/functionalCurrency.ts';
 const FX_PIPE = 'src/components/home/BooksPipeline.tsx';
 const FX_LANE_DIRS = ['src/lib/books', 'src/app/api/trial-balance', 'src/app/api/journal-entries', 'src/app/api/bank-reconciliations', 'src/app/api/books', 'src/app/api/journal-transactions', 'src/app/api/ledger', 'src/lib/home'];
 // HOME-LEDGER-01 (Alex, 2026-11-06, ruling G): the lane covers the home ledger — its leaf (src/lib/home, above) and its one screen, named here.
-const FX_LANE_FILES = ['src/components/home/HomeLedger.tsx'];
+const FX_LANE_FILES = ['src/components/home/HomeLedger.tsx', 'src/components/home/HomeMonth.tsx', 'src/components/home/TravelPlan.tsx'];
 /** The component lane, derived: BooksPipeline itself, then every '@/components/…' module it imports, resolved to .tsx / .ts / an index file — an import no file answers to fails by name. */
 const fxLaneComponents = (): string[] => {
   const files = [FX_PIPE];
@@ -10835,7 +10835,8 @@ if (!/return NextResponse\.json\(\{ error: 'Unauthorized' \}, \{ status: 401 \}\
 if (!/return NextResponse\.json\(\{ error: 'User not found' \}, \{ status: 404 \}\);/.test(hlRoute)) hlFail(`${HL_ROUTE} does not answer 404 to no user`);
 if (/'\/api\/home-ledger'/.test(codeOf('src/middleware.ts'))) hlFail('src/middleware.ts names /api/home-ledger — the path must not be public');
 // 2. The books through readActuals.
-if (!/import \{ readActuals, readBudgetChart \} from '@\/lib\/budget\/reportReads';/.test(hlRoute)) hlFail(`${HL_ROUTE} does not import readActuals and readBudgetChart from the budget's one loader`);
+// HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the bank rows come through the loader too — readBankNotInBooks joins the import.
+if (!/import \{ readActuals, readBankNotInBooks, readBudgetChart \} from '@\/lib\/budget\/reportReads';/.test(hlRoute)) hlFail(`${HL_ROUTE} does not import readActuals, readBankNotInBooks and readBudgetChart from the budget's one loader`);
 if (!/readActuals\(prisma, user\.id, entityIds, date, date\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not read the books through readActuals for the one day`);
 for (const f of HL_FILES) if (/ledger_entries\s*\./.test(codeOf(f))) hlFail(`${f} reads ledger_entries itself — the books come through readActuals alone`);
 // 3. Reversals through the one rule.
@@ -10882,12 +10883,167 @@ if (!/<Suspense>\s*<HomeLedger \/>\s*<\/Suspense>/.test(hlHost)) hlFail(`${HL_HO
 {
   const self = codeOf('scripts/assert-tool-registry.ts');
   if (!/const FX_LANE_DIRS = \[[^\]]*'src\/lib\/home'\];/.test(self)) hlFail("the books currency law's lane does not name src/lib/home");
-  if (!/const FX_LANE_FILES = \['src\/components\/home\/HomeLedger\.tsx'\];/.test(self)) hlFail("the books currency law's lane does not name the home ledger's screen");
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling E): the month host and the travel plan's screen join the lane on the same line.
+  if (!/const FX_LANE_FILES = \['src\/components\/home\/HomeLedger\.tsx', 'src\/components\/home\/HomeMonth\.tsx', 'src\/components\/home\/TravelPlan\.tsx'\];/.test(self)) hlFail("the books currency law's lane does not name the home ledger's screen, the month host and the travel plan's screen");
 }
 // 9. No registry row.
 if (TOOL_REGISTRY.some((t) => t.slug === 'home-ledger' || t.home === '/home')) hlFail('the registry carries a Home row — the home ledger is the shell\'s component, no tool\'s');
 if (hlViolations === 0) console.log(`✔ The home ledger law passed — GET only behind the cart-plan gate, the books through readActuals for the one day with REVERSED_POSTING_WHERE asked of the day's entries, the task ledger, the reservations and the typed expenses called as their own routes, nothing calculated or planned, no \`||\` or \`?? <default>\`, MATCH never summed, the screen on the card's own day and the browser's zone, mounted once between the day card and the sheet, in the currency lane, no registry row.`);
 else console.log(`✖ The home ledger law FAILED — ${hlViolations} violation(s).`);
+});
+
+lawGuard('The home month law', () => {
+
+// ── THE HOME MONTH LAW (HOME-LEDGER-02a, Alex, 2026-11-07, ruling E) ─────────
+// The home's MONTH table is Budget's own report on the day card's year, with the
+// trip budget lines under it (never summed) and the bank figure per currency
+// through ONE read for both pages. This law holds the rulings a reviewer cannot
+// see from the page:
+//   1. THE MOUNT ORDER on /home: the four answers → Net worth → <DayCard /> →
+//      <HomeLedger /> → <HomeMonth /> → <TheSheet /> (home03's cardAt < sheetAt
+//      stays true); the host once, in its Suspense boundary.
+//   2. INSIDE THE HOST: the heading (HOME_LEDGER_MONTH_HEADING, a constant) →
+//      BudgetReport with { from: 'host', year } → the travel plan; the host takes
+//      the day by the day card's own expression and reads no ?year= of its own.
+//   3. THE TRAVEL PLAN LAW: GET only, the cart-plan gate first, not public;
+//      `userId: user.id` and `source: 'trip'` in its where; no `||`, no
+//      `?? <default>`, no '9950' in its route, leaf, screen or host; the leaf
+//      and the screen never sum TRIP BUDGET (no `+=`, no reduce, no `+` over
+//      the cents, no foot).
+//   4. THE ONE BANK READ: reportReads.ts readBankNotInBooks holds the one
+//      transactions query; neither budget/report nor home-ledger reads
+//      transactions itself — both call the function; the model carries the
+//      figures per code (bankByCode, currencyNotStated), never one sum.
+//   5. BUDGETREPORT'S YEAR PROP: required, the two kinds; the step renders only
+//      from the URL; /budget passes { from: 'url' }, the host { from: 'host', year }.
+//   6. THE BANK ROW AND THE GAP: BudgetReport prints the BANK row through
+//      reportView.ts bankColumnWords (the books' one bank formatter) and the
+//      SUPERSEDED_GAP_WORDS constant, after the book tables — on both pages.
+//   7. THE LANE names the host and the travel plan's screen; no registry row.
+const HM_HOST = 'src/components/home/HomeMonth.tsx';
+const TP_ROUTE = 'src/app/api/home-travel-plan/route.ts';
+const TP_LEAF = 'src/lib/home/travelPlan.ts';
+const TP_SCREEN = 'src/components/home/TravelPlan.tsx';
+const HM_REPORT = 'src/components/budget/BudgetReport.tsx';
+const HM_VIEW = 'src/lib/budget/reportView.ts';
+const HM_INPUTS = 'src/lib/budget/reportInputs.ts';
+const HM_READS = 'src/lib/budget/reportReads.ts';
+const HM_PAGE = 'src/app/budget/page.tsx';
+const HM_ANSWERS = 'src/components/answers/AnswersClient.tsx';
+const HM_BR_ROUTE = 'src/app/api/budget/report/route.ts';
+const HM_HL_ROUTE = 'src/app/api/home-ledger/route.ts';
+const HM_FILES = [HM_HOST, TP_ROUTE, TP_LEAF, TP_SCREEN];
+let hmViolations = 0;
+const hmFail = (m: string) => { hmViolations += 1; violations.push(`home month law: ${m} (HOME-LEDGER-02a)`); };
+for (const f of HM_FILES) if (!existsSync(resolve(ROOT, f))) hmFail(`${f} is missing`);
+const hmText = (f: string): string => (existsSync(resolve(ROOT, f)) ? codeOf(f) : '');
+const hmHost = hmText(HM_HOST);
+const tpRoute = hmText(TP_ROUTE);
+const tpLeaf = hmText(TP_LEAF);
+const tpScreen = hmText(TP_SCREEN);
+const hmReport = codeOf(HM_REPORT);
+const hmView = codeOf(HM_VIEW);
+const hmAnswers = codeOf(HM_ANSWERS);
+// 1. The mount order.
+if (!/import HomeMonth from '@\/components\/home\/HomeMonth';/.test(hmAnswers)) hmFail(`${HM_ANSWERS} does not import the month host`);
+if ((hmAnswers.match(/<HomeMonth \/>/g) ?? []).length !== 1) hmFail(`${HM_ANSWERS} mounts the month host ${(hmAnswers.match(/<HomeMonth \/>/g) ?? []).length} times — once`);
+if (!/<Suspense>\s*<HomeMonth \/>\s*<\/Suspense>/.test(hmAnswers)) hmFail(`${HM_ANSWERS} mounts the month host outside its Suspense boundary — it reads the URL (useSearchParams)`);
+{
+  const answersAt = hmAnswers.indexOf('data-answers');
+  const netWorthAt = hmAnswers.indexOf('data-net-worth');
+  const cardAt = hmAnswers.indexOf('<DayCard />');
+  const ledgerAt = hmAnswers.indexOf('<HomeLedger />');
+  const monthAt = hmAnswers.indexOf('<HomeMonth />');
+  const sheetAt = hmAnswers.indexOf('<TheSheet />');
+  if (!(answersAt > -1 && netWorthAt > answersAt && cardAt > netWorthAt && ledgerAt > cardAt && monthAt > ledgerAt && sheetAt > monthAt)) hmFail(`${HM_ANSWERS} does not mount the four answers → Net worth → the day card → the home ledger → the month host → the sheet, in that order`);
+}
+// 2. Inside the host.
+if (!/export const HOME_LEDGER_MONTH_HEADING = 'HOME LEDGER · MONTH';/.test(codeOf('src/lib/home/homeLedger.ts'))) hmFail("src/lib/home/homeLedger.ts does not declare HOME_LEDGER_MONTH_HEADING = 'HOME LEDGER · MONTH'");
+{
+  const headingAt = hmHost.indexOf('{HOME_LEDGER_MONTH_HEADING}');
+  const reportAt = hmHost.indexOf("<BudgetReport year={{ from: 'host', year }} />");
+  const planAt = hmHost.indexOf('<TravelPlan year={year} />');
+  if (!(headingAt > -1 && reportAt > headingAt && planAt > reportAt)) hmFail(`${HM_HOST} does not print the heading, then Budget's own report on the host's year, then the travel plan — in that order`);
+  if ((hmHost.match(/<BudgetReport\b/g) ?? []).length !== 1) hmFail(`${HM_HOST} renders BudgetReport ${(hmHost.match(/<BudgetReport\b/g) ?? []).length} times — once, never a second model`);
+  if (!hmHost.includes('const day = today === null ? null : dateParam !== null && isIsoDay(dateParam) ? dateParam : today;')) hmFail(`${HM_HOST} does not take the day by the day card's own expression (DayCard.tsx)`);
+  if (!hmHost.includes("const year = day === null ? null : day.slice(0, 4);")) hmFail(`${HM_HOST} does not take the year from the card's day`);
+  if (/search\.get\('year'\)|\?year=/.test(hmHost)) hmFail(`${HM_HOST} reads a year of its own from the URL — the card's day is the one picker on /home`);
+  if (/yearHref|stepYear|router\./.test(hmHost)) hmFail(`${HM_HOST} steps the year — the host's year has no step`);
+}
+// 3. The travel plan law.
+for (const m of ['POST', 'PUT', 'PATCH', 'DELETE']) if (new RegExp(`export async function ${m}\\(`).test(tpRoute)) hmFail(`${TP_ROUTE} exports ${m} — the travel plan is read-only`);
+if (!/export async function GET\(request: NextRequest\)/.test(tpRoute)) hmFail(`${TP_ROUTE} does not export GET(request: NextRequest)`);
+{
+  const gateAt = tpRoute.indexOf('const userEmail = await getVerifiedEmail();');
+  const userAt = tpRoute.indexOf('const user = await prisma.users.findFirst({');
+  const queryAt = tpRoute.indexOf("travelPlanQuery(request.nextUrl.searchParams.get('year'))");
+  if (!(gateAt > -1 && userAt > gateAt && queryAt > userAt)) hmFail(`${TP_ROUTE} does not open with the cart-plan gate (the cookie, then the user) before it reads its query`);
+}
+if (!/return NextResponse\.json\(\{ error: 'Unauthorized' \}, \{ status: 401 \}\);/.test(tpRoute)) hmFail(`${TP_ROUTE} does not answer 401 to no verified cookie`);
+if (!/return NextResponse\.json\(\{ error: 'User not found' \}, \{ status: 404 \}\);/.test(tpRoute)) hmFail(`${TP_ROUTE} does not answer 404 to no user`);
+if (/'\/api\/home-travel-plan'/.test(codeOf('src/middleware.ts'))) hmFail('src/middleware.ts names /api/home-travel-plan — the path must not be public');
+if (!/where: \{ userId: user\.id, source: 'trip', year: Number\(year\) \}/.test(tpRoute)) hmFail(`${TP_ROUTE} does not read the caller's own trip lines — where: { userId: user.id, source: 'trip', year: Number(year) }`);
+if (!/trip: \{ select: \{ name: true \} \}/.test(tpRoute)) hmFail(`${TP_ROUTE} does not read the trip's name through the relation`);
+for (const f of HM_FILES) {
+  const body = hmText(f);
+  if (/\|\|/.test(body)) hmFail(`${f} holds a \`||\` — nothing is defaulted in silence`);
+  if (/\?\? /.test(body)) hmFail(`${f} holds a \`?? <default>\` — nothing is defaulted in silence`);
+  if (/9950/.test(body)) hmFail(`${f} names 9950 — an empty code is 'no code', never a guessed account`);
+}
+for (const f of [TP_LEAF, TP_SCREEN]) {
+  const body = hmText(f);
+  if (/\+=|\.reduce\(|tripBudgetCents\s*\+|\+\s*\w*\.?tripBudgetCents/.test(body)) hmFail(`${f} adds TRIP BUDGET figures — the lines state no currency, nothing is summed`);
+}
+if (!/foot=\{null\}/.test(tpScreen)) hmFail(`${TP_SCREEN} renders a foot — no total under the trip budget lines`);
+for (const w of ["export const NO_CODE_WORDS = 'no code';", "export const NO_BOOK_STATED_WORDS = 'no book stated';", "export const NOT_IN_CHART_WORDS = 'not in your chart';", "export const TRIP_GONE_WORDS = 'trip gone';", "export const TRAVEL_PLAN_HEADING = 'TRAVEL PLAN · trip budget lines (not in Budget)';"]) {
+  if (!tpLeaf.includes(w)) hmFail(`${TP_LEAF} does not declare ${w}`);
+}
+for (const f of [...tsFiles(resolve(ROOT, 'src/lib/budget')), ...tsFiles(resolve(ROOT, 'src/components/budget'))].map((abs) => abs.replace(`${ROOT}/`, ''))) {
+  if (f.includes('__tests__')) continue;
+  if (/travelPlan|home-travel-plan|TravelPlan/.test(codeOf(f))) hmFail(`${f} names the travel plan — a Budget file reads no trip line (the budget report route law, clause 2)`);
+}
+// 4. The one bank read.
+{
+  const reads = codeOf(HM_READS);
+  if ((reads.match(/transactions\.findMany\(/g) ?? []).length !== 1) hmFail(`${HM_READS} reads transactions ${(reads.match(/transactions\.findMany\(/g) ?? []).length} times — the bank rows are ONE query`);
+  if (!/export function readBankNotInBooks\(db: Db, userId: string, from: string, through: string\)/.test(reads)) hmFail(`${HM_READS} does not export readBankNotInBooks(db, userId, from, through)`);
+  if (!/where: \{ accounts: \{ userId \}, review_status: \{ not: 'committed' \}, date: \{ gte: dayStart\(from\), lte: new Date\(`\$\{through\}T23:59:59\.999Z`\) \} \}/.test(reads)) hmFail(`${HM_READS} readBankNotInBooks does not read the caller's uncommitted rows in [from, through] as the report builds its window`);
+  if (!/accounts: \{ select: \{ isoCurrencyCode: true \} \}/.test(reads)) hmFail(`${HM_READS} readBankNotInBooks does not select the account's currency`);
+  for (const f of [HM_BR_ROUTE, HM_HL_ROUTE]) {
+    if (/transactions\.findMany/.test(codeOf(f))) hmFail(`${f} reads transactions itself — the bank rows come through readBankNotInBooks alone`);
+    if (!/readBankNotInBooks\(prisma, user\.id, /.test(codeOf(f))) hmFail(`${f} does not call readBankNotInBooks for the caller`);
+  }
+  const inputs = codeOf(HM_INPUTS);
+  if (!/readonly currency: string \| null;/.test(inputs)) hmFail(`${HM_INPUTS} BankRow carries no currency`);
+  if (!/readonly bankByCode: readonly BankCodeCents\[\] \| null;/.test(inputs) || !/readonly currencyNotStated: number \| null;/.test(inputs)) hmFail(`${HM_INPUTS} NotInBooksColumn does not carry the figures per code and the unstated count`);
+  if (/bankCents/.test(inputs.replace(/\/\*[\s\S]*?\*\//g, ''))) hmFail(`${HM_INPUTS} still names bankCents — one sum across currencies is gone`);
+}
+// 5. BudgetReport's year prop.
+if (!/export type BudgetYearSource = \{ readonly from: 'url' \} \| \{ readonly from: 'host'; readonly year: string \};/.test(hmReport)) hmFail(`${HM_REPORT} does not declare BudgetYearSource — the two kinds, nothing optional`);
+if (!/export default function BudgetReport\(\{ year: source \}: \{ year: BudgetYearSource \}\)/.test(hmReport)) hmFail(`${HM_REPORT} does not take the ONE required year prop`);
+if (!/const year = asOf === null \? null : source\.from === 'url' \? yearOf\(new URLSearchParams\(search\.toString\(\)\), asOf\) : source\.year;/.test(hmReport)) hmFail(`${HM_REPORT} does not take the year from where the prop says`);
+if (!/\{source\.from === 'url' \? \(/.test(hmReport)) hmFail(`${HM_REPORT} does not guard the ‹ › year step by the URL kind — the host's year has no step`);
+if (!/<BudgetReport year=\{\{ from: 'url' \}\} \/>/.test(codeOf(HM_PAGE))) hmFail(`${HM_PAGE} does not pass { from: 'url' } — /budget's year is the URL's`);
+// 6. The BANK row and the gap.
+if (!/export const SUPERSEDED_GAP_WORDS = 'Budget counts every routine occurrence; the day card leaves out the ones superseded by travel — this table does not yet \(SUPERSEDE-01\)';/.test(hmView)) hmFail(`${HM_VIEW} does not declare SUPERSEDED_GAP_WORDS`);
+if (!/export function bankColumnWords\(/.test(hmView) || !/import \{ CURRENCY_NOT_STATED_WORDS, NOT_WHOLE_CENTS_WORDS, bankCentsWords \} from '@\/lib\/books\/functionalCurrency';/.test(hmView)) hmFail(`${HM_VIEW} does not word the BANK row's cells through the books' one bank formatter (bankCentsWords)`);
+if (!/export const BANK_ROW_LABEL = 'BANK — not yet in the books';/.test(hmView)) hmFail(`${HM_VIEW} does not declare BANK_ROW_LABEL`);
+{
+  const tablesAt = hmReport.lastIndexOf('<BookTable ');
+  const bankAt = hmReport.indexOf('<BankRow columns={report.columns} notInBooks={notInBooks} />');
+  const gapAt = hmReport.indexOf('{SUPERSEDED_GAP_WORDS}');
+  if (!(tablesAt > -1 && bankAt > tablesAt && gapAt > bankAt)) hmFail(`${HM_REPORT} does not print the book tables, then the BANK row, then the gap line`);
+  if (!/\{bankColumnWords\(c\)\}/.test(hmReport)) hmFail(`${HM_REPORT} does not print each BANK cell through bankColumnWords`);
+  if (/bankCents/.test(hmReport)) hmFail(`${HM_REPORT} names bankCents — the one sum across currencies is gone`);
+}
+// 7. The lane and the registry.
+{
+  const self = codeOf('scripts/assert-tool-registry.ts');
+  if (!/const FX_LANE_FILES = \['src\/components\/home\/HomeLedger\.tsx', 'src\/components\/home\/HomeMonth\.tsx', 'src\/components\/home\/TravelPlan\.tsx'\];/.test(self)) hmFail("the books currency law's lane does not name the month host and the travel plan's screen");
+}
+if (TOOL_REGISTRY.some((t) => t.slug === 'home-month' || t.slug === 'travel-plan' || t.home === '/home')) hmFail('the registry carries a Home row — the month table is Budget\'s, the travel plan the shell\'s');
+if (hmViolations === 0) console.log(`✔ The home month law passed — /home mounts the four answers → Net worth → the day card → the home ledger → the month host → the sheet; the host prints the heading, Budget's own report on the card's year (no step) and the travel plan; the travel plan's route is GET only behind the cart-plan gate, reads the caller's trip lines alone, and its leaf and screen sum nothing; the bank rows not yet in the books are ONE read (reportReads.ts readBankNotInBooks) for both pages, figured per currency; BudgetReport takes the one required year prop, prints the BANK row through the books' formatter and says the supersession gap; the lane names both screens; no registry row.`);
+else console.log(`✖ The home month law FAILED — ${hmViolations} violation(s).`);
 });
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
