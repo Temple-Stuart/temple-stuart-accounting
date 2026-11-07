@@ -367,7 +367,8 @@ test('T9 the own-table law refuses by name, a fixture for each — and step 6\'s
   refuses(ownTableLaw({ schema, codeOf }, swap('Tasks', { ownTableRoute: 'src/app/api/operations/stops/route.ts:177 (wrong route)' })), "Tasks: src/app/api/operations/stops/route.ts does not name operations_project_tasks's client accessor");
   refuses(ownTableLaw({ schema, codeOf }, swap('Tasks', { ownTableRoute: 'src/lib/posting/postJournal.ts:121 (a lib)' })), 'is not a route file:line under src/app/api');
   refuses(ownTableLaw({ schema, codeOf }, swap('Tasks', { ownTableRoute: 'src/app/api/operations/nope/route.ts:1 (gone)' })), 'Tasks: src/app/api/operations/nope/route.ts does not exist');
-  refuses(registryLaw({ throwOnFail: false, registry: swap('CRM', { ownTable: 'operations_project_tasks', ownTableRoute: tasks.ownTableRoute }) }), 'CRM: NOT_BUILT keeps no table — ownTable "operations_project_tasks" refused');
+  // CRM-01a (Alex, 2026-11-07): CRM is PARTIAL now, so the NOT_BUILT probe is Contracts — still NOT_BUILT, ownTable null.
+  refuses(registryLaw({ throwOnFail: false, registry: swap('Contracts', { ownTable: 'operations_project_tasks', ownTableRoute: tasks.ownTableRoute }) }), 'Contracts: NOT_BUILT keeps no table — ownTable "operations_project_tasks" refused');
   refuses(registryLaw({ throwOnFail: false, registry: swap('Tasks', { ownTableRoute: undefined }) }), 'Tasks: ownTable "operations_project_tasks" cites no route that writes it');
   refuses(registryLaw({ throwOnFail: false, registry: swap('CRM', { ownTableRoute: tasks.ownTableRoute }) }), 'CRM: ownTableRoute without an ownTable');
   refuses(registryLaw({ throwOnFail: false, registry: swap('Tasks', { ownTable: 'Tasks Table' }) }), 'is not a prisma model name');
@@ -401,7 +402,8 @@ test('T10 Budget runs one beat, discover — cited to the report route, which re
   assert.equal(budget.why, 'plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet');
   assert.equal(budget.home, '/budget');
   assert.deepEqual(budget.links, []);
-  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
+  // CRM-01a census (Alex, 2026-11-07): 5 · 8 · 12 → 5 · 9 · 11 — CRM NOT_BUILT → PARTIAL; Budget's row did not move.
+  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 });
   assert.deepEqual(statusCounts(), EXPECTED_STATUS_COUNTS);
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   // The citation holds: what the route reads, through which lines, and that neither budget route writes.

@@ -116,6 +116,7 @@ test("no other tool's opener changes — seven pages mount one each (EXPENSES-01
   // The census on 2026-09-18 (CAL-OPEN-01): seven tool pages mounted an opener; six do now.
   // EXPENSES-01 (Alex, 2026-10-25): seven again — /expenses, Expenses' page, opens with its own registry row.
   // BILLPAY-01 (Alex, 2026-10-28): eight — /bill-pay, Bill Pay's page, opens with its own registry row.
-  assert.deepEqual(withOpener, ['/bill-pay', '/brokerage', '/budget', '/compliance', '/expenses', '/tasks', '/time', '/trade-log']);
+  // CRM-01a (Alex, 2026-11-07): nine — /crm, CRM's page, opens with its own registry row.
+  assert.deepEqual(withOpener, ['/bill-pay', '/brokerage', '/budget', '/compliance', '/crm', '/expenses', '/tasks', '/time', '/trade-log']);
   for (const r of withOpener) assert.equal(counts.get(r), 1, `${r} mounts exactly one opener`);
 });

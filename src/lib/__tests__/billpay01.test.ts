@@ -315,8 +315,9 @@ test('E Bill Pay is PARTIAL at /bill-pay with discover and record, its why verba
   assert.match(lineOf(SECTION, n(/BillPaySection\.tsx:(\d+) \("link payment"/)), /LINK_PAYMENT_WORDS/);
   assert.match(lineOf(SECTION, n(/→ :(\d+) the existing/)), /<LinkPicker /);
   assert.match(lineOf('prisma/schema.prisma', n(/operations_vendor_directory \(schema:(\d+)\)/)), /^model operations_vendor_directory \{/);
-  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
-  assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
+  // CRM-01a census (Alex, 2026-11-07): CRM NOT_BUILT → PARTIAL — the census moved on, 5 · 8 · 12 → 5 · 9 · 11; BILLPAY-01's dated line stays in the record (below).
+  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 });
+  assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 });
   assert.match(comments(REGISTRY), /BILLPAY-01 census \(Alex, 2026-10-28\): Bill Pay PARTIAL — the due list and the manual link; it pays nothing\./);
   assert.match(comments(REGISTRY), /5 · 7 · 13 → 5 · 8 · 12/);
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);

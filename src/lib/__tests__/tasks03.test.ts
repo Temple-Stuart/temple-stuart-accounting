@@ -193,7 +193,8 @@ test('C the free set and the selling surfaces follow by derivation: Tasks joins 
   assert.equal(FREE_TOOLS[0].name, 'Tasks');
   assert.match(freeSetLine(), /^Free with an account, no module to buy: Tasks, .*Expenses, Travel — the registry's live tools with no tab gate\.$/);
   // BILLPAY-01 (Alex, 2026-10-28): Bill Pay NOT_BUILT → PARTIAL — twelve on the blueprint (thirteen until then).
-  assert.match(heroCountsLine(), /^Twenty-five tools, counted: \w+ live, \w+ partial, twelve on the blueprint\.$/);
+  // CRM-01a census (Alex, 2026-11-07): CRM NOT_BUILT → PARTIAL — eleven on the blueprint (twelve until then).
+  assert.match(heroCountsLine(), /^Twenty-five tools, counted: \w+ live, \w+ partial, eleven on the blueprint\.$/);
   const mail = verificationEmail({ name: 'Ada', verifyUrl: 'https://templestuart.com/api/auth/verify?token=t', baseUrl: 'https://templestuart.com/' });
   assert.match(mail.text, /Free with your account: Tasks, .*Expenses, Travel\./); // TIME-03 (2026-10-26): Time sits between
 });

@@ -101,8 +101,10 @@ test('T2 the schema\'s need names the CHECK, the six words and the migration; th
   assert.match(schema, /proposals_need_chk\): 'setup' \| 'maintenance' \| 'custom' \| 'embed' \| 'unsure' \| 'close'/);
   assert.match(schema, new RegExp(`prisma/migrations/${MIGRATION_DIR}`));
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261103200000_travel_02c_stay_link_living_baselines');
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (CRM-01a followed)');
+  assert.equal(dirs[dirs.length - 3], '20261103200000_travel_02c_stay_link_living_baselines');
+  // CRM-01a (2026-11-07): crm_contacts, the CRM's working table, followed — every pin above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261106150000_crm_01a_crm_contacts', 'the newest migration');
 });
 
 // ── T3 · THE SERVER PAGE ─────────────────────────────────────────────────────

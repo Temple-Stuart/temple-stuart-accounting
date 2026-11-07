@@ -24,7 +24,7 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code, comments } from '../sourceText';
 import { CLOSE_OFFER, CloseOfferLawError, PROPOSAL_FORM_PATH, closeOfferLaw, type CloseOffer } from '../offer/close';
-import { CloseWordsError, closeFormHref, closeWords, usd } from '../offer/closeWords';
+import { CloseWordsError, closeChoiceWords, closeFormHref, closeWords, usd } from '../offer/closeWords';
 import { dayWords } from '../experienceWords';
 import { CLOSE_ANCHOR, CloseOfferView } from '@/components/landing/CloseOfferSection';
 
@@ -112,6 +112,8 @@ test('T2 the open words: every line exact, the total derived, the book-by day th
   assert.equal(w.bookBy, `Book by ${dayWords(CLOSE_OFFER.bookBy)}.`);
   assert.equal(w.button.href, `${PROPOSAL_FORM_PATH}?need=${encodeURIComponent(CLOSE_OFFER.need)}`);
   assert.equal(closeFormHref(CLOSE_OFFER), WANT.href);
+  // CRM-01a (2026-11-07, ruling 6): the chip's words on any day — the open state reads them; the CRM prints them after bookBy too.
+  assert.equal(closeChoiceWords(CLOSE_OFFER), WANT.choice);
   assert.equal(closeFormHref({ ...CLOSE_OFFER, need: 'yearend' }), '/work-with-me?need=yearend', 'the href follows the leaf, never typed');
   assert.doesNotMatch(code(WORDS), /mailto|@templestuart|'\/work-with-me'|"\/work-with-me"/, 'no email, and the path from the leaf');
   // the total is the price × 12, grouped by a pure formatter — never typed

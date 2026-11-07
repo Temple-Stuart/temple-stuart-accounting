@@ -20,9 +20,10 @@ const withTool = (name: string, patch: Partial<ToolEntry>): ToolEntry[] => TOOL_
 // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.
 // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
 // BILLPAY-01 (Alex, 2026-10-28): Bill Pay PARTIAL — the due list and the manual link; it pays nothing. 5 · 7 · 13 → 5 · 8 · 12.
-test('the counts are the dated census — 5 LIVE · 8 PARTIAL · 12 NOT_BUILT — and the law holds on the real registry', () => {
-  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
-  assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
+// CRM-01a (Alex, 2026-11-07): CRM PARTIAL — contacts, proposals and signups read in three tables; nothing written yet. 5 · 8 · 12 → 5 · 9 · 11.
+test('the counts are the dated census — 5 LIVE · 9 PARTIAL · 11 NOT_BUILT — and the law holds on the real registry', () => {
+  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 });
+  assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 });
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'LIVE').map((t) => t.name), ['Tasks', 'Time', 'Expenses', 'Travel', 'Bookkeeping']);
 });
@@ -82,7 +83,8 @@ test('the law rejects a four-beat PARTIAL without `why`, a `why` on a non-PARTIA
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Travel', { why: 'not needed' }) }).join('\n'), /Travel: why belongs only to a PARTIAL tool/);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Travel', { beats: { discover: true, decide: true, commit: true, record: false } }) }).join('\n'), /Travel: LIVE needs four beats and a home \(beats 3/);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Banking', { beats: { discover: false, decide: false, commit: false, record: false } }) }).join('\n'), /Banking: PARTIAL with no beats — no beats is NOT_BUILT/);
-  assert.match(registryLaw({ throwOnFail: false, registry: withTool('CRM', { beats: { discover: true, decide: false, commit: false, record: false } }) }).join('\n'), /CRM: NOT_BUILT must have no beats, no home, no links/);
+  // CRM-01a (Alex, 2026-11-07): CRM is PARTIAL now — the NOT_BUILT-with-a-beat probe runs through Contracts, which is NOT_BUILT.
+  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Contracts', { beats: { discover: true, decide: false, commit: false, record: false } }) }).join('\n'), /Contracts: NOT_BUILT must have no beats, no home, no links/);
   // EXPENSES-01 (2026-10-25): Expenses is PARTIAL now — the NOT_BUILT-with-a-home probe runs through Payroll, which is NOT_BUILT.
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Payroll', { home: '/travel' }) }).join('\n'), /Payroll: NOT_BUILT must have no beats, no home, no links/);
   // a wrong count is named (Calendar back to LIVE → 6/6/13; TIME-03, 2026-10-26: the census is 5 LIVE)
@@ -91,15 +93,20 @@ test('the law rejects a four-beat PARTIAL without `why`, a `why` on a non-PARTIA
 
 // EXPENSES-01 (Alex, 2026-10-25): Expenses left this test's NOT_BUILT pair — it is PARTIAL at /expenses (expenses01.test.ts pins
 // the row); CRM stays. The LEGACY-DEL-01 line about trip_expenses is history in the Expenses row's comment, not its citation.
-test('CRM is NOT_BUILT with the census citation, no home, no beats; Expenses is PARTIAL at /expenses; /owner keeps its door in the owner utilities, and Travel carries no sub-link (TRIPS-01)', () => {
-  for (const name of ['CRM']) {
+// CRM-01a (Alex, 2026-11-07): CRM left too — it is PARTIAL at /crm (crm01.test.ts pins the row); Contracts, NOT_BUILT with its
+// census citation, holds the NOT_BUILT shape here. Title was "CRM is NOT_BUILT with the census citation, no home, no beats; …".
+test('CRM is PARTIAL at /crm and Contracts NOT_BUILT with its census citation, no home, no beats; Expenses is PARTIAL at /expenses; /owner keeps its door in the owner utilities, and Travel carries no sub-link (TRIPS-01)', () => {
+  for (const name of ['Contracts']) {
     const t = byName(name);
     assert.equal(t.status, 'NOT_BUILT');
     assert.equal(t.home, null);
     assert.equal(beats(t), 0);
     assert.equal(t.links, undefined);
   }
-  assert.match(byName('CRM').citation, /proposals inbox — no contact or deal object \(src\/app\/api\/owner\/proposals\/route\.ts\)/);
+  assert.equal(byName('Contracts').citation, 'TOOL CENSUS row 5 — no page, route, or model');
+  assert.equal(byName('CRM').status, 'PARTIAL');
+  assert.equal(byName('CRM').home, '/crm');
+  assert.match(byName('CRM').citation, /\/owner stays the founder's proposals inbox until CRM-01b \(src\/app\/api\/owner\/proposals\/route\.ts\)$/);
   assert.equal(byName('Expenses').status, 'LIVE'); // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13.
   assert.equal(byName('Expenses').home, '/expenses');
   assert.match(byName('Expenses').citation, /^EXPENSES-01 \(2026-10-25\): src\/app\/expenses\/page\.tsx mounts ROUTINE EXPENSES alone · EXPENSES-02 \(2026-10-26\) decide:/);
