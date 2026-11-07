@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ignoredLine, plannedLine, routinePlanned } from '../operations/routineLines';
-import { routineMonthlyByCoa, routinesMonthlyByCoa } from '../operations/routineBudget';
+// HOME-LEDGER-02b (Alex, 2026-11-07, ruling C): routineMonthlyByCoa / routinesMonthlyByCoa are deleted with the cockpit's hub
+// budget routes — the month is the day lines' sum, built by the budget's day rules; the month side here reads them.
+import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
 import { mapOperationsRoutines } from '../hub/mapOperationsRoutines';
 import { buildDay, dayParts } from '../calendar/day';
 import { buildChain, buildDrill } from '../calendar/chain';
@@ -77,10 +79,22 @@ test('an archived line contributes nothing; an absent flag means active (the fee
 test('MONTH AND DAY AGREE, for both shapes', () => {
   const rrule = 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0;BYSECOND=0';
   const tz = 'UTC';
-  // September 2026 has 30 days → 30 occurrences.
-  const monthLined = routineMonthlyByCoa({ ...MORNING, schedule_rrule: rrule, timezone: tz }, 2026, 8);
+  // September 2026 has 30 days → 30 occurrences. HOME-LEDGER-02b (Alex, 2026-11-07): the month side is the budget's day lines
+  // over the month (buildRoutineBudgetLines — the one month model), summed by account in dollars; routineMonthlyByCoa is deleted.
+  const plan = (r: typeof MORNING | typeof STEPLESS, id: string): RoutinePlanInput => ({
+    id, name: id, entityId: 'e', entityType: 'personal', timezone: tz, scheduleRrule: rrule, startDate: '2026-01-01', endDate: null,
+    budgetAmount: r.budget_amount, coaCode: r.coa_code,
+    steps: r.steps.map((s) => ({ id: s.id, stepOrder: s.step_order, budgetAmount: s.budget_amount, coaCode: s.coa_code })),
+  });
+  const monthOf = (r: typeof MORNING | typeof STEPLESS, id: string): Record<string, number> => {
+    const out: Record<string, number> = {};
+    for (const l of buildRoutineBudgetLines([plan(r, id)], '2026-09-01', '2026-09-30').lines) out[l.code] = (out[l.code] ?? 0) + l.cents / 100;
+    return out;
+  };
+  const monthLined = monthOf(MORNING, 'morning');
   assert.deepEqual(monthLined, { '5200': 80 * 30 }, 'the coffee line × occurrences, to its account; the uncategorised $200 attributes to nothing');
-  const monthStepless = routineMonthlyByCoa({ ...STEPLESS, schedule_rrule: rrule, timezone: tz }, 2026, 8);
+  assert.equal(buildRoutineBudgetLines([plan(MORNING, 'morning')], '2026-09-01', '2026-09-30').notPlaced.length, 30, 'the $200 dining line is Not placed, once per occurrence — reported, never dropped');
+  const monthStepless = monthOf(STEPLESS, 'stepless');
   assert.deepEqual(monthStepless, { '5200': 15 * 30 });
 
   // The DAY: one occurrence through the real mapper into the real day leaf.
@@ -113,12 +127,9 @@ test('MONTH AND DAY AGREE, for both shapes', () => {
   assert.equal(Object.values(monthStepless)[0] / 30, steplessTile.budgetAmount);
 });
 
-test('the day-blocks bridge and the month never add routine-level and line-level amounts', () => {
-  // A routine with BOTH a routine-level $15 and a $80 coffee line contributes 80 per
-  // occurrence to the month — not 95.
-  const both = routinesMonthlyByCoa([{ budget_amount: 15, coa_code: '5200', steps: [{ id: 'c', budget_amount: 80, coa_code: '5200' }], schedule_rrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0;BYSECOND=0', timezone: 'UTC' }], 2026, 8);
-  assert.deepEqual(both, { '5200': 2400 });
-});
+// HOME-LEDGER-02b (Alex, 2026-11-07, ruling F): 'the day-blocks bridge and the month never add routine-level and line-level
+// amounts' retired with routinesMonthlyByCoa — budgetDays.test.ts proves the same rule through buildRoutineBudgetLines
+// ('R2 ROUTINE MONEY — lines win': the routine-level 15 on 6200 is never added, the lines alone are the figure).
 
 test('a coffee posting linked to the coffee LINE moves the line and the occurrence to settled', () => {
   const coffeeLinks = sumLinks([{ journalEntryId: 'je-coffee', date: '2026-09-19', description: 'CAFE', amountCents: 8000, reversed: false }]);
@@ -189,7 +200,10 @@ test('the drill row carries the lines, the coverage and the set-aside figure for
 
 test('every HB-4a reader reads the leaf — none restates the rule', () => {
   for (const f of [
-    'src/lib/operations/routineBudget.ts',
+    // HOME-LEDGER-02b (Alex, 2026-11-07, ruling C): routineBudget.ts left with its code (its month tables are deleted; the
+    // interface alone remains, reading no figure) — the budget's day rules, which read the leaf, take its place here and in
+    // the law's LINES_READERS.
+    'src/lib/budget/days.ts',
     'src/lib/hub/mapOperationsRoutines.ts',
     // WORK-01 (Alex, 2026-10-24): RoutineRow left — THE WORK's AMOUNT (work.ts) and the editor's head (RoutineEditForm) read the leaf.
     'src/lib/operations/work.ts',
@@ -203,15 +217,16 @@ test('every HB-4a reader reads the leaf — none restates the rule', () => {
   for (const gone of ['src/components/workbench/operations/routines/TodaysStrip.tsx', 'src/components/workbench/operations/week/WeekSection.tsx']) {
     assert.ok(!existsSync(resolve(process.cwd(), gone)), `${gone} is deleted, not left unread`);
   }
-  // The HB-4d bridge reads it THROUGH routinesMonthlyByCoa, and no longer hides a
-  // lined routine with blank routine-level fields.
-  // LINES-02: both budget routes are the bridge now, and the routine read (the
-  // lines included) lives in the one loader they share.
-  for (const f of ['src/app/api/hub/business-budget/route.ts', 'src/app/api/hub/year-calendar/route.ts']) {
+  // LINES-02: both budget routes are the bridge, and the routine read (the
+  // lines included) lives in the one loader they share. HOME-LEDGER-02b (Alex,
+  // 2026-11-07, ruling D): the bridges are the two Budget routes — the report's and
+  // its cell's — now that the hub routes and routinesMonthlyByCoa are deleted; each
+  // reads through the loader, keeps no query of its own and hides no lined routine.
+  for (const f of ['src/app/api/budget/report/route.ts', 'src/app/api/budget/report/cell/route.ts']) {
     const bridge = code(f);
-    assert.match(bridge, /routinesMonthlyByCoa/);
-    assert.doesNotMatch(bridge, /budget_amount: \{ not: null \}/);
     assert.match(bridge, /loadRoutineBudgetInputs\(/);
+    assert.doesNotMatch(bridge, /operations_routines\.findMany\(/);
+    assert.doesNotMatch(bridge, /budget_amount: \{ not: null \}/);
   }
   assert.match(code('src/lib/operations/routineBudgetInputs.ts'), /steps: \{ where: \{ is_active: true \}/);
   // The window feed carries the lines.

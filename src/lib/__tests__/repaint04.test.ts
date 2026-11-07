@@ -108,8 +108,8 @@ test('the allowlist matches the files the law admits — and each still declares
 test('every other miss is repainted to a cream token REPAINT-3 established, with a REPAINT-04 note', () => {
   const repainted: Array<[string, RegExp[]]> = [
     ['src/components/home/TaxHandoffGate.tsx', [/'rounded-xl border-2 border-border bg-white px-4 py-3 text-sm text-text-muted'/, /'rounded-xl border-2 border-border bg-white px-6 py-5'/, /tracking-tight text-text-primary'\}>Tax begins at completed books/, /'mx-auto mt-2 max-w-md text-sm text-text-secondary'/, /tracking-wider text-text-muted'\}>\s*Derived from your actual closed books/]],
-    ['src/components/hub/BudgetComparison.tsx', [/<tr className="bg-bg-row text-text-secondary">/, /<tr className="bg-bg-row text-text-primary font-semibold">/, /travelMonths\.includes\(i\) \? 'bg-brand-purple\/10' : ''/, /text-right bg-brand-purple\/10 min-w-\[70px\]">FY Total/]],
-    ['src/components/hub/HubBudgetSection.tsx', [/<tr className="border-b border-border bg-bg-row">/]],
+    // HOME-LEDGER-02b (Alex, 2026-11-07, ruling C): BudgetComparison.tsx and HubBudgetSection.tsx are deleted — the cockpit's
+    // second month table retired with its routes — so their repainted rows leave this list with their code.
     ['src/components/landing/Landing.tsx', [/rounded-lg border border-border bg-white">\s*<table className="w-full min-w-\[1080px\] text-sm">/, /tracking-wider text-text-faint">\s*<th className="px-3 py-2 font-semibold">Entity<\/th>/, /<div className="font-mono text-xs text-text-primary whitespace-nowrap">\{code\}<\/div>/, /<div className="text-\[10px\] leading-tight text-text-faint">\{label\}<\/div>/]],
     ['src/components/trading/TradeRecord.tsx', [/'rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-muted'/]],
     ['src/components/BacktestPanel.tsx', [/<tr key=\{i\} className="border-b border-border hover:bg-bg-row">/]],

@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PathnameContext, SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
+import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { code, comments } from '../sourceText';
 import { TRIP_NOT_YOURS, requestedTripOf, tripFromUrl, urlTripStep, type UrlTrip, type UrlTripStep } from '../trips/tripFromUrl';
 import { bookingRowOf, type BookingRowReservation } from '../reservations/bookingRow';
@@ -112,13 +113,19 @@ test('AllTripsList answers from the rows it fetched and selects with the click�
   assert.match(code('src/app/api/trips/route.ts'), /prisma\.trips\.findMany\(\{\s*where: \{ userId: user\.id \}/);
 });
 
+// HOME-LEDGER-02b (Alex, 2026-11-07, ruling A): the launcher calls useRouter() — the runway strip's 05 link cell lands on /budget
+// through Next's router, as BudgetReport.tsx does — so the app router context every Next page provides is provided here too: a
+// stub that navigates nowhere (nothing here clicks it).
+const noRouter: AppRouterInstance = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {} };
+
 /** The Travel tab as Next renders it for a visitor whose sign-in has not resolved — the guest branch. */
 async function travelRegion(pathname: string, search: string): Promise<string> {
   const { RailStateProvider } = await import('../../components/shell/RailState');
   const { default: ModuleLauncher } = await import('../../components/home/ModuleLauncher');
-  const tree = React.createElement(PathnameContext.Provider, { value: pathname },
-    React.createElement(SearchParamsContext.Provider, { value: new URLSearchParams(search) },
-      React.createElement(RailStateProvider, null, React.createElement(ModuleLauncher, { onRequireAuth: () => {} }))));
+  const tree = React.createElement(AppRouterContext.Provider, { value: noRouter },
+    React.createElement(PathnameContext.Provider, { value: pathname },
+      React.createElement(SearchParamsContext.Provider, { value: new URLSearchParams(search) },
+        React.createElement(RailStateProvider, null, React.createElement(ModuleLauncher, { onRequireAuth: () => {} })))));
   const html = renderToStaticMarkup(tree);
   const from = html.indexOf('data-travel-section="header"');
   const to = html.indexOf('</section>', html.indexOf('data-travel-section="unattached"'));

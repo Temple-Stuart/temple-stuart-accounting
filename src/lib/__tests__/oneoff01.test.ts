@@ -141,7 +141,9 @@ test('every expansion is anchored on the routine\'s start_date — one mechanism
     'src/app/api/operations/routines/[id]/upcoming/route.ts',
     // WEEK-01 (2026-09-30): the today route's day logic — its anchored expansion with it — moved into the pure day module.
     'src/lib/operations/routineDay.ts',
-    WINDOW_ROUTE, 'src/inngest/functions/routine-evaluator.ts', 'src/lib/operations/routineBudget.ts',
+    // HOME-LEDGER-02b (Alex, 2026-11-07, ruling C): routineBudget.ts expands nothing now — its month tables are deleted with the
+    // cockpit's hub budget routes; the budget's one expansion is days.ts's, below.
+    WINDOW_ROUTE, 'src/inngest/functions/routine-evaluator.ts',
     // TAB13-02a: the budget report's day rules expand a routine, anchored like every caller.
     'src/lib/budget/days.ts',
     // MOVE-01 (2026-10-19): the move's plan expands a copy's rule once for its first day, anchored on the copy's start (the date).
@@ -163,7 +165,8 @@ test('every expansion is anchored on the routine\'s start_date — one mechanism
   // LINES-02: the budget bridge's routine read lives in the one loader both budget routes share.
   assert.match(code('src/lib/operations/routineBudgetInputs.ts'), /start_date: true/);
   assert.match(code('src/lib/operations/routineBudgetInputs.ts'), /start_date: r\.start_date,/);
-  for (const f of ['src/app/api/hub/business-budget/route.ts', 'src/app/api/hub/year-calendar/route.ts']) assert.match(code(f), /loadRoutineBudgetInputs\(/);
+  // HOME-LEDGER-02b (Alex, 2026-11-07, ruling D): the bridges are the two Budget routes — the hub routes are deleted.
+  for (const f of ['src/app/api/budget/report/route.ts', 'src/app/api/budget/report/cell/route.ts']) assert.match(code(f), /loadRoutineBudgetInputs\(/);
   // Nothing else in src expands a schedule.
   const others = [...tsFilesUnder('src/app'), ...tsFilesUnder('src/components'), ...tsFilesUnder('src/lib'), ...tsFilesUnder('src/inngest')]
     .filter((f) => !callers.includes(f) && f !== HELPERS && !f.includes('__tests__'))

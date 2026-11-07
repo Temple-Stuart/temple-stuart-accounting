@@ -15,10 +15,10 @@ import type { RoutineBudgetInput } from './routineBudget';
  *   · a one-off expanded from the fixed 1971 anchor, so it landed in no month.
  *
  * THE SHAPE. The select, the row → input mapping and the query live here, once.
- * Both routes call loadRoutineBudgetInputs(); the monthly figure is still
- * routinesMonthlyByCoa() in routineBudget.ts, and what a routine contributes is
- * still decided by routinePlanned() in routineLines.ts — never here. This file
- * does not filter on money: every active routine is read, and the leaf decides.
+ * Every budget route calls loadRoutineBudgetInputs(); the monthly figure is the day
+ * lines' sum (src/lib/budget/days.ts buildRoutineBudgetLines — HOME-LEDGER-02b, 2026-11-07:
+ * routinesMonthlyByCoa() is deleted with the cockpit's hub routes), and what a routine contributes
+ * is still decided by routinePlanned() in routineLines.ts — never here. No filter on money here.
  *
  * SERVER-SIDE BY USE. Only API routes import the loader, and the client is
  * handed in, so the pure mapping below can be tested without a database.
@@ -26,8 +26,8 @@ import type { RoutineBudgetInput } from './routineBudget';
  * TAB13-02b (2026-09-27): the budget report (/api/budget/report) reads routines
  * here too — the same read, not a second one. It needs a routine's id, name and
  * end_date as well, so the select and the mapping GREW by those three columns,
- * additively: every field the month tables read is unchanged, and
- * routinesMonthlyByCoa() ignores the three it does not take.
+ * additively: every field the month tables read was unchanged, and routinesMonthlyByCoa()
+ * ignored the three (the tables are gone since HOME-LEDGER-02b; the budget report reads all three).
  *
  * TAB13-04 (2026-09-29): the report lists the day's plan lines by their words, so
  * a line's activity and time_of_day are read here too — the same read, grown
@@ -55,9 +55,9 @@ export const ROUTINE_BUDGET_SELECT = {
 export type RoutineBudgetRow = Prisma.operations_routinesGetPayload<{ select: typeof ROUTINE_BUDGET_SELECT }>;
 
 /**
- * What the loader hands back: the input routinesMonthlyByCoa() takes, plus the
- * routine's id, name and end_date (TAB13-02b). The month tables read it as a
- * RoutineBudgetInput and never see the three.
+ * What the loader hands back: a RoutineBudgetInput (routineBudget.ts) plus the
+ * routine's id, name and end_date (TAB13-02b) — the budget report's day rules
+ * (reportInputs.ts → days.ts) read every one of them.
  */
 export interface LoadedRoutineBudgetInput extends RoutineBudgetInput {
   id: string;
@@ -72,7 +72,7 @@ export interface LoadedRoutineBudgetInput extends RoutineBudgetInput {
   steps: { id: string; is_active: boolean; budget_amount: number | null; coa_code: string | null; step_order: number; activity: string; time_of_day: string | null }[];
 }
 
-/** A row as read → the input routinesMonthlyByCoa() takes. Decimal → number; null stays null, never 0. */
+/** A row as read → the loader's input (a RoutineBudgetInput and the three the budget report reads). Decimal → number; null stays null, never 0. */
 export function toRoutineBudgetInput(r: RoutineBudgetRow): LoadedRoutineBudgetInput {
   return {
     id: r.id,

@@ -285,9 +285,11 @@ function CalendarFeedPanel() {
 }
 
 /** 6. FEED 2 — THE BUDGET: the SAME table the Runway deck's slide 6 mirrored —
- *  identical rows/numbers (RunwayShowcaseSections.tsx:92-99). Planned =
- *  routinesMonthlyByCoa = budget × occurrences (routineBudget.ts:41-77), the
- *  SOLE planned source (year-calendar/route.ts:67-74). */
+ *  identical rows/numbers (RunwayShowcaseSections.tsx:92-99). Planned = the
+ *  day lines' sum — buildRoutineBudgetLines (src/lib/budget/days.ts:302), each
+ *  occurrence costed by routinePlanned (src/lib/operations/routineLines.ts).
+ *  HOME-LEDGER-02b (2026-11-07): routinesMonthlyByCoa and the year-calendar
+ *  route it fed are deleted. */
 function BudgetFeedPanel() {
   return (
     <DarkSlide title="Feed 2 · the budget — the Runway tab's planned column">

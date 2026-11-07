@@ -172,6 +172,49 @@ test('R2 ROUTINE MONEY — a costed line with no code is Not placed \'no account
   assert.deepEqual(none, { lines: [], notPlaced: [] });
 });
 
+// HOME-LEDGER-02b (Alex, 2026-11-07, ruling F): the month tables' cases that had no equivalent here, moved from lines02.test.ts
+// before their subject (routinesMonthlyByCoa) was deleted — the day lines are the one month model now. Figures as there: a
+// daily routine over September 2026 is 30 occurrences; the dollars there are cents here.
+const centsByCode = (lines: readonly BudgetLine[]): Record<string, number> => {
+  const out: Record<string, number> = {};
+  for (const l of lines) out[l.code] = (out[l.code] ?? 0) + l.cents;
+  return out;
+};
+
+test('R2 ROUTINE MONEY — a routine budgeted ONLY on its lines (no routine-level figure) contributes each costed line × occurrences to its own account', () => {
+  const lined = routine({ id: 'lined', budgetAmount: null, coaCode: null, steps: [
+    { id: 'coffee', stepOrder: 0, budgetAmount: '4.00', coaCode: '5210' },
+    { id: 'lunch', stepOrder: 1, budgetAmount: '12.00', coaCode: '5220' },
+  ] });
+  const sep = buildRoutineBudgetLines([lined], '2026-09-01', '2026-09-30');
+  assert.equal(sep.lines.length, 60, 'two costed lines × 30 September days');
+  assert.deepEqual(centsByCode(sep.lines), { '5210': 400 * 30, '5220': 1200 * 30 });
+  assert.deepEqual(sep.notPlaced, []);
+});
+
+test('R2 ROUTINE MONEY — an archived line (isActive false) contributes nothing', () => {
+  const r = routine({ id: 'arch', budgetAmount: null, coaCode: null, steps: [
+    { id: 'coffee', stepOrder: 0, budgetAmount: '4.00', coaCode: '5210' },
+    { id: 'gone', stepOrder: 1, budgetAmount: '99.00', coaCode: '5210', isActive: false },
+  ] });
+  const sep = buildRoutineBudgetLines([r], '2026-09-01', '2026-09-30');
+  assert.deepEqual(centsByCode(sep.lines), { '5210': 400 * 30 });
+  assert.equal(sep.lines.some((l) => l.sourceId.includes(':gone:')), false, 'no line is the archived one');
+});
+
+test('R2 ROUTINE MONEY — a line with a NULL amount is absent from the month — no line on its account, never a 0', () => {
+  const r = routine({ id: 'unc', budgetAmount: null, coaCode: null, steps: [
+    { id: 'gym', stepOrder: 0, budgetAmount: null, coaCode: '5230' },
+    { id: 'coffee', stepOrder: 1, budgetAmount: '4.00', coaCode: '5210' },
+  ] });
+  const sep = buildRoutineBudgetLines([r], '2026-09-01', '2026-09-30');
+  assert.deepEqual(centsByCode(sep.lines), { '5210': 400 * 30 });
+  assert.equal(sep.lines.some((l) => l.code === '5230'), false, 'the uncosted gym line puts no line, and no 0, on its account');
+  assert.deepEqual(sep.notPlaced, []);
+  // A routine whose only line is uncosted, with no routine-level figure, contributes nothing at all.
+  assert.deepEqual(buildRoutineBudgetLines([routine({ id: 'only', budgetAmount: null, coaCode: null, steps: [{ id: 'gym', stepOrder: 0, budgetAmount: null, coaCode: '5230' }] })], '2026-09-01', '2026-09-30'), { lines: [], notPlaced: [] });
+});
+
 // ── R3 · TASK DAY ───────────────────────────────────────────────────────────
 
 test('R3 TASK DAY — the earliest plan day with a live block wins; block-less items and cancelled blocks are ignored; a missed block counts', () => {

@@ -1,22 +1,22 @@
 'use client';
-import { SEGMENT } from '@/lib/ds';
 
 /**
- * RunwayBudgetPanel (ONE-BUDGET-TOGGLE) — one budget panel with a Month/Year toggle.
+ * RunwayBudgetPanel — THE BURN HERO of the cockpit's runway section (HOME-LEDGER-02b, Alex, 2026-11-07, ruling B).
  *
- * Shows ONE of the two budget views at a time instead of stacking both:
- *   • Month → <HubBudgetSection/>   (the month-scoped Budget-vs-Actual table)
- *   • Year  → <BudgetComparison/>   (the full-year travel-vs-home comparison grid)
+ * ONE panel, always shown: the zero-date hero strip + the trailing readout (/api/runway) and the trading chunk
+ * (/api/trading/realized-pnl) — the runway 03 Burn surface, mounted by ModuleLauncher.tsx alone (no provider).
  *
- * Presentation + selection only — neither child component is modified; their data,
- * fetches, math, toggle, and drill-down stay byte-identical. This wrapper just holds
- * the view toggle and conditionally renders one. Rendered inside RunwayDataProvider
- * by ModuleLauncher, so the children remain in the provider's context scope.
+ * WHAT RETIRED. The 05 Project chunk this panel carried — the "Runway Budget" header, the Month/Year toggle,
+ * HubBudgetSection (month) and BudgetComparison (year), a second month table beside /budget's — is gone with its
+ * `show` prop and its view state: one month table, one budget model; runway 05 is a LINK cell to /budget on the
+ * cockpit's strip (ModuleLauncher.tsx, StageStrip's `link`). The four /api/hub budget routes they read went with them.
+ *
+ * `preview` — the guest's empty shell (previewRunway, PREVIEW_TRADING); never an authed call.
+ * `onTotals` — the Books report-up idiom: fired once at the EXISTING /api/runway fetch success, zero new fetches
+ * (deriveRunwayReceipts — one mapping, unchanged by 02b; RunwayReceipts is the receipts rail's contract).
  */
 
 import { useEffect, useState } from 'react';
-import HubBudgetSection from './HubBudgetSection';
-import BudgetComparison from './BudgetComparison';
 
 // ── /api/runway response (RUNWAY-2). Compute-on-read; every figure traceable to a
 //    labeled source. State carries the TRUTHFUL window status — no fabricated numbers. ──
@@ -320,23 +320,20 @@ function RunwayHeroStrip({ runway, runwayError }: { runway: RunwayData | null; r
   );
 }
 
-// RUNWAY-PIPE: `show` — the Pipe Frame's phase visibility for the panel's two
-// chunks (03 Burn = hero + readout + trading; 05 Project = the budget tables).
-// Undefined → both render (the panel's pre-frame shape, back-compat). CSS
-// show/hide only — both chunks stay MOUNTED, so the panel's single /api/runway
-// + /api/trading fetches and the Month/Year view state survive phase switches
-// (the house keep-mounted contract). `onTotals` — the Books report-up idiom:
-// fired once at the EXISTING /api/runway fetch success, zero new fetches.
+// RUNWAY-PIPE: the panel is the 03 Burn surface — hero + readout + trading —
+// always shown; it stays MOUNTED across phase switches (the launcher's CSS
+// show/hide), so its single /api/runway + /api/trading fetches survive them (the
+// house keep-mounted contract). HOME-LEDGER-02b (Alex, 2026-11-07, ruling B): the
+// `show` prop and the 05 Project chunk it picked are gone — nothing here is
+// hidden by a phase any more. `onTotals` — the Books report-up idiom: fired once
+// at the EXISTING /api/runway fetch success, zero new fetches.
 export default function RunwayBudgetPanel({
   preview = false,
-  show,
   onTotals,
 }: {
   preview?: boolean;
-  show?: 'burn' | 'project';
   onTotals?: (t: RunwayReceipts) => void;
 } = {}) {
-  const [view, setView] = useState<'month' | 'year'>('month');
   const [runway, setRunway] = useState<RunwayData | null>(null);
   // Honest error/empty handling — on failure we DECLARE "unavailable", never show zeros.
   const [runwayError, setRunwayError] = useState(false);
@@ -388,12 +385,9 @@ export default function RunwayBudgetPanel({
       {/* RUNWAY-UX-1: the hero strip leads the tab — its data is THIS panel's
           existing /api/runway state (that fetch-locality is why the hero lives
           here: no second fetch, no state lift). */}
-      {/* RUNWAY-PIPE — the 03 Burn chunk (hero + trailing readout + trading);
-          the 05 Project chunk (budget header + tables) follows below. CSS
-          show/hide by `show`, BOTH stay mounted — the fetches and the
-          Month/Year view state survive phase switches (the house keep-mounted
-          contract). No `show` → both render (the panel's pre-frame shape). */}
-      <div className={!show || show === 'burn' ? 'block' : 'hidden'}>
+      {/* RUNWAY-PIPE — the 03 Burn chunk (hero + trailing readout + trading) is
+          the whole panel (HOME-LEDGER-02b: the 05 Project chunk that followed it
+          retired with its `show` guard and the Month/Year view). */}
       <RunwayHeroStrip runway={runway} runwayError={runwayError} />
     <div className="border-t border-border bg-white rounded-lg overflow-hidden">
       <div className="px-4 py-3 lg:px-8">
@@ -463,42 +457,6 @@ export default function RunwayBudgetPanel({
         </div>
       </div>
     </div>
-      </div>
-      {/* RUNWAY-PIPE — the 05 Project chunk: the budget header + the
-          Month/Year toggle + ONE table at a time (the ONE-BUDGET-TOGGLE
-          contract byte-unchanged; the toggle travels WITH the tables it
-          selects). */}
-      <div className={!show || show === 'project' ? 'block' : 'hidden'}>
-    <div className="border-t border-border bg-white rounded-lg overflow-hidden">
-      <div className="px-4 py-3 lg:px-8 border-b border-border">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-text-primary tracking-tight">Runway Budget</h2>
-            <p className="text-xs text-text-muted mt-0.5">
-              {view === 'month'
-                ? 'Month-by-month budget vs actual.'
-                : 'Full-year travel-vs-home comparison.'}
-            </p>
-          </div>
-          {/* RUNWAY-DEEP: Month / Year joins the house SEGMENT (the flights-bar
-              idiom, ds.ts SEGMENT) — the legacy-purple pill retires. */}
-          <div className={SEGMENT.wrap}>
-            {([['month', 'Month'], ['year', 'Year']] as const).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setView(key)}
-                className={SEGMENT.item(view === key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      {view === 'month' ? <HubBudgetSection preview={preview} /> : <BudgetComparison preview={preview} />}
-    </div>
-      </div>
     </>
   );
 }

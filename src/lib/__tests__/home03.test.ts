@@ -178,7 +178,9 @@ test('C a bare /runway is the cockpit\'s calendar tab, and its panel is the runw
   const guestAt = l.indexOf('{authed === false && (');
   const panel = l.slice(runwayAt, guestAt);
   assert.ok(runwayAt > -1 && guestAt > runwayAt);
-  const mounts = ['<StageStrip', '<RunwayDataProvider>', '<RunwayBudgetPanel', '<MatchReviewSection onTotals={setMatchTotals} />', '<HubCalendar />', '<ProofStrip'];
+  // HOME-LEDGER-02b (Alex, 2026-11-07, ruling B): RunwayDataProvider is deleted with the cockpit's second month table — the panel
+  // mounts alone, the burn hero; the order of what remains is unchanged.
+  const mounts = ['<StageStrip', '<RunwayBudgetPanel onTotals={setRunwayTotals} />', '<MatchReviewSection onTotals={setMatchTotals} />', '<HubCalendar />', '<ProofStrip'];
   let at = -1;
   for (const m of mounts) { const next = panel.indexOf(m, at + 1); assert.ok(next > at, `the panel still holds ${m}, in order`); at = next; }
   assert.doesNotMatch(panel, /DayCard|Suspense/, 'the card is gone from the panel');
@@ -193,7 +195,8 @@ test('C a bare /runway is the cockpit\'s calendar tab, and its panel is the runw
     const [hFrom, hTo] = /the handler excludes its key at :(\d+)-(\d+)/.exec(a.surfaceNote ?? '')!.slice(1).map(Number);
     const lines = code(LAUNCHER).split('\n');
     assert.match(lines[hFrom - 1] ?? '', /onSelect=\{\(k\) => \{/, `runway ${num}: the handler opens at :${hFrom}`);
-    assert.ok(lines.slice(hFrom - 1, hTo).some((x) => x.includes("if (k === 'burn' || k === 'match' || k === 'project') setRunwayPhase(k);")), `runway ${num}: the handler's exclusion is inside :${hFrom}-${hTo}`);
+    // HOME-LEDGER-02b (Alex, 2026-11-07, ruling A): 'project' left the handler's union — 05 is the strip's link cell to /budget.
+    assert.ok(lines.slice(hFrom - 1, hTo).some((x) => x.includes("if (k === 'burn' || k === 'match') setRunwayPhase(k);")), `runway ${num}: the handler's exclusion is inside :${hFrom}-${hTo}`);
   }
   assert.match(comments(NAV), /HOME-03 \(2026-10-27\): sixteen lines back up — the day card's mount left the panel for \/home/);
 });

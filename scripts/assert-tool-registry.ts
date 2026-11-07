@@ -3148,7 +3148,12 @@ lawGuard('The lines law', () => {
 // column directly, would let the month and the day disagree.
 const LINES_LEAF = 'src/lib/operations/routineLines.ts';
 const LINES_READERS = [
-  'src/lib/operations/routineBudget.ts',
+  // HOME-LEDGER-02b (Alex, 2026-11-07, ruling C): routineBudget.ts left this list with its code — its two month tables
+  // (routineMonthlyByCoa, routinesMonthlyByCoa) are deleted with the cockpit's hub budget routes, and the file keeps only
+  // RoutineBudgetInput, the loader's row type, reading no figure. The month's planned figures are the day lines'
+  // (src/lib/budget/days.ts buildRoutineBudgetLines, which reads the leaf at its one routinePlanned call) — so days.ts
+  // takes the place: every reader that remains is still held to the leaf, the budget's included.
+  'src/lib/budget/days.ts',
   'src/lib/hub/mapOperationsRoutines.ts',
   // WORK-01 (Alex, 2026-10-24): RoutineRow left with the per-book tables — its figure is THE WORK's AMOUNT
   // (src/lib/operations/work.ts) and its editor's head (RoutineEditForm.tsx); both read the leaf.
@@ -3173,27 +3178,34 @@ for (const f of LINES_READERS) {
   const body = codeOf(f);
   if (!/routinePlanned\(/.test(body)) linesFail(`${f} does not read routinePlanned() — every planned figure for a routine comes from the one leaf`);
 }
-// The bridge reads it through routinesMonthlyByCoa, and may not pre-filter on the routine-level column.
+// The bridges read routines through the ONE loader, and may not pre-filter on the routine-level column.
 // LINES-02 (2026-09-27): the Personal budget kept a read of its own — routine-level
 // budget_amount/coa_code NOT NULL, no lines, no start_date — so a routine budgeted on
 // its lines vanished from Personal while Business counted it. The read (select,
 // mapping, query) now lives in ONE loader, and every API file that builds a monthly
 // budget from routines builds its inputs there. This is a source-text law: it holds
 // each such file to calling the loader and to keeping no routine query of its own.
+// HOME-LEDGER-02b (Alex, 2026-11-07, ruling D): the bridges are the two Budget routes —
+// /api/budget/report and /api/budget/report/cell, the one budget model's readers
+// (buildRoutineBudgetLines over the loader's rows, summed into months by report.ts) —
+// now that the cockpit's two hub routes (year-calendar, business-budget) and the month
+// tables they computed through routinesMonthlyByCoa are deleted with its second month
+// table. The bridges are NAMED here, never found by scanning src/app/api for a loader
+// call: operations/ledger/route.ts calls the loader AND keeps a routine query of its
+// own (its roles read), and it is not a budget builder — a scan would hold it to a
+// clause written for budget routes, and a new budget route that skipped the loader
+// altogether would escape a scan keyed on the call. A new budget route is added here,
+// by name, and held to the three clauses below.
 const LINES_LOADER = 'src/lib/operations/routineBudgetInputs.ts';
-const LINES_BRIDGES = ['src/app/api/hub/business-budget/route.ts', 'src/app/api/hub/year-calendar/route.ts'];
+const LINES_BRIDGES = ['src/app/api/budget/report/route.ts', 'src/app/api/budget/report/cell/route.ts'];
 const linesLoader = codeOf(LINES_LOADER);
 if (!/export async function loadRoutineBudgetInputs\(/.test(linesLoader)) linesFail(`${LINES_LOADER} no longer exports loadRoutineBudgetInputs() — the one read every budget route shares`);
 if (!/steps:\s*\{\s*where:\s*\{\s*is_active:\s*true\s*\}/.test(linesLoader)) linesFail(`${LINES_LOADER} does not hand the leaf the routine's active lines`);
 if (!/start_date:\s*true/.test(linesLoader)) linesFail(`${LINES_LOADER} does not read start_date — a one-off would count from 1971 and land in no month (ONEOFF-01)`);
 if (/(budget_amount|coa_code):\s*\{\s*not:\s*null\s*\}/.test(linesLoader)) linesFail(`${LINES_LOADER} filters routines on a routine-level column — that hides a lined routine with blank routine-level fields`);
-const linesApiBridges = tsFiles(resolve(ROOT, 'src/app/api'))
-  .map((abs) => abs.replace(`${ROOT}/`, ''))
-  .filter((rel) => /routinesMonthlyByCoa\(/.test(codeOf(rel)));
-for (const f of LINES_BRIDGES) if (!linesApiBridges.includes(f)) linesFail(`${f} no longer reads the monthly figure through routineBudget.ts`);
-for (const rel of linesApiBridges) {
+for (const rel of LINES_BRIDGES) {
   const body = codeOf(rel);
-  if (!/\b(loadRoutineBudgetInputs|toRoutineBudgetInput)\(/.test(body)) linesFail(`${rel} calls routinesMonthlyByCoa with inputs not built by ${LINES_LOADER} — a second read of a routine, and one book's month can disagree with the other's`);
+  if (!/\bloadRoutineBudgetInputs\(/.test(body)) linesFail(`${rel} does not read routines through loadRoutineBudgetInputs() — the one read lives in ${LINES_LOADER}; a budget built from a second read of a routine can disagree with the other route`);
   if (/operations_routines\.findMany\(/.test(body)) linesFail(`${rel} reads routines with a query of its own beside the loader — the one read lives in ${LINES_LOADER}`);
   if (/budget_amount:\s*\{\s*not:\s*null\s*\}/.test(body)) linesFail(`${rel} filters routines on the routine-level budget_amount — that hides a lined routine with blank routine-level fields`);
 }
@@ -3232,7 +3244,7 @@ if (!/data-drill-lines-total/.test(linesPanel)) linesFail('the panel does not pr
 if (!/data-drill-line-link-open/.test(linesPanel)) linesFail('a line in the panel carries no Link');
 if (!/!\(row\.lines && row\.lines\.length > 0\) && \(\s*<Row label="Category \(COA\)"/.test(linesPanel)) linesFail('the panel keeps a routine-level Category row for a routine that has one per line');
 if (!/if \(row\.lines && row\.lines\.length > 0\) return null;/.test(linesPanel)) linesFail('a lined occurrence can still be linked at the routine grain — the coffee posting must link to the coffee LINE');
-if (linesViolations === 0) console.log(`✔ The lines law passed — ${LINES_READERS.length + 1} readers read the one leaf; ${linesApiBridges.length} budget routes read routines through the one loader; $280 across 2 of 3 with the routine-level $15 set aside, never added; a stepless routine keeps its own; a routine_line link carries its instant.`);
+if (linesViolations === 0) console.log(`✔ The lines law passed — ${LINES_READERS.length + 1} readers read the one leaf; ${LINES_BRIDGES.length} budget routes read routines through the one loader; $280 across 2 of 3 with the routine-level $15 set aside, never added; a stepless routine keeps its own; a routine_line link carries its instant.`);
 else console.log(`✖ The lines law FAILED — ${linesViolations} violation(s).`);
 });
 lawGuard('The budget report purity law', () => {
@@ -3660,7 +3672,8 @@ const ONEOFF_CALLERS = [
   'src/lib/operations/routineDay.ts',
   'src/app/api/hub/operations-routines/route.ts',
   'src/inngest/functions/routine-evaluator.ts',
-  'src/lib/operations/routineBudget.ts',
+  // HOME-LEDGER-02b (Alex, 2026-11-07, ruling C): routineBudget.ts expands nothing now — its month tables are deleted with
+  // the cockpit's hub budget routes; the budget's one expansion is days.ts's, below, anchored like every caller.
   // TAB13-02a: the day rules expand a routine for the budget report, anchored like every caller.
   'src/lib/budget/days.ts',
   // MOVE-01 (2026-10-19): the move's plan expands a copy's rule once for its first day, anchored on the copy's own start (the date).
