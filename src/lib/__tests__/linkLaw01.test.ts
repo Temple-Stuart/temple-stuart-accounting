@@ -260,7 +260,8 @@ test('C THE WORK: a task’s MATCH leaves the reversed posting out and counts it
 });
 
 test('C the three MATCH routes read the reversal state; the links GET marks each linked posting, offers no reversed candidate and counts the ones it left out', () => {
-  for (const f of ['src/app/api/operations/routines/month/route.ts', 'src/app/api/operations/ledger/route.ts', 'src/app/api/operations/projects/[id]/tasks/route.ts']) {
+  // READS-01b (Alex, 2026-11-07): the task ledger's links read lives in its answer function — the MATCH file is src/lib/operations/ledgerAnswer.ts.
+  for (const f of ['src/app/api/operations/routines/month/route.ts', 'src/lib/operations/ledgerAnswer.ts', 'src/app/api/operations/projects/[id]/tasks/route.ts']) {
     const src = code(f);
     assert.match(src, /journal_entry: \{ select: LINKED_POSTING_SELECT \}/, f);
     assert.doesNotMatch(src, /POSTING_LINES_SELECT/, `${f}: the lines alone are not the select`);

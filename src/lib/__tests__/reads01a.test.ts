@@ -143,14 +143,15 @@ test('C GET /api/travel-expenses is the gate and travelExpensesAnswerOf(prisma, 
 
 // ── D · /api/home-ledger CALLS THE TWO FUNCTIONS ─────────────────────────────
 
-test('D /api/home-ledger imports the two answer functions and no GET of the two routes; calls them with the caller\'s id; the task ledger\'s in-process call stays; the one reader parses both', () => {
+test('D /api/home-ledger imports the two answer functions and no GET of the two routes; calls them with the caller\'s id; the task ledger\'s answer function beside them (READS-01b); the one reader parses both', () => {
   const h = code(HOME_LEDGER_ROUTE);
-  assert.match(h, /import \{ GET as taskLedgerGet \} from '@\/app\/api\/operations\/ledger\/route';\nimport \{ reservationsAnswerOf \} from '@\/lib\/reservations\/reservationsAnswer';\nimport \{ travelExpensesAnswerOf \} from '@\/lib\/travel\/travelExpensesAnswer';/);
+  // READS-01b (Alex, 2026-11-07): the task ledger's in-process call retired the same way — its function import sits where the route import was.
+  assert.match(h, /import \{ taskLedgerAnswerOf \} from '@\/lib\/operations\/ledgerAnswer';\nimport \{ reservationsAnswerOf \} from '@\/lib\/reservations\/reservationsAnswer';\nimport \{ travelExpensesAnswerOf \} from '@\/lib\/travel\/travelExpensesAnswer';/);
   assert.doesNotMatch(h, /GET as reservationsGet|GET as travelExpensesGet|reservationsGet\(|travelExpensesGet\(|answerOf\(reservationsRes|answerOf\(expensesRes/, 'no route calls a route');
-  assert.match(h, /const \[chart, lineRows, bankRows, taskRes, reservationsAnswer, expensesAnswer\] = await Promise\.all\(\[/);
-  assert.match(h, /taskLedgerGet\(new NextRequest\(new URL\(`\/api\/operations\/ledger\?from=\$\{date\}&to=\$\{date\}`, request\.url\)\)\),/);
+  assert.match(h, /const \[chart, lineRows, bankRows, taskAnswer, reservationsAnswer, expensesAnswer\] = await Promise\.all\(\[/); // READS-01b: the answer itself
+  assert.match(h, /taskLedgerAnswerOf\(prisma, user\.id, \{ from: span\.from, to: span\.to \}, now\),/); // READS-01b
   assert.match(h, /reservationsAnswerOf\(prisma, user\.id\),\n\s*travelExpensesAnswerOf\(prisma, user\.id\),\n\s*\]\);/);
-  assert.match(h, /const taskAnswer = await answerOf\(taskRes, '\/api\/operations\/ledger'\);\n\s*const travel = travelLedgerReadsOf\(reservationsAnswer, expensesAnswer\);/);
+  assert.match(h, /const travel = travelLedgerReadsOf\(reservationsAnswer, expensesAnswer\);/); // READS-01b: no answerOf parse — the task ledger's answer is the function's
   assert.doesNotMatch(h, /wireShapeOf|JSON\.parse\(JSON\.stringify/, 'the answers are used as they are — proved wire-shaped, no helper');
 });
 

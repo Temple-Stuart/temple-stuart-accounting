@@ -343,7 +343,7 @@ test('the read: a 200 carries every list it promises — rows, groups, said, the
 
 // ── F. THE ROUTE (read through code) ────────────────────────────────────────
 
-test('F the route: GET only, the cart-plan gate first, the query refused by name, the books through readActuals, reversals through REVERSED_POSTING_WHERE, the three routes called in-process', () => {
+test('F the route: GET only, the cart-plan gate first, the query refused by name, the books through readActuals, reversals through REVERSED_POSTING_WHERE, the three answers as their routes’ functions (READS-01a, READS-01b)', () => {
   const route = code(ROUTE);
   assert.match(route, /export async function GET\(request: NextRequest\)/);
   for (const m of ['POST', 'PUT', 'PATCH', 'DELETE']) assert.doesNotMatch(route, new RegExp(`export async function ${m}\\(`));
@@ -357,12 +357,16 @@ test('F the route: GET only, the cart-plan gate first, the query refused by name
   assert.match(route, /import \{ readActuals, readBankNotInBooks, readBudgetChart \} from '@\/lib\/budget\/reportReads';/);
   assert.match(route, /import \{ REVERSED_POSTING_WHERE \} from '@\/lib\/calendar\/postingAmount';/);
   assert.match(route, /where: \{ id: \{ in: entryIds \}, userId: user\.id, \.\.\.REVERSED_POSTING_WHERE \}/);
-  assert.match(route, /import \{ GET as taskLedgerGet \} from '@\/app\/api\/operations\/ledger\/route';/);
+  // READS-01b (Alex, 2026-11-07, ruling C): the task ledger is its route's answer function too, for the one day through spanInput, the clock read once here.
+  assert.match(route, /import \{ taskLedgerAnswerOf \} from '@\/lib\/operations\/ledgerAnswer';/);
+  assert.match(route, /import \{ spanInput, type LedgerRow \} from '@\/lib\/operations\/ledger';/);
   // READS-01a (Alex, 2026-11-07, ruling D): the travel ledger's two answers are the routes' answer functions, called directly.
   assert.match(route, /import \{ reservationsAnswerOf \} from '@\/lib\/reservations\/reservationsAnswer';/);
   assert.match(route, /import \{ travelExpensesAnswerOf \} from '@\/lib\/travel\/travelExpensesAnswer';/);
   assert.doesNotMatch(route, /GET as reservationsGet|GET as travelExpensesGet/, 'no route calls a route');
-  assert.match(route, /taskLedgerGet\(new NextRequest\(new URL\(`\/api\/operations\/ledger\?from=\$\{date\}&to=\$\{date\}`, request\.url\)\)\)/);
+  assert.match(route, /const span = spanInput\(date, date\);\n\s*if \(!span\.ok\) return NextResponse\.json\(\{ error: 'Validation', field: span\.field, message: span\.message \}, \{ status: 400 \}\);\n\s*const now = new Date\(\);/); // READS-01b
+  assert.match(route, /taskLedgerAnswerOf\(prisma, user\.id, \{ from: span\.from, to: span\.to \}, now\)/); // READS-01b (2026-11-07): the function, not the route
+  assert.doesNotMatch(route, /GET as |new NextRequest\(|answerOf\(/, 'no route calls a route — READS-01b');
   assert.match(route, /travelLedgerReadsOf\(reservationsAnswer, expensesAnswer\)/);
   // The bank read is the report's own — HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): ONE loader function both routes call
   // (reportReads.ts readBankNotInBooks holds the where and the select); neither route reads transactions itself.
@@ -372,8 +376,10 @@ test('F the route: GET only, the cart-plan gate first, the query refused by name
   assert.match(reads, /where: \{ accounts: \{ userId \}, review_status: \{ not: 'committed' \}, date: \{ gte: dayStart\(from\), lte: new Date\(`\$\{through\}T23:59:59\.999Z`\) \} \}/);
   assert.match(reads, /accounts: \{ select: \{ isoCurrencyCode: true \} \}/);
   assert.doesNotMatch(route, /transactions\.findMany/);
-  // A sub-answer that is not a 200, or a 200 without its list, fails by name.
-  assert.match(route, /throw new HomeLedgerError\(`\$\{route\} answered \$\{res\.status\} — \$\{words\}`\)/);
+  // An answer without its list fails by name (listOf). READS-01b (Alex, 2026-11-07): no sub-route is called, so no status is parsed —
+  // answerOf is gone; a refusal thrown by an answer function (BudgetDaysError, BudgetInputError, a row naming no plan) reaches the catch.
+  assert.doesNotMatch(route, /answered \$\{res\.status\}|res\.json\(\)/, 'no sub-route answer is parsed');
+  assert.match(route, /\} catch \(error\) \{\n\s*if \(error instanceof HomeLedgerError\) \{/);
   assert.match(route, /listOf<LedgerRow>\(taskAnswer, '\/api\/operations\/ledger', 'rows'\)/);
   assert.match(route, /return failClosedResponse\('home-ledger', 'Could not build the home ledger', error\);/);
   // No paid call, no trading route, nothing calculated.

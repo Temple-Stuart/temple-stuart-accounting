@@ -38,6 +38,8 @@ const RULES = 'src/lib/operations/ledger.ts';
 const STAY = 'src/lib/operations/stay.ts';
 const CARD_RULES = 'src/components/workbench/operations/day/dayCard.ts';
 const ROUTE = 'src/app/api/operations/ledger/route.ts';
+// READS-01b (Alex, 2026-11-07): the route's body after the gate — its reads, rules and answer object — lives here.
+const ANSWER = 'src/lib/operations/ledgerAnswer.ts';
 const READS = 'src/components/workbench/operations/ledger/ledgerReads.ts';
 const SECTION = 'src/components/workbench/operations/ledger/LedgerSection.tsx';
 const PAGE = 'src/app/tasks/page.tsx';
@@ -364,7 +366,10 @@ test('T4 the filters: LEDGER-04 (Alex, 2026-10-20) retired the three dropdowns a
 
 // ── T5 · THE ROUTE ──────────────────────────────────────────────────────────
 
-test('T5 the route: GET only, the stops GET’s gate first, from and to by the one rule, every read by user_id, the one loader and the day rules, nothing written, not public', () => {
+test('T5 the route: GET only, the stops GET’s gate first, from and to by the one rule, the clock once into the answer function — whose reads are every one by user_id, through the one loader and the day rules, nothing written; not public', () => {
+  // READS-01b (Alex, 2026-11-07, ruling B): the body after the gate and the span is src/lib/operations/ledgerAnswer.ts
+  // taskLedgerAnswerOf(db, userId, span, now) — the read pins moved there with the code (db., userId); the route keeps the
+  // gate, the span, the one return (the clock read once, handed in) and the same catch.
   const r = code(ROUTE);
   assert.match(r, /export async function GET\(request: NextRequest\)/);
   assert.doesNotMatch(r, /export (const|function|async function) (?!GET\b)/, 'a route file exports its handler only');
@@ -373,35 +378,47 @@ test('T5 the route: GET only, the stops GET’s gate first, from and to by the o
     "const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });", "if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });",
     "const span = spanInput(request.nextUrl.searchParams.get('from'), request.nextUrl.searchParams.get('to'));",
     "if (!span.ok) return NextResponse.json({ error: 'Validation', field: span.field, message: span.message }, { status: 400 });",
-    'const now = new Date();',
-    'prisma.entities.findMany({ where: { userId: user.id }',
-    'prisma.chart_of_accounts.findMany({', 'where: { entity_id: { in: entityIds }, entity: { userId: user.id } }',
-    'await loadRoutineBudgetInputs(prisma, user.id, e.id)',
-    'prisma.operations_routines.findMany({ where: { user_id: user.id }, select: { id: true, role: true } })',
-    'prisma.planned_item_vendors.findMany({', 'where: { user_id: user.id, OR: [{ occurrence_at: null }, { occurrence_at: { gte: vendorsFrom, lt: vendorsTo } }] }',
-    'prisma.operations_stays.findMany({ where: { user_id: user.id }',
-    'prisma.operations_stop_records.findMany({', 'where: { user_id: user.id, occurrence_at: { gte: recordsFrom, lt: recordsTo } }', 'include: RECORD_PLAN,',
-    'prisma.operations_stop_records.findFirst({ where: { user_id: user.id }, include: RECORD_PLAN, orderBy: { occurrence_at: \'asc\' } })',
+    'const { from, to } = span;',
+    'return NextResponse.json(await taskLedgerAnswerOf(prisma, user.id, { from, to }, new Date()));',
+  ], 'the cookie, the user, the span, the clock once into the answer function');
+  assert.equal((r.match(/new Date\(\)/g) ?? []).length, 1, 'the clock is read once, in the route');
+  const a = code(ANSWER);
+  assert.equal((a.match(/new Date\(\)/g) ?? []).length, 0, 'the clock is never read in the function — now is its parameter');
+  inOrder(a, [
+    'export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: string; to: string }, now: Date) {',
+    'const { from, to } = span;',
+    'db.entities.findMany({ where: { userId: userId }',
+    'db.chart_of_accounts.findMany({', 'where: { entity_id: { in: entityIds }, entity: { userId: userId } }',
+    'await loadRoutineBudgetInputs(db, userId, e.id)',
+    'db.operations_routines.findMany({ where: { user_id: userId }, select: { id: true, role: true } })',
+    'db.planned_item_vendors.findMany({', 'where: { user_id: userId, OR: [{ occurrence_at: null }, { occurrence_at: { gte: vendorsFrom, lt: vendorsTo } }] }',
+    'db.operations_stays.findMany({ where: { user_id: userId }',
+    'db.operations_stop_records.findMany({', 'where: { user_id: userId, occurrence_at: { gte: recordsFrom, lt: recordsTo } }', 'include: RECORD_PLAN,',
+    'db.operations_stop_records.findFirst({ where: { user_id: userId }, include: RECORD_PLAN, orderBy: { occurrence_at: \'asc\' } })',
     'const built = buildRoutineBudgetLines(routineInputs, from, to);',
     'toReportAccount(row, bookOf(row.entity_id',
     'const ledger = ledgerOf({',
-    'return NextResponse.json({ from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, said: ledger.said });',
-  ], 'the cookie, the user, the span, the clock once, the reads, the rules, the answer');
-  assert.doesNotMatch(r, /\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(|\$executeRaw|\$queryRaw|writeAuditLog/, 'read only: nothing is written');
-  // LEDGER-03 (Alex, 2026-10-19): the route reads the caller's planned_item_links — the books' link, by ruling — and the postings' lines through the one leaf (postingAmount.ts); nothing else of the books, no travel, no paid call.
-  assert.doesNotMatch(r, /ledger_entries|journal_entries\.|transactions\b|budget_line_items|trip_itinerary|calendar_events|fetch\(/, 'nothing of the books but the link, no travel, no paid call');
-  assert.equal((r.match(/prisma\.planned_item_links\.findMany\(/g) ?? []).length, 1, 'the one read of the link (LEDGER-03)');
-  assert.match(r, /const recordsFrom = new Date\(Date\.parse\(`\$\{from\}T00:00:00\.000Z`\) - 14 \* HOUR_MS\);\n\s*const recordsTo = new Date\(Date\.parse\(`\$\{to\}T00:00:00\.000Z`\) \+ 36 \* HOUR_MS\);/, 'the any-zone window (recordWindow’s rule) over the span');
-  assert.match(r, /const vendorsFrom = new Date\(Date\.parse\(`\$\{from\}T00:00:00\.000Z`\) - DAY_MS\);\n\s*const vendorsTo = new Date\(Date\.parse\(`\$\{to\}T00:00:00\.000Z`\) \+ 2 \* DAY_MS\);/, 'the vendors’ window (vendorWindow’s rule) over the span');
+    'return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, said: ledger.said };',
+  ], 'the reads, the rules, the answer — in the route’s order, every one by the caller’s id');
+  for (const [f, src] of [[ROUTE, r], [ANSWER, a]] as const) {
+    assert.doesNotMatch(src, /\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(|\$executeRaw|\$queryRaw|writeAuditLog/, `${f}: read only — nothing is written`);
+    // LEDGER-03 (Alex, 2026-10-19): the caller's planned_item_links — the books' link, by ruling — and the postings' lines through the one leaf (postingAmount.ts); nothing else of the books, no travel, no paid call.
+    assert.doesNotMatch(src, /ledger_entries|journal_entries\.|transactions\b|budget_line_items|trip_itinerary|calendar_events|fetch\(/, `${f}: nothing of the books but the link, no travel, no paid call`);
+    assert.doesNotMatch(src, /requireTier|selectedEntityId|entity_id: selected/, `${f}: every entity of the caller — the COA says which book`);
+  }
+  assert.equal((a.match(/db\.planned_item_links\.findMany\(/g) ?? []).length, 1, 'the one read of the link (LEDGER-03)');
+  assert.doesNotMatch(r, /findMany\(|planned_item_links/, 'the route reads no list of its own — the users row is its only read');
+  assert.match(a, /const recordsFrom = new Date\(Date\.parse\(`\$\{from\}T00:00:00\.000Z`\) - 14 \* HOUR_MS\);\n\s*const recordsTo = new Date\(Date\.parse\(`\$\{to\}T00:00:00\.000Z`\) \+ 36 \* HOUR_MS\);/, 'the any-zone window (recordWindow’s rule) over the span');
+  assert.match(a, /const vendorsFrom = new Date\(Date\.parse\(`\$\{from\}T00:00:00\.000Z`\) - DAY_MS\);\n\s*const vendorsTo = new Date\(Date\.parse\(`\$\{to\}T00:00:00\.000Z`\) \+ 2 \* DAY_MS\);/, 'the vendors’ window (vendorWindow’s rule) over the span');
   assert.match(r, /if \(error instanceof BudgetDaysError \|\| error instanceof BudgetInputError\) \{\n\s*return NextResponse\.json\(\{ error: error\.code, message: error\.message \}, \{ status: 500 \}\);/, 'the day rules’ and the inputs’ refusals, by code — as the report answers them');
   assert.match(r, /return failClosedResponse\('Ledger GET', 'Failed to load the ledger', error\);/);
-  assert.match(r, /firstRecord = \{ words: refusedWords\('timezone not recognised'/, 'ALL’s first day: its zone unreadable is said, never UTC');
-  assert.doesNotMatch(r, /requireTier|selectedEntityId|entity_id: selected/, 'every entity of the caller — the COA says which book');
+  assert.match(a, /firstRecord = \{ words: refusedWords\('timezone not recognised'/, 'ALL’s first day: its zone unreadable is said, never UTC');
   const mw = code(MIDDLEWARE);
   const publicList = /const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(mw);
   assert.ok(publicList !== null);
   for (const m of publicList![1].matchAll(/'([^']+)'/g)) assert.ok(!('/api/operations/ledger' === m[1] || '/api/operations/ledger'.startsWith(`${m[1]}/`)), `not public (${m[1]})`);
   assert.match(comments(ROUTE), /LEDGER-01, Alex, 2026-10-16/);
+  assert.match(comments(ANSWER), /READS-01b \(Alex, 2026-11-07, ruling A\)/);
 });
 
 // ── T6 · THE READ, THE SECTION, THE PAGE, THE LAW ───────────────────────────
