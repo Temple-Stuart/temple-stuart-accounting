@@ -9,8 +9,11 @@
  *   signedUpWith(user, providers)   "Email and password" for a password; for a provider signup (users.password '' —
  *                              nextAuthOptions.ts signIn creates such rows) the NextAuth Account.provider of the User whose
  *                              email is the same, case-insensitively; none THROWS by name;
- *   planWords(keys)            each ACTIVE entitlement key named by the offer that carries it (src/lib/offer.ts OFFERS),
- *                              " · "-joined; none → "Free"; a key no offer names THROWS by name;
+ *   planWords(keys)            each ACTIVE entitlement key, never hidden, never replaced (the CRM-01a fix, ruling A): an
+ *                              offer's key by the offer's label (src/lib/offer.ts OFFERS), then a tab key no offer names as
+ *                              "tab: <key>",
+ *                              then a legacy key (a Google category, or tab:operations) as "legacy: <key>" — " · "-joined;
+ *                              none → "Free"; a key outside all of them THROWS by name;
  *   verifiedWords(instant)     "Yes — <the viewer's day>" or "Not yet";
  *   proposalRowsOf · signupRowsOf · contactsOf   the three tables' rows, newest first — contactsOf merges every
  *                              proposal and every signup handed in with the reader's working rows (crm_contacts): a
@@ -23,7 +26,7 @@
  * Pay's does (billPay.ts) — no formatter here, none in the component.
  *
  * THE LAWS are at the functions, not at module scope: a record that contradicts itself is reported by name, never
- * smoothed (a password-less user with no provider account; an active key no offer names; a need the form does not hold;
+ * smoothed (a password-less user with no provider account; an active key in no vocabulary; a need the form does not hold;
  * a working row that names a source row the read did not return; a stage outside the five; a list field that is not a
  * list of words; a contact touched after today).
  */
@@ -31,12 +34,13 @@
 import type { TableColumn } from '@/lib/table/columns';
 import { dayWords, instantColumn, instantDayWords, textColumn, valueColumn } from '@/lib/operations/work';
 import { OFFERS } from '@/lib/offer';
+import { GOOGLE_CATEGORY_KEYS, TAB_ENTITLEMENT_KEYS } from '@/lib/categoryKeys';
 import { PROPOSAL_NEEDS, SERVICE_NEEDS, SERVICE_NEED_LABELS, type ServiceNeed } from '@/lib/proposalNeeds';
 import { CLOSE_OFFER } from '@/lib/offer/close';
 import { closeChoiceWords } from '@/lib/offer/closeWords';
 import {
-  CONTACT_HEAD_WORDS, EMAIL_AND_PASSWORD_WORDS, FREE_PLAN_WORDS, FROM_WORDS, LIST_JOIN, NOT_YET_WORDS, PROPOSAL_HEAD_WORDS,
-  SIGNUP_HEAD_WORDS, VERIFIED_PREFIX_WORDS, signedUpNeedWords,
+  CONTACT_HEAD_WORDS, EMAIL_AND_PASSWORD_WORDS, FREE_PLAN_WORDS, FROM_WORDS, LEGACY_KEY_WORDS, LIST_JOIN, NOT_YET_WORDS,
+  PROPOSAL_HEAD_WORDS, SIGNUP_HEAD_WORDS, TAB_KEY_WORDS, VERIFIED_PREFIX_WORDS, signedUpNeedWords,
 } from './crmWords';
 
 /** The five stage words — proposals.status's own (ruling E; the migration's crm_contacts_stage_chk). ONE vocabulary. */
@@ -178,14 +182,38 @@ export function signedUpWith(user: Pick<UserInput, 'email' | 'passwordless'>, pr
   return [...new Set(found)].sort().join(LIST_JOIN);
 }
 
-/** A signup's plan: its active entitlement keys, each named by the offer that carries it; none is "Free". */
+/**
+ * The one key the vocabulary retired that a row may still hold — src/lib/categoryKeys.ts:22-24 ("tab:operations is gone
+ * from the vocabulary … A row a user still holds for it is inert"). No constant names it (it lives in comments only:
+ * categoryKeys.ts:22, offer.ts:31, stripe.ts:38, RoutinesShowcaseSections.tsx:53), so it is typed here, once — the stop's
+ * words below read this list.
+ */
+const RETIRED_TAB_KEYS = ['tab:operations'] as const;
+const isOfferKey = (key: string): boolean => OFFERS.some((o) => o.key === key);
+const isTabKey = (key: string): boolean => (TAB_ENTITLEMENT_KEYS as readonly string[]).includes(key);
+/** A legacy key: a Google category key (not for sale, no route gates on it — offer.ts:342) or a retired tab key. */
+const LEGACY_KEYS: readonly string[] = [...GOOGLE_CATEGORY_KEYS, ...RETIRED_TAB_KEYS];
+
+/**
+ * A signup's plan: EVERY active entitlement key it holds, each in the words of its kind (the CRM-01a fix, ruling A — a
+ * legitimate row never stops the page). The Stripe webhook writes an offer's key (stripe/webhook/route.ts:95-99), but the
+ * reader honours a tab key itself too (entitlements.ts:60 over offer.ts:144-145 keysGranting), and categoryKeys.ts records
+ * the keys a row may still hold. So: an offer's key by the offer's label, in the offers' order; then a tab key no offer
+ * names, as "tab: <key>", in TAB_ENTITLEMENT_KEYS' order; then a legacy key, as "legacy: <key>", in the vocabulary's
+ * order — printed as itself, labeled, never hidden, never replaced. None is "Free". A key outside all of them THROWS.
+ */
 export function planWords(activeKeys: readonly string[]): string {
   const keys = [...new Set(activeKeys)];
   for (const key of keys) {
-    if (!OFFERS.some((o) => o.key === key)) throw new CrmLawError(`planWords: the active key "${key}" is no offer's (src/lib/offer.ts OFFERS) — a key outside the offers is a data error, reported`);
+    if (!isOfferKey(key) && !isTabKey(key) && !LEGACY_KEYS.includes(key)) {
+      throw new CrmLawError(`planWords: the active key "${key}" is in no vocabulary — no offer's (src/lib/offer.ts OFFERS), no tab key (TAB_ENTITLEMENT_KEYS), no legacy key (GOOGLE_CATEGORY_KEYS, ${RETIRED_TAB_KEYS.join(', ')} — src/lib/categoryKeys.ts) — a data error, reported`);
+    }
   }
   if (keys.length === 0) return FREE_PLAN_WORDS;
-  return OFFERS.filter((o) => keys.includes(o.key)).map((o) => o.label).join(LIST_JOIN);
+  const offers = OFFERS.filter((o) => keys.includes(o.key)).map((o) => o.label);
+  const tabs = TAB_ENTITLEMENT_KEYS.filter((k) => keys.includes(k) && !isOfferKey(k)).map((k) => `${TAB_KEY_WORDS}${k}`);
+  const legacy = LEGACY_KEYS.filter((k) => keys.includes(k)).map((k) => `${LEGACY_KEY_WORDS}${k}`);
+  return [...offers, ...tabs, ...legacy].join(LIST_JOIN);
 }
 
 /** "Yes — <the viewer's day>" or "Not yet". */

@@ -8,7 +8,7 @@
  *   PROPOSALS — every answer from the form, as it came in;
  *   SIGNUPS   — the fields collected at signup, every account but your own.
  * The platform owner sees every proposal and every signup; anyone else sees the honest lines for those two tables
- * (the answer says ownerOnly). Every word is src/lib/crm/crmWords.ts's and every cell the spec's (contactsTable,
+ * and their own Contacts line (the answer says ownerOnly; the CRM-01a fix, ruling B). Every word is src/lib/crm/crmWords.ts's and every cell the spec's (contactsTable,
  * proposalsTable, signupsTable) — none typed here, no formatter here. A table scrolls sideways in its own box; the page
  * never does. Reads only: no stage control, no "add" (CRM-01b). A failed read says so with the route's words. Nothing
  * is stored in the browser; React state only — the read, and each table's filters, sort and open filter.
@@ -26,21 +26,21 @@ import {
   contactsTable, proposalsTable, signupsTable, type ContactRow, type ProposalRow, type SignupRow,
 } from '@/lib/crm/crm';
 import {
-  CONTACTS_TABLE_WORDS, CRM_LOADING_WORDS, NO_CONTACTS_WORDS, NO_PROPOSALS_WORDS, NO_SIGNUPS_WORDS, PROPOSALS_OWNER_ONLY_WORDS,
-  PROPOSALS_TABLE_WORDS, SIGNUPS_OWNER_ONLY_WORDS, SIGNUPS_TABLE_WORDS, crmFailedWords,
+  CONTACTS_TABLE_WORDS, CRM_LOADING_WORDS, NO_CONTACTS_OWN_WORDS, NO_CONTACTS_WORDS, NO_PROPOSALS_WORDS, NO_SIGNUPS_WORDS,
+  PROPOSALS_OWNER_ONLY_WORDS, PROPOSALS_TABLE_WORDS, SIGNUPS_OWNER_ONLY_WORDS, SIGNUPS_TABLE_WORDS, crmFailedWords,
 } from '@/lib/crm/crmWords';
 
-type CrmRead =
-  | { readonly kind: 'loading' }
-  | { readonly kind: 'failed'; readonly words: string }
-  | {
-      readonly kind: 'loaded';
-      readonly ownerOnly: boolean;
-      readonly contacts: readonly ContactRow[];
-      readonly proposals: readonly ProposalRow[];
-      readonly signups: readonly SignupRow[];
-      readonly said: readonly string[];
-    };
+/** One loaded answer from GET /api/crm. */
+export interface CrmLoaded {
+  readonly kind: 'loaded';
+  readonly ownerOnly: boolean;
+  readonly contacts: readonly ContactRow[];
+  readonly proposals: readonly ProposalRow[];
+  readonly signups: readonly SignupRow[];
+  readonly said: readonly string[];
+}
+
+type CrmRead = { readonly kind: 'loading' } | { readonly kind: 'failed'; readonly words: string } | CrmLoaded;
 
 /** One table: its name, the shared DataTable over the spec, its own filters and sort, the line when it has no row. */
 function CrmTable<Row, Key extends string>({ name, title, columns, rows, keyOf, csvName, tableClassName, empty }: {
@@ -94,9 +94,6 @@ function CrmTable<Row, Key extends string>({ name, title, columns, rows, keyOf, 
 
 export default function CrmSection() {
   const [read, setRead] = useState<CrmRead>({ kind: 'loading' });
-  const contactColumns = useMemo(() => contactsTable(), []);
-  const proposalColumns = useMemo(() => proposalsTable(), []);
-  const signupColumns = useMemo(() => signupsTable(), []);
 
   useEffect(() => {
     let live = true;
@@ -118,7 +115,18 @@ export default function CrmSection() {
 
   if (read.kind === 'loading') return <div className="text-xs text-text-muted" data-crm-loading>{CRM_LOADING_WORDS}</div>;
   if (read.kind === 'failed') return <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" data-crm-failed>{crmFailedWords(read.words)}</div>;
+  return <CrmTables read={read} />;
+}
 
+/**
+ * The three tables over ONE loaded answer — its own component (the CRM-01a fix, ruling B) so a test renders the member's
+ * view and the owner's without a fetch. The Contacts line follows ownerOnly: the platform owner's (NO_CONTACTS_WORDS),
+ * or anyone else's (NO_CONTACTS_OWN_WORDS) — the owner's sentence is false for anyone else.
+ */
+export function CrmTables({ read }: { read: CrmLoaded }) {
+  const contactColumns = useMemo(() => contactsTable(), []);
+  const proposalColumns = useMemo(() => proposalsTable(), []);
+  const signupColumns = useMemo(() => signupsTable(), []);
   return (
     <div className="min-w-0 space-y-6" data-crm={read.ownerOnly ? 'own' : 'owner'}>
       <CrmTable
@@ -129,7 +137,7 @@ export default function CrmSection() {
         keyOf={(r) => r.key}
         csvName={CRM_CONTACTS_CSV}
         tableClassName="min-w-[90rem]"
-        empty={NO_CONTACTS_WORDS}
+        empty={read.ownerOnly ? NO_CONTACTS_OWN_WORDS : NO_CONTACTS_WORDS}
       />
       <CrmTable
         name={CRM_PROPOSALS_TABLE_NAME}
