@@ -95,7 +95,9 @@ test('A the law derives the lane from BooksPipeline’s imports (comments stripp
   assert.match(law, /fxFail\(`\$\{FX_PIPE\} imports '\$\{p\}' and no \.tsx, \.ts or index file answers to it`\)/);
   assert.match(law, /const FX_LANE_COMPONENTS = fxLaneComponents\(\);/);
   assert.doesNotMatch(law, /const FX_LANE_COMPONENTS = \[/, 'no hand-kept component list');
-  assert.match(law, /const FX_LANE_DIRS = \['src\/lib\/books', 'src\/app\/api\/trial-balance', 'src\/app\/api\/journal-entries', 'src\/app\/api\/bank-reconciliations', 'src\/app\/api\/books', 'src\/app\/api\/journal-transactions', 'src\/app\/api\/ledger'\];/);
+  // HOME-LEDGER-01 (Alex, 2026-11-06, ruling G): the lane gained src/lib/home (the home ledger's leaf) and, by FX_LANE_FILES, its one screen.
+  assert.match(law, /const FX_LANE_DIRS = \['src\/lib\/books', 'src\/app\/api\/trial-balance', 'src\/app\/api\/journal-entries', 'src\/app\/api\/bank-reconciliations', 'src\/app\/api\/books', 'src\/app\/api\/journal-transactions', 'src\/app\/api\/ledger', 'src\/lib\/home'\];/);
+  assert.match(law, /const FX_LANE_FILES = \['src\/components\/home\/HomeLedger\.tsx'\];/);
   assert.match(law, /const FX_ALLOW: ReadonlyArray<\{ file: string; snippet: string; dated: string; reason: string \}> = \[\];/, 'EMPTY');
   assert.match(law, /derived from the imports of \$\{FX_PIPE\}/);
   // The activity law blanks the law's single-quoted strings to find a stray seal call: no apostrophe in this law's own code
