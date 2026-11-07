@@ -24,6 +24,8 @@ import { ACTIVITY_UNPRICED, FLIGHT_USD, HOTEL_CANCELLED, HOTEL_PHP, LEDGER_FIXTU
 
 const LEAF = 'src/lib/reservations/travelLedger.ts';
 const ROUTE = 'src/app/api/reservations/route.ts';
+// READS-01a (Alex, 2026-11-07, ruling B): the route's body is this function, the caller's id as its parameter.
+const ANSWER = 'src/lib/reservations/reservationsAnswer.ts';
 const VIEW = 'src/components/trips/AllBookings.tsx';
 const LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
 const ROW_LEAF = 'src/lib/reservations/bookingRow.ts';
@@ -294,18 +296,24 @@ test('a matched charge with no bank row, a bank row with no match, a posting wit
 // ── E · THE READ, ADDITIVE ──────────────────────────────────────────────────
 
 test('E GET /api/reservations keeps `bookings` and gains `ledger`; every read names the caller — the links by the caller\'s ids and the reservation\'s owner, source_documents by user_id; the same bank join as the travel-day route; no word, no vendor call, no write', () => {
-  const route = code(ROUTE);
-  assert.match(route, /return NextResponse\.json\(\{ bookings, ledger \}\);/);
+  // READS-01a (Alex, 2026-11-07, ruling B): the body moved verbatim to reservationsAnswer.ts (prisma → db, user.id → userId);
+  // the route is the gate and `NextResponse.json(await reservationsAnswerOf(prisma, user.id))`. The pins below moved with the code.
+  const gate = code(ROUTE);
+  assert.match(gate, /return NextResponse\.json\(await reservationsAnswerOf\(prisma, user\.id\)\);/);
+  assert.doesNotMatch(gate, /\.findMany\(/, 'the route reads no list of its own');
+  const route = code(ANSWER);
+  assert.match(route, /export async function reservationsAnswerOf\(db: Db, userId: string\) \{/);
+  assert.match(route, /return \{ bookings, ledger \};/);
   assert.match(route, /bookingRowOf\(\{\s*reservation: r,/);
-  assert.match(route, /prisma\.reservations\.findMany\(\{\s*where: \{ userId: user\.id \},\s*orderBy: \{ createdAt: 'desc' \},/);
+  assert.match(route, /db\.reservations\.findMany\(\{\s*where: \{ userId: userId \},\s*orderBy: \{ createdAt: 'desc' \},/);
   assert.match(route, /trip: \{ select: \{ id: true, name: true \} \},/, 'the trip\'s name rides the reservation read');
   assert.match(route, /id: true, lane: true, provider: true, displayName: true, providerConfirmationCode: true, providerBookingId: true,/);
-  // Every findMany's where names the caller (the bookings law's own regex).
-  const reads = [...route.matchAll(/prisma\.(\w+)\.findMany\(\{\s*where: \{([^\n]*)\}/g)];
+  // Every findMany's where names the caller (the bookings law's own regex, bound to the function's parameter).
+  const reads = [...route.matchAll(/db\.(\w+)\.findMany\(\{\s*where: \{([^\n]*)\}/g)];
   assert.deepEqual(reads.map((m) => m[1]), ['reservations', 'transaction_reservation_links', 'journal_entries', 'reservation_budget_links', 'calendar_events', 'money_events', 'source_documents']);
-  for (const m of reads) assert.match(m[2], /\b(userId|user_id): user\.id\b/, `${m[1]} names the caller`);
-  assert.match(route, /where: \{ reservation: \{ userId: user\.id \}, reservationId: \{ in: ids \}, kind: \{ in: \[\.\.\.LEDGER_MONEY_EVENT_KINDS\] \} \},\s*orderBy: \{ statedAt: 'asc' \},/, 'the money events: the caller\'s own reservations, the three kinds that are rows');
-  assert.match(route, /where: \{ user_id: user\.id, kind: 'receipt', superseded_by: null, journal_entry_id: \{ in: entryIds \} \},/, 'the receipts: current, on the posted entries, by user_id — the documents route\'s own read');
+  for (const m of reads) assert.match(m[2], /\b(userId|user_id): userId\b/, `${m[1]} names the caller`);
+  assert.match(route, /where: \{ reservation: \{ userId: userId \}, reservationId: \{ in: ids \}, kind: \{ in: \[\.\.\.LEDGER_MONEY_EVENT_KINDS\] \} \},\s*orderBy: \{ statedAt: 'asc' \},/, 'the money events: the caller\'s own reservations, the three kinds that are rows');
+  assert.match(route, /where: \{ user_id: userId, kind: 'receipt', superseded_by: null, journal_entry_id: \{ in: entryIds \} \},/, 'the receipts: current, on the posted entries, by user_id — the documents route\'s own read');
   assert.match(route, /select: \{ reservationId: true, transaction: \{ select: \{ amount: true, date: true, accounts: \{ select: \{ isoCurrencyCode: true \} \} \} \} \},/);
   assert.match(route, /settledTransaction: \{ select: \{ amount: true, date: true, accounts: \{ select: \{ isoCurrencyCode: true \} \} \} \},/);
   assert.match(route, /select: \{ id: true, date: true, document_reservation_id: true \},/);

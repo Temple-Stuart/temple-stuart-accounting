@@ -310,7 +310,12 @@ test('E the law: one writer, the list never names bytes, every read the caller�
   assert.match(law, /lawGuard\('The documents law', \(\) => \{/);
   assert.match(law, /const ALLOWED_IN_POST = new Set\(\['create', 'updateMany'\]\);/);
   assert.match(law, /if \('bytes' in SOURCE_DOCUMENT_LIST_SELECT\) docFail/);
-  assert.match(law, /if \(!\/where:\\s\*\\\{\[\^\}\]\*\\buser_id: user\\\.id\\b\/\.test\(call\)\) docFail/);
+  // READS-01a (Alex, 2026-11-07): the caller's binding is `user_id: user.id` everywhere but the two answer functions
+  // (reservationsAnswer.ts, travelExpensesAnswer.ts — rulings B, C), whose caller is their `userId` parameter: a closed,
+  // dated list the law also checks for staleness. What the clause means is unchanged — every read is the caller's own.
+  assert.ok(law.includes('const DOCS_CALLER_PARAM_FILES = new Set([\'src/lib/reservations/reservationsAnswer.ts\', \'src/lib/travel/travelExpensesAnswer.ts\']);'), 'the two answer files are the closed list');
+  assert.ok(law.includes('const callerRe = DOCS_CALLER_PARAM_FILES.has(file) ? /where:\\s*\\{[^}]*\\buser_id: userId\\b/ : /where:\\s*\\{[^}]*\\buser_id: user\\.id\\b/;'), 'the binding is userId in the two files, user.id elsewhere');
+  assert.ok(law.includes('if (!callerRe.test(call)) docFail('), 'every source_documents read is tested against its file\'s binding');
   assert.match(law, /if \(\/\\bfile\\\.type\\b\/\.test\(docsPost\)\) docFail/);
   assert.match(law, /if \(\/source_documents\/\.test\(codeOf\('src\/app\/api\/export\/route\.ts'\)\)\) docFail/);
   assert.doesNotMatch(code('src/app/api/export/route.ts'), /source_documents/);

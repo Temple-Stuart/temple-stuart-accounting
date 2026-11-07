@@ -317,9 +317,10 @@ test('the export routes and their ports: no vendor client imported, zero writes,
 test('no reader double-counts a reservation with several rows', () => {
   // THE LIST: one row per RESERVATION (it maps reservations, not calendar rows), and a
   // flight's legs fold back to ONE day — the earliest — through the one key reader.
-  const list = code('src/app/api/reservations/route.ts');
+  // READS-01a (Alex, 2026-11-07, ruling B): the list route's body is reservationsAnswer.ts reservationsAnswerOf (user.id → userId).
+  const list = code('src/lib/reservations/reservationsAnswer.ts');
   assert.match(list, /const bookings = reservations\.map\(\(r\) =>/, 'the list is built from reservations');
-  assert.match(list, /where: \{ user_id: user\.id, \.\.\.bookingCalendarRowsWhere\(ids\) \},\s*orderBy: \{ start_date: 'asc' \},/);
+  assert.match(list, /where: \{ user_id: userId, \.\.\.bookingCalendarRowsWhere\(ids\) \},\s*orderBy: \{ start_date: 'asc' \},/);
   assert.match(list, /const rid = reservationIdOfCalendarSourceId\(c\.source_id\);\s*if \(!dayOf\.has\(rid\)\) dayOf\.set\(rid, c\.start_date\);/);
   // The fold itself, over three legs of one booking and one stay: two bookings, two days.
   const rows = [
@@ -334,7 +335,7 @@ test('no reader double-counts a reservation with several rows', () => {
   // THE CALENDAR FEED counts no bookings: its per-source counts name no 'reservation'.
   assert.doesNotMatch(code('src/app/api/calendar/route.ts'), /calcCount\('reservation'\)|calcTotal\('reservation'\)/);
   // No reader anywhere matches a booking's rows by one key.
-  for (const f of ['src/app/api/reservations/route.ts', 'src/app/api/reservations/[id]/timeline/route.ts', 'src/lib/calendar/prismaIcsPorts.ts']) {
+  for (const f of ['src/app/api/reservations/route.ts', 'src/lib/reservations/reservationsAnswer.ts', 'src/app/api/reservations/[id]/timeline/route.ts', 'src/lib/calendar/prismaIcsPorts.ts']) {
     assert.doesNotMatch(code(f), /source: 'reservation', source_id:/, `${f} reads through the one where`);
   }
   // The one where: every bare key and each segment prefix.

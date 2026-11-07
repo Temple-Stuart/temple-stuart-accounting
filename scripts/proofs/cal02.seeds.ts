@@ -30,6 +30,9 @@ const EXPORT_PORTS = 'src/lib/calendar/prismaIcsPorts.ts';
 const RES_ICS = 'src/app/api/reservations/[id]/ics/route.ts';
 const TRIP_ICS = 'src/app/api/trips/[id]/ics/route.ts';
 const LIST_ROUTE = 'src/app/api/reservations/route.ts';
+// READS-01a (Alex, 2026-11-07): the list's reads live in the route's answer function — the two clause-3 seeds anchor there.
+const RESERVATIONS_ANSWER = 'src/lib/reservations/reservationsAnswer.ts';
+void LIST_ROUTE;
 const RETRO = 'scripts/cal-02-retro-segments.ts';
 const RECEIPT_PAGE = 'src/app/booking/[id]/receipt/page.tsx';
 
@@ -113,14 +116,14 @@ const SEEDS: Seed[] = [
   },
   {
     name: "cal02-l the list reads a booking's rows by the bare key alone (clause 3)",
-    file: LIST_ROUTE,
-    find: '          where: { user_id: user.id, ...bookingCalendarRowsWhere(ids) },',
-    replace: "          where: { user_id: user.id, source: 'reservation', source_id: { in: ids } },",
+    file: RESERVATIONS_ANSWER,
+    find: '          where: { user_id: userId, ...bookingCalendarRowsWhere(ids) },',
+    replace: "          where: { user_id: userId, source: 'reservation', source_id: { in: ids } },",
     expect: "reads a booking's calendar rows by one key",
   },
   {
     name: 'cal02-m the list keys its days by row, not by reservation (clause 3)',
-    file: LIST_ROUTE,
+    file: RESERVATIONS_ANSWER,
     find: '    if (!dayOf.has(rid)) dayOf.set(rid, c.start_date);',
     replace: '    dayOf.set(c.source_id, c.start_date);',
     expect: "does not fold a booking's rows to ONE day per reservation",

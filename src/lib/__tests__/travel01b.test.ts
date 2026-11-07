@@ -379,7 +379,9 @@ test('B the leaf: charge gains bank — the link’s amount as stored, the accou
   assert.match(route, /bankOf\.set\(l\.reservationId, \{ amount: l\.transaction\.amount, currency: l\.transaction\.accounts\.isoCurrencyCode, date: dayOf\(l\.transaction\.date\) \}\);/);
   assert.match(route, /chargeMatched: bankOf\.has\(r\.id\),\n\s*chargePosted: posted\.has\(r\.id\),\n\s*chargeBank: bankOf\.has\(r\.id\) \? bankOf\.get\(r\.id\)! : null,/);
   assert.doesNotMatch(route, /Number\(|\|\||\?\? |parseFloat|\* 100\b|\/ 100\b/, 'the route converts nothing');
-  assert.equal((route.match(/prisma\.\w+\.findMany\(/g) ?? []).length, 9, 'still nine reads');
+  // READS-01a (Alex, 2026-11-07, ruling A): the four source reads are travelDayReads.ts's range functions — five stay on the route.
+  assert.equal((route.match(/prisma\.\w+\.findMany\(/g) ?? []).length, 5, 'five reads on the route');
+  assert.equal((code('src/lib/operations/travelDayReads.ts').match(/db\.\w+\.findMany\(/g) ?? []).length, 4, 'four in the reads file');
   assert.ok(comments(ROUTE).includes('READ BY THE DAY CARD (TRAVEL-01b'));
 });
 

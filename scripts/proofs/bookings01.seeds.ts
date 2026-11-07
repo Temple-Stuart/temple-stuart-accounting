@@ -20,6 +20,10 @@ import type { Seed } from '../prove';
 const CONTACT_LEAF = 'src/lib/reservations/guestContact.ts';
 const ROW_LEAF = 'src/lib/reservations/bookingRow.ts';
 const LIST_ROUTE = 'src/app/api/reservations/route.ts';
+// READS-01a (Alex, 2026-11-07): the list route's body is this function; the clause-3 seeds that break a read or a
+// write anchor here now (h, i, j) — the law holds both files, so what each seed breaks and expects is unchanged.
+const RESERVATIONS_ANSWER = 'src/lib/reservations/reservationsAnswer.ts';
+void LIST_ROUTE;
 const LIST_VIEW = 'src/components/trips/AllBookings.tsx';
 const LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
 const UNATTACHED_ROUTE = 'src/app/api/reservations/unattached/route.ts';
@@ -76,30 +80,32 @@ const SEEDS: Seed[] = [
   },
   {
     name: "bookings01-h the list route drops the owner scope (clause 3)",
-    file: LIST_ROUTE,
-    find: "    where: { userId: user.id },\n    orderBy: { createdAt: 'desc' },",
+    file: RESERVATIONS_ANSWER,
+    find: "    where: { userId: userId },\n    orderBy: { createdAt: 'desc' },",
     replace: "    where: {},\n    orderBy: { createdAt: 'desc' },",
     expect: "does not read exactly the caller's reservations, newest first",
   },
   {
     name: 'bookings01-i the list route calls the vendor (clause 3)',
-    file: LIST_ROUTE,
+    file: RESERVATIONS_ANSWER,
     find: "import { bookingRowOf } from '@/lib/reservations/bookingRow';",
     replace: "import { bookingRowOf } from '@/lib/reservations/bookingRow';\nimport { getFlightBooking } from '@/lib/liteapiFlightsClient';\nvoid getFlightBooking;",
     expect: 'imports a vendor client or calls the wire',
   },
   {
     name: 'bookings01-j the list route writes (clause 3)',
-    file: LIST_ROUTE,
+    file: RESERVATIONS_ANSWER,
     find: '  const ids = reservations.map((r) => r.id);',
-    replace: "  const ids = reservations.map((r) => r.id);\n  await prisma.reservations.updateMany({ where: { userId: user.id }, data: { lastVendorReadAt: null } });",
+    replace: "  const ids = reservations.map((r) => r.id);\n  await db.reservations.updateMany({ where: { userId: userId }, data: { lastVendorReadAt: null } });",
     expect: 'writes — the list reads only',
   },
   {
+    // READS-01a (Alex, 2026-11-07): re-anchored to the empty line as TRAVEL-02b-fix left it (the data-travel-ledger-none
+    // mark) — the old anchor occurred 0 times, so the harness refused the whole proof; what it breaks and expects is unchanged.
     name: 'bookings01-k the list view types a word (clause 4)',
     file: LIST_VIEW,
-    find: '<p className="text-sm text-text-faint">{BOOKING_WORDS.none}</p>',
-    replace: '<p className="text-sm text-text-faint">No bookings yet</p>',
+    find: '<p className="text-sm text-text-faint" data-travel-ledger-none>{BOOKING_WORDS.none}</p>',
+    replace: '<p className="text-sm text-text-faint" data-travel-ledger-none>No bookings yet</p>',
     expect: 'types a word into its markup',
   },
   {
