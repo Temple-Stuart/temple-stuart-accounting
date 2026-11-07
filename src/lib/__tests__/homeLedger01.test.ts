@@ -358,8 +358,10 @@ test('F the route: GET only, the cart-plan gate first, the query refused by name
   assert.match(route, /import \{ REVERSED_POSTING_WHERE \} from '@\/lib\/calendar\/postingAmount';/);
   assert.match(route, /where: \{ id: \{ in: entryIds \}, userId: user\.id, \.\.\.REVERSED_POSTING_WHERE \}/);
   assert.match(route, /import \{ GET as taskLedgerGet \} from '@\/app\/api\/operations\/ledger\/route';/);
-  assert.match(route, /import \{ GET as reservationsGet \} from '@\/app\/api\/reservations\/route';/);
-  assert.match(route, /import \{ GET as travelExpensesGet \} from '@\/app\/api\/travel-expenses\/route';/);
+  // READS-01a (Alex, 2026-11-07, ruling D): the travel ledger's two answers are the routes' answer functions, called directly.
+  assert.match(route, /import \{ reservationsAnswerOf \} from '@\/lib\/reservations\/reservationsAnswer';/);
+  assert.match(route, /import \{ travelExpensesAnswerOf \} from '@\/lib\/travel\/travelExpensesAnswer';/);
+  assert.doesNotMatch(route, /GET as reservationsGet|GET as travelExpensesGet/, 'no route calls a route');
   assert.match(route, /taskLedgerGet\(new NextRequest\(new URL\(`\/api\/operations\/ledger\?from=\$\{date\}&to=\$\{date\}`, request\.url\)\)\)/);
   assert.match(route, /travelLedgerReadsOf\(reservationsAnswer, expensesAnswer\)/);
   // The bank read is the report's own — HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): ONE loader function both routes call

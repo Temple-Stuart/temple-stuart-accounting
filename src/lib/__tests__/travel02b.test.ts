@@ -36,6 +36,8 @@ const SCHEMA = 'prisma/schema.prisma';
 const RULES = 'src/lib/travel/travelExpense.ts';
 const LEAF = 'src/lib/reservations/travelLedger.ts';
 const ROUTE = 'src/app/api/travel-expenses/route.ts';
+// READS-01a (Alex, 2026-11-07, ruling C): the GET's body is this function, the caller's id as its parameter; the POST stays in the route.
+const ANSWER = 'src/lib/travel/travelExpensesAnswer.ts';
 const VOID_ROUTE = 'src/app/api/travel-expenses/[id]/void/route.ts';
 const LINKS = 'src/app/api/calendar/links/route.ts';
 const LINK_KEYS = 'src/lib/calendar/linkKeys.ts';
@@ -246,14 +248,25 @@ test('C the chart rule: a coa_code is ONE row of the caller\'s chart read throug
 
 test('C the routes: the /api/reservations gate; every query names the caller; a trip not the caller\'s → 404 by name; a code not in the chart → 409 by name; the row written with the caller and the DAY at UTC midnight; no PUT, no DELETE; no paid call', () => {
   const route = code(ROUTE);
+  // READS-01a (Alex, 2026-11-07, ruling C): the GET's body moved verbatim to travelExpensesAnswer.ts (prisma → db,
+  // user.id → userId); the route is the gate + `NextResponse.json(await travelExpensesAnswerOf(prisma, user.id))`, the POST
+  // unchanged. The gate pin stays on the two routes; no-edit / no-vendor hold the answer file too; the GET's read pins moved.
+  const answer = code(ANSWER);
   for (const src of [route, code(VOID_ROUTE)]) {
     assert.match(src, /if \(!userEmail\) return NextResponse\.json\(\{ error: 'Unauthorized' \}, \{ status: 401 \}\);|if \(!user\) return NextResponse\.json\(\{ error: 'Unauthorized' \}, \{ status: 401 \}\);/);
+  }
+  for (const src of [route, code(VOID_ROUTE), answer]) {
     assert.doesNotMatch(src, /export async function (PUT|PATCH|DELETE)\(/, 'no edit, no delete');
     assert.doesNotMatch(src, /liteapiClient|viatorClient|anthropic|\bopenai\b|stripe/i, 'no paid call, no vendor');
   }
+  assert.match(route, /return NextResponse\.json\(await travelExpensesAnswerOf\(prisma, user\.id\)\);/);
+  assert.match(answer, /export async function travelExpensesAnswerOf\(db: Db, userId: string\) \{/);
   const reads = [...route.matchAll(/prisma\.(\w+)\.(findMany|findFirst)\(\{\s*where: \{([^\n]*)\}/g)];
-  assert.ok(reads.length >= 6);
+  assert.ok(reads.length >= 2, 'the POST\'s trip and chart reads stay on the route');
   for (const m of reads) if (m[1] !== 'users') assert.match(m[3], /\b(userId|user_id): user\.id\b/, `${m[1]} names the caller`);
+  const answerReads = [...answer.matchAll(/db\.(\w+)\.(findMany|findFirst)\(\{\s*where: \{([^\n]*)\}/g)];
+  assert.ok(answerReads.length >= 6, 'the GET\'s six reads live in the answer function');
+  for (const m of answerReads) assert.match(m[3], /\b(userId|user_id): userId\b/, `${m[1]} names the caller`);
   assert.match(route, /if \(v\.trip_id !== null\) \{\n\s*const trip = await prisma\.trips\.findFirst\(\{ where: \{ id: v\.trip_id, userId: user\.id \}, select: \{ id: true \} \}\);\n\s*if \(!trip\) return NextResponse\.json\(\{ error: tripNotYoursWords\(v\.trip_id\), field: 'trip_id' \}, \{ status: 404 \}\);/);
   assert.match(route, /const named = chartAccountRule\(v\.coa_code, chartRowsOf\(chart\)\);\n\s*if \(!named\.ok\) return NextResponse\.json\(\{ error: named\.words, field: 'coa_code' \}, \{ status: 409 \}\);/);
   assert.match(route, /const read = travelExpenseBodyRule\(body\);\n\s*if \(!read\.ok\) return NextResponse\.json\(\{ error: read\.words, field: read\.field \}, \{ status: 400 \}\);/);
@@ -261,12 +274,12 @@ test('C the routes: the /api/reservations gate; every query names the caller; a 
   assert.match(route, /coa_code: account,\n\s*created_by: user\.email,/);
   // The GET: the links by kind and caller, each posting with its state (a reversed one pays nothing), its bank row through the
   // caller's accounts, its current receipts — and the form's two lists from the same chart the POST reads.
-  assert.match(route, /where: \{ user_id: user\.id, target_kind: 'travel_expense', target_id: \{ in: ids \}, journal_entry: \{ userId: user\.id \} \},/);
-  assert.match(route, /journal_entry: \{ select: \{ id: true, date: true, source_type: true, source_id: true, \.\.\.LINKED_POSTING_SELECT \} \}/);
-  assert.match(route, /reversed: isReversedPosting\(e\),/);
-  assert.match(route, /where: \{ transactionId: \{ in: sourceIds \}, accounts: \{ userId: user\.id \} \},/);
-  assert.match(route, /where: \{ user_id: user\.id, kind: 'receipt', superseded_by: null, journal_entry_id: \{ in: entryIds \} \},/);
-  assert.match(route, /accounts: chartChoicesOf\(chartRowsOf\(chart\)\),/);
+  assert.match(answer, /where: \{ user_id: userId, target_kind: 'travel_expense', target_id: \{ in: ids \}, journal_entry: \{ userId: userId \} \},/);
+  assert.match(answer, /journal_entry: \{ select: \{ id: true, date: true, source_type: true, source_id: true, \.\.\.LINKED_POSTING_SELECT \} \}/);
+  assert.match(answer, /reversed: isReversedPosting\(e\),/);
+  assert.match(answer, /where: \{ transactionId: \{ in: sourceIds \}, accounts: \{ userId: userId \} \},/);
+  assert.match(answer, /where: \{ user_id: userId, kind: 'receipt', superseded_by: null, journal_entry_id: \{ in: entryIds \} \},/);
+  assert.match(answer, /accounts: chartChoicesOf\(chartRowsOf\(chart\)\),/);
   assert.equal(tripHoldsTravelExpensesWords(1), 'A travel expense names this trip — a typed expense is kept for good (a voided one too), so the trip cannot be deleted');
 });
 

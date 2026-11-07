@@ -17,6 +17,8 @@ import { BOOKING_FLOW_FILES, bookingFlowSha256 } from '../travelBookingFlow';
 
 const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
 const LIST_ROUTE = 'src/app/api/reservations/route.ts';
+// READS-01a (Alex, 2026-11-07, ruling B): the list route's body is this function, the caller's id as its parameter.
+const LIST_ANSWER = 'src/lib/reservations/reservationsAnswer.ts';
 const LIST_VIEW = 'src/components/trips/AllBookings.tsx';
 const LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
 const RETRO = 'scripts/bookings-01-retro-guest-email.ts';
@@ -128,19 +130,25 @@ test('the price as recorded, the point placed by string: none stated, under a un
 // ── the list ─────────────────────────────────────────────────────────────────
 
 test("the list route: 401 / 404; exactly the caller's reservations, newest first (guests and other users never); every read scoped; no vendor client; zero writes", () => {
-  const s = code(LIST_ROUTE);
-  assert.match(s, /if \(!userEmail\) return NextResponse\.json\(\{ error: 'Unauthorized' \}, \{ status: 401 \}\);/);
-  assert.match(s, /if \(!user\) return NextResponse\.json\(\{ error: 'User not found' \}, \{ status: 404 \}\);/);
-  assert.match(s, /prisma\.reservations\.findMany\(\{\s*where: \{ userId: user\.id \},\s*orderBy: \{ createdAt: 'desc' \},/, 'a guest row has userId null; another user\'s has theirs — neither matches');
-  assert.match(s, /where: \{ userId: user\.id, status: 'accepted', moneyEventId: null, reservationId: \{ in: ids \} \},/);
-  assert.match(s, /where: \{ userId: user\.id, document_money_event_id: null, status: 'posted', document_reservation_id: \{ in: ids \} \},/);
-  assert.match(s, /where: \{ userId: user\.id, reservationId: \{ in: ids \} \},/);
+  // READS-01a (Alex, 2026-11-07, ruling B): the body moved verbatim to reservationsAnswer.ts (prisma → db, user.id → userId);
+  // the gate stays on the route, which answers with the function; the read pins moved; no vendor / zero writes hold both files.
+  const g = code(LIST_ROUTE);
+  assert.match(g, /if \(!userEmail\) return NextResponse\.json\(\{ error: 'Unauthorized' \}, \{ status: 401 \}\);/);
+  assert.match(g, /if \(!user\) return NextResponse\.json\(\{ error: 'User not found' \}, \{ status: 404 \}\);/);
+  assert.match(g, /return NextResponse\.json\(await reservationsAnswerOf\(prisma, user\.id\)\);/);
+  const s = code(LIST_ANSWER);
+  assert.match(s, /db\.reservations\.findMany\(\{\s*where: \{ userId: userId \},\s*orderBy: \{ createdAt: 'desc' \},/, 'a guest row has userId null; another user\'s has theirs — neither matches');
+  assert.match(s, /where: \{ userId: userId, status: 'accepted', moneyEventId: null, reservationId: \{ in: ids \} \},/);
+  assert.match(s, /where: \{ userId: userId, document_money_event_id: null, status: 'posted', document_reservation_id: \{ in: ids \} \},/);
+  assert.match(s, /where: \{ userId: userId, reservationId: \{ in: ids \} \},/);
   // CAL-02 (2026-09-27): every calendar row of each booking — the bare key and each segment key — folded back to ONE day per booking.
-  assert.match(s, /where: \{ user_id: user\.id, \.\.\.bookingCalendarRowsWhere\(ids\) \},/);
+  assert.match(s, /where: \{ user_id: userId, \.\.\.bookingCalendarRowsWhere\(ids\) \},/);
   assert.match(s, /const rid = reservationIdOfCalendarSourceId\(c\.source_id\);\s*if \(!dayOf\.has\(rid\)\) dayOf\.set\(rid, c\.start_date\);/);
-  assert.ok(!/liteapiClient|liteapiFlightsClient|viatorClient|\bfetch\s*\(|reserveTravelSearch/.test(s), 'no vendor client');
-  assert.ok(!/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/.test(s), 'zero writes');
-  assert.ok(!/commission/i.test(s));
+  for (const src of [g, s]) {
+    assert.ok(!/liteapiClient|liteapiFlightsClient|viatorClient|\bfetch\s*\(|reserveTravelSearch/.test(src), 'no vendor client');
+    assert.ok(!/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/.test(src), 'zero writes');
+    assert.ok(!/commission/i.test(src));
+  }
   assert.match(s, /bookingRowOf\(\{\s*reservation: r,/);
 });
 

@@ -3,7 +3,8 @@
  *
  * GET ?day=YYYY-MM-DD → { day, planned, bookings, segments, counts }: the travel facts of one day from three
  * sources, each row labelled by its source, nothing merged, guessed or converted (src/lib/operations/travelDay.ts
- * decides every shape, word and order; this route keeps the gate, the reads and the answer):
+ * decides every shape, word and order; this route keeps the gate, the reads and the answer — READS-01a, 2026-11-07:
+ * the four source reads are range functions in src/lib/operations/travelDayReads.ts, called here):
  *   · planned  — the caller's trip_itinerary rows on the day (through the trip's owner), by the day-blocks
  *                selection rule restated in the leaf — this route does NOT read /api/trips/day-blocks, which
  *                stays as it is until CLEAN-SHOP retires it;
@@ -32,33 +33,11 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { bookingCalendarRowsWhere, reservationIdOfCalendarSourceId } from '@/lib/calendar/bookingEvent';
-import {
-  bookingsSelectionOf, dayOf, dayRangeOf, plannedSelectionOf, segmentsSelectionOf, travelDayOf,
-  type BankFigure, type BookingIn, type PlannedIn, type SegmentIn,
-} from '@/lib/operations/travelDay';
-
-/** The reservation columns the one leaf reads (bookingRow.ts BookingRowReservation), plus the provider the card names. */
-const RESERVATION_SELECT = {
-  id: true, lane: true, displayName: true, provider: true, providerConfirmationCode: true, providerBookingId: true,
-  status: true, tripId: true, checkinDate: true, checkoutDate: true,
-  ticketedAt: true, ticketLimitTime: true, cancelIntentAt: true, lastVendorReadAt: true,
-  finalPriceCents: true, currency: true, createdAt: true,
-} as const;
-
-/** Every trip_itinerary column the leaf hands over, as stored. */
-const PLANNED_SELECT = {
-  id: true, tripId: true, category: true, vendor: true, vendor_name: true, cost: true, coa_code: true, recurrence: true,
-  homeDate: true, homeTime: true, destDate: true, destTime: true, duration_minutes: true,
-  start_zone: true, end_zone: true, start_at: true, end_at: true, block_start_time: true, block_end_time: true,
-  vendorOptionId: true, vendorOptionType: true, note: true,
-} as const;
-
-/** The calendar_events columns a segment row hands over, as stated. */
-const SEGMENT_SELECT = {
-  source_id: true, title: true, status: true, start_date: true, end_date: true, start_time: true, end_time: true,
-  start_at: true, end_at: true, start_zone: true, end_zone: true,
-} as const;
-
+import { dayOf, dayRangeOf, travelDayOf, type BankFigure, type BookingIn, type PlannedIn, type SegmentIn } from '@/lib/operations/travelDay';
+// READS-01a (Alex, 2026-11-07, ruling A): the four source reads and the three SELECTs live in travelDayReads.ts as range
+// functions (a day is a range; SUPERSEDE-01 reads a year through them); this route keeps the gate, dayRangeOf, its own
+// per-id booking-fact reads, travelDayOf and the answer.
+import { RESERVATION_SELECT, readBookingsOn, readOwnReservationIds, readPlannedTravel, readSegments } from '@/lib/operations/travelDayReads';
 export async function GET(request: NextRequest) {
   try {
     const userEmail = await getVerifiedEmail();
@@ -72,20 +51,17 @@ export async function GET(request: NextRequest) {
 
     const [planned, dayBookings, ownReservations] = await Promise.all([
       // 1. The planner's rows on the day, through the trip's owner.
-      prisma.trip_itinerary.findMany({ where: { trip: { userId: user.id }, ...plannedSelectionOf(range) }, select: PLANNED_SELECT }),
+      readPlannedTravel(prisma, user.id, range),
       // 2. The caller's bookings checking in or out on the day.
-      prisma.reservations.findMany({ where: { userId: user.id, ...bookingsSelectionOf(range) }, select: RESERVATION_SELECT }),
+      readBookingsOn(prisma, user.id, range),
       // 3. The keys the segments are read through: every reservation of the caller's own.
-      prisma.reservations.findMany({ where: { userId: user.id }, select: { id: true } }),
+      readOwnReservationIds(prisma, user.id),
     ]);
 
     const ownIds = ownReservations.map((r) => r.id);
     const segments: SegmentIn[] = ownIds.length === 0
       ? []
-      : await prisma.calendar_events.findMany({
-          where: { user_id: user.id, ...bookingCalendarRowsWhere(ownIds), ...segmentsSelectionOf(range) },
-          select: SEGMENT_SELECT,
-        });
+      : await readSegments(prisma, user.id, ownIds, range);
 
     // The booking facts behind the day's bookings AND the segments' reservations — one set, each reservation once.
     const loaded = new Map(dayBookings.map((r) => [r.id, r]));
@@ -98,7 +74,9 @@ export async function GET(request: NextRequest) {
     const reservations = [...loaded.values()];
     const ids = reservations.map((r) => r.id);
 
-    // The four facts GET /api/reservations loads for a booking (reservations/route.ts :48-83), read the same way.
+    // The four facts GET /api/reservations loads for a booking (its answer, src/lib/reservations/reservationsAnswer.ts
+    // reservationsAnswerOf — READS-01a, 2026-11-07), read the same way; these per-id reads are this route's own and
+    // narrower than the answer's (READS-01c decides whether they unify).
     const [chargeLinks, postedEntries, budgetLinks, calendarRows] = ids.length === 0
       ? [[], [], [], []]
       : await Promise.all([

@@ -20,6 +20,8 @@ import { reservationIdOfCalendarSourceId } from '../calendar/bookingEvent';
 
 const LEAF = 'src/lib/operations/travelDay.ts';
 const ROUTE = 'src/app/api/operations/travel-day/route.ts';
+// READS-01a (Alex, 2026-11-07, ruling A): the four source reads are range functions here; the route calls them.
+const READS = 'src/lib/operations/travelDayReads.ts';
 
 const DAY = '2026-10-31';
 const range = (() => { const r = dayRangeOf(DAY); if (!r.ok) throw new Error('fixture'); return r.range; })();
@@ -216,27 +218,41 @@ test('E the route: the siblings’ gate order (getVerifiedEmail → 401 → the 
   // The same gate the stays sibling runs (operations/stays/route.ts :28-31).
   const sibling = code('src/app/api/operations/stays/route.ts');
   assert.ok(sibling.includes('const userEmail = await getVerifiedEmail();') && sibling.includes("return NextResponse.json({ error: 'User not found' }, { status: 404 });"));
-  // Every query is the caller's.
-  at("where: { trip: { userId: user.id }, ...plannedSelectionOf(range) }");
-  at("where: { userId: user.id, ...bookingsSelectionOf(range) }");
-  at("where: { userId: user.id }, select: { id: true }");
-  at("where: { user_id: user.id, ...bookingCalendarRowsWhere(ownIds), ...segmentsSelectionOf(range) }");
+  // Every query is the caller's. READS-01a (Alex, 2026-11-07, ruling A): the four source reads moved verbatim to
+  // travelDayReads.ts as range functions (prisma → db, user.id → userId, ownIds → ids); the route calls them.
+  const reads = code(READS);
+  const atReads = (s: string) => { const i = reads.indexOf(s); assert.ok(i >= 0, `the reads hold ${JSON.stringify(s)}`); return i; };
+  atReads("where: { trip: { userId: userId }, ...plannedSelectionOf(range) }");
+  atReads("where: { userId: userId, ...bookingsSelectionOf(range) }");
+  atReads("where: { userId: userId }, select: { id: true }");
+  atReads("where: { user_id: userId, ...bookingCalendarRowsWhere(ids), ...segmentsSelectionOf(range) }");
+  at("readPlannedTravel(prisma, user.id, range),");
+  at("readBookingsOn(prisma, user.id, range),");
+  at("readOwnReservationIds(prisma, user.id),");
+  at(": await readSegments(prisma, user.id, ownIds, range);");
   at("where: { userId: user.id, id: { in: missing } }");
   at("where: { userId: user.id, status: 'accepted', moneyEventId: null, reservationId: { in: ids } }");
   at("where: { userId: user.id, document_money_event_id: null, status: 'posted', document_reservation_id: { in: ids } }");
   at("where: { userId: user.id, reservationId: { in: ids } }");
   at("where: { user_id: user.id, ...bookingCalendarRowsWhere(ids) }");
+  // READS-01a: nine reads became five on the route (the extra reservations read and the four per-id facts) and four in the reads file.
   const queries = (src.match(/prisma\.\w+\.findMany\(/g) ?? []).length;
   const scoped = (src.match(/where: \{ (userId|user_id): user\.id|where: \{ trip: \{ userId: user\.id \}/g) ?? []).length;
-  assert.equal(queries, 9, 'nine reads');
-  assert.equal(scoped, 9, 'every one of them names user.id');
-  assert.doesNotMatch(src, /source: 'reservation'/, 'segments are never read by source alone — the where comes from the caller’s keys');
-  assert.doesNotMatch(src, /tripId: \{ in/, 'never by trip');
+  assert.equal(queries, 5, 'five reads on the route');
+  assert.equal(scoped, 5, 'every one of them names user.id');
+  const readQueries = (reads.match(/db\.\w+\.findMany\(/g) ?? []).length;
+  const readScoped = (reads.match(/where: \{ (userId|user_id): userId|where: \{ trip: \{ userId: userId \}/g) ?? []).length;
+  assert.equal(readQueries, 4, 'four reads in travelDayReads.ts');
+  assert.equal(readScoped, 4, 'every one of them names the caller');
+  for (const body of [src, reads]) {
+    assert.doesNotMatch(body, /source: 'reservation'/, 'segments are never read by source alone — the where comes from the caller’s keys');
+    assert.doesNotMatch(body, /tripId: \{ in/, 'never by trip');
+  }
   at("return failClosedResponse('Travel day GET'");
 });
 
 test('F the leaf and the route hold no Number(, no `||`, no `?? <default>`, no `$` before a figure, no Prisma in the leaf; bookingRowOf is imported, not re-declared; the header says the reader is 01b and day-blocks stays', () => {
-  for (const f of [LEAF, ROUTE]) {
+  for (const f of [LEAF, ROUTE, READS]) {
     const src = code(f);
     assert.doesNotMatch(src, /Number\(/, `${f} converts nothing`);
     assert.doesNotMatch(src, /\|\|/, `${f} holds no ||`);

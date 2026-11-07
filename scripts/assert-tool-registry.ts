@@ -2969,6 +2969,11 @@ const DOCS_MIGRATION = 'prisma/migrations/20261028120000_documents_01_source_doc
   // 1. ONE WRITER (ruling E): source_documents is created — and an old row marked superseded — only in the upload POST;
   // nothing updates otherwise, nothing deletes, no nested write, no raw SQL, anywhere in src/.
   const ALLOWED_IN_POST = new Set(['create', 'updateMany']);
+  // READS-01a (Alex, 2026-11-07, rulings B, C): the reservations and travel-expenses answers are functions of (db, userId) —
+  // their routes hand them `user.id` (the bookings and home ledger laws pin the calls) — so in these two files, and these
+  // alone, a read's caller is `userId`. A closed list: each file named must still read source_documents, or the law fails.
+  const DOCS_CALLER_PARAM_FILES = new Set(['src/lib/reservations/reservationsAnswer.ts', 'src/lib/travel/travelExpensesAnswer.ts']);
+  for (const f of DOCS_CALLER_PARAM_FILES) if (!/source_documents\s*\.\s*findMany\s*\(/.test(codeOf(f))) docFail(`${f} is listed as reading source_documents through its userId parameter but reads none — the list is stale (READS-01a)`);
   for (const { file, src } of srcFiles) {
     for (const m of src.matchAll(/source_documents\s*\.\s*(create|createMany|createManyAndReturn|update|updateMany|updateManyAndReturn|upsert|delete|deleteMany)\s*\(/g)) {
       const at = m.index ?? -1;
@@ -2977,11 +2982,14 @@ const DOCS_MIGRATION = 'prisma/migrations/20261028120000_documents_01_source_doc
     }
     if (/source_documents\s*:\s*\{\s*(create|createMany|connectOrCreate|upsert|update|updateMany|delete|deleteMany|set|connect|disconnect)\b/.test(src)) docFail(`${file} writes source_documents through a nested write — the upload route is its one writer`);
     if (/(INSERT\s+INTO|UPDATE|DELETE\s+FROM|TRUNCATE(\s+TABLE)?)\s+"?source_documents/i.test(src)) docFail(`${file} writes source_documents in raw SQL`);
-    // 3. EVERY READ CARRIES THE CALLER: a source_documents read names user_id: user.id in its where; findUnique cannot, so it is not used.
+    // 3. EVERY READ CARRIES THE CALLER: a source_documents read names user_id: user.id in its where (user_id: userId in the two
+    // answer functions, READS-01a); findUnique cannot, so it is not used.
+    const callerBinding = DOCS_CALLER_PARAM_FILES.has(file) ? 'user_id: userId' : 'user_id: user.id';
+    const callerRe = DOCS_CALLER_PARAM_FILES.has(file) ? /where:\s*\{[^}]*\buser_id: userId\b/ : /where:\s*\{[^}]*\buser_id: user\.id\b/;
     for (const m of src.matchAll(/source_documents\s*\.\s*(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|aggregate|groupBy)\s*\(/g)) {
       if (m[1].startsWith('findUnique')) { docFail(`${file} reads source_documents with ${m[1]} — a read is scoped by user_id, which a unique lookup cannot carry`); continue; }
       const call = src.slice(m.index ?? 0, (m.index ?? 0) + 400);
-      if (!/where:\s*\{[^}]*\buser_id: user\.id\b/.test(call)) docFail(`${file} reads source_documents (${m[1]}) without user_id: user.id in its where — every read is the caller’s own`);
+      if (!callerRe.test(call)) docFail(`${file} reads source_documents (${m[1]}) without ${callerBinding} in its where — every read is the caller’s own`);
     }
   }
   if ((docsPost.match(/tx\.source_documents\.create\(/g) ?? []).length !== 1) docFail(`${DOCS_ROUTE} POST does not create the document exactly once`);
@@ -8172,10 +8180,12 @@ lawGuard('The bookings law', () => {
   const CONTACT_LEAF = 'src/lib/reservations/guestContact.ts';
   const ROW_LEAF = 'src/lib/reservations/bookingRow.ts';
   const LIST_ROUTE = 'src/app/api/reservations/route.ts';
+  // READS-01a (Alex, 2026-11-07, ruling B): the list route's body is this function — the caller's id as its parameter.
+  const RESERVATIONS_ANSWER = 'src/lib/reservations/reservationsAnswer.ts';
   const LIST_VIEW = 'src/components/trips/AllBookings.tsx';
   const LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
   const RETRO = 'scripts/bookings-01-retro-guest-email.ts';
-  for (const f of [FLIGHT_BOOK, HOTEL_BOOK, CONTACT_LEAF, ROW_LEAF, LIST_ROUTE, LIST_VIEW, LAUNCHER]) {
+  for (const f of [FLIGHT_BOOK, HOTEL_BOOK, CONTACT_LEAF, ROW_LEAF, LIST_ROUTE, RESERVATIONS_ANSWER, LIST_VIEW, LAUNCHER]) {
     if (!existsSync(resolve(ROOT, f))) bkFail(`${f} is missing`);
   }
 
@@ -8248,16 +8258,27 @@ lawGuard('The bookings law', () => {
   }
 
   // ── CLAUSE 3. THE LIST ROUTE READS ONLY, AND ONLY THE CALLER'S ROWS. ──
+  // READS-01a (Alex, 2026-11-07, ruling E.1): the route's body is reservationsAnswer.ts reservationsAnswerOf, the
+  // caller's id as its parameter; the route is the gate and the answer. The no-writes and no-vendor-client checks hold
+  // BOTH files; the gate stays on the route, which must answer with the function and read no list of its own; the exact
+  // reservations read, the every-read-scoped scan (bound to the function's parameter), the no-commission and the
+  // bookingRowOf-words checks moved to the answer file with the code they govern — nothing loosened.
   {
     const route = codeOf(LIST_ROUTE);
-    if (/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction|recordBookingEvent|writeAuditLog/.test(route)) bkFail(`${LIST_ROUTE} writes — the list reads only`);
-    if (/liteapiClient|liteapiFlightsClient|viatorClient|reserveTravelSearch|\bfetch\s*\(|getFlightBooking|getHotelBooking/.test(route)) bkFail(`${LIST_ROUTE} imports a vendor client or calls the wire — the list reads recorded rows only`);
+    const answer = codeOf(RESERVATIONS_ANSWER);
+    for (const [f, src] of [[LIST_ROUTE, route], [RESERVATIONS_ANSWER, answer]] as const) {
+      if (/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction|recordBookingEvent|writeAuditLog/.test(src)) bkFail(`${f} writes — the list reads only`);
+      if (/liteapiClient|liteapiFlightsClient|viatorClient|reserveTravelSearch|\bfetch\s*\(|getFlightBooking|getHotelBooking/.test(src)) bkFail(`${f} imports a vendor client or calls the wire — the list reads recorded rows only`);
+    }
     if (!route.includes("if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });") || !route.includes("if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });")) bkFail(`${LIST_ROUTE} does not answer 401 / 404 by the reservations/[id] pattern`);
-    if (!/prisma\.reservations\.findMany\(\{\s*where: \{ userId: user\.id \},\s*orderBy: \{ createdAt: 'desc' \},/.test(route)) bkFail(`${LIST_ROUTE} does not read exactly the caller's reservations, newest first — a guest row and another user's never appear`);
-    const reads = [...route.matchAll(/prisma\.(\w+)\.findMany\(\{\s*where: \{([^\n]*)\}/g)];
-    for (const m of reads) if (m[1] !== 'users' && !/\b(userId|user_id): user\.id\b/.test(m[2])) bkFail(`${LIST_ROUTE}: the ${m[1]} read is not scoped to the caller`);
-    if (/commission/i.test(route)) bkFail(`${LIST_ROUTE} reads commission — Temple Stuart's books, never the customer's list`);
-    if (!/bookingRowOf\(\{/.test(route) || /BOOKING_WORDS|STATUS_WORDS|'not |"not /.test(route)) bkFail(`${LIST_ROUTE} words a row itself — every row is built by bookingRowOf`);
+    if (!/return NextResponse\.json\(await reservationsAnswerOf\(prisma, user\.id\)\);/.test(route)) bkFail(`${LIST_ROUTE} does not answer with reservationsAnswerOf(prisma, user.id) — the one body the route and /api/home-ledger both read`);
+    if (/\.findMany\(/.test(route)) bkFail(`${LIST_ROUTE} reads a list of its own — the users row is its only read; every list read lives in ${RESERVATIONS_ANSWER}`);
+    if (!/db\.reservations\.findMany\(\{\s*where: \{ userId: userId \},\s*orderBy: \{ createdAt: 'desc' \},/.test(answer)) bkFail(`${RESERVATIONS_ANSWER} does not read exactly the caller's reservations, newest first — a guest row and another user's never appear`);
+    const reads = [...answer.matchAll(/db\.(\w+)\.findMany\(\{\s*where: \{([^\n]*)\}/g)];
+    if (reads.length < 7) bkFail(`${RESERVATIONS_ANSWER} holds ${reads.length} list reads — the seven the route ran (BOOKINGS-01, CAL-02, TRAVEL-02a) live here`);
+    for (const m of reads) if (!/\b(userId|user_id): userId\b/.test(m[2])) bkFail(`${RESERVATIONS_ANSWER}: the ${m[1]} read is not scoped to the caller`);
+    if (/commission/i.test(answer)) bkFail(`${RESERVATIONS_ANSWER} reads commission — Temple Stuart's books, never the customer's list`);
+    if (!/bookingRowOf\(\{/.test(answer) || /BOOKING_WORDS|STATUS_WORDS|'not |"not /.test(answer)) bkFail(`${RESERVATIONS_ANSWER} words a row itself — every row is built by bookingRowOf`);
   }
 
   // ── CLAUSE 4. THE TRAVEL TAB SHOWS THE LIST, AND TYPES NO WORD OF ITS OWN. ──
@@ -8322,12 +8343,14 @@ lawGuard('The calendar law', () => {
   const RES_ICS = 'src/app/api/reservations/[id]/ics/route.ts';
   const TRIP_ICS = 'src/app/api/trips/[id]/ics/route.ts';
   const LIST_ROUTE = 'src/app/api/reservations/route.ts';
+  // READS-01a (Alex, 2026-11-07, ruling E.2): the list's reads — the one where and the fold — live in the route's answer function.
+  const RESERVATIONS_ANSWER = 'src/lib/reservations/reservationsAnswer.ts';
   const TIMELINE_ROUTE = 'src/app/api/reservations/[id]/timeline/route.ts';
   const RETRO = 'scripts/cal-02-retro-segments.ts';
   const ROW_LEAF = 'src/lib/reservations/bookingRow.ts';
   const LIST_VIEW = 'src/components/trips/AllBookings.tsx';
   const RECEIPT_PAGE = 'src/app/booking/[id]/receipt/page.tsx';
-  for (const f of [LEAF, CAL_IMPL, REFRESH, ICS, EXPORT_LEAF, EXPORT_PORTS, RES_ICS, TRIP_ICS, LIST_ROUTE, TIMELINE_ROUTE, RETRO, ROW_LEAF, LIST_VIEW, RECEIPT_PAGE]) {
+  for (const f of [LEAF, CAL_IMPL, REFRESH, ICS, EXPORT_LEAF, EXPORT_PORTS, RES_ICS, TRIP_ICS, LIST_ROUTE, RESERVATIONS_ANSWER, TIMELINE_ROUTE, RETRO, ROW_LEAF, LIST_VIEW, RECEIPT_PAGE]) {
     if (!existsSync(resolve(ROOT, f))) calFail(`${f} is missing`);
   }
   const leaf = codeOf(LEAF);
@@ -8396,8 +8419,9 @@ lawGuard('The calendar law', () => {
       if (file === LEAF) continue;
       if (/source: 'reservation', source_id:/.test(src) || /source: BOOKING_CALENDAR_SOURCE, source_id:/.test(src)) calFail(`${file} reads a booking's calendar rows by one key — a flight's legs would be missed; read through bookingCalendarRowsWhere`);
     }
-    for (const f of [LIST_ROUTE, TIMELINE_ROUTE, EXPORT_PORTS]) if (!/\.\.\.bookingCalendarRowsWhere\(/.test(codeOf(f))) calFail(`${f} does not read a booking's rows through the one where`);
-    if (!/const rid = reservationIdOfCalendarSourceId\(c\.source_id\);\s*if \(!dayOf\.has\(rid\)\) dayOf\.set\(rid, c\.start_date\);/.test(codeOf(LIST_ROUTE))) calFail(`${LIST_ROUTE} does not fold a booking's rows to ONE day per reservation — a flight with several legs would be counted per row`);
+    // READS-01a (2026-11-07): the list's one where and its fold moved with the list's body to RESERVATIONS_ANSWER.
+    for (const f of [RESERVATIONS_ANSWER, TIMELINE_ROUTE, EXPORT_PORTS]) if (!/\.\.\.bookingCalendarRowsWhere\(/.test(codeOf(f))) calFail(`${f} does not read a booking's rows through the one where`);
+    if (!/const rid = reservationIdOfCalendarSourceId\(c\.source_id\);\s*if \(!dayOf\.has\(rid\)\) dayOf\.set\(rid, c\.start_date\);/.test(codeOf(RESERVATIONS_ANSWER))) calFail(`${RESERVATIONS_ANSWER} does not fold a booking's rows to ONE day per reservation — a flight with several legs would be counted per row`);
     const where = bookingCalendarRowsWhere(['a', 'b']);
     if (where.source !== 'reservation' || JSON.stringify(where.OR) !== JSON.stringify([{ source_id: { in: ['a', 'b'] } }, { source_id: { startsWith: 'a:seg:' } }, { source_id: { startsWith: 'b:seg:' } }])) calFail(`${LEAF}: bookingCalendarRowsWhere is not the bare keys and each segment prefix`);
   }
@@ -10851,12 +10875,20 @@ if (!/readActuals\(prisma, user\.id, entityIds, date, date\)/.test(hlRoute)) hlF
 for (const f of HL_FILES) if (/ledger_entries\s*\./.test(codeOf(f))) hlFail(`${f} reads ledger_entries itself — the books come through readActuals alone`);
 // 3. Reversals through the one rule.
 if (!/import \{ REVERSED_POSTING_WHERE \} from '@\/lib\/calendar\/postingAmount';/.test(hlRoute) || !/\.\.\.REVERSED_POSTING_WHERE/.test(hlRoute)) hlFail(`${HL_ROUTE} does not ask the day's entries by REVERSED_POSTING_WHERE`);
-// 4. The same reads — the routes themselves.
+// 4. The same reads. READS-01a (Alex, 2026-11-07, ruling E.3): the travel ledger's facts and the typed expenses are the
+//    two routes' answer functions (reservationsAnswer.ts, travelExpensesAnswer.ts), called directly with the caller's id —
+//    no route calls a route; the two `GET as` imports are forbidden. The task ledger's route is still imported and called
+//    in-process for from = to = date — READS-01b moves it.
 for (const imp of [
   "import { GET as taskLedgerGet } from '@/app/api/operations/ledger/route';",
+  "import { reservationsAnswerOf } from '@/lib/reservations/reservationsAnswer';",
+  "import { travelExpensesAnswerOf } from '@/lib/travel/travelExpensesAnswer';",
+]) if (!hlRoute.includes(imp)) hlFail(`${HL_ROUTE} lacks ${imp} — the task ledger is its own route, called in-process (READS-01b moves it); the travel ledger's facts and the typed expenses are the two routes' answer functions, called directly`);
+for (const gone of [
   "import { GET as reservationsGet } from '@/app/api/reservations/route';",
   "import { GET as travelExpensesGet } from '@/app/api/travel-expenses/route';",
-]) if (!hlRoute.includes(imp)) hlFail(`${HL_ROUTE} lacks ${imp} — the task ledger, the reservations and the typed expenses are their own routes, called in-process`);
+]) if (hlRoute.includes(gone)) hlFail(`${HL_ROUTE} holds ${gone} — no route calls a route; the answer function is called directly (READS-01a)`);
+if (!/reservationsAnswerOf\(prisma, user\.id\)/.test(hlRoute) || !/travelExpensesAnswerOf\(prisma, user\.id\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not call the two answer functions with the caller's id`);
 if (!/taskLedgerGet\(new NextRequest\(new URL\(`\/api\/operations\/ledger\?from=\$\{date\}&to=\$\{date\}`, request\.url\)\)\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not call the task ledger for from = to = date`);
 if (!/travelLedgerReadsOf\(reservationsAnswer, expensesAnswer\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not parse the travel ledger's two answers through travelLedgerReadsOf (missingListWords — the one reader)`);
 // 5. Nothing calculated, nothing planned, no trading route.
@@ -10898,7 +10930,7 @@ if (!/<Suspense>\s*<HomeLedger \/>\s*<\/Suspense>/.test(hlHost)) hlFail(`${HL_HO
 }
 // 9. No registry row.
 if (TOOL_REGISTRY.some((t) => t.slug === 'home-ledger' || t.home === '/home')) hlFail('the registry carries a Home row — the home ledger is the shell\'s component, no tool\'s');
-if (hlViolations === 0) console.log(`✔ The home ledger law passed — GET only behind the cart-plan gate, the books through readActuals for the one day with REVERSED_POSTING_WHERE asked of the day's entries, the task ledger, the reservations and the typed expenses called as their own routes, nothing calculated or planned, no \`||\` or \`?? <default>\`, MATCH never summed, the screen on the card's own day and the browser's zone, mounted once between the day card and the sheet, in the currency lane, no registry row.`);
+if (hlViolations === 0) console.log(`✔ The home ledger law passed — GET only behind the cart-plan gate, the books through readActuals for the one day with REVERSED_POSTING_WHERE asked of the day's entries, the task ledger called as its own route (READS-01b moves it), the reservations and the typed expenses as the answer functions their routes return (READS-01a), nothing calculated or planned, no \`||\` or \`?? <default>\`, MATCH never summed, the screen on the card's own day and the browser's zone, mounted once between the day card and the sheet, in the currency lane, no registry row.`);
 else console.log(`✖ The home ledger law FAILED — ${hlViolations} violation(s).`);
 });
 

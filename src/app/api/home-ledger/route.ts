@@ -9,8 +9,8 @@ import { HomeLedgerError, homeLedgerOf, homeLedgerQuery, type HomeBankRow, type 
 import type { LedgerRow } from '@/lib/operations/ledger';
 import { TravelLedgerError, listOf, travelLedgerReadsOf } from '@/lib/reservations/travelLedger';
 import { GET as taskLedgerGet } from '@/app/api/operations/ledger/route';
-import { GET as reservationsGet } from '@/app/api/reservations/route';
-import { GET as travelExpensesGet } from '@/app/api/travel-expenses/route';
+import { reservationsAnswerOf } from '@/lib/reservations/reservationsAnswer';
+import { travelExpensesAnswerOf } from '@/lib/travel/travelExpensesAnswer';
 
 /**
  * HOME-LEDGER-01 (Alex, 2026-11-06, rulings A, B, F) — GET /api/home-ledger?date=YYYY-MM-DD&zone=<IANA>: the home's DAY
@@ -33,8 +33,12 @@ import { GET as travelExpensesGet } from '@/app/api/travel-expenses/route';
  *     by its third column (status) leaves the rows, counted — readActuals is a Budget file and is not changed here;
  *   · TASK LEDGER: GET /api/operations/ledger for from = to = date, called in-process — the same reads and the same leaf
  *     (ledger.ts ledgerOf) place each record on its routine's own day;
- *   · TRAVEL LEDGER: GET /api/reservations (its `ledger` facts) and GET /api/travel-expenses (its `expenses`), called
- *     in-process — the facts the Travel tab's ledger builds its rows from (travelLedger.ts ledgerRowsOf, in the leaf);
+ *   · TRAVEL LEDGER: the reservations answer (its `ledger` facts) and the travel-expenses answer (its `expenses`) — the
+ *     facts the Travel tab's ledger builds its rows from (travelLedger.ts ledgerRowsOf, in the leaf). READS-01a (Alex,
+ *     2026-11-07, ruling D): the two answers are the functions the two routes return (reservationsAnswer.ts
+ *     reservationsAnswerOf, travelExpensesAnswer.ts travelExpensesAnswerOf), called directly with this caller's id — no
+ *     route calls a route; the answer objects are wire-shaped as built, so the one reader (travelLedgerReadsOf) sees
+ *     exactly what it saw through the JSON wire. The task ledger's in-process call stays until READS-01b;
  *   · BANK, NOT YET IN THE BOOKS: the report's own read — HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the ONE loader
  *     function both pages call (reportReads.ts readBankNotInBooks — the caller's accounts, review_status not
  *     'committed', dated in the window), here for the one day, each row with its ACCOUNT's isoCurrencyCode.
@@ -89,16 +93,18 @@ export async function GET(request: NextRequest) {
     });
     const entityIds = entities.map((e) => e.id);
 
-    const [chart, lineRows, bankRows, taskRes, reservationsRes, expensesRes] = await Promise.all([
+    const [chart, lineRows, bankRows, taskRes, reservationsAnswer, expensesAnswer] = await Promise.all([
       readBudgetChart(prisma, user.id, entityIds),
       readActuals(prisma, user.id, entityIds, date, date),
       // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the bank rows not yet in the books through the ONE read both pages
       // call (reportReads.ts readBankNotInBooks — the report's own read), for the one day, each with its ACCOUNT's currency.
       readBankNotInBooks(prisma, user.id, date, date),
-      // The task ledger, the travel ledger's facts and the typed expenses — the routes themselves, in-process, under this request's cookie.
+      // The task ledger — the route itself, in-process, under this request's cookie (READS-01b moves it).
       taskLedgerGet(new NextRequest(new URL(`/api/operations/ledger?from=${date}&to=${date}`, request.url))),
-      reservationsGet(),
-      travelExpensesGet(),
+      // READS-01a (Alex, 2026-11-07, ruling D): the travel ledger's facts and the typed expenses — the two routes' answer
+      // functions, called directly with this caller's id; a thrown error reaches this route's catch, as a non-200 did.
+      reservationsAnswerOf(prisma, user.id),
+      travelExpensesAnswerOf(prisma, user.id),
     ]);
 
     // The one reversal rule, asked of the day's entries: a line whose entry it catches leaves the rows, counted by the leaf.
@@ -131,8 +137,6 @@ export async function GET(request: NextRequest) {
     }));
 
     const taskAnswer = await answerOf(taskRes, '/api/operations/ledger');
-    const reservationsAnswer = await answerOf(reservationsRes, '/api/reservations');
-    const expensesAnswer = await answerOf(expensesRes, '/api/travel-expenses');
     const travel = travelLedgerReadsOf(reservationsAnswer, expensesAnswer);
 
     return NextResponse.json(homeLedgerOf({
