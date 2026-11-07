@@ -5,7 +5,7 @@ import { ANSWERS_HOME } from '@/lib/answers';
  * SELL-03 — ONE front door, an honest sign-up.
  *
  * The rules a registration must meet live HERE and nowhere else: the client
- * (LoginBox, the developer page) reads PASSWORD_MIN_LENGTH for its own hint
+ * (LoginBox — the developer page too, until DEV-RETIRE-01 retired it, 2026-11-07) reads PASSWORD_MIN_LENGTH for its own hint
  * and the server enforces the same number through parseRegistration — the
  * two can no longer disagree. Every refusal is a ValidationError with the
  * authored message, answered verbatim at 400. These rules are about the

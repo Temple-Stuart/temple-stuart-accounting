@@ -285,11 +285,13 @@ test('T5 /owner is the accounts console: no Proposals section, no fetch of /api/
   const law = code(LAW);
   assert.match(law, /\{ route: '\/owner', door: 'utilities menu — Owner · accounts \(src\/lib\/shellMenu\.ts OWNER_UTILITIES\)' \},/);
   assert.doesNotMatch(law, /owner\/proposals/);
-  assert.match(law, /const SEC02_PINNED = \{ publicWriters: 12, ownerConsole: 5,/);
+  // DEV-RETIRE-01 (2026-11-07): the developer console's prospects PATCH retired too — ownerConsole 5 → 4 (devRetire01 T2 pins the four).
+  assert.match(law, /const SEC02_PINNED = \{ publicWriters: 12, ownerConsole: 4,/);
   assert.match(comments(LAW), /CRM-01b \(2026-11-07\): ownerConsole 6 → 5/);
   const seeds = code(SEEDS);
   assert.doesNotMatch(seeds, /owner\/proposals/);
-  assert.match(seeds, /expect: 'ownerConsole holds 6 entries, pinned at 5',/);
+  // DEV-RETIRE-01 (2026-11-07): the seed re-anchored again (the prospects entry retired with the developer console); the census is 4.
+  assert.match(seeds, /expect: 'ownerConsole holds 5 entries, pinned at 4',/);
   assert.match(comments(SEEDS), /CRM-01b \(2026-11-07\): the anchor was the owner proposals PATCH's entry/);
   // the schema: the two notes on the columns' own lines (no line added — the ONE-FORM-01 way)
   const schemaCode = code(SCHEMA).split('\n');

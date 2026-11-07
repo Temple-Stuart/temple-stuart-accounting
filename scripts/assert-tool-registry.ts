@@ -2634,7 +2634,6 @@ for (const e of ORPHAN_EXCEPTIONS) {
 const SHELL_PAGES: ReadonlyArray<{ route: string; door: string }> = [
   { route: '/home', door: 'rail — Home, the rail\'s first entry' },
   { route: '/owner', door: 'utilities menu — Owner · accounts (src/lib/shellMenu.ts OWNER_UTILITIES)' },
-  { route: '/developer', door: 'utilities menu — Developer console' },
   { route: '/data-observatory', door: 'utilities menu — Data observatory' },
   { route: '/income', door: 'sheet — MONEY IN · read "Income · a read" (nav.ts FAMILY_READS)' },
   { route: '/net-worth', door: 'sheet — WHAT YOU OWN · read "Net worth · a read"' },
@@ -8690,7 +8689,6 @@ const OWNER_CONSOLE: ReadonlyArray<{ file: string; why: string }> = [
   { file: 'src/app/api/admin/fix-coa-ownership/route.ts', why: 'claims orphan chart rows (userId NULL) for the owner' },
   { file: 'src/app/api/admin/fix-unbalanced-entries/route.ts', why: 'two named journal ids, every leg checked the owner\'s before a write' },
   { file: 'src/app/api/admin/recalculate-balances/route.ts', why: "orphan rows (userId NULL) and the owner's own chart" },
-  { file: 'src/app/api/developer/prospects/[id]/route.ts', why: 'SEC-3: prospects is a global sales-lead table with no owner column — admin-only' },
 ];
 const SHARED_ROWS: ReadonlyArray<{ file: string; model: string; why: string; guard: SecGuard }> = [
   { file: 'src/app/api/citations/[id]/verify/route.ts', model: 'citations', why: 'the shared regulatory library: citations has no owner column (schema.prisma) — verification state is global by design', guard: { name: 'per-user rate limit 10/min before the write', re: /await rateLimit\(`citation-verify:\$\{userEmail\}`, \{ limit: 10, windowSeconds: 60 \}\)/ } },
@@ -8717,8 +8715,8 @@ const GATED_FLOWS: ReadonlyArray<{ lib: string; entries: readonly string[]; owne
     ],
   },
 ];
-// GUEST-02b (2026-09-30): the callers of the gated flows are closed by count too, like every other table. CRM-01b (2026-11-07): ownerConsole 6 → 5 — the owner proposals PATCH retired into the CRM, whose writes are user-scoped.
-const SEC02_PINNED = { publicWriters: 12, ownerConsole: 5, sharedRows: 1, derivedOwned: 4, helperPreconditions: 1, gatedFlows: 1, gatedCallers: 2 } as const;
+// GUEST-02b (2026-09-30): the callers of the gated flows are closed by count too, like every other table. CRM-01b (2026-11-07): ownerConsole 6 → 5 — the owner proposals PATCH retired into the CRM, whose writes are user-scoped. DEV-RETIRE-01 (2026-11-07): 5 → 4 — the developer console's prospects PATCH retired; its leads become CRM contacts by one psql step.
+const SEC02_PINNED = { publicWriters: 12, ownerConsole: 4, sharedRows: 1, derivedOwned: 4, helperPreconditions: 1, gatedFlows: 1, gatedCallers: 2 } as const;
 
 lawGuard('The ownership law', () => {
   let secViolations = 0;
