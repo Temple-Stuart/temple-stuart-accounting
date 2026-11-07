@@ -111,13 +111,14 @@ const SEEDS: Seed[] = [
     expect: 'the owned loader loadAuthorizedCalendarBlock does not read by { id, user_id|userId }',
   },
   {
-    // CRM-01b (2026-11-07): the anchor was the owner proposals PATCH's entry, retired with that route — the seed grows the
-    // table after the prospects entry instead; the census is 5.
+    // CRM-01b (2026-11-07): the anchor was the owner proposals PATCH's entry, retired with that route — the seed grew the
+    // table after the prospects entry instead. DEV-RETIRE-01 (2026-11-07): that entry retired too (the developer console); the
+    // seed grows the table after its first remaining entry, the backfill route; the census is 4.
     name: 'sec02-m a closed table grows — an owner-console entry added without a ruling',
     file: LAW,
-    find: "  { file: 'src/app/api/developer/prospects/[id]/route.ts', why: 'SEC-3: prospects is a global sales-lead table with no owner column — admin-only' },\n",
-    replace: "  { file: 'src/app/api/developer/prospects/[id]/route.ts', why: 'SEC-3: prospects is a global sales-lead table with no owner column — admin-only' },\n  { file: 'src/app/api/budgets/route.ts', why: 'seeded' },\n",
-    expect: 'ownerConsole holds 6 entries, pinned at 5',
+    find: "  { file: 'src/app/api/admin/backfill-transaction-fields/route.ts', why: \"the owner's own Plaid items (plaid_items { userId }), rows by Plaid's transaction_id\" },\n",
+    replace: "  { file: 'src/app/api/admin/backfill-transaction-fields/route.ts', why: \"the owner's own Plaid items (plaid_items { userId }), rows by Plaid's transaction_id\" },\n  { file: 'src/app/api/budgets/route.ts', why: 'seeded' },\n",
+    expect: 'ownerConsole holds 5 entries, pinned at 4',
   },
 ];
 

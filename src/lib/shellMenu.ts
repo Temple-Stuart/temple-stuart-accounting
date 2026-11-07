@@ -13,7 +13,7 @@ export interface ShellUtility {
 }
 
 export const OWNER_UTILITIES: readonly ShellUtility[] = [
-  { label: 'Developer console', href: '/developer', why: 'prospects + client accounts behind its own gate — src/app/developer/page.tsx:23' },
+  // DEV-RETIRE-01 (2026-11-07): the developer console retired — its page carried a password in the public repo; leads live in the CRM (/crm).
   { label: 'Data observatory', href: '/data-observatory', why: 'source health probes; the check route is requireAdmin — src/app/api/data-observatory/check/route.ts:934' },
   // CRM-01b (2026-11-07): the CRM owns the stage; /owner is the accounts console — it keeps its door here.
   { label: 'Owner · accounts', href: '/owner', why: "the founder's accounts console behind requireAdmin — src/app/api/owner/accounts/route.ts; not a customer's CRM" },
