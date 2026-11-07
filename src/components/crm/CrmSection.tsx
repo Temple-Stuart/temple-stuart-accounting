@@ -232,8 +232,12 @@ export default function CrmSection() {
  */
 export function CrmTables({ read, onWritten }: { read: CrmLoaded; onWritten: () => void }) {
   const contactColumns = useMemo(() => contactsTable(), []);
-  // CRM-02: one column per question the form holds today — the spec follows the form.
+  // CRM-02: one column per question the form holds today — the spec follows the form. A table's filters and sort are
+  // per column (CrmTable keeps them in state from its first columns; filterRows refuses a column it holds no filter for),
+  // so when a save changes the form's questions the table is keyed by their ids and MOUNTS ANEW with the new columns —
+  // never a stale filter map over a changed spec (the browser proof: a question added, then "no filter held for column").
   const submissionColumns = useMemo(() => submissionsTable(read.form), [read.form]);
+  const submissionsKey = read.form === null ? 'no-form' : read.form.questions.map((q) => q.id).join(',');
   const proposalColumns = useMemo(() => proposalsTable(), []);
   const signupColumns = useMemo(() => signupsTable(), []);
   /** The key of the row (or 'add') being saved — every control is disabled meanwhile. */
@@ -319,6 +323,7 @@ export function CrmTables({ read, onWritten }: { read: CrmLoaded; onWritten: () 
         title={FORM_SUBMISSIONS_TABLE_WORDS}
         columns={submissionColumns}
         rows={read.submissions}
+        key={submissionsKey}
         keyOf={(r) => r.key}
         csvName={SUBMISSIONS_CSV}
         tableClassName="min-w-[80rem]"
