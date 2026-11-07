@@ -113,7 +113,7 @@
  * STARS, nothing reordered — PLANNED MIN · LOGGED MIN: the day card's one
  * rule (dayCard.ts `minutes` — a line's duration_minutes; a stepless routine
  * without a window has none; WORK-03b, Alex, 2026-10-26: with one, its length —
- * the one rule, dayCard.ts plannedMinutesOf) and the record's actual_minutes
+ * the one rule, supersession.ts plannedMinutesOf — SUPERSEDE-01a, 2026-11-07) and the record's actual_minutes
  * (dayCard.ts `actualMinutes`). The
  * record input grows additively (durationMinutes — the route reads the line's
  * duration_minutes with the record's plan words, RECORD_PLAN); the row gains
@@ -168,7 +168,7 @@ export interface LedgerRecordInput {
   readonly activity: string | null;
   /** The line's own time, 'HH:MM' (the loader's reading of a @db.Time), or null. */
   readonly timeOfDay: string | null;
-  /** TIME-03: the day card's PLANNED minutes (dayCard.ts `minutes` — the one rule, plannedMinutesOf: a line's duration_minutes; WORK-03b, a stepless routine's window length); null for a line that states none, or a stepless routine without a window. */
+  /** TIME-03: the day card's PLANNED minutes (dayCard.ts `minutes` — the one rule, supersession.ts plannedMinutesOf, SUPERSEDE-01a 2026-11-07: a line's duration_minutes; WORK-03b, a stepless routine's window length); null for a line that states none, or a stepless routine without a window. */
   readonly durationMinutes: number | null;
 }
 
@@ -305,7 +305,7 @@ export interface LedgerRow {
   readonly actualCents: number | null;
   /** LEDGER-02: actualCents − cents when both are known; null otherwise — never 0 for a blank. */
   readonly varianceCents: number | null;
-  /** TIME-03: PLANNED MIN — the day card's `minutes` (the one rule, dayCard.ts plannedMinutesOf: a line's duration_minutes; WORK-03b, a stepless routine's window length); null for a line that states none or a stepless routine without a window. */
+  /** TIME-03: PLANNED MIN — the day card's `minutes` (the one rule, supersession.ts plannedMinutesOf — SUPERSEDE-01a, 2026-11-07: a line's duration_minutes; WORK-03b, a stepless routine's window length); null for a line that states none or a stepless routine without a window. */
   readonly plannedMinutes: number | null;
   /** TIME-03: LOGGED MIN — the record's actual_minutes (the day card's `actualMinutes`); null when none was typed at the stop. */
   readonly loggedMinutes: number | null;

@@ -239,8 +239,8 @@ export async function POST(request: NextRequest) {
     // MOVE-01 (Alex, 2026-10-19): the window may cross midnight — an end before the
     // start ends the next day. Only an EMPTY window is refused. The pair is read as a
     // length since WORK-03b (2026-10-26): a stepless routine's planned minutes are
-    // end − start, an end before the start ending the next day (dayCard.ts
-    // plannedMinutesOf — the day card's stop, the work block, the ledger's PLANNED
+    // end − start, an end before the start ending the next day (supersession.ts
+    // plannedMinutesOf — SUPERSEDE-01a, 2026-11-07 — the day card's stop, the work block, the ledger's PLANNED
     // MIN); the hub grid still draws such a window as its flagged marker (extent.ts).
     // COCKPIT-PERF-01 (2026-10-27): "nothing reads the pair as a duration" stood here.
     if (

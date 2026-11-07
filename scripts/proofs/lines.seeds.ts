@@ -46,7 +46,8 @@ export const SEEDS: Seed[] = [
     name: 'lines-b the loader stops reading the lines',
     file: LOADER,
     // TAB13-04: the select grew by the line's activity and time_of_day — the anchor follows it; the seed still removes the whole read.
-    find: '  steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true } },',
+    // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): and by duration_minutes — the anchor follows it again.
+    find: '  steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true, duration_minutes: true } },',
     replace: '',
     expect: "does not hand the leaf the routine's active lines",
   },

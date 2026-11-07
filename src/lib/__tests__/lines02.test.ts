@@ -27,12 +27,12 @@ const dec = (v: string) => new Prisma.Decimal(v);
 type Step = RoutineBudgetRow['steps'][number];
 const line = (id: string, amount: string | null, coa: string | null, order: number, isActive = true): Step =>
   // TAB13-04: the select grew by the line's activity and time_of_day; the month tables read neither.
-  ({ id, is_active: isActive, budget_amount: amount === null ? null : dec(amount), coa_code: coa, step_order: order, activity: `line ${id}`, time_of_day: null });
+  ({ id, is_active: isActive, budget_amount: amount === null ? null : dec(amount), coa_code: coa, step_order: order, activity: `line ${id}`, time_of_day: null, duration_minutes: null });
 // TAB13-02b: the select grew by id, name and end_date (the budget report's); the month tables read none of them.
 // COLUMNS-01 (Alex, 2026-10-25, ruling A): the select grew by the routine's own is_active (the month route reads inactive routines too); the month tables read it not.
 // BILLPAY-01 (Alex, 2026-10-28, ruling C): and by the routine's role (Bill Pay keeps the all_day ones); the month tables read it not.
 const row = (over: Partial<RoutineBudgetRow>): RoutineBudgetRow =>
-  ({ id: 'r1', name: 'a routine', is_active: true, role: 'none', end_date: null, budget_amount: null, coa_code: null, schedule_rrule: DAILY, timezone: 'UTC', start_date: null, steps: [], ...over });
+  ({ id: 'r1', name: 'a routine', is_active: true, role: 'none', end_date: null, budget_amount: null, coa_code: null, schedule_rrule: DAILY, timezone: 'UTC', start_date: null, start_time: null, end_time: null, steps: [], ...over });
 
 test('the mapping turns Decimals into numbers and keeps null as null', () => {
   const input = toRoutineBudgetInput(row({ budget_amount: dec('15.50'), coa_code: '5200', steps: [line('a', '4.25', '5210', 0), line('b', null, null, 1)] }));
@@ -59,8 +59,8 @@ test('both budget routes read routines through the one loader, and the loader fi
   assert.match(loader, /where: \{ user_id: userId, entity_id: entityId, \.\.\.\(options\.includeInactive === true \? \{\} : \{ is_active: true \}\) \},/);
   assert.match(loader, /options: \{ readonly includeInactive\?: boolean \} = \{\},/);
   for (const f of [REPORT, CELL]) assert.doesNotMatch(code(f), /includeInactive/, `${f} reads the active ones, as before`);
-  // TAB13-04: the lines' select grew, additively, by the words the day's plan lines print.
-  assert.match(loader, /steps: \{ where: \{ is_active: true \}, select: \{ id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true \} \}/);
+  // TAB13-04: the lines' select grew, additively, by the words the day's plan lines print. SUPERSEDE-01a (2026-11-07): and by duration_minutes, carried, consumed by nothing until 01b.
+  assert.match(loader, /steps: \{ where: \{ is_active: true \}, select: \{ id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true, duration_minutes: true \} \}/);
   assert.match(loader, /start_date: true,/);
   assert.match(loader, /start_date: r\.start_date,/);
 });

@@ -62,13 +62,13 @@ const GYM_12 = '2026-10-12T13:00:00.000Z';
 const GYM_13 = '2026-10-13T13:00:00.000Z';
 
 const routine = (over: Partial<RoutinePlanInput> & { id: string; name: string; scheduleRrule: string }): RoutinePlanInput => ({
-  entityId: 'P', entityType: 'personal', timezone: BKK, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], ...over,
+  entityId: 'P', entityType: 'personal', timezone: BKK, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, ...over,
 });
 const ROUTINES: RoutinePlanInput[] = [
   routine({ id: 'morning', name: 'Morning', scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', steps: [
-    { id: 'coffee', stepOrder: 1, budgetAmount: 10, coaCode: '5100' },
-    { id: 'stretch', stepOrder: 2, budgetAmount: 8, coaCode: '5100' },
-    { id: 'lunch', stepOrder: 3, budgetAmount: 15, coaCode: '5200' },
+    { id: 'coffee', stepOrder: 1, budgetAmount: 10, coaCode: '5100', durationMinutes: null },
+    { id: 'stretch', stepOrder: 2, budgetAmount: 8, coaCode: '5100', durationMinutes: null },
+    { id: 'lunch', stepOrder: 3, budgetAmount: 15, coaCode: '5200', durationMinutes: null },
   ] }),
   routine({ id: 'gym', name: 'Gym', scheduleRrule: 'FREQ=DAILY;BYHOUR=20;BYMINUTE=0', budgetAmount: 20, coaCode: '5300' }),
   routine({ id: 'netflix', name: 'Netflix', scheduleRrule: 'FREQ=DAILY;BYHOUR=0;BYMINUTE=0', budgetAmount: 5, coaCode: '5400' }),

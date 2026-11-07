@@ -268,7 +268,7 @@ export interface RoutineLinePlanInput {
   readonly stepOrder: number;
   /** Dollars — a number or a Decimal string — or null when the line carries no amount. */
   readonly budgetAmount: number | string | null;
-  readonly coaCode: string | null;
+  readonly coaCode: string | null; readonly durationMinutes: number | null; // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the line's duration_minutes as read — what supersession.ts plannedMinutesOf's 'line' kind reads; null when the line states none. Required (null is stated, never absent); consumed by nothing until 01b. On this line so no line cited into this file moves.
 }
 
 export interface RoutinePlanInput {
@@ -286,7 +286,7 @@ export interface RoutinePlanInput {
   readonly endDate: IsoDay | null;
   /** The routine-level amount, dollars. */
   readonly budgetAmount: number | string | null;
-  readonly coaCode: string | null;
+  readonly coaCode: string | null; readonly startTime: string | null; readonly endTime: string | null; // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the routine's window — the @db.Time's JSON, '1970-01-01THH:MM:SS.000Z' — what supersession.ts plannedMinutesOf's 'routine' kind reads; null when the routine states none. Required (null is stated, never absent); consumed by nothing until 01b. On this line so no line cited into this file moves.
   /** The routine's active lines. */
   readonly steps: readonly RoutineLinePlanInput[];
 }

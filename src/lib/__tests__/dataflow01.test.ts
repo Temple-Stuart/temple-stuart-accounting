@@ -420,7 +420,7 @@ test('T10 Budget runs one beat, discover — cited to the report route, which re
   for (const [line, table] of [[50, 'ledger_entries'], [78, 'chart_of_accounts'], [86, 'operations_project_tasks'], [100, 'planned_item_vendors']] as const) {
     assert.match(loader[line - 1], new RegExp(`db\\.${table}\\.findMany\\(`), `reportReads.ts:${line} reads ${table}`);
   }
-  assert.match(code('src/lib/operations/routineBudgetInputs.ts').split('\n')[100], /db\.operations_routines\.findMany\(/, 'routineBudgetInputs.ts:101 reads operations_routines');
+  assert.match(code('src/lib/operations/routineBudgetInputs.ts').split('\n')[104], /db\.operations_routines\.findMany\(/, 'routineBudgetInputs.ts:105 reads operations_routines'); // SUPERSEDE-01a (2026-11-07): :101 → :105 — the select grew by start_time/end_time (two lines), the loaded type and the mapper by one line each
   for (const [file, line] of [['src/app/api/budget/report/route.ts', 61], ['src/app/api/budget/report/cell/route.ts', 46]] as const) {
     const src = code(file);
     assert.match(src.split('\n')[line - 1], /^export async function GET\(/, `${file}:${line} is its GET`);

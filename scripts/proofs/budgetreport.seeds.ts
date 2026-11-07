@@ -39,7 +39,8 @@ const DAYS_IMPORT_ANCHOR = "import { parseCode } from '@/lib/coa/scheme';";
 const INPUTS = 'src/lib/budget/reportInputs.ts';
 const INPUTS_TEST = 'src/lib/__tests__/budgetReportInputs.test.ts';
 const INPUTS_BODY_ANCHOR = 'export function budgetReportResponse(query: { readonly view: BudgetView; readonly asOf: IsoDay }, rows: ReportRows): BudgetReportResponse {';
-const INPUTS_IMPORT_ANCHOR = 'import {\n  buildBudgetReport, viewRange,';
+// SUPERSEDE-01a (Alex, 2026-11-07): re-anchored — BUDGET-02 put buildBudgetCell first on this import line (the anchor occurred 0 times on main).
+const INPUTS_IMPORT_ANCHOR = 'import {\n  buildBudgetCell, buildBudgetReport, viewRange,';
 const FORMAT = 'src/lib/budget/format.ts';
 const FORMAT_TEST = 'src/lib/__tests__/budgetFormat.test.ts';
 const FORMAT_BODY_ANCHOR = 'export function formatCents(cents: number | null): string {';

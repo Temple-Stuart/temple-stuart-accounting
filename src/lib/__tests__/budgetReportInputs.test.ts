@@ -93,13 +93,14 @@ test('MAPPING — an entity, an account: every field carried, nothing renamed in
 const coffee: RoutineRow = {
   id: 'r-coffee', name: 'Coffee', budget_amount: 5, coa_code: '6150', schedule_rrule: 'FREQ=DAILY;BYHOUR=8;BYMINUTE=0;BYSECOND=0',
   timezone: 'UTC', start_date: at('2026-09-01'), end_date: at('2026-09-22'), steps: [],
+  start_time: null, end_time: null,
 };
 
 test('MAPPING — a routine from the loader: dates as UTC days, the entity\'s type, every line', () => {
-  const lined: RoutineRow = { ...coffee, start_date: null, end_date: null, steps: [{ id: 's1', is_active: true, budget_amount: 4.25, coa_code: 'P-6150', step_order: 2, activity: 'Coffee', time_of_day: '08:00' }] };
+  const lined: RoutineRow = { ...coffee, start_date: null, end_date: null, steps: [{ id: 's1', is_active: true, budget_amount: 4.25, coa_code: 'P-6150', step_order: 2, activity: 'Coffee', time_of_day: '08:00', duration_minutes: null }] };
   assert.deepEqual(toRoutinePlanInput(coffee, toReportEntity(P)), {
     id: 'r-coffee', name: 'Coffee', entityId: 'ent-p', entityType: 'personal', timezone: 'UTC', scheduleRrule: coffee.schedule_rrule,
-    startDate: '2026-09-01', endDate: '2026-09-22', budgetAmount: 5, coaCode: '6150', steps: [],
+    startDate: '2026-09-01', endDate: '2026-09-22', budgetAmount: 5, coaCode: '6150', startTime: null, endTime: null, steps: [], // SUPERSEDE-01a (2026-11-07): the window's JSON, null when none
   });
   // Ruling 5 (the chat's mutant R6): the type is the ENTITY's — a sole_prop routine carries sole_prop.
   assert.deepEqual(
@@ -109,7 +110,7 @@ test('MAPPING — a routine from the loader: dates as UTC days, the entity\'s ty
   const mapped = toRoutinePlanInput(lined, toReportEntity(P));
   assert.equal(mapped.startDate, null, 'no start date stays null');
   assert.equal(mapped.endDate, null, 'no end date stays null');
-  assert.deepEqual(mapped.steps, [{ id: 's1', isActive: true, stepOrder: 2, budgetAmount: 4.25, coaCode: 'P-6150' }]);
+  assert.deepEqual(mapped.steps, [{ id: 's1', isActive: true, stepOrder: 2, budgetAmount: 4.25, coaCode: 'P-6150', durationMinutes: null }]); // SUPERSEDE-01a (2026-11-07): the line's duration, carried
 });
 
 // BUDGET-02 (2026-10-20): a costed task carries its project — the drill links its line to /tasks?project=<id>.

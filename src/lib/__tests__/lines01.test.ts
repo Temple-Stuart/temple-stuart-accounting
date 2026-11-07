@@ -83,8 +83,8 @@ test('MONTH AND DAY AGREE, for both shapes', () => {
   // over the month (buildRoutineBudgetLines — the one month model), summed by account in dollars; routineMonthlyByCoa is deleted.
   const plan = (r: typeof MORNING | typeof STEPLESS, id: string): RoutinePlanInput => ({
     id, name: id, entityId: 'e', entityType: 'personal', timezone: tz, scheduleRrule: rrule, startDate: '2026-01-01', endDate: null,
-    budgetAmount: r.budget_amount, coaCode: r.coa_code,
-    steps: r.steps.map((s) => ({ id: s.id, stepOrder: s.step_order, budgetAmount: s.budget_amount, coaCode: s.coa_code })),
+    budgetAmount: r.budget_amount, coaCode: r.coa_code, startTime: null, endTime: null,
+    steps: r.steps.map((s) => ({ id: s.id, stepOrder: s.step_order, budgetAmount: s.budget_amount, coaCode: s.coa_code, durationMinutes: null })),
   });
   const monthOf = (r: typeof MORNING | typeof STEPLESS, id: string): Record<string, number> => {
     const out: Record<string, number> = {};

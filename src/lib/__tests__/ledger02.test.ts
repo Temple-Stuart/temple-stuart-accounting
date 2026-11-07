@@ -54,13 +54,13 @@ const MORNING_13 = '2026-10-13T00:00:00.000Z';
 const CLIENT_13 = '2026-10-13T05:30:00.000Z';
 
 const routine = (over: Partial<RoutinePlanInput> & { id: string; name: string; scheduleRrule: string }): RoutinePlanInput => ({
-  entityId: 'P', entityType: 'personal', timezone: BKK, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], ...over,
+  entityId: 'P', entityType: 'personal', timezone: BKK, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, ...over,
 });
 const ROUTINES: RoutinePlanInput[] = [
   routine({ id: 'morning', name: 'Morning', scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', steps: [
-    { id: 'coffee', stepOrder: 1, budgetAmount: 10, coaCode: '5100' },
-    { id: 'stretch', stepOrder: 2, budgetAmount: 8, coaCode: '5100' },
-    { id: 'lunch', stepOrder: 3, budgetAmount: 15, coaCode: '5200' },
+    { id: 'coffee', stepOrder: 1, budgetAmount: 10, coaCode: '5100', durationMinutes: null },
+    { id: 'stretch', stepOrder: 2, budgetAmount: 8, coaCode: '5100', durationMinutes: null },
+    { id: 'lunch', stepOrder: 3, budgetAmount: 15, coaCode: '5200', durationMinutes: null },
   ] }),
   routine({ id: 'client', name: 'Client lunch', scheduleRrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=30', entityId: 'B', entityType: 'sole_prop', budgetAmount: 25, coaCode: '6100' }),
 ];

@@ -68,7 +68,7 @@ const at = (day: string) => `${day}T00:00:00.000Z`; // 07:00 Bangkok — the dai
 
 const plan = (o: Partial<RoutineMonthRoutine> & { id: string; name: string }): RoutineMonthRoutine => ({
   entityId: 'p', entityType: 'personal', timezone: BKK, scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null,
-  budgetAmount: null, coaCode: null, steps: [], isActive: true, ...o,
+  budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [], isActive: true, ...o,
 });
 const record = (o: Partial<StopRecordRow> & { id: string; kind: 'routine' | 'routine_line'; target_id: string; occurrence_at: string }): StopRecordRow => ({
   outcome: 'done', done_at: o.occurrence_at, actual_cents: null, rating: null, note: null, actual_minutes: null, ...o,
@@ -102,8 +102,8 @@ function inZone(zone: string, fn: () => void): void {
 
 // ── RULING A · AN INACTIVE ROUTINE IS NOT BUDGETED ───────────────────────────
 
-const INACTIVE = plan({ id: 'inact', name: 'Inactive daily', isActive: false, steps: [{ id: 'i1', stepOrder: 1, budgetAmount: '10', coaCode: '6150' }] });
-const ACTIVE = plan({ id: 'act', name: 'Active daily', steps: [{ id: 'a1', stepOrder: 1, budgetAmount: '10', coaCode: '6150' }] });
+const INACTIVE = plan({ id: 'inact', name: 'Inactive daily', isActive: false, steps: [{ id: 'i1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null }] });
+const ACTIVE = plan({ id: 'act', name: 'Active daily', steps: [{ id: 'a1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null }] });
 /** Ended on the 5th and still active — the budget rule bounds it by end_date; unchanged by this ruling. */
 const ENDED = plan({ id: 'ended', name: 'Ended', endDate: '2026-10-05', budgetAmount: '5', coaCode: '6150' });
 const INPUT: RoutineMonthInput = {
@@ -176,7 +176,7 @@ test('A on the table: the inactive line\'s THIS MONTH · TO DATE · VARIANCE are
 
 test('A the plumbing: the loader reads the routine\'s is_active (its default read still filters on it), the month route hands isActive, the rule budgets the active alone, the section passes the words; RoutinePlanInput and the /budget callers are untouched', () => {
   const loader = code(LOADER);
-  assert.match(loader, /start_date: true,\n\s*is_active: true,\n/, 'the select grew by the routine\'s own is_active');
+  assert.match(loader, /start_date: true,\n\s*start_time: true, end_time: true,\n\s*is_active: true,\n/, 'the select grew by the routine\'s own is_active'); // SUPERSEDE-01a (2026-11-07): and by the routine's window between the two
   assert.match(loader, /is_active: boolean;/);
   assert.match(loader, /is_active: r\.is_active,/);
   assert.match(loader, /where: \{ user_id: userId, entity_id: entityId, \.\.\.\(options\.includeInactive === true \? \{\} : \{ is_active: true \}\) \},/, 'the default read is the active ones, as before (lines02 holds it)');

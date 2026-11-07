@@ -31,13 +31,13 @@ const COFFEE = '10000000-0000-4000-8000-000000000002';
 const NETFLIX = '10000000-0000-4000-8000-000000000003';
 const BRAKES = '30000000-0000-4000-8000-000000000001';
 
-const base = { entityId: 'ent-p', entityType: 'personal', timezone: LA, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [] } as const;
+const base = { entityId: 'ent-p', entityType: 'personal', timezone: LA, startDate: null, endDate: null, budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [] } as const; // SUPERSEDE-01a (2026-11-07): the window, stated null
 const meals: RoutinePlanInput = {
   ...base, id: MEALS, name: 'Meals', scheduleRrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=0;BYSECOND=0',
   steps: [
-    { id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'P-6150' },
-    { id: DINNER, isActive: true, stepOrder: 1, budgetAmount: '35.00', coaCode: 'P-6150' },
-    { id: SNACK, isActive: true, stepOrder: 2, budgetAmount: '4.00', coaCode: 'P-6150' },
+    { id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'P-6150', durationMinutes: null },
+    { id: DINNER, isActive: true, stepOrder: 1, budgetAmount: '35.00', coaCode: 'P-6150', durationMinutes: null },
+    { id: SNACK, isActive: true, stepOrder: 2, budgetAmount: '4.00', coaCode: 'P-6150', durationMinutes: null },
   ],
 };
 const coffee: RoutinePlanInput = { ...base, id: COFFEE, name: 'Coffee', scheduleRrule: 'FREQ=DAILY;BYHOUR=8;BYMINUTE=0;BYSECOND=0', budgetAmount: '5.00', coaCode: 'P-6150' };
@@ -186,7 +186,7 @@ test('T2 stranded: a row on a day of the view that matches nothing is listed; on
   assert.deepEqual(day.stranded[0].address, { kind: 'routine_line', id: LUNCH, instant: '2026-09-29T19:01:00.000Z' });
   assert.match(day.stranded[1].reason, /^its routine's zone "Mars\/Olympus" cannot be read \(.+\) — this vendor cannot be dated$/);
   // A vendor on an occurrence the view built but did not place — its account unreadable — is not stranded.
-  const unreadable: RoutinePlanInput = { ...meals, steps: [{ id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'B-6150' }] };
+  const unreadable: RoutinePlanInput = { ...meals, steps: [{ id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'B-6150', durationMinutes: null }] };
   assert.deepEqual(listed(plan(DAY, [matched], [unreadable])).stranded, [], 'placed or not placed, the view built it');
 });
 
@@ -213,7 +213,8 @@ test('T2 the loader reads a line\'s words once: its activity, and its @db.Time a
     ],
   } as unknown as RoutineBudgetRow;
   assert.deepEqual(toRoutineBudgetInput(row).steps.map((s) => [s.activity, s.time_of_day]), [['Lunch', '12:30'], ['Snack', null]]);
-  assert.match(code('src/lib/operations/routineBudgetInputs.ts'), /steps: \{ where: \{ is_active: true \}, select: \{ id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true \} \}/);
+  // SUPERSEDE-01a (2026-11-07): the steps select grew by duration_minutes — carried by the mappers, consumed by nothing until 01b.
+  assert.match(code('src/lib/operations/routineBudgetInputs.ts'), /steps: \{ where: \{ is_active: true \}, select: \{ id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true, duration_minutes: true \} \}/);
 });
 
 // ── T6 · THE LAWS ────────────────────────────────────────────────────────────
