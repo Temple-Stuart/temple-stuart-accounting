@@ -243,7 +243,7 @@ export default function WorkWithMeForm({ today, initialNeed }: { today: string; 
                 {isClose && close.state === 'open' && (
                   <div className="mt-3 rounded bg-bg-row p-4 text-sm leading-relaxed text-text-primary" data-close-offer>
                     <p>{close.what}</p>
-                    <p className="mt-2 font-semibold">{close.price}</p>
+                    <p className="mt-2">{close.priced}</p>
                     <p className="mt-1 font-mono text-xs text-text-secondary">{close.bookBy}</p>
                     <p className="mt-2">{close.notTax}</p>
                     <p className="mt-1 text-text-secondary">{close.remedy}</p>
