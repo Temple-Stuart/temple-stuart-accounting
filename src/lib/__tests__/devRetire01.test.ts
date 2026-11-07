@@ -54,7 +54,7 @@ test('T2 the doors: no /developer in the utilities menu, in SHELL_PAGES or in OW
   assert.ok(comments(SHELL_MENU).includes('// DEV-RETIRE-01 (2026-11-07): the developer console retired — its page carried a password in the public repo; leads live in the CRM (/crm).'));
   const law = code(LAW);
   assert.doesNotMatch(law, /'\/developer'|api\/developer|Developer console/, 'the law script names no developer route or door');
-  assert.match(law, /const SEC02_PINNED = \{ publicWriters: 12, ownerConsole: 4,/);
+  assert.match(law, /const SEC02_PINNED = \{ publicWriters: 13, ownerConsole: 4,/); // CRM-02 (2026-11-07): publicWriters 12 → 13, the intake form's POST; ownerConsole stays 4
   assert.match(comments(LAW), /DEV-RETIRE-01 \(2026-11-07\): 5 → 4 — the developer console's prospects PATCH retired/);
   const console = /const OWNER_CONSOLE: ReadonlyArray<\{ file: string; why: string \}> = \[([\s\S]*?)\n\];/.exec(law);
   assert.ok(console, 'OWNER_CONSOLE is found');
@@ -102,11 +102,14 @@ test('T6 held still: /developer was never public; the registry\'s CRM row and th
   const crm = TOOL_REGISTRY.find((t) => t.name === 'CRM');
   assert.ok(crm);
   assert.equal(crm.status, 'PARTIAL');
-  assert.equal(crm.why, "the people you sell to: every proposal from the platform's form and every signup for the owner, anyone added by hand for every account; a stage and a next step on the row; a customer's own intake form is not built (CRM-02), and nothing is sent from here");
-  assert.equal(crm.customer, "The people you sell to, in flat tables: set each one's stage and next step, add someone by hand. Not built yet: your own intake form — so today only the platform's own proposal form and signups fill it on their own.");
+  // CRM-02 (2026-11-07): the why and the customer sentence rewritten (BUILD 14) — the row itself held still through DEV-RETIRE-01, as this test said.
+  assert.equal(crm.why, "the people you sell to: every proposal from the platform's form and every signup for the owner; anyone added by hand and every submission of their own intake form, at its own link or embedded, for every account; a stage and a next step on the row; nothing is sent from here; per-account stages and fields are not built (CRM-03)");
+  assert.equal(crm.customer, "The people you sell to, in flat tables. Your own intake form — at your own link, or embedded on your site — fills it; set each one's stage and next step; add someone by hand.");
   assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 });
   assert.deepEqual(statusCounts(), EXPECTED_STATUS_COUNTS);
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], '20261106150000_crm_01a_crm_contacts', 'no migration — the newest is still CRM-01a\'s');
+  // CRM-02 (2026-11-07) authored the newest since; DEV-RETIRE-01 itself authored none — CRM-01a's sits right before it.
+  assert.equal(dirs[dirs.length - 1], '20261107212000_crm_02_intake_forms', 'the newest migration is CRM-02\'s');
+  assert.equal(dirs[dirs.length - 2], '20261106150000_crm_01a_crm_contacts', 'no migration of DEV-RETIRE-01\'s own — CRM-01a\'s is right before CRM-02\'s');
 });

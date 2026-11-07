@@ -41,8 +41,8 @@ export const STAGE_WORDS = { new: 'New', reviewing: 'Reviewing', sent: 'Sent', w
 export const stageAriaWords = (name: string): string => `Stage of ${name}`;
 export const nextStepAriaWords = (name: string): string => `Next step for ${name}`;
 
-/** Where a contact came from — the source a working row names. */
-export const FROM_WORDS = { proposal: 'Proposal', signup: 'Signup', manual: 'By hand' } as const;
+/** Where a contact came from — the source a working row names. CRM-02 (2026-11-07): 'form' — a submission of the account's own intake form. */
+export const FROM_WORDS = { proposal: 'Proposal', signup: 'Signup', manual: 'By hand', form: 'Your form' } as const;
 
 /** A signup's "What they need" in CONTACTS: the plan it holds. */
 export const signedUpNeedWords = (plan: string): string => `Signed up — ${plan}`;
@@ -66,13 +66,13 @@ export const LEGACY_KEY_WORDS = 'legacy: ';
 
 export const NO_CONTACTS_WORDS = 'No one yet. Your proposal form and your signups fill this table on their own.';
 /** CRM-01a fix (Alex, 2026-11-07, ruling B): the Contacts line for anyone but the platform owner — the owner's line is false for them. */
-/** CRM-01b (Alex, 2026-11-07, ruling B): adding by hand is their first way in. */
-export const NO_CONTACTS_OWN_WORDS = 'No one yet. Add someone by hand above; your own intake form comes in CRM-02.';
+/** CRM-01b (Alex, 2026-11-07, ruling B): adding by hand is their first way in. CRM-02 (2026-11-07): their own intake form is the other. */
+export const NO_CONTACTS_OWN_WORDS = 'No one yet. Share your intake form (above) or add someone by hand.';
 export const NO_PROPOSALS_WORDS = 'No proposals yet.';
 export const NO_SIGNUPS_WORDS = 'No signups yet.';
 
-/** Anyone but the platform owner: proposals from templestuart.com are the owner's. */
-export const PROPOSALS_OWNER_ONLY_WORDS = 'Your own intake form is not built yet (CRM-02) — proposals from templestuart.com go to the platform owner.';
+/** Anyone but the platform owner: proposals from templestuart.com are the owner's; theirs come in through their own form (CRM-02, 2026-11-07). */
+export const PROPOSALS_OWNER_ONLY_WORDS = 'Proposals from templestuart.com go to the platform owner. Yours come in through your own form — the Form submissions table.';
 /** Anyone but the platform owner: signups are the owner's leads. */
 export const SIGNUPS_OWNER_ONLY_WORDS = "Signups are the platform owner's leads.";
 

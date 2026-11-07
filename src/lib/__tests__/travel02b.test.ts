@@ -111,7 +111,9 @@ test('A the schema carries the model last, its relations RESTRICT, and the two b
   // TRAVEL-02c (2026-11-03): living_baselines followed it and is the schema's last model now; travel_expenses is the one before it.
   // CRM-01a (2026-11-07): crm_contacts followed living_baselines and is the schema's last now; living_baselines is the one
   // before it. Moved, not loosened.
-  assert.ok(schema.trimEnd().endsWith('@@map("crm_contacts")\n}'), 'crm_contacts, last');
+  // CRM-02 (2026-11-07): crm_forms and crm_form_submissions followed crm_contacts; crm_form_submissions is the schema's last now.
+  assert.ok(schema.indexOf('@@map("crm_contacts")') < schema.indexOf('model crm_forms {'), 'crm_contacts, then CRM-02’s two');
+  assert.ok(schema.trimEnd().endsWith('@@map("crm_form_submissions")\n}'), 'crm_form_submissions, last');
   const afterBaselines = schema.slice(schema.indexOf('@@map("living_baselines")'), schema.indexOf('model crm_contacts {'));
   assert.ok(afterBaselines.length > 0 && !/^model /m.test(afterBaselines), 'living_baselines is the model just before it');
   const between = schema.slice(schema.indexOf('@@map("travel_expenses")'), schema.indexOf('model living_baselines {'));

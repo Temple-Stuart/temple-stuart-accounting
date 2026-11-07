@@ -44,7 +44,7 @@ export interface FindPlaceResult {
  * WHAT THE APP ACTUALLY HOLDS (GEO-01 STEP 1, audited): there is no current
  * -location COORDINATE anywhere — every latitude/longitude column in
  * schema.prisma belongs to a trip, a place, a reservation or an event. What
- * exists is `operations_north_star.current_location_label` (schema:3663), a
+ * exists is `operations_north_star.current_location_label` (schema:3665 (as of CRM-02, 2026-11-07: the users model grew two relations)), a
  * free-text label like "Bangkok". So the bias is applied the only way that adds
  * no source and no second call: the label is appended to the query text.
  * Turning the label into a `location=`/`radius=` pair would need the Geocoding

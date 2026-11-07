@@ -6,7 +6,7 @@
  * the rows already on the grid.
  *
  * The lookup is on (source, source_id) — the pair idx_calendar_events_source
- * indexes (schema.prisma:1736). The index is NOT unique, so the check is done
+ * indexes (schema.prisma:1738 (as of CRM-02, 2026-11-07: the users model grew two relations)). The index is NOT unique, so the check is done
  * here rather than relying on the database to refuse a duplicate.
  *
  * category and color match the source: a paid booking is not a planned trip item,

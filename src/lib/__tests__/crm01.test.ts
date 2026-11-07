@@ -108,7 +108,7 @@ const WORKING: WorkingInput[] = [
 
 const proposals = () => proposalRowsOf([P1, P2]);
 const signups = () => signupRowsOf({ users: USERS, providers: PROVIDERS, activeKeys: ACTIVE, readerId: READER });
-const contacts = (working: readonly WorkingInput[] = WORKING) => contactsOf({ proposals: proposals(), signups: signups(), working, today: TODAY });
+const contacts = (working: readonly WorkingInput[] = WORKING) => contactsOf({ proposals: proposals(), signups: signups(), submissions: [], working, today: TODAY }); // CRM-02 (2026-11-07): submissions — intakeForm01 holds the form rows
 const byKey = (rows: readonly ContactRow[], key: string): ContactRow => { const r = rows.find((x) => x.key === key); assert.ok(r, key); return r; };
 const cellOf = <Row, Key extends string>(columns: readonly TableColumn<Row, Key>[], key: Key, row: Row): string => {
   const c = columns.find((x) => x.key === key);
@@ -150,7 +150,7 @@ test('T1 contactsOf: every proposal and every signup but the reader, and the con
   assert.equal(BLANK, '—');
   assert.equal(cellOf(columns, 'stage', grace), 'New'); // CRM-01b (2026-11-07): the Stage column prints STAGE_WORDS — the words the row's select shows
   assert.deepEqual(rows.map((r) => cellOf(columns, 'from', r)), ['By hand', 'Proposal', 'Signup', 'Proposal', 'Signup']);
-  assert.deepEqual(FROM_WORDS, { proposal: 'Proposal', signup: 'Signup', manual: 'By hand' });
+  assert.deepEqual(FROM_WORDS, { proposal: 'Proposal', signup: 'Signup', manual: 'By hand', form: 'Your form' }); // CRM-02 (2026-11-07): 'form' — a submission of the account's own intake form
   // With no working row at all, every contact is new.
   assert.ok(contacts([]).every((r) => r.stage === 'new' && r.next_step === null && r.last_touch === null));
   assert.deepEqual(contacts([]).map((r) => r.key), ['proposal:p-2', 'signup:u-1', 'proposal:p-1', 'signup:u-2']);
@@ -211,7 +211,7 @@ test('T2 planWords: a signup\'s OWN active keys named by the offers (ruling 3); 
 });
 
 test('T2 contactsOf\'s laws: a record that contradicts itself is named, never smoothed', () => {
-  const run = (working: readonly WorkingInput[], today = TODAY) => () => contactsOf({ proposals: proposals(), signups: signups(), working, today });
+  const run = (working: readonly WorkingInput[], today = TODAY) => () => contactsOf({ proposals: proposals(), signups: signups(), submissions: [], working, today });
   const named = (re: RegExp) => (e: unknown) => e instanceof CrmLawError && re.test(e.message);
   assert.throws(run([workingRow({ id: 'w-9', source: 'proposal', source_ref: 'p-404' })]), named(/a working row names proposal:p-404, which the read did not return/));
   assert.throws(run([workingRow({ id: 'w-9', source: 'signup', source_ref: READER })]), named(/a working row names signup:u-reader, which the read did not return/), 'the reader is no contact of their own');
@@ -300,9 +300,11 @@ test('T4 the section: one read, three shared DataTables in order — contacts, p
   assert.match(s, /import DataTable, \{ cellClass, chipClass \} from '@\/components\/table\/DataTable';/); // CRM-01b: the row's cells and the controls-row chip
   assert.equal((s.match(/<DataTable\b/g) ?? []).length, 1, 'one DataTable, inside the one table component');
   assert.equal((s.match(/readJson\('\/api\/crm', 'The CRM'\)/g) ?? []).length, 1, 'one read');
-  const mounts = [...s.matchAll(/<CrmTable\s+name=\{(CRM_[A-Z]+_TABLE_NAME)\}\s+title=\{([A-Z_]+)\}\s+columns=\{(\w+)\}\s+rows=\{read\.(\w+)\}/g)].map((m) => m.slice(1).join(' '));
+  // CRM-02 (2026-11-07): a fourth table — Form submissions, between Contacts and Proposals (CLOSED 7); its name constant is forms.ts's (no CRM_ prefix).
+  const mounts = [...s.matchAll(/<CrmTable\s+name=\{([A-Z_]+_TABLE_NAME)\}\s+title=\{([A-Z_]+)\}\s+columns=\{(\w+)\}\s+rows=\{read\.(\w+)\}/g)].map((m) => m.slice(1).join(' '));
   assert.deepEqual(mounts, [
     'CRM_CONTACTS_TABLE_NAME CONTACTS_TABLE_WORDS contactColumns contacts',
+    'SUBMISSIONS_TABLE_NAME FORM_SUBMISSIONS_TABLE_WORDS submissionColumns submissions',
     'CRM_PROPOSALS_TABLE_NAME PROPOSALS_TABLE_WORDS proposalColumns proposals',
     'CRM_SIGNUPS_TABLE_NAME SIGNUPS_TABLE_WORDS signupColumns signups',
   ]);
@@ -362,7 +364,7 @@ test('T5 the route: the caller first — 401, then 404 — then whose rows, deci
   assert.match(ownerPart, /prisma\.user\.findMany\(\{ where: \{ email: \{ not: null \} \}, select: \{ email: true, accounts: \{ select: \{ provider: true \} \} \} \}\)/, 'the NextAuth providers');
   assert.match(ownerPart, /where: \{ userId: \{ in: userRows\.map\(\(u\) => u\.id\) \}, status: 'active', OR: \[\{ currentPeriodEnd: null \}, \{ currentPeriodEnd: \{ gt: now \} \}\] \},/, 'each signup\'s own ACTIVE entitlements — entitlements.ts\'s rule');
   assert.doesNotMatch(r, /status: true|ownerNotes|owner_notes|ipHash|ip_hash/, 'never status, owner notes or the IP hash');
-  assert.match(r, /return NextResponse\.json\(\{ ownerOnly: !owner, contacts, proposals, signups, said: \[\] as string\[\] \}\);/);
+  assert.match(r, /return NextResponse\.json\(\{ ownerOnly: !owner, contacts, form, submissions, proposals, signups, said: \[\] as string\[\] \}\);/); // CRM-02 (2026-11-07): the form and its submissions ride the one answer
   // Reads only.
   assert.doesNotMatch(r, /\.(create|update|upsert|delete|deleteMany|createMany|updateMany)\(|export async function (POST|PATCH|PUT|DELETE)/, 'it writes nothing');
   // A failure is said: AdminConfigError (ADMIN_USER_ID unset) and a CrmLawError answer 500 with their words; anything else fails closed.
@@ -404,10 +406,10 @@ test('T7 CRM is PARTIAL at /crm with four beats and its own table, its why and c
   assert.equal(t.ownTable, 'crm_contacts'); // CRM-01b (2026-11-07): the working table is written by its own route — the deck's step 6 moves to five
   assert.match(t.ownTableRoute ?? '', /^src\/app\/api\/crm\/contacts\/route\.ts:\d+ \(crm_contacts\.create/);
   assert.equal(t.links, undefined);
-  assert.equal(t.why, 'the people you sell to: every proposal from the platform\'s form and every signup for the owner, anyone added by hand for every account; a stage and a next step on the row; a customer\'s own intake form is not built (CRM-02), and nothing is sent from here'); // CRM-01b (2026-11-07)
+  assert.equal(t.why, 'the people you sell to: every proposal from the platform\'s form and every signup for the owner; anyone added by hand and every submission of their own intake form, at its own link or embedded, for every account; a stage and a next step on the row; nothing is sent from here; per-account stages and fields are not built (CRM-03)'); // CRM-02 (2026-11-07): rewritten (BUILD 14); CRM-01b's stood until then
   // CRM-01a fix (Alex, 2026-11-07, ruling C): the public sentence tells a customer what their CRM holds today; its own
   // "Partly built: " went (the second fix) — the plans table prints its status words before it.
-  assert.equal(t.customer, 'The people you sell to, in flat tables: set each one\'s stage and next step, add someone by hand. Not built yet: your own intake form — so today only the platform\'s own proposal form and signups fill it on their own.'); // CRM-01b (2026-11-07)
+  assert.equal(t.customer, 'The people you sell to, in flat tables. Your own intake form — at your own link, or embedded on your site — fills it; set each one\'s stage and next step; add someone by hand.'); // CRM-02 (2026-11-07): rewritten (BUILD 14)
   const reg = code(REGISTRY);
   assert.ok(reg.includes("slug: 'crm', status: 'PARTIAL', beats: some({ discover: true, decide: true, commit: true, record: true }), home: '/crm',"), 'the some() form on its slug line'); // CRM-01b: four beats
   // CRM-01b (2026-11-07): the ownTable line's note says the table is written by its own route now (ruling 2's "written by nothing until CRM-01b" is history).
@@ -415,7 +417,7 @@ test('T7 CRM is PARTIAL at /crm with four beats and its own table, its why and c
   const lineOf = (file: string, n: number): string => code(file).split('\n')[n - 1] ?? '';
   const n = (re: RegExp): number => { const m = t.citation.match(re); assert.ok(m, String(re)); return Number(m[1]); };
   assert.match(lineOf(ROUTE, n(/^discover: src\/app\/api\/crm\/route\.ts:(\d+) \(GET \/api\/crm/)), /^export async function GET\(/);
-  assert.match(lineOf(SECTION, n(/record: src\/components\/crm\/CrmSection\.tsx:(\d+) \(the three tables/)), /name=\{CRM_CONTACTS_TABLE_NAME\}/);
+  assert.match(lineOf(SECTION, n(/record: src\/components\/crm\/CrmSection\.tsx:(\d+) \(the four tables/)), /name=\{CRM_CONTACTS_TABLE_NAME\}/); // CRM-02 (2026-11-07): four tables
   // CRM-01b (2026-11-07): /owner's proposals panel and routes retired into the CRM — the citation says so, and names the four beats.
   assert.match(t.citation, /\/owner is the accounts console — its proposals panel and the two \/api\/owner\/proposals routes retired into the CRM \(CRM-01b\)$/);
   for (const beat of ['discover: ', 'decide: ', 'commit: ', 'record: ']) assert.ok(t.citation.includes(beat), beat);
@@ -467,8 +469,10 @@ test('T7 the plans row derives ◐ with the customer line (ruling 10); /owner ke
 
 test('T8 the migration: the newest; one table — the four CHECKs by name, the partial unique index, the cascade to users — nothing written, nothing dropped; authored, not applied', () => {
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261106120000_one_form_01_close_need', 'right after ONE-FORM-01\'s');
+  // CRM-02 (2026-11-07): the intake form's two tables followed — CRM-01a's is second-newest now; its content pins below stand.
+  assert.equal(dirs[dirs.length - 1], '20261107212000_crm_02_intake_forms', 'the newest migration');
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'right before it, CRM-01a\'s');
+  assert.equal(dirs[dirs.length - 3], '20261106120000_one_form_01_close_need', 'right after ONE-FORM-01\'s');
   const sql = code(MIGRATION);
   assert.match(sql, /CREATE TABLE "crm_contacts" \(\n\s+"id"\s+UUID NOT NULL DEFAULT gen_random_uuid\(\),\n\s+"user_id"\s+TEXT NOT NULL,\n\s+"source"\s+VARCHAR\(20\) NOT NULL,\n\s+"source_ref"\s+TEXT,\n\s+"name"\s+VARCHAR\(255\),\n\s+"business"\s+TEXT,\n\s+"email"\s+VARCHAR\(255\),\n\s+"stage"\s+VARCHAR\(20\) NOT NULL DEFAULT 'new',\n\s+"next_step"\s+TEXT,\n\s+"last_touch_at"\s+TIMESTAMPTZ\(6\),\n\s+"created_at"\s+TIMESTAMP\(3\) NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\s+"updated_at"\s+TIMESTAMP\(3\) NOT NULL,\n\s+CONSTRAINT "crm_contacts_pkey" PRIMARY KEY \("id"\),/);
   assert.match(sql, /CONSTRAINT "crm_contacts_source_chk" CHECK \("source" IN \('proposal', 'signup', 'manual'\)\)/);
@@ -504,7 +508,9 @@ test('T8 the schema: model crm_contacts column for column with the SQL, cascadin
     /@@index\(\[user_id\], map: "crm_contacts_user_id_idx"\)/,
   ]) assert.match(model, field);
   assert.match(schema, /^\s+crm_contacts\s+crm_contacts\[\][ \t]*$/m, 'users names the relation');
-  assert.ok(schema.trimEnd().endsWith('@@map("crm_contacts")\n}'), 'the schema\'s last model — no line above it moved');
+  // CRM-02 (2026-11-07): its two models sit after crm_contacts, which is no longer the last; nothing above crm_contacts moved but users' two relation lines.
+  assert.ok(schema.indexOf('model crm_contacts {') < schema.indexOf('model crm_forms {') && schema.indexOf('model crm_forms {') < schema.indexOf('model crm_form_submissions {'), 'crm_contacts, then CRM-02\'s two');
+  assert.ok(schema.trimEnd().endsWith('@@map("crm_form_submissions")\n}'), 'the schema\'s last model is CRM-02\'s');
   const notes = comments(SCHEMA);
   for (const check of ['crm_contacts_source_chk', 'crm_contacts_stage_chk', 'crm_contacts_ref_chk', 'crm_contacts_manual_chk', 'crm_contacts_user_source_ref_key']) assert.ok(notes.includes(check), `the schema names ${check}`);
   assert.ok(notes.includes(`prisma/migrations/${MIGRATION_DIR}`));
@@ -530,7 +536,7 @@ test('FIX-A planWords: an offer key by its label; a tab key as "tab: <key>"; a G
     providers: new Map(), activeKeys: new Map([['u-7', ['dinner', 'tab:trade']]]), readerId: READER,
   });
   assert.equal(held[0].plan, 'tab: tab:trade · legacy: dinner');
-  assert.equal(contactsOf({ proposals: [], signups: held, working: [], today: TODAY })[0].need, 'Signed up — tab: tab:trade · legacy: dinner');
+  assert.equal(contactsOf({ proposals: [], signups: held, submissions: [], working: [], today: TODAY })[0].need, 'Signed up — tab: tab:trade · legacy: dinner');
 });
 
 test('FIX-A planWords: a key outside every vocabulary still stops, by name — "nonsense"', () => {
@@ -542,9 +548,9 @@ test('FIX-A planWords: a key outside every vocabulary still stops, by name — "
 
 test('FIX-B the member\'s render shows the non-owner\'s Contacts line, never the owner\'s; the owner keeps theirs', () => {
   const unescape = (html: string) => html.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-  const loaded = (ownerOnly: boolean): CrmLoaded => ({ kind: 'loaded', ownerOnly, contacts: [], proposals: [], signups: [], said: [] });
+  const loaded = (ownerOnly: boolean): CrmLoaded => ({ kind: 'loaded', ownerOnly, contacts: [], form: null, submissions: [], proposals: [], signups: [], said: [] }); // CRM-02: no form yet
   const render = (ownerOnly: boolean) => unescape(renderToStaticMarkup(React.createElement(CrmTables, { read: loaded(ownerOnly), onWritten: () => undefined }))); // CRM-01b: the re-read hook
-  assert.equal(NO_CONTACTS_OWN_WORDS, 'No one yet. Add someone by hand above; your own intake form comes in CRM-02.'); // CRM-01b (2026-11-07): adding by hand is their way in
+  assert.equal(NO_CONTACTS_OWN_WORDS, 'No one yet. Share your intake form (above) or add someone by hand.'); // CRM-02 (2026-11-07): their own form is their first way in; CRM-01b's words stood until then
   const member = render(true);
   assert.ok(member.includes(NO_CONTACTS_OWN_WORDS), 'the member reads their own line');
   assert.ok(!member.includes(NO_CONTACTS_WORDS), 'and never the owner\'s');

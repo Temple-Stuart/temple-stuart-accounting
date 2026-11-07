@@ -868,6 +868,8 @@ model users {
   arrivals                arrivals[]
   verification_tokens     verification_tokens[]
   crm_contacts            crm_contacts[] // CRM-01a: the contacts this user is working — their stage, next step and last touch
+  crm_forms               crm_forms[] // CRM-02: this user's own intake form (one row, crm_forms_user_id_key)
+  crm_form_submissions    crm_form_submissions[] // CRM-02: every submission of their form — user_id is the form owner's
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4746,7 +4748,7 @@ model living_baselines {
 model crm_contacts {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id       String
-  source        String    @db.VarChar(20) // CHECK crm_contacts_source_chk: 'proposal' | 'signup' | 'manual'
+  source        String    @db.VarChar(20) // CHECK crm_contacts_source_chk: 'proposal' | 'signup' | 'manual' | 'form' — CRM-02 (2026-11-07) widened it to four ('form': a submission of the account's own intake form, source_ref its crm_form_submissions.id)
   source_ref    String? // CHECK crm_contacts_ref_chk: NULL exactly when source = 'manual' (a proposals.id or a users.id otherwise)
   name          String?   @db.VarChar(255) // CHECK crm_contacts_manual_chk: set, with email, when source = 'manual'
   business      String?
@@ -4760,4 +4762,45 @@ model crm_contacts {
 
   @@index([user_id], map: "crm_contacts_user_id_idx")
   @@map("crm_contacts")
+}
+
+// ─── CRM-02 (Alex, 2026-11-07): every account's own intake form, and what it brings in ───
+// crm_forms: ONE row per account (crm_forms_user_id_key) — its public slug (global, crm_forms_slug_key), its title and
+// line, and up to twelve questions of its own as JSON ({ id, label, kind, required, shown }; the ids are the server's).
+// crm_form_submissions: one row per submission, FROZEN as it came in — the three fixed fields and `answers`, the questions
+// AS ASKED ([{ id, label, kind, required, value }]); user_id is the FORM OWNER'S, denormalized so every read is WHERE
+// user_id = the caller's. Created by prisma/migrations/20261107212000_crm_02_intake_forms (AUTHORED, NOT APPLIED until
+// the production deploy), which also widens crm_contacts_source_chk to 'form'. HELD BY THE DATABASE, named on their
+// columns below — Prisma cannot express a CHECK: crm_forms_slug_chk, crm_forms_title_chk, crm_forms_line_chk,
+// crm_forms_questions_chk, crm_form_submissions_name_chk, crm_form_submissions_email_chk, crm_form_submissions_answers_chk.
+model crm_forms {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String    @unique(map: "crm_forms_user_id_key") // ONE form per account (CLOSED 2)
+  slug        String    @unique(map: "crm_forms_slug_key") @db.VarChar(40) // CHECK crm_forms_slug_chk: ^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])?$ and 3 to 40 long — global, never lowercased or trimmed
+  title       String    @db.VarChar(120) // CHECK crm_forms_title_chk: never blank
+  line        String?   @db.VarChar(500) // CHECK crm_forms_line_chk: NULL or never blank
+  questions   Json      @default("[]") // CHECK crm_forms_questions_chk: a JSON array of at most 12 — src/lib/crm/forms.ts FormQuestion
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @db.Timestamptz(6)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  submissions crm_form_submissions[]
+
+  @@map("crm_forms")
+}
+
+model crm_form_submissions {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  form_id    String    @db.Uuid
+  user_id    String // the FORM OWNER's users.id, copied from the form on insert — never the sender's
+  name       String    @db.VarChar(255) // CHECK crm_form_submissions_name_chk: never blank
+  email      String    @db.VarChar(255) // CHECK crm_form_submissions_email_chk: never blank
+  business   String?
+  answers    Json // CHECK crm_form_submissions_answers_chk: a JSON array — the questions AS ASKED, src/lib/crm/forms.ts SubmissionAnswer
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  form       crm_forms @relation(fields: [form_id], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "crm_form_submissions_form_id_fkey")
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "crm_form_submissions_user_id_fkey")
+
+  @@index([user_id, created_at], map: "crm_form_submissions_user_created_idx")
+  @@index([form_id], map: "crm_form_submissions_form_id_idx")
+  @@map("crm_form_submissions")
 }

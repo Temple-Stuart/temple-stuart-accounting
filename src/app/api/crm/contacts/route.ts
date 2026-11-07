@@ -15,6 +15,9 @@
  *         source_ref) — Prisma cannot name a partial index, so: findFirst, then update or create, inside ONE
  *         $transaction, both carrying user_id = the caller's.
  *       · 'manual:<id>' — updateMany WHERE id AND user_id = the caller's; count 0 → 404.
+ *       · 'form:<submission id>' — CRM-02 (Alex, 2026-11-07, CLOSED 4): the submission must be the caller's
+ *         (crm_form_submissions.findFirst { id, user_id }) → else 404, never 403; then the working row on the partial
+ *         key, exactly as a proposal's or a signup's.
  *     last_touch_at = the server's now on every PATCH that changes something, updated_at the same instant; a PATCH that
  *     changes nothing (the same stage, the same next step — or 'new' and no next step on an untouched contact) writes
  *     no row. Nothing from the client names the time. Answers { ok: true, key }; the page re-reads GET /api/crm after.
@@ -87,16 +90,23 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ ok: true, key: d.key });
     }
 
-    // 'proposal' | 'signup' — the platform owner's contacts. Anyone else has none: 404, never 403.
-    if (!owner) return notFound();
-    if (named.source === 'proposal') {
+    if (named.source === 'form') {
+      // CRM-02: a submission is the form owner's — read by { id, user_id } → else 404, never 403.
       if (!isValidUuid(named.ref)) return notFound();
-      const proposal = await prisma.proposals.findUnique({ where: { id: named.ref }, select: { id: true } });
-      if (!proposal) return notFound();
+      const submission = await prisma.crm_form_submissions.findFirst({ where: { id: named.ref, user_id: user.id }, select: { id: true } });
+      if (!submission) return notFound();
     } else {
-      if (named.ref === user.id) return notFound(); // the caller is no contact of their own
-      const signup = await prisma.users.findUnique({ where: { id: named.ref }, select: { id: true } });
-      if (!signup) return notFound();
+      // 'proposal' | 'signup' — the platform owner's contacts. Anyone else has none: 404, never 403.
+      if (!owner) return notFound();
+      if (named.source === 'proposal') {
+        if (!isValidUuid(named.ref)) return notFound();
+        const proposal = await prisma.proposals.findUnique({ where: { id: named.ref }, select: { id: true } });
+        if (!proposal) return notFound();
+      } else {
+        if (named.ref === user.id) return notFound(); // the caller is no contact of their own
+        const signup = await prisma.users.findUnique({ where: { id: named.ref }, select: { id: true } });
+        if (!signup) return notFound();
+      }
     }
     await prisma.$transaction(async (tx) => {
       const found = await tx.crm_contacts.findFirst({
