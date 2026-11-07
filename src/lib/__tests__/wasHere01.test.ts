@@ -491,7 +491,8 @@ test('T5 Landing mounts the log once, after the experiences mount and before the
   const notes = comments(LANDING);
   assert.match(notes, /MY TRIP {13}— the trip log, a card per stop, each opening its stop's page \(TRIPCARDS-01\)/);
   assert.doesNotMatch(notes, /trip log, newest first|the trip log — Alex's own stops, newest first/, 'WASHERE-03');
-  assert.match(notes, /my trip \| guest strip \/ plans → my trip's border-b \(WASHERE-01/);
+  // HOME-PANELS-02 (2026-11-07): done-for-you sits under the trip now (the plans below it) — the rule is unchanged, the neighbour new.
+  assert.match(notes, /my trip \| guest strip \/ done-for-you → my trip's border-b \(WASHERE-01/);
   for (const phrase of [/THE PLANS\s+— four plan cards and one comparison table/, /id="modules" lives on THE PLANS act/, /said by the four plans below/]) assert.match(notes, phrase, 'cockpitPerf01\'s pins stand');
 });
 

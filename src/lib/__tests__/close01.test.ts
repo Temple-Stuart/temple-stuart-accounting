@@ -220,14 +220,21 @@ test('T4 Landing mounts the card once, inside the DONE-FOR-YOU white card after 
   assert.doesNotMatch(landing, /Need help setting it up/);
   const pipeline = landing.indexOf('<section aria-label="The pipeline"');
   assert.ok(pipeline > sectionEnd);
-  assert.match(landing.slice(sectionEnd + '</section>'.length, pipeline), /^\s*(\{\s*\}\s*)*$/, 'nothing but a comment between DONE-FOR-YOU and the pipeline header — the close act is gone');
+  // HOME-PANELS-02 (2026-11-07): THE PLANS sits between DONE-FOR-YOU and the pipeline header now — its one mount and comments, nothing else (homePanels02 pins the order).
+  const between = landing.slice(sectionEnd + '</section>'.length, pipeline);
+  const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />";
+  assert.equal(between.split(PLANS_MOUNT).length - 1, 1, 'the plans mount once between');
+  assert.match(between.replace(PLANS_MOUNT, ''), /^\s*(\{\s*\}\s*)*$/, 'nothing but a comment and the plans mount between DONE-FOR-YOU and the pipeline header — the close act is gone');
   assert.doesNotMatch(landing, /data-close=|id="close"|CLOSE_ANCHOR/, 'the card renders its own anchor');
   // the act list, the seam note and the seam ledger — rewritten in place, dated
   const notes = comments(LANDING);
-  assert.match(notes, / \*   \(THE CLOSE {10}— HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal\)\n \*   THE PIPELINE header — /, 'the act list');
+  // HOME-PANELS-02 (2026-11-07): THE PLANS' three lines sit between the THE CLOSE note and THE PIPELINE header now.
+  assert.match(notes, / \*   \(THE CLOSE {10}— HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal\)\n \*   THE PLANS {11}— four plan cards and one comparison table\n[\s\S]{0,200}? \*   THE PIPELINE header — /, 'the act list');
   assert.ok(notes.includes("(the close | pipeline header → gone: HOME-PANELS-01, 2026-11-07 — the close is a card inside done-for-you, its fifth door; HOME-05a, 2026-11-03, had it as a cream act of its own between them, so done-for-you | pipeline header is done-for-you's border-b again, as before HOME-05a)"), 'the seam ledger');
-  assert.ok(notes.includes("done-for-you | pipeline header → done-for-you's border-b"), 'the ledger\'s standing line');
-  assert.ok(notes.includes('HOME-PANELS-01, 2026-11-07, folded the close\n            into this card as its fifth door, so this edge closes done-for-you|pipeline\n            header again'), 'the seam note on the section');
+  // HOME-PANELS-02 (2026-11-07): done-for-you moved above the plans — the plans act's border-b closes this seam now.
+  assert.ok(notes.includes("plans | pipeline header → the plans act's border-b (HOME-PANELS-02, 2026-11-07: done-for-you moved above the plans; until then done-for-you's border-b closed this seam)"), 'the ledger\'s line for the seam above the header');
+  // HOME-PANELS-02 (2026-11-07): the section's seam note re-said for its new neighbours — this edge closes done-for-you|plans; the close seams are history.
+  assert.ok(notes.includes("HOME-PANELS-01, 2026-11-07, folded\n            the close into this card as its fifth door; both seams are history.)"), 'the seam note on the section');
   assert.match(notes, /HOME-PANELS-01 \(Alex, 2026-11-07\): THE FIFTH DOOR, LAST/, 'the mount\'s comment');
   assert.match(code(LANDING).split('\n')[1806], /^\s+s08: /, 'Landing.tsx:1807 is still the s08 line — the act line reworded in place');
 });

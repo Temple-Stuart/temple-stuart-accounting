@@ -12,15 +12,15 @@
  *   MY TRIP             — the trip log, a card per stop, each opening its stop's page (TRIPCARDS-01)
  *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
  *                         renders only when records exist
- *   THE PLANS           — four plan cards and one comparison table
- *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
- *                         the section carries id="modules"
- *   DONE-FOR-YOU        — the professional-services panel
+ *   DONE-FOR-YOU        — the professional-services panel (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)
  *   (COCKPIT-PERF-01, 2026-10-27: the PERSONAS act — "one system · six lives" —
  *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
  *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
  *   with THE PLANS.)
  *   (THE CLOSE          — HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal)
+ *   THE PLANS           — four plan cards and one comparison table
+ *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
+ *                         the section carries id="modules"
  *   THE PIPELINE header — names the 14-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
@@ -2207,24 +2207,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
 
-      {/* ── OFFER-01 (2026-09-23): THE PLANS — what replaced TWO acts here.
-            GONE, and re-created nowhere on this page:
-              · ACT 2, the six-row persona grid headed "ONE SYSTEM · SIX LIVES"
-                with its "Who is this for?" hook — a visitor had to pick a life
-                before the page told them what they could buy;
-              · the SELL-02 offer act — two <OfferCard/>s (Books · Everything)
-                whose every tool wore the registry STATUS CHIP and the loop's own
-                beat vocabulary ("partial — discover · decide"), under a second
-                copy of the hero's registry count, over freeSetLine()'s "the
-                registry's live tools with no tab gate".
-            In their place: three cumulative plan cards and ONE comparison table
-            of collapsed capability groups, every word and every cell derived in
-            src/lib/offer/plans.ts. id="modules" RIDES ON — the Stripe cancel_url
-            (checkout-entitlement/route.ts:71), the /modules access block and
-            /pricing all resolve to it, so the anchor moves with the section, not
-            away from it. The door is the sign-up modal: no price is set, so the
-            slot says so and the button joins early access. ─────────────────── */}
-      <PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own section — no right slot. Body = the PROFESSIONAL SERVICES
             panel relocated WHOLESALE from the 05 grid (markup byte-identical
@@ -2235,14 +2217,24 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             '04 / ' prefix when it moved up with the demo; the numbered acts
             below it start at 01 and the sequence is contiguous without it.
 
+            SEAT (HOME-PANELS-02, Alex, 2026-11-07 23:53): directly under MY TRIP
+            (the trip log — and the guest's strip, when it renders) and directly
+            above THE PLANS (early access). Why: the services sit under the trip
+            and above early access while the system is still being built; the
+            pipe below the plans is the system's own. The section moved here
+            WHOLESALE from its seat between the plans and the pipeline header —
+            byte-identical inside <section>…</section>; only this comment and
+            the position changed.
+
             SEAM: border-b ONLY — the border-t is deliberately gone. The act
-            directly above (the personas act since PR-REORDER) already closes
-            that boundary with its own border-b, and a border-t here would
-            have made it the page's only two-rule seam. This section's bottom
-            edge closes done-for-you|pipeline header (HOME-05a, 2026-11-03, seated
-            the close act between them; HOME-PANELS-01, 2026-11-07, folded the close
-            into this card as its fifth door, so this edge closes done-for-you|pipeline
-            header again). ─────────────────────────────────────────────── */}
+            directly above closes that boundary with its own border-b — MY TRIP's
+            (WASHERE-01's cream act), or the guest strip's when it renders — and
+            a border-t here would have made it the page's only two-rule seam.
+            This section's bottom edge closes done-for-you|plans; the plans act's
+            own border-b (PlansSection.tsx) closes plans|pipeline header, as it
+            closed plans|done-for-you until now. (HOME-05a, 2026-11-03, seated
+            the close act under this section; HOME-PANELS-01, 2026-11-07, folded
+            the close into this card as its fifth door; both seams are history.) ── */}
       <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
@@ -2309,6 +2301,25 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         </div>
       </section>
 
+      {/* ── OFFER-01 (2026-09-23): THE PLANS — what replaced TWO acts here.
+            GONE, and re-created nowhere on this page:
+              · ACT 2, the six-row persona grid headed "ONE SYSTEM · SIX LIVES"
+                with its "Who is this for?" hook — a visitor had to pick a life
+                before the page told them what they could buy;
+              · the SELL-02 offer act — two <OfferCard/>s (Books · Everything)
+                whose every tool wore the registry STATUS CHIP and the loop's own
+                beat vocabulary ("partial — discover · decide"), under a second
+                copy of the hero's registry count, over freeSetLine()'s "the
+                registry's live tools with no tab gate".
+            In their place: three cumulative plan cards and ONE comparison table
+            of collapsed capability groups, every word and every cell derived in
+            src/lib/offer/plans.ts. id="modules" RIDES ON — the Stripe cancel_url
+            (checkout-entitlement/route.ts:71), the /modules access block and
+            /pricing all resolve to it, so the anchor moves with the section, not
+            away from it. The door is the sign-up modal: no price is set, so the
+            slot says so and the button joins early access. ─────────────────── */}
+      <PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />
+
       {/* ── THE PIPELINE HEADER (PR-CHROME → PR-PIPE-TITLE → PR-STEP-2).
             Names the 14-step run so the collapsed bars below read as one unit, and
             says what the pipeline IS — the data pipe the whole system runs
@@ -2319,9 +2330,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             same breath as this PR); the two mono lines are the run's name
             and the essay's Date · Time · Money subtitle in the label tier.
             Act grammar, existing classes only.
-            SEAM: this act takes border-b — done-for-you's border-b closes
-            done-for-you|header from above, and this act's border-b closes
-            header|01, which preserves 01's own no-border exception exactly
+            SEAM: this act takes border-b — the plans act's border-b closes
+            plans|header from above (HOME-PANELS-02, 2026-11-07: done-for-you
+            moved above the plans; its border-b closed this seam until then),
+            and this act's border-b closes header|01, which preserves 01's own
+            no-border exception exactly
             as the seam ledger records it. One rule per boundary, both
             boundaries. */}
       <section aria-label="The pipeline" className="max-w-7xl mx-auto px-4 lg:px-8 pt-9 lg:pt-[60px] pb-9 lg:pb-[60px] border-b border-border">
@@ -2363,8 +2376,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          like the hero, so its own bottom edge closes
                                          the seam below it by colour — experiences | my trip
                                          since WASHERE-01)
-              my trip | guest strip / plans → my trip's border-b (WASHERE-01, 2026-10-31: a
-                                         cream act, the DONE-FOR-YOU idiom, one rule)
+              my trip | guest strip / done-for-you → my trip's border-b (WASHERE-01, 2026-10-31: a
+                                         cream act, the DONE-FOR-YOU idiom, one rule; HOME-PANELS-02,
+                                         2026-11-07: done-for-you sits here now, the plans below it)
+              done-for-you | plans     → done-for-you's border-b (HOME-PANELS-02, 2026-11-07)
               live demo | personas     → the demo act's border-b (PR-REORDER
                                          moved personas above done-for-you —
                                          the who-first order; the strip case
@@ -2376,7 +2391,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          rule travels with the act; the
                                          PR-MODULES placeholder comment between
                                          them is not DOM)
-              done-for-you | pipeline header → done-for-you's border-b
+              plans | pipeline header → the plans act's border-b (HOME-PANELS-02, 2026-11-07: done-for-you moved above the plans; until then done-for-you's border-b closed this seam)
               (the close | pipeline header → gone: HOME-PANELS-01, 2026-11-07 — the close is a card inside done-for-you, its fifth door; HOME-05a, 2026-11-03, had it as a cream act of its own between them, so done-for-you | pipeline header is done-for-you's border-b again, as before HOME-05a)
               pipeline header | 01 problem   → the header's border-b (PR-CHROME
                                          seated the header act between them;
