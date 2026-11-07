@@ -14,8 +14,9 @@
  *      from closeWords, no modules question; with ?need=setup: setup picked, modules
  *      asked, no offer lines; with a word the form does not offer: nothing picked; after
  *      the book-by day: no close chip, and ?need=close picks nothing;
- *   T5 the doors — the four DONE-FOR-YOU cards and the close button open the form with
- *      their word; the path from the leaf, never typed in Landing or the words module.
+ *   T5 the doors — the five DONE-FOR-YOU doors (HOME-PANELS-01, 2026-11-07: the close card is the
+ *      fifth; its own button retired) open the form with their word; the path from the leaf, never
+ *      typed in Landing or the words module.
  * No live call, no database, no clock.
  */
 import { test } from 'node:test';
@@ -26,7 +27,7 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code, comments } from '../sourceText';
 import { CLOSE_OFFER, PROPOSAL_FORM_PATH } from '../offer/close';
-import { closeWords } from '../offer/closeWords';
+import { closeFormHref, closeWords } from '../offer/closeWords';
 import { PROPOSAL_NEEDS, SERVICE_NEED_LABELS, SERVICE_NEEDS } from '../proposalNeeds';
 import { SEGMENT } from '../ds';
 import { z } from 'zod';
@@ -138,7 +139,9 @@ test('T4 arriving with ?need=close: the chip picked, the offer\'s lines from clo
   const offer = /<div class="[^"]*" data-close-offer="true">([\s\S]*?)<\/div>/.exec(html);
   assert.ok(offer, 'the offer lines are shown');
   const lines = unescape(offer[1]).replace(/<[^>]+>/g, '\n').split('\n').map((s) => s.trim()).filter(Boolean);
-  assert.deepEqual(lines, [w.what, w.price, w.bookBy, w.notTax, w.remedy], 'what it is, the price, the book-by day, what it is not, the remedy');
+  // HOME-PANELS-01 (2026-11-07): priced by proposal — the priced line where the price line was.
+  assert.deepEqual(lines, [w.what, w.priced, w.bookBy, w.notTax, w.remedy], 'what it is, priced by proposal, the book-by day, what it is not, the remedy');
+  assert.doesNotMatch(unescape(offer[1]), /\$\d/, 'no figure on the form');
   assert.doesNotMatch(html, /data-modules|Which modules interest you/, 'no modules question for a close');
   assert.match(html, new RegExp(`placeholder="${w.done.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`), 'the done question\'s example is the close\'s');
   assert.match(unescape(html), /Or your 2026 books, closed\. Pick one below/);
@@ -178,7 +181,7 @@ test('T4 the form sends no modules for a close, and the Other description does n
 
 // ── T5 · THE DOORS ───────────────────────────────────────────────────────────
 
-test('T5 the four DONE-FOR-YOU cards and the close button open the form with their word; the path from the leaf, never typed', () => {
+test('T5 the five DONE-FOR-YOU doors — the four cards and the close card — open the form with their word; the path from the leaf, never typed', () => {
   const landing = code(LANDING);
   assert.match(landing, /import \{ PROPOSAL_FORM_PATH \} from '@\/lib\/offer\/close';/);
   assert.match(landing, /href=\{`\$\{PROPOSAL_FORM_PATH\}\?need=\$\{need\}`\}/, 'each card: the form with its word');
@@ -188,8 +191,13 @@ test('T5 the four DONE-FOR-YOU cards and the close button open the form with the
   assert.match(landing, /href=\{PROPOSAL_FORM_PATH\}/, 'the Send a project proposal button');
   assert.doesNotMatch(landing, /['"`]\/work-with-me['"`?]/, 'the path is never typed in Landing');
   assert.equal(PROPOSAL_FORM_PATH, '/work-with-me');
+  // HOME-PANELS-01 (2026-11-07): the close card is the door (CloseOfferCard.tsx) — closeFormHref is its href; the button words retired.
   const w = closeWords(CLOSE_OFFER, OPEN_DAY);
-  assert.ok(w.state === 'open' && w.button.href === '/work-with-me?need=close' && w.button.words === 'Book the 2026 close →');
+  assert.ok(w.state === 'open' && !('button' in w), 'no button words — the card itself is the door');
+  assert.equal(closeFormHref(CLOSE_OFFER), '/work-with-me?need=close');
+  const card = code('src/components/landing/CloseOfferCard.tsx');
+  assert.match(card, /href=\{closeFormHref\(offer\)\}/);
+  assert.match(card, /data-done-for-you=\{offer\.need\}/, 'the fifth door carries its word, from the leaf');
   assert.doesNotMatch(code(WORDS), /mailto/);
   const list = ['setup', 'maintenance', 'custom', 'embed'];
   assert.deepEqual(list.filter((n) => (PROPOSAL_NEEDS as readonly string[]).includes(n)), list, 'every card\'s word is one the table holds');

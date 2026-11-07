@@ -20,7 +20,7 @@
  *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
  *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
  *   with THE PLANS.)
- *   THE CLOSE           — the 2026 close offer, booked on the proposal form (HOME-05a; ONE-FORM-01)
+ *   (THE CLOSE          — HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal)
  *   THE PIPELINE header — names the 14-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
@@ -196,7 +196,7 @@ import ExperiencesSection from './ExperiencesSection';
 import WasHereSection from './WasHereSection';
 // HOME-05a (2026-11-03): the 2026 close offer — one leaf (src/lib/offer/close.ts), its words
 // module's lines, the server's day. ONE-FORM-01 (2026-11-06): booked on the proposal form.
-import CloseOfferSection from './CloseOfferSection';
+import CloseOfferMount from './CloseOfferCard';
 // ONE-FORM-01 (Alex, 2026-11-06): the DONE-FOR-YOU cards and the close button open the ONE proposal
 // form with their choice picked — the path and the query key from the leaf, never typed here.
 import { PROPOSAL_FORM_PATH } from '@/lib/offer/close';
@@ -2239,7 +2239,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             directly above (the personas act since PR-REORDER) already closes
             that boundary with its own border-b, and a border-t here would
             have made it the page's only two-rule seam. This section's bottom
-            edge closes done-for-you|pipeline header. ───────────────────── */}
+            edge closes done-for-you|pipeline header (HOME-05a, 2026-11-03, seated
+            the close act between them; HOME-PANELS-01, 2026-11-07, folded the close
+            into this card as its fifth door, so this edge closes done-for-you|pipeline
+            header again). ─────────────────────────────────────────────── */}
       <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
@@ -2262,7 +2265,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               and lets the element after it supply the gap. The services card
               below keeps its own mt-4, untouched. */}
           <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-            Need help setting it up? Send a proposal.
+            Need help? Send a proposal.
           </h2>
           <div className="mt-4 rounded-lg border border-border bg-white p-5">
             <div className="mt-4">
@@ -2286,6 +2289,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   </Link>
                 ))}
               </div>
+              {/* HOME-PANELS-01 (Alex, 2026-11-07): THE FIFTH DOOR, LAST — the 2026 close, priced by
+                  proposal: its chip, then one full-width card that is a Link to the form with the
+                  close picked (CloseOfferCard.tsx over src/lib/offer/close.ts, every word from its
+                  words module, the server's day from page.tsx). It was its own act after this one
+                  (HOME-05a); the panel's one button below covers it, "Scoped by proposal" too. */}
+              <CloseOfferMount today={today} />
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <Link
                   href={PROPOSAL_FORM_PATH}
@@ -2299,13 +2308,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           </div>
         </div>
       </section>
-      {/* ── THE CLOSE (HOME-05a, Alex, 2026-11-03): the 2026 close offer, booked by
-            email — CloseOfferSection.tsx over src/lib/offer/close.ts, every word from
-            its words module, the server's day from page.tsx. Directly after
-            DONE-FOR-YOU by ruling: bookings, custom builds, then the close.
-            SEAM: its own border-b (the DONE-FOR-YOU idiom) closes the close|pipeline
-            header; done-for-you's border-b closes done-for-you|the close. ── */}
-      <CloseOfferSection today={today} />
 
       {/* ── THE PIPELINE HEADER (PR-CHROME → PR-PIPE-TITLE → PR-STEP-2).
             Names the 14-step run so the collapsed bars below read as one unit, and
@@ -2375,7 +2377,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          PR-MODULES placeholder comment between
                                          them is not DOM)
               done-for-you | pipeline header → done-for-you's border-b
-              the close | pipeline header → the close's border-b (HOME-05a, 2026-11-03: a cream act, the DONE-FOR-YOU idiom, one rule; done-for-you | the close is done-for-you's border-b)
+              (the close | pipeline header → gone: HOME-PANELS-01, 2026-11-07 — the close is a card inside done-for-you, its fifth door; HOME-05a, 2026-11-03, had it as a cream act of its own between them, so done-for-you | pipeline header is done-for-you's border-b again, as before HOME-05a)
               pipeline header | 01 problem   → the header's border-b (PR-CHROME
                                          seated the header act between them;
                                          01's no-border exception survives
