@@ -15,6 +15,6 @@ export interface ShellUtility {
 export const OWNER_UTILITIES: readonly ShellUtility[] = [
   { label: 'Developer console', href: '/developer', why: 'prospects + client accounts behind its own gate — src/app/developer/page.tsx:23' },
   { label: 'Data observatory', href: '/data-observatory', why: 'source health probes; the check route is requireAdmin — src/app/api/data-observatory/check/route.ts:934' },
-  // CRM-01a (2026-11-07): CRM is PARTIAL (read-only at /crm); /owner stays the founder's proposals inbox until CRM-01b retires it — it keeps its door here.
-  { label: 'Owner · proposals inbox', href: '/owner', why: "the founder's proposals inbox behind requireAdmin — src/app/api/owner/proposals/route.ts; not a customer's CRM" },
+  // CRM-01b (2026-11-07): the CRM owns the stage; /owner is the accounts console — it keeps its door here.
+  { label: 'Owner · accounts', href: '/owner', why: "the founder's accounts console behind requireAdmin — src/app/api/owner/accounts/route.ts; not a customer's CRM" },
 ];

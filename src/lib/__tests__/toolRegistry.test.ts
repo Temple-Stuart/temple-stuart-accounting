@@ -32,13 +32,16 @@ test('the counts are the dated census — 5 LIVE · 9 PARTIAL · 11 NOT_BUILT �
 // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Time left the four-beat PARTIALs; Budget alone remains.
 // DATAFLOW-01d (Alex, 2026-11-03): Budget's beats are what its page does — discover alone. It left the four-beat PARTIALs;
 // none remains. Budget keeps its census note (the why), which a one-beat PARTIAL may carry. Title was "the one four-beat PARTIAL carries the census note; …".
-test('no four-beat PARTIAL is left; Budget keeps its census note; no LIVE or NOT_BUILT tool carries one', () => {
+// CRM-01b (Alex, 2026-11-07): CRM runs four beats and stays PARTIAL — the one four-beat PARTIAL, its why saying what is not
+// done for a customer (TRUTH-01: four beats never imply LIVE). Title was "no four-beat PARTIAL is left; …".
+test('CRM is the one four-beat PARTIAL (CRM-01b); Budget keeps its census note; no LIVE or NOT_BUILT tool carries one', () => {
   const fourBeatPartials = TOOL_REGISTRY.filter((t) => t.status === 'PARTIAL' && beats(t) === 4).map((t) => t.name);
   // TRUTH-CAL: Calendar was the fourth. PLAN-01 moved the routine builder that
   // carried its decide/commit/record to /tasks; the row is re-derived from the
   // page — discover, commit and record through EVENT-01's hand-entered event,
   // and no decide, because nothing persists a draft. PARTIAL is unchanged.
-  assert.deepEqual(fourBeatPartials, []); // DATAFLOW-01d (was ['Budget'] since TIME-03)
+  assert.deepEqual(fourBeatPartials, ['CRM']); // CRM-01b (2026-11-07); [] since DATAFLOW-01d, ['Budget'] since TIME-03
+  assert.match(byName('CRM').why ?? '', /a customer's own intake form is not built \(CRM-02\)/, 'the four-beat PARTIAL says what is not done');
   assert.deepEqual(byName('Budget').beats, { discover: true, decide: false, commit: false, record: false }); // DATAFLOW-01d
   assert.equal(beats(byName('Budget')), 1);
   // ONEOFF-01: the calendar authors nothing — the add form and its POST are
@@ -106,7 +109,9 @@ test('CRM is PARTIAL at /crm and Contracts NOT_BUILT with its census citation, n
   assert.equal(byName('Contracts').citation, 'TOOL CENSUS row 5 — no page, route, or model');
   assert.equal(byName('CRM').status, 'PARTIAL');
   assert.equal(byName('CRM').home, '/crm');
-  assert.match(byName('CRM').citation, /\/owner stays the founder's proposals inbox until CRM-01b \(src\/app\/api\/owner\/proposals\/route\.ts\)$/);
+  // CRM-01b (2026-11-07): the proposals inbox retired into the CRM; the citation opens on the GET and closes on /owner's new role.
+  assert.match(byName('CRM').citation, /^discover: src\/app\/api\/crm\/route\.ts:\d+ \(GET \/api\/crm/);
+  assert.match(byName('CRM').citation, /\/owner is the accounts console/);
   assert.equal(byName('Expenses').status, 'LIVE'); // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13.
   assert.equal(byName('Expenses').home, '/expenses');
   assert.match(byName('Expenses').citation, /^EXPENSES-01 \(2026-10-25\): src\/app\/expenses\/page\.tsx mounts ROUTINE EXPENSES alone · EXPENSES-02 \(2026-10-26\) decide:/);

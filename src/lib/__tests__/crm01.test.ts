@@ -22,6 +22,8 @@
  *      key by its label; a tab key or a legacy key as itself, labeled) and stops only on a key outside them all
  *      ('nonsense'); B — the member's render shows the non-owner's Contacts line.
  *
+ * CRM-01b (Alex, 2026-11-07): the pins that moved — the section writes now (T4), the registry row runs four beats with its
+ * own table (T7), /owner is the accounts console (T7), the non-owner's Contacts line (FIX-B); crm02.test.ts holds the writes.
  * Source is read through code() and comments() only (the reader law). No clock: every instant is a fixture.
  */
 import test from 'node:test';
@@ -146,7 +148,7 @@ test('T1 contactsOf: every proposal and every signup but the reader, and the con
   const grace = byKey(rows, 'signup:u-1');
   for (const k of ['business', 'budget', 'start', 'next_step', 'last_touch'] as const) assert.equal(cellOf(columns, k, grace), BLANK, `${k} is "—"`);
   assert.equal(BLANK, '—');
-  assert.equal(cellOf(columns, 'stage', grace), 'new');
+  assert.equal(cellOf(columns, 'stage', grace), 'New'); // CRM-01b (2026-11-07): the Stage column prints STAGE_WORDS — the words the row's select shows
   assert.deepEqual(rows.map((r) => cellOf(columns, 'from', r)), ['By hand', 'Proposal', 'Signup', 'Proposal', 'Signup']);
   assert.deepEqual(FROM_WORDS, { proposal: 'Proposal', signup: 'Signup', manual: 'By hand' });
   // With no working row at all, every contact is new.
@@ -295,7 +297,7 @@ test('T4 the three tables: the heads in the ruled orders, every one drawn by the
 test('T4 the section: one read, three shared DataTables in order — contacts, proposals, signups — each in its own sideways box; no write, nothing stored, no strip', () => {
   const s = code(SECTION);
   assert.match(s, /^'use client';/);
-  assert.match(s, /import DataTable from '@\/components\/table\/DataTable';/);
+  assert.match(s, /import DataTable, \{ cellClass, chipClass \} from '@\/components\/table\/DataTable';/); // CRM-01b: the row's cells and the controls-row chip
   assert.equal((s.match(/<DataTable\b/g) ?? []).length, 1, 'one DataTable, inside the one table component');
   assert.equal((s.match(/readJson\('\/api\/crm', 'The CRM'\)/g) ?? []).length, 1, 'one read');
   const mounts = [...s.matchAll(/<CrmTable\s+name=\{(CRM_[A-Z]+_TABLE_NAME)\}\s+title=\{([A-Z_]+)\}\s+columns=\{(\w+)\}\s+rows=\{read\.(\w+)\}/g)].map((m) => m.slice(1).join(' '));
@@ -311,7 +313,9 @@ test('T4 the section: one read, three shared DataTables in order — contacts, p
   assert.match(s, /empty=\{read\.ownerOnly \? SIGNUPS_OWNER_ONLY_WORDS : NO_SIGNUPS_WORDS\}/, 'and for Signups');
   assert.match(s, /<section className="min-w-0 space-y-2"/, 'a table scrolls in its own box (DataTable\'s overflow-x-auto); the section never widens the page');
   assert.match(s, /crmFailedWords\(read\.words\)/, 'a failed read says so with the route\'s words');
-  assert.doesNotMatch(s, /method: '(POST|PATCH|PUT|DELETE)'|localStorage|sessionStorage|document\.cookie|StageStrip/, 'no write; nothing stored; no strip');
+  // CRM-01b (2026-11-07): the section writes now — one sendJson to /api/crm/contacts (crm02 T4); nothing stored, no strip.
+  assert.doesNotMatch(s, /localStorage|sessionStorage|document\.cookie|StageStrip/, 'nothing stored; no strip');
+  assert.deepEqual([...s.matchAll(/fetch\(([^,)]+)/g)].map((m) => m[1]), ['CRM_CONTACTS_ROUTE'], 'the one write target; the read goes through readJson');
   for (const literal of ['Came in', 'What they need', 'Next step', 'Last touch', 'Signed up on', 'Signed up with', 'Email verified', 'What does done look like', 'Email and password', 'Not yet', 'By hand', 'Reading your contacts']) {
     assert.ok(!s.includes(`'${literal}`) && !s.includes(`>${literal}`), `"${literal}" is crmWords', not typed in the section`);
     assert.ok(!code(RULES).includes(`'${literal}'`), `"${literal}" is crmWords', not typed in the rules`);
@@ -390,27 +394,31 @@ test('T6 the page: CRM\'s own — the opener (family, name, registry line) and t
 
 // ── T7 · THE REGISTRY, THE CENSUS, THE GATE, THE RAIL, THE PLANS ROW ────────
 
-test('T7 CRM is PARTIAL at /crm with discover and record, no ownTable, its why and customer verbatim; the citation\'s lines say what it says', () => {
+// CRM-01b (Alex, 2026-11-07): four beats, ownTable crm_contacts and its route, the why and the customer sentence re-pinned (ruling D).
+test('T7 CRM is PARTIAL at /crm with four beats and its own table, its why and customer verbatim; the citation\'s lines say what it says', () => {
   const t = TOOL_REGISTRY.find((x) => x.name === 'CRM');
   assert.ok(t);
   assert.equal(t.status, 'PARTIAL');
-  assert.deepEqual(t.beats, { discover: true, decide: false, commit: false, record: true });
+  assert.deepEqual(t.beats, { discover: true, decide: true, commit: true, record: true }); // CRM-01b: decide and commit joined
   assert.equal(t.home, '/crm');
-  assert.equal(t.ownTable, null, 'ruling 2: no ownTable — the deck\'s step 6 does not move');
-  assert.equal(t.ownTableRoute, undefined);
+  assert.equal(t.ownTable, 'crm_contacts'); // CRM-01b (2026-11-07): the working table is written by its own route — the deck's step 6 moves to five
+  assert.match(t.ownTableRoute ?? '', /^src\/app\/api\/crm\/contacts\/route\.ts:\d+ \(crm_contacts\.create/);
   assert.equal(t.links, undefined);
-  assert.equal(t.why, 'the people you sell to — every proposal from your form and every signup, read in three tables; a stage or next step cannot be set yet, and no one can be added by hand (CRM-01b)');
+  assert.equal(t.why, 'the people you sell to: every proposal from the platform\'s form and every signup for the owner, anyone added by hand for every account; a stage and a next step on the row; a customer\'s own intake form is not built (CRM-02), and nothing is sent from here'); // CRM-01b (2026-11-07)
   // CRM-01a fix (Alex, 2026-11-07, ruling C): the public sentence tells a customer what their CRM holds today; its own
   // "Partly built: " went (the second fix) — the plans table prints its status words before it.
-  assert.equal(t.customer, 'The people you sell to, read in flat tables. Not built yet: adding someone by hand, setting a stage or a next step, and your own intake form — so today only the platform\'s own proposal form and signups fill it.');
+  assert.equal(t.customer, 'The people you sell to, in flat tables: set each one\'s stage and next step, add someone by hand. Not built yet: your own intake form — so today only the platform\'s own proposal form and signups fill it on their own.'); // CRM-01b (2026-11-07)
   const reg = code(REGISTRY);
-  assert.ok(reg.includes("slug: 'crm', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/crm',"), 'the some() form on its slug line');
-  assert.ok(comments(REGISTRY).includes("its own route, /api/crm, only reads; crm_contacts (CRM-01a's migration) is written by nothing until CRM-01b"), 'Bill Pay\'s shape (ruling 2)');
+  assert.ok(reg.includes("slug: 'crm', status: 'PARTIAL', beats: some({ discover: true, decide: true, commit: true, record: true }), home: '/crm',"), 'the some() form on its slug line'); // CRM-01b: four beats
+  // CRM-01b (2026-11-07): the ownTable line's note says the table is written by its own route now (ruling 2's "written by nothing until CRM-01b" is history).
+  assert.ok(comments(REGISTRY).includes('CRM-01b (Alex, 2026-11-07): the working table CRM-01a authored, written by its own route now'), 'the ownTable note');
   const lineOf = (file: string, n: number): string => code(file).split('\n')[n - 1] ?? '';
   const n = (re: RegExp): number => { const m = t.citation.match(re); assert.ok(m, String(re)); return Number(m[1]); };
   assert.match(lineOf(ROUTE, n(/^discover: src\/app\/api\/crm\/route\.ts:(\d+) \(GET \/api\/crm/)), /^export async function GET\(/);
   assert.match(lineOf(SECTION, n(/record: src\/components\/crm\/CrmSection\.tsx:(\d+) \(the three tables/)), /name=\{CRM_CONTACTS_TABLE_NAME\}/);
-  assert.match(t.citation, /\/owner stays the founder's proposals inbox until CRM-01b \(src\/app\/api\/owner\/proposals\/route\.ts\)$/);
+  // CRM-01b (2026-11-07): /owner's proposals panel and routes retired into the CRM — the citation says so, and names the four beats.
+  assert.match(t.citation, /\/owner is the accounts console — its proposals panel and the two \/api\/owner\/proposals routes retired into the CRM \(CRM-01b\)$/);
+  for (const beat of ['discover: ', 'decide: ', 'commit: ', 'record: ']) assert.ok(t.citation.includes(beat), beat);
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
 });
 
@@ -449,9 +457,10 @@ test('T7 the plans row derives ◐ with the customer line (ruling 10); /owner ke
   assert.ok(t);
   for (const plan of PLANS.filter((p) => p.modules.includes('business'))) assert.equal(CELL_MARK[cellState(plan, row)], '◐', `${plan.name}: derived from the registry — PARTIAL`);
   assert.deepEqual(capabilityNotes(row), [{ name: 'CRM', status: 'PARTIAL', customer: t.customer }]);
-  assert.ok(comments(SHELL_MENU).includes("// CRM-01a (2026-11-07): CRM is PARTIAL (read-only at /crm); /owner stays the founder's proposals inbox until CRM-01b retires it — it keeps its door here."));
-  assert.doesNotMatch(comments(SHELL_MENU), /TRUTH-01: CRM is NOT_BUILT/);
-  assert.deepEqual(OWNER_UTILITIES.find((u) => u.href === '/owner'), { label: 'Owner · proposals inbox', href: '/owner', why: "the founder's proposals inbox behind requireAdmin — src/app/api/owner/proposals/route.ts; not a customer's CRM" });
+  // CRM-01b (2026-11-07): /owner is the accounts console — the CRM owns the stage; its door stays (crm02 T5 pins the entry).
+  assert.ok(comments(SHELL_MENU).includes("// CRM-01b (2026-11-07): the CRM owns the stage; /owner is the accounts console — it keeps its door here."));
+  assert.doesNotMatch(comments(SHELL_MENU), /TRUTH-01: CRM is NOT_BUILT|proposals inbox/);
+  assert.equal(OWNER_UTILITIES.find((u) => u.href === '/owner')?.label, 'Owner · accounts');
 });
 
 // ── T8 · THE WORKING TABLE: THE MIGRATION, THE SCHEMA, THE CLIENT (ruling E) ─
@@ -534,8 +543,8 @@ test('FIX-A planWords: a key outside every vocabulary still stops, by name — "
 test('FIX-B the member\'s render shows the non-owner\'s Contacts line, never the owner\'s; the owner keeps theirs', () => {
   const unescape = (html: string) => html.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
   const loaded = (ownerOnly: boolean): CrmLoaded => ({ kind: 'loaded', ownerOnly, contacts: [], proposals: [], signups: [], said: [] });
-  const render = (ownerOnly: boolean) => unescape(renderToStaticMarkup(React.createElement(CrmTables, { read: loaded(ownerOnly) })));
-  assert.equal(NO_CONTACTS_OWN_WORDS, 'No one yet. Adding someone by hand comes in CRM-01b; your own intake form in CRM-02.');
+  const render = (ownerOnly: boolean) => unescape(renderToStaticMarkup(React.createElement(CrmTables, { read: loaded(ownerOnly), onWritten: () => undefined }))); // CRM-01b: the re-read hook
+  assert.equal(NO_CONTACTS_OWN_WORDS, 'No one yet. Add someone by hand above; your own intake form comes in CRM-02.'); // CRM-01b (2026-11-07): adding by hand is their way in
   const member = render(true);
   assert.ok(member.includes(NO_CONTACTS_OWN_WORDS), 'the member reads their own line');
   assert.ok(!member.includes(NO_CONTACTS_WORDS), 'and never the owner\'s');
@@ -546,7 +555,7 @@ test('FIX-B the member\'s render shows the non-owner\'s Contacts line, never the
   assert.match(code(SECTION), /empty=\{read\.ownerOnly \? NO_CONTACTS_OWN_WORDS : NO_CONTACTS_WORDS\}/);
   // The hand-off that decides the voice: the route's ownerOnly (T5) → the section's state → CrmTables, mounted only there.
   assert.match(code(SECTION), /ownerOnly: body\.ownerOnly === true,/);
-  assert.match(code(SECTION), /return <CrmTables read=\{read\} \/>;/);
+  assert.match(code(SECTION), /return <CrmTables read=\{read\} onWritten=\{\(\) => setWrites\(\(n\) => n \+ 1\)\} \/>;/); // CRM-01b: the re-read hook rides along
   const src = resolve(process.cwd(), 'src');
   const tablesMounts = [...pageFiles(join(src, 'app')), ...pageFiles(join(src, 'components'))]
     .map((f) => f.slice(process.cwd().length + 1))

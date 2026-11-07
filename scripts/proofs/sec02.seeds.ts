@@ -111,11 +111,13 @@ const SEEDS: Seed[] = [
     expect: 'the owned loader loadAuthorizedCalendarBlock does not read by { id, user_id|userId }',
   },
   {
+    // CRM-01b (2026-11-07): the anchor was the owner proposals PATCH's entry, retired with that route — the seed grows the
+    // table after the prospects entry instead; the census is 5.
     name: 'sec02-m a closed table grows — an owner-console entry added without a ruling',
     file: LAW,
-    find: "  { file: 'src/app/api/owner/proposals/[id]/route.ts', why: 'the public proposal form\\'s rows (no owner column) — the owner reviews them' },\n",
-    replace: "  { file: 'src/app/api/owner/proposals/[id]/route.ts', why: 'the public proposal form\\'s rows (no owner column) — the owner reviews them' },\n  { file: 'src/app/api/budgets/route.ts', why: 'seeded' },\n",
-    expect: 'ownerConsole holds 7 entries, pinned at 6',
+    find: "  { file: 'src/app/api/developer/prospects/[id]/route.ts', why: 'SEC-3: prospects is a global sales-lead table with no owner column — admin-only' },\n",
+    replace: "  { file: 'src/app/api/developer/prospects/[id]/route.ts', why: 'SEC-3: prospects is a global sales-lead table with no owner column — admin-only' },\n  { file: 'src/app/api/budgets/route.ts', why: 'seeded' },\n",
+    expect: 'ownerConsole holds 6 entries, pinned at 5',
   },
 ];
 

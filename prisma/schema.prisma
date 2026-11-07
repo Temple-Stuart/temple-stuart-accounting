@@ -1676,8 +1676,8 @@ model proposals {
   links          Json?
   teamSize       String?   @db.VarChar(50) @map("team_size")
   referralSource String?   @db.VarChar(100) @map("referral_source")
-  status         String    @default("new") @db.VarChar(20)
-  ownerNotes     String?   @db.Text @map("owner_notes")
+  status         String    @default("new") @db.VarChar(20) // CRM-01b (2026-11-07): no longer written — the CRM's stage and next step live in crm_contacts; CLEAN rules on dropping
+  ownerNotes     String?   @db.Text @map("owner_notes") // CRM-01b (2026-11-07): no longer written — the CRM's stage and next step live in crm_contacts; CLEAN rules on dropping
   ipHash         String    @db.VarChar(64) @map("ip_hash")
 
   @@index([createdAt(sort: Desc)], map: "proposals_created_at_idx")

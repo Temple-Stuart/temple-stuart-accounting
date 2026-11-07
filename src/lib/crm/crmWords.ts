@@ -1,11 +1,13 @@
 /**
- * CRM-01a (Alex, 2026-11-06, ruling D) — THE WORDS the CRM page is shown in, typed once, here; none in the components.
+ * CRM-01a (Alex, 2026-11-06, ruling D; CRM-01b, 2026-11-07, ruling B) — THE WORDS the CRM page is shown in, typed once, here;
+ * none in the components.
  * PURE: no fetch, no env, no clock, no React. Plain words a fifth-grader reads; no sales words, no emoji.
  *
  *   the three table names · the column heads, in each table's order · the From words · the Signups words ("Free",
  *   "Email and password", "Not yet", "Yes — ", and the CRM-01a fix's "tab: " and "legacy: ") · the empty lines (the
  *   Contacts line in two voices: the owner's, and anyone else's) · the platform owner's honest lines for anyone else ·
- *   the loading and failed words (the bill-pay shape: BILL_PAY_LOADING_WORDS / billPayFailedWords).
+ *   the loading and failed words (the bill-pay shape: BILL_PAY_LOADING_WORDS / billPayFailedWords) · CRM-01b: the five
+ *   stage words on the row's select, the add-a-contact words, the two aria words, the failed-write prefix.
  */
 
 export const CONTACTS_TABLE_WORDS = 'Contacts';
@@ -29,6 +31,15 @@ export const PROPOSAL_HEAD_WORDS = {
 export const SIGNUP_HEAD_WORDS = {
   signed_up_on: 'Signed up on', name: 'Name', email: 'Email', signed_up_with: 'Signed up with', email_verified: 'Email verified', plan: 'Plan',
 } as const;
+
+/**
+ * CRM-01b (Alex, 2026-11-07, ruling B): the five stage words — the row's select shows them, the table, the CSV and the
+ * filters print them (the spec's words). The keys are proposals.status's own five (crm.ts CRM_STAGES).
+ */
+export const STAGE_WORDS = { new: 'New', reviewing: 'Reviewing', sent: 'Sent', won: 'Won', lost: 'Lost' } as const;
+/** The row's two controls, named for a screen reader: "Stage of <name>", "Next step for <name>". */
+export const stageAriaWords = (name: string): string => `Stage of ${name}`;
+export const nextStepAriaWords = (name: string): string => `Next step for ${name}`;
 
 /** Where a contact came from — the source a working row names. */
 export const FROM_WORDS = { proposal: 'Proposal', signup: 'Signup', manual: 'By hand' } as const;
@@ -55,7 +66,8 @@ export const LEGACY_KEY_WORDS = 'legacy: ';
 
 export const NO_CONTACTS_WORDS = 'No one yet. Your proposal form and your signups fill this table on their own.';
 /** CRM-01a fix (Alex, 2026-11-07, ruling B): the Contacts line for anyone but the platform owner — the owner's line is false for them. */
-export const NO_CONTACTS_OWN_WORDS = 'No one yet. Adding someone by hand comes in CRM-01b; your own intake form in CRM-02.';
+/** CRM-01b (Alex, 2026-11-07, ruling B): adding by hand is their first way in. */
+export const NO_CONTACTS_OWN_WORDS = 'No one yet. Add someone by hand above; your own intake form comes in CRM-02.';
 export const NO_PROPOSALS_WORDS = 'No proposals yet.';
 export const NO_SIGNUPS_WORDS = 'No signups yet.';
 
@@ -66,3 +78,14 @@ export const SIGNUPS_OWNER_ONLY_WORDS = "Signups are the platform owner's leads.
 
 export const CRM_LOADING_WORDS = 'Reading your contacts…';
 export const crmFailedWords = (words: string): string => `The CRM could not be read — ${words}`;
+
+/**
+ * CRM-01b (Alex, 2026-11-07, ruling B): the writes' words — the button that opens the add row, its three labels (the
+ * Contacts heads' own words), its two buttons, and the line under the table when a write fails (the route's words after it).
+ */
+export const ADD_CONTACT_WORDS = 'Add a contact';
+export const ADD_CONTACT_LABELS = { name: CONTACT_HEAD_WORDS.name, business: CONTACT_HEAD_WORDS.business, email: CONTACT_HEAD_WORDS.email } as const;
+export const ADD_WORDS = 'Add';
+export const CANCEL_WORDS = 'Cancel';
+export const WRITE_FAILED_PREFIX_WORDS = 'Not saved — ';
+export const crmWriteFailedWords = (words: string): string => `${WRITE_FAILED_PREFIX_WORDS}${words}`;

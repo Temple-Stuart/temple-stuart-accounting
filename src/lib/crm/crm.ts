@@ -1,7 +1,8 @@
 /**
- * CRM-01a (Alex, 2026-11-06, rulings B and C; 2026-11-07, rulings 3, 5 and 6) — THE CRM'S RULES: the people you sell to,
- * in three flat tables. PURE: no fetch, no env, no clock, no React. GET /api/crm (src/app/api/crm/route.ts) reads the rows
- * and hands them in; the page (src/components/crm/CrmSection.tsx) prints the specs below through the shared DataTable.
+ * CRM-01a (Alex, 2026-11-06, rulings B and C; 2026-11-07, rulings 3, 5 and 6; CRM-01b, 2026-11-07) — THE CRM'S RULES: the
+ * people you sell to, in three flat tables. PURE: no fetch, no env, no clock, no React. GET /api/crm (src/app/api/crm/route.ts)
+ * reads the rows and hands them in; the page (src/components/crm/CrmSection.tsx) prints the specs below through the shared
+ * DataTable; the writes (src/app/api/crm/contacts/route.ts) name a row by its ContactRow.key, parsed by contactKeyOf.
  *
  *   needWords(need)            what a proposal asked for — the form's chip: SERVICE_NEED_LABELS for the five service
  *                              words, closeChoiceWords(CLOSE_OFFER) for the close's; any other word THROWS by name (the
@@ -18,7 +19,9 @@
  *   proposalRowsOf · signupRowsOf · contactsOf   the three tables' rows, newest first — contactsOf merges every
  *                              proposal and every signup handed in with the reader's working rows (crm_contacts): a
  *                              contact with no working row reads as new (nobody has touched it — not an imputed value);
- *   contactsTable · proposalsTable · signupsTable   the specs, in the ruled orders; their CSV file names.
+ *   contactsTable · proposalsTable · signupsTable   the specs, in the ruled orders; their CSV file names;
+ *   contactKeyOf(key)          CRM-01b: 'proposal:<id>' | 'signup:<id>' | 'manual:<id>' → { source, ref }, or a CrmLawError
+ *                              by name — the writes' one way to name a row; CRM_NEXT_STEP_MAX the next step's length.
  *
  * DATES (ruling 5): created_at, email_verified_at and last_touch_at are EVENT INSTANTS — drawn as the viewer's day through
  * work.ts instantDayWords (instantColumn), sorted by the instant, written to the CSV as the instant; hard_deadline is a
@@ -28,7 +31,8 @@
  * THE LAWS are at the functions, not at module scope: a record that contradicts itself is reported by name, never
  * smoothed (a password-less user with no provider account; an active key in no vocabulary; a need the form does not hold;
  * a working row that names a source row the read did not return; a stage outside the five; a list field that is not a
- * list of words; a contact touched after today).
+ * list of words; a contact touched after today; a manual working row with no name or no email — crm_contacts_manual_chk
+ * forbids one, so its absence is a data error, never a blank on the row).
  */
 
 import type { TableColumn } from '@/lib/table/columns';
@@ -40,7 +44,7 @@ import { CLOSE_OFFER } from '@/lib/offer/close';
 import { closeChoiceWords } from '@/lib/offer/closeWords';
 import {
   CONTACT_HEAD_WORDS, EMAIL_AND_PASSWORD_WORDS, FREE_PLAN_WORDS, FROM_WORDS, LEGACY_KEY_WORDS, LIST_JOIN, NOT_YET_WORDS,
-  PROPOSAL_HEAD_WORDS, SIGNUP_HEAD_WORDS, TAB_KEY_WORDS, VERIFIED_PREFIX_WORDS, signedUpNeedWords,
+  PROPOSAL_HEAD_WORDS, SIGNUP_HEAD_WORDS, STAGE_WORDS, TAB_KEY_WORDS, VERIFIED_PREFIX_WORDS, signedUpNeedWords,
 } from './crmWords';
 
 /** The five stage words — proposals.status's own (ruling E; the migration's crm_contacts_stage_chk). ONE vocabulary. */
@@ -49,6 +53,8 @@ export type CrmStage = (typeof CRM_STAGES)[number];
 /** Where a working row's contact came from (crm_contacts_source_chk). */
 export const CRM_SOURCES = ['proposal', 'signup', 'manual'] as const;
 export type CrmSource = (typeof CRM_SOURCES)[number];
+/** CRM-01b (Alex, 2026-11-07, ruling A): a next step is at most this many characters. */
+export const CRM_NEXT_STEP_MAX = 2000;
 
 export class CrmLawError extends Error {
   constructor(message: string) {
@@ -144,13 +150,14 @@ export interface SignupRow {
 }
 
 export interface ContactRow {
-  /** 'proposal:<id>' · 'signup:<id>' · 'manual:<working row id>' — the row's own key. */
+  /** 'proposal:<id>' · 'signup:<id>' · 'manual:<working row id>' — the row's own key (contactKeyOf parses it). */
   readonly key: string;
   /** The instant the contact came in. */
   readonly came_in: string;
-  readonly name: string | null;
+  /** Always present: a proposal's and a signup's by their tables, a manual row's by crm_contacts_manual_chk (CRM-01b). */
+  readonly name: string;
   readonly business: string | null;
-  readonly email: string | null;
+  readonly email: string;
   readonly from: CrmSource;
   readonly need: string | null;
   readonly budget: string | null;
@@ -164,6 +171,22 @@ export interface ContactRow {
 // ── THE WORDS OF ONE FACT ───────────────────────────────────────────────────
 
 const isServiceNeed = (need: string): need is ServiceNeed => (SERVICE_NEEDS as readonly string[]).includes(need);
+const isSource = (source: string): source is CrmSource => (CRM_SOURCES as readonly string[]).includes(source);
+
+/**
+ * CRM-01b (Alex, 2026-11-07, ruling A): a ContactRow.key, read back — the one way a write names a row. The source is
+ * the word before the first colon, the ref everything after it; anything else is refused by name.
+ */
+export function contactKeyOf(key: string): { readonly source: CrmSource; readonly ref: string } {
+  if (typeof key !== 'string' || key === '') throw new CrmLawError('contactKeyOf: the key is empty — a row is named "<source>:<id>"');
+  const at = key.indexOf(':');
+  if (at === -1) throw new CrmLawError(`contactKeyOf: "${key}" has no colon — a row is named "<source>:<id>"`);
+  const source = key.slice(0, at);
+  const ref = key.slice(at + 1);
+  if (!isSource(source)) throw new CrmLawError(`contactKeyOf: "${source}" is not a source — ${CRM_SOURCES.join(', ')}`);
+  if (ref === '') throw new CrmLawError(`contactKeyOf: "${key}" names no row — the id after the colon is empty`);
+  return { source, ref };
+}
 
 /** What a proposal asked for, in the form's own words — on any day (closeChoiceWords does not depend on bookBy). */
 export function needWords(need: string): string {
@@ -277,7 +300,11 @@ export function contactsOf(input: {
     if (!(CRM_SOURCES as readonly string[]).includes(w.source)) throw new CrmLawError(`contactsOf: working row ${w.id} says source "${w.source}" — not proposal, signup or manual`);
     if (!isStage(w.stage)) throw new CrmLawError(`contactsOf: working row ${w.id} says stage "${w.stage}" — not one of ${CRM_STAGES.join(', ')}`);
     if (w.last_touch_at !== null && w.last_touch_at.slice(0, 10) > input.today) throw new CrmLawError(`contactsOf: working row ${w.id} was last touched on ${w.last_touch_at.slice(0, 10)}, after today (${input.today}) — a record from the future`);
-    if (w.source === 'manual') { manual.push(w); continue; }
+    if (w.source === 'manual') {
+      if (w.name === null || w.email === null) throw new CrmLawError(`contactsOf: working row ${w.id} was added by hand with no ${w.name === null ? 'name' : 'email'} — crm_contacts_manual_chk forbids it; a record that contradicts itself`);
+      manual.push({ ...w, name: w.name, email: w.email });
+      continue;
+    }
     const key = `${w.source}:${w.source_ref}`;
     if (bySource.has(key)) throw new CrmLawError(`contactsOf: two working rows name ${key} — one per source row`);
     bySource.set(key, w);
@@ -299,7 +326,7 @@ export function contactsOf(input: {
       need: signedUpNeedWords(s.plan), budget: null, start: null, ...working(`signup:${s.id}`),
     })),
     ...manual.map((m): ContactRow => ({
-      key: `manual:${m.id}`, came_in: m.created_at, name: m.name, business: m.business, email: m.email, from: 'manual',
+      key: `manual:${m.id}`, came_in: m.created_at, name: m.name as string, business: m.business, email: m.email as string, from: 'manual',
       need: null, budget: null, start: null, stage: m.stage as CrmStage, next_step: m.next_step, last_touch: m.last_touch_at,
     })),
   ];
@@ -339,7 +366,7 @@ export function contactsTable(): readonly TableColumn<ContactRow, ContactColumn>
     textColumn<ContactRow, ContactColumn>('need', h.need, (r) => r.need),
     valueColumn<ContactRow, ContactColumn>('budget', h.budget, (r) => r.budget),
     valueColumn<ContactRow, ContactColumn>('start', h.start, (r) => r.start),
-    valueColumn<ContactRow, ContactColumn>('stage', h.stage, (r) => r.stage),
+    valueColumn<ContactRow, ContactColumn>('stage', h.stage, (r) => STAGE_WORDS[r.stage]), // CRM-01b: the words the row's select shows
     textColumn<ContactRow, ContactColumn>('next_step', h.next_step, (r) => r.next_step),
     instantColumn<ContactRow, ContactColumn>('last_touch', h.last_touch, (r) => r.last_touch),
   ];

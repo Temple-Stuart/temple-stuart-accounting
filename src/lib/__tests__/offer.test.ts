@@ -77,7 +77,11 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
     assert.equal(claimLine(t), `partial — ${t.why}`);
     assert.ok(!claimLine(t).includes('discover'), `${name}: the why, not the beats`);
   }
-  assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'PARTIAL' && Object.values(t.beats).every(Boolean)).map((t) => t.name), [], 'DATAFLOW-01d: no four-beat PARTIAL is left');
+  // CRM-01b (Alex, 2026-11-07): CRM runs four beats and stays PARTIAL — the one four-beat PARTIAL; its claim line is its why
+  // (what is not done for a customer), never the beats, and never "built and running".
+  assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'PARTIAL' && Object.values(t.beats).every(Boolean)).map((t) => t.name), ['CRM'], 'CRM-01b: CRM is the four-beat PARTIAL; none since DATAFLOW-01d until then');
+  assert.equal(claimLine(tool('CRM')), `partial — ${tool('CRM').why}`);
+  assert.ok(!claimLine(tool('CRM')).includes('built and running') && !claimLine(tool('CRM')).includes('discover'));
   assert.equal(claimLine(tool('Budget')), 'partial — discover'); // DATAFLOW-01d: one beat, the beats form
   assert.equal(claimLine(tool('Tasks')), 'built and running');
   // ONEOFF-01: the calendar authors nothing — commit is lost with the add form; two beats.
