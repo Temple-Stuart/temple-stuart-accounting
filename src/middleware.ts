@@ -169,6 +169,19 @@ const PUBLIC_PATHS = [
   // + honeypot (the route's own order: honeypot → per-ip_hash rateLimit 5/hr →
   // zod → insert; status/owner_notes never client-writable).
   '/api/proposals',
+  // CRM-02 (Alex, 2026-11-07): public BY RULING — a customer's own intake form at its own link, /f/<slug>, and as an
+  // embed (?embed=1). The only file under src/app/f is [slug]/page.tsx: a server page that reads ONE crm_forms row by
+  // its public slug and hands the client nothing of the account beyond the form's title, line and the questions asked
+  // (an unknown slug 404s; no authed read, no paid call, no write). Prefix-matching makes every /f/* path public —
+  // acceptable because that one page is all there is under it. isPublic's rule is p or p + '/', so this entry covers
+  // nothing else: /favicon.ico has its own entry above, and no other path starts with /f.
+  '/f',
+  // CRM-02 (Alex, 2026-11-07): public BY RULING — the form's POST, /api/f/<slug>: DB-write only, no paid API, no email.
+  // The only file under src/app/api/f is [slug]/route.ts, with the proposal route's guards in the proposal route's
+  // order (honeypot → per-ip_hash rateLimit 5/hr → the form by slug → zod → the one insert, user_id the form owner's);
+  // the ownership law lists it as a public writer with those guards. isPublic's rule is p or p + '/', so this entry
+  // covers nothing else.
+  '/api/f',
   // TRIPPOST-01 (2026-11-05): Alex's trip posts, /my-trip/<stop id> — static server pages
   // from the trip's pure leaves (src/lib/wasHere.ts, tripCosts.ts, tripPosts.ts, experiences.ts):
   // zero fetch, zero authed reads, zero paid calls, zero env reads, zero database reads.

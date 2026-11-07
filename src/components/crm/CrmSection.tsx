@@ -19,6 +19,11 @@
  * Contacts controls opens, above the table, one row of three inputs and Add / Cancel → POST → re-read → the row closes. A
  * write that fails prints the route's words in a line under the table (data-crm-write-failed), never swallowed; the row
  * keeps the server's value (the re-read), never the typed one. Nothing is stored in the browser.
+ *
+ * CRM-02 (Alex, 2026-11-07, CLOSED 7): the order, top to bottom — YOUR INTAKE FORM (IntakeFormSetup.tsx, fed by the GET's
+ * `form`; its save is a write, so it re-reads too) · Contacts · FORM SUBMISSIONS (a fourth CrmTable over the GET's
+ * `submissions`, its columns src/lib/crm/forms.ts submissionsTable(form) — one per question the form holds today) ·
+ * Proposals · Signups. A submission is a Contacts row too (from "Your form").
  */
 import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
 import DataTable, { cellClass, chipClass } from '@/components/table/DataTable';
@@ -38,12 +43,17 @@ import {
   NO_PROPOSALS_WORDS, NO_SIGNUPS_WORDS, PROPOSALS_OWNER_ONLY_WORDS, PROPOSALS_TABLE_WORDS, SIGNUPS_OWNER_ONLY_WORDS, SIGNUPS_TABLE_WORDS, STAGE_WORDS,
   crmFailedWords, crmWriteFailedWords, nextStepAriaWords, stageAriaWords,
 } from '@/lib/crm/crmWords';
+import { SUBMISSIONS_CSV, SUBMISSIONS_TABLE_NAME, submissionsTable, type IntakeForm, type SubmissionRow } from '@/lib/crm/forms';
+import { FORM_SUBMISSIONS_TABLE_WORDS, NO_FORM_YET_WORDS, NO_SUBMISSIONS_WORDS } from '@/lib/crm/formWords';
+import IntakeFormSetup from './IntakeFormSetup';
 
-/** One loaded answer from GET /api/crm. */
+/** One loaded answer from GET /api/crm. CRM-02: the reader's own form (null before it is made) and its submissions. */
 export interface CrmLoaded {
   readonly kind: 'loaded';
   readonly ownerOnly: boolean;
   readonly contacts: readonly ContactRow[];
+  readonly form: IntakeForm | null;
+  readonly submissions: readonly SubmissionRow[];
   readonly proposals: readonly ProposalRow[];
   readonly signups: readonly SignupRow[];
   readonly said: readonly string[];
@@ -197,6 +207,8 @@ export default function CrmSection() {
           kind: 'loaded',
           ownerOnly: body.ownerOnly === true,
           contacts: (body.contacts ?? []) as ContactRow[],
+          form: (body.form ?? null) as IntakeForm | null,
+          submissions: (body.submissions ?? []) as SubmissionRow[],
           proposals: (body.proposals ?? []) as ProposalRow[],
           signups: (body.signups ?? []) as SignupRow[],
           said: (body.said ?? []) as string[],
@@ -220,6 +232,8 @@ export default function CrmSection() {
  */
 export function CrmTables({ read, onWritten }: { read: CrmLoaded; onWritten: () => void }) {
   const contactColumns = useMemo(() => contactsTable(), []);
+  // CRM-02: one column per question the form holds today — the spec follows the form.
+  const submissionColumns = useMemo(() => submissionsTable(read.form), [read.form]);
   const proposalColumns = useMemo(() => proposalsTable(), []);
   const signupColumns = useMemo(() => signupsTable(), []);
   /** The key of the row (or 'add') being saved — every control is disabled meanwhile. */
@@ -285,6 +299,7 @@ export function CrmTables({ read, onWritten }: { read: CrmLoaded; onWritten: () 
 
   return (
     <div className="min-w-0 space-y-6" data-crm={read.ownerOnly ? 'own' : 'owner'}>
+      <IntakeFormSetup form={read.form} onSaved={onWritten} />
       <CrmTable
         name={CRM_CONTACTS_TABLE_NAME}
         title={CONTACTS_TABLE_WORDS}
@@ -298,6 +313,16 @@ export function CrmTables({ read, onWritten }: { read: CrmLoaded; onWritten: () 
         above={adding ? <AddContactRow disabled={saving !== null} onAdd={(draft) => void add(draft)} onCancel={() => setAdding(false)} /> : null}
         under={writeFailed !== null ? <p className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" data-crm-write-failed>{crmWriteFailedWords(writeFailed)}</p> : null}
         cell={contactCell}
+      />
+      <CrmTable
+        name={SUBMISSIONS_TABLE_NAME}
+        title={FORM_SUBMISSIONS_TABLE_WORDS}
+        columns={submissionColumns}
+        rows={read.submissions}
+        keyOf={(r) => r.key}
+        csvName={SUBMISSIONS_CSV}
+        tableClassName="min-w-[80rem]"
+        empty={read.form === null ? NO_FORM_YET_WORDS : NO_SUBMISSIONS_WORDS}
       />
       <CrmTable
         name={CRM_PROPOSALS_TABLE_NAME}

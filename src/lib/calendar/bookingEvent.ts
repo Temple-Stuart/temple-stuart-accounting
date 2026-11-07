@@ -30,7 +30,7 @@
  * `trip:<id>:vendor:<optionId>` under source = 'trip') cannot touch these rows,
  * and ours cannot touch theirs. Idempotency keys on (source, source_id), the pair
  * idx_calendar_events_source indexes. THAT INDEX IS NOT UNIQUE
- * (schema.prisma:1736), so the write checks for the row before inserting it —
+ * (schema.prisma:1738 (as of CRM-02, 2026-11-07: the users model grew two relations)), so the write checks for the row before inserting it —
  * the database will not do it for us.
  *
  * NO FALLBACK ANYWHERE. A booking with no date gets NO ROW and a named reason.
@@ -114,7 +114,7 @@ export type BookingCalendarDecision =
       sourceId: string;
       title: string;
       icon: string;
-      /** The day it starts. NOT NULL in the table (schema.prisma:1707). */
+      /** The day it starts. NOT NULL in the table (schema.prisma:1709 (as of CRM-02, 2026-11-07: the users model grew two relations)). */
       startDate: Date;
       /** The day it ends, or null for a single day. */
       endDate: Date | null;
@@ -359,12 +359,12 @@ export type BookingCalendarOutcome =
  *
  * GUESTS GET A ROW, AND THE CLAIM IS DEFERRED — BOTH DECLARED.
  *
- * calendar_events.user_id is NULLABLE (schema.prisma:1699) and its relation is
+ * calendar_events.user_id is NULLABLE (schema.prisma:1701 (as of CRM-02, 2026-11-07: the users model grew two relations)) and its relation is
  * optional (:1734), so a guest booking (userId null) writes its row like any
  * other. Nothing is skipped silently.
  *
  * What that row does NOT do is appear on anyone's grid: the calendar reads by
- * user_id (idx_calendar_events_user_date, schema.prisma:1737), and a null user
+ * user_id (idx_calendar_events_user_date, schema.prisma:1739 (as of CRM-02, 2026-11-07: the users model grew two relations)), and a null user
  * matches nobody. The row exists, keyed to its reservation, waiting.
  *
  * A LATER ACCOUNT-CLAIM OF A GUEST BOOKING IS OUT OF SCOPE HERE and deferred to

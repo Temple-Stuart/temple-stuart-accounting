@@ -61,7 +61,7 @@ const contact = (o: Partial<ContactRow> & { key: string }): ContactRow => ({
   came_in: '2026-11-01T10:00:00.000Z', name: 'Ada Lovelace', business: 'Analytical Engines', email: 'ada@example.com', from: 'proposal', need: 'Setup',
   budget: '$2–10k', start: 'now', stage: 'new', next_step: null, last_touch: null, ...o,
 });
-const loaded = (contacts: readonly ContactRow[], ownerOnly = false): CrmLoaded => ({ kind: 'loaded', ownerOnly, contacts, proposals: [], signups: [], said: [] });
+const loaded = (contacts: readonly ContactRow[], ownerOnly = false): CrmLoaded => ({ kind: 'loaded', ownerOnly, contacts, form: null, submissions: [], proposals: [], signups: [], said: [] }); // CRM-02: no form yet
 const renderTables = (contacts: readonly ContactRow[]) => unescape(renderToStaticMarkup(React.createElement(CrmTables, { read: loaded(contacts), onWritten: () => undefined })));
 
 function sourceFiles(dir: string): string[] {
@@ -80,20 +80,21 @@ test('T1 contactKeyOf: the three shapes read back; four refusals by name; every 
   assert.deepEqual(contactKeyOf('manual:0aa624f3-86e1-47c9-9bb4-3cee2e13e219'), { source: 'manual', ref: '0aa624f3-86e1-47c9-9bb4-3cee2e13e219' });
   assert.throws(() => contactKeyOf(''), stops(/contactKeyOf: the key is empty — a row is named "<source>:<id>"/));
   assert.throws(() => contactKeyOf('proposal'), stops(/contactKeyOf: "proposal" has no colon/));
-  assert.throws(() => contactKeyOf('lead:abc'), stops(/contactKeyOf: "lead" is not a source — proposal, signup, manual/));
+  assert.throws(() => contactKeyOf('lead:abc'), stops(/contactKeyOf: "lead" is not a source — proposal, signup, manual, form/)); // CRM-02 (2026-11-07): the fourth source
   assert.throws(() => contactKeyOf('signup:'), stops(/contactKeyOf: "signup:" names no row — the id after the colon is empty/));
   const working: WorkingInput[] = [{ id: 'w-1', source: 'manual', source_ref: null, name: 'Barbara Liskov', business: null, email: 'barbara@example.com', stage: 'sent', next_step: null, last_touch_at: null, created_at: '2026-11-04T08:00:00.000Z' }];
   const rows = contactsOf({
     proposals: [{ id: 'p-1', created_at: '2026-11-01T10:00:00.000Z', name: 'Ada', email: 'ada@example.com', business: 'AE', need: 'setup', need_words: 'Setup', modules: [], start_window: 'now', budget_range: '<$2k', current_stack: '', hard_deadline: null, deadline_driver: null, links: null, team_size: null, referral_source: null, notes_from_them: '' }],
     signups: [{ id: 'u-1', created_at: '2026-11-02T10:00:00.000Z', name: 'Grace', email: 'grace@example.com', signed_up_with: 'github', email_verified_at: null, plan: 'Free' }],
+    submissions: [],
     working,
     today: '2026-11-07',
   });
   assert.deepEqual(rows.map((r) => [contactKeyOf(r.key).source, contactKeyOf(r.key).ref]), [['manual', 'w-1'], ['signup', 'u-1'], ['proposal', 'p-1']]);
   for (const r of rows) assert.equal(contactKeyOf(r.key).source, r.from);
   // a manual working row with no name or no email contradicts crm_contacts_manual_chk — named, never a blank on the row
-  assert.throws(() => contactsOf({ proposals: [], signups: [], working: [{ ...working[0], name: null }], today: '2026-11-07' }), stops(/working row w-1 was added by hand with no name — crm_contacts_manual_chk forbids it/));
-  assert.throws(() => contactsOf({ proposals: [], signups: [], working: [{ ...working[0], email: null }], today: '2026-11-07' }), stops(/working row w-1 was added by hand with no email/));
+  assert.throws(() => contactsOf({ proposals: [], signups: [], submissions: [], working: [{ ...working[0], name: null }], today: '2026-11-07' }), stops(/working row w-1 was added by hand with no name — crm_contacts_manual_chk forbids it/));
+  assert.throws(() => contactsOf({ proposals: [], signups: [], submissions: [], working: [{ ...working[0], email: null }], today: '2026-11-07' }), stops(/working row w-1 was added by hand with no email/));
 });
 
 // ── T2 · THE ROUTE ──────────────────────────────────────────────────────────
@@ -144,7 +145,7 @@ test('T2 the route: the caller first in both handlers, every crm_contacts write 
   // never proposals.status or owner_notes; no backfill
   assert.doesNotMatch(r, /status: true|ownerNotes|owner_notes|proposals\.(update|updateMany|upsert|create)/);
   // reads only its own tables
-  assert.deepEqual([...new Set([...r.matchAll(/\b(?:prisma|tx)\.(\w+)\./g)].map((m) => m[1]))].sort(), ['crm_contacts', 'proposals', 'users']);
+  assert.deepEqual([...new Set([...r.matchAll(/\b(?:prisma|tx)\.(\w+)\./g)].map((m) => m[1]))].sort(), ['crm_contacts', 'crm_form_submissions', 'proposals', 'users']); // CRM-02 (2026-11-07): a 'form:' key is read by { id, user_id } first (intakeForm01 T6)
   // not public, no paid call, no email
   assert.doesNotMatch(code('src/middleware.ts'), /'\/api\/crm/, 'not in PUBLIC_PATHS');
   assert.doesNotMatch(r, /stripe|liteapi|anthropic|openai|resend|sendgrid|fetch\(/i);
@@ -199,7 +200,10 @@ test('T3 the bodies: the five stage words, a next step of at most 2000 or null, 
 
 test('T4 the section: the Stage select with the five words and the Next step input with the row\'s next step, both in CONTROL.input; the add row\'s three labels; the words typed once; the failed line; the re-read after every write', () => {
   const html = renderTables([contact({ key: 'proposal:p-1', stage: 'reviewing', next_step: 'Send the quote' }), contact({ key: 'signup:u-1', name: 'Grace Hopper', email: 'grace@example.com', from: 'signup', business: null, need: 'Signed up — Free', budget: null, start: null })]);
-  const select = html.slice(html.indexOf('<select'), html.indexOf('</select>'));
+  // CRM-02 (2026-11-07): the intake form block sits above the Contacts table (its own inputs first in the markup) — the row's controls are read from the Contacts section on.
+  const contactsAt = html.indexOf('data-crm-contacts-section');
+  assert.notEqual(contactsAt, -1);
+  const select = html.slice(html.indexOf('<select', contactsAt), html.indexOf('</select>', contactsAt));
   assert.match(select, /data-crm-stage="proposal:p-1"/);
   assert.match(select, /aria-label="Stage of Ada Lovelace"/);
   assert.ok(select.includes(`class="${CONTROL.input}"`), 'the house\'s one field class — ds.ts has no select class (ruling B, corrected)');
@@ -207,7 +211,7 @@ test('T4 the section: the Stage select with the five words and the Next step inp
   assert.match(select, /<option value="reviewing" selected="">Reviewing<\/option>/, 'the row\'s stage picked');
   assert.equal((html.match(/<select/g) ?? []).length, 2, 'one select per contact row');
   assert.match(html, /aria-label="Stage of Grace Hopper"/);
-  const input = html.slice(html.indexOf('<input'), html.indexOf('/>', html.indexOf('<input')));
+  const input = html.slice(html.indexOf('<input', contactsAt), html.indexOf('/>', html.indexOf('<input', contactsAt)));
   assert.match(input, /type="text"/);
   assert.ok(input.includes(`class="${CONTROL.input} w-full min-w-[16rem]"`));
   assert.match(input, /value="Send the quote"/);
@@ -247,7 +251,7 @@ test('T4 the section: the Stage select with the five words and the Next step inp
   assert.equal(nextStepAriaWords('Ada'), 'Next step for Ada');
   assert.equal(WRITE_FAILED_PREFIX_WORDS, 'Not saved — ');
   assert.equal(crmWriteFailedWords('Not found'), 'Not saved — Not found');
-  assert.equal(NO_CONTACTS_OWN_WORDS, 'No one yet. Add someone by hand above; your own intake form comes in CRM-02.');
+  assert.equal(NO_CONTACTS_OWN_WORDS, 'No one yet. Share your intake form (above) or add someone by hand.'); // CRM-02 (2026-11-07)
   // the writes: PATCH on a change, POST on Add, through one route; saved on blur or Enter when changed, Escape restores, an empty box saves null
   assert.match(s, /const CRM_CONTACTS_ROUTE = '\/api\/crm\/contacts';/);
   assert.match(s, /sendJson\('PATCH', \{ key, \.\.\.body \}\)/);
@@ -286,7 +290,8 @@ test('T5 /owner is the accounts console: no Proposals section, no fetch of /api/
   assert.match(law, /\{ route: '\/owner', door: 'utilities menu — Owner · accounts \(src\/lib\/shellMenu\.ts OWNER_UTILITIES\)' \},/);
   assert.doesNotMatch(law, /owner\/proposals/);
   // DEV-RETIRE-01 (2026-11-07): the developer console's prospects PATCH retired too — ownerConsole 5 → 4 (devRetire01 T2 pins the four).
-  assert.match(law, /const SEC02_PINNED = \{ publicWriters: 12, ownerConsole: 4,/);
+  // CRM-02 (2026-11-07): publicWriters 12 → 13 — the intake form's POST, public BY RULING (intakeForm01 T8 pins the entry).
+  assert.match(law, /const SEC02_PINNED = \{ publicWriters: 13, ownerConsole: 4,/);
   assert.match(comments(LAW), /CRM-01b \(2026-11-07\): ownerConsole 6 → 5/);
   const seeds = code(SEEDS);
   assert.doesNotMatch(seeds, /owner\/proposals/);
@@ -296,10 +301,11 @@ test('T5 /owner is the accounts console: no Proposals section, no fetch of /api/
   // the schema: the two notes on the columns' own lines (no line added — the ONE-FORM-01 way)
   const schemaCode = code(SCHEMA).split('\n');
   const schemaNotes = comments(SCHEMA).split('\n');
-  assert.match(schemaCode[1678], /^\s+status\s+String\s+@default\("new"\) @db\.VarChar\(20\)/);
-  assert.match(schemaCode[1679], /^\s+ownerNotes\s+String\?\s+@db\.Text @map\("owner_notes"\)/);
-  for (const i of [1678, 1679]) assert.match(schemaNotes[i], /CRM-01b \(2026-11-07\): no longer written — the CRM's stage and next step live in crm_contacts; CLEAN rules on dropping/);
-  assert.equal(schemaCode.length, 4764, 'no schema line added');
+  // CRM-02 (2026-11-07): the users model's two new relation lines (crm_forms, crm_form_submissions) moved every line below it by two — :1679-1680 → :1681-1682; 4764 → 4807 (those two, and CRM-02's forty-one at the end).
+  assert.match(schemaCode[1680], /^\s+status\s+String\s+@default\("new"\) @db\.VarChar\(20\)/);
+  assert.match(schemaCode[1681], /^\s+ownerNotes\s+String\?\s+@db\.Text @map\("owner_notes"\)/);
+  for (const i of [1680, 1681]) assert.match(schemaNotes[i], /CRM-01b \(2026-11-07\): no longer written — the CRM's stage and next step live in crm_contacts; CLEAN rules on dropping/);
+  assert.equal(schemaCode.length, 4807, 'CRM-02 (2026-11-07): 4764 + the two relation lines + the forty-one of its two models — nothing else');
   // nothing writes proposals.status or owner_notes any more; the proposal form leaves them to the DDL defaults
   const files = [...sourceFiles(resolve(process.cwd(), 'src/app')), ...sourceFiles(resolve(process.cwd(), 'src/lib'))];
   for (const f of files) {
@@ -318,8 +324,9 @@ test('T6 the registry row: CRM PARTIAL with four beats, its why and customer sen
   assert.equal(t.status, 'PARTIAL', 'four beats never imply LIVE (TRUTH-01)');
   assert.deepEqual(t.beats, { discover: true, decide: true, commit: true, record: true });
   assert.equal(t.home, '/crm');
-  assert.equal(t.why, "the people you sell to: every proposal from the platform's form and every signup for the owner, anyone added by hand for every account; a stage and a next step on the row; a customer's own intake form is not built (CRM-02), and nothing is sent from here");
-  assert.equal(t.customer, "The people you sell to, in flat tables: set each one's stage and next step, add someone by hand. Not built yet: your own intake form — so today only the platform's own proposal form and signups fill it on their own.");
+  // CRM-02 (2026-11-07): the why and the customer sentence rewritten (BUILD 14); CRM-01b's stood until then.
+  assert.equal(t.why, "the people you sell to: every proposal from the platform's form and every signup for the owner; anyone added by hand and every submission of their own intake form, at its own link or embedded, for every account; a stage and a next step on the row; nothing is sent from here; per-account stages and fields are not built (CRM-03)");
+  assert.equal(t.customer, "The people you sell to, in flat tables. Your own intake form — at your own link, or embedded on your site — fills it; set each one's stage and next step; add someone by hand.");
   assert.equal(t.ownTable, 'crm_contacts');
   const route = /^src\/app\/api\/crm\/contacts\/route\.ts:(\d+) \(crm_contacts\.create — the row a PATCH makes on the first touch, the row a POST adds by hand\)$/.exec(t.ownTableRoute ?? '');
   assert.ok(route, 'the ownTableRoute names the PATCH\'s create line');
@@ -337,7 +344,7 @@ test('T6 the registry row: CRM PARTIAL with four beats, its why and customer sen
   assert.match(lineOf(SECTION, n(/decide: src\/components\/crm\/CrmSection\.tsx:(\d+) \(the Stage select and the Next step input/)), /^\s+<select$/);
   assert.match(lineOf(ROUTE, n(/commit: src\/app\/api\/crm\/contacts\/route\.ts:(\d+) \(PATCH — the caller first/)), /^export async function PATCH\(/);
   assert.match(lineOf(ROUTE, n(/· :(\d+) \(POST — a contact typed by hand/)), /^export async function POST\(/);
-  assert.match(lineOf(SECTION, n(/record: src\/components\/crm\/CrmSection\.tsx:(\d+) \(the three tables/)), /name=\{CRM_CONTACTS_TABLE_NAME\}/);
+  assert.match(lineOf(SECTION, n(/record: src\/components\/crm\/CrmSection\.tsx:(\d+) \(the four tables/)), /name=\{CRM_CONTACTS_TABLE_NAME\}/); // CRM-02 (2026-11-07): four tables
   assert.match(t.citation, /\/owner is the accounts console — its proposals panel and the two \/api\/owner\/proposals routes retired into the CRM \(CRM-01b\)$/);
   // the registry kept its lines: the row sits on :298-303 and every line the deck and the laws cite by number holds
   const reg = code(REGISTRY).split('\n');

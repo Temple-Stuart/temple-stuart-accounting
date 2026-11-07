@@ -374,7 +374,7 @@ export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], r
 
 export type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled' | 'superseded' | 'archived' | 'pending_review';
 export type BlockStatus = 'scheduled' | 'in_progress' | 'completed' | 'missed' | 'cancelled';
-/** A person accepted it: it is a plan (OperationsTaskStatus, prisma/schema.prisma:3293-3302). */
+/** A person accepted it: it is a plan (OperationsTaskStatus, prisma/schema.prisma:3295-3304 (as of CRM-02, 2026-11-07: the users model grew two relations)). */
 export const PLAN_TASK_STATUSES: readonly TaskStatus[] = ['open', 'in_progress', 'blocked', 'completed'];
 /** Not a plan: excluded, and counted. */
 export const EXCLUDED_TASK_STATUSES: readonly TaskStatus[] = ['pending_review', 'cancelled', 'superseded', 'archived'];
@@ -383,7 +383,7 @@ const BLOCK_STATUSES: readonly BlockStatus[] = ['scheduled', 'in_progress', 'com
 export interface TaskPlanItemInput {
   /** operations_daily_plan_items.plan_date, 'YYYY-MM-DD'. */
   readonly planDate: IsoDay;
-  /** The item's calendar blocks, by status (CalendarBlockStatus, prisma/schema.prisma:3304-3310). */
+  /** The item's calendar blocks, by status (CalendarBlockStatus, prisma/schema.prisma:3306-3312 (as of CRM-02, 2026-11-07: the users model grew two relations)). */
   readonly blocks: readonly { readonly status: string }[];
 }
 

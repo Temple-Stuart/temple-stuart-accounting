@@ -22,6 +22,8 @@
  *   contactsTable · proposalsTable · signupsTable   the specs, in the ruled orders; their CSV file names;
  *   contactKeyOf(key)          CRM-01b: 'proposal:<id>' | 'signup:<id>' | 'manual:<id>' → { source, ref }, or a CrmLawError
  *                              by name — the writes' one way to name a row; CRM_NEXT_STEP_MAX the next step's length.
+ *                              CRM-02 (2026-11-07): 'form:<submission id>' is the fourth shape — a submission of the
+ *                              account's own intake form (src/lib/crm/forms.ts holds the form's own rules).
  *
  * DATES (ruling 5): created_at, email_verified_at and last_touch_at are EVENT INSTANTS — drawn as the viewer's day through
  * work.ts instantDayWords (instantColumn), sorted by the instant, written to the CSV as the instant; hard_deadline is a
@@ -42,6 +44,7 @@ import { GOOGLE_CATEGORY_KEYS, TAB_ENTITLEMENT_KEYS } from '@/lib/categoryKeys';
 import { PROPOSAL_NEEDS, SERVICE_NEEDS, SERVICE_NEED_LABELS, type ServiceNeed } from '@/lib/proposalNeeds';
 import { CLOSE_OFFER } from '@/lib/offer/close';
 import { closeChoiceWords } from '@/lib/offer/closeWords';
+import type { SubmissionRow } from './forms';
 import {
   CONTACT_HEAD_WORDS, EMAIL_AND_PASSWORD_WORDS, FREE_PLAN_WORDS, FROM_WORDS, LEGACY_KEY_WORDS, LIST_JOIN, NOT_YET_WORDS,
   PROPOSAL_HEAD_WORDS, SIGNUP_HEAD_WORDS, STAGE_WORDS, TAB_KEY_WORDS, VERIFIED_PREFIX_WORDS, signedUpNeedWords,
@@ -50,8 +53,8 @@ import {
 /** The five stage words — proposals.status's own (ruling E; the migration's crm_contacts_stage_chk). ONE vocabulary. */
 export const CRM_STAGES = ['new', 'reviewing', 'sent', 'won', 'lost'] as const;
 export type CrmStage = (typeof CRM_STAGES)[number];
-/** Where a working row's contact came from (crm_contacts_source_chk). */
-export const CRM_SOURCES = ['proposal', 'signup', 'manual'] as const;
+/** Where a working row's contact came from (crm_contacts_source_chk). CRM-02 (2026-11-07): 'form' — a submission of the account's own intake form, source_ref its crm_form_submissions.id. */
+export const CRM_SOURCES = ['proposal', 'signup', 'manual', 'form'] as const;
 export type CrmSource = (typeof CRM_SOURCES)[number];
 /** CRM-01b (Alex, 2026-11-07, ruling A): a next step is at most this many characters. */
 export const CRM_NEXT_STEP_MAX = 2000;
@@ -150,7 +153,7 @@ export interface SignupRow {
 }
 
 export interface ContactRow {
-  /** 'proposal:<id>' · 'signup:<id>' · 'manual:<working row id>' — the row's own key (contactKeyOf parses it). */
+  /** 'proposal:<id>' · 'signup:<id>' · 'manual:<working row id>' · 'form:<submission id>' (CRM-02) — the row's own key (contactKeyOf parses it). */
   readonly key: string;
   /** The instant the contact came in. */
   readonly came_in: string;
@@ -283,13 +286,15 @@ export function signupRowsOf(input: {
 const isStage = (stage: string): stage is CrmStage => (CRM_STAGES as readonly string[]).includes(stage);
 
 /**
- * CONTACTS: every proposal and every signup handed in, and the reader's manual working rows, newest first. A contact's
- * Stage, Next step and Last touch are its working row's; with no working row it is new, with no next step and no touch.
- * `today` ('YYYY-MM-DD', handed in — no clock here) is the day a working row's last touch may not be after.
+ * CONTACTS: every proposal and every signup handed in, every submission of the reader's own intake form (CRM-02 — from
+ * 'form', its business the submission's, no need, budget or start), and the reader's manual working rows, newest first.
+ * A contact's Stage, Next step and Last touch are its working row's; with no working row it is new, with no next step
+ * and no touch. `today` ('YYYY-MM-DD', handed in — no clock here) is the day a working row's last touch may not be after.
  */
 export function contactsOf(input: {
   readonly proposals: readonly ProposalRow[];
   readonly signups: readonly SignupRow[];
+  readonly submissions: readonly SubmissionRow[];
   readonly working: readonly WorkingInput[];
   readonly today: string;
 }): ContactRow[] {
@@ -297,7 +302,7 @@ export function contactsOf(input: {
   const bySource = new Map<string, WorkingInput>();
   const manual: WorkingInput[] = [];
   for (const w of input.working) {
-    if (!(CRM_SOURCES as readonly string[]).includes(w.source)) throw new CrmLawError(`contactsOf: working row ${w.id} says source "${w.source}" — not proposal, signup or manual`);
+    if (!(CRM_SOURCES as readonly string[]).includes(w.source)) throw new CrmLawError(`contactsOf: working row ${w.id} says source "${w.source}" — not one of ${CRM_SOURCES.join(', ')}`);
     if (!isStage(w.stage)) throw new CrmLawError(`contactsOf: working row ${w.id} says stage "${w.stage}" — not one of ${CRM_STAGES.join(', ')}`);
     if (w.last_touch_at !== null && w.last_touch_at.slice(0, 10) > input.today) throw new CrmLawError(`contactsOf: working row ${w.id} was last touched on ${w.last_touch_at.slice(0, 10)}, after today (${input.today}) — a record from the future`);
     if (w.source === 'manual') {
@@ -324,6 +329,10 @@ export function contactsOf(input: {
     ...input.signups.map((s): ContactRow => ({
       key: `signup:${s.id}`, came_in: s.created_at, name: s.name, business: null, email: s.email, from: 'signup',
       need: signedUpNeedWords(s.plan), budget: null, start: null, ...working(`signup:${s.id}`),
+    })),
+    ...input.submissions.map((s): ContactRow => ({
+      key: s.key, came_in: s.came_in, name: s.name, business: s.business, email: s.email, from: 'form',
+      need: null, budget: null, start: null, ...working(s.key),
     })),
     ...manual.map((m): ContactRow => ({
       key: `manual:${m.id}`, came_in: m.created_at, name: m.name as string, business: m.business, email: m.email as string, from: 'manual',

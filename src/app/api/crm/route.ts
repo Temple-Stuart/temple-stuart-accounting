@@ -15,6 +15,12 @@
  *
  * The password hash never leaves the database: whether a user has one is asked of the database (password = '').
  * An ACTIVE entitlement is entitlements.ts's own: status 'active' and not expired (currentPeriodEnd null or later).
+ *
+ * CRM-02 (Alex, 2026-11-07): EVERY reader also gets their own intake form (crm_forms, one row — `form`, or null before
+ * it is made) and every submission of it (crm_form_submissions WHERE user_id = the caller's — a submission's user_id is
+ * the FORM OWNER's — `submissions`, newest first); each submission is a Contacts row too (from 'form'). The stored JSON
+ * is read back by its shape (src/lib/crm/forms.ts questionsOf, frozenAnswersOf) — a row that contradicts it is a
+ * CrmLawError, answered 500 with its words. Answers { ownerOnly, contacts, form, submissions, proposals, signups, said }.
  */
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -22,6 +28,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { AdminConfigError, isAdminUser } from '@/lib/admin';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { CrmLawError, contactsOf, proposalRowsOf, signupRowsOf, type ProposalRow, type SignupRow, type WorkingInput } from '@/lib/crm/crm';
+import { intakeFormOf, submissionRowOf, type IntakeForm, type SubmissionRow } from '@/lib/crm/forms';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +50,17 @@ export async function GET() {
       select: { id: true, source: true, source_ref: true, name: true, business: true, email: true, stage: true, next_step: true, last_touch_at: true, created_at: true },
     });
     const working: WorkingInput[] = workingRows.map((w) => ({ ...w, last_touch_at: w.last_touch_at?.toISOString() ?? null, created_at: w.created_at.toISOString() }));
+
+    // CRM-02: the reader's own intake form (one row, crm_forms_user_id_key) and every submission of it — a submission's
+    // user_id is the form owner's, so this read is theirs alone. The stored JSON is read back by its shape.
+    const formRow = await prisma.crm_forms.findUnique({ where: { user_id: user.id }, select: { id: true, slug: true, title: true, line: true, questions: true } });
+    const form: IntakeForm | null = formRow === null ? null : intakeFormOf(formRow);
+    const submissionRows = await prisma.crm_form_submissions.findMany({
+      where: { user_id: user.id },
+      orderBy: { created_at: 'desc' },
+      select: { id: true, created_at: true, name: true, email: true, business: true, answers: true },
+    });
+    const submissions: SubmissionRow[] = submissionRows.map((s) => submissionRowOf({ ...s, created_at: s.created_at.toISOString() }));
 
     let proposals: ProposalRow[] = [];
     let signups: SignupRow[] = [];
@@ -94,8 +112,8 @@ export async function GET() {
       });
     }
 
-    const contacts = contactsOf({ proposals, signups, working, today });
-    return NextResponse.json({ ownerOnly: !owner, contacts, proposals, signups, said: [] as string[] });
+    const contacts = contactsOf({ proposals, signups, submissions, working, today });
+    return NextResponse.json({ ownerOnly: !owner, contacts, form, submissions, proposals, signups, said: [] as string[] });
   } catch (error) {
     if (error instanceof AdminConfigError || error instanceof CrmLawError) return NextResponse.json({ error: error.message }, { status: 500 });
     return failClosedResponse('CRM GET', 'Failed to load the CRM', error);

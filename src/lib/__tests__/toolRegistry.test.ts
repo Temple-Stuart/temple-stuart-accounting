@@ -41,7 +41,8 @@ test('CRM is the one four-beat PARTIAL (CRM-01b); Budget keeps its census note; 
   // page — discover, commit and record through EVENT-01's hand-entered event,
   // and no decide, because nothing persists a draft. PARTIAL is unchanged.
   assert.deepEqual(fourBeatPartials, ['CRM']); // CRM-01b (2026-11-07); [] since DATAFLOW-01d, ['Budget'] since TIME-03
-  assert.match(byName('CRM').why ?? '', /a customer's own intake form is not built \(CRM-02\)/, 'the four-beat PARTIAL says what is not done');
+  // CRM-02 (2026-11-07): the intake form is built; the why now says what is not — per-account stages and fields (CRM-03).
+  assert.match(byName('CRM').why ?? '', /per-account stages and fields are not built \(CRM-03\)/, 'the four-beat PARTIAL says what is not done');
   assert.deepEqual(byName('Budget').beats, { discover: true, decide: false, commit: false, record: false }); // DATAFLOW-01d
   assert.equal(beats(byName('Budget')), 1);
   // ONEOFF-01: the calendar authors nothing — the add form and its POST are

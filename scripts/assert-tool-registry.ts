@@ -222,7 +222,7 @@ const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
   { route: '/how-pricing-works', why: 'LandingHeader.tsx:52, LandingFooter.tsx:54, the HomeClient header' },
   { route: '/privacy', why: 'LandingFooter.tsx:56, PUBLIC_PATHS' },
   { route: '/terms', why: 'LandingFooter.tsx:55, PUBLIC_PATHS' },
-  { route: '/work-with-me', why: 'the deck (Landing.tsx), PUBLIC_PATHS' }, { route: '/my-trip/[id]', why: 'TRIPPOST-01: a stop\u2019s page — its door is that stop\u2019s card on the front door (WasHereSection.tsx: Read the post, on every card since TRIPCARDS-01), PUBLIC_PATHS' },
+  { route: '/work-with-me', why: 'the deck (Landing.tsx), PUBLIC_PATHS' }, { route: '/my-trip/[id]', why: 'TRIPPOST-01: a stop\u2019s page — its door is that stop\u2019s card on the front door (WasHereSection.tsx: Read the post, on every card since TRIPCARDS-01), PUBLIC_PATHS' }, { route: '/f/[slug]', why: 'CRM-02 (2026-11-07): a customer\u2019s own intake form — its door is the link on /crm (IntakeFormSetup.tsx), PUBLIC_PATHS' }, // CRM-02 (2026-11-07): on this line, TRIPPOST-01's way — a new line here would move every line of this file the deck cites by number (Landing.tsx: :483, :742, :840, :987)
   { route: '/modules/[pillar]', why: 'the deck PILLAR_CARDS and ModulePointerCard.tsx' },
   { route: '/booking/confirm', why: 'the LiteAPI checkout return URL (CheckoutPanel.tsx returnUrl), PUBLIC_PATHS' },
   { route: '/booking/flight-confirm', why: 'FL-4c: the FLIGHTS checkout return URL (LiteApiFlightCheckoutPanel.tsx returnUrl) — the documented LiteAPI payment rail redirects on success, so a guest who just paid lands here; PUBLIC_PATHS' },
@@ -8673,6 +8673,7 @@ type SecGuard = { name: string; re: RegExp };
 const PUBLIC_WRITERS: ReadonlyArray<{ file: string; kind: 'public' | 'bypass' | 'token'; reason: string; guards: readonly SecGuard[] }> = [
   { file: 'src/app/api/auth/signup/route.ts', kind: 'public', reason: '/api/auth is public: a new account has no session yet', guards: [{ name: 'per-IP rate limit 5/hour', re: /await rateLimit\(`auth-signup:\$\{ip\}`, \{ limit: 5, windowSeconds: 3600 \}\)/ }] },
   { file: 'src/app/api/proposals/route.ts', kind: 'public', reason: 'PROPOSAL-FORM: public BY RULING — a DB write only, no paid call', guards: [{ name: 'honeypot', re: /\['website'\]/ }, { name: 'per-ip_hash rate limit 5/hour', re: /await rateLimit\(`proposal:\$\{ipHash\}`, \{ limit: 5, windowSeconds: 3600 \}\)/ }] },
+  { file: 'src/app/api/f/[slug]/route.ts', kind: 'public', reason: 'CRM-02 (Alex, 2026-11-07): public BY RULING — a DB write only, no paid call; the form owner\u2019s own submissions', guards: [{ name: 'honeypot', re: /\['website'\]/ }, { name: 'per-ip_hash rate limit 5/hour', re: /await rateLimit\(`form:\$\{ipHash\}`, \{ limit: 5, windowSeconds: 3600 \}\)/ }] },
   { file: 'src/app/api/stripe/webhook/route.ts', kind: 'public', reason: 'Stripe holds no session; the signed body is the authority', guards: [{ name: 'STRIPE_WEBHOOK_SECRET signature (constructEvent)', re: /secret: process\.env\.STRIPE_WEBHOOK_SECRET[\s\S]*webhooks\.constructEvent\(body, sig, secret\)/ }] },
   { file: 'src/app/api/webhooks/liteapi/route.ts', kind: 'public', reason: 'STATUS-01: the vendor holds no session; the token is the gate before a byte is stored', guards: [{ name: 'per-IP rate limit 120/min', re: /await rateLimit\(`liteapi-webhook:\$\{ip\}`/ }, { name: 'LITEAPI_WEBHOOK_TOKEN, constant-time', re: /process\.env\.LITEAPI_WEBHOOK_TOKEN[\s\S]*!constantTimeEqual\(given, expected\)/ }] },
   { file: 'src/app/api/inngest/route.ts', kind: 'public', reason: 'Inngest Cloud holds no session; serve() verifies the INNGEST_SIGNING_KEY signature before any function runs', guards: [{ name: 'serve() signature check', re: /export const \{ GET, POST, PUT \} = serve\(\{/ }] },
@@ -8715,8 +8716,8 @@ const GATED_FLOWS: ReadonlyArray<{ lib: string; entries: readonly string[]; owne
     ],
   },
 ];
-// GUEST-02b (2026-09-30): the callers of the gated flows are closed by count too, like every other table. CRM-01b (2026-11-07): ownerConsole 6 → 5 — the owner proposals PATCH retired into the CRM, whose writes are user-scoped. DEV-RETIRE-01 (2026-11-07): 5 → 4 — the developer console's prospects PATCH retired; its leads become CRM contacts by one psql step.
-const SEC02_PINNED = { publicWriters: 12, ownerConsole: 4, sharedRows: 1, derivedOwned: 4, helperPreconditions: 1, gatedFlows: 1, gatedCallers: 2 } as const;
+// GUEST-02b (2026-09-30): the callers of the gated flows are closed by count too, like every other table. CRM-01b (2026-11-07): ownerConsole 6 → 5 — the owner proposals PATCH retired into the CRM, whose writes are user-scoped. DEV-RETIRE-01 (2026-11-07): 5 → 4 — the developer console's prospects PATCH retired; its leads become CRM contacts by one psql step. CRM-02 (Alex, 2026-11-07): publicWriters 12 → 13 — the intake form's POST (src/app/api/f/[slug]/route.ts), public BY RULING with the proposal route's guards in the proposal route's order; the guest law's census sentence names it too.
+const SEC02_PINNED = { publicWriters: 13, ownerConsole: 4, sharedRows: 1, derivedOwned: 4, helperPreconditions: 1, gatedFlows: 1, gatedCallers: 2 } as const;
 
 lawGuard('The ownership law', () => {
   let secViolations = 0;
@@ -10317,7 +10318,7 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_CANCEL, G_FLOW, G_PAGE, G_RE
   if (!PUBLIC_WRITERS.some((p) => p.file === G_CANCEL && p.kind === 'public')) guestFail(`${G_CANCEL} is not a listed PUBLIC writer with its reason and guards`);
   if (exportedMethods(cancelSrc).map((m) => m.method).join(',') !== 'GET,POST') guestFail(`${G_CANCEL} exports [${exportedMethods(cancelSrc).map((m) => m.method).join(', ')}] — the quote (GET) and the cancel (POST) only`);
   if (PUBLIC_WRITERS.filter((p) => p.file.startsWith('src/app/api/guest/')).map((p) => p.file).join(',') !== G_CANCEL) guestFail('the public writers under /api/guest are not exactly the cancel');
-  if (PUBLIC_WRITERS.length !== SEC02_PINNED.publicWriters || SEC02_PINNED.publicWriters !== 12) guestFail(`the ownership law’s public writers are ${PUBLIC_WRITERS.length} (pinned ${SEC02_PINNED.publicWriters}) — the census is 12: GUEST-01’s 11 and the guest’s cancel`);
+  if (PUBLIC_WRITERS.length !== SEC02_PINNED.publicWriters || SEC02_PINNED.publicWriters !== 13) guestFail(`the ownership law’s public writers are ${PUBLIC_WRITERS.length} (pinned ${SEC02_PINNED.publicWriters}) — the census is 13: GUEST-01’s 11, the guest’s cancel, and CRM-02’s form POST`); // CRM-02 (Alex, 2026-11-07): 12 → 13 — the intake form's POST (src/app/api/f/[slug]/route.ts) is a ruling, not an entry
   if (!GUEST_ROUTES.some((g) => g.route === '/booking/manage')) guestFail('GUEST_ROUTES does not door /booking/manage');
   // THE DOOR (Alex's ruling 17:04): the lookup under the home page's booking section, not a header link.
   if (/booking\/manage/.test(codeOf('src/components/landing/LandingHeader.tsx'))) guestFail('LandingHeader.tsx links /booking/manage — the door is the home page\u2019s lookup, not the header');
@@ -11054,6 +11055,81 @@ if (!/export const BANK_ROW_LABEL = 'BANK — not yet in the books';/.test(hmVie
 if (TOOL_REGISTRY.some((t) => t.slug === 'home-month' || t.slug === 'travel-plan' || t.home === '/home')) hmFail('the registry carries a Home row — the month table is Budget\'s, the travel plan the shell\'s');
 if (hmViolations === 0) console.log(`✔ The home month law passed — /home mounts the four answers → Net worth → the day card → the home ledger → the month host → the sheet; the host prints the heading, Budget's own report on the card's year (no step) and the travel plan; the travel plan's route is GET only behind the cart-plan gate, reads the caller's trip lines alone, and its leaf and screen sum nothing; the bank rows not yet in the books are ONE read (reportReads.ts readBankNotInBooks) for both pages, figured per currency; BudgetReport takes the one required year prop, prints the BANK row through the books' formatter and says the supersession gap; the lane names both screens; no registry row.`);
 else console.log(`✖ The home month law FAILED — ${hmViolations} violation(s).`);
+});
+
+lawGuard('The intake form law', () => {
+
+// ── THE INTAKE FORM LAW (CRM-02, Alex, 2026-11-07) ───────────────────────────
+// Every account's own intake form, public at /f/<slug> and POSTed to /api/f/<slug> — the one public page prefix and the
+// one public writer this ruling added (THE HARD GATE, ruled in chat 2026-11-07 21:16). What a reviewer cannot see from
+// the page:
+//   1. the two files exist — src/app/f/[slug]/page.tsx and src/app/api/f/[slug]/route.ts — and each is ALL there is
+//      under its prefix (a PUBLIC_PATHS prefix entry covers every path under it, so nothing else may live there), and
+//      no other page route starts with /f;
+//   2. src/middleware.ts lists '/f' and '/api/f', each entry's comment carrying "BY RULING" and the ruling's name;
+//   3. the route's guard order, by source index (crm01.test.ts T5's way): the honeypot, then the per-ip_hash rate
+//      limit, then the form by its slug, then the body's shape, then the frozen answers, then the ONE insert — its only
+//      write, with user_id the form owner's, through the durable rate limiter;
+//   4. prisma/schema.prisma holds model crm_forms and model crm_form_submissions;
+//   5. the registry's CRM row cites the form route (src/app/api/crm/form/route.ts) and the public route;
+//   6. no file of the three — the page, its client half, the route — imports a vendor client (src/lib/liteapi*, duffel*,
+//      plaid*, stripe) or reads the cookie (cookie-auth): they are public BY RULING because they touch neither.
+const IF_PAGE = 'src/app/f/[slug]/page.tsx';
+const IF_CLIENT = 'src/components/crm/IntakeFormClient.tsx';
+const IF_ROUTE = 'src/app/api/f/[slug]/route.ts';
+const IF_FORM_ROUTE = 'src/app/api/crm/form/route.ts';
+let ifViolations = 0;
+const ifFail = (m: string) => { ifViolations += 1; violations.push(`intake form law: ${m} (CRM-02)`); };
+const ifText = (f: string): string => (existsSync(resolve(ROOT, f)) ? codeOf(f) : '');
+for (const f of [IF_PAGE, IF_CLIENT, IF_ROUTE, IF_FORM_ROUTE]) if (!existsSync(resolve(ROOT, f))) ifFail(`${f} is missing`);
+// 1. each prefix holds its one file; no other page route starts with /f.
+for (const [dir, only] of [['src/app/f', IF_PAGE], ['src/app/api/f', IF_ROUTE]] as const) {
+  const under = srcFiles.filter((f) => f.file.startsWith(`${dir}/`)).map((f) => f.file);
+  if (under.join(',') !== only) ifFail(`${dir} holds [${under.join(', ')}] — exactly ${only}: the PUBLIC_PATHS prefix covers every path under it`);
+}
+for (const p of pages) if (p.route !== '/f/[slug]' && (p.route === '/f' || p.route.startsWith('/f/'))) ifFail(`${p.route} (${p.file}) starts with /f — the public prefix would cover it`);
+// 2. the middleware's two entries, each BY RULING.
+const ifMwCode = codeOf('src/middleware.ts');
+const ifMw = rejoin(ifMwCode, commentsOf('src/middleware.ts'));
+const ifListed = /const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(ifMwCode);
+const ifPaths = ifListed ? Array.from(ifListed[1].matchAll(/'([^']+)'/g), (m) => m[1]) : [];
+for (const p of ['/f', '/api/f']) {
+  if (!ifPaths.includes(p)) { ifFail(`src/middleware.ts PUBLIC_PATHS lacks '${p}'`); continue; }
+  const at = ifMw.indexOf(`\n  '${p}',`);
+  const above = at < 0 ? '' : ifMw.slice(0, at);
+  const block = above.slice(above.lastIndexOf("',\n") + 3);
+  if (!/BY RULING/.test(block) || !/CRM-02/.test(block)) ifFail(`src/middleware.ts: the '${p}' entry’s comment does not say it is public BY RULING (CRM-02)`);
+}
+// 3. the route's guard order, by source index.
+const ifRoute = ifText(IF_ROUTE);
+const ifOrder: ReadonlyArray<readonly [string, number]> = [
+  ['the honeypot', ifRoute.indexOf("['website']")],
+  ['the per-ip_hash rate limit', ifRoute.indexOf('await rateLimit(`form:${ipHash}`, { limit: 5, windowSeconds: 3600 })')],
+  ['the form by its slug', ifRoute.indexOf('prisma.crm_forms.findUnique({ where: { slug }')],
+  ['the body’s shape', ifRoute.indexOf('publicSubmissionBody.safeParse(body)')],
+  ['the frozen answers', ifRoute.indexOf('answersOf(form, d)')],
+  ['the one insert', ifRoute.indexOf('prisma.crm_form_submissions.create({')],
+];
+for (const [what, at] of ifOrder) if (at < 0) ifFail(`${IF_ROUTE} lacks ${what}`);
+for (let i = 1; i < ifOrder.length; i += 1) {
+  if (ifOrder[i][1] >= 0 && ifOrder[i - 1][1] >= 0 && ifOrder[i][1] < ifOrder[i - 1][1]) ifFail(`${IF_ROUTE}: ${ifOrder[i][0]} comes before ${ifOrder[i - 1][0]} — CLOSED 1’s order is honeypot → rate limit → the form by slug → the shape → the frozen answers → the one insert`);
+}
+if ((ifRoute.match(/\b(?:prisma|tx)\.\w+\.(create|createMany|createManyAndReturn|update|updateMany|upsert|delete|deleteMany)\(/g) ?? []).length !== 1) ifFail(`${IF_ROUTE} writes more than once — the insert is its only side effect`);
+if (!/user_id: row\.user_id/.test(ifRoute)) ifFail(`${IF_ROUTE}: the submission’s user_id is not the form owner’s`);
+if (!/import \{ rateLimit, RateLimitError \} from '@\/lib\/rateLimit';/.test(ifRoute)) ifFail(`${IF_ROUTE} does not use the durable rate limiter (src/lib/rateLimit.ts)`);
+if (!/export async function POST\(/.test(ifRoute) || /export async function (GET|PUT|PATCH|DELETE)\(/.test(ifRoute)) ifFail(`${IF_ROUTE} exports something besides POST`);
+// 4. the schema.
+for (const model of ['crm_forms', 'crm_form_submissions']) if (!new RegExp(`^model ${model} \\{$`, 'm').test(codeOf('prisma/schema.prisma'))) ifFail(`prisma/schema.prisma lacks model ${model}`);
+// 5. the registry's CRM row cites both routes.
+const ifCrm = TOOL_REGISTRY.find((t) => t.name === 'CRM');
+if (!ifCrm) ifFail('the registry has no CRM row');
+else for (const f of [IF_FORM_ROUTE, IF_ROUTE]) if (!ifCrm.citation.includes(f)) ifFail(`the registry’s CRM row does not cite ${f}`);
+// 6. no vendor client, no cookie — in the page, its client half, and the route.
+for (const f of [IF_PAGE, IF_CLIENT, IF_ROUTE]) {
+  if (/@\/lib\/(liteapi|duffel|plaid|stripe)|cookie-auth|getVerifiedEmail|getCurrentUser|requireAdmin/.test(ifText(f))) ifFail(`${f} imports a vendor client or reads the cookie — a public page or route touches neither`);
+}
+if (ifViolations === 0) console.log(`✔ The intake form law passed — the one public page prefix (/f: ${IF_PAGE}, its client half ${IF_CLIENT}) and the one public writer (/api/f: ${IF_ROUTE}) are listed BY RULING in src/middleware.ts and alone under their prefixes; the route reads the honeypot, then the per-ip_hash limit, then the form by its slug, then the shape, then the frozen answers, then makes its one insert for the form owner; the schema holds crm_forms and crm_form_submissions; the registry’s CRM row cites both routes; no vendor client and no cookie in any of the three files.`);
+else console.log(`✖ The intake form law FAILED — ${ifViolations} violation(s).`);
 });
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
