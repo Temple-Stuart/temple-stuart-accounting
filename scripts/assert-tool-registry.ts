@@ -3060,7 +3060,9 @@ let fxViolations = 0;
 const fxFail = (m: string) => { fxViolations += 1; violations.push(`books currency law: ${m} (FX-01)`); };
 const FX_HOME = 'src/lib/books/functionalCurrency.ts';
 const FX_PIPE = 'src/components/home/BooksPipeline.tsx';
-const FX_LANE_DIRS = ['src/lib/books', 'src/app/api/trial-balance', 'src/app/api/journal-entries', 'src/app/api/bank-reconciliations', 'src/app/api/books', 'src/app/api/journal-transactions', 'src/app/api/ledger'];
+const FX_LANE_DIRS = ['src/lib/books', 'src/app/api/trial-balance', 'src/app/api/journal-entries', 'src/app/api/bank-reconciliations', 'src/app/api/books', 'src/app/api/journal-transactions', 'src/app/api/ledger', 'src/lib/home'];
+// HOME-LEDGER-01 (Alex, 2026-11-06, ruling G): the lane covers the home ledger — its leaf (src/lib/home, above) and its one screen, named here.
+const FX_LANE_FILES = ['src/components/home/HomeLedger.tsx'];
 /** The component lane, derived: BooksPipeline itself, then every '@/components/…' module it imports, resolved to .tsx / .ts / an index file — an import no file answers to fails by name. */
 const fxLaneComponents = (): string[] => {
   const files = [FX_PIPE];
@@ -3096,10 +3098,10 @@ const FX_ALLOW: ReadonlyArray<{ file: string; snippet: string; dated: string; re
   if (!/export function postingCurrencyRule\(/.test(home)) fxFail(`${FX_HOME} does not export postingCurrencyRule (ruling F)`);
   if (/\/\s*100\b|\*\s*100\b|Math\.round\(/.test(home)) fxFail(`${FX_HOME} divides or multiplies by 100, or rounds — the formatter is integer arithmetic over a decimal string`);
   const laneFiles = [...new Set([
-    ...FX_LANE_COMPONENTS,
+    ...FX_LANE_COMPONENTS, ...FX_LANE_FILES,
     ...FX_LANE_DIRS.flatMap((d) => existsSync(resolve(ROOT, d)) ? tsFiles(resolve(ROOT, d)).map((abs) => abs.replace(`${ROOT}/`, '')) : (fxFail(`${d} is named in the lane and does not exist`), [])),
   ])].filter((f) => !f.includes('__tests__'));
-  for (const f of FX_LANE_COMPONENTS) if (!existsSync(resolve(ROOT, f))) fxFail(`${f} is in the lane and does not exist`);
+  for (const f of [...FX_LANE_COMPONENTS, ...FX_LANE_FILES]) if (!existsSync(resolve(ROOT, f))) fxFail(`${f} is in the lane and does not exist`);
   const used = new Set<number>();
   for (const f of laneFiles) {
     if (!existsSync(resolve(ROOT, f))) continue;
@@ -10781,6 +10783,111 @@ for (const fn of ['export function code(', 'export function comments(', 'export 
 }
 if (readerViolations === 0) console.log(`✔ The reader law passed — ${readerFiles.length} tests and laws, every one reading source through code() or comments(); 0 raw reads.`);
 else console.log(`✖ The reader law FAILED — ${readerViolations} violation(s).`);
+});
+
+lawGuard('The home ledger law', () => {
+
+// ── THE HOME LEDGER LAW (HOME-LEDGER-01, Alex, 2026-11-06, ruling G) ─────────
+// The home's DAY table — every account with activity on the day card's day, by
+// book, from REAL rows only — is one route, one pure leaf and one screen, and this
+// law holds them to the rulings a reviewer cannot see from the page:
+//   1. GET ONLY, THE GATE FIRST. src/app/api/home-ledger/route.ts exports GET and
+//      nothing else; its body opens with the cart-plan gate (a verified cookie or
+//      401, the user or 404) before the query is read; the path is not public.
+//   2. THE BOOKS THROUGH THE ONE ACTUALS QUERY. The route imports readActuals and
+//      readBudgetChart from src/lib/budget/reportReads.ts and calls readActuals for
+//      the one day; no home-ledger file reads ledger_entries itself.
+//   3. REVERSALS THROUGH THE ONE RULE. The route asks the day's entries by
+//      postingAmount.ts REVERSED_POSTING_WHERE (spread into its where), so a line
+//      the third column catches leaves the rows, counted.
+//   4. THE SAME READS. The task ledger, the reservations and the typed expenses are
+//      the routes themselves, imported and called in-process — never a second query
+//      that answers the same question.
+//   5. NOTHING CALCULATED, NOTHING PLANNED, NO TRADING ROUTE. No home-ledger file
+//      names stayCosts, a living baseline, realized-pnl, TRADING_ENTITY_ID, a budget
+//      builder or budget_line_items.
+//   6. NO `||`, NO `?? <default>` in the three files; the leaf never sums MATCH.
+//   7. THE SCREEN: the heading constant; the card's own day expression and the
+//      browser's zone; mounted on /home once, in its Suspense boundary, after the
+//      day card and before the sheet (home03's cardAt < sheetAt stays true).
+//   8. THE LANE: the books currency law's lane names src/lib/home and the screen.
+//   9. NO REGISTRY ROW: the home ledger is the shell's, as the day card is.
+const HL_ROUTE = 'src/app/api/home-ledger/route.ts';
+const HL_LEAF = 'src/lib/home/homeLedger.ts';
+const HL_SCREEN = 'src/components/home/HomeLedger.tsx';
+const HL_HOST = 'src/components/answers/AnswersClient.tsx';
+const HL_FILES = [HL_ROUTE, HL_LEAF, HL_SCREEN];
+let hlViolations = 0;
+const hlFail = (m: string) => { hlViolations += 1; violations.push(`home ledger law: ${m} (HOME-LEDGER-01)`); };
+for (const f of HL_FILES) if (!existsSync(resolve(ROOT, f))) hlFail(`${f} is missing`);
+const hlRoute = existsSync(resolve(ROOT, HL_ROUTE)) ? codeOf(HL_ROUTE) : '';
+const hlLeaf = existsSync(resolve(ROOT, HL_LEAF)) ? codeOf(HL_LEAF) : '';
+const hlScreen = existsSync(resolve(ROOT, HL_SCREEN)) ? codeOf(HL_SCREEN) : '';
+const hlHost = codeOf(HL_HOST);
+// 1. GET only, the gate first, not public.
+for (const m of ['POST', 'PUT', 'PATCH', 'DELETE']) if (new RegExp(`export async function ${m}\\(`).test(hlRoute)) hlFail(`${HL_ROUTE} exports ${m} — the home ledger is read-only`);
+if (!/export async function GET\(request: NextRequest\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not export GET(request: NextRequest)`);
+const hlGateAt = hlRoute.indexOf('const userEmail = await getVerifiedEmail();');
+const hlUserAt = hlRoute.indexOf('const user = await prisma.users.findFirst({');
+const hlQueryAt = hlRoute.indexOf('homeLedgerQuery(request.nextUrl.searchParams.get(\'date\'), request.nextUrl.searchParams.get(\'zone\'))');
+if (!(hlGateAt > -1 && hlUserAt > hlGateAt && hlQueryAt > hlUserAt)) hlFail(`${HL_ROUTE} does not open with the cart-plan gate (the cookie, then the user) before it reads its query`);
+if (!/return NextResponse\.json\(\{ error: 'Unauthorized' \}, \{ status: 401 \}\);/.test(hlRoute)) hlFail(`${HL_ROUTE} does not answer 401 to no verified cookie`);
+if (!/return NextResponse\.json\(\{ error: 'User not found' \}, \{ status: 404 \}\);/.test(hlRoute)) hlFail(`${HL_ROUTE} does not answer 404 to no user`);
+if (/'\/api\/home-ledger'/.test(codeOf('src/middleware.ts'))) hlFail('src/middleware.ts names /api/home-ledger — the path must not be public');
+// 2. The books through readActuals.
+if (!/import \{ readActuals, readBudgetChart \} from '@\/lib\/budget\/reportReads';/.test(hlRoute)) hlFail(`${HL_ROUTE} does not import readActuals and readBudgetChart from the budget's one loader`);
+if (!/readActuals\(prisma, user\.id, entityIds, date, date\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not read the books through readActuals for the one day`);
+for (const f of HL_FILES) if (/ledger_entries\s*\./.test(codeOf(f))) hlFail(`${f} reads ledger_entries itself — the books come through readActuals alone`);
+// 3. Reversals through the one rule.
+if (!/import \{ REVERSED_POSTING_WHERE \} from '@\/lib\/calendar\/postingAmount';/.test(hlRoute) || !/\.\.\.REVERSED_POSTING_WHERE/.test(hlRoute)) hlFail(`${HL_ROUTE} does not ask the day's entries by REVERSED_POSTING_WHERE`);
+// 4. The same reads — the routes themselves.
+for (const imp of [
+  "import { GET as taskLedgerGet } from '@/app/api/operations/ledger/route';",
+  "import { GET as reservationsGet } from '@/app/api/reservations/route';",
+  "import { GET as travelExpensesGet } from '@/app/api/travel-expenses/route';",
+]) if (!hlRoute.includes(imp)) hlFail(`${HL_ROUTE} lacks ${imp} — the task ledger, the reservations and the typed expenses are their own routes, called in-process`);
+if (!/taskLedgerGet\(new NextRequest\(new URL\(`\/api\/operations\/ledger\?from=\$\{date\}&to=\$\{date\}`, request\.url\)\)\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not call the task ledger for from = to = date`);
+if (!/travelLedgerReadsOf\(reservationsAnswer, expensesAnswer\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not parse the travel ledger's two answers through travelLedgerReadsOf (missingListWords — the one reader)`);
+// 5. Nothing calculated, nothing planned, no trading route.
+for (const f of HL_FILES) {
+  const body = codeOf(f);
+  for (const bad of ['stayCosts', 'livingBaseline', 'living_baselines', 'realized-pnl', 'TRADING_ENTITY_ID', 'budget_line_items', 'routinesMonthlyByCoa', 'buildRoutineBudgetLines', 'buildBudgetReport', 'buildTaskBudgetLines']) {
+    if (body.includes(bad)) hlFail(`${f} names ${bad} — the home ledger is REAL rows only: nothing calculated, nothing planned, trading not connected`);
+  }
+}
+// 6. No `||`, no `?? <default>`; MATCH never summed.
+for (const f of HL_FILES) {
+  const body = codeOf(f);
+  if (/\|\|/.test(body)) hlFail(`${f} holds a \`||\` — nothing is defaulted in silence`);
+  if (/\?\? /.test(body)) hlFail(`${f} holds a \`?? <default>\` — nothing is defaulted in silence`);
+}
+if (/readableMatchCents|matchTotalWords/.test(hlLeaf)) hlFail(`${HL_LEAF} sums MATCH — MATCH is shown per row and never summed`);
+// 7. The screen and the mount.
+if (!/export const HOME_LEDGER_DAY_HEADING = 'HOME LEDGER · DAY';/.test(hlLeaf)) hlFail(`${HL_LEAF} does not declare HOME_LEDGER_DAY_HEADING = 'HOME LEDGER · DAY'`);
+if (!hlScreen.includes('{HOME_LEDGER_DAY_HEADING}')) hlFail(`${HL_SCREEN} does not print the heading constant`);
+if (!hlScreen.includes('const day = today === null ? null : dateParam !== null && isIsoDay(dateParam) ? dateParam : today;')) hlFail(`${HL_SCREEN} does not take the day by the day card's own expression (DayCard.tsx)`);
+if (!hlScreen.includes('setZone(Intl.DateTimeFormat().resolvedOptions().timeZone);')) hlFail(`${HL_SCREEN} does not read the browser's zone`);
+if (!/import HomeLedger from '@\/components\/home\/HomeLedger';/.test(hlHost)) hlFail(`${HL_HOST} does not import the home ledger`);
+if ((hlHost.match(/<HomeLedger \/>/g) ?? []).length !== 1) hlFail(`${HL_HOST} mounts the home ledger ${(hlHost.match(/<HomeLedger \/>/g) ?? []).length} times — once`);
+if (!/<Suspense>\s*<HomeLedger \/>\s*<\/Suspense>/.test(hlHost)) hlFail(`${HL_HOST} mounts the home ledger outside its Suspense boundary — it reads the URL (useSearchParams)`);
+{
+  const answersAt = hlHost.indexOf('data-answers');
+  const netWorthAt = hlHost.indexOf('data-net-worth');
+  const cardAt = hlHost.indexOf('<DayCard />');
+  const ledgerAt = hlHost.indexOf('<HomeLedger />');
+  const sheetAt = hlHost.indexOf('<TheSheet />');
+  if (!(answersAt > -1 && netWorthAt > answersAt && cardAt > netWorthAt && ledgerAt > cardAt && sheetAt > ledgerAt)) hlFail(`${HL_HOST} does not mount the four answers → Net worth → the day card → the home ledger → the sheet, in that order`);
+}
+// 8. The lane.
+{
+  const self = codeOf('scripts/assert-tool-registry.ts');
+  if (!/const FX_LANE_DIRS = \[[^\]]*'src\/lib\/home'\];/.test(self)) hlFail("the books currency law's lane does not name src/lib/home");
+  if (!/const FX_LANE_FILES = \['src\/components\/home\/HomeLedger\.tsx'\];/.test(self)) hlFail("the books currency law's lane does not name the home ledger's screen");
+}
+// 9. No registry row.
+if (TOOL_REGISTRY.some((t) => t.slug === 'home-ledger' || t.home === '/home')) hlFail('the registry carries a Home row — the home ledger is the shell\'s component, no tool\'s');
+if (hlViolations === 0) console.log(`✔ The home ledger law passed — GET only behind the cart-plan gate, the books through readActuals for the one day with REVERSED_POSTING_WHERE asked of the day's entries, the task ledger, the reservations and the typed expenses called as their own routes, nothing calculated or planned, no \`||\` or \`?? <default>\`, MATCH never summed, the screen on the card's own day and the browser's zone, mounted once between the day card and the sheet, in the currency lane, no registry row.`);
+else console.log(`✖ The home ledger law FAILED — ${hlViolations} violation(s).`);
 });
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────

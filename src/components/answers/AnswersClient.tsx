@@ -42,6 +42,8 @@ import Rail from '@/components/shell/Rail';
 import TheSheet from '@/components/shell/TheSheet';
 // HOME-03 (Alex, 2026-10-27): the day card — Time's component — on the home page, between the answers and the sheet.
 import DayCard from '@/components/workbench/operations/day/DayCard';
+// HOME-LEDGER-01 (Alex, 2026-11-06): the home's DAY table — the shell's own component — between the day card and the sheet.
+import HomeLedger from '@/components/home/HomeLedger';
 import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 import { deriveRunwayReceipts } from '@/components/hub/RunwayBudgetPanel';
 import { ANSWER_ROWS, ANSWER_READS, NET_WORTH_READ, type AnswerRead, type ComputedRead } from '@/lib/answers';
@@ -420,6 +422,19 @@ export default function AnswersClient({ viewer, offerAvailability }: { viewer: s
         <div className="mt-5 sm:mt-6" data-home-day-card>
           <Suspense>
             <DayCard />
+          </Suspense>
+        </div>
+
+        {/* HOME-LEDGER-01 (Alex, 2026-11-06, ruling E): HOME LEDGER · DAY — every account with activity on the day the
+            card shows, by book, from REAL rows only (the books, the task ledger, the travel ledger, the bank rows not yet
+            in the books), each row naming its source, every sum per currency, nothing calculated (home/HomeLedger.tsx,
+            the leaf src/lib/home/homeLedger.ts, GET /api/home-ledger). It reads the SAME ?date= the card reads (ruling A —
+            no second day picker, no second today), so the boundary stays for useSearchParams. The shell's own component,
+            no registry row, as the card (SHELL_PAGES; scripts/assert-tool-registry.ts, the home ledger law pins this
+            mount — once, in its boundary, after the card and before the sheet). */}
+        <div className="mt-5 sm:mt-6" data-home-ledger-day-table>
+          <Suspense>
+            <HomeLedger />
           </Suspense>
         </div>
 
