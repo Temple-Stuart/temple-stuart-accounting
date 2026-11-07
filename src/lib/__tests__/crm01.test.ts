@@ -400,8 +400,9 @@ test('T7 CRM is PARTIAL at /crm with discover and record, no ownTable, its why a
   assert.equal(t.ownTableRoute, undefined);
   assert.equal(t.links, undefined);
   assert.equal(t.why, 'the people you sell to — every proposal from your form and every signup, read in three tables; a stage or next step cannot be set yet, and no one can be added by hand (CRM-01b)');
-  // CRM-01a fix (Alex, 2026-11-07, ruling C): the public sentence tells a customer what their CRM holds today.
-  assert.equal(t.customer, 'Partly built: the people you sell to, read in flat tables. Not built yet: adding someone by hand, setting a stage or a next step, and your own intake form — so today only the platform\'s own proposal form and signups fill it.');
+  // CRM-01a fix (Alex, 2026-11-07, ruling C): the public sentence tells a customer what their CRM holds today; its own
+  // "Partly built: " went (the second fix) — the plans table prints its status words before it.
+  assert.equal(t.customer, 'The people you sell to, read in flat tables. Not built yet: adding someone by hand, setting a stage or a next step, and your own intake form — so today only the platform\'s own proposal form and signups fill it.');
   const reg = code(REGISTRY);
   assert.ok(reg.includes("slug: 'crm', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/crm',"), 'the some() form on its slug line');
   assert.ok(comments(REGISTRY).includes("its own route, /api/crm, only reads; crm_contacts (CRM-01a's migration) is written by nothing until CRM-01b"), 'Bill Pay\'s shape (ruling 2)');
