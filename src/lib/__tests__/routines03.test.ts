@@ -35,7 +35,7 @@ const SECTION_F = `${OPS}/SectionF_RoutineExpenses.tsx`;
 const WORK_LIB = 'src/lib/operations/work.ts';
 const RULE = 'src/lib/operations/routineMonth.ts';
 const ROUTE = 'src/app/api/operations/routines/month/route.ts';
-const LEDGER_ROUTE = 'src/app/api/operations/ledger/route.ts';
+const LEDGER_ANSWER = 'src/lib/operations/ledgerAnswer.ts'; // READS-01b (Alex, 2026-11-07): the ledger route's body — its links read — is its answer function
 const PLAN_LINES = 'src/lib/budget/planLines.ts';
 const LOADER = 'src/lib/operations/routineBudgetInputs.ts';
 const MIDDLEWARE = 'src/middleware.ts';
@@ -196,7 +196,7 @@ test('R3 the rule imports buildRoutineBudgetLines, the placing, the match, varia
   assert.match(route, /const window = \{ gte: recordWindow\(from\)\.gte, lt: recordWindow\(to\)\.lt \};/, 'stopRecord.ts recordWindow\'s rule over the span');
   assert.match(code(LOADER), /\.\.\.\(options\.includeInactive === true \? \{\} : \{ is_active: true \}\)/, 'the default is the active ones, as every other caller reads');
   assert.doesNotMatch(route, /amountCentsOf\(|function linkInputOf|is_active: true/);
-  assert.match(code(LEDGER_ROUTE), /links: linkRows\.map\(linkInputOf\),/, 'the ledger route reads links the same way');
+  assert.match(code(LEDGER_ANSWER), /links: linkRows\.map\(linkInputOf\),/, 'the ledger’s answer function reads links the same way');
   assert.deepEqual(Object.keys(ROUTINE_MONTH_CALCULATED), ['budget_month_cents', 'budget_to_date_cents', 'actual_cents', 'match_cents', 'variance_cents']);
   for (const words of Object.values(ROUTINE_MONTH_CALCULATED)) assert.match(words, /^calculated: /);
   assert.match(route, /calculated: ROUTINE_MONTH_CALCULATED/, 'labelled so in the response');

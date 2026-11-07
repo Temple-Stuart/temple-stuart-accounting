@@ -46,6 +46,8 @@ const PANEL = 'src/components/hub/EventDetailPanel.tsx';
 const LEAF = 'src/lib/calendar/postingAmount.ts';
 const LINKS_ROUTE = 'src/app/api/calendar/links/route.ts';
 const LEDGER_ROUTE = 'src/app/api/operations/ledger/route.ts';
+// READS-01b (Alex, 2026-11-07): the route's body — the links read among its eight — is this answer function; its pins moved with the code (db., userId).
+const LEDGER_ANSWER = 'src/lib/operations/ledgerAnswer.ts';
 const AUDIT_ROUTE = 'src/app/api/audit-log/route.ts';
 const SCHEMA = 'prisma/schema.prisma';
 const MIGRATIONS = 'prisma/migrations';
@@ -181,15 +183,17 @@ test('R2 the join: a record meets its links by (kind, target_id, occurrence_at) 
   assert.match(rules, /readonly links: readonly LedgerLinkInput\[\];/);
   assert.doesNotMatch(rules, /\bfetch\b|@prisma\/client|from 'react'/, 'pure');
   // The route: ONE query for the span's window, both kinds, the caller's, with each posting's lines for the one amount rule.
-  const route = code(LEDGER_ROUTE);
-  assert.equal((route.match(/prisma\.planned_item_links\.findMany\(/g) ?? []).length, 1, 'one query');
+  const route = code(LEDGER_ANSWER);
+  assert.equal((route.match(/db\.planned_item_links\.findMany\(/g) ?? []).length, 1, 'one query');
   // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the select is LINKED_POSTING_SELECT — the lines plus the reversal state.
-  assert.match(route, /prisma\.planned_item_links\.findMany\(\{\n\s*where: \{ user_id: user\.id, target_kind: \{ in: \['routine', 'routine_line'\] \}, target_instant: \{ gte: recordsFrom, lt: recordsTo \}, journal_entry: \{ userId: user\.id \} \},\n\s*select: \{ target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: \{ select: LINKED_POSTING_SELECT \} \},/, 'the records’ own window, user-scoped twice');
+  assert.match(route, /db\.planned_item_links\.findMany\(\{\n\s*where: \{ user_id: userId, target_kind: \{ in: \['routine', 'routine_line'\] \}, target_instant: \{ gte: recordsFrom, lt: recordsTo \}, journal_entry: \{ userId: userId \} \},\n\s*select: \{ target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: \{ select: LINKED_POSTING_SELECT \} \},/, 'the records’ own window, user-scoped twice');
   assert.match(route, /const \[chart, routineGroups, roles, planVendors, stayRows, recordRows, firstRow, linkRows\] = await Promise\.all\(\[/, 'read beside the records, not per record');
   assert.match(route, /links: linkRows\.map\(linkInputOf\),/);
   // ROUTINES-03 (Alex, 2026-10-25): linkInputOf moved to ledger.ts, unchanged, so the routines' month route reads a link the same way — the pins moved with it.
-  assert.match(route, /import \{ ledgerOf, linkInputOf, spanInput, type LedgerRecordInput \} from '@\/lib\/operations\/ledger';/);
-  assert.doesNotMatch(route, /function linkInputOf\(/, 'the mapper lives in ledger.ts now');
+  // READS-01b (Alex, 2026-11-07): the import split with the body — the route keeps spanInput; the answer file takes ledgerOf, linkInputOf and the input type.
+  assert.match(route, /import \{ ledgerOf, linkInputOf, type LedgerRecordInput \} from '@\/lib\/operations\/ledger';/);
+  assert.match(code(LEDGER_ROUTE), /import \{ spanInput \} from '@\/lib\/operations\/ledger';/);
+  for (const f of [LEDGER_ROUTE, LEDGER_ANSWER]) assert.doesNotMatch(code(f), /function linkInputOf\(/, `${f}: the mapper lives in ledger.ts now`);
   // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the mapper reads the posting's reversal state too (LinkedPostingRow) and says whether it was reversed.
   assert.match(rules, /export function linkInputOf\(row: \{ target_kind: string; target_id: string; target_instant: Date \| null; journal_entry_id: string; journal_entry: LinkedPostingRow \}\): LedgerLinkInput \{/);
   // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the link also says whether its posting was reversed (isReversedPosting).
@@ -216,7 +220,7 @@ test('R2 the one amount rule: amountCentsOf lives in a pure leaf both routes imp
   assert.match(links, /const ENTRY_SELECT = \{\n\s*id: true, date: true, description: true,\n\s*\.\.\.LINKED_POSTING_SELECT,\n\} as const;/, 'the same select');
   assert.match(code(LEAF), /export const LINKED_POSTING_SELECT = \{ \.\.\.POSTING_LINES_SELECT, \.\.\.POSTING_STATE_SELECT \} as const;/, 'the lines select, unchanged, inside it');
   // ROUTINES-03 (2026-10-25): the route keeps the select; the amount rule is read by ledger.ts linkInputOf, which both routes call.
-  assert.match(code(LEDGER_ROUTE), /import \{ LINKED_POSTING_SELECT \} from '@\/lib\/calendar\/postingAmount';/);
+  assert.match(code(LEDGER_ANSWER), /import \{ LINKED_POSTING_SELECT \} from '@\/lib\/calendar\/postingAmount';/); // READS-01b (2026-11-07): the select rides with the read, in the answer file
   assert.match(code(RULES), /import \{ amountCentsOf, isReversedPosting, type LinkedPostingRow \} from '@\/lib\/calendar\/postingAmount';/);
   assert.match(comments(LEAF), /LEDGER-03, Alex, 2026-10-19/);
 });
@@ -411,8 +415,10 @@ test('R6 security: no new route; the ledger’s read is scoped by user_id (and t
   const get = r.slice(r.indexOf('export async function GET('), r.indexOf('export async function POST('));
   inOrder(get, ['const user = await caller();', "{ status: 401 }", 'where: { user_id: user.id, target_kind: t.kind, target_id: t.id, target_instant: t.instant },', 'where: { id: { in: entryIds }, userId: user.id }', 'userId: user.id,', 'date: { gte: from, lte: to },', 'planned_item_links: { none: {} },', "orderBy: { date: 'desc' },", 'take: CANDIDATE_LIMIT,'], 'GET: the links by user_id, the candidates by userId — another user’s posting is never offered');
   assert.doesNotMatch(r, /status: 403/, 'a cross-user read is the defensive 404');
+  // READS-01b (Alex, 2026-11-07): the gate on the route hands user.id to the answer function, whose links read is scoped twice to that parameter.
   const g = code(LEDGER_ROUTE);
-  inOrder(g, ['const userEmail = await getVerifiedEmail();', "{ status: 401 }", 'const user = await prisma.users.findFirst(', "{ status: 404 }", 'prisma.planned_item_links.findMany({', 'where: { user_id: user.id, target_kind:', 'journal_entry: { userId: user.id }'], 'the ledger’s read, scoped twice');
+  inOrder(g, ['const userEmail = await getVerifiedEmail();', "{ status: 401 }", 'const user = await prisma.users.findFirst(', "{ status: 404 }", 'taskLedgerAnswerOf(prisma, user.id,'], 'the ledger’s gate, then the caller’s id into the answer function');
+  inOrder(code(LEDGER_ANSWER), ['taskLedgerAnswerOf(db: Db, userId: string,', 'db.planned_item_links.findMany({', 'where: { user_id: userId, target_kind:', 'journal_entry: { userId: userId }'], 'the ledger’s read, scoped twice');
   const picker = code(PICKER);
   assert.doesNotMatch(picker, /\/api\//, 'the picker names no route — its hook does, and that hook names the one LINK-01 route');
   assert.equal((code(HOOK).match(/\/api\/calendar\/links/g) ?? []).length, 3, 'the one route, three verbs');

@@ -200,7 +200,8 @@ test('D the lines law names the two Budget routes as the bridges, holds each to 
   assert.doesNotMatch(law, /linesApiBridges|routinesMonthlyByCoa\\\(/, 'the scan by routinesMonthlyByCoa( is retired');
   assert.match(law, /\$\{LINES_BRIDGES\.length\} budget routes read routines through the one loader;/, 'the pass line counts the named bridges');
   assert.match(comments(LAWS), /HOME-LEDGER-02b \(Alex, 2026-11-07, ruling D\): the bridges are the two Budget routes/);
-  assert.match(comments(LAWS), /The bridges are NAMED here, never found by scanning src\/app\/api for a loader\s*\/\/\s*call: operations\/ledger\/route\.ts calls the loader AND keeps a routine query of its\s*\/\/\s*own/);
+  // READS-01b (Alex, 2026-11-07): the prose names the ledger's answer function now — the route's body moved there; the reason the bridges are named is unchanged.
+  assert.match(comments(LAWS), /The bridges are NAMED here, never found by scanning src\/app\/api for a loader\s*\/\/\s*call: the task ledger's answer function, src\/lib\/operations\/ledgerAnswer\.ts \(READS-01b,\s*\/\/\s*2026-11-07 — operations\/ledger\/route\.ts until then\), calls the loader AND keeps a routine\s*\/\/\s*query of its own/);
   // Clauses 0 and 1 stand; routineBudget.ts left LINES_READERS with its code and days.ts took its place.
   assert.match(law, /if \(!\/export function routinePlanned\\\(\/\.test\(linesLeaf\)\) linesFail/);
   assert.match(law, /for \(const f of LINES_READERS\) \{\n\s*const body = codeOf\(f\);\n\s*if \(!\/routinePlanned\\\(\/\.test\(body\)\) linesFail/);
@@ -220,9 +221,10 @@ test('D the lines law names the two Budget routes as the bridges, holds each to 
     assert.doesNotMatch(body, /budget_amount:\s*\{\s*not:\s*null\s*\}/, `${f} hides no lined routine`);
   }
   // The ledger route is the reason the bridges are named: it calls the loader AND keeps a routine query of its own.
-  const ledger = code('src/app/api/operations/ledger/route.ts');
+  // READS-01b (Alex, 2026-11-07): the route's body — the loader call and its own routine query — is src/lib/operations/ledgerAnswer.ts taskLedgerAnswerOf.
+  const ledger = code('src/lib/operations/ledgerAnswer.ts');
   assert.match(ledger, /loadRoutineBudgetInputs\(/);
-  assert.match(ledger, /prisma\.operations_routines\.findMany\(\{ where: \{ user_id: user\.id \}, select: \{ id: true, role: true \} \}\)/);
+  assert.match(ledger, /db\.operations_routines\.findMany\(\{ where: \{ user_id: userId \}, select: \{ id: true, role: true \} \}\)/);
 });
 
 test('D the seeds: lines-a against the report route\'s loader call, lines-e against the cell route\'s; b, c, d on the loader as before; every anchor occurs exactly once', () => {

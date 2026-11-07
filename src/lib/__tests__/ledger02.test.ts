@@ -370,9 +370,10 @@ test('R6 ledgerCsv: the eighteen head words (TIME-03), one line per row in table
 // ── R7 · NOTHING ELSE ───────────────────────────────────────────────────────
 
 test('R7 nothing else: the route still answers ledgerOf’s rows whole; the said block, the filters and the period controls are as LEDGER-01 left them; the section fetches nothing itself', () => {
-  const route = code('src/app/api/operations/ledger/route.ts');
-  assert.match(route, /ledgerOf\(/, 'the route answers the rule’s rows — the two fields ride the payload without a route change');
-  assert.doesNotMatch(route, /varianceCents|bookWordOf|BOOK_WORDS/, 'no route code for the two fields');
+  // READS-01b (Alex, 2026-11-07): the route's body is src/lib/operations/ledgerAnswer.ts taskLedgerAnswerOf — ledgerOf is called there; neither file holds code for the two fields.
+  const answer = code('src/lib/operations/ledgerAnswer.ts');
+  assert.match(answer, /ledgerOf\(/, 'the answer function answers the rule’s rows — the two fields ride the payload without a route change');
+  for (const f of ['src/app/api/operations/ledger/route.ts', 'src/lib/operations/ledgerAnswer.ts']) assert.doesNotMatch(code(f), /varianceCents|bookWordOf|BOOK_WORDS/, `${f}: no route code for the two fields`);
   const s = code(SECTION);
   // LEDGER-04 (Alex, 2026-10-20): the same lines, in the same order, inside the notes toggle; the rows shown are filtered by every column then sorted.
   inOrder(s, ['data-ledger-notes-toggle', 'data-ledger-said-match', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-left-out', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book'], 'what is said, in order, the MATCH note first');

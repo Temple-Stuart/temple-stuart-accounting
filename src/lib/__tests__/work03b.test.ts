@@ -32,6 +32,7 @@ const CARD = 'src/components/workbench/operations/day/DayCard.tsx';
 const RULE = 'src/lib/operations/workBlock.ts';
 const PANEL = 'src/components/workbench/operations/stops/WorkBlock.tsx';
 const ROUTE = 'src/app/api/operations/ledger/route.ts';
+const ANSWER = 'src/lib/operations/ledgerAnswer.ts'; // READS-01b (Alex, 2026-11-07): RECORD_PLAN, RecordRow and recordInputOf moved here with the route's body — the pins followed
 const LEDGER = 'src/lib/operations/ledger.ts';
 const ROUTINES_ROUTE = 'src/app/api/operations/routines/route.ts';
 const ROUTINE_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
@@ -134,15 +135,17 @@ test('2 the ledger: a stepless record’s PLANNED MIN prints the window’s leng
   assert.deepEqual([ledger.rows[0].plannedMinutes, ledger.rows[0].loggedMinutes], [60, 30], 'PLANNED MIN 60 — the window’s length; LOGGED MIN the record’s own');
   assert.equal(ledgerCsv(ledger.rows).split('\r\n')[1], 'Tuesday,2026-10-13,,,,,,Gym,,,60,30,,,,,,', 'the CSV: 60 where TIME-03’s stepless fixture printed nothing');
   // The route: the routine select grows by the two times; the step's select is TIME-03's, byte for byte; both kinds through the one rule.
-  const route = code(ROUTE);
+  const route = code(ANSWER);
   assert.match(route, /routine: \{ select: \{ name: true, timezone: true, role: true, start_time: true, end_time: true \} \},\n\s*step: \{ select: \{ activity: true, time_of_day: true, duration_minutes: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true, role: true \} \} \} \},/);
   assert.match(route, /readonly routine: \{ readonly name: string; readonly timezone: string; readonly role: string; readonly start_time: Date \| null; readonly end_time: Date \| null \} \| null;/);
   assert.match(route, /durationMinutes: plannedMinutesOf\(\{ kind: 'line', duration_minutes: row\.step\.duration_minutes \}\) \};/);
   assert.match(route, /durationMinutes: plannedMinutesOf\(\{ kind: 'routine', start_time: row\.routine\.start_time, end_time: row\.routine\.end_time \}\) \};/);
   assert.match(route, /import \{ plannedMinutesOf \} from '@\/components\/workbench\/operations\/day\/dayCard';/);
-  assert.equal((route.match(/plannedMinutesOf\(/g) ?? []).length, 2, 'the route applies the rule; it restates nothing');
-  assert.equal((route.match(/prisma\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 9, 'no new query — the times ride the record include');
-  assert.doesNotMatch(route, /start_time\.|end_time\.|getUTCHours|toISOString\(\)\.slice\(11, 16\)\) -/, 'no arithmetic on the times in the route');
+  assert.equal((route.match(/plannedMinutesOf\(/g) ?? []).length, 2, 'the answer function applies the rule; it restates nothing');
+  // READS-01b (2026-11-07): the nine queries are the gate's users read, still on the route, and the eight the answer function runs — no new query.
+  assert.equal((route.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'no new query — the times ride the record include');
+  assert.equal((code(ROUTE).match(/prisma\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 1, 'the route reads the users row and nothing else');
+  for (const f of [ROUTE, ANSWER]) assert.doesNotMatch(code(f), /start_time\.|end_time\.|getUTCHours|toISOString\(\)\.slice\(11, 16\)\) -/, `no arithmetic on the times in ${f}`);
   // The pure half: the row copies the figure; the words say what it is now.
   assert.match(code(LEDGER), /plannedMinutes: r\.durationMinutes,\n\s*loggedMinutes: r\.record\.actual_minutes,/);
   assert.match(comments(LEDGER), /a stepless routine\s*\n?\s*\*?\s*without a window has none; WORK-03b, Alex, 2026-10-26: with one, its length/);
@@ -150,11 +153,12 @@ test('2 the ledger: a stepless record’s PLANNED MIN prints the window’s leng
   const time = TOOL_REGISTRY.find((x) => x.name === 'Time');
   assert.ok(time);
   const lineOf = (file: string, n: number): string => code(file).split('\n')[n - 1] ?? '';
-  const stepLine = time.citation.match(/src\/app\/api\/operations\/ledger\/route\.ts:(\d+) \(the line's duration\)/);
-  const routineLine = time.citation.match(/src\/app\/api\/operations\/ledger\/route\.ts:(\d+) \(the routine's window\)/);
+  // READS-01b (Alex, 2026-11-07, ruling D.4): the citation names the answer file's two lines — read back and checked, as before.
+  const stepLine = time.citation.match(/src\/lib\/operations\/ledgerAnswer\.ts:(\d+) \(the line's duration\)/);
+  const routineLine = time.citation.match(/src\/lib\/operations\/ledgerAnswer\.ts:(\d+) \(the routine's window\)/);
   assert.ok(stepLine && routineLine, 'the citation names both');
-  assert.match(lineOf(ROUTE, Number(stepLine[1])), /^\s*step: \{ select: \{ activity: true, time_of_day: true, duration_minutes: true,/);
-  assert.match(lineOf(ROUTE, Number(routineLine[1])), /^\s*routine: \{ select: \{ name: true, timezone: true, role: true, start_time: true, end_time: true \} \},/);
+  assert.match(lineOf(ANSWER, Number(stepLine[1])), /^\s*step: \{ select: \{ activity: true, time_of_day: true, duration_minutes: true,/);
+  assert.match(lineOf(ANSWER, Number(routineLine[1])), /^\s*routine: \{ select: \{ name: true, timezone: true, role: true, start_time: true, end_time: true \} \},/);
   assert.match(time.citation, /the one planned-minutes rule's, dayCard\.ts plannedMinutesOf — a line's duration_minutes or, WORK-03b \(2026-10-26\), a stepless routine's window length/);
 });
 

@@ -89,7 +89,7 @@ test('R1 the heads: SUB ACCOUNT NAME where DESCRIPTION stood, DESCRIPTION where 
   assert.match(rules, /readonly description: string;\n\s*readonly rating: number \| null;\n\s*readonly note: string \| null;/, 'no field rename — the route’s payload is unchanged');
   assert.match(comments(RULES), /LEDGER-04 \(Alex, 2026-10-20\): printed under SUB ACCOUNT NAME/);
   assert.match(comments(RULES), /LEDGER-04 \(Alex, 2026-10-20\): printed under DESCRIPTION — what was ordered/);
-  assert.doesNotMatch(code('src/app/api/operations/ledger/route.ts'), /subAccount|SUB ACCOUNT/, 'the route knows nothing of the rename');
+  for (const f of ['src/app/api/operations/ledger/route.ts', 'src/lib/operations/ledgerAnswer.ts']) assert.doesNotMatch(code(f), /subAccount|SUB ACCOUNT/, `${f} knows nothing of the rename`); // READS-01b (2026-11-07): the route and its answer function
   // The "+ expense" form's labels — the ledger's own heads for the stop's name and the note; the refusal names the field by its label.
   assert.deepEqual([EXPENSE_FIELD_WORDS.name, EXPENSE_FIELD_WORDS.note], ['SUB ACCOUNT NAME', 'DESCRIPTION']);
   assert.equal(requiredWords('name'), 'SUB ACCOUNT NAME is required');
@@ -352,7 +352,7 @@ test('the section: no dropdown; every header a sort button and a ▾; one popove
   assert.match(s, /\{PERIOD_KINDS\.map\(\(k\) => \(/);
   assert.match(s, /disabled=\{kind === 'all' \|\| anchor === null\}/);
   assert.match(s, /<LinkPicker kind=\{row\.address\.kind\} id=\{row\.address\.id\} instant=\{row\.address\.instant\} near=\{row\.day\} onChanged=\{\(\) => setWrites\(\(n\) => n \+ 1\)\} onClose=\{\(\) => setPicking\(null\)\} \/>/);
-  for (const f of ['src/app/api/operations/ledger/route.ts', 'src/components/workbench/operations/ledger/LinkPicker.tsx', 'src/components/workbench/operations/day/DayCard.tsx', 'src/components/workbench/operations/day/dayCard.ts']) {
+  for (const f of ['src/app/api/operations/ledger/route.ts', 'src/lib/operations/ledgerAnswer.ts', 'src/components/workbench/operations/ledger/LinkPicker.tsx', 'src/components/workbench/operations/day/DayCard.tsx', 'src/components/workbench/operations/day/dayCard.ts']) { // READS-01b (2026-11-07): the route's answer function too
     assert.doesNotMatch(code(f), /ColumnFilter|applyColumnFilters|sortRows|notesCount|SUB ACCOUNT/, `${f} knows nothing of LEDGER-04`);
   }
   assert.match(comments(RULES), /LEDGER-04 \(Alex, 2026-10-20\) — THE TABLE AFTER THE FIRST READ/);

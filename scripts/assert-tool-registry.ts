@@ -2848,7 +2848,9 @@ const LINE_ROUTE = 'src/app/api/operations/routines/steps/[stepId]/route.ts';
 const OCCURRENCE_LEAF = 'src/lib/operations/linkOccurrence.ts';
 const POSTING_LEAF = 'src/lib/calendar/postingAmount.ts';
 const HOLD_LEAF = 'src/lib/operations/linkHold.ts';
-const MATCH_READ_ROUTES = ['src/app/api/operations/routines/month/route.ts', 'src/app/api/operations/ledger/route.ts', 'src/app/api/operations/projects/[id]/tasks/route.ts'];
+// READS-01b (Alex, 2026-11-07, ruling D.1): the task ledger's links read lives in its answer function, src/lib/operations/ledgerAnswer.ts
+// (taskLedgerAnswerOf) — the route is the gate, the span and one return; the check moved with the read, unchanged.
+const MATCH_READ_ROUTES = ['src/app/api/operations/routines/month/route.ts', 'src/lib/operations/ledgerAnswer.ts', 'src/app/api/operations/projects/[id]/tasks/route.ts'];
 const postBody = (() => { const at = linkRoute.indexOf('export async function POST('); return at < 0 ? '' : linkRoute.slice(at, linkRoute.indexOf('export async function DELETE(')); })();
 const getBody = (() => { const at = linkRoute.indexOf('export async function GET('); return at < 0 ? '' : linkRoute.slice(at, linkRoute.indexOf('export async function POST(')); })();
 
@@ -3198,8 +3200,9 @@ for (const f of LINES_READERS) {
 // now that the cockpit's two hub routes (year-calendar, business-budget) and the month
 // tables they computed through routinesMonthlyByCoa are deleted with its second month
 // table. The bridges are NAMED here, never found by scanning src/app/api for a loader
-// call: operations/ledger/route.ts calls the loader AND keeps a routine query of its
-// own (its roles read), and it is not a budget builder — a scan would hold it to a
+// call: the task ledger's answer function, src/lib/operations/ledgerAnswer.ts (READS-01b,
+// 2026-11-07 — operations/ledger/route.ts until then), calls the loader AND keeps a routine
+// query of its own (its roles read), and it is not a budget builder — a scan would hold it to a
 // clause written for budget routes, and a new budget route that skipped the loader
 // altogether would escape a scan keyed on the call. A new budget route is added here,
 // by name, and held to the three clauses below.
@@ -10877,20 +10880,23 @@ for (const f of HL_FILES) if (/ledger_entries\s*\./.test(codeOf(f))) hlFail(`${f
 // 3. Reversals through the one rule.
 if (!/import \{ REVERSED_POSTING_WHERE \} from '@\/lib\/calendar\/postingAmount';/.test(hlRoute) || !/\.\.\.REVERSED_POSTING_WHERE/.test(hlRoute)) hlFail(`${HL_ROUTE} does not ask the day's entries by REVERSED_POSTING_WHERE`);
 // 4. The same reads. READS-01a (Alex, 2026-11-07, ruling E.3): the travel ledger's facts and the typed expenses are the
-//    two routes' answer functions (reservationsAnswer.ts, travelExpensesAnswer.ts), called directly with the caller's id —
-//    no route calls a route; the two `GET as` imports are forbidden. The task ledger's route is still imported and called
-//    in-process for from = to = date — READS-01b moves it.
+//    two routes' answer functions (reservationsAnswer.ts, travelExpensesAnswer.ts), called directly with the caller's id.
+//    READS-01b (Alex, 2026-11-07, ruling D.2): the task ledger is its route's answer function too (ledgerAnswer.ts
+//    taskLedgerAnswerOf) for from = to = date through the route's own parser (ledger.ts spanInput, refused by name),
+//    the clock read once in this route and handed in — no route calls a route ANYWHERE now: an `import { GET as` from
+//    any route and a `new NextRequest(` in this route are forbidden.
 for (const imp of [
-  "import { GET as taskLedgerGet } from '@/app/api/operations/ledger/route';",
+  "import { taskLedgerAnswerOf } from '@/lib/operations/ledgerAnswer';",
+  "import { spanInput, type LedgerRow } from '@/lib/operations/ledger';",
   "import { reservationsAnswerOf } from '@/lib/reservations/reservationsAnswer';",
   "import { travelExpensesAnswerOf } from '@/lib/travel/travelExpensesAnswer';",
-]) if (!hlRoute.includes(imp)) hlFail(`${HL_ROUTE} lacks ${imp} — the task ledger is its own route, called in-process (READS-01b moves it); the travel ledger's facts and the typed expenses are the two routes' answer functions, called directly`);
-for (const gone of [
-  "import { GET as reservationsGet } from '@/app/api/reservations/route';",
-  "import { GET as travelExpensesGet } from '@/app/api/travel-expenses/route';",
-]) if (hlRoute.includes(gone)) hlFail(`${HL_ROUTE} holds ${gone} — no route calls a route; the answer function is called directly (READS-01a)`);
+]) if (!hlRoute.includes(imp)) hlFail(`${HL_ROUTE} lacks ${imp} — the task ledger, the travel ledger's facts and the typed expenses are the three routes' answer functions, called directly (READS-01a, READS-01b)`);
+if (/import \{ GET as /.test(hlRoute)) hlFail(`${HL_ROUTE} imports a route's GET — no route calls a route; the answer function is called directly (READS-01a, READS-01b)`);
+if (/new NextRequest\(/.test(hlRoute)) hlFail(`${HL_ROUTE} builds a NextRequest — no route calls a route (READS-01b)`);
 if (!/reservationsAnswerOf\(prisma, user\.id\)/.test(hlRoute) || !/travelExpensesAnswerOf\(prisma, user\.id\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not call the two answer functions with the caller's id`);
-if (!/taskLedgerGet\(new NextRequest\(new URL\(`\/api\/operations\/ledger\?from=\$\{date\}&to=\$\{date\}`, request\.url\)\)\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not call the task ledger for from = to = date`);
+if (!/const span = spanInput\(date, date\);\s*if \(!span\.ok\) return NextResponse\.json\(\{ error: 'Validation', field: span\.field, message: span\.message \}, \{ status: 400 \}\);\s*const now = new Date\(\);/.test(hlRoute)) hlFail(`${HL_ROUTE} does not take the day as the task ledger's span through spanInput, refused by name, with the clock read once (READS-01b)`);
+if (!/taskLedgerAnswerOf\(prisma, user\.id, \{ from: span\.from, to: span\.to \}, now\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not call the task ledger's answer function for from = to = date with the clock it read (READS-01b)`);
+if ((hlRoute.match(/new Date\(\)/g) ?? []).length !== 1) hlFail(`${HL_ROUTE} reads the clock ${(hlRoute.match(/new Date\(\)/g) ?? []).length} times — once, handed to the task ledger's answer function (READS-01b)`);
 if (!/travelLedgerReadsOf\(reservationsAnswer, expensesAnswer\)/.test(hlRoute)) hlFail(`${HL_ROUTE} does not parse the travel ledger's two answers through travelLedgerReadsOf (missingListWords — the one reader)`);
 // 5. Nothing calculated, nothing planned, no trading route.
 for (const f of HL_FILES) {
@@ -10931,7 +10937,7 @@ if (!/<Suspense>\s*<HomeLedger \/>\s*<\/Suspense>/.test(hlHost)) hlFail(`${HL_HO
 }
 // 9. No registry row.
 if (TOOL_REGISTRY.some((t) => t.slug === 'home-ledger' || t.home === '/home')) hlFail('the registry carries a Home row — the home ledger is the shell\'s component, no tool\'s');
-if (hlViolations === 0) console.log(`✔ The home ledger law passed — GET only behind the cart-plan gate, the books through readActuals for the one day with REVERSED_POSTING_WHERE asked of the day's entries, the task ledger called as its own route (READS-01b moves it), the reservations and the typed expenses as the answer functions their routes return (READS-01a), nothing calculated or planned, no \`||\` or \`?? <default>\`, MATCH never summed, the screen on the card's own day and the browser's zone, mounted once between the day card and the sheet, in the currency lane, no registry row.`);
+if (hlViolations === 0) console.log(`✔ The home ledger law passed — GET only behind the cart-plan gate, the books through readActuals for the one day with REVERSED_POSTING_WHERE asked of the day's entries, the task ledger, the reservations and the typed expenses as the answer functions their routes return (READS-01a, READS-01b — no route calls a route, no NextRequest built), nothing calculated or planned, no \`||\` or \`?? <default>\`, MATCH never summed, the screen on the card's own day and the browser's zone, mounted once between the day card and the sheet, in the currency lane, no registry row.`);
 else console.log(`✖ The home ledger law FAILED — ${hlViolations} violation(s).`);
 });
 

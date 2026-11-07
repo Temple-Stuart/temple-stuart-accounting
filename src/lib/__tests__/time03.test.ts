@@ -42,6 +42,7 @@ import { verificationEmail } from '../auth/welcomeEmail';
 
 const RULES = 'src/lib/operations/ledger.ts';
 const ROUTE = 'src/app/api/operations/ledger/route.ts';
+const ANSWER = 'src/lib/operations/ledgerAnswer.ts'; // READS-01b (Alex, 2026-11-07): RECORD_PLAN and the route's body live here; the Time row cites its lines
 const SECTION = 'src/components/workbench/operations/ledger/LedgerSection.tsx';
 const REGISTRY = 'src/lib/toolRegistry.ts';
 const PLANS_FILE = 'src/lib/offer/plans.ts';
@@ -163,14 +164,16 @@ test('A PLANNED MIN is the line’s duration_minutes (blank for a stepless routi
 });
 
 test('A the read grows additively: the route selects the line’s duration_minutes with the record’s plan words (no new query) and hands it to the rule as durationMinutes by the one planned-minutes rule (WORK-03b: a stepless routine’s window length, null without one); the rule copies the two figures onto the row', () => {
-  const route = code(ROUTE);
+  // READS-01b (Alex, 2026-11-07): RECORD_PLAN, the row type and recordInputOf moved with the route's body to the answer file — the pins followed; the header's TIME-03 words stay on the route.
+  const route = code(ANSWER);
   assert.match(route, /step: \{ select: \{ activity: true, time_of_day: true, duration_minutes: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true, role: true \} \} \} \},/, 'RECORD_PLAN reads the duration with the step');
   assert.match(route, /readonly duration_minutes: number \| null; readonly routine_id: string;/, 'the row type');
   // WORK-03b (Alex, 2026-10-26): both kinds through the ONE rule (dayCard.ts plannedMinutesOf) — a line's duration_minutes; a stepless routine's start_time and end_time, read with its plan words (work03b.test.ts pins the routine select).
   assert.match(route, /timeOfDay: row\.step\.time_of_day === null \? null : row\.step\.time_of_day\.toISOString\(\)\.slice\(11, 16\), durationMinutes: plannedMinutesOf\(\{ kind: 'line', duration_minutes: row\.step\.duration_minutes \}\) \};/);
   assert.match(route, /activity: null, timeOfDay: null, durationMinutes: plannedMinutesOf\(\{ kind: 'routine', start_time: row\.routine\.start_time, end_time: row\.routine\.end_time \}\) \};/, 'a stepless routine: its window by the one rule, none without one');
-  assert.equal((route.match(/prisma\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 9, 'the same queries as before — the duration rides the record include');
-  assert.doesNotMatch(route, /actual_minutes/, 'the record’s minutes were always in the row (stopRecordRowOf) — nothing added for them');
+  assert.equal((route.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'the same queries as before — the duration rides the record include (the ninth, the gate’s users read, stays on the route)');
+  assert.equal((code(ROUTE).match(/prisma\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 1, 'the route reads the users row and nothing else');
+  for (const f of [ROUTE, ANSWER]) assert.doesNotMatch(code(f), /actual_minutes/, `${f}: the record’s minutes were always in the row (stopRecordRowOf) — nothing added for them`);
   assert.match(comments(ROUTE), /TIME-03 \(Alex, 2026-10-26\): the line's duration_minutes, read WITH the\s*\n?\s*\*?\s*record's plan words/);
   const rules = code(RULES);
   assert.match(rules, /readonly timeOfDay: string \| null;\n\s*readonly durationMinutes: number \| null;\n\}/, 'LedgerRecordInput grew by one field');
@@ -253,7 +256,7 @@ test('C Time is LIVE with four beats, no why, the customer line verbatim; the no
   const cited = (re: RegExp): number => { const m = time.citation.match(re); assert.ok(m, `the citation names ${re}`); return Number(m[1]); };
   const lineOf = (file: string, n: number): string => code(file).split('\n')[n - 1] ?? '';
   assert.match(lineOf(RULES, cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS/)), /^export const LEDGER_HEAD_WORDS = \[/);
-  assert.match(lineOf(ROUTE, cited(/src\/app\/api\/operations\/ledger\/route\.ts:(\d+)/)), /duration_minutes: true/);
+  assert.match(lineOf(ANSWER, cited(/src\/lib\/operations\/ledgerAnswer\.ts:(\d+)/)), /duration_minutes: true/); // READS-01b (2026-11-07): the citation names the answer file
   assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(the two cells\)/)), /data-ledger-cell="planned-minutes"/);
   assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(PLANNED HOURS · LOGGED HOURS/)), /data-ledger-group-planned-hours/);
   assert.match(lineOf(RULES, cited(/the summary's sums, src\/lib\/operations\/ledger\.ts:(\d+)/)), /^export const SUMMARY_HEAD_WORDS = \[/);
@@ -315,7 +318,7 @@ test('D the journal tables, the day card, the stops route and the minutes input 
   assert.match(code(STOPS_ROUTE), /actual_minutes: v\.actualMinutes \};/, 'the record stores its minutes as before');
   assert.match(code(STOP_FORM), /actualMinutes = Number\(d\.minutes\.trim\(\)\);/, 'the minutes input as before');
   assert.match(code(STOP_FORM), /minutes: r === null \|\| r\.actual_minutes === null \? '' : String\(r\.actual_minutes\),/);
-  assert.doesNotMatch(code(RULES) + code(ROUTE) + code(SECTION), /prisma\.\$executeRaw|ALTER TABLE|migrations/, 'no migration, no raw SQL');
+  assert.doesNotMatch(code(RULES) + code(ROUTE) + code(ANSWER) + code(SECTION), /prisma\.\$executeRaw|ALTER TABLE|migrations/, 'no migration, no raw SQL'); // READS-01b (2026-11-07): the answer file too
   assert.doesNotMatch(code(RULES), /from 'react'|from 'next|\bfetch\b|@prisma\/client/, 'the rule stays pure');
 });
 
