@@ -247,6 +247,7 @@ const CHART: BudgetChartRow[] = [
 const COFFEE: RoutineRow = {
   id: 'r-coffee', name: 'Coffee', budget_amount: 5, coa_code: '6150', schedule_rrule: 'FREQ=DAILY;BYHOUR=8;BYMINUTE=0;BYSECOND=0',
   timezone: 'UTC', start_date: at('2026-08-28'), end_date: at('2026-09-26'), steps: [],
+  start_time: null, end_time: null,
 };
 const LICENSE: TaskRow = {
   id: 't-license', title: 'Buy license', project_id: 'proj-license', entity_id: 'ent-b', status: 'open', estimated_cost_usd: dec('120.50'), coa_code: '6300',

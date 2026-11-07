@@ -18,10 +18,11 @@ import { readTravelDay, travelFailedWords } from '@/components/workbench/operati
 import {
   AS_AIRLINE_STATES_WORDS, CAPTION_TRAVEL_HEAD_WORDS, NOT_JOINED_WORDS, NO_CLOCK_WORDS, PLANNED_NOT_BOOKING_WORDS, PLANNED_STAY_WORDS, REEL_READ_NAMES,
   TRAVEL_KIND_WORDS, TRAVEL_NOT_READ_WORDS, TRAVEL_RECORD_WORDS, TRAVEL_SOURCE_WORDS, TRAVEL_WORD,
-  captionText, completenessWords, dayStops, dayTotals, dayVerdict, matchedWords, plannedKindOf, plannedMinutesOf, reelReadsWords, scriptText, statusWords, stepHeaderWords,
+  captionText, completenessWords, dayStops, dayTotals, dayVerdict, matchedWords, plannedKindOf, reelReadsWords, scriptText, statusWords, stepHeaderWords,
   stopSceneLines, travelArrivalWords, travelClockWords, travelLineWords, travelMatchWords, travelOf, travelPriceWords, travelRecordWords, travelSaidWords, travelSmallWords,
   travelStatusLineWords, travelTotals, type ReelReads, type Stop,
 } from '@/components/workbench/operations/day/dayCard';
+import { plannedMinutesOf } from '@/lib/operations/supersession'; // SUPERSEDE-01a (Alex, 2026-11-07): the one planned-minutes rule's home
 import { FULL, STAY, build, input, reelDay } from './fixtureReelDay';
 
 const DAY_DIR = 'src/components/workbench/operations/day';
@@ -404,7 +405,8 @@ test('C statedMoneyWords is declared once, in the currency home; the matcher imp
 test('I/J the travel section of the rules holds every sentence as a constant or a function, the leaf’s words imported never retyped; no formatCents or planDollars on a travel figure; no || and no ?? default in the new code; stopRecord.ts, asksAmount and day-blocks untouched', () => {
   const rules = code(RULES);
   // TRAVEL-01c (Alex, 2026-10-31): the 01b section ends where the supersession section begins (its declared line prints the PLAN's cents through formatCents — ruling D; travel01c.test.ts pins it). Moved, not loosened.
-  const section = rules.slice(rules.indexOf("export const TRAVEL_WORD = 'TRAVEL';"), rules.indexOf("export const SUPERSEDED_BY_WORDS = 'superseded by';"));
+  // SUPERSEDE-01a (Alex, 2026-11-07): the supersession rule left the card for src/lib/operations/supersession.ts — the travel section now ends where the card's side of supersession begins (BOOKING_HEAD_WORD).
+  const section = rules.slice(rules.indexOf("export const TRAVEL_WORD = 'TRAVEL';"), rules.indexOf("export const BOOKING_HEAD_WORD = 'BOOKING';"));
   assert.ok(section.length > 2000, 'the section is where the travel rules live');
   assert.doesNotMatch(section, /formatCents|planDollars/, 'no plan formatter on a travel figure');
   assert.doesNotMatch(section, /\|\||\?\? /, 'no || and no ?? default');

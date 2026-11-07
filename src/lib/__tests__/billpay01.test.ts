@@ -41,7 +41,7 @@ const chartRow = (code: string, name: string, account_type = 'expense') => ({ co
 const CHARTS = { P: [chartRow('6300', 'Phone'), chartRow('6100', 'Rent'), chartRow('6080', 'Hosting'), chartRow('6200', 'Fitness'), chartRow('6400', 'Insurance'), chartRow('1010', 'Checking', 'asset'), chartRow('2100', 'Card', 'liability')] };
 
 const plan = (o: Partial<RoutinePlanInput> & { id: string; name: string }): RoutinePlanInput => ({
-  entityId: 'P', entityType: 'personal', timezone: LA, scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=7;BYHOUR=0;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], ...o,
+  entityId: 'P', entityType: 'personal', timezone: LA, scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=7;BYHOUR=0;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, ...o,
 });
 const bill = (o: Partial<RoutinePlanInput> & { id: string; name: string }, role = 'all_day', lineNames: Record<string, string> = {}): BillRoutine => ({ plan: plan(o), role, lineNames });
 const everyVendor = (id: string, on: { routine_id?: string; step_id?: string }, vendor_name: string): PlanVendorRow => ({
@@ -64,7 +64,7 @@ const CARD = { code: '2100', name: 'Card' };
 
 const PHONE = bill({ id: 'phone', name: 'Phone bill', budgetAmount: '45', coaCode: '6300' });
 const RENT = bill({ id: 'rent', name: 'Rent', timezone: BKK, budgetAmount: '500', coaCode: '6100' });
-const HOSTING = bill({ id: 'hosting', name: 'Hosting', timezone: BKK, scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=0;BYMINUTE=0;BYSECOND=0', steps: [{ id: 'server', stepOrder: 1, budgetAmount: '20', coaCode: '6080' }, { id: 'domain', stepOrder: 2, budgetAmount: '2', coaCode: '6080' }] }, 'all_day', { server: 'Server', domain: 'Domain' });
+const HOSTING = bill({ id: 'hosting', name: 'Hosting', timezone: BKK, scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=0;BYMINUTE=0;BYSECOND=0', steps: [{ id: 'server', stepOrder: 1, budgetAmount: '20', coaCode: '6080', durationMinutes: null }, { id: 'domain', stepOrder: 2, budgetAmount: '2', coaCode: '6080', durationMinutes: null }] }, 'all_day', { server: 'Server', domain: 'Domain' });
 const GYM = bill({ id: 'gym', name: 'Gym', scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=15;BYHOUR=0;BYMINUTE=0;BYSECOND=0', budgetAmount: '30', coaCode: '6200' });
 const INSURANCE = bill({ id: 'insurance', name: 'Insurance', scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=3;BYHOUR=0;BYMINUTE=0;BYSECOND=0', budgetAmount: '120', coaCode: '6400' });
 const APPLE = bill({ id: 'apple', name: 'Apple storage', budgetAmount: '3', coaCode: '6300' });

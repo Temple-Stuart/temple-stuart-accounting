@@ -20,7 +20,7 @@ const DAILY_08 = 'FREQ=DAILY;BYHOUR=8;BYMINUTE=0;BYSECOND=0';
 
 const routine = (over: Partial<RoutinePlanInput> & { id: string }): RoutinePlanInput => ({
   name: `Routine ${over.id}`, entityId: 'ent-p', entityType: 'personal', timezone: 'UTC', scheduleRrule: DAILY_08,
-  startDate: '2026-01-01', endDate: null, budgetAmount: 15, coaCode: '6150', steps: [], ...over,
+  startDate: '2026-01-01', endDate: null, budgetAmount: 15, coaCode: '6150', steps: [], startTime: null, endTime: null, ...over,
 });
 const task = (over: Partial<TaskPlanInput> & { id: string }): TaskPlanInput => ({
   title: `Task ${over.id}`, entityId: 'ent-p', entityType: 'personal', status: 'open', estimatedCostUsd: '50.00', coaCode: '6300', planItems: [], ...over,
@@ -134,9 +134,9 @@ test('R2 ROUTINE MONEY — lines win: once any line has an amount the routine-le
   const r = routine({
     id: 'morning', budgetAmount: 15, coaCode: '6200',
     steps: [
-      { id: 'coffee', stepOrder: 0, budgetAmount: 4, coaCode: '6150' },
-      { id: 'lunch', stepOrder: 1, budgetAmount: '12.00', coaCode: '6160' },
-      { id: 'walk', stepOrder: 2, budgetAmount: null, coaCode: null },
+      { id: 'coffee', stepOrder: 0, budgetAmount: 4, coaCode: '6150', durationMinutes: null },
+      { id: 'lunch', stepOrder: 1, budgetAmount: '12.00', coaCode: '6160', durationMinutes: null },
+      { id: 'walk', stepOrder: 2, budgetAmount: null, coaCode: null, durationMinutes: null },
     ],
   });
   const { lines, notPlaced } = buildRoutineBudgetLines([r], '2026-10-05', '2026-10-06');
@@ -149,17 +149,17 @@ test('R2 ROUTINE MONEY — lines win: once any line has an amount the routine-le
 });
 
 test('R2 ROUTINE MONEY — a $0 line is a planned 0; a negative amount is kept; a routine-level amount stands when no line is costed', () => {
-  const zero = buildRoutineBudgetLines([routine({ id: 'z', steps: [{ id: 's', stepOrder: 0, budgetAmount: 0, coaCode: '6150' }] })], '2026-10-05', '2026-10-05');
+  const zero = buildRoutineBudgetLines([routine({ id: 'z', steps: [{ id: 's', stepOrder: 0, budgetAmount: 0, coaCode: '6150', durationMinutes: null }] })], '2026-10-05', '2026-10-05');
   assert.deepEqual(zero.lines.map((l) => l.cents), [0]);
   assert.equal(Object.is(zero.lines[0].cents, 0), true, 'a positive zero');
-  const refund = buildRoutineBudgetLines([routine({ id: 'n', steps: [{ id: 's', stepOrder: 0, budgetAmount: -5, coaCode: '6150' }] })], '2026-10-05', '2026-10-05');
+  const refund = buildRoutineBudgetLines([routine({ id: 'n', steps: [{ id: 's', stepOrder: 0, budgetAmount: -5, coaCode: '6150', durationMinutes: null }] })], '2026-10-05', '2026-10-05');
   assert.deepEqual(refund.lines.map((l) => l.cents), [-500]);
   const stepless = buildRoutineBudgetLines([routine({ id: 'r', budgetAmount: '15.50', coaCode: '6150' })], '2026-10-05', '2026-10-05');
   assert.deepEqual(stepless.lines.map((l) => [l.code, l.cents]), [['6150', 1550]]);
 });
 
 test('R2 ROUTINE MONEY — a costed line with no code is Not placed \'no account\' WITH its day and cents; a routine with no money is nothing', () => {
-  const r = routine({ id: 'm', steps: [{ id: 'tip', stepOrder: 0, budgetAmount: 7, coaCode: null }, { id: 'coffee', stepOrder: 1, budgetAmount: 4, coaCode: '6150' }] });
+  const r = routine({ id: 'm', steps: [{ id: 'tip', stepOrder: 0, budgetAmount: 7, coaCode: null, durationMinutes: null }, { id: 'coffee', stepOrder: 1, budgetAmount: 4, coaCode: '6150', durationMinutes: null }] });
   const { lines, notPlaced } = buildRoutineBudgetLines([r], '2026-10-05', '2026-10-06');
   assert.deepEqual(lines.map((l) => [l.day, l.cents]), [['2026-10-05', 400], ['2026-10-06', 400]]);
   assert.deepEqual(notPlaced.map((n) => [n.day, n.cents, n.reason]), [['2026-10-05', 700, 'no account'], ['2026-10-06', 700, 'no account']]);
@@ -168,7 +168,7 @@ test('R2 ROUTINE MONEY — a costed line with no code is Not placed \'no account
   assert.deepEqual(bare.notPlaced.map((n) => [n.day, n.cents, n.reason]), [['2026-10-05', 900, 'no account']]);
   // from 'none' — no amount anywhere — contributes nothing and lists nothing, even with a zone
   // and a schedule that would not be read (the zone check runs only for routines with money).
-  const none = buildRoutineBudgetLines([routine({ id: 'x', budgetAmount: null, coaCode: null, timezone: 'Mars/Olympus', scheduleRrule: 'FREQ=BOGUS', steps: [{ id: 's', stepOrder: 0, budgetAmount: null, coaCode: '6150' }] })], '2026-10-05', '2026-10-06');
+  const none = buildRoutineBudgetLines([routine({ id: 'x', budgetAmount: null, coaCode: null, timezone: 'Mars/Olympus', scheduleRrule: 'FREQ=BOGUS', steps: [{ id: 's', stepOrder: 0, budgetAmount: null, coaCode: '6150', durationMinutes: null }] })], '2026-10-05', '2026-10-06');
   assert.deepEqual(none, { lines: [], notPlaced: [] });
 });
 
@@ -183,8 +183,8 @@ const centsByCode = (lines: readonly BudgetLine[]): Record<string, number> => {
 
 test('R2 ROUTINE MONEY — a routine budgeted ONLY on its lines (no routine-level figure) contributes each costed line × occurrences to its own account', () => {
   const lined = routine({ id: 'lined', budgetAmount: null, coaCode: null, steps: [
-    { id: 'coffee', stepOrder: 0, budgetAmount: '4.00', coaCode: '5210' },
-    { id: 'lunch', stepOrder: 1, budgetAmount: '12.00', coaCode: '5220' },
+    { id: 'coffee', stepOrder: 0, budgetAmount: '4.00', coaCode: '5210', durationMinutes: null },
+    { id: 'lunch', stepOrder: 1, budgetAmount: '12.00', coaCode: '5220', durationMinutes: null },
   ] });
   const sep = buildRoutineBudgetLines([lined], '2026-09-01', '2026-09-30');
   assert.equal(sep.lines.length, 60, 'two costed lines × 30 September days');
@@ -194,8 +194,8 @@ test('R2 ROUTINE MONEY — a routine budgeted ONLY on its lines (no routine-leve
 
 test('R2 ROUTINE MONEY — an archived line (isActive false) contributes nothing', () => {
   const r = routine({ id: 'arch', budgetAmount: null, coaCode: null, steps: [
-    { id: 'coffee', stepOrder: 0, budgetAmount: '4.00', coaCode: '5210' },
-    { id: 'gone', stepOrder: 1, budgetAmount: '99.00', coaCode: '5210', isActive: false },
+    { id: 'coffee', stepOrder: 0, budgetAmount: '4.00', coaCode: '5210', durationMinutes: null },
+    { id: 'gone', stepOrder: 1, budgetAmount: '99.00', coaCode: '5210', isActive: false, durationMinutes: null },
   ] });
   const sep = buildRoutineBudgetLines([r], '2026-09-01', '2026-09-30');
   assert.deepEqual(centsByCode(sep.lines), { '5210': 400 * 30 });
@@ -204,15 +204,15 @@ test('R2 ROUTINE MONEY — an archived line (isActive false) contributes nothing
 
 test('R2 ROUTINE MONEY — a line with a NULL amount is absent from the month — no line on its account, never a 0', () => {
   const r = routine({ id: 'unc', budgetAmount: null, coaCode: null, steps: [
-    { id: 'gym', stepOrder: 0, budgetAmount: null, coaCode: '5230' },
-    { id: 'coffee', stepOrder: 1, budgetAmount: '4.00', coaCode: '5210' },
+    { id: 'gym', stepOrder: 0, budgetAmount: null, coaCode: '5230', durationMinutes: null },
+    { id: 'coffee', stepOrder: 1, budgetAmount: '4.00', coaCode: '5210', durationMinutes: null },
   ] });
   const sep = buildRoutineBudgetLines([r], '2026-09-01', '2026-09-30');
   assert.deepEqual(centsByCode(sep.lines), { '5210': 400 * 30 });
   assert.equal(sep.lines.some((l) => l.code === '5230'), false, 'the uncosted gym line puts no line, and no 0, on its account');
   assert.deepEqual(sep.notPlaced, []);
   // A routine whose only line is uncosted, with no routine-level figure, contributes nothing at all.
-  assert.deepEqual(buildRoutineBudgetLines([routine({ id: 'only', budgetAmount: null, coaCode: null, steps: [{ id: 'gym', stepOrder: 0, budgetAmount: null, coaCode: '5230' }] })], '2026-09-01', '2026-09-30'), { lines: [], notPlaced: [] });
+  assert.deepEqual(buildRoutineBudgetLines([routine({ id: 'only', budgetAmount: null, coaCode: null, steps: [{ id: 'gym', stepOrder: 0, budgetAmount: null, coaCode: '5230', durationMinutes: null }] })], '2026-09-01', '2026-09-30'), { lines: [], notPlaced: [] });
 });
 
 // ── R3 · TASK DAY ───────────────────────────────────────────────────────────
@@ -430,7 +430,7 @@ test('R7 NOT PLACED IS A RECORD — every field, a closed reason; undated entrie
 
 test('R8 TRACEABILITY — every sourceId names its origin: the routine, the line or the routine figure, the instant; the task', () => {
   const r = buildRoutineBudgetLines([
-    routine({ id: 'r1', steps: [{ id: 'st1', stepOrder: 0, budgetAmount: 4, coaCode: '6150' }] }),
+    routine({ id: 'r1', steps: [{ id: 'st1', stepOrder: 0, budgetAmount: 4, coaCode: '6150', durationMinutes: null }] }),
     routine({ id: 'r2' }),
   ], '2026-10-05', '2026-10-05');
   assert.deepEqual(r.lines.map((l) => l.sourceId), [
@@ -487,7 +487,7 @@ test('CONSERVATION — the cents on lines, on Not placed entries and in the excl
   //   gym 25.00 on 'X-6100' (another book)                                                   → 3 × 2500       = 7500
   //   rent 2000.00 routine-level on 6200, end_date 10-06                                     → 2 × 200000     = 400000
   const routines = [
-    routine({ id: 'coffee', steps: [{ id: 'c', stepOrder: 0, budgetAmount: 4, coaCode: '6150' }, { id: 'tip', stepOrder: 1, budgetAmount: 7, coaCode: null }] }),
+    routine({ id: 'coffee', steps: [{ id: 'c', stepOrder: 0, budgetAmount: 4, coaCode: '6150', durationMinutes: null }, { id: 'tip', stepOrder: 1, budgetAmount: 7, coaCode: null, durationMinutes: null }] }),
     routine({ id: 'gym', budgetAmount: 25, coaCode: 'X-6100' }),
     routine({ id: 'rent', budgetAmount: '2000.00', coaCode: '6200', endDate: '2026-10-06' }),
   ];

@@ -6,7 +6,7 @@ import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { LINKED_POSTING_SELECT } from '@/lib/calendar/postingAmount';
 import { ledgerOf, linkInputOf, type LedgerRecordInput } from '@/lib/operations/ledger';
 import { refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
-import { plannedMinutesOf } from '@/components/workbench/operations/day/dayCard';
+import { plannedMinutesOf } from '@/lib/operations/supersession';
 import { stayRowOf } from '@/lib/operations/stay';
 import { instantToZoned } from '@/lib/time';
 

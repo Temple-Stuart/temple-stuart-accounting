@@ -19,14 +19,16 @@ import { code, comments, functionBody } from '../sourceText';
 import type { RoutineWords } from '../budget/planLines';
 import type { StopRecordRow } from '../operations/stopRecord';
 import {
-  DONE_IN_BLOCK_SCENE_WORDS, NOTHING_TICKED_WORDS, captionText, dayStops, plannedMinutesOf, reelDoneOf, scriptText, stopSceneLines, stopScriptText,
+  DONE_IN_BLOCK_SCENE_WORDS, NOTHING_TICKED_WORDS, captionText, dayStops, reelDoneOf, scriptText, stopSceneLines, stopScriptText,
 } from '@/components/workbench/operations/day/dayCard';
+import { plannedMinutesOf } from '@/lib/operations/supersession'; // SUPERSEDE-01a (Alex, 2026-11-07): the one planned-minutes rule's home
 import { NO_LENGTH_WORDS, blockWindowOf, doneInBlocksOf } from '../operations/workBlock';
 import { EMPTY_WINDOW_WORDS } from '../operations/rruleHelpers';
 import { ledgerCsv, ledgerOf, type LedgerInput, type LedgerRecordInput } from '../operations/ledger';
 import { TOOL_REGISTRY } from '../toolRegistry';
 import { BKK, DAY, HALF, STAY, STOPS, build, entry, input, line, reelDay, routine } from './fixtureReelDay';
 
+const LEAF = 'src/lib/operations/supersession.ts'; // SUPERSEDE-01a (Alex, 2026-11-07): the one planned-minutes rule's home
 const RULES = 'src/components/workbench/operations/day/dayCard.ts';
 const CARD = 'src/components/workbench/operations/day/DayCard.tsx';
 const RULE = 'src/lib/operations/workBlock.ts';
@@ -78,16 +80,21 @@ test('2 plannedMinutesOf — a line’s 45 → 45; a stepless routine 10:00–18
   assert.throws(() => plannedMinutesOf({ kind: 'routine', start_time: t('10:00'), end_time: '18:00' }), /end_time "18:00" is not a time/, 'a bare clock is not the JSON of a @db.Time');
   // The convention is rruleHelpers': the same words the routes refuse an empty window with.
   assert.equal(EMPTY_WINDOW_WORDS, 'end_time equals start_time — the window is empty; an end before the start ends the next day');
-  // The rule, in its one place — applied at the card's two sites.
+  // The rule, in its one place — SUPERSEDE-01a (Alex, 2026-11-07): src/lib/operations/supersession.ts — applied at the card's two sites.
   const rules = code(RULES);
+  const leaf = code(LEAF);
   // TRAVEL-01b (Alex, 2026-10-31), ruling D: the rule gains the 'travel' kind between the line's and the routine's branches — the line's and the routine's arithmetic are unchanged (travel01b.test.ts drives the travel branch). Moved, not loosened.
-  assert.match(rules, /export function plannedMinutesOf\(plan: PlannedMinutesPlan\): number \| null \{\n\s*if \(plan\.kind === 'line'\) return plan\.duration_minutes;\n\s*if \(plan\.kind === 'travel'\) \{\n[\s\S]*?\n\s*\}\n\s*const start = windowMinutesOf\('start_time', plan\.start_time\);\n\s*const end = windowMinutesOf\('end_time', plan\.end_time\);\n\s*if \(start === null \|\| end === null\) return null;\n\s*return end >= start \? end - start : end \+ 24 \* 60 - start;\n\}/);
+  assert.match(leaf, /export function plannedMinutesOf\(plan: PlannedMinutesPlan\): number \| null \{\n\s*if \(plan\.kind === 'line'\) return plan\.duration_minutes;\n\s*if \(plan\.kind === 'travel'\) \{\n[\s\S]*?\n\s*\}\n\s*const start = windowMinutesOf\('start_time', plan\.start_time\);\n\s*const end = windowMinutesOf\('end_time', plan\.end_time\);\n\s*if \(start === null \|\| end === null\) return null;\n\s*return end >= start \? end - start : end \+ 24 \* 60 - start;\n\}/);
   assert.match(rules, /minutes: plannedMinutesOf\(\{ kind: 'routine', start_time: r\.start_time, end_time: r\.end_time \}\),/, 'the stepless site');
   assert.match(rules, /minutes: plannedMinutesOf\(\{ kind: 'line', duration_minutes: step\.duration_minutes \}\),/, 'the line site');
   // TRAVEL-01b (Alex, 2026-10-31): applied twice more — a planned once row's and a segment's minutes (kind 'travel'), the same one rule. Moved, not loosened.
   // TRAVEL-01c (Alex, 2026-10-31), ruling B: applied twice more — each routine occurrence's window for supersession reads its minutes by the same one rule. Moved, not loosened.
-  assert.equal((rules.match(/plannedMinutesOf\(/g) ?? []).length, 7, 'defined once, applied six times — the line, the stepless routine, the planned travel row, the segment, and each occurrence’s window; no other reading on the card');
-  assert.match(rules, /import \{ minutesOf \} from '@\/lib\/calendar\/day';/, 'the clock arithmetic is the calendar’s minutesOf — reused, not rebuilt');
+  // SUPERSEDE-01a (Alex, 2026-11-07): defined once in the leaf; the card applies it six times — the line, the stepless routine, the planned travel row, the segment, and each occurrence’s window; no other reading on the card.
+  assert.equal((rules.match(/plannedMinutesOf\(/g) ?? []).length, 6, 'applied six times');
+  assert.equal((leaf.match(/export function plannedMinutesOf\(/g) ?? []).length, 1, 'defined once');
+  assert.equal((leaf.match(/plannedMinutesOf\(/g) ?? []).length, 1, 'the leaf applies nothing of its own');
+  assert.match(leaf, /import \{ minutesOf \} from '@\/lib\/calendar\/day';/, 'the clock arithmetic is the calendar’s minutesOf — reused, not rebuilt (in the leaf since SUPERSEDE-01a)');
+  assert.doesNotMatch(rules, /import \{ minutesOf \}/, 'the card no longer reads minutesOf — the rule left with its arithmetic');
 });
 
 test('2 the card: a stepless execute routine 10:00–18:00 Bangkok has 480 minutes — its block is [10:00, 18:00], a task ticked at 12:00 is done in it; 22:00–02:00 reaches 01:00 the next day; a stepless routine without a window has none', () => {
@@ -140,7 +147,7 @@ test('2 the ledger: a stepless record’s PLANNED MIN prints the window’s leng
   assert.match(route, /readonly routine: \{ readonly name: string; readonly timezone: string; readonly role: string; readonly start_time: Date \| null; readonly end_time: Date \| null \} \| null;/);
   assert.match(route, /durationMinutes: plannedMinutesOf\(\{ kind: 'line', duration_minutes: row\.step\.duration_minutes \}\) \};/);
   assert.match(route, /durationMinutes: plannedMinutesOf\(\{ kind: 'routine', start_time: row\.routine\.start_time, end_time: row\.routine\.end_time \}\) \};/);
-  assert.match(route, /import \{ plannedMinutesOf \} from '@\/components\/workbench\/operations\/day\/dayCard';/);
+  assert.match(route, /import \{ plannedMinutesOf \} from '@\/lib\/operations\/supersession';/); // SUPERSEDE-01a (2026-11-07): the leaf is the one door
   assert.equal((route.match(/plannedMinutesOf\(/g) ?? []).length, 2, 'the answer function applies the rule; it restates nothing');
   // READS-01b (2026-11-07): the nine queries are the gate's users read, still on the route, and the eight the answer function runs — no new query.
   assert.equal((route.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'no new query — the times ride the record include');
@@ -159,7 +166,7 @@ test('2 the ledger: a stepless record’s PLANNED MIN prints the window’s leng
   assert.ok(stepLine && routineLine, 'the citation names both');
   assert.match(lineOf(ANSWER, Number(stepLine[1])), /^\s*step: \{ select: \{ activity: true, time_of_day: true, duration_minutes: true,/);
   assert.match(lineOf(ANSWER, Number(routineLine[1])), /^\s*routine: \{ select: \{ name: true, timezone: true, role: true, start_time: true, end_time: true \} \},/);
-  assert.match(time.citation, /the one planned-minutes rule's, dayCard\.ts plannedMinutesOf — a line's duration_minutes or, WORK-03b \(2026-10-26\), a stepless routine's window length/);
+  assert.match(time.citation, /the one planned-minutes rule's, src\/lib\/operations\/supersession\.ts plannedMinutesOf \(SUPERSEDE-01a, 2026-11-07: moved from dayCard\.ts\) — a line's duration_minutes or, WORK-03b \(2026-10-26\), a stepless routine's window length/);
 });
 
 // ── RULING 1 · NO BLOCK LINE WITHOUT A LENGTH ────────────────────────────────

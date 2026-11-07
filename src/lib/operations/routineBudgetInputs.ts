@@ -43,13 +43,15 @@ export const ROUTINE_BUDGET_SELECT = {
   budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true,
   // ONEOFF-01: the anchor the month's occurrence count is built on.
   start_date: true,
+  // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the routine's window — a stepless occurrence's length by the one rule (supersession.ts plannedMinutesOf); read here, carried by the two mappers, consumed by nothing until 01b.
+  start_time: true, end_time: true,
   // COLUMNS-01 (Alex, 2026-10-25, ruling A): whether the routine is active — the month route reads inactive routines too (includeInactive)
   // and ROUTINE EXPENSES must not budget one; the default read filters on it, so every other caller sees true.
   is_active: true,
   // BILLPAY-01 (Alex, 2026-10-28, ruling C): the routine's role — a bill's routine is all_day. Additive: the month tables read nothing of it.
   role: true,
   // LINES-01: the routine's active lines; routinePlanned() decides whether they carry the figure.
-  steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true } },
+  steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true, duration_minutes: true } },
 } as const;
 
 export type RoutineBudgetRow = Prisma.operations_routinesGetPayload<{ select: typeof ROUTINE_BUDGET_SELECT }>;
@@ -68,8 +70,9 @@ export interface LoadedRoutineBudgetInput extends RoutineBudgetInput {
   role: string;
   start_date: Date | null;
   end_date: Date | null;
-  /** TAB13-04: activity and time_of_day ('HH:MM', or null when the line has no time) are the day's plan lines' words — the month tables read neither. */
-  steps: { id: string; is_active: boolean; budget_amount: number | null; coa_code: string | null; step_order: number; activity: string; time_of_day: string | null }[];
+  start_time: Date | null; end_time: Date | null; // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the routine's window AS READ — a @db.Time is a Date at 1970-01-01 in Prisma's hands ('1970-01-01THH:MM:SS.000Z' as JSON, what supersession.ts plannedMinutesOf's 'routine' kind reads); null when the routine states none. Carried, consumed by nothing until 01b.
+  /** TAB13-04: activity and time_of_day ('HH:MM', or null when the line has no time) are the day's plan lines' words — the month tables read neither. SUPERSEDE-01a: the line's duration_minutes as read, carried, consumed by nothing until 01b. */
+  steps: { id: string; is_active: boolean; budget_amount: number | null; coa_code: string | null; step_order: number; activity: string; time_of_day: string | null; duration_minutes: number | null }[];
 }
 
 /** A row as read → the loader's input (a RoutineBudgetInput and the three the budget report reads). Decimal → number; null stays null, never 0. */
@@ -85,7 +88,8 @@ export function toRoutineBudgetInput(r: RoutineBudgetRow): LoadedRoutineBudgetIn
     schedule_rrule: r.schedule_rrule,
     timezone: r.timezone,
     start_date: r.start_date,
-    steps: r.steps.map((s) => ({ id: s.id, is_active: s.is_active, budget_amount: s.budget_amount != null ? Number(s.budget_amount) : null, coa_code: s.coa_code, step_order: s.step_order, activity: s.activity, time_of_day: s.time_of_day === null ? null : s.time_of_day.toISOString().slice(11, 16) })),
+    start_time: r.start_time, end_time: r.end_time,
+    steps: r.steps.map((s) => ({ id: s.id, is_active: s.is_active, budget_amount: s.budget_amount != null ? Number(s.budget_amount) : null, coa_code: s.coa_code, step_order: s.step_order, activity: s.activity, time_of_day: s.time_of_day === null ? null : s.time_of_day.toISOString().slice(11, 16), duration_minutes: s.duration_minutes })),
   };
 }
 

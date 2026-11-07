@@ -48,10 +48,10 @@ const BKK = 'Asia/Bangkok';
 // COLUMNS-01 (Alex, 2026-10-25, ruling A): the rule's routines say whether they are active (RoutineMonthRoutine) — these fixtures are active; columns01.test.ts holds the inactive one.
 const plan = (o: Partial<RoutineMonthRoutine> & { id: string; name: string }): RoutineMonthRoutine => ({
   entityId: 'p', entityType: 'personal', timezone: BKK, scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null,
-  budgetAmount: null, coaCode: null, steps: [], isActive: true, ...o,
+  budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [], isActive: true, ...o,
 });
 /** A daily $10 line (October 2026 has 31 days). */
-const DAILY = plan({ id: 'daily', name: 'Daily', steps: [{ id: 's1', stepOrder: 1, budgetAmount: '10', coaCode: '6150' }] });
+const DAILY = plan({ id: 'daily', name: 'Daily', steps: [{ id: 's1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null }] });
 /** A stepless routine with no record — ACTUAL and VARIANCE stay null. */
 const QUIET = plan({ id: 'quiet', name: 'Quiet', budgetAmount: '3', coaCode: '6150' });
 /** A once routine on the 20th (ONEOFF-01: FREQ=DAILY;COUNT=1 on its start date). */

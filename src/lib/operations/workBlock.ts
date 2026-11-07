@@ -45,7 +45,7 @@ export interface BlockStop {
   readonly time: string | null;
   /** The routine's zone; null for a task. */
   readonly zone: string | null;
-  /** The stop's planned minutes by the day card's one rule (dayCard.ts plannedMinutesOf): a line's duration_minutes; WORK-03b (Alex, 2026-10-26), a stepless routine's window length (start_time to end_time); null for a line that states none, a stepless routine without a window, and a task. */
+  /** The stop's planned minutes by the one rule (supersession.ts plannedMinutesOf — SUPERSEDE-01a, 2026-11-07; the day card's until then): a line's duration_minutes; WORK-03b (Alex, 2026-10-26), a stepless routine's window length (start_time to end_time); null for a line that states none, a stepless routine without a window, and a task. */
   readonly minutes: number | null;
 }
 
@@ -55,7 +55,7 @@ export interface BlockWindow {
 }
 
 /**
- * [the stop's planned instant, + the stop's minutes (the day card's one rule)]: the planned instant is the stop's clock in the routine's zone on
+ * [the stop's planned instant, + the stop's minutes (the one rule, supersession.ts plannedMinutesOf — SUPERSEDE-01a)]: the planned instant is the stop's clock in the routine's zone on
  * the card's day (dayCard.ts draws the lateness from the same instant); null without minutes — the block has no length —
  * and (WORK-03, WORK-02 call 4 ruled 2026-10-26) null for ≤ 0 minutes too: a zero or negative length is no length.
  * A stop with minutes but no clock is the card's error, thrown by name.

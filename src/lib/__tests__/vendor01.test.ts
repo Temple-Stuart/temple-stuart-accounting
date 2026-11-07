@@ -31,10 +31,10 @@ const GYM = '33333333-3333-4333-8333-333333333333';
 const routine = (over: Partial<RoutinePlanInput> = {}): RoutinePlanInput => ({
   id: PLAN, name: 'Meals', entityId: 'ent-p', entityType: 'personal', timezone: LA,
   scheduleRrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null,
-  budgetAmount: null, coaCode: null,
+  budgetAmount: null, coaCode: null, startTime: null, endTime: null,
   steps: [
-    { id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'P-6150' },
-    { id: GYM, isActive: true, stepOrder: 1, budgetAmount: null, coaCode: null },
+    { id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'P-6150', durationMinutes: null },
+    { id: GYM, isActive: true, stepOrder: 1, budgetAmount: null, coaCode: null, durationMinutes: null },
   ],
   ...over,
 });
@@ -105,7 +105,7 @@ test('T3 the vendor sits where the money sits: a costed line, a routine whose ow
   const onRoutine = refusal(moneyIsHere({ kind: 'routine', routine: lined }));
   assert.deepEqual([onRoutine.status, onRoutine.error, onRoutine.message], [409, 'money-on-lines', 'this routine\'s figure is the sum of its lines — its vendor goes on the line']);
 
-  const own = routine({ budgetAmount: '9.99', coaCode: 'P-6300', steps: [{ id: GYM, isActive: true, stepOrder: 0, budgetAmount: null, coaCode: null }] });
+  const own = routine({ budgetAmount: '9.99', coaCode: 'P-6300', steps: [{ id: GYM, isActive: true, stepOrder: 0, budgetAmount: null, coaCode: null, durationMinutes: null }] });
   assert.deepEqual(moneyIsHere({ kind: 'routine', routine: own }), { ok: true });
   const onLine = refusal(moneyIsHere({ kind: 'routine_line', routine: own, lineId: GYM }));
   assert.equal(onLine.status, 409);
@@ -124,7 +124,7 @@ test('T3 (d) the plan as /budget reads it: a routine the loader did not return, 
   const loaded = [routine()];
   assert.ok(routineAsBudgetReads(loaded, { id: PLAN, name: 'Meals' }, LUNCH).ok);
   assert.match(refusal(routineAsBudgetReads([], { id: PLAN, name: 'Meals' }, null)).message, /^"Meals" is not active — \/budget does not read it$/);
-  const archived = [routine({ steps: [{ id: LUNCH, isActive: false, stepOrder: 0, budgetAmount: '20.00', coaCode: 'P-6150' }] })];
+  const archived = [routine({ steps: [{ id: LUNCH, isActive: false, stepOrder: 0, budgetAmount: '20.00', coaCode: 'P-6150', durationMinutes: null }] })];
   assert.equal(refusal(routineAsBudgetReads(archived, { id: PLAN, name: 'Meals' }, LUNCH)).status, 409);
   assert.equal(refusal(routineAsBudgetReads(loaded, { id: PLAN, name: 'Meals' }, '44444444-4444-4444-8444-444444444444')).error, 'inactive');
   for (const status of ['open', 'in_progress', 'blocked', 'completed']) assert.ok(taskAsBudgetReads({ title: 'T', status, estimatedCostUsd: '1.00' }).ok, status);
@@ -144,7 +144,7 @@ test('T4 a real instant is accepted — placed, or not placed because the chart 
   assert.deepEqual(ask(routine(), { kind: 'routine_line', id: LUNCH, instant: noon }), { ok: true, day: '2026-09-29' });
   assert.equal(occurrenceKey({ routineId: PLAN, lineId: LUNCH, instant: noon }), `routine:${PLAN}:line:${LUNCH}:2026-09-29T19:00:00.000Z`, 'TAB13-04: the key is days.ts\'s');
   // A B- code on a personal book: /budget lists the occurrence as not placed — still an occurrence it builds.
-  const unreadable = routine({ steps: [{ id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'B-6150' }] });
+  const unreadable = routine({ steps: [{ id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'B-6150', durationMinutes: null }] });
   const w = occurrenceWindow(noon);
   const built = buildRoutineBudgetLines([unreadable], w.rangeFrom, w.rangeTo);
   assert.ok(built.notPlaced.some((n) => n.sourceId === `routine:${PLAN}:line:${LUNCH}:2026-09-29T19:00:00.000Z` && n.reason === 'account code not recognised'));

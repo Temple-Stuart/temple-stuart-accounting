@@ -178,8 +178,11 @@ export interface RoutineRow {
   readonly timezone: string;
   readonly start_date: Date | null;
   readonly end_date: Date | null;
-  /** TAB13-04: each line's activity and time_of_day ('HH:MM', read once by the loader) are the day's plan lines' words. */
-  readonly steps: readonly { readonly id: string; readonly is_active: boolean; readonly budget_amount: number | string | null; readonly coa_code: string | null; readonly step_order: number; readonly activity: string; readonly time_of_day: string | null }[];
+  /** SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the routine's window as the loader read it (a @db.Time: a Date at 1970-01-01); null when none. Carried into the plan input as its JSON, consumed by nothing until 01b. */
+  readonly start_time: Date | null;
+  readonly end_time: Date | null;
+  /** TAB13-04: each line's activity and time_of_day ('HH:MM', read once by the loader) are the day's plan lines' words. SUPERSEDE-01a: the line's duration_minutes as read, carried, consumed by nothing until 01b. */
+  readonly steps: readonly { readonly id: string; readonly is_active: boolean; readonly budget_amount: number | string | null; readonly coa_code: string | null; readonly step_order: number; readonly activity: string; readonly time_of_day: string | null; readonly duration_minutes: number | null }[];
 }
 
 export interface TaskRow {
@@ -294,7 +297,10 @@ export function toRoutinePlanInput(row: RoutineRow, entity: ReportEntity): Routi
     endDate: row.end_date === null ? null : utcDay(row.end_date),
     budgetAmount: row.budget_amount,
     coaCode: row.coa_code,
-    steps: row.steps.map((s) => ({ id: s.id, isActive: s.is_active, stepOrder: s.step_order, budgetAmount: s.budget_amount, coaCode: s.coa_code })),
+    // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the window's JSON and each line's duration, carried as read — no conversion, no default.
+    startTime: row.start_time === null ? null : row.start_time.toISOString(),
+    endTime: row.end_time === null ? null : row.end_time.toISOString(),
+    steps: row.steps.map((s) => ({ id: s.id, isActive: s.is_active, stepOrder: s.step_order, budgetAmount: s.budget_amount, coaCode: s.coa_code, durationMinutes: s.duration_minutes })),
   };
 }
 

@@ -79,8 +79,10 @@ export const SEEDS: Seed[] = [
   {
     name: 'route-c the budget API is made a public path',
     file: MIDDLEWARE,
-    find: "  '/api/proposals',\n];",
-    replace: "  '/api/proposals',\n  '/api/budget',\n];",
+    // SUPERSEDE-01a (Alex, 2026-11-07): re-anchored to the list's last entry as TRIPPOST-01 (2026-11-05) left it — '/my-trip'
+    // closes PUBLIC_PATHS now, '/api/proposals' no longer does (the anchor occurred 0 times on main); the seed still lists the budget API.
+    find: "  '/my-trip',\n];",
+    replace: "  '/my-trip',\n  '/api/budget',\n];",
     expect: '/api/budget/report is a public path (src/middleware.ts lists /api/budget)',
   },
   {
@@ -193,8 +195,9 @@ export const SEEDS: Seed[] = [
   {
     name: 'route-s the cell route is made a public path',
     file: MIDDLEWARE,
-    find: "  '/api/proposals',\n];",
-    replace: "  '/api/proposals',\n  '/api/budget/report/cell',\n];",
+    // SUPERSEDE-01a (Alex, 2026-11-07): re-anchored as route-c — '/my-trip' closes PUBLIC_PATHS since TRIPPOST-01 (2026-11-05).
+    find: "  '/my-trip',\n];",
+    replace: "  '/my-trip',\n  '/api/budget/report/cell',\n];",
     expect: '/api/budget/report/cell is a public path (src/middleware.ts lists /api/budget/report/cell)',
   },
   {

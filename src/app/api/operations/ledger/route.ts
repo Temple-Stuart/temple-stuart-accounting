@@ -38,7 +38,7 @@
  *   · WORK-03b (Alex, 2026-10-26): the routine's start_time and end_time, read
  *     WITH a stepless record's plan words (RECORD_PLAN's routine select —
  *     additive, no new query): a stepless routine with a window is as long as
- *     its window — the one planned-minutes rule (dayCard.ts plannedMinutesOf,
+ *     its window — the one planned-minutes rule (supersession.ts plannedMinutesOf — SUPERSEDE-01a, 2026-11-07;
  *     recordInputOf applies it for both kinds); one without has none.
  * READ ONLY: this route writes nothing, reads no book data, no travel, no paid
  * service. The clock is read HERE, once (as_of); the pure half takes it.

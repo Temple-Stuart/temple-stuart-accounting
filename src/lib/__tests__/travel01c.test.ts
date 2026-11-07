@@ -11,16 +11,21 @@ import assert from 'node:assert/strict';
 import { code, comments } from '../sourceText';
 import { dayRangeOf, travelDayOf, type BookingIn, type PlannedIn, type SegmentIn, type TravelDay } from '../operations/travelDay';
 import type { StopRecordRow } from '../operations/stopRecord';
+// SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 2): the rule's names come from the one leaf; the card's names from the card.
 import {
   CANNOT_SUPERSEDE_NO_END_WORDS, CANNOT_SUPERSEDE_NO_INSTANT_WORDS, NOT_IN_PLAN_WORDS, SUPERSEDED_BY_TRAVEL_WORDS, SUPERSEDED_BY_WORDS,
-  andMoreWords, cannotSupersedeWords, captionText, dayStops, dayTotals, dayVerdict, focusStop, scriptText, statusWords, stopSceneLines, supersededLineWords, supersededTotals,
-  supersededWords, supersessionOf, travelBlocksOf, travelBookingLineWords, travelOf, travelSaidWords, withoutSuperseded, type OccurrenceWindow, type Stop, type TravelBlock,
+  andMoreWords, cannotSupersedeWords, supersessionOf, type OccurrenceWindow, type TravelBlock,
+} from '@/lib/operations/supersession';
+import {
+  captionText, dayStops, dayTotals, dayVerdict, focusStop, scriptText, statusWords, stopSceneLines, supersededLineWords, supersededTotals,
+  supersededWords, travelBlocksOf, travelBookingLineWords, travelOf, travelSaidWords, withoutSuperseded, type Stop,
 } from '@/components/workbench/operations/day/dayCard';
 import { BKK, DAY, STAY, entry, input, line, routine } from './fixtureReelDay';
 import { reelDay } from './fixtureReelDay';
 
 const DAY_DIR = 'src/components/workbench/operations/day';
 const RULES = `${DAY_DIR}/dayCard.ts`;
+const LEAF = 'src/lib/operations/supersession.ts'; // SUPERSEDE-01a (Alex, 2026-11-07): the rule's one home
 const CARD = `${DAY_DIR}/DayCard.tsx`;
 const STOPS_ROUTE = 'src/app/api/operations/stops/route.ts';
 
@@ -240,12 +245,19 @@ test('E derived, never written: the rules fetch and write nothing; the stops rou
 
 test('F/G the words are constants or functions in dayCard.ts; the supersession section holds no || and no ?? default and never a wall clock; asksAmount and travelDay.ts’s shape are unchanged; a segment’s title is read, not a second shape', () => {
   const rules = code(RULES);
-  const section = rules.slice(rules.indexOf("export const SUPERSEDED_BY_WORDS = 'superseded by';"), rules.indexOf('export type VendorSlot ='));
-  assert.ok(section.length > 1500);
-  assert.doesNotMatch(section, /\|\||\?\? /, 'no || and no ?? default');
-  assert.doesNotMatch(section, /instantToZoned|zonedToInstant|getHours|getMinutes|toLocale|timezone|zone\b/i, 'instants compare as instants — no wall clock, no zone');
-  assert.doesNotMatch(section, /new Date\(\)|Date\.now\(/, 'no clock');
-  for (const word of ["export const CANNOT_SUPERSEDE_NO_END_WORDS = 'cannot supersede — no end stated';", "export const CANNOT_SUPERSEDE_NO_INSTANT_WORDS = 'cannot supersede — no instant';", "export const andMoreWords = (n: number): string => `and ${n} more`;"]) assert.ok(rules.includes(word), word);
+  // SUPERSEDE-01a (Alex, 2026-11-07): the rule lives in src/lib/operations/supersession.ts — its section, from SUPERSEDED_BY_WORDS to
+  // the end of the file, carries the purity checks; the card's remaining side (BOOKING_HEAD_WORD to VendorSlot) carries the same checks.
+  const rule = code(LEAF);
+  const section = rule.slice(rule.indexOf("export const SUPERSEDED_BY_WORDS = 'superseded by';"));
+  assert.ok(section.length > 1500, `the leaf's supersession section is ${section.length} chars`);
+  const cardSide = rules.slice(rules.indexOf("export const BOOKING_HEAD_WORD = 'BOOKING';"), rules.indexOf('export type VendorSlot ='));
+  assert.ok(cardSide.length > 1500 && cardSide.length < 4000, `the card's side is ${cardSide.length} chars — the blocks, the mark's words, the totals, the declared line`);
+  for (const [name, slice] of [['the leaf', section], ['the card', cardSide]] as const) {
+    assert.doesNotMatch(slice, /\|\||\?\? /, `${name}: no || and no ?? default`);
+    assert.doesNotMatch(slice, /instantToZoned|zonedToInstant|getHours|getMinutes|toLocale|timezone|zone\b/i, `${name}: instants compare as instants — no wall clock, no zone`);
+    assert.doesNotMatch(slice, /new Date\(\)|Date\.now\(/, `${name}: no clock`);
+  }
+  for (const word of ["export const CANNOT_SUPERSEDE_NO_END_WORDS = 'cannot supersede — no end stated';", "export const CANNOT_SUPERSEDE_NO_INSTANT_WORDS = 'cannot supersede — no instant';", "export const andMoreWords = (n: number): string => `and ${n} more`;"]) assert.ok(rule.includes(word), word);
   assert.match(rules, /export const asksAmount = \(role: StopRole\): boolean => role === 'place' \|\| role === 'none';/, 'unchanged');
   assert.match(rules, /export type StatusSource = 'record' \| 'routine' \| 'task' \| 'booking' \| 'travel';/);
   assert.match(rules, /readonly superseded: Supersession \| null;\n\s*\{\s*\}\n\s*readonly travel: TravelStop \| null;\n\}|readonly superseded: Supersession \| null;\n(?:\s*\{\s*\}\n)?\s*readonly travel: TravelStop \| null;\n\}/, 'the stop carries its mark');
