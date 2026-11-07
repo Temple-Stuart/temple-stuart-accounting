@@ -65,6 +65,14 @@ export function closeFormHref(offer: CloseOffer): string {
   return `${PROPOSAL_FORM_PATH}?need=${encodeURIComponent(offer.need)}`;
 }
 
+/**
+ * CRM-01a (Alex, 2026-11-07, ruling 6): the form's chip for this offer, on any day — a proposal that asked for the close
+ * keeps its words after bookBy (the CRM prints them); closeWords' open state reads it, typed once here.
+ */
+export function closeChoiceWords(offer: CloseOffer): string {
+  return `Close my ${offer.year} books`;
+}
+
 export function closeWords(offer: CloseOffer, today: string): CloseWords {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) throw new CloseWordsError(`closeWords: today "${today}" is not YYYY-MM-DD`);
   const label = `Your ${offer.year} books, closed`;
@@ -81,7 +89,7 @@ export function closeWords(offer: CloseOffer, today: string): CloseWords {
     notTax: "Bookkeeping, not tax filing or tax advice. I have six years in accounting and I'm a CPA candidate, not a licensed CPA.",
     remedy: 'If a month I closed has to be reopened because of my error, I correct it at no charge.',
     button: { words: `Book the ${offer.year} close →`, href: closeFormHref(offer) },
-    choice: `Close my ${offer.year} books`,
+    choice: closeChoiceWords(offer),
     done: `e.g. Every month of ${offer.year} closed, and the year-end statements with my tax preparer by the end of January.`,
   };
 }

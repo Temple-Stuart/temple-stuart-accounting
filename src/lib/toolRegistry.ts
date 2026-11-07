@@ -14,16 +14,16 @@
  *   NOT_BUILT = no beats — no page or route does any of the tool's job (code
  *               that touches the name but belongs to another tool is cited,
  *               not counted).
- * 5 LIVE · 7 PARTIAL · 13 NOT_BUILT — the counts are a LAW below; bump them
- * only with a new dated census. (EXPENSES-01 census, Alex, 2026-10-25: Expenses
- * NOT_BUILT → PARTIAL, ROUTINE EXPENSES being its page; 2 · 9 · 14 stood from
- * the 2026-09-09 census until then. EXPENSES-02 census, Alex, 2026-10-26:
- * Expenses PARTIAL → LIVE — the vendor decided on the row; 2 · 10 · 13 stood
- * for one day. TASKS-03 census, Alex, 2026-10-26: Tasks PARTIAL → LIVE —
- * ACTUAL as logged and MATCH from Books on THE WORK; 3 LIVE · 9 PARTIAL · 13
- * NOT_BUILT stood for the hours between. TIME-03 census, Alex, 2026-10-26: Time
- * PARTIAL → LIVE — the ledger prints planned and logged minutes and adds up the
- * hours; 4 LIVE · 8 PARTIAL · 13 NOT_BUILT stood for the hours between.)
+ * 5 LIVE · 9 PARTIAL · 11 NOT_BUILT — the counts are a LAW below; bump them only with a new dated census.
+ * (EXPENSES-01 census, Alex, 2026-10-25: Expenses NOT_BUILT → PARTIAL, ROUTINE EXPENSES being its page;
+ * 2 · 9 · 14 stood from the 2026-09-09 census until then. EXPENSES-02 census, Alex, 2026-10-26: Expenses
+ * PARTIAL → LIVE — the vendor decided on the row; 2 · 10 · 13 stood for one day. TASKS-03 census, Alex,
+ * 2026-10-26: Tasks PARTIAL → LIVE — ACTUAL as logged and MATCH from Books on THE WORK; 3 LIVE · 9 PARTIAL ·
+ * 13 NOT_BUILT stood for the hours between. TIME-03 census, Alex, 2026-10-26: Time PARTIAL → LIVE — the ledger
+ * prints planned and logged minutes and adds up the hours; 4 LIVE · 8 PARTIAL · 13 NOT_BUILT stood for the hours
+ * between. BILLPAY-01 census, Alex, 2026-10-28: Bill Pay NOT_BUILT → PARTIAL — the due list and the manual link;
+ * 5 LIVE · 7 PARTIAL · 13 NOT_BUILT stood from TIME-03 until then. CRM-01a census, Alex, 2026-11-07: CRM
+ * NOT_BUILT → PARTIAL — the three tables read; 5 LIVE · 8 PARTIAL · 12 NOT_BUILT stood from BILLPAY-01 until then.)
  *
  * `home` is an EXISTING route only — this PR links, it moves nothing. A
  * cockpit-hosted tool also carries `cockpitKey` (the ModuleLauncher section
@@ -118,7 +118,6 @@ export interface ToolEntry extends ToolFacts {
 const ALL: Beats = { discover: true, decide: true, commit: true, record: true };
 const NONE: Beats = { discover: false, decide: false, commit: false, record: false };
 const some = (b: Partial<Beats>): Beats => ({ ...NONE, ...b });
-
 // census 2026-09-09 (TRUTH-01): door by door, the job done for a customer on production.
 // EXPENSES-01 census (Alex, 2026-10-25): Expenses is PARTIAL — /expenses mounts ROUTINE EXPENSES (the Expenses row below
 // cites its beats); one NOT_BUILT fewer, one PARTIAL more. 2 · 9 · 14 → 2 · 10 · 13.
@@ -130,8 +129,9 @@ const some = (b: Partial<Beats>): Beats => ({ ...NONE, ...b });
 // One PARTIAL fewer, one LIVE more. 4 · 8 · 13 → 5 · 7 · 13.
 // BILLPAY-01 census (Alex, 2026-10-28): Bill Pay PARTIAL — the due list and the manual link; it pays nothing.
 // One NOT_BUILT fewer, one PARTIAL more. 5 · 7 · 13 → 5 · 8 · 12.
-export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 };
-
+// CRM-01a census (Alex, 2026-11-07): CRM PARTIAL — contacts, proposals and signups read in three tables; nothing written yet.
+// One NOT_BUILT fewer, one PARTIAL more. 5 · 8 · 12 → 5 · 9 · 11.
+export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 };
 const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── THE WORK ──
   // CAL-01: the calendar is THE CALENDAR. Its home was /agenda — a recurring-spend
@@ -296,10 +296,10 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   // ── MONEY IN ──
   CRM: {
-    slug: 'crm', status: 'NOT_BUILT', beats: NONE, home: null,
-    ownTable: null,
-    citation: "/owner is the founder's proposals inbox — no contact or deal object (src/app/api/owner/proposals/route.ts)",
-    customer: 'There is nowhere yet to keep the people you sell to, or track where each one stands.',
+    slug: 'crm', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/crm', // CRM-01a census (Alex, 2026-11-07): NOT_BUILT → PARTIAL — the three tables read
+    ownTable: null, // its own route, /api/crm, only reads; crm_contacts (CRM-01a's migration) is written by nothing until CRM-01b
+    citation: 'discover: src/app/api/crm/route.ts:28 (GET /api/crm — the caller first, then whose rows: the platform owner (isAdminUser) reads every proposals row and every users row but their own, anyone else only their own crm_contacts rows) → src/lib/crm/crm.ts proposalRowsOf · signupRowsOf · contactsOf · record: src/components/crm/CrmSection.tsx:125 (the three tables — contacts, proposals, signups — over src/lib/crm/crm.ts contactsTable · proposalsTable · signupsTable, through the shared DataTable) · /owner stays the founder\'s proposals inbox until CRM-01b (src/app/api/owner/proposals/route.ts)',
+    why: 'the people you sell to — every proposal from your form and every signup, read in three tables; a stage or next step cannot be set yet, and no one can be added by hand (CRM-01b)', customer: 'See the people you sell to — every proposal from your form and every signup — in three tables; setting a stage or a next step, and adding someone by hand, are not built yet.',
   },
   Contracts: {
     slug: 'contracts', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 5 — no page, route, or model',

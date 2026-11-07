@@ -267,8 +267,9 @@ test('C Time is LIVE with four beats, no why, the customer line verbatim; the no
   assert.match(comments(REGISTRY), /5 LIVE · 7 PARTIAL · 13 NOT_BUILT/);
   assert.match(comments(REGISTRY), /TIME-03 \(Alex, 2026-10-26\): TIME IS LIVE/);
   // BILLPAY-01 (Alex, 2026-10-28): the census moved on — Bill Pay PARTIAL, 5 · 7 · 13 → 5 · 8 · 12; TIME-03's dated line stays in the record (above).
-  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
-  assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
+  // CRM-01a census (Alex, 2026-11-07): CRM NOT_BUILT → PARTIAL — 5 · 8 · 12 → 5 · 9 · 11; the dated lines above stay in the record.
+  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 });
+  assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 });
   assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'LIVE').map((t) => t.name), ['Tasks', 'Time', 'Expenses', 'Travel', 'Bookkeeping']);
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   // The law would refuse the row as LIVE with a why, or short of a beat, or a census left at 4.
@@ -287,7 +288,8 @@ test('C the derived surfaces follow: Time joins the free set after Tasks; the he
   assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Tasks', 'Time', 'Expenses', 'Travel']);
   assert.equal(freeSetLine(), "Free with an account, no module to buy: Tasks, Time, Expenses, Travel — the registry's live tools with no tab gate.");
   // BILLPAY-01 (Alex, 2026-10-28): Bill Pay NOT_BUILT → PARTIAL — eight partial, twelve on the blueprint (seven and thirteen until then).
-  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: five live, eight partial, twelve on the blueprint.');
+  // CRM-01a census (Alex, 2026-11-07): CRM NOT_BUILT → PARTIAL — nine partial, eleven on the blueprint (eight and twelve until then).
+  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: five live, nine partial, eleven on the blueprint.');
   const mail = verificationEmail({ name: 'Ada', verifyUrl: 'https://templestuart.com/api/auth/verify?token=t', baseUrl: 'https://templestuart.com/' });
   assert.ok(mail.text.includes('Free with your account: Tasks, Time, Expenses, Travel.'));
 });

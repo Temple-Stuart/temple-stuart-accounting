@@ -164,7 +164,9 @@ test('the free set is the registry\'s LIVE tools with no gate; the gate map cove
   assert.equal(freeSetLine([{ name: 'Travel' }, { name: 'Budget' }]), "Free with an account, no module to buy: Travel, Budget — the registry's live tools with no tab gate.");
   assert.equal(Object.keys(TOOL_GATE).length, TOOL_REGISTRY.length);
   for (const t of TOOL_REGISTRY) assert.ok(t.name in TOOL_GATE, t.name);
-  assert.equal(TOOL_GATE.CRM, 'owner');
+  // CRM-01a (Alex, 2026-11-06): CRM's route is cookie-gated for every account (GET /api/crm — the owner reads the leads,
+  // anyone else only their own contacts), so its gate is null; 'owner' (requireAdmin) until then.
+  assert.equal(TOOL_GATE.CRM, null);
 });
 
 test('the hero line is the registry\'s counts in words — never typed', () => {
@@ -173,9 +175,11 @@ test('the hero line is the registry\'s counts in words — never typed', () => {
   // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
   // BILLPAY-01 (Alex, 2026-10-28): Bill Pay NOT_BUILT → PARTIAL — eight partial, twelve on the blueprint (seven and thirteen until then).
-  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: five live, eight partial, twelve on the blueprint.');
+  // CRM-01a census (Alex, 2026-11-07): CRM NOT_BUILT → PARTIAL — nine partial, eleven on the blueprint (eight and twelve until then).
+  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: five live, nine partial, eleven on the blueprint.');
   // BILLPAY-01 (Alex, 2026-10-28): the built tools are thirteen now — Bill Pay among them (twelve, seven partial, until then).
-  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Thirteen tools, counted: five live, eight partial, zero on the blueprint.');
+  // CRM-01a (Alex, 2026-11-07): fourteen — CRM among them (thirteen, eight partial, until then).
+  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Fourteen tools, counted: five live, nine partial, zero on the blueprint.');
   assert.equal(numberWord(25), 'twenty-five');
   assert.throws(() => numberWord(26), OfferLawError);
 });

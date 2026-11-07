@@ -867,6 +867,7 @@ model users {
   provider_responses      provider_responses[]
   arrivals                arrivals[]
   verification_tokens     verification_tokens[]
+  crm_contacts            crm_contacts[] // CRM-01a: the contacts this user is working — their stage, next step and last touch
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -884,7 +885,6 @@ model verification_tokens {
   used_at    DateTime? @db.Timestamptz(6)
   created_at DateTime  @default(now()) @db.Timestamptz(6)
   user       users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
   @@index([user_id])
 }
 
@@ -4733,4 +4733,31 @@ model living_baselines {
 
   @@index([user_id, effective_from])
   @@map("living_baselines")
+}
+
+// ─── CRM-01a (Alex, 2026-11-06): the CRM's working table ─────────────────────
+// One row per contact a user is working: where the contact came from (a proposals row, a users row, or typed by
+// hand) and its working facts — stage, next step, last touch. A contact with no row here reads as new on /crm.
+// Created by prisma/migrations/20261106150000_crm_01a_crm_contacts (AUTHORED, NOT APPLIED until the production
+// deploy). Written by nothing in CRM-01a (GET /api/crm only reads it); CRM-01b writes it. The CHECKs are named on
+// their columns below. The PARTIAL unique index crm_contacts_user_source_ref_key ON (user_id, source, source_ref)
+// WHERE source_ref IS NOT NULL — one working row per source row per user — lives in the migration: Prisma cannot
+// declare a partial index.
+model crm_contacts {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String
+  source        String    @db.VarChar(20) // CHECK crm_contacts_source_chk: 'proposal' | 'signup' | 'manual'
+  source_ref    String? // CHECK crm_contacts_ref_chk: NULL exactly when source = 'manual' (a proposals.id or a users.id otherwise)
+  name          String?   @db.VarChar(255) // CHECK crm_contacts_manual_chk: set, with email, when source = 'manual'
+  business      String?
+  email         String?   @db.VarChar(255) // CHECK crm_contacts_manual_chk: set, with name, when source = 'manual'
+  stage         String    @default("new") @db.VarChar(20) // CHECK crm_contacts_stage_chk: 'new' | 'reviewing' | 'sent' | 'won' | 'lost' — proposals.status's own five
+  next_step     String?
+  last_touch_at DateTime? @db.Timestamptz(6)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  users         users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([user_id], map: "crm_contacts_user_id_idx")
+  @@map("crm_contacts")
 }

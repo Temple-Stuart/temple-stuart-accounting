@@ -49,7 +49,7 @@ export const TOOL_GATE: Readonly<Record<ToolName, TabKey | 'owner' | null>> = {
   Calendar: null,
   Tasks: null,
   Time: null,
-  CRM: 'owner',
+  CRM: null, // CRM-01a (Alex, 2026-11-06): /api/crm is cookie-gated for every account — the owner reads the leads, anyone else only their own contacts
   Contracts: null,
   Invoicing: null,
   Payments: null,

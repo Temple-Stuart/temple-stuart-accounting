@@ -32,7 +32,7 @@ test('the rail IS the registry — twenty-five rows, six families, both in regis
 
 test('a not-built tool is a row with a status chip and no link — never a placeholder page', () => {
   const unbuilt = navRows(TOOL_GATE).filter((t) => t.status === 'NOT_BUILT');
-  assert.equal(unbuilt.length, 12, 'the census stands: 12 NOT_BUILT (BILLPAY-01, 2026-10-28: Bill Pay is PARTIAL at /bill-pay; 13 until then — EXPENSES-01, 2026-10-25: 14 before /expenses)');
+  assert.equal(unbuilt.length, 11, 'the census stands: 11 NOT_BUILT (CRM-01a, 2026-11-07: CRM is PARTIAL at /crm; 12 until then — BILLPAY-01, 2026-10-28: 13 before /bill-pay — EXPENSES-01, 2026-10-25: 14 before /expenses)');
   for (const t of unbuilt) {
     assert.equal(t.href, null, `${t.name} opens nothing`);
     assert.equal(t.phases.length, 0, `${t.name} owns no phase`);

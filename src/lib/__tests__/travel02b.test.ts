@@ -107,7 +107,11 @@ test('A the schema carries the model last, its relations RESTRICT, and the two b
   assert.match(model, /@@index\(\[user_id, paid_on\]\)/);
   assert.match(model, /@@index\(\[user_id, trip_id\]\)/);
   // TRAVEL-02c (2026-11-03): living_baselines followed it and is the schema's last model now; travel_expenses is the one before it.
-  assert.ok(schema.trimEnd().endsWith('@@map("living_baselines")\n}'), 'living_baselines, last');
+  // CRM-01a (2026-11-07): crm_contacts followed living_baselines and is the schema's last now; living_baselines is the one
+  // before it. Moved, not loosened.
+  assert.ok(schema.trimEnd().endsWith('@@map("crm_contacts")\n}'), 'crm_contacts, last');
+  const afterBaselines = schema.slice(schema.indexOf('@@map("living_baselines")'), schema.indexOf('model crm_contacts {'));
+  assert.ok(afterBaselines.length > 0 && !/^model /m.test(afterBaselines), 'living_baselines is the model just before it');
   const between = schema.slice(schema.indexOf('@@map("travel_expenses")'), schema.indexOf('model living_baselines {'));
   assert.ok(between.length > 0 && !/^model /m.test(between), 'travel_expenses is the model just before it');
   assert.match(comments(SCHEMA), /TRAVEL-02b \(Alex, 2026-11-03, ruling A\) — A TYPED TRAVEL EXPENSE/);
