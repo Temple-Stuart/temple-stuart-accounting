@@ -3,7 +3,8 @@
  * PURE: no fetch, no env, no clock, no React. Plain words a fifth-grader reads; no sales words, no emoji.
  *
  *   the three table names · the column heads, in each table's order · the From words · the Signups words ("Free",
- *   "Email and password", "Not yet", "Yes — ") · the empty lines · the platform owner's honest lines for anyone else ·
+ *   "Email and password", "Not yet", "Yes — ", and the CRM-01a fix's "tab: " and "legacy: ") · the empty lines (the
+ *   Contacts line in two voices: the owner's, and anyone else's) · the platform owner's honest lines for anyone else ·
  *   the loading and failed words (the bill-pay shape: BILL_PAY_LOADING_WORDS / billPayFailedWords).
  */
 
@@ -45,8 +46,16 @@ export const NOT_YET_WORDS = 'Not yet';
 export const VERIFIED_PREFIX_WORDS = 'Yes — ';
 /** Two or more of one table's words, joined. */
 export const LIST_JOIN = ' · ';
+/**
+ * CRM-01a fix (Alex, 2026-11-07, ruling A): a plan key no offer names is printed as itself, with its kind — a tab key
+ * (TAB_ENTITLEMENT_KEYS) after "tab: ", a legacy key (a Google category, or the retired tab:operations) after "legacy: ".
+ */
+export const TAB_KEY_WORDS = 'tab: ';
+export const LEGACY_KEY_WORDS = 'legacy: ';
 
 export const NO_CONTACTS_WORDS = 'No one yet. Your proposal form and your signups fill this table on their own.';
+/** CRM-01a fix (Alex, 2026-11-07, ruling B): the Contacts line for anyone but the platform owner — the owner's line is false for them. */
+export const NO_CONTACTS_OWN_WORDS = 'No one yet. Adding someone by hand comes in CRM-01b; your own intake form in CRM-02.';
 export const NO_PROPOSALS_WORDS = 'No proposals yet.';
 export const NO_SIGNUPS_WORDS = 'No signups yet.';
 

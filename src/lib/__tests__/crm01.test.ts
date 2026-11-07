@@ -11,13 +11,16 @@
  *   T1 the rows: contactsOf over fixtures — a proposal, a provider signup, a password signup, the reader left out, newest
  *      first, "—" for a blank, new for a contact with no working row, a working row's values, a contact typed by hand;
  *   T2 the rules: needWords (the form's chips; the close's words; a stranger throws), signedUpWith (both, and the throw),
- *      planWords (Free, one offer, two, a stranger throws), the laws contactsOf keeps;
+ *      planWords (Free, one offer, two), the laws contactsOf keeps;
  *   T3 the dates: instants through instantColumn (the viewer's day, the instant in the CSV), the deadline a day through dayWords;
  *   T4 the three tables: the heads in order, as the shared DataTable draws them; the section mounts three, in order;
  *   T5 the route: the caller first, the reads scoped, no client id, no write, no password column, not public;
  *   T6 the page: its own, the opener and the one mount, no strip, mounted nowhere else;
  *   T7 the registry row, the census, the gate, the rail, the plans row, the menu note;
- *   T8 the migration (the newest), the schema model, the client.
+ *   T8 the migration (the newest), the schema model, the client;
+ *   FIX (Alex, 2026-11-07, the CRM-01a fix): A — planWords prints every vocabulary key in its kind's words (an offer's
+ *      key by its label; a tab key or a legacy key as itself, labeled) and stops only on a key outside them all
+ *      ('nonsense'); B — the member's render shows the non-owner's Contacts line.
  *
  * Source is read through code() and comments() only (the reader law). No clock: every instant is a fixture.
  */
@@ -35,9 +38,10 @@ import {
   type ContactRow, type ProposalInput, type UserInput, type WorkingInput,
 } from '../crm/crm';
 import {
-  CONTACT_HEAD_WORDS, CRM_LOADING_WORDS, EMAIL_AND_PASSWORD_WORDS, FREE_PLAN_WORDS, FROM_WORDS, NOT_YET_WORDS, PROPOSAL_HEAD_WORDS, SIGNUP_HEAD_WORDS,
-  crmFailedWords,
+  CONTACT_HEAD_WORDS, CRM_LOADING_WORDS, EMAIL_AND_PASSWORD_WORDS, FREE_PLAN_WORDS, FROM_WORDS, LEGACY_KEY_WORDS, NOT_YET_WORDS, NO_CONTACTS_OWN_WORDS,
+  NO_CONTACTS_WORDS, PROPOSAL_HEAD_WORDS, PROPOSALS_OWNER_ONLY_WORDS, SIGNUP_HEAD_WORDS, SIGNUPS_OWNER_ONLY_WORDS, TAB_KEY_WORDS, crmFailedWords,
 } from '../crm/crmWords';
+import { GOOGLE_CATEGORY_KEYS, TAB_ENTITLEMENT_KEYS } from '../categoryKeys';
 import { SERVICE_NEEDS, SERVICE_NEED_LABELS } from '../proposalNeeds';
 import { CLOSE_OFFER } from '../offer/close';
 import { closeChoiceWords } from '../offer/closeWords';
@@ -51,7 +55,7 @@ import { PHASES_RENDERED_AT, navFamilies, navToolByName } from '../nav';
 import { OWNER_UTILITIES } from '../shellMenu';
 import { CAPABILITY_GROUPS, CELL_MARK, PLANS, capabilityNotes, cellState } from '../offer/plans';
 import DataTable, { type DataTableProps } from '@/components/table/DataTable';
-import CrmSection from '@/components/crm/CrmSection';
+import CrmSection, { CrmTables, type CrmLoaded } from '@/components/crm/CrmSection';
 
 Object.assign(globalThis, { React });
 
@@ -191,14 +195,15 @@ test('T2 signedUpWith: "Email and password" for a password; a provider signup na
   assert.throws(() => signupRowsOf({ users: [user({ id: 'u-9', email: 'nobody@example.com', created_at: '2026-11-01T00:00:00.000Z', passwordless: true })], providers: PROVIDERS, activeKeys: new Map(), readerId: READER }), CrmLawError);
 });
 
-test('T2 planWords: a signup\'s OWN active keys named by the offers (ruling 3); none is Free; a key no offer names throws by name', () => {
+test('T2 planWords: a signup\'s OWN active keys named by the offers (ruling 3); none is Free', () => {
   assert.equal(planWords([]), FREE_PLAN_WORDS);
   assert.equal(FREE_PLAN_WORDS, 'Free');
   assert.equal(planWords(['tab:books']), 'Books');
   assert.equal(planWords(['bundle:all']), 'Everything');
   assert.equal(planWords(['bundle:all', 'tab:books']), 'Books · Everything', 'in the offers\' order, joined');
   assert.equal(planWords(['tab:books', 'tab:books']), 'Books', 'a key once');
-  assert.throws(() => planWords(['tab:trade']), (e: unknown) => e instanceof CrmLawError && /the active key "tab:trade" is no offer's \(src\/lib\/offer\.ts OFFERS\)/.test(e.message));
+  // CRM-01a fix (Alex, 2026-11-07, ruling A): 'tab:trade' stopped the plan here; it is a tab key, printed as itself now — the
+  // stop is on a key outside every vocabulary ('nonsense', FIX-A below).
   // Each signup's own: u-2's Books does not reach u-1.
   assert.deepEqual(signups().map((s) => s.plan), ['Free', 'Books']);
 });
@@ -311,6 +316,10 @@ test('T4 the section: one read, three shared DataTables in order — contacts, p
     assert.ok(!s.includes(`'${literal}`) && !s.includes(`>${literal}`), `"${literal}" is crmWords', not typed in the section`);
     assert.ok(!code(RULES).includes(`'${literal}'`), `"${literal}" is crmWords', not typed in the rules`);
   }
+  // CRM-01a fix (2026-11-07): the new words, typed nowhere but crmWords — the non-owner's line by its whole text, and the
+  // two kind words in any string or template literal of the rules or the section ('tab:operations' has no space and is a key).
+  assert.ok(!s.includes('Adding someone by hand'), 'NO_CONTACTS_OWN_WORDS is crmWords\', not typed in the section');
+  for (const f of [RULES, SECTION]) assert.doesNotMatch(code(f), /[`'"](tab|legacy): /, `${f} types no kind word`);
   // Before the read answers: the loading words, rendered on the server and the client alike.
   const html = renderToStaticMarkup(React.createElement(CrmSection));
   assert.match(html, /data-crm-loading/);
@@ -391,7 +400,8 @@ test('T7 CRM is PARTIAL at /crm with discover and record, no ownTable, its why a
   assert.equal(t.ownTableRoute, undefined);
   assert.equal(t.links, undefined);
   assert.equal(t.why, 'the people you sell to — every proposal from your form and every signup, read in three tables; a stage or next step cannot be set yet, and no one can be added by hand (CRM-01b)');
-  assert.equal(t.customer, 'See the people you sell to — every proposal from your form and every signup — in three tables; setting a stage or a next step, and adding someone by hand, are not built yet.');
+  // CRM-01a fix (Alex, 2026-11-07, ruling C): the public sentence tells a customer what their CRM holds today.
+  assert.equal(t.customer, 'Partly built: the people you sell to, read in flat tables. Not built yet: adding someone by hand, setting a stage or a next step, and your own intake form — so today only the platform\'s own proposal form and signups fill it.');
   const reg = code(REGISTRY);
   assert.ok(reg.includes("slug: 'crm', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/crm',"), 'the some() form on its slug line');
   assert.ok(comments(REGISTRY).includes("its own route, /api/crm, only reads; crm_contacts (CRM-01a's migration) is written by nothing until CRM-01b"), 'Bill Pay\'s shape (ruling 2)');
@@ -490,4 +500,55 @@ test('T8 the schema: model crm_contacts column for column with the SQL, cascadin
   assert.ok(notes.includes(`prisma/migrations/${MIGRATION_DIR}`));
   assert.equal(Prisma.ModelName.crm_contacts, 'crm_contacts');
   assert.deepEqual(Object.keys(Prisma.Crm_contactsScalarFieldEnum), ['id', 'user_id', 'source', 'source_ref', 'name', 'business', 'email', 'stage', 'next_step', 'last_touch_at', 'created_at', 'updated_at']);
+});
+
+// ── THE CRM-01a FIX (Alex, 2026-11-07) ──────────────────────────────────────
+
+test('FIX-A planWords: an offer key by its label; a tab key as "tab: <key>"; a Google category or tab:operations as "legacy: <key>" — offers first, never hidden', () => {
+  assert.equal(TAB_KEY_WORDS, 'tab: ');
+  assert.equal(LEGACY_KEY_WORDS, 'legacy: ');
+  assert.equal(planWords(['tab:books']), 'Books', 'tab:books is the Books offer\'s own key — the offer names it');
+  assert.equal(planWords(['tab:trade']), 'tab: tab:trade');
+  assert.equal(planWords(['dinner']), 'legacy: dinner');
+  assert.equal(planWords(['tab:operations']), 'legacy: tab:operations');
+  assert.equal(planWords(['tab:operations', 'dinner', 'tab:trade', 'bundle:all', 'tab:books']), 'Books · Everything · tab: tab:trade · legacy: dinner · legacy: tab:operations', 'offers first, then tabs, then legacy, each in its vocabulary\'s order');
+  for (const key of TAB_ENTITLEMENT_KEYS) assert.equal(planWords([key]), key === 'tab:books' ? 'Books' : `tab: ${key}`, key);
+  for (const key of GOOGLE_CATEGORY_KEYS) assert.equal(planWords([key]), `legacy: ${key}`, key);
+  // Through the signups and the contacts: the row says what the signup holds.
+  const held = signupRowsOf({
+    users: [user({ id: 'u-7', email: 'held@example.com', created_at: '2026-11-01T00:00:00.000Z' })],
+    providers: new Map(), activeKeys: new Map([['u-7', ['dinner', 'tab:trade']]]), readerId: READER,
+  });
+  assert.equal(held[0].plan, 'tab: tab:trade · legacy: dinner');
+  assert.equal(contactsOf({ proposals: [], signups: held, working: [], today: TODAY })[0].need, 'Signed up — tab: tab:trade · legacy: dinner');
+});
+
+test('FIX-A planWords: a key outside every vocabulary still stops, by name — "nonsense"', () => {
+  const stops = (e: unknown) => e instanceof CrmLawError && /planWords: the active key "nonsense" is in no vocabulary/.test(e.message);
+  assert.throws(() => planWords(['nonsense']), stops);
+  assert.throws(() => planWords(['tab:books', 'nonsense']), stops, 'beside an offer, too');
+  assert.throws(() => signupRowsOf({ users: [user({ id: 'u-8', email: 'odd@example.com', created_at: '2026-11-01T00:00:00.000Z' })], providers: new Map(), activeKeys: new Map([['u-8', ['nonsense']]]), readerId: READER }), stops);
+});
+
+test('FIX-B the member\'s render shows the non-owner\'s Contacts line, never the owner\'s; the owner keeps theirs', () => {
+  const unescape = (html: string) => html.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+  const loaded = (ownerOnly: boolean): CrmLoaded => ({ kind: 'loaded', ownerOnly, contacts: [], proposals: [], signups: [], said: [] });
+  const render = (ownerOnly: boolean) => unescape(renderToStaticMarkup(React.createElement(CrmTables, { read: loaded(ownerOnly) })));
+  assert.equal(NO_CONTACTS_OWN_WORDS, 'No one yet. Adding someone by hand comes in CRM-01b; your own intake form in CRM-02.');
+  const member = render(true);
+  assert.ok(member.includes(NO_CONTACTS_OWN_WORDS), 'the member reads their own line');
+  assert.ok(!member.includes(NO_CONTACTS_WORDS), 'and never the owner\'s');
+  assert.ok(member.includes(PROPOSALS_OWNER_ONLY_WORDS) && member.includes(SIGNUPS_OWNER_ONLY_WORDS), 'with the two honest lines');
+  const owner = render(false);
+  assert.ok(owner.includes(NO_CONTACTS_WORDS), 'the owner, with no rows yet, reads the ruled line');
+  assert.ok(!owner.includes(NO_CONTACTS_OWN_WORDS));
+  assert.match(code(SECTION), /empty=\{read\.ownerOnly \? NO_CONTACTS_OWN_WORDS : NO_CONTACTS_WORDS\}/);
+  // The hand-off that decides the voice: the route's ownerOnly (T5) → the section's state → CrmTables, mounted only there.
+  assert.match(code(SECTION), /ownerOnly: body\.ownerOnly === true,/);
+  assert.match(code(SECTION), /return <CrmTables read=\{read\} \/>;/);
+  const src = resolve(process.cwd(), 'src');
+  const tablesMounts = [...pageFiles(join(src, 'app')), ...pageFiles(join(src, 'components'))]
+    .map((f) => f.slice(process.cwd().length + 1))
+    .filter((f) => /<CrmTables\b/.test(code(f)));
+  assert.deepEqual(tablesMounts, [SECTION], 'CrmTables mounts only inside CrmSection');
 });
