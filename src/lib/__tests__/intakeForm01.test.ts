@@ -596,7 +596,7 @@ test('T9 the registry row: PARTIAL with four beats (CLOSED 6), the why and the c
   for (const [k, re] of [[218, /ownTable: 'operations_project_tasks'/], [290, /ownTable: 'operations_stop_records'/], [525, /ownTable: 'journal_entries'/], [531, /ownTable: 'tax_documents'/]] as const) assert.match(reg[k - 1], re, `toolRegistry.ts:${k}`);
   const notes = comments(REGISTRY);
   assert.match(notes, /CRM-02 \(Alex, 2026-11-07\): every account's own intake form at its own link and as an embed, its submissions frozen as they came in — PARTIAL stays \(CLOSED 6/);
-  assert.match(notes, /re-cited by number, what each cites unchanged: discover :28 → :35 \(the GET's header grew\), decide :259 → :273 and record :289 → :304 \(the block and the fourth table sit above them\), commit :55 → :58 and :123 → :133 \(the PATCH's form branch\), ownTableRoute :111 → :121/);
+  assert.match(notes, /re-cited by number, what each cites unchanged: discover :28 → :35 \(the GET's header grew\), decide :259 → :277 and record :289 → :308 \(the block, the fourth table and its remount key sit above them\), commit :55 → :58 and :123 → :133 \(the PATCH's form branch\), ownTableRoute :111 → :121/);
   assert.match(notes, /CRM-02 \(2026-11-07\): :111 → :121 — the PATCH grew a 'form:' branch above the create; what it cites unchanged/);
   assert.match(notes, /CRM-02 \(Alex, 2026-11-07\): the why and the customer sentence rewritten \(BUILD 14\)/);
   // the deck's s08 names the same create line
@@ -656,6 +656,9 @@ test('T10 the section: the block above Contacts, the Form submissions table betw
   assert.match(section, /<IntakeFormSetup form=\{read\.form\} onSaved=\{onWritten\} \/>/);
   assert.match(section, /empty=\{read\.form === null \? NO_FORM_YET_WORDS : NO_SUBMISSIONS_WORDS\}/);
   assert.match(section, /const submissionColumns = useMemo\(\(\) => submissionsTable\(read\.form\), \[read\.form\]\);/);
+  // a changed column set is a new table: keyed by the form's question ids, so the per-column filter and sort state never outlives its columns (the browser proof found the stale map)
+  assert.match(section, /const submissionsKey = read\.form === null \? 'no-form' : read\.form\.questions\.map\(\(q\) => q\.id\)\.join\(','\);/);
+  assert.match(section, /name=\{SUBMISSIONS_TABLE_NAME\}[\s\S]{0,200}key=\{submissionsKey\}/, 'the Form submissions table remounts when the questions change');
   assert.match(section, /form: \(body\.form \?\? null\) as IntakeForm \| null,\n\s*submissions: \(body\.submissions \?\? \[\]\) as SubmissionRow\[\],/);
   assert.deepEqual([...section.matchAll(/fetch\(([^,)]+)/g)].map((m) => m[1]), ['CRM_CONTACTS_ROUTE'], 'the section\'s one write target is still the contacts route — the form\'s is the block\'s');
   // the public page: the title, the line, the three fixed fields, the asked questions by kind, the honeypot, Send, the goes-to line, the footer
