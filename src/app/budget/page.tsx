@@ -31,7 +31,8 @@ export default function BudgetPage() {
         tools={[budget]}
         line="Budget vs actual by account, month by month — click a figure for the lines behind it."
       />
-      <BudgetReport />
+      {/* HOME-LEDGER-02a (Alex, 2026-11-07, ruling A): the year comes from the URL here (?year= and the ‹ › step); /home hands it the day card's year. */}
+      <BudgetReport year={{ from: 'url' }} />
     </AppLayout>
   );
 }

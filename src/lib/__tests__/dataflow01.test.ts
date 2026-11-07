@@ -410,7 +410,9 @@ test('T10 Budget runs one beat, discover — cited to the report route, which re
   const note = comments(REGISTRY).replace(/\s*\n\s*\/\/\s*/g, ' ');
   assert.match(note, /DATAFLOW-01d \(Alex, 2026-11-03\): the beats are what the page does — one, discover\. \/budget reads Books', Tasks' and the vendors' tables \(src\/app\/api\/budget\/report\/route\.ts:90-103:/);
   const reads = code('src/app/api/budget/report/route.ts').split('\n').slice(89, 103).join('\n');
-  for (const read of ['readBudgetChart(', 'loadRoutineBudgetInputs(', 'readCostedTasks(', 'readActuals(', 'prisma.transactions.findMany(', 'readPlanVendors(']) assert.ok(reads.includes(read), `route.ts:90-103 reads through ${read}`);
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the bank rows left the route for the one loader (reportReads.ts readBankNotInBooks) — the route's :90-103 block calls it; the note's "transactions" is read there.
+  for (const read of ['readBudgetChart(', 'loadRoutineBudgetInputs(', 'readCostedTasks(', 'readActuals(', 'readBankNotInBooks(', 'readPlanVendors(']) assert.ok(reads.includes(read), `route.ts:90-103 reads through ${read}`);
+  assert.match(code('src/lib/budget/reportReads.ts'), /export function readBankNotInBooks\(db: Db, userId: string, from: string, through: string\) \{\n  return db\.transactions\.findMany\(\{/, 'the loader reads transactions');
   const loader = code('src/lib/budget/reportReads.ts').split('\n');
   for (const [line, table] of [[50, 'ledger_entries'], [78, 'chart_of_accounts'], [86, 'operations_project_tasks'], [100, 'planned_item_vendors']] as const) {
     assert.match(loader[line - 1], new RegExp(`db\\.${table}\\.findMany\\(`), `reportReads.ts:${line} reads ${table}`);

@@ -60,6 +60,9 @@ export class HomeLedgerError extends Error {
 
 /** Ruling E: the section's heading, a constant. */
 export const HOME_LEDGER_DAY_HEADING = 'HOME LEDGER · DAY';
+/** HOME-LEDGER-02a (Alex, 2026-11-07, ruling A): the month table's heading — the host (home/HomeMonth.tsx) prints it over Budget's own report. */
+export const HOME_LEDGER_MONTH_HEADING = 'HOME LEDGER · MONTH';
+export const HOME_LEDGER_MONTH_LINE_WORDS = "Budget's own report on the card's year — what you planned, what posted and the difference, by book and account; the bank rows not yet in the books per currency; the trip budget lines under it, one row each, never summed.";
 export const HOME_LEDGER_KICKER_WORDS = 'Home ledger';
 export const HOME_LEDGER_LINE_WORDS = 'Every account with activity on the day — REAL rows from the books, the task ledger, the travel ledger and the bank, each naming its source; every sum per currency; nothing calculated.';
 /** Ruling F: the route — not under /api/home, the legacy category API. */

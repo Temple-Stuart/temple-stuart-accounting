@@ -79,9 +79,13 @@ test('BUDGET-02 the panel\'s sum against the cell: "matches the cell", or the ce
 test('BUDGET-02 PURITY — the helper imports types from the model, the one formatter and the ONE vendor name rule; it reads no clock, network or environment; this test imports no @prisma/client', () => {
   const src = code(HELPER);
   const imports = src.split('\n').filter((l) => /^\s*import\b/.test(l));
+  // HOME-LEDGER-02a (Alex, 2026-11-07, rulings C, D): the BANK row's words join — the column's type, BLANK, and the books'
+  // one bank formatter (functionalCurrency.ts, which imports nothing: the helper stays pure).
   assert.deepEqual(imports, [
     "import type { ReportBook, ReportColumn, ShownBudget } from './report';",
-    "import { formatCents } from './format';",
+    "import type { NotInBooksColumn } from './reportInputs';",
+    "import { BLANK, formatCents } from './format';",
+    "import { CURRENCY_NOT_STATED_WORDS, NOT_WHOLE_CENTS_WORDS, bankCentsWords } from '@/lib/books/functionalCurrency';",
     "import { readVendorName, takenBy, vendorNameKey } from '@/lib/operations/planVendor';",
   ]);
   assert.doesNotMatch(src, /\bfetch\s*\(|\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\)|\bprocess\.env\b|localStorage|sessionStorage/);

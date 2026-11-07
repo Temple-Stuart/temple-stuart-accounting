@@ -35,7 +35,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
  * writes (the budget report route law, clause 4).
  */
 
-type Db = Pick<PrismaClient, 'chart_of_accounts' | 'operations_project_tasks' | 'ledger_entries' | 'planned_item_vendors'>;
+type Db = Pick<PrismaClient, 'chart_of_accounts' | 'operations_project_tasks' | 'ledger_entries' | 'planned_item_vendors' | 'transactions'>;
 
 const dayStart = (day: string): Date => new Date(`${day}T00:00:00.000Z`);
 
@@ -106,5 +106,21 @@ export function readPlanVendors(db: Db, userId: string, window: { readonly from:
       step: { select: { activity: true, routine_id: true, routine: { select: { name: true, timezone: true } } } },
       task: { select: { title: true } },
     },
+  });
+}
+
+/**
+ * HOME-LEDGER-02a (Alex, 2026-11-07, ruling C) — THE BANK ROWS NOT YET IN THE BOOKS, ONE READ FOR BOTH PAGES. The
+ * viewer's transactions (accounts.userId) whose review_status is not 'committed', dated in [from, through] — the window
+ * as the report builds it (UTC midnight of `from` to the last millisecond of `through`) — each with its ACCOUNT's stated
+ * currency (accounts.isoCurrencyCode; null when the bank states none). GET /api/budget/report (the report's NOT IN THE
+ * BOOKS row, per currency) and GET /api/home-ledger (the DAY table's bank rows) both read through this and nowhere else;
+ * what both callers use is selected: id, date, amount, name, merchantName, review_status, the account's currency. A
+ * bank figure, never a ledger one: nothing here is an actual.
+ */
+export function readBankNotInBooks(db: Db, userId: string, from: string, through: string) {
+  return db.transactions.findMany({
+    where: { accounts: { userId }, review_status: { not: 'committed' }, date: { gte: dayStart(from), lte: new Date(`${through}T23:59:59.999Z`) } },
+    select: { id: true, date: true, amount: true, name: true, merchantName: true, review_status: true, accounts: { select: { isoCurrencyCode: true } } },
   });
 }

@@ -31,6 +31,17 @@
  *
  * Styled like the Travel tab: SECTION_HEADER headings (ModuleLauncher.tsx
  * TravelHeading), TripBudgetActual's statement table, ToggleStrip's toggleChip.
+ *
+ * HOME-LEDGER-02a (Alex, 2026-11-07) — ONE COMPONENT, TWO PAGES:
+ *   · A. The year comes from where the page says — the ONE required prop:
+ *     { from: 'url' } on /budget (?year= through yearOf and the ‹ › step, as
+ *     before), { from: 'host', year } on /home (the day card's year, handed by
+ *     home/HomeMonth.tsx — no step, no second picker). Nothing is defaulted.
+ *   · C. One row under the book tables — BANK — not yet in the books — the same
+ *     columns, each cell the per-currency figures through the books' one bank
+ *     formatter and 'N currency not stated' (reportView.ts bankColumnWords); a
+ *     bank figure, never added to Actual or Variance.
+ *   · D. The #1886 gap, said under the tables (reportView.ts SUPERSEDED_GAP_WORDS).
  */
 import { Fragment, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -40,7 +51,8 @@ import { formatAccountCode, formatBudget, formatCents, formatVariance } from '@/
 import { shownBudget, type ReportBook, type ReportColumn, type ReportRow } from '@/lib/budget/report';
 import type { BudgetCellResponse, BudgetReportResponse } from '@/lib/budget/reportInputs';
 import {
-  actualDrillWords, agreement, budgetDrillWords, cellQuery, ledgerHref, reportQuery, stepYear, tableLabels, yearHref, yearOf,
+  BANK_ROW_FIGURE_WORDS, BANK_ROW_LABEL, BANK_SIGN_WORDS, SUPERSEDED_GAP_WORDS, actualDrillWords, agreement, bankColumnWords, budgetDrillWords, cellQuery,
+  ledgerHref, notTotalledCountWords, reportQuery, stepYear, tableLabels, yearHref, yearOf,
 } from '@/lib/budget/reportView';
 // WEEK-01: the browser's date — the one module that reads it.
 import { localToday } from '@/lib/localToday';
@@ -351,7 +363,39 @@ function BookTable({ book, label, report, asOf, opened, toggle }: {
   );
 }
 
-export default function BudgetReport() {
+/** HOME-LEDGER-02a (ruling A): where the year comes from — the URL (/budget: ?year= and the ‹ › step) or the host (/home: that year, no step). */
+export type BudgetYearSource = { readonly from: 'url' } | { readonly from: 'host'; readonly year: string };
+
+/** HOME-LEDGER-02a (ruling C): the BANK row under the book tables — the same columns, each cell per currency; nothing added to an actual. */
+function BankRow({ columns, notInBooks }: { columns: readonly ReportColumn[]; notInBooks: BudgetReportResponse['notInBooks'] }) {
+  return (
+    <section className="space-y-3" data-budget-bank-row>
+      <h2 className={SECTION_HEADER}>{BANK_ROW_LABEL}</h2>
+      <div className="overflow-x-auto rounded-lg border border-border bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-white font-mono text-[10px] uppercase tracking-wider">
+              <th className={th}>Account</th>
+              <th className={th}><span className="sr-only">Figure</span></th>
+              {columns.map((c) => <th key={c.key} className={`${th} text-right`}>{c.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-border">
+              <td className={`${td} font-medium text-text-primary`}>{BANK_ROW_LABEL}</td>
+              <td className={`${td} text-text-muted`}>{BANK_ROW_FIGURE_WORDS}</td>
+              {notInBooks.columns.map((c) => <td key={c.key} className={num} data-budget-bank-cell={c.key}>{bankColumnWords(c)}</td>)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-text-faint" data-budget-bank-sign>{BANK_SIGN_WORDS}</p>
+      {notInBooks.notTotalled.length > 0 && <p className="text-xs text-text-muted" data-budget-bank-not-totalled>{notTotalledCountWords(notInBooks.notTotalled.length)}</p>}
+    </section>
+  );
+}
+
+export default function BudgetReport({ year: source }: { year: BudgetYearSource }) {
   const router = useRouter();
   const search = useSearchParams();
   // The viewer's today, read on mount only — the server render has no business guessing it.
@@ -362,7 +406,8 @@ export default function BudgetReport() {
 
   useEffect(() => { setAsOf(localToday()); }, []);
 
-  const year = asOf === null ? null : yearOf(new URLSearchParams(search.toString()), asOf);
+  // Ruling A: the URL's year through yearOf on /budget; the host's year on /home — each page says which, nothing is defaulted.
+  const year = asOf === null ? null : source.from === 'url' ? yearOf(new URLSearchParams(search.toString()), asOf) : source.year;
   const query = year === null || asOf === null ? null : reportQuery(year, asOf);
 
   useEffect(() => {
@@ -383,23 +428,35 @@ export default function BudgetReport() {
 
   return (
     <div className="space-y-6">
-      {/* THE ONE CONTROL — ‹ year ›. */}
-      <div className="flex flex-wrap items-center gap-3" data-budget-year-bar>
-        <div className="flex items-center gap-1.5">
-          <button type="button" className={toggleChip(false)} aria-label="Back one year" disabled={back === null} onClick={() => { if (back !== null) router.push(yearHref(back)); }}>‹</button>
+      {/* THE ONE CONTROL — ‹ year › — on /budget alone (ruling A: the host's year has no step). */}
+      <div className="flex flex-wrap items-center gap-3" data-budget-year-bar={source.from}>
+        {source.from === 'url' ? (
+          <div className="flex items-center gap-1.5">
+            <button type="button" className={toggleChip(false)} aria-label="Back one year" disabled={back === null} onClick={() => { if (back !== null) router.push(yearHref(back)); }}>‹</button>
+            <span className="font-mono text-sm text-text-primary" data-budget-year>{year === null ? '—' : year}</span>
+            <button type="button" className={toggleChip(false)} aria-label="Forward one year" disabled={forward === null} onClick={() => { if (forward !== null) router.push(yearHref(forward)); }}>›</button>
+          </div>
+        ) : (
           <span className="font-mono text-sm text-text-primary" data-budget-year>{year === null ? '—' : year}</span>
-          <button type="button" className={toggleChip(false)} aria-label="Forward one year" disabled={forward === null} onClick={() => { if (forward !== null) router.push(yearHref(forward)); }}>›</button>
-        </div>
+        )}
         <span className="text-xs text-text-faint">as of {asOf === null ? '—' : asOf}</span>
       </div>
 
       <ReadWords read={load} what="your budget" />
       {load.state === 'ok' && asOf !== null && (() => {
-        const { report } = load.data;
+        const { report, notInBooks } = load.data;
         const labels = tableLabels(report.books);
-        return report.books.map((book, i) => (
-          <BookTable key={book.entityId} book={book} label={labels[i]} report={report} asOf={asOf} opened={opened} toggle={toggle} />
-        ));
+        return (
+          <>
+            {report.books.map((book, i) => (
+              <BookTable key={book.entityId} book={book} label={labels[i]} report={report} asOf={asOf} opened={opened} toggle={toggle} />
+            ))}
+            {/* Ruling C: the bank rows not yet in the books — per currency, under the book tables, never in them. */}
+            <BankRow columns={report.columns} notInBooks={notInBooks} />
+            {/* Ruling D: the #1886 gap, said. */}
+            <p className="text-xs text-text-muted" data-budget-superseded-gap>{SUPERSEDED_GAP_WORDS}</p>
+          </>
+        );
       })()}
     </div>
   );

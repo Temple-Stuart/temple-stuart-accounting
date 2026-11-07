@@ -44,6 +44,8 @@ import TheSheet from '@/components/shell/TheSheet';
 import DayCard from '@/components/workbench/operations/day/DayCard';
 // HOME-LEDGER-01 (Alex, 2026-11-06): the home's DAY table — the shell's own component — between the day card and the sheet.
 import HomeLedger from '@/components/home/HomeLedger';
+// HOME-LEDGER-02a (Alex, 2026-11-07): the home's MONTH table — Budget's own report on the card's year, the trip budget lines under it — between the DAY table and the sheet.
+import HomeMonth from '@/components/home/HomeMonth';
 import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 import { deriveRunwayReceipts } from '@/components/hub/RunwayBudgetPanel';
 import { ANSWER_ROWS, ANSWER_READS, NET_WORTH_READ, type AnswerRead, type ComputedRead } from '@/lib/answers';
@@ -435,6 +437,19 @@ export default function AnswersClient({ viewer, offerAvailability }: { viewer: s
         <div className="mt-5 sm:mt-6" data-home-ledger-day-table>
           <Suspense>
             <HomeLedger />
+          </Suspense>
+        </div>
+
+        {/* HOME-LEDGER-02a (Alex, 2026-11-07, ruling A): HOME LEDGER · MONTH — Budget's own report (budget/BudgetReport.tsx,
+            the one component /budget renders) on the day card's year, the BANK row per currency and the #1886 gap line
+            under its tables, then THE TRAVEL PLAN (the trip budget lines, one row each, never summed — home/TravelPlan.tsx,
+            GET /api/home-travel-plan). The host (home/HomeMonth.tsx) takes the day by the card's own expression and hands
+            BudgetReport { from: 'host', year } — no year step, no second picker; the boundary stays for useSearchParams.
+            The month table is Budget's, the travel plan the shell's, as the DAY table is: no registry row. The home month
+            law pins this mount — once, in its boundary, after the home ledger and before the sheet. */}
+        <div className="mt-5 sm:mt-6" data-home-month-table>
+          <Suspense>
+            <HomeMonth />
           </Suspense>
         </div>
 

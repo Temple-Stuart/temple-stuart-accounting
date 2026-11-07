@@ -71,12 +71,14 @@ test('T1 one page — no DAY or WEEK, no chips, no account filter, no notice, no
   assert.doesNotMatch(s, /localStorage|sessionStorage|document\.cookie|indexedDB/, 'no browser storage — the open drill is React state');
   const p = code(PAGE);
   assert.match(p, /line="Budget vs actual by account, month by month — click a figure for the lines behind it\."/, 'ruling I');
-  assert.match(p, /<BudgetReport \/>/);
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling A): the page says where the year comes from — the URL; /home hands its host's year.
+  assert.match(p, /<BudgetReport year=\{\{ from: 'url' \}\} \/>/);
 });
 
 test('T1 ?year= is the only key — the screen reads the URL through yearOf alone, and yearOf reads only year', () => {
   const s = code(SCREEN);
-  assert.match(s, /const year = asOf === null \? null : yearOf\(new URLSearchParams\(search\.toString\(\)\), asOf\);/);
+  // HOME-LEDGER-02a (Alex, 2026-11-07, ruling A): the URL's year through yearOf when the page says { from: 'url' }; the host's year when it says { from: 'host', year } — nothing defaulted.
+  assert.match(s, /const year = asOf === null \? null : source\.from === 'url' \? yearOf\(new URLSearchParams\(search\.toString\(\)\), asOf\) : source\.year;/);
   assert.equal((s.match(/\bsearch\./g) ?? []).length, 1, 'the search params are read once, handed to yearOf');
   const v = code(VIEW);
   const yearFn = v.slice(v.indexOf('export function yearOf('), v.indexOf('export function yearHref('));
