@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Script from 'next/script';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Calendar, Plane, TrendingUp, BookOpen, Receipt, ShieldCheck, MapPin,
   type LucideIcon,
@@ -28,7 +28,6 @@ import ToolOpener from '@/components/shell/ToolOpener';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 import HubCalendar from '@/components/hub/HubCalendar';
-import RunwayDataProvider from '@/components/hub/RunwayDataProvider';
 import RunwayBudgetPanel, { type RunwayReceipts } from '@/components/hub/RunwayBudgetPanel';
 import MatchReviewSection from '@/components/hub/MatchReviewSection';
 import { travelStripModes } from '@/components/trips/travelStripModes';
@@ -52,7 +51,7 @@ import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
 // link chip) live in the shared pipe-phases config now — moved verbatim,
 // landing/app lockstep by construction. Keys, derived states, and handlers
 // stay HERE (the config carries data only).
-import { PIPE_PHASES, type PipePhase } from '@/lib/pipePhases';
+import { PIPE_PHASES } from '@/lib/pipePhases';
 
 const [PIPE_SETUP, PIPE_SCAN, PIPE_REVIEW, PIPE_LAB, PIPE_RECORD, PIPE_COMMIT] = PIPE_PHASES.trade;
 // TRAVEL-01 (2026-09-19): the travel tab draws NO pipe — the five-phase strip
@@ -60,8 +59,9 @@ const [PIPE_SETUP, PIPE_SCAN, PIPE_REVIEW, PIPE_LAB, PIPE_RECORD, PIPE_COMMIT] =
 // (see the travel block below). THE SORT still names Travel the owner of the
 // five phases, declared undrawn (src/lib/nav.ts).
 // RUNWAY-PIPE: the runway strip's five phases (widened, same idiom).
-const [PIPE_RW_SOURCE, PIPE_RW_HISTORY, PIPE_RW_BURN, PIPE_RW_MATCH, PIPE_RW_PROJECT] =
-  PIPE_PHASES.runway as readonly PipePhase[];
+// HOME-LEDGER-02b (Alex, 2026-11-07, ruling A): the `as readonly PipePhase[]` cast is gone, so 05's `link` is typed
+// present — no `??`, no guard that invents a chip.
+const [PIPE_RW_SOURCE, PIPE_RW_HISTORY, PIPE_RW_BURN, PIPE_RW_MATCH, PIPE_RW_PROJECT] = PIPE_PHASES.runway;
 import SectionHeader from '@/components/ui/SectionHeader';
 import ProofStrip from '@/components/ui/ProofStrip';
 // TRADE-1: the queue viewer + reconcile/link/grade surface. Mounted BELOW the scanner on
@@ -427,13 +427,14 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // standing over a component that hides itself at zero rows.
   const [unattachedCount, setUnattachedCount] = useState<number | null>(null);
   // RUNWAY-PIPE: the Runway tab's phase control + reported tallies (the same
-  // Books onTotals idiom). The phase UNION carries only the three phases with
-  // real surfaces — 01 Source / 02 History are STATE-ONLY strip cells (no
-  // surface exists in this tab for them; the Books-06 precedent), so they can
-  // never become 'active': onSelect no-ops on their keys BY TYPE. Default
-  // 'burn' — preserving the tab's ratified first paint (RUNWAY-UX-1: the
-  // zero-date hero strip is the tab's headline; it lives on the Burn surface).
-  const [runwayPhase, setRunwayPhase] = useState<'burn' | 'match' | 'project'>('burn');
+  // Books onTotals idiom). The phase UNION carries only the two phases with
+  // real surfaces here — 01 Source / 02 History are STATE-ONLY strip cells (no
+  // surface exists in this tab for them; the Books-06 precedent), and 05 Project
+  // is the strip's LINK cell to /budget (HOME-LEDGER-02b, Alex, 2026-11-07, ruling
+  // A — its surface is the report on /budget) — so none of the three can become
+  // 'active': onSelect no-ops on their keys BY TYPE. Default 'burn' — the tab's
+  // ratified first paint (RUNWAY-UX-1: the zero-date hero strip, on the Burn surface).
+  const [runwayPhase, setRunwayPhase] = useState<'burn' | 'match'>('burn');
   const [runwayTotals, setRunwayTotals] = useState<RunwayReceipts | null>(null);
   const [matchTotals, setMatchTotals] = useState<{ pending: number } | null>(null);
   // PR-Mobile2 + PR-Edge-B: which tab is active — now on BOTH mobile (bottom bar) and
@@ -444,6 +445,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // /travel's first paint is Travel, on the server and the client alike; the 'calendar' default stands for the bare '/'.
   const pathname = usePathname();
   const [activeModule, setActiveModule] = useState(() => tabOfPath(pathname));
+  // HOME-LEDGER-02b (Alex, 2026-11-07, ruling A): the runway strip's 05 link cell lands on /budget through Next's
+  // router (the BudgetReport.tsx idiom) — never window.location.
+  const router = useRouter();
   // F2 → ROUTE-1: the active tab lives in the URL as a REAL PATH (/runway,
   // /travel, …) so reload and deep links restore it. Still written with NATIVE
   // history.replaceState — a shallow URL update: no Next.js navigation, no RSC
@@ -680,15 +684,19 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           <div className="max-w-7xl mx-auto">
             {/* HOME-03 (Alex, 2026-10-27): the day card left this panel for the home page, /home (answers/AnswersClient.tsx,
                 dayCard.ts DAY_CARD_PATH) — HOME-01 (2026-10-24) had put it FIRST here, above the shell card below. The panel
-                is the runway pipe's, as before: the strip, the burn and project surfaces, the match review, the merged grid
-                and the receipts rail; a dated /runway?date= or ?step= is sent to /home by next.config.ts. */}
+                is the runway pipe's, as before: the strip, the burn surface, the match review, the merged grid and the
+                receipts rail; a dated /runway?date= or ?step= is sent to /home by next.config.ts. HOME-LEDGER-02b (Alex,
+                2026-11-07): the project surface — the cockpit's second month table — retired; 05 is the strip's link cell. */}
             <div className="px-4 py-4">
               <div className={MODULE_SHELL_CARD}>
             {/* RUNWAY-PIPE: the ratified Pipe Frame on the Runway tab — the
                 StageStrip reading PIPE_PHASES.runway as the tab's phase
                 control. Phase → surface: 03 Burn = the panel's hero + trailing
                 readout + trading chunk; 04 Match = MatchReviewSection; 05
-                Project = the panel's budget header + tables chunk. 01 Source /
+                Project = the strip's LINK cell to /budget (HOME-LEDGER-02b,
+                Alex, 2026-11-07, ruling A — the trade 06 idiom: the report on
+                /budget is the surface; the cockpit draws no second month
+                table, no Month/Year toggle). 01 Source /
                 02 History are STATE-ONLY cells (no surface exists in this tab:
                 accounts link in Books 01 Feed; ledger history renders only
                 THROUGH the burn/budget figures) — their states are derived
@@ -696,8 +704,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 report-up) and never 'active'; clicking them no-ops (nothing to
                 show — the Books-06 underivable-signal precedent extended,
                 declared). Surfaces are CSS show/hide, ALL MOUNTED (the
-                keep-mounted contract: the panel's fetches + Month/Year view
-                and the calendar's state survive switching). HubCalendar is the
+                keep-mounted contract: the panel's fetches and the calendar's
+                state survive switching). HubCalendar is the
                 tab's cross-module FOUNDATION (trips + projects + routines +
                 trade), NOT a runway phase — it stays persistent below the
                 phase surfaces, outside the phase axis (declared audit call). */}
@@ -711,42 +719,34 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                   state: runwayPhase === 'burn' ? 'active' : runwayTotals?.burnComputed ? 'done' : 'pending' },
                 { key: 'match', num: PIPE_RW_MATCH.num, label: PIPE_RW_MATCH.name, subLabel: PIPE_RW_MATCH.subLabel,
                   state: runwayPhase === 'match' ? 'active' : matchTotals && matchTotals.pending === 0 ? 'done' : 'pending' },
-                { key: 'project', num: PIPE_RW_PROJECT.num, label: PIPE_RW_PROJECT.name, subLabel: PIPE_RW_PROJECT.subLabel,
-                  state: runwayPhase === 'project' ? 'active' : 'pending' },
               ] as StagePhase[])}
               onSelect={(k) => {
                 // source/history are state-only (no surface) — those clicks
                 // no-op by construction; the union excludes their keys.
-                if (k === 'burn' || k === 'match' || k === 'project') setRunwayPhase(k);
+                if (k === 'burn' || k === 'match') setRunwayPhase(k);
               }}
+              link={{ num: PIPE_RW_PROJECT.num, label: PIPE_RW_PROJECT.name, chip: PIPE_RW_PROJECT.link.label, onClick: () => router.push('/budget') }}
             />
-            {/* ── 03 Burn / 05 Project headers — the surfaces themselves live
-                  INSIDE RunwayBudgetPanel (fetch-locality: one /api/runway +
-                  /api/trading pair), split into `show`-driven chunks. ── */}
+            {/* ── 03 Burn header — the surface itself lives INSIDE RunwayBudgetPanel
+                  (fetch-locality: one /api/runway + /api/trading pair). HOME-LEDGER-02b
+                  (Alex, 2026-11-07, ruling B): the panel is the burn hero alone — its
+                  05 Project chunk, the `show` prop and the 05 header here retired. ── */}
             <div className={runwayPhase === 'burn' ? 'block' : 'hidden'}>
               <SectionHeader kicker={`${PIPE_RW_BURN.num} / ${PIPE_RW_BURN.name}`} right={`PHASE ${PIPE_RW_BURN.num} OF 05`} />
             </div>
-            <div className={runwayPhase === 'project' ? 'block' : 'hidden'}>
-              <SectionHeader kicker={`${PIPE_RW_PROJECT.num} / ${PIPE_RW_PROJECT.name}`} right={`PHASE ${PIPE_RW_PROJECT.num} OF 05`} />
-            </div>
-            <div className={runwayPhase === 'burn' || runwayPhase === 'project' ? 'block' : 'hidden'}>
-            {/* RUNWAY-UX-1 (order ruling, audit-decided shape b): hero → budget
-                tables → calendar. The zero-date HERO STRIP is the tab's
+            <div className={runwayPhase === 'burn' ? 'block' : 'hidden'}>
+            {/* RUNWAY-UX-1 (order ruling, audit-decided shape b): hero →
+                calendar. The zero-date HERO STRIP is the tab's
                 headline — it renders at the top of RunwayBudgetPanel (the
                 component that already owns the /api/runway state; mounting it
                 anywhere else would need a second fetch or a state lift). So
-                the provider block leads and the calendar follows. PR-HB-1's
+                the panel leads and the calendar follows. PR-HB-1's
                 authed-only guard unchanged (the logged-out branch below never
-                renders this → no personal data, no fake numbers). */}
-            <RunwayDataProvider>
-              {/* ONE-BUDGET-TOGGLE: one panel with a Month/Year toggle — shows
-                  HubBudgetSection (month) OR BudgetComparison (year) one at a time
-                  (RunwayBudgetPanel owns the toggle; neither component is modified). */}
-              <RunwayBudgetPanel
-                show={runwayPhase === 'project' ? 'project' : 'burn'}
-                onTotals={setRunwayTotals}
-              />
-            </RunwayDataProvider>
+                renders this → no personal data, no fake numbers).
+                HOME-LEDGER-02b (Alex, 2026-11-07, ruling B): the panel mounts
+                alone — RunwayDataProvider, the retired tables' context, went
+                with them; onTotals as before. */}
+            <RunwayBudgetPanel onTotals={setRunwayTotals} />
             </div>
             {/* PR-MATCH-2: booking↔bank match review — now the 04 Match phase
                 surface (was a sibling between the budget panel and the

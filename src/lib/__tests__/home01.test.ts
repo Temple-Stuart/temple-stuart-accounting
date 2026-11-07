@@ -68,7 +68,8 @@ test('A the Runway panel mounted the day card first (HOME-01) — HOME-03 (Alex,
   // The boundary is belt and braces: both routes that render the cockpit are force-dynamic, and the launcher already reads the URL.
   assert.match(code(FRONT_DOOR), /export const dynamic = 'force-dynamic';/);
   assert.match(code(TAB_PAGE), /export const dynamic = 'force-dynamic';/);
-  assert.match(l, /import \{ usePathname, useSearchParams \} from 'next\/navigation';/);
+  // HOME-LEDGER-02b (Alex, 2026-11-07, ruling A): useRouter joined the import — the runway strip's 05 link cell lands on /budget through it.
+  assert.match(l, /import \{ usePathname, useRouter, useSearchParams \} from 'next\/navigation';/);
   assert.match(code(HOME_CLIENT), /fetch\('\/api\/auth\/me'\)/, 'the launcher mounts after the auth check — client side');
 });
 

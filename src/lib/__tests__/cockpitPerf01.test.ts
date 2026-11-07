@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PathnameContext, SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
+import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { code, comments } from '../sourceText';
 import { chipShows, legendKeyOf, legendOf, toggleShown, type PaletteEvent } from '../calendar/accountPalette';
 import { ROUTINES_SOURCE } from '../hub/mapOperationsRoutines';
@@ -41,13 +42,19 @@ const NAV = 'src/lib/nav.ts';
 
 const TABS = ['calendar', 'travel', 'trade', 'books', 'tax', 'compliance'] as const;
 
+// HOME-LEDGER-02b (Alex, 2026-11-07, ruling A): the launcher calls useRouter() — the runway strip's 05 link cell lands on /budget
+// through Next's router, as BudgetReport.tsx does — so the app router context every Next page provides is provided here too: a
+// stub that navigates nowhere (nothing here clicks it).
+const noRouter: AppRouterInstance = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {} };
+
 /** The launcher as Next renders it at a path, for a visitor whose sign-in has not resolved (no effect runs here). */
 async function launcherAt(pathname: string): Promise<string> {
   const { RailStateProvider } = await import('../../components/shell/RailState');
   const { default: ModuleLauncher } = await import('../../components/home/ModuleLauncher');
-  return renderToStaticMarkup(React.createElement(PathnameContext.Provider, { value: pathname },
-    React.createElement(SearchParamsContext.Provider, { value: new URLSearchParams('') },
-      React.createElement(RailStateProvider, null, React.createElement(ModuleLauncher, { onRequireAuth: () => {} })))));
+  return renderToStaticMarkup(React.createElement(AppRouterContext.Provider, { value: noRouter },
+    React.createElement(PathnameContext.Provider, { value: pathname },
+      React.createElement(SearchParamsContext.Provider, { value: new URLSearchParams('') },
+        React.createElement(RailStateProvider, null, React.createElement(ModuleLauncher, { onRequireAuth: () => {} }))))));
 }
 const panelsIn = (html: string): string[] => [...html.matchAll(/data-cockpit-panel="([a-z]+)"/g)].map((m) => m[1]);
 

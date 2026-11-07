@@ -6,14 +6,19 @@
  * every API file that builds a monthly budget from routines to it. These five
  * seeds are those clauses, each the shape the code had — or could drift back to:
  *
- *   · the Personal route gets its pre-LINES-02 read back: routine-level
- *     budget_amount/coa_code NOT NULL, no lines, no start_date (clause: inputs
- *     not built by the loader);
+ *   · a budget route reads routines its own way again: a query of its own in the
+ *     loader's place, no lines, no start_date (clause: through the loader);
  *   · the loader stops reading the lines (clause: active lines);
  *   · the loader stops reading start_date (clause: the one-off anchor);
  *   · the loader filters on money (clause: no routine-level filter);
- *   · the Business route keeps the loader but adds a routine query beside it
+ *   · a budget route keeps the loader but adds a routine query beside it
  *     (clause: no query of its own).
+ *
+ * HOME-LEDGER-02b (Alex, 2026-11-07, ruling D): the bridges the law names are the
+ * two Budget routes — /api/budget/report and /api/budget/report/cell — now that the
+ * cockpit's hub routes (year-calendar, business-budget) are deleted; lines-a is
+ * re-seeded against the report route and lines-e against the cell route. The three
+ * loader seeds (b, c, d) are unchanged.
  *
  * Each must fail THE LINES LAW by name. The anchors occur exactly once in their
  * file, which the harness enforces before it runs anything.
@@ -21,22 +26,21 @@
 import type { Seed } from '../prove';
 
 const LOADER = 'src/lib/operations/routineBudgetInputs.ts';
-const PERSONAL = 'src/app/api/hub/year-calendar/route.ts';
-const BUSINESS = 'src/app/api/hub/business-budget/route.ts';
+const REPORT = 'src/app/api/budget/report/route.ts';
+const CELL = 'src/app/api/budget/report/cell/route.ts';
 
 export const SEEDS: Seed[] = [
   {
-    name: 'lines-a the Personal route reads routines its own way again (no lines, no anchor, routine-level filter)',
-    file: PERSONAL,
-    find: '      const routineInputs = await loadRoutineBudgetInputs(prisma, user.id, personalEntity.id);',
+    name: 'lines-a the report route reads routines its own way again (a query of its own in the loader\'s place: no lines, no anchor)',
+    file: REPORT,
+    find: '      Promise.all(entities.map(async (e) => ({ entityId: e.id, rows: await loadRoutineBudgetInputs(prisma, user.id, e.id) }))),',
     replace: [
-      '      const budgetedRoutines = await prisma.operations_routines.findMany({',
-      '        where: { user_id: user.id, entity_id: personalEntity.id, is_active: true, budget_amount: { not: null }, coa_code: { not: null } },',
-      '        select: { budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true },',
-      '      });',
-      '      const routineInputs = budgetedRoutines.map(r => ({ budget_amount: r.budget_amount != null ? Number(r.budget_amount) : null, coa_code: r.coa_code, schedule_rrule: r.schedule_rrule, timezone: r.timezone }));',
+      '      Promise.all(entities.map(async (e) => ({ entityId: e.id, rows: (await prisma.operations_routines.findMany({',
+      '        where: { user_id: user.id, entity_id: e.id, is_active: true },',
+      '        select: { id: true, name: true, end_date: true, budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true },',
+      '      })).map((r) => ({ ...r, is_active: true, role: \'none\', start_date: null, budget_amount: r.budget_amount != null ? Number(r.budget_amount) : null, steps: [] })) }))),',
     ].join('\n'),
-    expect: 'calls routinesMonthlyByCoa with inputs not built by src/lib/operations/routineBudgetInputs.ts',
+    expect: 'src/app/api/budget/report/route.ts does not read routines through loadRoutineBudgetInputs()',
   },
   {
     name: 'lines-b the loader stops reading the lines',
@@ -56,15 +60,17 @@ export const SEEDS: Seed[] = [
   {
     name: 'lines-d the loader filters routines on the routine-level amount',
     file: LOADER,
-    find: '    where: { user_id: userId, entity_id: entityId, is_active: true },',
-    replace: '    where: { user_id: userId, entity_id: entityId, is_active: true, budget_amount: { not: null } },',
+    // ROUTINES-03 (Alex, 2026-10-25, ruling C) grew the where by the includeInactive option; HOME-LEDGER-02b (2026-11-07) re-reads
+    // the anchor where it stands — the clause this seed proves is unchanged.
+    find: '    where: { user_id: userId, entity_id: entityId, ...(options.includeInactive === true ? {} : { is_active: true }) },',
+    replace: '    where: { user_id: userId, entity_id: entityId, ...(options.includeInactive === true ? {} : { is_active: true }), budget_amount: { not: null } },',
     expect: 'filters routines on a routine-level column',
   },
   {
-    name: 'lines-e the Business route adds a routine query beside the loader',
-    file: BUSINESS,
-    find: '      const routineInputs = await loadRoutineBudgetInputs(prisma, user.id, businessEntity.id);',
-    replace: '      const routineInputs = [...(await loadRoutineBudgetInputs(prisma, user.id, businessEntity.id)), ...(await prisma.operations_routines.findMany({ where: { user_id: user.id, is_active: true }, select: { budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true } })).map((r) => ({ ...r, budget_amount: r.budget_amount != null ? Number(r.budget_amount) : null }))];',
-    expect: 'reads routines with a query of its own beside the loader',
+    name: 'lines-e the cell route adds a routine query beside the loader',
+    file: CELL,
+    find: '      loadRoutineBudgetInputs(prisma, user.id, book.id),',
+    replace: '      Promise.all([loadRoutineBudgetInputs(prisma, user.id, book.id), prisma.operations_routines.findMany({ where: { user_id: user.id, entity_id: book.id, is_active: true }, select: { id: true, budget_amount: true } })]).then(([rows]) => rows),',
+    expect: 'src/app/api/budget/report/cell/route.ts reads routines with a query of its own beside the loader',
   },
 ];

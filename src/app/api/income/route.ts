@@ -8,7 +8,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
  * Income on the COMMITTED-LEDGER basis: SUM of ledger_entries credits
  * (entry_type='C') on revenue COAs (account_type='revenue'), scoped to the
  * authenticated user's posted, non-reversed journal entries — the SAME basis the
- * expense actuals use (year-calendar/route.ts:154-170), so expenses − income is a
+ * expense actuals use (the budget report's readActuals, src/lib/budget/reportReads.ts —
+ * HOME-LEDGER-02b, 2026-11-07: year-calendar/route.ts is deleted), so expenses − income is a
  * TRUE single-basis net burn. Every income number traces to a real ledger revenue
  * credit (commitPlaidTransaction posts it: journal-entry-service.ts:108).
  *

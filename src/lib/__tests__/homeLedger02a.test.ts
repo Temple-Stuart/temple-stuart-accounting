@@ -6,6 +6,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { code, comments } from '../sourceText';
 import {
   MONTH_RULE_WORDS, NO_BOOK_STATED_WORDS, NO_CODE_WORDS, NO_TOTAL_WORDS, NOT_IN_CHART_WORDS, TRAVEL_PLAN_COLUMNS, TRAVEL_PLAN_CSV_FILE_NAME,
@@ -363,8 +365,11 @@ test('J the does-nots: no $ outside the currency home\'s formatters, no ||, no ?
   for (const f of [LEAF, SCREEN]) assert.doesNotMatch(code(f), /\+=|\.reduce\(|tripBudgetCents\s*\+|\+\s*\w*\.?tripBudgetCents/, `${f} sums`);
   const leaf = code(LEAF);
   assert.doesNotMatch(leaf, /@prisma\/client|from 'next|from 'react|\bfetch\s*\(|Date\.now\(|new Date\(\)|process\.env/, 'the leaf is pure');
-  // Nothing retired, nothing in the other lane (ruling G, H).
-  for (const f of ['src/components/hub/HubBudgetSection.tsx', 'src/components/hub/BudgetComparison.tsx', 'src/components/hub/RunwayBudgetPanel.tsx']) assert.ok(code(f).length > 0, `${f} still stands — 02b retires`);
+  // Nothing in the other lane (ruling G, H). HOME-LEDGER-02b (Alex, 2026-11-07): the two tables 02a left standing for 02b to retire
+  // are retired — HubBudgetSection and BudgetComparison are gone (homeLedger02b.test.ts pins the nine absences); RunwayBudgetPanel
+  // stands, the burn hero alone.
+  for (const f of ['src/components/hub/HubBudgetSection.tsx', 'src/components/hub/BudgetComparison.tsx']) assert.ok(!existsSync(resolve(process.cwd(), f)), `${f} retired with 02b`);
+  assert.ok(code('src/components/hub/RunwayBudgetPanel.tsx').length > 0, 'RunwayBudgetPanel still stands — the burn hero');
   for (const f of ['src/lib/toolRegistry.ts', 'src/lib/nav.ts', 'src/lib/offer.ts', 'src/lib/shellMenu.ts', 'src/lib/offer/closeWords.ts']) assert.doesNotMatch(code(f), /HomeMonth|home-travel-plan|HOME-LEDGER-02a/, `${f} is CRM-01a's lane — untouched`);
   assert.doesNotMatch(code('src/lib/budget/reportInputs.ts'), /budget_line_items|travelPlan/, 'Budget reads no trip line');
 });

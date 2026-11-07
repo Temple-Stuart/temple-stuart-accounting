@@ -18,7 +18,9 @@ import {
   TIME_ZONES, VIEWER_ZONE_WORDS, canonicalZone, endDayOf, endedBy, expandBetween, expandForward, scheduleAnchor, throughEnd, unlistedZoneWords, zoneNotListedWords, zoneUnreadWords, zonesByRegion,
 } from '../operations/rruleHelpers';
 import { evaluateWindow } from '@/inngest/functions/routine-evaluator';
-import { routineMonthlyByCoa } from '../operations/routineBudget';
+// HOME-LEDGER-02b (Alex, 2026-11-07, ruling C): routineMonthlyByCoa is deleted with the cockpit's hub budget routes — the month
+// tables are the budget's day lines summed (days.ts buildRoutineBudgetLines, bounded by end_date through the same helper).
+import { buildRoutineBudgetLines } from '../budget/days';
 import { nextDueAfter } from '../operations/routineCompletion';
 import { instantToZoned } from '../time';
 import { ValidationError } from '../errors/ValidationError';
@@ -26,6 +28,8 @@ import { ValidationError } from '../errors/ValidationError';
 const HELPERS = 'src/lib/operations/rruleHelpers.ts';
 const EVALUATOR = 'src/inngest/functions/routine-evaluator.ts';
 const BUDGET = 'src/lib/operations/routineBudget.ts';
+// HOME-LEDGER-02b (Alex, 2026-11-07): the month tables are the budget's day rules now — days.ts clamps each occurrence at the end day.
+const DAYS = 'src/lib/budget/days.ts';
 const COMPLETION = 'src/lib/operations/routineCompletion.ts';
 const CREATE_ROUTE = 'src/app/api/operations/routines/route.ts';
 const PATCH_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
@@ -79,7 +83,9 @@ test('T1 the end bound: a routine\'s end_date is the last LOCAL day an occurrenc
   assert.match(code(CREATE_ROUTE), /expandForward\(schedule_rrule, timezone, new Date\(\), 1, scheduleAnchor\(startResult\.value\), endDate\);/, 'the create route');
   assert.match(code(PATCH_ROUTE), /expandForward\(nextRrule, nextTz, new Date\(\), 1, scheduleAnchor\(effectiveStart\), effectiveEnd\);/, 'the update route');
   assert.match(code(COMPLETION), /expandForward\(routine\.schedule_rrule, routine\.timezone, after, 1, scheduleAnchor\(routine\.start_date\), routine\.end_date\);/, 'the completion\'s next due');
-  assert.match(code(BUDGET), /expandBetween\(routine\.schedule_rrule, routine\.timezone, from, to, scheduleAnchor\(routine\.start_date \?\? null\), routine\.end_date \?\? null\)\.length;/, 'the month tables');
+  // HOME-LEDGER-02b (Alex, 2026-11-07): routineMonthlyByCoa is deleted; the month tables are the budget's day lines, and the day
+  // builder stops at the end day by the local day of each occurrence (TAB13-02a's own clamp) — the same inclusive bound.
+  assert.match(code(DAYS), /if \(routine\.endDate !== null && day > routine\.endDate\) continue;/, 'the month tables');
   assert.match(comments(HELPERS), /ROUTINE-02a \(Alex, 2026-10-18\) — END DATES HONOURED EVERYWHERE/);
 });
 
@@ -124,11 +130,14 @@ test('T2 the evaluator reads end_date; a routine whose end has passed expects no
 // ── T3 · THE MONTH TABLES ────────────────────────────────────────────────────
 
 test('T3 the month tables stop at the end: the month of the end counts through its day, a month after counts nothing; no end → as before', () => {
-  const r = { budget_amount: 10, coa_code: 'P-6150', schedule_rrule: DAILY_7, timezone: BKK, start_date: START };
-  assert.deepEqual(routineMonthlyByCoa({ ...r, end_date: END }, 2026, 9), { 'P-6150': 150 }, 'Oct 1–15: 15 × $10');
-  assert.deepEqual(routineMonthlyByCoa({ ...r, end_date: END }, 2026, 10), {}, 'November: nothing');
-  assert.deepEqual(routineMonthlyByCoa(r, 2026, 10), { 'P-6150': 300 }, 'no end: every day of November');
-  assert.deepEqual(routineMonthlyByCoa({ ...r, end_date: null }, 2026, 9), { 'P-6150': 310 });
+  // HOME-LEDGER-02b (Alex, 2026-11-07): the month is the day lines' sum — built here over the month's range by the one day
+  // builder (the same expandBetween, bounded by the routine's end_date); the figures are the ones the retired table gave.
+  const r = { id: 'r', name: 'r', entityId: 'e', entityType: 'personal', timezone: BKK, scheduleRrule: DAILY_7, startDate: '2026-10-01', budgetAmount: 10, coaCode: '6150', steps: [] };
+  const month = (endDate: string | null, from: string, to: string) => buildRoutineBudgetLines([{ ...r, endDate }], from, to).lines.reduce((sum, l) => sum + l.cents, 0) / 100;
+  assert.equal(month('2026-10-15', '2026-10-01', '2026-10-31'), 150, 'Oct 1–15: 15 × $10');
+  assert.equal(month('2026-10-15', '2026-11-01', '2026-11-30'), 0, 'November: nothing');
+  assert.equal(month(null, '2026-11-01', '2026-11-30'), 300, 'no end: every day of November');
+  assert.equal(month(null, '2026-10-01', '2026-10-31'), 310);
   assert.match(code(BUDGET), /end_date\?: Date \| string \| null;/, 'the input the loader already hands over (routineBudgetInputs.ts) is read');
   assert.match(code('src/lib/operations/routineBudgetInputs.ts'), /id: true, name: true, end_date: true,/, 'the loader selects it — unchanged');
 });

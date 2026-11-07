@@ -4,7 +4,8 @@
  * Triggered by clicking an Operations event on the Hub's CalendarGrid
  * (PR-Ops-5.5). Replaces the dead-link navigation from PR-Ops-5.3.
  *
- * Structural pattern mirrored from BudgetDrillDown.tsx:
+ * Structural pattern mirrored from BudgetDrillDown.tsx (deleted with HOME-LEDGER-02b,
+ * 2026-11-07, with the cockpit's second month table; the pattern stands here):
  *   - right-side slide-in panel (max-w-lg)
  *   - bg-black/30 backdrop
  *   - click-outside to close

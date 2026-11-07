@@ -77,14 +77,19 @@ export const PIPE_PHASES = {
   // RunwayBudgetPanel.tsx:276); Burn ⇐ the hero's own cell labels "Net burn"
   // + "Zero date" (RunwayBudgetPanel.tsx:225,:250); Match ⇐ the section's
   // rendered h3 "Booking ↔ bank match review" (MatchReviewSection.tsx:130);
-  // Project ⇐ the panel's own view description "Month-by-month budget vs
-  // actual." (RunwayBudgetPanel.tsx:337).
+  // Project ⇐ /budget's own opener line "Budget vs actual by account, month by
+  // month — click a figure for the lines behind it." (src/app/budget/page.tsx:32).
+  // HOME-LEDGER-02b (Alex, 2026-11-07, ruling A): 05 Project is a LINK cell to
+  // /budget — the trade 06 idiom below — drawn by the cockpit's strip through
+  // StageStrip's `link` prop; the panel's own view description it was derived
+  // from ("Month-by-month budget vs actual.", RunwayBudgetPanel.tsx:337) retired
+  // with the Month/Year toggle. One month table, one budget model.
   runway: [
     { num: '01', name: 'Source', subLabel: 'PLAID BALANCE' },
     { num: '02', name: 'History', subLabel: 'TRAILING LEDGER ACTUALS' },
     { num: '03', name: 'Burn', subLabel: 'NET BURN + ZERO DATE' },
     { num: '04', name: 'Match', subLabel: 'BOOKING ↔ BANK' },
-    { num: '05', name: 'Project', subLabel: 'BUDGET VS ACTUAL' },
+    { num: '05', name: 'Project', subLabel: 'BUDGET VS ACTUAL', link: { target: 'budget', label: 'IN BUDGET →' } },
   ],
   books: [
     { num: '01', name: 'Feed' },

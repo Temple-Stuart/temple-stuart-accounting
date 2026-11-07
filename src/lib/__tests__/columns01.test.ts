@@ -52,7 +52,9 @@ const STAMPS = 'src/lib/operations/projectStamps.ts';
 const PROJECTS_ROUTE = 'src/app/api/operations/projects/route.ts';
 const TYPES = `${OPS}/projects/types.ts`;
 const SCHEMA = 'prisma/schema.prisma';
-const BUDGET_CALLERS = ['src/app/api/hub/year-calendar/route.ts', 'src/app/api/hub/business-budget/route.ts', 'src/app/api/budget/report/route.ts'];
+// HOME-LEDGER-02b (Alex, 2026-11-07, ruling C): the two hub routes (year-calendar, business-budget) are deleted — the budget's
+// callers of the loader are the two Budget routes, the report's and its cell's.
+const BUDGET_CALLERS = ['src/app/api/budget/report/route.ts', 'src/app/api/budget/report/cell/route.ts'];
 
 const under = (dir: string): string[] => readdirSync(resolve(process.cwd(), dir), { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? under(`${dir}/${d.name}`) : /\.tsx?$/.test(d.name) ? [`${dir}/${d.name}`] : []));
 

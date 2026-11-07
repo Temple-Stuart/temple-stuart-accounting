@@ -57,8 +57,8 @@
  * trading strip / budget table) — anything that visually replicates product
  * UI is a pipe regardless of being static JSX. What remains: hero terminal +
  * the eight slide panels + the free-account CTA.
- *   • RunwayDataProvider is dead-but-firing (context unconsumed) — NOT
- *     imported here, deliberately.
+ *   • HOME-LEDGER-02b (2026-11-07): RunwayDataProvider — the cockpit's retired
+ *     budget-tables context — is deleted; it was never imported here.
  *
  * BANNED (inventory's 10 — zero rendered hits): runway scenario modeling,
  * the Trading budget ("route pending"), capital/drawdown figures, the unfed
@@ -255,8 +255,10 @@ function EntityPanel() {
 }
 
 /** 6. BUDGETS FROM YOUR ACTUAL LIFE — routines × occurrences → planned;
- *  ledger actuals; the merchant drill (year-calendar/route.ts:66-139;
- *  HubBudgetSection.tsx:93-113; drill-down/route.ts:50-76). */
+ *  ledger actuals; the drill behind a figure. The one budget model since
+ *  HOME-LEDGER-02b (2026-11-07): src/app/api/budget/report/route.ts and
+ *  src/app/api/budget/report/cell/route.ts (the cockpit's year-calendar route,
+ *  HubBudgetSection and drill-down route are deleted). */
 function BudgetPanel() {
   return (
     <DarkSlide title="Budgets — your routines ARE the budget">

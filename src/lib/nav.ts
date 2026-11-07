@@ -108,12 +108,16 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   // BOOKS-GATE-01 (2026-10-28): seven lines further down — the cockpitSums import and the Books panel's notes (its export, its sums, its accounts list) went in above.
   // BOOKS-GATE-01b (2026-10-28): two lines further down — the Books panel's catch logs its thrown reason.
   // TRAVEL-02a (2026-11-02): one line further down — the travel ledger's heading import (TRAVEL_LEDGER_HEADING) went in above. TRAVEL-02c (2026-11-03): two more — StayCosts and STAYS_COST_HEADING's imports.
+  // HOME-LEDGER-02b (2026-11-07): the note's marker eight lines further down and the handler six — the router hook and the
+  // 05 link cell's words went in above them, and the 05 phase left the handler's union; the words quoted are unchanged.
   { pipe: 'runway', num: '01', owner: 'Banking', rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:685-692 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :717-721' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:692-702 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :723-727' },
   { pipe: 'runway', num: '02', owner: HOME_OWNER, rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:685-692 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :717-721' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:692-702 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :723-727' },
   { pipe: 'runway', num: '03', owner: HOME_OWNER, rendersSurface: true },
   { pipe: 'runway', num: '04', owner: 'Bookkeeping', rendersSurface: true },
+  // HOME-LEDGER-02b (Alex, 2026-11-07, decision 8): runway 05 keeps its place and its owner, and it renders a surface — the report
+  // on /budget; the cockpit's runway strip draws 05 as a LINK cell to it ("IN BUDGET →", pipePhases.ts), not as a second month table.
   { pipe: 'runway', num: '05', owner: 'Budget', rendersSurface: true },
   // the five pipes that belong whole to one tool
   ...(['01', '02', '03', '04', '05', '06', '07'] as const).map((num): PhaseAssignment => ({ pipe: 'tax', num, owner: 'Tax', rendersSurface: true })),
@@ -324,7 +328,7 @@ export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]
   '/tax': ['tax'],               // TaxFilingWizard.tsx, through TaxHandoffGate
   // Declared EMPTY, each for a reason the audit verified:
   '/accounts': [],   // Banking owns books 01 (drawn on /books) and runway 01 (drawn nowhere — a state-only cell)
-  '/budget': [],     // Budget owns runway 05, drawn in the cockpit's runway section
+  '/budget': [],     // Budget owns runway 05: /budget draws no strip — the report is the surface; the cockpit's runway strip links to it (HOME-LEDGER-02b)
   '/brokerage': ['trade'],  // TRADE-SPLIT: Brokerage draws trade 01-03 as its own strip (src/app/brokerage/page.tsx)
   '/trade-log': ['trade'],  // TRADE-SPLIT: Trade Log draws trade 04-06 as its own strip (src/app/trade-log/page.tsx)
   '/compliance': [], // Compliance owns compliance 01-06; ComplianceWorkbench is the cockpit's tab, not this page
