@@ -380,7 +380,9 @@ test('J the does-nots: no $ outside the currency home\'s formatters, no ||, no ?
   // stands, the burn hero alone.
   for (const f of ['src/components/hub/HubBudgetSection.tsx', 'src/components/hub/BudgetComparison.tsx']) assert.ok(!existsSync(resolve(process.cwd(), f)), `${f} retired with 02b`);
   assert.ok(code('src/components/hub/RunwayBudgetPanel.tsx').length > 0, 'RunwayBudgetPanel still stands — the burn hero');
-  for (const f of ['src/lib/toolRegistry.ts', 'src/lib/nav.ts', 'src/lib/offer.ts', 'src/lib/shellMenu.ts', 'src/lib/offer/closeWords.ts']) assert.doesNotMatch(code(f), /HomeMonth|home-travel-plan|HOME-LEDGER-02a/, `${f} is CRM-01a's lane — untouched`);
+  // SERVICES-01 (2026-11-08): src/lib/offer/closeWords.ts retired with the close — it left this list; nothing of it remains to read.
+  for (const f of ['src/lib/toolRegistry.ts', 'src/lib/nav.ts', 'src/lib/offer.ts', 'src/lib/shellMenu.ts']) assert.doesNotMatch(code(f), /HomeMonth|home-travel-plan|HOME-LEDGER-02a/, `${f} is CRM-01a's lane — untouched`);
+  assert.ok(!existsSync(resolve(process.cwd(), 'src/lib/offer/closeWords.ts')), 'closeWords.ts retired (SERVICES-01)');
   assert.doesNotMatch(code('src/lib/budget/reportInputs.ts'), /budget_line_items|travelPlan/, 'Budget reads no trip line');
 });
 

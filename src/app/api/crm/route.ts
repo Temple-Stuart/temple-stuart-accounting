@@ -9,7 +9,7 @@
  *   · ANY OTHER USER reads only their own crm_contacts rows, and the answer says ownerOnly: true — the page prints the
  *     honest lines for Proposals and Signups.
  * The rows go through the pure rules (src/lib/crm/crm.ts); a record that contradicts itself (a password-less user with
- * no provider account, an active key in no vocabulary, a need the form does not hold) is a CrmLawError, answered 500
+ * no provider account, an active key in no vocabulary, a need neither a door's nor legacy) is a CrmLawError, answered 500
  * with its words. Answers { ownerOnly, contacts, proposals, signups, said }. Reads only: no write, no paid service, no email.
  * Not in PUBLIC_PATHS — the middleware sends a cookie-less request to / before this runs.
  *

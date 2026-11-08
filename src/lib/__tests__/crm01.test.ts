@@ -44,9 +44,8 @@ import {
   NO_CONTACTS_WORDS, PROPOSAL_HEAD_WORDS, PROPOSALS_OWNER_ONLY_WORDS, SIGNUP_HEAD_WORDS, SIGNUPS_OWNER_ONLY_WORDS, TAB_KEY_WORDS, crmFailedWords,
 } from '../crm/crmWords';
 import { GOOGLE_CATEGORY_KEYS, TAB_ENTITLEMENT_KEYS } from '../categoryKeys';
-import { SERVICE_NEEDS, SERVICE_NEED_LABELS } from '../proposalNeeds';
-import { CLOSE_OFFER } from '../offer/close';
-import { closeChoiceWords } from '../offer/closeWords';
+// SERVICES-01 (2026-11-08): the doors' titles and the legacy title from the one module; the close's leaf and words retired.
+import { LEGACY_NEED_TITLES, SERVICES, SERVICE_NEEDS } from '../proposalNeeds';
 import { dayWords, instantDayWords } from '../operations/work';
 import { BLANK } from '../budget/format';
 import { noFilters, type TableFilters } from '../table/filters';
@@ -125,12 +124,14 @@ test('T1 contactsOf: every proposal and every signup but the reader, and the con
   // A proposal with a working row: its own words, the working row's stage, next step and last touch.
   assert.deepEqual(byKey(rows, 'proposal:p-2'), {
     key: 'proposal:p-2', came_in: '2026-11-03T09:00:00.000Z', name: 'Edsger Dijkstra', business: 'Shortest Paths', email: 'edsger@example.com', from: 'proposal',
-    need: 'Close my 2026 books', budget: '<$2k', start: '2-4wk', stage: 'reviewing', next_step: 'Send the quote', last_touch: '2026-11-05T12:00:00.000Z',
+    // SERVICES-01 (2026-11-08): a row the old close door wrote keeps its word and prints the legacy title.
+    need: 'Close my 2026 books (the old close door)', budget: '<$2k', start: '2-4wk', stage: 'reviewing', next_step: 'Send the quote', last_touch: '2026-11-05T12:00:00.000Z',
   });
   // A proposal with no working row is new — nobody has touched it; no next step, no touch.
   assert.deepEqual(byKey(rows, 'proposal:p-1'), {
     key: 'proposal:p-1', came_in: '2026-11-01T10:00:00.000Z', name: 'Ada Lovelace', business: 'Analytical Engines', email: 'ada@example.com', from: 'proposal',
-    need: 'Setup', budget: '$2–10k', start: 'now', stage: 'new', next_step: null, last_touch: null,
+    // SERVICES-01 (2026-11-08): 'setup' prints the door's title — the same bucket, today's words.
+    need: 'Full setup', budget: '$2–10k', start: 'now', stage: 'new', next_step: null, last_touch: null,
   });
   // A provider signup: "Signed up — <Plan>", no business, no budget, no start.
   assert.deepEqual(byKey(rows, 'signup:u-1'), {
@@ -161,7 +162,7 @@ test('T1 proposalRowsOf and signupRowsOf: every field the form and the signup co
   assert.deepEqual(p.map((r) => r.id), ['p-2', 'p-1']);
   assert.deepEqual(p[0], {
     id: 'p-2', created_at: '2026-11-03T09:00:00.000Z', name: 'Edsger Dijkstra', email: 'edsger@example.com', business: 'Shortest Paths', need: 'close',
-    need_words: 'Close my 2026 books', modules: [], start_window: '2-4wk', budget_range: '<$2k', current_stack: 'Spreadsheets and a shoebox', hard_deadline: '2026-12-15',
+    need_words: 'Close my 2026 books (the old close door)', modules: [], start_window: '2-4wk', budget_range: '<$2k', current_stack: 'Spreadsheets and a shoebox', hard_deadline: '2026-12-15',
     deadline_driver: 'The year closes', links: ['https://example.com/books'], team_size: '2-5', referral_source: 'A friend', notes_from_them: 'Twelve months closed.',
   });
   for (const k of ['status', 'owner_notes', 'ownerNotes', 'ip_hash', 'ipHash']) assert.ok(!(k in p[0]), `no ${k}`);
@@ -176,12 +177,16 @@ test('T1 proposalRowsOf and signupRowsOf: every field the form and the signup co
 
 // ── T2 · THE RULES ──────────────────────────────────────────────────────────
 
-test('T2 needWords: the form\'s chip for each service need, the close offer\'s words on any day (ruling 6), and a stranger throws by name', () => {
-  for (const need of SERVICE_NEEDS) assert.equal(needWords(need), SERVICE_NEED_LABELS[need]);
-  assert.equal(needWords(CLOSE_OFFER.need), closeChoiceWords(CLOSE_OFFER));
-  assert.equal(needWords('close'), 'Close my 2026 books');
-  assert.throws(() => needWords('bookkeeping'), (e: unknown) => e instanceof CrmLawError && /"bookkeeping" is not a need the proposal form holds \(setup, maintenance, custom, embed, unsure, close\)/.test(e.message));
-  assert.match(code(RULES), /if \(need === CLOSE_OFFER\.need\) return closeChoiceWords\(CLOSE_OFFER\);/);
+// SERVICES-01 (Alex, 2026-11-08): the six doors' titles from src/lib/proposalNeeds.ts; 'close' — the retired close door's word, which old rows
+// keep — prints LEGACY_NEED_TITLES.close; 'bookkeeping' is a door now, so the stranger is another word.
+test('T2 needWords: each door\'s title for the six keys, the legacy title for \'close\', and a stranger throws by name', () => {
+  for (const door of SERVICES) assert.equal(needWords(door.need), door.title);
+  assert.deepEqual(SERVICE_NEEDS.map(needWords), ['Full setup', 'Monthly maintenance', 'Custom builds', 'Integration', 'Bookkeeping', 'Something else']);
+  assert.equal(needWords('close'), LEGACY_NEED_TITLES.close);
+  assert.equal(needWords('close'), 'Close my 2026 books (the old close door)');
+  assert.throws(() => needWords('bogus'), (e: unknown) => e instanceof CrmLawError && /"bogus" is neither a door of the proposal form \(setup, maintenance, custom, embed, bookkeeping, unsure\) nor a word old rows keep \(close\)/.test(e.message));
+  assert.throws(() => needWords('Close'), (e: unknown) => e instanceof CrmLawError, 'nothing is mapped — a near word throws');
+  assert.doesNotMatch(code(RULES), /CLOSE_OFFER|closeChoiceWords|offer\/close|SERVICE_NEED_LABELS/, 'the close\'s leaf and words are read nowhere');
 });
 
 test('T2 signedUpWith: "Email and password" for a password; a provider signup names its NextAuth provider, matched by email case-insensitively; none throws by name', () => {
@@ -469,10 +474,12 @@ test('T7 the plans row derives ◐ with the customer line (ruling 10); /owner ke
 
 test('T8 the migration: the newest; one table — the four CHECKs by name, the partial unique index, the cascade to users — nothing written, nothing dropped; authored, not applied', () => {
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
+  // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — the newest now; every pin below moved by one more.
+  assert.equal(dirs[dirs.length - 1], '20261108111500_services_01_bookkeeping_need', 'the newest migration');
   // CRM-02 (2026-11-07): the intake form's two tables followed — CRM-01a's is second-newest now; its content pins below stand.
-  assert.equal(dirs[dirs.length - 1], '20261107212000_crm_02_intake_forms', 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'right before it, CRM-01a\'s');
-  assert.equal(dirs[dirs.length - 3], '20261106120000_one_form_01_close_need', 'right after ONE-FORM-01\'s');
+  assert.equal(dirs[dirs.length - 2], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'right before it, CRM-01a\'s');
+  assert.equal(dirs[dirs.length - 4], '20261106120000_one_form_01_close_need', 'right after ONE-FORM-01\'s');
   const sql = code(MIGRATION);
   assert.match(sql, /CREATE TABLE "crm_contacts" \(\n\s+"id"\s+UUID NOT NULL DEFAULT gen_random_uuid\(\),\n\s+"user_id"\s+TEXT NOT NULL,\n\s+"source"\s+VARCHAR\(20\) NOT NULL,\n\s+"source_ref"\s+TEXT,\n\s+"name"\s+VARCHAR\(255\),\n\s+"business"\s+TEXT,\n\s+"email"\s+VARCHAR\(255\),\n\s+"stage"\s+VARCHAR\(20\) NOT NULL DEFAULT 'new',\n\s+"next_step"\s+TEXT,\n\s+"last_touch_at"\s+TIMESTAMPTZ\(6\),\n\s+"created_at"\s+TIMESTAMP\(3\) NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\s+"updated_at"\s+TIMESTAMP\(3\) NOT NULL,\n\s+CONSTRAINT "crm_contacts_pkey" PRIMARY KEY \("id"\),/);
   assert.match(sql, /CONSTRAINT "crm_contacts_source_chk" CHECK \("source" IN \('proposal', 'signup', 'manual'\)\)/);

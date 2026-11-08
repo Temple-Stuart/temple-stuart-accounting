@@ -109,7 +109,9 @@ test('T6 held still: /developer was never public; the registry\'s CRM row and th
   assert.deepEqual(statusCounts(), EXPECTED_STATUS_COUNTS);
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
+  // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — the newest now; every pin below moved by one more.
+  assert.equal(dirs[dirs.length - 1], '20261108111500_services_01_bookkeeping_need', 'the newest migration');
   // CRM-02 (2026-11-07) authored the newest since; DEV-RETIRE-01 itself authored none — CRM-01a's sits right before it.
-  assert.equal(dirs[dirs.length - 1], '20261107212000_crm_02_intake_forms', 'the newest migration is CRM-02\'s');
-  assert.equal(dirs[dirs.length - 2], '20261106150000_crm_01a_crm_contacts', 'no migration of DEV-RETIRE-01\'s own — CRM-01a\'s is right before CRM-02\'s');
+  assert.equal(dirs[dirs.length - 2], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 3], '20261106150000_crm_01a_crm_contacts', 'no migration of DEV-RETIRE-01\'s own — CRM-01a\'s is right before CRM-02\'s');
 });
