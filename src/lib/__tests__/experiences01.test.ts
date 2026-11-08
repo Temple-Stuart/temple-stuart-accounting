@@ -129,6 +129,9 @@ test('T2 the categories, in the ruled order, with their EVENTS-01b labels; the d
   assert.deepEqual(EXPERIENCE_CATEGORIES.map((c) => [c.id, c.label]), [
     ['surfing', 'Surf'], ['snowboarding', 'Snow'], ['skate', 'Skate'], ['golf', 'Golf'], ['f1', 'F1'],
     ['moto', 'Moto'], ['tennis', 'Tennis'], ['fighting', 'Fighting'], ['music_art', 'Music & art'],
+    // EVENTS-02 (2026-11-08): the ten new categories, appended after the nine in K's order — the default below stands.
+    ['football', 'Football'], ['basketball', 'Basketball'], ['cycling', 'Cycling'], ['running', 'Running'], ['sailing', 'Sailing'],
+    ['horse_racing', 'Horse racing'], ['rugby', 'Rugby'], ['cricket', 'Cricket'], ['culture_holidays', 'Culture & holidays'], ['food_drink', 'Food & drink'],
   ]);
   assert.ok(isExperienceCategoryId('f1') && !isExperienceCategoryId('nope') && !isExperienceCategoryId(null));
   assert.equal(DEFAULT_INTO, EXPERIENCE_CATEGORIES[0].id);
@@ -136,14 +139,20 @@ test('T2 the categories, in the ruled order, with their EVENTS-01b labels; the d
   assert.match(code(SECTION), /export const DEFAULT_INTO: ExperienceCategoryId = EXPERIENCE_CATEGORIES\[0\]\.id;/, 'derived from the list, not typed');
 });
 
-test('T2 the rows: the ruling\'s DATA block transcribed whole, every checkedOn 2026-10-30, no pinned-card field', () => {
+test('T2 the rows: the ruling\'s DATA block transcribed whole, every checkedOn 2026-10-30 (EVENTS-02, 2026-11-08: the ten new categories\' rows carry 2026-11-08), no pinned-card field', () => {
   // EVENTS-01 (2026-10-30): the ruling wrote "Row count: 73" above a DATA block that holds 74 rows
   // (6 surfing · 5 snowboarding · 4 skate · 5 golf · 24 f1 · 4 moto · 5 tennis · 11 fighting · 10 music_art).
   // The block is the data and was transcribed verbatim — no row dropped to meet the number; the number is
   // reported as the ruling's miscount, and this pin holds the block's own count.
-  assert.equal(EXPERIENCES.length, 74);
+  // EVENTS-02 (2026-11-08): the old block's 74 stands, named; the ten new categories' rows are added to it, counted.
+  const NEW_CATEGORIES = ['football', 'basketball', 'cycling', 'running', 'sailing', 'horse_racing', 'rugby', 'cricket', 'culture_holidays', 'food_drink'];
+  const isNew = (r: Experience) => NEW_CATEGORIES.includes(r.category);
+  assert.equal(EXPERIENCES.filter((r) => !isNew(r)).length, 74, 'the EVENTS-01 block: 74 rows');
+  assert.equal(EXPERIENCES.length, 74 + 58, 'the 74 of EVENTS-01 and the 58 of EVENTS-02 (6 football · 5 basketball · 6 cycling · 6 running · 6 sailing · 6 horse_racing · 6 rugby · 6 cricket · 6 culture_holidays · 5 food_drink)');
   assert.ok(EXPERIENCES.every((r) => !('featured' in r)), 'WASHERE-01: no row carries the pinned-card field');
-  assert.ok(EXPERIENCES.every((r) => r.checkedOn === '2026-10-30'));
+  // EVENTS-02 (2026-11-08): the nine original categories' rows keep 2026-10-30; the ten new ones carry the run date.
+  assert.ok(EXPERIENCES.filter((r) => !isNew(r)).every((r) => r.checkedOn === '2026-10-30'));
+  assert.ok(EXPERIENCES.filter(isNew).every((r) => r.checkedOn === '2026-11-08'));
   assert.equal(EXPERIENCES.filter((r) => r.category === 'f1').length, 24);
   assert.deepEqual(row('philippines-pro-2026'), {
     id: 'philippines-pro-2026', category: 'surfing', series: 'WSL Championship Tour', name: 'Philippines Pro presented by the Philippine Sports Commission',
@@ -207,7 +216,7 @@ test('T3 the lineup\'s pill words left with THE LINEUP (EVENTS-01c) — no calle
 
 // ── T4 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T4 rendered with no choice named: Surf — one row of all six surf cards, the three upcoming first with the Philippines Pro first, then the three not announced; nine chips with Surf pressed; every card linking its source; the two lines; no lineup, no all-categories word, nothing of Alex\'s', () => {
+test('T4 rendered with no choice named: Surf — one row of all six surf cards, the three upcoming first with the Philippines Pro first, then the three not announced; nineteen chips with Surf pressed; every card linking its source; the two lines; no lineup, no all-categories word, nothing of Alex\'s', () => {
   const html = render();
   assert.match(html, /<section id="events" aria-label="Book the experience"/);
   assert.equal(EVENTS_ANCHOR, 'events');
@@ -220,7 +229,8 @@ test('T4 rendered with no choice named: Surf — one row of all six surf cards, 
   assert.ok(['us-open-of-surfing-2027', 'tahiti-pro-2027', 'rip-curl-pro-bells-2027'].every((id) => /^Next edition not announced \(checked /.test(lineOf(html, id) ?? '')), 'not announced means not announced');
   assert.deepEqual(sourcesOf(html), cardsOf(html).map((id) => [id, row(id).sourceUrl]), 'every card links the page its dates came from');
   assert.equal(SOURCE_LINK, 'Source ↗');
-  assert.equal((html.match(/aria-pressed="(true|false)"/g) ?? []).length, 9, 'nine categories, nothing else');
+  // EVENTS-02 (2026-11-08): nineteen chips — the nine and the ten appended.
+  assert.equal((html.match(/aria-pressed="(true|false)"/g) ?? []).length, 19, 'nineteen categories, nothing else');
   assert.deepEqual(pressedOf(html), ['surfing']);
   assert.match(html, /aria-pressed="true"[^>]*data-into="surfing">Surf</);
   assert.ok(!html.includes('Everything'), 'the all-categories word is gone from the markup');
@@ -258,7 +268,8 @@ test('T4 rendered for a value that names no category: the refusal only — in pl
   assert.match(bad, /data-into-refused="true">nope is not a category — pick one above\.</);
   assert.equal(notACategory('nope'), 'nope is not a category — pick one above.');
   assert.deepEqual(pressedOf(bad), [], 'no substitute category');
-  assert.equal((bad.match(/aria-pressed="false"/g) ?? []).length, 9);
+  // EVENTS-02 (2026-11-08): the refusal still draws every chip — nineteen now, the same fact the T4 count above pins.
+  assert.equal((bad.match(/aria-pressed="false"/g) ?? []).length, 19);
   assert.doesNotMatch(bad, /data-featured|<article/, 'no card above the refusal');
   assert.equal(cardsOf(bad).length, 0);
   assert.equal(sourcesOf(bad).length, 0);
