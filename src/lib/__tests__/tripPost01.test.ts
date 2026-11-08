@@ -404,13 +404,14 @@ test('T6 the cards: a grid; every card the stop and what it cost — place, date
   const canggu = cardHtml(ID);
   // TRIPCARDS-01 (Alex, 2026-11-05): "this should have been removed" — the post's title and line are not on the card.
   assert.doesNotMatch(home, new RegExp(`${POST.title.replace('.', '\\.')}|Every day of it`), 'the post title and its line left the card');
-  const amount = (a: string) => `<span class="shrink-0 whitespace-nowrap font-mono text-xs text-text-secondary">${a}</span>`;
+  // TRIPCARDS-02 (2026-11-08): the card is dark — the amount white/80 (was text-text-secondary), the value white (was text-text-primary).
+  const amount = (a: string) => `<span class="shrink-0 whitespace-nowrap font-mono text-xs text-white/80">${a}</span>`;
   const named = (name: string, a: string) => `<span class="truncate" title="${name}">${name}</span><span aria-hidden="true">·</span>${amount(a)}`;
   assert.ok(canggu.includes(named('The Daun', '$708.14')));
   assert.ok(canggu.includes(named('Nyoman Motorbike (Nmax)', '$131.79')), 'Alex: no "Rental" — one line');
   assert.ok(canggu.includes(named('China Air', '$837.20')));
   assert.doesNotMatch(canggu, />DID<|>LEARNED<|data-was-here-label/, 'a stop he has left: no label');
-  assert.ok(cardHtml('danang-2026-08').includes(`<dd class="flex min-w-0 items-baseline gap-1 text-xs text-text-primary">${amount('n/a')}</dd>`), 'no motorbike: n/a');
+  assert.ok(cardHtml('danang-2026-08').includes(`<dd class="flex min-w-0 items-baseline gap-1 text-xs text-white">${amount('n/a')}</dd>`), 'no motorbike: n/a');
   assert.ok(cardHtml('pererenan-2026-12').includes(amount('not in my log yet')));
   assert.doesNotMatch(home, /Ice cream was a struggle/, 'no post body on the home page');
   assert.throws(() => renderToStaticMarkup(React.createElement(WasHereView, { rows: WAS_HERE, costs: TRIP_COSTS.filter((c) => c.stopId !== 'cebu-2026-11'), today: TODAY })), /"cebu-2026-11" has no costs row/, 'a stop with no costs row fails loud — never a card without them');

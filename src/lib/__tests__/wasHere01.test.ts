@@ -33,7 +33,10 @@
  * scrolls sideways. TRIPPHOTO-08 / 09 (Alex, 2026-11-06): Uluwatu's and Pererenan's photos, his
  * own from days there during the Canggu stay; Cebu has none yet. TRIPCARDS-01d (Alex,
  * 2026-11-06): the stop number sits on top of the place, under the photo credit, the label
- * beside it.
+ * beside it. TRIPCARDS-02 (Alex, 2026-11-08): the trip.com look — the card dark, the photo tall
+ * in one h-80 block holding the figure, the stop chip and a dark band with the place and the
+ * dates (the credit drawn on the band's right); Cebu, with no photo, opens with the chip, the
+ * place and the dates. The same data, the same words, the same order of parts.
  *
  *   T1 the law — every refusal by name over injected rows and events; the deleted
  *      refusals named absent; the live rows pass;
@@ -50,6 +53,8 @@
  *      the name's whole words in its title) and its "Read the post →", and nothing else — on the
  *      live rows and on fixtures that hold a line, two lists, an event and a stop's event; a
  *      stop with no costs row fails loud; no "No event" / JUST MISSED text anywhere, no clock;
+ *      the trip.com look (TRIPCARDS-02) — every card dark, a photo card's figure, chip and band
+ *      in one h-80 block, Cebu with none;
  *   T5 the mount — after the experiences mount and before the guest strip; the header
  *      comment says a card per stop, each opening its page (TRIPCARDS-01); the law seat.
  * No live call, no database, no clock.
@@ -365,7 +370,8 @@ test('T4 rendered with the live rows: the h2 "Where I\'ve been, and where I\'m g
   assert.equal((html.match(/<img /g) ?? []).length, 9, 'nine photos on the act — every stop but Cebu (TRIPPHOTO-01 … 09)');
   for (const id of WITH_PHOTO) {
     const image = row(id).image!;
-    assert.match(cardOf(html, id), new RegExp(`<figure><a href="/my-trip/${id}" tabindex="-1" aria-hidden="true"><img src="${esc(image.src)}" alt="${esc(asHtml(image.alt))}" loading="lazy" class="aspect-\\[3/2\\] w-full rounded object-cover"/></a><figcaption class="[^"]*">Photo: Alex Stuart</figcaption></figure>`), `${id}: its photo opens its page`);
+    // TRIPCARDS-02 (2026-11-08): the photo fills its h-80 block — the figure h-full, its link block h-full, the img h-full w-full object-cover (was aspect-[3/2] w-full rounded object-cover); the credit still right after the link, inside the figure.
+    assert.match(cardOf(html, id), new RegExp(`<figure class="h-full"><a href="/my-trip/${id}" tabindex="-1" aria-hidden="true" class="block h-full"><img src="${esc(image.src)}" alt="${esc(asHtml(image.alt))}" loading="lazy" class="h-full w-full object-cover"/></a><figcaption class="[^"]*">Photo: Alex Stuart</figcaption></figure>`), `${id}: its photo opens its page`);
   }
   assert.deepEqual(TRIP.filter((id) => !/<img /.test(cardOf(html, id))), ['cebu-2026-11'], 'only Cebu has no photo yet');
   assert.doesNotMatch(cardOf(html, 'cebu-2026-11'), /<figure|<img/, 'no placeholder box while its image is null');
@@ -412,7 +418,8 @@ test('T4 rendered with the live rows: the h2 "Where I\'ve been, and where I\'m g
     // TRIPCARDS-01d (Alex, 2026-11-06): "Stop 1 / Canggu, Bali, Indonesia / July 1-30, 2026" — the stop number on top of the place, under the photo credit; the label beside it.
     assert.deepEqual(parts, ['stop', ...(['siargao-2026', ...BOOKED].includes(id) ? ['label'] : []), 'stay', 'costs', 'post-link'], `${id}: the stop and what it cost, nothing else`);
     assert.ok((card.includes('<figcaption') ? pos(card, '</figcaption>') : 0) < pos(card, 'data-was-here-stop=') && pos(card, 'data-was-here-stop=') < pos(card, '<h3') && pos(card, '<h3') < pos(card, 'data-was-here-stay='), `${id}: credit → stop → place → dates`);
-    assert.match(card, /<div class="mt-auto pt-4"><a href="[^"]*" class="[^"]*" data-was-here-post-link="true">Read the post →<\/a><\/div><\/article>/, `${id}: the link closes the card, on its bottom edge`);
+    // TRIPCARDS-02 (2026-11-08): the foot inset on the dark card (was mt-auto pt-4) — still the article's last child.
+    assert.match(card, /<div class="mx-3\.5 mb-3\.5 mt-auto pt-4"><a href="[^"]*" class="[^"]*" data-was-here-post-link="true">Read the post →<\/a><\/div><\/article>/, `${id}: the link closes the card, on its bottom edge`);
   }
   for (const [id, place, stay, n] of [['cebu-2026-11', 'Cebu, Philippines', 'Nov 13–20, 2026', 8], ['uluwatu-2026-11', 'Uluwatu, Bali, Indonesia', 'Nov 20 – Dec 1, 2026', 9], ['pererenan-2026-12', 'Pererenan Beach, Bali, Indonesia', 'Dec 1–11, 2026', 10]] as const) {
     const card = cardOf(html, id);
@@ -430,7 +437,8 @@ test('T4 rendered fixtures: a stop that holds a photo, a line, two lists and an 
   assert.deepEqual([...html.matchAll(/data-was-here="([^"]+)"/g)].map((m) => m[1]), ['porto-2026', 'lisbon-2026', 'siargao-2026'], 'trip order, derived');
   assert.deepEqual([...html.matchAll(/data-was-here-stop="(\d+)"/g)].map((m) => m[1]), ['1', '2', '3']);
   const lisbon = cardOf(html, 'lisbon-2026');
-  assert.match(lisbon, /<figure><a href="\/my-trip\/lisbon-2026" tabindex="-1" aria-hidden="true"><img src="\/was-here\/lisbon-2026\.jpg" alt="The 28 tram climbing Alfama" loading="lazy" class="aspect-\[3\/2\] w-full rounded object-cover"\/><\/a>/);
+  // TRIPCARDS-02 (2026-11-08): the figure h-full, its link block h-full, the img h-full w-full object-cover (was aspect-[3/2] w-full rounded object-cover).
+  assert.match(lisbon, /<figure class="h-full"><a href="\/my-trip\/lisbon-2026" tabindex="-1" aria-hidden="true" class="block h-full"><img src="\/was-here\/lisbon-2026\.jpg" alt="The 28 tram climbing Alfama" loading="lazy" class="h-full w-full object-cover"\/><\/a>/);
   assert.match(lisbon, /<figcaption[^>]*>Photo: Alex Stuart</);
   assert.doesNotMatch(lisbon, /data-was-here-label/, 'a stop he has left carries no label (TRIPCARDS-01)');
   assert.match(lisbon, /data-was-here-stay="true">Sep 1–20, 2026</);
@@ -456,7 +464,29 @@ test('T4 rendered fixtures: a stop that holds a photo, a line, two lists and an 
   // A name too long for the card's width stays on one line — it ends in "…" there and keeps its whole words in its title.
   const long = 'A very long name for a guesthouse that would never fit on one line of a card';
   const longHtml = render([LISBON], TODAY, [{ ...FIXTURE_COSTS[0], stay: { kind: 'paid', name: long, amountCents: 90000 } }]);
-  assert.ok(longHtml.includes(`<span class="truncate" title="${long}">${long}</span><span aria-hidden="true">·</span><span class="shrink-0 whitespace-nowrap font-mono text-xs text-text-secondary">$900.00</span>`), 'the name truncates, the amount never shrinks');
+  // TRIPCARDS-02 (2026-11-08): the amount white/80 on the dark card (was text-text-secondary); it still never shrinks.
+  assert.ok(longHtml.includes(`<span class="truncate" title="${long}">${long}</span><span aria-hidden="true">·</span><span class="shrink-0 whitespace-nowrap font-mono text-xs text-white/80">$900.00</span>`), 'the name truncates, the amount never shrinks');
+});
+
+test('T4 TRIPCARDS-02 (Alex, 2026-11-08): the trip.com look — every card dark (bg-text-primary, never bg-white); on a photo card the figure, the stop chip and the band (the place, then the dates) sit inside ONE relative h-80 block, before the costs; Cebu, with no photo, has no h-80 block and no figure — its chip static', () => {
+  const html = render();
+  for (const id of TRIP) {
+    const article = new RegExp(`<article class="([^"]*)" data-was-here="${id}"`).exec(html);
+    assert.ok(article, `${id}: its card`);
+    const classes = article[1].split(' ');
+    assert.ok(classes.includes('bg-text-primary') && !classes.includes('bg-white'), `${id}: a dark card, not a white one`);
+  }
+  for (const id of WITH_PHOTO) {
+    const card = cardOf(html, id);
+    assert.equal((card.match(/class="relative h-80/g) ?? []).length, 1, `${id}: one photo block`);
+    // Each part in its ruled class, whole: a band left transparent (bg-text-primary/84 emits no CSS, the token carries no
+    // alpha) or a credit without z-10 (the band, painted later, would cover it) fails here, not only on the look.
+    assert.match(card, /<div class="relative h-80 shrink-0"><figure class="h-full">(?:(?!<\/figure>).)*<figcaption class="absolute bottom-3 right-3\.5 z-10 font-mono text-\[10px\] text-white\/60">[^<]*<\/figcaption><\/figure><p class="absolute left-3 top-3 inline-flex items-center gap-1\.5 rounded bg-ts-white px-2 py-1 font-mono text-\[11px\] text-text-secondary" data-was-here-stop="\d+">(?:(?!<\/p>).)*<\/p><div class="absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-text-primary px-3\.5 py-3"><h3 class="text-lg font-semibold leading-snug text-white">[^<]*<\/h3><p class="pr-28 font-mono text-xs text-white\/85" data-was-here-stay="true">[^<]*<\/p><\/div><\/div><dl /, `${id}: the figure (its credit on the band), the chip and the band inside one block, then the costs`);
+  }
+  const cebu = cardOf(html, 'cebu-2026-11');
+  assert.doesNotMatch(cebu, /h-80|<figure/, 'Cebu: no photo block and no figure — no box');
+  assert.match(cebu, /^data-was-here="cebu-2026-11" data-was-here-image="none"><div class="flex flex-col items-start gap-1 px-3\.5 pt-3\.5"><p class="mb-2 inline-flex items-center gap-1\.5 rounded bg-ts-white px-2 py-1 font-mono text-\[11px\] text-text-secondary" data-was-here-stop="8">(?:(?!<\/p>).)*<\/p><h3 class="text-lg font-semibold leading-snug text-white">Cebu, Philippines<\/h3><p class="pr-28 font-mono text-xs text-white\/85" data-was-here-stay="true">Nov 13–20, 2026<\/p><\/div><dl /, 'Cebu: the chip, the place and the dates open the card');
+  assert.doesNotMatch(cebu, /absolute/, 'Cebu: nothing drawn over anything — its chip static');
 });
 
 test('T4 the leaf, the words and the section read no clock; the section holds no state, no effect, no typed date, no typed words of the post and no emoji; the near-miss and "No event" words are gone from it', () => {

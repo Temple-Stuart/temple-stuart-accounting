@@ -28,10 +28,14 @@
  * src/lib/tripPostWords.ts, never typed here:
  *   the eyebrow, the h2, the line (each typed once below; Alex rewrites the copy
  *   later); then tripOrder(WAS_HERE), each a card, in this order:
- *     · the image when present (an <img> at 3:2 with its credit under it), linking the
- *       stop's page out of the tab order — and NO <img>, NO placeholder box while null;
+ *     · the image when present, linking the stop's page out of the tab order — and NO <img>,
+ *       NO placeholder box while null. TRIPCARDS-02 (Alex, 2026-11-08): the trip.com look drawn on
+ *       the canvas — the photo tall (one h-80 block), the stop chip on it, the place and the dates
+ *       on a dark band across its foot, the credit on that band's right; with no photo, the chip,
+ *       the place and the dates open the card. The same parts in the same order as TRIPCARDS-01d;
  *     · the stop number, derived from the order ("Stop 1", "Stop 2" …) — TRIPCARDS-01d (Alex,
- *       2026-11-06): on top of the place, under the photo credit — and on the same line the
+ *       2026-11-06): on top of the place, under the photo credit in the DOM (TRIPCARDS-02 draws the
+ *       credit on the band and the stop as a chip on the photo) — and on the same line the
  *       label from the server's day: I'M HERE while he is there, COMING UP before; none once he
  *       has left (Alex: lose "I was here");
  *     · city, country; the stay — "Since <day>" or the window's dateWords;
@@ -43,8 +47,9 @@
  *
  * THE DAY RULE: `today` is the UTC calendar date src/app/page.tsx computed ONCE and
  * passed down; nothing here reads the clock. PAINT: house tokens only, zero new hex
- * — the cream act with white cards and the lavender hairline (the DONE-FOR-YOU
- * idiom), the eyebrow in the mono faint voice. One row of cards; only the row scrolls sideways.
+ * — the cream act with dark cards (TRIPCARDS-02: bg-text-primary, the band solid because the
+ * token carries no alpha; the words on them white, as PRIMARY_CTA's ink), the eyebrow in the
+ * mono faint voice. One row of cards; only the row scrolls sideways.
  * No emoji, no countdown, no urgency words.
  */
 
@@ -63,7 +68,7 @@ export const MY_TRIP_LINE = "Stop by stop, dated, with the whole story where I'v
 /** TRIPPOST-01: the card's link to its stop's page. */
 export const READ_THE_POST = 'Read the post →';
 
-// THE CLASS GRAMMAR — one const, every string whole, house tokens only.
+// THE CLASS GRAMMAR — one const, every string whole, house tokens only (and white for the words on the dark card, TRIPCARDS-02).
 const TRIP = {
   act: 'w-full border-b border-border bg-bg-terminal',
   inner: 'max-w-7xl mx-auto px-4 lg:px-8 py-10',
@@ -74,24 +79,36 @@ const TRIP = {
   // the negative margin meets the inner padding, so the page never scrolls; the thumb is drawn.
   list: '-mx-4 mt-6 flex snap-x snap-proximity gap-4 overflow-x-auto scroll-px-4 px-4 pb-3 lg:-mx-8 lg:scroll-px-8 lg:px-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent',
   // One width, snapping to its start; a column, so the row's cards share one height and every link sits on the bottom edge.
-  card: 'w-[21rem] shrink-0 snap-start flex flex-col rounded-lg border border-border bg-white p-5',
-  image: 'aspect-[3/2] w-full rounded object-cover',
-  credit: 'mt-1 font-mono text-[10px] text-text-faint',
-  // TRIPCARDS-01d: the stop number leads the card's words (under the credit), the label beside it.
-  stop: 'mt-4 first:mt-0 font-mono text-xs text-text-faint',
+  // TRIPCARDS-02 (Alex, 2026-11-08): the trip.com look — a dark card, no border and no padding (each part keeps its own inset), its corners clipping the photo.
+  card: 'w-[21rem] shrink-0 snap-start flex flex-col overflow-hidden rounded-lg bg-text-primary',
+  // TRIPCARDS-02: a card WITH a photo opens with one block, 320px tall, holding in this DOM order the figure, the stop chip and the band.
+  photo: 'relative h-80 shrink-0',
+  figure: 'h-full',
+  photoLink: 'block h-full',
+  image: 'h-full w-full object-cover',
+  // TRIPCARDS-02: the credit sits first (inside the figure) and is drawn on the band's last line, at its right.
+  credit: 'absolute bottom-3 right-3.5 z-10 font-mono text-[10px] text-white/60',
+  // TRIPCARDS-01d: the stop number leads the card's words (after the credit, in the DOM), the label beside it — TRIPCARDS-02: drawn as a chip on the photo's top left.
+  stop: 'absolute left-3 top-3 inline-flex items-center gap-1.5 rounded bg-ts-white px-2 py-1 font-mono text-[11px] text-text-secondary',
   label: 'font-semibold uppercase tracking-wider text-brand-purple',
-  place: 'mt-1 text-lg font-semibold text-text-primary',
-  stay: 'mt-1 font-mono text-xs text-text-secondary',
-  foot: 'mt-auto pt-4',
+  // TRIPCARDS-02: the band across the photo's foot, solid (the canvas draws it at 84%; text-primary is a plain var, so no opacity
+  // modifier) — the place, then the dates, their right padding clear of the credit.
+  band: 'absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-text-primary px-3.5 py-3',
+  place: 'text-lg font-semibold leading-snug text-white',
+  stay: 'pr-28 font-mono text-xs text-white/85',
+  // TRIPCARDS-02: a card WITHOUT a photo (Cebu today) — no block, no figure, no box: the same chip, static here, then the place and the dates.
+  top: 'flex flex-col items-start gap-1 px-3.5 pt-3.5',
+  stopStatic: 'mb-2 inline-flex items-center gap-1.5 rounded bg-ts-white px-2 py-1 font-mono text-[11px] text-text-secondary',
+  foot: 'mx-3.5 mb-3.5 mt-auto pt-4',
   // HOME-FINISH-01 (Alex, 2026-11-08): the post link is the public page's one filled button (src/lib/ds.ts PRIMARY_CTA — 44px, label centred).
   link: PRIMARY_CTA,
-  // TRIPCARDS-01: what it cost — a label column in the mono faint voice; beside it the name and
-  // the amount on ONE line (the name may end in "…", the amount never shrinks).
-  costs: 'mt-4 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5',
-  costLabel: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  costValue: 'flex min-w-0 items-baseline gap-1 text-xs text-text-primary',
+  // TRIPCARDS-01: what it cost — a label column in the mono voice; beside it the name and the amount on ONE
+  // line (the name may end in "…", the amount never shrinks). TRIPCARDS-02: inset on the dark card, its words white.
+  costs: 'mx-3.5 mt-3.5 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5',
+  costLabel: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-white/60',
+  costValue: 'flex min-w-0 items-baseline gap-1 text-xs text-white',
   costName: 'truncate',
-  costAmount: 'shrink-0 whitespace-nowrap font-mono text-xs text-text-secondary',
+  costAmount: 'shrink-0 whitespace-nowrap font-mono text-xs text-white/80',
 } as const;
 
 /** TRIPCARDS-01: the stop's costs, or a loud failure — never a card without them; the registry law refuses a stop with no costs row at build. */
@@ -121,26 +138,43 @@ function Costs({ costs }: { costs: TripCosts }) {
 function Entry({ row, costs, stop, today }: { row: WasHereRow; costs: TripCosts; stop: number; today: string }) {
   const label = stopLabel(row, today);
   const href = tripPostHref(row.id);
+  // TRIPCARDS-02 (Alex, 2026-11-08): the stop, the place and the dates are the same parts in either layout — on the
+  // photo (the chip at its top left, the place and the dates on its band) or, with no photo, opening the card.
+  const stopLine = (className: string) => (
+    <p className={className} data-was-here-stop={stop}>
+      {stopWords(stop)}
+      {label !== null && <><span aria-hidden="true"> · </span><span className={TRIP.label} data-was-here-label>{label}</span></>}
+    </p>
+  );
+  const place = <h3 className={TRIP.place}>{row.city}, {row.country}</h3>;
+  const stay = <p className={TRIP.stay} data-was-here-stay>{stayWords(row)}</p>;
   return (
     <article className={TRIP.card} data-was-here={row.id} data-was-here-image={row.image === null ? 'none' : 'photo'}>
-      {row.image !== null && (
-        <figure>
-          {/* TRIPCARDS-01: the photo opens the stop's page too — out of the tab order; "Read the post" is the link a keyboard meets. */}
-          <a href={href} tabIndex={-1} aria-hidden="true">
-            {/* A plain <img>, the Built-on wall's precedent (Landing.tsx REAL-MARKS): a file under
-                public/, served as-is, no optimizer and no remote loader. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={row.image.src} alt={row.image.alt} loading="lazy" className={TRIP.image} />
-          </a>
-          <figcaption className={TRIP.credit}>{row.image.credit}</figcaption>
-        </figure>
+      {row.image !== null ? (
+        <div className={TRIP.photo}>
+          <figure className={TRIP.figure}>
+            {/* TRIPCARDS-01: the photo opens the stop's page too — out of the tab order; "Read the post" is the link a keyboard meets. */}
+            <a href={href} tabIndex={-1} aria-hidden="true" className={TRIP.photoLink}>
+              {/* A plain <img>, the Built-on wall's precedent (Landing.tsx REAL-MARKS): a file under
+                  public/, served as-is, no optimizer and no remote loader. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={row.image.src} alt={row.image.alt} loading="lazy" className={TRIP.image} />
+            </a>
+            <figcaption className={TRIP.credit}>{row.image.credit}</figcaption>
+          </figure>
+          {stopLine(TRIP.stop)}
+          <div className={TRIP.band}>
+            {place}
+            {stay}
+          </div>
+        </div>
+      ) : (
+        <div className={TRIP.top}>
+          {stopLine(TRIP.stopStatic)}
+          {place}
+          {stay}
+        </div>
       )}
-      <p className={TRIP.stop} data-was-here-stop={stop}>
-        {stopWords(stop)}
-        {label !== null && <><span aria-hidden="true"> · </span><span className={TRIP.label} data-was-here-label>{label}</span></>}
-      </p>
-      <h3 className={TRIP.place}>{row.city}, {row.country}</h3>
-      <p className={TRIP.stay} data-was-here-stay>{stayWords(row)}</p>
       <Costs costs={costs} />
       <div className={TRIP.foot}>
         <a href={href} className={TRIP.link} data-was-here-post-link>{READ_THE_POST}</a>
