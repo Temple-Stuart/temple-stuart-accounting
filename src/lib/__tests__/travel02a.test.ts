@@ -49,8 +49,10 @@ const cells = (id: string): Record<TravelLedgerColumn, string> => {
 // ── C · THE COLUMNS, in Alex's order ─────────────────────────────────────────
 
 test('C the fifteen columns in Alex\'s order — when → kind → classification coarse to fine → who\'s paid → schedule → money → state → id; the head words; every column a VALUE column but ID (a TEXT column)', () => {
-  assert.deepEqual([...TRAVEL_LEDGER_COLUMNS], ['date', 'kind', 'lane', 'trip', 'book', 'account', 'vendor', 'confirmation', 'dates', 'stated', 'settled', 'posted', 'document', 'status', 'id']);
-  assert.deepEqual(TRAVEL_LEDGER_TABLE.map((c) => c.label), ['DATE', 'KIND', 'LANE', 'TRIP', 'BOOK', 'ACCOUNT', 'VENDOR', 'CONFIRMATION', 'DATES', 'STATED', 'SETTLED', 'POSTED', 'DOCUMENT', 'STATUS', 'ID']);
+  // CASH-02a (2026-11-08): PAID WITH — how a typed row was paid — joined the money, between STATED and SETTLED (cash02a.test.ts).
+  // Sixteen columns now; moved, not loosened.
+  assert.deepEqual([...TRAVEL_LEDGER_COLUMNS], ['date', 'kind', 'lane', 'trip', 'book', 'account', 'vendor', 'confirmation', 'dates', 'stated', 'paidWith', 'settled', 'posted', 'document', 'status', 'id']);
+  assert.deepEqual(TRAVEL_LEDGER_TABLE.map((c) => c.label), ['DATE', 'KIND', 'LANE', 'TRIP', 'BOOK', 'ACCOUNT', 'VENDOR', 'CONFIRMATION', 'DATES', 'STATED', 'PAID WITH', 'SETTLED', 'POSTED', 'DOCUMENT', 'STATUS', 'ID']);
   assert.deepEqual(TRAVEL_LEDGER_TABLE.map((c) => c.key), [...TRAVEL_LEDGER_COLUMNS]);
   for (const c of TRAVEL_LEDGER_TABLE) assert.equal(c.kind, c.key === 'id' ? 'text' : 'value', c.key);
   assert.equal(TRAVEL_LEDGER_HEAD_WORDS.stated, 'STATED');
@@ -88,6 +90,8 @@ test('C the hotel in PHP, matched to a USD bank row and posted with two receipts
     confirmation: 'HCC-4421',
     dates: '2026-10-31 → 2026-11-02',
     stated: '12345.00 PHP',
+    // CASH-02a (2026-11-08): a booking's PAID WITH is '—' — how a typed expense was paid; a booking's charge is matched in its own lane.
+    paidWith: '—',
     settled: '$212.34 · 2026-10-21',
     posted: '2026-10-22',
     document: 'the booking + 2 receipts',
@@ -99,8 +103,8 @@ test('C the hotel in PHP, matched to a USD bank row and posted with two receipts
 test('C the flight in USD, unmatched: departs its calendar day, no budget line, the confirmation not yet stated; its voucher negative in its code', () => {
   assert.deepEqual(cells('res-flight-usd'), {
     date: '2026-10-21', kind: 'booking', lane: 'Flight', trip: 'Bali 2026', book: '—', account: BOOKING_WORDS.noBudgetLine, vendor: 'liteapi · AirAsia CNX → DPS',
-    confirmation: BOOKING_WORDS.notYetStated, dates: 'departs 2026-10-31', stated: '$189.50', settled: BOOKING_WORDS.notMatched, posted: BOOKING_WORDS.notPosted,
-    document: THE_BOOKING_WORDS, status: 'confirmed', id: 'res-flight-usd',
+    confirmation: BOOKING_WORDS.notYetStated, dates: 'departs 2026-10-31', stated: '$189.50', paidWith: '—', settled: BOOKING_WORDS.notMatched, posted: BOOKING_WORDS.notPosted,
+    document: THE_BOOKING_WORDS, status: 'confirmed', id: 'res-flight-usd', // CASH-02a (2026-11-08): paidWith '—' on a booking.
   });
   assert.equal(BOOKING_WORDS.noBudgetLine, 'no budget line');
   assert.equal(BOOKING_WORDS.notYetStated, 'not yet stated');
@@ -121,8 +125,8 @@ test('C the flight in USD, unmatched: departs its calendar day, no budget line, 
 test('C the cancelled hotel, unattached, named by the one lane reader: its refund stated and negative, its fee settled and positive, its amountless voucher said', () => {
   assert.deepEqual(cells('res-hotel-cancelled'), {
     date: '2026-10-23', kind: 'booking', lane: 'Hotel', trip: UNATTACHED_WORDS, book: 'Business', account: 'B-6100', vendor: 'liteapi · Hotel booking HCC-7',
-    confirmation: 'HCC-7', dates: '2026-11-10 → 2026-11-12', stated: '$300.00', settled: '$300.00 · 2026-10-18', posted: BOOKING_WORDS.notPosted,
-    document: THE_BOOKING_WORDS, status: 'cancelled', id: 'res-hotel-cancelled',
+    confirmation: 'HCC-7', dates: '2026-11-10 → 2026-11-12', stated: '$300.00', paidWith: '—', settled: '$300.00 · 2026-10-18', posted: BOOKING_WORDS.notPosted,
+    document: THE_BOOKING_WORDS, status: 'cancelled', id: 'res-hotel-cancelled', // CASH-02a (2026-11-08): paidWith '—' on a booking.
   });
   assert.equal(UNATTACHED_WORDS, 'unattached');
   const refund = cells('me-refund');
@@ -146,7 +150,8 @@ test('C the cancelled hotel, unattached, named by the one lane reader: its refun
 test('C the unattached activity the vendor priced not: price not stated, no dates, pending in the status words', () => {
   assert.deepEqual(cells('res-activity'), {
     date: '2026-10-24', kind: 'booking', lane: 'Activity', trip: 'unattached', book: '—', account: 'no budget line', vendor: 'viator · Ubud Rice Terrace Walk',
-    confirmation: 'VT-1', dates: '—', stated: 'price not stated', settled: 'not matched', posted: 'not posted', document: 'the booking', status: 'pending with the vendor', id: 'res-activity',
+    confirmation: 'VT-1', dates: '—', stated: 'price not stated', paidWith: '—', settled: 'not matched', posted: 'not posted', document: 'the booking', status: 'pending with the vendor', id: 'res-activity',
+    // CASH-02a (2026-11-08): paidWith '—' on a booking.
   });
   // An unknown recorded status renders as itself — never a guess (bookingRow.ts' rule).
   assert.equal(travelLedgerRows([{ ...ACTIVITY_UNPRICED, status: 'mystery_state' }], VIEWER_ZONE)[0].status, 'mystery_state');
@@ -265,14 +270,16 @@ test('C BOOK is the linked budget line\'s COA code letter through the one scheme
 test('F the CSV through tableCsv: the head words, one line per row shown, DATE the instant, the figures bare with their code, CRLF', () => {
   const csv = travelLedgerCsv(rows);
   const lines = csv.split('\r\n');
-  assert.equal(lines[0], 'DATE,KIND,LANE,TRIP,BOOK,ACCOUNT,VENDOR,CONFIRMATION,DATES,STATED,SETTLED,POSTED,DOCUMENT,STATUS,ID');
+  // CASH-02a (2026-11-08): PAID WITH follows STATED — '' on every booking's and money event's line (a booking states no way it
+  // was paid: its charge is matched in its own lane). Each line below gains that one empty field; moved, not loosened.
+  assert.equal(lines[0], 'DATE,KIND,LANE,TRIP,BOOK,ACCOUNT,VENDOR,CONFIRMATION,DATES,STATED,PAID WITH,SETTLED,POSTED,DOCUMENT,STATUS,ID');
   assert.equal(lines[lines.length - 1], '', 'the last line ends CRLF too');
   assert.equal(lines.length, 2 + rows.length);
-  assert.equal(lines[8], '2026-10-20T20:30:00.000Z,booking,Hotel,Bali 2026,Personal,P-9200,liteapi · Hotel PHP Proof,HCC-4421,2026-10-31 → 2026-11-02,12345.00 PHP,212.34 USD · 2026-10-21,2026-10-22,the booking + 2 receipts,confirmed,res-hotel-php');
-  assert.equal(lines[6], '2026-10-21T00:00:00.000Z,booking,Flight,Bali 2026,,no budget line,liteapi · AirAsia CNX → DPS,,departs 2026-10-31,189.50 USD,,,the booking,confirmed,res-flight-usd'.replace(',no budget line,', ',,'));
-  assert.equal(lines[3], '2026-10-25T09:00:00.000Z,refund,Hotel,unattached,Business,B-6100,liteapi · Hotel booking HCC-7,HCC-7,2026-11-10 → 2026-11-12,-300.00 USD,,,,stated,me-refund');
-  assert.equal(lines[4], '2026-10-25T09:00:00.000Z,fee,Hotel,unattached,Business,B-6100,liteapi · Hotel booking HCC-7,HCC-7,2026-11-10 → 2026-11-12,25.00 USD,25.00 USD · 2026-10-29,,,settled,me-fee');
-  assert.equal(lines[5], '2026-10-25T09:00:01.000Z,voucher,Hotel,unattached,Business,B-6100,liteapi · Hotel booking HCC-7,HCC-7,2026-11-10 → 2026-11-12,,,,,stated,me-voucher-null');
+  assert.equal(lines[8], '2026-10-20T20:30:00.000Z,booking,Hotel,Bali 2026,Personal,P-9200,liteapi · Hotel PHP Proof,HCC-4421,2026-10-31 → 2026-11-02,12345.00 PHP,,212.34 USD · 2026-10-21,2026-10-22,the booking + 2 receipts,confirmed,res-hotel-php');
+  assert.equal(lines[6], '2026-10-21T00:00:00.000Z,booking,Flight,Bali 2026,,no budget line,liteapi · AirAsia CNX → DPS,,departs 2026-10-31,189.50 USD,,,,the booking,confirmed,res-flight-usd'.replace(',no budget line,', ',,'));
+  assert.equal(lines[3], '2026-10-25T09:00:00.000Z,refund,Hotel,unattached,Business,B-6100,liteapi · Hotel booking HCC-7,HCC-7,2026-11-10 → 2026-11-12,-300.00 USD,,,,,stated,me-refund');
+  assert.equal(lines[4], '2026-10-25T09:00:00.000Z,fee,Hotel,unattached,Business,B-6100,liteapi · Hotel booking HCC-7,HCC-7,2026-11-10 → 2026-11-12,25.00 USD,,25.00 USD · 2026-10-29,,,settled,me-fee');
+  assert.equal(lines[5], '2026-10-25T09:00:01.000Z,voucher,Hotel,unattached,Business,B-6100,liteapi · Hotel booking HCC-7,HCC-7,2026-11-10 → 2026-11-12,,,,,,stated,me-voucher-null');
   assert.doesNotMatch(csv, /\$/, 'no symbol in the CSV — the figure with its code');
   assert.match(code(LEAF), /export const travelLedgerCsv = \(rows: readonly TravelLedgerRow\[\]\): string => tableCsv\(TRAVEL_LEDGER_TABLE, rows\);/);
 });

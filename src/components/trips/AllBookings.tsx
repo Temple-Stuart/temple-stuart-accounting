@@ -8,7 +8,7 @@
  * newest first — guest rows never appear). TRAVEL-02a: the same GET, read for its `ledger`
  * facts, drawn as the TRAVEL LEDGER in THE table idiom — the shared DataTable (components/table)
  * over the leaf's spec (src/lib/reservations/travelLedger.ts TRAVEL_LEDGER_TABLE): one row
- * per booking and under it one per money event, the fifteen columns in Alex's order, each
+ * per booking and under it one per money event, the fifteen columns in Alex's order (sixteen since CASH-02a), each
  * column sortable and filterable, the rows shown downloadable as a CSV (the DATE cells
  * instants), and the two sum lines per currency under the table. The DATE column is the
  * instant drawn in the VIEWER's day (the browser's zone, read on the client). A booking's
@@ -34,6 +34,11 @@
  * malformed answer: the leaf's parse (travelLedger.ts travelLedgerReadsOf) fails the read by
  * name (missingListWords) into the same error state — never an empty table. A list that is
  * truly empty stays a list.
+ *
+ * CASH-02a (Alex, 2026-11-08) — HOW A TYPED ROW WAS PAID. A sixteenth column, PAID WITH (the leaf's words — 'cash',
+ * 'from an account', 'not stated'; '—' on a booking's row). A cash-paid row offers NO match door — the leaf's
+ * offersMatch decides, and the links route refuses one too — and its SETTLED says 'cash — not posted'; an 'account' row
+ * and a not-stated one keep "link payment".
  */
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
@@ -44,7 +49,7 @@ import LinkPicker from '@/components/workbench/operations/ledger/LinkPicker';
 import { LINK_PAYMENT_WORDS } from '@/lib/operations/billPay';
 import { BOOKING_WORDS } from '@/lib/reservations/bookingRow';
 import {
-  TRAVEL_LEDGER_CSV_FILE_NAME, TRAVEL_LEDGER_TABLE, cellWordsOf, ledgerRowsOf, settledSumLineWords, statedSumLineWords, travelLedgerReadsOf,
+  TRAVEL_LEDGER_CSV_FILE_NAME, TRAVEL_LEDGER_TABLE, cellWordsOf, ledgerRowsOf, offersMatch, settledSumLineWords, statedSumLineWords, travelLedgerReadsOf,
   type TravelLedgerColumn, type TravelLedgerReads, type TravelLedgerRow,
 } from '@/lib/reservations/travelLedger';
 import { TRAVEL_EXPENSES_UNREADABLE_WORDS, VOID_WORDS } from '@/lib/travel/travelExpense';
@@ -139,6 +144,7 @@ export default function AllBookings() {
               {cell(b, 'confirmation', b.confirmation === null, `${cellClass} font-mono`)}
               {cell(b, 'dates', b.dates === null, `${cellClass} whitespace-nowrap`)}
               {cell(b, 'stated', b.stated === null, `${moneyClass} ${b.stated === null ? '' : 'font-semibold text-text-primary'}`)}
+              {cell(b, 'paidWith', b.paidWith === null, `${cellClass} whitespace-nowrap`)}
               {cell(b, 'settled', b.settled.length === 0, `${moneyClass} ${b.settled.length === 0 ? '' : 'font-semibold text-text-primary'}`)}
               {cell(b, 'posted', b.posted.length === 0, `${cellClass} whitespace-nowrap`)}
               {cell(b, 'document', b.receipts === null)}
@@ -162,16 +168,17 @@ export default function AllBookings() {
                     )}
                   </div>
                 )}
-                {/* TRAVEL-02b: a typed row's two doors — the one link picker (manual only), and its void while it is not voided. */}
+                {/* TRAVEL-02b: a typed row's two doors — the one link picker (manual only), and its void while it is not voided.
+                    CASH-02a: a cash-paid row offers no link picker (offersMatch). */}
                 {b.source === 'typed' && (
                   <div className="mt-1 flex flex-wrap gap-1 font-sans text-xs">
-                    <button type="button" className={chipClass} onClick={() => setPicking(picking === b.id ? null : b.id)} aria-expanded={picking === b.id} data-travel-expense-link={b.id}>{LINK_PAYMENT_WORDS}</button>
+                    {offersMatch(b) && <button type="button" className={chipClass} onClick={() => setPicking(picking === b.id ? null : b.id)} aria-expanded={picking === b.id} data-travel-expense-link={b.id}>{LINK_PAYMENT_WORDS}</button>}
                     {!b.voided && <button type="button" className={chipClass} onClick={() => setVoiding(voiding === b.id ? null : b.id)} aria-expanded={voiding === b.id} data-travel-expense-void={b.id}>{VOID_WORDS}</button>}
                   </div>
                 )}
               </td>
             </tr>
-            {b.source === 'typed' && picking === b.id && (
+            {offersMatch(b) && picking === b.id && (
               <tr className="border-t border-border" data-travel-expense-picker={b.id}>
                 <td colSpan={TRAVEL_LEDGER_TABLE.length} className={cellClass}>
                   <LinkPicker kind="travel_expense" id={b.id} instant={null} near={b.day} onChanged={readAgain} onClose={closePicker} />

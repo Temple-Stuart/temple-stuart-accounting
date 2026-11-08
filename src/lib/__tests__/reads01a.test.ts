@@ -55,7 +55,8 @@ const RESERVATION_ROWS = {
 const EXPENSE_ROWS = {
   travel_expenses: [{
     id: 'e1', kind: 'visa', paid_on: at('2026-11-20T00:00:00.000Z'), amount_minor: 35000, currency: 'PHP', vendor: 'READS-01a BI Manila', note: null,
-    coa_code: null, voided_at: null, void_reason: null, created_at: at('2026-11-20T03:00:00.000Z'), trip: null,
+    // CASH-02a (2026-11-08): EXPENSE_SELECT reads paid_with — the row as the database answers it now (typed before CASH-02a: NULL).
+    coa_code: null, paid_with: null, voided_at: null, void_reason: null, created_at: at('2026-11-20T03:00:00.000Z'), trip: null,
   }],
   planned_item_links: [{ target_id: 'e1', journal_entry: { id: 'je2', date: at('2026-11-20T00:00:00.000Z'), source_type: 'plaid_txn', source_id: 'tx1', status: 'posted', is_reversal: false, reversed_by_entry_id: null } }],
   trips: [{ id: 'trip1', name: 'Manila' }],

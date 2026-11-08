@@ -99,14 +99,16 @@ test('T2 the schema\'s need names the CHECK, the seven words (\'close\' legacy) 
   assert.match(schema, new RegExp(`prisma/migrations/${MIGRATION_DIR}`));
   assert.match(schema, /prisma\/migrations\/20261108111500_services_01_bookkeeping_need/);
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration before the newest (CRM-01a followed)');
-  assert.equal(dirs[dirs.length - 5], '20261103200000_travel_02c_stay_link_living_baselines');
+  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration before the newest (CRM-01a followed)');
+  assert.equal(dirs[dirs.length - 6], '20261103200000_travel_02c_stay_link_living_baselines');
   // CRM-01a (2026-11-07): crm_contacts, the CRM's working table, followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 3], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
+  assert.equal(dirs[dirs.length - 4], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
   // CRM-02 (2026-11-07): crm_forms and crm_form_submissions, the intake form's two tables, followed — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 2], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 3], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
   // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 1], '20261108111500_services_01_bookkeeping_need', 'the newest migration');
+  assert.equal(dirs[dirs.length - 2], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
+  // CASH-02a (2026-11-08): travel_expenses gains paid_with — every pin above moved by one more.
+  assert.equal(dirs[dirs.length - 1], '20261108120000_cash_02a_paid_with', 'the newest migration');
 });
 
 // ── T3 · THE SERVER PAGE ─────────────────────────────────────────────────────

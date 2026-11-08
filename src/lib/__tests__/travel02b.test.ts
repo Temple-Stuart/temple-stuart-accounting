@@ -58,7 +58,9 @@ const cells = (row: TravelLedgerRow): Record<TravelLedgerColumn, string> => {
   for (const c of TRAVEL_LEDGER_COLUMNS) out[c] = cellWordsOf(row, c);
   return out;
 };
-const VISA_BODY = { kind: 'visa', paid_on: '2026-10-20', amount_minor: 350000, currency: 'PHP', vendor: 'Bureau of Immigration' };
+// CASH-02a (2026-11-08): paid_with is required on every new expense — the body states it ('account'), and reads back with it.
+// Every refusal below still comes first: paid_with is the body rule's last field. Moved, not loosened.
+const VISA_BODY = { kind: 'visa', paid_on: '2026-10-20', amount_minor: 350000, currency: 'PHP', vendor: 'Bureau of Immigration', paid_with: 'account' };
 
 // ── A · THE TABLE ────────────────────────────────────────────────────────────
 
@@ -143,7 +145,8 @@ test('B the one writer: the links POST reads the expense user-scoped after the o
   const post = r.slice(r.indexOf('export async function POST('), r.indexOf('export async function DELETE('));
   const owns = post.indexOf('if (!(await ownsTarget(targetOwnerQuery(t.kind, t.id, user.id)))) {');
   const block = post.indexOf("if (t.kind === 'travel_expense') {");
-  const read = post.indexOf("const expense = await prisma.travel_expenses.findFirst({ where: { id: t.id, user_id: user.id }, select: { vendor: true, voided_at: true, void_reason: true } });");
+  // CASH-02a (2026-11-08): the read selects paid_with too — the cash refusal follows the voided one (cash02a.test.ts). Moved, not loosened.
+  const read = post.indexOf("const expense = await prisma.travel_expenses.findFirst({ where: { id: t.id, user_id: user.id }, select: { vendor: true, voided_at: true, void_reason: true, paid_with: true } });");
   const refused = post.indexOf('if (expense.voided_at !== null) return NextResponse.json({ error: voidedExpenseLinkWords(expense.vendor, expense.voided_at, expense.void_reason as string) }, { status: 409 });');
   const posting = post.indexOf('const entry = await prisma.journal_entries.findFirst({');
   const reversed = post.indexOf('if (isReversedPosting(entry)) return NextResponse.json({ error: reversedRefusalWords(entry) }, { status: 409 });');
@@ -186,7 +189,7 @@ test('B the picker\'s door: LinkPicker takes no instant for a kind that carries 
 
 test('C the body rule: a visa in PHP 3,500.00 is 350000 minor units and reads back as sent; every field is refused by name — the kind, the day, the amount, the currency (usd is not USD), a blank vendor, an unknown field, a blank note, trip or code', () => {
   const ok = travelExpenseBodyRule(VISA_BODY);
-  assert.deepEqual(ok, { ok: true, value: { kind: 'visa', paid_on: '2026-10-20', amount_minor: 350000, currency: 'PHP', vendor: 'Bureau of Immigration', note: null, trip_id: null, coa_code: null } });
+  assert.deepEqual(ok, { ok: true, value: { kind: 'visa', paid_on: '2026-10-20', amount_minor: 350000, currency: 'PHP', vendor: 'Bureau of Immigration', note: null, trip_id: null, coa_code: null, paid_with: 'account' } });
   const refused = (body: unknown, field: string, words: string) => assert.deepEqual(travelExpenseBodyRule(body), { ok: false, field, words });
   refused(null, 'body', NOT_AN_OBJECT_WORDS);
   refused([VISA_BODY], 'body', NOT_AN_OBJECT_WORDS);
@@ -273,7 +276,8 @@ test('C the routes: the /api/reservations gate; every query names the caller; a 
   assert.match(route, /const named = chartAccountRule\(v\.coa_code, chartRowsOf\(chart\)\);\n\s*if \(!named\.ok\) return NextResponse\.json\(\{ error: named\.words, field: 'coa_code' \}, \{ status: 409 \}\);/);
   assert.match(route, /const read = travelExpenseBodyRule\(body\);\n\s*if \(!read\.ok\) return NextResponse\.json\(\{ error: read\.words, field: read\.field \}, \{ status: 400 \}\);/);
   assert.match(route, /user_id: user\.id,\n\s*kind: v\.kind,\n\s*paid_on: new Date\(`\$\{v\.paid_on\}T00:00:00\.000Z`\),\n\s*amount_minor: v\.amount_minor,\n\s*currency: v\.currency,/);
-  assert.match(route, /coa_code: account,\n\s*created_by: user\.email,/);
+  // CASH-02a (2026-11-08): paid_with is written as sent, between the account and the writer. Moved, not loosened.
+  assert.match(route, /coa_code: account,\n\s*paid_with: v\.paid_with,\n\s*created_by: user\.email,/);
   // The GET: the links by kind and caller, each posting with its state (a reversed one pays nothing), its bank row through the
   // caller's accounts, its current receipts — and the form's two lists from the same chart the POST reads.
   assert.match(answer, /where: \{ user_id: userId, target_kind: 'travel_expense', target_id: \{ in: ids \}, journal_entry: \{ userId: userId \} \},/);
@@ -322,13 +326,14 @@ test('C the trip DELETE: a trip a typed expense names (RESTRICT, never deleted) 
 test('D a typed row in the same columns: DATE its day, KIND, LANE —, TRIP, BOOK/ACCOUNT through the one scheme (else — / no account), VENDOR as typed, CONFIRMATION and DATES —, STATED in its code, SETTLED, POSTED, DOCUMENT typed, STATUS stated', () => {
   assert.deepEqual(cells(rowOf(typedRows, 'te-visa')), {
     date: '2026-10-20', kind: 'visa', lane: '—', trip: 'unattached', book: '—', account: NO_ACCOUNT_WORDS, vendor: 'Bureau of Immigration', confirmation: '—', dates: '—',
-    stated: '3500.00 PHP', settled: 'not matched', posted: 'not posted', document: TYPED_WORDS, status: 'stated', id: 'te-visa',
+    // CASH-02a (2026-11-08): PAID WITH — every fixture row was typed before CASH-02a: 'not stated'. Moved, not loosened.
+    stated: '3500.00 PHP', paidWith: 'not stated', settled: 'not matched', posted: 'not posted', document: TYPED_WORDS, status: 'stated', id: 'te-visa',
   });
   assert.equal(NO_ACCOUNT_WORDS, 'no account');
   assert.equal(TYPED_WORDS, 'typed');
   assert.deepEqual(cells(rowOf(typedRows, 'te-esim')), {
     date: '2026-10-21', kind: 'eSIM', lane: '—', trip: 'Bali 2026', book: 'Personal', account: 'P-9200', vendor: 'Airalo', confirmation: '—', dates: '—',
-    stated: '$18.00', settled: '$18.00 · 2026-10-21', posted: '2026-10-22', document: 'typed + 1 receipt', status: 'stated', id: 'te-esim',
+    stated: '$18.00', paidWith: 'not stated', settled: '$18.00 · 2026-10-21', posted: '2026-10-22', document: 'typed + 1 receipt', status: 'stated', id: 'te-esim',
   });
   assert.equal(rowOf(typedRows, 'te-esim').source, 'typed');
   assert.deepEqual(KIND_WORDS.visa, 'visa');
@@ -411,9 +416,10 @@ test('D the DAY rule: a typed row\'s DATE is its paid_on — the same day in eve
 
 test('D the CSV: a typed row\'s line — its day, its kind word, the figures bare with their code, SETTLED with its day, the document and status words', () => {
   const lines = travelLedgerCsv([rowOf(typedRows, 'te-visa'), rowOf(typedRows, 'te-esim'), rowOf(typedRows, 'te-other')]).split('\r\n');
-  assert.equal(lines[1], '2026-10-20,visa,,unattached,,,Bureau of Immigration,,,3500.00 PHP,,,typed,stated,te-visa');
-  assert.equal(lines[2], '2026-10-21,eSIM,,Bali 2026,Personal,P-9200,Airalo,,,18.00 USD,18.00 USD · 2026-10-21,2026-10-22,typed + 1 receipt,stated,te-esim');
-  assert.equal(lines[3], '2026-10-23,other,,unattached,Business,B-6100,Grab,,,50.00 THB,50.00 THB · 2026-10-23,2026-10-23,typed,voided — typed twice,te-other');
+  // CASH-02a (2026-11-08): PAID WITH follows STATED — '' for a row typed before CASH-02a (not stated; every absence in the CSV is '').
+  assert.equal(lines[1], '2026-10-20,visa,,unattached,,,Bureau of Immigration,,,3500.00 PHP,,,,typed,stated,te-visa');
+  assert.equal(lines[2], '2026-10-21,eSIM,,Bali 2026,Personal,P-9200,Airalo,,,18.00 USD,,18.00 USD · 2026-10-21,2026-10-22,typed + 1 receipt,stated,te-esim');
+  assert.equal(lines[3], '2026-10-23,other,,unattached,Business,B-6100,Grab,,,50.00 THB,,50.00 THB · 2026-10-23,2026-10-23,typed,voided — typed twice,te-other');
   assert.doesNotMatch(lines.join('\n'), /\$/, 'no symbol in the CSV');
   // ESIM_USD and the split visa keep their own figures; nothing is converted.
   assert.equal(ESIM_USD.amount_minor + OTHER_REVERSED.amount_minor + VISA_SPLIT.amount_minor, 9800);

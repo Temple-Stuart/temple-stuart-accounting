@@ -18,6 +18,10 @@ import { chartChoicesOf, type ChartRowIn } from '@/lib/travel/travelExpense';
  * client, no clock. The answer is WIRE-SHAPED as built — wireOf turns the DAY into 'YYYY-MM-DD' and the instants into
  * ISO text, the bank amounts are Float columns, the figures Int, no Decimal, no BigInt, no undefined — so the leaf that
  * reads it in-process (travelLedger.ts travelLedgerReadsOf) sees exactly what it saw through the JSON wire.
+ *
+ * CASH-02a (Alex, 2026-11-08): the select reads paid_with and every row carries it — a REQUIRED field, 'cash',
+ * 'account' or NULL (a row typed before CASH-02a); NULL is carried as NULL, and turns into words only in the words
+ * function (travelExpense.ts paidWithWords). A widened read — the answer gains the one field.
  */
 
 type Db = Pick<PrismaClient, 'travel_expenses' | 'planned_item_links' | 'trips' | 'chart_of_accounts' | 'transactions' | 'source_documents'>;
@@ -26,7 +30,7 @@ const isoDayOf = (d: Date): string => d.toISOString().slice(0, 10);
 
 /** The row's own columns, as both verbs answer them — the trip with its name. */
 export const EXPENSE_SELECT = {
-  id: true, kind: true, paid_on: true, amount_minor: true, currency: true, vendor: true, note: true, coa_code: true,
+  id: true, kind: true, paid_on: true, amount_minor: true, currency: true, vendor: true, note: true, coa_code: true, paid_with: true,
   voided_at: true, void_reason: true, created_at: true, trip: { select: { id: true, name: true } },
 } as const;
 
@@ -35,7 +39,7 @@ export const CHART_SELECT = { code: true, name: true, entity: { select: { entity
 
 type ExpenseRow = {
   id: string; kind: string; paid_on: Date; amount_minor: number; currency: string; vendor: string; note: string | null; coa_code: string | null;
-  voided_at: Date | null; void_reason: string | null; created_at: Date; trip: { id: string; name: string } | null;
+  paid_with: string | null; voided_at: Date | null; void_reason: string | null; created_at: Date; trip: { id: string; name: string } | null;
 };
 
 /** One row on the wire: the DAY as 'YYYY-MM-DD', the instants as ISO, its postings as read. */
@@ -50,6 +54,7 @@ export function wireOf(row: ExpenseRow, postings: TravelExpenseIn['postings']): 
     note: row.note,
     trip: row.trip === null ? null : { id: row.trip.id, name: row.trip.name },
     coa_code: row.coa_code,
+    paid_with: row.paid_with,
     voided_at: row.voided_at === null ? null : row.voided_at.toISOString(),
     void_reason: row.void_reason,
     created_at: row.created_at.toISOString(),

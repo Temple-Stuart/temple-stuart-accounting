@@ -20,11 +20,13 @@ import { CHART_SELECT, EXPENSE_SELECT, chartRowsOf, travelExpensesAnswerOf, wire
  *        and `accounts` are the form's two lists — the caller's trips, and the chart accounts the POST accepts
  *        (travelExpense.ts chartChoicesOf over the same chart the POST reads): what the form offers is what the route
  *        takes.
- * POST { kind, paid_on, amount_minor, currency, vendor, note?, trip_id?, coa_code? } → 201 { expense }. The body rule
+ * POST { kind, paid_on, amount_minor, currency, vendor, note?, trip_id?, coa_code?, paid_with } → 201 { expense }. The body rule
  *        (travelExpense.ts travelExpenseBodyRule) refuses every field by name, an unknown one too (400); a trip_id that
  *        is not the caller's trip → 404 by name (the defensive 404 — it does not say whether the trip exists); a
  *        coa_code that is not one row of the caller's chart → 409 naming the code. Nothing is defaulted: no currency,
  *        no trip, no account.
+ *        CASH-02a (Alex, 2026-11-08): paid_with — 'cash' or 'account' — is REQUIRED on every new expense (absent, or any
+ *        other value, a 400 by name) and written as sent; the FREEZE trigger keeps it with the row. Never defaulted.
  *
  * THE GATE (the /api/reservations pattern): getVerifiedEmail → 401; the users row → 404; the middleware's 307 for a
  * guest comes first. Every query names the caller (user_id / userId = user.id). No paid call, no vendor call. No PUT,
@@ -88,6 +90,7 @@ export async function POST(request: NextRequest) {
       note: v.note,
       trip_id: v.trip_id,
       coa_code: account,
+      paid_with: v.paid_with,
       created_by: user.email,
     },
     select: EXPENSE_SELECT,

@@ -48,6 +48,7 @@
  * name (travelExpense.ts voidedExpenseLinkWords), nothing written. A reversed posting pays nothing (as above); one
  * posting is linked to at most one item (the unique index). A voided expense's links stay readable — the void route
  * never unlinks — and the DELETE below unlinks one as it unlinks any other.
+ * CASH-02a (Alex, 2026-11-08): a cash-paid travel expense is refused by name after the voided one (409, cashExpenseLinkWords).
  *
  * TRAVEL-02c (Alex, 2026-11-03, ruling A). A seventh kind, 'stay' — ANY charge linked by hand to the stay it paid for
  * (operations_stays; no instant — the link is to the stay, not its dates). The stay must exist and be the caller's (the
@@ -62,7 +63,7 @@ import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { LINKED_POSTING_SELECT, PAYING_POSTING_WHERE, REVERSED_POSTING_WHERE, amountCentsOf, isReversedPosting, reversedRefusalWords } from '@/lib/calendar/postingAmount';
 import { OCCURRENCE_ROUTINE_SELECT, occurrenceCheck } from '@/lib/operations/linkOccurrence';
 import { LINKABLE_KINDS, isLinkableKind, requiresInstant, targetOwnerQuery, type LinkableKind, type TargetOwnerQuery } from '@/lib/calendar/linkKeys';
-import { voidedExpenseLinkWords } from '@/lib/travel/travelExpense';
+import { cashExpenseLinkWords, isPaidInCash, voidedExpenseLinkWords } from '@/lib/travel/travelExpense';
 import { stayRowOf } from '@/lib/operations/stay';
 import { stayWords } from '@/lib/operations/stayCosts';
 
@@ -230,11 +231,13 @@ export async function POST(request: NextRequest) {
   }
 
   // TRAVEL-02b (ruling B): a travel expense takes a payment while it is not voided — read user-scoped, as the ownership read
-  // was; a voided one is refused by name (409), nothing written.
+  // was; a voided one is refused by name (409), nothing written. CASH-02a (D7): a cash-paid one is never matched to a bank
+  // row — refused by name (409) after the voided refusal, nothing written, no audit row.
   if (t.kind === 'travel_expense') {
-    const expense = await prisma.travel_expenses.findFirst({ where: { id: t.id, user_id: user.id }, select: { vendor: true, voided_at: true, void_reason: true } });
+    const expense = await prisma.travel_expenses.findFirst({ where: { id: t.id, user_id: user.id }, select: { vendor: true, voided_at: true, void_reason: true, paid_with: true } });
     if (!expense) return NextResponse.json({ error: 'No such item' }, { status: 404 });
     if (expense.voided_at !== null) return NextResponse.json({ error: voidedExpenseLinkWords(expense.vendor, expense.voided_at, expense.void_reason as string) }, { status: 409 });
+    if (isPaidInCash(expense.paid_with)) return NextResponse.json({ error: cashExpenseLinkWords(expense.vendor) }, { status: 409 });
   }
 
   // TRAVEL-02c (ruling A): a stay is read user-scoped, as the ownership read was — its words name it in the link's audit.

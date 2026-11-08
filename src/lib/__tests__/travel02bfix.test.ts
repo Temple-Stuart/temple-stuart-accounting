@@ -103,7 +103,8 @@ test('A the screen reads both answers through the parse, into its one error stat
 // ── B · TRIMMED ─────────────────────────────────────────────────────────────
 
 test('B the vendor and the note are kept trimmed — STAY-01\'s rule for a place; the length is the trimmed text\'s; one that trims to nothing is refused as blank', () => {
-  const VISA = { kind: 'visa', paid_on: '2026-10-20', amount_minor: 350000, currency: 'PHP', vendor: '  Airalo  ' };
+  // CASH-02a (2026-11-08): a new expense states how it was paid — the body carries paid_with; the trims below are unchanged.
+  const VISA = { kind: 'visa', paid_on: '2026-10-20', amount_minor: 350000, currency: 'PHP', vendor: '  Airalo  ', paid_with: 'account' };
   const plain = travelExpenseBodyRule(VISA);
   assert.ok(plain.ok && plain.value.vendor === 'Airalo', 'vendor "  Airalo  " is kept "Airalo"');
   const noted = travelExpenseBodyRule({ ...VISA, note: '  x ' });
