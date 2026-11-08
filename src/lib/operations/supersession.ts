@@ -36,6 +36,43 @@ export interface Supersession {
   readonly more: number;
 }
 
+/**
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling A): what the range's blocks read (travelBlocksReads.ts) left out, counted by name —
+ * declared here so the report's pure half can carry it (the purity law lets it import no file that names the Prisma client).
+ */
+export interface TravelBlocksLeftOut {
+  /** The band: planned rows with recurrence 'daily'. */
+  readonly plannedDaily: number;
+  /** Planned 'once' rows with neither instant. */
+  readonly plannedNoInstants: number;
+  /** Planned 'once' rows with one of the two instants — cannot supersede. */
+  readonly plannedOneInstant: number;
+  /** Segments with neither instant. */
+  readonly segmentsNoInstants: number;
+  /** Segments with one of the two instants. */
+  readonly segmentsOneInstant: number;
+}
+
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling B): THE WORDS BOTH SCREENS SPEAK — moved VERBATIM from dayCard.ts (TRAVEL-01b): the
+// kind word before a block's name, the planned category → kind rule the blocks read applies, a planned stop's name; the
+// card imports them. plannedNameOf's parameter is the two fields it reads, as a structural type (PlannedRow stays in the
+// travel leaf; this leaf keeps its one import).
+
+/** The kind word, as the card prints it before the name. */
+export const TRAVEL_KIND_WORDS: Readonly<Record<TravelKind, string>> = {
+  flight: 'Flight', transfer: 'Transfer', activity: 'Activity', lodging: 'Stay', other: 'Travel', 'check-in': 'Check-in', 'check-out': 'Check-out',
+};
+
+/** The planned categories that are their own kind; any other category is 'other'. */
+const PLANNED_KINDS: readonly TravelKind[] = ['flight', 'transfer', 'activity', 'lodging'];
+export const plannedKindOf = (category: string): TravelKind => {
+  const kind = PLANNED_KINDS.find((k) => k === category);
+  return kind === undefined ? 'other' : kind;
+};
+
+/** A planned row's name: the clean name as captured, else the legacy title — the leaf's said[] names the absence on the stop. */
+export const plannedNameOf = (row: { readonly vendorName: string | null; readonly vendor: string }): string => (row.vendorName !== null ? row.vendorName : row.vendor);
+
 /** 'HH:MM' of a @db.Time value ('1970-01-01THH:MM:SS.000Z'), as the week's clockOf. */
 export const clockOf = (time: string): string => time.slice(11, 16);
 
@@ -100,6 +137,17 @@ export const SUPERSEDED_BY_TRAVEL_WORDS = 'superseded by travel';
 export const NOT_IN_PLAN_WORDS = "not in today's plan";
 /** "and 1 more" — the other blocks that overlap the same stop. */
 export const andMoreWords = (n: number): string => `and ${n} more`;
+
+/**
+ * "superseded by Flight AirAsia CNX → DPS (flight) 14:10" · "… and 1 more" — the mark's words (ruling C); a block that stated
+ * no clock names none. SUPERSEDE-01b (Alex, 2026-11-08, ruling B): moved from dayCard.ts and takes the MARK — the card hands
+ * it a stop's mark after its own null check (dayCard.ts markOf), the drill its struck line's; one owner of the sentence.
+ */
+export function supersededWords(mark: Supersession): string {
+  const { by, more } = mark;
+  const head = `${SUPERSEDED_BY_WORDS} ${TRAVEL_KIND_WORDS[by.kind]} ${by.name}${by.time === null ? '' : ` ${by.time}`}`;
+  return more === 0 ? head : `${head} ${andMoreWords(more)}`;
+}
 
 /** TRAVEL-01c (ruling B): what the rule reads of a routine occurrence — its planned instant, its minutes by the one rule, whether a record is at it. */
 export interface OccurrenceWindow {

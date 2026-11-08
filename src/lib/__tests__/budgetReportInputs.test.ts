@@ -110,7 +110,7 @@ test('MAPPING — a routine from the loader: dates as UTC days, the entity\'s ty
   const mapped = toRoutinePlanInput(lined, toReportEntity(P));
   assert.equal(mapped.startDate, null, 'no start date stays null');
   assert.equal(mapped.endDate, null, 'no end date stays null');
-  assert.deepEqual(mapped.steps, [{ id: 's1', isActive: true, stepOrder: 2, budgetAmount: 4.25, coaCode: 'P-6150', durationMinutes: null }]); // SUPERSEDE-01a (2026-11-07): the line's duration, carried
+  assert.deepEqual(mapped.steps, [{ id: 's1', isActive: true, stepOrder: 2, budgetAmount: 4.25, coaCode: 'P-6150', durationMinutes: null, timeOfDay: '08:00' }]); // SUPERSEDE-01b (2026-11-08): and the line's time of day, as the loader read it // SUPERSEDE-01a (2026-11-07): the line's duration, carried
 });
 
 // BUDGET-02 (2026-10-20): a costed task carries its project — the drill links its line to /tasks?project=<id>.
@@ -191,6 +191,8 @@ const rows = (over: Partial<ReportRows> = {}): ReportRows => ({
     { id: 'tx-2', date: at('2026-09-23'), amount: -50, currency: USD },
   ],
   // TAB13-04 (ruled 2026-09-29): an explicit empty list — a DAY or WEEK view is handed the vendor rows it read.
+  // SUPERSEDE-01b (2026-11-08): the range's travel blocks and stop records the route read — none here (stated, never absent).
+  supersession: { blocks: [], leftOut: { plannedDaily: 0, plannedNoInstants: 0, plannedOneInstant: 0, segmentsNoInstants: 0, segmentsOneInstant: 0 }, records: [] },
   planVendors: [],
   ...over,
 });
@@ -518,7 +520,7 @@ test('M4 — a ledger line whose code is saved lettered, in an entity that is NO
 
 test('TAB13-04 T3 a WEEK and a DAY carry their plan lines, a YEAR its sentence; every other field as before', () => {
   const week = budgetReportResponse(WEEK, rows());
-  assert.deepEqual(Object.keys(week), ['asOf', 'view', 'report', 'notPlaced', 'excludedTasks', 'notInBooks', 'excludedLines', 'records', 'travelBudgets', 'plans'], 'one field added, none changed');
+  assert.deepEqual(Object.keys(week), ['asOf', 'view', 'report', 'notPlaced', 'excludedTasks', 'notInBooks', 'excludedLines', 'records', 'travelBudgets', 'plans', 'supersession'], 'one field added, none changed'); // SUPERSEDE-01b (2026-11-08): and the supersession, last
   assert.ok(week.plans.listed);
   assert.deepEqual(week.plans.days, ['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27']);
   // Coffee ends on the 22nd; the license is Thursday's; the routine in a zone /budget cannot read builds no line.
@@ -565,9 +567,13 @@ test('TAB13-04 T3 the route reads the plan vendors user-scoped, in the window, f
   assert.match(route, /vendorsFrom === null \? null : readPlanVendors\(prisma, user\.id, vendorsFrom\),/);
   assert.match(reads, /db\.planned_item_vendors\.findMany\(\{\s*where: \{ user_id: userId, OR: \[\{ occurrence_at: null \}, \{ occurrence_at: \{ gte: window\.from, lt: window\.to \} \}\] \},/);
   assert.match(reads, /vendor: \{ select: \{ id: true, vendor_name: true, entity_id: true \} \},\s*routine: \{ select: \{ name: true, timezone: true \} \},\s*step: \{ select: \{ activity: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true \} \} \} \},\s*task: \{ select: \{ title: true \} \},/);
-  assert.match(route, /bank,\s*planVendors,\s*\}\)\);/);
+  // SUPERSEDE-01b (Alex, 2026-11-08, ruling D): the rows gain the supersession read — the blocks through the one read, the range's stop records.
+  assert.match(route, /bank,\s*planVendors,\s*supersession: \{ blocks: travelBlocks\.blocks, leftOut: travelBlocks\.leftOut, records: stopRecords \},\s*\}\)\);/);
   // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): three became two — the bank rows read through the loader (readBankNotInBooks).
-  assert.equal((route.match(/\bprisma\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 2, 'the user, the entities — every other read through the loader');
+  // SUPERSEDE-01b (2026-11-08, ruling D): two became three — the range's stop records, by the one widened window (recordsWindowOf).
+  assert.equal((route.match(/\bprisma\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 3, 'the user, the entities, the stop records — every other read through the loader');
+  assert.match(route, /prisma\.operations_stop_records\.findMany\(\{ where: \{ user_id: user\.id, occurrence_at: recordsWindowOf\(rangeFrom, rangeTo\) \}, select: \{ routine_id: true, step_id: true, occurrence_at: true \} \}\),/);
+  assert.equal((route.match(/\breadTravelBlocks\(/g) ?? []).length, 1, 'the route reads the travel blocks once');
   for (const fn of ['readBudgetChart', 'readCostedTasks', 'readActuals', 'countLeftOut', 'readPlanVendors', 'readBankNotInBooks']) {
     assert.equal((route.match(new RegExp(`\\b${fn}\\(`, 'g')) ?? []).length, 1, `the route calls ${fn} once`);
   }

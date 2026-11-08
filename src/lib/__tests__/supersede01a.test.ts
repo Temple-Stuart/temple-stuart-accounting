@@ -57,7 +57,9 @@ test('A the leaf imports exactly the calendar\'s minutesOf; exports the rule\'s 
 
 test('B dayCard.ts imports the names it uses from the leaf, defines none of the moved names, re-exports nothing, reads no minutesOf and has no clockOf of its own', () => {
   const card = code(CARD);
-  assert.match(card, /import \{ NOT_IN_PLAN_WORDS, SUPERSEDED_BY_TRAVEL_WORDS, SUPERSEDED_BY_WORDS, andMoreWords, cannotSupersedeWords, clockOf, plannedMinutesOf, supersessionOf, type OccurrenceWindow, type Supersession, type TravelBlock, type TravelKind \} from '@\/lib\/operations\/supersession';/);
+  // SUPERSEDE-01b (Alex, 2026-11-08, rulings B, G): the card imports the words both screens speak and the mark's sentence from the leaf;
+  // the rule's call, the blocks and the windows left it — the marks are the report's.
+  assert.match(card, /import \{ NOT_IN_PLAN_WORDS, SUPERSEDED_BY_TRAVEL_WORDS, TRAVEL_KIND_WORDS, cannotSupersedeWords, clockOf, plannedKindOf, plannedMinutesOf, plannedNameOf, supersededWords, type Supersession, type TravelKind \} from '@\/lib\/operations\/supersession';/);
   assert.doesNotMatch(card, /export function (plannedMinutesOf|supersessionOf|cannotSupersedeWords)\(/, 'the rule is not defined here');
   for (const word of ['SUPERSEDED_BY_WORDS', 'CANNOT_SUPERSEDE_NO_END_WORDS', 'CANNOT_SUPERSEDE_NO_INSTANT_WORDS', 'SUPERSEDED_BY_TRAVEL_WORDS', 'NOT_IN_PLAN_WORDS', 'andMoreWords']) {
     assert.doesNotMatch(card, new RegExp(`export const ${word}\\b`), `${word} is the leaf's`);
@@ -66,9 +68,11 @@ test('B dayCard.ts imports the names it uses from the leaf, defines none of the 
   assert.doesNotMatch(card, /export \{[^}]*\} from |export \* from |export type \{[^}]*\} from /, 'no re-export — the leaf is the one door');
   assert.doesNotMatch(card, /import \{ minutesOf \}|const clockOf = /, 'the card neither reads minutesOf nor defines clockOf');
   // The card keeps its own side, byte for byte.
-  for (const kept of ["export const BOOKING_HEAD_WORD = 'BOOKING';", 'export function travelBlocksOf(stops: readonly Stop[]): TravelBlock[] {', 'export function supersededWords(s: Pick<Stop, \'key\' | \'superseded\'>): string {', 'export function supersededTotals(', 'export function supersededLineWords(t: SupersededTotals): string | null {', 'export const withoutSuperseded = ']) assert.ok(card.includes(kept), `the card keeps ${kept.slice(0, 40)}`);
-  assert.equal((card.match(/plannedMinutesOf\(/g) ?? []).length, 6, 'the six applications stay');
-  assert.match(card, /const marks = supersessionOf\(travelBlocksOf\(\[\.\.\.timed, \.\.\.untimed\]\), occurrences\);/);
+  // SUPERSEDE-01b (2026-11-08): travelBlocksOf left (the blocks are Budget's read's), supersededWords moved to the leaf (the card keeps its
+  // guard, markOf), the declared line takes whether the marks were read; the two windows' plannedMinutesOf left with the occurrences — six → four.
+  for (const kept of ["export const BOOKING_HEAD_WORD = 'BOOKING';", 'export function markOf(s: Pick<Stop, \'key\' | \'superseded\'>): Supersession {', 'export function supersededTotals(', 'export function supersededLineWords(t: SupersededTotals, decided: { readonly read: boolean; readonly undecided: number }): string | null {', 'export const withoutSuperseded = ']) assert.ok(card.includes(kept), `the card keeps ${kept.slice(0, 40)}`);
+  assert.equal((card.match(/plannedMinutesOf\(/g) ?? []).length, 4, 'the stops\' four applications stay');
+  assert.doesNotMatch(card, /supersessionOf\(|travelBlocksOf|OccurrenceWindow/, 'the card runs no rule and builds no window');
   assert.match(card, /const time = step\.time_of_day === null \? occurrenceTime : clockOf\(step\.time_of_day\);/);
 });
 
@@ -105,16 +109,16 @@ test('D the select names start_time, end_time and the line\'s duration_minutes; 
   assert.match(inputs, /readonly start_time: Date \| null;\n\s*readonly end_time: Date \| null;/, 'RoutineRow\'s window');
   assert.match(inputs, /readonly time_of_day: string \| null; readonly duration_minutes: number \| null \}\[\];/, 'RoutineRow\'s line duration');
   assert.match(inputs, /startTime: row\.start_time === null \? null : row\.start_time\.toISOString\(\),\n\s*endTime: row\.end_time === null \? null : row\.end_time\.toISOString\(\),/, 'the window as the @db.Time\'s JSON');
-  assert.match(inputs, /coaCode: s\.coa_code, durationMinutes: s\.duration_minutes \}\)\),/, 'the line\'s duration, carried');
+  assert.match(inputs, /coaCode: s\.coa_code, durationMinutes: s\.duration_minutes, timeOfDay: s\.time_of_day \}\)\),/, 'the line\'s duration, carried — SUPERSEDE-01b (2026-11-08): and its time of day');
   const days = code(DAYS);
-  assert.match(days, /readonly coaCode: string \| null; readonly durationMinutes: number \| null;\s*\n\}/, 'RoutineLinePlanInput requires it');
-  assert.match(days, /readonly coaCode: string \| null; readonly startTime: string \| null; readonly endTime: string \| null;\s*\n\s*readonly steps: readonly RoutineLinePlanInput\[\];/, 'RoutinePlanInput requires both');
-  assert.equal(days.split('\n').length, 497, 'days.ts keeps its line count — the fields sit on existing lines (days.ts:302 and :351-353 are cited by line elsewhere)');
+  // SUPERSEDE-01b (Alex, 2026-11-08, ruling K): 01a's fold undone — each field on its own line with its doc; the cited lines re-cited instead.
+  assert.match(days, /readonly coaCode: string \| null;\s*readonly durationMinutes: number \| null;\s*readonly timeOfDay: string \| null;\s*\n\}/, 'RoutineLinePlanInput requires it (and, since 01b, timeOfDay)');
+  assert.match(days, /readonly coaCode: string \| null;\s*readonly startTime: string \| null;\s*readonly endTime: string \| null;\s*readonly steps: readonly RoutineLinePlanInput\[\];/, 'RoutinePlanInput requires both');
   assert.doesNotMatch(days, /startTime\?:|endTime\?:|durationMinutes\?:/, 'required — null is stated, never absent');
   // tsc refuses a plan input that leaves them out (this file is type-checked).
   // @ts-expect-error — startTime and endTime are required
   const without: RoutinePlanInput = { id: 'r', name: 'R', entityId: 'e', entityType: 'personal', timezone: 'UTC', scheduleRrule: 'FREQ=DAILY', startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [] };
-  // @ts-expect-error — durationMinutes is required
+  // @ts-expect-error — durationMinutes (and, SUPERSEDE-01b, timeOfDay) are required
   const line: RoutineLinePlanInput = { id: 's', stepOrder: 1, budgetAmount: null, coaCode: null };
   assert.ok(without.id === 'r' && line.id === 's');
 });
@@ -143,26 +147,36 @@ test('E a loader row with start_time 10:00 and end_time 18:00 maps to the window
   assert.deepEqual(JSON.parse(JSON.stringify(plan)), plan, 'the plan input stays wire-shaped — the window as text');
 });
 
-// ── F · CONSUMED BY NOTHING: the allowed sites, by file and regex; any other occurrence fails ─────────────────────────
+// ── F · THE ONE CONSUMER — SUPERSEDE-01b (Alex, 2026-11-08, ruling J): the no-consumer check RETIRES (the consumer exists now). ─
+// days.ts routineSupersessionOf reads the routine's window and the line's duration and time of day; everywhere else this scans
+// (src/lib/budget, the loader, the plan leaves, the five routes that read the loader) the names still occur only at the
+// declarations, the select, the types and the two mappers.
 
-test('F nothing consumes the three: under src/lib/budget, the loader and the plan leaves, and the five routes that read the loader, the names occur only at the declarations, the select, the types and the two mappers', () => {
+test('F the one consumer is days.ts routineSupersessionOf: it reads startTime, endTime, durationMinutes and timeOfDay; elsewhere the names occur only at the declarations, the select, the types and the two mappers', () => {
   const ROUTES = ['src/app/api/budget/report/route.ts', 'src/app/api/budget/report/cell/route.ts', 'src/app/api/bill-pay/route.ts', 'src/app/api/operations/routines/month/route.ts', 'src/app/api/operations/plan-vendors/route.ts'];
   const LEAVES = ['src/lib/operations/routineBudget.ts', 'src/lib/operations/routineMonth.ts', 'src/lib/operations/billPay.ts', 'src/lib/operations/planVendor.ts', 'src/lib/operations/workBlock.ts'];
   const budgetFiles = walk('src/lib/budget');
+  const days = code(DAYS);
+  const consumer = days.slice(days.indexOf('export function routineSupersessionOf('), days.indexOf('// ── TASKS (R3)'));
+  assert.ok(consumer.length > 500, 'routineSupersessionOf is there');
+  for (const read of ['start_time: routine.startTime, end_time: routine.endTime', 'duration_minutes: step.durationMinutes', 'step.timeOfDay === null ? instant : zonedToInstant(day, step.timeOfDay, routine.timezone)']) {
+    assert.ok(consumer.includes(read), `routineSupersessionOf reads ${read}`);
+  }
+  assert.equal([...days.replace(consumer, '').matchAll(/\btimeOfDay\b/g)].length, 1, 'timeOfDay: declared once, read in routineSupersessionOf alone');
   const allowed: Record<string, readonly RegExp[]> = {
     [DAYS]: [/readonly durationMinutes: number \| null;/, /readonly startTime: string \| null;/, /readonly endTime: string \| null;/],
-    [INPUTS]: [/readonly start_time: Date \| null;/, /readonly end_time: Date \| null;/, /readonly duration_minutes: number \| null \}\[\];/, /startTime: row\.start_time === null \? null : row\.start_time\.toISOString\(\),/, /endTime: row\.end_time === null \? null : row\.end_time\.toISOString\(\),/, /durationMinutes: s\.duration_minutes \}\)\),/],
+    [INPUTS]: [/readonly start_time: Date \| null;/, /readonly end_time: Date \| null;/, /readonly duration_minutes: number \| null \}\[\];/, /startTime: row\.start_time === null \? null : row\.start_time\.toISOString\(\),/, /endTime: row\.end_time === null \? null : row\.end_time\.toISOString\(\),/, /durationMinutes: s\.duration_minutes, timeOfDay: s\.time_of_day \}\)\),/],
     [LOADER]: [/start_time: true, end_time: true,/, /time_of_day: true, duration_minutes: true \} \},/, /start_time: Date \| null; end_time: Date \| null;/, /duration_minutes: number \| null \}\[\];/, /start_time: r\.start_time, end_time: r\.end_time,/, /duration_minutes: s\.duration_minutes \}\)\),/],
   };
   const NAMES = /\b(startTime|endTime|durationMinutes|start_time|end_time|duration_minutes)\b/g;
   for (const f of [...budgetFiles, LOADER, ...LEAVES, ...ROUTES]) {
-    let src = code(f);
+    let src = f === DAYS ? days.replace(consumer, '') : code(f);
     for (const re of allowed[f] ?? []) {
       assert.match(src, re, `${f}: the allowed site ${re} is there`);
       src = src.replace(re, '');
     }
     const left = [...src.matchAll(NAMES)].map((m) => m[1]);
-    assert.deepEqual(left, [], `${f} reads ${left.join(', ')} — nothing consumes the three until 01b`);
+    assert.deepEqual(left, [], `${f} reads ${left.join(', ')} — routineSupersessionOf is the one consumer`);
   }
   // The travel leaf's own startTime/endTime/durationMinutes (travelDay.ts) and the ledger record input's durationMinutes
   // (ledger.ts, ledgerAnswer.ts's RECORD_PLAN) are other things by the same names — named here, not scanned.

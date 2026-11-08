@@ -203,8 +203,12 @@
  * its place (struck plan figure, the mark, the reason on its card — which keeps
  * its record input), its plan cents leave the TOTAL row's BUDGET, the meter, the
  * verdict and the hero, and one declared line under the TOTAL says so; nothing is
- * written. /budget and ROUTINE EXPENSES' month are unchanged: the month still
- * counts those days (decision 3; TRAVEL-03's intel).
+ * written. ROUTINE EXPENSES' month is unchanged: the month still counts those
+ * days (decision 3; TRAVEL-03's intel). SUPERSEDE-01b (Alex, 2026-11-08, ruling G):
+ * the MARKS are the day report's — Budget's model marks every routine occurrence by
+ * the one rule (/budget no longer counts the superseded ones); the card hands them
+ * to dayStops (marksOf) and computes none, and reads the report again after a
+ * record write, since a record wins there.
  */
 
 'use client';
@@ -221,6 +225,8 @@ import { localToday } from '@/lib/localToday';
 import type { DailyPlanItem } from '../dailyplan/types';
 import RefusedRoutines from '../routines/RefusedRoutines';
 import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads';
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling B): the mark's sentence is the leaf's — the card hands it the mark after its own null check.
+import { supersededWords } from '@/lib/operations/supersession';
 import { DOWNLOAD_IMAGE_WORDS, DOWNLOAD_TAG_WORDS, cardImageFailedWords, cardImageName, cardTagName, downloadCardImage } from '../cardImage';
 import StopTag from '../stops/StopTag';
 import DayDeck, { PlateFrame, underStyle, useDeckBleed, type DeckCard } from '../stops/DayDeck';
@@ -256,14 +262,14 @@ import {
   unmatchedWords, vendorSlot, whereWords,
   asksAmount, dayShortWords,
   ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
-  CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
+  CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict, marksOf,
   TOTAL_WORD, dayTotals, planBeyondStopsWords,
   CAPTION_COPIED_WORDS, COPY_CAPTION_WORDS, COPY_SCRIPT_WORDS, SCRIPT_COPIED_WORDS, captionText, copyFailedWords, reelDoneOf, reelReadsWords, reelWaitingWords, scriptText, stepSpentSoFarWords, stopName, stopScriptText, stopTagWords,
   type DeltaWords, type ReelReads, type ReelText,
   DAY_CARD_PATH,
   DECK_FULL_CARD_WORDS, SWIPE_HINT_WORDS, journalHeaderWords, journalImageName, openJournalWords,
   NOT_JOINED_WORDS, travelArrivalWords, travelClockWords, travelLineWords, travelMatchWords, travelPriceWords, travelRecordWords, travelSaidWords, travelSmallWords, travelStatusLineWords, travelTotals,
-  BOOKING_HEAD_WORD, supersededLineWords, supersededTotals, supersededWords, travelBookingLineWords, withoutSuperseded,
+  BOOKING_HEAD_WORD, supersededLineWords, supersededTotals, travelBookingLineWords, withoutSuperseded,
   type Focus, type StayState, type Stop,
 } from './dayCard';
 
@@ -569,6 +575,12 @@ export default function DayCard() {
   // RETRO-01 (2026-10-16): the ledger's "+ expense" writes a one-off stop, its vendor and its record for a day (dayWritten.ts);
   // a card showing that day reads it again — the day, the report, the tasks and the records — through its own reads.
   const [dayWrites, setDayWrites] = useState(0);
+  // SUPERSEDE-01b (Alex, 2026-11-08, ruling G): a record written from the card — the records read again, and the report too, in place
+  // (ROLE-01's re-read): the day's marks are the report's, and a record at an occurrence wins in Budget's model, never on the card.
+  const recordWritten = () => {
+    setRecordReads((n) => n + 1);
+    setReportReads((n) => n + 1);
+  };
   // WIDTH-01 (Alex, 2026-10-16): whether the deck bleeds into the page gutter — what sits under a card takes the card's width either way.
   const bleed = useDeckBleed();
 
@@ -727,7 +739,10 @@ export default function DayCard() {
   const strandedRows = strandedRowsOf(plans);
   const notPlaced = report !== null && report.ok ? report.value.notPlaced : [];
   const dayItems = items !== null && items.ok ? items.value : [];
-  const result = dayStops({ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows, travel: travelRows });
+  // SUPERSEDE-01b (Alex, 2026-11-08, ruling G): the day's marks are the report's — every routine occurrence with its mark or null; null
+  // while the report was not read (unread or failed): unknown, never none. dayStops takes them by occurrence key and computes none.
+  const marks = report !== null && report.ok ? marksOf(report.value.supersession) : null;
+  const result = dayStops({ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows, travel: travelRows, marks });
   // The hero is the Budget's figure — '—' while the report cannot be read, never a sum of the stops.
   const plannedCents = report !== null && report.ok ? result.plannedCents : null;
 
@@ -766,7 +781,8 @@ export default function DayCard() {
   // TRAVEL-01b (ruling F): the TRAVEL line(s) under the TOTAL row — per currency present, never into the TOTAL (dayTotals sees no travel figure).
   const travelLines = travelLineWords(travelTotals(result.stops));
   // TRAVEL-01c (ruling D): the declared line under the TOTAL — how many routines a travel block superseded and the plan cents that left the day's figures.
-  const supersededLine = supersededLineWords(supersededTotals(result.stops));
+  // SUPERSEDE-01b (ruling G): and how many stops the report decided nothing for, or that the report was not read — never a silent nothing.
+  const supersededLine = supersededLineWords(supersededTotals(result.stops), { read: marks !== null, undecided: result.supersessionUndecided });
   // PLAN-01 (2026-10-13): two bars on the step view against the day's planned total — PLAN (gold) the planned money of stops 1..n,
   // SPENT (green) their actuals. No spent bar while the records are unread or nothing so far carries an actual (unknown, not zero).
   // TOTALS-01 amendment II (Alex, 2026-10-15): against the TOTAL row's BUDGET (totals.budgetCents), as the meter and the verdict are —
@@ -928,7 +944,7 @@ export default function DayCard() {
             <div className="font-extrabold text-text-primary break-words" style={{ fontSize: 43, lineHeight: 1, letterSpacing: '-0.01em' }} data-day-bold>{boldOf(f.stop)}</div>
             {smallOf(f.stop) !== null && <div className="font-medium text-text-muted break-words" style={{ fontSize: 27, lineHeight: 1.1 }} data-day-small>{smallOf(f.stop)}</div>}
             {/* TRAVEL-01c (ruling C): the mark — superseded by which block; the record input under the card stays (recording anyway is allowed). */}
-            {f.stop.superseded !== null && <div className="font-semibold text-brand-amber break-words" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-superseded-words>{supersededWords(f.stop)}</div>}
+            {f.stop.superseded !== null && <div className="font-semibold text-brand-amber break-words" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-superseded-words>{supersededWords(f.stop.superseded)}</div>}
             {/* TABLE-01: the vendor as a labeled line; the time and the budget are the header's and PLAN's. CLEAN-02 (2026-10-14): LOCATION is off the stop card. */}
             <div className="flex items-baseline gap-2" data-day-vendor>
               <span className="font-bold text-text-faint" style={{ fontSize: 13, letterSpacing: '0.14em' }}>{VENDOR_HEAD_WORD}</span>
@@ -1236,7 +1252,7 @@ export default function DayCard() {
 
       {/* STOP-01: the record, typed under the plate on the step view — outside the recorded box; a write reads the records again. Keyed by the stop and its record so each starts from what is held; never offered while the records could not be read (a save would write over a record the screen cannot see). */}
       {loaded && recordsOk && focus !== null && focus.stop.address !== null && (
-        <StopForm key={`${focus.stop.key}:${focus.stop.record === null ? 'none' : focus.stop.record.id}`} stop={focus.stop} day={day} viewerZone={zone} onChanged={() => setRecordReads((n) => n + 1)} />
+        <StopForm key={`${focus.stop.key}:${focus.stop.record === null ? 'none' : focus.stop.record.id}`} stop={focus.stop} day={day} viewerZone={zone} onChanged={recordWritten} />
       )}
 
       {/* DECK-01 (Alex, 2026-10-16): THE JOURNAL CARD, on its own under the deck and its controls — always shown on a day with a journal stop:
@@ -1265,7 +1281,7 @@ export default function DayCard() {
           </div>
           {/* STOP-01: the journal stop's record row — when the journal was done (StopForm asks the minutes only for a journal stop). */}
           {recordsOk && journalStop.address !== null && (
-            <StopForm key={`${journalStop.key}:${journalStop.record === null ? 'none' : journalStop.record.id}`} stop={journalStop} day={day} viewerZone={zone} onChanged={() => setRecordReads((n) => n + 1)} />
+            <StopForm key={`${journalStop.key}:${journalStop.record === null ? 'none' : journalStop.record.id}`} stop={journalStop} day={day} viewerZone={zone} onChanged={recordWritten} />
           )}
           {/* JOURNAL-01: the questions, under the journal card — keyed by the day and the journal held; never offered while the journal could not be read (a save would write over answers the screen cannot see). */}
           {journalRead !== null && journalRead.ok && (
@@ -1300,7 +1316,7 @@ export default function DayCard() {
             <div className="text-brand-amber space-y-1" data-day-records-without-stop>
               <p>{recordsWithoutStopHead(result.recordsWithoutStop.length)}</p>
               {result.recordsWithoutStop.map((r) => (
-                <AttachRecord key={r.id} record={r} plan={planOfRecord(recordsRead.value.plans, r)} stops={result.stops} onChanged={() => setRecordReads((n) => n + 1)} />
+                <AttachRecord key={r.id} record={r} plan={planOfRecord(recordsRead.value.plans, r)} stops={result.stops} onChanged={recordWritten} />
               ))}
             </div>
           )}

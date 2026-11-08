@@ -39,7 +39,7 @@ const dayInput = (timezone: string, rrule: string, over: Partial<RoutineDayInput
 const planInput = (timezone: string, rrule: string, over: Partial<RoutinePlanInput> = {}): RoutinePlanInput => ({
   id: 'r-1', name: 'Routine', entityId: 'ent-p', entityType: 'personal', timezone, scheduleRrule: rrule,
   startDate: null, endDate: null, budgetAmount: null, coaCode: null, startTime: null, endTime: null,
-  steps: [{ id: 'step-1', stepOrder: 1, budgetAmount: '5.00', coaCode: '6150', durationMinutes: null }],
+  steps: [{ id: 'step-1', stepOrder: 1, budgetAmount: '5.00', coaCode: '6150', durationMinutes: null, timeOfDay: null }],
   ...over,
 });
 

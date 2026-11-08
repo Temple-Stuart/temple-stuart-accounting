@@ -71,8 +71,9 @@ const routine = (over: Partial<Routine> & { id: string; name: string }): Routine
   location: null, steps: [], role: 'none', ...over,
 });
 const entry = (r: Routine, status: TodayStatus = 'pending', expected_at: string = AT): TodayRoutineEntry => ({ routine: r, expected_at, status, completion: null });
+// SUPERSEDE-01b (2026-11-08): a plan line carries its mark (null — stated), the card's input the report's marks (null — not read, as records and travel).
 const line = (over: Partial<PlanLine> & { address: PlanLine['address']; cents: number; label: string }): PlanLine => ({
-  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, ...over,
+  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, superseded: null, ...over,
 });
 const item = (over: Partial<DailyPlanItem> & { id: string }): DailyPlanItem => ({
   user_id: 'u', entity_id: 'P', plan_date: `${DAY}T00:00:00.000Z`, task_id: null, ad_hoc_title: null, ad_hoc_description: null, display_order: 0,
@@ -93,7 +94,7 @@ const morning = routine({
 });
 const gym = routine({ id: GYM_ID, name: 'Gym', location: 'Fitness First', schedule_rrule: 'FREQ=DAILY;BYHOUR=20;BYMINUTE=0' });
 // TRAVEL-01b (Alex, 2026-10-31): the input gains `travel` — null, as the records: unknown, never none.
-const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, ...over });
+const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, marks: null, ...over });
 
 const record = (over: Partial<StopRecordRow> & { kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
   id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
@@ -691,10 +692,12 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(c, /const loaded = dayRead !== null && report !== null && items !== null && recordsRead !== null && travelRead !== null;/, 'the plate waits for the records and the travel too');
   assert.doesNotMatch(c, /setRecords\(null\)/, 'a re-read never blanks the plate first');
   // TRAVEL-01b (Alex, 2026-10-31): the travel rows ride beside the records — null while not read. Moved, not loosened.
-  assert.match(c, /dayStops\(\{ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows, travel: travelRows \}\)/);
+  // SUPERSEDE-01b (Alex, 2026-11-08, ruling G): the day's marks ride last — the report's, null while not read. Moved, not loosened.
+  assert.match(c, /dayStops\(\{ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows, travel: travelRows, marks \}\)/);
   // VENDOR-02 (2026-10-14): the book, whether the report was read and the report re-read moved with the vendor box to the card's
   // StopVendor mount (above the form; vendor02.test.ts pins it) — the form keeps its key, the stop, the day, the zone and the records' re-read.
-  assert.match(c, /<StopForm key=\{`\$\{focus\.stop\.key\}:\$\{focus\.stop\.record === null \? 'none' : focus\.stop\.record\.id\}`\} stop=\{focus\.stop\} day=\{day\} viewerZone=\{zone\} onChanged=\{\(\) => setRecordReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the stop and its record; the records read again after a write (the vendor box’s props moved to StopVendor — VENDOR-02)');
+  // SUPERSEDE-01b (2026-11-08, ruling G): a record write reads the records and the report again (recordWritten) — the day's marks are the report's.
+  assert.match(c, /<StopForm key=\{`\$\{focus\.stop\.key\}:\$\{focus\.stop\.record === null \? 'none' : focus\.stop\.record\.id\}`\} stop=\{focus\.stop\} day=\{day\} viewerZone=\{zone\} onChanged=\{recordWritten\} \/>/, 'keyed by the stop and its record; the records read again after a write (the vendor box’s props moved to StopVendor — VENDOR-02)');
   assert.ok(c.indexOf('data-day-card') < c.indexOf('<StopForm'), 'the form sits under the plate');
   assert.ok(c.indexOf('<StopForm') < c.indexOf('data-day-foot'), '— above the sentences');
   assert.match(c, /\{loaded && recordsOk && focus !== null && focus\.stop\.address !== null && \(/, 'on the step view, for a stop that has an address — never while the records could not be read');

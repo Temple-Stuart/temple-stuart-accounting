@@ -66,9 +66,9 @@ const routine = (over: Partial<RoutinePlanInput> & { id: string; name: string; s
 });
 const ROUTINES: RoutinePlanInput[] = [
   routine({ id: 'morning', name: 'Morning', scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', steps: [
-    { id: 'coffee', stepOrder: 1, budgetAmount: 10, coaCode: '5100', durationMinutes: null },
-    { id: 'stretch', stepOrder: 2, budgetAmount: 8, coaCode: '5100', durationMinutes: null },
-    { id: 'lunch', stepOrder: 3, budgetAmount: 15, coaCode: '5200', durationMinutes: null },
+    { id: 'coffee', stepOrder: 1, budgetAmount: 10, coaCode: '5100', durationMinutes: null, timeOfDay: null },
+    { id: 'stretch', stepOrder: 2, budgetAmount: 8, coaCode: '5100', durationMinutes: null, timeOfDay: null },
+    { id: 'lunch', stepOrder: 3, budgetAmount: 15, coaCode: '5200', durationMinutes: null, timeOfDay: null },
   ] }),
   routine({ id: 'gym', name: 'Gym', scheduleRrule: 'FREQ=DAILY;BYHOUR=20;BYMINUTE=0', budgetAmount: 20, coaCode: '5300' }),
   routine({ id: 'netflix', name: 'Netflix', scheduleRrule: 'FREQ=DAILY;BYHOUR=0;BYMINUTE=0', budgetAmount: 5, coaCode: '5400' }),
@@ -528,7 +528,8 @@ test('T6 the ledger mounts first on /time (HOME-01: the day card is on the dashb
   assert.match(rules, /readonly now: Date;/);
   assert.match(rules, /if \(read\.address\.instant\.getTime\(\) >= input\.now\.getTime\(\)\) continue;/, '"already past" against the clock handed in');
   assert.match(rules, /if \(!isStop\(role\)\) continue;/, 'an all-day line is in the plan, not a stop');
-  assert.match(rules, /const plan = dayPlanOf\(\{ view: \{ kind: 'day', day \}, lines: input\.lines, notPlaced: input\.notPlaced, routines: input\.routines, tasks: new Map\(\), vendors: input\.vendors \}\);/, 'the vendor by the plan’s grain — planLines.ts’s rule, reused');
+  // SUPERSEDE-01b (2026-11-08): the plan takes marked lines — the task ledger states its lines unmarked (markLines over no marks).
+  assert.match(rules, /const plan = dayPlanOf\(\{ view: \{ kind: 'day', day \}, lines: markLines\(input\.lines, new Map\(\)\), notPlaced: input\.notPlaced, routines: input\.routines, tasks: new Map\(\), vendors: input\.vendors \}\);/, 'the vendor by the plan’s grain — planLines.ts’s rule, reused');
   assert.match(rules, /const exact = linesByDay\.get\(day\)\?\.get\(key\) \?\? \[\];\n\s*const line = exact\.length === 1 \? exact\[0\] : null;/, 'the card’s match: one line at the exact instant');
   assert.match(rules, /description: line !== null \? stopName\(\{ line: line\.line, label: line\.label \}\) : stopName\(\{ line: r\.activity, label: r\.routineName \}\),/, 'the card’s bold name, either way');
   assert.match(rules, /place: stay === null \? null : placeParts\(stay\.place\),/);

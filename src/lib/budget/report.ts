@@ -88,6 +88,8 @@
  */
 import { variance } from '@/lib/calendar/links';
 import { FAMILY_RULES, letterFor, isFamily, type EntityLetter } from '@/lib/coa/scheme';
+// SUPERSEDE-01b (Alex, 2026-11-08): the mark a budget line carries — the one rule's type (pure: its one import is the calendar's minutesOf).
+import type { Supersession } from '@/lib/operations/supersession';
 
 // ── INPUT ───────────────────────────────────────────────────────────────────
 
@@ -136,6 +138,24 @@ export interface BudgetLine {
   readonly sourceId: string;
 }
 
+/**
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling C4): a budget line with its mark — the travel block that supersedes the occurrence
+ * it came from (supersession.ts supersessionOf, applied by days.ts routineSupersessionOf), or null: no block does, a record
+ * is at it, or it is a task's line (a task is no routine occurrence). The model sums WITHOUT the marked lines and lists them.
+ */
+export interface MarkedBudgetLine extends BudgetLine {
+  readonly superseded: Supersession | null;
+}
+
+/**
+ * SUPERSEDE-01b (ruling C4): the lines with their marks, by sourceId — the occurrence key days.ts wrote. A task line is never
+ * marked, by its branch, not by absence; a routine line is marked when the marks hold its key. No `?? <default>` here:
+ * `marks.get(key)!` is the Map idiom after `has` — the value is there, and it is a Supersession.
+ */
+export function markLines(lines: readonly BudgetLine[], marks: ReadonlyMap<string, Supersession>): MarkedBudgetLine[] {
+  return lines.map((l) => ({ ...l, superseded: l.source === 'task' ? null : marks.has(l.sourceId) ? marks.get(l.sourceId)! : null }));
+}
+
 export interface Posting {
   readonly entityId: string;
   readonly code: string;
@@ -153,7 +173,8 @@ export interface BudgetReportInput {
   readonly view: BudgetView;
   readonly entities: readonly ReportEntity[];
   readonly accounts: readonly ChartAccount[];
-  readonly budgetLines: readonly BudgetLine[];
+  /** SUPERSEDE-01b: every line with its mark — the marked ones are listed and left out of every figure. */
+  readonly budgetLines: readonly MarkedBudgetLine[];
   readonly postings: readonly Posting[];
 }
 
@@ -240,10 +261,22 @@ export interface SectionTotal {
   readonly coverage: Coverage;
 }
 
+/** SUPERSEDE-01b (ruling D): the marked lines dated in a column's full range — how many, and the plan cents that LEFT the budget with them. */
+export interface SupersededTotal {
+  readonly count: number;
+  readonly cents: number;
+}
+
 export interface ColumnTotals {
   readonly income: SectionTotal;
   readonly expense: SectionTotal;
   readonly net: SectionTotal;
+  /**
+   * SUPERSEDE-01b (Alex, 2026-11-08, ruling D): the occurrences a travel block superseded in this column — the marked lines
+   * placed on a row of the scope (every book of the report's totals, one book of its own), dated in [from, to] — count and
+   * Σ cents: the figure that left the budget. The SUPERSEDED row prints it; SectionTotal is untouched.
+   */
+  readonly superseded: SupersededTotal;
 }
 
 export type UnplacedReason = 'not in chart' | 'not an income or expense account';
@@ -557,12 +590,20 @@ function netOf(income: SectionTotal, expense: SectionTotal): SectionTotal {
  * when every book's is. NET is strict — both sides or nothing — so a report's NET
  * need not be the sum of the books' NETs.
  */
-function totalsOf(rows: readonly ReportRow[], columns: readonly ReportColumn[]): ColumnTotals[] {
-  return columns.map((_, i) => {
+function totalsOf(rows: readonly ReportRow[], columns: readonly ReportColumn[], placedLines: readonly MarkedBudgetLine[]): ColumnTotals[] {
+  return columns.map((column, i) => {
     const income = sectionOf(rows.filter((r) => r.family === 'revenue').map((r) => r.cells[i]));
     const expense = sectionOf(rows.filter((r) => r.family === 'expense').map((r) => r.cells[i]));
-    return { income, expense, net: netOf(income, expense) };
+    return { income, expense, net: netOf(income, expense), superseded: supersededOf(placedLines, column) };
   });
+}
+
+/** SUPERSEDE-01b (ruling D): the marked lines of the scope dated in the column's full range — count and Σ cents (safe integers). */
+function supersededOf(placedLines: readonly MarkedBudgetLine[], column: Pick<ReportColumn, 'from' | 'to'>): SupersededTotal {
+  const gone = placedLines.filter((l) => l.superseded !== null && within(l.day, column.from, column.to));
+  let cents = 0;
+  for (const l of gone) cents = safe(cents + l.cents, 'the superseded cents');
+  return { count: gone.length, cents };
 }
 
 // ── THE REPORT ──────────────────────────────────────────────────────────────
@@ -570,7 +611,7 @@ function totalsOf(rows: readonly ReportRow[], columns: readonly ReportColumn[]):
 /** One account's budget lines and postings in the view's range — the very objects handed in. */
 interface Slot {
   readonly account: ChartAccount;
-  readonly lines: BudgetLine[];
+  readonly lines: MarkedBudgetLine[];
   readonly postings: Posting[];
 }
 
@@ -677,10 +718,10 @@ function placeInput(input: BudgetReportInput): Placed {
 
 /** The lines and postings behind one cell — THE selection every figure is the sum of. */
 interface Selection {
-  /** Budget lines dated in [from, to]. */
-  readonly full: readonly BudgetLine[];
+  /** Budget lines dated in [from, to] — marked ones included: listed by the drill, summed by no figure. */
+  readonly full: readonly MarkedBudgetLine[];
   /** Budget lines dated in [from, min(to, asOf)]. */
-  readonly toDate: readonly BudgetLine[];
+  readonly toDate: readonly MarkedBudgetLine[];
   /** Postings dated in [from, min(to, asOf)]; none for a future column. */
   readonly postings: readonly Posting[];
 }
@@ -696,8 +737,9 @@ function selectionOf(s: Slot, column: Pick<ReportColumn, 'from' | 'to' | 'state'
 
 /** A selection's figures: the sums, the net actual, the variance. */
 function figuresOf(account: ChartAccount, sel: Selection): ReportCell {
-  const budgetFull = sumOrNull(sel.full.map((l) => l.cents));
-  const budgetToDate = sumOrNull(sel.toDate.map((l) => l.cents));
+  // SUPERSEDE-01b (Alex, 2026-11-08, ruling D): a figure sums the lines no travel block superseded; the marked ones are listed (the drill), never summed.
+  const budgetFull = sumOrNull(sel.full.filter((l) => l.superseded === null).map((l) => l.cents));
+  const budgetToDate = sumOrNull(sel.toDate.filter((l) => l.superseded === null).map((l) => l.cents));
   let actual: number | null = null;
   if (sel.postings.length > 0) {
     // The normal side adds, the other side subtracts: a 'D' account is
@@ -738,6 +780,8 @@ export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
     rowsByEntity.set(row.entityId, list);
   }
 
+  // SUPERSEDE-01b: the lines placed on a row — what the SUPERSEDED total of each scope is counted over.
+  const placedLines = [...slots.values()].flatMap((s) => s.lines);
   const books: ReportBook[] = [...entities.values()]
     .map((e) => ({ e, letter: letterFor(e.entityType) }))
     .sort((a, b) =>
@@ -753,11 +797,11 @@ export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
         label: letter ? BOOK_LABEL[letter] : e.name,
         rows,
         hasPlanLines: planned.has(e.id),
-        totals: totalsOf(rows, columns),
+        totals: totalsOf(rows, columns, placedLines.filter((l) => l.entityId === e.id)),
       };
     });
 
-  const totals = totalsOf(books.flatMap((b) => b.rows), columns);
+  const totals = totalsOf(books.flatMap((b) => b.rows), columns, placedLines);
 
   return { asOf, view, columns, books, totals, unplaced: [...unplaced].sort(compareUnplaced) };
 }
@@ -782,8 +826,8 @@ export interface BudgetCell {
   readonly cell: ReportCell;
   /** Which budget the cell prints (shownBudget): to date, or the full budget for a future range. */
   readonly shown: ShownBudget;
-  /** The budget lines behind the PRINTED budget figure — the very objects handed in, in input order. */
-  readonly budgetLines: readonly BudgetLine[];
+  /** The budget lines behind the PRINTED budget figure — the very objects handed in, in input order; SUPERSEDE-01b: the marked ones among them, listed, in no figure. */
+  readonly budgetLines: readonly MarkedBudgetLine[];
   /** The postings behind the actual — the very objects handed in, in input order; none for a future range. */
   readonly postings: readonly Posting[];
 }

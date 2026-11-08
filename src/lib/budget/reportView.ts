@@ -27,7 +27,7 @@
  * no framework, no network, no environment, and no clock — today is handed in by
  * the screen, the one place that reads it.
  */
-import type { ReportBook, ReportColumn, ShownBudget } from './report';
+import type { ReportBook, ReportColumn, ShownBudget, SupersededTotal } from './report';
 import type { NotInBooksColumn } from './reportInputs';
 import { BLANK, formatCents } from './format';
 import { CURRENCY_NOT_STATED_WORDS, NOT_WHOLE_CENTS_WORDS, bankCentsWords } from '@/lib/books/functionalCurrency';
@@ -37,6 +37,7 @@ import { readVendorName, takenBy, vendorNameKey } from '@/lib/operations/planVen
  * HOME-LEDGER-02a (Alex, 2026-11-07): the BANK row's words (ruling C — per currency through the books' one bank
  * formatter, a count for the rows whose account states none, nothing added across codes) and the #1886 gap line
  * (ruling D) join; BudgetReport prints both, on /budget and on /home. Pure still: functionalCurrency.ts has no imports.
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling F): the gap line retires for the SUPERSEDED BY TRAVEL row's words.
  */
 
 /** A 'YYYY-MM-DD' day moved by n days, by UTC arithmetic (no zone can shift it). */
@@ -108,8 +109,21 @@ export function bankColumnWords(column: Pick<NotInBooksColumn, 'bankByCode' | 'c
   return parts.length === 0 ? BLANK : parts.join(' · ');
 }
 
-/** Ruling D: the #1886 gap, said under the tables on both pages — the words are the constant's, never retyped. */
-export const SUPERSEDED_GAP_WORDS = 'Budget counts every routine occurrence; the day card leaves out the ones superseded by travel — this table does not yet (SUPERSEDE-01)';
+// ── THE SUPERSEDED ROW (SUPERSEDE-01b, Alex, 2026-11-08, ruling F) ───────────
+// The #1886 gap line (HOME-LEDGER-02a ruling D, SUPERSEDED_GAP_WORDS) retires: Budget no longer counts the routine occurrences a
+// travel block supersedes (days.ts routineSupersessionOf, report.ts figuresOf), so "this table does not yet" is false. In its place,
+// under the BANK row on both pages, one row says per column how many occurrences left the budget and their plan cents.
+
+/** The row's label. */
+export const SUPERSEDED_ROW_LABEL = 'SUPERSEDED BY TRAVEL — not counted';
+/** The row's figure word — the plan's own cents (USD), the budget lines that left the figures. */
+export const SUPERSEDED_ROW_FIGURE_WORDS = 'plan';
+/** The row's title: its cells do not drill — the struck lines are listed in each account's drill. */
+export const SUPERSEDED_ROW_TITLE = "the occurrences a travel block superseded — listed in each account's drill";
+/** One cell of the row: '—' when no occurrence of the column was superseded, else "2 · $45.00" (formatCents — the plan's cents). */
+export const supersededCellWords = (t: SupersededTotal): string => (t.count === 0 ? BLANK : `${t.count} · ${formatCents(t.cents)}`);
+/** The drill's line under its plan lines when some are struck: "1 superseded by travel — $25.00 listed, not in the sum". */
+export const drillSupersededWords = (t: SupersededTotal): string => `${t.count} superseded by travel — ${formatCents(t.cents)} listed, not in the sum`;
 
 // ── THE DRILL (rulings E, F, G) ─────────────────────────────────────────────
 

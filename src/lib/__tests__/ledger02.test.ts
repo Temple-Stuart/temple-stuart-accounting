@@ -58,9 +58,9 @@ const routine = (over: Partial<RoutinePlanInput> & { id: string; name: string; s
 });
 const ROUTINES: RoutinePlanInput[] = [
   routine({ id: 'morning', name: 'Morning', scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', steps: [
-    { id: 'coffee', stepOrder: 1, budgetAmount: 10, coaCode: '5100', durationMinutes: null },
-    { id: 'stretch', stepOrder: 2, budgetAmount: 8, coaCode: '5100', durationMinutes: null },
-    { id: 'lunch', stepOrder: 3, budgetAmount: 15, coaCode: '5200', durationMinutes: null },
+    { id: 'coffee', stepOrder: 1, budgetAmount: 10, coaCode: '5100', durationMinutes: null, timeOfDay: null },
+    { id: 'stretch', stepOrder: 2, budgetAmount: 8, coaCode: '5100', durationMinutes: null, timeOfDay: null },
+    { id: 'lunch', stepOrder: 3, budgetAmount: 15, coaCode: '5200', durationMinutes: null, timeOfDay: null },
   ] }),
   routine({ id: 'client', name: 'Client lunch', scheduleRrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=30', entityId: 'B', entityType: 'sole_prop', budgetAmount: 25, coaCode: '6100' }),
 ];

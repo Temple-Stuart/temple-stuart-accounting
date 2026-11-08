@@ -90,7 +90,10 @@ test('2 plannedMinutesOf — a line’s 45 → 45; a stepless routine 10:00–18
   // TRAVEL-01b (Alex, 2026-10-31): applied twice more — a planned once row's and a segment's minutes (kind 'travel'), the same one rule. Moved, not loosened.
   // TRAVEL-01c (Alex, 2026-10-31), ruling B: applied twice more — each routine occurrence's window for supersession reads its minutes by the same one rule. Moved, not loosened.
   // SUPERSEDE-01a (Alex, 2026-11-07): defined once in the leaf; the card applies it six times — the line, the stepless routine, the planned travel row, the segment, and each occurrence’s window; no other reading on the card.
-  assert.equal((rules.match(/plannedMinutesOf\(/g) ?? []).length, 6, 'applied six times');
+  // SUPERSEDE-01b (Alex, 2026-11-08, ruling G): the two occurrence windows left the card with the rule's call — Budget's model builds them
+  // (days.ts routineSupersessionOf, which applies the rule twice); the card's stops keep four: the line, the stepless routine, the planned travel row, the segment.
+  assert.equal((rules.match(/plannedMinutesOf\(/g) ?? []).length, 4, 'applied four times — the stops\' minutes');
+  assert.equal((code('src/lib/budget/days.ts').match(/plannedMinutesOf\(/g) ?? []).length, 2, 'and twice in the model — each occurrence\'s window');
   assert.equal((leaf.match(/export function plannedMinutesOf\(/g) ?? []).length, 1, 'defined once');
   assert.equal((leaf.match(/plannedMinutesOf\(/g) ?? []).length, 1, 'the leaf applies nothing of its own');
   assert.match(leaf, /import \{ minutesOf \} from '@\/lib\/calendar\/day';/, 'the clock arithmetic is the calendar’s minutesOf — reused, not rebuilt (in the leaf since SUPERSEDE-01a)');

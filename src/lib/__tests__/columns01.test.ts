@@ -102,8 +102,8 @@ function inZone(zone: string, fn: () => void): void {
 
 // ── RULING A · AN INACTIVE ROUTINE IS NOT BUDGETED ───────────────────────────
 
-const INACTIVE = plan({ id: 'inact', name: 'Inactive daily', isActive: false, steps: [{ id: 'i1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null }] });
-const ACTIVE = plan({ id: 'act', name: 'Active daily', steps: [{ id: 'a1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null }] });
+const INACTIVE = plan({ id: 'inact', name: 'Inactive daily', isActive: false, steps: [{ id: 'i1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null, timeOfDay: null }] });
+const ACTIVE = plan({ id: 'act', name: 'Active daily', steps: [{ id: 'a1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null, timeOfDay: null }] });
 /** Ended on the 5th and still active — the budget rule bounds it by end_date; unchanged by this ruling. */
 const ENDED = plan({ id: 'ended', name: 'Ended', endDate: '2026-10-05', budgetAmount: '5', coaCode: '6150' });
 const INPUT: RoutineMonthInput = {

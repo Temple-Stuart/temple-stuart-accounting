@@ -84,7 +84,7 @@ test('MONTH AND DAY AGREE, for both shapes', () => {
   const plan = (r: typeof MORNING | typeof STEPLESS, id: string): RoutinePlanInput => ({
     id, name: id, entityId: 'e', entityType: 'personal', timezone: tz, scheduleRrule: rrule, startDate: '2026-01-01', endDate: null,
     budgetAmount: r.budget_amount, coaCode: r.coa_code, startTime: null, endTime: null,
-    steps: r.steps.map((s) => ({ id: s.id, stepOrder: s.step_order, budgetAmount: s.budget_amount, coaCode: s.coa_code, durationMinutes: null })),
+    steps: r.steps.map((s) => ({ id: s.id, stepOrder: s.step_order, budgetAmount: s.budget_amount, coaCode: s.coa_code, durationMinutes: null, timeOfDay: null })), // SUPERSEDE-01b (2026-11-08): the line's time of day, stated
   });
   const monthOf = (r: typeof MORNING | typeof STEPLESS, id: string): Record<string, number> => {
     const out: Record<string, number> = {};

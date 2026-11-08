@@ -153,7 +153,7 @@ test('the month line carries vendor_grain beside its words: every → the name; 
     entityId: 'p', entityType: 'personal', timezone: BKK, scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null,
     budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [], isActive: true, ...o,
   });
-  const lined = plan({ id: 'r-lined', name: 'Lined', steps: [{ id: 's-1', stepOrder: 1, budgetAmount: '4', coaCode: '6150', durationMinutes: null }] });
+  const lined = plan({ id: 'r-lined', name: 'Lined', steps: [{ id: 's-1', stepOrder: 1, budgetAmount: '4', coaCode: '6150', durationMinutes: null, timeOfDay: null }] });
   const plain = plan({ id: 'r-plain', name: 'Plain', budgetAmount: '10', coaCode: '6150' });
   const vendor = (o: Partial<PlanVendorRow> & { id: string }): PlanVendorRow => ({
     routine_id: null, step_id: null, task_id: null, occurrence_at: null, vendor: { id: 'v-1', vendor_name: 'Luka Café', entity_id: 'p' }, routine: null, step: null, task: null, ...o,

@@ -82,8 +82,9 @@ const routine = (over: Partial<Routine> & { id: string; name: string }): Routine
   location: null, steps: [], role: 'none', ...over,
 });
 const entry = (r: Routine, status: TodayStatus = 'pending', expected_at: string = AT): TodayRoutineEntry => ({ routine: r, expected_at, status, completion: null });
+// SUPERSEDE-01b (2026-11-08): a plan line carries its mark (null — stated), the card's input the report's marks (null — not read, as records and travel).
 const line = (over: Partial<PlanLine> & { address: PlanLine['address']; cents: number; label: string }): PlanLine => ({
-  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, ...over,
+  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, superseded: null, ...over,
 });
 const item = (over: Partial<DailyPlanItem> & { id: string }): DailyPlanItem => ({
   user_id: 'u', entity_id: 'P', plan_date: `${DAY}T00:00:00.000Z`, task_id: null, ad_hoc_title: null, ad_hoc_description: null, display_order: 0,
@@ -120,7 +121,7 @@ const coffee = (cents: number | null) => record({ kind: 'routine_line', target_i
 const stretch = (cents: number | null) => record({ kind: 'routine_line', target_id: STRETCH_ID, occurrence_at: AT, done_at: '2026-10-10T23:31:00.000Z', actual_cents: cents });
 const gymSkipped = record({ kind: 'routine', target_id: GYM_ID, occurrence_at: GYM_AT, outcome: 'skipped', note: 'closed' });
 const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({
-  day: DAY, entries: [entry(morning), entry(gym, 'pending', GYM_AT), entry(vision, 'pending', VISION_AT)], lines, notPlaced: [], items, viewerZone: BKK, records: null, travel: null, ...over, // TRAVEL-01b (Alex, 2026-10-31): the input gains `travel`
+  day: DAY, entries: [entry(morning), entry(gym, 'pending', GYM_AT), entry(vision, 'pending', VISION_AT)], lines, notPlaced: [], items, viewerZone: BKK, records: null, travel: null, marks: null, ...over, // TRAVEL-01b (Alex, 2026-10-31): the input gains `travel`
 });
 
 const refused = (body: unknown) => {

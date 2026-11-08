@@ -69,8 +69,9 @@ const routine = (over: Partial<Routine> & { id: string; name: string }): Routine
   location: null, steps: [], role: 'none', ...over,
 });
 const entry = (r: Routine, status: TodayStatus = 'pending', expected_at: string = AT): TodayRoutineEntry => ({ routine: r, expected_at, status, completion: null });
+// SUPERSEDE-01b (2026-11-08): a plan line carries its mark (null — stated), the card's input the report's marks (null — not read, as records and travel).
 const line = (over: Partial<PlanLine> & { address: PlanLine['address']; cents: number; label: string }): PlanLine => ({
-  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, ...over,
+  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, superseded: null, ...over,
 });
 const item = (over: Partial<DailyPlanItem> & { id: string }): DailyPlanItem => ({
   user_id: 'u', entity_id: 'P', plan_date: `${DAY}T00:00:00.000Z`, task_id: null, ad_hoc_title: null, ad_hoc_description: null, display_order: 0,
@@ -80,7 +81,7 @@ const record = (over: Partial<StopRecordRow> & { kind: StopRecordRow['kind']; ta
   id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
 });
 // TRAVEL-01b (Alex, 2026-10-31): the input gains `travel` — null, as the records: unknown, never none.
-const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, ...over });
+const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, marks: null, ...over });
 
 /** Alex's day: the journal, the plan, an execute block, brunch (a place), HBO (all day, at 08:00 on its rrule), dinner. */
 const journal = routine({ id: 'journal', name: 'Daily Vision - Journal', role: 'journal' });

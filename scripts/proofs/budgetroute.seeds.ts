@@ -1,8 +1,9 @@
 /**
  * The budget report route law's seeded regressions (TAB13-02b, 2026-09-27).
  *
- * The law holds GET /api/budget/report to five clauses; each seed breaks one
- * and must fail THE BUDGET REPORT ROUTE LAW by name:
+ * The law holds GET /api/budget/report to six clauses (SUPERSEDE-01b, 2026-11-08:
+ * this line said five since TAB13-04 added clause 6); each seed breaks one and
+ * must fail THE BUDGET REPORT ROUTE LAW by name:
  *
  *   1. the gate comes first — a read before the cart-plan auth (a); a second
  *      method beside GET (b); the path made public in the middleware (c);
@@ -33,6 +34,14 @@
  * it held lives in src/components/budget/VendorBox.tsx — seeds l, m, o and p
  * break it there; seed n breaks the screen's one reader (readBudget).
  *
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling I): clause 2 is TRAVEL BLOCKS, NEVER
+ * TRAVEL BUDGETS. Seeds 2b-a..2b-e: the blocks read names budget_line_items (a)
+ * or a money column, cost (b); a second Budget file imports the blocks read (c);
+ * a Budget file names `reservations` (d); a Budget file's import tree reaches a
+ * travel file through a file that is no Budget file — days.ts imports
+ * src/lib/flights/fares.ts, which imports src/components/trips/FlightPickerView
+ * (e, an existing path: no file is invented).
+ *
  * The anchors occur exactly once in their file, which the harness enforces
  * before it runs anything.
  */
@@ -60,6 +69,11 @@ const READ_ANCHOR = "res = await fetch(url, { cache: 'no-store', redirect: 'manu
 // BUDGET-02: the drill route and the one loader.
 const CELL = 'src/app/api/budget/report/cell/route.ts';
 const READS = 'src/lib/budget/reportReads.ts';
+// SUPERSEDE-01b (ruling I): the blocks read, and the day rules (a Budget file under src/lib/budget).
+const BLOCKS = 'src/lib/operations/travelBlocksReads.ts';
+const BLOCKS_ANCHOR = "export const BOOKINGS_NEVER_A_BLOCK = 'never a block';";
+const DAYS = 'src/lib/budget/days.ts';
+const DAYS_RECORD_ANCHOR = "import { recordKey } from '@/lib/operations/stopRecord';";
 
 export const SEEDS: Seed[] = [
   {
@@ -227,5 +241,41 @@ export const SEEDS: Seed[] = [
     find: 'OR: [{ is_reversal: true }, { reversed_by_entry_id: { not: null } }]',
     replace: 'OR: [{ reversed_by_entry_id: { not: null } }]',
     expect: 'src/lib/budget/reportReads.ts does not count the reversal pairs it leaves out',
+  },
+  // ── SUPERSEDE-01b (Alex, 2026-11-08, ruling I): clause 2 — TRAVEL BLOCKS, NEVER TRAVEL BUDGETS ──
+  {
+    name: '2b-a the blocks read names budget_line_items',
+    file: BLOCKS,
+    find: BLOCKS_ANCHOR,
+    replace: `${BLOCKS_ANCHOR}\nexport const SCRATCH_TRAVEL_BUDGET = 'budget_line_items';`,
+    expect: 'src/lib/operations/travelBlocksReads.ts names the money column budget_line_items — the blocks carry instants only',
+  },
+  {
+    name: '2b-b the blocks read names a money column (cost)',
+    file: BLOCKS,
+    find: "    blocks.push({ key: `planned:${r.id}`, kind: plannedKindOf(r.category),",
+    replace: "    void r.cost;\n    blocks.push({ key: `planned:${r.id}`, kind: plannedKindOf(r.category),",
+    expect: 'src/lib/operations/travelBlocksReads.ts names the money column cost — the blocks carry instants only',
+  },
+  {
+    name: '2b-c a second Budget file imports the blocks read (reportInputs.ts)',
+    file: INPUTS,
+    find: INPUTS_ANCHOR,
+    replace: `export { readTravelBlocks } from '@/lib/operations/travelBlocksReads';\n${INPUTS_ANCHOR}`,
+    expect: 'src/lib/budget/reportInputs.ts imports src/lib/operations/travelBlocksReads.ts — only the two budget routes read the travel blocks',
+  },
+  {
+    name: '2b-d a Budget file names reservations (days.ts)',
+    file: DAYS,
+    find: DAYS_RECORD_ANCHOR,
+    replace: `${DAYS_RECORD_ANCHOR}\nexport const SCRATCH_BOOKINGS = 'reservations';`,
+    expect: 'src/lib/budget/days.ts names the travel table reservations — it is a Budget file',
+  },
+  {
+    name: '2b-e a Budget file reaches a travel file through a file that is no Budget file (days.ts → flights/fares.ts → components/trips)',
+    file: DAYS,
+    find: DAYS_RECORD_ANCHOR,
+    replace: `${DAYS_RECORD_ANCHOR}\nimport { NOT_STATED } from '@/lib/flights/fares';`,
+    expect: 'src/lib/budget/days.ts reaches the travel file src/components/trips/FlightPickerView.tsx through its import tree — it is a Budget file',
   },
 ];
