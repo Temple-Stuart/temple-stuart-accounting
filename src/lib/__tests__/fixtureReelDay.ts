@@ -31,11 +31,12 @@ export const routine = (over: Partial<Routine> & { id: string; name: string; rol
 });
 export const entry = (r: Routine, expected_at: string): TodayRoutineEntry => ({ routine: r, expected_at, status: 'pending', completion: null });
 export const vendor = (name: string) => ({ id: `v-${name}`, name, entityId: 'P', grain: 'occurrence' as const });
+// SUPERSEDE-01b (2026-11-08): a plan line carries its mark (null — stated), the card's input the report's marks (null — not read, as records and travel).
 export const line = (over: Partial<PlanLine> & { address: PlanLine['address']; cents: number; label: string }): PlanLine => ({
-  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, ...over,
+  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, superseded: null, ...over,
 });
 // TRAVEL-01b (Alex, 2026-10-31): the input gains `travel` — null here (unread); travel01b.test.ts hands the reel a day with travel.
-export const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: [], travel: null, ...over });
+export const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: [], travel: null, marks: null, ...over });
 export const item = (over: Partial<DailyPlanItem> & { id: string }): DailyPlanItem => ({
   user_id: 'u', entity_id: 'P', plan_date: `${DAY}T00:00:00.000Z`, task_id: null, ad_hoc_title: null, ad_hoc_description: null, display_order: 0,
   notes: null, created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z', created_by: null, task: null, calendar_blocks: [], ...over,

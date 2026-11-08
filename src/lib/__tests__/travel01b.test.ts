@@ -17,11 +17,13 @@ import {
 import { readTravelDay, travelFailedWords } from '@/components/workbench/operations/day/dayReads';
 import {
   AS_AIRLINE_STATES_WORDS, CAPTION_TRAVEL_HEAD_WORDS, NOT_JOINED_WORDS, NO_CLOCK_WORDS, PLANNED_NOT_BOOKING_WORDS, PLANNED_STAY_WORDS, REEL_READ_NAMES,
-  TRAVEL_KIND_WORDS, TRAVEL_NOT_READ_WORDS, TRAVEL_RECORD_WORDS, TRAVEL_SOURCE_WORDS, TRAVEL_WORD,
-  captionText, completenessWords, dayStops, dayTotals, dayVerdict, matchedWords, plannedKindOf, reelReadsWords, scriptText, statusWords, stepHeaderWords,
+  TRAVEL_NOT_READ_WORDS, TRAVEL_RECORD_WORDS, TRAVEL_SOURCE_WORDS, TRAVEL_WORD,
+  captionText, completenessWords, dayStops, dayTotals, dayVerdict, matchedWords, reelReadsWords, scriptText, statusWords, stepHeaderWords,
   stopSceneLines, travelArrivalWords, travelClockWords, travelLineWords, travelMatchWords, travelOf, travelPriceWords, travelRecordWords, travelSaidWords, travelSmallWords,
   travelStatusLineWords, travelTotals, type ReelReads, type Stop,
 } from '@/components/workbench/operations/day/dayCard';
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling B): the kind word and the planned-kind rule are the words both screens speak — the leaf's.
+import { TRAVEL_KIND_WORDS, plannedKindOf } from '@/lib/operations/supersession';
 import { plannedMinutesOf } from '@/lib/operations/supersession'; // SUPERSEDE-01a (Alex, 2026-11-07): the one planned-minutes rule's home
 import { FULL, STAY, build, input, reelDay } from './fixtureReelDay';
 
@@ -426,7 +428,7 @@ test('I/J the travel section of the rules holds every sentence as a constant or 
   // The does-nots.
   assert.match(rules, /export type StopKind = 'line' \| 'routine' \| 'task' \| 'travel';/);
   assert.match(rules, /export type StatusSource = 'record' \| 'routine' \| 'task' \| 'booking' \| 'travel';/); // TRAVEL-01c (Alex, 2026-10-31): 'travel' — a block supersedes
-  assert.match(rules, /readonly travel: TravelDay \| null;\n\}/, 'the input');
+  assert.match(rules, /readonly travel: TravelDay \| null;\s*readonly marks: ReadonlyMap<string, Supersession \| null> \| null;\n\}/, 'the input'); // SUPERSEDE-01b (2026-11-08): and, after travel, the report's marks
   assert.match(rules, /readonly travel: TravelStop \| null;\n\}/, 'the stop');
   assert.doesNotMatch(code('src/lib/operations/stopRecord.ts'), /travel/i, 'no stop record for travel');
   assert.doesNotMatch(code('src/lib/operations/stopRole.ts'), /travel/i, 'the six roles stand');

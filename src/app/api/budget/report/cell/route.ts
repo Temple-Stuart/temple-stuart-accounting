@@ -8,6 +8,10 @@ import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { BudgetInputError, budgetCellResponse, cellBookOf, parseCellQuery, utcDay, UNKNOWN_BOOK_WORDS } from '@/lib/budget/reportInputs';
 import { daysOf, vendorWindowOf } from '@/lib/budget/planLines';
 import { readActuals, readBudgetChart, readCostedTasks, readPlanVendors } from '@/lib/budget/reportReads';
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling E): the drill's [from, to] travel blocks through the one read and its stop records — the report's two reads, over the figure's range.
+import { readTravelBlocks } from '@/lib/operations/travelBlocksReads';
+import { daysRangeOf } from '@/lib/operations/travelDay';
+import { recordsWindowOf } from '@/lib/operations/stopRecord';
 
 /**
  * BUDGET-02 (2026-10-20) — GET /api/budget/report/cell?book=&account=&from=&to=&asOf=:
@@ -36,6 +40,9 @@ import { readActuals, readBudgetChart, readCostedTasks, readPlanVendors } from '
  * Budget figure covers. The pure half (reportInputs.ts budgetCellResponse)
  * builds the model's input by the report's own builder and selects by the
  * model's own selection, so the lines sum to the cell by construction.
+ * SUPERSEDE-01b (Alex, 2026-11-08): and the figure's [from, to] travel blocks
+ * (travelBlocksReads.ts) and stop records (recordsWindowOf), so a line a block
+ * supersedes is listed struck and in no sum — never dropped.
  *
  * FAIL LOUD, as the report: the model refusing its input → 422; the day rules
  * or a row that cannot become an input → 500; anything else →
@@ -74,16 +81,19 @@ export async function GET(request: NextRequest) {
     const vendorsFrom = vendorWindowOf(daysOf(query.from, query.to));
     if (vendorsFrom === null) throw new Error(`BUDGET CELL: [${query.from}, ${query.to}] holds no day — parseCellQuery refuses a backwards range`);
 
-    const [chart, routines, tasks, ledger, planVendors] = await Promise.all([
+    const [chart, routines, tasks, ledger, planVendors, travelBlocks, stopRecords] = await Promise.all([
       readBudgetChart(prisma, user.id, [book.id]),
       loadRoutineBudgetInputs(prisma, user.id, book.id),
       readCostedTasks(prisma, user.id, [book.id]),
       // Actuals: never a reversal pair, never a closing entry — by name, in the one loader.
       readActuals(prisma, user.id, [book.id], yearFrom, through),
       readPlanVendors(prisma, user.id, vendorsFrom),
+      // SUPERSEDE-01b (ruling E): the figure's range — its blocks by the card's selections, its stop records by the one window.
+      readTravelBlocks(prisma, user.id, daysRangeOf(query.from, query.to)),
+      prisma.operations_stop_records.findMany({ where: { user_id: user.id, occurrence_at: recordsWindowOf(query.from, query.to) }, select: { routine_id: true, step_id: true, occurrence_at: true } }),
     ]);
 
-    return NextResponse.json(budgetCellResponse(query, { book, chart, routines, tasks, ledger, planVendors }));
+    return NextResponse.json(budgetCellResponse(query, { book, chart, routines, tasks, ledger, planVendors, supersession: { blocks: travelBlocks.blocks, leftOut: travelBlocks.leftOut, records: stopRecords } }));
   } catch (error) {
     if (error instanceof BudgetReportError) {
       if (error.code === 'cell-account-not-in-chart' || error.code === 'cell-account-not-a-row') {

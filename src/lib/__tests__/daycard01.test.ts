@@ -14,6 +14,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { code } from '../sourceText';
 import type { NotPlaced } from '../budget/days';
+import { occurrenceKey } from '../budget/days'; // SUPERSEDE-01b (2026-11-08): the report's marks are keyed by the occurrence
 import type { PlanLine } from '../budget/planLines';
 import { TOOL_REGISTRY } from '../toolRegistry';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
@@ -61,8 +62,9 @@ const routine = (over: Partial<Routine> & { id: string; name: string }): Routine
 
 const entry = (r: Routine, status: TodayStatus = 'pending', expected_at: string = AT): TodayRoutineEntry => ({ routine: r, expected_at, status, completion: null });
 
+// SUPERSEDE-01b (2026-11-08): a plan line carries its mark (null — stated), the card's input the report's marks (null — not read, as records and travel).
 const line = (over: Partial<PlanLine> & { address: PlanLine['address']; cents: number; label: string }): PlanLine => ({
-  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, ...over,
+  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, superseded: null, ...over,
 });
 
 const item = (over: Partial<DailyPlanItem> & { id: string }): DailyPlanItem => ({
@@ -92,7 +94,7 @@ const GYM_AT = '2026-10-11T13:00:00.000Z';
 
 /** records: null — not read (STOP-01); the record-side rules are stop01.test.ts's. */
 // TRAVEL-01b (Alex, 2026-10-31): the input gains `travel` (the ninth read) — null here, as the records are: unknown, never none.
-const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, ...over });
+const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, marks: null, ...over });
 /** STOP-01: what every stop carries when the records were not read — the status its routine's (or the task's), nothing recorded. */
 // TRAVEL-01b (Alex, 2026-10-31): a Stop gains `travel` (a travel stop's own facts) — null for every other kind; the pins below moved with it.
 const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null, role: 'none' as const, planLine: null, planLineState: 'none' as const, superseded: null, travel: null }); // TRAVEL-01c (Alex, 2026-10-31): `superseded` — null for every stop no travel block supersedes
@@ -1066,4 +1068,31 @@ test('T8 CLEAN-02 "download image": under both views outside the plate, the libr
   assert.throws(() => cardImageName('2026-10-14', { index: 3, label: '☕ — ☕' }), /has no letter or digit to name the file/, 'a label that slugs to nothing is refused by name — never a name made up');
   assert.equal(DOWNLOAD_IMAGE_WORDS, 'download image');
   assert.equal(cardImageFailedWords('the card is not on the page'), 'could not make the image — the card is not on the page');
+});
+
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling G): the DayStops shape gains supersessionUndecided — the routine and line stops whose mark
+// the report did not decide. This file's input reads no report (marks null), so every routine and line stop is undecided; a task, a
+// travel stop and the all-day band are no occurrence the report marks, and are never counted.
+test('SUPERSEDE-01b the DayStops shape: supersessionUndecided — every routine and line stop while the marks are not read, none once the report lists each occurrence, one for a key the report lacks', () => {
+  const band = routine({ id: 'sub', name: 'Netflix', role: 'all_day', schedule_rrule: 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0' });
+  const entries = [entry(morning), entry(gym, 'pending', GYM_AT), entry(band, 'pending', '2026-10-11T02:00:00.000Z')];
+  const items = [item({ id: 'i1', ad_hoc_title: 'Ship it' })];
+  const unread = dayStops(input({ entries, items }));
+  assert.deepEqual(Object.keys(unread), [
+    'stops', 'allDay', 'allDayCents', 'plannedCents', 'notPriced', 'unmatched', 'routineFigures', 'linesWithoutStop', 'notPlacedToday',
+    'spentCents', 'withoutActual', 'withActual', 'done', 'skipped', 'notRecorded', 'recordsWithoutStop', 'travelNotJoined', 'supersessionUndecided',
+  ], 'the shape, in order — the count last');
+  assert.equal(unread.supersessionUndecided, 4, 'the three lines of the morning and the gym — not the task, not the band');
+  assert.equal(unread.allDay.length, 1);
+  // The report's marks list every occurrence (null — none superseded): nothing undecided.
+  const keys = [
+    ...['stretch', 'coffee', 'journal'].map((lineId) => occurrenceKey({ routineId: 'morning', lineId, instant: new Date(AT) })),
+    occurrenceKey({ routineId: 'gym', lineId: null, instant: new Date(GYM_AT) }),
+  ];
+  const listed = dayStops(input({ entries, items, marks: new Map(keys.map((k) => [k, null])) }));
+  assert.equal(listed.supersessionUndecided, 0);
+  assert.equal(listed.stops.filter((x) => x.superseded !== null).length, 0);
+  // A key the report lacks (a schedule or zone changed between the two reads): that stop is undecided — never read as "not superseded".
+  const lacking = dayStops(input({ entries, items, marks: new Map(keys.slice(0, 3).map((k) => [k, null])) }));
+  assert.equal(lacking.supersessionUndecided, 1, 'the gym');
 });

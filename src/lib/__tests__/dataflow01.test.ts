@@ -411,17 +411,19 @@ test('T10 Budget runs one beat, discover — cited to the report route, which re
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   // The citation holds: what the route reads, through which lines, and that neither budget route writes.
   const note = comments(REGISTRY).replace(/\s*\n\s*\/\/\s*/g, ' ');
-  assert.match(note, /DATAFLOW-01d \(Alex, 2026-11-03\): the beats are what the page does — one, discover\. \/budget reads Books', Tasks' and the vendors' tables \(src\/app\/api\/budget\/report\/route\.ts:90-103:/);
-  const reads = code('src/app/api/budget/report/route.ts').split('\n').slice(89, 103).join('\n');
+  // SUPERSEDE-01b (2026-11-08): the route's reads grew by the blocks read and the stop records — :90-103 → :101-118, re-cited in place.
+  assert.match(note, /DATAFLOW-01d \(Alex, 2026-11-03\): the beats are what the page does — one, discover\. \/budget reads Books', Tasks' and the vendors' tables \(src\/app\/api\/budget\/report\/route\.ts:101-118 — SUPERSEDE-01b, 2026-11-08: was :90-103:/);
+  const reads = code('src/app/api/budget/report/route.ts').split('\n').slice(100, 118).join('\n');
   // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): the bank rows left the route for the one loader (reportReads.ts readBankNotInBooks) — the route's :90-103 block calls it; the note's "transactions" is read there.
-  for (const read of ['readBudgetChart(', 'loadRoutineBudgetInputs(', 'readCostedTasks(', 'readActuals(', 'readBankNotInBooks(', 'readPlanVendors(']) assert.ok(reads.includes(read), `route.ts:90-103 reads through ${read}`);
+  for (const read of ['readBudgetChart(', 'loadRoutineBudgetInputs(', 'readCostedTasks(', 'readActuals(', 'readBankNotInBooks(', 'readPlanVendors(']) assert.ok(reads.includes(read), `route.ts:101-118 reads through ${read}`);
   assert.match(code('src/lib/budget/reportReads.ts'), /export function readBankNotInBooks\(db: Db, userId: string, from: string, through: string\) \{\n  return db\.transactions\.findMany\(\{/, 'the loader reads transactions');
   const loader = code('src/lib/budget/reportReads.ts').split('\n');
   for (const [line, table] of [[50, 'ledger_entries'], [78, 'chart_of_accounts'], [86, 'operations_project_tasks'], [100, 'planned_item_vendors']] as const) {
     assert.match(loader[line - 1], new RegExp(`db\\.${table}\\.findMany\\(`), `reportReads.ts:${line} reads ${table}`);
   }
   assert.match(code('src/lib/operations/routineBudgetInputs.ts').split('\n')[104], /db\.operations_routines\.findMany\(/, 'routineBudgetInputs.ts:105 reads operations_routines'); // SUPERSEDE-01a (2026-11-07): :101 → :105 — the select grew by start_time/end_time (two lines), the loaded type and the mapper by one line each
-  for (const [file, line] of [['src/app/api/budget/report/route.ts', 61], ['src/app/api/budget/report/cell/route.ts', 46]] as const) {
+  // SUPERSEDE-01b (2026-11-08): both routes grew by the blocks read's and the records window's imports — :61 → :72, :46 → :53, re-cited in place.
+  for (const [file, line] of [['src/app/api/budget/report/route.ts', 72], ['src/app/api/budget/report/cell/route.ts', 53]] as const) {
     const src = code(file);
     assert.match(src.split('\n')[line - 1], /^export async function GET\(/, `${file}:${line} is its GET`);
     assert.doesNotMatch(src, /export (async )?function (POST|PUT|PATCH|DELETE)\b/, `${file} exports no write`);
@@ -435,8 +437,9 @@ test('T10 Budget runs one beat, discover — cited to the report route, which re
   assert.equal(row07[3].replace(/ \|$/, ''), '19 of the 25 tools do not run all four beats yet.'); // CRM-01b (2026-11-07)
   // A: the stale note is corrected to where the vendor box mounts — the day card — and that citation holds.
   assert.doesNotMatch(comments(REGISTRY), /the drill writes a vendor/);
-  assert.match(note, /the vendor box writes a vendor, never a figure — DATAFLOW-01d \(2026-11-03\): that box mounts on the day card, src\/components\/workbench\/operations\/day\/DayCard\.tsx:1228, not on \/budget's GET-only drill\)\./);
-  assert.match(code('src/components/workbench/operations/day/DayCard.tsx').split('\n')[1227], /<StopVendor /, 'DayCard.tsx:1228 mounts the stop vendor');
+  assert.match(note, /the vendor box writes a vendor, never a figure — DATAFLOW-01d \(2026-11-03\): that box mounts on the day card, src\/components\/workbench\/operations\/day\/DayCard\.tsx:1244 — SUPERSEDE-01b, 2026-11-08: was :1228 — not on \/budget's GET-only drill\)\./);
+  // SUPERSEDE-01b (2026-11-08): the card grew by the marks hand-off and the record-written re-read — :1228 → :1244, re-cited in place.
+  assert.match(code('src/components/workbench/operations/day/DayCard.tsx').split('\n')[1243], /<StopVendor /, 'DayCard.tsx:1244 mounts the stop vendor');
   assert.match(code('src/components/workbench/operations/stops/StopVendor.tsx'), /<VendorBox line=\{line\}/, 'which draws the budget vendor box');
 });
 

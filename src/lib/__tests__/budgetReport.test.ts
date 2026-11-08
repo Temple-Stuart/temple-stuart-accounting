@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildBudgetReport, BudgetReportError,
-  type BudgetLine, type BudgetReport, type BudgetReportErrorCode, type BudgetReportInput, type BudgetSource, type BudgetView,
+  type MarkedBudgetLine, type BudgetReport, type BudgetReportErrorCode, type BudgetReportInput, type BudgetSource, type BudgetView,
   type ChartAccount, type Posting, type ReportEntity,
 } from '../budget/report';
 import { code } from '../sourceText';
@@ -21,7 +21,8 @@ const TRADING: ReportEntity = { id: 'ent-t', name: 'Trading', entityType: 'tradi
 // BUDGET-02 (2026-10-20): the chart hands in each account's archived flag (ruling C) — these are active accounts.
 const expense = (entityId: string, code: string, name: string): ChartAccount => ({ entityId, code, name, accountType: 'expense', balanceType: 'D', archived: false });
 const revenue = (entityId: string, code: string, name: string): ChartAccount => ({ entityId, code, name, accountType: 'revenue', balanceType: 'C', archived: false });
-const line = (entityId: string, code: string, day: string, cents: number, sourceId = 'r-1'): BudgetLine => ({ entityId, code, day, cents, source: 'routine', sourceId });
+// SUPERSEDE-01b (2026-11-08): the model takes marked lines — a fixture line states it is unmarked (superseded: null).
+const line = (entityId: string, code: string, day: string, cents: number, sourceId = 'r-1'): MarkedBudgetLine => ({ entityId, code, day, cents, source: 'routine', sourceId, superseded: null });
 const post = (entityId: string, code: string, day: string, entryType: 'D' | 'C', cents: number, journalEntryId: string): Posting => ({ entityId, code, day, entryType, cents, journalEntryId });
 
 const input = (over: Partial<BudgetReportInput>): BudgetReportInput => ({
@@ -515,9 +516,11 @@ test('T1 BOOK TOTALS — every book carries its own totals, by the SAME function
 
 test('T1 ONE FUNCTION, TWO SCOPES — totalsOf builds the report\'s totals and each book\'s; sectionOf is called nowhere else', () => {
   const src = code(MODEL);
-  assert.match(src, /function totalsOf\(rows: readonly ReportRow\[\], columns: readonly ReportColumn\[\]\): ColumnTotals\[\] \{/);
-  assert.match(src, /totals: totalsOf\(rows, columns\),/, 'each book');
-  assert.match(src, /const totals = totalsOf\(books\.flatMap\(\(b\) => b\.rows\), columns\);/, 'the report');
+  // SUPERSEDE-01b (2026-11-08, ruling D): totalsOf takes the scope's placed lines too — each column's SUPERSEDED count and cents.
+  assert.match(src, /function totalsOf\(rows: readonly ReportRow\[\], columns: readonly ReportColumn\[\], placedLines: readonly MarkedBudgetLine\[\]\): ColumnTotals\[\] \{/);
+  assert.match(src, /totals: totalsOf\(rows, columns, placedLines\.filter\(\(l\) => l\.entityId === e\.id\)\),/, 'each book');
+  assert.match(src, /const totals = totalsOf\(books\.flatMap\(\(b\) => b\.rows\), columns, placedLines\);/, 'the report');
+  assert.equal((src.match(/\bsupersededOf\(/g) ?? []).length, 2, 'its definition and totalsOf — one count of what left the budget');
   assert.equal((src.match(/\bsectionOf\(/g) ?? []).length, 3, 'its definition and the two sides inside totalsOf — no second totals builder');
   assert.equal((src.match(/\bnetOf\(/g) ?? []).length, 2, 'its definition and totalsOf');
 });

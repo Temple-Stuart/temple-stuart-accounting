@@ -99,6 +99,18 @@ export function recordWindow(day: string): { readonly gte: Date; readonly lt: Da
   return { gte: new Date(midnight - 14 * HOUR_MS), lt: new Date(midnight + 36 * HOUR_MS) };
 }
 
+/**
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling D): recordWindow's rule widened to the local days [rangeFrom, rangeTo] — from
+ * the first day's gte to the last day's lt — written ONCE here; both budget routes read the range's stop records by it
+ * (the model then places each record by its own key, exactly). A range that runs backwards is the caller's error.
+ */
+export function recordsWindowOf(rangeFrom: string, rangeTo: string): { readonly gte: Date; readonly lt: Date } {
+  const from = recordWindow(rangeFrom);
+  const to = recordWindow(rangeTo);
+  if (from.gte.getTime() > to.gte.getTime()) throw new Error(`stopRecord: rangeFrom ${rangeFrom} is after rangeTo ${rangeTo}`);
+  return { gte: from.gte, lt: to.lt };
+}
+
 // ── THE INPUT RULE ──────────────────────────────────────────────────────────
 
 export interface StopRecordValues {

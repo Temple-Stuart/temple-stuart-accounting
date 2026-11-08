@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { code, comments } from '../sourceText';
-import { viewRange, type BudgetView } from '../budget/report';
+import { markLines, viewRange, type BudgetView } from '../budget/report';
 import {
   buildRoutineBudgetLines, buildTaskBudgetLines, occurrenceKey, readOccurrenceKey, wholeRoutineKey,
   type RoutinePlanInput, type TaskPlanInput,
@@ -35,9 +35,9 @@ const base = { entityId: 'ent-p', entityType: 'personal', timezone: LA, startDat
 const meals: RoutinePlanInput = {
   ...base, id: MEALS, name: 'Meals', scheduleRrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=0;BYSECOND=0',
   steps: [
-    { id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'P-6150', durationMinutes: null },
-    { id: DINNER, isActive: true, stepOrder: 1, budgetAmount: '35.00', coaCode: 'P-6150', durationMinutes: null },
-    { id: SNACK, isActive: true, stepOrder: 2, budgetAmount: '4.00', coaCode: 'P-6150', durationMinutes: null },
+    { id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'P-6150', durationMinutes: null, timeOfDay: null },
+    { id: DINNER, isActive: true, stepOrder: 1, budgetAmount: '35.00', coaCode: 'P-6150', durationMinutes: null, timeOfDay: null },
+    { id: SNACK, isActive: true, stepOrder: 2, budgetAmount: '4.00', coaCode: 'P-6150', durationMinutes: null, timeOfDay: null },
   ],
 };
 const coffee: RoutinePlanInput = { ...base, id: COFFEE, name: 'Coffee', scheduleRrule: 'FREQ=DAILY;BYHOUR=8;BYMINUTE=0;BYSECOND=0', budgetAmount: '5.00', coaCode: 'P-6150' };
@@ -62,7 +62,8 @@ function plan(view: BudgetView, vendors: readonly PlanVendorRow[] | null, routin
   const { rangeFrom, rangeTo } = viewRange(view);
   const r = buildRoutineBudgetLines(routines, rangeFrom, rangeTo);
   const t = buildTaskBudgetLines([brakes], rangeFrom, rangeTo);
-  return dayPlanOf({ view, lines: [...r.lines, ...t.lines], notPlaced: [...r.notPlaced, ...t.notPlaced], routines: words, tasks: TITLES, vendors });
+  // SUPERSEDE-01b (2026-11-08): the plan takes marked lines — these stated unmarked (no block in these fixtures).
+  return dayPlanOf({ view, lines: markLines([...r.lines, ...t.lines], new Map()), notPlaced: [...r.notPlaced, ...t.notPlaced], routines: words, tasks: TITLES, vendors });
 }
 const listed = (result: ReturnType<typeof plan>): Extract<DayPlan, { listed: true }> => {
   assert.ok(result.ok, result.ok ? '' : result.message);
@@ -186,7 +187,7 @@ test('T2 stranded: a row on a day of the view that matches nothing is listed; on
   assert.deepEqual(day.stranded[0].address, { kind: 'routine_line', id: LUNCH, instant: '2026-09-29T19:01:00.000Z' });
   assert.match(day.stranded[1].reason, /^its routine's zone "Mars\/Olympus" cannot be read \(.+\) — this vendor cannot be dated$/);
   // A vendor on an occurrence the view built but did not place — its account unreadable — is not stranded.
-  const unreadable: RoutinePlanInput = { ...meals, steps: [{ id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'B-6150', durationMinutes: null }] };
+  const unreadable: RoutinePlanInput = { ...meals, steps: [{ id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'B-6150', durationMinutes: null, timeOfDay: null }] };
   assert.deepEqual(listed(plan(DAY, [matched], [unreadable])).stranded, [], 'placed or not placed, the view built it');
 });
 

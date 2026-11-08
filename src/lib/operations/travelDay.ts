@@ -73,6 +73,13 @@ export interface DayRange {
   readonly to: string;
 }
 
+/**
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling A): the window alone — the three selections read from/to only; a day is a range,
+ * and so is a year (READS-01a). The travel-day route still passes its DayRange (structurally one of these); the budget
+ * routes pass daysRangeOf(rangeFrom, rangeTo).
+ */
+export type InstantRange = Pick<DayRange, 'from' | 'to'>;
+
 export type DayRangeResult =
   | { readonly ok: true; readonly range: DayRange }
   | { readonly ok: false; readonly field: 'day'; readonly message: string };
@@ -88,6 +95,19 @@ export function dayRangeOf(day: unknown): DayRangeResult {
   return { ok: true, range: { day, from: from.toISOString(), to: to.toISOString() } };
 }
 
+/**
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling A): the window of the local days [from, to] as UTC instants —
+ * [from 00:00:00.000Z, to + 1 day 00:00:00.000Z), dayRangeOf's rule over a span; a day that is no day, or a span that runs
+ * backwards, is the caller's error, refused by name.
+ */
+export function daysRangeOf(from: string, to: string): InstantRange {
+  if (!isIsoDay(from)) throw new TravelDayError(dayNotADayWords(from));
+  if (!isIsoDay(to)) throw new TravelDayError(dayNotADayWords(to));
+  if (from > to) throw new TravelDayError(`from ${from} is after to ${to} — a span runs forward`);
+  const end = new Date(`${to}T00:00:00.000Z`);
+  return { from: `${from}T00:00:00.000Z`, to: new Date(end.getTime() + DAY_MS).toISOString() };
+}
+
 /** An instant window [gte, lt) as Prisma's where data. */
 export interface InstantWindow {
   gte: Date;
@@ -95,7 +115,7 @@ export interface InstantWindow {
 }
 
 /** The day-blocks selection rule (day-blocks/route.ts :52-61), as plain where data: once rows by homeDate in the range; daily rows spanning the day. */
-export function plannedSelectionOf(range: DayRange): {
+export function plannedSelectionOf(range: InstantRange): {
   OR: [
     { recurrence: 'once'; homeDate: InstantWindow },
     { recurrence: 'daily'; homeDate: { lt: Date }; destDate: { gte: Date } },
@@ -112,14 +132,14 @@ export function plannedSelectionOf(range: DayRange): {
 }
 
 /** The bookings on the day: a check-in or a check-out whose @db.Date (UTC midnight) is in the range. */
-export function bookingsSelectionOf(range: DayRange): { OR: [{ checkinDate: InstantWindow }, { checkoutDate: InstantWindow }] } {
+export function bookingsSelectionOf(range: InstantRange): { OR: [{ checkinDate: InstantWindow }, { checkoutDate: InstantWindow }] } {
   const from = new Date(range.from);
   const to = new Date(range.to);
   return { OR: [{ checkinDate: { gte: from, lt: to } }, { checkoutDate: { gte: from, lt: to } }] };
 }
 
 /** The segments on the day: calendar rows whose start_date (@db.Date) is in the range — the caller's reservation keys are the route's where. */
-export function segmentsSelectionOf(range: DayRange): { start_date: InstantWindow } {
+export function segmentsSelectionOf(range: InstantRange): { start_date: InstantWindow } {
   return { start_date: { gte: new Date(range.from), lt: new Date(range.to) } };
 }
 
@@ -142,10 +162,13 @@ export function decimalStringOf(value: DecimalLike): string {
 const iso = (d: Date | string): string => (typeof d === 'string' ? new Date(d).toISOString() : d.toISOString());
 /** A @db.Date (UTC midnight) or a date-time → its UTC day 'YYYY-MM-DD'. */
 export const dayOf = (d: Date | string): string => iso(d).slice(0, 10);
-/** A nullable instant → its ISO text, or null. */
-const instantOf = (d: Date | string | null): string | null => (d === null ? null : iso(d));
+/**
+ * A nullable instant → its ISO text, or null. SUPERSEDE-01b (Alex, 2026-11-08): exported, with clockOf below — the blocks read
+ * (travelBlocksReads.ts) reads a row's instants and clocks by these two, never retyped.
+ */
+export const instantOf = (d: Date | string | null): string | null => (d === null ? null : iso(d));
 /** A nullable @db.Time → 'HH:MM' (the one reader, tripItem.ts clockOfTime), or null. */
-const clockOf = (t: Date | string | null): string | null => (t === null ? null : clockOfTime(t));
+export const clockOf = (t: Date | string | null): string | null => (t === null ? null : clockOfTime(t));
 
 // ─── 1. PLANNED ──────────────────────────────────────────────────────────────
 

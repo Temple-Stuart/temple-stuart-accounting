@@ -122,12 +122,12 @@ test('T2 a book with no plan line prints "no budget" in its Budget rows — neve
     asOf: '2026-10-20', view: { kind: 'year', year: 2026 },
     entities: [ent('p', 'Alex', 'personal'), ent('t', 'Trading', 'trading')],
     accounts: [exp('p', '6150', 'Coffee'), exp('t', '6400', 'Data')],
-    budgetLines: [{ entityId: 'p', code: '6150', day: '2026-03-02', cents: 500, source: 'routine', sourceId: 'routine:r-coffee:routine:2026-03-02T08:00:00.000Z' }],
+    budgetLines: [{ entityId: 'p', code: '6150', day: '2026-03-02', cents: 500, source: 'routine', sourceId: 'routine:r-coffee:routine:2026-03-02T08:00:00.000Z', superseded: null }],
     postings: [{ entityId: 't', code: '6400', day: '2026-03-03', entryType: 'D', cents: 700, journalEntryId: 'je-data' }],
   });
   assert.deepEqual(r.books.map((b) => [b.label, b.hasPlanLines]), [['Personal', true], ['Trading', false]]);
   // A plan line on an account outside the chart still makes the book planned — the plan exists, unplaced.
-  const unplaced = buildBudgetReport({ asOf: '2026-10-20', view: { kind: 'year', year: 2026 }, entities: [ent('t', 'Trading', 'trading')], accounts: [], budgetLines: [{ entityId: 't', code: '6999', day: '2026-03-02', cents: 1, source: 'task', sourceId: 'task:t1' }], postings: [] });
+  const unplaced = buildBudgetReport({ asOf: '2026-10-20', view: { kind: 'year', year: 2026 }, entities: [ent('t', 'Trading', 'trading')], accounts: [], budgetLines: [{ entityId: 't', code: '6999', day: '2026-03-02', cents: 1, source: 'task', sourceId: 'task:t1', superseded: null }], postings: [] });
   assert.equal(unplaced.books[0].hasPlanLines, true);
   const s = code(SCREEN);
   assert.match(s, /\{book\.hasPlanLines \? columns\.map\(/);
@@ -150,7 +150,7 @@ test('T3 rows: every active revenue and expense account with or without a figure
       { entityId: 'b', code: '2000', name: 'Card', accountType: 'liability', balanceType: 'C', archived: false },
       { entityId: 'b', code: '3000', name: 'Equity', accountType: 'equity', balanceType: 'C', archived: false },
     ],
-    budgetLines: [{ entityId: 'b', code: '6300', day: '2026-02-10', cents: 1200, source: 'task', sourceId: 'task:t1' }],
+    budgetLines: [{ entityId: 'b', code: '6300', day: '2026-02-10', cents: 1200, source: 'task', sourceId: 'task:t1', superseded: null }],
     postings: [{ entityId: 'b', code: '6900', day: '2026-01-05', entryType: 'D', cents: 900, journalEntryId: 'je-old' }],
   });
   assert.deepEqual(r.books[0].rows.map((x) => x.code), ['4000', '6100', '6300', '6900'], 'revenue first, then expense by code; 6950 (archived, no figure) and every balance-sheet account make no row');
@@ -270,11 +270,13 @@ const HIGHLANDS: PlanVendorRow = {
   id: 'pv-1', routine_id: 'r-coffee', step_id: null, task_id: null, occurrence_at: null,
   vendor: { id: 'v-hl', vendor_name: 'Highlands', entity_id: 'ent-p' }, routine: { name: 'Coffee', timezone: 'UTC' }, step: null, task: null,
 };
+// SUPERSEDE-01b (2026-11-08): the routes read the range's travel blocks and stop records — none here (stated, never absent).
+const NO_SUPERSESSION = { blocks: [], leftOut: { plannedDaily: 0, plannedNoInstants: 0, plannedOneInstant: 0, segmentsNoInstants: 0, segmentsOneInstant: 0 }, records: [] };
 const ROWS: ReportRows = {
   entities: [B, P], chart: CHART,
   routines: [{ entityId: 'ent-p', rows: [COFFEE] }, { entityId: 'ent-b', rows: [] }],
   tasks: [LICENSE, LIC_JULY], ledger: LEDGER,
-  excludedLines: { reversalPairLines: 2, closingEntryLines: 1, linesAfterAsOf: 0 }, bank: [], planVendors: null,
+  excludedLines: { reversalPairLines: 2, closingEntryLines: 1, linesAfterAsOf: 0 }, bank: [], planVendors: null, supersession: NO_SUPERSESSION,
 };
 const YEAR = { view: { kind: 'year' as const, year: 2026 }, asOf: '2026-09-23' };
 
@@ -296,6 +298,7 @@ test('T4 the drill\'s sums equal the report\'s cells — every row of every book
           tasks: ROWS.tasks.filter((t) => t.entity_id === entity.id),
           ledger: LEDGER.filter((l) => l.account.entity_id === entity.id),
           planVendors: [HIGHLANDS],
+          supersession: NO_SUPERSESSION,
         });
         const printed = row.cells[i];
         const shown = shownBudget(column.state) === 'full' ? printed.budgetFull : printed.budgetToDate;
@@ -315,10 +318,10 @@ test('T4 the drill\'s lines: which Budget it lists, each plan line\'s door and v
   const sept = parseCellQuery(new URLSearchParams({ book: 'ent-p', account: '6150', from: '2026-09-01', to: '2026-09-30', asOf: '2026-09-23' }), '2026-09-23');
   assert.ok(sept.ok);
   if (!sept.ok) return;
-  const coffee = budgetCellResponse(sept, { book: P, chart: CHART.filter((c) => c.entity_id === 'ent-p'), routines: [COFFEE], tasks: [], ledger: LEDGER.filter((l) => l.account.entity_id === 'ent-p'), planVendors: [HIGHLANDS] });
+  const coffee = budgetCellResponse(sept, { book: P, chart: CHART.filter((c) => c.entity_id === 'ent-p'), routines: [COFFEE], tasks: [], ledger: LEDGER.filter((l) => l.account.entity_id === 'ent-p'), planVendors: [HIGHLANDS] , supersession: NO_SUPERSESSION });
   // September is in progress: the drill lists the budget TO DATE, Sep 1 … 23 — 23 days of $5.00.
   assert.deepEqual([coffee.budget.shown, coffee.budget.from, coffee.budget.through, coffee.budget.lines.length, coffee.budget.sum], ['toDate', '2026-09-01', '2026-09-23', 23, 11500]);
-  assert.deepEqual(coffee.budget.lines[0], { day: '2026-09-01', source: 'routine', label: 'Coffee', line: null, cents: 500, vendor: 'Highlands', href: '/tasks' });
+  assert.deepEqual(coffee.budget.lines[0], { day: '2026-09-01', source: 'routine', label: 'Coffee', line: null, cents: 500, vendor: 'Highlands', href: '/tasks', superseded: null }); // SUPERSEDE-01b (2026-11-08): a drill line carries its mark — none here
   // The Actual: 525 D − 100 C (a refund) = 425, each line signed in the account's direction, by day.
   assert.deepEqual(coffee.actual.lines.map((l) => [l.day, l.description, l.entryType, l.signedCents, l.sourceType, l.journalEntryId, l.lineId]), [
     ['2026-09-02', 'line l2', 'D', 525, 'manual', 'je-l2', 'l2'],
@@ -329,12 +332,12 @@ test('T4 the drill\'s lines: which Budget it lists, each plan line\'s door and v
   const oct = parseCellQuery(new URLSearchParams({ book: 'ent-b', account: '6300', from: '2026-09-01', to: '2026-09-30', asOf: '2026-09-23' }), '2026-09-23');
   assert.ok(oct.ok);
   if (!oct.ok) return;
-  const lic = budgetCellResponse(oct, { book: B, chart: CHART.filter((c) => c.entity_id === 'ent-b'), routines: [], tasks: [LICENSE, LIC_JULY], ledger: [], planVendors: [] });
+  const lic = budgetCellResponse(oct, { book: B, chart: CHART.filter((c) => c.entity_id === 'ent-b'), routines: [], tasks: [LICENSE, LIC_JULY], ledger: [], planVendors: [] , supersession: NO_SUPERSESSION });
   assert.deepEqual([lic.budget.shown, lic.budget.lines.length], ['toDate', 0], 'September to date holds nothing of the license — it is planned for the 24th');
   const later = parseCellQuery(new URLSearchParams({ book: 'ent-b', account: '6300', from: '2026-09-24', to: '2026-09-30', asOf: '2026-09-23' }), '2026-09-23');
   assert.ok(later.ok);
   if (!later.ok) return;
-  const future = budgetCellResponse(later, { book: B, chart: CHART.filter((c) => c.entity_id === 'ent-b'), routines: [], tasks: [LICENSE, LIC_JULY], ledger: [], planVendors: [] });
+  const future = budgetCellResponse(later, { book: B, chart: CHART.filter((c) => c.entity_id === 'ent-b'), routines: [], tasks: [LICENSE, LIC_JULY], ledger: [], planVendors: [] , supersession: NO_SUPERSESSION });
   assert.deepEqual([future.range.state, future.budget.shown, future.budget.sum, future.actual.through, future.actual.lines], ['future', 'full', 12050, null, []]);
   assert.deepEqual(future.budget.lines.map((l) => [l.label, l.source, l.vendor, l.href]), [['Buy license', 'task', null, '/tasks?project=proj-license']], 'a task links to its project');
   // The saved "B-6300" row is account 6300 — read by the report's one code reader.
@@ -342,7 +345,7 @@ test('T4 the drill\'s lines: which Budget it lists, each plan line\'s door and v
 });
 
 test('T4 buildBudgetCell selects by the model\'s own rule — to date in a closed or in-progress range, the full plan in a future one — and hands back the very lines and postings it was given', () => {
-  const l = (day: string, cents: number) => ({ entityId: 'p', code: '6150', day, cents, source: 'routine' as const, sourceId: `routine:r-coffee:routine:${day}T08:00:00.000Z` });
+  const l = (day: string, cents: number) => ({ entityId: 'p', code: '6150', day, cents, source: 'routine' as const, sourceId: `routine:r-coffee:routine:${day}T08:00:00.000Z`, superseded: null });
   const lines = [l('2026-09-20', 500), l('2026-09-23', 500), l('2026-09-25', 700)];
   const postings = [{ entityId: 'p', code: '6150', day: '2026-09-21', entryType: 'D' as const, cents: 450, journalEntryId: 'je-1' }, { entityId: 'p', code: '6150', day: '2026-08-31', entryType: 'D' as const, cents: 99, journalEntryId: 'je-aug' }];
   const input = { asOf: '2026-09-23', view: { kind: 'year' as const, year: 2026 }, entities: [ent('p', 'Alex', 'personal')], accounts: [exp('p', '6150', 'Coffee')], budgetLines: lines, postings };
@@ -399,7 +402,7 @@ test('T4 the plan lines are matched by ONE rule: dayPlanOf hands its days to pla
   assert.match(code('src/lib/budget/reportInputs.ts'), /const matched = planLinesOn\(\{\s*days: daysOf\(cell\.range\.from, budgetThrough\),/);
   assert.equal((src.match(/readOccurrenceKey\(/g) ?? []).length, 1, 'the key is read in one place');
   // Over explicit days: a line off them is not listed; a plan holding both grains is refused by name.
-  const line = { entityId: 'ent-p', code: '6150', day: '2026-09-02', cents: 500, source: 'routine' as const, sourceId: 'routine:r-coffee:routine:2026-09-02T08:00:00.000Z' };
+  const line = { entityId: 'ent-p', code: '6150', day: '2026-09-02', cents: 500, source: 'routine' as const, sourceId: 'routine:r-coffee:routine:2026-09-02T08:00:00.000Z', superseded: null };
   const words = new Map([['r-coffee', { name: 'Coffee', timezone: 'UTC', steps: new Map() }]]);
   const on = planLinesOn({ days: ['2026-09-02'], lines: [line], routines: words, tasks: new Map(), vendors: [HIGHLANDS] });
   assert.ok(on.ok && on.lines.length === 1 && on.lines[0].vendor?.name === 'Highlands');

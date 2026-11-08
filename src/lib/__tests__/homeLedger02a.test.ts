@@ -16,7 +16,8 @@ import {
   travelPlanRowsOf, travelPlanSortKey, tripBudgetCentsOf, tripBudgetWordsOf, yearNotAYearWords, type TravelPlanInput, type TravelPlanLineIn,
 } from '../home/travelPlan';
 import { HOME_LEDGER_MONTH_HEADING } from '../home/homeLedger';
-import { BANK_ROW_LABEL, SUPERSEDED_GAP_WORDS, bankColumnWords, currencyNotStatedCountWords, notTotalledCountWords } from '../budget/reportView';
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling F): the gap line retired for the SUPERSEDED BY TRAVEL row's words.
+import { BANK_ROW_LABEL, SUPERSEDED_ROW_LABEL, bankColumnWords, currencyNotStatedCountWords, notTotalledCountWords, supersededCellWords } from '../budget/reportView';
 import { missingListWords } from '../reservations/travelLedger';
 import { BLANK } from '../table/words';
 
@@ -281,8 +282,9 @@ test('G the BANK row: per currency through the books\' one bank formatter, a cou
   const report = code(REPORT);
   const tablesAt = report.lastIndexOf('<BookTable ');
   const bankAt = report.indexOf('<BankRow columns={report.columns} notInBooks={notInBooks} />');
-  const gapAt = report.indexOf('{SUPERSEDED_GAP_WORDS}');
-  assert.ok(tablesAt > -1 && bankAt > tablesAt && gapAt > bankAt, 'the book tables, then the BANK row, then the gap');
+  // SUPERSEDE-01b (2026-11-08): the gap line retired — the SUPERSEDED row follows the BANK row.
+  const supersededAt = report.indexOf('<SupersededRow columns={report.columns} totals={report.totals} />');
+  assert.ok(tablesAt > -1 && bankAt > tablesAt && supersededAt > bankAt, 'the book tables, then the BANK row, then the SUPERSEDED row');
   assert.match(report, /\{bankColumnWords\(c\)\}/);
   assert.match(report, /data-budget-bank-cell=\{c\.key\}/);
   assert.match(report, /\{BANK_ROW_LABEL\}/);
@@ -290,10 +292,15 @@ test('G the BANK row: per currency through the books\' one bank formatter, a cou
   assert.doesNotMatch(report, /notInBooks\.columns\.map\([^)]*\+/, 'nothing added to an actual');
 });
 
-test('G the gap, said on both pages — the constant in the view helper, printed under the tables', () => {
-  assert.equal(SUPERSEDED_GAP_WORDS, 'Budget counts every routine occurrence; the day card leaves out the ones superseded by travel — this table does not yet (SUPERSEDE-01)');
-  assert.match(code(VIEW), /export const SUPERSEDED_GAP_WORDS = 'Budget counts every routine occurrence; the day card leaves out the ones superseded by travel — this table does not yet \(SUPERSEDE-01\)';/);
-  assert.match(code(REPORT), /<p className="text-xs text-text-muted" data-budget-superseded-gap>\{SUPERSEDED_GAP_WORDS\}<\/p>/);
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling F): the gap line ("this table does not yet") is false once Budget leaves a superseded
+// occurrence out — retired; the SUPERSEDED BY TRAVEL row says, per column, how many left the budget and their plan cents.
+test('G the gap line retired — the SUPERSEDED BY TRAVEL row, its words in the view helper, printed under the BANK row on both pages', () => {
+  assert.equal(SUPERSEDED_ROW_LABEL, 'SUPERSEDED BY TRAVEL — not counted');
+  assert.equal(supersededCellWords({ count: 0, cents: 0 }), '—', 'no occurrence superseded in the column');
+  assert.equal(supersededCellWords({ count: 2, cents: 4500 }), '2 · $45.00', 'the count and the plan cents');
+  assert.doesNotMatch(code(VIEW) + code(REPORT), /SUPERSEDED_GAP_WORDS|this table does not yet|data-budget-superseded-gap/, 'the gap line is gone from both');
+  assert.match(code(REPORT), /<SupersededRow columns=\{report\.columns\} totals=\{report\.totals\} \/>/);
+  assert.match(code(REPORT), /\{supersededCellWords\(totals\[i\]\.superseded\)\}/);
 });
 
 // ── H · THE ONE BANK READ ────────────────────────────────────────────────────
@@ -346,7 +353,8 @@ test('I the home month law stands at the end of the laws script, after the home 
     "if (!/\\{source\\.from === 'url' \\? \\(/.test(hmReport)) hmFail(",
     "if (!/<BudgetReport year=\\{\\{ from: 'url' \\}\\} \\/>/.test(codeOf(HM_PAGE)))",
     'const bankAt = hmReport.indexOf(\'<BankRow columns={report.columns} notInBooks={notInBooks} />\');',
-    "if (!/export const SUPERSEDED_GAP_WORDS = 'Budget counts every routine occurrence;",
+    // SUPERSEDE-01b (2026-11-08): clause 6's gap check became the SUPERSEDED row check.
+    "if (!/export const SUPERSEDED_ROW_LABEL = 'SUPERSEDED BY TRAVEL — not counted';/.test(hmView))",
   ]) assert.ok(laws.includes(piece), `the law holds: ${piece}`);
   assert.match(laws, /const FX_LANE_FILES = \['src\/components\/home\/HomeLedger\.tsx', 'src\/components\/home\/HomeMonth\.tsx', 'src\/components\/home\/TravelPlan\.tsx'\];/);
   assert.match(laws, /✔ The home month law passed/);

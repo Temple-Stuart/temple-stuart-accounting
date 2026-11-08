@@ -197,7 +197,7 @@ const plan = (o: Partial<RoutineMonthRoutine> & { id: string; name: string }): R
   entityId: 'p', entityType: 'personal', timezone: BKK, scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null,
   budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [], isActive: true, ...o,
 });
-const DAILY = plan({ id: 'daily', name: 'Daily', steps: [{ id: 's1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null }] });
+const DAILY = plan({ id: 'daily', name: 'Daily', steps: [{ id: 's1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null, timeOfDay: null }] });
 const monthLink = (o: Partial<LedgerLinkInput> & { journalEntryId: string; instant: string }): LedgerLinkInput => ({ kind: 'routine_line', targetId: 's1', amountCents: 1000, reversed: false, ...o });
 
 test('C Expenses: the month leaves the reversed posting out of MATCH and says so ("1 linked posting was reversed"); only reversed → MATCH blank with the said line', () => {

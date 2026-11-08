@@ -286,7 +286,7 @@ function CalendarFeedPanel() {
 
 /** 6. FEED 2 — THE BUDGET: the SAME table the Runway deck's slide 6 mirrored —
  *  identical rows/numbers (RunwayShowcaseSections.tsx:92-99). Planned = the
- *  day lines' sum — buildRoutineBudgetLines (src/lib/budget/days.ts:302), each
+ *  day lines' sum — buildRoutineBudgetLines (src/lib/budget/days.ts:374 — SUPERSEDE-01b, 2026-11-08: was :302), each
  *  occurrence costed by routinePlanned (src/lib/operations/routineLines.ts).
  *  HOME-LEDGER-02b (2026-11-07): routinesMonthlyByCoa and the year-calendar
  *  route it fed are deleted. */

@@ -41,19 +41,25 @@
  *     columns, each cell the per-currency figures through the books' one bank
  *     formatter and 'N currency not stated' (reportView.ts bankColumnWords); a
  *     bank figure, never added to Actual or Variance.
- *   · D. The #1886 gap, said under the tables (reportView.ts SUPERSEDED_GAP_WORDS).
+ *   · D. The #1886 gap, said under the tables (reportView.ts SUPERSEDED_GAP_WORDS). SUPERSEDE-01b (Alex, 2026-11-08,
+ *     ruling F): retired — Budget no longer counts a superseded occurrence; the SUPERSEDED BY TRAVEL row under the BANK
+ *     row says, per column, how many left the budget and their plan cents, and the drill lists each struck line with its
+ *     mark (supersession.ts supersededWords) — never dropped, in no sum.
  */
 import { Fragment, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SECTION_HEADER, toggleChip } from '@/lib/ds';
 import { formatAccountCode, formatBudget, formatCents, formatVariance } from '@/lib/budget/format';
-import { shownBudget, type ReportBook, type ReportColumn, type ReportRow } from '@/lib/budget/report';
+import { shownBudget, type ColumnTotals, type ReportBook, type ReportColumn, type ReportRow } from '@/lib/budget/report';
 import type { BudgetCellResponse, BudgetReportResponse } from '@/lib/budget/reportInputs';
 import {
-  BANK_ROW_FIGURE_WORDS, BANK_ROW_LABEL, BANK_SIGN_WORDS, SUPERSEDED_GAP_WORDS, actualDrillWords, agreement, bankColumnWords, budgetDrillWords, cellQuery,
+  BANK_ROW_FIGURE_WORDS, BANK_ROW_LABEL, BANK_SIGN_WORDS, actualDrillWords, agreement, bankColumnWords, budgetDrillWords, cellQuery,
   ledgerHref, notTotalledCountWords, reportQuery, stepYear, tableLabels, yearHref, yearOf,
+  SUPERSEDED_ROW_FIGURE_WORDS, SUPERSEDED_ROW_LABEL, SUPERSEDED_ROW_TITLE, drillSupersededWords, supersededCellWords,
 } from '@/lib/budget/reportView';
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling E): a struck drill line's words — the one sentence the day card prints for a mark.
+import { supersededWords } from '@/lib/operations/supersession';
 // WEEK-01: the browser's date — the one module that reads it.
 import { localToday } from '@/lib/localToday';
 
@@ -171,13 +177,15 @@ function DrillPanel({ opened, column, account, clicked, asOf, close }: {
                   </thead>
                   <tbody>
                     {b.lines.map((l, i) => (
-                      <tr key={`${l.day}:${l.label}:${l.line ?? ''}:${i}`} className="border-b border-border last:border-0">
+                      <tr key={`${l.day}:${l.label}:${l.line ?? ''}:${i}`} className="border-b border-border last:border-0" data-drill-superseded={l.superseded === null ? undefined : 'true'}>
                         <td className={`${td} font-mono`}>{l.day}</td>
                         <td className={td}>
                           <Link href={l.href} className="underline" data-drill-plan-link={l.source}>{l.label}</Link>
                           <span className="text-text-faint"> · {l.source}{l.line !== null && ` — ${l.line}`}</span>
+                          {/* SUPERSEDE-01b (ruling E): a struck line — listed, never dropped; its mark after its label; in no sum. */}
+                          {l.superseded !== null && <span className="text-brand-amber" data-drill-superseded-words> · {supersededWords(l.superseded)}</span>}
                         </td>
-                        <td className={num}>{formatCents(l.cents)}</td>
+                        <td className={`${num}${l.superseded === null ? '' : ' line-through text-text-faint'}`}>{formatCents(l.cents)}</td>
                         <td className={td}>{l.vendor === null ? <span className="text-text-faint">no vendor planned</span> : l.vendor}</td>
                       </tr>
                     ))}
@@ -185,6 +193,7 @@ function DrillPanel({ opened, column, account, clicked, asOf, close }: {
                 </table>
               </div>
             )}
+            {b.superseded.count > 0 && <p className="text-xs text-brand-amber" data-drill-superseded-sum>{drillSupersededWords(b.superseded)}</p>}
             <p className={`text-sm ${verdict.matches ? 'text-text-primary' : 'text-brand-red'}`} data-drill-sum={verdict.matches ? 'matches' : 'differs'}>
               Σ {formatCents(b.sum)} — {verdict.words}
             </p>
@@ -395,6 +404,37 @@ function BankRow({ columns, notInBooks }: { columns: readonly ReportColumn[]; no
   );
 }
 
+/**
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling F): the SUPERSEDED BY TRAVEL row under the BANK row — the same columns, each cell the
+ * occurrences a travel block superseded in that column and their plan cents (report.ts ColumnTotals.superseded); the cells do not
+ * drill (the row's title says where the struck lines are listed).
+ */
+function SupersededRow({ columns, totals }: { columns: readonly ReportColumn[]; totals: readonly ColumnTotals[] }) {
+  return (
+    <section className="space-y-3" data-budget-superseded-row>
+      <h2 className={SECTION_HEADER}>{SUPERSEDED_ROW_LABEL}</h2>
+      <div className="overflow-x-auto rounded-lg border border-border bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-white font-mono text-[10px] uppercase tracking-wider">
+              <th className={th}>Account</th>
+              <th className={th}><span className="sr-only">Figure</span></th>
+              {columns.map((c) => <th key={c.key} className={`${th} text-right`}>{c.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-border" title={SUPERSEDED_ROW_TITLE}>
+              <td className={`${td} font-medium text-text-primary`}>{SUPERSEDED_ROW_LABEL}</td>
+              <td className={`${td} text-text-muted`}>{SUPERSEDED_ROW_FIGURE_WORDS}</td>
+              {columns.map((c, i) => <td key={c.key} className={num} data-budget-superseded-cell={c.key}>{supersededCellWords(totals[i].superseded)}</td>)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 export default function BudgetReport({ year: source }: { year: BudgetYearSource }) {
   const router = useRouter();
   const search = useSearchParams();
@@ -453,8 +493,8 @@ export default function BudgetReport({ year: source }: { year: BudgetYearSource 
             ))}
             {/* Ruling C: the bank rows not yet in the books — per currency, under the book tables, never in them. */}
             <BankRow columns={report.columns} notInBooks={notInBooks} />
-            {/* Ruling D: the #1886 gap, said. */}
-            <p className="text-xs text-text-muted" data-budget-superseded-gap>{SUPERSEDED_GAP_WORDS}</p>
+            {/* SUPERSEDE-01b (ruling F): the occurrences a travel block superseded, per column — the #1886 gap line retired. */}
+            <SupersededRow columns={report.columns} totals={report.totals} />
           </>
         );
       })()}

@@ -8,6 +8,12 @@ import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { BudgetInputError, budgetReportResponse, parseReportQuery, utcDay } from '@/lib/budget/reportInputs';
 import { vendorWindow } from '@/lib/budget/planLines';
 import { countLeftOut, readActuals, readBankNotInBooks, readBudgetChart, readCostedTasks, readPlanVendors } from '@/lib/budget/reportReads';
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling D): the range's travel BLOCKS through the one read (READS-01a's functions, the card's
+// selections — instants only, no money column: travel budgets stay not connected), the range as the travel leaf writes it,
+// and the range's stop records by the one widened window (stopRecord.ts recordsWindowOf).
+import { readTravelBlocks } from '@/lib/operations/travelBlocksReads';
+import { daysRangeOf } from '@/lib/operations/travelDay';
+import { recordsWindowOf } from '@/lib/operations/stopRecord';
 
 /**
  * TAB13-02b — GET /api/budget/report: what you planned, what posted, and the
@@ -47,8 +53,13 @@ import { countLeftOut, readActuals, readBankNotInBooks, readBudgetChart, readCos
  *     pages call (reportReads.ts readBankNotInBooks; the DAY table on /home reads the same), each with its ACCOUNT's
  *     currency; counted per column, summed PER CURRENCY CODE as a BANK figure (Plaid signs outflows positive), never
  *     across codes, never mixed into an actual; a row whose amount is not whole cents is listed, left out, never fatal.
- * No travel table is read: travel budgets are not connected yet, and the
- * response says so.
+ * No travel BUDGET is read: travel budgets are not connected yet, and the
+ * response says so. SUPERSEDE-01b (Alex, 2026-11-08): the range's travel BLOCKS
+ * — a planned once row or a flight segment with both instants, instants only —
+ * are read through src/lib/operations/travelBlocksReads.ts (READS-01a's
+ * functions, the card's selections), and the range's stop records through
+ * stopRecord.ts recordsWindowOf, so the model marks every routine occurrence a
+ * block supersedes by the one rule (supersession.ts) and sums without them.
  *
  * FAIL LOUD. A bad parameter → 400 naming it. The model refusing its input
  * (BudgetReportError) → 422 with its code and message. The day rules refusing a
@@ -87,7 +98,7 @@ export async function GET(request: NextRequest) {
     });
     const entityIds = entities.map((e) => e.id);
 
-    const [chart, routineGroups, tasks, ledger, excludedLines, bankRows, planVendors] = await Promise.all([
+    const [chart, routineGroups, tasks, ledger, excludedLines, bankRows, planVendors, travelBlocks, stopRecords] = await Promise.all([
       readBudgetChart(prisma, user.id, entityIds),
       Promise.all(entities.map(async (e) => ({ entityId: e.id, rows: await loadRoutineBudgetInputs(prisma, user.id, e.id) }))),
       readCostedTasks(prisma, user.id, entityIds),
@@ -100,6 +111,10 @@ export async function GET(request: NextRequest) {
       readBankNotInBooks(prisma, user.id, rangeFrom, through),
       // TAB13-04: the plan's vendors — a DAY or WEEK only; a YEAR reads none.
       vendorsFrom === null ? null : readPlanVendors(prisma, user.id, vendorsFrom),
+      // SUPERSEDE-01b (ruling D): the range's travel blocks, by the card's selections, through the one read; bookings are never a block.
+      readTravelBlocks(prisma, user.id, daysRangeOf(rangeFrom, rangeTo)),
+      // SUPERSEDE-01b (ruling D): the range's stop records — the three columns the one key is built from (a record wins, in the leaf).
+      prisma.operations_stop_records.findMany({ where: { user_id: user.id, occurrence_at: recordsWindowOf(rangeFrom, rangeTo) }, select: { routine_id: true, step_id: true, occurrence_at: true } }),
     ]);
     // Ruling C: the account's stated currency rides beside the amount into the model (BankRow.currency).
     const bank = bankRows.map((t) => ({ id: t.id, date: t.date, amount: t.amount, currency: t.accounts.isoCurrencyCode }));
@@ -113,6 +128,7 @@ export async function GET(request: NextRequest) {
       excludedLines,
       bank,
       planVendors,
+      supersession: { blocks: travelBlocks.blocks, leftOut: travelBlocks.leftOut, records: stopRecords },
     }));
   } catch (error) {
     if (error instanceof BudgetReportError) {

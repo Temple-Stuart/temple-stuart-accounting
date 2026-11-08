@@ -51,7 +51,7 @@ const plan = (o: Partial<RoutineMonthRoutine> & { id: string; name: string }): R
   budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [], isActive: true, ...o,
 });
 /** A daily $10 line (October 2026 has 31 days). */
-const DAILY = plan({ id: 'daily', name: 'Daily', steps: [{ id: 's1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null }] });
+const DAILY = plan({ id: 'daily', name: 'Daily', steps: [{ id: 's1', stepOrder: 1, budgetAmount: '10', coaCode: '6150', durationMinutes: null, timeOfDay: null }] });
 /** A stepless routine with no record — ACTUAL and VARIANCE stay null. */
 const QUIET = plan({ id: 'quiet', name: 'Quiet', budgetAmount: '3', coaCode: '6150' });
 /** A once routine on the 20th (ONEOFF-01: FREQ=DAILY;COUNT=1 on its start date). */

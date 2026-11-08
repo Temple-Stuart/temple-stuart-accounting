@@ -3334,9 +3334,14 @@ lawGuard('The budget report route law', () => {
 //      (src/app/api/ai/cart-plan/route.ts:80-89): a verified cookie or 401, the
 //      user or 404 — before any other read. GET is the only method, and the path
 //      is not public in src/middleware.ts.
-//   2. NO TRAVEL TABLE. No Budget file names budget_line_items, trip_itinerary
-//      or calendar_events, or imports a travel file: travel budgets are not
-//      connected yet, and the response says so.
+//   2. TRAVEL BLOCKS, NEVER TRAVEL BUDGETS (SUPERSEDE-01b, Alex, 2026-11-08 —
+//      was NO TRAVEL TABLE). No Budget file names budget_line_items,
+//      trip_itinerary, calendar_events or reservations, or reaches a travel file
+//      through its import tree: travel budgets are not connected yet, and the
+//      response says so. 2b: Budget reads the range's travel BLOCKS — a planned
+//      once row or a flight segment with both instants — through ONE read,
+//      src/lib/operations/travelBlocksReads.ts, on READS-01a's functions; it
+//      names no money column, and the two budget routes alone import it.
 //   3. LEFT OUT BY NAME. The one actuals query excludes reversal pairs
 //      (is_reversal false, reversed_by_entry_id null) and closing entries
 //      (source_type not year_end_close) in its own where clause, and both are
@@ -3385,7 +3390,8 @@ const BR_INPUTS = 'src/lib/budget/reportInputs.ts';
 const BR_PAGE = 'src/app/budget/page.tsx';
 const BR_PATH = '/api/budget/report';
 const BR_CELL_PATH = '/api/budget/report/cell';
-const BR_TRAVEL_TABLES = /\b(budget_line_items|trip_itinerary|calendar_events)\b/;
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling H): `reservations` joins — no Budget file names it (the blocks read does, outside them).
+const BR_TRAVEL_TABLES = /\b(budget_line_items|trip_itinerary|calendar_events|reservations)\b/;
 const BR_TRAVEL_FILES = /^src\/(lib\/trips|components\/trips|app\/api\/trips|app\/budgets\/trips)\//;
 const BR_WRITE = /\.\w+\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(|\$executeRaw/;
 // TAB13-02e: the files clauses 2 and 4 read — the Budget files, and only them.
@@ -3438,17 +3444,43 @@ else {
     }
   }
   // 2 and 4. The Budget files: no travel table, no travel file, no write.
+  // SUPERSEDE-01b (Alex, 2026-11-08, ruling H): the travel-file check is PROMOTED from each Budget file's direct imports to its
+  // whole import tree (brTree) — the routes now reach the travel leaves (travelBlocksReads → travelDayReads → travelDay and
+  // bookingEvent), none of them a travel file; a travel file reached through ANY file is refused, by name.
   for (const f of BR_BUDGET_FILES) {
     if (!existsSync(resolve(ROOT, f))) { brFail(`${f} is missing — it is a Budget file this law reads`); continue; }
     if (BR_TRAVEL_FILES.test(f)) brFail(`${f} is a travel file among the Budget files — travel budgets are not connected yet`);
-    for (const imported of importsFor(f)) {
-      if (BR_TRAVEL_FILES.test(imported)) brFail(`${f} imports the travel file ${imported} — it is a Budget file, and travel budgets are not connected yet`);
+    const direct = importsFor(f);
+    for (const reached of brTree(f)) {
+      if (reached === f || !BR_TRAVEL_FILES.test(reached)) continue;
+      if (direct.includes(reached)) brFail(`${f} imports the travel file ${reached} — it is a Budget file, and travel budgets are not connected yet`);
+      else brFail(`${f} reaches the travel file ${reached} through its import tree — it is a Budget file, and travel budgets are not connected yet`);
     }
     const body = codeOf(f);
     const table = BR_TRAVEL_TABLES.exec(body);
     if (table) brFail(`${f} names the travel table ${table[1]} — it is a Budget file, and no travel table is read`);
     const write = BR_WRITE.exec(body);
     if (write) brFail(`${f} writes (${write[0].trim()}) — it is a Budget file, and the report writes nothing`);
+  }
+  // 2b. SUPERSEDE-01b (Alex, 2026-11-08, ruling H): THE BLOCKS, ONE READ. Budget reads the range's travel blocks through ONE file,
+  // on READS-01a's functions and the leaf's planned-kind rule; it names no money column (the blocks carry instants only), and among
+  // the Budget files exactly the two routes import it.
+  const BR_BLOCKS = 'src/lib/operations/travelBlocksReads.ts';
+  const BR_MONEY_COLUMNS = /\b(budget_line_items|cost|finalPriceCents|amount_minor|budget_amount|coa_code)\b/;
+  if (!existsSync(resolve(ROOT, BR_BLOCKS))) brFail(`${BR_BLOCKS} is missing — Budget reads the travel blocks of the range through it (clause 2b)`);
+  else {
+    const blocks = codeOf(BR_BLOCKS);
+    for (const name of ['readPlannedTravel', 'readOwnReservationIds', 'readSegments']) {
+      if (!new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from \x27@/lib/operations/travelDayReads\x27;`).test(blocks)) brFail(`${BR_BLOCKS} does not import ${name} from '@/lib/operations/travelDayReads' — the blocks are read by the READS-01a functions (clause 2b)`);
+    }
+    for (const name of ['plannedKindOf', 'type TravelBlock']) {
+      if (!new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from \x27@/lib/operations/supersession\x27;`).test(blocks)) brFail(`${BR_BLOCKS} does not import ${name} from '@/lib/operations/supersession' — the kind and the shape of a block are the one leaf (clause 2b)`);
+    }
+    const money = BR_MONEY_COLUMNS.exec(blocks);
+    if (money) brFail(`${BR_BLOCKS} names the money column ${money[1]} — the blocks carry instants only; travel budgets are not connected (clause 2b)`);
+    const importers = BR_BUDGET_FILES.filter((f) => existsSync(resolve(ROOT, f)) && importsFor(f).includes(BR_BLOCKS));
+    for (const f of importers) if (f !== BR_ROUTE && f !== BR_CELL) brFail(`${f} imports ${BR_BLOCKS} — only the two budget routes read the travel blocks (clause 2b)`);
+    for (const f of [BR_ROUTE, BR_CELL]) if (!importers.includes(f)) brFail(`${f} does not import ${BR_BLOCKS} — both budget routes read the travel blocks of the range through it (clause 2b)`);
   }
   if (!/travelBudgets: \x27not connected\x27/.test(codeOf(BR_INPUTS))) brFail(`${BR_INPUTS} does not say the travel budgets are not connected`);
   // 6. The one input: every writing fetch in a Budget file goes to a vendor route, by literal path and method.
@@ -3497,7 +3529,7 @@ else {
   if (!/import BudgetReport from \x27@\/components\/budget\/BudgetReport\x27;/.test(page) || !/<BudgetReport\b/.test(page)) brFail(`${BR_PAGE} does not render BudgetReport — /budget is the budget report`);
   if (/BudgetingPage/.test(page) || brTree(BR_PAGE).includes('src/components/dashboard/BudgetingPage.tsx')) brFail(`BudgetingPage is in the import tree of ${BR_PAGE} — /budget renders BudgetReport, not the category room`);
 }
-if (brViolations === 0) console.log(`✔ The budget report route law passed — both budget routes (the report and the drill) GET only, the cart-plan gate first, neither a public path; ${BR_BUDGET_FILES.length} Budget files (the two routes, src/lib/budget, src/components/budget, the routine budget loader) name no travel table or travel file and write nothing; the one actuals query, in the loader both routes call, leaves out reversal pairs and closing entries by name and counts them, and no other Budget file reads the ledger; /budget renders BudgetReport; every write a Budget file sends is a plan line vendor, through the two vendor routes.`);
+if (brViolations === 0) console.log(`✔ The budget report route law passed — both budget routes (the report and the drill) GET only, the cart-plan gate first, neither a public path; ${BR_BUDGET_FILES.length} Budget files (the two routes, src/lib/budget, src/components/budget, the routine budget loader) name no travel table, reach no travel file and write nothing; the travel blocks of the range come through ONE read (src/lib/operations/travelBlocksReads.ts — the READS-01a functions, no money column), imported by the two routes alone; the one actuals query, in the loader both routes call, leaves out reversal pairs and closing entries by name and counts them, and no other Budget file reads the ledger; /budget renders BudgetReport; every write a Budget file sends is a plan line vendor, through the two vendor routes.`);
 else console.log(`✖ The budget report route law FAILED — ${brViolations} violation(s).`);
 });
 lawGuard('The vendor law', () => {
@@ -10965,9 +10997,11 @@ lawGuard('The home month law', () => {
 //      figures per code (bankByCode, currencyNotStated), never one sum.
 //   5. BUDGETREPORT'S YEAR PROP: required, the two kinds; the step renders only
 //      from the URL; /budget passes { from: 'url' }, the host { from: 'host', year }.
-//   6. THE BANK ROW AND THE GAP: BudgetReport prints the BANK row through
-//      reportView.ts bankColumnWords (the books' one bank formatter) and the
-//      SUPERSEDED_GAP_WORDS constant, after the book tables — on both pages.
+//   6. THE BANK ROW AND THE SUPERSEDED ROW: BudgetReport prints the BANK row
+//      through reportView.ts bankColumnWords (the books' one bank formatter),
+//      then — SUPERSEDE-01b (Alex, 2026-11-08, ruling H), the gap line retired —
+//      the SUPERSEDED BY TRAVEL row through supersededCellWords, after the book
+//      tables, in that order — on both pages.
 //   7. THE LANE names the host and the travel plan's screen; no registry row.
 const HM_HOST = 'src/components/home/HomeMonth.tsx';
 const TP_ROUTE = 'src/app/api/home-travel-plan/route.ts';
@@ -11073,15 +11107,17 @@ if (!/export default function BudgetReport\(\{ year: source \}: \{ year: BudgetY
 if (!/const year = asOf === null \? null : source\.from === 'url' \? yearOf\(new URLSearchParams\(search\.toString\(\)\), asOf\) : source\.year;/.test(hmReport)) hmFail(`${HM_REPORT} does not take the year from where the prop says`);
 if (!/\{source\.from === 'url' \? \(/.test(hmReport)) hmFail(`${HM_REPORT} does not guard the ‹ › year step by the URL kind — the host's year has no step`);
 if (!/<BudgetReport year=\{\{ from: 'url' \}\} \/>/.test(codeOf(HM_PAGE))) hmFail(`${HM_PAGE} does not pass { from: 'url' } — /budget's year is the URL's`);
-// 6. The BANK row and the gap.
-if (!/export const SUPERSEDED_GAP_WORDS = 'Budget counts every routine occurrence; the day card leaves out the ones superseded by travel — this table does not yet \(SUPERSEDE-01\)';/.test(hmView)) hmFail(`${HM_VIEW} does not declare SUPERSEDED_GAP_WORDS`);
+// 6. The BANK row and — SUPERSEDE-01b (Alex, 2026-11-08, ruling H): the gap line retired — the SUPERSEDED row.
+if (!/export const SUPERSEDED_ROW_LABEL = 'SUPERSEDED BY TRAVEL — not counted';/.test(hmView)) hmFail(`${HM_VIEW} does not declare SUPERSEDED_ROW_LABEL`);
+if (/SUPERSEDED_GAP_WORDS|this table does not yet/.test(hmView + hmReport)) hmFail(`${HM_VIEW} or ${HM_REPORT} still holds the gap line — Budget leaves a superseded occurrence out (SUPERSEDE-01b)`);
 if (!/export function bankColumnWords\(/.test(hmView) || !/import \{ CURRENCY_NOT_STATED_WORDS, NOT_WHOLE_CENTS_WORDS, bankCentsWords \} from '@\/lib\/books\/functionalCurrency';/.test(hmView)) hmFail(`${HM_VIEW} does not word the BANK row's cells through the books' one bank formatter (bankCentsWords)`);
 if (!/export const BANK_ROW_LABEL = 'BANK — not yet in the books';/.test(hmView)) hmFail(`${HM_VIEW} does not declare BANK_ROW_LABEL`);
 {
   const tablesAt = hmReport.lastIndexOf('<BookTable ');
   const bankAt = hmReport.indexOf('<BankRow columns={report.columns} notInBooks={notInBooks} />');
-  const gapAt = hmReport.indexOf('{SUPERSEDED_GAP_WORDS}');
-  if (!(tablesAt > -1 && bankAt > tablesAt && gapAt > bankAt)) hmFail(`${HM_REPORT} does not print the book tables, then the BANK row, then the gap line`);
+  const supersededAt = hmReport.indexOf('<SupersededRow columns={report.columns} totals={report.totals} />');
+  if (!(tablesAt > -1 && bankAt > tablesAt && supersededAt > bankAt)) hmFail(`${HM_REPORT} does not print the book tables, then the BANK row, then the SUPERSEDED row`);
+  if (!/\{supersededCellWords\(/.test(hmReport)) hmFail(`${HM_REPORT} does not print each SUPERSEDED cell through supersededCellWords`);
   if (!/\{bankColumnWords\(c\)\}/.test(hmReport)) hmFail(`${HM_REPORT} does not print each BANK cell through bankColumnWords`);
   if (/bankCents/.test(hmReport)) hmFail(`${HM_REPORT} names bankCents — the one sum across currencies is gone`);
 }
@@ -11091,7 +11127,7 @@ if (!/export const BANK_ROW_LABEL = 'BANK — not yet in the books';/.test(hmVie
   if (!/const FX_LANE_FILES = \['src\/components\/home\/HomeLedger\.tsx', 'src\/components\/home\/HomeMonth\.tsx', 'src\/components\/home\/TravelPlan\.tsx'\];/.test(self)) hmFail("the books currency law's lane does not name the month host and the travel plan's screen");
 }
 if (TOOL_REGISTRY.some((t) => t.slug === 'home-month' || t.slug === 'travel-plan' || t.home === '/home')) hmFail('the registry carries a Home row — the month table is Budget\'s, the travel plan the shell\'s');
-if (hmViolations === 0) console.log(`✔ The home month law passed — /home mounts the four answers → Net worth → the day card → the home ledger → the month host → the sheet; the host prints the heading, Budget's own report on the card's year (no step) and the travel plan; the travel plan's route is GET only behind the cart-plan gate, reads the caller's trip lines alone, and its leaf and screen sum nothing; the bank rows not yet in the books are ONE read (reportReads.ts readBankNotInBooks) for both pages, figured per currency; BudgetReport takes the one required year prop, prints the BANK row through the books' formatter and says the supersession gap; the lane names both screens; no registry row.`);
+if (hmViolations === 0) console.log(`✔ The home month law passed — /home mounts the four answers → Net worth → the day card → the home ledger → the month host → the sheet; the host prints the heading, Budget's own report on the card's year (no step) and the travel plan; the travel plan's route is GET only behind the cart-plan gate, reads the caller's trip lines alone, and its leaf and screen sum nothing; the bank rows not yet in the books are ONE read (reportReads.ts readBankNotInBooks) for both pages, figured per currency; BudgetReport takes the one required year prop, prints the BANK row through the books' formatter, then the SUPERSEDED BY TRAVEL row; the lane names both screens; no registry row.`);
 else console.log(`✖ The home month law FAILED — ${hmViolations} violation(s).`);
 });
 

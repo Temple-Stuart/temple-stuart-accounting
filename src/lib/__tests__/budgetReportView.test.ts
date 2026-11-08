@@ -82,7 +82,7 @@ test('BUDGET-02 PURITY — the helper imports types from the model, the one form
   // HOME-LEDGER-02a (Alex, 2026-11-07, rulings C, D): the BANK row's words join — the column's type, BLANK, and the books'
   // one bank formatter (functionalCurrency.ts, which imports nothing: the helper stays pure).
   assert.deepEqual(imports, [
-    "import type { ReportBook, ReportColumn, ShownBudget } from './report';",
+    "import type { ReportBook, ReportColumn, ShownBudget, SupersededTotal } from './report';", // SUPERSEDE-01b (2026-11-08): the SUPERSEDED row's cell type
     "import type { NotInBooksColumn } from './reportInputs';",
     "import { BLANK, formatCents } from './format';",
     "import { CURRENCY_NOT_STATED_WORDS, NOT_WHOLE_CENTS_WORDS, bankCentsWords } from '@/lib/books/functionalCurrency';",

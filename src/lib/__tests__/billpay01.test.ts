@@ -64,7 +64,7 @@ const CARD = { code: '2100', name: 'Card' };
 
 const PHONE = bill({ id: 'phone', name: 'Phone bill', budgetAmount: '45', coaCode: '6300' });
 const RENT = bill({ id: 'rent', name: 'Rent', timezone: BKK, budgetAmount: '500', coaCode: '6100' });
-const HOSTING = bill({ id: 'hosting', name: 'Hosting', timezone: BKK, scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=0;BYMINUTE=0;BYSECOND=0', steps: [{ id: 'server', stepOrder: 1, budgetAmount: '20', coaCode: '6080', durationMinutes: null }, { id: 'domain', stepOrder: 2, budgetAmount: '2', coaCode: '6080', durationMinutes: null }] }, 'all_day', { server: 'Server', domain: 'Domain' });
+const HOSTING = bill({ id: 'hosting', name: 'Hosting', timezone: BKK, scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=0;BYMINUTE=0;BYSECOND=0', steps: [{ id: 'server', stepOrder: 1, budgetAmount: '20', coaCode: '6080', durationMinutes: null, timeOfDay: null }, { id: 'domain', stepOrder: 2, budgetAmount: '2', coaCode: '6080', durationMinutes: null, timeOfDay: null }] }, 'all_day', { server: 'Server', domain: 'Domain' });
 const GYM = bill({ id: 'gym', name: 'Gym', scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=15;BYHOUR=0;BYMINUTE=0;BYSECOND=0', budgetAmount: '30', coaCode: '6200' });
 const INSURANCE = bill({ id: 'insurance', name: 'Insurance', scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=3;BYHOUR=0;BYMINUTE=0;BYSECOND=0', budgetAmount: '120', coaCode: '6400' });
 const APPLE = bill({ id: 'apple', name: 'Apple storage', budgetAmount: '3', coaCode: '6300' });

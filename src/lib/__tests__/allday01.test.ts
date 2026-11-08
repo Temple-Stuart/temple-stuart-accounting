@@ -127,8 +127,8 @@ test('T2 the readers with the derived clock: the day card\'s reader and its band
   };
   const entry: TodayRoutineEntry = { routine, expected_at: '2026-11-10T17:00:00.000Z', status: 'pending', completion: null };
   const input: DayCardInput = {
-    day: '2026-11-11', entries: [entry], items: [], notPlaced: [], viewerZone: BKK, records: null, travel: null, // TRAVEL-01b (Alex, 2026-10-31): the input gains `travel`
-    lines: [{ entityId: 'P', code: '5100', day: '2026-11-11', source: 'routine', line: null, time: '00:00', vendor: null, address: { kind: 'routine', id: 'apple', instant: '2026-11-10T17:00:00.000Z' }, cents: 299, label: 'Apple storage' }],
+    day: '2026-11-11', entries: [entry], items: [], notPlaced: [], viewerZone: BKK, records: null, travel: null, marks: null, // TRAVEL-01b (Alex, 2026-10-31): the input gains `travel`; SUPERSEDE-01b (2026-11-08): and the report's marks (null — not read)
+    lines: [{ entityId: 'P', code: '5100', day: '2026-11-11', source: 'routine', line: null, time: '00:00', vendor: null, address: { kind: 'routine', id: 'apple', instant: '2026-11-10T17:00:00.000Z' }, cents: 299, label: 'Apple storage', superseded: null }],
   };
   const card = dayStops(input);
   assert.deepEqual(card.allDay.map((s) => [s.label, s.role, s.time, s.cents]), [['Apple storage', 'all_day', '00:00', 299]]);

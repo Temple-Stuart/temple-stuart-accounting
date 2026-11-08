@@ -285,15 +285,16 @@ test('G the other lane is untouched: Landing, the walkthrough, the day card, the
   assert.match(code('src/lib/walkthroughLedger.ts'), /glimpse: "month-by-month budget vs actual",/);
   assert.match(comments('src/components/home/RunwayShowcaseSections.tsx'), /HOME-LEDGER-02b \(2026-11-07\): RunwayDataProvider — the cockpit's retired\s*\*\s*budget-tables context — is deleted/);
   assert.match(comments('src/components/home/RunwayShowcaseSections.tsx'), /src\/app\/api\/budget\/report\/route\.ts and\s*\*\s*src\/app\/api\/budget\/report\/cell\/route\.ts/);
-  assert.match(comments('src/components/home/RoutinesShowcaseSections.tsx'), /buildRoutineBudgetLines \(src\/lib\/budget\/days\.ts:302\), each\s*\*\s*occurrence costed by routinePlanned \(src\/lib\/operations\/routineLines\.ts\)/);
-  assert.equal(code('src/lib/budget/days.ts').split('\n')[301]?.startsWith('export function buildRoutineBudgetLines('), true, 'days.ts:302 is the builder the comment cites');
+  // SUPERSEDE-01b (Alex, 2026-11-08, ruling K): 01a's fold undone and the one expansion lifted out — the builder moved :302 → :374, re-cited in place.
+  assert.match(comments('src/components/home/RoutinesShowcaseSections.tsx'), /buildRoutineBudgetLines \(src\/lib\/budget\/days\.ts:374 — SUPERSEDE-01b, 2026-11-08: was :302\), each\s*\*\s*occurrence costed by routinePlanned \(src\/lib\/operations\/routineLines\.ts\)/);
+  assert.equal(code('src/lib/budget/days.ts').split('\n')[373]?.startsWith('export function buildRoutineBudgetLines('), true, 'days.ts:374 is the builder the comment cites');
 });
 
 // ── H · THIS TEST ────────────────────────────────────────────────────────────
 
 test('H this test pins no line number of any file this PR does not own', () => {
   const self = code(THIS);
-  // The two line pins it carries are the two it verifies by content above (page.tsx:32, days.ts:302) — both re-cited comments of this PR.
+  // The two line pins it carries are the two it verifies by content above (page.tsx:32, days.ts:374 — SUPERSEDE-01b re-cited :302) — both re-cited comments.
   const pins = [...self.matchAll(/\[(\d+)\]\?\./g)].map((m) => Number(m[1]));
-  assert.deepEqual(pins, [31, 301]);
+  assert.deepEqual(pins, [31, 373]);
 });

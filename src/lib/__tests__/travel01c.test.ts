@@ -5,20 +5,28 @@
  *
  * The rule (dayCard.ts supersessionOf and the marks in dayStops) is driven over the travel leaf's own fixtures and the
  * reel fixture's routines; the card, the writers and the stops route are read through code() (the reader law).
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling J): the card TAKES its marks — they are built here by Budget's model (days.ts
+ * routineSupersessionOf) over the same routines, the blocks the one read's flat list makes of the same rows
+ * (travelBlocksReads.ts blocksOfRows) and the records' keys, then handed to dayStops; the card asserts the mark it was
+ * handed and derives none. A block's key is the read's (`planned:<id>`, `segment:<source_id>:<start_date>` — ruling A).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { code, comments } from '../sourceText';
 import { dayRangeOf, travelDayOf, type BookingIn, type PlannedIn, type SegmentIn, type TravelDay } from '../operations/travelDay';
-import type { StopRecordRow } from '../operations/stopRecord';
+import { recordKey, type StopRecordRow } from '../operations/stopRecord';
+// SUPERSEDE-01b (ruling J): the model that marks and the read's flat list that makes the blocks.
+import { routineSupersessionOf, type RoutinePlanInput } from '../budget/days';
+import { blocksOfRows } from '../operations/travelBlocksReads';
+import type { Routine } from '@/components/workbench/operations/routines/types';
 // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 2): the rule's names come from the one leaf; the card's names from the card.
 import {
   CANNOT_SUPERSEDE_NO_END_WORDS, CANNOT_SUPERSEDE_NO_INSTANT_WORDS, NOT_IN_PLAN_WORDS, SUPERSEDED_BY_TRAVEL_WORDS, SUPERSEDED_BY_WORDS,
-  andMoreWords, cannotSupersedeWords, supersessionOf, type OccurrenceWindow, type TravelBlock,
+  andMoreWords, cannotSupersedeWords, supersededWords, supersessionOf, type OccurrenceWindow, type Supersession, type TravelBlock,
 } from '@/lib/operations/supersession';
 import {
   captionText, dayStops, dayTotals, dayVerdict, focusStop, scriptText, statusWords, stopSceneLines, supersededLineWords, supersededTotals,
-  supersededWords, travelBlocksOf, travelBookingLineWords, travelOf, travelSaidWords, withoutSuperseded, type Stop,
+  markOf, travelBookingLineWords, travelOf, travelSaidWords, withoutSuperseded, type Stop,
 } from '@/components/workbench/operations/day/dayCard';
 import { BKK, DAY, STAY, entry, input, line, routine } from './fixtureReelDay';
 import { reelDay } from './fixtureReelDay';
@@ -74,7 +82,13 @@ const seg0: SegmentIn = {
 /** A segment with a clock and no instant — no block. */
 const seg1: SegmentIn = { ...seg0, source_id: 'res-flight:seg:1', title: 'AirAsia CNX → DPS (flight)', end_date: null, start_time: new Date(timeOf('21:30')), end_time: null, start_at: null, end_at: null };
 
-const travelOf_ = (planned: PlannedIn[], bookings: BookingIn[], segments: SegmentIn[]): TravelDay => travelDayOf({ range, planned, bookings, segments });
+// SUPERSEDE-01b (ruling J): each fixture day's rows are kept with its TravelDay — the blocks Budget's read would make of them.
+const rowsOf = new Map<TravelDay, { readonly planned: readonly PlannedIn[]; readonly segments: readonly SegmentIn[] }>();
+const travelOf_ = (planned: PlannedIn[], bookings: BookingIn[], segments: SegmentIn[]): TravelDay => {
+  const t = travelDayOf({ range, planned, bookings, segments });
+  rowsOf.set(t, { planned, segments });
+  return t;
+};
 
 /** The routines: Coworking 13:00–18:00 Bangkok (a window), Dinner at 19:00 (a point), Gym at 15:00 (a point), each priced on the day. */
 const AT = { cowork: bkk('13:00').toISOString(), dinner: bkk('19:00').toISOString(), gym: bkk('15:00').toISOString() };
@@ -89,8 +103,25 @@ const lines = [
 const record = (id: 'cowork' | 'dinner' | 'gym', actual: number): StopRecordRow => ({
   id: `rec-${id}`, kind: 'routine', target_id: id, occurrence_at: AT[id], outcome: 'done', done_at: AT[id], actual_cents: actual, rating: null, note: null, actual_minutes: null,
 });
-const day = (travel: TravelDay | null, over: { readonly records?: StopRecordRow[] | null; readonly entries?: ReturnType<typeof entry>[] } = {}) =>
-  dayStops(input({ entries: over.entries === undefined ? [entry(cowork, AT.cowork), entry(dinner, AT.dinner), entry(gym, AT.gym)] : over.entries, lines, records: over.records === undefined ? [] : over.records, travel }));
+/** SUPERSEDE-01b (ruling J): a fixture routine as the report's plan input — the loader's fields; this file's routines carry no lines. */
+const planInputOf = (r: Routine): RoutinePlanInput => {
+  if (r.steps.length > 0) throw new Error(`fixture: ${r.id} has lines — this file's routines are stepless`);
+  return { id: r.id, name: r.name, entityId: r.entity_id, entityType: 'personal', timezone: r.timezone, scheduleRrule: r.schedule_rrule, startDate: r.start_date, endDate: r.end_date, budgetAmount: r.budget_amount, coaCode: r.coa_code, startTime: r.start_time, endTime: r.end_time, steps: [] };
+};
+/** SUPERSEDE-01b (ruling J): the day's marks as Budget's model builds them — every occurrence of the day's routines with its mark or null. */
+const marksFor = (travel: TravelDay | null, entries: readonly ReturnType<typeof entry>[], records: readonly StopRecordRow[] | null): ReadonlyMap<string, Supersession | null> => {
+  const rows = travel === null ? { planned: [], segments: [] } : rowsOf.get(travel);
+  if (rows === undefined) throw new Error('fixture: a travel day built outside travelOf_');
+  const routines = [...new Map(entries.map((e) => [e.routine.id, e.routine])).values()].map(planInputOf);
+  const recorded = new Set((records === null ? [] : records).map(recordKey));
+  const s = routineSupersessionOf(routines, DAY, DAY, blocksOfRows(rows.planned, rows.segments).blocks, recorded);
+  return new Map(s.occurrences.map((key): [string, Supersession | null] => [key, s.marks.has(key) ? s.marks.get(key)! : null]));
+};
+const day = (travel: TravelDay | null, over: { readonly records?: StopRecordRow[] | null; readonly entries?: ReturnType<typeof entry>[] } = {}) => {
+  const entries = over.entries === undefined ? [entry(cowork, AT.cowork), entry(dinner, AT.dinner), entry(gym, AT.gym)] : over.entries;
+  const records = over.records === undefined ? [] : over.records;
+  return dayStops(input({ entries, lines, records, travel, marks: marksFor(travel, entries, records) }));
+};
 const stopAt = (stops: readonly Stop[], key: string): Stop => {
   const s = stops.find((x) => x.key === key);
   if (s === undefined) throw new Error(`no stop ${key} among ${stops.map((x) => x.key).join(', ')}`);
@@ -106,26 +137,27 @@ test('A/B a planned flight 14:10–17:05 (instants) supersedes Coworking 13:00�
   const r = day(travelOf_([flight], [], []));
   const c = stopAt(r.stops, COWORK);
   assert.deepEqual([c.status, c.statusSource, c.cents, c.record], ['skipped', 'travel', 2500, null], 'skipped by the block, its plan figure kept for the struck cell');
-  assert.deepEqual(c.superseded, { by: { key: 'travel:planned:ti-flight', kind: 'flight', name: 'AirAsia', time: '14:10', startAt: bkk('14:10').toISOString(), endAt: bkk('17:05').toISOString() }, more: 0 });
-  assert.equal(supersededWords(c), 'superseded by Flight AirAsia 14:10');
+  // SUPERSEDE-01b (2026-11-08): the block's key is the read's (`planned:<id>`), the rest as the card stated it.
+  assert.deepEqual(c.superseded, { by: { key: 'planned:ti-flight', kind: 'flight', name: 'AirAsia', time: '14:10', startAt: bkk('14:10').toISOString(), endAt: bkk('17:05').toISOString() }, more: 0 });
+  assert.equal(supersededWords(markOf(c)), 'superseded by Flight AirAsia 14:10');
   assert.equal(statusWords(c, DAY), 'skipped — superseded by Flight AirAsia 14:10');
   const d = stopAt(r.stops, DINNER);
   assert.deepEqual([d.status, d.statusSource, d.superseded], ['open', 'routine', null], 'Dinner at 19:00 shares no minute with 14:10–17:05');
   const g = stopAt(r.stops, GYM);
-  assert.deepEqual([g.status, g.superseded === null ? null : g.superseded.by.key], ['skipped', 'travel:planned:ti-flight'], 'a point at 15:00 inside the block');
+  assert.deepEqual([g.status, g.superseded === null ? null : g.superseded.by.key], ['skipped', 'planned:ti-flight'], 'a point at 15:00 inside the block');
   // The segment, as the airline states it: named by its title, the booking's name on its BOOKING line.
   const withSegment = day(travelOf_([], [flightBooking], [seg0]));
   const seg = stopAt(withSegment.stops, 'travel:segment:res-flight:seg:0');
   assert.equal(seg.label, 'AirAsia DPS → CNX (flight)');
   assert.deepEqual([travelOf(seg).name, travelOf(seg).bookingName, travelBookingLineWords(seg)], ['AirAsia DPS → CNX (flight)', 'AirAsia CNX → DPS', 'AirAsia CNX → DPS']);
-  assert.equal(supersededWords(stopAt(withSegment.stops, COWORK)), 'superseded by Flight AirAsia DPS → CNX (flight) 14:10');
+  assert.equal(supersededWords(markOf(stopAt(withSegment.stops, COWORK))), 'superseded by Flight AirAsia DPS → CNX (flight) 14:10');
   assert.equal(travelBookingLineWords(stopAt(day(travelOf_([], [hotelBooking], [])).stops, 'travel:booking:res-hotel:check-in')), null, 'a booking row’s name IS the booking’s — no second line');
   assert.equal(travelBookingLineWords(stopAt(r.stops, 'travel:planned:ti-flight')), null);
 });
 
 test('A ground transit 15:00–17:00 (instants) supersedes Coworking; a block with no end cannot supersede and says so; a booking is never a block; a daily planned row is never a block; a segment with no instant says so', () => {
   const transitDay = day(travelOf_([transit], [], []));
-  assert.equal(supersededWords(stopAt(transitDay.stops, COWORK)), 'superseded by Transfer Bali Transfers 15:00');
+  assert.equal(supersededWords(markOf(stopAt(transitDay.stops, COWORK))), 'superseded by Transfer Bali Transfers 15:00');
   const open = day(travelOf_([openEnded], [], []));
   assert.equal(stopAt(open.stops, COWORK).superseded, null, 'no end: no window');
   const openStop = stopAt(open.stops, 'travel:planned:ti-open');
@@ -138,14 +170,19 @@ test('A ground transit 15:00–17:00 (instants) supersedes Coworking; a block wi
   assert.ok((travelSaidWords(check) as string).endsWith(` · ${CANNOT_SUPERSEDE_NO_INSTANT_WORDS}`));
   const daily = day(travelOf_([{ ...hotel, start_at: bkk('00:00'), end_at: bkk('23:59') }], [], []));
   assert.equal(stopAt(daily.stops, COWORK).superseded, null, 'the band is never a block, even with instants');
-  assert.deepEqual(travelBlocksOf(daily.stops), [], 'the band never enters');
+  // SUPERSEDE-01b (2026-11-08): the blocks are the one read's flat list (travelBlocksReads.ts blocksOfRows) — the band counted, never a block.
+  const dailyRead = blocksOfRows([{ ...hotel, start_at: bkk('00:00'), end_at: bkk('23:59') }], []);
+  assert.deepEqual([dailyRead.blocks, dailyRead.leftOut.plannedDaily], [[], 1], 'the band never enters');
   assert.equal(stopAt(day(travelOf_([], [flightBooking], [seg1])).stops, COWORK).superseded, null);
   assert.equal(cannotSupersedeWords({ startAt: null, endAt: null }), CANNOT_SUPERSEDE_NO_INSTANT_WORDS);
   assert.equal(cannotSupersedeWords({ startAt: 'x', endAt: null }), CANNOT_SUPERSEDE_NO_END_WORDS);
   assert.equal(cannotSupersedeWords({ startAt: 'x', endAt: 'y' }), null);
   // The blocks of a day: the planned flight and the segment, both instants; the open-ended transfer and the bookings are not.
   const all = day(travelOf_([flight, openEnded], [hotelBooking, flightBooking], [seg0, seg1]));
-  assert.deepEqual(travelBlocksOf(all.stops).map((b) => b.key), ['travel:planned:ti-flight', 'travel:segment:res-flight:seg:0']);
+  const allRead = blocksOfRows([flight, openEnded], [seg0, seg1]);
+  assert.deepEqual(allRead.blocks.map((b) => b.key), ['planned:ti-flight', 'segment:res-flight:seg:0:2026-10-15']);
+  assert.deepEqual(allRead.leftOut, { plannedDaily: 0, plannedNoInstants: 0, plannedOneInstant: 1, segmentsNoInstants: 1, segmentsOneInstant: 0 }, 'the open-ended transfer and the clock-only segment, counted');
+  assert.equal(all.supersessionUndecided, 0, 'the report listed every occurrence');
 });
 
 test('B a record at the occurrence wins — not marked; a routine the today read calls missed is skipped by the block, never missed; a stop whose window merely touches the block shares no minute', () => {
@@ -173,16 +210,16 @@ test('B a record at the occurrence wins — not marked; a routine the today read
 test('C two blocks over one stop: the earliest by instant is named, "and 1 more"; a tie by instant falls to the table’s order; the scene names the block; the deck card keeps its address (the record input mounts)', () => {
   const two = day(travelOf_([flight, transit], [], []));
   const c = stopAt(two.stops, COWORK);
-  assert.deepEqual([c.superseded === null ? null : c.superseded.by.key, c.superseded === null ? null : c.superseded.more], ['travel:planned:ti-flight', 1]);
-  assert.equal(supersededWords(c), 'superseded by Flight AirAsia 14:10 and 1 more');
+  assert.deepEqual([c.superseded === null ? null : c.superseded.by.key, c.superseded === null ? null : c.superseded.more], ['planned:ti-flight', 1]);
+  assert.equal(supersededWords(markOf(c)), 'superseded by Flight AirAsia 14:10 and 1 more');
   assert.equal(andMoreWords(2), 'and 2 more');
   assert.equal(SUPERSEDED_BY_WORDS, 'superseded by');
   const tie = day(travelOf_([flight], [flightBooking], [seg0]));
-  assert.deepEqual(supersededWords(stopAt(tie.stops, COWORK)), 'superseded by Flight AirAsia 14:10 and 1 more', 'the same instants: the planned flight, first in the table, is named');
+  assert.deepEqual(supersededWords(markOf(stopAt(tie.stops, COWORK))), 'superseded by Flight AirAsia 14:10 and 1 more', 'the same instants: the planned flight, first by key (planned: before segment:), is named');
   assert.deepEqual(stopSceneLines(c, null), ['Coworking: skipped.', 'superseded by Flight AirAsia 14:10 and 1 more'], 'an execute stop with no length: no block line');
   assert.deepEqual(stopSceneLines(stopAt(two.stops, GYM)), ['Gym: skipped.', 'superseded by Flight AirAsia 14:10 and 1 more']);
   assert.notEqual(c.address, null, 'the record input stays — recording anyway is allowed');
-  assert.throws(() => supersededWords(stopAt(two.stops, DINNER)), /is not superseded/);
+  assert.throws(() => markOf(stopAt(two.stops, DINNER)), /is not superseded/);
   const script = scriptText(reelDay(two, { stay: STAY }));
   assert.ok(script.ok && script.text.includes('Coworking: skipped.\nsuperseded by Flight AirAsia 14:10 and 1 more'), 'the reel names the supersession');
   const caption = captionText(reelDay(two, { stay: STAY }));
@@ -197,9 +234,14 @@ test('D the TOTAL’s budget excludes the superseded cents; the hero follows; th
   const r = day(travelOf_([flight], [], []));
   const t = supersededTotals(r.stops);
   assert.deepEqual(t, { count: 2, cents: 4500 }, 'Coworking $25 and the Gym $20');
-  assert.equal(supersededLineWords(t), "2 routines superseded by travel — $45.00 not in today's plan");
-  assert.equal(supersededLineWords({ count: 1, cents: 2500 }), "1 routine superseded by travel — $25.00 not in today's plan");
-  assert.equal(supersededLineWords({ count: 0, cents: 0 }), null);
+  // SUPERSEDE-01b (2026-11-08, ruling G): the declared line knows whether the marks were read and how many stops are undecided.
+  const decided = { read: true, undecided: 0 };
+  assert.equal(supersededLineWords(t, decided), "2 routines superseded by travel — $45.00 not in today's plan");
+  assert.equal(supersededLineWords({ count: 1, cents: 2500 }, decided), "1 routine superseded by travel — $25.00 not in today's plan");
+  assert.equal(supersededLineWords({ count: 0, cents: 0 }, decided), null);
+  assert.equal(supersededLineWords(t, { read: true, undecided: 1 }), "2 routines superseded by travel — $45.00 not in today's plan · 1 not decided — the budget lists no occurrence at their instant");
+  assert.equal(supersededLineWords({ count: 0, cents: 0 }, { read: true, undecided: 2 }), 'superseded by travel: 2 not decided — the budget lists no occurrence at their instant');
+  assert.equal(supersededLineWords({ count: 0, cents: 0 }, { read: false, undecided: 3 }), "superseded by travel: not read — the day's budget could not be read");
   assert.deepEqual([SUPERSEDED_BY_TRAVEL_WORDS, NOT_IN_PLAN_WORDS], ['superseded by travel', "not in today's plan"]);
   assert.equal(r.plannedCents, 3000, 'the hero: $75 less $45');
   const totals = dayTotals(withoutSuperseded(r), r.plannedCents);
@@ -232,15 +274,17 @@ test('E derived, never written: the rules fetch and write nothing; the stops rou
   assert.doesNotMatch(c, /\bfetch\s*\(/, 'the card fetches nothing of its own');
   for (const site of c.split('\n').filter((l) => /supersed/i.test(l))) assert.doesNotMatch(site, /fetch\(|POST|PATCH|DELETE|write|setJournal|setStop|audit/, `a read, never a write: ${site.trim().slice(0, 80)}`);
   assert.match(c, /const totals = dayTotals\(withoutSuperseded\(result\), plannedCents\);/);
-  assert.match(c, /const supersededLine = supersededLineWords\(supersededTotals\(result\.stops\)\);/);
+  assert.match(c, /const supersededLine = supersededLineWords\(supersededTotals\(result\.stops\), \{ read: marks !== null, undecided: result\.supersessionUndecided \}\);/); // SUPERSEDE-01b (2026-11-08): read and undecided
   assert.match(c, /\{supersededLine !== null && \(\n\s*<tr className="border-t border-border align-top" data-day-superseded-line>\n\s*<td colSpan=\{5\}[^>]*>\{supersededLine\}<\/td>\n\s*<\/tr>\n\s*\)\}/, 'the declared line under the TOTAL row, before the TRAVEL lines');
   assert.ok(c.indexOf('data-day-superseded-line') > c.indexOf('data-day-total>') && c.indexOf('data-day-superseded-line') < c.indexOf('data-day-travel-line'));
   assert.match(c, /data-day-superseded=\{s\.superseded === null \? undefined : 'true'\}/);
   assert.match(c, /\$\{s\.superseded === null \? '' : 'line-through '\}/, 'the struck plan figure');
-  assert.match(c, /\{f\.stop\.superseded !== null && <div [^>]*data-day-superseded-words>\{supersededWords\(f\.stop\)\}<\/div>\}/, 'the mark on the deck card');
+  assert.match(c, /\{f\.stop\.superseded !== null && <div [^>]*data-day-superseded-words>\{supersededWords\(f\.stop\.superseded\)\}<\/div>\}/, 'the mark on the deck card'); // SUPERSEDE-01b (2026-11-08): the leaf's sentence over the mark
   assert.match(c, /\{loaded && recordsOk && focus !== null && focus\.stop\.address !== null && \(\n\s*<StopForm/, 'the record input still mounts by address — a superseded stop has one');
   assert.match(c, /data-day-travel-booking>/, 'item 0: the BOOKING line on the travel card');
-  assert.match(comments(CARD), /\/budget and ROUTINE EXPENSES' month are unchanged/, 'the header says so in one sentence');
+  // SUPERSEDE-01b (2026-11-08): /budget takes the marks now — the sentence says the month alone is unchanged, and whose marks they are.
+  assert.match(comments(CARD), /ROUTINE EXPENSES' month is unchanged/, 'the header says so in one sentence');
+  assert.match(comments(CARD), /the MARKS are the day\s*\*?\s*report's/);
 });
 
 test('F/G the words are constants or functions in dayCard.ts; the supersession section holds no || and no ?? default and never a wall clock; asksAmount and travelDay.ts’s shape are unchanged; a segment’s title is read, not a second shape', () => {
@@ -251,7 +295,9 @@ test('F/G the words are constants or functions in dayCard.ts; the supersession s
   const section = rule.slice(rule.indexOf("export const SUPERSEDED_BY_WORDS = 'superseded by';"));
   assert.ok(section.length > 1500, `the leaf's supersession section is ${section.length} chars`);
   const cardSide = rules.slice(rules.indexOf("export const BOOKING_HEAD_WORD = 'BOOKING';"), rules.indexOf('export type VendorSlot ='));
-  assert.ok(cardSide.length > 1500 && cardSide.length < 4000, `the card's side is ${cardSide.length} chars — the blocks, the mark's words, the totals, the declared line`);
+  // SUPERSEDE-01b (2026-11-08, ruling G): the blocks and the sentence left the card; the report's marks by key (marksOf), the mark's guard (markOf), the
+  // not-read and undecided words joined it — the bound moved from 4000 to 5000.
+  assert.ok(cardSide.length > 1500 && cardSide.length < 5000, `the card's side is ${cardSide.length} chars — the mark's guard, the report's marks by key, the totals, the declared line`);
   for (const [name, slice] of [['the leaf', section], ['the card', cardSide]] as const) {
     assert.doesNotMatch(slice, /\|\||\?\? /, `${name}: no || and no ?? default`);
     assert.doesNotMatch(slice, /instantToZoned|zonedToInstant|getHours|getMinutes|toLocale|timezone|zone\b/i, `${name}: instants compare as instants — no wall clock, no zone`);
@@ -262,7 +308,7 @@ test('F/G the words are constants or functions in dayCard.ts; the supersession s
   assert.match(rules, /export type StatusSource = 'record' \| 'routine' \| 'task' \| 'booking' \| 'travel';/);
   assert.match(rules, /readonly superseded: Supersession \| null;\n\s*\{\s*\}\n\s*readonly travel: TravelStop \| null;\n\}|readonly superseded: Supersession \| null;\n(?:\s*\{\s*\}\n)?\s*readonly travel: TravelStop \| null;\n\}/, 'the stop carries its mark');
   assert.match(rules, /source: 'segment', kind: 'flight', name: row\.title, bookingName: row\.row\.name,/, 'item 0: the segment’s own stated title; the booking’s name beside it');
-  assert.match(rules, /if \(stop\.statusSource === 'travel'\) return skippedWords\(supersededWords\(stop\)\);/);
+  assert.match(rules, /if \(stop\.statusSource === 'travel'\) return skippedWords\(supersededWords\(markOf\(stop\)\)\);/); // SUPERSEDE-01b (2026-11-08): the card's guard, then the leaf's sentence
   assert.match(rules, /plannedCents: dayLines\.reduce\(\(sum, l\) => sum \+ l\.cents, 0\) - supersededTotals\(stops\)\.cents,/, 'the hero less the superseded cents');
   // The leaf's shape is untouched (01b's test pins its fields): title, startAt and endAt were already there.
   const leaf = code('src/lib/operations/travelDay.ts');

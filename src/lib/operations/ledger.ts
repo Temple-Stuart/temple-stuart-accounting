@@ -142,7 +142,7 @@ import { csvMoney, tableCsv } from '@/lib/table/csv';
 import { NO_MONEY_FILTER, NO_TEXT_FILTER, NO_VALUE_FILTER, anyFilterOn, columnValuesOf, filterOn, filterRows, rowPasses, type ColumnValue, type MoneyFilter, type TextFilter, type ValueFilter } from '@/lib/table/filters';
 import { numberKey as num, sortRows as sortTableRows, textKey as text, type TableSort } from '@/lib/table/sort';
 import { BLANK, formatCents } from '@/lib/budget/format';
-import type { BudgetLine } from '@/lib/budget/report';
+import { markLines, type BudgetLine } from '@/lib/budget/report';
 import { dayPlanOf, type PlanLine, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
 import { shiftDay } from '@/lib/budget/reportView';
 import { deriveAccountString } from '@/lib/accountString';
@@ -352,7 +352,9 @@ const lineKey = (address: PlanLine['address']): string => `${address.kind === 'r
 
 /** The day's plan lines, their words and vendors — the one rule the day card's report reads (planLines.ts), for this day. */
 function dayLines(input: LedgerInput, day: string): readonly PlanLine[] {
-  const plan = dayPlanOf({ view: { kind: 'day', day }, lines: input.lines, notPlaced: input.notPlaced, routines: input.routines, tasks: new Map(), vendors: input.vendors });
+  // SUPERSEDE-01b (Alex, 2026-11-08, CLOSED): the task ledger keeps its routine lines UNMARKED — it reads no travel block (a mark
+  // is Budget's and the card's); stated as no marks (report.ts markLines over an empty map), never left absent. No row reads the mark.
+  const plan = dayPlanOf({ view: { kind: 'day', day }, lines: markLines(input.lines, new Map()), notPlaced: input.notPlaced, routines: input.routines, tasks: new Map(), vendors: input.vendors });
   if (!plan.ok) throw new Error(`ledger: ${plan.code} — ${plan.message}`);
   if (!plan.plan.listed) throw new Error(`ledger: a DAY view lists its plan lines — ${plan.plan.words}`);
   return plan.plan.lines;

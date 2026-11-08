@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { bookingCalendarRowsWhere } from '@/lib/calendar/bookingEvent';
-import { bookingsSelectionOf, plannedSelectionOf, segmentsSelectionOf, type DayRange } from '@/lib/operations/travelDay';
+import { bookingsSelectionOf, plannedSelectionOf, segmentsSelectionOf, type InstantRange } from '@/lib/operations/travelDay';
 
 /**
  * READS-01a (Alex, 2026-11-07, ruling A) — THE TRAVEL-DAY READS, AS RANGE FUNCTIONS.
@@ -24,6 +24,9 @@ import { bookingsSelectionOf, plannedSelectionOf, segmentsSelectionOf, type DayR
  * Every where names the caller (userId / user_id). READ-ONLY: nothing here writes; no vendor client, no paid call,
  * no `||`, no `?? <default>`. The route keeps its gate, dayRangeOf, its own per-id booking-fact reads (narrower than
  * the reservations answer's — READS-01c decides), travelDayOf and its answer.
+ *
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling A): the four take InstantRange (travelDay.ts — from/to alone): the travel-day
+ * route still passes its DayRange, structurally the same; the blocks read (travelBlocksReads.ts) passes a span's.
  */
 
 type Db = Pick<PrismaClient, 'trip_itinerary' | 'reservations' | 'calendar_events'>;
@@ -51,12 +54,12 @@ export const SEGMENT_SELECT = {
 } as const;
 
 /** 1. The planner's rows in the range, through the trip's owner. */
-export function readPlannedTravel(db: Db, userId: string, range: DayRange) {
+export function readPlannedTravel(db: Db, userId: string, range: InstantRange) {
   return db.trip_itinerary.findMany({ where: { trip: { userId: userId }, ...plannedSelectionOf(range) }, select: PLANNED_SELECT });
 }
 
 /** 2. The caller's bookings checking in or out in the range. */
-export function readBookingsOn(db: Db, userId: string, range: DayRange) {
+export function readBookingsOn(db: Db, userId: string, range: InstantRange) {
   return db.reservations.findMany({ where: { userId: userId, ...bookingsSelectionOf(range) }, select: RESERVATION_SELECT });
 }
 
@@ -66,7 +69,7 @@ export function readOwnReservationIds(db: Db, userId: string) {
 }
 
 /** 4. The segments in the range, read through the one where over the caller's reservation ids. */
-export function readSegments(db: Db, userId: string, ids: readonly string[], range: DayRange) {
+export function readSegments(db: Db, userId: string, ids: readonly string[], range: InstantRange) {
   return db.calendar_events.findMany({
     where: { user_id: userId, ...bookingCalendarRowsWhere(ids), ...segmentsSelectionOf(range) },
     select: SEGMENT_SELECT,

@@ -50,20 +50,36 @@
  *     one calendar year, from not after to — and asOf by the report's own window.
  *     Each bad parameter is refused by name.
  *
+ * SUPERSEDE-01b (Alex, 2026-11-08, SUPERSEDE-00 rulings 1, 3, 5, 6, 7; rulings D, E) — BUDGET STOPS COUNTING THE
+ * ROUTINE OCCURRENCES TRAVEL SUPERSEDES. The route reads the range's travel BLOCKS through one read
+ * (src/lib/operations/travelBlocksReads.ts — READS-01a's functions, the card's selections; no money column) and the
+ * range's stop records (stopRecord.ts recordsWindowOf); here the records become the one key each (recordKey), the model
+ * marks every routine occurrence by the one rule (days.ts routineSupersessionOf → supersession.ts supersessionOf), the
+ * lines carry their marks (report.ts markLines), every figure sums WITHOUT the marked lines, each column says the count
+ * and the cents that left the budget, and the response says what the read saw: the blocks, what it left out by name,
+ * that bookings are never a block, the records, the occurrences, the marks, the lined routines' own figures (never
+ * marked — ruling C3), the unreadable routines. A DAY or WEEK lists EVERY occurrence's key with its mark or null — the
+ * day card takes its marks from this list and computes none (ruling 6); a YEAR carries counts only. The drill marks its
+ * lines the same way: a struck line is listed, never dropped (ruling 5).
+ *
  * Structural row shapes, no Prisma import, no clock: the route reads the server's
  * date and passes it in. A build law holds this file pure (scripts/
  * assert-tool-registry.ts, the budget report purity law).
  */
 import {
   buildBudgetCell, buildBudgetReport, viewRange,
-  type BudgetLine, type BudgetReport, type BudgetSource, type BudgetView, type ChartAccount, type ColumnState, type IsoDay, type Posting,
-  type ReportAccount, type ReportEntity, type RowFamily, type ShownBudget,
+  markLines,
+  type BudgetReport, type BudgetSource, type BudgetView, type ChartAccount, type ColumnState, type IsoDay, type MarkedBudgetLine, type Posting,
+  type ReportAccount, type ReportEntity, type RowFamily, type ShownBudget, type SupersededTotal,
 } from '@/lib/budget/report';
 import {
-  buildRoutineBudgetLines, buildTaskBudgetLines, centsFromDollars, isIsoDay, parseBudgetCode,
+  buildRoutineBudgetLines, buildTaskBudgetLines, centsFromDollars, isIsoDay, parseBudgetCode, readOccurrenceKey, routineSupersessionOf,
   type ExcludedByStatus, type NotPlaced, type ParsedCode, type RoutinePlanInput, type TaskPlanInput,
 } from '@/lib/budget/days';
 import { dayPlanOf, daysOf, planLinesOn, type DayPlan, type PlanLinesErrorCode, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
+// SUPERSEDE-01b: the one record key (pure — no imports) and the one rule's types (pure — its one import is the calendar's minutesOf).
+import { recordKey } from '@/lib/operations/stopRecord';
+import type { Supersession, TravelBlock, TravelBlocksLeftOut } from '@/lib/operations/supersession';
 
 // ── FAIL LOUD ───────────────────────────────────────────────────────────────
 
@@ -74,7 +90,9 @@ export type BudgetInputErrorCode =
   // TAB13-04: the plan-vendor rows the route read, and the day's plan lines, refused by name (planLines.ts).
   | PlanLinesErrorCode
   // BUDGET-02: a line the model selected for the drill with no row the route read behind it.
-  | 'drill-row-missing';
+  | 'drill-row-missing'
+  // SUPERSEDE-01b: a stop record naming neither a routine nor a line — the migration's CHECK holds exactly one.
+  | 'record-unreadable';
 
 /** A row the route read that cannot become an input — named, never coerced. The route answers 500. */
 export class BudgetInputError extends Error {
@@ -181,8 +199,22 @@ export interface RoutineRow {
   /** SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the routine's window as the loader read it (a @db.Time: a Date at 1970-01-01); null when none. Carried into the plan input as its JSON, consumed by nothing until 01b. */
   readonly start_time: Date | null;
   readonly end_time: Date | null;
-  /** TAB13-04: each line's activity and time_of_day ('HH:MM', read once by the loader) are the day's plan lines' words. SUPERSEDE-01a: the line's duration_minutes as read, carried, consumed by nothing until 01b. */
+  /** TAB13-04: each line's activity and time_of_day ('HH:MM', read once by the loader) are the day's plan lines' words. SUPERSEDE-01a: the line's duration_minutes as read, carried. SUPERSEDE-01b: time_of_day and duration_minutes are the line's window (days.ts routineSupersessionOf). */
   readonly steps: readonly { readonly id: string; readonly is_active: boolean; readonly budget_amount: number | string | null; readonly coa_code: string | null; readonly step_order: number; readonly activity: string; readonly time_of_day: string | null; readonly duration_minutes: number | null }[];
+}
+
+/** SUPERSEDE-01b (Alex, 2026-11-08, ruling D): a stop record as both budget routes read it — the three columns its key is built from (stopRecord.ts recordKey). */
+export interface StopRecordKeyRow {
+  readonly routine_id: string | null;
+  readonly step_id: string | null;
+  readonly occurrence_at: Date;
+}
+
+/** SUPERSEDE-01b (ruling D): what the route read for the supersession — the range's blocks through the one read, what it left out, the range's records. */
+export interface SupersessionRows {
+  readonly blocks: readonly TravelBlock[];
+  readonly leftOut: TravelBlocksLeftOut;
+  readonly records: readonly StopRecordKeyRow[];
 }
 
 export interface TaskRow {
@@ -253,6 +285,12 @@ export interface ReportRows {
    * a YEAR, null (not read). The other way round is the route's bug, refused by name.
    */
   readonly planVendors: readonly PlanVendorRow[] | null;
+  /**
+   * SUPERSEDE-01b (Alex, 2026-11-08, ruling D): the range's travel blocks through the one read (travelBlocksReads.ts
+   * readTravelBlocks — READS-01a's functions, the card's selections), what it left out by name, and the range's stop
+   * records (stopRecord.ts recordsWindowOf).
+   */
+  readonly supersession: SupersessionRows;
 }
 
 // ── ROW → INPUT ─────────────────────────────────────────────────────────────
@@ -300,7 +338,8 @@ export function toRoutinePlanInput(row: RoutineRow, entity: ReportEntity): Routi
     // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the window's JSON and each line's duration, carried as read — no conversion, no default.
     startTime: row.start_time === null ? null : row.start_time.toISOString(),
     endTime: row.end_time === null ? null : row.end_time.toISOString(),
-    steps: row.steps.map((s) => ({ id: s.id, isActive: s.is_active, stepOrder: s.step_order, budgetAmount: s.budget_amount, coaCode: s.coa_code, durationMinutes: s.duration_minutes })),
+    // SUPERSEDE-01b (Alex, 2026-11-08, ruling C): and each line's time of day ('HH:MM' as the loader read it) — its window's instant.
+    steps: row.steps.map((s) => ({ id: s.id, isActive: s.is_active, stepOrder: s.step_order, budgetAmount: s.budget_amount, coaCode: s.coa_code, durationMinutes: s.duration_minutes, timeOfDay: s.time_of_day })),
   };
 }
 
@@ -418,6 +457,33 @@ export interface BudgetReportResponse {
   readonly travelBudgets: 'not connected';
   /** TAB13-04: the day's plan — its lines and their vendors, and the stranded vendors — or, for a YEAR, why none are listed. */
   readonly plans: DayPlan;
+  /**
+   * SUPERSEDE-01b (Alex, 2026-11-08, ruling D): what the supersession saw and did — the blocks read, what the read left out
+   * by name, that a booking is never a block, the records read, the occurrence windows built, how many were marked, the
+   * lined routines' own figures left unmarked (ruling C3), the routines that could not be read; and, for a DAY or WEEK,
+   * EVERY window's key with its mark or null (the card takes its marks from here — ruling 6); a YEAR carries counts only.
+   */
+  readonly supersession: SupersessionSummary;
+}
+
+/** SUPERSEDE-01b: a YEAR's marks — counts only. */
+export const YEAR_MARKS_WORDS = 'a year carries counts only';
+
+export interface SupersessionMark {
+  readonly key: string;
+  readonly superseded: Supersession | null;
+}
+
+export interface SupersessionSummary {
+  readonly blocks: number;
+  readonly leftOut: TravelBlocksLeftOut;
+  readonly bookings: 'never a block';
+  readonly records: number;
+  readonly occurrences: number;
+  readonly marked: number;
+  readonly routineFiguresUnmarked: number;
+  readonly unreadable: number;
+  readonly marks: readonly SupersessionMark[] | typeof YEAR_MARKS_WORDS;
 }
 
 /** HOME-LEDGER-02a: the codes' order in a column — the travel ledger's rule (travelLedger.ts codesInOrder): by code; a code is never ranked above another by what it is. */
@@ -472,6 +538,35 @@ interface InputRows<L extends LedgerRow> {
   readonly routines: readonly { readonly entityId: string; readonly rows: readonly RoutineRow[] }[];
   readonly tasks: readonly TaskRow[];
   readonly ledger: readonly L[];
+  /** SUPERSEDE-01b: the range's blocks and records — the report's range, or the drill's [from, to]. */
+  readonly supersession: SupersessionRows;
+}
+
+/** SUPERSEDE-01b (ruling D): a record the route read → the one key (stopRecord.ts recordKey); a record naming neither plan is the read's error. */
+function recordedKeysOf(records: readonly StopRecordKeyRow[]): ReadonlySet<string> {
+  return new Set(records.map((r) => {
+    const occurrence_at = r.occurrence_at.toISOString();
+    if (r.step_id !== null) return recordKey({ kind: 'routine_line', target_id: r.step_id, occurrence_at });
+    if (r.routine_id === null) throw new BudgetInputError('record-unreadable', `a stop record at ${occurrence_at} names neither a routine nor a line — the migration's CHECK holds exactly one`);
+    return recordKey({ kind: 'routine', target_id: r.routine_id, occurrence_at });
+  }));
+}
+
+/**
+ * SUPERSEDE-01b (ruling C3): a lined routine's own figure (its line keyed routine:<r>:routine:<instant> while its windows are
+ * its lines') is never marked — counted here: the figure lines at an occurrence where a line of that routine carries a mark.
+ */
+function routineFiguresUnmarkedOf(lines: readonly MarkedBudgetLine[], marks: ReadonlyMap<string, Supersession>): number {
+  const linedAt = new Set<string>();
+  for (const key of marks.keys()) {
+    const read = readOccurrenceKey(key);
+    if (read !== null && read.address.kind === 'routine_line' && read.routineId !== null && read.address.instant !== null) linedAt.add(`${read.routineId}\u0000${read.address.instant.toISOString()}`);
+  }
+  return lines.filter((l) => {
+    if (l.source !== 'routine') return false;
+    const read = readOccurrenceKey(l.sourceId);
+    return read !== null && read.address.kind === 'routine' && read.routineId !== null && read.address.instant !== null && linedAt.has(`${read.routineId}\u0000${read.address.instant.toISOString()}`);
+  }).length;
 }
 
 /**
@@ -500,6 +595,9 @@ function reportInputOf<L extends LedgerRow>(view: BudgetView, rows: InputRows<L>
 
   const routines = buildRoutineBudgetLines(routineInputs, rangeFrom, rangeTo);
   const tasks = buildTaskBudgetLines(taskInputs, rangeFrom, rangeTo);
+  // SUPERSEDE-01b (ruling D): every routine occurrence's window by the one expansion, marked by the one rule over the blocks the route read; a record wins (recordKey).
+  const recorded = recordedKeysOf(rows.supersession.records);
+  const supersession = routineSupersessionOf(routineInputs, rangeFrom, rangeTo, rows.supersession.blocks, recorded);
 
   // THE CHART AS SAVED (TAB13-02c) — read every row before the model sees one.
   // R3: every row the rule cannot read, named at once — never only the first.
@@ -535,7 +633,9 @@ function reportInputOf<L extends LedgerRow>(view: BudgetView, rows: InputRows<L>
     throw new BudgetInputError('chart-codes-collide', `${pairs.length} pair${pairs.length === 1 ? '' : 's'} of chart rows are one account in one book — ${pairs.join('; ')}`);
   }
 
-  const budgetLines: BudgetLine[] = [...routines.lines, ...tasks.lines];
+  // SUPERSEDE-01b: the lines in the order they are built, each with its mark (report.ts markLines).
+  const budgetLines: MarkedBudgetLine[] = markLines([...routines.lines, ...tasks.lines], supersession.marks);
+  const routineFiguresUnmarked = routineFiguresUnmarkedOf(budgetLines, supersession.marks);
   const accounts: ChartAccount[] = readable.map((r) => ({ ...toReportAccount(r.row, r.book), archived: r.row.is_archived }));
   const postingRow = new Map<Posting, L>();
   const postings = rows.ledger.map((row) => {
@@ -549,12 +649,36 @@ function reportInputOf<L extends LedgerRow>(view: BudgetView, rows: InputRows<L>
     timezone: row.timezone,
     steps: new Map(row.steps.map((s) => [s.id, { activity: s.activity, timeOfDay: s.time_of_day }])),
   }])));
-  return { rangeFrom, rangeTo, entities, routineInputs, taskInputs, routines, tasks, budgetLines, accounts, postings, postingRow, routineWords };
+  return { rangeFrom, rangeTo, entities, routineInputs, taskInputs, routines, tasks, budgetLines, accounts, postings, postingRow, routineWords, supersession, routineFiguresUnmarked };
+}
+
+/** SUPERSEDE-01b (ruling D): the supersession as the response says it — a DAY or WEEK with every window's key and its mark or null, a YEAR with counts only. */
+function supersessionSummaryOf(
+  view: BudgetView,
+  rows: SupersessionRows,
+  supersession: ReturnType<typeof routineSupersessionOf>,
+  routineFiguresUnmarked: number,
+): SupersessionSummary {
+  // No `?? <default>`: `get(key)!` is the Map idiom after `has` — the value is there, and it is a Supersession.
+  const marks = view.kind === 'year'
+    ? YEAR_MARKS_WORDS
+    : supersession.occurrences.map((key): SupersessionMark => ({ key, superseded: supersession.marks.has(key) ? supersession.marks.get(key)! : null }));
+  return {
+    blocks: rows.blocks.length,
+    leftOut: rows.leftOut,
+    bookings: 'never a block',
+    records: rows.records.length,
+    occurrences: supersession.occurrences.length,
+    marked: supersession.marks.size,
+    routineFiguresUnmarked,
+    unreadable: supersession.unreadable,
+    marks,
+  };
 }
 
 /** The rows the route read → the response the screen reads. */
 export function budgetReportResponse(query: { readonly view: BudgetView; readonly asOf: IsoDay }, rows: ReportRows): BudgetReportResponse {
-  const { rangeFrom, rangeTo, entities, routineInputs, taskInputs, routines, tasks, budgetLines, accounts, postings, routineWords } = reportInputOf(query.view, rows);
+  const { rangeFrom, rangeTo, entities, routineInputs, taskInputs, routines, tasks, budgetLines, accounts, postings, routineWords, supersession, routineFiguresUnmarked } = reportInputOf(query.view, rows);
   const report = buildBudgetReport({ asOf: query.asOf, view: query.view, entities, accounts, budgetLines, postings });
 
   // TAB13-04: the day's plan — the lines handed to the model, their words, their vendors (planLines.ts decides).
@@ -587,6 +711,7 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
     },
     travelBudgets: 'not connected',
     plans: plans.plan,
+    supersession: supersessionSummaryOf(query.view, rows.supersession, supersession, routineFiguresUnmarked),
   };
 }
 
@@ -653,6 +778,8 @@ export interface CellRows {
   readonly ledger: readonly LedgerDetailRow[];
   /** Every every-occurrence row and the occurrence rows in vendorWindowOf(the listed days). */
   readonly planVendors: readonly PlanVendorRow[];
+  /** SUPERSEDE-01b (ruling E): the drill's [from, to] blocks through the one read, what it left out, and its stop records. */
+  readonly supersession: SupersessionRows;
 }
 
 /** A plan line behind the printed Budget figure. */
@@ -668,6 +795,8 @@ export interface CellPlanLine {
   readonly vendor: string | null;
   /** A routine → /tasks · a task → /tasks?project=<its project>. */
   readonly href: string;
+  /** SUPERSEDE-01b (Alex, 2026-11-08, ruling E): the travel block that supersedes this occurrence — the line is listed, struck, in no sum; null when none does. */
+  readonly superseded: Supersession | null;
 }
 
 /** A ledger line behind the Actual figure. */
@@ -696,8 +825,10 @@ export interface BudgetCellResponse {
     readonly from: IsoDay;
     readonly through: IsoDay;
     readonly lines: readonly CellPlanLine[];
-    /** Σ of the lines' cents; null when there are none. */
+    /** Σ of the cents of the lines no travel block superseded; null when there are none (SUPERSEDE-01b). */
     readonly sum: number | null;
+    /** SUPERSEDE-01b (ruling E): the superseded lines among those listed — count and Σ cents, beside the sum, never in it. */
+    readonly superseded: SupersededTotal;
     /** The figure the cell prints, by the model's own cell function. */
     readonly cell: number | null;
   };
@@ -737,6 +868,7 @@ export function budgetCellResponse(query: Extract<ParsedCellQuery, { ok: true }>
     routines: [{ entityId: rows.book.id, rows: rows.routines }],
     tasks: rows.tasks,
     ledger: rows.ledger,
+    supersession: rows.supersession,
   });
   const cell = buildBudgetCell(
     { asOf: query.asOf, view: query.view, entities: input.entities, accounts: input.accounts, budgetLines: input.budgetLines, postings: input.postings },
@@ -761,8 +893,15 @@ export function budgetCellResponse(query: Extract<ParsedCellQuery, { ok: true }>
       if (project === undefined) throw new BudgetInputError('plan-line-unreadable', `plan line of task ${l.address.id} names a task the route did not read`);
       href = `/tasks?project=${encodeURIComponent(project)}`;
     }
-    return { day: l.day, source: l.source, label: l.label, line: l.line, cents: l.cents, vendor: l.vendor === null ? null : l.vendor.name, href };
+    return { day: l.day, source: l.source, label: l.label, line: l.line, cents: l.cents, vendor: l.vendor === null ? null : l.vendor.name, href, superseded: l.superseded };
   });
+  // SUPERSEDE-01b (ruling E): the struck lines — listed above, counted here (count and Σ cents from 0, as report.ts supersededOf), in no sum.
+  const struck = planLines.filter((l) => l.superseded !== null);
+  let struckCents = 0;
+  for (const l of struck) {
+    struckCents += l.cents;
+    if (!Number.isSafeInteger(struckCents)) throw new BudgetInputError('unsafe-cents', 'the drill\'s superseded lines left the safe integer range of cents');
+  }
 
   const account = input.accounts.find((a) => a.entityId === rows.book.id && a.code === query.account);
   if (account === undefined) throw new BudgetInputError('drill-row-missing', `account ${query.account} of book ${rows.book.id} has no chart row the route read`);
@@ -792,7 +931,8 @@ export function budgetCellResponse(query: Extract<ParsedCellQuery, { ok: true }>
       from: cell.range.from,
       through: budgetThrough,
       lines: planLines,
-      sum: sumCents(planLines.map((l) => l.cents), 'the drill\'s plan lines'),
+      sum: sumCents(planLines.filter((l) => l.superseded === null).map((l) => l.cents), 'the drill\'s plan lines'),
+      superseded: { count: struck.length, cents: struckCents },
       cell: cell.shown === 'full' ? cell.cell.budgetFull : cell.cell.budgetToDate,
     },
     actual: {

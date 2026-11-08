@@ -1,11 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import {
   buildRoutineBudgetLines, buildTaskBudgetLines, parseBudgetCode, centsFromDecimalString, centsFromDollars,
   BudgetDaysError, NOT_PLACED_REASONS, EXCLUDED_TASK_STATUSES,
   type BudgetDaysErrorCode, type NotPlaced, type RoutinePlanInput, type TaskPlanInput,
 } from '../budget/days';
-import { buildBudgetReport, viewRange, BudgetReportError, type BudgetLine } from '../budget/report';
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling C): the one expansion, the windows and the marks — and what they are built from.
+import { dayWindow, occurrenceKey, routineOccurrencesOf, routineSupersessionOf, type RoutineLinePlanInput } from '../budget/days';
+import { expandBetween, scheduleAnchor } from '../operations/rruleHelpers';
+import { recordKey } from '../operations/stopRecord';
+import type { TravelBlock } from '../operations/supersession';
+import { buildBudgetReport, markLines, viewRange, BudgetReportError, type BudgetLine } from '../budget/report';
 import { mapOperationsRoutines } from '../hub/mapOperationsRoutines';
 import { parseCode } from '../coa/scheme';
 import { ValidationError } from '../errors/ValidationError';
@@ -134,9 +140,9 @@ test('R2 ROUTINE MONEY — lines win: once any line has an amount the routine-le
   const r = routine({
     id: 'morning', budgetAmount: 15, coaCode: '6200',
     steps: [
-      { id: 'coffee', stepOrder: 0, budgetAmount: 4, coaCode: '6150', durationMinutes: null },
-      { id: 'lunch', stepOrder: 1, budgetAmount: '12.00', coaCode: '6160', durationMinutes: null },
-      { id: 'walk', stepOrder: 2, budgetAmount: null, coaCode: null, durationMinutes: null },
+      { id: 'coffee', stepOrder: 0, budgetAmount: 4, coaCode: '6150', durationMinutes: null, timeOfDay: null },
+      { id: 'lunch', stepOrder: 1, budgetAmount: '12.00', coaCode: '6160', durationMinutes: null, timeOfDay: null },
+      { id: 'walk', stepOrder: 2, budgetAmount: null, coaCode: null, durationMinutes: null, timeOfDay: null },
     ],
   });
   const { lines, notPlaced } = buildRoutineBudgetLines([r], '2026-10-05', '2026-10-06');
@@ -149,17 +155,17 @@ test('R2 ROUTINE MONEY — lines win: once any line has an amount the routine-le
 });
 
 test('R2 ROUTINE MONEY — a $0 line is a planned 0; a negative amount is kept; a routine-level amount stands when no line is costed', () => {
-  const zero = buildRoutineBudgetLines([routine({ id: 'z', steps: [{ id: 's', stepOrder: 0, budgetAmount: 0, coaCode: '6150', durationMinutes: null }] })], '2026-10-05', '2026-10-05');
+  const zero = buildRoutineBudgetLines([routine({ id: 'z', steps: [{ id: 's', stepOrder: 0, budgetAmount: 0, coaCode: '6150', durationMinutes: null, timeOfDay: null }] })], '2026-10-05', '2026-10-05');
   assert.deepEqual(zero.lines.map((l) => l.cents), [0]);
   assert.equal(Object.is(zero.lines[0].cents, 0), true, 'a positive zero');
-  const refund = buildRoutineBudgetLines([routine({ id: 'n', steps: [{ id: 's', stepOrder: 0, budgetAmount: -5, coaCode: '6150', durationMinutes: null }] })], '2026-10-05', '2026-10-05');
+  const refund = buildRoutineBudgetLines([routine({ id: 'n', steps: [{ id: 's', stepOrder: 0, budgetAmount: -5, coaCode: '6150', durationMinutes: null, timeOfDay: null }] })], '2026-10-05', '2026-10-05');
   assert.deepEqual(refund.lines.map((l) => l.cents), [-500]);
   const stepless = buildRoutineBudgetLines([routine({ id: 'r', budgetAmount: '15.50', coaCode: '6150' })], '2026-10-05', '2026-10-05');
   assert.deepEqual(stepless.lines.map((l) => [l.code, l.cents]), [['6150', 1550]]);
 });
 
 test('R2 ROUTINE MONEY — a costed line with no code is Not placed \'no account\' WITH its day and cents; a routine with no money is nothing', () => {
-  const r = routine({ id: 'm', steps: [{ id: 'tip', stepOrder: 0, budgetAmount: 7, coaCode: null, durationMinutes: null }, { id: 'coffee', stepOrder: 1, budgetAmount: 4, coaCode: '6150', durationMinutes: null }] });
+  const r = routine({ id: 'm', steps: [{ id: 'tip', stepOrder: 0, budgetAmount: 7, coaCode: null, durationMinutes: null, timeOfDay: null }, { id: 'coffee', stepOrder: 1, budgetAmount: 4, coaCode: '6150', durationMinutes: null, timeOfDay: null }] });
   const { lines, notPlaced } = buildRoutineBudgetLines([r], '2026-10-05', '2026-10-06');
   assert.deepEqual(lines.map((l) => [l.day, l.cents]), [['2026-10-05', 400], ['2026-10-06', 400]]);
   assert.deepEqual(notPlaced.map((n) => [n.day, n.cents, n.reason]), [['2026-10-05', 700, 'no account'], ['2026-10-06', 700, 'no account']]);
@@ -168,7 +174,7 @@ test('R2 ROUTINE MONEY — a costed line with no code is Not placed \'no account
   assert.deepEqual(bare.notPlaced.map((n) => [n.day, n.cents, n.reason]), [['2026-10-05', 900, 'no account']]);
   // from 'none' — no amount anywhere — contributes nothing and lists nothing, even with a zone
   // and a schedule that would not be read (the zone check runs only for routines with money).
-  const none = buildRoutineBudgetLines([routine({ id: 'x', budgetAmount: null, coaCode: null, timezone: 'Mars/Olympus', scheduleRrule: 'FREQ=BOGUS', steps: [{ id: 's', stepOrder: 0, budgetAmount: null, coaCode: '6150', durationMinutes: null }] })], '2026-10-05', '2026-10-06');
+  const none = buildRoutineBudgetLines([routine({ id: 'x', budgetAmount: null, coaCode: null, timezone: 'Mars/Olympus', scheduleRrule: 'FREQ=BOGUS', steps: [{ id: 's', stepOrder: 0, budgetAmount: null, coaCode: '6150', durationMinutes: null, timeOfDay: null }] })], '2026-10-05', '2026-10-06');
   assert.deepEqual(none, { lines: [], notPlaced: [] });
 });
 
@@ -183,8 +189,8 @@ const centsByCode = (lines: readonly BudgetLine[]): Record<string, number> => {
 
 test('R2 ROUTINE MONEY — a routine budgeted ONLY on its lines (no routine-level figure) contributes each costed line × occurrences to its own account', () => {
   const lined = routine({ id: 'lined', budgetAmount: null, coaCode: null, steps: [
-    { id: 'coffee', stepOrder: 0, budgetAmount: '4.00', coaCode: '5210', durationMinutes: null },
-    { id: 'lunch', stepOrder: 1, budgetAmount: '12.00', coaCode: '5220', durationMinutes: null },
+    { id: 'coffee', stepOrder: 0, budgetAmount: '4.00', coaCode: '5210', durationMinutes: null, timeOfDay: null },
+    { id: 'lunch', stepOrder: 1, budgetAmount: '12.00', coaCode: '5220', durationMinutes: null, timeOfDay: null },
   ] });
   const sep = buildRoutineBudgetLines([lined], '2026-09-01', '2026-09-30');
   assert.equal(sep.lines.length, 60, 'two costed lines × 30 September days');
@@ -194,8 +200,8 @@ test('R2 ROUTINE MONEY — a routine budgeted ONLY on its lines (no routine-leve
 
 test('R2 ROUTINE MONEY — an archived line (isActive false) contributes nothing', () => {
   const r = routine({ id: 'arch', budgetAmount: null, coaCode: null, steps: [
-    { id: 'coffee', stepOrder: 0, budgetAmount: '4.00', coaCode: '5210', durationMinutes: null },
-    { id: 'gone', stepOrder: 1, budgetAmount: '99.00', coaCode: '5210', isActive: false, durationMinutes: null },
+    { id: 'coffee', stepOrder: 0, budgetAmount: '4.00', coaCode: '5210', durationMinutes: null, timeOfDay: null },
+    { id: 'gone', stepOrder: 1, budgetAmount: '99.00', coaCode: '5210', isActive: false, durationMinutes: null, timeOfDay: null },
   ] });
   const sep = buildRoutineBudgetLines([r], '2026-09-01', '2026-09-30');
   assert.deepEqual(centsByCode(sep.lines), { '5210': 400 * 30 });
@@ -204,15 +210,15 @@ test('R2 ROUTINE MONEY — an archived line (isActive false) contributes nothing
 
 test('R2 ROUTINE MONEY — a line with a NULL amount is absent from the month — no line on its account, never a 0', () => {
   const r = routine({ id: 'unc', budgetAmount: null, coaCode: null, steps: [
-    { id: 'gym', stepOrder: 0, budgetAmount: null, coaCode: '5230', durationMinutes: null },
-    { id: 'coffee', stepOrder: 1, budgetAmount: '4.00', coaCode: '5210', durationMinutes: null },
+    { id: 'gym', stepOrder: 0, budgetAmount: null, coaCode: '5230', durationMinutes: null, timeOfDay: null },
+    { id: 'coffee', stepOrder: 1, budgetAmount: '4.00', coaCode: '5210', durationMinutes: null, timeOfDay: null },
   ] });
   const sep = buildRoutineBudgetLines([r], '2026-09-01', '2026-09-30');
   assert.deepEqual(centsByCode(sep.lines), { '5210': 400 * 30 });
   assert.equal(sep.lines.some((l) => l.code === '5230'), false, 'the uncosted gym line puts no line, and no 0, on its account');
   assert.deepEqual(sep.notPlaced, []);
   // A routine whose only line is uncosted, with no routine-level figure, contributes nothing at all.
-  assert.deepEqual(buildRoutineBudgetLines([routine({ id: 'only', budgetAmount: null, coaCode: null, steps: [{ id: 'gym', stepOrder: 0, budgetAmount: null, coaCode: '5230', durationMinutes: null }] })], '2026-09-01', '2026-09-30'), { lines: [], notPlaced: [] });
+  assert.deepEqual(buildRoutineBudgetLines([routine({ id: 'only', budgetAmount: null, coaCode: null, steps: [{ id: 'gym', stepOrder: 0, budgetAmount: null, coaCode: '5230', durationMinutes: null, timeOfDay: null }] })], '2026-09-01', '2026-09-30'), { lines: [], notPlaced: [] });
 });
 
 // ── R3 · TASK DAY ───────────────────────────────────────────────────────────
@@ -430,7 +436,7 @@ test('R7 NOT PLACED IS A RECORD — every field, a closed reason; undated entrie
 
 test('R8 TRACEABILITY — every sourceId names its origin: the routine, the line or the routine figure, the instant; the task', () => {
   const r = buildRoutineBudgetLines([
-    routine({ id: 'r1', steps: [{ id: 'st1', stepOrder: 0, budgetAmount: 4, coaCode: '6150', durationMinutes: null }] }),
+    routine({ id: 'r1', steps: [{ id: 'st1', stepOrder: 0, budgetAmount: 4, coaCode: '6150', durationMinutes: null, timeOfDay: null }] }),
     routine({ id: 'r2' }),
   ], '2026-10-05', '2026-10-05');
   assert.deepEqual(r.lines.map((l) => l.sourceId), [
@@ -471,7 +477,7 @@ test('R9 ONE RANGE — viewRange is the span the model reads, and the day rules 
       { entityId: 'ent-p', code: '6150', name: 'Coffee', accountType: 'expense', balanceType: 'D', archived: false },
       { entityId: 'ent-p', code: '6300', name: 'Office', accountType: 'expense', balanceType: 'D', archived: false },
     ],
-    budgetLines: lines, postings: [],
+    budgetLines: markLines(lines, new Map()), postings: [], // SUPERSEDE-01b (2026-11-08): the model takes marked lines — these stated unmarked
   });
   // WEEK column: Coffee 7 × 400 = 2800 in full, 3 × 400 = 1200 to date (Mon 5 … Wed 7); Office 5000 on Tue 6.
   const row = (c: string) => r.books[0].rows.find((x) => x.code === c)!.cells[0];
@@ -487,7 +493,7 @@ test('CONSERVATION — the cents on lines, on Not placed entries and in the excl
   //   gym 25.00 on 'X-6100' (another book)                                                   → 3 × 2500       = 7500
   //   rent 2000.00 routine-level on 6200, end_date 10-06                                     → 2 × 200000     = 400000
   const routines = [
-    routine({ id: 'coffee', steps: [{ id: 'c', stepOrder: 0, budgetAmount: 4, coaCode: '6150', durationMinutes: null }, { id: 'tip', stepOrder: 1, budgetAmount: 7, coaCode: null, durationMinutes: null }] }),
+    routine({ id: 'coffee', steps: [{ id: 'c', stepOrder: 0, budgetAmount: 4, coaCode: '6150', durationMinutes: null, timeOfDay: null }, { id: 'tip', stepOrder: 1, budgetAmount: 7, coaCode: null, durationMinutes: null, timeOfDay: null }] }),
     routine({ id: 'gym', budgetAmount: 25, coaCode: 'X-6100' }),
     routine({ id: 'rent', budgetAmount: '2000.00', coaCode: '6200', endDate: '2026-10-06' }),
   ];
@@ -522,15 +528,183 @@ test('PURITY — the day rules import no database client, framework or network, 
   // TAB13-02d: three catches. The routine builder's two record the plan as Not placed and move on;
   // none returns an empty result.
   assert.equal([...src.matchAll(/catch \(error\) \{/g)].length, 3);
-  const routineRules = src.slice(src.indexOf('export function buildRoutineBudgetLines('), src.indexOf('export type TaskStatus'));
-  const catches = [...routineRules.matchAll(/catch \(error\) \{([\s\S]*?)continue;/g)].map((m) => `${m[1]}continue;`);
+  // SUPERSEDE-01b (2026-11-08, ruling C1): the two moved into the ONE expansion (routineOccurrencesOf) — each answers its reason by
+  // name, never an empty list; the builder records it as Not placed and moves on (the supersession counts it unreadable).
+  const expansion = src.slice(src.indexOf('export function routineOccurrencesOf('), src.indexOf('export function buildRoutineBudgetLines('));
+  const catches = [...expansion.matchAll(/catch \(error\) \{([\s\S]*?)\}/g)].map((m) => m[1]);
   assert.equal(catches.length, 2);
-  for (const body of catches) {
-    assert.match(body, /whole\('/);
-    assert.match(body, /continue;/);
-    assert.doesNotMatch(body, /return/);
-  }
+  for (const body of catches) assert.match(body, /^\s*return \{ ok: false, reason: '(timezone not recognised|schedule does not parse)', detail: /);
+  const routineRules = src.slice(src.indexOf('export function buildRoutineBudgetLines('), src.indexOf('export type TaskStatus'));
+  assert.doesNotMatch(routineRules, /catch \(/, 'no catch of its own');
+  assert.match(routineRules, /const expanded = routineOccurrencesOf\(routine, windowFrom, windowTo\);\n\s*if \(!expanded\.ok\) \{\n\s*notPlaced\.push\(\{ \.\.\.base, sourceId: wholeRoutineKey\(routine\.id\), cents: null, day: null, reason: expanded\.reason, detail: expanded\.detail \}\);\n\s*continue;\n\s*\}/);
   // The parser's one maps ONLY the chart's refusal to a reason, in the chart's words, and throws every other error on.
   const parser = src.slice(src.indexOf('export function parseBudgetCode('), src.indexOf('export type CentsResult'));
   assert.match(parser, /catch \(error\) \{\s*if \(error instanceof ValidationError\) \{\s*return \{ ok: false, reason: 'account code not recognised', detail: `\$\{JSON\.stringify\(raw\)\} — \$\{error\.message\}` \};\s*\}\s*throw error;\s*\}/);
+});
+
+// ── SUPERSEDE-01b · ONE EXPANSION, THE WINDOWS, THE MARKS (Alex, 2026-11-08, ruling C) ──────────────────────────────────
+
+test('SUPERSEDE-01b ONE EXPANSION — routineOccurrencesOf answers what expandBetween gives in the window, or its reason by name: the zone first (even in an empty window), then the start date, then the schedule — the reasons buildRoutineBudgetLines records', () => {
+  const { windowFrom, windowTo } = dayWindow('2026-10-05', '2026-10-07');
+  const ok = routineOccurrencesOf(routine({ id: 'ok', timezone: 'Asia/Bangkok' }), windowFrom, windowTo);
+  assert.ok(ok.ok);
+  if (!ok.ok) return;
+  assert.deepEqual(
+    ok.occurrences.map((d) => d.toISOString()),
+    expandBetween(DAILY_08, 'Asia/Bangkok', windowFrom, windowTo, scheduleAnchor('2026-01-01')).map((d) => d.toISOString()),
+    'the one expansion, anchored on the start date — nothing added, nothing dropped',
+  );
+  assert.deepEqual(ok.occurrences.map((d) => d.toISOString()), ['2026-10-05T01:00:00.000Z', '2026-10-06T01:00:00.000Z', '2026-10-07T01:00:00.000Z'], '08:00 Bangkok is 01:00Z, one a day');
+  const refusal = (r: RoutinePlanInput) => {
+    const answer = routineOccurrencesOf(r, windowFrom, windowTo);
+    assert.equal(answer.ok, false, `${r.id} is refused`);
+    return answer.ok ? null : { reason: answer.reason, detail: answer.detail };
+  };
+  const zone = refusal(routine({ id: 'z', timezone: 'Mars/Olympus' }));
+  assert.equal(zone?.reason, 'timezone not recognised');
+  assert.match(zone?.detail ?? '', /^"Mars\/Olympus": /);
+  assert.equal(refusal(routine({ id: 'zs', timezone: 'Mars/Olympus', scheduleRrule: 'FREQ=BOGUS' }))?.reason, 'timezone not recognised', 'the zone is read first');
+  // A one-off outside the window: no occurrence would ever consult the zone, so it is read before the expansion.
+  assert.equal(refusal(routine({ id: 'ze', timezone: 'Mars/Olympus', startDate: '2026-12-01', scheduleRrule: 'FREQ=DAILY;COUNT=1;BYHOUR=8' }))?.reason, 'timezone not recognised', 'even in an empty window');
+  assert.deepEqual(refusal(routine({ id: 'sd', startDate: '2026-02-30' })), { reason: 'start date not recognised', detail: '"2026-02-30"' });
+  const schedule = refusal(routine({ id: 'sc', scheduleRrule: 'FREQ=BOGUS' }));
+  assert.equal(schedule?.reason, 'schedule does not parse');
+  assert.match(schedule?.detail ?? '', /^"FREQ=BOGUS": /);
+  // The builder records the very answer as Not placed for a costed routine.
+  for (const r of [routine({ id: 'z', timezone: 'Mars/Olympus' }), routine({ id: 'sd', startDate: '2026-02-30' }), routine({ id: 'sc', scheduleRrule: 'FREQ=BOGUS' })]) {
+    const { notPlaced } = buildRoutineBudgetLines([r], '2026-10-05', '2026-10-07');
+    assert.deepEqual(notPlaced.map((n) => ({ reason: n.reason, detail: n.detail })), [refusal(r)], `${r.id}: the builder's Not placed is the expansion's answer`);
+  }
+});
+
+// The fixture set the builder's lines were hashed over on MAIN 8099fe59 (its days.ts, before the expansion moved into
+// routineOccurrencesOf) — 23 cases, 1970 lines, 13 Not placed, 291581 bytes of JSON. The same set on this head must give
+// the same bytes: the expansion moved, the lines did not.
+const byteStep = (over: Partial<RoutineLinePlanInput> & { id: string }): RoutineLinePlanInput => ({ stepOrder: 0, budgetAmount: null, coaCode: null, durationMinutes: null, timeOfDay: null, ...over });
+const BYTES_MANY = [
+  routine({ id: 'm-la', timezone: 'America/Los_Angeles', scheduleRrule: 'FREQ=DAILY;BYHOUR=23;BYMINUTE=30;BYSECOND=0', budgetAmount: '3.50' }),
+  routine({ id: 'm-bkk', timezone: 'Asia/Bangkok', scheduleRrule: 'FREQ=DAILY;BYHOUR=5;BYMINUTE=0;BYSECOND=0', coaCode: '6200' }),
+  routine({ id: 'm-lined', timezone: 'Asia/Bangkok', budgetAmount: null, coaCode: null, steps: [byteStep({ id: 'm-a', stepOrder: 1, budgetAmount: 2, coaCode: '6150', timeOfDay: '09:00', durationMinutes: 15 }), byteStep({ id: 'm-b', stepOrder: 0, budgetAmount: '1.25', coaCode: '6160' })] }),
+  routine({ id: 'm-wk', timezone: 'Europe/Lisbon', scheduleRrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=9;BYMINUTE=0;BYSECOND=0', endDate: '2026-10-20' }),
+  routine({ id: 'm-bad', timezone: 'Mars/Olympus' }),
+];
+const BYTES_CASES: ReadonlyArray<readonly [string, readonly RoutinePlanInput[], string, string]> = [
+  ['la across DST', [routine({ id: 'la', timezone: 'America/Los_Angeles', startDate: '2026-09-01' })], '2026-10-29', '2026-11-04'],
+  ['bkk 23:30', [routine({ id: 'bkk', timezone: 'Asia/Bangkok', scheduleRrule: 'FREQ=DAILY;BYHOUR=23;BYMINUTE=30;BYSECOND=0' })], '2026-10-05', '2026-10-06'],
+  ['bkk 05:00', [routine({ id: 'bkk5', timezone: 'Asia/Bangkok', scheduleRrule: 'FREQ=DAILY;BYHOUR=5;BYMINUTE=0;BYSECOND=0' })], '2026-10-05', '2026-10-06'],
+  ['la 23:30', [routine({ id: 'la2330', timezone: 'America/Los_Angeles', scheduleRrule: 'FREQ=DAILY;BYHOUR=23;BYMINUTE=30;BYSECOND=0' })], '2026-10-05', '2026-10-06'],
+  ['akl 00:15', [routine({ id: 'akl', timezone: 'Pacific/Auckland', scheduleRrule: 'FREQ=DAILY;BYHOUR=0;BYMINUTE=15;BYSECOND=0' })], '2026-10-05', '2026-10-06'],
+  ['one-off', [routine({ id: 'once', timezone: 'America/Los_Angeles', startDate: '2026-10-15', scheduleRrule: 'FREQ=DAILY;COUNT=1;BYHOUR=14;BYMINUTE=0;BYSECOND=0' })], '2026-10-01', '2026-10-31'],
+  ['end date', [routine({ id: 'ends', startDate: '2026-10-01', endDate: '2026-10-03' })], '2026-10-01', '2026-10-07'],
+  ['weekly year', [routine({ id: 'wk', timezone: 'Europe/Lisbon', scheduleRrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=9;BYMINUTE=0;BYSECOND=0' })], '2026-01-01', '2026-12-31'],
+  ['lines win', [routine({ id: 'lined', coaCode: '6200', steps: [byteStep({ id: 'c', budgetAmount: 4, coaCode: '6150' }), byteStep({ id: 'l', stepOrder: 1, budgetAmount: '12.00', coaCode: '6160' }), byteStep({ id: 'w', stepOrder: 2 })] })], '2026-10-05', '2026-10-11'],
+  ['the routine figure', [routine({ id: 'fig', budgetAmount: '9.99', steps: [byteStep({ id: 'a', timeOfDay: '07:30', durationMinutes: 20 })] })], '2026-10-01', '2026-10-31'],
+  ['archived line', [routine({ id: 'arch', budgetAmount: null, coaCode: null, steps: [byteStep({ id: 'k', budgetAmount: '4.00', coaCode: '5210' }), byteStep({ id: 'g', stepOrder: 1, budgetAmount: '99.00', coaCode: '5210', isActive: false })] })], '2026-09-01', '2026-09-30'],
+  ['no account', [routine({ id: 'na', steps: [byteStep({ id: 't', budgetAmount: 7 }), byteStep({ id: 'c2', stepOrder: 1, budgetAmount: 4, coaCode: '6150' })] })], '2026-10-05', '2026-10-06'],
+  ['another book', [routine({ id: 'bc', coaCode: 'X-6100' })], '2026-10-05', '2026-10-07'],
+  ['not whole cents', [routine({ id: 'nc', budgetAmount: 4.005 })], '2026-10-05', '2026-10-05'],
+  ['a refund', [routine({ id: 'neg', steps: [byteStep({ id: 's', budgetAmount: -5, coaCode: '6150' })] })], '2026-10-05', '2026-10-05'],
+  ['bad zone', [routine({ id: 'bz', timezone: 'Mars/Olympus' })], '2026-10-05', '2026-10-06'],
+  ['bad start date', [routine({ id: 'bs', startDate: '2026-02-30' })], '2026-10-05', '2026-10-06'],
+  ['bad schedule', [routine({ id: 'br', scheduleRrule: 'FREQ=BOGUS' })], '2026-10-05', '2026-10-06'],
+  ['the zone first', [routine({ id: 'zf', timezone: 'Nowhere/X', scheduleRrule: 'FREQ=BOGUS' })], '2026-10-05', '2026-10-06'],
+  ['a bad zone in an empty window', [routine({ id: 'ew', timezone: 'Mars/Olympus', startDate: '2026-10-15', scheduleRrule: 'FREQ=DAILY;COUNT=1;BYHOUR=8' })], '2026-01-01', '2026-01-02'],
+  ['no money', [routine({ id: 'x', budgetAmount: null, coaCode: null, timezone: 'Mars/Olympus', scheduleRrule: 'FREQ=BOGUS', steps: [byteStep({ id: 's', coaCode: '6150' })] })], '2026-10-05', '2026-10-06'],
+  ['many, a month', BYTES_MANY, '2026-10-01', '2026-10-31'],
+  ['many, a year', BYTES_MANY, '2026-01-01', '2026-12-31'],
+];
+
+test('SUPERSEDE-01b THE LINES, BYTE-IDENTICAL — buildRoutineBudgetLines over the fixture set gives the bytes main gave before the expansion moved (sha256 of the JSON)', () => {
+  const results = BYTES_CASES.map(([label, routines, from, to]) => [label, buildRoutineBudgetLines(routines, from, to)] as const);
+  const json = JSON.stringify(results);
+  assert.deepEqual(
+    [results.length, results.reduce((n, [, r]) => n + r.lines.length, 0), results.reduce((n, [, r]) => n + r.notPlaced.length, 0), json.length],
+    [23, 1970, 13, 291581],
+  );
+  assert.equal(createHash('sha256').update(json).digest('hex'), 'b4bad9eba9f322a77a1d293de5e0fefd70c50d9be62ebd545f6c7b7ac854ee63', 'main 8099fe59 gave these bytes');
+});
+
+// The windows on 2026-10-15 in Bangkok (UTC+7) and the one block: a planned flight 14:10–17:05, both instants stated.
+const S_DAY = '2026-10-15';
+const bkkAt = (clock: string, day: string = S_DAY): string => new Date(`${day}T${clock}:00.000+07:00`).toISOString();
+const FLIGHT: TravelBlock = { key: 'planned:ti-flight', kind: 'flight', name: 'AirAsia', time: '14:10', startAt: bkkAt('14:10'), endAt: bkkAt('17:05') };
+const bkkRoutine = (id: string, clock: string, over: Partial<RoutinePlanInput> = {}): RoutinePlanInput =>
+  routine({ id, timezone: 'Asia/Bangkok', scheduleRrule: `FREQ=DAILY;BYHOUR=${Number(clock.slice(0, 2))};BYMINUTE=${Number(clock.slice(3, 5))};BYSECOND=0`, ...over });
+const keyOf = (routineId: string, lineId: string | null, clock: string, day: string = S_DAY): string => occurrenceKey({ routineId, lineId, instant: new Date(bkkAt(clock, day)) });
+const NONE: ReadonlySet<string> = new Set();
+
+test('SUPERSEDE-01b A POINT OCCURRENCE INSIDE A BLOCK — a stepless routine with no clocks is a point at its occurrence: inside [start, end) it is marked by the block, at the end it is not', () => {
+  const gym = bkkRoutine('gym', '15:00');
+  const start = bkkRoutine('start', '14:10');
+  const end = bkkRoutine('end', '17:05');
+  const s = routineSupersessionOf([gym, start, end], S_DAY, S_DAY, [FLIGHT], NONE);
+  assert.deepEqual(s.occurrences, [keyOf('gym', null, '15:00'), keyOf('start', null, '14:10'), keyOf('end', null, '17:05')], 'every window, in order');
+  assert.deepEqual(s.marks.get(keyOf('gym', null, '15:00')), { by: FLIGHT, more: 0 });
+  assert.deepEqual(s.marks.get(keyOf('start', null, '14:10')), { by: FLIGHT, more: 0 }, 'the start is inside');
+  assert.equal(s.marks.has(keyOf('end', null, '17:05')), false, 'the end is not');
+  assert.equal(s.unreadable, 0);
+});
+
+test('SUPERSEDE-01b A TIMED LINE OVERLAPPING — a line\'s window is its own time of day on the occurrence\'s LOCAL day in the routine\'s zone, its length the line\'s duration; a stepless routine\'s length is its clocks\'', () => {
+  // The lined routine runs at 07:00; its lines carry their own clocks (or none — then the occurrence) and durations.
+  const day = bkkRoutine('day', '07:00', { budgetAmount: null, coaCode: null, steps: [
+    byteStep({ id: 'walk', stepOrder: 0, timeOfDay: '13:30', durationMinutes: 60 }), // [13:30, 14:30) shares 14:10–14:30
+    byteStep({ id: 'read', stepOrder: 1, timeOfDay: '17:05', durationMinutes: 30 }), // [17:05, 17:35) only touches the end
+    byteStep({ id: 'nap', stepOrder: 2, timeOfDay: null, durationMinutes: 600 }), // at the occurrence, 07:00 + 10h → 17:00
+    byteStep({ id: 'old', stepOrder: 3, timeOfDay: '15:00', durationMinutes: 30, isActive: false }), // inactive: no window
+  ] });
+  const cowork = bkkRoutine('cowork', '13:00', { startTime: '1970-01-01T13:00:00.000Z', endTime: '1970-01-01T18:00:00.000Z' });
+  const s = routineSupersessionOf([day, cowork], S_DAY, S_DAY, [FLIGHT], NONE);
+  assert.deepEqual(s.occurrences, [keyOf('day', 'walk', '07:00'), keyOf('day', 'read', '07:00'), keyOf('day', 'nap', '07:00'), keyOf('cowork', null, '13:00')], 'one window per ACTIVE line, keyed by the occurrence');
+  assert.deepEqual([...s.marks.keys()], [keyOf('day', 'walk', '07:00'), keyOf('day', 'nap', '07:00'), keyOf('cowork', null, '13:00')]);
+  // The local day, not the UTC one: a 05:00 Bangkok routine occurs at 22:00Z the evening before; its 06:00 line is 06:00 on the LOCAL day.
+  const early = bkkRoutine('early', '05:00', { steps: [byteStep({ id: 'tea', timeOfDay: '06:00', durationMinutes: 30 })] });
+  const dawn: TravelBlock = { ...FLIGHT, key: 'planned:ti-dawn', time: '05:45', startAt: bkkAt('05:45'), endAt: bkkAt('06:15') };
+  const e = routineSupersessionOf([early], S_DAY, S_DAY, [dawn], NONE);
+  assert.equal(new Date(bkkAt('05:00')).toISOString(), '2026-10-14T22:00:00.000Z', 'the occurrence is on the UTC day before');
+  assert.deepEqual(e.marks.get(keyOf('early', 'tea', '05:00')), { by: dawn, more: 0 }, '06:00 on 2026-10-15 in Bangkok — the local day');
+});
+
+test('SUPERSEDE-01b A RECORDED OCCURRENCE IS NEVER MARKED — the one record key (stopRecord.ts recordKey) at the occurrence: the record wins, the window stays listed', () => {
+  const gym = bkkRoutine('gym', '15:00');
+  const lined = bkkRoutine('lined', '07:00', { steps: [byteStep({ id: 'walk', timeOfDay: '14:30', durationMinutes: 30 })] });
+  const recorded = new Set([
+    recordKey({ kind: 'routine', target_id: 'gym', occurrence_at: bkkAt('15:00') }),
+    // A line's record is at its ROUTINE's occurrence (the card's key: line:<step>:<expected_at>), never the line's own clock.
+    recordKey({ kind: 'routine_line', target_id: 'walk', occurrence_at: bkkAt('07:00') }),
+  ]);
+  const s = routineSupersessionOf([gym, lined], S_DAY, S_DAY, [FLIGHT], recorded);
+  assert.deepEqual(s.occurrences, [keyOf('gym', null, '15:00'), keyOf('lined', 'walk', '07:00')], 'both listed');
+  assert.equal(s.marks.size, 0, 'neither marked — a record wins');
+  const unrecorded = routineSupersessionOf([gym, lined], S_DAY, S_DAY, [FLIGHT], NONE);
+  assert.equal(unrecorded.marks.size, 2, 'without the records, both are');
+});
+
+test('SUPERSEDE-01b A LINED ROUTINE\'S OWN FIGURE IS UNMARKED — its budget line is keyed by the routine while its windows are its lines\': the line is marked, the figure never', () => {
+  // The routine is priced at the routine level (no line carries an amount — routinePlanned 'routine'); its one line is on the flight.
+  const fig = bkkRoutine('fig', '07:00', { budgetAmount: '10.00', coaCode: '6150', steps: [byteStep({ id: 'walk', timeOfDay: '15:00', durationMinutes: 30 })] });
+  const built = buildRoutineBudgetLines([fig], S_DAY, S_DAY);
+  assert.deepEqual(built.lines.map((l) => [l.sourceId, l.cents]), [[keyOf('fig', null, '07:00'), 1000]], 'one line, keyed routine:<r>:routine:<instant>');
+  const s = routineSupersessionOf([fig], S_DAY, S_DAY, [FLIGHT], NONE);
+  assert.deepEqual(s.occurrences, [keyOf('fig', 'walk', '07:00')], 'the window is the line\'s');
+  assert.ok(s.marks.has(keyOf('fig', 'walk', '07:00')), 'the line is marked');
+  assert.equal(s.marks.has(built.lines[0].sourceId), false, 'the figure is never — the report counts it (routineFiguresUnmarked)');
+});
+
+test('SUPERSEDE-01b A YEAR COUNTS ONLY — every occurrence of the range is a window and only the ones a block covers are marked; costed or not; an unreadable routine is counted, never a window', () => {
+  const coffee = bkkRoutine('coffee', '15:00');
+  const free = bkkRoutine('free', '15:30', { budgetAmount: null, coaCode: null }); // no money: no budget line, still a window
+  const ended = bkkRoutine('ended', '15:00', { endDate: '2026-10-14' }); // its last day is the day before the flight
+  const lost = bkkRoutine('lost', '15:00', { timezone: 'Mars/Olympus' });
+  const year = routineSupersessionOf([coffee, free, ended, lost], '2026-01-01', '2026-12-31', [FLIGHT], NONE);
+  assert.equal(year.occurrences.length, 365 + 365 + 287, 'coffee and free every day of 2026; ended Jan 1 … Oct 14');
+  assert.deepEqual([...year.marks.keys()], [keyOf('coffee', null, '15:00'), keyOf('free', null, '15:30')], 'only the two on the flight');
+  assert.equal(year.unreadable, 1, 'the routine whose zone cannot be read');
+  // The same occurrence is marked the same way in the year and in its day.
+  const day = routineSupersessionOf([coffee, free, ended, lost], S_DAY, S_DAY, [FLIGHT], NONE);
+  assert.deepEqual([...day.marks.entries()], [...year.marks.entries()]);
+  assert.deepEqual(buildRoutineBudgetLines([free], '2026-01-01', '2026-12-31'), { lines: [], notPlaced: [] }, 'the free routine prices nothing — its marks are the card\'s');
+  // A bad call is refused by name, as the builder refuses it.
+  throwsCode(() => routineSupersessionOf([bkkRoutine('bad', '15:00', { endDate: '2026-13-01' })], S_DAY, S_DAY, [], NONE), 'bad-end-date');
+  throwsCode(() => routineSupersessionOf([], '2026-10-16', S_DAY, [], NONE), 'bad-range');
 });

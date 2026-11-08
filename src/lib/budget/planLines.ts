@@ -40,7 +40,9 @@
  * call the route got wrong comes back as a named error for reportInputs.ts to
  * throw as BudgetInputError (the rows are the route's).
  */
-import { viewRange, type BudgetLine, type BudgetSource, type BudgetView, type IsoDay } from './report';
+import { viewRange, type BudgetSource, type BudgetView, type IsoDay, type MarkedBudgetLine } from './report';
+// SUPERSEDE-01b (Alex, 2026-11-08, ruling D): a plan line carries the mark its budget line carries.
+import type { Supersession } from '@/lib/operations/supersession';
 import { occurrenceKey, readOccurrenceKey, type NotPlaced, type OccurrenceKind } from './days';
 import { instantToZoned } from '@/lib/time';
 
@@ -69,8 +71,8 @@ export interface RoutineWords {
 
 export interface DayPlanInput {
   readonly view: BudgetView;
-  /** The routine and task lines as handed to the model. */
-  readonly lines: readonly BudgetLine[];
+  /** The routine and task lines as handed to the model — with their marks (SUPERSEDE-01b). */
+  readonly lines: readonly MarkedBudgetLine[];
   /** What the view built and could not place — with the lines, every occurrence the view built. */
   readonly notPlaced: readonly NotPlaced[];
   readonly routines: ReadonlyMap<string, RoutineWords>;
@@ -111,6 +113,8 @@ export interface PlanLine {
   readonly time: string | null;
   readonly address: PlanAddressText;
   readonly vendor: PlanLineVendor | null;
+  /** SUPERSEDE-01b (Alex, 2026-11-08, ruling D): the travel block that supersedes this occurrence, carried from the marked budget line; null when none does. */
+  readonly superseded: Supersession | null;
 }
 
 export interface StrandedVendor {
@@ -141,8 +145,8 @@ export type DayPlanResult =
 /** BUDGET-02: the matching's input — the days are explicit; the vendor rows are read for them. */
 export interface PlanLinesInput {
   readonly days: readonly IsoDay[];
-  /** The routine and task lines as handed to the model. */
-  readonly lines: readonly BudgetLine[];
+  /** The routine and task lines as handed to the model — with their marks (SUPERSEDE-01b). */
+  readonly lines: readonly MarkedBudgetLine[];
   readonly routines: ReadonlyMap<string, RoutineWords>;
   /** Task id → title. */
   readonly tasks: ReadonlyMap<string, string>;
@@ -322,7 +326,7 @@ export function planLinesOn(input: PlanLinesInput): PlanLinesResult {
     };
     lines.push({
       sourceId: l.sourceId,
-      line: { entityId: l.entityId, code: l.code, day: l.day, cents: l.cents, source: l.source, label, line, time, address: textOf(address), vendor },
+      line: { entityId: l.entityId, code: l.code, day: l.day, cents: l.cents, source: l.source, label, line, time, address: textOf(address), vendor, superseded: l.superseded },
     });
   }
   lines.sort((a, b) => cmp(a.line.day, b.line.day) || cmpMaybe(a.line.time, b.line.time) || cmp(a.line.label, b.line.label) || cmpMaybe(a.line.line, b.line.line) || cmp(a.sourceId, b.sourceId));

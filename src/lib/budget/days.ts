@@ -51,13 +51,35 @@
  * 'account code not recognised', in the chart's own words. The one budget fact
  * added: a plan with no code (null, undefined, blank) is 'no account'. Whether
  * the four digits exist in the chart is still the model's job ('not in chart').
+ *
+ * SUPERSEDE-01b (Alex, 2026-11-08, SUPERSEDE-00 rulings 1, 3, 5; ruling C). Budget
+ * stops counting the routine occurrences travel supersedes. ONE expansion
+ * (routineOccurrencesOf — the zone, the start date, the schedule, as the loop
+ * above ran them inline) serves buildRoutineBudgetLines, unchanged in what it
+ * builds, and routineSupersessionOf: for EVERY routine (costed or not) and EVERY
+ * occurrence in the range, the occurrence WINDOWS exactly as the day card builds
+ * them (dayCard.ts dayStops — a stepless routine's window at the occurrence with
+ * its clocks' length; a lined routine's one window per ACTIVE line, at the line's
+ * own time of day on the occurrence's local day in the routine's zone, with the
+ * line's duration), each keyed by occurrenceKey and told whether a stop record is
+ * at it (stopRecord.ts recordKey — the ONE key builder, so a record wins in one
+ * place: the leaf's supersessionOf skips it). Then the ONE rule, supersession.ts
+ * supersessionOf, marks them — never a second rule here. A lined routine's own
+ * figure (planned.from === 'routine' with active lines) is keyed
+ * routine:<r>:routine:<instant> while its windows are its LINES' — as on the card,
+ * where the figure sits on no stop and is never struck — so that line is never
+ * marked here; its lines' marks ride in the list, and the report counts those
+ * figures (routineFiguresUnmarked). A later ruling may change it — never silently.
  */
 import type { BudgetLine, IsoDay } from '@/lib/budget/report';
 import { routinePlanned } from '@/lib/operations/routineLines';
 import { expandBetween, scheduleAnchor } from '@/lib/operations/rruleHelpers';
-import { instantToZoned } from '@/lib/time';
+import { instantToZoned, zonedToInstant } from '@/lib/time';
 import { parseCode } from '@/lib/coa/scheme';
 import { ValidationError } from '@/lib/errors/ValidationError';
+// SUPERSEDE-01b: the one key of a stop record (pure — no imports) and the one supersession rule (pure — its one import is the calendar's minutesOf).
+import { recordKey } from '@/lib/operations/stopRecord';
+import { plannedMinutesOf, supersessionOf, type OccurrenceWindow, type Supersession, type TravelBlock } from '@/lib/operations/supersession';
 
 // ── NOT PLACED ──────────────────────────────────────────────────────────────
 
@@ -268,7 +290,19 @@ export interface RoutineLinePlanInput {
   readonly stepOrder: number;
   /** Dollars — a number or a Decimal string — or null when the line carries no amount. */
   readonly budgetAmount: number | string | null;
-  readonly coaCode: string | null; readonly durationMinutes: number | null; // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the line's duration_minutes as read — what supersession.ts plannedMinutesOf's 'line' kind reads; null when the line states none. Required (null is stated, never absent); consumed by nothing until 01b. On this line so no line cited into this file moves.
+  readonly coaCode: string | null;
+  /**
+   * SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the line's duration_minutes as read — what supersession.ts
+   * plannedMinutesOf's 'line' kind reads; null when the line states none. Required (null is stated, never absent).
+   * SUPERSEDE-01b (2026-11-08): read by routineSupersessionOf — its window's length; 01a's fold undone (decision 9).
+   */
+  readonly durationMinutes: number | null;
+  /**
+   * SUPERSEDE-01b (Alex, 2026-11-08, ruling C): the line's time_of_day as the loader reads it ('HH:MM', or null when the
+   * line states none) — its window's instant: that clock on the occurrence's local day in the routine's zone (the card's
+   * composition, zonedToInstant), else the occurrence itself. Required, nullable.
+   */
+  readonly timeOfDay: string | null;
 }
 
 export interface RoutinePlanInput {
@@ -286,7 +320,15 @@ export interface RoutinePlanInput {
   readonly endDate: IsoDay | null;
   /** The routine-level amount, dollars. */
   readonly budgetAmount: number | string | null;
-  readonly coaCode: string | null; readonly startTime: string | null; readonly endTime: string | null; // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the routine's window — the @db.Time's JSON, '1970-01-01THH:MM:SS.000Z' — what supersession.ts plannedMinutesOf's 'routine' kind reads; null when the routine states none. Required (null is stated, never absent); consumed by nothing until 01b. On this line so no line cited into this file moves.
+  readonly coaCode: string | null;
+  /**
+   * SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the routine's window — the @db.Time's JSON,
+   * '1970-01-01THH:MM:SS.000Z' — what supersession.ts plannedMinutesOf's 'routine' kind reads; null when the routine states
+   * none. Required (null is stated, never absent). SUPERSEDE-01b (2026-11-08): read by routineSupersessionOf — a stepless
+   * occurrence's length; 01a's fold undone (decision 9).
+   */
+  readonly startTime: string | null;
+  readonly endTime: string | null;
   /** The routine's active lines. */
   readonly steps: readonly RoutineLinePlanInput[];
 }
@@ -297,6 +339,36 @@ export interface DayRuleResult {
 }
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+/** SUPERSEDE-01b: the one expansion's answer — the occurrences, or why the routine cannot be read (the reasons buildRoutineBudgetLines names). */
+export type RoutineOccurrences =
+  | { readonly ok: true; readonly occurrences: readonly Date[] }
+  | { readonly ok: false; readonly reason: NotPlacedReason; readonly detail: string };
+
+/**
+ * SUPERSEDE-01b (Alex, 2026-11-08, ruling C): ONE EXPANSION — the loop body buildRoutineBudgetLines ran inline (the zone,
+ * the start date, expandBetween with its anchor), as a pure helper both it and routineSupersessionOf call; what it
+ * answers, and in which order it refuses, is what the loop did.
+ */
+export function routineOccurrencesOf(routine: RoutinePlanInput, windowFrom: Date, windowTo: Date): RoutineOccurrences {
+  // The zone first: expandBetween only consults it when an occurrence exists,
+  // so an unrecognised zone would otherwise pass unseen in an empty window.
+  try {
+    instantToZoned(windowFrom, routine.timezone);
+  } catch (error) {
+    return { ok: false, reason: 'timezone not recognised', detail: `${JSON.stringify(routine.timezone)}: ${messageOf(error)}` };
+  }
+  if (routine.startDate !== null && !isIsoDay(routine.startDate)) {
+    return { ok: false, reason: 'start date not recognised', detail: JSON.stringify(routine.startDate) };
+  }
+  let occurrences: Date[];
+  try {
+    occurrences = expandBetween(routine.scheduleRrule, routine.timezone, windowFrom, windowTo, scheduleAnchor(routine.startDate));
+  } catch (error) {
+    return { ok: false, reason: 'schedule does not parse', detail: `${JSON.stringify(routine.scheduleRrule)}: ${messageOf(error)}` };
+  }
+  return { ok: true, occurrences };
+}
 
 /** Every routine's occurrences in [rangeFrom, rangeTo], as dated budget lines, and what could not be placed. */
 export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], rangeFrom: IsoDay, rangeTo: IsoDay): DayRuleResult {
@@ -318,26 +390,11 @@ export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], r
     if (planned.from === 'none') continue;
 
     const base = { source: 'routine' as const, entityId: routine.entityId, label: routine.name };
-    const whole = (reason: NotPlacedReason, detail: string) =>
-      notPlaced.push({ ...base, sourceId: wholeRoutineKey(routine.id), cents: null, day: null, reason, detail });
 
-    // The zone first: expandBetween only consults it when an occurrence exists,
-    // so an unrecognised zone would otherwise pass unseen in an empty window.
-    try {
-      instantToZoned(windowFrom, routine.timezone);
-    } catch (error) {
-      whole('timezone not recognised', `${JSON.stringify(routine.timezone)}: ${messageOf(error)}`);
-      continue;
-    }
-    if (routine.startDate !== null && !isIsoDay(routine.startDate)) {
-      whole('start date not recognised', JSON.stringify(routine.startDate));
-      continue;
-    }
-    let occurrences: Date[];
-    try {
-      occurrences = expandBetween(routine.scheduleRrule, routine.timezone, windowFrom, windowTo, scheduleAnchor(routine.startDate));
-    } catch (error) {
-      whole('schedule does not parse', `${JSON.stringify(routine.scheduleRrule)}: ${messageOf(error)}`);
+    // SUPERSEDE-01b: the one expansion (routineOccurrencesOf) — the zone, the start date, the schedule, in that order, as before.
+    const expanded = routineOccurrencesOf(routine, windowFrom, windowTo);
+    if (!expanded.ok) {
+      notPlaced.push({ ...base, sourceId: wholeRoutineKey(routine.id), cents: null, day: null, reason: expanded.reason, detail: expanded.detail });
       continue;
     }
 
@@ -347,7 +404,7 @@ export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], r
       ? planned.lines.filter((l) => l.amount !== null).map((l) => ({ lineId: l.id as string | null, dollars: l.amount as number, code: l.coaCode }))
       : [{ lineId: null, dollars: planned.amount as number, code: planned.coaCode }];
 
-    for (const instant of occurrences) {
+    for (const instant of expanded.occurrences) {
       const day = instantToZoned(instant, routine.timezone).date;
       if (!within(day, rangeFrom, rangeTo)) continue;
       if (routine.endDate !== null && day > routine.endDate) continue;
@@ -368,6 +425,77 @@ export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], r
     }
   }
   return { lines: sortLines(lines), notPlaced: sortNotPlaced(notPlaced) };
+}
+
+// ── SUPERSESSION (SUPERSEDE-01b, Alex, 2026-11-08, ruling C) ─────────────────
+
+export interface RoutineSupersession {
+  /** The marks by occurrence key — the leaf's answer (supersessionOf), nothing added. */
+  readonly marks: ReadonlyMap<string, Supersession>;
+  /** Every window's key, in order: a DAY or WEEK answer lists each with its mark or null, so the card can tell "no mark" from "not considered". */
+  readonly occurrences: readonly string[];
+  /** Routines whose zone, start date or schedule could not be read — no window from them; counted, by the same reasons buildRoutineBudgetLines names. */
+  readonly unreadable: number;
+}
+
+/**
+ * The occurrence WINDOWS of every routine in [rangeFrom, rangeTo] — costed or not: the `planned.from === 'none'` skip
+ * above does not apply, a routine with no money is still on the day card — exactly as the card builds them (dayCard.ts
+ * dayStops): a routine with no active lines → one window at the occurrence, its length by the one planned-minutes rule
+ * over the routine's clocks; a routine with lines → one window per ACTIVE line, at the line's own time of day on the
+ * occurrence's local day in the routine's zone (else the occurrence), its length the line's duration. The same `within`
+ * and endDate rules as the lines. hasRecord by the ONE record key (stopRecord.ts recordKey) over the records the route
+ * read — a record wins in one place, the leaf's supersessionOf. Then the ONE rule marks them.
+ */
+export function routineSupersessionOf(
+  routines: readonly RoutinePlanInput[],
+  rangeFrom: IsoDay,
+  rangeTo: IsoDay,
+  blocks: readonly TravelBlock[],
+  recorded: ReadonlySet<string>,
+): RoutineSupersession {
+  checkRange(rangeFrom, rangeTo);
+  const { windowFrom, windowTo } = dayWindow(rangeFrom, rangeTo);
+  const windows: OccurrenceWindow[] = [];
+  let unreadable = 0;
+
+  for (const routine of routines) {
+    if (routine.endDate !== null && !isIsoDay(routine.endDate)) {
+      throw new BudgetDaysError('bad-end-date', `routine ${routine.id} endDate ${JSON.stringify(routine.endDate)} is not a 'YYYY-MM-DD' day`);
+    }
+    const expanded = routineOccurrencesOf(routine, windowFrom, windowTo);
+    if (!expanded.ok) {
+      unreadable += 1;
+      continue;
+    }
+    // The active lines in step order — the card's order (dayStops sorts a routine's steps by step_order).
+    const steps = routine.steps.filter((s) => s.isActive !== false).slice().sort((a, b) => a.stepOrder - b.stepOrder);
+
+    for (const instant of expanded.occurrences) {
+      const day = instantToZoned(instant, routine.timezone).date;
+      if (!within(day, rangeFrom, rangeTo)) continue;
+      if (routine.endDate !== null && day > routine.endDate) continue;
+      if (steps.length === 0) {
+        windows.push({
+          key: occurrenceKey({ routineId: routine.id, lineId: null, instant }),
+          at: instant,
+          minutes: plannedMinutesOf({ kind: 'routine', start_time: routine.startTime, end_time: routine.endTime }),
+          hasRecord: recorded.has(recordKey({ kind: 'routine', target_id: routine.id, occurrence_at: instant.toISOString() })),
+        });
+        continue;
+      }
+      for (const step of steps) {
+        windows.push({
+          key: occurrenceKey({ routineId: routine.id, lineId: step.id, instant }),
+          // The planned instant: the line's own time of day on the occurrence's local day in the routine's zone, else the occurrence (the card's composition).
+          at: step.timeOfDay === null ? instant : zonedToInstant(day, step.timeOfDay, routine.timezone),
+          minutes: plannedMinutesOf({ kind: 'line', duration_minutes: step.durationMinutes }),
+          hasRecord: recorded.has(recordKey({ kind: 'routine_line', target_id: step.id, occurrence_at: instant.toISOString() })),
+        });
+      }
+    }
+  }
+  return { marks: supersessionOf(blocks, windows), occurrences: windows.map((w) => w.key), unreadable };
 }
 
 // ── TASKS (R3) ──────────────────────────────────────────────────────────────
