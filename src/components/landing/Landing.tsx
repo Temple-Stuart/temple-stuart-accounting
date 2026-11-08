@@ -200,7 +200,7 @@ import WasHereSection from './WasHereSection';
 // their choice picked — the six doors (key, title, line) and the form's path from src/lib/proposalNeeds.ts, never typed here.
 import {
   PROPOSAL_FORM_PATH, SERVICES,
-} from '@/lib/proposalNeeds';
+} from '@/lib/proposalNeeds'; import { PRIMARY_CTA } from '@/lib/ds'; // HOME-FINISH-01 (2026-11-08): the proposal button's class, the public page's one filled button
 import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
@@ -2270,8 +2270,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   module the form and the CRM read too, and the form's path beside them; nothing typed here.
                   Two rows of three from lg, three rows of two from sm, one column below. The close's card
                   retired with the close, and the typed line under the chip went: it restated the first
-                  door's line, with "custom to your business" added. */}
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  door's line, with "custom to your business" added. HOME-FINISH-01 (Alex, 2026-11-08): auto-rows-fr — every row as tall as the tallest, so the six doors are one height at every width. */}
+              <div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {SERVICES.map(({ need, title, line }) => (
                   <Link key={need} href={`${PROPOSAL_FORM_PATH}?need=${need}`} className="rounded-lg border border-border bg-white p-4 text-text-primary hover:bg-brand-purple-wash" data-done-for-you={need}>
                     <div className="text-sm font-medium">{title}</div>
@@ -2282,7 +2282,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <Link
                   href={PROPOSAL_FORM_PATH}
-                  className="border border-brand-purple/40 px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"
+                  className={`${PRIMARY_CTA} inline-block min-h-[44px] text-center`}
                 >
                   Send a project proposal →
                 </Link>
@@ -2384,7 +2384,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          PR-MODULES placeholder comment between
                                          them is not DOM)
               plans | pipeline header → the plans act's border-b (HOME-PANELS-02, 2026-11-07: done-for-you moved above the plans; until then done-for-you's border-b closed this seam)
-              (the close | pipeline header → gone: HOME-PANELS-01, 2026-11-07 — the close is a card inside done-for-you, its fifth door; HOME-05a, 2026-11-03, had it as a cream act of its own between them, so done-for-you | pipeline header is done-for-you's border-b again, as before HOME-05a)
+              (the close | pipeline header → gone: HOME-PANELS-01, 2026-11-07 — the close is a card inside done-for-you, its fifth door; HOME-05a, 2026-11-03, had it as a cream act of its own between them, so done-for-you | pipeline header is done-for-you's border-b again, as before HOME-05a; SERVICES-01, 2026-11-08: the close retired — bookkeeping is a door)
               pipeline header | 01 problem   → the header's border-b (PR-CHROME
                                          seated the header act between them;
                                          01's no-border exception survives

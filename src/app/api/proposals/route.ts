@@ -15,7 +15,7 @@ import { PROPOSAL_NEEDS } from '@/lib/proposalNeeds';
 //      the one sanctioned quiet path: telling a bot it was caught teaches it)
 //   2. rateLimit('proposal:'+ipHash, 5/hour) — the admin-verify precedent
 //      (api/admin/verify/route.ts:20), durable DB-backed fixed window
-//   3. zod validation (enums mirror the table's CHECK constraints)
+//   3. zod validation (enums mirror the table's CHECK constraints — need accepts the six doors; the CHECK also keeps 'close' for the rows the old close door wrote, SERVICES-01)
 //   4. prisma create
 //
 // status + owner_notes are Alex's triage fields — NEVER accepted from the

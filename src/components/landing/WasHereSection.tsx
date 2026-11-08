@@ -48,6 +48,7 @@
  * No emoji, no countdown, no urgency words.
  */
 
+import { PRIMARY_CTA } from '@/lib/ds';
 import { WAS_HERE, type WasHereRow } from '@/lib/wasHere';
 import { stayWords, stopLabel, stopWords, tripOrder } from '@/lib/wasHereWords';
 // TRIPCARDS-01: what each stop cost — the stay, the motorbike, the flight in.
@@ -82,7 +83,8 @@ const TRIP = {
   place: 'mt-1 text-lg font-semibold text-text-primary',
   stay: 'mt-1 font-mono text-xs text-text-secondary',
   foot: 'mt-auto pt-4',
-  link: 'inline-flex min-h-[44px] items-center border border-brand-purple/40 px-5 text-sm font-medium text-brand-purple hover:bg-brand-purple-wash',
+  // HOME-FINISH-01 (Alex, 2026-11-08): the post link is the public page's one filled button (src/lib/ds.ts PRIMARY_CTA), 44px tall.
+  link: `inline-flex min-h-[44px] items-center ${PRIMARY_CTA}`,
   // TRIPCARDS-01: what it cost — a label column in the mono faint voice; beside it the name and
   // the amount on ONE line (the name may end in "…", the amount never shrinks).
   costs: 'mt-4 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5',
