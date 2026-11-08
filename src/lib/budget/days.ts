@@ -70,6 +70,15 @@
  * where the figure sits on no stop and is never struck — so that line is never
  * marked here; its lines' marks ride in the list, and the report counts those
  * figures (routineFiguresUnmarked). A later ruling may change it — never silently.
+ *
+ * SUPERSEDE-01c (Alex, 2026-11-08, rulings A and C) — THE SCOPE OF A MARK. An
+ * all_day routine is no stop (stopRole.ts isStop — the card's rule: the card
+ * routes an all_day line to its band and strikes only its stops), so
+ * routineSupersessionOf builds NO window for it — no key, no mark, not listed —
+ * and counts its occurrences in the range (allDay); buildRoutineBudgetLines still
+ * counts its money (a membership is paid while you fly). Each window carries its
+ * local day in the routine's zone — the budget line's day — so the report lists
+ * the windows of the view's own days (a DAY its day: the card's keys).
  */
 import type { BudgetLine, IsoDay } from '@/lib/budget/report';
 import { routinePlanned } from '@/lib/operations/routineLines';
@@ -80,6 +89,8 @@ import { ValidationError } from '@/lib/errors/ValidationError';
 // SUPERSEDE-01b: the one key of a stop record (pure — no imports) and the one supersession rule (pure — its one import is the calendar's minutesOf).
 import { recordKey } from '@/lib/operations/stopRecord';
 import { plannedMinutesOf, supersessionOf, type OccurrenceWindow, type Supersession, type TravelBlock } from '@/lib/operations/supersession';
+// SUPERSEDE-01c (ruling A): what is a stop — the card's one rule (pure — no imports).
+import { isStop, type StopRole } from '@/lib/operations/stopRole';
 
 // ── NOT PLACED ──────────────────────────────────────────────────────────────
 
@@ -329,6 +340,12 @@ export interface RoutinePlanInput {
    */
   readonly startTime: string | null;
   readonly endTime: string | null;
+  /**
+   * SUPERSEDE-01c (Alex, 2026-11-08, ruling A): the routine's role — one of the six (stopRole.ts), read through
+   * reportInputs.ts toRoutinePlanInput's isStopRole. routineSupersessionOf builds no window for a routine that is no stop
+   * (isStop — an all_day routine, as on the card). Required, never absent.
+   */
+  readonly role: StopRole;
   /** The routine's active lines. */
   readonly steps: readonly RoutineLinePlanInput[];
 }
@@ -432,14 +449,21 @@ export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], r
 export interface RoutineSupersession {
   /** The marks by occurrence key — the leaf's answer (supersessionOf), nothing added. */
   readonly marks: ReadonlyMap<string, Supersession>;
-  /** Every window's key, in order: a DAY or WEEK answer lists each with its mark or null, so the card can tell "no mark" from "not considered". */
-  readonly occurrences: readonly string[];
+  /**
+   * Every window of the RANGE, in order — its length is the range's window count. SUPERSEDE-01c (Alex, 2026-11-08,
+   * ruling C): each with its local day in the routine's zone (the budget line's day), so a DAY answer lists its own day's
+   * windows and a WEEK its seven, each with its mark or null — the card tells "no mark" from "not considered".
+   */
+  readonly occurrences: readonly { readonly key: string; readonly day: IsoDay }[];
   /** Routines whose zone, start date or schedule could not be read — no window from them; counted, by the same reasons buildRoutineBudgetLines names. */
   readonly unreadable: number;
+  /** SUPERSEDE-01c (ruling A): the all_day routines' occurrences in the range — not stops; never superseded, as on the card. */
+  readonly allDay: number;
 }
 
 /**
- * The occurrence WINDOWS of every routine in [rangeFrom, rangeTo] — costed or not: the `planned.from === 'none'` skip
+ * The occurrence WINDOWS of every routine in [rangeFrom, rangeTo] that is a STOP — SUPERSEDE-01c (ruling A): an all_day
+ * routine builds none, its occurrences counted (allDay) — costed or not: the `planned.from === 'none'` skip
  * above does not apply, a routine with no money is still on the day card — exactly as the card builds them (dayCard.ts
  * dayStops): a routine with no active lines → one window at the occurrence, its length by the one planned-minutes rule
  * over the routine's clocks; a routine with lines → one window per ACTIVE line, at the line's own time of day on the
@@ -456,8 +480,9 @@ export function routineSupersessionOf(
 ): RoutineSupersession {
   checkRange(rangeFrom, rangeTo);
   const { windowFrom, windowTo } = dayWindow(rangeFrom, rangeTo);
-  const windows: OccurrenceWindow[] = [];
+  const windows: (OccurrenceWindow & { readonly day: IsoDay })[] = [];
   let unreadable = 0;
+  let allDay = 0;
 
   for (const routine of routines) {
     if (routine.endDate !== null && !isIsoDay(routine.endDate)) {
@@ -475,12 +500,18 @@ export function routineSupersessionOf(
       const day = instantToZoned(instant, routine.timezone).date;
       if (!within(day, rangeFrom, rangeTo)) continue;
       if (routine.endDate !== null && day > routine.endDate) continue;
+      // SUPERSEDE-01c (Alex, 2026-11-08, ruling A): a routine that is no stop (isStop — all_day, the card's band) builds no window — no key, no mark, not listed; its occurrence counted.
+      if (!isStop(routine.role)) {
+        allDay += 1;
+        continue;
+      }
       if (steps.length === 0) {
         windows.push({
           key: occurrenceKey({ routineId: routine.id, lineId: null, instant }),
           at: instant,
           minutes: plannedMinutesOf({ kind: 'routine', start_time: routine.startTime, end_time: routine.endTime }),
           hasRecord: recorded.has(recordKey({ kind: 'routine', target_id: routine.id, occurrence_at: instant.toISOString() })),
+          day,
         });
         continue;
       }
@@ -491,11 +522,13 @@ export function routineSupersessionOf(
           at: step.timeOfDay === null ? instant : zonedToInstant(day, step.timeOfDay, routine.timezone),
           minutes: plannedMinutesOf({ kind: 'line', duration_minutes: step.durationMinutes }),
           hasRecord: recorded.has(recordKey({ kind: 'routine_line', target_id: step.id, occurrence_at: instant.toISOString() })),
+          day,
         });
       }
     }
   }
-  return { marks: supersessionOf(blocks, windows), occurrences: windows.map((w) => w.key), unreadable };
+  // SUPERSEDE-01c (ruling C): each window's key with its local day — the report lists the view's own days of them.
+  return { marks: supersessionOf(blocks, windows), occurrences: windows.map((w) => ({ key: w.key, day: w.day })), unreadable, allDay };
 }
 
 // ── TASKS (R3) ──────────────────────────────────────────────────────────────

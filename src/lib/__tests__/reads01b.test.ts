@@ -32,8 +32,7 @@ test('A taskLedgerAnswerOf(db, userId, span, now) holds the route\'s body verbat
   assert.match(a, /export async function taskLedgerAnswerOf\(db: Db, userId: string, span: \{ from: string; to: string \}, now: Date\) \{\n\s*const \{ from, to \} = span;/);
   assert.match(a, /type Db = Pick<PrismaClient, 'entities' \| 'chart_of_accounts' \| 'operations_routines' \| 'planned_item_vendors' \| 'operations_stays' \| 'operations_stop_records' \| 'planned_item_links'>;/);
   inOrder(a, [
-    'const recordsFrom = new Date(Date.parse(`${from}T00:00:00.000Z`) - 14 * HOUR_MS);',
-    'const recordsTo = new Date(Date.parse(`${to}T00:00:00.000Z`) + 36 * HOUR_MS);',
+    // SUPERSEDE-01c (Alex, 2026-11-08, ruling D): the records' window by its one owner, stopRecord.ts recordsWindowOf — the two consts went; the wheres below read it (pins moved).
     'const vendorsFrom = new Date(Date.parse(`${from}T00:00:00.000Z`) - DAY_MS);',
     'const vendorsTo = new Date(Date.parse(`${to}T00:00:00.000Z`) + 2 * DAY_MS);',
     "const entities = await db.entities.findMany({ where: { userId: userId }, select: { id: true, name: true, entity_type: true }, orderBy: { name: 'asc' } });",
@@ -44,9 +43,9 @@ test('A taskLedgerAnswerOf(db, userId, span, now) holds the route\'s body verbat
     'db.planned_item_vendors.findMany({', 'where: { user_id: userId, OR: [{ occurrence_at: null }, { occurrence_at: { gte: vendorsFrom, lt: vendorsTo } }] },',
     'vendor: { select: { id: true, vendor_name: true, entity_id: true } },', 'task: { select: { title: true } },',
     "db.operations_stays.findMany({ where: { user_id: userId }, orderBy: { starts_on: 'asc' } }),",
-    'db.operations_stop_records.findMany({', 'where: { user_id: userId, occurrence_at: { gte: recordsFrom, lt: recordsTo } },', 'include: RECORD_PLAN,', "orderBy: { occurrence_at: 'asc' },",
+    'db.operations_stop_records.findMany({', 'where: { user_id: userId, occurrence_at: recordsWindowOf(from, to) },', 'include: RECORD_PLAN,', "orderBy: { occurrence_at: 'asc' },",
     "db.operations_stop_records.findFirst({ where: { user_id: userId }, include: RECORD_PLAN, orderBy: { occurrence_at: 'asc' } }),",
-    'db.planned_item_links.findMany({', "where: { user_id: userId, target_kind: { in: ['routine', 'routine_line'] }, target_instant: { gte: recordsFrom, lt: recordsTo }, journal_entry: { userId: userId } },",
+    'db.planned_item_links.findMany({', "where: { user_id: userId, target_kind: { in: ['routine', 'routine_line'] }, target_instant: recordsWindowOf(from, to), journal_entry: { userId: userId } },",
     'select: { target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: { select: LINKED_POSTING_SELECT } },', "orderBy: { linked_at: 'asc' },",
     'const bookOf = (entityId: string, what: string) => {',
     'const built = buildRoutineBudgetLines(routineInputs, from, to);',
@@ -62,7 +61,9 @@ test('A taskLedgerAnswerOf(db, userId, span, now) holds the route\'s body verbat
   assert.doesNotMatch(a, /\bprisma\.|user\.id|getVerifiedEmail|NextResponse|NextRequest/, 'the client and the caller are handed in; no gate, no response here — only the PrismaClient type is named');
   // RECORD_PLAN and its helpers moved with the body; the Time row cites its two lines, each what it says.
   assert.match(a, /const RECORD_PLAN = \{\n\s*routine: \{ select: \{ name: true, timezone: true, role: true, start_time: true, end_time: true \} \},\n\s*step: \{ select: \{ activity: true, time_of_day: true, duration_minutes: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true, role: true \} \} \} \},\n\} as const;/);
-  for (const helper of ['const HOUR_MS = 3_600_000;', 'const DAY_MS = 86_400_000;', 'const messageOf = (error: unknown): string =>', 'type RecordRow = Parameters<typeof stopRecordRowOf>[0] & {', 'function recordInputOf(row: RecordRow): LedgerRecordInput {']) assert.ok(a.includes(helper), `${helper.slice(0, 40)} moved with the body`);
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling D): the records' window by its one owner, stopRecord.ts recordsWindowOf — HOUR_MS retired with the two consts (pin moved).
+  assert.doesNotMatch(a, /\bHOUR_MS\b/);
+  for (const helper of ['const DAY_MS = 86_400_000;', 'const messageOf = (error: unknown): string =>', 'type RecordRow = Parameters<typeof stopRecordRowOf>[0] & {', 'function recordInputOf(row: RecordRow): LedgerRecordInput {']) assert.ok(a.includes(helper), `${helper.slice(0, 40)} moved with the body`);
   const time = TOOL_REGISTRY.find((x) => x.name === 'Time');
   assert.ok(time);
   const lineOf = (n: number): string => code(ANSWER).split('\n')[n - 1] ?? '';

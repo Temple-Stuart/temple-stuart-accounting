@@ -107,7 +107,7 @@ export function routineDay(r: RoutineDayInput, day: LocalDay | null, now: Date):
   } catch (error) {
     return { kind: 'refused', reason: 'schedule does not parse', detail: `${JSON.stringify(r.schedule_rrule)}: ${messageOf(error)}` };
   }
-  // The day's occurrence: the first whose local day is the day — the Budget's own test (days.ts:408-409 — SUPERSEDE-01b, 2026-11-08: was :351-352 — instantToZoned(...).date + within).
+  // The day's occurrence: the first whose local day is the day — the Budget's own test (days.ts:425-426 — SUPERSEDE-01c, 2026-11-08: was :408-409 — instantToZoned(...).date + within).
   const expectedAt = occurrences.find((instant) => within(instantToZoned(instant, r.timezone).date, localDay, localDay));
   if (expectedAt === undefined) return { kind: 'none', day: localDay };
   return { kind: 'occurrence', day: localDay, expectedAt };

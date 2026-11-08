@@ -134,7 +134,7 @@ test('T2 the readers with the derived clock: the day card\'s reader and its band
   assert.deepEqual(card.allDay.map((s) => [s.label, s.role, s.time, s.cents]), [['Apple storage', 'all_day', '00:00', 299]]);
   assert.equal(card.stops.length, 0, 'not a stop'); assert.equal(card.allDayCents, 299);
   // The budget: the line lands on Nov 11 in LA.
-  const budget = buildRoutineBudgetLines([{ id: 'apple', name: 'Apple storage', entityId: 'P', entityType: 'personal', timezone: LA, scheduleRrule: APPLE_RULE, startDate: null, endDate: null, budgetAmount: '2.99', coaCode: 'P-5100', steps: [], startTime: null, endTime: null }], '2026-11-01', '2026-11-30');
+  const budget = buildRoutineBudgetLines([{ id: 'apple', name: 'Apple storage', entityId: 'P', entityType: 'personal', timezone: LA, scheduleRrule: APPLE_RULE, startDate: null, endDate: null, budgetAmount: '2.99', coaCode: 'P-5100', steps: [], startTime: null, endTime: null, role: 'all_day' }], '2026-11-01', '2026-11-30'); // SUPERSEDE-01c (2026-11-08): the role, stated — a charge on a date
   assert.deepEqual(budget.lines.map((l) => [l.day, l.cents]), [['2026-11-11', 299]]);
   assert.equal(budget.notPlaced.length, 0);
   // The hub: a routine with no stored window is an all-day tile on its date (mapOperationsRoutines.ts, PR-Ops-5.8), not an hourly block.

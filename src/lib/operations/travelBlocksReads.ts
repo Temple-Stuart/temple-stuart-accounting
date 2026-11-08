@@ -28,17 +28,37 @@ import { plannedKindOf, plannedNameOf, type TravelBlock, type TravelBlocksLeftOu
  * text). Every where names the caller, through the four functions. No `||`, no `?? <default>`; a row with start_at and
  * no start_zone states its clock as stored, never a guessed zone; a recurrence that is neither 'once' nor 'daily' is the
  * read's error, thrown by name.
+ *
+ * SUPERSEDE-01c (Alex, 2026-11-08, ruling B) — A BLOCK IS READ WHEREVER IT CAN REACH THE RANGE. The read widens the
+ * window it is handed by BLOCK_REACH_DAYS on each side before its two reads, so an overnight block dated the day before
+ * the range marks the range's first morning in every view — the DAY, the card, the month drill and the YEAR give one
+ * answer per occurrence. The callers hand the range as it is; the read owns its reach, and says where it read.
  */
 
 type Db = Pick<PrismaClient, 'trip_itinerary' | 'reservations' | 'calendar_events'>;
 
 export const BOOKINGS_NEVER_A_BLOCK = 'never a block';
 
+/**
+ * SUPERSEDE-01c (ruling B): how far past the range a block is read — whole days, so the homeDate and start_date
+ * selections stay day-aligned. A block is at most a day long (the longest scheduled flight is about 19 h; a 'daily' row
+ * is the band, never a block), and a block's homeDate and an occurrence's local day can sit in zones up to 26 h apart
+ * (UTC−12 … UTC+14), so any block that can touch a window of the range starts within two days of it — to the hour: a
+ * block or a window up to 22 h long is always read, even across the two zones farthest apart (a 19 h flight has 3 h to
+ * spare). Reading wider never marks a window no block overlaps: the rule decides by instants, and days.ts
+ * routineSupersessionOf still builds windows for [rangeFrom, rangeTo] only.
+ */
+export const BLOCK_REACH_DAYS = 2;
+const DAY_MS = 86_400_000;
+
 export interface TravelBlocksRead {
   readonly blocks: readonly TravelBlock[];
-  /** The rows the range holds that are no block — each kind counted (the leaf's shape, so the pure half carries it). */
+  /** The rows the read holds that are no block — each kind counted (the leaf's shape, so the pure half carries it); SUPERSEDE-01c: the widened read's, [readFrom, readTo). */
   readonly leftOut: TravelBlocksLeftOut;
   readonly bookings: typeof BOOKINGS_NEVER_A_BLOCK;
+  /** SUPERSEDE-01c (ruling B): the widened window the two reads read — the range's ends, BLOCK_REACH_DAYS each side, as ISO text. */
+  readonly readFrom: string;
+  readonly readTo: string;
 }
 
 const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
@@ -51,11 +71,18 @@ const byInstant = (a: TravelBlock, b: TravelBlock): number => {
   return cmp(a.key, b.key);
 };
 
-/** The range's travel blocks for the caller, through READS-01a's reads, by the card's selections — the rows read, then the flat list. */
+/**
+ * The travel blocks that can reach the range, for the caller, through READS-01a's reads, by the card's selections — the
+ * window widened by BLOCK_REACH_DAYS each side (SUPERSEDE-01c, ruling B), the rows read, then the flat list and where it read.
+ */
 export async function readTravelBlocks(db: Db, userId: string, range: InstantRange): Promise<TravelBlocksRead> {
-  const planned = await readPlannedTravel(db, userId, range);
-  const segments = await readSegments(db, userId, (await readOwnReservationIds(db, userId)).map((r) => r.id), range);
-  return blocksOfRows(planned, segments);
+  const reach: InstantRange = {
+    from: new Date(Date.parse(range.from) - BLOCK_REACH_DAYS * DAY_MS).toISOString(),
+    to: new Date(Date.parse(range.to) + BLOCK_REACH_DAYS * DAY_MS).toISOString(),
+  };
+  const planned = await readPlannedTravel(db, userId, reach);
+  const segments = await readSegments(db, userId, (await readOwnReservationIds(db, userId)).map((r) => r.id), reach);
+  return { ...blocksOfRows(planned, segments), readFrom: reach.from, readTo: reach.to };
 }
 
 /** What the flat list reads of a planned row and of a segment (travelDay.ts PlannedIn, SegmentIn — the rows as the reads select them). */
@@ -66,7 +93,7 @@ export type BlockSegmentRow = Pick<SegmentIn, 'source_id' | 'title' | 'start_dat
  * THE FLAT LIST, pure — the rows the two reads returned → the blocks, the rows left out counted by name, bookings never a block.
  * Pure so a test hands it the same rows the card's travel day is built from (the day card's tests feed Budget's marks through it).
  */
-export function blocksOfRows(planned: readonly BlockPlannedRow[], segments: readonly BlockSegmentRow[]): TravelBlocksRead {
+export function blocksOfRows(planned: readonly BlockPlannedRow[], segments: readonly BlockSegmentRow[]): Omit<TravelBlocksRead, 'readFrom' | 'readTo'> {
   const blocks: TravelBlock[] = [];
   const leftOut = { plannedDaily: 0, plannedNoInstants: 0, plannedOneInstant: 0, segmentsNoInstants: 0, segmentsOneInstant: 0 };
 

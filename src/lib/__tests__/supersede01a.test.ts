@@ -113,7 +113,8 @@ test('D the select names start_time, end_time and the line\'s duration_minutes; 
   const days = code(DAYS);
   // SUPERSEDE-01b (Alex, 2026-11-08, ruling K): 01a's fold undone — each field on its own line with its doc; the cited lines re-cited instead.
   assert.match(days, /readonly coaCode: string \| null;\s*readonly durationMinutes: number \| null;\s*readonly timeOfDay: string \| null;\s*\n\}/, 'RoutineLinePlanInput requires it (and, since 01b, timeOfDay)');
-  assert.match(days, /readonly coaCode: string \| null;\s*readonly startTime: string \| null;\s*readonly endTime: string \| null;\s*readonly steps: readonly RoutineLinePlanInput\[\];/, 'RoutinePlanInput requires both');
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling A): the role, required, sits between the window and the lines (pin moved).
+  assert.match(days, /readonly coaCode: string \| null;\s*readonly startTime: string \| null;\s*readonly endTime: string \| null;\s*readonly role: StopRole;\s*readonly steps: readonly RoutineLinePlanInput\[\];/, 'RoutinePlanInput requires both');
   assert.doesNotMatch(days, /startTime\?:|endTime\?:|durationMinutes\?:/, 'required — null is stated, never absent');
   // tsc refuses a plan input that leaves them out (this file is type-checked).
   // @ts-expect-error — startTime and endTime are required

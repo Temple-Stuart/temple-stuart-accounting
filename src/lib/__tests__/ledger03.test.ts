@@ -72,7 +72,7 @@ const CLIENT_13 = '2026-10-13T05:30:00.000Z';
 const YOGA_12 = '2026-10-12T10:00:00.000Z';
 
 const routine = (over: Partial<RoutinePlanInput> & { id: string; name: string; scheduleRrule: string }): RoutinePlanInput => ({
-  entityId: 'P', entityType: 'personal', timezone: BKK, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, ...over,
+  entityId: 'P', entityType: 'personal', timezone: BKK, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, role: 'none', ...over, // SUPERSEDE-01c (2026-11-08): the role, stated
 });
 const ROUTINES: RoutinePlanInput[] = [
   routine({ id: 'morning', name: 'Morning', scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', steps: [
@@ -186,7 +186,8 @@ test('R2 the join: a record meets its links by (kind, target_id, occurrence_at) 
   const route = code(LEDGER_ANSWER);
   assert.equal((route.match(/db\.planned_item_links\.findMany\(/g) ?? []).length, 1, 'one query');
   // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the select is LINKED_POSTING_SELECT — the lines plus the reversal state.
-  assert.match(route, /db\.planned_item_links\.findMany\(\{\n\s*where: \{ user_id: userId, target_kind: \{ in: \['routine', 'routine_line'\] \}, target_instant: \{ gte: recordsFrom, lt: recordsTo \}, journal_entry: \{ userId: userId \} \},\n\s*select: \{ target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: \{ select: LINKED_POSTING_SELECT \} \},/, 'the records’ own window, user-scoped twice');
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling D): the records' window by its one owner, stopRecord.ts recordsWindowOf — the links' instants in it (pin moved).
+  assert.match(route, /db\.planned_item_links\.findMany\(\{\n\s*where: \{ user_id: userId, target_kind: \{ in: \['routine', 'routine_line'\] \}, target_instant: recordsWindowOf\(from, to\), journal_entry: \{ userId: userId \} \},\n\s*select: \{ target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: \{ select: LINKED_POSTING_SELECT \} \},/, 'the records’ own window, user-scoped twice');
   assert.match(route, /const \[chart, routineGroups, roles, planVendors, stayRows, recordRows, firstRow, linkRows\] = await Promise\.all\(\[/, 'read beside the records, not per record');
   assert.match(route, /links: linkRows\.map\(linkInputOf\),/);
   // ROUTINES-03 (Alex, 2026-10-25): linkInputOf moved to ledger.ts, unchanged, so the routines' month route reads a link the same way — the pins moved with it.

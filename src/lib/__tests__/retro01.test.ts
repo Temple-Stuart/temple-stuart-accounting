@@ -74,7 +74,7 @@ const PLAN_13 = '2026-10-13T01:00:00.000Z';
 const GYM_13 = '2026-10-13T13:00:00.000Z';
 
 const routine = (over: Partial<RoutinePlanInput> & { id: string; name: string; scheduleRrule: string }): RoutinePlanInput => ({
-  entityId: 'P', entityType: 'personal', timezone: BKK, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, ...over,
+  entityId: 'P', entityType: 'personal', timezone: BKK, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, role: 'none', ...over, // SUPERSEDE-01c (2026-11-08): the role, stated
 });
 const ROUTINES: RoutinePlanInput[] = [
   routine({ id: 'brunch', name: 'Brunch', scheduleRrule: 'FREQ=DAILY;BYHOUR=11;BYMINUTE=0', budgetAmount: 25, coaCode: '6150' }),

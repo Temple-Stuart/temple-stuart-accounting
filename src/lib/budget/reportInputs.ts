@@ -62,6 +62,12 @@
  * day card takes its marks from this list and computes none (ruling 6); a YEAR carries counts only. The drill marks its
  * lines the same way: a struck line is listed, never dropped (ruling 5).
  *
+ * SUPERSEDE-01c (Alex, 2026-11-08, rulings A–C) — THE SCOPE OF A MARK. The routine's role rides into the plan input
+ * through the one rule (stopRole.ts isStopRole — a role outside the six is refused by name), so an all_day routine
+ * builds no window and is counted (allDay); the read reaches two days each side of the range, and the response says
+ * where it read (readFrom, readTo); a DAY lists its own day's windows and a WEEK its seven (listed) — `occurrences`
+ * stays the range's count.
+ *
  * Structural row shapes, no Prisma import, no clock: the route reads the server's
  * date and passes it in. A build law holds this file pure (scripts/
  * assert-tool-registry.ts, the budget report purity law).
@@ -80,6 +86,8 @@ import { dayPlanOf, daysOf, planLinesOn, type DayPlan, type PlanLinesErrorCode, 
 // SUPERSEDE-01b: the one record key (pure — no imports) and the one rule's types (pure — its one import is the calendar's minutesOf).
 import { recordKey } from '@/lib/operations/stopRecord';
 import type { Supersession, TravelBlock, TravelBlocksLeftOut } from '@/lib/operations/supersession';
+// SUPERSEDE-01c (ruling A): the six roles' one rule (pure — no imports).
+import { isStopRole } from '@/lib/operations/stopRole';
 
 // ── FAIL LOUD ───────────────────────────────────────────────────────────────
 
@@ -92,7 +100,9 @@ export type BudgetInputErrorCode =
   // BUDGET-02: a line the model selected for the drill with no row the route read behind it.
   | 'drill-row-missing'
   // SUPERSEDE-01b: a stop record naming neither a routine nor a line — the migration's CHECK holds exactly one.
-  | 'record-unreadable';
+  | 'record-unreadable'
+  // SUPERSEDE-01c (ruling A): a routine's role outside the six — the column is CHECKed; the card throws the same (dayCard.ts dayStops).
+  | 'role-unreadable';
 
 /** A row the route read that cannot become an input — named, never coerced. The route answers 500. */
 export class BudgetInputError extends Error {
@@ -199,6 +209,8 @@ export interface RoutineRow {
   /** SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the routine's window as the loader read it (a @db.Time: a Date at 1970-01-01); null when none. Carried into the plan input as its JSON, consumed by nothing until 01b. */
   readonly start_time: Date | null;
   readonly end_time: Date | null;
+  /** SUPERSEDE-01c (Alex, 2026-11-08, ruling A): the routine's role as the loader read it (routineBudgetInputs.ts selects it) — into the plan input through isStopRole. */
+  readonly role: string;
   /** TAB13-04: each line's activity and time_of_day ('HH:MM', read once by the loader) are the day's plan lines' words. SUPERSEDE-01a: the line's duration_minutes as read, carried. SUPERSEDE-01b: time_of_day and duration_minutes are the line's window (days.ts routineSupersessionOf). */
   readonly steps: readonly { readonly id: string; readonly is_active: boolean; readonly budget_amount: number | string | null; readonly coa_code: string | null; readonly step_order: number; readonly activity: string; readonly time_of_day: string | null; readonly duration_minutes: number | null }[];
 }
@@ -214,6 +226,9 @@ export interface StopRecordKeyRow {
 export interface SupersessionRows {
   readonly blocks: readonly TravelBlock[];
   readonly leftOut: TravelBlocksLeftOut;
+  /** SUPERSEDE-01c (Alex, 2026-11-08, ruling B): where the read reached — its widened window's two ends (travelBlocksReads.ts); the blocks and the leftOut counts are that read's. */
+  readonly readFrom: string;
+  readonly readTo: string;
   readonly records: readonly StopRecordKeyRow[];
 }
 
@@ -324,6 +339,8 @@ export function toReportAccount(row: ChartRow, book: ReportEntity): ReportAccoun
 }
 
 export function toRoutinePlanInput(row: RoutineRow, entity: ReportEntity): RoutinePlanInput {
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling A): the role through the one rule — a role outside the six is the read's error, by name, never read as a stop.
+  if (!isStopRole(row.role)) throw new BudgetInputError('role-unreadable', `routine ${row.id} carries role ${JSON.stringify(row.role)} — not one of the six (stopRole.ts STOP_ROLES); the column is CHECKed`);
   return {
     id: row.id,
     name: row.name,
@@ -338,6 +355,7 @@ export function toRoutinePlanInput(row: RoutineRow, entity: ReportEntity): Routi
     // SUPERSEDE-01a (Alex, 2026-11-07, SUPERSEDE-00 ruling 4): the window's JSON and each line's duration, carried as read — no conversion, no default.
     startTime: row.start_time === null ? null : row.start_time.toISOString(),
     endTime: row.end_time === null ? null : row.end_time.toISOString(),
+    role: row.role,
     // SUPERSEDE-01b (Alex, 2026-11-08, ruling C): and each line's time of day ('HH:MM' as the loader read it) — its window's instant.
     steps: row.steps.map((s) => ({ id: s.id, isActive: s.is_active, stepOrder: s.step_order, budgetAmount: s.budget_amount, coaCode: s.coa_code, durationMinutes: s.duration_minutes, timeOfDay: s.time_of_day })),
   };
@@ -476,10 +494,19 @@ export interface SupersessionMark {
 
 export interface SupersessionSummary {
   readonly blocks: number;
+  /** The rows the read left out, by kind — SUPERSEDE-01c (ruling B): the widened read's, [readFrom, readTo). */
   readonly leftOut: TravelBlocksLeftOut;
+  /** SUPERSEDE-01c (Alex, 2026-11-08, ruling B): where the blocks were read — the range, two days each side (travelBlocksReads.ts). */
+  readonly readFrom: string;
+  readonly readTo: string;
   readonly bookings: 'never a block';
   readonly records: number;
+  /** The RANGE's window count — a DAY's range is its month to date and the day (report.ts columnsFor). */
   readonly occurrences: number;
+  /** SUPERSEDE-01c (ruling C): the marks list's length — the view's own days' windows; 0 for a YEAR, which lists none. */
+  readonly listed: number;
+  /** SUPERSEDE-01c (ruling A): the all_day routines' occurrences in the range — not stops; never superseded, as on the card. */
+  readonly allDay: number;
   readonly marked: number;
   readonly routineFiguresUnmarked: number;
   readonly unreadable: number;
@@ -652,23 +679,32 @@ function reportInputOf<L extends LedgerRow>(view: BudgetView, rows: InputRows<L>
   return { rangeFrom, rangeTo, entities, routineInputs, taskInputs, routines, tasks, budgetLines, accounts, postings, postingRow, routineWords, supersession, routineFiguresUnmarked };
 }
 
-/** SUPERSEDE-01b (ruling D): the supersession as the response says it — a DAY or WEEK with every window's key and its mark or null, a YEAR with counts only. */
+/**
+ * SUPERSEDE-01b (ruling D): the supersession as the response says it — a DAY or WEEK with its windows' keys and each mark
+ * or null, a YEAR with counts only. SUPERSEDE-01c (Alex, 2026-11-08, ruling C): the list is the VIEW's days — a DAY's
+ * windows on its own day (the card's keys, not the month to date), a WEEK's seven days (its range, every window).
+ */
 function supersessionSummaryOf(
   view: BudgetView,
   rows: SupersessionRows,
   supersession: ReturnType<typeof routineSupersessionOf>,
   routineFiguresUnmarked: number,
 ): SupersessionSummary {
+  const listed = view.kind === 'day' ? supersession.occurrences.filter((o) => o.day === view.day) : view.kind === 'week' ? supersession.occurrences : [];
   // No `?? <default>`: `get(key)!` is the Map idiom after `has` — the value is there, and it is a Supersession.
   const marks = view.kind === 'year'
     ? YEAR_MARKS_WORDS
-    : supersession.occurrences.map((key): SupersessionMark => ({ key, superseded: supersession.marks.has(key) ? supersession.marks.get(key)! : null }));
+    : listed.map(({ key }): SupersessionMark => ({ key, superseded: supersession.marks.has(key) ? supersession.marks.get(key)! : null }));
   return {
     blocks: rows.blocks.length,
     leftOut: rows.leftOut,
+    readFrom: rows.readFrom,
+    readTo: rows.readTo,
     bookings: 'never a block',
     records: rows.records.length,
     occurrences: supersession.occurrences.length,
+    listed: listed.length,
+    allDay: supersession.allDay,
     marked: supersession.marks.size,
     routineFiguresUnmarked,
     unreadable: supersession.unreadable,

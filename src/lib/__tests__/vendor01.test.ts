@@ -30,7 +30,7 @@ const GYM = '33333333-3333-4333-8333-333333333333';
 
 const routine = (over: Partial<RoutinePlanInput> = {}): RoutinePlanInput => ({
   id: PLAN, name: 'Meals', entityId: 'ent-p', entityType: 'personal', timezone: LA,
-  scheduleRrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null,
+  scheduleRrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null, role: 'place', // SUPERSEDE-01c (2026-11-08): the role, stated
   budgetAmount: null, coaCode: null, startTime: null, endTime: null,
   steps: [
     { id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'P-6150', durationMinutes: null, timeOfDay: null },

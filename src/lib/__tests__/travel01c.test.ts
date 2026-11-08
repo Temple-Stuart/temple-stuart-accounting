@@ -106,7 +106,7 @@ const record = (id: 'cowork' | 'dinner' | 'gym', actual: number): StopRecordRow 
 /** SUPERSEDE-01b (ruling J): a fixture routine as the report's plan input — the loader's fields; this file's routines carry no lines. */
 const planInputOf = (r: Routine): RoutinePlanInput => {
   if (r.steps.length > 0) throw new Error(`fixture: ${r.id} has lines — this file's routines are stepless`);
-  return { id: r.id, name: r.name, entityId: r.entity_id, entityType: 'personal', timezone: r.timezone, scheduleRrule: r.schedule_rrule, startDate: r.start_date, endDate: r.end_date, budgetAmount: r.budget_amount, coaCode: r.coa_code, startTime: r.start_time, endTime: r.end_time, steps: [] };
+  return { id: r.id, name: r.name, entityId: r.entity_id, entityType: 'personal', timezone: r.timezone, scheduleRrule: r.schedule_rrule, startDate: r.start_date, endDate: r.end_date, budgetAmount: r.budget_amount, coaCode: r.coa_code, startTime: r.start_time, endTime: r.end_time, role: r.role, steps: [] }; // SUPERSEDE-01c (2026-11-08): the routine's own role, stated
 };
 /** SUPERSEDE-01b (ruling J): the day's marks as Budget's model builds them — every occurrence of the day's routines with its mark or null. */
 const marksFor = (travel: TravelDay | null, entries: readonly ReturnType<typeof entry>[], records: readonly StopRecordRow[] | null): ReadonlyMap<string, Supersession | null> => {
@@ -115,7 +115,8 @@ const marksFor = (travel: TravelDay | null, entries: readonly ReturnType<typeof 
   const routines = [...new Map(entries.map((e) => [e.routine.id, e.routine])).values()].map(planInputOf);
   const recorded = new Set((records === null ? [] : records).map(recordKey));
   const s = routineSupersessionOf(routines, DAY, DAY, blocksOfRows(rows.planned, rows.segments).blocks, recorded);
-  return new Map(s.occurrences.map((key): [string, Supersession | null] => [key, s.marks.has(key) ? s.marks.get(key)! : null]));
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling C): each window carries its day — the key read from it (pin moved); the range here is the day.
+  return new Map(s.occurrences.map(({ key }): [string, Supersession | null] => [key, s.marks.has(key) ? s.marks.get(key)! : null]));
 };
 const day = (travel: TravelDay | null, over: { readonly records?: StopRecordRow[] | null; readonly entries?: ReturnType<typeof entry>[] } = {}) => {
   const entries = over.entries === undefined ? [entry(cowork, AT.cowork), entry(dinner, AT.dinner), entry(gym, AT.gym)] : over.entries;

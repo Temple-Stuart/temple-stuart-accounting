@@ -132,7 +132,7 @@ test('T2 the evaluator reads end_date; a routine whose end has passed expects no
 test('T3 the month tables stop at the end: the month of the end counts through its day, a month after counts nothing; no end → as before', () => {
   // HOME-LEDGER-02b (Alex, 2026-11-07): the month is the day lines' sum — built here over the month's range by the one day
   // builder (the same expandBetween, bounded by the routine's end_date); the figures are the ones the retired table gave.
-  const r = { id: 'r', name: 'r', entityId: 'e', entityType: 'personal', timezone: BKK, scheduleRrule: DAILY_7, startDate: '2026-10-01', budgetAmount: 10, coaCode: '6150', steps: [] };
+  const r = { id: 'r', name: 'r', entityId: 'e', entityType: 'personal', timezone: BKK, scheduleRrule: DAILY_7, startDate: '2026-10-01', budgetAmount: 10, coaCode: '6150', steps: [], role: 'none' as const }; // SUPERSEDE-01c (2026-11-08): the role, stated
   const month = (endDate: string | null, from: string, to: string) => buildRoutineBudgetLines([{ startTime: null, endTime: null, ...r, endDate }], from, to).lines.reduce((sum, l) => sum + l.cents, 0) / 100;
   assert.equal(month('2026-10-15', '2026-10-01', '2026-10-31'), 150, 'Oct 1–15: 15 × $10');
   assert.equal(month('2026-10-15', '2026-11-01', '2026-11-30'), 0, 'November: nothing');

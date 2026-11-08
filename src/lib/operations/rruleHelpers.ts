@@ -69,7 +69,7 @@ export function scheduleAnchor(startDate: Date | string | null | undefined): Dat
  * the LAST LOCAL DAY an occurrence may fall on, in the routine's own zone. Both
  * expansions below take it as their last argument and drop every shifted
  * occurrence whose local day in the zone (lib/time.ts instantToZoned — the
- * Budget's own test, days.ts:408-410 — SUPERSEDE-01b, 2026-11-08: was :351-353) is after it; a caller that passes nothing
+ * Budget's own test, days.ts:425-427 — SUPERSEDE-01c, 2026-11-08: was :408-410) is after it; a caller that passes nothing
  * gets every occurrence, as before. The evaluator, the create and update routes,
  * the completion's next-due and the month tables pass it, so a routine whose end
  * has passed expands to nothing: never a miss, next_due_at null.

@@ -68,7 +68,7 @@ const at = (day: string) => `${day}T00:00:00.000Z`; // 07:00 Bangkok — the dai
 
 const plan = (o: Partial<RoutineMonthRoutine> & { id: string; name: string }): RoutineMonthRoutine => ({
   entityId: 'p', entityType: 'personal', timezone: BKK, scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null,
-  budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [], isActive: true, ...o,
+  budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [], isActive: true, role: 'none', ...o, // SUPERSEDE-01c (2026-11-08): the role, stated
 });
 const record = (o: Partial<StopRecordRow> & { id: string; kind: 'routine' | 'routine_line'; target_id: string; occurrence_at: string }): StopRecordRow => ({
   outcome: 'done', done_at: o.occurrence_at, actual_cents: null, rating: null, note: null, actual_minutes: null, ...o,

@@ -94,6 +94,7 @@ const coffee: RoutineRow = {
   id: 'r-coffee', name: 'Coffee', budget_amount: 5, coa_code: '6150', schedule_rrule: 'FREQ=DAILY;BYHOUR=8;BYMINUTE=0;BYSECOND=0',
   timezone: 'UTC', start_date: at('2026-09-01'), end_date: at('2026-09-22'), steps: [],
   start_time: null, end_time: null,
+  role: 'place', // SUPERSEDE-01c (2026-11-08): the role, stated
 };
 
 test('MAPPING — a routine from the loader: dates as UTC days, the entity\'s type, every line', () => {
@@ -101,6 +102,7 @@ test('MAPPING — a routine from the loader: dates as UTC days, the entity\'s ty
   assert.deepEqual(toRoutinePlanInput(coffee, toReportEntity(P)), {
     id: 'r-coffee', name: 'Coffee', entityId: 'ent-p', entityType: 'personal', timezone: 'UTC', scheduleRrule: coffee.schedule_rrule,
     startDate: '2026-09-01', endDate: '2026-09-22', budgetAmount: 5, coaCode: '6150', startTime: null, endTime: null, steps: [], // SUPERSEDE-01a (2026-11-07): the window's JSON, null when none
+    role: 'place', // SUPERSEDE-01c (Alex, 2026-11-08, ruling A): the role, through isStopRole (pin moved)
   });
   // Ruling 5 (the chat's mutant R6): the type is the ENTITY's — a sole_prop routine carries sole_prop.
   assert.deepEqual(
@@ -192,7 +194,8 @@ const rows = (over: Partial<ReportRows> = {}): ReportRows => ({
   ],
   // TAB13-04 (ruled 2026-09-29): an explicit empty list — a DAY or WEEK view is handed the vendor rows it read.
   // SUPERSEDE-01b (2026-11-08): the range's travel blocks and stop records the route read — none here (stated, never absent).
-  supersession: { blocks: [], leftOut: { plannedDaily: 0, plannedNoInstants: 0, plannedOneInstant: 0, segmentsNoInstants: 0, segmentsOneInstant: 0 }, records: [] },
+  // SUPERSEDE-01c (2026-11-08, ruling B): and where the read reached — the fixture week's (Sep 21 … 27), two days each side; carried, never computed here.
+  supersession: { blocks: [], leftOut: { plannedDaily: 0, plannedNoInstants: 0, plannedOneInstant: 0, segmentsNoInstants: 0, segmentsOneInstant: 0 }, readFrom: '2026-09-19T00:00:00.000Z', readTo: '2026-09-30T00:00:00.000Z', records: [] },
   planVendors: [],
   ...over,
 });
@@ -568,7 +571,8 @@ test('TAB13-04 T3 the route reads the plan vendors user-scoped, in the window, f
   assert.match(reads, /db\.planned_item_vendors\.findMany\(\{\s*where: \{ user_id: userId, OR: \[\{ occurrence_at: null \}, \{ occurrence_at: \{ gte: window\.from, lt: window\.to \} \}\] \},/);
   assert.match(reads, /vendor: \{ select: \{ id: true, vendor_name: true, entity_id: true \} \},\s*routine: \{ select: \{ name: true, timezone: true \} \},\s*step: \{ select: \{ activity: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true \} \} \} \},\s*task: \{ select: \{ title: true \} \},/);
   // SUPERSEDE-01b (Alex, 2026-11-08, ruling D): the rows gain the supersession read — the blocks through the one read, the range's stop records.
-  assert.match(route, /bank,\s*planVendors,\s*supersession: \{ blocks: travelBlocks\.blocks, leftOut: travelBlocks\.leftOut, records: stopRecords \},\s*\}\)\);/);
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling B): and where the read reached (readFrom, readTo) — pin moved, the call unchanged.
+  assert.match(route, /bank,\s*planVendors,\s*supersession: \{ blocks: travelBlocks\.blocks, leftOut: travelBlocks\.leftOut, readFrom: travelBlocks\.readFrom, readTo: travelBlocks\.readTo, records: stopRecords \},\s*\}\)\);/);
   // HOME-LEDGER-02a (Alex, 2026-11-07, ruling C): three became two — the bank rows read through the loader (readBankNotInBooks).
   // SUPERSEDE-01b (2026-11-08, ruling D): two became three — the range's stop records, by the one widened window (recordsWindowOf).
   assert.equal((route.match(/\bprisma\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 3, 'the user, the entities, the stop records — every other read through the loader');
