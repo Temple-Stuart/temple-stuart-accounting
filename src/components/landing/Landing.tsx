@@ -12,7 +12,7 @@
  *   MY TRIP             — the trip log, a card per stop, each opening its stop's page (TRIPCARDS-01)
  *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
  *                         renders only when records exist
- *   DONE-FOR-YOU        — the professional-services panel (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)
+ *   DONE-FOR-YOU        — the professional-services panel, six doors from src/lib/proposalNeeds.ts — SERVICES-01, 2026-11-08: the close retired, bookkeeping a door (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)
  *   (COCKPIT-PERF-01, 2026-10-27: the PERSONAS act — "one system · six lives" —
  *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
  *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
@@ -194,13 +194,13 @@ import ExperiencesSection from './ExperiencesSection';
 // WASHERE-01 (2026-10-31): the trip log — Alex's own stops, in trip order, each naming
 // an experience by id; the leaf's rows, the words modules' lines, the server's day.
 import WasHereSection from './WasHereSection';
-// HOME-05a (2026-11-03): the 2026 close offer — one leaf (src/lib/offer/close.ts), its words
-// module's lines, the server's day. ONE-FORM-01 (2026-11-06): booked on the proposal form.
-import CloseOfferMount from './CloseOfferCard';
-// ONE-FORM-01 (Alex, 2026-11-06): the DONE-FOR-YOU cards and the close button open the ONE proposal
-// form with their choice picked — the path and the query key from the leaf, never typed here.
-import { PROPOSAL_FORM_PATH } from '@/lib/offer/close';
-import type { ServiceNeed } from '@/lib/proposalNeeds';
+// HOME-05a (2026-11-03) mounted the 2026 close here as CloseOfferSection.tsx; HOME-PANELS-01 (2026-11-07) made it
+// CloseOfferCard.tsx, both over src/lib/offer/close.ts. SERVICES-01 (Alex, 2026-11-08) retired it — card, leaf, words
+// and law are gone; bookkeeping is a door now. ONE-FORM-01 (2026-11-06): the doors open the ONE proposal form with
+// their choice picked — the six doors (key, title, line) and the form's path from src/lib/proposalNeeds.ts, never typed here.
+import {
+  PROPOSAL_FORM_PATH, SERVICES,
+} from '@/lib/proposalNeeds';
 import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
@@ -2264,29 +2264,21 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <span className="rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
                 PROFESSIONAL SERVICES
               </span>
-              <p className="mt-2 text-xs leading-relaxed text-text-muted">Your own hosted copy — every API wired, custom to your business, you own everything.</p>
-              {/* ONE-FORM-01 (Alex, 2026-11-06): each card is a door to the ONE proposal form with
-                  its choice picked (?need=<word>, the form's own query key) — the word from
-                  src/lib/proposalNeeds.ts, the path from the leaf; a card's words unchanged. */}
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {([
-                  ['setup', 'Full setup', 'Your own hosted copy, every API wired, you own everything.'],
-                  ['maintenance', 'Monthly maintenance', 'I keep it updated and running.'],
-                  ['custom', 'Custom builds', 'Need a feature? I build it.'],
-                  ['embed', 'Embed a module', 'Want just one piece (the booking engine, the books, the scanner) inside your existing system? I do that too.'],
-                ] as const satisfies ReadonlyArray<readonly [ServiceNeed, string, string]>).map(([need, title, desc]) => (
+              {/* ONE-FORM-01 (Alex, 2026-11-06): each card is a door to the ONE proposal form with its choice
+                  picked (?need=<key>, the form's own query key). SERVICES-01 (Alex, 2026-11-08): SIX EQUAL
+                  DOORS — every door's key, title and line from SERVICES in src/lib/proposalNeeds.ts, the one
+                  module the form and the CRM read too, and the form's path beside them; nothing typed here.
+                  Two rows of three from lg, three rows of two from sm, one column below. The close's card
+                  retired with the close, and the typed line under the chip went: it restated the first
+                  door's line, with "custom to your business" added. */}
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {SERVICES.map(({ need, title, line }) => (
                   <Link key={need} href={`${PROPOSAL_FORM_PATH}?need=${need}`} className="rounded-lg border border-border bg-white p-4 text-text-primary hover:bg-brand-purple-wash" data-done-for-you={need}>
                     <div className="text-sm font-medium">{title}</div>
-                    <p className="mt-1 text-xs text-text-muted">{desc}</p>
+                    <p className="mt-1 text-xs text-text-muted">{line}</p>
                   </Link>
                 ))}
               </div>
-              {/* HOME-PANELS-01 (Alex, 2026-11-07): THE FIFTH DOOR, LAST — the 2026 close, priced by
-                  proposal: its chip, then one full-width card that is a Link to the form with the
-                  close picked (CloseOfferCard.tsx over src/lib/offer/close.ts, every word from its
-                  words module, the server's day from page.tsx). It was its own act after this one
-                  (HOME-05a); the panel's one button below covers it, "Scoped by proposal" too. */}
-              <CloseOfferMount today={today} />
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <Link
                   href={PROPOSAL_FORM_PATH}

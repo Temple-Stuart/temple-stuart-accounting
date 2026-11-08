@@ -10,19 +10,19 @@
  *
  * ONE-FORM-01 (Alex, 2026-11-06): THE ONE FORM — "incorporate bookkeeping services
  * and done for you services ... all as one proposal form ... since email is wack."
- *   · The 2026 close offer (src/lib/offer/close.ts) is a sixth choice, "Close my
- *     2026 books", shown while the offer is open (closeWords over the server's day)
- *     and gone after its book-by day; picked, the card shows the offer's own lines
- *     (what it is, the price, the book-by day, what it is not, the remedy) and the
- *     modules question leaves (a close has no modules — the submit sends none).
- *   · `?need=<word>` picks a choice on arrival — the home page's doors (the
- *     DONE-FOR-YOU cards, the close button). The server page (page.tsx) reads the
- *     query and the day and hands both down; a word the form does not offer picks
- *     nothing (no redirect, no error — the form simply opens unpicked).
- *   · The need words come from src/lib/proposalNeeds.ts (the route's enum reads the
- *     same list) and the close's from its leaf — nothing typed here.
+ * SERVICES-01 (Alex, 2026-11-08): THE SIX DOORS. The choices are the DONE-FOR-YOU
+ *   panel's six doors in its order, each chip the door's title, and the lead is one
+ *   sentence — SERVICES and FORM_INTRO in src/lib/proposalNeeds.ts, the module the
+ *   panel, the route and the CRM read; nothing typed here. The 2026 close retired:
+ *   no close chip, no close block. Bookkeeping picked shows its own lines (what it
+ *   is, what it is not, the remedy — BOOKKEEPING_WORDS) and the modules question
+ *   leaves (bookkeeping has no modules — the submit sends none).
+ *   · `?need=<key>` picks a door on arrival — the home page's doors. The server page
+ *     (page.tsx) hands the query down; a word the form does not offer picks nothing,
+ *     'close' from an old link included (no redirect, no error, nothing mapped — the
+ *     form simply opens unpicked).
  * This file is the client half (the RSVPClient precedent): state, the submit, the
- * markup. It reads no clock — `today` is a prop.
+ * markup. It reads no clock.
  *
  * House shell throughout: SURFACE.page canvas, SURFACE.card panel,
  * SECTION_HEADER bar, CONTROL input family, SEGMENT single-picks, toggleChip
@@ -34,9 +34,9 @@
 
 import { useState } from 'react';
 import { CONTROL, SECTION_HEADER, SEGMENT, STATE, SURFACE, toggleChip } from '@/lib/ds';
-import { CLOSE_OFFER } from '@/lib/offer/close';
-import { closeWords } from '@/lib/offer/closeWords';
-import { SERVICE_NEED_LABELS, SERVICE_NEEDS } from '@/lib/proposalNeeds';
+// SERVICES-01 (2026-11-08): the six doors, the lead and the bookkeeping block's words — one module; the close's
+// leaf and words retired with the close.
+import { BOOKKEEPING_WORDS, FORM_INTRO, SERVICES, type ServiceNeed } from '@/lib/proposalNeeds';
 
 // The 9 modules — ids + labels REUSED from Landing.tsx PILLAR_CARDS
 // (:241-313), the deck's one module vocabulary. Literals because PILLAR_CARDS
@@ -54,15 +54,15 @@ const MODULES = [
   { id: 'content', label: 'Content' },
 ] as const;
 
-/** ONE-FORM-01: the choices on the day — the four services, the close while it is open, then "Not sure". Pure; the tests drive it. */
-export function needChoices(today: string): ReadonlyArray<{ value: string; label: string }> {
-  const close = closeWords(CLOSE_OFFER, today);
-  const services = SERVICE_NEEDS.filter((n) => n !== 'unsure').map((value) => ({ value, label: SERVICE_NEED_LABELS[value] }));
-  return [
-    ...services,
-    ...(close.state === 'open' ? [{ value: CLOSE_OFFER.need, label: close.choice }] : []),
-    { value: 'unsure', label: SERVICE_NEED_LABELS.unsure },
-  ];
+/**
+ * ONE-FORM-01 → SERVICES-01 (Alex, 2026-11-08): the choices — the six doors, in the panel's order, each chip the
+ * door's title (SERVICES in src/lib/proposalNeeds.ts). It takes no day: since the close retired, nothing on the
+ * form depends on one. A word that is not a door's key — 'close' from an old link — is not a choice, so the
+ * component below picks nothing for it; nothing maps a retired word onto a door.
+ * Pure; the tests drive it.
+ */
+export function needChoices(): ReadonlyArray<{ value: ServiceNeed; label: string }> {
+  return SERVICES.map(({ need, title }) => ({ value: need, label: title }));
 }
 
 const START_WINDOWS = [
@@ -78,17 +78,17 @@ const REFERRAL_SOURCES = ['Reddit', 'Instagram', 'TikTok', 'X', 'YouTube', 'Refe
 
 const TEXTAREA_CLASS = `${CONTROL.input} min-h-[72px] w-full resize-y`;
 
-export default function WorkWithMeForm({ today, initialNeed }: { today: string; initialNeed: string | null }) {
-  // ONE-FORM-01: the choices on the server's day, and the close's words while it is open.
-  const needs = needChoices(today);
-  const close = closeWords(CLOSE_OFFER, today);
+export default function WorkWithMeForm({ initialNeed }: { initialNeed: string | null }) {
+  // SERVICES-01 (2026-11-08): the six doors — the choices depend on no day, so the form takes none.
+  const needs = needChoices();
+  const isDoor = (word: string): word is ServiceNeed => needs.some((n) => n.value === word);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [business, setBusiness] = useState('');
   const [currentStack, setCurrentStack] = useState('');
-  // ONE-FORM-01: `?need=` picks a choice on arrival when it names one the form offers today.
-  const [need, setNeed] = useState<string | null>(initialNeed !== null && needs.some((n) => n.value === initialNeed) ? initialNeed : null);
-  const isClose = need === CLOSE_OFFER.need;
+  // ONE-FORM-01: `?need=` picks a choice on arrival when it names a door — an old link's 'close' names none.
+  const [need, setNeed] = useState<ServiceNeed | null>(initialNeed !== null && isDoor(initialNeed) ? initialNeed : null);
+  const isBookkeeping = need === 'bookkeeping';
   const [modules, setModules] = useState<string[]>([]);
   const [startWindow, setStartWindow] = useState('exploring');
   const [budgetRange, setBudgetRange] = useState('not sure');
@@ -126,7 +126,7 @@ export default function WorkWithMeForm({ today, initialNeed }: { today: string; 
       // and the referral follow-ups fold into the one referral_source string:
       //   base token, or 'referral: {name}' / 'other: {text}'.
       const notesAssembled =
-        !isClose && modules.includes('other') && otherModuleText.trim()
+        !isBookkeeping && modules.includes('other') && otherModuleText.trim()
           ? `OTHER MODULE: ${otherModuleText.trim()}\n\n${notes}`
           : notes;
       const referralAssembled =
@@ -144,8 +144,8 @@ export default function WorkWithMeForm({ today, initialNeed }: { today: string; 
           business,
           ...(currentStack.trim() ? { currentStack: currentStack.trim() } : {}),
           need,
-          // ONE-FORM-01: a close has no modules — none are asked, none are sent.
-          modules: isClose ? [] : modules,
+          // SERVICES-01: bookkeeping has no modules — none are asked, none are sent (the close's rule, kept).
+          modules: isBookkeeping ? [] : modules,
           startWindow,
           budgetRange,
           notesFromThem: notesAssembled,
@@ -177,11 +177,11 @@ export default function WorkWithMeForm({ today, initialNeed }: { today: string; 
       <div className={`mx-auto max-w-2xl ${SURFACE.card}`}>
         <div className={SECTION_HEADER}>WORK WITH ME</div>
         <div className="p-4 sm:p-6">
-          {/* ONE-FORM-01: one form for the services and the close — the lead names both; the
-              close's year from its leaf. The services line is the deck's (Landing.tsx). */}
+          {/* ONE-FORM-01: one form for every door. SERVICES-01 (Alex, 2026-11-08): the lead is one sentence
+              (FORM_INTRO in src/lib/proposalNeeds.ts) — the typed setup sentence, which restated the first door's line,
+              and the close's sentence went. */}
           <p className="text-xs leading-relaxed text-text-muted">
-            Your own hosted copy — every API wired, custom to your business, you own everything.
-            {close.state === 'open' && ` Or your ${CLOSE_OFFER.year} books, closed.`} Pick one below and tell me about your business.
+            {FORM_INTRO}
           </p>
 
           {submittedEmail ? (
@@ -239,14 +239,14 @@ export default function WorkWithMeForm({ today, initialNeed }: { today: string; 
                     </button>
                   ))}
                 </div>
-                {/* ONE-FORM-01: the close picked — the offer's own lines, every word from closeWords. */}
-                {isClose && close.state === 'open' && (
-                  <div className="mt-3 rounded bg-bg-row p-4 text-sm leading-relaxed text-text-primary" data-close-offer>
-                    <p>{close.what}</p>
-                    <p className="mt-2">{close.priced}</p>
-                    <p className="mt-1 font-mono text-xs text-text-secondary">{close.bookBy}</p>
-                    <p className="mt-2">{close.notTax}</p>
-                    <p className="mt-1 text-text-secondary">{close.remedy}</p>
+                {/* SERVICES-01 (Alex, 2026-11-08): bookkeeping picked — its own lines, every word from
+                    BOOKKEEPING_WORDS (src/lib/proposalNeeds.ts), in the classes the close block's what, notTax
+                    and remedy wore (ONE-FORM-01's close block retired with the close: no price, no book-by day). */}
+                {isBookkeeping && (
+                  <div className="mt-3 rounded bg-bg-row p-4 text-sm leading-relaxed text-text-primary" data-bookkeeping-offer>
+                    <p>{BOOKKEEPING_WORDS.what}</p>
+                    <p className="mt-2">{BOOKKEEPING_WORDS.notTax}</p>
+                    <p className="mt-1 text-text-secondary">{BOOKKEEPING_WORDS.remedy}</p>
                   </div>
                 )}
               </div>
@@ -267,8 +267,8 @@ export default function WorkWithMeForm({ today, initialNeed }: { today: string; 
                 <p className="mt-1 text-xs text-text-faint">One or two sentences: what you do, who pays you.</p>
               </div>
 
-              {/* ONE-FORM-01: no modules question for a close — the block leaves, and the submit sends none. */}
-              {!isClose && <div data-modules>
+              {/* SERVICES-01: no modules question for bookkeeping — the block leaves, and the submit sends none. */}
+              {!isBookkeeping && <div data-modules>
                 <span className={CONTROL.label}>Which modules interest you</span>
                 <div className="mt-1 flex flex-wrap gap-1.5">
                   {MODULES.map((m) => (
@@ -356,7 +356,7 @@ export default function WorkWithMeForm({ today, initialNeed }: { today: string; 
                   id="p-notes"
                   required
                   maxLength={3000}
-                  placeholder={isClose && close.state === 'open' ? close.done : "e.g. By March I can see all my rentals' income in one dashboard and my CPA gets a clean export."}
+                  placeholder={isBookkeeping ? BOOKKEEPING_WORDS.done : "e.g. By March I can see all my rentals' income in one dashboard and my CPA gets a clean export."}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className={`${TEXTAREA_CLASS} mt-1`}
@@ -554,7 +554,7 @@ export default function WorkWithMeForm({ today, initialNeed }: { today: string; 
                     // FORM-V2 client blocks: Other picked needs its description;
                     // the deadline question needs ONE of date/exploring; a
                     // Referral/Other source needs its follow-up.
-                    (!isClose && modules.includes('other') && otherModuleText.trim() === '') ||
+                    (!isBookkeeping && modules.includes('other') && otherModuleText.trim() === '') ||
                     (!noDeadline && hardDeadline === '') ||
                     ((referralSource === 'Referral' || referralSource === 'Other') &&
                       referralDetail.trim() === '')

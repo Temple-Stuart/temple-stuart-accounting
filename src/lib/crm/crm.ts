@@ -4,9 +4,10 @@
  * reads the rows and hands them in; the page (src/components/crm/CrmSection.tsx) prints the specs below through the shared
  * DataTable; the writes (src/app/api/crm/contacts/route.ts) name a row by its ContactRow.key, parsed by contactKeyOf.
  *
- *   needWords(need)            what a proposal asked for — the form's chip: SERVICE_NEED_LABELS for the five service
- *                              words, closeChoiceWords(CLOSE_OFFER) for the close's; any other word THROWS by name (the
- *                              proposals CHECK allows no other — one would be a data error);
+ *   needWords(need)            what a proposal asked for — SERVICES-01 (2026-11-08): the door's title (SERVICES in
+ *                              src/lib/proposalNeeds.ts) for the six keys, LEGACY_NEED_TITLES for 'close' (the retired
+ *                              close door's word, which old rows keep); any other word THROWS by name (the proposals
+ *                              CHECK allows no other — one would be a data error);
  *   signedUpWith(user, providers)   "Email and password" for a password; for a provider signup (users.password '' —
  *                              nextAuthOptions.ts signIn creates such rows) the NextAuth Account.provider of the User whose
  *                              email is the same, case-insensitively; none THROWS by name;
@@ -31,7 +32,7 @@
  * Pay's does (billPay.ts) — no formatter here, none in the component.
  *
  * THE LAWS are at the functions, not at module scope: a record that contradicts itself is reported by name, never
- * smoothed (a password-less user with no provider account; an active key in no vocabulary; a need the form does not hold;
+ * smoothed (a password-less user with no provider account; an active key in no vocabulary; a need neither a door's nor legacy;
  * a working row that names a source row the read did not return; a stage outside the five; a list field that is not a
  * list of words; a contact touched after today; a manual working row with no name or no email — crm_contacts_manual_chk
  * forbids one, so its absence is a data error, never a blank on the row).
@@ -41,9 +42,7 @@ import type { TableColumn } from '@/lib/table/columns';
 import { dayWords, instantColumn, instantDayWords, textColumn, valueColumn } from '@/lib/operations/work';
 import { OFFERS } from '@/lib/offer';
 import { GOOGLE_CATEGORY_KEYS, TAB_ENTITLEMENT_KEYS } from '@/lib/categoryKeys';
-import { PROPOSAL_NEEDS, SERVICE_NEEDS, SERVICE_NEED_LABELS, type ServiceNeed } from '@/lib/proposalNeeds';
-import { CLOSE_OFFER } from '@/lib/offer/close';
-import { closeChoiceWords } from '@/lib/offer/closeWords';
+import { LEGACY_NEED_TITLES, SERVICES, SERVICE_NEEDS, type LegacyNeed } from '@/lib/proposalNeeds';
 import type { SubmissionRow } from './forms';
 import {
   CONTACT_HEAD_WORDS, EMAIL_AND_PASSWORD_WORDS, FREE_PLAN_WORDS, FROM_WORDS, LEGACY_KEY_WORDS, LIST_JOIN, NOT_YET_WORDS,
@@ -126,7 +125,7 @@ export interface ProposalRow {
   readonly email: string;
   readonly business: string;
   readonly need: string;
-  /** The form's chip for the need (needWords). */
+  /** The door's title for the need, or the legacy title for 'close' (needWords). */
   readonly need_words: string;
   readonly modules: readonly string[];
   readonly start_window: string;
@@ -173,7 +172,7 @@ export interface ContactRow {
 
 // ── THE WORDS OF ONE FACT ───────────────────────────────────────────────────
 
-const isServiceNeed = (need: string): need is ServiceNeed => (SERVICE_NEEDS as readonly string[]).includes(need);
+const isLegacyNeed = (need: string): need is LegacyNeed => Object.keys(LEGACY_NEED_TITLES).includes(need);
 const isSource = (source: string): source is CrmSource => (CRM_SOURCES as readonly string[]).includes(source);
 
 /**
@@ -191,11 +190,16 @@ export function contactKeyOf(key: string): { readonly source: CrmSource; readonl
   return { source, ref };
 }
 
-/** What a proposal asked for, in the form's own words — on any day (closeChoiceWords does not depend on bookBy). */
+/**
+ * What a proposal asked for — SERVICES-01 (Alex, 2026-11-08): the door's title for the six keys (an old row prints the
+ * door's words today: 'setup' reads "Full setup"); the legacy title for 'close', the retired close door's word; any other
+ * word throws by name. Nothing is mapped: 'close' is not read as any door.
+ */
 export function needWords(need: string): string {
-  if (isServiceNeed(need)) return SERVICE_NEED_LABELS[need];
-  if (need === CLOSE_OFFER.need) return closeChoiceWords(CLOSE_OFFER);
-  throw new CrmLawError(`needWords: "${need}" is not a need the proposal form holds (${PROPOSAL_NEEDS.join(', ')}) — a data error, reported`);
+  const door = SERVICES.find((s) => s.need === need);
+  if (door !== undefined) return door.title;
+  if (isLegacyNeed(need)) return LEGACY_NEED_TITLES[need];
+  throw new CrmLawError(`needWords: "${need}" is neither a door of the proposal form (${SERVICE_NEEDS.join(', ')}) nor a word old rows keep (${Object.keys(LEGACY_NEED_TITLES).join(', ')}) — a data error, reported`);
 }
 
 /** How a signup signed up. `providers` maps a lower-case email to the NextAuth providers of the User with that email. */
@@ -259,7 +263,7 @@ const newestFirst = <T>(rows: readonly T[], instantOf: (row: T) => string, keyOf
 
 // ── THE ROWS ────────────────────────────────────────────────────────────────
 
-/** PROPOSALS: one row per proposals row, newest first, each with its need in the form's words. */
+/** PROPOSALS: one row per proposals row, newest first, each with its need in the door's title (the legacy title for 'close'). */
 export function proposalRowsOf(proposals: readonly ProposalInput[]): ProposalRow[] {
   return newestFirst(proposals.map((p): ProposalRow => ({
     id: p.id, created_at: p.created_at, name: p.name, email: p.email, business: p.business, need: p.need, need_words: needWords(p.need),
