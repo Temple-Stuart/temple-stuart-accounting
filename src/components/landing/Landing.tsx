@@ -208,7 +208,7 @@ import { PROVIDER_MENU, ROUTING_RULES, isRetired, liveMenuCell } from '@/lib/pro
 // DATAFLOW-01: step 7's today line, derived from the registry — the tools whose four beats all run.
 import { ALL_BEATS_LINE, ownTableLine } from '@/lib/toolRegistry';
 // TABLES-01: step 5's honest line — every table name from the kind-views census, none retyped.
-import { KIND_VIEWS_HONEST_LINE } from '@/lib/kindViews';
+import { KIND_VIEWS_HONEST_LINE } from '@/lib/kindViews'; import { COMMISSION_LINE } from '@/lib/disclosureWords'; // BOOK-DISCLOSE-01 (2026-11-08): the commission line under the booking box — its words from the leaf, never typed here
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
 // OFFER-01 (2026-09-23): the landing no longer renders OfferCard, heroCountsLine,
 // OFFERS or freeSetLine — the offer it shows is the three plans, and Travel's free
@@ -2167,6 +2167,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           Search &amp; book travel — free today, no account needed.
         </h2>
         <LandingBookingSection onRequireAuth={onRequireAuth} />
+        <p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>
         {/* GUEST-01 (2026-09-29; Alex's ruling 17:04): the door back for a guest who booked
             without an account — the one lookup box (src/components/guest/GuestBookingLookup.tsx),
             the reference and the manage code from their booking email. It asks nothing on
