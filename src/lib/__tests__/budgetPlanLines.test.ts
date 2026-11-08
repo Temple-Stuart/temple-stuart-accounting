@@ -31,7 +31,7 @@ const COFFEE = '10000000-0000-4000-8000-000000000002';
 const NETFLIX = '10000000-0000-4000-8000-000000000003';
 const BRAKES = '30000000-0000-4000-8000-000000000001';
 
-const base = { entityId: 'ent-p', entityType: 'personal', timezone: LA, startDate: null, endDate: null, budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [] } as const; // SUPERSEDE-01a (2026-11-07): the window, stated null
+const base = { entityId: 'ent-p', entityType: 'personal', timezone: LA, startDate: null, endDate: null, budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [], role: 'none' } as const; // SUPERSEDE-01a (2026-11-07): the window, stated null; SUPERSEDE-01c (2026-11-08): the role, stated
 const meals: RoutinePlanInput = {
   ...base, id: MEALS, name: 'Meals', scheduleRrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=0;BYSECOND=0',
   steps: [
@@ -41,7 +41,7 @@ const meals: RoutinePlanInput = {
   ],
 };
 const coffee: RoutinePlanInput = { ...base, id: COFFEE, name: 'Coffee', scheduleRrule: 'FREQ=DAILY;BYHOUR=8;BYMINUTE=0;BYSECOND=0', budgetAmount: '5.00', coaCode: 'P-6150' };
-const netflix: RoutinePlanInput = { ...base, id: NETFLIX, name: 'Netflix', scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=29;BYHOUR=9;BYMINUTE=0;BYSECOND=0', budgetAmount: '15.49', coaCode: 'P-6300' };
+const netflix: RoutinePlanInput = { ...base, id: NETFLIX, name: 'Netflix', scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=29;BYHOUR=9;BYMINUTE=0;BYSECOND=0', budgetAmount: '15.49', coaCode: 'P-6300', role: 'all_day' }; // SUPERSEDE-01c: a subscription — a charge on a date
 const brakes: TaskPlanInput = { id: BRAKES, title: 'Brakes', entityId: 'ent-p', entityType: 'personal', status: 'open', estimatedCostUsd: '480.00', coaCode: 'P-6400', planItems: [{ planDate: '2026-09-29', blocks: [{ status: 'scheduled' }] }] };
 
 // The words the loader reads: each line's activity and its own time — the snack has none.

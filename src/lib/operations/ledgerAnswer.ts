@@ -5,7 +5,7 @@ import type { RoutineWords } from '@/lib/budget/planLines';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { LINKED_POSTING_SELECT } from '@/lib/calendar/postingAmount';
 import { ledgerOf, linkInputOf, type LedgerRecordInput } from '@/lib/operations/ledger';
-import { refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
+import { recordsWindowOf, refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
 import { plannedMinutesOf } from '@/lib/operations/supersession';
 import { stayRowOf } from '@/lib/operations/stay';
 import { instantToZoned } from '@/lib/time';
@@ -20,6 +20,7 @@ import { instantToZoned } from '@/lib/time';
  * the accounts, the first record's day, ledgerOf, and the exact answer object the route serializes —
  * `{ from, to, as_of, first_record, rows, said }`. RECORD_PLAN and its helpers (RecordRow, recordInputOf, HOUR_MS,
  * DAY_MS, messageOf) moved with it (SUPERSEDE-00 decision 9); the registry's Time row cites RECORD_PLAN's two lines here.
+ * SUPERSEDE-01c (Alex, 2026-11-08, ruling D): HOUR_MS retired; the records' window is stopRecord.ts recordsWindowOf.
  *
  * The caller's id is the parameter: every where names it (userId / user_id: userId). THE CLOCK IS NOT READ HERE: `now`
  * is a parameter — the route reads it once and hands it in, and so does /api/home-ledger, which calls this function
@@ -33,7 +34,6 @@ import { instantToZoned } from '@/lib/time';
  */
 type Db = Pick<PrismaClient, 'entities' | 'chart_of_accounts' | 'operations_routines' | 'planned_item_vendors' | 'operations_stays' | 'operations_stop_records' | 'planned_item_links'>;
 
-const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -64,9 +64,6 @@ function recordInputOf(row: RecordRow): LedgerRecordInput {
 /** The task ledger for a span of days — the route's body after its gate, the clock handed in. */
 export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: string; to: string }, now: Date) {
   const { from, to } = span;
-  // The instants that can fall on a day of the span in ANY zone (stopRecord.ts recordWindow's rule, over the span); the rule places each exactly.
-  const recordsFrom = new Date(Date.parse(`${from}T00:00:00.000Z`) - 14 * HOUR_MS);
-  const recordsTo = new Date(Date.parse(`${to}T00:00:00.000Z`) + 36 * HOUR_MS);
   // The occurrence vendors' window (planLines.ts vendorWindow's rule, over the span).
   const vendorsFrom = new Date(Date.parse(`${from}T00:00:00.000Z`) - DAY_MS);
   const vendorsTo = new Date(Date.parse(`${to}T00:00:00.000Z`) + 2 * DAY_MS);
@@ -93,15 +90,16 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
       },
     }),
     db.operations_stays.findMany({ where: { user_id: userId }, orderBy: { starts_on: 'asc' } }),
+    // SUPERSEDE-01c (Alex, 2026-11-08, ruling D): the records' window by its one owner — stopRecord.ts recordsWindowOf (recordWindow's rule over the span: the instants that can fall on a day of the span in ANY zone); the rule places each exactly.
     db.operations_stop_records.findMany({
-      where: { user_id: userId, occurrence_at: { gte: recordsFrom, lt: recordsTo } },
+      where: { user_id: userId, occurrence_at: recordsWindowOf(from, to) },
       include: RECORD_PLAN,
       orderBy: { occurrence_at: 'asc' },
     }),
     db.operations_stop_records.findFirst({ where: { user_id: userId }, include: RECORD_PLAN, orderBy: { occurrence_at: 'asc' } }),
     // LEDGER-03: the caller's links of a routine occurrence or a line, in the records' window, with each posting's lines — one query.
     db.planned_item_links.findMany({
-      where: { user_id: userId, target_kind: { in: ['routine', 'routine_line'] }, target_instant: { gte: recordsFrom, lt: recordsTo }, journal_entry: { userId: userId } },
+      where: { user_id: userId, target_kind: { in: ['routine', 'routine_line'] }, target_instant: recordsWindowOf(from, to), journal_entry: { userId: userId } },
       select: { target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: { select: LINKED_POSTING_SELECT } },
       orderBy: { linked_at: 'asc' },
     }),

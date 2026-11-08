@@ -151,7 +151,8 @@ test('B the GET: one query for the project\'s tasks\' links with POSTING_LINES_S
   assert.match(route, /return NextResponse\.json\(\{ tasks: sorted\.map\(\(t\) => \(\{ \.\.\.t, \.\.\.taskMatchOf\(matches, t\.id\) \}\)\) \}\);/, 'additive: the task as before, the three fields beside it');
   // The scoping is the ledger route's: the link's user AND the posting's user (user B's links never reach user A's read, and a posting of another user never counts).
   // READS-01b (Alex, 2026-11-07): the ledger's read lives in its answer function, the caller's id as its parameter.
-  assert.match(code('src/lib/operations/ledgerAnswer.ts'), /where: \{ user_id: userId, target_kind: \{ in: \['routine', 'routine_line'\] \}, target_instant: \{ gte: recordsFrom, lt: recordsTo \}, journal_entry: \{ userId: userId \} \}/);
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling D): the records' window by its one owner, stopRecord.ts recordsWindowOf (pin moved).
+  assert.match(code('src/lib/operations/ledgerAnswer.ts'), /where: \{ user_id: userId, target_kind: \{ in: \['routine', 'routine_line'\] \}, target_instant: recordsWindowOf\(from, to\), journal_entry: \{ userId: userId \} \}/);
   // Nothing of the read before it changed: the archived filter, the order, the status sort.
   assert.match(route, /const includeArchived = request\.nextUrl\.searchParams\.get\('include_archived'\) === 'true';\n\s*const where: Prisma\.operations_project_tasksWhereInput = \{ project_id: projectId \};/);
   assert.match(route, /const sorted = tasks\.slice\(\)\.sort\(\(a, b\) => \{/);

@@ -62,7 +62,7 @@ const GYM_12 = '2026-10-12T13:00:00.000Z';
 const GYM_13 = '2026-10-13T13:00:00.000Z';
 
 const routine = (over: Partial<RoutinePlanInput> & { id: string; name: string; scheduleRrule: string }): RoutinePlanInput => ({
-  entityId: 'P', entityType: 'personal', timezone: BKK, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, ...over,
+  entityId: 'P', entityType: 'personal', timezone: BKK, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, role: 'none', ...over, // SUPERSEDE-01c (2026-11-08): the role, stated
 });
 const ROUTINES: RoutinePlanInput[] = [
   routine({ id: 'morning', name: 'Morning', scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', steps: [
@@ -393,7 +393,8 @@ test('T5 the route: GET only, the stops GET’s gate first, from and to by the o
     'db.operations_routines.findMany({ where: { user_id: userId }, select: { id: true, role: true } })',
     'db.planned_item_vendors.findMany({', 'where: { user_id: userId, OR: [{ occurrence_at: null }, { occurrence_at: { gte: vendorsFrom, lt: vendorsTo } }] }',
     'db.operations_stays.findMany({ where: { user_id: userId }',
-    'db.operations_stop_records.findMany({', 'where: { user_id: userId, occurrence_at: { gte: recordsFrom, lt: recordsTo } }', 'include: RECORD_PLAN,',
+    // SUPERSEDE-01c (Alex, 2026-11-08, ruling D): the records' window by its one owner, stopRecord.ts recordsWindowOf (pin moved).
+    'db.operations_stop_records.findMany({', 'where: { user_id: userId, occurrence_at: recordsWindowOf(from, to) }', 'include: RECORD_PLAN,',
     'db.operations_stop_records.findFirst({ where: { user_id: userId }, include: RECORD_PLAN, orderBy: { occurrence_at: \'asc\' } })',
     'const built = buildRoutineBudgetLines(routineInputs, from, to);',
     'toReportAccount(row, bookOf(row.entity_id',
@@ -408,7 +409,9 @@ test('T5 the route: GET only, the stops GET’s gate first, from and to by the o
   }
   assert.equal((a.match(/db\.planned_item_links\.findMany\(/g) ?? []).length, 1, 'the one read of the link (LEDGER-03)');
   assert.doesNotMatch(r, /findMany\(|planned_item_links/, 'the route reads no list of its own — the users row is its only read');
-  assert.match(a, /const recordsFrom = new Date\(Date\.parse\(`\$\{from\}T00:00:00\.000Z`\) - 14 \* HOUR_MS\);\n\s*const recordsTo = new Date\(Date\.parse\(`\$\{to\}T00:00:00\.000Z`\) \+ 36 \* HOUR_MS\);/, 'the any-zone window (recordWindow’s rule) over the span');
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling D): the records' window by its one owner, stopRecord.ts recordsWindowOf — the records and their links read by it; no inline copy left (pin moved).
+  assert.equal((a.match(/recordsWindowOf\(from, to\)/g) ?? []).length, 2, 'the any-zone window (recordWindow’s rule) over the span — the records and the links');
+  assert.doesNotMatch(a, /14 \* HOUR_MS|36 \* HOUR_MS|recordsFrom|recordsTo/, 'no second copy of the rule');
   assert.match(a, /const vendorsFrom = new Date\(Date\.parse\(`\$\{from\}T00:00:00\.000Z`\) - DAY_MS\);\n\s*const vendorsTo = new Date\(Date\.parse\(`\$\{to\}T00:00:00\.000Z`\) \+ 2 \* DAY_MS\);/, 'the vendors’ window (vendorWindow’s rule) over the span');
   assert.match(r, /if \(error instanceof BudgetDaysError \|\| error instanceof BudgetInputError\) \{\n\s*return NextResponse\.json\(\{ error: error\.code, message: error\.message \}, \{ status: 500 \}\);/, 'the day rules’ and the inputs’ refusals, by code — as the report answers them');
   assert.match(r, /return failClosedResponse\('Ledger GET', 'Failed to load the ledger', error\);/);

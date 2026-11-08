@@ -248,6 +248,7 @@ const COFFEE: RoutineRow = {
   id: 'r-coffee', name: 'Coffee', budget_amount: 5, coa_code: '6150', schedule_rrule: 'FREQ=DAILY;BYHOUR=8;BYMINUTE=0;BYSECOND=0',
   timezone: 'UTC', start_date: at('2026-08-28'), end_date: at('2026-09-26'), steps: [],
   start_time: null, end_time: null,
+  role: 'place', // SUPERSEDE-01c (2026-11-08): the role, stated
 };
 const LICENSE: TaskRow = {
   id: 't-license', title: 'Buy license', project_id: 'proj-license', entity_id: 'ent-b', status: 'open', estimated_cost_usd: dec('120.50'), coa_code: '6300',
@@ -271,7 +272,8 @@ const HIGHLANDS: PlanVendorRow = {
   vendor: { id: 'v-hl', vendor_name: 'Highlands', entity_id: 'ent-p' }, routine: { name: 'Coffee', timezone: 'UTC' }, step: null, task: null,
 };
 // SUPERSEDE-01b (2026-11-08): the routes read the range's travel blocks and stop records — none here (stated, never absent).
-const NO_SUPERSESSION = { blocks: [], leftOut: { plannedDaily: 0, plannedNoInstants: 0, plannedOneInstant: 0, segmentsNoInstants: 0, segmentsOneInstant: 0 }, records: [] };
+// SUPERSEDE-01c (2026-11-08, ruling B): and where the read reached — the fixture year's, two days each side (carried, never computed here).
+const NO_SUPERSESSION = { blocks: [], leftOut: { plannedDaily: 0, plannedNoInstants: 0, plannedOneInstant: 0, segmentsNoInstants: 0, segmentsOneInstant: 0 }, readFrom: '2025-12-30T00:00:00.000Z', readTo: '2027-01-03T00:00:00.000Z', records: [] };
 const ROWS: ReportRows = {
   entities: [B, P], chart: CHART,
   routines: [{ entityId: 'ent-p', rows: [COFFEE] }, { entityId: 'ent-b', rows: [] }],

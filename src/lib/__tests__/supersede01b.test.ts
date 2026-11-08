@@ -71,7 +71,7 @@ const bkkRoutine = (over: Partial<RoutineRow> & { id: string; clock: string }): 
   const { clock, ...rest } = over;
   return {
     name: rest.id, budget_amount: null, coa_code: null, schedule_rrule: `FREQ=DAILY;BYHOUR=${Number(clock.slice(0, 2))};BYMINUTE=${Number(clock.slice(3, 5))};BYSECOND=0`,
-    timezone: 'Asia/Bangkok', start_date: utcMidnight('2026-01-01'), end_date: null, start_time: null, end_time: null, steps: [], ...rest,
+    timezone: 'Asia/Bangkok', start_date: utcMidnight('2026-01-01'), end_date: null, start_time: null, end_time: null, steps: [], role: 'none', ...rest, // SUPERSEDE-01c (2026-11-08): the role, stated
   };
 };
 const lineOf = (over: Partial<RoutineRow['steps'][number]> & { id: string; step_order: number }): RoutineRow['steps'][number] => ({
@@ -89,19 +89,21 @@ const lineOf = (over: Partial<RoutineRow['steps'][number]> & { id: string; step_
  *   lost — a zone that cannot be read: no window, counted unreadable.
  */
 const ROUTINES: RoutineRow[] = [
-  bkkRoutine({ id: 'cowork', clock: '13:00', budget_amount: '25.00', coa_code: '6200', start_time: time('13:00'), end_time: time('18:00') }),
-  bkkRoutine({ id: 'dinner', clock: '19:00', budget_amount: '30.00', coa_code: '6150' }),
-  bkkRoutine({ id: 'gym', clock: '15:00', budget_amount: '20.00', coa_code: '6150' }),
-  bkkRoutine({ id: 'day', clock: '07:00', budget_amount: '10.00', coa_code: '6150', steps: [
+  // SUPERSEDE-01c (2026-11-08): each with the role the card's fixture gives it (test G) — every one a stop.
+  bkkRoutine({ id: 'cowork', clock: '13:00', role: 'execute', budget_amount: '25.00', coa_code: '6200', start_time: time('13:00'), end_time: time('18:00') }),
+  bkkRoutine({ id: 'dinner', clock: '19:00', role: 'place', budget_amount: '30.00', coa_code: '6150' }),
+  bkkRoutine({ id: 'gym', clock: '15:00', role: 'place', budget_amount: '20.00', coa_code: '6150' }),
+  bkkRoutine({ id: 'day', clock: '07:00', role: 'execute', budget_amount: '10.00', coa_code: '6150', steps: [
     lineOf({ id: 'walk', step_order: 0, time_of_day: '15:00', duration_minutes: 30 }),
     lineOf({ id: 'read', step_order: 1, time_of_day: '20:00', duration_minutes: 60 }),
   ] }),
-  bkkRoutine({ id: 'lunch', clock: '12:00', steps: [lineOf({ id: 'lunch-line', step_order: 0, budget_amount: '12.00', coa_code: '6150', time_of_day: '14:30', duration_minutes: 60 })] }),
-  bkkRoutine({ id: 'nap', clock: '15:00' }),
+  bkkRoutine({ id: 'lunch', clock: '12:00', role: 'place', steps: [lineOf({ id: 'lunch-line', step_order: 0, budget_amount: '12.00', coa_code: '6150', time_of_day: '14:30', duration_minutes: 60 })] }),
+  bkkRoutine({ id: 'nap', clock: '15:00', role: 'place' }),
   bkkRoutine({ id: 'lost', clock: '15:00', timezone: 'Mars/Olympus' }),
 ];
 const RECORDS: StopRecordKeyRow[] = [{ routine_id: 'gym', step_id: null, occurrence_at: at(bkk('15:00')) }];
-const SUPERSESSION = { blocks: FLIGHT_READ.blocks, leftOut: FLIGHT_READ.leftOut, records: RECORDS };
+// SUPERSEDE-01c (2026-11-08, ruling B): and where the read reached — the DAY's range (Oct 1 … 15), two days each side; carried, never computed here.
+const SUPERSESSION = { blocks: FLIGHT_READ.blocks, leftOut: FLIGHT_READ.leftOut, readFrom: '2026-09-29T00:00:00.000Z', readTo: '2026-10-18T00:00:00.000Z', records: RECORDS };
 
 const rows = (over: Partial<ReportRows> = {}): ReportRows => ({
   entities: [P], chart: CHART, routines: [{ entityId: 'ent-p', rows: ROUTINES }], tasks: [], ledger: [],
@@ -125,7 +127,8 @@ test('A the reads file: its four imports and no other — READS-01a\'s three rea
   assert.doesNotMatch(c, /\|\||\?\?/, 'no ||, no ?? — a row left out is counted by name');
   assert.doesNotMatch(c, /readBookingsOn|bookingsSelectionOf/, 'a booking carries no instants — never read for a block');
   assert.match(c, /type Db = Pick<PrismaClient, 'trip_itinerary' \| 'reservations' \| 'calendar_events'>;/);
-  assert.match(c, /export async function readTravelBlocks\(db: Db, userId: string, range: InstantRange\): Promise<TravelBlocksRead> \{\n\s*const planned = await readPlannedTravel\(db, userId, range\);\n\s*const segments = await readSegments\(db, userId, \(await readOwnReservationIds\(db, userId\)\)\.map\(\(r\) => r\.id\), range\);\n\s*return blocksOfRows\(planned, segments\);\n\}/, 'the card\'s selections, through the three reads — every where names the caller');
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling B): the reads take the range widened by BLOCK_REACH_DAYS each side and the answer says where it read (pin moved; supersede01c.test.ts drives it).
+  assert.match(c, /export async function readTravelBlocks\(db: Db, userId: string, range: InstantRange\): Promise<TravelBlocksRead> \{\n\s*const reach: InstantRange = \{\n\s*from: new Date\(Date\.parse\(range\.from\) - BLOCK_REACH_DAYS \* DAY_MS\)\.toISOString\(\),\n\s*to: new Date\(Date\.parse\(range\.to\) \+ BLOCK_REACH_DAYS \* DAY_MS\)\.toISOString\(\),\n\s*\};\n\s*const planned = await readPlannedTravel\(db, userId, reach\);\n\s*const segments = await readSegments\(db, userId, \(await readOwnReservationIds\(db, userId\)\)\.map\(\(r\) => r\.id\), reach\);\n\s*return \{ \.\.\.blocksOfRows\(planned, segments\), readFrom: reach\.from, readTo: reach\.to \};\n\}/, 'the card\'s selections, through the three reads, over the reach — every where names the caller');
   assert.equal(BOOKINGS_NEVER_A_BLOCK, 'never a block');
 });
 
@@ -166,7 +169,8 @@ test('B the report route: after the gate, the range\'s blocks through the one re
   assert.match(r, /import \{ recordsWindowOf \} from '@\/lib\/operations\/stopRecord';/);
   assert.match(r, /readTravelBlocks\(prisma, user\.id, daysRangeOf\(rangeFrom, rangeTo\)\),/, 'the view\'s range');
   assert.match(r, /prisma\.operations_stop_records\.findMany\(\{ where: \{ user_id: user\.id, occurrence_at: recordsWindowOf\(rangeFrom, rangeTo\) \}, select: \{ routine_id: true, step_id: true, occurrence_at: true \} \}\),/);
-  assert.match(r, /supersession: \{ blocks: travelBlocks\.blocks, leftOut: travelBlocks\.leftOut, records: stopRecords \},/);
+  // SUPERSEDE-01c (2026-11-08, ruling B): the hand-off carries where the read reached; the call is unchanged (pin moved).
+  assert.match(r, /supersession: \{ blocks: travelBlocks\.blocks, leftOut: travelBlocks\.leftOut, readFrom: travelBlocks\.readFrom, readTo: travelBlocks\.readTo, records: stopRecords \},/);
   assert.equal((r.match(/readTravelBlocks\(/g) ?? []).length, 1);
   assert.equal((r.match(/operations_stop_records/g) ?? []).length, 1);
   assert.ok(r.indexOf("return NextResponse.json({ error: 'User not found' }, { status: 404 });") < r.indexOf('readTravelBlocks('), 'no read before the gate');
@@ -176,7 +180,8 @@ test('B the drill route: the same two reads over the figure\'s [from, to], after
   const c = code(CELL);
   assert.match(c, /readTravelBlocks\(prisma, user\.id, daysRangeOf\(query\.from, query\.to\)\),/);
   assert.match(c, /prisma\.operations_stop_records\.findMany\(\{ where: \{ user_id: user\.id, occurrence_at: recordsWindowOf\(query\.from, query\.to\) \}, select: \{ routine_id: true, step_id: true, occurrence_at: true \} \}\),/);
-  assert.match(c, /supersession: \{ blocks: travelBlocks\.blocks, leftOut: travelBlocks\.leftOut, records: stopRecords \} \}\)\);/);
+  // SUPERSEDE-01c (2026-11-08, ruling B): the same hand-off (pin moved).
+  assert.match(c, /supersession: \{ blocks: travelBlocks\.blocks, leftOut: travelBlocks\.leftOut, readFrom: travelBlocks\.readFrom, readTo: travelBlocks\.readTo, records: stopRecords \} \}\)\);/);
   assert.ok(c.indexOf("if (book === null) return NextResponse.json({ error: 'unknown-book', message: UNKNOWN_BOOK_WORDS }, { status: 404 });") < c.indexOf('readTravelBlocks('), 'the book is the caller\'s first');
 });
 
@@ -208,14 +213,16 @@ test('D figuresOf sums without the marked lines; ColumnTotals.superseded says ho
   assert.match(m, /return \{ income, expense, net: netOf\(income, expense\), superseded: supersededOf\(placedLines, column\) \};/);
 });
 
-test('D THE DAY — its range is the month to date and the day (the MTD and the day columns): the marks list names every window of the range with its mark or null; the marked lines leave the figures and are counted in each column; the plan lines carry their marks', () => {
+test('D THE DAY — its range is the month to date and the day (the MTD and the day columns): the marks list names every window of the day with its mark or null; the marked lines leave the figures and are counted in each column; the plan lines carry their marks', () => {
   const r = budgetReportResponse({ view: { kind: 'day', day: DAY }, asOf: ASOF }, rows());
   assert.deepEqual(r.report.columns.map((c) => [c.key, c.from, c.to]), [['mtd', '2026-10-01', DAY], [DAY, DAY, DAY]]);
   assert.ok(Array.isArray(r.supersession.marks));
   if (!Array.isArray(r.supersession.marks)) return;
   // Seven windows a day over October 1 … 15 (the lost routine contributes none); only the day's flight marks any.
-  assert.equal(r.supersession.marks.length, 15 * 7);
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling C): the list holds the DAY's own seven windows (was the range's 15 × 7) — `occurrences` still counts the range (pin moved).
+  assert.equal(r.supersession.marks.length, 7);
   const onTheDay = r.supersession.marks.filter((m) => m.key.includes(`:${DAY}T`));
+  assert.equal(onTheDay.length, r.supersession.marks.length, 'every listed window is on the day');
   assert.deepEqual(onTheDay, [
     { key: key('cowork', null, '13:00'), superseded: MARK },
     { key: key('dinner', null, '19:00'), superseded: null },
@@ -227,7 +234,8 @@ test('D THE DAY — its range is the month to date and the day (the MTD and the 
   ], 'the day\'s windows, routine by routine: cowork, dinner, gym (recorded — a record wins), the day\'s two lines, lunch\'s line, nap');
   assert.equal(r.supersession.marks.filter((m) => m.superseded !== null).length, 4, 'no other day is marked');
   assert.deepEqual({ ...r.supersession, marks: 'counted above' }, {
-    blocks: 1, leftOut: FLIGHT_READ.leftOut, bookings: 'never a block', records: 1, occurrences: 15 * 7, marked: 4, routineFiguresUnmarked: 1, unreadable: 1, marks: 'counted above',
+    // SUPERSEDE-01c (2026-11-08): where the read reached (carried), the list's length (the day's 7) and the all_day occurrences (none here) join.
+    blocks: 1, leftOut: FLIGHT_READ.leftOut, readFrom: '2026-09-29T00:00:00.000Z', readTo: '2026-10-18T00:00:00.000Z', bookings: 'never a block', records: 1, occurrences: 15 * 7, listed: 7, allDay: 0, marked: 4, routineFiguresUnmarked: 1, unreadable: 1, marks: 'counted above',
   });
   // THE DAY: 6150 = dinner 3000 + gym 2000 + the day's own figure 1000 = 6000 — lunch's 1200 left; 6200: cowork's 2500 left, no line remains.
   // THE MTD: 15 days × (3000 + 2000 + 1000 + 1200) − 1200 on 6150; 15 × 2500 − 2500 on 6200.

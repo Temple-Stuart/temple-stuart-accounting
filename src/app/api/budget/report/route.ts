@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
       excludedLines,
       bank,
       planVendors,
-      supersession: { blocks: travelBlocks.blocks, leftOut: travelBlocks.leftOut, records: stopRecords },
+      supersession: { blocks: travelBlocks.blocks, leftOut: travelBlocks.leftOut, readFrom: travelBlocks.readFrom, readTo: travelBlocks.readTo, records: stopRecords },
     }));
   } catch (error) {
     if (error instanceof BudgetReportError) {

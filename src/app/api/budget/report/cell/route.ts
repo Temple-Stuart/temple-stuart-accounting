@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       prisma.operations_stop_records.findMany({ where: { user_id: user.id, occurrence_at: recordsWindowOf(query.from, query.to) }, select: { routine_id: true, step_id: true, occurrence_at: true } }),
     ]);
 
-    return NextResponse.json(budgetCellResponse(query, { book, chart, routines, tasks, ledger, planVendors, supersession: { blocks: travelBlocks.blocks, leftOut: travelBlocks.leftOut, records: stopRecords } }));
+    return NextResponse.json(budgetCellResponse(query, { book, chart, routines, tasks, ledger, planVendors, supersession: { blocks: travelBlocks.blocks, leftOut: travelBlocks.leftOut, readFrom: travelBlocks.readFrom, readTo: travelBlocks.readTo, records: stopRecords } }));
   } catch (error) {
     if (error instanceof BudgetReportError) {
       if (error.code === 'cell-account-not-in-chart' || error.code === 'cell-account-not-a-row') {

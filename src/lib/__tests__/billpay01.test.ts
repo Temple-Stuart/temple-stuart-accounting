@@ -18,6 +18,7 @@ import {
 } from '../operations/billPay';
 import { BILL_POSTING_SELECT, POSTING_STATE_SELECT } from '../calendar/postingAmount';
 import { occurrenceKey, type RoutinePlanInput } from '../budget/days';
+import type { StopRole } from '../operations/stopRole';
 import type { PlanVendorRow } from '../budget/planLines';
 import { columnOf } from '../table/columns';
 import { EXPECTED_STATUS_COUNTS, TOOL_REGISTRY, registryLaw, statusCounts } from '../toolRegistry';
@@ -41,9 +42,10 @@ const chartRow = (code: string, name: string, account_type = 'expense') => ({ co
 const CHARTS = { P: [chartRow('6300', 'Phone'), chartRow('6100', 'Rent'), chartRow('6080', 'Hosting'), chartRow('6200', 'Fitness'), chartRow('6400', 'Insurance'), chartRow('1010', 'Checking', 'asset'), chartRow('2100', 'Card', 'liability')] };
 
 const plan = (o: Partial<RoutinePlanInput> & { id: string; name: string }): RoutinePlanInput => ({
-  entityId: 'P', entityType: 'personal', timezone: LA, scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=7;BYHOUR=0;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, ...o,
+  entityId: 'P', entityType: 'personal', timezone: LA, scheduleRrule: 'FREQ=MONTHLY;BYMONTHDAY=7;BYHOUR=0;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, role: 'all_day', ...o,
 });
-const bill = (o: Partial<RoutinePlanInput> & { id: string; name: string }, role = 'all_day', lineNames: Record<string, string> = {}): BillRoutine => ({ plan: plan(o), role, lineNames });
+// SUPERSEDE-01c (2026-11-08): the role, stated — a bill's plan input states the bill's own role.
+const bill = (o: Partial<RoutinePlanInput> & { id: string; name: string }, role: StopRole = 'all_day', lineNames: Record<string, string> = {}): BillRoutine => ({ plan: plan({ role, ...o }), role, lineNames });
 const everyVendor = (id: string, on: { routine_id?: string; step_id?: string }, vendor_name: string): PlanVendorRow => ({
   id, routine_id: on.routine_id ?? null, step_id: on.step_id ?? null, task_id: null, occurrence_at: null, vendor: { id: `v-${id}`, vendor_name, entity_id: 'P' }, routine: null, step: null, task: null,
 });

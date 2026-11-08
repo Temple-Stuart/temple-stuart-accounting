@@ -151,7 +151,7 @@ test('the month line carries vendor_grain beside its words: every → the name; 
   const BKK = 'Asia/Bangkok';
   const plan = (o: Partial<RoutineMonthRoutine> & { id: string; name: string }): RoutineMonthRoutine => ({
     entityId: 'p', entityType: 'personal', timezone: BKK, scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0;BYSECOND=0', startDate: null, endDate: null,
-    budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [], isActive: true, ...o,
+    budgetAmount: null, coaCode: null, startTime: null, endTime: null, steps: [], isActive: true, role: 'none', ...o, // SUPERSEDE-01c (2026-11-08): the role, stated
   });
   const lined = plan({ id: 'r-lined', name: 'Lined', steps: [{ id: 's-1', stepOrder: 1, budgetAmount: '4', coaCode: '6150', durationMinutes: null, timeOfDay: null }] });
   const plain = plan({ id: 'r-plain', name: 'Plain', budgetAmount: '10', coaCode: '6150' });

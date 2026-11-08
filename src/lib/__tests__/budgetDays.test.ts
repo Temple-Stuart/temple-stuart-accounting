@@ -26,7 +26,7 @@ const DAILY_08 = 'FREQ=DAILY;BYHOUR=8;BYMINUTE=0;BYSECOND=0';
 
 const routine = (over: Partial<RoutinePlanInput> & { id: string }): RoutinePlanInput => ({
   name: `Routine ${over.id}`, entityId: 'ent-p', entityType: 'personal', timezone: 'UTC', scheduleRrule: DAILY_08,
-  startDate: '2026-01-01', endDate: null, budgetAmount: 15, coaCode: '6150', steps: [], startTime: null, endTime: null, ...over,
+  startDate: '2026-01-01', endDate: null, budgetAmount: 15, coaCode: '6150', steps: [], startTime: null, endTime: null, role: 'none', ...over, // SUPERSEDE-01c (2026-11-08): the role, stated — a plain stop
 });
 const task = (over: Partial<TaskPlanInput> & { id: string }): TaskPlanInput => ({
   title: `Task ${over.id}`, entityId: 'ent-p', entityType: 'personal', status: 'open', estimatedCostUsd: '50.00', coaCode: '6300', planItems: [], ...over,
@@ -638,7 +638,8 @@ test('SUPERSEDE-01b A POINT OCCURRENCE INSIDE A BLOCK — a stepless routine wit
   const start = bkkRoutine('start', '14:10');
   const end = bkkRoutine('end', '17:05');
   const s = routineSupersessionOf([gym, start, end], S_DAY, S_DAY, [FLIGHT], NONE);
-  assert.deepEqual(s.occurrences, [keyOf('gym', null, '15:00'), keyOf('start', null, '14:10'), keyOf('end', null, '17:05')], 'every window, in order');
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling C): each window carries its local day — its key read from it (pin moved; the shape is pinned in the SUPERSEDE-01c tests below).
+  assert.deepEqual(s.occurrences.map((o) => o.key), [keyOf('gym', null, '15:00'), keyOf('start', null, '14:10'), keyOf('end', null, '17:05')], 'every window, in order');
   assert.deepEqual(s.marks.get(keyOf('gym', null, '15:00')), { by: FLIGHT, more: 0 });
   assert.deepEqual(s.marks.get(keyOf('start', null, '14:10')), { by: FLIGHT, more: 0 }, 'the start is inside');
   assert.equal(s.marks.has(keyOf('end', null, '17:05')), false, 'the end is not');
@@ -655,7 +656,8 @@ test('SUPERSEDE-01b A TIMED LINE OVERLAPPING — a line\'s window is its own tim
   ] });
   const cowork = bkkRoutine('cowork', '13:00', { startTime: '1970-01-01T13:00:00.000Z', endTime: '1970-01-01T18:00:00.000Z' });
   const s = routineSupersessionOf([day, cowork], S_DAY, S_DAY, [FLIGHT], NONE);
-  assert.deepEqual(s.occurrences, [keyOf('day', 'walk', '07:00'), keyOf('day', 'read', '07:00'), keyOf('day', 'nap', '07:00'), keyOf('cowork', null, '13:00')], 'one window per ACTIVE line, keyed by the occurrence');
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling C): each window carries its local day — its key read from it (pin moved; the shape is pinned in the SUPERSEDE-01c tests below).
+  assert.deepEqual(s.occurrences.map((o) => o.key), [keyOf('day', 'walk', '07:00'), keyOf('day', 'read', '07:00'), keyOf('day', 'nap', '07:00'), keyOf('cowork', null, '13:00')], 'one window per ACTIVE line, keyed by the occurrence');
   assert.deepEqual([...s.marks.keys()], [keyOf('day', 'walk', '07:00'), keyOf('day', 'nap', '07:00'), keyOf('cowork', null, '13:00')]);
   // The local day, not the UTC one: a 05:00 Bangkok routine occurs at 22:00Z the evening before; its 06:00 line is 06:00 on the LOCAL day.
   const early = bkkRoutine('early', '05:00', { steps: [byteStep({ id: 'tea', timeOfDay: '06:00', durationMinutes: 30 })] });
@@ -674,7 +676,8 @@ test('SUPERSEDE-01b A RECORDED OCCURRENCE IS NEVER MARKED — the one record key
     recordKey({ kind: 'routine_line', target_id: 'walk', occurrence_at: bkkAt('07:00') }),
   ]);
   const s = routineSupersessionOf([gym, lined], S_DAY, S_DAY, [FLIGHT], recorded);
-  assert.deepEqual(s.occurrences, [keyOf('gym', null, '15:00'), keyOf('lined', 'walk', '07:00')], 'both listed');
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling C): each window carries its local day — its key read from it (pin moved; the shape is pinned in the SUPERSEDE-01c tests below).
+  assert.deepEqual(s.occurrences.map((o) => o.key), [keyOf('gym', null, '15:00'), keyOf('lined', 'walk', '07:00')], 'both listed');
   assert.equal(s.marks.size, 0, 'neither marked — a record wins');
   const unrecorded = routineSupersessionOf([gym, lined], S_DAY, S_DAY, [FLIGHT], NONE);
   assert.equal(unrecorded.marks.size, 2, 'without the records, both are');
@@ -686,7 +689,8 @@ test('SUPERSEDE-01b A LINED ROUTINE\'S OWN FIGURE IS UNMARKED — its budget lin
   const built = buildRoutineBudgetLines([fig], S_DAY, S_DAY);
   assert.deepEqual(built.lines.map((l) => [l.sourceId, l.cents]), [[keyOf('fig', null, '07:00'), 1000]], 'one line, keyed routine:<r>:routine:<instant>');
   const s = routineSupersessionOf([fig], S_DAY, S_DAY, [FLIGHT], NONE);
-  assert.deepEqual(s.occurrences, [keyOf('fig', 'walk', '07:00')], 'the window is the line\'s');
+  // SUPERSEDE-01c (Alex, 2026-11-08, ruling C): each window carries its local day — its key read from it (pin moved; the shape is pinned in the SUPERSEDE-01c tests below).
+  assert.deepEqual(s.occurrences.map((o) => o.key), [keyOf('fig', 'walk', '07:00')], 'the window is the line\'s');
   assert.ok(s.marks.has(keyOf('fig', 'walk', '07:00')), 'the line is marked');
   assert.equal(s.marks.has(built.lines[0].sourceId), false, 'the figure is never — the report counts it (routineFiguresUnmarked)');
 });
@@ -707,4 +711,48 @@ test('SUPERSEDE-01b A YEAR COUNTS ONLY — every occurrence of the range is a wi
   // A bad call is refused by name, as the builder refuses it.
   throwsCode(() => routineSupersessionOf([bkkRoutine('bad', '15:00', { endDate: '2026-13-01' })], S_DAY, S_DAY, [], NONE), 'bad-end-date');
   throwsCode(() => routineSupersessionOf([], '2026-10-16', S_DAY, [], NONE), 'bad-range');
+});
+
+// ── SUPERSEDE-01c (Alex, 2026-11-08, rulings A and C) — THE SCOPE OF A MARK ──────────────────────────────────────────
+
+test('SUPERSEDE-01c A AN ALL_DAY ROUTINE IS NEVER SUPERSEDED — a block over its instant builds no window: no key, no mark, not listed; its occurrence counted (allDay); its budget line still built, unmarked', () => {
+  // A membership charged at 15:00 Bangkok — inside the flight — beside a plain stop at the same instant.
+  const pass = bkkRoutine('pass', '15:00', { role: 'all_day', budgetAmount: '12.00', coaCode: '6200' });
+  const gym = bkkRoutine('gym', '15:00');
+  const s = routineSupersessionOf([pass, gym], S_DAY, S_DAY, [FLIGHT], NONE);
+  assert.deepEqual(s.occurrences.map((o) => o.key), [keyOf('gym', null, '15:00')], 'the stop alone is a window');
+  assert.deepEqual([...s.marks.keys()], [keyOf('gym', null, '15:00')], 'the stop is marked; the all_day routine never');
+  assert.equal(s.allDay, 1, 'its one occurrence of the day, counted');
+  // A week: one occurrence a day, each counted, none a window.
+  const week = routineSupersessionOf([pass], '2026-10-12', '2026-10-18', [FLIGHT], NONE);
+  assert.deepEqual([week.occurrences.length, week.marks.size, week.allDay], [0, 0, 7]);
+  // Its money is still counted — buildRoutineBudgetLines is unchanged (a membership is paid while you fly) — and its line carries no mark.
+  const built = buildRoutineBudgetLines([pass], S_DAY, S_DAY);
+  assert.deepEqual(built.lines.map((l) => [l.sourceId, l.cents]), [[keyOf('pass', null, '15:00'), 1200]]);
+  assert.deepEqual(markLines(built.lines, s.marks).map((l) => l.superseded), [null]);
+  // A lined all_day routine: its lines go to the card's band — none is a window; counted once per occurrence, not per line.
+  const lined = bkkRoutine('lined', '07:00', { role: 'all_day', steps: [byteStep({ id: 'sub', timeOfDay: '15:00', durationMinutes: 30 }), byteStep({ id: 'sub2', stepOrder: 1, timeOfDay: '15:30' })] });
+  const l = routineSupersessionOf([lined], S_DAY, S_DAY, [FLIGHT], NONE);
+  assert.deepEqual([l.occurrences.length, l.marks.size, l.allDay], [0, 0, 1]);
+  // Every other role is a stop — a window, marked by the same block.
+  for (const role of ['journal', 'plan', 'execute', 'place', 'none'] as const) {
+    const r = routineSupersessionOf([bkkRoutine('r', '15:00', { role })], S_DAY, S_DAY, [FLIGHT], NONE);
+    assert.deepEqual([r.occurrences.length, r.marks.size, r.allDay], [1, 1, 0], role);
+  }
+});
+
+test('SUPERSEDE-01c C EACH WINDOW CARRIES ITS LOCAL DAY — the budget line\'s day, in the routine\'s zone: a 05:00 Bangkok occurrence (22:00Z the UTC day before) is on its local day', () => {
+  const early = bkkRoutine('early', '05:00', { steps: [byteStep({ id: 'tea', timeOfDay: '06:00', durationMinutes: 30 })] });
+  const late = bkkRoutine('late', '23:30');
+  const s = routineSupersessionOf([early, late], '2026-10-15', '2026-10-16', [], NONE);
+  assert.deepEqual(s.occurrences, [
+    { key: keyOf('early', 'tea', '05:00', '2026-10-15'), day: '2026-10-15' },
+    { key: keyOf('early', 'tea', '05:00', '2026-10-16'), day: '2026-10-16' },
+    { key: keyOf('late', null, '23:30', '2026-10-15'), day: '2026-10-15' },
+    { key: keyOf('late', null, '23:30', '2026-10-16'), day: '2026-10-16' },
+  ]);
+  assert.equal(new Date(bkkAt('05:00', '2026-10-15')).toISOString(), '2026-10-14T22:00:00.000Z', 'the occurrence is on the UTC day before');
+  // The same day the budget line carries (buildRoutineBudgetLines): the line and the window agree, key for key.
+  const built = buildRoutineBudgetLines([late], '2026-10-15', '2026-10-16');
+  assert.deepEqual(built.lines.map((l) => [l.sourceId, l.day]), s.occurrences.filter((o) => o.key.startsWith('routine:late:')).map((o) => [o.key, o.day]));
 });
