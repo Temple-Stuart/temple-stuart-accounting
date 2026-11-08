@@ -13,10 +13,13 @@
  *     comparison in the system is a STRING compare on that shape, never a Date;
  *   · windowKind — 'fixed' (the dates are the event), 'window' (the event runs
  *     on some days inside the window), 'swell' (a one-day event called inside
- *     the window on a swell);
+ *     the window on a swell), 'season' (SEASONS-01: a place's season, on a
+ *     season category only);
  *   · status — 'announced' (the organizer or a report gives the dates),
  *     'conflict' (two reports disagree; the window shown covers both),
- *     'not_announced' (no dates yet — start and end are null, said so);
+ *     'not_announced' (no dates yet — start and end are null, said so),
+ *     'typical' (SEASONS-01: the source states the place's usual window, not a
+ *     dated edition — both dates set, never upcoming);
  *   · sourceKind — 'official' (the event's or the venue's own page) or
  *     'secondary' (a report, not yet confirmed by the organizer); sourceName and
  *     sourceUrl name it, so every date is one click from its proof;
@@ -37,7 +40,10 @@
  * start ≤ end or both null; 'announced' or 'conflict' with null dates, or
  * 'not_announced' with dates; windowKind 'swell' on a row that is not
  * announced; two rows sharing (category, name, start); a row whose keys are not
- * exactly the seventeen above.
+ * exactly the seventeen above. SEASONS-01 (2026-11-08): windowKind 'season' on a
+ * category that is not a season, or with a status other than announced or
+ * typical; 'typical' on a row that is not a season, or with null dates; a row in
+ * a season category that is not a season.
  *
  * NOT `event.ts`, NOT EVENT_CATEGORIES: EVENT-01's calendar leaf owns those
  * (src/lib/calendar/manualEvent.ts). THE ROWS BELOW ARE TRANSCRIBED FROM THE
@@ -51,50 +57,78 @@
  * notes. A tournament or series held in many places names, in venue, the one ground
  * its page names with its role in brackets ("(the final)", "(first Test)"); where the
  * page names no ground, venue repeats the city (red-bull-romaniacs-2027's Sibiu precedent).
+ *
+ * SEASONS-01 (Alex, 2026-11-08 15:11 + 16:18; board K tag 5): every category carries its group — 'event'
+ * (the nineteen) or 'season' (seven appended after food_drink, in K's order). A season row is a place's
+ * season, read on the place's own source (the resort, the national park or wildlife authority, the tourism
+ * board, the national weather service) the day checked (CHECKED_SEASONS): windowKind 'season', status
+ * 'announced' when the place published this season's dates, 'typical' when it states its usual window.
+ * A typical row's dates are the coming season's usual window — the season not yet over on the day checked —
+ * as the source states it: start is the first day it names (the 1st when it names only a month; the 1st,
+ * 11th or 21st for early, mid or late), end the last day it names (the month's last day when it names only
+ * a month; the 10th, 20th or last for early, mid or late). The card prints the months only. Each season
+ * category's rows run by start, so its cards read in the order the windows open (seasons01 T4). A place with
+ * no town of its own carries, as its page names them, its own locality as the city (Galápagos, Katmai
+ * National Park) or the town it is reached from, the venue saying how (Fjords north of Tromsø; 471 km by sea).
  */
 
 export type ExperienceCategoryId =
   | 'surfing' | 'snowboarding' | 'skate' | 'golf' | 'f1' | 'moto' | 'tennis' | 'fighting' | 'music_art'
   // EVENTS-02 (Alex, 2026-11-08): ten categories appended after the nine, in K's order.
   | 'football' | 'basketball' | 'cycling' | 'running' | 'sailing' | 'horse_racing' | 'rugby' | 'cricket'
-  | 'culture_holidays' | 'food_drink';
+  | 'culture_holidays' | 'food_drink'
+  // SEASONS-01 (Alex, 2026-11-08): seven season categories appended after food_drink, in K's order.
+  | 'snow_resorts' | 'wildlife' | 'wonders' | 'surf_seasons' | 'dive_seasons' | 'northern_lights' | 'cherry_blossoms';
+
+/** SEASONS-01 (2026-11-08): 'event' — an edition on its organizer's calendar; 'season' — a place's season. The chips split into two rows by it. */
+export type ExperienceGroup = 'event' | 'season';
 
 export interface ExperienceCategory {
   id: ExperienceCategoryId;
   /** The chip and the heading. */
   label: string;
+  /** SEASONS-01 (2026-11-08): the I'M INTO row shows the events, the SEASONS row the seasons. */
+  group: ExperienceGroup;
 }
 
-/** The nineteen categories, in the ruled order — the chips read in this order (EVENTS-02, 2026-11-08: the ten new ones follow the nine). */
+/** The twenty-six categories, in the ruled order — the chips read in this order (EVENTS-02, 2026-11-08: the ten new ones follow the nine; SEASONS-01, 2026-11-08: the seven seasons follow them). */
 export const EXPERIENCE_CATEGORIES: readonly ExperienceCategory[] = [
   // EVENTS-01b (2026-10-30): the labels read Surf · Snow; the ids and the order are the
   // URL values and the law's list and do not change. The FIRST entry is the section's
   // default category (ExperiencesSection.tsx DEFAULT_INTO), so reordering this list is a
   // conscious change — experiences01.test.ts pins it.
-  { id: 'surfing', label: 'Surf' },
-  { id: 'snowboarding', label: 'Snow' },
-  { id: 'skate', label: 'Skate' },
-  { id: 'golf', label: 'Golf' },
-  { id: 'f1', label: 'F1' },
-  { id: 'moto', label: 'Moto' },
-  { id: 'tennis', label: 'Tennis' },
-  { id: 'fighting', label: 'Fighting' },
-  { id: 'music_art', label: 'Music & art' },
+  { id: 'surfing', label: 'Surf', group: 'event' },
+  { id: 'snowboarding', label: 'Snow', group: 'event' },
+  { id: 'skate', label: 'Skate', group: 'event' },
+  { id: 'golf', label: 'Golf', group: 'event' },
+  { id: 'f1', label: 'F1', group: 'event' },
+  { id: 'moto', label: 'Moto', group: 'event' },
+  { id: 'tennis', label: 'Tennis', group: 'event' },
+  { id: 'fighting', label: 'Fighting', group: 'event' },
+  { id: 'music_art', label: 'Music & art', group: 'event' },
   // EVENTS-02 (Alex, 2026-11-08): appended in K's order — surfing stays first, so the default does not change.
-  { id: 'football', label: 'Football' },
-  { id: 'basketball', label: 'Basketball' },
-  { id: 'cycling', label: 'Cycling' },
-  { id: 'running', label: 'Running' },
-  { id: 'sailing', label: 'Sailing' },
-  { id: 'horse_racing', label: 'Horse racing' },
-  { id: 'rugby', label: 'Rugby' },
-  { id: 'cricket', label: 'Cricket' },
-  { id: 'culture_holidays', label: 'Culture & holidays' },
-  { id: 'food_drink', label: 'Food & drink' },
+  { id: 'football', label: 'Football', group: 'event' },
+  { id: 'basketball', label: 'Basketball', group: 'event' },
+  { id: 'cycling', label: 'Cycling', group: 'event' },
+  { id: 'running', label: 'Running', group: 'event' },
+  { id: 'sailing', label: 'Sailing', group: 'event' },
+  { id: 'horse_racing', label: 'Horse racing', group: 'event' },
+  { id: 'rugby', label: 'Rugby', group: 'event' },
+  { id: 'cricket', label: 'Cricket', group: 'event' },
+  { id: 'culture_holidays', label: 'Culture & holidays', group: 'event' },
+  { id: 'food_drink', label: 'Food & drink', group: 'event' },
+  // SEASONS-01 (Alex, 2026-11-08): the seasons, appended after food_drink in K's order — surfing stays first, so the default does not change.
+  { id: 'snow_resorts', label: 'Snow resorts', group: 'season' },
+  { id: 'wildlife', label: 'Wildlife', group: 'season' },
+  { id: 'wonders', label: 'Wonders of the world', group: 'season' },
+  { id: 'surf_seasons', label: 'Surf seasons', group: 'season' },
+  { id: 'dive_seasons', label: 'Dive seasons', group: 'season' },
+  { id: 'northern_lights', label: 'Northern lights', group: 'season' },
+  { id: 'cherry_blossoms', label: 'Cherry blossoms', group: 'season' },
 ];
 
-export type ExperienceWindowKind = 'fixed' | 'window' | 'swell';
-export type ExperienceStatus = 'announced' | 'conflict' | 'not_announced';
+export type ExperienceWindowKind = 'fixed' | 'window' | 'swell' | 'season';
+export type ExperienceStatus = 'announced' | 'conflict' | 'not_announced' | 'typical';
 export type ExperienceSourceKind = 'official' | 'secondary';
 
 export interface Experience {
@@ -130,6 +164,8 @@ export const EXPERIENCE_FIELDS = [
 const CHECKED = '2026-10-30';
 /** EVENTS-02 (2026-11-08): the day the ten new categories' rows were read — the old rows keep CHECKED. */
 const CHECKED_02 = '2026-11-08';
+/** SEASONS-01 (2026-11-08): the day the seven season categories' pages were read. */
+const CHECKED_SEASONS = '2026-11-08';
 const SVNS_URL = 'https://www.world.rugby/news/1045878/hsbc-svns-series-and-world-championship-2027-schedule-confirmed-as-road-to-los-angeles-2028-gathers-pace';
 const MCG_URL = 'https://www.mcg.org.au/news/2026/march/international-cricket-schedule-confirmed-for-202627';
 const ECB_2027_URL = 'https://www.icc-cricket.com/news/england-unveil-schedule-for-blockbuster-2027-home-summer';
@@ -290,6 +326,52 @@ export const EXPERIENCES: readonly Experience[] = [
   { id: 'mfwf-2027', category: 'food_drink', series: null, name: 'Melbourne Food & Wine Festival 2027', venue: 'Melbourne', city: 'Melbourne', country: 'Australia', countryCode: 'AU', start: '2027-03-05', end: '2027-03-21', windowKind: 'fixed', status: 'announced', sourceKind: 'official', sourceName: 'Melbourne Food & Wine Festival', sourceUrl: 'https://www.melbournefoodandwine.com.au/industry/special-event-submissions', checkedOn: CHECKED_02, notes: 'The dates are on the festival\'s industry page' },
   { id: 'vinitaly-2027', category: 'food_drink', series: null, name: 'Vinitaly 2027', venue: 'Veronafiere', city: 'Verona', country: 'Italy', countryCode: 'IT', start: '2027-04-11', end: '2027-04-14', windowKind: 'fixed', status: 'announced', sourceKind: 'official', sourceName: 'Vinitaly (Veronafiere)', sourceUrl: 'https://www.vinitaly.com/en/', checkedOn: CHECKED_02, notes: null },
   { id: 'taste-of-london-2027', category: 'food_drink', series: null, name: 'Taste of London 2027', venue: 'Regent\'s Park', city: 'London', country: 'United Kingdom', countryCode: 'GB', start: null, end: null, windowKind: 'fixed', status: 'not_announced', sourceKind: 'official', sourceName: 'Taste of London', sourceUrl: 'https://london.tastefestivals.com/', checkedOn: CHECKED_02, notes: 'Five days every summer in Regent\'s Park; the 2027 dates are not published' },
+  // ── snow_resorts — SEASONS-01 (2026-11-08) ──
+  { id: 'zermatt-ski-season-2026-27', category: 'snow_resorts', series: null, name: 'Zermatt ski season', venue: 'Matterhorn Ski Paradise', city: 'Zermatt', country: 'Switzerland', countryCode: 'CH', start: '2026-11-01', end: '2027-05-02', windowKind: 'season', status: 'announced', sourceKind: 'official', sourceName: 'Matterhorn Ski Paradise', sourceUrl: 'https://www.matterhornparadise.ch/en/information/tickets-prices/ski-passes', checkedOn: CHECKED_SEASONS, notes: 'The Sunnegga/Rothorn and Gornergrat areas open on 28 November 2026. The page text names 03 May 2027 as the last day; its winter ski passes are valid to 02 May 2027, the date used here.' },
+  { id: 'whistler-ski-season-2026-27', category: 'snow_resorts', series: null, name: 'Whistler Blackcomb ski season', venue: 'Whistler Blackcomb', city: 'Whistler', country: 'Canada', countryCode: 'CA', start: '2026-11-21', end: '2027-05-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Tourism Whistler', sourceUrl: 'https://www.whistler.com/blog/post/what-to-expect-in-whistler-winter/', checkedOn: CHECKED_SEASONS, notes: 'Whistler Blackcomb\'s target opening day is Friday, November 20, 2026, subject to change.' },
+  { id: 'aspen-mountain-ski-season-2026-27', category: 'snow_resorts', series: null, name: 'Aspen Mountain ski season', venue: 'Aspen Mountain', city: 'Aspen', country: 'USA', countryCode: 'US', start: '2026-11-26', end: '2027-04-18', windowKind: 'season', status: 'announced', sourceKind: 'official', sourceName: 'Aspen Snowmass', sourceUrl: 'https://aspen.com/articles/winter-season-dates-pass-deadlines/', checkedOn: CHECKED_SEASONS, notes: 'Snowmass opens the same day, and Aspen Highlands and Buttermilk follow on Dec. 12.' },
+  { id: 'val-disere-ski-season-2026-27', category: 'snow_resorts', series: null, name: 'Val d\'Isère ski season', venue: 'Val d\'Isère', city: 'Val d\'Isère', country: 'France', countryCode: 'FR', start: '2026-11-28', end: '2027-05-02', windowKind: 'season', status: 'announced', sourceKind: 'official', sourceName: 'Val d\'Isère Tourist Office', sourceUrl: 'https://www.valdisere.com/en/val-disere-in-winter/skiing-winter-fun/ski-area-french-alps/', checkedOn: CHECKED_SEASONS, notes: 'Val d\'Isère\'s ski area is linked with Tignes, with 300 km of marked runs.' },
+  { id: 'niseko-ski-season-2026-27', category: 'snow_resorts', series: null, name: 'Niseko ski season', venue: 'Niseko Tokyu Grand HIRAFU', city: 'Niseko', country: 'Japan', countryCode: 'JP', start: '2026-11-28', end: '2027-05-05', windowKind: 'season', status: 'announced', sourceKind: 'official', sourceName: 'Niseko United', sourceUrl: 'https://www.niseko.ne.jp/en/lift/', checkedOn: CHECKED_SEASONS, notes: 'Niseko Village closes on April 4, 2027 and Niseko Hanazono on April 11, 2027.' },
+  { id: 'st-anton-ski-season-2026-27', category: 'snow_resorts', series: null, name: 'St. Anton ski season', venue: 'Ski Arlberg', city: 'St. Anton am Arlberg', country: 'Austria', countryCode: 'AT', start: '2026-12-02', end: '2027-04-18', windowKind: 'season', status: 'announced', sourceKind: 'official', sourceName: 'Ski Arlberg', sourceUrl: 'https://www.skiarlberg.at/en/st-anton/tickets-season-times/season-times', checkedOn: CHECKED_SEASONS, notes: 'All St. Anton ski tickets are valid across the entire Ski Arlberg region.' },
+  // ── wildlife — SEASONS-01 (2026-11-08) ──
+  { id: 'churchill-polar-bears-2026', category: 'wildlife', series: null, name: 'Polar bear season', venue: 'Western coast of Hudson Bay', city: 'Churchill', country: 'Canada', countryCode: 'CA', start: '2026-10-01', end: '2026-11-30', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Travel Manitoba', sourceUrl: 'https://www.travelmanitoba.com/blog/the-ultimate-guide-to-polar-bear-season-in-churchill-manitoba/', checkedOn: CHECKED_SEASONS, notes: 'Travel Manitoba recommends booking a polar bear tour at least one year in advance.' },
+  { id: 'tromso-orcas-humpbacks-2026-27', category: 'wildlife', series: null, name: 'Orca and humpback season', venue: 'Fjords north of Tromsø', city: 'Tromsø', country: 'Norway', countryCode: 'NO', start: '2026-11-01', end: '2027-01-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Visit Tromsø', sourceUrl: 'https://www.visittromso.no/whale-watching', checkedOn: CHECKED_SEASONS, notes: 'In recent years the whales have gathered mainly around Skjervøy and Kvænangen, north of Tromsø.' },
+  { id: 'monarch-reserve-butterflies-2026-27', category: 'wildlife', series: null, name: 'Monarch butterfly season', venue: 'Monarch Butterfly Biosphere Reserve', city: 'Zitácuaro', country: 'Mexico', countryCode: 'MX', start: '2026-11-01', end: '2027-03-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'CONANP', sourceUrl: 'https://descubreanp.conanp.gob.mx/en/conanp/ANP?suri=108', checkedOn: CHECKED_SEASONS, notes: 'The sanctuaries are open every day from 8:00 a.m. to 6:00 p.m.' },
+  { id: 'ningaloo-whale-sharks-2027', category: 'wildlife', series: null, name: 'Whale shark season', venue: 'Ningaloo Marine Park', city: 'Exmouth', country: 'Australia', countryCode: 'AU', start: '2027-03-01', end: '2027-08-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Parks and Wildlife Service', sourceUrl: 'https://exploreparks.dbca.wa.gov.au/park/ningaloo-marine-park', checkedOn: CHECKED_SEASONS, notes: 'Humpback whales are in the park from June to November.' },
+  { id: 'serengeti-great-migration-2027', category: 'wildlife', series: null, name: 'The Great Migration', venue: 'Serengeti National Park, nearest airport Arusha', city: 'Arusha', country: 'Tanzania', countryCode: 'TZ', start: '2027-06-01', end: '2027-10-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Tanzania National Parks', sourceUrl: 'https://www.tanzaniaparks.go.tz/en/serengeti', checkedOn: CHECKED_SEASONS, notes: 'January to February is the calving season.' },
+  { id: 'brooks-falls-bears-2027', category: 'wildlife', series: null, name: 'Bears at Brooks Falls', venue: 'Brooks Falls', city: 'Katmai National Park', country: 'USA', countryCode: 'US', start: '2027-06-21', end: '2027-07-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'National Park Service', sourceUrl: 'https://www.nps.gov/katm/learn/photosmultimedia/brown-bear-frequently-asked-questions.htm', checkedOn: CHECKED_SEASONS, notes: 'Mid-July is typically when the largest number of bears can be seen along the river.' },
+  // ── wonders — SEASONS-01 (2026-11-08) ──
+  { id: 'petra-autumn-2026', category: 'wonders', series: null, name: 'Petra in autumn', venue: 'Petra', city: 'Wadi Musa', country: 'Jordan', countryCode: 'JO', start: '2026-09-01', end: '2026-11-30', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Jordan Tourism Board', sourceUrl: 'https://international.visitjordan.com/blog/external/7625/best-time-to-go-to-petra-jordan/', checkedOn: CHECKED_SEASONS, notes: 'March to May is just as comfortable, and both windows are also Petra\'s busiest periods.' },
+  { id: 'great-wall-badaling-autumn-2026', category: 'wonders', series: null, name: 'The Great Wall at Badaling in autumn', venue: 'Badaling Great Wall', city: 'Beijing', country: 'China', countryCode: 'CN', start: '2026-09-01', end: '2026-11-30', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Visit Beijing', sourceUrl: 'https://english.visitbeijing.com.cn/article/47OOgdysDoS', checkedOn: CHECKED_SEASONS, notes: 'March to May is the other best window, when the mountains are full of flowers.' },
+  { id: 'taj-mahal-best-season-2026-27', category: 'wonders', series: null, name: 'The Taj Mahal in its best season', venue: 'Taj Mahal', city: 'Agra', country: 'India', countryCode: 'IN', start: '2026-10-01', end: '2027-03-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Department of Tourism, Government of Uttar Pradesh', sourceUrl: 'https://www.tajmahal.gov.in/faqs.aspx', checkedOn: CHECKED_SEASONS, notes: 'The Taj Mahal is closed every Friday.' },
+  { id: 'victoria-falls-high-water-2027', category: 'wonders', series: null, name: 'The roaring falls after the rains', venue: 'Victoria Falls / Mosi-a-Tunya', city: 'Victoria Falls', country: 'Zimbabwe', countryCode: 'ZW', start: '2027-02-01', end: '2027-05-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Zimbabwe Tourism Authority', sourceUrl: 'https://zimbabwetourism.net/victoria-falls-mosi-a-tunya/', checkedOn: CHECKED_SEASONS, notes: null },
+  { id: 'machu-picchu-dry-season-2027', category: 'wonders', series: null, name: 'The Inca citadel in the dry season', venue: 'Machu Picchu', city: 'Aguas Calientes', country: 'Peru', countryCode: 'PE', start: '2027-04-01', end: '2027-10-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'PromPerú', sourceUrl: 'https://www.peru.travel/stories/machu-picchu-complete-guide-to-fully-enjoy-your-trip', checkedOn: CHECKED_SEASONS, notes: 'Between November and March, visitors are fewer and the landscape is green.' },
+  // ── surf_seasons — SEASONS-01 (2026-11-08) ──
+  { id: 'hossegor-surf-season-2026', category: 'surf_seasons', series: null, name: 'Hossegor surf season', venue: 'Hossegor', city: 'Hossegor', country: 'France', countryCode: 'FR', start: '2026-09-01', end: '2026-11-30', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Office de Tourisme d\'Hossegor', sourceUrl: 'https://www.hossegor.fr/en/stays-and-surf-schools/', checkedOn: CHECKED_SEASONS, notes: 'The tourism office says the powerful fall and winter swells suit intermediate and experienced surfers, while summer suits beginners.' },
+  { id: 'north-shore-oahu-winter-surf-2026-27', category: 'surf_seasons', series: null, name: 'North Shore winter surf season', venue: 'Waimea Bay', city: 'Oahu', country: 'USA', countryCode: 'US', start: '2026-11-01', end: '2027-04-30', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Hawaii Ocean Safety', sourceUrl: 'https://oceansafety.hawaii.gov/hawaiis-surf-seasons/', checkedOn: CHECKED_SEASONS, notes: 'The state warns novice surfers and swimmers of any skill level to stay out of the water at north-shore beaches during high surf.' },
+  { id: 'nazare-big-wave-season-2026-27', category: 'surf_seasons', series: null, name: 'Nazaré big wave season', venue: 'Praia do Norte', city: 'Nazaré', country: 'Portugal', countryCode: 'PT', start: '2026-11-01', end: '2027-02-28', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Center of Portugal', sourceUrl: 'https://www.centerofportugal.com/article/nazare-big-waves', checkedOn: CHECKED_SEASONS, notes: 'Sebastian Steudtner surfed the record 26.21-metre wave at Praia do Norte on 29 October 2020.' },
+  { id: 'uluwatu-dry-season-surf-2027', category: 'surf_seasons', series: null, name: 'Uluwatu dry-season surf', venue: 'Suluban Beach', city: 'Uluwatu', country: 'Indonesia', countryCode: 'ID', start: '2027-04-01', end: '2027-08-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Indonesia Travel', sourceUrl: 'https://www.indonesia.travel/gb/en/destination/bali-nusa-tenggara/bali/bali---suluban-beach', checkedOn: CHECKED_SEASONS, notes: 'Suluban Beach offers surfers waves from 3 to 12 feet.' },
+  { id: 'teahupoo-south-swell-2027', category: 'surf_seasons', series: null, name: 'Teahupoʻo south swell season', venue: 'Teahupoʻo', city: 'Teahupoʻo', country: 'French Polynesia', countryCode: 'PF', start: '2027-05-01', end: '2027-10-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Tahiti Tourisme', sourceUrl: 'https://www.tahititourisme.com/preparing-you-trip/when-to-visit-the-islands-of-tahiti/', checkedOn: CHECKED_SEASONS, notes: 'Tahiti offers surfing year-round, with conditions varying by break and swell.' },
+  { id: 'jeffreys-bay-big-wave-season-2027', category: 'surf_seasons', series: null, name: 'Jeffreys Bay big-wave season', venue: 'Supertubes', city: 'Jeffreys Bay', country: 'South Africa', countryCode: 'ZA', start: '2027-06-01', end: '2027-08-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'South African Tourism', sourceUrl: 'https://www.southafrica.net/gl/en/travel/article/some-of-the-world-s-best-surfing-jeffreys-bay', checkedOn: CHECKED_SEASONS, notes: 'On good days Supertubes runs a 4ft to 8ft wave with a classic barrelling section.' },
+  // ── dive_seasons — SEASONS-01 (2026-11-08) ──
+  { id: 'darwin-island-whale-sharks-2026', category: 'dive_seasons', series: null, name: 'Whale sharks at Darwin Island', venue: 'Darwin Island', city: 'Galápagos', country: 'Ecuador', countryCode: 'EC', start: '2026-07-01', end: '2026-12-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Ecuador Travel', sourceUrl: 'https://ecuador.travel/galapagos-y-sus-tortugas-gigantes-2/', checkedOn: CHECKED_SEASONS, notes: 'Darwin is dived from a liveaboard cruise, while day tours from Puerto Ayora dive sites such as Mosquera and North Seymour.' },
+  { id: 'raja-ampat-dive-season-2026-27', category: 'dive_seasons', series: null, name: 'Manta rays, turtles and coral gardens', venue: 'Raja Ampat', city: 'Waisai', country: 'Indonesia', countryCode: 'ID', start: '2026-10-01', end: '2027-04-30', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Indonesia Travel', sourceUrl: 'https://www.indonesia.travel/gb/en/travel-ideas/marine/discover-raja-ampat-travel-inspiration-to-indonesias-heavenly-eastern-archipelago', checkedOn: CHECKED_SEASONS, notes: 'Cape Kri and Manta Sandy are among its best-known dive sites, and the seas are calmer in these months.' },
+  { id: 'revillagigedo-dive-season-2026-27', category: 'dive_seasons', series: null, name: 'Giant oceanic manta rays', venue: 'Revillagigedo National Park, 471 km by sea from Cabo San Lucas', city: 'Cabo San Lucas', country: 'Mexico', countryCode: 'MX', start: '2026-11-01', end: '2027-06-30', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'CONANP', sourceUrl: 'https://descubreanp.conanp.gob.mx/swb/conanp/ANP?suri=143', checkedOn: CHECKED_SEASONS, notes: 'The giant oceanic manta ray is one of the park\'s representative species.' },
+  { id: 'great-barrier-reef-visibility-2027', category: 'dive_seasons', series: null, name: 'Coral gardens when visibility is at its best', venue: 'Great Barrier Reef', city: 'Cairns', country: 'Australia', countryCode: 'AU', start: '2027-05-01', end: '2027-10-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Tourism Australia', sourceUrl: 'https://www.australia.com/en/places/cairns-and-surrounds/guide-to-the-great-barrier-reef.html', checkedOn: CHECKED_SEASONS, notes: 'Winter, June to August, is the reef\'s high season.' },
+  // ── northern_lights — SEASONS-01 (2026-11-08) ──
+  { id: 'tromso-northern-lights-2026-27', category: 'northern_lights', series: null, name: 'Tromsø northern lights season', venue: 'Tromsø', city: 'Tromsø', country: 'Norway', countryCode: 'NO', start: '2026-08-21', end: '2027-04-10', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Visit Tromsø', sourceUrl: 'https://www.visittromso.no/northern-lights/when-and-where', checkedOn: CHECKED_SEASONS, notes: 'Most Northern Lights activities are not available until early September.' },
+  { id: 'fairbanks-aurora-2026-27', category: 'northern_lights', series: null, name: 'Fairbanks Aurora Season', venue: 'Fairbanks', city: 'Fairbanks', country: 'USA', countryCode: 'US', start: '2026-08-21', end: '2027-04-21', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Explore Fairbanks', sourceUrl: 'https://www.explorefairbanks.com/explore-the-area/aurora-season/', checkedOn: CHECKED_SEASONS, notes: 'The aurora is overhead all year, but it can only be seen during Aurora Season, when the skies are dark enough.' },
+  { id: 'rovaniemi-northern-lights-2026-27', category: 'northern_lights', series: null, name: 'Rovaniemi northern lights season', venue: 'Rovaniemi', city: 'Rovaniemi', country: 'Finland', countryCode: 'FI', start: '2026-08-21', end: '2027-04-10', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Visit Rovaniemi', sourceUrl: 'https://www.visitrovaniemi.fi/seasons/northern-lights-season/', checkedOn: CHECKED_SEASONS, notes: 'The Northern Lights can be seen on around 150 nights a year in Finnish Lapland when weather and viewing conditions are favourable.' },
+  { id: 'iceland-northern-lights-2026-27', category: 'northern_lights', series: null, name: 'Iceland northern lights season', venue: 'Reykjavík', city: 'Reykjavík', country: 'Iceland', countryCode: 'IS', start: '2026-09-01', end: '2027-04-30', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Visit Iceland', sourceUrl: 'https://www.visiticeland.com/article/northern-lights-in-iceland/', checkedOn: CHECKED_SEASONS, notes: 'The Northern Lights can be visible from Reykjavík when skies are clear and aurora activity is favorable.' },
+  { id: 'abisko-northern-lights-2026-27', category: 'northern_lights', series: null, name: 'Arctic Sweden northern lights season', venue: 'Abisko National Park', city: 'Abisko', country: 'Sweden', countryCode: 'SE', start: '2026-09-01', end: '2027-03-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Visit Sweden', sourceUrl: 'https://visitsweden.com/where-to-go/northern-sweden/arctic-sweden/abisko-and-northern-lights/', checkedOn: CHECKED_SEASONS, notes: 'Abisko National Park often enjoys clear skies even when nearby areas are cloudy.' },
+  { id: 'yellowknife-winter-aurora-2026-27', category: 'northern_lights', series: null, name: 'Northwest Territories Winter Aurora', venue: 'Yellowknife', city: 'Yellowknife', country: 'Canada', countryCode: 'CA', start: '2026-11-11', end: '2027-04-10', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Northwest Territories Tourism', sourceUrl: 'https://spectacularnwt.com/activities/aurora/', checkedOn: CHECKED_SEASONS, notes: 'The Aurora dances on up to 240 nights a year in the Northwest Territories.' },
+  // ── cherry_blossoms — SEASONS-01 (2026-11-08) ──
+  { id: 'vancouver-cherry-blossoms-2027', category: 'cherry_blossoms', series: null, name: 'Cherry trees in bloom', venue: 'Vancouver', city: 'Vancouver', country: 'Canada', countryCode: 'CA', start: '2027-02-01', end: '2027-05-31', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Destination Vancouver', sourceUrl: 'https://www.destinationvancouver.com/inspirations/city/20-best-places-to-see-cherry-blossoms-around-vancouver', checkedOn: CHECKED_SEASONS, notes: 'Vancouver has over 40,000 cherry trees.' },
+  { id: 'tokyo-cherry-blossoms-2027', category: 'cherry_blossoms', series: null, name: 'Ueno Park in bloom', venue: 'Ueno Park', city: 'Tokyo', country: 'Japan', countryCode: 'JP', start: '2027-03-21', end: '2027-04-10', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Japan National Tourism Organization', sourceUrl: 'https://www.japan.travel/en/spot/1675/', checkedOn: CHECKED_SEASONS, notes: 'Main Street holds more than half of the park\'s 1,000-plus cherry trees.' },
+  { id: 'jinhae-cherry-blossoms-2027', category: 'cherry_blossoms', series: null, name: '360,000 cherry trees in bloom', venue: 'Jinhae Gunhang Village', city: 'Changwon', country: 'South Korea', countryCode: 'KR', start: '2027-03-21', end: '2027-04-10', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'VISITKOREA', sourceUrl: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=1580801', checkedOn: CHECKED_SEASONS, notes: 'Yeojwacheon Stream is famous for its 1.5-kilometer cherry blossom tunnel.' },
+  { id: 'jerte-valley-cherry-blossoms-2027', category: 'cherry_blossoms', series: null, name: 'The valley\'s cherry blossom', venue: 'Jerte Valley', city: 'Jerte', country: 'Spain', countryCode: 'ES', start: '2027-03-21', end: '2027-04-10', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'spain.info', sourceUrl: 'https://www.spain.info/en/calendar/fiesta-cherry-blossom/', checkedOn: CHECKED_SEASONS, notes: 'The 2027 Cherry Blossom Festival dates are still to be confirmed.' },
+  { id: 'washington-dc-cherry-blossoms-2027', category: 'cherry_blossoms', series: null, name: 'Peak bloom at the Tidal Basin', venue: 'Tidal Basin', city: 'Washington, DC', country: 'USA', countryCode: 'US', start: '2027-03-25', end: '2027-04-07', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'National Park Service', sourceUrl: 'https://www.nps.gov/subjects/cherryblossom/bloom-watch.htm', checkedOn: CHECKED_SEASONS, notes: 'Peak bloom is the day when 70% of the Yoshino cherry blossoms are open.' },
+  { id: 'bonn-cherry-blossoms-2027', category: 'cherry_blossoms', series: null, name: 'Peak blossom in the Old Town', venue: 'Heerstraße and Breite Straße', city: 'Bonn', country: 'Germany', countryCode: 'DE', start: '2027-04-11', end: '2027-04-20', windowKind: 'season', status: 'typical', sourceKind: 'official', sourceName: 'Bundesstadt Bonn', sourceUrl: 'https://www.bonn.de/bonn-erleben/besichtigen-entdecken/kirschbluete.php?loc=en', checkedOn: CHECKED_SEASONS, notes: 'The grand cherry blossom finale takes place around mid-April in Heerstraße and Breite Straße.' },
 ];
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -353,6 +435,13 @@ export function experiencesLaw(opts: { throwOnFail?: boolean; rows?: readonly Ex
     if ((row.status === 'announced' || row.status === 'conflict') && !dated) violations.push(`${who}: status ${row.status} with null dates — an announced or conflicting edition carries its window`);
     if (row.status === 'not_announced' && dated) violations.push(`${who}: status not_announced with dates ${row.start} – ${row.end} — a dated edition is announced or in conflict`);
     if (row.windowKind === 'swell' && row.status !== 'announced') violations.push(`${who}: windowKind swell on a row whose status is ${row.status} — a swell call needs an announced window`);
+    // SEASONS-01 (2026-11-08): the season window and the typical status, each on its own ground.
+    const group = EXPERIENCE_CATEGORIES.find((c) => c.id === row.category)?.group ?? null;
+    if (row.windowKind === 'season' && group !== 'season') violations.push(`${who}: windowKind season on category ${row.category}, which is not a season category`);
+    if (row.windowKind === 'season' && row.status !== 'announced' && row.status !== 'typical') violations.push(`${who}: windowKind season with status ${row.status} — a season is announced (this season's published dates) or typical (the usual window)`);
+    if (row.status === 'typical' && row.windowKind !== 'season') violations.push(`${who}: status typical on windowKind ${row.windowKind} — only a season has a usual window`);
+    if (row.status === 'typical' && !dated) violations.push(`${who}: status typical with null dates — a usual window carries both dates`);
+    if (group === 'season' && row.windowKind !== 'season') violations.push(`${who}: windowKind ${row.windowKind} in season category ${row.category} — a season category takes only season rows`);
     const edition = `${row.category} · ${row.name} · ${row.start ?? 'null'}`;
     if (editions.has(edition)) violations.push(`${who}: shares (category, name, start) "${edition}" with another row`);
     editions.add(edition);

@@ -87,8 +87,9 @@ const OPENED: readonly string[] = [
 // ── T1 · THE CATEGORIES ──────────────────────────────────────────────────────
 
 test('T1 the ten new categories follow the nine, in K\'s order, with their labels; surfing stays first', () => {
-  assert.equal(EXPERIENCE_CATEGORIES.length, 19);
-  assert.deepEqual(EXPERIENCE_CATEGORIES.slice(9).map((c) => [c.id, c.label]), NEW_CATEGORIES.map(([id, label]) => [id, label]));
+  // SEASONS-01 (2026-11-08): the seven season categories follow the ten — twenty-six in all; the ten are positions 9 to 18.
+  assert.equal(EXPERIENCE_CATEGORIES.length, 26);
+  assert.deepEqual(EXPERIENCE_CATEGORIES.slice(9, 19).map((c) => [c.id, c.label]), NEW_CATEGORIES.map(([id, label]) => [id, label]));
   assert.equal(EXPERIENCE_CATEGORIES[0].id, 'surfing', 'the default does not change');
 });
 
