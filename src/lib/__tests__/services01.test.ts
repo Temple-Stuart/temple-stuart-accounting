@@ -22,8 +22,11 @@
  *   T6 the route — need z.enum(PROPOSAL_NEEDS): each of the six accepted, 'close' refused with an issue naming need;
  *      the comment re-said; the lines other files cite by number unmoved; its public-writer entry unchanged;
  *   T7 the CRM — needWords for the six and the legacy 'close'; a stranger throws by name;
- *   T8 the law script — :159-160 and :710 in place, the services law between the experiences and the trip log laws;
- *      the line count unchanged; the close retired: no code in src or scripts reads its symbols.
+ *   T8 the law script — :159-160 and :710 in place, the services law between the experiences and the trip log laws
+ *      (HOME-FINISH-01, 2026-11-08: no whole-file line count — new laws land at its END by rule); the close retired:
+ *      no code in src or scripts reads its symbols;
+ *   T9 README's "Work with me" (HOME-FINISH-01, 2026-11-08) — the six doors from SERVICES, title and line, in order;
+ *      the form's link; no mailto.
  * No live call, no database, no clock.
  */
 import { test } from 'node:test';
@@ -256,10 +259,11 @@ test('T4 Landing maps SERVICES once inside the DONE-FOR-YOU card, in the ruled g
   const panel = landing.slice(eyebrow, sectionEnd);
   assert.match(landing, /import \{\n {2}PROPOSAL_FORM_PATH, SERVICES,\n\} from '@\/lib\/proposalNeeds';/);
   assert.equal((landing.match(/SERVICES\.map\(/g) ?? []).length, 1, 'SERVICES mapped once');
-  assert.match(panel, /<div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">\n {16}\{SERVICES\.map\(\(\{ need, title, line \}\) => \(\n {18}<Link key=\{need\} href=\{`\$\{PROPOSAL_FORM_PATH\}\?need=\$\{need\}`\} className="rounded-lg border border-border bg-white p-4 text-text-primary hover:bg-brand-purple-wash" data-done-for-you=\{need\}>\n {20}<div className="text-sm font-medium">\{title\}<\/div>\n {20}<p className="mt-1 text-xs text-text-muted">\{line\}<\/p>\n {18}<\/Link>\n {16}\)\)\}\n {14}<\/div>/, 'the grid, the door, the title and the line in today\'s classes');
+  // HOME-FINISH-01 (Alex, 2026-11-08): auto-rows-fr — every row as tall as the tallest, six doors of one height at every width.
+  assert.match(panel, /<div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">\n {16}\{SERVICES\.map\(\(\{ need, title, line \}\) => \(\n {18}<Link key=\{need\} href=\{`\$\{PROPOSAL_FORM_PATH\}\?need=\$\{need\}`\} className="rounded-lg border border-border bg-white p-4 text-text-primary hover:bg-brand-purple-wash" data-done-for-you=\{need\}>\n {20}<div className="text-sm font-medium">\{title\}<\/div>\n {20}<p className="mt-1 text-xs text-text-muted">\{line\}<\/p>\n {18}<\/Link>\n {16}\)\)\}\n {14}<\/div>/, 'the grid, the door, the title and the line in today\'s classes');
   const card = panel.indexOf('<div className="mt-4 rounded-lg border border-border bg-white p-5">');
   assert.ok(card > -1 && card < panel.indexOf('SERVICES.map('), 'inside the white card');
-  assert.equal((panel.match(/className="mt-4 grid gap-3/g) ?? []).length, 1, 'one grid');
+  assert.equal((panel.match(/className="mt-4 grid auto-rows-fr gap-3/g) ?? []).length, 1, 'one grid');
 });
 
 test('T4 nothing typed: no door\'s title or line, no line under the chip, no close card, no CloseOffer*, no "2026 close" in Landing\'s code', () => {
@@ -284,12 +288,13 @@ test('T4 the h2, the chip and the one button stand; the panel holds no other lin
   const panel = landing.slice(eyebrow, landing.indexOf('</section>', eyebrow));
   assert.match(panel, /<h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">\n\s*Need help\? Send a proposal\.\n\s*<\/h2>/, 'the h2, untouched');
   assert.match(panel, /<span className="rounded border border-border px-2 py-0\.5 font-mono text-xs lg:text-\[10px\] font-semibold uppercase tracking-wider text-text-secondary">\n\s*PROFESSIONAL SERVICES\n\s*<\/span>/, 'the chip, untouched');
-  assert.match(panel, /<div className="mt-4 flex flex-wrap items-center gap-4">\n\s*<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*className="border border-brand-purple\/40 px-6 py-2 text-center text-xs font-medium text-brand-purple hover:bg-brand-purple-wash"\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>\n\s*<span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal<\/span>/, 'the button row, untouched');
+  // HOME-FINISH-01 (Alex, 2026-11-08): the button is the public page's one filled button (src/lib/ds.ts PRIMARY_CTA), 44px tall — words and href unchanged.
+  assert.match(panel, /<div className="mt-4 flex flex-wrap items-center gap-4">\n\s*<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*className=\{`\$\{PRIMARY_CTA\} inline-block min-h-\[44px\] text-center`\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>\n\s*<span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal<\/span>/, 'the button row: its words, its href, the filled class');
   assert.equal((panel.match(/href=\{PROPOSAL_FORM_PATH\}/g) ?? []).length, 1, 'one button');
   assert.equal((panel.match(/<Link\b/g) ?? []).length, 2, 'the door template and the button — nothing else links');
   // the grid sits directly under the chip: nothing but a comment between
   const chipEnd = panel.indexOf('</span>', panel.indexOf('PROFESSIONAL SERVICES')) + '</span>'.length;
-  assert.match(panel.slice(chipEnd, panel.indexOf('<div className="mt-4 grid gap-3')), ONLY_COMMENTS, 'nothing but a comment between the chip and the doors');
+  assert.match(panel.slice(chipEnd, panel.indexOf('<div className="mt-4 grid auto-rows-fr gap-3')), ONLY_COMMENTS, 'nothing but a comment between the chip and the doors');
   assert.doesNotMatch(landing, /WORK WITH ME/);
 });
 
@@ -417,10 +422,15 @@ test('T7 needWords: the six doors\' titles (old rows print today\'s words), the 
 
 // ── T8 · THE LAW SCRIPT, AND THE CLOSE RETIRED ───────────────────────────────
 
-test('T8 the law script, in place: :160 imports the module; :710 is the services law\'s one line, between the experiences and the trip log laws; 11182 lines', () => {
+test('T8 the law script, in place: :160 imports the module; :710 is the services law\'s one line, between the experiences and the trip log laws', () => {
   const law = code(LAW);
   const lines = law.split('\n');
-  assert.equal(lines.length, 11183, 'the line count unchanged (the file ends with a newline)');
+  // HOME-FINISH-01 (Alex, 2026-11-08): no whole-file line count. This file grows — new laws land at its END by rule, and #1929
+  // (SUPERSEDE-01b) grew two existing laws mid-file (:3334-3529, :10965-11127), 11182 → 11218 lines, all below every line the deck
+  // cites — so a count breaks on PRs that move no cited line. The deck's citations of this file are guarded by content: dataflow01.test.ts
+  // T5 holds each `// true per` citation to the word it names — :483 ownTableLaw (s08, Landing.tsx:1807), :742 enumValues (s04 and
+  // Landing.tsx:1799), :840 callSites (s14Parsed), :987 s14Law (the step-14 note, Landing.tsx:4508); intakeForm01.test.ts T8 pins
+  // :483 and :742 by number (lawLines[482], lawLines[741]). :160 and :710 are pinned here.
   assert.equal(lines[159], "import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/experiences'; import { SERVICES, servicesLaw } from '../src/lib/proposalNeeds';");
   assert.match(lines[709], /^\{ const before = violations\.length; violations\.push\(\.\.\.servicesLaw\(\{ throwOnFail: false, migrations: ALL_MIGRATIONS \}\)\);/, ':710 — the deck cites lines below it by number');
   assert.ok(lines[709].includes("`✔ The services law passed — ${SERVICES.length} doors (${SERVICES.map((s) => s.title).join(' · ')}), every word in src/lib/proposalNeeds.ts, every key held by proposals_need_chk with 'close' kept for the rows the old close door wrote; no fixed price on a door (SERVICES-01, 2026-11-08: the close offer law retired with the close; this seat re-used because the deck cites this file’s lines by number)`"), 'the ruled line — its words verbatim; the apostrophe is U+2019 because an ASCII one would unpair the activity law\'s string blanking over this file');
@@ -446,6 +456,23 @@ test('T8 the close retired: its four files gone, and no code in src or scripts r
   const READERS = /\bCLOSE_OFFER\b|\bCloseOffer\w*|\bcloseWords\b|\bcloseChoiceWords\b|\bcloseFormHref\b|\bCLOSE_ANCHOR\b|\bcloseOfferLaw\b|offer\/close\b/;
   const hits = files.filter((f) => READERS.test(code(f)));
   assert.deepEqual(hits, [], 'zero code readers; the history lives in dated comments');
+});
+
+// ── T9 · README ──────────────────────────────────────────────────────────────
+
+test('T9 README\'s "Work with me" is the six doors from SERVICES — title and line, in order — and the form\'s link; no mailto (HOME-FINISH-01)', () => {
+  const readme = rejoin(code('README.md'), comments('README.md'));
+  const start = readme.indexOf('\n## Work with me\n');
+  const end = readme.indexOf('\n## License\n', start);
+  assert.ok(start > -1 && end > start, 'the section, then the License section');
+  const section = readme.slice(start + 1, end + 1);
+  assert.ok(section.startsWith('## Work with me\n\nI built this for me — but I\'ll set it up for you.\n\n'), 'its first sentence kept');
+  const bullets = section.split('\n').filter((l) => l.startsWith('- '));
+  assert.deepEqual(bullets, SERVICES.map((s) => `- ${s.title}: ${s.line}`), 'the six doors, verbatim from src/lib/proposalNeeds.ts, in order');
+  assert.ok(section.includes('\nSend a proposal: [templestuart.com/work-with-me](https://templestuart.com/work-with-me)\n'), 'the form is the one door');
+  assert.doesNotMatch(section, /mailto:/, 'no email proposals (Alex, 2026-11-06)');
+  assert.ok(readme.includes('\n## License\n\nSource-available under the Business Source License 1.1'), 'the License section stays');
+  assert.ok(readme.includes('Temple Stuart is not a CPA firm, tax preparer, or licensed financial advisor.'), 'the closing notice stays');
 });
 
 function escapeHtml(s: string): string {

@@ -21,7 +21,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { DATA } from '@/lib/ds';
+import { DATA, PRIMARY_CTA } from '@/lib/ds';
 import {
   CAPABILITY_GROUPS, CELL_LABEL, CELL_MARK, PLANS,
   PLANS_HEADLINE, PLANS_SUBHEAD,
@@ -34,7 +34,7 @@ export type PlanDoor =
   | { kind: 'link'; href: string };
 
 const CARD = 'flex flex-col gap-4 rounded-lg border border-border bg-white p-5';
-const CTA = 'rounded-lg bg-brand-purple px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover';
+const CTA = PRIMARY_CTA; // HOME-FINISH-01 (2026-11-08): the public page's one filled button, from src/lib/ds.ts
 
 /** The door, drawn the one way each caller can give it. */
 function Door({ door, plan, label }: { door: PlanDoor; plan: Plan; label: string }) {
