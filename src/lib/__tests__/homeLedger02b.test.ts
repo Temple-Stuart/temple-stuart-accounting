@@ -295,7 +295,7 @@ test('G the other lane is untouched: Landing, the walkthrough, the day card, the
 
 test('H this test pins no line number of any file this PR does not own', () => {
   const self = code(THIS);
-  // The two line pins it carries are the two it verifies by content above (page.tsx:32, days.ts:391 — SUPERSEDE-01c re-cited :374; SUPERSEDE-01b :302) — both re-cited comments.
+  // The two line pins it carries are the two it verifies by content above (page.tsx:32, days.ts:391 — SUPERSEDE-01c, 2026-11-08: was :374; SUPERSEDE-01b, 2026-11-08: was :302) — both re-cited comments.
   const pins = [...self.matchAll(/\[(\d+)\]\?\./g)].map((m) => Number(m[1]));
   assert.deepEqual(pins, [31, 390]);
 });

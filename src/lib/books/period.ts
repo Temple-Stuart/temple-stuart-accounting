@@ -73,5 +73,5 @@ export function previousMonthOf(today: string): Period {
   return m === 1 ? periodOf(y - 1, 12) : periodOf(y, m - 1);
 }
 
-/** The UTC day of an instant, 'YYYY-MM-DD' — how a @db.Date column reads (reportInputs.ts:119 — SUPERSEDE-01c, 2026-11-08: was :109). */
+/** The UTC day of an instant, 'YYYY-MM-DD' — how a @db.Date column reads (reportInputs.ts:121-122, utcDay — SUPERSEDE-01c-fix, 2026-11-08: was :119, the DAY_MS line; the citation sat two lines above utcDay since at least 140439f). */
 export const utcDayOf = (d: Date): string => d.toISOString().slice(0, 10);

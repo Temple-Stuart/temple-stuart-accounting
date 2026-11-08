@@ -25,7 +25,7 @@
  *       the leaf /budget uses, called exactly as days.ts calls it;
  *   (f) an instant is an occurrence /budget builds — the route runs
  *       buildRoutineBudgetLines for that one routine over occurrenceWindow(), and
- *       the EXACT address (days.ts :276) decides, among its lines or its
+ *       the EXACT address (days.ts :158, occurrenceKey — SUPERSEDE-01c-fix, 2026-11-08: was :276) decides, among its lines or its
  *       not-placed list. Ruled D1 (b), 2026-09-29: the window is the instant's
  *       UTC day and two days either side. A routine-local day is never more than
  *       a day from the UTC day, so the window always holds the instant's
