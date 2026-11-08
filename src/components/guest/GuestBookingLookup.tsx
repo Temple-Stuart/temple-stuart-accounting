@@ -23,6 +23,7 @@
  */
 
 import { useState, useSyncExternalStore, type FormEvent } from 'react';
+import { PRIMARY_CTA } from '@/lib/ds';
 
 const NO_SUBSCRIPTION = () => () => {};
 
@@ -76,7 +77,7 @@ export default function GuestBookingLookup({ initialReference = '', initialFailu
             Manage code
             <input name="code" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" spellCheck={false} maxLength={16} required className={FIELD} data-guest-code />
           </label>
-          <button type="submit" disabled={busy} className="shrink-0 rounded bg-brand-purple px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" data-guest-open>
+          <button type="submit" disabled={busy} className={`${PRIMARY_CTA} shrink-0 disabled:opacity-60`} data-guest-open>
             Look up
           </button>
         </div>

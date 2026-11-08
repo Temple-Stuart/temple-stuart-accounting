@@ -31,7 +31,7 @@ import type { ToggleMode } from '@/components/ui/ToggleStrip';
 // (TripHeader/TripPlannerAI precedents), ~20px per the icon-tab spec.
 // PR-STRIP-DESIGN-3: Check joins for the trust chips.
 import { Plane, BedDouble, Bus, Compass, FileCheck, Shield, Wifi, CalendarDays, Check } from 'lucide-react';
-import ComingSoonSection from '@/components/home/ComingSoonSection';
+import ComingSoonSection from '@/components/home/ComingSoonSection'; import { PRIMARY_CTA } from '@/lib/ds'; // HOME-FINISH-01 (2026-11-08): the jump link's class
 import PublicFlightSearch from './PublicFlightSearch';
 import PublicHotelSearch from './PublicHotelSearch';
 import PublicActivitySearch from './PublicActivitySearch';
@@ -218,7 +218,7 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
         <p className="text-sm text-text-secondary">The experiences are right below this strip.</p>
         <a
           href={eventsAnchor}
-          className="mt-3 inline-flex min-h-[44px] items-center border border-brand-purple/40 px-5 text-sm font-medium text-brand-purple hover:bg-brand-purple-wash"
+          className={`mt-3 ${PRIMARY_CTA}`}
         >
           Jump to them ↓
         </a>

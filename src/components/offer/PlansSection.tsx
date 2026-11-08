@@ -39,7 +39,7 @@ const CTA = PRIMARY_CTA; // HOME-FINISH-01 (2026-11-08): the public page's one f
 /** The door, drawn the one way each caller can give it. */
 function Door({ door, plan, label }: { door: PlanDoor; plan: Plan; label: string }) {
   if (door.kind === 'link') {
-    return <Link href={door.href} className={`inline-block text-center ${CTA}`} data-plan-cta={plan.id}>{label}</Link>;
+    return <Link href={door.href} className={CTA} data-plan-cta={plan.id}>{label}</Link>;
   }
   return (
     <button type="button" onClick={() => door.onClick(plan.id)} className={CTA} data-plan-cta={plan.id}>

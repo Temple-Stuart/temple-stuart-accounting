@@ -35,7 +35,7 @@ import { useState } from 'react';
 import { ResultsShownNote } from './ResultsFilterBar';
 import { sortAndFilterResults, type SortKey } from '@/lib/resultsSortFilter';
 // TRAVEL-RESULTS-TABLE: the results wear the deck-table anatomy — the
-// DATA.columnHeader micro-label is the one shared class string (ds.ts:225).
+// DATA.columnHeader micro-label is the one shared class string (src/lib/ds.ts DATA.columnHeader).
 import { DATA } from '@/lib/ds';
 // FINISH-01 (2026-09-28): below `sm` a result row is a card (src/lib/travel/phoneCard.ts).
 import { PHONE_CARD } from '@/lib/travel/phoneCard';
