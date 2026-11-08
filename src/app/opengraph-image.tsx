@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { COMPANY_LINE } from '@/lib/brandLines';
 
 export const runtime = 'edge';
 export const alt = 'Temple Stuart - Founder\'s Back Office';
@@ -41,29 +42,27 @@ export default async function Image() {
 
         {/* Main Content — the REAL live hero copy (page.tsx: "Track your money. /
             Plan your time. / Live smarter."), replacing the stale "Plan your trips.
-            Find your people." (FOUNDERS-POSITIONING-AND-OG-TRUTH). */}
+            Find your people." (FOUNDERS-POSITIONING-AND-OG-TRUTH).
+            HOME-LINES-01, 2026-11-08: the live hero's words, COMPANY_LINE (src/lib/brandLines.ts); the third wears the hero's wash #eae7f2 (src/app/globals.css :39). */}
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ color: 'white', fontSize: '52px', fontWeight: '300' }}>
-              Track your money.
+              {COMPANY_LINE[0]}
             </span>
             <span style={{ color: 'white', fontSize: '52px', fontWeight: '300' }}>
-              Plan your time.
+              {COMPANY_LINE[1]}
             </span>
-            <span style={{ color: '#9ca3af', fontSize: '52px', fontWeight: '300' }}>
-              Live smarter.
+            <span style={{ color: '#eae7f2', fontSize: '52px', fontWeight: '300' }}>
+              {COMPANY_LINE[2]}
             </span>
           </div>
         </div>
 
         {/* Footer Stats — ONLY what is true: nine modules (the nine homepage tabs,
             ModuleLauncher TABS) and Plaid bank sync. The old "12 Modules", "IRS
-            Compliant", and "AI Powered" badges were false/overclaims — removed. */}
+            Compliant", and "AI Powered" badges were false/overclaims — removed.
+            HOME-LINES-01, 2026-11-08: the "9 / Modules" stat left — the app has six tabs (src/components/home/ModuleLauncher.tsx TABS), and a count typed into an image drifts unseen; Plaid bank sync stays (src/lib/toolRegistry.ts Banking). */}
         <div style={{ display: 'flex', gap: '50px', marginTop: '20px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ color: 'white', fontSize: '28px', fontWeight: 'bold' }}>9</span>
-            <span style={{ color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>Modules</span>
-          </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ color: 'white', fontSize: '28px', fontWeight: 'bold' }}>Plaid</span>
             <span style={{ color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>Bank Sync</span>

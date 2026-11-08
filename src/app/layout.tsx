@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import { SITE_DESCRIPTION } from "@/lib/brandLines";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const ibmMono = IBM_Plex_Mono({
@@ -26,14 +27,13 @@ export const viewport: Viewport = {
 // (nine modules — the nine TABS — and Plaid bank sync; no "IRS compliant", no
 // "AI powered" headline). "Founder's Back Office" is BRAND COPY only — the
 // Personal/Business/Trading ENTITY vocabulary (data model) is untouched.
+// HOME-LINES-01, 2026-11-08: the description is the company line and the hero's subline, from src/lib/brandLines.ts; 'Nine modules' left — the app has six tabs
 export const metadata: Metadata = {
   title: "Temple Stuart | Founder's Back Office",
-  description:
-    "Track your money. Plan your time. Live smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
+  description: SITE_DESCRIPTION,
   openGraph: {
     title: "Temple Stuart — Founder's Back Office",
-    description:
-      "Track your money. Plan your time. Live smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
+    description: SITE_DESCRIPTION,
     url: "https://templestuart.com",
     siteName: "Temple Stuart",
     images: [
@@ -50,8 +50,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Temple Stuart — Founder's Back Office",
-    description:
-      "Track your money. Plan your time. Live smarter. Nine modules — books, tax, trading, travel, runway, and more — every claim receipted.",
+    description: SITE_DESCRIPTION,
     images: ["https://templestuart.com/opengraph-image"],
   },
 };
