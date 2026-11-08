@@ -88,6 +88,8 @@ const VISA: TravelExpenseIn = {
   note: null,
   trip: null,
   coa_code: null,
+  // CASH-02a (2026-11-08): the answer carries paid_with on every row — this one typed before CASH-02a, not stated.
+  paid_with: null,
   voided_at: null,
   void_reason: null,
   created_at: '2026-11-20T02:00:00.000Z',

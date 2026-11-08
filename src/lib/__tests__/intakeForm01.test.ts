@@ -112,10 +112,12 @@ const renderTables = (read: CrmLoaded) => unescape(renderToStaticMarkup(React.cr
 
 test('T1 the migration: the newest; crm_forms and crm_form_submissions with every constraint by name; crm_contacts_source_chk widened to four words; authored, not applied', () => {
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
+  // CASH-02a (2026-11-08): travel_expenses gains paid_with — the newest now; every pin below moved by one more.
+  assert.equal(dirs[dirs.length - 1], '20261108120000_cash_02a_paid_with', 'the newest migration');
   // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — the newest now; every pin below moved by one more.
-  assert.equal(dirs[dirs.length - 1], '20261108111500_services_01_bookkeeping_need', 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'right before SERVICES-01\'s');
-  assert.equal(dirs[dirs.length - 3], '20261106150000_crm_01a_crm_contacts', 'right after CRM-01a\'s');
+  assert.equal(dirs[dirs.length - 2], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 4], '20261106150000_crm_01a_crm_contacts', 'right after CRM-01a\'s');
   const sql = code(MIGRATION);
   for (const name of [
     'crm_forms_pkey', 'crm_forms_user_id_key', 'crm_forms_slug_key', 'crm_forms_slug_chk', 'crm_forms_title_chk', 'crm_forms_line_chk', 'crm_forms_questions_chk', 'crm_forms_user_id_fkey',

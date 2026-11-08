@@ -305,7 +305,19 @@ test('T5 /owner is the accounts console: no Proposals section, no fetch of /api/
   assert.match(schemaCode[1680], /^\s+status\s+String\s+@default\("new"\) @db\.VarChar\(20\)/);
   assert.match(schemaCode[1681], /^\s+ownerNotes\s+String\?\s+@db\.Text @map\("owner_notes"\)/);
   for (const i of [1680, 1681]) assert.match(schemaNotes[i], /CRM-01b \(2026-11-07\): no longer written — the CRM's stage and next step live in crm_contacts; CLEAN rules on dropping/);
-  assert.equal(schemaCode.length, 4807, 'CRM-02 (2026-11-07): 4764 + the two relation lines + the forty-one of its two models — nothing else');
+  // CASH-02a (2026-11-08): the schema's whole-file line count retired — no test pins a shared file's total line count
+  // (HOME-FINISH-01's rule, first for the law file): CASH-02a's paid_with and its two /// lines moved it 4807 → 4810 with
+  // nothing of CRM's touched. What the count guarded is pinned by content: the two notes on the columns' own lines (above —
+  // no line added), CRM-02's two relation lines on users, and CRM-02's block — its header through its last model's brace,
+  // forty lines (the forty-one, with the newline that ended the file then) holding its two models.
+  const usersModel = schemaCode.slice(schemaCode.indexOf('model users {'));
+  const usersBody = usersModel.slice(0, usersModel.indexOf('}'));
+  assert.deepEqual(usersBody.filter((l) => /crm_form/.test(l)).map((l) => l.trim()), ['crm_forms               crm_forms[]', 'crm_form_submissions    crm_form_submissions[]'], 'CRM-02: the two relation lines on users');
+  const crmHead = schemaNotes.findIndex((l) => l.startsWith('// ─── CRM-02 (Alex, 2026-11-07)'));
+  const crmEnd = schemaCode.indexOf('  @@map("crm_form_submissions")', crmHead) + 1;
+  assert.ok(crmHead > 0 && schemaCode[crmEnd] === '}', 'CRM-02\'s header, and its last model\'s closing brace');
+  assert.equal(crmEnd - crmHead + 1, 40, 'CRM-02: its header through its last model — forty lines');
+  assert.deepEqual(schemaCode.slice(crmHead, crmEnd + 1).filter((l) => /^model /.test(l)), ['model crm_forms {', 'model crm_form_submissions {']);
   // nothing writes proposals.status or owner_notes any more; the proposal form leaves them to the DDL defaults
   const files = [...sourceFiles(resolve(process.cwd(), 'src/app')), ...sourceFiles(resolve(process.cwd(), 'src/lib'))];
   for (const f of files) {

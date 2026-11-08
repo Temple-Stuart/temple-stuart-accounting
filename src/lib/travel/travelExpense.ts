@@ -7,8 +7,8 @@
  * file holds what the two routes ask before they write, and every word they answer with:
  *
  *   · THE BODY RULE (ruling C) — POST /api/travel-expenses: { kind, paid_on, amount_minor, currency, vendor, note?,
- *     trip_id?, coa_code? }. Every field is refused by name (the documents route's unknownFieldWords shape); an
- *     unknown field is a 400. kind one of visa | esim | other; paid_on a 'YYYY-MM-DD' day the calendar has
+ *     trip_id?, coa_code?, paid_with } (paid_with since CASH-02a, below). Every field is refused by name (the
+ *     documents route's unknownFieldWords shape); an unknown field is a 400. kind one of visa | esim | other; paid_on a 'YYYY-MM-DD' day the calendar has
  *     (budget/days.ts isIsoDay); amount_minor a whole number of HUNDREDTHS of the currency above 0 that the INTEGER
  *     column holds (THE HUNDREDTHS, beside AMOUNT_REQUIRED_WORDS); currency three capitals (functionalCurrency.ts
  *     ISO_4217_CODE — 'usd' is refused, never upper-cased for the customer: stated, never assumed); vendor as typed,
@@ -25,6 +25,11 @@
  *   · THE VOID RULE — POST /api/travel-expenses/[id]/void: { reason }, required, never blank; an expense is voided
  *     once — a second void is a 409 by name. The database refuses the same (the void pair CHECK, the FREEZE trigger).
  *   · THE LINK'S WORDS (ruling B) — the links route refuses a payment to a voided expense by name.
+ *   · CASH-02a (Alex, 2026-11-08; CASH-00's D1 and D7) — HOW IT WAS PAID: paid_with, 'cash' or 'account' (a card or a
+ *     bank transfer — paid from an account whose posting settles it), REQUIRED on every new expense: absent, or any
+ *     other value, refused by name — never defaulted. NULL is a row typed before CASH-02a: not stated, never
+ *     backfilled; NULL turns into words in paidWithWords only. A cash-paid expense is never matched to a bank row —
+ *     the links route refuses it by name (cashExpenseLinkWords); cash is posted from cash on hand (CASH-03).
  *
  * Nothing here defaults: no field is filled in, no code is guessed, no currency assumed. Pure: no Prisma, no fetch, no
  * clock, no React.
@@ -43,10 +48,20 @@ export type TravelExpenseKind = (typeof TRAVEL_EXPENSE_KINDS)[number];
 export const isTravelExpenseKind = (k: unknown): k is TravelExpenseKind =>
   typeof k === 'string' && (TRAVEL_EXPENSE_KINDS as readonly string[]).includes(k);
 
+// ── HOW IT WAS PAID (CASH-02a) ──────────────────────────────────────────────
+
+/** CASH-02a (Alex, 2026-11-08): the two ways the table's CHECK admits (travel_expenses_paid_with) — cash, or an account. */
+export const TRAVEL_EXPENSE_PAID_WITH = ['cash', 'account'] as const;
+export type TravelExpensePaidWith = (typeof TRAVEL_EXPENSE_PAID_WITH)[number];
+export const isTravelExpensePaidWith = (v: unknown): v is TravelExpensePaidWith =>
+  typeof v === 'string' && (TRAVEL_EXPENSE_PAID_WITH as readonly string[]).includes(v);
+/** CASH-00's D7: a cash-paid expense is never matched to a bank row — the one test the links route and the ledger read. */
+export const isPaidInCash = (paidWith: string | null): boolean => paidWith === ('cash' satisfies TravelExpensePaidWith);
+
 // ── THE FIELDS ──────────────────────────────────────────────────────────────
 
-/** The POST's fields, in the ruling's order — any other key is refused by name. */
-export const TRAVEL_EXPENSE_FIELDS = ['kind', 'paid_on', 'amount_minor', 'currency', 'vendor', 'note', 'trip_id', 'coa_code'] as const;
+/** The POST's fields, in the ruling's order — any other key is refused by name. CASH-02a (2026-11-08): paid_with, last. */
+export const TRAVEL_EXPENSE_FIELDS = ['kind', 'paid_on', 'amount_minor', 'currency', 'vendor', 'note', 'trip_id', 'coa_code', 'paid_with'] as const;
 export type TravelExpenseField = (typeof TRAVEL_EXPENSE_FIELDS)[number];
 /** The void's one field. */
 export const VOID_FIELDS = ['reason'] as const;
@@ -66,6 +81,8 @@ export interface TravelExpenseBody {
   readonly note: string | null;
   readonly trip_id: string | null;
   readonly coa_code: string | null;
+  /** CASH-02a: required — a new expense always states how it was paid. */
+  readonly paid_with: TravelExpensePaidWith;
 }
 
 export interface FieldRefusal {
@@ -109,6 +126,9 @@ export const TRIP_BLANK_WORDS = 'trip_id is blank — choose a trip, or leave it
 export const COA_NOT_A_CODE_WORDS = 'coa_code is a code of your chart of accounts, or left out';
 export const COA_BLANK_WORDS = 'coa_code is blank — choose an account, or leave it out';
 export const coaTooLongWords = (length: number): string => `coa_code is ${length} characters — at most ${COA_CODE_MAX}`;
+/** CASH-02a (Alex, 2026-11-08): how it was paid is required on every new expense — never defaulted. */
+export const PAID_WITH_REQUIRED_WORDS = 'paid_with is required — cash, or account (a card or a bank transfer: paid from an account whose posting settles it)';
+export const paidWithNotAChoiceWords = (sent: unknown): string => `paid_with ${JSON.stringify(sent)} is not one of ${TRAVEL_EXPENSE_PAID_WITH.join(', ')}`;
 /** The trip is not the caller's (or no trip) — the defensive 404: it does not say whether the trip exists. */
 export const tripNotYoursWords = (tripId: string): string => `no trip ${JSON.stringify(tripId)} of yours — choose one of your trips, or leave the expense unattached`;
 export const coaNotInChartWords = (typed: string): string => `${JSON.stringify(typed)} is not an account in your chart of accounts`;
@@ -123,6 +143,15 @@ export const alreadyVoidedWords = (voidedAt: Date, reason: string): string =>
 /** Ruling B: the links POST's refusal for a voided expense. */
 export const voidedExpenseLinkWords = (vendor: string, voidedAt: Date, reason: string): string =>
   `the travel expense ${JSON.stringify(vendor)} was voided on ${dayOfInstant(voidedAt)} (${JSON.stringify(reason)}) — a voided expense takes no payment`;
+/** CASH-02a (Alex, 2026-11-08; CASH-00's D7): the links POST's refusal for a cash-paid expense — the ATM withdrawal is not the expense. */
+export const cashExpenseLinkWords = (vendor: string): string =>
+  `${vendor} was paid in cash — cash is posted from cash on hand (CASH-03), never matched to a bank row`;
+/** CASH-02a: how it was paid, in words — the ledger's PAID WITH cell and the form's two choices. */
+export const PAID_WITH_WORDS: Readonly<Record<TravelExpensePaidWith, string>> = { cash: 'cash', account: 'from an account' };
+/** CASH-02a: a row typed before CASH-02a states no way it was paid (NULL — never backfilled): said so, never guessed. */
+export const PAID_WITH_NOT_STATED_WORDS = 'not stated';
+/** The one place NULL turns into words. */
+export const paidWithWords = (paidWith: TravelExpensePaidWith | null): string => (paidWith === null ? PAID_WITH_NOT_STATED_WORDS : PAID_WITH_WORDS[paidWith]);
 /** The trip DELETE's refusal: a typed expense names the trip with RESTRICT and is never deleted, so the trip stays. */
 export const tripHoldsTravelExpensesWords = (n: number): string =>
   `${n === 1 ? 'A travel expense names' : `${n} travel expenses name`} this trip — a typed expense is kept for good (a voided one too), so the trip cannot be deleted`;
@@ -190,7 +219,12 @@ export function travelExpenseBodyRule(body: unknown): { readonly ok: true; reado
   if (!coaCode.ok) return coaCode;
   if (coaCode.value !== null && coaCode.value.length > COA_CODE_MAX) return refuse('coa_code', coaTooLongWords(coaCode.value.length));
 
-  return { ok: true, value: { kind, paid_on: paidOn, amount_minor: amount, currency, vendor, note: noteKept, trip_id: tripId.value, coa_code: coaCode.value } };
+  // CASH-02a (Alex, 2026-11-08): how it was paid — required on every new expense, one of the two, never defaulted.
+  if (absent(body, 'paid_with')) return refuse('paid_with', PAID_WITH_REQUIRED_WORDS);
+  if (!isTravelExpensePaidWith(body.paid_with)) return refuse('paid_with', paidWithNotAChoiceWords(body.paid_with));
+  const paidWith = body.paid_with;
+
+  return { ok: true, value: { kind, paid_on: paidOn, amount_minor: amount, currency, vendor, note: noteKept, trip_id: tripId.value, coa_code: coaCode.value, paid_with: paidWith } };
 }
 
 // ── THE CHART RULE ──────────────────────────────────────────────────────────
@@ -289,8 +323,11 @@ export const ADD_TRAVEL_EXPENSE_WORDS = '+ travel expense';
 /** The form's labels, by field — the ledger's own head words where a column already names it. */
 export const EXPENSE_FIELD_LABELS: Readonly<Record<TravelExpenseField, string>> = {
   kind: 'KIND', paid_on: 'PAID ON', amount_minor: 'AMOUNT', currency: 'CURRENCY', vendor: 'VENDOR', note: 'NOTE', trip_id: 'TRIP', coa_code: 'ACCOUNT',
+  paid_with: 'PAID WITH',
 };
 export const CHOOSE_KIND_WORDS = '— choose the kind —';
+/** CASH-02a: the PAID WITH select's placeholder — nothing is chosen for the customer. */
+export const CHOOSE_PAID_WITH_WORDS = '— choose how it was paid —';
 export const CHOOSE_TRIP_WORDS = '— choose the trip, or unattached —';
 /** The form's own refusal: the trip is a choice — a trip, or unattached — and nothing is chosen for the customer. */
 export const TRIP_NOT_CHOSEN_WORDS = 'choose the trip, or unattached';

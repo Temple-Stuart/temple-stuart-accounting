@@ -4691,6 +4691,9 @@ model travel_expenses {
   /// The chart account the customer chose, as its account string ('P-9200'), validated at write against the
   /// caller's chart_of_accounts — never defaulted; NULL when none was chosen.
   coa_code     String?   @db.VarChar(50)
+  /// CASH-02a (Alex, 2026-11-08): how it was paid — 'cash' | 'account', a CHECK (travel_expenses_paid_with); NULL = not
+  /// stated (every row typed before CASH-02a — never backfilled); frozen with the row (the FREEZE trigger names it).
+  paid_with    String?   @db.VarChar(8)
   /// The void: both set together, once, from NULL — or both NULL.
   voided_at    DateTime? @db.Timestamptz(6)
   void_reason  String?

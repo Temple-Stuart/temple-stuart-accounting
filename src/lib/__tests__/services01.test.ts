@@ -222,8 +222,10 @@ test('T2 the law throws by name by default, and runs at module scope', () => {
 
 test('T3 the migration: the newest; drops proposals_need_chk by its production name and re-adds it with the seven words — nothing else; never IF EXISTS', () => {
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261107212000_crm_02_intake_forms', 'right after CRM-02\'s');
+  // CASH-02a (2026-11-08): travel_expenses gains paid_with — the newest now; every pin below moved by one more.
+  assert.equal(dirs[dirs.length - 1], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 3], '20261107212000_crm_02_intake_forms', 'right after CRM-02\'s');
   const sql = code(MIGRATION);
   assert.equal(
     sql.trim(),

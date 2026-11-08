@@ -13,7 +13,9 @@
  *     ManualTransactionForm.tsx), VENDOR, NOTE, TRIP (the caller's trips or 'unattached' — a choice the customer
  *     makes; nothing preselected, and the form refuses to send until one is made) and ACCOUNT (the chart accounts the
  *     route accepts, optional). It POSTs /api/travel-expenses; the server's refusal words are shown in place; after a
- *     save the ledger reads again (onSaved).
+ *     save the ledger reads again (onSaved). CASH-02a (Alex, 2026-11-08): PAID WITH — cash, or from an account; two
+ *     choices, NOTHING preselected, and the form refuses to send until one is made, in the server's own words
+ *     (travelExpense.ts PAID_WITH_REQUIRED_WORDS — the body rule's refusal for an absent paid_with).
  *   · VoidTravelExpense — "void" on a row: a reason, required; POST /api/travel-expenses/[id]/void; the refusal shown
  *     in place; after a void the ledger reads again. No edit, no delete — a typed expense is frozen once kept.
  *
@@ -27,9 +29,9 @@ import { chipClass } from '@/components/table/DataTable';
 import { centsOfTypedDollars, runtimeCurrencyCodes } from '@/lib/books/functionalCurrency';
 import { KIND_WORDS, NO_ACCOUNT_WORDS, UNATTACHED_WORDS } from '@/lib/reservations/travelLedger';
 import {
-  ADD_TRAVEL_EXPENSE_WORDS, AMOUNT_PLACEHOLDER_WORDS, CANCEL_EXPENSE_WORDS, CHOOSE_KIND_WORDS, CHOOSE_TRIP_WORDS, EXPENSE_FIELD_LABELS,
-  SAVE_EXPENSE_WORDS, SAVING_EXPENSE_WORDS, TRAVEL_EXPENSE_KINDS, TRIP_NOT_CHOSEN_WORDS, VOIDING_WORDS, VOID_REASON_LABEL_WORDS, VOID_WORDS,
-  chartChoiceWords, noWordsRefusalWords, type ChartChoice, type TripChoice,
+  ADD_TRAVEL_EXPENSE_WORDS, AMOUNT_PLACEHOLDER_WORDS, CANCEL_EXPENSE_WORDS, CHOOSE_KIND_WORDS, CHOOSE_PAID_WITH_WORDS, CHOOSE_TRIP_WORDS, EXPENSE_FIELD_LABELS,
+  PAID_WITH_REQUIRED_WORDS, PAID_WITH_WORDS, SAVE_EXPENSE_WORDS, SAVING_EXPENSE_WORDS, TRAVEL_EXPENSE_KINDS, TRAVEL_EXPENSE_PAID_WITH, TRIP_NOT_CHOSEN_WORDS,
+  VOIDING_WORDS, VOID_REASON_LABEL_WORDS, VOID_WORDS, chartChoiceWords, noWordsRefusalWords, type ChartChoice, type TripChoice,
 } from '@/lib/travel/travelExpense';
 
 /** The select's value for 'unattached' — a cuid never holds a colon, so no trip id can be it. */
@@ -55,22 +57,26 @@ export default function TravelExpenseForm({ trips, accounts, onSaved }: { readon
   const [note, setNote] = useState('');
   const [trip, setTrip] = useState('');
   const [account, setAccount] = useState('');
+  // CASH-02a: how it was paid — nothing preselected; '' until the customer chooses.
+  const [paidWith, setPaidWith] = useState('');
   const [refusal, setRefusal] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const currencies = useMemo(() => runtimeCurrencyCodes(), []);
 
   const reset = () => {
-    setKind(''); setPaidOn(''); setAmount(''); setCurrency(''); setVendor(''); setNote(''); setTrip(''); setAccount(''); setRefusal(null);
+    setKind(''); setPaidOn(''); setAmount(''); setCurrency(''); setVendor(''); setNote(''); setTrip(''); setAccount(''); setPaidWith(''); setRefusal(null);
   };
 
   const save = async () => {
     setRefusal(null);
     // The trip is a choice — a trip, or unattached; nothing is chosen for the customer.
     if (trip === '') { setRefusal(TRIP_NOT_CHOSEN_WORDS); return; }
+    // CASH-02a: how it was paid is a choice too — refused before sending, in the server's own words.
+    if (paidWith === '') { setRefusal(PAID_WITH_REQUIRED_WORDS); return; }
     // The typed figure, in the currency's minor units — the currency home's one rule, its words on a refusal.
     let minor: bigint;
     try { minor = centsOfTypedDollars(amount); } catch (error) { setRefusal(error instanceof Error ? error.message : String(error)); return; }
-    const body: Record<string, unknown> = { amount_minor: Number(minor), vendor };
+    const body: Record<string, unknown> = { amount_minor: Number(minor), vendor, paid_with: paidWith };
     if (kind !== '') body.kind = kind;
     if (paidOn !== '') body.paid_on = paidOn;
     if (currency !== '') body.currency = currency;
@@ -142,6 +148,13 @@ export default function TravelExpenseForm({ trips, accounts, onSaved }: { readon
           <select className={input} value={account} onChange={(e) => setAccount(e.target.value)} data-travel-expense-field="account">
             <option value="">{NO_ACCOUNT_WORDS}</option>
             {accounts.map((a) => <option key={`${a.account}:${a.name}:${a.book}`} value={a.account}>{chartChoiceWords(a)}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={label}>{EXPENSE_FIELD_LABELS.paid_with}</label>
+          <select className={input} value={paidWith} onChange={(e) => setPaidWith(e.target.value)} data-travel-expense-field="paid_with">
+            <option value="" disabled>{CHOOSE_PAID_WITH_WORDS}</option>
+            {TRAVEL_EXPENSE_PAID_WITH.map((p) => <option key={p} value={p}>{PAID_WITH_WORDS[p]}</option>)}
           </select>
         </div>
       </div>

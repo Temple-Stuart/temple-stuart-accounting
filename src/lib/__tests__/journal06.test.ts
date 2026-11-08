@@ -85,27 +85,29 @@ function inOrder(body: string, steps: readonly string[], what: string): void {
 test('T1 the migration: the newest; five nullable TEXT columns with no default; the evening not-blank CHECK DROPPED and re-ADDED in ONE statement over the eight; at-least-one DROPPED and re-ADDED in ONE statement, its last clause the eight; learned kept; no DROP COLUMN, no enum, no row', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // DOCUMENTS-02 (Alex, 2026-10-30): the reconciliation's supersession — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 11], MIGRATION_DIR, 'the migration before the newest (BACKLOG-02 followed)');
+  assert.equal(dirs[dirs.length - 12], MIGRATION_DIR, 'the migration before the newest (BACKLOG-02 followed)');
   // BACKLOG-02 (Alex, 2026-10-20): the reorder route's one audit value — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 10], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
+  assert.equal(dirs[dirs.length - 11], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
   // DOCUMENTS-01 (Alex, 2026-10-28): source_documents, the receipt on its posting — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 9], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
-  assert.equal(dirs[dirs.length - 8], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
+  assert.equal(dirs[dirs.length - 10], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
+  assert.equal(dirs[dirs.length - 9], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
   // FX-01 (2026-10-30): the transactions currency migration followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 7], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
+  assert.equal(dirs[dirs.length - 8], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
   // TRAVEL-02b (2026-11-03): travel_expenses and the sixth link kind followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 6], '20261103120000_travel_02b_travel_expenses', 'the migration before the newest (TRAVEL-02c followed)');
+  assert.equal(dirs[dirs.length - 7], '20261103120000_travel_02b_travel_expenses', 'the migration before the newest (TRAVEL-02c followed)');
   // TRAVEL-02c (2026-11-03): living_baselines and the seventh link kind followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 5], '20261103200000_travel_02c_stay_link_living_baselines', 'the migration before the newest (ONE-FORM-01 followed)');
+  assert.equal(dirs[dirs.length - 6], '20261103200000_travel_02c_stay_link_living_baselines', 'the migration before the newest (ONE-FORM-01 followed)');
   // ONE-FORM-01 (2026-11-06): the sixth need, 'close', followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 4], '20261106120000_one_form_01_close_need', 'the migration before the newest (CRM-01a followed)');
+  assert.equal(dirs[dirs.length - 5], '20261106120000_one_form_01_close_need', 'the migration before the newest (CRM-01a followed)');
   // CRM-01a (2026-11-07): crm_contacts, the CRM's working table, followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 3], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
+  assert.equal(dirs[dirs.length - 4], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
   // CRM-02 (2026-11-07): crm_forms and crm_form_submissions, the intake form's two tables, followed — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 2], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 3], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
   // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 1], '20261108111500_services_01_bookkeeping_need', 'the newest migration');
-  assert.equal(dirs[dirs.length - 12], '20261020140000_backlog_01b_brief', 'right after BACKLOG-01b’s');
+  assert.equal(dirs[dirs.length - 2], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
+  // CASH-02a (2026-11-08): travel_expenses gains paid_with — every pin above moved by one more.
+  assert.equal(dirs[dirs.length - 1], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  assert.equal(dirs[dirs.length - 13], '20261020140000_backlog_01b_brief', 'right after BACKLOG-01b’s');
   const sql = code(MIGRATION);
   assert.match(sql, /ALTER TABLE "operations_day_journals"\n\s*ADD COLUMN "gaps"\s+TEXT,\n\s*ADD COLUMN "evolution" TEXT,\n\s*ADD COLUMN "direction" TEXT,\n\s*ADD COLUMN "alignment" TEXT,\n\s*ADD COLUMN "on_track"\s+TEXT;/, 'the five columns, nullable, no default');
   assert.doesNotMatch(sql, /NOT NULL|DEFAULT/, 'NULL is unanswered — no default, nothing required');
