@@ -50,7 +50,7 @@
  * 'secondary' only where the official page could not give the dates, the reason in
  * notes. A tournament or series held in many places names, in venue, the one ground
  * its page names with its role in brackets ("(the final)", "(first Test)"); where the
- * page names no ground, venue repeats the city (the Sibiu precedent above).
+ * page names no ground, venue repeats the city (red-bull-romaniacs-2027's Sibiu precedent).
  */
 
 export type ExperienceCategoryId =
