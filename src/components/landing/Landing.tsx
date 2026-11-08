@@ -2282,7 +2282,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <Link
                   href={PROPOSAL_FORM_PATH}
-                  className={`${PRIMARY_CTA} inline-block min-h-[44px] text-center`}
+                  className={PRIMARY_CTA}
                 >
                   Send a project proposal →
                 </Link>

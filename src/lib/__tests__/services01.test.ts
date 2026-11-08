@@ -289,7 +289,8 @@ test('T4 the h2, the chip and the one button stand; the panel holds no other lin
   assert.match(panel, /<h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">\n\s*Need help\? Send a proposal\.\n\s*<\/h2>/, 'the h2, untouched');
   assert.match(panel, /<span className="rounded border border-border px-2 py-0\.5 font-mono text-xs lg:text-\[10px\] font-semibold uppercase tracking-wider text-text-secondary">\n\s*PROFESSIONAL SERVICES\n\s*<\/span>/, 'the chip, untouched');
   // HOME-FINISH-01 (Alex, 2026-11-08): the button is the public page's one filled button (src/lib/ds.ts PRIMARY_CTA), 44px tall — words and href unchanged.
-  assert.match(panel, /<div className="mt-4 flex flex-wrap items-center gap-4">\n\s*<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*className=\{`\$\{PRIMARY_CTA\} inline-block min-h-\[44px\] text-center`\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>\n\s*<span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal<\/span>/, 'the button row: its words, its href, the filled class');
+  // The follow-up on #1931 (2026-11-08): the shape lives in the class (44px, the label centred), so the button wears it bare.
+  assert.match(panel, /<div className="mt-4 flex flex-wrap items-center gap-4">\n\s*<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*className=\{PRIMARY_CTA\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>\n\s*<span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal<\/span>/, 'the button row: its words, its href, the filled class');
   assert.equal((panel.match(/href=\{PROPOSAL_FORM_PATH\}/g) ?? []).length, 1, 'one button');
   assert.equal((panel.match(/<Link\b/g) ?? []).length, 2, 'the door template and the button — nothing else links');
   // the grid sits directly under the chip: nothing but a comment between

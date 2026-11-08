@@ -3,7 +3,7 @@
 // LANDING-V5: the trip.com icon-input imports (Plane/Calendar + TravelField)
 // retired with the form's move to the spec's segmented hairline bar.
 // TRAVEL-RESULTS-TABLE: the results wear the deck-table anatomy — the
-// DATA.columnHeader micro-label is the one shared class string (ds.ts:225).
+// DATA.columnHeader micro-label is the one shared class string (src/lib/ds.ts DATA.columnHeader).
 import { Fragment, useState, type ReactNode } from 'react';
 import RowActionStrip from './RowActionStrip';
 import { DATA } from '@/lib/ds';

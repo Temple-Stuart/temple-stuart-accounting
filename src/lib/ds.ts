@@ -113,8 +113,8 @@ export const CONTROL = {
   ghostButton:
     'rounded border border-brand-purple/40 px-4 py-2 text-sm font-medium text-brand-purple transition-colors hover:bg-brand-purple-wash',
 } as const;
-/** HOME-FINISH-01 (Alex, 2026-11-08): the public page's one filled button — the proposal, the trip posts' links, the plans' doors. */
-export const PRIMARY_CTA = 'rounded-lg bg-brand-purple px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover';
+/** HOME-FINISH-01 (Alex, 2026-11-08): the public page's one filled button — the proposal, the trip posts' links, the plans' doors, the booking lookup, the strip's jump link; 44px tall, its label centred (the shape is in the class: its users wear it bare). */
+export const PRIMARY_CTA = 'inline-flex min-h-[44px] items-center justify-center rounded-lg bg-brand-purple px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-purple-hover';
 
 /** Toggle chip (REPAINT-3) — active = solid aubergine, inactive = the
  *  aubergine ghost on cream. */
