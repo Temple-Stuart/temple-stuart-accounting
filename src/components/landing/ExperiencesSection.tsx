@@ -7,7 +7,9 @@
  *
  * WHAT IT RENDERS, top to bottom — every word about an event comes from
  * src/lib/experiences.ts through src/lib/experienceWords.ts, never typed here:
- *   1. the eyebrow, the h2 and the one line;
+ *   1. the eyebrow, the h2 and the one line; HOME-LINES-01 (Alex, 2026-11-08): the h2 is the
+ *      experience line (EXPERIENCE_LINE, src/lib/brandLines.ts — three lines, the third in the
+ *      wash), the promise (PROMISE, the h2 until HOME-LINES-01) right under it, then the one line;
  *   2. I'M INTO… — one chip per category, and the filter is FORCED: the section
  *      always shows exactly one category (EVENTS-01b — no all-categories view).
  *      THE URL IS THE ONLY STATE (the TAB13-03 rule): the choice is
@@ -58,6 +60,7 @@ import {
   type Experience, type ExperienceCategoryId,
 } from '@/lib/experiences';
 import { experienceLine, upcoming } from '@/lib/experienceWords';
+import { EXPERIENCE_LINE } from '@/lib/brandLines';
 
 /** The section's anchor — the strip's Events mode and the chips' URL both name it. */
 export const EVENTS_ANCHOR = 'events';
@@ -67,7 +70,8 @@ export const INTO_PARAM = 'into';
 export const DEFAULT_INTO: ExperienceCategoryId = EXPERIENCE_CATEGORIES[0].id;
 
 export const EYEBROW = 'THE BEST EXPERIENCES ON EARTH · THEN THE STAY AND THE FLIGHT TO GET THERE';
-export const HEADLINE = 'Book the experience, not just the destination.';
+/** HOME-LINES-01 (2026-11-08): the h2 until HOME-LINES-01 (then HEADLINE); now the promise under the experience line. */
+export const PROMISE = 'Book the experience, not just the destination.';
 export const SUBHEAD = "Pick what you're into. See what's on and where. Book the stay and the flight around it, right here.";
 export const INTO_LABEL = "I'M INTO…";
 export const COMING_UP_LABEL = 'COMING UP';
@@ -91,7 +95,8 @@ const EXP = {
   band: 'w-full bg-brand-purple text-white',
   inner: 'max-w-7xl mx-auto px-4 lg:px-8 py-10 lg:py-14',
   eyebrow: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-brand-amber',
-  h2: 'mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-ts-white',
+  h2: 'mt-3 text-3xl sm:text-5xl font-bold leading-tight tracking-tight text-ts-white',
+  promise: 'mt-4 text-lg sm:text-xl font-semibold text-ts-white',
   sub: 'mt-2 max-w-2xl text-sm text-white/70',
   label: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60',
   chipRow: 'mt-3 flex flex-wrap gap-2',
@@ -156,7 +161,12 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
     <section id={EVENTS_ANCHOR} aria-label="Book the experience" className={EXP.band} data-experiences>
       <div className={EXP.inner}>
         <p className={EXP.eyebrow}>{EYEBROW}</p>
-        <h2 className={EXP.h2}>{HEADLINE}</h2>
+        <h2 className={EXP.h2}>
+          {EXPERIENCE_LINE[0]}<br />
+          {EXPERIENCE_LINE[1]}<br />
+          <span className="text-brand-purple-wash">{EXPERIENCE_LINE[2]}</span>
+        </h2>
+        <p className={EXP.promise}>{PROMISE}</p>
         <p className={EXP.sub}>{SUBHEAD}</p>
 
         <p className={`mt-8 ${EXP.label}`}>{INTO_LABEL}</p>

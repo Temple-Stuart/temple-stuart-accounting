@@ -213,7 +213,7 @@ import { KIND_VIEWS_HONEST_LINE } from '@/lib/kindViews';
 // OFFER-01 (2026-09-23): the landing no longer renders OfferCard, heroCountsLine,
 // OFFERS or freeSetLine — the offer it shows is the three plans, and Travel's free
 // line comes from the registry's own Travel row (plans.ts travelFreeLine).
-import PlansSection from '@/components/offer/PlansSection';
+import PlansSection from '@/components/offer/PlansSection'; import { COMPANY_LINE, HERO_SUBLINE } from '@/lib/brandLines'; // HOME-LINES-01 (2026-11-08): the hero's three lines and its subline, from src/lib/brandLines.ts — the import rides this line, so every line above :1807 stays
 // PR-ELEV-1: the coming-soon tiles became badged "Soon" chips INSIDE the
 // booking strip (travelStripModes) — the separate tile row is gone.
 
@@ -2064,14 +2064,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
               Source-available · BSL 1.1
             </a>
             <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">
-              Track your money.<br />
-              Plan your time.<br />
+              {COMPANY_LINE[0]}<br />
+              {COMPANY_LINE[1]}<br />
               {/* REPAINT-2 (E): the gradient clip died. The separable final
                   segment wears the LAVENDER tint (brand-purple-wash #eae7f2)
                   — brand-purple-hover (#4e3e85) measures ~1.4:1 against the
                   aubergine band, illegible; the wash holds the family and
-                  reads. Copy untouched. */}
-              <span className="text-brand-purple-wash">Live smarter.</span>
+                  reads. Copy untouched.
+                  HOME-LINES-01, 2026-11-08: the words are COMPANY_LINE, src/lib/brandLines.ts; the wash stays on the third */}
+              <span className="text-brand-purple-wash">{COMPANY_LINE[2]}</span>
             </h1>
             {/* OFFER-01 (2026-09-23): the hero's registry count is GONE. It read
                 "Twenty-five tools, counted: two live, nine partial, fourteen on the
@@ -2082,8 +2083,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 (COCKPIT-PERF-01, 2026-10-27: "three plans" stood here — PLANS holds
                 four: personal, business, trading, everything.) */}
             <p className="mb-6 max-w-xl text-base text-white/70">
-              One system for your money, your days and your books — so every number
-              can be traced back to what actually happened.
+              {HERO_SUBLINE}
             </p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               {/* HERO-REPO-1 (Alex's rationale): the hosted product leads —
