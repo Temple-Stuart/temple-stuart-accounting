@@ -75,7 +75,7 @@ const SECTION = 'src/components/crm/CrmSection.tsx';
 const MIDDLEWARE = 'src/middleware.ts';
 const LAW = 'scripts/assert-tool-registry.ts';
 const REGISTRY = 'src/lib/toolRegistry.ts';
-const LANDING = 'src/components/landing/Landing.tsx';
+const DECK = 'src/components/landing/PipelineDeck.tsx'; // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — the 14 steps moved there whole from Landing.tsx
 const SCHEMA = 'prisma/schema.prisma';
 const README = 'README.md';
 
@@ -604,10 +604,13 @@ test('T9 the registry row: PARTIAL with four beats (CLOSED 6), the why and the c
   assert.match(notes, /CRM-02 \(2026-11-07\): :111 → :121 — the PATCH grew a 'form:' branch above the create; what it cites unchanged/);
   assert.match(notes, /CRM-02 \(Alex, 2026-11-07\): the why and the customer sentence rewritten \(BUILD 14\)/);
   // the deck's s08 names the same create line
-  const s08 = comments(LANDING).split('\n')[1806];
+  // PIPELINE-PAGE-01 (2026-11-09): the s08 line moved with the deck to PipelineDeck.tsx — found by content (the one line whose code starts with s08:), never by
+  // number; exactly one, and its citation read from that line (the :1807 pin that closed this test moved up to here).
+  const s08At = code(DECK).split('\n').flatMap((l, i) => (/^\s+s08: /.test(l) ? [i] : []));
+  assert.equal(s08At.length, 1, 'exactly one s08 line, in the deck\'s file');
+  const s08 = comments(DECK).split('\n')[s08At[0]];
   assert.match(s08, /CRM-02 \(2026-11-07\) re-cited the create's line, 111 → 121; CRM's is src\/app\/api\/crm\/contacts\/route\.ts:121 crm_contacts\.create \(CRM-01b, 2026-11-07\)$/);
   assert.equal(Number(/route\.ts:(\d+) crm_contacts\.create/.exec(s08)![1]), Number(own[1]), 'the deck and the registry name the same line');
-  assert.match(code(LANDING).split('\n')[1806], /^\s+s08: /, 'Landing.tsx:1807 is still the s08 line');
 });
 
 // ── T10 · THE SECTION AND THE PAGE ──────────────────────────────────────────

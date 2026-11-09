@@ -50,6 +50,7 @@ Object.assign(globalThis, { React });
 
 const VOCAB = 'src/lib/proposalNeeds.ts';
 const LANDING = 'src/components/landing/Landing.tsx';
+const DECK = 'src/components/landing/PipelineDeck.tsx'; // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — the 14 steps moved there whole from Landing.tsx
 const FORM = 'src/app/work-with-me/WorkWithMeForm.tsx';
 const PAGE = 'src/app/work-with-me/page.tsx';
 const ROUTE = 'src/app/api/proposals/route.ts';
@@ -301,18 +302,19 @@ test('T4 the h2, the chip and the one button stand; the panel holds no other lin
   assert.doesNotMatch(landing, /WORK WITH ME/);
 });
 
-test('T4 the act list\'s line rewritten in place, dated; the history stays; Landing.tsx:1807 is still the s08 line; the pins that stay (moved from close01)', () => {
+test('T4 the act list\'s line rewritten in place, dated; the history stays; the s08 line is the deck\'s, found by content (PIPELINE-PAGE-01); the pins that stay (moved from close01)', () => {
   const notes = comments(LANDING);
   assert.ok(notes.includes(' *   DONE-FOR-YOU        — the professional-services panel, six doors from src/lib/proposalNeeds.ts — SERVICES-01, 2026-11-08: the close retired, bookkeeping a door (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)\n'));
   assert.ok(notes.includes(" *   (THE CLOSE          — HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal)"), 'the historical note stays');
-  assert.ok(notes.includes('(the close | pipeline header → gone: HOME-PANELS-01, 2026-11-07'), 'the seam ledger\'s note stays');
-  assert.match(code(LANDING).split('\n')[1806], /^\s+s08: /, 'Landing.tsx:1807 is still the s08 line — the act line and the imports changed line for line');
+  assert.ok(comments(DECK).includes('(the close | pipeline header → gone: HOME-PANELS-01, 2026-11-07'), 'the seam ledger\'s note stays'); // PIPELINE-PAGE-01 (2026-11-09): the ledger moved with the deck
+  // PIPELINE-PAGE-01 (2026-11-09): the s08 line moved with the deck to PipelineDeck.tsx — found by content (the one line whose code starts with s08:), never by number.
+  assert.equal(code(DECK).split('\n').filter((l) => /^\s+s08: /.test(l)).length, 1, 'exactly one s08 line, in the deck\'s file');
   // close01's pins that stay (HOME-05a, 2026-11-03; moved here by SERVICES-01): cockpitPerf01's three phrases; the plan law's tells absent
   for (const phrase of [/THE PLANS\s+— four plan cards and one comparison table/, /id="modules" lives on THE PLANS act/, /said by the four plans below/]) assert.match(notes, phrase);
-  const landing = code(LANDING);
-  for (const tell of ['heroCountsLine', 'statusCounts', 'numberWord', 'tools, counted', 'SIX LIVES', 'PERSONAS', 'Who is this for?']) assert.ok(!landing.includes(tell), `Landing.tsx carries no "${tell}"`);
+  // PIPELINE-PAGE-01 (2026-11-09): the deck's text left Landing.tsx for its own page — it is held to the plan law's tells still, as the law holds it (clause 1).
+  for (const f of [LANDING, DECK]) for (const tell of ['heroCountsLine', 'statusCounts', 'numberWord', 'tools, counted', 'SIX LIVES', 'PERSONAS', 'Who is this for?']) assert.ok(!code(f).includes(tell), `${f} carries no "${tell}"`);
   const BEAT_WORDS = ['discover', 'decide', 'commit', 'record'];
-  assert.doesNotMatch(landing, new RegExp(`partial\\s*[—-]\\s*(?:${BEAT_WORDS.join('|')})|(?:${BEAT_WORDS.join('|')})\\s*·\\s*(?:${BEAT_WORDS.join('|')})`), 'no beat claim');
+  for (const f of [LANDING, DECK]) assert.doesNotMatch(code(f), new RegExp(`partial\\s*[—-]\\s*(?:${BEAT_WORDS.join('|')})|(?:${BEAT_WORDS.join('|')})\\s*·\\s*(?:${BEAT_WORDS.join('|')})`), `no beat claim in ${f}`);
 });
 
 // ── T5 · THE FORM ────────────────────────────────────────────────────────────
@@ -431,8 +433,8 @@ test('T8 the law script, in place: :160 imports the module; :710 is the services
   // HOME-FINISH-01 (Alex, 2026-11-08): no whole-file line count. This file grows — new laws land at its END by rule, and #1929
   // (SUPERSEDE-01b) grew two existing laws mid-file (:3334-3529, :10965-11127), 11182 → 11218 lines, all below every line the deck
   // cites — so a count breaks on PRs that move no cited line. The deck's citations of this file are guarded by content: dataflow01.test.ts
-  // T5 holds each `// true per` citation to the word it names — :483 ownTableLaw (s08, Landing.tsx:1807), :742 enumValues (s04 and
-  // Landing.tsx:1799), :840 callSites (s14Parsed), :987 s14Law (the step-14 note, Landing.tsx:4516 — STOP0-01, 2026-11-09: was :4509; BOOK-DISCLOSE-01, 2026-11-08: was :4508); intakeForm01.test.ts T8 pins
+  // T5 holds each `// true per` citation to the word it names — :483 ownTableLaw (s08, PipelineDeck.tsx:1624), :742 enumValues (s04 and
+  // PipelineDeck.tsx:1616), :840 callSites (s14Parsed), :987 s14Law (the step-14 note, PipelineDeck.tsx:3867 — PIPELINE-PAGE-01, 2026-11-09: the deck's own file, was Landing.tsx:1807, :1799, :4516; STOP0-01, 2026-11-09: was :4509; BOOK-DISCLOSE-01, 2026-11-08: was :4508); intakeForm01.test.ts T8 pins
   // :483 and :742 by number (lawLines[482], lawLines[741]). :160 and :710 are pinned here.
   assert.equal(lines[159], "import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/experiences'; import { SERVICES, servicesLaw } from '../src/lib/proposalNeeds';");
   assert.match(lines[709], /^\{ const before = violations\.length; violations\.push\(\.\.\.servicesLaw\(\{ throwOnFail: false, migrations: ALL_MIGRATIONS \}\)\);/, ':710 — the deck cites lines below it by number');

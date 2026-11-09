@@ -48,6 +48,7 @@ const LEAF = 'src/lib/experiences.ts';
 const WORDS = 'src/lib/experienceWords.ts';
 const SECTION = 'src/components/landing/ExperiencesSection.tsx';
 const LANDING = 'src/components/landing/Landing.tsx';
+const DECK = 'src/components/landing/PipelineDeck.tsx'; // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — the 14 steps moved there whole from Landing.tsx
 const GUEST = 'src/components/landing/GuestLanding.tsx';
 const PAGE = 'src/app/page.tsx';
 const STRIP = 'src/components/trips/travelStripModes.tsx';
@@ -333,7 +334,7 @@ test('T5 Landing mounts the section once, after the demo\'s footer row and befor
   assert.match(landing, /  today: string;\n\}/);
   assert.match(landing, /export default function Landing\(\{ onRequireAuth, onRequireLogin, logoAvailability, today \}: Props\)/);
   assert.match(comments(LANDING), /EXPERIENCES {9}— the events section under the strip \(EVENTS-01\)/);
-  assert.match(comments(LANDING), /live demo \| experiences {2}→ the demo act's border-b \(EVENTS-01/);
+  assert.match(comments(DECK), /live demo \| experiences {2}→ the demo act's border-b \(EVENTS-01/); // PIPELINE-PAGE-01 (2026-11-09): the seam ledger moved with the deck
 });
 
 test('T5 the day rule: page.tsx computes today once as the UTC calendar date and passes it down; nothing reads the clock below it', () => {
@@ -346,6 +347,7 @@ test('T5 the day rule: page.tsx computes today once as the UTC calendar date and
   assert.match(guest, /<Landing\n\s+logoAvailability=\{logoAvailability\}\n\s+today=\{today\}/);
   assert.doesNotMatch(guest, /new Date\(/);
   assert.doesNotMatch(code(LANDING), /new Date\(/);
+  assert.doesNotMatch(code(DECK), /new Date\(/); // PIPELINE-PAGE-01 (2026-11-09): the deck left Landing.tsx with the clock still unread
   const law = code(LAW);
   assert.match(law, /violations\.push\(\.\.\.experiencesLaw\(\{ throwOnFail: false \}\)\);/);
   assert.match(law, /<ExperiencesSection today=\\\{today\\\}/);
@@ -353,9 +355,9 @@ test('T5 the day rule: page.tsx computes today once as the UTC calendar date and
 });
 
 test('T5 the plan law\'s tells stay out of Landing\'s code', () => {
-  const landing = code(LANDING);
-  for (const tell of ['SIX LIVES', 'PERSONAS', 'Who is this for?', 'heroCountsLine', 'statusCounts', 'numberWord', 'tools, counted']) {
-    assert.ok(!landing.includes(tell), `Landing.tsx code carries "${tell}"`);
+  // PIPELINE-PAGE-01 (2026-11-09): the deck's text left Landing.tsx for its own page — held to the same tells (the plan law's clause 1 reads it too).
+  for (const f of [LANDING, DECK]) for (const tell of ['SIX LIVES', 'PERSONAS', 'Who is this for?', 'heroCountsLine', 'statusCounts', 'numberWord', 'tools, counted']) {
+    assert.ok(!code(f).includes(tell), `${f} code carries "${tell}"`);
   }
 });
 

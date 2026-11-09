@@ -161,7 +161,7 @@ import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/e
 // WASHERE-01: the trip log — Alex's own stops, each naming an experience by id, a photo each as they land. TRIPPOST-01: the trip posts' two leaves beside it.
 import { WAS_HERE, wasHereLaw } from '../src/lib/wasHere'; import { TRIP_POSTS, tripPostsLaw } from '../src/lib/tripPosts'; import { TRIP_COSTS, tripCostsLaw } from '../src/lib/tripCosts';
 // DATAFLOW-01 (ruling D): the deck's S14 law, by name. Importing the deck runs every slide's layout law at module scope.
-import { s14Law } from '../src/components/landing/Landing';
+import { s14Law } from '../src/components/landing/PipelineDeck'; // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — Landing.tsx until the 14 steps moved to /how-it-works
 import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, latestViews, latestViewsSql, parseViews } from '../src/lib/kindViews';
 // SELL-02: the offer law — every sales claim from the registry, every price from one source.
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
@@ -222,7 +222,7 @@ const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
   { route: '/how-pricing-works', why: 'LandingHeader.tsx:52, LandingFooter.tsx:54, the HomeClient header' },
   { route: '/privacy', why: 'LandingFooter.tsx:56, PUBLIC_PATHS' },
   { route: '/terms', why: 'LandingFooter.tsx:55, PUBLIC_PATHS' },
-  { route: '/work-with-me', why: 'the deck (Landing.tsx), PUBLIC_PATHS' }, { route: '/my-trip/[id]', why: 'TRIPPOST-01: a stop\u2019s page — its door is that stop\u2019s card on the front door (WasHereSection.tsx: Read the post, on every card since TRIPCARDS-01), PUBLIC_PATHS' }, { route: '/f/[slug]', why: 'CRM-02 (2026-11-07): a customer\u2019s own intake form — its door is the link on /crm (IntakeFormSetup.tsx), PUBLIC_PATHS' }, // CRM-02 (2026-11-07): on this line, TRIPPOST-01's way — a new line here would move every line of this file the deck cites by number (Landing.tsx: :483, :742, :840, :987)
+  { route: '/work-with-me', why: 'the deck (Landing.tsx), PUBLIC_PATHS' }, { route: '/my-trip/[id]', why: 'TRIPPOST-01: a stop\u2019s page — its door is that stop\u2019s card on the front door (WasHereSection.tsx: Read the post, on every card since TRIPCARDS-01), PUBLIC_PATHS' }, { route: '/f/[slug]', why: 'CRM-02 (2026-11-07): a customer\u2019s own intake form — its door is the link on /crm (IntakeFormSetup.tsx), PUBLIC_PATHS' }, { route: '/how-it-works', why: "the 14 steps — the home page's door where the deck stood (Landing.tsx, PIPELINE-PAGE-01) and the footer's THE RECORD (FOOTER-01); PUBLIC_PATHS" }, // CRM-02 (2026-11-07): on this line, TRIPPOST-01's way — a new line here would move every line of this file the deck cites by number (PipelineDeck.tsx since PIPELINE-PAGE-01, 2026-11-09, which joined /how-it-works on this line the same way; Landing.tsx's until then: :483, :742, :840, :987)
   { route: '/modules/[pillar]', why: 'the deck PILLAR_CARDS and ModulePointerCard.tsx' },
   { route: '/booking/confirm', why: 'the LiteAPI checkout return URL (CheckoutPanel.tsx returnUrl), PUBLIC_PATHS' },
   { route: '/booking/flight-confirm', why: 'FL-4c: the FLIGHTS checkout return URL (LiteApiFlightCheckoutPanel.tsx returnUrl) — the documented LiteAPI payment rail redirects on success, so a guest who just paid lands here; PUBLIC_PATHS' },
@@ -726,7 +726,7 @@ console.log(`counts: LIVE ${counts.LIVE} · PARTIAL ${counts.PARTIAL} · NOT_BUI
     }
   }
   const logMounts = (codeOf('src/components/landing/Landing.tsx').match(/<WasHereSection today=\{today\}/g) ?? []).length;
-  if (logMounts !== 1) violations.push(`was here: Landing.tsx mounts <WasHereSection today={today} ${logMounts} time(s) — exactly once, directly after the experiences (WASHERE-01)`);
+  if (logMounts !== 1) violations.push(`was here: Landing.tsx mounts <WasHereSection today={today} ${logMounts} time(s) — exactly once, after Stop 0 (WASHERE-01; STOP0-01 seated Stop 0 between the experiences and the log — these words re-said by PIPELINE-PAGE-01, 2026-11-09)`);
   if (violations.length === before) console.log(`✔ The trip log law passed — ${WAS_HERE.length} stop(s), ${WAS_HERE.filter((r) => r.start > r.writtenOn).length} booked ahead, ${WAS_HERE.filter((r) => r.image !== null).length} with a photo on disk at no more than 400 KB; every event named exists; the landing mounts the log once with the day the front door computed.`);
   else console.log(`✖ The trip log law FAILED — ${violations.length - before} violation(s).`);
 }
@@ -960,8 +960,8 @@ for (const kind of ARRIVAL_KINDS) {
   const have = fields.map((f) => `${f.name} ${f.type}`).join(', ');
   if (want !== have) violations.push(`kind views: view ${kind} in schema.prisma is [${have}], not the common shape [${want}]`);
 }
-const landingSrc = codeOf('src/components/landing/Landing.tsx');
-if (!landingSrc.includes('{KIND_VIEWS_HONEST_LINE}')) violations.push("kind views: the deck's step 5 must render KIND_VIEWS_HONEST_LINE (never a retyped line)");
+const deckSrc = codeOf('src/components/landing/PipelineDeck.tsx'); // PIPELINE-PAGE-01 (2026-11-09): the deck's step 5 lives in its own file now (Landing.tsx until the 14 steps moved to /how-it-works)
+if (!deckSrc.includes('{KIND_VIEWS_HONEST_LINE}')) violations.push("kind views: the deck's step 5 must render KIND_VIEWS_HONEST_LINE (never a retyped line)");
 console.log('THE KIND VIEWS — the census, each table once, the kind from the rule book');
 for (const t of KIND_VIEW_CENSUS) console.log(`${t.table.padEnd(26)} ${kindOfTable(t).padEnd(10)} ${'column' in t.feed ? `by ${t.feed.column}: ${Object.values(t.feed.map).map(([p, r]) => `${p} · ${r}`).join(' | ')}` : `${t.feed[0]} · ${t.feed[1]}`}`);
 for (const v of effectiveViews) { const p = parseViews(v.sql)[0]; console.log(`view ${v.kind.padEnd(10)} ← ${p && p.tables.length ? p.tables.join(', ') : '(nothing)'}  — ${v.dir}`); }
@@ -979,13 +979,13 @@ lawGuard('The proof law', () => {
 // Step 14 says "seven of seven hops checked at build — a failed check is a failed
 // build". On main that was not so: `/` is force-dynamic, so `next build` never
 // evaluates the deck's module scope, and with one S14 check broken the whole build
-// chain passed (the DATAFLOW-01 proof). The import of Landing.tsx above runs every
+// chain passed (the DATAFLOW-01 proof). The import of PipelineDeck.tsx above (Landing.tsx's until PIPELINE-PAGE-01, 2026-11-09) runs every
 // slide's layout law at module scope — a failed one throws on import and the build
 // stops on its own words — and the S14 law re-runs here, by name, at the
 // providers-law seat.
   const before = violations.length;
   violations.push(...s14Law({ throwOnFail: false }));
-  if (violations.length === before) console.log('✔ The proof law passed — slide 14 walks its seven hops with every check run at build (Landing.tsx s14Law); a failed check is a failed build.');
+  if (violations.length === before) console.log('✔ The proof law passed — slide 14 walks its seven hops with every check run at build (PipelineDeck.tsx s14Law); a failed check is a failed build.'); // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — Landing.tsx s14Law until the 14 steps moved to /how-it-works
   else console.log(`✖ The proof law FAILED — ${violations.length - before} violation(s).`);
 });
 lawGuard('The observatory law', () => {
@@ -9306,12 +9306,12 @@ lawGuard('The plan law', () => {
   const PERSONA_TELLS = ['SIX LIVES', 'PERSONAS', 'Who is this for?'];
   // THE BEAT CLAIM, on any plan surface: the form claimLine() renders
   // ("partial — discover · decide") and the readers that build it. The scan is
-  // the CLAIM, not the word: Landing.tsx is a 4,400-line deck whose loop cells
-  // legitimately say "a trade record" (:832, :908) — that is the deck's own essay
+  // the CLAIM, not the word: the deck (PipelineDeck.tsx — Landing.tsx's until PIPELINE-PAGE-01, 2026-11-09) has loop cells that
+  // legitimately say "a trade record" (PipelineDeck.tsx:786 — :832, :908 when this was written) — that is the deck's own essay
   // copy about the four beats, which this ruling did not touch and which is not
   // an offer claim. What may never come back is a beat used to SELL.
   const BEAT_CLAIM = new RegExp(`partial\\s*[—-]\\s*(?:${BEAT_WORDS.join('|')})|(?:${BEAT_WORDS.join('|')})\\s*·\\s*(?:${BEAT_WORDS.join('|')})`);
-  for (const f of PLAN_SURFACES) {
+  for (const f of [...PLAN_SURFACES, 'src/components/landing/PipelineDeck.tsx']) { // PIPELINE-PAGE-01 (2026-11-09): the deck's text left Landing.tsx, a plan surface, for its own page — the deck's file joins the clause that checked it
     if (!existsSync(resolve(ROOT, f))) { planFail(`${f} is missing`); continue; }
     const src = codeOf(f);
     for (const tell of COUNT_TELLS) {

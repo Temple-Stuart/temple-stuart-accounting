@@ -64,6 +64,13 @@ const PUBLIC_PATHS = [
   // src/config/pricing-costs.ts; audited in full). Without this entry the
   // landing's own Pricing link 307-bounced guests back to '/'.
   '/how-pricing-works',
+  // PIPELINE-PAGE-01 (Alex, 2026-11-09): /how-it-works — the pipeline header and its 14 steps, moved whole from the
+  // home page; the home page's door and every old /#deck-NN link lead here. SAFE BY CONSTRUCTION: a static server page
+  // (src/app/how-it-works/page.tsx) over a client view with no data path (PipelineDeck.tsx) — no route handler under
+  // it, no fetch, no paid API, no database read, no env read, no session read; its imports are LandingHeader,
+  // LandingFooter, the deck and the pure leaves the deck reads. isPublic's rule is p or p + '/', and nothing lives
+  // under /how-it-works but the page itself. Next to /how-pricing-works, so '/my-trip' stays the list's last entry.
+  '/how-it-works',
   // FD-1d: the nine /modules/<pillar> info pages — static marketing surfaces
   // (Bloomberg header → the pillar's showcase deck → access block → footer).
   // Safety proof, audited per deck: all nine decks + the TabShowcases wrappers

@@ -53,7 +53,7 @@ const SEEDS = 'scripts/proofs/sec02.seeds.ts';
 const SHELL_MENU = 'src/lib/shellMenu.ts';
 const SCHEMA = 'prisma/schema.prisma';
 const REGISTRY = 'src/lib/toolRegistry.ts';
-const LANDING = 'src/components/landing/Landing.tsx';
+const DECK = 'src/components/landing/PipelineDeck.tsx'; // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — the 14 steps moved there whole from Landing.tsx
 
 const unescape = (html: string) => html.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
 const stops = (re: RegExp) => (e: unknown) => e instanceof CrmLawError && re.test(e.message);
@@ -370,10 +370,13 @@ test('T6 the registry row: CRM PARTIAL with four beats, its why and customer sen
   assert.equal(sixteen.length, 16);
   assert.equal(ownTableLine(sixteen), 'Today 5 of the sixteen keep their own table: Tasks, Time, CRM, Bookkeeping, Tax. The other 11 don\'t yet. One table for all of them is the blueprint.');
   // step 8's citation comment names CRM's table and route beside the four, and the closing clause is gone
-  const s08 = comments(LANDING).split('\n')[1806];
+  // PIPELINE-PAGE-01 (2026-11-09): the s08 line moved with the deck to PipelineDeck.tsx — found by content (the one line whose code starts with s08:), never by
+  // number; exactly one, and its citation read from that line (the :1807 pin that closed this test moved up to here).
+  const s08At = code(DECK).split('\n').flatMap((l, i) => (/^\s+s08: /.test(l) ? [i] : []));
+  assert.equal(s08At.length, 1, 'exactly one s08 line, in the deck\'s file');
+  const s08 = comments(DECK).split('\n')[s08At[0]];
   assert.match(s08, /true per src\/lib\/toolRegistry\.ts:218 ownTable \(Tasks\) · :290 ownTable \(Time\) · :300 ownTable \(CRM\) · :525 ownTable \(Bookkeeping\) · :531 ownTable \(Tax\)/);
   assert.match(s08, /CRM's is src\/app\/api\/crm\/contacts\/route\.ts:(\d+) crm_contacts\.create \(CRM-01b, 2026-11-07\)$/);
   assert.equal(Number(/route\.ts:(\d+) crm_contacts\.create/.exec(s08)![1]), Number(route[1]), 'the deck and the registry name the same line');
   assert.doesNotMatch(s08, /the other built tools keep none of their own/);
-  assert.match(code(LANDING).split('\n')[1806], /^\s+s08: /, 'Landing.tsx:1807 is still the s08 line');
 });

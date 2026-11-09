@@ -82,6 +82,7 @@ const WORDS = 'src/lib/wasHereWords.ts';
 const SECTION = 'src/components/landing/WasHereSection.tsx';
 const EXPERIENCES_SECTION = 'src/components/landing/ExperiencesSection.tsx';
 const LANDING = 'src/components/landing/Landing.tsx';
+const DECK = 'src/components/landing/PipelineDeck.tsx'; // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — the 14 steps moved there whole from Landing.tsx
 const LAW = 'scripts/assert-tool-registry.ts';
 const TODAY = '2026-10-31';
 const TRIP = ['canggu-2026-07', 'danang-2026-08', 'bangkok-2026-09', 'phuket-2026-10', 'chiangmai-2026-10', 'bangkok-2026-10-21', 'siargao-2026', 'cebu-2026-11', 'uluwatu-2026-11', 'pererenan-2026-12'];
@@ -522,7 +523,7 @@ test('T5 Landing mounts the log once, after the experiences mount and before the
   assert.match(notes, /MY TRIP {13}— the trip log, a card per stop, each opening its stop's page \(TRIPCARDS-01\)/);
   assert.doesNotMatch(notes, /trip log, newest first|the trip log — Alex's own stops, newest first/, 'WASHERE-03');
   // HOME-PANELS-02 (2026-11-07): done-for-you sits under the trip now (the plans below it) — the rule is unchanged, the neighbour new.
-  assert.match(notes, /my trip \| guest strip \/ done-for-you → my trip's border-b \(WASHERE-01/);
+  assert.match(comments(DECK), /my trip \| guest strip \/ done-for-you → my trip's border-b \(WASHERE-01/); // PIPELINE-PAGE-01 (2026-11-09): the seam ledger moved with the deck
   for (const phrase of [/THE PLANS\s+— four plan cards and one comparison table/, /id="modules" lives on THE PLANS act/, /said by the four plans below/]) assert.match(notes, phrase, 'cockpitPerf01\'s pins stand');
 });
 
