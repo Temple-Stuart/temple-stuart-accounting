@@ -41,10 +41,15 @@
  *      nothing upcoming in the chosen category → said above the row, and no strip line —
  *      EVENTS-03: on an event chip. A season chip (its group read from EXPERIENCE_CATEGORIES)
  *      says no such line — a usual window is a season, not an edition waiting to be announced —
- *      and shows the strip line whenever its row has cards;
+ *      and shows the strip line whenever its row has cards. EVENTS-04 (Alex, 2026-11-09): a season chip's
+ *      row is labelled WHEN TO GO (WHEN_TO_GO_LABEL) in place of COMING UP — an event chip says COMING UP as
+ *      before, the refused view neither; an announced season whose published window has passed says "Next season
+ *      not announced (checked …)" (seasonNotAnnouncedLine), and its card still says "checked" once; a picked chip's
+ *      row opens at its first card (the row is keyed by the chip, so a new chip mounts a new row);
  *   5. WHY EVENTS FIRST — STOP0-01 (Alex, 2026-11-08; board K tag 7): one line on every view, directly before
  *      the closing line — the label, the line and "Read my story ↓", a link to Stop 0 (#stop-0,
- *      StopZeroSection.tsx, directly below); its words from src/lib/stopZeroWords.ts;
+ *      StopZeroSection.tsx, directly below); its words from src/lib/stopZeroWords.ts — EVENTS-04 (2026-11-09): the
+ *      link never breaks across lines (EXP.storyLink's whitespace-nowrap);
  *   6. the closing line — CLOSING_LINE on an event chip and on the refused view; EVENTS-03:
  *      SEASONS_CLOSING_LINE on a season chip.
  *
@@ -73,7 +78,7 @@ import {
   EXPERIENCES, EXPERIENCE_CATEGORIES, experienceCategoryLabel, isExperienceCategoryId,
   type Experience, type ExperienceCategory, type ExperienceCategoryId,
 } from '@/lib/experiences';
-import { dayWords, experienceLine, notAnnouncedLine, upcoming } from '@/lib/experienceWords';
+import { dayWords, experienceLine, notAnnouncedLine, seasonNotAnnouncedLine, upcoming } from '@/lib/experienceWords';
 import { EXPERIENCE_LINE } from '@/lib/brandLines';
 import { EVENTS_STORY_LABEL, EVENTS_STORY_LINE, READ_MY_STORY, STOP_ZERO_ANCHOR } from '@/lib/stopZeroWords';
 
@@ -93,6 +98,8 @@ export const INTO_LABEL = "I'M INTO…";
 /** SEASONS-01 (2026-11-08): the second chip row's label — the season categories. */
 export const SEASONS_LABEL = 'SEASONS';
 export const COMING_UP_LABEL = 'COMING UP';
+/** EVENTS-04 (Alex, 2026-11-09): a season chip's label over its row, in place of COMING UP — a place's season is when to go. */
+export const WHEN_TO_GO_LABEL = 'WHEN TO GO';
 export const STRIP_LINE = 'To book around one of these, use the strip at the top: hotels, flights, getting around.';
 /** EVENTS-01c: each card's link to its row's source — the page its dates came from. */
 export const SOURCE_LINK = 'Source ↗';
@@ -145,7 +152,8 @@ const EXP = {
   line: 'mt-4 text-sm text-white/70',
   // STOP0-01 (2026-11-09): why events first, and the link to Stop 0 — directly before the closing line.
   story: 'mt-8 max-w-2xl text-sm text-white/80',
-  storyLink: 'font-semibold text-white underline-offset-4 hover:underline',
+  // EVENTS-04 (2026-11-09): "Read my story ↓" stays on one line.
+  storyLink: 'font-semibold text-white underline-offset-4 hover:underline whitespace-nowrap',
   closing: 'mt-8 text-xs text-white/60',
 } as const;
 
@@ -167,7 +175,8 @@ export interface ExperiencesViewProps {
 function Card({ row, today }: { row: Experience; today: string }) {
   const line = experienceLine(row, today);
   // EVENTS-03 (2026-11-09): the not-announced words already say "(checked …)" — read off the line, never a list of statuses.
-  const lineSaysChecked = line === notAnnouncedLine(row.checkedOn);
+  // EVENTS-04 (2026-11-09): either sentence — the edition's or the season's.
+  const lineSaysChecked = line === notAnnouncedLine(row.checkedOn) || line === seasonNotAnnouncedLine(row.checkedOn);
   return (
     <article className={EXP.card} data-coming-up={row.id}>
       <p className={EXP.cardEyebrow}>{eyebrowOf(row)}</p>
@@ -225,10 +234,10 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
           <p className={`mt-10 ${EXP.refused}`} role="status" data-into-refused>{notACategory('refused' in choice ? choice.refused : '')}</p>
         ) : (
           <>
-            <p className={`mt-10 ${EXP.label}`}>{COMING_UP_LABEL}</p>
+            <p className={`mt-10 ${EXP.label}`}>{isSeason ? WHEN_TO_GO_LABEL : COMING_UP_LABEL}</p>
             {/* EVENTS-03: a season chip says no "Nothing announced yet" — a usual window is a season, not an edition waiting to be announced. */}
             {comingUp.length === 0 && !isSeason && <p className={EXP.line} data-nothing-upcoming>{nothingUpcoming(experienceCategoryLabel(into))}</p>}
-            <div className={EXP.rail} data-coming-up-rail>
+            <div key={into} className={EXP.rail} data-coming-up-rail>
               {cards.map((row) => <Card key={row.id} row={row} today={today} />)}
             </div>
             {/* EVENTS-03: on a season chip the strip line shows whenever the row has cards — a place can be booked around in its season. */}
