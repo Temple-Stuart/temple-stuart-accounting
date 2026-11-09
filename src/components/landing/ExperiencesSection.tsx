@@ -34,10 +34,16 @@
  *      saying it is not announced (experienceLine) — SEASONS-01 (2026-11-08): a typical season row
  *      is never upcoming and says its usual window instead ("Usually …"); the leaf keeps each season
  *      category in start order, so those cards read in the order the windows open. Every card links
- *      its source. Under the row
+ *      its source — EVENTS-03 (Alex, 2026-11-09): and says the day it was checked, checkedWords in
+ *      its foot before the link, unless its line already says it (the not-announced words carry
+ *      "(checked …)"; read off the line, never a list of statuses). Under the row
  *      the one line pointing at the strip (EVENTS-02 replaces it with per-card prefill);
- *      nothing upcoming in the chosen category → said above the row, and no strip line;
- *   5. the closing line.
+ *      nothing upcoming in the chosen category → said above the row, and no strip line —
+ *      EVENTS-03: on an event chip. A season chip (its group read from EXPERIENCE_CATEGORIES)
+ *      says no such line — a usual window is a season, not an edition waiting to be announced —
+ *      and shows the strip line whenever its row has cards;
+ *   5. the closing line — CLOSING_LINE on an event chip and on the refused view; EVENTS-03:
+ *      SEASONS_CLOSING_LINE on a season chip.
  *
  * THE DAY RULE: `today` is the UTC calendar date src/app/page.tsx computed ONCE and
  * passed down; nothing here reads the clock, so the server's words and the browser's
@@ -64,7 +70,7 @@ import {
   EXPERIENCES, EXPERIENCE_CATEGORIES, experienceCategoryLabel, isExperienceCategoryId,
   type Experience, type ExperienceCategory, type ExperienceCategoryId,
 } from '@/lib/experiences';
-import { experienceLine, upcoming } from '@/lib/experienceWords';
+import { dayWords, experienceLine, notAnnouncedLine, upcoming } from '@/lib/experienceWords';
 import { EXPERIENCE_LINE } from '@/lib/brandLines';
 
 /** The section's anchor — the strip's Events mode and the chips' URL both name it. */
@@ -86,6 +92,8 @@ export const STRIP_LINE = 'To book around one of these, use the strip at the top
 /** EVENTS-01c: each card's link to its row's source — the page its dates came from. */
 export const SOURCE_LINK = 'Source ↗';
 export const CLOSING_LINE = "Dates come from each event's own calendar, with the day they were checked. Not announced means not announced. Tickets are sold by the events, not here.";
+/** EVENTS-03 (Alex, 2026-11-09): a season chip's closing line, in place of CLOSING_LINE — the events' words do not fit a place's season. */
+export const SEASONS_CLOSING_LINE = "Each window comes from the place's own source, with the day it was checked. Usual months are a guide, not set dates.";
 
 /** "<value> is not a category — pick one above." — the unknown ?into= value, refused by name, in place of COMING UP. */
 export function notACategory(value: string): string {
@@ -95,6 +103,11 @@ export function notACategory(value: string): string {
 /** "Nothing announced yet in <category> — the cards below say when each one was checked." */
 export function nothingUpcoming(categoryLabel: string): string {
   return `Nothing announced yet in ${categoryLabel} — the cards below say when each one was checked.`;
+}
+
+/** EVENTS-03 (Alex, 2026-11-09): "Checked Nov 8, 2026" — the day a row was checked, in the foot of every card whose line does not already say it. */
+export function checkedWords(checkedOn: string): string {
+  return `Checked ${dayWords(checkedOn)}`;
 }
 
 // THE CLASS GRAMMAR — the DECK idiom: one const, every string whole, house tokens only.
@@ -117,7 +130,9 @@ const EXP = {
   cardPlace: 'mt-1 text-sm text-white/80',
   cardLine: 'mt-2 font-mono text-xs leading-relaxed text-white/90',
   cardNotes: 'mt-1 text-xs text-white/60',
-  cardFoot: 'mt-auto pt-3',
+  // EVENTS-03 (2026-11-09): the checked words and the source link on one line, wrapping on a narrow card.
+  cardFoot: 'mt-auto flex flex-wrap items-center gap-x-3 pt-3',
+  checked: 'font-mono text-xs text-white/60',
   source: 'inline-flex min-h-[44px] items-center font-mono text-xs text-white/80 underline-offset-4 hover:text-white hover:underline',
   // EVENTS-01c (2026-11-06): one row that scrolls sideways, edge to edge of the band's box — the
   // negative margin meets the inner padding, so the page never scrolls; the thumb is drawn.
@@ -142,15 +157,20 @@ export interface ExperiencesViewProps {
 }
 
 function Card({ row, today }: { row: Experience; today: string }) {
+  const line = experienceLine(row, today);
+  // EVENTS-03 (2026-11-09): the not-announced words already say "(checked …)" — read off the line, never a list of statuses.
+  const lineSaysChecked = line === notAnnouncedLine(row.checkedOn);
   return (
     <article className={EXP.card} data-coming-up={row.id}>
       <p className={EXP.cardEyebrow}>{eyebrowOf(row)}</p>
       <h3 className={EXP.cardName}>{row.name}</h3>
       <p className={EXP.cardPlace}>{placeOf(row)}</p>
-      <p className={EXP.cardLine} data-experience-line>{experienceLine(row, today)}</p>
+      <p className={EXP.cardLine} data-experience-line>{line}</p>
       {row.notes !== null && <p className={EXP.cardNotes}>{row.notes}</p>}
-      {/* EVENTS-01c: the lineup's links moved here — every card names the page its dates came from. */}
+      {/* EVENTS-01c: the lineup's links moved here — every card names the page its dates came from.
+          EVENTS-03: and the day it was checked, before the link, unless its line already says it. */}
       <div className={EXP.cardFoot}>
+        {!lineSaysChecked && <span className={EXP.checked} data-checked={row.id}>{checkedWords(row.checkedOn)}</span>}
         <a href={row.sourceUrl} rel="noopener" target="_blank" className={EXP.source} data-source={row.id}>{SOURCE_LINK}</a>
       </div>
     </article>
@@ -164,6 +184,8 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
   // EVENTS-01c: every row of the category — what is upcoming first, by start, then the rest in the leaf's order.
   const comingUp = upcoming(chosen, today, chosen.length);
   const cards = [...comingUp, ...chosen.filter((r) => !comingUp.includes(r))];
+  // EVENTS-03 (Alex, 2026-11-09): a season chip has its own lines — its group read from EXPERIENCE_CATEGORIES, never a list of ids.
+  const isSeason = EXPERIENCE_CATEGORIES.some((c) => c.id === into && c.group === 'season');
   // SEASONS-01 (2026-11-08): one chip, the same classes, in either row — the one choice is ?into=<id>.
   const chip = (c: ExperienceCategory) => (
     <button key={c.id} type="button" aria-pressed={into === c.id} onClick={() => onPick(c.id)} className={into === c.id ? EXP.chipOn : EXP.chipOff} data-into={c.id}>
@@ -196,15 +218,17 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
         ) : (
           <>
             <p className={`mt-10 ${EXP.label}`}>{COMING_UP_LABEL}</p>
-            {comingUp.length === 0 && <p className={EXP.line} data-nothing-upcoming>{nothingUpcoming(experienceCategoryLabel(into))}</p>}
+            {/* EVENTS-03: a season chip says no "Nothing announced yet" — a usual window is a season, not an edition waiting to be announced. */}
+            {comingUp.length === 0 && !isSeason && <p className={EXP.line} data-nothing-upcoming>{nothingUpcoming(experienceCategoryLabel(into))}</p>}
             <div className={EXP.rail} data-coming-up-rail>
               {cards.map((row) => <Card key={row.id} row={row} today={today} />)}
             </div>
-            {comingUp.length > 0 && <p className={EXP.line}>{STRIP_LINE}</p>}
+            {/* EVENTS-03: on a season chip the strip line shows whenever the row has cards — a place can be booked around in its season. */}
+            {(isSeason ? cards.length > 0 : comingUp.length > 0) && <p className={EXP.line}>{STRIP_LINE}</p>}
           </>
         )}
 
-        <p className={EXP.closing}>{CLOSING_LINE}</p>
+        <p className={EXP.closing}>{isSeason ? SEASONS_CLOSING_LINE : CLOSING_LINE}</p>
       </div>
     </section>
   );
