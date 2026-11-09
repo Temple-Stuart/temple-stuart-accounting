@@ -15,6 +15,8 @@
  *   experienceLine(row, today)   THE one line a card shows (see the function)
  *   experienceWindowLine(row)    the dated part of that line, with no day in it — a stop's
  *                                page names the event it was around on any day (TRIPCARDS-01)
+ *   usualWindowWords(start, end) "Usually Dec – Mar" · "Usually Apr" (one month) — a typical season's
+ *                                months, no day and no year (SEASONS-01, 2026-11-08)
  *   upcoming(rows, today, n)     announced/conflict rows with end ≥ today, by start, first n
  *   shortDayWords(iso)           "Jul 1" — one day without its year (TRIPPOST-01)
  *   weekdayWords(iso)            "Wed" — the day's weekday, by integer arithmetic on the
@@ -86,6 +88,15 @@ export function dateWords(start: string, end: string): string {
   return `${monthDay(a)}${DASH}${b.day}, ${a.year}`;
 }
 
+/** SEASONS-01 (2026-11-08): a typical season's usual window in months — "Usually Dec – Mar"; within one month, "Usually Apr". No day, no year: the months come from MONTHS, never from Date or a locale. */
+export function usualWindowWords(start: string, end: string): string {
+  const a = parts(start);
+  const b = parts(end);
+  if (start > end) throw new ExperienceWordsError(`start ${start} is after end ${end}`);
+  if (a.year === b.year && a.month === b.month) return `Usually ${MONTHS[a.month - 1]}`;
+  return `Usually ${MONTHS[a.month - 1]} ${DASH} ${MONTHS[b.month - 1]}`;
+}
+
 /** The words for a row with no dates, or whose window has passed: the day it was checked, said. */
 export function notAnnouncedLine(checkedOn: string): string {
   return `Next edition not announced (checked ${dayWords(checkedOn)})`;
@@ -105,10 +116,18 @@ export function isUpcoming(row: Experience, today: string): boolean {
  *   conflict                     → "<dateWords> · window being confirmed"
  *   windowKind 'window'          → "Window " before the dates
  *   windowKind 'swell'           → "Window " before the dates and " · called on a swell" after the line
+ *   SEASONS-01 (2026-11-08), windowKind 'season' — "per <sourceName>" whatever the sourceKind (CLOSED 3 gives
+ *   the season lines one wording; a source that is not the place's own is named in the row's notes, CLOSED 4):
+ *     typical                    → "Usually <Mon> – <Mon> · per <sourceName>" — whatever today is: a usual
+ *                                  window does not expire, so the same words print every day
+ *     announced                  → "Season <dateWords> · per <sourceName>", and the not-announced words
+ *                                  once its end has passed, as any announced row
  */
 export function experienceLine(row: Experience, today: string): string {
   if (row.status === 'not_announced') return notAnnouncedLine(row.checkedOn);
   if (row.start === null || row.end === null) throw new ExperienceWordsError(`${row.id}: status ${row.status} with no dates — the leaf's law refuses this row`);
+  // SEASONS-01 (2026-11-08): a typical row is a usual window — it is printed before the end < today rule.
+  if (row.status === 'typical') return experienceWindowLine(row);
   if (row.end < today) return notAnnouncedLine(row.checkedOn);
   return experienceWindowLine(row);
 }
@@ -119,6 +138,13 @@ export function experienceLine(row: Experience, today: string): string {
  */
 export function experienceWindowLine(row: Experience): string {
   if (row.status === 'not_announced' || row.start === null || row.end === null) throw new ExperienceWordsError(`${row.id}: status ${row.status} has no window to name`);
+  // SEASONS-01 (2026-11-08): a place's season — its usual months (typical) or this season's published dates (announced),
+  // "per <source>" whatever the sourceKind: the ruled words (CLOSED 3); the notes name a source that is not the place's own.
+  if (row.windowKind === 'season') {
+    return row.status === 'typical'
+      ? `${usualWindowWords(row.start, row.end)} · per ${row.sourceName}`
+      : `Season ${dateWords(row.start, row.end)} · per ${row.sourceName}`;
+  }
   const words = dateWords(row.start, row.end);
   const prefix = row.windowKind === 'fixed' ? '' : 'Window ';
   let line: string;

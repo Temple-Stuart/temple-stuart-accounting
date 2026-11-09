@@ -19,7 +19,9 @@
  *      list), its chip pressed; a valid id → that category, its chip pressed; an
  *      unknown value → no chip pressed and the line "<value> is not a category —
  *      pick one above." in place of COMING UP — a bad value gets a refusal, never a
- *      substitute category;
+ *      substitute category. SEASONS-01 (Alex, 2026-11-08): the I'M INTO row holds the
+ *      event categories; under it a second labelled row, SEASONS, holds the season
+ *      categories — the same chips and one choice across both rows (?into=<id>);
  *   3. (WASHERE-01, 2026-10-31: the card EVENTS-01 pinned here with Alex's line LEFT
  *      this section — "I was here" is Alex's own trip and lives in the MY TRIP act,
  *      WasHereSection.tsx, directly below; the experiences are the reader's filter and
@@ -29,7 +31,10 @@
  *      chosen category is a card in ONE row that scrolls sideways (nothing collapses — F1
  *      shows all 24 cities): what is upcoming first, by start (upcoming(), unfiltered — Surf
  *      shows the Philippines Pro first while it is on), then the rest in the leaf's order, each
- *      saying it is not announced (experienceLine). Every card links its source. Under the row
+ *      saying it is not announced (experienceLine) — SEASONS-01 (2026-11-08): a typical season row
+ *      is never upcoming and says its usual window instead ("Usually …"); the leaf keeps each season
+ *      category in start order, so those cards read in the order the windows open. Every card links
+ *      its source. Under the row
  *      the one line pointing at the strip (EVENTS-02 replaces it with per-card prefill);
  *      nothing upcoming in the chosen category → said above the row, and no strip line;
  *   5. the closing line.
@@ -57,7 +62,7 @@ import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   EXPERIENCES, EXPERIENCE_CATEGORIES, experienceCategoryLabel, isExperienceCategoryId,
-  type Experience, type ExperienceCategoryId,
+  type Experience, type ExperienceCategory, type ExperienceCategoryId,
 } from '@/lib/experiences';
 import { experienceLine, upcoming } from '@/lib/experienceWords';
 import { EXPERIENCE_LINE } from '@/lib/brandLines';
@@ -74,6 +79,8 @@ export const EYEBROW = 'THE BEST EXPERIENCES ON EARTH · THEN THE STAY AND THE F
 export const PROMISE = 'Book the experience, not just the destination.';
 export const SUBHEAD = "Pick what you're into. See what's on and where. Book the stay and the flight around it, right here.";
 export const INTO_LABEL = "I'M INTO…";
+/** SEASONS-01 (2026-11-08): the second chip row's label — the season categories. */
+export const SEASONS_LABEL = 'SEASONS';
 export const COMING_UP_LABEL = 'COMING UP';
 export const STRIP_LINE = 'To book around one of these, use the strip at the top: hotels, flights, getting around.';
 /** EVENTS-01c: each card's link to its row's source — the page its dates came from. */
@@ -157,6 +164,12 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
   // EVENTS-01c: every row of the category — what is upcoming first, by start, then the rest in the leaf's order.
   const comingUp = upcoming(chosen, today, chosen.length);
   const cards = [...comingUp, ...chosen.filter((r) => !comingUp.includes(r))];
+  // SEASONS-01 (2026-11-08): one chip, the same classes, in either row — the one choice is ?into=<id>.
+  const chip = (c: ExperienceCategory) => (
+    <button key={c.id} type="button" aria-pressed={into === c.id} onClick={() => onPick(c.id)} className={into === c.id ? EXP.chipOn : EXP.chipOff} data-into={c.id}>
+      {c.label}
+    </button>
+  );
   return (
     <section id={EVENTS_ANCHOR} aria-label="Book the experience" className={EXP.band} data-experiences>
       <div className={EXP.inner}>
@@ -171,11 +184,11 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
 
         <p className={`mt-8 ${EXP.label}`}>{INTO_LABEL}</p>
         <div className={EXP.chipRow} role="group" aria-label={INTO_LABEL}>
-          {EXPERIENCE_CATEGORIES.map((c) => (
-            <button key={c.id} type="button" aria-pressed={into === c.id} onClick={() => onPick(c.id)} className={into === c.id ? EXP.chipOn : EXP.chipOff} data-into={c.id}>
-              {c.label}
-            </button>
-          ))}
+          {EXPERIENCE_CATEGORIES.filter((c) => c.group === 'event').map(chip)}
+        </div>
+        <p className={`mt-6 ${EXP.label}`}>{SEASONS_LABEL}</p>
+        <div className={EXP.chipRow} role="group" aria-label={SEASONS_LABEL}>
+          {EXPERIENCE_CATEGORIES.filter((c) => c.group === 'season').map(chip)}
         </div>
 
         {into === null ? (

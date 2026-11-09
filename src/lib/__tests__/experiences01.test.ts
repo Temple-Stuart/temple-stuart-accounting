@@ -132,6 +132,9 @@ test('T2 the categories, in the ruled order, with their EVENTS-01b labels; the d
     // EVENTS-02 (2026-11-08): the ten new categories, appended after the nine in K's order — the default below stands.
     ['football', 'Football'], ['basketball', 'Basketball'], ['cycling', 'Cycling'], ['running', 'Running'], ['sailing', 'Sailing'],
     ['horse_racing', 'Horse racing'], ['rugby', 'Rugby'], ['cricket', 'Cricket'], ['culture_holidays', 'Culture & holidays'], ['food_drink', 'Food & drink'],
+    // SEASONS-01 (2026-11-08): the seven season categories, appended after food_drink in K's order — the default below stands.
+    ['snow_resorts', 'Snow resorts'], ['wildlife', 'Wildlife'], ['wonders', 'Wonders of the world'], ['surf_seasons', 'Surf seasons'],
+    ['dive_seasons', 'Dive seasons'], ['northern_lights', 'Northern lights'], ['cherry_blossoms', 'Cherry blossoms'],
   ]);
   assert.ok(isExperienceCategoryId('f1') && !isExperienceCategoryId('nope') && !isExperienceCategoryId(null));
   assert.equal(DEFAULT_INTO, EXPERIENCE_CATEGORIES[0].id);
@@ -147,12 +150,20 @@ test('T2 the rows: the ruling\'s DATA block transcribed whole, every checkedOn 2
   // EVENTS-02 (2026-11-08): the old block's 74 stands, named; the ten new categories' rows are added to it, counted.
   const NEW_CATEGORIES = ['football', 'basketball', 'cycling', 'running', 'sailing', 'horse_racing', 'rugby', 'cricket', 'culture_holidays', 'food_drink'];
   const isNew = (r: Experience) => NEW_CATEGORIES.includes(r.category);
-  assert.equal(EXPERIENCES.filter((r) => !isNew(r)).length, 74, 'the EVENTS-01 block: 74 rows');
-  assert.equal(EXPERIENCES.length, 74 + 58, 'the 74 of EVENTS-01 and the 58 of EVENTS-02 (6 football · 5 basketball · 6 cycling · 6 running · 6 sailing · 6 horse_racing · 6 rugby · 6 cricket · 6 culture_holidays · 5 food_drink)');
+  // SEASONS-01 (2026-11-08): the EVENTS-01 block is the rows of the nine original categories (still 74, named); the seven
+  // season categories' rows are counted beside the 58 of EVENTS-02.
+  const NINE = ['surfing', 'snowboarding', 'skate', 'golf', 'f1', 'moto', 'tennis', 'fighting', 'music_art'];
+  const SEASONS = ['snow_resorts', 'wildlife', 'wonders', 'surf_seasons', 'dive_seasons', 'northern_lights', 'cherry_blossoms'];
+  const isNine = (r: Experience) => NINE.includes(r.category);
+  const isSeason = (r: Experience) => SEASONS.includes(r.category);
+  assert.equal(EXPERIENCES.filter(isNine).length, 74, 'the EVENTS-01 block: 74 rows');
+  assert.equal(EXPERIENCES.length, 74 + 58 + 39, 'the 74 of EVENTS-01, the 58 of EVENTS-02 (6 football · 5 basketball · 6 cycling · 6 running · 6 sailing · 6 horse_racing · 6 rugby · 6 cricket · 6 culture_holidays · 5 food_drink) and the 39 of SEASONS-01 (6 snow_resorts · 6 wildlife · 5 wonders · 6 surf_seasons · 4 dive_seasons · 6 northern_lights · 6 cherry_blossoms)');
   assert.ok(EXPERIENCES.every((r) => !('featured' in r)), 'WASHERE-01: no row carries the pinned-card field');
   // EVENTS-02 (2026-11-08): the nine original categories' rows keep 2026-10-30; the ten new ones carry the run date.
-  assert.ok(EXPERIENCES.filter((r) => !isNew(r)).every((r) => r.checkedOn === '2026-10-30'));
+  // SEASONS-01 (2026-11-08): the nine are counted by name; the seven season categories' rows carry their run date too.
+  assert.ok(EXPERIENCES.filter(isNine).every((r) => r.checkedOn === '2026-10-30'));
   assert.ok(EXPERIENCES.filter(isNew).every((r) => r.checkedOn === '2026-11-08'));
+  assert.ok(EXPERIENCES.filter(isSeason).every((r) => r.checkedOn === '2026-11-08'));
   assert.equal(EXPERIENCES.filter((r) => r.category === 'f1').length, 24);
   assert.deepEqual(row('philippines-pro-2026'), {
     id: 'philippines-pro-2026', category: 'surfing', series: 'WSL Championship Tour', name: 'Philippines Pro presented by the Philippine Sports Commission',
@@ -216,7 +227,7 @@ test('T3 the lineup\'s pill words left with THE LINEUP (EVENTS-01c) — no calle
 
 // ── T4 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T4 rendered with no choice named: Surf — one row of all six surf cards, the three upcoming first with the Philippines Pro first, then the three not announced; nineteen chips with Surf pressed; every card linking its source; the two lines; no lineup, no all-categories word, nothing of Alex\'s', () => {
+test('T4 rendered with no choice named: Surf — one row of all six surf cards, the three upcoming first with the Philippines Pro first, then the three not announced; twenty-six chips across the two rows with Surf pressed; every card linking its source; the two lines; no lineup, no all-categories word, nothing of Alex\'s', () => {
   const html = render();
   assert.match(html, /<section id="events" aria-label="Book the experience"/);
   assert.equal(EVENTS_ANCHOR, 'events');
@@ -229,8 +240,9 @@ test('T4 rendered with no choice named: Surf — one row of all six surf cards, 
   assert.ok(['us-open-of-surfing-2027', 'tahiti-pro-2027', 'rip-curl-pro-bells-2027'].every((id) => /^Next edition not announced \(checked /.test(lineOf(html, id) ?? '')), 'not announced means not announced');
   assert.deepEqual(sourcesOf(html), cardsOf(html).map((id) => [id, row(id).sourceUrl]), 'every card links the page its dates came from');
   assert.equal(SOURCE_LINK, 'Source ↗');
-  // EVENTS-02 (2026-11-08): nineteen chips — the nine and the ten appended.
-  assert.equal((html.match(/aria-pressed="(true|false)"/g) ?? []).length, 19, 'nineteen categories, nothing else');
+  // EVENTS-02 (2026-11-08): nineteen chips — the nine and the ten appended. SEASONS-01 (2026-11-08): twenty-six across the
+  // two rows — the nineteen events under I'M INTO, the seven seasons under SEASONS (the title counts them the same way).
+  assert.equal((html.match(/aria-pressed="(true|false)"/g) ?? []).length, 26, 'twenty-six categories across the two rows, nothing else');
   assert.deepEqual(pressedOf(html), ['surfing']);
   assert.match(html, /aria-pressed="true"[^>]*data-into="surfing">Surf</);
   assert.ok(!html.includes('Everything'), 'the all-categories word is gone from the markup');
@@ -269,7 +281,8 @@ test('T4 rendered for a value that names no category: the refusal only — in pl
   assert.equal(notACategory('nope'), 'nope is not a category — pick one above.');
   assert.deepEqual(pressedOf(bad), [], 'no substitute category');
   // EVENTS-02 (2026-11-08): the refusal still draws every chip — nineteen now, the same fact the T4 count above pins.
-  assert.equal((bad.match(/aria-pressed="false"/g) ?? []).length, 19);
+  // SEASONS-01 (2026-11-08): twenty-six across the two rows, the same count T4 pins above.
+  assert.equal((bad.match(/aria-pressed="false"/g) ?? []).length, 26);
   assert.doesNotMatch(bad, /data-featured|<article/, 'no card above the refusal');
   assert.equal(cardsOf(bad).length, 0);
   assert.equal(sourcesOf(bad).length, 0);
