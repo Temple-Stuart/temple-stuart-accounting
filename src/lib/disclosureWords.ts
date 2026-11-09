@@ -13,7 +13,7 @@
  *     viatorAffiliateUrl, :116 validatedAffiliateUrl; src/app/api/travel/activities/search/route.ts:99;
  *     src/app/api/travel/transfers/search/route.ts:94);
  *   · visa: the official government link only, never an affiliate (src/components/trips/VisaResultView.tsx:8-12);
- *   · events: not sold here (src/components/landing/ExperiencesSection.tsx:81 CLOSING_LINE);
+ *   · events: not sold here (src/components/landing/ExperiencesSection.tsx CLOSING_LINE — STOP0-01, 2026-11-09: was :81, named by the constant now; a line number there drifts with every edit to the section);
  *   · travel insurance and stay connected: SOON, nothing sold (src/components/trips/travelStripModes.tsx:194, :201).
  * A booking can pay a commission (a hotel's stated one, a Viator affiliate's), can pay none (a visa, an event), and
  * for a flight the seller's commission is not documented (null, never 0, never inferred) — so "may".

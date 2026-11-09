@@ -8,7 +8,7 @@
  * THE ACTS, in document order:
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
- *   EXPERIENCES         — the events section under the strip (EVENTS-01)
+ *   EXPERIENCES         — the events section under the strip (EVENTS-01); under it, above MY TRIP, STOP 0 — Alex's letter and how he got here (StopZeroSection — STOP0-01, 2026-11-09: named on this line, so the act list gains no line)
  *   MY TRIP             — the trip log, a card per stop, each opening its stop's page (TRIPCARDS-01)
  *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
  *                         renders only when records exist
@@ -190,7 +190,7 @@ import LandingFooter from './LandingFooter';
 import GuestTripStrip from './GuestTripStrip';
 // EVENTS-01 (2026-10-30): the experiences under the strip — the leaf's rows, the
 // words module's lines, the URL's one filter; it reads the day the server passed.
-import ExperiencesSection from './ExperiencesSection';
+import ExperiencesSection from './ExperiencesSection'; import StopZeroSection from './StopZeroSection'; // STOP0-01 (2026-11-09): Stop 0, Alex's letter, mounted between the experiences and MY TRIP — the import rides this line, so every line above :1807 stays
 // WASHERE-01 (2026-10-31): the trip log — Alex's own stops, in trip order, each naming
 // an experience by id; the leaf's rows, the words modules' lines, the server's day.
 import WasHereSection from './WasHereSection';
@@ -2198,6 +2198,12 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             down so nothing here reads the clock. ───────────────────────────────── */}
       <ExperiencesSection today={today} />
 
+      {/* ── STOP0-01 (Alex, 2026-11-08 15:11 + 16:18; board K tag 8): STOP 0 — Alex's letter in his
+            own words and a short dated timeline of how he got here, between the experiences and
+            MY TRIP; every visible word from src/lib/stopZeroWords.ts. A cream act with its own border-b,
+            id="stop-0" — the events band's "Read my story ↓" (K tag 7) points at it. ──────── */}
+      <StopZeroSection />
+
       {/* ── WASHERE-01 (Alex, 2026-10-31): MY TRIP — the trip log, in trip order, built for
             photos. The card EVENTS-01 pinned inside the experiences lives here now: the
             events filter serves the reader; "I was here" is Alex's own trip. A cream act
@@ -2368,7 +2374,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          the experiences band is full-bleed aubergine
                                          like the hero, so its own bottom edge closes
                                          the seam below it by colour — experiences | my trip
-                                         since WASHERE-01)
+                                         from WASHERE-01 until STOP0-01; experiences | stop 0 since STOP0-01, 2026-11-09)
+              stop 0 | my trip         → stop 0's border-b (STOP0-01, 2026-11-09: a cream act, one rule; my trip draws no border-t)
               my trip | guest strip / done-for-you → my trip's border-b (WASHERE-01, 2026-10-31: a
                                          cream act, the DONE-FOR-YOU idiom, one rule; HOME-PANELS-02,
                                          2026-11-07: done-for-you sits here now, the plans below it)

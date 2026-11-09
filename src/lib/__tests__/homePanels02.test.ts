@@ -37,8 +37,8 @@ test('T1 the order by index: experiences → MY TRIP → the guest strip → DON
   const landing = code(LANDING);
   const at = (s: string): number => { const i = landing.indexOf(s); assert.notEqual(i, -1, s); return i; };
   for (const s of [EXPERIENCES, MY_TRIP, GUEST_STRIP, EYEBROW, SECTION_OPEN, PLANS_MOUNT, HEADER]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
-  const order = [EXPERIENCES, MY_TRIP, GUEST_STRIP, SECTION_OPEN, EYEBROW, PLANS_MOUNT, HEADER].map(at);
-  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'experiences → my trip → the guest strip → DONE-FOR-YOU → the plans → the pipeline header');
+  const order = [EXPERIENCES, '<StopZeroSection />', MY_TRIP, GUEST_STRIP, SECTION_OPEN, EYEBROW, PLANS_MOUNT, HEADER].map(at); // STOP0-01 (Alex, 2026-11-08; 2026-11-09): the Stop 0 mount joins the order, between the experiences and MY TRIP
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'experiences → stop 0 → my trip → the guest strip → DONE-FOR-YOU → the plans → the pipeline header');
   assert.match(landing.slice(at(GUEST_STRIP) + GUEST_STRIP.length, at(SECTION_OPEN)), ONLY_COMMENTS, 'the strip → the section: a comment between, nothing else');
   const sectionEnd = landing.indexOf('</section>', at(EYEBROW)) + '</section>'.length;
   assert.ok(sectionEnd > at(EYEBROW) && sectionEnd < at(PLANS_MOUNT));

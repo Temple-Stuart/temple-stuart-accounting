@@ -432,7 +432,7 @@ test('T8 the law script, in place: :160 imports the module; :710 is the services
   // (SUPERSEDE-01b) grew two existing laws mid-file (:3334-3529, :10965-11127), 11182 → 11218 lines, all below every line the deck
   // cites — so a count breaks on PRs that move no cited line. The deck's citations of this file are guarded by content: dataflow01.test.ts
   // T5 holds each `// true per` citation to the word it names — :483 ownTableLaw (s08, Landing.tsx:1807), :742 enumValues (s04 and
-  // Landing.tsx:1799), :840 callSites (s14Parsed), :987 s14Law (the step-14 note, Landing.tsx:4509 — BOOK-DISCLOSE-01, 2026-11-08: was :4508); intakeForm01.test.ts T8 pins
+  // Landing.tsx:1799), :840 callSites (s14Parsed), :987 s14Law (the step-14 note, Landing.tsx:4516 — STOP0-01, 2026-11-09: was :4509; BOOK-DISCLOSE-01, 2026-11-08: was :4508); intakeForm01.test.ts T8 pins
   // :483 and :742 by number (lawLines[482], lawLines[741]). :160 and :710 are pinned here.
   assert.equal(lines[159], "import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/experiences'; import { SERVICES, servicesLaw } from '../src/lib/proposalNeeds';");
   assert.match(lines[709], /^\{ const before = violations\.length; violations\.push\(\.\.\.servicesLaw\(\{ throwOnFail: false, migrations: ALL_MIGRATIONS \}\)\);/, ':710 — the deck cites lines below it by number');
