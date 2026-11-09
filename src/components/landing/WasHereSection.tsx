@@ -156,7 +156,7 @@ function Entry({ row, costs, stop, today }: { row: WasHereRow; costs: TripCosts;
           <figure className={TRIP.figure}>
             {/* TRIPCARDS-01: the photo opens the stop's page too — out of the tab order; "Read the post" is the link a keyboard meets. */}
             <a href={href} tabIndex={-1} aria-hidden="true" className={TRIP.photoLink}>
-              {/* A plain <img>, the Built-on wall's precedent (Landing.tsx REAL-MARKS): a file under
+              {/* A plain <img>, the Built-on wall's precedent (BuiltOnStrip.tsx REAL-MARKS — re-cited BUILTON-01, 2026-11-09: was Landing.tsx): a file under
                   public/, served as-is, no optimizer and no remote loader. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={row.image.src} alt={row.image.alt} loading="lazy" className={TRIP.image} />

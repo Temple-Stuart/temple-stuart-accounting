@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { decode } from 'next-auth/jwt';
@@ -8,7 +6,6 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ANSWERS_HOME } from '@/lib/answers';
 // SELL-02: per offer key, is its Stripe price id set — the one env-presence read, passed to both landings.
 import { offerAvailabilityFromEnv } from '@/lib/offer';
-import { BUILT_ON } from '@/lib/builtOnWall';
 import HomeClient from '@/components/home/HomeClient';
 import GuestLanding from '@/components/landing/GuestLanding';
 
@@ -128,16 +125,10 @@ export default async function Page({ searchParams }: {
 
   // SELL-02: the offer's availability (computed above, before the authed branch — the
   // cockpit's locked cards need it too) rides both landings; the env value never leaves.
-  // PR-ELEV-2d: per cleared logo slot, does public/logos/<slug>.svg exist?
-  // File-presence only (the availability-map idiom above) — a dropped file
-  // lights its Built-on card on the next request, no code change. force-
-  // dynamic keeps the check per-request.
-  const logoAvailability = Object.fromEntries(
-    BUILT_ON.flatMap((e) =>
-      e.logo ? [[e.logo.slug, fs.existsSync(path.join(process.cwd(), 'public', 'logos', `${e.logo.slug}.svg`))]] : [],
-    ),
-  );
+  // BUILTON-01 (2026-11-09): the PR-ELEV-2d logo check (per Built on slot, does public/logos/<slug>.svg exist?)
+  // moved with Built on to /how-it-works (src/app/how-it-works/page.tsx), which checks once, at build — this page
+  // computes no logoAvailability.
   // EVENTS-01: the one UTC calendar date every experience comparison reads (the day rule above).
   const today = new Date().toISOString().slice(0, 10);
-  return <GuestLanding offerAvailability={offerAvailability} logoAvailability={logoAvailability} today={today} />;
+  return <GuestLanding offerAvailability={offerAvailability} today={today} />;
 }
