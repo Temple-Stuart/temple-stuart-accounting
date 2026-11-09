@@ -24,8 +24,8 @@
  *      categories — the same chips and one choice across both rows (?into=<id>);
  *   3. (WASHERE-01, 2026-10-31: the card EVENTS-01 pinned here with Alex's line LEFT
  *      this section — "I was here" is Alex's own trip and lives in the MY TRIP act,
- *      WasHereSection.tsx, directly below; the experiences are the reader's filter and
- *      nothing here is Alex's.)
+ *      WasHereSection.tsx, below Stop 0 (STOP0-01, 2026-11-09: was "directly below"); the experiences are the reader's filter and
+ *      nothing here is Alex's but item 5's one line, which points to his story (STOP0-01, 2026-11-09).)
  *   4. COMING UP — EVENTS-01c (Alex, 2026-11-06): "this part [THE LINEUP] can be removed and
  *      added to the COMING UP section … and just horizontal scroll cards". EVERY row of the
  *      chosen category is a card in ONE row that scrolls sideways (nothing collapses — F1
@@ -42,7 +42,10 @@
  *      EVENTS-03: on an event chip. A season chip (its group read from EXPERIENCE_CATEGORIES)
  *      says no such line — a usual window is a season, not an edition waiting to be announced —
  *      and shows the strip line whenever its row has cards;
- *   5. the closing line — CLOSING_LINE on an event chip and on the refused view; EVENTS-03:
+ *   5. WHY EVENTS FIRST — STOP0-01 (Alex, 2026-11-08; board K tag 7): one line on every view, directly before
+ *      the closing line — the label, the line and "Read my story ↓", a link to Stop 0 (#stop-0,
+ *      StopZeroSection.tsx, directly below); its words from src/lib/stopZeroWords.ts;
+ *   6. the closing line — CLOSING_LINE on an event chip and on the refused view; EVENTS-03:
  *      SEASONS_CLOSING_LINE on a season chip.
  *
  * THE DAY RULE: `today` is the UTC calendar date src/app/page.tsx computed ONCE and
@@ -72,6 +75,7 @@ import {
 } from '@/lib/experiences';
 import { dayWords, experienceLine, notAnnouncedLine, upcoming } from '@/lib/experienceWords';
 import { EXPERIENCE_LINE } from '@/lib/brandLines';
+import { EVENTS_STORY_LABEL, EVENTS_STORY_LINE, READ_MY_STORY, STOP_ZERO_ANCHOR } from '@/lib/stopZeroWords';
 
 /** The section's anchor — the strip's Events mode and the chips' URL both name it. */
 export const EVENTS_ANCHOR = 'events';
@@ -138,6 +142,9 @@ const EXP = {
   // negative margin meets the inner padding, so the page never scrolls; the thumb is drawn.
   rail: '-mx-4 mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto scroll-px-4 px-4 pb-3 lg:-mx-8 lg:scroll-px-8 lg:px-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/30 [&::-webkit-scrollbar-track]:bg-transparent',
   line: 'mt-4 text-sm text-white/70',
+  // STOP0-01 (2026-11-09): why events first, and the link to Stop 0 — directly before the closing line.
+  story: 'mt-8 max-w-2xl text-sm text-white/80',
+  storyLink: 'font-semibold text-white underline-offset-4 hover:underline',
   closing: 'mt-8 text-xs text-white/60',
 } as const;
 
@@ -228,6 +235,8 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
           </>
         )}
 
+        {/* STOP0-01 (Alex, 2026-11-08; board K tag 7): on every view, directly before the closing line — the link scrolls to Stop 0. */}
+        <p className={EXP.story}><span className={EXP.label}>{EVENTS_STORY_LABEL}</span> {EVENTS_STORY_LINE} <a href={`#${STOP_ZERO_ANCHOR}`} className={EXP.storyLink}>{READ_MY_STORY}</a></p>
         <p className={EXP.closing}>{isSeason ? SEASONS_CLOSING_LINE : CLOSING_LINE}</p>
       </div>
     </section>
