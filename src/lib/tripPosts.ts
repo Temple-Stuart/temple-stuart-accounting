@@ -10,6 +10,11 @@
  * WHO READS IT. Only the server page src/app/my-trip/[id]/page.tsx. The landing is a client
  * component and never imports this file, so no post body ships in the home page's JavaScript
  * (src/lib/tripPostWords.ts imports it with `import type` only).
+ * FOOTER-01 (Alex, 2026-11-08 15:11 + 16:18; 2026-11-09): the footer reads it too — footerBlogLinks(TRIP_POSTS), one
+ * link per post (src/lib/footerWords.ts). Its footer sits inside two client components — Landing.tsx on / and
+ * ModulePageClient.tsx on the /modules pages — so the posts now ship in those pages' JavaScript (measured in the
+ * FOOTER-01 PR); /pricing, /my-trip/[id] and /how-it-works render the footer on the server. So "Only the server page"
+ * and "no post body ships in the home page's JavaScript" above are history.
  *
  * THE SHAPE. Every post is exactly { stopId, title, dek, short, lessons, costs, costNote, weeks,
  * picks, writtenOn }:

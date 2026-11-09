@@ -77,8 +77,9 @@ import { dayWords, experienceLine, notAnnouncedLine, upcoming } from '@/lib/expe
 import { EXPERIENCE_LINE } from '@/lib/brandLines';
 import { EVENTS_STORY_LABEL, EVENTS_STORY_LINE, READ_MY_STORY, STOP_ZERO_ANCHOR } from '@/lib/stopZeroWords';
 
-/** The section's anchor — the strip's Events mode and the chips' URL both name it. */
-export const EVENTS_ANCHOR = 'events';
+/** The section's anchor — the strip's Events mode and the chips' URL both name it. FOOTER-01 (2026-11-09): its one home is src/lib/homeAnchors.ts — imported back here, still exported from here. */
+import { EVENTS_ANCHOR } from '@/lib/homeAnchors';
+export { EVENTS_ANCHOR };
 /** The one URL parameter: ?into=<category id>. */
 export const INTO_PARAM = 'into';
 /** EVENTS-01b: the category shown when the URL names none — the FIRST in the leaf's list, derived, never typed. */
