@@ -215,6 +215,7 @@ import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 // it) and reads the step ids for the old-links effect.
 import { DECK_STEP_IDS } from './PipelineDeck';
 import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';
+import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it
 import { COMMISSION_LINE } from '@/lib/disclosureWords'; // BOOK-DISCLOSE-01 (2026-11-08): the commission line under the booking box — its words from the leaf, never typed here
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
 // OFFER-01 (2026-09-23): the landing no longer renders OfferCard, heroCountsLine,
@@ -548,6 +549,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           the eyebrow row a few px below. It has no href pointing at it in src/
           today (the nav's Live-demo link retired, LandingHeader.tsx:35), but an
           external bookmark costs nothing to keep alive.
+          FOOTER-01 (2026-11-09): the id is DEMO_ANCHOR now (src/lib/homeAnchors.ts), and two links land on it — the footer's "Book travel" and the trip page's "Book the stay and the flight" (TripPostView.tsx BOOK_HREF, since TRIPPOST-01) — so "no href pointing at it" above is history.
 
           UNNUMBERED BY RULING: this is a live surface, not a step in the
           teaching sequence, so the eyebrow reads LIVE DEMO — TRAVEL with no
@@ -562,7 +564,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
         {/* LANDING-V2 (spec :96-97): the demo's numbered eyebrow row — 03,
             label otherwise verbatim; right slot = the existing /modules/travel
             door. */}
-        <div id="demo" className="flex items-baseline justify-between gap-3 pt-6">
+        <div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">LIVE DEMO — TRAVEL</p>
           <Link href="/modules/travel" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
             EXPLORE TRAVEL →

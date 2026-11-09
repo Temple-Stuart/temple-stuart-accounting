@@ -11,13 +11,57 @@
  * Social row reused from Footer.tsx :14-29 (app footer) — icons, hrefs,
  * rel/target byte-identical; REPAINT-2 re-inks the socials cream/70 with
  * hover to full cream on the aubergine band.
+ *
+ * FOOTER-01 (Alex, 2026-11-08 15:11 + 16:18; board K tag 17): two columns join the footer ABOVE the disclaimer —
+ * THE BLOG (the home page's four sections, then every written trip post) and THE RECORD (the 14 steps; the code,
+ * built in public). Every word and href from src/lib/footerWords.ts; the posts from src/lib/tripPosts.ts, in their
+ * order, so a new post adds its own link. The disclaimer, ©, the five social icons and PRICING · TERMS · PRIVACY ·
+ * the email are unchanged — in their order, with their classes. This file is a server component under /pricing,
+ * /my-trip/[id] and /how-it-works, and part of the client bundle under / (Landing.tsx) and the /modules pages
+ * (ModulePageClient.tsx), both 'use client' — so the post list ships to the browser there.
  */
 
 import Link from 'next/link';
+import { TRIP_POSTS } from '@/lib/tripPosts';
+import { FOOTER_BLOG_LABEL, FOOTER_RECORD_LABEL, FOOTER_RECORD_LINKS, footerBlogLinks } from '@/lib/footerWords';
+
+/** FOOTER-01: the columns' two classes — each label in the house's mono eyebrow, each link a 44px tap row. */
+const COLUMN = {
+  label: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60',
+  link: 'inline-flex min-h-[44px] items-center text-sm text-white/85 hover:text-white',
+} as const;
 
 export default function LandingFooter() {
   return (
     <footer className="bg-brand-purple text-white">
+      {/* FOOTER-01: THE BLOG and THE RECORD, one column each, above the disclaimer — every word and href from
+          src/lib/footerWords.ts; only the code leaves the site, in a new tab. */}
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10 grid gap-8 sm:grid-cols-2">
+        <div data-footer-blog>
+          <p className={COLUMN.label}>{FOOTER_BLOG_LABEL}</p>
+          <ul className="mt-2">
+            {footerBlogLinks(TRIP_POSTS).map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className={COLUMN.link}>{link.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div data-footer-record>
+          <p className={COLUMN.label}>{FOOTER_RECORD_LABEL}</p>
+          <ul className="mt-2">
+            {FOOTER_RECORD_LINKS.map((link) => (
+              <li key={link.href}>
+                {link.external ? (
+                  <a href={link.href} target="_blank" rel="noopener noreferrer" className={COLUMN.link}>{link.label}</a>
+                ) : (
+                  <Link href={link.href} className={COLUMN.link}>{link.label}</Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
       <div className="max-w-3xl mx-auto px-4 lg:px-8 pt-8 text-center">
         <p className="text-xs text-white/50 leading-relaxed">
           Temple Stuart is not a CPA firm, tax preparer, or licensed financial advisor.

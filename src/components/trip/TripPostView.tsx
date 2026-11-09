@@ -25,7 +25,7 @@
  * one native <details> per week, the first open and the rest closed, no state and no script
  * (Tailwind's group-open swaps Open / Close); WHAT WAS ON WHILE I WAS THERE — the stop's own
  * events, each linking its source (none, no section); MY PICKS; the closing band, its button the
- * hero's money-action gold (Landing.tsx:2100); the day it was written.
+ * hero's money-action gold (Landing.tsx:511 — re-cited FOOTER-01, 2026-11-09: was :2100); the day it was written.
  *
  * PAINT: house tokens only, zero new hex, no new font — WasHereSection's TRIP grammar. 44px tap
  * targets. Nothing scrolls sideways at 390px. No emoji, no clock.
@@ -38,9 +38,10 @@ import { experienceCategoryLabel, type Experience } from '@/lib/experiences';
 import { experienceWindowLine } from '@/lib/experienceWords';
 import { listWords, onPill, stayWords } from '@/lib/wasHereWords';
 import { UNWRITTEN_COST_NOTE, bookLine, chipLabel, costRows, dayLabel, postEyebrow, postMeta, stopHeading, unwrittenLine, weekCount, weekEyebrow, writtenLine } from '@/lib/tripPostWords';
+import { DEMO_ANCHOR, MY_TRIP_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the front door's anchors, from their one home
 
 export const POST_BACK = '← Back to my trip';
-export const POST_BACK_HREF = '/#my-trip';
+export const POST_BACK_HREF = `/#${MY_TRIP_ANCHOR}`;
 export const SHORT_VERSION = 'THE SHORT VERSION';
 export const DIFFERENTLY = "WHAT I'D DO DIFFERENTLY";
 export const WHAT_IT_COST = 'WHAT IT COST';
@@ -51,8 +52,8 @@ export const MY_PICKS = 'MY PICKS';
 export const DID = 'DID';
 export const LEARNED = 'LEARNED';
 export const BOOK_BUTTON = 'Book the stay and the flight';
-/** The booking strip on the front door (Landing.tsx's live demo act, id="demo"). */
-export const BOOK_HREF = '/#demo';
+/** The booking strip on the front door (Landing.tsx's live demo act, id={DEMO_ANCHOR}). */
+export const BOOK_HREF = `/#${DEMO_ANCHOR}`;
 export const OPEN_WORD = 'Open';
 export const CLOSE_WORD = 'Close';
 
@@ -113,7 +114,7 @@ const POST = {
   band: 'mt-2 bg-brand-purple text-white',
   bandInner: 'max-w-3xl mx-auto px-4 lg:px-8 py-10 flex flex-wrap items-center justify-between gap-4',
   bandLine: 'text-xl font-medium',
-  // The hero's primary CTA (Landing.tsx:2100 — the money-action gold), at 44px.
+  // The hero's primary CTA (Landing.tsx:511 — the money-action gold; re-cited FOOTER-01, 2026-11-09: was :2100), at 44px.
   bandButton: 'inline-flex min-h-[44px] items-center px-6 py-3 bg-brand-gold text-white font-medium hover:bg-brand-gold/90 text-sm text-center',
   written: 'max-w-3xl mx-auto px-4 lg:px-8 py-6 font-mono text-xs text-text-faint',
 } as const;

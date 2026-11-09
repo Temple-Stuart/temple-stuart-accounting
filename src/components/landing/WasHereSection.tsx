@@ -60,8 +60,9 @@ import { stayWords, stopLabel, stopWords, tripOrder } from '@/lib/wasHereWords';
 import { TRIP_COSTS, type TripCosts } from '@/lib/tripCosts';
 import { stopCostRows, tripPostHref } from '@/lib/tripPostWords';
 
-/** The act's anchor. */
-export const MY_TRIP_ANCHOR = 'my-trip';
+/** The act's anchor. FOOTER-01 (2026-11-09): its one home is src/lib/homeAnchors.ts — imported back here, still exported from here. */
+import { MY_TRIP_ANCHOR } from '@/lib/homeAnchors';
+export { MY_TRIP_ANCHOR };
 export const MY_TRIP_EYEBROW = 'MY TRIP';
 export const MY_TRIP_HEADLINE = "Where I've been, and where I'm going.";
 export const MY_TRIP_LINE = "Stop by stop, dated, with the whole story where I've written it up.";
