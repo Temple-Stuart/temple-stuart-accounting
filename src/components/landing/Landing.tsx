@@ -37,7 +37,7 @@
  *   13 / WATCH ONE DOLLAR RUN THE WHOLE MACHINE
  *   14 / PROVE EVERY NUMBER   — click any number, walk it back
  *   [PR-WHY placeholder — content TBD]
- *   Built on            — the vendor marquee
+ *   (Built on           — the vendor marquee: BUILTON-01, 2026-11-09, moved it to /how-it-works, under the 14 steps — src/components/landing/BuiltOnStrip.tsx; the home page renders none)
  *
  * PIPELINE-PAGE-01 (Alex, ruled 2026-10-30; 2026-11-08 15:11): the pipeline header and 01–14 left this file for
  * src/components/landing/PipelineDeck.tsx, rendered by /how-it-works — whole and unchanged, with their state, the hash
@@ -157,11 +157,6 @@ import {
 // LANDING-V4: the TAB_DESCRIPTORS import retired with the summary slides'
 // prose — the descriptor strings still render on /modules/<id>.
 import { DEMO_VIDEO_URL } from '@/config/demoVideo';
-// PR-ELEV-2d: the Built-on wall data + per-vendor logo rules live in the
-// server-safe leaf (page.tsx fs-checks the same entries' logo files).
-// BUILTON-MARQUEE: WALL_SECTIONS retired with the category blocks — the
-// marquee flattens BUILT_ON's own (already category-ordered) run.
-import { BUILT_ON } from '@/lib/builtOnWall';
 
 /** LOBBY-DECK-1b: a YouTube watch/short URL → its /embed/ form for the modal
  *  iframe. Anything else (e.g. a plain file URL) returns null and plays via a
@@ -212,8 +207,9 @@ import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 // PIPELINE-PAGE-01 (2026-11-09): the deck's own imports — PROBLEM_SHEET, ANSWER_ROWS, ANSWER_INPUTS, PROVIDER_MENU,
 // ROUTING_RULES, isRetired, liveMenuCell, ALL_BEATS_LINE, ownTableLine, KIND_VIEWS_HONEST_LINE and react's Fragment —
 // moved with the 14 steps to PipelineDeck.tsx. The home page keeps the door (its path and words from the leaf beside
-// it) and reads the step ids for the old-links effect.
-import { DECK_STEP_IDS } from './PipelineDeck';
+// it) and reads the step ids for the old-links effect. BUILTON-01 (2026-11-09): the step ids live in that leaf now too
+// (DECK_STEP_IDS moved verbatim to ./pipelineWords.ts), so this page imports nothing from the deck's file.
+import { DECK_STEP_IDS } from './pipelineWords';
 import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';
 import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it
 import { COMMISSION_LINE } from '@/lib/disclosureWords'; // BOOK-DISCLOSE-01 (2026-11-08): the commission line under the booking box — its words from the leaf, never typed here
@@ -240,7 +236,7 @@ const LandingBookingSection = dynamic(() => import('./LandingBookingSection'), {
 // PIPELINE-PAGE-01 (2026-11-09): the deck's constants and helpers — S1_TOOL_LIST through GoldSegments, s14Law, DECK,
 // DECK_STEP_IDS, NEW_PROVIDER_IS and DECK_TODAY among them — moved with the 14 steps to PipelineDeck.tsx
 // (/how-it-works). What follows here is the home page's own: the retired decks' history and the cost receipts
-// preserved, unmounted, for HPW-1.
+// preserved, unmounted, for HPW-1. BUILTON-01 (2026-11-09): DECK_STEP_IDS moved on, to ./pipelineWords.ts.
 
 // FD-1i: the SUMMARY deck's content — LIFTED ONLY, zero invented copy (the
 // FD-1b bullet-lift precedent). PLAIN-SHOWCASE exception: the TRAVEL entry
@@ -399,10 +395,6 @@ interface Props {
    *  LOGIN mode (returning users). Optional so the preview wrapper needs no
    *  change; absent → LandingHeader falls back to its '/' link mode. */
   onRequireLogin?: () => void;
-  /** PR-ELEV-2d: per logo slug, does public/logos/<slug>.svg exist? SERVER-
-   *  computed (page.tsx fs check over BUILT_ON's logo slots). Missing/false
-   *  → the text-only card, exactly as before — never a broken <img>. */
-  logoAvailability: Record<string, boolean>;
   /** EVENTS-01 (2026-10-30): THE DAY RULE — the UTC calendar date ('YYYY-MM-DD')
    *  src/app/page.tsx computed ONCE and passed down; the experiences compare their
    *  dates to it as strings. No component reads the clock during render. */
@@ -422,7 +414,10 @@ interface Props {
 // own URL effect, which now also checks availability itself. REAL-MARKS:
 // logoAvailability is CONSUMED — the marquee chips carry the lit-logo two-state
 // render, so the server fs-check → availability → chip pipeline is live end to end.
-export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability, today }: Props) {
+// BUILTON-01 (2026-11-09): logoAvailability LEFT this component too — Built on moved to /how-it-works, under the 14 steps
+// (src/components/landing/BuiltOnStrip.tsx), and that page's build-time check feeds the chips there; the sentence
+// above is history.
+export default function Landing({ onRequireAuth, onRequireLogin, today }: Props) {
   // LOBBY-DECK-1b: the demo modal's open flag.
   // UNREACHABLE AS OF THE MODULES RETIREMENT, DECLARED — the only
   // setShowDemo(true) in the file was the merged section's header button, which
@@ -734,95 +729,14 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             the page's one filled button (PRIMARY_CTA, src/lib/ds.ts).
             SEAMS: plans | door → the plans act's border-b (PlansSection.tsx; this act draws no border-t). door | built
             on → this act's border-b AND built-on's border-t (its border-y): two rules on one boundary — the ruled
-            house idiom's border-b over a strip this PR leaves untouched (BUILTON-01 moves it). ─────────────────── */}
+            house idiom's border-b over a strip this PR leaves untouched (BUILTON-01 moves it). BUILTON-01
+            (2026-11-09): it moved — door | footer now: this act's border-b over the footer's aubergine band (the
+            footer draws no border-t), one rule, so PIPELINE-PAGE-01's call 3 closes. ─────────────────── */}
       <section aria-label="How it all connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">
         <Link href={PIPELINE_PATH} className={PRIMARY_CTA}>{PIPELINE_DOOR}</Link>
       </section>
 
       {/* WHY ACT LANDS HERE — (PR-WHY, content TBD) */}
-
-      {/* ── BUILTON-MARQUEE: the "Built on" wall's five-category card grid
-            became ONE auto-scrolling text-mark strip (professional-site
-            style). WORDING LAW (locked): "Built on" / "integrates with"
-            ONLY — never "partners", "trusted by", or any endorsement
-            framing. CLAIMABILITY RULE unchanged: wired clients only —
-            BUILT_ON is the same leaf data, every entry a chip, none
-            invented, none dropped. REAL-MARKS: each chip leads with the
-            vendor's mark on a mini aubergine plate (the wall's own ground —
-            the shipped files are white dark-bg variants, rendered AS-IS,
-            never recolored); a missing file renders the letter tile
-            (relocated two-state logic, cite at the render). The leaf's
-            marks rulings (NEVER-LIGHT / pending slots) still govern which
-            files may ever land.
-            MECHANICS: CSS-only — the ts-marquee keyframes (globals.css,
-            the repo's first) slide a DOUBLED chip run by -50% in 50s;
-            hover pauses via animation-play-state; prefers-reduced-motion
-            kills the animation and the wrapper becomes a contained
-            horizontal scroll (overflow-x-auto). Hard edges — the house has
-            no CSS mask precedent (audit-cited), none invented. The second
-            run is aria-hidden (screen readers read each vendor once).
-            Vercel attribution: kept verbatim per the ruling — with
-            text-only chips no Vercel/Next.js image marks render, so the
-            line now over-attributes harmlessly (declared). ─────────────── */}
-      <section className="w-full border-y border-border bg-bg-terminal">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-brand-purple">
-            Built on
-          </p>
-          <p className="text-sm text-text-secondary mt-1">Every tool this platform runs on.</p>
-          <div className="group mt-6 overflow-hidden motion-reduce:overflow-x-auto">
-            <div className="flex w-max animate-[ts-marquee_50s_linear_infinite] group-hover:[animation-play-state:paused] motion-reduce:animate-none">
-              {[0, 1].map((run) => (
-                <div key={run} aria-hidden={run === 1 || undefined} className="flex w-max items-center gap-3 pr-3">
-                  {BUILT_ON.map((e) => {
-                    // REAL-MARKS: the old wall's two-state logic RELOCATED
-                    // verbatim (271d60b1 Landing.tsx:1125 — lit mark vs
-                    // letter tile; :1150 — the Stripe href-when-lit
-                    // mandate), not new fallback. The mark plate is the old
-                    // wall's own ground, miniaturized: every shipped file is
-                    // the white dark-bg variant (builtOnWall.ts drop
-                    // convention), so the mark renders AS-IS on aubergine —
-                    // never recolored. Letter tile = the old white/80 ink on
-                    // the same plate. A file dropped at
-                    // public/logos/<slug>.svg lights its chip, zero code.
-                    const logoLive = e.logo !== undefined && logoAvailability[e.logo.slug] === true;
-                    const chipClass = 'flex items-center gap-2 whitespace-nowrap rounded border border-border bg-white py-1.5 pl-1.5 pr-3 font-mono text-xs';
-                    const chipBody = (
-                      <>
-                        <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded bg-brand-purple px-1.5">
-                          {logoLive && e.logo ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img src={`/logos/${e.logo.slug}.svg`} alt={e.logo.alt} className="h-5 w-auto max-w-[72px] object-contain" />
-                          ) : (
-                            <span className="text-xs font-semibold leading-none text-white/80">{e.name[0]}</span>
-                          )}
-                        </span>
-                        <span className="font-semibold text-brand-purple">{e.name}</span>
-                        <span className="text-text-muted">· {e.tag}</span>
-                      </>
-                    );
-                    return logoLive && e.logo?.href ? (
-                      <a
-                        key={`${run}-${e.name}`}
-                        href={e.logo.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={chipClass}
-                      >
-                        {chipBody}
-                      </a>
-                    ) : (
-                      <span key={`${run}-${e.name}`} className={chipClass}>
-                        {chipBody}
-                      </span>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ── LOBBY-DECK-1b: the demo modal — the house dialog idiom
             (CheckoutPanel.tsx:300 backdrop). YouTube URLs embed via iframe;

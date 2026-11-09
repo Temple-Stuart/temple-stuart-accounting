@@ -18,7 +18,8 @@
  *      the line that holds '/work-with-me'; the page, the deck and the leaf carry no fetch, no /api/, no prisma, no
  *      process.env; the leaf has no imports and no directive;
  *   T7 the laws read the deck's file — the proof law's import, the kind-views law, the plan law's clause 1;
- *   T8 Built on still renders on / once — after the door, before the footer.
+ *   T8 Built on renders on /how-it-works once — after the deck, before the footer; its marks read the page's
+ *      logoAvailability; the home page renders none (BUILTON-01 (2026-11-09): it rendered on /, after the door, until it moved whole).
  * Source is read through code() and comments() only (the reader law). No clock.
  */
 import { test } from 'node:test';
@@ -37,6 +38,7 @@ const LANDING = 'src/components/landing/Landing.tsx';
 const DECK = 'src/components/landing/PipelineDeck.tsx';
 const WORDS = 'src/components/landing/pipelineWords.ts';
 const PAGE = 'src/app/how-it-works/page.tsx';
+const STRIP = 'src/components/landing/BuiltOnStrip.tsx'; // BUILTON-01 (2026-11-09): Built on's own file — T8 reads it
 const MIDDLEWARE = 'src/middleware.ts';
 const LAW = 'scripts/assert-tool-registry.ts';
 
@@ -92,7 +94,9 @@ test('T2 PipelineDeck.tsx: the 14 ids in DECK_STEP_IDS order, the state and the 
   assert.deepEqual(s14Law({ throwOnFail: false }), [], 'the proof law holds from its new address');
   assert.equal(typeof NEW_PROVIDER_IS, 'string');
   assert.equal(typeof DECK_TODAY.s08, 'string');
-  assert.match(deck, /^export const DECK_STEP_IDS = \[$/m, 'exported — the home page\'s old-links effect reads it');
+  assert.match(code(WORDS), /^export const DECK_STEP_IDS = \[$/m, 'defined in the words leaf — the home page\'s old-links effect reads it there'); // BUILTON-01 (2026-11-09): moved from the deck to pipelineWords.ts
+  assert.match(deck, /^import \{ DECK_STEP_IDS, PIPELINE_HEADER_SUB \} from '\.\/pipelineWords';$/m); // BUILTON-01 (2026-11-09): the deck's re-export —
+  assert.match(deck, /^export \{ DECK_STEP_IDS \};$/m, 'still exported from the deck'); // every import of it from the deck keeps working
   // the header's sub renders from the leaf, word for word
   assert.equal(count(deck, '{PIPELINE_HEADER_SUB}'), 1);
   assert.ok(!deck.includes(PIPELINE_HEADER_SUB), 'the sentence is not typed in the deck');
@@ -148,7 +152,7 @@ test('T5 the old links: the home page\'s one effect sends exactly #deck-01 … #
     '    if ((DECK_STEP_IDS as readonly string[]).includes(hash)) window.location.replace(`${PIPELINE_PATH}#${hash}`);',
     '  }, []);',
   ].join('\n')), 'the effect, whole: a step hash or nothing');
-  assert.match(landing, /^import \{ DECK_STEP_IDS \} from '\.\/PipelineDeck';$/m, 'the ids from the deck — never retyped');
+  assert.match(landing, /^import \{ DECK_STEP_IDS \} from '\.\/pipelineWords';$/m, 'the ids from the words leaf — never retyped'); // BUILTON-01 (2026-11-09): from the leaf, not the deck's file
   // The decision the pinned line makes, over the ids it reads: exactly the fourteen, each to its own hash on the page.
   const sentTo = (hash: string): string | null => ((DECK_STEP_IDS as readonly string[]).includes(hash) ? `${PIPELINE_PATH}#${hash}` : null);
   for (const id of FOURTEEN) assert.equal(sentTo(id), `/how-it-works#${id}`, `#${id}`);
@@ -194,17 +198,26 @@ test('T7 the laws read the deck\'s file: the proof law\'s import, the kind-views
   assert.equal(count(code(DECK), '{KIND_VIEWS_HONEST_LINE}'), 1, 'step 5 renders it, in the deck\'s file');
 });
 
-// ── T8 · BUILT ON STAYS ──────────────────────────────────────────────────────
+// ── T8 · BUILT ON, UNDER THE 14 STEPS ────────────────────────────────────────
+// BUILTON-01 (2026-11-09): re-pointed — Built on moved whole from / (after the door) to /how-it-works (after the deck, before the
+// footer), in its own file; BUILT_ON_OPEN stays the strip's opening tag.
 
-test('T8 Built on still renders on / once — after the door, before the footer', () => {
+test('T8 Built on renders on /how-it-works once — after the deck, before the footer; its marks read the page\'s logoAvailability; the home page renders none', () => {
+  const strip = code(STRIP);
+  assert.equal(count(strip, BUILT_ON_OPEN), 1, 'the strip, once');
+  assert.equal(count(strip, 'BUILT_ON.map('), 1);
+  assert.match(strip, />\n\s+Built on\n\s+<\/p>/, 'its eyebrow');
+  assert.match(strip, /logoAvailability\[e\.logo\.slug\] === true/, 'its marks still read logoAvailability');
+  const page = code(PAGE);
+  const mount = '<BuiltOnStrip logoAvailability={logoAvailability} />';
+  assert.equal(count(page, mount), 1, 'mounted once');
+  assert.equal(count(page, 'const logoAvailability = '), 1, 'the page computes it once');
+  const deck = page.indexOf('<PipelineDeck />');
+  const builtOn = page.indexOf(mount);
+  const footer = page.indexOf('<LandingFooter />');
+  assert.ok(deck > 0 && builtOn > deck && footer > builtOn, 'the deck → Built on → the footer');
+  assert.match(page.slice(deck + '<PipelineDeck />'.length, builtOn), ONLY_COMMENTS, 'the deck → Built on: comments between, nothing else');
   const landing = code(LANDING);
-  assert.equal(count(landing, BUILT_ON_OPEN), 1, 'the strip, once');
-  assert.equal(count(landing, 'BUILT_ON.map('), 1);
-  assert.match(landing, />\n\s+Built on\n\s+<\/p>/, 'its eyebrow');
-  assert.match(landing, /logoAvailability\[e\.logo\.slug\] === true/, 'its marks still read logoAvailability');
-  const doorEnd = landing.indexOf('</section>', landing.indexOf(DOOR_OPEN)) + '</section>'.length;
-  const builtOn = landing.indexOf(BUILT_ON_OPEN);
-  const footer = landing.indexOf('<LandingFooter />');
-  assert.ok(doorEnd > 0 && builtOn > doorEnd && footer > builtOn, 'the door → Built on → the footer');
-  assert.match(landing.slice(doorEnd, builtOn), ONLY_COMMENTS, 'the door → Built on: comments between, nothing else');
+  assert.equal(count(landing, BUILT_ON_OPEN), 0, 'the home page renders none');
+  assert.ok(!landing.includes('BUILT_ON') && !landing.includes('logoAvailability'), 'nor reads its data');
 });

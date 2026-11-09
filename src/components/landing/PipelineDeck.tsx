@@ -15,7 +15,7 @@
  *   · every const, helper and export only the deck reads (S1_TOOL_LIST … GoldSegments), each export still exported:
  *     s14Law (the proof law — scripts/assert-tool-registry.ts imports it, which runs every slide's layout law at
  *     module scope), NEW_PROVIDER_IS and DECK_TODAY (src/lib/__tests__/dataflow01.test.ts); DECK_STEP_IDS is
- *     exported now, because the home page's old-links effect reads it;
+ *     exported now, because the home page's old-links effect reads it (BUILTON-01, 2026-11-09: that reason is history — the effect reads ./pipelineWords.ts's now; this is a re-export, so every import of it from the deck keeps working);
  *   · the deck's own imports — react's Fragment and useEffect, PROBLEM_SHEET, ANSWER_ROWS, ANSWER_INPUTS,
  *     PROVIDER_MENU, ROUTING_RULES, isRetired, liveMenuCell, ALL_BEATS_LINE, ownTableLine, KIND_VIEWS_HONEST_LINE
  *     (the home page imports useEffect again for its own effect, and useState for the demo modal's flag).
@@ -43,8 +43,8 @@ import { PROVIDER_MENU, ROUTING_RULES, isRetired, liveMenuCell } from '@/lib/pro
 import { ALL_BEATS_LINE, ownTableLine } from '@/lib/toolRegistry';
 // TABLES-01: step 5's honest line — every table name from the kind-views census, none retyped.
 import { KIND_VIEWS_HONEST_LINE } from '@/lib/kindViews';
-// PIPELINE-PAGE-01 (2026-11-09): the header's sub, moved word for word to the words leaf — the page's description reads it there.
-import { PIPELINE_HEADER_SUB } from './pipelineWords';
+// PIPELINE-PAGE-01 (2026-11-09): the header's sub, moved word for word to the words leaf — the page's description reads it there. BUILTON-01 (2026-11-09): and the step ids (DECK_STEP_IDS), re-exported below.
+import { DECK_STEP_IDS, PIPELINE_HEADER_SUB } from './pipelineWords';
 
 // PR-S1-VIZ: PROBLEM_SOURCES retired — the fan died with the CD-S1 ruling
 // and the six family names moved into PROBLEM_SHEET's headers (below), which
@@ -1596,10 +1596,10 @@ const DECK = {
 // PR-STEP-2: deck-02 is the inserted providers step; 03–14 are the old
 // 02–13 shifted by one, so an OLD #deck-NN link now opens the step BEFORE
 // the one it used to name — accepted, the ids follow the essay's numbering.
-export const DECK_STEP_IDS = [
-  'deck-01', 'deck-02', 'deck-03', 'deck-04', 'deck-05', 'deck-06', 'deck-07',
-  'deck-08', 'deck-09', 'deck-10', 'deck-11', 'deck-12', 'deck-13', 'deck-14',
-] as const;
+// BUILTON-01 (2026-11-09): the array moved verbatim to ./pipelineWords.ts (imported at the top of this file), so the
+// home page's old-links effect reads it without loading the deck; still exported here, so every import of it from the
+// deck keeps working. Twelve lines for twelve: no line below moves — comments elsewhere cite them by number.
+export { DECK_STEP_IDS };
 
 // DATAFLOW-01 (Alex, 2026-11-02, ruling A) — THE DECK'S TODAY LINES. Every present-
 // tense claim the fourteen steps make about today is DERIVED from a leaf at render —

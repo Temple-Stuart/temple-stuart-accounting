@@ -40,11 +40,9 @@ import LoginBox from '@/components/LoginBox';
 import { moduleDoorPlan } from '@/lib/offer';
 import { startEntitlementCheckout } from '@/lib/checkoutDoor';
 
-export default function GuestLanding({ offerAvailability, logoAvailability, today }: {
+export default function GuestLanding({ offerAvailability, today }: {
   /** SELL-02: per offer key, is its Stripe price id set — page.tsx's env-presence read. */
   offerAvailability: Record<string, boolean>;
-  /** PR-ELEV-2d: server-computed public/logos/<slug>.svg presence map. */
-  logoAvailability: Record<string, boolean>;
   /** EVENTS-01 (2026-10-30): THE DAY RULE — the UTC calendar date page.tsx computed once;
    *  passed through to the Landing for the experiences section. No clock is read here. */
   today: string;
@@ -99,7 +97,6 @@ export default function GuestLanding({ offerAvailability, logoAvailability, toda
       {/* SELL-03b: a bad verification link lands here with ?verify=<state> — the declared error and the resend. */}
       <VerifyResultBanner />
       <Landing
-        logoAvailability={logoAvailability}
         today={today}
         onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }}
         onRequireLogin={() => { setLoginMode('login'); setShowLogin(true); }}

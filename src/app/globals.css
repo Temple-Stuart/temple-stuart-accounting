@@ -145,7 +145,8 @@ body {
    seamless. Consumed via the Tailwind arbitrary animate value in Landing.tsx
    (animate-[ts-marquee_50s_linear_infinite]); hover-pause and the
    prefers-reduced-motion static fallback are utility classes at the mount.
-   The repo had no prior keyframes — this is the first (audit-cited). */
+   The repo had no prior keyframes — this is the first (audit-cited).
+   BUILTON-01 (2026-11-09): the mount is src/components/landing/BuiltOnStrip.tsx now, on /how-it-works. */
 @keyframes ts-marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }

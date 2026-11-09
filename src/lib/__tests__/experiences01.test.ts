@@ -332,7 +332,7 @@ test('T5 Landing mounts the section once, after the demo\'s footer row and befor
   assert.match(landing, /<GuestBookingLookup onOpened=\{\(\) => window\.location\.assign\('\/booking\/manage'\)\} \/>/);
   assert.match(landing, /import ExperiencesSection from '\.\/ExperiencesSection';/);
   assert.match(landing, /  today: string;\n\}/);
-  assert.match(landing, /export default function Landing\(\{ onRequireAuth, onRequireLogin, logoAvailability, today \}: Props\)/);
+  assert.match(landing, /export default function Landing\(\{ onRequireAuth, onRequireLogin, today \}: Props\)/); // BUILTON-01 (2026-11-09): logoAvailability left with Built on (BuiltOnStrip.tsx, on /how-it-works)
   assert.match(comments(LANDING), /EXPERIENCES {9}— the events section under the strip \(EVENTS-01\)/);
   assert.match(comments(DECK), /live demo \| experiences {2}→ the demo act's border-b \(EVENTS-01/); // PIPELINE-PAGE-01 (2026-11-09): the seam ledger moved with the deck
 });
@@ -341,10 +341,10 @@ test('T5 the day rule: page.tsx computes today once as the UTC calendar date and
   const page = code(PAGE);
   assert.match(page, /const today = new Date\(\)\.toISOString\(\)\.slice\(0, 10\);/);
   assert.equal((page.match(/new Date\(\)/g) ?? []).length, 1, 'once');
-  assert.match(page, /return <GuestLanding offerAvailability=\{offerAvailability\} logoAvailability=\{logoAvailability\} today=\{today\} \/>;/);
+  assert.match(page, /return <GuestLanding offerAvailability=\{offerAvailability\} today=\{today\} \/>;/); // BUILTON-01 (2026-11-09): the logo check moved with Built on to /how-it-works
   const guest = code(GUEST);
   assert.match(guest, /today: string;/);
-  assert.match(guest, /<Landing\n\s+logoAvailability=\{logoAvailability\}\n\s+today=\{today\}/);
+  assert.match(guest, /<Landing\n\s+today=\{today\}/); // BUILTON-01 (2026-11-09): the logoAvailability line left with Built on
   assert.doesNotMatch(guest, /new Date\(/);
   assert.doesNotMatch(code(LANDING), /new Date\(/);
   assert.doesNotMatch(code(DECK), /new Date\(/); // PIPELINE-PAGE-01 (2026-11-09): the deck left Landing.tsx with the clock still unread

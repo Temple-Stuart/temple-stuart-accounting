@@ -5,6 +5,10 @@
 // and passes the availability map down, so a DROPPED FILE ALONE lights its
 // card at the next request; no code change) and Landing.tsx (client — the
 // wall render). Names/tags are byte-identical to the ELEV-2b wall.
+// BUILTON-01 (2026-11-09): the two consumers now — src/app/how-it-works/page.tsx (server, static: it fs-checks the same
+// slots ONCE, AT BUILD, so a dropped file lights its chip on the next deploy — a file in public/ only ships with a
+// deploy) and src/components/landing/BuiltOnStrip.tsx (the strip's render, a server component on that page).
+// app/page.tsx and Landing.tsx read it no more.
 //
 // WORDING LAW (locked, ELEV-2+3): "Built on" / "integrates with" ONLY —
 // never "partners", "trusted by", or any endorsement framing. CLAIMABILITY
@@ -59,6 +63,8 @@
 // (white/monochrome variant preferred on the dark cards) — the card lights
 // on the next request, sized h-7 (~28px) object-contain above the name.
 // No file → today's exact text card; never a placeholder or broken image.
+// BUILTON-01 (2026-11-09): "on the next request" above is history — the page that checks is static now, so the chip
+// lights on the next deploy.
 
 export interface BuiltOnEntry {
   name: string;

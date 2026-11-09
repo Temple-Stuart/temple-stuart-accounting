@@ -59,7 +59,7 @@ test('A a signed-in / lands on /home — the rail\'s HOME, the day card\'s page:
   const authedAt = page.indexOf('if (await isVerifiedAuthed()) {');
   // EVENTS-01 (2026-10-30): re-pinned — the guest mount gains today={today}, the UTC calendar date page.tsx computes once
   // for the experiences section (the day rule); the order and the shape of the redirect are unchanged.
-  const landingAt = page.indexOf('return <GuestLanding offerAvailability={offerAvailability} logoAvailability={logoAvailability} today={today} />;');
+  const landingAt = page.indexOf('return <GuestLanding offerAvailability={offerAvailability} today={today} />;'); // BUILTON-01 (2026-11-09): re-pinned — logoAvailability left the guest mount with Built on (to /how-it-works); the order is unchanged
   assert.ok(tabMapAt > -1 && tabRedirectAt > tabMapAt && authedAt > tabRedirectAt && landingAt > authedAt);
   assert.match(page, /calendar: '\/runway', travel: '\/travel', routines: '\/routines',/, 'the legacy ?tab=calendar still opens the cockpit\'s calendar tab');
   assert.equal((page.match(/<HomeClient /g) ?? []).length, 1, 'HomeClient renders at / only for the compliance carve-out');
