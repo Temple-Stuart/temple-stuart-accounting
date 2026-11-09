@@ -1,7 +1,8 @@
 /**
  * DATAFLOW-01 (Alex, 2026-11-02) — THE PIPELINE DECK TELLS THE TRUTH ABOUT TODAY.
  * Every "Today…" line in the fourteen steps is DERIVED from a leaf at render or TYPED
- * with the file:line that makes it true on the same line (Landing.tsx DECK_TODAY).
+ * with the file:line that makes it true on the same line (PipelineDeck.tsx DECK_TODAY — Landing.tsx's until PIPELINE-PAGE-01,
+ * 2026-11-09, when the 14 steps moved whole to /how-it-works; every read below follows the deck to its own file).
  * DATAFLOW-01b (Alex, 2026-11-03) corrects #1888: the deck's size is the August 24
  * census again (no rule-book count anywhere); step 7's beat words are the registry's
  * own; one constant says what a new provider is (steps 2 and 4); step 4's retired row
@@ -46,7 +47,9 @@ import { KIND_VIEWS_HONEST_LINE } from '../kindViews';
 
 Object.assign(globalThis, { React });
 
-const LANDING = 'src/components/landing/Landing.tsx';
+// PIPELINE-PAGE-01 (2026-11-09): the deck moved whole to its own file — every read below is of PipelineDeck.tsx (Landing.tsx
+// until the 14 steps moved to /how-it-works); the names stay, and so does the meaning of every assertion.
+const LANDING = 'src/components/landing/PipelineDeck.tsx';
 const LAW = 'scripts/assert-tool-registry.ts';
 const SCHEMA = 'prisma/schema.prisma';
 const REGISTRY = 'src/lib/toolRegistry.ts';
@@ -56,13 +59,13 @@ const GROK = /grok|xai/i;
 const landingCode = code(LANDING);
 const codeLines = landingCode.split('\n');
 const noteLines = comments(LANDING).split('\n');
-const deck = () => import('@/components/landing/Landing');
+const deck = () => import('@/components/landing/PipelineDeck');
 
 /** DECK_TODAY's entries as the source holds them: one per line, its key and the line it sits on. */
 const deckTodayLines = (() => {
   const start = codeLines.findIndex((l) => l.startsWith('export const DECK_TODAY = {'));
   const end = codeLines.findIndex((l, i) => i > start && l.startsWith('} as const;'));
-  assert.ok(start > -1 && end > start, 'Landing.tsx exports DECK_TODAY');
+  assert.ok(start > -1 && end > start, 'PipelineDeck.tsx exports DECK_TODAY');
   return codeLines.slice(start + 1, end).map((line, k) => {
     const m = /^ {2}(\w+): (['"`]).*\2,\s*$/.exec(line);
     assert.ok(m, `DECK_TODAY line ${start + 2 + k} is one entry on one line: ${line.trim().slice(0, 80)}`);
@@ -112,7 +115,7 @@ test('T1 no Grok or xAI in any today-line, the menu as spoken today, or step 3\'
   const s3 = [...new Set(PROVIDER_MENU.flatMap(([, cell]) => liveMenuCell(cell).split(' · ')))];
   assert.deepEqual(s3, ['plaid', 'stripe', 'tastytrade', 'finnhub', 'fred', 'sec', 'liteapi', 'viator', 'google places', 'travel buddy', 'anthropic', 'openai', 'voyage', 'ecfr', 'us code', 'federal register', 'irs'], 'step 3\'s provider list, as derived');
   const arrivals = /const IMPORT_ARRIVALS = \[([\s\S]*?)\] as const;/.exec(landingCode);
-  assert.ok(arrivals, 'Landing.tsx declares IMPORT_ARRIVALS');
+  assert.ok(arrivals, 'PipelineDeck.tsx declares IMPORT_ARRIVALS');
   assert.doesNotMatch(arrivals[1], GROK, 'no xAI row in step 3\'s example');
   assert.match(arrivals[1], /\['openai', '—', 'insight', 'chatcmpl-9xR7', 'arr_0014', /, 'arr_0014 is openai\'s second insight answer');
   assert.equal((arrivals[1].match(/\['/g) ?? []).length, 19, 'nineteen rows, as step 3 says');
@@ -165,7 +168,7 @@ test('T3 the counts are the August 24 census — verbatim, cited to d0738c9b / P
   assert.ok(landingCode.includes('We did not guess this. {DECK_TODAY.s05} The data agreed!'), 'step 5 renders the classification line');
   for (const gone of ['RULE_BOOK_COUNTS_LINE', 'ruleBookCounts', 'ruleBookCountsLine', 'LIVE_PROVIDERS']) {
     assert.ok(!(gone in providers), `providers.ts exports no ${gone}`);
-    assert.ok(!landingCode.includes(gone), `Landing.tsx names no ${gone}`);
+    assert.ok(!landingCode.includes(gone), `PipelineDeck.tsx names no ${gone}`);
   }
   assert.doesNotMatch(landingCode, /per the rule book/, 'no rule-book count in the deck');
   assert.ok(DECK_TODAY.s14Arrivals.includes('9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026'), 'step 14\'s database counts stay as written');
@@ -213,7 +216,7 @@ test('T4 the fixed lines\' text, verbatim, rendered where they were; the old wor
   assert.match(landingCode, /tag: live \? '· LIVE TODAY' : null/, 'step 13\'s lanes read the same flag');
   // DATAFLOW-01c B and C: step 6 is the registry's own count over the deck's sixteen; step 8 says "each tool that has a table".
   const movers = /const S2_MOVERS = new Set<string>\(\[([\s\S]*?)\]\);/.exec(landingCode);
-  assert.ok(movers, 'Landing.tsx declares S2_MOVERS');
+  assert.ok(movers, 'PipelineDeck.tsx declares S2_MOVERS');
   const nine = [...movers[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
   const sixteen = TOOL_REGISTRY.filter((t) => !nine.includes(t.name)).map((t) => t.name);
   assert.equal(sixteen.length, 16);
@@ -279,7 +282,7 @@ test('T5 every typed today-line carries `// true per ` with file:lines that exis
 
 test('T6 the S14 law re-runs at the build\'s providers-law seat; the deck\'s line stands unchanged', async () => {
   const law = code(LAW);
-  assert.match(law, /import \{ s14Law \} from '\.\.\/src\/components\/landing\/Landing';/);
+  assert.match(law, /import \{ s14Law \} from '\.\.\/src\/components\/landing\/PipelineDeck';/); // PIPELINE-PAGE-01 (2026-11-09): the law imports the deck's own file
   assert.match(law, /lawGuard\('The proof law', \(\) => \{[\s\S]*?violations\.push\(\.\.\.s14Law\(\{ throwOnFail: false \}\)\);[\s\S]*?\}\);/);
   assert.match(landingCode, /export function s14Law\(opts: \{ throwOnFail\?: boolean \} = \{\}\): string\[\] \{/);
   assert.match(landingCode, /const S14_LAYOUT = s14Layout\(\);/);

@@ -25,6 +25,7 @@ import { BOOKING_FLOW_BASE, BOOKING_FLOW_FILES, bookingFlowSha256 } from '../tra
 
 const DS = 'src/lib/ds.ts';
 const LANDING = 'src/components/landing/Landing.tsx';
+const DECK = 'src/components/landing/PipelineDeck.tsx'; // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — the 14 steps moved there whole from Landing.tsx
 const TRIP = 'src/components/landing/WasHereSection.tsx';
 const PLANS = 'src/components/offer/PlansSection.tsx';
 const LOOKUP = 'src/components/guest/GuestBookingLookup.tsx';
@@ -54,7 +55,8 @@ test('T2 the five users wear PRIMARY_CTA bare — no display or height class of 
   const landing = code(LANDING);
   assert.match(landing, /\} from '@\/lib\/proposalNeeds'; import \{ PRIMARY_CTA \} from '@\/lib\/ds';/, 'the import rides an existing line — every line above :1807 stays');
   assert.match(landing, /<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*className=\{PRIMARY_CTA\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>/);
-  assert.match(landing.split('\n')[1806], /^\s+s08: /, 'Landing.tsx:1807 is still the s08 line');
+  // PIPELINE-PAGE-01 (2026-11-09): the s08 line moved with the deck to PipelineDeck.tsx — found by content (the one line whose code starts with s08:), never by number.
+  assert.equal(code(DECK).split('\n').filter((l) => /^\s+s08: /.test(l)).length, 1, 'exactly one s08 line, in the deck\'s file');
   const trip = code(TRIP);
   assert.match(trip, /import \{ PRIMARY_CTA \} from '@\/lib\/ds';/);
   assert.match(trip, /\n {2}link: PRIMARY_CTA,/);
