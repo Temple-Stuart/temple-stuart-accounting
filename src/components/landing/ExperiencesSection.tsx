@@ -14,6 +14,11 @@
  * the box's own padding, under the tab row, behind the hairline every panel of the strip opens with. Its label line
  * (EYEBROW) and SUBHEAD are the panel's two opening lines. "Band", "the band's box", PAINT's aubergine and every seat
  * note below describe it as it stood until then — history.
+ * THE ARRIVAL (after the look): the booking box is a client-only chunk that loads after the page (Landing.tsx, `ssr:
+ * false`), so this block no longer exists when the browser looks for #events — a visitor arriving at /#events (the
+ * footer's "Events" link on every public page, a reload after picking a chip) stayed at the top. The URL half takes
+ * such an arrival to the block once, when it mounts (landOnEvents). The visitor's own URL names the place: no default,
+ * nothing chosen for them, and no other hash is acted on.
  *
  * HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15) — ONE OFFERING WITH THE TRAVEL BLOCK ABOVE: this band repeats no headline.
  * The experience line and the promise are the travel block's header now (Landing.tsx reads EXPERIENCE_LINE from
@@ -100,7 +105,7 @@
  * default export reads the URL and hands it the choice.
  */
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   EXPERIENCES, EXPERIENCE_CATEGORIES, experienceCategoryLabel, isExperienceCategoryId,
@@ -146,6 +151,20 @@ export function nothingUpcoming(categoryLabel: string): string {
 /** EVENTS-03 (Alex, 2026-11-09): "Checked Nov 8, 2026" — the day a row was checked, in the foot of every card whose line does not already say it. */
 export function checkedWords(checkedOn: string): string {
   return `Checked ${dayWords(checkedOn)}`;
+}
+
+/**
+ * HOME-BRIEF-04 (2026-11-10, after the look): THE ARRIVAL AT /#events. The catalog mounts inside the booking box, which loads after the
+ * page, so the browser has already looked for the anchor and found nothing. When the URL's hash names this block, take the visitor to
+ * it — once, on mount. Any other hash: nothing. The block is this component's own section, so a hash that names it with no such element
+ * on the page is a broken page, said by name — never passed over. Pure but for the two things it is handed, so the tests call it.
+ */
+export function landOnEvents(hash: string, find: (id: string) => { scrollIntoView: () => void } | null): boolean {
+  if (hash !== `#${EVENTS_ANCHOR}`) return false;
+  const block = find(EVENTS_ANCHOR);
+  if (block === null) throw new Error(`ExperiencesSection: the URL names #${EVENTS_ANCHOR} and no element on the page carries that id — the catalog's own section does`);
+  block.scrollIntoView();
+  return true;
 }
 
 // THE CLASS GRAMMAR — the DECK idiom: one const, every string whole, house tokens only.
@@ -276,6 +295,10 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
 function ExperiencesFromUrl({ today }: { today: string }) {
   const params = useSearchParams();
   const router = useRouter();
+  // HOME-BRIEF-04 (after the look): an arrival at /#events is taken to the block when it mounts — once (landOnEvents, above).
+  useEffect(() => {
+    landOnEvents(window.location.hash, (id) => document.getElementById(id));
+  }, []);
   const raw = params.get(INTO_PARAM);
   // No param, or an empty one, → the first category; a valid id → it; anything else → refused by name.
   const choice: IntoChoice = raw === null || raw === '' ? { category: DEFAULT_INTO } : isExperienceCategoryId(raw) ? { category: raw } : { refused: raw };

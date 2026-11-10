@@ -43,7 +43,7 @@ import { resolve } from 'node:path';
 import { BOOKING_FLOW_BASE, BOOKING_FLOW_FILES, bookingFlowSha256 } from '../travelBookingFlow';
 import type { ToggleMode } from '@/components/ui/ToggleStrip';
 import {
-  ExperiencesView, DEFAULT_INTO, EVENTS_ANCHOR, CLOSING_LINE, SOURCE_LINK, notACategory, nothingUpcoming,
+  ExperiencesView, DEFAULT_INTO, EVENTS_ANCHOR, CLOSING_LINE, SOURCE_LINK, landOnEvents, notACategory, nothingUpcoming,
 } from '@/components/landing/ExperiencesSection';
 
 Object.assign(globalThis, { React });
@@ -517,6 +517,28 @@ test('T6 (HOME-BRIEF-04, 2026-11-10) the landing\'s box opens on Events: the wra
   assert.match(wrapper, /^const EVENTS_KEY = 'events';$/m);
   assert.doesNotMatch(wrapper, /defaultKey|useState|useEffect/, 'the wrapper keeps no state and picks no default: first in the list is the rule');
   assert.match(code(LANDING), /const LandingBookingSection = dynamic\(\(\) => import\('\.\/LandingBookingSection'\), \{/, 'loaded as before');
+});
+
+test('T6 (HOME-BRIEF-04, after the look) an arrival at /#events lands on the catalog when it mounts: only that hash, once; a hash that names the block with no such element is said by name', () => {
+  // The booking box is a client-only chunk (Landing.tsx: ssr: false), so the catalog inside it does not exist when the browser looks for the anchor.
+  assert.match(code(LANDING), /const LandingBookingSection = dynamic\(\(\) => import\('\.\/LandingBookingSection'\), \{\n\s*ssr: false,/, 'the box loads after the page — why the arrival is taken by hand');
+  const scrolled: string[] = [];
+  const page = (ids: string[]) => (id: string) => (ids.includes(id) ? { scrollIntoView: () => { scrolled.push(id); } } : null);
+  assert.equal(landOnEvents(`#${EVENTS_ANCHOR}`, page(['events', 'modules'])), true, '#events: taken to the block');
+  assert.deepEqual(scrolled, ['events'], 'the block with id="events", once');
+  for (const hash of ['', '#', '#modules', '#demo', '#stop-0', '#my-trip', '#deck-03', '#Events', '#events-2', 'events']) {
+    assert.equal(landOnEvents(hash, page(['events', 'modules', 'demo'])), false, `"${hash}": not this block's — nothing`);
+  }
+  assert.deepEqual(scrolled, ['events'], 'no other hash scrolls anything');
+  assert.throws(() => landOnEvents('#events', page(['modules'])), /ExperiencesSection: the URL names #events and no element on the page carries that id/, 'named, never passed over');
+  // the source: one effect in the URL half, run once on mount, reading the URL's hash and the page — nothing stored
+  const section = code(SECTION);
+  assert.match(section, /^import \{ Suspense, useEffect \} from 'react';$/m);
+  assert.equal(section.split('useEffect(').length - 1, 1, 'one effect');
+  assert.match(section, /useEffect\(\(\) => \{\n\s*landOnEvents\(window\.location\.hash, \(id\) => document\.getElementById\(id\)\);\n\s*\}, \[\]\);/, 'on mount, once');
+  assert.match(section, /if \(hash !== `#\$\{EVENTS_ANCHOR\}`\) return false;/, 'the anchor from its one home, never typed');
+  assert.doesNotMatch(section, /useState|useRef|addEventListener|setTimeout|setInterval|localStorage|sessionStorage|document\.cookie/, 'no state, no listener, no timer, no storage');
+  assert.equal(section.split('scrollIntoView').length - 1, 2, 'the one call, and its type');
 });
 
 test('T6 the pin holds, dated twice: the strip hashes to its EVENTS-01b pin; EVENTS-01\'s note still stands; each names the hash it had on main', () => {
