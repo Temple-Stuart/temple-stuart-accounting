@@ -34,19 +34,19 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
     // LANDING-V3 (spec :34-47) → THREE-TRIMS: the nav anatomy, minus the
     // retired anchor links (Live demo → /#demo and Modules → /#modules died
     // — the #modules id now marks THE OFFER act, SELL-02, the target of the
-    // checkout cancel_url and the /?module= doors). Outlined TS mark (:37) — HOME-BRIEF-02 (Alex, 2026-11-10): his crest took that square (public/brand/temple-stuart-crest.png — the file he attached, cropped to the crest, nothing redrawn), a plain <img> as BuiltOnStrip.tsx draws one. HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the box is larger, rounded and white, the crest centred in it by object-contain inside even padding (multiply went with the cream ground), the box never squeezed by the row (shrink-0 — without it a phone drew it 30px wide), and the wordmark is larger from sm;
+    // checkout cancel_url and the /?module= doors). Outlined TS mark (:37) — HOME-BRIEF-02 (Alex, 2026-11-10): his crest took that square (public/brand/temple-stuart-crest.png — the file he attached, cropped to the crest, nothing redrawn), a plain <img> as BuiltOnStrip.tsx draws one. HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the box is larger, rounded and white, the crest centred in it by object-contain inside even padding (multiply went with the cream ground), the box never squeezed by the row (shrink-0 — without it a phone drew it 30px wide), and the wordmark is larger from sm; HOME-BRIEF-05 (Alex, 2026-11-10 20:53: "meet the top and bottom at a min … truly centered on left right spacing"): the box's padding went, so the crest runs from the border's inner top edge to its inner bottom edge, never stretched (object-contain) and centred left to right — the file is cropped to the crest on all four sides; the corner is rounded-md; the name is bold and larger from sm; the row's and the link's gaps are narrower below sm, so a 360px phone no longer scrolls sideways ("even padding" and "rounded" above are HOME-BRIEF-04's, until then).
     // Pricing keeps /how-pricing-works; GitHub ↗ = the repo link; Log in =
     // the spec's text link, SAME dual-mode handlers; CREATE FREE ACCOUNT =
     // the spec's mono uppercase gold button, SAME dual-mode handlers.
     // V3 FLAGS: Contact dropped — the mailto survives in the footer.
     <header className="border-b border-border bg-bg-terminal text-text-primary">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
-        <div className="flex items-center justify-between gap-4 h-16 sm:h-20">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-lg border-2 border-brand-purple bg-white flex items-center justify-center p-1.5">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 h-16 sm:h-20">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-md border-2 border-brand-purple bg-white flex items-center justify-center">
               <img src="/brand/temple-stuart-crest.png" alt="Temple Stuart" className="h-full w-full object-contain" />{/* eslint-disable-line @next/next/no-img-element */}
             </div>
-            <div className="text-sm sm:text-xl font-semibold tracking-[0.16em] text-brand-purple">TEMPLE STUART</div>
+            <div className="text-sm sm:text-2xl font-bold tracking-[0.14em] text-brand-purple">TEMPLE STUART</div>
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/how-pricing-works" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">

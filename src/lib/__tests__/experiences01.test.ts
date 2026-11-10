@@ -477,16 +477,30 @@ test('T6 the two callers name their surface: the guest landing passes #events (h
   assert.deepEqual(callers.sort(), [LANDING_BOOKING, LAUNCHER, STRIP].sort(), 'the definition and exactly two callers');
 });
 
-test('T6 (HOME-BRIEF-04, 2026-11-10) the landing\'s box opens on Events: the wrapper puts the builder\'s Events mode first with the catalog as its panel — its key, label, icon and headline the builder\'s — the other seven after it in the builder\'s order, each as the builder made it; no events mode is a throw, by name', async () => {
+test('T6 (HOME-BRIEF-04, 2026-11-10; HOME-BRIEF-05: the wrapper holds the open tab) the landing\'s box opens on Events: the wrapper puts the builder\'s Events mode first with the catalog as its panel — its key, label, icon and headline the builder\'s — the other seven after it in the builder\'s order, each as the builder made it; the open tab is the wrapper\'s, starting on Events; a link to this page\'s events opens it; no events mode is a throw, by name', async () => {
   const { travelStripModes } = await import('../../components/trips/travelStripModes');
-  const { default: LandingBookingSection } = await import('../../components/landing/LandingBookingSection');
+  const { default: LandingBookingSection, linksToEvents } = await import('../../components/landing/LandingBookingSection');
   const { default: ToggleStrip } = await import('../../components/ui/ToggleStrip');
   const catalog = React.createElement('section', { id: 'events', 'data-probe': 'the catalog' }, 'the catalog');
   const onRequireAuth = () => {};
-  // The wrapper holds no hook, so called as a function it returns the strip it mounts.
-  const strip = LandingBookingSection({ onRequireAuth, events: catalog }) as React.ReactElement<{ modes: ToggleMode[]; className?: string; defaultKey?: string }>;
-  assert.equal(strip.type, ToggleStrip, 'the shared strip');
-  assert.equal(strip.props.defaultKey, undefined, 'no default key: the strip opens on its first mode');
+  // HOME-BRIEF-05 (Alex, 2026-11-10 19:00): the wrapper HOLDS THE OPEN TAB in React state, so it is a component with hooks and cannot be called as a
+  // plain function any more. Until then: 'const strip = LandingBookingSection({ onRequireAuth, events: catalog })' ("The wrapper holds no hook, so
+  // called as a function it returns the strip it mounts"), 'no default key: the strip opens on its first mode', and — on the source —
+  // doesNotMatch(/defaultKey|useState|useEffect/) ('the wrapper keeps no state and picks no default: first in the list is the rule').
+  // It is RENDERED instead, twice: inside a host that keeps what it returns (the strip element in it is found and its props read; the strip is not
+  // drawn), and whole.
+  type StripProps = { modes: ToggleMode[]; className?: string; defaultKey?: string; activeKey?: string; onActiveChange?: (key: string) => void };
+  const elementsIn = (node: React.ReactNode): React.ReactElement<Record<string, unknown>>[] => (Array.isArray(node) ? node.flatMap((n) => elementsIn(n as React.ReactNode))
+    : React.isValidElement<Record<string, unknown>>(node) ? [node, ...elementsIn(node.props.children as React.ReactNode)] : []);
+  let returned: React.ReactNode;
+  const Host = () => { returned = LandingBookingSection({ onRequireAuth, events: catalog }); return null; };
+  assert.equal(renderToStaticMarkup(React.createElement(Host)), '', 'the host draws nothing of its own');
+  const strips = elementsIn(returned).filter((el) => el.type === ToggleStrip) as unknown as React.ReactElement<StripProps>[];
+  assert.equal(strips.length, 1, 'the wrapper mounts the shared strip, once');
+  const strip = strips[0];
+  assert.equal(strip.props.defaultKey, undefined, 'no default key');
+  assert.equal(strip.props.activeKey, 'events', 'the wrapper holds the open tab, and it starts on Events');
+  assert.equal(typeof strip.props.onActiveChange, 'function', 'and it hands the strip the way to change it');
   assert.equal(strip.props.className, 'mt-6 rounded-lg border border-border bg-white p-4', 'the white box, as before');
   const built = travelStripModes({ onRequireAuth, authed: false, eventsAnchor: '#events' });
   const modes = strip.props.modes;
@@ -499,23 +513,65 @@ test('T6 (HOME-BRIEF-04, 2026-11-10) the landing\'s box opens on Events: the wra
     assert.deepEqual([m.label, m.headline, m.explainer], [b.label, b.headline, b.explainer], `${m.key}: its label, headline and line as the builder made them`);
     assert.equal(renderToStaticMarkup(m.icon as React.ReactElement), renderToStaticMarkup(b.icon as React.ReactElement), `${m.key}: the builder's icon`);
     assert.equal(m.badge === undefined, b.badge === undefined, `${m.key}: its badge, or none, as built`);
-    if (m.key !== 'events') assert.equal((m.panel as React.ReactElement).type, (b.panel as React.ReactElement).type, `${m.key}: the builder's own panel`);
+    if (m.badge !== undefined) assert.equal(renderToStaticMarkup(m.badge as React.ReactElement), renderToStaticMarkup(b.badge as React.ReactElement), `${m.key}: the builder's badge`);
+    if (m.key !== 'events') assert.ok(elementsIn(m.panel).some((el) => el.type === (b.panel as React.ReactElement).type), `${m.key}: the builder's own panel is in it`);
   }
   assert.equal(modes[0].label, 'Events');
   assert.equal(modes[0].badge, undefined, 'no Soon badge on the landing');
+  // rendered whole, with its real panels: eight tabs in that order, Events the pressed one; the catalog shown, the seven others mounted and hidden
+  const whole = renderToStaticMarkup(React.createElement(LandingBookingSection, { onRequireAuth, events: catalog }));
+  const tabs = [...whole.matchAll(/<button type="button" aria-pressed="(true|false)" class="[^"]*"><span aria-hidden="true"[^>]*>[\s\S]*?<\/span><span class="w-min[^"]*">([^<]*)<\/span>/g)].map((m) => [m[2], m[1]]);
+  assert.deepEqual(tabs, modes.map((m, i) => [m.label.replace(/&/g, '&amp;'), i === 0 ? 'true' : 'false']), 'the eight tabs, in order, Events open');
+  assert.ok(whole.includes('<div class="block"><section id="events" data-probe="the catalog">the catalog</section></div><div class="hidden">'), 'the catalog is the open panel, first');
+  assert.deepEqual(whole.match(/<div class="(block|hidden)">/g), ['<div class="block">', ...Array.from({ length: 7 }, () => '<div class="hidden">')], 'one panel open, the seven others mounted and hidden');
   // the strip opens on its first mode — rendered: the first panel is shown, every other stays mounted and hidden
-  const html = renderToStaticMarkup(React.createElement(ToggleStrip, { modes: [{ key: 'events', label: 'Events', panel: catalog }, { key: 'flights', label: 'Flights', panel: React.createElement('p', null, 'the flights') }] }));
+  const two: ToggleMode[] = [{ key: 'events', label: 'Events', panel: catalog }, { key: 'flights', label: 'Flights', panel: React.createElement('p', null, 'the flights') }];
+  const html = renderToStaticMarkup(React.createElement(ToggleStrip, { modes: two }));
   assert.ok(html.includes('<div class="block"><section id="events" data-probe="the catalog">the catalog</section></div><div class="hidden"><p>the flights</p></div>'), 'the first mode is the open one');
   assert.match(html, /<button type="button" aria-pressed="true"[^>]*>Events<\/button><button type="button" aria-pressed="false"[^>]*>Flights<\/button>/);
   assert.match(code('src/components/ui/ToggleStrip.tsx'), /useState<string>\(defaultKey \?\? modes\[0\]\?\.key \?\? ''\)/, 'the strip\'s own rule: the first mode');
-  // the source: the prop, the unchanged call, the throw by name, and no default key handed to the strip
+  // HOME-BRIEF-05: a caller that holds the open tab — the key it gives is the open one, whatever the list's order; a click on a tab asks the caller;
+  // one prop without the other throws, by name
+  const held = renderToStaticMarkup(React.createElement(ToggleStrip, { modes: two, activeKey: 'flights', onActiveChange: () => {} }));
+  assert.ok(held.includes('<div class="hidden"><section id="events" data-probe="the catalog">the catalog</section></div><div class="block"><p>the flights</p></div>'), 'the held key is the open one');
+  assert.match(held, /<button type="button" aria-pressed="false"[^>]*>Events<\/button><button type="button" aria-pressed="true"[^>]*>Flights<\/button>/);
+  const asked: string[] = [];
+  let card: React.ReactNode;
+  const StripHost = () => { card = ToggleStrip({ modes: two, activeKey: 'flights', onActiveChange: (key) => { asked.push(key); } }); return null; };
+  renderToStaticMarkup(React.createElement(StripHost));
+  const tabButtons = elementsIn(card).filter((el) => el.type === 'button' && el.props['aria-pressed'] !== undefined);
+  assert.equal(tabButtons.length, 2);
+  (tabButtons[0].props.onClick as () => void)();
+  assert.deepEqual(asked, ['events'], 'a click on a tab calls the caller with that tab\'s key');
+  assert.throws(() => renderToStaticMarkup(React.createElement(ToggleStrip, { modes: two, activeKey: 'events' })), /ToggleStrip: activeKey was given without onActiveChange/, 'the key without the way to change it');
+  assert.throws(() => renderToStaticMarkup(React.createElement(ToggleStrip, { modes: two, onActiveChange: () => {} })), /ToggleStrip: onActiveChange was given without activeKey/, 'and the converse');
+  // HOME-BRIEF-05: a link to THIS page's events — same origin, same path, the events hash; whatever follows the "?" on either side
+  const HOME = 'https://templestuart.test/';
+  for (const [href, here] of [[`${HOME}#events`, HOME], [`${HOME}#events`, `${HOME}?into=golf#events`], [`${HOME}?into=golf#events`, HOME], ['/#events', HOME], ['#events', `${HOME}?into=surfing`]]) {
+    assert.equal(linksToEvents(href, here), true, `${href} from ${here}: this page's events`);
+  }
+  for (const [href, here] of [[`${HOME}#modules`, HOME], [`${HOME}#demo`, HOME], [HOME, HOME], [`${HOME}pricing#events`, HOME], [`${HOME}#events`, `${HOME}pricing`], ['https://elsewhere.test/#events', HOME], [`${HOME}#events-2`, HOME], [`${HOME}#Events`, HOME], ['mailto:someone@templestuart.test', HOME]]) {
+    assert.equal(linksToEvents(href, here), false, `${href} from ${here}: not this page's events`);
+  }
+  // the source: the prop, the unchanged call, the throw by name, the state it holds, the two listeners and the landing — and nothing stored
   const wrapper = code(LANDING_BOOKING);
   assert.match(wrapper, /export default function LandingBookingSection\(\{ onRequireAuth, events \}: \{ onRequireAuth: \(\) => void; events: ReactNode \}\) \{/);
   assert.match(wrapper, /const modes: ToggleMode\[\] = travelStripModes\(\{ onRequireAuth, authed: false, eventsAnchor: '#events' \}\);/, 'the call, exactly as before');
   assert.match(wrapper, /const eventsMode = modes\.find\(\(m\) => m\.key === EVENTS_KEY\);\n\s*if \(!eventsMode\) throw new Error\(`LandingBookingSection: travelStripModes returned no '\$\{EVENTS_KEY\}' mode/, 'no events mode → a throw that names it');
   assert.match(wrapper, /const ordered: ToggleMode\[\] = \[\{ \.\.\.eventsMode, panel: events \}, \.\.\.modes\.filter\(\(m\) => m\.key !== EVENTS_KEY\)\];/);
   assert.match(wrapper, /^const EVENTS_KEY = 'events';$/m);
-  assert.doesNotMatch(wrapper, /defaultKey|useState|useEffect/, 'the wrapper keeps no state and picks no default: first in the list is the rule');
+  assert.equal(wrapper.split('const [open, setOpen] = useState<string>(EVENTS_KEY);').length - 1, 1, 'the open tab: React state, starting on Events');
+  assert.match(wrapper, /\bactiveKey=\{open\}/, 'handed to the strip');
+  assert.match(wrapper, /\bonActiveChange=\{/, 'with the way to change it');
+  assert.equal(wrapper.split("document.addEventListener('click', onClick);").length - 1, 1, 'a click on the page');
+  assert.equal(wrapper.split("window.addEventListener('hashchange', onHashChange);").length - 1, 1, 'and the hash change');
+  assert.ok(wrapper.includes("document.removeEventListener('click', onClick);") && wrapper.includes("window.removeEventListener('hashchange', onHashChange);"), 'both taken off again');
+  assert.match(wrapper, /if \(linksToEvents\(link\.href, window\.location\.href\)\) toEvents\(\);/, 'the click: only a link to this page\'s events');
+  assert.match(wrapper, /if \(window\.location\.hash === `#\$\{EVENTS_ANCHOR\}`\) toEvents\(\);/, 'the hash change: only the events anchor — no other hash is acted on');
+  assert.match(wrapper, /const toEvents = \(\) => \{\n\s*setOpen\(EVENTS_KEY\);\n\s*setLandings\(\(n\) => n \+ 1\);\n\s*\};/, 'open the Events tab, count one landing');
+  assert.match(wrapper, /useEffect\(\(\) => \{\n\s*if \(landings === 0\) return;\n\s*landOnEvents\(`#\$\{EVENTS_ANCHOR\}`, \(id\) => document\.getElementById\(id\)\);\n\s*\}, \[landings\]\);/, 'then land on the catalog, after that render — the catalog\'s own lander');
+  assert.match(wrapper, /^import \{ EVENTS_ANCHOR \} from '@\/lib\/homeAnchors';$/m, 'the anchor from its one home');
+  assert.doesNotMatch(wrapper, /defaultKey|localStorage|sessionStorage|document\.cookie|pushState|replaceState|useRouter|useSearchParams|location\.(assign|replace)\(|location\.(href|hash)\s*=[^=]/, 'the open tab is held in React state only: no default handed to the strip, no storage, and the address is read, never written');
   assert.match(code(LANDING), /const LandingBookingSection = dynamic\(\(\) => import\('\.\/LandingBookingSection'\), \{/, 'loaded as before');
 });
 

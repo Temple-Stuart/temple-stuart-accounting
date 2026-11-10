@@ -8,6 +8,10 @@
  * precedent). The strip owns the ONLY view state — one `active` key; every
  * panel is built by the caller with its own props, so the same mechanism
  * serves the guest landing AND the authed app travel tab (the DS thesis).
+ * HOME-BRIEF-05 (2026-11-10): a caller MAY hold that one key instead
+ * (`activeKey` + `onActiveChange`, both or neither) — the landing's booking
+ * box does, so an event or a link can open a tab; every other mount passes
+ * neither and the strip owns it, as above.
  *
  * Chrome is codified in ds.ts: the container is DS.STRIP, the chips are
  * DS.toggleChip(active) — both byte-identical to the landing's verbatim
@@ -52,6 +56,14 @@ interface Props {
   header?: ReactNode;
   /** The chip active on first render. Defaults to the first mode. */
   defaultKey?: string;
+  /** HOME-BRIEF-05 (Alex, 2026-11-10): THE OPEN TAB, HELD BY THE CALLER. Given TOGETHER with
+   *  `onActiveChange`, the strip opens this key's panel and a click on a tab calls
+   *  onActiveChange with that tab's key — the strip's own state is not used, so the
+   *  caller can open a tab from outside the tab row (the landing's booking box: an event's
+   *  "Stay near it", a link to the events). Given NEITHER — every other mount — the strip
+   *  holds the open tab itself, exactly as before. One without the other throws, by name. */
+  activeKey?: string;
+  onActiveChange?: (key: string) => void;
   /** Container class. Defaults to DS.STRIP. With `band`, this lands on the
    *  OUTER band div (margins only — e.g. the landing's mt-8); the floating
    *  card carries its own elevated class. */
@@ -71,9 +83,15 @@ interface Props {
   trust?: ReactNode;
 }
 
-export default function ToggleStrip({ modes, header, defaultKey, className, band, trust }: Props) {
+export default function ToggleStrip({ modes, header, defaultKey, activeKey, onActiveChange, className, band, trust }: Props) {
   const [active, setActive] = useState<string>(defaultKey ?? modes[0]?.key ?? '');
-  const activeMode = modes.find((m) => m.key === active);
+  // HOME-BRIEF-05: who holds the open tab — the caller (both props) or the strip (neither).
+  if ((activeKey === undefined) !== (onActiveChange === undefined)) {
+    throw new Error(`ToggleStrip: ${activeKey === undefined ? 'onActiveChange was given without activeKey' : 'activeKey was given without onActiveChange'} — the caller holds the open tab with both, or the strip holds it with neither`);
+  }
+  const open = activeKey === undefined ? active : activeKey;
+  const openTab = onActiveChange === undefined ? setActive : onActiveChange;
+  const activeMode = modes.find((m) => m.key === open);
 
   // PR-STRIP-DESIGN-2: with the band, the strip content becomes a FLOATING
   // card (shadow-lg per the GuestLanding toast/pill precedents). Without the
@@ -95,9 +113,9 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
           <button
             key={m.key}
             type="button"
-            onClick={() => setActive(m.key)}
-            aria-pressed={active === m.key}
-            className={m.icon ? DS.iconTab(active === m.key) : DS.toggleChip(active === m.key)}
+            onClick={() => openTab(m.key)}
+            aria-pressed={open === m.key}
+            className={m.icon ? DS.iconTab(open === m.key) : DS.toggleChip(open === m.key)}
           >
             {/* PR-STRIP-DESIGN-1: icon present → icon above label (the
                 trip.com tab form factor); absent → the original chip
@@ -112,7 +130,7 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
                 SOON_BADGE). */}
             {m.icon ? (
               <>
-                <span aria-hidden="true" className={active === m.key ? 'text-brand-purple' : undefined}>
+                <span aria-hidden="true" className={open === m.key ? 'text-brand-purple' : undefined}>
                   {m.icon}
                 </span>
                 <span className="w-min whitespace-normal text-center leading-tight text-xs lg:text-[11px]">
@@ -142,7 +160,7 @@ export default function ToggleStrip({ modes, header, defaultKey, className, band
       )}
 
       {modes.map((m) => (
-        <div key={m.key} className={active === m.key ? 'block' : 'hidden'}>
+        <div key={m.key} className={open === m.key ? 'block' : 'hidden'}>
           {m.panel}
         </div>
       ))}
