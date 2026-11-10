@@ -34,7 +34,7 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
     // LANDING-V3 (spec :34-47) → THREE-TRIMS: the nav anatomy, minus the
     // retired anchor links (Live demo → /#demo and Modules → /#modules died
     // — the #modules id now marks THE OFFER act, SELL-02, the target of the
-    // checkout cancel_url and the /?module= doors). Outlined TS mark (:37);
+    // checkout cancel_url and the /?module= doors). Outlined TS mark (:37) — HOME-BRIEF-02 (Alex, 2026-11-10): his crest stands in that same square now (public/brand/temple-stuart-crest.png — the file he attached, its empty margin cropped, nothing redrawn), a plain <img> as BuiltOnStrip.tsx draws one; multiply turns its white ground into the header's own colour;
     // Pricing keeps /how-pricing-works; GitHub ↗ = the repo link; Log in =
     // the spec's text link, SAME dual-mode handlers; CREATE FREE ACCOUNT =
     // the spec's mono uppercase gold button, SAME dual-mode handlers.
@@ -44,7 +44,7 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
         <div className="flex items-center justify-between gap-4 h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-7 h-7 border-2 border-brand-purple flex items-center justify-center">
-              <span className="font-mono text-xs lg:text-[10.5px] font-semibold text-brand-purple">TS</span>
+              <img src="/brand/temple-stuart-crest.png" alt="Temple Stuart" className="h-full w-full object-contain mix-blend-multiply" />{/* eslint-disable-line @next/next/no-img-element */}
             </div>
             <div className="text-sm font-semibold tracking-[0.16em] text-brand-purple">TEMPLE STUART</div>
           </Link>
