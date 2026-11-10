@@ -34,7 +34,7 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
     // LANDING-V3 (spec :34-47) → THREE-TRIMS: the nav anatomy, minus the
     // retired anchor links (Live demo → /#demo and Modules → /#modules died
     // — the #modules id now marks THE OFFER act, SELL-02, the target of the
-    // checkout cancel_url and the /?module= doors). Outlined TS mark (:37) — HOME-BRIEF-02 (Alex, 2026-11-10): his crest stands in that same square now (public/brand/temple-stuart-crest.png — the file he attached, its empty margin cropped, nothing redrawn), a plain <img> as BuiltOnStrip.tsx draws one; multiply turns its white ground into the header's own colour;
+    // checkout cancel_url and the /?module= doors). Outlined TS mark (:37) — HOME-BRIEF-02 (Alex, 2026-11-10): his crest took that square (public/brand/temple-stuart-crest.png — the file he attached, cropped to the crest, nothing redrawn), a plain <img> as BuiltOnStrip.tsx draws one. HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the box is larger, rounded and white, the crest centred in it by object-contain inside even padding (multiply went with the cream ground), the box never squeezed by the row (shrink-0 — without it a phone drew it 30px wide), and the wordmark is larger from sm;
     // Pricing keeps /how-pricing-works; GitHub ↗ = the repo link; Log in =
     // the spec's text link, SAME dual-mode handlers; CREATE FREE ACCOUNT =
     // the spec's mono uppercase gold button, SAME dual-mode handlers.
@@ -43,10 +43,10 @@ export default function LandingHeader({ onRequireLogin, onRequireAuth }: {
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         <div className="flex items-center justify-between gap-4 h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-7 h-7 border-2 border-brand-purple flex items-center justify-center">
-              <img src="/brand/temple-stuart-crest.png" alt="Temple Stuart" className="h-full w-full object-contain mix-blend-multiply" />{/* eslint-disable-line @next/next/no-img-element */}
+            <div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-lg border-2 border-brand-purple bg-white flex items-center justify-center p-1.5">
+              <img src="/brand/temple-stuart-crest.png" alt="Temple Stuart" className="h-full w-full object-contain" />{/* eslint-disable-line @next/next/no-img-element */}
             </div>
-            <div className="text-sm font-semibold tracking-[0.16em] text-brand-purple">TEMPLE STUART</div>
+            <div className="text-sm sm:text-xl font-semibold tracking-[0.16em] text-brand-purple">TEMPLE STUART</div>
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/how-pricing-works" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
