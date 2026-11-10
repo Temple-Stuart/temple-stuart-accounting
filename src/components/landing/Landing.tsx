@@ -219,7 +219,7 @@ import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { DECK_STEP_IDS } from './pipelineWords';
 // HOME-FINISH-02 (2026-11-10): the door left this page (the footer's THE RECORD keeps it), so its words are imported no more; the path stays — the old-links effect reads it.
 import { PIPELINE_PATH } from './pipelineWords';
-import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it
+import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it (HOME-FINISH-02, 2026-11-10: the footer's "Explore the World" now, and the anchor sits on that pillar's heading)
 import { SERVICES_ANCHOR } from '@/lib/homeAnchors'; // HOME-FINISH-02 (2026-11-10): the professional-services section's id, from its one home — Alex: "a stable anchor so the footer can link directly to Build Your Income"
 import { WHAT_WE_DO_HEADING } from '@/lib/homeActWords';
 import { BUILD_PILLAR } from '@/lib/homeActWords'; // HOME-FINISH-02 (2026-11-10): the second pillar's heading and paragraph — Alex's words, from the leaf, never typed here
