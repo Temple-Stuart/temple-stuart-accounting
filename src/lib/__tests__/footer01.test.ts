@@ -258,7 +258,10 @@ test('T6 one home for the anchors: each equals its owner\'s export; the sections
 
 test('T7 Landing.tsx renders id={DEMO_ANCHOR}, its import on a line of its own; the trip page\'s two links back derive from the leaf', () => {
   const landing = code(LANDING);
-  assert.equal(count(landing, '<div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">'), 1, 'the eyebrow row carries the anchor');
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the eyebrow row left the page — the third pillar's heading carries the anchor. Until then:
+  // '<div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">' ('the eyebrow row carries the anchor').
+  assert.equal(count(landing, '<h2 id={DEMO_ANCHOR} className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPLORE_PILLAR.heading}</h2>'), 1, 'the pillar\'s heading carries the anchor');
+  assert.equal(count(landing, 'id={DEMO_ANCHOR}'), 1, 'once');
   assert.ok(!landing.includes('id="demo"'), 'never typed');
   assert.equal(landing.split('\n').filter((l) => /^import \{ DEMO_ANCHOR \} from '@\/lib\/homeAnchors';\s*$/.test(l)).length, 1, 'its import, on a line of its own');
   assert.equal(BOOK_HREF, '/#demo');

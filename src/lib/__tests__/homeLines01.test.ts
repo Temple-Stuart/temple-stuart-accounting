@@ -4,7 +4,11 @@
  *   T1 the words — src/lib/brandLines.ts: the four exports, exact; SITE_DESCRIPTION is derived;
  *   T2 the hero — Landing.tsx imports COMPANY_LINE and HERO_SUBLINE and types none of their words;
  *      the h1 renders the three lines (the third in the wash) and the subline renders HERO_SUBLINE;
- *   T3 the experience line's home — HOME-BRIEF-03 (Alex, 2026-11-10): the ONE travel-and-experiences header in
+ *   T3 the experience line's home — HOME-FINISH-02 (Alex, 2026-11-10 20:56): it heads nothing on the home page now.
+ *      The travel section opens at the pillar's heading ("Explore the World.") and its paragraph, then the booking box;
+ *      the promise and the Events panel's two opening lines are gone — the panel opens at its chips' label. The line
+ *      stays exported from the leaf (T1), with no reader. Until then —
+ *      HOME-BRIEF-03 (Alex, 2026-11-10): the ONE travel-and-experiences header in
  *      Landing.tsx — an h2 holding EXPERIENCE_LINE on one line, then the PROMISE, then the travel sentence; the band
  *      (ExperiencesView, rendered) repeats no headline: its eyebrow, then SUBHEAD. (Until then the band rendered the
  *      line as its own h2, the third in the wash, then the PROMISE paragraph, then SUBHEAD.)
@@ -24,12 +28,14 @@ import { join, relative, resolve } from 'node:path';
 import { code } from '../sourceText';
 import { COMPANY_LINE, EXPERIENCE_LINE, HERO_SUBLINE, SITE_DESCRIPTION } from '../brandLines';
 import { EXPERIENCES } from '../experiences';
-import { ExperiencesView, DEFAULT_INTO, EYEBROW, PROMISE, SUBHEAD } from '@/components/landing/ExperiencesSection';
+import { EXPLORE_PILLAR } from '../homeActWords';
+import { ExperiencesView, DEFAULT_INTO, INTO_LABEL } from '@/components/landing/ExperiencesSection';
 
 Object.assign(globalThis, { React });
 
 const WORDS = 'src/lib/brandLines.ts';
 const LANDING = 'src/components/landing/Landing.tsx';
+const EVENTS_PANEL = 'src/components/landing/ExperiencesSection.tsx';
 const LAYOUT = 'src/app/layout.tsx';
 const PREVIEW = 'src/app/opengraph-image.tsx';
 const THIS_FILE = 'src/lib/__tests__/homeLines01.test.ts';
@@ -73,36 +79,44 @@ test('T2 the hero renders COMPANY_LINE and HERO_SUBLINE from src/lib/brandLines.
 
 // ── T3 · THE EXPERIENCE LINE'S HOME ──────────────────────────────────────────
 
-test('T3 (HOME-BRIEF-03, 2026-11-10) the experience line heads the ONE travel-and-experiences header in Landing — an h2 on one line, then the PROMISE, then the travel sentence, then the booking box; the band repeats no headline: its eyebrow, then SUBHEAD', () => {
-  // HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15): travel booking and the experiences read as one offering — the line and the promise moved
-  // up into the travel block's header. Until then the band rendered them itself: an h2 'mt-3 text-3xl sm:text-5xl font-bold leading-tight
-  // tracking-tight text-ts-white' holding the three lines (the third in the wash), the PROMISE paragraph right under it, then SUBHEAD.
-  assert.equal(PROMISE, 'Book the experience, not just the destination.');
-  assert.equal(EXPERIENCE_LINE.join(' '), 'Plan your escape. Build your income. Explore the world.', 'the three sentences, on one line');
+test('T3 (HOME-FINISH-02, 2026-11-10) the travel section opens at the pillar\'s heading and its paragraph, then the booking box — the experience line, the promise and the travel sentence are gone from Landing; the Events panel opens at its chips\' label — no headline and no opening lines of its own', () => {
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): "Purple title → Approved description → Existing functionality … No additional promotional headings or
+  // explanatory paragraphs between these elements." Until then (HOME-BRIEF-03, Alex, 2026-11-10 18:09 · 18:15) this test held the ONE
+  // travel-and-experiences header in Landing, in this order: the label '>TRAVEL BOOKING &amp; EXPERIENCES</p>'; the h2
+  // '<h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPERIENCE_LINE.join(' ')}</h2>' (the line imported on
+  // a line of its own from '@/lib/brandLines'); the promise '<p className="mt-2 text-lg font-semibold text-text-primary">{PROMISE}</p>' right
+  // under it (PROMISE = 'Book the experience, not just the destination.', imported from './ExperiencesSection'); the travel sentence
+  // 'Search &amp; book travel — free today, no account needed.' in '<p className="mt-2 text-sm text-text-secondary">'; then the booking box — and
+  // the band's own first two children, EYEBROW then SUBHEAD, before the chips' label. (Before HOME-BRIEF-03 the band rendered the line itself: an h2
+  // 'mt-3 text-3xl sm:text-5xl font-bold leading-tight tracking-tight text-ts-white' holding the three lines, the PROMISE under it, then SUBHEAD.)
+  assert.equal(EXPERIENCE_LINE.join(' '), 'Plan your escape. Build your income. Explore the world.', 'the three sentences stand in the leaf (T1 holds its exports) — no reader on the home page now');
+  assert.equal(EXPLORE_PILLAR.heading, 'Explore the World.');
+  assert.deepEqual([...EXPLORE_PILLAR.paragraphs], ['Discover events and experiences worth traveling for, find flights and places to stay, and book the journey that gets you there.'], 'his paragraph, word for word');
   const landing = code(LANDING);
-  assert.match(landing, /^import \{ EXPERIENCE_LINE \} from '@\/lib\/brandLines';$/m, 'the line, imported on a line of its own');
-  assert.match(landing, /^import \{ PROMISE \} from '\.\/ExperiencesSection';$/m, 'the promise, from the band\'s file');
+  assert.match(landing, /^import \{ EXPLORE_PILLAR \} from '@\/lib\/homeActWords';\s*$/m, 'the pillar\'s words, imported on a line of its own');
+  for (const gone of ['EXPERIENCE_LINE', 'PROMISE', 'SAVE_TRIPS_LINE']) assert.ok(!landing.includes(gone), `Landing.tsx no longer reads ${gone}`);
   const steps = [
-    '>TRAVEL BOOKING &amp; EXPERIENCES</p>',
-    `<h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPERIENCE_LINE.join(' ')}</h2>`,
-    '<p className="mt-2 text-lg font-semibold text-text-primary">{PROMISE}</p>',
-    '<p className="mt-2 text-sm text-text-secondary">',
-    'Search &amp; book travel — free today, no account needed.',
+    '<h2 id={DEMO_ANCHOR} className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPLORE_PILLAR.heading}</h2>',
+    '{EXPLORE_PILLAR.paragraphs.map((words) => <p key={words} className="mt-3 max-w-3xl text-base text-text-secondary">{words}</p>)}',
     '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />', // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking box carries the catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then
   ];
   for (const step of steps) assert.equal(landing.split(step).length - 1, 1, `${step} — once`);
   const at = steps.map((step) => landing.indexOf(step));
-  assert.deepEqual(at, [...at].sort((a, b) => a - b), 'the label → the h2 → the promise → the travel sentence, as a line → the booking box');
-  assert.match(landing.slice(at[1] + steps[1].length, at[2]), /^\s*$/, 'the promise right under the h2');
-  assert.match(landing.slice(at[2] + steps[2].length, at[3]), /^\s*$/, 'the travel sentence right under the promise');
-  assert.match(landing.slice(at[3] + steps[3].length, at[5]), /^\s*Search &amp; book travel — free today, no account needed\.\s*<\/p>\s*$/, 'that line holds the sentence, word for word, and the booking box follows');
-  for (const words of [...EXPERIENCE_LINE, PROMISE]) assert.ok(!landing.includes(words), `Landing.tsx does not type "${words}"`);
-  // the band: no headline of its own. HOME-BRIEF-04 (2026-11-10): it is the booking box's Events panel now — no band and no inner box, so its
-  // label line and SUBHEAD are the section's own first two children (until then: '<section …><div class="[^"]*"><p …>EYEBROW</p><p …>SUBHEAD</p>').
+  assert.deepEqual(at, [...at].sort((a, b) => a - b), 'the heading → the paragraph → the booking box');
+  assert.match(landing.slice(at[0] + steps[0].length, at[1]), /^\s*$/, 'the paragraph right under the heading');
+  assert.match(landing.slice(at[1] + steps[1].length, at[2]), /^\s*$/, 'the booking box right under the paragraph — nothing between');
+  for (const words of [...EXPERIENCE_LINE, EXPLORE_PILLAR.heading, ...EXPLORE_PILLAR.paragraphs, 'Book the experience, not just the destination.', 'TRAVEL BOOKING', 'EXPLORE TRAVEL', 'Search &amp; book travel', 'One trip holds everything', 'Create a free account to save your trips.', 'NO ACCOUNT NEEDED']) {
+    assert.ok(!landing.includes(words), `Landing.tsx does not type "${words}"`);
+  }
+  // the Events panel: no headline of its own (HOME-BRIEF-03) and — HOME-FINISH-02 — no opening lines: its first child is the chips' label, with no
+  // margin over it (until then: '<p class="[^"]*">EYEBROW</p><p class="[^"]*">SUBHEAD</p><p class="[^"]*">', the label wearing mt-8)
   const html = renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: '2026-11-08', choice: { category: DEFAULT_INTO }, onPick: () => {} }));
-  assert.equal((html.match(/<h2/g) ?? []).length, 0, 'the band renders no h2');
-  assert.ok(!html.includes(asHtml(PROMISE)) && EXPERIENCE_LINE.every((line) => !html.includes(line)), 'neither the promise nor the experience line');
-  assert.match(html, new RegExp(`^<section id="events" aria-label="Book the experience"[^>]*><p class="[^"]*">${esc(EYEBROW)}</p><p class="[^"]*">${esc(asHtml(SUBHEAD))}</p><p class="[^"]*">`), 'the eyebrow, then SUBHEAD, then the chips\' label; the id and the aria-label unchanged');
+  assert.equal((html.match(/<h2/g) ?? []).length, 0, 'the panel renders no h2');
+  assert.ok(!html.includes('Book the experience, not just the destination.') && EXPERIENCE_LINE.every((line) => !html.includes(line)), 'neither the promise nor the experience line');
+  assert.match(html, new RegExp(`^<section id="events" aria-label="Book the experience"[^>]*><p class="font-mono text-xs lg:text-\\[10px\\] font-semibold uppercase tracking-wider text-text-faint">${esc(asHtml(INTO_LABEL))}</p>`), 'the panel opens at the chips\' label; the id and the aria-label unchanged');
+  for (const gone of ['THE BEST EXPERIENCES ON EARTH', 'Pick what you']) assert.ok(!html.includes(gone), `the panel no longer draws "${gone}…"`);
+  const panel = code(EVENTS_PANEL);
+  for (const gone of ['EYEBROW', 'SUBHEAD', 'PROMISE', 'EXP.eyebrow', 'EXP.sub', 'THE BEST EXPERIENCES ON EARTH', 'Book the experience, not just the destination.']) assert.ok(!panel.includes(gone), `${gone} left the panel's code with its last reader`);
 });
 
 // ── T4 · THE PAGE DESCRIPTION ────────────────────────────────────────────────

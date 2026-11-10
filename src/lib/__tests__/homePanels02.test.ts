@@ -40,7 +40,9 @@ const DECK = 'src/components/landing/PipelineDeck.tsx'; // PIPELINE-PAGE-01 (202
 
 const EXPERIENCES = '<ExperiencesSection today={today} />';
 const BOOKING = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />'; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking box, carrying the experiences catalog as its Events panel
-const TRAVEL_FOOT = 'One trip holds everything — plans, bookings, budget.';
+// HOME-FINISH-02 (Alex, 2026-11-10 20:56), Part 4: the travel block's foot row left the page; its last child is the booking lookup, and that marks
+// the block's end now. Until then: TRAVEL_FOOT = 'One trip holds everything — plans, bookings, budget.'.
+const TRAVEL_FOOT = "<GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />";
 const MY_TRIP = '<WasHereSection today={today} />';
 const GUEST_STRIP = '<GuestTripStrip onRequireAuth={onRequireAuth} />';
 const STOP_ZERO = '<StopZeroSection />';
@@ -49,7 +51,7 @@ const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />'; // HOME-BRIEF-0
 // this constant was EYEBROW, the label: 'text-text-faint">\n            PROFESSIONAL SERVICES\n' — its note follows.
 const SERVICES_HEAD = '<h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{BUILD_PILLAR.heading}</h2>'; // (EYEBROW's note) HOME-BRIEF-03 (Alex, 2026-11-10): the section's label reads PROFESSIONAL SERVICES — 'DONE-FOR-YOU\n' until then; found with the end of its own <p>, since the card's chip says the same words
 const SECTION_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'; // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then
-const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">'; // HOME-FINISH-02 (2026-11-10): the travel block, third under "What We Do"
+const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 py-10 border-b border-border">'; // (Part 4: the section wears py-10 — no padding of its own until then) HOME-FINISH-02 (2026-11-10): the travel block, third under "What We Do"
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />"; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): no longer on this page — held here so T1 can say it is gone
 const DOOR = '<section aria-label="How it all connects"'; // PIPELINE-PAGE-01 (2026-11-09): the door in the pipeline header's seat (HEADER was '<section aria-label="The pipeline"')
 /** code() blanks a JSX comment's words and keeps its braces — the guest law's own allowance. */

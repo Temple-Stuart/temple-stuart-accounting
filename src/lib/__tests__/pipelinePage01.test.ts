@@ -65,7 +65,10 @@ test('T1 the home page renders no deck: no deck-NN id, no pipeline header, no st
     assert.ok(!landing.includes(gone), `Landing.tsx no longer imports ${gone}`);
   }
   assert.match(landing, /^import \{ useEffect, useState \} from 'react';$/m, 'react: the old-links effect and the demo modal\'s flag');
-  assert.match(landing, /^import \{ COMMISSION_LINE \} from '@\/lib\/disclosureWords';\s*$/m, 'the commission import, whole, alone on its line now');
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the commission line moved inside the booking box (LandingBookingSection.tsx renders it), so its import
+  // left Landing.tsx. Until then: assert.match(landing, /^import \{ COMMISSION_LINE \} from '@\/lib\/disclosureWords';\s*$/m, 'the commission
+  // import, whole, alone on its line now').
+  assert.ok(!landing.includes('disclosureWords'), 'the commission import left with the line — the box reads the leaf now');
   // what only the home page reads stays there, exported as before
   for (const kept of ['export const REFERENCED_MARKS: Set<string> = (() => {', 'export const ZERO_COST_BY_MODULE: Record<string, string> = ', 'export function ModuleCostBreakdown(', 'function DimCell(', 'function youTubeEmbedUrl(', 'walkthrough ledger drift:']) {
     assert.equal(count(landing, kept), 1, `Landing.tsx keeps ${kept}`);
