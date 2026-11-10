@@ -143,8 +143,12 @@ test('both tools stay PARTIAL, and each says why in its own words', () => {
   assert.equal(brokerage.line, "runs on the founder's broker until per-user connections ship (TT-02)");
   // Trade Log's why is STEP 0.4's finding, stated as the reason the job is not
   // done for a customer: the only writer is the Plaid commit path.
-  assert.match(tradeLog.line ?? '', /a customer cannot log a trade/);
-  assert.match(tradeLog.line ?? '', /no manual entry/);
+  // REGISTRY-TRUTH-01 (2026-11-10): the why re-read against the code. TRADE-LOG-01 built the hand entry the same day
+  // this was pinned, so "a customer cannot log a trade" and "no manual entry" were false; the reason the job is not
+  // done is what a hand-entered trade cannot reach. The two phrases re-pointed to the ones the true why carries
+  // (were /a customer cannot log a trade/ and /no manual entry/); the third stands.
+  assert.match(tradeLog.line ?? '', /a customer can log an options trade by hand/);
+  assert.match(tradeLog.line ?? '', /nothing past that is done/);
   assert.match(tradeLog.line ?? '', /not done for a customer on production yet/);
   // The line is RENDERED under the tool's name, so it carries no source path —
   // that is the citation field's job (the citation law).
