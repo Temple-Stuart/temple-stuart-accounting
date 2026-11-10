@@ -10,9 +10,11 @@
  *      every export still exported; it renders the header and fourteen collapsed steps, the header's sub from the leaf;
  *   T3 the page mounts LandingHeader, PipelineDeck and LandingFooter once each, in that order; its title and description
  *      come from the words leaf, the description the header's own sub; nothing lives under the route but the page;
- *   T4 the door: one cream act where the header stood (HOME-ORDER-01, 2026-11-10: directly after the MY TRIP mount —
+ *   T4 the door left the home page (HOME-FINISH-02, 2026-11-10): no door act and no link to the 14 steps in Landing's own
+ *      body — the footer's THE RECORD keeps it; the path's import stays for the old links. (Until then — the door: one
+ *      cream act where the header stood (HOME-ORDER-01, 2026-11-10: directly after the MY TRIP mount —
  *      directly after the plans mount until then), one link — href PIPELINE_PATH
- *      ('/how-it-works'), words PIPELINE_DOOR, class PRIMARY_CTA — neither typed in Landing.tsx;
+ *      ('/how-it-works'), words PIPELINE_DOOR, class PRIMARY_CTA — neither typed in Landing.tsx;)
  *   T5 the old links: the home page's one effect sends exactly #deck-01 … #deck-14 to /how-it-works with that hash, by
  *      window.location.replace, and nothing else;
  *   T6 public, with the security review: '/how-it-works' in PUBLIC_PATHS ('/my-trip' still last) and in GUEST_ROUTES on
@@ -47,8 +49,10 @@ const FOURTEEN = ['deck-01', 'deck-02', 'deck-03', 'deck-04', 'deck-05', 'deck-0
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />";
 const HOW_TO_MOUNT = '<HowToSection onRequireAuth={onRequireAuth} />'; // HOME-BRIEF-04 (2026-11-10): the home page's offer, in the plans' seat
 const MY_TRIP_MOUNT = '<WasHereSection today={today} />'; // HOME-ORDER-01 (2026-11-10): the door's upper neighbour
-const DOOR_OPEN = '<section aria-label="How it all connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">';
-const DOOR_LINK = '<Link href={PIPELINE_PATH} className={PRIMARY_CTA}>{PIPELINE_DOOR}</Link>';
+// HOME-FINISH-02 (2026-11-10): the door left the home page, and its two pins left this file with it — DOOR_OPEN ('<section aria-label="How it all
+// connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">') and DOOR_LINK ('<Link href={PIPELINE_PATH}
+// className={PRIMARY_CTA}>{PIPELINE_DOOR}</Link>').
+const FOOTER_MOUNT = '<LandingFooter />';
 const BUILT_ON_OPEN = '<section className="w-full border-y border-border bg-bg-terminal">';
 /** code() blanks a JSX comment's words and keeps its braces — the guest law's own allowance. */
 const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
@@ -129,28 +133,29 @@ test('T3 /how-it-works mounts LandingHeader, PipelineDeck and LandingFooter once
 
 // ── T4 · THE DOOR ────────────────────────────────────────────────────────────
 
-test('T4 the door: one cream act directly after MY TRIP (HOME-ORDER-01, 2026-11-10), one link — PIPELINE_PATH, PIPELINE_DOOR, PRIMARY_CTA — none of it typed in Landing.tsx', () => {
+test('T4 the door left the home page (HOME-FINISH-02, 2026-11-10): no door act and no link to the 14 steps in Landing\'s own body — the footer\'s THE RECORD keeps it; MY TRIP is the last act over the footer; the path\'s import stays for the old links', () => {
+  // HOME-FINISH-02 (Alex's layout ends at Our Story; the chat's pick, shown to him at 21:25 on 2026-11-10). Until then this test read 'T4 the door:
+  // one cream act directly after MY TRIP (HOME-ORDER-01, 2026-11-10), one link — PIPELINE_PATH, PIPELINE_DOOR, PRIMARY_CTA — none of it typed in
+  // Landing.tsx': DOOR_OPEN once ('the act, once, in the house idiom'), DOOR_LINK once and alone inside it ('the act holds the one link and nothing
+  // else'), 'my trip → the door: a comment between, nothing else', and the import "import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';".
+  // (HOME-ORDER-01, 2026-11-10: MY TRIP sat directly above the door; the plans mount did until then. HOME-BRIEF-04, 2026-11-10: the plans mount
+  // left the home page and the how-to took its seat.)
   const landing = code(LANDING);
   assert.equal(PIPELINE_PATH, '/how-it-works');
-  assert.equal(PIPELINE_DOOR, 'How it all connects: the 14 steps →');
-  assert.equal(count(landing, DOOR_OPEN), 1, 'the act, once, in the house idiom');
-  assert.equal(count(landing, DOOR_LINK), 1, 'the link, once');
-  // HOME-ORDER-01 (2026-11-10): Alex's order — MY TRIP sits directly above the door now. Until then the plans mount did ('the plans mount → the door: a
-  // comment between, nothing else'); the plans are still above the door, no longer its neighbour.
-  // HOME-BRIEF-04 (Alex, 2026-11-10 19:00: "the how-to should replace software plans"): the plans mount left the home page — the how-to sits in
-  // its seat and is the offer above the door now. Until then: 'const plans = landing.indexOf(PLANS_MOUNT);' and 'plans > -1 && myTrip > plans &&
-  // door > myTrip' ('after the plans mount and MY TRIP').
+  assert.equal(PIPELINE_DOOR, 'How it all connects: the 14 steps →', 'the leaf\'s words stand — pipelineWords.ts is untouched');
+  assert.equal(count(landing, 'aria-label="How it all connects"'), 0, 'no door act on the home page');
+  assert.ok(!landing.includes('PIPELINE_DOOR'), 'Landing reads the door\'s words no more');
+  assert.equal(count(landing, 'href={PIPELINE_PATH}'), 0, 'and its own body links to the 14 steps nowhere — the footer does');
+  assert.match(landing, /^import \{ PIPELINE_PATH \} from '\.\/pipelineWords';$/m, 'the path stays: the old #deck-NN links still redirect (T5)');
   assert.equal(landing.indexOf(PLANS_MOUNT), -1, 'the plans mount is gone from this page');
   const offer = landing.indexOf(HOW_TO_MOUNT);
   const myTrip = landing.indexOf(MY_TRIP_MOUNT);
-  const door = landing.indexOf(DOOR_OPEN);
-  assert.ok(offer > -1 && myTrip > offer && door > myTrip, 'after the how-to (the Software Plans) and MY TRIP');
-  assert.match(landing.slice(myTrip + MY_TRIP_MOUNT.length, door), ONLY_COMMENTS, 'my trip → the door: a comment between, nothing else');
-  const doorEnd = landing.indexOf('</section>', door);
-  assert.equal(landing.slice(door + DOOR_OPEN.length, doorEnd).trim(), DOOR_LINK, 'the act holds the one link and nothing else');
-  assert.match(landing, /^import \{ PIPELINE_DOOR, PIPELINE_PATH \} from '\.\/pipelineWords';$/m);
+  const footer = landing.indexOf(FOOTER_MOUNT);
+  assert.ok(offer > -1 && myTrip > offer && footer > myTrip, 'the how-to → MY TRIP → the footer');
+  assert.ok(!landing.slice(myTrip + MY_TRIP_MOUNT.length, footer).includes('<section'), 'MY TRIP is the last act: no section between it and the footer');
   assert.ok(!landing.includes("'/how-it-works'") && !landing.includes('How it all connects:'), 'the path and the words live in the leaf');
   assert.match(comments(LANDING), / \* {3}HOW IT ALL CONNECTS — the door to the 14 steps \(PIPELINE-PAGE-01, 2026-11-09: in the seat THE PIPELINE header held/, 'the act list\'s line, in place, dated');
+  assert.match(comments(LANDING), / \* {3}\(HOME-FINISH-02, 2026-11-10: that door left this page with its act — the footer's THE RECORD keeps it/, 'and under it, dated: it left');
 });
 
 // ── T5 · THE OLD LINKS ───────────────────────────────────────────────────────
@@ -190,7 +195,10 @@ test('T6 public: \'/how-it-works\' in PUBLIC_PATHS (\'/my-trip\' still last) and
   assert.match(comments(MIDDLEWARE), /PIPELINE-PAGE-01 \(Alex, 2026-11-09\): \/how-it-works[\s\S]*?no route handler under\n\s+\/\/ it, no fetch, no paid API, no database read, no env read, no session read/);
   const lawLine = code(LAW).split('\n').filter((l) => l.includes("{ route: '/work-with-me', why:"));
   assert.equal(lawLine.length, 1, 'the /work-with-me line');
-  assert.ok(lawLine[0].includes(`{ route: '/how-it-works', why: "the 14 steps — the home page's door where the deck stood (Landing.tsx, PIPELINE-PAGE-01) and the footer's THE RECORD (FOOTER-01); PUBLIC_PATHS" }`), 'GUEST_ROUTES, on that line — TRIPPOST-01\'s and CRM-02\'s way');
+  // HOME-FINISH-02 (2026-11-10): the home page's own door left the page, so the why names the footer's THE RECORD — on every page that mounts the
+  // footer. Until then: why: "the 14 steps — the home page's door where the deck stood (Landing.tsx, PIPELINE-PAGE-01) and the footer's THE RECORD
+  // (FOOTER-01); PUBLIC_PATHS".
+  assert.ok(lawLine[0].includes(`{ route: '/how-it-works', why: "the 14 steps — the footer's THE RECORD, on every page that mounts the footer (LandingFooter.tsx, FOOTER-01; HOME-FINISH-02, 2026-11-10: the home page's own door where the deck stood — Landing.tsx, PIPELINE-PAGE-01 — left the page); PUBLIC_PATHS" }`), 'GUEST_ROUTES, on that line — TRIPPOST-01\'s and CRM-02\'s way');
   for (const f of [PAGE, DECK, WORDS]) {
     const src = code(f);
     for (const tell of ['fetch(', '/api/', 'prisma', 'process.env']) assert.ok(!src.includes(tell), `${f} carries no ${tell}`);
