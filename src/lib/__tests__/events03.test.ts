@@ -13,6 +13,8 @@
  *      not-announced line (Snow resorts on a day after every announced season has ended — still no "Nothing announced yet";
  *      EVENTS-04 (2026-11-09): those lines read "Next season not announced (checked …)");
  *      a season chip whose row is empty shows no strip line;
+ *      HOME-BRIEF-02 (Alex, 2026-11-10): the strip line is gone from every view (T2-T4 hold it rendered nowhere), the
+ *      events' closing line is its one short line, and a card is a row of the list — its foot still ends it;
  *   T4 Golf (an event chip, nothing upcoming) exactly as experiences01 has it, with CLOSING_LINE and no second "checked";
  *      the refused view with CLOSING_LINE;
  *   T5 the source — the season chip is known by its group, read from EXPERIENCE_CATEGORIES (no season id typed in the
@@ -27,7 +29,7 @@ import { code } from '../sourceText';
 import { EXPERIENCES, EXPERIENCE_CATEGORIES, type Experience } from '../experiences';
 import { dayWords, experienceLine, notAnnouncedLine, seasonNotAnnouncedLine } from '../experienceWords'; // EVENTS-04 (2026-11-09): the ended season's words (saysCheckedOnce)
 import {
-  ExperiencesView, CLOSING_LINE, SEASONS_CLOSING_LINE, STRIP_LINE, SOURCE_LINK, checkedWords, nothingUpcoming, type IntoChoice,
+  ExperiencesView, CLOSING_LINE, SEASONS_CLOSING_LINE, SOURCE_LINK, checkedWords, nothingUpcoming, type IntoChoice,
 } from '@/components/landing/ExperiencesSection';
 
 Object.assign(globalThis, { React });
@@ -39,6 +41,8 @@ const TODAY = '2026-10-30';
 const AFTER_THE_SNOW = '2027-06-01';
 /** The day experiences01 renders Golf with nothing upcoming. */
 const GOLF_DAY = '2027-12-31';
+/** HOME-BRIEF-02 (Alex, 2026-11-10): the strip line left the section (its const with it) — its words, held here only to say they are rendered nowhere. */
+const STRIP_LINE = 'To book around one of these, use the strip at the top: hotels, flights, getting around.';
 /** The day the seven season categories' pages were read (CHECKED_SEASONS, src/lib/experiences.ts). */
 const SEASONS_CHECKED = 'Checked Nov 8, 2026';
 
@@ -67,7 +71,7 @@ const footOf = (card: string, id: string) => {
   ).exec(card);
   assert.ok(m, `${id}: the foot ends the card — the checked words if any, then the Source ↗ link`);
   const cls = m[1].split(' ');
-  for (const c of ['mt-auto', 'flex', 'flex-wrap', 'items-center']) assert.ok(cls.includes(c), `${id}: the foot sets the two on one line (${c})`);
+  for (const c of ['flex', 'flex-wrap', 'items-center']) assert.ok(cls.includes(c), `${id}: the foot sets the two on one line (${c})`); // HOME-BRIEF-02 (2026-11-10): 'mt-auto' left with the card — a row of the list has no bottom edge to push its foot to
   return { checked: m[2] };
 };
 /** The card says the day it was checked once: in its foot (`expected`), or — when its line already says it — nowhere else. */
@@ -107,22 +111,21 @@ test('T2 Surf: an upcoming card says the day it was checked once, in its foot be
   }
   assert.equal(where.filter((w) => w === 'foot').length, 3, 'the three upcoming Surf cards each say the day they were checked in the foot');
   assert.equal(where.filter((w) => w === 'line').length, 3, 'the three not-announced Surf cards say it in their line');
-  assert.equal(count(html, STRIP_LINE), 1, 'the strip line, as before');
-  assert.equal(count(html, asHtml(CLOSING_LINE)), 1, 'the events’ closing line, as before');
+  assert.equal(count(html, STRIP_LINE), 0, 'HOME-BRIEF-02 (2026-11-10): the strip line is gone — once, until then');
+  assert.equal(count(html, asHtml(CLOSING_LINE)), 1, 'the events’ closing line, once');
   assert.ok(!html.includes(asHtml(SEASONS_CLOSING_LINE)));
   assert.ok(!html.includes('data-nothing-upcoming'));
 });
 
 // ── T3 · THE SEVEN SEASON CHIPS ──────────────────────────────────────────────
 
-test('T3 the season chips: no "Nothing announced yet", the strip line once after the row, the seasons’ closing line; every card says it was checked Nov 8, 2026', () => {
+test('T3 the season chips: no "Nothing announced yet", no strip line (HOME-BRIEF-02, 2026-11-10), the seasons’ closing line; every card says it was checked Nov 8, 2026', () => {
   assert.equal(SEASONS_CLOSING_LINE, "Each window comes from the place's own source, with the day it was checked. Usual months are a guide, not set dates.", 'the ruled words');
   assert.equal(SEASON_IDS.length, 7, 'seven season categories');
   for (const id of SEASON_IDS) {
     const html = render({ category: id });
     assert.ok(!html.includes('data-nothing-upcoming') && !html.includes('Nothing announced yet'), `${id}: no "Nothing announced yet"`);
-    assert.equal(count(html, STRIP_LINE), 1, `${id}: the strip line once`);
-    assert.ok(html.indexOf(STRIP_LINE) > html.lastIndexOf('</article>'), `${id}: the strip line after the row`);
+    assert.equal(count(html, STRIP_LINE), 0, `${id}: no strip line — HOME-BRIEF-02 (2026-11-10): once, after the row, until then`);
     assert.equal(count(html, asHtml(SEASONS_CLOSING_LINE)), 1, `${id}: the seasons’ closing line once`);
     assert.ok(!html.includes(asHtml(CLOSING_LINE)), `${id}: not the events’ closing line`);
     const rows = rowsOf(id);
@@ -142,7 +145,7 @@ test('T3 the season chips: no "Nothing announced yet", the strip line once after
   );
   assert.ok(where.includes('line') && where.includes('foot'), 'some cards say it in their line, some in the foot');
   assert.ok(!late.includes('data-nothing-upcoming'), 'nothing upcoming on a season chip still says no "Nothing announced yet"');
-  assert.equal(count(late, STRIP_LINE), 1, 'the strip line, whenever the row has cards');
+  assert.equal(count(late, STRIP_LINE), 0, 'no strip line — HOME-BRIEF-02 (2026-11-10)');
   assert.equal(count(late, asHtml(SEASONS_CLOSING_LINE)), 1);
   // A season chip whose row is empty: no card, so no strip line — still no "Nothing announced yet", and the seasons' closing line.
   const bare = render({ category: 'wildlife' }, TODAY, EXPERIENCES.filter((r) => r.category !== 'wildlife'));

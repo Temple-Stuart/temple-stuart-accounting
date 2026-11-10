@@ -1,70 +1,65 @@
 /**
- * Alex's own words (2026-11-08 13:52), edited for spelling and length, approved by him — the original is quoted in claude/blog-direction-2026-11-08.md (STOP0-01)
+ * ABOUT US (HOME-BRIEF-02 — Alex's home page brief, 2026-11-10 16:27) — Alex's finalized text, EXACT: the place, the dates,
+ * and three sections in his order, each a heading, its paragraphs and — last — its quote. Never reworded, trimmed or
+ * added to here: a change to these words is Alex's. The section that draws them is
+ * src/components/landing/StopZeroSection.tsx, under ABOUT_US_HEADING (src/lib/homeActWords.ts); it types none of them.
  *
- * STOP 0 (STOP0-01, Alex, 2026-11-08 15:11 + 16:18; board K tags 7-8) — the letter between the events and MY TRIP
- * (src/components/landing/StopZeroSection.tsx), and the one line at the foot of the events band that links to it
- * (src/components/landing/ExperiencesSection.tsx). Every visible word either one renders comes from here; neither types one.
+ * WHAT WENT (HOME-BRIEF-02, 2026-11-10): STOP0-01's letter of 2026-11-08 — its eyebrow, headline, five paragraphs, quote
+ * and signature — and its timeline, HOW I GOT HERE, with the first commit's day and the Stop 1 row derived from the trip
+ * log; the three imports only the timeline used went with them. Those words are in git history.
  *
- * PURE: no clock, no locale call, no fetch, no React. The timeline's last two rows are derived, never typed: the first
- * commit's day through dayWords (src/lib/experienceWords.ts), and Stop 1 from the trip log's first row in trip order
- * (tripOrder and stopWords, src/lib/wasHereWords.ts).
+ * WHAT STAYS: STOP_ZERO_ANCHOR, the section's id (src/lib/homeAnchors.ts re-exports it; the footer's link lands on it).
+ * The three words at the foot of the events band — WHY EVENTS FIRST, its line and "Read my story ↓" (STOP0-01, K tag 7) —
+ * went with that paragraph, the same day.
+ *
+ * PURE: no import, no clock, no locale call, no fetch, no React.
  */
 
-import type { WasHereRow } from './wasHere';
-import { dayWords } from './experienceWords';
-import { stopWords, tripOrder } from './wasHereWords';
-
-/** The section's anchor — the events band's "Read my story ↓" names it. */
+/** The section's anchor — src/lib/homeAnchors.ts re-exports it, and the footer's link lands on it. */
 export const STOP_ZERO_ANCHOR = 'stop-0';
-export const STOP_ZERO_EYEBROW = 'STOP 0';
-export const STOP_ZERO_HEADLINE = 'None of the blogs actually told me how to do it.';
-/** The letter: five paragraphs, in his order. */
-export const STOP_ZERO_LETTER = [
-  "I've been reading travel blogs since 2003. That year I got a subscription to Transworld Snowboarding, saw a resort that looked better than the one I grew up riding, and googled it. The world of travel and lifestyle blogs opened up. Twenty-three years later, I still read them.",
-  "Snowboarding wasn't the only thing. I wanted to see wildlife, the wonders of the world, music and arts festivals, the biggest sporting events. Every one of them has blogs. They write about the experience, hand you a bunch of affiliate links, and take a slice when you book.",
-  "None of them showed me how to actually do it. How to get your bank data. How to turn it into a financial statement. How to see your income and expenses. How to know what living at home costs, so you have a benchmark to weigh your travel against. How to set up a system to earn income abroad.",
-  "So instead of venting about it, I cashed in my retirement, went out to live it, made a ton of mistakes, and built the system as I went.",
-  "Even if nobody reads this, it's my letter to myself. And once something's in writing, if it's wrong, I have to keep looking at it until I go back and fix it. That's how the process gets better.",
+
+/** Where, then when — the two lines under the heading. */
+export const STOP_ZERO_PLACE = 'Stop 0 | Los Angeles, California 🇺🇸';
+export const STOP_ZERO_DATES = 'January to June 2026';
+
+/** The three sections, in his order. Each line of his text is one paragraph; a section's quote is drawn last. */
+export const STOP_ZERO_STORY = [
+  {
+    heading: 'Why I Built Temple Stuart',
+    paragraphs: [
+      "I've wanted to travel the world, build businesses, and work for myself for as long as I can remember.",
+      "I've been reading travel blogs since 2003, exploring everything from natural wonders to festivals, sporting events, and destinations around the world.",
+      "There's no shortage of people telling you where to go, what to see, and which links to click.",
+      'But I kept wondering how to actually build a life that could afford those experiences.',
+    ],
+    quote: '“Everyone was showing me the life they were living. I wanted to understand how to build one of my own.”',
+  },
+  {
+    heading: 'The Idea Behind Temple Stuart',
+    paragraphs: [
+      'I wanted to understand what living at home actually cost me, what I could afford elsewhere, and how to build a business that could finance it all.',
+      "And I realized these weren't just travel problems.",
+      "Whether you're managing personal finances, running a business, trading stocks, or planning a trip, you should be able to plan ahead, budget for it, and compare those plans with what actually happened.",
+      'So I decided to build Temple Stuart.',
+      "I cashed in my retirement savings to go all in. On New Year's Eve, instead of going out drinking and talking about my goals, I stayed home and started working on them.",
+      'For the next six months, I focused on building connected bookkeeping, trading, and travel systems, all tied to a calendar.',
+      'I wanted to separate personal, business, and trading finances, distinguish personal travel from business travel, and use actual financial records to make more informed plans and budgets.',
+    ],
+    quote: '“One connected system for managing your money, planning your future, and measuring the outcomes of your decisions.”',
+  },
+  {
+    heading: 'Our Story Is Still Being Written',
+    paragraphs: [
+      'By June 30, my financial records had shown me something interesting.',
+      'I could spend less money traveling the world than I was spending just to pay rent in Los Angeles.',
+      "Unfortunately, my system wasn't quite ready. The travel booking platform couldn't handle my first trip, the trading algorithm wasn't ready for daily use, and bookkeeping still needed work.",
+      'But I left anyway.',
+      "I wanted to test what I'd built, learn from firsthand experience, and improve the system based on what actually worked.",
+      "Besides, I'd rather spend my money living the life I wanted than sitting around watching other people live theirs.",
+      "Every destination after Los Angeles is another chapter in the story of Temple Stuart. I'll be documenting what I planned, what I spent, what worked, what didn't, and how those experiences influence the business I'm building.",
+      'Maybe you want to travel the world, start a business, manage your investments, or simply understand your finances better.',
+      'Whatever your goal, I want Temple Stuart to help you make more informed decisions about how to get there.',
+    ],
+    quote: "“I don't just want to sell the dream. I want to guide people into living it for themselves.”",
+  },
 ] as const;
-export const STOP_ZERO_QUOTE = "“I don't just want to sell you the dream. I want to guide you into living it.”";
-export const STOP_ZERO_SIGNATURE = '— Alex';
-export const STOP_ZERO_TIMELINE_LABEL = 'HOW I GOT HERE';
-
-/**
- * STOP0-01 (2026-11-09): the day of the first commit on main — f85dbd8d (f85dbd8d79bb3aef9f114cce4f38a176b38229d5),
- * "Initial commit from Create Next App", 2025-09-04T18:26:29Z (11:26 -0700), no parent. Checked through the GitHub API
- * (`gh api repos/Temple-Stuart/temple-stuart-accounting/commits/f85dbd8d`), never a shallow clone's log, which shows a
- * later commit. Main's other root, 28ed9927 ("Initial commit"), came eight minutes later the same day (a commits-only
- * clone's `git rev-list --max-parents=0 main`); c0eee8c merged the two.
- */
-export const FIRST_COMMIT_ON = '2025-09-04';
-
-/** One row of HOW I GOT HERE: when, then what. Not exported: the module's exports are exactly the ruled list (STOP0-01 CLOSED 1). */
-interface StopZeroRow {
-  when: string;
-  what: string;
-}
-
-/**
- * HOW I GOT HERE — six rows: the four years he wrote down, then the first commit's day and Stop 1, both derived. Stop 1
- * is the first row of the trip log in trip order: its start through dayWords, its city as the row holds it — "Jul 1,
- * 2026" and "Stop 1: Canggu, Bali." today (src/lib/wasHere.ts canggu-2026-07). An empty log has no Stop 1, so this
- * throws rather than draw the timeline without it.
- */
-export function stopZeroTimeline(rows: readonly WasHereRow[]): readonly StopZeroRow[] {
-  const first = tripOrder(rows)[0];
-  if (first === undefined) throw new Error('stopZeroTimeline: the trip log has no stop — Stop 1 is its first row in trip order, never typed (STOP0-01)');
-  return [
-    { when: '2000', what: 'First time snowboarding. 2nd grade.' },
-    { when: '2001', what: 'My first AIM account. 3rd grade.' },
-    { when: '2002', what: 'My first snowboard. 4th grade.' },
-    { when: '2003', what: 'Transworld Snowboarding → googled a resort → found the blogs. 5th grade.' },
-    { when: dayWords(FIRST_COMMIT_ON), what: 'The first commit on this system.' },
-    { when: dayWords(first.start), what: `${stopWords(1)}: ${first.city}.` },
-  ];
-}
-
-/** K tag 7: the line at the foot of the events band, directly before its closing line, on every view. */
-export const EVENTS_STORY_LABEL = 'WHY EVENTS FIRST';
-export const EVENTS_STORY_LINE = 'In 5th grade I saw a resort in Transworld Snowboarding that looked better than mine, googled it, and found the travel blogs. The experience came first. The trip came second.';
-export const READ_MY_STORY = 'Read my story ↓';

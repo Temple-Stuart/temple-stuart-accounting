@@ -183,7 +183,7 @@ export const PLANS: readonly Plan[] = [
   {
     id: 'everything',
     modules: ['personal', 'business', 'trading'],
-    name: 'Everything',
+    name: 'Personal + Business + Trading',
     positioning: 'The company and the book, on one set of books.',
     audience: 'For founder-traders.',
     relationship: 'Personal, the company and the trading book, in one set of records.',

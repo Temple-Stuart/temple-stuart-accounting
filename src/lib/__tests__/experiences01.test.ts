@@ -12,6 +12,9 @@
  * EVENTS-01c (Alex, 2026-11-06) — THE LINEUP folds into COMING UP: every row of the chosen
  * category is a card in one row that scrolls sideways — upcoming first by start, then the rest
  * in the leaf's order — each card linking its source; the lineup's pill words left with it.
+ * HOME-BRIEF-02 (Alex's home page brief, 2026-11-10) — COMING UP is a compact list now: one row per event, the same rows
+ * in the same order, every data hook kept; the strip line under it is gone and the events' closing line is one short
+ * line. T4's two tests that held the sideways row and the strip line follow, each with a dated note.
  *
  *   T1 the law — every refusal by name over injected rows; the live rows pass;
  *   T2 the rows — the count, three exact rows, the categories in the ruled order;
@@ -39,7 +42,7 @@ import { readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { BOOKING_FLOW_BASE, BOOKING_FLOW_FILES, bookingFlowSha256 } from '../travelBookingFlow';
 import {
-  ExperiencesView, DEFAULT_INTO, EVENTS_ANCHOR, CLOSING_LINE, STRIP_LINE, SOURCE_LINK, notACategory, nothingUpcoming,
+  ExperiencesView, DEFAULT_INTO, EVENTS_ANCHOR, CLOSING_LINE, SOURCE_LINK, notACategory, nothingUpcoming,
 } from '@/components/landing/ExperiencesSection';
 
 Object.assign(globalThis, { React });
@@ -228,7 +231,7 @@ test('T3 the lineup\'s pill words left with THE LINEUP (EVENTS-01c) — no calle
 
 // ── T4 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T4 rendered with no choice named: Surf — one row of all six surf cards, the three upcoming first with the Philippines Pro first, then the three not announced; twenty-six chips across the two rows with Surf pressed; every card linking its source; the two lines; no lineup, no all-categories word, nothing of Alex\'s', () => {
+test('T4 rendered with no choice named: Surf — a list of all six surf rows (HOME-BRIEF-02, 2026-11-10), the three upcoming first with the Philippines Pro first, then the three not announced; twenty-six chips across the two rows with Surf pressed; every row linking its source; the closing line and no strip line; no lineup, no all-categories word, nothing of Alex\'s', () => {
   const html = render();
   assert.match(html, /<section id="events" aria-label="Book the experience"/);
   assert.equal(EVENTS_ANCHOR, 'events');
@@ -248,15 +251,19 @@ test('T4 rendered with no choice named: Surf — one row of all six surf cards, 
   assert.match(html, /aria-pressed="true"[^>]*data-into="surfing">Surf</);
   assert.ok(!html.includes('Everything'), 'the all-categories word is gone from the markup');
   assert.ok(!html.includes('data-into=""'));
-  assert.ok(html.includes(STRIP_LINE));
+  assert.ok(!html.includes('use the strip at the top'), 'HOME-BRIEF-02 (Alex, 2026-11-10): the strip line under the row is gone — it was rendered here until then');
+  assert.equal(CLOSING_LINE, 'Tickets are sold by the events, not here.', 'HOME-BRIEF-02 (2026-11-10): the one short line');
   assert.ok(html.includes(CLOSING_LINE.replace("'", '&#x27;')));
   assert.doesNotMatch(html, /data-lineup=|data-pill=|THE LINEUP|data-series-pill|data-coming-up-grid/, 'no lineup, nothing collapses, no grid');
-  // One row that scrolls sideways, edge to edge of the band's box; every card one width, snapping, a column.
+  // HOME-BRIEF-02 (Alex, 2026-11-10): a compact list — one row per event, a hairline above, below and between; nothing scrolls sideways. Until
+  // then (EVENTS-01c): one row of cards that scrolled sideways, edge to edge of the band's box — 'flex', 'overflow-x-auto', 'snap-x' and the drawn
+  // thumb on the row, 'w-[21rem] shrink-0 snap-start flex flex-col' on every card — and the strip line under it.
   const rail = /<div class="([^"]*)" data-coming-up-rail="true">/.exec(html);
-  assert.ok(rail, 'the row is drawn');
-  for (const cls of ['flex', 'overflow-x-auto', 'snap-x', 'snap-proximity', '-mx-4', 'px-4', 'scroll-px-4', 'lg:-mx-8', 'lg:px-8', 'lg:scroll-px-8', '[&::-webkit-scrollbar]:h-2', '[&::-webkit-scrollbar-thumb]:bg-white/30']) assert.ok(rail[1].replace(/&amp;/g, '&').split(' ').includes(cls), `the row carries ${cls}`);
-  for (const id of cardsOf(html)) assert.match(html, new RegExp(`<article class="w-\\[21rem\\] shrink-0 snap-start flex flex-col [^"]*" data-coming-up="${id}">`), `${id}: one width, snapping, a column`);
-  assert.ok(pos(html, 'COMING UP') < pos(html, 'data-coming-up-rail') && pos(html, 'data-coming-up-rail') < pos(html, STRIP_LINE), 'the label → the row → the strip line');
+  assert.ok(rail, 'the list is drawn');
+  for (const cls of ['divide-y', 'divide-white/15', 'border-y', 'border-white/15']) assert.ok(rail[1].split(' ').includes(cls), `the list carries ${cls}`);
+  for (const cls of ['flex', 'overflow-x-auto', 'snap-x', 'snap-proximity']) assert.ok(!rail[1].split(' ').includes(cls), `the list does not carry ${cls} — nothing scrolls sideways`);
+  for (const id of cardsOf(html)) assert.match(html, new RegExp(`<article class="flex flex-col [^"]*md:flex-row[^"]*" data-coming-up="${id}"><p class="[^"]*" data-experience-line="true">`), `${id}: one row — stacked on a phone, across from md, its date line first`);
+  assert.ok(pos(html, 'COMING UP') < pos(html, 'data-coming-up-rail'), 'the label → the list');
   assert.doesNotMatch(html, /data-into-refused/);
   assert.doesNotMatch(html, /<img|countdown|BUY NOW/i);
 });
@@ -293,7 +300,7 @@ test('T4 rendered for a value that names no category: the refusal only — in pl
   assert.match(empty, /data-nothing-upcoming="true">Nothing announced yet in Golf — the cards below say when each one was checked\.</);
   assert.equal(nothingUpcoming('Golf'), 'Nothing announced yet in Golf — the cards below say when each one was checked.');
   assert.ok(pos(empty, 'data-nothing-upcoming') < pos(empty, 'data-coming-up-rail'), 'said above the row');
-  assert.ok(!empty.includes(STRIP_LINE), 'nothing to book around, so no strip line');
+  assert.ok(!empty.includes('use the strip at the top'), 'no strip line — HOME-BRIEF-02 (2026-11-10): on no view');
   assert.equal(cardsOf(empty).length, 5, 'every golf card still shows');
   assert.ok(cardsOf(empty).every((id) => /^Next edition not announced \(checked /.test(lineOf(empty, id) ?? '')), 'every golf window has passed');
   // The URL half: no param, or an empty one, is the default — never a refusal.

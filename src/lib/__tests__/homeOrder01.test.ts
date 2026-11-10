@@ -62,12 +62,14 @@ test('T2 "What We Do": the data-act-heading h2 is the travel section\'s first ch
   assert.ok(travel > -1 && heading > travel && idRow > heading, 'the section opens → the heading → the id row');
   assert.match(landing.slice(travel + TRAVEL_OPEN.length, heading), /^\s*$/, 'nothing stands between the section\'s opening tag and the heading');
   assert.match(landing.slice(heading + HEADING.length, idRow), ONLY_COMMENTS, 'the heading → the id row: a comment between, nothing else');
-  // the block's own label and headline stay as they are, under the heading and inside the same section
+  // the block's own label and headline stand under the heading, inside the same section. HOME-BRIEF-02 (Alex, 2026-11-10): the label reads
+  // TRAVEL BOOKING & EXPERIENCES — 'LIVE DEMO — TRAVEL' until then; the headline is unchanged.
   const travelEnd = landing.indexOf('</section>', travel);
-  const label = landing.indexOf('>LIVE DEMO — TRAVEL</p>');
+  const label = landing.indexOf('>TRAVEL BOOKING &amp; EXPERIENCES</p>');
   const headline = landing.indexOf('Search &amp; book travel — free today, no account needed.');
   assert.ok(label > idRow && headline > label && travelEnd > headline, 'the label, then the headline, inside the travel section');
-  assert.equal(count(landing, 'LIVE DEMO — TRAVEL'), 1);
+  assert.equal(count(landing, 'TRAVEL BOOKING &amp; EXPERIENCES'), 1);
+  assert.equal(count(landing, 'LIVE DEMO — TRAVEL'), 0, 'the old label is rendered nowhere');
   assert.equal(count(landing, 'Search &amp; book travel — free today, no account needed.'), 1);
 });
 

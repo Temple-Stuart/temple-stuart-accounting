@@ -5,6 +5,19 @@
  * under the booking strip on the guest landing (Landing.tsx, after the LIVE DEMO
  * act): the marquee events a guest books a stay and a flight around.
  *
+ * HOME-BRIEF-02 (Alex's home page brief, 2026-11-10 16:27) — PRESENTATION ONLY; the rows, the categories, the date
+ * rules and the filter are untouched:
+ *   · COMING UP / WHEN TO GO is a COMPACT LIST, not a sideways row of cards: one row per event, the same rows in the
+ *     same order, a hairline between them. A row reads its date line, the name, the place, the note when it has one,
+ *     the checked words when the line does not already say them, and Source ↗ — stacked on a phone, across from md.
+ *     The card's eyebrow (category · series) went with the card: the pressed chip says the category. Every data hook
+ *     stays (data-coming-up-rail on the list, data-coming-up on a row, data-experience-line, data-checked,
+ *     data-source), and the list is still keyed by the chip.
+ *   · THREE TEXTS WENT: the strip line under the row (STRIP_LINE); the WHY EVENTS FIRST paragraph with its
+ *     "Read my story ↓" link (and its three words in src/lib/stopZeroWords.ts); and the events' closing line is the one
+ *     short line now — CLOSING_LINE. SEASONS_CLOSING_LINE stands.
+ * Items 4 and 5 below, and PAINT's sideways row, describe the band as it stood until then — history.
+ *
  * WHAT IT RENDERS, top to bottom — every word about an event comes from
  * src/lib/experiences.ts through src/lib/experienceWords.ts, never typed here:
  *   1. the eyebrow, the h2 and the one line; HOME-LINES-01 (Alex, 2026-11-08): the h2 is the
@@ -80,7 +93,6 @@ import {
 } from '@/lib/experiences';
 import { dayWords, experienceLine, notAnnouncedLine, seasonNotAnnouncedLine, upcoming } from '@/lib/experienceWords';
 import { EXPERIENCE_LINE } from '@/lib/brandLines';
-import { EVENTS_STORY_LABEL, EVENTS_STORY_LINE, READ_MY_STORY, STOP_ZERO_ANCHOR } from '@/lib/stopZeroWords';
 
 /** The section's anchor — the strip's Events mode and the chips' URL both name it. FOOTER-01 (2026-11-09): its one home is src/lib/homeAnchors.ts — imported back here, still exported from here. */
 import { EVENTS_ANCHOR } from '@/lib/homeAnchors';
@@ -100,10 +112,10 @@ export const SEASONS_LABEL = 'SEASONS';
 export const COMING_UP_LABEL = 'COMING UP';
 /** EVENTS-04 (Alex, 2026-11-09): a season chip's label over its row, in place of COMING UP — a place's season is when to go. */
 export const WHEN_TO_GO_LABEL = 'WHEN TO GO';
-export const STRIP_LINE = 'To book around one of these, use the strip at the top: hotels, flights, getting around.';
-/** EVENTS-01c: each card's link to its row's source — the page its dates came from. */
+/** EVENTS-01c: each row's link to its source — the page its dates came from. */
 export const SOURCE_LINK = 'Source ↗';
-export const CLOSING_LINE = "Dates come from each event's own calendar, with the day they were checked. Not announced means not announced. Tickets are sold by the events, not here.";
+/** HOME-BRIEF-02 (Alex, 2026-11-10): the one short line — "Dates come from each event's own calendar, with the day they were checked. Not announced means not announced." stood before it until then. */
+export const CLOSING_LINE = 'Tickets are sold by the events, not here.';
 /** EVENTS-03 (Alex, 2026-11-09): a season chip's closing line, in place of CLOSING_LINE — the events' words do not fit a place's season. */
 export const SEASONS_CLOSING_LINE = "Each window comes from the place's own source, with the day it was checked. Usual months are a guide, not set dates.";
 
@@ -135,30 +147,25 @@ const EXP = {
   chipOn: 'min-h-[44px] rounded-full border border-white bg-white px-4 py-2 font-mono text-xs font-medium text-brand-purple',
   chipOff: 'min-h-[44px] rounded-full border border-white/40 px-4 py-2 font-mono text-xs font-medium text-white transition-colors hover:bg-white/10',
   refused: 'mt-2 font-mono text-xs text-brand-amber',
-  // EVENTS-01c: one width, snapping to its start; a column, so the row's cards share one height.
-  card: 'w-[21rem] shrink-0 snap-start flex flex-col rounded-lg border border-white/15 bg-white/5 p-5',
-  cardEyebrow: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-amber',
-  cardName: 'mt-1 text-lg font-semibold text-white',
-  cardPlace: 'mt-1 text-sm text-white/80',
-  cardLine: 'mt-2 font-mono text-xs leading-relaxed text-white/90',
-  cardNotes: 'mt-1 text-xs text-white/60',
-  // EVENTS-03 (2026-11-09): the checked words and the source link on one line, wrapping on a narrow card.
-  cardFoot: 'mt-auto flex flex-wrap items-center gap-x-3 pt-3',
+  // HOME-BRIEF-02 (Alex, 2026-11-10): a compact list — a hairline above, below and between its rows; nothing scrolls sideways.
+  // (EVENTS-01c's row of cards, one width, snapping, with its drawn thumb, stood here until then.) The key is still `rail`:
+  // it is the element that carries data-coming-up-rail.
+  rail: 'mt-3 divide-y divide-white/15 border-y border-white/15',
+  // One event, one row: stacked on a phone; from md the date line, then the name over the place, then the foot, on one baseline.
+  row: 'flex flex-col gap-1 py-3 md:flex-row md:items-baseline md:gap-6',
+  rowLine: 'font-mono text-xs leading-relaxed text-white/90 md:w-72 md:shrink-0',
+  rowBody: 'min-w-0 md:flex-1',
+  rowName: 'text-sm font-semibold text-white',
+  rowPlace: 'text-sm text-white/80',
+  rowNotes: 'mt-1 text-xs text-white/60',
+  // EVENTS-03 (2026-11-09): the checked words and the source link on one line; from md they close the row, at its right edge.
+  rowFoot: 'flex flex-wrap items-center gap-x-3 md:shrink-0 md:justify-end',
   checked: 'font-mono text-xs text-white/60',
   source: 'inline-flex min-h-[44px] items-center font-mono text-xs text-white/80 underline-offset-4 hover:text-white hover:underline',
-  // EVENTS-01c (2026-11-06): one row that scrolls sideways, edge to edge of the band's box — the
-  // negative margin meets the inner padding, so the page never scrolls; the thumb is drawn.
-  rail: '-mx-4 mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto scroll-px-4 px-4 pb-3 lg:-mx-8 lg:scroll-px-8 lg:px-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/30 [&::-webkit-scrollbar-track]:bg-transparent',
   line: 'mt-4 text-sm text-white/70',
-  // STOP0-01 (2026-11-09): why events first, and the link to Stop 0 — directly before the closing line.
-  story: 'mt-8 max-w-2xl text-sm text-white/80',
-  // EVENTS-04 (2026-11-09): "Read my story ↓" stays on one line.
-  storyLink: 'font-semibold text-white underline-offset-4 hover:underline whitespace-nowrap',
   closing: 'mt-8 text-xs text-white/60',
 } as const;
 
-const eyebrowOf = (row: Experience): string =>
-  row.series === null ? experienceCategoryLabel(row.category) : `${experienceCategoryLabel(row.category)} · ${row.series}`;
 const placeOf = (row: Experience): string => `${row.venue} · ${row.city}, ${row.country}`;
 
 /** EVENTS-01b: the URL's choice — exactly one category, or a value that names none (refused, no substitute). */
@@ -172,21 +179,23 @@ export interface ExperiencesViewProps {
   onPick: (id: ExperienceCategoryId) => void;
 }
 
-function Card({ row, today }: { row: Experience; today: string }) {
+/** HOME-BRIEF-02 (Alex, 2026-11-10): one event, one row of the list — when, what, where, the note, then the day it was checked and its source. */
+function EventRow({ row, today }: { row: Experience; today: string }) {
   const line = experienceLine(row, today);
   // EVENTS-03 (2026-11-09): the not-announced words already say "(checked …)" — read off the line, never a list of statuses.
   // EVENTS-04 (2026-11-09): either sentence — the edition's or the season's.
   const lineSaysChecked = line === notAnnouncedLine(row.checkedOn) || line === seasonNotAnnouncedLine(row.checkedOn);
   return (
-    <article className={EXP.card} data-coming-up={row.id}>
-      <p className={EXP.cardEyebrow}>{eyebrowOf(row)}</p>
-      <h3 className={EXP.cardName}>{row.name}</h3>
-      <p className={EXP.cardPlace}>{placeOf(row)}</p>
-      <p className={EXP.cardLine} data-experience-line>{line}</p>
-      {row.notes !== null && <p className={EXP.cardNotes}>{row.notes}</p>}
-      {/* EVENTS-01c: the lineup's links moved here — every card names the page its dates came from.
+    <article className={EXP.row} data-coming-up={row.id}>
+      <p className={EXP.rowLine} data-experience-line>{line}</p>
+      <div className={EXP.rowBody}>
+        <h3 className={EXP.rowName}>{row.name}</h3>
+        <p className={EXP.rowPlace}>{placeOf(row)}</p>
+        {row.notes !== null && <p className={EXP.rowNotes}>{row.notes}</p>}
+      </div>
+      {/* EVENTS-01c: every row names the page its dates came from.
           EVENTS-03: and the day it was checked, before the link, unless its line already says it. */}
-      <div className={EXP.cardFoot}>
+      <div className={EXP.rowFoot}>
         {!lineSaysChecked && <span className={EXP.checked} data-checked={row.id}>{checkedWords(row.checkedOn)}</span>}
         <a href={row.sourceUrl} rel="noopener" target="_blank" className={EXP.source} data-source={row.id}>{SOURCE_LINK}</a>
       </div>
@@ -238,15 +247,11 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
             {/* EVENTS-03: a season chip says no "Nothing announced yet" — a usual window is a season, not an edition waiting to be announced. */}
             {comingUp.length === 0 && !isSeason && <p className={EXP.line} data-nothing-upcoming>{nothingUpcoming(experienceCategoryLabel(into))}</p>}
             <div key={into} className={EXP.rail} data-coming-up-rail>
-              {cards.map((row) => <Card key={row.id} row={row} today={today} />)}
+              {cards.map((row) => <EventRow key={row.id} row={row} today={today} />)}
             </div>
-            {/* EVENTS-03: on a season chip the strip line shows whenever the row has cards — a place can be booked around in its season. */}
-            {(isSeason ? cards.length > 0 : comingUp.length > 0) && <p className={EXP.line}>{STRIP_LINE}</p>}
           </>
         )}
 
-        {/* STOP0-01 (Alex, 2026-11-08; board K tag 7): on every view, directly before the closing line — the link scrolls to Stop 0. */}
-        <p className={EXP.story}><span className={EXP.label}>{EVENTS_STORY_LABEL}</span> {EVENTS_STORY_LINE} <a href={`#${STOP_ZERO_ANCHOR}`} className={EXP.storyLink}>{READ_MY_STORY}</a></p>
         <p className={EXP.closing}>{isSeason ? SEASONS_CLOSING_LINE : CLOSING_LINE}</p>
       </div>
     </section>

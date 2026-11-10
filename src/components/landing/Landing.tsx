@@ -560,9 +560,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
         <h2 className="pt-8 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
         {/* LANDING-V2 (spec :96-97): the demo's numbered eyebrow row — 03,
             label otherwise verbatim; right slot = the existing /modules/travel
-            door. */}
+            door. HOME-BRIEF-02 (Alex, 2026-11-10): the label reads TRAVEL BOOKING & EXPERIENCES now;
+            "LIVE DEMO — TRAVEL" in the older notes and in the act list is its name until then. */}
         <div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">
-          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">LIVE DEMO — TRAVEL</p>
+          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">TRAVEL BOOKING &amp; EXPERIENCES</p>
           <Link href="/modules/travel" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
             EXPLORE TRAVEL →
           </Link>
