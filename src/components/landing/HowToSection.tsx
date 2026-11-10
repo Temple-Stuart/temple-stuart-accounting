@@ -60,8 +60,12 @@ const HOW = {
   inner: 'max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-10',
   h2: 'text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',
   pillar: 'mt-3 max-w-3xl text-base text-text-secondary',
-  // The comparison's box: the plans table's own (PlansSection.tsx, data-plan-table) but for its top margin. It scrolls sideways inside itself.
-  box: 'mt-8 overflow-x-auto rounded-lg border border-border bg-white',
+  // The comparison's box: the plans table's own (PlansSection.tsx, data-plan-table) but for its top margin and `relative`. It scrolls sideways inside itself.
+  // `relative` is what keeps the PAGE from scrolling sideways (HOME-PLANS-01, found by the look): the marks' and the plan heads' screen-reader text
+  // is `sr-only`, which is absolutely positioned, and an absolutely positioned box is laid out against its nearest POSITIONED ancestor. While this
+  // box was unpositioned that ancestor was the page: the text sat outside the box's clip, and a 390 or a 360 screen scrolled sideways to 694.
+  // Positioned, the box holds its own screen-reader text and scrolls it with the table.
+  box: 'relative mt-8 overflow-x-auto rounded-lg border border-border bg-white',
   // All four plan columns show at every width, so the table keeps the width it needs and the box scrolls below it. Fixed layout: opening a row moves no column.
   table: 'w-full min-w-[720px] table-fixed text-sm',
   // The head row: the plans table's own thead.
