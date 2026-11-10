@@ -15,7 +15,8 @@
  *
  * THE LAW (howToLaw — run at module scope, so a bad edit fails on import): the four sections in order; each section's
  * steps numbered 1..N; every tool a step names is a registry tool; every registry tool stands in at least one step; each
- * of the four choices resolves to exactly one plan.
+ * of the four choices resolves to exactly one plan; and (HOME-PLANS-01) every plan has a head in the comparison and no
+ * head names anything else, and every tool a step names has a line.
  *
  * NOT HERE, on purpose (the board): no placeholder box, no "guide" line, no count of the tools.
  *
@@ -27,12 +28,28 @@
  * mark, its note. Off the card: its place among your steps, the section's name and the needs-Books tags — the one line
  * over the rows and the legend still say which steps need Books.
  *
+ * HOME-PLANS-01 (Alex, 2026-11-11 00:09: "Four plans. One comparison. Clean, polished, professional." · "Do not display
+ * development statuses on the public homepage." · "A checkmark means the capability is part of that plan's intended
+ * offering. It does NOT represent implementation status or current availability."): the home page draws THE COMPARISON
+ * now (planComparison, below) — the 26 steps of this file, by plan, under the four plan cards. A ✓ there says the step
+ * is in the plan; it says nothing about what is built, and that view carries no status word.
+ *   · KEPT, NOT DRAWN: the status view — howToView with its words, marks and counts, NEEDS_BOOKS, booksNotOnSale,
+ *     planFor and the legend's words — stays here exactly as it was, with its tests. The public page reads it no more;
+ *     the signed-in app is where the statuses will be shown. The switches' words and the link to /pricing stay with it.
+ *   · THE COMPARISON TYPES, once: the first column's head, the four plan heads, the two marks with what a screen reader
+ *     hears, and the count's words. It NEVER TYPES what a tool does — toolLine reads the plans leaf's capability rows
+ *     (CAPABILITY_GROUPS, src/lib/offer/plans.ts) — nor whether a category is in a plan: that is the plan's modules
+ *     through sectionShown.
+ *   · ONE FIELD MOVED: Trade step 1's note is a build note, not an explanation for a customer — it is the step's
+ *     `buildNote` now. The status view still shows it (a card's note is `note`, then `buildNote`); the comparison reads
+ *     `note` alone.
+ *
  * PURE: no directive, no fetch, no clock, no storage.
  */
 
 import type { ToolName } from './problemSheet';
 import { TOOL_REGISTRY, type ToolEntry, type ToolStatus } from './toolRegistry';
-import { PLANS, priceSlot, type ModuleId, type Plan, type PriceSlot } from './offer/plans';
+import { CAPABILITY_GROUPS, PLANS, priceSlot, type CapabilityGroup, type CapabilityRow, type ModuleId, type Plan, type PlanId, type PriceSlot } from './offer/plans';
 import { OFFERS, priceLineFor, type Offer } from './offer';
 
 // ── THE WORDS ────────────────────────────────────────────────────────────────
@@ -123,7 +140,10 @@ export interface HowToStep {
   title: ByBusiness;
   /** The tools that do it, by registry name. */
   tools: readonly ToolName[];
+  /** An explanation for a customer. Both views show it. */
   note?: string;
+  /** HOME-PLANS-01: a note about what is built — the status view shows it; the comparison never does. */
+  buildNote?: string;
 }
 export interface HowToSection {
   id: HowToSectionId;
@@ -186,7 +206,7 @@ export const HOW_TO_SECTIONS: readonly HowToSection[] = [
     badge: 'T',
     line: 'Earning by trading — the account you trade in, on its own book.',
     steps: [
-      { n: 1, title: 'Keep the trading book separate.', tools: ['Banking', 'Bookkeeping'], note: 'No customer can open a trading book yet, so this step waits on that.' },
+      { n: 1, title: 'Keep the trading book separate.', tools: ['Banking', 'Bookkeeping'], buildNote: 'No customer can open a trading book yet, so this step waits on that.' },
       { n: 2, title: 'Connect the account you trade.', tools: ['Brokerage'], note: 'The brokerage you trade options in. Your 401k stays under Personal.' },
       { n: 3, title: 'Log every trade.', tools: ['Trade Log'] },
       { n: 4, title: 'Pay taxes on your trades.', tools: ['Tax'] },
@@ -340,7 +360,7 @@ export function howToView(
         live,
         state: live ? STEP_LIVE : STEP_PENDING,
         needsBooks: gateOnBooks && step.tools.some((name) => NEEDS_BOOKS.includes(name)),
-        note: step.note ?? null,
+        note: step.note ?? step.buildNote ?? null,
       };
     }),
     after: s.id === 'personal' && !choice.business && !choice.trade ? NEXT_LINE : null,
@@ -365,14 +385,159 @@ export function howToView(
   };
 }
 
+// ── THE COMPARISON ───────────────────────────────────────────────────────────
+// HOME-PLANS-01 (Alex, 2026-11-11 00:09). What the home page draws under the four plan cards: the steps above, by plan.
+// A mark says whether the step is IN THE PLAN — never whether it is built. Nothing below reads a tool's status.
+
+/** The first column's head. */
+export const COMPARISON_FIRST_HEAD = 'Step / Capability';
+
+/** The four plan columns' heads, by plan id — short, so four columns sit beside the steps. The plan's full name is PLANS'; a screen reader hears it. */
+export const PLAN_HEADS: Readonly<Record<PlanId, string>> = {
+  personal: 'Personal',
+  business: 'P + Business',
+  trading: 'P + Trading',
+  everything: 'All',
+};
+
+/** The two marks, each with what a screen reader hears. */
+export const PLAN_MARKS = {
+  inPlan: { mark: '✓', label: 'In this plan' },
+  notInPlan: { mark: '—', label: 'Not in this plan' },
+} as const;
+
+/** "<n> steps" — "1 step" for one. */
+export function stepCountWords(n: number): string {
+  return n === 1 ? '1 step' : `${n} steps`;
+}
+
+/** A category's row: its name in capitals, then its count — "PERSONAL — 8 steps". */
+export function categoryHeading(name: string, steps: number): string {
+  return `${name.toUpperCase()} — ${stepCountWords(steps)}`;
+}
+
+/** What a plan runs, as a choice: Business when it holds the business module, Trade when it holds trading. */
+export function choiceOf(plan: Pick<Plan, 'modules'>): HowToChoice {
+  return { business: plan.modules.includes('business'), trade: plan.modules.includes('trading') };
+}
+
+/** The capability row that says what a tool does: the first row of the plans leaf that names it ALONE; when no row names it alone, the first row that names it. */
+function capabilityRowOf(name: ToolName, groups: readonly CapabilityGroup[]): CapabilityRow | undefined {
+  const naming = groups.flatMap((g) => g.rows).filter((row) => row.tools.includes(name));
+  const alone = naming.filter((row) => row.tools.length === 1);
+  return alone.length > 0 ? alone[0] : naming[0];
+}
+
+/**
+ * What a tool does, in a customer's words — READ from the plans leaf's capability rows (CAPABILITY_GROUPS,
+ * src/lib/offer/plans.ts), never retyped here. No row names the tool → a throw, by name.
+ */
+export function toolLine(name: ToolName, groups: readonly CapabilityGroup[] = CAPABILITY_GROUPS): string {
+  const row = capabilityRowOf(name, groups);
+  if (row === undefined) throw new HowToLawError(`howTo: no capability row of src/lib/offer/plans.ts names ${name} — the comparison has no line saying what it does`);
+  return row.label;
+}
+
+export interface ComparisonColumn {
+  /** The plan's id, from PLANS. */
+  id: PlanId;
+  /** The short head over the column. */
+  head: string;
+  /** The plan's full name — what a screen reader hears for the column. */
+  name: string;
+}
+export interface ComparisonTool {
+  /** The tool's name — or, when tools of one step share a line, their names together: "Compliance · Ent Filings". */
+  name: string;
+  /** What it does: a capability row's label from the plans leaf. */
+  line: string;
+}
+export interface ComparisonStep {
+  n: number;
+  title: string;
+  tools: readonly ComparisonTool[];
+  /** The step's note for a customer — never its build note. */
+  note: string | null;
+}
+export interface ComparisonCategory {
+  id: HowToSectionId;
+  name: string;
+  /** How many steps it holds, and the words for that: "8 steps". */
+  count: number;
+  countWords: string;
+  /** The category's row: "PERSONAL — 8 steps". */
+  heading: string;
+  line: string;
+  /** One per column, in the columns' order: is this category in that plan? */
+  inPlan: readonly boolean[];
+  steps: readonly ComparisonStep[];
+}
+export interface PlanComparison {
+  firstHead: string;
+  columns: readonly ComparisonColumn[];
+  categories: readonly ComparisonCategory[];
+}
+
+/** Words that read two ways take their with-Business reading in the comparison: it is one table for all four plans. */
+const WITH_BUSINESS: HowToChoice = { business: true, trade: false };
+
+/**
+ * Everything the comparison draws: the four columns in PLANS' order; the four categories in HOW_TO_SECTION_ORDER, each
+ * with its count, its line and, per plan, whether it is in the plan; each step with its tools and their lines. IN THE
+ * PLAN is derived: a category is in a plan when sectionShown says so for what that plan runs (choiceOf).
+ */
+export function planComparison(
+  opts: { plans?: readonly Plan[]; sections?: readonly HowToSection[]; groups?: readonly CapabilityGroup[] } = {},
+): PlanComparison {
+  const plans = opts.plans ?? PLANS;
+  const sections = opts.sections ?? HOW_TO_SECTIONS;
+  const groups = opts.groups ?? CAPABILITY_GROUPS;
+  const heads: Readonly<Record<string, string>> = PLAN_HEADS;
+  const columns: ComparisonColumn[] = plans.map((plan) => {
+    const head = heads[plan.id];
+    if (!head) throw new HowToLawError(`howTo: the plan "${plan.id}" has no head in the comparison — PLAN_HEADS names every plan of src/lib/offer/plans.ts`);
+    return { id: plan.id, head, name: plan.name };
+  });
+  const categories: ComparisonCategory[] = HOW_TO_SECTION_ORDER.map((id) => {
+    const section = sections.find((s) => s.id === id);
+    if (!section) throw new HowToLawError(`howTo: the steps hold no "${id}" section — the comparison has no such category`);
+    return {
+      id: section.id,
+      name: section.name,
+      count: section.steps.length,
+      countWords: stepCountWords(section.steps.length),
+      heading: categoryHeading(section.name, section.steps.length),
+      line: say(section.line, WITH_BUSINESS),
+      inPlan: plans.map((plan) => sectionShown(section.id, choiceOf(plan))),
+      steps: section.steps.map((step) => {
+        // Tools of one step that share a line stand together on it.
+        const tools: ComparisonTool[] = [];
+        for (const name of step.tools) {
+          const line = toolLine(name, groups);
+          const at = tools.findIndex((t) => t.line === line);
+          if (at === -1) tools.push({ name, line });
+          else tools[at] = { name: `${tools[at].name} · ${name}`, line };
+        }
+        return { n: step.n, title: say(step.title, WITH_BUSINESS), tools, note: step.note ?? null };
+      }),
+    };
+  });
+  return { firstHead: COMPARISON_FIRST_HEAD, columns, categories };
+}
+
 // ── THE LAW ──────────────────────────────────────────────────────────────────
 
 export function howToLaw(
-  opts: { throwOnFail?: boolean; registry?: readonly ToolEntry[]; plans?: readonly Plan[]; sections?: readonly HowToSection[] } = {},
+  opts: {
+    throwOnFail?: boolean; registry?: readonly ToolEntry[]; plans?: readonly Plan[]; sections?: readonly HowToSection[];
+    groups?: readonly CapabilityGroup[]; heads?: Readonly<Record<string, string>>;
+  } = {},
 ): string[] {
   const registry = opts.registry ?? TOOL_REGISTRY;
   const plans = opts.plans ?? PLANS;
   const sections = opts.sections ?? HOW_TO_SECTIONS;
+  const groups = opts.groups ?? CAPABILITY_GROUPS;
+  const heads: Readonly<Record<string, string>> = opts.heads ?? PLAN_HEADS;
   const violations: string[] = [];
   // 1. The four sections, in order.
   const ids = sections.map((s) => s.id).join(', ');
@@ -403,6 +568,21 @@ export function howToLaw(
     const want = modulesOf(choice);
     const found = plans.filter((p) => p.modules.length === want.length && want.every((m) => p.modules.includes(m)));
     if (found.length !== 1) violations.push(`[${want.join(', ')}] resolves to ${found.length} plans (${found.map((p) => p.id).join(', ') || 'none'}), not one`);
+  }
+  // 6. HOME-PLANS-01: every plan has a head in the comparison, and no head names anything else.
+  for (const p of plans) {
+    if (!heads[p.id] || !heads[p.id].trim()) violations.push(`the plan "${p.id}" has no head in the comparison`);
+  }
+  for (const id of Object.keys(heads)) {
+    if (!plans.some((p) => p.id === id)) violations.push(`the comparison's head "${heads[id]}" names "${id}", which is not a plan`);
+  }
+  // 7. HOME-PLANS-01: every tool a step names has a line — a capability row of the plans leaf names it.
+  for (const s of sections) {
+    for (const step of s.steps) {
+      for (const name of step.tools) {
+        if (capabilityRowOf(name, groups) === undefined) violations.push(`${s.id} step ${step.n} names "${name}", which no capability row names — the comparison has no line for it`);
+      }
+    }
   }
   if (violations.length > 0 && opts.throwOnFail !== false) throw new HowToLawError(`howTo law: ${violations.join('; ')}`);
   return violations;
