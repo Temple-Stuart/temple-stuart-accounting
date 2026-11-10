@@ -55,7 +55,11 @@ test('T1 the four exports are the exact words, and SITE_DESCRIPTION is the compa
 
 test('T2 the hero renders COMPANY_LINE and HERO_SUBLINE from src/lib/brandLines.ts and types none of their words', () => {
   const landing = code(LANDING);
-  assert.match(landing, /import PlansSection from '@\/components\/offer\/PlansSection'; import \{ COMPANY_LINE, HERO_SUBLINE \} from '@\/lib\/brandLines';/, 'the import rides an existing line — every line above :1807 stays');
+  // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the line lost PlansSection — the home page's offer is the how-to, and /pricing mounts the plans. Until
+  // then: /import PlansSection from '@\/components\/offer\/PlansSection'; import \{ COMPANY_LINE, HERO_SUBLINE \} from '@\/lib\/brandLines';/
+  // ('the import rides an existing line — every line above :1807 stays').
+  assert.match(landing, /^import \{ COMPANY_LINE, HERO_SUBLINE \} from '@\/lib\/brandLines';/m, 'the import, on the line it has always stood on — alone now');
+  assert.doesNotMatch(landing, /PlansSection/, 'the plans section is not imported here');
   assert.match(
     landing,
     /<h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">\s*\{COMPANY_LINE\[0\]\}<br \/>\s*\{COMPANY_LINE\[1\]\}<br \/>\s*\{\s*\}\s*<span className="text-brand-purple-wash">\{COMPANY_LINE\[2\]\}<\/span>\s*<\/h1>/,

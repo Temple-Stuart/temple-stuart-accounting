@@ -383,10 +383,10 @@ const schemaText = codeOf('prisma/schema.prisma');
 /**
  * OFFER-01 (2026-09-23): the selling surfaces split in two.
  *
- * PLAN_SURFACES are the PUBLIC offer — the landing and /pricing. They render the
- * three plans (src/components/offer/PlansSection.tsx over src/lib/offer/plans.ts)
- * and nothing of the builder's view: no tool count, no beat vocabulary, no
- * persona grid. THE PLAN LAW below holds them to it.
+ * PLAN_SURFACES are the PUBLIC offer — the landing and /pricing. HOME-BRIEF-04 (Alex, 2026-11-10 19:00): /pricing renders the
+ * plans (src/components/offer/PlansSection.tsx over src/lib/offer/plans.ts); the landing's offer is the how-to now (HowToSection.tsx
+ * over src/lib/howTo.ts), so the how-to's two files stand in this list beside it. None renders the builder's view: no tool count, no
+ * beat vocabulary, no persona grid. THE PLAN LAW below holds them to it. ("They render the three plans" — both pages — until then.)
  *
  * OFFER_CARD_SURFACES are the two IN-APP surfaces that still render the shared
  * <OfferCard/> from src/lib/offer.ts: the cockpit's locked-tab card and the
@@ -395,9 +395,9 @@ const schemaText = codeOf('prisma/schema.prisma');
  * extending the plans to them is a later ruling. Named here so the split is
  * explicit rather than an omission.
  */
-const PLAN_SURFACES = ['src/components/landing/Landing.tsx', 'src/app/pricing/page.tsx'];
+const PLAN_SURFACES = ['src/components/landing/Landing.tsx', 'src/components/landing/HowToSection.tsx', 'src/lib/howTo.ts', 'src/app/pricing/page.tsx']; // HOME-BRIEF-04 (2026-11-10): the how-to's two files joined — the landing's offer is the how-to, and the plan law's clause 1 holds all three (['…/Landing.tsx', 'src/app/pricing/page.tsx'] until then)
 const OFFER_CARD_SURFACES = ['src/components/home/LockedTabCard.tsx', 'src/app/modules/[pillar]/ModulePageClient.tsx'];
-const SELLING_SURFACES = [...OFFER_CARD_SURFACES, ...PLAN_SURFACES];
+const SELLING_SURFACES = [...OFFER_CARD_SURFACES, 'src/components/landing/Landing.tsx', 'src/app/pricing/page.tsx']; // HOME-BRIEF-04 (2026-11-10): the two public pages by name — PLAN_SURFACES holds the how-to's two files too, and those are not pages ([...OFFER_CARD_SURFACES, ...PLAN_SURFACES] until then)
 const importsOf = new Map<string, string[]>();
 function drawnNumsIn(body: string, pipe: string): Set<string> {
   const all = new Set((PIPE_PHASES[pipe as keyof typeof PIPE_PHASES] as readonly { num: string }[]).map((p) => p.num));
@@ -861,8 +861,8 @@ for (const f of OFFER_CARD_SURFACES) {
   const src = codeOf(f);
   if (!src.includes("from '@/lib/offer'") || !src.includes("from '@/components/OfferCard'")) violations.push(`offer: ${f} must render the offer (import src/lib/offer.ts and OfferCard) — never a typed claim or price`);
 }
-// OFFER-01: a plan surface renders the plans section, and never types the offer itself.
-for (const f of PLAN_SURFACES) {
+// OFFER-01: a plan surface renders the plans section, and never types the offer itself. HOME-BRIEF-04 (2026-11-10): /pricing alone renders it now (the loop ran over PLAN_SURFACES until then); the landing renders the how-to — the plan law's door check holds that mount.
+for (const f of ['src/app/pricing/page.tsx']) {
   if (!existsSync(resolve(ROOT, f))) { violations.push(`offer: ${f} is missing`); continue; }
   const src = codeOf(f);
   if (!src.includes("from '@/components/offer/PlansSection'")) violations.push(`offer: ${f} must render the offer through <PlansSection/> (src/components/offer/PlansSection.tsx) — never a typed claim or price`);
@@ -9311,7 +9311,7 @@ lawGuard('The plan law', () => {
   // copy about the four beats, which this ruling did not touch and which is not
   // an offer claim. What may never come back is a beat used to SELL.
   const BEAT_CLAIM = new RegExp(`partial\\s*[—-]\\s*(?:${BEAT_WORDS.join('|')})|(?:${BEAT_WORDS.join('|')})\\s*·\\s*(?:${BEAT_WORDS.join('|')})`);
-  for (const f of [...PLAN_SURFACES, 'src/components/landing/PipelineDeck.tsx']) { // PIPELINE-PAGE-01 (2026-11-09): the deck's text left Landing.tsx, a plan surface, for its own page — the deck's file joins the clause that checked it
+  for (const f of [...PLAN_SURFACES, 'src/components/landing/PipelineDeck.tsx']) { // PIPELINE-PAGE-01 (2026-11-09): the deck's text left Landing.tsx, a plan surface, for its own page — the deck's file joins the clause that checked it. HOME-BRIEF-04 (2026-11-10): PLAN_SURFACES carries the how-to's two files now, so this clause holds them as it holds the landing
     if (!existsSync(resolve(ROOT, f))) { planFail(`${f} is missing`); continue; }
     const src = codeOf(f);
     for (const tell of COUNT_TELLS) {
@@ -9322,7 +9322,7 @@ lawGuard('The plan law', () => {
     }
     if (BEAT_CLAIM.test(src)) planFail(`${f} renders a beat claim — "partial — discover · decide" is the loop's vocabulary, not a customer's`);
     if (/claimLine|beatsOf/.test(src)) planFail(`${f} reads the beat-bearing claim line — a plan surface reads src/lib/offer/plans.ts`);
-    if (/from '@\/components\/OfferCard'/.test(src)) planFail(`${f} renders <OfferCard/> — the public offer is the plans section, and OfferCard carries the registry status chips and the beat claim lines`);
+    if (/from '@\/components\/OfferCard'/.test(src)) planFail(`${f} renders <OfferCard/> — the public offer is the plans section on /pricing and the how-to on the landing, and OfferCard carries the registry status chips and the beat claim lines`);
   }
   // The offer's OWN two files are held to the whole word: nothing in the plans
   // leaf or the section it feeds may name a beat at all. "records", "committed"
@@ -9441,12 +9441,12 @@ lawGuard('The plan law', () => {
   // ── THE DOOR THE SECTION CARRIES. ──
   // id="modules" was the offer act's. The plans section took it, and three things
   // still resolve to it: the Stripe cancel_url, the /modules access block's door
-  // and /pricing's. A page may not lose its door, and this one moved.
+  // and /pricing's. A page may not lose its door, and this one moved. HOME-BRIEF-04 (2026-11-10): on the landing the how-to carries it now — the two checks below follow it there.
   const ANCHOR_USERS = ['src/app/api/stripe/checkout-entitlement/route.ts', 'src/app/modules/[pillar]/ModulePageClient.tsx'];
   if (!sectionSrc.includes("headingId = 'modules'")) planFail(`${PLANS_SECTION}'s default headingId is not 'modules' — the offer act's anchor rides on the plans now`);
   const landingSource = codeOf('src/components/landing/Landing.tsx');
-  if (!landingSource.includes('<PlansSection door=')) planFail('the landing does not mount <PlansSection/>');
-  else if (/<PlansSection[^>]*headingId=/.test(landingSource)) planFail("the landing overrides <PlansSection/>'s headingId — #modules is the anchor the checkout cancel_url returns to, and it lives on the plans");
+  if (!landingSource.includes('<HowToSection ')) planFail('the landing does not mount <HowToSection/> — the home page\'s offer since HOME-BRIEF-04 (it mounted <PlansSection/> until then)');
+  else if (!codeOf('src/components/landing/HowToSection.tsx').includes('<section id="modules"')) planFail("the how-to's section does not carry id=\"modules\" — #modules is the anchor the checkout cancel_url returns to, and on the landing it lives on the how-to");
   for (const f of ANCHOR_USERS) {
     if (!codeOf(f).includes('#modules')) planFail(`${f} no longer names #modules — if the door moved, the section it lands on must move with it`);
   }

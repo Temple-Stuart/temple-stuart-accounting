@@ -14,6 +14,7 @@
  *   THE PLANS           — four plan cards and one comparison table
  *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
  *                         the section carries id="modules"
+ *                         (HOME-BRIEF-04, 2026-11-10: on this page the act is THE HOW-TO now — HowToSection over src/lib/howTo.ts, under the same label, SOFTWARE PLANS, carrying id="modules"; the plan cards and the table stand on /pricing alone)
  *   DONE-FOR-YOU        — the professional-services panel, six doors from src/lib/proposalNeeds.ts — SERVICES-01, 2026-11-08: the close retired, bookkeeping a door (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)
  *   (COCKPIT-PERF-01, 2026-10-27: the PERSONAS act — "one system · six lives" —
  *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
@@ -107,6 +108,9 @@
  * section. (COCKPIT-PERF-01, 2026-10-27: "lives on THE OFFER act (SELL-02,
  * data-offer-act) — the section that renders src/lib/offer.ts" stood here;
  * OFFER-01 deleted that act and the anchor rode on to THE PLANS.)
+ * HOME-BRIEF-04 (2026-11-10): the plans act left this page for /pricing, and on this page the anchor rides on the
+ * how-to's own section (HowToSection.tsx, <section id="modules">) — the plan law in scripts/assert-tool-registry.ts
+ * holds it there.
  *
  * SELL-02 settled what the deck's retirement left open: the selling surfaces
  * (this act, /pricing, the /modules access block, the cockpit's locked tabs)
@@ -222,7 +226,7 @@ import { COMMISSION_LINE } from '@/lib/disclosureWords'; // BOOK-DISCLOSE-01 (20
 // OFFER-01 (2026-09-23): the landing no longer renders OfferCard, heroCountsLine,
 // OFFERS or freeSetLine — the offer it shows is the three plans, and Travel's free
 // line comes from the registry's own Travel row (plans.ts travelFreeLine).
-import PlansSection from '@/components/offer/PlansSection'; import { COMPANY_LINE, HERO_SUBLINE } from '@/lib/brandLines'; // HOME-LINES-01 (2026-11-08): the hero's three lines and its subline, from src/lib/brandLines.ts — the import rides this line, so every line above :1807 stays
+import { COMPANY_LINE, HERO_SUBLINE } from '@/lib/brandLines'; // HOME-LINES-01 (2026-11-08): the hero's three lines and its subline, from src/lib/brandLines.ts — the import rides this line, so every line above :1807 stays. HOME-BRIEF-04 (2026-11-10): PlansSection's import, which this line rode beside, left with its mount — the page's offer is the how-to (./HowToSection, above); /pricing mounts the plans
 // PR-ELEV-1: the coming-soon tiles became badged "Soon" chips INSIDE the
 // booking strip (travelStripModes) — the separate tile row is gone.
 
@@ -626,31 +630,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             come from src/lib/homeActWords.ts. Each block that moved, moved WHOLE with the comment above it,
             byte-identical, so the older seat notes — in those comments and in the act list above — are history:
             each says where its block sat on the day it was written, not where it sits now. ─────────────────── */}
-      {/* ── OFFER-01 (2026-09-23): THE PLANS — what replaced TWO acts here.
-            GONE, and re-created nowhere on this page:
-              · ACT 2, the six-row persona grid headed "ONE SYSTEM · SIX LIVES"
-                with its "Who is this for?" hook — a visitor had to pick a life
-                before the page told them what they could buy;
-              · the SELL-02 offer act — two <OfferCard/>s (Books · Everything)
-                whose every tool wore the registry STATUS CHIP and the loop's own
-                beat vocabulary ("partial — discover · decide"), under a second
-                copy of the hero's registry count, over freeSetLine()'s "the
-                registry's live tools with no tab gate".
-            In their place: three cumulative plan cards and ONE comparison table
-            of collapsed capability groups, every word and every cell derived in
-            src/lib/offer/plans.ts. id="modules" RIDES ON — the Stripe cancel_url
-            (checkout-entitlement/route.ts:71), the /modules access block and
-            /pricing all resolve to it, so the anchor moves with the section, not
-            away from it. The door is the sign-up modal: no price is set, so the
-            slot says so and the button joins early access. ─────────────────── */}
-      <PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />
-
       {/* ── HOME-BRIEF-03 (Alex, 2026-11-10 18:09; the board he approved on 2026-11-09, "pick what you run"): THE HOW-TO —
             what you run picks your steps, in order, across Personal, Business, Travel and Trade. Every status comes from
             the tool registry and the plan from the plans — nothing typed (src/lib/howTo.ts, drawn by HowToSection.tsx).
             A cream act with its own border-b, directly under the plans and above the professional services; its two
-            switches live in React state only. ──────────────────────────────────────────────────────── */}
-      <HowToSection />
+            switches live in React state only.
+            HOME-BRIEF-04 (Alex, 2026-11-10 19:00: "the how-to should replace software plans"): THE HOW-TO IS THE
+            SOFTWARE PLANS. OFFER-01's <PlansSection/> (2026-09-23 — four plan cards and one comparison table) was
+            mounted directly above, under the note that seated it; both left this page, and the plans stand on /pricing
+            alone. This act carries what that one carried here: id="modules" — the Stripe cancel_url
+            (checkout-entitlement/route.ts) and the /modules access block land on it, and the plan law holds it — and
+            the door: the plan's button opens the sign-up modal, as the plan cards' button did. No price is set, so the
+            price line says so and the button joins early access; both are read from the plan's price slot
+            (src/lib/offer/plans.ts), never typed. Its steps are one row per section, swiped sideways. ─────────── */}
+      <HowToSection onRequireAuth={onRequireAuth} />
 
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own section — no right slot. Body = the PROFESSIONAL SERVICES
