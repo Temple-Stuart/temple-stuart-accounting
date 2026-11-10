@@ -47,15 +47,17 @@
  *   T3 the words — stopStatus and stopLabel from the server's day (one stop current on
  *      every day of the trip), the stay, tripOrder, stopWords, listWords, stopEventLine for
  *      every status × sourceKind, onPill, the three ruled pills from the live rows;
- *   T4 the section, rendered — the h2 "Where I've been, and where I'm going."
- *      (TRIPCARDS-01); ten cards Canggu → Pererenan in one sideways row with Stop 1 … Stop
+ *   T4 the section, rendered — the h2 "Our Story" (HOME-ORDER-01, 2026-11-10: Alex's heading, from
+ *      src/lib/homeActWords.ts; "Where I've been, and where I'm going." until then,
+ *      TRIPCARDS-01); ten cards Canggu → Pererenan in one sideways row with Stop 1 … Stop
  *      10, nine photos each inside the link to its stop's page, every card's three costs (one line each,
  *      the name's whole words in its title) and its "Read the post →", and nothing else — on the
  *      live rows and on fixtures that hold a line, two lists, an event and a stop's event; a
  *      stop with no costs row fails loud; no "No event" / JUST MISSED text anywhere, no clock;
  *      the trip.com look (TRIPCARDS-02) — every card dark, a photo card's figure, chip and band
  *      in one h-80 block, Cebu with none;
- *   T5 the mount — after the experiences mount and before the guest strip; the header
+ *   T5 the mount — after the experiences mount and the guest strip (HOME-ORDER-01,
+ *      2026-11-10: Alex's order; before the strip until then); the header
  *      comment says a card per stop, each opening its page (TRIPCARDS-01); the law seat.
  * No live call, no database, no clock.
  */
@@ -349,13 +351,13 @@ test('T3 stopEventLine for every status × sourceKind; onPill with the area when
 
 // ── T4 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T4 rendered with the live rows: the h2 "Where I\'ve been, and where I\'m going." (TRIPCARDS-01); ten cards Canggu → Pererenan in one row that scrolls sideways, Stop 1 … Stop 10; nine photos, each inside the link to its stop\'s page; every card\'s three costs on one line each and its "Read the post →"; no label once he has left — and nothing else on any card: no post block, no event block, no line, no pills, no sections, no strip link', () => {
+test('T4 rendered with the live rows: the h2 "Our Story" (HOME-ORDER-01, 2026-11-10); ten cards Canggu → Pererenan in one row that scrolls sideways, Stop 1 … Stop 10; nine photos, each inside the link to its stop\'s page; every card\'s three costs on one line each and its "Read the post →"; no label once he has left — and nothing else on any card: no post block, no event block, no line, no pills, no sections, no strip link', () => {
   const html = render();
   assert.equal(MY_TRIP_ANCHOR, 'my-trip');
   assert.match(html, /<section id="my-trip" aria-label="My trip"/);
   assert.equal(MY_TRIP_LINE, "Stop by stop, dated, with the whole story where I've written it up."); // TRIPPOST-01
-  assert.equal(MY_TRIP_HEADLINE, "Where I've been, and where I'm going."); // TRIPCARDS-01 (2026-11-05): the stops booked ahead join.
-  assert.match(html, /<h2 class="[^"]*">Where I&#x27;ve been, and where I&#x27;m going\.<\/h2><p class="[^"]*">Stop by stop, dated, with the whole story where I&#x27;ve written it up\.<\/p>/);
+  assert.equal(MY_TRIP_HEADLINE, 'Our Story'); // HOME-ORDER-01 (2026-11-10): Alex's heading — OUR_STORY_HEADING, src/lib/homeActWords.ts. Until then: "Where I've been, and where I'm going." (TRIPCARDS-01, 2026-11-05: the stops booked ahead join).
+  assert.match(html, /<h2 class="[^"]*">Our Story<\/h2><p class="[^"]*">Stop by stop, dated, with the whole story where I&#x27;ve written it up\.<\/p>/);
   assert.ok(html.includes(MY_TRIP_EYEBROW) && html.includes(asHtml(MY_TRIP_HEADLINE)) && html.includes(asHtml(MY_TRIP_LINE)));
   // TRIPCARDS-01 (Alex, 2026-11-06): "horizontal scroll cards" — one row, each card one width, snapping; the row meets the act's edges and only it scrolls.
   const rail = /<div class="([^"]*)" data-was-here-rail="true">/.exec(html);
@@ -511,13 +513,13 @@ test('T4 the leaf, the words and the section read no clock; the section holds no
 
 // ── T5 · THE MOUNT, THE SEAT, THE EXPERIENCES WITHOUT featured ───────────────
 
-test('T5 Landing mounts the log once, after the experiences mount and before the guest strip; the act line says a card per stop, each opening its page (TRIPCARDS-01); the seam ledger names it', () => {
+test('T5 Landing mounts the log once, after the experiences mount and the guest strip (HOME-ORDER-01, 2026-11-10); the act line says a card per stop, each opening its page (TRIPCARDS-01); the seam ledger names it', () => {
   const landing = code(LANDING);
   assert.equal((landing.match(/<WasHereSection today=\{today\}/g) ?? []).length, 1);
   const events = landing.indexOf('<ExperiencesSection today={today} />');
   const mount = landing.indexOf('<WasHereSection today={today} />');
   const strip = landing.indexOf('<GuestTripStrip');
-  assert.ok(events > -1 && mount > events && strip > mount, 'experiences → my trip → guest strip');
+  assert.ok(events > -1 && strip > events && mount > strip, 'experiences → guest strip → my trip'); // HOME-ORDER-01 (2026-11-10): Alex's order — the log sits under the guest strip now (the plans, DONE-FOR-YOU and Stop 0 between); 'experiences → my trip → guest strip' until then
   assert.match(landing, /import WasHereSection from '\.\/WasHereSection';/);
   const notes = comments(LANDING);
   assert.match(notes, /MY TRIP {13}— the trip log, a card per stop, each opening its stop's page \(TRIPCARDS-01\)/);

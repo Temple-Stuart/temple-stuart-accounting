@@ -12,8 +12,9 @@
  *   T4 the source — the section and the band type none of the words (they import them, whitespace collapsed so a word
  *      broken across lines is still found) and never retype the anchor; the section has no state, no fetch, no clock and
  *      no hex; the leaf is pure;
- *   T5 Landing — mounts the section once, directly between the experiences mount and the MY TRIP mount (nothing but a
- *      comment between), and its import shares a line with the ExperiencesSection import;
+ *   T5 Landing — mounts the section once, directly between the DONE-FOR-YOU section and the MY TRIP mount (nothing but a
+ *      comment between each — HOME-ORDER-01, 2026-11-10: Alex's order; directly under the experiences mount until then),
+ *      and its import shares a line with the ExperiencesSection import;
  *   T6 the events band — "#stop-0" once, in the ruled line directly before the closing line, on an event chip, on a
  *      season chip and on the refused view.
  * Source is read through code() only (the reader law). No line number, no line count, no clock, no live call.
@@ -44,6 +45,7 @@ const LANDING = 'src/components/landing/Landing.tsx';
 const EXPERIENCES_MOUNT = '<ExperiencesSection today={today} />';
 const STOP_ZERO_MOUNT = '<StopZeroSection />';
 const MY_TRIP_MOUNT = '<WasHereSection today={today} />';
+const DONE_FOR_YOU_OPEN = '<section className="w-full border-b border-border bg-bg-terminal">'; // HOME-ORDER-01 (2026-11-10): Stop 0's upper neighbour
 /** code() blanks a JSX comment's words and keeps its braces. */
 const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
 
@@ -152,15 +154,20 @@ test('T4 the section and the band type none of the words; the section holds no s
 
 // ── T5 · LANDING ─────────────────────────────────────────────────────────────
 
-test('T5 Landing mounts the section once, directly between the experiences and MY TRIP, and its import rides the ExperiencesSection import\'s line', () => {
+test('T5 Landing mounts the section once, directly between DONE-FOR-YOU and MY TRIP (HOME-ORDER-01, 2026-11-10), and its import rides the ExperiencesSection import\'s line', () => {
   const landing = code(LANDING);
   assert.equal(count(landing, STOP_ZERO_MOUNT), 1, 'mounted once');
   assert.equal(count(landing, '<StopZeroSection'), 1);
+  // HOME-ORDER-01 (2026-11-10): Alex's order — Stop 0 sits directly under the DONE-FOR-YOU section now, still directly above MY TRIP. Until then it sat
+  // directly under the experiences mount ('the experiences → stop 0: a comment between, nothing else').
   const experiences = landing.indexOf(EXPERIENCES_MOUNT);
+  assert.equal(count(landing, DONE_FOR_YOU_OPEN), 1, 'the DONE-FOR-YOU section, once');
+  const doneForYou = landing.indexOf(DONE_FOR_YOU_OPEN);
+  const doneForYouEnd = landing.indexOf('</section>', doneForYou) + '</section>'.length;
   const stopZero = landing.indexOf(STOP_ZERO_MOUNT);
   const myTrip = landing.indexOf(MY_TRIP_MOUNT);
-  assert.ok(experiences > -1 && stopZero > experiences && myTrip > stopZero, 'experiences → stop 0 → my trip');
-  assert.match(landing.slice(experiences + EXPERIENCES_MOUNT.length, stopZero), ONLY_COMMENTS, 'the experiences → stop 0: a comment between, nothing else');
+  assert.ok(experiences > -1 && doneForYou > experiences && doneForYouEnd > doneForYou && stopZero > doneForYouEnd && myTrip > stopZero, 'experiences → … → DONE-FOR-YOU → stop 0 → my trip');
+  assert.match(landing.slice(doneForYouEnd, stopZero), ONLY_COMMENTS, "DONE-FOR-YOU's </section> → stop 0: a comment between, nothing else");
   assert.match(landing.slice(stopZero + STOP_ZERO_MOUNT.length, myTrip), ONLY_COMMENTS, 'stop 0 → my trip: a comment between, nothing else');
   const imports = landing.split('\n').filter((l) => l.includes("import StopZeroSection from './StopZeroSection';"));
   assert.equal(imports.length, 1, 'imported once');

@@ -3,19 +3,24 @@
  * log; the guest's strip when it renders), directly above THE PLANS (early access); THE PLANS then sits over the
  * pipeline header, since the pipe is the system's. One concept: the section's seat — its markup moved WHOLESALE,
  * byte-identical inside <section>…</section>; only its position and Landing's comments changed.
+ * HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story"): the seats changed again — every block
+ * moved whole into Alex's order. T1 and T3 hold the new order; T2 (the seams, the SEAT paragraph's words) is untouched.
  *
- *   T1 the order, by index — experiences → Stop 0 → MY TRIP → the guest strip → DONE-FOR-YOU (the eyebrow) → THE PLANS →
- *      the door to the 14 steps (PIPELINE-PAGE-01, 2026-11-09: in the pipeline header's seat — the header and its steps
- *      moved whole to /how-it-works), each mounted once; nothing but a comment between each neighbour pair;
+ *   T1 the order, by index — HOME-ORDER-01 (2026-11-10): experiences → the guest strip → THE PLANS → DONE-FOR-YOU (the
+ *      eyebrow) → Stop 0 → MY TRIP → the door to the 14 steps, each mounted once; nothing but a comment between each
+ *      neighbour pair. (Until then: experiences → Stop 0 → MY TRIP → the guest strip → DONE-FOR-YOU → THE PLANS → the
+ *      door — PIPELINE-PAGE-01, 2026-11-09, had put the door in the pipeline header's seat when the header and its steps
+ *      moved whole to /how-it-works.)
  *   T2 the seams — one rule per boundary from experiences to the door, every one a border-b: my trip's (WasHereSection),
  *      the strip's own when it renders (GuestTripStrip), done-for-you's (no border-t), the plans act's (PlansSection.tsx),
  *      the door's (PIPELINE-PAGE-01: below it, built-on's border-t too — two rules on door | built on); the header keeps
  *      its border-b over 01 in the deck's file; the ledger's three lines present once each and the old two gone, and the
  *      header's SEAM sentence naming the plans — both moved with the deck (PipelineDeck.tsx); the LANDING-V4 comment's
  *      SEAT paragraph, dated; the history lines untouched;
- *   T3 the act list — DONE-FOR-YOU and its two historical notes above THE PLANS' three lines, the door's line after (in
- *      place of THE PIPELINE header's); the historical notes' words untouched; the s08 line the deck tests read, found by
- *      content in the deck's file (PIPELINE-PAGE-01 ended the Landing.tsx:1807 pins).
+ *   T3 the act list — HOME-ORDER-01 (2026-11-10): EXPERIENCES, THE GUEST'S TRIP, THE PLANS' three lines, DONE-FOR-YOU and
+ *      its two historical notes, MY TRIP, then the door's line (in place of THE PIPELINE header's) — lines moved, their
+ *      words untouched (until then: MY TRIP, THE GUEST'S TRIP, DONE-FOR-YOU and its notes, THE PLANS, the door); the s08
+ *      line the deck tests read, found by content in the deck's file (PIPELINE-PAGE-01 ended the Landing.tsx:1807 pins).
  * Source is read through code() and comments() only (the reader law). No clock.
  */
 import { test } from 'node:test';
@@ -31,6 +36,7 @@ const DECK = 'src/components/landing/PipelineDeck.tsx'; // PIPELINE-PAGE-01 (202
 const EXPERIENCES = '<ExperiencesSection today={today} />';
 const MY_TRIP = '<WasHereSection today={today} />';
 const GUEST_STRIP = '<GuestTripStrip onRequireAuth={onRequireAuth} />';
+const STOP_ZERO = '<StopZeroSection />';
 const EYEBROW = 'DONE-FOR-YOU\n';
 const SECTION_OPEN = '<section className="w-full border-b border-border bg-bg-terminal">';
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />";
@@ -38,18 +44,22 @@ const DOOR = '<section aria-label="How it all connects"'; // PIPELINE-PAGE-01 (2
 /** code() blanks a JSX comment's words and keeps its braces — the guest law's own allowance. */
 const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
 
-test('T1 the order by index: experiences → MY TRIP → the guest strip → DONE-FOR-YOU → THE PLANS → the door (PIPELINE-PAGE-01); each once; nothing but a comment between each pair', () => {
+test('T1 the order by index (HOME-ORDER-01, 2026-11-10): experiences → the guest strip → THE PLANS → DONE-FOR-YOU → Stop 0 → MY TRIP → the door; each once; nothing but a comment between each pair', () => {
   const landing = code(LANDING);
   const at = (s: string): number => { const i = landing.indexOf(s); assert.notEqual(i, -1, s); return i; };
-  for (const s of [EXPERIENCES, MY_TRIP, GUEST_STRIP, EYEBROW, SECTION_OPEN, PLANS_MOUNT, DOOR]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
-  const order = [EXPERIENCES, '<StopZeroSection />', MY_TRIP, GUEST_STRIP, SECTION_OPEN, EYEBROW, PLANS_MOUNT, DOOR].map(at); // STOP0-01 (Alex, 2026-11-08; 2026-11-09): the Stop 0 mount joins the order, between the experiences and MY TRIP; PIPELINE-PAGE-01 (2026-11-09): the door takes the header's place
-  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'experiences → stop 0 → my trip → the guest strip → DONE-FOR-YOU → the plans → the door');
-  assert.match(landing.slice(at(GUEST_STRIP) + GUEST_STRIP.length, at(SECTION_OPEN)), ONLY_COMMENTS, 'the strip → the section: a comment between, nothing else');
+  for (const s of [EXPERIENCES, GUEST_STRIP, PLANS_MOUNT, SECTION_OPEN, EYEBROW, STOP_ZERO, MY_TRIP, DOOR]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
+  // HOME-ORDER-01 (2026-11-10): Alex's order — "What We Do → About Us → Our Story". Until then this list read experiences → Stop 0 → MY TRIP → the guest
+  // strip → DONE-FOR-YOU → THE PLANS → the door (HOME-PANELS-02's seat; STOP0-01, 2026-11-09, seated Stop 0; PIPELINE-PAGE-01, 2026-11-09, the door).
+  const order = [EXPERIENCES, GUEST_STRIP, PLANS_MOUNT, SECTION_OPEN, EYEBROW, STOP_ZERO, MY_TRIP, DOOR].map(at);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'experiences → the guest strip → the plans → DONE-FOR-YOU → stop 0 → my trip → the door');
+  assert.match(landing.slice(at(EXPERIENCES) + EXPERIENCES.length, at(GUEST_STRIP)), ONLY_COMMENTS, 'experiences → the strip: a comment between, nothing else');
+  assert.match(landing.slice(at(GUEST_STRIP) + GUEST_STRIP.length, at(PLANS_MOUNT)), ONLY_COMMENTS, 'the strip → the plans mount: a comment between, nothing else');
+  assert.match(landing.slice(at(PLANS_MOUNT) + PLANS_MOUNT.length, at(SECTION_OPEN)), ONLY_COMMENTS, 'the plans mount → the DONE-FOR-YOU section: a comment between, nothing else');
   const sectionEnd = landing.indexOf('</section>', at(EYEBROW)) + '</section>'.length;
-  assert.ok(sectionEnd > at(EYEBROW) && sectionEnd < at(PLANS_MOUNT));
-  assert.match(landing.slice(sectionEnd, at(PLANS_MOUNT)), ONLY_COMMENTS, 'the section → the plans mount: a comment between, nothing else');
-  assert.match(landing.slice(at(PLANS_MOUNT) + PLANS_MOUNT.length, at(DOOR)), ONLY_COMMENTS, 'the plans mount → the door: a comment between, nothing else');
-  assert.match(landing.slice(at(MY_TRIP) + MY_TRIP.length, at(GUEST_STRIP)), ONLY_COMMENTS, 'my trip → the strip: a comment between (unchanged)');
+  assert.ok(sectionEnd > at(EYEBROW) && sectionEnd < at(STOP_ZERO));
+  assert.match(landing.slice(sectionEnd, at(STOP_ZERO)), ONLY_COMMENTS, "the DONE-FOR-YOU section's </section> → stop 0: a comment between, nothing else");
+  assert.match(landing.slice(at(STOP_ZERO) + STOP_ZERO.length, at(MY_TRIP)), ONLY_COMMENTS, 'stop 0 → my trip: a comment between, nothing else');
+  assert.match(landing.slice(at(MY_TRIP) + MY_TRIP.length, at(DOOR)), ONLY_COMMENTS, 'my trip → the door: a comment between, nothing else');
 });
 
 test('T2 the seams: one border-b per boundary from experiences to the door — my trip\'s, the strip\'s own, done-for-you\'s (no border-t), the plans act\'s, the door\'s (PIPELINE-PAGE-01); the header\'s own over 01, the ledger\'s three lines once each and the header\'s SEAM — in the deck\'s file; the SEAT paragraph', () => {
@@ -89,21 +99,24 @@ test('T2 the seams: one border-b per boundary from experiences to the door — m
   assert.ok(notes.includes("HOME-PANELS-01, 2026-11-07, folded\n            the close into this card as its fifth door; both seams are history.)"), 'the close seams named as history');
 });
 
-test('T3 the act list: DONE-FOR-YOU and its two historical notes above THE PLANS\' three lines, the door\'s line after (PIPELINE-PAGE-01: in place of THE PIPELINE header\'s); the notes\' words untouched; the s08 line is the deck\'s, found by content', () => {
+test('T3 the act list (HOME-ORDER-01, 2026-11-10): EXPERIENCES, THE GUEST\'S TRIP, THE PLANS\' three lines, DONE-FOR-YOU and its two historical notes, MY TRIP, then the door\'s line (PIPELINE-PAGE-01: in place of THE PIPELINE header\'s); the notes\' words untouched; the s08 line is the deck\'s, found by content', () => {
   const notes = comments(LANDING);
   const at = (s: string): number => { const i = notes.indexOf(s); assert.notEqual(i, -1, s); return i; };
+  // HOME-ORDER-01 (2026-11-10): the act list follows Alex's order — the lines moved, their words unchanged. Until then: MY TRIP, THE GUEST'S TRIP,
+  // DONE-FOR-YOU and its two notes, THE PLANS, the door.
   const seq = [
-    ' *   MY TRIP             — the trip log, a card per stop, each opening its stop\'s page (TRIPCARDS-01)',
+    ' *   EXPERIENCES         — the events section under the strip (EVENTS-01)',
     " *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);",
+    ' *   THE PLANS           — four plan cards and one comparison table\n *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);\n *                         the section carries id="modules"',
     // SERVICES-01 (2026-11-08): the line rewritten in place — six doors from src/lib/proposalNeeds.ts; the seat's note kept.
     ' *   DONE-FOR-YOU        — the professional-services panel, six doors from src/lib/proposalNeeds.ts — SERVICES-01, 2026-11-08: the close retired, bookkeeping a door (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)',
     ' *   (COCKPIT-PERF-01, 2026-10-27: the PERSONAS act — "one system · six lives" —\n *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood\n *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both\n *   with THE PLANS.)',
     " *   (THE CLOSE          — HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal)",
-    ' *   THE PLANS           — four plan cards and one comparison table\n *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);\n *                         the section carries id="modules"',
+    ' *   MY TRIP             — the trip log, a card per stop, each opening its stop\'s page (TRIPCARDS-01)',
     // PIPELINE-PAGE-01 (2026-11-09): the door's line, in place of THE PIPELINE header's (' *   THE PIPELINE header — names the 14-step run (essay front matter, PR-CHROME)').
     ' *   HOW IT ALL CONNECTS — the door to the 14 steps (PIPELINE-PAGE-01, 2026-11-09: in the seat THE PIPELINE header held, PR-CHROME — the header and the fourteen steps moved whole to their own page, /how-it-works, PipelineDeck.tsx; the fourteen lines below name the steps behind the door)',
   ].map(at);
-  assert.deepEqual(seq, [...seq].sort((a, b) => a - b), 'MY TRIP → THE GUEST\'S TRIP → DONE-FOR-YOU (and its notes) → THE PLANS → the door');
+  assert.deepEqual(seq, [...seq].sort((a, b) => a - b), 'EXPERIENCES → THE GUEST\'S TRIP → THE PLANS → DONE-FOR-YOU (and its notes) → MY TRIP → the door');
   // PIPELINE-PAGE-01 (2026-11-09): the s08 line moved with the deck to PipelineDeck.tsx — found by content (the one line whose code starts with s08:), never by number.
   assert.equal(code(DECK).split('\n').filter((l) => /^\s+s08: /.test(l)).length, 1, 'exactly one s08 line, in the deck\'s file');
   for (const phrase of [/THE PLANS\s+— four plan cards and one comparison table/, /id="modules" lives on THE PLANS act/, /said by the four plans below/]) assert.match(notes, phrase, "cockpitPerf01's pins stand");
