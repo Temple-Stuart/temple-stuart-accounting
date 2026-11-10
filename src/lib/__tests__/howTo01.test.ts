@@ -7,7 +7,8 @@
  * development statuses on the public homepage." · "A checkmark means the capability is part of that plan's intended
  * offering. It does NOT represent implementation status or current availability."): the public section is the pillar,
  * the four plan cards and ONE comparison now. The status view stays in the leaf, undrawn — T1, T2 and T3 hold it as
- * they did. T4 and T5 are rewritten for the new section; T6 keeps every assertion; T7, T8 and T9 are new.
+ * they did. T4 and T5 are rewritten for the new section; T6 keeps every assertion; T7, T8 and T9 are new. T10 holds
+ * the one fix the look found: the comparison's box is positioned, so a phone's page does not scroll sideways.
  *
  *   T1 the law — the live leaf passes; every refusal by name over injected sections, registry and plans; it runs at
  *      module scope;
@@ -43,6 +44,11 @@
  *      new refusal by name; the status view's notes unchanged by the field move.
  *   T9 (HOME-PLANS-01) the guard — one statement at the end of the plan law's line that holds the how-to's anchor
  *      (scripts/assert-tool-registry.ts): a plan that carries a price fails the build, by name; no plan carries one.
+ *   T10 (HOME-PLANS-01, the look's fix) the comparison's box holds its own screen-reader text — the box is positioned
+ *      and is the one thing in the section that scrolls sideways; every sr-only span the section draws sits inside it,
+ *      at rest and with everything open; the plans table's own box is untouched; the reason stands where the class is
+ *      typed. (Until then the box was unpositioned: that text was laid out against the page, outside the box's clip,
+ *      and a 390 or a 360 screen scrolled sideways to 694 — measured in the look.)
  * Source is read through code() and comments() only (the reader law). No count of what is live is typed: each is
  * computed (T3). The step counts — 8 · 9 · 4 · 5 — are the brief's own figures, held both ways (T8). No clock, no live call.
  *
@@ -89,6 +95,8 @@ const count = (hay: string, needle: string) => hay.split(needle).length - 1;
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /** What is open in the comparison: the categories, and the steps by their keys. */
 type Open = { categories: readonly HowToSectionId[]; steps: readonly string[] };
+/** The comparison's box, as it is drawn: positioned, and the one thing in the section that scrolls sideways (T4, T10). */
+const BOX_TAG = '<div class="relative mt-8 overflow-x-auto rounded-lg border border-border bg-white" data-plan-comparison="true">';
 /** The pure half, rendered for one open state. (Until HOME-PLANS-01 it took a choice and the two switches' handlers.) */
 const render = (open: Open) => renderToStaticMarkup(React.createElement(HowToView, { openCategories: new Set(open.categories), openSteps: new Set(open.steps), onCategory: () => {}, onStep: () => {}, onJoin: () => {} }));
 /**
@@ -263,7 +271,8 @@ test('T4 (HOME-PLANS-01) the section, rendered: at rest — the pillar, the four
   const pillar = `<div class="max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-10"><h2 class="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">${asHtml(PLAN_PILLAR.heading)}</h2>`
     + PLAN_PILLAR.paragraphs.map((words) => `<p class="mt-3 max-w-3xl text-base text-text-secondary">${asHtml(words)}</p>`).join('');
   const cards = renderToStaticMarkup(React.createElement(PlanCards, { door: { kind: 'button', onClick: () => {} } }));
-  const BOX_OPEN = '<div class="mt-8 overflow-x-auto rounded-lg border border-border bg-white" data-plan-comparison="true"><table class="w-full min-w-[720px] table-fixed text-sm">';
+  // (Until the look's fix the box's classes opened with `mt-8` — it was not positioned; see T10.)
+  const BOX_OPEN = `${BOX_TAG}<table class="w-full min-w-[720px] table-fixed text-sm">`;
   assert.ok(rest.includes(`data-how-to="true">${pillar}${cards}${BOX_OPEN}<thead>`), 'the pillar → the four cards → the comparison, nothing between');
   assert.ok(rest.endsWith('</tbody></table></div></div></section>'), 'and nothing after the table');
   assert.equal(count(rest, '<h2'), 1, 'one h2 — the pillar\'s');
@@ -467,7 +476,8 @@ test('T5 (HOME-PLANS-01) the source: the section types no leaf word, no mark, no
   // the table's box, its head row and its toggle rows are the plans table's own idioms (PlansSection.tsx)
   const plans = code(PLANS_SECTION);
   assert.ok(plans.includes('<div className="mt-3 overflow-x-auto rounded-lg border border-border bg-white" data-plan-table>'), 'the plans table\'s box');
-  assert.match(section, /^ {2}box: 'mt-8 overflow-x-auto rounded-lg border border-border bg-white',$/m, 'the same box, but for its top margin — it scrolls sideways inside itself');
+  // (Until the look's fix this pinned the box as the plans table's own but for its top margin alone — unpositioned; see T10.)
+  assert.match(section, /^ {2}box: 'relative mt-8 overflow-x-auto rounded-lg border border-border bg-white',$/m, 'the same box, but for its top margin and `relative` — it scrolls sideways inside itself, and holds its own screen-reader text');
   assert.ok(plans.includes('<tr className="border-b border-border bg-bg-row text-left align-top">'), 'the plans table\'s head row');
   assert.match(section, /^ {2}headRow: 'border-b border-border bg-bg-row text-left align-top',$/m, 'the same head row');
   assert.ok(plans.includes('<th className={`px-3 py-3 ${DATA.columnHeader}`}>'), 'the plans table\'s first head');
@@ -751,3 +761,33 @@ test('T9 (HOME-PLANS-01) the guard stands on the plan law\'s line: a plan that c
   }
 });
 
+
+test('T10 (HOME-PLANS-01, the look\'s fix) the comparison\'s box holds its own screen-reader text: the box is positioned and is the one thing in the section that scrolls sideways, every sr-only span the section draws sits inside it, and the reason stands where the class is typed — so a phone\'s page does not scroll sideways', () => {
+  const section = code(SECTION);
+  // the box: positioned AND the one that scrolls — one class string, on the comparison's box, once
+  assert.match(section, /^ {2}box: 'relative mt-8 overflow-x-auto rounded-lg border border-border bg-white',$/m, 'positioned, and it scrolls sideways inside itself');
+  assert.equal(count(section, '<div className={HOW.box} data-plan-comparison>'), 1, 'the comparison\'s box, once');
+  assert.equal(count(section, 'overflow-x-auto'), 1, 'nothing else in the section scrolls sideways');
+  // every render: what a screen reader hears is drawn ONLY inside that box — each plan head's full name and every mark's label
+  const view = planComparison();
+  const personalSteps = view.categories.filter((c) => c.id === 'personal').reduce((n, c) => n + c.steps.length, 0);
+  const totalSteps = view.categories.reduce((n, c) => n + c.steps.length, 0);
+  const AT_REST: Open = { categories: ['personal'], steps: [] };
+  const ALL_OPEN: Open = { categories: [...HOW_TO_SECTION_ORDER], steps: view.categories.flatMap((c) => c.steps.map((step) => stepKey(c.id, step.n))) };
+  for (const [name, open, stepRows] of [['at rest', AT_REST, personalSteps], ['everything open', ALL_OPEN, totalSteps]] as const) {
+    const html = render(open);
+    assert.equal(count(html, BOX_TAG), 1, `${name}: the box, positioned`);
+    const from = html.indexOf(BOX_TAG);
+    const to = html.lastIndexOf('</table></div>');
+    assert.ok(to > from, `${name}: the box closes after its table`);
+    assert.equal(count(html.slice(0, from), 'sr-only'), 0, `${name}: no screen-reader-only text before the box`);
+    assert.equal(count(html.slice(to), 'sr-only'), 0, `${name}: and none after it`);
+    assert.equal(count(html.slice(from, to), 'class="sr-only"'), view.columns.length + (view.categories.length + stepRows) * view.columns.length, `${name}: each plan head's full name and every mark's label, inside it`);
+  }
+  // the plans table's own box is untouched — /pricing draws what it drew
+  assert.ok(code(PLANS_SECTION).includes('<div className="mt-3 overflow-x-auto rounded-lg border border-border bg-white" data-plan-table>'), 'the plans table\'s box is as it was');
+  // why, said where the class is typed
+  const why = comments(SECTION);
+  assert.match(why, /`relative` is what keeps the PAGE from scrolling sideways \(HOME-PLANS-01, found by the look\)/);
+  assert.match(why, /an absolutely positioned box is laid out against its nearest POSITIONED ancestor/);
+});
