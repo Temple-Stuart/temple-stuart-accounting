@@ -5,6 +5,11 @@
  * under the booking strip on the guest landing (Landing.tsx, after the LIVE DEMO
  * act): the marquee events a guest books a stay and a flight around.
  *
+ * HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15) — ONE OFFERING WITH THE TRAVEL BLOCK ABOVE: this band repeats no headline.
+ * The experience line and the promise are the travel block's header now (Landing.tsx reads EXPERIENCE_LINE from
+ * src/lib/brandLines.ts and PROMISE from this file); the band renders its eyebrow, then SUBHEAD, then the chips and the
+ * list. Item 1 below describes the band's own h2 and promise as they stood until then — history.
+ *
  * HOME-BRIEF-02 (Alex's home page brief, 2026-11-10 16:27) — PRESENTATION ONLY; the rows, the categories, the date
  * rules and the filter are untouched:
  *   · COMING UP / WHEN TO GO is a COMPACT LIST, not a sideways row of cards: one row per event, the same rows in the
@@ -92,7 +97,6 @@ import {
   type Experience, type ExperienceCategory, type ExperienceCategoryId,
 } from '@/lib/experiences';
 import { dayWords, experienceLine, notAnnouncedLine, seasonNotAnnouncedLine, upcoming } from '@/lib/experienceWords';
-import { EXPERIENCE_LINE } from '@/lib/brandLines';
 
 /** The section's anchor — the strip's Events mode and the chips' URL both name it. FOOTER-01 (2026-11-09): its one home is src/lib/homeAnchors.ts — imported back here, still exported from here. */
 import { EVENTS_ANCHOR } from '@/lib/homeAnchors';
@@ -103,7 +107,7 @@ export const INTO_PARAM = 'into';
 export const DEFAULT_INTO: ExperienceCategoryId = EXPERIENCE_CATEGORIES[0].id;
 
 export const EYEBROW = 'THE BEST EXPERIENCES ON EARTH · THEN THE STAY AND THE FLIGHT TO GET THERE';
-/** HOME-LINES-01 (2026-11-08): the h2 until HOME-LINES-01 (then HEADLINE); now the promise under the experience line. */
+/** HOME-LINES-01 (2026-11-08): the h2 until HOME-LINES-01 (then HEADLINE); now the promise under the experience line. HOME-BRIEF-03 (2026-11-10): rendered by Landing.tsx, in the travel block's header — not by this band. */
 export const PROMISE = 'Book the experience, not just the destination.';
 export const SUBHEAD = "Pick what you're into. See what's on and where. Book the stay and the flight around it, right here.";
 export const INTO_LABEL = "I'M INTO…";
@@ -124,9 +128,9 @@ export function notACategory(value: string): string {
   return `${value} is not a category — pick one above.`;
 }
 
-/** "Nothing announced yet in <category> — the cards below say when each one was checked." */
+/** "Nothing announced yet in <category> — the list below says when each one was checked." HOME-BRIEF-03 (Alex, 2026-11-10): "the list below" — it read "the cards below say" until then, over what HOME-BRIEF-02 made a list. */
 export function nothingUpcoming(categoryLabel: string): string {
-  return `Nothing announced yet in ${categoryLabel} — the cards below say when each one was checked.`;
+  return `Nothing announced yet in ${categoryLabel} — the list below says when each one was checked.`;
 }
 
 /** EVENTS-03 (Alex, 2026-11-09): "Checked Nov 8, 2026" — the day a row was checked, in the foot of every card whose line does not already say it. */
@@ -139,8 +143,6 @@ const EXP = {
   band: 'w-full bg-brand-purple text-white',
   inner: 'max-w-7xl mx-auto px-4 lg:px-8 py-10 lg:py-14',
   eyebrow: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-brand-amber',
-  h2: 'mt-3 text-3xl sm:text-5xl font-bold leading-tight tracking-tight text-ts-white',
-  promise: 'mt-4 text-lg sm:text-xl font-semibold text-ts-white',
   sub: 'mt-2 max-w-2xl text-sm text-white/70',
   label: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60',
   chipRow: 'mt-3 flex flex-wrap gap-2',
@@ -155,6 +157,8 @@ const EXP = {
   row: 'flex flex-col gap-1 py-3 md:flex-row md:items-baseline md:gap-6',
   rowLine: 'font-mono text-xs leading-relaxed text-white/90 md:w-72 md:shrink-0',
   rowBody: 'min-w-0 md:flex-1',
+  // HOME-BRIEF-03 (Alex, 2026-11-10): the series name, small, over the event's name — the card's top line wore these classes.
+  rowSeries: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-amber',
   rowName: 'text-sm font-semibold text-white',
   rowPlace: 'text-sm text-white/80',
   rowNotes: 'mt-1 text-xs text-white/60',
@@ -189,6 +193,9 @@ function EventRow({ row, today }: { row: Experience; today: string }) {
     <article className={EXP.row} data-coming-up={row.id}>
       <p className={EXP.rowLine} data-experience-line>{line}</p>
       <div className={EXP.rowBody}>
+        {/* HOME-BRIEF-03 (Alex, 2026-11-10): a row that has a series shows it again — the series name alone (the card's top line carried
+            it, after the category, until HOME-BRIEF-02); a row with no series shows nothing extra. */}
+        {row.series !== null && <p className={EXP.rowSeries} data-series={row.id}>{row.series}</p>}
         <h3 className={EXP.rowName}>{row.name}</h3>
         <p className={EXP.rowPlace}>{placeOf(row)}</p>
         {row.notes !== null && <p className={EXP.rowNotes}>{row.notes}</p>}
@@ -222,12 +229,6 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
     <section id={EVENTS_ANCHOR} aria-label="Book the experience" className={EXP.band} data-experiences>
       <div className={EXP.inner}>
         <p className={EXP.eyebrow}>{EYEBROW}</p>
-        <h2 className={EXP.h2}>
-          {EXPERIENCE_LINE[0]}<br />
-          {EXPERIENCE_LINE[1]}<br />
-          <span className="text-brand-purple-wash">{EXPERIENCE_LINE[2]}</span>
-        </h2>
-        <p className={EXP.promise}>{PROMISE}</p>
         <p className={EXP.sub}>{SUBHEAD}</p>
 
         <p className={`mt-8 ${EXP.label}`}>{INTO_LABEL}</p>

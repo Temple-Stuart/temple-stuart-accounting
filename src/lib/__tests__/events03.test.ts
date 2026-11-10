@@ -159,8 +159,9 @@ test('T3 the season chips: no "Nothing announced yet", no strip line (HOME-BRIEF
 
 test('T4 Golf with nothing upcoming and the refused view read exactly as before, with the events’ closing line', () => {
   const empty = render({ category: 'golf' }, GOLF_DAY);
-  assert.match(empty, /data-nothing-upcoming="true">Nothing announced yet in Golf — the cards below say when each one was checked\.</);
-  assert.equal(nothingUpcoming('Golf'), 'Nothing announced yet in Golf — the cards below say when each one was checked.');
+  // HOME-BRIEF-03 (Alex, 2026-11-10): "the list below says" — "the cards below say" until then.
+  assert.match(empty, /data-nothing-upcoming="true">Nothing announced yet in Golf — the list below says when each one was checked\.</);
+  assert.equal(nothingUpcoming('Golf'), 'Nothing announced yet in Golf — the list below says when each one was checked.');
   assert.ok(empty.indexOf('data-nothing-upcoming') < empty.indexOf('data-coming-up-rail'), 'said above the row');
   assert.ok(!empty.includes(STRIP_LINE), 'nothing to book around, so no strip line');
   assert.equal(cardsOf(empty).length, 5, 'every golf card still shows');

@@ -6,7 +6,8 @@
  * HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story"): the seats changed again — every block
  * moved whole into Alex's order. T1 and T3 hold the new order; T2 (the seams, the SEAT paragraph's words) is untouched.
  *
- *   T1 the order, by index — HOME-ORDER-01 (2026-11-10): experiences → the guest strip → THE PLANS → DONE-FOR-YOU (the
+ *   T1 the order, by index — HOME-BRIEF-03 (2026-11-10): the how-to stands between THE PLANS and the services section,
+ *      a comment between each. HOME-ORDER-01 (2026-11-10): experiences → the guest strip → THE PLANS → DONE-FOR-YOU (the
  *      eyebrow) → Stop 0 → MY TRIP → the door to the 14 steps, each mounted once; nothing but a comment between each
  *      neighbour pair. (Until then: experiences → Stop 0 → MY TRIP → the guest strip → DONE-FOR-YOU → THE PLANS → the
  *      door — PIPELINE-PAGE-01, 2026-11-09, had put the door in the pipeline header's seat when the header and its steps
@@ -37,7 +38,8 @@ const EXPERIENCES = '<ExperiencesSection today={today} />';
 const MY_TRIP = '<WasHereSection today={today} />';
 const GUEST_STRIP = '<GuestTripStrip onRequireAuth={onRequireAuth} />';
 const STOP_ZERO = '<StopZeroSection />';
-const EYEBROW = 'DONE-FOR-YOU\n';
+const HOW_TO = '<HowToSection />'; // HOME-BRIEF-03 (Alex, 2026-11-10): the how-to, between the plans and the services section
+const EYEBROW = 'text-text-faint">\n            PROFESSIONAL SERVICES\n'; // HOME-BRIEF-03 (Alex, 2026-11-10): the section's label reads PROFESSIONAL SERVICES — 'DONE-FOR-YOU\n' until then; found with the end of its own <p>, since the card's chip says the same words
 const SECTION_OPEN = '<section className="w-full border-b border-border bg-bg-terminal">';
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />";
 const DOOR = '<section aria-label="How it all connects"'; // PIPELINE-PAGE-01 (2026-11-09): the door in the pipeline header's seat (HEADER was '<section aria-label="The pipeline"')
@@ -47,14 +49,17 @@ const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
 test('T1 the order by index (HOME-ORDER-01, 2026-11-10): experiences → the guest strip → THE PLANS → DONE-FOR-YOU → Stop 0 → MY TRIP → the door; each once; nothing but a comment between each pair', () => {
   const landing = code(LANDING);
   const at = (s: string): number => { const i = landing.indexOf(s); assert.notEqual(i, -1, s); return i; };
-  for (const s of [EXPERIENCES, GUEST_STRIP, PLANS_MOUNT, SECTION_OPEN, EYEBROW, STOP_ZERO, MY_TRIP, DOOR]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
+  for (const s of [EXPERIENCES, GUEST_STRIP, PLANS_MOUNT, HOW_TO, SECTION_OPEN, EYEBROW, STOP_ZERO, MY_TRIP, DOOR]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
   // HOME-ORDER-01 (2026-11-10): Alex's order — "What We Do → About Us → Our Story". Until then this list read experiences → Stop 0 → MY TRIP → the guest
   // strip → DONE-FOR-YOU → THE PLANS → the door (HOME-PANELS-02's seat; STOP0-01, 2026-11-09, seated Stop 0; PIPELINE-PAGE-01, 2026-11-09, the door).
-  const order = [EXPERIENCES, GUEST_STRIP, PLANS_MOUNT, SECTION_OPEN, EYEBROW, STOP_ZERO, MY_TRIP, DOOR].map(at);
-  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'experiences → the guest strip → the plans → DONE-FOR-YOU → stop 0 → my trip → the door');
+  // HOME-BRIEF-03 (Alex, 2026-11-10): the how-to (HowToSection) sits between the plans and the services section — the plans mount was the
+  // section's direct neighbour until then ('the plans mount → the DONE-FOR-YOU section: a comment between, nothing else').
+  const order = [EXPERIENCES, GUEST_STRIP, PLANS_MOUNT, HOW_TO, SECTION_OPEN, EYEBROW, STOP_ZERO, MY_TRIP, DOOR].map(at);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'experiences → the guest strip → the plans → the how-to → the services section → stop 0 → my trip → the door');
   assert.match(landing.slice(at(EXPERIENCES) + EXPERIENCES.length, at(GUEST_STRIP)), ONLY_COMMENTS, 'experiences → the strip: a comment between, nothing else');
   assert.match(landing.slice(at(GUEST_STRIP) + GUEST_STRIP.length, at(PLANS_MOUNT)), ONLY_COMMENTS, 'the strip → the plans mount: a comment between, nothing else');
-  assert.match(landing.slice(at(PLANS_MOUNT) + PLANS_MOUNT.length, at(SECTION_OPEN)), ONLY_COMMENTS, 'the plans mount → the DONE-FOR-YOU section: a comment between, nothing else');
+  assert.match(landing.slice(at(PLANS_MOUNT) + PLANS_MOUNT.length, at(HOW_TO)), ONLY_COMMENTS, 'the plans mount → the how-to: a comment between, nothing else');
+  assert.match(landing.slice(at(HOW_TO) + HOW_TO.length, at(SECTION_OPEN)), ONLY_COMMENTS, 'the how-to → the services section: a comment between, nothing else');
   const sectionEnd = landing.indexOf('</section>', at(EYEBROW)) + '</section>'.length;
   assert.ok(sectionEnd > at(EYEBROW) && sectionEnd < at(STOP_ZERO));
   assert.match(landing.slice(sectionEnd, at(STOP_ZERO)), ONLY_COMMENTS, "the DONE-FOR-YOU section's </section> → stop 0: a comment between, nothing else");

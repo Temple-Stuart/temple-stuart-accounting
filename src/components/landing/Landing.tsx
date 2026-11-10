@@ -213,6 +213,10 @@ import { DECK_STEP_IDS } from './pipelineWords';
 import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';
 import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it
 import { WHAT_WE_DO_HEADING } from '@/lib/homeActWords';
+import { EXPERIENCE_LINE } from '@/lib/brandLines';
+import { SAVE_TRIPS_LINE } from '@/lib/homeActWords';
+import { PROMISE } from './ExperiencesSection';
+import HowToSection from './HowToSection';
 import { COMMISSION_LINE } from '@/lib/disclosureWords'; // BOOK-DISCLOSE-01 (2026-11-08): the commission line under the booking box — its words from the leaf, never typed here
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
 // OFFER-01 (2026-09-23): the landing no longer renders OfferCard, heroCountsLine,
@@ -568,10 +572,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             EXPLORE TRAVEL →
           </Link>
         </div>
-        {/* LANDING-V3 (spec :99): the demo h2, spec wording verbatim. */}
-        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
+        {/* HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15 "what about the consolidation"): ONE HEADER for travel booking and the
+            experiences — the experience line on one line (EXPERIENCE_LINE, src/lib/brandLines.ts), the promise under it (PROMISE,
+            ./ExperiencesSection), then this block's own sentence, word for word. That sentence was this block's h2 until then
+            (LANDING-V3, spec :99), and the line and the promise headed the band below, which now starts at its label and chips. */}
+        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPERIENCE_LINE.join(' ')}</h2>
+        <p className="mt-2 text-lg font-semibold text-text-primary">{PROMISE}</p>
+        <p className="mt-2 text-sm text-text-secondary">
           Search &amp; book travel — free today, no account needed.
-        </h2>
+        </p>
         <LandingBookingSection onRequireAuth={onRequireAuth} />
         <p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>
         {/* GUEST-01 (2026-09-29; Alex's ruling 17:04): the door back for a guest who booked
@@ -584,9 +593,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
         {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
             spec's own strings verbatim (the left line already lives in
             the retired SUMMARY_BY_ID's travel lines (git history); NO ACCOUNT NEEDED is the spec's mono
-            right slot). */}
+            right slot). HOME-BRIEF-03 (Alex, 2026-11-10): the second span — an account saves your trips
+            (SAVE_TRIPS_LINE, src/lib/homeActWords.ts), in the first span's own classes. */}
         <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
           <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
+          <span className="text-[13px] text-text-faint">{SAVE_TRIPS_LINE}</span>
           <span className="font-mono text-xs lg:text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
         </div>
       </section>
@@ -634,6 +645,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             slot says so and the button joins early access. ─────────────────── */}
       <PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />
 
+      {/* ── HOME-BRIEF-03 (Alex, 2026-11-10 18:09; the board he approved on 2026-11-09, "pick what you run"): THE HOW-TO —
+            what you run picks your steps, in order, across Personal, Business, Travel and Trade. Every status comes from
+            the tool registry and the plan from the plans — nothing typed (src/lib/howTo.ts, drawn by HowToSection.tsx).
+            A cream act with its own border-b, directly under the plans and above the professional services; its two
+            switches live in React state only. ──────────────────────────────────────────────────────── */}
+      <HowToSection />
+
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own section — no right slot. Body = the PROFESSIONAL SERVICES
             panel relocated WHOLESALE from the 05 grid (markup byte-identical
@@ -664,8 +682,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             the close into this card as its fifth door; both seams are history.) ── */}
       <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+          {/* HOME-BRIEF-03 (Alex, 2026-11-10): the label reads PROFESSIONAL SERVICES — "DONE-FOR-YOU" until then; the notes above,
+              the act list and the data-done-for-you hooks keep that name for this same section. */}
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            DONE-FOR-YOU
+            PROFESSIONAL SERVICES
           </p>
           {/* HEADLINE: the travel act's h2 treatment, class for class —
               mt-3 text-2xl sm:text-3xl font-medium tracking-tight
