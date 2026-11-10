@@ -66,30 +66,36 @@ const HOW = {
   // box was unpositioned that ancestor was the page: the text sat outside the box's clip, and a 390 or a 360 screen scrolled sideways to 694.
   // Positioned, the box holds its own screen-reader text and scrolls it with the table.
   box: 'relative mt-8 overflow-x-auto rounded-lg border border-border bg-white',
-  // All four plan columns show at every width, so the table keeps the width it needs and the box scrolls below it. Fixed layout: opening a row moves no column.
-  table: 'w-full min-w-[720px] table-fixed text-sm',
+  // HOME-PLANS-02 (Alex, 2026-11-11 00:09: "Mobile should remain usable"): THE COMPARISON FITS A PHONE. All four plan columns show at every width.
+  // Below `md` the table takes the box's width — the plan columns narrow and their heads set small, a two-word head on two lines — so each row's name
+  // and all four plans show together and nothing in it scrolls sideways. From `md` up every value is what it was: each of the eight keys the phone changes
+  // (table, planHead, categoryToggle, stepToggle, stepWords, markCell, tools, tool) keeps its old value behind `md:`. Until then the table kept
+  // 720px at every width, and on a phone the box scrolled: the names with no marks or, scrolled right, the marks with no names.
+  // Fixed layout: opening a row moves no column.
+  table: 'w-full md:min-w-[720px] table-fixed text-sm',
   // The head row: the plans table's own thead.
   headRow: 'border-b border-border bg-bg-row text-left align-top',
   firstHead: `px-3 py-3 text-left ${DATA.columnHeader}`,
-  planHead: 'w-[6.5rem] px-2 py-3 text-center text-sm font-semibold text-brand-purple',
+  planHead: 'w-[2.875rem] md:w-[6.5rem] px-px md:px-2 py-3 text-center text-[10px] md:text-sm leading-tight font-semibold text-brand-purple',
   row: 'border-b border-border-light',
   rowHead: 'p-0 text-left font-normal',
   // A category's toggle: the plans table's group toggle — its capitals are the leaf's, so the count reads as written.
-  categoryToggle: `flex min-h-[44px] w-full items-center justify-between gap-3 px-3 py-2.5 text-left font-mono text-xs font-semibold tracking-wider text-brand-purple hover:bg-bg-row ${RING}`,
+  categoryToggle: `flex min-h-[44px] w-full items-center justify-between gap-1 md:gap-3 pl-3 pr-0.5 md:px-3 py-2.5 text-left font-mono text-xs font-semibold tracking-wide md:tracking-wider text-brand-purple hover:bg-bg-row ${RING}`,
   // A step's toggle: the same row, in the table's own ink, set in under its category.
-  stepToggle: `flex min-h-[44px] w-full items-center justify-between gap-3 py-2 pl-6 pr-3 text-left text-sm text-text-primary hover:bg-bg-row ${RING}`,
-  stepWords: 'flex items-baseline gap-3',
+  stepToggle: `flex min-h-[44px] w-full items-center justify-between gap-1 md:gap-3 py-2 pl-3 md:pl-6 pr-0.5 md:pr-3 text-left text-sm text-text-primary hover:bg-bg-row ${RING}`,
+  stepWords: 'flex items-baseline gap-2 md:gap-3',
   stepNumber: 'w-4 shrink-0 font-mono text-xs text-text-faint',
   sign: 'shrink-0 font-mono text-xs text-text-faint',
   // The marks — never the status colours.
-  markCell: 'px-2 py-2 text-center',
+  markCell: 'px-px md:px-2 py-2 text-center',
   markIn: 'font-mono text-sm text-brand-purple',
   markOut: 'font-mono text-sm text-text-faint',
   line: 'px-3 py-2 text-sm text-text-secondary',
-  // An open step: its tools start where its title starts (pl-6 + the number's w-4 + gap-3).
-  tools: 'py-3 pl-[3.25rem] pr-3',
+  // An open step: from `md` its tools start where its title starts (pl-6 + the number's w-4 + gap-3), each tool's line beside its name.
+  // Below `md` they sit at pl-10, and each tool's line goes under its name — one column.
+  tools: 'py-3 pl-10 md:pl-[3.25rem] pr-3',
   toolList: 'space-y-1.5',
-  tool: 'grid grid-cols-[12rem_minmax(0,1fr)] gap-x-4',
+  tool: 'grid grid-cols-1 md:grid-cols-[12rem_minmax(0,1fr)] gap-x-4',
   toolName: 'text-sm font-medium text-text-primary',
   toolLine: 'text-sm text-text-secondary',
   note: 'mt-2 text-xs text-text-muted',
