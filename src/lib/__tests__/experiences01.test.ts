@@ -487,13 +487,17 @@ test('T6 (HOME-BRIEF-04, 2026-11-10; HOME-BRIEF-05: the wrapper holds the open t
   // plain function any more. Until then: 'const strip = LandingBookingSection({ onRequireAuth, events: catalog })' ("The wrapper holds no hook, so
   // called as a function it returns the strip it mounts"), 'no default key: the strip opens on its first mode', and — on the source —
   // doesNotMatch(/defaultKey|useState|useEffect/) ('the wrapper keeps no state and picks no default: first in the list is the rule').
-  // It is RENDERED instead, twice: inside a host that keeps the strip element it returns (its props are read; the strip is not drawn), and whole.
+  // It is RENDERED instead, twice: inside a host that keeps what it returns (the strip element in it is found and its props read; the strip is not
+  // drawn), and whole.
   type StripProps = { modes: ToggleMode[]; className?: string; defaultKey?: string; activeKey?: string; onActiveChange?: (key: string) => void };
-  let strip: React.ReactElement<StripProps> | undefined;
-  const Host = () => { strip = LandingBookingSection({ onRequireAuth, events: catalog }) as React.ReactElement<StripProps>; return null; };
+  const elementsIn = (node: React.ReactNode): React.ReactElement<Record<string, unknown>>[] => (Array.isArray(node) ? node.flatMap((n) => elementsIn(n as React.ReactNode))
+    : React.isValidElement<Record<string, unknown>>(node) ? [node, ...elementsIn(node.props.children as React.ReactNode)] : []);
+  let returned: React.ReactNode;
+  const Host = () => { returned = LandingBookingSection({ onRequireAuth, events: catalog }); return null; };
   assert.equal(renderToStaticMarkup(React.createElement(Host)), '', 'the host draws nothing of its own');
-  assert.ok(strip, 'the wrapper rendered');
-  assert.equal(strip.type, ToggleStrip, 'the shared strip');
+  const strips = elementsIn(returned).filter((el) => el.type === ToggleStrip) as unknown as React.ReactElement<StripProps>[];
+  assert.equal(strips.length, 1, 'the wrapper mounts the shared strip, once');
+  const strip = strips[0];
   assert.equal(strip.props.defaultKey, undefined, 'no default key');
   assert.equal(strip.props.activeKey, 'events', 'the wrapper holds the open tab, and it starts on Events');
   assert.equal(typeof strip.props.onActiveChange, 'function', 'and it hands the strip the way to change it');
@@ -510,7 +514,7 @@ test('T6 (HOME-BRIEF-04, 2026-11-10; HOME-BRIEF-05: the wrapper holds the open t
     assert.equal(renderToStaticMarkup(m.icon as React.ReactElement), renderToStaticMarkup(b.icon as React.ReactElement), `${m.key}: the builder's icon`);
     assert.equal(m.badge === undefined, b.badge === undefined, `${m.key}: its badge, or none, as built`);
     if (m.badge !== undefined) assert.equal(renderToStaticMarkup(m.badge as React.ReactElement), renderToStaticMarkup(b.badge as React.ReactElement), `${m.key}: the builder's badge`);
-    if (m.key !== 'events') assert.equal((m.panel as React.ReactElement).type, (b.panel as React.ReactElement).type, `${m.key}: the builder's own panel`);
+    if (m.key !== 'events') assert.ok(elementsIn(m.panel).some((el) => el.type === (b.panel as React.ReactElement).type), `${m.key}: the builder's own panel is in it`);
   }
   assert.equal(modes[0].label, 'Events');
   assert.equal(modes[0].badge, undefined, 'no Soon badge on the landing');
@@ -535,8 +539,6 @@ test('T6 (HOME-BRIEF-04, 2026-11-10; HOME-BRIEF-05: the wrapper holds the open t
   let card: React.ReactNode;
   const StripHost = () => { card = ToggleStrip({ modes: two, activeKey: 'flights', onActiveChange: (key) => { asked.push(key); } }); return null; };
   renderToStaticMarkup(React.createElement(StripHost));
-  const elementsIn = (node: React.ReactNode): React.ReactElement<Record<string, unknown>>[] => (Array.isArray(node) ? node.flatMap((n) => elementsIn(n as React.ReactNode))
-    : React.isValidElement<Record<string, unknown>>(node) ? [node, ...elementsIn(node.props.children as React.ReactNode)] : []);
   const tabButtons = elementsIn(card).filter((el) => el.type === 'button' && el.props['aria-pressed'] !== undefined);
   assert.equal(tabButtons.length, 2);
   (tabButtons[0].props.onClick as () => void)();

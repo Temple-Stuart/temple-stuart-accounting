@@ -25,6 +25,11 @@
  *   shortDayWords(iso)           "Jul 1" — one day without its year (TRIPPOST-01)
  *   weekdayWords(iso)            "Wed" — the day's weekday, by integer arithmetic on the
  *                                date's own parts (Sakamoto's method), never Date (TRIPPOST-01)
+ *   STAY_NEAR_WORDS              "Stay near it →" — the one action an event row carries (HOME-BRIEF-05, 2026-11-10)
+ *   canStayNear(row)             THE RULE for that action: the row's city is fixed (not VENUE_NOT_FIXED). The
+ *                                section reads this, never a status (HOME-BRIEF-05)
+ *   stayNearLine(row)            "Stay near <name> — <venue> · <city>, <country>. Set your dates, then Search." —
+ *                                the one line over the Hotels form once the action is pressed (HOME-BRIEF-05)
  *
  * EVENTS-01b (2026-10-30): the series summary and its pill are DELETED — the section
  * always shows one category, so every row is its own pill and nothing collapses; a
@@ -33,7 +38,9 @@
  * words (lineupPill) left with it — no caller.
  */
 
-import type { Experience } from './experiences';
+// HOME-BRIEF-05 (2026-11-10): one constant joins the types — VENUE_NOT_FIXED, the leaf's own word for "not fixed", read
+// by the stay-near rule so the word is never typed twice. ("It imports the leaf's types only", above, is true until then.)
+import { VENUE_NOT_FIXED, type Experience } from './experiences';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -175,3 +182,21 @@ export function upcoming(rows: readonly Experience[], today: string, n: number):
     .slice(0, n);
 }
 
+// ── HOME-BRIEF-05 (Alex, 2026-11-10 19:00: "start with events, and then once you select them, do flights, and hotels";
+// 2026-11-09 17:45: "would be cool if that populated destination but like user gonna wanna pick their own travel dates") —
+// STAY NEAR IT: an event row's one action opens the Hotels form with the event's place set. Never a date: the dates
+// stay the visitor's. ──
+
+/** The action's words, on every row that can be stayed near. */
+export const STAY_NEAR_WORDS = 'Stay near it →';
+
+/** THE RULE: an event can be stayed near when its city is fixed — anything but the leaf's "not fixed" mark. Read off the row's place, never off a status. */
+export function canStayNear(row: Pick<Experience, 'city'>): boolean {
+  return row.city !== VENUE_NOT_FIXED;
+}
+
+/** The one line over the Hotels form once the action is pressed: the event, where it is, and what is left to the visitor. A row with no fixed city is refused by name — it carries no action to press. */
+export function stayNearLine(row: Pick<Experience, 'id' | 'name' | 'venue' | 'city' | 'country'>): string {
+  if (!canStayNear(row)) throw new ExperienceWordsError(`${row.id}: its city is not fixed — there is no place to stay near`);
+  return `Stay near ${row.name} — ${row.venue} · ${row.city}, ${row.country}. Set your dates, then Search.`;
+}

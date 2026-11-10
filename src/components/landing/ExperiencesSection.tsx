@@ -5,6 +5,15 @@
  * under the booking strip on the guest landing (Landing.tsx, after the LIVE DEMO
  * act): the marquee events a guest books a stay and a flight around.
  *
+ * HOME-BRIEF-05 (Alex, 2026-11-10 19:00: "start with events, and then once you select them, do flights, and hotels") —
+ * STAY NEAR IT: every row whose city is fixed carries one action in its body, under its note — "Stay near it →" — which
+ * opens the booking box's Hotels tab with the event's place set (the country always, the city when the hotel list holds
+ * it; never a date, never a search). The words and the rule are src/lib/experienceWords.ts's (STAY_NEAR_WORDS,
+ * canStayNear — read off the row's city, never a status). What a press DOES is the box's: the handler arrives through
+ * StayNearContext, which LandingBookingSection.tsx provides. Rendered with no handler — the pure half on its own, every
+ * test that renders it — a row draws no action. A <button> in the Source link's own look, with no aria-pressed: the
+ * chips stay the only pressed things here. The foot is still the row's last child, unchanged.
+ *
  * HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03) — THE CATALOG LIVES INSIDE THE BOOKING BOX: it is the panel of the box's
  * Events tab, first in the row and open (Landing.tsx hands this component to LandingBookingSection.tsx as `events`).
  * The full-width purple band is gone. The same view — the same rows, chips, list, URL behaviour, data hooks and
@@ -106,12 +115,13 @@
  */
 
 import { Suspense, useEffect } from 'react';
+import { createContext, useContext } from 'react'; // HOME-BRIEF-05 (2026-11-10): the stay-near handler's context — on a line of its own, so the line above keeps its text
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   EXPERIENCES, EXPERIENCE_CATEGORIES, experienceCategoryLabel, isExperienceCategoryId,
   type Experience, type ExperienceCategory, type ExperienceCategoryId,
 } from '@/lib/experiences';
-import { dayWords, experienceLine, notAnnouncedLine, seasonNotAnnouncedLine, upcoming } from '@/lib/experienceWords';
+import { STAY_NEAR_WORDS, canStayNear, dayWords, experienceLine, notAnnouncedLine, seasonNotAnnouncedLine, upcoming } from '@/lib/experienceWords';
 
 /** The section's anchor — the strip's Events mode and the chips' URL both name it. FOOTER-01 (2026-11-09): its one home is src/lib/homeAnchors.ts — imported back here, still exported from here. */
 import { EVENTS_ANCHOR } from '@/lib/homeAnchors';
@@ -147,6 +157,13 @@ export function notACategory(value: string): string {
 export function nothingUpcoming(categoryLabel: string): string {
   return `Nothing announced yet in ${categoryLabel} — the list below says when each one was checked.`;
 }
+
+/**
+ * HOME-BRIEF-05 (2026-11-10): what a press of "Stay near it →" does — handed the row. The booking box provides it
+ * (LandingBookingSection.tsx: it opens Hotels with the row's place). Null, the default, means nobody is listening: no
+ * row draws the action.
+ */
+export const StayNearContext = createContext<((row: Experience) => void) | null>(null);
 
 /** EVENTS-03 (Alex, 2026-11-09): "Checked Nov 8, 2026" — the day a row was checked, in the foot of every card whose line does not already say it. */
 export function checkedWords(checkedOn: string): string {
@@ -219,6 +236,7 @@ export interface ExperiencesViewProps {
 
 /** HOME-BRIEF-02 (Alex, 2026-11-10): one event, one row of the list — when, what, where, the note, then the day it was checked and its source. */
 function EventRow({ row, today }: { row: Experience; today: string }) {
+  const onStayNear = useContext(StayNearContext);
   const line = experienceLine(row, today);
   // EVENTS-03 (2026-11-09): the not-announced words already say "(checked …)" — read off the line, never a list of statuses.
   // EVENTS-04 (2026-11-09): either sentence — the edition's or the season's.
@@ -233,6 +251,11 @@ function EventRow({ row, today }: { row: Experience; today: string }) {
         <h3 className={EXP.rowName}>{row.name}</h3>
         <p className={EXP.rowPlace}>{placeOf(row)}</p>
         {row.notes !== null && <p className={EXP.rowNotes}>{row.notes}</p>}
+        {/* HOME-BRIEF-05 (Alex, 2026-11-10): the row's one action, under its note — only where a handler listens and the row's city is fixed
+            (canStayNear). The Source link's look; a button, not a link: it goes nowhere, it opens the Hotels tab. */}
+        {onStayNear !== null && canStayNear(row) && (
+          <button type="button" onClick={() => onStayNear(row)} className={EXP.source} data-stay-near={row.id}>{STAY_NEAR_WORDS}</button>
+        )}
       </div>
       {/* EVENTS-01c: every row names the page its dates came from.
           EVENTS-03: and the day it was checked, before the link, unless its line already says it. */}
