@@ -10,13 +10,17 @@
  *   T3 the counts — the steps, how many are live and pending, and how many need Books, computed HERE from the leaf's
  *      steps and the registry and held equal to what the leaf says; a step is LIVE exactly when every tool in it is; the
  *      Books lines follow the Books offer;
- *   T4 the section, rendered for the four choices — the sections shown and hidden, each section's steps in ONE row that
+ *   T4 the section, rendered for the four choices — HOME-FINISH-02 (Alex, 2026-11-10 20:56): it opens at the pillar's
+ *      heading and its three paragraphs, and "What you run" follows them directly (the label, the h2, the line and the
+ *      door to the 14 steps until then); the sections shown and hidden, each section's steps in ONE row that
  *      swipes sideways, the card (its step and its state, the title, each tool and its mark, its note — nothing else),
  *      the plan's price line, its button and the link to the four plans, the Travel lines with and without Business,
  *      the two switches, every tool's mark as the registry has it;
- *   T5 the source — the section types no status, no plan name, no price and none of the leaf's words; two switches in
+ *   T5 the source — the section types no status, no plan name, no price and none of the leaf's words (HOME-FINISH-02:
+ *      nor the pillar's — they are src/lib/homeActWords.ts's, pinned here word for word); two switches in
  *      React state only; the leaf is pure;
- *   T6 Landing mounts the section once, in the seat the plans held — under the guest's strip, above the services section.
+ *   T6 Landing mounts the section once — first under "What We Do" (HOME-FINISH-02; under the guest's strip until then),
+ *      above the services section.
  * Source is read through code() only (the reader law). No count is typed: each is computed. No clock, no live call.
  *
  * HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03: "the how-to should replace software plans … cards should be horizontal
@@ -36,11 +40,12 @@ import { TOOL_REGISTRY, type ToolEntry } from '../toolRegistry';
 import { EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, PLANS, priceSlot } from '../offer/plans';
 import { OFFERS } from '../offer';
 import {
-  ADD_BUSINESS, ADD_TRADE, COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, HOW_TO_CHOICES, HOW_TO_EYEBROW, HOW_TO_HEADING, HOW_TO_LINE, HOW_TO_SECTIONS,
+  ADD_BUSINESS, ADD_TRADE, COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, HOW_TO_CHOICES, HOW_TO_SECTIONS,
   HOW_TO_SECTION_ORDER, HowToLawError, LEGEND_BOOKS_LINE, LEGEND_STEP_LINE, LEGEND_TITLE, NEEDS_BOOKS, NEXT_LINE, PERSONAL_ALWAYS, STEP_LIVE,
   STEP_PENDING, TOOL_MARKS, WHAT_YOU_RUN_LABEL, booksLine, booksNotOnSale, cardStep, howToLaw, howToView, modulesOf, planFor, planLine, priceLine,
   sectionShown, stepsLine, type HowToChoice, type HowToSection,
 } from '../howTo';
+import { PLAN_PILLAR } from '../homeActWords';
 import { HowToView } from '@/components/landing/HowToSection';
 import { PIPELINE_DOOR, PIPELINE_PATH } from '@/components/landing/pipelineWords';
 
@@ -190,10 +195,16 @@ test('T4 rendered for the four choices: the sections shown and hidden, each sect
     assert.equal(count(html, '<section id="modules" aria-label="How to" class="w-full border-b border-border bg-bg-terminal"'), 1, `${what}: the act, once`);
     assert.equal(count(html, 'id="modules"'), 1, `${what}: the anchor, once`);
     assert.equal(count(html, 'id="how-to"'), 0);
-    // the header: the label, the h2, the line, the door
-    assert.ok(html.includes(`>${HOW_TO_EYEBROW}</p><h2 class="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">${asHtml(HOW_TO_HEADING)}</h2>`), `${what}: the label, then the h2`);
-    assert.ok(html.includes(asHtml(HOW_TO_LINE)));
-    assert.match(html, new RegExp(`<a [^>]*href="${PIPELINE_PATH}"[^>]*>${PIPELINE_DOOR}</a>`), `${what}: the door to the 14 steps`);
+    // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the pillar — "Purple title → Approved description → Existing functionality … No additional
+    // promotional headings or explanatory paragraphs between these elements." The section opens at the h2 (the pillar's heading, in the page's
+    // purple heading classes), its three paragraphs follow, and "What you run · add any" follows them directly. Until then the header was four
+    // lines: the label ("Software plans"), the h2 ('mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple', reading "Here’s how
+    // you actually do it."), the line ("Personal is everyone’s. …") and the door to the 14 steps (an <a href="/how-it-works"> reading PIPELINE_DOOR).
+    const pillar = `<div class="max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-10"><h2 class="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">${asHtml(PLAN_PILLAR.heading)}</h2>`
+      + PLAN_PILLAR.paragraphs.map((words) => `<p class="mt-3 max-w-3xl text-base text-text-secondary">${asHtml(words)}</p>`).join('');
+    assert.match(html, new RegExp(`data-how-to="true">${esc(pillar)}<p class="[^"]*">${esc(WHAT_YOU_RUN_LABEL)}</p>`), `${what}: the heading → its three paragraphs → "What you run", nothing between`);
+    assert.equal(count(html, '<h2'), 1, `${what}: one h2 — the pillar's`);
+    for (const gone of ['Software plans', 'Here’s how you actually do it.', 'Personal is everyone’s.', PIPELINE_DOOR, `href="${PIPELINE_PATH}"`]) assert.equal(count(html, gone), 0, `${what}: "${gone}" left the section`);
     // what you run: Personal is not a button; the two switches are, pressed as the choice says, 44px tall, filled purple when on
     assert.match(html, new RegExp(`<span class="[^"]*" data-how-to-always="true">${PERSONAL_ALWAYS}</span>`), `${what}: Personal · always, not a button`);
     assert.equal(count(html, '<button'), 3, `${what}: three buttons — the two switches and the plan's (HOME-BRIEF-04; two until then)`);
@@ -294,10 +305,19 @@ test('T5 the section types no status, no plan name, no price and none of the lea
   assert.doesNotMatch(section, /\bPersonal\b|\bBusiness\b|\bTrade\b|\bTravel\b/, 'no section name is typed either');
   // HOME-BRIEF-04 (2026-11-10): the two Books tags left the card and the leaf (NEEDS_BOOKS_TAG, NOT_ON_SALE_TAG stood in this list until then);
   // the link's words and the plan's price words joined — the section types none of them, and no figure
-  assert.equal(HOW_TO_EYEBROW, 'Software plans', 'the label — "The how-to" until HOME-BRIEF-04');
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the pillar's words — his, word for word, typed once in src/lib/homeActWords.ts and read by the
+  // section. Until then this line held the label: "assert.equal(HOW_TO_EYEBROW, 'Software plans', 'the label — "The how-to" until HOME-BRIEF-04')".
+  assert.equal(PLAN_PILLAR.heading, 'Plan Your Escape.');
+  assert.deepEqual([...PLAN_PILLAR.paragraphs], [
+    'Get your bank data. Turn it into financial statements. See your income and expenses, what you own, what you owe, and what living at home actually costs.',
+    'Plan ahead, budget for what you want to do, prepare for tax time, and compare your plans with what actually happened.',
+    'Connect the dots across your personal, business, and trading finances to make better decisions about what comes next.',
+  ]);
   assert.equal(COMPARE_PLANS_WORDS, 'Compare all four plans →');
   assert.equal(COMPARE_PLANS_PATH, '/pricing');
-  const typed = [HOW_TO_EYEBROW, HOW_TO_HEADING, HOW_TO_LINE, WHAT_YOU_RUN_LABEL, PERSONAL_ALWAYS, ADD_BUSINESS, ADD_TRADE, NEXT_LINE, COMPARE_PLANS_WORDS, COMPARE_PLANS_PATH, LAUNCH_PLACEHOLDER, EARLY_ACCESS_CTA, 'NEEDS BOOKS', 'NOT ON SALE YET', 'YOUR STEP', LEGEND_TITLE, LEGEND_STEP_LINE, LEGEND_BOOKS_LINE, PIPELINE_DOOR,
+  // HOME-FINISH-02: the three words that left (HOW_TO_EYEBROW, HOW_TO_HEADING, HOW_TO_LINE headed this list until then) stay here by their text,
+  // and the pillar's words join — the section types none of them.
+  const typed = [PLAN_PILLAR.heading, ...PLAN_PILLAR.paragraphs, 'Software plans', 'Here’s how you actually do it.', 'Personal is everyone’s.', WHAT_YOU_RUN_LABEL, PERSONAL_ALWAYS, ADD_BUSINESS, ADD_TRADE, NEXT_LINE, COMPARE_PLANS_WORDS, COMPARE_PLANS_PATH, LAUNCH_PLACEHOLDER, EARLY_ACCESS_CTA, 'NEEDS BOOKS', 'NOT ON SALE YET', 'YOUR STEP', LEGEND_TITLE, LEGEND_STEP_LINE, LEGEND_BOOKS_LINE, PIPELINE_DOOR,
     ...HOW_TO_SECTIONS.flatMap((s) => s.steps.flatMap((step) => (typeof step.title === 'string' ? [step.title] : [step.title.withBusiness, step.title.withoutBusiness])))];
   for (const w of typed) assert.ok(!flat.includes(w), `the section does not type "${w.slice(0, 40)}"`);
   assert.doesNotMatch(section, /\$\s?\d/, 'no figure is typed');
@@ -322,7 +342,17 @@ test('T5 the section types no status, no plan name, no price and none of the lea
   assert.ok(rail[1].split(' ').includes('mt-6') && row[1].split(' ').includes('mt-4'));
   assert.equal(row[1], rail[1].replace(' mt-6 ', ' mt-4 '), 'the row is the trip cards\' rail idiom (WasHereSection.tsx TRIP.list)');
   assert.doesNotMatch(section, /\bgrid\b|grid-cols/, 'no grid');
-  assert.match(section, /import \{ PIPELINE_DOOR, PIPELINE_PATH \} from '\.\/pipelineWords';/, 'the door\'s words and path from their leaf');
+  // HOME-FINISH-02 (2026-11-10): the door to the 14 steps left the section with the other three lines over the tool — the footer's THE RECORD keeps
+  // it. Until then: "import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';" ('the door's words and path from their leaf').
+  assert.ok(!section.includes('pipelineWords') && !section.includes('PIPELINE_'), 'the section reads nothing of the 14 steps\' door');
+  assert.match(section, /^import \{ PLAN_PILLAR \} from '@\/lib\/homeActWords';$/m, 'the pillar\'s words from their leaf');
+  assert.equal(count(section, '<h2 className={HOW.h2}>{PLAN_PILLAR.heading}</h2>'), 1, 'the pillar\'s heading, the section\'s one h2');
+  assert.equal(count(section, '<h2'), 1);
+  assert.equal(count(section, '{PLAN_PILLAR.paragraphs.map((words) => <p key={words} className={HOW.pillar}>{words}</p>)}'), 1, 'its paragraphs, in the leaf\'s order');
+  assert.match(section, /^ {2}inner: 'max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-10',$/m, "the inner box — '… py-10' until then");
+  assert.match(section, /^ {2}h2: 'text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',$/m, 'the page\'s purple heading classes');
+  assert.match(section, /^ {2}pillar: 'mt-3 max-w-3xl text-base text-text-secondary',$/m);
+  for (const key of ['eyebrow:', 'sub:', 'door:']) assert.ok(!section.includes(key), `the class key ${key} left with the line that wore it`);
   // the leaf: pure, and it reads the registry, the plans and the offer — never a typed status for a tool, never a plan's words, never a price
   const leaf = code(LEAF);
   assert.doesNotMatch(leaf, /['"]use client['"]|from 'react'|\bfetch\s*\(|new Date\(|Date\.now\(|process\.env|localStorage/, 'the leaf is pure');
@@ -333,27 +363,32 @@ test('T5 the section types no status, no plan name, no price and none of the lea
   for (const w of [LAUNCH_PLACEHOLDER, EARLY_ACCESS_CTA]) assert.ok(!leaf.includes(w), `the leaf does not type "${w}"`);
   assert.doesNotMatch(leaf, /\$\s?\d/, 'the leaf types no figure');
   for (const gone of ['NEEDS_BOOKS_TAG', 'NOT_ON_SALE_TAG', 'cardWhere', 'cardPlace', 'YOUR STEP']) assert.ok(!leaf.includes(gone), `${gone} left the leaf`);
+  // HOME-FINISH-02 (2026-11-10): the label, the h2 and the one line left the leaf with their last reader
+  for (const gone of ['HOW_TO_EYEBROW', 'HOW_TO_HEADING', 'HOW_TO_LINE', 'Software plans', 'how you actually do it', 'Personal is everyone’s']) assert.ok(!leaf.includes(gone), `${gone} left the leaf`);
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): four more — Trade Log, Brokerage, Tax, Compliance, each behind a key only Books grants. The six until then.
   assert.deepEqual([...NEEDS_BOOKS], ['Banking', 'Bookkeeping', 'Expenses', 'Bill Pay', 'Budget', 'Tasks', 'Trade Log', 'Brokerage', 'Tax', 'Compliance'], 'the ten tools that need Books');
 });
 
 // ── T6 · THE SEAT ────────────────────────────────────────────────────────────
 
-test('T6 Landing mounts the how-to once, with the door — in the seat the plans held: under the guest\'s strip and above the services section, a comment between each; the plans are mounted nowhere on the page', () => {
+test('T6 Landing mounts the how-to once, with the door — first under "What We Do" (HOME-FINISH-02) and above the services section, comments between each; the plans are mounted nowhere on the page', () => {
   const landing = code(LANDING);
   const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the how-to IS the Software Plans — the plans mount ("<PlansSection door={{ kind: 'button', onClick: () =>
   // onRequireAuth() }} />") left the page, and the how-to, mounted bare ('<HowToSection />') directly under it until then, takes its seat and its door.
-  const GUEST_STRIP = '<GuestTripStrip onRequireAuth={onRequireAuth} />';
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — the how-to is the first pillar, directly under the "What We Do" heading, which
+  // stands alone in the page's container. Until then its upper neighbour was the guest's strip ('<GuestTripStrip onRequireAuth={onRequireAuth} />':
+  // "the guest's strip → the how-to → the services section", a comment between each).
+  const HEADING_BOX = '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">\n        <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>';
   const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />';
-  const SERVICES_OPEN = '<section className="w-full border-b border-border bg-bg-terminal">';
-  for (const s of [GUEST_STRIP, HOW_TO, SERVICES_OPEN]) assert.equal(count(landing, s), 1, `${s} once`);
+  const SERVICES_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'; // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then
+  for (const s of [HEADING_BOX, HOW_TO, SERVICES_OPEN]) assert.equal(count(landing, s), 1, `${s} once`);
   assert.equal(count(landing, '<HowToSection'), 1);
   assert.equal(count(landing, 'PlansSection'), 0, 'the plans section is neither imported nor mounted here — /pricing keeps it');
   assert.match(landing, /^import HowToSection from '\.\/HowToSection';$/m);
-  const [strip, howTo, services] = [GUEST_STRIP, HOW_TO, SERVICES_OPEN].map((s) => landing.indexOf(s));
-  assert.ok(strip > -1 && howTo > strip && services > howTo, 'the guest\'s strip → the how-to → the services section');
-  assert.match(landing.slice(strip + GUEST_STRIP.length, howTo), ONLY_COMMENTS, 'the guest\'s strip → the how-to: a comment between, nothing else');
+  const [heading, howTo, services] = [HEADING_BOX, HOW_TO, SERVICES_OPEN].map((s) => landing.indexOf(s));
+  assert.ok(heading > -1 && howTo > heading && services > howTo, '"What We Do" → the how-to → the services section');
+  assert.match(landing.slice(heading + HEADING_BOX.length, howTo), ONLY_COMMENTS, '"What We Do" → the how-to: comments between, nothing else');
   assert.match(landing.slice(howTo + HOW_TO.length, services), ONLY_COMMENTS, 'the how-to → the services section: a comment between, nothing else');
   // /pricing still mounts the plans, under its own anchor
   assert.match(code('src/app/pricing/page.tsx'), /<PlansSection [^>]*headingId="plans"/, '/pricing keeps the four plans and the table');

@@ -20,7 +20,7 @@ import { STOP_ZERO_ANCHOR, STOP_ZERO_DATES, STOP_ZERO_PLACE, STOP_ZERO_STORY } f
 // THE CLASS GRAMMAR — one const, every string whole, house tokens only. The act's own classes sit on its <section>, as ruled.
 const STOP = {
   inner: 'max-w-7xl mx-auto px-4 lg:px-8 py-10 lg:py-14',
-  h2: 'mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',
+  h2: 'mt-3 text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold', // HOME-FINISH-02 (Alex, 2026-11-10 20:56): a section heading, in gold and one size up ('text-2xl sm:text-3xl … text-brand-purple' until then) — gold on the cream is large type only
   place: 'mt-3 text-sm font-semibold text-text-primary',
   dates: 'mt-1 text-sm italic text-text-secondary',
   part: 'mt-10',

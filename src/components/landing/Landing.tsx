@@ -7,11 +7,7 @@
  *
  * THE ACTS, in document order:
  *   hero (full-bleed aubergine band)
- *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
- *   EXPERIENCES         — the events section under the strip (EVENTS-01); under it, above MY TRIP, STOP 0 — Alex's letter and how he got here (StopZeroSection — STOP0-01, 2026-11-09: named on this line, so the act list gains no line)
- *                         (HOME-BRIEF-04, 2026-11-10: no band of its own any more — the experiences are the booking box's Events panel, first in the row and open, inside the travel block above; mounted once, handed to LandingBookingSection as its events prop)
- *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
- *                         renders only when records exist
+ *   (HOME-FINISH-02, 2026-11-10: THE ORDER IS PLAN → BUILD → EXPLORE — "What We Do" stands alone over THE PLANS, then DONE-FOR-YOU, then LIVE DEMO — TRAVEL with the experiences in its box and THE GUEST'S TRIP under it. The lines below were re-ordered, their words unchanged; until then the list ran LIVE DEMO — TRAVEL, EXPERIENCES, THE GUEST'S TRIP, THE PLANS, DONE-FOR-YOU. Stop 0, named on the EXPERIENCES line, still sits above MY TRIP.)
  *   THE PLANS           — four plan cards and one comparison table
  *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
  *                         the section carries id="modules"
@@ -22,6 +18,11 @@
  *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
  *   with THE PLANS.)
  *   (THE CLOSE          — HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal)
+ *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
+ *   EXPERIENCES         — the events section under the strip (EVENTS-01); under it, above MY TRIP, STOP 0 — Alex's letter and how he got here (StopZeroSection — STOP0-01, 2026-11-09: named on this line, so the act list gains no line)
+ *                         (HOME-BRIEF-04, 2026-11-10: no band of its own any more — the experiences are the booking box's Events panel, first in the row and open, inside the travel block above; mounted once, handed to LandingBookingSection as its events prop)
+ *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
+ *                         renders only when records exist
  *   MY TRIP             — the trip log, a card per stop, each opening its stop's page (TRIPCARDS-01)
  *   HOW IT ALL CONNECTS — the door to the 14 steps (PIPELINE-PAGE-01, 2026-11-09: in the seat THE PIPELINE header held, PR-CHROME — the header and the fourteen steps moved whole to their own page, /how-it-works, PipelineDeck.tsx; the fourteen lines below name the steps behind the door)
  *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
@@ -217,7 +218,9 @@ import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { DECK_STEP_IDS } from './pipelineWords';
 import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';
 import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it
+import { SERVICES_ANCHOR } from '@/lib/homeAnchors'; // HOME-FINISH-02 (2026-11-10): the professional-services section's id, from its one home — Alex: "a stable anchor so the footer can link directly to Build Your Income"
 import { WHAT_WE_DO_HEADING } from '@/lib/homeActWords';
+import { BUILD_PILLAR } from '@/lib/homeActWords'; // HOME-FINISH-02 (2026-11-10): the second pillar's heading and paragraph — Alex's words, from the leaf, never typed here
 import { EXPERIENCE_LINE } from '@/lib/brandLines';
 import { SAVE_TRIPS_LINE } from '@/lib/homeActWords';
 import { PROMISE } from './ExperiencesSection';
@@ -531,6 +534,114 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
         </div>
       </section>
 
+      {/* ── HOME-FINISH-02 (Alex's brief "HOME-FINISH | Temple Stuart Homepage Copy, Layout & Footer", 2026-11-10 20:56):
+            THE ORDER under the hero is PLAN → BUILD → EXPLORE. "What We Do" stands alone, in gold and one size up, over
+            the three pillars: the plans (the how-to), the professional services, then travel booking with the events —
+            and the guest's strip when a guest has one. Then Stop 0 under "About Us", the trip cards under "Our Story".
+            Until then the heading was the travel block's first child, in the page's purple heading classes, and the
+            order was travel → the guest's strip → the plans → the services (HOME-ORDER-01's note, kept below, and the
+            seat notes on each block are history: each says where its block sat on the day it was written). Each block
+            moved WHOLE with the note above it, byte for byte; only this heading left its block. brand-gold on the cream
+            is about 3.1:1 — large type only, which is why the size went up with the colour. ─────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">
+        <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
+      </div>
+      {/* ── HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story"): THE ORDER of this page is
+            Alex's of 2026-11-10 — under the hero: travel booking, the events, the guest's strip when a guest has one,
+            the plans, the professional services (together under the "What We Do" heading, the travel block's first
+            child); then Stop 0; then the trip cards under "Our Story"; then the door to the 14 steps. Both headings
+            come from src/lib/homeActWords.ts. Each block that moved, moved WHOLE with the comment above it,
+            byte-identical, so the older seat notes — in those comments and in the act list above — are history:
+            each says where its block sat on the day it was written, not where it sits now. ─────────────────── */}
+      {/* ── HOME-BRIEF-03 (Alex, 2026-11-10 18:09; the board he approved on 2026-11-09, "pick what you run"): THE HOW-TO —
+            what you run picks your steps, in order, across Personal, Business, Travel and Trade. Every status comes from
+            the tool registry and the plan from the plans — nothing typed (src/lib/howTo.ts, drawn by HowToSection.tsx).
+            A cream act with its own border-b, directly under the plans and above the professional services; its two
+            switches live in React state only.
+            HOME-BRIEF-04 (Alex, 2026-11-10 19:00: "the how-to should replace software plans"): THE HOW-TO IS THE
+            SOFTWARE PLANS. OFFER-01's <PlansSection/> (2026-09-23 — four plan cards and one comparison table) was
+            mounted directly above, under the note that seated it; both left this page, and the plans stand on /pricing
+            alone. This act carries what that one carried here: id="modules" — the Stripe cancel_url
+            (checkout-entitlement/route.ts) and the /modules access block land on it, and the plan law holds it — and
+            the door: the plan's button opens the sign-up modal, as the plan cards' button did. No price is set, so the
+            price line says so and the button joins early access; both are read from the plan's price slot
+            (src/lib/offer/plans.ts), never typed. Its steps are one row per section, swiped sideways. ─────────── */}
+      <HowToSection onRequireAuth={onRequireAuth} />
+
+      {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
+            its own section — no right slot. Body = the PROFESSIONAL SERVICES
+            panel relocated WHOLESALE from the 05 grid (markup byte-identical
+            inside), seated in the old deck-table's white-card container idiom.
+
+            UNNUMBERED BY RULING: a guest can submit a proposal here without an
+            account, so this is a revenue surface, not a step. It lost its
+            '04 / ' prefix when it moved up with the demo; the numbered acts
+            below it start at 01 and the sequence is contiguous without it.
+
+            SEAT (HOME-PANELS-02, Alex, 2026-11-07 23:53): directly under MY TRIP
+            (the trip log — and the guest's strip, when it renders) and directly
+            above THE PLANS (early access). Why: the services sit under the trip
+            and above early access while the system is still being built; the
+            pipe below the plans is the system's own. The section moved here
+            WHOLESALE from its seat between the plans and the pipeline header —
+            byte-identical inside <section>…</section>; only this comment and
+            the position changed.
+
+            SEAM: border-b ONLY — the border-t is deliberately gone. The act
+            directly above closes that boundary with its own border-b — MY TRIP's
+            (WASHERE-01's cream act), or the guest strip's when it renders — and
+            a border-t here would have made it the page's only two-rule seam.
+            This section's bottom edge closes done-for-you|plans; the plans act's
+            own border-b (PlansSection.tsx) closes plans|pipeline header, as it
+            closed plans|done-for-you until now. (HOME-05a, 2026-11-03, seated
+            the close act under this section; HOME-PANELS-01, 2026-11-07, folded
+            the close into this card as its fifth door; both seams are history.) ── */}
+      <section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+          {/* HOME-FINISH-02 (Alex, 2026-11-10 20:56): THE SECOND PILLAR — "Build Your Income." His rule for all three: "Purple title →
+              Approved description → Existing functionality … No additional promotional headings or explanatory paragraphs between
+              these elements." So the section opens at the pillar's h2 (the page's purple heading classes) and his one paragraph
+              follows — both read from src/lib/homeActWords.ts BUILD_PILLAR, typed nowhere here — and the card follows directly,
+              keeping its own mt-4. The section carries id={SERVICES_ANCHOR} (src/lib/homeAnchors.ts): his "stable anchor so the
+              footer can link directly to Build Your Income".
+              UNTIL THEN, here: the label — a mono, upper-case line reading PROFESSIONAL SERVICES ("DONE-FOR-YOU" until HOME-BRIEF-03,
+              2026-11-10) — and under it the h2 "Need help? Send a proposal." (mt-3, the travel act's h2 treatment, class for class).
+              The notes above, the act list and the data-done-for-you hooks keep the name DONE-FOR-YOU for this same section. */}
+          <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{BUILD_PILLAR.heading}</h2>
+          {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="mt-3 max-w-3xl text-base text-text-secondary">{words}</p>)}
+          <div className="mt-4 rounded-lg border border-border bg-white p-5">
+            <div className="mt-4">
+              {/* HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the small chip that repeated the label's words stood here, over the
+                  doors; it went — the label above the headline says them once. */}
+              {/* ONE-FORM-01 (Alex, 2026-11-06): each card is a door to the ONE proposal form with its choice
+                  picked (?need=<key>, the form's own query key). SERVICES-01 (Alex, 2026-11-08): SIX EQUAL
+                  DOORS — every door's key, title and line from SERVICES in src/lib/proposalNeeds.ts, the one
+                  module the form and the CRM read too, and the form's path beside them; nothing typed here.
+                  Two rows of three from lg, three rows of two from sm, one column below. The close's card
+                  retired with the close, and the typed line under the chip went: it restated the first
+                  door's line, with "custom to your business" added. HOME-FINISH-01 (Alex, 2026-11-08): auto-rows-fr — every row as tall as the tallest, so the six doors are one height at every width. */}
+              <div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {SERVICES.map(({ need, title, line }) => (
+                  <Link key={need} href={`${PROPOSAL_FORM_PATH}?need=${need}`} className="rounded-lg border border-border bg-white p-4 text-text-primary hover:bg-brand-purple-wash" data-done-for-you={need}>
+                    <div className="text-sm font-medium">{title}</div>
+                    <p className="mt-1 text-xs text-text-muted">{line}</p>
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-4">
+                <Link
+                  href={PROPOSAL_FORM_PATH}
+                  className={PRIMARY_CTA}
+                >
+                  Send a project proposal →
+                </Link>
+                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
             where the teaser sat (directly under the CTA row; pre-BOOK-1
             Landing.tsx:325-328). Full content width — the strip holds
@@ -566,7 +677,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           ledger warns about. Closing from below also single-rules the
           GuestTripStrip case — see the ledger on the problem section. */}
       <section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">
-        <h2 className="pt-8 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
         {/* LANDING-V2 (spec :96-97): the demo's numbered eyebrow row — 03,
             label otherwise verbatim; right slot = the existing /modules/travel
             door. HOME-BRIEF-02 (Alex, 2026-11-10): the label reads TRAVEL BOOKING & EXPERIENCES now;
@@ -621,115 +731,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
       {/* ── BOOK-3: the guest's session trip — renders only when records
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
-
-      {/* ── HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story"): THE ORDER of this page is
-            Alex's of 2026-11-10 — under the hero: travel booking, the events, the guest's strip when a guest has one,
-            the plans, the professional services (together under the "What We Do" heading, the travel block's first
-            child); then Stop 0; then the trip cards under "Our Story"; then the door to the 14 steps. Both headings
-            come from src/lib/homeActWords.ts. Each block that moved, moved WHOLE with the comment above it,
-            byte-identical, so the older seat notes — in those comments and in the act list above — are history:
-            each says where its block sat on the day it was written, not where it sits now. ─────────────────── */}
-      {/* ── HOME-BRIEF-03 (Alex, 2026-11-10 18:09; the board he approved on 2026-11-09, "pick what you run"): THE HOW-TO —
-            what you run picks your steps, in order, across Personal, Business, Travel and Trade. Every status comes from
-            the tool registry and the plan from the plans — nothing typed (src/lib/howTo.ts, drawn by HowToSection.tsx).
-            A cream act with its own border-b, directly under the plans and above the professional services; its two
-            switches live in React state only.
-            HOME-BRIEF-04 (Alex, 2026-11-10 19:00: "the how-to should replace software plans"): THE HOW-TO IS THE
-            SOFTWARE PLANS. OFFER-01's <PlansSection/> (2026-09-23 — four plan cards and one comparison table) was
-            mounted directly above, under the note that seated it; both left this page, and the plans stand on /pricing
-            alone. This act carries what that one carried here: id="modules" — the Stripe cancel_url
-            (checkout-entitlement/route.ts) and the /modules access block land on it, and the plan law holds it — and
-            the door: the plan's button opens the sign-up modal, as the plan cards' button did. No price is set, so the
-            price line says so and the button joins early access; both are read from the plan's price slot
-            (src/lib/offer/plans.ts), never typed. Its steps are one row per section, swiped sideways. ─────────── */}
-      <HowToSection onRequireAuth={onRequireAuth} />
-
-      {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
-            its own section — no right slot. Body = the PROFESSIONAL SERVICES
-            panel relocated WHOLESALE from the 05 grid (markup byte-identical
-            inside), seated in the old deck-table's white-card container idiom.
-
-            UNNUMBERED BY RULING: a guest can submit a proposal here without an
-            account, so this is a revenue surface, not a step. It lost its
-            '04 / ' prefix when it moved up with the demo; the numbered acts
-            below it start at 01 and the sequence is contiguous without it.
-
-            SEAT (HOME-PANELS-02, Alex, 2026-11-07 23:53): directly under MY TRIP
-            (the trip log — and the guest's strip, when it renders) and directly
-            above THE PLANS (early access). Why: the services sit under the trip
-            and above early access while the system is still being built; the
-            pipe below the plans is the system's own. The section moved here
-            WHOLESALE from its seat between the plans and the pipeline header —
-            byte-identical inside <section>…</section>; only this comment and
-            the position changed.
-
-            SEAM: border-b ONLY — the border-t is deliberately gone. The act
-            directly above closes that boundary with its own border-b — MY TRIP's
-            (WASHERE-01's cream act), or the guest strip's when it renders — and
-            a border-t here would have made it the page's only two-rule seam.
-            This section's bottom edge closes done-for-you|plans; the plans act's
-            own border-b (PlansSection.tsx) closes plans|pipeline header, as it
-            closed plans|done-for-you until now. (HOME-05a, 2026-11-03, seated
-            the close act under this section; HOME-PANELS-01, 2026-11-07, folded
-            the close into this card as its fifth door; both seams are history.) ── */}
-      <section className="w-full border-b border-border bg-bg-terminal">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          {/* HOME-BRIEF-03 (Alex, 2026-11-10): the label reads PROFESSIONAL SERVICES — "DONE-FOR-YOU" until then; the notes above,
-              the act list and the data-done-for-you hooks keep that name for this same section. */}
-          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            PROFESSIONAL SERVICES
-          </p>
-          {/* HEADLINE: the travel act's h2 treatment, class for class —
-              mt-3 text-2xl sm:text-3xl font-medium tracking-tight
-              text-brand-purple. The two revenue acts under the hero are a
-              pair and now read as one: eyebrow, headline, then the surface.
-              WEIGHT AND BREAKPOINT, BOTH DELIBERATE. font-medium is 500, and
-              the sm: prefix is not the lg:-only idiom the numbered slides
-              keep — both are correct HERE because this act sits above the
-              teaching run and matches its sibling instead. sm: is already
-              this section's own idiom (the services grid below is
-              sm:grid-cols-2), so nothing new is introduced; swapping it for
-              lg: would leave this headline a size behind travel's between
-              640 and 1023px, which is the one thing the match exists to
-              prevent.
-              NO MARGIN BELOW, also matching: the travel h2 carries only mt-3
-              and lets the element after it supply the gap. The services card
-              below keeps its own mt-4, untouched. */}
-          <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-            Need help? Send a proposal.
-          </h2>
-          <div className="mt-4 rounded-lg border border-border bg-white p-5">
-            <div className="mt-4">
-              {/* HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the small chip that repeated the label's words stood here, over the
-                  doors; it went — the label above the headline says them once. */}
-              {/* ONE-FORM-01 (Alex, 2026-11-06): each card is a door to the ONE proposal form with its choice
-                  picked (?need=<key>, the form's own query key). SERVICES-01 (Alex, 2026-11-08): SIX EQUAL
-                  DOORS — every door's key, title and line from SERVICES in src/lib/proposalNeeds.ts, the one
-                  module the form and the CRM read too, and the form's path beside them; nothing typed here.
-                  Two rows of three from lg, three rows of two from sm, one column below. The close's card
-                  retired with the close, and the typed line under the chip went: it restated the first
-                  door's line, with "custom to your business" added. HOME-FINISH-01 (Alex, 2026-11-08): auto-rows-fr — every row as tall as the tallest, so the six doors are one height at every width. */}
-              <div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {SERVICES.map(({ need, title, line }) => (
-                  <Link key={need} href={`${PROPOSAL_FORM_PATH}?need=${need}`} className="rounded-lg border border-border bg-white p-4 text-text-primary hover:bg-brand-purple-wash" data-done-for-you={need}>
-                    <div className="text-sm font-medium">{title}</div>
-                    <p className="mt-1 text-xs text-text-muted">{line}</p>
-                  </Link>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-4">
-                <Link
-                  href={PROPOSAL_FORM_PATH}
-                  className={PRIMARY_CTA}
-                >
-                  Send a project proposal →
-                </Link>
-                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ── STOP0-01 (Alex, 2026-11-08 15:11 + 16:18; board K tag 8): STOP 0 — Alex's letter in his
             own words and a short dated timeline of how he got here, between the experiences and

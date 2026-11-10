@@ -15,6 +15,10 @@
  * (src/lib/footerWords.ts); and the trip page's two links back to the front door (TripPostView.tsx POST_BACK_HREF,
  * BOOK_HREF).
  *
+ * HOME-FINISH-02 (Alex, 2026-11-10 20:56 — "a stable anchor so the footer can link directly to Build Your Income"): a fifth,
+ *   · SERVICES_ANCHOR  'services' — the professional-services section, the second pillar under "What We Do"
+ *                                  (Landing.tsx, <section id={SERVICES_ANCHOR}); new with HOME-FINISH-02.
+ *
  * ONE LITERAL REMAINS, NAMED: LandingBookingSection.tsx hands the strip `eventsAnchor: '#events'`, and
  * src/lib/__tests__/experiences01.test.ts T6 pins that call's text (its next line holds it equal to `#${EVENTS_ANCHOR}`).
  * Existing tests are not re-pinned in this PR, so it stays typed until a ruling moves that pin.
@@ -29,5 +33,7 @@ export const DEMO_ANCHOR = 'demo';
 export const EVENTS_ANCHOR = 'events';
 
 export const MY_TRIP_ANCHOR = 'my-trip';
+
+export const SERVICES_ANCHOR = 'services';
 
 export { STOP_ZERO_ANCHOR } from './stopZeroWords';

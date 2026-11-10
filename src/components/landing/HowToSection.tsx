@@ -12,7 +12,11 @@
  * WHAT IT RENDERS, top to bottom — every word, every status, the plan, its price line, its button's words and the
  * counts come from src/lib/howTo.ts (which reads the tool registry, the plans and the Books offer); nothing is typed
  * here but the region's aria-label:
- *   1. the label, the h2, the one line, and the door to the 14 steps (its words and path from ./pipelineWords);
+ *   1. the pillar's heading and its three paragraphs — "Plan Your Escape." and Alex's words, read from
+ *      src/lib/homeActWords.ts PLAN_PILLAR (HOME-FINISH-02, Alex, 2026-11-10 20:56: "Purple title → Approved description
+ *      → Existing functionality … No additional promotional headings or explanatory paragraphs between these
+ *      elements." Until then: the label, the h2, the one line, and the door to the 14 steps — its words and path from
+ *      ./pipelineWords; the footer's THE RECORD keeps that door);
  *   2. WHAT YOU RUN — "Personal · always" (not a button) and two switches, + Business and + Trade: real buttons with
  *      aria-pressed, 44px tall, filled brand purple when on;
  *   3. the plan line; under it the plan's price line and its button — the public page's one filled button
@@ -32,25 +36,28 @@
  *
  * PAINT: house tokens only, zero new hex. A cream act with its own border-b; the inner box, the eyebrow, the h2 and the
  * rail are MY TRIP's idioms (WasHereSection.tsx TRIP); every mark is the design system's chip (src/lib/ds.ts).
+ * HOME-FINISH-02 (2026-11-10): the eyebrow left; the h2 wears the page's purple heading classes with no top margin (it
+ * is the section's first line now), each paragraph `mt-3 max-w-3xl text-base text-text-secondary`, and the inner box's
+ * top padding came down (py-10 → pt-6 pb-10) so the pillar sits under "What We Do".
  */
 
 import Link from 'next/link';
 import { useState } from 'react';
 import { PRIMARY_CTA, chip } from '@/lib/ds';
 import {
-  ADD_BUSINESS, ADD_TRADE, COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, HOW_TO_EYEBROW, HOW_TO_HEADING, HOW_TO_LINE, LEGEND_ORDER,
+  ADD_BUSINESS, ADD_TRADE, COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, LEGEND_ORDER,
   LEGEND_STEP_LINE, LEGEND_TITLE, PERSONAL_ALWAYS, TOOL_MARKS, WHAT_YOU_RUN_LABEL, howToView, type HowToChoice,
 } from '@/lib/howTo';
-import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';
+import { PLAN_PILLAR } from '@/lib/homeActWords';
 
 // THE CLASS GRAMMAR — one const, every string whole, house tokens only. The act's own classes sit on its <section>, as ruled.
 const HOW = {
-  inner: 'max-w-7xl mx-auto px-4 lg:px-8 py-10',
-  eyebrow: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  h2: 'mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',
-  sub: 'mt-2 max-w-3xl text-sm text-text-secondary',
-  door: 'mt-2 inline-flex min-h-[44px] items-center font-mono text-xs tracking-wider text-brand-purple hover:text-brand-purple-hover',
-  // The label and the legend's title read in the case the leaf writes them — no CSS upper-casing (the eyebrow alone wears MY TRIP's caps).
+  // HOME-FINISH-02 (2026-11-10): the pillar — its heading and its paragraphs over the tool. The top padding came down ('… py-10' until then), the
+  // h2 lost the top margin it had under the label ('mt-3 text-2xl …'), and the keys of the three lines that left (eyebrow, sub, door) left with them.
+  inner: 'max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-10',
+  h2: 'text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',
+  pillar: 'mt-3 max-w-3xl text-base text-text-secondary',
+  // The label and the legend's title read in the case the leaf writes them — no CSS upper-casing.
   label: 'font-mono text-xs lg:text-[10px] font-semibold tracking-wider text-text-faint',
   switches: 'mt-3 flex flex-wrap items-center gap-2',
   // Personal is everyone's: the same box as a switch, never pressed and not a button.
@@ -100,10 +107,8 @@ export function HowToView({ choice, onBusiness, onTrade, onJoin }: HowToViewProp
   return (
     <section id="modules" aria-label="How to" className="w-full border-b border-border bg-bg-terminal" data-how-to>
       <div className={HOW.inner}>
-        <p className={HOW.eyebrow}>{HOW_TO_EYEBROW}</p>
-        <h2 className={HOW.h2}>{HOW_TO_HEADING}</h2>
-        <p className={HOW.sub}>{HOW_TO_LINE}</p>
-        <Link href={PIPELINE_PATH} className={HOW.door} data-how-to-door>{PIPELINE_DOOR}</Link>
+        <h2 className={HOW.h2}>{PLAN_PILLAR.heading}</h2>
+        {PLAN_PILLAR.paragraphs.map((words) => <p key={words} className={HOW.pillar}>{words}</p>)}
 
         <p className={`mt-6 ${HOW.label}`}>{WHAT_YOU_RUN_LABEL}</p>
         <div className={HOW.switches} role="group" aria-label={WHAT_YOU_RUN_LABEL}>
