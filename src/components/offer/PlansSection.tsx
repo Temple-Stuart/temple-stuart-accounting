@@ -132,7 +132,7 @@ export default function PlansSection({ door, headingId = 'modules' }: {
     <section id={headingId} aria-label="Plans" className="w-full border-b border-border bg-bg-terminal" data-plans>
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
         <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-          PLANS <span className="text-brand-gold">·</span> WHAT EACH ONE IS FOR
+          SOFTWARE PLANS
         </p>
         {/* THE HEADING (OFFER-04) — both lines are the leaf's; this file types no
             copy. "base" and "module" were the codebase's words for how the plans
