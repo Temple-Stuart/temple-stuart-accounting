@@ -213,6 +213,8 @@ import { DECK_STEP_IDS } from './pipelineWords';
 import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';
 import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it
 import { WHAT_WE_DO_HEADING } from '@/lib/homeActWords';
+import { EXPERIENCE_LINE } from '@/lib/brandLines';
+import { PROMISE } from './ExperiencesSection';
 import { COMMISSION_LINE } from '@/lib/disclosureWords'; // BOOK-DISCLOSE-01 (2026-11-08): the commission line under the booking box — its words from the leaf, never typed here
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
 // OFFER-01 (2026-09-23): the landing no longer renders OfferCard, heroCountsLine,
@@ -568,10 +570,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             EXPLORE TRAVEL →
           </Link>
         </div>
-        {/* LANDING-V3 (spec :99): the demo h2, spec wording verbatim. */}
-        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
+        {/* HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15 "what about the consolidation"): ONE HEADER for travel booking and the
+            experiences — the experience line on one line (EXPERIENCE_LINE, src/lib/brandLines.ts), the promise under it (PROMISE,
+            ./ExperiencesSection), then this block's own sentence, word for word. That sentence was this block's h2 until then
+            (LANDING-V3, spec :99), and the line and the promise headed the band below, which now starts at its label and chips. */}
+        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPERIENCE_LINE.join(' ')}</h2>
+        <p className="mt-2 text-lg font-semibold text-text-primary">{PROMISE}</p>
+        <p className="mt-2 text-sm text-text-secondary">
           Search &amp; book travel — free today, no account needed.
-        </h2>
+        </p>
         <LandingBookingSection onRequireAuth={onRequireAuth} />
         <p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>
         {/* GUEST-01 (2026-09-29; Alex's ruling 17:04): the door back for a guest who booked

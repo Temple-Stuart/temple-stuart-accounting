@@ -4,8 +4,10 @@
  *   T1 the words — src/lib/brandLines.ts: the four exports, exact; SITE_DESCRIPTION is derived;
  *   T2 the hero — Landing.tsx imports COMPANY_LINE and HERO_SUBLINE and types none of their words;
  *      the h1 renders the three lines (the third in the wash) and the subline renders HERO_SUBLINE;
- *   T3 the events heading — ExperiencesView, rendered: an h2 holding EXPERIENCE_LINE (the third in
- *      the wash), then the PROMISE paragraph, then SUBHEAD;
+ *   T3 the experience line's home — HOME-BRIEF-03 (Alex, 2026-11-10): the ONE travel-and-experiences header in
+ *      Landing.tsx — an h2 holding EXPERIENCE_LINE on one line, then the PROMISE, then the travel sentence; the band
+ *      (ExperiencesView, rendered) repeats no headline: its eyebrow, then SUBHEAD. (Until then the band rendered the
+ *      line as its own h2, the third in the wash, then the PROMISE paragraph, then SUBHEAD.)
  *   T4 the page description — layout.tsx reads SITE_DESCRIPTION three times and types none;
  *   T5 the link preview — opengraph-image.tsx renders COMPANY_LINE, the third in #eae7f2, no "Modules";
  *   T6 the retired line — no code under src/ carries it, and its two dead files are gone.
@@ -22,7 +24,7 @@ import { join, relative, resolve } from 'node:path';
 import { code } from '../sourceText';
 import { COMPANY_LINE, EXPERIENCE_LINE, HERO_SUBLINE, SITE_DESCRIPTION } from '../brandLines';
 import { EXPERIENCES } from '../experiences';
-import { ExperiencesView, DEFAULT_INTO, PROMISE, SUBHEAD } from '@/components/landing/ExperiencesSection';
+import { ExperiencesView, DEFAULT_INTO, EYEBROW, PROMISE, SUBHEAD } from '@/components/landing/ExperiencesSection';
 
 Object.assign(globalThis, { React });
 
@@ -65,21 +67,37 @@ test('T2 the hero renders COMPANY_LINE and HERO_SUBLINE from src/lib/brandLines.
   }
 });
 
-// ── T3 · THE EVENTS HEADING ──────────────────────────────────────────────────
+// ── T3 · THE EXPERIENCE LINE'S HOME ──────────────────────────────────────────
 
-test('T3 the events section renders EXPERIENCE_LINE as its h2 (the third in the wash), then the PROMISE, then SUBHEAD', () => {
-  const html = renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: '2026-11-08', choice: { category: DEFAULT_INTO }, onPick: () => {} }));
+test('T3 (HOME-BRIEF-03, 2026-11-10) the experience line heads the ONE travel-and-experiences header in Landing — an h2 on one line, then the PROMISE, then the travel sentence, then the booking box; the band repeats no headline: its eyebrow, then SUBHEAD', () => {
+  // HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15): travel booking and the experiences read as one offering — the line and the promise moved
+  // up into the travel block's header. Until then the band rendered them itself: an h2 'mt-3 text-3xl sm:text-5xl font-bold leading-tight
+  // tracking-tight text-ts-white' holding the three lines (the third in the wash), the PROMISE paragraph right under it, then SUBHEAD.
   assert.equal(PROMISE, 'Book the experience, not just the destination.');
-  const h2 = /<h2 class="([^"]*)">([\s\S]*?)<\/h2>/.exec(html);
-  assert.ok(h2, 'the section renders an h2');
-  assert.equal(h2[1], 'mt-3 text-3xl sm:text-5xl font-bold leading-tight tracking-tight text-ts-white');
-  assert.equal(h2[2], `${EXPERIENCE_LINE[0]}<br/>${EXPERIENCE_LINE[1]}<br/><span class="text-brand-purple-wash">${EXPERIENCE_LINE[2]}</span>`);
-  const after = html.slice(h2.index + h2[0].length);
-  assert.ok(after.startsWith(`<p class="mt-4 text-lg sm:text-xl font-semibold text-ts-white">${asHtml(PROMISE)}</p>`), 'the promise right under the h2');
-  const promiseEnd = after.indexOf('</p>') + '</p>'.length;
-  assert.match(after.slice(promiseEnd), new RegExp(`^<p class="[^"]*">${esc(asHtml(SUBHEAD))}</p>`), 'then SUBHEAD, as today');
-  assert.match(html, /<section id="events" aria-label="Book the experience"/, 'the aria-label is unchanged');
-  assert.equal((html.match(/<h2/g) ?? []).length, 1, 'one heading');
+  assert.equal(EXPERIENCE_LINE.join(' '), 'Plan your escape. Build your income. Explore the world.', 'the three sentences, on one line');
+  const landing = code(LANDING);
+  assert.match(landing, /^import \{ EXPERIENCE_LINE \} from '@\/lib\/brandLines';$/m, 'the line, imported on a line of its own');
+  assert.match(landing, /^import \{ PROMISE \} from '\.\/ExperiencesSection';$/m, 'the promise, from the band\'s file');
+  const steps = [
+    '>TRAVEL BOOKING &amp; EXPERIENCES</p>',
+    `<h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPERIENCE_LINE.join(' ')}</h2>`,
+    '<p className="mt-2 text-lg font-semibold text-text-primary">{PROMISE}</p>',
+    '<p className="mt-2 text-sm text-text-secondary">',
+    'Search &amp; book travel — free today, no account needed.',
+    '<LandingBookingSection onRequireAuth={onRequireAuth} />',
+  ];
+  for (const step of steps) assert.equal(landing.split(step).length - 1, 1, `${step} — once`);
+  const at = steps.map((step) => landing.indexOf(step));
+  assert.deepEqual(at, [...at].sort((a, b) => a - b), 'the label → the h2 → the promise → the travel sentence, as a line → the booking box');
+  assert.match(landing.slice(at[1] + steps[1].length, at[2]), /^\s*$/, 'the promise right under the h2');
+  assert.match(landing.slice(at[2] + steps[2].length, at[3]), /^\s*$/, 'the travel sentence right under the promise');
+  assert.match(landing.slice(at[3] + steps[3].length, at[5]), /^\s*Search &amp; book travel — free today, no account needed\.\s*<\/p>\s*$/, 'that line holds the sentence, word for word, and the booking box follows');
+  for (const words of [...EXPERIENCE_LINE, PROMISE]) assert.ok(!landing.includes(words), `Landing.tsx does not type "${words}"`);
+  // the band: no headline of its own
+  const html = renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: '2026-11-08', choice: { category: DEFAULT_INTO }, onPick: () => {} }));
+  assert.equal((html.match(/<h2/g) ?? []).length, 0, 'the band renders no h2');
+  assert.ok(!html.includes(asHtml(PROMISE)) && EXPERIENCE_LINE.every((line) => !html.includes(line)), 'neither the promise nor the experience line');
+  assert.match(html, new RegExp(`^<section id="events" aria-label="Book the experience"[^>]*><div class="[^"]*"><p class="[^"]*">${esc(EYEBROW)}</p><p class="[^"]*">${esc(asHtml(SUBHEAD))}</p><p class="[^"]*">`), 'the eyebrow, then SUBHEAD, then the chips\' label; the id and the aria-label unchanged');
 });
 
 // ── T4 · THE PAGE DESCRIPTION ────────────────────────────────────────────────
