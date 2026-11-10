@@ -23,7 +23,7 @@
  * prints planned and logged minutes and adds up the hours; 4 LIVE · 8 PARTIAL · 13 NOT_BUILT stood for the hours
  * between. BILLPAY-01 census, Alex, 2026-10-28: Bill Pay NOT_BUILT → PARTIAL — the due list and the manual link;
  * 5 LIVE · 7 PARTIAL · 13 NOT_BUILT stood from TIME-03 until then. CRM-01a census, Alex, 2026-11-07: CRM
- * NOT_BUILT → PARTIAL — the three tables read; 5 LIVE · 8 PARTIAL · 12 NOT_BUILT stood from BILLPAY-01 until then.)
+ * NOT_BUILT → PARTIAL — the three tables read; 5 LIVE · 8 PARTIAL · 12 NOT_BUILT stood from BILLPAY-01 until then.) REGISTRY-TRUTH-01 (2026-11-10, no census): six lines re-read against the code and rewritten to what a customer can and cannot do today — Trade Log's why and customer line, the customer lines of Brokerage, Retirement, FP&A and Budget, Calendar's citation and the note beside its ownTable — and every file:line in this file checked on main 819862462 and re-cited in place where it had drifted (the one claim that holds nowhere today, in the note above Brokerage, is reported and left as written); no status, beat, home, link or table moved and the counts are unchanged, 5 LIVE · 9 PARTIAL · 11 NOT_BUILT. (Written on this line so no line the deck or the laws cite in this file moves.)
  *
  * `home` is an EXISTING route only — this PR links, it moves nothing. A
  * cockpit-hosted tool also carries `cockpitKey` (the ModuleLauncher section
@@ -99,7 +99,7 @@ export interface ToolFacts {
   customer?: string;
   /**
    * DATAFLOW-01c (Alex, 2026-11-03, ruling A) — A TABLE OF ITS OWN. Set on the sixteen tools
-   * that take no provider (the deck's step 6, Landing.tsx S6_STAYHOME): the prisma model one of
+   * that take no provider (the deck's step 6, PipelineDeck.tsx S6_STAYHOME — REGISTRY-TRUTH-01, 2026-11-10: was Landing.tsx; the deck moved, PIPELINE-PAGE-01): the prisma model one of
    * the tool's OWN routes writes, or null when none does. A shared route the tool only calls —
    * the link picker's POST /api/calendar/links — is not its own. ownTableLine counts these.
    */
@@ -146,7 +146,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   //
   // The loop's Calendar cells are about an EVENT, not a routine:
   // 'open time on the calendar' · 'a draft event' · 'the event is set, invites
-  // go out' · 'event recorded' (src/components/landing/Landing.tsx:810). EVENT-01
+  // go out' · 'event recorded' (src/components/landing/PipelineDeck.tsx:691 — REGISTRY-TRUTH-01, 2026-11-10: was Landing.tsx:810; the deck moved, PIPELINE-PAGE-01). EVENT-01
   // put a hand-entered event form on this page and GEO-01 gave it a place, so:
   //   · discover — the three GETs, the grid itself writing nothing;
   //   · commit   — an event is created, edited and deleted through this tool's
@@ -172,10 +172,10 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // marks it). Two beats — discover · record — and still PARTIAL.
   Calendar: {
     slug: 'calendar', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/calendar',
-    ownTable: null, // its own routes are three GETs — the grid writes nothing; calendar_events is written by Travel's itinerary route
+    ownTable: null, // REGISTRY-TRUTH-01 (2026-11-10), re-read against the code: its own routes write no NEW calendar_events row — GET /api/calendar reads (src/app/api/calendar/route.ts:6) and /api/calendar/events only re-states (src/app/api/calendar/events/route.ts:82 PATCH, the UPDATE at :107) or removes (:123 DELETE, at :134) the caller's hand-entered rows from before ONEOFF-01, in raw SQL; the other two files under /api/calendar are the shared link route (links) and find-place (a GET no screen calls). New rows are Travel's (src/app/api/trips/[id]/vendor-commit/route.ts:595 · src/lib/calendar/prismaBookingCalendar.ts:73); Travel also re-states and removes them (prismaBookingCalendar.ts:41, :50 · vendor-commit/route.ts:708 · src/app/api/trips/[id]/route.ts:154) and its itinerary route moves a trip row's dates (src/app/api/trips/[id]/itinerary/[itineraryId]/route.ts:233, the one prisma-client write); the retired agenda, home, shopping and budget-category routes still hold inserts no screen calls. The grid file itself sends three GETs and no write (src/components/hub/HubCalendar.tsx:192, :208, :220); the panels it mounts write — src/components/hub/CorrectEventForm.tsx:129 (PATCH /api/calendar/events) · src/components/hub/DayView.tsx:119 and src/components/hub/EventDetailPanel.tsx:191 (DELETE /api/calendar/events) · EventDetailPanel.tsx:219, :235 and src/components/hub/useLineLinks.tsx:56, :66 (POST and DELETE on the shared link route) · src/components/hub/HubEventCard.tsx:143, :200 (PATCH a project block that already exists, then its task). null stands as DATAFLOW-01c ruled it; that an own route UPDATEs and DELETEs the table is reported to Alex in REGISTRY-TRUTH-01, not decided here.
     why: 'the view every tool logs to — trips, routine occurrences and one-offs, project blocks and the days entered by hand before ONEOFF-01, on one grid, with the day\'s total naming each part; nothing is authored here — a one-off is a routine planned in Tasks — and an event entered by hand before the ruling can still be corrected or removed',
     links: [],
-    citation: 'discover: src/components/hub/HubCalendar.tsx:192 (/api/calendar) · :208 (/api/operations/daily-plan/items) · :220 (/api/hub/operations-routines) — three GETs, the grid writes nothing · record: src/components/hub/HubCalendar.tsx:199 (the rendered-source filter) · src/lib/calendar/day.ts:304 (dayParts — every row counted into its named part) · src/lib/calendar/sources.ts:101 (manual) · src/components/hub/DayView.tsx:221 (the hand-entered badge) · src/app/api/calendar/events/route.ts:82 (PATCH — a pre-ruling row re-stated and read back) · :123 (DELETE) · no commit: no POST since ONEOFF-01, nothing is authored on the calendar · no decide: no persisted draft',
+    citation: 'discover: src/components/hub/HubCalendar.tsx:192 (/api/calendar) · :208 (/api/operations/daily-plan/items) · :220 (/api/hub/operations-routines) — three GETs, the only requests the grid file itself sends; the panels it mounts write (each named with its file:line in the note beside ownTable above) · record: src/components/hub/HubCalendar.tsx:199 (the rendered-source filter) · src/lib/calendar/day.ts:304 (dayParts — every row counted into its named part) · src/lib/calendar/sources.ts:101 (manual) · src/components/hub/DayView.tsx:221 (the hand-entered badge) · src/app/api/calendar/events/route.ts:82 (PATCH — a pre-ruling row re-stated and read back) · :123 (DELETE) · no commit: no POST since ONEOFF-01 on the events route, nothing is authored on the calendar · no decide: no persisted draft',
     note: 'Three calendar_events sources render — manual, trip, reservation — each named with its writer and its reason in src/lib/calendar/sources.ts:99-134; "project" and "routines" are named EXCLUDED at :153-190 because they reach the grid already through their own loaders, and admitting them would draw every block twice, and CAL-01 (2026-10-24) named the seven retired tools\' sources — agenda, home, shopping, personal, auto, growth, health — EXCLUDED there too, each with its writer and the PR that retired its tool; their rows stay in calendar_events until TABLES exports and drops them. DAY-01 deleted the bare source === "trip" filter this note used to describe. ONEOFF-01 closed the manual writer — its rows are pre-ruling and stay editable; a new one-off is a routine. CAL-01 (2026-09-23) added "reservation": a room that has been PAID for, written when the booking confirms, kept apart from "trip" (what was planned) so the deferred budget retro-map can tell them apart.',
     customer: 'Your trips, routines, project blocks and what each day costs all show on one grid; the days themselves are planned elsewhere, not here.',
   },
@@ -240,7 +240,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // keeps that log (its `why` says so); the Compliance row below links it.
     // LINK-LAW-01 (2026-10-28): the match read selects LINKED_POSTING_SELECT now (the lines and the reversal state — a reversed posting pays nothing); the lines did not move.
     links: [],
-    citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402 · TASKS-03 (2026-10-26) the match read: tasks/route.ts:101-108 (one planned_item_links query, project_task, LINKED_POSTING_SELECT, scoped to the caller twice) → src/lib/operations/taskMatch.ts taskMatchesOf (ledger.ts matchOf, readableMatchCents; src/lib/calendar/postingAmount.ts amountCentsOf) → THE WORK\'s ACTUAL · MATCH (work.ts taskTable: taskActualCentsOf, taskMatchCentsOf)',
+    citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:57 · generate-tasks/route.ts:43 · tasks/bulk-create/route.ts:118 · tasks/[taskId]/route.ts:82 → :310, :341; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:366-376 · TASKS-03 (2026-10-26) the match read: tasks/route.ts:101-108 (one planned_item_links query, project_task, LINKED_POSTING_SELECT, scoped to the caller twice) → src/lib/operations/taskMatch.ts taskMatchesOf (ledger.ts matchOf, readableMatchCents; src/lib/calendar/postingAmount.ts amountCentsOf) → THE WORK\'s ACTUAL · MATCH (work.ts taskTable: taskActualCentsOf, taskMatchCentsOf)', // REGISTRY-TRUTH-01 (2026-11-10): re-cited, what each names unchanged — tasks/route.ts :43 → :57 (GET), generate-tasks :42 → :43, bulk-create :117 → :118, [taskId]/route.ts :339 → :310, :370 → :341, the paid build :392-402 → :366-376
     // TASKS-03 (Alex, 2026-10-26, ruling C): the customer line, verbatim.
     customer: 'You can capture a project as a brief, rank it, plan its tasks with what each should cost and tick them off, and see what each task cost as you logged it and what Books matched; routines are planned under Expenses.',
   },
@@ -288,15 +288,15 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // is now literally the home page.
     slug: 'time', status: 'LIVE', beats: ALL, home: '/time',
     ownTable: 'operations_stop_records', ownTableRoute: 'src/app/api/operations/stops/route.ts:177 (operations_stop_records.create — the record at a stop; its journals are operations_day_journals, journal/route.ts:96)',
-    // LINK-LAW-01 (2026-10-28): ledger.ts and LedgerSection.tsx grew (the reversed count) — :811 → :827, :828 → :844, :262 → :263, :314 → :315, :355 → :358; what each cites unchanged. READS-01b (Alex, 2026-11-07): the ledger route's body is src/lib/operations/ledgerAnswer.ts taskLedgerAnswerOf and RECORD_PLAN moved with it (SUPERSEDE-00 decision 9) — route.ts:77 → ledgerAnswer.ts:43 (the line's duration), route.ts:76 → ledgerAnswer.ts:42 (the routine's window); what each cites unchanged; written on this line so no line Landing.tsx cites in this file moves.
+    // LINK-LAW-01 (2026-10-28): ledger.ts and LedgerSection.tsx grew (the reversed count) — :811 → :827, :828 → :844, :262 → :263, :314 → :315, :355 → :358; what each cites unchanged. READS-01b (Alex, 2026-11-07): the ledger route's body is src/lib/operations/ledgerAnswer.ts taskLedgerAnswerOf and RECORD_PLAN moved with it (SUPERSEDE-00 decision 9) — route.ts:77 → ledgerAnswer.ts:43 (the line's duration), route.ts:76 → ledgerAnswer.ts:42 (the routine's window); what each cites unchanged; written on this line so no line Landing.tsx cites in this file moves. REGISTRY-TRUTH-01 (2026-11-10): the journal route's PUT re-cited — :51 → :61; what it cites unchanged.
     links: [],
-    citation: 'discover: src/components/workbench/operations/ledger/ledgerReads.ts:27 (GET /api/operations/ledger?from=&to= — the task ledger\'s one read) · src/components/workbench/operations/journal/journalReads.ts:26 (GET /api/operations/journal/range?from=&to= — the journals\' one read) · decide: src/app/api/operations/journal/route.ts:51 (PUT — the day\'s goals, blocker and plan, written by the day card: Time\'s component, shown on the home page, /home — HOME-03; the dashboard until then, HOME-01) · commit: src/app/api/operations/stops/route.ts (POST — the record at a stop, through stops/stopWrites.ts:39, from the card) · record: src/components/workbench/operations/ledger/LedgerSection.tsx (every stop recorded, by date, city, COA and vendor; "+ expense" through ledger/ExpenseForm.tsx:87) · src/components/workbench/operations/journal/MorningJournalTable.tsx · src/components/workbench/operations/journal/EveningJournalTable.tsx (every answer, day over day, through journal/JournalDayTable.tsx) · TIME-03 (2026-10-26) the minutes: src/lib/operations/ledger.ts:829 (LEDGER_HEAD_WORDS — SUPERSEDE-01b, 2026-11-08: was :827 — PLANNED MIN · LOGGED MIN after STARS; the row\'s plannedMinutes is the one planned-minutes rule\'s, src/lib/operations/supersession.ts plannedMinutesOf (SUPERSEDE-01a, 2026-11-07: moved from dayCard.ts) — a line\'s duration_minutes or, WORK-03b (2026-10-26), a stepless routine\'s window length — read with the record\'s plan words by src/lib/operations/ledgerAnswer.ts:43 (the line\'s duration) and src/lib/operations/ledgerAnswer.ts:42 (the routine\'s window), its loggedMinutes the record\'s actual_minutes) · src/components/workbench/operations/ledger/LedgerSection.tsx:263 (the two cells) · LedgerSection.tsx:358 (PLANNED HOURS · LOGGED HOURS — the summary\'s sums, src/lib/operations/ledger.ts:846 (was :844), their coverage said at LedgerSection.tsx:315)',
+    citation: 'discover: src/components/workbench/operations/ledger/ledgerReads.ts:27 (GET /api/operations/ledger?from=&to= — the task ledger\'s one read) · src/components/workbench/operations/journal/journalReads.ts:26 (GET /api/operations/journal/range?from=&to= — the journals\' one read) · decide: src/app/api/operations/journal/route.ts:61 (PUT — the day\'s goals, blocker and plan, written by the day card: Time\'s component, shown on the home page, /home — HOME-03; the dashboard until then, HOME-01) · commit: src/app/api/operations/stops/route.ts (POST — the record at a stop, through stops/stopWrites.ts:39, from the card) · record: src/components/workbench/operations/ledger/LedgerSection.tsx (every stop recorded, by date, city, COA and vendor; "+ expense" through ledger/ExpenseForm.tsx:87) · src/components/workbench/operations/journal/MorningJournalTable.tsx · src/components/workbench/operations/journal/EveningJournalTable.tsx (every answer, day over day, through journal/JournalDayTable.tsx) · TIME-03 (2026-10-26) the minutes: src/lib/operations/ledger.ts:829 (LEDGER_HEAD_WORDS — SUPERSEDE-01b, 2026-11-08: was :827 — PLANNED MIN · LOGGED MIN after STARS; the row\'s plannedMinutes is the one planned-minutes rule\'s, src/lib/operations/supersession.ts plannedMinutesOf (SUPERSEDE-01a, 2026-11-07: moved from dayCard.ts) — a line\'s duration_minutes or, WORK-03b (2026-10-26), a stepless routine\'s window length — read with the record\'s plan words by src/lib/operations/ledgerAnswer.ts:43 (the line\'s duration) and src/lib/operations/ledgerAnswer.ts:42 (the routine\'s window), its loggedMinutes the record\'s actual_minutes) · src/components/workbench/operations/ledger/LedgerSection.tsx:263 (the two cells) · LedgerSection.tsx:358 (PLANNED HOURS · LOGGED HOURS — the summary\'s sums, src/lib/operations/ledger.ts:846 (was :844), their coverage said at LedgerSection.tsx:315)',
     note: 'HOME-03 (2026-10-27): the day itself is entered on the day card — Time\'s component, shown on the home page, /home, between the answers and the sheet (HOME-01, 2026-10-24, had it on the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.',
     customer: 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.',
   },
   // ── MONEY IN ──
   CRM: {
-    slug: 'crm', status: 'PARTIAL', beats: some({ discover: true, decide: true, commit: true, record: true }), home: '/crm', // CRM-01a census (Alex, 2026-11-07): NOT_BUILT → PARTIAL — the three tables read · CRM-01b (Alex, 2026-11-07): four beats — a stage and a next step on the row, a contact by hand — and PARTIAL stays: four beats never imply LIVE (TRUTH-01); the why says what is not done · CRM-02 (Alex, 2026-11-07): every account's own intake form at its own link and as an embed, its submissions frozen as they came in — PARTIAL stays (CLOSED 6: four beats never imply LIVE; LIVE is a dated census after a customer's own form runs on production); re-cited by number, what each cites unchanged: discover :28 → :35 (the GET's header grew), decide :259 → :277 and record :289 → :308 (the block, the fourth table and its remount key sit above them), commit :55 → :58 and :123 → :133 (the PATCH's form branch), ownTableRoute :111 → :121 · and the users model's two new relation lines (crm_forms, crm_form_submissions) moved every schema line below :872 by two — this file's schema citations re-cited, what each names unchanged: :314 1936 → 1938, :317 1938 → 1940, :326 4263-4267 → 4265-4269, :332 4261-4265 → 4263-4267, :336 4256 → 4258, :510 2800 → 2802, :511 2777 → 2779, :513 2802 → 2804, :547 3390 → 3392, :549 3392 → 3394
+    slug: 'crm', status: 'PARTIAL', beats: some({ discover: true, decide: true, commit: true, record: true }), home: '/crm', // CRM-01a census (Alex, 2026-11-07): NOT_BUILT → PARTIAL — the three tables read · CRM-01b (Alex, 2026-11-07): four beats — a stage and a next step on the row, a contact by hand — and PARTIAL stays: four beats never imply LIVE (TRUTH-01); the why says what is not done · CRM-02 (Alex, 2026-11-07): every account's own intake form at its own link and as an embed, its submissions frozen as they came in — PARTIAL stays (CLOSED 6: four beats never imply LIVE; LIVE is a dated census after a customer's own form runs on production); re-cited by number, what each cites unchanged: discover :28 → :35 (the GET's header grew), decide :259 → :277 and record :289 → :308 (the block, the fourth table and its remount key sit above them), commit :55 → :58 and :123 → :133 (the PATCH's form branch), ownTableRoute :111 → :121 · and the users model's two new relation lines (crm_forms, crm_form_submissions) moved every schema line below :872 by two — this file's schema citations re-cited, what each names unchanged: :314 1936 → 1938, :317 1938 → 1940, :326 4263-4267 → 4265-4269, :332 4261-4265 → 4263-4267, :336 4256 → 4258, :510 2800 → 2802, :511 2777 → 2779, :513 2802 → 2804, :547 3390 → 3392, :549 3392 → 3394 · REGISTRY-TRUTH-01 (2026-11-10): five of those ten landed two short — :314, :332, :510, :511 and :547 held TRAVEL-02b-fix's numbers, which TRAVEL-02c had already moved once — and are re-cited where each thing stands: 1940, 4265-4269, 2804, 2781, 3394
     ownTable: 'crm_contacts', ownTableRoute: 'src/app/api/crm/contacts/route.ts:121 (crm_contacts.create — the row a PATCH makes on the first touch, the row a POST adds by hand)', // CRM-01b (Alex, 2026-11-07): the working table CRM-01a authored, written by its own route now · CRM-02 (2026-11-07): :111 → :121 — the PATCH grew a 'form:' branch above the create; what it cites unchanged
     citation: 'discover: src/app/api/crm/route.ts:35 (GET /api/crm — the caller first, then whose rows: the platform owner (isAdminUser) reads every proposals row and every users row but their own, anyone else only their own crm_contacts rows; CRM-02: every reader their own intake form and its submissions) → src/lib/crm/crm.ts proposalRowsOf · signupRowsOf · contactsOf · decide: src/components/crm/CrmSection.tsx:277 (the Stage select and the Next step input on the Contacts row → PATCH /api/crm/contacts) · commit: src/app/api/crm/contacts/route.ts:58 (PATCH — the caller first, then whose row: a proposal or signup key is the platform owner\'s alone, a manual key WHERE user_id = the caller\'s, a form key the caller\'s own submission (CRM-02); crm_contacts.update or .create on the partial unique key in one $transaction, last_touch_at the server\'s now) · :133 (POST — a contact typed by hand, crm_contacts.create with user_id = the caller\'s) · the form: src/app/api/crm/form/route.ts:46 (PUT — the caller first; crm_forms.update WHERE { id, user_id } or .create with user_id; the slug global, the questions re-keyed by the server) · src/app/api/f/[slug]/route.ts:37 (POST — public BY RULING: honeypot → rate limit → the form by slug → the one insert, user_id the form owner\'s) · record: src/components/crm/CrmSection.tsx:308 (the four tables — contacts, form submissions, proposals, signups — over src/lib/crm/crm.ts contactsTable · proposalsTable · signupsTable and src/lib/crm/forms.ts submissionsTable, through the shared DataTable; the table re-reads after every write) · /owner is the accounts console — its proposals panel and the two /api/owner/proposals routes retired into the CRM (CRM-01b)',
     why: 'the people you sell to: every proposal from the platform\'s form and every signup for the owner; anyone added by hand and every submission of their own intake form, at its own link or embedded, for every account; a stage and a next step on the row; nothing is sent from here; per-account stages and fields are not built (CRM-03)', customer: 'The people you sell to, in flat tables. Your own intake form — at your own link, or embedded on your site — fills it; set each one\'s stage and next step; add someone by hand.', // CRM-02 (Alex, 2026-11-07): the why and the customer sentence rewritten (BUILD 14); CRM-01b's stood until then
@@ -311,8 +311,8 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     ownTable: null,
     customer: 'You cannot send an invoice or see who has not paid yet.',
   },
-  // TRAVEL-02b-fix (2026-11-03, ruling D): re-cited — commission_ledger is the model at schema:1938; :1399 was
-  // dining_destinations.coworkingCount. TRAVEL-02c (2026-11-03): users' living_baselines back-relation moved it — :1936 → :1938.
+  // TRAVEL-02b-fix (2026-11-03, ruling D): re-cited — commission_ledger is the model at schema:1940; :1399 was
+  // dining_destinations.coworkingCount. TRAVEL-02c (2026-11-03): users' living_baselines back-relation moved it — :1936 → :1938. REGISTRY-TRUTH-01 (2026-11-10): the model is at :1940 since CRM-02 — its re-cite of the line above landed on :1938, two short; re-cited.
   Payments: {
     slug: 'payments', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 7 — Stripe routes are the product\'s own billing; commission_ledger (schema:1940) is a Travel byproduct',
     customer: 'Money arriving is not yet matched to the invoice that earned it.',
@@ -329,7 +329,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // DOCUMENTS-02 (2026-10-30): bank_reconciliations' supersession (its doc comment, superseded_by and the two
   // relations, the @@unique gone) moved the vendor directory fourteen lines down — :4232 → :4246.
   // TRAVEL-02b-fix (2026-11-03, ruling D): the bill columns re-cited — amount_usd … last_paid_amount_usd sit at
-  // schema:4263-4267; :4233 was operations_issue_log_entries.linked_project_id. TRAVEL-02c (2026-11-03): users' living_baselines back-relation moved them — :4261-4265 → :4263-4267, the directory :4254 → :4256.
+  // schema:4265-4269; :4233 was operations_issue_log_entries.linked_project_id. TRAVEL-02c (2026-11-03): users' living_baselines back-relation moved them — :4261-4265 → :4263-4267, the directory :4254 → :4256. REGISTRY-TRUTH-01 (2026-11-10): the columns are at :4265-4269 since CRM-02 — its re-cite of the note's first number landed on :4263-4267, two short; re-cited.
   'Bill Pay': {
     slug: 'bill-pay', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/bill-pay',
     ownTable: null, // its own route, /api/bill-pay, only reads; "link payment" writes planned_item_links through the SHARED link route (POST /api/calendar/links — Time's ledger, Calendar's event panel and Travel's bookings call it too); operations_vendor_directory is written by /api/operations/vendor-directory, which Bill Pay's page never calls
@@ -350,7 +350,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // PROJECTS. The row is re-derived from what the page DOES, by this file's own
   // standard (the Calendar row above):
   //   · discover — the two reads beside each other, the routines GET and the
-  //     routines' month GET (SectionF :106-107), each cookie-gated and
+  //     routines' month GET (SectionF :120-121), each cookie-gated and
   //     user-scoped before it reads (routines/route.ts:102-110,
   //     month/route.ts:42-47).
   //   · decide — NOT claimed by EXPENSES-01: nothing persisted a draft (the
@@ -370,7 +370,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   //   · commit — "+ routine" POSTs the routine (RoutineCreateForm.tsx:142 →
   //     routines/route.ts:145); a row's "edit" PATCHes it (RoutineEditForm.tsx:189
   //     → routines/[id]/route.ts:159); deactivate / reactivate PATCHes is_active
-  //     (SectionF :236); delete DELETEs it (SectionF :260 → [id]/route.ts:581 — LINK-LAW-01, 2026-10-28: refused
+  //     (SectionF :256); delete DELETEs it (SectionF :280 → [id]/route.ts:581 — LINK-LAW-01, 2026-10-28: refused
   //     409 by name while the routine or its lines hold links; the PATCH :152 → :159, the DELETE :574 → :581).
   //   · record — KEPT by TRUTH-CAL's standard ("the row is read back, badged and
   //     counted"): the month GET reads back every stop record placed in the
@@ -391,13 +391,13 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // row was NOT_BUILT: "no expenses tool: the trip cost split that was Travel's
   // was deleted with the legacy trip planner (LEGACY-DEL-01)" — still true of
   // trip_expenses (nothing writes it: the trip delete clears a trip's rows,
-  // src/app/api/trips/[id]/route.ts:135, and the export reads them,
+  // src/app/api/trips/[id]/route.ts:141, and the export reads them,
   // src/app/api/export/route.ts:154); it is simply not what Expenses is now.
   Expenses: {
     slug: 'expenses', status: 'LIVE', beats: ALL, home: '/expenses',
-    // LINK-LAW-01 (2026-10-28): the routine route grew (the DELETE's held-links refusal) — :152 → :159 (PATCH), :574 → :581 (DELETE).
+    // LINK-LAW-01 (2026-10-28): the routine route grew (the DELETE's held-links refusal) — :152 → :159 (PATCH), :574 → :581 (DELETE). REGISTRY-TRUTH-01 (2026-11-10): SectionF_RoutineExpenses.tsx grew with EXPENSES-02 and was never re-cited — the two reads :106, :107 → :120, :121, the is_active PATCH :236 → :256, the DELETE :260 → :280 (in the citation and in the note above the row); the trip delete's trip_expenses.deleteMany :135 → :141; what each cites unchanged.
     links: [],
-    citation: 'EXPENSES-01 (2026-10-25): src/app/expenses/page.tsx mounts ROUTINE EXPENSES alone · EXPENSES-02 (2026-10-26) decide: the VENDOR cell\'s control (SectionF_RoutineExpenses.tsx VENDOR_CONTROL_WORDS) opens routines/RoutineVendorPanel.tsx — setVendor (budget/VendorBox.tsx) → POST src/app/api/operations/plan-vendors/route.ts:78 at instant null (work.ts routineVendorAddressOf), planVendor.ts readPlanAddress / grainAllows; clear → route.ts:209 (DELETE); add → vendor-directory/route.ts:67 (POST) · discover: src/components/workbench/operations/SectionF_RoutineExpenses.tsx:106 (GET /api/operations/routines) · :107 (GET /api/operations/routines/month?as_of=) · commit: routines/RoutineCreateForm.tsx:142 → src/app/api/operations/routines/route.ts:145 (POST) · routines/RoutineEditForm.tsx:189 and SectionF_RoutineExpenses.tsx:236 → routines/[id]/route.ts:159 (PATCH) · SectionF_RoutineExpenses.tsx:260 → routines/[id]/route.ts:581 (DELETE) · record: src/app/api/operations/routines/month/route.ts:60-68 → src/lib/operations/routineMonth.ts (actual_cents, match_cents), read back per line as ACTUAL · MATCH · VARIANCE — the stop itself is made on the day card (stops/StopForm.tsx) and the posting linked in Books; receipts are the Documents job, not this row\'s (ruled 2026-10-26)',
+    citation: 'EXPENSES-01 (2026-10-25): src/app/expenses/page.tsx mounts ROUTINE EXPENSES alone · EXPENSES-02 (2026-10-26) decide: the VENDOR cell\'s control (SectionF_RoutineExpenses.tsx VENDOR_CONTROL_WORDS) opens routines/RoutineVendorPanel.tsx — setVendor (budget/VendorBox.tsx) → POST src/app/api/operations/plan-vendors/route.ts:78 at instant null (work.ts routineVendorAddressOf), planVendor.ts readPlanAddress / grainAllows; clear → route.ts:209 (DELETE); add → vendor-directory/route.ts:67 (POST) · discover: src/components/workbench/operations/SectionF_RoutineExpenses.tsx:120 (GET /api/operations/routines) · :121 (GET /api/operations/routines/month?as_of=) · commit: routines/RoutineCreateForm.tsx:142 → src/app/api/operations/routines/route.ts:145 (POST) · routines/RoutineEditForm.tsx:189 and SectionF_RoutineExpenses.tsx:256 → routines/[id]/route.ts:159 (PATCH) · SectionF_RoutineExpenses.tsx:280 → routines/[id]/route.ts:581 (DELETE) · record: src/app/api/operations/routines/month/route.ts:60-68 → src/lib/operations/routineMonth.ts (actual_cents, match_cents), read back per line as ACTUAL · MATCH · VARIANCE — the stop itself is made on the day card (stops/StopForm.tsx) and the posting linked in Books; receipts are the Documents job, not this row\'s (ruled 2026-10-26)',
     // EXPENSES-02 (Alex, 2026-10-26, ruling C): the customer line, verbatim — no "not yet": receipts are Documents' job, not this tool's.
     customer: "You can plan every recurring expense — its amount, account, cadence and vendor — and see this month's budget, what you logged at each stop and what Books matched, line by line.",
   },
@@ -407,7 +407,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // legacy planner's pages under /budgets/trips are redirects to it, and no rail
     // row, button or link leads into them. registryLaw holds Travel to this: ever.
     links: [],
-    citation: 'src/app/api/travel/liteapi/flights/search/route.ts:23 · travel/liteapi/prebook/route.ts:40 · travel/liteapi/book/route.ts:134 · :169, :193',
+    citation: 'src/app/api/travel/liteapi/flights/search/route.ts:22 · travel/liteapi/prebook/route.ts:41 · travel/liteapi/book/route.ts:173 · :271, :305', // REGISTRY-TRUTH-01 (2026-11-10): re-cited, what each names unchanged — the search POST :23 → :22, prebookRate :40 → :41, bookRate :134 → :173, reservations.create :169 → :271, commission_ledger.create :193 → :305
   },
   Mileage: {
     slug: 'mileage', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 12 — no miles or odometer column in prisma/schema.prisma',
@@ -452,7 +452,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // every file that mounts it, by grep — src/components/workbench/operations/stops/StopVendor.tsx:32, the only one. SUPERSEDE-01b (Alex, 2026-11-08, ruling H): every number below re-cited to the line that holds what its words name — reportInputs.ts :450/:579/:698 stale since BUDGET-02, planLines.ts :222, reportView.ts :44/:74/:113/:124 and BudgetReport.tsx :387/:313/:246/:114 stale on main; the two routes and report.ts moved by this PR. SUPERSEDE-01c (2026-11-08, ruling F): reportInputs.ts :580/:739/:864 → :607/:775/:900 (RoutineRow's role and the one role rule's import above them).
     citation: 'src/app/api/budget/report/route.ts:72-84 (the gate) · :101-118 (the reads, through the one loader) · src/app/api/budget/report/cell/route.ts:53-65 (the drill\'s gate) · :74-75 (a book not yours: a defensive 404) · :84-96 (the book\'s reads, the lines) · src/lib/budget/reportReads.ts:49 (the one actuals query, reversal pairs and closing entries left out by name) · src/lib/budget/reportInputs.ts:607 (the rows → the model\'s input, once) · :775 (the drill\'s query) · :900 (the lines behind a figure) · src/lib/budget/report.ts:760 (every active P&L account a row, Jan … Dec then YTD, Business · Personal · Trading) · :843 (the drill: the same selection as every cell) · :517 (which budget a cell prints) · src/lib/budget/planLines.ts:281 (a plan line\'s words and vendor, over explicit days) · src/lib/budget/reportView.ts:53 (?year=) · :83 (the tables\' labels) · :162 (the panel\'s sum against the cell) · :173 (open in Books) · src/components/budget/BudgetReport.tsx:472 (‹ year ›) · :334 (a table) · :267 (an account\'s Budget · Actual · Variance, "no budget") · :132 (the panel) · src/app/budget/page.tsx:32',
     note: 'TAB13-02b: /budget renders the read-only budget report; the six category URLs redirect to it, and BudgetingPage (with its draft form) is mounted nowhere. BUDGET-02: Budget is one page — ‹ year › and three tables (Business · Personal · Trading, by entity type), every active revenue and expense account × Jan … Dec and YTD, Budget · Actual · Variance; a book with no plan line prints "no budget"; a Budget figure opens its plan lines (routine → /tasks, task → /tasks?project=), an Actual figure its ledger lines with "open in Books"; each panel prints its sum and whether it matches the cell. No sub-rows: the agenda, Shopping and the itinerary builder redirect to /budget.',
-    customer: 'You can compare what you planned in your routines and tasks with what you actually spent, by book and account; travel and income budgets are not connected yet.',
+    customer: "You can compare the spending and income you planned in your routines with what your books show you actually spent and earned, by book and account; a task's cost is counted only after the task has a start and end time on your calendar, which you cannot set yet, and travel budgets are not connected yet.",
   },
   // ── WHAT YOU OWN ──
   // ACCOUNTS-01b: Banking's home is its OWN screen. Until ACCOUNTS-01 the tool had
@@ -462,7 +462,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // does not link to itself). No cockpitKey: Banking is no longer a cockpit section.
   Banking: {
     slug: 'banking', status: 'PARTIAL', beats: some({ discover: true }), home: '/accounts',
-    citation: 'src/components/accounts/AccountsClient.tsx:118 (connect) · :127 (sync) · :201 (reconnect), through src/components/bank/useBankConnection.ts:83 · :101 · :122 · :164 · src/app/api/accounts/route.ts:6; no transfer route exists',
+    citation: 'src/components/accounts/AccountsClient.tsx:137 (connect) · :146 (sync) · :220 (reconnect), through src/components/bank/useBankConnection.ts:83 · :101 · :122 · :164 · src/app/api/accounts/route.ts:6; no transfer route exists', // REGISTRY-TRUTH-01 (2026-11-10): re-cited, what each names unchanged — connect :118 → :137, sync :127 → :146, reconnect :201 → :220
     customer: 'You can connect your bank and card accounts and refresh their balances; no money is moved from here.',
   },
   'Fixed Assets': {
@@ -471,8 +471,8 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     customer: 'The things you own that lose value over time are not tracked yet.',
   },
   Retirement: {
-    slug: 'retirement', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 16 — 1099-R intake at src/app/api/tax/calculate/route.ts:250 is Tax',
-    customer: 'Retirement accounts do not sit beside the rest of your money yet.',
+    slug: 'retirement', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 16 — 1099-R intake at src/app/api/tax/calculate/route.ts:255 is Tax', // REGISTRY-TRUTH-01 (2026-11-10): re-cited — :250 → :255 (Form 1040 line 4a, the 1099-R figure); what it cites unchanged
+    customer: 'Contribution limits, employer match and required withdrawals are not worked out yet; a retirement account is listed in its own group beside your other connected accounts, with its balance, when its institution reports it as one.',
   },
   // ACCOUNTS-01b: the home is /trading, the full room — it is the only surface that
   // CONNECTS a brokerage (src/app/trading/page.tsx:263 /api/tastytrade/connect) and it
@@ -484,8 +484,8 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   Brokerage: {
     slug: 'brokerage', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/brokerage',
     why: "runs on the founder's broker until per-user connections ship (TT-02)",
-    citation: 'src/app/api/tastytrade/chains/route.ts:58 · scanner/route.ts:205 · src/app/api/trade-cards/route.ts:72 (status queued :92); no order is ever sent (ConvergenceIntelligence.tsx:840)',
-    customer: 'Positions and balances show from one connected brokerage account; connecting your own broker is not available yet.',
+    citation: 'src/app/api/tastytrade/chains/route.ts:59 · scanner/route.ts:206 · src/app/api/trade-cards/route.ts:84 (status queued :104); no order is ever sent (ConvergenceIntelligence.tsx:786)', // REGISTRY-TRUTH-01 (2026-11-10): re-cited, what each names unchanged — chains :58 → :59, scanner :205 → :206, the card's create :72 → :84 and its status :92 → :104, the no-order note :840 → :786
+    customer: 'You can set the filters for a market scan; the scan itself is not open to customers yet, no positions or balances are shown here, and you cannot connect your own broker here yet.',
   },
   // SHELL-02: the "Grade · on the Trade tab" sub-link is gone. The room is
   // /trading — the step's own screen — and a rail row pointing back into the
@@ -493,29 +493,29 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ACCOUNTS-01b: home /books → /trading. Trade Log sits in step 2 TRADING, whose
   // screen is /trading — a job's home may not be another step's screen (the steps
   // law). /trading is where the job is done for a customer: it posts the balanced
-  // entry (page.tsx:640 → api/trading/commit-to-ledger/route.ts:168 postJournal) and
-  // saves the journal (page.tsx:733 → /api/trading-journal). The Books pipeline
-  // still READS investment transactions; that is Bookkeeping's row, not this one.
+  // entry (src/app/trade-log/page.tsx:349 → api/trading/commit-to-ledger/route.ts:177 postJournal) and
+  // saves the journal (src/app/trade-log/page.tsx:413 → /api/trading-journal). The Books pipeline
+  // still READS investment transactions; that is Bookkeeping's row, not this one. REGISTRY-TRUTH-01 (2026-11-10): the two page citations above re-cited to the room this job has had since TRADE-SPLIT, /trade-log — src/app/trading/page.tsx:640 → src/app/trade-log/page.tsx:349, :733 → :413 — and the route's postJournal :168 → :177. "Done for a customer" above is ACCOUNTS-01b's reading, not today's: the why below says what is not done.
   'Trade Log': {
     slug: 'trade-log', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/trade-log',
-    why: 'a customer cannot log a trade: a position exists only once a Plaid-synced investment transaction is committed, and there is no manual entry — so the job is not done for a customer on production yet (TRADE-LOG-01)',
-    citation: 'src/app/trading/page.tsx:640 → src/app/api/trading/commit-to-ledger/route.ts:168 · page.tsx:733 → /api/trading-journal · src/app/api/transactions/sync-complete/route.ts:185 → :242 · investment-transactions/commit-to-ledger/route.ts:106 → src/lib/position-tracker-service.ts:170, :307-311 · :601, :619; no persisted draft',
-    customer: 'Trades show only once they arrive from a synced brokerage feed and are posted to the books; you cannot enter one by hand yet.',
+    why: 'a customer can log an options trade by hand (TRADE-LOG-01), correct or delete it, keep a journal entry on it, and read it back with its realized P&L once it is closed; nothing past that is done: posting it needs a Trading book and entity setup opens only personal and sole-proprietorship books, Form 8949 never reads a hand-entered trade, the one screen that commits a synced brokerage leg sends no book so the leg needs that same Trading book to become a trade, and grading needs a trade card and the only screen that queues one is a scan only the owner can run — so the job is not done for a customer on production yet',
+    citation: 'src/app/trade-log/page.tsx:349 → src/app/api/trading/commit-to-ledger/route.ts:177 · page.tsx:413 → /api/trading-journal · src/app/api/transactions/sync-complete/route.ts:235 → :262 · investment-transactions/commit-to-ledger/route.ts:108 → src/lib/position-tracker-service.ts:175, :314-318 · :611, :624; no persisted draft', // REGISTRY-TRUTH-01 (2026-11-10): re-cited, what each names unchanged — the page is src/app/trade-log/page.tsx since TRADE-SPLIT (was src/app/trading/page.tsx :640, :733), postJournal :168 → :177, the investments pull :185 → :235, its store :242 → :262 (runInvestmentsPage — the insert left the route: asked for at src/lib/arrivals/plaidInvestmentsPage.ts:215, issued by src/lib/arrivals/prismaInvestmentsDomain.ts:211), the period guard :106 → :108, the open :170 → :175, the close :307-311 → :314-318, the journal entry :601 → :611 and its lines :619 → :624 (both handed to the posting port — the inserts left the file: src/lib/posting/postJournal.ts:134, :156)
+    customer: 'You can enter an options trade by hand, correct or delete it, keep your own notes and a rating on it, and see what it made or lost once it is closed; it does not reach your books or your tax forms, and fills from a synced brokerage feed cannot be turned into trades yet.',
   },
   // ── WHAT YOU OWE ──
   Debt: {
     slug: 'debt', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 19 — src/app/api/net-worth/route.ts:36 is a totals read; no schedule, no lender',
     customer: 'What you owe and when it comes due is not tracked yet.',
   },
-  // TRAVEL-02b-fix (2026-11-03, ruling D): re-cited — sales_tax_nexus sits at schema:2802, a value of the corpus enum
-  // PracticeArea (schema:2779, read by regulatory_sources.practice_areas); :2201 was lot_adjustments.adjusted_cost_per_share. TRAVEL-02c (2026-11-03): users' living_baselines back-relation moved them — :2800 → :2802, :2777 → :2779.
+  // TRAVEL-02b-fix (2026-11-03, ruling D): re-cited — sales_tax_nexus sits at schema:2804, a value of the corpus enum
+  // PracticeArea (schema:2781, read by regulatory_sources.practice_areas); :2201 was lot_adjustments.adjusted_cost_per_share. TRAVEL-02c (2026-11-03): users' living_baselines back-relation moved them — :2800 → :2802, :2777 → :2779. REGISTRY-TRUTH-01 (2026-11-10): they are at :2804 and :2781 since CRM-02 — its re-cite of the note's first numbers landed on :2802 and :2779, two short; re-cited.
   'Sales Tax': {
     slug: 'sales-tax', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 20 — sales_tax_nexus (schema:2804) is a corpus enum',
     ownTable: null,
     customer: 'Sales tax collected, and when each state wants it, is not tracked yet.',
   },
   'Ent Filings': {
-    slug: 'ent-filings', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 21 — entities (schema:66-77) has no filing date or agent',
+    slug: 'ent-filings', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 21 — entities (schema:73-84) has no filing date or agent', // REGISTRY-TRUTH-01 (2026-11-10): re-cited — :66-77 → :73-84; what it cites unchanged
     ownTable: null,
     customer: 'What the entity must file, and when it is due, is not tracked yet.',
   },
@@ -524,13 +524,13 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     slug: 'bookkeeping', status: 'LIVE', beats: ALL, home: '/books', cockpitKey: 'books',
     ownTable: 'journal_entries', ownTableRoute: 'src/app/api/journal-entries/route.ts:118 (postJournal — journal_entries through the one posting port; the route reads them at :35)',
     links: [{ label: 'Chart of accounts', href: '/chart-of-accounts' }],
-    citation: 'src/components/home/BooksPipeline.tsx:198 · src/lib/auto-categorization-service.ts:132-140 · src/lib/journal-entry-service.ts:131, :210-216 · :147, :158',
+    citation: 'src/components/home/BooksPipeline.tsx:285 · src/lib/auto-categorization-service.ts:151-159 · src/lib/journal-entry-service.ts:242, :287-293 · :258, :259', // REGISTRY-TRUTH-01 (2026-11-10): re-cited, what each names unchanged — the uncommitted read :198 → :285, the prediction's update :132-140 → :151-159, the journal entry :131 → :242 and its two lines :147, :158 → :258, :259 (handed to the posting port — the inserts left the file: src/lib/posting/postJournal.ts:134, :156), the transaction's update :210-216 → :287-293
   },
   Tax: {
     slug: 'tax', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/tax', cockpitKey: 'tax',
     ownTable: 'tax_documents', ownTableRoute: 'src/app/api/tax/documents/route.ts:69 (tax_documents.upsert)',
     links: [{ label: 'Filing wizard · standalone', href: '/dashboard/tax-filing' }],
-    citation: 'src/components/tax-filing/steps/IncomeReviewStep.tsx:298-300 · src/app/api/tax/documents/route.ts:67; FileStep.tsx:13-14 "Nothing is submitted from here"',
+    citation: 'src/components/tax-filing/steps/IncomeReviewStep.tsx:294-296 · src/app/api/tax/documents/route.ts:69; FileStep.tsx:15-16 "Nothing is submitted from here"', // REGISTRY-TRUTH-01 (2026-11-10): re-cited, what each names unchanged — the three reads :298-300 → :294-296, the upsert :67 → :69, the sentence :13-14 → :15-16
     customer: "You can review the income and the documents behind this year's figure; nothing is filed from here.",
   },
   Compliance: {
@@ -544,15 +544,15 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
       { label: 'SOC 2 proofs', href: '/soc2' },
       { label: 'Audit trail', href: '/operations/audit-log' },
     ],
-    // TRAVEL-02b-fix (2026-11-03, ruling D): re-cited — compliance_tasks.attestation_status sits at schema:3392;
-    // :2679-2682 were trip_scanner_results' tripId … recommendations. TRAVEL-02c (2026-11-03): users' living_baselines back-relation moved it — :3390 → :3392.
-    citation: 'src/lib/discovery/runDiscovery.ts:44 · :107 · src/lib/audit/writeAuditLog.ts:101 via materializeProposal.ts:186; nothing signed (attestation_status schema:3394 never written)',
+    // TRAVEL-02b-fix (2026-11-03, ruling D): re-cited — compliance_tasks.attestation_status sits at schema:3394;
+    // :2679-2682 were trip_scanner_results' tripId … recommendations. TRAVEL-02c (2026-11-03): users' living_baselines back-relation moved it — :3390 → :3392. REGISTRY-TRUTH-01 (2026-11-10): it is at :3394 since CRM-02 — its re-cite of the line above landed on :3392, two short; re-cited.
+    citation: 'src/lib/discovery/runDiscovery.ts:55 · :143 · src/lib/audit/writeAuditLog.ts:101 via materializeProposal.ts:186; nothing signed (attestation_status schema:3394 never written)', // REGISTRY-TRUTH-01 (2026-11-10): re-cited, what each names unchanged — the run's create :44 → :55, the first proposal's create :107 → :143
     customer: 'It works out what the entity has to do and keeps a log of what was done; nothing is signed off here yet.',
   },
   'FP&A': {
     slug: 'fpa', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 25 — no forecast model, route, or tab; MetricsAndProjectionsTab.tsx:53 reads a key the route never returns',
     ownTable: null,
-    customer: 'Runway, margin and the forecast behind them are not available yet.',
+    customer: 'No forecast stands behind the runway or the margin yet; once a bank is linked and your books go back three full months, your home page says how long your money lasts, counting the balance of every linked account not marked trading as cash, cards, loans and investments included, and the statements in your books show one profit margin.',
   },
 };
 
@@ -685,7 +685,7 @@ export function ownTableLaw(files: { schema: string; codeOf: (file: string) => s
 
 /**
  * DATAFLOW-01c (ruling B) — the deck's step-6 line, DERIVED from ownTable over the sixteen the
- * deck names (Landing.tsx S6_STAYHOME), in registry order. A stay-home tool whose entry does
+ * deck names (PipelineDeck.tsx S6_STAYHOME — REGISTRY-TRUTH-01, 2026-11-10: was Landing.tsx), in registry order. A stay-home tool whose entry does
  * not say ownTable — a model or null — is a loud failure, never counted either way.
  */
 export function ownTableLine(sixteen: readonly string[], registry: readonly ToolEntry[] = TOOL_REGISTRY): string {

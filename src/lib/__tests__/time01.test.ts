@@ -176,7 +176,7 @@ test('T5 the registry: the Time row says the tables (HOME-01, ruling C); the Tas
   // HOME-01 (Alex, 2026-10-24): discover is the two tables' reads; the card's routes stay the decide and commit beats (the card is Time's, on the dashboard).
   assert.match(time.citation, /discover: src\/components\/workbench\/operations\/ledger\/ledgerReads\.ts:27 \(GET \/api\/operations\/ledger\?from=&to=/);
   assert.match(time.citation, /src\/components\/workbench\/operations\/journal\/journalReads\.ts:26 \(GET \/api\/operations\/journal\/range\?from=&to=/);
-  assert.match(time.citation, /decide: src\/app\/api\/operations\/journal\/route\.ts:51 \(PUT/);
+  assert.match(time.citation, /decide: src\/app\/api\/operations\/journal\/route\.ts:61 \(PUT/); // REGISTRY-TRUTH-01 (2026-11-10): the PUT re-cited, :51 → :61
   assert.match(time.citation, /commit: src\/app\/api\/operations\/stops\/route\.ts \(POST/);
   assert.match(time.citation, /record: src\/components\/workbench\/operations\/ledger\/LedgerSection\.tsx/);
   // HOME-03 (Alex, 2026-10-27): the note says the card is on the home page, /home.

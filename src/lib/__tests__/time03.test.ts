@@ -261,7 +261,7 @@ test('C Time is LIVE with four beats, no why, the customer line verbatim; the no
   assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(PLANNED HOURS · LOGGED HOURS/)), /data-ledger-group-planned-hours/);
   assert.match(lineOf(RULES, cited(/the summary's sums, src\/lib\/operations\/ledger\.ts:(\d+)/)), /^export const SUMMARY_HEAD_WORDS = \[/);
   assert.match(lineOf(SECTION, cited(/their coverage said at LedgerSection\.tsx:(\d+)/)), /data-ledger-said-planned/);
-  for (const beat of ['discover: src/components/workbench/operations/ledger/ledgerReads.ts:27', 'decide: src/app/api/operations/journal/route.ts:51 (PUT', 'commit: src/app/api/operations/stops/route.ts (POST', 'record: src/components/workbench/operations/ledger/LedgerSection.tsx']) {
+  for (const beat of ['discover: src/components/workbench/operations/ledger/ledgerReads.ts:27', 'decide: src/app/api/operations/journal/route.ts:61 (PUT', 'commit: src/app/api/operations/stops/route.ts (POST', 'record: src/components/workbench/operations/ledger/LedgerSection.tsx']) { // REGISTRY-TRUTH-01 (2026-11-10): the PUT re-cited, :51 → :61
     assert.ok(time.citation.includes(beat), `the citation keeps ${beat.split(':')[0]}`);
   }
   // The census.

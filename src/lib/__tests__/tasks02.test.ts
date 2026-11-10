@@ -173,7 +173,8 @@ test('R3 the Tasks row links nothing; its why, citation and customer line did no
   // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. The row's status, why, citation tail and customer line are tasks03.test.ts's; the TASKS-02 facts stay pinned.
   assert.equal(tasks.status, 'LIVE');
   assert.equal(tasks.why, undefined);
-  assert.match(tasks.citation, /^src\/app\/api\/operations\/projects\/\[id\]\/tasks\/route\.ts:43 · generate-tasks\/route\.ts:42 · tasks\/bulk-create\/route\.ts:117 · tasks\/\[taskId\]\/route\.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks\/\[taskId\]\/route\.ts:392-402/);
+  // REGISTRY-TRUTH-01 (2026-11-10): the citation's numbers re-cited to the lines that hold what each names — :43 → :57, :42 → :43, :117 → :118, :339 → :310, :370 → :341, :392-402 → :366-376; the words did not move.
+  assert.match(tasks.citation, /^src\/app\/api\/operations\/projects\/\[id\]\/tasks\/route\.ts:57 · generate-tasks\/route\.ts:43 · tasks\/bulk-create\/route\.ts:118 · tasks\/\[taskId\]\/route\.ts:82 → :310, :341; accepting a pending_review task fires the paid build at tasks\/\[taskId\]\/route\.ts:366-376/);
   assert.match(tasks.customer ?? '', /^You can capture a project as a brief, rank it, plan its tasks/);
   assert.match(comments(REGISTRY), /TASKS-02 \(Alex, 2026-10-20\): the ruling TASKS-ONE-01 waited for\. Tasks\s*\n\s*\/\/ has NO sub-rows\./);
   const rail = navToolByName('Tasks', TOOL_GATE);

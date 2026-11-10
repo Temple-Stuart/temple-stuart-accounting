@@ -28,8 +28,9 @@ const SEEDS: Seed[] = [
   {
     name: 'trips01-a Travel gets its legacy sub-link back (the ruling\'s seed)',
     file: REGISTRY,
-    find: "    links: [],\n    citation: 'src/app/api/travel/liteapi/flights/search/route.ts:23",
-    replace: "    links: [{ label: 'Trips · the legacy pages', href: '/budgets/trips' }],\n    citation: 'src/app/api/travel/liteapi/flights/search/route.ts:23",
+    // REGISTRY-TRUTH-01 (2026-11-10): re-anchored — the citation's first number re-cited, :23 → :22.
+    find: "    links: [],\n    citation: 'src/app/api/travel/liteapi/flights/search/route.ts:22",
+    replace: "    links: [{ label: 'Trips · the legacy pages', href: '/budgets/trips' }],\n    citation: 'src/app/api/travel/liteapi/flights/search/route.ts:22",
     expect: 'Travel carries no sub-link, ever',
   },
   {

@@ -151,8 +151,9 @@ export const SEEDS: Seed[] = [
     // A PR id in a sentence written for a customer.
     name: 'why-d a customer sentence names a PR id (WHY-01)',
     file: REGISTRY,
-    find: 'connecting your own broker is not available yet.',
-    replace: 'connecting your own broker ships in TT-02.',
+    // REGISTRY-TRUTH-01 (2026-11-10): re-anchored on the Brokerage row's true customer sentence (was 'connecting your own broker is not available yet.').
+    find: 'you cannot connect your own broker here yet.',
+    replace: 'your own broker connects in TT-02.',
     expect: 'a customer does not read PR ids',
   },
   {
@@ -161,8 +162,9 @@ export const SEEDS: Seed[] = [
     name: 'why-e a customer sentence names a table (WHY-01)',
     file: REGISTRY,
     // TAB13-02b: re-anchored on the Budget row's new customer sentence (ruled 2026-09-27).
-    find: 'You can compare what you planned in your routines and tasks with what you actually spent,',
-    replace: 'You can compare what you planned in module_expenses with what you actually spent,',
+    // REGISTRY-TRUTH-01 (2026-11-10): re-anchored again, on the row's true sentence (was 'You can compare what you planned in your routines and tasks with what you actually spent,').
+    find: 'You can compare the spending and income you planned in your routines with',
+    replace: 'You can compare the spending and income you planned in module_expenses with',
     expect: 'is not a customer\'s word',
   },
 ];
