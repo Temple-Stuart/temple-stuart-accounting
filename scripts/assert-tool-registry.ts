@@ -10382,7 +10382,7 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_CANCEL, G_FLOW, G_PAGE, G_RE
   // THE DOOR (Alex's ruling 17:04): the lookup under the home page's booking section, not a header link.
   if (/booking\/manage/.test(codeOf('src/components/landing/LandingHeader.tsx'))) guestFail('LandingHeader.tsx links /booking/manage — the door is the home page\u2019s lookup, not the header');
   const landing = codeOf(G_LANDING);
-  const SECTION = '<LandingBookingSection onRequireAuth={onRequireAuth} />';
+  const SECTION = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />'; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking mount carries the experiences catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then
   const BOX = "<GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />";
   const sectionAt = landing.indexOf(SECTION);
   const boxAt = landing.indexOf(BOX);

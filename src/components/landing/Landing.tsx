@@ -9,6 +9,7 @@
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
  *   EXPERIENCES         — the events section under the strip (EVENTS-01); under it, above MY TRIP, STOP 0 — Alex's letter and how he got here (StopZeroSection — STOP0-01, 2026-11-09: named on this line, so the act list gains no line)
+ *                         (HOME-BRIEF-04, 2026-11-10: no band of its own any more — the experiences are the booking box's Events panel, first in the row and open, inside the travel block above; mounted once, handed to LandingBookingSection as its events prop)
  *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
  *                         renders only when records exist
  *   THE PLANS           — four plan cards and one comparison table
@@ -579,13 +580,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
         {/* HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15 "what about the consolidation"): ONE HEADER for travel booking and the
             experiences — the experience line on one line (EXPERIENCE_LINE, src/lib/brandLines.ts), the promise under it (PROMISE,
             ./ExperiencesSection), then this block's own sentence, word for word. That sentence was this block's h2 until then
-            (LANDING-V3, spec :99), and the line and the promise headed the band below, which now starts at its label and chips. */}
+            (LANDING-V3, spec :99), and the line and the promise headed the band below, which now starts at its label and chips.
+            HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): THE BAND IS GONE — the experiences are INSIDE the booking box below,
+            the panel of its Events tab, first in the row and open. This page hands the catalog to the box as its events prop
+            (LandingBookingSection.tsx puts the builder's Events mode first with it as the panel); it is still mounted exactly
+            once, with the server's UTC day, and still carries id="events". EVENTS-01's own mount (2026-10-30 — a full-bleed
+            aubergine band directly under this section, between it and the guest's strip) and the note that seated it left
+            that seat: every row still comes from src/lib/experiences.ts, dated from its own calendar with the day checked,
+            and the one filter still lives in the URL (?into=). */}
         <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPERIENCE_LINE.join(' ')}</h2>
         <p className="mt-2 text-lg font-semibold text-text-primary">{PROMISE}</p>
         <p className="mt-2 text-sm text-text-secondary">
           Search &amp; book travel — free today, no account needed.
         </p>
-        <LandingBookingSection onRequireAuth={onRequireAuth} />
+        <LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />
         <p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>
         {/* GUEST-01 (2026-09-29; Alex's ruling 17:04): the door back for a guest who booked
             without an account — the one lookup box (src/components/guest/GuestBookingLookup.tsx),
@@ -609,15 +617,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
           row below the strip is gone; the both-surfaces-at-once light-up
           ruling now holds at chip level via the shared builder. */}
-
-      {/* ── EVENTS-01 (Alex, 2026-10-30): THE EXPERIENCES — the marquee events a guest
-            books a stay and a flight around, directly under the strip; every row from
-            src/lib/experiences.ts, dated from its own calendar with the day checked; the
-            one filter lives in the URL (?into=). The section is a full-bleed aubergine
-            band (the hero's rule) and carries id="events" — the strip's Events mode
-            points at it. `today` is the server's UTC calendar date (page.tsx), passed
-            down so nothing here reads the clock. ───────────────────────────────── */}
-      <ExperiencesSection today={today} />
 
       {/* ── BOOK-3: the guest's session trip — renders only when records
             exist (fail-honest empty state = nothing). ─────────────────────── */}
