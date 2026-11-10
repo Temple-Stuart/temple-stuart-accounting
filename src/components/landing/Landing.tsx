@@ -216,6 +216,7 @@ import { WHAT_WE_DO_HEADING } from '@/lib/homeActWords';
 import { EXPERIENCE_LINE } from '@/lib/brandLines';
 import { SAVE_TRIPS_LINE } from '@/lib/homeActWords';
 import { PROMISE } from './ExperiencesSection';
+import HowToSection from './HowToSection';
 import { COMMISSION_LINE } from '@/lib/disclosureWords'; // BOOK-DISCLOSE-01 (2026-11-08): the commission line under the booking box — its words from the leaf, never typed here
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
 // OFFER-01 (2026-09-23): the landing no longer renders OfferCard, heroCountsLine,
@@ -643,6 +644,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             away from it. The door is the sign-up modal: no price is set, so the
             slot says so and the button joins early access. ─────────────────── */}
       <PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />
+
+      {/* ── HOME-BRIEF-03 (Alex, 2026-11-10 18:09; the board he approved on 2026-11-09, "pick what you run"): THE HOW-TO —
+            what you run picks your steps, in order, across Personal, Business, Travel and Trade. Every status comes from
+            the tool registry and the plan from the plans — nothing typed (src/lib/howTo.ts, drawn by HowToSection.tsx).
+            A cream act with its own border-b, directly under the plans and above the professional services; its two
+            switches live in React state only. ──────────────────────────────────────────────────────── */}
+      <HowToSection />
 
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own section — no right slot. Body = the PROFESSIONAL SERVICES
