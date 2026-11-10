@@ -25,6 +25,7 @@
  *                         renders only when records exist
  *   MY TRIP             — the trip log, a card per stop, each opening its stop's page (TRIPCARDS-01)
  *   HOW IT ALL CONNECTS — the door to the 14 steps (PIPELINE-PAGE-01, 2026-11-09: in the seat THE PIPELINE header held, PR-CHROME — the header and the fourteen steps moved whole to their own page, /how-it-works, PipelineDeck.tsx; the fourteen lines below name the steps behind the door)
+ *   (HOME-FINISH-02, 2026-11-10: that door left this page with its act — the footer's THE RECORD keeps it, and the old #deck-NN links still redirect)
  *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
  *   03 / IMPORT THE DATA AND SEE HOW IT ARRIVES — the raw import table, twelve arrivals, the promises
@@ -216,7 +217,8 @@ import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 // it) and reads the step ids for the old-links effect. BUILTON-01 (2026-11-09): the step ids live in that leaf now too
 // (DECK_STEP_IDS moved verbatim to ./pipelineWords.ts), so this page imports nothing from the deck's file.
 import { DECK_STEP_IDS } from './pipelineWords';
-import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';
+// HOME-FINISH-02 (2026-11-10): the door left this page (the footer's THE RECORD keeps it), so its words are imported no more; the path stays — the old-links effect reads it.
+import { PIPELINE_PATH } from './pipelineWords';
 import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it
 import { SERVICES_ANCHOR } from '@/lib/homeAnchors'; // HOME-FINISH-02 (2026-11-10): the professional-services section's id, from its one home — Alex: "a stable anchor so the footer can link directly to Build Your Income"
 import { WHAT_WE_DO_HEADING } from '@/lib/homeActWords';
@@ -733,19 +735,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             with its own border-b (the DONE-FOR-YOU idiom), id="my-trip". ───────────── */}
       <WasHereSection today={today} />
 
-      {/* ── PIPELINE-PAGE-01 (Alex, ruled 2026-10-30; 2026-11-08 15:11 "my holy grail"; board K): HOW IT ALL
-            CONNECTS — the door to the 14 steps, in the seat THE PIPELINE header held. The header and its fourteen
-            steps moved whole to their own page, /how-it-works (src/components/landing/PipelineDeck.tsx); this cream
-            act holds one link — its path and words from ./pipelineWords.ts (PIPELINE_PATH, PIPELINE_DOOR), its class
-            the page's one filled button (PRIMARY_CTA, src/lib/ds.ts).
-            SEAMS: plans | door → the plans act's border-b (PlansSection.tsx; this act draws no border-t). door | built
-            on → this act's border-b AND built-on's border-t (its border-y): two rules on one boundary — the ruled
-            house idiom's border-b over a strip this PR leaves untouched (BUILTON-01 moves it). BUILTON-01
-            (2026-11-09): it moved — door | footer now: this act's border-b over the footer's aubergine band (the
-            footer draws no border-t), one rule, so PIPELINE-PAGE-01's call 3 closes. ─────────────────── */}
-      <section aria-label="How it all connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">
-        <Link href={PIPELINE_PATH} className={PRIMARY_CTA}>{PIPELINE_DOOR}</Link>
-      </section>
+      {/* HOME-FINISH-02 (2026-11-10 — Alex's layout ends at Our Story; the chat's pick, shown to him with the pictures at 21:25): the
+          14-steps button that stood here left the page — PIPELINE-PAGE-01's door, one cream act holding one link to /how-it-works in
+          the page's filled button. The footer's THE RECORD keeps the door (LandingFooter.tsx), and the old #deck-NN links still
+          redirect (the effect above reads PIPELINE_PATH). MY TRIP's border-b is the page's last rule over the footer. */}
 
       {/* WHY ACT LANDS HERE — (PR-WHY, content TBD) */}
 

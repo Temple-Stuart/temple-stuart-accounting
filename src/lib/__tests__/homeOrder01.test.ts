@@ -2,9 +2,10 @@
  * HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story") — the home page's blocks stand in Alex's
  * order, under two headings. A MOVE of existing JSX: every block whole, with the comment above it; nothing copied.
  *
- *   T1 the twelve, each once, in the order: header · hero · "What We Do" · the how-to · DONE-FOR-YOU · the travel block ·
- *      the booking box (the experiences inside it) · the guest's strip · Stop 0 · MY TRIP · the door · footer —
- *      HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE. Until then eleven, in the order header · hero · the
+ *   T1 the eleven, each once, in the order: header · hero · "What We Do" · the how-to · DONE-FOR-YOU · the travel block ·
+ *      the booking box (the experiences inside it) · the guest's strip · Stop 0 · MY TRIP · footer —
+ *      HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE, and (Part 5) the door to the 14 steps left the page
+ *      — twelve with it, between MY TRIP and the footer, until then. Before HOME-FINISH-02 eleven, in the order header · hero · the
  *      travel block · the booking box (the experiences
  *      inside it, its Events panel — HOME-BRIEF-04: a band of their own, under the travel block, until then) · the guest's
  *      strip · the how-to · DONE-FOR-YOU · Stop 0 · MY TRIP · the door · footer (HOME-BRIEF-04, 2026-11-10: the plans
@@ -60,7 +61,7 @@ const MOUNTS: ReadonlyArray<readonly [string, string]> = [
   ["the guest's strip", '<GuestTripStrip onRequireAuth={onRequireAuth} />'],
   ['Stop 0', '<StopZeroSection />'],
   ['MY TRIP', '<WasHereSection today={today} />'],
-  ['the door', '<section aria-label="How it all connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">'],
+  // HOME-FINISH-02 (2026-11-10), Part 5: the door left the page — until then ['the door', '<section aria-label="How it all connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">'] stood here, and the list held twelve.
   ['the footer', '<LandingFooter />'],
 ];
 /** code() blanks a JSX comment's words and keeps its braces. */
@@ -69,15 +70,16 @@ const count = (hay: string, needle: string): number => hay.split(needle).length 
 /** Whitespace collapsed, so a word broken across lines is still found. */
 const flat = (s: string): string => s.replace(/\s+/g, ' ');
 
-test('T1 the twelve, each once, in Alex\'s order (HOME-FINISH-02: plan → build → explore): header · hero · "What We Do" · the how-to · DONE-FOR-YOU · travel · the booking box with the experiences inside it · guest strip · Stop 0 · MY TRIP · the door · footer', () => {
+test('T1 the eleven, each once, in Alex\'s order (HOME-FINISH-02: plan → build → explore; the door left the page): header · hero · "What We Do" · the how-to · DONE-FOR-YOU · travel · the booking box with the experiences inside it · guest strip · Stop 0 · MY TRIP · footer', () => {
   const landing = code(LANDING);
-  assert.equal(MOUNTS.length, 12);
+  assert.equal(MOUNTS.length, 11);
+  assert.equal(count(landing, 'aria-label="How it all connects"'), 0, 'the door to the 14 steps is not on this page');
   assert.equal(count(landing, 'PlansSection'), 0, 'the plans are mounted nowhere on this page — /pricing keeps them');
   assert.equal(count(landing, '<ExperiencesSection'), 1, 'the experiences are mounted once — in the booking box, never as a band of their own');
   for (const [name, mount] of MOUNTS) assert.equal(count(landing, mount), 1, `${name}: mounted exactly once`);
   const at = MOUNTS.map(([, mount]) => landing.indexOf(mount));
   assert.deepEqual(at, [...at].sort((a, b) => a - b), MOUNTS.map(([name]) => name).join(' → '));
-  assert.equal(new Set(at).size, 12, 'twelve places');
+  assert.equal(new Set(at).size, 11, 'eleven places');
 });
 
 test('T2 "What We Do" (HOME-FINISH-02): the data-act-heading h2 stands alone in the page\'s container, in gold and one size up, directly above the how-to; the travel block opens at its pillar\'s heading; its old label and headline are gone', () => {

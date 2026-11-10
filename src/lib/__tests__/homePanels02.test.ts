@@ -7,7 +7,8 @@
  * moved whole into Alex's order. T1 and T3 hold the new order; T2 (the seams, the SEAT paragraph's words) is untouched.
  *
  *   T1 the order, by index — HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — the how-to → DONE-FOR-YOU → the
- *      travel block with the booking box → the guest strip → Stop 0 → MY TRIP → the door. Until then —
+ *      travel block with the booking box → the guest strip → Stop 0 → MY TRIP, the last act (Part 5: the door to the 14
+ *      steps left the page; it closed the order until then). Until then —
  *      HOME-BRIEF-03 (2026-11-10): the how-to stands between THE PLANS and the services section,
  *      a comment between each. HOME-ORDER-01 (2026-11-10): experiences → the guest strip → THE PLANS → DONE-FOR-YOU (the
  *      eyebrow) → Stop 0 → MY TRIP → the door to the 14 steps, each mounted once; nothing but a comment between each
@@ -53,14 +54,16 @@ const SERVICES_HEAD = '<h2 className="text-2xl sm:text-3xl font-medium tracking-
 const SECTION_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'; // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then
 const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 py-10 border-b border-border">'; // (Part 4: the section wears py-10 — no padding of its own until then) HOME-FINISH-02 (2026-11-10): the travel block, third under "What We Do"
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />"; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): no longer on this page — held here so T1 can say it is gone
+// HOME-FINISH-02 (2026-11-10), Part 5: the door left the home page — this pin is counted ZERO times now (once, as the last act, until then).
 const DOOR = '<section aria-label="How it all connects"'; // PIPELINE-PAGE-01 (2026-11-09): the door in the pipeline header's seat (HEADER was '<section aria-label="The pipeline"')
 /** code() blanks a JSX comment's words and keeps its braces — the guest law's own allowance. */
 const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
 
-test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → explore): the how-to → DONE-FOR-YOU → the travel block with the booking box → the guest strip → Stop 0 → MY TRIP → the door; each once; nothing but a comment between each pair', () => {
+test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → explore): the how-to → DONE-FOR-YOU → the travel block with the booking box → the guest strip → Stop 0 → MY TRIP, the last act — the door left the page; each once; nothing but a comment between each pair', () => {
   const landing = code(LANDING);
   const at = (s: string): number => { const i = landing.indexOf(s); assert.notEqual(i, -1, s); return i; };
-  for (const s of [EXPERIENCES, BOOKING, GUEST_STRIP, HOW_TO, SECTION_OPEN, SERVICES_HEAD, TRAVEL_OPEN, STOP_ZERO, MY_TRIP, DOOR]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
+  for (const s of [EXPERIENCES, BOOKING, GUEST_STRIP, HOW_TO, SECTION_OPEN, SERVICES_HEAD, TRAVEL_OPEN, STOP_ZERO, MY_TRIP]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
+  assert.equal(landing.split(DOOR).length - 1, 0, 'the door to the 14 steps is no act of this page (HOME-FINISH-02) — the footer keeps it');
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): the purple band is gone — the catalog is mounted once, INSIDE the booking mount, as the box's
   // Events panel. Until then '<ExperiencesSection today={today} />' stood on its own between the travel block and the guest's strip, and this
   // order opened with it ('experiences → the strip: a comment between, nothing else').
@@ -76,8 +79,8 @@ test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → expl
   // HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — the how-to and the services section moved above the travel block. Until then
   // the order ran the booking box → the guest strip → the how-to → the services section → stop 0, with 'the strip → the how-to' and "the
   // DONE-FOR-YOU section's </section> → stop 0" as neighbour pairs.
-  const order = [HOW_TO, SECTION_OPEN, SERVICES_HEAD, TRAVEL_OPEN, BOOKING, GUEST_STRIP, STOP_ZERO, MY_TRIP, DOOR].map(at);
-  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the how-to → the services section → the travel block (the booking box, the experiences inside it) → the guest strip → stop 0 → my trip → the door');
+  const order = [HOW_TO, SECTION_OPEN, SERVICES_HEAD, TRAVEL_OPEN, BOOKING, GUEST_STRIP, STOP_ZERO, MY_TRIP].map(at);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the how-to → the services section → the travel block (the booking box, the experiences inside it) → the guest strip → stop 0 → my trip');
   assert.match(landing.slice(at(HOW_TO) + HOW_TO.length, at(SECTION_OPEN)), ONLY_COMMENTS, 'the how-to → the services section: a comment between, nothing else');
   const sectionEnd = landing.indexOf('</section>', at(SERVICES_HEAD)) + '</section>'.length;
   assert.ok(sectionEnd > at(SERVICES_HEAD) && sectionEnd < at(TRAVEL_OPEN));
@@ -87,7 +90,8 @@ test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → expl
   assert.match(landing.slice(travelEnd, at(GUEST_STRIP)), ONLY_COMMENTS, 'the travel block\'s </section> → the strip: a comment between, nothing else — no band');
   assert.match(landing.slice(at(GUEST_STRIP) + GUEST_STRIP.length, at(STOP_ZERO)), ONLY_COMMENTS, 'the strip → stop 0: a comment between, nothing else');
   assert.match(landing.slice(at(STOP_ZERO) + STOP_ZERO.length, at(MY_TRIP)), ONLY_COMMENTS, 'stop 0 → my trip: a comment between, nothing else');
-  assert.match(landing.slice(at(MY_TRIP) + MY_TRIP.length, at(DOOR)), ONLY_COMMENTS, 'my trip → the door: a comment between, nothing else');
+  // HOME-FINISH-02 (2026-11-10), Part 5: MY TRIP is the last act. Until then: 'my trip → the door: a comment between, nothing else', the door last in the order.
+  assert.ok(!landing.slice(at(MY_TRIP) + MY_TRIP.length, landing.indexOf('<LandingFooter />')).includes('<section'), 'my trip → the footer: no act between');
 });
 
 test('T2 the seams: one border-b per boundary from experiences to the door — my trip\'s, the strip\'s own, done-for-you\'s (no border-t), the plans act\'s, the door\'s (PIPELINE-PAGE-01); the header\'s own over 01, the ledger\'s three lines once each and the header\'s SEAM — in the deck\'s file; the SEAT paragraph', () => {
@@ -102,8 +106,9 @@ test('T2 the seams: one border-b per boundary from experiences to the door — m
   assert.match(code(PLANS), /<section id=\{headingId\} aria-label="Plans" className="w-full border-b border-border bg-bg-terminal" data-plans>/, "the plans act's border-b (PlansSection.tsx), no border-t");
   // PIPELINE-PAGE-01 (2026-11-09): the door stands in the header's seat — its border-b, no border-t; the header moved with the
   // deck and keeps its own border-b, closing header | 01 on /how-it-works.
-  const door = /<section aria-label="How it all connects" className="([^"]*)"/.exec(landing);
-  assert.ok(door && /\bborder-b border-border\b/.test(door[1]) && !/border-t/.test(door[1]), "the door's border-b, no border-t");
+  // HOME-FINISH-02 (2026-11-10), Part 5: the door left the home page, and its seam with it — MY TRIP's border-b (above) is the last rule over the
+  // footer. Until then: door = /<section aria-label="How it all connects" className="([^"]*)"/.exec(landing), "the door's border-b, no border-t".
+  assert.equal(/<section aria-label="How it all connects"/.exec(landing), null, 'no door act, so no door seam');
   const header = /<section aria-label="The pipeline" className="([^"]*)"/.exec(code(DECK));
   assert.ok(header && /\bborder-b border-border\b/.test(header[1]) && !/border-t/.test(header[1]), "the header's border-b, no border-t — in the deck's file");
   // the ledger — PIPELINE-PAGE-01 (2026-11-09): it sits over deck-01, so it moved whole with the deck; read it in the deck's file
