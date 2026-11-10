@@ -1,16 +1,17 @@
 /**
  * REGISTRY-TRUTH-01 (GUIDES-00's findings 5 and 8 — the 25-tool audit, 2026-11-08; Alex, 2026-11-09 18:23: "the how-to
  * prints each tool's mark and line from the registry") — six lines in src/lib/toolRegistry.ts say what is true today,
- * and every file:line in that file that had drifted is re-cited in place (the one claim that holds nowhere today, in
- * the note above Brokerage, is reported and left as written). No status, beat, home, link, table or count moved:
- * 5 LIVE · 9 PARTIAL · 11 NOT_BUILT stand.
+ * and every file:line in that file that did not name its line is re-cited in place (reported and left as written: the
+ * one claim that holds nowhere today, in the note above Brokerage, and the pinned whys of Budget and Calendar). No
+ * status, beat, home, link, table or count moved: 5 LIVE · 9 PARTIAL · 11 NOT_BUILT stand.
  *
  *   T1 the six lines: each no longer carries its false phrase and carries its true one;
  *   T2 the five customer sentences are a customer's: one sentence, no path, route, PR id, table name, beat word,
  *      builder word or "founder" — the plan law's rules (scripts/assert-tool-registry.ts) and this PR's stricter ones;
  *   T3 Trade Log — a hand-entered trade is written with no opening arrival; posting it needs a book of type trading,
  *      and setup opens personal and sole-proprietorship books only; Form 8949 selects by the opening arrival; a synced
- *      leg needs the same book;
+ *      leg sent as an option trade needs the same book, and one sent as a stock or crypto position leaves the one
+ *      screen naming no entity — both lot routes refuse that request before they look for a book;
  *   T4 Brokerage — positions and balances are fetched for the owner only and read by nothing; the scan is the owner's;
  *   T5 Retirement — the accounts screen has a Retirement group, filed by the institution's own type and subtype;
  *   T6 FP&A — the runway sums every account not tagged trading, whatever its kind; the home card prints it; Books
@@ -18,8 +19,10 @@
  *   T7 Budget — a plan's money may sit on an income account and is compared as income; travel budgets are not
  *      connected; a task counts only on a day that holds a calendar block;
  *   T8 Calendar — the grid file sends three GETs and no write; the panels it mounts write; no route under
- *      /api/calendar inserts a calendar_events row, its events route updates and deletes one; new rows are Travel's;
- *   T9 the counts are 5 · 9 · 11 and every tool's status is the one typed here;
+ *      /api/calendar inserts a calendar_events row, its events route updates and deletes one; new rows are Travel's,
+ *      which also re-states them and removes an option's row on its uncommit (a trip's delete reaches only a row keyed
+ *      by the trip's own id); every other insert and delete sits in a retired route no screen calls;
+ *   T9 the counts are 5 · 9 · 11 and every tool's status, beats, home, table and link count are the ones typed here;
  *   T10 every src/…ts(x):NN and every schema:NN a citation, a note or an ownTableRoute prints — and every one in the
  *       note beside Calendar's ownTable, which Calendar's citation names as its evidence — names a file that exists
  *       and has that line; a bare ":N" with no file before it fails by name;
@@ -28,12 +31,15 @@
  * Every code fact is read from the tool's own file by CONTENT, through code() (the reader law) — no line number of any
  * other file is pinned here, so a file that grows does not turn this red. T10 and T11 hold those numbers only to "the
  * file exists and is that long": what a line SAYS is each tool's own test's to pin. The numbers in the registry's
- * OTHER comments are not walked — they hold dated history ("was :640"), which names lines that are gone by design.
+ * OTHER comments are not walked here: those comments mix dated history ("was :90-103"), which names lines that are
+ * gone by design, with live citations — this PR re-cited the drifted ones by hand and this test holds none of them
+ * (two other tests each hold one they name: dataflow01.test.ts the budget route's reads, travel02bfix.test.ts the
+ * bill columns).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, statSync } from 'node:fs';
-import { code, comments } from '../sourceText';
+import { code, comments, functionBody } from '../sourceText';
 import { EXPECTED_STATUS_COUNTS, TOOL_REGISTRY, registryLaw, statusCounts, type ToolEntry, type ToolStatus } from '../toolRegistry';
 
 const REGISTRY = 'src/lib/toolRegistry.ts';
@@ -59,22 +65,18 @@ const codeOf = (f: string): string => {
 };
 /** The files (of a set) whose code matches — comments never count. */
 const filesWith = (re: RegExp, among: readonly string[] = PRODUCT): string[] => among.filter((f) => re.test(codeOf(f))).sort();
-/** The files that import a component by its file name — none means it is mounted nowhere. */
-const importersOf = (component: string): string[] => filesWith(new RegExp(`from ['"][^'"]*/${component}['"]`));
+/** The files that import a module by its file name — statically, through import() or through require(); none means it is mounted nowhere. */
+const importersOf = (component: string): string[] => filesWith(new RegExp(`(?:\\bfrom\\s*|\\bimport\\s*\\(\\s*|\\brequire\\s*\\(\\s*)['"][^'"]*/${component}['"]`));
 
 // ── T1 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
 test('T1 the six lines: each no longer carries its false phrase and carries its true one', () => {
   // Trade Log — the why (the builder's line) and the customer sentence.
   const tradeLog = tool('Trade Log');
   assert.doesNotMatch(tradeLog.why ?? '', /a customer cannot log a trade|there is no manual entry|only once a Plaid-synced investment transaction is committed/);
-  assert.match(tradeLog.why ?? '', /^a customer can log an options trade by hand \(TRADE-LOG-01\), correct or delete it, keep a journal entry on it, and read it back with its realized P&L once it is closed; nothing past that is done: /);
-  assert.match(tradeLog.why ?? '', /posting it needs a Trading book and entity setup opens only personal and sole-proprietorship books/);
-  assert.match(tradeLog.why ?? '', /Form 8949 never reads a hand-entered trade/);
-  assert.match(tradeLog.why ?? '', /the one screen that commits a synced brokerage leg sends no book so the leg needs that same Trading book to become a trade/);
-  assert.match(tradeLog.why ?? '', /grading needs a trade card and the only screen that queues one is a scan only the owner can run/);
-  assert.match(tradeLog.why ?? '', /— so the job is not done for a customer on production yet$/);
+  // The why whole, as each customer sentence is — a clause slipped in between two pinned fragments would otherwise pass.
+  assert.equal(tradeLog.why, 'a customer can log an options trade by hand (TRADE-LOG-01), correct or delete it, keep a journal entry on it, and read it back with its realized P&L once it is closed; past that, posting it needs a Trading book and entity setup opens only personal and sole-proprietorship books, Form 8949 never reads a hand-entered trade, the one screen that commits a synced brokerage leg sends no book so a leg sent as an option trade needs that same Trading book to become a trade and a leg sent as a stock or crypto position is refused with or without one, and grading needs a trade card and the only screen that queues one is a scan only the owner can run — so the job is not done for a customer on production yet');
   assert.doesNotMatch(tradeLog.customer ?? '', /Trades show only once|you cannot enter one by hand yet/);
-  assert.equal(tradeLog.customer, 'You can enter an options trade by hand, correct or delete it, keep your own notes and a rating on it, and see what it made or lost once it is closed; it does not reach your books or your tax forms, and fills from a synced brokerage feed cannot be turned into trades yet.');
+  assert.equal(tradeLog.customer, 'You can enter an options trade by hand, correct or delete it, keep your own notes and a rating on it, and see what it made or lost once it is closed; it cannot be posted to your books and does not reach your tax forms, and fills from a synced brokerage feed cannot be turned into trades yet.');
 
   // Brokerage — the customer sentence (the why is tradeSplit.test.ts's, untouched).
   const brokerage = tool('Brokerage');
@@ -109,9 +111,13 @@ test('T1 the six lines: each no longer carries its false phrase and carries its 
   assert.doesNotMatch(notes, /calendar_events is written by Travel's itinerary route/);
   assert.match(notes, /REGISTRY-TRUTH-01 \(2026-11-10\), re-read against the code: its own routes write no NEW calendar_events row/);
   assert.match(notes, /The grid file itself sends three GETs and no write \(src\/components\/hub\/HubCalendar\.tsx:\d+, :\d+, :\d+\); the panels it mounts write/);
+  assert.doesNotMatch(notes, /Travel also re-states and removes them/);
+  assert.match(notes, /a trip's delete removes only a row keyed by the trip's own id \(src\/app\/api\/trips\/\[id\]\/route\.ts:\d+\) — the key the legacy planner's commit wrote before it was deleted, not the key vendor-commit writes;/);
+  assert.match(notes, /routes still hold inserts and deletes no screen calls\./);
 
   // The header says what this was, on the census-history line.
   assert.match(notes, /REGISTRY-TRUTH-01 \(2026-11-10, no census\): six lines re-read against the code/);
+  assert.match(notes, /reported and left as written: the one claim that holds nowhere today, in the note above Brokerage, and the whys of Budget and Calendar,/);
   assert.match(notes, /no status, beat, home, link or table moved and the counts are unchanged, 5 LIVE · 9 PARTIAL · 11 NOT_BUILT\./);
 });
 
@@ -132,7 +138,7 @@ test('T2 the five customer sentences are a customer\'s: one sentence, no path, r
 });
 
 // ── T3 · TRADE LOG ──────────────────────────────────────────────────────────────────────────────────────────────────
-test('T3 Trade Log: a hand entry is written with no opening arrival; posting needs a trading book that setup does not open; Form 8949 selects by the opening arrival; a synced leg needs the same book', () => {
+test('T3 Trade Log: a hand entry is written with no opening arrival; posting needs a trading book that setup does not open; Form 8949 selects by the opening arrival; a leg sent as an option trade needs the same book and one sent as a stock or crypto position is refused', () => {
   // The hand entry exists and writes — the old line's "you cannot enter one by hand yet" was false.
   assert.match(code('src/app/api/trade-log/manual/route.ts'), /await prisma\.trading_positions\.createMany\(\{ data: built\.rows \}\);/);
   const manual = code('src/lib/tradeLog/manualTrade.ts');
@@ -159,7 +165,8 @@ test('T3 Trade Log: a hand entry is written with no opening arrival; posting nee
   assert.match(code('src/lib/entities/kinds.ts'), /export type EntityKindType = 'personal' \| 'sole_prop';/);
   assert.match(code('src/lib/entities/setup.ts'), /const kind = entityKind\(b\.entity_type\);\s*if \(!kind\) \{/);
   // …and setup is the only door: one route creates a book, through that parser; the other writer is the seed script's.
-  assert.deepEqual(filesWith(/\.entities\.(create|createMany|upsert)\(/), ['src/lib/entities/prismaEntityDb.ts', 'src/lib/seed-entities.ts']);
+  assert.deepEqual(filesWith(/\.entities\.(create|createMany|createManyAndReturn|upsert|update|updateMany)\(/), ['src/lib/entities/prismaEntityDb.ts', 'src/lib/seed-entities.ts']);
+  assert.deepEqual(filesWith(/(INSERT INTO|UPDATE)\s+"?entities"?\b/i), [], 'and no raw statement writes one');
   assert.deepEqual(filesWith(/\bprismaEntityDb\(/, PRODUCT.filter((f) => f.startsWith('src/app/'))), ['src/app/api/entities/route.ts']);
   assert.deepEqual(filesWith(/\bseedEntities\(/, PRODUCT.filter((f) => f.startsWith('src/app/') || f.startsWith('src/components/'))), [], 'no route and no screen runs the seed');
   // The tax forms read a closed position by its opening arrival — the id a hand entry does not have.
@@ -172,10 +179,37 @@ test('T3 Trade Log: a hand entry is written with no opening arrival; posting nee
   const workflow = code('src/components/dashboard/TradeCommitWorkflow.tsx');
   assert.equal(count(workflow, /fetch\('\/api\/investment-transactions\/commit-to-ledger'/g), 2);
   assert.doesNotMatch(workflow, /entityId/, 'the mounted commit workflow sends no entity');
+  // …and that is a leg sent as an option trade: the screen branches on what the customer picks — the strategy on an
+  // open (its select offers all fifteen for any selection), the linked position on a close — never on what the leg
+  // is. A leg sent as a stock or crypto position leaves the same screen for the lot routes, with no entity either,
+  // and both refuse a request that names none before they look for a book: refused with or without a Trading book.
+  assert.match(workflow, /if \(strategy === 'stock-long' \|\| strategy === 'stock-short' \|\| strategy === 'crypto'\) \{\s*return commitStockLots\(\);/, 'an open, by the strategy picked');
+  assert.match(workflow, /if \(type === 'stock'\) \{\s*return commitStockClose\(id\);/, 'a close, by the position linked');
+  assert.equal(count(workflow, /\{ value: '[a-z-]+', label: '[^']+', positionAccount: 'T-\d{4}' \},/g), 15, 'fifteen strategies');
+  assert.match(workflow, /\{STRATEGY_OPTIONS\.map\(s => <option key=\{s\.value\} value=\{s\.value\}>\{s\.label\}<\/option>\)\}/, 'the select offers every one, whatever is selected');
+  assert.match(workflow, /fetch\('\/api\/stock-lots', \{\s*method: 'POST',\s*headers: \{ 'Content-Type': 'application\/json' \},\s*body: JSON\.stringify\(\{\s*transactionIds: Array\.from\(selectedIds\),\s*strategy,\s*tradeNum\s*\}\)\s*\}\);/, 'the buy names three keys and no entity');
+  assert.match(workflow, /fetch\('\/api\/stock-lots\/commit', \{\s*method: 'POST',\s*headers: \{ 'Content-Type': 'application\/json' \},\s*body: JSON\.stringify\(\{\s*saleTxnId: selectedTxns\[0\]\?\.id,\s*symbol,\s*saleQuantity: totalQuantity,\s*salePrice: avgPrice,\s*saleDate,\s*matchingMethod: selectedMethod\s*\}\)\s*\}\);/, 'the sale names six keys and no entity');
+  for (const lots of ['src/app/api/stock-lots/route.ts', 'src/app/api/stock-lots/commit/route.ts']) {
+    const post = functionBody(code(lots), 'POST') ?? '';
+    assert.match(post, /\bentityId\s*\} = await request\.json\(\);/, `${lots}: entityId is read from the request body`);
+    assert.equal(count(post, /\bentityId\s*(?:=(?!=)|\?\?=|\|\|=)|\b(?:const|let|var)\s+entityId\b/g), 0, `${lots}: and given a value nowhere else`);
+    const refusal = post.search(/if \(!entityId\) \{\s*return NextResponse\.json\(\{ error: 'entityId is required' \}, \{ status: 400 \}\);/);
+    assert.ok(refusal > -1, `${lots}: POST refuses a request that names no entity`);
+    assert.ok(post.search(/prisma\.(entities|chart_of_accounts)\./) > refusal, `${lots}: before it looks for any book`);
+  }
+  assert.deepEqual(filesWith(/[`'"]\/api\/stock-lots\b/, SCREENS), ['src/components/dashboard/TradeCommitWorkflow.tsx'], 'no other screen names a lot route');
+  // "The one screen": three screen files name the option route — two of them imported nowhere (below) — and no screen
+  // names the four other routes that can stamp a synced leg with a trade number.
+  assert.deepEqual(filesWith(/[`'"]\/api\/investment-transactions\/commit-to-ledger\b/, SCREENS), ['src/components/dashboard/OpensCommitPanel.tsx', 'src/components/dashboard/TradeCommitQueue.tsx', 'src/components/dashboard/TradeCommitWorkflow.tsx']);
+  assert.deepEqual(filesWith(/\/api\/(?:investments\/assignment-exercise|investment-transactions\/(?:batch-process|fix-orphan|assign-coa))\b/, SCREENS), [], 'no screen names another route that stamps a synced leg');
+  // The share leg of an exercise or assignment is "sent as an option trade": listed as a close of that trade, and taken by its route.
+  assert.match(code('src/app/api/investment-transactions/opens/route.ts'), /if \(isTransferClose\) \{\s*positionType = 'close';/);
+  assert.match(code('src/lib/position-tracker-service.ts'), /stockSettlementLegs\.push\(leg\);/);
   // The route's two other callers are mounted nowhere — no file imports either.
   assert.deepEqual(importersOf('OpensCommitPanel'), []);
   assert.deepEqual(importersOf('TradeCommitQueue'), []);
   assert.deepEqual(importersOf('TradeCommitWorkflow'), ['src/components/dashboard/InvestmentsTab.tsx'], 'the mounted one');
+  assert.deepEqual(importersOf('InvestmentsTab'), ['src/components/home/BooksPipeline.tsx'], 'mounted once, in Books');
   // Grading: one screen queues a trade card — the scanner's save — and both of its sources are the owner's.
   assert.deepEqual(filesWith(/fetch\('\/api\/trade-cards', \{\s*method: 'POST',/, SCREENS), ['src/components/convergence/ConvergenceIntelligence.tsx']);
   assert.match(code('src/app/api/test/convergence/route.ts'), /const adminGate = await requireAdmin\(\);/);
@@ -265,7 +299,7 @@ test('T7 Budget: a plan\'s money may sit on an income account and is compared as
 });
 
 // ── T8 · CALENDAR ───────────────────────────────────────────────────────────────────────────────────────────────────
-test('T8 Calendar: the grid file sends three GETs and no write; the panels it mounts write; no route under /api/calendar inserts a calendar_events row; new rows are Travel\'s', () => {
+test('T8 Calendar: the grid file sends three GETs and no write; the panels it mounts write; no route under /api/calendar inserts a calendar_events row; new rows are Travel\'s, which re-states them and removes an option\'s row on its uncommit; every other insert and delete sits in a retired route no screen calls', () => {
   const grid = code('src/components/hub/HubCalendar.tsx');
   assert.equal(count(grid, /\bfetch\(/g), 3, 'three requests in the grid file');
   assert.doesNotMatch(grid, /method:\s*'(POST|PATCH|PUT|DELETE)'/, 'the grid file itself sends no write');
@@ -296,7 +330,7 @@ test('T8 Calendar: the grid file sends three GETs and no write; the panels it mo
   const own = walk('src/app/api/calendar').filter((f) => /\/route\.tsx?$/.test(f)).sort();
   assert.deepEqual(own, ['src/app/api/calendar/events/route.ts', 'src/app/api/calendar/find-place/route.ts', 'src/app/api/calendar/links/route.ts', 'src/app/api/calendar/route.ts'], 'four route files under /api/calendar');
   for (const f of own) {
-    assert.doesNotMatch(code(f), /INSERT INTO calendar_events|calendar_events\.(create|createMany|upsert)\(/, `${f} inserts no calendar_events row`);
+    assert.doesNotMatch(code(f), /insert\s+into\s+(?:public\.)?"?calendar_events\b|\bcalendar_events\s*\.\s*(?:create|createMany|createManyAndReturn|upsert)\s*\(/i, `${f} inserts no calendar_events row`);
   }
   // find-place: a GET whose one caller is mounted nowhere.
   assert.deepEqual(filesWith(/\/api\/calendar\/find-place/, SCREENS), ['src/components/workbench/operations/routines/FindThisPlace.tsx']);
@@ -305,34 +339,76 @@ test('T8 Calendar: the grid file sends three GETs and no write; the panels it mo
   // New rows are Travel's; its itinerary route holds the one prisma-client write.
   assert.match(code('src/app/api/trips/[id]/vendor-commit/route.ts'), /INSERT INTO calendar_events \(/);
   assert.match(code('src/lib/calendar/prismaBookingCalendar.ts'), /INSERT INTO calendar_events \(/);
-  assert.deepEqual(filesWith(/\.calendar_events\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\(/), ['src/app/api/trips/[id]/itinerary/[itineraryId]/route.ts'], 'the one prisma-client write');
+  assert.deepEqual(filesWith(/\bcalendar_events\s*\.\s*(?:create|createMany|createManyAndReturn|update|updateMany|updateManyAndReturn|upsert|delete|deleteMany)\s*\(/), ['src/app/api/trips/[id]/itinerary/[itineraryId]/route.ts'], 'the one prisma-client write');
   assert.match(code('src/app/api/trips/[id]/itinerary/[itineraryId]/route.ts'), /prisma\.calendar_events\.updateMany\(\{/);
+  // …and the booking calendar is Travel's: its book, cancel and vendor-read flows import it, and nothing else does —
+  // so no route of the calendar's own can insert through it.
+  assert.deepEqual(importersOf('prismaBookingCalendar'), ['src/app/api/travel/liteapi/book/route.ts', 'src/app/api/travel/liteapi/flights/book/route.ts', 'src/lib/reservations/cancelFlow.ts', 'src/lib/reservations/vendorRead.ts']);
+  // Travel also re-states them — the booking calendar's two UPDATEs — and an uncommit removes its option's row, by the
+  // key its insert wrote. A trip's delete reaches only a row keyed by the trip's own id, which is not that key.
+  assert.equal(count(code('src/lib/calendar/prismaBookingCalendar.ts'), /UPDATE calendar_events\b/g), 2);
+  const commit = code('src/app/api/trips/[id]/vendor-commit/route.ts');
+  assert.equal(count(commit, /const calSourceId = `trip:\$\{id\}:vendor:\$\{optionId\}`;/g), 2, 'the insert and the uncommit build the same key');
+  assert.match(commit, /VALUES \(\$\{user\.id\}, 'trip', \$\{calSourceId\},/, 'the insert writes it');
+  assert.match(commit, /DELETE FROM calendar_events WHERE source = 'trip' AND source_id = \$\{calSourceId\}`;/, 'the uncommit removes by it');
+  assert.match(code('src/app/api/trips/[id]/route.ts'), /DELETE FROM calendar_events WHERE source = 'trip' AND source_id::text = \$\{id\}`;/, 'the trip delete: the trip\'s own id');
+  // Every raw statement on the table, whatever its case, quoting or spacing: seven files insert, seven delete, two update.
+  assert.deepEqual(filesWith(/insert\s+into\s+(?:public\.)?"?calendar_events\b/i), [
+    'src/app/api/agenda/[id]/route.ts', 'src/app/api/budget/[module]/[id]/route.ts', 'src/app/api/home/[id]/route.ts',
+    'src/app/api/shopping/[id]/route.ts', 'src/app/api/shopping/commit/route.ts',
+    'src/app/api/trips/[id]/vendor-commit/route.ts', 'src/lib/calendar/prismaBookingCalendar.ts',
+  ], 'the seven files that insert a calendar_events row: five retired, two Travel\'s');
+  assert.deepEqual(filesWith(/delete\s+from\s+(?:public\.)?"?calendar_events\b/i), [
+    'src/app/api/agenda/[id]/route.ts', 'src/app/api/budget/[module]/[id]/route.ts', 'src/app/api/calendar/events/route.ts', 'src/app/api/home/[id]/route.ts',
+    'src/app/api/shopping/[id]/route.ts', 'src/app/api/trips/[id]/route.ts', 'src/app/api/trips/[id]/vendor-commit/route.ts',
+  ], 'the seven files that delete one: the calendar\'s own, Travel\'s two, four retired');
+  assert.deepEqual(filesWith(/update\s+(?:only\s+)?(?:public\.)?"?calendar_events\b/i), ['src/app/api/calendar/events/route.ts', 'src/lib/calendar/prismaBookingCalendar.ts'], 'the two that update one');
+  // The retired routes — agenda, home, shopping, the budget categories — are called by no screen: no file names agenda
+  // or shopping in a string at all; home and the four budget modules are named only by the category table, whose paths
+  // one component reads; no file imports that component, in any form; and no file imports a retired route module.
+  assert.deepEqual(filesWith(/[`'"]\/api\/(?:agenda|shopping|home(?![-\w])|budget\/(?!report\b))/), ['src/lib/budgetCategories.ts'], 'the one file that names a retired route is the category table');
+  assert.deepEqual(filesWith(/\bapiPath\b/), ['src/components/dashboard/BudgetingPage.tsx', 'src/lib/budgetCategories.ts'], 'its paths are read by one component');
+  assert.deepEqual(importersOf('BudgetingPage'), [], 'which is mounted nowhere');
+  assert.deepEqual(filesWith(/['"][^'"]*\/api\/(?:agenda|home|shopping|budget\/\[module\])(?:\/[^'"]*)?\/route['"]/), [], 'and no file imports a retired route module');
 });
 
 // ── T9 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
-test('T9 the counts are 5 · 9 · 11 and no tool\'s status changed', () => {
-  // Typed here, in sheet order, as they stood on main 819862462 — the list this PR was held to.
-  const STATUS: ReadonlyArray<readonly [string, ToolStatus]> = [
-    ['Calendar', 'PARTIAL'], ['Tasks', 'LIVE'], ['Time', 'LIVE'],
-    ['CRM', 'PARTIAL'], ['Contracts', 'NOT_BUILT'], ['Invoicing', 'NOT_BUILT'], ['Payments', 'NOT_BUILT'],
-    ['Bill Pay', 'PARTIAL'], ['Payroll', 'NOT_BUILT'], ['Expenses', 'LIVE'], ['Travel', 'LIVE'], ['Mileage', 'NOT_BUILT'], ['Budget', 'PARTIAL'],
-    ['Banking', 'PARTIAL'], ['Fixed Assets', 'NOT_BUILT'], ['Retirement', 'NOT_BUILT'], ['Brokerage', 'PARTIAL'], ['Trade Log', 'PARTIAL'],
-    ['Debt', 'NOT_BUILT'], ['Sales Tax', 'NOT_BUILT'], ['Ent Filings', 'NOT_BUILT'],
-    ['Bookkeeping', 'LIVE'], ['Tax', 'PARTIAL'], ['Compliance', 'PARTIAL'], ['FP&A', 'NOT_BUILT'],
+test('T9 the counts are 5 · 9 · 11 and no tool\'s status, beats, home, table or link count changed', () => {
+  // Typed here, in sheet order, as each row stood on main 819862462 — the list this PR was held to: status, beats, home,
+  // ownTable (undefined where the row sets none) and how many links it carries.
+  const SHAPE: ReadonlyArray<readonly [string, ToolStatus, string, string | null, string | null | undefined, number]> = [
+    ['Calendar', 'PARTIAL', 'discover · record', '/calendar', null, 0],
+    ['Tasks', 'LIVE', 'discover · decide · commit · record', '/tasks', 'operations_project_tasks', 0],
+    ['Time', 'LIVE', 'discover · decide · commit · record', '/time', 'operations_stop_records', 0],
+    ['CRM', 'PARTIAL', 'discover · decide · commit · record', '/crm', 'crm_contacts', 0],
+    ['Contracts', 'NOT_BUILT', '', null, null, 0],
+    ['Invoicing', 'NOT_BUILT', '', null, null, 0],
+    ['Payments', 'NOT_BUILT', '', null, undefined, 0],
+    ['Bill Pay', 'PARTIAL', 'discover · record', '/bill-pay', null, 0],
+    ['Payroll', 'NOT_BUILT', '', null, null, 0],
+    ['Expenses', 'LIVE', 'discover · decide · commit · record', '/expenses', undefined, 0],
+    ['Travel', 'LIVE', 'discover · decide · commit · record', '/travel', undefined, 0],
+    ['Mileage', 'NOT_BUILT', '', null, null, 0],
+    ['Budget', 'PARTIAL', 'discover', '/budget', null, 0],
+    ['Banking', 'PARTIAL', 'discover', '/accounts', undefined, 0],
+    ['Fixed Assets', 'NOT_BUILT', '', null, null, 0],
+    ['Retirement', 'NOT_BUILT', '', null, undefined, 0],
+    ['Brokerage', 'PARTIAL', 'discover · decide', '/brokerage', undefined, 0],
+    ['Trade Log', 'PARTIAL', 'discover · commit · record', '/trade-log', undefined, 0],
+    ['Debt', 'NOT_BUILT', '', null, undefined, 0],
+    ['Sales Tax', 'NOT_BUILT', '', null, null, 0],
+    ['Ent Filings', 'NOT_BUILT', '', null, null, 0],
+    ['Bookkeeping', 'LIVE', 'discover · decide · commit · record', '/books', 'journal_entries', 1],
+    ['Tax', 'PARTIAL', 'discover · decide', '/tax', 'tax_documents', 1],
+    ['Compliance', 'PARTIAL', 'discover · decide · record', '/compliance', undefined, 2],
+    ['FP&A', 'NOT_BUILT', '', null, null, 0],
   ];
-  assert.equal(STATUS.length, 25);
-  assert.deepEqual(TOOL_REGISTRY.map((t) => [t.name, t.status]), STATUS.map(([n, s]) => [n, s]));
+  assert.equal(SHAPE.length, 25);
+  const beatsOf = (t: ToolEntry): string => (['discover', 'decide', 'commit', 'record'] as const).filter((b) => t.beats[b]).join(' · ');
+  assert.deepEqual(TOOL_REGISTRY.map((t) => [t.name, t.status, beatsOf(t), t.home, t.ownTable, (t.links ?? []).length]), SHAPE.map((row) => [...row]));
   assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 });
   assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 9, NOT_BUILT: 11 });
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
-  // The six tools' beats, as they stood: none moved with its line.
-  const beats = (name: string) => (['discover', 'decide', 'commit', 'record'] as const).filter((b) => tool(name).beats[b]).join(' · ');
-  assert.equal(beats('Trade Log'), 'discover · commit · record');
-  assert.equal(beats('Brokerage'), 'discover · decide');
-  assert.equal(beats('Retirement'), '');
-  assert.equal(beats('FP&A'), '');
-  assert.equal(beats('Budget'), 'discover');
-  assert.equal(beats('Calendar'), 'discover · record');
 });
 
 // ── T10 · T11 · THE NUMBERS THE REGISTRY PRINTS ─────────────────────────────────────────────────────────────────────

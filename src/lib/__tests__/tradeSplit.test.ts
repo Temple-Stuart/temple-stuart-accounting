@@ -146,9 +146,9 @@ test('both tools stay PARTIAL, and each says why in its own words', () => {
   // REGISTRY-TRUTH-01 (2026-11-10): the why re-read against the code. TRADE-LOG-01 built the hand entry the same day
   // this was pinned, so "a customer cannot log a trade" and "no manual entry" were false; the reason the job is not
   // done is what a hand-entered trade cannot reach. The two phrases re-pointed to the ones the true why carries
-  // (were /a customer cannot log a trade/ and /no manual entry/); the third stands.
+  // (were /a customer cannot log a trade/ and /no manual entry/); the third stands. The second is the first thing the why says a hand-entered trade cannot do.
   assert.match(tradeLog.line ?? '', /a customer can log an options trade by hand/);
-  assert.match(tradeLog.line ?? '', /nothing past that is done/);
+  assert.match(tradeLog.line ?? '', /posting it needs a Trading book/);
   assert.match(tradeLog.line ?? '', /not done for a customer on production yet/);
   // The line is RENDERED under the tool's name, so it carries no source path —
   // that is the citation field's job (the citation law).
