@@ -37,7 +37,7 @@ const EXPERIENCES = '<ExperiencesSection today={today} />';
 const MY_TRIP = '<WasHereSection today={today} />';
 const GUEST_STRIP = '<GuestTripStrip onRequireAuth={onRequireAuth} />';
 const STOP_ZERO = '<StopZeroSection />';
-const EYEBROW = 'DONE-FOR-YOU\n';
+const EYEBROW = 'text-text-faint">\n            PROFESSIONAL SERVICES\n'; // HOME-BRIEF-03 (Alex, 2026-11-10): the section's label reads PROFESSIONAL SERVICES — 'DONE-FOR-YOU\n' until then; found with the end of its own <p>, since the card's chip says the same words
 const SECTION_OPEN = '<section className="w-full border-b border-border bg-bg-terminal">';
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />";
 const DOOR = '<section aria-label="How it all connects"'; // PIPELINE-PAGE-01 (2026-11-09): the door in the pipeline header's seat (HEADER was '<section aria-label="The pipeline"')

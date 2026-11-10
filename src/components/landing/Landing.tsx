@@ -214,6 +214,7 @@ import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';
 import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it
 import { WHAT_WE_DO_HEADING } from '@/lib/homeActWords';
 import { EXPERIENCE_LINE } from '@/lib/brandLines';
+import { SAVE_TRIPS_LINE } from '@/lib/homeActWords';
 import { PROMISE } from './ExperiencesSection';
 import { COMMISSION_LINE } from '@/lib/disclosureWords'; // BOOK-DISCLOSE-01 (2026-11-08): the commission line under the booking box — its words from the leaf, never typed here
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
@@ -591,9 +592,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
         {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
             spec's own strings verbatim (the left line already lives in
             the retired SUMMARY_BY_ID's travel lines (git history); NO ACCOUNT NEEDED is the spec's mono
-            right slot). */}
+            right slot). HOME-BRIEF-03 (Alex, 2026-11-10): the second span — an account saves your trips
+            (SAVE_TRIPS_LINE, src/lib/homeActWords.ts), in the first span's own classes. */}
         <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
           <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
+          <span className="text-[13px] text-text-faint">{SAVE_TRIPS_LINE}</span>
           <span className="font-mono text-xs lg:text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
         </div>
       </section>
@@ -671,8 +674,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             the close into this card as its fifth door; both seams are history.) ── */}
       <section className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+          {/* HOME-BRIEF-03 (Alex, 2026-11-10): the label reads PROFESSIONAL SERVICES — "DONE-FOR-YOU" until then; the notes above,
+              the act list and the data-done-for-you hooks keep that name for this same section. */}
           <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            DONE-FOR-YOU
+            PROFESSIONAL SERVICES
           </p>
           {/* HEADLINE: the travel act's h2 treatment, class for class —
               mt-3 text-2xl sm:text-3xl font-medium tracking-tight

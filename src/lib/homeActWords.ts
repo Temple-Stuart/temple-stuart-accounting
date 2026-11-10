@@ -8,6 +8,10 @@
  *   · ABOUT_US_HEADING   — the h2 of the act between them (StopZeroSection.tsx), over Alex's text; that text is its own
  *                          leaf's (src/lib/stopZeroWords.ts), not this file's.
  *
+ * HOME-BRIEF-03 (Alex, 2026-11-10 18:09): one more line of the home page lives here —
+ *   · SAVE_TRIPS_LINE    — in the travel block's foot row, right after "One trip holds everything — plans, bookings,
+ *                          budget." (Landing.tsx): what an account adds to booking without one.
+ *
  * PURE, NO DIRECTIVE: no import, no state, no clock — one string each, so a client component, a server component and
  * a test all read the same words.
  */
@@ -17,3 +21,5 @@ export const WHAT_WE_DO_HEADING = 'What We Do';
 export const ABOUT_US_HEADING = 'About Us';
 
 export const OUR_STORY_HEADING = 'Our Story';
+
+export const SAVE_TRIPS_LINE = 'Create a free account to save your trips.';

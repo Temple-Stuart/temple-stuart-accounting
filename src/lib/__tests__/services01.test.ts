@@ -253,11 +253,15 @@ test('T3 the schema\'s need comment lists the seven words, \'close\' legacy, and
 
 // ── T4 · THE PANEL ───────────────────────────────────────────────────────────
 
+/** HOME-BRIEF-03 (Alex, 2026-11-10): the section's label reads PROFESSIONAL SERVICES — 'DONE-FOR-YOU\n' until then. Found with the end of its own <p>: the card's chip says the same words. */
+const SERVICES_LABEL = 'text-text-faint">\n            PROFESSIONAL SERVICES\n';
+
 test('T4 Landing maps SERVICES once inside the DONE-FOR-YOU card, in the ruled grid; each door the same Link, class, href and data-done-for-you', () => {
   const landing = code(LANDING);
-  const eyebrow = landing.indexOf('DONE-FOR-YOU\n');
+  const eyebrow = landing.indexOf(SERVICES_LABEL);
   assert.ok(eyebrow > -1);
-  assert.equal((landing.match(/DONE-FOR-YOU\n/g) ?? []).length, 1, 'the eyebrow once');
+  assert.equal(landing.split(SERVICES_LABEL).length - 1, 1, 'the eyebrow once');
+  assert.ok(!landing.includes('DONE-FOR-YOU\n'), 'the old label is rendered nowhere');
   const sectionEnd = landing.indexOf('</section>', eyebrow);
   const panel = landing.slice(eyebrow, sectionEnd);
   assert.match(landing, /import \{\n {2}PROPOSAL_FORM_PATH, SERVICES,\n\} from '@\/lib\/proposalNeeds';/);
@@ -271,7 +275,7 @@ test('T4 Landing maps SERVICES once inside the DONE-FOR-YOU card, in the ruled g
 
 test('T4 nothing typed: no door\'s title or line, no line under the chip, no close card, no CloseOffer*, no "2026 close" in Landing\'s code', () => {
   const landing = code(LANDING);
-  const eyebrow = landing.indexOf('DONE-FOR-YOU\n');
+  const eyebrow = landing.indexOf(SERVICES_LABEL);
   const panel = landing.slice(eyebrow, landing.indexOf('</section>', eyebrow));
   for (const s of SIX) {
     assert.ok(!panel.includes(s.title), `no typed title "${s.title}" in the panel`);
@@ -287,7 +291,7 @@ test('T4 nothing typed: no door\'s title or line, no line under the chip, no clo
 
 test('T4 the h2, the chip and the one button stand; the panel holds no other link', () => {
   const landing = code(LANDING);
-  const eyebrow = landing.indexOf('DONE-FOR-YOU\n');
+  const eyebrow = landing.indexOf(SERVICES_LABEL);
   const panel = landing.slice(eyebrow, landing.indexOf('</section>', eyebrow));
   assert.match(panel, /<h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">\n\s*Need help\? Send a proposal\.\n\s*<\/h2>/, 'the h2, untouched');
   assert.match(panel, /<span className="rounded border border-border px-2 py-0\.5 font-mono text-xs lg:text-\[10px\] font-semibold uppercase tracking-wider text-text-secondary">\n\s*PROFESSIONAL SERVICES\n\s*<\/span>/, 'the chip, untouched');
