@@ -37,10 +37,8 @@ import { OFFERS, priceLineFor, type Offer } from './offer';
 
 // ── THE WORDS ────────────────────────────────────────────────────────────────
 
-/** HOME-BRIEF-04 (2026-11-10): the block's label — "The how-to" until then. */
-export const HOW_TO_EYEBROW = 'Software plans';
-export const HOW_TO_HEADING = 'Here’s how you actually do it.';
-export const HOW_TO_LINE = 'Personal is everyone’s. Add a business, trading, or both, and your steps fill in, in order, across Personal, Business, Travel and Trade.';
+// HOME-FINISH-02 (Alex, 2026-11-10 20:56): the block's label, its h2 and its one line left with their last reader — the Plan pillar's
+// heading and paragraphs (src/lib/homeActWords.ts) stand over the tool now.
 /** The label over the three, and the three: Personal is fixed, the other two are switches. */
 export const WHAT_YOU_RUN_LABEL = 'What you run · add any';
 export const PERSONAL_ALWAYS = 'Personal · always';
