@@ -40,10 +40,11 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // ── T1 · THE WORDS ───────────────────────────────────────────────────────────
 
 test('T1 the four exports are the exact words, and SITE_DESCRIPTION is the company line and the subline, derived', () => {
-  assert.deepEqual([...COMPANY_LINE], ['Connect your world.', 'Control your future.', 'Create your freedom.']);
+  assert.deepEqual([...COMPANY_LINE], ['Connect your world.', 'Create your freedom.', 'Control your future.']); // HOME-BRIEF-02 (Alex, 2026-11-10): lines two and three switched — ['Connect your world.', 'Control your future.', 'Create your freedom.'] until then
   assert.deepEqual([...EXPERIENCE_LINE], ['Plan your escape.', 'Build your income.', 'Explore the world.']);
-  assert.equal(HERO_SUBLINE, 'One system for your money, your days and your books — so every number can be traced back to what actually happened.');
-  assert.equal(SITE_DESCRIPTION, 'Connect your world. Control your future. Create your freedom. One system for your money, your days and your books — so every number can be traced back to what actually happened.');
+  // HOME-BRIEF-02 (Alex, 2026-11-10): the hero's new sentence — 'One system for your money, your days and your books — so every number can be traced back to what actually happened.' until then.
+  assert.equal(HERO_SUBLINE, "Whether you're managing your personal finances, running a business, managing investments, or planning a trip for business or pleasure — Temple Stuart brings your plans, budgets, and financial records together so you can see the whole picture.");
+  assert.equal(SITE_DESCRIPTION, "Connect your world. Create your freedom. Control your future. Whether you're managing your personal finances, running a business, managing investments, or planning a trip for business or pleasure — Temple Stuart brings your plans, budgets, and financial records together so you can see the whole picture.");
   assert.match(code(WORDS), /export const SITE_DESCRIPTION = `\$\{COMPANY_LINE\.join\(' '\)\} \$\{HERO_SUBLINE\}`;/, 'derived, never retyped');
   assert.doesNotMatch(code(WORDS), /\bimport\b|\brequire\(/, 'pure, no imports — the preview image runs on the edge');
 });
@@ -59,7 +60,7 @@ test('T2 the hero renders COMPANY_LINE and HERO_SUBLINE from src/lib/brandLines.
     'the h1 keeps its class; the first two lines each break, the third wears the wash',
   );
   assert.match(landing, /<p className="mb-6 max-w-xl text-base text-white\/70">\s*\{HERO_SUBLINE\}\s*<\/p>/, 'the subline is HERO_SUBLINE');
-  for (const words of [...COMPANY_LINE, HERO_SUBLINE, 'One system for your money']) {
+  for (const words of [...COMPANY_LINE, HERO_SUBLINE, 'Temple Stuart brings your plans']) { // HOME-BRIEF-02 (2026-11-10): the new subline's own words ('One system for your money' until then)
     assert.ok(!landing.includes(words), `Landing.tsx's code types "${words}" — it reads src/lib/brandLines.ts`);
   }
 });
