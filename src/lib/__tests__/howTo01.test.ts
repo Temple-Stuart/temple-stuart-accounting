@@ -21,6 +21,10 @@
  *      React state only; the leaf is pure;
  *   T6 Landing mounts the section once — first under "What We Do" (HOME-FINISH-02; under the guest's strip until then),
  *      above the services section.
+ *   T7 (HOME-PLANS-01, Alex, 2026-11-11 00:09: "Four plans. One comparison.") the four plan cards, exported whole from
+ *      the plans section — PlanCards alone stands whole inside PlansSection's render, once, right under its subhead; four
+ *      cards in PLANS' order, each with its top label, its name, its two lines, who it is for, three benefits, the
+ *      launch placeholder and its door; a button door calls back with the plan's id; a link door draws the link.
  * Source is read through code() only (the reader law). No count is typed: each is computed. No clock, no live call.
  *
  * HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03: "the how-to should replace software plans … cards should be horizontal
@@ -37,7 +41,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { code } from '../sourceText';
 import { PRIMARY_CTA, chip } from '../ds';
 import { TOOL_REGISTRY, type ToolEntry } from '../toolRegistry';
-import { EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, PLANS, priceSlot } from '../offer/plans';
+import { EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, PLANS, PLANS_SUBHEAD, priceSlot } from '../offer/plans';
 import { OFFERS } from '../offer';
 import {
   ADD_BUSINESS, ADD_TRADE, COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, HOW_TO_CHOICES, HOW_TO_SECTIONS,
@@ -47,11 +51,14 @@ import {
 } from '../howTo';
 import { PLAN_PILLAR } from '../homeActWords';
 import { HowToView } from '@/components/landing/HowToSection';
+import PlansSection, { PlanCards } from '@/components/offer/PlansSection';
 import { PIPELINE_DOOR, PIPELINE_PATH } from '@/components/landing/pipelineWords';
 
 Object.assign(globalThis, { React });
 
 const LEAF = 'src/lib/howTo.ts';
+const PLANS_SECTION = 'src/components/offer/PlansSection.tsx';
+const PRICING = 'src/app/pricing/page.tsx';
 const SECTION = 'src/components/landing/HowToSection.tsx';
 const LANDING = 'src/components/landing/Landing.tsx';
 const TRIP = 'src/components/landing/WasHereSection.tsx';
@@ -67,6 +74,16 @@ function elementsOf(node: React.ReactNode): React.ReactElement<Record<string, un
   if (Array.isArray(node)) return node.flatMap((child) => elementsOf(child as React.ReactNode));
   if (!React.isValidElement<Record<string, unknown>>(node)) return [];
   return [node, ...elementsOf(node.props.children as React.ReactNode)];
+}
+/**
+ * Every element in a tree, depth first, with each PURE function component called so what it draws can be reached (the
+ * plan cards' PriceSlot and Door hold no hook). Anything that is not a plain function — next/link's Link — is left as it is.
+ */
+function drawnElementsOf(node: React.ReactNode): React.ReactElement<Record<string, unknown>>[] {
+  if (Array.isArray(node)) return node.flatMap((child) => drawnElementsOf(child as React.ReactNode));
+  if (!React.isValidElement<Record<string, unknown>>(node)) return [];
+  if (typeof node.type === 'function') return drawnElementsOf((node.type as (props: Record<string, unknown>) => React.ReactNode)(node.props));
+  return [node, ...drawnElementsOf(node.props.children as React.ReactNode)];
 }
 const statusOf = (name: string) => {
   const tool = TOOL_REGISTRY.find((t) => t.name === name);
@@ -393,3 +410,68 @@ test('T6 Landing mounts the how-to once, with the door — first under "What We 
   // /pricing still mounts the plans, under its own anchor
   assert.match(code('src/app/pricing/page.tsx'), /<PlansSection [^>]*headingId="plans"/, '/pricing keeps the four plans and the table');
 });
+
+// ── T7 · THE FOUR PLAN CARDS, SHARED (HOME-PLANS-01) ─────────────────────────
+
+test('T7 (HOME-PLANS-01) the four plan cards are exported whole: PlanCards alone stands whole inside PlansSection\'s render, once, right under its subhead; four cards in PLANS\' order, each with its top label, its name, its two lines, who it is for, three benefits, the launch placeholder and its door; a button door calls back with the plan\'s id; a link door draws the link', () => {
+  // /pricing's own door: a link to the front door (src/app/pricing/page.tsx — not edited)
+  const linkDoor = { kind: 'link', href: '/' } as const;
+  assert.equal(count(code(PRICING), `<PlansSection door={{ kind: 'link', href: '/' }} headingId="plans" />`), 1, '/pricing mounts the plans section as it did');
+  const cards = renderToStaticMarkup(React.createElement(PlanCards, { door: linkDoor }));
+  const section = renderToStaticMarkup(React.createElement(PlansSection, { door: linkDoor, headingId: 'plans' }));
+  const GRID = '<div class="mt-6 grid gap-4 lg:grid-cols-4">';
+  assert.ok(cards.startsWith(GRID) && cards.endsWith('</div>'), 'the grid, whole');
+  assert.equal(count(section, cards), 1, 'PlanCards\' own render stands whole inside PlansSection\'s, once');
+  assert.equal(count(section, GRID), 1, 'one grid of cards in the plans section');
+  assert.ok(section.includes(`data-plans-subhead="true">${asHtml(PLANS_SUBHEAD)}</p>${cards}`), 'right under the subhead, where the grid stood');
+  // four cards, in PLANS' order — each whole
+  const opens = [...cards.matchAll(/<div class="([^"]*)" data-plan="([^"]+)" data-plan-modules="([^"]*)">/g)];
+  assert.deepEqual(opens.map((m) => m[2]), PLANS.map((p) => p.id), 'four cards, in PLANS\' order');
+  assert.equal(count(cards, 'data-plan='), PLANS.length);
+  PLANS.forEach((plan, i) => {
+    const card = cards.slice(opens[i].index, i + 1 < opens.length ? opens[i + 1].index : undefined);
+    const slot = priceSlot(plan);
+    assert.equal(opens[i][3], plan.modules.join(' '), `${plan.id}: what it holds`);
+    assert.ok(opens[i][1].startsWith('flex flex-col gap-4 rounded-lg border border-border bg-white p-5'), `${plan.id}: the white card`);
+    assert.ok(card.includes(`data-plan-role="true">${asHtml(plan.role)}</p><h3 class="mt-1 text-lg font-semibold text-brand-purple" data-plan-name="true">${asHtml(plan.name)}</h3>`), `${plan.id}: its top label, then its name`);
+    assert.ok(card.includes(`data-plan-positioning="true">${asHtml(plan.positioning)}</p>`), `${plan.id}: its line`);
+    assert.ok(card.includes(`data-plan-audience="true">${asHtml(plan.audience)}</p>`), `${plan.id}: who it is for`);
+    assert.ok(card.includes(`data-plan-relationship="true">${asHtml(plan.relationship)}</p>`), `${plan.id}: what it holds, in one line`);
+    assert.deepEqual([...card.matchAll(/<li class="flex gap-2" data-plan-benefit="true"><span aria-hidden="true" class="text-brand-gold">·<\/span><span>([^<]*)<\/span><\/li>/g)].map((m) => m[1]), plan.benefits.map(asHtml), `${plan.id}: its three benefits`);
+    assert.equal(plan.benefits.length, 3);
+    // the price slot: while no price is set, the launch placeholder and the early-access door — both the leaf's words
+    assert.equal(slot.kind, plan.price.monthly === null ? 'unannounced' : 'announced');
+    if (slot.kind === 'unannounced') assert.ok(card.includes(`data-price-slot="unannounced" data-price-where="card">`) && card.includes(`data-price-placeholder="true">${asHtml(slot.text)}</span>`), `${plan.id}: the launch placeholder`);
+    // a link door draws the link — the page's one filled button class, the plan's id, the caller's href, the slot's words
+    const links = [...card.matchAll(/<a\b([^>]*)>([^<]*)<\/a>/g)];
+    assert.equal(links.length, 1, `${plan.id}: one door`);
+    assert.ok(links[0][1].includes('href="/"') && links[0][1].includes(`data-plan-cta="${plan.id}"`) && links[0][1].includes(`class="${PRIMARY_CTA}"`), `${plan.id}: the link door`);
+    assert.equal(links[0][2], asHtml(slot.cta), `${plan.id}: the door's words are its slot's`);
+    assert.equal(count(card, '<button'), 0, `${plan.id}: a link door draws no button`);
+  });
+  assert.equal(count(cards, LAUNCH_PLACEHOLDER), PLANS.filter((p) => p.price.monthly === null).length, 'the placeholder once per plan with no price');
+  // a button door: a real button per card, and a press calls back with that card's plan id
+  const pressed: string[] = [];
+  const buttonDoor = { kind: 'button', onClick: (planId: string) => { pressed.push(planId); } } as const;
+  const buttonCards = renderToStaticMarkup(React.createElement(PlanCards, { door: buttonDoor }));
+  for (const plan of PLANS) assert.equal(count(buttonCards, `<button type="button" class="${PRIMARY_CTA}" data-plan-cta="${plan.id}">${asHtml(priceSlot(plan).cta)}</button>`), 1, `${plan.id}: its button`);
+  assert.equal(count(buttonCards, '<a '), 0, 'a button door draws no link');
+  assert.equal(buttonCards.replace(/<button type="button" class="[^"]*" (data-plan-cta="[^"]*")>([^<]*)<\/button>/g, '<door $1>$2</door>'), cards.replace(/<a\b[^>]*(data-plan-cta="[^"]*")[^>]*>([^<]*)<\/a>/g, '<door $1>$2</door>'), 'the door aside, the two renders are the same cards');
+  const buttons = drawnElementsOf(PlanCards({ door: buttonDoor })).filter((el) => el.type === 'button');
+  assert.equal(buttons.length, PLANS.length, 'one button per card');
+  for (const b of buttons) (b.props.onClick as () => void)();
+  assert.deepEqual(pressed, PLANS.map((p) => p.id), 'each card\'s button calls the door with its own plan\'s id, in order');
+  // the source: the grid moved whole into the exported component, and the section renders it in its place
+  const src = code(PLANS_SECTION);
+  assert.equal(count(src, 'export function PlanCards({ door }: { door: PlanDoor }) {'), 1, 'exported from the plans section\'s own file');
+  assert.equal(count(src, '<PlanCards door={door} />'), 1, 'PlansSection renders it where the grid stood');
+  assert.equal(count(src, '<div className="mt-6 grid gap-4 lg:grid-cols-4">'), 1, 'the grid is typed once');
+  assert.equal(count(src, '<PriceSlot plan={plan} door={door} where="card" />'), 1, 'PriceSlot as it was');
+  assert.ok(src.indexOf('export function PlanCards(') < src.indexOf('export default function PlansSection('), 'the cards, then the section that mounts them');
+  // every string the plan law looks for in this file is still in it
+  for (const held of ['{plan.role}', 'priceSlot(plan)', 'slot.bestValue', 'BEST_VALUE_WORDS', 'data-plan-selector', 'data-plan-select={plan.id}', 'hidden lg:table-cell', 'cellState(', 'CELL_MARK[state]', "headingId = 'modules'",
+    'data-plan-audience', 'data-plan-relationship', 'data-column-audience', 'data-column-relationship', '{PLANS_HEADLINE}', '{PLANS_SUBHEAD}', 'travelFreeLine()', 'data-travel-free']) {
+    assert.ok(src.includes(held), `the plans section still carries ${held}`);
+  }
+});
+

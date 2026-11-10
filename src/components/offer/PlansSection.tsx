@@ -92,6 +92,47 @@ function PriceSlot({ plan, door, where }: { plan: Plan; door: PlanDoor; where: '
 }
 
 /**
+ * HOME-PLANS-01 (Alex, 2026-11-11 00:09: "Four plans. One comparison. Clean, polished, professional.") — THE FOUR
+ * CARDS, EXPORTED WHOLE. The grid stood inside PlansSection below; it moved here unchanged — every class, every data-
+ * hook, PriceSlot and Door as they are — so the home page's Plan Your Escape (src/components/landing/HowToSection.tsx)
+ * draws exactly the cards /pricing draws. PlansSection renders this where the grid stood, so /pricing draws what it drew.
+ * The door is the caller's: /pricing hands a link, the home page a button that opens sign-up.
+ */
+export function PlanCards({ door }: { door: PlanDoor }) {
+  return (
+    <div className="mt-6 grid gap-4 lg:grid-cols-4">
+      {PLANS.map((plan) => (
+        <div
+          key={plan.id}
+          className={`${CARD} ${plan.id === 'everything' ? 'border-brand-purple shadow-sm' : ''} ${plan.id === 'personal' ? 'border-brand-gold/60' : ''}`}
+          data-plan={plan.id}
+          data-plan-modules={plan.modules.join(' ')}
+        >
+          <div>
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint" data-plan-role>
+              {plan.role}
+            </p>
+            <h3 className="mt-1 text-lg font-semibold text-brand-purple" data-plan-name>{plan.name}</h3>
+            <p className="mt-1 text-sm text-text-primary" data-plan-positioning>{plan.positioning}</p>
+            <p className="mt-2 text-xs text-text-muted" data-plan-audience>{plan.audience}</p>
+            <p className="mt-1 text-xs text-text-secondary" data-plan-relationship>{plan.relationship}</p>
+          </div>
+          <ul className="space-y-1.5 text-sm text-text-secondary">
+            {plan.benefits.map((b) => (
+              <li key={b} className="flex gap-2" data-plan-benefit>
+                <span aria-hidden="true" className="text-brand-gold">·</span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+          <PriceSlot plan={plan} door={door} where="card" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
  * One cell: the mark the leaf's mapping chose for this plan and this row. The
  * plan is passed whole — a plan IS its module set (OFFER-03), and the cell is set
  * membership, not a position on a ladder.
@@ -146,35 +187,7 @@ export default function PlansSection({ door, headingId = 'modules' }: {
             the two modules read as what they add to it; the bundle closes the row in
             the aubergine frame. At 390px they stack in that order (grid, one column).
             Every word is the leaf's. */}
-        <div className="mt-6 grid gap-4 lg:grid-cols-4">
-          {PLANS.map((plan) => (
-            <div
-              key={plan.id}
-              className={`${CARD} ${plan.id === 'everything' ? 'border-brand-purple shadow-sm' : ''} ${plan.id === 'personal' ? 'border-brand-gold/60' : ''}`}
-              data-plan={plan.id}
-              data-plan-modules={plan.modules.join(' ')}
-            >
-              <div>
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint" data-plan-role>
-                  {plan.role}
-                </p>
-                <h3 className="mt-1 text-lg font-semibold text-brand-purple" data-plan-name>{plan.name}</h3>
-                <p className="mt-1 text-sm text-text-primary" data-plan-positioning>{plan.positioning}</p>
-                <p className="mt-2 text-xs text-text-muted" data-plan-audience>{plan.audience}</p>
-                <p className="mt-1 text-xs text-text-secondary" data-plan-relationship>{plan.relationship}</p>
-              </div>
-              <ul className="space-y-1.5 text-sm text-text-secondary">
-                {plan.benefits.map((b) => (
-                  <li key={b} className="flex gap-2" data-plan-benefit>
-                    <span aria-hidden="true" className="text-brand-gold">·</span>
-                    <span>{b}</span>
-                  </li>
-                ))}
-              </ul>
-              <PriceSlot plan={plan} door={door} where="card" />
-            </div>
-          ))}
-        </div>
+        <PlanCards door={door} />
 
         {/* TRAVEL's free line — once, under the cards, from the registry's own row. */}
         {freeLine && <p className="mt-4 text-[13px] text-text-secondary" data-travel-free>{freeLine}</p>}
