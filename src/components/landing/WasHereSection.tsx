@@ -62,9 +62,10 @@ import { stopCostRows, tripPostHref } from '@/lib/tripPostWords';
 
 /** The act's anchor. FOOTER-01 (2026-11-09): its one home is src/lib/homeAnchors.ts — imported back here, still exported from here. */
 import { MY_TRIP_ANCHOR } from '@/lib/homeAnchors';
+import { OUR_STORY_HEADING } from '@/lib/homeActWords';
 export { MY_TRIP_ANCHOR };
 export const MY_TRIP_EYEBROW = 'MY TRIP';
-export const MY_TRIP_HEADLINE = "Where I've been, and where I'm going.";
+export const MY_TRIP_HEADLINE = OUR_STORY_HEADING; // HOME-ORDER-01 (Alex, 2026-11-10): the heading's words, from src/lib/homeActWords.ts — "Where I've been, and where I'm going." stood here until then
 export const MY_TRIP_LINE = "Stop by stop, dated, with the whole story where I've written it up.";
 /** TRIPPOST-01: the card's link to its stop's page. */
 export const READ_THE_POST = 'Read the post →';

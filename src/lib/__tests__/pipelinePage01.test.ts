@@ -10,7 +10,8 @@
  *      every export still exported; it renders the header and fourteen collapsed steps, the header's sub from the leaf;
  *   T3 the page mounts LandingHeader, PipelineDeck and LandingFooter once each, in that order; its title and description
  *      come from the words leaf, the description the header's own sub; nothing lives under the route but the page;
- *   T4 the door: one cream act where the header stood (after the plans mount), one link — href PIPELINE_PATH
+ *   T4 the door: one cream act where the header stood (HOME-ORDER-01, 2026-11-10: directly after the MY TRIP mount —
+ *      directly after the plans mount until then), one link — href PIPELINE_PATH
  *      ('/how-it-works'), words PIPELINE_DOOR, class PRIMARY_CTA — neither typed in Landing.tsx;
  *   T5 the old links: the home page's one effect sends exactly #deck-01 … #deck-14 to /how-it-works with that hash, by
  *      window.location.replace, and nothing else;
@@ -44,6 +45,7 @@ const LAW = 'scripts/assert-tool-registry.ts';
 
 const FOURTEEN = ['deck-01', 'deck-02', 'deck-03', 'deck-04', 'deck-05', 'deck-06', 'deck-07', 'deck-08', 'deck-09', 'deck-10', 'deck-11', 'deck-12', 'deck-13', 'deck-14'];
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />";
+const MY_TRIP_MOUNT = '<WasHereSection today={today} />'; // HOME-ORDER-01 (2026-11-10): the door's upper neighbour
 const DOOR_OPEN = '<section aria-label="How it all connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">';
 const DOOR_LINK = '<Link href={PIPELINE_PATH} className={PRIMARY_CTA}>{PIPELINE_DOOR}</Link>';
 const BUILT_ON_OPEN = '<section className="w-full border-y border-border bg-bg-terminal">';
@@ -123,16 +125,19 @@ test('T3 /how-it-works mounts LandingHeader, PipelineDeck and LandingFooter once
 
 // ── T4 · THE DOOR ────────────────────────────────────────────────────────────
 
-test('T4 the door: one cream act after the plans mount, one link — PIPELINE_PATH, PIPELINE_DOOR, PRIMARY_CTA — none of it typed in Landing.tsx', () => {
+test('T4 the door: one cream act directly after MY TRIP (HOME-ORDER-01, 2026-11-10), one link — PIPELINE_PATH, PIPELINE_DOOR, PRIMARY_CTA — none of it typed in Landing.tsx', () => {
   const landing = code(LANDING);
   assert.equal(PIPELINE_PATH, '/how-it-works');
   assert.equal(PIPELINE_DOOR, 'How it all connects: the 14 steps →');
   assert.equal(count(landing, DOOR_OPEN), 1, 'the act, once, in the house idiom');
   assert.equal(count(landing, DOOR_LINK), 1, 'the link, once');
+  // HOME-ORDER-01 (2026-11-10): Alex's order — MY TRIP sits directly above the door now. Until then the plans mount did ('the plans mount → the door: a
+  // comment between, nothing else'); the plans are still above the door, no longer its neighbour.
   const plans = landing.indexOf(PLANS_MOUNT);
+  const myTrip = landing.indexOf(MY_TRIP_MOUNT);
   const door = landing.indexOf(DOOR_OPEN);
-  assert.ok(plans > -1 && door > plans, 'after the plans mount');
-  assert.match(landing.slice(plans + PLANS_MOUNT.length, door), ONLY_COMMENTS, 'the plans mount → the door: a comment between, nothing else');
+  assert.ok(plans > -1 && myTrip > plans && door > myTrip, 'after the plans mount and MY TRIP');
+  assert.match(landing.slice(myTrip + MY_TRIP_MOUNT.length, door), ONLY_COMMENTS, 'my trip → the door: a comment between, nothing else');
   const doorEnd = landing.indexOf('</section>', door);
   assert.equal(landing.slice(door + DOOR_OPEN.length, doorEnd).trim(), DOOR_LINK, 'the act holds the one link and nothing else');
   assert.match(landing, /^import \{ PIPELINE_DOOR, PIPELINE_PATH \} from '\.\/pipelineWords';$/m);

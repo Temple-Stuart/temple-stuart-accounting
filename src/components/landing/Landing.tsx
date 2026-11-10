@@ -9,18 +9,18 @@
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
  *   EXPERIENCES         — the events section under the strip (EVENTS-01); under it, above MY TRIP, STOP 0 — Alex's letter and how he got here (StopZeroSection — STOP0-01, 2026-11-09: named on this line, so the act list gains no line)
- *   MY TRIP             — the trip log, a card per stop, each opening its stop's page (TRIPCARDS-01)
  *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
  *                         renders only when records exist
+ *   THE PLANS           — four plan cards and one comparison table
+ *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
+ *                         the section carries id="modules"
  *   DONE-FOR-YOU        — the professional-services panel, six doors from src/lib/proposalNeeds.ts — SERVICES-01, 2026-11-08: the close retired, bookkeeping a door (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)
  *   (COCKPIT-PERF-01, 2026-10-27: the PERSONAS act — "one system · six lives" —
  *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
  *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
  *   with THE PLANS.)
  *   (THE CLOSE          — HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal)
- *   THE PLANS           — four plan cards and one comparison table
- *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
- *                         the section carries id="modules"
+ *   MY TRIP             — the trip log, a card per stop, each opening its stop's page (TRIPCARDS-01)
  *   HOW IT ALL CONNECTS — the door to the 14 steps (PIPELINE-PAGE-01, 2026-11-09: in the seat THE PIPELINE header held, PR-CHROME — the header and the fourteen steps moved whole to their own page, /how-it-works, PipelineDeck.tsx; the fourteen lines below name the steps behind the door)
  *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
@@ -212,6 +212,7 @@ import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { DECK_STEP_IDS } from './pipelineWords';
 import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';
 import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it
+import { WHAT_WE_DO_HEADING } from '@/lib/homeActWords';
 import { COMMISSION_LINE } from '@/lib/disclosureWords'; // BOOK-DISCLOSE-01 (2026-11-08): the commission line under the booking box — its words from the leaf, never typed here
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
 // OFFER-01 (2026-09-23): the landing no longer renders OfferCard, heroCountsLine,
@@ -556,6 +557,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           ledger warns about. Closing from below also single-rules the
           GuestTripStrip case — see the ledger on the problem section. */}
       <section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">
+        <h2 className="pt-8 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
         {/* LANDING-V2 (spec :96-97): the demo's numbered eyebrow row — 03,
             label otherwise verbatim; right slot = the existing /modules/travel
             door. */}
@@ -601,21 +603,35 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             down so nothing here reads the clock. ───────────────────────────────── */}
       <ExperiencesSection today={today} />
 
-      {/* ── STOP0-01 (Alex, 2026-11-08 15:11 + 16:18; board K tag 8): STOP 0 — Alex's letter in his
-            own words and a short dated timeline of how he got here, between the experiences and
-            MY TRIP; every visible word from src/lib/stopZeroWords.ts. A cream act with its own border-b,
-            id="stop-0" — the events band's "Read my story ↓" (K tag 7) points at it. ──────── */}
-      <StopZeroSection />
-
-      {/* ── WASHERE-01 (Alex, 2026-10-31): MY TRIP — the trip log, in trip order, built for
-            photos. The card EVENTS-01 pinned inside the experiences lives here now: the
-            events filter serves the reader; "I was here" is Alex's own trip. A cream act
-            with its own border-b (the DONE-FOR-YOU idiom), id="my-trip". ───────────── */}
-      <WasHereSection today={today} />
-
       {/* ── BOOK-3: the guest's session trip — renders only when records
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
+
+      {/* ── HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story"): THE ORDER of this page is
+            Alex's of 2026-11-10 — under the hero: travel booking, the events, the guest's strip when a guest has one,
+            the plans, the professional services (together under the "What We Do" heading, the travel block's first
+            child); then Stop 0; then the trip cards under "Our Story"; then the door to the 14 steps. Both headings
+            come from src/lib/homeActWords.ts. Each block that moved, moved WHOLE with the comment above it,
+            byte-identical, so the older seat notes — in those comments and in the act list above — are history:
+            each says where its block sat on the day it was written, not where it sits now. ─────────────────── */}
+      {/* ── OFFER-01 (2026-09-23): THE PLANS — what replaced TWO acts here.
+            GONE, and re-created nowhere on this page:
+              · ACT 2, the six-row persona grid headed "ONE SYSTEM · SIX LIVES"
+                with its "Who is this for?" hook — a visitor had to pick a life
+                before the page told them what they could buy;
+              · the SELL-02 offer act — two <OfferCard/>s (Books · Everything)
+                whose every tool wore the registry STATUS CHIP and the loop's own
+                beat vocabulary ("partial — discover · decide"), under a second
+                copy of the hero's registry count, over freeSetLine()'s "the
+                registry's live tools with no tab gate".
+            In their place: three cumulative plan cards and ONE comparison table
+            of collapsed capability groups, every word and every cell derived in
+            src/lib/offer/plans.ts. id="modules" RIDES ON — the Stripe cancel_url
+            (checkout-entitlement/route.ts:71), the /modules access block and
+            /pricing all resolve to it, so the anchor moves with the section, not
+            away from it. The door is the sign-up modal: no price is set, so the
+            slot says so and the button joins early access. ─────────────────── */}
+      <PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />
 
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own section — no right slot. Body = the PROFESSIONAL SERVICES
@@ -703,24 +719,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
         </div>
       </section>
 
-      {/* ── OFFER-01 (2026-09-23): THE PLANS — what replaced TWO acts here.
-            GONE, and re-created nowhere on this page:
-              · ACT 2, the six-row persona grid headed "ONE SYSTEM · SIX LIVES"
-                with its "Who is this for?" hook — a visitor had to pick a life
-                before the page told them what they could buy;
-              · the SELL-02 offer act — two <OfferCard/>s (Books · Everything)
-                whose every tool wore the registry STATUS CHIP and the loop's own
-                beat vocabulary ("partial — discover · decide"), under a second
-                copy of the hero's registry count, over freeSetLine()'s "the
-                registry's live tools with no tab gate".
-            In their place: three cumulative plan cards and ONE comparison table
-            of collapsed capability groups, every word and every cell derived in
-            src/lib/offer/plans.ts. id="modules" RIDES ON — the Stripe cancel_url
-            (checkout-entitlement/route.ts:71), the /modules access block and
-            /pricing all resolve to it, so the anchor moves with the section, not
-            away from it. The door is the sign-up modal: no price is set, so the
-            slot says so and the button joins early access. ─────────────────── */}
-      <PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />
+      {/* ── STOP0-01 (Alex, 2026-11-08 15:11 + 16:18; board K tag 8): STOP 0 — Alex's letter in his
+            own words and a short dated timeline of how he got here, between the experiences and
+            MY TRIP; every visible word from src/lib/stopZeroWords.ts. A cream act with its own border-b,
+            id="stop-0" — the events band's "Read my story ↓" (K tag 7) points at it. ──────── */}
+      <StopZeroSection />
+
+      {/* ── WASHERE-01 (Alex, 2026-10-31): MY TRIP — the trip log, in trip order, built for
+            photos. The card EVENTS-01 pinned inside the experiences lives here now: the
+            events filter serves the reader; "I was here" is Alex's own trip. A cream act
+            with its own border-b (the DONE-FOR-YOU idiom), id="my-trip". ───────────── */}
+      <WasHereSection today={today} />
 
       {/* ── PIPELINE-PAGE-01 (Alex, ruled 2026-10-30; 2026-11-08 15:11 "my holy grail"; board K): HOW IT ALL
             CONNECTS — the door to the 14 steps, in the seat THE PIPELINE header held. The header and its fourteen
