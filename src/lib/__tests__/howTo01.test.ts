@@ -16,7 +16,8 @@
  *      the two switches, every tool's mark as the registry has it;
  *   T5 the source — the section types no status, no plan name, no price and none of the leaf's words; two switches in
  *      React state only; the leaf is pure;
- *   T6 Landing mounts the section once, in the seat the plans held — under the guest's strip, above the services section.
+ *   T6 Landing mounts the section once — first under "What We Do" (HOME-FINISH-02; under the guest's strip until then),
+ *      above the services section.
  * Source is read through code() only (the reader law). No count is typed: each is computed. No clock, no live call.
  *
  * HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03: "the how-to should replace software plans … cards should be horizontal
@@ -339,21 +340,24 @@ test('T5 the section types no status, no plan name, no price and none of the lea
 
 // ── T6 · THE SEAT ────────────────────────────────────────────────────────────
 
-test('T6 Landing mounts the how-to once, with the door — in the seat the plans held: under the guest\'s strip and above the services section, a comment between each; the plans are mounted nowhere on the page', () => {
+test('T6 Landing mounts the how-to once, with the door — first under "What We Do" (HOME-FINISH-02) and above the services section, comments between each; the plans are mounted nowhere on the page', () => {
   const landing = code(LANDING);
   const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the how-to IS the Software Plans — the plans mount ("<PlansSection door={{ kind: 'button', onClick: () =>
   // onRequireAuth() }} />") left the page, and the how-to, mounted bare ('<HowToSection />') directly under it until then, takes its seat and its door.
-  const GUEST_STRIP = '<GuestTripStrip onRequireAuth={onRequireAuth} />';
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — the how-to is the first pillar, directly under the "What We Do" heading, which
+  // stands alone in the page's container. Until then its upper neighbour was the guest's strip ('<GuestTripStrip onRequireAuth={onRequireAuth} />':
+  // "the guest's strip → the how-to → the services section", a comment between each).
+  const HEADING_BOX = '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">\n        <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>';
   const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />';
   const SERVICES_OPEN = '<section className="w-full border-b border-border bg-bg-terminal">';
-  for (const s of [GUEST_STRIP, HOW_TO, SERVICES_OPEN]) assert.equal(count(landing, s), 1, `${s} once`);
+  for (const s of [HEADING_BOX, HOW_TO, SERVICES_OPEN]) assert.equal(count(landing, s), 1, `${s} once`);
   assert.equal(count(landing, '<HowToSection'), 1);
   assert.equal(count(landing, 'PlansSection'), 0, 'the plans section is neither imported nor mounted here — /pricing keeps it');
   assert.match(landing, /^import HowToSection from '\.\/HowToSection';$/m);
-  const [strip, howTo, services] = [GUEST_STRIP, HOW_TO, SERVICES_OPEN].map((s) => landing.indexOf(s));
-  assert.ok(strip > -1 && howTo > strip && services > howTo, 'the guest\'s strip → the how-to → the services section');
-  assert.match(landing.slice(strip + GUEST_STRIP.length, howTo), ONLY_COMMENTS, 'the guest\'s strip → the how-to: a comment between, nothing else');
+  const [heading, howTo, services] = [HEADING_BOX, HOW_TO, SERVICES_OPEN].map((s) => landing.indexOf(s));
+  assert.ok(heading > -1 && howTo > heading && services > howTo, '"What We Do" → the how-to → the services section');
+  assert.match(landing.slice(heading + HEADING_BOX.length, howTo), ONLY_COMMENTS, '"What We Do" → the how-to: comments between, nothing else');
   assert.match(landing.slice(howTo + HOW_TO.length, services), ONLY_COMMENTS, 'the how-to → the services section: a comment between, nothing else');
   // /pricing still mounts the plans, under its own anchor
   assert.match(code('src/app/pricing/page.tsx'), /<PlansSection [^>]*headingId="plans"/, '/pricing keeps the four plans and the table');

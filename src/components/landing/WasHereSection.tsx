@@ -75,7 +75,7 @@ const TRIP = {
   act: 'w-full border-b border-border bg-bg-terminal',
   inner: 'max-w-7xl mx-auto px-4 lg:px-8 py-10',
   eyebrow: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  h2: 'mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',
+  h2: 'mt-3 text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold', // HOME-FINISH-02 (Alex, 2026-11-10 20:56): a section heading, in gold and one size up ('text-2xl sm:text-3xl … text-brand-purple' until then) — gold on the cream is large type only
   sub: 'mt-2 text-sm text-text-secondary',
   // TRIPCARDS-01 (2026-11-06): one row that scrolls sideways, edge to edge of the act's box —
   // the negative margin meets the inner padding, so the page never scrolls; the thumb is drawn.

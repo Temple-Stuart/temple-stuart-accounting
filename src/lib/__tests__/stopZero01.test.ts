@@ -41,7 +41,8 @@ const LANDING = 'src/components/landing/Landing.tsx';
 const EXPERIENCES_MOUNT = '<ExperiencesSection today={today} />';
 const STOP_ZERO_MOUNT = '<StopZeroSection />';
 const MY_TRIP_MOUNT = '<WasHereSection today={today} />';
-const DONE_FOR_YOU_OPEN = '<section className="w-full border-b border-border bg-bg-terminal">'; // HOME-ORDER-01 (2026-11-10): Stop 0's upper neighbour
+const DONE_FOR_YOU_OPEN = '<section className="w-full border-b border-border bg-bg-terminal">'; // HOME-ORDER-01 (2026-11-10): Stop 0's upper neighbour — until HOME-FINISH-02
+const GUEST_STRIP_MOUNT = '<GuestTripStrip onRequireAuth={onRequireAuth} />'; // HOME-FINISH-02 (2026-11-10): Stop 0's upper neighbour now
 /** code() blanks a JSX comment's words and keeps its braces. */
 const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
 
@@ -117,7 +118,8 @@ test('T3 the section renders id="stop-0" once, the h2 "About Us", the place, the
   const html = renderToStaticMarkup(React.createElement(StopZeroSection));
   const head = `<section id="${STOP_ZERO_ANCHOR}" aria-label="About us" class="w-full border-b border-border bg-bg-terminal"><div class="max-w-7xl mx-auto px-4 lg:px-8 py-10 lg:py-14">`;
   const top = [
-    `<h2 class="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">${ABOUT_US_HEADING}</h2>`,
+    // HOME-FINISH-02 (Alex, 2026-11-10 20:56): a section heading — gold, one size up ('mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple' until then)
+    `<h2 class="mt-3 text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold">${ABOUT_US_HEADING}</h2>`,
     `<p class="mt-3 text-sm font-semibold text-text-primary">${asHtml(STOP_ZERO_PLACE)}</p>`,
     `<p class="mt-1 text-sm italic text-text-secondary">${asHtml(STOP_ZERO_DATES)}</p>`,
   ].join('');
@@ -172,20 +174,23 @@ test('T4 the section and the band type none of the words; the section holds no s
 
 // ── T5 · LANDING ─────────────────────────────────────────────────────────────
 
-test('T5 Landing mounts the section once, directly between DONE-FOR-YOU and MY TRIP (HOME-ORDER-01, 2026-11-10), and its import rides the ExperiencesSection import\'s line', () => {
+test('T5 Landing mounts the section once, directly between the guest\'s strip and MY TRIP (HOME-FINISH-02, 2026-11-10), and its import rides the ExperiencesSection import\'s line', () => {
   const landing = code(LANDING);
   assert.equal(count(landing, STOP_ZERO_MOUNT), 1, 'mounted once');
   assert.equal(count(landing, '<StopZeroSection'), 1);
   // HOME-ORDER-01 (2026-11-10): Alex's order — Stop 0 sits directly under the DONE-FOR-YOU section now, still directly above MY TRIP. Until then it sat
   // directly under the experiences mount ('the experiences → stop 0: a comment between, nothing else').
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — DONE-FOR-YOU moved above the travel block, so Stop 0 sits directly under the
+  // guest's strip now. Until then: 'experiences → … → DONE-FOR-YOU → stop 0 → my trip', with "DONE-FOR-YOU's </section> → stop 0: a comment between".
   const experiences = landing.indexOf(EXPERIENCES_MOUNT);
   assert.equal(count(landing, DONE_FOR_YOU_OPEN), 1, 'the DONE-FOR-YOU section, once');
   const doneForYou = landing.indexOf(DONE_FOR_YOU_OPEN);
-  const doneForYouEnd = landing.indexOf('</section>', doneForYou) + '</section>'.length;
+  assert.equal(count(landing, GUEST_STRIP_MOUNT), 1, 'the guest\'s strip, once');
+  const strip = landing.indexOf(GUEST_STRIP_MOUNT);
   const stopZero = landing.indexOf(STOP_ZERO_MOUNT);
   const myTrip = landing.indexOf(MY_TRIP_MOUNT);
-  assert.ok(experiences > -1 && doneForYou > experiences && doneForYouEnd > doneForYou && stopZero > doneForYouEnd && myTrip > stopZero, 'experiences → … → DONE-FOR-YOU → stop 0 → my trip');
-  assert.match(landing.slice(doneForYouEnd, stopZero), ONLY_COMMENTS, "DONE-FOR-YOU's </section> → stop 0: a comment between, nothing else");
+  assert.ok(doneForYou > -1 && experiences > doneForYou && strip > experiences && stopZero > strip && myTrip > stopZero, 'DONE-FOR-YOU → experiences → the guest\'s strip → stop 0 → my trip');
+  assert.match(landing.slice(strip + GUEST_STRIP_MOUNT.length, stopZero), ONLY_COMMENTS, "the guest's strip → stop 0: a comment between, nothing else");
   assert.match(landing.slice(stopZero + STOP_ZERO_MOUNT.length, myTrip), ONLY_COMMENTS, 'stop 0 → my trip: a comment between, nothing else');
   const imports = landing.split('\n').filter((l) => l.includes("import StopZeroSection from './StopZeroSection';"));
   assert.equal(imports.length, 1, 'imported once');

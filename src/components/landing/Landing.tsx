@@ -7,11 +7,7 @@
  *
  * THE ACTS, in document order:
  *   hero (full-bleed aubergine band)
- *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
- *   EXPERIENCES         — the events section under the strip (EVENTS-01); under it, above MY TRIP, STOP 0 — Alex's letter and how he got here (StopZeroSection — STOP0-01, 2026-11-09: named on this line, so the act list gains no line)
- *                         (HOME-BRIEF-04, 2026-11-10: no band of its own any more — the experiences are the booking box's Events panel, first in the row and open, inside the travel block above; mounted once, handed to LandingBookingSection as its events prop)
- *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
- *                         renders only when records exist
+ *   (HOME-FINISH-02, 2026-11-10: THE ORDER IS PLAN → BUILD → EXPLORE — "What We Do" stands alone over THE PLANS, then DONE-FOR-YOU, then LIVE DEMO — TRAVEL with the experiences in its box and THE GUEST'S TRIP under it. The lines below were re-ordered, their words unchanged; until then the list ran LIVE DEMO — TRAVEL, EXPERIENCES, THE GUEST'S TRIP, THE PLANS, DONE-FOR-YOU. Stop 0, named on the EXPERIENCES line, still sits above MY TRIP.)
  *   THE PLANS           — four plan cards and one comparison table
  *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
  *                         the section carries id="modules"
@@ -22,6 +18,11 @@
  *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
  *   with THE PLANS.)
  *   (THE CLOSE          — HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal)
+ *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
+ *   EXPERIENCES         — the events section under the strip (EVENTS-01); under it, above MY TRIP, STOP 0 — Alex's letter and how he got here (StopZeroSection — STOP0-01, 2026-11-09: named on this line, so the act list gains no line)
+ *                         (HOME-BRIEF-04, 2026-11-10: no band of its own any more — the experiences are the booking box's Events panel, first in the row and open, inside the travel block above; mounted once, handed to LandingBookingSection as its events prop)
+ *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
+ *                         renders only when records exist
  *   MY TRIP             — the trip log, a card per stop, each opening its stop's page (TRIPCARDS-01)
  *   HOW IT ALL CONNECTS — the door to the 14 steps (PIPELINE-PAGE-01, 2026-11-09: in the seat THE PIPELINE header held, PR-CHROME — the header and the fourteen steps moved whole to their own page, /how-it-works, PipelineDeck.tsx; the fourteen lines below name the steps behind the door)
  *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
@@ -531,97 +532,18 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
         </div>
       </section>
 
-      {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
-            where the teaser sat (directly under the CTA row; pre-BOOK-1
-            Landing.tsx:325-328). Full content width — the strip holds
-            whole booking surfaces + result rows, not just a form.
-            REPAINT-2: the mount moved OUT of the hero section (one JSX seat
-            down, same props, zero wiring) — the hero is a solid aubergine
-            band now, so the strip sits on the cream page where its own
-            aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
-            the strip's INTERIOR (travel pickers/results) stays dark until
-            Slice 4's trips pass. */}
-      {/* DEMO-SECTION (390 audit finding 8): div → section + aria-label so
-          the demo region is a real landmark. Classes carried verbatim —
-          Tailwind utilities are tag-agnostic and nothing selects div#demo
-          (both ids here are href targets only).
-
-          ANCHOR: id="modules" MOVED to the offer act (SELL-02) — the Stripe checkout
-          cancel_url (api/stripe/checkout-entitlement/route.ts), the shopping View
-          Plans button (app/shopping/page.tsx) and the /pricing and /modules doors
-          resolve to the OFFER now, not to this demo.
-          id="demo" is NOT dropped — an element carries one id, so it sits on
-          the eyebrow row a few px below. It has no href pointing at it in src/
-          today (the nav's Live-demo link retired, LandingHeader.tsx:35), but an
-          external bookmark costs nothing to keep alive.
-          FOOTER-01 (2026-11-09): the id is DEMO_ANCHOR now (src/lib/homeAnchors.ts), and two links land on it — the footer's "Book travel" and the trip page's "Book the stay and the flight" (TripPostView.tsx BOOK_HREF, since TRIPPOST-01) — so "no href pointing at it" above is history.
-
-          UNNUMBERED BY RULING: this is a live surface, not a step in the
-          teaching sequence, so the eyebrow reads LIVE DEMO — TRAVEL with no
-          number. The numbered acts start below it at 01.
-
-          SEAM: border-b, and it closes from BELOW on purpose. Above is the
-          hero, whose aubergine-to-cream edge is the page's one deliberate
-          zero-rule boundary, so a border-t here would be the defect the seam
-          ledger warns about. Closing from below also single-rules the
-          GuestTripStrip case — see the ledger on the problem section. */}
-      <section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">
-        <h2 className="pt-8 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
-        {/* LANDING-V2 (spec :96-97): the demo's numbered eyebrow row — 03,
-            label otherwise verbatim; right slot = the existing /modules/travel
-            door. HOME-BRIEF-02 (Alex, 2026-11-10): the label reads TRAVEL BOOKING & EXPERIENCES now;
-            "LIVE DEMO — TRAVEL" in the older notes and in the act list is its name until then. */}
-        <div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">
-          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">TRAVEL BOOKING &amp; EXPERIENCES</p>
-          <Link href="/modules/travel" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
-            EXPLORE TRAVEL →
-          </Link>
-        </div>
-        {/* HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15 "what about the consolidation"): ONE HEADER for travel booking and the
-            experiences — the experience line on one line (EXPERIENCE_LINE, src/lib/brandLines.ts), the promise under it (PROMISE,
-            ./ExperiencesSection), then this block's own sentence, word for word. That sentence was this block's h2 until then
-            (LANDING-V3, spec :99), and the line and the promise headed the band below, which now starts at its label and chips.
-            HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): THE BAND IS GONE — the experiences are INSIDE the booking box below,
-            the panel of its Events tab, first in the row and open. This page hands the catalog to the box as its events prop
-            (LandingBookingSection.tsx puts the builder's Events mode first with it as the panel); it is still mounted exactly
-            once, with the server's UTC day, and still carries id="events". EVENTS-01's own mount (2026-10-30 — a full-bleed
-            aubergine band directly under this section, between it and the guest's strip) and the note that seated it left
-            that seat: every row still comes from src/lib/experiences.ts, dated from its own calendar with the day checked,
-            and the one filter still lives in the URL (?into=). */}
-        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPERIENCE_LINE.join(' ')}</h2>
-        <p className="mt-2 text-lg font-semibold text-text-primary">{PROMISE}</p>
-        <p className="mt-2 text-sm text-text-secondary">
-          Search &amp; book travel — free today, no account needed.
-        </p>
-        <LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />
-        <p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>
-        {/* GUEST-01 (2026-09-29; Alex's ruling 17:04): the door back for a guest who booked
-            without an account — the one lookup box (src/components/guest/GuestBookingLookup.tsx),
-            the reference and the manage code from their booking email. It asks nothing on
-            load; a match goes to /booking/manage, which shows the booking. */}
-        <div className="mt-6 border-t border-border-light pt-4" data-guest-lookup-home>
-          <GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />
-        </div>
-        {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
-            spec's own strings verbatim (the left line already lives in
-            the retired SUMMARY_BY_ID's travel lines (git history); NO ACCOUNT NEEDED is the spec's mono
-            right slot). HOME-BRIEF-03 (Alex, 2026-11-10): the second span — an account saves your trips
-            (SAVE_TRIPS_LINE, src/lib/homeActWords.ts), in the first span's own classes. */}
-        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
-          <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
-          <span className="text-[13px] text-text-faint">{SAVE_TRIPS_LINE}</span>
-          <span className="font-mono text-xs lg:text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
-        </div>
-      </section>
-      {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
-          badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
-          row below the strip is gone; the both-surfaces-at-once light-up
-          ruling now holds at chip level via the shared builder. */}
-
-      {/* ── BOOK-3: the guest's session trip — renders only when records
-            exist (fail-honest empty state = nothing). ─────────────────────── */}
-      <GuestTripStrip onRequireAuth={onRequireAuth} />
-
+      {/* ── HOME-FINISH-02 (Alex's brief "HOME-FINISH | Temple Stuart Homepage Copy, Layout & Footer", 2026-11-10 20:56):
+            THE ORDER under the hero is PLAN → BUILD → EXPLORE. "What We Do" stands alone, in gold and one size up, over
+            the three pillars: the plans (the how-to), the professional services, then travel booking with the events —
+            and the guest's strip when a guest has one. Then Stop 0 under "About Us", the trip cards under "Our Story".
+            Until then the heading was the travel block's first child, in the page's purple heading classes, and the
+            order was travel → the guest's strip → the plans → the services (HOME-ORDER-01's note, kept below, and the
+            seat notes on each block are history: each says where its block sat on the day it was written). Each block
+            moved WHOLE with the note above it, byte for byte; only this heading left its block. brand-gold on the cream
+            is about 3.1:1 — large type only, which is why the size went up with the colour. ─────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">
+        <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
+      </div>
       {/* ── HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story"): THE ORDER of this page is
             Alex's of 2026-11-10 — under the hero: travel booking, the events, the guest's strip when a guest has one,
             the plans, the professional services (together under the "What We Do" heading, the travel block's first
@@ -730,6 +652,96 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           </div>
         </div>
       </section>
+
+      {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
+            where the teaser sat (directly under the CTA row; pre-BOOK-1
+            Landing.tsx:325-328). Full content width — the strip holds
+            whole booking surfaces + result rows, not just a form.
+            REPAINT-2: the mount moved OUT of the hero section (one JSX seat
+            down, same props, zero wiring) — the hero is a solid aubergine
+            band now, so the strip sits on the cream page where its own
+            aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
+            the strip's INTERIOR (travel pickers/results) stays dark until
+            Slice 4's trips pass. */}
+      {/* DEMO-SECTION (390 audit finding 8): div → section + aria-label so
+          the demo region is a real landmark. Classes carried verbatim —
+          Tailwind utilities are tag-agnostic and nothing selects div#demo
+          (both ids here are href targets only).
+
+          ANCHOR: id="modules" MOVED to the offer act (SELL-02) — the Stripe checkout
+          cancel_url (api/stripe/checkout-entitlement/route.ts), the shopping View
+          Plans button (app/shopping/page.tsx) and the /pricing and /modules doors
+          resolve to the OFFER now, not to this demo.
+          id="demo" is NOT dropped — an element carries one id, so it sits on
+          the eyebrow row a few px below. It has no href pointing at it in src/
+          today (the nav's Live-demo link retired, LandingHeader.tsx:35), but an
+          external bookmark costs nothing to keep alive.
+          FOOTER-01 (2026-11-09): the id is DEMO_ANCHOR now (src/lib/homeAnchors.ts), and two links land on it — the footer's "Book travel" and the trip page's "Book the stay and the flight" (TripPostView.tsx BOOK_HREF, since TRIPPOST-01) — so "no href pointing at it" above is history.
+
+          UNNUMBERED BY RULING: this is a live surface, not a step in the
+          teaching sequence, so the eyebrow reads LIVE DEMO — TRAVEL with no
+          number. The numbered acts start below it at 01.
+
+          SEAM: border-b, and it closes from BELOW on purpose. Above is the
+          hero, whose aubergine-to-cream edge is the page's one deliberate
+          zero-rule boundary, so a border-t here would be the defect the seam
+          ledger warns about. Closing from below also single-rules the
+          GuestTripStrip case — see the ledger on the problem section. */}
+      <section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">
+        {/* LANDING-V2 (spec :96-97): the demo's numbered eyebrow row — 03,
+            label otherwise verbatim; right slot = the existing /modules/travel
+            door. HOME-BRIEF-02 (Alex, 2026-11-10): the label reads TRAVEL BOOKING & EXPERIENCES now;
+            "LIVE DEMO — TRAVEL" in the older notes and in the act list is its name until then. */}
+        <div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">
+          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">TRAVEL BOOKING &amp; EXPERIENCES</p>
+          <Link href="/modules/travel" className="font-mono text-xs lg:text-[10px] tracking-wider text-brand-purple hover:text-brand-purple-hover">
+            EXPLORE TRAVEL →
+          </Link>
+        </div>
+        {/* HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15 "what about the consolidation"): ONE HEADER for travel booking and the
+            experiences — the experience line on one line (EXPERIENCE_LINE, src/lib/brandLines.ts), the promise under it (PROMISE,
+            ./ExperiencesSection), then this block's own sentence, word for word. That sentence was this block's h2 until then
+            (LANDING-V3, spec :99), and the line and the promise headed the band below, which now starts at its label and chips.
+            HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): THE BAND IS GONE — the experiences are INSIDE the booking box below,
+            the panel of its Events tab, first in the row and open. This page hands the catalog to the box as its events prop
+            (LandingBookingSection.tsx puts the builder's Events mode first with it as the panel); it is still mounted exactly
+            once, with the server's UTC day, and still carries id="events". EVENTS-01's own mount (2026-10-30 — a full-bleed
+            aubergine band directly under this section, between it and the guest's strip) and the note that seated it left
+            that seat: every row still comes from src/lib/experiences.ts, dated from its own calendar with the day checked,
+            and the one filter still lives in the URL (?into=). */}
+        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPERIENCE_LINE.join(' ')}</h2>
+        <p className="mt-2 text-lg font-semibold text-text-primary">{PROMISE}</p>
+        <p className="mt-2 text-sm text-text-secondary">
+          Search &amp; book travel — free today, no account needed.
+        </p>
+        <LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />
+        <p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>
+        {/* GUEST-01 (2026-09-29; Alex's ruling 17:04): the door back for a guest who booked
+            without an account — the one lookup box (src/components/guest/GuestBookingLookup.tsx),
+            the reference and the manage code from their booking email. It asks nothing on
+            load; a match goes to /booking/manage, which shows the booking. */}
+        <div className="mt-6 border-t border-border-light pt-4" data-guest-lookup-home>
+          <GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />
+        </div>
+        {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
+            spec's own strings verbatim (the left line already lives in
+            the retired SUMMARY_BY_ID's travel lines (git history); NO ACCOUNT NEEDED is the spec's mono
+            right slot). HOME-BRIEF-03 (Alex, 2026-11-10): the second span — an account saves your trips
+            (SAVE_TRIPS_LINE, src/lib/homeActWords.ts), in the first span's own classes. */}
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 pb-2">
+          <span className="text-[13px] text-text-faint">One trip holds everything — plans, bookings, budget.</span>
+          <span className="text-[13px] text-text-faint">{SAVE_TRIPS_LINE}</span>
+          <span className="font-mono text-xs lg:text-[10.5px] tracking-wider text-text-faint">NO ACCOUNT NEEDED</span>
+        </div>
+      </section>
+      {/* PR-ELEV-1: the coming-soon tiles live INSIDE the strip above as
+          badged "Soon" chips (travelStripModes) — the PR-LANDING-1 tile
+          row below the strip is gone; the both-surfaces-at-once light-up
+          ruling now holds at chip level via the shared builder. */}
+
+      {/* ── BOOK-3: the guest's session trip — renders only when records
+            exist (fail-honest empty state = nothing). ─────────────────────── */}
+      <GuestTripStrip onRequireAuth={onRequireAuth} />
 
       {/* ── STOP0-01 (Alex, 2026-11-08 15:11 + 16:18; board K tag 8): STOP 0 — Alex's letter in his
             own words and a short dated timeline of how he got here, between the experiences and
