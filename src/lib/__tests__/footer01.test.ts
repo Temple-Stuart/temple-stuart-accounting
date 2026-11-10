@@ -4,15 +4,25 @@
  * and THE RECORD (the 14 steps; the code). The disclaimer, ©, the five social icons and PRICING · TERMS · PRIVACY ·
  * the email stay exactly as they are. The four anchors THE BLOG links to get one home, src/lib/homeAnchors.ts.
  *
- *   T1 the labels — THE BLOG, THE RECORD — from src/lib/footerWords.ts;
- *   T2 footerBlogLinks(TRIP_POSTS): Book travel, Events, Stop 0, My trip (each '/#' + its anchor), then one link per
- *      written post in TRIP_POSTS' order — Canggu's today; a second post adds its own link, after the first;
- *   T3 FOOTER_RECORD_LINKS exactly: the door's words and path (imported from pipelineWords.ts, never from
- *      PipelineDeck.tsx), then the code — external; CODE_URL is LandingHeader.tsx's GitHub href;
- *   T4 the footer renders both columns once, above the disclaimer, then the bar; every column link as listed, in order,
- *      in the ruled classes; only the code opens a new tab; no word or href typed in the component;
- *   T5 the bar unchanged: ©, the five social hrefs in order (each _blank, noopener noreferrer), PRICING · TERMS ·
- *      PRIVACY · the email — their hrefs, words and classes;
+ * HOME-FINISH-02 (Alex's brief "HOME-FINISH | Temple Stuart Homepage Copy, Layout & Footer", 2026-11-10 20:56, with his footer
+ * note of 20:53): THE FOOTER IN FOUR COLUMNS — OUR STORY (Stop 0 and every stop of the trip log), SERVICES (the three
+ * pillars), SOCIALS (icon and name), THE RECORD (three links) — then the disclaimer, then one row: © and PRICING · TERMS ·
+ * PRIVACY · CONTACT. THE BLOG is gone; the socials left the bar. T1–T5 are re-pointed below, each note saying what it held
+ * until then; T6 (the anchors' one home), T7 and T8 stand.
+ *
+ *   T1 the labels — OUR STORY, SERVICES, SOCIALS, THE RECORD (THE BLOG, THE RECORD until then) — from src/lib/footerWords.ts;
+ *   T2 footerStoryLinks(WAS_HERE): "Stop 0 | Los Angeles" ('/#' + its anchor), then one link per stop of the trip log in
+ *      trip order — "Stop <n> | <the row's city>" → that stop's page; a stop added to the log adds itself, in its place.
+ *      (Until then: footerBlogLinks(TRIP_POSTS) — Book travel, Events, Stop 0, My trip, then one link per written post.)
+ *   T3 the other three columns, exactly: SERVICES (the three pillars on their sections), SOCIALS (the five accounts, the
+ *      bar's own hrefs), THE RECORD (the 14 steps, the code, the licence — no arrows; the last two external); CODE_URL is
+ *      LandingHeader.tsx's GitHub href. (Until then: FOOTER_RECORD_LINKS — the door's words and path, then the code.)
+ *   T4 the footer renders the four columns once, above the disclaimer, then the bar; every column link as listed, in
+ *      order, in the ruled classes; the socials each an icon beside its name; no word or href typed in the component.
+ *      (Until then: two columns.)
+ *   T5 below the columns: the disclaimer word for word, then one row — ©, PRICING · TERMS · PRIVACY · CONTACT, their
+ *      hrefs, words and classes; no socials and no icon there. (Until then: the bar unchanged — ©, the five social hrefs
+ *      in order, PRICING · TERMS · PRIVACY · the email.)
  *   T6 one home for the anchors: each equals its owner's export; the two sections import theirs back on a line of its
  *      own and still export it; Stop 0's literal stays in its leaf; none of the four is typed as an anchor anywhere
  *      else in src — but the one named literal, LandingBookingSection.tsx's '#events' (experiences01 T6 pins its text).
@@ -33,10 +43,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { code } from '../sourceText';
 import { TRIP_POSTS } from '../tripPosts';
 import { tripPostHref } from '../tripPostWords';
-import { CODE_URL, FOOTER_BLOG_LABEL, FOOTER_RECORD_LABEL, FOOTER_RECORD_LINKS, footerBlogLinks, type FooterLink } from '../footerWords';
+import { WAS_HERE, type WasHereRow } from '../wasHere';
+import { tripOrder } from '../wasHereWords';
+import { BUILD_PILLAR, EXPLORE_PILLAR, PLAN_PILLAR } from '../homeActWords';
+import {
+  CODE_URL, FOOTER_RECORD_LABEL, FOOTER_RECORD_LINKS, FOOTER_SERVICES_LABEL, FOOTER_SERVICES_LINKS, FOOTER_SOCIALS, FOOTER_SOCIALS_LABEL, FOOTER_STOP_ZERO_LABEL,
+  FOOTER_STORY_LABEL, LICENSE_URL, footerStoryLinks, type FooterLink,
+} from '../footerWords';
 import { DEMO_ANCHOR, EVENTS_ANCHOR, MY_TRIP_ANCHOR, SERVICES_ANCHOR, STOP_ZERO_ANCHOR } from '../homeAnchors';
 import { STOP_ZERO_ANCHOR as STOP_ZERO_IN_ITS_LEAF } from '../stopZeroWords';
-import { PIPELINE_DOOR, PIPELINE_PATH } from '@/components/landing/pipelineWords';
+import { PIPELINE_PATH } from '@/components/landing/pipelineWords';
 import { EVENTS_ANCHOR as EVENTS_FROM_ITS_SECTION } from '@/components/landing/ExperiencesSection';
 import { MY_TRIP_ANCHOR as MY_TRIP_FROM_ITS_SECTION } from '@/components/landing/WasHereSection';
 import { BOOK_HREF, POST_BACK_HREF } from '@/components/trip/TripPostView';
@@ -54,14 +70,30 @@ const LANDING = 'src/components/landing/Landing.tsx';
 const TRIP_POST_VIEW = 'src/components/trip/TripPostView.tsx';
 const HEADER = 'src/components/landing/LandingHeader.tsx';
 const LAW = 'scripts/assert-tool-registry.ts';
+const HOW_TO = 'src/components/landing/HowToSection.tsx';
+const STOP_PAGE = 'src/app/my-trip/[id]/page.tsx';
 const THIS = 'src/lib/__tests__/footer01.test.ts';
 
-const GRID_OPEN = '<div class="max-w-7xl mx-auto px-4 lg:px-8 pt-10 grid gap-8 sm:grid-cols-2">';
+// HOME-FINISH-02 (2026-11-10): four columns — two by two on a phone, four across from lg. Until then: '<div class="max-w-7xl mx-auto px-4 lg:px-8 pt-10 grid gap-8 sm:grid-cols-2">'.
+const GRID_OPEN = '<div class="max-w-7xl mx-auto px-4 lg:px-8 pt-10 grid gap-8 grid-cols-2 lg:grid-cols-4">';
 const DISCLAIMER_OPEN = '<div class="max-w-3xl mx-auto px-4 lg:px-8 pt-8 text-center">';
 const BAR_OPEN = '<div class="max-w-7xl mx-auto px-4 lg:px-8 py-8">';
 const LABEL_CLASS = 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60';
-const LINK_CLASS = 'inline-flex min-h-[44px] items-center text-sm text-white/85 hover:text-white';
-const SOCIAL_CLASS = 'p-3 lg:p-0 text-white/70 hover:text-white transition-colors';
+// HOME-FINISH-02 (2026-11-10): the column link gained lg:min-h-0 lg:py-1 — eleven 44px rows would stand 484px tall on a desktop; the 44px touch
+// height stays below lg. Until then: 'inline-flex min-h-[44px] items-center text-sm text-white/85 hover:text-white'.
+const LINK_CLASS = 'inline-flex min-h-[44px] items-center text-sm text-white/85 hover:text-white lg:min-h-0 lg:py-1';
+// A social's link in its column: the same row with its icon beside its name. Until then the socials stood in the bar, icon-only, as
+// SOCIAL_CLASS = 'p-3 lg:p-0 text-white/70 hover:text-white transition-colors'.
+const SOCIAL_LINK_CLASS = 'inline-flex min-h-[44px] items-center gap-2 text-sm text-white/85 hover:text-white lg:min-h-0 lg:py-1';
+/** The five accounts — the hrefs the bar held, in its order — and the first characters of each one's icon path, so a name and its icon cannot be swapped. */
+const SOCIALS: ReadonlyArray<readonly [string, string, string]> = [
+  ['Instagram', 'https://www.instagram.com/temple_stuart_accounting/', 'M12 2.163c3.204 0 3.584'],
+  ['TikTok', 'https://www.tiktok.com/@temple_stuart', 'M19.59 6.69a4.83 4.83'],
+  ['YouTube', 'https://www.youtube.com/@Temple-Stuart', 'M23.498 6.186a3.016'],
+  ['X', 'https://x.com/Alex_Stuart_APS', 'M18.244 2.25h3.308l-7.227'],
+  ['LinkedIn', 'https://www.linkedin.com/in/alexander-stuart-phi/', 'M20.447 20.452h-3.554v-5.569'],
+];
+const DISCLAIMER = 'Temple Stuart is not a CPA firm, tax preparer, or licensed financial advisor. All tax figures generated by this platform are estimates for informational purposes only and must be verified by a qualified tax professional before filing. Use of this software does not constitute tax advice.';
 const LEGAL_CLASS = 'inline-block py-3.5 lg:py-0 font-mono text-xs lg:text-[10px] tracking-wider text-white/80 hover:text-white';
 
 const count = (hay: string, needle: string): number => hay.split(needle).length - 1;
@@ -78,129 +110,160 @@ const render = () => renderToStaticMarkup(React.createElement(LandingFooter));
 
 // ── T1 · THE LABELS ──────────────────────────────────────────────────────────
 
-test('T1 the labels: THE BLOG and THE RECORD, from the words module', () => {
-  assert.equal(FOOTER_BLOG_LABEL, 'THE BLOG');
-  assert.equal(FOOTER_RECORD_LABEL, 'THE RECORD');
+test('T1 the labels: OUR STORY, SERVICES, SOCIALS and THE RECORD, from the words module', () => {
+  // HOME-FINISH-02 (2026-11-10): four columns. Until then: FOOTER_BLOG_LABEL 'THE BLOG' and FOOTER_RECORD_LABEL 'THE RECORD'.
+  assert.deepEqual([FOOTER_STORY_LABEL, FOOTER_SERVICES_LABEL, FOOTER_SOCIALS_LABEL, FOOTER_RECORD_LABEL], ['OUR STORY', 'SERVICES', 'SOCIALS', 'THE RECORD']);
+  assert.ok(!code(WORDS).includes('THE BLOG') && !code(WORDS).includes('footerBlogLinks'), 'THE BLOG left the words module with its last reader');
 });
 
-// ── T2 · THE BLOG'S LINKS ────────────────────────────────────────────────────
+// ── T2 · OUR STORY'S LINKS ───────────────────────────────────────────────────
 
-test('T2 footerBlogLinks(TRIP_POSTS): the four sections, then one link per written post — Canggu\'s today; a second post adds itself, after the first', () => {
-  const sections: FooterLink[] = [
-    { label: 'Book travel', href: '/#demo' },
-    { label: 'Events', href: '/#events' },
-    { label: 'Stop 0', href: '/#stop-0' },
-    { label: 'My trip', href: '/#my-trip' },
-  ];
-  const links = footerBlogLinks(TRIP_POSTS);
-  assert.deepEqual(links, [...sections, ...TRIP_POSTS.map((post) => ({ label: post.title, href: tripPostHref(post.stopId) }))], 'derived from the list, in its order');
-  assert.deepEqual(links.slice(0, 4), [
-    { label: 'Book travel', href: `/#${DEMO_ANCHOR}` },
-    { label: 'Events', href: `/#${EVENTS_ANCHOR}` },
-    { label: 'Stop 0', href: `/#${STOP_ZERO_ANCHOR}` },
-    { label: 'My trip', href: `/#${MY_TRIP_ANCHOR}` },
-  ], 'each section link is "/#" + its anchor');
-  assert.deepEqual(links[4], { label: 'Thirty days in Canggu with no plan.', href: '/my-trip/canggu-2026-07' }, 'today\'s written post: Canggu');
-  // a fixture: a second post adds its own link, in the list's order — nothing in the words changes
-  const second = { stopId: 'danang-2026-08', title: 'A second post.' };
-  const withTwo = footerBlogLinks([...TRIP_POSTS, second]);
-  assert.equal(withTwo.length, links.length + 1);
-  assert.deepEqual(withTwo.slice(0, links.length), links, 'the links before it unchanged');
-  assert.deepEqual(withTwo[withTwo.length - 1], { label: 'A second post.', href: '/my-trip/danang-2026-08' });
-  assert.deepEqual(footerBlogLinks([second, ...TRIP_POSTS]).slice(4).map((l) => l.label), ['A second post.', ...TRIP_POSTS.map((p) => p.title)], 'the order given is the order shown');
+test('T2 footerStoryLinks(WAS_HERE): Stop 0, then one link per stop of the trip log, in trip order — its number, the log\'s own city, its page; a stop added to the log adds itself, in its place', () => {
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:53 · 20:56). Until then this test read 'T2 footerBlogLinks(TRIP_POSTS): the four sections, then one link per
+  // written post — Canggu's today; a second post adds itself, after the first': { label: 'Book travel', href: '/#demo' }, { label: 'Events', href:
+  // '/#events' }, { label: 'Stop 0', href: '/#stop-0' }, { label: 'My trip', href: '/#my-trip' }, then { label: post.title, href:
+  // tripPostHref(post.stopId) } per post ({ label: 'Thirty days in Canggu with no plan.', href: '/my-trip/canggu-2026-07' } today).
+  const links = footerStoryLinks(WAS_HERE);
+  assert.equal(FOOTER_STOP_ZERO_LABEL, 'Stop 0 | Los Angeles');
+  assert.deepEqual(links[0], { label: 'Stop 0 | Los Angeles', href: `/#${STOP_ZERO_ANCHOR}` }, 'Stop 0 first: "/#" + its anchor');
+  assert.equal(links[0].href, '/#stop-0');
+  const stops = tripOrder(WAS_HERE);
+  assert.deepEqual(links.slice(1), stops.map((row, i) => ({ label: `Stop ${i + 1} | ${row.city}`, href: tripPostHref(row.id) })), 'derived from the log, in trip order: the number, the row\'s own city, the stop\'s page');
+  assert.equal(links.length, WAS_HERE.length + 1, 'Stop 0 and one link per stop — those still ahead included');
+  assert.deepEqual(links[1], { label: 'Stop 1 | Canggu, Bali', href: '/my-trip/canggu-2026-07' }, 'today\'s first stop');
+  assert.deepEqual(links[links.length - 1], { label: `Stop ${stops.length} | ${stops[stops.length - 1].city}`, href: `/my-trip/${stops[stops.length - 1].id}` }, 'and its last');
+  assert.equal(new Set(links.map((l) => l.href)).size, links.length, 'every link its own target — two stops in one city are two links');
+  // from the log, never from the posts: a stop with no post is linked all the same, and no post title is a label
+  assert.ok(stops.some((row) => !TRIP_POSTS.some((post) => post.stopId === row.id)), 'the log holds stops that are not written up');
+  for (const post of TRIP_POSTS) assert.ok(!links.some((l) => l.label === post.title), `no post title: "${post.title}"`);
+  for (const gone of ['Book travel', 'Events', 'My trip']) assert.ok(!links.some((l) => l.label === gone), `${gone} left this column`);
+  assert.ok(!links.some((l) => l.href === '/#events' || l.href === '/#my-trip' || l.href === '/#demo'));
+  // every stop has a page: the route builds one per row of the log
+  assert.match(code(STOP_PAGE), /return WAS_HERE\.map\(\(row\) => \(\{ id: row\.id \}\)\);/, 'src/app/my-trip/[id]/page.tsx builds a page per stop');
+  // fixtures: a stop added to the log adds its own link, in trip order — nothing in the words changes
+  const late: WasHereRow = { ...stops[0], id: 'somewhere-2027-01', city: 'Somewhere', start: '2027-01-05', end: '2027-01-20' };
+  const withLate = footerStoryLinks([late, ...WAS_HERE]);
+  assert.equal(withLate.length, links.length + 1);
+  assert.deepEqual(withLate.slice(0, links.length), links, 'given first, drawn last: trip order — the links before it unchanged');
+  assert.deepEqual(withLate[withLate.length - 1], { label: `Stop ${stops.length + 1} | Somewhere`, href: '/my-trip/somewhere-2027-01' });
+  const early: WasHereRow = { ...stops[0], id: 'early-2026-06', city: 'Early', start: '2026-06-01', end: '2026-06-30' };
+  const withEarly = footerStoryLinks([...WAS_HERE, early]);
+  assert.deepEqual(withEarly[1], { label: 'Stop 1 | Early', href: '/my-trip/early-2026-06' }, 'a stop that starts first is Stop 1');
+  assert.equal(withEarly[2].label, `Stop 2 | ${stops[0].city}`, 'and every other moves down one');
   for (const l of links) assert.ok(l.href.startsWith('/'), `${l.label}: starts with '/', so it lands from every page the footer is on`);
 });
 
-// ── T3 · THE RECORD'S LINKS ──────────────────────────────────────────────────
+// ── T3 · SERVICES, SOCIALS, THE RECORD ───────────────────────────────────────
 
-test('T3 FOOTER_RECORD_LINKS exactly — the door\'s words and path from pipelineWords.ts, then the code, external; CODE_URL is LandingHeader.tsx\'s GitHub href', () => {
-  assert.deepEqual(FOOTER_RECORD_LINKS, [
-    { label: PIPELINE_DOOR, href: PIPELINE_PATH },
-    { label: 'Built in public: the code ↗', href: CODE_URL, external: true },
+test('T3 the other three columns, exactly — SERVICES: the three pillars on their sections; SOCIALS: the five accounts, the bar\'s own hrefs; THE RECORD: the 14 steps, the code, the licence, no arrows; CODE_URL is LandingHeader.tsx\'s GitHub href', () => {
+  // HOME-FINISH-02 (2026-11-10). Until then this test read 'T3 FOOTER_RECORD_LINKS exactly — the door's words and path from pipelineWords.ts, then
+  // the code, external': [{ label: PIPELINE_DOOR, href: PIPELINE_PATH }, { label: 'Built in public: the code ↗', href: CODE_URL, external: true }],
+  // with PIPELINE_DOOR = 'How it all connects: the 14 steps →' and "import { PIPELINE_DOOR, PIPELINE_PATH } from '@/components/landing/pipelineWords';".
+  assert.deepEqual(FOOTER_SERVICES_LINKS, [
+    { label: 'Plan Your Escape', href: '/#modules' },
+    { label: 'Build Your Income', href: `/#${SERVICES_ANCHOR}` },
+    { label: 'Explore the World', href: `/#${DEMO_ANCHOR}` },
   ]);
-  assert.equal(PIPELINE_DOOR, 'How it all connects: the 14 steps →');
+  assert.deepEqual(FOOTER_SERVICES_LINKS.map((l) => l.href), ['/#modules', '/#services', '/#demo'], 'absolute paths, so they land from every page the footer is on');
+  assert.deepEqual(FOOTER_SERVICES_LINKS.map((l) => `${l.label}.`), [PLAN_PILLAR.heading, BUILD_PILLAR.heading, EXPLORE_PILLAR.heading], 'each label is its pillar\'s heading, without the full stop');
+  assert.ok(code(HOW_TO).includes('<section id="modules"'), 'the first link\'s target: the how-to\'s own section id');
+  assert.deepEqual(FOOTER_SOCIALS, SOCIALS.map(([name, href]) => ({ name, href })), 'the five accounts, the bar\'s hrefs, in its order');
+  assert.deepEqual(FOOTER_RECORD_LINKS, [
+    { label: 'How It All Connects: The 14 Steps', href: PIPELINE_PATH },
+    { label: 'Built in Public: The Code', href: CODE_URL, external: true },
+    { label: 'Software License', href: LICENSE_URL, external: true },
+  ]);
   assert.equal(PIPELINE_PATH, '/how-it-works');
   assert.equal(CODE_URL, 'https://github.com/Temple-Stuart/temple-stuart-accounting');
+  assert.equal(LICENSE_URL, 'https://github.com/Temple-Stuart/temple-stuart-accounting/blob/main/LICENSE');
+  for (const l of FOOTER_RECORD_LINKS) assert.doesNotMatch(l.label, /[→↗]/, `${l.label}: as Alex typed it — no arrow`);
   const words = code(WORDS);
-  assert.match(words, /^import \{ PIPELINE_DOOR, PIPELINE_PATH \} from '@\/components\/landing\/pipelineWords';$/m, 'from the words leaf');
-  assert.doesNotMatch(words, /PipelineDeck/, 'never from the deck\'s \'use client\' file');
+  assert.match(words, /^import \{ PIPELINE_PATH \} from '@\/components\/landing\/pipelineWords';$/m, 'the path from the words leaf');
+  assert.doesNotMatch(words, /PipelineDeck|PIPELINE_DOOR/, 'never from the deck\'s \'use client\' file; the door\'s old words are read no more');
+  for (const f of [WORDS, FOOTER]) assert.doesNotMatch(code(f), /open[ -]?source/i, `${f}: the licence is the Business Source License — never called open source`);
   const header = [...code(HEADER).matchAll(/href="(https:\/\/github\.com\/[^"]*)"/g)].map((m) => m[1]);
   assert.deepEqual(header, [CODE_URL], 'LandingHeader.tsx\'s GitHub ↗ opens the same URL');
 });
 
-// ── T4 · THE FOOTER RENDERS THE TWO COLUMNS ABOVE THE DISCLAIMER ─────────────
+// ── T4 · THE FOOTER RENDERS THE FOUR COLUMNS ABOVE THE DISCLAIMER ────────────
 
-test('T4 the footer renders both columns once, above the disclaimer, then the bar; every column link as listed, in order, in the ruled classes; only the code opens a new tab', () => {
+test('T4 the footer renders the four columns once, above the disclaimer, then the bar; every column link as listed, in order, in the ruled classes; the socials each an icon beside its name; only the socials, the code and the licence open a new tab', () => {
+  // HOME-FINISH-02 (2026-11-10). Until then: two columns — data-footer-blog (THE BLOG: footerBlogLinks(TRIP_POSTS)) and data-footer-record (THE
+  // RECORD) — 'only the code opens a new tab', and the component held "import { TRIP_POSTS } from '@/lib/tripPosts';" and
+  // '{footerBlogLinks(TRIP_POSTS).map('.
   const html = render();
-  assert.ok(html.startsWith(`<footer class="bg-brand-purple text-white">${GRID_OPEN}`), 'the columns open the footer');
+  assert.ok(html.startsWith(`<footer class="bg-brand-purple text-white">${GRID_OPEN}`), 'the columns open the footer — the solid purple stays');
   const grid = html.indexOf(GRID_OPEN);
   const disclaimer = html.indexOf(DISCLAIMER_OPEN);
   const bar = html.indexOf(BAR_OPEN);
   assert.ok(grid === html.indexOf('>') + 1 && disclaimer > grid && bar > disclaimer, 'the columns → the disclaimer → the bar');
   for (const [s, what] of [[GRID_OPEN, 'the grid'], [DISCLAIMER_OPEN, 'the disclaimer'], [BAR_OPEN, 'the bar']] as const) assert.equal(count(html, s), 1, `${what} once`);
   const columns = html.slice(grid, disclaimer);
-  assert.equal(count(columns, `<p class="${LABEL_CLASS}">${FOOTER_BLOG_LABEL}</p>`), 1, 'THE BLOG, once, in the label class');
-  assert.equal(count(columns, `<p class="${LABEL_CLASS}">${FOOTER_RECORD_LABEL}</p>`), 1, 'THE RECORD, once, in the label class');
-  assert.ok(columns.indexOf(FOOTER_BLOG_LABEL) < columns.indexOf(FOOTER_RECORD_LABEL), 'THE BLOG first');
-  const expected = [...footerBlogLinks(TRIP_POSTS), ...FOOTER_RECORD_LINKS];
-  const drawn = anchorsIn(columns);
-  assert.deepEqual(drawn.map((a) => ({ label: a.text, href: a.href })), expected.map((l) => ({ label: l.label, href: l.href })), 'every link, in order');
-  for (const a of drawn) assert.equal(a.cls, LINK_CLASS, `${a.text}: the ruled link class`);
-  assert.deepEqual(drawn.filter((a) => a.target !== null).map((a) => [a.text, a.target, a.rel]), [['Built in public: the code ↗', '_blank', 'noopener noreferrer']], 'only the code opens a new tab');
-  assert.equal(count(columns, '<ul'), 2, 'one list per column');
-  // CLOSED 3, column by column: each column is its label, then a <ul> of ITS OWN links — nothing else (attribute order
-  // free; the <ul>'s own attributes are not ruled, so not pinned)
-  const inner = columns.slice(GRID_OPEN.length, -'</div>'.length); // the two columns, the grid's own tags off
-  const at = inner.indexOf('<div data-footer-record="true">');
-  assert.ok(at > 0, 'THE RECORD has a column of its own, after THE BLOG');
-  const sides: ReadonlyArray<readonly [string, string, string, readonly FooterLink[]]> = [
-    [inner.slice(0, at), 'data-footer-blog', FOOTER_BLOG_LABEL, footerBlogLinks(TRIP_POSTS)],
-    [inner.slice(at), 'data-footer-record', FOOTER_RECORD_LABEL, FOOTER_RECORD_LINKS],
+  const inner = columns.slice(GRID_OPEN.length, -'</div>'.length); // the four columns, the grid's own tags off
+  const sides: ReadonlyArray<readonly [string, string, readonly FooterLink[]]> = [
+    ['data-footer-story', FOOTER_STORY_LABEL, footerStoryLinks(WAS_HERE)],
+    ['data-footer-services', FOOTER_SERVICES_LABEL, FOOTER_SERVICES_LINKS],
+    ['data-footer-socials', FOOTER_SOCIALS_LABEL, FOOTER_SOCIALS.map((s): FooterLink => ({ label: s.name, href: s.href, external: true }))],
+    ['data-footer-record', FOOTER_RECORD_LABEL, FOOTER_RECORD_LINKS],
   ];
-  for (const [col, marker, label, links] of sides) {
+  const starts = sides.map(([marker]) => inner.indexOf(`<div ${marker}="true">`));
+  assert.equal(starts[0], 0, 'OUR STORY first');
+  assert.deepEqual(starts, [...starts].sort((x, y) => x - y), 'OUR STORY → SERVICES → SOCIALS → THE RECORD');
+  assert.ok(starts.every((at) => at > -1), 'each has a column of its own');
+  assert.equal(count(columns, '<ul'), 4, 'one list per column');
+  sides.forEach(([marker, label, links], i) => {
+    const col = inner.slice(starts[i], i + 1 < sides.length ? starts[i + 1] : undefined);
+    // each column is its label, then a <ul> of ITS OWN links — nothing else (attribute order free; the <ul>'s own attributes are not ruled)
     const shape = col.replace(/<a\b[^>]*>[\s\S]*?<\/a>/g, '<a/>').replace(/<ul\b[^>]*>/g, '<ul>');
     assert.equal(shape, `<div ${marker}="true"><p class="${LABEL_CLASS}">${label}</p><ul>${'<li><a/></li>'.repeat(links.length)}</ul></div>`, `${label}: its label, then a <ul> of its own links, nothing else`);
-    assert.deepEqual(anchorsIn(col).map((a) => ({ label: a.text, href: a.href })), links.map((l) => ({ label: l.label, href: l.href })), `${label}: its own links, in order`);
+    const drawn = anchorsIn(col);
+    assert.deepEqual(drawn.map((a) => ({ label: a.text, href: a.href })), links.map((l) => ({ label: l.label, href: l.href })), `${label}: its own links, in order`);
+    drawn.forEach((a, j) => {
+      assert.equal(a.cls, marker === 'data-footer-socials' ? SOCIAL_LINK_CLASS : LINK_CLASS, `${a.text}: the ruled link class`);
+      assert.deepEqual([a.target, a.rel], links[j].external === true ? ['_blank', 'noopener noreferrer'] : [null, null], `${a.text}: ${links[j].external === true ? 'leaves the site, in a new tab' : 'stays on the site'}`);
+    });
+  });
+  assert.equal(sides[0][2].length, 11, 'eleven story links today: Stop 0 and the ten stops');
+  // the socials: the bar's five SVGs, each beside its account's name — and nowhere else in the footer
+  const socials = inner.slice(starts[2], starts[3]);
+  for (const [name, href, path] of SOCIALS) {
+    assert.ok(new RegExp(`<a href="${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"]*"></path></svg><span>${name}</span></a>`).test(socials), `${name}: its own icon, then its name`);
   }
-  // every word and href from the words module — none typed in the component
+  assert.equal(count(html, '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">'), 5, 'the five icons, as the bar drew them');
+  assert.equal(count(html, '<svg'), 5, 'and no other');
+  // every word and href from the words module — none typed in the component (an icon's key is the account's name: a type the words leaf exports)
   const footer = code(FOOTER);
-  for (const typed of ['THE BLOG', 'THE RECORD', 'Book travel', 'Stop 0', 'My trip', 'Built in public', '/how-it-works', 'github.com', '/my-trip', "'#", '/#']) {
+  for (const typed of ['OUR STORY', 'THE RECORD', 'THE BLOG', 'Stop 0', 'Los Angeles', 'Plan Your Escape', 'Build Your Income', 'Explore the World', 'How It All Connects', 'Built in Public', 'Software License', '/how-it-works', 'github.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'x.com/', 'linkedin.com', '/my-trip', "'#", '/#']) {
     assert.ok(!footer.includes(typed), `LandingFooter.tsx types no "${typed}"`);
   }
-  assert.match(footer, /^import \{ TRIP_POSTS \} from '@\/lib\/tripPosts';$/m);
-  assert.match(footer, /\{footerBlogLinks\(TRIP_POSTS\)\.map\(/, 'the posts passed in, so a new post adds its own link');
+  for (const label of ['FOOTER_STORY_LABEL', 'FOOTER_SERVICES_LABEL', 'FOOTER_SOCIALS_LABEL', 'FOOTER_RECORD_LABEL']) assert.equal(count(footer, `<p className={COLUMN.label}>{${label}}</p>`), 1, `${label}, rendered from the leaf`);
+  assert.match(footer, /^import \{ WAS_HERE \} from '@\/lib\/wasHere';$/m);
+  assert.match(footer, /\{footerStoryLinks\(WAS_HERE\)\.map\(columnLink\)\}/, 'the log passed in, so a stop added to it adds its own link');
+  assert.ok(!footer.includes('tripPosts') && !footer.includes('TRIP_POSTS'), 'the posts are read here no more');
   assert.doesNotMatch(footer, /^['"]use client['"]/m, 'still a server component where a server page renders it — no directive on any line');
 });
 
-// ── T5 · THE BAR UNCHANGED ───────────────────────────────────────────────────
+// ── T5 · BELOW THE COLUMNS: THE DISCLAIMER, THEN ONE ROW ─────────────────────
 
-test('T5 the bar unchanged: ©, the five social hrefs in order, PRICING · TERMS · PRIVACY · the email — their hrefs, words and classes', () => {
+test('T5 below the columns: the disclaimer word for word; then one row — ©, PRICING · TERMS · PRIVACY · CONTACT on their existing targets, in their classes; no socials and no icon there', () => {
+  // HOME-FINISH-02 (2026-11-10). Until then this test read 'T5 the bar unchanged: ©, the five social hrefs in order, PRICING · TERMS · PRIVACY · the
+  // email — their hrefs, words and classes': nine hrefs — the five socials (each _blank, noopener noreferrer, class 'p-3 lg:p-0 text-white/70
+  // hover:text-white transition-colors', an icon each), then '/how-pricing-works', '/terms', '/privacy', 'mailto:astuart@templestuart.com' reading
+  // PRICING, TERMS, PRIVACY and ASTUART@TEMPLESTUART.COM.
   const html = render();
   const tail = html.slice(html.indexOf(DISCLAIMER_OPEN));
-  assert.ok(tail.startsWith(`${DISCLAIMER_OPEN}<p class="text-xs text-white/50 leading-relaxed">Temple Stuart is not a CPA firm, tax preparer, or licensed financial advisor.`), 'the disclaimer, first words unchanged');
-  assert.ok(tail.includes('Use of this software does not constitute tax advice.</p></div>'), 'the disclaimer, last words unchanged');
+  assert.ok(tail.startsWith(`${DISCLAIMER_OPEN}<p class="text-xs text-white/50 leading-relaxed">${DISCLAIMER}</p></div>${BAR_OPEN}`), 'the disclaimer, word for word, then the bar');
   assert.ok(tail.includes('<div class="font-mono text-xs lg:text-[10px] uppercase tracking-wider text-white/60">© 2026 TEMPLE STUART, LLC</div>'), '©');
-  const links = anchorsIn(tail);
-  assert.deepEqual(links.map((a) => a.href), [
-    'https://www.instagram.com/temple_stuart_accounting/',
-    'https://www.tiktok.com/@temple_stuart',
-    'https://www.youtube.com/@Temple-Stuart',
-    'https://x.com/Alex_Stuart_APS',
-    'https://www.linkedin.com/in/alexander-stuart-phi/',
-    '/how-pricing-works',
-    '/terms',
-    '/privacy',
-    'mailto:astuart@templestuart.com',
-  ], 'the nine hrefs, in their order');
-  for (const a of links.slice(0, 5)) {
-    assert.equal(a.target, '_blank', `${a.href}: new tab`);
-    assert.equal(a.rel, 'noopener noreferrer', `${a.href}: rel`);
-    assert.equal(a.cls, SOCIAL_CLASS, `${a.href}: the social class`);
-  }
-  assert.deepEqual(links.slice(5).map((a) => [a.text, a.cls]), [
-    ['PRICING', LEGAL_CLASS], ['TERMS', LEGAL_CLASS], ['PRIVACY', LEGAL_CLASS], ['ASTUART@TEMPLESTUART.COM', LEGAL_CLASS],
-  ], 'PRICING · TERMS · PRIVACY · the email');
-  assert.equal(count(tail, '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">'), 5, 'the five icons');
+  assert.deepEqual(anchorsIn(tail).map((a) => [a.text, a.href, a.cls, a.target]), [
+    ['PRICING', '/how-pricing-works', LEGAL_CLASS, null],
+    ['TERMS', '/terms', LEGAL_CLASS, null],
+    ['PRIVACY', '/privacy', LEGAL_CLASS, null],
+    ['CONTACT', 'mailto:astuart@templestuart.com', LEGAL_CLASS, null],
+  ], 'PRICING · TERMS · PRIVACY · CONTACT — the four, on their existing targets');
+  assert.equal(count(tail, '<svg'), 0, 'no icon below the columns');
+  assert.ok(!tail.includes('·'), 'and no "·" — it stood between the icons and PRICING');
+  for (const [, href] of SOCIALS) assert.ok(!tail.includes(href), `${href} is in its column, not in the bar`);
+  assert.ok(!html.includes('ASTUART@TEMPLESTUART.COM'), 'the address is the link\'s target, no longer its words');
 });
 
 // ── T6 · ONE HOME FOR THE ANCHORS ────────────────────────────────────────────
