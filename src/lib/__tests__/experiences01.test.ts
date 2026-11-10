@@ -368,11 +368,14 @@ test('T5 Landing mounts the section once — inside the booking mount, as the bo
   assert.equal(landing.split('<LandingBookingSection').length - 1, 1);
   const bookingAt = landing.indexOf(booking);
   const mountAt = landing.indexOf(mount);
-  const tripRow = landing.indexOf('One trip holds everything — plans, bookings, budget.');
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the demo's foot row left the page, so the travel block's last child is the booking lookup — the marker
+  // now. Until then: tripRow = landing.indexOf('One trip holds everything — plans, bookings, budget.') and 'the booking box (the catalog inside it)
+  // → the demo footer row → the guest strip'.
+  const lookupAt = landing.indexOf('data-guest-lookup-home');
   const stripAt = landing.indexOf('<GuestTripStrip');
   assert.ok(mountAt > bookingAt && mountAt < bookingAt + booking.length, 'the one mount is the booking box\'s events prop');
-  assert.ok(bookingAt > -1 && tripRow > bookingAt && stripAt > tripRow, 'the booking box (the catalog inside it) → the demo footer row → the guest strip');
-  const travelEnd = landing.indexOf('</section>', tripRow) + '</section>'.length;
+  assert.ok(bookingAt > -1 && lookupAt > bookingAt && stripAt > lookupAt, 'the booking box (the catalog inside it) → the booking lookup → the guest strip');
+  const travelEnd = landing.indexOf('</section>', lookupAt) + '</section>'.length;
   assert.match(landing.slice(travelEnd, stripAt), /^\s*(\{\s*\}\s*)*$/, 'the travel block\'s </section> → the guest strip: comments only — no band between them');
   assert.match(landing, /<GuestBookingLookup onOpened=\{\(\) => window\.location\.assign\('\/booking\/manage'\)\} \/>/);
   assert.match(landing, /import ExperiencesSection from '\.\/ExperiencesSection';/);

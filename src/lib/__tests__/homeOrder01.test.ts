@@ -11,11 +11,13 @@
  *      mount left the page — the how-to is the Software Plans and sits in its seat, with its door; twelve until then.
  *      HOME-BRIEF-03, 2026-11-10: the how-to joined, between the plans and the services section — eleven until then);
  *   T2 "What We Do" — HOME-FINISH-02: the h2 that carries data-act-heading stands ALONE in the page's container, in
- *      gold and one size up, directly above the how-to; the travel block opens at its id row, its label and headline as
- *      they were (until then: the travel section's FIRST child, in the page's purple heading classes, above the id row);
+ *      gold and one size up, directly above the how-to; the travel block opens at its pillar's heading — its eyebrow row,
+ *      label and headline left with Part 4 (until HOME-FINISH-02: the travel section's FIRST child, in the page's purple
+ *      heading classes, above the id row, the block's own label and headline following);
  *   T3 the two headings come from the leaf (src/lib/homeActWords.ts — pure, no directive); Landing.tsx and
  *      WasHereSection.tsx import them and type neither; the trip log's h2 renders the leaf's word;
- *   T4 id={DEMO_ANCHOR} still renders once in Landing, on the travel block's eyebrow row.
+ *   T4 id={DEMO_ANCHOR} still renders once in Landing — on the third pillar's heading (HOME-FINISH-02; on the travel
+ *      block's eyebrow row until then).
  * Source is read through code() only (the reader law). No line number, no clock, no live call.
  */
 import { test } from 'node:test';
@@ -27,13 +29,17 @@ const LANDING = 'src/components/landing/Landing.tsx';
 const TRIP = 'src/components/landing/WasHereSection.tsx';
 const LEAF = 'src/lib/homeActWords.ts';
 
-const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">';
+// HOME-FINISH-02 (2026-11-10), Part 4: the travel section wears its own top and bottom padding (py-10) — the eyebrow row's pt-6 and the foot row's
+// pb-2 gave them until then, and both rows left. Until then: '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">'.
+const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 py-10 border-b border-border">';
 // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the heading in gold, one size up, alone in the page's container. Until then it was the travel section's
 // first child: '<h2 className="pt-8 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-act-heading>{WHAT_WE_DO_HEADING}</h2>'.
 const HEADING = '<h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>';
 const HEADING_BOX = '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">';
 const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />';
-const ID_ROW = '<div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">';
+// HOME-FINISH-02 (2026-11-10), Part 4: the anchor sits on the third pillar's heading. Until then this constant was ID_ROW, the eyebrow row:
+// '<div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">'.
+const ID_HEAD = '<h2 id={DEMO_ANCHOR} className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPLORE_PILLAR.heading}</h2>';
 /**
  * The twelve, in Alex's order. HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — the how-to and DONE-FOR-YOU moved above the travel
  * block, and "What We Do" joined the list as a place of its own (until then the eleven ran: the travel block · the booking box · the guest's strip ·
@@ -74,7 +80,7 @@ test('T1 the twelve, each once, in Alex\'s order (HOME-FINISH-02: plan → build
   assert.equal(new Set(at).size, 12, 'twelve places');
 });
 
-test('T2 "What We Do" (HOME-FINISH-02): the data-act-heading h2 stands alone in the page\'s container, in gold and one size up, directly above the how-to; the travel block opens at its id row; its own label and headline follow', () => {
+test('T2 "What We Do" (HOME-FINISH-02): the data-act-heading h2 stands alone in the page\'s container, in gold and one size up, directly above the how-to; the travel block opens at its pillar\'s heading; its old label and headline are gone', () => {
   const landing = code(LANDING);
   assert.equal(count(landing, HEADING), 1, 'the heading, once, as ruled');
   assert.equal(count(landing, 'data-act-heading'), 1, 'one act heading in this file');
@@ -89,19 +95,18 @@ test('T2 "What We Do" (HOME-FINISH-02): the data-act-heading h2 stands alone in 
   assert.match(landing.slice(box + alone.length, howTo), ONLY_COMMENTS, 'the heading → the how-to: comments between, nothing else');
   assert.match(landing.slice(landing.indexOf('</section>', hero) + '</section>'.length, box), ONLY_COMMENTS, 'the hero → the heading: comments between, nothing else');
   const travel = landing.indexOf(TRAVEL_OPEN);
-  const idRow = landing.indexOf(ID_ROW);
-  assert.ok(travel > howTo && idRow > travel, 'the travel block stands below the how-to');
-  assert.match(landing.slice(travel + TRAVEL_OPEN.length, idRow), ONLY_COMMENTS, 'the travel section opens at its id row: a comment between, nothing else');
-  // the block's own label and headline stand inside the travel section. HOME-BRIEF-02 (Alex, 2026-11-10): the label reads
-  // TRAVEL BOOKING & EXPERIENCES — 'LIVE DEMO — TRAVEL' until then; the headline is unchanged.
+  const idHead = landing.indexOf(ID_HEAD);
+  assert.ok(travel > howTo && idHead > travel, 'the travel block stands below the how-to');
+  assert.match(landing.slice(travel + TRAVEL_OPEN.length, idHead), ONLY_COMMENTS, 'the travel section opens at its pillar\'s heading: a comment between, nothing else');
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56), Part 4: the block's own label and headline left the page. Until then they stood under the id row,
+  // inside the travel section — the label '>TRAVEL BOOKING &amp; EXPERIENCES</p>' (HOME-BRIEF-02: 'LIVE DEMO — TRAVEL' before that) and the
+  // headline 'Search &amp; book travel — free today, no account needed.', each counted once: 'the label, then the headline, inside the travel section'.
   const travelEnd = landing.indexOf('</section>', travel);
   assert.ok(!landing.slice(travel, travelEnd).includes('data-act-heading'), 'the act heading is no longer in the travel section');
-  const label = landing.indexOf('>TRAVEL BOOKING &amp; EXPERIENCES</p>');
-  const headline = landing.indexOf('Search &amp; book travel — free today, no account needed.');
-  assert.ok(label > idRow && headline > label && travelEnd > headline, 'the label, then the headline, inside the travel section');
-  assert.equal(count(landing, 'TRAVEL BOOKING &amp; EXPERIENCES'), 1);
+  assert.equal(count(landing.slice(travel, travelEnd), '<h2'), 1, 'one h2 in the travel section — the pillar\'s');
+  assert.equal(count(landing, 'TRAVEL BOOKING &amp; EXPERIENCES'), 0, 'the label left');
   assert.equal(count(landing, 'LIVE DEMO — TRAVEL'), 0, 'the old label is rendered nowhere');
-  assert.equal(count(landing, 'Search &amp; book travel — free today, no account needed.'), 1);
+  assert.equal(count(landing, 'Search &amp; book travel'), 0, 'the headline left');
 });
 
 test('T3 the two headings come from the leaf — pure, no directive; Landing.tsx and WasHereSection.tsx import them and type neither; the trip log\'s h2 renders the leaf\'s word', () => {
@@ -122,12 +127,12 @@ test('T3 the two headings come from the leaf — pure, no directive; Landing.tsx
   }
 });
 
-test('T4 id={DEMO_ANCHOR} still renders once in Landing — on the travel block\'s eyebrow row, inside the travel section', () => {
+test('T4 id={DEMO_ANCHOR} still renders once in Landing — on the third pillar\'s heading (HOME-FINISH-02; the eyebrow row until then), inside the travel section', () => {
   const landing = code(LANDING);
   assert.equal(count(landing, 'id={DEMO_ANCHOR}'), 1, 'the anchor, once');
-  assert.equal(count(landing, ID_ROW), 1, 'on the eyebrow row');
+  assert.equal(count(landing, ID_HEAD), 1, 'on the pillar\'s heading');
   const travel = landing.indexOf(TRAVEL_OPEN);
-  const idRow = landing.indexOf(ID_ROW);
-  assert.ok(travel > -1 && idRow > travel && idRow < landing.indexOf('</section>', travel), 'inside the travel section');
+  const idHead = landing.indexOf(ID_HEAD);
+  assert.ok(travel > -1 && idHead > travel && idHead < landing.indexOf('</section>', travel), 'inside the travel section');
   assert.match(landing, /^import \{ DEMO_ANCHOR \} from '@\/lib\/homeAnchors';/m, 'from its one home');
 });

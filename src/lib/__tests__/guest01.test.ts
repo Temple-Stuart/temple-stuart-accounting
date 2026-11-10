@@ -452,10 +452,16 @@ test('T6 the door: ONE lookup box, mounted by /booking/manage and by the home pa
   const BOOKING_MOUNT = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />';
   const section = landing.indexOf(BOOKING_MOUNT);
   const box = landing.indexOf("<GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />");
-  const footer = landing.indexOf('One trip holds everything — plans, bookings, budget.');
-  assert.ok(section > 0 && section < box && box < footer, 'under the booking section, above the demo’s footer row');
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the demo's footer row left the page, so the end of the block is what follows the lookup now — the close
+  // of the section that holds the booking mount (the law's own marker, scripts/assert-tool-registry.ts). Until then:
+  // footer = landing.indexOf('One trip holds everything — plans, bookings, budget.') and 'under the booking section, above the demo’s footer row'.
+  const footer = landing.indexOf('</section>', section);
+  assert.ok(section > 0 && section < box && box < footer, 'under the booking section, inside that section');
   // BOOK-DISCLOSE-01 (2026-11-08): the disclosure sits under the booking box — the one commission line (src/lib/disclosureWords.ts COMMISSION_LINE), optional, may stand between the section and the lookup, and nothing else may; the GUEST-01 door ruling stands (the lookup under the booking section, never a header link), with only this line between.
-  assert.match(landing.slice(section + BOOKING_MOUNT.length, box), /^\s*(<p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>\{COMMISSION_LINE\}<\/p>)?\s*(\{\s*\})?\s*<div className="[^"]*" data-guest-lookup-home>\s*$/, 'directly under it');
+  // HOME-FINISH-02: NOTHING stands between the booking mount and the lookup but a comment — the commission line moved inside the box
+  // (LandingBookingSection.tsx). Until then the slice could open with that one line, optional:
+  // (<p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>\{COMMISSION_LINE\}<\/p>)?
+  assert.match(landing.slice(section + BOOKING_MOUNT.length, box), /^\s*(\{\s*\})?\s*<div className="[^"]*" data-guest-lookup-home>\s*$/, 'directly under it, nothing between');
   assert.equal((landing.match(/<GuestBookingLookup\b/g) ?? []).length, 1);
 });
 

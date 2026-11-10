@@ -15,7 +15,8 @@
  *      place acts in an effect); the two sentences; the source: one loader, no call for a list already held, an
  *      overtaken answer dropped, the three outcomes, two list routes and nothing else;
  *   T5 the strip — with neither prop its first mode is open; with both, the held one; one without the other throws;
- *   T6 the box — at rest: no line, no starting place, the Hotels panel is the builder's own; after a press (made while
+ *   T6 the box — at rest: no line, no starting place, the Hotels panel is the builder's own and (HOME-FINISH-02,
+ *      2026-11-10) the commission disclosure is its last line, after the form; after a press (made while
  *      the box renders, so the renderer draws it again): Hotels is open, the line stands over the form with
  *      role="status", the place is the row's; the same row pressed again is a new place; no 'hotels' mode is a throw;
  *   T7 the freeze — travelStripModes.tsx, PublicHotelSearch.tsx and PublicFlightSearch.tsx still hash to their pins, and
@@ -31,6 +32,7 @@ import { code, comments, rejoin } from '../sourceText';
 import { EXPERIENCES, VENUE_NOT_FIXED, type Experience } from '../experiences';
 import { ExperienceWordsError, STAY_NEAR_WORDS, canStayNear, stayNearLine } from '../experienceWords';
 import { BOOKING_FLOW_FILES, bookingFlowSha256 } from '../travelBookingFlow';
+import { COMMISSION_LINE } from '../disclosureWords';
 import { StartingPlaceContext, cityNotInListLine, countryNotInListLine, matchCity, type StartingPlace } from '@/components/trips/startingPlace';
 import { ExperiencesView, SOURCE_LINK, StayNearContext } from '@/components/landing/ExperiencesSection';
 import type { ToggleMode } from '@/components/ui/ToggleStrip';
@@ -328,12 +330,27 @@ test('T6 the box: at rest no line and no starting place, the Hotels panel the bu
   const built = travelStripModes({ onRequireAuth, authed: false, eventsAnchor: '#events' });
   const builtHotels = built.find((m) => m.key === 'hotels');
   assert.ok(builtHotels);
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the commission disclosure is the LAST line of the Hotels panel — a third child, after the form, so the
+  // form keeps its seat (second) and is never remounted. Until then: two children ([false, the builder's panel]); 'at rest the Hotels panel draws
+  // exactly what the builder's draws'; and every other panel but Events' was the builder's own element ('untouched').
   const restChildren = restHotels.props.children as React.ReactNode[];
-  assert.equal(restChildren.length, 2);
+  assert.equal(restChildren.length, 3);
   assert.equal(restChildren[0], false, 'no line');
   assert.equal((restChildren[1] as El).type, (builtHotels.panel as El).type, 'and the builder\'s own Hotels panel, second');
-  assert.equal(renderToStaticMarkup(restHotels), renderToStaticMarkup(builtHotels.panel as El), 'at rest the Hotels panel draws exactly what the builder\'s draws');
-  for (const m of stripOf(rest).props.modes) if (m.key !== 'hotels' && m.key !== 'events') assert.equal((m.panel as El).type, (built.find((b) => b.key === m.key)?.panel as El).type, `${m.key}: untouched`);
+  const DISCLOSURE = `<p class="mt-3 text-xs text-text-secondary" data-commission-line="true">${COMMISSION_LINE}</p>`;
+  assert.equal(renderToStaticMarkup(restChildren[2] as El), DISCLOSURE, 'then the disclosure, third and last');
+  assert.equal(renderToStaticMarkup(restHotels), renderToStaticMarkup(builtHotels.panel as El) + DISCLOSURE, 'at rest the Hotels panel draws exactly what the builder\'s draws, and then the disclosure');
+  for (const m of stripOf(rest).props.modes) {
+    if (m.key === 'hotels' || m.key === 'events') continue;
+    const made = built.find((b) => b.key === m.key)?.panel as El;
+    if (!['flights', 'transit', 'activities'].includes(m.key)) { assert.equal((m.panel as El).type, made.type, `${m.key}: untouched`); continue; }
+    // the three other panels that can pay: the builder's own panel, then the disclosure
+    assert.equal((m.panel as El).type, React.Fragment, `${m.key}: two things side by side`);
+    const kids = (m.panel as El).props.children as React.ReactNode[];
+    assert.equal(kids.length, 2);
+    assert.equal((kids[0] as El).type, made.type, `${m.key}: the builder's own panel, first`);
+    assert.equal(renderToStaticMarkup(kids[1] as El), DISCLOSURE, `${m.key}: then the disclosure`);
+  }
   assert.equal(stripOf(rest).props.modes[0].panel, catalog, 'the catalog is still the Events panel itself');
   const whole = renderToStaticMarkup(React.createElement(LandingBookingSection, { onRequireAuth, events: catalog }));
   assert.equal(count(whole, 'data-stay-near-line'), 0, 'rendered whole: no line');

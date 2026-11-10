@@ -3,6 +3,15 @@
  * booking box on the home page (src/components/landing/Landing.tsx, right after the LandingBookingSection mount).
  * A pure leaf: it imports nothing, and the page renders these words, never types them.
  *
+ * WHERE IT SITS — HOME-FINISH-02 (Alex, 2026-11-10 20:56: the line "should no longer appear as a standalone marketing line
+ * beneath the booking interface … If disclosure is necessary, retain an appropriate concise disclosure in a compliant
+ * location"): INSIDE the booking box, as the LAST line of the four panels whose bookings can pay — Flights, Hotels,
+ * Getting around, Things to do (src/components/landing/LandingBookingSection.tsx PAYING_KEYS) — and on no other tab:
+ * not Events, not Visa, not the two SOON tabs. It is necessary because a booking here can pay (the list below), and it
+ * sits beside the thing booked because the brief's authority, the FTC's Endorsement Guides FAQ, says to disclose the
+ * relationship "clearly and conspicuously" and that "the closer the disclosure is to your recommendation, the better".
+ * Until then (the first line above) it was one line under the box, in Landing.tsx. The words are unchanged.
+ *
  * WHY "MAY" — what a booking here can pay, by the code (each path read on main ec91005):
  *   · hotels (LiteAPI): the vendor states a commission at prebook, or NULL — "not stated" at the checkout, never 0
  *     (src/lib/liteapiClient.ts:705-707 and :1137-1145; src/components/trips/CheckoutPanel.tsx:105-106 and :699-702);

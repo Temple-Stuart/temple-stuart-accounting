@@ -64,11 +64,20 @@
 // place reaches the picker the form mounts through that context, and the picker reports it up as a click would.
 // Never a date, and never a search — nothing reaches the hotel search until the visitor presses Search. No 'hotels'
 // mode from the builder → a throw, by name, as for Events.
+// HOME-FINISH-02 (Alex, 2026-11-10 20:56): THE DISCLOSURE, INSIDE THE BOX. "When you book here, I may earn a commission."
+// (src/lib/disclosureWords.ts — its words unchanged) was one line under this box, in Landing.tsx; Alex: it "should no
+// longer appear as a standalone marketing line beneath the booking interface … retain an appropriate concise disclosure
+// in a compliant location". It is the LAST line of the four panels whose bookings can pay — Flights, Hotels, Getting
+// around, Things to do (PAYING_KEYS; why these four, and why not Events, Visa or the two SOON tabs: that leaf) — beside
+// the thing booked. On Hotels it stands after the form inside the starting place's provider, so the form keeps its seat
+// among the provider's children and is never remounted; on the other three it is the builder's panel and then the
+// sentence. The builder's file is not edited. A paying key the builder does not return → a throw, by name.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
 import { EVENTS_ANCHOR } from '@/lib/homeAnchors';
 import type { Experience } from '@/lib/experiences';
 import { stayNearLine } from '@/lib/experienceWords';
+import { COMMISSION_LINE } from '@/lib/disclosureWords';
 import { StartingPlaceContext, type StartingPlace } from '@/components/trips/startingPlace';
 import { StayNearContext, landOnEvents } from './ExperiencesSection';
 // PR-ELEV-1: the modes come from the ONE shared builder (8 chips — 5 live + 3
@@ -80,6 +89,8 @@ import { travelStripModes } from '@/components/trips/travelStripModes';
 const EVENTS_KEY = 'events';
 /** HOME-BRIEF-05 (2026-11-10): the builder's Hotels mode, by its key — the tab "Stay near it" opens. */
 const HOTELS_KEY = 'hotels';
+/** HOME-FINISH-02 (2026-11-10): the four modes whose bookings can pay a commission, by their keys (travelStripModes.tsx) — the disclosure is the last line of their panels. */
+const PAYING_KEYS: readonly string[] = ['flights', 'hotels', 'transit', 'activities'];
 /** HOME-BRIEF-05: the one line over the Hotels form — the house explainer's hairline (src/lib/ds.ts EXPLAINER), in primary ink at the form's size. */
 const STAY_LINE = 'mt-4 border-l-2 border-brand-purple pl-3 text-sm text-text-primary';
 
@@ -156,12 +167,20 @@ export default function LandingBookingSection({ onRequireAuth, events }: { onReq
   // event is pressed. The panel keeps its seat in the list and its place among the provider's children, so the form is
   // never remounted: its dates, its results and the picker's lists survive a press.
   if (!ordered.some((m) => m.key === HOTELS_KEY)) throw new Error(`LandingBookingSection: travelStripModes returned no '${HOTELS_KEY}' mode (it returned ${modes.map((m) => m.key).join(', ') || 'none'}) — "Stay near it" has no Hotels form to open`);
-  const shown: ToggleMode[] = ordered.map((m) => (m.key !== HOTELS_KEY ? m : {
+  // HOME-FINISH-02: the disclosure — the last line of each panel that can pay. Secondary ink: a disclosure has to be easy to read.
+  for (const key of PAYING_KEYS) {
+    if (!ordered.some((m) => m.key === key)) throw new Error(`LandingBookingSection: travelStripModes returned no '${key}' mode (it returned ${modes.map((m) => m.key).join(', ') || 'none'}) — the commission disclosure has no '${key}' panel to close`);
+  }
+  const disclosure = <p className="mt-3 text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>;
+  // Flights, Getting around, Things to do: the builder's panel, then the sentence. Every other mode but Hotels: as it came.
+  const withDisclosure = (m: ToggleMode): ToggleMode => (PAYING_KEYS.includes(m.key) ? { ...m, panel: <>{m.panel}{disclosure}</> } : m);
+  const shown: ToggleMode[] = ordered.map((m) => (m.key !== HOTELS_KEY ? withDisclosure(m) : {
     ...m,
     panel: (
       <StartingPlaceContext.Provider value={stay === null ? null : stay.place}>
         {stay !== null && <p role="status" className={STAY_LINE} data-stay-near-line>{stay.line}</p>}
         {m.panel}
+        {disclosure}
       </StartingPlaceContext.Provider>
     ),
   }));

@@ -29,6 +29,14 @@
  * such an arrival to the block once, when it mounts (landOnEvents). The visitor's own URL names the place: no default,
  * nothing chosen for them, and no other hash is acted on.
  *
+ * HOME-FINISH-02 (Alex, 2026-11-10 20:56) — THE PANEL OPENS AT "I'M INTO…": its two opening lines went — the label line
+ * ("THE BEST EXPERIENCES ON EARTH · THEN THE STAY AND THE FLIGHT TO GET THERE", EYEBROW) and the line under it ("Pick what
+ * you're into. See what's on and where. Book the stay and the flight around it, right here.", SUBHEAD) — because the
+ * pillar's paragraph over the box says it (Landing.tsx, "Explore the World."). The chips' label lost the mt-8 that set
+ * it under them. EYEBROW and SUBHEAD left with their last reader, and so did PROMISE ("Book the experience, not just the
+ * destination."), which Landing.tsx read for the travel header until this brief. Every note below that names them is
+ * history.
+ *
  * HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15) — ONE OFFERING WITH THE TRAVEL BLOCK ABOVE: this band repeats no headline.
  * The experience line and the promise are the travel block's header now (Landing.tsx reads EXPERIENCE_LINE from
  * src/lib/brandLines.ts and PROMISE from this file); the band renders its eyebrow, then SUBHEAD, then the chips and the
@@ -131,10 +139,8 @@ export const INTO_PARAM = 'into';
 /** EVENTS-01b: the category shown when the URL names none — the FIRST in the leaf's list, derived, never typed. */
 export const DEFAULT_INTO: ExperienceCategoryId = EXPERIENCE_CATEGORIES[0].id;
 
-export const EYEBROW = 'THE BEST EXPERIENCES ON EARTH · THEN THE STAY AND THE FLIGHT TO GET THERE';
-/** HOME-LINES-01 (2026-11-08): the h2 until HOME-LINES-01 (then HEADLINE); now the promise under the experience line. HOME-BRIEF-03 (2026-11-10): rendered by Landing.tsx, in the travel block's header — not by this band. */
-export const PROMISE = 'Book the experience, not just the destination.';
-export const SUBHEAD = "Pick what you're into. See what's on and where. Book the stay and the flight around it, right here.";
+// HOME-FINISH-02 (Alex, 2026-11-10 20:56): three words left here with their last readers — the panel's label line and the line under it
+// (this panel's own two opening lines), and the promise Landing.tsx read for the travel header. The pillar's paragraph says it now.
 export const INTO_LABEL = "I'M INTO…";
 /** SEASONS-01 (2026-11-08): the second chip row's label — the season categories. */
 export const SEASONS_LABEL = 'SEASONS';
@@ -192,8 +198,7 @@ export function landOnEvents(hash: string, find: (id: string) => { scrollIntoVie
 const EXP = {
   // The panel of the Events tab: no band and no box of its own — the hairline and the spacing every panel of the strip opens with.
   panel: 'mt-6 border-t border-border pt-6',
-  eyebrow: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  sub: 'mt-2 max-w-2xl text-sm text-text-secondary',
+  // HOME-FINISH-02 (2026-11-10): the keys of the panel's two opening lines (eyebrow, sub) left with the lines.
   label: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
   chipRow: 'mt-3 flex flex-wrap gap-2',
   // The chosen chip: filled brand purple, white words. The others: outlined.
@@ -284,10 +289,7 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
   );
   return (
     <section id={EVENTS_ANCHOR} aria-label="Book the experience" className={EXP.panel} data-experiences>
-      <p className={EXP.eyebrow}>{EYEBROW}</p>
-      <p className={EXP.sub}>{SUBHEAD}</p>
-
-      <p className={`mt-8 ${EXP.label}`}>{INTO_LABEL}</p>
+      <p className={EXP.label}>{INTO_LABEL}</p>
       <div className={EXP.chipRow} role="group" aria-label={INTO_LABEL}>
         {EXPERIENCE_CATEGORIES.filter((c) => c.group === 'event').map(chip)}
       </div>

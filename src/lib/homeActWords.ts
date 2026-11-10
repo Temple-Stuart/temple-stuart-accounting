@@ -8,9 +8,11 @@
  *   · ABOUT_US_HEADING   — the h2 of the act between them (StopZeroSection.tsx), over Alex's text; that text is its own
  *                          leaf's (src/lib/stopZeroWords.ts), not this file's.
  *
- * HOME-BRIEF-03 (Alex, 2026-11-10 18:09): one more line of the home page lives here —
+ * HOME-BRIEF-03 (Alex, 2026-11-10 18:09): one more line of the home page lived here —
  *   · SAVE_TRIPS_LINE    — in the travel block's foot row, right after "One trip holds everything — plans, bookings,
- *                          budget." (Landing.tsx): what an account adds to booking without one.
+ *                          budget." (Landing.tsx): what an account adds to booking without one. HOME-FINISH-02
+ *                          (2026-11-10): that row left the page, and the constant ("Create a free account to save
+ *                          your trips.") left with its last reader.
  *
  * HOME-FINISH-02 (Alex's brief "HOME-FINISH | Temple Stuart Homepage Copy, Layout & Footer", 2026-11-10 20:56):
  *   · WHAT_WE_DO_HEADING stands ALONE now, in gold, directly above the three pillars (Landing.tsx — it was the travel
@@ -21,6 +23,7 @@
  *     h2) and its paragraphs (one <p> each, in order); the component that draws it types neither.
  *       PLAN_PILLAR  — over the plans (HowToSection.tsx).
  *       BUILD_PILLAR — over the six service cards (Landing.tsx, the professional-services section).
+ *       EXPLORE_PILLAR — over the booking box and the booking lookup (Landing.tsx, the travel section).
  *
  * PURE, NO DIRECTIVE: no import, no state, no clock — one string each (a pillar: its heading and its paragraphs), so a
  * client component, a server component and a test all read the same words.
@@ -31,8 +34,6 @@ export const WHAT_WE_DO_HEADING = 'What We Do';
 export const ABOUT_US_HEADING = 'About Us';
 
 export const OUR_STORY_HEADING = 'Our Story';
-
-export const SAVE_TRIPS_LINE = 'Create a free account to save your trips.';
 
 /** A pillar under "What We Do": its heading, then its paragraphs in order. */
 export interface Pillar {
@@ -53,5 +54,12 @@ export const BUILD_PILLAR: Pillar = {
   heading: 'Build Your Income.',
   paragraphs: [
     'Want to build your own system or something customized for your business? From full setup and custom development to integrations, ongoing maintenance, and bookkeeping, Temple Stuart offers hands-on services tailored to your needs.',
+  ],
+};
+
+export const EXPLORE_PILLAR: Pillar = {
+  heading: 'Explore the World.',
+  paragraphs: [
+    'Discover events and experiences worth traveling for, find flights and places to stay, and book the journey that gets you there.',
   ],
 };
