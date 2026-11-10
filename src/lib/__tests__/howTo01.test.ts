@@ -25,6 +25,11 @@
  *      the plans section — PlanCards alone stands whole inside PlansSection's render, once, right under its subhead; four
  *      cards in PLANS' order, each with its top label, its name, its two lines, who it is for, three benefits, the
  *      launch placeholder and its door; a button door calls back with the plan's id; a link door draws the link.
+ *   T8 (HOME-PLANS-01) the comparison, in the leaf — four columns and their heads; 8 · 9 · 4 · 5 = 26 steps and the
+ *      counts' words; the in-plan grid, cell by cell, derived from each plan's modules; every step's title the leaf's;
+ *      every tool's line its capability row's label (the plans leaf's — never retyped), the three tools no row names
+ *      alone named; the two customer notes present and the build note absent; no status word anywhere in the view; each
+ *      new refusal by name; the status view's notes unchanged by the field move.
  * Source is read through code() only (the reader law). No count is typed: each is computed. No clock, no live call.
  *
  * HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03: "the how-to should replace software plans … cards should be horizontal
@@ -41,11 +46,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { code } from '../sourceText';
 import { PRIMARY_CTA, chip } from '../ds';
 import { TOOL_REGISTRY, type ToolEntry } from '../toolRegistry';
-import { EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, PLANS, PLANS_SUBHEAD, priceSlot } from '../offer/plans';
+import { CAPABILITY_GROUPS, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, PLANS, PLANS_SUBHEAD, priceSlot, type Plan } from '../offer/plans';
 import { OFFERS } from '../offer';
 import {
-  ADD_BUSINESS, ADD_TRADE, COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, HOW_TO_CHOICES, HOW_TO_SECTIONS,
-  HOW_TO_SECTION_ORDER, HowToLawError, LEGEND_BOOKS_LINE, LEGEND_STEP_LINE, LEGEND_TITLE, NEEDS_BOOKS, NEXT_LINE, PERSONAL_ALWAYS, STEP_LIVE,
+  ADD_BUSINESS, ADD_TRADE, COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, COMPARISON_FIRST_HEAD, HOW_TO_CHOICES, HOW_TO_SECTIONS,
+  HOW_TO_SECTION_ORDER, HowToLawError, PLAN_HEADS, PLAN_MARKS, categoryHeading, choiceOf, planComparison, stepCountWords, toolLine, LEGEND_BOOKS_LINE, LEGEND_STEP_LINE, LEGEND_TITLE, NEEDS_BOOKS, NEXT_LINE, PERSONAL_ALWAYS, STEP_LIVE,
   STEP_PENDING, TOOL_MARKS, WHAT_YOU_RUN_LABEL, booksLine, booksNotOnSale, cardStep, howToLaw, howToView, modulesOf, planFor, planLine, priceLine,
   sectionShown, stepsLine, type HowToChoice, type HowToSection,
 } from '../howTo';
@@ -473,5 +478,139 @@ test('T7 (HOME-PLANS-01) the four plan cards are exported whole: PlanCards alone
     'data-plan-audience', 'data-plan-relationship', 'data-column-audience', 'data-column-relationship', '{PLANS_HEADLINE}', '{PLANS_SUBHEAD}', 'travelFreeLine()', 'data-travel-free']) {
     assert.ok(src.includes(held), `the plans section still carries ${held}`);
   }
+});
+
+// ── T8 · THE COMPARISON, IN THE LEAF (HOME-PLANS-01) ─────────────────────────
+
+test('T8 (HOME-PLANS-01) the comparison of the live leaf: four columns and their heads; 8 · 9 · 4 · 5 = 26 steps and the counts\' words; the in-plan grid, cell by cell; every step\'s title the leaf\'s; every tool\'s line its capability row\'s label; the two customer notes present, the build note absent; no status word anywhere in the view; each new refusal by name; the status view unchanged by the field move', () => {
+  const view = planComparison();
+  // the table's words, typed once in the leaf
+  assert.equal(COMPARISON_FIRST_HEAD, 'Step / Capability');
+  assert.equal(view.firstHead, COMPARISON_FIRST_HEAD);
+  assert.deepEqual(PLAN_HEADS, { personal: 'Personal', business: 'P + Business', trading: 'P + Trading', everything: 'All' });
+  assert.deepEqual(PLAN_MARKS, { inPlan: { mark: '✓', label: 'In this plan' }, notInPlan: { mark: '—', label: 'Not in this plan' } });
+  assert.deepEqual([stepCountWords(1), stepCountWords(2), stepCountWords(8)], ['1 step', '2 steps', '8 steps']);
+  assert.equal(categoryHeading('Personal', 8), 'PERSONAL — 8 steps');
+  // the four columns, in PLANS' order: the plan's id, its head, its full name
+  assert.deepEqual(view.columns, PLANS.map((p) => ({ id: p.id, head: PLAN_HEADS[p.id], name: p.name })), 'the columns, in PLANS\' order');
+  assert.deepEqual(view.columns.map((c) => c.head), ['Personal', 'P + Business', 'P + Trading', 'All']);
+  assert.deepEqual(view.columns.map((c) => c.name), ['Personal', 'Personal + Business', 'Personal + Trading', 'Personal + Business + Trading'], 'each column carries its plan\'s full name');
+  // the four categories, in order, with their counts — computed from the leaf's own steps
+  assert.deepEqual(view.categories.map((c) => c.id), [...HOW_TO_SECTION_ORDER]);
+  assert.deepEqual(view.categories.map((c) => c.count), HOW_TO_SECTIONS.map((s) => s.steps.length));
+  assert.deepEqual(view.categories.map((c) => c.count), [8, 9, 4, 5]);
+  assert.equal(view.categories.reduce((sum, c) => sum + c.count, 0), 26, '26 steps');
+  assert.deepEqual(view.categories.map((c) => c.countWords), ['8 steps', '9 steps', '4 steps', '5 steps']);
+  assert.deepEqual(view.categories.map((c) => c.heading), ['PERSONAL — 8 steps', 'BUSINESS — 9 steps', 'TRAVEL — 4 steps', 'TRADE — 5 steps']);
+  view.categories.forEach((c, i) => {
+    const section = HOW_TO_SECTIONS[i];
+    assert.equal(c.name, section.name);
+    assert.equal(c.heading, categoryHeading(section.name, section.steps.length));
+    assert.equal(c.steps.length, c.count);
+  });
+  // IN THE PLAN, cell by cell — and derived: what a plan runs is its modules, and a category is in when sectionShown says so
+  assert.deepEqual(view.categories.map((c) => c.inPlan), [
+    [true, true, true, true], // Personal: all four
+    [false, true, false, true], // Business: Personal + Business, and all three
+    [true, true, true, true], // Travel: all four
+    [false, false, true, true], // Trade: Personal + Trading, and all three
+  ]);
+  for (const plan of PLANS) assert.deepEqual(choiceOf(plan), { business: plan.modules.includes('business'), trade: plan.modules.includes('trading') }, `${plan.id}: what it runs, from its modules`);
+  view.categories.forEach((c) => PLANS.forEach((plan, j) => assert.equal(c.inPlan[j], sectionShown(c.id, choiceOf(plan)), `${c.id} × ${plan.id}`)));
+  assert.deepEqual(PLANS.map((plan) => choiceOf(plan)), [...HOW_TO_CHOICES], 'the four plans are the four choices, in order');
+  // every step: its number, its title (the with-Business reading where the words read two ways), its note — the leaf's
+  const withBusiness = (words: string | { withBusiness: string; withoutBusiness: string }) => (typeof words === 'string' ? words : words.withBusiness);
+  view.categories.forEach((c, i) => {
+    const section = HOW_TO_SECTIONS[i];
+    assert.equal(c.line, withBusiness(section.line), `${c.id}: its line`);
+    c.steps.forEach((step, k) => {
+      assert.equal(step.n, section.steps[k].n);
+      assert.equal(step.title, withBusiness(section.steps[k].title), `${c.id} step ${step.n}: the leaf's title`);
+      assert.equal(step.note, section.steps[k].note ?? null, `${c.id} step ${step.n}: its customer note, or none`);
+    });
+  });
+  const travel = view.categories[2];
+  assert.equal(travel.line, 'Every trip line goes to Personal or Business — never a book of its own.', 'Travel\'s line takes its with-Business reading');
+  assert.equal(travel.steps[3].title, 'Book every trip line to Personal or Business.', 'and so does its fourth step');
+  // every tool's line is a capability row's label — the first row that names the tool alone; when none does, the first that names it
+  const rows = CAPABILITY_GROUPS.flatMap((g) => g.rows);
+  const rowFor = (name: string) => rows.find((r) => r.tools.length === 1 && r.tools[0] === name) ?? rows.find((r) => (r.tools as readonly string[]).includes(name));
+  const leaf = code(LEAF);
+  for (const tool of TOOL_REGISTRY) {
+    const row = rowFor(tool.name);
+    assert.ok(row, `${tool.name}: a capability row names it`);
+    assert.equal(toolLine(tool.name), row.label, `${tool.name}: its line is that row's label`);
+    assert.ok(!leaf.includes(row.label), `the leaf does not retype "${row.label.slice(0, 32)}…"`);
+  }
+  assert.equal(toolLine('Banking'), 'Every bank and card account in one place');
+  assert.equal(toolLine('Expenses'), 'Every recurring expense planned, with its vendor and what it cost this month', 'Expenses: the row that names it alone, not the earlier row it shares with Tasks');
+  assert.equal(toolLine('Bookkeeping'), 'Double-entry books written from what you already did', 'Bookkeeping: the first of the two rows that name it alone');
+  const noRowAlone = TOOL_REGISTRY.map((t) => t.name).filter((name) => !rows.some((r) => r.tools.length === 1 && r.tools[0] === name)).sort();
+  assert.deepEqual(noRowAlone, ['Compliance', 'Ent Filings', 'Tasks'], 'the three tools no row names alone');
+  assert.equal(toolLine('Tasks'), 'Projects and routines, each with what it costs');
+  assert.equal(toolLine('Compliance'), 'What the entity must file, when it is due, and whether it did');
+  assert.equal(toolLine('Ent Filings'), toolLine('Compliance'), 'Compliance and Ent Filings share one row');
+  // each step's tools, with their lines; tools of one step that share a line stand together on it
+  view.categories.forEach((c, i) => c.steps.forEach((step, k) => {
+    const names = HOW_TO_SECTIONS[i].steps[k].tools;
+    assert.deepEqual(step.tools.flatMap((t) => t.name.split(' · ')), [...names], `${c.id} step ${step.n}: every tool, in the leaf's order`);
+    for (const t of step.tools) for (const name of t.name.split(' · ')) assert.equal(t.line, toolLine(name as (typeof names)[number]), `${c.id} step ${step.n}: ${name}'s line`);
+    assert.equal(new Set(step.tools.map((t) => t.line)).size, step.tools.length, `${c.id} step ${step.n}: no line twice`);
+  }));
+  assert.deepEqual(view.categories[1].steps[0].tools, [{ name: 'Compliance · Ent Filings', line: 'What the entity must file, when it is due, and whether it did' }], 'Business step 1: the two stand together on their one line');
+  const together = view.categories.flatMap((c) => c.steps.flatMap((step) => step.tools.filter((t) => t.name.includes(' · ')).map((t) => t.name)));
+  assert.deepEqual(together, ['Compliance · Ent Filings'], 'and nothing else shares a line inside one step');
+  // the notes: the two written for a customer are there; the build note is not
+  const BUILD_NOTE = 'No customer can open a trading book yet, so this step waits on that.';
+  const notes = view.categories.flatMap((c) => c.steps.filter((step) => step.note !== null).map((step) => `${c.id}-${step.n}: ${step.note}`));
+  assert.deepEqual(notes, [
+    'personal-5: Each account sits where you use it: your 401k here, the brokerage you trade options in under Trade.',
+    'trade-2: The brokerage you trade options in. Your 401k stays under Personal.',
+  ]);
+  const tradeOne = HOW_TO_SECTIONS[3].steps[0];
+  assert.equal(tradeOne.buildNote, BUILD_NOTE, 'Trade step 1\'s note is its build note now');
+  assert.equal(tradeOne.note, undefined);
+  assert.deepEqual(HOW_TO_SECTIONS.flatMap((s) => s.steps.filter((step) => step.buildNote !== undefined).map((step) => `${s.id}-${step.n}`)), ['trade-1'], 'one build note in the leaf');
+  assert.equal(view.categories[3].steps[0].note, null, 'the comparison does not carry it');
+  // NO STATUS WORD anywhere in the whole view, serialised
+  const serialised = JSON.stringify(view);
+  assert.ok(!serialised.includes(BUILD_NOTE));
+  for (const word of ['LIVE', 'PENDING', 'PARTIAL', 'NOT BUILT', 'NOT_BUILT', 'NEEDS BOOKS', 'on sale', 'live today', STEP_LIVE.words, STEP_PENDING.words, ...Object.values(TOOL_MARKS).map((m) => m.words)]) {
+    assert.ok(!serialised.includes(word), `the comparison says "${word}" nowhere`);
+  }
+  assert.doesNotMatch(serialised, /\bbuilt\b|\bpending\b|\bpartial\b|coming soon/i, 'nor any softer word for a status');
+  // the source: the comparison reads no status and no build note
+  const fnAt = leaf.indexOf('export function planComparison(');
+  const fnEnd = leaf.indexOf('export function howToLaw(');
+  assert.ok(fnAt > -1 && fnEnd > fnAt, 'planComparison, then the law');
+  const fn = leaf.slice(fnAt, fnEnd);
+  assert.ok(fn.includes('return { firstHead: COMPARISON_FIRST_HEAD, columns, categories };') && !/statusOf|TOOL_MARKS|STEP_LIVE|STEP_PENDING|NEEDS_BOOKS|booksNotOnSale|buildNote|registry/i.test(fn), 'planComparison reads no status, no Books gate and no build note');
+  assert.equal(count(leaf, 'note: step.note ?? step.buildNote ?? null,'), 1, 'the status view\'s card note: the customer note, then the build note');
+  // each new refusal, by name
+  const withoutMileage = CAPABILITY_GROUPS.map((g) => ({ ...g, rows: g.rows.filter((r) => !(r.tools as readonly string[]).includes('Mileage')) }));
+  assert.throws(() => toolLine('Mileage', withoutMileage), (e: unknown) => e instanceof HowToLawError && /no capability row of src\/lib\/offer\/plans\.ts names Mileage/.test(e.message), 'a tool no row names: thrown, by name');
+  assert.throws(() => planComparison({ groups: withoutMileage }), (e: unknown) => e instanceof HowToLawError && /names Mileage/.test(e.message));
+  const fifth = [...PLANS, { ...PLANS[0], id: 'enterprise' } as unknown as Plan];
+  assert.throws(() => planComparison({ plans: fifth }), (e: unknown) => e instanceof HowToLawError && /the plan "enterprise" has no head in the comparison/.test(e.message), 'a plan with no head: thrown, by name');
+  assert.throws(() => planComparison({ sections: HOW_TO_SECTIONS.filter((s) => s.id !== 'travel') }), (e: unknown) => e instanceof HowToLawError && /the steps hold no "travel" section/.test(e.message));
+  // … and the law's two new clauses
+  assert.deepEqual(howToLaw({ throwOnFail: false }), [], 'the live leaf passes');
+  const threeHeads = Object.fromEntries(Object.entries(PLAN_HEADS).filter(([id]) => id !== 'everything'));
+  assert.ok(howToLaw({ throwOnFail: false, heads: threeHeads }).includes('the plan "everything" has no head in the comparison'), 'a plan with no head');
+  assert.ok(howToLaw({ throwOnFail: false, heads: { ...PLAN_HEADS, enterprise: 'Ent' } }).includes('the comparison\'s head "Ent" names "enterprise", which is not a plan'), 'a head that names no plan');
+  assert.ok(howToLaw({ throwOnFail: false, heads: { ...PLAN_HEADS, trading: '  ' } }).includes('the plan "trading" has no head in the comparison'), 'a blank head is no head');
+  const lawWithoutMileage = howToLaw({ throwOnFail: false, groups: withoutMileage });
+  assert.deepEqual(lawWithoutMileage, [
+    'business step 7 names "Mileage", which no capability row names — the comparison has no line for it',
+    'travel step 3 names "Mileage", which no capability row names — the comparison has no line for it',
+  ], 'a tool with no line, at each step that names it');
+  // the status view is unchanged by the field move: it still shows all three notes
+  const both = howToView({ business: true, trade: true });
+  assert.deepEqual(both.sections.flatMap((s) => s.cards.filter((c) => c.note !== null).map((c) => `${s.id}-${c.n}: ${c.note}`)), [
+    'personal-5: Each account sits where you use it: your 401k here, the brokerage you trade options in under Trade.',
+    `trade-1: ${BUILD_NOTE}`,
+    'trade-2: The brokerage you trade options in. Your 401k stays under Personal.',
+  ], 'the status view: the two customer notes and the build note, as before');
+  for (const choice of HOW_TO_CHOICES) assert.equal(howToView(choice).sections.flatMap((s) => s.cards).filter((c) => c.note !== null).length, choice.trade ? 3 : 1, `${words(choice)}: its notes`);
 });
 
