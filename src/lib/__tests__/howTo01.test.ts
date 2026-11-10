@@ -163,7 +163,8 @@ test('T4 rendered for the four choices: the sections shown and hidden, "YOUR STE
       assert.ok(button[1].split(' ').includes('min-h-[44px]'), `${what}: ${key} is 44px tall`);
       assert.equal(button[1].split(' ').includes('bg-brand-purple'), on, `${what}: ${key} is filled brand purple exactly when on`);
     }
-    assert.ok(html.includes(`>${WHAT_YOU_RUN_LABEL}</p>`));
+    assert.match(html, new RegExp(`<p class="([^"]*)">${WHAT_YOU_RUN_LABEL}</p>`));
+    assert.ok(!(new RegExp(`<p class="([^"]*)">${WHAT_YOU_RUN_LABEL}</p>`).exec(html)?.[1] ?? '').split(' ').includes('uppercase'), `${what}: the label reads as written`);
     // the plan line, the steps line, the Books line
     assert.ok(html.includes(`data-how-to-plan="true">${asHtml(view.planLine)}</p>`), `${what}: the plan line`);
     assert.ok(html.includes(`data-how-to-steps="true">${asHtml(view.stepsLine)}</p>`), `${what}: the steps line`);
@@ -185,7 +186,7 @@ test('T4 rendered for the four choices: the sections shown and hidden, "YOUR STE
     cards.forEach((m, i) => {
       const { id, card } = expected[i];
       assert.equal(m[1], id);
-      assert.ok(m[2].startsWith(`<p class="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">${card.where}</p>`), `${id}: "${card.where}" first`);
+      assert.ok(m[2].startsWith(`<p class="font-mono text-[10px] font-semibold tracking-wider text-text-faint">${card.where}</p>`), `${id}: "${card.where}" first, in the case the leaf writes it (no CSS upper-casing)`);
       assert.ok(m[2].includes(`>${asHtml(card.title)}</h3>`), `${id}: its title`);
       assert.deepEqual([...m[2].matchAll(/data-how-to-mark="([^"]+)">([^<]*)</g)].map((x) => [x[1], x[2]]), card.tools.map((t) => [asHtml(t.name), TOOL_MARKS[statusOf(t.name)].words]), `${id}: each tool, marked as the registry has it`);
       assert.ok(m[2].includes(`data-how-to-state="true">${card.live ? STEP_LIVE.words : STEP_PENDING.words}</span>`), `${id}: its own state`);

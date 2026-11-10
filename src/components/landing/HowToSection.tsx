@@ -40,7 +40,8 @@ const HOW = {
   h2: 'mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',
   sub: 'mt-2 max-w-3xl text-sm text-text-secondary',
   door: 'mt-2 inline-flex min-h-[44px] items-center font-mono text-xs tracking-wider text-brand-purple hover:text-brand-purple-hover',
-  label: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
+  // The label and the legend's title read in the case the leaf writes them — no CSS upper-casing (the eyebrow alone wears MY TRIP's caps).
+  label: 'font-mono text-xs lg:text-[10px] font-semibold tracking-wider text-text-faint',
   switches: 'mt-3 flex flex-wrap items-center gap-2',
   // Personal is everyone's: the same box as a switch, never pressed and not a button.
   always: 'inline-flex min-h-[44px] items-center rounded-lg border border-border bg-bg-row px-4 py-2 font-mono text-xs font-medium text-text-secondary',
@@ -55,7 +56,8 @@ const HOW = {
   // One column on a phone, two from sm, four from lg.
   grid: 'mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4',
   card: 'rounded-lg border border-border bg-white p-5',
-  where: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
+  // "Personal · step 1" as the leaf writes it; the place line under it is written in caps.
+  where: 'font-mono text-[10px] font-semibold tracking-wider text-text-faint',
   place: 'mt-1 font-mono text-[10px] tracking-wider text-text-faint',
   title: 'mt-2 text-base font-semibold text-text-primary',
   tools: 'mt-3 space-y-1',
