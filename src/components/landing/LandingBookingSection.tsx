@@ -43,8 +43,21 @@
 // builder's file is frozen (src/lib/travelBookingFlow.ts) and is not edited: only the list it returns is re-ordered
 // here. The builder's own Events panel (one sentence and a jump link to the band) is not rendered on this page: there
 // is no band to jump to. No 'events' mode from the builder → this throws, by name — never a box without the catalog.
-import type { ReactNode } from 'react';
+// HOME-BRIEF-05 (Alex, 2026-11-10 19:00: "start with events, and then once you select them, do flights, and hotels"):
+// THE BOX HOLDS ITS OPEN TAB. Until now the strip kept the open tab to itself, so nothing outside the tab row could
+// open one: with another tab open the catalog's section (id="events") is hidden, and the footer's "Events" link did
+// nothing on this page. The open tab lives HERE now — React state only, no URL, no storage — starting on Events, and
+// is handed to the strip (`activeKey` + `onActiveChange`); the list above and its order are unchanged.
+// A LINK TO THE EVENTS opens the Events tab and then lands on the catalog. The mechanism is one effect with two
+// listeners — a click anywhere on the page that is a plain click on a link to THIS page's events anchor (the footer's
+// link is a client-side link: it changes the address without a hash-change event, and changes nothing at all when the
+// address already ends in the anchor, which it does once a chip has been picked), and the window's hash change (Back
+// and Forward) — each of which opens the tab and counts one landing; a second effect lands (landOnEvents, the
+// catalog's own) after that render, when the panel is on the page again. No other hash is acted on.
+import { useEffect, useState, type ReactNode } from 'react';
 import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
+import { EVENTS_ANCHOR } from '@/lib/homeAnchors';
+import { landOnEvents } from './ExperiencesSection';
 // PR-ELEV-1: the modes come from the ONE shared builder (8 chips — 5 live + 3
 // "Soon"), so the guest landing and the app travel tab render the same strip
 // and light up together as affiliate IDs land.
@@ -53,7 +66,49 @@ import { travelStripModes } from '@/components/trips/travelStripModes';
 /** HOME-BRIEF-04 (2026-11-10): the builder's Events mode, by its key (travelStripModes.tsx). */
 const EVENTS_KEY = 'events';
 
+/**
+ * HOME-BRIEF-05 (2026-11-10): does this link go to THIS page's events block? `href` is the link's target and `here` the
+ * page's own address; the link counts when it stays on this origin and this path and its hash is the events anchor —
+ * whatever either address carries after the "?". Pure: two strings in, yes or no out.
+ */
+export function linksToEvents(href: string, here: string): boolean {
+  const to = new URL(href, here);
+  const at = new URL(here);
+  return to.origin === at.origin && to.pathname === at.pathname && to.hash === `#${EVENTS_ANCHOR}`;
+}
+
 export default function LandingBookingSection({ onRequireAuth, events }: { onRequireAuth: () => void; events: ReactNode }) {
+  // HOME-BRIEF-05 (2026-11-10): the open tab — held here, in React state only, starting on Events.
+  const [open, setOpen] = useState<string>(EVENTS_KEY);
+  // How many times a link or a hash change has asked for the catalog: each one lands once, after the render that opens the tab.
+  const [landings, setLandings] = useState(0);
+  useEffect(() => {
+    const toEvents = () => {
+      setOpen(EVENTS_KEY);
+      setLandings((n) => n + 1);
+    };
+    // A plain click (primary button, no modifier key, same window) on a link to this page's events anchor.
+    const onClick = (e: MouseEvent) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = e.target instanceof Element ? e.target.closest('a[href]') : null;
+      if (!(link instanceof HTMLAnchorElement) || (link.target !== '' && link.target !== '_self')) return;
+      if (linksToEvents(link.href, window.location.href)) toEvents();
+    };
+    // Back and Forward: the address's own hash became the events anchor.
+    const onHashChange = () => {
+      if (window.location.hash === `#${EVENTS_ANCHOR}`) toEvents();
+    };
+    document.addEventListener('click', onClick);
+    window.addEventListener('hashchange', onHashChange);
+    return () => {
+      document.removeEventListener('click', onClick);
+      window.removeEventListener('hashchange', onHashChange);
+    };
+  }, []);
+  useEffect(() => {
+    if (landings === 0) return;
+    landOnEvents(`#${EVENTS_ANCHOR}`, (id) => document.getElementById(id));
+  }, [landings]);
   // EVENTS-01b (2026-10-30): this strip sits in Landing.tsx, which mounts the experiences
   // section with id="events" directly under it — so the Events mode's jump link names it.
   // (experiences01.test.ts holds this literal equal to ExperiencesSection's EVENTS_ANCHOR.)
@@ -80,6 +135,8 @@ export default function LandingBookingSection({ onRequireAuth, events }: { onReq
     <ToggleStrip
       className="mt-6 rounded-lg border border-border bg-white p-4"
       modes={ordered}
+      activeKey={open}
+      onActiveChange={setOpen}
     />
   );
 }
