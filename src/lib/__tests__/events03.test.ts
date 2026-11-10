@@ -10,7 +10,8 @@
  *      link's markup is unchanged; the strip line and CLOSING_LINE as before;
  *   T3 the seven season chips — no "Nothing announced yet", the strip line once after the row, SEASONS_CLOSING_LINE (its
  *      ruled words) once and CLOSING_LINE absent; every card "Checked Nov 8, 2026" in its foot; none where its line is the
- *      not-announced line (Snow resorts on a day after every announced season has ended — still no "Nothing announced yet");
+ *      not-announced line (Snow resorts on a day after every announced season has ended — still no "Nothing announced yet";
+ *      EVENTS-04 (2026-11-09): those lines read "Next season not announced (checked …)");
  *      a season chip whose row is empty shows no strip line;
  *   T4 Golf (an event chip, nothing upcoming) exactly as experiences01 has it, with CLOSING_LINE and no second "checked";
  *      the refused view with CLOSING_LINE;
@@ -24,7 +25,7 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code } from '../sourceText';
 import { EXPERIENCES, EXPERIENCE_CATEGORIES, type Experience } from '../experiences';
-import { dayWords, experienceLine, notAnnouncedLine } from '../experienceWords';
+import { dayWords, experienceLine, notAnnouncedLine, seasonNotAnnouncedLine } from '../experienceWords'; // EVENTS-04 (2026-11-09): the ended season's words (saysCheckedOnce)
 import {
   ExperiencesView, CLOSING_LINE, SEASONS_CLOSING_LINE, STRIP_LINE, SOURCE_LINK, checkedWords, nothingUpcoming, type IntoChoice,
 } from '@/components/landing/ExperiencesSection';
@@ -72,7 +73,7 @@ const footOf = (card: string, id: string) => {
 /** The card says the day it was checked once: in its foot (`expected`), or — when its line already says it — nowhere else. */
 const saysCheckedOnce = (card: string, id: string, line: string, checkedOn: string, expected: string) => {
   const foot = footOf(card, id);
-  if (line === notAnnouncedLine(checkedOn)) {
+  if (line === notAnnouncedLine(checkedOn) || line === seasonNotAnnouncedLine(checkedOn)) { // EVENTS-04 (2026-11-09): either sentence says "checked"
     assert.equal(foot.checked, undefined, `${id}: its line already says "(checked …)" — no second one`);
     assert.equal(count(card, 'data-checked'), 0, `${id}: no checked words anywhere on the card`);
     return 'line';
@@ -178,7 +179,7 @@ test('T5 the section knows a season chip by its group from EXPERIENCE_CATEGORIES
   const section = code(SECTION);
   assert.match(section, /EXPERIENCE_CATEGORIES\.some\(\(c\) => c\.id === into && c\.group === 'season'\)/, 'the group, read from EXPERIENCE_CATEGORIES');
   for (const id of SEASON_IDS) assert.ok(!section.includes(`'${id}'`) && !section.includes(`"${id}"`), `${id} is not typed in the section`);
-  assert.match(section, /const lineSaysChecked = line === notAnnouncedLine\(row\.checkedOn\);/, 'the second "checked" is read off the line');
+  assert.match(section, /const lineSaysChecked = line === notAnnouncedLine\(row\.checkedOn\) \|\| line === seasonNotAnnouncedLine\(row\.checkedOn\);/, 'the second "checked" is read off the line — either sentence'); // EVENTS-04 (2026-11-09)
   assert.doesNotMatch(section, /\.status\b/, 'never a list of statuses');
   assert.match(section, /export function checkedWords\(checkedOn: string\): string \{\s*return `Checked \$\{dayWords\(checkedOn\)\}`;\s*\}/);
   assert.doesNotMatch(section, /new Date\(|Date\.now\(|toLocale|\bIntl\./, 'no clock, no locale');

@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw, type Experience } from '../experiences';
-import { experienceLine, isUpcoming, notAnnouncedLine, usualWindowWords } from '../experienceWords';
+import { experienceLine, isUpcoming, seasonNotAnnouncedLine, usualWindowWords } from '../experienceWords'; // EVENTS-04 (2026-11-09): the ended season's own words (:141)
 import { ExperiencesView, INTO_LABEL, SEASONS_LABEL, type IntoChoice } from '@/components/landing/ExperiencesSection';
 import { code } from '../sourceText';
 
@@ -138,7 +138,7 @@ test('T3 the words: "Usually <Mon> – <Mon> · per <source>" whatever today is,
   assert.equal(experienceLine(TYPICAL, RUN_DATE), 'Usually Sep – Apr · per Visit Fixture');
   assert.equal(experienceLine(TYPICAL, '2027-06-01'), 'Usually Sep – Apr · per Visit Fixture', 'a usual window does not expire: printed on a day after its end');
   assert.equal(experienceLine(ANNOUNCED, RUN_DATE), 'Season Nov 26, 2026 – Apr 19, 2027 · per Fixture Resort');
-  assert.equal(experienceLine(ANNOUNCED, '2027-04-20'), notAnnouncedLine(ANNOUNCED.checkedOn), 'published dates past their end read as any announced row');
+  assert.equal(experienceLine(ANNOUNCED, '2027-04-20'), seasonNotAnnouncedLine(ANNOUNCED.checkedOn), 'published dates past their end read the season\'s not-announced words'); // EVENTS-04 (2026-11-09): was notAnnouncedLine
   // CLOSED 3 gives the season lines one wording: a source that is not the place's own still reads "per" — its notes name it (CLOSED 4).
   assert.equal(experienceLine({ ...TYPICAL, sourceKind: 'secondary' }, RUN_DATE), 'Usually Sep – Apr · per Visit Fixture');
   assert.equal(experienceLine({ ...ANNOUNCED, sourceKind: 'secondary' }, RUN_DATE), 'Season Nov 26, 2026 – Apr 19, 2027 · per Fixture Resort');

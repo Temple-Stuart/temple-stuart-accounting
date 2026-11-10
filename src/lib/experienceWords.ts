@@ -13,6 +13,10 @@
  *                                "Dec 8–20, 2026" (same month) · "Nov 14, 2026"
  *                                (one day) · "Nov 1, 2026 – Mar 31, 2027" (cross-year)
  *   experienceLine(row, today)   THE one line a card shows (see the function)
+ *   notAnnouncedLine(checkedOn)  "Next edition not announced (checked Oct 30, 2026)" — no dates, or an edition's
+ *                                window has passed
+ *   seasonNotAnnouncedLine(checkedOn) "Next season not announced (checked Nov 8, 2026)" — an announced season's
+ *                                published window has passed (EVENTS-04, 2026-11-09)
  *   experienceWindowLine(row)    the dated part of that line, with no day in it — a stop's
  *                                page names the event it was around on any day (TRIPCARDS-01)
  *   usualWindowWords(start, end) "Usually Dec – Mar" · "Usually Apr" (one month) — a typical season's
@@ -102,6 +106,11 @@ export function notAnnouncedLine(checkedOn: string): string {
   return `Next edition not announced (checked ${dayWords(checkedOn)})`;
 }
 
+/** EVENTS-04 (Alex, 2026-11-09): an announced season whose published window has passed — a place's season, not an edition: the day it was checked, said. */
+export function seasonNotAnnouncedLine(checkedOn: string): string {
+  return `Next season not announced (checked ${dayWords(checkedOn)})`;
+}
+
 /** A row's window is still open: announced or in conflict, and its end is today or later. */
 export function isUpcoming(row: Experience, today: string): boolean {
   return (row.status === 'announced' || row.status === 'conflict') && row.end !== null && row.end >= today;
@@ -110,7 +119,8 @@ export function isUpcoming(row: Experience, today: string): boolean {
 /**
  * THE ONE LINE a card shows.
  *   not_announced                → "Next edition not announced (checked Oct 30, 2026)"
- *   end < today                  → the same words, with the row's own checkedOn
+ *   end < today                  → the same words, with the row's own checkedOn — a season's own words instead,
+ *                                  seasonNotAnnouncedLine (EVENTS-04, 2026-11-09)
  *   announced · official         → "<dateWords> · per <sourceName>"
  *   announced · secondary        → "<dateWords> · reported by <sourceName>, not yet confirmed by the organizer"
  *   conflict                     → "<dateWords> · window being confirmed"
@@ -121,14 +131,16 @@ export function isUpcoming(row: Experience, today: string): boolean {
  *     typical                    → "Usually <Mon> – <Mon> · per <sourceName>" — whatever today is: a usual
  *                                  window does not expire, so the same words print every day
  *     announced                  → "Season <dateWords> · per <sourceName>", and the not-announced words
- *                                  once its end has passed, as any announced row
+ *                                  once its end has passed, as any announced row — EVENTS-04 (2026-11-09): the season's
+ *                                  own, "Next season not announced (checked <day>)" (seasonNotAnnouncedLine)
  */
 export function experienceLine(row: Experience, today: string): string {
   if (row.status === 'not_announced') return notAnnouncedLine(row.checkedOn);
   if (row.start === null || row.end === null) throw new ExperienceWordsError(`${row.id}: status ${row.status} with no dates — the leaf's law refuses this row`);
   // SEASONS-01 (2026-11-08): a typical row is a usual window — it is printed before the end < today rule.
   if (row.status === 'typical') return experienceWindowLine(row);
-  if (row.end < today) return notAnnouncedLine(row.checkedOn);
+  // EVENTS-04 (2026-11-09): a season whose published window has passed says the season's words; every other row, the edition's.
+  if (row.end < today) return row.windowKind === 'season' ? seasonNotAnnouncedLine(row.checkedOn) : notAnnouncedLine(row.checkedOn);
   return experienceWindowLine(row);
 }
 

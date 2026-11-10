@@ -170,7 +170,7 @@ test('T5 Landing mounts the section once, directly between the experiences and M
 // ── T6 · THE EVENTS BAND ─────────────────────────────────────────────────────
 
 test('T6 the events band links "#stop-0" once, in the ruled line directly before the closing line — on an event chip, on a season chip and on the refused view', () => {
-  const story = `<p class="mt-8 max-w-2xl text-sm text-white/80"><span class="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60">${EVENTS_STORY_LABEL}</span> ${EVENTS_STORY_LINE} <a href="#${STOP_ZERO_ANCHOR}" class="font-semibold text-white underline-offset-4 hover:underline">${READ_MY_STORY}</a></p>`;
+  const story = `<p class="mt-8 max-w-2xl text-sm text-white/80"><span class="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60">${EVENTS_STORY_LABEL}</span> ${EVENTS_STORY_LINE} <a href="#${STOP_ZERO_ANCHOR}" class="font-semibold text-white underline-offset-4 hover:underline whitespace-nowrap">${READ_MY_STORY}</a></p>`; // EVENTS-04 (2026-11-09): the link gains whitespace-nowrap — "Read my story ↓" on one line (Alex's ruling: re-pin this line)
   const closing = (line: string) => `<p class="mt-8 text-xs text-white/60">${asHtml(line)}</p>`;
   const season = EXPERIENCE_CATEGORIES.find((c) => c.group === 'season');
   assert.ok(season, 'a season category to render');
