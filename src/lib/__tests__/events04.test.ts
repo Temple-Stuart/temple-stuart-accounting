@@ -9,9 +9,10 @@
  *      row prints its usual window on any day; a season still on prints its dates;
  *   T3 Snow resorts on 2027-06-01, rendered: each ended season's card reads "Next season not announced (checked Nov 8,
  *      2026)" and says "checked" once; Golf past every edition reads the edition's words, never the season's;
- *   T4 the row starts at the start: the rail carries key={into} — a new chip mounts a new rail — and renders exactly as
- *      before (the same class list, one data-coming-up-rail per view);
- *   T5 "Read my story ↓" on one line: EXP.storyLink includes whitespace-nowrap; the link's JSX unchanged.
+ *   T4 the row starts at the start: the rail carries key={into} — a new chip mounts a new rail — one data-coming-up-rail
+ *      per view. HOME-BRIEF-02 (Alex, 2026-11-10): the rail is the compact list now, so the class list it holds is the
+ *      list's (the sideways row's until then);
+ *   T5 RETIRED (HOME-BRIEF-02, 2026-11-10) — it held "Read my story ↓" on one line; the paragraph and its link are gone.
  * Source is read through code() only (the reader law). No clock: the days are written down. No line number or line
  * count is pinned (the last test says so of this file).
  */
@@ -23,7 +24,6 @@ import { code } from '../sourceText';
 import { EXPERIENCES, EXPERIENCE_CATEGORIES, type Experience } from '../experiences';
 import { experienceLine, experienceWindowLine, notAnnouncedLine, seasonNotAnnouncedLine } from '../experienceWords';
 import { ExperiencesView, COMING_UP_LABEL, WHEN_TO_GO_LABEL, type IntoChoice } from '@/components/landing/ExperiencesSection';
-import { READ_MY_STORY, STOP_ZERO_ANCHOR } from '../stopZeroWords';
 
 Object.assign(globalThis, { React });
 
@@ -36,8 +36,8 @@ const TODAY = '2026-10-30';
 const AFTER_THE_SNOW = '2027-06-01';
 /** A day after every edition and every season in the leaf. */
 const FAR_LATER = '2099-12-31';
-/** The rail's classes as they stand on origin/main c94c118a (EXP.rail) — the row must render exactly so. */
-const RAIL_CLASSES = '-mx-4 mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto scroll-px-4 px-4 pb-3 lg:-mx-8 lg:scroll-px-8 lg:px-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/30 [&::-webkit-scrollbar-track]:bg-transparent';
+/** HOME-BRIEF-02 (Alex, 2026-11-10): the rail is the compact list — its classes (EXP.rail). Until then, the sideways row's: '-mx-4 mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto …' with its drawn thumb. */
+const RAIL_CLASSES = 'mt-3 divide-y divide-white/15 border-y border-white/15';
 const LABEL_P = '<p class="mt-10 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60">';
 
 const SEASONS = EXPERIENCE_CATEGORIES.filter((c) => c.group === 'season');
@@ -154,7 +154,7 @@ const walk = (n: React.ReactNode, out: El[] = []): El[] => {
   return out;
 };
 
-test('T4 the rail carries key={into} — a new chip mounts a new rail, so its row opens at the first card — and renders exactly as before', () => {
+test('T4 the rail carries key={into} — a new chip mounts a new rail — and renders as the compact list (HOME-BRIEF-02, 2026-11-10)', () => {
   const section = code(SECTION);
   assert.equal(count(section, '<div key={into} className={EXP.rail} data-coming-up-rail>'), 1, 'the rail is keyed by the chip');
   assert.equal(count(section, 'data-coming-up-rail'), 1, 'one rail');
@@ -164,7 +164,7 @@ test('T4 the rail carries key={into} — a new chip mounts a new rail, so its ro
     assert.equal(count(html, 'data-coming-up-rail'), 1, `${c.label}: one rail`);
     const cls = /<div class="([^"]*)" data-coming-up-rail="true">/.exec(html);
     assert.ok(cls, `${c.label}: the rail is drawn`);
-    assert.deepEqual(unescape(cls[1]).split(' '), RAIL_CLASSES.split(' '), `${c.label}: the rail's classes, as before`);
+    assert.deepEqual(unescape(cls[1]).split(' '), RAIL_CLASSES.split(' '), `${c.label}: the list's classes`);
     const rails = walk(ExperiencesView({ rows: EXPERIENCES, today: TODAY, choice: { category: c.id }, onPick: () => {} })).filter((e) => e.props['data-coming-up-rail'] === true);
     assert.equal(rails.length, 1);
     assert.equal(rails[0].key, c.id, `${c.label}: the rail's key is the chip`);
@@ -174,21 +174,11 @@ test('T4 the rail carries key={into} — a new chip mounts a new rail, so its ro
   assert.equal(count(render({ refused: 'nope' }), 'data-coming-up-rail'), 0, 'the refused view: no rail');
 });
 
-// ── T5 · READ MY STORY ON ONE LINE ───────────────────────────────────────────
-
-test('T5 "Read my story ↓" stays on one line: EXP.storyLink includes whitespace-nowrap; the link\'s JSX is untouched', () => {
-  const section = code(SECTION);
-  const storyLink = /^ {2}storyLink: '([^']*)',$/m.exec(section);
-  assert.ok(storyLink, 'EXP.storyLink');
-  assert.deepEqual(storyLink[1].split(' '), ['font-semibold', 'text-white', 'underline-offset-4', 'hover:underline', 'whitespace-nowrap']);
-  assert.match(section, /<a href=\{`#\$\{STOP_ZERO_ANCHOR\}`\} className=\{EXP\.storyLink\}>\{READ_MY_STORY\}<\/a>/, 'the link\'s JSX, as stopZero01 pins it');
-  for (const choice of [{ category: EVENTS[0].id }, { category: SEASONS[0].id }, { refused: 'nope' }] as IntoChoice[]) {
-    const html = render(choice);
-    const a = new RegExp(`<a href="#${STOP_ZERO_ANCHOR}" class="([^"]*)">${READ_MY_STORY}</a>`).exec(html);
-    assert.ok(a, 'the link renders');
-    assert.ok(a[1].split(' ').includes('whitespace-nowrap'), 'it never breaks');
-  }
-});
+// ── T5 · READ MY STORY ON ONE LINE — RETIRED ─────────────────────────────────
+// HOME-BRIEF-02 (Alex's home page brief, 2026-11-10): T5 held that "Read my story ↓" never broke across lines (EXP.storyLink's
+// whitespace-nowrap) and that the link's JSX was untouched. The WHY EVENTS FIRST paragraph and its link left the events band, with
+// their words in src/lib/stopZeroWords.ts, so there is nothing left for it to hold; stopZero01 T4 holds that the band no longer
+// reads that leaf.
 
 // ── NO LINE PINS ─────────────────────────────────────────────────────────────
 

@@ -3,7 +3,8 @@
  * timeline, a section between the events and MY TRIP; and one line at the foot of the events band that links to it.
  * HOME-BRIEF-02 (Alex's home page brief, 2026-11-10 16:27): the section is ABOUT US now — his finalized text in one
  * column under the heading "About Us"; the letter and the timeline went. T1, T3 and T4 hold the new content; T2 retired
- * with the timeline; T5 is as it was.
+ * with the timeline; T5 is as it was. The events band's line and its "Read my story ↓" link went the same day (Part 6):
+ * T6 retired with the link, and T1 and T4 no longer hold the band's three words.
  *
  *   T1 the words — src/lib/stopZeroWords.ts exports exactly the ruled list; the anchor, the place, the dates and the three
  *      sections (heading, paragraphs, quote) are Alex's text, exact and in order; the heading is "About Us";
@@ -17,8 +18,7 @@
  *   T5 Landing — mounts the section once, directly between the DONE-FOR-YOU section and the MY TRIP mount (nothing but a
  *      comment between each — HOME-ORDER-01, 2026-11-10: Alex's order; directly under the experiences mount until then),
  *      and its import shares a line with the ExperiencesSection import;
- *   T6 the events band — "#stop-0" once, in the ruled line directly before the closing line, on an event chip, on a
- *      season chip and on the refused view.
+ *   T6 RETIRED (HOME-BRIEF-02, 2026-11-10) — it held the events band's link to "#stop-0"; the link is gone.
  * Source is read through code() only (the reader law). No line number, no line count, no clock, no live call.
  */
 import { test } from 'node:test';
@@ -26,12 +26,10 @@ import assert from 'node:assert/strict';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code } from '../sourceText';
-import { EXPERIENCES, EXPERIENCE_CATEGORIES } from '../experiences';
 import * as stopZeroWords from '../stopZeroWords';
-import { STOP_ZERO_ANCHOR, STOP_ZERO_DATES, STOP_ZERO_PLACE, STOP_ZERO_STORY, EVENTS_STORY_LABEL, EVENTS_STORY_LINE, READ_MY_STORY } from '../stopZeroWords';
+import { STOP_ZERO_ANCHOR, STOP_ZERO_DATES, STOP_ZERO_PLACE, STOP_ZERO_STORY } from '../stopZeroWords';
 import { ABOUT_US_HEADING } from '../homeActWords';
 import StopZeroSection from '@/components/landing/StopZeroSection';
-import { ExperiencesView, CLOSING_LINE, SEASONS_CLOSING_LINE, type IntoChoice } from '@/components/landing/ExperiencesSection';
 
 Object.assign(globalThis, { React });
 
@@ -57,7 +55,8 @@ test('T1 the words module exports exactly the ruled list, and every word is Alex
   // HOME-BRIEF-02 (2026-11-10): the old story's exports are gone — STOP_ZERO_EYEBROW, STOP_ZERO_HEADLINE, STOP_ZERO_LETTER, STOP_ZERO_QUOTE,
   // STOP_ZERO_SIGNATURE, STOP_ZERO_TIMELINE_LABEL, FIRST_COMMIT_ON and stopZeroTimeline — and three new ones hold his finalized text, typed
   // here a second time so that a changed word fails by name.
-  assert.deepEqual(Object.keys(stopZeroWords).sort(), ['EVENTS_STORY_LABEL', 'EVENTS_STORY_LINE', 'READ_MY_STORY', 'STOP_ZERO_ANCHOR', 'STOP_ZERO_DATES', 'STOP_ZERO_PLACE', 'STOP_ZERO_STORY']);
+  // The events band's three — EVENTS_STORY_LABEL, EVENTS_STORY_LINE, READ_MY_STORY — went with its paragraph and link (HOME-BRIEF-02, Part 6).
+  assert.deepEqual(Object.keys(stopZeroWords).sort(), ['STOP_ZERO_ANCHOR', 'STOP_ZERO_DATES', 'STOP_ZERO_PLACE', 'STOP_ZERO_STORY']);
   assert.equal(STOP_ZERO_ANCHOR, 'stop-0');
   assert.equal(ABOUT_US_HEADING, 'About Us');
   assert.equal(STOP_ZERO_PLACE, 'Stop 0 | Los Angeles, California 🇺🇸');
@@ -104,9 +103,6 @@ test('T1 the words module exports exactly the ruled list, and every word is Alex
   ]);
   assert.deepEqual(STOP_ZERO_STORY.map((part) => part.paragraphs.length), [4, 7, 9], 'four, seven and nine paragraphs');
   for (const part of STOP_ZERO_STORY) assert.match(part.quote, /^“[^“”]+”$/, 'a quote is one line inside its own marks');
-  assert.equal(EVENTS_STORY_LABEL, 'WHY EVENTS FIRST');
-  assert.equal(EVENTS_STORY_LINE, 'In 5th grade I saw a resort in Transworld Snowboarding that looked better than mine, googled it, and found the travel blogs. The experience came first. The trip came second.');
-  assert.equal(READ_MY_STORY, 'Read my story ↓');
 });
 
 // ── T2 · THE TIMELINE — RETIRED ──────────────────────────────────────────────
@@ -150,18 +146,19 @@ test('T4 the section and the band type none of the words; the section holds no s
   // Whitespace collapsed, so a word retyped as JSX text broken across lines is still found.
   const flatSection = section.replace(/\s+/g, ' ');
   const flatBand = band.replace(/\s+/g, ' ');
-  const words = [ABOUT_US_HEADING, STOP_ZERO_PLACE, STOP_ZERO_DATES, ...STOP_ZERO_STORY.flatMap((part) => [part.heading, ...part.paragraphs, part.quote]), EVENTS_STORY_LABEL, EVENTS_STORY_LINE, READ_MY_STORY];
-  assert.equal(words.length, 3 + 3 + 20 + 3 + 3, 'the heading, the place, the dates; three headings, twenty paragraphs, three quotes; the band\'s three');
+  const words = [ABOUT_US_HEADING, STOP_ZERO_PLACE, STOP_ZERO_DATES, ...STOP_ZERO_STORY.flatMap((part) => [part.heading, ...part.paragraphs, part.quote])];
+  assert.equal(words.length, 3 + 3 + 20 + 3, 'the heading, the place, the dates; three headings, twenty paragraphs, three quotes');
   for (const w of words) {
     assert.ok(!flatSection.includes(w), `StopZeroSection does not type "${w.slice(0, 40)}"`);
     assert.ok(!flatBand.includes(w), `ExperiencesSection does not type "${w.slice(0, 40)}"`);
   }
   assert.match(section, /import \{ ABOUT_US_HEADING \} from '@\/lib\/homeActWords';/, 'the heading, from the headings leaf');
   assert.match(section, /import \{ STOP_ZERO_ANCHOR, STOP_ZERO_DATES, STOP_ZERO_PLACE, STOP_ZERO_STORY \} from '@\/lib\/stopZeroWords';/, 'the text, from its leaf');
-  assert.match(band, /import \{ EVENTS_STORY_LABEL, EVENTS_STORY_LINE, READ_MY_STORY, STOP_ZERO_ANCHOR \} from '@\/lib\/stopZeroWords';/);
+  // HOME-BRIEF-02 (Alex, 2026-11-10): the band's WHY EVENTS FIRST paragraph and its "Read my story ↓" link went — it reads this leaf no more, and links to Stop 0 nowhere.
+  assert.doesNotMatch(band, /stopZeroWords|STOP_ZERO_ANCHOR|EVENTS_STORY_|READ_MY_STORY|EXP\.story/, 'the band reads nothing of Stop 0\'s leaf');
+  for (const gone of ['WHY EVENTS FIRST', 'Read my story', 'In 5th grade']) assert.ok(!flatBand.includes(gone) && !code(WORDS).includes(gone), `"${gone}" is typed in neither the band nor the leaf`);
   assert.ok(!section.includes('stop-0') && !band.includes('stop-0'), 'the anchor is the leaf\'s, never retyped — in either file, in any form');
   assert.match(section, /<section id=\{STOP_ZERO_ANCHOR\} aria-label="About us" className="w-full border-b border-border bg-bg-terminal">/, 'the section takes its id from the leaf');
-  assert.match(band, /<a href=\{`#\$\{STOP_ZERO_ANCHOR\}`\} className=\{EXP\.storyLink\}>\{READ_MY_STORY\}<\/a>/, 'the link takes its href from the leaf');
   assert.match(section, /<h2 className=\{STOP\.h2\}>\{ABOUT_US_HEADING\}<\/h2>/, 'the h2 is the headings leaf\'s');
   assert.match(section, /<blockquote className=\{STOP\.quote\}>\{part\.quote\}<\/blockquote>\s*<\/div>/, 'the quote is the last thing its section draws');
   assert.doesNotMatch(section, /\buse(State|Effect|Reducer|Ref|Router|SearchParams)\b|\bfetch\s*\(|new Date\(|Date\.now\(|toLocale|\bIntl\.|localStorage|sessionStorage|document\.cookie/, 'no state, no fetch, no clock, no storage');
@@ -195,22 +192,7 @@ test('T5 Landing mounts the section once, directly between DONE-FOR-YOU and MY T
   assert.match(imports[0], /^import ExperiencesSection from '\.\/ExperiencesSection'; import StopZeroSection from '\.\/StopZeroSection';\s*$/, 'the import shares the ExperiencesSection import\'s line');
 });
 
-// ── T6 · THE EVENTS BAND ─────────────────────────────────────────────────────
-
-test('T6 the events band links "#stop-0" once, in the ruled line directly before the closing line — on an event chip, on a season chip and on the refused view', () => {
-  const story = `<p class="mt-8 max-w-2xl text-sm text-white/80"><span class="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60">${EVENTS_STORY_LABEL}</span> ${EVENTS_STORY_LINE} <a href="#${STOP_ZERO_ANCHOR}" class="font-semibold text-white underline-offset-4 hover:underline whitespace-nowrap">${READ_MY_STORY}</a></p>`; // EVENTS-04 (2026-11-09): the link gains whitespace-nowrap — "Read my story ↓" on one line (Alex's ruling: re-pin this line)
-  const closing = (line: string) => `<p class="mt-8 text-xs text-white/60">${asHtml(line)}</p>`;
-  const season = EXPERIENCE_CATEGORIES.find((c) => c.group === 'season');
-  assert.ok(season, 'a season category to render');
-  const views: Array<[string, IntoChoice, string]> = [
-    ['Surf, an event chip', { category: 'surfing' }, CLOSING_LINE],
-    [`${season.label}, a season chip`, { category: season.id }, SEASONS_CLOSING_LINE],
-    ['the refused view', { refused: 'nope' }, CLOSING_LINE],
-  ];
-  for (const [what, choice, line] of views) {
-    const html = renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: '2026-10-30', choice, onPick: () => {} }));
-    assert.equal(count(html, `href="#${STOP_ZERO_ANCHOR}"`), 1, `${what}: "#stop-0" once`);
-    assert.equal(count(html, READ_MY_STORY), 1, `${what}: "Read my story ↓" once`);
-    assert.ok(html.endsWith(`${story}${closing(line)}</div></section>`), `${what}: the story line, then the closing line, last in the band`);
-  }
-});
+// ── T6 · THE EVENTS BAND — RETIRED ───────────────────────────────────────────
+// HOME-BRIEF-02 (Alex's home page brief, 2026-11-10): T6 held the events band's one link to "#stop-0" — "Read my story ↓", in the ruled line
+// directly before the closing line, on an event chip, a season chip and the refused view. That paragraph and its link left the band, and
+// their three words left src/lib/stopZeroWords.ts, so there is nothing left for it to hold. T4 holds that the band reads nothing of this leaf.

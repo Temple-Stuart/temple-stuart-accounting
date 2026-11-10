@@ -8,7 +8,7 @@
  *
  * Every visible word comes from a leaf — the heading from src/lib/homeActWords.ts, the rest from src/lib/stopZeroWords.ts —
  * and none is typed here; the region's aria-label, "About us", sits on the <section> tag (the siblings' idiom). The id is
- * still STOP_ZERO_ANCHOR: the events band's "Read my story ↓" and the footer's link land on it. No state, no fetch, no clock.
+ * still STOP_ZERO_ANCHOR: the footer's link lands on it. No state, no fetch, no clock.
  *
  * PAINT: house tokens only, zero new hex. A cream act with its own border-b, as before; the h2 is MY TRIP's idiom
  * (WasHereSection.tsx TRIP), the paragraph and the quote are the classes the letter wore.

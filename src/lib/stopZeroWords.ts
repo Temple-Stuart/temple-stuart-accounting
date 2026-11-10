@@ -8,13 +8,14 @@
  * and signature — and its timeline, HOW I GOT HERE, with the first commit's day and the Stop 1 row derived from the trip
  * log; the three imports only the timeline used went with them. Those words are in git history.
  *
- * WHAT STAYS: STOP_ZERO_ANCHOR, the section's id (src/lib/homeAnchors.ts re-exports it), and the three lines at the foot
- * of the events band (src/components/landing/ExperiencesSection.tsx).
+ * WHAT STAYS: STOP_ZERO_ANCHOR, the section's id (src/lib/homeAnchors.ts re-exports it; the footer's link lands on it).
+ * The three words at the foot of the events band — WHY EVENTS FIRST, its line and "Read my story ↓" (STOP0-01, K tag 7) —
+ * went with that paragraph, the same day.
  *
  * PURE: no import, no clock, no locale call, no fetch, no React.
  */
 
-/** The section's anchor — the events band's "Read my story ↓" names it. */
+/** The section's anchor — src/lib/homeAnchors.ts re-exports it, and the footer's link lands on it. */
 export const STOP_ZERO_ANCHOR = 'stop-0';
 
 /** Where, then when — the two lines under the heading. */
@@ -62,8 +63,3 @@ export const STOP_ZERO_STORY = [
     quote: "“I don't just want to sell the dream. I want to guide people into living it for themselves.”",
   },
 ] as const;
-
-/** K tag 7: the line at the foot of the events band, directly before its closing line, on every view. */
-export const EVENTS_STORY_LABEL = 'WHY EVENTS FIRST';
-export const EVENTS_STORY_LINE = 'In 5th grade I saw a resort in Transworld Snowboarding that looked better than mine, googled it, and found the travel blogs. The experience came first. The trip came second.';
-export const READ_MY_STORY = 'Read my story ↓';
