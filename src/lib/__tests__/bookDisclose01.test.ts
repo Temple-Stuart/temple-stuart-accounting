@@ -21,7 +21,7 @@ import { COMMISSION_LINE } from '../disclosureWords';
 const LEAF = 'src/lib/disclosureWords.ts';
 const LANDING = 'src/components/landing/Landing.tsx';
 const SELF = 'src/lib/__tests__/bookDisclose01.test.ts';
-const MOUNT = '<LandingBookingSection onRequireAuth={onRequireAuth} />';
+const MOUNT = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />'; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking mount carries the experiences catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then
 const LINE = '<p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>';
 
 /** Every .ts and .tsx under src/, as a repo-relative path. */

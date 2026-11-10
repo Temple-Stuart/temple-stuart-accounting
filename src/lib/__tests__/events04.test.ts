@@ -37,8 +37,11 @@ const AFTER_THE_SNOW = '2027-06-01';
 /** A day after every edition and every season in the leaf. */
 const FAR_LATER = '2099-12-31';
 /** HOME-BRIEF-02 (Alex, 2026-11-10): the rail is the compact list — its classes (EXP.rail). Until then, the sideways row's: '-mx-4 mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto …' with its drawn thumb. */
-const RAIL_CLASSES = 'mt-3 divide-y divide-white/15 border-y border-white/15';
-const LABEL_P = '<p class="mt-10 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60">';
+// HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the catalog is repainted for the booking box's white surface — the list's hairlines are the house
+// lavender and the labels are faint ink. Until then, on the purple band: 'mt-3 divide-y divide-white/15 border-y border-white/15' and
+// '<p class="mt-10 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60">'.
+const RAIL_CLASSES = 'mt-3 divide-y divide-border border-y border-border';
+const LABEL_P = '<p class="mt-10 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">';
 
 const SEASONS = EXPERIENCE_CATEGORIES.filter((c) => c.group === 'season');
 const EVENTS = EXPERIENCE_CATEGORIES.filter((c) => c.group === 'event');

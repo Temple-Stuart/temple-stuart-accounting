@@ -45,6 +45,7 @@ const LAW = 'scripts/assert-tool-registry.ts';
 
 const FOURTEEN = ['deck-01', 'deck-02', 'deck-03', 'deck-04', 'deck-05', 'deck-06', 'deck-07', 'deck-08', 'deck-09', 'deck-10', 'deck-11', 'deck-12', 'deck-13', 'deck-14'];
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />";
+const HOW_TO_MOUNT = '<HowToSection onRequireAuth={onRequireAuth} />'; // HOME-BRIEF-04 (2026-11-10): the home page's offer, in the plans' seat
 const MY_TRIP_MOUNT = '<WasHereSection today={today} />'; // HOME-ORDER-01 (2026-11-10): the door's upper neighbour
 const DOOR_OPEN = '<section aria-label="How it all connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">';
 const DOOR_LINK = '<Link href={PIPELINE_PATH} className={PRIMARY_CTA}>{PIPELINE_DOOR}</Link>';
@@ -133,10 +134,14 @@ test('T4 the door: one cream act directly after MY TRIP (HOME-ORDER-01, 2026-11-
   assert.equal(count(landing, DOOR_LINK), 1, 'the link, once');
   // HOME-ORDER-01 (2026-11-10): Alex's order — MY TRIP sits directly above the door now. Until then the plans mount did ('the plans mount → the door: a
   // comment between, nothing else'); the plans are still above the door, no longer its neighbour.
-  const plans = landing.indexOf(PLANS_MOUNT);
+  // HOME-BRIEF-04 (Alex, 2026-11-10 19:00: "the how-to should replace software plans"): the plans mount left the home page — the how-to sits in
+  // its seat and is the offer above the door now. Until then: 'const plans = landing.indexOf(PLANS_MOUNT);' and 'plans > -1 && myTrip > plans &&
+  // door > myTrip' ('after the plans mount and MY TRIP').
+  assert.equal(landing.indexOf(PLANS_MOUNT), -1, 'the plans mount is gone from this page');
+  const offer = landing.indexOf(HOW_TO_MOUNT);
   const myTrip = landing.indexOf(MY_TRIP_MOUNT);
   const door = landing.indexOf(DOOR_OPEN);
-  assert.ok(plans > -1 && myTrip > plans && door > myTrip, 'after the plans mount and MY TRIP');
+  assert.ok(offer > -1 && myTrip > offer && door > myTrip, 'after the how-to (the Software Plans) and MY TRIP');
   assert.match(landing.slice(myTrip + MY_TRIP_MOUNT.length, door), ONLY_COMMENTS, 'my trip → the door: a comment between, nothing else');
   const doorEnd = landing.indexOf('</section>', door);
   assert.equal(landing.slice(door + DOOR_OPEN.length, doorEnd).trim(), DOOR_LINK, 'the act holds the one link and nothing else');

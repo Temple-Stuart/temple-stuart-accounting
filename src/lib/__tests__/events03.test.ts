@@ -65,9 +65,12 @@ const lineIn = (card: string) => /data-experience-line="true">([^<]*)</.exec(car
  * the Source ↗ link with its markup unchanged — nothing else. `checked` is undefined when the foot carries no checked words.
  */
 const footOf = (card: string, id: string) => {
+  // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the catalog sits in the booking box's white surface — the checked words in faint ink, Source ↗ in brand
+  // purple. Until then, on the purple band: the span 'font-mono text-xs text-white/60' and the link 'inline-flex min-h-[44px] items-center
+  // font-mono text-xs text-white/80 underline-offset-4 hover:text-white hover:underline'. The markup around the classes is unchanged.
   const m = new RegExp(
-    `<div class="([^"]*)">(?:<span class="font-mono text-xs text-white/60" data-checked="${id}">([^<]*)</span>)?`
-    + `<a href="[^"]+" rel="noopener" target="_blank" class="inline-flex min-h-\\[44px\\] items-center font-mono text-xs text-white/80 underline-offset-4 hover:text-white hover:underline" data-source="${id}">${SOURCE_LINK}</a></div>$`,
+    `<div class="([^"]*)">(?:<span class="font-mono text-xs text-text-faint" data-checked="${id}">([^<]*)</span>)?`
+    + `<a href="[^"]+" rel="noopener" target="_blank" class="inline-flex min-h-\\[44px\\] items-center font-mono text-xs text-brand-purple underline-offset-4 hover:text-brand-purple-hover hover:underline" data-source="${id}">${SOURCE_LINK}</a></div>$`,
   ).exec(card);
   assert.ok(m, `${id}: the foot ends the card — the checked words if any, then the Source ↗ link`);
   const cls = m[1].split(' ');

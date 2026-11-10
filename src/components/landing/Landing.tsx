@@ -9,11 +9,13 @@
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
  *   EXPERIENCES         — the events section under the strip (EVENTS-01); under it, above MY TRIP, STOP 0 — Alex's letter and how he got here (StopZeroSection — STOP0-01, 2026-11-09: named on this line, so the act list gains no line)
+ *                         (HOME-BRIEF-04, 2026-11-10: no band of its own any more — the experiences are the booking box's Events panel, first in the row and open, inside the travel block above; mounted once, handed to LandingBookingSection as its events prop)
  *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
  *                         renders only when records exist
  *   THE PLANS           — four plan cards and one comparison table
  *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
  *                         the section carries id="modules"
+ *                         (HOME-BRIEF-04, 2026-11-10: on this page the act is THE HOW-TO now — HowToSection over src/lib/howTo.ts, under the same label, SOFTWARE PLANS, carrying id="modules"; the plan cards and the table stand on /pricing alone)
  *   DONE-FOR-YOU        — the professional-services panel, six doors from src/lib/proposalNeeds.ts — SERVICES-01, 2026-11-08: the close retired, bookkeeping a door (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)
  *   (COCKPIT-PERF-01, 2026-10-27: the PERSONAS act — "one system · six lives" —
  *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
@@ -107,6 +109,9 @@
  * section. (COCKPIT-PERF-01, 2026-10-27: "lives on THE OFFER act (SELL-02,
  * data-offer-act) — the section that renders src/lib/offer.ts" stood here;
  * OFFER-01 deleted that act and the anchor rode on to THE PLANS.)
+ * HOME-BRIEF-04 (2026-11-10): the plans act left this page for /pricing, and on this page the anchor rides on the
+ * how-to's own section (HowToSection.tsx, <section id="modules">) — the plan law in scripts/assert-tool-registry.ts
+ * holds it there.
  *
  * SELL-02 settled what the deck's retirement left open: the selling surfaces
  * (this act, /pricing, the /modules access block, the cockpit's locked tabs)
@@ -222,7 +227,7 @@ import { COMMISSION_LINE } from '@/lib/disclosureWords'; // BOOK-DISCLOSE-01 (20
 // OFFER-01 (2026-09-23): the landing no longer renders OfferCard, heroCountsLine,
 // OFFERS or freeSetLine — the offer it shows is the three plans, and Travel's free
 // line comes from the registry's own Travel row (plans.ts travelFreeLine).
-import PlansSection from '@/components/offer/PlansSection'; import { COMPANY_LINE, HERO_SUBLINE } from '@/lib/brandLines'; // HOME-LINES-01 (2026-11-08): the hero's three lines and its subline, from src/lib/brandLines.ts — the import rides this line, so every line above :1807 stays
+import { COMPANY_LINE, HERO_SUBLINE } from '@/lib/brandLines'; // HOME-LINES-01 (2026-11-08): the hero's three lines and its subline, from src/lib/brandLines.ts — the import rides this line, so every line above :1807 stays. HOME-BRIEF-04 (2026-11-10): PlansSection's import, which this line rode beside, left with its mount — the page's offer is the how-to (./HowToSection, above); /pricing mounts the plans
 // PR-ELEV-1: the coming-soon tiles became badged "Soon" chips INSIDE the
 // booking strip (travelStripModes) — the separate tile row is gone.
 
@@ -575,13 +580,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
         {/* HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15 "what about the consolidation"): ONE HEADER for travel booking and the
             experiences — the experience line on one line (EXPERIENCE_LINE, src/lib/brandLines.ts), the promise under it (PROMISE,
             ./ExperiencesSection), then this block's own sentence, word for word. That sentence was this block's h2 until then
-            (LANDING-V3, spec :99), and the line and the promise headed the band below, which now starts at its label and chips. */}
+            (LANDING-V3, spec :99), and the line and the promise headed the band below, which now starts at its label and chips.
+            HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): THE BAND IS GONE — the experiences are INSIDE the booking box below,
+            the panel of its Events tab, first in the row and open. This page hands the catalog to the box as its events prop
+            (LandingBookingSection.tsx puts the builder's Events mode first with it as the panel); it is still mounted exactly
+            once, with the server's UTC day, and still carries id="events". EVENTS-01's own mount (2026-10-30 — a full-bleed
+            aubergine band directly under this section, between it and the guest's strip) and the note that seated it left
+            that seat: every row still comes from src/lib/experiences.ts, dated from its own calendar with the day checked,
+            and the one filter still lives in the URL (?into=). */}
         <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPERIENCE_LINE.join(' ')}</h2>
         <p className="mt-2 text-lg font-semibold text-text-primary">{PROMISE}</p>
         <p className="mt-2 text-sm text-text-secondary">
           Search &amp; book travel — free today, no account needed.
         </p>
-        <LandingBookingSection onRequireAuth={onRequireAuth} />
+        <LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />
         <p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>
         {/* GUEST-01 (2026-09-29; Alex's ruling 17:04): the door back for a guest who booked
             without an account — the one lookup box (src/components/guest/GuestBookingLookup.tsx),
@@ -606,15 +618,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           row below the strip is gone; the both-surfaces-at-once light-up
           ruling now holds at chip level via the shared builder. */}
 
-      {/* ── EVENTS-01 (Alex, 2026-10-30): THE EXPERIENCES — the marquee events a guest
-            books a stay and a flight around, directly under the strip; every row from
-            src/lib/experiences.ts, dated from its own calendar with the day checked; the
-            one filter lives in the URL (?into=). The section is a full-bleed aubergine
-            band (the hero's rule) and carries id="events" — the strip's Events mode
-            points at it. `today` is the server's UTC calendar date (page.tsx), passed
-            down so nothing here reads the clock. ───────────────────────────────── */}
-      <ExperiencesSection today={today} />
-
       {/* ── BOOK-3: the guest's session trip — renders only when records
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
@@ -626,31 +629,20 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             come from src/lib/homeActWords.ts. Each block that moved, moved WHOLE with the comment above it,
             byte-identical, so the older seat notes — in those comments and in the act list above — are history:
             each says where its block sat on the day it was written, not where it sits now. ─────────────────── */}
-      {/* ── OFFER-01 (2026-09-23): THE PLANS — what replaced TWO acts here.
-            GONE, and re-created nowhere on this page:
-              · ACT 2, the six-row persona grid headed "ONE SYSTEM · SIX LIVES"
-                with its "Who is this for?" hook — a visitor had to pick a life
-                before the page told them what they could buy;
-              · the SELL-02 offer act — two <OfferCard/>s (Books · Everything)
-                whose every tool wore the registry STATUS CHIP and the loop's own
-                beat vocabulary ("partial — discover · decide"), under a second
-                copy of the hero's registry count, over freeSetLine()'s "the
-                registry's live tools with no tab gate".
-            In their place: three cumulative plan cards and ONE comparison table
-            of collapsed capability groups, every word and every cell derived in
-            src/lib/offer/plans.ts. id="modules" RIDES ON — the Stripe cancel_url
-            (checkout-entitlement/route.ts:71), the /modules access block and
-            /pricing all resolve to it, so the anchor moves with the section, not
-            away from it. The door is the sign-up modal: no price is set, so the
-            slot says so and the button joins early access. ─────────────────── */}
-      <PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />
-
       {/* ── HOME-BRIEF-03 (Alex, 2026-11-10 18:09; the board he approved on 2026-11-09, "pick what you run"): THE HOW-TO —
             what you run picks your steps, in order, across Personal, Business, Travel and Trade. Every status comes from
             the tool registry and the plan from the plans — nothing typed (src/lib/howTo.ts, drawn by HowToSection.tsx).
             A cream act with its own border-b, directly under the plans and above the professional services; its two
-            switches live in React state only. ──────────────────────────────────────────────────────── */}
-      <HowToSection />
+            switches live in React state only.
+            HOME-BRIEF-04 (Alex, 2026-11-10 19:00: "the how-to should replace software plans"): THE HOW-TO IS THE
+            SOFTWARE PLANS. OFFER-01's <PlansSection/> (2026-09-23 — four plan cards and one comparison table) was
+            mounted directly above, under the note that seated it; both left this page, and the plans stand on /pricing
+            alone. This act carries what that one carried here: id="modules" — the Stripe cancel_url
+            (checkout-entitlement/route.ts) and the /modules access block land on it, and the plan law holds it — and
+            the door: the plan's button opens the sign-up modal, as the plan cards' button did. No price is set, so the
+            price line says so and the button joins early access; both are read from the plan's price slot
+            (src/lib/offer/plans.ts), never typed. Its steps are one row per section, swiped sideways. ─────────── */}
+      <HowToSection onRequireAuth={onRequireAuth} />
 
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own section — no right slot. Body = the PROFESSIONAL SERVICES
@@ -708,9 +700,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           </h2>
           <div className="mt-4 rounded-lg border border-border bg-white p-5">
             <div className="mt-4">
-              <span className="rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
-                PROFESSIONAL SERVICES
-              </span>
+              {/* HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the small chip that repeated the label's words stood here, over the
+                  doors; it went — the label above the headline says them once. */}
               {/* ONE-FORM-01 (Alex, 2026-11-06): each card is a door to the ONE proposal form with its choice
                   picked (?need=<key>, the form's own query key). SERVICES-01 (Alex, 2026-11-08): SIX EQUAL
                   DOORS — every door's key, title and line from SERVICES in src/lib/proposalNeeds.ts, the one

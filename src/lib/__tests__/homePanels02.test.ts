@@ -35,30 +35,41 @@ const PLANS = 'src/components/offer/PlansSection.tsx';
 const DECK = 'src/components/landing/PipelineDeck.tsx'; // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — the header, its seam sentence and the ledger moved there whole
 
 const EXPERIENCES = '<ExperiencesSection today={today} />';
+const BOOKING = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />'; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking box, carrying the experiences catalog as its Events panel
+const TRAVEL_FOOT = 'One trip holds everything — plans, bookings, budget.';
 const MY_TRIP = '<WasHereSection today={today} />';
 const GUEST_STRIP = '<GuestTripStrip onRequireAuth={onRequireAuth} />';
 const STOP_ZERO = '<StopZeroSection />';
-const HOW_TO = '<HowToSection />'; // HOME-BRIEF-03 (Alex, 2026-11-10): the how-to, between the plans and the services section
+const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />'; // HOME-BRIEF-03 (Alex, 2026-11-10): the how-to, between the plans and the services section. HOME-BRIEF-04 (2026-11-10): it IS the Software Plans — in the plans' seat, handed the door ('<HowToSection />' until then)
 const EYEBROW = 'text-text-faint">\n            PROFESSIONAL SERVICES\n'; // HOME-BRIEF-03 (Alex, 2026-11-10): the section's label reads PROFESSIONAL SERVICES — 'DONE-FOR-YOU\n' until then; found with the end of its own <p>, since the card's chip says the same words
 const SECTION_OPEN = '<section className="w-full border-b border-border bg-bg-terminal">';
-const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />";
+const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />"; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): no longer on this page — held here so T1 can say it is gone
 const DOOR = '<section aria-label="How it all connects"'; // PIPELINE-PAGE-01 (2026-11-09): the door in the pipeline header's seat (HEADER was '<section aria-label="The pipeline"')
 /** code() blanks a JSX comment's words and keeps its braces — the guest law's own allowance. */
 const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
 
-test('T1 the order by index (HOME-ORDER-01, 2026-11-10): experiences → the guest strip → THE PLANS → DONE-FOR-YOU → Stop 0 → MY TRIP → the door; each once; nothing but a comment between each pair', () => {
+test('T1 the order by index (HOME-ORDER-01, 2026-11-10; HOME-BRIEF-04: the how-to in THE PLANS\' seat, the experiences inside the booking box): the booking box → the guest strip → the how-to → DONE-FOR-YOU → Stop 0 → MY TRIP → the door; each once; nothing but a comment between each pair', () => {
   const landing = code(LANDING);
   const at = (s: string): number => { const i = landing.indexOf(s); assert.notEqual(i, -1, s); return i; };
-  for (const s of [EXPERIENCES, GUEST_STRIP, PLANS_MOUNT, HOW_TO, SECTION_OPEN, EYEBROW, STOP_ZERO, MY_TRIP, DOOR]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
+  for (const s of [EXPERIENCES, BOOKING, GUEST_STRIP, HOW_TO, SECTION_OPEN, EYEBROW, STOP_ZERO, MY_TRIP, DOOR]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
+  // HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): the purple band is gone — the catalog is mounted once, INSIDE the booking mount, as the box's
+  // Events panel. Until then '<ExperiencesSection today={today} />' stood on its own between the travel block and the guest's strip, and this
+  // order opened with it ('experiences → the strip: a comment between, nothing else').
+  assert.equal(landing.split('<ExperiencesSection').length - 1, 1, 'the catalog is mounted once on the page');
+  assert.ok(at(EXPERIENCES) > at(BOOKING) && at(EXPERIENCES) < at(BOOKING) + BOOKING.length, 'and that one mount is the booking box\'s events panel');
+  // HOME-BRIEF-04 (Alex, 2026-11-10 19:00: "the how-to should replace software plans"): the plans mount left this page — it stood between the
+  // guest's strip and the how-to ('the strip → the plans mount', 'the plans mount → the how-to': a comment between each) — and /pricing keeps it.
+  assert.ok(!landing.includes(PLANS_MOUNT) && !landing.includes('PlansSection'), 'the plans are neither mounted nor imported here');
   // HOME-ORDER-01 (2026-11-10): Alex's order — "What We Do → About Us → Our Story". Until then this list read experiences → Stop 0 → MY TRIP → the guest
   // strip → DONE-FOR-YOU → THE PLANS → the door (HOME-PANELS-02's seat; STOP0-01, 2026-11-09, seated Stop 0; PIPELINE-PAGE-01, 2026-11-09, the door).
   // HOME-BRIEF-03 (Alex, 2026-11-10): the how-to (HowToSection) sits between the plans and the services section — the plans mount was the
   // section's direct neighbour until then ('the plans mount → the DONE-FOR-YOU section: a comment between, nothing else').
-  const order = [EXPERIENCES, GUEST_STRIP, PLANS_MOUNT, HOW_TO, SECTION_OPEN, EYEBROW, STOP_ZERO, MY_TRIP, DOOR].map(at);
-  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'experiences → the guest strip → the plans → the how-to → the services section → stop 0 → my trip → the door');
-  assert.match(landing.slice(at(EXPERIENCES) + EXPERIENCES.length, at(GUEST_STRIP)), ONLY_COMMENTS, 'experiences → the strip: a comment between, nothing else');
-  assert.match(landing.slice(at(GUEST_STRIP) + GUEST_STRIP.length, at(PLANS_MOUNT)), ONLY_COMMENTS, 'the strip → the plans mount: a comment between, nothing else');
-  assert.match(landing.slice(at(PLANS_MOUNT) + PLANS_MOUNT.length, at(HOW_TO)), ONLY_COMMENTS, 'the plans mount → the how-to: a comment between, nothing else');
+  const order = [BOOKING, GUEST_STRIP, HOW_TO, SECTION_OPEN, EYEBROW, STOP_ZERO, MY_TRIP, DOOR].map(at);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the booking box (the experiences inside it) → the guest strip → the how-to → the services section → stop 0 → my trip → the door');
+  const travelEnd = landing.indexOf('</section>', at(TRAVEL_FOOT)) + '</section>'.length;
+  assert.ok(at(TRAVEL_FOOT) > at(BOOKING) && travelEnd > at(TRAVEL_FOOT) && travelEnd < at(GUEST_STRIP), 'the booking box sits in the travel block, which closes above the strip');
+  assert.match(landing.slice(travelEnd, at(GUEST_STRIP)), ONLY_COMMENTS, 'the travel block\'s </section> → the strip: a comment between, nothing else — no band');
+  assert.match(landing.slice(at(GUEST_STRIP) + GUEST_STRIP.length, at(HOW_TO)), ONLY_COMMENTS, 'the strip → the how-to: a comment between, nothing else');
   assert.match(landing.slice(at(HOW_TO) + HOW_TO.length, at(SECTION_OPEN)), ONLY_COMMENTS, 'the how-to → the services section: a comment between, nothing else');
   const sectionEnd = landing.indexOf('</section>', at(EYEBROW)) + '</section>'.length;
   assert.ok(sectionEnd > at(EYEBROW) && sectionEnd < at(STOP_ZERO));

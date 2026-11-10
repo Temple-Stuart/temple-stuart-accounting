@@ -448,12 +448,14 @@ test('T6 the door: ONE lookup box, mounted by /booking/manage and by the home pa
   assert.doesNotMatch(lookup, /useEffect|useLayoutEffect|localStorage|sessionStorage|[?&]code=|console\./);
   assert.ok(lookup.includes('className="flex flex-col gap-3 sm:flex-row sm:items-end"'), 'the fields stack on a phone');
   assert.ok(lookup.includes('<fieldset className="space-y-3" disabled={!live}>'), 'disabled until live — a native submit would be a GET with the code in the URL');
-  const section = landing.indexOf('<LandingBookingSection onRequireAuth={onRequireAuth} />');
+  // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking mount carries the experiences catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then (here and in the slice below).
+  const BOOKING_MOUNT = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />';
+  const section = landing.indexOf(BOOKING_MOUNT);
   const box = landing.indexOf("<GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />");
   const footer = landing.indexOf('One trip holds everything — plans, bookings, budget.');
   assert.ok(section > 0 && section < box && box < footer, 'under the booking section, above the demo’s footer row');
   // BOOK-DISCLOSE-01 (2026-11-08): the disclosure sits under the booking box — the one commission line (src/lib/disclosureWords.ts COMMISSION_LINE), optional, may stand between the section and the lookup, and nothing else may; the GUEST-01 door ruling stands (the lookup under the booking section, never a header link), with only this line between.
-  assert.match(landing.slice(section + '<LandingBookingSection onRequireAuth={onRequireAuth} />'.length, box), /^\s*(<p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>\{COMMISSION_LINE\}<\/p>)?\s*(\{\s*\})?\s*<div className="[^"]*" data-guest-lookup-home>\s*$/, 'directly under it');
+  assert.match(landing.slice(section + BOOKING_MOUNT.length, box), /^\s*(<p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>\{COMMISSION_LINE\}<\/p>)?\s*(\{\s*\})?\s*<div className="[^"]*" data-guest-lookup-home>\s*$/, 'directly under it');
   assert.equal((landing.match(/<GuestBookingLookup\b/g) ?? []).length, 1);
 });
 

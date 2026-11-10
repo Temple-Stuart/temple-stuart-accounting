@@ -2,9 +2,11 @@
  * HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story") — the home page's blocks stand in Alex's
  * order, under two headings. A MOVE of existing JSX: every block whole, with the comment above it; nothing copied.
  *
- *   T1 the twelve mounts, each once, in the order: header · hero · the travel block · the experiences · the guest's
- *      strip · the plans · the how-to · DONE-FOR-YOU · Stop 0 · MY TRIP · the door · footer (HOME-BRIEF-03, 2026-11-10: the
- *      how-to joined, between the plans and the services section — eleven until then);
+ *   T1 the eleven mounts, each once, in the order: header · hero · the travel block · the booking box (the experiences
+ *      inside it, its Events panel — HOME-BRIEF-04: a band of their own, under the travel block, until then) · the guest's
+ *      strip · the how-to · DONE-FOR-YOU · Stop 0 · MY TRIP · the door · footer (HOME-BRIEF-04, 2026-11-10: the plans
+ *      mount left the page — the how-to is the Software Plans and sits in its seat, with its door; twelve until then.
+ *      HOME-BRIEF-03, 2026-11-10: the how-to joined, between the plans and the services section — eleven until then);
  *   T2 "What We Do" — the h2 that carries data-act-heading is the travel section's FIRST child, in the page's own heading
  *      classes, above the id row; the block's own label and headline still follow it;
  *   T3 the two headings come from the leaf (src/lib/homeActWords.ts — pure, no directive); Landing.tsx and
@@ -24,15 +26,20 @@ const LEAF = 'src/lib/homeActWords.ts';
 const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">';
 const HEADING = '<h2 className="pt-8 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-act-heading>{WHAT_WE_DO_HEADING}</h2>';
 const ID_ROW = '<div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">';
-/** The twelve, in Alex's order (HOME-BRIEF-03, 2026-11-10: the how-to joined — eleven until then). */
+/**
+ * The eleven, in Alex's order. HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the plans mount left — ['the plans', "<PlansSection door={{ kind: 'button',
+ * onClick: () => onRequireAuth() }} />"] stood between the guest's strip and the how-to — and the how-to, '<HowToSection />' until then, is
+ * handed the door. (HOME-BRIEF-03, 2026-11-10: the how-to joined — eleven before it, twelve with it.)
+ */
 const MOUNTS: ReadonlyArray<readonly [string, string]> = [
   ['the header', '<LandingHeader onRequireLogin={onRequireLogin} onRequireAuth={onRequireAuth} />'],
   ['the hero', '<section className="bg-brand-purple text-white pb-14 pt-12">'],
   ['the travel block', TRAVEL_OPEN],
-  ['the experiences', '<ExperiencesSection today={today} />'],
+  // HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): the purple band is gone — the experiences are the booking box's Events panel, inside the travel
+  // block. Until then this entry was ['the experiences', '<ExperiencesSection today={today} />'], a block of its own between the travel block and the strip.
+  ['the booking box, the experiences inside it', '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />'],
   ["the guest's strip", '<GuestTripStrip onRequireAuth={onRequireAuth} />'],
-  ['the plans', "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />"],
-  ['the how-to', '<HowToSection />'], // HOME-BRIEF-03 (Alex, 2026-11-10): the services display, directly under the plans
+  ['the how-to', '<HowToSection onRequireAuth={onRequireAuth} />'], // HOME-BRIEF-03 (Alex, 2026-11-10): the services display; HOME-BRIEF-04: the Software Plans itself, in the plans' seat
   ['DONE-FOR-YOU', '<section className="w-full border-b border-border bg-bg-terminal">'],
   ['Stop 0', '<StopZeroSection />'],
   ['MY TRIP', '<WasHereSection today={today} />'],
@@ -45,13 +52,15 @@ const count = (hay: string, needle: string): number => hay.split(needle).length 
 /** Whitespace collapsed, so a word broken across lines is still found. */
 const flat = (s: string): string => s.replace(/\s+/g, ' ');
 
-test('T1 the twelve mounts, each once, in Alex\'s order: header · hero · travel · experiences · guest strip · plans · the how-to (HOME-BRIEF-03) · DONE-FOR-YOU · Stop 0 · MY TRIP · the door · footer', () => {
+test('T1 the eleven mounts, each once, in Alex\'s order: header · hero · travel · the booking box with the experiences inside it (HOME-BRIEF-04) · guest strip · the how-to (the Software Plans, HOME-BRIEF-04) · DONE-FOR-YOU · Stop 0 · MY TRIP · the door · footer', () => {
   const landing = code(LANDING);
-  assert.equal(MOUNTS.length, 12);
+  assert.equal(MOUNTS.length, 11);
+  assert.equal(count(landing, 'PlansSection'), 0, 'the plans are mounted nowhere on this page — /pricing keeps them');
+  assert.equal(count(landing, '<ExperiencesSection'), 1, 'the experiences are mounted once — in the booking box, never as a band of their own');
   for (const [name, mount] of MOUNTS) assert.equal(count(landing, mount), 1, `${name}: mounted exactly once`);
   const at = MOUNTS.map(([, mount]) => landing.indexOf(mount));
   assert.deepEqual(at, [...at].sort((a, b) => a - b), MOUNTS.map(([name]) => name).join(' → '));
-  assert.equal(new Set(at).size, 12, 'twelve places');
+  assert.equal(new Set(at).size, 11, 'eleven places');
 });
 
 test('T2 "What We Do": the data-act-heading h2 is the travel section\'s first child, in the page\'s heading classes, above the id row; the block\'s own label and headline follow', () => {

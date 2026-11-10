@@ -5,6 +5,21 @@
  * under the booking strip on the guest landing (Landing.tsx, after the LIVE DEMO
  * act): the marquee events a guest books a stay and a flight around.
  *
+ * HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03) — THE CATALOG LIVES INSIDE THE BOOKING BOX: it is the panel of the box's
+ * Events tab, first in the row and open (Landing.tsx hands this component to LandingBookingSection.tsx as `events`).
+ * The full-width purple band is gone. The same view — the same rows, chips, list, URL behaviour, data hooks and
+ * id="events" — repainted for the white box: no band, no white ink; house tokens for a light surface (primary,
+ * secondary and faint ink, the lavender hairline, the row cream on hover); the chosen chip is filled brand purple with
+ * white words, the others are outlined; Source ↗ is brand purple. No full-width section classes: the panel sits inside
+ * the box's own padding, under the tab row, behind the hairline every panel of the strip opens with. Its label line
+ * (EYEBROW) and SUBHEAD are the panel's two opening lines. "Band", "the band's box", PAINT's aubergine and every seat
+ * note below describe it as it stood until then — history.
+ * THE ARRIVAL (after the look): the booking box is a client-only chunk that loads after the page (Landing.tsx, `ssr:
+ * false`), so this block no longer exists when the browser looks for #events — a visitor arriving at /#events (the
+ * footer's "Events" link on every public page, a reload after picking a chip) stayed at the top. The URL half takes
+ * such an arrival to the block once, when it mounts (landOnEvents). The visitor's own URL names the place: no default,
+ * nothing chosen for them, and no other hash is acted on.
+ *
  * HOME-BRIEF-03 (Alex, 2026-11-10 18:09 · 18:15) — ONE OFFERING WITH THE TRAVEL BLOCK ABOVE: this band repeats no headline.
  * The experience line and the promise are the travel block's header now (Landing.tsx reads EXPERIENCE_LINE from
  * src/lib/brandLines.ts and PROMISE from this file); the band renders its eyebrow, then SUBHEAD, then the chips and the
@@ -90,7 +105,7 @@
  * default export reads the URL and hands it the choice.
  */
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   EXPERIENCES, EXPERIENCE_CATEGORIES, experienceCategoryLabel, isExperienceCategoryId,
@@ -138,36 +153,55 @@ export function checkedWords(checkedOn: string): string {
   return `Checked ${dayWords(checkedOn)}`;
 }
 
+/**
+ * HOME-BRIEF-04 (2026-11-10, after the look): THE ARRIVAL AT /#events. The catalog mounts inside the booking box, which loads after the
+ * page, so the browser has already looked for the anchor and found nothing. When the URL's hash names this block, take the visitor to
+ * it — once, on mount. Any other hash: nothing. The block is this component's own section, so a hash that names it with no such element
+ * on the page is a broken page, said by name — never passed over. Pure but for the two things it is handed, so the tests call it.
+ */
+export function landOnEvents(hash: string, find: (id: string) => { scrollIntoView: () => void } | null): boolean {
+  if (hash !== `#${EVENTS_ANCHOR}`) return false;
+  const block = find(EVENTS_ANCHOR);
+  if (block === null) throw new Error(`ExperiencesSection: the URL names #${EVENTS_ANCHOR} and no element on the page carries that id — the catalog's own section does`);
+  block.scrollIntoView();
+  return true;
+}
+
 // THE CLASS GRAMMAR — the DECK idiom: one const, every string whole, house tokens only.
+// HOME-BRIEF-04 (Alex, 2026-11-10 19:00): repainted for the booking box's white surface. Until then: band 'w-full bg-brand-purple text-white'
+// over inner 'max-w-7xl mx-auto px-4 lg:px-8 py-10 lg:py-14'; the eyebrow and the series name in brand-amber; every other ink a white
+// (white/90 the date line, white/80 the place and the source link, white/70 the sub and the line, white/60 the labels, the notes, the
+// checked words and the closing line); hairlines white/15; the chosen chip white with purple words, the others white/40-outlined.
 const EXP = {
-  band: 'w-full bg-brand-purple text-white',
-  inner: 'max-w-7xl mx-auto px-4 lg:px-8 py-10 lg:py-14',
-  eyebrow: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-brand-amber',
-  sub: 'mt-2 max-w-2xl text-sm text-white/70',
-  label: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60',
+  // The panel of the Events tab: no band and no box of its own — the hairline and the spacing every panel of the strip opens with.
+  panel: 'mt-6 border-t border-border pt-6',
+  eyebrow: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
+  sub: 'mt-2 max-w-2xl text-sm text-text-secondary',
+  label: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
   chipRow: 'mt-3 flex flex-wrap gap-2',
-  chipOn: 'min-h-[44px] rounded-full border border-white bg-white px-4 py-2 font-mono text-xs font-medium text-brand-purple',
-  chipOff: 'min-h-[44px] rounded-full border border-white/40 px-4 py-2 font-mono text-xs font-medium text-white transition-colors hover:bg-white/10',
-  refused: 'mt-2 font-mono text-xs text-brand-amber',
+  // The chosen chip: filled brand purple, white words. The others: outlined.
+  chipOn: 'min-h-[44px] rounded-full border border-brand-purple bg-brand-purple px-4 py-2 font-mono text-xs font-medium text-white',
+  chipOff: 'min-h-[44px] rounded-full border border-border px-4 py-2 font-mono text-xs font-medium text-text-primary transition-colors hover:bg-bg-row',
+  refused: 'mt-2 font-mono text-xs text-text-primary',
   // HOME-BRIEF-02 (Alex, 2026-11-10): a compact list — a hairline above, below and between its rows; nothing scrolls sideways.
   // (EVENTS-01c's row of cards, one width, snapping, with its drawn thumb, stood here until then.) The key is still `rail`:
   // it is the element that carries data-coming-up-rail.
-  rail: 'mt-3 divide-y divide-white/15 border-y border-white/15',
+  rail: 'mt-3 divide-y divide-border border-y border-border',
   // One event, one row: stacked on a phone; from md the date line, then the name over the place, then the foot, on one baseline.
   row: 'flex flex-col gap-1 py-3 md:flex-row md:items-baseline md:gap-6',
-  rowLine: 'font-mono text-xs leading-relaxed text-white/90 md:w-72 md:shrink-0',
+  rowLine: 'font-mono text-xs leading-relaxed text-text-primary md:w-72 md:shrink-0',
   rowBody: 'min-w-0 md:flex-1',
   // HOME-BRIEF-03 (Alex, 2026-11-10): the series name, small, over the event's name — the card's top line wore these classes.
-  rowSeries: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-amber',
-  rowName: 'text-sm font-semibold text-white',
-  rowPlace: 'text-sm text-white/80',
-  rowNotes: 'mt-1 text-xs text-white/60',
+  rowSeries: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
+  rowName: 'text-sm font-semibold text-text-primary',
+  rowPlace: 'text-sm text-text-secondary',
+  rowNotes: 'mt-1 text-xs text-text-secondary',
   // EVENTS-03 (2026-11-09): the checked words and the source link on one line; from md they close the row, at its right edge.
   rowFoot: 'flex flex-wrap items-center gap-x-3 md:shrink-0 md:justify-end',
-  checked: 'font-mono text-xs text-white/60',
-  source: 'inline-flex min-h-[44px] items-center font-mono text-xs text-white/80 underline-offset-4 hover:text-white hover:underline',
-  line: 'mt-4 text-sm text-white/70',
-  closing: 'mt-8 text-xs text-white/60',
+  checked: 'font-mono text-xs text-text-faint',
+  source: 'inline-flex min-h-[44px] items-center font-mono text-xs text-brand-purple underline-offset-4 hover:text-brand-purple-hover hover:underline',
+  line: 'mt-4 text-sm text-text-secondary',
+  closing: 'mt-8 text-xs text-text-faint',
 } as const;
 
 const placeOf = (row: Experience): string => `${row.venue} · ${row.city}, ${row.country}`;
@@ -226,35 +260,33 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
     </button>
   );
   return (
-    <section id={EVENTS_ANCHOR} aria-label="Book the experience" className={EXP.band} data-experiences>
-      <div className={EXP.inner}>
-        <p className={EXP.eyebrow}>{EYEBROW}</p>
-        <p className={EXP.sub}>{SUBHEAD}</p>
+    <section id={EVENTS_ANCHOR} aria-label="Book the experience" className={EXP.panel} data-experiences>
+      <p className={EXP.eyebrow}>{EYEBROW}</p>
+      <p className={EXP.sub}>{SUBHEAD}</p>
 
-        <p className={`mt-8 ${EXP.label}`}>{INTO_LABEL}</p>
-        <div className={EXP.chipRow} role="group" aria-label={INTO_LABEL}>
-          {EXPERIENCE_CATEGORIES.filter((c) => c.group === 'event').map(chip)}
-        </div>
-        <p className={`mt-6 ${EXP.label}`}>{SEASONS_LABEL}</p>
-        <div className={EXP.chipRow} role="group" aria-label={SEASONS_LABEL}>
-          {EXPERIENCE_CATEGORIES.filter((c) => c.group === 'season').map(chip)}
-        </div>
-
-        {into === null ? (
-          <p className={`mt-10 ${EXP.refused}`} role="status" data-into-refused>{notACategory('refused' in choice ? choice.refused : '')}</p>
-        ) : (
-          <>
-            <p className={`mt-10 ${EXP.label}`}>{isSeason ? WHEN_TO_GO_LABEL : COMING_UP_LABEL}</p>
-            {/* EVENTS-03: a season chip says no "Nothing announced yet" — a usual window is a season, not an edition waiting to be announced. */}
-            {comingUp.length === 0 && !isSeason && <p className={EXP.line} data-nothing-upcoming>{nothingUpcoming(experienceCategoryLabel(into))}</p>}
-            <div key={into} className={EXP.rail} data-coming-up-rail>
-              {cards.map((row) => <EventRow key={row.id} row={row} today={today} />)}
-            </div>
-          </>
-        )}
-
-        <p className={EXP.closing}>{isSeason ? SEASONS_CLOSING_LINE : CLOSING_LINE}</p>
+      <p className={`mt-8 ${EXP.label}`}>{INTO_LABEL}</p>
+      <div className={EXP.chipRow} role="group" aria-label={INTO_LABEL}>
+        {EXPERIENCE_CATEGORIES.filter((c) => c.group === 'event').map(chip)}
       </div>
+      <p className={`mt-6 ${EXP.label}`}>{SEASONS_LABEL}</p>
+      <div className={EXP.chipRow} role="group" aria-label={SEASONS_LABEL}>
+        {EXPERIENCE_CATEGORIES.filter((c) => c.group === 'season').map(chip)}
+      </div>
+
+      {into === null ? (
+        <p className={`mt-10 ${EXP.refused}`} role="status" data-into-refused>{notACategory('refused' in choice ? choice.refused : '')}</p>
+      ) : (
+        <>
+          <p className={`mt-10 ${EXP.label}`}>{isSeason ? WHEN_TO_GO_LABEL : COMING_UP_LABEL}</p>
+          {/* EVENTS-03: a season chip says no "Nothing announced yet" — a usual window is a season, not an edition waiting to be announced. */}
+          {comingUp.length === 0 && !isSeason && <p className={EXP.line} data-nothing-upcoming>{nothingUpcoming(experienceCategoryLabel(into))}</p>}
+          <div key={into} className={EXP.rail} data-coming-up-rail>
+            {cards.map((row) => <EventRow key={row.id} row={row} today={today} />)}
+          </div>
+        </>
+      )}
+
+      <p className={EXP.closing}>{isSeason ? SEASONS_CLOSING_LINE : CLOSING_LINE}</p>
     </section>
   );
 }
@@ -263,6 +295,10 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
 function ExperiencesFromUrl({ today }: { today: string }) {
   const params = useSearchParams();
   const router = useRouter();
+  // HOME-BRIEF-04 (after the look): an arrival at /#events is taken to the block when it mounts — once (landOnEvents, above).
+  useEffect(() => {
+    landOnEvents(window.location.hash, (id) => document.getElementById(id));
+  }, []);
   const raw = params.get(INTO_PARAM);
   // No param, or an empty one, → the first category; a valid id → it; anything else → refused by name.
   const choice: IntoChoice = raw === null || raw === '' ? { category: DEFAULT_INTO } : isExperienceCategoryId(raw) ? { category: raw } : { refused: raw };

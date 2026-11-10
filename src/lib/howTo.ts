@@ -19,17 +19,26 @@
  *
  * NOT HERE, on purpose (the board): no placeholder box, no "guide" line, no count of the tools.
  *
+ * HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03: "the how-to should replace software plans … cards should be horizontal
+ * swipe per P, B, T … clean these cards up"): on the home page THIS is the SOFTWARE PLANS block — the plan cards and the
+ * comparison table stay on /pricing. So the label reads "Software plans"; under the plan line stand the plan's price line
+ * and its button, read from priceSlot (src/lib/offer/plans.ts — never typed), and a link to the four plans; each section's
+ * steps are one row that swipes sideways; and a card says less: its step and its state, the title, each tool with its
+ * mark, its note. Off the card: its place among your steps, the section's name and the needs-Books tags — the one line
+ * over the rows and the legend still say which steps need Books.
+ *
  * PURE: no directive, no fetch, no clock, no storage.
  */
 
 import type { ToolName } from './problemSheet';
 import { TOOL_REGISTRY, type ToolEntry, type ToolStatus } from './toolRegistry';
-import { PLANS, type ModuleId, type Plan } from './offer/plans';
+import { PLANS, priceSlot, type ModuleId, type Plan, type PriceSlot } from './offer/plans';
 import { OFFERS, priceLineFor, type Offer } from './offer';
 
 // ── THE WORDS ────────────────────────────────────────────────────────────────
 
-export const HOW_TO_EYEBROW = 'The how-to';
+/** HOME-BRIEF-04 (2026-11-10): the block's label — "The how-to" until then. */
+export const HOW_TO_EYEBROW = 'Software plans';
 export const HOW_TO_HEADING = 'Here’s how you actually do it.';
 export const HOW_TO_LINE = 'Personal is everyone’s. Add a business, trading, or both, and your steps fill in, in order, across Personal, Business, Travel and Trade.';
 /** The label over the three, and the three: Personal is fixed, the other two are switches. */
@@ -39,9 +48,9 @@ export const ADD_BUSINESS = '+ Business';
 export const ADD_TRADE = '+ Trade';
 /** After Personal, while neither Business nor Trade is on. */
 export const NEXT_LINE = 'Next, earn abroad: run a business, trade, or both — add them above.';
-/** The two tags a step carries while it needs Books and Books is not on sale. */
-export const NEEDS_BOOKS_TAG = 'NEEDS BOOKS';
-export const NOT_ON_SALE_TAG = 'NOT ON SALE YET';
+/** HOME-BRIEF-04 (2026-11-10): beside the plan's button, the door to the four plans and their table. */
+export const COMPARE_PLANS_WORDS = 'Compare all four plans →';
+export const COMPARE_PLANS_PATH = '/pricing';
 export const LEGEND_TITLE = 'How to read the marks';
 export const LEGEND_STEP_LINE = 'A step is LIVE when every tool in it is live, and PENDING until then.';
 /** The legend's last sentence — drawn only while Books is not on sale. */
@@ -75,13 +84,16 @@ export function stepsLine(total: number, live: number): string {
 export function booksLine(needBooks: number): string {
   return `${needBooks} of them need Books, and Books isn’t on sale yet.`;
 }
-/** "<Section> · step <n>" */
-export function cardWhere(sectionName: string, n: number): string {
-  return `${sectionName} · step ${n}`;
+/** "STEP <n>" — a card's first line, the step's number in its own section (HOME-BRIEF-04; "<Section> · step <n>" and "YOUR STEP <place> OF <N>" until then). */
+export function cardStep(n: number): string {
+  return `STEP ${n}`;
 }
-/** "YOUR STEP <its place> OF <N>" — places run in section order: Personal, Business, Travel, Trade. */
-export function cardPlace(place: number, total: number): string {
-  return `YOUR STEP ${place} OF ${total}`;
+/**
+ * The plan's price line, from its slot (priceSlot, src/lib/offer/plans.ts): the launch words while no price is set; once
+ * one is, the figure and its billing note. Nothing here is typed — every word is the slot's.
+ */
+export function priceLine(slot: PriceSlot): string {
+  return slot.kind === 'unannounced' ? slot.text : [slot.figure, slot.billingNote].filter((part): part is string => part !== null && part !== '').join(' ');
 }
 
 // ── THE STEPS ────────────────────────────────────────────────────────────────
@@ -204,8 +216,16 @@ export function sectionShown(id: HowToSectionId, choice: HowToChoice): boolean {
  *   · Tasks       — a task is written under a project, and a project needs a book (src/app/api/operations/projects/route.ts).
  * A book is opened only by POST /api/entities, which is gated on the Books key (src/app/api/entities/route.ts); sign-up
  * opens none.
+ *
+ * HOME-BRIEF-04 (Alex, 2026-11-10 19:00): four more, each behind a key that only a purchase of Books (or the bundle that
+ * holds it) grants — src/lib/offer.ts OFFERS' grants — re-read in the code the same day:
+ *   · Trade Log   — its room locks on the trade key (src/app/trade-log/page.tsx, useTabLock); the gate table names the
+ *                   Books key for it (src/lib/offer.ts TOOL_GATE) — either way a key only Books grants;
+ *   · Brokerage   — its room locks on the trade key (src/app/brokerage/page.tsx, useTabLock);
+ *   · Tax         — the tax report is gated on the tax key (src/app/api/tax/report/route.ts, requireTabAccess);
+ *   · Compliance  — its reads and writes are gated on the compliance key (src/app/api/discovery/profile/route.ts).
  */
-export const NEEDS_BOOKS: readonly ToolName[] = ['Banking', 'Bookkeeping', 'Expenses', 'Bill Pay', 'Budget', 'Tasks'];
+export const NEEDS_BOOKS: readonly ToolName[] = ['Banking', 'Bookkeeping', 'Expenses', 'Bill Pay', 'Budget', 'Tasks', 'Trade Log', 'Brokerage', 'Tax', 'Compliance'];
 
 /**
  * Is Books not on sale? Read from src/lib/offer.ts, never typed: the Books offer (OFFERS, key 'tab:books') through
@@ -253,18 +273,15 @@ export interface HowToToolMark {
   tone: HowToTone;
 }
 export interface HowToCard {
-  /** "<Section> · step <n>" */
-  where: string;
-  /** "YOUR STEP <place> OF <N>" */
-  placeLine: string;
+  /** "STEP <n>" */
+  step: string;
   n: number;
-  place: number;
   title: string;
   tools: readonly HowToToolMark[];
   live: boolean;
   /** LIVE or PENDING, with its tone. */
   state: { words: string; tone: HowToTone };
-  /** True only while the step needs Books AND Books is not on sale — the two tags ride on this. */
+  /** True only while the step needs Books AND Books is not on sale — counted in the line over the rows; no tag rides on the card (HOME-BRIEF-04). */
   needsBooks: boolean;
   note: string | null;
 }
@@ -278,7 +295,11 @@ export interface HowToSectionView {
   after: string | null;
 }
 export interface HowToView {
+  /** The plan what you run picks — from PLANS. */
+  plan: Plan;
   planLine: string;
+  /** The plan's price line and its button's words, from priceSlot(plan). */
+  price: { line: string; cta: string };
   stepsLine: string;
   /** Null unless Books is not on sale. */
   booksLine: string | null;
@@ -305,21 +326,17 @@ export function howToView(
   const sections = (opts.sections ?? HOW_TO_SECTIONS).filter((s) => sectionShown(s.id, choice));
   const gateOnBooks = opts.booksOnSale === undefined ? booksNotOnSale() : !opts.booksOnSale;
   const total = sections.reduce((sum, s) => sum + s.steps.length, 0);
-  let place = 0;
   const views: HowToSectionView[] = sections.map((s) => ({
     id: s.id,
     name: s.name,
     badge: say(s.badge, choice),
     line: say(s.line, choice),
     cards: s.steps.map((step) => {
-      place += 1;
       const statuses = step.tools.map((name) => statusOf(name, registry));
       const live = statuses.every((status) => status === 'LIVE');
       return {
-        where: cardWhere(s.name, step.n),
-        placeLine: cardPlace(place, total),
+        step: cardStep(step.n),
         n: step.n,
-        place,
         title: say(step.title, choice),
         tools: step.tools.map((name, i) => ({ name, words: TOOL_MARKS[statuses[i]].words, tone: TOOL_MARKS[statuses[i]].tone })),
         live,
@@ -333,8 +350,12 @@ export function howToView(
   const cards = views.flatMap((v) => v.cards);
   const live = cards.filter((c) => c.live).length;
   const needBooks = cards.filter((c) => c.needsBooks).length;
+  const plan = planFor(choice, opts.plans ?? PLANS);
+  const slot = priceSlot(plan);
   return {
-    planLine: planLine(planFor(choice, opts.plans ?? PLANS)),
+    plan,
+    planLine: planLine(plan),
+    price: { line: priceLine(slot), cta: slot.cta },
     stepsLine: stepsLine(total, live),
     booksLine: gateOnBooks ? booksLine(needBooks) : null,
     legendBooksLine: gateOnBooks ? LEGEND_BOOKS_LINE : null,

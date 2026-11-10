@@ -55,7 +55,11 @@ test('T1 the four exports are the exact words, and SITE_DESCRIPTION is the compa
 
 test('T2 the hero renders COMPANY_LINE and HERO_SUBLINE from src/lib/brandLines.ts and types none of their words', () => {
   const landing = code(LANDING);
-  assert.match(landing, /import PlansSection from '@\/components\/offer\/PlansSection'; import \{ COMPANY_LINE, HERO_SUBLINE \} from '@\/lib\/brandLines';/, 'the import rides an existing line — every line above :1807 stays');
+  // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the line lost PlansSection — the home page's offer is the how-to, and /pricing mounts the plans. Until
+  // then: /import PlansSection from '@\/components\/offer\/PlansSection'; import \{ COMPANY_LINE, HERO_SUBLINE \} from '@\/lib\/brandLines';/
+  // ('the import rides an existing line — every line above :1807 stays').
+  assert.match(landing, /^import \{ COMPANY_LINE, HERO_SUBLINE \} from '@\/lib\/brandLines';/m, 'the import, on the line it has always stood on — alone now');
+  assert.doesNotMatch(landing, /PlansSection/, 'the plans section is not imported here');
   assert.match(
     landing,
     /<h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">\s*\{COMPANY_LINE\[0\]\}<br \/>\s*\{COMPANY_LINE\[1\]\}<br \/>\s*\{\s*\}\s*<span className="text-brand-purple-wash">\{COMPANY_LINE\[2\]\}<\/span>\s*<\/h1>/,
@@ -84,7 +88,7 @@ test('T3 (HOME-BRIEF-03, 2026-11-10) the experience line heads the ONE travel-an
     '<p className="mt-2 text-lg font-semibold text-text-primary">{PROMISE}</p>',
     '<p className="mt-2 text-sm text-text-secondary">',
     'Search &amp; book travel — free today, no account needed.',
-    '<LandingBookingSection onRequireAuth={onRequireAuth} />',
+    '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />', // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking box carries the catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then
   ];
   for (const step of steps) assert.equal(landing.split(step).length - 1, 1, `${step} — once`);
   const at = steps.map((step) => landing.indexOf(step));
@@ -93,11 +97,12 @@ test('T3 (HOME-BRIEF-03, 2026-11-10) the experience line heads the ONE travel-an
   assert.match(landing.slice(at[2] + steps[2].length, at[3]), /^\s*$/, 'the travel sentence right under the promise');
   assert.match(landing.slice(at[3] + steps[3].length, at[5]), /^\s*Search &amp; book travel — free today, no account needed\.\s*<\/p>\s*$/, 'that line holds the sentence, word for word, and the booking box follows');
   for (const words of [...EXPERIENCE_LINE, PROMISE]) assert.ok(!landing.includes(words), `Landing.tsx does not type "${words}"`);
-  // the band: no headline of its own
+  // the band: no headline of its own. HOME-BRIEF-04 (2026-11-10): it is the booking box's Events panel now — no band and no inner box, so its
+  // label line and SUBHEAD are the section's own first two children (until then: '<section …><div class="[^"]*"><p …>EYEBROW</p><p …>SUBHEAD</p>').
   const html = renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: '2026-11-08', choice: { category: DEFAULT_INTO }, onPick: () => {} }));
   assert.equal((html.match(/<h2/g) ?? []).length, 0, 'the band renders no h2');
   assert.ok(!html.includes(asHtml(PROMISE)) && EXPERIENCE_LINE.every((line) => !html.includes(line)), 'neither the promise nor the experience line');
-  assert.match(html, new RegExp(`^<section id="events" aria-label="Book the experience"[^>]*><div class="[^"]*"><p class="[^"]*">${esc(EYEBROW)}</p><p class="[^"]*">${esc(asHtml(SUBHEAD))}</p><p class="[^"]*">`), 'the eyebrow, then SUBHEAD, then the chips\' label; the id and the aria-label unchanged');
+  assert.match(html, new RegExp(`^<section id="events" aria-label="Book the experience"[^>]*><p class="[^"]*">${esc(EYEBROW)}</p><p class="[^"]*">${esc(asHtml(SUBHEAD))}</p><p class="[^"]*">`), 'the eyebrow, then SUBHEAD, then the chips\' label; the id and the aria-label unchanged');
 });
 
 // ── T4 · THE PAGE DESCRIPTION ────────────────────────────────────────────────
