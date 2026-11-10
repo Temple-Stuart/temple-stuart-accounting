@@ -243,6 +243,14 @@ test('T4 rendered with no choice named: Surf — a list of all six surf rows (HO
   for (const id of ['us-open-of-surfing-2027', 'tahiti-pro-2027', 'rip-curl-pro-bells-2027']) assert.equal(lineOf(html, id), experienceLine(row(id), TODAY), `${id}: its own line`);
   assert.ok(['us-open-of-surfing-2027', 'tahiti-pro-2027', 'rip-curl-pro-bells-2027'].every((id) => /^Next edition not announced \(checked /.test(lineOf(html, id) ?? '')), 'not announced means not announced');
   assert.deepEqual(sourcesOf(html), cardsOf(html).map((id) => [id, row(id).sourceUrl]), 'every card links the page its dates came from');
+  // HOME-BRIEF-03 (Alex, 2026-11-10): a row that has a series shows it again — the series name alone, small, right above the event's name; a row with none shows nothing extra.
+  const seriesOf = (id: string) => new RegExp(`data-coming-up="${id}">[\\s\\S]*?<p class="[^"]*" data-series="${id}">([^<]*)</p><h3 class="[^"]*">`).exec(html)?.[1];
+  for (const id of cardsOf(html)) {
+    const series = row(id).series;
+    if (series === null) assert.ok(!html.includes(`data-series="${id}"`), `${id}: no series, nothing extra`);
+    else assert.equal(seriesOf(id), series.replace(/&/g, '&amp;').replace(/'/g, '&#x27;'), `${id}: its series, right above its name`);
+  }
+  assert.ok(cardsOf(html).some((id) => row(id).series !== null), 'Surf holds rows with a series');
   assert.equal(SOURCE_LINK, 'Source ↗');
   // EVENTS-02 (2026-11-08): nineteen chips — the nine and the ten appended. SEASONS-01 (2026-11-08): twenty-six across the
   // two rows — the nineteen events under I'M INTO, the seven seasons under SEASONS (the title counts them the same way).
@@ -297,8 +305,9 @@ test('T4 rendered for a value that names no category: the refusal only — in pl
   assert.doesNotMatch(bad, /data-coming-up-rail|COMING UP|THE LINEUP/);
   assert.ok(bad.includes(CLOSING_LINE.replace("'", '&#x27;')));
   const empty = render({ choice: { category: 'golf' }, today: '2027-12-31' });
-  assert.match(empty, /data-nothing-upcoming="true">Nothing announced yet in Golf — the cards below say when each one was checked\.</);
-  assert.equal(nothingUpcoming('Golf'), 'Nothing announced yet in Golf — the cards below say when each one was checked.');
+  // HOME-BRIEF-03 (Alex, 2026-11-10): "the list below says" — "the cards below say" until then.
+  assert.match(empty, /data-nothing-upcoming="true">Nothing announced yet in Golf — the list below says when each one was checked\.</);
+  assert.equal(nothingUpcoming('Golf'), 'Nothing announced yet in Golf — the list below says when each one was checked.');
   assert.ok(pos(empty, 'data-nothing-upcoming') < pos(empty, 'data-coming-up-rail'), 'said above the row');
   assert.ok(!empty.includes('use the strip at the top'), 'no strip line — HOME-BRIEF-02 (2026-11-10): on no view');
   assert.equal(cardsOf(empty).length, 5, 'every golf card still shows');

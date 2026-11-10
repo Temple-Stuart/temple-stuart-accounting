@@ -128,9 +128,9 @@ export function notACategory(value: string): string {
   return `${value} is not a category — pick one above.`;
 }
 
-/** "Nothing announced yet in <category> — the cards below say when each one was checked." */
+/** "Nothing announced yet in <category> — the list below says when each one was checked." HOME-BRIEF-03 (Alex, 2026-11-10): "the list below" — it read "the cards below say" until then, over what HOME-BRIEF-02 made a list. */
 export function nothingUpcoming(categoryLabel: string): string {
-  return `Nothing announced yet in ${categoryLabel} — the cards below say when each one was checked.`;
+  return `Nothing announced yet in ${categoryLabel} — the list below says when each one was checked.`;
 }
 
 /** EVENTS-03 (Alex, 2026-11-09): "Checked Nov 8, 2026" — the day a row was checked, in the foot of every card whose line does not already say it. */
@@ -157,6 +157,8 @@ const EXP = {
   row: 'flex flex-col gap-1 py-3 md:flex-row md:items-baseline md:gap-6',
   rowLine: 'font-mono text-xs leading-relaxed text-white/90 md:w-72 md:shrink-0',
   rowBody: 'min-w-0 md:flex-1',
+  // HOME-BRIEF-03 (Alex, 2026-11-10): the series name, small, over the event's name — the card's top line wore these classes.
+  rowSeries: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-amber',
   rowName: 'text-sm font-semibold text-white',
   rowPlace: 'text-sm text-white/80',
   rowNotes: 'mt-1 text-xs text-white/60',
@@ -191,6 +193,9 @@ function EventRow({ row, today }: { row: Experience; today: string }) {
     <article className={EXP.row} data-coming-up={row.id}>
       <p className={EXP.rowLine} data-experience-line>{line}</p>
       <div className={EXP.rowBody}>
+        {/* HOME-BRIEF-03 (Alex, 2026-11-10): a row that has a series shows it again — the series name alone (the card's top line carried
+            it, after the category, until HOME-BRIEF-02); a row with no series shows nothing extra. */}
+        {row.series !== null && <p className={EXP.rowSeries} data-series={row.id}>{row.series}</p>}
         <h3 className={EXP.rowName}>{row.name}</h3>
         <p className={EXP.rowPlace}>{placeOf(row)}</p>
         {row.notes !== null && <p className={EXP.rowNotes}>{row.notes}</p>}
