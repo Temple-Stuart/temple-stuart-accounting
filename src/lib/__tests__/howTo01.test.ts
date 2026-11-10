@@ -244,7 +244,8 @@ test('T5 the section types no status, no plan name and none of the leaf\'s words
   assert.deepEqual([...leaf.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]), ['./problemSheet', './toolRegistry', './offer/plans', './offer']);
   for (const plan of PLANS) assert.ok(!leaf.includes(`'${plan.name}'`) || plan.name === 'Personal', `the leaf does not type the plan name "${plan.name}"`);
   assert.doesNotMatch(leaf, /status: '(LIVE|PARTIAL|NOT_BUILT)'/, 'no tool\'s status is typed in the leaf');
-  assert.deepEqual([...NEEDS_BOOKS], ['Banking', 'Bookkeeping', 'Expenses', 'Bill Pay', 'Budget', 'Tasks'], 'the six tools that need a book');
+  // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): four more — Trade Log, Brokerage, Tax, Compliance, each behind a key only Books grants. The six until then.
+  assert.deepEqual([...NEEDS_BOOKS], ['Banking', 'Bookkeeping', 'Expenses', 'Bill Pay', 'Budget', 'Tasks', 'Trade Log', 'Brokerage', 'Tax', 'Compliance'], 'the ten tools that need Books');
 });
 
 // ── T6 · THE SEAT ────────────────────────────────────────────────────────────

@@ -708,9 +708,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           </h2>
           <div className="mt-4 rounded-lg border border-border bg-white p-5">
             <div className="mt-4">
-              <span className="rounded border border-border px-2 py-0.5 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
-                PROFESSIONAL SERVICES
-              </span>
+              {/* HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the small chip that repeated the label's words stood here, over the
+                  doors; it went — the label above the headline says them once. */}
               {/* ONE-FORM-01 (Alex, 2026-11-06): each card is a door to the ONE proposal form with its choice
                   picked (?need=<key>, the form's own query key). SERVICES-01 (Alex, 2026-11-08): SIX EQUAL
                   DOORS — every door's key, title and line from SERVICES in src/lib/proposalNeeds.ts, the one

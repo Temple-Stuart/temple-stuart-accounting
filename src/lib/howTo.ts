@@ -204,8 +204,16 @@ export function sectionShown(id: HowToSectionId, choice: HowToChoice): boolean {
  *   · Tasks       — a task is written under a project, and a project needs a book (src/app/api/operations/projects/route.ts).
  * A book is opened only by POST /api/entities, which is gated on the Books key (src/app/api/entities/route.ts); sign-up
  * opens none.
+ *
+ * HOME-BRIEF-04 (Alex, 2026-11-10 19:00): four more, each behind a key that only a purchase of Books (or the bundle that
+ * holds it) grants — src/lib/offer.ts OFFERS' grants — re-read in the code the same day:
+ *   · Trade Log   — its room locks on the trade key (src/app/trade-log/page.tsx, useTabLock); the gate table names the
+ *                   Books key for it (src/lib/offer.ts TOOL_GATE) — either way a key only Books grants;
+ *   · Brokerage   — its room locks on the trade key (src/app/brokerage/page.tsx, useTabLock);
+ *   · Tax         — the tax report is gated on the tax key (src/app/api/tax/report/route.ts, requireTabAccess);
+ *   · Compliance  — its reads and writes are gated on the compliance key (src/app/api/discovery/profile/route.ts).
  */
-export const NEEDS_BOOKS: readonly ToolName[] = ['Banking', 'Bookkeeping', 'Expenses', 'Bill Pay', 'Budget', 'Tasks'];
+export const NEEDS_BOOKS: readonly ToolName[] = ['Banking', 'Bookkeeping', 'Expenses', 'Bill Pay', 'Budget', 'Tasks', 'Trade Log', 'Brokerage', 'Tax', 'Compliance'];
 
 /**
  * Is Books not on sale? Read from src/lib/offer.ts, never typed: the Books offer (OFFERS, key 'tab:books') through
