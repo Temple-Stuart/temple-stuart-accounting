@@ -15,7 +15,9 @@
  *   T3 the migration — the newest; the two ALTERs exactly, the seven words; nothing else; authored, not applied;
  *      'close' kept; the schema's `need` comment; ONE-FORM-01's migration untouched;
  *   T4 the panel — Landing maps SERVICES once inside the DONE-FOR-YOU card, in the ruled grid; no typed door, no typed
- *      line under the chip, no close card, no "2026 close" in its code; the h2 and the one button stand, and the chip
+ *      line under the chip, no close card, no "2026 close" in its code; the pillar's heading and paragraph (HOME-FINISH-02,
+ *      2026-11-10: "Build Your Income." and Alex's words — the label PROFESSIONAL SERVICES and the h2 "Need help? Send a
+ *      proposal." until then) and the one button stand, and the chip
  *      that repeated the label is gone (HOME-BRIEF-04, 2026-11-10 — it stood, untouched, until then); the
  *      act list's line; :1807 still s08; the pins that stay (moved from close01);
  *   T5 the form — needChoices() the six; Bookkeeping picked: the three lines in order, no modules question, the done
@@ -45,6 +47,7 @@ import {
 } from '../proposalNeeds';
 import { CrmLawError, needWords } from '../crm/crm';
 import { SEGMENT } from '../ds';
+import { BUILD_PILLAR } from '../homeActWords';
 import WorkWithMeForm, { needChoices } from '@/app/work-with-me/WorkWithMeForm';
 
 Object.assign(globalThis, { React });
@@ -254,17 +257,22 @@ test('T3 the schema\'s need comment lists the seven words, \'close\' legacy, and
 
 // ── T4 · THE PANEL ───────────────────────────────────────────────────────────
 
-/** HOME-BRIEF-03 (Alex, 2026-11-10): the section's label reads PROFESSIONAL SERVICES — 'DONE-FOR-YOU\n' until then. Found with the end of its own <p>: the card's chip said the same words until HOME-BRIEF-04 (2026-11-10) took the chip out. */
-const SERVICES_LABEL = 'text-text-faint">\n            PROFESSIONAL SERVICES\n';
+/**
+ * HOME-FINISH-02 (Alex, 2026-11-10 20:56): the section opens at the pillar's h2 — "Build Your Income." — and the panel is found from it. Until
+ * then it was found from the label: SERVICES_LABEL = 'text-text-faint">\n            PROFESSIONAL SERVICES\n' (HOME-BRIEF-03, Alex, 2026-11-10:
+ * the section's label reads PROFESSIONAL SERVICES — 'DONE-FOR-YOU\n' until then. Found with the end of its own <p>: the card's chip said the same
+ * words until HOME-BRIEF-04 (2026-11-10) took the chip out).
+ */
+const PILLAR_HEAD = '<h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{BUILD_PILLAR.heading}</h2>';
 
 test('T4 Landing maps SERVICES once inside the DONE-FOR-YOU card, in the ruled grid; each door the same Link, class, href and data-done-for-you', () => {
   const landing = code(LANDING);
-  const eyebrow = landing.indexOf(SERVICES_LABEL);
-  assert.ok(eyebrow > -1);
-  assert.equal(landing.split(SERVICES_LABEL).length - 1, 1, 'the eyebrow once');
+  const head = landing.indexOf(PILLAR_HEAD);
+  assert.ok(head > -1);
+  assert.equal(landing.split(PILLAR_HEAD).length - 1, 1, 'the pillar\'s heading once (the eyebrow, until HOME-FINISH-02)');
   assert.ok(!landing.includes('DONE-FOR-YOU\n'), 'the old label is rendered nowhere');
-  const sectionEnd = landing.indexOf('</section>', eyebrow);
-  const panel = landing.slice(eyebrow, sectionEnd);
+  const sectionEnd = landing.indexOf('</section>', head);
+  const panel = landing.slice(head, sectionEnd);
   assert.match(landing, /import \{\n {2}PROPOSAL_FORM_PATH, SERVICES,\n\} from '@\/lib\/proposalNeeds';/);
   assert.equal((landing.match(/SERVICES\.map\(/g) ?? []).length, 1, 'SERVICES mapped once');
   // HOME-FINISH-01 (Alex, 2026-11-08): auto-rows-fr — every row as tall as the tallest, six doors of one height at every width.
@@ -276,8 +284,8 @@ test('T4 Landing maps SERVICES once inside the DONE-FOR-YOU card, in the ruled g
 
 test('T4 nothing typed: no door\'s title or line, no line under the chip, no close card, no CloseOffer*, no "2026 close" in Landing\'s code', () => {
   const landing = code(LANDING);
-  const eyebrow = landing.indexOf(SERVICES_LABEL);
-  const panel = landing.slice(eyebrow, landing.indexOf('</section>', eyebrow));
+  const head = landing.indexOf(PILLAR_HEAD);
+  const panel = landing.slice(head, landing.indexOf('</section>', head));
   for (const s of SIX) {
     assert.ok(!panel.includes(s.title), `no typed title "${s.title}" in the panel`);
     assert.ok(!landing.includes(s.line), `no typed line for ${s.need}`);
@@ -290,15 +298,27 @@ test('T4 nothing typed: no door\'s title or line, no line under the chip, no clo
   assert.match(comments(LANDING), /SERVICES-01 \(Alex, 2026-11-08\): SIX EQUAL\n\s+DOORS/, 'the ONE-FORM-01 comment re-said, dated');
 });
 
-test('T4 the h2 and the one button stand; the chip that repeated the label is gone (HOME-BRIEF-04, 2026-11-10); the panel holds no other link', () => {
+test('T4 the pillar\'s heading and its paragraph stand over the card (HOME-FINISH-02, 2026-11-10) and the one button stands; the chip that repeated the label is gone (HOME-BRIEF-04, 2026-11-10); the panel holds no other link', () => {
   const landing = code(LANDING);
-  const eyebrow = landing.indexOf(SERVICES_LABEL);
-  const panel = landing.slice(eyebrow, landing.indexOf('</section>', eyebrow));
-  assert.match(panel, /<h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">\n\s*Need help\? Send a proposal\.\n\s*<\/h2>/, 'the h2, untouched');
+  const head = landing.indexOf(PILLAR_HEAD);
+  const panel = landing.slice(head, landing.indexOf('</section>', head));
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56): "Purple title → Approved description → Existing functionality … No additional promotional headings or
+  // explanatory paragraphs between these elements." The section's h2 is the pillar's heading, his one paragraph follows it, and the card follows
+  // that — nothing between. Until then this line held 'the h2, untouched':
+  // <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple"> reading "Need help? Send a proposal.", under the label.
+  assert.ok(panel.startsWith(`${PILLAR_HEAD}\n          {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="mt-3 max-w-3xl text-base text-text-secondary">{words}</p>)}\n          <div className="mt-4 rounded-lg border border-border bg-white p-5">`), 'the heading → the paragraph → the card, nothing between');
+  assert.equal(BUILD_PILLAR.heading, 'Build Your Income.');
+  assert.deepEqual([...BUILD_PILLAR.paragraphs], ['Want to build your own system or something customized for your business? From full setup and custom development to integrations, ongoing maintenance, and bookkeeping, Temple Stuart offers hands-on services tailored to your needs.'], 'his paragraph, word for word');
+  for (const words of [BUILD_PILLAR.heading, ...BUILD_PILLAR.paragraphs, 'Need help?', 'Send a proposal.']) assert.ok(!landing.includes(words), `Landing's code does not type "${words.slice(0, 40)}"`);
+  // the section's opening: its id from the anchors leaf, then the inner box, then — after a comment — the pillar's heading
+  const sectionOpen = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">\n        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">';
+  assert.equal(landing.split(sectionOpen).length - 1, 1, 'the section, its id and its inner box');
+  assert.match(landing.slice(landing.indexOf(sectionOpen) + sectionOpen.length, head), ONLY_COMMENTS, 'the heading is the first thing in the section — a comment between, nothing else');
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the small chip inside the card repeated the label's words — it went with its span. Until then this
   // line held 'the chip, untouched': <span className="rounded border border-border px-2 py-0.5 font-mono text-xs … text-text-secondary">PROFESSIONAL SERVICES</span>.
   assert.doesNotMatch(panel, /<span className="rounded border border-border px-2 py-0\.5/, 'the chip is gone');
-  assert.equal(landing.split('PROFESSIONAL SERVICES').length - 1, 1, 'the words stand once in Landing\'s code — the label above the headline');
+  // HOME-FINISH-02 (2026-11-10): the label left too — until then 'the words stand once in Landing's code — the label above the headline' (1).
+  assert.equal(landing.split('PROFESSIONAL SERVICES').length - 1, 0, 'the words stand nowhere in Landing\'s code');
   // HOME-FINISH-01 (Alex, 2026-11-08): the button is the public page's one filled button (src/lib/ds.ts PRIMARY_CTA), 44px tall — words and href unchanged.
   // The follow-up on #1931 (2026-11-08): the shape lives in the class (44px, the label centred), so the button wears it bare.
   assert.match(panel, /<div className="mt-4 flex flex-wrap items-center gap-4">\n\s*<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*className=\{PRIMARY_CTA\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>\n\s*<span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal<\/span>/, 'the button row: its words, its href, the filled class');

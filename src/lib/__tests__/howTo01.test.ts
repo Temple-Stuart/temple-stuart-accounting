@@ -381,7 +381,7 @@ test('T6 Landing mounts the how-to once, with the door — first under "What We 
   // "the guest's strip → the how-to → the services section", a comment between each).
   const HEADING_BOX = '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">\n        <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>';
   const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />';
-  const SERVICES_OPEN = '<section className="w-full border-b border-border bg-bg-terminal">';
+  const SERVICES_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'; // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then
   for (const s of [HEADING_BOX, HOW_TO, SERVICES_OPEN]) assert.equal(count(landing, s), 1, `${s} once`);
   assert.equal(count(landing, '<HowToSection'), 1);
   assert.equal(count(landing, 'PlansSection'), 0, 'the plans section is neither imported nor mounted here — /pricing keeps it');

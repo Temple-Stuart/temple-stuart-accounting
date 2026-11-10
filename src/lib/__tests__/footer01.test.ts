@@ -15,7 +15,9 @@
  *      PRIVACY · the email — their hrefs, words and classes;
  *   T6 one home for the anchors: each equals its owner's export; the two sections import theirs back on a line of its
  *      own and still export it; Stop 0's literal stays in its leaf; none of the four is typed as an anchor anywhere
- *      else in src — but the one named literal, LandingBookingSection.tsx's '#events' (experiences01 T6 pins its text);
+ *      else in src — but the one named literal, LandingBookingSection.tsx's '#events' (experiences01 T6 pins its text).
+ *      HOME-FINISH-02 (Alex, 2026-11-10 20:56): five — SERVICES_ANCHOR 'services' joined, the professional-services
+ *      section's id (Landing.tsx), its import on a line of its own; the census holds it in its one home;
  *   T7 Landing.tsx renders id={DEMO_ANCHOR}, its import on a line of its own; the trip page's two links back derive
  *      from the leaf;
  *   T8 the law's GUEST_ROUTES names the lines PRICING, PRIVACY and TERMS sit on — read here by content, so the three
@@ -32,7 +34,7 @@ import { code } from '../sourceText';
 import { TRIP_POSTS } from '../tripPosts';
 import { tripPostHref } from '../tripPostWords';
 import { CODE_URL, FOOTER_BLOG_LABEL, FOOTER_RECORD_LABEL, FOOTER_RECORD_LINKS, footerBlogLinks, type FooterLink } from '../footerWords';
-import { DEMO_ANCHOR, EVENTS_ANCHOR, MY_TRIP_ANCHOR, STOP_ZERO_ANCHOR } from '../homeAnchors';
+import { DEMO_ANCHOR, EVENTS_ANCHOR, MY_TRIP_ANCHOR, SERVICES_ANCHOR, STOP_ZERO_ANCHOR } from '../homeAnchors';
 import { STOP_ZERO_ANCHOR as STOP_ZERO_IN_ITS_LEAF } from '../stopZeroWords';
 import { PIPELINE_DOOR, PIPELINE_PATH } from '@/components/landing/pipelineWords';
 import { EVENTS_ANCHOR as EVENTS_FROM_ITS_SECTION } from '@/components/landing/ExperiencesSection';
@@ -211,7 +213,9 @@ const srcFiles = (dir = 'src'): string[] => readdirSync(dir).flatMap((name) => {
 });
 
 test('T6 one home for the anchors: each equals its owner\'s export; the sections import theirs back and still export it; Stop 0\'s literal stays in its leaf; no second literal anywhere in src but the one named', () => {
-  assert.deepEqual([DEMO_ANCHOR, EVENTS_ANCHOR, STOP_ZERO_ANCHOR, MY_TRIP_ANCHOR], ['demo', 'events', 'stop-0', 'my-trip']);
+  // HOME-FINISH-02 (Alex, 2026-11-10 20:56: "a stable anchor so the footer can link directly to Build Your Income"): a fifth, SERVICES_ANCHOR
+  // 'services'. Until then the four: [DEMO_ANCHOR, EVENTS_ANCHOR, STOP_ZERO_ANCHOR, MY_TRIP_ANCHOR] = ['demo', 'events', 'stop-0', 'my-trip'].
+  assert.deepEqual([DEMO_ANCHOR, EVENTS_ANCHOR, STOP_ZERO_ANCHOR, MY_TRIP_ANCHOR, SERVICES_ANCHOR], ['demo', 'events', 'stop-0', 'my-trip', 'services']);
   assert.equal(EVENTS_FROM_ITS_SECTION, EVENTS_ANCHOR, 'ExperiencesSection.tsx still exports the anchor');
   assert.equal(MY_TRIP_FROM_ITS_SECTION, MY_TRIP_ANCHOR, 'WasHereSection.tsx still exports the anchor');
   assert.equal(STOP_ZERO_IN_ITS_LEAF, STOP_ZERO_ANCHOR, 'the re-export is the leaf\'s own value');
@@ -225,8 +229,9 @@ test('T6 one home for the anchors: each equals its owner\'s export; the sections
     assert.match(src, new RegExp(`^export \\{ ${name} \\};\\s*$`, 'm'), `${file}: still exported`);
     assert.doesNotMatch(src, new RegExp(`${name}\\s*=`), `${file}: no second declaration`);
   }
-  // THE CENSUS — the four typed AS ANCHORS (a hash, an id, an *_ANCHOR declaration, a getElementById) in the code of src
-  const ANCHOR = '(demo|events|my-trip|stop-0)';
+  // THE CENSUS — the five (four until HOME-FINISH-02: '(demo|events|my-trip|stop-0)') typed AS ANCHORS (a hash, an id, an *_ANCHOR declaration, a
+  // getElementById) in the code of src
+  const ANCHOR = '(demo|events|my-trip|stop-0|services)';
   const forms = [new RegExp(`#${ANCHOR}(?![\\w-])`, 'g'), new RegExp(`\\bid=\\{?\\s*["'\`]${ANCHOR}["'\`]`, 'g'), new RegExp(`_ANCHOR\\s*=\\s*["'\`]${ANCHOR}["'\`]`, 'g'), new RegExp(`getElementById\\(\\s*["'\`]${ANCHOR}["'\`]`, 'g')];
   const typed = srcFiles().flatMap((file) => {
     const src = code(file);
@@ -237,9 +242,16 @@ test('T6 one home for the anchors: each equals its owner\'s export; the sections
     "src/lib/homeAnchors.ts: _ANCHOR = 'demo'",
     "src/lib/homeAnchors.ts: _ANCHOR = 'events'",
     "src/lib/homeAnchors.ts: _ANCHOR = 'my-trip'",
+    "src/lib/homeAnchors.ts: _ANCHOR = 'services'", // HOME-FINISH-02 (2026-11-10): the fifth, in its one home
     "src/lib/stopZeroWords.ts: _ANCHOR = 'stop-0'",
   ].sort(), 'each anchor typed once, in its home — and the one literal a pinned test still holds');
   assert.equal(code(STOP_ZERO_LEAF).split('\n').filter((l) => l.includes("'stop-0'")).length, 1, 'Stop 0\'s leaf types it once');
+  // HOME-FINISH-02 (2026-11-10): the fifth anchor's reader — the professional-services section's own id, its import on a line of its own
+  const landing = code(LANDING);
+  assert.equal(count(landing, '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'), 1, 'the professional-services section carries the anchor');
+  assert.equal(landing.split('\n').filter((l) => /^import \{ SERVICES_ANCHOR \} from '@\/lib\/homeAnchors';\s*$/.test(l)).length, 1, 'its import, on a line of its own');
+  assert.equal(count(landing, 'SERVICES_ANCHOR'), 2, 'the import and the id — nothing else in Landing reads it');
+  assert.ok(!landing.includes('id="services"'), 'never typed');
 });
 
 // ── T7 · THE DEMO'S ID AND THE TRIP PAGE'S LINKS BACK ────────────────────────

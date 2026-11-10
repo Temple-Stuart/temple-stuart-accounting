@@ -218,7 +218,9 @@ import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { DECK_STEP_IDS } from './pipelineWords';
 import { PIPELINE_DOOR, PIPELINE_PATH } from './pipelineWords';
 import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it
+import { SERVICES_ANCHOR } from '@/lib/homeAnchors'; // HOME-FINISH-02 (2026-11-10): the professional-services section's id, from its one home — Alex: "a stable anchor so the footer can link directly to Build Your Income"
 import { WHAT_WE_DO_HEADING } from '@/lib/homeActWords';
+import { BUILD_PILLAR } from '@/lib/homeActWords'; // HOME-FINISH-02 (2026-11-10): the second pillar's heading and paragraph — Alex's words, from the leaf, never typed here
 import { EXPERIENCE_LINE } from '@/lib/brandLines';
 import { SAVE_TRIPS_LINE } from '@/lib/homeActWords';
 import { PROMISE } from './ExperiencesSection';
@@ -594,32 +596,19 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             closed plans|done-for-you until now. (HOME-05a, 2026-11-03, seated
             the close act under this section; HOME-PANELS-01, 2026-11-07, folded
             the close into this card as its fifth door; both seams are history.) ── */}
-      <section className="w-full border-b border-border bg-bg-terminal">
+      <section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          {/* HOME-BRIEF-03 (Alex, 2026-11-10): the label reads PROFESSIONAL SERVICES — "DONE-FOR-YOU" until then; the notes above,
-              the act list and the data-done-for-you hooks keep that name for this same section. */}
-          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            PROFESSIONAL SERVICES
-          </p>
-          {/* HEADLINE: the travel act's h2 treatment, class for class —
-              mt-3 text-2xl sm:text-3xl font-medium tracking-tight
-              text-brand-purple. The two revenue acts under the hero are a
-              pair and now read as one: eyebrow, headline, then the surface.
-              WEIGHT AND BREAKPOINT, BOTH DELIBERATE. font-medium is 500, and
-              the sm: prefix is not the lg:-only idiom the numbered slides
-              keep — both are correct HERE because this act sits above the
-              teaching run and matches its sibling instead. sm: is already
-              this section's own idiom (the services grid below is
-              sm:grid-cols-2), so nothing new is introduced; swapping it for
-              lg: would leave this headline a size behind travel's between
-              640 and 1023px, which is the one thing the match exists to
-              prevent.
-              NO MARGIN BELOW, also matching: the travel h2 carries only mt-3
-              and lets the element after it supply the gap. The services card
-              below keeps its own mt-4, untouched. */}
-          <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-            Need help? Send a proposal.
-          </h2>
+          {/* HOME-FINISH-02 (Alex, 2026-11-10 20:56): THE SECOND PILLAR — "Build Your Income." His rule for all three: "Purple title →
+              Approved description → Existing functionality … No additional promotional headings or explanatory paragraphs between
+              these elements." So the section opens at the pillar's h2 (the page's purple heading classes) and his one paragraph
+              follows — both read from src/lib/homeActWords.ts BUILD_PILLAR, typed nowhere here — and the card follows directly,
+              keeping its own mt-4. The section carries id={SERVICES_ANCHOR} (src/lib/homeAnchors.ts): his "stable anchor so the
+              footer can link directly to Build Your Income".
+              UNTIL THEN, here: the label — a mono, upper-case line reading PROFESSIONAL SERVICES ("DONE-FOR-YOU" until HOME-BRIEF-03,
+              2026-11-10) — and under it the h2 "Need help? Send a proposal." (mt-3, the travel act's h2 treatment, class for class).
+              The notes above, the act list and the data-done-for-you hooks keep the name DONE-FOR-YOU for this same section. */}
+          <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{BUILD_PILLAR.heading}</h2>
+          {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="mt-3 max-w-3xl text-base text-text-secondary">{words}</p>)}
           <div className="mt-4 rounded-lg border border-border bg-white p-5">
             <div className="mt-4">
               {/* HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the small chip that repeated the label's words stood here, over the
