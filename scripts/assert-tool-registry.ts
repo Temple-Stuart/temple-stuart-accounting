@@ -9430,7 +9430,7 @@ lawGuard('The plan law', () => {
   PLANS.forEach((p, i) => {
     if (p.relationship !== RELATIONSHIPS[i]) planFail(`${p.id}'s relationship line is "${p.relationship}", not "${RELATIONSHIPS[i]}" — the line says which modules the plan holds`);
   });
-  const NAMES: readonly string[] = ['Personal', 'Personal + Business', 'Personal + Trading', 'Everything'];
+  const NAMES: readonly string[] = ['Personal', 'Personal + Business', 'Personal + Trading', 'Personal + Business + Trading'];
   PLANS.forEach((p, i) => {
     if (p.name !== NAMES[i]) planFail(`plan ${i + 1} is named "${p.name}", not "${NAMES[i]}"`);
   });
