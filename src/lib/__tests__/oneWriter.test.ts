@@ -67,6 +67,11 @@ test('ImportDataSection posts through syncThroughOneWriter and renders the outco
 // fake route below is the route's own tail, built from the REAL pure pieces — readResume, runBudget, walkItems over
 // pagedStage / askOnce, moreEnvelope, syncItemsEnvelope — over a fake bank; so the body the writer posts is read by
 // the reader the route uses, and the lines are written by the code that writes them in production.
+//
+// SYNC-02 (Alex, 2026-11-11 16:25): the page is 250 objects, not 500 (src/lib/plaid/syncRun.ts SYNC_PAGE_SIZE). The
+// fake bank answers SYNC_PAGE_SIZE objects an ask, so every figure below that comes from the page size was re-derived
+// for 250 — the asks of a run, the number of posts and answers of a cut run, its progress lines and its first `more`,
+// and the scripted points a first page leaves (250 of 700, 250 of 1,200). What each test proves did not change.
 
 interface FakeLink {
   id: string;
@@ -173,8 +178,9 @@ test('SYNC-01 a run the route never cuts is ONE post with no body, read as it al
   assert.deepEqual(outcome, { tone: 'partial', text: `Partial sync — ${RUN_LINES.join(' · ')}`, lines: RUN_LINES });
   // The idle link was not asked; every other link ran every stage.
   assert.deepEqual(route.asked, [
-    'Robinhood:transactions:0', 'Robinhood:transactions:500', 'Robinhood:transactions:1000', 'Robinhood:investments:0', 'Robinhood:investments:500', 'Robinhood:holdings',
-    'Wells Fargo:transactions:0', 'Wells Fargo:investments:0', 'Wells Fargo:holdings',
+    'Robinhood:transactions:0', 'Robinhood:transactions:250', 'Robinhood:transactions:500', 'Robinhood:transactions:750', 'Robinhood:transactions:1000',
+    'Robinhood:investments:0', 'Robinhood:investments:250', 'Robinhood:investments:500', 'Robinhood:holdings',
+    'Wells Fargo:transactions:0', 'Wells Fargo:transactions:250', 'Wells Fargo:investments:0', 'Wells Fargo:holdings',
   ]);
 });
 
@@ -183,22 +189,24 @@ test('SYNC-01 a run cut into requests: the writer posts again with { resume: mor
   const progress: SyncOutcome[] = [];
   const outcome = await syncThroughOneWriter(route.fetchImpl, (line) => progress.push(line));
 
-  // Five posts: the first with no body, each later one carrying the `more` of the answer before it, as JSON.
-  assert.equal(route.posts.length, 5);
+  // Seven posts — thirteen asks, two a request: the first with no body, each later one carrying the `more` of the answer before it, as JSON.
+  assert.equal(route.posts.length, 7);
   assert.deepEqual(route.posts[0], { url: SYNC_COMPLETE_PATH, method: 'POST', contentType: null, body: undefined });
   for (let i = 1; i < route.posts.length; i += 1) {
     assert.deepEqual(route.posts[i], { url: SYNC_COMPLETE_PATH, method: 'POST', contentType: 'application/json', body: JSON.stringify({ resume: route.answers[i - 1].body.more }) }, `post ${i + 1} continues answer ${i}`);
   }
-  const firstMore: SyncMore = { item: 'item-rh', stage: 'transactions', offset: 1000, counts: { landed: 1000, already_landed: 0, corrected: 0, synced: 1000, skipped: 0, unheld: 0, added: 41 } };
+  const firstMore: SyncMore = { item: 'item-rh', stage: 'transactions', offset: 500, counts: { landed: 500, already_landed: 0, corrected: 0, synced: 500, skipped: 0, unheld: 0, added: 41 } };
   assert.deepEqual(JSON.parse(route.posts[1].body ?? ''), { resume: firstMore });
   // The last request held only Wells Fargo's holdings and the retired link — on its own it is a 200; the RUN is read below.
-  assert.deepEqual(route.answers.map((a) => a.status), [202, 202, 202, 202, 200]);
+  assert.deepEqual(route.answers.map((a) => a.status), [202, 202, 202, 202, 202, 202, 200]);
 
   // The line under the button, as each 202 arrived.
   assert.deepEqual(progress, [
+    syncLine('ok', 'Still pulling — Robinhood: transactions 500 of 1,200'),
     syncLine('ok', 'Still pulling — Robinhood: transactions 1,000 of 1,200'),
-    syncLine('ok', 'Still pulling — Robinhood: investments 500 of 700'),
-    syncLine('ok', 'Still pulling — Wells Fargo: transactions next'),
+    syncLine('ok', 'Still pulling — Robinhood: investments 250 of 700'),
+    syncLine('ok', 'Still pulling — Robinhood: holdings next'),
+    syncLine('ok', 'Still pulling — Wells Fargo: transactions 250 of 300'),
     syncLine('ok', 'Still pulling — Wells Fargo: holdings next'),
   ]);
 
@@ -217,7 +225,7 @@ test('SYNC-01 the joined outcome is read from the WHOLE run: a last request that
   // Cut after every ask: Wells Fargo's failed investments stage arrives alone in a 202; the final answer holds only its ok holdings.
   const route = fakeRoute([ROBIN, WELLS], 1);
   const outcome = await syncThroughOneWriter(route.fetchImpl);
-  assert.equal(route.posts.length, 9, 'one ask per request, nine asks');
+  assert.equal(route.posts.length, 13, 'one ask per request, thirteen asks');
   assert.equal(route.answers[route.answers.length - 1].status, 200, 'the last request alone was all ok');
   assert.equal(outcome.tone, 'partial', 'the run was not');
   assert.deepEqual(outcome.lines, RUN_LINES.filter((line) => !line.startsWith('Chase')));
@@ -237,8 +245,8 @@ function scripted(script: Array<() => Response>) {
 
 const ROBIN_TX: ItemOutcome = { institution: 'Robinhood', key: 'item-rh', stages: [stageOk('transactions', { landed: 1200, already_landed: 0, corrected: 0, synced: 1200, skipped: 0, unheld: 0, added: 41, pulled: 1200, plaid_total: 1200 }, '2026-11-09')] };
 const ROBIN_TX_LINE = 'Robinhood — transactions 1,200 of 1,200 pulled, 41 new, latest Nov 9, 2026';
-const AT_INVESTMENTS: SyncMore = { item: 'item-rh', stage: 'investments', offset: 500, counts: { landed: 500, already_landed: 0, corrected: 0, synced: 500, skipped: 0, securities: 12, unheld: 0, added: 3 } };
-const STILL = 'Still pulling — Robinhood: investments 500 of 700';
+const AT_INVESTMENTS: SyncMore = { item: 'item-rh', stage: 'investments', offset: 250, counts: { landed: 250, already_landed: 0, corrected: 0, synced: 250, skipped: 0, securities: 12, unheld: 0, added: 3 } };
+const STILL = 'Still pulling — Robinhood: investments 250 of 700';
 const more202 = (more: SyncMore, items: ItemOutcome[], progress: string) => () => { const e = moreEnvelope(more, items, progress); return answer(e.status, e.body); };
 
 test('SYNC-01 a point that does not advance ends the run, declared: the reason first, then what had finished — never a third post', async () => {
@@ -272,7 +280,7 @@ test('SYNC-01 a later answer that is not a sync answer ends the run, declared: i
     assert.equal(run.bodies.length, 2, `${c.name}: two posts — it is not retried`);
   }
   // With nothing finished yet, the line stands alone.
-  const early = scripted([more202({ item: 'item-rh', stage: 'transactions', offset: 500, counts: { landed: 500 } }, [], 'Still pulling — Robinhood: transactions 500 of 1,200'), () => answer(401, { error: 'Unauthorized' })]);
+  const early = scripted([more202({ item: 'item-rh', stage: 'transactions', offset: 250, counts: { landed: 250 } }, [], 'Still pulling — Robinhood: transactions 250 of 1,200'), () => answer(401, { error: 'Unauthorized' })]);
   assert.deepEqual(await syncThroughOneWriter(early.fetchImpl), { tone: 'error', text: 'Unauthorized', lines: ['Unauthorized'] });
 });
 
