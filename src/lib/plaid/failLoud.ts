@@ -17,6 +17,11 @@ export interface StageOk {
   stage: string;
   ok: true;
   counts: Record<string, number>;
+  /**
+   * SYNC-01: 'YYYY-MM-DD' — the newest date the app now holds for this link's accounts in this stage's table
+   * (transactions; investment_transactions), read once when a paged stage completes. Absent when it holds none.
+   */
+  through?: string;
 }
 
 export interface StageFailed {
@@ -60,8 +65,8 @@ export function statusForFailure(error: PlaidErrorSummary): number {
   return 500;
 }
 
-export function stageOk(stage: string, counts: Record<string, number>): StageOk {
-  return { stage, ok: true, counts };
+export function stageOk(stage: string, counts: Record<string, number>, through?: string): StageOk {
+  return through === undefined ? { stage, ok: true, counts } : { stage, ok: true, counts, through };
 }
 
 export function stageFailed(stage: string, err: unknown, page?: number): StageFailed {
@@ -117,10 +122,17 @@ export function failureEnvelope(stage: string, err: unknown, progress: Record<st
 
 /** One bank's outcomes — every stage, declared. BANK-03: a retired item carries no stages and says why. */
 export interface ItemOutcome {
+  /** SYNC-01: the link's ONE name in a run — the bank's name, or the name and the day it was linked when two live links carry the same name. */
   institution: string;
   stages: StageOutcome[];
   /** BANK-03: plaid_items.retired_reason — the item was replaced by a fresh link; skipped, not failed. */
   retired?: string;
+  /** SYNC-01: the link's ONE key in a run — the plaid_items row id (the id /api/accounts and Reconnect already hand the browser). A run cut into requests is joined by it. */
+  key?: string;
+  /** SYNC-01: a live link that holds no accounts in this app — no stages, nothing was asked of Plaid, and it says so. */
+  idle?: string;
+  /** SYNC-01: one note per account Plaid lists under this link that the app holds no row for — its objects are counted, never stored. */
+  notes?: string[];
 }
 
 export type ItemStatus = 'ok' | 'partial' | 'failed';
@@ -133,29 +145,9 @@ export function itemStatus(item: ItemOutcome): ItemStatus {
   return 'partial';
 }
 
-export type StageRunner<I> = readonly [stage: string, run: (item: I) => Promise<StageOutcome>];
-
-/**
- * Run every stage for every item, in the order given, regardless of any other
- * item's outcome. A runner declares its own outcome; a runner that THROWS is
- * itself a declared failure of that stage (never a silent skip, never a halt).
- */
-export async function syncEachItem<I>(items: I[], institution: (item: I) => string, runners: StageRunner<I>[]): Promise<ItemOutcome[]> {
-  const out: ItemOutcome[] = [];
-  for (const item of items) {
-    const name = institution(item);
-    const stages: StageOutcome[] = [];
-    for (const [stage, run] of runners) {
-      try {
-        stages.push(await run(item));
-      } catch (err) {
-        stages.push(stageFailed(stage, err));
-      }
-    }
-    out.push({ institution: name, stages });
-  }
-  return out;
-}
+// SYNC-01: ONE WALKER. The walk over items and stages lived here as syncEachItem until the run was cut into requests;
+// it is src/lib/plaid/syncRun.ts walkItems now — every item still runs every stage regardless of the others, a runner
+// that throws is still a declared failure of that stage, and the walk can stop before an ask and resume there.
 
 /** Counts for one stage summed across every item where that stage succeeded. */
 export function sumStageCounts(items: ItemOutcome[], stage: string): Record<string, number> {
@@ -167,6 +159,33 @@ export function sumStageCounts(items: ItemOutcome[], stage: string): Record<stri
     }
   }
   return sum;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/**
+ * SYNC-01 — THE ONE DAY FORMATTER: 'YYYY-MM-DD' → 'Nov 9, 2026'. Pure text over a month table: no Date object and no
+ * time zone, so a calendar day prints as the same day for every viewer (a Date formatted in the viewer's zone shows
+ * the day before in the Americas). Null for anything that is not a real calendar day — the caller says what it prints
+ * then; nothing is guessed.
+ */
+export function calendarDay(ymd: unknown): string | null {
+  if (typeof ymd !== 'string') return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1) return null;
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const daysIn = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  if (day > daysIn) return null;
+  return `${MONTHS[month - 1]} ${day}, ${year}`;
+}
+
+/** SYNC-01: a count as a person reads it — 4812 → '4,812'. Pure text; no locale. */
+export function thousands(n: number): string {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 /**

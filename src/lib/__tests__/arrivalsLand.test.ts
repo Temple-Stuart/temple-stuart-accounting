@@ -12,6 +12,11 @@ import { onWireError, type WireStamp } from '../plaid/wire';
 // rules (UNIQUE on provider + their_id + fingerprint — the same thing is the
 // same provider, id and content; read / status move once) and a fake
 // transaction client that discards a page's writes when the page throws.
+//
+// SYNC-01 (2026-11-11): a page's counts gain two — `unheld` (an object for an account the link holds no row for:
+// counted, never dropped without a word) and `added` (written as a NEW row of the app; not `landed`, which counts
+// first arrivals in the store). Until then the whole-count pins below read { landed, already_landed, corrected,
+// synced, skipped } alone.
 
 // The fake store lives in fakeLanding.ts (PR-2c shares it with the investments landing tests).
 
@@ -94,9 +99,9 @@ test('(e) same id + same content, through the page: one row, already_landed, lin
   const domain = new FakeDomain();
   const t = txn('t1');
   const p1 = await landTransactionsPage(landing, domain, pageInput({ page: 1, transactions: [t] }));
-  assert.deepEqual(p1, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0 });
+  assert.deepEqual(p1, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0, unheld: 0, added: 1 });
   const p2 = await landTransactionsPage(landing, domain, pageInput({ page: 2, transactions: [{ ...t }] }));
-  assert.deepEqual(p2, { landed: 0, already_landed: 1, corrected: 0, synced: 0, skipped: 0 });
+  assert.deepEqual(p2, { landed: 0, already_landed: 1, corrected: 0, synced: 0, skipped: 0, unheld: 0, added: 0 });
   assert.equal(landing.rowsFor('t1').length, 1, 'one row');
   assert.equal(domain.upserts.length, 1, 'not re-parsed');
   assert.equal(domain.links.length, 1, 'linked');
@@ -108,13 +113,13 @@ test('(f) same id + changed content → two rows, corrected = 1, the domain row 
   const domain = new FakeDomain();
   const original = txn('t1', { amount: 12.5, name: 'Coffee' });
   const p1 = await landTransactionsPage(landing, domain, pageInput({ page: 1, transactions: [original] }));
-  assert.deepEqual(p1, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0 });
+  assert.deepEqual(p1, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0, unheld: 0, added: 1 });
   const firstId = landing.rowsFor('t1')[0].row.id;
   // the provider corrects the amount; the row is even marked "complete" (the skip must not apply to a correction)
   const corrected = txn('t1', { amount: 13.75, name: 'Coffee (corrected)' });
   const existing = new Map([['t1', { transactionId: 't1', personal_finance_category: { primary: 'FOOD' } }]]);
   const p2 = await landTransactionsPage(landing, domain, pageInput({ page: 2, existing, transactions: [corrected] }));
-  assert.deepEqual(p2, { landed: 0, already_landed: 0, corrected: 1, synced: 1, skipped: 0 });
+  assert.deepEqual(p2, { landed: 0, already_landed: 0, corrected: 1, synced: 1, skipped: 0, unheld: 0, added: 0 });
   const rows = landing.rowsFor('t1');
   assert.equal(rows.length, 2, 'two rows');
   const newest = rows.find((r) => r.row.id !== firstId);
@@ -129,7 +134,7 @@ test('(f) same id + changed content → two rows, corrected = 1, the domain row 
   assert.equal(domainRow.arrival_id, newest.row.id, 'arrival_id moved to the newest arrival');
   // the original content arriving again is still the same thing: already landed, no third row
   const p3 = await landTransactionsPage(landing, domain, pageInput({ page: 3, transactions: [original] }));
-  assert.deepEqual(p3, { landed: 0, already_landed: 1, corrected: 0, synced: 0, skipped: 0 });
+  assert.deepEqual(p3, { landed: 0, already_landed: 1, corrected: 0, synced: 0, skipped: 0, unheld: 0, added: 0 });
   assert.equal(landing.rowsFor('t1').length, 2);
 });
 
@@ -139,7 +144,7 @@ test('the parser reads the arrival row, never the HTTP object, and every new arr
   const t = txn('t9', { name: 'As landed' });
   const counts = await landTransactionsPage(landing, domain, pageInput({ transactions: [t] }));
   t.name = 'Mutated after landing';
-  assert.deepEqual(counts, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0 });
+  assert.deepEqual(counts, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0, unheld: 0, added: 1 });
   assert.equal(domain.upserts[0].create.name, 'As landed');
   // FX-01 (2026-10-30, ruling E): the landed row carries Plaid's own currency code from the arrival payload.
   assert.equal(domain.upserts[0].create.iso_currency_code, 'USD');

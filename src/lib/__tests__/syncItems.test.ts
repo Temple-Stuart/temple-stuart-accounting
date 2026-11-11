@@ -8,18 +8,22 @@ import {
   stageOk,
   successLine,
   sumStageCounts,
-  syncEachItem,
   syncItemsEnvelope,
   syncLines,
   type ItemOutcome,
   type StageOutcome,
-  type StageRunner,
 } from '../plaid/failLoud';
 import { itemFailure } from '../plaid/reconnect';
+import { runBudget, walkItems, type WalkStage } from '../plaid/syncRun';
 
 // HYG-03 — one bank's failure never blocks another: every item runs every stage; the
 // response lists each bank with its per-stage outcome; the banner reads one line per
 // failed bank above one line for what succeeded.
+//
+// SYNC-01 (2026-11-11): ONE WALKER. Until then these tests drove failLoud.ts syncEachItem(items, name, runners);
+// the walk is src/lib/plaid/syncRun.ts walkItems now — the same rule (every item runs every stage; a runner that
+// throws is a declared failure), and it can stop before an ask and resume there (syncRun01.test.ts). They drive it
+// as a fresh request does: no resume point, a clock that never runs out. Each outcome now carries its link's key.
 
 interface Item { id: string; institutionName: string }
 const TASTY: Item = { id: 'item-tt', institutionName: 'TastyTrade' };
@@ -44,12 +48,16 @@ function rateLimited() {
 /** A fake pair of stage runners: per item, what each stage answers; every call is recorded. */
 function runners(plan: Record<string, { transactions: () => Promise<StageOutcome>; investments: () => Promise<StageOutcome> }>) {
   const calls: string[] = [];
-  const stage = (name: 'transactions' | 'investments'): StageRunner<Item> => [name, async (item) => {
+  const stage = (name: 'transactions' | 'investments'): WalkStage<Item> => [name, async (item) => {
     calls.push(`${item.institutionName}:${name}`);
-    return plan[item.id][name]();
+    return { kind: 'done', outcome: await plan[item.id][name]() };
   }];
   return { calls, runners: [stage('transactions'), stage('investments')] };
 }
+
+/** The walk as a fresh request runs it: every item, every stage, the link's row id as its key. */
+const syncEachItem = async (items: Item[], institution: (item: Item) => string, stages: WalkStage<Item>[]): Promise<ItemOutcome[]> =>
+  (await walkItems({ items, key: (item) => item.id, label: institution, idle: () => false, stages, resume: null, budget: runBudget(() => 0) })).items;
 
 const okTx = (landed: number, extra: Partial<Record<'already_landed' | 'corrected' | 'synced' | 'skipped', number>> = {}) => async () =>
   stageOk('transactions', { synced: landed, skipped: 0, landed, already_landed: 0, corrected: 0, ...extra });

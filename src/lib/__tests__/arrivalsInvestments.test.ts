@@ -12,6 +12,11 @@ import { FakeLanding, snapshotClient } from './fakeLanding';
 // REBUILD-01 PR-2c — the investments phase lands raw-first. Hermetic: the shared fake store
 // (fakeLanding.ts) and a fake domain port that records the parser's per-row intents and what
 // the two domain tables would hold; the batching binding is driven over a fake $executeRaw.
+//
+// SYNC-01 (2026-11-11): a page's counts gain two — `unheld` (an investment transaction for an account the link holds
+// no row for: counted, never dropped without a word — test (4)'s unknown account is 1) and `added` (the create
+// branch: a NEW row of the app). Until then the whole-count pins below read { landed, already_landed, corrected,
+// synced, skipped, securities } alone.
 
 type SecUpsert = { where: { securityId: string }; create: Record<string, unknown>; update: Record<string, unknown> };
 type InvUpsert = { where: { investment_transaction_id: string }; create: Record<string, unknown>; update: Record<string, unknown> };
@@ -96,7 +101,7 @@ test('(1) a page of securities + investment transactions lands (bytes, one arriv
   const securities = [sec('aapl'), sec('opt1', { type: 'derivative', option_contract: OPTION })];
   const txns = [inv('i1'), inv('i2', { security_id: 'opt1', quantity: 1, amount: 150, price: 150, type: 'buy', subtype: 'buy to open' })];
   const counts = await landInvestmentsPage(landing, domain, pageInput({ wire: wire(body), securities, investmentTransactions: txns }));
-  assert.deepEqual(counts, { landed: 4, already_landed: 0, corrected: 0, synced: 2, skipped: 0, securities: 2 });
+  assert.deepEqual(counts, { landed: 4, already_landed: 0, corrected: 0, synced: 2, skipped: 0, securities: 2, unheld: 0, added: 2 });
 
   // the wire: one response row, the exact bytes, its sha256, the resource of the ask
   assert.equal(landing.responses.length, 1);
@@ -169,10 +174,10 @@ test('(2) the same page again → already_landed for every object, zero new rows
   const securities = [sec('aapl'), sec('opt1', { type: 'derivative', option_contract: OPTION })];
   const txns = [inv('i1'), inv('i2', { security_id: 'opt1' })];
   const p1 = await landInvestmentsPage(landing, domain, pageInput({ page: 1, securities, investmentTransactions: txns }));
-  assert.deepEqual(p1, { landed: 4, already_landed: 0, corrected: 0, synced: 2, skipped: 0, securities: 2 });
+  assert.deepEqual(p1, { landed: 4, already_landed: 0, corrected: 0, synced: 2, skipped: 0, securities: 2, unheld: 0, added: 2 });
   const before = landing.arrivals.size;
   const p2 = await landInvestmentsPage(landing, domain, pageInput({ page: 2, securities: securities.map((x) => ({ ...x })), investmentTransactions: txns.map((x) => ({ ...x })) }));
-  assert.deepEqual(p2, { landed: 0, already_landed: 4, corrected: 0, synced: 0, skipped: 0, securities: 2 });
+  assert.deepEqual(p2, { landed: 0, already_landed: 4, corrected: 0, synced: 0, skipped: 0, securities: 2, unheld: 0, added: 0 });
   assert.equal(landing.arrivals.size, before, 'zero new rows');
   assert.equal(landing.responses.length, 2, 'the second answer is still evidence of the ask');
   assert.equal(domain.secUpserts.length, 2, 'securities not re-parsed');
@@ -189,13 +194,13 @@ test('(3) a corrected security and a corrected investment transaction → a new 
   const domain = new FakeDomain();
   const original = { securities: [sec('aapl', { close_price: 100.5 })], investmentTransactions: [inv('i1', { amount: 1005 })] };
   const p1 = await landInvestmentsPage(landing, domain, pageInput({ page: 1, ...original }));
-  assert.deepEqual(p1, { landed: 2, already_landed: 0, corrected: 0, synced: 1, skipped: 0, securities: 1 });
+  assert.deepEqual(p1, { landed: 2, already_landed: 0, corrected: 0, synced: 1, skipped: 0, securities: 1, unheld: 0, added: 1 });
   const firstSec = landing.rowsFor('aapl')[0].row.id;
   const firstInv = landing.rowsFor('i1')[0].row.id;
   // the provider corrects the price and the amount; the domain row for i1 is even "existing" (a correction never takes the skip)
   const corrected = { securities: [sec('aapl', { close_price: 101.25, close_price_as_of: '2026-09-02' })], investmentTransactions: [inv('i1', { amount: 1010, fees: 1 })] };
   const p2 = await landInvestmentsPage(landing, domain, pageInput({ page: 2, existing: new Set(['i1']), ...corrected }));
-  assert.deepEqual(p2, { landed: 0, already_landed: 0, corrected: 2, synced: 1, skipped: 0, securities: 1 });
+  assert.deepEqual(p2, { landed: 0, already_landed: 0, corrected: 2, synced: 1, skipped: 0, securities: 1, unheld: 0, added: 0 });
   assert.equal(landing.rowsFor('aapl').length, 2, 'two rows for the security');
   assert.equal(landing.rowsFor('i1').length, 2, 'two rows for the investment transaction');
   const newestSec = landing.rowsFor('aapl').find((r) => r.row.id !== firstSec)!;
@@ -215,7 +220,7 @@ test('(3) a corrected security and a corrected investment transaction → a new 
   assert.equal(domain.secRows.get('aapl')!.arrival_id, newestSec.row.id);
   // the original content arriving again is still the same thing: already landed, no third row
   const p3 = await landInvestmentsPage(landing, domain, pageInput({ page: 3, ...original }));
-  assert.deepEqual(p3, { landed: 0, already_landed: 2, corrected: 0, synced: 0, skipped: 0, securities: 1 });
+  assert.deepEqual(p3, { landed: 0, already_landed: 2, corrected: 0, synced: 0, skipped: 0, securities: 1, unheld: 0, added: 0 });
   assert.equal(landing.rowsFor('aapl').length, 2);
   assert.equal(landing.rowsFor('i1').length, 2);
 });
@@ -225,7 +230,7 @@ test('(4) an investment transaction whose domain row predates the store is linke
   const domain = new FakeDomain();
   domain.invRows.set('i1', { investment_transaction_id: 'i1', amount: 999, arrival_id: null });
   const counts = await landInvestmentsPage(landing, domain, pageInput({ existing: new Set(['i1']), investmentTransactions: [inv('i1'), inv('i7', { account_id: 'acc_plaid_unknown' })] }));
-  assert.deepEqual(counts, { landed: 2, already_landed: 0, corrected: 0, synced: 1, skipped: 1, securities: 0 });
+  assert.deepEqual(counts, { landed: 2, already_landed: 0, corrected: 0, synced: 1, skipped: 1, securities: 0, unheld: 1, added: 0 });
   assert.equal(domain.creates.length, 0);
   assert.equal(domain.invUpserts.length, 0);
   assert.equal(domain.invLinks.length, 1);
@@ -364,7 +369,7 @@ test('runInvestmentsPage finishes a buffering port inside the page transaction, 
   const result = await runInvestmentsPage(client, () => { const d = prismaInvestmentsDomain(tx); return { landing, domain: d, finish: () => d.finish() }; }, pageInput({ securities: [sec('aapl')], investmentTransactions: [inv('i1'), inv('i2')] }));
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.deepEqual(result.counts, { landed: 3, already_landed: 0, corrected: 0, synced: 2, skipped: 0, securities: 1 });
+  assert.deepEqual(result.counts, { landed: 3, already_landed: 0, corrected: 0, synced: 2, skipped: 0, securities: 1, unheld: 0, added: 2 });
   assert.deepEqual(ran, ['INSERT INTO securities', 'INSERT INTO investment'], 'one statement for the security, one for both transactions');
   assert.equal(ranInside, 2, 'both ran inside the transaction');
   assert.equal(landing.rowsFor('i2')[0].status, 'done', 'marked read before the flush, inside the same transaction');
