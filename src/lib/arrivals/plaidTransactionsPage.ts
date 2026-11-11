@@ -19,9 +19,27 @@
  * (exact bytes, http_status, asked, arrived), no arrivals — before the stage
  * declares its failure (recordFailedAnswer).
  *
- * The parser itself is sync-complete's existing domain logic, moved here
- * unchanged in behavior: the "complete data" skip, the upsert, the pending
- * delete (promise 1 on the domain table is PR-2b).
+ * The parser itself is sync-complete's existing domain logic, moved here: the
+ * "complete data" skip and the upsert (promise 1 on the domain table is PR-2b).
+ * It deletes nothing.
+ *
+ * PENDING-01 (Alex, 2026-11-11): THE SYNC CLEARS A PENDING ROW ONLY ON PLAID'S
+ * OWN WORD, AND NEVER A COMMITTED ONE. Until then the parser deleted, for every
+ * posted transaction it PARSED, every pending row of the same account and
+ * amount dated within two days — a guess, whatever had been posted from that
+ * row, and never for a posted transaction that had already landed. The guess is
+ * gone. Once per page, after the page's objects are parsed and before they are
+ * marked read, the page takes the `pending_transaction_id` of each POSTED
+ * object it holds — landed, already landed and corrected alike, as the table
+ * holds them — whose account this link holds, drops any id the same page still
+ * lists as a pending object (replacedPendingIds), and hands what is left, with
+ * the link's own account row ids, to ONE port method
+ * (DomainDb.clearReplacedPending). That method deletes the named rows that are
+ * still pending, on those accounts, NOT committed and carrying no live posting,
+ * and answers two counts the page carries only when the step ran:
+ * pending_cleared (deleted) and pending_kept (named, left in place because
+ * committed or posted from). Nothing else in the sync deletes a transactions
+ * row.
  *
  * FX-01 (Alex, 2026-10-30, ruling E): the parser keeps Plaid's own word for the
  * row's currency — transactions.iso_currency_code, NULL when Plaid states none.
@@ -49,13 +67,28 @@ export interface PageAccount {
   accountId: string;
 }
 
-/** The subset of the Prisma transaction client the parser writes through (typed loosely so a fake can stand in). */
+/** PENDING-01: what the page's pending step answers — the named pending rows it deleted, and the ones it left in place because they are committed or carry a live posting. */
+export interface ReplacedPendingAnswer {
+  pending_cleared: number;
+  pending_kept: number;
+}
+
+/** The subset of the Prisma transaction client the parser writes through (typed loosely so a fake can stand in), and the page's one pending step. */
 export interface DomainDb {
   transactions: {
     upsert(args: { where: { transactionId: string }; create: Record<string, unknown>; update: Record<string, unknown> }): Promise<unknown>;
     updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): Promise<unknown>;
-    deleteMany(args: { where: Record<string, unknown> }): Promise<unknown>;
   };
+  /**
+   * PENDING-01 — THE SYNC'S ONE DELETE. `transactionIds` are the pending charges Plaid names as replaced by a posted
+   * charge of this page; `accountIds` are the row ids of the link's own accounts. Deletes the transactions rows whose
+   * transactionId is one of those ids, whose `pending` is true, on one of those accounts, that are NOT committed
+   * (review_status is not 'committed') AND carry no live posting (no journal_entries row with source_type
+   * 'plaid_txn', source_id = the row's transactionId, is_reversal false, reversed_by_entry_id null). Answers how many
+   * it deleted (pending_cleared) and how many pending rows the ids name on those accounts it left because they are
+   * committed or carry a live posting (pending_kept). Nothing about a kept row changes.
+   */
+  clearReplacedPending(args: { accountIds: string[]; transactionIds: string[] }): Promise<ReplacedPendingAnswer>;
 }
 
 export interface TransactionsPageInput {
@@ -83,6 +116,10 @@ export interface PageCounts {
   unheld: number;
   /** SYNC-01: objects written as a NEW row of the app — written, not as a correction, while `existing` held no row for the id. Not `landed`: a row the app already had can land in the store for the first time. */
   added: number;
+  /** PENDING-01: pending rows deleted because a posted object of this page names them (DomainDb.clearReplacedPending). Carried ONLY by a page where that step ran. */
+  pending_cleared?: number;
+  /** PENDING-01: pending rows a posted object of this page names that were left in place — committed, or carrying a live posting. Carried ONLY by a page where the step ran. */
+  pending_kept?: number;
 }
 
 /** The existing domain write, from an arrival's payload. A correction never takes the complete-data skip: latest-arrived wins. */
@@ -139,24 +176,33 @@ async function parseTransaction(domain: DomainDb, ctx: TransactionsPageInput, ar
   });
   counts.synced++;
   if (!correction && !existing) counts.added++;
+}
 
-  // If this is a posted transaction, delete any matching pending duplicates
-  if (!txn.pending) {
-    const twoDaysAgo = new Date(txn.date);
-    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-    const twoDaysAfter = new Date(txn.date);
-    twoDaysAfter.setDate(twoDaysAfter.getDate() + 2);
-
-    await domain.transactions.deleteMany({
-      where: {
-        accountId: account.id,
-        amount: txn.amount,
-        pending: true,
-        date: { gte: twoDaysAgo, lte: twoDaysAfter },
-        transactionId: { not: txn.transaction_id },
-      },
-    });
+/**
+ * PENDING-01 — THE PENDING CHARGES THIS PAGE'S POSTED OBJECTS NAME. From EVERY object of the page as the table holds
+ * it — landed, already landed and corrected alike — the `pending_transaction_id` of each POSTED object (its `pending`
+ * is false) whose account this link holds. An id the same page still lists as a pending object is dropped: Plaid is
+ * still listing that charge. Each id once, in the page's own order. Plaid's own word only — nothing here matches a row
+ * by its account, its amount or its day.
+ */
+export function replacedPendingIds(rows: ReadonlyArray<{ payload: unknown }>, accounts: readonly PageAccount[]): string[] {
+  const held = new Set(accounts.map((account) => account.accountId));
+  const stillPending = new Set<string>();
+  const named: string[] = [];
+  for (const row of rows) {
+    if (typeof row.payload !== 'object' || row.payload === null) continue;
+    const object = row.payload as Partial<Transaction>;
+    if (object.pending === true) {
+      if (typeof object.transaction_id === 'string') stillPending.add(object.transaction_id);
+      continue;
+    }
+    if (object.pending !== false) continue;
+    const id = object.pending_transaction_id;
+    if (typeof id !== 'string' || id.length === 0) continue;
+    if (typeof object.account_id !== 'string' || !held.has(object.account_id)) continue;
+    if (!named.includes(id)) named.push(id);
   }
+  return named.filter((id) => !stillPending.has(id));
 }
 
 /** Inside the caller's transaction: land, parse from the table, mark read. Throws to roll the page back. */
@@ -201,6 +247,17 @@ export async function landTransactionsPage(landing: LandingDb, domain: DomainDb,
     newRowIds.push(row.id);
     // The parser reads the arrival, never the HTTP object; a correction is applied (latest-arrived wins).
     await parseTransaction(domain, input, row.id, row.payload as Transaction, counts, at, row.outcome === 'corrected');
+  }
+
+  // PENDING-01: THE EXACT RULE, once per page — after the page's objects are parsed, before they are marked read.
+  // The pending charges this page's posted objects name (replacedPendingIds: Plaid's own pending_transaction_id, never
+  // a guess) go to the one port method with the link's own account row ids. A page that names none does not run the
+  // step and carries neither count.
+  const replaced = replacedPendingIds(landed.rows, input.accounts);
+  if (replaced.length > 0) {
+    const answer = await domain.clearReplacedPending({ accountIds: input.accounts.map((account) => account.id), transactionIds: replaced });
+    counts.pending_cleared = answer.pending_cleared;
+    counts.pending_kept = answer.pending_kept;
   }
 
   await markRead(landing, newRowIds, at);
