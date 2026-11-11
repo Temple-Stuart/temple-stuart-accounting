@@ -17,6 +17,12 @@
  * PAINT (REPAINT-04): cream page, white cards, lavender hairlines, aubergine
  * ink — the ds.ts vocabulary. The only white ink is inside the purple button,
  * which carries its own solid fill in the same class string.
+ *
+ * HOME-PLANS-03 (2026-11-11): ONE MORE LEAF FEEDS THE CARDS, for a caller that asks. PlanCards
+ * takes an optional `steps` — what each plan's card lists, from src/lib/howTo.ts
+ * planCardSteps — and draws each step behind that leaf's in-plan mark (PLAN_MARKS). The
+ * home page hands it; /pricing does not, and draws what it drew. This file still types no
+ * word and no glyph of its own.
  */
 
 import { useState } from 'react';
@@ -28,6 +34,7 @@ import {
   BEST_VALUE_WORDS, capabilityNotes, cellState, priceSlot, travelFreeLine,
   type CapabilityRow, type Plan,
 } from '@/lib/offer/plans';
+import { PLAN_MARKS, type PlanCardCategory, type PlanCardSteps } from '@/lib/howTo';
 
 export type PlanDoor =
   | { kind: 'button'; onClick: (planId: string) => void }
@@ -35,6 +42,17 @@ export type PlanDoor =
 
 const CARD = 'flex flex-col gap-4 rounded-lg border border-border bg-white p-5';
 const CTA = PRIMARY_CTA; // HOME-FINISH-01 (2026-11-08): the public page's one filled button, from src/lib/ds.ts
+/** HOME-PLANS-03 (2026-11-11): a category's heading on a card — the class string the card's own top label wears (data-plan-role, below), letter for letter. */
+const CATEGORY_LABEL = 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint';
+/** HOME-PLANS-03 (2026-11-11): what a card lists when the caller hands no `steps` — no category, so its three benefits. */
+const NO_CATEGORIES: readonly PlanCardCategory[] = [];
+
+/** HOME-PLANS-03 (2026-11-11): the categories `steps` gives one plan's card. A plan it does not name throws, by name. */
+function categoriesOf(steps: readonly PlanCardSteps[], plan: Plan): readonly PlanCardCategory[] {
+  const card = steps.find((entry) => entry.plan === plan.id);
+  if (card === undefined) throw new Error(`PlanCards: \`steps\` names no entry for the plan "${plan.id}" — planCardSteps (src/lib/howTo.ts) returns one for every plan it is handed`);
+  return card.categories;
+}
 
 /** The door, drawn the one way each caller can give it. */
 function Door({ door, plan, label }: { door: PlanDoor; plan: Plan; label: string }) {
@@ -97,26 +115,52 @@ function PriceSlot({ plan, door, where }: { plan: Plan; door: PlanDoor; where: '
  * hook, PriceSlot and Door as they are — so the home page's Plan Your Escape (src/components/landing/HowToSection.tsx)
  * draws exactly the cards /pricing draws. PlansSection renders this where the grid stood, so /pricing draws what it drew.
  * The door is the caller's: /pricing hands a link, the home page a button that opens sign-up.
+ *
+ * HOME-PLANS-03 (Alex, 2026-11-11 18:17 Manila: "have the steps listed inside the cards… as they apply… so that there
+ * are just 4 neat cards") — ONE OPTIONAL PROP, `steps`: what planCardSteps returns (src/lib/howTo.ts) — per plan, the
+ * categories that plan adds, each with its heading and its steps' titles.
+ *   · WITHOUT IT — /pricing hands none — the render is what it was, byte for byte: the same grid, the three benefits.
+ *   · WITH IT — the home page's Plan Your Escape — a plan that adds categories lists them where its benefits stood: per
+ *     category its heading, in the look of the card's own top label, then its steps, each behind the how-to leaf's
+ *     in-plan mark (PLAN_MARKS — brand purple, hidden from a screen reader, in the gold dot's seat). A plan that adds
+ *     none — the bundle, whose own line says it holds the other three — draws its three benefits, as it did. The grid
+ *     goes two across from md. No step number, no toggle, no button besides the door. The top label, the name, the
+ *     three lines under it, the price slot and the door are untouched.
+ *   · A plan `steps` does not name is a THROW, by name — never a card that quietly shows its benefits instead.
+ * This file still types none of the words: a step's title and a category's heading are the how-to leaf's, through `steps`.
  */
-export function PlanCards({ door }: { door: PlanDoor }) {
-  return (
-    <div className="mt-6 grid gap-4 lg:grid-cols-4">
-      {PLANS.map((plan) => (
-        <div
-          key={plan.id}
-          className={`${CARD} ${plan.id === 'everything' ? 'border-brand-purple shadow-sm' : ''} ${plan.id === 'personal' ? 'border-brand-gold/60' : ''}`}
-          data-plan={plan.id}
-          data-plan-modules={plan.modules.join(' ')}
-        >
-          <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint" data-plan-role>
-              {plan.role}
-            </p>
-            <h3 className="mt-1 text-lg font-semibold text-brand-purple" data-plan-name>{plan.name}</h3>
-            <p className="mt-1 text-sm text-text-primary" data-plan-positioning>{plan.positioning}</p>
-            <p className="mt-2 text-xs text-text-muted" data-plan-audience>{plan.audience}</p>
-            <p className="mt-1 text-xs text-text-secondary" data-plan-relationship>{plan.relationship}</p>
+export function PlanCards({ door, steps }: { door: PlanDoor; steps?: readonly PlanCardSteps[] }) {
+  const cards = PLANS.map((plan) => {
+    const categories = steps === undefined ? NO_CATEGORIES : categoriesOf(steps, plan);
+    return (
+      <div
+        key={plan.id}
+        className={`${CARD} ${plan.id === 'everything' ? 'border-brand-purple shadow-sm' : ''} ${plan.id === 'personal' ? 'border-brand-gold/60' : ''}`}
+        data-plan={plan.id}
+        data-plan-modules={plan.modules.join(' ')}
+      >
+        <div>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint" data-plan-role>
+            {plan.role}
+          </p>
+          <h3 className="mt-1 text-lg font-semibold text-brand-purple" data-plan-name>{plan.name}</h3>
+          <p className="mt-1 text-sm text-text-primary" data-plan-positioning>{plan.positioning}</p>
+          <p className="mt-2 text-xs text-text-muted" data-plan-audience>{plan.audience}</p>
+          <p className="mt-1 text-xs text-text-secondary" data-plan-relationship>{plan.relationship}</p>
+        </div>
+        {categories.length > 0 ? categories.map((category) => (
+          <div key={category.id} data-plan-category={category.id}>
+            <h4 className={CATEGORY_LABEL}>{category.heading}</h4>
+            <ul className="mt-2 space-y-1.5 text-sm text-text-secondary">
+              {category.steps.map((title, i) => (
+                <li key={i} className="flex gap-2" data-plan-step>
+                  <span aria-hidden="true" className="text-brand-purple">{PLAN_MARKS.inPlan.mark}</span>
+                  <span>{title}</span>
+                </li>
+              ))}
+            </ul>
           </div>
+        )) : (
           <ul className="space-y-1.5 text-sm text-text-secondary">
             {plan.benefits.map((b) => (
               <li key={b} className="flex gap-2" data-plan-benefit>
@@ -125,11 +169,14 @@ export function PlanCards({ door }: { door: PlanDoor }) {
               </li>
             ))}
           </ul>
-          <PriceSlot plan={plan} door={door} where="card" />
-        </div>
-      ))}
-    </div>
-  );
+        )}
+        <PriceSlot plan={plan} door={door} where="card" />
+      </div>
+    );
+  });
+  // The grid: /pricing's own, as it was. With `steps` it is also two across from md — the cards are taller there.
+  if (steps === undefined) return <div className="mt-6 grid gap-4 lg:grid-cols-4">{cards}</div>;
+  return <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">{cards}</div>;
 }
 
 /**

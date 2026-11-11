@@ -19,6 +19,17 @@
  * on a phone its box scrolled: the names with no marks or, scrolled right, the marks with no names. T10 keeps its two
  * pins — the box does not change.
  *
+ * HOME-PLANS-03 (Alex, 2026-11-11 18:17 Manila: "take the table and have the steps listed inside the cards… as they
+ * apply… so that there are just 4 neat cards … and no added table, to save room and look cleaner and more crisp";
+ * built 2026-11-11): THE STEPS STAND INSIDE THE FOUR CARDS, and the comparison table left the home page. The public
+ * section is the pillar, the four plan cards — each listing the steps its plan ADDS, as the leaf derives them
+ * (planCardSteps) — and one link to /pricing. Re-written in place for it, each under a dated note: the render helpers,
+ * T4, T5 and T10. T7 changed in two places and no other: its signature pin moved to the new signature, and it gained one
+ * hold — without `steps` PlanCards draws, to the byte, what it drew (the whole markup of /pricing's four cards is built
+ * here from the leaf and held equal to the render T7 already made); every assertion it had stands as written. Two tests
+ * are new: T11, planCardSteps in the leaf; and T12, the cards WITH `steps`. T1, T2, T3, T6, T8 and T9 are untouched —
+ * the comparison stays in the leaf, undrawn, with the same standing as the status view, and T8 holds it as it did.
+ *
  *   T1 the law — the live leaf passes; every refusal by name over injected sections, registry and plans; it runs at
  *      module scope;
  *   T2 the plan — the four choices give the four plans' names and audience lines as PLANS holds them; no plan, no line;
@@ -26,26 +37,36 @@
  *   T3 the counts — the steps, how many are live and pending, and how many need Books, computed HERE from the leaf's
  *      steps and the registry and held equal to what the leaf says; a step is LIVE exactly when every tool in it is; the
  *      Books lines follow the Books offer;
- *   T4 the section, rendered (HOME-PLANS-01) — at rest: the pillar, the four cards (PlanCards' own render), the table
+ *   T4 the section, rendered (HOME-PLANS-03) — it has one render, nothing in it opens: the pillar, the four cards
+ *      (PlanCards' own render WITH the leaf's steps), the one link, and nothing after; each card's categories and step
+ *      titles are the leaf's (planCardSteps, looped — no step is typed here); the bundle draws its three benefits; no
+ *      table, no data-comparison hook, no aria-expanded and no screen-reader-only text; the link's words and href are
+ *      the leaf's; none of the status words, the switches' words, the plan line or the legend; a card's button opens
+ *      the door; the default export holds no state.
+ *      (Until HOME-PLANS-03, from HOME-PLANS-01: at rest — the pillar, the four cards with their benefits, the table
  *      with Personal open and three closed, 8 step rows and no tool row; with Business open; with a step open — its
- *      tools, their lines and its note; every button's aria-expanded; the marks under each plan for all 26 steps; none
- *      of the status words, the switches' words, the plan line, "Compare all four plans" or the legend in any render;
- *      a card's button opens the door, a toggle calls back with its key; the two sets, through the default export.
- *      (Until then: rendered for the four choices — the pillar, then "What you run" and the two switches, the plan line
- *      with its price line, its button and the link to the four plans, the steps line and the Books line, each
- *      section's steps in ONE row that swiped sideways, the card — its step and its state, the title, each tool and its
- *      mark, its note — the Travel lines with and without Business, and the legend.)
- *   T5 the source (HOME-PLANS-01) — the section types no leaf word, no mark, no status and no price; its only typed
- *      words are its aria-label; two sets in React state only, no storage and no URL; it takes PlanCards and nothing
- *      else from the plans section; the table's box, head row and toggle are the plans table's own idioms; the marks'
- *      colours are never the status colours; the leaf is pure. (Until then: no status, no plan name, no price and none
- *      of the leaf's words; two switches in React state only; the row was MY TRIP's rail.)
+ *      tools, their lines and its note; every button's aria-expanded; the marks under each plan for all 26 steps; no
+ *      "Compare all four plans" in any render; a toggle called back with its key; the two sets, through the default
+ *      export. Before that: rendered for the four choices — the pillar, then "What you run" and the two switches, the
+ *      plan line with its price line, its button and the link to the four plans, the steps line and the Books line,
+ *      each section's steps in ONE row that swiped sideways, the card — its step and its state, the title, each tool
+ *      and its mark, its note — the Travel lines with and without Business, and the legend.)
+ *   T5 the source (HOME-PLANS-03) — the section types no leaf word, no mark, no status and no price; its only typed
+ *      words are its aria-label; it holds no state — no hook, no storage, no URL; it reads the cards' steps and the
+ *      link from the leaf and takes PlanCards and nothing else from the plans section; the table left with every name
+ *      only it used; the link wears the house text link; the leaf is pure and keeps the comparison, undrawn.
+ *      (Until HOME-PLANS-03, from HOME-PLANS-01: two sets in React state only; the table's box, head row and toggle
+ *      were the plans table's own idioms; the marks' colours were never the status colours; eight keys of the class
+ *      grammar took a phone's values below `md` — HOME-PLANS-02. Before that: no status, no plan name, no price and
+ *      none of the leaf's words; two switches in React state only; the row was MY TRIP's rail.)
  *   T6 Landing mounts the section once — first under "What We Do" (HOME-FINISH-02; under the guest's strip until then),
  *      above the services section. Landing itself never names the plans section: the how-to draws the four cards.
  *   T7 (HOME-PLANS-01, Alex, 2026-11-11 00:09: "Four plans. One comparison.") the four plan cards, exported whole from
  *      the plans section — PlanCards alone stands whole inside PlansSection's render, once, right under its subhead; four
  *      cards in PLANS' order, each with its top label, its name, its two lines, who it is for, three benefits, the
  *      launch placeholder and its door; a button door calls back with the plan's id; a link door draws the link.
+ *      HOME-PLANS-03: its signature carries the one optional prop, `steps`; and without it the four cards are, to the
+ *      byte, what they were — the whole markup, built here from the leaf, with a link door and with a button door.
  *   T8 (HOME-PLANS-01) the comparison, in the leaf — four columns and their heads; 8 · 9 · 4 · 5 = 26 steps and the
  *      counts' words; the in-plan grid, cell by cell, derived from each plan's modules; every step's title the leaf's;
  *      every tool's line its capability row's label (the plans leaf's — never retyped), the three tools no row names
@@ -53,13 +74,27 @@
  *      new refusal by name; the status view's notes unchanged by the field move.
  *   T9 (HOME-PLANS-01) the guard — one statement at the end of the plan law's line that holds the how-to's anchor
  *      (scripts/assert-tool-registry.ts): a plan that carries a price fails the build, by name; no plan carries one.
- *   T10 (HOME-PLANS-01, the look's fix) the comparison's box holds its own screen-reader text — the box is positioned
- *      and is the one thing in the section that scrolls sideways; every sr-only span the section draws sits inside it,
- *      at rest and with everything open; the plans table's own box is untouched; the reason stands where the class is
- *      typed. (Until then the box was unpositioned: that text was laid out against the page, outside the box's clip,
- *      and a 390 or a 360 screen scrolled sideways to 694 — measured in the look.)
+ *   T10 (HOME-PLANS-03) nothing in the section scrolls sideways, and nothing in it is drawn for a screen reader alone:
+ *      the comparison's box left with its table — no box, no overflow-x-auto and no sr-only span, in the source or in
+ *      the render; the plans table's own box is untouched; the section's header says what left.
+ *      (Until HOME-PLANS-03, from HOME-PLANS-01's fix after the look: the comparison's box held its own screen-reader
+ *      text — the box was positioned and was the one thing in the section that scrolled sideways; every sr-only span
+ *      the section drew sat inside it, at rest and with everything open; the reason stood where the class was typed.
+ *      Before the fix the box was unpositioned: that text was laid out against the page, outside the box's clip, and
+ *      a 390 or a 360 screen scrolled sideways to 694 — measured in the look.)
+ *   T11 (HOME-PLANS-03) what a card lists, in the leaf — planCardSteps: Personal lists Personal and Travel (Travel in
+ *      its without-Business words), Personal + Business lists Business, Personal + Trading lists Trade, the bundle
+ *      lists none; the same derived here another way, from each plan's modules; every heading and title the leaf's;
+ *      the four cards together list every category once; no tool, no note and no status in what it returns; a fifth
+ *      plan that holds what Personal holds inherits nothing new; the sections' order is the cards' order; a plan with
+ *      no module is refused by name.
+ *   T12 (HOME-PLANS-03) the cards with `steps` — the same four cards but for two things: where a plan adds categories
+ *      they stand where its benefits stood, and the grid is also two across from md; a plan that lists none draws its
+ *      three benefits; a plan `steps` does not name is a throw, by name; the cards type no step, no heading and no mark
+ *      of their own — the mark and the type of `steps` are the how-to leaf's; a category's heading wears the card's own
+ *      top label.
  * Source is read through code() and comments() only (the reader law). No count of what is live is typed: each is
- * computed (T3). The step counts — 8 · 9 · 4 · 5 — are the brief's own figures, held both ways (T8). No clock, no live call.
+ * computed (T3). The step counts — 8 · 9 · 4 · 5 — are the brief's own figures, held both ways (T8, T11). No clock, no live call.
  *
  * HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03: "the how-to should replace software plans … cards should be horizontal
  * swipe per P, B, T … clean these cards up") re-pointed this file: the how-to IS the SOFTWARE PLANS block now. Until
@@ -73,18 +108,18 @@ import assert from 'node:assert/strict';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code, comments } from '../sourceText';
-import { DATA, PRIMARY_CTA } from '../ds';
+import { PRIMARY_CTA } from '../ds';
 import { TOOL_REGISTRY, type ToolEntry } from '../toolRegistry';
 import { CAPABILITY_GROUPS, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, PLANS, PLANS_SUBHEAD, priceSlot, type Plan } from '../offer/plans';
 import { OFFERS } from '../offer';
 import {
   ADD_BUSINESS, ADD_TRADE, COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, COMPARISON_FIRST_HEAD, HOW_TO_CHOICES, HOW_TO_SECTIONS,
-  HOW_TO_SECTION_ORDER, HowToLawError, PLAN_HEADS, PLAN_MARKS, categoryHeading, choiceOf, planComparison, stepCountWords, toolLine, LEGEND_BOOKS_LINE, LEGEND_STEP_LINE, LEGEND_TITLE, NEEDS_BOOKS, NEXT_LINE, PERSONAL_ALWAYS, STEP_LIVE,
+  HOW_TO_SECTION_ORDER, HowToLawError, PLAN_HEADS, PLAN_MARKS, categoryHeading, choiceOf, planCardSteps, planComparison, stepCountWords, toolLine, LEGEND_BOOKS_LINE, LEGEND_STEP_LINE, LEGEND_TITLE, NEEDS_BOOKS, NEXT_LINE, PERSONAL_ALWAYS, STEP_LIVE,
   STEP_PENDING, TOOL_MARKS, WHAT_YOU_RUN_LABEL, booksLine, booksNotOnSale, cardStep, howToLaw, howToView, modulesOf, planFor, planLine, priceLine,
-  sectionShown, stepsLine, type ComparisonCategory, type ComparisonStep, type HowToChoice, type HowToSection, type HowToSectionId,
+  sectionShown, stepsLine, type HowToChoice, type HowToSection, type PlanCardSteps,
 } from '../howTo';
 import { PLAN_PILLAR } from '../homeActWords';
-import HowToSectionDefault, { HowToView, stepKey, toggled, type HowToViewProps } from '@/components/landing/HowToSection';
+import HowToSectionDefault, { HowToView, type HowToViewProps } from '@/components/landing/HowToSection';
 import PlansSection, { PlanCards } from '@/components/offer/PlansSection';
 import { PIPELINE_DOOR, PIPELINE_PATH } from '@/components/landing/pipelineWords';
 
@@ -100,14 +135,14 @@ const LAW = 'scripts/assert-tool-registry.ts';
 /** React's escaping of text. */
 const asHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/'/g, '&#x27;').replace(/"/g, '&quot;');
 const count = (hay: string, needle: string) => hay.split(needle).length - 1;
-/** A string, as a regular expression that matches exactly it. */
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-/** What is open in the comparison: the categories, and the steps by their keys. */
-type Open = { categories: readonly HowToSectionId[]; steps: readonly string[] };
-/** The comparison's box, as it is drawn: positioned, and the one thing in the section that scrolls sideways (T4, T10). */
-const BOX_TAG = '<div class="relative mt-8 overflow-x-auto rounded-lg border border-border bg-white" data-plan-comparison="true">';
-/** The pure half, rendered for one open state. (Until HOME-PLANS-01 it took a choice and the two switches' handlers.) */
-const render = (open: Open) => renderToStaticMarkup(React.createElement(HowToView, { openCategories: new Set(open.categories), openSteps: new Set(open.steps), onCategory: () => {}, onStep: () => {}, onJoin: () => {} }));
+/**
+ * HOME-PLANS-03 (2026-11-11): THE PURE HALF, RENDERED — it has ONE render: nothing in the section opens, so it takes the door and nothing else.
+ * (Until then it was rendered for one open state of the comparison — `type Open = { categories; steps }`, `render(open)` handing HowToView the two
+ * sets and their two handlers — and BOX_TAG held the comparison's box as drawn, positioned and the one thing in the section that scrolled sideways:
+ * '<div class="relative mt-8 overflow-x-auto rounded-lg border border-border bg-white" data-plan-comparison="true">'. Until HOME-PLANS-01 it took a
+ * choice and the two switches' handlers.)
+ */
+const render = () => renderToStaticMarkup(React.createElement(HowToView, { onJoin: () => {} }));
 /**
  * Every element in a tree, depth first, with each PURE function component called so what it draws can be reached (the
  * plan cards' PriceSlot and Door hold no hook). Anything that is not a plain function — next/link's Link — is left as it is.
@@ -236,219 +271,191 @@ test('T3 the counts are the registry\'s: steps, live, pending and needs-Books co
 
 // ── T4 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-/** The marks' classes as drawn (HowToSection.tsx HOW): ✓ in brand purple, — in faint ink. */
-const MARK_IN = 'font-mono text-sm text-brand-purple';
-const MARK_OUT = 'font-mono text-sm text-text-faint';
 /** The words no render of the public block may hold: every status word, and the two phrases that count what is live or for sale. */
 const NO_STATUS = ['LIVE', 'PENDING', 'PARTIAL', 'NOT BUILT', 'NOT_BUILT', 'NEEDS BOOKS', 'on sale', 'live today'];
-/** Any class attribute — the classes that matter are pinned by name where they matter. */
-const C = 'class="[^"]*"';
+/** The act's own tag, as drawn. */
+const ACT_TAG = '<section id="modules" aria-label="Software plans" class="w-full border-b border-border bg-bg-terminal" data-how-to="true">';
+/** The one link under the cards, as the section dresses it (HowToSection.tsx HOW.compare): the house text link under a top margin. */
+const COMPARE_CLASSES = 'mt-4 inline-flex min-h-[44px] items-center font-mono text-xs tracking-wider text-brand-purple hover:text-brand-purple-hover';
 /**
- * HOME-PLANS-02 (Alex, 2026-11-11 00:09: "Mobile should remain usable" · "Desktop and mobile remain usable.") — THE
- * COMPARISON FITS A PHONE. The eight keys of the section's class grammar that a phone changes (HowToSection.tsx HOW).
- * GRAMMAR_UNTIL: each as it stood until then — what `md` and up must still get. GRAMMAR_NOW: each as the section types
- * it now — the phone's value below `md`, the desktop's behind `md:`. PHONE: what each takes below `md`, as the brief
- * lists it. T4 draws three of them by name (the table tag, the plan heads, every mark cell); T5 holds all eight.
+ * HOME-PLANS-03 (2026-11-11) — THE CARDS, AS DRAWN: the four plan cards' whole markup, built HERE from the leaves — each plan's words (PLANS), its
+ * price slot (priceSlot) and, when `steps` is handed in, what its card lists (planCardSteps). Every class is typed as PlansSection.tsx draws it, so
+ * a render is held to the byte (T4, T7). Without `steps` this is the markup the cards had before this brief: /pricing's grid, the three benefits.
+ * (Until then this block held the comparison's render helpers: the marks' classes — MARK_IN 'font-mono text-sm text-brand-purple', MARK_OUT
+ * 'font-mono text-sm text-text-faint'; HOME-PLANS-02's three grammars of the eight class keys a phone changed — GRAMMAR_UNTIL, GRAMMAR_NOW, PHONE;
+ * marksHtml, one cell per plan; and the table's rows as regular-expression sources built from planComparison, row by row — categoryRow, lineRow,
+ * stepRow, toolsRow, bodyRows. They left with the table they drew.)
  */
-const GRAMMAR_UNTIL = {
-  table: 'w-full min-w-[720px] table-fixed text-sm',
-  planHead: 'w-[6.5rem] px-2 py-3 text-center text-sm font-semibold text-brand-purple',
-  categoryToggle: 'flex min-h-[44px] w-full items-center justify-between gap-3 px-3 py-2.5 text-left font-mono text-xs font-semibold tracking-wider text-brand-purple hover:bg-bg-row ${RING}',
-  stepToggle: 'flex min-h-[44px] w-full items-center justify-between gap-3 py-2 pl-6 pr-3 text-left text-sm text-text-primary hover:bg-bg-row ${RING}',
-  stepWords: 'flex items-baseline gap-3',
-  markCell: 'px-2 py-2 text-center',
-  tools: 'py-3 pl-[3.25rem] pr-3',
-  tool: 'grid grid-cols-[12rem_minmax(0,1fr)] gap-x-4',
-} as const;
-type GrammarKey = keyof typeof GRAMMAR_UNTIL;
-const GRAMMAR_NOW: Readonly<Record<GrammarKey, string>> = {
-  table: 'w-full md:min-w-[720px] table-fixed text-sm',
-  planHead: 'w-[2.875rem] md:w-[6.5rem] px-px md:px-2 py-3 text-center text-[10px] md:text-sm leading-tight font-semibold text-brand-purple',
-  categoryToggle: 'flex min-h-[44px] w-full items-center justify-between gap-1 md:gap-3 pl-3 pr-0.5 md:px-3 py-2.5 text-left font-mono text-xs font-semibold tracking-wide md:tracking-wider text-brand-purple hover:bg-bg-row ${RING}',
-  stepToggle: 'flex min-h-[44px] w-full items-center justify-between gap-1 md:gap-3 py-2 pl-3 md:pl-6 pr-0.5 md:pr-3 text-left text-sm text-text-primary hover:bg-bg-row ${RING}',
-  stepWords: 'flex items-baseline gap-2 md:gap-3',
-  markCell: 'px-px md:px-2 py-2 text-center',
-  tools: 'py-3 pl-10 md:pl-[3.25rem] pr-3',
-  tool: 'grid grid-cols-1 md:grid-cols-[12rem_minmax(0,1fr)] gap-x-4',
-};
-const PHONE: Readonly<Record<GrammarKey, readonly string[]>> = {
-  table: [],
-  planHead: ['w-[2.875rem]', 'px-px', 'text-[10px]', 'leading-tight'],
-  categoryToggle: ['gap-1', 'pl-3', 'pr-0.5', 'tracking-wide'],
-  stepToggle: ['gap-1', 'pl-3', 'pr-0.5'],
-  stepWords: ['gap-2'],
-  markCell: ['px-px'],
-  tools: ['pl-10'],
-  tool: ['grid-cols-1'],
-};
-/** One cell per plan: its mark, hidden from a screen reader, and the words the screen reader hears. (Until HOME-PLANS-02 the cell's classes were 'px-2 py-2 text-center'.) */
-const marksHtml = (inPlan: readonly boolean[]) => PLANS.map((plan, j) => {
-  const mark = inPlan[j] ? PLAN_MARKS.inPlan : PLAN_MARKS.notInPlan;
-  return `<td class="${GRAMMAR_NOW.markCell}" data-comparison-mark="${plan.id}" data-in-plan="${inPlan[j]}"><span aria-hidden="true" class="${inPlan[j] ? MARK_IN : MARK_OUT}">${mark.mark}</span><span class="sr-only">${mark.label}</span></td>`;
-}).join('');
-/** The comparison's rows for one open state, as a regular expression source — built from the leaf's view, row by row. */
-const SPAN = 1 + PLANS.length;
-const sign = (open: boolean) => (open ? '−' : '\\+');
-const categoryRow = (c: ComparisonCategory, open: boolean) => `<tr ${C}><th scope="row" ${C}><button type="button" aria-expanded="${open}" ${C} data-comparison-toggle="${c.id}"><span>${esc(asHtml(c.heading))}</span><span aria-hidden="true" ${C}>${sign(open)}</span></button></th>${esc(marksHtml(c.inPlan))}</tr>`;
-const lineRow = (c: ComparisonCategory) => `<tr ${C}><td col[sS]pan="${SPAN}" ${C} data-comparison-line="true">${esc(asHtml(c.line))}</td></tr>`;
-const stepRow = (c: ComparisonCategory, step: ComparisonStep, open: boolean) => `<tr ${C} data-comparison-step="${stepKey(c.id, step.n)}"><th scope="row" ${C}><button type="button" aria-expanded="${open}" ${C} data-comparison-step-toggle="${stepKey(c.id, step.n)}"><span ${C}><span ${C}>${step.n}</span><span>${esc(asHtml(step.title))}</span></span><span aria-hidden="true" ${C}>${sign(open)}</span></button></th>${esc(marksHtml(c.inPlan))}</tr>`;
-const toolsRow = (c: ComparisonCategory, step: ComparisonStep) => `<tr ${C}><td col[sS]pan="${SPAN}" ${C} data-comparison-tools="${stepKey(c.id, step.n)}"><ul ${C}>${step.tools.map((t) => `<li ${C}><span ${C}>${esc(asHtml(t.name))}</span><span ${C}>${esc(asHtml(t.line))}</span></li>`).join('')}</ul>${step.note === null ? '' : `<p ${C} data-comparison-note="true">${esc(asHtml(step.note))}</p>`}</td></tr>`;
-const bodyRows = (c: ComparisonCategory, open: Open) => {
-  const isOpen = open.categories.includes(c.id);
-  const steps = c.steps.map((step) => stepRow(c, step, open.steps.includes(stepKey(c.id, step.n))) + (open.steps.includes(stepKey(c.id, step.n)) ? toolsRow(c, step) : '')).join('');
-  return `<tbody data-comparison-category="${c.id}" data-comparison-open="${isOpen}">${categoryRow(c, isOpen)}${isOpen ? lineRow(c) + steps : ''}</tbody>`;
-};
+/** The classes the card's top label wears — and, since HOME-PLANS-03, a category's heading on a card. */
+const LABEL_CLASSES = 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint';
+/** The cards' grid: as /pricing draws it; and with `steps`, as the home page draws it — also two across from md. */
+const GRID_TAG = '<div class="mt-6 grid gap-4 lg:grid-cols-4">';
+const GRID_TAG_WITH_STEPS = '<div class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">';
+/** A step on a card: the leaf's in-plan mark — hidden from a screen reader, brand purple, in the gold dot's seat — then the step's title. */
+const stepHtml = (title: string) => `<li class="flex gap-2" data-plan-step="true"><span aria-hidden="true" class="text-brand-purple">${PLAN_MARKS.inPlan.mark}</span><span>${asHtml(title)}</span></li>`;
+/** A benefit on a card: the gold dot, then the words. */
+const benefitHtml = (words: string) => `<li class="flex gap-2" data-plan-benefit="true"><span aria-hidden="true" class="text-brand-gold">·</span><span>${asHtml(words)}</span></li>`;
+/** The door a card is built with: a button, or a link to an href. */
+type DoorAs = 'button' | { href: string };
+/** One plan's card. `listed` is what `steps` gives its plan — null when no `steps` is handed in. */
+function cardHtml(plan: Plan, door: DoorAs, listed: PlanCardSteps | null): string {
+  const slot = priceSlot(plan);
+  // The launch slot's markup, and no other: no plan carries a price (T9 holds it, and so does the build's guard). A priced slot draws more — say it here on the day one is ruled.
+  if (slot.kind !== 'unannounced') assert.fail(`${plan.id} carries a price — this builder holds the launch slot's markup only`);
+  const tone = `${plan.id === 'everything' ? 'border-brand-purple shadow-sm' : ''} ${plan.id === 'personal' ? 'border-brand-gold/60' : ''}`;
+  const head = `<div><p class="${LABEL_CLASSES}" data-plan-role="true">${asHtml(plan.role)}</p><h3 class="mt-1 text-lg font-semibold text-brand-purple" data-plan-name="true">${asHtml(plan.name)}</h3>`
+    + `<p class="mt-1 text-sm text-text-primary" data-plan-positioning="true">${asHtml(plan.positioning)}</p><p class="mt-2 text-xs text-text-muted" data-plan-audience="true">${asHtml(plan.audience)}</p>`
+    + `<p class="mt-1 text-xs text-text-secondary" data-plan-relationship="true">${asHtml(plan.relationship)}</p></div>`;
+  // Where the benefits stood: the categories the plan adds — or, for a plan that adds none and for a card with no `steps`, its three benefits.
+  const list = listed !== null && listed.categories.length > 0
+    ? listed.categories.map((c) => `<div data-plan-category="${c.id}"><h4 class="${LABEL_CLASSES}">${asHtml(c.heading)}</h4><ul class="mt-2 space-y-1.5 text-sm text-text-secondary">${c.steps.map(stepHtml).join('')}</ul></div>`).join('')
+    : `<ul class="space-y-1.5 text-sm text-text-secondary">${plan.benefits.map(benefitHtml).join('')}</ul>`;
+  const cta = asHtml(slot.cta);
+  const doorHtml = door === 'button' ? `<button type="button" class="${PRIMARY_CTA}" data-plan-cta="${plan.id}">${cta}</button>` : `<a class="${PRIMARY_CTA}" data-plan-cta="${plan.id}" href="${door.href}">${cta}</a>`;
+  const price = '<div class="mt-auto flex min-h-[128px] flex-col justify-end gap-2" data-price-slot="unannounced" data-price-where="card">'
+    + (slot.bestValue === null ? '' : `<div class="min-h-[20px]" data-best-value="${slot.bestValue}"></div>`)
+    + `<span class="font-mono text-sm text-text-secondary" data-price-placeholder="true">${asHtml(slot.text)}</span>${doorHtml}</div>`;
+  return `<div class="flex flex-col gap-4 rounded-lg border border-border bg-white p-5 ${tone}" data-plan="${plan.id}" data-plan-modules="${plan.modules.join(' ')}">${head}${list}${price}</div>`;
+}
+/** The four cards in their grid, in PLANS' order. With `steps`, each card lists what the leaf gives its plan. */
+function cardsHtml(door: DoorAs, steps?: readonly PlanCardSteps[]): string {
+  const cards = PLANS.map((plan) => {
+    if (steps === undefined) return cardHtml(plan, door, null);
+    const listed = steps.find((s) => s.plan === plan.id);
+    assert.ok(listed, `${plan.id}: the leaf lists an entry for it`);
+    return cardHtml(plan, door, listed);
+  });
+  return `${steps === undefined ? GRID_TAG : GRID_TAG_WITH_STEPS}${cards.join('')}</div>`;
+}
+/** A step and a benefit, as drawn — each captures its words (a step: its mark, then its title). */
+const STEP_LI = /<li class="flex gap-2" data-plan-step="true"><span aria-hidden="true" class="text-brand-purple">([^<]*)<\/span><span>([^<]*)<\/span><\/li>/g;
+const BENEFIT_LI = /<li class="flex gap-2" data-plan-benefit="true"><span aria-hidden="true" class="text-brand-gold">·<\/span><span>([^<]*)<\/span><\/li>/g;
 
-test('T4 (HOME-PLANS-01) the section, rendered: at rest — the pillar, the four cards, the table with Personal open and three closed, 8 step rows and no tool row; with Business open; with a step open — its tools, their lines and its note; every button\'s aria-expanded; the marks under each plan for all 26 steps; no status word, no switch, no plan line, no link to the plans and no legend in any render; the door and the toggles call back; the two sets live in the default export', () => {
-  const view = planComparison();
-  const AT_REST: Open = { categories: ['personal'], steps: [] };
-  const BUSINESS_OPEN: Open = { categories: ['personal', 'business'], steps: [] };
-  const STEPS_OPEN: Open = { categories: ['personal', 'business'], steps: ['personal-5', 'business-1'] };
-  const ALL_OPEN: Open = { categories: [...HOW_TO_SECTION_ORDER], steps: view.categories.flatMap((c) => c.steps.map((step) => stepKey(c.id, step.n))) };
-  /** The whole table, for one open state: the head row, then one <tbody> per category — and nothing else. */
-  const table = (open: Open) => new RegExp(`<table ${C}><thead>[\\s\\S]*?</thead>${view.categories.map((c) => bodyRows(c, open)).join('')}</table>`);
-
-  // AT REST — the default export's own first render is the pure half with Personal open and no step open
+// HOME-PLANS-03 (2026-11-11): T4 RE-WRITTEN IN PLACE — the section is the pillar, the four cards with the steps each plan adds, and one link. Until
+// then it held the comparison: the table at rest (Personal open, 8 step rows, no tool row), with Business open, with two steps open and with all 26
+// open; every toggle's aria-expanded; a mark under each plan on every row; no link to /pricing in any render; and the two open-sets, driven through
+// the default export inside a host's render.
+test('T4 (HOME-PLANS-03) the section, rendered: the pillar, the four cards — each listing the steps its plan adds, as the leaf derives them — and one link to /pricing, with nothing after; the bundle draws its three benefits; no table, no data-comparison hook, no aria-expanded and no screen-reader-only text; the link\'s words and href are the leaf\'s; no status word, no switch, no plan line and no legend; a card\'s button opens the door; the default export holds no state', () => {
+  const steps = planCardSteps();
+  // ONE RENDER — nothing in the section opens, so the default export's render is the pure half's and there is no second state to draw
   const rest = renderToStaticMarkup(React.createElement(HowToSectionDefault, { onRequireAuth: () => {} }));
-  assert.equal(rest, render(AT_REST), 'Personal starts open; Business, Travel and Trade start closed; no step starts open');
-  // the act: its id (the checkout's cancel link, /modules and the footer's first link land on it), its new aria-label, its classes
-  assert.equal(count(rest, '<section id="modules" aria-label="Software plans" class="w-full border-b border-border bg-bg-terminal" data-how-to="true">'), 1, 'the act, once — aria-label "How to" until HOME-PLANS-01');
+  assert.equal(rest, render(), 'the default export draws the pure half, and nothing of its own');
+  // the act: its id (the checkout's cancel link, /modules and the footer's first link land on it), its aria-label, its classes
+  assert.equal(count(rest, ACT_TAG), 1, 'the act, once — aria-label "How to" until HOME-PLANS-01');
   assert.equal(count(rest, 'id="modules"'), 1, 'the anchor, once');
-  // 1. the pillar, untouched (HOME-FINISH-02) → 2. the four cards, exactly PlanCards' own render with a button door → 3. the comparison; nothing between, nothing after
+  // 1. the pillar, untouched (HOME-FINISH-02) → 2. the four cards: exactly PlanCards' own render, with a button door AND the leaf's steps → 3. the one link — nothing between, nothing after
   const pillar = `<div class="max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-10"><h2 class="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">${asHtml(PLAN_PILLAR.heading)}</h2>`
     + PLAN_PILLAR.paragraphs.map((words) => `<p class="mt-3 max-w-3xl text-base text-text-secondary">${asHtml(words)}</p>`).join('');
-  const cards = renderToStaticMarkup(React.createElement(PlanCards, { door: { kind: 'button', onClick: () => {} } }));
-  // (Until the look's fix the box's classes opened with `mt-8` — it was not positioned; see T10.)
-  // (Until HOME-PLANS-02 the table's classes were 'w-full min-w-[720px] table-fixed text-sm' — 720px at every width.)
-  const BOX_OPEN = `${BOX_TAG}<table class="${GRAMMAR_NOW.table}">`;
-  assert.ok(rest.includes(`data-how-to="true">${pillar}${cards}${BOX_OPEN}<thead>`), 'the pillar → the four cards → the comparison, nothing between');
-  assert.ok(rest.endsWith('</tbody></table></div></div></section>'), 'and nothing after the table');
+  const cards = renderToStaticMarkup(React.createElement(PlanCards, { door: { kind: 'button', onClick: () => {} }, steps }));
+  const link = `<a href="${COMPARE_PLANS_PATH}" class="${COMPARE_CLASSES}" data-compare-plans="true">${asHtml(COMPARE_PLANS_WORDS)}</a>`;
+  assert.equal(rest, `${ACT_TAG}${pillar}${cards}${link}</div></section>`, 'the whole section: the pillar → the four cards → the link — nothing between, nothing after');
+  assert.equal(cards, cardsHtml('button', steps), 'and those cards are the leaves\', to the byte: each plan\'s words, the steps the leaf lists for it, its price slot, its door');
   assert.equal(count(rest, '<h2'), 1, 'one h2 — the pillar\'s');
-  assert.equal(count(rest, '<table'), 1, 'one table');
   assert.equal(count(rest, 'data-plan='), PLANS.length, 'four cards');
+  assert.equal(count(rest, GRID_TAG_WITH_STEPS), 1, 'in the grid that is also two across from md');
   for (const plan of PLANS) assert.equal(count(rest, `<button type="button" class="${PRIMARY_CTA}" data-plan-cta="${plan.id}">${asHtml(priceSlot(plan).cta)}</button>`), 1, `${plan.id}: its card's button`);
-  // the head row: the first head, then the four plans — a short head to read, the plan's full name for a screen reader
-  const head = /<thead><tr class="border-b border-border bg-bg-row text-left align-top">([\s\S]*?)<\/tr><\/thead>/.exec(rest);
-  assert.ok(head, 'the head row, in the plans table\'s own thead classes');
-  assert.equal(head[1], `<th scope="col" class="px-3 py-3 text-left ${DATA.columnHeader}">${asHtml(COMPARISON_FIRST_HEAD)}</th>`
-    // (Until HOME-PLANS-02 a plan head's classes were 'w-[6.5rem] px-2 py-3 text-center text-sm font-semibold text-brand-purple'.)
-    + view.columns.map((c) => `<th scope="col" class="${GRAMMAR_NOW.planHead}" data-comparison-column="${c.id}"><span aria-hidden="true">${asHtml(c.head)}</span><span class="sr-only">${asHtml(c.name)}</span></th>`).join(''), 'Step / Capability · Personal · P + Business · P + Trading · All');
-  // the rows at rest: four categories, Personal open with its line and its 8 steps, no tool row
-  assert.match(rest, table(AT_REST), 'at rest: every row, as the leaf says it');
-  assert.deepEqual([...rest.matchAll(/<tbody data-comparison-category="([^"]+)" data-comparison-open="(true|false)">/g)].map((m) => `${m[1]} ${m[2]}`), ['personal true', 'business false', 'travel false', 'trade false']);
-  assert.equal(count(rest, 'data-comparison-step='), view.categories[0].count, 'Personal\'s step rows');
-  assert.equal(view.categories[0].count, 8);
-  assert.equal(count(rest, 'data-comparison-tools='), 0, 'no tool row at rest');
-  assert.equal(count(rest, 'data-comparison-line='), 1, 'Personal\'s line, once');
-  assert.equal(count(rest, 'aria-expanded="true"'), 1, 'one thing open: Personal');
-  assert.equal(count(rest, 'aria-expanded="false"'), 3 + view.categories[0].count, 'three categories and Personal\'s steps, each closed');
-  assert.equal(count(rest, '<button'), PLANS.length + 4 + view.categories[0].count, 'the cards\' four buttons, four categories, Personal\'s steps — and no other button');
-  for (const c of view.categories) assert.ok(rest.includes(`data-comparison-toggle="${c.id}"><span>${c.heading}</span>`), `${c.heading}`);
-  // every toggle is a real button, at least 44px tall, with a focus ring
-  const toggles = [...rest.matchAll(/<button type="button" aria-expanded="(?:true|false)" class="([^"]*)" data-comparison-(?:step-)?toggle="[^"]+">/g)];
-  assert.equal(toggles.length, 4 + view.categories[0].count);
-  for (const m of toggles) for (const cls of ['min-h-[44px]', 'w-full', 'focus-visible:ring-2', 'focus-visible:ring-brand-purple']) assert.ok(m[1].split(' ').includes(cls), `a toggle is ${cls}`);
+  assert.equal(count(rest, '<button'), PLANS.length, 'the cards\' four buttons — and no other button: nothing here opens or closes');
 
-  // WITH BUSINESS OPEN — its line and its 9 steps join; each of its rows is marked under the two plans that hold it
-  const business = render(BUSINESS_OPEN);
-  assert.match(business, table(BUSINESS_OPEN), 'Business open: every row, as the leaf says it');
-  assert.equal(count(business, 'data-comparison-step='), view.categories[0].count + view.categories[1].count);
-  assert.equal(count(business, 'data-comparison-step="business-'), 9);
-  assert.equal(count(business, 'aria-expanded="true"'), 2);
-  assert.ok(business.includes(`data-comparison-toggle="business"><span>BUSINESS — 9 steps</span><span aria-hidden="true" class="shrink-0 font-mono text-xs text-text-faint">−</span></button></th>${marksHtml([false, true, false, true])}</tr>`), 'Business: — ✓ — ✓ under Personal · P + Business · P + Trading · All');
+  // WHAT EACH CARD LISTS — the leaf's planCardSteps, looped: no category and no step is typed here
+  const opens = [...rest.matchAll(/<div class="[^"]*" data-plan="([^"]+)" data-plan-modules="[^"]*">/g)];
+  assert.deepEqual(opens.map((m) => m[1]), PLANS.map((p) => p.id), 'the four cards, in PLANS\' order');
+  assert.deepEqual(steps.map((s) => s.plan), PLANS.map((p) => p.id), 'and the leaf lists one entry per plan, in the same order');
+  PLANS.forEach((plan, i) => {
+    const card = rest.slice(opens[i].index, i + 1 < opens.length ? opens[i + 1].index : rest.indexOf(link));
+    const listed = steps[i];
+    const role = /<p class="([^"]*)" data-plan-role="true">/.exec(card);
+    assert.ok(role, `${plan.id}: its top label`);
+    assert.equal(role[1], LABEL_CLASSES);
+    // its categories, in the leaf's order — each: its heading, in the look of the card's own top label, then its steps
+    const drawn = [...card.matchAll(/<div data-plan-category="([^"]+)"><h4 class="([^"]*)">([^<]*)<\/h4><ul class="mt-2 space-y-1\.5 text-sm text-text-secondary">([\s\S]*?)<\/ul><\/div>/g)];
+    assert.deepEqual(drawn.map((m) => m[1]), listed.categories.map((c) => c.id), `${plan.id}: the categories its card lists, in the leaf's order`);
+    assert.equal(count(card, 'data-plan-category='), listed.categories.length, `${plan.id}: and no other category`);
+    drawn.forEach((m, k) => {
+      const category = listed.categories[k];
+      assert.equal(m[3], asHtml(category.heading), `${plan.id} · ${category.id}: its heading is the leaf's`);
+      assert.equal(m[2], role[1], `${plan.id} · ${category.id}: the heading wears the classes of the card's own top label`);
+      const lis = [...m[4].matchAll(STEP_LI)];
+      assert.deepEqual(lis.map((li) => li[2]), category.steps.map(asHtml), `${plan.id} · ${category.id}: its steps' titles are the leaf's, in order`);
+      assert.ok(lis.every((li) => li[1] === PLAN_MARKS.inPlan.mark), `${plan.id} · ${category.id}: each behind the leaf's in-plan mark`);
+      assert.equal(m[4].replace(STEP_LI, ''), '', `${plan.id} · ${category.id}: a step is its mark and its title — no number, no toggle, nothing else`);
+    });
+    assert.equal(count(card, 'data-plan-step='), listed.categories.reduce((n, c) => n + c.steps.length, 0), `${plan.id}: every step the leaf lists for it, and no other`);
+    // where the steps stand, the benefits do not; a card that lists no category draws its three benefits, as /pricing's does
+    assert.deepEqual([...card.matchAll(BENEFIT_LI)].map((m) => m[1]), listed.categories.length > 0 ? [] : plan.benefits.map(asHtml), `${plan.id}: ${listed.categories.length > 0 ? 'no benefit beside its steps' : 'its three benefits'}`);
+    // around the list, untouched: the top label, the name, the three lines, the price slot
+    assert.ok(card.includes(`data-plan-role="true">${asHtml(plan.role)}</p><h3 class="mt-1 text-lg font-semibold text-brand-purple" data-plan-name="true">${asHtml(plan.name)}</h3>`), `${plan.id}: its top label, then its name`);
+    for (const [hook, words] of [['positioning', plan.positioning], ['audience', plan.audience], ['relationship', plan.relationship]] as const) assert.ok(card.includes(`data-plan-${hook}="true">${asHtml(words)}</p>`), `${plan.id}: its ${hook} line`);
+    assert.ok(card.includes(`data-price-placeholder="true">${asHtml(LAUNCH_PLACEHOLDER)}</span>`), `${plan.id}: the price slot, at its foot`);
+  });
+  // THE BUNDLE adds no category of its own — the one plan that adds none — so its card draws its three benefits
+  assert.deepEqual(steps.filter((s) => s.categories.length === 0).map((s) => s.plan), ['everything'], 'the bundle, and only the bundle, lists no category');
+  assert.equal(count(rest.slice(rest.indexOf('data-plan="everything"')), 'data-plan-benefit='), 3, 'its three benefits');
+  assert.equal(count(rest, 'data-plan-benefit='), 3, 'and no other card draws a benefit');
+  // every step the leaf holds stands on a card, once — and each behind the leaf's mark, which is drawn nowhere else and read by no screen reader
+  const listedSteps = steps.reduce((n, s) => n + s.categories.reduce((k, c) => k + c.steps.length, 0), 0);
+  assert.equal(count(rest, 'data-plan-step='), listedSteps, 'every step the leaf lists');
+  assert.equal(listedSteps, HOW_TO_SECTIONS.reduce((n, s) => n + s.steps.length, 0), 'which is every step of the leaf — each category stands on one card');
+  assert.equal(count(rest, '<h4'), steps.reduce((n, s) => n + s.categories.length, 0), 'one heading per category listed');
+  assert.equal(count(rest, `<span aria-hidden="true" class="text-brand-purple">${PLAN_MARKS.inPlan.mark}</span>`), listedSteps, 'the in-plan mark before every step: hidden from a screen reader, in brand purple');
+  assert.equal(count(rest, PLAN_MARKS.inPlan.mark), listedSteps, 'and nowhere else');
+  for (const label of [PLAN_MARKS.inPlan.label, PLAN_MARKS.notInPlan.label]) assert.equal(count(rest, label), 0, `no "${label}" — a step on a card is in its plan; nothing is said for a screen reader alone`);
 
-  // WITH A STEP OPEN — its tools, each with its line, then its note when it has one
-  const steps = render(STEPS_OPEN);
-  assert.match(steps, table(STEPS_OPEN), 'two steps open: every row, as the leaf says it');
-  assert.equal(count(steps, 'data-comparison-tools='), 2);
-  const fifth = /data-comparison-tools="personal-5">([\s\S]*?)<\/td>/.exec(steps);
-  assert.ok(fifth, 'Personal step 5\'s tools');
-  assert.deepEqual([...fifth[1].matchAll(/<li class="[^"]*"><span class="[^"]*">([^<]*)<\/span><span class="[^"]*">([^<]*)<\/span><\/li>/g)].map((m) => [m[1], m[2]]), [
-    ['Retirement', 'Retirement accounts beside the rest of your money'],
-    ['Brokerage', 'Positions and balances from your broker'],
-    ['Fixed Assets', 'The things you own that lose value over time'],
-    ['Debt', 'What you owe, and when it comes due'],
-  ], 'each tool\'s name with its line');
-  assert.ok(fifth[1].endsWith('data-comparison-note="true">Each account sits where you use it: your 401k here, the brokerage you trade options in under Trade.</p>'), 'then the step\'s note');
-  const first = /data-comparison-tools="business-1">([\s\S]*?)<\/td>/.exec(steps);
-  assert.ok(first, 'Business step 1\'s tools');
-  assert.deepEqual([...first[1].matchAll(/<li class="[^"]*"><span class="[^"]*">([^<]*)<\/span><span class="[^"]*">([^<]*)<\/span><\/li>/g)].map((m) => [m[1], m[2]]), [['Compliance · Ent Filings', 'What the entity must file, when it is due, and whether it did']], 'two tools on their one line');
-  assert.equal(count(first[1], 'data-comparison-note'), 0, 'no note where the step has none');
-  assert.equal(count(steps, 'aria-expanded="true"'), 4, 'two categories and two steps open');
+  // GONE WITH THE TABLE: no table, no comparison hook, nothing that opens, no screen-reader-only text, nothing that scrolls sideways
+  for (const markup of ['<table', '<thead', '<tbody', '<th ', '<td', 'data-plan-comparison', 'data-comparison-', 'aria-expanded', 'sr-only', 'overflow-x-auto', 'colspan', 'colSpan']) assert.equal(count(rest, markup), 0, `no ${markup}`);
+  // … and none of the comparison's own words: its first head, its short plan heads, each category's line, each tool's line, each note — they stay in the leaf, undrawn
+  const comparison = planComparison();
+  const undrawn = [comparison.firstHead, ...comparison.columns.filter((c) => c.head !== c.name).map((c) => `>${c.head}<`),
+    ...comparison.categories.flatMap((c) => [c.line, ...c.steps.flatMap((step) => [...step.tools.map((t) => t.line), ...(step.note === null ? [] : [step.note])])])];
+  assert.ok(undrawn.length > PLANS.length, 'the comparison\'s words, read from the leaf');
+  for (const words of undrawn) assert.equal(count(rest, asHtml(words)), 0, `the comparison's "${words.slice(0, 40)}" is not drawn`);
 
-  // EVERYTHING OPEN — all 26 steps, each with a mark under each plan; all 26 tool rows; the two customer notes and no build note
-  const all = render(ALL_OPEN);
-  assert.match(all, table(ALL_OPEN), 'everything open: every row, as the leaf says it');
-  const totalSteps = view.categories.reduce((sum, c) => sum + c.count, 0);
-  assert.equal(totalSteps, 26);
-  assert.equal(count(all, 'data-comparison-step='), totalSteps, '26 step rows');
-  assert.equal(count(all, 'data-comparison-tools='), totalSteps, 'and their 26 tool rows');
-  assert.equal(count(all, 'data-comparison-mark='), (view.categories.length + totalSteps) * PLANS.length, 'a mark under each plan on every category row and every step row');
-  const inMarks = view.categories.reduce((sum, c) => sum + (1 + c.count) * c.inPlan.filter(Boolean).length, 0);
-  assert.equal(count(all, `class="${MARK_IN}">${PLAN_MARKS.inPlan.mark}</span><span class="sr-only">${PLAN_MARKS.inPlan.label}</span>`), inMarks, 'every ✓, with what a screen reader hears');
-  assert.equal(count(all, `class="${MARK_OUT}">${PLAN_MARKS.notInPlan.mark}</span><span class="sr-only">${PLAN_MARKS.notInPlan.label}</span>`), (view.categories.length + totalSteps) * PLANS.length - inMarks, 'and every —');
-  for (const c of view.categories) for (const step of c.steps) assert.ok(all.includes(`data-comparison-step-toggle="${stepKey(c.id, step.n)}">`) && new RegExp(`data-comparison-step="${stepKey(c.id, step.n)}">[\\s\\S]*?</th>${esc(marksHtml(c.inPlan))}</tr>`).test(all), `${c.id} step ${step.n}: its marks are its category's`);
-  assert.equal(count(all, 'data-comparison-note='), 2, 'the two notes written for a customer');
-  assert.equal(count(all, 'aria-expanded="true"'), 4 + totalSteps);
-  assert.equal(count(all, 'aria-expanded="false"'), 0);
+  // THE LINK — one, under the cards: the leaf's words, to the leaf's path
+  assert.equal(count(rest, '<a '), 1, 'one link — the cards\' doors are buttons, and nothing else links');
+  assert.ok(rest.endsWith(`</div>${link}</div></section>`), 'it is the last thing in the section, right under the cards\' grid');
+  assert.equal(count(rest, `href="${COMPARE_PLANS_PATH}"`), 1, 'to the leaf\'s path');
+  assert.equal(count(rest, asHtml(COMPARE_PLANS_WORDS)), 1, 'in the leaf\'s words');
+  for (const cls of ['inline-flex', 'min-h-[44px]', 'items-center', 'text-brand-purple', 'hover:text-brand-purple-hover']) assert.ok(COMPARE_CLASSES.split(' ').includes(cls), `the link is ${cls}`);
 
-  // IN NO RENDER: a status word, the switches, the plan line, the link to the plans, the counts, the legend, the build note, a status colour
+  // IN NO RENDER: a status word, the switches, the plan line, the counts, the legend, the build note, a status colour
+  // (Until HOME-PLANS-03 this list also refused the link itself — COMPARE_PLANS_WORDS, 'Compare all four plans' and the href to /pricing.)
   const gone = [...NO_STATUS, STEP_LIVE.words, STEP_PENDING.words, ...Object.values(TOOL_MARKS).flatMap((m) => [m.words, m.means]), WHAT_YOU_RUN_LABEL, PERSONAL_ALWAYS, `>${ADD_BUSINESS}<`, `>${ADD_TRADE}<`, 'aria-pressed',
-    'Your plan', 'Your steps', 'need Books', asHtml(NEXT_LINE), COMPARE_PLANS_WORDS, 'Compare all four plans', `href="${COMPARE_PLANS_PATH}"`, LEGEND_TITLE, asHtml(LEGEND_STEP_LINE), asHtml(LEGEND_BOOKS_LINE), 'No customer can open a trading book yet',
-    PIPELINE_DOOR, `href="${PIPELINE_PATH}"`, 'data-how-to-switch', 'data-how-to-plan', 'data-how-to-price', 'data-how-to-cta', 'data-how-to-steps', 'data-how-to-books', 'data-how-to-section', 'data-how-to-row', 'data-how-to-card', 'data-how-to-state', 'data-how-to-mark', 'data-how-to-legend',
+    'Your plan', 'Your steps', 'need Books', asHtml(NEXT_LINE), LEGEND_TITLE, asHtml(LEGEND_STEP_LINE), asHtml(LEGEND_BOOKS_LINE), 'No customer can open a trading book yet',
+    PIPELINE_DOOR, `href="${PIPELINE_PATH}"`, 'data-how-to-switch', 'data-how-to-plan', 'data-how-to-price', 'data-how-to-cta', 'data-how-to-compare', 'data-how-to-steps', 'data-how-to-books', 'data-how-to-section', 'data-how-to-row', 'data-how-to-card', 'data-how-to-state', 'data-how-to-mark', 'data-how-to-legend',
     'text-status-', 'text-brand-amber', 'text-brand-red', 'text-brand-green'];
-  for (const [what, html] of [['at rest', rest], ['Business open', business], ['two steps open', steps], ['everything open', all]] as const) {
-    for (const word of gone) assert.equal(count(html, word), 0, `${what}: no "${word}"`);
-    // the board's rule for this block still holds: no count of the tools, no "guide" line, nothing "coming soon". (The old test also refused the word
-    // "placeholder"; the cards carry the price slot's own hook, data-price-placeholder, over "Pricing announced at launch" — the leaf's words, as /pricing draws them.)
-    assert.doesNotMatch(html, /\d+ tools\b|\bguide\b|coming soon/i, `${what}: no count of the tools, no guide line, nothing coming soon`);
-    assert.equal(count(html, 'placeholder'), PLANS.length, `${what}: "placeholder" is the four cards' price-slot hook and nothing else`);
-    assert.equal(count(html, '<a '), 0, `${what}: no link — the cards' doors are buttons, and nothing else links`);
-  }
+  for (const word of gone) assert.equal(count(rest, word), 0, `no "${word}"`);
+  // the board's rule for this block still holds: no count of the tools, no "guide" line, nothing "coming soon". (The old test also refused the word
+  // "placeholder"; the cards carry the price slot's own hook, data-price-placeholder, over "Pricing announced at launch" — the leaf's words, as /pricing draws them.)
+  assert.doesNotMatch(rest, /\d+ tools\b|\bguide\b|coming soon/i, 'no count of the tools, no guide line, nothing coming soon');
+  assert.equal(count(rest, 'placeholder'), PLANS.length, '"placeholder" is the four cards\' price-slot hook and nothing else');
 
-  // THE DOOR AND THE TOGGLES — a card's button opens the door it is handed; a toggle calls back with its own key
+  // THE DOOR — a card's button opens the door it is handed; the link is a plain anchor, with no handler
   const calls: string[] = [];
-  const drawn = drawnElementsOf(HowToView({ openCategories: new Set(AT_REST.categories), openSteps: new Set<string>(), onCategory: (id) => { calls.push(`category ${id}`); }, onStep: (key) => { calls.push(`step ${key}`); }, onJoin: () => { calls.push('join'); } }));
+  const drawn = drawnElementsOf(HowToView({ onJoin: () => { calls.push('join'); } }));
   const buttons = drawn.filter((el) => el.type === 'button');
-  assert.equal(buttons.length, PLANS.length + 4 + view.categories[0].count);
+  assert.equal(buttons.length, PLANS.length);
   for (const b of buttons) (b.props.onClick as () => void)();
-  assert.deepEqual(calls, [
-    ...PLANS.map(() => 'join'),
-    'category personal', ...view.categories[0].steps.map((step) => `step personal-${step.n}`),
-    'category business', 'category travel', 'category trade',
-  ], 'each card\'s button opens the door; each toggle calls back with its key, in the order drawn');
+  assert.deepEqual(calls, PLANS.map(() => 'join'), 'each card\'s button opens the door');
+  const anchors = drawn.filter((el) => el.type === 'a');
+  assert.equal(anchors.length, 1, 'the one link');
+  assert.deepEqual(Object.keys(anchors[0].props).sort(), ['children', 'className', 'data-compare-plans', 'href'], 'a plain anchor: where it goes, how it looks, its hook, its words');
 
-  // THE TWO SETS — React state in the default export: a category opens and closes, a step opens, any number at once
-  assert.deepEqual([...toggled(new Set(['personal']), 'business')], ['personal', 'business'], 'a key that is not in joins');
-  assert.deepEqual([...toggled(new Set(['personal', 'business']), 'personal')], ['business'], 'a key that is in leaves');
-  const before = new Set(['personal']);
-  assert.notEqual(toggled(before, 'travel'), before, 'a new set each time');
-  assert.deepEqual([...before], ['personal'], 'and the old one untouched');
-  assert.equal(stepKey('business', 3), 'business-3');
-  // the section is called inside a host's render; an act made DURING that render is a render-phase update, so the renderer draws the host again
-  const acts: Array<(props: HowToViewProps) => void> = [(p) => p.onCategory('business'), (p) => p.onStep('business-3'), (p) => p.onStep('personal-1'), (p) => p.onCategory('personal'), (p) => p.onStep('business-3')];
-  const passes: string[] = [];
-  const Host = () => {
-    const el = HowToSectionDefault({ onRequireAuth: () => {} }) as React.ReactElement<HowToViewProps>;
-    assert.equal(el.type, HowToView, 'the default export draws the pure half');
-    passes.push(`${[...el.props.openCategories].join(',')} | ${[...el.props.openSteps].join(',')}`);
-    if (passes.length <= acts.length) acts[passes.length - 1](el.props);
-    return null;
-  };
-  assert.equal(renderToStaticMarkup(React.createElement(Host)), '');
-  assert.deepEqual(passes, [
-    'personal | ',
-    'personal,business | ',
-    'personal,business | business-3',
-    'personal,business | business-3,personal-1',
-    'business | business-3,personal-1',
-    'business | personal-1',
-  ], 'Personal open at rest → Business opens beside it → a step opens → another step opens → Personal closes → a step closes');
+  // NO STATE — the default export is a plain function of its door: called outside any render it throws nothing (a hook would), and it hands the pure
+  // half the door and nothing that opens or closes. (Until HOME-PLANS-03 it held the two open-sets, and this test drove them inside a host's render.)
+  const door = () => {};
+  const el = HowToSectionDefault({ onRequireAuth: door }) as React.ReactElement<HowToViewProps>;
+  assert.equal(el.type, HowToView, 'the default export draws the pure half');
+  assert.deepEqual(Object.keys(el.props), ['onJoin'], 'handed the door alone');
+  assert.equal(el.props.onJoin, door, 'the door Landing hands in');
 });
 
 // ── T5 · THE SOURCE ──────────────────────────────────────────────────────────
 
-test('T5 (HOME-PLANS-01) the source: the section types no leaf word, no mark, no status and no price — its only typed words are its aria-label; two sets in React state only, no storage and no URL; it takes PlanCards and nothing else from the plans section; the table\'s box, head row and toggle are the plans table\'s own idioms; the marks are never the status colours; the leaf is pure', () => {
+// HOME-PLANS-03 (2026-11-11): T5 RE-WRITTEN IN PLACE — the section reads the cards' steps and the link from the leaf and holds no state. Until then
+// it pinned the comparison's source: `const view = planComparison();` and the leaf import '{ PLAN_MARKS, planComparison, type HowToSectionId }';
+// 'react' and '@/lib/ds' among its imports; two sets in React state (useState three times — the import and the two sets) and OPEN_AT_REST; the
+// marks' two classes; the table's box, head row, first head and two toggles against the plans table's own idioms; the eight class keys a phone
+// changed, each as typed (HOME-PLANS-02); and COMPARE_PLANS among the names gone from the section.
+test('T5 (HOME-PLANS-03) the source: the section types no leaf word, no mark, no status and no price — its only typed words are its aria-label; it holds no state — no hook, no storage, no URL; it reads the cards\' steps and the link from the leaf, and takes PlanCards and nothing else from the plans section; the table left with every name only it used; the link wears the house text link; the leaf is pure and keeps the comparison, undrawn', () => {
   const section = code(SECTION);
   const flat = section.replace(/\s+/g, ' ');
   const view = planComparison();
@@ -469,26 +476,29 @@ test('T5 (HOME-PLANS-01) the source: the section types no leaf word, no mark, no
     'Plan ahead, budget for what you want to do, prepare for tax time, and compare your plans with what actually happened.',
     'Connect the dots across your personal, business, and trading finances to make better decisions about what comes next.',
   ]);
-  // none of the leaves' words: the pillar's, the cards', the table's — and none of the status view's, which is drawn here no more
+  // none of the leaves' words: the pillar's, the cards', each category's heading and each step's title, the link's — and none of the comparison's
+  // or the status view's, which are drawn here no more
   assert.equal(COMPARE_PLANS_WORDS, 'Compare all four plans →');
   assert.equal(COMPARE_PLANS_PATH, '/pricing');
   const typed = [PLAN_PILLAR.heading, ...PLAN_PILLAR.paragraphs, COMPARISON_FIRST_HEAD, PLAN_MARKS.inPlan.label, PLAN_MARKS.notInPlan.label, LAUNCH_PLACEHOLDER, EARLY_ACCESS_CTA,
+    ...planCardSteps().flatMap((card) => card.categories.flatMap((c) => [c.heading, ...c.steps])),
     ...view.categories.flatMap((c) => [c.heading, c.countWords, c.line, ...c.steps.flatMap((step) => [step.title, ...step.tools.map((t) => t.line), ...(step.note === null ? [] : [step.note])])]),
     ...HOW_TO_SECTIONS.flatMap((s) => s.steps.flatMap((step) => (typeof step.title === 'string' ? [step.title] : [step.title.withBusiness, step.title.withoutBusiness]))),
-    'Software plans →', 'Here’s how you actually do it.', 'Personal is everyone’s.', WHAT_YOU_RUN_LABEL, PERSONAL_ALWAYS, ADD_BUSINESS, ADD_TRADE, NEXT_LINE, COMPARE_PLANS_WORDS, 'NEEDS BOOKS', 'NOT ON SALE YET', 'YOUR STEP', LEGEND_TITLE, LEGEND_STEP_LINE, LEGEND_BOOKS_LINE, PIPELINE_DOOR, stepCountWords(1), stepCountWords(2)];
+    'Software plans →', 'Here’s how you actually do it.', 'Personal is everyone’s.', WHAT_YOU_RUN_LABEL, PERSONAL_ALWAYS, ADD_BUSINESS, ADD_TRADE, NEXT_LINE, COMPARE_PLANS_WORDS, COMPARE_PLANS_PATH, 'NEEDS BOOKS', 'NOT ON SALE YET', 'YOUR STEP', LEGEND_TITLE, LEGEND_STEP_LINE, LEGEND_BOOKS_LINE, PIPELINE_DOOR, stepCountWords(1), stepCountWords(2)];
   for (const w of typed) assert.ok(!flat.includes(w), `the section does not type "${w.slice(0, 40)}"`);
   for (const head of Object.values(PLAN_HEADS)) assert.ok(!flat.includes(`'${head}'`) && !flat.includes(`"${head}"`) && !flat.includes(`>${head}<`), `nor the head "${head}"`);
-  // what it does type: one aria-label, and — between its tags — nothing a visitor reads; a toggle's two signs sit in expressions, hidden from a screen reader
+  // what it does type: one aria-label, and — between its tags — nothing a visitor reads
   assert.deepEqual([...section.matchAll(/aria-label="([^"]*)"/g)].map((m) => m[1]), ['Software plans'], 'its one aria-label — "How to" until HOME-PLANS-01');
-  const drawnAt = section.indexOf('const marks = (inPlan: readonly boolean[]) =>');
+  const drawnAt = section.indexOf('<section id="modules"');
   const drawnEnd = section.lastIndexOf('</section>');
-  assert.ok(drawnAt > -1 && drawnEnd > drawnAt, 'the pure half\'s markup: from the marks to the act\'s closing tag');
+  assert.ok(drawnAt > -1 && drawnEnd > drawnAt, 'the pure half\'s markup: from the act\'s opening tag to its closing tag');
   // `>text<` with no brace in it is a literal a visitor would read (the plan law's own scan); an arrow function's opening parenthesis is not text
   assert.deepEqual([...section.slice(drawnAt, drawnEnd).matchAll(/>([^<>{}]+)</g)].map((m) => m[1].trim()).filter((text) => /[A-Za-z0-9]/.test(text)), [], 'no text is typed between its tags');
-  assert.equal(count(section, `<span aria-hidden="true" className={HOW.sign}>{open ? '−' : '+'}</span>`), 1, 'a category\'s sign');
-  assert.equal(count(section, `<span aria-hidden="true" className={HOW.sign}>{stepOpen ? '−' : '+'}</span>`), 1, 'a step\'s sign');
+  // nothing opens, so nothing signs it: no − and no +, no aria-expanded, no button of its own (until HOME-PLANS-03 a category's and a step's sign each stood once, in expressions)
+  for (const sign of ['−', '\'+\'', 'aria-expanded', '<button']) assert.equal(count(section, sign), 0, `the section types no ${sign}`);
   // the act, as ruled; the pillar, untouched
   assert.match(section, /^'use client';/);
+  assert.match(comments(SECTION), /'use client' STAYS, FOR THE DOOR: this file builds the button door's click handler/, 'why the directive stays, said in the header');
   assert.match(section, /<section id="modules" aria-label="Software plans" className="w-full border-b border-border bg-bg-terminal" data-how-to>/, 'the act — id="modules" since HOME-BRIEF-04; aria-label "How to" until HOME-PLANS-01');
   assert.equal(count(section, 'id="modules"'), 1);
   assert.match(section, /^import \{ PLAN_PILLAR \} from '@\/lib\/homeActWords';$/m, 'the pillar\'s words from their leaf');
@@ -498,85 +508,49 @@ test('T5 (HOME-PLANS-01) the source: the section types no leaf word, no mark, no
   assert.match(section, /^ {2}inner: 'max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-10',$/m);
   assert.match(section, /^ {2}h2: 'text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',$/m, 'the page\'s purple heading classes');
   assert.match(section, /^ {2}pillar: 'mt-3 max-w-3xl text-base text-text-secondary',$/m);
-  // what it reads: the comparison and its marks from the leaf; the four cards — and nothing else — from the plans section; the status view no more
-  assert.deepEqual([...section.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]), ['react', '@/lib/ds', '@/lib/howTo', '@/lib/homeActWords', '@/components/offer/PlansSection']);
+  // what it reads: what each card lists, and the link's words and path, from the leaf; the four cards — and nothing else — from the plans section
+  assert.deepEqual([...section.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]), ['@/lib/howTo', '@/lib/homeActWords', '@/components/offer/PlansSection'], 'three imports — \'react\' and \'@/lib/ds\' left with the table');
   assert.match(section, /^import \{ PlanCards \} from '@\/components\/offer\/PlansSection';$/m, 'PlanCards, and nothing else, from the plans section');
-  assert.match(section, /^import \{ PLAN_MARKS, planComparison, type HowToSectionId \} from '@\/lib\/howTo';$/m, 'the comparison and its two marks from the leaf');
-  assert.equal(count(section, 'const view = planComparison();'), 1);
-  assert.equal(count(section, `<PlanCards door={{ kind: 'button', onClick: () => onJoin() }} />`), 1, 'the four cards, with a button door');
+  assert.match(section, /^import \{ COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, planCardSteps \} from '@\/lib\/howTo';$/m, 'what each card lists and the link, from the leaf');
+  assert.equal(count(section, `<PlanCards door={{ kind: 'button', onClick: () => onJoin() }} steps={planCardSteps()} />`), 1, 'the four cards, with a button door and the leaf\'s steps');
+  assert.equal(count(section, 'planCardSteps'), 2, 'read once: its import and its one call');
+  assert.equal(count(section, '<a href={COMPARE_PLANS_PATH} className={HOW.compare} data-compare-plans>{COMPARE_PLANS_WORDS}</a>'), 1, 'the one link: the leaf\'s path, the leaf\'s words');
+  assert.equal(count(section, '<a '), 1, 'and no other link');
+  const [paragraphsAt, cardsAt, linkAt] = ['{PLAN_PILLAR.paragraphs.map(', '<PlanCards ', '<a href={COMPARE_PLANS_PATH}'].map((s) => section.indexOf(s));
+  assert.ok(paragraphsAt > -1 && cardsAt > paragraphsAt && linkAt > cardsAt && drawnEnd > linkAt, 'the pillar → the cards → the link → the act closes');
+  assert.match(section.slice(linkAt, drawnEnd), /^<a href=\{COMPARE_PLANS_PATH\} className=\{HOW\.compare\} data-compare-plans>\{COMPARE_PLANS_WORDS\}<\/a>\s*<\/div>\s*$/, 'nothing after the link but the act\'s own closing tags');
   assert.match(section, /export default function HowToSection\(\{ onRequireAuth \}: \{ onRequireAuth: \(\) => void \}\) \{/, 'Landing hands it the door');
   assert.equal(count(section, 'onJoin={onRequireAuth}'), 1, 'and the cards\' buttons get that door');
-  for (const goneName of ['howToView', 'TOOL_MARKS', 'LEGEND_', 'WHAT_YOU_RUN_LABEL', 'PERSONAL_ALWAYS', 'ADD_BUSINESS', 'ADD_TRADE', 'COMPARE_PLANS', 'HowToChoice', 'PRIMARY_CTA', 'chip(', "from 'next/link'", 'pipelineWords', 'PIPELINE_',
+  for (const goneName of ['howToView', 'TOOL_MARKS', 'LEGEND_', 'WHAT_YOU_RUN_LABEL', 'PERSONAL_ALWAYS', 'ADD_BUSINESS', 'ADD_TRADE', 'HowToChoice', 'PRIMARY_CTA', 'chip(', "from 'next/link'", 'pipelineWords', 'PIPELINE_',
     'data-how-to-switch', 'data-how-to-always', 'data-how-to-plan', 'data-how-to-price', 'data-how-to-cta', 'data-how-to-compare', 'data-how-to-steps', 'data-how-to-books', 'data-how-to-section', 'data-how-to-badge', 'data-how-to-row', 'data-how-to-card', 'data-how-to-step', 'data-how-to-state', 'data-how-to-mark', 'data-how-to-note', 'data-how-to-next', 'data-how-to-legend',
-    'switchOn:', 'switchOff:', 'always:', 'legend:', 'legendMarks:', 'legendLine:', 'sectionHead:', 'sectionName:', 'sectionLine:', 'cardHead:', 'compare:', 'offer:', 'aria-pressed', 'snap-x']) {
+    'switchOn:', 'switchOff:', 'always:', 'legend:', 'legendMarks:', 'legendLine:', 'sectionHead:', 'sectionName:', 'sectionLine:', 'cardHead:', 'offer:', 'aria-pressed', 'snap-x']) {
     assert.ok(!section.includes(goneName), `${goneName} left the section with what it served`);
   }
-  // STATE: two sets, in React state only — no storage, no URL, no effect, no clock
-  assert.equal(count(section, 'useState<ReadonlySet<'), 2, 'two sets in React state');
-  assert.equal(count(section, 'useState'), 3, 'and no other state — the import and the two sets');
-  assert.match(section, /const OPEN_AT_REST: readonly HowToSectionId\[\] = \['personal'\];/, 'the first category starts open');
-  assert.match(section, /useState<ReadonlySet<string>>\(\(\) => new Set<string>\(\)\)/, 'no step starts open');
+  // HOME-PLANS-03: THE TABLE LEFT WITH EVERY NAME ONLY IT USED — its view and its marks, its two open-sets and their helpers, its box, and each key of
+  // the class grammar that dressed it. ('COMPARE_PLANS' and 'compare:' stood in the list above until then: the link is back, under its own key.)
+  for (const goneName of ['planComparison', 'PLAN_MARKS', 'HowToSectionId', 'stepKey', 'toggled', 'OPEN_AT_REST', 'openCategories', 'openSteps', 'onCategory', 'onStep', 'useState', 'Fragment', "from 'react'", "from '@/lib/ds'", 'DATA.', 'RING',
+    'data-plan-comparison', 'data-comparison-', 'sr-only', '<table', '<thead', '<tbody', 'colSpan', 'scope=', 'overflow-x-auto',
+    'box:', 'table:', 'headRow:', 'firstHead:', 'planHead:', 'row:', 'rowHead:', 'categoryToggle:', 'stepToggle:', 'stepWords:', 'stepNumber:', 'sign:', 'markCell:', 'markIn:', 'markOut:', 'line:', 'tools:', 'toolList:', 'tool:', 'toolName:', 'toolLine:', 'note:']) {
+    assert.ok(!section.includes(goneName), `${goneName} left the section with the table`);
+  }
+  // the class grammar is four keys: the act's inner box, the pillar's two, the link's
+  assert.deepEqual([...section.matchAll(/^ {2}(\w+): ['`]/gm)].map((m) => m[1]), ['inner', 'h2', 'pillar', 'compare'], 'the class grammar: four keys');
+  // NO STATE: no hook at all — so no storage, no URL, no effect, no clock (until HOME-PLANS-03: two sets in React state, and OPEN_AT_REST = ['personal'])
+  assert.equal(count(section, 'useState'), 0, 'no state');
+  assert.doesNotMatch(section, /\buse[A-Z]\w*\s*\(/, 'no hook of any kind');
   assert.doesNotMatch(section, /\buse(Effect|LayoutEffect|Reducer|Ref|Router|SearchParams|Pathname)\b|localStorage|sessionStorage|document\.cookie|window\.|location\b|\bfetch\s*\(|new Date\(|Date\.now\(/, 'no storage, no URL, no fetch, no clock');
-  // PAINT: zero new hex; the marks in brand purple and faint ink — never the status colours
+  // PAINT: zero new hex; never the status colours; the link wears the house text link — brand purple and the hover purple, mono, at least 44px tall
   assert.doesNotMatch(section, /#[0-9a-fA-F]{3,8}\b/, 'zero new hex');
-  assert.match(section, /^ {2}markIn: 'font-mono text-sm text-brand-purple',$/m, '✓ in brand purple');
-  assert.match(section, /^ {2}markOut: 'font-mono text-sm text-text-faint',$/m, '— in faint ink');
   assert.doesNotMatch(section, /text-status-|bg-status-|text-brand-amber|text-brand-red|text-brand-green|text-brand-gold/, 'never the status colours');
-  // the table's box, its head row and its toggle rows are the plans table's own idioms (PlansSection.tsx)
+  assert.match(section, /^ {2}compare: 'mt-4 inline-flex min-h-\[44px\] items-center font-mono text-xs tracking-wider text-brand-purple hover:text-brand-purple-hover',$/m, 'the link: the house text link, under a top margin');
+  assert.equal(count(section, `  compare: '${COMPARE_CLASSES}',`), 1, 'the very classes T4 holds in the render');
+  // the plans table's own idioms stand as they were (PlansSection.tsx) — /pricing draws them. (Until HOME-PLANS-03 the section's box, head row, first
+  // head and two toggles were held against them, class by class; the section draws no table now, so only their side of the pin remains.)
   const plans = code(PLANS_SECTION);
   assert.ok(plans.includes('<div className="mt-3 overflow-x-auto rounded-lg border border-border bg-white" data-plan-table>'), 'the plans table\'s box');
-  // (Until the look's fix this pinned the box as the plans table's own but for its top margin alone — unpositioned; see T10.)
-  assert.match(section, /^ {2}box: 'relative mt-8 overflow-x-auto rounded-lg border border-border bg-white',$/m, 'the same box, but for its top margin and `relative` — it scrolls sideways inside itself, and holds its own screen-reader text');
   assert.ok(plans.includes('<tr className="border-b border-border bg-bg-row text-left align-top">'), 'the plans table\'s head row');
-  assert.match(section, /^ {2}headRow: 'border-b border-border bg-bg-row text-left align-top',$/m, 'the same head row');
   assert.ok(plans.includes('<th className={`px-3 py-3 ${DATA.columnHeader}`}>'), 'the plans table\'s first head');
-  assert.match(section, /^ {2}firstHead: `px-3 py-3 text-left \$\{DATA\.columnHeader\}`,$/m, 'the same first head');
-  const groupToggle = /className="(flex w-full items-center justify-between [^"]*)"\s*data-plan-group-toggle/.exec(plans);
-  const categoryToggle = /^ {2}categoryToggle: `([^`]*)`,$/m.exec(section);
-  const stepToggle = /^ {2}stepToggle: `([^`]*)`,$/m.exec(section);
-  assert.ok(groupToggle && categoryToggle && stepToggle, 'the plans table\'s group toggle, and the section\'s two');
-  // (Until HOME-PLANS-02 a category's toggle wore every one of the group toggle's classes bare. Two now stand behind `md:` — px-3 and
-  // tracking-wider — because below it a phone takes pl-3 pr-0.5 and tracking-wide in their place.)
-  const category = categoryToggle[1].split(' ');
-  for (const cls of groupToggle[1].split(' ').filter((c) => c !== 'uppercase')) assert.ok(category.includes(cls) || category.includes(`md:${cls}`), `a category's toggle wears the group toggle's ${cls} — bare, or from md up`);
-  assert.deepEqual(groupToggle[1].split(' ').filter((c) => c !== 'uppercase' && !category.includes(c)), ['px-3', 'tracking-wider'], 'the two a phone changes stand behind md: — and no other');
-  assert.ok(groupToggle[1].split(' ').includes('uppercase') && !categoryToggle[1].split(' ').includes('uppercase'), 'but not its upper-casing: the capitals are the leaf\'s, so the count reads as written');
-  for (const toggle of [categoryToggle[1], stepToggle[1]]) for (const cls of ['flex', 'w-full', 'items-center', 'justify-between', 'min-h-[44px]', 'hover:bg-bg-row', '${RING}']) assert.ok(toggle.split(' ').includes(cls), `a toggle is ${cls}`);
-  assert.match(section, /^const RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple';$/m, 'the focus ring: the house ring, inside the cell');
-  assert.equal(count(section, '<button type="button" aria-expanded={'), 2, 'the two toggles are real buttons with aria-expanded');
-  // (Until HOME-PLANS-02: 'w-full min-w-[720px] table-fixed text-sm' — the table kept the width it needed at every width, and the box scrolled below it.)
-  assert.match(section, /^ {2}table: 'w-full md:min-w-\[720px\] table-fixed text-sm',$/m, 'from md the table keeps the width it needs; below it the table is the box\'s width');
-  assert.equal(count(section, 'scope="col"'), 2, 'the first head and the plan heads are column headers');
-  assert.equal(count(section, '<th scope="row" className={HOW.rowHead}>'), 2, 'a category\'s row and a step\'s row each open with a row header that holds the toggle');
-  assert.equal(count(section, '<span className="sr-only">{column.name}</span>'), 1, 'a plan\'s full name, for a screen reader');
-  // HOME-PLANS-02 — THE COMPARISON FITS A PHONE: eight keys of the class grammar take the phone's values below `md`, and each still carries the
-  // value it had behind `md:` — the desktop's classes are all still there, so from `md` up nothing changes.
-  const asTyped = (key: string) => { const m = new RegExp(`^ {2}${key}: (?:'([^'\\n]*)'|\`([^\`\\n]*)\`),$`, 'm').exec(section); return m ? (m[1] ?? m[2]) : null; };
-  const keys = Object.keys(GRAMMAR_UNTIL) as GrammarKey[];
-  assert.deepEqual(keys, ['table', 'planHead', 'categoryToggle', 'stepToggle', 'stepWords', 'markCell', 'tools', 'tool'], 'the eight keys a phone changes');
-  for (const key of keys) {
-    const now = GRAMMAR_NOW[key].split(' ');
-    const until = GRAMMAR_UNTIL[key].split(' ');
-    // as written
-    assert.equal(asTyped(key), GRAMMAR_NOW[key], `${key}: as the section types it`);
-    // the desktop's classes are all still there — bare where the phone left them, behind md: where the phone put its own
-    for (const cls of until) assert.ok(now.includes(cls) || now.includes(`md:${cls}`), `${key}: the desktop's ${cls} is still there`);
-    const behindMd = now.filter((c) => c.startsWith('md:')).map((c) => c.slice('md:'.length));
-    for (const cls of behindMd) {
-      assert.ok(until.includes(cls), `${key}: md:${cls} gives back a class the key had`);
-      assert.ok(!now.includes(cls), `${key}: ${cls} stands behind md: only — below it the phone's value applies`);
-    }
-    assert.ok(behindMd.length >= 1, `${key}: it carries its old value behind md:`);
-    // what a phone takes below md, as the brief lists it — and nothing else is new
-    assert.deepEqual(now.filter((c) => !c.startsWith('md:') && !until.includes(c)), [...PHONE[key]], `${key}: the phone's own classes`);
-    // drop the phone's own and un-prefix md:, and the key is exactly what it was — the same classes, in the same order
-    assert.deepEqual(now.filter((c) => !PHONE[key].includes(c)).map((c) => c.replace(/^md:/, '')), until, `${key}: from md up, exactly what it was`);
-    // md is the one breakpoint these keys know
-    assert.doesNotMatch(GRAMMAR_NOW[key], /(?:^| )(?:sm|lg|xl|2xl|max-[a-z0-9]+):/, `${key}: no other breakpoint`);
-  }
-  assert.deepEqual(keys.filter((key) => GRAMMAR_NOW[key] === GRAMMAR_UNTIL[key]), [], 'each of the eight changed');
-  // every button keeps its 44px floor at every width (the box is not one of the eight: its pins, above and in T10, stand as they were)
-  for (const key of ['categoryToggle', 'stepToggle'] as const) assert.ok(GRAMMAR_NOW[key].split(' ').includes('min-h-[44px]'), `${key}: at least 44px tall, at every width`);
+  assert.match(plans, /className="flex w-full items-center justify-between [^"]*"\s*data-plan-group-toggle/, 'the plans table\'s group toggle');
   // the leaf: pure, and it reads the registry, the plans and the offer — never a typed status for a tool, never a plan's words, never a price
   const leaf = code(LEAF);
   assert.doesNotMatch(leaf, /['"]use client['"]|from 'react'|\bfetch\s*\(|new Date\(|Date\.now\(|process\.env|localStorage/, 'the leaf is pure');
@@ -593,6 +567,14 @@ test('T5 (HOME-PLANS-01) the source: the section types no leaf word, no mark, no
   for (const kept of ['export function howToView(', 'export const NEEDS_BOOKS:', 'export function booksNotOnSale(', 'export function planFor(', 'export const TOOL_MARKS:', 'export const LEGEND_TITLE', 'export const WHAT_YOU_RUN_LABEL', 'export const COMPARE_PLANS_WORDS']) {
     assert.equal(count(leaf, kept), 1, `the leaf keeps ${kept}`);
   }
+  // HOME-PLANS-03: KEPT, NOT DRAWN — the comparison stays in the leaf too, exported as it was, beside what the cards list now; the leaf's doc says so, dated
+  for (const kept of ['export function planComparison(', 'export const COMPARISON_FIRST_HEAD', 'export const PLAN_HEADS:', 'export const PLAN_MARKS', 'export function toolLine(', 'export function planCardSteps(', 'export const COMPARE_PLANS_PATH']) {
+    assert.equal(count(leaf, kept), 1, `the leaf keeps ${kept}`);
+  }
+  const leafDoc = comments(LEAF);
+  assert.match(leafDoc, /HOME-PLANS-03 \(Alex, 2026-11-11 18:17 Manila: /, 'the ruling, dated, in the leaf\'s doc');
+  assert.match(leafDoc, /KEPT, NOT DRAWN \(2026-11-11\): the comparison — planComparison with COMPARISON_FIRST_HEAD, PLAN_HEADS, toolLine/, 'the comparison is kept, undrawn — said in the leaf\'s doc, dated');
+  assert.match(leafDoc, /the same standing as\s+\*?\s*the status view \(howToView\)/, 'with the status view\'s standing');
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): four more — Trade Log, Brokerage, Tax, Compliance, each behind a key only Books grants. The six until then.
   assert.deepEqual([...NEEDS_BOOKS], ['Banking', 'Bookkeeping', 'Expenses', 'Bill Pay', 'Budget', 'Tasks', 'Trade Log', 'Brokerage', 'Tax', 'Compliance'], 'the ten tools that need Books');
 });
@@ -624,7 +606,7 @@ test('T6 Landing mounts the how-to once, with the door — first under "What We 
 
 // ── T7 · THE FOUR PLAN CARDS, SHARED (HOME-PLANS-01) ─────────────────────────
 
-test('T7 (HOME-PLANS-01) the four plan cards are exported whole: PlanCards alone stands whole inside PlansSection\'s render, once, right under its subhead; four cards in PLANS\' order, each with its top label, its name, its two lines, who it is for, three benefits, the launch placeholder and its door; a button door calls back with the plan\'s id; a link door draws the link', () => {
+test('T7 (HOME-PLANS-01) the four plan cards are exported whole: PlanCards alone stands whole inside PlansSection\'s render, once, right under its subhead; four cards in PLANS\' order, each with its top label, its name, its two lines, who it is for, three benefits, the launch placeholder and its door; a button door calls back with the plan\'s id; a link door draws the link; (HOME-PLANS-03) its signature carries one optional prop, `steps` — and without it the four cards are, to the byte, what they were', () => {
   // /pricing's own door: a link to the front door (src/app/pricing/page.tsx — not edited)
   const linkDoor = { kind: 'link', href: '/' } as const;
   assert.equal(count(code(PRICING), `<PlansSection door={{ kind: 'link', href: '/' }} headingId="plans" />`), 1, '/pricing mounts the plans section as it did');
@@ -635,6 +617,16 @@ test('T7 (HOME-PLANS-01) the four plan cards are exported whole: PlanCards alone
   assert.equal(count(section, cards), 1, 'PlanCards\' own render stands whole inside PlansSection\'s, once');
   assert.equal(count(section, GRID), 1, 'one grid of cards in the plans section');
   assert.ok(section.includes(`data-plans-subhead="true">${asHtml(PLANS_SUBHEAD)}</p>${cards}`), 'right under the subhead, where the grid stood');
+  // HOME-PLANS-03 (2026-11-11): WITHOUT `steps`, THE CARDS ARE WHAT THEY WERE — TO THE BYTE. The whole markup of the four cards is built here from the
+  // leaf (cardsHtml: every class as the cards wore it before this brief, the plan's words, its three benefits, its launch slot, its door) and held
+  // equal to PlanCards' own render — the string this test already builds, and the one that stands whole inside /pricing's section above.
+  assert.equal(cards, cardsHtml({ href: '/' }), 'without `steps`: exactly the four cards /pricing drew — the same grid, the three benefits');
+  assert.equal(renderToStaticMarkup(React.createElement(PlanCards, { door: linkDoor, steps: undefined })), cards, 'and a `steps` left undefined is no `steps`');
+  for (const added of ['data-plan-step', 'data-plan-category', '<h4', 'md:grid-cols-2']) {
+    assert.equal(count(cards, added), 0, `without \`steps\`, no ${added} in the cards`);
+    assert.equal(count(section, added), 0, `nor anywhere in /pricing's section`);
+  }
+  assert.equal(count(cards, PLAN_MARKS.inPlan.mark), 0, 'and no step\'s mark on a card');
   // four cards, in PLANS' order — each whole
   const opens = [...cards.matchAll(/<div class="([^"]*)" data-plan="([^"]+)" data-plan-modules="([^"]*)">/g)];
   assert.deepEqual(opens.map((m) => m[2]), PLANS.map((p) => p.id), 'four cards, in PLANS\' order');
@@ -672,9 +664,11 @@ test('T7 (HOME-PLANS-01) the four plan cards are exported whole: PlanCards alone
   assert.equal(buttons.length, PLANS.length, 'one button per card');
   for (const b of buttons) (b.props.onClick as () => void)();
   assert.deepEqual(pressed, PLANS.map((p) => p.id), 'each card\'s button calls the door with its own plan\'s id, in order');
+  assert.equal(buttonCards, cardsHtml('button'), 'HOME-PLANS-03: with a button door and no `steps` — the same four cards, to the byte');
   // the source: the grid moved whole into the exported component, and the section renders it in its place
   const src = code(PLANS_SECTION);
-  assert.equal(count(src, 'export function PlanCards({ door }: { door: PlanDoor }) {'), 1, 'exported from the plans section\'s own file');
+  // HOME-PLANS-03 (2026-11-11): THE SIGNATURE PIN MOVED — it carries the one optional prop. (Until then: 'export function PlanCards({ door }: { door: PlanDoor }) {'.)
+  assert.equal(count(src, 'export function PlanCards({ door, steps }: { door: PlanDoor; steps?: readonly PlanCardSteps[] }) {'), 1, 'exported from the plans section\'s own file — the door, and one optional prop: `steps`');
   assert.equal(count(src, '<PlanCards door={door} />'), 1, 'PlansSection renders it where the grid stood');
   assert.equal(count(src, '<div className="mt-6 grid gap-4 lg:grid-cols-4">'), 1, 'the grid is typed once');
   assert.equal(count(src, '<PriceSlot plan={plan} door={door} where="card" />'), 1, 'PriceSlot as it was');
@@ -844,32 +838,179 @@ test('T9 (HOME-PLANS-01) the guard stands on the plan law\'s line: a plan that c
 });
 
 
-test('T10 (HOME-PLANS-01, the look\'s fix) the comparison\'s box holds its own screen-reader text: the box is positioned and is the one thing in the section that scrolls sideways, every sr-only span the section draws sits inside it, and the reason stands where the class is typed — so a phone\'s page does not scroll sideways', () => {
+// HOME-PLANS-03 (2026-11-11): T10 RE-WRITTEN IN PLACE — the comparison's box left the section with its table, and with it everything this test held
+// about it. Until then (HOME-PLANS-01, the look's fix): the box's class string as typed — 'relative mt-8 overflow-x-auto rounded-lg border
+// border-border bg-white' — positioned, and the one thing in the section that scrolled sideways; '<div className={HOW.box} data-plan-comparison>'
+// once; and, at rest and with everything open, every sr-only span the section drew — each plan head's full name and every mark's label — inside
+// that box, none before it and none after; with the reason said where the class was typed.
+test('T10 (HOME-PLANS-03) nothing in the section scrolls sideways and nothing in it is drawn for a screen reader alone: the comparison\'s box left with its table — no box, no overflow-x-auto and no sr-only span, in the source or in the render; the plans table\'s own box is untouched; the section\'s header says what left', () => {
   const section = code(SECTION);
-  // the box: positioned AND the one that scrolls — one class string, on the comparison's box, once
-  assert.match(section, /^ {2}box: 'relative mt-8 overflow-x-auto rounded-lg border border-border bg-white',$/m, 'positioned, and it scrolls sideways inside itself');
-  assert.equal(count(section, '<div className={HOW.box} data-plan-comparison>'), 1, 'the comparison\'s box, once');
-  assert.equal(count(section, 'overflow-x-auto'), 1, 'nothing else in the section scrolls sideways');
-  // every render: what a screen reader hears is drawn ONLY inside that box — each plan head's full name and every mark's label
-  const view = planComparison();
-  const personalSteps = view.categories.filter((c) => c.id === 'personal').reduce((n, c) => n + c.steps.length, 0);
-  const totalSteps = view.categories.reduce((n, c) => n + c.steps.length, 0);
-  const AT_REST: Open = { categories: ['personal'], steps: [] };
-  const ALL_OPEN: Open = { categories: [...HOW_TO_SECTION_ORDER], steps: view.categories.flatMap((c) => c.steps.map((step) => stepKey(c.id, step.n))) };
-  for (const [name, open, stepRows] of [['at rest', AT_REST, personalSteps], ['everything open', ALL_OPEN, totalSteps]] as const) {
-    const html = render(open);
-    assert.equal(count(html, BOX_TAG), 1, `${name}: the box, positioned`);
-    const from = html.indexOf(BOX_TAG);
-    const to = html.lastIndexOf('</table></div>');
-    assert.ok(to > from, `${name}: the box closes after its table`);
-    assert.equal(count(html.slice(0, from), 'sr-only'), 0, `${name}: no screen-reader-only text before the box`);
-    assert.equal(count(html.slice(to), 'sr-only'), 0, `${name}: and none after it`);
-    assert.equal(count(html.slice(from, to), 'class="sr-only"'), view.columns.length + (view.categories.length + stepRows) * view.columns.length, `${name}: each plan head's full name and every mark's label, inside it`);
-  }
+  // the source: no box, nothing that scrolls sideways, nothing positioned, no floor on a width, no text for a screen reader alone
+  assert.equal(count(section, 'data-plan-comparison'), 0, 'the comparison\'s box is gone');
+  for (const cls of ['overflow-x-auto', 'overflow-x-scroll', 'overflow-auto', 'sr-only', 'relative', 'absolute', 'min-w-[']) assert.equal(count(section, cls), 0, `the section types no ${cls}`);
+  // the render: the same — so a phone's page has nothing here to scroll sideways to
+  const html = render();
+  for (const drawn of ['data-plan-comparison', 'overflow-x-', 'overflow-auto', 'sr-only', 'min-w-[', '<table']) assert.equal(count(html, drawn), 0, `the section draws no ${drawn}`);
+  // what a screen reader hears is what a visitor reads: a step's mark is hidden from it, and its title is plain text
+  const hidden = [...html.matchAll(/<span aria-hidden="true" class="([^"]*)">([^<]*)<\/span>/g)].map((m) => m[2]);
+  assert.deepEqual([...new Set(hidden)].sort(), [PLAN_MARKS.inPlan.mark, '·'].sort(), 'hidden from a screen reader: a step\'s mark and a benefit\'s dot — and nothing else');
   // the plans table's own box is untouched — /pricing draws what it drew
   assert.ok(code(PLANS_SECTION).includes('<div className="mt-3 overflow-x-auto rounded-lg border border-border bg-white" data-plan-table>'), 'the plans table\'s box is as it was');
-  // why, said where the class is typed
+  // what left, said in the section's header
   const why = comments(SECTION);
-  assert.match(why, /`relative` is what keeps the PAGE from scrolling sideways \(HOME-PLANS-01, found by the look\)/);
-  assert.match(why, /an absolutely positioned box is laid out against its nearest POSITIONED ancestor/);
+  assert.match(why, /HOME-PLANS-03 \(Alex, 2026-11-11 18:17 Manila: /, 'the ruling, dated');
+  assert.match(why, /UNTIL THEN \(HOME-PLANS-01, 2026-11-11 00:09: "Four plans\. One comparison\."/, 'what stood until then');
+  assert.match(why, /a table in a rounded white box \(data-plan-comparison\) that scrolled sideways inside itself/, 'the box, named');
+  assert.match(why, /All of it left\s+\*?\s*the public page with this brief/, 'and that it left');
+});
+
+// ── T11 · WHAT A CARD LISTS, IN THE LEAF (HOME-PLANS-03) ─────────────────────
+
+test('T11 (HOME-PLANS-03) what a card lists, in the leaf — planCardSteps: Personal lists Personal and Travel, Personal + Business lists Business, Personal + Trading lists Trade, the bundle lists none; the same derived here another way, from each plan\'s modules; every heading and title the leaf\'s, Travel in its without-Business words on Personal\'s card; the four cards together list every category once; no tool, no note and no status in what it returns; a fifth plan that holds what Personal holds inherits nothing new; the sections\' order is the cards\' order; a plan with no module is refused by name', () => {
+  const steps = planCardSteps();
+  // THE FOUR DERIVATIONS — the brief's own, held here; nothing in the leaf types them
+  assert.deepEqual(steps.map((s) => [s.plan, s.categories.map((c) => c.heading)]), [
+    ['personal', ['PERSONAL — 8 steps', 'TRAVEL — 4 steps']],
+    ['business', ['BUSINESS — 9 steps']],
+    ['trading', ['TRADE — 5 steps']],
+    ['everything', []],
+  ], 'Personal → Personal and Travel · Personal + Business → Business · Personal + Trading → Trade · the bundle → none');
+  assert.deepEqual(steps.map((s) => s.categories.map((c) => c.steps.length)), [[8, 4], [9], [5], []], '8 and 4 · 9 · 5 · none');
+  assert.deepEqual(steps.map((s) => s.plan), PLANS.map((p) => p.id), 'one entry per plan, in PLANS\' order');
+  assert.deepEqual(planCardSteps(PLANS, HOW_TO_SECTIONS), steps, 'its defaults are the live plans and the live steps');
+  // THE SAME, DERIVED HERE ANOTHER WAY: what a plan shows, less what any plan holding fewer of its modules shows
+  const shownBy = (plan: Pick<Plan, 'modules'>) => HOW_TO_SECTIONS.filter((s) => sectionShown(s.id, choiceOf(plan))).map((s) => s.id);
+  const holdsFewer = (a: Pick<Plan, 'modules'>, b: Pick<Plan, 'modules'>) => new Set(a.modules).size < new Set(b.modules).size && a.modules.every((m) => b.modules.includes(m));
+  for (const [i, plan] of PLANS.entries()) {
+    const inherited = new Set(PLANS.filter((other) => holdsFewer(other, plan)).flatMap((other) => shownBy(other)));
+    assert.deepEqual(steps[i].categories.map((c) => c.id), shownBy(plan).filter((id) => !inherited.has(id)), `${plan.id}: what it shows, less what it inherits`);
+  }
+  assert.deepEqual(PLANS.map((plan) => PLANS.filter((other) => holdsFewer(other, plan)).map((other) => other.id)), [[], ['personal'], ['personal'], ['personal', 'business', 'trading']], 'what each plan stands on — as its own relationship line says');
+  // every heading and every title is the leaf's: the section's name and count through categoryHeading, each step's title read for what the plan runs
+  const readFor = (words: string | { withBusiness: string; withoutBusiness: string }, plan: Pick<Plan, 'modules'>) => (typeof words === 'string' ? words : plan.modules.includes('business') ? words.withBusiness : words.withoutBusiness);
+  steps.forEach((card, i) => {
+    for (const category of card.categories) {
+      const section = HOW_TO_SECTIONS.find((s) => s.id === category.id);
+      assert.ok(section, `${card.plan}: ${category.id} is a section of the leaf`);
+      assert.equal(category.heading, categoryHeading(section.name, section.steps.length), `${card.plan} · ${category.id}: its heading`);
+      assert.deepEqual(category.steps, section.steps.map((step) => readFor(step.title, PLANS[i])), `${card.plan} · ${category.id}: every title, in order, read for what the plan runs`);
+      assert.deepEqual(Object.keys(category).sort(), ['heading', 'id', 'steps'], 'a category: its id, its heading, its steps\' titles — and nothing else');
+      assert.ok(category.steps.every((title) => typeof title === 'string' && title.length > 0), 'a step is its title');
+    }
+    assert.deepEqual(Object.keys(card).sort(), ['categories', 'plan'], 'a card: its plan and its categories — and nothing else');
+  });
+  // Travel on Personal's card reads without Business: that plan runs none
+  const travelOnPersonal = steps[0].categories.find((c) => c.id === 'travel');
+  assert.ok(travelOnPersonal, 'Travel stands on Personal\'s card');
+  assert.equal(travelOnPersonal.steps[3], 'Book every trip line to Personal.', 'its fourth step, in the without-Business words');
+  const travelStepFour = HOW_TO_SECTIONS[2].steps[3].title;
+  assert.ok(typeof travelStepFour !== 'string' && travelOnPersonal.steps[3] === travelStepFour.withoutBusiness && travelStepFour.withBusiness !== travelStepFour.withoutBusiness, 'the leaf\'s own second reading — not the comparison\'s');
+  assert.equal(planComparison().categories[2].steps[3].title, travelStepFour.withBusiness, 'the comparison, undrawn, keeps the with-Business reading');
+  // the four cards together list every category of the leaf, each once — nothing is left off the page and nothing stands twice
+  assert.deepEqual(steps.flatMap((s) => s.categories.map((c) => c.id)).sort(), [...HOW_TO_SECTION_ORDER].sort(), 'each category on exactly one card');
+  assert.equal(steps.reduce((n, s) => n + s.categories.reduce((k, c) => k + c.steps.length, 0), 0), 26, 'all 26 steps');
+  // NO TOOL, NO NOTE, NO STATUS in what it returns
+  const serialised = JSON.stringify(steps);
+  for (const section of HOW_TO_SECTIONS) for (const step of section.steps) for (const words of [step.note, step.buildNote]) if (words !== undefined) assert.ok(!serialised.includes(words), `no note: "${words.slice(0, 30)}…"`);
+  for (const line of CAPABILITY_GROUPS.flatMap((g) => g.rows.map((r) => r.label))) assert.ok(!serialised.includes(line), `no tool's line: "${line.slice(0, 30)}…"`);
+  for (const word of ['LIVE', 'PENDING', 'PARTIAL', 'NOT BUILT', 'NOT_BUILT', 'NEEDS BOOKS', 'on sale', 'live today', STEP_LIVE.words, STEP_PENDING.words, ...Object.values(TOOL_MARKS).map((m) => m.words)]) assert.ok(!serialised.includes(word), `what a card lists says "${word}" nowhere`);
+  assert.doesNotMatch(serialised, /\bbuilt\b|\bpending\b|\bpartial\b|coming soon|"tools"|"note"|"status"|"n":/i, 'no softer word for a status, and no field for a tool, a note, a status or a step\'s number');
+  // the source: planCardSteps reads the plans and the sections, and nothing that says what is built
+  const leaf = code(LEAF);
+  const fnAt = leaf.indexOf('export function planCardSteps(');
+  const fnEnd = leaf.indexOf('export function howToLaw(');
+  assert.ok(fnAt > -1 && fnEnd > fnAt, 'planCardSteps, then the law');
+  const fn = leaf.slice(fnAt, fnEnd);
+  assert.doesNotMatch(fn, /statusOf|TOOL_MARKS|STEP_LIVE|STEP_PENDING|NEEDS_BOOKS|booksNotOnSale|buildNote|registry|toolLine|\.tools\b|\.note\b/i, 'it reads no status, no Books gate, no tool and no note');
+  assert.match(fn, /^export function planCardSteps\(plans: readonly Pick<Plan, 'id' \| 'modules'>\[\] = PLANS, sections: readonly HowToSection\[\] = HOW_TO_SECTIONS\): readonly PlanCardSteps\[\] \{/, 'its two inputs default to the live plans and the live steps');
+  for (const read of ['choiceOf(plan)', 'sectionShown(section.id, choice)', 'categoryHeading(section.name, section.steps.length)', 'say(step.title, choice)']) assert.ok(fn.includes(read), `it derives through ${read}`);
+  // A FIFTH PLAN THAT HOLDS WHAT PERSONAL HOLDS INHERITS NOTHING NEW: it lists what Personal lists, and the four list what they listed
+  const fifth = [...PLANS, { ...PLANS[0], id: 'enterprise' } as unknown as Plan];
+  const five = planCardSteps(fifth);
+  assert.deepEqual(five.slice(0, PLANS.length), steps, 'the four, unchanged by a fifth');
+  assert.deepEqual(five[4].categories, steps[0].categories, 'the fifth holds no more than Personal, so it inherits nothing: it lists what Personal lists');
+  assert.equal(five[4].plan, 'enterprise');
+  // … and what a card inherits follows the plans it is handed: with no Personal plan in the list, Personal + Business inherits nothing and lists all it shows
+  const withoutPersonal = planCardSteps(PLANS.filter((p) => p.id !== 'personal'));
+  assert.deepEqual(withoutPersonal.map((s) => [s.plan, s.categories.map((c) => c.id)]), [['business', ['personal', 'business', 'travel']], ['trading', ['personal', 'travel', 'trade']], ['everything', []]], 'no smaller plan, nothing inherited — and the bundle still stands on the other two');
+  assert.equal(withoutPersonal[0].categories[2].steps[3], travelStepFour.withBusiness, 'Travel on a card that runs a business reads with Business');
+  // a plan alone inherits nothing, whatever it holds
+  assert.deepEqual(planCardSteps([PLANS[3]]).map((s) => s.categories.map((c) => c.id)), [[...HOW_TO_SECTION_ORDER]], 'the bundle alone lists all four');
+  // THE SECTIONS' ORDER IS THE CARDS' ORDER: swap two sections and the card's categories swap
+  const travelFirst: HowToSection[] = [HOW_TO_SECTIONS[2], HOW_TO_SECTIONS[0], HOW_TO_SECTIONS[1], HOW_TO_SECTIONS[3]];
+  const swapped = planCardSteps(PLANS, travelFirst);
+  assert.deepEqual(swapped[0].categories.map((c) => c.id), ['travel', 'personal'], 'Travel first in the sections, Travel first on Personal\'s card');
+  assert.deepEqual(swapped[0].categories.map((c) => c.heading), ['TRAVEL — 4 steps', 'PERSONAL — 8 steps']);
+  assert.deepEqual(swapped.slice(1), steps.slice(1), 'the cards that list one category, or none, read the same');
+  // … and the sections handed in are the sections listed: with no Travel section, no card lists Travel
+  assert.deepEqual(planCardSteps(PLANS, HOW_TO_SECTIONS.filter((s) => s.id !== 'travel')).map((s) => s.categories.map((c) => c.id)), [['personal'], ['business'], ['trade'], []]);
+  // THE REFUSAL: a plan with no module, by name — before any card is derived
+  const noModule = [...PLANS, { ...PLANS[0], id: 'empty', modules: [] } as unknown as Plan];
+  assert.throws(() => planCardSteps(noModule), (e: unknown) => e instanceof HowToLawError && /howTo: the plan "empty" holds no module/.test(e.message), 'a plan with no module: thrown, by name');
+  assert.throws(() => planCardSteps([{ id: 'personal', modules: [] }]), (e: unknown) => e instanceof HowToLawError && /the plan "personal" holds no module/.test(e.message));
+  assert.deepEqual(planCardSteps([]), [], 'no plan, no card');
+});
+
+// ── T12 · THE CARDS, WITH THEIR STEPS (HOME-PLANS-03) ────────────────────────
+
+test('T12 (HOME-PLANS-03) the cards with `steps` — what planCardSteps returns: the same four cards but for two things — where a plan adds categories they stand where its benefits stood, and the grid is also two across from md; a plan that lists none draws its three benefits; a plan `steps` does not name is a throw, by name; the cards type no step, no heading and no mark of their own; a category\'s heading wears the card\'s own top label', () => {
+  const linkDoor = { kind: 'link', href: '/' } as const;
+  // the cards without `steps` — /pricing's (T7 holds them to the byte) — and with what the leaf lists
+  const cards = renderToStaticMarkup(React.createElement(PlanCards, { door: linkDoor }));
+  const steps = planCardSteps();
+  const stepCards = renderToStaticMarkup(React.createElement(PlanCards, { door: linkDoor, steps }));
+  assert.equal(stepCards, cardsHtml({ href: '/' }, steps), 'with `steps`: the whole markup, built from the leaves');
+  assert.ok(stepCards.startsWith(GRID_TAG_WITH_STEPS) && !stepCards.startsWith(GRID_TAG), 'its grid: the cards\' own, and two across from md');
+  assert.equal(GRID_TAG_WITH_STEPS.replace(' md:grid-cols-2', ''), GRID_TAG, 'md:grid-cols-2 is all the grid gains');
+  // put each card's benefits back where its categories stand, and the grid back, and the render is /pricing's own
+  const benefitsOf = new Map(PLANS.map((p) => [p.id as string, `<ul class="space-y-1.5 text-sm text-text-secondary">${p.benefits.map(benefitHtml).join('')}</ul>`]));
+  let at = '';
+  const undone = stepCards.replace(GRID_TAG_WITH_STEPS, GRID_TAG).replace(/ data-plan="([^"]+)"|(?:<div data-plan-category="[^"]+"><h4 class="[^"]*">[^<]*<\/h4><ul class="mt-2 space-y-1\.5 text-sm text-text-secondary">(?:<li class="flex gap-2" data-plan-step="true">[\s\S]*?<\/li>)*<\/ul><\/div>)+/g, (whole: string, planId: string | undefined) => {
+    if (planId !== undefined) { at = planId; return whole; }
+    const benefits = benefitsOf.get(at);
+    if (benefits === undefined) assert.fail(`a category stands on the card of "${at}", which is no plan`);
+    return benefits;
+  });
+  assert.equal(undone, cards, 'the list and the grid aside, the cards with `steps` are the cards without: the top label, the name, the three lines, the price slot and the door are untouched');
+  assert.notEqual(stepCards, cards, 'and the list does change them');
+  // the leaf's entry for a plan decides its card: categories where it lists some, the three benefits where it lists none
+  for (const listed of steps) {
+    const plan = PLANS.find((p) => p.id === listed.plan);
+    assert.ok(plan, `${listed.plan} is a plan`);
+    const from = stepCards.indexOf(` data-plan="${plan.id}"`);
+    const to = stepCards.indexOf(' data-plan="', from + 1);
+    const card = stepCards.slice(from, to === -1 ? undefined : to);
+    assert.deepEqual([...card.matchAll(/data-plan-category="([^"]+)"/g)].map((m) => m[1]), listed.categories.map((c) => c.id), `${plan.id}: its categories`);
+    assert.deepEqual([...card.matchAll(STEP_LI)].map((m) => m[2]), listed.categories.flatMap((c) => c.steps).map(asHtml), `${plan.id}: its steps`);
+    assert.deepEqual([...card.matchAll(BENEFIT_LI)].map((m) => m[1]), listed.categories.length > 0 ? [] : plan.benefits.map(asHtml), `${plan.id}: its benefits, only where it lists no category`);
+  }
+  // steps that list nothing for any plan: every card draws its three benefits — the grid alone says `steps` was handed in
+  const noneListed = steps.map((s) => ({ ...s, categories: [] }));
+  assert.equal(renderToStaticMarkup(React.createElement(PlanCards, { door: linkDoor, steps: noneListed })), cards.replace(GRID_TAG, GRID_TAG_WITH_STEPS), 'no category for any plan: the benefits, in the two-across grid');
+  // A PLAN `steps` DOES NOT NAME IS A THROW, BY NAME — never a card that quietly draws its benefits instead
+  assert.throws(() => PlanCards({ door: linkDoor, steps: steps.filter((s) => s.plan !== 'trading') }), (e: unknown) => e instanceof Error && /PlanCards: `steps` names no entry for the plan "trading"/.test(e.message), 'a plan with no entry: thrown, by name');
+  assert.throws(() => PlanCards({ door: linkDoor, steps: [] }), (e: unknown) => e instanceof Error && /names no entry for the plan "personal"/.test(e.message), 'an empty `steps` is not no `steps`');
+  // THE SOURCE: one mount in the plans section's own file, with no `steps`; the two grids, each typed once; the mark and the type are the how-to leaf's
+  const src = code(PLANS_SECTION);
+  assert.equal(count(src, '<PlanCards '), 1, 'the plans section mounts the cards once');
+  assert.equal(count(src, '<PlanCards door={door} />'), 1, 'and hands them no `steps` — /pricing draws what it drew');
+  assert.equal(count(src, 'if (steps === undefined) return <div className="mt-6 grid gap-4 lg:grid-cols-4">{cards}</div>;'), 1, '/pricing\'s grid, for a caller that hands no `steps`');
+  assert.equal(count(src, 'return <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">{cards}</div>;'), 1, 'and the two-across grid, with `steps` alone');
+  assert.equal(count(src, 'md:grid-cols-2'), 1, 'md:grid-cols-2 is typed once');
+  assert.match(src, /^import \{ PLAN_MARKS, type PlanCardCategory, type PlanCardSteps \} from '@\/lib\/howTo';$/m, 'the mark and the type of `steps` are the how-to leaf\'s');
+  assert.equal(count(src, '<span aria-hidden="true" className="text-brand-purple">{PLAN_MARKS.inPlan.mark}</span>'), 1, 'a step\'s mark: the leaf\'s, hidden from a screen reader, brand purple');
+  assert.equal(count(src, '<li key={i} className="flex gap-2" data-plan-step>'), 1, 'a step, in the shape of a benefit\'s row');
+  assert.equal(count(src, '<h4 className={CATEGORY_LABEL}>{category.heading}</h4>'), 1, 'a category\'s heading');
+  // a category's heading wears the card's own top label — the house label look
+  const roleClass = /<p className="([^"]*)" data-plan-role>/.exec(src);
+  const categoryLabel = /^const CATEGORY_LABEL = '([^']*)';$/m.exec(src);
+  assert.ok(roleClass && categoryLabel, 'the top label\'s classes, and the heading\'s');
+  assert.equal(categoryLabel[1], roleClass[1], 'a category\'s heading wears the card\'s own top label, letter for letter');
+  assert.equal(categoryLabel[1], LABEL_CLASSES);
+  for (const cls of ['font-mono', 'uppercase', 'text-text-faint']) assert.ok(categoryLabel[1].split(' ').includes(cls), `the house label look: ${cls}`);
+  // the cards type none of the steps' words, and no mark of their own
+  for (const words of steps.flatMap((s) => s.categories.flatMap((c) => [c.heading, ...c.steps]))) assert.ok(!src.includes(words), `the plans section does not type "${words.slice(0, 30)}"`);
+  assert.ok(!src.includes(PLAN_MARKS.inPlan.mark), 'nor the mark — it is the leaf\'s');
+  // the reason a plan with no entry throws, said where the cards are documented
+  assert.match(comments(PLANS_SECTION), /A plan `steps` does not name is a THROW, by name — never a card that quietly shows its benefits instead\./);
 });

@@ -44,6 +44,21 @@
  *     `buildNote` now. The status view still shows it (a card's note is `note`, then `buildNote`); the comparison reads
  *     `note` alone.
  *
+ * HOME-PLANS-03 (Alex, 2026-11-11 18:17 Manila: "take the table and have the steps listed inside the cards… as they
+ * apply… so that there are just 4 neat cards … and no added table, to save room and look cleaner and more crisp"): the
+ * home page draws THE CARDS' STEPS now (planCardSteps, below) — each of the four plan cards lists the steps that plan
+ * ADDS, in place of its three benefit bullets — and the comparison table left the page.
+ *   · KEPT, NOT DRAWN (2026-11-11): the comparison — planComparison with COMPARISON_FIRST_HEAD, PLAN_HEADS, toolLine, its
+ *     clauses of the law and its tests — stays here exactly as it was. No page reads it; it has the same standing as
+ *     the status view (howToView) above. PLAN_MARKS stays drawn: a step on a card wears its in-plan mark.
+ *   · NOTHING TYPED FOR THE CARDS: which categories a card lists is DERIVED — every section the plan shows
+ *     (sectionShown, for what it runs — choiceOf), minus every section shown for a plan whose modules are a strict
+ *     subset of its own. What a card inherits, the plan's own `relationship` line says (src/lib/offer/plans.ts). A
+ *     category's heading is categoryHeading; a step's title is the step's, read for what that plan runs. No tool, no
+ *     note, no status.
+ *   · DRAWN AGAIN: COMPARE_PLANS_WORDS and COMPARE_PLANS_PATH — the one link under the cards, to /pricing, where the
+ *     plans' own comparison stands.
+ *
  * PURE: no directive, no fetch, no clock, no storage.
  */
 
@@ -523,6 +538,49 @@ export function planComparison(
     };
   });
   return { firstHead: COMPARISON_FIRST_HEAD, columns, categories };
+}
+
+// ── THE CARDS' STEPS ─────────────────────────────────────────────────────────
+// HOME-PLANS-03 (Alex, 2026-11-11 18:17 Manila). What the home page draws INSIDE the four plan cards: the steps each plan
+// ADDS. This part reads the plans' modules and the steps' titles — no tool, no note, nothing of what is built.
+
+/** One category on a plan's card. */
+export interface PlanCardCategory {
+  id: HowToSectionId;
+  /** Its heading: "PERSONAL — 8 steps" (categoryHeading). */
+  heading: string;
+  /** Its steps' titles, in order, each as it reads for what the plan runs. */
+  steps: readonly string[];
+}
+/** What one plan's card lists. */
+export interface PlanCardSteps {
+  /** The plan's id. */
+  plan: PlanId;
+  /** The categories this plan adds, in the sections' order — none for a plan that adds none: its card keeps its benefits. */
+  categories: readonly PlanCardCategory[];
+}
+
+/** Does `inner` hold fewer modules than `outer`, and none that `outer` lacks? */
+const strictSubset = (inner: readonly ModuleId[], outer: readonly ModuleId[]): boolean => inner.every((m) => outer.includes(m)) && outer.some((m) => !inner.includes(m));
+
+/**
+ * What each plan's card lists, in the plans' order — DERIVED, nothing typed: every section the plan shows (sectionShown,
+ * for what it runs), MINUS every section shown for a plan whose modules are a strict subset of this plan's. A card lists
+ * what its plan ADDS; what it inherits, the plan's `relationship` line already says. Each step's title is read for that
+ * plan's own choice, so words that read two ways take the plan's reading. A plan with no module throws, by name.
+ */
+export function planCardSteps(plans: readonly Pick<Plan, 'id' | 'modules'>[] = PLANS, sections: readonly HowToSection[] = HOW_TO_SECTIONS): readonly PlanCardSteps[] {
+  for (const plan of plans) {
+    if (plan.modules.length === 0) throw new HowToLawError(`howTo: the plan "${plan.id}" holds no module — a card lists the steps its plan's modules add, and this plan has none`);
+  }
+  return plans.map((plan) => {
+    const choice = choiceOf(plan);
+    const inherited = plans.filter((other) => strictSubset(other.modules, plan.modules)).map((other) => choiceOf(other));
+    const categories = sections
+      .filter((section) => sectionShown(section.id, choice) && !inherited.some((smaller) => sectionShown(section.id, smaller)))
+      .map((section) => ({ id: section.id, heading: categoryHeading(section.name, section.steps.length), steps: section.steps.map((step) => say(step.title, choice)) }));
+    return { plan: plan.id, categories };
+  });
 }
 
 // ── THE LAW ──────────────────────────────────────────────────────────────────

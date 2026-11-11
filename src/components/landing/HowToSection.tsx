@@ -4,238 +4,88 @@
  * HowToSection — PLAN YOUR ESCAPE, the first pillar on the guest landing (Landing.tsx mounts it; the section carries
  * id="modules", the anchor the checkout's cancel link, the /modules pages and the footer's first link land on).
  *
- * HOME-PLANS-01 (Alex, 2026-11-11 00:09: "Four plans. One comparison. Clean, polished, professional." · "Do not display
- * development statuses on the public homepage." · "A checkmark means the capability is part of that plan's intended
- * offering. It does NOT represent implementation status or current availability.").
+ * HOME-PLANS-03 (Alex, 2026-11-11 18:17 Manila: "take the table and have the steps listed inside the cards… as they
+ * apply… so that there are just 4 neat cards … and no added table, to save room and look cleaner and more crisp").
  *
- * WHAT IT RENDERS, top to bottom, and nothing else — no label, no intro line, no price and no button outside the cards:
+ * WHAT IT RENDERS, top to bottom, and nothing else — no label, no intro line, no table, no price and no button outside
+ * the cards:
  *   1. the pillar — "Plan Your Escape." and Alex's three paragraphs, read from src/lib/homeActWords.ts PLAN_PILLAR;
- *   2. the four plan cards — PlanCards, the very component /pricing draws (src/components/offer/PlansSection.tsx), with a
- *      button door: "Join early access" opens the door Landing hands in (sign-up), as the plans' button did on this page
- *      until 2026-11-10;
- *   3. ONE COMPARISON — a table in a rounded white box that scrolls sideways inside itself below the width it needs (the
- *      page never does). The head row: the first head, then the four plans — each column head gives a screen reader the
- *      plan's full name. Then one <tbody> per category:
- *        · the category's row — a real button with aria-expanded filling the first cell: its heading ("PERSONAL — 8
- *          steps") and a + or − at the right; then a mark under each plan;
- *        · when it is open — its line, once, across the table; then a row per step: a real button with aria-expanded
- *          (the step's number and its title), then a mark under each plan;
- *        · when a step is open — a row across the table: each tool's name with its line, then the step's note when it
- *          has one.
+ *   2. the four plan cards — PlanCards, the very component /pricing draws (src/components/offer/PlansSection.tsx), with
+ *      a button door ("Join early access" opens the door Landing hands in: sign-up) and with `steps`: what each card
+ *      lists, from src/lib/howTo.ts planCardSteps. A card lists the steps its plan ADDS, by category — Personal: its own
+ *      and Travel's; Personal + Business: Business's; Personal + Trading: Trade's — where its three benefits stood. The
+ *      bundle adds no category of its own, so it keeps its three benefits. What a card inherits, its own line says
+ *      ("Everything in Personal, plus the company.");
+ *   3. ONE LINK under the cards — the leaf's words, to the leaf's path: /pricing, where the plans' own comparison stands.
  * A MARK SAYS "IN THIS PLAN" — never "built". No status is drawn here: no chip, no count of what is live, no legend. The
- * status view stays in the leaf (src/lib/howTo.ts howToView), undrawn; the signed-in app is where statuses will show.
- * The build script's plan law holds the counterweight: no plan may carry a price while this table draws no status.
+ * status view stays in the leaf (src/lib/howTo.ts howToView), undrawn, and so does the comparison (planComparison). The
+ * build script's plan law holds the counterweight: no plan may carry a price while this page draws no status.
  *
- * EVERY WORD IS A LEAF'S: the pillar's (homeActWords.ts), the cards' (src/lib/offer/plans.ts, through PlanCards) and
- * the table's — its heads, its marks, each category, step, tool line and note (src/lib/howTo.ts planComparison). This
- * file types its aria-label and the two signs of a toggle, and nothing a visitor reads.
+ * EVERY WORD IS A LEAF'S: the pillar's (homeActWords.ts); the cards' (src/lib/offer/plans.ts, through PlanCards); each
+ * category's heading and each step's title (src/lib/howTo.ts planCardSteps, through PlanCards); the link's
+ * (COMPARE_PLANS_WORDS, COMPARE_PLANS_PATH). This file types its aria-label, and nothing a visitor reads.
  *
- * STATE: two sets — the open categories and the open steps — in React state only: no storage, no URL. Personal starts
- * open; Business, Travel and Trade start closed; no step starts open; any number may be open at once. HowToView is the
- * pure half (props in, markup out; the tests render it); the default export holds the two sets.
+ * NO STATE: nothing opens and nothing closes, so the section holds none — no hook, no storage, no URL. HowToView is the
+ * pure half (props in, markup out; the tests render it); the default export hands it the door.
+ * 'use client' STAYS, FOR THE DOOR: this file builds the button door's click handler (`onClick: () => onJoin()`) and
+ * hands it to PlanCards, a client component — a function cannot cross from a server module to a client one.
  *
- * PAINT: house tokens only, zero new hex. A cream act with its own border-b. The table's box, its head row and its
- * toggle rows are the plans section's own table idioms (PlansSection.tsx: the data-plan-table box, its thead, its group
- * toggle). The marks: ✓ in brand purple, — in faint ink — never the status colours. Every button is at least 44px tall
- * and shows a focus ring.
+ * PAINT: house tokens only, zero new hex. A cream act with its own border-b. The cards are the plans section's own.
+ * The link wears the house text link — brand purple, the hover purple, mono, at least 44px tall: the look this very
+ * link wore here until HOME-PLANS-01 (HOME-BRIEF-04, 2026-11-10), under a top margin.
  *
- * UNTIL THEN (HOME-BRIEF-03 and -04, 2026-11-10; HOME-FINISH-02, 2026-11-10 put the pillar over it): the section was
+ * UNTIL THEN (HOME-PLANS-01, 2026-11-11 00:09: "Four plans. One comparison."; HOME-PLANS-02, the same day: the
+ * comparison fits a phone): under the four cards — which drew their three benefits each, as /pricing's do — stood ONE
+ * COMPARISON: a table in a rounded white box (data-plan-comparison) that scrolled sideways inside itself. Its head row
+ * was the first head and the four plans; then one <tbody> per category — the category's row, a button with
+ * aria-expanded over its heading ("PERSONAL — 8 steps") and a mark under each plan; when open, its line and a row per
+ * step, each a button with aria-expanded and the same marks; when a step was open, its tools with their lines and its
+ * note. Two sets in React state held what was open (Personal at rest; stepKey, toggled, OPEN_AT_REST). All of it left
+ * the public page with this brief, with every class key, import, helper and data- hook only it used. The section drew
+ * no link to /pricing then.
+ *
+ * BEFORE THAT (HOME-BRIEF-03 and -04, 2026-11-10; HOME-FINISH-02, 2026-11-10 put the pillar over it): the section was
  * THE HOW-TO — "What you run · add any" with two switches (+ Business, + Trade), the plan line with its price line, its
  * button and a link to /pricing, the steps line and the needs-Books line, each section's steps as one row of cards that
  * swiped sideways (every tool with its status chip, every step LIVE or PENDING), and the legend. All of it left the
- * public page with this brief, with every class key, import and data- hook only it used.
+ * public page with HOME-PLANS-01, with every class key, import and data- hook only it used.
  */
 
-import { Fragment, useState } from 'react';
-import { DATA } from '@/lib/ds';
-import { PLAN_MARKS, planComparison, type HowToSectionId } from '@/lib/howTo';
+import { COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, planCardSteps } from '@/lib/howTo';
 import { PLAN_PILLAR } from '@/lib/homeActWords';
 import { PlanCards } from '@/components/offer/PlansSection';
-
-/** A toggle's focus ring — the house ring (src/lib/ds.ts CONTROL), drawn inside the cell so the box's edge never clips it. */
-const RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple';
 
 // THE CLASS GRAMMAR — one const, house tokens only. The act's own classes sit on its <section>, as ruled.
 const HOW = {
   inner: 'max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-10',
   h2: 'text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',
   pillar: 'mt-3 max-w-3xl text-base text-text-secondary',
-  // The comparison's box: the plans table's own (PlansSection.tsx, data-plan-table) but for its top margin and `relative`. It scrolls sideways inside itself.
-  // `relative` is what keeps the PAGE from scrolling sideways (HOME-PLANS-01, found by the look): the marks' and the plan heads' screen-reader text
-  // is `sr-only`, which is absolutely positioned, and an absolutely positioned box is laid out against its nearest POSITIONED ancestor. While this
-  // box was unpositioned that ancestor was the page: the text sat outside the box's clip, and a 390 or a 360 screen scrolled sideways to 694.
-  // Positioned, the box holds its own screen-reader text and scrolls it with the table.
-  box: 'relative mt-8 overflow-x-auto rounded-lg border border-border bg-white',
-  // HOME-PLANS-02 (Alex, 2026-11-11 00:09: "Mobile should remain usable"): THE COMPARISON FITS A PHONE. All four plan columns show at every width.
-  // Below `md` the table takes the box's width — the plan columns narrow and their heads set small, a two-word head on two lines — so each row's name
-  // and all four plans show together and nothing in it scrolls sideways. From `md` up every value is what it was: each of the eight keys the phone changes
-  // (table, planHead, categoryToggle, stepToggle, stepWords, markCell, tools, tool) keeps its old value behind `md:`. Until then the table kept
-  // 720px at every width, and on a phone the box scrolled: the names with no marks or, scrolled right, the marks with no names.
-  // Fixed layout: opening a row moves no column.
-  table: 'w-full md:min-w-[720px] table-fixed text-sm',
-  // The head row: the plans table's own thead.
-  headRow: 'border-b border-border bg-bg-row text-left align-top',
-  firstHead: `px-3 py-3 text-left ${DATA.columnHeader}`,
-  planHead: 'w-[2.875rem] md:w-[6.5rem] px-px md:px-2 py-3 text-center text-[10px] md:text-sm leading-tight font-semibold text-brand-purple',
-  row: 'border-b border-border-light',
-  rowHead: 'p-0 text-left font-normal',
-  // A category's toggle: the plans table's group toggle — its capitals are the leaf's, so the count reads as written.
-  categoryToggle: `flex min-h-[44px] w-full items-center justify-between gap-1 md:gap-3 pl-3 pr-0.5 md:px-3 py-2.5 text-left font-mono text-xs font-semibold tracking-wide md:tracking-wider text-brand-purple hover:bg-bg-row ${RING}`,
-  // A step's toggle: the same row, in the table's own ink, set in under its category.
-  stepToggle: `flex min-h-[44px] w-full items-center justify-between gap-1 md:gap-3 py-2 pl-3 md:pl-6 pr-0.5 md:pr-3 text-left text-sm text-text-primary hover:bg-bg-row ${RING}`,
-  stepWords: 'flex items-baseline gap-2 md:gap-3',
-  stepNumber: 'w-4 shrink-0 font-mono text-xs text-text-faint',
-  sign: 'shrink-0 font-mono text-xs text-text-faint',
-  // The marks — never the status colours.
-  markCell: 'px-px md:px-2 py-2 text-center',
-  markIn: 'font-mono text-sm text-brand-purple',
-  markOut: 'font-mono text-sm text-text-faint',
-  line: 'px-3 py-2 text-sm text-text-secondary',
-  // An open step: from `md` its tools start where its title starts (pl-6 + the number's w-4 + gap-3), each tool's line beside its name.
-  // Below `md` they sit at pl-10, and each tool's line goes under its name — one column.
-  tools: 'py-3 pl-10 md:pl-[3.25rem] pr-3',
-  toolList: 'space-y-1.5',
-  tool: 'grid grid-cols-1 md:grid-cols-[12rem_minmax(0,1fr)] gap-x-4',
-  toolName: 'text-sm font-medium text-text-primary',
-  toolLine: 'text-sm text-text-secondary',
-  note: 'mt-2 text-xs text-text-muted',
+  // The one link under the cards: the house text link — at least 44px tall, so a thumb finds it.
+  compare: 'mt-4 inline-flex min-h-[44px] items-center font-mono text-xs tracking-wider text-brand-purple hover:text-brand-purple-hover',
 } as const;
 
-/** A step's key in the open set: its category and its number. */
-export function stepKey(category: HowToSectionId, n: number): string {
-  return `${category}-${n}`;
-}
-
-/** A set with one key flipped — a new set, so React sees the change. */
-export function toggled<T>(set: ReadonlySet<T>, key: T): ReadonlySet<T> {
-  const next = new Set(set);
-  if (!next.delete(key)) next.add(key);
-  return next;
-}
-
 export interface HowToViewProps {
-  /** The categories that are open. */
-  openCategories: ReadonlySet<HowToSectionId>;
-  /** The steps that are open, each by its key (stepKey). */
-  openSteps: ReadonlySet<string>;
-  onCategory: (id: HowToSectionId) => void;
-  onStep: (key: string) => void;
   /** A plan card's button — the door Landing hands in. */
   onJoin: () => void;
 }
 
 /** The pure half: props in, markup out. */
-export function HowToView({ openCategories, openSteps, onCategory, onStep, onJoin }: HowToViewProps) {
-  const view = planComparison();
-  const span = 1 + view.columns.length;
-  // A mark under each plan: in the plan, or not — and what a screen reader hears for it.
-  const marks = (inPlan: readonly boolean[]) => view.columns.map((column, i) => {
-    const mark = inPlan[i] ? PLAN_MARKS.inPlan : PLAN_MARKS.notInPlan;
-    return (
-      <td key={column.id} className={HOW.markCell} data-comparison-mark={column.id} data-in-plan={inPlan[i]}>
-        <span aria-hidden="true" className={inPlan[i] ? HOW.markIn : HOW.markOut}>{mark.mark}</span>
-        <span className="sr-only">{mark.label}</span>
-      </td>
-    );
-  });
+export function HowToView({ onJoin }: HowToViewProps) {
   return (
     <section id="modules" aria-label="Software plans" className="w-full border-b border-border bg-bg-terminal" data-how-to>
       <div className={HOW.inner}>
         <h2 className={HOW.h2}>{PLAN_PILLAR.heading}</h2>
         {PLAN_PILLAR.paragraphs.map((words) => <p key={words} className={HOW.pillar}>{words}</p>)}
 
-        <PlanCards door={{ kind: 'button', onClick: () => onJoin() }} />
+        <PlanCards door={{ kind: 'button', onClick: () => onJoin() }} steps={planCardSteps()} />
 
-        <div className={HOW.box} data-plan-comparison>
-          <table className={HOW.table}>
-            <thead>
-              <tr className={HOW.headRow}>
-                <th scope="col" className={HOW.firstHead}>{view.firstHead}</th>
-                {view.columns.map((column) => (
-                  <th key={column.id} scope="col" className={HOW.planHead} data-comparison-column={column.id}>
-                    <span aria-hidden="true">{column.head}</span>
-                    <span className="sr-only">{column.name}</span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            {view.categories.map((category) => {
-              const open = openCategories.has(category.id);
-              return (
-                <tbody key={category.id} data-comparison-category={category.id} data-comparison-open={open}>
-                  <tr className={HOW.row}>
-                    <th scope="row" className={HOW.rowHead}>
-                      <button type="button" aria-expanded={open} onClick={() => onCategory(category.id)} className={HOW.categoryToggle} data-comparison-toggle={category.id}>
-                        <span>{category.heading}</span>
-                        <span aria-hidden="true" className={HOW.sign}>{open ? '−' : '+'}</span>
-                      </button>
-                    </th>
-                    {marks(category.inPlan)}
-                  </tr>
-                  {open && (
-                    <tr className={HOW.row}>
-                      <td colSpan={span} className={HOW.line} data-comparison-line>{category.line}</td>
-                    </tr>
-                  )}
-                  {open && category.steps.map((step) => {
-                    const key = stepKey(category.id, step.n);
-                    const stepOpen = openSteps.has(key);
-                    return (
-                      <Fragment key={key}>
-                        <tr className={HOW.row} data-comparison-step={key}>
-                          <th scope="row" className={HOW.rowHead}>
-                            <button type="button" aria-expanded={stepOpen} onClick={() => onStep(key)} className={HOW.stepToggle} data-comparison-step-toggle={key}>
-                              <span className={HOW.stepWords}>
-                                <span className={HOW.stepNumber}>{step.n}</span>
-                                <span>{step.title}</span>
-                              </span>
-                              <span aria-hidden="true" className={HOW.sign}>{stepOpen ? '−' : '+'}</span>
-                            </button>
-                          </th>
-                          {marks(category.inPlan)}
-                        </tr>
-                        {stepOpen && (
-                          <tr className={HOW.row}>
-                            <td colSpan={span} className={HOW.tools} data-comparison-tools={key}>
-                              <ul className={HOW.toolList}>
-                                {step.tools.map((tool) => (
-                                  <li key={tool.name} className={HOW.tool}>
-                                    <span className={HOW.toolName}>{tool.name}</span>
-                                    <span className={HOW.toolLine}>{tool.line}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                              {step.note !== null && <p className={HOW.note} data-comparison-note>{step.note}</p>}
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              );
-            })}
-          </table>
-        </div>
+        <a href={COMPARE_PLANS_PATH} className={HOW.compare} data-compare-plans>{COMPARE_PLANS_WORDS}</a>
       </div>
     </section>
   );
 }
 
-/** Personal starts open; Business, Travel and Trade start closed; no step starts open. */
-const OPEN_AT_REST: readonly HowToSectionId[] = ['personal'];
-
-/** The two sets, in React state only — no storage, no URL. A plan card's button opens the door Landing hands in. */
+/** A plan card's button opens the door Landing hands in. The section holds no state. */
 export default function HowToSection({ onRequireAuth }: { onRequireAuth: () => void }) {
-  const [openCategories, setOpenCategories] = useState<ReadonlySet<HowToSectionId>>(() => new Set(OPEN_AT_REST));
-  const [openSteps, setOpenSteps] = useState<ReadonlySet<string>>(() => new Set<string>());
-  return (
-    <HowToView
-      openCategories={openCategories}
-      openSteps={openSteps}
-      onCategory={(id) => setOpenCategories((open) => toggled(open, id))}
-      onStep={(key) => setOpenSteps((open) => toggled(open, key))}
-      onJoin={onRequireAuth}
-    />
-  );
+  return <HowToView onJoin={onRequireAuth} />;
 }
