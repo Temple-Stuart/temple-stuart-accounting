@@ -10,7 +10,7 @@ import { canCarryReceipt, receiptCoverage, receiptsFailedWords, RECEIPTS_LOADING
 // BUDGET-02 (ruling F): a link's account is read by the budget report's ONE code reader, so an old "B-5100" row matches 5100.
 import { readChartCode } from '@/lib/budget/reportInputs';
 import { FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords } from '@/lib/books/functionalCurrency';
-
+import PostingsWithNoBankRow from '@/components/books/PostingsWithNoBankRow'; // PENDING-02 (2026-11-11): the postings whose bank row is gone — its one mount, below
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -512,6 +512,8 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
 
   return (
     <div className="bg-white overflow-hidden">
+      {/* ---- PENDING-02 (2026-11-11): the postings whose bank row is gone — drawn first, and nothing when there are none ---- */}
+      <PostingsWithNoBankRow onReload={onReload} />
       {/* ---- Entity tabs ---- */}
       <div className="flex border-b border-border">
         <button
