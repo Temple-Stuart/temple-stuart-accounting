@@ -8,11 +8,11 @@
  * between them, so `added`, `unheld` and the rows are what the parser really writes. No clock but the one each test
  * hands in; no Plaid, no database, no network.
  *
- *   T1  1,200 objects at 500 a page, 200 of them already in the app → asks at 0, 500, 1000; pulled 1,200 of 1,200;
- *       added 1,000 (landed is 1,200: a row the app already had lands in the store for the first time);
- *   T2  the clock stops the run after the first ask → `more` at offset 500 with the counts so far; the browser sends
- *       it back; the second request asks 500 and 1000 only; the two requests together land and write exactly what
- *       one uninterrupted run does — same arrivals, same rows, same counts;
+ *   T1  1,200 objects at 250 a page, 200 of them already in the app → asks at 0, 250, 500, 750, 1000; pulled 1,200
+ *       of 1,200; added 1,000 (landed is 1,200: a row the app already had lands in the store for the first time);
+ *   T2  the clock stops the run after the first ask → `more` at offset 250 with the counts so far; the browser sends
+ *       it back; the second request asks 250, 500, 750 and 1000 only; the two requests together land and write
+ *       exactly what one uninterrupted run does — same arrivals, same rows, same counts;
  *   T3  a clock already spent at the start still makes one ask — the run always moves;
  *   T4  the walk: a resume at (B, investments) runs B's investments and holdings and every later item — never A,
  *       never B's transactions; a stop between stages says "<stage> next" and lists what finished;
@@ -25,15 +25,23 @@
  *       a bad stage, offset or counts and a non-JSON body → the 400 words; an empty body → a fresh run;
  *   T10 two live links of one bank get dated labels; a failure names that label once;
  *   T11 the 202 body as written, the progress lines, the two constants;
- *   T12 the route binds the loop: the three gates stand before the resume point is read, Plaid's largest page in
- *       both paged stages, the same range, a link with no accounts not asked; the run module is pure.
+ *   T12 the route binds the loop: the three gates stand before the resume point is read, the one page size in
+ *       both paged stages, the same range, a link with no accounts not asked; the run module is pure;
+ *   T13 SYNC-02: a stage of 1,000 objects — four full pages — asks at 0, 250, 500 and 750 and pulls 1,000 of 1,000;
+ *       no fifth ask is made.
+ *
+ * SYNC-02 (Alex, 2026-11-11 16:25) — the page is 250 objects, not Plaid's 500: a 500-row page of Wells Fargo
+ * transactions crossed the 1,048,576 bytes one stored answer may hold (src/lib/plaid/syncRun.ts SYNC_PAGE_SIZE). Every
+ * figure here that comes from the page size was re-derived for 250 — T1's and T3's asks, T2's `more` point and its
+ * counts, T7's and T8's second page, T11's pin and its pageOf examples — and T12's words for the page size. What each
+ * test proves did not change. T13 is new.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Transaction } from 'plaid';
 import { FakeLanding, snapshotClient } from './fakeLanding';
 import { runTransactionsPage, type DomainDb, type ExistingTxn } from '../arrivals/plaidTransactionsPage';
-import { failedLine, itemStatus, stageFailed, stageOk, syncItemsEnvelope, type StageOutcome } from '../plaid/failLoud';
+import { bankLine, failedLine, itemStatus, stageFailed, stageOk, syncItemsEnvelope, type StageOutcome } from '../plaid/failLoud';
 import { itemFailure } from '../plaid/reconnect';
 import {
   IDLE_NO_ACCOUNTS, LINK_NOT_FOUND, RESUME_REFUSED, SYNC_BUDGET_MS, SYNC_PAGE_SIZE, SYNC_STAGES,
@@ -153,12 +161,12 @@ const stageOf = (step: Awaited<ReturnType<typeof pagedStage>>): StageOutcome => 
 
 // ── T1 ───────────────────────────────────────────────────────────────────────
 
-test('T1 1,200 objects at 500 a page, 200 of them already in the app: asks at 0, 500 and 1000; pulled 1,200 of 1,200; added 1,000', async () => {
+test('T1 1,200 objects at 250 a page, 200 of them already in the app: asks at 0, 250, 500, 750 and 1000; pulled 1,200 of 1,200; added 1,000', async () => {
   const db = database();
   const plaid = bank(HISTORY);
   const hooks: string[] = [];
   const step = await pagedStage(ports(db, plaid, hooks), FRESH, unhurried());
-  assert.deepEqual(plaid.asked, [0, 500, 1000], 'three asks, Plaid\'s largest page each');
+  assert.deepEqual(plaid.asked, [0, 250, 500, 750, 1000], 'five asks, SYNC_PAGE_SIZE objects each — the last answers the 200 that are left');
   const outcome = stageOf(step);
   assert.deepEqual(outcome, {
     stage: 'transactions', ok: true,
@@ -170,14 +178,14 @@ test('T1 1,200 objects at 500 a page, 200 of them already in the app: asks at 0,
   assert.equal(db.domain.upserts.length, 1100, '1,000 new rows written and the 100 incomplete ones updated; the 100 complete ones are linked, not rewritten');
   assert.equal(db.domain.links, 100);
   assert.equal(db.landing.arrivals.size, 1200);
-  assert.equal(db.landing.responses.length, 3, 'one answer landed per ask');
+  assert.equal(db.landing.responses.length, 5, 'one answer landed per ask');
   assert.deepEqual(hooks, ['first', 'answered', 'through'], 'the first answer once; Plaid answered; the newest date read once, at the end');
   assert.equal('notes' in step, false, 'every account Plaid lists is held — no note');
 });
 
 // ── T2 ───────────────────────────────────────────────────────────────────────
 
-test('T2 the clock stops the run after the first ask: `more` at offset 500 with the counts so far; the second request asks 500 and 1000 only; together they land and write exactly what one uninterrupted run does', async () => {
+test('T2 the clock stops the run after the first ask: `more` at offset 250 with the counts so far; the second request asks 250, 500, 750 and 1000 only; together they land and write exactly what one uninterrupted run does', async () => {
   // one uninterrupted run
   const whole = database();
   const wholeStep = await pagedStage(ports(whole, bank(HISTORY)), FRESH, unhurried());
@@ -197,10 +205,11 @@ test('T2 the clock stops the run after the first ask: `more` at offset 500 with 
   assert.deepEqual(first.asked, [0], 'one ask, then the budget is spent');
   assert.ok(one.more !== null);
   if (one.more === null) return;
-  assert.deepEqual(one.more, { item: LINK, stage: 'transactions', offset: 500, counts: { landed: 500, already_landed: 0, corrected: 0, synced: 500, skipped: 42, unheld: 0, added: 416 } }, 'the point it stopped at, with the counts so far');
-  assert.equal(one.progress, 'Still pulling — Wells Fargo: transactions 500 of 1,200');
+  // the first 250 objects: 42 of them the app already held (every sixth) — 21 complete (skipped), 21 updated — and 208 new
+  assert.deepEqual(one.more, { item: LINK, stage: 'transactions', offset: 250, counts: { landed: 250, already_landed: 0, corrected: 0, synced: 250, skipped: 21, unheld: 0, added: 208 } }, 'the point it stopped at, with the counts so far');
+  assert.equal(one.progress, 'Still pulling — Wells Fargo: transactions 250 of 1,200');
   assert.deepEqual(one.items, [], 'no stage finished in this request, so no outcome is listed yet');
-  assert.equal(db.landing.arrivals.size, 500, 'the first page is landed and stays');
+  assert.equal(db.landing.arrivals.size, 250, 'the first page is landed and stays');
 
   // the browser sends the point back, unchanged; the route checks it whole
   const sent = readResume(JSON.stringify({ resume: one.more }), [LINK]);
@@ -210,7 +219,7 @@ test('T2 the clock stops the run after the first ask: `more` at offset 500 with 
   // request 2 — a fresh budget, a fresh lookup; it continues exactly there
   const second = bank(HISTORY);
   const two = await walk(second, sent.resume, unhurried());
-  assert.deepEqual(second.asked, [500, 1000], 'never offset 0 again — nothing is asked twice');
+  assert.deepEqual(second.asked, [250, 500, 750, 1000], 'never offset 0 again — nothing is asked twice');
   assert.equal(two.more, null, 'the run is done');
   assert.equal(two.items.length, 1);
   assert.equal(two.items[0].key, LINK);
@@ -230,13 +239,13 @@ test('T3 a clock already spent at the start still makes one ask — every reques
   assert.deepEqual(plaid.asked, [0], 'one ask');
   assert.equal(step.kind, 'more');
   if (step.kind !== 'more') return;
-  assert.equal(step.offset, 500);
+  assert.equal(step.offset, 250);
   assert.equal(step.total, 1200);
   assert.equal(spent.asks(), 1);
   // and a budget that is NOT spent asks on: the same clock rule, the other way
   const all = bank(HISTORY);
   assert.equal((await pagedStage(ports(database(), all), FRESH, runBudget(() => 0, 1))).kind, 'done');
-  assert.deepEqual(all.asked, [0, 500, 1000]);
+  assert.deepEqual(all.asked, [0, 250, 500, 750, 1000]);
 });
 
 // ── T4 ───────────────────────────────────────────────────────────────────────
@@ -380,15 +389,15 @@ test('T7 an empty page under a larger total: one ask, a declared failure, no loo
 
   // mid-run: Plaid's total says 1,200, the second page is empty
   const short = database([]);
-  const stalled = bank(HISTORY.slice(0, 500), [CHECKING], 1200);
+  const stalled = bank(HISTORY.slice(0, 250), [CHECKING], 1200);
   const second = stageOf(await pagedStage(ports(short, stalled), FRESH, unhurried()));
-  assert.deepEqual(stalled.asked, [0, 500]);
+  assert.deepEqual(stalled.asked, [0, 250]);
   assert.equal(second.ok, false);
   if (second.ok) return;
-  assert.equal(second.message, 'Plaid answered an empty page at 500 of 1,200');
+  assert.equal(second.message, 'Plaid answered an empty page at 250 of 1,200');
   assert.equal(second.page, 2);
-  assert.equal(short.landing.arrivals.size, 500, 'the page that came before stays landed');
-  assert.equal(failedLine('Wells Fargo', second), 'Wells Fargo — transactions page 2: Plaid answered an empty page at 500 of 1,200');
+  assert.equal(short.landing.arrivals.size, 250, 'the page that came before stays landed');
+  assert.equal(failedLine('Wells Fargo', second), 'Wells Fargo — transactions page 2: Plaid answered an empty page at 250 of 1,200');
 
   // a total that is reached is not an empty page: zero objects and zero total is a clean, complete stage
   const none = stageOf(await pagedStage(ports(database([]), bank([])), FRESH, unhurried()));
@@ -399,16 +408,16 @@ test('T7 an empty page under a larger total: one ask, a declared failure, no loo
 
 test('T8 a page that rolls back and an ask that throws are each a declared failure; what landed before stays', async () => {
   // the parser throws on an object of page 2: that page rolls back, page 1 stays, the stage declares page 2
-  const db = database([], 't0700');
+  const db = database([], 't0350');
   const plaid = bank(HISTORY);
   const hooks: string[] = [];
   const outcome = stageOf(await pagedStage(ports(db, plaid, hooks), FRESH, unhurried()));
-  assert.deepEqual(plaid.asked, [0, 500], 'the failed page ends the stage — the third page is not asked');
+  assert.deepEqual(plaid.asked, [0, 250], 'the failed page ends the stage — the third page is not asked');
   assert.equal(outcome.ok, false);
   if (outcome.ok) return;
   assert.equal(outcome.page, 2);
   assert.match(outcome.message, /amount is not a number/);
-  assert.equal(db.landing.arrivals.size, 500, 'page 1 landed; page 2 rolled back whole');
+  assert.equal(db.landing.arrivals.size, 250, 'page 1 landed; page 2 rolled back whole');
   assert.equal(db.landing.responses.length, 1);
   assert.deepEqual(hooks, ['first', 'answered'], 'Plaid answered — a page failure is ours, not the link\'s state');
 
@@ -505,10 +514,10 @@ test('T10 two live links of one bank get dated labels; a failure names that labe
 // ── T11 ──────────────────────────────────────────────────────────────────────
 
 test('T11 the 202 body as written, the progress lines and the two constants', () => {
-  assert.equal(SYNC_PAGE_SIZE, 500, 'Plaid\'s documented maximum for options.count');
+  assert.equal(SYNC_PAGE_SIZE, 250, 'SYNC-02: half of the 500 Plaid allows — a Wells Fargo transaction is about 1.9 kB on the wire and a 500-row page crossed the 1,048,576 bytes one stored answer may hold; at 250 a page is about half that limit');
   assert.equal(SYNC_BUDGET_MS, 20_000);
   assert.deepEqual([...SYNC_STAGES], ['transactions', 'investments', 'holdings']);
-  assert.deepEqual([pageOf(0), pageOf(499), pageOf(500), pageOf(1000)], [1, 1, 2, 3], 'a page\'s number is its offset\'s page — the same whether or not the run was cut before it');
+  assert.deepEqual([pageOf(0), pageOf(249), pageOf(250), pageOf(500)], [1, 1, 2, 3], 'a page\'s number is its offset\'s page — the same whether or not the run was cut before it');
   assert.equal(progressLine('Robinhood', 'transactions', 1500, 4812), 'Still pulling — Robinhood: transactions 1,500 of 4,812');
   assert.equal(progressLine('Robinhood', 'investments', 0, null), 'Still pulling — Robinhood: investments next');
 
@@ -539,14 +548,14 @@ test('T11 the 202 body as written, the progress lines and the two constants', ()
 
 // ── T12 ──────────────────────────────────────────────────────────────────────
 
-test('T12 the route binds the loop: the three gates stand before the resume point is read; Plaid\'s largest page in both paged stages over the same range; a link with no accounts is not asked; the run module is pure', () => {
+test('T12 the route binds the loop: the three gates stand before the resume point is read; the one page size in both paged stages over the same range; a link with no accounts is not asked; the run module is pure', () => {
   const route = code('src/app/api/transactions/sync-complete/route.ts');
   const at = (needle: string) => { const i = route.indexOf(needle); assert.ok(i > -1, `the route holds ${needle}`); return i; };
   // the three gates, in order, before the body is read and before any Plaid ask
   const order = ['const userEmail = await getVerifiedEmail();', 'const user = await prisma.users.findUnique({', "const tabGate = await requireTabAccess(user.id, 'tab:books');", 'if (tabGate) return tabGate;', 'const plaidItems = await prisma.plaid_items.findMany({', 'readResume(await request.text(),', 'plaidClient.transactionsGet({'].map(at);
   assert.deepEqual(order, [...order].sort((a, b) => a - b), 'verified email → the user → the books gate → the caller\'s own live links → the resume point → Plaid');
   assert.ok(route.includes('if (!resumeRead.ok) return NextResponse.json(resumeRead.body, { status: resumeRead.status });'), 'a refused point answers before anything is asked');
-  // Plaid's largest page, twice; the old page size is gone; the range does not move
+  // SYNC_PAGE_SIZE, twice; no page size is typed in the route; the range does not move
   assert.equal(route.split('count: SYNC_PAGE_SIZE').length - 1, 2, 'both paged stages ask SYNC_PAGE_SIZE');
   assert.equal(/count:\s*\d/.test(route), false, 'no page size is typed in the route');
   assert.equal(route.split("start_date: '2024-01-01',").length - 1, 2);
@@ -565,4 +574,28 @@ test('T12 the route binds the loop: the three gates stand before the resume poin
   assert.deepEqual([...run.matchAll(/from '([^']+)'/g)].map((m) => m[1]), ['./failLoud']);
   assert.equal(/prisma|plaidClient|next\/server|process\.env|Date\.now\(|new Date\(/.test(run), false, 'no Prisma, no Plaid client, no Next import, no clock of its own');
   assert.equal(/\?\?\s*0|\|\|\s*0/.test(run), false, 'no figure is defaulted');
+});
+
+// ── T13 ──────────────────────────────────────────────────────────────────────
+
+test('T13 SYNC-02 a stage of 1,000 objects — four full pages — asks at 0, 250, 500 and 750 and pulls 1,000 of 1,000; no fifth ask is made', async () => {
+  const db = database([]);
+  const plaid = bank(HISTORY.slice(0, 1000));
+  const hooks: string[] = [];
+  const budget = unhurried();
+  const outcome = stageOf(await pagedStage(ports(db, plaid, hooks), FRESH, budget));
+  assert.deepEqual(plaid.asked, [0, 250, 500, 750], 'four asks of 250 — the total is reached on a full last page, and the loop does not ask a fifth, empty one');
+  assert.equal(budget.asks(), 4);
+  assert.deepEqual(outcome, {
+    stage: 'transactions', ok: true,
+    counts: { landed: 1000, already_landed: 0, corrected: 0, synced: 1000, skipped: 0, unheld: 0, added: 1000, pulled: 1000, plaid_total: 1000 },
+    through: '2026-11-09',
+  });
+  // the bank's line, as the banner writes it from this outcome
+  assert.equal(bankLine({ institution: 'Wells Fargo', key: LINK, stages: [outcome] }), 'Wells Fargo — transactions 1,000 of 1,000 pulled, 1,000 new, latest Nov 9, 2026');
+  // one answer landed per ask — pages 1 to 4, 250 objects each (the fake wire states the page and its count)
+  assert.deepEqual(db.landing.responses.map((r) => r.body.toString('utf8')), [1, 2, 3, 4].map((page) => JSON.stringify({ page, n: 250 })));
+  assert.equal(db.landing.arrivals.size, 1000);
+  assert.equal(db.domain.rows.size, 1000, 'the table holds every object');
+  assert.deepEqual(hooks, ['first', 'answered', 'through'], 'the first answer once; Plaid answered; the newest date read once, at the end');
 });

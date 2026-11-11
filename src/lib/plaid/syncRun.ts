@@ -29,8 +29,23 @@
  */
 import { calendarDay, stageFailed, stageOk, thousands, type Envelope, type ItemOutcome, type StageFailed, type StageOutcome } from './failLoud';
 
-/** Plaid's documented maximum for `options.count` on /transactions/get and /investments/transactions/get (the default is 100). */
-export const SYNC_PAGE_SIZE = 500;
+/**
+ * SYNC-02 (Alex, 2026-11-11 16:25) — THE PAGE FITS WHAT THE STORE HOLDS. 250 objects an ask, for `options.count` on
+ * /transactions/get and /investments/transactions/get alike. Why 250, with the numbers:
+ *
+ *   · Plaid allows up to 500 (its default is 100). SYNC-01 asked for the 500.
+ *   · One stored answer may hold 1,048,576 bytes — provider_responses_body_size_chk, CHECK (octet_length(body) <=
+ *     1048576), prisma/migrations/20260903000000_arrivals/migration.sql:62.
+ *   · A Wells Fargo transaction is about 1.9 kB on the wire (34 MB over 178 pages of 100 on 2026-10-20), so 500 of
+ *     them are about 950 kB before the answer's accounts and item are counted — and on 2026-11-11 a 500-row page
+ *     crossed the limit: pages 1–3 slipped under it, page 4 did not, rolled back and ended its stage.
+ *   · At 250 a page is about 475 kB: about half the limit.
+ *   · Plaid allows 30 asks a minute per link — 7,500 rows a minute at this size.
+ *
+ * Only the size of an ask moves. The resume point is an offset, never a page, so a run cut before this change
+ * continues where it stopped.
+ */
+export const SYNC_PAGE_SIZE = 250;
 
 /**
  * What one request may spend before it stops ahead of the next ask. 20 s, not more: a page begun inside the budget

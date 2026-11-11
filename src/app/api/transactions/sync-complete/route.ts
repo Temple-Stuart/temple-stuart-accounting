@@ -128,7 +128,7 @@ export async function POST(request: Request) {
               end_date: new Date().toISOString().split('T')[0],
               options: {
                 offset: offset,
-                // SYNC-01: Plaid's largest page (its documented maximum; the default is 100).
+                // SYNC-02: 250 a page — Plaid allows up to 500 (its default is 100), but one stored answer may hold 1,048,576 bytes and a 500-row page crossed that (the note on SYNC_PAGE_SIZE, src/lib/plaid/syncRun.ts).
                 count: SYNC_PAGE_SIZE,
                 include_personal_finance_category: true
               }
@@ -248,7 +248,7 @@ export async function POST(request: Request) {
               end_date: new Date().toISOString().split('T')[0],
               options: {
                 offset: offset,
-                // SYNC-01: Plaid's largest page (its documented maximum; the default is 100).
+                // SYNC-02: 250 a page — Plaid allows up to 500 (its default is 100), but one stored answer may hold 1,048,576 bytes and a 500-row page crossed that (the note on SYNC_PAGE_SIZE, src/lib/plaid/syncRun.ts).
                 count: SYNC_PAGE_SIZE
               }
             });

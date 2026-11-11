@@ -6,7 +6,11 @@
  *                    wire bytes, sha256 of those bytes, http_status, asked,
  *                    arrived. PR-4b: except declared redactions of secrets —
  *                    then the canonical (RFC 8785) redacted bytes, sha256'd
- *                    as stored, with the paths on `redactions`.
+ *                    as stored, with the paths on `redactions`. SYNC-02: an
+ *                    answer longer than one stored answer may hold
+ *                    (MAX_RESPONSE_BODY_BYTES — the table's own limit) is
+ *                    refused BY NAME, before the insert
+ *                    (ResponseTooLargeError); nothing from it is written.
  *   landObjects()  — one arrivals row per object in the answer: payload = the
  *                    object, fingerprint = sha256 of its RFC 8785 canonical
  *                    bytes (the `canonicalize` package — JCS, never hand-rolled),
@@ -40,6 +44,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import canonicalize from 'canonicalize';
 // RULEBOOK-01: landing consults the rule book — every arrival carries its kind; no rule, no row.
 import { PROVIDER_CODES, kindOf, type ArrivalKind } from '@/lib/providers';
+// SYNC-02: the one thousands formatter (4812 → '4,812' — pure text, no locale): a refusal states both sizes in exact bytes.
+import { thousands } from '@/lib/plaid/failLoud';
 
 export type JsonObject = Record<string, unknown>;
 
@@ -149,9 +155,40 @@ export interface LandedResponse {
   bodySha256: Buffer;
 }
 
+/**
+ * SYNC-02 (Alex, 2026-11-11 16:25) — WHAT ONE STORED ANSWER MAY HOLD, in bytes. The table's own limit, named here:
+ * provider_responses_body_size_chk — CHECK (octet_length(body) <= 1048576),
+ * prisma/migrations/20260903000000_arrivals/migration.sql:62. The limit is the table's and does not move; until
+ * SYNC-02 no code named it, so an answer over it was refused by the database, on the insert, in the database's words.
+ * arrivalsLand.test.ts reads the number from the migration's text and holds this equal to it.
+ */
+export const MAX_RESPONSE_BODY_BYTES = 1_048_576;
+
+/**
+ * An answer too large to store — refused by name, BEFORE the insert. landResponse throws it; nothing from the answer
+ * is written, and a caller inside a database transaction rolls back whole, as it did when the table's CHECK refused.
+ * It carries the answer's bytes and the limit. Its message is the product's own sentence, in exact bytes with
+ * thousands separators, nothing rounded:
+ *   the answer is 1,180,442 bytes — over the 1,048,576 one stored answer may hold; nothing from it was written
+ */
+export class ResponseTooLargeError extends Error {
+  /** The answer's size in bytes — the bytes that would have been stored. */
+  readonly bytes: number;
+  /** The most one stored answer may hold, in bytes (MAX_RESPONSE_BODY_BYTES). */
+  readonly limit: number;
+  constructor(bytes: number) {
+    super(`the answer is ${thousands(bytes)} bytes — over the ${thousands(MAX_RESPONSE_BODY_BYTES)} one stored answer may hold; nothing from it was written`);
+    this.name = 'ResponseTooLargeError';
+    this.bytes = bytes;
+    this.limit = MAX_RESPONSE_BODY_BYTES;
+  }
+}
+
 export async function landResponse(db: LandingDb, answer: WireAnswer): Promise<LandedResponse> {
   assertProvider(answer.provider);
   if (answer.userId === null && answer.guestRef === null) throw new Error('landResponse: an answer belongs to a user or a guest');
+  // SYNC-02: an answer the table would refuse is refused here, by name, before anything is hashed or inserted. A Buffer's length is its bytes — what the CHECK's octet_length(body) counts.
+  if (answer.body.length > MAX_RESPONSE_BODY_BYTES) throw new ResponseTooLargeError(answer.body.length);
   const row: ProviderResponseRow = {
     id: `resp_${randomUUID()}`,
     provider: answer.provider,

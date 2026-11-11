@@ -11,7 +11,7 @@ import { PLAID } from '../arrivals/plaidTransactionsPage';
 import { SECURITY } from '../arrivals/plaidInvestmentsPage';
 import { UnsupportedHoldingsWriteError, holdingsSql, planHoldings, prismaHoldingsDomain } from '../arrivals/prismaHoldingsDomain';
 import { latestHoldingsSnapshot, type HoldingsReadDb } from '../arrivals/holdingsSnapshot';
-import { bankLine, stageOk } from '../plaid/failLoud';
+import { bankLine, failedLine, stageOk } from '../plaid/failLoud';
 import { kindOf } from '../providers';
 import { FakeLanding, snapshotClient } from './fakeLanding';
 
@@ -205,6 +205,29 @@ test('a parser throw rolls the whole answer back and comes out as the declared f
   const ok = await runHoldingsPage(snapshotClient(landing), () => ({ landing, domain: new FakeDomain() }), withObjects([hold('acc_plaid_1', 'aapl')], [sec('aapl')]));
   assert.equal(ok.ok, true);
   if (ok.ok) { assert.equal(ok.asOf, '2026-09-08'); assert.equal(ok.counts.holdings, 1); }
+});
+
+// SYNC-02 (2026-11-11): the holdings runner's catch goes through the same one helper as the two paged runners
+// (plaidTransactionsPage.ts pageFailed) — the transactions runner's test, the limit and its edge are in
+// arrivalsLand.test.ts, the investments page's in arrivalsInvestments.test.ts.
+test('SYNC-02 a holdings answer too large to store is the same named failure, with no page: the bank\'s line in the product\'s own words, nothing written', async () => {
+  const WORDS = 'the answer is 1,180,442 bytes — over the 1,048,576 one stored answer may hold; nothing from it was written';
+  const landing = new FakeLanding();
+  const dom = new FakeDomain();
+  let rolledBack = 0;
+  const result = await runHoldingsPage(snapshotClient(landing, () => { rolledBack += 1; }), () => ({ landing, domain: dom }), withObjects([hold('acc_plaid_1', 'aapl')], [sec('aapl')], ARRIVED, { wire: wire(' '.repeat(1_180_442)) }));
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.failure.stage, 'holdings');
+  assert.equal(result.failure.page, undefined, 'one answer, no pages');
+  assert.equal(result.failure.message, WORDS, 'the failure\'s message is the refusal\'s own sentence — no error-class name in front');
+  assert.deepEqual(result.failure.error, { name: 'ResponseTooLargeError', message: WORDS }, 'the summary the server logs still names the class');
+  assert.equal(failedLine('Robinhood', result.failure), `Robinhood — holdings: ${WORDS}`);
+  assert.equal(rolledBack, 1);
+  assert.equal(landing.responses.length, 0, 'nothing from the answer was written');
+  assert.equal(landing.arrivals.size, 0);
+  assert.deepEqual(dom.calls, [], 'the parser never ran');
+  assert.equal(dom.rows.size, 0);
 });
 
 test('holdingWrite maps every SDK field to a column — null, never undefined; the batching binding replays one statement per kind, refuses a malformed row and a write after finish', async () => {
