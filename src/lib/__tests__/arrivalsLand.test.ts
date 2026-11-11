@@ -6,8 +6,9 @@ import type { Transaction } from 'plaid';
 import { MAX_RESPONSE_BODY_BYTES, ResponseTooLargeError, canonicalBytes, fingerprintOf, landObjects, landResponse, sha256 } from '../arrivals/land';
 import { FakeLanding, snapshotClient } from './fakeLanding';
 import { NoRuleError } from '../providers';
-import { landTransactionsPage, pageFailed, recordFailedAnswer, runTransactionsPage, type DomainDb, type TransactionsPageInput } from '../arrivals/plaidTransactionsPage';
-import { failedLine, stageFailed, syncEnvelope, syncItemsEnvelope } from '../plaid/failLoud';
+import { landTransactionsPage, pageFailed, recordFailedAnswer, replacedPendingIds, runTransactionsPage, type DomainDb, type TransactionsPageInput } from '../arrivals/plaidTransactionsPage';
+import { bankLine, failedLine, stageFailed, syncEnvelope, syncItemsEnvelope } from '../plaid/failLoud';
+import { SYNC_BUDGET_MS, pagedStage, readResume, runBudget, type PageAnswer, type PagedPorts } from '../plaid/syncRun';
 import { onWireError, type WireStamp } from '../plaid/wire';
 import { code } from '../sourceText';
 
@@ -26,6 +27,20 @@ import { code } from '../sourceText';
 // before the insert, and its bank's line says so in the product's own words with both sizes. The four tests at the
 // foot of this file: the refusal and its edge; the limit held equal to the migration's CHECK; the transactions runner's
 // line; every other error's words as they were.
+//
+// PENDING-01 (Alex, 2026-11-11): THE SYNC CLEARS A PENDING ROW ONLY ON PLAID'S OWN WORD, AND NEVER A COMMITTED ONE.
+// Until then the parser deleted, for every posted transaction it parsed, every pending row of the same account and
+// amount within two days (the fake domain's deleteMany counted those calls). The guess is gone: once per page the
+// pending charges the page's posted objects NAME go to one port method, which the fake domain below answers over its
+// own table. The tests after the SYNC-02 ones hold the rule; the statement is held in prismaDomainPlan.test.ts.
+//
+// PENDING-01 part 3 (the ruling of 2026-11-11 on the two foreign keys PENDING-01's report named): A PENDING ROW A
+// BOOKING LINK OR A SETTLED REFUND POINTS AT IS LEFT IN PLACE AND COUNTED. Both keys are ON DELETE RESTRICT — the
+// database refuses to delete such a row, and until part 3 the step tried: the statement threw, the page rolled back
+// and that bank's transactions stage failed on that page on every Sync. The step answers THREE counts now —
+// pending_cleared, pending_kept, pending_linked — and a page where it ran carries all three. The fake domain applies
+// the same rule; the tests at the foot of this file hold it. Until part 3 the fake answered two counts and the pins
+// above them read { …, pending_cleared, pending_kept } alone.
 
 // The fake store lives in fakeLanding.ts (PR-2c shares it with the investments landing tests).
 
@@ -35,9 +50,20 @@ type Link = { where: Record<string, unknown>; data: Record<string, unknown> };
 class FakeDomain implements DomainDb {
   upserts: Upsert[] = [];
   links: Link[] = [];
-  deletes = 0;
   /** what the domain table would hold after the upserts, keyed by transactionId */
   rows = new Map<string, Record<string, unknown>>();
+  /** PENDING-01: the transactionIds that carry a live posting (a journal entry of source plaid_txn, not a reversal, not reversed). */
+  livePostings = new Set<string>();
+  /**
+   * PENDING-01 part 3: the booking links, keyed by the ROW id they point at (transaction_reservation_links.transactionId
+   * holds transactions.id — never Plaid's transactionId), each with its status. The foreign key reads no status, and
+   * neither does the rule: a link of any status holds the row.
+   */
+  bookingLinks = new Map<string, 'proposed' | 'accepted' | 'rejected'>();
+  /** PENDING-01 part 3: the ROW ids a settled refund points at (money_events.settledTransactionId holds transactions.id). */
+  settledRefunds = new Set<string>();
+  /** PENDING-01: every call of the page's pending step, as it was handed. */
+  clearCalls: Array<{ accountIds: string[]; transactionIds: string[] }> = [];
   constructor(private throwOn: string | null = null) {}
   transactions = {
     upsert: async (args: Upsert) => {
@@ -50,7 +76,28 @@ class FakeDomain implements DomainDb {
       return {};
     },
     updateMany: async (args: Link) => { this.links.push(args); return {}; },
-    deleteMany: async () => { this.deletes++; return {}; },
+  };
+  /**
+   * PENDING-01: the page's pending step over the fake table — the statement's rule in TypeScript (the statement itself
+   * is held by content in prismaDomainPlan.test.ts). A named row that is pending, on one of the accounts, is exactly
+   * one of three things: committed or carrying a live posting — counted as kept; neither, with a booking link or a
+   * settled refund pointing at its row id — counted as linked (part 3); or deleted. Nothing about a row that is left
+   * changes.
+   */
+  clearReplacedPending = async (args: { accountIds: string[]; transactionIds: string[] }) => {
+    this.clearCalls.push(args);
+    let pending_cleared = 0;
+    let pending_kept = 0;
+    let pending_linked = 0;
+    for (const id of args.transactionIds) {
+      const row = this.rows.get(id);
+      if (!row || row.pending !== true || !args.accountIds.includes(String(row.accountId))) continue;
+      if (row.review_status === 'committed' || this.livePostings.has(id)) { pending_kept += 1; continue; }
+      if (this.bookingLinks.has(String(row.id)) || this.settledRefunds.has(String(row.id))) { pending_linked += 1; continue; }
+      this.rows.delete(id);
+      pending_cleared += 1;
+    }
+    return { pending_cleared, pending_kept, pending_linked };
   };
 }
 
@@ -356,4 +403,350 @@ test('SYNC-02 every other error keeps the words it had: a Prisma-shaped error st
   assert.deepEqual(pageFailed('investments', tooLarge, 3), { ...stageFailed('investments', tooLarge, 3), message: TOO_LARGE_WORDS });
   assert.deepEqual(pageFailed('holdings', tooLarge), { stage: 'holdings', ok: false, error: { name: 'ResponseTooLargeError', message: TOO_LARGE_WORDS }, message: TOO_LARGE_WORDS });
   assert.equal(stageFailed('investments', tooLarge, 3).message, `ResponseTooLargeError: ${TOO_LARGE_WORDS}`, 'what the line would have read without the helper — the class name in front');
+});
+
+
+// ── PENDING-01 ──
+
+/** A pending bank row the app holds, as the domain table would hold it — the same account, amount and day as txn()'s. */
+const heldPending = (domain: FakeDomain, id: string, over: Record<string, unknown> = {}) => {
+  const row = { id: `txn_${id}`, transactionId: id, accountId: 'acc_db_1', amount: 12.5, date: new Date('2026-09-01'), name: `Coffee ${id}`, pending: true, review_status: 'pending_review', ...over };
+  domain.rows.set(id, row);
+  return row;
+};
+/** The page's counts when nothing is named: the seven it always carries, and none of the step's three. */
+const NO_PENDING_STEP = ['landed', 'already_landed', 'corrected', 'synced', 'skipped', 'unheld', 'added'];
+/** PENDING-01 part 3: the three counts a page carries when the step ran — and only then. */
+const PENDING_STEP = ['pending_cleared', 'pending_kept', 'pending_linked'];
+
+test('PENDING-01 a posted object that names a held, uncommitted pending row calls the step once — with that id and the link\'s account row ids, after the page is parsed and before it is marked read — and the page\'s counts carry what it answered', async () => {
+  const landing = new FakeLanding();
+  const domain = new FakeDomain();
+  heldPending(domain, 'p1');
+  // the order of the page's three moves
+  const order: string[] = [];
+  const upsert = domain.transactions.upsert;
+  domain.transactions.upsert = async (args: Upsert) => { order.push(`parse ${args.where.transactionId}`); return upsert(args); };
+  const clear = domain.clearReplacedPending;
+  domain.clearReplacedPending = async (args) => { order.push('pending step'); return clear(args); };
+  const markRead = landing.markRead.bind(landing);
+  landing.markRead = async (ids: string[], at: Date) => { order.push('mark read'); return markRead(ids, at); };
+
+  const counts = await landTransactionsPage(landing, domain, pageInput({ transactions: [txn('t1', { pending_transaction_id: 'p1' })] }));
+  assert.deepEqual(domain.clearCalls, [{ accountIds: ['acc_db_1'], transactionIds: ['p1'] }], 'once: Plaid\'s own id for the pending charge, and the row ids of the link\'s accounts');
+  assert.deepEqual(counts, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0, unheld: 0, added: 1, pending_cleared: 1, pending_kept: 0, pending_linked: 0 }, 'the page carries the step\'s answer — all three counts');
+  assert.deepEqual(order, ['parse t1', 'pending step', 'mark read']);
+  assert.equal(domain.rows.has('p1'), false, 'the pending row is gone');
+  assert.equal(domain.rows.has('t1'), true, 'the posted charge that replaced it is written');
+  assert.equal(landing.rowsFor('t1')[0].status, 'done', 'and its arrival is read');
+
+  // two posted objects of one page name two rows: ONE call, both ids, in the page's order
+  const second = new FakeDomain();
+  heldPending(second, 'p2');
+  heldPending(second, 'p3');
+  const more = await landTransactionsPage(new FakeLanding(), second, pageInput({ transactions: [txn('t3', { pending_transaction_id: 'p3' }), txn('t9'), txn('t2', { pending_transaction_id: 'p2' })] }));
+  assert.deepEqual(second.clearCalls, [{ accountIds: ['acc_db_1'], transactionIds: ['p3', 'p2'] }]);
+  assert.equal(more.pending_cleared, 2);
+  assert.equal(more.pending_kept, 0);
+  assert.equal(more.pending_linked, 0);
+});
+
+test('PENDING-01 never a committed one: a named pending row that is committed, or that carries a live posting, is left exactly as it was and counted as kept', async () => {
+  const domain = new FakeDomain();
+  const committed = { ...heldPending(domain, 'p_committed', { review_status: 'committed', accountCode: '6110' }) };
+  const postedFrom = { ...heldPending(domain, 'p_posted_from') };
+  domain.livePostings.add('p_posted_from');
+  heldPending(domain, 'p_free');
+  const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: [
+    txn('t1', { pending_transaction_id: 'p_committed' }), txn('t2', { pending_transaction_id: 'p_posted_from' }), txn('t3', { pending_transaction_id: 'p_free' }),
+  ] }));
+  assert.deepEqual(domain.clearCalls, [{ accountIds: ['acc_db_1'], transactionIds: ['p_committed', 'p_posted_from', 'p_free'] }]);
+  assert.equal(counts.pending_cleared, 1, 'only the uncommitted row with no posting');
+  assert.equal(counts.pending_kept, 2, 'the committed row and the one a posting was made from');
+  assert.equal(counts.pending_linked, 0, 'nothing points at any of them');
+  assert.deepEqual(domain.rows.get('p_committed'), committed, 'nothing about a kept row changes');
+  assert.deepEqual(domain.rows.get('p_posted_from'), postedFrom);
+  assert.equal(domain.rows.has('p_free'), false);
+  // a step that ran and found nothing to clear still says so: all three counts, at zero
+  const none = new FakeDomain();
+  const empty = await landTransactionsPage(new FakeLanding(), none, pageInput({ transactions: [txn('t4', { pending_transaction_id: 'p_never_held' })] }));
+  assert.equal(none.clearCalls.length, 1);
+  assert.deepEqual([empty.pending_cleared, empty.pending_kept, empty.pending_linked], [0, 0, 0]);
+});
+
+test('PENDING-01 a page that names nothing does not call the step and carries none of its three counts', async () => {
+  const domain = new FakeDomain();
+  heldPending(domain, 'p1');
+  const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: [txn('t1'), txn('t2', { pending: true }), txn('t3', { pending_transaction_id: null })] }));
+  assert.deepEqual(domain.clearCalls, [], 'not called');
+  assert.deepEqual(Object.keys(counts), NO_PENDING_STEP, 'no pending_cleared, no pending_kept, no pending_linked — not even at zero');
+  assert.deepEqual(counts, { landed: 3, already_landed: 0, corrected: 0, synced: 3, skipped: 0, unheld: 0, added: 3 });
+  assert.equal(domain.rows.has('p1'), true);
+  // an empty page: the same
+  const blank = await landTransactionsPage(new FakeLanding(), new FakeDomain(), pageInput({ transactions: [] }));
+  assert.deepEqual(Object.keys(blank), NO_PENDING_STEP);
+});
+
+test('PENDING-01 an ALREADY-LANDED posted object that names a pending row still calls the step — it is linked, never parsed again, and its pending twin is cleared', async () => {
+  const landing = new FakeLanding();
+  const posted = txn('t1', { pending_transaction_id: 'p1' });
+  // an earlier pull landed and parsed the posted charge
+  const earlier = new FakeDomain();
+  await landTransactionsPage(landing, earlier, pageInput({ page: 1, transactions: [posted] }));
+  // today the same object arrives again, word for word, and the app still holds the pending row it names
+  const domain = new FakeDomain();
+  domain.rows.set('t1', { ...earlier.rows.get('t1') });
+  heldPending(domain, 'p1');
+  const counts = await landTransactionsPage(landing, domain, pageInput({ page: 2, transactions: [{ ...posted }] }));
+  assert.deepEqual(counts, { landed: 0, already_landed: 1, corrected: 0, synced: 0, skipped: 0, unheld: 0, added: 0, pending_cleared: 1, pending_kept: 0, pending_linked: 0 });
+  assert.equal(domain.upserts.length, 0, 'not parsed again');
+  assert.equal(domain.links.length, 1, 'linked, as an already-landed object always is');
+  assert.deepEqual(domain.clearCalls, [{ accountIds: ['acc_db_1'], transactionIds: ['p1'] }], 'the step reads the object as the table holds it');
+  assert.equal(domain.rows.has('p1'), false, 'the pending row that waited is cleared');
+  assert.equal(landing.rowsFor('t1').length, 1, 'still one arrival');
+});
+
+test('PENDING-01 an id the same page still lists as a pending object is dropped — wherever it sits in the page — and only that id', async () => {
+  // Plaid lists the pending charge and the posted one that names it on one page: the pending row stays
+  for (const page of [
+    [txn('p1', { pending: true }), txn('t1', { pending_transaction_id: 'p1' })],
+    [txn('t1', { pending_transaction_id: 'p1' }), txn('p1', { pending: true })],
+  ]) {
+    const domain = new FakeDomain();
+    const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: page }));
+    assert.deepEqual(domain.clearCalls, [], 'no id is left, so the step does not run');
+    assert.deepEqual(Object.keys(counts), NO_PENDING_STEP);
+    assert.equal(domain.rows.get('p1')?.pending, true, 'the pending row is written and kept');
+  }
+  // another id named on the same page still goes
+  const domain = new FakeDomain();
+  heldPending(domain, 'p2');
+  const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: [txn('p1', { pending: true }), txn('t1', { pending_transaction_id: 'p1' }), txn('t2', { pending_transaction_id: 'p2' })] }));
+  assert.deepEqual(domain.clearCalls, [{ accountIds: ['acc_db_1'], transactionIds: ['p2'] }]);
+  assert.deepEqual([counts.pending_cleared, counts.pending_kept, counts.pending_linked], [1, 0, 0]);
+  assert.equal(domain.rows.get('p1')?.pending, true);
+});
+
+test('PENDING-01 an object for an account the link does not hold gives no id', async () => {
+  const domain = new FakeDomain();
+  heldPending(domain, 'p1');
+  const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: [txn('t_other', { account_id: 'acc_plaid_other', pending_transaction_id: 'p1' })] }));
+  assert.deepEqual(domain.clearCalls, [], 'the step does not run');
+  assert.deepEqual(counts, { landed: 1, already_landed: 0, corrected: 0, synced: 0, skipped: 0, unheld: 1, added: 0 });
+  assert.equal(domain.rows.has('p1'), true, 'the row another account\'s object names is left alone');
+});
+
+test('PENDING-01 the guess is gone: a pending row of the same account, amount and day that nothing names is left alone, and neither the parser nor its port holds a delete', async () => {
+  const domain = new FakeDomain();
+  const same = { ...heldPending(domain, 'p_same') };
+  // a posted charge on the same account, for the same amount, on the same day — and it names no pending charge
+  const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: [txn('t1', { amount: 12.5, date: '2026-09-01' })] }));
+  assert.deepEqual(domain.clearCalls, []);
+  assert.deepEqual(Object.keys(counts), NO_PENDING_STEP);
+  assert.deepEqual(domain.rows.get('p_same'), same, 'left exactly as it was');
+  assert.equal(domain.rows.size, 2, 'the pending row and the posted one both stand');
+  // by content
+  const page = code('src/lib/arrivals/plaidTransactionsPage.ts');
+  assert.equal(/deleteMany|\.delete\(|twoDays|setDate\(/.test(page), false, 'no delete by account, amount and day is left in the parser');
+  assert.equal(page.split('domain.clearReplacedPending(').length - 1, 1, 'the one delete of the sync is asked for in one place');
+  const at = (needle: string) => { const i = page.indexOf(needle); assert.ok(i > -1, `the page holds ${needle}`); return i; };
+  const steps = ['await parseTransaction(domain, input,', 'const replaced = replacedPendingIds(landed.rows, input.accounts);', 'if (replaced.length > 0) {', 'await domain.clearReplacedPending({ accountIds: input.accounts.map((account) => account.id), transactionIds: replaced });', 'await markRead(landing, newRowIds, at);'].map(at);
+  assert.deepEqual(steps, [...steps].sort((a, b) => a - b), 'parsed → the ids Plaid names → the step, only when any are left → marked read');
+});
+
+test('PENDING-01 the ids a page names: each posted object\'s pending_transaction_id, once, in the page\'s order — Plaid\'s word only', () => {
+  const HELD = [{ id: 'acc_db_1', accountId: 'acc_plaid_1' }, { id: 'acc_db_2', accountId: 'acc_plaid_2' }];
+  const rows = (objects: unknown[]) => objects.map((payload) => ({ payload }));
+  assert.deepEqual(replacedPendingIds(rows([txn('t1', { pending_transaction_id: 'p1' }), txn('t2', { account_id: 'acc_plaid_2', pending_transaction_id: 'p2' }), txn('t3', { pending_transaction_id: 'p1' })]), HELD), ['p1', 'p2'], 'each id once, in the page\'s order, over every account the link holds');
+  assert.deepEqual(replacedPendingIds([], HELD), []);
+  assert.deepEqual(replacedPendingIds(rows([txn('t1')]), HELD), [], 'a posted object that names none');
+  assert.deepEqual(replacedPendingIds(rows([txn('t1', { pending_transaction_id: '' })]), HELD), [], 'an empty id is no id');
+  // only a POSTED object names a replaced charge: a pending one is itself still listed, and names nothing
+  assert.deepEqual(replacedPendingIds(rows([txn('t1', { pending: true, pending_transaction_id: 'p1' })]), HELD), []);
+  // "posted" is Plaid saying pending: false — an object that states no `pending` is not read as posted
+  const unstated = { ...txn('t1', { pending_transaction_id: 'p1' }) } as Record<string, unknown>;
+  delete unstated.pending;
+  assert.deepEqual(replacedPendingIds(rows([unstated]), HELD), []);
+  // a payload that is no object, or an id that is no string, gives nothing
+  assert.deepEqual(replacedPendingIds(rows([null, 'text', 7, { pending: false, account_id: 'acc_plaid_1', pending_transaction_id: 42 }]), HELD), []);
+  // a link that holds no account names nothing
+  assert.deepEqual(replacedPendingIds(rows([txn('t1', { pending_transaction_id: 'p1' })]), []), []);
+});
+
+
+// ── PENDING-01 part 3 ──
+
+test('PENDING-01 part 3 a named, uncommitted pending row a booking link points at is left exactly as it was and counted in pending_linked — whatever the link\'s status, and by the row\'s own id', async () => {
+  const domain = new FakeDomain();
+  // three held pending rows, not committed, no posting — a booking link of each status points at each row's id
+  const linked = (['proposed', 'accepted', 'rejected'] as const).map((status) => {
+    const row = heldPending(domain, `p_${status}`);
+    domain.bookingLinks.set(row.id, status);
+    return { ...row };
+  });
+  // a link keyed by Plaid's transactionId points at no row: the foreign key holds transactions.id
+  heldPending(domain, 'p_free');
+  domain.bookingLinks.set('p_free', 'accepted');
+  const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: [
+    txn('t1', { pending_transaction_id: 'p_proposed' }), txn('t2', { pending_transaction_id: 'p_accepted' }), txn('t3', { pending_transaction_id: 'p_rejected' }), txn('t4', { pending_transaction_id: 'p_free' }),
+  ] }));
+  assert.deepEqual(domain.clearCalls, [{ accountIds: ['acc_db_1'], transactionIds: ['p_proposed', 'p_accepted', 'p_rejected', 'p_free'] }], 'the step is still handed every id Plaid names — it is the step that leaves them');
+  assert.equal(counts.pending_linked, 3, 'a proposed, an accepted and a rejected link each hold their row');
+  assert.equal(counts.pending_cleared, 1, 'the row nothing points at is cleared');
+  assert.equal(counts.pending_kept, 0, 'none of them is committed or posted from');
+  for (const row of linked) assert.deepEqual(domain.rows.get(row.transactionId), row, `${row.transactionId} is left exactly as it was — still pending, still uncommitted`);
+  assert.equal(domain.rows.has('p_free'), false);
+  // the posted charges that replaced them are written beside them
+  for (const id of ['t1', 't2', 't3', 't4']) assert.equal(domain.rows.has(id), true, `the posted charge ${id} is written`);
+  // and the links are as they were — nothing moved them to the posted rows
+  assert.deepEqual([...domain.bookingLinks], [['txn_p_proposed', 'proposed'], ['txn_p_accepted', 'accepted'], ['txn_p_rejected', 'rejected'], ['p_free', 'accepted']]);
+});
+
+test('PENDING-01 part 3 the same for a settled refund: a named, uncommitted pending row a settled refund points at is left exactly as it was and counted in pending_linked — a row a refund and a link both point at, once', async () => {
+  const domain = new FakeDomain();
+  const refunded = { ...heldPending(domain, 'p_refund', { amount: -40 }) };
+  domain.settledRefunds.add(refunded.id);
+  const both = { ...heldPending(domain, 'p_both', { amount: -40 }) };
+  domain.settledRefunds.add(both.id);
+  domain.bookingLinks.set(both.id, 'accepted');
+  heldPending(domain, 'p_free');
+  const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: [
+    txn('t1', { amount: -40, pending_transaction_id: 'p_refund' }), txn('t2', { amount: -40, pending_transaction_id: 'p_both' }), txn('t3', { pending_transaction_id: 'p_free' }),
+  ] }));
+  assert.equal(counts.pending_linked, 2, 'the row a settled refund points at, and the row a refund and a link both point at — one row, counted once');
+  assert.equal(counts.pending_cleared, 1);
+  assert.equal(counts.pending_kept, 0);
+  assert.deepEqual(domain.rows.get('p_refund'), refunded, 'left exactly as it was');
+  assert.deepEqual(domain.rows.get('p_both'), both);
+  assert.equal(domain.rows.has('p_free'), false);
+  assert.deepEqual([...domain.settledRefunds], ['txn_p_refund', 'txn_p_both'], 'the refunds still point at their rows');
+});
+
+test('PENDING-01 part 3 a committed row that is also linked counts in pending_kept, not in pending_linked — and so does a row posted from that a refund also points at', async () => {
+  const domain = new FakeDomain();
+  const committedLinked = { ...heldPending(domain, 'p_committed_linked', { review_status: 'committed', accountCode: '6110' }) };
+  domain.bookingLinks.set(committedLinked.id, 'accepted');
+  const postedLinked = { ...heldPending(domain, 'p_posted_linked', { amount: -40 }) };
+  domain.livePostings.add('p_posted_linked');
+  domain.settledRefunds.add(postedLinked.id);
+  const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: [txn('t1', { pending_transaction_id: 'p_committed_linked' }), txn('t2', { amount: -40, pending_transaction_id: 'p_posted_linked' })] }));
+  assert.equal(counts.pending_kept, 2, 'committed, or carrying a live posting — whether or not something also points at it');
+  assert.equal(counts.pending_linked, 0, 'pending_linked is only the rows that are NOT committed and carry no live posting');
+  assert.equal(counts.pending_cleared, 0);
+  assert.deepEqual(domain.rows.get('p_committed_linked'), committedLinked, 'nothing about a row that is left changes');
+  assert.deepEqual(domain.rows.get('p_posted_linked'), postedLinked);
+});
+
+test('PENDING-01 part 3 the three counts add up to the rows the ids name: a named row is exactly one of cleared, kept and linked — and an id that names no pending row of the link\'s accounts is in none', async () => {
+  const domain = new FakeDomain();
+  // the rows the ids name: pending, on the link's account — two nothing holds; one committed, one posted from; one a
+  // booking link points at, one a settled refund points at; and one that is committed AND linked
+  heldPending(domain, 'p_free_1');
+  heldPending(domain, 'p_free_2');
+  heldPending(domain, 'p_committed', { review_status: 'committed' });
+  heldPending(domain, 'p_posted_from');
+  domain.livePostings.add('p_posted_from');
+  domain.bookingLinks.set(heldPending(domain, 'p_link').id, 'proposed');
+  domain.settledRefunds.add(heldPending(domain, 'p_refund').id);
+  domain.bookingLinks.set(heldPending(domain, 'p_committed_linked', { review_status: 'committed' }).id, 'accepted');
+  const NAMED = ['p_free_1', 'p_free_2', 'p_committed', 'p_posted_from', 'p_link', 'p_refund', 'p_committed_linked'];
+  // ids that name no row the step may count: never held · already posted · on an account of another link
+  heldPending(domain, 'p_not_pending', { pending: false });
+  heldPending(domain, 'p_other_account', { accountId: 'acc_db_other' });
+  const NOT_NAMED = ['p_never_held', 'p_not_pending', 'p_other_account'];
+  const before = new Map([...domain.rows].map(([id, row]) => [id, { ...row }]));
+
+  const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: [...NAMED, ...NOT_NAMED].map((id, i) => txn(`t${i}`, { pending_transaction_id: id })) }));
+  assert.deepEqual(domain.clearCalls, [{ accountIds: ['acc_db_1'], transactionIds: [...NAMED, ...NOT_NAMED] }]);
+  const { pending_cleared, pending_kept, pending_linked } = counts;
+  assert.ok(typeof pending_cleared === 'number' && typeof pending_kept === 'number' && typeof pending_linked === 'number', 'the step ran: all three are stated');
+  assert.deepEqual([pending_cleared, pending_kept, pending_linked], [2, 3, 2], 'two cleared · three kept (committed, posted from, committed and linked) · two linked (a booking link, a settled refund)');
+  assert.equal(pending_cleared + pending_kept + pending_linked, NAMED.length, 'cleared + kept + linked = the pending rows the ids name on the link\'s accounts — the three ids that name none are in no count');
+  // which is which: only the two rows nothing holds are gone; every other row — named or not — is exactly as it was
+  assert.deepEqual([...before.keys()].filter((id) => !domain.rows.has(id)), ['p_free_1', 'p_free_2']);
+  for (const [id, row] of before) if (domain.rows.has(id)) assert.deepEqual(domain.rows.get(id), row, `${id} is as it was`);
+});
+
+test('PENDING-01 part 3 a page where the step ran carries all three counts — a count at zero too — and a page where it did not carries none', async () => {
+  // ran, and each count above zero
+  const domain = new FakeDomain();
+  heldPending(domain, 'p_free');
+  heldPending(domain, 'p_committed', { review_status: 'committed' });
+  domain.bookingLinks.set(heldPending(domain, 'p_link').id, 'proposed');
+  const ran = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: [txn('t1', { pending_transaction_id: 'p_free' }), txn('t2', { pending_transaction_id: 'p_committed' }), txn('t3', { pending_transaction_id: 'p_link' })] }));
+  assert.deepEqual(Object.keys(ran), [...NO_PENDING_STEP, ...PENDING_STEP], 'the seven, then the step\'s three');
+  assert.deepEqual(ran, { landed: 3, already_landed: 0, corrected: 0, synced: 3, skipped: 0, unheld: 0, added: 3, pending_cleared: 1, pending_kept: 1, pending_linked: 1 });
+  // ran, and found only a linked row: the other two are stated, at zero — never left out
+  const only = new FakeDomain();
+  only.settledRefunds.add(heldPending(only, 'p_refund').id);
+  const linkedOnly = await landTransactionsPage(new FakeLanding(), only, pageInput({ transactions: [txn('t1', { pending_transaction_id: 'p_refund' })] }));
+  assert.deepEqual(Object.keys(linkedOnly), [...NO_PENDING_STEP, ...PENDING_STEP]);
+  assert.deepEqual([linkedOnly.pending_cleared, linkedOnly.pending_kept, linkedOnly.pending_linked], [0, 0, 1]);
+  // did not run: a page that names nothing carries none of the three — though the app holds a linked pending row
+  const idle = new FakeDomain();
+  idle.bookingLinks.set(heldPending(idle, 'p_link').id, 'accepted');
+  const notRun = await landTransactionsPage(new FakeLanding(), idle, pageInput({ transactions: [txn('t1'), txn('t2', { pending: true })] }));
+  assert.deepEqual(idle.clearCalls, []);
+  assert.deepEqual(Object.keys(notRun), NO_PENDING_STEP);
+  for (const name of PENDING_STEP) assert.equal(name in notRun, false, `${name} is not carried — not even at zero`);
+  // by content: the page sets the three together, from the step's own answer, where the step ran — and nowhere else
+  const page = code('src/lib/arrivals/plaidTransactionsPage.ts');
+  const step = page.slice(page.indexOf('if (replaced.length > 0) {'), page.indexOf('await markRead(landing, newRowIds, at);'));
+  for (const name of PENDING_STEP) assert.equal(step.split(`counts.${name} = answer.${name};`).length - 1, 1, `${name} is the step's own answer, set where the step ran`);
+  assert.equal(page.split('counts.pending_').length - 1, 3, 'the three are set in that one place');
+});
+
+test('PENDING-01 part 3 the three counts sum across the pages of a stage like every other count; the point a cut run resumes from carries all ten names; and the bank\'s line says the rows left in place', async () => {
+  const landing = new FakeLanding();
+  const domain = new FakeDomain();
+  heldPending(domain, 'p_free_1');
+  heldPending(domain, 'p_free_2');
+  heldPending(domain, 'p_committed', { review_status: 'committed' });
+  for (const id of ['p_link_1', 'p_link_2']) domain.bookingLinks.set(heldPending(domain, id).id, 'proposed');
+  domain.settledRefunds.add(heldPending(domain, 'p_refund').id);
+  // two answers of three objects: the first names one row of each kind; the second two linked rows and a free one
+  const answers = [
+    [txn('t1', { pending_transaction_id: 'p_free_1' }), txn('t2', { pending_transaction_id: 'p_committed' }), txn('t3', { pending_transaction_id: 'p_link_1' })],
+    [txn('t4', { pending_transaction_id: 'p_link_2' }), txn('t5', { pending_transaction_id: 'p_refund' }), txn('t6', { pending_transaction_id: 'p_free_2' })],
+  ];
+  type Answer = PageAnswer & { transactions: Transaction[] };
+  const asked: number[] = [];
+  // the REAL paging loop (syncRun.ts pagedStage) over the REAL page runner — bound the way the route binds them
+  const ports: PagedPorts<Answer> = {
+    stage: 'transactions',
+    ask: async (offset) => { asked.push(offset); const transactions = answers[offset / 3]; return { objects: transactions.length, total: 6, transactions }; },
+    land: async (answer, page) => {
+      const result = await runTransactionsPage(snapshotClient(landing), () => ({ landing, domain }), pageInput({ page, transactions: answer.transactions }));
+      return result.ok ? { ok: true, counts: { ...result.counts } } : { ok: false, failure: result.failure };
+    },
+    through: async () => null,
+    declare: async (error) => stageFailed('transactions', error),
+  };
+
+  // request 1: its budget is spent once it has asked — it stops before the second ask
+  const first = await pagedStage(ports, { offset: 0, counts: {} }, runBudget(() => (asked.length === 0 ? 0 : SYNC_BUDGET_MS)));
+  assert.deepEqual(asked, [0]);
+  assert.equal(first.kind, 'more');
+  if (first.kind !== 'more') return;
+  assert.deepEqual(first.counts, { landed: 3, already_landed: 0, corrected: 0, synced: 3, skipped: 0, unheld: 0, added: 3, pending_cleared: 1, pending_kept: 1, pending_linked: 1 }, 'the counts so far are the first page\'s — the step\'s three among them');
+  assert.deepEqual(Object.keys(first.counts), [...NO_PENDING_STEP, ...PENDING_STEP], 'ten names: pending_linked is the tenth, and a resume point takes up to 16');
+
+  // the browser sends the point back, unchanged; it is accepted whole
+  const point = { item: 'link_wf', stage: 'transactions', offset: first.offset, counts: first.counts };
+  const sent = readResume(JSON.stringify({ resume: point }), ['link_wf']);
+  assert.deepEqual(sent, { ok: true, resume: point });
+  if (!sent.ok || sent.resume === null) return;
+
+  // request 2 continues there, with those counts
+  const second = await pagedStage(ports, { offset: sent.resume.offset, counts: sent.resume.counts }, runBudget(() => 0));
+  assert.deepEqual(asked, [0, 3], 'nothing is asked twice');
+  assert.ok(second.kind === 'done' && second.outcome.ok, 'the stage completes');
+  assert.deepEqual(second.outcome.counts, { landed: 6, already_landed: 0, corrected: 0, synced: 6, skipped: 0, unheld: 0, added: 6, pending_cleared: 2, pending_kept: 1, pending_linked: 3, pulled: 6, plaid_total: 6 }, 'each count is the sum of its pages — pending_linked like every other');
+  // what the table holds: the two free rows are gone; the committed row and the three linked ones still stand
+  assert.deepEqual(['p_free_1', 'p_free_2', 'p_committed', 'p_link_1', 'p_link_2', 'p_refund'].map((id) => domain.rows.has(id)), [false, false, true, true, true, true]);
+  // the bank's line, as the banner writes it from this outcome
+  assert.equal(
+    bankLine({ institution: 'Wells Fargo', key: 'link_wf', stages: [second.outcome] }),
+    'Wells Fargo — transactions 6 of 6 pulled, 6 new, 2 pending replaced by their posted charge, 1 committed pending left in place (a posted charge replaced them), 3 pending left in place (a booking link or a refund points at them)',
+  );
 });

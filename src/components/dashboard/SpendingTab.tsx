@@ -6,6 +6,11 @@ import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/components/ui';
 import { FUNCTIONAL_CURRENCY, bankMoneyWords, centsOfTypedDollars, functionalMoneyWords, isWholeCents } from '@/lib/books/functionalCurrency';
+// PENDING-01 (Alex, 2026-11-11): a pending bank row is never a posting's source — the rule and every word of it are the leaf's.
+import {
+  PENDING_AT_BANK_CELL, PENDING_AT_BANK_CHIP, SHOW_ALL_COMMITTED, SHOW_ONLY_PENDING_AT_BANK,
+  committableIds, committableRows, committedStillPendingWords, isPendingAtBank, rowsPendingAtBank,
+} from '@/lib/books/bankPending';
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -37,6 +42,7 @@ export interface SpendingTransaction {
   /** FX-01b: the account's stated currency (accounts.isoCurrencyCode via /api/transactions), or NULL — a bank row prints in it, never as dollars by assumption. */
   currency: string | null;
   category: string | null;
+  /** The bank's own flag, as Plaid states it (transactions.pending via /api/transactions). PENDING-01: a row still pending at the bank is marked and cannot be committed (src/lib/books/bankPending.ts). */
   pending: boolean;
   authorized_date: string | null;
   payment_channel: string | null;
@@ -796,19 +802,22 @@ function VirtualTable({ rows,
     overscan: 20,
   });
 
-  const allSelected = rows.length > 0 && rows.every(r => selected.has(r.id));
+  // PENDING-01: in the queue a row still pending at the bank has no tick box, so select-all never reaches it. In the
+  // committed table every row is tickable — Uncommit works on a pending one as on any other.
+  const tickable = variant === 'pending' ? committableRows(rows) : rows;
+  const allSelected = tickable.length > 0 && tickable.every(r => selected.has(r.id));
 
   const toggleAll = () => {
     if (allSelected) {
       setSelected(prev => {
         const next = new Set(prev);
-        rows.forEach(r => next.delete(r.id));
+        tickable.forEach(r => next.delete(r.id));
         return next;
       });
     } else {
       setSelected(prev => {
         const next = new Set(prev);
-        rows.forEach(r => next.add(r.id));
+        tickable.forEach(r => next.add(r.id));
         return next;
       });
     }
@@ -861,6 +870,8 @@ function VirtualTable({ rows,
           {virtualizer.getVirtualItems().map(vRow => {
             const txn = rows[vRow.index];
             const isSelected = selected.has(txn.id);
+            // PENDING-01: the bank still lists this row as pending — marked in both tables; in the queue it cannot be ticked or given an account.
+            const pendingAtBank = isPendingAtBank(txn);
             const rowBg = isSelected
               ? 'bg-brand-purple-deep/5'
               : vRow.index % 2 === 0
@@ -874,9 +885,11 @@ function VirtualTable({ rows,
                 className={`${rowBg} hover:bg-brand-purple-deep/[.07] border-b border-border-light transition-colors`}
                 style={{ height: ROW_HEIGHT }}
               >
-                {/* Checkbox */}
+                {/* Checkbox — PENDING-01: none in the queue for a row still pending at the bank */}
                 <td className="py-1 px-2 sticky left-0 z-[5]" style={{ background: 'inherit' }}>
-                  <input type="checkbox" checked={isSelected} onChange={() => toggleOne(txn.id)} className="w-3 h-3 rounded" />
+                  {!(variant === 'pending' && pendingAtBank) && (
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleOne(txn.id)} className="w-3 h-3 rounded" />
+                  )}
                 </td>
                 {/* Date */}
                 <td className="py-1 px-2 text-text-muted whitespace-nowrap font-mono text-terminal-base">{formatDate(txn.date)}</td>
@@ -887,8 +900,13 @@ function VirtualTable({ rows,
                     <span className="truncate font-medium text-terminal-base">{txn.merchantName || '\u2014'}</span>
                   </div>
                 </td>
-                {/* Description */}
-                <td className="py-1 px-2 text-text-secondary text-terminal-sm truncate">{txn.name}</td>
+                {/* Description — PENDING-01: the chip first, so a long description can never push it out of sight */}
+                <td className="py-1 px-2 text-text-secondary text-terminal-sm truncate">
+                  {pendingAtBank && (
+                    <span data-pending-at-bank-chip className="mr-1.5 inline-block rounded bg-amber-100 px-1 text-[9px] font-mono font-semibold tracking-wider text-amber-800 whitespace-nowrap align-middle">{PENDING_AT_BANK_CHIP}</span>
+                  )}
+                  {txn.name}
+                </td>
                 {/* Amount */}
                 <td className="py-1 px-2 text-right font-mono font-semibold whitespace-nowrap text-terminal-base">
                   <span className={txn.amount > 0 ? 'text-brand-red' : 'text-brand-green'}>
@@ -899,9 +917,11 @@ function VirtualTable({ rows,
                 <td className="py-1 px-2 font-mono text-terminal-sm text-text-muted truncate">{txn.accountName || '\u2014'}</td>
                 {/* Institution */}
                 <td className="py-1 px-2 font-mono text-terminal-sm text-text-muted truncate">{txn.institutionName || '\u2014'}</td>
-                {/* COA dropdown */}
+                {/* COA dropdown — PENDING-01: no account to pick for a row still pending at the bank; the cell says so */}
                 <td className="py-1 px-2">
-                  {variant === 'pending' ? (
+                  {variant === 'pending' && pendingAtBank ? (
+                    <span data-pending-at-bank-cell className="font-mono text-terminal-sm text-amber-800 whitespace-nowrap">{PENDING_AT_BANK_CELL}</span>
+                  ) : variant === 'pending' ? (
                     <select
                       value={rowChanges[txn.id]?.coa || ''}
                       onChange={e => setRowChanges(prev => ({ ...prev, [txn.id]: { ...(prev[txn.id] || { coa: '', sub: '' }), coa: e.target.value } }))}
@@ -1020,6 +1040,8 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   const [activeTable, setActiveTable] = useState<'pending' | 'committed'>('pending');
   const [pendingColFilters, setPendingColFilters] = useState<ColumnFilters>(EMPTY_COL_FILTERS);
   const [committedColFilters, setCommittedColFilters] = useState<ColumnFilters>(EMPTY_COL_FILTERS);
+  // PENDING-01: the committed table shows only its rows still pending at the bank — to tick and Uncommit — or all of them.
+  const [onlyPendingAtBank, setOnlyPendingAtBank] = useState(false);
 
   // Sync coaOptions from parent
   useEffect(() => { setLocalCoaOptions(coaOptions); }, [coaOptions]);
@@ -1051,6 +1073,23 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     });
     return g;
   }, [localCoaOptions]);
+
+  // PENDING-01: A PENDING BANK ROW IS NEVER COMMITTED (src/lib/books/bankPending.ts). The queue draws no tick box
+  // and no account select for one, and select-all skips it; the batch and the per-row commit read what they send
+  // through the leaf all the same, so the bar's count, its sum and both commit paths can never include one.
+  const selectedToCommit = useMemo(
+    () => new Set(committableIds(Array.from(selectedPending), transactions)),
+    [selectedPending, transactions],
+  );
+  const rowEntriesToCommit = useMemo(() => {
+    const chosen = Object.entries(rowChanges).filter(([, c]) => c.coa && c.coa !== '__NEW__');
+    const allowed = new Set(committableIds(chosen.map(([id]) => id), transactions));
+    return chosen.filter(([id]) => allowed.has(id));
+  }, [rowChanges, transactions]);
+  // The committed rows the bank still lists as pending — counted above the committed table.
+  const committedPendingAtBank = useMemo(() => rowsPendingAtBank(committedTransactions), [committedTransactions]);
+  // The table shows only them while the button is on AND there are any: when the last one is uncommitted the table shows all again.
+  const showingOnlyPendingAtBank = onlyPendingAtBank && committedPendingAtBank.length > 0;
 
   // DIM-3: the canonical module_key vocabulary — the SAME leaf the server
   // validates against (tabDescriptors keys). One source, no drift.
@@ -1101,9 +1140,9 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   // (case-insensitive) against the directory — rendered as a chip that
   // REQUIRES a click; never auto-applied.
   const suggestedVendor = useMemo(() => {
-    if (batchVendor || vendors.length === 0 || selectedPending.size === 0) return null;
+    if (batchVendor || vendors.length === 0 || selectedToCommit.size === 0) return null;
     const merchants = transactions
-      .filter((t) => selectedPending.has(t.id))
+      .filter((t) => selectedToCommit.has(t.id))
       .map((t) => t.merchantName)
       .filter((m): m is string => !!m);
     if (merchants.length === 0) return null;
@@ -1111,13 +1150,13 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     merchants.forEach((m) => { counts[m] = (counts[m] || 0) + 1; });
     const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0].toLowerCase();
     return vendors.find((v) => v.vendor_name.toLowerCase() === dominant) ?? null;
-  }, [batchVendor, vendors, transactions, selectedPending]);
+  }, [batchVendor, vendors, transactions, selectedToCommit]);
 
   // Determine the dominant entity type for selected pending transactions
   const selectedEntityType = useMemo(() => {
-    if (selectedPending.size === 0) return null;
+    if (selectedToCommit.size === 0) return null;
     const types = transactions
-      .filter(t => selectedPending.has(t.id))
+      .filter(t => selectedToCommit.has(t.id))
       .map(t => t.entityType)
       .filter(Boolean);
     if (types.length === 0) return null;
@@ -1125,7 +1164,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     const counts: Record<string, number> = {};
     types.forEach(t => { counts[t!] = (counts[t!] || 0) + 1; });
     return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-  }, [transactions, selectedPending]);
+  }, [transactions, selectedToCommit]);
 
   // Check if batch COA is cross-entity
   const batchCrossEntity = useMemo(() => {
@@ -1175,10 +1214,11 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   }, [transactions, pendingFilters, pendingColFilters, pendingSort]);
 
   const committedRows = useMemo(() => {
-    let filtered = applyFilters(committedTransactions, committedFilters);
+    // PENDING-01: only the rows still pending at the bank while the line's button is on; the filters and the sort apply to them as to all.
+    let filtered = applyFilters(showingOnlyPendingAtBank ? committedPendingAtBank : committedTransactions, committedFilters);
     filtered = applyColumnFilters(filtered, committedColFilters);
     return sortTransactions(filtered, committedSort.field, committedSort.dir);
-  }, [committedTransactions, committedFilters, committedColFilters, committedSort]);
+  }, [committedTransactions, committedPendingAtBank, showingOnlyPendingAtBank, committedFilters, committedColFilters, committedSort]);
 
   const hasActiveFilters = (f: ActiveFilters) =>
     f.search || f.merchants.length || f.categories.length || f.accounts.length || f.channels.length || f.dateFrom || f.dateTo || f.amountMin || f.amountMax;
@@ -1190,18 +1230,18 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
 
   // Selection total — FX-01b (ruling A): a sum of integer CENTS over the selected rows stated in the functional
   // currency; a row in another currency, with no stated currency, or not whole cents is counted out BY NAME,
-  // never added as dollars by assumption.
+  // never added as dollars by assumption. PENDING-01: over the selection that may be committed.
   const selectedPendingTotal = useMemo(() => {
     let cents = BigInt(0);
     let countedOut = 0;
     for (const t of transactions) {
-      if (!selectedPending.has(t.id)) continue;
+      if (!selectedToCommit.has(t.id)) continue;
       const abs = Math.abs(t.amount);
       if (t.currency === null || t.currency.toUpperCase() !== FUNCTIONAL_CURRENCY || !isWholeCents(abs)) { countedOut += 1; continue; }
       cents += centsOfTypedDollars(String(abs));
     }
     return { cents, countedOut };
-  }, [transactions, selectedPending]);
+  }, [transactions, selectedToCommit]);
 
   // Handlers
   const handlePendingSort = (field: SortField, forcedDir?: SortDir) => {
@@ -1248,7 +1288,8 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   };
 
   const handleBatchCommit = async () => {
-    const ids = Array.from(selectedPending);
+    // PENDING-01: the selection that may be committed — never a row still pending at the bank.
+    const ids = Array.from(selectedToCommit);
     if (ids.length === 0) return;
     if (!batchCoa) { alert('Select a COA account first'); return; }
 
@@ -1302,7 +1343,8 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   };
 
   const handleRowCommit = async () => {
-    const entries = Object.entries(rowChanges).filter(([_, c]) => c.coa && c.coa !== '__NEW__');
+    // PENDING-01: the per-row choices that may be committed — never one on a row still pending at the bank.
+    const entries = rowEntriesToCommit;
     if (entries.length === 0) return;
 
     setCommitting(true);
@@ -1363,7 +1405,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     setLocalCoaOptions(prev => [...prev, account].sort((a, b) => a.code.localeCompare(b.code)));
   };
 
-  const rowsWithCoa = Object.entries(rowChanges).filter(([_, c]) => c.coa && c.coa !== '__NEW__').length;
+  const rowsWithCoa = rowEntriesToCommit.length;
 
   if (!transactions && !committedTransactions) {
     return <div className="p-4 text-center text-text-faint">Loading...</div>;
@@ -1427,7 +1469,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               : 'border-transparent text-text-muted hover:text-text-secondary'
           }`}
         >
-          Committed ({committedRows.length}{hasActiveFilters(committedFilters) || hasCommittedColFilters ? ` of ${committedTransactions.length}` : ''})
+          Committed ({committedRows.length}{hasActiveFilters(committedFilters) || hasCommittedColFilters || showingOnlyPendingAtBank ? ` of ${committedTransactions.length}` : ''})
         </button>
       </div>
 
@@ -1500,6 +1542,20 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               ))}
             </div>
           )}
+          {/* PENDING-01: the committed rows the bank still lists as pending — counted, with a button that shows only
+              them (to tick and Uncommit) and shows all again. They were committed before the rule; nothing here reverses one. */}
+          {committedPendingAtBank.length > 0 && (
+            <div data-committed-pending-at-bank className="flex items-center gap-2 text-terminal-sm font-mono text-amber-800">
+              <span>{committedStillPendingWords(committedPendingAtBank.length)}</span>
+              <button
+                type="button"
+                onClick={() => setOnlyPendingAtBank(only => !only)}
+                className="rounded border border-amber-800/40 px-2 py-0.5 hover:bg-amber-100"
+              >
+                {showingOnlyPendingAtBank ? SHOW_ALL_COMMITTED : SHOW_ONLY_PENDING_AT_BANK}
+              </button>
+            </div>
+          )}
           {committedRows.length === 0 ? (
             <div className="text-center py-12 text-text-faint">
               <p className="text-sm">{committedTransactions.length === 0 ? 'No committed transactions yet' : 'No matches'}</p>
@@ -1526,12 +1582,12 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
         </>
       )}
 
-      {/* Batch Commit Bar (sticky bottom when pending selected) */}
-      {selectedPending.size > 0 && activeTable === 'pending' && (
+      {/* Batch Commit Bar (sticky bottom when pending selected) — PENDING-01: over the selection that may be committed */}
+      {selectedToCommit.size > 0 && activeTable === 'pending' && (
         <div className="sticky bottom-0 left-0 right-0 bg-brand-purple-deep text-white p-2 rounded shadow-sm z-20">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-terminal-base font-mono font-medium">
-              {selectedPending.size} txn{selectedPending.size !== 1 ? 's' : ''}
+              {selectedToCommit.size} txn{selectedToCommit.size !== 1 ? 's' : ''}
               <span className="ml-1 text-white/60" data-selection-total>({functionalMoneyWords(selectedPendingTotal.cents)}{selectedPendingTotal.countedOut > 0 ? ` · ${selectedPendingTotal.countedOut} not in ${FUNCTIONAL_CURRENCY} or not whole cents, counted out` : ''})</span>
             </span>
             <select

@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { commitPlaidTransaction, type CommitLink } from '@/lib/journal-entry-service';
 import { documentsForBatch } from '@/lib/posting/documentGate';
 import { postingCurrencyRule } from '@/lib/books/functionalCurrency';
+import { isPendingAtBank, pendingCommitRefusal } from '@/lib/books/bankPending';
 import { humanActor, recordBookingEvent } from '@/lib/reservations/auditTrail';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
@@ -240,6 +241,16 @@ export async function POST(request: NextRequest) {
 
         if (!plaidTxn) {
           errors.push({ txnId, error: 'Transaction not found' });
+          continue;
+        }
+
+        // PENDING-01 (Alex, 2026-11-11): A PENDING BANK ROW IS NEVER A POSTING'S SOURCE. A row the bank still
+        // lists as pending is refused by name, per row, as soon as it is loaded and before anything else is
+        // decided about it: the sync replaces a pending row with its posted copy, and a posting made from the
+        // pending one is left pointing at a row that is gone. Nothing posts for this row; the batch's other
+        // rows go on (the rule and the words: src/lib/books/bankPending.ts).
+        if (isPendingAtBank(plaidTxn)) {
+          errors.push({ txnId, error: pendingCommitRefusal(plaidTxn.name) });
           continue;
         }
 

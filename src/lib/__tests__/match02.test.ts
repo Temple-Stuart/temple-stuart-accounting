@@ -44,9 +44,14 @@ const MIGRATION = 'prisma/migrations/20260926210000_match_02_refund_settlement/m
  * TRAVEL-01b (2026-10-31, ruling C): the booked figure's helper moved to the currency home as statedMoneyWords — the charge
  * pass imports it and declares no money words of its own; its rationale words are unchanged (pinned below) — the prefix
  * re-pinned at main 6d41a3e2 + TRAVEL-01b. Was 51c7c21e9dee2989c2e4d8e3f7e38b87273bb731aca3a6d59c9e37842d0b9039 / 15936.
+ * PENDING-01 (2026-11-11): NO CODE of the charge pass moved. The header's citation of the Plaid parser's `pending` line
+ * was re-cited where that line is now (plaidTransactionsPage.ts:97 → :150 — one character longer). code() blanks a
+ * comment to spaces, so the prefix is ONE BLANK longer, on that comment's line, and is otherwise main's byte for byte
+ * (checked: main's text with that one blank is this text) — the prefix re-pinned at main 9ed83771 + PENDING-01.
+ * Was 81b07a7379b72faf1b53ca263d2c5725721611d3f66b2051a026557baee8e7c5 / 15867.
  */
-const MAIN_MATCHER_CODE_SHA256 = '81b07a7379b72faf1b53ca263d2c5725721611d3f66b2051a026557baee8e7c5';
-const MAIN_MATCHER_CODE_LENGTH = 15867;
+const MAIN_MATCHER_CODE_SHA256 = 'd2f3a4538bd1631b6f83b017244c016bdec22790517afcee26121dec3613ef6e';
+const MAIN_MATCHER_CODE_LENGTH = 15868;
 
 const EVENT: MatcherRefundEvent = {
   id: 'me_1', reservationId: 'res_1', kind: 'refund', status: 'stated', amountCents: 25000, currency: 'USD', refundDestination: null,

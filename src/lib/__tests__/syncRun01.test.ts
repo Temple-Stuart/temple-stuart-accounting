@@ -69,8 +69,11 @@ class FakeDomain implements DomainDb {
       return {};
     },
     updateMany: async () => { this.links += 1; return {}; },
-    deleteMany: async () => ({}),
   };
+  // PENDING-01 (2026-11-11): the parser's same-amount delete is gone (this fake's deleteMany went with it). The page's
+  // one pending step runs only when a posted object names a pending charge — no object of these histories does, so a
+  // call here is a fault of the test, said out loud (arrivalsLand.test.ts holds the step).
+  clearReplacedPending = async (): Promise<never> => { throw new Error('syncRun01: no object here names a pending charge — the pending step must not run'); };
 }
 
 const LINK = 'link_wf';

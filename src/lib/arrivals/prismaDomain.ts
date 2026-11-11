@@ -6,29 +6,44 @@
  * The landing side was already batched (prismaLanding: one INSERT … ON
  * CONFLICT DO NOTHING RETURNING, one SELECT, one UPDATE per page); the domain
  * loop was not — the parser (plaidTransactionsPage.ts) issued one upsert per
- * transaction, one DELETE per posted transaction (pending duplicates) and one
- * UPDATE per repeated object (the arrival_id link): ~900 statements, ~900
- * Azure round trips, for a 500-object page.
+ * transaction, one DELETE per posted transaction (the pending-duplicate guess
+ * PENDING-01 removed, below) and one UPDATE per repeated object (the
+ * arrival_id link): ~900 statements, ~900 Azure round trips, for a 500-object
+ * page.
  *
- * The parser is unchanged and still speaks the per-row DomainDb port, so the
- * existing landing tests (a fake DomainDb) prove its semantics unchanged. THIS
- * binding buffers the parser's intents, in order, and `finish()` — called by
- * runTransactionsPage inside the same page transaction — replays them as:
+ * The parser still speaks the per-row DomainDb port, so the landing tests (a
+ * fake DomainDb) prove its semantics. THIS binding buffers the parser's
+ * intents, in order, and `finish()` — called by runTransactionsPage inside the
+ * same page transaction — replays them as:
  *
  *   1. one INSERT … ON CONFLICT ("transactionId") DO UPDATE for every upsert
  *      (Prisma's own upsert is that statement, one row at a time);
  *   2. one UPDATE … FROM (VALUES …) for the arrival_id links (arrival_id IS
- *      NULL, as the parser's updateMany says);
- *   3. one DELETE … USING (VALUES …) for the pending-duplicate rule against
- *      rows that were NOT in this page, and one DELETE by id for the in-page
- *      rows the sequential order would have removed (planDomainWrites).
+ *      NULL, as the parser's updateMany says).
  *
  * The plan (planDomainWrites) is pure and reproduces the sequential order's
  * result exactly: same id twice → the first row's create fields, the last
  * row's data; a link for an id the page also upserts is a no-op (the upsert
- * sets arrival_id); an in-page pending row is deleted only by a LATER posted
- * row's rule, and a later re-upsert of that id revives it. An intent shape the
- * parser does not issue is a throw, never a per-row fallback.
+ * sets arrival_id). It holds upserts and links, and nothing else. An intent
+ * shape the parser does not issue is a throw, never a per-row fallback.
+ *
+ * PENDING-01 (Alex, 2026-11-11): THE GUESS IS GONE. Until then the parser also
+ * issued one DELETE per posted transaction — every pending row of the same
+ * account and amount dated within two days — and this binding replayed it as a
+ * DELETE … USING (VALUES …) plus a DELETE by id for in-page rows. The parser
+ * deletes nothing now, and neither does the plan. The sync's ONE delete is the
+ * page's pending step (DomainDb.clearReplacedPending): the pending rows Plaid
+ * NAMES as replaced by a posted charge, on the link's own accounts, never one
+ * that is committed or carries a live posting — and (part 3) never one a
+ * booking link or a settled refund points at: the database refuses that
+ * delete, so the step does not try. It is NOT buffered. It runs at once,
+ * inside the page's transaction — it names rows by their own ids, rows this
+ * page does not write, so nothing buffered depends on it — as ONE statement
+ * that deletes and counts (clearReplacedPendingSql), and its answer is the
+ * page's three counts, one for each thing a named row can be: deleted
+ * (pending_cleared); left in place because it is committed or posted from
+ * (pending_kept); left in place because, though neither, a booking link or a
+ * settled refund points at it (pending_linked).
  *
  * A page whose payloads omit a column (undefined, not null) is grouped by the
  * set of omitted columns, one statement per group — Prisma's create treats
@@ -37,7 +52,7 @@
  * one group.
  */
 import { Prisma } from '@prisma/client';
-import type { DomainDb } from './plaidTransactionsPage';
+import type { DomainDb, ReplacedPendingAnswer } from './plaidTransactionsPage';
 
 export interface UpsertIntent {
   where: { transactionId: string };
@@ -48,14 +63,11 @@ export interface LinkIntent {
   where: { transactionId: string; arrival_id: null };
   data: { arrival_id: string };
 }
-export interface DeleteIntent {
-  where: { accountId: string; amount: number; pending: true; date: { gte: Date; lte: Date }; transactionId: { not: string } };
-}
-export type Intent = { kind: 'upsert'; args: UpsertIntent } | { kind: 'link'; args: LinkIntent } | { kind: 'delete'; args: DeleteIntent };
+export type Intent = { kind: 'upsert'; args: UpsertIntent } | { kind: 'link'; args: LinkIntent };
 
 export class UnsupportedDomainWriteError extends Error {
   constructor(what: string) {
-    super(`prismaDomain: ${what} — the batching binding replays only the parser's three intents (upsert by transactionId, the arrival_id link, the pending-duplicate delete); nothing else is issued`);
+    super(`prismaDomain: ${what} — the batching binding replays only the parser's two intents (upsert by transactionId, the arrival_id link) and runs the page's one pending step; nothing else is issued`);
     this.name = 'UnsupportedDomainWriteError';
   }
 }
@@ -83,15 +95,10 @@ export interface PlannedUpsert {
   data: Record<DataKey, unknown>;
 }
 
+/** What finish() replays: upserts and links. PENDING-01: nothing in the plan deletes. */
 export interface DomainPlan {
   upserts: PlannedUpsert[];
   links: Array<{ transactionId: string; arrivalId: string }>;
-  /** The pending-duplicate rule, one per posted row, applied to rows NOT upserted in this page. */
-  deletes: Array<{ accountId: string; amount: number; gte: Date; lte: Date; notTransactionId: string }>;
-  /** In-page rows the sequential order would have removed (a LATER posted row's rule, not revived by a later upsert). */
-  deleteInPageIds: string[];
-  /** Every transactionId upserted in this page. */
-  pageIds: string[];
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -118,24 +125,21 @@ function assertLink(args: unknown): LinkIntent {
   return args as unknown as LinkIntent;
 }
 
-function assertDelete(args: unknown): DeleteIntent {
-  const w = isPlainObject(args) ? args.where : undefined;
-  if (!isPlainObject(w) || Object.keys(w).length !== 5 || typeof w.accountId !== 'string' || typeof w.amount !== 'number' || w.pending !== true
-    || !isPlainObject(w.date) || !(w.date.gte instanceof Date) || !(w.date.lte instanceof Date) || Object.keys(w.date).length !== 2
-    || !isPlainObject(w.transactionId) || typeof w.transactionId.not !== 'string' || Object.keys(w.transactionId).length !== 1) {
-    throw new UnsupportedDomainWriteError('deleteMany must be { where: { accountId, amount, pending: true, date: { gte, lte }, transactionId: { not } } }');
+const isIdList = (v: unknown): v is string[] => Array.isArray(v) && v.length > 0 && v.every((id) => typeof id === 'string' && id.length > 0);
+const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
+
+/** PENDING-01: the pending step's arguments, checked like every other write through this binding. */
+function assertClear(args: unknown): { accountIds: string[]; transactionIds: string[] } {
+  if (!isPlainObject(args) || Object.keys(args).length !== 2 || !isIdList(args.accountIds) || !isIdList(args.transactionIds)) {
+    throw new UnsupportedDomainWriteError('clearReplacedPending must be { accountIds, transactionIds } — each a list of at least one id');
   }
-  return args as unknown as DeleteIntent;
+  return { accountIds: args.accountIds, transactionIds: args.transactionIds };
 }
 
 /** Replay the parser's intents, in order, into the batched plan with the sequential order's exact result. */
 export function planDomainWrites(intents: Intent[]): DomainPlan {
   const upserts = new Map<string, PlannedUpsert>();
   const links = new Map<string, string>();
-  const deletes: DomainPlan['deletes'] = [];
-  const deletedNow = new Set<string>();
-  // What the page has written so far, as the sequential order would see it.
-  const inPage = new Map<string, { accountId: string; amount: number; pending: boolean; date: Date }>();
 
   for (const intent of intents) {
     if (intent.kind === 'upsert') {
@@ -147,32 +151,16 @@ export function planDomainWrites(intents: Intent[]): DomainPlan {
       upserts.set(id, prior
         ? { ...prior, data: { ...prior.data, ...data } }
         : { id: create.id as string, accountId: create.accountId as string, transactionId: create.transactionId as string, data });
-      const row = upserts.get(id)!;
-      inPage.set(id, { accountId: row.accountId, amount: Number(row.data.amount), pending: row.data.pending === true, date: row.data.date instanceof Date ? row.data.date : new Date(String(row.data.date)) });
-      deletedNow.delete(id);
-    } else if (intent.kind === 'link') {
+    } else {
       const id = intent.args.where.transactionId;
       if (!links.has(id)) links.set(id, intent.args.data.arrival_id);
-    } else {
-      const w = intent.args.where;
-      deletes.push({ accountId: w.accountId, amount: w.amount, gte: w.date.gte, lte: w.date.lte, notTransactionId: w.transactionId.not });
-      for (const [id, row] of inPage) {
-        if (id === w.transactionId.not || deletedNow.has(id)) continue;
-        if (row.pending && row.accountId === w.accountId && row.amount === w.amount && row.date >= w.date.gte && row.date <= w.date.lte) {
-          deletedNow.add(id);
-        }
-      }
     }
   }
 
-  const pageIds = [...upserts.keys()];
   return {
     upserts: [...upserts.values()],
     // A link for an id the page upserts is a no-op either way: the upsert sets arrival_id.
     links: [...links.entries()].filter(([id]) => !upserts.has(id)).map(([transactionId, arrivalId]) => ({ transactionId, arrivalId })),
-    deletes,
-    deleteInPageIds: [...deletedNow],
-    pageIds,
   };
 }
 
@@ -225,20 +213,53 @@ export function linkSql(links: DomainPlan['links']): Prisma.Sql {
   return Prisma.sql`UPDATE transactions AS t SET arrival_id = v.arrival_id FROM (VALUES ${Prisma.join(values)}) AS v(transaction_id, arrival_id) WHERE t."transactionId" = v.transaction_id AND t.arrival_id IS NULL`;
 }
 
-export function deleteSql(deletes: DomainPlan['deletes'], pageIds: string[]): Prisma.Sql {
-  const values = deletes.map((d) => Prisma.sql`(${d.accountId}, ${d.amount}::float8, ${d.gte.toISOString()}::timestamp, ${d.lte.toISOString()}::timestamp, ${d.notTransactionId})`);
-  const notInPage = pageIds.length ? Prisma.sql` AND NOT (t."transactionId" = ANY(${pageIds}::text[]))` : Prisma.empty;
-  return Prisma.sql`DELETE FROM transactions AS t USING (VALUES ${Prisma.join(values)}) AS v(account_id, amount, lo, hi, transaction_id) WHERE t."accountId" = v.account_id AND t.amount = v.amount AND t.pending = true AND t.date >= v.lo AND t.date <= v.hi AND t."transactionId" <> v.transaction_id${notInPage}`;
-}
-
-export function deleteByIdSql(ids: string[]): Prisma.Sql {
-  return Prisma.sql`DELETE FROM transactions WHERE "transactionId" = ANY(${ids}::text[])`;
+/**
+ * PENDING-01 — THE SYNC'S ONE DELETE, as ONE statement that deletes and counts.
+ *
+ *   named    the transactions rows the ids name that are still pending, on the link's own accounts;
+ *   cleared  of those, the rows deleted: NOT committed, carrying no live posting — no journal entry of source
+ *            'plaid_txn' on the row's own transactionId that is neither a reversal nor reversed — AND with nothing
+ *            pointing at them: no booking link, no settled refund (the fifth condition, below);
+ *   linked   of those, the rows left in place for that last reason alone: NOT committed, no live posting, and a
+ *            booking link or a settled refund points at them;
+ *   the answer: pending_cleared = the rows deleted; pending_linked = the rows of `linked`; pending_kept = every other
+ *            named row — left in place because it is committed or posted from, which is the only other way to be
+ *            left, whether or not something also points at it. The three add up to the named rows. Nothing about a
+ *            row that is left changes.
+ *
+ * Both ids and accounts ride as one array parameter each, so a page of any size is one statement. Each sub-statement
+ * reads the same snapshot: `named` and `linked` are counted as they stood before the delete. pending_kept is the
+ * remainder on purpose: a row committed after that snapshot and before the delete is not taken — at the database's
+ * default isolation (READ COMMITTED) the delete re-reads review_status on the row it locks — and is counted as kept,
+ * which is what it then is.
+ *
+ * WHAT IT LOOKS FOR BEFORE IT DELETES, AND WHY — part 3, the ruling of 2026-11-11 on what PENDING-01's report named.
+ * Two foreign keys point at a transactions row, both ON DELETE RESTRICT: a booking link
+ * (transaction_reservation_links."transactionId" —
+ * prisma/migrations/20260805000000_transaction_reservation_links/migration.sql:42-45) and a settled refund
+ * (money_events."settledTransactionId" — prisma/migrations/20260926210000_match_02_refund_settlement/migration.sql:27-30).
+ * Each holds the row's `id`, not Plaid's transactionId. The matcher proposes links on pending rows too
+ * (src/app/api/runway/match/propose/route.ts: "pending included, the matcher flags it"), and the database refuses to
+ * delete a row either key points at: until part 3 the statement threw on such a row, the page rolled back whole and
+ * that bank's transactions stage was declared failed on that page — on every Sync. So the step never tries. The
+ * delete carries a FIFTH condition — nothing points at the row: no transaction_reservation_links row with the row's
+ * id as its transactionId, WHATEVER THE LINK'S STATUS (the foreign key reads no status — a proposed or a rejected link
+ * refuses the delete as an accepted one does), and no money_events row with the row's id as its settledTransactionId
+ * — and a row something points at is left exactly as it is and counted (pending_linked). The foreign keys stay as
+ * they are. Moving a link to the posted row is the matcher's work, not this step's.
+ *
+ * WHAT THE SNAPSHOT CANNOT SEE: a link or a refund written AFTER it and before the delete. The database still refuses
+ * that delete — the statement throws, the page rolls back whole and its stage is declared failed, for that one Sync;
+ * the next Sync sees the link and leaves the row in place, counted.
+ */
+export function clearReplacedPendingSql(accountIds: string[], transactionIds: string[]): Prisma.Sql {
+  return Prisma.sql`WITH named AS (SELECT t.id FROM transactions AS t WHERE t."transactionId" = ANY(${transactionIds}::text[]) AND t.pending = true AND t."accountId" = ANY(${accountIds}::text[])), cleared AS (DELETE FROM transactions AS t USING named AS n WHERE t.id = n.id AND t.review_status <> 'committed' AND NOT EXISTS (SELECT 1 FROM journal_entries AS j WHERE j.source_type = 'plaid_txn' AND j.source_id = t."transactionId" AND j.is_reversal = false AND j.reversed_by_entry_id IS NULL) AND NOT EXISTS (SELECT 1 FROM transaction_reservation_links AS l WHERE l."transactionId" = t.id) AND NOT EXISTS (SELECT 1 FROM money_events AS m WHERE m."settledTransactionId" = t.id) RETURNING t.id), linked AS (SELECT t.id FROM transactions AS t JOIN named AS n ON n.id = t.id WHERE t.review_status <> 'committed' AND NOT EXISTS (SELECT 1 FROM journal_entries AS j WHERE j.source_type = 'plaid_txn' AND j.source_id = t."transactionId" AND j.is_reversal = false AND j.reversed_by_entry_id IS NULL) AND (EXISTS (SELECT 1 FROM transaction_reservation_links AS l WHERE l."transactionId" = t.id) OR EXISTS (SELECT 1 FROM money_events AS m WHERE m."settledTransactionId" = t.id))) SELECT (SELECT count(*) FROM cleared)::int AS pending_cleared, ((SELECT count(*) FROM named) - (SELECT count(*) FROM cleared) - (SELECT count(*) FROM linked))::int AS pending_kept, (SELECT count(*) FROM linked)::int AS pending_linked`;
 }
 
 export interface BatchingDomainDb extends DomainDb {
   /** Replay the buffered intents as the batched statements — inside the page's transaction. */
   finish(): Promise<void>;
-  /** For the log line: how many intents the page issued and how many statements the flush ran. */
+  /** For the log line: how many intents the page buffered and how many statements ran — the flush's, and the pending step's one when it ran. */
   stats(): { intents: number; statements: number };
 }
 
@@ -251,7 +272,21 @@ export function prismaDomain(tx: Prisma.TransactionClient): BatchingDomainDb {
     transactions: {
       async upsert(args) { guard(); intents.push({ kind: 'upsert', args: assertUpsert(args) }); return {}; },
       async updateMany(args) { guard(); intents.push({ kind: 'link', args: assertLink(args) }); return {}; },
-      async deleteMany(args) { guard(); intents.push({ kind: 'delete', args: assertDelete(args) }); return {}; },
+    },
+    // PENDING-01: the page's pending step — NOT buffered. It runs at once, inside the page's transaction: it names
+    // rows this page does not write, so nothing buffered depends on it. One statement, counted for the log line.
+    async clearReplacedPending(args): Promise<ReplacedPendingAnswer> {
+      guard();
+      const { accountIds, transactionIds } = assertClear(args);
+      const answered = await tx.$queryRaw<Array<{ pending_cleared: unknown; pending_kept: unknown; pending_linked: unknown }>>(clearReplacedPendingSql(accountIds, transactionIds));
+      statements += 1;
+      // The statement answers exactly one row of three counts; anything else is the table not answering — said, never read as none.
+      const answer = answered.length === 1 ? answered[0] : undefined;
+      const cleared = answer?.pending_cleared;
+      const kept = answer?.pending_kept;
+      const linked = answer?.pending_linked;
+      if (!isCount(cleared) || !isCount(kept) || !isCount(linked)) throw new Error('prismaDomain: the pending step answered no count — the table is not answering');
+      return { pending_cleared: cleared, pending_kept: kept, pending_linked: linked };
     },
     async finish() {
       guard();
@@ -261,8 +296,6 @@ export function prismaDomain(tx: Prisma.TransactionClient): BatchingDomainDb {
         for (const rows of chunks(group.rows)) { await tx.$executeRaw(upsertSql(group.columns, rows)); statements += 1; }
       }
       for (const links of chunks(plan.links)) { await tx.$executeRaw(linkSql(links)); statements += 1; }
-      for (const deletes of chunks(plan.deletes)) { await tx.$executeRaw(deleteSql(deletes, plan.pageIds)); statements += 1; }
-      if (plan.deleteInPageIds.length) { await tx.$executeRaw(deleteByIdSql(plan.deleteInPageIds)); statements += 1; }
     },
     stats() { return { intents: intents.length, statements }; },
   };
