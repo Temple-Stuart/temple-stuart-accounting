@@ -34,6 +34,13 @@
  * (/#events), Stop 0 and My trip (/#my-trip), then every written post's title. The home page's own handling of a link
  * to /#events (LandingBookingSection.tsx) stands untouched. PIPELINE_DOOR ("How it all connects: the 14 steps →",
  * pipelineWords.ts) is read here no more: THE RECORD's first label is typed below, as Alex typed it.
+ *
+ * PILLAR-NAMES-01 (Alex, 2026-11-11: "Financial Software | Professional Services | Travel Marketplace — these will
+ * replace Plan your Escape / Build your Income / Explore the World"): SERVICES' three links take the pillars' new
+ * names — "Plan Your Escape", "Build Your Income" and "Explore the World" until then. The headings dropped their full
+ * stop with the same ruling, so each label IS its pillar's heading now, letter for letter (src/lib/homeActWords.ts;
+ * src/lib/__tests__/footer01.test.ts holds the two equal) — "without the full stop", above, is HOME-FINISH-02's note.
+ * The three targets are unchanged: /#modules, /#services, /#demo.
  */
 import { DEMO_ANCHOR, SERVICES_ANCHOR, STOP_ZERO_ANCHOR } from './homeAnchors';
 import { tripPostHref } from './tripPostWords';
@@ -72,9 +79,9 @@ const PLANS_SECTION_ID = 'modules';
 
 /** SERVICES: the three pillars, each landing on its section of the home page — absolute, so they land from every page the footer is on. */
 export const FOOTER_SERVICES_LINKS: readonly FooterLink[] = [
-  { label: 'Plan Your Escape', href: `/#${PLANS_SECTION_ID}` },
-  { label: 'Build Your Income', href: `/#${SERVICES_ANCHOR}` },
-  { label: 'Explore the World', href: `/#${DEMO_ANCHOR}` },
+  { label: 'Financial Software', href: `/#${PLANS_SECTION_ID}` },
+  { label: 'Professional Services', href: `/#${SERVICES_ANCHOR}` },
+  { label: 'Travel Marketplace', href: `/#${DEMO_ANCHOR}` },
 ];
 
 /** A social account's name — the component keys its icon by it. */

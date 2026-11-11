@@ -25,6 +25,20 @@
  *       BUILD_PILLAR — over the six service cards (Landing.tsx, the professional-services section).
  *       EXPLORE_PILLAR — over the booking box and the booking lookup (Landing.tsx, the travel section).
  *
+ * PILLAR-NAMES-01 (Alex, 2026-11-11: "Financial Software | Professional Services | Travel Marketplace — these will
+ * replace Plan your Escape / Build your Income / Explore the World, since honestly, its more clear to me with the new
+ * ones."): THE THREE PILLARS' HEADINGS ARE THEIR NAMES NOW —
+ *       PLAN_PILLAR    — "Financial Software"    ("Plan Your Escape." until then);
+ *       BUILD_PILLAR   — "Professional Services" ("Build Your Income." until then);
+ *       EXPLORE_PILLAR — "Travel Marketplace"    ("Explore the World." until then).
+ *   · NO FULL STOP. The three they replace were sentences and ended in one; a name does not. Put to Alex in the audit
+ *     before the build, and his answer was to drop it — so a pillar's heading reads as the page's other headings do
+ *     (What We Do, About Us, Our Story), and the footer's link to it is the heading itself, letter for letter
+ *     (src/lib/footerWords.ts FOOTER_SERVICES_LINKS).
+ *   · UNCHANGED: every paragraph, the pillars' order, the sections' anchors, and the three constants' names — PLAN_,
+ *     BUILD_ and EXPLORE_ still name the pillars in the code. "PLAN → BUILD → EXPLORE", above, is HOME-FINISH-02's
+ *     own note of the order.
+ *
  * PURE, NO DIRECTIVE: no import, no state, no clock — one string each (a pillar: its heading and its paragraphs), so a
  * client component, a server component and a test all read the same words.
  */
@@ -42,7 +56,7 @@ export interface Pillar {
 }
 
 export const PLAN_PILLAR: Pillar = {
-  heading: 'Plan Your Escape.',
+  heading: 'Financial Software',
   paragraphs: [
     'Get your bank data. Turn it into financial statements. See your income and expenses, what you own, what you owe, and what living at home actually costs.',
     'Plan ahead, budget for what you want to do, prepare for tax time, and compare your plans with what actually happened.',
@@ -51,14 +65,14 @@ export const PLAN_PILLAR: Pillar = {
 };
 
 export const BUILD_PILLAR: Pillar = {
-  heading: 'Build Your Income.',
+  heading: 'Professional Services',
   paragraphs: [
     'Want to build your own system or something customized for your business? From full setup and custom development to integrations, ongoing maintenance, and bookkeeping, Temple Stuart offers hands-on services tailored to your needs.',
   ],
 };
 
 export const EXPLORE_PILLAR: Pillar = {
-  heading: 'Explore the World.',
+  heading: 'Travel Marketplace',
   paragraphs: [
     'Discover events and experiences worth traveling for, find flights and places to stay, and book the journey that gets you there.',
   ],

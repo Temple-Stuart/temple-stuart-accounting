@@ -90,7 +90,10 @@ test('T3 (HOME-FINISH-02, 2026-11-10) the travel section opens at the pillar\'s 
   // the band's own first two children, EYEBROW then SUBHEAD, before the chips' label. (Before HOME-BRIEF-03 the band rendered the line itself: an h2
   // 'mt-3 text-3xl sm:text-5xl font-bold leading-tight tracking-tight text-ts-white' holding the three lines, the PROMISE under it, then SUBHEAD.)
   assert.equal(EXPERIENCE_LINE.join(' '), 'Plan your escape. Build your income. Explore the world.', 'the three sentences stand in the leaf (T1 holds its exports) — no reader on the home page now');
-  assert.equal(EXPLORE_PILLAR.heading, 'Explore the World.');
+  // PILLAR-NAMES-01 (Alex, 2026-11-11: "Financial Software | Professional Services | Travel Marketplace — these will replace Plan your Escape /
+  // Build your Income / Explore the World"): the third pillar's name, and no full stop — 'Explore the World.' until then. His paragraph is untouched,
+  // and so is the experience line above: it is another thing, in sentence case, and still has no reader on the home page.
+  assert.equal(EXPLORE_PILLAR.heading, 'Travel Marketplace');
   assert.deepEqual([...EXPLORE_PILLAR.paragraphs], ['Discover events and experiences worth traveling for, find flights and places to stay, and book the journey that gets you there.'], 'his paragraph, word for word');
   const landing = code(LANDING);
   assert.match(landing, /^import \{ EXPLORE_PILLAR \} from '@\/lib\/homeActWords';\s*$/m, 'the pillar\'s words, imported on a line of its own');

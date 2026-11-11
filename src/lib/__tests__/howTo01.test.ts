@@ -470,7 +470,9 @@ test('T5 (HOME-PLANS-03) the source: the section types no leaf word, no mark, no
   }
   assert.doesNotMatch(section, /\bPersonal\b|\bBusiness\b|\bTrade\b|\bTravel\b|\bTrading\b/, 'no category or plan name is typed');
   // the pillar's words — Alex's, word for word, typed once in src/lib/homeActWords.ts (HOME-FINISH-02) and read by the section
-  assert.equal(PLAN_PILLAR.heading, 'Plan Your Escape.');
+  // PILLAR-NAMES-01 (Alex, 2026-11-11: "Financial Software | Professional Services | Travel Marketplace — these will replace Plan your Escape /
+  // Build your Income / Explore the World"): the first pillar's name, and no full stop — 'Plan Your Escape.' until then. His paragraphs are untouched.
+  assert.equal(PLAN_PILLAR.heading, 'Financial Software');
   assert.deepEqual([...PLAN_PILLAR.paragraphs], [
     'Get your bank data. Turn it into financial statements. See your income and expenses, what you own, what you owe, and what living at home actually costs.',
     'Plan ahead, budget for what you want to do, prepare for tax time, and compare your plans with what actually happened.',

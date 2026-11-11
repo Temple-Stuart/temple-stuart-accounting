@@ -307,7 +307,9 @@ test('T4 the pillar\'s heading and its paragraph stand over the card (HOME-FINIS
   // that — nothing between. Until then this line held 'the h2, untouched':
   // <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple"> reading "Need help? Send a proposal.", under the label.
   assert.ok(panel.startsWith(`${PILLAR_HEAD}\n          {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="mt-3 max-w-3xl text-base text-text-secondary">{words}</p>)}\n          <div className="mt-4 rounded-lg border border-border bg-white p-5">`), 'the heading → the paragraph → the card, nothing between');
-  assert.equal(BUILD_PILLAR.heading, 'Build Your Income.');
+  // PILLAR-NAMES-01 (Alex, 2026-11-11: "Financial Software | Professional Services | Travel Marketplace — these will replace Plan your Escape /
+  // Build your Income / Explore the World"): the second pillar's name, and no full stop — 'Build Your Income.' until then. His paragraph is untouched.
+  assert.equal(BUILD_PILLAR.heading, 'Professional Services');
   assert.deepEqual([...BUILD_PILLAR.paragraphs], ['Want to build your own system or something customized for your business? From full setup and custom development to integrations, ongoing maintenance, and bookkeeping, Temple Stuart offers hands-on services tailored to your needs.'], 'his paragraph, word for word');
   for (const words of [BUILD_PILLAR.heading, ...BUILD_PILLAR.paragraphs, 'Need help?', 'Send a proposal.']) assert.ok(!landing.includes(words), `Landing's code does not type "${words.slice(0, 40)}"`);
   // the section's opening: its id from the anchors leaf, then the inner box, then — after a comment — the pillar's heading
