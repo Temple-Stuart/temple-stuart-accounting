@@ -27,9 +27,9 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { code } from '../sourceText';
 import { COMPANY_LINE, EXPERIENCE_LINE, HERO_SUBLINE, SITE_DESCRIPTION } from '../brandLines';
-import { EXPERIENCES } from '../experiences';
+import { EXPERIENCES, EXPERIENCE_CATEGORIES } from '../experiences'; // EVENTS-05 (2026-11-11): the leaf's categories — the render below names the first one itself
 import { EXPLORE_PILLAR } from '../homeActWords';
-import { ExperiencesView, DEFAULT_INTO, INTO_LABEL } from '@/components/landing/ExperiencesSection';
+import { ExperiencesView, INTO_LABEL } from '@/components/landing/ExperiencesSection'; // EVENTS-05 (2026-11-11): DEFAULT_INTO left the section — no category is chosen for the visitor
 
 Object.assign(globalThis, { React });
 
@@ -110,7 +110,7 @@ test('T3 (HOME-FINISH-02, 2026-11-10) the travel section opens at the pillar\'s 
   }
   // the Events panel: no headline of its own (HOME-BRIEF-03) and — HOME-FINISH-02 — no opening lines: its first child is the chips' label, with no
   // margin over it (until then: '<p class="[^"]*">EYEBROW</p><p class="[^"]*">SUBHEAD</p><p class="[^"]*">', the label wearing mt-8)
-  const html = renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: '2026-11-08', choice: { category: DEFAULT_INTO }, onPick: () => {} }));
+  const html = renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: '2026-11-08', choice: { category: EXPERIENCE_CATEGORIES[0].id }, onPick: () => {} })); // EVENTS-05 (2026-11-11): the leaf's first category, named here — DEFAULT_INTO until then
   assert.equal((html.match(/<h2/g) ?? []).length, 0, 'the panel renders no h2');
   assert.ok(!html.includes('Book the experience, not just the destination.') && EXPERIENCE_LINE.every((line) => !html.includes(line)), 'neither the promise nor the experience line');
   assert.match(html, new RegExp(`^<section id="events" aria-label="Book the experience"[^>]*><p class="font-mono text-xs lg:text-\\[10px\\] font-semibold uppercase tracking-wider text-text-faint">${esc(asHtml(INTO_LABEL))}</p>`), 'the panel opens at the chips\' label; the id and the aria-label unchanged');

@@ -5,6 +5,25 @@
  * under the booking strip on the guest landing (Landing.tsx, after the LIVE DEMO
  * act): the marquee events a guest books a stay and a flight around.
  *
+ * EVENTS-05 (Alex, 2026-11-11 17:54-17:56 Manila: "its expanded and too big and looks shitty on web and also on phone… IDK why IM INTO
+ * AND SEASONS… ITs JUST ONE LIST… 1 drop down… select a category… have it start with select a categoty, so theres nothing expanded from
+ * the start") — ONE DROPDOWN, AND NOTHING OPEN UNTIL A CATEGORY IS PICKED. The two chip rows — I'M INTO… with nineteen chips, SEASONS with
+ * seven — are ONE native <select> under the I'M INTO… label: its first option is "Select a category" (SELECT_CATEGORY, value ''), then
+ * every entry of EXPERIENCE_CATEGORIES in the leaf's order, mapped from the list — no id or label typed here, no group heading. THE URL IS
+ * STILL THE ONLY STATE (?into=<category id>), and it has three readings now: no param, or an empty one, is NONE — the panel draws its label
+ * and the dropdown and nothing under them (no COMING UP / WHEN TO GO, no row, no closing line); a category id opens that category exactly as
+ * it printed before, the dropdown showing it; anything else is refused by name as before, the dropdown showing "Select a category". Picking
+ * "Select a category" takes ?into out of the URL and the panel closes. A PICK WRITES THE URL WITH THE BROWSER'S OWN REPLACE
+ * (window.history.replaceState — Alex's ruling the same day, on the measured report): router.replace, which wrote it until then, is a round
+ * trip to the server on this page (`/` is force-dynamic), and until the server answered the dropdown showed the value it had BEFORE the
+ * pick — held two seconds, it read "Surf" for two seconds after Wildlife was picked. Next's useSearchParams follows the browser's replace
+ * at once, so the pick and its rows show at once and nothing is asked of the server; the anchor is kept and nothing scrolls, as before.
+ * DEFAULT_INTO (no category is chosen for the visitor any more),
+ * SEASONS_LABEL, the chip button and its three classes left with their last reader; a category's `group` stays on the leaf — isSeason reads
+ * it. The dropdown wears the booking lookup's field classes (src/components/guest/GuestBookingLookup.tsx FIELD — the "Manage reference"
+ * input on this page), set out at EXP.select. Every note below that names chips, a pressed chip, the SEASONS row, a default category, a
+ * filter that "always shows exactly one category", or router.replace is history: what a chip was is a category in the dropdown now.
+ *
  * HOME-BRIEF-05 (Alex, 2026-11-10 19:00: "start with events, and then once you select them, do flights, and hotels") —
  * STAY NEAR IT: every row whose city is fixed carries one action in its body, under its note — "Stay near it →" — which
  * opens the booking box's Hotels tab with the event's place set (the country always, the city when the hotel list holds
@@ -124,34 +143,34 @@
 
 import { Suspense, useEffect } from 'react';
 import { createContext, useContext } from 'react'; // HOME-BRIEF-05 (2026-11-10): the stay-near handler's context — on a line of its own, so the line above keeps its text
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation'; // EVENTS-05 (2026-11-11): useRouter left with router.replace — a pick writes the URL with the browser's own replace
 import {
   EXPERIENCES, EXPERIENCE_CATEGORIES, experienceCategoryLabel, isExperienceCategoryId,
-  type Experience, type ExperienceCategory, type ExperienceCategoryId,
+  type Experience, type ExperienceCategoryId,
 } from '@/lib/experiences';
 import { STAY_NEAR_WORDS, canStayNear, dayWords, experienceLine, notAnnouncedLine, seasonNotAnnouncedLine, upcoming } from '@/lib/experienceWords';
 
-/** The section's anchor — the strip's Events mode and the chips' URL both name it. FOOTER-01 (2026-11-09): its one home is src/lib/homeAnchors.ts — imported back here, still exported from here. */
+/** The section's anchor — the strip's Events mode and the dropdown's URL both name it (EVENTS-05, 2026-11-11: "the chips' URL" until then). FOOTER-01 (2026-11-09): its one home is src/lib/homeAnchors.ts — imported back here, still exported from here. */
 import { EVENTS_ANCHOR } from '@/lib/homeAnchors';
 export { EVENTS_ANCHOR };
 /** The one URL parameter: ?into=<category id>. */
 export const INTO_PARAM = 'into';
-/** EVENTS-01b: the category shown when the URL names none — the FIRST in the leaf's list, derived, never typed. */
-export const DEFAULT_INTO: ExperienceCategoryId = EXPERIENCE_CATEGORIES[0].id;
+// EVENTS-05 (Alex, 2026-11-11): DEFAULT_INTO left here with its last reader — EVENTS-01b's "the category shown when the URL names none — the FIRST in
+// the leaf's list, derived, never typed". A URL that names none shows none now: nothing is chosen for the visitor.
 
 // HOME-FINISH-02 (Alex, 2026-11-10 20:56): three words left here with their last readers — the panel's label line and the line under it
 // (this panel's own two opening lines), and the promise Landing.tsx read for the travel header. The pillar's paragraph says it now.
 export const INTO_LABEL = "I'M INTO…";
-/** SEASONS-01 (2026-11-08): the second chip row's label — the season categories. */
-export const SEASONS_LABEL = 'SEASONS';
+/** EVENTS-05 (Alex, 2026-11-11): the dropdown's first option — nothing chosen, nothing open; its value is ''. (SEASONS_LABEL, the second chip row's label since SEASONS-01, left with the row.) */
+export const SELECT_CATEGORY = 'Select a category';
 export const COMING_UP_LABEL = 'COMING UP';
-/** EVENTS-04 (Alex, 2026-11-09): a season chip's label over its row, in place of COMING UP — a place's season is when to go. */
+/** EVENTS-04 (Alex, 2026-11-09): a season category's label over its rows, in place of COMING UP — a place's season is when to go. (EVENTS-05, 2026-11-11: "a season chip's label over its row" until then.) */
 export const WHEN_TO_GO_LABEL = 'WHEN TO GO';
 /** EVENTS-01c: each row's link to its source — the page its dates came from. */
 export const SOURCE_LINK = 'Source ↗';
 /** HOME-BRIEF-02 (Alex, 2026-11-10): the one short line — "Dates come from each event's own calendar, with the day they were checked. Not announced means not announced." stood before it until then. */
 export const CLOSING_LINE = 'Tickets are sold by the events, not here.';
-/** EVENTS-03 (Alex, 2026-11-09): a season chip's closing line, in place of CLOSING_LINE — the events' words do not fit a place's season. */
+/** EVENTS-03 (Alex, 2026-11-09): a season category's closing line, in place of CLOSING_LINE — the events' words do not fit a place's season. (EVENTS-05, 2026-11-11: "a season chip's closing line" until then.) */
 export const SEASONS_CLOSING_LINE = "Each window comes from the place's own source, with the day it was checked. Usual months are a guide, not set dates.";
 
 /** "<value> is not a category — pick one above." — the unknown ?into= value, refused by name, in place of COMING UP. */
@@ -200,10 +219,11 @@ const EXP = {
   panel: 'mt-6 border-t border-border pt-6',
   // HOME-FINISH-02 (2026-11-10): the keys of the panel's two opening lines (eyebrow, sub) left with the lines.
   label: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  chipRow: 'mt-3 flex flex-wrap gap-2',
-  // The chosen chip: filled brand purple, white words. The others: outlined.
-  chipOn: 'min-h-[44px] rounded-full border border-brand-purple bg-brand-purple px-4 py-2 font-mono text-xs font-medium text-white',
-  chipOff: 'min-h-[44px] rounded-full border border-border px-4 py-2 font-mono text-xs font-medium text-text-primary transition-colors hover:bg-bg-row',
+  // EVENTS-05 (Alex, 2026-11-11): the one dropdown under the label. It wears the booking lookup's field classes — GuestBookingLookup.tsx FIELD, the
+  // "Manage reference" input's: 'mt-1 block w-full rounded border border-border bg-white px-3 py-2 text-sm text-text-primary', copied 2026-11-11 — with
+  // FIELD's mt-1 read as mt-3 (the gap the chip row kept under the label), then a 44px target and a fixed width from lg up; under lg it fills the panel.
+  // Until then: chipRow 'mt-3 flex flex-wrap gap-2', and the two pills — chipOn (filled brand purple, white words) and chipOff (outlined).
+  select: 'mt-3 block w-full rounded border border-border bg-white px-3 py-2 text-sm text-text-primary min-h-[44px] lg:w-72',
   refused: 'mt-2 font-mono text-xs text-text-primary',
   // HOME-BRIEF-02 (Alex, 2026-11-10): a compact list — a hairline above, below and between its rows; nothing scrolls sideways.
   // (EVENTS-01c's row of cards, one width, snapping, with its drawn thumb, stood here until then.) The key is still `rail`:
@@ -228,15 +248,29 @@ const EXP = {
 
 const placeOf = (row: Experience): string => `${row.venue} · ${row.city}, ${row.country}`;
 
-/** EVENTS-01b: the URL's choice — exactly one category, or a value that names none (refused, no substitute). */
-export type IntoChoice = { category: ExperienceCategoryId } | { refused: string };
+/**
+ * EVENTS-01b: the URL's choice — exactly one category, or a value that names none (refused, no substitute).
+ * EVENTS-05 (Alex, 2026-11-11): or NONE — the URL names nothing, so nothing is chosen and nothing is open.
+ */
+export type IntoChoice = { category: ExperienceCategoryId } | { refused: string } | { none: true };
 
 export interface ExperiencesViewProps {
   rows: readonly Experience[];
   /** The UTC calendar date, 'YYYY-MM-DD', computed once on the server. */
   today: string;
   choice: IntoChoice;
-  onPick: (id: ExperienceCategoryId) => void;
+  /** EVENTS-05 (2026-11-11): the dropdown's pick — a category, or null when "Select a category" is picked again. */
+  onPick: (id: ExperienceCategoryId | null) => void;
+}
+
+/**
+ * EVENTS-05 (Alex, 2026-11-11): what the dropdown's value names. '' is its first option — no category (null); a category id is that category.
+ * The dropdown holds no other value, so anything else is a broken page, said by name — never read as a category, never passed over.
+ */
+export function pickedOf(value: string): ExperienceCategoryId | null {
+  if (value === '') return null;
+  if (!isExperienceCategoryId(value)) throw new Error(`ExperiencesSection: the dropdown answered "${value}", which is none of its options`);
+  return value;
 }
 
 /** HOME-BRIEF-02 (Alex, 2026-11-10): one event, one row of the list — when, what, where, the note, then the day it was checked and its source. */
@@ -275,35 +309,30 @@ function EventRow({ row, today }: { row: Experience; today: string }) {
 /** The pure half: props in, markup out. */
 export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesViewProps) {
   const into = 'category' in choice ? choice.category : null;
+  // EVENTS-05 (Alex, 2026-11-11): the value the URL named and no category answers to — null on a category and on none.
+  const refused = 'refused' in choice ? choice.refused : null;
   const chosen = into === null ? [] : rows.filter((r) => r.category === into);
   // EVENTS-01c: every row of the category — what is upcoming first, by start, then the rest in the leaf's order.
   const comingUp = upcoming(chosen, today, chosen.length);
   const cards = [...comingUp, ...chosen.filter((r) => !comingUp.includes(r))];
-  // EVENTS-03 (Alex, 2026-11-09): a season chip has its own lines — its group read from EXPERIENCE_CATEGORIES, never a list of ids.
+  // EVENTS-03 (Alex, 2026-11-09): a season category has its own lines — its group read from EXPERIENCE_CATEGORIES, never a list of ids. (EVENTS-05, 2026-11-11: "a season chip" until then.)
   const isSeason = EXPERIENCE_CATEGORIES.some((c) => c.id === into && c.group === 'season');
-  // SEASONS-01 (2026-11-08): one chip, the same classes, in either row — the one choice is ?into=<id>.
-  const chip = (c: ExperienceCategory) => (
-    <button key={c.id} type="button" aria-pressed={into === c.id} onClick={() => onPick(c.id)} className={into === c.id ? EXP.chipOn : EXP.chipOff} data-into={c.id}>
-      {c.label}
-    </button>
-  );
   return (
     <section id={EVENTS_ANCHOR} aria-label="Book the experience" className={EXP.panel} data-experiences>
       <p className={EXP.label}>{INTO_LABEL}</p>
-      <div className={EXP.chipRow} role="group" aria-label={INTO_LABEL}>
-        {EXPERIENCE_CATEGORIES.filter((c) => c.group === 'event').map(chip)}
-      </div>
-      <p className={`mt-6 ${EXP.label}`}>{SEASONS_LABEL}</p>
-      <div className={EXP.chipRow} role="group" aria-label={SEASONS_LABEL}>
-        {EXPERIENCE_CATEGORIES.filter((c) => c.group === 'season').map(chip)}
-      </div>
+      {/* EVENTS-05 (Alex, 2026-11-11): ONE LIST — every category of the leaf, in its order, in one dropdown; the first option is no category. It shows
+          the URL's category, and "Select a category" when the URL names none or names a value that is refused. (Until then: two rows of chips — the
+          event categories under this label, the season ones under SEASONS — each a pressed-or-not button.) */}
+      <select aria-label={INTO_LABEL} value={into === null ? '' : into} onChange={(e) => onPick(pickedOf(e.target.value))} className={EXP.select} data-into-select>
+        <option value="">{SELECT_CATEGORY}</option>
+        {EXPERIENCE_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+      </select>
 
-      {into === null ? (
-        <p className={`mt-10 ${EXP.refused}`} role="status" data-into-refused>{notACategory('refused' in choice ? choice.refused : '')}</p>
-      ) : (
+      {refused !== null && <p className={`mt-10 ${EXP.refused}`} role="status" data-into-refused>{notACategory(refused)}</p>}
+      {into !== null && (
         <>
           <p className={`mt-10 ${EXP.label}`}>{isSeason ? WHEN_TO_GO_LABEL : COMING_UP_LABEL}</p>
-          {/* EVENTS-03: a season chip says no "Nothing announced yet" — a usual window is a season, not an edition waiting to be announced. */}
+          {/* EVENTS-03: a season category says no "Nothing announced yet" — a usual window is a season, not an edition waiting to be announced. (EVENTS-05, 2026-11-11: "a season chip" until then.) */}
           {comingUp.length === 0 && !isSeason && <p className={EXP.line} data-nothing-upcoming>{nothingUpcoming(experienceCategoryLabel(into))}</p>}
           <div key={into} className={EXP.rail} data-coming-up-rail>
             {cards.map((row) => <EventRow key={row.id} row={row} today={today} />)}
@@ -311,26 +340,47 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
         </>
       )}
 
-      <p className={EXP.closing}>{isSeason ? SEASONS_CLOSING_LINE : CLOSING_LINE}</p>
+      {/* EVENTS-05 (2026-11-11): the closing line closes a view that is open — a category's, or the refusal's. With nothing chosen the panel ends at
+          the dropdown. (Until then it was drawn on every view.) */}
+      {(into !== null || refused !== null) && <p className={EXP.closing}>{isSeason ? SEASONS_CLOSING_LINE : CLOSING_LINE}</p>}
     </section>
   );
+}
+
+/**
+ * EVENTS-05 (Alex, 2026-11-11): what the URL's ?into= says. No param, or an empty one, → NONE: nothing chosen, nothing open (the first category until
+ * then); a category id → that category; anything else → refused by name, never a substitute. Pure, so the tests call it.
+ */
+export function choiceOf(raw: string | null): IntoChoice {
+  return raw === null || raw === '' ? { none: true } : isExperienceCategoryId(raw) ? { category: raw } : { refused: raw };
+}
+
+/**
+ * EVENTS-05 (Alex, 2026-11-11): where a pick takes the URL. A category sets ?into=<id>; "Select a category" (null) takes ?into out. Every other
+ * parameter is kept, the block's anchor closes the URL either way, and no "?" is left behind when ?into was the only parameter. `search` is
+ * the URL's own query, with or without its "?". Pure, so the tests call it.
+ */
+export function pickHref(pathname: string, search: string, id: ExperienceCategoryId | null): string {
+  const next = new URLSearchParams(search);
+  if (id === null) next.delete(INTO_PARAM);
+  else next.set(INTO_PARAM, id);
+  const query = next.toString();
+  return `${pathname}${query === '' ? '' : `?${query}`}#${EVENTS_ANCHOR}`;
 }
 
 /** The URL half: ?into=<category id> read and written; nothing stored anywhere else. */
 function ExperiencesFromUrl({ today }: { today: string }) {
   const params = useSearchParams();
-  const router = useRouter();
   // HOME-BRIEF-04 (after the look): an arrival at /#events is taken to the block when it mounts — once (landOnEvents, above).
   useEffect(() => {
     landOnEvents(window.location.hash, (id) => document.getElementById(id));
   }, []);
-  const raw = params.get(INTO_PARAM);
-  // No param, or an empty one, → the first category; a valid id → it; anything else → refused by name.
-  const choice: IntoChoice = raw === null || raw === '' ? { category: DEFAULT_INTO } : isExperienceCategoryId(raw) ? { category: raw } : { refused: raw };
-  const pick = (id: ExperienceCategoryId) => {
-    const next = new URLSearchParams(params.toString());
-    next.set(INTO_PARAM, id);
-    router.replace(`${window.location.pathname}?${next.toString()}#${EVENTS_ANCHOR}`, { scroll: false });
+  // EVENTS-05 (2026-11-11): the choice is the URL's (choiceOf) — none, a category or a refusal. A pick replaces the URL (pickHref) with the BROWSER's
+  // own replace, whether it sets ?into or takes it out: the address as it stands that moment is read, the anchor is kept, nothing scrolls, no entry is
+  // added to Back — and useSearchParams follows at once, with no request to the server (Alex's ruling; the header says what router.replace did).
+  const choice = choiceOf(params.get(INTO_PARAM));
+  const pick = (id: ExperienceCategoryId | null) => {
+    window.history.replaceState(null, '', pickHref(window.location.pathname, window.location.search, id));
   };
   return <ExperiencesView rows={EXPERIENCES} today={today} choice={choice} onPick={pick} />;
 }

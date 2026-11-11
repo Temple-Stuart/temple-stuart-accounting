@@ -43,7 +43,7 @@ import { resolve } from 'node:path';
 import { BOOKING_FLOW_BASE, BOOKING_FLOW_FILES, bookingFlowSha256 } from '../travelBookingFlow';
 import type { ToggleMode } from '@/components/ui/ToggleStrip';
 import {
-  ExperiencesView, DEFAULT_INTO, EVENTS_ANCHOR, CLOSING_LINE, SOURCE_LINK, landOnEvents, notACategory, nothingUpcoming,
+  ExperiencesView, SELECT_CATEGORY, EVENTS_ANCHOR, CLOSING_LINE, SOURCE_LINK, landOnEvents, notACategory, nothingUpcoming, // EVENTS-05 (2026-11-11): DEFAULT_INTO left the section (no category is chosen for the visitor); SELECT_CATEGORY is the dropdown's first option
 } from '@/components/landing/ExperiencesSection';
 
 Object.assign(globalThis, { React });
@@ -68,15 +68,17 @@ const row = (id: string): Experience => {
   if (!found) throw new Error(`${id} is not a row`);
   return found;
 };
-const render = (props: Partial<React.ComponentProps<typeof ExperiencesView>> = {}) =>
-  renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: TODAY, choice: { category: DEFAULT_INTO }, onPick: () => {}, ...props }));
+const render = (props: Partial<React.ComponentProps<typeof ExperiencesView>> = {}) => // EVENTS-05 (2026-11-11): the helper names the leaf's first category itself — it passed DEFAULT_INTO until the section stopped choosing one
+  renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: TODAY, choice: { category: EXPERIENCE_CATEGORIES[0].id }, onPick: () => {}, ...props }));
 /** EVENTS-01c: each card's source link — [row id, href]. */
 const sourcesOf = (html: string) => [...html.matchAll(/<a href="([^"]+)" rel="noopener" target="_blank" class="[^"]*" data-source="([^"]+)">Source ↗<\/a>/g)].map((m) => [m[2], m[1].replace(/&amp;/g, '&')] as const);
 /** A card's line, by row id. */
 const lineOf = (html: string, id: string) => new RegExp(`data-coming-up="${id}"[\\s\\S]*?data-experience-line="true">([^<]*)<`).exec(html)?.[1];
 const cardsOf = (html: string) => [...html.matchAll(/data-coming-up="([^"]+)"/g)].map((m) => m[1]);
 const pos = (hay: string, needle: string) => { const i = hay.indexOf(needle); assert.ok(i > -1, `${needle} is rendered`); return i; };
-const pressedOf = (html: string) => [...html.matchAll(/aria-pressed="true"[^>]*data-into="([^"]*)"/g)].map((m) => m[1]);
+// EVENTS-05 (2026-11-11): the chosen category is the dropdown's selected option — the pressed chip until then (/aria-pressed="true"[^>]*data-into="([^"]*)"/). The
+// name stays: T4's tests read it. The first option, "Select a category", has no value and is no category, so it is never in this list.
+const pressedOf = (html: string) => [...html.matchAll(/<option value="([^"]+)" selected="">/g)].map((m) => m[1]);
 
 /** The contiguous comment block directly above a pin line (the hotel02 test's helper, verbatim). */
 function noteBlockOver(pins: string, notes: string, pinLine: number): string {
@@ -130,7 +132,7 @@ test('T1 every refusal, by name', () => {
 
 // ── T2 · THE ROWS ────────────────────────────────────────────────────────────
 
-test('T2 the categories, in the ruled order, with their EVENTS-01b labels; the default is the FIRST of them, derived, and it is surfing', () => {
+test('T2 the categories, in the ruled order, with their EVENTS-01b labels; no category is the default — a URL that names none shows the dropdown reading "Select a category" and nothing else (EVENTS-05, 2026-11-11: the default was the FIRST of them, surfing, until then)', () => {
   assert.deepEqual(EXPERIENCE_CATEGORIES.map((c) => [c.id, c.label]), [
     ['surfing', 'Surf'], ['snowboarding', 'Snow'], ['skate', 'Skate'], ['golf', 'Golf'], ['f1', 'F1'],
     ['moto', 'Moto'], ['tennis', 'Tennis'], ['fighting', 'Fighting'], ['music_art', 'Music & art'],
@@ -142,9 +144,13 @@ test('T2 the categories, in the ruled order, with their EVENTS-01b labels; the d
     ['dive_seasons', 'Dive seasons'], ['northern_lights', 'Northern lights'], ['cherry_blossoms', 'Cherry blossoms'],
   ]);
   assert.ok(isExperienceCategoryId('f1') && !isExperienceCategoryId('nope') && !isExperienceCategoryId(null));
-  assert.equal(DEFAULT_INTO, EXPERIENCE_CATEGORIES[0].id);
-  assert.equal(DEFAULT_INTO, 'surfing', 'reordering EXPERIENCE_CATEGORIES changes the default — a conscious change');
-  assert.match(code(SECTION), /export const DEFAULT_INTO: ExperienceCategoryId = EXPERIENCE_CATEGORIES\[0\]\.id;/, 'derived from the list, not typed');
+  // EVENTS-05 (2026-11-11): re-pointed — these three lines held DEFAULT_INTO: equal to EXPERIENCE_CATEGORIES[0].id, 'surfing', and derived in the section
+  // ('export const DEFAULT_INTO: ExperienceCategoryId = EXPERIENCE_CATEGORIES[0].id;'). It left: no param → none — the dropdown shows "Select a category"
+  // and nothing else is drawn.
+  const none = render({ choice: { none: true } });
+  assert.ok(none.includes(`<option value="" selected="">${SELECT_CATEGORY}</option>`) && SELECT_CATEGORY === 'Select a category', 'no param → none: the dropdown shows Select a category');
+  assert.ok(none.endsWith('</select></section>') && !/data-coming-up|COMING UP|WHEN TO GO|data-into-refused|data-nothing-upcoming|<article/.test(none) && !none.includes(CLOSING_LINE), 'and nothing else is drawn — the panel ends at the dropdown');
+  assert.doesNotMatch(code(SECTION), /DEFAULT_INTO/, 'no default is kept in the section, read or unread');
 });
 
 test('T2 the rows: the ruling\'s DATA block transcribed whole, every checkedOn 2026-10-30 (EVENTS-02, 2026-11-08: the ten new categories\' rows carry 2026-11-08), no pinned-card field', () => {
@@ -232,7 +238,7 @@ test('T3 the lineup\'s pill words left with THE LINEUP (EVENTS-01c) — no calle
 
 // ── T4 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T4 rendered with no choice named: Surf — a list of all six surf rows (HOME-BRIEF-02, 2026-11-10), the three upcoming first with the Philippines Pro first, then the three not announced; twenty-six chips across the two rows with Surf pressed; every row linking its source; the closing line and no strip line; no lineup, no all-categories word, nothing of Alex\'s', () => {
+test('T4 rendered for the leaf\'s first category, Surf — a list of all six surf rows (HOME-BRIEF-02, 2026-11-10), the three upcoming first with the Philippines Pro first, then the three not announced; ONE dropdown of the twenty-six categories under "Select a category", Surf selected (EVENTS-05, 2026-11-11: twenty-six chips across two rows, Surf pressed, until then); every row linking its source; the closing line and no strip line; no lineup, no all-categories word, nothing of Alex\'s', () => {
   const html = render();
   assert.match(html, /<section id="events" aria-label="Book the experience"/);
   assert.equal(EVENTS_ANCHOR, 'events');
@@ -255,11 +261,14 @@ test('T4 rendered with no choice named: Surf — a list of all six surf rows (HO
   assert.equal(SOURCE_LINK, 'Source ↗');
   // EVENTS-02 (2026-11-08): nineteen chips — the nine and the ten appended. SEASONS-01 (2026-11-08): twenty-six across the
   // two rows — the nineteen events under I'M INTO, the seven seasons under SEASONS (the title counts them the same way).
-  assert.equal((html.match(/aria-pressed="(true|false)"/g) ?? []).length, 26, 'twenty-six categories across the two rows, nothing else');
+  // EVENTS-05 (2026-11-11): re-pointed — ONE list. Until then these five lines held: 26 aria-pressed chips "across the two rows, nothing else"; Surf's
+  // pressed (/aria-pressed="true"[^>]*data-into="surfing">Surf</); no 'Everything'; no data-into="". Now: one dropdown — "Select a category", then the
+  // twenty-six categories in the leaf's order, ids and labels read from the leaf — with the chosen one selected, alone.
+  assert.deepEqual([...html.matchAll(/<option value="([^"]*)"(?: selected="")?>([^<]*)<\/option>/g)].map((m) => [m[1], m[2]]), [['', SELECT_CATEGORY], ...EXPERIENCE_CATEGORIES.map((c) => [c.id, c.label.replace(/&/g, '&amp;')])], 'Select a category, then the twenty-six categories in the leaf\'s order, nothing else');
   assert.deepEqual(pressedOf(html), ['surfing']);
-  assert.match(html, /aria-pressed="true"[^>]*data-into="surfing">Surf</);
+  assert.match(html, /<option value="surfing" selected="">Surf<\/option>/);
   assert.ok(!html.includes('Everything'), 'the all-categories word is gone from the markup');
-  assert.ok(!html.includes('data-into=""'));
+  assert.ok((html.match(/ selected=""/g) ?? []).length === 1 && (html.match(/<select/g) ?? []).length === 1 && !/aria-pressed|role="group"|data-into=|<optgroup/.test(html), 'one dropdown, one option selected; no chip, no row, no group heading');
   assert.ok(!html.includes('use the strip at the top'), 'HOME-BRIEF-02 (Alex, 2026-11-10): the strip line under the row is gone — it was rendered here until then');
   assert.equal(CLOSING_LINE, 'Tickets are sold by the events, not here.', 'HOME-BRIEF-02 (2026-11-10): the one short line');
   assert.ok(html.includes(CLOSING_LINE.replace("'", '&#x27;')));
@@ -272,20 +281,28 @@ test('T4 rendered with no choice named: Surf — a list of all six surf rows (HO
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the list sits in the booking box's white surface — the house lavender hairline ('divide-white/15',
   // 'border-white/15' on the purple band until then); no white ink and no band anywhere in the panel.
   for (const cls of ['divide-y', 'divide-border', 'border-y', 'border-border']) assert.ok(rail[1].split(' ').includes(cls), `the list carries ${cls}`);
+  // EVENTS-05 (2026-11-11; Alex's ruling the same day, on the report that CLOSED 6 and this line could not both hold): re-pointed. Until then the first check
+  // of this loop refused 'bg-white' and 'w-full' on EVERY class attribute in the panel (cls === 'bg-white' || cls === 'w-full', unconditionally). The dropdown
+  // wears the booking lookup's field classes — a white field on the white box, full width under lg: not white-on-purple ink, not a section class — so those two
+  // are allowed on the dropdown's own class string and on nothing else. White/NN ink, max-w-7xl and mx-auto are still refused on every element, the dropdown too.
+  const dropdownClasses = /<select aria-label="[^"]*" class="([^"]*)" data-into-select="true">/.exec(html)?.[1];
+  assert.ok(dropdownClasses !== undefined && html.split(`class="${dropdownClasses}"`).length - 1 === 1, 'the dropdown\'s class string is its own — no other element in the panel wears it');
   for (const m of html.matchAll(/class="([^"]*)"/g)) {
     const classes = m[1].split(' ');
-    assert.ok(!classes.some((cls) => /white\//.test(cls) || cls === 'bg-white' || cls === 'w-full' || /^max-w-7xl$|^mx-auto$/.test(cls)), `no white-on-purple ink and no full-width section class: "${m[1]}"`);
+    assert.ok(!classes.some((cls) => /white\//.test(cls) || (m[1] !== dropdownClasses && (cls === 'bg-white' || cls === 'w-full')) || /^max-w-7xl$|^mx-auto$/.test(cls)), `no white-on-purple ink and no full-width section class: "${m[1]}"`);
     assert.ok(!classes.includes('text-white') || classes.includes('bg-brand-purple'), `white words only on the chosen chip's purple: "${m[1]}"`);
     assert.ok(!classes.includes('bg-brand-purple') || classes.includes('rounded-full'), `brand purple fills only a chip: "${m[1]}"`);
   }
   const section = /^<section id="events" aria-label="Book the experience" class="([^"]*)" data-experiences="true">/.exec(html);
   assert.ok(section, 'the panel opens with its section — the id, the label and the hook unchanged');
   assert.deepEqual(section[1].split(' '), ['mt-6', 'border-t', 'border-border', 'pt-6'], 'the panel sits inside the box: the hairline and the spacing every panel of the strip opens with');
-  const pressed = /aria-pressed="true" class="([^"]*)" data-into="surfing"/.exec(html);
-  const unpressed = /aria-pressed="false" class="([^"]*)" data-into="golf"/.exec(html);
-  assert.ok(pressed && unpressed);
-  for (const cls of ['bg-brand-purple', 'border-brand-purple', 'text-white']) assert.ok(pressed[1].split(' ').includes(cls), `the chosen chip is filled brand purple with white words (${cls})`);
-  assert.ok(unpressed[1].split(' ').includes('border') && unpressed[1].split(' ').includes('border-border') && !unpressed[1].split(' ').some((cls) => /^bg-/.test(cls)), 'the others are outlined, unfilled');
+  // EVENTS-05 (2026-11-11): re-pointed — until then these five lines read the pressed chip's classes (/aria-pressed="true" class="([^"]*)" data-into="surfing"/:
+  // filled brand purple, white words) and an unpressed chip's (/aria-pressed="false" class="([^"]*)" data-into="golf"/: outlined, unfilled). The chips are the
+  // dropdown: it sits right under the label, named by it, in the booking lookup's field look, 44px tall, a fixed width from lg up.
+  const dropdown = /<\/p><select aria-label="I&#x27;M INTO…" class="([^"]*)" data-into-select="true">/.exec(html);
+  assert.ok(dropdown, 'the dropdown, right under the label and named by it');
+  for (const cls of ['mt-3', 'block', 'w-full', 'rounded', 'border', 'border-border', 'bg-white', 'px-3', 'py-2', 'text-sm', 'text-text-primary', 'min-h-[44px]', 'lg:w-72']) assert.ok(dropdown[1].split(' ').includes(cls), `the dropdown wears the lookup field's look — its white fill and its full width under lg included — a 44px target and a fixed width from lg up (${cls})`);
+  assert.ok(!dropdown[1].split(' ').some((cls) => /purple|rounded-full|font-mono/.test(cls)), 'no pill and no purple fill — a field, not a chip');
   const source = /<a href="[^"]+" rel="noopener" target="_blank" class="([^"]*)" data-source="philippines-pro-2026">/.exec(html);
   assert.ok(source && source[1].split(' ').includes('text-brand-purple'), 'Source ↗ in brand purple');
   for (const cls of ['flex', 'overflow-x-auto', 'snap-x', 'snap-proximity']) assert.ok(!rail[1].split(' ').includes(cls), `the list does not carry ${cls} — nothing scrolls sideways`);
@@ -310,14 +327,16 @@ test('T4 rendered for f1, fighting and tennis: every row its own card in the one
   assert.equal(upcoming(EXPERIENCES.filter((r) => r.category === 'tennis'), TODAY, 99).length, 4, 'four tennis editions are upcoming');
 });
 
-test('T4 rendered for a value that names no category: the refusal only — in place of COMING UP, no chip pressed, no card; nothing upcoming said above the cards, and no strip line', () => {
+test('T4 rendered for a value that names no category: the refusal only — in place of COMING UP, no category selected (EVENTS-05, 2026-11-11: no chip pressed, until then), no card; nothing upcoming said above the cards, and no strip line', () => {
   const bad = render({ choice: { refused: 'nope' } });
   assert.match(bad, /data-into-refused="true">nope is not a category — pick one above\.</);
   assert.equal(notACategory('nope'), 'nope is not a category — pick one above.');
   assert.deepEqual(pressedOf(bad), [], 'no substitute category');
   // EVENTS-02 (2026-11-08): the refusal still draws every chip — nineteen now, the same fact the T4 count above pins.
   // SEASONS-01 (2026-11-08): twenty-six across the two rows, the same count T4 pins above.
-  assert.equal((bad.match(/aria-pressed="false"/g) ?? []).length, 26);
+  // EVENTS-05 (2026-11-11): re-pointed — until then: twenty-six unpressed chips ('aria-pressed="false"' × 26). The refusal still draws the whole list: the
+  // one dropdown, showing "Select a category", with the twenty-six categories under it — "pick one above" points at it.
+  assert.ok(bad.includes(`<option value="" selected="">${SELECT_CATEGORY}</option>`) && (bad.match(/<option value="[^"]+">/g) ?? []).length === 26 && !/aria-pressed/.test(bad));
   assert.doesNotMatch(bad, /data-featured|<article/, 'no card above the refusal');
   assert.equal(cardsOf(bad).length, 0);
   assert.equal(sourcesOf(bad).length, 0);
@@ -331,9 +350,10 @@ test('T4 rendered for a value that names no category: the refusal only — in pl
   assert.ok(!empty.includes('use the strip at the top'), 'no strip line — HOME-BRIEF-02 (2026-11-10): on no view');
   assert.equal(cardsOf(empty).length, 5, 'every golf card still shows');
   assert.ok(cardsOf(empty).every((id) => /^Next edition not announced \(checked /.test(lineOf(empty, id) ?? '')), 'every golf window has passed');
-  // The URL half: no param, or an empty one, is the default — never a refusal.
+  // The URL half: no param, or an empty one, is none — never a refusal, and never a category chosen for the visitor.
+  // EVENTS-05 (2026-11-11): re-pointed — until then: /raw === null \|\| raw === '' \? \{ category: DEFAULT_INTO \}/ ("is the default").
   const section = code(SECTION);
-  assert.match(section, /raw === null \|\| raw === '' \? \{ category: DEFAULT_INTO \}/);
+  assert.match(section, /raw === null \|\| raw === '' \? \{ none: true \}/);
   assert.match(section, /isExperienceCategoryId\(raw\) \? \{ category: raw \} : \{ refused: raw \}/);
 });
 
@@ -346,7 +366,10 @@ test('T4 the section, the words and the leaf read no clock; the section carries 
   assert.doesNotMatch(section, /<img|next\/image|localStorage|sessionStorage|document\.cookie/);
   assert.doesNotMatch(section, /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u, 'no emoji');
   assert.match(section, /useSearchParams\(\)/);
-  assert.match(section, /router\.replace\(/);
+  // EVENTS-05 (2026-11-11; Alex's ruling the same day, on the measured report): re-pointed — until then: assert.match(section, /router\.replace\(/). A pick
+  // writes the URL with the browser's own replace now: router.replace is a round trip to the server on this page, and until it answered the dropdown showed
+  // the value it had before the pick. Next's useSearchParams follows the browser's replace at once. The router is no longer read here.
+  assert.ok(/window\.history\.replaceState\(null, '', pickHref\(/.test(section) && !/useRouter|router\./.test(section), 'a pick replaces the URL with the browser\'s own replace — no router, no request');
   assert.match(section, /min-h-\[44px\]/);
   assert.match(section, /const comingUp = upcoming\(chosen, today, chosen\.length\);\n\s*const cards = \[\.\.\.comingUp, \.\.\.chosen\.filter\(\(r\) => !comingUp\.includes\(r\)\)\];/, 'EVENTS-01c: every row — upcoming first, then the rest');
   assert.doesNotMatch(section, /grid-cols|pillRow|COMING_UP_COUNT/, 'no grid of cards, no pill row and no count — one row of every card');
