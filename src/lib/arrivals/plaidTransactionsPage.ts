@@ -46,7 +46,40 @@
  *                    DELETE RESTRICT, so the database refuses that delete —
  *                    the step never tries, and the row is counted).
  * The three add up to the rows named, and nothing about a row that is left
- * changes. Nothing else in the sync deletes a transactions row.
+ * changes.
+ *
+ * PENDING-03 (Alex, 2026-11-11 12:08: "get bookkeeping full proof"): A PENDING
+ * ROW THE BANK NO LONGER LISTS IS CLEARED — the pull's SECOND delete. The first
+ * clears a pending row only when a posted charge NAMES it, so a hold the bank
+ * dropped, or a charge whose posted copy Plaid did not link to it, was cleared
+ * by nothing: it sat in the queue, marked pending at the bank, where it cannot
+ * be committed (production, 2026-11-11 20:10: 35 of the 43 pending rows held,
+ * December 2025 to September 2026, on no page of the night's pulls). Once per
+ * page, right after the first step and before the page is marked read, the
+ * page reads its own WINDOW (pageWindow) — its newest day, its oldest day and
+ * every id it lists, over every object whichever account it is for — and hands
+ * it, with the link's own account row ids and the ids the first step was
+ * handed, to ONE more port method (DomainDb.clearUnlistedPending). Plaid lists
+ * a link's transactions newest first, so a page holds EVERY transaction the
+ * bank lists for the link dated strictly between those two days: a held
+ * pending row of the link's own accounts, dated strictly between them, that
+ * the page does not list is no longer listed by the bank. Nothing is matched
+ * by amount, by name or by nearness of date. Two counts, carried by the page
+ * only when the step ran:
+ *   pending_unlisted       deleted;
+ *   pending_unlisted_left  left in place: committed, carrying a live posting,
+ *                          or pointed at by a booking link or a settled
+ *                          refund.
+ *
+ * THE PULL'S TWO DELETES, AND WHAT EACH ONE NEVER TOUCHES. Both delete bank
+ * rows (transactions) only — never a journal or a ledger row — and only
+ * PENDING rows on the accounts of the caller's own link: a posted row is never
+ * judged. Neither takes a row that is committed, that carries a live posting,
+ * or that a booking link or a settled refund points at: such a row is left
+ * exactly as it is, and counted. The first never takes a row no posted object
+ * of the page names; the second never takes a row the page lists, a row the
+ * first was handed, or a row dated on the page's first or last day or outside
+ * them. Nothing else in the sync deletes a transactions row.
  *
  * FX-01 (Alex, 2026-10-30, ruling E): the parser keeps Plaid's own word for the
  * row's currency — transactions.iso_currency_code, NULL when Plaid states none.
@@ -57,7 +90,7 @@
  * the same key — the two move together, or the binding refuses the unknown key.
  */
 import type { Transaction } from 'plaid';
-import { stageFailed, type StageFailed } from '@/lib/plaid/failLoud';
+import { calendarDay, stageFailed, type StageFailed } from '@/lib/plaid/failLoud';
 import type { WireStamp } from '@/lib/plaid/wire';
 import { ResponseTooLargeError, landObjects, landResponse, markRead, type JsonObject, type LandingDb } from './land';
 
@@ -86,14 +119,25 @@ export interface ReplacedPendingAnswer {
   pending_linked: number;
 }
 
-/** The subset of the Prisma transaction client the parser writes through (typed loosely so a fake can stand in), and the page's one pending step. */
+/**
+ * PENDING-03: what the page's second pending step answers. Each pending row of the link's accounts that is dated
+ * strictly inside the page's window and that the page does not account for is one of two things: deleted
+ * (pending_unlisted), or left in place because it is committed, carries a live posting, or a booking link or a settled
+ * refund points at it (pending_unlisted_left). The two add up to those rows.
+ */
+export interface UnlistedPendingAnswer {
+  pending_unlisted: number;
+  pending_unlisted_left: number;
+}
+
+/** The subset of the Prisma transaction client the parser writes through (typed loosely so a fake can stand in), and the page's two pending steps. */
 export interface DomainDb {
   transactions: {
     upsert(args: { where: { transactionId: string }; create: Record<string, unknown>; update: Record<string, unknown> }): Promise<unknown>;
     updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): Promise<unknown>;
   };
   /**
-   * PENDING-01 — THE SYNC'S ONE DELETE. `transactionIds` are the pending charges Plaid names as replaced by a posted
+   * PENDING-01 — THE PULL'S FIRST DELETE. `transactionIds` are the pending charges Plaid names as replaced by a posted
    * charge of this page; `accountIds` are the row ids of the link's own accounts. A transactions row whose
    * transactionId is one of those ids, whose `pending` is true, on one of those accounts, is exactly one of three
    * things, and the answer counts each:
@@ -109,6 +153,39 @@ export interface DomainDb {
    * The three counts add up to the rows the ids name. Nothing about a row that is left changes.
    */
   clearReplacedPending(args: { accountIds: string[]; transactionIds: string[] }): Promise<ReplacedPendingAnswer>;
+  /**
+   * PENDING-03 — THE PULL'S SECOND DELETE: A PENDING ROW THE BANK NO LONGER LISTS IS CLEARED.
+   *
+   * THE PREMISE. Plaid lists a link's transactions newest first (on production every one of the 270 pages stored
+   * since October is in date order — 42,190 transactions, 0 out of order; Alex's psql, 2026-11-11). So a page is one
+   * unbroken run of that list and holds EVERY transaction the bank lists for the link dated strictly between the
+   * page's newest day and its oldest day: anything newer sits on an earlier page, anything older on a later one.
+   *
+   * THE RULE. `accountIds` are the row ids of the link's own accounts; `newestDay` and `oldestDay` are the page's two
+   * days ('YYYY-MM-DD'); `accountedIds` are the ids the page accounts for — every id it lists, and the ids the first
+   * step was handed (those are that step's, whatever it did with them). A transactions row whose `pending` is true, on
+   * one of those accounts, whose day is strictly after the oldest day and strictly before the newest day, and whose
+   * transactionId is none of those ids, is no longer listed by the bank. It is one of two things, and the answer
+   * counts each:
+   *   pending_unlisted — DELETED: it is NOT committed (review_status is not 'committed'), it carries no live posting
+   *     (no journal_entries row with source_type 'plaid_txn', source_id = the row's transactionId, is_reversal false,
+   *     reversed_by_entry_id null) AND nothing points at it (no transaction_reservation_links row with the row's id as
+   *     its transactionId, whatever the link's status; no money_events row with the row's id as its
+   *     settledTransactionId) — the first step's three conditions, word for word;
+   *   pending_unlisted_left — left in place, because one of those three holds. Nothing about it changes.
+   * The two counts add up to those rows. The rule reads PENDING rows only: a posted row is never judged. Nothing is
+   * matched by amount, by name or by nearness of date.
+   *
+   * TWO THINGS IT DOES NOT DO.
+   *   · It does not judge a row dated on the page's first or last day. A day can run on across a page's edge, so that
+   *     row waits for a pull where its day falls strictly inside a page.
+   *   · It does not follow a charge to a new day: the rule reads the day the ROW holds. A pending charge whose day the
+   *     bank moved EARLIER since the last pull is cleared on the page of its old day and written again from the page
+   *     that lists it, in the same pull — as a correction: a moved day is new content, and a correction is always
+   *     parsed. (An object the store already holds word for word is linked, never parsed again; a row cleared while
+   *     the bank lists it under such an object is not written again until that object changes.)
+   */
+  clearUnlistedPending(args: { accountIds: string[]; newestDay: string; oldestDay: string; accountedIds: string[] }): Promise<UnlistedPendingAnswer>;
 }
 
 export interface TransactionsPageInput {
@@ -142,6 +219,10 @@ export interface PageCounts {
   pending_kept?: number;
   /** PENDING-01 part 3: pending rows a posted object of this page names that were left in place — NOT committed, no live posting, and a booking link or a settled refund points at them. Carried ONLY by a page where the step ran. */
   pending_linked?: number;
+  /** PENDING-03: pending rows deleted because the bank no longer lists them — dated strictly inside this page's window and not accounted for by it (DomainDb.clearUnlistedPending). Carried ONLY by a page where that step ran — at zero too. */
+  pending_unlisted?: number;
+  /** PENDING-03: pending rows the bank no longer lists that were left in place — committed, carrying a live posting, or pointed at by a booking link or a settled refund. Carried ONLY by a page where the step ran — at zero too. */
+  pending_unlisted_left?: number;
 }
 
 /** The existing domain write, from an arrival's payload. A correction never takes the complete-data skip: latest-arrived wins. */
@@ -227,6 +308,57 @@ export function replacedPendingIds(rows: ReadonlyArray<{ payload: unknown }>, ac
   return named.filter((id) => !stillPending.has(id));
 }
 
+/** PENDING-03: a page's window — its newest day and its oldest day (Plaid's own `date`, 'YYYY-MM-DD'), and every transaction id it lists, each once, in the page's own order. */
+export interface PageWindow {
+  newestDay: string;
+  oldestDay: string;
+  listedIds: string[];
+}
+
+/**
+ * PENDING-03 — THE PAGE'S WINDOW. Over EVERY object of the page as the table holds it — landed, already landed and
+ * corrected alike, whichever account it is for (the link's list is ONE list, the accounts held here and the ones not
+ * held alike): the day of its first object (the newest), the day of its last (the oldest), and every transaction id
+ * it lists.
+ *
+ * WHY THE WINDOW IS EXACT. Plaid lists a link's transactions newest first, so a page is one unbroken run of that list:
+ * anything newer than its first object sits on an earlier page, anything older than its last on a later one. Every
+ * transaction the bank lists for the link dated STRICTLY BETWEEN the two days is therefore on this page. The two days
+ * themselves are not covered — a day can run on across a page's edge. A page asked after the list moved (a charge
+ * added or dropped above it between two asks) is still one unbroken run of the list as it stood at that ask.
+ *
+ * NO WINDOW — and the step does not run for the page — when the premise cannot be read off the page itself:
+ *   · an object states no `date` that is a calendar day in the form YYYY-MM-DD (it cannot be placed), or no
+ *     transaction id (it cannot be accounted for);
+ *   · the days are not newest-first in the answer's order — the premise does not hold for that page;
+ *   · the newest day is the oldest day — a page of one day, of one object or of none: nothing lies strictly between.
+ * Nothing here reads an amount, a name or an account.
+ */
+export function pageWindow(rows: ReadonlyArray<{ payload: unknown }>): PageWindow | null {
+  const listedIds: string[] = [];
+  const listed = new Set<string>();
+  let newestDay: string | null = null;
+  let oldestDay: string | null = null;
+  for (const row of rows) {
+    if (typeof row.payload !== 'object' || row.payload === null) return null;
+    const object = row.payload as Partial<Transaction>;
+    const day = object.date;
+    if (typeof day !== 'string' || calendarDay(day) === null) return null;
+    const id = object.transaction_id;
+    if (typeof id !== 'string' || id.length === 0) return null;
+    // Newest first: a day is never after the day before it in the answer. 'YYYY-MM-DD' text orders as its days do.
+    if (oldestDay !== null && day > oldestDay) return null;
+    if (newestDay === null) newestDay = day;
+    oldestDay = day;
+    if (!listed.has(id)) {
+      listed.add(id);
+      listedIds.push(id);
+    }
+  }
+  if (newestDay === null || oldestDay === null || newestDay === oldestDay) return null;
+  return { newestDay, oldestDay, listedIds };
+}
+
 /** Inside the caller's transaction: land, parse from the table, mark read. Throws to roll the page back. */
 export async function landTransactionsPage(landing: LandingDb, domain: DomainDb, input: TransactionsPageInput): Promise<PageCounts> {
   const now = input.now ?? (() => new Date());
@@ -281,6 +413,24 @@ export async function landTransactionsPage(landing: LandingDb, domain: DomainDb,
     counts.pending_cleared = answer.pending_cleared;
     counts.pending_kept = answer.pending_kept;
     counts.pending_linked = answer.pending_linked;
+  }
+
+  // PENDING-03: THE SECOND RULE, once per page — right after the replaced step, before the page is marked read. The
+  // page's own window (pageWindow: its newest day, its oldest day, every id it lists — over every object, whichever
+  // account it is for) goes to the one port method with the link's own account row ids and the ids this page accounts
+  // for: every id it lists, and the ids the replaced step was handed (those are that step's, whatever it did with
+  // them). A page with no window does not run the step and carries neither of its two counts. Nor does a link that
+  // holds no account row: it has nothing to judge.
+  const span = input.accounts.length > 0 ? pageWindow(landed.rows) : null;
+  if (span !== null) {
+    const answer = await domain.clearUnlistedPending({
+      accountIds: input.accounts.map((account) => account.id),
+      newestDay: span.newestDay,
+      oldestDay: span.oldestDay,
+      accountedIds: [...span.listedIds, ...replaced.filter((id) => !span.listedIds.includes(id))],
+    });
+    counts.pending_unlisted = answer.pending_unlisted;
+    counts.pending_unlisted_left = answer.pending_unlisted_left;
   }
 
   await markRead(landing, newRowIds, at);

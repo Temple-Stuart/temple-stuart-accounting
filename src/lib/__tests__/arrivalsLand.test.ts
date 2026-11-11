@@ -6,7 +6,7 @@ import type { Transaction } from 'plaid';
 import { MAX_RESPONSE_BODY_BYTES, ResponseTooLargeError, canonicalBytes, fingerprintOf, landObjects, landResponse, sha256 } from '../arrivals/land';
 import { FakeLanding, snapshotClient } from './fakeLanding';
 import { NoRuleError } from '../providers';
-import { landTransactionsPage, pageFailed, recordFailedAnswer, replacedPendingIds, runTransactionsPage, type DomainDb, type TransactionsPageInput } from '../arrivals/plaidTransactionsPage';
+import { landTransactionsPage, pageFailed, pageWindow, recordFailedAnswer, replacedPendingIds, runTransactionsPage, type DomainDb, type TransactionsPageInput } from '../arrivals/plaidTransactionsPage';
 import { bankLine, failedLine, stageFailed, syncEnvelope, syncItemsEnvelope } from '../plaid/failLoud';
 import { SYNC_BUDGET_MS, pagedStage, readResume, runBudget, type PageAnswer, type PagedPorts } from '../plaid/syncRun';
 import { onWireError, type WireStamp } from '../plaid/wire';
@@ -41,6 +41,16 @@ import { code } from '../sourceText';
 // pending_cleared, pending_kept, pending_linked — and a page where it ran carries all three. The fake domain applies
 // the same rule; the tests at the foot of this file hold it. Until part 3 the fake answered two counts and the pins
 // above them read { …, pending_cleared, pending_kept } alone.
+//
+// PENDING-03 (Alex, 2026-11-11 12:08: "get bookkeeping full proof"): A PENDING ROW THE BANK NO LONGER LISTS IS CLEARED
+// — the pull's SECOND delete. Plaid lists a link's transactions newest first, so a page holds every transaction the
+// bank lists for the link dated strictly between the page's newest day and its oldest day; a held pending row of the
+// link's own accounts, dated strictly between them, that the page does not account for is no longer listed. Once per
+// page, right after the replaced step, the page reads its window (pageWindow) and hands it to a second port method,
+// which the fake domain answers over its own table with the same rule. A page with a window carries two more counts —
+// pending_unlisted, pending_unlisted_left. Every page of the tests above PENDING-03's is a page of ONE day — it has no
+// window, the step does not run, and its whole-count pins read as they did. The tests at the foot of this file hold
+// the window, the rule, the page's order and the sum; the statement is held in prismaDomainPlan.test.ts.
 
 // The fake store lives in fakeLanding.ts (PR-2c shares it with the investments landing tests).
 
@@ -64,6 +74,8 @@ class FakeDomain implements DomainDb {
   settledRefunds = new Set<string>();
   /** PENDING-01: every call of the page's pending step, as it was handed. */
   clearCalls: Array<{ accountIds: string[]; transactionIds: string[] }> = [];
+  /** PENDING-03: every call of the page's unlisted step, as it was handed. */
+  unlistedCalls: Array<{ accountIds: string[]; newestDay: string; oldestDay: string; accountedIds: string[] }> = [];
   constructor(private throwOn: string | null = null) {}
   transactions = {
     upsert: async (args: Upsert) => {
@@ -98,6 +110,28 @@ class FakeDomain implements DomainDb {
       pending_cleared += 1;
     }
     return { pending_cleared, pending_kept, pending_linked };
+  };
+  /**
+   * PENDING-03: the page's unlisted step over the fake table — the second statement's rule in TypeScript (the statement
+   * itself is held by content in prismaDomainPlan.test.ts). A row that is pending, on one of the accounts, whose day is
+   * strictly after the oldest day and strictly before the newest, and whose transactionId is none of the accounted
+   * ids, is deleted — unless it is committed, carries a live posting, or a booking link or a settled refund points at
+   * its row id: then it is left exactly as it was and counted. A row's day is the day its `date` holds.
+   */
+  clearUnlistedPending = async (args: { accountIds: string[]; newestDay: string; oldestDay: string; accountedIds: string[] }) => {
+    this.unlistedCalls.push(args);
+    let pending_unlisted = 0;
+    let pending_unlisted_left = 0;
+    for (const [id, row] of [...this.rows]) {
+      if (row.pending !== true || !args.accountIds.includes(String(row.accountId))) continue;
+      const day = row.date instanceof Date ? row.date.toISOString().slice(0, 10) : null;
+      if (day === null || !(day > args.oldestDay && day < args.newestDay)) continue;
+      if (args.accountedIds.includes(id)) continue;
+      if (row.review_status === 'committed' || this.livePostings.has(id) || this.bookingLinks.has(String(row.id)) || this.settledRefunds.has(String(row.id))) { pending_unlisted_left += 1; continue; }
+      this.rows.delete(id);
+      pending_unlisted += 1;
+    }
+    return { pending_unlisted, pending_unlisted_left };
   };
 }
 
@@ -548,7 +582,7 @@ test('PENDING-01 the guess is gone: a pending row of the same account, amount an
   // by content
   const page = code('src/lib/arrivals/plaidTransactionsPage.ts');
   assert.equal(/deleteMany|\.delete\(|twoDays|setDate\(/.test(page), false, 'no delete by account, amount and day is left in the parser');
-  assert.equal(page.split('domain.clearReplacedPending(').length - 1, 1, 'the one delete of the sync is asked for in one place');
+  assert.equal(page.split('domain.clearReplacedPending(').length - 1, 1, 'the replaced step — the pull\'s first delete — is asked for in one place');
   const at = (needle: string) => { const i = page.indexOf(needle); assert.ok(i > -1, `the page holds ${needle}`); return i; };
   const steps = ['await parseTransaction(domain, input,', 'const replaced = replacedPendingIds(landed.rows, input.accounts);', 'if (replaced.length > 0) {', 'await domain.clearReplacedPending({ accountIds: input.accounts.map((account) => account.id), transactionIds: replaced });', 'await markRead(landing, newRowIds, at);'].map(at);
   assert.deepEqual(steps, [...steps].sort((a, b) => a - b), 'parsed → the ids Plaid names → the step, only when any are left → marked read');
@@ -691,9 +725,12 @@ test('PENDING-01 part 3 a page where the step ran carries all three counts — a
   for (const name of PENDING_STEP) assert.equal(name in notRun, false, `${name} is not carried — not even at zero`);
   // by content: the page sets the three together, from the step's own answer, where the step ran — and nowhere else
   const page = code('src/lib/arrivals/plaidTransactionsPage.ts');
-  const step = page.slice(page.indexOf('if (replaced.length > 0) {'), page.indexOf('await markRead(landing, newRowIds, at);'));
+  // PENDING-03: the page holds a second step after this one; the replaced step's own block ends where that one begins.
+  const step = page.slice(page.indexOf('if (replaced.length > 0) {'), page.indexOf('const span = input.accounts.length > 0 ? pageWindow(landed.rows) : null;'));
+  assert.ok(step.length > 0, 'the replaced step\'s block stands before the unlisted step');
   for (const name of PENDING_STEP) assert.equal(step.split(`counts.${name} = answer.${name};`).length - 1, 1, `${name} is the step's own answer, set where the step ran`);
-  assert.equal(page.split('counts.pending_').length - 1, 3, 'the three are set in that one place');
+  assert.equal(step.split('counts.pending_').length - 1, 3, 'the three are set in that one place');
+  assert.equal(page.split('counts.pending_').length - 1, 5, 'and the page sets no other pending count but the unlisted step\'s two (PENDING-03)');
 });
 
 test('PENDING-01 part 3 the three counts sum across the pages of a stage like every other count; the point a cut run resumes from carries all ten names; and the bank\'s line says the rows left in place', async () => {
@@ -748,5 +785,246 @@ test('PENDING-01 part 3 the three counts sum across the pages of a stage like ev
   assert.equal(
     bankLine({ institution: 'Wells Fargo', key: 'link_wf', stages: [second.outcome] }),
     'Wells Fargo — transactions 6 of 6 pulled, 6 new, 2 pending replaced by their posted charge, 1 committed pending left in place (a posted charge replaced them), 3 pending left in place (a booking link or a refund points at them)',
+  );
+});
+
+
+// ── PENDING-03 ──
+
+/** The two counts a page carries when the unlisted step ran — and only then. */
+const UNLISTED_STEP = ['pending_unlisted', 'pending_unlisted_left'];
+/** A held row's day, as the domain table holds it: Plaid's own `date` at midnight. */
+const on = (day: string) => ({ date: new Date(day) });
+/**
+ * A page of seven objects, newest first — Sep 10 down to Sep 1. Its first and its last object are for an account the
+ * link does not hold; one object is still pending; two of its posted objects name a pending charge.
+ */
+const spanPage = () => [
+  txn('x_new', { date: '2026-09-10', account_id: 'acc_plaid_other' }),
+  txn('l_posted', { date: '2026-09-07' }),
+  txn('l_pending', { date: '2026-09-06', pending: true }),
+  txn('m1', { date: '2026-09-05' }),
+  txn('t_repl', { date: '2026-09-04', pending_transaction_id: 'r_kept' }),
+  txn('t_repl2', { date: '2026-09-03', pending_transaction_id: 'r_free' }),
+  txn('x_old', { date: '2026-09-01', account_id: 'acc_plaid_other' }),
+];
+const SPAN_IDS = ['x_new', 'l_posted', 'l_pending', 'm1', 't_repl', 't_repl2', 'x_old'];
+
+test('PENDING-03 the page\'s window: its newest day, its oldest day and every id it lists, over held and unheld accounts\' objects alike — and none when an object states no date, when the days are not newest-first, or when every object is one day', () => {
+  const rows = (objects: unknown[]) => objects.map((payload) => ({ payload }));
+  const other = { account_id: 'acc_plaid_other' };
+  // newest first; the first and the last object are for an account the link does not hold — the link's list is ONE list
+  assert.deepEqual(
+    pageWindow(rows([txn('a', { date: '2026-09-10', ...other }), txn('b', { date: '2026-09-10' }), txn('c', { date: '2026-09-07', pending: true }), txn('d', { date: '2026-09-07' }), txn('e', { date: '2026-09-01' }), txn('f', { date: '2026-09-01', ...other })])),
+    { newestDay: '2026-09-10', oldestDay: '2026-09-01', listedIds: ['a', 'b', 'c', 'd', 'e', 'f'] },
+    'the first object\'s day, the last object\'s day, every id in the page\'s order — pending and posted, held and unheld alike',
+  );
+  assert.deepEqual(pageWindow(rows(spanPage())), { newestDay: '2026-09-10', oldestDay: '2026-09-01', listedIds: SPAN_IDS });
+  // two days are a window, however few the objects; an id listed twice (a correction inside one answer) is listed once
+  assert.deepEqual(pageWindow(rows([txn('a', { date: '2026-09-02' }), txn('b', { date: '2026-09-01' })])), { newestDay: '2026-09-02', oldestDay: '2026-09-01', listedIds: ['a', 'b'] });
+  assert.deepEqual(pageWindow(rows([txn('a', { date: '2026-09-05' }), txn('a', { date: '2026-09-05', amount: 13 }), txn('b', { date: '2026-09-01' })])), { newestDay: '2026-09-05', oldestDay: '2026-09-01', listedIds: ['a', 'b'] });
+  // a year's edge orders as its days do
+  assert.deepEqual(pageWindow(rows([txn('a', { date: '2026-01-01' }), txn('b', { date: '2025-12-31' })])), { newestDay: '2026-01-01', oldestDay: '2025-12-31', listedIds: ['a', 'b'] });
+
+  // NO WINDOW — nothing lies strictly between: every object is one day; one object; none
+  assert.equal(pageWindow(rows([txn('a'), txn('b'), txn('c')])), null, 'every object is one day');
+  assert.equal(pageWindow(rows([txn('a', { date: '2026-09-10' })])), null, 'one object');
+  assert.equal(pageWindow([]), null, 'an empty page');
+
+  // NO WINDOW — an object states no `date` that is a calendar day in the form YYYY-MM-DD, wherever it sits in the page
+  const noDate = { ...txn('x') } as Record<string, unknown>;
+  delete noDate.date;
+  for (const odd of [noDate, { ...txn('x'), date: null }, { ...txn('x'), date: 20260905 }, { ...txn('x'), date: '' }, { ...txn('x'), date: '2026-9-5' }, { ...txn('x'), date: '09/05/2026' }, { ...txn('x'), date: '2026-09-05T00:00:00Z' }, { ...txn('x'), date: '2026-02-30' }, { ...txn('x'), date: '2026-13-01' }]) {
+    for (const page of [[odd, txn('b', { date: '2026-09-01' })], [txn('a', { date: '2026-09-10' }), odd, txn('b', { date: '2026-09-01' })], [txn('a', { date: '2026-09-10' }), odd]]) {
+      assert.equal(pageWindow(rows(page)), null, `no window with a date of ${JSON.stringify((odd as { date?: unknown }).date)} in the page`);
+    }
+  }
+
+  // NO WINDOW — the days are not newest-first in the answer's order: the premise does not hold for that page
+  assert.equal(pageWindow(rows([txn('a', { date: '2026-09-01' }), txn('b', { date: '2026-09-10' })])), null, 'oldest first');
+  assert.equal(pageWindow(rows([txn('a', { date: '2026-09-10' }), txn('b', { date: '2026-09-05' }), txn('c', { date: '2026-09-06' }), txn('d', { date: '2026-09-01' })])), null, 'one object out of order is enough');
+  assert.equal(pageWindow(rows([txn('a', { date: '2026-09-10' }), txn('b', { date: '2026-09-01' }), txn('c', { date: '2026-09-02', ...other })])), null, 'an unheld account\'s object out of order is out of order');
+
+  // NO WINDOW — an object that cannot be accounted for (it states no transaction id), or a payload that is no object
+  const noId = { ...txn('x', { date: '2026-09-05' }) } as Record<string, unknown>;
+  delete noId.transaction_id;
+  for (const odd of [noId, { ...txn('x', { date: '2026-09-05' }), transaction_id: '' }, { ...txn('x', { date: '2026-09-05' }), transaction_id: 7 }, null, 'text', 7, [txn('x', { date: '2026-09-05' })]]) {
+    assert.equal(pageWindow(rows([txn('a', { date: '2026-09-10' }), odd, txn('b', { date: '2026-09-01' })])), null);
+  }
+
+  // by content: the window reads a day and an id — never an amount, a name or an account
+  const page = code('src/lib/arrivals/plaidTransactionsPage.ts');
+  const body = page.slice(page.indexOf('export function pageWindow('), page.indexOf('export async function landTransactionsPage('));
+  assert.ok(body.length > 0, 'pageWindow stands beside replacedPendingIds, before the page');
+  assert.equal(/amount|\.name\b|merchant|account_id|accountId/.test(body), false, 'nothing is matched by amount, by name or by account');
+});
+
+test('PENDING-03 a held pending row dated strictly inside the page\'s days that the page does not list is deleted and counted; a row the page lists, a row on either edge day or outside them, a row of an account the link does not hold, a POSTED row and a row the replaced step was handed are left alone, in neither count; a committed, a posted-from and a pointed-at one are left as they were and counted', async () => {
+  const domain = new FakeDomain();
+  // deleted and counted: pending, on the link's account, strictly inside Sep 1 … Sep 10, on no object of the page
+  heldPending(domain, 'u_mid', on('2026-09-05'));
+  heldPending(domain, 'u_late', on('2026-09-09'));    // inside only because the page's newest object — an unheld account's — is Sep 10
+  heldPending(domain, 'u_early', on('2026-09-02'));   // inside only because its oldest object — an unheld account's — is Sep 1
+  // left alone, in neither count
+  heldPending(domain, 'l_pending', on('2026-09-06'));                                       // the page lists it, still pending
+  heldPending(domain, 'l_posted', on('2026-09-07'));                                        // the page lists it — posted now, under the same id
+  heldPending(domain, 'e_newest', on('2026-09-10'));                                        // dated on the page's newest day
+  heldPending(domain, 'e_oldest', on('2026-09-01'));                                        // dated on its oldest day
+  heldPending(domain, 'out_newer', on('2026-09-11'));                                       // outside the two days
+  heldPending(domain, 'out_older', on('2026-08-31'));
+  heldPending(domain, 'other_account', { ...on('2026-09-05'), accountId: 'acc_db_other' });  // an account the link does not hold
+  heldPending(domain, 'posted_inside', { ...on('2026-09-05'), pending: false });             // a POSTED row is never judged
+  heldPending(domain, 'r_kept', { ...on('2026-09-05'), review_status: 'committed' });        // handed to the replaced step, which leaves it: committed
+  heldPending(domain, 'r_free', on('2026-09-05'));                                          // handed to the replaced step, which clears it
+  // left as it was and counted in pending_unlisted_left
+  heldPending(domain, 'k_committed', { ...on('2026-09-05'), review_status: 'committed', accountCode: '6110' });
+  heldPending(domain, 'k_posted_from', on('2026-09-05'));
+  domain.livePostings.add('k_posted_from');
+  domain.bookingLinks.set(heldPending(domain, 'k_link', on('2026-09-08')).id, 'rejected');
+  domain.settledRefunds.add(heldPending(domain, 'k_refund', { ...on('2026-09-03'), amount: -40 }).id);
+  const before = new Map([...domain.rows].map(([id, row]) => [id, { ...row }]));
+
+  const counts = await landTransactionsPage(new FakeLanding(), domain, pageInput({ transactions: spanPage() }));
+
+  assert.deepEqual(domain.unlistedCalls, [{ accountIds: ['acc_db_1'], newestDay: '2026-09-10', oldestDay: '2026-09-01', accountedIds: [...SPAN_IDS, 'r_kept', 'r_free'] }], 'once: the link\'s account row ids, the page\'s two days, every id the page lists — and the ids the replaced step was handed');
+  assert.deepEqual(counts, { landed: 7, already_landed: 0, corrected: 0, synced: 5, skipped: 0, unheld: 2, added: 5, pending_cleared: 1, pending_kept: 1, pending_linked: 0, pending_unlisted: 3, pending_unlisted_left: 4 });
+  // gone: the three rows the bank no longer lists — and the one the replaced step cleared
+  assert.deepEqual([...before.keys()].filter((id) => !domain.rows.has(id)), ['u_mid', 'u_late', 'u_early', 'r_free']);
+  // exactly as they were: the edge days, outside the days, another account, a posted row, the replaced step's kept row — and the four counted as left
+  for (const id of ['e_newest', 'e_oldest', 'out_newer', 'out_older', 'other_account', 'posted_inside', 'r_kept', 'k_committed', 'k_posted_from', 'k_link', 'k_refund']) {
+    assert.deepEqual(domain.rows.get(id), before.get(id), `${id} is exactly as it was`);
+  }
+  // the two the page lists are written from the page, as the bank states them now
+  assert.equal(domain.rows.get('l_pending')?.pending, true, 'listed as pending: still held, still pending');
+  assert.equal(domain.rows.get('l_posted')?.pending, false, 'listed as posted: the row is the posted charge now');
+  // the links and the refunds are as they were
+  assert.deepEqual([...domain.bookingLinks], [['txn_k_link', 'rejected']]);
+  assert.deepEqual([...domain.settledRefunds], ['txn_k_refund']);
+});
+
+test('PENDING-03 the step runs once per page, after the replaced step and before the page is marked read; a page with no window does not call it and carries neither count; a page with a window carries both, at zero too; the replaced step\'s three counts are what they were', async () => {
+  const landing = new FakeLanding();
+  const domain = new FakeDomain();
+  heldPending(domain, 'u_mid', on('2026-09-05'));
+  heldPending(domain, 'r_free', on('2026-09-05'));
+  heldPending(domain, 'r_kept', { ...on('2026-09-05'), review_status: 'committed' });
+  // the order of the page's four moves
+  const order: string[] = [];
+  const upsert = domain.transactions.upsert;
+  domain.transactions.upsert = async (args: Upsert) => { order.push(`parse ${args.where.transactionId}`); return upsert(args); };
+  const replacedStep = domain.clearReplacedPending;
+  domain.clearReplacedPending = async (args) => { order.push('replaced step'); return replacedStep(args); };
+  const unlistedStep = domain.clearUnlistedPending;
+  domain.clearUnlistedPending = async (args) => { order.push('unlisted step'); return unlistedStep(args); };
+  const markRead = landing.markRead.bind(landing);
+  landing.markRead = async (ids: string[], when: Date) => { order.push('mark read'); return markRead(ids, when); };
+
+  const counts = await landTransactionsPage(landing, domain, pageInput({ transactions: spanPage() }));
+  assert.deepEqual(order, ['parse l_posted', 'parse l_pending', 'parse m1', 'parse t_repl', 'parse t_repl2', 'replaced step', 'unlisted step', 'mark read'], 'parsed → the replaced step → the unlisted step → marked read');
+  assert.equal(domain.unlistedCalls.length, 1, 'once per page');
+  assert.deepEqual(Object.keys(counts), [...NO_PENDING_STEP, ...PENDING_STEP, ...UNLISTED_STEP], 'the seven, the replaced step\'s three, then the unlisted step\'s two');
+  // the replaced step is handed what it was handed, and answers what it answered, before there was a second step
+  assert.deepEqual(domain.clearCalls, [{ accountIds: ['acc_db_1'], transactionIds: ['r_kept', 'r_free'] }]);
+  assert.deepEqual([counts.pending_cleared, counts.pending_kept, counts.pending_linked], [1, 1, 0], 'r_free cleared, r_kept kept — and r_kept is counted by that step alone');
+  assert.deepEqual([counts.pending_unlisted, counts.pending_unlisted_left], [1, 0]);
+  assert.equal(domain.rows.has('u_mid'), false);
+  for (const id of ['l_posted', 'l_pending', 'm1', 't_repl', 't_repl2']) assert.equal(landing.rowsFor(id)[0].status, 'done', `${id}'s arrival is read`);
+
+  // a page with a window and nothing to clear: both counts are carried, at zero — and none of the replaced step's three
+  const quiet = new FakeDomain();
+  const zero = await landTransactionsPage(new FakeLanding(), quiet, pageInput({ transactions: [txn('a', { date: '2026-09-10' }), txn('b', { date: '2026-09-01' })] }));
+  assert.equal(quiet.unlistedCalls.length, 1);
+  assert.deepEqual(quiet.clearCalls, [], 'no posted object names a pending charge: the replaced step does not run');
+  assert.deepEqual(zero, { landed: 2, already_landed: 0, corrected: 0, synced: 2, skipped: 0, unheld: 0, added: 2, pending_unlisted: 0, pending_unlisted_left: 0 });
+
+  // NO WINDOW: the step is not called and neither count is carried — though the app holds a row a window would clear
+  const noDate = { ...txn('x', { date: '2026-09-05' }) } as Record<string, unknown>;
+  delete noDate.date;
+  const windowless: Array<[string, Transaction[]]> = [
+    ['every object is one day', [txn('a', { date: '2026-09-05' }), txn('b', { date: '2026-09-05' })]],
+    ['one object', [txn('a', { date: '2026-09-10' })]],
+    ['the days are not newest-first', [txn('a', { date: '2026-09-01' }), txn('b', { date: '2026-09-10' })]],
+    ['an object states no date', [txn('a', { date: '2026-09-10' }), noDate as unknown as Transaction, txn('b', { date: '2026-09-01' })]],
+  ];
+  for (const [why, page] of windowless) {
+    const held = new FakeDomain();
+    const row = { ...heldPending(held, 'u_mid', on('2026-09-05')) };
+    const none = await landTransactionsPage(new FakeLanding(), held, pageInput({ transactions: page }));
+    assert.deepEqual(held.unlistedCalls, [], `${why}: the step is not called`);
+    for (const name of UNLISTED_STEP) assert.equal(name in none, false, `${why}: ${name} is not carried — not even at zero`);
+    assert.deepEqual(held.rows.get('u_mid'), row, `${why}: the pending row is left alone`);
+  }
+
+  // a link that holds no account row has nothing to judge: the step does not run, window or not
+  const nobody = new FakeDomain();
+  const unheld = await landTransactionsPage(new FakeLanding(), nobody, pageInput({ accounts: [], transactions: [txn('a', { date: '2026-09-10' }), txn('b', { date: '2026-09-01' })] }));
+  assert.deepEqual(nobody.unlistedCalls, []);
+  assert.deepEqual(unheld, { landed: 2, already_landed: 0, corrected: 0, synced: 0, skipped: 0, unheld: 2, added: 0 });
+
+  // by content: the page asks for the step in one place — after the replaced step, before the mark-read — and sets its two counts there
+  const page = code('src/lib/arrivals/plaidTransactionsPage.ts');
+  assert.equal(page.split('domain.clearUnlistedPending(').length - 1, 1, 'the pull\'s second delete is asked for in one place');
+  const place = (needle: string) => { const i = page.indexOf(needle); assert.ok(i > -1, `the page holds ${needle}`); return i; };
+  const steps = ['await domain.clearReplacedPending({', 'const span = input.accounts.length > 0 ? pageWindow(landed.rows) : null;', 'if (span !== null) {', 'await domain.clearUnlistedPending({', 'await markRead(landing, newRowIds, at);'].map(place);
+  assert.deepEqual(steps, [...steps].sort((a, b) => a - b), 'the replaced step → the page\'s window, over every object → the unlisted step, only with a window → marked read');
+  for (const name of UNLISTED_STEP) assert.equal(page.split(`counts.${name} = answer.${name};`).length - 1, 1, `${name} is the step's own answer`);
+  assert.ok(page.includes('accountedIds: [...span.listedIds, ...replaced.filter((id) => !span.listedIds.includes(id))],'), 'the ids the page accounts for: every id it lists, and the ids the replaced step was handed');
+});
+
+test('PENDING-03 the two counts sum across the pages of a stage like every other count; the point a cut run resumes from carries all twelve names; and the bank\'s line says the rows cleared and the rows left', async () => {
+  const landing = new FakeLanding();
+  const domain = new FakeDomain();
+  // page 1 covers Sep 10 → Sep 1, page 2 covers Sep 1 → Aug 20: each holds rows the bank no longer lists
+  heldPending(domain, 'u_1', on('2026-09-05'));
+  heldPending(domain, 'u_2', on('2026-08-25'));
+  heldPending(domain, 'u_3', on('2026-08-22'));
+  heldPending(domain, 'k_1', { ...on('2026-09-06'), review_status: 'committed' });
+  domain.bookingLinks.set(heldPending(domain, 'k_2', on('2026-08-24')).id, 'accepted');
+  heldPending(domain, 'edge', on('2026-09-01'));      // the day the two pages meet on: the last day of one, the first of the other — judged by neither
+  heldPending(domain, 'r_free', on('2026-09-04'));    // named by a posted charge of page 1: the replaced step's
+  const answers = [
+    [txn('t1', { date: '2026-09-10' }), txn('t2', { date: '2026-09-03', pending_transaction_id: 'r_free' }), txn('t3', { date: '2026-09-01' })],
+    [txn('t4', { date: '2026-09-01' }), txn('t5', { date: '2026-08-23' }), txn('t6', { date: '2026-08-20' })],
+  ];
+  type Answer = PageAnswer & { transactions: Transaction[] };
+  const asked: number[] = [];
+  // the REAL paging loop (syncRun.ts pagedStage) over the REAL page runner — bound the way the route binds them
+  const ports: PagedPorts<Answer> = {
+    stage: 'transactions',
+    ask: async (offset) => { asked.push(offset); const transactions = answers[offset / 3]; return { objects: transactions.length, total: 6, transactions }; },
+    land: async (answer, page) => {
+      const result = await runTransactionsPage(snapshotClient(landing), () => ({ landing, domain }), pageInput({ page, transactions: answer.transactions }));
+      return result.ok ? { ok: true, counts: { ...result.counts } } : { ok: false, failure: result.failure };
+    },
+    through: async () => null,
+    declare: async (error) => stageFailed('transactions', error),
+  };
+
+  // request 1: its budget is spent once it has asked — it stops before the second ask
+  const first = await pagedStage(ports, { offset: 0, counts: {} }, runBudget(() => (asked.length === 0 ? 0 : SYNC_BUDGET_MS)));
+  assert.deepEqual(asked, [0]);
+  assert.equal(first.kind, 'more');
+  if (first.kind !== 'more') return;
+  assert.deepEqual(first.counts, { landed: 3, already_landed: 0, corrected: 0, synced: 3, skipped: 0, unheld: 0, added: 3, pending_cleared: 1, pending_kept: 0, pending_linked: 0, pending_unlisted: 1, pending_unlisted_left: 1 }, 'the counts so far are the first page\'s — both steps\' among them');
+  assert.deepEqual(Object.keys(first.counts), [...NO_PENDING_STEP, ...PENDING_STEP, ...UNLISTED_STEP], 'twelve names — within the sixteen a resume point takes');
+  assert.equal(Object.keys(first.counts).length, 12);
+
+  // the browser sends the point back, unchanged; it is accepted whole
+  const point = { item: 'link_wf', stage: 'transactions', offset: first.offset, counts: first.counts };
+  const sent = readResume(JSON.stringify({ resume: point }), ['link_wf']);
+  assert.deepEqual(sent, { ok: true, resume: point });
+  if (!sent.ok || sent.resume === null) return;
+
+  // request 2 continues there, with those counts
+  const second = await pagedStage(ports, { offset: sent.resume.offset, counts: sent.resume.counts }, runBudget(() => 0));
+  assert.deepEqual(asked, [0, 3], 'nothing is asked twice');
+  assert.ok(second.kind === 'done' && second.outcome.ok, 'the stage completes');
+  assert.deepEqual(second.outcome.counts, { landed: 6, already_landed: 0, corrected: 0, synced: 6, skipped: 0, unheld: 0, added: 6, pending_cleared: 1, pending_kept: 0, pending_linked: 0, pending_unlisted: 3, pending_unlisted_left: 2, pulled: 6, plaid_total: 6 }, 'each count is the sum of its pages — the unlisted step\'s two like every other; the replaced step ran on the first page alone');
+  // what the table holds: the three unlisted rows and the replaced one are gone; the committed row, the linked row and the row on the shared edge day still stand
+  assert.deepEqual(['u_1', 'u_2', 'u_3', 'r_free', 'k_1', 'k_2', 'edge'].map((id) => domain.rows.has(id)), [false, false, false, false, true, true, true]);
+  // the bank's line, as the banner writes it from this outcome
+  assert.equal(
+    bankLine({ institution: 'Wells Fargo', key: 'link_wf', stages: [second.outcome] }),
+    'Wells Fargo — transactions 6 of 6 pulled, 6 new, 1 pending replaced by their posted charge, 3 pending cleared (the bank no longer lists them), 2 pending the bank no longer lists left in place (committed, or a link or a refund points at them)',
   );
 });

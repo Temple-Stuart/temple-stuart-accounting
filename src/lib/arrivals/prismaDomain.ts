@@ -31,8 +31,8 @@
  * issued one DELETE per posted transaction — every pending row of the same
  * account and amount dated within two days — and this binding replayed it as a
  * DELETE … USING (VALUES …) plus a DELETE by id for in-page rows. The parser
- * deletes nothing now, and neither does the plan. The sync's ONE delete is the
- * page's pending step (DomainDb.clearReplacedPending): the pending rows Plaid
+ * deletes nothing now, and neither does the plan. The pull's FIRST delete is
+ * the page's replaced step (DomainDb.clearReplacedPending): the pending rows Plaid
  * NAMES as replaced by a posted charge, on the link's own accounts, never one
  * that is committed or carries a live posting — and (part 3) never one a
  * booking link or a settled refund points at: the database refuses that
@@ -45,6 +45,32 @@
  * (pending_kept); left in place because, though neither, a booking link or a
  * settled refund points at it (pending_linked).
  *
+ * PENDING-03 (Alex, 2026-11-11): A PENDING ROW THE BANK NO LONGER LISTS IS
+ * CLEARED — the pull's SECOND delete, the page's unlisted step
+ * (DomainDb.clearUnlistedPending). The first clears a pending row only when a
+ * posted charge names it; a hold the bank dropped was cleared by nothing. Plaid
+ * lists a link's transactions newest first, so a page holds every transaction
+ * the bank lists for the link dated strictly between the page's newest day and
+ * its oldest day: a pending row of the link's own accounts, dated strictly
+ * between them, that the page does not account for is no longer listed by the
+ * bank. Like the first it is NOT buffered: it runs at once, inside the page's
+ * transaction, right after the first — it judges only rows this page does not
+ * list, rows this page does not write — as ONE statement that deletes and
+ * counts (clearUnlistedPendingSql), and its answer is the page's two counts:
+ * deleted (pending_unlisted), and left in place (pending_unlisted_left).
+ *
+ * THE PULL'S TWO DELETES, AND WHAT EACH ONE NEVER TOUCHES. Both delete
+ * transactions rows only — never a journal or a ledger row — and only PENDING
+ * rows on the accounts handed to them, the caller's own link's: a posted row
+ * is never judged. Neither takes a row that is committed, that carries a live
+ * posting, or that a booking link or a settled refund points at — the same
+ * three conditions, word for word, in both statements; such a row is left
+ * exactly as it is, and counted. The first never takes a row whose id it was
+ * not handed; the second never takes a row whose id it WAS handed (the ids
+ * the page lists, and the first step's), nor a row dated on either of the two
+ * days or outside them. Nothing else in this binding deletes: the plan holds
+ * upserts and links only.
+ *
  * A page whose payloads omit a column (undefined, not null) is grouped by the
  * set of omitted columns, one statement per group — Prisma's create treats
  * undefined as the column default and its update skips it; the grouped
@@ -52,7 +78,9 @@
  * one group.
  */
 import { Prisma } from '@prisma/client';
-import type { DomainDb, ReplacedPendingAnswer } from './plaidTransactionsPage';
+// PENDING-03: the one reader of a 'YYYY-MM-DD' calendar day (pure text — no Date, no time zone): the unlisted step's two days are checked with it.
+import { calendarDay } from '@/lib/plaid/failLoud';
+import type { DomainDb, ReplacedPendingAnswer, UnlistedPendingAnswer } from './plaidTransactionsPage';
 
 export interface UpsertIntent {
   where: { transactionId: string };
@@ -67,7 +95,7 @@ export type Intent = { kind: 'upsert'; args: UpsertIntent } | { kind: 'link'; ar
 
 export class UnsupportedDomainWriteError extends Error {
   constructor(what: string) {
-    super(`prismaDomain: ${what} — the batching binding replays only the parser's two intents (upsert by transactionId, the arrival_id link) and runs the page's one pending step; nothing else is issued`);
+    super(`prismaDomain: ${what} — the batching binding replays only the parser's two intents (upsert by transactionId, the arrival_id link) and runs the page's two pending steps; nothing else is issued`);
     this.name = 'UnsupportedDomainWriteError';
   }
 }
@@ -134,6 +162,22 @@ function assertClear(args: unknown): { accountIds: string[]; transactionIds: str
     throw new UnsupportedDomainWriteError('clearReplacedPending must be { accountIds, transactionIds } — each a list of at least one id');
   }
   return { accountIds: args.accountIds, transactionIds: args.transactionIds };
+}
+
+/** A calendar day in the form YYYY-MM-DD — read by the one day reader (failLoud.ts calendarDay), which answers null for anything else. */
+const isDay = (v: unknown): v is string => typeof v === 'string' && calendarDay(v) !== null;
+
+/**
+ * PENDING-03: the unlisted step's arguments, checked like every other write through this binding — two lists of at
+ * least one id, and two calendar days with the oldest strictly before the newest (a window with nothing strictly
+ * inside it is no window; the page does not call the step for one).
+ */
+function assertUnlisted(args: unknown): { accountIds: string[]; newestDay: string; oldestDay: string; accountedIds: string[] } {
+  if (!isPlainObject(args) || Object.keys(args).length !== 4 || !isIdList(args.accountIds) || !isIdList(args.accountedIds)
+    || !isDay(args.newestDay) || !isDay(args.oldestDay) || !(args.oldestDay < args.newestDay)) {
+    throw new UnsupportedDomainWriteError('clearUnlistedPending must be { accountIds, newestDay, oldestDay, accountedIds } — each list of at least one id, the two days calendar days (YYYY-MM-DD) with the oldest strictly before the newest');
+  }
+  return { accountIds: args.accountIds, newestDay: args.newestDay, oldestDay: args.oldestDay, accountedIds: args.accountedIds };
 }
 
 /** Replay the parser's intents, in order, into the batched plan with the sequential order's exact result. */
@@ -214,7 +258,7 @@ export function linkSql(links: DomainPlan['links']): Prisma.Sql {
 }
 
 /**
- * PENDING-01 — THE SYNC'S ONE DELETE, as ONE statement that deletes and counts.
+ * PENDING-01 — THE PULL'S FIRST DELETE, as ONE statement that deletes and counts.
  *
  *   named    the transactions rows the ids name that are still pending, on the link's own accounts;
  *   cleared  of those, the rows deleted: NOT committed, carrying no live posting — no journal entry of source
@@ -256,10 +300,41 @@ export function clearReplacedPendingSql(accountIds: string[], transactionIds: st
   return Prisma.sql`WITH named AS (SELECT t.id FROM transactions AS t WHERE t."transactionId" = ANY(${transactionIds}::text[]) AND t.pending = true AND t."accountId" = ANY(${accountIds}::text[])), cleared AS (DELETE FROM transactions AS t USING named AS n WHERE t.id = n.id AND t.review_status <> 'committed' AND NOT EXISTS (SELECT 1 FROM journal_entries AS j WHERE j.source_type = 'plaid_txn' AND j.source_id = t."transactionId" AND j.is_reversal = false AND j.reversed_by_entry_id IS NULL) AND NOT EXISTS (SELECT 1 FROM transaction_reservation_links AS l WHERE l."transactionId" = t.id) AND NOT EXISTS (SELECT 1 FROM money_events AS m WHERE m."settledTransactionId" = t.id) RETURNING t.id), linked AS (SELECT t.id FROM transactions AS t JOIN named AS n ON n.id = t.id WHERE t.review_status <> 'committed' AND NOT EXISTS (SELECT 1 FROM journal_entries AS j WHERE j.source_type = 'plaid_txn' AND j.source_id = t."transactionId" AND j.is_reversal = false AND j.reversed_by_entry_id IS NULL) AND (EXISTS (SELECT 1 FROM transaction_reservation_links AS l WHERE l."transactionId" = t.id) OR EXISTS (SELECT 1 FROM money_events AS m WHERE m."settledTransactionId" = t.id))) SELECT (SELECT count(*) FROM cleared)::int AS pending_cleared, ((SELECT count(*) FROM named) - (SELECT count(*) FROM cleared) - (SELECT count(*) FROM linked))::int AS pending_kept, (SELECT count(*) FROM linked)::int AS pending_linked`;
 }
 
+/**
+ * PENDING-03 — THE PULL'S SECOND DELETE, as ONE statement that deletes and counts (clearReplacedPendingSql is its model).
+ *
+ *   unlisted  the transactions rows the bank no longer lists, read off ONE page: still pending, on the link's own
+ *             accounts, whose day is strictly after the page's oldest day and strictly before its newest day, and
+ *             whose transactionId is none of the ids the page accounts for (every id it lists, and the ids the first
+ *             step was handed);
+ *   cleared   of those, the rows deleted: NOT committed, carrying no live posting — no journal entry of source
+ *             'plaid_txn' on the row's own transactionId that is neither a reversal nor reversed — AND with nothing
+ *             pointing at them: no booking link, whatever its status, and no settled refund. The first statement's
+ *             three conditions, word for word;
+ *   the answer: pending_unlisted = the rows deleted; pending_unlisted_left = every other row of `unlisted` — left in
+ *             place because one of those three holds, which is the only way to be left. Nothing about it changes.
+ *
+ * THE TWO DAYS ARE COMPARED AS DAYS, both strictly: the row's `date` is cast to a date, so a row that held a time of
+ * day would still be judged by its day alone (the parser writes Plaid's own `date` at midnight). A row dated on the
+ * oldest day or on the newest day is not in `unlisted`: a day can run on across a page's edge.
+ *
+ * The accounts and the ids ride as one array parameter each and the two days as one text parameter each, so a page
+ * of any size is one statement. Each sub-statement reads the same snapshot: `unlisted` is counted as it stood before
+ * the delete, and — as in the first statement — a row committed after that snapshot and before the delete is not
+ * taken, and is counted as left. What the first statement's snapshot cannot see, this one's cannot either: a link or a
+ * refund written after it and before the delete is still refused by the database — the page rolls back whole and its
+ * stage is declared failed, for that one Sync; the next Sync leaves the row in place, counted. It runs after the
+ * first statement, in the same transaction, so a row the first deleted is gone before it reads; a row the first LEFT
+ * is one of the ids it is handed, and is counted by the first alone.
+ */
+export function clearUnlistedPendingSql(accountIds: string[], newestDay: string, oldestDay: string, accountedIds: string[]): Prisma.Sql {
+  return Prisma.sql`WITH unlisted AS (SELECT t.id FROM transactions AS t WHERE t.pending = true AND t."accountId" = ANY(${accountIds}::text[]) AND t."date"::date > ${oldestDay}::date AND t."date"::date < ${newestDay}::date AND t."transactionId" <> ALL(${accountedIds}::text[])), cleared AS (DELETE FROM transactions AS t USING unlisted AS u WHERE t.id = u.id AND t.review_status <> 'committed' AND NOT EXISTS (SELECT 1 FROM journal_entries AS j WHERE j.source_type = 'plaid_txn' AND j.source_id = t."transactionId" AND j.is_reversal = false AND j.reversed_by_entry_id IS NULL) AND NOT EXISTS (SELECT 1 FROM transaction_reservation_links AS l WHERE l."transactionId" = t.id) AND NOT EXISTS (SELECT 1 FROM money_events AS m WHERE m."settledTransactionId" = t.id) RETURNING t.id) SELECT (SELECT count(*) FROM cleared)::int AS pending_unlisted, ((SELECT count(*) FROM unlisted) - (SELECT count(*) FROM cleared))::int AS pending_unlisted_left`;
+}
+
 export interface BatchingDomainDb extends DomainDb {
   /** Replay the buffered intents as the batched statements — inside the page's transaction. */
   finish(): Promise<void>;
-  /** For the log line: how many intents the page buffered and how many statements ran — the flush's, and the pending step's one when it ran. */
+  /** For the log line: how many intents the page buffered and how many statements ran — the flush's, and each pending step's one when it ran. */
   stats(): { intents: number; statements: number };
 }
 
@@ -273,7 +348,7 @@ export function prismaDomain(tx: Prisma.TransactionClient): BatchingDomainDb {
       async upsert(args) { guard(); intents.push({ kind: 'upsert', args: assertUpsert(args) }); return {}; },
       async updateMany(args) { guard(); intents.push({ kind: 'link', args: assertLink(args) }); return {}; },
     },
-    // PENDING-01: the page's pending step — NOT buffered. It runs at once, inside the page's transaction: it names
+    // PENDING-01: the page's first pending step — NOT buffered. It runs at once, inside the page's transaction: it names
     // rows this page does not write, so nothing buffered depends on it. One statement, counted for the log line.
     async clearReplacedPending(args): Promise<ReplacedPendingAnswer> {
       guard();
@@ -287,6 +362,21 @@ export function prismaDomain(tx: Prisma.TransactionClient): BatchingDomainDb {
       const linked = answer?.pending_linked;
       if (!isCount(cleared) || !isCount(kept) || !isCount(linked)) throw new Error('prismaDomain: the pending step answered no count — the table is not answering');
       return { pending_cleared: cleared, pending_kept: kept, pending_linked: linked };
+    },
+    // PENDING-03: the page's second pending step — NOT buffered, like the first. It runs at once, inside the page's
+    // transaction, after the first: it judges only rows this page does not list — rows this page does not write — so
+    // nothing buffered depends on it. One statement, counted for the log line.
+    async clearUnlistedPending(args): Promise<UnlistedPendingAnswer> {
+      guard();
+      const { accountIds, newestDay, oldestDay, accountedIds } = assertUnlisted(args);
+      const answered = await tx.$queryRaw<Array<{ pending_unlisted: unknown; pending_unlisted_left: unknown }>>(clearUnlistedPendingSql(accountIds, newestDay, oldestDay, accountedIds));
+      statements += 1;
+      // The statement answers exactly one row of two counts; anything else is the table not answering — said, never read as none.
+      const answer = answered.length === 1 ? answered[0] : undefined;
+      const unlisted = answer?.pending_unlisted;
+      const left = answer?.pending_unlisted_left;
+      if (!isCount(unlisted) || !isCount(left)) throw new Error('prismaDomain: the unlisted step answered no count — the table is not answering');
+      return { pending_unlisted: unlisted, pending_unlisted_left: left };
     },
     async finish() {
       guard();

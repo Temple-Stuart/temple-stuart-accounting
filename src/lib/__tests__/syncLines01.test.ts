@@ -5,6 +5,8 @@ import {
   PENDING_KEPT_WORDS,
   PENDING_LINKED_WORDS,
   PENDING_REPLACED_WORDS,
+  PENDING_UNLISTED_LEFT_WORDS,
+  PENDING_UNLISTED_WORDS,
   bankLine,
   calendarDay,
   joinItemOutcomes,
@@ -30,6 +32,11 @@ import { code } from '../sourceText';
 // PENDING-01 part 3 (the ruling of 2026-11-11): a third piece, after the committed one and before `not stored` — how
 // many pending rows were left in place because a booking link or a settled refund points at them (pending_linked).
 // Printed only above zero, so a bank with no such row reads exactly as it did. L3 holds it with the other two.
+//
+// PENDING-03 (Alex, 2026-11-11): two more pieces, after the three pending ones and before `not stored` — how many
+// pending rows were cleared because the bank no longer lists them (pending_unlisted), and how many of those were left
+// in place because they are committed or a link or a refund points at them (pending_unlisted_left). Each only above
+// zero, the transactions stage only. L3 holds them with the other three.
 
 /** What a completed transactions stage of a run states: the store's counts, then pulled / plaid_total (syncRun.ts pagedStage). */
 const tx = (pulled: number, added: number, more: Record<string, number> = {}, through?: string) =>
@@ -60,7 +67,7 @@ test('L2 two stages and holdings: a part per ok stage in the order the stages ra
   );
 });
 
-test('L3 a bracketed piece is printed only when its count is above zero, in this order: corrected, pending replaced, committed pending left in place, pending left in place for a booking link or a refund (the four are transactions only), not stored, the holdings written', () => {
+test('L3 a bracketed piece is printed only when its count is above zero, in this order: corrected, pending replaced, committed pending left in place, pending left in place for a booking link or a refund, pending cleared because the bank no longer lists them, those of them left in place (the six are transactions only), not stored, the holdings written', () => {
   const chase: ItemOutcome = { institution: 'Chase', stages: [tx(1500, 20, { corrected: 2, unheld: 37 }, '2026-11-10'), inv(60, 5, { corrected: 4, unheld: 3 }), holdings(0)] };
   assert.equal(
     bankLine(chase),
@@ -109,6 +116,31 @@ test('L3 a bracketed piece is printed only when its count is above zero, in this
   const pushed = ['c.corrected > 0) pieces.push(', 'c.pending_cleared > 0) pieces.push(`${thousands(c.pending_cleared)} ${PENDING_REPLACED_WORDS}`);', 'c.pending_kept > 0) pieces.push(`${thousands(c.pending_kept)} ${PENDING_KEPT_WORDS}`);', "if (s.stage === 'transactions' && c.pending_linked > 0) pieces.push(`${thousands(c.pending_linked)} ${PENDING_LINKED_WORDS}`);", 'if (c.unheld > 0) pieces.push('].map((needle) => { const i = failLoud.indexOf(needle); assert.ok(i > -1, `failLoud.ts holds ${needle}`); return i; });
   assert.deepEqual(pushed, [...pushed].sort((a, b) => a - b), 'corrected → pending replaced → committed pending left in place → pending left in place → not stored');
   assert.equal(failLoud.split('pending left in place (a booking link or a refund points at them)').length - 1, 1, 'the words stand in one constant');
+  // PENDING-03: the two pieces of the pull's second delete — after the three pending pieces, before not stored, each only above zero.
+  assert.equal(PENDING_UNLISTED_WORDS, 'pending cleared (the bank no longer lists them)');
+  assert.equal(PENDING_UNLISTED_LEFT_WORDS, 'pending the bank no longer lists left in place (committed, or a link or a refund points at them)');
+  assert.equal(
+    bankLine({ institution: 'Wells Fargo', stages: [tx(3412, 41, { corrected: 2, pending_cleared: 16, pending_kept: 27, pending_linked: 4, pending_unlisted: 35, pending_unlisted_left: 2, unheld: 3 }, '2026-11-09')] }),
+    'Wells Fargo — transactions 3,412 of 3,412 pulled, 41 new, 2 corrected, 16 pending replaced by their posted charge, 27 committed pending left in place (a posted charge replaced them), 4 pending left in place (a booking link or a refund points at them), 35 pending cleared (the bank no longer lists them), 2 pending the bank no longer lists left in place (committed, or a link or a refund points at them), 3 not stored (account not held here), latest Nov 9, 2026',
+    'every piece, in its order — the two new ones after the three pending pieces and before not stored',
+  );
+  assert.equal(
+    bankLine({ institution: 'Wells Fargo', stages: [tx(3412, 0, { pending_unlisted: 35, pending_unlisted_left: 0 }, '2026-11-09')] }),
+    'Wells Fargo — transactions 3,412 of 3,412 pulled, 0 new, 35 pending cleared (the bank no longer lists them), latest Nov 9, 2026',
+    'the clause Alex\'s next Sync should print for the link that holds Everyday Checking — about 35, from his psql of 2026-11-11 20:10; the other figures are this test\'s',
+  );
+  assert.equal(bankLine({ institution: 'Wells Fargo', stages: [tx(10, 0, { pending_unlisted: 3, pending_unlisted_left: 0 })] }), 'Wells Fargo — transactions 10 of 10 pulled, 0 new, 3 pending cleared (the bank no longer lists them)', 'cleared alone');
+  assert.equal(bankLine({ institution: 'Wells Fargo', stages: [tx(10, 0, { pending_unlisted: 0, pending_unlisted_left: 2 })] }), 'Wells Fargo — transactions 10 of 10 pulled, 0 new, 2 pending the bank no longer lists left in place (committed, or a link or a refund points at them)', 'left alone');
+  assert.equal(bankLine({ institution: 'Wells Fargo', stages: [tx(10, 0, { pending_unlisted: 0, pending_unlisted_left: 0 })] }), 'Wells Fargo — transactions 10 of 10 pulled, 0 new', 'a step that ran and found none says nothing — the line is the line it was');
+  assert.equal(bankLine({ institution: 'Wells Fargo', stages: [tx(10, 0, { pending_linked: 2, pending_unlisted: 3 })] }), 'Wells Fargo — transactions 10 of 10 pulled, 0 new, 2 pending left in place (a booking link or a refund points at them), 3 pending cleared (the bank no longer lists them)', 'after the three pending pieces');
+  assert.equal(bankLine({ institution: 'Wells Fargo', stages: [tx(10, 0, { pending_unlisted_left: 1, unheld: 3 })] }), 'Wells Fargo — transactions 10 of 10 pulled, 0 new, 1 pending the bank no longer lists left in place (committed, or a link or a refund points at them), 3 not stored (account not held here)', 'before not stored');
+  assert.equal(bankLine({ institution: 'Wells Fargo', stages: [tx(5000, 0, { pending_unlisted: 1234, pending_unlisted_left: 1001 })] }), 'Wells Fargo — transactions 5,000 of 5,000 pulled, 0 new, 1,234 pending cleared (the bank no longer lists them), 1,001 pending the bank no longer lists left in place (committed, or a link or a refund points at them)', 'counts read as a person writes them');
+  // The two are the transactions stage's: an investments stage never prints them.
+  assert.equal(bankLine({ institution: 'Robinhood', stages: [inv(60, 5, { pending_unlisted: 9, pending_unlisted_left: 9 })] }), 'Robinhood — investments 60 of 60 pulled, 5 new');
+  // By content: the five pending pieces are pushed in that order, each for the transactions stage alone, before not stored; each sentence stands in one constant.
+  const five = ['c.pending_cleared > 0) pieces.push(', 'c.pending_kept > 0) pieces.push(', 'c.pending_linked > 0) pieces.push(', "if (s.stage === 'transactions' && c.pending_unlisted > 0) pieces.push(`${thousands(c.pending_unlisted)} ${PENDING_UNLISTED_WORDS}`);", "if (s.stage === 'transactions' && c.pending_unlisted_left > 0) pieces.push(`${thousands(c.pending_unlisted_left)} ${PENDING_UNLISTED_LEFT_WORDS}`);", 'if (c.unheld > 0) pieces.push('].map((needle) => { const i = failLoud.indexOf(needle); assert.ok(i > -1, `failLoud.ts holds ${needle}`); return i; });
+  assert.deepEqual(five, [...five].sort((a, b) => a - b), 'pending replaced → committed pending left in place → pending left in place → pending cleared → those left in place → not stored');
+  for (const words of ['pending cleared (the bank no longer lists them)', 'pending the bank no longer lists left in place (committed, or a link or a refund points at them)']) assert.equal(failLoud.split(words).length - 1, 1, `the words stand in one constant: ${words}`);
   // Zero of each: no piece, and no holdings part at all.
   assert.equal(bankLine({ institution: 'Chase', stages: [tx(10, 0, { corrected: 0, unheld: 0 }), holdings(0)] }), 'Chase — transactions 10 of 10 pulled, 0 new');
   // The two figures are the stage's own — printed as stated, never recomputed from one another.

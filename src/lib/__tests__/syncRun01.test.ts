@@ -35,6 +35,13 @@
  * figure here that comes from the page size was re-derived for 250 — T1's and T3's asks, T2's `more` point and its
  * counts, T7's and T8's second page, T11's pin and its pageOf examples — and T12's words for the page size. What each
  * test proves did not change. T13 is new.
+ *
+ * PENDING-03 (Alex, 2026-11-11) — a pending row the bank no longer lists is cleared: the page's SECOND pending step
+ * (src/lib/arrivals/plaidTransactionsPage.ts pageWindow, DomainDb.clearUnlistedPending) runs on every page that has a
+ * window — more than one day, newest first — and every page of these histories is that. The fake domain answers it
+ * over its own table; no row here is pending, so it answers 0 and 0, and a transactions stage's counts gain
+ * `pending_unlisted: 0, pending_unlisted_left: 0` — T1's, T2's `more` point and T13's whole-count pins say so. What
+ * each test proves did not change. The rule itself is held in arrivalsLand.test.ts.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -74,6 +81,25 @@ class FakeDomain implements DomainDb {
   // one pending step runs only when a posted object names a pending charge — no object of these histories does, so a
   // call here is a fault of the test, said out loud (arrivalsLand.test.ts holds the step).
   clearReplacedPending = async (): Promise<never> => { throw new Error('syncRun01: no object here names a pending charge — the pending step must not run'); };
+  // PENDING-03 (2026-11-11): the page's SECOND pending step runs on every page that has a window, so this fake must
+  // answer it. It does so over its own table, with the step's rule (arrivalsLand.test.ts holds the rule): a row that is
+  // PENDING, on one of the accounts, dated strictly inside the page's two days, that the page does not account for,
+  // is deleted and counted. This table holds no commit, no posting and no link, so nothing is ever left in place. No
+  // row of these histories is pending — every object is posted, and the rows the app already holds state no
+  // `pending` — so the answer is 0 and 0 on every page; every call is counted.
+  unlistedCalls = 0;
+  clearUnlistedPending = async (args: { accountIds: string[]; newestDay: string; oldestDay: string; accountedIds: string[] }) => {
+    this.unlistedCalls += 1;
+    let pending_unlisted = 0;
+    for (const [id, row] of [...this.rows]) {
+      if (row.pending !== true || !args.accountIds.includes(String(row.accountId)) || args.accountedIds.includes(id)) continue;
+      const day = (row.date as Date).toISOString().slice(0, 10);
+      if (!(day > args.oldestDay && day < args.newestDay)) continue;
+      this.rows.delete(id);
+      pending_unlisted += 1;
+    }
+    return { pending_unlisted, pending_unlisted_left: 0 };
+  };
 }
 
 const LINK = 'link_wf';
@@ -174,9 +200,11 @@ test('T1 1,200 objects at 250 a page, 200 of them already in the app: asks at 0,
   assert.deepEqual(outcome, {
     stage: 'transactions', ok: true,
     // landed is 1,200 — every object is a first arrival in the store, the 200 the app already had among them. added is not that number.
-    counts: { landed: 1200, already_landed: 0, corrected: 0, synced: 1200, skipped: 100, unheld: 0, added: 1000, pulled: 1200, plaid_total: 1200 },
+    // PENDING-03: every page has a window, so the unlisted step ran on each — and cleared nothing: no row here is pending.
+    counts: { landed: 1200, already_landed: 0, corrected: 0, synced: 1200, skipped: 100, unheld: 0, added: 1000, pending_unlisted: 0, pending_unlisted_left: 0, pulled: 1200, plaid_total: 1200 },
     through: '2026-11-09',
   });
+  assert.equal(db.domain.unlistedCalls, 5, 'PENDING-03: the unlisted step ran once on each of the five pages');
   assert.equal(db.domain.rows.size, 1200, 'the table holds every object');
   assert.equal(db.domain.upserts.length, 1100, '1,000 new rows written and the 100 incomplete ones updated; the 100 complete ones are linked, not rewritten');
   assert.equal(db.domain.links, 100);
@@ -209,7 +237,7 @@ test('T2 the clock stops the run after the first ask: `more` at offset 250 with 
   assert.ok(one.more !== null);
   if (one.more === null) return;
   // the first 250 objects: 42 of them the app already held (every sixth) — 21 complete (skipped), 21 updated — and 208 new
-  assert.deepEqual(one.more, { item: LINK, stage: 'transactions', offset: 250, counts: { landed: 250, already_landed: 0, corrected: 0, synced: 250, skipped: 21, unheld: 0, added: 208 } }, 'the point it stopped at, with the counts so far');
+  assert.deepEqual(one.more, { item: LINK, stage: 'transactions', offset: 250, counts: { landed: 250, already_landed: 0, corrected: 0, synced: 250, skipped: 21, unheld: 0, added: 208, pending_unlisted: 0, pending_unlisted_left: 0 } }, 'the point it stopped at, with the counts so far — PENDING-03: the first page\'s unlisted step among them, at zero');
   assert.equal(one.progress, 'Still pulling — Wells Fargo: transactions 250 of 1,200');
   assert.deepEqual(one.items, [], 'no stage finished in this request, so no outcome is listed yet');
   assert.equal(db.landing.arrivals.size, 250, 'the first page is landed and stays');
@@ -591,7 +619,7 @@ test('T13 SYNC-02 a stage of 1,000 objects — four full pages — asks at 0, 25
   assert.equal(budget.asks(), 4);
   assert.deepEqual(outcome, {
     stage: 'transactions', ok: true,
-    counts: { landed: 1000, already_landed: 0, corrected: 0, synced: 1000, skipped: 0, unheld: 0, added: 1000, pulled: 1000, plaid_total: 1000 },
+    counts: { landed: 1000, already_landed: 0, corrected: 0, synced: 1000, skipped: 0, unheld: 0, added: 1000, pending_unlisted: 0, pending_unlisted_left: 0, pulled: 1000, plaid_total: 1000 },
     through: '2026-11-09',
   });
   // the bank's line, as the banner writes it from this outcome
