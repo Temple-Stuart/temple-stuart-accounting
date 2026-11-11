@@ -4,6 +4,10 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+// BOOKS-01: the statements come from ONE function (src/lib/books/statements.ts) over ONE read (statementsRead.ts) —
+// the same pair /api/cpa-export calls, so the two screens cannot disagree.
+import { statementsOf } from '@/lib/books/statements';
+import { readStatements } from '@/lib/books/statementsRead';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +27,13 @@ export async function GET(request: NextRequest) {
     if (tabGate) return tabGate;
 
     const { searchParams } = new URL(request.url);
-    const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()), 10);
+    // BOOKS-01: the year is checked as the Export checks it (src/app/api/cpa-export/route.ts) — an integer from 2000
+    // to 2100, else 400. No year asked for is the current one, as before.
+    const yearParam = searchParams.get('year');
+    const year = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();
+    if (isNaN(year) || year < 2000 || year > 2100) {
+      return NextResponse.json({ error: 'Invalid year parameter' }, { status: 400 });
+    }
     const entityId = searchParams.get('entityId');
 
     // Verify entity belongs to authenticated user before filtering
@@ -106,7 +116,14 @@ export async function GET(request: NextRequest) {
 
     const availableYears = yearRows.map(r => Number(r.year));
 
-    return NextResponse.json({ accounts, availableYears });
+    // BOOKS-01: THE STATEMENTS — the income statement of the year (closing entries out) and the balance sheet through
+    // Dec 31 of it (every earlier year in), signed, from the one function over the one read. `accounts` above keeps
+    // its shape for the answers page (src/components/answers/AnswersClient.tsx) and `availableYears` for the Books
+    // page; neither is what the statements are summed from.
+    const read = await readStatements(prisma, { userId: user.id, entityId: entityId ? entityId : null, year });
+    const statements = statementsOf({ toDate: read.toDate, inPeriod: read.inPeriod });
+
+    return NextResponse.json({ accounts, availableYears, scope: read.scope, statements });
   } catch (error) {
     return failClosedResponse('Statements API', 'Statements read failed', error);
   }

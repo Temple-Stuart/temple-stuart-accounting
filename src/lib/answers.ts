@@ -102,7 +102,7 @@ export const ANSWER_READS: Readonly<Record<string, AnswerRead>> = {
     computed: true,
     endpoint: '/api/statements',
     source: 'revenue minus expense over the journal entries you committed this year on your sole-prop entity — the statements read, per account',
-    citation: 'src/app/api/entities/route.ts:19-23 (entity_type) · src/app/api/statements/route.ts:53-71 (ledger_entries × journal_entries × chart_of_accounts, per year and entity)',
+    citation: 'src/app/api/entities/route.ts:19-23 (entity_type) · src/app/api/statements/route.ts:63-81 (ledger_entries × journal_entries × chart_of_accounts, per year and entity)', // BOOKS-01 (2026-11-11): re-cited, what it names unchanged — the per-account read :53-71 → :63-81 (two imports and the year's check went in above it)
     home: '/books',
   },
 };
