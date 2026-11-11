@@ -82,6 +82,35 @@ const config: Config = {
           indigo: 'var(--ts-indigo)',              // #818cf8
           white: 'var(--ts-white)',                // #FFFDF9 card cream (REPAINT-1; was #fafaf9)
         },
+        // HERO-CREST-01 (Alex, design canvas, 2026-11-11): the guest hero's and the top bar's own colours — the
+        // approved design brings them, so they are tokens: named and valued as design-refs/hero-crest-01/README.md's
+        // table, typed once in globals.css :root (--ts-hero-*, --ts-glass-*). The same two shapes as above: a hex the
+        // design only draws solid is a plain var(); channels the design draws at an alpha take <alpha-value>. ADDITIVE,
+        // as the status trio was. The hero's and the bar's stylesheet (the foot of globals.css — the reference's own
+        // rules) reads the variables directly; these names make the same colours utilities for the next surface.
+        hero: {
+          'violet-1': 'var(--ts-hero-violet-1)',                              // #6A33E0 — the ground's sweep, start
+          'violet-2': 'var(--ts-hero-violet-2)',                              // #4D1FBC
+          'violet-3': 'var(--ts-hero-violet-3)',                              // #32118A
+          'violet-4': 'var(--ts-hero-violet-4)',                              // #210A5E — the sweep, end
+          bloom: 'rgb(var(--ts-hero-bloom) / <alpha-value>)',                 // 162 107 255 — the light behind the crest
+          orchid: 'rgb(var(--ts-hero-orchid) / <alpha-value>)',               // 217 70 239 — the warm corner
+          ink: 'var(--ts-hero-ink)',                                          // #FAF8F4 — headline, wordmark, menu rows
+          'ink-soft': 'var(--ts-hero-ink-soft)',                              // #E4E0F2 — subline
+          'ink-nav': 'var(--ts-hero-ink-nav)',                                // #E8E4F5 — the bar's links
+          gold: 'var(--ts-hero-gold)',                                        // #F6C95C — the third sentence, link hover, focus ring
+          'gold-1': 'rgb(var(--ts-hero-gold-1) / <alpha-value>)',             // 255 236 178 — the gold pills, start
+          'gold-2': 'rgb(var(--ts-hero-gold-2) / <alpha-value>)',             // 248 203 90
+          'gold-3': 'rgb(var(--ts-hero-gold-3) / <alpha-value>)',             // 236 178 62 — the gold pills, end
+          'on-gold': 'var(--ts-hero-on-gold)',                                // #2A0F5C — ink on the gold pills
+          well: 'var(--ts-hero-well)',                                        // #210B5C — the secondary button's fill
+          'rim-gold': 'var(--ts-hero-rim-gold)',                              // #F8CB5A — its rim, start
+          'rim-lilac': 'var(--ts-hero-rim-lilac)',                            // #B9A2FF — its rim, end
+        },
+        glass: {
+          fill: 'var(--ts-glass-fill)',                                       // rgb(255 255 255 / 0.10) — baked alpha, solid-only
+          line: 'var(--ts-glass-line)',                                       // rgb(255 255 255 / 0.22) — baked alpha, solid-only
+        },
       },
       fontFamily: {
         mono: ["'IBM Plex Mono'", 'ui-monospace', 'monospace'],

@@ -25,6 +25,30 @@ from `ds.ts` instead of copy-pasting Tailwind strings.
 | **DATA** | `list` / `row` / `numeral` / `columnHeader` / `traceLine` | COMPACT-1 list rows, FD-3-2 tables, FD-1o cost trace |
 | **LAYOUT** | `strip` / `snapRail` / `snapItem` / `stack` | the section strip, scroll-snap rail, vertical stack |
 
+## The guest hero and the top bar (HERO-CREST-01, 2026-11-11)
+The approved crest design (`design-refs/hero-crest-01/`) is a design change: it brings its own colours. They are
+tokens — typed once in `src/app/globals.css` `:root` as `--ts-<token>`, mapped in `tailwind.config.ts` as the `hero`
+and `glass` families — named and valued as the handoff's table. No hex is typed in a component.
+
+| Token | Value | Used for |
+|---|---|---|
+| `hero-violet-1` … `-4` | `#6A33E0` · `#4D1FBC` · `#32118A` · `#210A5E` | the ground's sweep; the filled bar uses 1–3 |
+| `hero-bloom` | `162 107 255` | the light behind the crest |
+| `hero-orchid` | `217 70 239` | the warm corner, bottom right |
+| `hero-ink` · `hero-ink-soft` · `hero-ink-nav` | `#FAF8F4` · `#E4E0F2` · `#E8E4F5` | headline, wordmark, menu rows · subline · the bar's links |
+| `hero-gold` | `#F6C95C` | the headline's third sentence, link hover, focus ring |
+| `hero-gold-1` … `-3` | `255 236 178` · `248 203 90` · `236 178 62` | the gold pills |
+| `hero-on-gold` | `#2A0F5C` | ink on the gold pills |
+| `hero-well` · `hero-rim-gold` · `hero-rim-lilac` | `#210B5C` · `#F8CB5A` · `#B9A2FF` | the secondary button's fill and rim |
+| `glass-fill` · `glass-line` | `rgb(255 255 255 / 0.10)` · `rgb(255 255 255 / 0.22)` | the bar over the hero |
+
+The hero (`Landing.tsx`) and the bar (`LandingHeader.tsx`) are drawn by the reference's own stylesheet, ported rule
+for rule to the foot of `globals.css` under the `ts-` prefix (`.ts-hero`, `.ts-bar`, `.ts-pill-gold`, …) — not by
+`ds.ts` constants. `src/lib/__tests__/heroCrest01.test.ts` holds the port equal to
+`design-refs/hero-crest-01/Hero-Reference.html`, the tokens to the handoff README's table, and this table to the
+same values. The hero and the bar are gradients and glass by this design, which comes after Direction C's ban on
+gradients (`globals.css`, REPAINT-5); it changes no other surface.
+
 ## Shared primitives built on the system
 - **`src/components/ui/ToggleStrip.tsx`** — the one-strip / N-chip / show-hide
   toggle (all panels mounted, in-flight results survive). Consumed by BOTH the

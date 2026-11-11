@@ -25,7 +25,7 @@
  * one native <details> per week, the first open and the rest closed, no state and no script
  * (Tailwind's group-open swaps Open / Close); WHAT WAS ON WHILE I WAS THERE — the stop's own
  * events, each linking its source (none, no section); MY PICKS; the closing band, its button the
- * hero's money-action gold (Landing.tsx:506 — re-cited BUILTON-01, 2026-11-09: was :511; FOOTER-01, 2026-11-09: was :2100); the day it was written.
+ * hero's money-action gold as it stood until HERO-CREST-01 (2026-11-11: the hero's buttons are the crest design's pills now; this one keeps the flat gold — Landing.tsx:506 until then, re-cited BUILTON-01, 2026-11-09: was :511; FOOTER-01, 2026-11-09: was :2100); the day it was written.
  *
  * PAINT: house tokens only, zero new hex, no new font — WasHereSection's TRIP grammar. 44px tap
  * targets. Nothing scrolls sideways at 390px. No emoji, no clock.
@@ -114,7 +114,7 @@ const POST = {
   band: 'mt-2 bg-brand-purple text-white',
   bandInner: 'max-w-3xl mx-auto px-4 lg:px-8 py-10 flex flex-wrap items-center justify-between gap-4',
   bandLine: 'text-xl font-medium',
-  // The hero's primary CTA (Landing.tsx:506 — the money-action gold; re-cited BUILTON-01, 2026-11-09: was :511; FOOTER-01, 2026-11-09: was :2100), at 44px.
+  // The money-action gold, at 44px — the hero's primary CTA wore these classes until HERO-CREST-01 (2026-11-11), when the hero took the crest design's pills (Landing.tsx:506 until then; re-cited BUILTON-01, 2026-11-09: was :511; FOOTER-01, 2026-11-09: was :2100). This button is unchanged.
   bandButton: 'inline-flex min-h-[44px] items-center px-6 py-3 bg-brand-gold text-white font-medium hover:bg-brand-gold/90 text-sm text-center',
   written: 'max-w-3xl mx-auto px-4 lg:px-8 py-6 font-mono text-xs text-text-faint',
 } as const;

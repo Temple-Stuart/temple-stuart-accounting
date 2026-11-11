@@ -29,7 +29,22 @@
  * PURE, NO DIRECTIVE: the footer renders as a server component on /pricing, /my-trip/[id] and /how-it-works, and a
  * 'use client' module's exports reach a server component as client references, never strings — so the anchors cannot
  * live in the two 'use client' sections. The re-export brings src/lib/stopZeroWords.ts (and what it imports) along.
+ *
+ * HERO-CREST-01 (Alex, design canvas, 2026-11-11): a sixth name, and no new literal —
+ *   · MODULES_ANCHOR   'modules' — the first pillar's section, the how-to (HowToSection.tsx, <section id="modules").
+ * The top bar (LandingHeader.tsx) links the three pillars — /#modules, /#services, /#demo — from every page that mounts
+ * it, and may not retype an id. Until now this one had no home a second reader could import: the element's own literal
+ * (HowToSection.tsx, guarded there by the plan law in scripts/assert-tool-registry.ts — which is why FOOTER-01 left it
+ * "outside this ruling", above) and a PRIVATE copy for the footer's first link, src/lib/footerWords.ts
+ * `const PLANS_SECTION_ID = 'modules'`. That copy MOVED here, under the name its neighbours wear; the footer and the
+ * bar both read it, so it is typed once for both. (Not through footerWords.ts: that leaf imports tripPostWords.ts, which
+ * imports experienceWords.ts, which imports src/lib/experiences.ts — 101 KB of source — and the bar is also mounted by
+ * HomeClient.tsx, the cockpit, which imports none of them today.) The section's own literal stays where the plan law
+ * holds it; src/lib/__tests__/heroCrest01.test.ts holds the two equal.
  */
+
+/** The first pillar's section — the how-to's `<section id="modules"` (HowToSection.tsx). HERO-CREST-01: moved here from src/lib/footerWords.ts, where it was the private PLANS_SECTION_ID. */
+export const MODULES_ANCHOR = 'modules';
 
 export const DEMO_ANCHOR = 'demo';
 

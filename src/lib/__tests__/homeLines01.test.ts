@@ -3,7 +3,8 @@
  *
  *   T1 the words — src/lib/brandLines.ts: the four exports, exact; SITE_DESCRIPTION is derived;
  *   T2 the hero — Landing.tsx imports COMPANY_LINE and HERO_SUBLINE and types none of their words;
- *      the h1 renders the three lines (the third in the wash) and the subline renders HERO_SUBLINE;
+ *      the h1 renders the three lines and the subline renders HERO_SUBLINE — HERO-CREST-01 (Alex, design canvas,
+ *      2026-11-11): each line a <span>, the third gold by the stylesheet (the third in the wash until then);
  *   T3 the experience line's home — HOME-FINISH-02 (Alex, 2026-11-10 20:56): it heads nothing on the home page now.
  *      The travel section opens at the pillar's heading ("Explore the World.") and its paragraph, then the booking box;
  *      the promise and the Events panel's two opening lines are gone — the panel opens at its chips' label. The line
@@ -13,7 +14,8 @@
  *      (ExperiencesView, rendered) repeats no headline: its eyebrow, then SUBHEAD. (Until then the band rendered the
  *      line as its own h2, the third in the wash, then the PROMISE paragraph, then SUBHEAD.)
  *   T4 the page description — layout.tsx reads SITE_DESCRIPTION three times and types none;
- *   T5 the link preview — opengraph-image.tsx renders COMPANY_LINE, the third in #eae7f2, no "Modules";
+ *   T5 the link preview — opengraph-image.tsx renders COMPANY_LINE, the third in #eae7f2, no "Modules" (#eae7f2 was the
+ *      hero's wash until HERO-CREST-01, 2026-11-11; the hero's third sentence is gold now and the preview is not that PR's);
  *   T6 the retired line — no code under src/ carries it, and its two dead files are gone.
  *
  * Every text check reads code() — the comments that quote the retired line are history and stay.
@@ -66,12 +68,17 @@ test('T2 the hero renders COMPANY_LINE and HERO_SUBLINE from src/lib/brandLines.
   // ('the import rides an existing line — every line above :1807 stays').
   assert.match(landing, /^import \{ COMPANY_LINE, HERO_SUBLINE \} from '@\/lib\/brandLines';/m, 'the import, on the line it has always stood on — alone now');
   assert.doesNotMatch(landing, /PlansSection/, 'the plans section is not imported here');
+  // HERO-CREST-01 (Alex, design canvas, 2026-11-11): the hero as drawn (design-refs/hero-crest-01/Hero-Reference.html) — the three sentences are
+  // three <span>s, which the stylesheet stacks and whose last it inks gold (.ts-hero__title span, src/app/globals.css); the subline wears its own
+  // class. Until then the h1 was '<h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">' holding
+  // {COMPANY_LINE[0]}<br />, {COMPANY_LINE[1]}<br /> and '<span className="text-brand-purple-wash">{COMPANY_LINE[2]}</span>' ('the h1 keeps its
+  // class; the first two lines each break, the third wears the wash'), and the subline '<p className="mb-6 max-w-xl text-base text-white/70">'.
   assert.match(
     landing,
-    /<h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">\s*\{COMPANY_LINE\[0\]\}<br \/>\s*\{COMPANY_LINE\[1\]\}<br \/>\s*\{\s*\}\s*<span className="text-brand-purple-wash">\{COMPANY_LINE\[2\]\}<\/span>\s*<\/h1>/,
-    'the h1 keeps its class; the first two lines each break, the third wears the wash',
+    /<h1 className="ts-hero__title" id="hero-title">\s*<span>\{COMPANY_LINE\[0\]\}<\/span>\s*<span>\{COMPANY_LINE\[1\]\}<\/span>\s*<span>\{COMPANY_LINE\[2\]\}<\/span>\s*<\/h1>/,
+    'the h1 holds the three sentences in order, a <span> each — the third is the last child, the one the stylesheet inks gold',
   );
-  assert.match(landing, /<p className="mb-6 max-w-xl text-base text-white\/70">\s*\{HERO_SUBLINE\}\s*<\/p>/, 'the subline is HERO_SUBLINE');
+  assert.match(landing, /<p className="ts-hero__subline">\{HERO_SUBLINE\}<\/p>/, 'the subline is HERO_SUBLINE');
   for (const words of [...COMPANY_LINE, HERO_SUBLINE, 'Temple Stuart brings your plans']) { // HOME-BRIEF-02 (2026-11-10): the new subline's own words ('One system for your money' until then)
     assert.ok(!landing.includes(words), `Landing.tsx's code types "${words}" — it reads src/lib/brandLines.ts`);
   }
@@ -136,7 +143,7 @@ test('T4 layout.tsx reads SITE_DESCRIPTION for all three descriptions and types 
 
 // ── T5 · THE LINK PREVIEW ────────────────────────────────────────────────────
 
-test('T5 opengraph-image.tsx renders COMPANY_LINE — the third in the hero\'s wash — and no Modules stat', () => {
+test('T5 opengraph-image.tsx renders COMPANY_LINE — the third in the lavender wash, the hero\'s own until HERO-CREST-01 — and no Modules stat', () => {
   const preview = code(PREVIEW);
   assert.match(preview, /import \{ COMPANY_LINE \} from '@\/lib\/brandLines';/);
   for (const k of [0, 1, 2]) assert.ok(preview.includes(`{COMPANY_LINE[${k}]}`), `line ${k + 1} renders COMPANY_LINE[${k}]`);

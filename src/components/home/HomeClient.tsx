@@ -20,7 +20,7 @@ import { navToolsOfScreen } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 // DS-2: the app hero uses the SAME radial-glow surface as the landing hero.
 // REPAINT-3: the HERO_BG import died — the hero is a solid aubergine band
-// (HOME-HERO-PARITY holds: the landing hero made the same move in REPAINT-2).
+// (HOME-HERO-PARITY held from REPAINT-2 until HERO-CREST-01, 2026-11-11: the landing's hero is the crest design's violet ground now).
 import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 // SELL-02: the `?module=<key>` door on the authed landing, and the one checkout call.
 import { moduleDoorPlan } from '@/lib/offer';
@@ -225,9 +225,12 @@ export default function HomeClient({ offerAvailability }: {
   }
   return (
     <div className="min-h-screen bg-bg-terminal">
+      {/* HERO-CREST-01 (Alex, 2026-11-11): the bar's CREATE FREE ACCOUNT button left it ("that can be login… we dont
+          need it twice"), and the header's onRequireAuth with it — this mount passed the register opener for that
+          button alone. Log in opens the same LoginBox, whose own switch reaches "create account"; the cockpit's
+          save nudges (ModuleLauncher, above) still open it in register mode. No `glass`: the bar is the filled pill. */}
       <LandingHeader
         onRequireLogin={() => { setLoginMode('login'); setShowLogin(true); }}
-        onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }}
       />
       {body}
     </div>

@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HERO-CREST-01 · reference</title>
+<!--
+  HERO-CREST-01 — the reference for the guest landing's hero band and the site's top bar.
+
+  Open this file in a browser from inside the repo: it reads three files under public/brand/.
+  It shows, top to bottom:
+    1. THE HERO, with the top bar laid over it as glass      (the guest landing)
+    2. THE TOP BAR ON A PLAIN PAGE, the same pill, solid     (every other page that mounts it)
+  From 1024px up it is the desktop composition; below, the phone composition. Resize the window to
+  see both, and press the menu button on the phone composition.
+
+  Every value in this stylesheet is the spec. The site already loads Inter and IBM Plex Mono
+  (src/app/layout.tsx); the font link below exists only so this file renders on its own.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    /* the ground: one diagonal sweep and two blooms */
+    --hero-violet-1: #6A33E0;
+    --hero-violet-2: #4D1FBC;
+    --hero-violet-3: #32118A;
+    --hero-violet-4: #210A5E;
+    --hero-bloom: 162 107 255;        /* the light behind the crest */
+    --hero-orchid: 217 70 239;        /* the warm corner, bottom right */
+    /* ink */
+    --hero-ink: #FAF8F4;              /* headline, wordmark */
+    --hero-ink-soft: #E4E0F2;         /* subline */
+    --hero-ink-nav: #E8E4F5;          /* top-bar links */
+    --hero-gold: #F6C95C;             /* the headline's third line, link hover, focus ring */
+    /* the gold controls */
+    --hero-gold-1: 255 236 178;
+    --hero-gold-2: 248 203 90;
+    --hero-gold-3: 236 178 62;
+    --hero-on-gold: #2A0F5C;
+    /* the secondary button */
+    --hero-well: #210B5C;
+    --hero-rim-gold: #F8CB5A;
+    --hero-rim-lilac: #B9A2FF;
+    /* glass */
+    --glass-fill: rgb(255 255 255 / 0.10);
+    --glass-line: rgb(255 255 255 / 0.22);
+
+    /* Where the crest's middle sits across the band, and how wide the crest file is drawn.
+       hero-crest-desktop.svg is 3600 × 2000 units with the shield's middle at its centre.
+       At 1440 × 900 and up: 393px right of the band's middle, 2628px wide (0.73px a unit).
+       Narrower than 1280, or on a short window, it shrinks so it never runs under the copy or off the band. */
+    --crest-x: calc(50% + clamp(294px, 29.2vw - 5px, 393px));
+    --crest-w: min(2628px, max(157vw, 387vw - 2945px), max(1600px, 360svh - 540px));
+  }
+
+  body { margin: 0; }
+
+  /* ── 1. the hero band ─────────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    color: var(--hero-ink);
+    font-family: 'Inter';
+    background-color: var(--hero-violet-3);
+    background-image:
+      radial-gradient(min(46vw, 680px) 56% at 100% 104%, rgb(var(--hero-orchid) / 0.28) 0%, rgb(var(--hero-orchid) / 0.10) 45%, rgb(var(--hero-orchid) / 0) 72%),
+      radial-gradient(min(48vw, 700px) 62% at var(--crest-x) 59%, rgb(var(--hero-bloom) / 0.50) 0%, rgb(var(--hero-bloom) / 0.16) 45%, rgb(var(--hero-bloom) / 0) 72%),
+      linear-gradient(155deg, var(--hero-violet-1) 0%, var(--hero-violet-2) 34%, var(--hero-violet-3) 68%, var(--hero-violet-4) 100%);
+  }
+  .hero__crest img {
+    position: absolute;
+    left: var(--crest-x);
+    top: calc(50% + 79px);
+    width: var(--crest-w);
+    height: auto;
+    max-width: none;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    user-select: none;
+  }
+  .hero__inner {
+    position: relative; z-index: 1; box-sizing: border-box;
+    max-width: 1280px;                 /* the page container, so the hero's left edge meets every section below */
+    min-height: clamp(620px, 100svh, 880px);
+    margin-inline: auto;
+    padding: 124px 32px 56px;
+    display: flex; align-items: center;
+  }
+  .hero__copy {
+    width: min(720px, 57.4%);
+    display: flex; flex-direction: column; align-items: flex-start; gap: 28px;
+  }
+  .hero__title { margin: 0; font-size: clamp(34px, 4.86vw, 70px); line-height: 1.05; font-weight: 500; letter-spacing: -0.035em; }
+  .hero__title span { display: block; }
+  .hero__title span:last-child { color: var(--hero-gold); }
+  .hero__subline { margin: 0; max-width: 560px; font-size: 19px; line-height: 1.6; color: var(--hero-ink-soft); text-wrap: pretty; }
+  .hero__cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+
+  .pill-gold {
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap;
+    background-image: linear-gradient(135deg, rgb(var(--hero-gold-1) / 0.97) 0%, rgb(var(--hero-gold-2) / 0.95) 52%, rgb(var(--hero-gold-3) / 0.95) 100%);
+    color: var(--hero-on-gold);
+  }
+  .pill-gold:hover { filter: brightness(1.05); }
+  .cta-primary {
+    height: 56px; padding: 0 30px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75), 0 10px 28px rgb(12 6 44 / 0.28);
+    font-family: inherit; font-size: 16px; font-weight: 600;
+  }
+  .cta-secondary {
+    box-sizing: border-box;
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    height: 56px; padding: 0 26px 0 20px;
+    border: 1.5px solid transparent; border-radius: 999px;
+    background: linear-gradient(var(--hero-well), var(--hero-well)) padding-box, linear-gradient(120deg, var(--hero-rim-gold) 0%, var(--hero-rim-lilac) 100%) border-box;
+    color: var(--hero-ink); font-size: 16px; font-weight: 500; text-decoration: none; white-space: nowrap;
+  }
+  .cta-secondary:hover { color: var(--hero-gold); }
+  .cta-secondary svg { flex: none; }
+  /* THE GITHUB MARK'S SLOT. This ring is a stand-in. Production draws GitHub's official mark here:
+     public/logos/github.svg, 20 × 20 (17 × 17 on the phone composition), inked the button's text colour. */
+  .github-slot { box-sizing: border-box; flex: none; width: 20px; height: 20px; border: 1.3px solid currentColor; border-radius: 50%; background-color: rgb(255 255 255 / 0.14); }
+
+  .hero :focus-visible, .bar :focus-visible { outline: 2px solid var(--hero-gold); outline-offset: 3px; }
+
+  /* ── the top bar: one pill, two fills ─────────────────────────────────── */
+  .bar { z-index: 3; padding-inline: 32px; color: var(--hero-ink); font-family: 'Inter'; }
+  .bar--overlay { position: absolute; top: 20px; left: 0; right: 0; }      /* laid over the hero */
+  .bar--solid { position: relative; padding-top: 20px; }                    /* in the flow of a plain page */
+  .bar__pill {
+    box-sizing: border-box;
+    max-width: 1216px;                 /* the page container minus its side padding */
+    min-height: 60px;
+    margin-inline: auto;
+    padding: 8px 8px 8px 22px;
+    display: flex; align-items: center; gap: 28px;
+    border: 1px solid var(--glass-line);
+    border-radius: 30px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 30px rgb(12 6 44 / 0.22);
+  }
+  .bar--overlay .bar__pill { background-color: var(--glass-fill); backdrop-filter: blur(18px) saturate(140%); }
+  .bar--solid .bar__pill { background-image: linear-gradient(155deg, var(--hero-violet-1) 0%, var(--hero-violet-2) 55%, var(--hero-violet-3) 100%); }
+  .bar a { color: inherit; text-decoration: none; }
+  .bar a:hover { color: var(--hero-gold); }
+  .brand { display: flex; align-items: center; gap: 13px; min-height: 44px; }
+  .brand__mark { width: 25px; height: 36px; object-fit: contain; }
+  .brand__name { font-size: 16px; font-weight: 700; letter-spacing: 0.22em; white-space: nowrap; }
+  .bar__products, .bar__account { display: flex; align-items: center; font-size: 15px; font-weight: 500; }
+  .bar__products { gap: 18px; margin-left: 20px; margin-right: auto; }
+  .bar__account { gap: 26px; }
+  .bar__products a, .bar__account .bar__link { padding: 12px 0; color: var(--hero-ink-nav); white-space: nowrap; }
+  .bar__rule { width: 1px; height: 14px; background-color: rgb(255 255 255 / 0.32); }
+  .bar__login {
+    height: 44px; padding: 0 26px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75);
+    font-family: 'IBM Plex Mono'; font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .bar .pill-gold, .bar a.pill-gold:hover { color: var(--hero-on-gold); }
+  .bar__menu-button {
+    display: none; align-items: center; justify-content: center;
+    width: 44px; height: 44px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: inherit; cursor: pointer;
+  }
+  .menu { display: none; }
+
+  /* 1024–1279px: the same bar, drawn a little tighter so nothing wraps */
+  @media (min-width: 1024px) and (max-width: 1279.98px) {
+    .bar__pill { gap: 16px; padding-left: 18px; }
+    .brand { gap: 10px; }
+    .brand__name { font-size: 15px; letter-spacing: 0.18em; }
+    .bar__products { gap: 12px; margin-left: 8px; font-size: 14px; }
+    .bar__account { gap: 18px; font-size: 14px; }
+    .bar__login { padding: 0 20px; }
+  }
+
+  /* ── below 1024px: the phone composition ──────────────────────────────── */
+  @media (max-width: 1023.98px) {
+    :root {
+      /* hero-crest-mobile.svg is 2000 × 2000 units; drawn 860px wide, its middle 320px down the band,
+         so the plume clears the bar and the shield's tip sits just above the headline */
+      --crest-x: 50%;
+      --crest-w: 860px;
+    }
+    .hero {
+      background-image:
+        radial-gradient(80% 40% at 100% 104%, rgb(var(--hero-orchid) / 0.20) 0%, rgb(var(--hero-orchid) / 0.07) 45%, rgb(var(--hero-orchid) / 0) 72%),
+        radial-gradient(95% 42% at 50% 32%, rgb(var(--hero-bloom) / 0.50) 0%, rgb(var(--hero-bloom) / 0.16) 45%, rgb(var(--hero-bloom) / 0) 72%),
+        linear-gradient(155deg, var(--hero-violet-1) 0%, var(--hero-violet-2) 34%, var(--hero-violet-3) 68%, var(--hero-violet-4) 100%);
+    }
+    .hero__crest img { top: 320px; }
+    .hero__inner { max-width: 460px; min-height: 0; padding: 526px 20px 28px; text-align: center; }
+    .hero__copy { width: 100%; align-items: center; gap: 16px; }
+    .hero__title { font-size: min(34px, calc((100vw - 40px) / 9.75)); line-height: 1.06; letter-spacing: -0.03em; }   /* 34px from 372px wide; smaller below, so each sentence keeps its own line */
+    .hero__subline { max-width: none; padding: 0 4px; font-size: 15px; line-height: 1.55; }
+    .hero__cta { align-self: stretch; gap: 8px; margin-top: 4px; }                         /* side by side from 340px wide; they stack only below that */
+    .cta-primary, .cta-secondary { flex: 1 1 auto; height: 50px; padding: 0 8px; font-size: clamp(12.5px, 3.6vw, 14px); letter-spacing: -0.01em; }
+    .cta-primary { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75), 0 8px 22px rgb(12 6 44 / 0.28); }
+    .cta-secondary { gap: 7px; }
+    .cta-secondary .cta-arrow { display: none; }
+    .github-slot { width: 17px; height: 17px; border-width: 1.4px; }
+
+    .bar { padding-inline: 12px; }
+    .bar--overlay { top: 12px; }
+    .bar--solid { padding-top: 12px; }
+    .bar__pill {
+      height: 54px; min-height: 0; padding: 0 5px 0 16px; gap: 12px; justify-content: space-between; border-radius: 27px;
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 8px 24px rgb(12 6 44 / 0.22);
+    }
+    .bar--overlay .bar__pill { backdrop-filter: blur(16px) saturate(140%); }
+    .brand { gap: 10px; }
+    .brand__mark { width: 22px; height: 32px; }
+    .brand__name { font-size: 13.5px; letter-spacing: 0.2em; }
+    .bar__products, .bar__account { display: none; }
+    .bar__menu-button { display: inline-flex; }
+
+    /* THE OPEN MENU. Not drawn on the design canvas: this panel is the proposal. */
+    .menu:not([hidden]) {
+      position: absolute; top: calc(100% + 8px); left: 12px; right: 12px;
+      box-sizing: border-box; padding: 8px;
+      display: flex; flex-direction: column;
+      border: 1px solid var(--glass-line); border-radius: 22px;
+      background-color: rgb(33 11 92 / 0.86);
+      box-shadow: 0 16px 40px rgb(12 6 44 / 0.4);
+      backdrop-filter: blur(18px) saturate(140%);
+      font-size: 16px; font-weight: 500;
+    }
+    .menu__row { display: flex; align-items: center; min-height: 48px; padding: 0 14px; border-radius: 12px; }
+    .menu__rule { height: 1px; margin: 6px 14px; background-color: rgb(255 255 255 / 0.16); }
+    .menu__login { height: 48px; margin: 6px; font-family: 'IBM Plex Mono'; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75); }
+  }
+
+  /* ── 2. a plain page, to show the solid bar (not part of the build) ───── */
+  .plain-page { min-height: 220px; background-color: #FAF8F3; color: #7A7488; font-family: 'Inter'; }
+  .plain-page p { box-sizing: border-box; max-width: 1280px; margin: 0 auto; padding: 28px 32px; font-size: 14px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- 1. THE HERO, with the top bar laid over it -->
+<div class="hero">
+
+  <picture class="hero__crest">
+    <source media="(min-width: 1024px)" srcset="../../public/brand/hero-crest-desktop.svg">
+    <img src="../../public/brand/hero-crest-mobile.svg" alt="" aria-hidden="true">
+  </picture>
+
+  <header class="bar bar--overlay">
+    <div class="bar__pill">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="../../public/brand/temple-stuart-crest-gold.png" alt="">
+        <span class="brand__name">TEMPLE STUART</span>
+      </a>
+      <nav class="bar__products" aria-label="Products">
+        <a href="/#modules">Financial Software</a>
+        <span class="bar__rule" aria-hidden="true"></span>
+        <a href="/#services">Professional Services</a>
+        <span class="bar__rule" aria-hidden="true"></span>
+        <a href="/#demo">Travel Marketplace</a>
+      </nav>
+      <nav class="bar__account" aria-label="Account">
+        <a class="bar__link" href="/how-pricing-works">Pricing</a>
+        <button class="pill-gold bar__login" type="button">Log in</button>
+      </nav>
+      <button class="bar__menu-button" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="menu-hero">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 8h16M3 14h16"></path></svg>
+      </button>
+    </div>
+    <nav class="menu" id="menu-hero" aria-label="Menu" hidden>
+      <a class="menu__row" href="/#modules">Financial Software</a>
+      <a class="menu__row" href="/#services">Professional Services</a>
+      <a class="menu__row" href="/#demo">Travel Marketplace</a>
+      <span class="menu__rule" aria-hidden="true"></span>
+      <a class="menu__row" href="/how-pricing-works">Pricing</a>
+      <button class="pill-gold menu__login" type="button">Log in</button>
+    </nav>
+  </header>
+
+  <section class="hero__inner" aria-labelledby="hero-title">
+    <div class="hero__copy">
+      <h1 class="hero__title" id="hero-title">
+        <span>Connect your world.</span>
+        <span>Create your freedom.</span>
+        <span>Control your future.</span>
+      </h1>
+      <p class="hero__subline">Whether you're managing your personal finances, running a business, managing investments, or planning a trip for business or pleasure — Temple Stuart brings your plans, budgets, and financial records together so you can see the whole picture.</p>
+      <div class="hero__cta">
+        <button class="pill-gold cta-primary" type="button">Create free account</button>
+        <a class="cta-secondary" href="https://github.com/Temple-Stuart/temple-stuart-accounting" target="_blank" rel="noopener noreferrer">
+          <span class="github-slot" aria-hidden="true"></span>
+          <span>Clone it on GitHub</span>
+          <svg class="cta-arrow" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"></path></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- 2. THE TOP BAR ON A PLAIN PAGE: the same pill, filled with the hero's violet -->
+<div class="plain-page">
+  <header class="bar bar--solid">
+    <div class="bar__pill">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="../../public/brand/temple-stuart-crest-gold.png" alt="">
+        <span class="brand__name">TEMPLE STUART</span>
+      </a>
+      <nav class="bar__products" aria-label="Products">
+        <a href="/#modules">Financial Software</a>
+        <span class="bar__rule" aria-hidden="true"></span>
+        <a href="/#services">Professional Services</a>
+        <span class="bar__rule" aria-hidden="true"></span>
+        <a href="/#demo">Travel Marketplace</a>
+      </nav>
+      <nav class="bar__account" aria-label="Account">
+        <a class="bar__link" href="/how-pricing-works">Pricing</a>
+        <a class="pill-gold bar__login" href="/">Log in</a>
+      </nav>
+      <button class="bar__menu-button" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="menu-plain">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 8h16M3 14h16"></path></svg>
+      </button>
+    </div>
+    <nav class="menu" id="menu-plain" aria-label="Menu" hidden>
+      <a class="menu__row" href="/#modules">Financial Software</a>
+      <a class="menu__row" href="/#services">Professional Services</a>
+      <a class="menu__row" href="/#demo">Travel Marketplace</a>
+      <span class="menu__rule" aria-hidden="true"></span>
+      <a class="menu__row" href="/how-pricing-works">Pricing</a>
+      <a class="pill-gold menu__login" href="/">Log in</a>
+    </nav>
+  </header>
+  <p>Every other page that mounts the top bar (pricing, how it works, the module pages, a trip page, the signed-out tabs) keeps its own cream ground and gets the same pill, filled.</p>
+</div>
+
+<script>
+  // Reference only: each bar's phone menu opens and closes. Production keeps this in React state.
+  for (const bar of document.querySelectorAll('.bar')) {
+    const button = bar.querySelector('.bar__menu-button');
+    const menu = bar.querySelector('.menu');
+    const setOpen = (open) => {
+      menu.hidden = !open;
+      button.setAttribute('aria-expanded', String(open));
+      button.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    };
+    button.addEventListener('click', () => setOpen(menu.hidden));
+    menu.addEventListener('click', (event) => { if (event.target.closest('a')) setOpen(false); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setOpen(false); });
+  }
+</script>
+
+</body>
+</html>

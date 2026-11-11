@@ -237,10 +237,13 @@ const SEEDS: Seed[] = [
     expect: 'asks something on load, or calls more than the submitted lookup',
   },
   {
+    // HERO-CREST-01 (2026-11-11): RE-ANCHORED. The seed stood in front of the bar's "GitHub ↗" link — find: '            <a\n              href=
+    // "https://github.com/Temple-Stuart/temple-stuart-accounting"' — and that link left the bar by Alex's ruling, so the find would have matched
+    // nothing: a harness failure the next time this law's seeds run. It stands at the head of the bar's Account nav now; same seed, same violation.
     name: 'guest01-z4 the header link comes back',
     file: 'src/components/landing/LandingHeader.tsx',
-    find: '            <a\n              href="https://github.com/Temple-Stuart/temple-stuart-accounting"',
-    replace: '            <Link href="/booking/manage" className="text-xs">Manage booking</Link>\n            <a\n              href="https://github.com/Temple-Stuart/temple-stuart-accounting"',
+    find: '        <nav className="ts-bar__account" aria-label="Account">\n',
+    replace: '        <nav className="ts-bar__account" aria-label="Account">\n          <Link href="/booking/manage">Manage booking</Link>\n',
     expect: 'LandingHeader.tsx links /booking/manage',
   },
   {

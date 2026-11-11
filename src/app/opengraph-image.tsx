@@ -43,7 +43,7 @@ export default async function Image() {
         {/* Main Content — the REAL live hero copy (page.tsx: "Track your money. /
             Plan your time. / Live smarter."), replacing the stale "Plan your trips.
             Find your people." (FOUNDERS-POSITIONING-AND-OG-TRUTH).
-            HOME-LINES-01, 2026-11-08: the live hero's words, COMPANY_LINE (src/lib/brandLines.ts); the third wears the hero's wash #eae7f2 (src/app/globals.css :39). */}
+            HOME-LINES-01, 2026-11-08: the live hero's words, COMPANY_LINE (src/lib/brandLines.ts); the third wears the wash #eae7f2 (src/app/globals.css :39) — the hero's own third-line colour until HERO-CREST-01, 2026-11-11, when the hero's turned gold; this preview is unchanged. */}
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ color: 'white', fontSize: '52px', fontWeight: '300' }}>
