@@ -10,6 +10,15 @@
  * they did. T4 and T5 are rewritten for the new section; T6 keeps every assertion; T7, T8 and T9 are new. T10 holds
  * the one fix the look found: the comparison's box is positioned, so a phone's page does not scroll sideways.
  *
+ * HOME-PLANS-02 (Alex, 2026-11-11 00:09: "Mobile should remain usable" · "Desktop and mobile remain usable."): THE
+ * COMPARISON FITS A PHONE. Eight keys of the section's class grammar take the phone's values below `md` and keep the
+ * desktop's behind `md:` (GRAMMAR_UNTIL, GRAMMAR_NOW, PHONE). Re-pointed for it: T4's expected markup — the table tag,
+ * the plan heads and every mark cell — and T5's two source pins (the table's string; a category's toggle against the
+ * plans table's group toggle, two of whose classes now stand behind `md:`). Added to T5: each of the eight strings as
+ * written, and that the desktop's classes are all still there. Until then the table kept 720px at every width, and
+ * on a phone its box scrolled: the names with no marks or, scrolled right, the marks with no names. T10 keeps its two
+ * pins — the box does not change.
+ *
  *   T1 the law — the live leaf passes; every refusal by name over injected sections, registry and plans; it runs at
  *      module scope;
  *   T2 the plan — the four choices give the four plans' names and audience lines as PLANS holds them; no plan, no line;
@@ -234,10 +243,48 @@ const MARK_OUT = 'font-mono text-sm text-text-faint';
 const NO_STATUS = ['LIVE', 'PENDING', 'PARTIAL', 'NOT BUILT', 'NOT_BUILT', 'NEEDS BOOKS', 'on sale', 'live today'];
 /** Any class attribute — the classes that matter are pinned by name where they matter. */
 const C = 'class="[^"]*"';
-/** One cell per plan: its mark, hidden from a screen reader, and the words the screen reader hears. */
+/**
+ * HOME-PLANS-02 (Alex, 2026-11-11 00:09: "Mobile should remain usable" · "Desktop and mobile remain usable.") — THE
+ * COMPARISON FITS A PHONE. The eight keys of the section's class grammar that a phone changes (HowToSection.tsx HOW).
+ * GRAMMAR_UNTIL: each as it stood until then — what `md` and up must still get. GRAMMAR_NOW: each as the section types
+ * it now — the phone's value below `md`, the desktop's behind `md:`. PHONE: what each takes below `md`, as the brief
+ * lists it. T4 draws three of them by name (the table tag, the plan heads, every mark cell); T5 holds all eight.
+ */
+const GRAMMAR_UNTIL = {
+  table: 'w-full min-w-[720px] table-fixed text-sm',
+  planHead: 'w-[6.5rem] px-2 py-3 text-center text-sm font-semibold text-brand-purple',
+  categoryToggle: 'flex min-h-[44px] w-full items-center justify-between gap-3 px-3 py-2.5 text-left font-mono text-xs font-semibold tracking-wider text-brand-purple hover:bg-bg-row ${RING}',
+  stepToggle: 'flex min-h-[44px] w-full items-center justify-between gap-3 py-2 pl-6 pr-3 text-left text-sm text-text-primary hover:bg-bg-row ${RING}',
+  stepWords: 'flex items-baseline gap-3',
+  markCell: 'px-2 py-2 text-center',
+  tools: 'py-3 pl-[3.25rem] pr-3',
+  tool: 'grid grid-cols-[12rem_minmax(0,1fr)] gap-x-4',
+} as const;
+type GrammarKey = keyof typeof GRAMMAR_UNTIL;
+const GRAMMAR_NOW: Readonly<Record<GrammarKey, string>> = {
+  table: 'w-full md:min-w-[720px] table-fixed text-sm',
+  planHead: 'w-[2.875rem] md:w-[6.5rem] px-px md:px-2 py-3 text-center text-[10px] md:text-sm leading-tight font-semibold text-brand-purple',
+  categoryToggle: 'flex min-h-[44px] w-full items-center justify-between gap-1 md:gap-3 pl-3 pr-0.5 md:px-3 py-2.5 text-left font-mono text-xs font-semibold tracking-wide md:tracking-wider text-brand-purple hover:bg-bg-row ${RING}',
+  stepToggle: 'flex min-h-[44px] w-full items-center justify-between gap-1 md:gap-3 py-2 pl-3 md:pl-6 pr-0.5 md:pr-3 text-left text-sm text-text-primary hover:bg-bg-row ${RING}',
+  stepWords: 'flex items-baseline gap-2 md:gap-3',
+  markCell: 'px-px md:px-2 py-2 text-center',
+  tools: 'py-3 pl-10 md:pl-[3.25rem] pr-3',
+  tool: 'grid grid-cols-1 md:grid-cols-[12rem_minmax(0,1fr)] gap-x-4',
+};
+const PHONE: Readonly<Record<GrammarKey, readonly string[]>> = {
+  table: [],
+  planHead: ['w-[2.875rem]', 'px-px', 'text-[10px]', 'leading-tight'],
+  categoryToggle: ['gap-1', 'pl-3', 'pr-0.5', 'tracking-wide'],
+  stepToggle: ['gap-1', 'pl-3', 'pr-0.5'],
+  stepWords: ['gap-2'],
+  markCell: ['px-px'],
+  tools: ['pl-10'],
+  tool: ['grid-cols-1'],
+};
+/** One cell per plan: its mark, hidden from a screen reader, and the words the screen reader hears. (Until HOME-PLANS-02 the cell's classes were 'px-2 py-2 text-center'.) */
 const marksHtml = (inPlan: readonly boolean[]) => PLANS.map((plan, j) => {
   const mark = inPlan[j] ? PLAN_MARKS.inPlan : PLAN_MARKS.notInPlan;
-  return `<td class="px-2 py-2 text-center" data-comparison-mark="${plan.id}" data-in-plan="${inPlan[j]}"><span aria-hidden="true" class="${inPlan[j] ? MARK_IN : MARK_OUT}">${mark.mark}</span><span class="sr-only">${mark.label}</span></td>`;
+  return `<td class="${GRAMMAR_NOW.markCell}" data-comparison-mark="${plan.id}" data-in-plan="${inPlan[j]}"><span aria-hidden="true" class="${inPlan[j] ? MARK_IN : MARK_OUT}">${mark.mark}</span><span class="sr-only">${mark.label}</span></td>`;
 }).join('');
 /** The comparison's rows for one open state, as a regular expression source — built from the leaf's view, row by row. */
 const SPAN = 1 + PLANS.length;
@@ -272,7 +319,8 @@ test('T4 (HOME-PLANS-01) the section, rendered: at rest — the pillar, the four
     + PLAN_PILLAR.paragraphs.map((words) => `<p class="mt-3 max-w-3xl text-base text-text-secondary">${asHtml(words)}</p>`).join('');
   const cards = renderToStaticMarkup(React.createElement(PlanCards, { door: { kind: 'button', onClick: () => {} } }));
   // (Until the look's fix the box's classes opened with `mt-8` — it was not positioned; see T10.)
-  const BOX_OPEN = `${BOX_TAG}<table class="w-full min-w-[720px] table-fixed text-sm">`;
+  // (Until HOME-PLANS-02 the table's classes were 'w-full min-w-[720px] table-fixed text-sm' — 720px at every width.)
+  const BOX_OPEN = `${BOX_TAG}<table class="${GRAMMAR_NOW.table}">`;
   assert.ok(rest.includes(`data-how-to="true">${pillar}${cards}${BOX_OPEN}<thead>`), 'the pillar → the four cards → the comparison, nothing between');
   assert.ok(rest.endsWith('</tbody></table></div></div></section>'), 'and nothing after the table');
   assert.equal(count(rest, '<h2'), 1, 'one h2 — the pillar\'s');
@@ -283,7 +331,8 @@ test('T4 (HOME-PLANS-01) the section, rendered: at rest — the pillar, the four
   const head = /<thead><tr class="border-b border-border bg-bg-row text-left align-top">([\s\S]*?)<\/tr><\/thead>/.exec(rest);
   assert.ok(head, 'the head row, in the plans table\'s own thead classes');
   assert.equal(head[1], `<th scope="col" class="px-3 py-3 text-left ${DATA.columnHeader}">${asHtml(COMPARISON_FIRST_HEAD)}</th>`
-    + view.columns.map((c) => `<th scope="col" class="w-[6.5rem] px-2 py-3 text-center text-sm font-semibold text-brand-purple" data-comparison-column="${c.id}"><span aria-hidden="true">${asHtml(c.head)}</span><span class="sr-only">${asHtml(c.name)}</span></th>`).join(''), 'Step / Capability · Personal · P + Business · P + Trading · All');
+    // (Until HOME-PLANS-02 a plan head's classes were 'w-[6.5rem] px-2 py-3 text-center text-sm font-semibold text-brand-purple'.)
+    + view.columns.map((c) => `<th scope="col" class="${GRAMMAR_NOW.planHead}" data-comparison-column="${c.id}"><span aria-hidden="true">${asHtml(c.head)}</span><span class="sr-only">${asHtml(c.name)}</span></th>`).join(''), 'Step / Capability · Personal · P + Business · P + Trading · All');
   // the rows at rest: four categories, Personal open with its line and its 8 steps, no tool row
   assert.match(rest, table(AT_REST), 'at rest: every row, as the leaf says it');
   assert.deepEqual([...rest.matchAll(/<tbody data-comparison-category="([^"]+)" data-comparison-open="(true|false)">/g)].map((m) => `${m[1]} ${m[2]}`), ['personal true', 'business false', 'travel false', 'trade false']);
@@ -486,15 +535,48 @@ test('T5 (HOME-PLANS-01) the source: the section types no leaf word, no mark, no
   const categoryToggle = /^ {2}categoryToggle: `([^`]*)`,$/m.exec(section);
   const stepToggle = /^ {2}stepToggle: `([^`]*)`,$/m.exec(section);
   assert.ok(groupToggle && categoryToggle && stepToggle, 'the plans table\'s group toggle, and the section\'s two');
-  for (const cls of groupToggle[1].split(' ').filter((c) => c !== 'uppercase')) assert.ok(categoryToggle[1].split(' ').includes(cls), `a category's toggle wears the group toggle's ${cls}`);
+  // (Until HOME-PLANS-02 a category's toggle wore every one of the group toggle's classes bare. Two now stand behind `md:` — px-3 and
+  // tracking-wider — because below it a phone takes pl-3 pr-0.5 and tracking-wide in their place.)
+  const category = categoryToggle[1].split(' ');
+  for (const cls of groupToggle[1].split(' ').filter((c) => c !== 'uppercase')) assert.ok(category.includes(cls) || category.includes(`md:${cls}`), `a category's toggle wears the group toggle's ${cls} — bare, or from md up`);
+  assert.deepEqual(groupToggle[1].split(' ').filter((c) => c !== 'uppercase' && !category.includes(c)), ['px-3', 'tracking-wider'], 'the two a phone changes stand behind md: — and no other');
   assert.ok(groupToggle[1].split(' ').includes('uppercase') && !categoryToggle[1].split(' ').includes('uppercase'), 'but not its upper-casing: the capitals are the leaf\'s, so the count reads as written');
   for (const toggle of [categoryToggle[1], stepToggle[1]]) for (const cls of ['flex', 'w-full', 'items-center', 'justify-between', 'min-h-[44px]', 'hover:bg-bg-row', '${RING}']) assert.ok(toggle.split(' ').includes(cls), `a toggle is ${cls}`);
   assert.match(section, /^const RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-purple';$/m, 'the focus ring: the house ring, inside the cell');
   assert.equal(count(section, '<button type="button" aria-expanded={'), 2, 'the two toggles are real buttons with aria-expanded');
-  assert.match(section, /^ {2}table: 'w-full min-w-\[720px\] table-fixed text-sm',$/m, 'the table keeps the width it needs; the box scrolls below it');
+  // (Until HOME-PLANS-02: 'w-full min-w-[720px] table-fixed text-sm' — the table kept the width it needed at every width, and the box scrolled below it.)
+  assert.match(section, /^ {2}table: 'w-full md:min-w-\[720px\] table-fixed text-sm',$/m, 'from md the table keeps the width it needs; below it the table is the box\'s width');
   assert.equal(count(section, 'scope="col"'), 2, 'the first head and the plan heads are column headers');
   assert.equal(count(section, '<th scope="row" className={HOW.rowHead}>'), 2, 'a category\'s row and a step\'s row each open with a row header that holds the toggle');
   assert.equal(count(section, '<span className="sr-only">{column.name}</span>'), 1, 'a plan\'s full name, for a screen reader');
+  // HOME-PLANS-02 — THE COMPARISON FITS A PHONE: eight keys of the class grammar take the phone's values below `md`, and each still carries the
+  // value it had behind `md:` — the desktop's classes are all still there, so from `md` up nothing changes.
+  const asTyped = (key: string) => { const m = new RegExp(`^ {2}${key}: (?:'([^'\\n]*)'|\`([^\`\\n]*)\`),$`, 'm').exec(section); return m ? (m[1] ?? m[2]) : null; };
+  const keys = Object.keys(GRAMMAR_UNTIL) as GrammarKey[];
+  assert.deepEqual(keys, ['table', 'planHead', 'categoryToggle', 'stepToggle', 'stepWords', 'markCell', 'tools', 'tool'], 'the eight keys a phone changes');
+  for (const key of keys) {
+    const now = GRAMMAR_NOW[key].split(' ');
+    const until = GRAMMAR_UNTIL[key].split(' ');
+    // as written
+    assert.equal(asTyped(key), GRAMMAR_NOW[key], `${key}: as the section types it`);
+    // the desktop's classes are all still there — bare where the phone left them, behind md: where the phone put its own
+    for (const cls of until) assert.ok(now.includes(cls) || now.includes(`md:${cls}`), `${key}: the desktop's ${cls} is still there`);
+    const behindMd = now.filter((c) => c.startsWith('md:')).map((c) => c.slice('md:'.length));
+    for (const cls of behindMd) {
+      assert.ok(until.includes(cls), `${key}: md:${cls} gives back a class the key had`);
+      assert.ok(!now.includes(cls), `${key}: ${cls} stands behind md: only — below it the phone's value applies`);
+    }
+    assert.ok(behindMd.length >= 1, `${key}: it carries its old value behind md:`);
+    // what a phone takes below md, as the brief lists it — and nothing else is new
+    assert.deepEqual(now.filter((c) => !c.startsWith('md:') && !until.includes(c)), [...PHONE[key]], `${key}: the phone's own classes`);
+    // drop the phone's own and un-prefix md:, and the key is exactly what it was — the same classes, in the same order
+    assert.deepEqual(now.filter((c) => !PHONE[key].includes(c)).map((c) => c.replace(/^md:/, '')), until, `${key}: from md up, exactly what it was`);
+    // md is the one breakpoint these keys know
+    assert.doesNotMatch(GRAMMAR_NOW[key], /(?:^| )(?:sm|lg|xl|2xl|max-[a-z0-9]+):/, `${key}: no other breakpoint`);
+  }
+  assert.deepEqual(keys.filter((key) => GRAMMAR_NOW[key] === GRAMMAR_UNTIL[key]), [], 'each of the eight changed');
+  // every button keeps its 44px floor at every width (the box is not one of the eight: its pins, above and in T10, stand as they were)
+  for (const key of ['categoryToggle', 'stepToggle'] as const) assert.ok(GRAMMAR_NOW[key].split(' ').includes('min-h-[44px]'), `${key}: at least 44px tall, at every width`);
   // the leaf: pure, and it reads the registry, the plans and the offer — never a typed status for a tool, never a plan's words, never a price
   const leaf = code(LEAF);
   assert.doesNotMatch(leaf, /['"]use client['"]|from 'react'|\bfetch\s*\(|new Date\(|Date\.now\(|process\.env|localStorage/, 'the leaf is pure');
