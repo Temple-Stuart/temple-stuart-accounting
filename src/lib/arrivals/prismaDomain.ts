@@ -34,11 +34,16 @@
  * deletes nothing now, and neither does the plan. The sync's ONE delete is the
  * page's pending step (DomainDb.clearReplacedPending): the pending rows Plaid
  * NAMES as replaced by a posted charge, on the link's own accounts, never one
- * that is committed or carries a live posting. It is NOT buffered. It runs at
- * once, inside the page's transaction — it names rows by their own ids, rows
- * this page does not write, so nothing buffered depends on it — as ONE
- * statement that deletes and counts (clearReplacedPendingSql), and its answer
- * is the page's two counts.
+ * that is committed or carries a live posting — and (part 3) never one a
+ * booking link or a settled refund points at: the database refuses that
+ * delete, so the step does not try. It is NOT buffered. It runs at once,
+ * inside the page's transaction — it names rows by their own ids, rows this
+ * page does not write, so nothing buffered depends on it — as ONE statement
+ * that deletes and counts (clearReplacedPendingSql), and its answer is the
+ * page's three counts, one for each thing a named row can be: deleted
+ * (pending_cleared); left in place because it is committed or posted from
+ * (pending_kept); left in place because, though neither, a booking link or a
+ * settled refund points at it (pending_linked).
  *
  * A page whose payloads omit a column (undefined, not null) is grouped by the
  * set of omitted columns, one statement per group — Prisma's create treats
@@ -212,23 +217,43 @@ export function linkSql(links: DomainPlan['links']): Prisma.Sql {
  * PENDING-01 — THE SYNC'S ONE DELETE, as ONE statement that deletes and counts.
  *
  *   named    the transactions rows the ids name that are still pending, on the link's own accounts;
- *   cleared  of those, the rows deleted: NOT committed AND carrying no live posting — no journal entry of source
- *            'plaid_txn' on the row's own transactionId that is neither a reversal nor reversed;
- *   the answer: pending_cleared = the rows deleted; pending_kept = the named rows left in place, which the two
- *            conditions above are the only way to be — committed, or posted from. Nothing about them changes.
+ *   cleared  of those, the rows deleted: NOT committed, carrying no live posting — no journal entry of source
+ *            'plaid_txn' on the row's own transactionId that is neither a reversal nor reversed — AND with nothing
+ *            pointing at them: no booking link, no settled refund (the fifth condition, below);
+ *   linked   of those, the rows left in place for that last reason alone: NOT committed, no live posting, and a
+ *            booking link or a settled refund points at them;
+ *   the answer: pending_cleared = the rows deleted; pending_linked = the rows of `linked`; pending_kept = every other
+ *            named row — left in place because it is committed or posted from, which is the only other way to be
+ *            left, whether or not something also points at it. The three add up to the named rows. Nothing about a
+ *            row that is left changes.
  *
  * Both ids and accounts ride as one array parameter each, so a page of any size is one statement. Each sub-statement
- * reads the same snapshot: `named` is counted as it stood before the delete.
+ * reads the same snapshot: `named` and `linked` are counted as they stood before the delete. pending_kept is the
+ * remainder on purpose: a row committed after that snapshot and before the delete is not taken — at the database's
+ * default isolation (READ COMMITTED) the delete re-reads review_status on the row it locks — and is counted as kept,
+ * which is what it then is.
  *
- * WHAT IT DOES NOT LOOK FOR — reported with PENDING-01 for a ruling, not decided here. Two foreign keys point at a
- * transactions row with ON DELETE RESTRICT: a booking link (transaction_reservation_links.transactionId,
- * prisma/schema.prisma:1924) and a settled refund (money_events.settledTransactionId, :1834). The matcher proposes
- * links on pending rows too. A named, uncommitted pending row that one of them points at is refused by the database:
- * the statement throws, the page rolls back whole and its stage is declared failed. The guess this replaced met the
- * same refusal.
+ * WHAT IT LOOKS FOR BEFORE IT DELETES, AND WHY — part 3, the ruling of 2026-11-11 on what PENDING-01's report named.
+ * Two foreign keys point at a transactions row, both ON DELETE RESTRICT: a booking link
+ * (transaction_reservation_links."transactionId" —
+ * prisma/migrations/20260805000000_transaction_reservation_links/migration.sql:42-45) and a settled refund
+ * (money_events."settledTransactionId" — prisma/migrations/20260926210000_match_02_refund_settlement/migration.sql:27-30).
+ * Each holds the row's `id`, not Plaid's transactionId. The matcher proposes links on pending rows too
+ * (src/app/api/runway/match/propose/route.ts: "pending included, the matcher flags it"), and the database refuses to
+ * delete a row either key points at: until part 3 the statement threw on such a row, the page rolled back whole and
+ * that bank's transactions stage was declared failed on that page — on every Sync. So the step never tries. The
+ * delete carries a FIFTH condition — nothing points at the row: no transaction_reservation_links row with the row's
+ * id as its transactionId, WHATEVER THE LINK'S STATUS (the foreign key reads no status — a proposed or a rejected link
+ * refuses the delete as an accepted one does), and no money_events row with the row's id as its settledTransactionId
+ * — and a row something points at is left exactly as it is and counted (pending_linked). The foreign keys stay as
+ * they are. Moving a link to the posted row is the matcher's work, not this step's.
+ *
+ * WHAT THE SNAPSHOT CANNOT SEE: a link or a refund written AFTER it and before the delete. The database still refuses
+ * that delete — the statement throws, the page rolls back whole and its stage is declared failed, for that one Sync;
+ * the next Sync sees the link and leaves the row in place, counted.
  */
 export function clearReplacedPendingSql(accountIds: string[], transactionIds: string[]): Prisma.Sql {
-  return Prisma.sql`WITH named AS (SELECT t.id FROM transactions AS t WHERE t."transactionId" = ANY(${transactionIds}::text[]) AND t.pending = true AND t."accountId" = ANY(${accountIds}::text[])), cleared AS (DELETE FROM transactions AS t USING named AS n WHERE t.id = n.id AND t.review_status <> 'committed' AND NOT EXISTS (SELECT 1 FROM journal_entries AS j WHERE j.source_type = 'plaid_txn' AND j.source_id = t."transactionId" AND j.is_reversal = false AND j.reversed_by_entry_id IS NULL) RETURNING t.id) SELECT (SELECT count(*) FROM cleared)::int AS pending_cleared, ((SELECT count(*) FROM named) - (SELECT count(*) FROM cleared))::int AS pending_kept`;
+  return Prisma.sql`WITH named AS (SELECT t.id FROM transactions AS t WHERE t."transactionId" = ANY(${transactionIds}::text[]) AND t.pending = true AND t."accountId" = ANY(${accountIds}::text[])), cleared AS (DELETE FROM transactions AS t USING named AS n WHERE t.id = n.id AND t.review_status <> 'committed' AND NOT EXISTS (SELECT 1 FROM journal_entries AS j WHERE j.source_type = 'plaid_txn' AND j.source_id = t."transactionId" AND j.is_reversal = false AND j.reversed_by_entry_id IS NULL) AND NOT EXISTS (SELECT 1 FROM transaction_reservation_links AS l WHERE l."transactionId" = t.id) AND NOT EXISTS (SELECT 1 FROM money_events AS m WHERE m."settledTransactionId" = t.id) RETURNING t.id), linked AS (SELECT t.id FROM transactions AS t JOIN named AS n ON n.id = t.id WHERE t.review_status <> 'committed' AND NOT EXISTS (SELECT 1 FROM journal_entries AS j WHERE j.source_type = 'plaid_txn' AND j.source_id = t."transactionId" AND j.is_reversal = false AND j.reversed_by_entry_id IS NULL) AND (EXISTS (SELECT 1 FROM transaction_reservation_links AS l WHERE l."transactionId" = t.id) OR EXISTS (SELECT 1 FROM money_events AS m WHERE m."settledTransactionId" = t.id))) SELECT (SELECT count(*) FROM cleared)::int AS pending_cleared, ((SELECT count(*) FROM named) - (SELECT count(*) FROM cleared) - (SELECT count(*) FROM linked))::int AS pending_kept, (SELECT count(*) FROM linked)::int AS pending_linked`;
 }
 
 export interface BatchingDomainDb extends DomainDb {
@@ -253,14 +278,15 @@ export function prismaDomain(tx: Prisma.TransactionClient): BatchingDomainDb {
     async clearReplacedPending(args): Promise<ReplacedPendingAnswer> {
       guard();
       const { accountIds, transactionIds } = assertClear(args);
-      const answered = await tx.$queryRaw<Array<{ pending_cleared: unknown; pending_kept: unknown }>>(clearReplacedPendingSql(accountIds, transactionIds));
+      const answered = await tx.$queryRaw<Array<{ pending_cleared: unknown; pending_kept: unknown; pending_linked: unknown }>>(clearReplacedPendingSql(accountIds, transactionIds));
       statements += 1;
-      // The statement answers exactly one row of two counts; anything else is the table not answering — said, never read as none.
+      // The statement answers exactly one row of three counts; anything else is the table not answering — said, never read as none.
       const answer = answered.length === 1 ? answered[0] : undefined;
       const cleared = answer?.pending_cleared;
       const kept = answer?.pending_kept;
-      if (!isCount(cleared) || !isCount(kept)) throw new Error('prismaDomain: the pending step answered no count — the table is not answering');
-      return { pending_cleared: cleared, pending_kept: kept };
+      const linked = answer?.pending_linked;
+      if (!isCount(cleared) || !isCount(kept) || !isCount(linked)) throw new Error('prismaDomain: the pending step answered no count — the table is not answering');
+      return { pending_cleared: cleared, pending_kept: kept, pending_linked: linked };
     },
     async finish() {
       guard();

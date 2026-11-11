@@ -34,12 +34,19 @@
  * holds them — whose account this link holds, drops any id the same page still
  * lists as a pending object (replacedPendingIds), and hands what is left, with
  * the link's own account row ids, to ONE port method
- * (DomainDb.clearReplacedPending). That method deletes the named rows that are
- * still pending, on those accounts, NOT committed and carrying no live posting,
- * and answers two counts the page carries only when the step ran:
- * pending_cleared (deleted) and pending_kept (named, left in place because
- * committed or posted from). Nothing else in the sync deletes a transactions
- * row.
+ * (DomainDb.clearReplacedPending). A pending row those ids name, on those
+ * accounts, is then exactly one of THREE things, and the method answers a
+ * count of each — carried by the page only when the step ran:
+ *   pending_cleared  deleted: NOT committed, no live posting, and nothing
+ *                    points at it;
+ *   pending_kept     left in place: committed, or carrying a live posting;
+ *   pending_linked   left in place: NOT committed, no live posting, and a
+ *                    booking link or a settled refund points at it (part 3,
+ *                    the ruling of 2026-11-11: both foreign keys are ON
+ *                    DELETE RESTRICT, so the database refuses that delete —
+ *                    the step never tries, and the row is counted).
+ * The three add up to the rows named, and nothing about a row that is left
+ * changes. Nothing else in the sync deletes a transactions row.
  *
  * FX-01 (Alex, 2026-10-30, ruling E): the parser keeps Plaid's own word for the
  * row's currency — transactions.iso_currency_code, NULL when Plaid states none.
@@ -67,10 +74,16 @@ export interface PageAccount {
   accountId: string;
 }
 
-/** PENDING-01: what the page's pending step answers — the named pending rows it deleted, and the ones it left in place because they are committed or carry a live posting. */
+/**
+ * PENDING-01: what the page's pending step answers. Each pending row the ids name, on the link's accounts, is exactly
+ * one of three things: deleted (pending_cleared); left in place because it is committed or carries a live posting
+ * (pending_kept); left in place because, though it is neither, a booking link or a settled refund points at it
+ * (pending_linked — part 3). The three add up to those rows.
+ */
 export interface ReplacedPendingAnswer {
   pending_cleared: number;
   pending_kept: number;
+  pending_linked: number;
 }
 
 /** The subset of the Prisma transaction client the parser writes through (typed loosely so a fake can stand in), and the page's one pending step. */
@@ -81,12 +94,19 @@ export interface DomainDb {
   };
   /**
    * PENDING-01 — THE SYNC'S ONE DELETE. `transactionIds` are the pending charges Plaid names as replaced by a posted
-   * charge of this page; `accountIds` are the row ids of the link's own accounts. Deletes the transactions rows whose
-   * transactionId is one of those ids, whose `pending` is true, on one of those accounts, that are NOT committed
-   * (review_status is not 'committed') AND carry no live posting (no journal_entries row with source_type
-   * 'plaid_txn', source_id = the row's transactionId, is_reversal false, reversed_by_entry_id null). Answers how many
-   * it deleted (pending_cleared) and how many pending rows the ids name on those accounts it left because they are
-   * committed or carry a live posting (pending_kept). Nothing about a kept row changes.
+   * charge of this page; `accountIds` are the row ids of the link's own accounts. A transactions row whose
+   * transactionId is one of those ids, whose `pending` is true, on one of those accounts, is exactly one of three
+   * things, and the answer counts each:
+   *   pending_cleared — DELETED: it is NOT committed (review_status is not 'committed'), it carries no live posting
+   *     (no journal_entries row with source_type 'plaid_txn', source_id = the row's transactionId, is_reversal false,
+   *     reversed_by_entry_id null) AND nothing points at it (no transaction_reservation_links row with the row's id as
+   *     its transactionId, whatever the link's status; no money_events row with the row's id as its
+   *     settledTransactionId);
+   *   pending_kept — left in place: committed, or carrying a live posting — whether or not something also points at it;
+   *   pending_linked — left in place: NOT committed, no live posting, and a booking link or a settled refund points at
+   *     it. Both foreign keys are ON DELETE RESTRICT — the database refuses to delete such a row — so the step never
+   *     tries (part 3, the ruling of 2026-11-11).
+   * The three counts add up to the rows the ids name. Nothing about a row that is left changes.
    */
   clearReplacedPending(args: { accountIds: string[]; transactionIds: string[] }): Promise<ReplacedPendingAnswer>;
 }
@@ -120,6 +140,8 @@ export interface PageCounts {
   pending_cleared?: number;
   /** PENDING-01: pending rows a posted object of this page names that were left in place — committed, or carrying a live posting. Carried ONLY by a page where the step ran. */
   pending_kept?: number;
+  /** PENDING-01 part 3: pending rows a posted object of this page names that were left in place — NOT committed, no live posting, and a booking link or a settled refund points at them. Carried ONLY by a page where the step ran. */
+  pending_linked?: number;
 }
 
 /** The existing domain write, from an arrival's payload. A correction never takes the complete-data skip: latest-arrived wins. */
@@ -252,12 +274,13 @@ export async function landTransactionsPage(landing: LandingDb, domain: DomainDb,
   // PENDING-01: THE EXACT RULE, once per page — after the page's objects are parsed, before they are marked read.
   // The pending charges this page's posted objects name (replacedPendingIds: Plaid's own pending_transaction_id, never
   // a guess) go to the one port method with the link's own account row ids. A page that names none does not run the
-  // step and carries neither count.
+  // step and carries none of its three counts.
   const replaced = replacedPendingIds(landed.rows, input.accounts);
   if (replaced.length > 0) {
     const answer = await domain.clearReplacedPending({ accountIds: input.accounts.map((account) => account.id), transactionIds: replaced });
     counts.pending_cleared = answer.pending_cleared;
     counts.pending_kept = answer.pending_kept;
+    counts.pending_linked = answer.pending_linked;
   }
 
   await markRead(landing, newRowIds, at);
