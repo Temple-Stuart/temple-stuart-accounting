@@ -214,23 +214,32 @@ export function failedLine(institution: string, failure: StageFailed): string {
 export const NOT_STORED_WORDS = 'not stored (account not held here)';
 
 /**
- * PENDING-01 (Alex, 2026-11-11): what the line says of the sync's one delete — the pending rows a posted charge
+ * PENDING-01 (Alex, 2026-11-11): what the line says of the pull's first delete — the pending rows a posted charge
  * replaced, on Plaid's own word (its pending_transaction_id); the ones left in place because they are committed or
  * carry a live posting; and (part 3) the ones left in place because a booking link or a settled refund points at them
  * — the database refuses to delete such a row, so the sync never tries (the stage's pending_cleared, pending_kept and
  * pending_linked — src/lib/arrivals/plaidTransactionsPage.ts).
+ *
+ * PENDING-03 (Alex, 2026-11-11): and of its second — the pending rows cleared because the bank no longer lists them
+ * (a held pending row dated strictly inside a page's days that the page does not list), and the ones of those left in
+ * place because they are committed, carry a live posting, or a booking link or a settled refund points at them (the
+ * stage's pending_unlisted and pending_unlisted_left).
  */
 export const PENDING_REPLACED_WORDS = 'pending replaced by their posted charge';
 export const PENDING_KEPT_WORDS = 'committed pending left in place (a posted charge replaced them)';
 export const PENDING_LINKED_WORDS = 'pending left in place (a booking link or a refund points at them)';
+export const PENDING_UNLISTED_WORDS = 'pending cleared (the bank no longer lists them)';
+export const PENDING_UNLISTED_LEFT_WORDS = 'pending the bank no longer lists left in place (committed, or a link or a refund points at them)';
 
 /**
  * One ok stage's part of its bank's line. A paged stage says what it pulled of Plaid's total and how many were new to
  * the app; a piece in brackets below is printed only when its count is above zero (`latest`: when the stage states
  * the newest date held):
- *   transactions <pulled> of <plaid_total> pulled, <added> new[, <corrected> corrected][, <pending_cleared> pending replaced by their posted charge][, <pending_kept> committed pending left in place (a posted charge replaced them)][, <pending_linked> pending left in place (a booking link or a refund points at them)][, <unheld> not stored (account not held here)][, latest <Mon D, YYYY>]
+ *   transactions <pulled> of <plaid_total> pulled, <added> new[, <corrected> corrected][, <pending_cleared> pending replaced by their posted charge][, <pending_kept> committed pending left in place (a posted charge replaced them)][, <pending_linked> pending left in place (a booking link or a refund points at them)][, <pending_unlisted> pending cleared (the bank no longer lists them)][, <pending_unlisted_left> pending the bank no longer lists left in place (committed, or a link or a refund points at them)][, <unheld> not stored (account not held here)][, latest <Mon D, YYYY>]
  *   investments  <pulled> of <plaid_total> pulled, <added> new[, <unheld> not stored (account not held here)][, latest <Mon D, YYYY>]
  *   holdings     <holdings> holdings — only when any were written
+ * The five pending pieces are the transactions stage's alone, in that order: the three of the pull's first delete
+ * (PENDING-01), then the two of its second (PENDING-03) — after them `not stored`.
  * Null when the stage states nothing a part can be written from: a figure it does not state is never printed as 0.
  */
 function stagePart(s: StageOk): string | null {
@@ -243,6 +252,8 @@ function stagePart(s: StageOk): string | null {
   if (s.stage === 'transactions' && c.pending_cleared > 0) pieces.push(`${thousands(c.pending_cleared)} ${PENDING_REPLACED_WORDS}`);
   if (s.stage === 'transactions' && c.pending_kept > 0) pieces.push(`${thousands(c.pending_kept)} ${PENDING_KEPT_WORDS}`);
   if (s.stage === 'transactions' && c.pending_linked > 0) pieces.push(`${thousands(c.pending_linked)} ${PENDING_LINKED_WORDS}`);
+  if (s.stage === 'transactions' && c.pending_unlisted > 0) pieces.push(`${thousands(c.pending_unlisted)} ${PENDING_UNLISTED_WORDS}`);
+  if (s.stage === 'transactions' && c.pending_unlisted_left > 0) pieces.push(`${thousands(c.pending_unlisted_left)} ${PENDING_UNLISTED_LEFT_WORDS}`);
   if (c.unheld > 0) pieces.push(`${thousands(c.unheld)} ${NOT_STORED_WORDS}`);
   const latest = s.through === undefined ? null : calendarDay(s.through);
   if (latest !== null) pieces.push(`latest ${latest}`);

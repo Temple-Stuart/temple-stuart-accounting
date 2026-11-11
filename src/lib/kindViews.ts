@@ -76,7 +76,7 @@ export const KIND_VIEW_CENSUS: readonly FeedTable[] = [
     table: 'transactions', label: 'transactions', feed: ['plaid', 'transaction'],
     rowId: 't.id', theirId: 't."transactionId"', arrivalId: 't.arrival_id', userId: 'a."userId"', arrived: 't."createdAt"',
     from: 'transactions t JOIN accounts a ON a.id = t."accountId"',
-    why: 'the one Plaid writer (sync-complete → src/lib/arrivals/plaidTransactionsPage.ts:189); user through accounts.userId (schema: transactions has no user column); arrival_id since PR-2', // PENDING-01 (2026-11-11): re-cited :114 → :189 — the parser's upsert, where it is now (it had drifted to :130 before this PR; part 2 moved it to :167, part 3 to :189)
+    why: 'the one Plaid writer (sync-complete → src/lib/arrivals/plaidTransactionsPage.ts:270); user through accounts.userId (schema: transactions has no user column); arrival_id since PR-2', // PENDING-01 (2026-11-11): re-cited :114 → :189 — the parser's upsert, where it was then (it had drifted to :130 before that PR; part 2 moved it to :167, part 3 to :189) · PENDING-03 (2026-11-11): re-cited :189 → :270, where it is now
   },
   {
     table: 'investment_transactions', label: 'investment transactions', feed: ['plaid', 'investment_transaction'],

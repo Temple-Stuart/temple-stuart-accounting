@@ -12,7 +12,7 @@
 //     Bookings are spend → only amount > 0 transactions are candidates
 //     (refunds/credits are out of MATCH-1 scope).
 //   • pending: persisted verbatim from Plaid (the one writer, sync-complete →
-//     src/lib/arrivals/plaidTransactionsPage.ts:172 `pending: txn.pending || false`) and
+//     src/lib/arrivals/plaidTransactionsPage.ts:253 `pending: txn.pending || false`) and
 //     NOT excluded by the analytics consumers — so the matcher includes
 //     pending transactions but SAYS SO in the rationale (a pending amount can
 //     still settle differently; the reviewer sees the flag).

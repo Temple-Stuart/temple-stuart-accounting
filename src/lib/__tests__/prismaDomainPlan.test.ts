@@ -4,6 +4,7 @@ import {
   DATA_KEYS,
   UnsupportedDomainWriteError,
   clearReplacedPendingSql,
+  clearUnlistedPendingSql,
   groupByColumns,
   linkSql,
   planDomainWrites,
@@ -32,6 +33,13 @@ import { code } from '../sourceText';
 // (both foreign keys are ON DELETE RESTRICT; until part 3 the statement threw on such a row) — and the
 // statement answers THREE counts: pending_cleared, pending_kept, pending_linked. Until part 3 the
 // pins below read four conditions and one row of two counts.
+//
+// PENDING-03 (Alex, 2026-11-11): A PENDING ROW THE BANK NO LONGER LISTS IS CLEARED — the pull's
+// SECOND delete, a second statement in the binding (clearUnlistedPendingSql), held here by content
+// like the first: pending, the link's accounts, the page's two days both strict, none of the ids
+// the page accounts for, and the first statement's three conditions word for word; two counts. The
+// binding runs it at once, counts it, refuses it after finish(). Until PENDING-03 the pins below
+// read ONE `DELETE FROM` in the binding and "the page's one pending step" in its refusal.
 
 const NOW = new Date('2026-09-05T12:00:00.000Z');
 const d = (day: string) => new Date(`2026-06-${day}T00:00:00.000Z`);
@@ -67,6 +75,10 @@ const CLEAR_STATEMENT = 'WITH named AS (SELECT t.id FROM transactions AS t WHERE
 const LIVE_POSTING = 'EXISTS (SELECT 1 FROM journal_entries AS j WHERE j.source_type = \'plaid_txn\' AND j.source_id = t."transactionId" AND j.is_reversal = false AND j.reversed_by_entry_id IS NULL)';
 const BOOKING_LINK = 'EXISTS (SELECT 1 FROM transaction_reservation_links AS l WHERE l."transactionId" = t.id)';
 const SETTLED_REFUND = 'EXISTS (SELECT 1 FROM money_events AS m WHERE m."settledTransactionId" = t.id)';
+/** PENDING-03: the unlisted step's statement, as Prisma.Sql renders it: every parameter a `?` — the accounts, the oldest day, the newest day, the ids. */
+const UNLISTED_STATEMENT = 'WITH unlisted AS (SELECT t.id FROM transactions AS t WHERE t.pending = true AND t."accountId" = ANY(?::text[]) AND t."date"::date > ?::date AND t."date"::date < ?::date AND t."transactionId" <> ALL(?::text[])), '
+  + 'cleared AS (DELETE FROM transactions AS t USING unlisted AS u WHERE t.id = u.id AND t.review_status <> \'committed\' AND NOT EXISTS (SELECT 1 FROM journal_entries AS j WHERE j.source_type = \'plaid_txn\' AND j.source_id = t."transactionId" AND j.is_reversal = false AND j.reversed_by_entry_id IS NULL) AND NOT EXISTS (SELECT 1 FROM transaction_reservation_links AS l WHERE l."transactionId" = t.id) AND NOT EXISTS (SELECT 1 FROM money_events AS m WHERE m."settledTransactionId" = t.id) RETURNING t.id) '
+  + 'SELECT (SELECT count(*) FROM cleared)::int AS pending_unlisted, ((SELECT count(*) FROM unlisted) - (SELECT count(*) FROM cleared))::int AS pending_unlisted_left';
 
 test('the plan: one upsert per id (first create, last data), links only for ids the page does not upsert — and the plan holds upserts and links only', () => {
   const plan = planDomainWrites([
@@ -114,7 +126,7 @@ test('the binding: an intent shape the parser never issues is a throw, not a per
   // the refusal's words say what the binding does now
   await assert.rejects(
     domain.transactions.updateMany({ where: { transactionId: 't1' }, data: { name: 'x' } }),
-    /the batching binding replays only the parser's two intents \(upsert by transactionId, the arrival_id link\) and runs the page's one pending step; nothing else is issued$/,
+    /the batching binding replays only the parser's two intents \(upsert by transactionId, the arrival_id link\) and runs the page's two pending steps; nothing else is issued$/,
   );
   // the parser's real shapes are accepted and buffered — nothing runs until finish()
   let ran = 0;
@@ -159,9 +171,11 @@ test('the SQL: one INSERT … ON CONFLICT DO UPDATE per column group and one UPD
   assert.deepEqual(ln.values, ['t8', 'arr_8']);
 
   assert.equal(/\bDELETE\b/.test(up.sql) || /\bDELETE\b/.test(ln.sql), false, 'the flush deletes nothing');
-  // by content: the binding holds ONE delete — the pending step's — and nothing of the guess
+  // by content: the binding holds TWO deletes — the two pending steps', one statement each (PENDING-01's replaced
+  // step; PENDING-03's unlisted step) — both of transactions rows, and nothing of the guess
   const binding = code('src/lib/arrivals/prismaDomain.ts');
-  assert.equal(binding.split('DELETE FROM').length - 1, 1, 'one DELETE in the file');
+  assert.equal(binding.split('DELETE FROM').length - 1, 2, 'two DELETEs in the file: one in each pending step\'s statement');
+  assert.equal(binding.split('DELETE FROM transactions AS t USING').length - 1, 2, 'each deletes transactions rows, among the rows its own statement names');
   assert.equal(/deleteMany|DeleteIntent|assertDelete|deleteSql|deleteByIdSql|deleteInPageIds|pageIds|v\.lo\b|v\.hi\b/.test(binding), false, 'the delete rule, its in-page bookkeeping and its two statements are gone');
 });
 
@@ -256,7 +270,108 @@ test('PENDING-01 the binding runs the step at once — not buffered — counts i
   assert.deepEqual(await good.clearReplacedPending({ accountIds: ['a'], transactionIds: ['p1'] }), whole);
 });
 
-test('runTransactionsPage finishes a buffering port inside the page transaction, after the parser — and the pending step runs inside it too, before the flush', async () => {
+test('PENDING-03 the unlisted step is ONE statement, carrying its conditions — pending, the link\'s accounts, the two days both strict, not one of the ids, not committed, no live posting, nothing pointing at the row — and answering both counts', () => {
+  const st = clearUnlistedPendingSql(['acc_db_1', 'acc_db_2'], '2026-09-10', '2026-09-01', ['t1', 't2', 'p9']);
+  assert.equal(st.sql, UNLISTED_STATEMENT);
+  assert.deepEqual(st.values, [['acc_db_1', 'acc_db_2'], '2026-09-01', '2026-09-10', ['t1', 't2', 'p9']], 'the accounts, the OLDEST day, the NEWEST day, the ids — each list one array parameter, so a page of any size is one statement');
+  // the statement's three parts, in the order it writes them
+  const at = (needle: string) => { const i = st.sql.indexOf(needle); assert.ok(i > -1, `the statement holds ${needle}`); return i; };
+  const parts = ['WITH unlisted AS (', ', cleared AS (', ' SELECT (SELECT count(*) FROM cleared)::int AS pending_unlisted'].map(at);
+  assert.deepEqual(parts, [...parts].sort((a, b) => a - b), 'unlisted → cleared → the answer');
+  const unlisted = st.sql.slice(parts[0], parts[1]);
+  const cleared = st.sql.slice(parts[1], parts[2]);
+  // the rows the bank no longer lists, read off one page
+  assert.ok(unlisted.includes('WHERE t.pending = true'), 'pending — a posted row is never judged');
+  assert.ok(unlisted.includes('AND t."accountId" = ANY(?::text[])'), 'the accounts handed to the step');
+  assert.ok(unlisted.includes('AND t."date"::date > ?::date'), 'strictly after the oldest day — the row\'s day, compared as a day');
+  assert.ok(unlisted.includes('AND t."date"::date < ?::date'), 'strictly before the newest day');
+  assert.ok(unlisted.indexOf('> ?::date') < unlisted.indexOf('< ?::date'), 'the oldest day is the first of the two day parameters, the newest the second — as the values ride');
+  assert.equal(/>=|<=|BETWEEN/i.test(st.sql), false, 'both strict: a row dated on either edge day is not judged');
+  assert.ok(unlisted.endsWith('AND t."transactionId" <> ALL(?::text[]))'), 'none of the ids the page accounts for');
+  // of those, the rows it deletes: the first statement's three conditions, word for word
+  const three = `AND t.review_status <> 'committed' AND NOT ${LIVE_POSTING} AND NOT ${BOOKING_LINK} AND NOT ${SETTLED_REFUND} RETURNING t.id)`;
+  assert.ok(cleared.endsWith(three), 'not committed · no live posting · no booking link, whatever its status · no settled refund');
+  assert.ok(clearReplacedPendingSql(['a'], ['p']).sql.includes(three), 'the same three, in the same words, as the replaced step\'s delete');
+  assert.equal(st.sql.split('DELETE FROM').length - 1, 1, 'one delete');
+  assert.match(st.sql, /cleared AS \(DELETE FROM transactions AS t USING unlisted AS u WHERE t\.id = u\.id AND /, 'it deletes transactions rows only, and only among the unlisted rows');
+  assert.equal(/\b(UPDATE|INSERT)\b/.test(st.sql), false, 'nothing about a row that is left changes');
+  // the two counts: what it deleted, and the unlisted rows it left — which only a committed, posted-from or pointed-at row can be
+  assert.match(st.sql, / SELECT \(SELECT count\(\*\) FROM cleared\)::int AS pending_unlisted, \(\(SELECT count\(\*\) FROM unlisted\) - \(SELECT count\(\*\) FROM cleared\)\)::int AS pending_unlisted_left$/);
+  // nothing is matched by amount, by name or by nearness of date; no value is written into the text
+  assert.equal(/amount|\bname\b|merchant|interval|timestamp|float8/.test(st.sql), false, 'no amount, no name, no span of days');
+  assert.equal(/2026|acc_db_1|t1|p9/.test(st.sql), false, 'every value is a bound parameter');
+  assert.equal(st.sql.split('?').length - 1, 4, 'four parameters — the accounts, the two days, the ids');
+});
+
+test('PENDING-03 the binding runs the unlisted step at once — not buffered — counts its statement, hands back both counts, and refuses a call after finish(), malformed arguments and an answer that lacks a count', async () => {
+  const ran: string[] = [];
+  const asked: unknown[][] = [];
+  const tx = {
+    $executeRaw: async (q: { sql: string }) => { ran.push(`flush: ${q.sql.slice(0, 24)}`); return 1; },
+    $queryRaw: async (q: { sql: string; values: unknown[] }) => {
+      ran.push(`step: ${q.sql.slice(0, 16)}`);
+      asked.push(q.values);
+      return q.sql.startsWith('WITH unlisted AS') ? [{ pending_unlisted: 35, pending_unlisted_left: 2 }] : [{ pending_cleared: 1, pending_kept: 0, pending_linked: 0 }];
+    },
+  } as unknown as Tx;
+  const args = { accountIds: ['acc_db_1'], newestDay: '2026-09-10', oldestDay: '2026-09-01', accountedIds: ['t1', 't2'] };
+  const domain = prismaDomain(tx);
+  await domain.transactions.upsert(upsert('t1', 'acc_1').args);
+  const answer = await domain.clearUnlistedPending(args);
+  assert.deepEqual(answer, { pending_unlisted: 35, pending_unlisted_left: 2 }, 'the statement\'s own answer — both counts, each as it was answered');
+  assert.deepEqual(ran, ['step: WITH unlisted AS'], 'run at once — the upsert buffered before it has not run');
+  assert.deepEqual(asked, [[['acc_db_1'], '2026-09-01', '2026-09-10', ['t1', 't2']]], 'handed the accounts, the two days and the ids it was given');
+  assert.deepEqual(domain.stats(), { intents: 1, statements: 1 }, 'its statement is counted for the log line; it is no buffered intent');
+  await domain.finish();
+  assert.deepEqual(ran, ['step: WITH unlisted AS', 'flush: INSERT INTO transactions'], 'the flush comes after');
+  assert.deepEqual(domain.stats(), { intents: 1, statements: 2 });
+  await assert.rejects(domain.clearUnlistedPending(args), UnsupportedDomainWriteError, 'a call after finish is refused, like its siblings');
+  assert.equal(ran.length, 2, 'and nothing ran for it');
+
+  // both steps on one page: each is its own statement, run at once, in the order they are called, each counted
+  ran.length = 0;
+  const both = prismaDomain(tx);
+  await both.clearReplacedPending({ accountIds: ['acc_db_1'], transactionIds: ['p1'] });
+  await both.clearUnlistedPending(args);
+  assert.deepEqual(ran, ['step: WITH named AS (S', 'step: WITH unlisted AS'], 'the replaced step\'s statement, then the unlisted step\'s');
+  assert.deepEqual(both.stats(), { intents: 0, statements: 2 });
+
+  // arguments that are not { accountIds, newestDay, oldestDay, accountedIds } — two lists of at least one id, two
+  // calendar days, the oldest strictly before the newest — are refused before anything runs
+  let queries = 0;
+  const strict = () => prismaDomain({ $executeRaw: async () => 1, $queryRaw: async () => { queries += 1; return [{ pending_unlisted: 0, pending_unlisted_left: 0 }]; } } as unknown as Tx);
+  for (const bad of [
+    { ...args, accountIds: [] }, { ...args, accountedIds: [] }, { ...args, accountIds: 'a' }, { ...args, accountedIds: [7] }, { ...args, accountedIds: [''] },
+    { accountIds: ['a'], newestDay: '2026-09-10', oldestDay: '2026-09-01' }, { ...args, amount: 12.5 },
+    // the two days: one day is no window; the oldest after the newest; not the form; not a calendar day; not text
+    { ...args, newestDay: '2026-09-01' }, { ...args, newestDay: '2026-08-31' }, { ...args, newestDay: '2026-9-10' }, { ...args, oldestDay: '2026-02-30' }, { ...args, oldestDay: null },
+    { ...args, newestDay: new Date('2026-09-10') }, { ...args, oldestDay: '2026-09-01T00:00:00Z' }, { ...args, newestDay: "2026-09-10'::date; --" },
+  ]) {
+    await assert.rejects(strict().clearUnlistedPending(bad as never), UnsupportedDomainWriteError, JSON.stringify(bad));
+  }
+  assert.equal(queries, 0);
+  await assert.rejects(strict().clearUnlistedPending({ ...args, accountIds: [] }), /^UnsupportedDomainWriteError: prismaDomain: clearUnlistedPending must be \{ accountIds, newestDay, oldestDay, accountedIds \} — each list of at least one id, the two days calendar days \(YYYY-MM-DD\) with the oldest strictly before the newest — /);
+  assert.equal(queries, 0);
+
+  // an answer that is not exactly one row of two counts is the table not answering — thrown, never read as none
+  const whole = { pending_unlisted: 1, pending_unlisted_left: 0 };
+  for (const answered of [
+    [], [whole, whole],
+    // an answer that lacks either count is refused; a count nobody stated is never read as 0
+    [{ pending_unlisted: 1 }], [{ pending_unlisted_left: 0 }], [{}], [{ pending_cleared: 1, pending_kept: 0, pending_linked: 0 }],
+    // a count that is not a non-negative safe integer, in each of the two places
+    [{ ...whole, pending_unlisted: '1' }], [{ ...whole, pending_unlisted: -1 }], [{ ...whole, pending_unlisted: 1.5 }], [{ ...whole, pending_unlisted: BigInt(1) }], [{ ...whole, pending_unlisted: null }],
+    [{ ...whole, pending_unlisted_left: '0' }], [{ ...whole, pending_unlisted_left: -1 }], [{ ...whole, pending_unlisted_left: 0.5 }], [{ ...whole, pending_unlisted_left: BigInt(0) }], [{ ...whole, pending_unlisted_left: null }], [{ ...whole, pending_unlisted_left: undefined }],
+  ]) {
+    const odd = prismaDomain({ $executeRaw: async () => 1, $queryRaw: async () => answered } as unknown as Tx);
+    await assert.rejects(odd.clearUnlistedPending(args), /^Error: prismaDomain: the unlisted step answered no count — the table is not answering$/, JSON.stringify(answered, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v)));
+  }
+  // and the whole answer, alone, is taken as it is
+  const good = prismaDomain({ $executeRaw: async () => 1, $queryRaw: async () => [whole] } as unknown as Tx);
+  assert.deepEqual(await good.clearUnlistedPending(args), whole);
+});
+
+test('runTransactionsPage finishes a buffering port inside the page transaction, after the parser — and the two pending steps run inside it too, the replaced step then the unlisted step, before the flush', async () => {
   const order: string[] = [];
   const table: ArrivalRow[] = [];
   const landing: LandingDb = {
@@ -269,9 +384,17 @@ test('runTransactionsPage finishes a buffering port inside the page transaction,
   };
   let executed = 0;
   let stepped = 0;
+  let unlistedStepped = 0;
+  const unlistedAsked: unknown[][] = [];
   const tx = {
     $executeRaw: async () => { executed += 1; order.push('flush'); return 1; },
-    $queryRaw: async () => { stepped += 1; order.push('pending step'); return [{ pending_cleared: 1, pending_kept: 0, pending_linked: 2 }]; },
+    // PENDING-03: the binding runs two statements through $queryRaw now — told apart by their own first words
+    $queryRaw: async (q: { sql: string; values: unknown[] }) => {
+      if (q.sql.startsWith('WITH unlisted AS')) { unlistedStepped += 1; unlistedAsked.push(q.values); order.push('unlisted step'); return [{ pending_unlisted: 4, pending_unlisted_left: 1 }]; }
+      stepped += 1;
+      order.push('pending step');
+      return [{ pending_cleared: 1, pending_kept: 0, pending_linked: 2 }];
+    },
   };
   const client = { $transaction: async <T,>(fn: (tx: unknown) => Promise<T>) => { order.push('BEGIN'); const r = await fn(tx); order.push('COMMIT'); return r; } };
   const ports = (handed: unknown): PagePorts => {
@@ -300,4 +423,24 @@ test('runTransactionsPage finishes a buffering port inside the page transaction,
   assert.deepEqual(order, ['BEGIN', 'response', 'arrivals', 'pending step', 'markRead', 'flush', 'COMMIT']);
   assert.equal(stepped, 1);
   if (named.ok) assert.deepEqual([named.counts.pending_cleared, named.counts.pending_kept, named.counts.pending_linked], [1, 0, 2], 'the page\'s counts carry the statement\'s answer — all three');
+  // PENDING-03: both pages above are pages of one object — they have no window, so the unlisted step ran on neither
+  assert.equal(unlistedStepped, 0, 'a page with no window runs no unlisted step');
+  if (named.ok) for (const name of ['pending_unlisted', 'pending_unlisted_left']) assert.equal(name in named.counts, false, `${name} is not carried by a page where the unlisted step did not run`);
+
+  // PENDING-03 — a page of two days whose posted row names a pending charge: BOTH steps, inside the transaction, the
+  // replaced step then the unlisted step, after the parse and before the flush — three statements in all
+  order.length = 0;
+  executed = 0;
+  const spanned = await runTransactionsPage(client, ports, page([
+    { transaction_id: 't3', account_id: 'acc_p1', amount: 5, date: '2026-06-12', name: 'x', pending: false, pending_transaction_id: 'p3' },
+    { transaction_id: 't4', account_id: 'acc_other', amount: 7, date: '2026-06-10', name: 'y', pending: false },
+  ]));
+  assert.equal(spanned.ok, true);
+  assert.deepEqual(order, ['BEGIN', 'response', 'arrivals', 'pending step', 'unlisted step', 'markRead', 'flush', 'COMMIT']);
+  assert.deepEqual([stepped, unlistedStepped, executed], [2, 1, 1], 'one statement for each pending step, one for the flush');
+  assert.deepEqual(unlistedAsked, [[['acc_db'], '2026-06-10', '2026-06-12', ['t3', 't4', 'p3']]], 'the link\'s account row ids · the page\'s oldest day (an unheld account\'s object) · its newest · every id it lists, then the id the replaced step was handed');
+  if (spanned.ok) {
+    assert.deepEqual([spanned.counts.pending_cleared, spanned.counts.pending_kept, spanned.counts.pending_linked], [1, 0, 2], 'the replaced step\'s three counts are what they were');
+    assert.deepEqual([spanned.counts.pending_unlisted, spanned.counts.pending_unlisted_left], [4, 1], 'the page\'s counts carry the second statement\'s answer — both');
+  }
 });
