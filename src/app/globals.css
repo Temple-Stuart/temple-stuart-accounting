@@ -238,9 +238,10 @@ body {
    reference's buttons keep the browser's default grey button face under the 95–97% gold, and the app's base
    (Tailwind's preflight) makes a button's background transparent, so the ground shows through instead. The
    reference's own link-form pill has no such backing and matches the app's exactly.
-   NOTHING FOLLOWS THIS BLOCK, AND NOTHING ABOVE IT STYLES ITS CLASSES: a rule added to this file goes above this
-   comment and names none of .ts-hero, .ts-bar, .ts-brand, .ts-menu, .ts-pill-gold, .ts-cta-* or .ts-github-mark —
-   the test reads from .ts-hero { to the end of the file as the port, and fails on either.
+   NOTHING FOLLOWS THIS BLOCK, AND NOTHING ABOVE IT NAMES ITS CLASSES: a rule added to this file goes above this
+   comment and names none of this block's own classes (.ts-hero, .ts-bar__pill, .ts-pill-gold, … — by class selector
+   or through a class attribute selector), nor the headline's id — the test reads from .ts-hero { to the end of the
+   file as the port, and fails on any of these.
    Used by src/components/landing/Landing.tsx (the hero) and src/components/landing/LandingHeader.tsx (the bar, on
    every page that mounts it). REPAINT-5's note above — "gradients are banned under Direction C" — is the ruling this
    design comes after: the approved hero is a gradient ground with gold-gradient pills and a glass bar, and the

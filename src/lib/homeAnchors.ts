@@ -40,7 +40,7 @@
  * bar both read it, so it is typed once for both. (Not through footerWords.ts: that leaf imports tripPostWords.ts, which
  * imports experienceWords.ts, which imports src/lib/experiences.ts — 101 KB of source — and the bar is also mounted by
  * HomeClient.tsx, the cockpit, which imports none of them today.) The section's own literal stays where the plan law
- * holds it; src/lib/__tests__/heroCrest01.test.ts holds the two equal. WHAT THE BAR PAYS FOR READING IT HERE: the re-export below brings src/lib/stopZeroWords.ts into the bar's chunk — about 3 KB (1.3 KB gzipped) of Stop 0's words, measured in the production build, on pages that never draw them.
+ * holds it; src/lib/__tests__/heroCrest01.test.ts holds the two equal. WHAT THE BAR PAYS FOR READING IT HERE: the re-export below brings src/lib/stopZeroWords.ts into the bar's chunk — about 3 KB (1.3 to 1.4 KB gzipped, over two production builds) of Stop 0's words, on pages that never draw them.
  */
 
 /** The first pillar's section — the how-to's `<section id="modules"` (HowToSection.tsx). HERO-CREST-01: moved here from src/lib/footerWords.ts, where it was the private PLANS_SECTION_ID. */

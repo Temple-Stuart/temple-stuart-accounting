@@ -94,7 +94,7 @@ export const BAR_MARK_SRC = '/brand/temple-stuart-crest-gold.png';
 /**
  * The phone menu's id — what the menu button's aria-controls names. ONE FIXED ID, as the reference types its own
  * ("menu-hero"): a page mounts one top bar, never two. Not React's useId: tried first, and on the landing the server and
- * the browser disagreed about the generated id on some dev loads and not others (5, 14 and 11 of 21 in three runs — React's hydration warning named
+ * the browser disagreed about the generated id on some dev loads and not others (14 and 11 of 21 in two logged runs; 5 of 21 in the first, not logged — React's hydration warning named
  * aria-controls and id; the fixed id gave none in 21), so the pair is typed.
  */
 export const BAR_MENU_ID = 'ts-bar-menu';

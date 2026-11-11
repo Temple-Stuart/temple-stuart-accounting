@@ -9,33 +9,37 @@
  *   T1  the handoff landed — four files byte for byte (sha256): the README, the reference, the two crest files. The
  *       mark is held by its presence and exact size only (a PNG does not survive the reader's utf8, so its bytes are
  *       not held here); the two SVGs hold shapes and gradients only;
- *   T2  the colours are tokens, named and valued as the README's table — its nineteen names on its values, in its
- *       order; the same in the reference's :root, in globals.css (--ts-<name>, each declared once in the whole file)
+ *   T2  the colours are tokens, named and valued as the README's table — its seventeen names on its values and its
+ *       glass row's fill and line (glass-fill, glass-line, as the reference's :root names them), in its order; the same in the reference's :root, in globals.css (--ts-<name>, each declared once in the whole file)
  *       and behind tailwind.config.ts's `hero` and `glass` families; DESIGN.md's table carries the same names on the
  *       same values;
  *   T3  the app's stylesheet IS the reference's — declaration by declaration, in order, but for the five differences
  *       named in globals.css; no hex in it; every variable it reads is declared; nothing follows it in the file and
- *       nothing above it names one of its classes, by class selector or class attribute selector, at any depth. (An
- *       ELEMENT selector above it — h1, button, a, as Tailwind's base writes them — still reaches these elements, and
- *       so do a browser's own defaults: neither is held here. globals.css names the one place that shows.);
- *   T4  the hero, as drawn — a closed structure: the band's elements, in order and nested as the reference nests them,
- *       and no others; the crest's one <picture>, the bar laid over it, the copy; the headline's three sentences and
- *       the subline from src/lib/brandLines.ts; both buttons with the handler and the href they had; the BSL pill and
- *       the arrow glyph gone; no colour, no computed class and no house utility typed in it;
+ *       nothing above it names one of its classes, by class selector or class attribute selector, at any depth, nor
+ *       the headline by its id. (NOT HELD: an ELEMENT selector above it — h1, button, a, as Tailwind's base writes
+ *       them — still reaches these elements; so do a browser's own defaults, and so would a second stylesheet imported
+ *       after this one. globals.css names the one place that shows.);
+ *   T4  the hero, as drawn — closed, token for token: every tag of the band with every attribute, every expression and
+ *       every word of text, in the reference's order and nesting, and nothing else; the crest's one <picture>, the bar
+ *       laid over it, the copy; the headline's three sentences and the subline from src/lib/brandLines.ts; both buttons
+ *       with the handler and the href they had; the BSL pill and the arrow glyph gone; no colour, no computed class and
+ *       no house utility typed in it;
  *   T5  the bar's words and links — the three pillars, each by its own name (its heading, src/lib/homeActWords.ts —
  *       never typed in the bar) on its own section (its anchor, src/lib/homeAnchors.ts — never a typed id); Pricing;
  *       the gold mark; "GitHub" and "create account" gone;
  *   T6  one pill, two fills, and Log in's two modes — rendered: filled is the default, glass is asked for; a button
  *       where a login opener is given, a link to '/' where none is; the menu repeats the bar and starts closed;
- *   T7  the phone menu's open-or-closed is React state and nothing else; it closes on a link, on Log in, on Escape
- *       and on the button;
+ *   T7  the phone menu's open-or-closed is React state and nothing else — and the bar's imports are a closed list, so
+ *       no helper can carry it out; it closes on a link, on Log in, on Escape and on the button; the bar's own Log in
+ *       calls the login opener;
  *   T8  six mounts — the landing asks for glass, the other five pass nothing new, four of them nothing at all; no
- *       mount hands the bar a register opener; no seventh mount;
+ *       mount hands the bar a register opener; six files import the bar, under its own name, and no seventh;
  *   T9  "create account" is still reachable from Log in — the one LoginBox's own switch, and the openers that reach it;
  *   T10 #modules has one home — MODULES_ANCHOR, read by the bar and by the footer; it equals the how-to's own id;
  *   T11 GitHub's mark — public/logos/github.svg, in the form the folder's Simple Icons files have (only this file is
  *       held to it: the Built-on wall's own files may be dropped in whatever form their vendors ship), drawn through a
- *       mask in the button's ink, 20px (17px under 1024px), decorative; its path typed in no .ts or .tsx file under src;
+ *       mask in the button's ink, 20px (17px under 1024px), decorative; its path typed in no .ts or .tsx file under src outside
+ *       __tests__;
  *   T12 the reachability law's door to /how-pricing-works cites the line the bar's Pricing link is defined on — read
  *       by content, so the citation cannot drift;
  *   T13 the rulings are on the page — each of Alex's three removals quoted where it was made.
@@ -58,6 +62,7 @@ import { CODE_URL, FOOTER_SERVICES_LINKS } from '../footerWords';
 import { DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR } from '../homeAnchors';
 import { BUILD_PILLAR, EXPLORE_PILLAR, PLAN_PILLAR } from '../homeActWords';
 import LandingHeader, { BAR_MARK_SRC, BAR_MENU_ID, BAR_PRICING, BAR_PRODUCT_LINKS } from '@/components/landing/LandingHeader';
+import tailwindConfig from '../../../tailwind.config';
 
 Object.assign(globalThis, { React });
 
@@ -69,7 +74,6 @@ const CREST_MOBILE = 'public/brand/hero-crest-mobile.svg';
 const MARK = 'public/brand/temple-stuart-crest-gold.png';
 const GITHUB = 'public/logos/github.svg';
 const GLOBALS = 'src/app/globals.css';
-const TAILWIND = 'tailwind.config.ts';
 const LANDING = 'src/components/landing/Landing.tsx';
 const HEADER = 'src/components/landing/LandingHeader.tsx';
 const GUEST = 'src/components/landing/GuestLanding.tsx';
@@ -175,7 +179,8 @@ const isChannels = (value: string): boolean => /^\d+ \d+ \d+$/.test(value);
 /**
  * A token table — the README's "Tokens" and DESIGN.md's — read as [name, value] pairs in the table's own order. A row
  * names its tokens in backticks in its first cell and gives their values in backticks in its second, in the same order;
- * "`hero-violet-1` … `-4`" is the run from 1 to 4. The README writes its glass row differently —
+ * "`hero-violet-1` … `-4`" is the run from 1 to 4. The README writes its glass row differently, and spells neither
+ * name: the row is read as glass-fill and glass-line, the names the reference's :root and DESIGN.md give them —
  * "| glass | `rgb(255 255 255 / 0.10)` fill · `/ 0.22` line · …" — the fill, then the line as the fill's white at a second alpha.
  */
 function tableTokens(file: string, heading: string): Array<[name: string, value: string]> {
@@ -208,14 +213,31 @@ function tableTokens(file: string, heading: string): Array<[name: string, value:
 // ── the hero's markup ────────────────────────────────────────────────────────
 
 const HERO_OPEN = '<div className="ts-hero">';
-const HERO_CLOSE = '        </section>\n      </div>';
-/** The band, from its opening tag to its close — Landing.tsx's code, comments removed. */
+/** The band, from its opening <div> to that div's own closing tag — Landing.tsx's code, comments removed. Found by depth, so its layout on the page does not matter. */
 function heroOf(landing: string): string {
   const from = landing.indexOf(HERO_OPEN);
-  const to = landing.indexOf(HERO_CLOSE, from);
-  assert.ok(from > -1 && to > from, 'the band opens once and closes after its one <section>');
+  assert.ok(from > -1, `Landing.tsx opens the band: ${HERO_OPEN}`);
   assert.equal(count(landing, HERO_OPEN), 1, 'one band');
-  return landing.slice(from, to + HERO_CLOSE.length);
+  let depth = 0;
+  for (const m of landing.slice(from).matchAll(/<(\/?)div\b[^<>]*>/g)) {
+    depth += m[1] ? -1 : 1;
+    if (depth === 0) return landing.slice(from, from + (m.index ?? 0) + m[0].length);
+  }
+  assert.fail('the band\'s <div> is never closed');
+}
+/**
+ * The band, token by token, in document order: every tag whole (its attributes too, whitespace collapsed, so how the JSX is
+ * wrapped does not matter), every {expression} between tags, every run of text. What a removed JSX comment leaves — {} — is
+ * dropped.
+ */
+function bandTokens(hero: string): string[] {
+  const out: string[] = [];
+  for (const m of hero.matchAll(/<[^<>]*>|\{[^{}]*\}|[^<>{}]+/g)) {
+    const token = flat(m[0]);
+    if (token === '' || /^\{\s*\}$/.test(token)) continue;
+    out.push(token.startsWith('<') ? token.replace(/\s*\/>$/, ' />').replace(/\s+>$/, '>') : token);
+  }
+  return out;
 }
 /** Every class a source types in a className="…" attribute. */
 const classesOf = (source: string): string[] => [...source.matchAll(/className="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/).filter(Boolean));
@@ -276,7 +298,7 @@ test('T2 the design\'s colours are tokens, named and valued as the README\'s tab
   assert.equal(new Set(TOKENS.map(([name]) => name)).size, 19, 'nineteen names');
   // the two tables, read row by row: each name on its own value, in the README's order — not a value found somewhere in the file
   const pairs = TOKENS.map(([name, value]) => [name, value]);
-  assert.deepEqual(tableTokens(README, '## Tokens'), pairs, 'the README\'s table: these nineteen names, each on this value, in this order');
+  assert.deepEqual(tableTokens(README, '## Tokens'), pairs, 'the README\'s table: its seventeen names and its glass row\'s fill and line, each on this value, in this order');
   assert.deepEqual(tableTokens('DESIGN.md', '## The guest hero and the top bar'), pairs, 'DESIGN.md\'s table: the same names on the same values');
   // the reference's own :root — the nineteen colours and its two geometry properties, nothing else
   const refRoot = new Map(declarations(referenceCss()).filter((d) => d.startsWith(' | :root | ')).map((d) => {
@@ -285,17 +307,9 @@ test('T2 the design\'s colours are tokens, named and valued as the README\'s tab
   }));
   assert.deepEqual([...refRoot.keys()].sort(), [...TOKENS.map(([name]) => `--${name}`), '--crest-x', '--crest-w'].sort(), 'the reference declares these nineteen colours and its two geometry properties');
   const root = rootTokens();
-  const tailwind = code(TAILWIND);
   for (const [name, value] of TOKENS) {
     assert.equal(refRoot.get(`--${name}`), value, `the reference: --${name}`);
     assert.equal(root.get(`--ts-${name}`), value, `globals.css :root: --ts-${name} — the reference's value, the house prefix`);
-    const [family, ...rest] = name.split('-');
-    const key = rest.join('-');
-    const mapped = isChannels(value) ? `rgb(var(--ts-${name}) / <alpha-value>)` : `var(--ts-${name})`;
-    const entry = new RegExp(`(?:'${key}'|[\\s{]${key}): '${mapped.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}',`);
-    const familyAt = tailwind.indexOf(`        ${family}: {`);
-    assert.ok(familyAt > -1, `tailwind.config.ts has the ${family} family`);
-    assert.match(tailwind.slice(familyAt, tailwind.indexOf('},', familyAt)), entry, `tailwind.config.ts: ${family}.${key} → ${mapped}`);
   }
   // nothing else wears the two prefixes, and no value is typed twice under a second name
   const ours = [...root.keys()].filter((k) => k.startsWith('--ts-hero-') || k.startsWith('--ts-glass-')).sort();
@@ -303,13 +317,12 @@ test('T2 the design\'s colours are tokens, named and valued as the README\'s tab
   // each is declared ONCE in the whole file: a second declaration anywhere — another rule, a second :root — would override the first for every visitor
   const declared = [...code(GLOBALS).matchAll(/(--ts-(?:hero|glass)-[\w-]+)\s*:/g)].map((m) => m[1]).sort();
   assert.deepEqual(declared, TOKENS.map(([name]) => `--ts-${name}`).sort(), 'declared once each in globals.css, and nowhere a second time');
+  // tailwind.config.ts, read as the object it exports — not as text, so neither its quotes nor its layout matter: each family holds
+  // its tokens and nothing else, and each entry reads its variable (as channels where the stylesheet draws the colour at an alpha)
+  const colors = (tailwindConfig.theme?.extend?.colors ?? {}) as Record<string, unknown>;
   for (const family of ['hero', 'glass']) {
-    const at = tailwind.indexOf(`        ${family}: {`);
-    const block = tailwind.slice(tailwind.indexOf('{', at) + 1, tailwind.indexOf('},', at));
-    // every key, whatever its case or its quotes
-    const keys = [...block.matchAll(/^\s*(?:'([^']+)'|"([^"]+)"|([A-Za-z_$][\w$]*))\s*:/gm)].map((m) => `${family}-${m[1] ?? m[2] ?? m[3]}`).sort();
-    assert.deepEqual(keys, TOKENS.map(([name]) => name).filter((n) => n.startsWith(`${family}-`)).sort(), `the ${family} family holds its tokens and nothing else`);
-    assert.doesNotMatch(block, /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(\s*[\d.]/, `no colour is typed in the ${family} family — each entry reads its variable`);
+    const expected = Object.fromEntries(TOKENS.filter(([name]) => name.startsWith(`${family}-`)).map(([name, value]) => [name.slice(family.length + 1), isChannels(value) ? `rgb(var(--ts-${name}) / <alpha-value>)` : `var(--ts-${name})`]));
+    assert.deepEqual(colors[family], expected, `tailwind.config.ts: the ${family} family holds its tokens and nothing else, each reading its variable`);
   }
 });
 
@@ -355,7 +368,9 @@ test('T3 the hero\'s and the bar\'s stylesheet in globals.css is the reference\'
   const own = portClasses();
   assert.ok(own.size >= 25 && ['.ts-hero', '.ts-bar__pill', '.ts-menu', '.ts-pill-gold', '.ts-cta-secondary', '.ts-github-mark'].every((cls) => own.has(cls)), `the port's own classes were read (${own.size})`);
   assert.deepEqual([...new Set(above.match(/\.ts-[A-Za-z][\w-]*/g) ?? [])].filter((cls) => own.has(cls)), [], 'nothing above the port names one of the hero\'s or the bar\'s classes');
-  assert.doesNotMatch(above, /\[\s*class[^\]]*\bts-/, 'and nothing above reaches them through a class attribute selector');
+  const reaching = [...above.matchAll(/\[\s*class\s*[~|^$*]?=\s*["']?([^"'\]]+?)["']?\s*\]/g)].map((m) => m[1].trim()).filter((value) => [...own].some((cls) => cls.slice(1).includes(value) || value.includes(cls.slice(1))));
+  assert.deepEqual(reaching, [], 'and nothing above reaches them through a class attribute selector ([class*="…"] and its kin)');
+  assert.doesNotMatch(above, /#hero-title\b/, 'nor the headline through its id');
   assert.ok(above.includes('.ts-chipfade'), 'the rules above were read (the chip strip\'s is among them)');
   // every selector wears the house prefix; no colour is a hex; the differences left no trace of the reference's own names
   for (const line of port) {
@@ -370,70 +385,64 @@ test('T3 the hero\'s and the bar\'s stylesheet in globals.css is the reference\'
   assert.deepEqual([...onBand].sort(), ['--ts-crest-w', '--ts-crest-x'], 'the band declares the crest\'s two geometry properties');
   const read = new Set(port.flatMap((l) => [...l.split(' | ')[2].matchAll(/var\((--[\w-]+)/g)].map((m) => m[1])));
   for (const v of read) assert.ok(root.has(v) || onBand.has(v) || v === '--font-mono', `${v} is declared`);
-  assert.match(code('src/app/layout.tsx'), /variable: "--font-mono"/, 'src/app/layout.tsx declares --font-mono (IBM Plex Mono)');
+  assert.match(code('src/app/layout.tsx'), /variable:\s*["']--font-mono["']/, 'src/app/layout.tsx declares --font-mono (IBM Plex Mono)');
   for (const [name] of TOKENS) assert.ok(read.has(`--ts-${name}`), `--ts-${name} is read by the stylesheet — no token without a reader`);
 });
 
 // ── T4 · THE HERO ────────────────────────────────────────────────────────────
 
-test('T4 the hero, as drawn: the band, the crest\'s one <picture>, the bar laid over it, the copy; the words from brandLines.ts; both buttons with their handler and href; the BSL pill and the arrow glyph gone; no colour typed', () => {
+test('T4 the hero, as drawn — token for token: the band, the crest\'s one <picture>, the bar laid over it, the copy; the words from brandLines.ts; both buttons with their handler and href; the BSL pill and the arrow glyph gone; no colour typed', () => {
   const landing = code(LANDING);
   const hero = heroOf(landing);
-  // the band's children, in the reference's order
-  const order = ['<picture className="ts-hero__crest">', '<LandingHeader glass onRequireLogin={onRequireLogin} />', '<section className="ts-hero__inner" aria-labelledby="hero-title">'];
-  for (const part of order) assert.equal(count(hero, part), 1, `${part}, once`);
-  const at = order.map((part) => hero.indexOf(part));
-  assert.deepEqual(at, [...at].sort((a, b) => a - b), 'the crest, then the bar, then the copy');
-  // A CLOSED STRUCTURE: the band is these elements and no others, in this order and nested this way — every opening tag with the
-  // classes it wears, every closing tag. Nothing can be added to the hero, lifted out of it or re-ordered in it unseen (a licence
-  // line under another wording, a third button, the buttons outside the copy).
-  const tags = [...hero.matchAll(/<(\/?)([A-Za-z][\w.]*)/g)];
-  const shape = tags.map((m, i) => {
-    if (m[1]) return `/${m[2]}`;
-    const opening = hero.slice(m.index ?? 0, i + 1 < tags.length ? tags[i + 1].index ?? hero.length : hero.length);
-    const cls = /className="([^"]*)"/.exec(opening);
-    return cls ? `${m[2]}.${cls[1].trim().split(/\s+/).join('.')}` : m[2];
-  });
-  assert.deepEqual(shape, [
-    'div.ts-hero',
-    'picture.ts-hero__crest', 'source', 'img', '/picture',
-    'LandingHeader',
-    'section.ts-hero__inner',
-    'div.ts-hero__copy',
-    'h1.ts-hero__title', 'span', '/span', 'span', '/span', 'span', '/span', '/h1',
-    'p.ts-hero__subline', '/p',
-    'div.ts-hero__cta',
-    'button.ts-pill-gold.ts-cta-primary', '/button',
-    'a.ts-cta-secondary', 'span.ts-github-mark', 'span', '/span', 'svg.ts-cta-arrow', 'path', '/svg', '/a',
-    '/div',
-    '/div',
-    '/section',
-    '/div',
-  ], 'the band\'s elements, in the reference\'s order and nesting — and nothing else in it');
-  assert.doesNotMatch(hero, /className=\{/, 'every class in the band is a plain string — none is computed');
-  // the crest: one <picture>, so only one file downloads; decorative
-  assert.match(hero, /<picture className="ts-hero__crest">\s*<source media="\(min-width: 1024px\)" srcSet="\/brand\/hero-crest-desktop\.svg" \/>\s*<img src="\/brand\/hero-crest-mobile\.svg" alt="" aria-hidden="true" \/>\s*\{\s*\}\s*<\/picture>/, 'the desktop file from 1024px, the mobile file otherwise; alt="" and aria-hidden');
+  // THE BAND IS CLOSED: these tokens, in this order, and no others — every tag whole with every attribute it carries, every
+  // expression, every word of text. Nothing can be added to the hero, taken from it, lifted out of it or re-ordered in it unseen:
+  // a licence line under any wording (as an element, as bare text or as an expression), a third button, a handler dropped, an
+  // attribute that hides the copy, the buttons outside the copy. How the JSX is wrapped across lines does not matter.
+  assert.deepEqual(bandTokens(hero), [
+    '<div className="ts-hero">',
+    // the crest: one <picture>, so only one file downloads — the desktop file from 1024px, the mobile file otherwise; decorative
+    '<picture className="ts-hero__crest">',
+    '<source media="(min-width: 1024px)" srcSet="/brand/hero-crest-desktop.svg" />',
+    '<img src="/brand/hero-crest-mobile.svg" alt="" aria-hidden="true" />',
+    '</picture>',
+    // the bar, laid over the band as glass, with the login opener and no register opener
+    '<LandingHeader glass onRequireLogin={onRequireLogin} />',
+    // the copy: the headline's three sentences in three spans (the stylesheet inks the last one gold), then the subline
+    '<section className="ts-hero__inner" aria-labelledby="hero-title">',
+    '<div className="ts-hero__copy">',
+    '<h1 className="ts-hero__title" id="hero-title">',
+    '<span>', '{COMPANY_LINE[0]}', '</span>',
+    '<span>', '{COMPANY_LINE[1]}', '</span>',
+    '<span>', '{COMPANY_LINE[2]}', '</span>',
+    '</h1>',
+    '<p className="ts-hero__subline">', '{HERO_SUBLINE}', '</p>',
+    // the two buttons, each with what it had: the register opener, and the repository in a new tab — the mark, the label, the arrow
+    '<div className="ts-hero__cta">',
+    '<button type="button" onClick={onRequireAuth} className="ts-pill-gold ts-cta-primary">', 'Create free account', '</button>',
+    `<a className="ts-cta-secondary" href="${CODE_URL}" target="_blank" rel="noopener noreferrer">`,
+    '<span className="ts-github-mark" aria-hidden="true" />',
+    '<span>', 'Clone it on GitHub', '</span>',
+    '<svg className="ts-cta-arrow" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">',
+    '<path d="M4.5 11.5l7-7M5.5 4.5h6v6" />',
+    '</svg>',
+    '</a>',
+    '</div>',
+    '</div>',
+    '</section>',
+    '</div>',
+  ], 'the band, token for token: its tags with their attributes, its expressions and its words, in the reference\'s order and nesting — and nothing else');
   for (const file of [CREST_DESKTOP, CREST_MOBILE]) assert.ok(hero.includes(`"${file.replace(/^public/, '')}"`), `the hero draws ${file}`);
   assert.equal(count(landing, '/brand/'), 2, 'the two crest files, each named once in this file');
-  // the copy
-  assert.match(hero, /<h1 className="ts-hero__title" id="hero-title">\s*<span>\{COMPANY_LINE\[0\]\}<\/span>\s*<span>\{COMPANY_LINE\[1\]\}<\/span>\s*<span>\{COMPANY_LINE\[2\]\}<\/span>\s*<\/h1>/, 'the headline: three sentences, three spans — the last is the one the stylesheet inks gold');
   assert.equal(count(landing, '<h1'), 1, 'one h1 on the home page');
   assert.equal(count(landing, 'id="hero-title"'), 1, 'the section is labelled by its headline');
-  assert.match(hero, /<p className="ts-hero__subline">\{HERO_SUBLINE\}<\/p>/, 'the subline');
   for (const words of [...COMPANY_LINE, HERO_SUBLINE]) assert.ok(!landing.includes(words), `Landing.tsx types none of "${words.slice(0, 24)}…" — the words are src/lib/brandLines.ts's`);
-  // the two buttons, each with what it had
-  assert.equal(count(hero, '<button type="button" onClick={onRequireAuth} className="ts-pill-gold ts-cta-primary">Create free account</button>'), 1, '"Create free account" keeps its handler — the register opener');
-  const clone = /<a\s+className="ts-cta-secondary"\s+href="([^"]+)"\s+target="_blank"\s+rel="noopener noreferrer"\s*>\s*<span className="ts-github-mark" aria-hidden="true" \/>\s*<span>Clone it on GitHub<\/span>\s*<svg className="ts-cta-arrow" [^>]*aria-hidden="true"><path d="M4\.5 11\.5l7-7M5\.5 4\.5h6v6" \/><\/svg>\s*<\/a>/.exec(hero);
-  assert.ok(clone, '"Clone it on GitHub": the mark, the label, then the arrow, in a new tab');
-  assert.equal(clone[1], CODE_URL, 'and keeps its href — the repository');
-  assert.equal(count(hero, '<button'), 1, 'one button');
-  assert.equal(count(hero, '<a'), 1, 'and one link in the band — the bar\'s own are in LandingHeader.tsx');
   // gone, by Alex's ruling
   for (const gone of ['✦', 'Source-available', 'BSL', 'LICENSE', '↗']) assert.ok(!hero.includes(gone), `the hero carries no ${gone}`);
   assert.ok(!landing.includes('/blob/main/LICENSE'), 'the licence link left this file — the footer\'s Software License is its door');
   assert.doesNotMatch(landing, /<LandingHeader[^>]*onRequireAuth/, 'the bar is handed no register opener');
-  // drawn by the reference's classes alone: no colour, no house utility, nothing inline
+  // drawn by the reference's classes alone: no colour, no computed class, no house utility, nothing inline
   assert.doesNotMatch(hero, RAW_COLOUR, 'no colour typed in the hero');
+  assert.doesNotMatch(hero, /className=\{/, 'every class in the band is a plain string — none is computed');
   assert.ok(!hero.includes('style='), 'no inline style');
   for (const cls of classesOf(hero)) assert.ok(cls.startsWith('ts-'), `${cls}: the hero wears the reference's classes only`);
   const ruled = portClasses();
@@ -513,6 +522,7 @@ test('T6 rendered: filled is the default and glass is asked for; Log in is a but
     assert.equal(count(bar, '<span class="ts-bar__rule" aria-hidden="true"></span>'), 2, 'a hairline rule between the three products');
     assert.equal(count(bar, '<nav class="ts-bar__account" aria-label="Account"><a class="ts-bar__link" href="/how-pricing-works">Pricing</a>'), 1, 'Pricing opens the account group');
     assert.equal(count(bar, `<button type="button" class="ts-bar__menu-button" aria-label="Open menu" aria-expanded="false" aria-controls="${BAR_MENU_ID}">`), 1, 'the menu button says what it does, that the menu is closed, and which element it controls');
+    assert.equal(count(bar, `aria-controls="${BAR_MENU_ID}"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 8h16M3 14h16"></path></svg></button>`), 1, 'and draws its two bars — the reference\'s icon, decorative, in the bar\'s ink');
     // the menu: closed, named by the button, the three rows, a rule, Pricing, Log in
     assert.ok(menu.startsWith(`<nav class="ts-menu" id="${BAR_MENU_ID}" aria-label="Menu" hidden="">`), 'the menu starts closed, and is the element the button controls');
     assert.equal(count(html, `id="${BAR_MENU_ID}"`), 1, 'the id is on one element');
@@ -537,13 +547,24 @@ test('T7 the phone menu: open or closed is React state and nothing else; it clos
   assert.ok(header.includes('onClick={() => setMenuOpen((open) => !open)}'), 'the button opens and closes it');
   assert.ok(header.includes("onClick={(e) => { if ((e.target as HTMLElement).closest('a')) setMenuOpen(false); }}"), 'a press on any link in it closes it');
   assert.ok(header.includes('onClick={() => { setMenuOpen(false); onRequireLogin(); }}'), 'Log in closes it, then opens the login');
+  // the bar's own Log in (from 1024px) calls the login opener — the rendered markup in T6 cannot show a handler, so it is held here
+  assert.equal(count(flat(header), '<button type="button" onClick={onRequireLogin} className="ts-pill-gold ts-bar__login">Log in</button>'), 1, 'the bar\'s Log in calls the login opener');
+  assert.equal(count(header, 'onRequireLogin'), 6, 'the opener is named six times: the prop, its type, the two mode tests and the two calls — and wired nowhere else');
+  // what the bar imports is everything it can reach: React's three, next/link, the anchors and the pillars' names — a new import is a new
+  // dependency of every page that mounts the bar (and the only way state could leave this file unseen)
+  assert.deepEqual(header.split('\n').filter((line) => /^import\b/.test(line)), [
+    "import { Fragment, useEffect, useState } from 'react';",
+    "import Link from 'next/link';",
+    "import { DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR } from '@/lib/homeAnchors';",
+    "import { BUILD_PILLAR, EXPLORE_PILLAR, PLAN_PILLAR } from '@/lib/homeActWords';",
+  ], 'the bar imports these four lines and nothing else');
   assert.match(header, /useEffect\(\(\) => \{\s*if \(!menuOpen\) return;\s*const closeOnEscape = \(e: KeyboardEvent\) => \{ if \(e\.key === 'Escape'\) setMenuOpen\(false\); \};\s*document\.addEventListener\('keydown', closeOnEscape\);\s*return \(\) => document\.removeEventListener\('keydown', closeOnEscape\);\s*\}, \[menuOpen\]\);/, 'Escape closes it; the listener is on only while it is open, and is taken off again');
   assert.equal(count(header, 'useEffect('), 1, 'one effect');
   // the menu's id is typed, never generated: useId gave the server and the browser different ids on the landing (a hydration mismatch)
   assert.equal(BAR_MENU_ID, 'ts-bar-menu');
   assert.doesNotMatch(header, /\buseId\b/, 'no generated id');
   const ids = srcFiles(resolve(ROOT, 'src')).filter((f) => code(f).includes(`'${BAR_MENU_ID}'`) || code(f).includes(`"${BAR_MENU_ID}"`));
-  assert.deepEqual(ids, [HEADER], 'and no other file types it — one element wears it');
+  assert.deepEqual(ids, [HEADER], 'and no other file under src (outside __tests__) types it — one element wears it');
   // the stylesheet shows the panel only under 1024px and only while it is not hidden
   const port = declarations(portCss());
   assert.ok(port.includes(' | .ts-menu | display: none'), 'from 1024px the menu is never drawn');
@@ -563,10 +584,14 @@ test('T8 six mounts: the landing asks for glass; the other five pass nothing new
   };
   assert.equal(mountOf(LANDING), '<LandingHeader glass onRequireLogin={onRequireLogin} />', 'the landing: glass, and its login opener');
   assert.equal(mountOf(HOME_CLIENT), "<LandingHeader onRequireLogin={() => { setLoginMode('login'); setShowLogin(true); }} />", 'the signed-out cockpit: filled, and its login opener');
-  // the three lines above and this one pin each mount whole: none of the five asks for glass, and none of the six hands the bar a register opener
+  // the two lines above and the one below pin each mount whole: none of the five asks for glass, and none of the six hands the bar a register opener
   for (const file of OTHER_MOUNTS.slice(1)) assert.equal(mountOf(file), '<LandingHeader />', `${file}: filled, Log in a link — nothing passed`);
   const mounts = srcFiles(resolve(ROOT, 'src')).filter((f) => f !== HEADER && code(f).includes('<LandingHeader')).sort();
   assert.deepEqual(mounts, [LANDING, ...OTHER_MOUNTS].sort(), 'six files mount the bar');
+  // and six files import it — under whatever name: a seventh mount cannot hide behind an alias
+  const importers = srcFiles(resolve(ROOT, 'src')).filter((f) => f !== HEADER && /from\s+['"](?:[^'"]*\/)?LandingHeader['"]/.test(code(f))).sort();
+  assert.deepEqual(importers, [LANDING, ...OTHER_MOUNTS].sort(), 'the same six import it, and no seventh');
+  for (const f of importers) assert.match(code(f), /^import LandingHeader from ['"](?:[^'"]*\/)?LandingHeader['"];$/m, `${f} imports it under its own name`);
   // the glass bar is positioned against the band it lies over, so nothing above the landing can come between them
   const port = declarations(portCss());
   assert.ok(port.includes(' | .ts-hero | position: relative') && port.includes(' | .ts-bar--overlay | position: absolute'), 'glass: absolute, inside the band');
@@ -606,13 +631,15 @@ test('T10 #modules has one home: MODULES_ANCHOR in src/lib/homeAnchors.ts, read 
   assert.match(code(HEADER), /^import \{ DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR \} from '@\/lib\/homeAnchors';$/m, 'the bar reads it from the same home');
   assert.ok(code(HEADER).includes('href: `/#${MODULES_ANCHOR}` },'), 'for its first link');
   assert.equal(BAR_PRODUCT_LINKS[0].href, FOOTER_SERVICES_LINKS[0].href, 'the bar\'s first link and the footer\'s land on the one section');
-  const typed = srcFiles(resolve(ROOT, 'src')).filter((f) => /_ANCHOR = 'modules'|_ID = 'modules'/.test(code(f)));
+  // any constant, whatever its name. (The word is typed in two more places, both the plan law's and neither a constant: the how-to's
+  // id literal, held equal above, and the plans section's default headingId prop.)
+  const typed = srcFiles(resolve(ROOT, 'src')).filter((f) => /\b[A-Z][A-Z0-9_]*\s*=\s*'modules'/.test(code(f)));
   assert.deepEqual(typed, [ANCHORS], 'no second constant holds it');
 });
 
 // ── T11 · GITHUB'S MARK ──────────────────────────────────────────────────────
 
-test('T11 GitHub\'s mark is a file — public/logos/github.svg, in the folder\'s form — drawn through a mask in the button\'s ink at 20px (17px under 1024px); decorative; its path typed in no .ts or .tsx file under src', () => {
+test('T11 GitHub\'s mark is a file — public/logos/github.svg, in the folder\'s form — drawn through a mask in the button\'s ink at 20px (17px under 1024px); decorative; its path typed in no .ts or .tsx file under src outside __tests__', () => {
   assert.ok(existsSync(resolve(ROOT, GITHUB)), `${GITHUB} is in the tree`);
   assert.equal(size(GITHUB), 838);
   assert.equal(digest(GITHUB), 'cb0a639761421ae629b1f40786b301f3b7bac385206948329323a35ef45a9f08', 'the file as fetched — simple-icons 16.37.0, with the folder\'s fill attribute and closing newline; its path data untouched');
@@ -631,7 +658,7 @@ test('T11 GitHub\'s mark is a file — public/logos/github.svg, in the folder\'s
   assert.equal(count(hero, '<span className="ts-github-mark" aria-hidden="true" />'), 1, 'one mark, decorative, on the second button');
   assert.ok(hero.indexOf('ts-github-mark') > hero.indexOf('ts-cta-secondary') && hero.indexOf('ts-github-mark') < hero.indexOf('Clone it on GitHub'), 'before its label');
   for (const f of [LANDING, HEADER]) assert.ok(!code(f).includes('/logos/'), `${f} types no path under /logos/ — the stylesheet names the file`);
-  assert.deepEqual(srcFiles(resolve(ROOT, 'src')).filter((f) => code(f).includes('/logos/github')), [], 'no .ts or .tsx file under src types the mark\'s path');
+  assert.deepEqual(srcFiles(resolve(ROOT, 'src')).filter((f) => code(f).includes('/logos/github')), [], 'no .ts or .tsx file under src (outside __tests__) types the mark\'s path');
   assert.doesNotMatch(hero, /<path d="M12 /, 'the mark is not drawn inline');
 });
 
@@ -639,10 +666,11 @@ test('T11 GitHub\'s mark is a file — public/logos/github.svg, in the folder\'s
 
 test('T12 the reachability law\'s door to /how-pricing-works cites the line the bar\'s Pricing link is defined on — read by content', () => {
   const law = code(LAW);
-  const cited = /\{ route: '\/how-pricing-works', why: 'LandingHeader\.tsx:(\d+) \(HERO-CREST-01, 2026-11-11: was :52[^')]*\), LandingFooter\.tsx:/.exec(law);
-  assert.ok(cited, 'GUEST_ROUTES cites the header\'s line, dated, with what it was');
+  // the house's form lists the newest re-cite first — "(NEXT, date: was :89; HERO-CREST-01, 2026-11-11: was :52 — …)" — so this note may stand anywhere in the parentheses
+  const cited = /\{ route: '\/how-pricing-works', why: 'LandingHeader\.tsx:(\d+) \([^')]*HERO-CREST-01, 2026-11-11: was :52[^')]*\), LandingFooter\.tsx:/.exec(law);
+  assert.ok(cited, 'GUEST_ROUTES cites a line of LandingHeader.tsx for /how-pricing-works, and its note still says what the line was before HERO-CREST-01 (:52)');
   const line = code(HEADER).split('\n')[Number(cited[1]) - 1];
-  assert.equal(line, "export const BAR_PRICING = { label: 'Pricing', href: '/how-pricing-works' } as const;", `LandingHeader.tsx:${cited[1]} is the Pricing link`);
+  assert.equal(line, "export const BAR_PRICING = { label: 'Pricing', href: '/how-pricing-works' } as const;", `the law cites LandingHeader.tsx:${cited[1]} — that line must be BAR_PRICING's (re-cite the law's GUEST_ROUTES row when the bar's lines move)`);
   assert.equal(count(code(HEADER), 'href={BAR_PRICING.href}'), 2, 'drawn twice — the bar and its menu');
 });
 
