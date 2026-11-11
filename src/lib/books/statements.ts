@@ -196,6 +196,16 @@ export function statementsOf(input: { readonly toDate: readonly StatementRow[]; 
 }
 
 /**
+ * What a screen says of the accounts whose type the statements do not read — each code once, in the order met:
+ * "1 account carries a type the statements do not read: 9000". Asked only when there is at least one.
+ */
+export function unclassifiedWords(codes: readonly string[]): string {
+  const once = codes.filter((code, i) => codes.indexOf(code) === i);
+  if (once.length === 0) throw new Error('statements: unclassifiedWords was asked with no account');
+  return `${once.length} account${once.length === 1 ? ' carries' : 's carry'} a type the statements do not read: ${once.join(', ')}`;
+}
+
+/**
  * THE EXPORT'S TWO BLOCKS, in the keys /api/cpa-export has always answered — the same figures under the Export's
  * names, nothing recomputed: `retainedEarnings` carries earningsNotClosed, and `totals` are the function's.
  */

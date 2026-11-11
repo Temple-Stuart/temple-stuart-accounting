@@ -11,12 +11,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+Object.assign(globalThis, { React });
+import BookkeepingCockpitBar, { type BookkeepingCockpitBarProps } from '@/components/bookkeeping/BookkeepingCockpitBar';
 import { code } from '../sourceText';
-import { balanceSheetOf, exportBlocksOf, incomeStatementOf, statementsOf, STATEMENT_TYPES, type StatementRow } from '../books/statements';
+import { MISSING_ACCOUNTS_WORDS, barFiguresOf, trialBalanceAccountsOf } from '../books/cockpitSums';
+import { balanceSheetOf, exportBlocksOf, incomeStatementOf, statementsOf, unclassifiedWords, STATEMENT_TYPES, type StatementRow } from '../books/statements';
 import { BOOK_NOT_FOUND_WORDS } from '../books/statementsRead';
-import { CLOSING_ENTRY, UNKNOWN_TYPE_ENTRY, entriesOf, readOf, rowsOf } from './booksLedger';
+import { CLOSING_ENTRY, UNKNOWN_TYPE_ENTRY, entriesOf, readOf, rowsOf, trialBalanceRowsOf } from './booksLedger';
 
 const STATEMENTS = 'src/lib/books/statements.ts';
+const BAR = 'src/components/bookkeeping/BookkeepingCockpitBar.tsx';
+const LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
 const READ = 'src/lib/books/statementsRead.ts';
 const STATEMENTS_ROUTE = 'src/app/api/statements/route.ts';
 const EXPORT_ROUTE = 'src/app/api/cpa-export/route.ts';
@@ -276,4 +283,93 @@ test('P1-10 both routes call the ONE read and the ONE function, after their gate
   assert.match(e, /Prisma\.sql`EXTRACT\(YEAR FROM je\.date\) = \$\{year\}`,/, 'the trial balance and the ledger stay the year\'s');
   assert.match(e, /const tbDifference = wholeCents\(tbTotalDebits - tbTotalCredits\);/);
   assert.doesNotMatch(e, /const totalEquityExcludingRetained|retainedEarnings: netIncome|const revenueAccounts = /, 'the year-only balance sheet is gone');
+});
+
+// ─── Part 2 — THE BAR ADDS UP ───────────────────────────────────────────────────────────────────────────────────────
+// The bar's three figures are balanceSheetOf over the trial balance's own rows (src/lib/books/cockpitSums.ts
+// barFiguresOf); its mark is computed from the three figures it draws.
+
+const barProps = (over: Partial<BookkeepingCockpitBarProps>): BookkeepingCockpitBarProps => ({
+  totalAssets: 0, totalLiabilities: 0, totalEquity: 0, earningsNotClosed: 0, unclassified: [], hasActivity: true,
+  connectedAccounts: 2, periodLabel: 'November 2026', periodStatus: 'open', onSync: () => {}, syncing: false, onLinkAccount: () => {},
+  ...over,
+});
+const drawBar = (over: Partial<BookkeepingCockpitBarProps>): string => renderToStaticMarkup(React.createElement(BookkeepingCockpitBar, barProps(over)));
+/** The bar as the panel hands it a balance sheet. */
+const barOf = (sheet: ReturnType<typeof barFiguresOf>): string => drawBar({
+  totalAssets: sheet.totalAssets, totalLiabilities: sheet.totalLiabilities, totalEquity: sheet.totalEquity,
+  earningsNotClosed: sheet.earningsNotClosed, unclassified: sheet.unclassified.map((u) => u.code),
+});
+
+test('P2-1 the made-up ledger as trial-balance rows: the three figures add up and the mark is Balanced — and they are the statements\' own', () => {
+  const rows = trialBalanceRowsOf([UNKNOWN_TYPE_ENTRY]);
+  // The trial balance answers one row per account per entry-book: Personal's Checking arrives twice.
+  assert.equal(rows.filter((r) => r.accountCode === '1000' && r.accountName === 'Checking').length, 2);
+  const sheet = barFiguresOf(rows);
+  assert.equal(sheet.totalAssets, 1_960_002);
+  assert.equal(sheet.totalLiabilities, -5_000);
+  assert.equal(sheet.totalEquity, 1_965_002);
+  assert.equal(sheet.earningsNotClosed, 1_077_002);
+  assert.equal(sheet.totalAssets - (sheet.totalLiabilities + sheet.totalEquity), 0);
+  // The same three totals the statements give through the far future, all books — one function under both.
+  const statements = balanceSheetOf(rowsOf({ book: null, through: '9999-12-31', closing: 'in', without: [UNKNOWN_TYPE_ENTRY] }));
+  assert.deepEqual([sheet.totalAssets, sheet.totalLiabilities, sheet.totalEquity, sheet.earningsNotClosed], [statements.totalAssets, statements.totalLiabilities, statements.totalEquity, statements.earningsNotClosed]);
+  const html = barOf(sheet);
+  assert.match(html, /A = L \+ E ✓ Balanced/);
+  assert.doesNotMatch(html, /Unbalanced/);
+  assert.match(html, /Assets<\/span><span[^>]*>\$19,600\.02</);
+  assert.match(html, /Liabilities<\/span><span[^>]*>-\$50\.00</);
+  assert.match(html, /Equity<\/span><span[^>]*>\$19,650\.02</);
+  assert.match(html, /<div[^>]*data-bar-scope="true"[^>]*>All books · all time · Equity includes earnings not yet closed: <span[^>]*>\$10,770\.02<\/span><\/div>/);
+  assert.doesNotMatch(html, /data-bar-unclassified/);
+});
+
+test('P2-2 an account with a negative balance LOWERS its type\'s figure — the old sum raised it; revenue and expense are inside Equity now', () => {
+  const rows = trialBalanceRowsOf([UNKNOWN_TYPE_ENTRY]);
+  const sheet = barFiguresOf(rows);
+  // What stood until BOOKS-01: Σ |normalBalance| over a type's rows.
+  const oldSum = (type: string) => rows.filter((r) => r.accountType === type).reduce((s, r) => s + Math.abs(r.normalBalance), 0);
+  assert.equal(oldSum('asset'), 1_980_000, 'Venmo\'s −50.00 and the cross-book −49.99 were ADDED');
+  assert.equal(sheet.totalAssets, 1_960_002, 'now they are subtracted');
+  assert.equal(oldSum('asset') - sheet.totalAssets, 2 * (5_000 + 4_999), 'twice each negative row');
+  assert.equal(oldSum('liability'), 5_000, 'the overpaid card read as money owed');
+  assert.equal(sheet.totalLiabilities, -5_000);
+  assert.equal(oldSum('equity'), 888_000, 'the equity accounts alone — net income in no figure');
+  assert.equal(sheet.totalEquity, 888_000 + 1_077_002);
+  assert.notEqual(oldSum('asset') - (oldSum('liability') + oldSum('equity')), 0, 'the old three did not add up');
+});
+
+test('P2-3 a type the statements do not read is named in red and is in no figure; the bar then says by how much it is out', () => {
+  const sheet = barFiguresOf(trialBalanceRowsOf());
+  assert.deepEqual(sheet.unclassified.map((u) => u.code), ['9000']);
+  assert.equal(sheet.totalAssets - (sheet.totalLiabilities + sheet.totalEquity), -2_500);
+  const html = barOf(sheet);
+  assert.match(html, /✗ Unbalanced by \$25\.00/);
+  assert.doesNotMatch(html, /Balanced<\/span>/);
+  assert.match(html, /<div role="alert"[^>]*data-bar-unclassified="true"[^>]*>1 account carries a type the statements do not read: 9000<\/div>/);
+  assert.equal(unclassifiedWords(['9000']), '1 account carries a type the statements do not read: 9000');
+  assert.equal(unclassifiedWords(['9000', '9100', '9000']), '2 accounts carry a type the statements do not read: 9000, 9100', 'each code once');
+  assert.throws(() => unclassifiedWords([]), /asked with no account/);
+});
+
+test('P2-4 the mark is computed from the three figures drawn; "No activity yet" stays; the trial balance\'s words for a missing list stay', () => {
+  // Balanced or not is the figures' own difference — nothing else is asked.
+  assert.match(drawBar({ totalAssets: 500, totalLiabilities: 200, totalEquity: 300 }), /A = L \+ E ✓ Balanced/);
+  assert.match(drawBar({ totalAssets: 500, totalLiabilities: 200, totalEquity: 299 }), /✗ Unbalanced by \$0\.01/);
+  assert.match(drawBar({ totalAssets: 100, totalLiabilities: 200, totalEquity: 300 }), /✗ Unbalanced by \$4\.00/);
+  // No posted activity: the neutral chip, as it was — never a green mark over an empty ledger.
+  const empty = drawBar({ hasActivity: false });
+  assert.match(empty, /No activity yet — nothing posted/);
+  assert.doesNotMatch(empty, /Balanced/);
+  const bar = code(BAR);
+  assert.match(bar, /const imbalance = totalAssets - \(totalLiabilities \+ totalEquity\);/);
+  assert.match(bar, /\{!hasActivity \? \([\s\S]*?\) : imbalance === 0 \? \(/);
+  assert.doesNotMatch(bar, /isBalanced/, 'the borrowed mark is gone from the bar');
+  assert.match(bar, /Equity includes earnings not yet closed: <span className="font-mono">\{functionalMoneyWords\(earningsNotClosed\)\}<\/span>/);
+  assert.match(bar, /\{unclassified\.length > 0 && \(/);
+  // The panel hands the two new figures; the trial balance without its accounts throws the same words.
+  assert.match(code(LAUNCHER), /earningsNotClosed=\{booksData\.earningsNotClosed\} unclassified=\{booksData\.unclassified\}/);
+  assert.equal(MISSING_ACCOUNTS_WORDS, 'trial balance came back without its accounts');
+  assert.throws(() => trialBalanceAccountsOf({ totals: {} } as never), { message: MISSING_ACCOUNTS_WORDS });
+  assert.throws(() => barFiguresOf([{ accountCode: '1000', accountType: 'asset', totalDebits: 'x', totalCredits: 0 }]), { message: 'trial balance account 1000 has no readable totalDebits' });
 });
