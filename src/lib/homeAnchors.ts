@@ -18,7 +18,7 @@
  * HOME-FINISH-02 (Alex, 2026-11-10 20:56 — "a stable anchor so the footer can link directly to Build Your Income"): a fifth,
  *   · SERVICES_ANCHOR  'services' — the professional-services section, the second pillar under "What We Do"
  *                                  (Landing.tsx, <section id={SERVICES_ANCHOR}); new with HOME-FINISH-02.
- * The footer reads three of them now (src/lib/footerWords.ts): STOP_ZERO_ANCHOR (OUR STORY's Stop 0), SERVICES_ANCHOR
+ * The footer reads three of them now — four since HERO-CREST-01, 2026-11-11, with MODULES_ANCHOR (below) — (src/lib/footerWords.ts): STOP_ZERO_ANCHOR (OUR STORY's Stop 0), SERVICES_ANCHOR
  * (Build Your Income) and DEMO_ANCHOR (Explore the World — it sits on that pillar's heading). THE BLOG left the footer,
  * and its links to /#events and /#my-trip with it; the two sections and the trip page still read those anchors.
  *
@@ -40,7 +40,7 @@
  * bar both read it, so it is typed once for both. (Not through footerWords.ts: that leaf imports tripPostWords.ts, which
  * imports experienceWords.ts, which imports src/lib/experiences.ts — 101 KB of source — and the bar is also mounted by
  * HomeClient.tsx, the cockpit, which imports none of them today.) The section's own literal stays where the plan law
- * holds it; src/lib/__tests__/heroCrest01.test.ts holds the two equal.
+ * holds it; src/lib/__tests__/heroCrest01.test.ts holds the two equal. WHAT THE BAR PAYS FOR READING IT HERE: the re-export below brings src/lib/stopZeroWords.ts into the bar's chunk — about 3 KB (1.3 KB gzipped) of Stop 0's words, measured in the production build, on pages that never draw them.
  */
 
 /** The first pillar's section — the how-to's `<section id="modules"` (HowToSection.tsx). HERO-CREST-01: moved here from src/lib/footerWords.ts, where it was the private PLANS_SECTION_ID. */

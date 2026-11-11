@@ -20,7 +20,7 @@ import { navToolsOfScreen } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 // DS-2: the app hero uses the SAME radial-glow surface as the landing hero.
 // REPAINT-3: the HERO_BG import died — the hero is a solid aubergine band
-// (HOME-HERO-PARITY held from REPAINT-2 until HERO-CREST-01, 2026-11-11: the landing's hero is the crest design's violet ground now).
+// (HOME-HERO-PARITY held from REPAINT-3 — the landing hero had made the same move in REPAINT-2 — until HERO-CREST-01, 2026-11-11: the landing's hero is the crest design's violet ground now).
 import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 // SELL-02: the `?module=<key>` door on the authed landing, and the one checkout call.
 import { moduleDoorPlan } from '@/lib/offer';

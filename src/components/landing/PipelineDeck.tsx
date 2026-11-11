@@ -1812,7 +1812,7 @@ export default function PipelineDeck() {
             version of that claim has turned out false. Gold already appears
             ABOVE this act in three places, two of them outside this file:
             the header's CTA fill (LandingHeader.tsx:80,87 — until HERO-CREST-01, 2026-11-11: that button left the bar, whose gold is the Log in pill now), the hero's
-            MONEY_ACTION CTA fill (this file, the hero act), and — whenever a
+            MONEY_ACTION CTA fill (this file, the hero act — until HERO-CREST-01, 2026-11-11: the hero's button is the crest design's gold pill, in Landing.tsx), and — whenever a
             guest has trip records — GuestTripStrip's money numerals, which are
             text-brand-gold, i.e. gold INK, not just fill
             (GuestTripStrip.tsx:53,65). What IS true and worth recording: among

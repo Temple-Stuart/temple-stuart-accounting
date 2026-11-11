@@ -201,7 +201,7 @@ test('T3 the other three columns, exactly — SERVICES: the three pillars on the
   for (const f of [WORDS, FOOTER]) assert.doesNotMatch(code(f), /open[ -]?source/i, `${f}: the licence is the Business Source License — never called open source`);
   // HERO-CREST-01 (Alex, 2026-11-11: "remove github, the icon is enough, we dont need it 2x"): "GitHub ↗" left the top bar. Until then these lines
   // read code(HEADER)'s github.com hrefs into `header` and held them equal to [CODE_URL] — 'LandingHeader.tsx's GitHub ↗ opens the same URL'. The
-  // same URL is still opened above the footer by the hero's "Clone it on GitHub" (Landing.tsx — the licence pill beside it left the hero too), so
+  // same URL is still opened above the footer by the hero's "Clone it on GitHub" (Landing.tsx — the licence pill that stood above the headline left the hero too), so
   // that is the link held equal now, and the bar is held to none.
   const githubHrefs = (file: string): string[] => [...code(file).matchAll(/href="(https:\/\/github\.com\/[^"]*)"/g)].map((m) => m[1]);
   assert.deepEqual(githubHrefs(HEADER), [], 'the top bar links GitHub no more');

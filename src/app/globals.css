@@ -102,9 +102,10 @@
      lighter ink, a brighter gold. Adding a colour is a design change (DESIGN.md), and this is one — so each lands
      here as a token, NAMED AND VALUED AS design-refs/hero-crest-01/README.md's TABLE (the reference's stylesheet
      writes them --hero-* and --glass-*; the house prefix --ts- is added, nothing else). tailwind.config.ts maps
-     them as the `hero` and `glass` families. Hex where the design only ever draws the colour solid; space-
-     separated RGB channels where it draws it at an alpha — rgb(var(--ts-hero-bloom) / 0.5). Read by the hero's
-     and the bar's stylesheet at the foot of this file, and by nothing else yet. ─────────────────────────────── */
+     them as the `hero` and `glass` families. Hex where the stylesheet reads the token solid; space-separated RGB
+     channels where it reads it at an alpha — rgb(var(--ts-hero-bloom) / 0.5). (One hex is also drawn at an alpha
+     without its token: the open menu's panel is hero-well at 86%, typed as the reference types it.) Read by the
+     hero's and the bar's stylesheet at the foot of this file, and by nothing else yet. ──────────────────────── */
   /* the ground: one diagonal sweep (155deg, stops 0 / 34 / 68 / 100%) and two blooms; the filled bar uses 1–3 */
   --ts-hero-violet-1:    #6A33E0;                    /* the sweep, start */
   --ts-hero-violet-2:    #4D1FBC;                    /* the sweep, 34% */
@@ -223,13 +224,15 @@ body {
         Fonts "only so this file renders on its own"): Inter is inherited from <body>; the mono is var(--font-mono).
      3. line-height: normal on .ts-hero and .ts-bar. The reference is written against the browser's default line
         height; the app's base is 1.5 (Tailwind's preflight), which would draw the bar's links taller than designed.
-     4. THE GITHUB MARK: .github-slot — a ring the reference calls "a stand-in, not the design" — is .ts-github-mark,
+     4. THE GITHUB MARK: .github-slot — a ring the handoff's README calls "a stand-in, not the design" (the reference's
+        own note on it: "This ring is a stand-in.") — is .ts-github-mark,
         GitHub's own mark from public/logos/github.svg.
      5. NOT PORTED: body { margin: 0 } and .plain-page, the reference page's own ground.
-   COLOURS THE TABLE DOES NOT NAME. The reference's stylesheet also types colours its :root does not hold — white at
-   four alphas (0.75, 0.32, 0.22, 0.16), a shadow ink rgb(12 6 44 / …) five times, and the open menu's panel
-   rgb(33 11 92 / 0.86), which is hero-well at 86%. They are ported as typed: the README's table, which the tokens
-   follow, names none of them.
+   COLOURS TYPED AS LITERALS. The reference's stylesheet also types colours where it reads no variable, and the port
+   types the same ones, as typed: white at three alphas the README's table does not name (0.75, 0.32, 0.16) and at
+   0.22 — glass-line's own value, typed raw twice for the pill's inset highlight —, a shadow ink rgb(12 6 44 / …) five
+   times, and the open menu's panel rgb(33 11 92 / 0.86), which is hero-well at 86%. (Not ported, with the rules that
+   hold them: white at 0.14 on the stand-in ring, and .plain-page's two hexes.)
    ONE DIFFERENCE IN WHAT THE SAME RULES DRAW. The gold pills that are <button>s — "Create free account", and Log in
    where it opens the login box — come out about 3% darker here than the reference file renders them. Same rule; the
    reference's buttons keep the browser's default grey button face under the 95–97% gold, and the app's base
@@ -308,11 +311,12 @@ body {
 }
 .ts-cta-secondary:hover { color: var(--ts-hero-gold); }
 .ts-cta-secondary svg { flex: none; }
-/* THE GITHUB MARK — where the reference draws a stand-in ring (.github-slot: "the ring is a stand-in, not the
-   design"). GitHub's own mark, public/logos/github.svg, 20 × 20 (17 × 17 on the phone composition), inked the
+/* THE GITHUB MARK — where the reference draws a stand-in ring (.github-slot — the README: "the ring is a stand-in,
+   not the design"). GitHub's own mark, public/logos/github.svg, 20 × 20 (17 × 17 on the phone composition), inked the
    button's text colour: the file is the mask and currentColor the ink, so it turns gold with its label.
    THE FILE: Simple Icons' icons/github.svg (simple-icons 16.37.0, CC0-1.0) in this folder's own form — fill="#ffffff"
-   on the root and a closing newline, as eight of its neighbours are; the path data is untouched. Not a Built-on
+   on the root and a closing newline, as all eleven of its neighbours carry (eight of them are simple-icons 16.37.0's
+   own file with those two added, as this one is); the path data is untouched. Not a Built-on
    slot (src/lib/builtOnWall.ts names no github), so it lights nothing on /how-it-works.
    GITHUB'S OWN PAGE FOR THE MARK (brand.github.com/foundations/logo, read 2026-11-11) allows it "as a social button
    to link to your GitHub profile or project", and says the mark "should only appear in white, black, or in few cases

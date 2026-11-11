@@ -483,7 +483,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             cream bar; its headline was bold with <br /> between the sentences and the third in the lavender wash
             (brand-purple-wash — REPAINT-2 (E), after the gradient clip died; HOME-LINES-01, 2026-11-08, moved the words
             to COMPANY_LINE); its primary button was the flat MONEY_ACTION gold, its secondary a bordered ghost reading
-            "Clone it on GitHub ↗" (HERO-REPO-1); the pill was HERO-PRESENCE's. Direction C's "no gradient" stood on
+            "Clone it on GitHub ↗" (HERO-REPO-1); the pill was HERO-PRESENCE's. Direction C's ban on gradients (globals.css, REPAINT-5: "gradients are banned under Direction C") stood on
             this band from REPAINT-2 until this design, which draws one here and on the top bar and changes no other surface. ──── */}
       <div className="ts-hero">
         <picture className="ts-hero__crest">
@@ -649,7 +649,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             whole booking surfaces + result rows, not just a form.
             REPAINT-2: the mount moved OUT of the hero section (one JSX seat
             down, same props, zero wiring) — the hero is a solid aubergine
-            band now, so the strip sits on the cream page where its own
+            band now (it was, until HERO-CREST-01, 2026-11-11: the crest design's violet ground since), so the strip sits on the cream page where its own
             aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
             the strip's INTERIOR (travel pickers/results) stays dark until
             Slice 4's trips pass. */}
@@ -664,7 +664,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           resolve to the OFFER now, not to this demo.
           id="demo" is NOT dropped — an element carries one id, so it sits on
           the eyebrow row a few px below. It has no href pointing at it in src/
-          today (the nav's Live-demo link retired, LandingHeader.tsx:35 — HERO-CREST-01, 2026-11-11: the top bar links it again, as "Travel Marketplace", BAR_PRODUCT_LINKS), but an
+          today (the nav's Live-demo link retired, LandingHeader.tsx:53-54 — :35 until HERO-CREST-01, 2026-11-11, which moved that note into the file's header; the top bar links it again, as its third product link, BAR_PRODUCT_LINKS), but an
           external bookmark costs nothing to keep alive.
           FOOTER-01 (2026-11-09): the id is DEMO_ANCHOR now (src/lib/homeAnchors.ts), and two links land on it — the footer's "Book travel" and the trip page's "Book the stay and the flight" (TripPostView.tsx BOOK_HREF, since TRIPPOST-01) — so "no href pointing at it" above is history.
 
@@ -673,7 +673,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           number. The numbered acts start below it at 01.
 
           SEAM: border-b, and it closes from BELOW on purpose. Above is the
-          hero, whose aubergine-to-cream edge is the page's one deliberate
+          hero, whose aubergine-to-cream edge (violet-to-cream since HERO-CREST-01, 2026-11-11) is the page's one deliberate
           zero-rule boundary, so a border-t here would be the defect the seam
           ledger warns about. Closing from below also single-rules the
           GuestTripStrip case — see the ledger on the problem section.

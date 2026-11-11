@@ -6,18 +6,22 @@
  * src/components/landing/LandingHeader.tsx, on its six mounts; both are drawn by the reference's own stylesheet, ported
  * to the foot of src/app/globals.css.
  *
- *   T1  the handoff landed byte for byte — the README, the reference and the two crest files by sha256; the mark by
- *       size (a PNG does not survive the reader's utf8); the two SVGs hold shapes and gradients only;
- *   T2  the colours are tokens, named and valued as the README's table — the same value in the reference's :root, in
- *       globals.css :root (--ts-<name>) and behind tailwind.config.ts's `hero` and `glass` families; the README's
- *       table and DESIGN.md's carry the same values;
+ *   T1  the handoff landed — four files byte for byte (sha256): the README, the reference, the two crest files. The
+ *       mark is held by its presence and exact size only (a PNG does not survive the reader's utf8, so its bytes are
+ *       not held here); the two SVGs hold shapes and gradients only;
+ *   T2  the colours are tokens, named and valued as the README's table — its nineteen names on its values, in its
+ *       order; the same in the reference's :root, in globals.css (--ts-<name>, each declared once in the whole file)
+ *       and behind tailwind.config.ts's `hero` and `glass` families; DESIGN.md's table carries the same names on the
+ *       same values;
  *   T3  the app's stylesheet IS the reference's — declaration by declaration, in order, but for the five differences
- *       named in globals.css; no hex in it; every variable it reads is declared; nothing follows it in the file and no
- *       rule above it names one of its classes (so the cascade is the port's alone — what a browser's own defaults add
- *       under it, the test cannot see: globals.css names the one place that shows);
- *   T4  the hero, as drawn — the band, the crest's one <picture>, the bar laid over it, the copy; the headline's three
- *       sentences and the subline from src/lib/brandLines.ts; both buttons with the handler and the href they had;
- *       the BSL pill and the arrow glyph gone; no colour and no house utility typed in it;
+ *       named in globals.css; no hex in it; every variable it reads is declared; nothing follows it in the file and
+ *       nothing above it names one of its classes, by class selector or class attribute selector, at any depth. (An
+ *       ELEMENT selector above it — h1, button, a, as Tailwind's base writes them — still reaches these elements, and
+ *       so do a browser's own defaults: neither is held here. globals.css names the one place that shows.);
+ *   T4  the hero, as drawn — a closed structure: the band's elements, in order and nested as the reference nests them,
+ *       and no others; the crest's one <picture>, the bar laid over it, the copy; the headline's three sentences and
+ *       the subline from src/lib/brandLines.ts; both buttons with the handler and the href they had; the BSL pill and
+ *       the arrow glyph gone; no colour, no computed class and no house utility typed in it;
  *   T5  the bar's words and links — the three pillars, each by its own name (its heading, src/lib/homeActWords.ts —
  *       never typed in the bar) on its own section (its anchor, src/lib/homeAnchors.ts — never a typed id); Pricing;
  *       the gold mark; "GitHub" and "create account" gone;
@@ -31,13 +35,13 @@
  *   T10 #modules has one home — MODULES_ANCHOR, read by the bar and by the footer; it equals the how-to's own id;
  *   T11 GitHub's mark — public/logos/github.svg, in the form the folder's Simple Icons files have (only this file is
  *       held to it: the Built-on wall's own files may be dropped in whatever form their vendors ship), drawn through a
- *       mask in the button's ink, 20px (17px under 1024px), decorative; its path typed in no component;
+ *       mask in the button's ink, 20px (17px under 1024px), decorative; its path typed in no .ts or .tsx file under src;
  *   T12 the reachability law's door to /how-pricing-works cites the line the bar's Pricing link is defined on — read
  *       by content, so the citation cannot drift;
  *   T13 the rulings are on the page — each of Alex's three removals quoted where it was made.
  *
- * Source is read through code() and comments() only (the reader law). rejoin() is used for whole-file digests alone —
- * every pattern here reads code().
+ * Source is read through code() and comments() only (the reader law). rejoin() is used for whole-file digests alone.
+ * Every pattern that holds code reads code(); T13 reads comments(), where the rulings are quoted.
  * No clock, no live call, no database. What a browser must show — the look at 1440, 1024 and 390, no sideways scroll
  * from 340px, the headline on three lines, the two buttons side by side — cannot be held here; it is in the PR.
  */
@@ -127,7 +131,7 @@ function referenceCss(): string {
 function rootTokens(): Map<string, string> {
   const css = code(GLOBALS);
   const at = css.indexOf(':root {');
-  assert.ok(at > -1 && count(css, ':root {') === 1, 'one :root in globals.css');
+  assert.ok(at > -1 && (css.match(/:root\b/g) ?? []).length === 1, 'one :root in globals.css, however it is spaced');
   const map = new Map<string, string>();
   for (const line of declarations(css.slice(at, css.indexOf('}', at) + 1))) {
     const decl = line.split(' | ')[2];
@@ -142,6 +146,10 @@ function portCss(): string {
   assert.ok(at > -1, 'the port opens at .ts-hero');
   assert.ok(at > css.indexOf('.ts-chipfade'), 'at the foot of the file, under everything that was there');
   return css.slice(at);
+}
+/** Every class the port's selectors name — .ts-hero, .ts-bar__pill, … — each once. */
+function portClasses(): Set<string> {
+  return new Set(declarations(portCss()).flatMap((line) => line.split(' | ')[1].match(/\.ts-[A-Za-z][\w-]*/g) ?? []));
 }
 
 /**
@@ -162,10 +170,40 @@ const TOKENS: ReadonlyArray<readonly [name: string, value: string]> = [
   ['hero-rim-gold', '#F8CB5A'], ['hero-rim-lilac', '#B9A2FF'],
   ['glass-fill', 'rgb(255 255 255 / 0.10)'], ['glass-line', 'rgb(255 255 255 / 0.22)'],
 ];
-/** The README's glass row writes the line as the fill's white at another alpha — "`rgb(255 255 255 / 0.10)` fill · `/ 0.22` line" — so that is what is looked for there. */
-const README_WRITES: Readonly<Record<string, string>> = { 'glass-line': '`/ 0.22` line' };
-/** A colour the design draws at an alpha is stored as three channels; one it only draws solid, as written. */
+/** A colour the stylesheet reads at an alpha is stored as three channels; one it reads solid, as written. */
 const isChannels = (value: string): boolean => /^\d+ \d+ \d+$/.test(value);
+/**
+ * A token table — the README's "Tokens" and DESIGN.md's — read as [name, value] pairs in the table's own order. A row
+ * names its tokens in backticks in its first cell and gives their values in backticks in its second, in the same order;
+ * "`hero-violet-1` … `-4`" is the run from 1 to 4. The README writes its glass row differently —
+ * "| glass | `rgb(255 255 255 / 0.10)` fill · `/ 0.22` line · …" — the fill, then the line as the fill's white at a second alpha.
+ */
+function tableTokens(file: string, heading: string): Array<[name: string, value: string]> {
+  const doc = code(file);
+  const from = doc.indexOf(`\n${heading}`);
+  assert.ok(from > -1, `${file} has the section "${heading}"`);
+  const end = doc.indexOf('\n## ', from + 1);
+  const rows = doc.slice(from, end < 0 ? doc.length : end).split('\n').filter((l) => l.startsWith('| ') && !l.startsWith('| Token |'));
+  const ticked = (cell: string): string[] => [...cell.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+  const out: Array<[string, string]> = [];
+  for (const row of rows) {
+    const [nameCell, valueCell] = row.split('|').slice(1).map((cell) => cell.trim());
+    if (nameCell === 'glass') {
+      const glass = /^`(rgb\(255 255 255 \/ )(0\.\d+)\)` fill · `\/ (0\.\d+)` line\b/.exec(valueCell);
+      assert.ok(glass, `${file}: the glass row reads "<fill> fill · / <alpha> line"`);
+      out.push(['glass-fill', `${glass[1]}${glass[2]})`], ['glass-line', `${glass[1]}${glass[3]})`]);
+      continue;
+    }
+    const named = ticked(nameCell);
+    const last = named.length === 2 ? /^-(\d+)$/.exec(named[1]) : null;
+    const first = last ? /^(.+)-(\d+)$/.exec(named[0]) : null;
+    const names = last && first ? Array.from({ length: Number(last[1]) - Number(first[2]) + 1 }, (_, i) => `${first[1]}-${Number(first[2]) + i}`) : named;
+    const values = ticked(valueCell);
+    assert.equal(values.length, names.length, `${file}: ${nameCell} — as many values as names`);
+    names.forEach((name, i) => out.push([name, values[i]]));
+  }
+  return out;
+}
 
 // ── the hero's markup ────────────────────────────────────────────────────────
 
@@ -206,7 +244,7 @@ function srcFiles(dir: string): string[] {
 
 // ── T1 · THE HANDOFF ─────────────────────────────────────────────────────────
 
-test('T1 the five handoff files are in the tree byte for byte — the README, the reference and the two crest files by sha256, the mark by size; the two SVGs hold shapes and gradients only', () => {
+test('T1 the five handoff files are in the tree — the README, the reference and the two crest files byte for byte (sha256), the mark by its presence and exact size; the two SVGs hold shapes and gradients only', () => {
   const HANDOFF: ReadonlyArray<readonly [file: string, bytes: number, sha: string]> = [
     [README, 7470, '87d9b31a906b3c7747cddafdc8f96a9f482722c868023099ba70985e7fe6a613'],
     [REFERENCE, 18959, 'e679f99052bee4a10d4a3b3a8fabd3bd4cac10dd4e5e0589030a8334c3cb08fe'],
@@ -218,7 +256,8 @@ test('T1 the five handoff files are in the tree byte for byte — the README, th
     assert.equal(size(file), bytes, `${file}: its size`);
     assert.equal(digest(file), sha, `${file}: byte for byte as handed over — never redrawn, traced or hand-edited`);
   }
-  // A PNG is not text: the reader decodes utf8, so its bytes cannot be digested here. Its presence and exact size are held.
+  // A PNG is not text: the reader decodes utf8, so its bytes cannot be digested here. Its presence and exact size are held — a
+  // different picture of the same 22,269 bytes would pass this line.
   assert.ok(existsSync(resolve(ROOT, MARK)), `${MARK} is in the tree`);
   assert.equal(size(MARK), 22269, `${MARK}: its size`);
   for (const svg of [CREST_DESKTOP, CREST_MOBILE]) {
@@ -232,9 +271,13 @@ test('T1 the five handoff files are in the tree byte for byte — the README, th
 
 // ── T2 · THE TOKENS ──────────────────────────────────────────────────────────
 
-test('T2 the design\'s colours are tokens, named and valued as the README\'s table: the reference\'s :root, globals.css :root (--ts-<name>) and tailwind.config.ts\'s hero and glass families hold the same nineteen', () => {
+test('T2 the design\'s colours are tokens, named and valued as the README\'s table: the reference\'s :root, globals.css :root (--ts-<name>), tailwind.config.ts\'s hero and glass families and DESIGN.md\'s table hold the same nineteen', () => {
   assert.equal(TOKENS.length, 19);
   assert.equal(new Set(TOKENS.map(([name]) => name)).size, 19, 'nineteen names');
+  // the two tables, read row by row: each name on its own value, in the README's order — not a value found somewhere in the file
+  const pairs = TOKENS.map(([name, value]) => [name, value]);
+  assert.deepEqual(tableTokens(README, '## Tokens'), pairs, 'the README\'s table: these nineteen names, each on this value, in this order');
+  assert.deepEqual(tableTokens('DESIGN.md', '## The guest hero and the top bar'), pairs, 'DESIGN.md\'s table: the same names on the same values');
   // the reference's own :root — the nineteen colours and its two geometry properties, nothing else
   const refRoot = new Map(declarations(referenceCss()).filter((d) => d.startsWith(' | :root | ')).map((d) => {
     const decl = d.split(' | ')[2];
@@ -243,13 +286,9 @@ test('T2 the design\'s colours are tokens, named and valued as the README\'s tab
   assert.deepEqual([...refRoot.keys()].sort(), [...TOKENS.map(([name]) => `--${name}`), '--crest-x', '--crest-w'].sort(), 'the reference declares these nineteen colours and its two geometry properties');
   const root = rootTokens();
   const tailwind = code(TAILWIND);
-  const readme = code(README);
-  const designDoc = code('DESIGN.md');
   for (const [name, value] of TOKENS) {
-    assert.ok(designDoc.includes(`\`${value}\``), `DESIGN.md's table carries ${name}'s value, ${value}`);
     assert.equal(refRoot.get(`--${name}`), value, `the reference: --${name}`);
     assert.equal(root.get(`--ts-${name}`), value, `globals.css :root: --ts-${name} — the reference's value, the house prefix`);
-    assert.ok(readme.includes(README_WRITES[name] ?? `\`${value}\``), `the README's table carries ${name}'s value, ${value}`);
     const [family, ...rest] = name.split('-');
     const key = rest.join('-');
     const mapped = isChannels(value) ? `rgb(var(--ts-${name}) / <alpha-value>)` : `var(--ts-${name})`;
@@ -261,10 +300,16 @@ test('T2 the design\'s colours are tokens, named and valued as the README\'s tab
   // nothing else wears the two prefixes, and no value is typed twice under a second name
   const ours = [...root.keys()].filter((k) => k.startsWith('--ts-hero-') || k.startsWith('--ts-glass-')).sort();
   assert.deepEqual(ours, TOKENS.map(([name]) => `--ts-${name}`).sort(), 'the nineteen, and no twentieth');
+  // each is declared ONCE in the whole file: a second declaration anywhere — another rule, a second :root — would override the first for every visitor
+  const declared = [...code(GLOBALS).matchAll(/(--ts-(?:hero|glass)-[\w-]+)\s*:/g)].map((m) => m[1]).sort();
+  assert.deepEqual(declared, TOKENS.map(([name]) => `--ts-${name}`).sort(), 'declared once each in globals.css, and nowhere a second time');
   for (const family of ['hero', 'glass']) {
     const at = tailwind.indexOf(`        ${family}: {`);
-    const keys = [...tailwind.slice(at, tailwind.indexOf('},', at)).matchAll(/^\s+(?:'([a-z0-9-]+)'|([a-z0-9-]+)): '/gm)].map((m) => `${family}-${m[1] ?? m[2]}`).sort();
+    const block = tailwind.slice(tailwind.indexOf('{', at) + 1, tailwind.indexOf('},', at));
+    // every key, whatever its case or its quotes
+    const keys = [...block.matchAll(/^\s*(?:'([^']+)'|"([^"]+)"|([A-Za-z_$][\w$]*))\s*:/gm)].map((m) => `${family}-${m[1] ?? m[2] ?? m[3]}`).sort();
     assert.deepEqual(keys, TOKENS.map(([name]) => name).filter((n) => n.startsWith(`${family}-`)).sort(), `the ${family} family holds its tokens and nothing else`);
+    assert.doesNotMatch(block, /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(\s*[\d.]/, `no colour is typed in the ${family} family — each entry reads its variable`);
   }
 });
 
@@ -302,12 +347,16 @@ test('T3 the hero\'s and the bar\'s stylesheet in globals.css is the reference\'
   assert.deepEqual(port.slice(0, expected.length), expected, 'the port, line for line');
   assert.deepEqual(port.slice(expected.length), [], 'nothing follows the port in globals.css — a new rule goes above the HERO-CREST-01 block, not after it');
   assert.ok(port.length > 200, `a whole stylesheet was compared (${port.length} declarations)`);
-  // the cascade is the port's alone: no rule above it names one of its classes (a restyle from a few lines up would pass the equality)
+  // nothing above the port names one of its classes — as a class selector or inside a class attribute selector, at any depth: a
+  // restyle from above (inside @layer or @supports too) would pass the equality. The text above is searched, not its parsed rules.
+  // What this cannot hold: an ELEMENT selector above (h1, button, a — Tailwind's base writes such rules) still reaches these elements.
   const whole = code(GLOBALS);
-  const above = declarations(whole.slice(0, whole.indexOf('.ts-hero {')).replace(/@tailwind [a-z]+;/g, ''));
-  const PORT_CLASS = /\.ts-(?:hero|bar|brand|menu|pill-gold|cta-|github-mark)/;
-  assert.deepEqual(above.filter((line) => PORT_CLASS.test(line.split(' | ')[1])), [], 'no rule above the port styles the hero\'s or the bar\'s classes');
-  assert.ok(above.some((line) => line.split(' | ')[1] === '.ts-chipfade'), 'the rules above were read (the chip strip\'s is among them)');
+  const above = whole.slice(0, whole.indexOf('.ts-hero {'));
+  const own = portClasses();
+  assert.ok(own.size >= 25 && ['.ts-hero', '.ts-bar__pill', '.ts-menu', '.ts-pill-gold', '.ts-cta-secondary', '.ts-github-mark'].every((cls) => own.has(cls)), `the port's own classes were read (${own.size})`);
+  assert.deepEqual([...new Set(above.match(/\.ts-[A-Za-z][\w-]*/g) ?? [])].filter((cls) => own.has(cls)), [], 'nothing above the port names one of the hero\'s or the bar\'s classes');
+  assert.doesNotMatch(above, /\[\s*class[^\]]*\bts-/, 'and nothing above reaches them through a class attribute selector');
+  assert.ok(above.includes('.ts-chipfade'), 'the rules above were read (the chip strip\'s is among them)');
   // every selector wears the house prefix; no colour is a hex; the differences left no trace of the reference's own names
   for (const line of port) {
     const [, selector, decl] = line.split(' | ');
@@ -335,6 +384,33 @@ test('T4 the hero, as drawn: the band, the crest\'s one <picture>, the bar laid 
   for (const part of order) assert.equal(count(hero, part), 1, `${part}, once`);
   const at = order.map((part) => hero.indexOf(part));
   assert.deepEqual(at, [...at].sort((a, b) => a - b), 'the crest, then the bar, then the copy');
+  // A CLOSED STRUCTURE: the band is these elements and no others, in this order and nested this way — every opening tag with the
+  // classes it wears, every closing tag. Nothing can be added to the hero, lifted out of it or re-ordered in it unseen (a licence
+  // line under another wording, a third button, the buttons outside the copy).
+  const tags = [...hero.matchAll(/<(\/?)([A-Za-z][\w.]*)/g)];
+  const shape = tags.map((m, i) => {
+    if (m[1]) return `/${m[2]}`;
+    const opening = hero.slice(m.index ?? 0, i + 1 < tags.length ? tags[i + 1].index ?? hero.length : hero.length);
+    const cls = /className="([^"]*)"/.exec(opening);
+    return cls ? `${m[2]}.${cls[1].trim().split(/\s+/).join('.')}` : m[2];
+  });
+  assert.deepEqual(shape, [
+    'div.ts-hero',
+    'picture.ts-hero__crest', 'source', 'img', '/picture',
+    'LandingHeader',
+    'section.ts-hero__inner',
+    'div.ts-hero__copy',
+    'h1.ts-hero__title', 'span', '/span', 'span', '/span', 'span', '/span', '/h1',
+    'p.ts-hero__subline', '/p',
+    'div.ts-hero__cta',
+    'button.ts-pill-gold.ts-cta-primary', '/button',
+    'a.ts-cta-secondary', 'span.ts-github-mark', 'span', '/span', 'svg.ts-cta-arrow', 'path', '/svg', '/a',
+    '/div',
+    '/div',
+    '/section',
+    '/div',
+  ], 'the band\'s elements, in the reference\'s order and nesting — and nothing else in it');
+  assert.doesNotMatch(hero, /className=\{/, 'every class in the band is a plain string — none is computed');
   // the crest: one <picture>, so only one file downloads; decorative
   assert.match(hero, /<picture className="ts-hero__crest">\s*<source media="\(min-width: 1024px\)" srcSet="\/brand\/hero-crest-desktop\.svg" \/>\s*<img src="\/brand\/hero-crest-mobile\.svg" alt="" aria-hidden="true" \/>\s*\{\s*\}\s*<\/picture>/, 'the desktop file from 1024px, the mobile file otherwise; alt="" and aria-hidden');
   for (const file of [CREST_DESKTOP, CREST_MOBILE]) assert.ok(hero.includes(`"${file.replace(/^public/, '')}"`), `the hero draws ${file}`);
@@ -355,13 +431,13 @@ test('T4 the hero, as drawn: the band, the crest\'s one <picture>, the bar laid 
   // gone, by Alex's ruling
   for (const gone of ['✦', 'Source-available', 'BSL', 'LICENSE', '↗']) assert.ok(!hero.includes(gone), `the hero carries no ${gone}`);
   assert.ok(!landing.includes('/blob/main/LICENSE'), 'the licence link left this file — the footer\'s Software License is its door');
-  assert.ok(!landing.includes('onRequireAuth={onRequireAuth} />\n\n      {/*') && !/<LandingHeader[^>]*onRequireAuth/.test(landing), 'the bar is handed no register opener');
+  assert.doesNotMatch(landing, /<LandingHeader[^>]*onRequireAuth/, 'the bar is handed no register opener');
   // drawn by the reference's classes alone: no colour, no house utility, nothing inline
   assert.doesNotMatch(hero, RAW_COLOUR, 'no colour typed in the hero');
   assert.ok(!hero.includes('style='), 'no inline style');
   for (const cls of classesOf(hero)) assert.ok(cls.startsWith('ts-'), `${cls}: the hero wears the reference's classes only`);
-  const port = declarations(portCss()).map((l) => l.split(' | ')[1]).join(' ');
-  for (const cls of new Set(classesOf(hero))) assert.ok(port.includes(`.${cls}`), `.${cls} has a rule in globals.css`);
+  const ruled = portClasses();
+  for (const cls of new Set(classesOf(hero))) assert.ok(ruled.has(`.${cls}`), `.${cls} is named by a rule in globals.css — the class itself, not one that starts like it`);
 });
 
 // ── T5 · THE BAR'S WORDS AND LINKS ───────────────────────────────────────────
@@ -396,9 +472,13 @@ test('T5 the bar: the three pillars, each by its own name and on its own section
   // drawn by the reference's classes alone
   assert.doesNotMatch(header, RAW_COLOUR, 'no colour typed in the bar');
   assert.ok(!header.includes('style='), 'no inline style');
-  for (const cls of [...classesOf(header), ...[...header.matchAll(/'(ts-bar[^']*)'/g)].flatMap((m) => m[1].split(' '))]) assert.ok(cls.startsWith('ts-'), `${cls}: the bar wears the reference's classes only`);
-  const port = declarations(portCss()).map((l) => l.split(' | ')[1]).join(' ');
-  for (const cls of new Set(classesOf(header))) assert.ok(port.includes(`.${cls}`), `.${cls} has a rule in globals.css`);
+  // one class in the bar is computed — the header's own, its two fills — and every other is a plain string
+  assert.equal(count(header, 'className={'), 1, 'one computed class in the bar');
+  assert.equal(count(header, "<header className={glass ? 'ts-bar ts-bar--overlay' : 'ts-bar ts-bar--solid'}>"), 1, 'the header\'s: glass or filled, nothing else chosen');
+  const worn = [...classesOf(header), 'ts-bar', 'ts-bar--overlay', 'ts-bar--solid'];
+  for (const cls of worn) assert.ok(cls.startsWith('ts-'), `${cls}: the bar wears the reference's classes only`);
+  const ruled = portClasses();
+  for (const cls of new Set(worn)) assert.ok(ruled.has(`.${cls}`), `.${cls} is named by a rule in globals.css — the class itself, not one that starts like it`);
 });
 
 // ── T6 · ONE PILL, TWO FILLS; LOG IN'S TWO MODES ─────────────────────────────
@@ -483,9 +563,8 @@ test('T8 six mounts: the landing asks for glass; the other five pass nothing new
   };
   assert.equal(mountOf(LANDING), '<LandingHeader glass onRequireLogin={onRequireLogin} />', 'the landing: glass, and its login opener');
   assert.equal(mountOf(HOME_CLIENT), "<LandingHeader onRequireLogin={() => { setLoginMode('login'); setShowLogin(true); }} />", 'the signed-out cockpit: filled, and its login opener');
+  // the three lines above and this one pin each mount whole: none of the five asks for glass, and none of the six hands the bar a register opener
   for (const file of OTHER_MOUNTS.slice(1)) assert.equal(mountOf(file), '<LandingHeader />', `${file}: filled, Log in a link — nothing passed`);
-  for (const file of OTHER_MOUNTS) assert.doesNotMatch(mountOf(file), /glass/, `${file} does not ask for glass`);
-  for (const file of [LANDING, ...OTHER_MOUNTS]) assert.doesNotMatch(mountOf(file), /onRequireAuth/, `${file} hands the bar no register opener`);
   const mounts = srcFiles(resolve(ROOT, 'src')).filter((f) => f !== HEADER && code(f).includes('<LandingHeader')).sort();
   assert.deepEqual(mounts, [LANDING, ...OTHER_MOUNTS].sort(), 'six files mount the bar');
   // the glass bar is positioned against the band it lies over, so nothing above the landing can come between them
@@ -524,13 +603,16 @@ test('T10 #modules has one home: MODULES_ANCHOR in src/lib/homeAnchors.ts, read 
   assert.ok(words.includes("{ label: 'Financial Software', href: `/#${MODULES_ANCHOR}` },"), 'for its first SERVICES link');
   assert.doesNotMatch(words, /'modules'|PLANS_SECTION_ID/, 'the footer\'s private copy is gone');
   assert.equal(FOOTER_SERVICES_LINKS[0].href, '/#modules', 'and the footer\'s link is what it was');
+  assert.match(code(HEADER), /^import \{ DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR \} from '@\/lib\/homeAnchors';$/m, 'the bar reads it from the same home');
+  assert.ok(code(HEADER).includes('href: `/#${MODULES_ANCHOR}` },'), 'for its first link');
+  assert.equal(BAR_PRODUCT_LINKS[0].href, FOOTER_SERVICES_LINKS[0].href, 'the bar\'s first link and the footer\'s land on the one section');
   const typed = srcFiles(resolve(ROOT, 'src')).filter((f) => /_ANCHOR = 'modules'|_ID = 'modules'/.test(code(f)));
   assert.deepEqual(typed, [ANCHORS], 'no second constant holds it');
 });
 
 // ── T11 · GITHUB'S MARK ──────────────────────────────────────────────────────
 
-test('T11 GitHub\'s mark is a file — public/logos/github.svg, in the folder\'s form — drawn through a mask in the button\'s ink at 20px (17px under 1024px); decorative; its path typed in no component', () => {
+test('T11 GitHub\'s mark is a file — public/logos/github.svg, in the folder\'s form — drawn through a mask in the button\'s ink at 20px (17px under 1024px); decorative; its path typed in no .ts or .tsx file under src', () => {
   assert.ok(existsSync(resolve(ROOT, GITHUB)), `${GITHUB} is in the tree`);
   assert.equal(size(GITHUB), 838);
   assert.equal(digest(GITHUB), 'cb0a639761421ae629b1f40786b301f3b7bac385206948329323a35ef45a9f08', 'the file as fetched — simple-icons 16.37.0, with the folder\'s fill attribute and closing newline; its path data untouched');
@@ -549,6 +631,7 @@ test('T11 GitHub\'s mark is a file — public/logos/github.svg, in the folder\'s
   assert.equal(count(hero, '<span className="ts-github-mark" aria-hidden="true" />'), 1, 'one mark, decorative, on the second button');
   assert.ok(hero.indexOf('ts-github-mark') > hero.indexOf('ts-cta-secondary') && hero.indexOf('ts-github-mark') < hero.indexOf('Clone it on GitHub'), 'before its label');
   for (const f of [LANDING, HEADER]) assert.ok(!code(f).includes('/logos/'), `${f} types no path under /logos/ — the stylesheet names the file`);
+  assert.deepEqual(srcFiles(resolve(ROOT, 'src')).filter((f) => code(f).includes('/logos/github')), [], 'no .ts or .tsx file under src types the mark\'s path');
   assert.doesNotMatch(hero, /<path d="M12 /, 'the mark is not drawn inline');
 });
 

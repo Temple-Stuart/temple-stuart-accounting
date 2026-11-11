@@ -27,7 +27,7 @@
  *   · "CREATE FREE ACCOUNT" — "create free account top right, that can be login… we dont need it twice": the hero
  *     keeps the register ask, and Log in opens the one LoginBox, whose own switch reaches "create account". The
  *     onRequireAuth prop left with its last reader (it fed that button alone).
- * GONE WITH THE DESIGN: the white box with the full-colour crest (public/brand/temple-stuart-crest.png). The bar's
+ * GONE WITH THE DESIGN: the white box with the crest in it (public/brand/temple-stuart-crest.png — one dark-gold ink on a white ground). The bar's
  * mark is the gold crest the handoff ships, public/brand/temple-stuart-crest-gold.png — that file with its white
  * knocked out and its ink gold. This bar was the older file's one reader; it stays in public/brand, read by nothing.
  * Every note below is history: it says how the cream bar stood until this design.
@@ -94,8 +94,8 @@ export const BAR_MARK_SRC = '/brand/temple-stuart-crest-gold.png';
 /**
  * The phone menu's id — what the menu button's aria-controls names. ONE FIXED ID, as the reference types its own
  * ("menu-hero"): a page mounts one top bar, never two. Not React's useId: tried first, and on the landing the server and
- * the browser disagreed about the generated id on about one dev load in four (5 of 21 — React's hydration warning named
- * aria-controls and id), so the pair is typed.
+ * the browser disagreed about the generated id on some dev loads and not others (5, 14 and 11 of 21 in three runs — React's hydration warning named
+ * aria-controls and id; the fixed id gave none in 21), so the pair is typed.
  */
 export const BAR_MENU_ID = 'ts-bar-menu';
 
