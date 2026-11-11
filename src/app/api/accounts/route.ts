@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { heldByAccount } from '@/lib/accountsView';
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,6 +31,16 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // SYNC-01: WHAT THE APP HOLDS for each account — its bank transactions plus its investment transactions, and the
+    // newest date among them. Two grouped reads over the account ids of the caller's own live links read just above:
+    // never one read per account, and never an id that is not the caller's.
+    const accountIds = items.flatMap((item) => item.accounts.map((account) => account.id));
+    const [bankHeld, investmentHeld] = await Promise.all([
+      prisma.transactions.groupBy({ by: ['accountId'], where: { accountId: { in: accountIds } }, _count: { _all: true }, _max: { date: true } }),
+      prisma.investment_transactions.groupBy({ by: ['accountId'], where: { accountId: { in: accountIds } }, _count: { _all: true }, _max: { date: true } }),
+    ]);
+    const heldOf = heldByAccount(accountIds, bankHeld, investmentHeld);
+
     const transformedItems = items.map(item => ({
       id: item.id,
       institutionName: item.institutionName,
@@ -53,6 +64,10 @@ export async function GET(request: NextRequest) {
         // ACCOUNTS-01: the row's last write — a sync, or an entity assignment. NOT a sync
         // timestamp: the product records none per account, and the screen says so.
         updatedAt: account.updatedAt,
+        // SYNC-01: `held` — the rows the app holds for the account (bank + investment transactions); `latest` — the
+        // newest date among them as 'YYYY-MM-DD', or null when it holds none. A day, not an instant: the screen
+        // prints it through the one day formatter, never in the viewer's time zone.
+        ...heldOf(account.id),
       }))
     }));
 

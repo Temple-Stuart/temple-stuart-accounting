@@ -1,25 +1,35 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  bankLine,
   failedLine,
   itemStatus,
   readSyncResponse,
   stageFailed,
   stageOk,
-  successLine,
   sumStageCounts,
-  syncEachItem,
   syncItemsEnvelope,
   syncLines,
   type ItemOutcome,
   type StageOutcome,
-  type StageRunner,
 } from '../plaid/failLoud';
 import { itemFailure } from '../plaid/reconnect';
+import { runBudget, walkItems, type WalkStage } from '../plaid/syncRun';
 
 // HYG-03 — one bank's failure never blocks another: every item runs every stage; the
 // response lists each bank with its per-stage outcome; the banner reads one line per
 // failed bank above one line for what succeeded.
+//
+// SYNC-01 (2026-11-11): ONE WALKER. Until then these tests drove failLoud.ts syncEachItem(items, name, runners);
+// the walk is src/lib/plaid/syncRun.ts walkItems now — the same rule (every item runs every stage; a runner that
+// throws is a declared failure), and it can stop before an ask and resume there (syncRun01.test.ts). They drive it
+// as a fresh request does: no resume point, a clock that never runs out. Each outcome now carries its link's key.
+//
+// SYNC-01 (2026-11-11): ONE LINE PER BANK. Until then the banner closed on ONE line for the whole run — "Wells Fargo,
+// Robinhood synced: 14 landed, 2 corrected, 5 investment transactions" (failLoud.ts successLine, gone) — and a
+// partial bank's good stage read "Partial progress: …". Now every link with an ok stage has its own line, written
+// from what that link's stages state (bankLine); the fixtures below state what a stage of the run states: pulled,
+// plaid_total, added, unheld beside the store's counts.
 
 interface Item { id: string; institutionName: string }
 const TASTY: Item = { id: 'item-tt', institutionName: 'TastyTrade' };
@@ -44,16 +54,23 @@ function rateLimited() {
 /** A fake pair of stage runners: per item, what each stage answers; every call is recorded. */
 function runners(plan: Record<string, { transactions: () => Promise<StageOutcome>; investments: () => Promise<StageOutcome> }>) {
   const calls: string[] = [];
-  const stage = (name: 'transactions' | 'investments'): StageRunner<Item> => [name, async (item) => {
+  const stage = (name: 'transactions' | 'investments'): WalkStage<Item> => [name, async (item) => {
     calls.push(`${item.institutionName}:${name}`);
-    return plan[item.id][name]();
+    return { kind: 'done', outcome: await plan[item.id][name]() };
   }];
   return { calls, runners: [stage('transactions'), stage('investments')] };
 }
 
-const okTx = (landed: number, extra: Partial<Record<'already_landed' | 'corrected' | 'synced' | 'skipped', number>> = {}) => async () =>
-  stageOk('transactions', { synced: landed, skipped: 0, landed, already_landed: 0, corrected: 0, ...extra });
-const okInv = (synced: number, securities = 0) => async () => stageOk('investments', { synced, skipped: 0, securities });
+/** The walk as a fresh request runs it: every item, every stage, the link's row id as its key. */
+const syncEachItem = async (items: Item[], institution: (item: Item) => string, stages: WalkStage<Item>[]): Promise<ItemOutcome[]> =>
+  (await walkItems({ items, key: (item) => item.id, label: institution, idle: () => false, stages, resume: null, budget: runBudget(() => 0) })).items;
+
+/** A transactions stage as the run declares it: `pulled` objects of Plaid's `pulled`, every one new to the app unless said otherwise. */
+const txCounts = (pulled: number, extra: Partial<Record<'already_landed' | 'corrected' | 'synced' | 'skipped' | 'added' | 'unheld', number>> = {}) =>
+  ({ synced: pulled, skipped: 0, landed: pulled, already_landed: 0, corrected: 0, unheld: 0, added: pulled, pulled, plaid_total: pulled, ...extra });
+const invCounts = (pulled: number, securities = 0) => ({ synced: pulled, skipped: 0, securities, unheld: 0, added: pulled, pulled, plaid_total: pulled });
+const okTx = (pulled: number, extra: Parameters<typeof txCounts>[1] = {}) => async () => stageOk('transactions', txCounts(pulled, extra));
+const okInv = (pulled: number, securities = 0) => async () => stageOk('investments', invCounts(pulled, securities));
 const deadItem = (stage: string) => async () => itemFailure(stage, 'TastyTrade', loginRequired());
 
 test('(a) item A fails, item B succeeds → 207; B\'s counts present; A named', async () => {
@@ -76,12 +93,12 @@ test('(a) item A fails, item B succeeds → 207; B\'s counts present; A named', 
   assert.equal(listed[0].institution, 'TastyTrade');
   assert.equal(listed[0].stages[0].ok, false);
   assert.equal(listed[1].institution, 'Wells Fargo');
-  assert.deepEqual(listed[1].stages[0], { stage: 'transactions', ok: true, counts: { synced: 14, skipped: 0, landed: 14, already_landed: 3, corrected: 1 } });
+  assert.deepEqual(listed[1].stages[0], { stage: 'transactions', ok: true, counts: { synced: 14, skipped: 0, landed: 14, already_landed: 3, corrected: 1, unheld: 0, added: 14, pulled: 14, plaid_total: 14 } });
   assert.deepEqual(body.lines, [
     'TastyTrade — needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)',
-    'Wells Fargo synced: 14 landed, 3 already landed, 1 corrected',
-  ], 'one line per failed bank (both dead stages collapse to one) above one for what succeeded');
-  assert.equal(body.message, 'Partial sync — TastyTrade — needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED) · Wells Fargo synced: 14 landed, 3 already landed, 1 corrected');
+    'Wells Fargo — transactions 14 of 14 pulled, 14 new, 1 corrected · investments 0 of 0 pulled, 0 new',
+  ], 'one line per failed bank (both dead stages collapse to one) above the line of the bank that pulled');
+  assert.equal(body.message, 'Partial sync — TastyTrade — needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED) · Wells Fargo — transactions 14 of 14 pulled, 14 new, 1 corrected · investments 0 of 0 pulled, 0 new');
   const wire = JSON.stringify(body);
   assert.ok(!wire.includes('access-production-TOKEN') && !wire.includes('PLAID-SECRET-VALUE'), 'no secret in the body');
 
@@ -126,20 +143,23 @@ test('(b) every item failed → non-2xx with the first failure\'s status', async
   assert.equal(syncItemsEnvelope(thrown).status, 500, 'a local throw is a 500');
 });
 
-test('(c) every item succeeded → 200 with the totals and one success line', async () => {
+test('(c) every item succeeded → 200 with the totals and one line per bank', async () => {
   const { calls, runners: r } = runners({
     'item-wf': { transactions: okTx(9), investments: okInv(0) },
     'item-rh': { transactions: okTx(5), investments: okInv(7, 2) },
   });
   const items = await syncEachItem([ROBIN, WELLS], (i) => i.institutionName, r);
   assert.equal(calls.length, 4);
-  assert.deepEqual(sumStageCounts(items, 'transactions'), { synced: 14, skipped: 0, landed: 14, already_landed: 0, corrected: 0 });
-  assert.deepEqual(sumStageCounts(items, 'investments'), { synced: 7, skipped: 0, securities: 2 });
+  assert.deepEqual(sumStageCounts(items, 'transactions'), txCounts(14));
+  assert.deepEqual(sumStageCounts(items, 'investments'), invCounts(7, 2));
   const { status, body } = syncItemsEnvelope(items, { synced: { transactions: 14, investmentTransactions: 7, securities: 2 } });
   assert.equal(status, 200);
   assert.equal(body.ok, true);
-  assert.deepEqual(body.lines, ['Robinhood, Wells Fargo synced: 14 landed, 7 investment transactions, 2 securities']);
-  assert.equal(body.message, 'Synced — Robinhood, Wells Fargo synced: 14 landed, 7 investment transactions, 2 securities');
+  assert.deepEqual(body.lines, [
+    'Robinhood — transactions 5 of 5 pulled, 5 new · investments 7 of 7 pulled, 7 new',
+    'Wells Fargo — transactions 9 of 9 pulled, 9 new · investments 0 of 0 pulled, 0 new',
+  ], 'each bank says what IT pulled — the counts are no longer summed across banks');
+  assert.equal(body.message, 'Synced — Robinhood — transactions 5 of 5 pulled, 5 new · investments 7 of 7 pulled, 7 new · Wells Fargo — transactions 9 of 9 pulled, 9 new · investments 0 of 0 pulled, 0 new');
   assert.equal(readSyncResponse(200, body).tone, 'ok');
 
   // No linked banks at all is still a 200, and says so.
@@ -173,19 +193,21 @@ test('(d) a page failure inside B stops only B\'s transactions stage — B\'s in
   assert.equal(status, 207);
   assert.deepEqual(body.lines, [
     'Robinhood — transactions page 2: Error: parser: amount is not a number',
-    'TastyTrade, Wells Fargo synced: 11 landed, 5 investment transactions',
-  ], 'the partial item is named for its failed stage; only fully-synced banks are named as synced; counts sum every stage that succeeded');
+    'Robinhood — investments 4 of 4 pulled, 4 new',
+    'TastyTrade — transactions 2 of 2 pulled, 2 new · investments 1 of 1 pulled, 1 new',
+    'Wells Fargo — transactions 9 of 9 pulled, 9 new · investments 0 of 0 pulled, 0 new',
+  ], 'the partial bank is named for its failed stage, and its good stage has its own line under its own name');
 });
 
-test('lines: an item failure is not double-named; a stage failure names its stage; nothing succeeded → no success line', () => {
+test('lines: an item failure is not double-named; a stage failure names its stage; nothing succeeded → no bank line', () => {
   const dead = itemFailure('transactions', 'TastyTrade', loginRequired());
   assert.equal(failedLine('TastyTrade', dead), 'TastyTrade — needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)');
   assert.equal(failedLine('A linked bank', itemFailure('investments', null, loginRequired())), 'A linked bank — needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)');
   assert.equal(failedLine('Wells Fargo', stageFailed('investments', rateLimited())), 'Wells Fargo — investments: Plaid: RATE_LIMIT_EXCEEDED (TRANSACTIONS_LIMIT) — try again in a few minutes');
-  assert.equal(successLine([{ institution: 'TastyTrade', stages: [dead] }]), null);
+  assert.equal(bankLine({ institution: 'TastyTrade', stages: [dead] }), null);
   assert.deepEqual(syncLines([{ institution: 'TastyTrade', stages: [dead, dead] }]), ['TastyTrade — needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)']);
-  // A partial item's successful stage counts, but the bank is not called synced.
-  assert.equal(successLine([{ institution: 'Robinhood', stages: [dead, stageOk('investments', { synced: 3, skipped: 0, securities: 0 })] }]), 'Partial progress: 0 landed, 3 investment transactions');
+  // A partial bank's good stage has its line, under the bank's own name (until SYNC-01: "Partial progress: 0 landed, 3 investment transactions").
+  assert.equal(bankLine({ institution: 'Robinhood', stages: [dead, stageOk('investments', invCounts(3))] }), 'Robinhood — investments 3 of 3 pulled, 3 new');
   // A body without lines (link-token, reconnect-complete) still reads as one line.
   assert.deepEqual(readSyncResponse(409, { ok: false, stage: 'reconnect', message: 'Wells Fargo still needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)' }).lines, ['Wells Fargo still needs to be reconnected (Plaid: ITEM_LOGIN_REQUIRED)']);
   assert.deepEqual(readSyncResponse(500, null).lines, ['Sync failed: HTTP 500']);
@@ -193,10 +215,10 @@ test('lines: an item failure is not double-named; a stage failure names its stag
 
 test('BANK-03: a retired item rides the answer with no stages — reported as retired, never failed; only live items decide the status', () => {
   const retired: ItemOutcome = { institution: 'TastyTrade', stages: [], retired: 'replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' };
-  const live: ItemOutcome = { institution: 'tastytrade', stages: [stageOk('transactions', { synced: 3, skipped: 0, landed: 3, already_landed: 0, corrected: 0 }), stageOk('investments', { synced: 7, skipped: 0, securities: 2 })] };
+  const live: ItemOutcome = { institution: 'tastytrade', stages: [stageOk('transactions', txCounts(3)), stageOk('investments', invCounts(7, 2))] };
   const ok = syncItemsEnvelope([retired, live]);
   assert.equal(ok.status, 200, 'a retired item is not a failure');
-  assert.deepEqual(ok.body.lines, ['TastyTrade — retired (replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)', 'tastytrade synced: 3 landed, 7 investment transactions, 2 securities'], 'named as retired, and never as synced');
+  assert.deepEqual(ok.body.lines, ['TastyTrade — retired (replaced by NEWITEMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)', 'tastytrade — transactions 3 of 3 pulled, 3 new · investments 7 of 7 pulled, 7 new'], 'named as retired, above the line of the link that pulled — and never given a line of its own');
   const dead: ItemOutcome = { institution: 'Wells Fargo', stages: [stageFailed('transactions', new Error('boom')), stageFailed('investments', new Error('boom'))] };
   assert.equal(syncItemsEnvelope([retired, dead]).status, 500, 'every LIVE item failed → non-2xx; the retired item does not soften it');
   assert.equal(syncItemsEnvelope([retired, dead, live]).status, 207);

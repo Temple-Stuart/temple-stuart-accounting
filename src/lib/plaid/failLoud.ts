@@ -17,6 +17,11 @@ export interface StageOk {
   stage: string;
   ok: true;
   counts: Record<string, number>;
+  /**
+   * SYNC-01: 'YYYY-MM-DD' — the newest date the app now holds for this link's accounts in this stage's table
+   * (transactions; investment_transactions), read once when a paged stage completes. Absent when it holds none.
+   */
+  through?: string;
 }
 
 export interface StageFailed {
@@ -60,8 +65,8 @@ export function statusForFailure(error: PlaidErrorSummary): number {
   return 500;
 }
 
-export function stageOk(stage: string, counts: Record<string, number>): StageOk {
-  return { stage, ok: true, counts };
+export function stageOk(stage: string, counts: Record<string, number>, through?: string): StageOk {
+  return through === undefined ? { stage, ok: true, counts } : { stage, ok: true, counts, through };
 }
 
 export function stageFailed(stage: string, err: unknown, page?: number): StageFailed {
@@ -117,10 +122,17 @@ export function failureEnvelope(stage: string, err: unknown, progress: Record<st
 
 /** One bank's outcomes — every stage, declared. BANK-03: a retired item carries no stages and says why. */
 export interface ItemOutcome {
+  /** SYNC-01: the link's ONE name in a run — the bank's name, or the name and the day it was linked when two live links carry the same name. */
   institution: string;
   stages: StageOutcome[];
   /** BANK-03: plaid_items.retired_reason — the item was replaced by a fresh link; skipped, not failed. */
   retired?: string;
+  /** SYNC-01: the link's ONE key in a run — the plaid_items row id (the id /api/accounts and Reconnect already hand the browser). A run cut into requests is joined by it. */
+  key?: string;
+  /** SYNC-01: a live link that holds no accounts in this app — no stages, nothing was asked of Plaid, and it says so. */
+  idle?: string;
+  /** SYNC-01: one note per account Plaid lists under this link that the app holds no row for — its objects are counted, never stored. */
+  notes?: string[];
 }
 
 export type ItemStatus = 'ok' | 'partial' | 'failed';
@@ -133,29 +145,9 @@ export function itemStatus(item: ItemOutcome): ItemStatus {
   return 'partial';
 }
 
-export type StageRunner<I> = readonly [stage: string, run: (item: I) => Promise<StageOutcome>];
-
-/**
- * Run every stage for every item, in the order given, regardless of any other
- * item's outcome. A runner declares its own outcome; a runner that THROWS is
- * itself a declared failure of that stage (never a silent skip, never a halt).
- */
-export async function syncEachItem<I>(items: I[], institution: (item: I) => string, runners: StageRunner<I>[]): Promise<ItemOutcome[]> {
-  const out: ItemOutcome[] = [];
-  for (const item of items) {
-    const name = institution(item);
-    const stages: StageOutcome[] = [];
-    for (const [stage, run] of runners) {
-      try {
-        stages.push(await run(item));
-      } catch (err) {
-        stages.push(stageFailed(stage, err));
-      }
-    }
-    out.push({ institution: name, stages });
-  }
-  return out;
-}
+// SYNC-01: ONE WALKER. The walk over items and stages lived here as syncEachItem until the run was cut into requests;
+// it is src/lib/plaid/syncRun.ts walkItems now — every item still runs every stage regardless of the others, a runner
+// that throws is still a declared failure of that stage, and the walk can stop before an ask and resume there.
 
 /** Counts for one stage summed across every item where that stage succeeded. */
 export function sumStageCounts(items: ItemOutcome[], stage: string): Record<string, number> {
@@ -167,6 +159,33 @@ export function sumStageCounts(items: ItemOutcome[], stage: string): Record<stri
     }
   }
   return sum;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/**
+ * SYNC-01 — THE ONE DAY FORMATTER: 'YYYY-MM-DD' → 'Nov 9, 2026'. Pure text over a month table: no Date object and no
+ * time zone, so a calendar day prints as the same day for every viewer (a Date formatted in the viewer's zone shows
+ * the day before in the Americas). Null for anything that is not a real calendar day — the caller says what it prints
+ * then; nothing is guessed.
+ */
+export function calendarDay(ymd: unknown): string | null {
+  if (typeof ymd !== 'string') return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1) return null;
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const daysIn = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  if (day > daysIn) return null;
+  return `${MONTHS[month - 1]} ${day}, ${year}`;
+}
+
+/** SYNC-01: a count as a person reads it — 4812 → '4,812'. Pure text; no locale. */
+export function thousands(n: number): string {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 /**
@@ -181,26 +200,57 @@ export function failedLine(institution: string, failure: StageFailed): string {
   return `${institution} — ${where}${reason}`;
 }
 
-/** "Wells Fargo, Robinhood synced: 14 landed, 2 corrected, 5 investment transactions, 12 holdings" — null when nothing succeeded. */
-export function successLine(items: ItemOutcome[]): string | null {
-  const okItems = items.filter((i) => i.stages.length > 0 && itemStatus(i) === 'ok').map((i) => i.institution);
-  const tx = sumStageCounts(items, 'transactions');
-  const inv = sumStageCounts(items, 'investments');
-  // REBUILD-01 PR-2d: the holdings stage — rows written this run (a snapshot already stored writes none).
-  const hold = sumStageCounts(items, 'holdings');
-  const anyOk = items.some((i) => i.stages.some((s) => s.ok));
-  if (!anyOk) return null;
-  const parts = [`${tx.landed ?? 0} landed`];
-  if (tx.already_landed) parts.push(`${tx.already_landed} already landed`);
-  if (tx.corrected) parts.push(`${tx.corrected} corrected`);
-  if (inv.synced) parts.push(`${inv.synced} investment transactions`);
-  if (inv.securities) parts.push(`${inv.securities} securities`);
-  if (hold.holdings) parts.push(`${hold.holdings} holdings`);
-  const who = okItems.length ? `${okItems.join(', ')} synced` : 'Partial progress';
-  return `${who}: ${parts.join(', ')}`;
+// ─── SYNC-01: ONE LINE PER BANK, WITH WHAT IT PULLED ──────────────────────────
+//
+// Until SYNC-01 the banner closed on one line for the whole run — "Wells Fargo, Robinhood synced: 14 landed, 2
+// corrected, 5 investment transactions, 12 holdings" (successLine) — which named the banks that had no failure and
+// summed counts across them: it could not say which bank brought what, or whether a bank's history was whole. Now
+// every link with an ok stage has its own line, written from what THAT link's stages state:
+//
+//   Wells Fargo — transactions 3,412 of 3,412 pulled, 41 new, latest Nov 9, 2026
+//   Robinhood — transactions 4,812 of 4,812 pulled, 0 new, latest Aug 30, 2026 · investments 712 of 712 pulled, 3 new, latest Nov 7, 2026 · 14 holdings
+
+/** What the line says of objects counted and not written: the link holds no row for their account. */
+export const NOT_STORED_WORDS = 'not stored (account not held here)';
+
+/**
+ * One ok stage's part of its bank's line. A paged stage says what it pulled of Plaid's total and how many were new to
+ * the app; a piece in brackets below is printed only when its count is above zero (`latest`: when the stage states
+ * the newest date held):
+ *   transactions <pulled> of <plaid_total> pulled, <added> new[, <corrected> corrected][, <unheld> not stored (account not held here)][, latest <Mon D, YYYY>]
+ *   investments  <pulled> of <plaid_total> pulled, <added> new[, <unheld> not stored (account not held here)][, latest <Mon D, YYYY>]
+ *   holdings     <holdings> holdings — only when any were written
+ * Null when the stage states nothing a part can be written from: a figure it does not state is never printed as 0.
+ */
+function stagePart(s: StageOk): string | null {
+  const c = s.counts;
+  if (s.stage === 'holdings') return c.holdings > 0 ? `${thousands(c.holdings)} holdings` : null;
+  if (s.stage !== 'transactions' && s.stage !== 'investments') return null;
+  if (typeof c.pulled !== 'number' || typeof c.plaid_total !== 'number' || typeof c.added !== 'number') return null;
+  const pieces = [`${s.stage} ${thousands(c.pulled)} of ${thousands(c.plaid_total)} pulled`, `${thousands(c.added)} new`];
+  if (s.stage === 'transactions' && c.corrected > 0) pieces.push(`${thousands(c.corrected)} corrected`);
+  if (c.unheld > 0) pieces.push(`${thousands(c.unheld)} ${NOT_STORED_WORDS}`);
+  const latest = s.through === undefined ? null : calendarDay(s.through);
+  if (latest !== null) pieces.push(`latest ${latest}`);
+  return pieces.join(', ');
 }
 
-/** The banner's lines: one per failed bank (duplicates collapsed), one per retired bank, then one for what succeeded. */
+/** One bank's line: `<label> — ` then a part for each ok stage, in the order the stages ran, joined by ` · `. Null when no ok stage states a part. */
+export function bankLine(item: ItemOutcome): string | null {
+  const parts = item.stages.filter((s): s is StageOk => s.ok).map(stagePart).filter((part): part is string => part !== null);
+  return parts.length > 0 ? `${item.institution} — ${parts.join(' · ')}` : null;
+}
+
+/** An account Plaid lists under a link that the app holds no row for — said, with what follows from it. */
+export function noteLine(institution: string, note: string): string {
+  return `${institution} — Plaid lists an account this app does not hold under this link: ${note}. Its transactions are not stored.`;
+}
+
+/**
+ * The banner's lines, in this order: one per failed (link, stage) — duplicates collapsed — then one per account
+ * Plaid lists that the app does not hold, one per idle link, one per retired link, and last one per bank for what
+ * it pulled.
+ */
 export function syncLines(items: ItemOutcome[]): string[] {
   const failed: string[] = [];
   for (const item of items) {
@@ -210,9 +260,39 @@ export function syncLines(items: ItemOutcome[]): string[] {
       if (!failed.includes(l)) failed.push(l);
     }
   }
+  const notes = items.flatMap((i) => (i.notes === undefined ? [] : i.notes.map((note) => noteLine(i.institution, note))));
+  const idle = items.filter((i) => i.idle !== undefined).map((i) => `${i.institution} — ${i.idle}`);
   const retired = items.filter((i) => i.retired !== undefined).map((i) => `${i.institution} — retired (${i.retired})`);
-  const ok = successLine(items);
-  return ok === null ? [...failed, ...retired] : [...failed, ...retired, ok];
+  const banks = items.map(bankLine).filter((l): l is string => l !== null);
+  return [...failed, ...notes, ...idle, ...retired, ...banks];
+}
+
+/**
+ * SYNC-01 — JOINING A RUN'S ANSWERS. A run cut into requests answers in parts: each answer lists the outcomes that
+ * finished in that request. Joined by `key` (the plaid_items row id): a link's stages in the order they arrived, its
+ * notes united, idle and retired kept. An outcome with no key is its own entry. The parts are not changed.
+ */
+export function joinItemOutcomes(parts: ItemOutcome[]): ItemOutcome[] {
+  const joined: ItemOutcome[] = [];
+  const at = new Map<string, number>();
+  for (const part of parts) {
+    const index = part.key === undefined ? undefined : at.get(part.key);
+    if (index === undefined) {
+      if (part.key !== undefined) at.set(part.key, joined.length);
+      joined.push(part.notes === undefined ? { ...part, stages: [...part.stages] } : { ...part, stages: [...part.stages], notes: [...part.notes] });
+      continue;
+    }
+    const link = joined[index];
+    link.stages.push(...part.stages);
+    if (part.notes !== undefined) {
+      const notes = link.notes === undefined ? [] : link.notes;
+      for (const note of part.notes) if (!notes.includes(note)) notes.push(note);
+      link.notes = notes;
+    }
+    if (link.idle === undefined && part.idle !== undefined) link.idle = part.idle;
+    if (link.retired === undefined && part.retired !== undefined) link.retired = part.retired;
+  }
+  return joined;
 }
 
 /**
@@ -252,7 +332,7 @@ export interface SyncOutcome {
   tone: SyncTone;
   /** The one-line form (the lines joined) — every existing reader prints this. */
   text: string;
-  /** HYG-03: the banner's lines — one per failed bank above one for what succeeded; [text] when the body sent none. */
+  /** HYG-03 · SYNC-01: the banner's lines — one per failed bank, then the notes, the idle and the retired links, then one per bank for what it pulled; [text] when the body sent none. */
   lines: string[];
 }
 

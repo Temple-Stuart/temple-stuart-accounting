@@ -4,10 +4,13 @@ import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { decryptToken } from '@/lib/secrets/tokenCipher';
-import { failureEnvelope, stageFailed, stageOk, sumStageCounts, syncEachItem, syncItemsEnvelope, type StageFailed, type StageOutcome } from '@/lib/plaid/failLoud';
+import { failureEnvelope, stageFailed, stageOk, sumStageCounts, syncItemsEnvelope, type StageFailed, type StageOutcome } from '@/lib/plaid/failLoud';
+// SYNC-01: the run — the paging loop, the walk over items and stages with its resume point, the request's budget and
+// the 202 — is written once, pure, in src/lib/plaid/syncRun.ts. This route binds Prisma and Plaid into its ports.
+import { SYNC_PAGE_SIZE, askOnce, linkLabels, moreEnvelope, pagedStage, readResume, runBudget, unheldNotes, walkItems, type PageAnswer, type PagedPorts } from '@/lib/plaid/syncRun';
 import { summarizePlaidError } from '@/lib/plaid/summarizeError';
 import { bankName, clearItemError, isItemError, itemFailure, recordItemError } from '@/lib/plaid/reconnect';
-import { wireOf } from '@/lib/plaid/wire';
+import { wireOf, type WireStamp } from '@/lib/plaid/wire';
 import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { recordFailedAnswer, runTransactionsPage } from '@/lib/arrivals/plaidTransactionsPage';
 // PERF-01: the domain writes of a page land in one statement per kind, not one per row.
@@ -24,7 +27,7 @@ import type { Prisma } from '@prisma/client';
 
 export const maxDuration = 300; // 5 minutes for Pro plan
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const userEmail = await getVerifiedEmail();
 
@@ -52,39 +55,51 @@ export async function POST() {
     });
     const retiredItems = await prisma.plaid_items.findMany({
       where: { userId: user.id, retired_at: { not: null } },
-      select: { institutionName: true, retired_reason: true, retired_at: true },
+      select: { id: true, institutionName: true, retired_reason: true, retired_at: true },
       orderBy: [{ institutionName: 'asc' }, { id: 'asc' }],
     });
     type PlaidItem = (typeof plaidItems)[number];
+
+    // SYNC-01: THE RUN CONTINUES ACROSS REQUESTS. A request with no body is a fresh run. A request whose body is
+    // { resume: <the `more` of the last answer> } continues exactly there. The point is read here — AFTER the three
+    // gates — and checked whole against the caller's own live links from the read above: a foreign or unknown link is
+    // the defensive 404 (it confirms nothing), anything else malformed a 400. Nothing is asked twice: one run, cut
+    // into requests — never a retry.
+    const resumeRead = readResume(await request.text(), plaidItems.map((link) => link.id));
+    if (!resumeRead.ok) return NextResponse.json(resumeRead.body, { status: resumeRead.status });
+    const resume = resumeRead.resume;
+    // The request's clock: after SYNC_BUDGET_MS the run stops BEFORE the next Plaid ask and answers 202.
+    const budget = runBudget(() => Date.now());
+    // SYNC-01: every link has ONE name in the run — the bank's, or the bank's and the day it was linked when two
+    // live links carry the same name. It is the outcome's institution, the name in a failure and in the progress line.
+    const labelOf = linkLabels(plaidItems.map((link) => ({ id: link.id, name: bankName(link.institutionName), linked: link.createdAt.toISOString().slice(0, 10) })));
 
     // BANK-01: a Plaid ITEM_ERROR (ITEM_LOGIN_REQUIRED and its kin) is the ITEM's state, not
     // a one-off fault — record its code on the item (user-scoped) and name the INSTITUTION in
     // the declared failure; never the Plaid item id, never a token. Any other error is
     // declared as before.
-    const declareStageFailure = async (stage: string, error: unknown, item: { id: string; institutionName: string | null }): Promise<StageFailed> => {
+    const declareStageFailure = async (stage: string, error: unknown, item: { id: string }): Promise<StageFailed> => {
       const summary = summarizePlaidError(error);
       if (isItemError(summary)) {
         await recordItemError(prisma, { itemRowId: item.id, userId: user.id, code: summary.error_code ?? 'ITEM_ERROR', at: new Date() });
-        return itemFailure(stage, item.institutionName, error);
+        return itemFailure(stage, labelOf(item.id), error);
       }
       return stageFailed(stage, error);
     };
 
-    // HYG-03: ONE BANK'S FAILURE NEVER BLOCKS ANOTHER. Each item runs both stages and
+    // HYG-03: ONE BANK'S FAILURE NEVER BLOCKS ANOTHER. Each item runs every stage and
     // declares its own outcome per stage (ok with counts | failed with the named bank and
     // the summarized Plaid error). Nothing about item A decides whether item B runs.
     // Inside one item a page failure still ends that item's stage and rolls that page
     // back (PR-2, unchanged).
 
-    const syncTransactions = async (item: PlaidItem): Promise<StageOutcome> => {
-      let synced = 0;
-      let skipped = 0;
-      let landed = 0;
-      let alreadyLanded = 0;
-      let corrected = 0;
-      try {
-        // Batch lookup: fetch all existing transactions for this item's accounts
-        const accountIds = item.accounts.map(acc => acc.id);
+    // ── transactions: the ports of the paged loop (src/lib/plaid/syncRun.ts pagedStage) ──
+    type TransactionsAnswer = PageAnswer & { response: Awaited<ReturnType<typeof plaidClient.transactionsGet>>; wire: WireStamp };
+    const syncTransactions = (item: PlaidItem): PagedPorts<TransactionsAnswer> => {
+      const label = labelOf(item.id);
+      const accountIds = item.accounts.map(acc => acc.id);
+      // Batch lookup: fetch all existing transactions for this item's accounts — once per request, before its first ask.
+      const loadExisting = async () => {
         const existingTxns = await prisma.transactions.findMany({
           where: { accountId: { in: accountIds } },
           select: {
@@ -95,17 +110,16 @@ export async function POST() {
             date: true
           }
         });
-        const existingMap = new Map(
+        return new Map(
           existingTxns.map(t => [t.transactionId, t])
         );
-
-        let hasMore = true;
-        let offset = 0;
-        let page = 0;
-        let pageFailure: StageFailed | null = null;
-
-        while (hasMore) {
-          page += 1;
+      };
+      let lookup: ReturnType<typeof loadExisting> | null = null;
+      const existingMap = () => (lookup ??= loadExisting());
+      return {
+        stage: 'transactions',
+        ask: async (offset, page) => {
+          await existingMap();
           let response;
           try {
             response = await plaidClient.transactionsGet({
@@ -114,7 +128,8 @@ export async function POST() {
               end_date: new Date().toISOString().split('T')[0],
               options: {
                 offset: offset,
-                count: 100,
+                // SYNC-01: Plaid's largest page (its documented maximum; the default is 100).
+                count: SYNC_PAGE_SIZE,
                 include_personal_finance_category: true
               }
             });
@@ -127,9 +142,11 @@ export async function POST() {
           // REBUILD-01 PR-2: the exact wire bytes ride the response (src/lib/plaid/wire.ts);
           // their absence is a fault, never a silent skip.
           const wire = wireOf(response, `transactionsGet page ${page}`);
-
-          // Update balances (first iteration only)
-          if (offset === 0 && response.data.accounts) {
+          return { objects: response.data.transactions.length, total: response.data.total_transactions, response, wire };
+        },
+        first: async ({ response }) => {
+          // Update balances (the answer at offset 0 only) — of the account rows this link already holds.
+          if (response.data.accounts) {
             for (const plaidAccount of response.data.accounts) {
               const dbAccount = item.accounts.find(acc => acc.accountId === plaidAccount.account_id);
               if (dbAccount) {
@@ -143,7 +160,8 @@ export async function POST() {
               }
             }
           }
-
+        },
+        land: async ({ response, wire }, page) => {
           // REBUILD-01 PR-2: raw-first, in ONE database transaction per page —
           // provider_responses (the wire) → arrivals (one per object, promise 2 on
           // (provider, their_id)) → the existing parser, reading the ARRIVAL payloads →
@@ -164,7 +182,7 @@ export async function POST() {
               userId: user.id,
               connection: item.itemId,
               accounts: item.accounts.map((acc) => ({ id: acc.id, accountId: acc.accountId })),
-              existing: existingMap,
+              existing: await existingMap(),
               wire,
               httpStatus: response.status,
               transactions: response.data.transactions,
@@ -173,63 +191,55 @@ export async function POST() {
           const pageMs = Date.now() - pageStarted;
           const pageStats = batch ? (batch as ReturnType<typeof prismaDomain>).stats() : { intents: 0, statements: 0 };
           if (!result.ok) {
-            pageFailure = result.failure;
-            console.error(`Transactions stage failed for ${bankName(item.institutionName)} on page ${page} after ${pageMs}ms:`, result.failure.error);
-            break;
+            console.error(`Transactions stage failed for ${label} on page ${page} after ${pageMs}ms:`, result.failure.error);
+            return { ok: false, failure: result.failure };
           }
-          console.log(`[sync] ${bankName(item.institutionName)} transactions page ${page}: ${response.data.transactions.length} objects, ${JSON.stringify(result.counts)}, ${pageStats.intents} domain intents → ${pageStats.statements} statements, ${pageMs}ms`);
-          synced += result.counts.synced;
-          skipped += result.counts.skipped;
-          landed += result.counts.landed;
-          alreadyLanded += result.counts.already_landed;
-          corrected += result.counts.corrected;
-
-          offset += response.data.transactions.length;
-          hasMore = response.data.total_transactions > offset;
-
-          if (!hasMore) {
-            console.log(`Synced ${response.data.total_transactions} transactions for ${item.institutionName} (${skipped} skipped — already complete)`);
+          console.log(`[sync] ${label} transactions page ${page}: ${response.data.transactions.length} objects, ${JSON.stringify(result.counts)}, ${pageStats.intents} domain intents → ${pageStats.statements} statements, ${pageMs}ms`);
+          return { ok: true, counts: { ...result.counts } };
+        },
+        answered: async () => {
+          // BANK-01: the item answered — a recorded ITEM_ERROR is over (a page failure is
+          // local to us, not the item's state).
+          if (item.last_error_code !== null) {
+            await clearItemError(prisma, { itemRowId: item.id, userId: user.id });
           }
-        }
-        // BANK-01: the item answered — a recorded ITEM_ERROR is over (a page failure is
-        // local to us, not the item's state).
-        if (item.last_error_code !== null) {
-          await clearItemError(prisma, { itemRowId: item.id, userId: user.id });
-        }
-        if (pageFailure) return pageFailure;
-        return stageOk('transactions', { synced, skipped, landed, already_landed: alreadyLanded, corrected });
-      } catch (error) {
-        const failure = await declareStageFailure('transactions', error, item);
-        console.error(`Transactions stage failed for ${bankName(item.institutionName)}:`, failure.error);
-        return failure;
-      }
+        },
+        // SYNC-01: the newest date the app now holds for this link's accounts — read once, when the stage completes.
+        through: async () => {
+          const newest = await prisma.transactions.aggregate({ where: { accountId: { in: accountIds } }, _max: { date: true } });
+          return newest._max.date === null ? null : newest._max.date.toISOString().slice(0, 10);
+        },
+        // SYNC-01: an account Plaid lists under this link that the app holds no row for is NAMED — no row is created here.
+        notes: ({ response }) => unheldNotes(response.data.accounts, item.accounts.map((acc) => acc.accountId)),
+        declare: async (error) => {
+          const failure = await declareStageFailure('transactions', error, item);
+          console.error(`Transactions stage failed for ${label}:`, failure.error);
+          return failure;
+        },
+      };
     };
 
-    const syncInvestments = async (item: PlaidItem): Promise<StageOutcome> => {
-      let synced = 0;
-      let skipped = 0;
-      let securities = 0;
-      let landed = 0;
-      let alreadyLanded = 0;
-      let corrected = 0;
-      try {
-        // Batch lookup: fetch all existing investment transaction IDs for this item's accounts
-        const accountIds = item.accounts.map(acc => acc.id);
+    // ── investments: the same loop, its own ports ──
+    type InvestmentsAnswer = PageAnswer & { response: Awaited<ReturnType<typeof plaidClient.investmentsTransactionsGet>>; wire: WireStamp };
+    const syncInvestments = (item: PlaidItem): PagedPorts<InvestmentsAnswer> => {
+      const label = labelOf(item.id);
+      const accountIds = item.accounts.map(acc => acc.id);
+      // Batch lookup: fetch all existing investment transaction IDs for this item's accounts — once per request, before its first ask.
+      const loadExisting = async () => {
         const existingInvTxns = await prisma.investment_transactions.findMany({
           where: { accountId: { in: accountIds } },
           select: { investment_transaction_id: true }
         });
-        const existingInvSet = new Set(
+        return new Set(
           existingInvTxns.map(t => t.investment_transaction_id)
         );
-
-        let offset = 0;
-        let hasMore = true;
-        let page = 0;
-        let pageFailure: StageFailed | null = null;
-
-        while (hasMore) {
-          page += 1;
+      };
+      let lookup: ReturnType<typeof loadExisting> | null = null;
+      const existingInvSet = () => (lookup ??= loadExisting());
+      return {
+        stage: 'investments',
+        ask: async (offset, page) => {
+          await existingInvSet();
           let investResponse;
           try {
             investResponse = await plaidClient.investmentsTransactionsGet({
@@ -238,7 +248,8 @@ export async function POST() {
               end_date: new Date().toISOString().split('T')[0],
               options: {
                 offset: offset,
-                count: 100
+                // SYNC-01: Plaid's largest page (its documented maximum; the default is 100).
+                count: SYNC_PAGE_SIZE
               }
             });
           } catch (askError) {
@@ -248,7 +259,9 @@ export async function POST() {
             throw askError;
           }
           const wire = wireOf(investResponse, `investmentsTransactionsGet page ${page}`);
-
+          return { objects: investResponse.data.investment_transactions.length, total: investResponse.data.total_investment_transactions, response: investResponse, wire };
+        },
+        land: async ({ response: investResponse, wire }, page) => {
           // REBUILD-01 PR-2c: raw-first, in ONE database transaction per page —
           // provider_responses (the wire) → arrivals (one per security, one per
           // investment transaction; promise 2 on (provider, their_id, fingerprint)) →
@@ -270,7 +283,7 @@ export async function POST() {
               userId: user.id,
               connection: item.itemId,
               accounts: item.accounts.map((acc) => ({ id: acc.id, accountId: acc.accountId })),
-              existing: existingInvSet,
+              existing: await existingInvSet(),
               wire,
               httpStatus: investResponse.status,
               securities: investResponse.data.securities,
@@ -280,28 +293,23 @@ export async function POST() {
           const pageMs = Date.now() - pageStarted;
           const pageStats = batch ? (batch as ReturnType<typeof prismaInvestmentsDomain>).stats() : { intents: 0, statements: 0 };
           if (!result.ok) {
-            pageFailure = result.failure;
-            console.error(`Investments stage failed for ${bankName(item.institutionName)} on page ${page} after ${pageMs}ms:`, result.failure.error);
-            break;
+            console.error(`Investments stage failed for ${label} on page ${page} after ${pageMs}ms:`, result.failure.error);
+            return { ok: false, failure: result.failure };
           }
-          console.log(`[sync] ${bankName(item.institutionName)} investments page ${page}: ${investResponse.data.securities.length} securities + ${investResponse.data.investment_transactions.length} investment transactions, ${JSON.stringify(result.counts)}, ${pageStats.intents} domain intents → ${pageStats.statements} statements, ${pageMs}ms`);
-          synced += result.counts.synced;
-          skipped += result.counts.skipped;
-          securities += result.counts.securities;
-          landed += result.counts.landed;
-          alreadyLanded += result.counts.already_landed;
-          corrected += result.counts.corrected;
-
-          offset += investResponse.data.investment_transactions.length;
-          hasMore = investResponse.data.total_investment_transactions > offset;
-        }
-        if (pageFailure) return pageFailure;
-        return stageOk('investments', { synced, skipped, securities, landed, already_landed: alreadyLanded, corrected });
-      } catch (error) {
-        const failure = await declareStageFailure('investments', error, item);
-        console.error(`Investments stage failed for ${bankName(item.institutionName)}:`, failure.error);
-        return failure;
-      }
+          console.log(`[sync] ${label} investments page ${page}: ${investResponse.data.securities.length} securities + ${investResponse.data.investment_transactions.length} investment transactions, ${JSON.stringify(result.counts)}, ${pageStats.intents} domain intents → ${pageStats.statements} statements, ${pageMs}ms`);
+          return { ok: true, counts: { ...result.counts } };
+        },
+        // SYNC-01: the newest date the app now holds for this link's accounts — read once, when the stage completes.
+        through: async () => {
+          const newest = await prisma.investment_transactions.aggregate({ where: { accountId: { in: accountIds } }, _max: { date: true } });
+          return newest._max.date === null ? null : newest._max.date.toISOString().slice(0, 10);
+        },
+        declare: async (error) => {
+          const failure = await declareStageFailure('investments', error, item);
+          console.error(`Investments stage failed for ${label}:`, failure.error);
+          return failure;
+        },
+      };
     };
 
     // REBUILD-01 PR-2d: the holdings stage — one /investments/holdings/get per item per
@@ -316,6 +324,7 @@ export async function POST() {
     // status = done. The batching binding replays the writes as one statement per
     // kind. /api/investments reads what this stores — Plaid is asked once.
     const syncHoldings = async (item: PlaidItem): Promise<StageOutcome> => {
+      const label = labelOf(item.id);
       try {
         let holdingsResponse;
         try {
@@ -351,29 +360,47 @@ export async function POST() {
         const ms = Date.now() - started;
         const stats = batch ? (batch as ReturnType<typeof prismaHoldingsDomain>).stats() : { intents: 0, statements: 0 };
         if (!result.ok) {
-          console.error(`Holdings stage failed for ${bankName(item.institutionName)} after ${ms}ms:`, result.failure.error);
+          console.error(`Holdings stage failed for ${label} after ${ms}ms:`, result.failure.error);
           return result.failure;
         }
-        console.log(`[sync] ${bankName(item.institutionName)} holdings as of ${result.asOf}: ${holdingsResponse.data.holdings.length} holdings + ${holdingsResponse.data.securities.length} securities, ${JSON.stringify(result.counts)}, ${stats.intents} domain intents → ${stats.statements} statements, ${ms}ms`);
+        console.log(`[sync] ${label} holdings as of ${result.asOf}: ${holdingsResponse.data.holdings.length} holdings + ${holdingsResponse.data.securities.length} securities, ${JSON.stringify(result.counts)}, ${stats.intents} domain intents → ${stats.statements} statements, ${ms}ms`);
         return stageOk('holdings', { ...result.counts });
       } catch (error) {
         const failure = await declareStageFailure('holdings', error, item);
-        console.error(`Holdings stage failed for ${bankName(item.institutionName)}:`, failure.error);
+        console.error(`Holdings stage failed for ${label}:`, failure.error);
         return failure;
       }
     };
 
-    const items = await syncEachItem(
-      plaidItems,
-      (item) => { console.log(`Syncing ${item.institutionName || 'Bank'}...`); return bankName(item.institutionName); },
-      [
-        ['transactions', syncTransactions],
-        ['investments', syncInvestments],
-        ['holdings', syncHoldings],
+    // SYNC-01: THE ONE WALKER (src/lib/plaid/syncRun.ts walkItems) — every live link, every stage, in the order read
+    // above; from the resume point when there is one, and never an earlier link or stage.
+    const walked = await walkItems<PlaidItem>({
+      items: plaidItems,
+      key: (item) => item.id,
+      label: (item) => labelOf(item.id),
+      // A link that holds no accounts in this app has no row its objects could be written to: it is not asked.
+      idle: (item) => item.accounts.length === 0,
+      stages: [
+        ['transactions', (item, from, clock) => pagedStage(syncTransactions(item), from, clock)],
+        ['investments', (item, from, clock) => pagedStage(syncInvestments(item), from, clock)],
+        ['holdings', (item, _from, clock) => askOnce(clock, () => syncHoldings(item))],
       ],
-    );
+      resume,
+      budget,
+    });
+    // One log line per request: where it started, where it stopped, asks made, ms.
+    console.log(`[sync] request: ${resume === null ? 'a fresh run' : `resumed at ${labelOf(resume.item)} ${resume.stage} ${resume.offset}`} → ${walked.more === null ? 'finished' : `stopped before ${labelOf(walked.more.item)} ${walked.more.stage} ${walked.more.offset}`}; ${budget.asks()} asks; ${budget.elapsedMs()}ms`);
+
+    // SYNC-01: the budget is spent and the run is not done — 202 with the point to continue from. The retired links
+    // ride the final answer only.
+    if (walked.more !== null) {
+      const { status, body } = moreEnvelope(walked.more, walked.items, walked.progress);
+      return NextResponse.json(body, { status });
+    }
+
+    const items = walked.items;
     // BANK-03: retired items ride the answer with no stages — the banner says "retired", never "failed".
-    for (const r of retiredItems) items.push({ institution: bankName(r.institutionName), stages: [], retired: r.retired_reason ?? `retired ${r.retired_at?.toISOString() ?? ''}`.trim() });
+    for (const r of retiredItems) items.push({ institution: bankName(r.institutionName), key: r.id, stages: [], retired: r.retired_reason ?? `retired ${r.retired_at?.toISOString() ?? ''}`.trim() });
 
     // The run's totals — summed over the stages that succeeded (a failed stage has no counts).
     const tx = sumStageCounts(items, 'transactions');

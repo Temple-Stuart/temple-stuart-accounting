@@ -79,12 +79,16 @@ export interface PageCounts {
   corrected: number;
   synced: number;
   skipped: number;
+  /** SYNC-01: objects for an account this link holds no row for — landed as arrivals, counted here, never written to the domain. */
+  unheld: number;
+  /** SYNC-01: objects written as a NEW row of the app — written, not as a correction, while `existing` held no row for the id. Not `landed`: a row the app already had can land in the store for the first time. */
+  added: number;
 }
 
 /** The existing domain write, from an arrival's payload. A correction never takes the complete-data skip: latest-arrived wins. */
 async function parseTransaction(domain: DomainDb, ctx: TransactionsPageInput, arrivalId: string, txn: Transaction, counts: PageCounts, now: Date, correction: boolean): Promise<void> {
   const account = ctx.accounts.find((acc) => acc.accountId === txn.account_id);
-  if (!account) return;
+  if (!account) { counts.unheld++; return; }
 
   const existing = ctx.existing.get(txn.transaction_id);
   if (!correction && existing && existing.personal_finance_category !== null) {
@@ -134,6 +138,7 @@ async function parseTransaction(domain: DomainDb, ctx: TransactionsPageInput, ar
     update: txnData,
   });
   counts.synced++;
+  if (!correction && !existing) counts.added++;
 
   // If this is a posted transaction, delete any matching pending duplicates
   if (!txn.pending) {
@@ -157,7 +162,7 @@ async function parseTransaction(domain: DomainDb, ctx: TransactionsPageInput, ar
 /** Inside the caller's transaction: land, parse from the table, mark read. Throws to roll the page back. */
 export async function landTransactionsPage(landing: LandingDb, domain: DomainDb, input: TransactionsPageInput): Promise<PageCounts> {
   const now = input.now ?? (() => new Date());
-  const counts: PageCounts = { landed: 0, already_landed: 0, corrected: 0, synced: 0, skipped: 0 };
+  const counts: PageCounts = { landed: 0, already_landed: 0, corrected: 0, synced: 0, skipped: 0, unheld: 0, added: 0 };
 
   const response = await landResponse(landing, {
     provider: PLAID,

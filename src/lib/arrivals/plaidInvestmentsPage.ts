@@ -90,6 +90,10 @@ export interface InvestmentsPageCounts {
   skipped: number;
   /** Security objects in the answer — the sync's `securities` count (every object, every page). */
   securities: number;
+  /** SYNC-01: investment transactions for an account this link holds no row for — landed as arrivals, counted here, never written to the domain. */
+  unheld: number;
+  /** SYNC-01: investment transactions written as a NEW row of the app (the create branch). Not `landed`: a row the app already had can land in the store for the first time. */
+  added: number;
 }
 
 const dateOrNull = (v: string | null | undefined): Date | null => (v ? new Date(v) : null);
@@ -154,7 +158,7 @@ export function investmentWrite(t: InvestmentTransaction, accountRowId: string, 
 /** Inside the caller's transaction: land, parse from the table, mark read. Throws to roll the page back. */
 export async function landInvestmentsPage(landing: LandingDb, domain: InvestmentsDomainDb, input: InvestmentsPageInput): Promise<InvestmentsPageCounts> {
   const now = input.now ?? (() => new Date());
-  const counts: InvestmentsPageCounts = { landed: 0, already_landed: 0, corrected: 0, synced: 0, skipped: 0, securities: input.securities.length };
+  const counts: InvestmentsPageCounts = { landed: 0, already_landed: 0, corrected: 0, synced: 0, skipped: 0, securities: input.securities.length, unheld: 0, added: 0 };
 
   const response = await landResponse(landing, {
     provider: PLAID,
@@ -196,7 +200,7 @@ export async function landInvestmentsPage(landing: LandingDb, domain: Investment
     newRowIds.push(row.id);
     const t = row.payload as InvestmentTransaction;
     const account = input.accounts.find((acc) => acc.accountId === t.account_id);
-    if (!account) continue;
+    if (!account) { counts.unheld++; continue; }
     const w = investmentWrite(t, account.id, row.id, at);
     if (row.outcome === 'corrected') {
       // A correction is applied: latest-arrived wins, arrival_id moves to the newest row.
@@ -214,6 +218,7 @@ export async function landInvestmentsPage(landing: LandingDb, domain: Investment
     } else {
       await domain.investment_transactions.create({ data: { id: w.id, investment_transaction_id: w.investment_transaction_id, accountId: w.accountId, ...w.data } });
       counts.synced++;
+      counts.added++;
     }
   }
 

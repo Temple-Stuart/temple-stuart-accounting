@@ -23,6 +23,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { readSyncOutcome, syncLine, type SyncOutcome } from '@/lib/plaid/failLoud';
+import { syncThroughOneWriter } from '@/lib/plaid/oneWriter';
 import { LINK_CANCELLED, RECONNECT_CANCELLED, linkExitOutcome, notLoggedSuffix, postLinkExit, type LinkExitError, type LinkExitMetadata } from '@/lib/plaid/linkExit';
 import { forgetLinkFlow, keepLinkFlow, takeReturnOutcome } from '@/lib/plaid/oauth';
 
@@ -93,14 +94,15 @@ export function useBankConnection({ onChanged, enabled = true }: {
       .catch(() => { /* no token → linkAccount guards on it, fail-loud (the button no-ops until ready) */ });
   }, [enabled]);
 
-  // POST the auth-gated /api/transactions/sync-complete, then re-read. No auth weakened.
+  // POST the auth-gated /api/transactions/sync-complete through the ONE writer, then re-read. No auth weakened.
+  // SYNC-01: the writer follows the run to its end — the route answers 202 while a run is still going, and the line
+  // under the button moves ("Still pulling — Robinhood: transactions 1,500 of 4,812") until the last bank is done.
   const syncAccounts = useCallback(async () => {
     setSyncing(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/transactions/sync-complete', { method: 'POST' });
-      // HYG-01: read the declared outcome — a failed or partial sync is shown, never swallowed.
-      setMessage(await readSyncOutcome(res));
+      // HYG-01: the declared outcome — a failed or partial sync is shown, never swallowed; so is a connection that drops.
+      setMessage(await syncThroughOneWriter(fetch, setMessage));
       await onChanged();
     } finally {
       setSyncing(false);
