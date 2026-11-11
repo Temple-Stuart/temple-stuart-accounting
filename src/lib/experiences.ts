@@ -80,22 +80,22 @@ export type ExperienceCategoryId =
   // SEASONS-01 (Alex, 2026-11-08): seven season categories appended after food_drink, in K's order.
   | 'snow_resorts' | 'wildlife' | 'wonders' | 'surf_seasons' | 'dive_seasons' | 'northern_lights' | 'cherry_blossoms';
 
-/** SEASONS-01 (2026-11-08): 'event' — an edition on its organizer's calendar; 'season' — a place's season. The chips split into two rows by it. */
+/** SEASONS-01 (2026-11-08): 'event' — an edition on its organizer's calendar; 'season' — a place's season. EVENTS-05 (2026-11-11): the one dropdown lists both, events first (the chips split into two rows by it until then). The group is still read in two places: the section gives a season category its own label over its rows, its own closing line and no "Nothing announced yet" line, and this file's law holds season rows to season categories and season categories to season rows. */
 export type ExperienceGroup = 'event' | 'season';
 
 export interface ExperienceCategory {
   id: ExperienceCategoryId;
-  /** The chip and the heading. */
+  /** The option's words in the I'M INTO dropdown; the category's name in the section's "Nothing announced yet" line and in a trip post's event eyebrow (EVENTS-05, 2026-11-11 — "The chip and the heading." until then). */
   label: string;
-  /** SEASONS-01 (2026-11-08): the I'M INTO row shows the events, the SEASONS row the seasons. */
+  /** SEASONS-01 (2026-11-08): which kind the category is. EVENTS-05 (2026-11-11): the one dropdown lists every category whatever its group (until then the I'M INTO row showed the events, the SEASONS row the seasons). */
   group: ExperienceGroup;
 }
 
-/** The twenty-six categories, in the ruled order — the chips read in this order (EVENTS-02, 2026-11-08: the ten new ones follow the nine; SEASONS-01, 2026-11-08: the seven seasons follow them). */
+/** The twenty-six categories, in the ruled order — the I'M INTO dropdown's options read in this order, under "Select a category" (EVENTS-05, 2026-11-11: the chips read in it until then; EVENTS-02, 2026-11-08: the ten new ones follow the nine; SEASONS-01, 2026-11-08: the seven seasons follow them). */
 export const EXPERIENCE_CATEGORIES: readonly ExperienceCategory[] = [
   // EVENTS-01b (2026-10-30): the labels read Surf · Snow; the ids and the order are the
   // URL values and the law's list and do not change. The FIRST entry is the section's
-  // default category (ExperiencesSection.tsx DEFAULT_INTO), so reordering this list is a
+  // first option under "Select a category" — no longer a default (EVENTS-05, 2026-11-11: ExperiencesSection.tsx chooses none); reordering this list is still a
   // conscious change — experiences01.test.ts pins it.
   { id: 'surfing', label: 'Surf', group: 'event' },
   { id: 'snowboarding', label: 'Snow', group: 'event' },

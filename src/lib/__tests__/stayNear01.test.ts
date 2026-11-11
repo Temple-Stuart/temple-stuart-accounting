@@ -134,9 +134,10 @@ test('T2 the row: no handler, no action; with one, every row with a fixed city c
     assert.match(card, new RegExp(`<div class="[^"]*">(?:<span class="font-mono text-xs text-text-faint" data-checked="${r.id}">[^<]*</span>)?<a href="[^"]+" rel="noopener" target="_blank" class="${esc(SOURCE_LOOK)}" data-source="${r.id}">${SOURCE_LINK}</a></div>$`), `${r.id}: the foot ends the row`);
     assert.ok(!/aria-pressed/.test(card), `${r.id}: nothing pressed on a row`);
   }
-  // the chips stay the only pressed things: twenty-six, with or without a handler
-  assert.equal((golf.match(/aria-pressed="(true|false)"/g) ?? []).length, 26);
-  assert.equal((view('golf').match(/aria-pressed="(true|false)"/g) ?? []).length, 26);
+  // EVENTS-05 (2026-11-11): re-pointed — until then "the chips stay the only pressed things: twenty-six, with or without a handler" (/aria-pressed="(true|false)"/ × 26,
+  // twice). The chips are one dropdown now: nothing in the panel is pressed, and the one list — "Select a category" and the twenty-six — is drawn either way.
+  assert.ok(!/aria-pressed/.test(golf) && (golf.match(/<option value="[^"]*"/g) ?? []).length === 27, 'with a handler: nothing pressed, the one list');
+  assert.ok(!/aria-pressed/.test(view('golf')) && (view('golf').match(/<option value="[^"]*"/g) ?? []).length === 27, 'without one: the same');
   // without the action the two renders are the same markup
   assert.equal(golf.replace(/<button type="button" class="[^"]*" data-stay-near="[^"]*">[^<]*<\/button>/g, ''), view('golf'), 'the action is the only difference a handler makes');
   // Skate: two rows with a city, and the two with none

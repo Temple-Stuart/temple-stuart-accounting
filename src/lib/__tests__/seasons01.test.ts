@@ -21,7 +21,7 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw, type Experience } from '../experiences';
 import { experienceLine, isUpcoming, seasonNotAnnouncedLine, usualWindowWords } from '../experienceWords'; // EVENTS-04 (2026-11-09): the ended season's own words (:141)
-import { ExperiencesView, INTO_LABEL, SEASONS_LABEL, type IntoChoice } from '@/components/landing/ExperiencesSection';
+import { ExperiencesView, INTO_LABEL, SELECT_CATEGORY, type IntoChoice } from '@/components/landing/ExperiencesSection'; // EVENTS-05 (2026-11-11): SEASONS_LABEL left the section with the second chip row; SELECT_CATEGORY is the one list's first option
 import { code } from '../sourceText';
 
 Object.assign(globalThis, { React });
@@ -100,10 +100,10 @@ const refuses = (row: Experience, words: string) => {
 const render = (choice: IntoChoice) => renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: RUN_DATE, choice, onPick: () => {} }));
 /** React's escaping of text and attributes: the ampersand, then the apostrophe. */
 const asHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/'/g, '&#x27;');
-const chipsIn = (html: string, label: string) => {
-  const group = new RegExp(`role="group" aria-label="${asHtml(label)}">([\\s\\S]*?)</div>`).exec(html);
-  assert.ok(group, `the ${label} row is drawn`);
-  return [...group[1].matchAll(/data-into="([^"]+)">([^<]*)</g)].map((m) => [m[1], m[2]]);
+const optionsIn = (html: string) => { // EVENTS-05 (2026-11-11): re-pointed — until then chipsIn(html, label) read one labelled chip row (/role="group" aria-label="<label>">…</div>/, each chip 'data-into="<id>"><label><')
+  const list = new RegExp(`<select aria-label="${asHtml(INTO_LABEL)}"[^>]*data-into-select="true">([\\s\\S]*?)</select>`).exec(html); // there is ONE list now — the dropdown the label names
+  assert.ok(list, 'the one dropdown is drawn, named by the I\'M INTO label');
+  return [...list[1].matchAll(/<option value="([^"]*)"(?: selected="")?>([^<]*)<\/option>/g)].map((m) => [m[1], m[2]]); // its options, in order, each [value, words] — the notes ride the helper's own five lines, so every line under it keeps its number
 };
 const cardsOf = (html: string) => [...html.matchAll(/data-coming-up="([^"]+)"/g)].map((m) => m[1]);
 const lineOf = (html: string, id: string) => new RegExp(`data-coming-up="${id}"[\\s\\S]*?data-experience-line="true">([^<]*)<`).exec(html)?.[1];
@@ -192,28 +192,30 @@ test('T4 the rows: three to six per season category, in start order, every one a
 
 // ── T5 · THE SECTION ─────────────────────────────────────────────────────────
 
-test('T5 the section: I\'M INTO holds the nineteen event chips, SEASONS the seven season chips — one choice across both rows; a season chip shows its cards with their own lines', () => {
-  assert.equal(SEASONS_LABEL, 'SEASONS');
+test('T5 the section: ONE list — the I\'M INTO dropdown holds the nineteen event categories, then the seven season ones, one choice across them all (EVENTS-05, 2026-11-11: two chip rows, I\'M INTO and SEASONS, until then); a season category shows its cards with their own lines', () => {
+  // EVENTS-05 (2026-11-11): re-pointed, in place. Until then this test held the TWO rows: SEASONS_LABEL === 'SEASONS'; chipsIn(home, INTO_LABEL) the nineteen
+  // event chips and chipsIn(home, SEASONS_LABEL) the seven season chips; the SEASONS row under I'M INTO; both labels drawn, the SEASONS label in the I'M INTO
+  // label's classes, each right above its row; one class for every unpressed chip in either row and the pressed class on a pressed season chip; and, per season,
+  // /aria-pressed="true"[^>]*data-into="([^"]*)"/ → [id] ("its chip pressed, alone"). Now it holds the ONE list.
+  assert.equal(SELECT_CATEGORY, 'Select a category');
   const home = render({ category: 'surfing' });
-  assert.deepEqual(chipsIn(home, INTO_LABEL), EXPERIENCE_CATEGORIES.slice(0, 19).map((c) => [c.id, asHtml(c.label)]));
-  assert.deepEqual(chipsIn(home, SEASONS_LABEL), SEASONS.map(([id, label]) => [id, asHtml(label)]));
-  assert.ok(home.indexOf(`aria-label="${asHtml(INTO_LABEL)}"`) < home.indexOf(`aria-label="${SEASONS_LABEL}"`), 'SEASONS sits under I\'M INTO');
-  // The label is drawn, not only named for a screen reader: a <p> with the I'M INTO label's classes, right above its row.
-  const labelClass = (text: string) => new RegExp(`<p class="([^"]*)">${asHtml(text)}</p><div class="[^"]*" role="group" aria-label="${asHtml(text)}">`).exec(home)?.[1];
-  const seasonsLabel = labelClass(SEASONS_LABEL);
-  const intoLabel = labelClass(INTO_LABEL);
-  assert.ok(seasonsLabel && intoLabel, 'both labels are drawn, each right above its row');
-  assert.equal(seasonsLabel.replace(/^mt-\d+ /, ''), intoLabel.replace(/^mt-\d+ /, ''), 'the SEASONS label is drawn with the I\'M INTO label\'s classes');
-  // The same chip classes in either row: one class for every unpressed chip, and a pressed season chip wears the pressed event chip's.
-  const classOf = (html: string, id: string) => new RegExp(`aria-pressed="(?:true|false)" class="([^"]*)" data-into="${id}"`).exec(html)?.[1];
-  const offEvent = classOf(home, 'golf');
-  const onEvent = classOf(home, 'surfing');
-  assert.ok(offEvent && onEvent && offEvent !== onEvent);
-  for (const [id] of SEASONS) assert.equal(classOf(home, id), offEvent, `${id}: the unpressed chip class`);
-  assert.equal(classOf(render({ category: 'wildlife' }), 'wildlife'), onEvent, 'a pressed season chip wears the pressed chip class');
+  const list = optionsIn(home);
+  assert.deepEqual(list[0], ['', SELECT_CATEGORY], 'the first option is no category');
+  assert.deepEqual(list.slice(1, 20), EXPERIENCE_CATEGORIES.slice(0, 19).map((c) => [c.id, asHtml(c.label)]), 'the nineteen event categories, in the leaf\'s order');
+  assert.deepEqual(list.slice(20), SEASONS.map(([id, label]) => [id, asHtml(label)]), 'then the seven season categories, in K\'s order — the same list');
+  assert.equal(list.length, 27, 'Select a category and the twenty-six, nothing else');
+  // One list: no second label, no second control, no group heading — the seasons are options like the others.
+  assert.ok(!home.includes('>SEASONS<') && !home.includes('<optgroup') && !home.includes('role="group"'), 'no SEASONS label, no group heading, no row');
+  assert.equal((home.match(/<select/g) ?? []).length, 1, 'one dropdown');
+  // The label is drawn, not only named for a screen reader: a <p> right above the dropdown, which carries the same words as its name.
+  assert.match(home, new RegExp(`<p class="[^"]*">${asHtml(INTO_LABEL)}</p><select aria-label="${asHtml(INTO_LABEL)}"`), 'the I\'M INTO label, right above the dropdown it names');
+  // One choice across the whole list: the chosen category's option is selected, alone — an event one or a season one, the same way.
+  const selectedIn = (html: string) => [...html.matchAll(/<option value="([^"]*)" selected="">/g)].map((m) => m[1]);
+  assert.deepEqual(selectedIn(home), ['surfing']);
+  assert.deepEqual(selectedIn(render({ category: 'wildlife' })), ['wildlife'], 'a season category is chosen the way an event one is');
   for (const [id] of SEASONS) {
     const html = render({ category: id as Experience['category'] });
-    assert.deepEqual([...html.matchAll(/aria-pressed="true"[^>]*data-into="([^"]*)"/g)].map((m) => m[1]), [id], `${id}: its chip pressed, alone`);
+    assert.deepEqual(selectedIn(html), [id], `${id}: its option selected, alone`);
     const rows = SEASON_ROWS.filter((r) => r.category === id);
     assert.deepEqual(cardsOf(html).sort(), rows.map((r) => r.id).sort(), `${id}: its cards`);
     for (const r of rows) assert.equal(lineOf(html, r.id), asHtml(experienceLine(r, RUN_DATE)), `${r.id}: its own line`);
