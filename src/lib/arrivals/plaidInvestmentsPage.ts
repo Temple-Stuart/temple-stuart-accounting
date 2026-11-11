@@ -36,10 +36,10 @@
  * through recordFailedAnswer (plaidTransactionsPage.ts) with this resource.
  */
 import type { InvestmentTransaction, Security } from 'plaid';
-import { stageFailed, type StageFailed } from '@/lib/plaid/failLoud';
+import type { StageFailed } from '@/lib/plaid/failLoud';
 import type { WireStamp } from '@/lib/plaid/wire';
 import { landObjects, landResponse, markRead, type JsonObject, type LandingDb } from './land';
-import { PLAID, type PageAccount, type PageClient } from './plaidTransactionsPage';
+import { PLAID, pageFailed, type PageAccount, type PageClient } from './plaidTransactionsPage';
 
 export const SECURITY = 'security';
 export const INVESTMENT_TRANSACTION = 'investment_transaction';
@@ -250,6 +250,6 @@ export async function runInvestmentsPage(
     }, { maxWait: 10_000, timeout: 120_000 });
     return { ok: true, counts };
   } catch (error) {
-    return { ok: false, failure: { ...stageFailed('investments', error, input.page), page: input.page } };
+    return { ok: false, failure: { ...pageFailed('investments', error, input.page), page: input.page } };
   }
 }

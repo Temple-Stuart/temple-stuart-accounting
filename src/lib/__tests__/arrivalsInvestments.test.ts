@@ -5,7 +5,7 @@ import { fingerprintOf, sha256 } from '../arrivals/land';
 import { INVESTMENT_TRANSACTION, SECURITY, investmentWrite, landInvestmentsPage, runInvestmentsPage, securityWrite, type InvestmentsDomainDb, type InvestmentsPageInput } from '../arrivals/plaidInvestmentsPage';
 import { recordFailedAnswer } from '../arrivals/plaidTransactionsPage';
 import { INVESTMENT_CREATE_KEYS, INVESTMENT_DATA_KEYS, SECURITY_CREATE_KEYS, SECURITY_UPDATE_KEYS, UnsupportedInvestmentsWriteError, correctionsSql, createsSql, investmentLinkSql, planInvestmentsWrites, prismaInvestmentsDomain, securitiesSql, securityLinkSql, type Intent } from '../arrivals/prismaInvestmentsDomain';
-import { stageFailed, syncEnvelope } from '../plaid/failLoud';
+import { failedLine, stageFailed, syncEnvelope } from '../plaid/failLoud';
 import { onWireError, type WireStamp } from '../plaid/wire';
 import { FakeLanding, snapshotClient } from './fakeLanding';
 
@@ -274,6 +274,28 @@ test('(6) a non-2xx investments answer lands as a response row with the investme
   // the transactions phase keeps its resource when none is named
   await recordFailedAnswer(landing, { userId: 'user_1', err });
   assert.equal(landing.responses[1].resource, 'transaction');
+});
+
+// SYNC-02 (2026-11-11): an answer too large to store is refused by name before the insert (land.ts
+// ResponseTooLargeError) and the investments runner's catch hands the refusal's own sentence to the bank's line — the
+// transactions runner's test, the limit and its edge are in arrivalsLand.test.ts.
+test('SYNC-02 an investments page too large to store is the same named failure: the bank\'s line in the product\'s own words, the page rolled back whole, the parser never run', async () => {
+  const WORDS = 'the answer is 1,180,442 bytes — over the 1,048,576 one stored answer may hold; nothing from it was written';
+  const landing = new FakeLanding();
+  const domain = new FakeDomain();
+  let rolledBack = 0;
+  const result = await runInvestmentsPage(snapshotClient(landing, () => { rolledBack += 1; }), () => ({ landing, domain }), pageInput({ page: 2, wire: wire(' '.repeat(1_180_442)), securities: [sec('aapl')], investmentTransactions: [inv('i1'), inv('i2')] }));
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.failure.stage, 'investments');
+  assert.equal(result.failure.page, 2);
+  assert.equal(result.failure.message, WORDS, 'the failure\'s message is the refusal\'s own sentence — no error-class name in front');
+  assert.deepEqual(result.failure.error, { name: 'ResponseTooLargeError', message: WORDS }, 'the summary the server logs still names the class');
+  assert.equal(failedLine('Robinhood', result.failure), `Robinhood — investments page 2: ${WORDS}`);
+  assert.equal(rolledBack, 1, 'the page\'s own transaction rolled back');
+  assert.equal(landing.responses.length, 0, 'nothing from the answer was written');
+  assert.equal(landing.arrivals.size, 0);
+  assert.deepEqual(domain.calls, [], 'the parser never ran');
 });
 
 // ── the batching binding ──

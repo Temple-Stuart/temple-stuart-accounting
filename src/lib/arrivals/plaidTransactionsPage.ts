@@ -34,7 +34,7 @@
 import type { Transaction } from 'plaid';
 import { stageFailed, type StageFailed } from '@/lib/plaid/failLoud';
 import type { WireStamp } from '@/lib/plaid/wire';
-import { landObjects, landResponse, markRead, type JsonObject, type LandingDb } from './land';
+import { ResponseTooLargeError, landObjects, landResponse, markRead, type JsonObject, type LandingDb } from './land';
 
 export const PLAID = 'plaid';
 export const TRANSACTION = 'transaction';
@@ -241,6 +241,22 @@ export interface PagePorts {
   finish?: () => Promise<void>;
 }
 
+/**
+ * SYNC-02 (Alex, 2026-11-11 16:25) — HOW A PAGE RUNNER'S CATCH DECLARES WHAT WAS THROWN. The three runners — this
+ * file's, plaidInvestmentsPage.ts and plaidHoldingsPage.ts — hand their catch here: the one place. The failure is the
+ * same failure it was (failLoud.ts stageFailed): the page has rolled back whole and its stage ends there. Its words
+ * change for one throw only. The store's refusal of an answer too large to hold (land.ts ResponseTooLargeError) is the
+ * product's own sentence, so it is handed to the bank's line as the failure's `message` — the emptyPageFailure
+ * precedent (src/lib/plaid/syncRun.ts) — and the line reads
+ *   <bank> — transactions page 7: the answer is 1,180,442 bytes — over the 1,048,576 one stored answer may hold; nothing from it was written
+ * with no error-class name in front. Every other error keeps the words it had: `<error name>: <error message>`, or
+ * Plaid's own code. The failure's `error` — the summary the server logs — still names the class.
+ */
+export function pageFailed(stage: string, error: unknown, page?: number): StageFailed {
+  const failure = stageFailed(stage, error, page);
+  return error instanceof ResponseTooLargeError ? { ...failure, message: error.message } : failure;
+}
+
 /** One page, one transaction. A throw inside rolls the page back and comes out as the declared failure. */
 export async function runTransactionsPage(
   client: PageClient,
@@ -257,6 +273,6 @@ export async function runTransactionsPage(
     }, { maxWait: 10_000, timeout: 120_000 });
     return { ok: true, counts };
   } catch (error) {
-    return { ok: false, failure: { ...stageFailed('transactions', error, input.page), page: input.page } };
+    return { ok: false, failure: { ...pageFailed('transactions', error, input.page), page: input.page } };
   }
 }

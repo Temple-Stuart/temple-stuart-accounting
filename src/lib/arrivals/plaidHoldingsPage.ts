@@ -36,10 +36,10 @@
  * (plaidTransactionsPage.ts) with this resource.
  */
 import type { Holding, Security } from 'plaid';
-import { stageFailed, type StageFailed } from '@/lib/plaid/failLoud';
+import type { StageFailed } from '@/lib/plaid/failLoud';
 import type { WireStamp } from '@/lib/plaid/wire';
 import { landObjects, landResponse, markRead, type JsonObject, type LandingDb } from './land';
-import { PLAID, type PageAccount, type PageClient } from './plaidTransactionsPage';
+import { PLAID, pageFailed, type PageAccount, type PageClient } from './plaidTransactionsPage';
 import { SECURITY, newId, securityWrite, type InvestmentsDomainDb, type SecurityPayload } from './plaidInvestmentsPage';
 
 export const HOLDING = 'holding';
@@ -219,6 +219,6 @@ export async function runHoldingsPage(
     }, { maxWait: 10_000, timeout: 120_000 });
     return { ok: true, ...landed };
   } catch (error) {
-    return { ok: false, failure: stageFailed('holdings', error) };
+    return { ok: false, failure: pageFailed('holdings', error) };
   }
 }
