@@ -9,7 +9,8 @@
  *   T4 the refused view — the dropdown reads "Select a category"; the refusal and the closing line print as before;
  *   T5 the pick — the dropdown hands onPick a category, or null for "Select a category"; a value that is none of its options throws by name;
  *   T6 the URL half — no param and an empty one are none; a category sets ?into=<id>; "Select a category" takes ?into out; the anchor is kept;
- *      a pick writes the URL with the browser's own replace (Alex's ruling, 2026-11-11) — the component's body is held whole;
+ *      a pick writes the URL with the browser's own replace (Alex's ruling, 2026-11-11) — the component's body is held whole, and so is the
+ *      default export that mounts it: the view is mounted nowhere else;
  *   T7 what left — no aria-pressed, role="group", SEASONS_LABEL, DEFAULT_INTO or chip class in the section's code; the leaf's note is corrected;
  *   T8 the look — the dropdown wears the booking lookup's field classes (read from GuestBookingLookup.tsx), a 44px target, w-72 from lg up.
  * The view is rendered as experiences01 renders it; source is read through code() / comments(). No live call, no database, no clock. No line
@@ -125,7 +126,7 @@ test('T2 the one list — "Select a category", then every category of the leaf i
   for (const html of [view({ none: true }), view({ category: 'surfing' }), view({ category: 'wildlife' }), view({ refused: 'nope' })]) {
     assert.equal(count(html, '<select'), 1);
     for (const gone of ['<optgroup', 'role="group"', 'aria-pressed', 'data-into=', '>SEASONS<', 'role="listbox"']) assert.ok(!html.includes(gone), `no ${gone}`);
-    assert.doesNotMatch(html, /<select[^>]*\s(multiple|disabled|size)\b/, 'a plain single-choice dropdown — read off the tag, never off a row\'s words');
+    assert.doesNotMatch(html, /<select[^>]*\s(multiple|disabled|size)=/, 'a plain single-choice dropdown — read off the tag\'s own attributes (React writes multiple="" and disabled=""), never off a class name or a row\'s words');
   }
   // Mapped from the list: the section's code types no category id and no category label — and draws two <option>s, the empty one and the mapped one.
   const section = code(SECTION);
@@ -274,6 +275,20 @@ test('T6 the URL half — no param and an empty one are none; a category id is t
     'return <ExperiencesView rows=\\{EXPERIENCES\\} today=\\{today\\} choice=\\{choice\\} onPick=\\{pick\\} />;',
     '\\}',
   ].join('\\s*')), 'the URL half, whole: the choice read from the URL, the browser\'s replace on a pick, the view handed both');
+  // …and the module's default export mounts exactly that half, in its Suspense boundary, and nothing else. The view is mounted nowhere else in the
+  // file, so nothing can stand in for the URL's choice — a default export that drew the view itself, on a category of its own, would open the page on it.
+  assert.match(section, new RegExp([
+    'export default function ExperiencesSection\\(\\{ today \\}: \\{ today: string \\}\\) \\{',
+    'return \\(',
+    '<Suspense fallback=\\{null\\}>',
+    '<ExperiencesFromUrl today=\\{today\\} />',
+    '</Suspense>',
+    '\\);',
+    '\\}',
+  ].join('\\s*')), 'the default export, whole: the URL half in its Suspense boundary');
+  assert.equal(count(section, '<ExperiencesView'), 1, 'the view is mounted once — by the URL half');
+  assert.equal(count(section, '<ExperiencesFromUrl'), 1, 'the URL half is mounted once — by the default export');
+  assert.equal(count(section, 'export default'), 1);
   assert.equal(count(section, 'window.history.replaceState('), 1, 'one replace — the same call sets ?into and takes it out');
   assert.equal(count(section, 'choiceOf('), 2, 'the reading: declared once, called once');
   assert.equal(count(section, 'pickHref('), 2, 'the writing: declared once, called once');
