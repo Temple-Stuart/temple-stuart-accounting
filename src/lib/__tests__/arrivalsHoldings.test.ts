@@ -11,7 +11,7 @@ import { PLAID } from '../arrivals/plaidTransactionsPage';
 import { SECURITY } from '../arrivals/plaidInvestmentsPage';
 import { UnsupportedHoldingsWriteError, holdingsSql, planHoldings, prismaHoldingsDomain } from '../arrivals/prismaHoldingsDomain';
 import { latestHoldingsSnapshot, type HoldingsReadDb } from '../arrivals/holdingsSnapshot';
-import { stageOk, successLine } from '../plaid/failLoud';
+import { bankLine, stageOk } from '../plaid/failLoud';
 import { kindOf } from '../providers';
 import { FakeLanding, snapshotClient } from './fakeLanding';
 
@@ -271,9 +271,19 @@ test('the stored snapshot, read: each account\'s latest moment and every row of 
   assert.deepEqual(await latestHoldingsSnapshot(db, []), { as_of: null, holdings: [], securities: [] });
 });
 
-test('the banner counts holdings written this run, after the securities; a run that wrote none says nothing about them', () => {
-  const items = [{ institution: 'Robinhood', stages: [stageOk('transactions', { synced: 3, skipped: 0, landed: 3, already_landed: 0, corrected: 0 }), stageOk('investments', { synced: 7, skipped: 0, securities: 2 }), stageOk('holdings', { landed: 14, already_landed: 0, corrected: 0, holdings: 12, securities: 12, unmatched: 0 })] }];
-  assert.equal(successLine(items), 'Robinhood synced: 3 landed, 7 investment transactions, 2 securities, 12 holdings');
-  const quiet = [{ institution: 'Robinhood', stages: [stageOk('transactions', { synced: 0, skipped: 0, landed: 0, already_landed: 3, corrected: 0 }), stageOk('holdings', { landed: 0, already_landed: 14, corrected: 0, holdings: 0, securities: 12, unmatched: 0 })] }];
-  assert.equal(successLine(quiet), 'Robinhood synced: 0 landed, 3 already landed');
+// SYNC-01 (2026-11-11): one line per bank. Until then this pinned failLoud.ts successLine — "Robinhood synced: 3 landed, 7
+// investment transactions, 2 securities, 12 holdings" and, for a run that wrote none, "Robinhood synced: 0 landed, 3 already
+// landed". The bank's own line (bankLine) closes on the holdings written; the stages state what the run's stages state.
+test('the banner counts holdings written this run, last in the bank\'s line; a run that wrote none says nothing about them', () => {
+  const item = { institution: 'Robinhood', stages: [
+    stageOk('transactions', { synced: 3, skipped: 0, landed: 3, already_landed: 0, corrected: 0, unheld: 0, added: 3, pulled: 3, plaid_total: 3 }),
+    stageOk('investments', { synced: 7, skipped: 0, securities: 2, landed: 9, already_landed: 0, corrected: 0, unheld: 0, added: 7, pulled: 7, plaid_total: 7 }),
+    stageOk('holdings', { landed: 14, already_landed: 0, corrected: 0, holdings: 12, securities: 12, unmatched: 0 }),
+  ] };
+  assert.equal(bankLine(item), 'Robinhood — transactions 3 of 3 pulled, 3 new · investments 7 of 7 pulled, 7 new · 12 holdings');
+  const quiet = { institution: 'Robinhood', stages: [
+    stageOk('transactions', { synced: 3, skipped: 3, landed: 0, already_landed: 3, corrected: 0, unheld: 0, added: 0, pulled: 3, plaid_total: 3 }),
+    stageOk('holdings', { landed: 0, already_landed: 14, corrected: 0, holdings: 0, securities: 12, unmatched: 0 }),
+  ] };
+  assert.equal(bankLine(quiet), 'Robinhood — transactions 3 of 3 pulled, 0 new', 'the same snapshot again writes no holding, and the line says nothing of holdings');
 });

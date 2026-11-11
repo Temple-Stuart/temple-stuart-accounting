@@ -8576,7 +8576,6 @@ const FIGURE_DEFAULTS_ALLOWED: ReadonlyArray<{ file: string; snippet: string; re
   { file: 'src/lib/activities/save.ts', snippet: 'save.extra?.total ?? 0', reason: 'an absent optional extra is no extra charge — the total is the stated native amount plus the extras the customer chose' },
   { file: 'src/lib/arrivals/land.ts', snippet: '(rowsPerId.get(f.their_id) ?? 0) + 1', reason: 'a counter of our own landed rows' },
   { file: 'src/lib/plaid/failLoud.ts', snippet: 'sum[k] = (sum[k] ?? 0) + v;', reason: 'a counter of our own sync outcomes' },
-  { file: 'src/lib/plaid/failLoud.ts', snippet: '${tx.landed ?? 0} landed', reason: 'a counter of our own sync outcomes' },
   { file: 'src/app/api/plaid/attach-item/route.ts', snippet: '${report?.pairs.length ?? 0} account(s) attached', reason: 'a count of our own attach report' },
   { file: 'src/app/api/plaid/exchange-token/route.ts', snippet: 'currentBalance: account.balances.current || 0,', reason: 'LISTED FOR A RULING: Plaid balances — accounts.currentBalance/availableBalance are nullable, but their readers (net worth, runway, answers, reconciliation) are not census-ed here' },
   { file: 'src/app/api/plaid/exchange-token/route.ts', snippet: 'availableBalance: account.balances.available || account.balances.current || 0,', reason: 'LISTED FOR A RULING: the same balances — and `available || current` substitutes one figure for another' },
