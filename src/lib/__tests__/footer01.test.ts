@@ -10,6 +10,13 @@
  * PRIVACY · CONTACT. THE BLOG is gone; the socials left the bar. T1–T5 are re-pointed below, each note saying what it held
  * until then; T6 (the anchors' one home), T7 and T8 stand.
  *
+ * PILLAR-NAMES-01 (Alex, 2026-11-11: "Financial Software | Professional Services | Travel Marketplace — these will replace
+ * Plan your Escape / Build your Income / Explore the World"): SERVICES' three links take the pillars' new names, on the
+ * targets they had. The pillars' headings dropped their full stop with the same ruling (put to Alex in the audit before
+ * the build; his answer: drop it), so T3's rule moved from "each label is its pillar's heading, without the full stop" to
+ * "each label is its pillar's heading, letter for letter" — and T3 gained one hold: no code under src still types an old
+ * name. T4's list of words the component must not type names the new three. Nothing else in this file moved.
+ *
  *   T1 the labels — OUR STORY, SERVICES, SOCIALS, THE RECORD (THE BLOG, THE RECORD until then) — from src/lib/footerWords.ts;
  *   T2 footerStoryLinks(WAS_HERE): "Stop 0 | Los Angeles" ('/#' + its anchor), then one link per stop of the trip log in
  *      trip order — "Stop <n> | <the row's city>" → that stop's page; a stop added to the log adds itself, in its place.
@@ -159,13 +166,23 @@ test('T3 the other three columns, exactly — SERVICES: the three pillars on the
   // HOME-FINISH-02 (2026-11-10). Until then this test read 'T3 FOOTER_RECORD_LINKS exactly — the door's words and path from pipelineWords.ts, then
   // the code, external': [{ label: PIPELINE_DOOR, href: PIPELINE_PATH }, { label: 'Built in public: the code ↗', href: CODE_URL, external: true }],
   // with PIPELINE_DOOR = 'How it all connects: the 14 steps →' and "import { PIPELINE_DOOR, PIPELINE_PATH } from '@/components/landing/pipelineWords';".
+  // PILLAR-NAMES-01 (Alex, 2026-11-11): the three pillars' new names, on the targets they had. Until then the labels were 'Plan Your Escape',
+  // 'Build Your Income' and 'Explore the World'.
   assert.deepEqual(FOOTER_SERVICES_LINKS, [
-    { label: 'Plan Your Escape', href: '/#modules' },
-    { label: 'Build Your Income', href: `/#${SERVICES_ANCHOR}` },
-    { label: 'Explore the World', href: `/#${DEMO_ANCHOR}` },
+    { label: 'Financial Software', href: '/#modules' },
+    { label: 'Professional Services', href: `/#${SERVICES_ANCHOR}` },
+    { label: 'Travel Marketplace', href: `/#${DEMO_ANCHOR}` },
   ]);
   assert.deepEqual(FOOTER_SERVICES_LINKS.map((l) => l.href), ['/#modules', '/#services', '/#demo'], 'absolute paths, so they land from every page the footer is on');
-  assert.deepEqual(FOOTER_SERVICES_LINKS.map((l) => `${l.label}.`), [PLAN_PILLAR.heading, BUILD_PILLAR.heading, EXPLORE_PILLAR.heading], 'each label is its pillar\'s heading, without the full stop');
+  // PILLAR-NAMES-01: the headings dropped their full stop, so a label IS its pillar's heading. Until then this line held `${l.label}.` equal to the
+  // three headings — 'each label is its pillar's heading, without the full stop'.
+  assert.deepEqual(FOOTER_SERVICES_LINKS.map((l) => l.label), [PLAN_PILLAR.heading, BUILD_PILLAR.heading, EXPLORE_PILLAR.heading], 'each label is its pillar\'s heading, letter for letter');
+  for (const heading of [PLAN_PILLAR.heading, BUILD_PILLAR.heading, EXPLORE_PILLAR.heading]) assert.doesNotMatch(heading, /[.!?:]$/, `"${heading}" is a name, not a sentence — no full stop`);
+  // PILLAR-NAMES-01: renamed wherever the three were shown as the pillars' names — no code under src (comments tell the history) still types an old one.
+  // The experience line is another thing and stays in its leaf: 'Plan your escape.', in sentence case (src/lib/brandLines.ts — homeLines01 holds it).
+  for (const old of ['Plan Your Escape', 'Build Your Income', 'Explore the World']) {
+    assert.deepEqual(srcFiles().filter((file) => code(file).includes(old)), [], `no code under src types "${old}"`);
+  }
   assert.ok(code(HOW_TO).includes('<section id="modules"'), 'the first link\'s target: the how-to\'s own section id');
   assert.deepEqual(FOOTER_SOCIALS, SOCIALS.map(([name, href]) => ({ name, href })), 'the five accounts, the bar\'s hrefs, in its order');
   assert.deepEqual(FOOTER_RECORD_LINKS, [
@@ -232,8 +249,9 @@ test('T4 the footer renders the four columns once, above the disclaimer, then th
   assert.equal(count(html, '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">'), 5, 'the five icons, as the bar drew them');
   assert.equal(count(html, '<svg'), 5, 'and no other');
   // every word and href from the words module — none typed in the component (an icon's key is the account's name: a type the words leaf exports)
+  // PILLAR-NAMES-01 (2026-11-11): the three pillars' names in this list are the new ones — 'Plan Your Escape', 'Build Your Income', 'Explore the World' until then.
   const footer = code(FOOTER);
-  for (const typed of ['OUR STORY', 'THE RECORD', 'THE BLOG', 'Stop 0', 'Los Angeles', 'Plan Your Escape', 'Build Your Income', 'Explore the World', 'How It All Connects', 'Built in Public', 'Software License', '/how-it-works', 'github.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'x.com/', 'linkedin.com', '/my-trip', "'#", '/#']) {
+  for (const typed of ['OUR STORY', 'THE RECORD', 'THE BLOG', 'Stop 0', 'Los Angeles', 'Financial Software', 'Professional Services', 'Travel Marketplace', 'How It All Connects', 'Built in Public', 'Software License', '/how-it-works', 'github.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'x.com/', 'linkedin.com', '/my-trip', "'#", '/#']) {
     assert.ok(!footer.includes(typed), `LandingFooter.tsx types no "${typed}"`);
   }
   for (const label of ['FOOTER_STORY_LABEL', 'FOOTER_SERVICES_LABEL', 'FOOTER_SOCIALS_LABEL', 'FOOTER_RECORD_LABEL']) assert.equal(count(footer, `<p className={COLUMN.label}>{${label}}</p>`), 1, `${label}, rendered from the leaf`);

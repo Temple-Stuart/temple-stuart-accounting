@@ -1,15 +1,19 @@
 'use client';
 
 /**
- * HowToSection — PLAN YOUR ESCAPE, the first pillar on the guest landing (Landing.tsx mounts it; the section carries
+ * HowToSection — FINANCIAL SOFTWARE, the first pillar on the guest landing (Landing.tsx mounts it; the section carries
  * id="modules", the anchor the checkout's cancel link, the /modules pages and the footer's first link land on).
+ *
+ * PILLAR-NAMES-01 (Alex, 2026-11-11): the pillar is named "Financial Software" — "Plan Your Escape." until then, so
+ * the dated notes below, and in the files around this one, still call it that. The name is the leaf's
+ * (src/lib/homeActWords.ts PLAN_PILLAR.heading — the constant keeps its name); no code in this file changed with it.
  *
  * HOME-PLANS-03 (Alex, 2026-11-11 18:17 Manila: "take the table and have the steps listed inside the cards… as they
  * apply… so that there are just 4 neat cards … and no added table, to save room and look cleaner and more crisp").
  *
  * WHAT IT RENDERS, top to bottom, and nothing else — no label, no intro line, no table, no price and no button outside
  * the cards:
- *   1. the pillar — "Plan Your Escape." and Alex's three paragraphs, read from src/lib/homeActWords.ts PLAN_PILLAR;
+ *   1. the pillar — its heading and Alex's three paragraphs, read from src/lib/homeActWords.ts PLAN_PILLAR;
  *   2. the four plan cards — PlanCards, the very component /pricing draws (src/components/offer/PlansSection.tsx), with
  *      a button door ("Join early access" opens the door Landing hands in: sign-up) and with `steps`: what each card
  *      lists, from src/lib/howTo.ts planCardSteps. A card lists the steps its plan ADDS, by category — Personal: its own
