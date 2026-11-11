@@ -121,9 +121,10 @@ test('A every derived file — BooksPipeline and its twenty-one imports — hold
   // The statements: integer cents in, cents kept, nothing divided into dollars; the dead dollars branch is gone.
   const statements = code(FIVE.statements);
   assert.doesNotMatch(statements, /\/ 100\b|toFixed\(2\)\}/);
-  assert.match(statements, /const net = \(acct\.debits \|\| 0\) - \(acct\.credits \|\| 0\);/);
-  assert.match(statements, /const isBalanced = balanceSheet\.assetsCents - liabilitiesPlusEquityCents === 0;/);
-  assert.match(statements, /Balance Check: Assets = \{functionalMoneyWords\(balanceSheet\.assetsCents\)\}/);
+  // BOOKS-01 (Alex, 2026-11-11): re-pointed — these three lines pinned the panel's OWN arithmetic (`const net = (acct.debits || 0) - (acct.credits || 0);`, its balance check with no net income, its "Balance Check:" line). That arithmetic is gone: the panel draws the figures of the one function (src/lib/books/statements.ts), still integer cents through the one formatter.
+  assert.doesNotMatch(statements, /acct\.debits|acct\.credits|Math\.abs\(net\)|liabilitiesPlusEquityCents|Balance Check:/);
+  assert.match(statements, /<Figure label="Assets" cents=\{balanceSheet\.totalAssets\} tone="" \/>/);
+  assert.match(statements, /\{balanceSheet\.isBalanced \? '✓ Assets = Liabilities \+ Equity' : `⚠ Out by \$\{functionalMoneyWords\(Math\.abs\(balanceSheet\.difference\)\)\}`\}/);
   assert.doesNotMatch(statements, /statements\.incomeStatement && statements\.balanceSheet/);
   assert.match(statements, /data-functional-currency>\{FUNCTIONAL_CURRENCY_WORDS\}/);
   // The close: the GL's cents through the one formatter, on the screen and in the alert.

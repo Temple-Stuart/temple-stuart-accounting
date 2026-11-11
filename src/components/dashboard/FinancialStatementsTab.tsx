@@ -2,106 +2,110 @@
 
 import { useState, useEffect } from 'react';
 import { FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords } from '@/lib/books/functionalCurrency';
+import { unclassifiedWords, type Statements } from '@/lib/books/statements';
+import type { StatementScope } from '@/lib/books/statementsRead';
+import StatementScopeSelect, { readScoped, scopeWordsOf, startingChoiceOf, throughWordsOf, type ScopeChoice, type ScopeProps } from '@/components/dashboard/StatementScopeSelect';
 
 /**
- * FX-01b (Alex, 2026-10-30, ruling A): the statements are kept in integer CENTS — /api/statements sums
- * ledger_entries.amount (cents) per account and hands { accounts, availableYears } and nothing else
- * (src/app/api/statements/route.ts) — and every figure is written by the one formatter; nothing is
- * divided into dollars here. The ratios are dimensionless and computed from the same cents.
+ * FX-01b (Alex, 2026-10-30, ruling A): the statements are kept in integer CENTS and every figure is written by the
+ * one formatter; nothing is divided into dollars here. The ratios are dimensionless and computed from the same cents.
+ *
+ * BOOKS-01 (Alex, 2026-11-11 12:08: "get bookkeeping full proof") — THE PANEL SAYS ITS BOOK AND YEAR, AND DRAWS THE
+ * ONE FUNCTION'S FIGURES. Until this it asked /api/statements with no year and no book, added Math.abs(debits −
+ * credits) per account per month by type, and checked assets against liabilities + equity with no net income in it —
+ * so it read "not balanced" over books whose trial balance balanced. Now it reads the route's `scope` and `statements`
+ * — the one function over the one read (src/lib/books/statements.ts, statementsRead.ts) — for the book and year its
+ * own selects hold, and draws those figures as they are: signed, the balance sheet through the year's last day, the
+ * earnings no closing entry has moved into equity yet on their own line. The mark, and the figure the sheet is out
+ * by, are the function's. One line is two of the function's totals added — "Liabilities + equity" (totalLiabilities +
+ * totalEquity), as the Export's CSV prints it; the function hands no such total.
  */
-interface FinancialData {
-  incomeStatement: {
-    revenueCents: number;
-    expensesCents: number;
-    netIncomeCents: number;
-  };
-  balanceSheet: {
-    assetsCents: number;
-    liabilitiesCents: number;
-    equityCents: number;
-  };
+
+/** What the panel reads of /api/statements' answer: the scope the route read, and the statements over it. */
+export interface StatementsAnswer {
+  readonly scope: StatementScope;
+  readonly statements: Statements;
 }
 
-export default function FinancialStatementsTab({ }: { } = {}) {
-  const [data, setData] = useState<FinancialData | null>(null);
-  const [loading, setLoading] = useState(true);
+const unreadableWords = (what: string): string => `statements: the answer carries no readable ${what}`;
 
-  useEffect(() => {
-    loadStatements();
-  }, []);
+/** The figures the panel draws, by the block that holds them — each a whole number of cents, or the answer is refused. */
+const DRAWN = {
+  incomeStatement: ['totalRevenue', 'totalExpenses', 'netIncome'],
+  balanceSheet: ['totalAssets', 'totalLiabilities', 'equityAccounts', 'earningsNotClosed', 'totalEquity', 'difference'],
+} as const;
 
-  const loadStatements = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/statements');
-      if (res.ok) {
-        const statements = await res.json();
-        if (Array.isArray(statements.accounts)) {
-          // Derive the summary from the ledger account rows — cents in, cents kept.
-          let revenue = 0, expenses = 0, assets = 0, liabilities = 0, equity = 0;
-          for (const acct of statements.accounts) {
-            const net = (acct.debits || 0) - (acct.credits || 0);
-            const type = acct.accountType?.toLowerCase();
-            if (type === 'revenue') revenue += Math.abs(net);
-            else if (type === 'expense') expenses += Math.abs(net);
-            else if (type === 'asset') assets += Math.abs(net);
-            else if (type === 'liability') liabilities += Math.abs(net);
-            else if (type === 'equity') equity += Math.abs(net);
-          }
-          setData({
-            incomeStatement: { revenueCents: revenue, expensesCents: expenses, netIncomeCents: revenue - expenses },
-            balanceSheet: { assetsCents: assets, liabilitiesCents: liabilities, equityCents: equity },
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error loading statements:', error);
+/**
+ * THE ANSWER, READ. The scope must say its year, its last day and its book; every figure the panel draws must be a
+ * whole number of cents; the mark must be a boolean; every unclassified account must carry its code. Anything else
+ * throws by name and the panel prints the words — a missing figure is never a blank or a zero on the screen.
+ */
+export function statementsAnswerOf(body: unknown): StatementsAnswer {
+  const answer = body as { scope?: unknown; statements?: unknown } | null | undefined;
+  const scope = answer?.scope as Partial<StatementScope> | null | undefined;
+  const statements = answer?.statements as { [block: string]: unknown } | null | undefined;
+  if (typeof scope !== 'object' || scope === null) throw new Error(unreadableWords('scope'));
+  if (typeof statements !== 'object' || statements === null) throw new Error(unreadableWords('statements'));
+  if (!Number.isSafeInteger(scope.year)) throw new Error(unreadableWords('scope.year'));
+  if (scope.entityName !== null && typeof scope.entityName !== 'string') throw new Error(unreadableWords('scope.entityName'));
+  throughWordsOf(scope.through);
+  for (const [block, names] of Object.entries(DRAWN)) {
+    const figures = statements[block] as { [name: string]: unknown } | null | undefined;
+    for (const name of names) {
+      if (typeof figures !== 'object' || figures === null || !Number.isSafeInteger(figures[name])) throw new Error(unreadableWords(`${block}.${name}`));
     }
-    setLoading(false);
-  };
-
-  if (loading) {
-    return <div className="p-8 text-center">Loading statements...</div>;
   }
+  if (typeof (statements.balanceSheet as { isBalanced?: unknown }).isBalanced !== 'boolean') throw new Error(unreadableWords('balanceSheet.isBalanced'));
+  const unclassified = statements.unclassified;
+  if (!Array.isArray(unclassified) || unclassified.some((u) => typeof (u as { code?: unknown } | null)?.code !== 'string')) throw new Error(unreadableWords('unclassified'));
+  return { scope: scope as StatementScope, statements: statements as unknown as Statements };
+}
 
-  if (!data) {
-    return <div className="p-8 text-center text-brand-red">Failed to load statements</div>;
-  }
+/** The read: /api/statements for the panel's own book and year. A failure throws the words the panel prints. */
+const fetchStatements = async (choice: ScopeChoice): Promise<StatementsAnswer> => statementsAnswerOf(await readScoped('/api/statements', choice));
 
-  const { incomeStatement, balanceSheet } = data;
-  const liabilitiesPlusEquityCents = balanceSheet.liabilitiesCents + balanceSheet.equityCents;
-  const isBalanced = balanceSheet.assetsCents - liabilitiesPlusEquityCents === 0;
+/** What a ratio with no divisor prints. */
+export const RATIO_NONE_WORDS = 'N/A';
 
+/** A ratio in words. A divisor of 0 is a ratio that does not exist — "N/A", never a zero in its place. */
+export function ratioWords(numerator: number, divisor: number, kind: 'percent' | 'times'): string {
+  if (divisor === 0) return RATIO_NONE_WORDS;
+  const ratio = numerator / divisor;
+  return kind === 'percent' ? `${(ratio * 100).toFixed(1)}%` : ratio.toFixed(2);
+}
+
+function Figure({ label, cents, tone }: { label: string; cents: number; tone: string }) {
   return (
-    <div className="p-4 space-y-6">
-      <div className="text-xs text-text-muted font-mono" data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</div>
+    <div className="flex justify-between items-center">
+      <span className="text-text-secondary">{label}</span>
+      <span className={`text-terminal-lg font-semibold ${tone}`}>{functionalMoneyWords(cents)}</span>
+    </div>
+  );
+}
+
+/** THE STATEMENTS, DRAWN — the route's figures as they are, through the one formatter. No state, no fetch. */
+export function StatementsView({ scope, statements }: StatementsAnswer) {
+  const { incomeStatement, balanceSheet } = statements;
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="text-sm font-semibold" data-statement-scope-line>{scopeWordsOf(scope)}</div>
+        <div className="text-xs text-text-muted font-mono" data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</div>
+      </div>
       <div className="grid grid-cols-2 gap-6">
         {/* Income Statement */}
         <div className="bg-white border rounded p-6">
-          <h3 className="text-sm font-semibold mb-6">Income Statement</h3>
+          <h3 className="text-sm font-semibold mb-6">{`Income Statement · ${scope.year}`}</h3>
 
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-text-secondary">Revenue</span>
-              <span className="text-terminal-lg font-semibold text-brand-green">
-                {functionalMoneyWords(incomeStatement.revenueCents)}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-text-secondary">Expenses</span>
-              <span className="text-terminal-lg font-semibold text-brand-red">
-                {functionalMoneyWords(incomeStatement.expensesCents)}
-              </span>
-            </div>
+            <Figure label="Revenue" cents={incomeStatement.totalRevenue} tone="text-brand-green" />
+            <Figure label="Expenses" cents={incomeStatement.totalExpenses} tone="text-brand-red" />
 
             <div className="border-t pt-4 mt-4">
               <div className="flex justify-between items-center">
-                <span className="text-terminal-lg font-bold">Net Income</span>
-                <span className={`text-sm font-bold ${
-                  incomeStatement.netIncomeCents >= 0 ? 'text-brand-green' : 'text-brand-red'
-                }`}>
-                  {functionalMoneyWords(incomeStatement.netIncomeCents)}
+                <span className="text-terminal-lg font-bold">Net income</span>
+                <span className={`text-sm font-bold ${incomeStatement.netIncome >= 0 ? 'text-brand-green' : 'text-brand-red'}`} data-net-income>
+                  {functionalMoneyWords(incomeStatement.netIncome)}
                 </span>
               </div>
             </div>
@@ -110,42 +114,27 @@ export default function FinancialStatementsTab({ }: { } = {}) {
 
         {/* Balance Sheet */}
         <div className="bg-white border rounded p-6">
-          <h3 className="text-sm font-semibold mb-6">Balance Sheet</h3>
+          <h3 className="text-sm font-semibold mb-6">{`Balance Sheet · through ${throughWordsOf(scope.through)}`}</h3>
 
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-text-secondary">Assets</span>
-              <span className="text-terminal-lg font-semibold">
-                {functionalMoneyWords(balanceSheet.assetsCents)}
-              </span>
-            </div>
+            <Figure label="Assets" cents={balanceSheet.totalAssets} tone="" />
+            <Figure label="Liabilities" cents={balanceSheet.totalLiabilities} tone="" />
+            <Figure label="Equity accounts" cents={balanceSheet.equityAccounts} tone="" />
+            <Figure label="Earnings not yet closed" cents={balanceSheet.earningsNotClosed} tone="" />
 
-            <div className="flex justify-between items-center">
-              <span className="text-text-secondary">Liabilities</span>
-              <span className="text-terminal-lg font-semibold">
-                {functionalMoneyWords(balanceSheet.liabilitiesCents)}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-text-secondary">Equity</span>
-              <span className="text-terminal-lg font-semibold">
-                {functionalMoneyWords(balanceSheet.equityCents)}
-              </span>
-            </div>
-
-            <div className="border-t pt-4 mt-4">
-              <div className="text-sm text-text-secondary space-y-1">
-                <div>Balance Check: Assets = {functionalMoneyWords(balanceSheet.assetsCents)}</div>
-                <div>Liabilities + Equity = {functionalMoneyWords(liabilitiesPlusEquityCents)}</div>
-                <div className={`font-semibold ${isBalanced ? 'text-brand-green' : 'text-brand-red'}`}>
-                  {isBalanced ? '✓ Books balanced' : '⚠ Books not balanced'}
-                </div>
+            <div className="border-t pt-4 mt-4 space-y-2">
+              <Figure label="Liabilities + equity" cents={balanceSheet.totalLiabilities + balanceSheet.totalEquity} tone="" />
+              <div className={`text-sm font-semibold ${balanceSheet.isBalanced ? 'text-brand-green' : 'text-brand-red'}`} data-balance-mark>
+                {balanceSheet.isBalanced ? '✓ Assets = Liabilities + Equity' : `⚠ Out by ${functionalMoneyWords(Math.abs(balanceSheet.difference))}`}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {statements.unclassified.length > 0 && (
+        <div role="alert" className="text-xs text-brand-red" data-statement-unclassified>{unclassifiedWords(statements.unclassified.map((u) => u.code))}</div>
+      )}
 
       {/* Quick Stats */}
       <div className="bg-white border rounded p-6">
@@ -153,35 +142,53 @@ export default function FinancialStatementsTab({ }: { } = {}) {
         <div className="grid grid-cols-3 gap-4">
           <div className="border rounded p-4 text-center">
             <div className="text-sm text-text-secondary mb-1">Profit Margin</div>
-            <div className="text-sm font-bold">
-              {incomeStatement.revenueCents > 0
-                ? ((incomeStatement.netIncomeCents / incomeStatement.revenueCents) * 100).toFixed(1)
-                : '0.0'
-              }%
-            </div>
+            <div className="text-sm font-bold" data-ratio="net-income-over-revenue">{ratioWords(incomeStatement.netIncome, incomeStatement.totalRevenue, 'percent')}</div>
           </div>
 
           <div className="border rounded p-4 text-center">
-            <div className="text-sm text-text-secondary mb-1">Current Ratio</div>
-            <div className="text-sm font-bold">
-              {balanceSheet.liabilitiesCents !== 0
-                ? (balanceSheet.assetsCents / Math.abs(balanceSheet.liabilitiesCents)).toFixed(2)
-                : 'N/A'
-              }
-            </div>
+            <div className="text-sm text-text-secondary mb-1">Assets ÷ Liabilities</div>
+            <div className="text-sm font-bold" data-ratio="assets-over-liabilities">{ratioWords(balanceSheet.totalAssets, balanceSheet.totalLiabilities, 'times')}</div>
           </div>
 
           <div className="border rounded p-4 text-center">
             <div className="text-sm text-text-secondary mb-1">ROE</div>
-            <div className="text-sm font-bold">
-              {balanceSheet.equityCents !== 0
-                ? ((incomeStatement.netIncomeCents / balanceSheet.equityCents) * 100).toFixed(1)
-                : '0.0'
-              }%
-            </div>
+            <div className="text-sm font-bold" data-ratio="net-income-over-equity">{ratioWords(incomeStatement.netIncome, balanceSheet.totalEquity, 'percent')}</div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** What a read came to, and the choice it was read for. */
+type Outcome =
+  | { readonly choice: ScopeChoice; readonly ok: true; readonly answer: StatementsAnswer }
+  | { readonly choice: ScopeChoice; readonly ok: false; readonly reason: string };
+
+export default function FinancialStatementsTab({ books, defaultBookId, years, currentYear }: ScopeProps) {
+  // The panel's OWN choice — it starts on the default book and the current year, and the Export keeps its own.
+  const [choice, setChoice] = useState<ScopeChoice>(() => startingChoiceOf(defaultBookId, currentYear));
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
+
+  useEffect(() => {
+    // Only the newest choice's answer is kept: an earlier read that lands late is dropped.
+    let newest = true;
+    fetchStatements(choice).then(
+      (answer) => { if (newest) setOutcome({ choice, ok: true, answer }); },
+      (failure: unknown) => { if (newest) setOutcome({ choice, ok: false, reason: failure instanceof Error ? failure.message : String(failure) }); },
+    );
+    return () => { newest = false; };
+  }, [choice]);
+
+  // An outcome is drawn only under the choice it was read for — until that read lands, the panel says it is loading.
+  const shown = outcome !== null && outcome.choice === choice ? outcome : null;
+
+  return (
+    <div className="p-4 space-y-6">
+      <StatementScopeSelect books={books} years={years} currentYear={currentYear} choice={choice} onChange={setChoice} />
+      {shown === null && <div className="p-8 text-center">Loading statements...</div>}
+      {shown !== null && !shown.ok && <div role="alert" className="p-8 text-center text-brand-red" data-statements-failed>{shown.reason}</div>}
+      {shown !== null && shown.ok && <StatementsView scope={shown.answer.scope} statements={shown.answer.statements} />}
     </div>
   );
 }

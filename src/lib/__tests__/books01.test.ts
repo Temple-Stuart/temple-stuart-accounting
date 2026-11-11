@@ -3,6 +3,9 @@
  *
  * Part 1 — one function under every statement (src/lib/books/statements.ts), over one read
  * (src/lib/books/statementsRead.ts), called by /api/statements and /api/cpa-export.
+ * Part 2 — the bar's three figures are that function over the trial balance's rows, and its mark is theirs.
+ * Part 3 — Financial Statements and the Export say their book and year, through one control, and show the same net
+ * income: each panel is drawn here over the answer its route gives for the made-up ledger.
  *
  * Hermetic: the made-up ledger of booksLedger.ts (2024–2026, two books, balanced) stands in for the database; its
  * rowsOf() is the read's rule in TypeScript. The read itself is SQL, so it is held BY CONTENT (the standing filters,
@@ -15,11 +18,16 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 Object.assign(globalThis, { React });
 import BookkeepingCockpitBar, { type BookkeepingCockpitBarProps } from '@/components/bookkeeping/BookkeepingCockpitBar';
+import FinancialStatementsTab, { RATIO_NONE_WORDS, StatementsView, ratioWords, statementsAnswerOf } from '@/components/dashboard/FinancialStatementsTab';
+import CPAExport, { ExportStatus, buildBalanceSheetCSV, buildGeneralLedgerCSV, buildIncomeStatementCSV, buildTrialBalanceCSV, exportAnswerOf, type CPAExportData } from '@/components/dashboard/CPAExport';
+import { ALL_BOOKS_WORDS, bookWordsOf, failedAnswerWords, readScoped, scopeQueryOf, scopeWordsOf, startingChoiceOf, throughWordsOf, yearOptionsOf, type ScopeChoice } from '@/components/dashboard/StatementScopeSelect';
 import { code } from '../sourceText';
+import { booksLaneImports } from '../books/booksLane';
+import { FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords } from '../books/functionalCurrency';
 import { MISSING_ACCOUNTS_WORDS, barFiguresOf, trialBalanceAccountsOf } from '../books/cockpitSums';
 import { balanceSheetOf, exportBlocksOf, incomeStatementOf, statementsOf, unclassifiedWords, STATEMENT_TYPES, type StatementRow } from '../books/statements';
-import { BOOK_NOT_FOUND_WORDS } from '../books/statementsRead';
-import { CLOSING_ENTRY, UNKNOWN_TYPE_ENTRY, entriesOf, readOf, rowsOf, trialBalanceRowsOf } from './booksLedger';
+import { BOOK_NOT_FOUND_WORDS, type StatementScope } from '../books/statementsRead';
+import { BOOKS, CLOSING_ENTRY, UNKNOWN_TYPE_ENTRY, entriesOf, readOf, rowsOf, trialBalanceRowsOf, type BookId } from './booksLedger';
 
 const STATEMENTS = 'src/lib/books/statements.ts';
 const BAR = 'src/components/bookkeeping/BookkeepingCockpitBar.tsx';
@@ -27,6 +35,10 @@ const LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
 const READ = 'src/lib/books/statementsRead.ts';
 const STATEMENTS_ROUTE = 'src/app/api/statements/route.ts';
 const EXPORT_ROUTE = 'src/app/api/cpa-export/route.ts';
+const PIPE = 'src/components/home/BooksPipeline.tsx';
+const STATEMENTS_TAB = 'src/components/dashboard/FinancialStatementsTab.tsx';
+const EXPORT_TAB = 'src/components/dashboard/CPAExport.tsx';
+const CONTROL = 'src/components/dashboard/StatementScopeSelect.tsx';
 const count = (text: string, re: RegExp): number => (text.match(re) ?? []).length;
 
 test('P1-0 the made-up ledger balances: every entry\'s debits equal its credits, the reversed pair included', () => {
@@ -373,3 +385,311 @@ test('P2-4 the mark is computed from the three figures drawn; "No activity yet" 
   assert.throws(() => trialBalanceAccountsOf({ totals: {} } as never), { message: MISSING_ACCOUNTS_WORDS });
   assert.throws(() => barFiguresOf([{ accountCode: '1000', accountType: 'asset', totalDebits: 'x', totalCredits: 0 }]), { message: 'trial balance account 1000 has no readable totalDebits' });
 });
+
+// ─── Part 3 — FINANCIAL STATEMENTS AND EXPORT SAY THEIR BOOK AND YEAR, AND AGREE ────────────────────────────────────
+// Each panel is drawn over the answer its route gives. The answers are built here the way the routes build them
+// (P1-10 pins the routes' two calls): the one function over the one read's rows — /api/statements hands the function's
+// whole answer, /api/cpa-export hands the same answer under the Export's keys.
+
+const bookName = (book: BookId | null): string | null => (book === null ? null : BOOKS.find((b) => b.id === book)!.name);
+const scopeOf = (year: number, book: BookId | null): StatementScope => ({ year, through: `${year}-12-31`, entityId: book, entityName: bookName(book) });
+/** What /api/statements answers for a year and a book of the made-up ledger. */
+const statementsAnswer = (year: number, book: BookId | null, without: readonly string[] = []) =>
+  ({ accounts: [], availableYears: [2026, 2025, 2024], scope: scopeOf(year, book), statements: statementsOf(readOf(year, book, without)) });
+/** What /api/cpa-export answers for the same: the same function's figures under the Export's keys (its trial balance and ledger are not this part's). */
+const exportAnswer = (year: number, book: BookId | null, without: readonly string[] = []): CPAExportData => {
+  const statements = statementsOf(readOf(year, book, without));
+  return {
+    period: { year, entityId: book, through: `${year}-12-31`, entityName: bookName(book) },
+    trialBalance: { rows: [], totals: { totalDebits: 0, totalCredits: 0, difference: 0, isBalanced: true } },
+    ...exportBlocksOf(statements),
+    generalLedger: [],
+  };
+};
+const drawStatements = (year: number, book: BookId | null, without: readonly string[] = []): string =>
+  renderToStaticMarkup(React.createElement(StatementsView, statementsAnswerOf(statementsAnswer(year, book, without))));
+const drawExportStatus = (year: number, book: BookId | null, without: readonly string[] = []): string =>
+  renderToStaticMarkup(React.createElement(ExportStatus, { data: exportAnswerOf(exportAnswer(year, book, without)) }));
+/** The net income a drawn panel shows. */
+const netIncomeDrawn = (html: string): string => {
+  const m = /data-net-income="true"[^>]*>([^<]+)</.exec(html);
+  assert.ok(m !== null, 'the panel draws a net income');
+  return m![1];
+};
+/** The books as /api/entities hands them — by name. */
+const PANEL_BOOKS = [...BOOKS].sort((a, b) => (a.name < b.name ? -1 : 1)).map((b) => ({ id: b.id, name: b.name }));
+const panelProps = (defaultBookId: string | null) => ({ books: PANEL_BOOKS, defaultBookId, years: [2025, 2024], currentYear: 2026 });
+/** One figure row of the statements panel: its label, then its figure. */
+const figure = (html: string, label: string): string => {
+  const m = new RegExp(`>${label.replace(/[+]/g, '\\+')}</span><span[^>]*>([^<]+)<`).exec(html);
+  assert.ok(m !== null, `the panel draws ${label}`);
+  return m![1];
+};
+/** Run a read under a fetch that answers once, by what the test hands it. */
+async function underFetch<T>(answer: { status: number; json: () => unknown }, run: () => Promise<T>): Promise<{ urls: string[]; result: T | Error }> {
+  const g = globalThis as unknown as { fetch: unknown };
+  const saved = g.fetch;
+  const urls: string[] = [];
+  g.fetch = async (url: string) => { urls.push(url); return { ok: answer.status >= 200 && answer.status < 300, status: answer.status, json: async () => answer.json() }; };
+  try {
+    return { urls, result: await run().catch((e: Error) => e) };
+  } finally {
+    g.fetch = saved;
+  }
+}
+
+test('P3-1 for one book and year the two panels show the SAME net income — one figure, from the one function, under both', () => {
+  for (const [year, book, words] of [[2026, 'P', '$4,520.00'], [2026, 'B', '$1,200.01'], [2026, null, '$5,720.01'], [2025, null, '$5,050.01'], [2024, 'P', '$3,880.00']] as const) {
+    const fromFunction = statementsOf(readOf(year, book)).incomeStatement.netIncome;
+    assert.equal(functionalMoneyWords(fromFunction), words, `${year} ${book}: the function's net income`);
+    assert.equal(netIncomeDrawn(drawStatements(year, book)), words, `${year} ${book}: Financial Statements draws it`);
+    assert.equal(netIncomeDrawn(drawExportStatus(year, book)), words, `${year} ${book}: the Export's status bar draws it`);
+    assert.ok(buildIncomeStatementCSV(exportAnswer(year, book)).split('\n').includes(`,NET INCOME,"${words}"`), `${year} ${book}: the Export's income statement CSV carries it`);
+  }
+  // Two books, one year: a different figure for each — the panels read the book they are asked for.
+  assert.notEqual(netIncomeDrawn(drawStatements(2026, 'P')), netIncomeDrawn(drawStatements(2026, 'B')));
+  // The same function under both: each panel draws its route's figure as it is, and both routes ask with the one query.
+  const tab = code(STATEMENTS_TAB);
+  const exp = code(EXPORT_TAB);
+  assert.match(tab, /const \{ incomeStatement, balanceSheet \} = statements;/);
+  assert.match(tab, /\{functionalMoneyWords\(incomeStatement\.netIncome\)\}/);
+  assert.match(exp, /\{functionalMoneyWords\(data\.incomeStatement\.totals\.netIncome\)\}/);
+  assert.match(tab, /statementsAnswerOf\(await readScoped\('\/api\/statements', choice\)\)/);
+  assert.match(exp, /exportAnswerOf\(await readScoped\('\/api\/cpa-export', choice\)\)/);
+  assert.match(code(CONTROL), /const res = await fetch\(`\$\{route\}\?\$\{scopeQueryOf\(choice\)\}`\);/);
+  assert.equal(count(tab, /fetch\(/g), 0, 'the panel makes no fetch of its own');
+  assert.equal(count(exp, /fetch\(/g), 0, 'the Export makes no fetch of its own');
+  // No arithmetic of its own is left under the statements panel's figures — nothing is summed per account, nothing made absolute but the "out by".
+  assert.doesNotMatch(tab, /\.reduce\(|for \(const acct|\+= /);
+  assert.equal(count(tab, /Math\.abs\(/g), 1);
+});
+
+test('P3-2 the selects\' defaults: both panels start on the default book and the current year — each keeps its own choice, and the pipeline hands them its books, its default and its years', () => {
+  assert.deepEqual(startingChoiceOf('P', 2026), { bookId: 'P', year: 2026 });
+  assert.deepEqual(startingChoiceOf(null, 2026), { bookId: null, year: 2026 });
+  // The Year select: the years /api/statements lists plus the current year, each once, newest first.
+  assert.deepEqual(yearOptionsOf([2024, 2026, 2025, 2024], 2026), [2026, 2025, 2024]);
+  assert.deepEqual(yearOptionsOf([], 2026), [2026], 'a ledger with no entries still offers this year');
+  assert.deepEqual(yearOptionsOf([2025, 2027], 2026), [2027, 2026, 2025]);
+  // The query both routes take.
+  assert.equal(scopeQueryOf({ bookId: 'P', year: 2026 }), 'year=2026&entityId=P');
+  assert.equal(scopeQueryOf({ bookId: null, year: 2025 }), 'year=2025', 'all books: no entityId at all');
+
+  for (const [name, panel, loading] of [['Financial Statements', FinancialStatementsTab, 'Loading statements...'], ['Export', CPAExport, 'Loading ledger...']] as const) {
+    const html = renderToStaticMarkup(React.createElement(panel, panelProps('P')));
+    // Book: each of the user's books by name, then "All books" — the default book chosen.
+    assert.match(html, /<select[^>]*data-scope-book="true"[^>]*><option value="B">Business<\/option><option value="P" selected="">Personal<\/option><option value="">All books<\/option><\/select>/, `${name}: the Book select`);
+    // Year: this year chosen, then the years the route lists.
+    assert.match(html, /<select[^>]*data-scope-year="true"[^>]*><option value="2026" selected="">2026<\/option><option value="2025">2025<\/option><option value="2024">2024<\/option><\/select>/, `${name}: the Year select`);
+    assert.equal(count(html, /data-statement-scope="true"/g), 1, `${name} mounts the control once`);
+    // Before its read lands a panel says it is loading — it draws no figure.
+    assert.ok(html.includes(loading), `${name} says it is loading`);
+    assert.doesNotMatch(html, /\$\d/, `${name} draws no figure before its read lands`);
+    // No default book: the panel starts on All books.
+    assert.match(renderToStaticMarkup(React.createElement(panel, panelProps(null))), /<option value="" selected="">All books<\/option>/, `${name}: all books when the pipeline holds no default`);
+  }
+
+  // Each panel keeps its OWN choice; the pipeline holds none and does not mount the control.
+  for (const f of [STATEMENTS_TAB, EXPORT_TAB]) {
+    const src = code(f);
+    assert.match(src, /const \[choice, setChoice\] = useState<ScopeChoice>\(\(\) => startingChoiceOf\(defaultBookId, currentYear\)\);/, `${f} holds its own choice`);
+    assert.match(src, /<StatementScopeSelect books=\{books\} years=\{years\} currentYear=\{currentYear\} choice=\{choice\} onChange=\{setChoice\} \/>/);
+    assert.match(src, /from '@\/components\/dashboard\/StatementScopeSelect';/);
+    // An answer is used only under the choice it was read for, and a late one is dropped.
+    assert.match(src, /const shown = outcome !== null && outcome\.choice === choice \? outcome : null;/);
+    assert.match(src, /let newest = true;[\s\S]*?return \(\) => \{ newest = false; \};\n\s*\}, \[choice\]\);/);
+  }
+  const pipe = code(PIPE);
+  assert.ok(!booksLaneImports(pipe).some((f) => f.includes('StatementScopeSelect')), 'BooksPipeline does not import the control');
+  assert.doesNotMatch(pipe, /ScopeChoice|setChoice|StatementScopeSelect/);
+  // The pipeline keeps the books it already fetches — the default by the rule it had — and hands both panels the same four things.
+  assert.match(pipe, /const def = entities\.find\(\(e: Row\) => e\.is_default\) \|\| entities\[0\];\n\s*setBooks\(\{ list: entities, defaultId: def\?\.id \?\? null \}\);/);
+  assert.match(pipe, /<FinancialStatementsTab books=\{books\.list\} defaultBookId=\{books\.defaultId\} years=\{statementYears\} currentYear=\{year\} \/>/);
+  assert.match(pipe, /<CPAExport books=\{books\.list\} defaultBookId=\{books\.defaultId\} years=\{statementYears\} currentYear=\{year\} \/>/);
+  // What used the default book before still does: the period close, the reopen and the year-end close.
+  assert.equal(count(pipe, /entityId: books\.defaultId,/g), 2);
+  assert.match(pipe, /<CloseBooksTab entityId=\{books\.defaultId\} selectedYear=\{year\} \/>/);
+  assert.doesNotMatch(pipe, /setEntityId|\[entityId,/);
+});
+
+test('P3-3 the scope line and the statements, drawn: the book by its name and the year; the balance sheet through its last day; the mark is the function\'s', () => {
+  assert.equal(ALL_BOOKS_WORDS, 'All books');
+  assert.equal(bookWordsOf('Personal'), 'Personal');
+  assert.equal(bookWordsOf(null), 'All books');
+  assert.equal(scopeWordsOf({ entityName: 'Personal', year: 2026 }), 'Personal · 2026');
+  assert.equal(scopeWordsOf({ entityName: null, year: 2025 }), 'All books · 2025');
+  assert.equal(throughWordsOf('2026-12-31'), 'Dec 31, 2026');
+  for (const not of ['2026-13-01', '2026-12-32', 'Dec 31', '', null, undefined, 20261231]) assert.throws(() => throughWordsOf(not), /is not a calendar day/, `${String(not)} is no day — nothing is guessed`);
+
+  // All books, 2026 — with the unknown-type posting in: every figure signed, and the sheet says by how much it is out and why.
+  const all = drawStatements(2026, null);
+  assert.match(all, /<div[^>]*data-statement-scope-line="true"[^>]*>All books · 2026<\/div>/);
+  assert.ok(all.includes(`data-functional-currency="true">${FUNCTIONAL_CURRENCY_WORDS}<`), 'the unit line stays');
+  assert.match(all, /<h3[^>]*>Income Statement · 2026<\/h3>/);
+  assert.match(all, /<h3[^>]*>Balance Sheet · through Dec 31, 2026<\/h3>/);
+  assert.deepEqual(['Revenue', 'Expenses'].map((l) => figure(all, l)), ['$5,700.01', '-$20.00'], 'the refund that outweighs February\'s Travel shows as a negative expense');
+  assert.equal(netIncomeDrawn(all), '$5,720.01');
+  assert.deepEqual(['Assets', 'Liabilities', 'Equity accounts', 'Earnings not yet closed', 'Liabilities + equity'].map((l) => figure(all, l)),
+    ['$19,575.02', '-$50.00', '$8,880.00', '$10,770.02', '$19,600.02']);
+  assert.match(all, /<div[^>]*data-balance-mark="true"[^>]*>⚠ Out by \$25\.00<\/div>/);
+  assert.match(all, /<div role="alert"[^>]*data-statement-unclassified="true"[^>]*>1 account carries a type the statements do not read: 9000<\/div>/);
+  // "Liabilities + equity" is the two totals the function hands, added: liabilities + (equity accounts + earnings not yet closed).
+  const sheet = statementsOf(readOf(2026, null)).balanceSheet;
+  assert.equal(functionalMoneyWords(sheet.totalLiabilities + sheet.totalEquity), '$19,600.02');
+  assert.equal(sheet.totalAssets - (sheet.totalLiabilities + sheet.totalEquity), sheet.difference);
+
+  // The same without that posting: it adds up, the mark says so, and there is no red line.
+  const clean = drawStatements(2026, null, [UNKNOWN_TYPE_ENTRY]);
+  assert.deepEqual(['Assets', 'Liabilities + equity'].map((l) => figure(clean, l)), ['$19,600.02', '$19,600.02']);
+  assert.match(clean, /<div[^>]*data-balance-mark="true"[^>]*>✓ Assets = Liabilities \+ Equity<\/div>/);
+  assert.doesNotMatch(clean, /data-statement-unclassified|Out by/);
+
+  // One book on its own: Business, 2026 — its name on the scope line, and it balances (its entry on Personal's Checking rides along).
+  const business = drawStatements(2026, 'B');
+  assert.match(business, /data-statement-scope-line="true"[^>]*>Business · 2026</);
+  assert.deepEqual(['Assets', 'Liabilities', 'Equity accounts', 'Earnings not yet closed', 'Liabilities + equity'].map((l) => figure(business, l)),
+    ['$2,050.02', '$0.00', '$0.00', '$2,050.02', '$2,050.02']);
+  assert.match(business, /✓ Assets = Liabilities \+ Equity/);
+  // A closed year: 2024's balance sheet runs through Dec 31, 2024, and its income statement is the year's real figure.
+  const closed = drawStatements(2024, 'P');
+  assert.match(closed, /<h3[^>]*>Balance Sheet · through Dec 31, 2024<\/h3>/);
+  assert.equal(netIncomeDrawn(closed), '$3,880.00');
+  assert.equal(figure(closed, 'Earnings not yet closed'), '$0.00', 'the close moved 2024\'s earnings into the equity accounts');
+  assert.equal(figure(closed, 'Equity accounts'), '$8,880.00');
+});
+
+test('P3-4 a ratio whose divisor is 0 prints "N/A" — never a 0.0 for a ratio that does not exist; the all-assets-over-all-liabilities tile says what it divides', () => {
+  assert.equal(RATIO_NONE_WORDS, 'N/A');
+  assert.equal(ratioWords(500, 0, 'percent'), 'N/A');
+  assert.equal(ratioWords(0, 0, 'times'), 'N/A');
+  assert.equal(ratioWords(0, 500, 'percent'), '0.0%', 'a real zero is a zero');
+  assert.equal(ratioWords(572_001, 570_001, 'percent'), '100.4%');
+  assert.equal(ratioWords(-150, 600, 'percent'), '-25.0%');
+  assert.equal(ratioWords(1_957_502, -5_000, 'times'), '-391.50', 'signed: the quotient of the two figures drawn');
+  assert.equal(ratioWords(300, 200, 'times'), '1.50');
+  // A book and year with nothing in them: three ratios that do not exist.
+  const empty = renderToStaticMarkup(React.createElement(StatementsView, { scope: scopeOf(2023, 'B'), statements: statementsOf({ toDate: [], inPeriod: [] }) }));
+  assert.equal(count(empty, /data-ratio="[a-z-]+">N\/A</g), 3);
+  assert.doesNotMatch(empty, /0\.0%|>0\.00</);
+  assert.match(empty, /✓ Assets = Liabilities \+ Equity/, 'nothing equals nothing');
+  // A year with figures: the three ratios of the figures drawn.
+  const all = drawStatements(2026, null, [UNKNOWN_TYPE_ENTRY]);
+  assert.match(all, /data-ratio="net-income-over-revenue">100\.4%</);
+  assert.match(all, /data-ratio="assets-over-liabilities">-392\.00</);
+  assert.match(all, /data-ratio="net-income-over-equity">29\.1%</);
+  const tab = code(STATEMENTS_TAB);
+  assert.match(tab, /if \(divisor === 0\) return RATIO_NONE_WORDS;/);
+  assert.match(tab, />Assets ÷ Liabilities</);
+  assert.doesNotMatch(tab, /Current Ratio|'0\.0'/);
+  assert.equal(count(tab, />Profit Margin</g), 1);
+});
+
+test('P3-5 the General Ledger section\'s subtitle is gone — a count nothing counted; the lines cited into BooksPipeline hold what they held', () => {
+  const pipe = code(PIPE);
+  assert.doesNotMatch(pipe, /committedCount \* 2/);
+  assert.match(pipe, /<BookkeepingSection title="General Ledger" pipelineKey="LDG"\s+status=\{committedCount > 0 \? 'complete' : 'pending'\}>/, 'the section opens with its title, its key and its status — no subtitle');
+  assert.equal(count(pipe, /`\$\{journalEntries\.length\} entries`/g), 1, 'Journal Entries keeps its count — that one is counted');
+  // Every edit in the pipeline was made in place: the three lines other files cite did not move.
+  const lines = pipe.split('\n');
+  assert.ok(lines[284].includes('const uncommittedSpending = transactions.filter((t) => !t.journalProof);'), 'toolRegistry.ts cites :285');
+  assert.equal(lines[327].trim(), ');', 'nav.ts cites :328 — the strip\'s last line');
+  assert.ok(lines[326].includes('/>'));
+  assert.ok(lines[583].includes('<GeneralLedger coaOptions={coaOptions}'), 'PipelineDeck.tsx cites :584');
+});
+
+test('P3-6 a read that fails prints the route\'s own reason; an answer without its figures is refused by name — never a blank, never a zero', async () => {
+  assert.equal(failedAnswerWords('/api/statements', 403, { error: 'Tab not unlocked' }), 'Tab not unlocked');
+  assert.equal(failedAnswerWords('/api/statements', 500, {}), '/api/statements answered 500 and gave no reason');
+  assert.equal(failedAnswerWords('/api/cpa-export', 502, null), '/api/cpa-export answered 502 and gave no reason');
+  assert.equal(failedAnswerWords('/api/cpa-export', 500, { error: '' }), '/api/cpa-export answered 500 and gave no reason');
+
+  const choice: ScopeChoice = { bookId: 'P', year: 2026 };
+  // The route's refusal is what the read throws — and the read asks with the book and the year.
+  const refused = await underFetch({ status: 404, json: () => ({ error: 'Entity not found' }) }, () => readScoped('/api/statements', choice));
+  assert.deepEqual(refused.urls, ['/api/statements?year=2026&entityId=P']);
+  assert.ok(refused.result instanceof Error && refused.result.message === 'Entity not found');
+  const notJson = await underFetch({ status: 504, json: () => { throw new SyntaxError('Unexpected token <'); } }, () => readScoped('/api/cpa-export', { bookId: null, year: 2025 }));
+  assert.deepEqual(notJson.urls, ['/api/cpa-export?year=2025']);
+  assert.ok(notJson.result instanceof Error && notJson.result.message === '/api/cpa-export answered 504 and its answer was not JSON');
+  // A good answer comes back as it is.
+  const good = await underFetch({ status: 200, json: () => statementsAnswer(2026, 'P') }, () => readScoped('/api/statements', choice));
+  assert.deepEqual(statementsAnswerOf(good.result).statements.incomeStatement.netIncome, 452_000);
+
+  // An answer that is 200 and lacks what the panel draws is refused by name.
+  const answer = statementsAnswer(2026, 'P');
+  assert.throws(() => statementsAnswerOf({ accounts: [], availableYears: [] }), { message: 'statements: the answer carries no readable scope' });
+  assert.throws(() => statementsAnswerOf({ scope: answer.scope }), { message: 'statements: the answer carries no readable statements' });
+  assert.throws(() => statementsAnswerOf(null), { message: 'statements: the answer carries no readable scope' });
+  assert.throws(() => statementsAnswerOf({ ...answer, scope: { ...answer.scope, year: '2026' } }), { message: 'statements: the answer carries no readable scope.year' });
+  assert.throws(() => statementsAnswerOf({ ...answer, scope: { ...answer.scope, entityName: undefined } }), { message: 'statements: the answer carries no readable scope.entityName' });
+  assert.throws(() => statementsAnswerOf({ ...answer, scope: { ...answer.scope, through: '2026' } }), /is not a calendar day/);
+  const without = (block: 'incomeStatement' | 'balanceSheet', name: string) => ({ ...answer, statements: { ...answer.statements, [block]: { ...answer.statements[block], [name]: undefined } } });
+  assert.throws(() => statementsAnswerOf(without('balanceSheet', 'totalAssets')), { message: 'statements: the answer carries no readable balanceSheet.totalAssets' });
+  assert.throws(() => statementsAnswerOf(without('incomeStatement', 'netIncome')), { message: 'statements: the answer carries no readable incomeStatement.netIncome' });
+  assert.throws(() => statementsAnswerOf(without('balanceSheet', 'isBalanced')), { message: 'statements: the answer carries no readable balanceSheet.isBalanced' });
+  assert.throws(() => statementsAnswerOf({ ...answer, statements: { ...answer.statements, balanceSheet: { ...answer.statements.balanceSheet, difference: 0.5 } } }), { message: 'statements: the answer carries no readable balanceSheet.difference' });
+  assert.throws(() => statementsAnswerOf({ ...answer, statements: { ...answer.statements, unclassified: undefined } }), { message: 'statements: the answer carries no readable unclassified' });
+  // The Export's period the same: its year, its last day and the book's name are read, or the answer is refused.
+  const exported = exportAnswer(2026, 'P');
+  assert.equal(exportAnswerOf(exported), exported);
+  assert.throws(() => exportAnswerOf({}), { message: 'CPA export: the answer carries no readable period' });
+  assert.throws(() => exportAnswerOf({ ...exported, period: { year: 2026, entityId: 'P' } }), { message: 'CPA export: the answer carries no readable period.entityName' });
+  assert.throws(() => exportAnswerOf({ ...exported, period: { ...exported.period, through: undefined } }), /is not a calendar day/);
+
+  // The panels print the reason in place, in red — and draw a statement only over an answer that was read.
+  const tab = code(STATEMENTS_TAB);
+  assert.match(tab, /\{shown !== null && !shown\.ok && <div role="alert" className="p-8 text-center text-brand-red" data-statements-failed>\{shown\.reason\}<\/div>\}/);
+  assert.match(tab, /\{shown !== null && shown\.ok && <StatementsView scope=\{shown\.answer\.scope\} statements=\{shown\.answer\.statements\} \/>\}/);
+  assert.match(tab, /\{shown === null && <div className="p-8 text-center">Loading statements\.\.\.<\/div>\}/);
+  assert.doesNotMatch(tab, /Failed to load statements|\|\| 0\b|\?\? 0\b|console\.error/, 'no blank, no zero, no swallowed failure');
+  const exp = code(EXPORT_TAB);
+  assert.match(exp, /\{error !== null && <span role="alert" className="text-brand-red">Error: \{error\}<\/span>\}/);
+  assert.match(exp, /const data = shown !== null && shown\.ok \? shown\.data : null;/);
+  assert.doesNotMatch(exp, /\.catch\(\(\) => \(\{\}\)\)|\|\| `HTTP/, 'the swallowed body and the stand-in reason are gone');
+});
+
+test('P3-7 the Export names the book by its name — the status bar and the four CSV headings — says the day its balance sheet runs through, and calls the equity line what it is', () => {
+  const personal = exportAnswer(2026, 'P');
+  const everyBook = exportAnswer(2026, null);
+  // The status bar: the year, the book by name, the balance sheet's last day.
+  const status = drawExportStatus(2026, 'P');
+  assert.match(status, /Year: <strong>2026<\/strong>/);
+  assert.match(status, /Entity: <strong>Personal<\/strong>/);
+  assert.match(status, /<span[^>]*data-export-through="true"[^>]*>balance sheet through Dec 31, 2026<\/span>/);
+  assert.match(drawExportStatus(2025, null), /Entity: <strong>All books<\/strong>/);
+  assert.match(drawExportStatus(2025, null), /balance sheet through Dec 31, 2025/);
+  // The sheet's own mark: out by the unknown type with it in, balanced with it set aside.
+  assert.match(drawExportStatus(2026, null), /Balance Sheet ✗/);
+  assert.match(drawExportStatus(2026, null, [UNKNOWN_TYPE_ENTRY]), /Balance Sheet ✓/);
+  // The four CSVs: the fourth line names the book — never an id, never an empty line.
+  const csvs = [buildTrialBalanceCSV, buildIncomeStatementCSV, buildBalanceSheetCSV, buildGeneralLedgerCSV];
+  for (const build of csvs) {
+    assert.equal(build(personal).split('\n')[3], 'Entity: Personal', `${build.name}: the book by name`);
+    assert.equal(build(everyBook).split('\n')[3], 'Entity: All books', `${build.name}: all books, said`);
+    assert.equal(build(personal).split('\n')[2], FUNCTIONAL_CURRENCY_WORDS, `${build.name}: the unit line stays third`);
+    assert.doesNotMatch(build(personal), /Entity: P\b/);
+  }
+  assert.deepEqual(buildTrialBalanceCSV(personal).split('\n').slice(0, 3), ['TRIAL BALANCE', '"For the Year Ended December 31, 2026"', FUNCTIONAL_CURRENCY_WORDS]);
+  // The balance sheet CSV (the unknown-type posting set aside): every earlier year is in it, and the equity line is what no closing entry has moved yet.
+  const sheet = buildBalanceSheetCSV(exportAnswer(2026, 'P', [UNKNOWN_TYPE_ENTRY])).split('\n');
+  assert.ok(sheet.includes('3900,Retained Earnings,"$3,880.00"'), 'the 2024 close is in the 2026 balance sheet');
+  assert.ok(sheet.includes(',Earnings not yet closed to equity,"$8,720.00"'), '2025 and 2026, not yet closed');
+  assert.ok(sheet.includes(',Total Equity,"$17,600.00"'));
+  assert.ok(sheet.includes(',Total Assets,"$17,550.00"'));
+  assert.ok(sheet.includes(',TOTAL LIABILITIES + EQUITY,"$17,550.00"'));
+  assert.ok(sheet.includes(',,BALANCED ✓'));
+  assert.doesNotMatch(sheet.join('\n'), /Retained Earnings \(Net Income\)/);
+  // With that posting in, the same sheet says it is out, and by how much — the function's own difference.
+  const out = buildBalanceSheetCSV(personal).split('\n');
+  assert.ok(out.includes(',Total Assets,"$17,525.00"'));
+  assert.ok(out.includes(',TOTAL LIABILITIES + EQUITY,"$17,550.00"'));
+  assert.ok(out.includes(',,OUT OF BALANCE ✗'));
+  assert.ok(out.some((line) => line.includes('Difference: -$25.00')));
+  const exp = code(EXPORT_TAB);
+  assert.equal(count(exp, /\[`Entity: \$\{bookWordsOf\(period\.entityName\)\}`\],/g), 4);
+  assert.doesNotMatch(exp, /period\.entityId \?|\{entityId\}|Retained Earnings \(Net Income\)/);
+  assert.equal(count(exp, /\[FUNCTIONAL_CURRENCY_WORDS\],/g), 4);
+  // A file is named by the year its data says it is — never by a select that has moved on.
+  assert.equal(count(exp, /-\$\{data\.period\.year\}\.csv`/g), 8);
+});
+
