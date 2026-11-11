@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords } from '@/lib/books/functionalCurrency';
-
+import StatementScopeSelect, { bookWordsOf, readScoped, startingChoiceOf, throughWordsOf, type ScopeChoice, type ScopeProps } from '@/components/dashboard/StatementScopeSelect';
 
 // ═══════════════════════════════════════════════════════════════════
 // CPAExport — Generates accountant-ready CSV reports (Trial Balance,
@@ -10,11 +10,15 @@ import { FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords } from '@/lib/books/fun
 // LEDGER via /api/cpa-export. Debit/credit is taken from
 // ledger_entries.entry_type ('D'/'C'), NOT from Plaid amount sign.
 // ═══════════════════════════════════════════════════════════════════
-
-interface CPAExportProps {
-  year: number;
-  entityId?: string | null;
-}
+//
+// BOOKS-01 (Alex, 2026-11-11 12:08: "get bookkeeping full proof") — THE EXPORT SAYS ITS BOOK AND YEAR. It was handed
+// the current year and the default book and printed the book as an id; now it holds its own choice in the one control
+// Financial Statements mounts too (StatementScopeSelect), and every heading names the book by the name the route read
+// (`period.entityName`; "All books" when none). Its income statement and balance sheet are the one function's figures
+// (src/lib/books/statements.ts, through the route) — the same net income Financial Statements draws for the same book
+// and year — and the balance sheet runs through the year's last day with every earlier year in it, which the status
+// bar says. The equity line that carried the year's net income as 'Retained Earnings (Net Income)' is what no closing
+// entry has moved into equity yet: 'Earnings not yet closed to equity'.
 
 interface TrialBalanceRow {
   accountCode: string;
@@ -46,8 +50,8 @@ interface LedgerLine {
   sourceId: string | null;
 }
 
-interface CPAExportData {
-  period: { year: number; entityId: string | null };
+export interface CPAExportData {
+  period: { year: number; entityId: string | null; through: string; entityName: string | null };
   trialBalance: {
     rows: TrialBalanceRow[];
     totals: {
@@ -108,13 +112,13 @@ function downloadCSV(csv: string, filename: string) {
 
 // ─── CSV generators (format data → CSV string) ──────────────────────
 
-function buildTrialBalanceCSV(data: CPAExportData): string {
+export function buildTrialBalanceCSV(data: CPAExportData): string {
   const { trialBalance, period } = data;
   const rows: unknown[][] = [
     ['TRIAL BALANCE'],
     [`For the Year Ended December 31, ${period.year}`],
     [FUNCTIONAL_CURRENCY_WORDS],
-    period.entityId ? [`Entity: ${period.entityId}`] : [],
+    [`Entity: ${bookWordsOf(period.entityName)}`],
     [],
     ['Account Code', 'Account Name', 'Account Type', 'Debit Balance', 'Credit Balance'],
   ];
@@ -149,13 +153,13 @@ function buildTrialBalanceCSV(data: CPAExportData): string {
   return rowsToCSV(rows);
 }
 
-function buildIncomeStatementCSV(data: CPAExportData): string {
+export function buildIncomeStatementCSV(data: CPAExportData): string {
   const { incomeStatement, period } = data;
   const rows: unknown[][] = [
     ['INCOME STATEMENT'],
     [`For the Year Ended December 31, ${period.year}`],
     [FUNCTIONAL_CURRENCY_WORDS],
-    period.entityId ? [`Entity: ${period.entityId}`] : [],
+    [`Entity: ${bookWordsOf(period.entityName)}`],
     [],
     ['Account Code', 'Account Name', 'Amount'],
     [],
@@ -178,13 +182,13 @@ function buildIncomeStatementCSV(data: CPAExportData): string {
   return rowsToCSV(rows);
 }
 
-function buildBalanceSheetCSV(data: CPAExportData): string {
+export function buildBalanceSheetCSV(data: CPAExportData): string {
   const { balanceSheet, period } = data;
   const rows: unknown[][] = [
     ['BALANCE SHEET'],
     [`As of December 31, ${period.year}`],
     [FUNCTIONAL_CURRENCY_WORDS],
-    period.entityId ? [`Entity: ${period.entityId}`] : [],
+    [`Entity: ${bookWordsOf(period.entityName)}`],
     [],
     ['Account Code', 'Account Name', 'Amount'],
     [],
@@ -208,7 +212,7 @@ function buildBalanceSheetCSV(data: CPAExportData): string {
   for (const l of balanceSheet.equity) {
     rows.push([l.accountCode, l.accountName, functionalMoneyWords(l.amount)]);
   }
-  rows.push(['', 'Retained Earnings (Net Income)', functionalMoneyWords(balanceSheet.retainedEarnings)]);
+  rows.push(['', 'Earnings not yet closed to equity', functionalMoneyWords(balanceSheet.retainedEarnings)]);
   rows.push(['', 'Total Equity', functionalMoneyWords(balanceSheet.totals.totalEquity)]);
   rows.push([]);
 
@@ -236,13 +240,13 @@ function buildBalanceSheetCSV(data: CPAExportData): string {
   return rowsToCSV(rows);
 }
 
-function buildGeneralLedgerCSV(data: CPAExportData): string {
+export function buildGeneralLedgerCSV(data: CPAExportData): string {
   const { generalLedger, period } = data;
   const rows: unknown[][] = [
     ['GENERAL LEDGER'],
     [`For the Year ${period.year}`],
     [FUNCTIONAL_CURRENCY_WORDS],
-    period.entityId ? [`Entity: ${period.entityId}`] : [],
+    [`Entity: ${bookWordsOf(period.entityName)}`],
     [],
     [
       'Date',
@@ -305,87 +309,132 @@ function buildGeneralLedgerCSV(data: CPAExportData): string {
   return rowsToCSV(rows);
 }
 
+// ─── The answer, read ───────────────────────────────────────────────
+
+const unreadableWords = (what: string): string => `CPA export: the answer carries no readable ${what}`;
+
+/**
+ * THE PERIOD, READ: the year, the balance sheet's last day and the book's name are what the headings and the status
+ * bar print — a period without them throws by name, and the panel prints the words. Nothing stands in for one.
+ */
+export function exportAnswerOf(body: unknown): CPAExportData {
+  const period = (body as { period?: unknown } | null | undefined)?.period as Partial<CPAExportData['period']> | null | undefined;
+  if (typeof period !== 'object' || period === null) throw new Error(unreadableWords('period'));
+  if (!Number.isSafeInteger(period.year)) throw new Error(unreadableWords('period.year'));
+  if (period.entityName !== null && typeof period.entityName !== 'string') throw new Error(unreadableWords('period.entityName'));
+  throughWordsOf(period.through);
+  return body as CPAExportData;
+}
+
+/** The read: /api/cpa-export for the panel's own book and year. A failure throws the words the panel prints. */
+const fetchExport = async (choice: ScopeChoice): Promise<CPAExportData> => exportAnswerOf(await readScoped('/api/cpa-export', choice));
+
 // ─── Component ──────────────────────────────────────────────────────
 
-export default function CPAExport({ year, entityId }: CPAExportProps & { }) {
-  const [data, setData] = useState<CPAExportData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+/**
+ * WHAT THE EXPORT HOLDS, in the route's words: the year, the book by its name, the day the balance sheet runs through,
+ * then the counts, the two marks and the net income. No state, no fetch.
+ */
+export function ExportStatus({ data }: { data: CPAExportData }) {
+  return (
+    <>
+      <span className="text-text-secondary">
+        Year: <strong>{data.period.year}</strong>
+      </span>
+      <span className="text-text-secondary">
+        Entity: <strong>{bookWordsOf(data.period.entityName)}</strong>
+      </span>
+      <span className="text-text-secondary" data-export-through>
+        {`balance sheet through ${throughWordsOf(data.period.through)}`}
+      </span>
+      <span className="text-text-secondary">
+        Accounts: <strong>{data.trialBalance.rows.length}</strong>
+      </span>
+      <span className="text-text-secondary">
+        Ledger lines: <strong>{data.generalLedger.length}</strong>
+      </span>
+      <span className={data.trialBalance.totals.isBalanced ? 'text-brand-green' : 'text-brand-red'}>
+        {data.trialBalance.totals.isBalanced ? 'Trial Balance ✓' : 'Trial Balance ✗'}
+      </span>
+      <span className={data.balanceSheet.totals.isBalanced ? 'text-brand-green' : 'text-brand-red'}>
+        {data.balanceSheet.totals.isBalanced ? 'Balance Sheet ✓' : 'Balance Sheet ✗'}
+      </span>
+      <span className="text-text-secondary">
+        Net Income: <strong data-net-income>{functionalMoneyWords(data.incomeStatement.totals.netIncome)}</strong> <span className="text-text-faint" data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</span>
+      </span>
+    </>
+  );
+}
+
+/** What a read came to, and the choice it was read for. */
+type Outcome =
+  | { readonly choice: ScopeChoice; readonly ok: true; readonly data: CPAExportData }
+  | { readonly choice: ScopeChoice; readonly ok: false; readonly reason: string };
+
+export default function CPAExport({ books, defaultBookId, years, currentYear }: ScopeProps) {
+  // The panel's OWN choice — it starts on the default book and the current year, and Financial Statements keeps its own.
+  const [choice, setChoice] = useState<ScopeChoice>(() => startingChoiceOf(defaultBookId, currentYear));
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const qs = new URLSearchParams({ year: String(year) });
-      if (entityId) qs.set('entityId', entityId);
-      const res = await fetch(`/api/cpa-export?${qs.toString()}`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `HTTP ${res.status}`);
-      }
-      setData(await res.json());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load CPA export data');
-    } finally {
-      setLoading(false);
-    }
-  }, [year, entityId]);
-
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Only the newest choice's answer is kept: an earlier read that lands late is dropped.
+    let newest = true;
+    fetchExport(choice).then(
+      (answer) => { if (newest) setOutcome({ choice, ok: true, data: answer }); },
+      (failure: unknown) => { if (newest) setOutcome({ choice, ok: false, reason: failure instanceof Error ? failure.message : String(failure) }); },
+    );
+    return () => { newest = false; };
+  }, [choice]);
 
+  // An outcome is used only under the choice it was read for: while another book or year is being read there is NO
+  // data — the buttons stand down, so a file is never one scope's figures under another's name.
+  const shown = outcome !== null && outcome.choice === choice ? outcome : null;
+  const loading = shown === null;
+  const error = shown !== null && !shown.ok ? shown.reason : null;
+  const data = shown !== null && shown.ok ? shown.data : null;
+
+  // Each file is named by the year its data says it is.
   const exportTrialBalance = () => {
     if (!data) return;
     setExporting('trial-balance');
-    downloadCSV(buildTrialBalanceCSV(data), `trial-balance-${year}.csv`);
+    downloadCSV(buildTrialBalanceCSV(data), `trial-balance-${data.period.year}.csv`);
     setExporting(null);
   };
 
   const exportIncomeStatement = () => {
     if (!data) return;
     setExporting('income-statement');
-    downloadCSV(buildIncomeStatementCSV(data), `income-statement-${year}.csv`);
+    downloadCSV(buildIncomeStatementCSV(data), `income-statement-${data.period.year}.csv`);
     setExporting(null);
   };
 
   const exportBalanceSheet = () => {
     if (!data) return;
     setExporting('balance-sheet');
-    downloadCSV(buildBalanceSheetCSV(data), `balance-sheet-${year}.csv`);
+    downloadCSV(buildBalanceSheetCSV(data), `balance-sheet-${data.period.year}.csv`);
     setExporting(null);
   };
 
   const exportGeneralLedger = () => {
     if (!data) return;
     setExporting('general-ledger');
-    downloadCSV(buildGeneralLedgerCSV(data), `general-ledger-${year}.csv`);
+    downloadCSV(buildGeneralLedgerCSV(data), `general-ledger-${data.period.year}.csv`);
     setExporting(null);
   };
 
   const exportAll = async () => {
     if (!data) return;
     setExporting('all');
-    downloadCSV(buildTrialBalanceCSV(data), `trial-balance-${year}.csv`);
+    downloadCSV(buildTrialBalanceCSV(data), `trial-balance-${data.period.year}.csv`);
     await new Promise((r) => setTimeout(r, 400));
-    downloadCSV(buildIncomeStatementCSV(data), `income-statement-${year}.csv`);
+    downloadCSV(buildIncomeStatementCSV(data), `income-statement-${data.period.year}.csv`);
     await new Promise((r) => setTimeout(r, 400));
-    downloadCSV(buildBalanceSheetCSV(data), `balance-sheet-${year}.csv`);
+    downloadCSV(buildBalanceSheetCSV(data), `balance-sheet-${data.period.year}.csv`);
     await new Promise((r) => setTimeout(r, 400));
-    downloadCSV(buildGeneralLedgerCSV(data), `general-ledger-${year}.csv`);
+    downloadCSV(buildGeneralLedgerCSV(data), `general-ledger-${data.period.year}.csv`);
     setExporting(null);
   };
-
-  const stats = data
-    ? {
-        accounts: data.trialBalance.rows.length,
-        ledgerLines: data.generalLedger.length,
-        isBalanced: data.trialBalance.totals.isBalanced,
-        sheetBalanced: data.balanceSheet.totals.isBalanced,
-        netIncome: data.incomeStatement.totals.netIncome,
-      }
-    : null;
 
   return (
     <div className="bg-white overflow-hidden">
@@ -403,44 +452,11 @@ export default function CPAExport({ year, entityId }: CPAExportProps & { }) {
       </div>
 
       {/* Status bar */}
-      <div className="px-4 py-2 border-b border-border bg-bg-row flex items-center gap-6 text-sm">
-        <span className="text-text-secondary">
-          Year: <strong>{year}</strong>
-        </span>
-        {entityId && (
-          <span className="text-text-secondary">
-            Entity: <strong className="font-mono text-xs">{entityId}</strong>
-          </span>
-        )}
+      <div className="px-4 py-2 border-b border-border bg-bg-row flex flex-wrap items-center gap-6 text-sm">
+        <StatementScopeSelect books={books} years={years} currentYear={currentYear} choice={choice} onChange={setChoice} />
         {loading && <span className="text-text-muted">Loading ledger...</span>}
-        {error && <span className="text-brand-red">Error: {error}</span>}
-        {stats && (
-          <>
-            <span className="text-text-secondary">
-              Accounts: <strong>{stats.accounts}</strong>
-            </span>
-            <span className="text-text-secondary">
-              Ledger lines: <strong>{stats.ledgerLines}</strong>
-            </span>
-            <span
-              className={
-                stats.isBalanced ? 'text-brand-green' : 'text-brand-red'
-              }
-            >
-              {stats.isBalanced ? 'Trial Balance ✓' : 'Trial Balance ✗'}
-            </span>
-            <span
-              className={
-                stats.sheetBalanced ? 'text-brand-green' : 'text-brand-red'
-              }
-            >
-              {stats.sheetBalanced ? 'Balance Sheet ✓' : 'Balance Sheet ✗'}
-            </span>
-            <span className="text-text-secondary">
-              Net Income: <strong>{functionalMoneyWords(stats.netIncome)}</strong> <span className="text-text-faint" data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</span>
-            </span>
-          </>
-        )}
+        {error !== null && <span role="alert" className="text-brand-red">Error: {error}</span>}
+        {data !== null && <ExportStatus data={data} />}
       </div>
 
       {/* Export options */}

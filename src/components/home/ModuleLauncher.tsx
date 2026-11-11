@@ -117,8 +117,8 @@ import RoomLock from '@/components/shell/RoomLock';
 import { keysGranting } from '@/lib/offer';
 import { lapsedFor, type LapsedEntitlement } from '@/lib/lapse';
 import { isTabLocked } from '@/lib/categoryLock';
-// BOOKS-GATE-01: the Books summary's sums — an unreadable trial-balance balance is refused by name, never summed as 0.
-import { sumByType, trialBalanceAccountsOf } from '@/lib/books/cockpitSums';
+// BOOKS-GATE-01 · BOOKS-01: the Books summary's figures — the one balance sheet over the trial balance's rows; an unreadable figure is refused by name, never summed as 0.
+import { barFiguresOf, trialBalanceAccountsOf } from '@/lib/books/cockpitSums';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
@@ -250,8 +250,8 @@ export function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; laps
   const [booksYear] = useState(new Date().getFullYear());
   const [booksState, setBooksState] = useState<'loading' | 'error' | 'ok'>('loading');
   const [booksData, setBooksData] = useState<{
-    totalAssets: number; totalLiabilities: number; totalEquity: number;
-    isBalanced: boolean; hasActivity: boolean; connectedAccounts: number; periodStatus: 'open' | 'closed';
+    totalAssets: number; totalLiabilities: number; totalEquity: number; earningsNotClosed: number; unclassified: readonly string[];
+    hasActivity: boolean; connectedAccounts: number; periodStatus: 'open' | 'closed';
   } | null>(null);
 
   const loadBooksCockpit = useCallback(async () => {
@@ -267,17 +267,17 @@ export function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; laps
       const tb = await tbRes.json();
       const acc = await accRes.json();
       const cp = await cpRes.json();
-      // isBalanced + hasActivity MUST come from the real trial balance — if
-      // either is absent, that's an error we surface, never a silent "true".
+      // The trial balance's totals carry isBalanced + hasActivity — if either is absent the answer is not a trial
+      // balance: an error we surface, never a silent "true". BOOKS-01: the bar's mark is the three figures' own difference.
       if (typeof tb?.totals?.isBalanced !== 'boolean' || typeof tb?.totals?.hasActivity !== 'boolean') throw new Error('trial balance missing isBalanced/hasActivity');
       // BOOKS-GATE-01 (Alex, 2026-10-28, ruling 6): `Array.isArray(tb.accounts) ? tb.accounts : []` stood here — a trial
       // balance without its accounts drew $0; trialBalanceAccountsOf throws "trial balance came back without its accounts".
       const tbAccounts = trialBalanceAccountsOf(tb);
-      // BOOKS-GATE-01 (Alex, 2026-10-28, ruling B): `Math.abs(Number(a.normalBalance) || 0)` stood here — a balance
-      // that was not a number was summed as 0. sumByType (src/lib/books/cockpitSums.ts) reads each balance and THROWS
-      // by name on one it cannot read ("trial balance account <code> has no readable normalBalance"); the catch below
-      // turns it into the panel's existing error words, as it does the isBalanced/hasActivity check above.
-      const sumBy = (type: string) => sumByType(tbAccounts, type);
+      // BOOKS-01 (Alex, 2026-11-11): the three figures are the ONE balance sheet (src/lib/books/statements.ts) over these
+      // rows — signed, the earnings not yet closed inside Equity, so they add up; Σ |normalBalance| per type stood here
+      // and left net income out. BOOKS-GATE-01 (ruling B) stands: barFiguresOf (src/lib/books/cockpitSums.ts) THROWS by
+      // name on a figure it cannot read ("trial balance account <code> has no readable totalDebits"); the catch below is unchanged.
+      const sheet = barFiguresOf(tbAccounts);
       // connectedAccounts mirrors the dashboard: flatten items[].accounts[] and count.
       const connectedAccounts = (acc.items || [])
         .reduce((n: number, it: any) => n + ((it.accounts || []).length), 0); // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -286,10 +286,10 @@ export function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; laps
         (cp.periods || []).some((p: any) => p.year === booksYear && p.month === month && p.status === 'closed') // eslint-disable-line @typescript-eslint/no-explicit-any
           ? 'closed' : 'open';
       setBooksData({
-        totalAssets: sumBy('asset'),
-        totalLiabilities: sumBy('liability'),
-        totalEquity: sumBy('equity'),
-        isBalanced: tb.totals.isBalanced,
+        totalAssets: sheet.totalAssets,
+        totalLiabilities: sheet.totalLiabilities,
+        totalEquity: sheet.totalEquity,
+        earningsNotClosed: sheet.earningsNotClosed, unclassified: sheet.unclassified.map((u) => u.code),
         hasActivity: tb.totals.hasActivity,
         connectedAccounts,
         periodStatus,
@@ -348,7 +348,7 @@ export function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; laps
             totalAssets={booksData.totalAssets}
             totalLiabilities={booksData.totalLiabilities}
             totalEquity={booksData.totalEquity}
-            isBalanced={booksData.isBalanced}
+            earningsNotClosed={booksData.earningsNotClosed} unclassified={booksData.unclassified}
             hasActivity={booksData.hasActivity}
             connectedAccounts={booksData.connectedAccounts}
             periodLabel={`${new Date().toLocaleString('en-US', { month: 'long' })} ${booksYear}`}

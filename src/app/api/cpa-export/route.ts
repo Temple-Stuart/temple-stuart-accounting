@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-helpers';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { exportBlocksOf, statementsOf } from '@/lib/books/statements';
+import { readStatements } from '@/lib/books/statementsRead';
 
 // ═══════════════════════════════════════════════════════════════════
 // CPA Export API — Single source of truth for the 4 accountant reports.
@@ -181,61 +183,21 @@ export async function GET(request: NextRequest) {
     );
     const tbDifference = wholeCents(tbTotalDebits - tbTotalCredits);
 
-    // ── Income Statement ──
-    const revenueAccounts = accounts.filter((a) => a.accountType === 'revenue');
-    const expenseAccounts = accounts.filter((a) => a.accountType === 'expense');
-
-    const revenueLines = revenueAccounts.map((a) => ({
-      accountCode: a.code,
-      accountName: a.name,
-      amount: wholeCents(a.totalCredits - a.totalDebits), // revenue is credit-normal
-    }));
-    const expenseLines = expenseAccounts.map((a) => ({
-      accountCode: a.code,
-      accountName: a.name,
-      amount: wholeCents(a.totalDebits - a.totalCredits), // expense is debit-normal
-    }));
-    const totalRevenue = wholeCents(revenueLines.reduce((s, l) => s + l.amount, 0));
-    const totalExpenses = wholeCents(expenseLines.reduce((s, l) => s + l.amount, 0));
-    const netIncome = wholeCents(totalRevenue - totalExpenses);
-
-    // ── Balance Sheet ──
-    const assetAccounts = accounts.filter((a) => a.accountType === 'asset');
-    const liabilityAccounts = accounts.filter((a) => a.accountType === 'liability');
-    const equityAccounts = accounts.filter((a) => a.accountType === 'equity');
-
-    const assetLines = assetAccounts.map((a) => ({
-      accountCode: a.code,
-      accountName: a.name,
-      amount: wholeCents(a.totalDebits - a.totalCredits), // asset is debit-normal
-    }));
-    const liabilityLines = liabilityAccounts.map((a) => ({
-      accountCode: a.code,
-      accountName: a.name,
-      amount: wholeCents(a.totalCredits - a.totalDebits), // liability is credit-normal
-    }));
-    const equityLines = equityAccounts.map((a) => ({
-      accountCode: a.code,
-      accountName: a.name,
-      amount: wholeCents(a.totalCredits - a.totalDebits), // equity is credit-normal
-    }));
-
-    const totalAssets = wholeCents(assetLines.reduce((s, l) => s + l.amount, 0));
-    const totalLiabilities = wholeCents(
-      liabilityLines.reduce((s, l) => s + l.amount, 0)
-    );
-    // Retained earnings for the period = net income (rolled into equity for the
-    // balance-sheet equation). This matches the traditional close-the-books flow.
-    const totalEquityExcludingRetained = wholeCents(
-      equityLines.reduce((s, l) => s + l.amount, 0)
-    );
-    const totalEquity = wholeCents(totalEquityExcludingRetained + netIncome);
-    const balanceSheetDifference = wholeCents(
-      totalAssets - (totalLiabilities + totalEquity)
-    );
+    // ── Income Statement and Balance Sheet ──
+    // BOOKS-01 (Alex, 2026-11-11): both come from ONE function (src/lib/books/statements.ts) over ONE read
+    // (src/lib/books/statementsRead.ts) — the pair /api/statements calls — so the Export and Financial Statements
+    // show the same figures for the same book and year. The income statement is the year's, closing entries left
+    // out. The balance sheet runs through Dec 31 of the year with every earlier year in it: until this, both were
+    // summed from the year's own aggregate above, so the "balance sheet" was one year's movements, and the equity
+    // line added that year's net income alone. `retainedEarnings` carries the earnings no closing entry has moved
+    // into equity yet; `totals` are the function's. The trial balance above and the general ledger stay the year's
+    // activity, as they were.
+    const read = await readStatements(prisma, { userId: user.id, entityId: entityId ? entityId : null, year });
+    const statements = statementsOf({ toDate: read.toDate, inPeriod: read.inPeriod });
+    const { incomeStatement, balanceSheet } = exportBlocksOf(statements);
 
     return NextResponse.json({
-      period: { year, entityId: entityId || null },
+      period: { year, entityId: entityId || null, through: read.scope.through, entityName: read.scope.entityName },
       trialBalance: {
         rows: trialBalanceRows,
         totals: {
@@ -245,24 +207,10 @@ export async function GET(request: NextRequest) {
           isBalanced: tbDifference === 0,
         },
       },
-      incomeStatement: {
-        revenue: revenueLines,
-        expenses: expenseLines,
-        totals: { totalRevenue, totalExpenses, netIncome },
-      },
-      balanceSheet: {
-        assets: assetLines,
-        liabilities: liabilityLines,
-        equity: equityLines,
-        retainedEarnings: netIncome,
-        totals: {
-          totalAssets,
-          totalLiabilities,
-          totalEquity,
-          difference: balanceSheetDifference,
-          isBalanced: balanceSheetDifference === 0,
-        },
-      },
+      incomeStatement,
+      balanceSheet,
+      // BOOKS-01: accounts whose type is not one of the five — named, and in no total above.
+      unclassified: statements.unclassified,
       generalLedger,
     });
   } catch (error) {

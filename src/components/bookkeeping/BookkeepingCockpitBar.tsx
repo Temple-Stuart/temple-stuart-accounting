@@ -1,14 +1,21 @@
 'use client';
 
 import { functionalMoneyWords } from '@/lib/books/functionalCurrency';
+import { unclassifiedWords } from '@/lib/books/statements';
 
 
 export interface BookkeepingCockpitBarProps {
-  // Accounting equation
+  // Accounting equation — BOOKS-01 (2026-11-11): the ONE balance sheet's three totals (src/lib/books/statements.ts
+  // balanceSheetOf over the trial balance's rows — src/lib/books/cockpitSums.ts), all books, all time. They add up:
+  // totalEquity is the equity accounts PLUS the earnings no closing entry has moved into equity yet. The mark is
+  // computed below from these three — the `isBalanced` prop (the trial balance's debits = credits) is gone.
   totalAssets: number;
   totalLiabilities: number;
   totalEquity: number;
-  isBalanced: boolean;
+  /** The part of totalEquity that is earnings not yet closed — said under the mark. */
+  earningsNotClosed: number;
+  /** The codes of accounts whose type the statements do not read — in no figure above; said in red when there are any. */
+  unclassified: readonly string[];
   /** True only when amounts are posted — gates the Balanced badge. An empty
    *  ledger's 0 === 0 must never paint green (HONEST-BALANCED). */
   hasActivity: boolean;
@@ -29,7 +36,8 @@ export default function BookkeepingCockpitBar({
   totalAssets,
   totalLiabilities,
   totalEquity,
-  isBalanced,
+  earningsNotClosed,
+  unclassified,
   hasActivity,
   connectedAccounts,
   periodLabel,
@@ -38,6 +46,7 @@ export default function BookkeepingCockpitBar({
   syncing,
   onLinkAccount,
 }: BookkeepingCockpitBarProps & { }) {
+  // BOOKS-01: the mark is the three figures drawn — Assets − (Liabilities + Equity) is 0, or it says by how much not.
   const imbalance = totalAssets - (totalLiabilities + totalEquity);
 
   return (
@@ -82,7 +91,7 @@ export default function BookkeepingCockpitBar({
               <span className="inline-flex items-center gap-1 text-[10px] font-medium border border-border bg-bg-row text-text-muted px-2 py-0.5 rounded-full">
                 No activity yet {'\u2014'} nothing posted
               </span>
-            ) : isBalanced ? (
+            ) : imbalance === 0 ? (
               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                 A = L + E {'\u2713'} Balanced
               </span>
@@ -92,6 +101,15 @@ export default function BookkeepingCockpitBar({
               </span>
             )}
           </div>
+          {/* BOOKS-01: what the three figures cover, and what Equity holds beside its own accounts. */}
+          <div className="mt-1 text-[10px] text-text-muted" data-bar-scope>
+            All books {'\u00b7'} all time {'\u00b7'} Equity includes earnings not yet closed: <span className="font-mono">{functionalMoneyWords(earningsNotClosed)}</span>
+          </div>
+          {unclassified.length > 0 && (
+            <div role="alert" className="mt-1 text-[10px] font-medium text-red-600" data-bar-unclassified>
+              {unclassifiedWords(unclassified)}
+            </div>
+          )}
         </div>
 
         {/* RIGHT: Period + Link Account */}

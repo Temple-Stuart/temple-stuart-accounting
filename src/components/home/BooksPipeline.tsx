@@ -138,7 +138,7 @@ export default function BooksPipeline() {
   // src/lib/books/reconciliationStatus.ts over the same rows — not a count of rows ever reconciled.
   const [reconStatus, setReconStatus] = useState<ReconciliationStatus | null>(null);
   const [periodCloses, setPeriodCloses] = useState<Row[]>([]);
-  const [entityId, setEntityId] = useState<string | null>(null);
+  const [books, setBooks] = useState<{ list: Row[]; defaultId: string | null }>({ list: [], defaultId: null }); // BOOKS-01: the books it fetches, kept — it kept only the default's id
   const [mappingTab, setMappingTab] = useState<'spending' | 'investments'>('spending');
   // HYG-01: the Investments badge counts the SAME query the commit workflow renders
   // (/api/investment-transactions/opens · totalAll) — one source, never a disagreeing number.
@@ -223,7 +223,7 @@ export default function BooksPipeline() {
     const ent = await entRes.json();
     const entities = ent.entities || [];
     const def = entities.find((e: Row) => e.is_default) || entities[0];
-    setEntityId(def?.id ?? null);
+    setBooks({ list: entities, defaultId: def?.id ?? null });
   }, []);
 
   // ACCOUNTS-01: Reconnect is the shared hook now — the SAME update-mode Link,
@@ -578,7 +578,7 @@ export default function BooksPipeline() {
 
       {/* 4. LDG — General Ledger (dashboard :605). */}
       <BookkeepingSection title="General Ledger" pipelineKey="LDG"
-        subtitle={`${committedCount * 2} entries`}
+        // BOOKS-01 (Alex, 2026-11-11): no subtitle — "committed rows × 2 entries" was a count nothing counted.
         status={committedCount > 0 ? 'complete' : 'pending'}>
         <div className="p-4">
           <GeneralLedger coaOptions={coaOptions} onReload={reloadAll} link={ledgerLink} onLinkUsed={ledgerLinkUsed} />
@@ -633,10 +633,10 @@ export default function BooksPipeline() {
             periodCloses={periodCloses}
             selectedYear={year}
             onClose={async (y: number, month: number) => {
-              if (!entityId) { alert('No entity found. Create an entity first.'); return; }
+              if (!books.defaultId) { alert('No entity found. Create an entity first.'); return; }
               const res = await fetch('/api/closing-periods/close', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ entityId, year: y, month }),
+                body: JSON.stringify({ entityId: books.defaultId, year: y, month }),
               });
               if (!res.ok) {
                 const err = await res.json();
@@ -644,12 +644,12 @@ export default function BooksPipeline() {
               }
             }}
             onReopen={async (y: number, month: number) => {
-              if (!entityId) { alert('No entity found.'); return; }
+              if (!books.defaultId) { alert('No entity found.'); return; }
               const reason = prompt('Reason for reopening (required for audit trail):');
               if (!reason || !reason.trim()) { alert('A reason is required to reopen a period.'); return; }
               const res = await fetch('/api/closing-periods/reopen', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ entityId, year: y, month, notes: reason }),
+                body: JSON.stringify({ entityId: books.defaultId, year: y, month, notes: reason }),
               });
               if (!res.ok) {
                 const err = await res.json();
@@ -665,7 +665,7 @@ export default function BooksPipeline() {
       <BookkeepingSection title="Year-End Close" pipelineKey="CLOSE-YE"
         status={yearEndClosed ? 'complete' : 'pending'}>
         <div className="p-2">
-          <CloseBooksTab entityId={entityId} selectedYear={year} />
+          <CloseBooksTab entityId={books.defaultId} selectedYear={year} />
         </div>
       </BookkeepingSection>
       </div>
@@ -685,7 +685,7 @@ export default function BooksPipeline() {
       <BookkeepingSection title="Financial Statements" pipelineKey="STMT"
         subtitle={statementYears.length > 0 ? `${statementYears.length} yr` : undefined}
         status={statementYears.length > 0 ? 'complete' : 'pending'}>
-        <FinancialStatementsTab />
+        <FinancialStatementsTab books={books.list} defaultBookId={books.defaultId} years={statementYears} currentYear={year} />
       </BookkeepingSection>
 
       {/* 9. TAX-LOT — Tax Lot Accounting & Wash Sales (dashboard :657, self-fetching). */}
@@ -705,7 +705,7 @@ export default function BooksPipeline() {
           intentionally omitted — Tax is its own homepage tab, not part of this pipe. */}
       <BookkeepingSection title="CPA Export" pipelineKey="EXP">
         <div className="p-4">
-          <CPAExport year={year} entityId={entityId} />
+          <CPAExport books={books.list} defaultBookId={books.defaultId} years={statementYears} currentYear={year} />
           {/* EXPORT-1: the full-data export lives on the same management surface
               as the CPA statement exports — the anti-lock-in guarantee. The
               route (/api/export) is NEVER paywalled: verified email + user

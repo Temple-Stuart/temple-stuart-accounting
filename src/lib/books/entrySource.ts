@@ -52,7 +52,7 @@
  * .../uncommit/route.ts:84, api/trading/commit-to-ledger/route.ts:93,
  * api/year-end-close/route.ts:88, app/trade-log/page.tsx:208 · :213), the SOC 2
  * counters (api/soc2/route.ts:304 · :312 · :336 · :342), the CPA export's type
- * (api/cpa-export/route.ts:111) and the two book surfaces.
+ * (api/cpa-export/route.ts:115 — BOOKS-01, 2026-11-11: re-cited where the type stands; written :111, at :113 since FX-01) and the two book surfaces.
  *
  * THE SET IS CLOSED AT SEVEN. A new writer adds a kind here or the surface renders
  * its raw token — which the law forbids by name, so the two move together.
