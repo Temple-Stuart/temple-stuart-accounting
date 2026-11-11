@@ -21,7 +21,13 @@
  *   anything else      → Unrecognized (named, never hidden, never re-filed)
  * Fixed Assets has no feed at all: the screen states that; this module gives it
  * a group with no members so the renderer never invents one.
+ *
+ * SYNC-01 (Alex, 2026-11-11 12:54: "lets get the sync fixed. so everything pulls") — BANKING SHOWS WHAT IT HOLDS.
+ * Each account carries `held` (every bank transaction plus every investment transaction the app holds for it) and
+ * `latest` (the newest date among them). /api/accounts reads them in two grouped reads and folds them here
+ * (heldByAccount); the screen prints them through rowCount() and day().
  */
+import { calendarDay, thousands } from './plaid/failLoud';
 
 export interface ApiAccount {
   id: string;
@@ -33,6 +39,10 @@ export interface ApiAccount {
   entityType: string | null;
   /** The row's last write (a sync, or an entity assignment) — accounts.updatedAt. NOT a sync timestamp: the product records none. */
   updatedAt?: string | null;
+  /** SYNC-01: every bank transaction plus every investment transaction the app holds for the account. Absent when the read sent none. */
+  held?: number | null;
+  /** SYNC-01: the newest date among them, 'YYYY-MM-DD' — a calendar day, not an instant. Null when the app holds none. */
+  latest?: string | null;
 }
 
 export interface ApiItem {
@@ -108,6 +118,60 @@ export function when(value: string | null | undefined): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+/**
+ * SYNC-01: a CALENDAR DAY ('YYYY-MM-DD') as a date, or "—". A transaction's date is a day, not an instant, so it
+ * goes through the ONE day formatter (src/lib/plaid/failLoud.ts calendarDay — text over a month table: no Date, no
+ * time zone). `when()` above formats an instant in the viewer's zone, which shows the day BEFORE across the Americas.
+ */
+export function day(value: string | null | undefined): string {
+  const words = calendarDay(value);
+  return words === null ? '—' : words;
+}
+
+/** SYNC-01: how many rows the app holds, as a person reads a count — "—" when the read sent none. A held 0 is a count, and prints as 0. */
+export function rowCount(value: number | null | undefined): string {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? thousands(value) : '—';
+}
+
+/** One group of a grouped read over a transactions table: an account's row id, the rows held for it, and the newest date among them. */
+export interface HeldGroup {
+  accountId: string;
+  _count: { _all: number };
+  _max: { date: Date | null };
+}
+
+/** What the app holds for one account: its rows, and the newest date among them ('YYYY-MM-DD') — null when it holds none. */
+export interface Held {
+  held: number;
+  latest: string | null;
+}
+
+/**
+ * SYNC-01 — WHAT THE APP HOLDS FOR EACH ACCOUNT, folded from the grouped reads /api/accounts makes (one over the bank
+ * transactions, one over the investment transactions): the rows of both, and the newest date among them as the UTC
+ * calendar day of the stored date (both parsers store a 'YYYY-MM-DD' as that day's UTC midnight —
+ * src/lib/arrivals/plaidTransactionsPage.ts, plaidInvestmentsPage.ts). Every account asked for is answered: one that
+ * no read lists holds 0 rows — the reads looked and found none. An account outside the reads is refused, never guessed.
+ */
+export function heldByAccount(accountIds: readonly string[], ...reads: ReadonlyArray<readonly HeldGroup[]>): (accountId: string) => Held {
+  const rows = new Map<string, { held: number; newest: Date | null }>();
+  for (const id of accountIds) rows.set(id, { held: 0, newest: null });
+  for (const read of reads) {
+    for (const group of read) {
+      const mine = rows.get(group.accountId);
+      if (mine === undefined) throw new Error('accountsView: a grouped read answered for an account that was not asked for');
+      mine.held += group._count._all;
+      const date = group._max.date;
+      if (date !== null && (mine.newest === null || date.getTime() > mine.newest.getTime())) mine.newest = date;
+    }
+  }
+  return (accountId) => {
+    const mine = rows.get(accountId);
+    if (mine === undefined) throw new Error('accountsView: an account outside the grouped reads was asked what it holds');
+    return { held: mine.held, latest: mine.newest === null ? null : mine.newest.toISOString().slice(0, 10) };
+  };
 }
 
 /** Which group an account belongs in — from its own type and subtype, never from its name. */

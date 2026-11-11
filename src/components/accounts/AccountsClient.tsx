@@ -28,7 +28,7 @@ import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 import ToolOpener from '@/components/shell/ToolOpener';
 import {
-  ACCOUNT_GROUPS, groupAccounts, isReported, money, rowsOf, describeWord, when,
+  ACCOUNT_GROUPS, day, groupAccounts, isReported, money, rowCount, rowsOf, describeWord, when,
   type AccountRow, type ApiItem,
 } from '@/lib/accountsView';
 
@@ -201,6 +201,8 @@ export default function AccountsClient() {
                         <th className={TH}>Type</th>
                         <th className={TH}>Entity</th>
                         <th className={`${TH} text-right`}>Balance</th>
+                        <th className={`${TH} text-right`}>Rows</th>
+                        <th className={`${TH} text-right`}>Latest</th>
                         <th className={`${TH} text-right`}>Last updated</th>
                       </tr>
                     </thead>
@@ -255,6 +257,9 @@ export default function AccountsClient() {
                             </select>
                           </td>
                           <td className="px-3 py-2 text-right font-mono font-semibold text-text-primary" data-balance>{money(row.balance)}</td>
+                          {/* SYNC-01: what the app HOLDS for the account — the proof a sync pulled it. A date here is a calendar day (day()), never an instant in the viewer's zone. */}
+                          <td className="px-3 py-2 text-right font-mono text-text-secondary" data-held>{rowCount(row.held)}</td>
+                          <td className="px-3 py-2 text-right font-mono text-text-secondary" data-latest>{day(row.latest)}</td>
                           <td className="px-3 py-2 text-right font-mono text-text-muted">{when(row.updatedAt)}</td>
                         </tr>
                       ))}
@@ -265,7 +270,8 @@ export default function AccountsClient() {
             </section>
           ))}
           <p className="font-mono text-[10px] leading-relaxed text-text-faint">
-            Balance is what the institution last reported; “—” means it reported none. “Last updated” is when the
+            Balance is what the institution last reported; “—” means it reported none. Rows is every bank and
+            investment transaction the app holds for the account; Latest is the newest one’s date. “Last updated” is when the
             row last changed — a sync, or an entity assignment. The product records no per-account sync time, so
             none is shown. Groups come from the account’s own type and subtype ({ACCOUNT_GROUPS.map((g) => g.label).join(' · ')}).
           </p>
