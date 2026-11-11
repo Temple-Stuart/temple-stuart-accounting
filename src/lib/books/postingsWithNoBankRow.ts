@@ -9,10 +9,11 @@
  * (src/app/api/transactions/route.ts). Until this file, the only place that said so was the source cell of one entry
  * opened by hand (src/lib/books/entrySource.ts MISSING_ROW_WORDS).
  *
- * WHO READS IT. src/lib/books/postingsWithNoBankRowRead.ts finds them; GET /api/journal-entries/no-bank-row answers
- * them; src/components/books/PostingsWithNoBankRow.tsx is the panel at the top of the General Ledger. The words are
- * written once, here, and nowhere else — the reversal's among them (the buttons, the question, the result, the
- * description prefix and the writer's two refusals), which PENDING-02 part 2 reads.
+ * WHO READS IT. src/lib/books/postingsWithNoBankRowRead.ts finds them; /api/journal-entries/no-bank-row answers them
+ * (GET) and reverses the ones its caller names (POST); src/components/books/PostingsWithNoBankRow.tsx is the panel at
+ * the top of the General Ledger; the one reversal writer's bankRowGone mode (src/lib/journal-entry-service.ts
+ * reversePlaidTransaction) takes its description prefix and its two refusals from here. The words are written once,
+ * here, and nowhere else.
  *
  * NOTHING IS DELETED OR EDITED. A posting leaves the statements the way every other one does: a reversing entry dated
  * the day it is posted, whose description opens with REVERSAL_PREFIX.
@@ -129,6 +130,9 @@ export const HIDE_WORDS = 'Hide them';
 /** The table's columns, in order. */
 export const COLUMN_WORDS = ['Date', 'Description', 'Debit', 'Credit', 'Amount', 'Book'] as const;
 
+/** The label of the one tick box that ticks every row (the row boxes are labelled by their own description). */
+export const TICK_ALL_WORDS = 'All';
+
 /** The button over the ticked rows, and the second press that sends them. */
 export const reverseWords = (n: number): string => `Reverse ${counted(n, 'the number ticked')}`;
 
@@ -151,7 +155,7 @@ export const BANK_ROW_EXISTS_WORDS = 'this posting\'s bank row exists — uncomm
 
 // ── THE ROUTE, AND WHAT THE PANEL SAYS WHEN ITS ANSWER CANNOT BE READ ────────
 
-/** The one route: the panel reads it. */
+/** The one route: the panel reads it (GET) and sends its ticked rows to it (POST). */
 export const NO_BANK_ROW_ROUTE = '/api/journal-entries/no-bank-row';
 
 /** An answer that is not JSON: the route and its status, nothing guessed. */
@@ -170,4 +174,66 @@ export function slicesOf<T>(ids: readonly T[]): T[][] {
   const out: T[][] = [];
   for (let at = 0; at < ids.length; at += REVERSAL_SLICE) out.push(ids.slice(at, at + REVERSAL_SLICE));
   return out;
+}
+
+// ── THE POST: WHAT IT TAKES AND WHAT IT ANSWERS ──────────────────────────────
+
+/** What the POST refuses a body with — 400, before any entry is read. */
+export const ENTRY_IDS_WORDS = `entryIds must be 1 to ${REVERSAL_SLICE} distinct entry ids`;
+
+/** THE BODY'S BOUNDS: { entryIds } — 1 to REVERSAL_SLICE distinct non-empty strings. The ids as given, or null: the route answers 400 with ENTRY_IDS_WORDS. */
+export function entryIdsOf(body: unknown): string[] | null {
+  const ids: unknown = body !== null && typeof body === 'object' ? (body as { entryIds?: unknown }).entryIds : undefined;
+  if (!Array.isArray(ids) || ids.length < 1 || ids.length > REVERSAL_SLICE) return null;
+  const strings = ids.filter((id): id is string => typeof id === 'string' && id !== '');
+  if (strings.length !== ids.length || new Set(strings).size !== strings.length) return null;
+  return strings;
+}
+
+/** What the POST refuses a request with when an id it names is not an entry of the caller's — the same 404 for a foreign id as for an unknown one. */
+export const NOT_FOUND_WORDS = 'Not found';
+
+/** What the POST says for a fault while one entry is being reversed — the fixed line; the fault's own text stays on the server. */
+export const REVERSAL_FAILED_WORDS = 'Reversal failed';
+
+/** One entry the POST reversed: the entry, and the reversing entry posted against it. */
+export interface ReversalResult {
+  readonly entryId: string;
+  readonly reversalId: string;
+}
+
+/** One entry the POST did not reverse, and why — a refusal's own words, or REVERSAL_FAILED_WORDS. */
+export interface ReversalRefusal {
+  readonly entryId: string;
+  readonly error: string;
+}
+
+/** What the POST answers: how many were reversed, how many were not, and each by its entry id. */
+export interface ReversalAnswer {
+  readonly reversed: number;
+  readonly errorCount: number;
+  readonly results: readonly ReversalResult[];
+  readonly errors: readonly ReversalRefusal[];
+}
+
+/** An answer that does not account for every entry one request asked for: the result line would be a guess, so the panel stops there. */
+export const notAllAnsweredWords = (answered: number, asked: number): string => `${NAME}: the reversal's answer accounts for ${answered} of the ${asked} entries asked`;
+
+/** An answer that refuses an entry the request never named. */
+export const notAskedWords = (entryId: string): string => `${NAME}: the reversal's answer names entry ${entryId}, which was not asked`;
+
+/** THE POST'S ANSWER, READ BACK by the panel: every field, or a fault that names the one it does not state. */
+export function reversalAnswerFrom(body: unknown): ReversalAnswer {
+  const o = (body !== null && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  if (!Array.isArray(o.results)) throw new Error(`${NAME}: the reversal's answer states no results`);
+  if (!Array.isArray(o.errors)) throw new Error(`${NAME}: the reversal's answer states no errors`);
+  const field = (row: unknown, name: string, among: string): string => {
+    const v = (row !== null && typeof row === 'object' ? row : {}) as Record<string, unknown>;
+    return text(v[name], `${name} among the reversal's ${among}`);
+  };
+  const results = o.results.map((r): ReversalResult => ({ entryId: field(r, 'entryId', 'results'), reversalId: field(r, 'reversalId', 'results') }));
+  const errors = o.errors.map((e): ReversalRefusal => ({ entryId: field(e, 'entryId', 'errors'), error: field(e, 'error', 'errors') }));
+  if (counted(o.reversed, 'the reversal\'s count') !== results.length) throw new Error(`${NAME}: the reversal's answer counts ${String(o.reversed)} reversed and carries ${results.length}`);
+  if (counted(o.errorCount, 'the reversal\'s error count') !== errors.length) throw new Error(`${NAME}: the reversal's answer counts ${String(o.errorCount)} errors and carries ${errors.length}`);
+  return { reversed: results.length, errorCount: errors.length, results, errors };
 }

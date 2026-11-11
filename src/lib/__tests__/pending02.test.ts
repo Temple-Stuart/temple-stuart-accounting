@@ -1,14 +1,19 @@
 /**
  * PENDING-02 (Alex, 2026-11-11 12:08: "get bookkeeping full proof" · 16:25: "would be better to get the sync and data
- * issues fixed") — A POSTING WHOSE BANK ROW IS GONE IS LISTED.
+ * issues fixed") — A POSTING WHOSE BANK ROW IS GONE IS LISTED, AND CAN BE REVERSED.
  *
  * Part 1 — the list: one pure leaf (src/lib/books/postingsWithNoBankRow.ts), one read
  * (src/lib/books/postingsWithNoBankRowRead.ts), GET /api/journal-entries/no-bank-row, and the panel at the top of the
  * General Ledger (src/components/books/PostingsWithNoBankRow.tsx).
+ * Part 2 — the reversal: ONE named mode of the one reversal writer (src/lib/journal-entry-service.ts
+ * reversePlaidTransaction, bankRowGone), POST /api/journal-entries/no-bank-row, and the panel's ticks, its one
+ * question, its slices of 25 and its result.
  *
  * Hermetic. The leaf is run. The read is SQL, so it is held BY CONTENT (its five conditions, the same-user account
- * scope, nothing cut) and its fold is driven over the rows a made-up query answers. The route is held by content. The
- * panel's view is drawn over made-up answers and its read is run under a stand-in fetch. No database, no network.
+ * scope, nothing cut) and its fold is driven over the rows a made-up query answers. The writer is RUN over an
+ * in-memory client built here (post01.test.ts's double is the model): it rolls a transaction back on a throw, the way
+ * Postgres does, and keeps every write it was asked for. The route is held by content. The panel's view is drawn and
+ * pressed over made-up answers; its read and its send are run under a stand-in fetch. No database, no network.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,16 +22,21 @@ import { join, resolve } from 'node:path';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 Object.assign(globalThis, { React });
-import PostingsWithNoBankRow, { NoBankRowView, readNoBankRow, type NoBankRowRead } from '@/components/books/PostingsWithNoBankRow';
-import { code } from '../sourceText';
+import type { PrismaClient } from '@prisma/client';
+import PostingsWithNoBankRow, { NoBankRowView, readNoBankRow, sendReversals, type NoBankRowRead, type NoBankRowViewProps, type ReversalOutcome } from '@/components/books/PostingsWithNoBankRow';
+import { code, comments } from '../sourceText';
 import { booksLaneImports } from '../books/booksLane';
 import { FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords } from '../books/functionalCurrency';
 import {
-  BANK_ROW_EXISTS_WORDS, CANCEL_WORDS, COLUMN_WORDS, HIDE_WORDS, NOT_FROM_THAT_BANK_ROW_WORDS, NO_BANK_ROW_ROUTE, REFRESH_WORDS, REVERSAL_PREFIX,
-  REVERSAL_SLICE, SHOW_WORDS, WHAT_THEY_ARE_WORDS, countWords, noBankRowAnswerFrom, noBankRowAnswerOf, notADayWords, notJsonWords, questionWords,
-  resultWords, reverseWords, slicesOf, type NoBankRowAnswer, type PostingWithNoBankRow,
+  BANK_ROW_EXISTS_WORDS, CANCEL_WORDS, COLUMN_WORDS, ENTRY_IDS_WORDS, HIDE_WORDS, NOT_FOUND_WORDS, NOT_FROM_THAT_BANK_ROW_WORDS, NO_BANK_ROW_ROUTE,
+  REFRESH_WORDS, REVERSAL_FAILED_WORDS, REVERSAL_PREFIX, REVERSAL_SLICE, SHOW_WORDS, TICK_ALL_WORDS, WHAT_THEY_ARE_WORDS, countWords, entryIdsOf,
+  noBankRowAnswerFrom, noBankRowAnswerOf, notADayWords, notAllAnsweredWords, notAskedWords, notJsonWords, questionWords, resultWords, reversalAnswerFrom,
+  reverseWords, slicesOf, type NoBankRowAnswer, type PostingWithNoBankRow,
 } from '../books/postingsWithNoBankRow';
 import { readPostingsWithNoBankRow } from '../books/postingsWithNoBankRowRead';
+import { ValidationError } from '../errors/ValidationError';
+import { reversePlaidTransaction } from '../journal-entry-service';
+import { PeriodClosedError } from '../period-close-guard';
 
 const LEAF = 'src/lib/books/postingsWithNoBankRow.ts';
 const READ = 'src/lib/books/postingsWithNoBankRowRead.ts';
@@ -34,7 +44,14 @@ const ROUTE = 'src/app/api/journal-entries/no-bank-row/route.ts';
 const PANEL = 'src/components/books/PostingsWithNoBankRow.tsx';
 const GL = 'src/components/dashboard/GeneralLedger.tsx';
 const PIPE = 'src/components/home/BooksPipeline.tsx';
+const WRITER = 'src/lib/journal-entry-service.ts';
+const UNCOMMIT = 'src/app/api/transactions/uncommit/route.ts';
+const TOOLS = 'src/lib/toolRegistry.ts';
 const ROOT = process.cwd();
+
+/** Every .ts / .tsx file under src, tests aside — repo-relative. */
+const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const f = join(dir, n); return statSync(f).isDirectory() ? (n === '__tests__' || n === 'node_modules' ? [] : walk(f)) : /\.(ts|tsx)$/.test(n) ? [f] : []; });
+const srcFiles = (): string[] => walk(resolve(ROOT, 'src')).map((abs) => abs.slice(ROOT.length + 1));
 
 const count = (s: string, re: RegExp): number => (s.match(re) ?? []).length;
 
@@ -262,8 +279,15 @@ test('P1 the route: GET stands behind the house gate — the cookie, the user, t
 
 // ─── the panel ───────────────────────────────────────────────────────────────
 
-const view = (read: NoBankRowRead, open = false): string => renderToStaticMarkup(React.createElement(NoBankRowView, { read, open, onToggle: () => {} }));
 const readOf = (postings: PostingWithNoBankRow[]): NoBankRowRead => ({ state: 'read', answer: noBankRowAnswerOf(postings) });
+const nothing = (): void => {};
+/** The view's props: a list just read, the table closed, nothing ticked, no question, nothing running, no result. */
+const viewProps = (over: Partial<NoBankRowViewProps> = {}): NoBankRowViewProps => ({
+  read: readOf([]), open: false, ticked: new Set<string>(), asking: false, running: false, outcome: null,
+  onToggle: nothing, onTick: nothing, onTickAll: nothing, onAsk: nothing, onCancel: nothing, onConfirm: nothing, onRefresh: nothing, ...over,
+});
+const draw = (over: Partial<NoBankRowViewProps>): string => renderToStaticMarkup(React.createElement(NoBankRowView, viewProps(over)));
+const view = (read: NoBankRowRead, open = false): string => draw({ read, open });
 
 test('P1 the panel, drawn: none → nothing; some → the count line with the sum, the unit line, the line under it and the button; opened → the table, a day through the one day formatter and every figure through the one formatter; failed → the reason in red, never an empty list', () => {
   // None, and not yet read: nothing is drawn — not a heading, not a zero.
@@ -284,6 +308,7 @@ test('P1 the panel, drawn: none → nothing; some → the count line with the su
   const open = view(readOf(two), true);
   assert.deepEqual(drawnWords(open), [
     '2 postings have no bank row', '$62.49', FUNCTIONAL_CURRENCY_WORDS, 'Hide them', WHAT_THEY_ARE_WORDS,
+    'Reverse 0',
     'Date', 'Description', 'Debit', 'Credit', 'Amount', 'Book',
     'Nov 3, 2026', 'UBER TRIP', 'P-6100', '- Transport', 'P-1000', '- Checking', '$12.50', 'Personal',
     'Oct 20, 2026', 'COSTCO', 'B-6200', '- Supplies', 'B-6300', '- Meals', 'B-1000', '- Business Checking', '$49.99', 'Business',
@@ -309,6 +334,7 @@ test('P1 the panel, by content: every word from the leaf, every figure through t
   const owned = [
     'has no bank row', 'have no bank row', WHAT_THEY_ARE_WORDS, SHOW_WORDS, HIDE_WORDS, 'Reverse', 'reversing entr', CANCEL_WORDS, REFRESH_WORDS,
     REVERSAL_PREFIX.trim(), NOT_FROM_THAT_BANK_ROW_WORDS, BANK_ROW_EXISTS_WORDS, NO_BANK_ROW_ROUTE, 'is not a calendar day', 'was not JSON', ...COLUMN_WORDS,
+    TICK_ALL_WORDS, ENTRY_IDS_WORDS, NOT_FOUND_WORDS, REVERSAL_FAILED_WORDS, 'which was not asked', 'accounts for',
   ];
   const literals = [...p.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)].map((m) => m[2]);
   assert.ok(literals.length > 20, 'the panel\'s strings were read');
@@ -384,8 +410,7 @@ test('P1 the mount: once, in GeneralLedger, as the first thing it draws, handed 
   assert.ok(code('src/components/landing/PipelineDeck.tsx').includes('s12: '), 'the deck\'s s12 line stands');
 
   // Nothing else under src mounts or imports the panel.
-  const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const f = join(dir, n); return statSync(f).isDirectory() ? (n === '__tests__' || n === 'node_modules' ? [] : walk(f)) : /\.(ts|tsx)$/.test(n) ? [f] : []; });
-  const mounting = walk(resolve(ROOT, 'src')).map((abs) => abs.slice(ROOT.length + 1)).filter((f) => f !== PANEL && /components\/books\/PostingsWithNoBankRow['"]/.test(code(f)));
+  const mounting = srcFiles().filter((f) => f !== PANEL && /components\/books\/PostingsWithNoBankRow['"]/.test(code(f)));
   assert.deepEqual(mounting, [GL], 'GeneralLedger alone');
 });
 
@@ -402,4 +427,624 @@ test('P1 BooksPipeline is not edited: its \'@/components/…\' imports are the t
   const pipe = code(PIPE);
   assert.doesNotMatch(pipe, /PostingsWithNoBankRow|no-bank-row/, 'the pipeline names neither the panel nor its route');
   assert.match(pipe, /<GeneralLedger coaOptions=\{coaOptions\} onReload=\{reloadAll\} link=\{ledgerLink\} onLinkUsed=\{ledgerLinkUsed\} \/>/, 'it hands GeneralLedger its own reload, as it did');
+});
+
+// ═══ PART 2 — THE REVERSAL ═══════════════════════════════════════════════════
+
+// ─── the writer, over an in-memory client ────────────────────────────────────
+
+type Row = Record<string, unknown>;
+interface Tables { journal_entries: Row[]; ledger_entries: Row[]; chart_of_accounts: Row[]; transactions: Row[]; closing_periods: Row[] }
+
+/** The books, in memory. A transaction that throws is rolled back whole; every write that was asked for is kept by name. */
+class Books {
+  t: Tables = { journal_entries: [], ledger_entries: [], chart_of_accounts: [], transactions: [], closing_periods: [] };
+  seq = 0;
+  /** '<table>.<operation>' for every write the client was asked for, in order — rolled back or not. */
+  writes: string[] = [];
+  /** Every call on the bank rows' table, read or write. */
+  bankCalls: string[] = [];
+  client(): PrismaClient { return clientOf(this); }
+}
+
+function clientOf(db: Books): PrismaClient {
+  const journal_entries = {
+    async findUnique(args: Row) {
+      const found = db.t.journal_entries.find((e) => e.id === (args.where as Row).id);
+      if (!found) return null;
+      if (!(args.include as Row | undefined)?.ledger_entries) return { ...found };
+      return { ...found, ledger_entries: db.t.ledger_entries.filter((l) => l.journal_entry_id === found.id).map((l) => ({ ...l, account: db.t.chart_of_accounts.find((a) => a.id === l.account_id) })) };
+    },
+    // The port's read-back, after the commit: the entries it posted, by id.
+    async findMany(args: Row) {
+      const ids = ((args.where as Row).id as Row).in as unknown[];
+      return db.t.journal_entries.filter((e) => ids.includes(e.id)).map((e) => ({ id: e.id }));
+    },
+    async create(args: Row) {
+      db.writes.push('journal_entries.create');
+      db.seq += 1;
+      const row: Row = { ...(args.data as Row), id: `je_new_${db.seq}`, reversed_by_entry_id: null };
+      db.t.journal_entries.push(row);
+      return { id: row.id };
+    },
+    async update(args: Row) {
+      db.writes.push('journal_entries.update');
+      const row = db.t.journal_entries.find((e) => e.id === (args.where as Row).id);
+      if (!row) throw new Error('journal entry not found');
+      Object.assign(row, args.data as Row);
+      return { ...row };
+    },
+  };
+  const ledger_entries = {
+    async createMany(args: Row) {
+      db.writes.push('ledger_entries.createMany');
+      for (const d of args.data as Row[]) db.t.ledger_entries.push({ ...d });
+      return { count: (args.data as Row[]).length };
+    },
+  };
+  const chart_of_accounts = {
+    async update(args: Row) {
+      db.writes.push('chart_of_accounts.update');
+      const row = db.t.chart_of_accounts.find((a) => a.id === (args.where as Row).id);
+      if (!row) throw new Error('account not found');
+      row.settled_balance = (row.settled_balance as bigint) + (((args.data as Row).settled_balance as Row).increment as bigint);
+      row.version = (row.version as number) + 1;
+      return { ...row };
+    },
+  };
+  const transactions = {
+    async findUnique(args: Row) {
+      db.bankCalls.push('findUnique');
+      const row = db.t.transactions.find((x) => x.transactionId === (args.where as Row).transactionId);
+      return row ? { id: row.id } : null;
+    },
+    async update(args: Row) {
+      db.bankCalls.push('update');
+      db.writes.push('transactions.update');
+      const row = db.t.transactions.find((x) => x.transactionId === (args.where as Row).transactionId);
+      // Prisma answers P2025 for an update whose row does not exist: it throws.
+      if (!row) throw new Error('transaction not found');
+      Object.assign(row, args.data as Row);
+      return { ...row };
+    },
+  };
+  const closing_periods = {
+    async findFirst(args: Row) {
+      const found = db.t.closing_periods.find((c) => Object.entries(args.where as Row).every(([k, v]) => c[k] === v));
+      return found === undefined ? null : { ...found };
+    },
+  };
+  const entities = { async findFirst() { return { name: 'Personal' }; } };
+  const tx = { journal_entries, ledger_entries, chart_of_accounts, transactions, closing_periods, entities, async $executeRawUnsafe() { return 0; } };
+  const client = {
+    ...tx,
+    async $transaction<T>(fn: (t: unknown) => Promise<T>): Promise<T> {
+      const before = structuredClone(db.t);
+      try { return await fn(tx); } catch (e) { db.t = before; throw e; }
+    },
+  };
+  return client as unknown as PrismaClient;
+}
+
+const USER = 'u_1';
+const ENTITY = 'e_1';
+const BY = 'alex@x.test';
+
+/** One posted bank charge — split over two expense lines, paid from checking — whose source_id is 'plaid_gone'. No bank row, unless one is given. */
+function books(over: { entry?: Row; bankRow?: Row } = {}): Books {
+  const db = new Books();
+  db.t.chart_of_accounts.push(
+    { id: 'acct_bank', userId: USER, entity_id: ENTITY, code: 'P-1000', balance_type: 'D', settled_balance: BigInt(-4999), version: 3 },
+    { id: 'acct_supplies', userId: USER, entity_id: ENTITY, code: 'P-6200', balance_type: 'D', settled_balance: BigInt(4000), version: 1 },
+    { id: 'acct_meals', userId: USER, entity_id: ENTITY, code: 'P-6300', balance_type: 'D', settled_balance: BigInt(999), version: 1 },
+  );
+  db.t.journal_entries.push({
+    id: 'je_orig', userId: USER, entity_id: ENTITY, date: new Date('2026-10-20'), description: 'COSTCO', source_type: 'plaid_txn', source_id: 'plaid_gone',
+    status: 'posted', is_reversal: false, reverses_entry_id: null, reversed_by_entry_id: null, request_id: 'b0-plaid_gone', created_by: BY, ...over.entry,
+  });
+  db.t.ledger_entries.push(
+    { id: 'le_1', journal_entry_id: 'je_orig', account_id: 'acct_supplies', entry_type: 'D', amount: BigInt(4000) },
+    { id: 'le_2', journal_entry_id: 'je_orig', account_id: 'acct_meals', entry_type: 'D', amount: BigInt(999) },
+    { id: 'le_3', journal_entry_id: 'je_orig', account_id: 'acct_bank', entry_type: 'C', amount: BigInt(4999) },
+  );
+  if (over.bankRow) db.t.transactions.push(over.bankRow);
+  return db;
+}
+
+const linesOf = (db: Books, entryId: unknown) => db.t.ledger_entries.filter((l) => l.journal_entry_id === entryId).map((l) => [l.account_id, l.entry_type, l.amount]);
+const OPPOSITE_LINES = [['acct_supplies', 'C', BigInt(4000)], ['acct_meals', 'C', BigInt(999)], ['acct_bank', 'D', BigInt(4999)]];
+const POSTED_WRITES = ['journal_entries.create', 'ledger_entries.createMany', 'chart_of_accounts.update', 'chart_of_accounts.update', 'chart_of_accounts.update', 'journal_entries.update'];
+
+test('P2 the writer, bankRowGone: a posting with no bank row is reversed — ONE reversal with the opposite line for each line, source_type reversal, is_reversal true, reverses_entry_id set, the description prefixed, dated today; the original reversed and pointing at it; no transactions write', async () => {
+  const db = books();
+  const r = await reversePlaidTransaction(db.client(), { userId: USER, journalEntryId: 'je_orig', transactionId: 'plaid_gone', bankRowGone: true, requestId: 'b1-plaid_gone', createdBy: BY });
+  assert.equal(r.originalId, 'je_orig');
+  const reversals = db.t.journal_entries.filter((e) => e.id !== 'je_orig');
+  assert.equal(reversals.length, 1, 'one reversal');
+  const rev = reversals[0];
+  assert.equal(rev.id, r.reversalId);
+  assert.equal(rev.source_type, 'reversal');
+  assert.equal(rev.source_id, null);
+  assert.equal(rev.is_reversal, true);
+  assert.equal(rev.reverses_entry_id, 'je_orig');
+  assert.equal(rev.description, 'REVERSAL (no bank row): COSTCO', 'the leaf\'s prefix, then the original\'s description');
+  assert.equal(rev.description, `${REVERSAL_PREFIX}COSTCO`);
+  assert.equal(rev.status, 'posted');
+  assert.equal(rev.userId, USER);
+  assert.equal(rev.entity_id, ENTITY, 'in the original\'s book');
+  assert.equal(rev.request_id, 'b1-plaid_gone');
+  assert.equal(rev.created_by, BY);
+  assert.equal(rev.document_reservation_id, null, 'the reversal carries no document');
+  assert.equal(rev.document_money_event_id, null);
+  assert.ok(rev.date instanceof Date && Math.abs(rev.date.getTime() - Date.now()) < 60_000, 'dated today');
+  // The opposite line for each line, and the balances moved back by the same rule.
+  assert.deepEqual(linesOf(db, rev.id), OPPOSITE_LINES);
+  assert.deepEqual(db.t.chart_of_accounts.map((a) => [a.id, a.settled_balance]), [['acct_bank', BigInt(0)], ['acct_supplies', BigInt(0)], ['acct_meals', BigInt(0)]]);
+  // The original: reversed, pointing at its reversal — and otherwise what it was. Nothing is deleted or edited.
+  const orig = db.t.journal_entries.find((e) => e.id === 'je_orig');
+  assert.ok(orig);
+  assert.equal(orig.status, 'reversed');
+  assert.equal(orig.reversed_by_entry_id, rev.id);
+  assert.equal(orig.description, 'COSTCO');
+  assert.equal(orig.source_type, 'plaid_txn');
+  assert.equal(orig.source_id, 'plaid_gone');
+  assert.deepEqual(linesOf(db, 'je_orig'), [['acct_supplies', 'D', BigInt(4000)], ['acct_meals', 'D', BigInt(999)], ['acct_bank', 'C', BigInt(4999)]], 'the original\'s lines stand');
+  // No transactions write: the bank rows are read once — rule (ii) — and never written.
+  assert.deepEqual(db.bankCalls, ['findUnique']);
+  assert.deepEqual(db.writes, POSTED_WRITES, 'the reversal, its lines, the three balances, the original\'s mark — and no bank row');
+  assert.deepEqual(db.t.transactions, []);
+});
+
+test('P2 the writer, bankRowGone, refused with nothing written: a bank row with that id exists · source_id is not the id handed in · the entry is not a plaid_txn · already reversed · a reversal · another user\'s entry · an unknown entry · a closed period', async () => {
+  type Params = Parameters<typeof reversePlaidTransaction>[1];
+  const MODE: Params = { userId: USER, journalEntryId: 'je_orig', transactionId: 'plaid_gone', bankRowGone: true, requestId: 'b1-plaid_gone', createdBy: BY };
+  /** The call is refused as `check` says, and the books are what they were — no write was even asked for. */
+  const refused = async (db: Books, params: Params, check: (err: unknown) => boolean): Promise<void> => {
+    const before = structuredClone(db.t);
+    await assert.rejects(reversePlaidTransaction(db.client(), params), (err: unknown) => { assert.ok(check(err), `refused as expected, got ${String(err)}`); return true; });
+    assert.deepEqual(db.t, before, 'nothing was written');
+    assert.deepEqual(db.writes, [], 'no write was asked for');
+  };
+  const validation = (message: string, status = 400) => (err: unknown): boolean => err instanceof ValidationError && err.message === message && err.status === status;
+
+  // (ii) a bank row with that id exists — it is uncommitted on the committed table, where the reversal resets it.
+  const here = books({ bankRow: { id: 't_1', transactionId: 'plaid_gone', accountCode: 'P-6200', review_status: 'committed' } });
+  await refused(here, MODE, validation('this posting\'s bank row exists — uncommit it on the committed table'));
+  assert.deepEqual(here.bankCalls, ['findUnique'], 'read, not written');
+  assert.deepEqual(here.t.transactions, [{ id: 't_1', transactionId: 'plaid_gone', accountCode: 'P-6200', review_status: 'committed' }], 'the row is as it was');
+
+  // (i) source_id is not the id handed in — refused before the bank rows are even read.
+  const other = books();
+  await refused(other, { ...MODE, transactionId: 'plaid_other' }, validation('this entry was not posted from that bank row — nothing was reversed'));
+  assert.deepEqual(other.bankCalls, []);
+  // (i) the entry is not a plaid_txn — a hand entry, an investment posting — though it carries that id.
+  for (const source_type of ['manual', 'investment_txn', 'reclass']) {
+    const notBank = books({ entry: { source_type } });
+    await refused(notBank, MODE, validation(NOT_FROM_THAT_BANK_ROW_WORDS));
+    assert.deepEqual(notBank.bankCalls, []);
+  }
+  // (i) an entry that points at nothing.
+  await refused(books({ entry: { source_id: null } }), MODE, validation(NOT_FROM_THAT_BANK_ROW_WORDS));
+
+  // The four that stand as they are, in both modes — each in its own words, each before the mode's two.
+  const already = books({ entry: { status: 'reversed', reversed_by_entry_id: 'je_earlier' } });
+  await refused(already, MODE, validation('Journal entry has already been reversed'));
+  assert.deepEqual(already.bankCalls, []);
+  const aReversal = books({ entry: { source_type: 'reversal', source_id: null, is_reversal: true, reverses_entry_id: 'je_0' } });
+  await refused(aReversal, { ...MODE, transactionId: 'plaid_gone' }, validation('Cannot reverse a reversal entry'));
+  assert.deepEqual(aReversal.bankCalls, []);
+  await refused(books(), { ...MODE, userId: 'u_2' }, (err) => err instanceof Error && !(err instanceof ValidationError) && err.message === 'Journal entry does not belong to this user');
+  await refused(books(), { ...MODE, journalEntryId: 'je_missing' }, validation('Journal entry not found: je_missing', 404));
+  // The period check: a reversal is dated today, and today's period is closed for the entry's book.
+  const closed = books();
+  const today = new Date();
+  closed.t.closing_periods.push({ userId: USER, entity_id: ENTITY, year: today.getFullYear(), month: today.getMonth() + 1, status: 'closed' });
+  await refused(closed, MODE, (err) => err instanceof PeriodClosedError && /^Cannot post to closed period: .* for Personal\. Reopen the period first\.$/.test(err.message));
+});
+
+test('P2 the writer, without the mode: NOTHING changed — a posting whose bank row exists is reversed as "REVERSAL: …" and its row reset, the bank rows never read; a posting whose row is gone still cannot be reversed that way (the reset throws and everything rolls back)', async () => {
+  const db = books({ entry: { source_id: 'plaid_here' }, bankRow: { id: 't_1', transactionId: 'plaid_here', accountCode: 'P-6200', review_status: 'committed' } });
+  const r = await reversePlaidTransaction(db.client(), { userId: USER, journalEntryId: 'je_orig', transactionId: 'plaid_here', requestId: 'b1-plaid_here', createdBy: BY });
+  const rev = db.t.journal_entries.find((e) => e.id === r.reversalId);
+  const orig = db.t.journal_entries.find((e) => e.id === 'je_orig');
+  assert.ok(rev && orig);
+  assert.equal(rev.description, 'REVERSAL: COSTCO', 'the description it always had');
+  assert.equal(rev.source_type, 'reversal');
+  assert.equal(rev.source_id, null);
+  assert.equal(rev.is_reversal, true);
+  assert.equal(rev.reverses_entry_id, 'je_orig');
+  assert.deepEqual(linesOf(db, rev.id), OPPOSITE_LINES);
+  assert.equal(orig.status, 'reversed');
+  assert.equal(orig.reversed_by_entry_id, rev.id);
+  // The bank row reset — exactly as before — and no read of the bank rows: the mode's check does not run.
+  assert.deepEqual(db.t.transactions, [{ id: 't_1', transactionId: 'plaid_here', accountCode: null, review_status: 'pending_review' }]);
+  assert.deepEqual(db.bankCalls, ['update']);
+  assert.deepEqual(db.writes, [...POSTED_WRITES, 'transactions.update']);
+
+  // FIRST (c), shown: with no bank row and no mode, the reset throws and the whole reversal rolls back.
+  const gone = books();
+  const before = structuredClone(gone.t);
+  await assert.rejects(reversePlaidTransaction(gone.client(), { userId: USER, journalEntryId: 'je_orig', transactionId: 'plaid_gone', requestId: 'b1-plaid_gone', createdBy: BY }), /transaction not found/);
+  assert.deepEqual(gone.t, before, 'rolled back whole: no reversal, the original still live');
+  assert.deepEqual(gone.bankCalls, ['update']);
+});
+
+test('P2 the writer, by content: ONE mode named on its params; its two refusals after the four standing checks and before the period check and the posting; the one port call — no second copy of the reversal\'s body, no new poster; the description by the mode; the reset not run in it; the registry\'s four lines re-cited', () => {
+  const w = code(WRITER);
+  assert.match(w, /import \{ BANK_ROW_EXISTS_WORDS, NOT_FROM_THAT_BANK_ROW_WORDS, REVERSAL_PREFIX \} from '@\/lib\/books\/postingsWithNoBankRow';/, 'the prefix and the two refusals are the leaf\'s');
+  assert.match(w, /interface ReversePlaidTransactionParams \{\s*userId: string;\s*journalEntryId: string;\s*transactionId: string;\s*requestId\?: string;\s*createdBy\?: string;\s*bankRowGone\?: true;\s*\}/, 'one mode, named, on the params');
+  const body = w.slice(w.indexOf('export async function reversePlaidTransaction('));
+  // In order: the four that stand as they are · the mode's (i) and (ii) · the period check · the posting · the original's mark · the reset.
+  let at = -1;
+  for (const piece of [
+    'const { userId, journalEntryId, transactionId, requestId, createdBy, bankRowGone } = params;',
+    'const { result } = await postJournal(prisma, async (tx, post) => {',
+    'throw new ValidationError(`Journal entry not found: ${journalEntryId}`, { status: 404 });',
+    'if (original.userId !== userId) {',
+    'throw new Error(\'Journal entry does not belong to this user\');',
+    'if (original.reversed_by_entry_id) {',
+    'throw new ValidationError(\'Journal entry has already been reversed\');',
+    'if (original.is_reversal) {',
+    'throw new ValidationError(\'Cannot reverse a reversal entry\');',
+    'if (bankRowGone) {',
+    'if (original.source_type !== \'plaid_txn\' || original.source_id !== transactionId) {',
+    'throw new ValidationError(NOT_FROM_THAT_BANK_ROW_WORDS);',
+    'const bankRow = await tx.transactions.findUnique({ where: { transactionId }, select: { id: true } });',
+    'if (bankRow) {',
+    'throw new ValidationError(BANK_ROW_EXISTS_WORDS);',
+    'const reversalDate = new Date();',
+    'await assertPeriodOpen(tx, userId, original.entity_id, reversalDate);',
+    'const reversal = await post({',
+    'description: bankRowGone ? `${REVERSAL_PREFIX}${original.description}` : `REVERSAL: ${original.description}`,',
+    'source_type: \'reversal\',',
+    'source_id: null,',
+    'is_reversal: true,',
+    'reverses_entry_id: original.id,',
+    'await tx.journal_entries.update({',
+    'reversed_by_entry_id: reversal.id,',
+    'if (!bankRowGone) {',
+    'await tx.transactions.update({',
+    'review_status: \'pending_review\',',
+    'return { originalId: original.id, reversalId: reversal.id };',
+  ]) {
+    const next = body.indexOf(piece, at + 1);
+    assert.ok(next > at, `in order: ${piece}`);
+    at = next;
+  }
+  // No second copy of the reversal's body, and no new poster: one transaction through the port, one post, one mark, one reset.
+  assert.equal(count(body, /postJournal\(/g), 1);
+  assert.equal(count(body, /await post\(\{/g), 1);
+  assert.equal(count(body, /tx\.journal_entries\.update\(/g), 1);
+  assert.equal(count(body, /tx\.transactions\.update\(/g), 1);
+  assert.equal(count(body, /tx\.transactions\.findUnique\(/g), 1);
+  assert.equal(count(body, /\bbankRowGone\b/g), 4, 'the mode is read four times: taken off the params, its two refusals, the description, the reset');
+  assert.doesNotMatch(body, /document_(reservation|money_event)_id\s*:/, 'the reversal carries no document');
+  assert.equal(count(w, /export async function /g), 2, 'the service exports the two writers it had — no new one');
+
+  // Under src (tests aside) the mode is named in two files: the writer, and the one route that sets it.
+  assert.deepEqual(srcFiles().filter((f) => /\bbankRowGone\b/.test(code(f))).sort(), [ROUTE, WRITER].sort());
+  assert.doesNotMatch(code(UNCOMMIT), /bankRowGone/, 'the normal Uncommit does not set it');
+  assert.match(code(UNCOMMIT), /transactionId: txn\.transactionId,\s*requestId: `\$\{batchId\}-\$\{txn\.transactionId\}`,\s*createdBy: userEmail,\s*\}\);/, 'and calls the writer as it did');
+
+  // toolRegistry.ts:527 cites four lines of the writer; eleven lines were added above them, and each still names what it named.
+  const lines = w.split('\n');
+  assert.ok(lines[252].includes('const entry = await post({'), ':253 — the journal entry');
+  assert.ok(lines[268].includes('{ account_id: debitAccount.id, entry_type: \'D\','), ':269 — its debit line');
+  assert.ok(lines[269].includes('{ account_id: creditAccount.id, entry_type: \'C\','), ':270 — its credit line');
+  assert.ok(lines[297].includes('await tx.transactions.update({') && lines[301].includes('review_status: \'committed\',') && lines[303].trim() === '});', ':298-304 — the transaction\'s update');
+  const registry = code(TOOLS).split('\n')[526];
+  assert.ok(registry.includes('src/lib/journal-entry-service.ts:253, :298-304 · :269, :270\','), 'toolRegistry.ts:527 cites them where they stand');
+  assert.match(comments(TOOLS).split('\n')[526], /PENDING-02 \(2026-11-11\): re-cited again, what each names unchanged — .*:242 → :253, .*:258, :259 → :269, :270, .*:287-293 → :298-304$/, 'with its dated note');
+});
+
+// ─── the route's POST ────────────────────────────────────────────────────────
+
+test('P2 the body\'s bounds: { entryIds } — 1 to 25 distinct non-empty strings, or the route answers 400 in the leaf\'s words', () => {
+  assert.equal(ENTRY_IDS_WORDS, 'entryIds must be 1 to 25 distinct entry ids');
+  assert.equal(NOT_FOUND_WORDS, 'Not found');
+  assert.equal(REVERSAL_FAILED_WORDS, 'Reversal failed');
+  const ids = Array.from({ length: 26 }, (_, i) => `e${i}`);
+  assert.deepEqual(entryIdsOf({ entryIds: ['a'] }), ['a']);
+  assert.deepEqual(entryIdsOf({ entryIds: ids.slice(0, 25) }), ids.slice(0, 25), 'twenty-five: the slice');
+  assert.deepEqual(entryIdsOf({ entryIds: ['b', 'a'], other: 1 }), ['b', 'a'], 'the ids as given, in the order given');
+  for (const [bad, why] of [
+    [{ entryIds: [] }, 'none'],
+    [{ entryIds: ids }, 'twenty-six'],
+    [{ entryIds: ['a', 'a'] }, 'the same id twice'],
+    [{ entryIds: ['a', ''] }, 'an empty id'],
+    [{ entryIds: ['a', 7] }, 'an id that is not a string'],
+    [{ entryIds: ['a', null] }, 'a null id'],
+    [{ entryIds: 'a' }, 'not a list'],
+    [{ entryIds: { 0: 'a', length: 1 } }, 'a list-like object'],
+    [{}, 'no entryIds'],
+    [{ transactionIds: ['a'] }, 'another key'],
+    [null, 'null'],
+    ['a', 'a string'],
+    [['a'], 'a bare list'],
+    [undefined, 'nothing'],
+  ] as const) assert.equal(entryIdsOf(bad), null, `refused: ${why}`);
+});
+
+test('P2 the route\'s POST, by content: the gate first; then the body\'s bounds (400); then every id read by { id, userId } and the 404 before any reversal; then the writer, once per entry, with bankRowGone true and the entry\'s own source_id — never for an entry with none; refusals join errors and the loop goes on; no prisma write in the handler', () => {
+  const r = code(ROUTE);
+  const post = handlerOf(r, 'POST');
+  let at = -1;
+  for (const piece of [
+    // the house gate — the same order as GET's
+    'const userEmail = await getVerifiedEmail();',
+    'return NextResponse.json({ error: \'Unauthorized\' }, { status: 401 });',
+    'const user = await prisma.users.findFirst({',
+    'where: { email: { equals: userEmail, mode: \'insensitive\' } },',
+    'return NextResponse.json({ error: \'User not found\' }, { status: 404 });',
+    'const tabGate = await requireTabAccess(user.id, \'tab:books\');',
+    'if (tabGate) return tabGate;',
+    // the body's bounds
+    'try { body = await request.json(); } catch { return NextResponse.json({ error: ENTRY_IDS_WORDS }, { status: 400 }); }',
+    'const entryIds = entryIdsOf(body);',
+    'if (entryIds === null) {',
+    'return NextResponse.json({ error: ENTRY_IDS_WORDS }, { status: 400 });',
+    // the owner-scoped read, and the one 404 for the whole request
+    'const owned = await prisma.journal_entries.findMany({',
+    'where: { id: { in: entryIds }, userId: user.id },',
+    'select: { id: true, source_id: true },',
+    'if (owned.length !== entryIds.length) {',
+    'return NextResponse.json({ error: NOT_FOUND_WORDS }, { status: 404 });',
+    // one entry at a time
+    'const batchId = randomUUID();',
+    'for (const entry of owned) {',
+    'if (entry.source_id === null) {',
+    'errors.push({ entryId: entry.id, error: NOT_FROM_THAT_BANK_ROW_WORDS });',
+    'continue;',
+    'const result = await reversePlaidTransaction(prisma, {',
+    'userId: user.id,',
+    'journalEntryId: entry.id,',
+    'transactionId: entry.source_id,',
+    'bankRowGone: true,',
+    'requestId: `${batchId}-${entry.source_id}`,',
+    'createdBy: userEmail,',
+    'results.push({ entryId: entry.id, reversalId: result.reversalId });',
+    // a refusal joins the errors in its own words; a fault is logged and joins as the fixed line
+    'if (error instanceof PeriodClosedError) {',
+    'errors.push({ entryId: entry.id, error: error.message });',
+    'continue;',
+    'if (!(error instanceof ValidationError)) console.error(\'[No bank row] reversal failed:\', entry.id, summarizeError(error));',
+    'errors.push({ entryId: entry.id, error: userFacingMessage(error, REVERSAL_FAILED_WORDS) });',
+    // the answer
+    'const answer: ReversalAnswer = { reversed: results.length, errorCount: errors.length, results, errors };',
+    'return NextResponse.json(answer);',
+  ]) {
+    const next = post.indexOf(piece, at + 1);
+    assert.ok(next > at, `in order: ${piece}`);
+    at = next;
+  }
+  assert.equal(count(post, /reversePlaidTransaction\(/g), 1, 'the one writer, in one place');
+  assert.equal(count(post, /\bprisma\.\w+\.\w+\(/g), 2, 'the handler\'s two queries of its own: the user\'s row, and the owner-scoped read');
+  assert.doesNotMatch(post, /prisma\.journal_entries\.find(?:First|Unique)\(/, 'no entry is read any other way');
+  assert.doesNotMatch(post, WRITES, 'POST holds no write of its own');
+  assert.doesNotMatch(r, WRITES, 'nor does the file');
+  assert.doesNotMatch(r, /postJournal|\$queryRaw|\$executeRaw/, 'it posts nothing itself and runs no raw statement: no poster is added');
+  assert.doesNotMatch(post, /\bfetch\s*\(/, 'no call outside');
+  assert.doesNotMatch(post, /status: 403/, 'another user\'s entry is a 404, never a 403 that would confirm it exists');
+  assert.equal(count(post, /status: 404/g), 2, 'the user\'s row, and the one defensive 404');
+  assert.match(post, /catch \(error: unknown\) \{\s*return failClosedResponse\('Postings with no bank row', 'The reversal could not be run', error\);/);
+  assert.deepEqual([...r.matchAll(/export async function (\w+)\(/g)].map((m) => m[1]), ['GET', 'POST'], 'the route exports the read and the reversal, nothing else');
+});
+
+// ─── the panel's reverse flow ────────────────────────────────────────────────
+
+type El = React.ReactElement<Record<string, unknown>>;
+/** Every host element the view draws, in order — a function component is run, as React would. */
+function elementsOf(node: unknown, out: El[] = []): El[] {
+  if (Array.isArray(node)) { for (const child of node) elementsOf(child, out); return out; }
+  if (!React.isValidElement(node)) return out;
+  const el = node as El;
+  if (typeof el.type === 'function') return elementsOf((el.type as (props: unknown) => unknown)(el.props), out);
+  out.push(el);
+  return elementsOf(el.props.children, out);
+}
+const having = (els: El[], attr: string): El[] => els.filter((e) => e.props[attr] !== undefined);
+const TWO = [posting(), posting({ id: 'je_2', description: 'COSTCO', cents: 4999 })];
+
+test('P2 the panel, drawn: a tick box on each row and one for all; Reverse <n> for the ticked rows; the first press shows the one question with Reverse <n> and Cancel; while a press runs every button and box stands down; then the result line, each refusal beside its row\'s description, and Refresh the books', () => {
+  const open = (over: Partial<NoBankRowViewProps>): string => draw({ read: readOf(TWO), open: true, ...over });
+  // Nothing ticked: a box per row, one for all, and a Reverse that cannot be pressed.
+  const none = open({});
+  assert.equal(count(none, /<input type="checkbox"[^>]* data-no-bank-row-tick="/g), 2, 'a tick box on each row');
+  assert.equal(count(none, /<input type="checkbox" aria-label="All"[^>]* data-no-bank-row-tick-all="true"/g), 1, 'and one for all');
+  assert.match(none, /<button type="button" disabled=""[^>]* data-no-bank-row-ask="true">Reverse 0<\/button>/);
+  assert.doesNotMatch(none, /checked=""/);
+  assert.doesNotMatch(none, /data-no-bank-row-question|data-no-bank-row-confirm|data-no-bank-row-cancel|data-no-bank-row-result/);
+  // One ticked: Reverse 1 — and still no question. Nothing has been asked, nothing can be sent.
+  const one = open({ ticked: new Set(['je_2']) });
+  assert.match(one, /<button type="button" class="[^"]*" data-no-bank-row-ask="true">Reverse 1<\/button>/);
+  assert.equal(count(one, /checked=""/g), 1, 'the row\'s box, and not the one for all');
+  assert.doesNotMatch(one, /data-no-bank-row-question|data-no-bank-row-confirm/);
+  // Both ticked: the one for all is ticked too.
+  const both = open({ ticked: new Set(['je_1', 'je_2']) });
+  assert.equal(count(both, /checked=""/g), 3);
+  assert.match(both, /data-no-bank-row-ask="true">Reverse 2<\/button>/);
+  // After the first press: the one question, Reverse <n> and Cancel — and the first button is gone.
+  const asking = open({ ticked: new Set(['je_1', 'je_2']), asking: true });
+  assert.deepEqual(drawnWords(asking).slice(5, 8), ['Post 2 reversing entries dated today?', 'Reverse 2', 'Cancel']);
+  assert.match(asking, /<span data-no-bank-row-question="true">Post 2 reversing entries dated today\?<\/span><button type="button" class="[^"]*" data-no-bank-row-confirm="true">Reverse 2<\/button><button type="button" class="[^"]*" data-no-bank-row-cancel="true">Cancel<\/button>/);
+  assert.doesNotMatch(asking, /data-no-bank-row-ask/);
+  assert.deepEqual(drawnWords(open({ ticked: new Set(['je_1']), asking: true })).slice(5, 8), ['Post 1 reversing entry dated today?', 'Reverse 1', 'Cancel'], 'one: singular');
+  // While a press is running: every button and every box stands down.
+  const running = open({ ticked: new Set(['je_1']), running: true, outcome: { asked: 1, reversed: 1, refusals: [], stopped: null } });
+  const controls = [...running.matchAll(/<(?:button|input)\b[^>]*>/g)].map((m) => m[0]);
+  assert.equal(controls.length, 6, 'refresh, show/hide, reverse, the one for all, two rows');
+  for (const control of controls) assert.match(control, / disabled=""/, `stands down: ${control.slice(0, 80)}`);
+
+  // The result: the line, each refusal beside its row's description, the reason a request was not OK — and Refresh the books.
+  const outcome: ReversalOutcome = {
+    asked: 46, reversed: 44, stopped: null,
+    refusals: [
+      { entryId: 'je_3', description: 'UBER TRIP', error: BANK_ROW_EXISTS_WORDS },
+      { entryId: 'je_7', description: 'COSTCO', error: 'Cannot post to closed period: November 2026 for Personal. Reopen the period first.' },
+    ],
+  };
+  const result = draw({ read: readOf(TWO), outcome });
+  assert.deepEqual(drawnWords(result), [
+    'Reversed 44 of 46', 'Refresh the books',
+    'UBER TRIP', 'this posting&#x27;s bank row exists — uncommit it on the committed table',
+    'COSTCO', 'Cannot post to closed period: November 2026 for Personal. Reopen the period first.',
+    '2 postings have no bank row', '$62.49', FUNCTIONAL_CURRENCY_WORDS, 'Show them', WHAT_THEY_ARE_WORDS,
+  ]);
+  assert.equal(count(result, /<li [^>]*data-no-bank-row-refusal="/g), 2);
+  // All of them reversed and the list read again as empty: the result stays on screen — it is not swallowed by "none".
+  const all = draw({ read: readOf([]), outcome: { asked: 46, reversed: 46, refusals: [], stopped: null } });
+  assert.deepEqual(drawnWords(all), ['Reversed 46 of 46', 'Refresh the books']);
+  // A request that was not OK: its reason, in red, as an alert — beside what was reversed before it.
+  const stopped = draw({ read: readOf(TWO), outcome: { asked: 60, reversed: 25, refusals: [], stopped: 'Not found' } });
+  assert.deepEqual(drawnWords(stopped).slice(0, 3), ['Reversed 25 of 60', 'Refresh the books', 'Not found']);
+  assert.match(stopped, /<div class="[^"]*\btext-brand-red\b[^"]*" role="alert" data-no-bank-row-stopped="true">Not found<\/div>/);
+  // The list could not be read again after a send: the result AND the reason — never an empty list in its place.
+  const unread = draw({ read: { state: 'failed', reason: 'Tab not unlocked' }, outcome: { asked: 2, reversed: 2, refusals: [], stopped: null } });
+  assert.deepEqual(drawnWords(unread), ['Reversed 2 of 2', 'Refresh the books', 'Tab not unlocked']);
+  assert.match(unread, /role="alert" data-no-bank-row-failed="true">Tab not unlocked<\/div>/);
+});
+
+test('P2 the panel, pressed: the first Reverse only ASKS — nothing is sent before the second press; Cancel, a tick, the one for all, Show/Hide and Refresh each call their own handler and no other', () => {
+  const calls: string[] = [];
+  const spies: Partial<NoBankRowViewProps> = {
+    onToggle: () => { calls.push('toggle'); }, onTick: (id) => { calls.push(`tick:${id}`); }, onTickAll: () => { calls.push('tickAll'); },
+    onAsk: () => { calls.push('ask'); }, onCancel: () => { calls.push('cancel'); }, onConfirm: () => { calls.push('confirm'); }, onRefresh: () => { calls.push('refresh'); },
+  };
+  const press = (els: El[], attr: string, handler: 'onClick' | 'onChange'): void => {
+    const found = having(els, attr);
+    assert.equal(found.length, 1, `one ${attr}`);
+    (found[0].props[handler] as () => void)();
+  };
+  // Not yet asked: the only Reverse on screen asks. There is no control that confirms.
+  const before = elementsOf(NoBankRowView(viewProps({ ...spies, read: readOf(TWO), open: true, ticked: new Set(['je_1', 'je_2']) })));
+  assert.equal(having(before, 'data-no-bank-row-confirm').length, 0, 'nothing on screen can send');
+  press(before, 'data-no-bank-row-ask', 'onClick');
+  assert.deepEqual(calls, ['ask'], 'the first press asks — it does not confirm');
+  // Asked: the second press confirms; Cancel cancels.
+  const asked = elementsOf(NoBankRowView(viewProps({ ...spies, read: readOf(TWO), open: true, ticked: new Set(['je_1', 'je_2']), asking: true })));
+  assert.equal(having(asked, 'data-no-bank-row-ask').length, 0);
+  press(asked, 'data-no-bank-row-cancel', 'onClick');
+  press(asked, 'data-no-bank-row-confirm', 'onClick');
+  assert.deepEqual(calls, ['ask', 'cancel', 'confirm']);
+  // The boxes, the toggle, the refresh.
+  calls.length = 0;
+  const drawn = elementsOf(NoBankRowView(viewProps({ ...spies, read: readOf(TWO), open: true, outcome: { asked: 1, reversed: 1, refusals: [], stopped: null } })));
+  const boxes = having(drawn, 'data-no-bank-row-tick');
+  assert.deepEqual(boxes.map((b) => b.props['data-no-bank-row-tick']), ['je_1', 'je_2']);
+  assert.deepEqual(boxes.map((b) => b.props['aria-label']), ['UBER TRIP', 'COSTCO'], 'each box is labelled by its row\'s own description');
+  (boxes[1].props.onChange as () => void)();
+  press(drawn, 'data-no-bank-row-tick-all', 'onChange');
+  press(drawn, 'data-no-bank-row-toggle', 'onClick');
+  press(drawn, 'data-no-bank-row-refresh', 'onClick');
+  assert.deepEqual(calls, ['tick:je_2', 'tickAll', 'toggle', 'refresh']);
+
+  // And by content: the send has ONE caller — the second press — and the first press sets a flag and nothing else.
+  const p = code(PANEL);
+  assert.equal(count(p, /\bsendReversals\(/g), 2, 'its definition, and one call');
+  const confirm = p.slice(p.indexOf('const confirm = (): void => {'), p.indexOf('return (\n    <NoBankRowView'));
+  assert.ok(confirm.includes('void sendReversals(sending)'), 'the one call is the second press\'s');
+  assert.match(confirm, /const sending = postings\.filter\(\(posting\) => ticked\.has\(posting\.id\)\);\s*if \(running \|\| !asking \|\| sending\.length === 0\) return;/, 'and it sends only when the question was on screen');
+  assert.match(confirm, /\.then\(\(sent\) => \{\s*if \(!alive\.current\) return undefined;\s*setOutcome\(sent\);\s*setTicked\(new Set\(\)\);\s*return load\(\);\s*\}\)\s*\.finally\(\(\) => \{ if \(alive\.current\) setRunning\(false\); \}\);/, 'then the result, the ticks cleared, its own list read again');
+  assert.match(p, /onAsk=\{\(\) => setAsking\(true\)\}/, 'the first press: a flag');
+  assert.match(p, /onCancel=\{\(\) => setAsking\(false\)\}/);
+  assert.match(p, /onConfirm=\{confirm\}/);
+  assert.match(p, /onRefresh=\{\(\) => \{ setOutcome\(null\); onReload\(\); \}\}/, 'Refresh the books calls GeneralLedger\'s own onReload — the result stays until that press');
+  assert.equal(count(p, /\bfetch\(/g), 2, 'two requests in the file: the read\'s GET and the send\'s POST');
+  assert.equal(count(p, /method: 'POST'/g), 1);
+  assert.equal(count(p, /setOutcome\(null\)/g), 1, 'nothing else clears the result');
+});
+
+test('P2 the send, under a stand-in fetch: the ticked ids in slices of 25, ONE REQUEST AT A TIME, stopping at the first request that is not OK and reporting its reason; refusals come back beside their rows\' descriptions; an answer that does not account for what was asked stops it by name', async () => {
+  type Answer = { status: number; json: () => unknown };
+  const sixty = Array.from({ length: 60 }, (_, i) => posting({ id: `je_${i + 1}`, description: `ROW ${i + 1}` }));
+  const allReversed = (ids: string[]): Answer => ({ status: 200, json: () => ({ reversed: ids.length, errorCount: 0, results: ids.map((id) => ({ entryId: id, reversalId: `rev_${id}` })), errors: [] }) });
+  const under = async (answerFor: (ids: string[], nth: number) => Answer | Error, ticked: PostingWithNoBankRow[] = sixty) => {
+    const g = globalThis as unknown as { fetch: unknown };
+    const saved = g.fetch;
+    const sent: Array<{ url: string; method: unknown; contentType: unknown; ids: string[] }> = [];
+    let inFlight = 0;
+    let most = 0;
+    g.fetch = async (url: string, init: { method?: string; headers?: Record<string, string>; body: string }) => {
+      inFlight += 1;
+      most = Math.max(most, inFlight);
+      const ids = (JSON.parse(init.body) as { entryIds: string[] }).entryIds;
+      sent.push({ url, method: init.method, contentType: init.headers?.['Content-Type'], ids });
+      // A turn of the loop: a request sent before this one was answered would show as two in flight.
+      await new Promise((turn) => setImmediate(turn));
+      const answer = answerFor(ids, sent.length);
+      inFlight -= 1;
+      if (answer instanceof Error) throw answer;
+      return { ok: answer.status >= 200 && answer.status < 300, status: answer.status, json: async () => answer.json() };
+    };
+    try {
+      const outcome = await sendReversals(ticked);
+      return { sent, most, outcome };
+    } finally { g.fetch = saved; }
+  };
+
+  // Sixty ticked, every request OK: three requests of 25, 25 and 10, in the order ticked, one after another.
+  const all = await under(allReversed);
+  assert.deepEqual(all.sent.map((s) => s.ids.length), [25, 25, 10]);
+  assert.deepEqual(all.sent.flatMap((s) => s.ids), sixty.map((p) => p.id), 'every ticked id once, in order');
+  assert.ok(all.sent.every((s) => s.url === '/api/journal-entries/no-bank-row' && s.method === 'POST' && s.contentType === 'application/json'));
+  assert.equal(all.most, 1, 'never two requests in flight');
+  assert.deepEqual(all.outcome, { asked: 60, reversed: 60, refusals: [], stopped: null });
+  assert.equal(resultWords(all.outcome.reversed, all.outcome.asked), 'Reversed 60 of 60');
+
+  // The second request is not OK: it stops there — the third is never sent — and prints that reason.
+  const second = await under((ids, nth) => (nth === 2 ? { status: 404, json: () => ({ error: 'Not found' }) } : allReversed(ids)));
+  assert.deepEqual(second.sent.map((s) => s.ids.length), [25, 25], 'the third slice was not sent');
+  assert.deepEqual(second.outcome, { asked: 60, reversed: 25, refusals: [], stopped: 'Not found' });
+  // The first is not OK: nothing after it.
+  const first = await under(() => ({ status: 403, json: () => ({ error: 'Tab not unlocked' }) }));
+  assert.equal(first.sent.length, 1);
+  assert.deepEqual(first.outcome, { asked: 60, reversed: 0, refusals: [], stopped: 'Tab not unlocked' });
+  // Not JSON, no reason given, a request that never arrived: each stops it, each by name.
+  assert.equal((await under(() => ({ status: 502, json: () => { throw new SyntaxError('Unexpected token <'); } }))).outcome.stopped, notJsonWords(502));
+  assert.equal((await under(() => ({ status: 500, json: () => ({}) }))).outcome.stopped, '/api/journal-entries/no-bank-row answered 500 and gave no reason');
+  const offline = await under((ids, nth) => (nth === 3 ? new TypeError('Failed to fetch') : allReversed(ids)));
+  assert.deepEqual(offline.outcome, { asked: 60, reversed: 50, refusals: [], stopped: 'Failed to fetch' });
+
+  // Refusals inside an OK answer: the loop goes on, and each comes back beside its row's description.
+  const refusing = await under((ids, nth) => (nth !== 1 ? allReversed(ids) : {
+    status: 200,
+    json: () => ({
+      reversed: 23, errorCount: 2,
+      results: ids.filter((id) => id !== 'je_3' && id !== 'je_7').map((id) => ({ entryId: id, reversalId: `rev_${id}` })),
+      errors: [{ entryId: 'je_3', error: BANK_ROW_EXISTS_WORDS }, { entryId: 'je_7', error: 'Cannot post to closed period: November 2026 for Personal. Reopen the period first.' }],
+    }),
+  }));
+  assert.equal(refusing.sent.length, 3, 'a refusal does not stop the send');
+  assert.deepEqual(refusing.outcome, {
+    asked: 60, reversed: 58, stopped: null,
+    refusals: [
+      { entryId: 'je_3', description: 'ROW 3', error: BANK_ROW_EXISTS_WORDS },
+      { entryId: 'je_7', description: 'ROW 7', error: 'Cannot post to closed period: November 2026 for Personal. Reopen the period first.' },
+    ],
+  });
+
+  // An answer that does not account for what was asked — the result line would be a guess, so it stops by name.
+  const short = await under((ids) => ({ status: 200, json: () => ({ reversed: 24, errorCount: 0, results: ids.slice(1).map((id) => ({ entryId: id, reversalId: `rev_${id}` })), errors: [] }) }));
+  assert.equal(short.sent.length, 1);
+  assert.equal(short.outcome.stopped, notAllAnsweredWords(24, 25));
+  assert.equal(short.outcome.stopped, 'postings with no bank row: the reversal\'s answer accounts for 24 of the 25 entries asked');
+  const stranger = await under((ids) => ({ status: 200, json: () => ({ reversed: 24, errorCount: 1, results: ids.slice(1).map((id) => ({ entryId: id, reversalId: `rev_${id}` })), errors: [{ entryId: 'je_elsewhere', error: 'x' }] }) }));
+  assert.equal(stranger.outcome.stopped, notAskedWords('je_elsewhere'));
+  assert.equal(stranger.outcome.stopped, 'postings with no bank row: the reversal\'s answer names entry je_elsewhere, which was not asked');
+  const shapeless = await under(() => ({ status: 200, json: () => ({ success: true }) }));
+  assert.equal(shapeless.outcome.stopped, 'postings with no bank row: the reversal\'s answer states no results');
+
+  // Nothing ticked: no request at all.
+  const empty = await under(allReversed, []);
+  assert.equal(empty.sent.length, 0);
+  assert.deepEqual(empty.outcome, { asked: 0, reversed: 0, refusals: [], stopped: null });
+
+  // The POST's answer, read back by the leaf: every field, or a fault by name.
+  const good = { reversed: 1, errorCount: 1, results: [{ entryId: 'a', reversalId: 'r' }], errors: [{ entryId: 'b', error: 'no' }] };
+  assert.deepEqual(reversalAnswerFrom(JSON.parse(JSON.stringify(good))), good);
+  assert.throws(() => reversalAnswerFrom({ ...good, errors: undefined }), { message: 'postings with no bank row: the reversal\'s answer states no errors' });
+  assert.throws(() => reversalAnswerFrom({ ...good, results: [{ entryId: 'a' }] }), { message: 'postings with no bank row: the answer states no reversalId among the reversal\'s results' });
+  assert.throws(() => reversalAnswerFrom({ ...good, errors: [{ entryId: 'b', error: '' }] }), { message: 'postings with no bank row: the answer states no error among the reversal\'s errors' });
+  assert.throws(() => reversalAnswerFrom({ ...good, reversed: 2 }), { message: 'postings with no bank row: the reversal\'s answer counts 2 reversed and carries 1' });
+  assert.throws(() => reversalAnswerFrom({ ...good, errorCount: 0 }), { message: 'postings with no bank row: the reversal\'s answer counts 0 errors and carries 1' });
 });

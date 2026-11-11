@@ -52,7 +52,7 @@
  * .../uncommit/route.ts:84, api/trading/commit-to-ledger/route.ts:93,
  * api/year-end-close/route.ts:88, app/trade-log/page.tsx:208 · :213), the SOC 2
  * counters (api/soc2/route.ts:304 · :312 · :336 · :342), the CPA export's type
- * (api/cpa-export/route.ts:115 — BOOKS-01, 2026-11-11: re-cited where the type stands; written :111, at :113 since FX-01) and the two book surfaces.
+ * (api/cpa-export/route.ts:115 — BOOKS-01, 2026-11-11: re-cited where the type stands; written :111, at :113 since FX-01) and the two book surfaces. PENDING-02 (2026-11-11): two more that only READ one — the read of the postings whose bank row is gone (lib/books/postingsWithNoBankRowRead.ts:98, a WHERE on 'plaid_txn') and the reversal's bankRowGone check (lib/journal-entry-service.ts:368, a comparison inside the writer this census already names); the route that calls them (api/journal-entries/no-bank-row/route.ts) names no kind, and no writer is added.
  *
  * THE SET IS CLOSED AT SEVEN. A new writer adds a kind here or the surface renders
  * its raw token — which the law forbids by name, so the two move together.

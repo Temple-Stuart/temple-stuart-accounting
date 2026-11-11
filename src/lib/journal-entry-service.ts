@@ -3,6 +3,7 @@ import { ValidationError } from '@/lib/errors/ValidationError';
 import { assertPeriodOpen } from '@/lib/period-close-guard';
 import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
 import type { PostingDocument } from '@/lib/posting/documentGate';
+import { BANK_ROW_EXISTS_WORDS, NOT_FROM_THAT_BANK_ROW_WORDS, REVERSAL_PREFIX } from '@/lib/books/postingsWithNoBankRow';
 
 export type CommitResult = journal_entries & { alreadyExisted?: boolean };
 export type { PostingDocument } from '@/lib/posting/documentGate';
@@ -66,6 +67,16 @@ interface ReversePlaidTransactionParams {
   transactionId: string;
   requestId?: string;
   createdBy?: string;
+  /**
+   * PENDING-02 (Alex, 2026-11-11): THE ONE NAMED MODE — this posting's bank row is gone. Set by
+   * /api/journal-entries/no-bank-row alone; `transactionId` is then the entry's own source_id. In it:
+   *   (i)   the entry must be the bank posting of that id (source_type 'plaid_txn', source_id = transactionId);
+   *   (ii)  no transactions row with that transactionId may exist;
+   *   (iii) the reversal's description opens with REVERSAL_PREFIX (src/lib/books/postingsWithNoBankRow.ts);
+   *   (iv)  the bank row reset does not run — there is no row to reset.
+   * Absent, a reversal is what it was: the same checks, the same description, the same reset.
+   */
+  bankRowGone?: true;
 }
 
 function dollarsToCents(amount: number): bigint {
@@ -320,7 +331,7 @@ export async function reversePlaidTransaction(
   prisma: PrismaClient,
   params: ReversePlaidTransactionParams
 ) {
-  const { userId, journalEntryId, transactionId, requestId, createdBy } = params;
+  const { userId, journalEntryId, transactionId, requestId, createdBy, bankRowGone } = params;
 
   const { result } = await postJournal(prisma, async (tx, post) => {
     // Look up original journal entry with its ledger entries and linked accounts
@@ -351,6 +362,19 @@ export async function reversePlaidTransaction(
       throw new ValidationError('Cannot reverse a reversal entry');
     }
 
+    // PENDING-02: the bankRowGone mode's two refusals — inside this transaction, before anything is posted.
+    if (bankRowGone) {
+      // (i) the entry is the bank posting of the id handed in.
+      if (original.source_type !== 'plaid_txn' || original.source_id !== transactionId) {
+        throw new ValidationError(NOT_FROM_THAT_BANK_ROW_WORDS);
+      }
+      // (ii) that bank row is gone. One that exists is uncommitted on the committed table — the reversal that resets it.
+      const bankRow = await tx.transactions.findUnique({ where: { transactionId }, select: { id: true } });
+      if (bankRow) {
+        throw new ValidationError(BANK_ROW_EXISTS_WORDS);
+      }
+    }
+
     // Period close enforcement — reversals are dated today
     const reversalDate = new Date();
     await assertPeriodOpen(tx, userId, original.entity_id, reversalDate);
@@ -366,7 +390,8 @@ export async function reversePlaidTransaction(
         userId,
         entity_id: original.entity_id,
         date: reversalDate,
-        description: `REVERSAL: ${original.description}`,
+        // PENDING-02 (iii): in the bankRowGone mode the reason is on the entry itself.
+        description: bankRowGone ? `${REVERSAL_PREFIX}${original.description}` : `REVERSAL: ${original.description}`,
         source_type: 'reversal',
         source_id: null,
         status: 'posted',
@@ -396,14 +421,16 @@ export async function reversePlaidTransaction(
       },
     });
 
-    // Reset transaction
-    await tx.transactions.update({
-      where: { transactionId },
-      data: {
-        accountCode: null,
-        review_status: 'pending_review',
-      },
-    });
+    // Reset transaction — PENDING-02 (iv): not in the bankRowGone mode, where rule (ii) has shown there is no row.
+    if (!bankRowGone) {
+      await tx.transactions.update({
+        where: { transactionId },
+        data: {
+          accountCode: null,
+          review_status: 'pending_review',
+        },
+      });
+    }
 
     return { originalId: original.id, reversalId: reversal.id };
   });
