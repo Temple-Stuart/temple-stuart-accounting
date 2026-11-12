@@ -228,17 +228,21 @@ test('T3 the weekdays by arithmetic, the short day, and every line the post and 
   assert.deepEqual(postMeta(ROW), ['Canggu, Bali, Indonesia', 'Jul 1–30, 2026']);
   assert.equal(stopHeading(rowOf('cebu-2026-11')), 'Cebu, Philippines');
   assert.deepEqual(STOP_COST_LABELS, { stay: 'Stay', moto: 'Motorbike', flightIn: 'Flight in' });
+  // TRIPCARDS-03 (Alex's brief, 2026-11-12): every row carries its line's kind beside its words — the card paints an amount by it, never by
+  // the words; a post's own cost is paid, or unknown while its amount is not in the log. Until then the rows were { what, detail, amount }.
   assert.deepEqual(stopCostRows(COSTS), [
-    { what: 'Stay', detail: 'The Daun', amount: '$708.14' },
-    { what: 'Motorbike', detail: 'Nyoman Motorbike (Nmax)', amount: '$131.79' },
-    { what: 'Flight in', detail: 'China Air', amount: '$837.20' },
+    { what: 'Stay', detail: 'The Daun', amount: '$708.14', kind: 'paid' },
+    { what: 'Motorbike', detail: 'Nyoman Motorbike (Nmax)', amount: '$131.79', kind: 'paid' },
+    { what: 'Flight in', detail: 'China Air', amount: '$837.20', kind: 'paid' },
   ]);
-  assert.deepEqual(costRows(COSTS, POST), [...stopCostRows(COSTS), { what: 'My next visa (Vietnam, for stop 2)', detail: 'Expedited, because I applied late · standard is $25', amount: '$100.00' }]);
+  assert.deepEqual(costRows(COSTS, POST), [...stopCostRows(COSTS), { what: 'My next visa (Vietnam, for stop 2)', detail: 'Expedited, because I applied late · standard is $25', amount: '$100.00', kind: 'paid' }]);
+  assert.deepEqual(costRows(COSTS, { ...POST, costs: [{ what: 'A visa run', detail: 'Not booked yet', amountCents: null }] }).slice(3), [{ what: 'A visa run', detail: 'Not booked yet', amount: NOT_IN_LOG, kind: 'unknown' }], 'a post\'s cost with no amount in the log: unknown');
   assert.deepEqual(costRows(costsFor('bangkok-2026-09'), null), [
-    { what: 'Stay', detail: 'Premier Thonglor', amount: '$1,007.72' },
-    { what: 'Motorbike', detail: '', amount: NOT_APPLICABLE },
-    { what: 'Flight in', detail: 'Thai Vietjet', amount: '$149.90' },
+    { what: 'Stay', detail: 'Premier Thonglor', amount: '$1,007.72', kind: 'paid' },
+    { what: 'Motorbike', detail: '', amount: NOT_APPLICABLE, kind: 'none' },
+    { what: 'Flight in', detail: 'Thai Vietjet', amount: '$149.90', kind: 'paid' },
   ]);
+  assert.deepEqual(stopCostRows(costsFor('pererenan-2026-12')).map((r) => r.kind), ['paid', 'unknown', 'unknown'], 'the kinds are the lines\'');
   assert.deepEqual(stopCostRows(costsFor('pererenan-2026-12')).map((r) => r.amount), ['$285.90', NOT_IN_LOG, NOT_IN_LOG]);
   assert.equal(NOT_IN_LOG, 'not in my log yet');
   assert.equal(NOT_APPLICABLE, 'n/a');
@@ -390,7 +394,8 @@ test('T5 the route: static params for every stop, dynamicParams = false; \'/my-t
 
 test('T6 the cards: a grid; every card the stop and what it cost — place, dates, stop, the three costs, "Read the post →" to its page — and nothing of the post, the event or the line; the section imports no post, no card leaf and no event', () => {
   const home = renderToStaticMarkup(React.createElement(WasHereView, { rows: WAS_HERE, costs: TRIP_COSTS, today: TODAY }));
-  assert.match(home, /<div class="[^"]*\boverflow-x-auto\b[^"]*" data-was-here-rail="true">/, 'TRIPCARDS-01 (2026-11-06): one row that scrolls sideways');
+  // TRIPCARDS-03 (2026-11-12): the row is the port's .ts-story-row (overflow-x: auto there). Until then: /<div class="[^"]*\boverflow-x-auto\b[^"]*" data-was-here-rail="true">/.
+  assert.match(home, /<div class="ts-story-row" id="story-row" data-was-here-rail="true">/, 'TRIPCARDS-01 (2026-11-06): one row that scrolls sideways');
   assert.equal(MY_TRIP_LINE, "Stop by stop, dated, with the whole story where I've written it up.");
   assert.equal(READ_THE_POST, 'Read the post →');
   const cardHtml = (id: string) => { const at = home.indexOf(`data-was-here="${id}"`); const next = home.indexOf('data-was-here="', at + 1); return home.slice(at, next < 0 ? undefined : next); };
@@ -404,15 +409,18 @@ test('T6 the cards: a grid; every card the stop and what it cost — place, date
   const canggu = cardHtml(ID);
   // TRIPCARDS-01 (Alex, 2026-11-05): "this should have been removed" — the post's title and line are not on the card.
   assert.doesNotMatch(home, new RegExp(`${POST.title.replace('.', '\\.')}|Every day of it`), 'the post title and its line left the card');
-  // TRIPCARDS-02 (2026-11-08): the card is dark — the amount white/80 (was text-text-secondary), the value white (was text-text-primary).
-  const amount = (a: string) => `<span class="shrink-0 whitespace-nowrap font-mono text-xs text-white/80">${a}</span>`;
-  const named = (name: string, a: string) => `<span class="truncate" title="${name}">${name}</span><span aria-hidden="true">·</span>${amount(a)}`;
+  // TRIPCARDS-03 (2026-11-12): the card is white — the name and the amount each their own <dd>, the amount carrying its line's kind (the
+  // port paints paid gold, none and unknown muted). Until then (TRIPCARDS-02, 2026-11-08: the dark card): the amount
+  // <span class="shrink-0 whitespace-nowrap font-mono text-xs text-white/80">, the name <span class="truncate" title="…">, a · between,
+  // in <dd class="flex min-w-0 items-baseline gap-1 text-xs text-white">.
+  const amount = (kind: string, a: string) => `<dd class="ts-story-cost__amount" data-kind="${kind}">${a}</dd>`;
+  const named = (name: string, a: string) => `<dd class="ts-story-cost__name" title="${name}">${name}</dd>${amount('paid', a)}`;
   assert.ok(canggu.includes(named('The Daun', '$708.14')));
   assert.ok(canggu.includes(named('Nyoman Motorbike (Nmax)', '$131.79')), 'Alex: no "Rental" — one line');
   assert.ok(canggu.includes(named('China Air', '$837.20')));
   assert.doesNotMatch(canggu, />DID<|>LEARNED<|data-was-here-label/, 'a stop he has left: no label');
-  assert.ok(cardHtml('danang-2026-08').includes(`<dd class="flex min-w-0 items-baseline gap-1 text-xs text-white">${amount('n/a')}</dd>`), 'no motorbike: n/a');
-  assert.ok(cardHtml('pererenan-2026-12').includes(amount('not in my log yet')));
+  assert.ok(cardHtml('danang-2026-08').includes(`<dd class="ts-story-cost__name"></dd>${amount('none', 'n/a')}`), 'no motorbike: n/a');
+  assert.ok(cardHtml('pererenan-2026-12').includes(amount('unknown', 'not in my log yet')));
   assert.doesNotMatch(home, /Ice cream was a struggle/, 'no post body on the home page');
   assert.throws(() => renderToStaticMarkup(React.createElement(WasHereView, { rows: WAS_HERE, costs: TRIP_COSTS.filter((c) => c.stopId !== 'cebu-2026-11'), today: TODAY })), /"cebu-2026-11" has no costs row/, 'a stop with no costs row fails loud — never a card without them');
   const section = code(SECTION);
@@ -428,7 +436,8 @@ test('T7 the label from the server\'s day: none once he has left, I\'M HERE whil
     return Object.fromEntries(STOPS.map((id) => {
       const at = home.indexOf(`data-was-here="${id}"`); const next = home.indexOf('data-was-here="', at + 1);
       const card = home.slice(at, next < 0 ? undefined : next);
-      return [id, /data-was-here-label="true">([^<]*)</.exec(card)?.[1] ?? null];
+      // TRIPCARDS-03 (2026-11-12): I'M HERE carries its dot before its words (until then: /data-was-here-label="true">([^<]*)</).
+      return [id, /data-was-here-label="true">(?:<span class="[^"]*" aria-hidden="true"><\/span>)?([^<]*)</.exec(card)?.[1] ?? null];
     }));
   };
   const nov5 = labels('2026-11-05');

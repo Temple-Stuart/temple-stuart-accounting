@@ -8,9 +8,13 @@
  * HOME-SERVICES-01 (Alex's brief, 2026-11-12): FOUR USERS NOW — "Send a project proposal →" is the Professional Services section's
  * gold link (src/components/landing/ServicesSection.tsx, .ts-ps-cta), by the brief's ruling f: "THE GOLD BUTTON replaces the purple
  * one here; PRIMARY_CTA keeps its other users." Landing.tsx wears PRIMARY_CTA nowhere, and its words live in src/lib/proposalNeeds.ts.
+ * TRIPCARDS-03 (Alex's brief, 2026-11-12; the board approved on the design canvas at 21:21): THREE USERS NOW — "Read the post →" is
+ * the trip card's quiet pill (src/components/landing/WasHereSection.tsx TRIP.link, the port's .ts-story-card__post), as the approved
+ * board draws it: HOME-FINISH-01's "same thing on blog read the post button.... should be consistent, like lookup, purple" (Alex,
+ * 2026-11-08) reversed. Its words, its href and its hook are unchanged; the pill's own pins are tripCards03.test.ts's.
  *
  *   T1 PRIMARY_CTA exported with the exact string, beside CONTROL, dated; the app's two buttons unchanged;
- *   T2 the four users (five until HOME-SERVICES-01, 2026-11-12) wear it with no display or height class of their own — only mt-3 (the jump link), shrink-0 and
+ *   T2 the three users (four until TRIPCARDS-03, five until HOME-SERVICES-01, both 2026-11-12) wear it with no display or height class of their own — only mt-3 (the jump link), shrink-0 and
  *      disabled:opacity-60 (the lookup) beside it; their words, hrefs and hooks unchanged;
  *   T3 no ghost border (`border-brand-purple/40`) left in Landing.tsx, WasHereSection.tsx, PlansSection.tsx,
  *      GuestBookingLookup.tsx or travelStripModes.tsx;
@@ -48,7 +52,7 @@ test('T1 PRIMARY_CTA is exported with the exact string — the shape in the clas
   assert.equal(CONTROL.ghostButton, 'rounded border border-brand-purple/40 px-4 py-2 text-sm font-medium text-brand-purple transition-colors hover:bg-brand-purple-wash', 'the app\'s ghost, unchanged');
 });
 
-test('T2 the four users wear PRIMARY_CTA bare (five until HOME-SERVICES-01, 2026-11-12: the proposal button is gold now) — no display or height class of their own; only mt-3, shrink-0 and disabled:opacity-60 beside it; words, hrefs and hooks unchanged', () => {
+test('T2 the three users wear PRIMARY_CTA bare (four until TRIPCARDS-03, 2026-11-12: Read the post → is the quiet pill now; five until HOME-SERVICES-01, 2026-11-12: the proposal button is gold now) — no display or height class of their own; only mt-3, shrink-0 and disabled:opacity-60 beside it; words, hrefs and hooks unchanged', () => {
   const plans = code(PLANS);
   assert.match(plans, /import \{ DATA, PRIMARY_CTA \} from '@\/lib\/ds';/);
   assert.match(plans, /\nconst CTA = PRIMARY_CTA;/);
@@ -67,9 +71,11 @@ test('T2 the four users wear PRIMARY_CTA bare (five until HOME-SERVICES-01, 2026
   assert.doesNotMatch(code('src/components/landing/ServicesSection.tsx'), /\bPRIMARY_CTA\b/, 'the gold link wears the section\'s own class, not PRIMARY_CTA');
   // PIPELINE-PAGE-01 (2026-11-09): the s08 line moved with the deck to PipelineDeck.tsx — found by content (the one line whose code starts with s08:), never by number.
   assert.equal(code(DECK).split('\n').filter((l) => /^\s+s08: /.test(l)).length, 1, 'exactly one s08 line, in the deck\'s file');
+  // TRIPCARDS-03 (Alex's brief, 2026-11-12; the approved board, 21:21): Read the post → leaves PRIMARY_CTA for the port's quiet pill —
+  // HOME-FINISH-01 reversed. Until then: assert.match(trip, /import \{ PRIMARY_CTA \} from '@\/lib\/ds';/); assert.match(trip, /\n {2}link: PRIMARY_CTA,/).
   const trip = code(TRIP);
-  assert.match(trip, /import \{ PRIMARY_CTA \} from '@\/lib\/ds';/);
-  assert.match(trip, /\n {2}link: PRIMARY_CTA,/);
+  assert.doesNotMatch(trip, /\bPRIMARY_CTA\b/, 'the trip card neither imports nor wears PRIMARY_CTA — Read the post → is the quiet pill');
+  assert.match(trip, /\n {2}link: 'ts-story-card__post',/, 'the quiet pill: the port\'s class (tripCards03.test.ts holds its rule)');
   assert.match(trip, /<a href=\{href\} className=\{TRIP\.link\} data-was-here-post-link>\{READ_THE_POST\}<\/a>/, 'the post link\'s words and hook unchanged');
   assert.match(trip, /export const READ_THE_POST = 'Read the post →';/);
   const lookup = code(LOOKUP);

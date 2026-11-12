@@ -1,61 +1,67 @@
 'use client';
 
 /**
- * WasHereSection (WASHERE-01, Alex, 2026-10-31) — MY TRIP, the trip log, on the
- * guest landing directly after the experiences (Landing.tsx). 'use client' only
- * because Landing.tsx is one; this file holds no state and no effect.
+ * WasHereSection (WASHERE-01, Alex, 2026-10-31) — MY TRIP, the trip log: Our Story, the guest landing's last act (Landing.tsx
+ * mounts it after About Us). Every stop of the trip is a card, in trip order, in ONE row that scrolls sideways.
  *
- * WHY. The "I'm into…" filter serves the reader; "I was here" is Alex's own trip.
- * The card that EVENTS-01 featured inside the experiences left that section and is
- * an entry here — an act built to take many entries and a photo each as Alex adds
- * them. WASHERE-03: the log reads in trip order. WASHERE-04 (Alex, 2026-11-03):
- * privacy. TRIPPOST-01 (Alex, 2026-11-05): a stop opens its own page (/my-trip/<id>,
- * src/app/my-trip/[id]). TRIPCARDS-01 (Alex, 2026-11-06): the cards sit in ONE row that
- * scrolls sideways — "horizontal scroll cards rather than horizontal on screen and vertical
- * stack what doesn't fit" — each card one fixed width, snapping to its start; the row runs to
- * the act's edges and the page itself never scrolls sideways. The row's scrollbar is drawn
- * (a thin lavender thumb) so a mouse sees there is more; keys reach every card through its
- * links, and the browser scrolls each into view.
+ * THE RULINGS IT STANDS ON, oldest first — each stands unless a later one says otherwise:
+ *   · WASHERE-01…04 (2026-10-31 → 11-03): Alex's own stops, read in trip order (WASHERE-03); privacy (WASHERE-04).
+ *   · TRIPPOST-01 (Alex, 2026-11-05): every stop opens its own page, /my-trip/<id> (src/app/my-trip/[id]).
+ *   · TRIPCARDS-01 (Alex, 2026-11-05): "all i care to show on the card is destination, stay / bike / and flight in" — a card is
+ *     the stop and what it cost, and the door to its page; everything else a stop holds (its post, Alex's line, the event it was
+ *     around, DID and LEARNED, what was on, the booking button) lives on that page (src/components/trip/TripPostView.tsx). No
+ *     empty photo box while a stop has no photo. (2026-11-06): "horizontal scroll cards rather than horizontal on screen and
+ *     vertical stack what doesn't fit" — one row, each card one width, snapping to its start; only the row scrolls sideways.
+ *   · TRIPCARDS-02 (Alex, 2026-11-08): the trip.com look — a dark card, its photo cut to 320px, the stop chip and a dark band
+ *     drawn over the photo. IT LEFT WITH TRIPCARDS-03.
  *
- * TRIPCARDS-01 (Alex, 2026-11-05): "all i care to show on the card is destination, stay / bike /
- * and flight in". Every card is that and the door to its stop's page — the stops he has booked
- * ahead included. Everything else a stop holds (its post, Alex's line, the event it was around,
- * DID and LEARNED, what was on, the booking button) lives on that page
- * (src/components/trip/TripPostView.tsx).
+ * TRIPCARDS-03 (Alex's brief, 2026-11-12 21:08 Manila; the board approved on the design canvas at 21:21) — THE STOP CARDS, AS
+ * DRAWN. His brief, 21:08 Manila: "so these cards (a) dont follow the new asthetics of the page, and also when we made these, it
+ * like cuts out parts of my photos and for example the sunset pic in bali, its cutting out surfers in the sunset which were a big
+ * part of the image... (b) like how the other cards had the issue, the data just looks like kinda crammed and messy and shanty on
+ * the card now...." His approval, 21:21 Manila: "omg yesssssssss that is fucking sexy, our story, yassss yassss yasssss! give me
+ * the prmpt to turn this real!"
+ * THE SPEC IS design-refs/tripcards-03/Section-Reference.html — "Every value in its stylesheet is the design, and its markup is the
+ * page as it opens on 2026-11-12" — with its README beside it. This file draws that markup; the stylesheet is the reference's,
+ * ported to src/app/globals.css behind the house prefix (.story → .ts-story). Top to bottom:
+ *   · THE HEAD, in the page container: MY TRIP (the eyebrow, gold mono), Our Story (violet, at the pillars' size), the line; from
+ *     768px, two round arrows on the right.
+ *   · THE ROW, outside the page container — the full width of the section, its padding standing the first card under the heading.
+ *     It snaps to a card's start when it comes to rest near one (proximity). No scrollbar is drawn.
+ *   · A CARD: white. Its photo WHOLE at 3 : 2, with nothing drawn on it (every photo is 3 : 2 within 1% — the build reads each
+ *     one's header and refuses one that is not: src/lib/photoSize.ts), opening the stop's page out of the tab order. The stop line:
+ *     "Stop n", its chip — I'M HERE filled with a dot, COMING UP outlined, none once he has left (src/lib/wasHereWords.ts
+ *     stopStatus, stopLabel) — and the photo's credit at its right. The city, the country, the dates. At its foot, the three
+ *     costs — each amount painted by its line's kind, carried beside the words (paid in gold; none and unknown muted) — then Read
+ *     the post →, the quiet pill. The stop he is at wears a violet ring. A stop with no photo yet has no image and no box: its
+ *     place, at 30px, opens the card.
  *
- * WHAT IT RENDERS — every word of a stop from src/lib/wasHere.ts through
- * src/lib/wasHereWords.ts, what it cost from src/lib/tripCosts.ts through
- * src/lib/tripPostWords.ts, never typed here:
- *   the eyebrow, the h2, the line (each typed once below; Alex rewrites the copy
- *   later); then tripOrder(WAS_HERE), each a card, in this order:
- *     · the image when present, linking the stop's page out of the tab order — and NO <img>,
- *       NO placeholder box while null. TRIPCARDS-02 (Alex, 2026-11-08): the trip.com look drawn on
- *       the canvas — the photo tall (one h-80 block), the stop chip on it, the place and the dates
- *       on a dark band across its foot, the credit on that band's right; with no photo, the chip,
- *       the place and the dates open the card. The same parts in the same order as TRIPCARDS-01d;
- *     · the stop number, derived from the order ("Stop 1", "Stop 2" …) — TRIPCARDS-01d (Alex,
- *       2026-11-06): on top of the place, under the photo credit in the DOM (TRIPCARDS-02 draws the
- *       credit on the band and the stop as a chip on the photo) — and on the same line the
- *       label from the server's day: I'M HERE while he is there, COMING UP before; none once he
- *       has left (Alex: lose "I was here");
- *     · city, country; the stay — "Since <day>" or the window's dateWords;
- *     · what it cost — Stay, Motorbike, Flight in: the name and the amount, "n/a" for none,
- *       "not in my log yet" for a figure he hasn't logged (tripPostWords.ts stopCostRows). One
- *       line each: a name too long for the card's width ends in "…" (the whole name in its
- *       title and on the stop's page), and the amount is never cut;
- *     · "Read the post →" to the stop's page — every stop.
+ * TWO RULINGS REVERSE WITH THE APPROVED BOARD:
+ *   · Read the post → leaves PRIMARY_CTA (src/lib/ds.ts), the public page's filled purple button, for the quiet pill. HOME-FINISH-01
+ *     had put it there (Alex, 2026-11-08: "same thing on blog read the post button.... should be consistent, like lookup, purple").
+ *   · The heading leaves HOME-FINISH-02's gold (Alex's brief, 2026-11-10 20:56: a section heading, in gold and one size up) for
+ *     violet at the pillars' size, as the board draws it.
  *
- * THE DAY RULE: `today` is the UTC calendar date src/app/page.tsx computed ONCE and
- * passed down; nothing here reads the clock. PAINT: house tokens only, zero new hex
- * — the cream act with dark cards (TRIPCARDS-02: bg-text-primary, the band solid because the
- * token carries no alpha; the words on them white, as PRIMARY_CTA's ink), the eyebrow in the
- * mono faint voice. One row of cards; only the row scrolls sideways.
- * No emoji, no countdown, no urgency words.
+ * THE ROW AT WORK (the README, "The row: arrows and keyboard"). The arrows, "Earlier stops" and "Later stops", each name the row
+ * in aria-controls and move it by one card (a card's width and the gap) — smoothly, or at once under prefers-reduced-motion. At
+ * either end an arrow says it can go no further, aria-disabled="true" (so it keeps the focus), updated on every scroll and every
+ * resize. A card the keyboard reaches comes into view whole: standing past either edge of the row, it moves to the row's start, a
+ * snap point. The keyboard meets the two arrows, then each card's Read the post →, in trip order; the photos are skipped.
+ * STATE: the row's scroll position is the browser's. The two ends the arrows show are React state DERIVED from it on every scroll
+ * and every resize — before the first measure, the reference's own markup (back at its end, forward not: the page as it opens).
+ * Nothing is stored: no storage, no URL, no cookie.
+ *
+ * WORDS: every word is read from its home and the JSX types none — the section's own (the eyebrow, the line, Read the post →, and
+ * the arrows' two, new with TRIPCARDS-03) as the constants below; the heading from src/lib/homeActWords.ts; a stop's from
+ * src/lib/wasHere.ts through src/lib/wasHereWords.ts; what it cost from src/lib/tripCosts.ts through src/lib/tripPostWords.ts.
+ * "My trip" is the act's aria-label, a hook, typed where it stands. THE DAY RULE: `today` is the UTC calendar date src/app/page.tsx
+ * computed ONCE and passed down; nothing here reads the clock. PAINT: the port's classes only — no hex, no colour typed here. No
+ * emoji, no countdown, no urgency words.
  */
 
-import { PRIMARY_CTA } from '@/lib/ds';
+import { useCallback, useEffect, useRef, useState, type FocusEvent } from 'react';
 import { WAS_HERE, type WasHereRow } from '@/lib/wasHere';
-import { stayWords, stopLabel, stopWords, tripOrder } from '@/lib/wasHereWords';
+import { stayWords, stopLabel, stopStatus, stopWords, tripOrder } from '@/lib/wasHereWords';
 // TRIPCARDS-01: what each stop cost — the stay, the motorbike, the flight in.
 import { TRIP_COSTS, type TripCosts } from '@/lib/tripCosts';
 import { stopCostRows, tripPostHref } from '@/lib/tripPostWords';
@@ -69,49 +75,71 @@ export const MY_TRIP_HEADLINE = OUR_STORY_HEADING; // HOME-ORDER-01 (Alex, 2026-
 export const MY_TRIP_LINE = "Stop by stop, dated, with the whole story where I've written it up.";
 /** TRIPPOST-01: the card's link to its stop's page. */
 export const READ_THE_POST = 'Read the post →';
+/** TRIPCARDS-03 (2026-11-12): the arrows' words, each its button's aria-label — new with the board; their home is here, beside READ_THE_POST (the README's proposal). */
+export const EARLIER_STOPS = 'Earlier stops';
+export const LATER_STOPS = 'Later stops';
+/** TRIPCARDS-03: the row's id — the one both arrows name in aria-controls (the reference's own). */
+export const STORY_ROW_ID = 'story-row';
 
-// THE CLASS GRAMMAR — one const, every string whole, house tokens only (and white for the words on the dark card, TRIPCARDS-02).
+// THE CLASS GRAMMAR — one const, every class the port's (src/app/globals.css, the TRIPCARDS-03 block). TRIPCARDS-03 kept the keys
+// that still fit and added the board's parts; TRIPCARDS-02's figure, photoLink, image, band, top, stopStatic and costValue left with
+// the dark card.
 const TRIP = {
-  act: 'w-full border-b border-border bg-bg-terminal',
-  inner: 'max-w-7xl mx-auto px-4 lg:px-8 py-10',
-  eyebrow: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  h2: 'mt-3 text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold', // HOME-FINISH-02 (Alex, 2026-11-10 20:56): a section heading, in gold and one size up ('text-2xl sm:text-3xl … text-brand-purple' until then) — gold on the cream is large type only
-  sub: 'mt-2 text-sm text-text-secondary',
-  // TRIPCARDS-01 (2026-11-06): one row that scrolls sideways, edge to edge of the act's box —
-  // the negative margin meets the inner padding, so the page never scrolls; the thumb is drawn.
-  list: '-mx-4 mt-6 flex snap-x snap-proximity gap-4 overflow-x-auto scroll-px-4 px-4 pb-3 lg:-mx-8 lg:scroll-px-8 lg:px-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent',
-  // One width, snapping to its start; a column, so the row's cards share one height and every link sits on the bottom edge.
-  // TRIPCARDS-02 (Alex, 2026-11-08): the trip.com look — a dark card, no border and no padding (each part keeps its own inset), its corners clipping the photo.
-  card: 'w-[21rem] shrink-0 snap-start flex flex-col overflow-hidden rounded-lg bg-text-primary',
-  // TRIPCARDS-02: a card WITH a photo opens with one block, 320px tall, holding in this DOM order the figure, the stop chip and the band.
-  photo: 'relative h-80 shrink-0',
-  figure: 'h-full',
-  photoLink: 'block h-full',
-  image: 'h-full w-full object-cover',
-  // TRIPCARDS-02: the credit sits first (inside the figure) and is drawn on the band's last line, at its right.
-  credit: 'absolute bottom-3 right-3.5 z-10 font-mono text-[10px] text-white/60',
-  // TRIPCARDS-01d: the stop number leads the card's words (after the credit, in the DOM), the label beside it — TRIPCARDS-02: drawn as a chip on the photo's top left.
-  stop: 'absolute left-3 top-3 inline-flex items-center gap-1.5 rounded bg-ts-white px-2 py-1 font-mono text-[11px] text-text-secondary',
-  label: 'font-semibold uppercase tracking-wider text-brand-purple',
-  // TRIPCARDS-02: the band across the photo's foot, solid (the canvas draws it at 84%; text-primary is a plain var, so no opacity
-  // modifier) — the place, then the dates, their right padding clear of the credit.
-  band: 'absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-text-primary px-3.5 py-3',
-  place: 'text-lg font-semibold leading-snug text-white',
-  stay: 'pr-28 font-mono text-xs text-white/85',
-  // TRIPCARDS-02: a card WITHOUT a photo (Cebu today) — no block, no figure, no box: the same chip, static here, then the place and the dates.
-  top: 'flex flex-col items-start gap-1 px-3.5 pt-3.5',
-  stopStatic: 'mb-2 inline-flex items-center gap-1.5 rounded bg-ts-white px-2 py-1 font-mono text-[11px] text-text-secondary',
-  foot: 'mx-3.5 mb-3.5 mt-auto pt-4',
-  // HOME-FINISH-01 (Alex, 2026-11-08): the post link is the public page's one filled button (src/lib/ds.ts PRIMARY_CTA — 44px, label centred).
-  link: PRIMARY_CTA,
-  // TRIPCARDS-01: what it cost — a label column in the mono voice; beside it the name and the amount on ONE
-  // line (the name may end in "…", the amount never shrinks). TRIPCARDS-02: inset on the dark card, its words white.
-  costs: 'mx-3.5 mt-3.5 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5',
-  costLabel: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-white/60',
-  costValue: 'flex min-w-0 items-baseline gap-1 text-xs text-white',
-  costName: 'truncate',
-  costAmount: 'shrink-0 whitespace-nowrap font-mono text-xs text-white/80',
+  act: 'ts-story',
+  inner: 'ts-story__inner',
+  head: 'ts-story__head',
+  words: 'ts-story__words',
+  eyebrow: 'ts-story__eyebrow',
+  h2: 'ts-story__title', // TRIPCARDS-03 (Alex, 2026-11-12 21:21, the approved board): violet at the pillars' size — HOME-FINISH-02's gold reversed ('mt-3 text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold' from 2026-11-10 20:56 until then)
+  sub: 'ts-story__lede',
+  arrows: 'ts-story__arrows',
+  arrow: 'ts-story-arrow',
+  // TRIPCARDS-01 (2026-11-06): one row that scrolls sideways. TRIPCARDS-03: outside the page container, its scrollbar hidden.
+  list: 'ts-story-row',
+  card: 'ts-story-card',
+  // TRIPCARDS-03: the photo's frame is its link — 3 : 2, the photo whole, nothing on it.
+  photo: 'ts-story-card__photo',
+  body: 'ts-story-card__body',
+  meta: 'ts-story-card__meta',
+  stop: 'ts-story-card__stop',
+  label: 'ts-story-chip',
+  dot: 'ts-story-chip__dot',
+  credit: 'ts-story-card__credit',
+  place: 'ts-story-card__city',
+  country: 'ts-story-card__country',
+  stay: 'ts-story-card__dates',
+  foot: 'ts-story-card__foot',
+  // TRIPCARDS-01: what it cost — the label, the name (ending in "…" when long, its whole words in its title), the amount, never cut.
+  costs: 'ts-story-costs',
+  cost: 'ts-story-cost',
+  costLabel: 'ts-story-cost__what',
+  costName: 'ts-story-cost__name',
+  costAmount: 'ts-story-cost__amount',
+  // TRIPCARDS-03 (the approved board): Read the post → is the quiet pill — HOME-FINISH-01's PRIMARY_CTA (src/lib/ds.ts) reversed.
+  link: 'ts-story-card__post',
 } as const;
+
+/** TRIPCARDS-03: where the row stands — at its start, back can go no further; at its end, forward can go no further. A pixel's slack, as the reference's script allows. */
+export interface RowEnds {
+  readonly start: boolean;
+  readonly end: boolean;
+}
+export function rowEnds(scrollLeft: number, clientWidth: number, scrollWidth: number): RowEnds {
+  return { start: scrollLeft <= 1, end: scrollLeft + clientWidth >= scrollWidth - 1 };
+}
+/** The page as it opens — the reference's own markup: the row at its start, so back at its end and forward not. The row is measured as soon as it is in the page. */
+export const ROW_AS_IT_OPENS: RowEnds = { start: true, end: false };
+/** TRIPCARDS-03: a card standing past either edge of the row (half a pixel's slack, as the reference's script allows) is brought into view whole. */
+export function cardCut(card: { readonly left: number; readonly right: number }, row: { readonly left: number; readonly right: number }): boolean {
+  return card.left < row.left - 0.5 || card.right > row.right + 0.5;
+}
+/** Smoothly — or at once, when the reader asks for less motion. */
+const motion = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+/** The row, when an effect or a handler runs — it is in the page by then; a missing row is a bug, and says so. */
+function theRow(ref: { readonly current: HTMLDivElement | null }): HTMLDivElement {
+  if (ref.current === null) throw new Error('was here: the row is not in the page');
+  return ref.current;
+}
 
 /** TRIPCARDS-01: the stop's costs, or a loud failure — never a card without them; the registry law refuses a stop with no costs row at build. */
 function costsFor(costs: readonly TripCosts[], id: string): TripCosts {
@@ -120,17 +148,15 @@ function costsFor(costs: readonly TripCosts[], id: string): TripCosts {
   return found;
 }
 
-/** TRIPCARDS-01: what the stop cost — Stay, Motorbike, Flight in; the name, then the amount (or n/a, or not in my log yet). */
+/** TRIPCARDS-01: what the stop cost — Stay, Motorbike, Flight in: the label, the name (or nothing), the amount (or n/a, or not in my log yet) — TRIPCARDS-03: the amount carries its line's kind. */
 function Costs({ costs }: { costs: TripCosts }) {
   return (
     <dl className={TRIP.costs} data-was-here-costs={costs.stopId}>
       {stopCostRows(costs).map((c) => (
-        <div key={c.what} className="contents" data-was-here-cost={c.what}>
+        <div key={c.what} className={TRIP.cost} data-was-here-cost={c.what}>
           <dt className={TRIP.costLabel}>{c.what}</dt>
-          <dd className={TRIP.costValue}>
-            {c.detail !== '' && <><span className={TRIP.costName} title={c.detail}>{c.detail}</span><span aria-hidden="true">·</span></>}
-            <span className={TRIP.costAmount}>{c.amount}</span>
-          </dd>
+          <dd className={TRIP.costName} title={c.detail === '' ? undefined : c.detail}>{c.detail}</dd>
+          <dd className={TRIP.costAmount} data-kind={c.kind}>{c.amount}</dd>
         </div>
       ))}
     </dl>
@@ -138,64 +164,94 @@ function Costs({ costs }: { costs: TripCosts }) {
 }
 
 function Entry({ row, costs, stop, today }: { row: WasHereRow; costs: TripCosts; stop: number; today: string }) {
+  const status = stopStatus(row, today);
   const label = stopLabel(row, today);
   const href = tripPostHref(row.id);
-  // TRIPCARDS-02 (Alex, 2026-11-08): the stop, the place and the dates are the same parts in either layout — on the
-  // photo (the chip at its top left, the place and the dates on its band) or, with no photo, opening the card.
-  const stopLine = (className: string) => (
-    <p className={className} data-was-here-stop={stop}>
-      {stopWords(stop)}
-      {label !== null && <><span aria-hidden="true"> · </span><span className={TRIP.label} data-was-here-label>{label}</span></>}
-    </p>
-  );
-  const place = <h3 className={TRIP.place}>{row.city}, {row.country}</h3>;
-  const stay = <p className={TRIP.stay} data-was-here-stay>{stayWords(row)}</p>;
   return (
-    <article className={TRIP.card} data-was-here={row.id} data-was-here-image={row.image === null ? 'none' : 'photo'}>
-      {row.image !== null ? (
-        <div className={TRIP.photo}>
-          <figure className={TRIP.figure}>
-            {/* TRIPCARDS-01: the photo opens the stop's page too — out of the tab order; "Read the post" is the link a keyboard meets. */}
-            <a href={href} tabIndex={-1} aria-hidden="true" className={TRIP.photoLink}>
-              {/* A plain <img>, the Built-on wall's precedent (BuiltOnStrip.tsx REAL-MARKS — re-cited BUILTON-01, 2026-11-09: was Landing.tsx): a file under
-                  public/, served as-is, no optimizer and no remote loader. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={row.image.src} alt={row.image.alt} loading="lazy" className={TRIP.image} />
-            </a>
-            <figcaption className={TRIP.credit}>{row.image.credit}</figcaption>
-          </figure>
-          {stopLine(TRIP.stop)}
-          <div className={TRIP.band}>
-            {place}
-            {stay}
-          </div>
-        </div>
-      ) : (
-        <div className={TRIP.top}>
-          {stopLine(TRIP.stopStatic)}
-          {place}
-          {stay}
-        </div>
+    <article className={TRIP.card} data-was-here={row.id} data-was-here-image={row.image === null ? 'none' : 'photo'} data-stop-status={status}>
+      {row.image !== null && (
+        // TRIPCARDS-01: the photo opens the stop's page too — out of the tab order; "Read the post" is the link a keyboard meets.
+        <a href={href} tabIndex={-1} aria-hidden="true" className={TRIP.photo}>
+          {/* A plain <img>, the Built-on wall's precedent (BuiltOnStrip.tsx REAL-MARKS — re-cited BUILTON-01, 2026-11-09: was Landing.tsx): a file under
+              public/, served as-is, no optimizer and no remote loader. TRIPCARDS-03: no class — the port frames it at 3 : 2. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={row.image.src} alt={row.image.alt} loading="lazy" />
+        </a>
       )}
-      <Costs costs={costs} />
-      <div className={TRIP.foot}>
-        <a href={href} className={TRIP.link} data-was-here-post-link>{READ_THE_POST}</a>
+      <div className={TRIP.body}>
+        <div className={TRIP.meta}>
+          <p className={TRIP.stop} data-was-here-stop={stop}>
+            <span>{stopWords(stop)}</span>
+            {label !== null && (
+              <span className={TRIP.label} data-status={status} data-was-here-label>
+                {status === 'now' && <span className={TRIP.dot} aria-hidden="true" />}
+                {label}
+              </span>
+            )}
+          </p>
+          {row.image !== null && <span className={TRIP.credit}>{row.image.credit}</span>}
+        </div>
+        <h3 className={TRIP.place}>{row.city}</h3>
+        <p className={TRIP.country}>{row.country}</p>
+        <p className={TRIP.stay} data-was-here-stay>{stayWords(row)}</p>
+        <div className={TRIP.foot}>
+          <Costs costs={costs} />
+          <a href={href} className={TRIP.link} data-was-here-post-link>{READ_THE_POST}</a>
+        </div>
       </div>
     </article>
   );
 }
 
-/** The pure half: props in, markup out — the tests render it (TRIPCARDS-01: the costs come in beside the rows). */
+/** Props in, markup out — the tests render it, at rest; in the page, the row's two ends follow its scroll position. */
 export function WasHereView({ rows, costs, today }: { rows: readonly WasHereRow[]; costs: readonly TripCosts[]; today: string }) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [ends, setEnds] = useState<RowEnds>(ROW_AS_IT_OPENS);
+  const settle = useCallback((row: HTMLElement): void => {
+    const now = rowEnds(row.scrollLeft, row.clientWidth, row.scrollWidth);
+    setEnds((was) => (was.start === now.start && was.end === now.end ? was : now));
+  }, []);
+  // On mount and on every resize; every scroll is the row's own onScroll, below.
+  useEffect(() => {
+    const row = theRow(rowRef);
+    const onResize = (): void => settle(row);
+    settle(row);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [settle]);
+  /** One card, either way: a card's width and the gap. */
+  const step = (direction: -1 | 1): void => {
+    const row = theRow(rowRef);
+    const card = row.firstElementChild;
+    if (card === null) throw new Error('was here: the row holds no card');
+    row.scrollBy({ left: direction * (card.getBoundingClientRect().width + parseFloat(getComputedStyle(row).columnGap)), behavior: motion() });
+  };
+  const bringIntoView = (event: FocusEvent<HTMLDivElement>): void => {
+    const card = event.target.closest('[data-was-here]');
+    if (card === null) return;
+    if (cardCut(card.getBoundingClientRect(), event.currentTarget.getBoundingClientRect())) card.scrollIntoView({ block: 'nearest', inline: 'start', behavior: motion() });
+  };
   return (
     <section id={MY_TRIP_ANCHOR} aria-label="My trip" className={TRIP.act} data-my-trip>
       <div className={TRIP.inner}>
-        <p className={TRIP.eyebrow}>{MY_TRIP_EYEBROW}</p>
-        <h2 className={TRIP.h2}>{MY_TRIP_HEADLINE}</h2>
-        <p className={TRIP.sub}>{MY_TRIP_LINE}</p>
-        <div className={TRIP.list} data-was-here-rail>
-          {tripOrder(rows).map((row, i) => <Entry key={row.id} row={row} costs={costsFor(costs, row.id)} stop={i + 1} today={today} />)}
+        <div className={TRIP.head}>
+          <div className={TRIP.words}>
+            <p className={TRIP.eyebrow}>{MY_TRIP_EYEBROW}</p>
+            <h2 className={TRIP.h2}>{MY_TRIP_HEADLINE}</h2>
+            <p className={TRIP.sub}>{MY_TRIP_LINE}</p>
+          </div>
+          <div className={TRIP.arrows}>
+            <button className={TRIP.arrow} type="button" aria-label={EARLIER_STOPS} aria-controls={STORY_ROW_ID} aria-disabled={ends.start} onClick={() => { if (!ends.start) step(-1); }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
+            <button className={TRIP.arrow} type="button" aria-label={LATER_STOPS} aria-controls={STORY_ROW_ID} aria-disabled={ends.end} onClick={() => { if (!ends.end) step(1); }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+            </button>
+          </div>
         </div>
+      </div>
+      <div ref={rowRef} className={TRIP.list} id={STORY_ROW_ID} data-was-here-rail onScroll={(event) => settle(event.currentTarget)} onFocus={bringIntoView}>
+        {tripOrder(rows).map((row, i) => <Entry key={row.id} row={row} costs={costsFor(costs, row.id)} stop={i + 1} today={today} />)}
       </div>
     </section>
   );

@@ -18,7 +18,8 @@
  *   postMeta(row)                 ["Canggu, Bali, Indonesia", "Jul 1–30, 2026"]
  *   stopCostRows(costs)           Stay · Motorbike · Flight in: the name and the amount — a stop
  *                                 with none says NOT_APPLICABLE, one not in his log NOT_IN_LOG,
- *                                 never $0
+ *                                 never $0 — and, beside the words, the line's own kind (paid ·
+ *                                 none · unknown), which the card paints by (TRIPCARDS-03)
  *   costRows(costs, post)         the stop's three, then the post's own costs, in order
  *   unwrittenLine(row)            a stop not written up says so: booked ahead ("Coming up …")
  *                                 or lived and not yet written
@@ -84,13 +85,20 @@ export interface CostRowWords {
   /** The stay, the rental or the airline — empty when the stop had none or the log has no figure. */
   detail: string;
   amount: string;
+  /**
+   * TRIPCARDS-03 (Alex's brief, 2026-11-12): what kind of line the words came from — paid, none or unknown — carried BESIDE
+   * them, so the card paints an amount by its line's kind (paid in gold; none and unknown muted) and never reads the kind back
+   * out of the words. A stop's own three carry their line's kind; a post's own cost is paid, or unknown while its amountCents
+   * is null (not in the log). The stop's page reads what, detail and amount only.
+   */
+  kind: TripCostLine['kind'];
 }
 
 function costLineWords(what: string, line: TripCostLine): CostRowWords {
   switch (line.kind) {
-    case 'paid': return { what, detail: line.name, amount: functionalMoneyWords(line.amountCents) };
-    case 'none': return { what, detail: '', amount: NOT_APPLICABLE };
-    case 'unknown': return { what, detail: '', amount: NOT_IN_LOG };
+    case 'paid': return { what, detail: line.name, amount: functionalMoneyWords(line.amountCents), kind: line.kind };
+    case 'none': return { what, detail: '', amount: NOT_APPLICABLE, kind: line.kind };
+    case 'unknown': return { what, detail: '', amount: NOT_IN_LOG, kind: line.kind };
   }
 }
 
@@ -105,7 +113,9 @@ export function stopCostRows(costs: TripCosts): CostRowWords[] {
 
 /** The stop's three, then — when the stop is written up — the post's own costs, in order. */
 export function costRows(costs: TripCosts, post: TripPost | null): CostRowWords[] {
-  const own = post === null ? [] : post.costs.map((c) => ({ what: c.what, detail: c.detail, amount: c.amountCents === null ? NOT_IN_LOG : functionalMoneyWords(c.amountCents) }));
+  const own = post === null ? [] : post.costs.map((c): CostRowWords => (c.amountCents === null
+    ? { what: c.what, detail: c.detail, amount: NOT_IN_LOG, kind: 'unknown' }
+    : { what: c.what, detail: c.detail, amount: functionalMoneyWords(c.amountCents), kind: 'paid' }));
   return [...stopCostRows(costs), ...own];
 }
 

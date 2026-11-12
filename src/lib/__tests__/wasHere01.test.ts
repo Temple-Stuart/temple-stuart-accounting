@@ -37,6 +37,12 @@
  * in one h-80 block holding the figure, the stop chip and a dark band with the place and the
  * dates (the credit drawn on the band's right); Cebu, with no photo, opens with the chip, the
  * place and the dates. The same data, the same words, the same order of parts.
+ * TRIPCARDS-03 (Alex's brief, 2026-11-12 21:08 Manila; the board approved on the design canvas at 21:21) — the stop cards, as
+ * drawn: the dark card, its 320px crop, the chip and the band on the photo and the drawn scrollbar leave. Each card is white, its
+ * photo whole at 3 : 2 with nothing on it; the stop line (Stop n, its chip, the credit at its right); the city, the country, the
+ * dates; the three costs, each amount carrying its line's kind; Read the post →, the quiet pill. The row stands outside the page
+ * container. The same data, the same hooks, the same order of the parts these tests read; tripCards03.test.ts holds the port and
+ * the markup against the reference.
  *
  *   T1 the law — every refusal by name over injected rows and events; the deleted
  *      refusals named absent; the live rows pass;
@@ -54,8 +60,9 @@
  *      the name's whole words in its title) and its "Read the post →", and nothing else — on the
  *      live rows and on fixtures that hold a line, two lists, an event and a stop's event; a
  *      stop with no costs row fails loud; no "No event" / JUST MISSED text anywhere, no clock;
- *      the trip.com look (TRIPCARDS-02) — every card dark, a photo card's figure, chip and band
- *      in one h-80 block, Cebu with none;
+ *      the look as drawn (TRIPCARDS-03; TRIPCARDS-02's dark card until then) — every card white,
+ *      its photo whole in its frame with nothing drawn on it, the stop he is at ringed, Cebu with
+ *      no frame and no credit;
  *   T5 the mount — after the experiences mount and the guest strip (HOME-ORDER-01,
  *      2026-11-10: Alex's order; before the strip until then); the header
  *      comment says a card per stop, each opening its page (TRIPCARDS-01); the law seat.
@@ -135,11 +142,18 @@ const pos = (html: string, needle: string) => { const i = html.indexOf(needle); 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /** React's escaping of an apostrophe, in text and in attributes. */
 const asHtml = (s: string) => s.replace(/'/g, '&#x27;');
-/** A card's three costs as words — "<name> · <amount>", or the amount alone — and every name's title the same words. */
-const costsOfCard = (html: string, id: string) => [...cardOf(html, id).matchAll(/<dd class="[^"]*">(?:<span class="truncate" title="([^"]*)">([^<]*)<\/span><span aria-hidden="true">·<\/span>)?<span class="[^"]*">([^<]*)<\/span><\/dd>/g)].map((m) => {
-  assert.equal(m[1], m[2], 'the name\'s title holds its whole words');
-  return m[2] === undefined ? m[3] : `${m[2]} · ${m[3]}`;
+/**
+ * A card's three costs as words — "<name> · <amount>", or the amount alone — and every name's title the same words. TRIPCARDS-03
+ * (2026-11-12): the name and the amount are each their own <dd>, the amount carrying its line's kind, and a stop with no name has an
+ * empty <dd> with no title. Until then the name and the amount were spans in one <dd>, read by
+ * /<dd class="[^"]*">(?:<span class="truncate" title="([^"]*)">([^<]*)<\/span><span aria-hidden="true">·<\/span>)?<span class="[^"]*">([^<]*)<\/span><\/dd>/g.
+ */
+const costsOfCard = (html: string, id: string) => [...cardOf(html, id).matchAll(/<dd class="[^"]*"(?: title="([^"]*)")?>([^<]*)<\/dd><dd class="[^"]*" data-kind="[^"]*">([^<]*)<\/dd>/g)].map((m) => {
+  assert.equal(m[1], m[2] === '' ? undefined : m[2], 'the name\'s title holds its whole words — and no name, no title');
+  return m[2] === '' ? m[3] : `${m[2]} · ${m[3]}`;
 });
+/** A card's label (I'M HERE, COMING UP) or null — TRIPCARDS-03: I'M HERE carries its dot before its words. */
+const labelOf = (card: string) => /data-was-here-label="true">(?:<span class="[^"]*" aria-hidden="true"><\/span>)?([^<]*)</.exec(card)?.[1] ?? null;
 /** The next calendar day, by arithmetic — no clock. */
 const nextDay = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number);
@@ -359,25 +373,34 @@ test('T4 rendered with the live rows: the h2 "Our Story" (HOME-ORDER-01, 2026-11
   assert.equal(MY_TRIP_HEADLINE, 'Our Story'); // HOME-ORDER-01 (2026-11-10): Alex's heading — OUR_STORY_HEADING, src/lib/homeActWords.ts. Until then: "Where I've been, and where I'm going." (TRIPCARDS-01, 2026-11-05: the stops booked ahead join).
   assert.match(html, /<h2 class="[^"]*">Our Story<\/h2><p class="[^"]*">Stop by stop, dated, with the whole story where I&#x27;ve written it up\.<\/p>/);
   assert.ok(html.includes(MY_TRIP_EYEBROW) && html.includes(asHtml(MY_TRIP_HEADLINE)) && html.includes(asHtml(MY_TRIP_LINE)));
-  // TRIPCARDS-01 (Alex, 2026-11-06): "horizontal scroll cards" — one row, each card one width, snapping; the row meets the act's edges and only it scrolls.
-  const rail = /<div class="([^"]*)" data-was-here-rail="true">/.exec(html);
-  assert.ok(rail, 'the row is drawn');
-  for (const cls of ['flex', 'overflow-x-auto', 'snap-x', 'snap-proximity', 'gap-4', '-mx-4', 'px-4', 'scroll-px-4', 'lg:-mx-8', 'lg:px-8', 'lg:scroll-px-8', '[&::-webkit-scrollbar]:h-2', '[&::-webkit-scrollbar-thumb]:bg-border']) assert.ok(rail[1].replace(/&amp;/g, '&').split(' ').includes(cls), `the row carries ${cls}`);
+  // TRIPCARDS-01 (Alex, 2026-11-06): "horizontal scroll cards" — one row, each card one width, snapping; only the row scrolls sideways.
+  // TRIPCARDS-03 (2026-11-12): the row is the port's .ts-story-row, standing OUTSIDE the page container — the head's container closes
+  // before it, so it runs the full width of the section — and each card the port's .ts-story-card (its width, its snap and its column
+  // are the port's rules: tripCards03.test.ts holds them to the reference). Until then the row wore Tailwind's flex overflow-x-auto
+  // snap-x snap-proximity gap-4 -mx-4 px-4 scroll-px-4 lg:-mx-8 lg:px-8 lg:scroll-px-8 [&::-webkit-scrollbar]:h-2
+  // [&::-webkit-scrollbar-thumb]:bg-border inside the container, and each card w-[21rem] shrink-0 snap-start flex flex-col.
+  const rail = /<div class="([^"]*)" id="story-row" data-was-here-rail="true">/.exec(html);
+  assert.ok(rail && rail[1] === 'ts-story-row', 'the row is drawn — the port\'s');
+  assert.ok(html.includes('</button></div></div></div><div class="ts-story-row" id="story-row" data-was-here-rail="true">'), 'the arrows, the head and the page container close before the row: it runs the section\'s full width');
   assert.doesNotMatch(html, /sm:grid-cols-2|lg:grid-cols-3|flex-wrap/, 'no grid of cards and no wrapping — one row');
   assert.ok(!rail[1].split(' ').includes('grid'), 'the row is a flex row, not a grid');
-  for (const id of TRIP) assert.match(html, new RegExp(`<article class="w-\\[21rem\\] shrink-0 snap-start flex flex-col [^"]*" data-was-here="${id}"`), `${id}: one width, snapping to its start, a column`);
+  for (const id of TRIP) assert.match(html, new RegExp(`<article class="ts-story-card" data-was-here="${id}"`), `${id}: the port's card — one width, snapping to its start, a column`);
   assert.doesNotMatch(html, /Newest first/);
   assert.deepEqual([...html.matchAll(/data-was-here="([^"]+)"/g)].map((m) => m[1]), TRIP);
-  assert.deepEqual([...html.matchAll(/data-was-here-stop="(\d+)">([^<]*)</g)].map((m) => [m[1], m[2]]), TRIP.map((_, i) => [String(i + 1), `Stop ${i + 1}`]));
-  // TRIPPHOTO-01 … 07; TRIPCARDS-01: every photo inside a link to its stop's page that stays out of the tab order, its credit under it.
+  // TRIPCARDS-03: "Stop n" is the stop line's first span (until then the line's own text: /data-was-here-stop="(\d+)">([^<]*)</g).
+  assert.deepEqual([...html.matchAll(/data-was-here-stop="(\d+)"><span>([^<]*)<\/span>/g)].map((m) => [m[1], m[2]]), TRIP.map((_, i) => [String(i + 1), `Stop ${i + 1}`]));
+  // TRIPPHOTO-01 … 07; TRIPCARDS-01: every photo inside a link to its stop's page that stays out of the tab order.
   assert.equal((html.match(/<img /g) ?? []).length, 9, 'nine photos on the act — every stop but Cebu (TRIPPHOTO-01 … 09)');
   for (const id of WITH_PHOTO) {
     const image = row(id).image!;
-    // TRIPCARDS-02 (2026-11-08): the photo fills its h-80 block — the figure h-full, its link block h-full, the img h-full w-full object-cover (was aspect-[3/2] w-full rounded object-cover); the credit still right after the link, inside the figure.
-    assert.match(cardOf(html, id), new RegExp(`<figure class="h-full"><a href="/my-trip/${id}" tabindex="-1" aria-hidden="true" class="block h-full"><img src="${esc(image.src)}" alt="${esc(asHtml(image.alt))}" loading="lazy" class="h-full w-full object-cover"/></a><figcaption class="[^"]*">Photo: Alex Stuart</figcaption></figure>`), `${id}: its photo opens its page`);
+    // TRIPCARDS-03 (2026-11-12): the photo WHOLE — its link is the frame (the port's .ts-story-card__photo, 3 : 2) and holds the img alone,
+    // with no class of its own; the credit left the photo for the stop line's right. Until then (TRIPCARDS-02, 2026-11-08): <figure
+    // class="h-full"><a … class="block h-full"><img … class="h-full w-full object-cover"/></a><figcaption …>Photo: Alex Stuart</figcaption></figure>.
+    assert.match(cardOf(html, id), new RegExp(`<a href="/my-trip/${id}" tabindex="-1" aria-hidden="true" class="ts-story-card__photo"><img src="${esc(image.src)}" alt="${esc(asHtml(image.alt))}" loading="lazy"/></a>`), `${id}: its photo, whole, opens its page`);
+    assert.ok(cardOf(html, id).includes('</p><span class="ts-story-card__credit">Photo: Alex Stuart</span></div>'), `${id}: its credit at the stop line's right`);
   }
   assert.deepEqual(TRIP.filter((id) => !/<img /.test(cardOf(html, id))), ['cebu-2026-11'], 'only Cebu has no photo yet');
-  assert.doesNotMatch(cardOf(html, 'cebu-2026-11'), /<figure|<img/, 'no placeholder box while its image is null');
+  assert.doesNotMatch(cardOf(html, 'cebu-2026-11'), /<figure|<img|ts-story-card__photo|ts-story-card__credit/, 'no placeholder box and no credit while its image is null');
   // TRIPCARDS-01 (Alex, 2026-11-05): every card in the Canggu card's shape — its three costs, then "Read the post →" to its page.
   for (const id of TRIP) {
     const card = cardOf(html, id);
@@ -394,12 +417,13 @@ test('T4 rendered with the live rows: the h2 "Our Story" (HOME-ORDER-01, 2026-11
   assert.deepEqual(costsOfCard(html, 'cebu-2026-11'), ['The Noble Cebu · $217.26', 'not in my log yet', 'Philippine Airlines · $104.05']);
   assert.deepEqual(costsOfCard(html, 'pererenan-2026-12'), ['Anaya Boutique Hotel · $285.90', 'not in my log yet', 'not in my log yet']);
   // TRIPCARDS-01: the label from the server's day — none once he has left, I'M HERE while there, COMING UP before.
-  assert.deepEqual(TRIP.map((id) => /data-was-here-label="true">([^<]*)</.exec(cardOf(html, id))?.[1] ?? null), [null, null, null, null, null, null, 'I&#x27;M HERE', 'COMING UP', 'COMING UP', 'COMING UP']);
+  assert.deepEqual(TRIP.map((id) => labelOf(cardOf(html, id))), [null, null, null, null, null, null, 'I&#x27;M HERE', 'COMING UP', 'COMING UP', 'COMING UP']);
   assert.doesNotMatch(html, /I WAS HERE/);
   const canggu = cardOf(html, 'canggu-2026-07');
-  assert.match(canggu, />Canggu, Bali, Indonesia</);
+  // TRIPCARDS-03 (2026-11-12): "the city, the country" — each its own line (until then one <h3>: />Canggu, Bali, Indonesia</).
+  assert.match(canggu, />Canggu, Bali<\/h3><p class="ts-story-card__country">Indonesia<\/p>/);
   assert.match(canggu, /data-was-here-stay="true">Jul 1–30, 2026</);
-  assert.match(canggu, /data-was-here-stop="1">Stop 1</);
+  assert.match(canggu, /data-was-here-stop="1"><span>Stop 1<\/span>/);
   // TRIPCARDS-01 (Alex, 2026-11-05): "all i care to show on the card is destination, stay / bike / and flight in" — Canggu's post title and line left the card (its page carries the title).
   assert.doesNotMatch(html, /Thirty days in Canggu|Every day of it|data-was-here-post=|data-was-here-post-title|Stayed at/, 'no post block on any card');
   assert.ok(pos(canggu, 'data-was-here-stop') < pos(canggu, 'data-was-here-costs=') && pos(canggu, 'data-was-here-costs=') < pos(canggu, 'data-was-here-post-link'), 'stop → the costs → its page');
@@ -411,24 +435,32 @@ test('T4 rendered with the live rows: the h2 "Our Story" (HOME-ORDER-01, 2026-11
   // TRIPCARDS-01: Siargao's event block, Alex's line and the booking link left its card for its page.
   assert.doesNotMatch(html, /data-was-here-line|data-was-here-event|data-experience-line|href="#demo"|Book the stay|Siargao in the middle|Philippines Pro/, 'no line, no event block, no strip link on any card');
   const siargao = cardOf(html, 'siargao-2026');
-  assert.match(siargao, /data-was-here-label="true">I&#x27;M HERE</);
+  assert.equal(labelOf(siargao), 'I&#x27;M HERE');
   assert.match(siargao, /data-was-here-stay="true">Oct 22 – Nov 13, 2026</);
-  assert.match(siargao, /data-was-here-stop="7">Stop 7<span aria-hidden="true"> · <\/span><span class="[^"]*" data-was-here-label="true">I&#x27;M HERE<\/span><\/p>/, 'the label beside the stop number');
+  // TRIPCARDS-03 (2026-11-12): the label is a chip beside the stop number — I'M HERE filled, with its dot — and the credit at the line's
+  // right. Until then: data-was-here-stop="7">Stop 7<span aria-hidden="true"> · </span><span class="[^"]*" data-was-here-label="true">I&#x27;M HERE</span></p>.
+  assert.match(siargao, /data-was-here-stop="7"><span>Stop 7<\/span><span class="ts-story-chip" data-status="now" data-was-here-label="true"><span class="ts-story-chip__dot" aria-hidden="true"><\/span>I&#x27;M HERE<\/span><\/p><span class="ts-story-card__credit">Photo: Alex Stuart<\/span>/, 'the label beside the stop number, the credit at the line\'s right');
   // Every card, the same parts in the same order — and its last child the link.
   for (const id of TRIP) {
     const card = cardOf(html, id);
     const parts = [...card.matchAll(/data-was-here-(label|stay|stop|costs|post-link)=/g)].map((m) => m[1]);
     // TRIPCARDS-01d (Alex, 2026-11-06): "Stop 1 / Canggu, Bali, Indonesia / July 1-30, 2026" — the stop number on top of the place, under the photo credit; the label beside it.
     assert.deepEqual(parts, ['stop', ...(['siargao-2026', ...BOOKED].includes(id) ? ['label'] : []), 'stay', 'costs', 'post-link'], `${id}: the stop and what it cost, nothing else`);
-    assert.ok((card.includes('<figcaption') ? pos(card, '</figcaption>') : 0) < pos(card, 'data-was-here-stop=') && pos(card, 'data-was-here-stop=') < pos(card, '<h3') && pos(card, '<h3') < pos(card, 'data-was-here-stay='), `${id}: credit → stop → place → dates`);
-    // TRIPCARDS-02 (2026-11-08): the foot inset on the dark card (was mt-auto pt-4) — still the article's last child.
-    assert.match(card, /<div class="mx-3\.5 mb-3\.5 mt-auto pt-4"><a href="[^"]*" class="[^"]*" data-was-here-post-link="true">Read the post →<\/a><\/div><\/article>/, `${id}: the link closes the card, on its bottom edge`);
+    // TRIPCARDS-03 (2026-11-12): the stop line opens the card's words, its credit at its right — then the city, the country, the dates.
+    // Until then (TRIPCARDS-01d, the credit under the photo): credit → stop → place → dates.
+    const order = ['data-was-here-stop=', ...(card.includes('<img ') ? ['class="ts-story-card__credit"'] : []), '<h3', 'class="ts-story-card__country"', 'data-was-here-stay='].map((needle) => pos(card, needle));
+    assert.deepEqual(order, [...order].sort((a, b) => a - b), `${id}: stop → credit → city → country → dates`);
+    // TRIPCARDS-03: the foot — the costs, then the post — closes the card's body, and the body the card. Until then (TRIPCARDS-02,
+    // 2026-11-08): /<div class="mx-3\.5 mb-3\.5 mt-auto pt-4"><a href="[^"]*" class="[^"]*" data-was-here-post-link="true">Read the post →<\/a><\/div><\/article>/.
+    assert.match(card, /<div class="ts-story-card__foot"><dl class="ts-story-costs" data-was-here-costs="[^"]*">(?:(?!<\/dl>).)*<\/dl><a href="[^"]*" class="ts-story-card__post" data-was-here-post-link="true">Read the post →<\/a><\/div><\/div><\/article>/, `${id}: the costs, then the link, close the card, on its bottom edge`);
   }
-  for (const [id, place, stay, n] of [['cebu-2026-11', 'Cebu, Philippines', 'Nov 13–20, 2026', 8], ['uluwatu-2026-11', 'Uluwatu, Bali, Indonesia', 'Nov 20 – Dec 1, 2026', 9], ['pererenan-2026-12', 'Pererenan Beach, Bali, Indonesia', 'Dec 1–11, 2026', 10]] as const) {
+  // TRIPCARDS-03 (2026-11-12): the city and the country each their own line; "Stop n" the stop line's first span. Until then the
+  // place was one <h3> ('Cebu, Philippines', 'Uluwatu, Bali, Indonesia', 'Pererenan Beach, Bali, Indonesia') and the stop's text the line's own.
+  for (const [id, city, country, stay, n] of [['cebu-2026-11', 'Cebu', 'Philippines', 'Nov 13–20, 2026', 8], ['uluwatu-2026-11', 'Uluwatu, Bali', 'Indonesia', 'Nov 20 – Dec 1, 2026', 9], ['pererenan-2026-12', 'Pererenan Beach, Bali', 'Indonesia', 'Dec 1–11, 2026', 10]] as const) {
     const card = cardOf(html, id);
-    assert.ok(card.includes(`>${place}</h3>`), `${id}: ${place}`);
+    assert.ok(card.includes(`>${city}</h3><p class="ts-story-card__country">${country}</p>`), `${id}: ${city}, ${country}`);
     assert.ok(card.includes(`data-was-here-stay="true">${stay}<`), `${id}: ${stay}`);
-    assert.ok(card.includes(`data-was-here-stop="${n}">Stop ${n}<`), `${id}: Stop ${n}`);
+    assert.ok(card.includes(`data-was-here-stop="${n}"><span>Stop ${n}</span>`), `${id}: Stop ${n}`);
   }
   assert.doesNotMatch(html, /JUST MISSED|No event I could verify|days after I left|days before I arrived|data-was-here-none/, 'the near-miss list and the "No event" line are gone');
   assert.doesNotMatch(html, /countdown|BUY NOW/i);
@@ -440,62 +472,70 @@ test('T4 rendered fixtures: a stop that holds a photo, a line, two lists and an 
   assert.deepEqual([...html.matchAll(/data-was-here="([^"]+)"/g)].map((m) => m[1]), ['porto-2026', 'lisbon-2026', 'siargao-2026'], 'trip order, derived');
   assert.deepEqual([...html.matchAll(/data-was-here-stop="(\d+)"/g)].map((m) => m[1]), ['1', '2', '3']);
   const lisbon = cardOf(html, 'lisbon-2026');
-  // TRIPCARDS-02 (2026-11-08): the figure h-full, its link block h-full, the img h-full w-full object-cover (was aspect-[3/2] w-full rounded object-cover).
-  assert.match(lisbon, /<figure class="h-full"><a href="\/my-trip\/lisbon-2026" tabindex="-1" aria-hidden="true" class="block h-full"><img src="\/was-here\/lisbon-2026\.jpg" alt="The 28 tram climbing Alfama" loading="lazy" class="h-full w-full object-cover"\/><\/a>/);
-  assert.match(lisbon, /<figcaption[^>]*>Photo: Alex Stuart</);
+  // TRIPCARDS-03 (2026-11-12): the photo whole in its frame, the link; the credit on the stop line. Until then (TRIPCARDS-02, 2026-11-08):
+  // <figure class="h-full"><a … class="block h-full"><img … class="h-full w-full object-cover"/></a>, the credit in a <figcaption>.
+  assert.match(lisbon, /<a href="\/my-trip\/lisbon-2026" tabindex="-1" aria-hidden="true" class="ts-story-card__photo"><img src="\/was-here\/lisbon-2026\.jpg" alt="The 28 tram climbing Alfama" loading="lazy"\/><\/a>/);
+  assert.match(lisbon, /<span class="ts-story-card__credit">Photo: Alex Stuart</);
   assert.doesNotMatch(lisbon, /data-was-here-label/, 'a stop he has left carries no label (TRIPCARDS-01)');
   assert.match(lisbon, /data-was-here-stay="true">Sep 1–20, 2026</);
-  assert.match(lisbon, /data-was-here-stop="2">Stop 2</);
+  assert.match(lisbon, /data-was-here-stop="2"><span>Stop 2<\/span>/);
   assert.deepEqual(costsOfCard(html, 'lisbon-2026'), ['A flat in Alfama · $900.00', 'n/a', 'not in my log yet']);
   assert.match(lisbon, /<a href="\/my-trip\/lisbon-2026" class="[^"]*" data-was-here-post-link="true">Read the post →<\/a>/);
   // TRIPCARDS-01: the line, DID, LEARNED and the stop's event are the stop page's (tripPost01.test.ts renders them there).
   assert.doesNotMatch(lisbon, /Three weeks of pastel de nata|the 28 tram ·|Book the tram early|Tram 28 centenary parade|>DID<|>LEARNED<|WHAT WAS ON|data-was-here-section|data-was-here-line|data-was-here-pill|data-was-here-event|href="#demo"/);
   assert.deepEqual(pillsOf(lisbon), []);
   const porto = cardOf(html, 'porto-2026');
-  assert.match(porto, /data-was-here-stop="1">Stop 1</);
-  assert.doesNotMatch(porto, /<figure|data-was-here-section|data-was-here-line/, 'no image, no placeholder');
+  assert.match(porto, /data-was-here-stop="1"><span>Stop 1<\/span>/);
+  assert.doesNotMatch(porto, /<img|<figure|ts-story-card__photo|data-was-here-section|data-was-here-line/, 'no image, no placeholder');
   assert.deepEqual(costsOfCard(html, 'porto-2026'), ['not in my log yet', 'n/a', 'not in my log yet']);
   const siargao = cardOf(html, 'siargao-2026');
-  assert.match(siargao, /data-was-here-label="true">I&#x27;M HERE</, 'an open stay, current on the day');
+  assert.equal(labelOf(siargao), 'I&#x27;M HERE', 'an open stay, current on the day');
   assert.doesNotMatch(siargao, /data-was-here-event|data-experience-line|Philippines Pro|Siargao in the middle|href="#demo"/, 'the event it was around and Alex\'s line are on its page, not its card');
   assert.doesNotThrow(() => render([{ ...SIARGAO, experienceId: 'not-an-event' }]), 'the card never reads the event — the stop page and the build law refuse a stale id');
   assert.deepEqual(sectionsOf(html), [], 'no section on any card');
   // TRIPCARDS-01: the same fixtures on other days — COMING UP before the stop, I'M HERE from its first day.
-  assert.match(cardOf(render([SIARGAO, LISBON, QUIET], '2026-08-31'), 'lisbon-2026'), /data-was-here-label="true">COMING UP</);
-  assert.match(cardOf(render([LISBON], '2026-09-01'), 'lisbon-2026'), /data-was-here-label="true">I&#x27;M HERE</);
+  assert.equal(labelOf(cardOf(render([SIARGAO, LISBON, QUIET], '2026-08-31'), 'lisbon-2026')), 'COMING UP');
+  assert.equal(labelOf(cardOf(render([LISBON], '2026-09-01'), 'lisbon-2026')), 'I&#x27;M HERE');
   assert.throws(() => render([LISBON], TODAY, TRIP_COSTS), /"lisbon-2026" has no costs row/, 'a stop with no costs row fails loud — never a card without them (TRIPCARDS-01)');
   // A name too long for the card's width stays on one line — it ends in "…" there and keeps its whole words in its title.
   const long = 'A very long name for a guesthouse that would never fit on one line of a card';
   const longHtml = render([LISBON], TODAY, [{ ...FIXTURE_COSTS[0], stay: { kind: 'paid', name: long, amountCents: 90000 } }]);
-  // TRIPCARDS-02 (2026-11-08): the amount white/80 on the dark card (was text-text-secondary); it still never shrinks.
-  assert.ok(longHtml.includes(`<span class="truncate" title="${long}">${long}</span><span aria-hidden="true">·</span><span class="shrink-0 whitespace-nowrap font-mono text-xs text-white/80">$900.00</span>`), 'the name truncates, the amount never shrinks');
+  // TRIPCARDS-03 (2026-11-12): the name and the amount each their own <dd> — the port ends the name in "…" and never wraps or cuts the
+  // amount (tripCards03.test.ts holds those rules). Until then (TRIPCARDS-02): <span class="truncate" title="…">…</span><span
+  // aria-hidden="true">·</span><span class="shrink-0 whitespace-nowrap font-mono text-xs text-white/80">$900.00</span>.
+  assert.ok(longHtml.includes(`<dd class="ts-story-cost__name" title="${long}">${long}</dd><dd class="ts-story-cost__amount" data-kind="paid">$900.00</dd>`), 'the name truncates, the amount never shrinks');
 });
 
-test('T4 TRIPCARDS-02 (Alex, 2026-11-08): the trip.com look — every card dark (bg-text-primary, never bg-white); on a photo card the figure, the stop chip and the band (the place, then the dates) sit inside ONE relative h-80 block, before the costs; Cebu, with no photo, has no h-80 block and no figure — its chip static', () => {
+test('T4 TRIPCARDS-03 (Alex\'s brief, 2026-11-12; the board approved on the design canvas at 21:21): the look as drawn — every card the port\'s white card; a photo card opens with its photo whole in its frame, nothing drawn on it, then the body; the stop he is at ringed by its status, the others past or next; Cebu, with no photo, opens with its body — no frame, no credit, its stop line, then its place', () => {
+  // Until then (TRIPCARDS-02, Alex, 2026-11-08) this test held the trip.com look: every card dark (bg-text-primary, never bg-white); on a
+  // photo card the figure (its credit on the band), the stop chip and the band (the place, then the dates) inside ONE relative h-80 block,
+  // before the costs; Cebu with no h-80 block and no figure, its chip static. The handoff's README: "What leaves: the dark card
+  // (TRIPCARDS-02's trip.com look) and the 320px crop; the chip and the band on the photo".
   const html = render();
   for (const id of TRIP) {
-    const article = new RegExp(`<article class="([^"]*)" data-was-here="${id}"`).exec(html);
+    const article = new RegExp(`<article class="([^"]*)" data-was-here="${id}" data-was-here-image="(photo|none)" data-stop-status="(past|now|next)">`).exec(html);
     assert.ok(article, `${id}: its card`);
-    const classes = article[1].split(' ');
-    assert.ok(classes.includes('bg-text-primary') && !classes.includes('bg-white'), `${id}: a dark card, not a white one`);
+    assert.equal(article[1], 'ts-story-card', `${id}: the port's white card — no colour of its own, never the dark one`);
+    assert.equal(article[2], WITH_PHOTO.includes(id) ? 'photo' : 'none', `${id}: data-was-here-image`);
+    assert.equal(article[3], stopStatus(row(id), TODAY), `${id}: its status, from the server's day`);
   }
-  for (const id of WITH_PHOTO) {
-    const card = cardOf(html, id);
-    assert.equal((card.match(/class="relative h-80/g) ?? []).length, 1, `${id}: one photo block`);
-    // Each part in its ruled class, whole: a band left transparent (bg-text-primary/84 emits no CSS, the token carries no
-    // alpha) or a credit without z-10 (the band, painted later, would cover it) fails here, not only on the look.
-    assert.match(card, /<div class="relative h-80 shrink-0"><figure class="h-full">(?:(?!<\/figure>).)*<figcaption class="absolute bottom-3 right-3\.5 z-10 font-mono text-\[10px\] text-white\/60">[^<]*<\/figcaption><\/figure><p class="absolute left-3 top-3 inline-flex items-center gap-1\.5 rounded bg-ts-white px-2 py-1 font-mono text-\[11px\] text-text-secondary" data-was-here-stop="\d+">(?:(?!<\/p>).)*<\/p><div class="absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-text-primary px-3\.5 py-3"><h3 class="text-lg font-semibold leading-snug text-white">[^<]*<\/h3><p class="pr-28 font-mono text-xs text-white\/85" data-was-here-stay="true">[^<]*<\/p><\/div><\/div><dl /, `${id}: the figure (its credit on the band), the chip and the band inside one block, then the costs`);
-  }
-  const cebu = cardOf(html, 'cebu-2026-11');
-  assert.doesNotMatch(cebu, /h-80|<figure/, 'Cebu: no photo block and no figure — no box');
-  assert.match(cebu, /^data-was-here="cebu-2026-11" data-was-here-image="none"><div class="flex flex-col items-start gap-1 px-3\.5 pt-3\.5"><p class="mb-2 inline-flex items-center gap-1\.5 rounded bg-ts-white px-2 py-1 font-mono text-\[11px\] text-text-secondary" data-was-here-stop="8">(?:(?!<\/p>).)*<\/p><h3 class="text-lg font-semibold leading-snug text-white">Cebu, Philippines<\/h3><p class="pr-28 font-mono text-xs text-white\/85" data-was-here-stay="true">Nov 13–20, 2026<\/p><\/div><dl /, 'Cebu: the chip, the place and the dates open the card');
-  assert.doesNotMatch(cebu, /absolute/, 'Cebu: nothing drawn over anything — its chip static');
+  assert.deepEqual(TRIP.filter((id) => cardOf(html, id).includes('data-stop-status="now"')), ['siargao-2026'], 'one card ringed — the stop he is at');
+  for (const id of WITH_PHOTO) assert.match(cardOf(html, id), /^data-was-here="[^"]+" data-was-here-image="photo" data-stop-status="[a-z]+"><a href="[^"]+" tabindex="-1" aria-hidden="true" class="ts-story-card__photo"><img [^>]*\/><\/a><div class="ts-story-card__body">/, `${id}: the photo, whole in its frame, then the body`);
+  assert.doesNotMatch(html, /h-80|<figure|<figcaption|absolute|bg-text-primary|text-white|object-cover/, 'no crop, nothing drawn over the photo, no dark card');
+  assert.match(cardOf(html, 'cebu-2026-11'), /^data-was-here="cebu-2026-11" data-was-here-image="none" data-stop-status="next"><div class="ts-story-card__body"><div class="ts-story-card__meta"><p class="ts-story-card__stop" data-was-here-stop="8"><span>Stop 8<\/span><span class="ts-story-chip" data-status="next" data-was-here-label="true">COMING UP<\/span><\/p><\/div><h3 class="ts-story-card__city">Cebu<\/h3>/, 'Cebu: no frame and no credit — its stop line, then its place, open the card');
 });
 
-test('T4 the leaf, the words and the section read no clock; the section holds no state, no effect, no typed date, no typed words of the post and no emoji; the near-miss and "No event" words are gone from it', () => {
+test('T4 the leaf, the words and the section read no clock; the section stores nothing and holds one piece of state — the row\'s two ends, which the arrows show (TRIPCARDS-03) — no typed date, no typed words of the post and no emoji; the near-miss and "No event" words are gone from it', () => {
   for (const f of [LEAF, WORDS, SECTION]) assert.doesNotMatch(code(f), /new Date\(|Date\.now\(|toLocale/, `${f} reads no clock`);
   const section = code(SECTION);
-  assert.doesNotMatch(section, /useState|useEffect|useSearchParams|useRouter|fetch\(/);
+  // TRIPCARDS-03 (Alex's brief, 2026-11-12): the arrows say when the row can go no further, so its two ends are React state — derived
+  // from the row's scroll position on every scroll and resize, through one effect (the first measure and the resize listener). Nothing
+  // is stored, nothing is fetched, no URL is read. Until then the section held no state and no effect:
+  // assert.doesNotMatch(section, /useState|useEffect|useSearchParams|useRouter|fetch\(/).
+  assert.equal((section.match(/\buseState\b/g) ?? []).length, 2, 'one piece of state — its import and its one call');
+  assert.match(section, /const \[ends, setEnds\] = useState<RowEnds>\(ROW_AS_IT_OPENS\);/, 'the row\'s two ends, at first the page as it opens');
+  assert.equal((section.match(/\buseEffect\(/g) ?? []).length, 1, 'one effect');
+  assert.doesNotMatch(section, /localStorage|sessionStorage|document\.cookie|useSearchParams|useRouter|usePathname|history\.|fetch\(/, 'nothing stored, no URL, no fetch');
   assert.doesNotMatch(section, /\d{4}-\d{2}-\d{2}|Oct \d|Nov \d|Jul \d|days after|days before/, 'no retyped date, no typed gap');
   assert.doesNotMatch(section, /Beachwalk|better plans|Stop [0-9]/, 'nothing of the post typed here — the leaf and the words module hold every word');
   assert.doesNotMatch(section, /JUST_MISSED|JUST MISSED|NO_EVENT_LINE|No event|near_miss|missedPill|newestFirst|Newest first|relation/, 'WASHERE-03');
