@@ -49,14 +49,17 @@
  *     sides; a card is whole in it — one in view, two from 768px, three from 1024px (the three plan cards' own columns and gap).
  *   · "then on the phone web, the second card slightly shows.. it would look better with those like 3 dots under to indicate
  *     scrolling horizontal, but only show 1 card at a time, you know what I mean?" — under 768px one card fills the row, the row
- *     always comes to rest on a card, and the dots under it — one per stop — light the one in view. They are a picture of where the
- *     row stands, not controls (aria-hidden, nothing to tap): the cards are the content, and their posts are what a keyboard meets.
+ *     always comes to rest on a card, and the dots under it — one per stop, rings — fill the one in view, a violet disc. They are
+ *     a picture of where the row stands, not controls (aria-hidden, nothing to tap): the cards are the content, and their posts
+ *     are what a keyboard meets.
  *
  * THE ROW AT WORK (the README, "The row: arrows and keyboard"). The arrows, "Earlier stops" and "Later stops", each name the row
  * in aria-controls and move it by one card (a card's width and the gap) — smoothly, or at once under prefers-reduced-motion. At
  * either end an arrow says it can go no further, aria-disabled="true" (so it keeps the focus), updated on every scroll and every
- * resize. A card the keyboard reaches comes into view whole: standing past either edge of the row, it moves to the row's start, a
- * snap point. The keyboard meets the two arrows, then each card's Read the post →, in trip order; the photos are skipped.
+ * resize. A card the keyboard reaches comes into view whole: the browser brings its post into view, and a card still standing past
+ * either edge of the row moves to the row's start, a snap point (with three in view, the browser's own move already shows it whole,
+ * in the middle or at the right). The keyboard meets the two arrows, then each card's Read the post →, in trip order; the photos
+ * are skipped.
  * STATE: the row's scroll position is the browser's. Where the row stands — its two ends, which the arrows show, and the card at its
  * start, which the dots show — is React state DERIVED from it on every scroll and every resize; before the first measure, the page
  * as it opens (the row at its start: back at its end, forward not, the first dot lit). Nothing is stored: no storage, no URL, no

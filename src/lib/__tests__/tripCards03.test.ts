@@ -13,8 +13,9 @@
  *   T2  the tokens — the README's two tables (five already in the app, ten HOME-PLANS-04 brought), each the reference's value behind
  *       the house prefix in globals.css :root, declared once; the reference's :root holds those fifteen and no other; "New with this
  *       section: none" — the port declares no property and every one of the fifteen is read;
- *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the five differences
- *       named there (the last two Alex's notes on the cards as built, applied as named edits); no hex, no rgb value typed, no gradient; every
+ *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the six differences
+ *       named there (the fourth and fifth Alex's notes on the cards as built, the sixth what the fifth asks of a narrow window — the three
+ *       applied as named edits); no hex, no rgb value typed, no gradient; every
  *       class behind the prefix; every variable it reads declared; it stands directly above the CHIP-FADE comment, under the marquee's
  *       keyframes; nothing else in the file reaches the section; the classes the section wears and the classes the port rules are the same;
  *   T4  the page at rest — the section's render on 2026-11-12 IS the reference's markup, token for token (classes behind the prefix,
@@ -34,7 +35,8 @@
  *       violet (no word of gold launched this run); About Us untouched;
  *   T10 Alex's notes on the cards as built (2026-11-12) — the row in the page, whole cards only (one, two from 768px, three from 1024px:
  *       the plan cards' own columns), at rest on a card; under 768px one card at a time and the dots, one per stop, the one in view lit,
- *       a picture and not controls; the card in view as a pure function; his words quoted exact wherever quoted.
+ *       a picture and not controls, each 3 : 1 or more on the cream and the lit one a disc by its border alone; the card in view as a
+ *       pure function; an amount's words wrap before its card outgrows the row (the sixth difference); his words quoted exact.
  *
  * Source is read through code() and comments() only (the reader law); rejoin() where the whole file is the subject: the digests, the
  * reference (HTML, which the reader splits as TypeScript) and the README's tables. A photo's bytes are read through photoSize.ts's
@@ -142,6 +144,61 @@ function rootOf(css: string): Map<string, string> {
   }
   return map;
 }
+/** A value's parts at its top level: clamp(52px, 6.2vw, 88px) is one part, not three. */
+function valuesOf(value: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let part = '';
+  for (const ch of value) {
+    if (ch === '(') depth += 1;
+    else if (ch === ')') depth -= 1;
+    if (depth === 0 && /\s/.test(ch)) {
+      if (part !== '') parts.push(part);
+      part = '';
+    } else part += ch;
+  }
+  if (part !== '') parts.push(part);
+  return parts;
+}
+/** The value the cascade leaves for one property of one selector — named alone or in a list — within one media block: the last declared. */
+function lastOf(all: readonly string[], media: string, selector: string, property: string): string | undefined {
+  let value: string | undefined;
+  for (const d of all) {
+    const [m, sel, decl] = d.split(' | ');
+    if (m === media && sel.split(',').map((s) => s.trim()).includes(selector) && decl.startsWith(`${property}:`)) value = decl.slice(property.length + 1).trim();
+  }
+  return value;
+}
+/** A page container as the cascade leaves it: its max-width, and its inline padding at the base and from 1024px — padding's second value, or padding-inline's, one value on both sides. */
+function boxOf(all: readonly string[], selector: string): { maxWidth?: string; inline?: string; inlineWide?: string } {
+  const inlineAt = (media: string): string | undefined => {
+    let inline: string | undefined;
+    for (const d of all) {
+      const [m, sel, decl] = d.split(' | ');
+      const pad = /^padding(-inline)?: (.+)$/.exec(decl);
+      if (m !== media || pad === null || !sel.split(',').map((s) => s.trim()).includes(selector)) continue;
+      const v = valuesOf(pad[2]);
+      const sides = pad[1] === undefined ? [v[1] ?? v[0], v[3] ?? v[1] ?? v[0]] : [v[0], v[1] ?? v[0]];
+      assert.equal(sides[0], sides[1], `${selector}: one inline padding on both sides (${decl})`);
+      inline = sides[0];
+    }
+    return inline;
+  };
+  const inline = inlineAt('');
+  return { maxWidth: lastOf(all, '', selector, 'max-width'), inline, inlineWide: inlineAt('@media (min-width: 1024px)') ?? inline };
+}
+/** WCAG 2.2's contrast ratio of two token values — '#RRGGBB', or 'R G B' channels as the :root writes some — from their relative luminance. */
+function contrast(a: string, b: string): number {
+  const luminance = (value: string): number => {
+    const hex = /^#([0-9a-fA-F]{6})$/.exec(value);
+    const channels = hex ? [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16)) : value.split(/\s+/).map(Number);
+    assert.ok(channels.length === 3 && channels.every((c) => Number.isInteger(c) && c >= 0 && c <= 255), `"${value}" is one colour`);
+    const [r, g, bl] = channels.map((c) => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
 /**
  * THE THREE DIFFERENCES the port names (globals.css, its header), applied to the reference's declarations:
  *   1. the colours are tokens — the reference's :root is dropped here, and every custom property it reads gains the house prefix;
@@ -163,15 +220,19 @@ function referencePorted(): string[] {
 const NOTE_ROW = 'the page seems aligned down the whole page, but when we get to trip cards on web they extend out to the right, and idk it just looks lopisded and off...';
 const NOTE_PHONE = 'then on the phone web, the second card slightly shows.. it would look better with those like 3 dots under to indicate scrolling horizontal, but only show 1 card at a time, you know what I mean?';
 /** An edit the notes make to the reference's declarations: one replaced, dropped or added after another — each anchor found exactly once. */
-type NoteEdit = { note: 4 | 5; replace: string; by: string } | { note: 4 | 5; drop: string } | { note: 4 | 5; after: string; add: readonly string[] };
+type NoteEdit = { note: 4 | 5 | 6; replace: string; by: string } | { note: 4 | 5 | 6; drop: string } | { note: 4 | 5 | 6; after: string; add: readonly string[] };
 const ROW_PAD = 'max(16px, calc((100% - 1280px) / 2 + 16px))';
 const ROW_PAD_WIDE = 'max(32px, calc((100% - 1280px) / 2 + 32px))';
 /**
- * THE FOURTH AND FIFTH DIFFERENCES (globals.css, its header) — Alex's notes on the cards as built, as named edits:
+ * THE FOURTH, FIFTH AND SIXTH DIFFERENCES (globals.css, its header) — Alex's notes on the cards as built, and what the fifth asks of a
+ * narrow window, as named edits:
  *   4. the row stands in the page: no full-bleed padding, 8px into the gutter each side; a card whole in it — one, two from 768px,
  *      three from 1024px; the reference's 1024px rule for the row's padding goes;
  *   5. one card at a time on a phone, with dots: the row always rests on a card (mandatory, where the reference has proximity); the
- *      dots' rules under the row's, hidden from 768px with the arrows shown; the dots skip their transition under reduced motion.
+ *      dots' rules under the row's — rings that wrap, never squeeze, the one in view a disc by its border alone — hidden from 768px
+ *      with the arrows shown; the dots skip their transition under reduced motion;
+ *   6. an amount wraps rather than widen its card: white-space normal, where the reference has nowrap.
+ * Two edits add after the arrows' 768px rule, each directly after it: the card's (4) and then the dots' (5), which lands between them.
  */
 const NOTE_EDITS: readonly NoteEdit[] = [
   { note: 5, replace: ' | .ts-story-row | scroll-snap-type: x proximity', by: ' | .ts-story-row | scroll-snap-type: x mandatory' },
@@ -179,18 +240,20 @@ const NOTE_EDITS: readonly NoteEdit[] = [
   { note: 4, replace: ` | .ts-story-row | padding: 4px ${ROW_PAD} 32px`, by: ' | .ts-story-row | padding: 4px 8px 32px' },
   { note: 4, replace: ` | .ts-story-row | scroll-padding-inline: ${ROW_PAD}`, by: ' | .ts-story-row | scroll-padding-inline: 8px' },
   { note: 5, after: ' | .ts-story-row::-webkit-scrollbar | display: none', add: [
-    ' | .ts-story-dots | display: flex', ' | .ts-story-dots | justify-content: center', ' | .ts-story-dots | gap: 8px', ' | .ts-story-dots | margin-top: -12px', ' | .ts-story-dots | pointer-events: none',
-    ' | .ts-story-dot | display: block', ' | .ts-story-dot | width: 6px', ' | .ts-story-dot | height: 6px', ' | .ts-story-dot | border-radius: 999px',
-    ' | .ts-story-dot | background-color: var(--ts-fs-button-line)', ' | .ts-story-dot | transition: background-color 0.16s',
-    ' | .ts-story-dot[data-current="true"] | background-color: var(--ts-hero-violet-2)',
+    ' | .ts-story-dots | display: flex', ' | .ts-story-dots | flex-wrap: wrap', ' | .ts-story-dots | justify-content: center', ' | .ts-story-dots | gap: 8px', ' | .ts-story-dots | margin-top: -12px', ' | .ts-story-dots | pointer-events: none',
+    ' | .ts-story-dot | box-sizing: border-box', ' | .ts-story-dot | display: block', ' | .ts-story-dot | width: 6px', ' | .ts-story-dot | height: 6px',
+    ' | .ts-story-dot | border: 1px solid var(--ts-fs-ink-muted)', ' | .ts-story-dot | border-radius: 999px', ' | .ts-story-dot | transition: border-color 0.16s, border-width 0.16s',
+    ' | .ts-story-dot[data-current="true"] | border-width: 3px', ' | .ts-story-dot[data-current="true"] | border-color: var(--ts-hero-violet-2)',
   ] },
   { note: 4, replace: ' | .ts-story-card | flex: 0 0 min(352px, calc(100% - 32px))', by: ' | .ts-story-card | flex: 0 0 100%' },
-  { note: 4, after: '@media (min-width: 768px) | .ts-story__arrows | display: flex', add: ['@media (min-width: 768px) | .ts-story-dots | display: none', '@media (min-width: 768px) | .ts-story-card | flex-basis: calc((100% - 20px) / 2)'] },
+  { note: 6, replace: ' | .ts-story-cost__amount | white-space: nowrap', by: ' | .ts-story-cost__amount | white-space: normal' },
+  { note: 4, after: '@media (min-width: 768px) | .ts-story__arrows | display: flex', add: ['@media (min-width: 768px) | .ts-story-card | flex-basis: calc((100% - 20px) / 2)'] },
+  { note: 5, after: '@media (min-width: 768px) | .ts-story__arrows | display: flex', add: ['@media (min-width: 768px) | .ts-story-dots | display: none'] },
   { note: 4, drop: `@media (min-width: 1024px) | .ts-story-row | padding-inline: ${ROW_PAD_WIDE}` },
   { note: 4, replace: `@media (min-width: 1024px) | .ts-story-row | scroll-padding-inline: ${ROW_PAD_WIDE}`, by: '@media (min-width: 1024px) | .ts-story-card | flex-basis: calc((100% - 40px) / 3)' },
   { note: 5, replace: '@media (prefers-reduced-motion: reduce) | .ts-story-arrow, .ts-story-card__post | transition: none', by: '@media (prefers-reduced-motion: reduce) | .ts-story-arrow, .ts-story-card__post, .ts-story-dot | transition: none' },
 ];
-/** The reference's declarations, ported, with Alex's two notes applied — each edit finding its one place, or the test says which did not. */
+/** The reference's declarations, ported, with the fourth, fifth and sixth differences applied — each edit finding its one place, or the test says which did not. */
 function withNotes(declared: readonly string[]): string[] {
   let out = [...declared];
   for (const edit of NOTE_EDITS) {
@@ -349,9 +412,9 @@ test('T2 the tokens, named and valued as the README\'s two tables: five already 
 
 // ── T3 · THE STYLESHEET ──────────────────────────────────────────────────────
 
-test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the five named differences (the last two Alex\'s notes on the cards as built); no hex, no rgb value, no gradient; every class behind the prefix; every variable it reads declared; it stands directly above CHIP-FADE, under the marquee\'s keyframes; nothing else reaches the section; what it wears is what the port rules', () => {
+test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the six named differences (the fourth and fifth Alex\'s notes on the cards as built, the sixth what the fifth asks of a narrow window); no hex, no rgb value, no gradient; every class behind the prefix; every variable it reads declared; it stands directly above CHIP-FADE, under the marquee\'s keyframes; nothing else reaches the section; what it wears is what the port rules', () => {
   const port = declarations(portCss());
-  assert.deepEqual(port, withNotes(referencePorted()), 'the port is the reference\'s stylesheet, as the five differences leave it');
+  assert.deepEqual(port, withNotes(referencePorted()), 'the port is the reference\'s stylesheet, as the six differences leave it');
   assert.ok(port.length > 100, `the port was read (${port.length} declarations)`);
   const text = portCss();
   assert.doesNotMatch(text, /#[0-9a-fA-F]{3,8}\b/, 'no hex typed');
@@ -511,7 +574,10 @@ test('T6 the row at work: where it stands and when a card is cut, as pure functi
   assert.ok(section.includes('row.scrollBy({ left: direction * (card.getBoundingClientRect().width + parseFloat(getComputedStyle(row).columnGap)), behavior: motion() });'), 'one card: its width and the gap');
   assert.ok(section.includes("const motion = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');"), 'smoothly, or at once under reduced motion');
   assert.ok(section.includes("if (cardCut(card.getBoundingClientRect(), event.currentTarget.getBoundingClientRect())) card.scrollIntoView({ block: 'nearest', inline: 'start', behavior: motion() });"), 'a cut card the keyboard reaches moves to the row\'s start');
-  assert.ok(section.includes("window.addEventListener('resize', onResize);") && section.includes("return () => window.removeEventListener('resize', onResize);") && section.includes('settle(row);\n'), 'measured on mount and on every resize, the listener removed with the section');
+  // measured on mount and on every resize — the handler, the mount call and the listener, as one passage, so neither call can go alone
+  assert.ok(section.includes("const onResize = (): void => settle(row);\n    settle(row);\n    window.addEventListener('resize', onResize);\n    return () => window.removeEventListener('resize', onResize);"), 'measured on mount and on every resize, the listener removed with the section');
+  // the arrows' two ends, from the row's own scroll position, its width and its scroll width — in that order, rowEnds's own
+  assert.ok(section.includes('const now: RowPlace = { ...rowEnds(row.scrollLeft, row.clientWidth, row.scrollWidth), current: cardAtStart([...row.children].map((card) => card.getBoundingClientRect().left), rowStart) };'), 'where the row stands, on every scroll and every resize: its two ends (the arrows) and the card in view (the dots)');
   assert.ok(section.includes('setPlace((was) => (was.start === now.start && was.end === now.end && was.current === now.current ? was : now));'), 'a scroll that moves no end and no card draws nothing again');
   assert.doesNotMatch(section, /localStorage|sessionStorage|document\.cookie|useSearchParams|useRouter|usePathname|history\.|fetch\(/, 'nothing stored, no URL, no fetch — "No state but the row\'s scroll position, which is the browser\'s. Nothing is stored."');
   // the keyboard's order: the two arrows, then each card's post, in trip order — the photos skipped
@@ -519,7 +585,7 @@ test('T6 the row at work: where it stands and when a card is cut, as pure functi
   const stops = [...html.matchAll(/<button [^>]*aria-label="([^"]+)"|<a href="([^"]+)"( tabindex="-1")?/g)].filter((m) => m[3] === undefined).map((m) => m[1] ?? m[2]);
   assert.deepEqual(stops, [EARLIER_STOPS, LATER_STOPS, ...TRIP.map((id) => `/my-trip/${id}`)], 'the arrows, then the ten posts in trip order');
   assert.equal(count(html, 'tabindex="-1"'), 9, 'the nine photos, out of the tab order');
-  // the port's rules: the arrows from 768px, faded at an end; the row swiped under it, its scrollbar hidden both ways, snapping by proximity
+  // the port's rules: the arrows from 768px, faded at an end; the row swiped under it, its scrollbar hidden both ways, always at rest on a card
   const port = declarations(portCss());
   for (const decl of [
     ' | .ts-story__arrows | display: none', '@media (min-width: 768px) | .ts-story__arrows | display: flex',
@@ -728,6 +794,7 @@ test('T10 Alex\'s notes on the cards as built (2026-11-12): the row stands in th
   assert.equal(cardAtStart([-3000, -2622, 23.6], 24), 2, 'at its end: the last, within a fraction of a pixel');
   assert.equal(cardAtStart([-150, 228], 24), 0, 'part-way: the nearer');
   assert.equal(cardAtStart([-165, 213], 24), 0, 'half-way exactly: the first of the two');
+  assert.equal(cardAtStart([-554, -176, 202], 24), 2, 'part-way, past half: the later card, the nearer — not the first, nor the last already past the start');
   // the dots, as the page opens: one per stop, in trip order, the first lit; a picture of where the row stands, not controls
   const html = render(DAY);
   const dots = /<div class="ts-story-dots" aria-hidden="true">((?:<span class="ts-story-dot" data-current="(?:true|false)"><\/span>)*)<\/div>/.exec(html);
@@ -746,19 +813,38 @@ test('T10 Alex\'s notes on the cards as built (2026-11-12): the row stands in th
     ' | .ts-story-row | margin: clamp(24px, 2.8vw, 40px) -8px 0', ' | .ts-story-row | padding: 4px 8px 32px', ' | .ts-story-row | scroll-padding-inline: 8px',
     ' | .ts-story-row | gap: 20px', ' | .ts-story-row | scroll-snap-type: x mandatory', ' | .ts-story-card | scroll-snap-align: start',
     ' | .ts-story-card | flex: 0 0 100%', '@media (min-width: 768px) | .ts-story-card | flex-basis: calc((100% - 20px) / 2)', '@media (min-width: 1024px) | .ts-story-card | flex-basis: calc((100% - 40px) / 3)',
-    ' | .ts-story-dots | pointer-events: none', '@media (min-width: 768px) | .ts-story-dots | display: none', '@media (min-width: 768px) | .ts-story__arrows | display: flex',
-    ' | .ts-story-dot | background-color: var(--ts-fs-button-line)', ' | .ts-story-dot[data-current="true"] | background-color: var(--ts-hero-violet-2)',
+    ' | .ts-story-dots | pointer-events: none', ' | .ts-story-dots | flex-wrap: wrap', '@media (min-width: 768px) | .ts-story-dots | display: none', '@media (min-width: 768px) | .ts-story__arrows | display: flex',
+    ' | .ts-story-dot | width: 6px', ' | .ts-story-dot | height: 6px', ' | .ts-story-dot | box-sizing: border-box', ' | .ts-story-dot | border: 1px solid var(--ts-fs-ink-muted)',
+    ' | .ts-story-dot[data-current="true"] | border-width: 3px', ' | .ts-story-dot[data-current="true"] | border-color: var(--ts-hero-violet-2)',
+    ' | .ts-story-cost__amount | white-space: normal',
   ]) assert.ok(port.includes(decl), `the port: ${decl}`);
   assert.doesNotMatch(portCss(), /100% - 1280px/, 'nothing pads the row out to the window\'s edges any more');
+  // the dots are the only sign under 768px that the row holds more stops, so each reads at 3 : 1 or more on the cream (WCAG 2.2, SC
+  // 1.4.11 non-text contrast), measured from the tokens; and the one in view differs by shape, drawn by its border alone — a border
+  // half the dot's width fills it — with no fill on any dot, since a forced-colours theme paints a fill the ground's own colour and
+  // a border one that shows on it
+  const root = rootOf(code(GLOBALS));
+  const token = (name: string): string => { const value = root.get(`--ts-${name}`); assert.ok(value !== undefined, `--ts-${name} is declared`); return value; };
+  assert.ok(contrast(token('fs-ink-muted'), token('bg')) >= 3, `a ring on the cream: ${contrast(token('fs-ink-muted'), token('bg')).toFixed(2)} : 1, at least 3 : 1`);
+  assert.ok(contrast(token('hero-violet-2'), token('bg')) >= 3, `the disc on the cream: ${contrast(token('hero-violet-2'), token('bg')).toFixed(2)} : 1, at least 3 : 1`);
+  const dotRules = port.filter((d) => /^\.ts-story-dot(?:$|\[)/.test(d.split(' | ')[1]));
+  assert.deepEqual(dotRules.filter((d) => /^background/.test(d.split(' | ')[2])), [], 'no dot is drawn by a fill');
+  assert.deepEqual(dotRules.filter((d) => d.split(' | ')[1] === '.ts-story-dot[data-current="true"]').map((d) => d.split(' | ')[2]), ['border-width: 3px', 'border-color: var(--ts-hero-violet-2)'], 'the lit dot: its border alone, 3px — half its 6px width, so a disc — in violet');
   // the row reaches into the gutter less far than the gap, so no other card shows at either edge
   const reach = Number(/margin: clamp\(24px, 2\.8vw, 40px\) -(\d+)px 0/.exec(portCss())?.[1]);
   const pad = Number(/padding: 4px (\d+)px 32px/.exec(portCss())?.[1]);
   const gap = Number(/\.ts-story-row \{[^}]*gap: (\d+)px/.exec(portCss())?.[1]);
   assert.ok(reach === 8 && pad === reach && gap === 20 && reach < gap, `the row reaches ${reach}px into the gutter, pads itself back by as much, and the gap is ${gap}px`);
-  // three across from 1024px are the plan cards' own columns: the same page container, three columns 20px apart
+  // three across from 1024px are the plan cards' own columns: the same page container (its width and its inline padding, at the base
+  // and from 1024px), three columns 20px apart — read as the cascade leaves them, whatever else those rules hold
   const all = declarations(code(GLOBALS));
-  for (const decl of [' | .ts-story__inner | max-width: 1280px', ' | .ts-story__inner | padding-inline: 16px', '@media (min-width: 1024px) | .ts-story__inner | padding-inline: 32px']) assert.ok(all.includes(decl), `the trip log's container: ${decl}`);
-  for (const decl of [' | .ts-fs__inner | max-width: 1280px', ' | .ts-fs__inner | padding: 12px 16px clamp(52px, 6.2vw, 88px)', '@media (min-width: 1024px) | .ts-fs-heading, .ts-fs__inner | padding-inline: 32px', '@media (min-width: 1024px) | .ts-fs-plans | grid-template-columns: repeat(3, minmax(0, 1fr))', '@media (min-width: 1024px) | .ts-fs-plans | gap: 0 20px']) assert.ok(all.includes(decl), `the plans above it: ${decl}`);
+  const trip = boxOf(all, '.ts-story__inner');
+  const plans = boxOf(all, '.ts-fs__inner');
+  assert.deepEqual(trip, { maxWidth: '1280px', inline: '16px', inlineWide: '32px' }, 'the trip log\'s container');
+  assert.deepEqual(plans, trip, 'is the plans\' above it');
+  assert.equal(lastOf(all, '@media (min-width: 1024px)', '.ts-fs-plans', 'grid-template-columns'), 'repeat(3, minmax(0, 1fr))', 'the plans: three columns from 1024px');
+  const plansGap = valuesOf(lastOf(all, '@media (min-width: 1024px)', '.ts-fs-plans', 'gap') ?? '');
+  assert.equal(plansGap[plansGap.length - 1], '20px', 'twenty pixels apart, the trip cards\' gap');
   // his words, exact: the stylesheet quotes both under their stamp, and the section both
   const header = flat(whole(GLOBALS).slice(whole(GLOBALS).indexOf('/* ── TRIPCARDS-03'), whole(GLOBALS).indexOf('/* ── 1 · the section: the eyebrow')));
   const stamped = [...header.matchAll(/Alex's note on the cards as built, 2026-11-12: "([^"]+)"/g)].map((m) => m[1]);
