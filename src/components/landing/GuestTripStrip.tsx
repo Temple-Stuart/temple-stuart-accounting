@@ -29,9 +29,14 @@
 // THE READ: useGuestTrip, below — in an effect, after mount, and again on the trip's update signal, so the server's HTML holds no trip and
 // hydration stays safe; the box's Add buttons read the same read (LandingBookingSection.tsx). Null until read, and an empty trip: nothing drawn.
 // FOCUS: a × hands the focus to the next event's ×, else the one before it; with no event left, to the box's open tab (onNoEventLeft).
+// Q1 (ruled by Alex 2026-11-12: yes to "keep its row, say it is no longer listed, and give it its × to remove it"): an event the catalog no
+// longer holds keeps its row — "No longer listed" where its dates go, its stored id where its name goes, no place, no Stay near it →, its ×.
+// Q2 (ruled by Alex 2026-11-12: yes to "say so where they pressed, and add nothing"): a × the browser refuses to save leaves the trip as it was
+// and says so under that row (the box's `notSaved`); the focus stays on the pressed ×. The press goes through the box (onRemove), which catches
+// that one refusal and nothing else.
 
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { GUEST_TRIP_EVENT, readGuestTripWhole, removeGuestTripEvent, type GuestTripRecord } from '@/lib/guestTrip';
+import { GUEST_TRIP_EVENT, readGuestTripWhole, type GuestTripRecord } from '@/lib/guestTrip';
 import type { Experience } from '@/lib/experiences';
 import { STAY_NEAR_WORDS } from '@/lib/experienceWords';
 import { CREATE_FREE_ACCOUNT, NOT_STATED, SEARCH_FLIGHTS, TOTAL, TRIP_EYEBROW, TRIP_PITCH, focusAfterRemove, removeWords, tripEventsView } from '@/lib/guestTripWords';
@@ -70,7 +75,7 @@ function RemoveMark() {
   return <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" /></svg>;
 }
 
-export default function GuestTripStrip({ trip, today, onRequireAuth, onStayNear, onSearchFlights, onNoEventLeft }: {
+export default function GuestTripStrip({ trip, today, onRequireAuth, onStayNear, onSearchFlights, onRemove, notSaved, onNoEventLeft }: {
   /** The one read (useGuestTrip) — null until it has been made. */
   trip: GuestTrip | null;
   /** The server's UTC day, 'YYYY-MM-DD' (src/app/page.tsx) — every event's words and dates are read from the catalog on it. */
@@ -81,6 +86,10 @@ export default function GuestTripStrip({ trip, today, onRequireAuth, onStayNear,
   onStayNear: (row: Experience) => void;
   /** Search flights →: the box opens Flights and comes into view. */
   onSearchFlights: () => void;
+  /** A ×: the box takes the event out — true when it did; false when the browser refused to save it (Q2), and nothing changed. */
+  onRemove: (id: string) => boolean;
+  /** Q2: the line under the row whose × the browser refused to save — null when there is none. */
+  notSaved: { id: string; words: string } | null;
   /** The last event was taken out: the box's open tab takes the focus. */
   onNoEventLeft: () => void;
 }) {
@@ -101,11 +110,11 @@ export default function GuestTripStrip({ trip, today, onRequireAuth, onStayNear,
   const view = tripEventsView(trip.events, today);
   if (view.events.length === 0 && trip.bookings.length === 0) return null;
 
-  // A ×: the event leaves the trip; the focus then goes where focusAfterRemove says (the next ×, the one before, or the open tab).
+  // A ×: the event leaves the trip; the focus then goes where focusAfterRemove says (the next ×, the one before, or the open tab). A refused save
+  // (Q2) leaves it where it is, on the pressed ×, and the box says so under the row.
   const remove = (id: string) => {
-    const next = focusAfterRemove(view.events.map((e) => e.row.id), id);
-    removeGuestTripEvent(id);
-    focusNext.current = next;
+    const next = focusAfterRemove(view.events.map((e) => e.id), id);
+    if (onRemove(id)) focusNext.current = next;
   };
 
   // Per-currency totals over rows whose amount is known — a missing amount
@@ -126,27 +135,28 @@ export default function GuestTripStrip({ trip, today, onRequireAuth, onStayNear,
       </div>
       <ul className="ts-tm-trip__list">
         {view.events.map((e) => (
-          <Fragment key={e.row.id}>
+          <Fragment key={e.id}>
             {e.gap !== null && <li className="ts-tm-gap" data-overlap={e.gap.overlap}><GapMark /><span>{e.gap.words}</span></li>}
-            <li className="ts-tm-trip__row" data-trip-event={e.row.id}>
+            <li className="ts-tm-trip__row" data-trip-event={e.id} data-unlisted={e.row === null ? true : undefined}>
               <p className="ts-tm-trip__when">{e.when}</p>
               <div className="ts-tm-trip__event">
-                <p className="ts-tm-trip__name">{e.row.name}</p>
-                <p className="ts-tm-trip__place">{e.place}</p>
+                <p className="ts-tm-trip__name">{e.name}</p>
+                {e.place !== null && <p className="ts-tm-trip__place">{e.place}</p>}
               </div>
               <div className="ts-tm-trip__actions">
-                {e.stay && <button className="ts-tm-link" type="button" data-stay-near={e.row.id} onClick={() => onStayNear(e.row)}>{STAY_NEAR_WORDS}</button>}
+                {e.stay && e.row !== null && <button className="ts-tm-link" type="button" data-stay-near={e.id} onClick={() => { if (e.row !== null) onStayNear(e.row); }}>{STAY_NEAR_WORDS}</button>}
                 <button
                   className="ts-tm-remove"
                   type="button"
-                  aria-label={removeWords(e.row.name)}
-                  data-remove={e.row.id}
-                  onClick={() => remove(e.row.id)}
-                  ref={(el) => { if (el === null) removeButtons.current.delete(e.row.id); else removeButtons.current.set(e.row.id, el); }}
+                  aria-label={removeWords(e.name)}
+                  data-remove={e.id}
+                  onClick={() => remove(e.id)}
+                  ref={(el) => { if (el === null) removeButtons.current.delete(e.id); else removeButtons.current.set(e.id, el); }}
                 >
                   <RemoveMark />
                 </button>
               </div>
+              {notSaved !== null && notSaved.id === e.id && <p className="ts-tm-lookup__failure" role="alert" data-not-saved={e.id}>{notSaved.words}</p>}
             </li>
           </Fragment>
         ))}

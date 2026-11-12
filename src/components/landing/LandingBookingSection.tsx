@@ -102,7 +102,8 @@ import { StayNearContext, landOnEvents } from './ExperiencesSection';
 import { AddToTripContext } from './ExperiencesSection'; // HOME-TRAVEL-01 (2026-11-12): what every row's Add to trip reads — on a line of its own, so the line above keeps its text
 import TravelBox from './TravelBox'; // HOME-TRAVEL-01 (2026-11-12): the box, in the landing's own look — ToggleStrip until then
 import GuestTripStrip, { useGuestTrip } from './GuestTripStrip'; // HOME-TRAVEL-01 (2026-11-12): the trip card, under the box, and its one read
-import { addGuestTripEvent, removeGuestTripEvent } from '@/lib/guestTrip'; // HOME-TRAVEL-01 (2026-11-12): the event writers a row's press calls
+import { GuestTripWriteRefused, addGuestTripEvent, removeGuestTripEvent } from '@/lib/guestTrip'; // HOME-TRAVEL-01 (2026-11-12): the event writers a press calls, and the one refusal it says
+import { NOT_SAVED_ADD, NOT_SAVED_REMOVE } from '@/lib/guestTripWords'; // HOME-TRAVEL-01 — Q2 (Alex, 2026-11-12): the line a refused save says
 // PR-ELEV-1: the modes come from the ONE shared builder (8 chips — 5 live + 3
 // "Soon"), so the guest landing and the app travel tab render the same strip
 // and light up together as affiliate IDs land.
@@ -187,13 +188,30 @@ export default function LandingBookingSection({ onRequireAuth, today, events }: 
   // trip reads it and presses through it: in the trip → the press takes the event out; out of it → the press adds it. Before it, no row draws
   // the button (null).
   const trip = useGuestTrip();
+  // HOME-TRAVEL-01 — Q2 (ruled by Alex 2026-11-12: yes to "say so where they pressed, and add nothing"): ONE WRITE PER PRESS. Every press clears the
+  // last line; a write the browser refuses (GuestTripWriteRefused, src/lib/guestTrip.ts — private mode, a full quota) leaves the trip as it was and
+  // says so under the pressed button — a row's (where 'row') or the trip card's × (where 'card'). Any other error is not caught here: it is thrown.
+  const [notSaved, setNotSaved] = useState<{ id: string; where: 'row' | 'card'; words: string } | null>(null);
+  const write = useCallback((id: string, adding: boolean, where: 'row' | 'card'): boolean => {
+    setNotSaved(null);
+    try {
+      if (adding) addGuestTripEvent(id);
+      else removeGuestTripEvent(id);
+      return true;
+    } catch (err) {
+      if (!(err instanceof GuestTripWriteRefused)) throw err;
+      setNotSaved({ id, where, words: adding ? NOT_SAVED_ADD : NOT_SAVED_REMOVE });
+      return false;
+    }
+  }, []);
   const addToTrip = useMemo(() => (trip === null ? null : {
     inTrip: (id: string) => trip.events.includes(id),
     onToggle: (row: Experience) => {
-      if (trip.events.includes(row.id)) removeGuestTripEvent(row.id);
-      else addGuestTripEvent(row.id);
+      write(row.id, !trip.events.includes(row.id), 'row');
     },
-  }), [trip]);
+    notSaved: (id: string) => (notSaved !== null && notSaved.where === 'row' && notSaved.id === id ? notSaved.words : null),
+  }), [trip, write, notSaved]);
+  const removeFromTrip = useCallback((id: string) => write(id, false, 'card'), [write]);
   // HOME-TRAVEL-01: the trip's last event taken out — the focus goes to the open tab, the box's pressed tile.
   const focusOpenTab = useCallback(() => {
     const tab = box.current === null ? null : box.current.querySelector<HTMLButtonElement>('[data-tab][aria-pressed="true"]');
@@ -262,7 +280,16 @@ export default function LandingBookingSection({ onRequireAuth, today, events }: 
           boxRef={box}
         />
       </AddToTripContext.Provider>
-      <GuestTripStrip trip={trip} today={today} onRequireAuth={onRequireAuth} onStayNear={stayNear} onSearchFlights={searchFlights} onNoEventLeft={focusOpenTab} />
+      <GuestTripStrip
+        trip={trip}
+        today={today}
+        onRequireAuth={onRequireAuth}
+        onStayNear={stayNear}
+        onSearchFlights={searchFlights}
+        onRemove={removeFromTrip}
+        notSaved={notSaved !== null && notSaved.where === 'card' ? { id: notSaved.id, words: notSaved.words } : null}
+        onNoEventLeft={focusOpenTab}
+      />
     </StayNearContext.Provider>
   );
 }

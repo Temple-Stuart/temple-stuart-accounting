@@ -40,6 +40,19 @@ export const DATES_NOT_ANNOUNCED = 'dates not announced yet';
 export const BACK_TO_BACK = 'Back to back';
 /** HOME-TRAVEL-01: the line between two dated events when the second starts on or before the first ends — drawn in gold. */
 export const OVERLAPS = 'Overlaps the one above';
+/**
+ * HOME-TRAVEL-01 — Q1, ruled by Alex 2026-11-12 (yes to the designer's recommendation: "keep its row, say it is no longer listed, and give it its ×
+ * to remove it"): where the dates go on the row of an event the catalog no longer holds — a deploy renamed or removed it while the guest's tab
+ * kept its id. The row is never dropped silently and never stands in for another event.
+ */
+export const NO_LONGER_LISTED = 'No longer listed';
+/**
+ * HOME-TRAVEL-01 — Q2, ruled by Alex 2026-11-12 (yes to the designer's recommendation: "say so where they pressed, and add nothing"): the line under
+ * the pressed button when the browser refuses to save the trip (private mode, a full quota). The trip stays as it was.
+ */
+export const NOT_SAVED_ADD = "Your browser didn't save this — nothing was added.";
+/** HOME-TRAVEL-01 — Q2: the same, for a press that would have taken an event out (In your trip, or the trip card's ×). */
+export const NOT_SAVED_REMOVE = "Your browser didn't save this — nothing was taken out.";
 
 /** HOME-TRAVEL-01: "1 event" · "3 events". */
 export function eventCountWords(n: number): string {
@@ -82,20 +95,28 @@ export interface TripGap {
   overlap: boolean;
 }
 
-/** HOME-TRAVEL-01: one event of the trip, as the card draws it. */
+/**
+ * HOME-TRAVEL-01: one event of the trip, as the card draws it. An event the catalog no longer holds (Q1, Alex 2026-11-12) has no row: its name is the
+ * stored id, its dates NO_LONGER_LISTED, no place and no Stay near it → — and its ×.
+ */
 export interface TripEvent {
-  row: Experience;
-  /** Its dates — tripWhenWords. */
+  /** The stored catalog id — the × takes it out by this. */
+  id: string;
+  /** The catalog's row; null when the catalog no longer holds the id. */
+  row: Experience | null;
+  /** Its name — the row's, or the stored id. */
+  name: string;
+  /** Its dates — tripWhenWords; NO_LONGER_LISTED with no row. */
   when: string;
-  /** "{city}, {country}". */
-  place: string;
-  /** Stay near it → is drawn (canStayNear). */
+  /** "{city}, {country}"; null with no row. */
+  place: string | null;
+  /** Stay near it → is drawn (canStayNear); never with no row. */
   stay: boolean;
   /** The line above it — only between two dated events in a row; null otherwise. */
   gap: TripGap | null;
 }
 
-/** HOME-TRAVEL-01: the trip's events, in the card's order, and the summary over them (null when the trip holds no event). */
+/** HOME-TRAVEL-01: the trip's events, in the card's order, and the summary over the listed ones (null when the trip holds no event the catalog lists). */
 export interface TripEventsView {
   events: TripEvent[];
   summary: string | null;
@@ -111,29 +132,32 @@ export function tripGap(first: Experience, second: Experience): TripGap {
 /**
  * HOME-TRAVEL-01: the trip's events as the card draws them, from the stored ids (in the order added), on the server's `today`.
  * The catalog is read here, never stored: every word and date comes from `rows` (EXPERIENCES). An id stored twice is refused by
- * name — the writers never store one twice.
+ * name — the writers never store one twice. Q1 (Alex, 2026-11-12: yes): an id the catalog no longer holds keeps its row — among the events
+ * without dates, in the order added — saying it is no longer listed, with its ×; it counts in no summary and opens no gap.
  */
 export function tripEventsView(ids: readonly string[], today: string, rows: readonly Experience[] = EXPERIENCES): TripEventsView {
-  const added: Experience[] = ids.map((id, at) => {
+  const added: Array<{ id: string; row: Experience | null }> = ids.map((id, at) => {
     if (ids.indexOf(id) !== at) throw new GuestTripWordsError(`the stored trip holds ${id} twice — the writers add an event once`);
-    const row = rows.find((r) => r.id === id);
-    if (row === undefined) throw new GuestTripWordsError(`the stored trip holds ${id}, which the catalog does not — not drawn, not substituted (HOME-TRAVEL-01: Alex's ruling on it is pending)`);
-    return row;
+    return { id, row: rows.find((r) => r.id === id) ?? null };
   });
   // A string compare on 'YYYY-MM-DD' (no locale), and Array.prototype.sort is stable: dated events that start the same day keep
   // the order they were added in.
   const startOf = (row: Experience): string => row.start as string;
-  const dated = added.filter((row) => isUpcoming(row, today)).sort((a, b) => (startOf(a) < startOf(b) ? -1 : startOf(a) > startOf(b) ? 1 : 0));
-  const undated = added.filter((row) => !isUpcoming(row, today));
-  const events: TripEvent[] = [...dated, ...undated].map((row, at) => ({
-    row,
-    when: tripWhenWords(row, today),
-    place: `${row.city}, ${row.country}`,
-    stay: canStayNear(row),
-    gap: at > 0 && at < dated.length ? tripGap(dated[at - 1], row) : null,
-  }));
-  if (events.length === 0) return { events, summary: null };
+  const isDated = (row: Experience | null): row is Experience => row !== null && isUpcoming(row, today);
+  const dated = added.map((a) => a.row).filter(isDated).sort((a, b) => (startOf(a) < startOf(b) ? -1 : startOf(a) > startOf(b) ? 1 : 0));
+  const undated = added.filter((a) => !isDated(a.row));
+  const events: TripEvent[] = [
+    ...dated.map((row, at): TripEvent => ({
+      id: row.id, row, name: row.name, when: tripWhenWords(row, today), place: `${row.city}, ${row.country}`, stay: canStayNear(row),
+      gap: at > 0 ? tripGap(dated[at - 1], row) : null,
+    })),
+    ...undated.map(({ id, row }): TripEvent => (row === null
+      ? { id, row: null, name: id, when: NO_LONGER_LISTED, place: null, stay: false, gap: null }
+      : { id, row, name: row.name, when: tripWhenWords(row, today), place: `${row.city}, ${row.country}`, stay: canStayNear(row), gap: null })),
+  ];
+  const listed = events.filter((e) => e.row !== null).length;
+  if (listed === 0) return { events, summary: null };
   const latest = dated.reduce((end, row) => ((row.end as string) > end ? (row.end as string) : end), dated.length === 0 ? '' : (dated[0].end as string));
   const dates = dated.length === 0 ? DATES_NOT_ANNOUNCED : dateWords(dated[0].start as string, latest);
-  return { events, summary: `${eventCountWords(events.length)} · ${dates}` };
+  return { events, summary: `${eventCountWords(listed)} · ${dates}` };
 }

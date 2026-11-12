@@ -19,6 +19,10 @@
 // trip. The entries keep the order they were added in, bookings and events together; each reader takes its own kind.
 // (Read for this change, at main ca3fdc7: no flight file calls addGuestTripRecord — the hotel confirm page,
 // src/app/booking/confirm/page.tsx, is the one booking writer. When the flight panel's branch left is not verified here.)
+// A REFUSED WRITE (Q2, ruled by Alex 2026-11-12: yes to "say so where they pressed, and add nothing"): when the browser refuses to save
+// (private mode, a full quota), the write throws GuestTripWriteRefused — by name, so a refusal is never mistaken for a fault. A booking's
+// writer still swallows it ("Never block the booking", BOOK-3, below); the event writers do not: the box catches that one error and says so
+// under the pressed button, and the trip stays as it was.
 
 export interface GuestTripRecord {
   type: 'flight' | 'hotel';
@@ -76,9 +80,21 @@ function readEntries(): GuestTripEntry[] {
   }
 }
 
-/** HOME-TRAVEL-01: one write, then the update signal — the entries whole, in their order. */
+/** HOME-TRAVEL-01 — Q2 (Alex, 2026-11-12): the browser refused to save the trip. Nothing was written and no update signal was sent. */
+export class GuestTripWriteRefused extends Error {
+  constructor(cause: unknown) {
+    super(`the browser refused to save the guest trip (${cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause)})`, { cause });
+    this.name = 'GuestTripWriteRefused';
+  }
+}
+
+/** HOME-TRAVEL-01: one write, then the update signal — the entries whole, in their order. A refusal is thrown by name, and nothing is signalled. */
 function writeEntries(next: readonly GuestTripEntry[]): void {
-  window.sessionStorage.setItem(KEY, JSON.stringify(next));
+  try {
+    window.sessionStorage.setItem(KEY, JSON.stringify(next));
+  } catch (cause) {
+    throw new GuestTripWriteRefused(cause);
+  }
   window.dispatchEvent(new CustomEvent(GUEST_TRIP_EVENT));
 }
 
@@ -108,14 +124,14 @@ export function addGuestTripRecord(rec: GuestTripRecord): void {
   }
 }
 
-/** HOME-TRAVEL-01 (2026-11-12): "Add to trip" — the event's catalog id, appended once; an event already in the trip is not added twice. */
+/** HOME-TRAVEL-01 (2026-11-12): "Add to trip" — the event's catalog id, appended once; an event already in the trip is not added twice. A refused write throws GuestTripWriteRefused. */
 export function addGuestTripEvent(id: string): void {
   const entries = readEntries();
   if (entries.some((e) => isEventEntry(e) && e.id === id)) return;
   writeEntries([...entries, { type: 'event', id }]);
 }
 
-/** HOME-TRAVEL-01 (2026-11-12): "In your trip" pressed again, or the trip card's × — the event leaves the trip; every other entry stays, in its order. */
+/** HOME-TRAVEL-01 (2026-11-12): "In your trip" pressed again, or the trip card's × — the event leaves the trip; every other entry stays, in its order. A refused write throws GuestTripWriteRefused. */
 export function removeGuestTripEvent(id: string): void {
   const entries = readEntries();
   if (!entries.some((e) => isEventEntry(e) && e.id === id)) return;

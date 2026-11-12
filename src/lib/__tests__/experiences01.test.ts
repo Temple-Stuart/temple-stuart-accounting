@@ -414,7 +414,7 @@ test('T5 Landing mounts the section once — inside the booking mount, as the bo
   assert.ok(mountAt > bookingAt && mountAt < bookingAt + booking.length, 'the one mount is the booking box\'s events prop');
   assert.ok(bookingAt > -1 && lookupAt > bookingAt, 'the booking box (the catalog inside it, the trip card under it) → the booking lookup');
   assert.equal(landing.split('<GuestTripStrip').length - 1, 0, 'no strip of its own under the section');
-  assert.equal(code(LANDING_BOOKING).split('<GuestTripStrip trip={trip} today={today} ').length - 1, 1, 'the box renders the trip card, on the server\'s day');
+  assert.equal((code(LANDING_BOOKING).match(/<GuestTripStrip\s+trip=\{trip\}\s+today=\{today\}\s/g) ?? []).length, 1, 'the box renders the trip card, on the server\'s day');
   const travelEnd = landing.indexOf('</section>', lookupAt) + '</section>'.length;
   assert.match(landing.slice(travelEnd, landing.indexOf('<StopZeroSection />')), /^\s*(\{\s*\}\s*)*$/, 'the travel block\'s </section> → Stop 0: comments only — no band between them');
   assert.match(landing, /<GuestBookingLookup onOpened=\{\(\) => window\.location\.assign\('\/booking\/manage'\)\} \/>/);

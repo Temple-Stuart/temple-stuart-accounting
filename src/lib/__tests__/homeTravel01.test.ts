@@ -45,14 +45,15 @@ import {
   experienceWindowWords, isUpcoming, notAnnouncedLine, seasonNotAnnouncedLine, tripWhenWords,
 } from '../experienceWords';
 import {
-  BACK_TO_BACK, CREATE_FREE_ACCOUNT, DATES_NOT_ANNOUNCED, GuestTripWordsError, NOT_STATED, OVERLAPS, SEARCH_FLIGHTS, TOTAL, TRIP_EYEBROW, TRIP_PITCH,
-  daysBetweenWords, eventCountWords, focusAfterRemove, removeWords, tripEventsView, tripGap,
+  BACK_TO_BACK, CREATE_FREE_ACCOUNT, DATES_NOT_ANNOUNCED, GuestTripWordsError, NOT_SAVED_ADD, NOT_SAVED_REMOVE, NOT_STATED, NO_LONGER_LISTED, OVERLAPS,
+  SEARCH_FLIGHTS, TOTAL, TRIP_EYEBROW, TRIP_PITCH, daysBetweenWords, eventCountWords, focusAfterRemove, removeWords, tripEventsView, tripGap,
 } from '../guestTripWords';
 import { COMMISSION_LINE } from '../disclosureWords';
 import { EXPLORE_PILLAR } from '../homeActWords';
 import { DEMO_ANCHOR } from '../homeAnchors';
 import { ExperiencesView, AddToTripContext, StayNearContext } from '@/components/landing/ExperiencesSection';
 import tailwindConfig from '../../../tailwind.config';
+import { DS } from '../ds';
 
 Object.assign(globalThis, { React });
 
@@ -256,7 +257,7 @@ const insideOf = (element: string): string => element.slice(element.indexOf('>')
 
 const noop = (): void => {};
 const panelOnTheBoard = (): string => renderToStaticMarkup(React.createElement(StayNearContext.Provider, { value: noop },
-  React.createElement(AddToTripContext.Provider, { value: { inTrip: (id: string) => (BOARD as readonly string[]).includes(id), onToggle: noop } },
+  React.createElement(AddToTripContext.Provider, { value: { inTrip: (id: string) => (BOARD as readonly string[]).includes(id), onToggle: noop, notSaved: () => null } },
     React.createElement(ExperiencesView, { rows: EXPERIENCES, today: TODAY, choice: { category: 'tennis' }, onPick: noop }))));
 
 // ── T1 · THE HANDOFF ─────────────────────────────────────────────────────────
@@ -399,7 +400,7 @@ test('T4 the board\'s markup — the tabs, the Events panel (Tennis, the three i
   assert.ok(section.startsWith('<section id="events" aria-label="Book the experience" data-experiences="true">'), 'the panel, its id and its name');
   same(insideOf(section), insideOf(elementAt(board, '<section class="tm-panel" id="events"')), 'the Events panel on the board');
   // the trip: the board's three, added in any order — drawn in date order with the days between them
-  const trip = renderToStaticMarkup(React.createElement(GuestTripStrip, { trip: { bookings: [], events: [BOARD[2], BOARD[0], BOARD[1]] }, today: TODAY, onRequireAuth: noop, onStayNear: noop, onSearchFlights: noop, onNoEventLeft: noop }));
+  const trip = renderToStaticMarkup(React.createElement(GuestTripStrip, { trip: { bookings: [], events: [BOARD[2], BOARD[0], BOARD[1]] }, today: TODAY, onRequireAuth: noop, onStayNear: noop, onSearchFlights: noop, onRemove: () => true, notSaved: null, onNoEventLeft: noop }));
   same(trip, elementAt(board, '<section class="tm-trip"'), 'the trip on the board');
   // the lookup: the same fields, words and behaviour in the new look
   same(renderToStaticMarkup(React.createElement(GuestBookingLookup, { onOpened: noop })), elementAt(board, '<form class="tm-lookup__form"'), 'the lookup');
@@ -468,11 +469,11 @@ const dated = (id: string, start: string, end: string): Experience => ({ ...row(
 /** The days strictly between two dates, by Date.UTC — the check's own arithmetic, against which the trip's is held. */
 const daysBetweenUtc = (end: string, start: string): number => (Date.UTC(+start.slice(0, 4), +start.slice(5, 7) - 1, +start.slice(8, 10)) - Date.UTC(+end.slice(0, 4), +end.slice(5, 7) - 1, +end.slice(8, 10))) / 86400000 - 1;
 
-test('T6 the trip\'s rules — dated events first by start (ties in the order added), then the undated in the order added; the days between two dated events in a row, or that they overlap; the summary; places; Stay near it →; focus; day counts from the strings\' own parts', () => {
+test('T6 the trip\'s rules — dated events first by start (ties in the order added), then the undated in the order added; the days between two dated events in a row, or that they overlap; the summary; places; Stay near it →; focus; day counts from the strings\' own parts; an event the catalog no longer holds keeps its row (Q1)', () => {
   // the board, added in any order
   for (const added of [[...BOARD], [BOARD[2], BOARD[0], BOARD[1]], [BOARD[1], BOARD[2], BOARD[0]]]) {
     const view = tripEventsView(added, TODAY);
-    assert.deepEqual(view.events.map((e) => e.row.id), [...BOARD], 'by start date');
+    assert.deepEqual(view.events.map((e) => e.id), [...BOARD], 'by start date');
     assert.deepEqual(view.events.map((e) => e.gap?.words ?? null), [null, '3 days between', '28 days between']);
     assert.deepEqual(view.events.map((e) => e.when), ['Jan 17–31, 2027', 'Feb 4–11, 2027', 'Mar 12–14, 2027']);
     assert.deepEqual(view.events.map((e) => e.place), ['Melbourne, Australia', 'Sapporo, Japan', 'Sakhir, Bahrain']);
@@ -489,15 +490,15 @@ test('T6 the trip\'s rules — dated events first by start (ties in the order ad
   assert.deepEqual(pair(dated('a', '2026-12-30', '2026-12-31'), dated('b', '2027-01-03', '2027-01-04')), { words: '2 days between', overlap: false }, 'across a new year');
   // ties keep the order added; the summary runs to the latest end, not the last start's
   const tie = tripEventsView(['b', 'a', 'c'], TODAY, [dated('a', '2027-05-01', '2027-05-02'), dated('b', '2027-05-01', '2027-08-30'), dated('c', '2027-06-01', '2027-06-02')]);
-  assert.deepEqual(tie.events.map((e) => e.row.id), ['b', 'a', 'c'], 'two that start the same day stand in the order added');
+  assert.deepEqual(tie.events.map((e) => e.id), ['b', 'a', 'c'], 'two that start the same day stand in the order added');
   assert.equal(tie.summary, `3 events · ${dateWords('2027-05-01', '2027-08-30')}`, 'from the first start to the latest end');
   // an undated event with a usual season and a dated pair: the dated first; no gap is drawn to or from the undated
   const mixed = tripEventsView(['whistler-ski-season-2026-27', BOARD[1], BOARD[0]], TODAY);
-  assert.deepEqual(mixed.events.map((e) => [e.row.id, e.when, e.gap?.words ?? null]), [[BOARD[0], 'Jan 17–31, 2027', null], [BOARD[1], 'Feb 4–11, 2027', '3 days between'], ['whistler-ski-season-2026-27', 'Usually Nov – May', null]]);
+  assert.deepEqual(mixed.events.map((e) => [e.id, e.when, e.gap?.words ?? null]), [[BOARD[0], 'Jan 17–31, 2027', null], [BOARD[1], 'Feb 4–11, 2027', '3 days between'], ['whistler-ski-season-2026-27', 'Usually Nov – May', null]]);
   assert.equal(mixed.summary, '3 events · Jan 17 – Feb 11, 2027');
   // undated alone, in the order added — "dates not announced yet" after the dot
   const undated = tripEventsView(['us-open-tennis-2027', 'whistler-ski-season-2026-27'], TODAY);
-  assert.deepEqual(undated.events.map((e) => [e.row.id, e.when]), [['us-open-tennis-2027', NOT_ANNOUNCED_YET], ['whistler-ski-season-2026-27', 'Usually Nov – May']]);
+  assert.deepEqual(undated.events.map((e) => [e.id, e.when]), [['us-open-tennis-2027', NOT_ANNOUNCED_YET], ['whistler-ski-season-2026-27', 'Usually Nov – May']]);
   assert.equal(undated.summary, `2 events · ${DATES_NOT_ANNOUNCED}`);
   assert.equal(tripEventsView(['us-open-tennis-2027'], TODAY).summary, '1 event · dates not announced yet');
   // a city that is not fixed prints the leaf's own mark, and the event draws no Stay near it →
@@ -505,6 +506,21 @@ test('T6 the trip\'s rules — dated events first by start (ties in the order ad
   assert.equal(unfixed.place, `${VENUE_NOT_FIXED}, USA`);
   assert.equal(unfixed.stay, false);
   assert.equal(canStayNear(row('x-games-summer-2027')), false);
+  // Q1 (ruled by Alex 2026-11-12: yes to "keep its row, say it is no longer listed, and give it its × to remove it"): an id the catalog no longer
+  // holds keeps its row among the events without dates, in the order added — "No longer listed", the stored id for its name, no place, no Stay
+  // near it → — and counts in no summary and opens no gap; it is never dropped and never stands in for another event
+  assert.equal(NO_LONGER_LISTED, 'No longer listed');
+  const gone = tripEventsView(['whistler-ski-season-2026-27', 'renamed-event-2027', BOARD[1], BOARD[0]], TODAY);
+  assert.deepEqual(gone.events.map((e) => [e.id, e.row === null ? null : e.row.id, e.name, e.when, e.place, e.stay, e.gap?.words ?? null]), [
+    [BOARD[0], BOARD[0], 'Australian Open 2027', 'Jan 17–31, 2027', 'Melbourne, Australia', true, null],
+    [BOARD[1], BOARD[1], 'Sapporo Snow Festival 2027', 'Feb 4–11, 2027', 'Sapporo, Japan', true, '3 days between'],
+    ['whistler-ski-season-2026-27', 'whistler-ski-season-2026-27', 'Whistler Blackcomb ski season', 'Usually Nov – May', 'Whistler, Canada', true, null],
+    ['renamed-event-2027', null, 'renamed-event-2027', NO_LONGER_LISTED, null, false, null],
+  ], 'the dated, then the undated and the unlisted in the order added');
+  assert.equal(gone.summary, '3 events · Jan 17 – Feb 11, 2027', 'the summary counts the listed events alone');
+  const onlyGone = tripEventsView(['renamed-event-2027'], TODAY);
+  assert.deepEqual([onlyGone.events.length, onlyGone.summary], [1, null], 'an unlisted event alone: its row, and no summary and no gold button');
+  assert.equal(focusAfterRemove(gone.events.map((e) => e.id), 'renamed-event-2027'), 'whistler-ski-season-2026-27', 'its × takes part in the focus rule');
   // no event, no summary; an id stored twice is refused by name
   assert.deepEqual(tripEventsView([], TODAY), { events: [], summary: null });
   assert.throws(() => tripEventsView([BOARD[0], BOARD[0]], TODAY), (e: unknown) => e instanceof GuestTripWordsError && /holds australian-open-2027 twice/.test(e.message));
@@ -543,7 +559,7 @@ test('T6 the trip\'s rules — dated events first by start (ties in the order ad
 
 // ── T7 · THE STORE ───────────────────────────────────────────────────────────
 
-test('T7 the store — the events join the guest trip: one key, the order added, the catalog id alone; the bookings\' writer keeps them; each reader takes its kind; the update signal', async () => {
+test('T7 the store — the events join the guest trip: one key, the order added, the catalog id alone; the bookings\' writer keeps them; each reader takes its kind; the update signal; a write the browser refuses is thrown by name, and a booking\'s is still swallowed (Q2)', async () => {
   const store = new Map<string, string>();
   const signals: string[] = [];
   const fake = {
@@ -576,6 +592,16 @@ test('T7 the store — the events join the guest trip: one key, the order added,
     // read strictly, as BOOK-3's rows are: a mis-shaped entry is no event
     store.set('ts-guest-trip', JSON.stringify([{ type: 'event' }, { type: 'event', id: '' }, { type: 'event', id: 'x', name: 'carried' }, { type: 'event', id: BOARD[1] }]));
     assert.deepEqual(trip.readGuestTripWhole(), { bookings: [], events: [BOARD[1]] });
+    // Q2 (ruled by Alex 2026-11-12: yes to "say so where they pressed, and add nothing"): a write the browser refuses is thrown BY NAME — nothing
+    // written, no signal; the bookings' writer still swallows it ("Never block the booking", BOOK-3)
+    const kept = store.get('ts-guest-trip');
+    const sent = signals.length;
+    fake.sessionStorage.setItem = () => { throw new DOMException('The quota has been exceeded.', 'QuotaExceededError'); };
+    assert.throws(() => trip.addGuestTripEvent(BOARD[0]), (e: unknown) => e instanceof trip.GuestTripWriteRefused && /QuotaExceededError/.test((e as Error).message) && (e as Error).cause instanceof DOMException, 'an add the browser refuses, by name');
+    assert.throws(() => trip.removeGuestTripEvent(BOARD[1]), (e: unknown) => e instanceof trip.GuestTripWriteRefused, 'and a removal');
+    assert.equal(store.get('ts-guest-trip'), kept, 'nothing written');
+    assert.equal(signals.length, sent, 'no update signal');
+    assert.doesNotThrow(() => trip.addGuestTripRecord(booking), 'a booking is never blocked by its trip line');
   } finally {
     g.window = before;
   }
@@ -589,7 +615,7 @@ test('T7 the store — the events join the guest trip: one key, the order added,
 
 // ── T8 · THE BOX ─────────────────────────────────────────────────────────────
 
-test('T8 the box — the same modes, Events first and open; Search flights → opens Flights and asks for the top as Stay near it → does; the trip card follows the box and renders after the read; Add to trip presses through the trip; the app\'s travel tab is untouched', async () => {
+test('T8 the box — the same modes, Events first and open; Search flights → opens Flights and asks for the top as Stay near it → does; the trip card follows the box and renders after the read; Add to trip presses through the trip; a refused save is said where it was pressed (Q2); the app\'s travel tab is untouched', async () => {
   const { default: LandingBookingSection } = await import('../../components/landing/LandingBookingSection');
   const { default: TravelBox } = await import('../../components/landing/TravelBox');
   const { default: GuestTripStrip } = await import('../../components/landing/GuestTripStrip');
@@ -634,7 +660,7 @@ test('T8 the box — the same modes, Events first and open; Search flights → o
   assert.ok(whole.includes('data-stay-near="australian-open-2027"'));
   // a row's Add to trip, with the trip read: its words say its state; a press hands the box its row; no aria-pressed
   const pressed: string[] = [];
-  const drawn = (inTrip: boolean) => renderToStaticMarkup(React.createElement(AddToTripContext.Provider, { value: { inTrip: () => inTrip, onToggle: (r: Experience) => { pressed.push(r.id); } } },
+  const drawn = (inTrip: boolean) => renderToStaticMarkup(React.createElement(AddToTripContext.Provider, { value: { inTrip: () => inTrip, onToggle: (r: Experience) => { pressed.push(r.id); }, notSaved: () => null } },
     React.createElement(ExperiencesView, { rows: EXPERIENCES, today: TODAY, choice: { category: 'golf' }, onPick: noop })));
   assert.equal(count(drawn(false), `>${ADD_TO_TRIP}</button>`), 5);
   assert.equal(count(drawn(true), `>${IN_YOUR_TRIP}</button>`), 5);
@@ -644,24 +670,49 @@ test('T8 the box — the same modes, Events first and open; Search flights → o
   assert.ok(rowEl);
   let article: React.ReactNode;
   const RowHost = () => { article = (rowEl.type as (p: Record<string, unknown>) => React.ReactNode)(rowEl.props); return null; };
-  renderToStaticMarkup(React.createElement(AddToTripContext.Provider, { value: { inTrip: () => false, onToggle: (r: Experience) => { pressed.push(r.id); } } }, React.createElement(RowHost)));
+  renderToStaticMarkup(React.createElement(AddToTripContext.Provider, { value: { inTrip: () => false, onToggle: (r: Experience) => { pressed.push(r.id); }, notSaved: () => null } }, React.createElement(RowHost)));
   const add = elementsIn(article).find((el) => el.props['data-add'] !== undefined);
   assert.ok(add && add.type === 'button' && add.props.type === 'button');
   (add.props.onClick as () => void)();
   assert.deepEqual(pressed, ['masters-2027'], 'the press hands the box its row');
+  // Q2 (Alex, 2026-11-12): a refused save is said under the pressed row's buttons — that row alone — in the lookup's failure line, as an alert
+  const refusedRow = renderToStaticMarkup(React.createElement(AddToTripContext.Provider, { value: { inTrip: () => false, onToggle: noop, notSaved: (id: string) => (id === 'masters-2027' ? NOT_SAVED_ADD : null) } },
+    React.createElement(ExperiencesView, { rows: EXPERIENCES, today: TODAY, choice: { category: 'golf' }, onPick: noop })));
+  assert.equal(count(refusedRow, 'data-not-saved='), 1, 'one line, on the pressed row');
+  assert.match(refusedRow, new RegExp(`data-add="masters-2027"[^>]*>[\\s\\S]*?</div><p class="ts-tm-lookup__failure" role="alert" data-not-saved="masters-2027">${NOT_SAVED_ADD.replace(/'/g, '&#x27;')}</p></div><div class="ts-tm-row__foot">`), 'under its buttons, the last line of its body');
+  // …and under the trip card's ×, on the row it was pressed on — the trip as it was
+  const refusedCard = renderToStaticMarkup(React.createElement(GuestTripStrip, { trip: { bookings: [], events: [...BOARD] }, today: TODAY, onRequireAuth: noop, onStayNear: noop, onSearchFlights: noop, onRemove: () => false, notSaved: { id: BOARD[1], words: NOT_SAVED_REMOVE }, onNoEventLeft: noop }));
+  assert.equal(count(refusedCard, 'data-not-saved='), 1);
+  assert.match(refusedCard, new RegExp(`data-remove="${BOARD[1]}"[\\s\\S]*?</button></div><p class="ts-tm-lookup__failure" role="alert" data-not-saved="${BOARD[1]}">${NOT_SAVED_REMOVE.replace(/'/g, '&#x27;')}</p></li>`), 'the last line of that trip row');
+  assert.equal(count(refusedCard, 'data-trip-event='), 3, 'the trip as it was');
+  // Q1 (Alex, 2026-11-12): an unlisted event's row, drawn — "No longer listed", its stored id, no place, no Stay near it →, its ×
+  const goneCard = renderToStaticMarkup(React.createElement(GuestTripStrip, { trip: { bookings: [], events: ['renamed-event-2027'] }, today: TODAY, onRequireAuth: noop, onStayNear: noop, onSearchFlights: noop, onRemove: () => true, notSaved: null, onNoEventLeft: noop }));
+  assert.ok(goneCard.includes('<li class="ts-tm-trip__row" data-trip-event="renamed-event-2027" data-unlisted="true"><p class="ts-tm-trip__when">No longer listed</p><div class="ts-tm-trip__event"><p class="ts-tm-trip__name">renamed-event-2027</p></div><div class="ts-tm-trip__actions"><button class="ts-tm-remove" type="button" aria-label="Remove renamed-event-2027" data-remove="renamed-event-2027">'), 'its row, as ruled');
+  assert.ok(goneCard.includes('<p class="ts-tm-trip__summary" aria-live="polite" hidden=""></p>') && goneCard.includes('data-search-flights="true" hidden=""'), 'no summary and no gold button for it alone');
   // the source: what a press does, Search flights → as Stay near it →, the throw by name, the one read
   const wrapper = code(WRAPPER);
   assert.match(wrapper, /const searchFlights = useCallback\(\(\) => \{\n\s*setOpen\(FLIGHTS_KEY\);\n\s*setTops\(\(n\) => n \+ 1\);\n\s*\}, \[\]\);/, 'Flights open, one top asked for — the same top Stay near it → asks for');
   assert.match(wrapper, /^const FLIGHTS_KEY = 'flights';$/m);
   assert.match(wrapper, /if \(!ordered\.some\(\(m\) => m\.key === FLIGHTS_KEY\)\) throw new Error\(`LandingBookingSection: travelStripModes returned no '\$\{FLIGHTS_KEY\}' mode/, 'no Flights → a throw that names it');
-  assert.match(wrapper, /onToggle: \(row: Experience\) => \{\n\s*if \(trip\.events\.includes\(row\.id\)\) removeGuestTripEvent\(row\.id\);\n\s*else addGuestTripEvent\(row\.id\);\n\s*\},/, 'in the trip → out; out → in');
+  // ONE WRITE PER PRESS (Q2, Alex 2026-11-12): in the trip → out, out → in; every press clears the last line; the one refusal is said, any other error thrown
+  assert.match(wrapper, /onToggle: \(row: Experience\) => \{\n\s*write\(row\.id, !trip\.events\.includes\(row\.id\), 'row'\);\n\s*\},/, 'in the trip → out; out → in');
+  assert.match(wrapper, /const write = useCallback\(\(id: string, adding: boolean, where: 'row' \| 'card'\): boolean => \{\n\s*setNotSaved\(null\);\n\s*try \{\n\s*if \(adding\) addGuestTripEvent\(id\);\n\s*else removeGuestTripEvent\(id\);\n\s*return true;\n\s*\} catch \(err\) \{\n\s*if \(!\(err instanceof GuestTripWriteRefused\)\) throw err;\n\s*setNotSaved\(\{ id, where, words: adding \? NOT_SAVED_ADD : NOT_SAVED_REMOVE \}\);\n\s*return false;\n\s*\}\n\s*\}, \[\]\);/, 'the one refusal caught — everything else rethrown');
+  assert.equal(count(wrapper, 'catch ('), 1, 'and no other catch in the box');
+  assert.match(code(CARD), /if \(onRemove\(id\)\) focusNext\.current = next;/, 'a refused × leaves the focus on the pressed ×');
   assert.equal(count(wrapper, 'const trip = useGuestTrip();'), 1, 'the one read, for the card and every Add button');
   assert.doesNotMatch(wrapper, /sessionStorage|localStorage|\bfetch\s*\(|new Date\(|Date\.now\(/, 'the box stores nothing itself and sets no date');
   const card = code(CARD);
   assert.match(card, /useEffect\(\(\) => \{\n\s*const sync = \(\) => setTrip\(readGuestTripWhole\(\)\);\n\s*sync\(\);[^\n]*\n\s*window\.addEventListener\(GUEST_TRIP_EVENT, sync\);\n\s*return \(\) => window\.removeEventListener\(GUEST_TRIP_EVENT, sync\);\n\s*\}, \[\]\);/, 'read in an effect, after mount, and on every signal');
-  // the app's travel tab is untouched: the shared strip and ds.ts byte for byte as on main ca3fdc7, and the app still mounts the strip
+  // the app's travel tab is untouched: the shared strip byte for byte as on main (ca3fdc7, and ed10acc this PR rebased on — a later change to it
+  // re-pins here, dated), the classes it draws with as they were, and the app still mounts the strip
   assert.equal(digest('src/components/ui/ToggleStrip.tsx'), 'f41af2b60ebef66ed59f907c4a8c5af1fb3af5c28b78fa3a31282c05ee13dc1f', 'ToggleStrip.tsx, byte for byte');
-  assert.equal(digest('src/lib/ds.ts'), '17e731aef3a790c98052a4954beee8ce69efaec495b62a3f8e5ad42cbe49a9f5', 'ds.ts (DS.iconTab, the band), byte for byte');
+  assert.deepEqual([DS.STRIP, DS.BAND_BG, DS.iconTab(true), DS.iconTab(false), DS.toggleChip(true), DS.toggleChip(false)], [
+    'rounded-lg border border-border bg-bg-row p-4', 'rgb(var(--ts-purple))',
+    'flex flex-col items-center gap-1 rounded-t px-3 py-2 font-mono text-[11px] font-medium border-b-2 transition-colors border-brand-purple bg-brand-purple-wash text-brand-purple',
+    'flex flex-col items-center gap-1 rounded-t px-3 py-2 font-mono text-[11px] font-medium border-b-2 transition-colors border-transparent text-text-muted hover:bg-brand-purple-wash/50 hover:text-text-primary',
+    'px-3 py-1.5 font-mono text-xs font-medium bg-brand-purple text-white',
+    'px-3 py-1.5 font-mono text-xs font-medium border border-brand-purple/40 text-brand-purple hover:bg-brand-purple-wash',
+  ], 'DS.STRIP, the band, DS.iconTab and DS.toggleChip — what the strip draws with — as they were');
   assert.match(code('src/components/home/ModuleLauncher.tsx'), /<ToggleStrip\b/, 'the app\'s travel tab still draws the strip');
   assert.doesNotMatch(wrapper, /import ToggleStrip\b|<ToggleStrip\b/, 'the landing mounts it no more — it reads the strip\'s mode type alone');
   assert.match(wrapper, /^import type \{ ToggleMode \} from '@\/components\/ui\/ToggleStrip';$/m);
@@ -672,6 +723,7 @@ test('T8 the box — the same modes, Events first and open; Search flights → o
 test('T9 every word the new parts draw is a leaf\'s — the trip\'s in src/lib/guestTripWords.ts (the four GuestTripStrip.tsx typed among them), the row\'s beside STAY_NEAR_WORDS; the components type none', () => {
   assert.deepEqual([TRIP_EYEBROW, TRIP_PITCH, CREATE_FREE_ACCOUNT, TOTAL], ['Your trip so far', 'This trip lives in your browser — create a free account to save it, budget it, and map it to your runway.', 'Create free account', 'Total'], 'the four, word for word as BOOK-3 typed them');
   assert.deepEqual([SEARCH_FLIGHTS, DATES_NOT_ANNOUNCED, BACK_TO_BACK, OVERLAPS, NOT_STATED], ['Search flights →', 'dates not announced yet', 'Back to back', 'Overlaps the one above', '—']);
+  assert.deepEqual([NO_LONGER_LISTED, NOT_SAVED_ADD, NOT_SAVED_REMOVE], ['No longer listed', "Your browser didn't save this — nothing was added.", "Your browser didn't save this — nothing was taken out."], 'Q1 and Q2, the words Alex said yes to');
   assert.deepEqual([ADD_TO_TRIP, IN_YOUR_TRIP, STAY_NEAR_WORDS], ['Add to trip', 'In your trip', 'Stay near it →']);
   const words = code(WORDS);
   assert.ok(words.indexOf("export const ADD_TO_TRIP = 'Add to trip';") > words.indexOf("export const STAY_NEAR_WORDS = 'Stay near it →';"), 'beside STAY_NEAR_WORDS');
@@ -728,4 +780,16 @@ test('T10 each ruling is quoted, dated, where it is built — Alex\'s words exac
   assert.ok(said('src/lib/__tests__/buttons01.test.ts').includes('LOOK UP LEAVES PRIMARY_CTA'), 'and buttons01 says why its pin moved');
   // ONE GRADIENT, named at the stylesheet
   assert.ok(said(GLOBALS).includes('ONE GRADIENT, the gold button'), 'the gradient, named');
+  // Q1 and Q2 — Alex said yes to each recommendation on 2026-11-12: each named and dated where it is built, and the brief's recommendation, wherever a
+  // file of this change quotes it, exact
+  const REC = { Q1: 'keep its row, say it is no longer listed, and give it its × to remove it', Q2: 'say so where they pressed, and add nothing' } as const;
+  const BUILT = { Q1: [TRIP_WORDS, CARD], Q2: [TRIP_WORDS, STORE, CARD, WRAPPER, SECTION] } as const;
+  for (const q of ['Q1', 'Q2'] as const) {
+    for (const file of BUILT[q]) assert.match(said(file), new RegExp(`${q}\\b[^.]{0,30}Alex,? 2026-11-12`), `${file} names ${q}, Alex's ruling, and its day`);
+    let quoted = 0;
+    for (const file of [...FILES, 'src/lib/__tests__/homeTravel01.test.ts']) {
+      for (const m of said(file).matchAll(new RegExp(`"(${REC[q].split(' ').slice(0, 3).join(' ')}[^"]*)"`, 'g'))) { assert.equal(m[1], REC[q], `${file}: the ${q} recommendation, exact`); quoted += 1; }
+    }
+    assert.ok(quoted >= 3, `the ${q} recommendation is quoted where it is built (${quoted})`);
+  }
 });

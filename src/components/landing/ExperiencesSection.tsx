@@ -206,11 +206,12 @@ export function nothingUpcoming(categoryLabel: string): string {
 export const StayNearContext = createContext<((row: Experience) => void) | null>(null);
 
 /**
- * HOME-TRAVEL-01 (2026-11-12): what a row's "Add to trip" reads and does — whether the event is in the guest's trip, and the press (it adds
- * the event, or takes it out). The booking box provides it once it has read the trip (LandingBookingSection.tsx). Null, the default, means
+ * HOME-TRAVEL-01 (2026-11-12): what a row's "Add to trip" reads and does — whether the event is in the guest's trip, the press (it adds
+ * the event, or takes it out), and — Q2, ruled by Alex 2026-11-12 — the line to say under the pressed row when the browser refused to save
+ * it (null on every other row). The booking box provides it once it has read the trip (LandingBookingSection.tsx). Null, the default, means
  * no trip has been read: no row draws the button.
  */
-export const AddToTripContext = createContext<{ inTrip: (id: string) => boolean; onToggle: (row: Experience) => void } | null>(null);
+export const AddToTripContext = createContext<{ inTrip: (id: string) => boolean; onToggle: (row: Experience) => void; notSaved: (id: string) => string | null } | null>(null);
 
 /** EVENTS-03 (Alex, 2026-11-09): "Checked Nov 8, 2026" — the day a row was checked, in the foot of every card whose line does not already say it. */
 export function checkedWords(checkedOn: string): string {
@@ -278,6 +279,9 @@ const EXP = {
   // HOME-TRAVEL-01: the row's actions — Add to trip, then Stay near it →.
   actions: 'ts-tm-row__actions',
   add: 'ts-tm-add',
+  // HOME-TRAVEL-01 — Q2 (Alex, 2026-11-12): a refused save, said under the pressed buttons — the lookup's failure line (.ts-tm-lookup__failure: 14px,
+  // brand red, 8px under what it follows), the port's one red line; no rule is added for it.
+  notSaved: 'ts-tm-lookup__failure',
   // EVENTS-03 (2026-11-09): the checked words and the source link on one line, closing the row.
   rowFoot: 'ts-tm-row__foot',
   checked: 'ts-tm-checked',
@@ -326,6 +330,7 @@ function EventRow({ row, today }: { row: Experience; today: string }) {
   const onStayNear = useContext(StayNearContext);
   const trip = useContext(AddToTripContext);
   const inTrip = trip !== null && trip.inTrip(row.id);
+  const notSaved = trip === null ? null : trip.notSaved(row.id);
   const line = experienceLine(row, today);
   // EVENTS-03 (2026-11-09): the not-announced words already say "(checked …)" — read off the line, never a list of statuses.
   // EVENTS-04 (2026-11-09): either sentence — the edition's or the season's.
@@ -355,6 +360,9 @@ function EventRow({ row, today }: { row: Experience; today: string }) {
             )}
           </div>
         )}
+        {/* HOME-TRAVEL-01 — Q2 (Alex, 2026-11-12: "say so where they pressed, and add nothing"): the browser refused to save this row's press —
+            one line under its buttons, in the lookup's failure line (the port's one red line); the next press clears it. */}
+        {notSaved !== null && <p className={EXP.notSaved} role="alert" data-not-saved={row.id}>{notSaved}</p>}
       </div>
       {/* EVENTS-01c: every row names the page its dates came from.
           EVENTS-03: and the day it was checked, before the link, unless its line already says it. */}
