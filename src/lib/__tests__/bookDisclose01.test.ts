@@ -32,10 +32,13 @@ Object.assign(globalThis, { React });
 const LEAF = 'src/lib/disclosureWords.ts';
 const LANDING = 'src/components/landing/Landing.tsx';
 const SELF = 'src/lib/__tests__/bookDisclose01.test.ts';
-const MOUNT = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />'; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking mount carries the experiences catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then
+// HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking mount carries the experiences catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then.
+// HOME-TRAVEL-01 (Alex, 2026-11-12): and the server's day, for the trip card under the box — '… onRequireAuth={onRequireAuth} events={…} />' until then.
+const MOUNT = '<LandingBookingSection onRequireAuth={onRequireAuth} today={today} events={<ExperiencesSection today={today} />} />';
 const WRAPPER = 'src/components/landing/LandingBookingSection.tsx';
 // HOME-FINISH-02 (2026-11-10): the ruled <p>, inside the box. Until then, in Landing.tsx under the box: '<p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>'.
-const LINE = '<p className="mt-3 text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>';
+// HOME-TRAVEL-01 (2026-11-12): in the reference's class (.ts-tm-disclosure, src/app/globals.css) — '<p className="mt-3 text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>' until then.
+const LINE = '<p className="ts-tm-disclosure" data-commission-line>{COMMISSION_LINE}</p>';
 /** The four modes whose bookings can pay, by the builder's keys (src/lib/disclosureWords.ts says why these). */
 const PAYING = ['flights', 'hotels', 'transit', 'activities'];
 type El = React.ReactElement<Record<string, unknown>>;
@@ -70,7 +73,8 @@ test('T2 the line (HOME-FINISH-02, 2026-11-10): inside the booking box — the l
   for (const gone of ['COMMISSION_LINE', 'data-commission-line', 'disclosureWords']) assert.ok(!landing.includes(gone), `Landing.tsx carries no ${gone} — the box renders the line`);
   assert.doesNotMatch(landing, /When you book here/, 'the words are never typed in Landing.tsx');
   const mount = landing.indexOf(MOUNT);
-  const lookup = landing.indexOf('<div className="mt-6 border-t border-border-light pt-4" data-guest-lookup-home>');
+  // HOME-TRAVEL-01 (2026-11-12): the lookup's seat wears the reference's .ts-tm-lookup — '<div className="mt-6 border-t border-border-light pt-4" data-guest-lookup-home>' until then.
+  const lookup = landing.indexOf('<div className="ts-tm-lookup" data-guest-lookup-home>');
   assert.ok(mount > -1 && lookup > mount, 'the booking mount, then the guest lookup');
   assert.match(landing.slice(mount + MOUNT.length, lookup), /^\s*(\{\s*\}\s*)*$/, 'the box → the lookup: a comment between, nothing else — no line under the box');
   // the wrapper's source: the import, the ruled <p> once, the four keys, the throw by name; the words never typed
@@ -82,19 +86,21 @@ test('T2 the line (HOME-FINISH-02, 2026-11-10): inside the booking box — the l
   assert.match(wrapper, /for \(const key of PAYING_KEYS\) \{\n\s*if \(!ordered\.some\(\(m\) => m\.key === key\)\) throw new Error\(`LandingBookingSection: travelStripModes returned no '\$\{key\}' mode/, 'a paying key the builder does not return → a throw that names it');
   assert.doesNotMatch(wrapper, /When you book here/, 'the words are never typed in the wrapper');
   // the box, as it hands its panels to the strip: the sentence is the last line of exactly the four
+  // HOME-TRAVEL-01 (2026-11-12): the box is the landing's own view of the same modes (TravelBox.tsx) — ToggleStrip until then ('the shared
+  // strip, once'); it is handed the same list, and the wrapper is handed the server's day for the trip card under the box.
   const { travelStripModes } = await import('../../components/trips/travelStripModes');
   const { default: LandingBookingSection } = await import('../../components/landing/LandingBookingSection');
-  const { default: ToggleStrip } = await import('../../components/ui/ToggleStrip');
+  const { default: TravelBox } = await import('../../components/landing/TravelBox');
   const catalog = React.createElement('section', { id: 'events' }, 'the catalog');
   const onRequireAuth = () => {};
   let returned: React.ReactNode;
-  const Host = () => { returned = LandingBookingSection({ onRequireAuth, events: catalog }); return null; };
+  const Host = () => { returned = LandingBookingSection({ onRequireAuth, today: '2026-11-12', events: catalog }); return null; };
   assert.equal(renderToStaticMarkup(React.createElement(Host)), '');
-  const strips = elementsIn(returned).filter((el) => el.type === ToggleStrip);
-  assert.equal(strips.length, 1, 'the shared strip, once');
-  const modes = strips[0].props.modes as ToggleMode[];
+  const boxes = elementsIn(returned).filter((el) => el.type === TravelBox);
+  assert.equal(boxes.length, 1, 'the box, once');
+  const modes = boxes[0].props.modes as ToggleMode[];
   const built = travelStripModes({ onRequireAuth, authed: false, eventsAnchor: '#events' });
-  const SENTENCE = `<p class="mt-3 text-xs text-text-secondary" data-commission-line="true">${COMMISSION_LINE}</p>`;
+  const SENTENCE = `<p class="ts-tm-disclosure" data-commission-line="true">${COMMISSION_LINE}</p>`; // HOME-TRAVEL-01 (2026-11-12): class="mt-3 text-xs text-text-secondary" until then
   assert.deepEqual(modes.map((m) => m.key).filter((key) => PAYING.includes(key)), PAYING, 'the four paying tabs are in the box');
   for (const m of modes) {
     const drawn = renderToStaticMarkup(React.createElement(React.Fragment, null, m.panel));
@@ -104,10 +110,11 @@ test('T2 the line (HOME-FINISH-02, 2026-11-10): inside the booking box — the l
     assert.equal(drawn, renderToStaticMarkup(React.createElement(React.Fragment, null, made.panel)) + SENTENCE, `${m.key}: the builder's panel, then the sentence — its last line`);
   }
   // drawn whole: four sentences, each closing its panel; the Events panel (open) carries none
-  const whole = renderToStaticMarkup(React.createElement(LandingBookingSection, { onRequireAuth, events: catalog }));
+  const whole = renderToStaticMarkup(React.createElement(LandingBookingSection, { onRequireAuth, today: '2026-11-12', events: catalog }));
   assert.equal(count(whole, SENTENCE), 4, 'four panels carry it');
   assert.equal(count(whole, `${SENTENCE}</div>`), 4, 'and each is the last thing in its panel');
-  assert.ok(whole.includes('<div class="block"><section id="events">the catalog</section></div>'), 'the Events panel is the catalog alone');
+  // HOME-TRAVEL-01 (2026-11-12): the open panel is the box's panel (TravelBox.tsx) — '<div class="block"><section id="events">…' until then.
+  assert.ok(whole.includes('<div class="ts-tm-panel" data-panel="events"><section id="events">the catalog</section></div>'), 'the Events panel is the catalog alone');
 });
 
 test('T3 the stronger claim, "I earn a commission", is in no file\'s code under src/', () => {

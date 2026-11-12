@@ -14,12 +14,17 @@
  * 2026-11-08) reversed. Its words, its href and its hook are unchanged; the pill's own pins are tripCards03.test.ts's.
  *
  *   T1 PRIMARY_CTA exported with the exact string, beside CONTROL, dated; the app's two buttons unchanged;
- *   T2 the three users (four until TRIPCARDS-03, five until HOME-SERVICES-01, both 2026-11-12) wear it with no display or height class of their own — only mt-3 (the jump link), shrink-0 and
- *      disabled:opacity-60 (the lookup) beside it; their words, hrefs and hooks unchanged;
+ *   T2 the two users (three until HOME-TRAVEL-01, four until TRIPCARDS-03, five until HOME-SERVICES-01, all 2026-11-12) wear it with no display or
+ *      height class of their own — only mt-3 (the jump link) beside it (and shrink-0 and disabled:opacity-60, the lookup's, until HOME-TRAVEL-01);
+ *      their words, hrefs and hooks unchanged;
  *   T3 no ghost border (`border-brand-purple/40`) left in Landing.tsx, WasHereSection.tsx, PlansSection.tsx,
  *      GuestBookingLookup.tsx or travelStripModes.tsx;
  *   T4 the three re-pins, the REPAINT-04 way: each new hash matches its file; each note dated; each old hash kept; the base
  *      records them; the two views cite ds.ts by name and no file says "ds.ts:225".
+ * HOME-TRAVEL-01 (Alex's brief, 2026-11-12; the board approved on the design canvas at 20:26: "ok I approve the travel market place") —
+ * LOOK UP LEAVES PRIMARY_CTA. The board draws it as the travel section's quiet pill (.ts-tm-quiet, beside Create free account), so it is
+ * no longer one of the users: T2 holds the two that remain and the lookup's pill. This reverses HOME-FINISH-01's "like lookup, purple"
+ * (Alex, 2026-11-08) for this one button; every other user, and the class itself, are unchanged.
  * Source is read through code() and comments() only. No clock, no network.
  */
 import { test } from 'node:test';
@@ -52,7 +57,7 @@ test('T1 PRIMARY_CTA is exported with the exact string — the shape in the clas
   assert.equal(CONTROL.ghostButton, 'rounded border border-brand-purple/40 px-4 py-2 text-sm font-medium text-brand-purple transition-colors hover:bg-brand-purple-wash', 'the app\'s ghost, unchanged');
 });
 
-test('T2 the three users wear PRIMARY_CTA bare (four until TRIPCARDS-03, 2026-11-12: Read the post → is the quiet pill now; five until HOME-SERVICES-01, 2026-11-12: the proposal button is gold now) — no display or height class of their own; only mt-3, shrink-0 and disabled:opacity-60 beside it; words, hrefs and hooks unchanged', () => {
+test('T2 the two users wear PRIMARY_CTA bare (three until HOME-TRAVEL-01, 2026-11-12: the lookup\'s Look up is the quiet pill now; four until TRIPCARDS-03, 2026-11-12: Read the post → is the quiet pill now; five until HOME-SERVICES-01, 2026-11-12: the proposal button is gold now) — no display or height class of their own; only mt-3 beside it; words, hrefs and hooks unchanged', () => {
   const plans = code(PLANS);
   assert.match(plans, /import \{ DATA, PRIMARY_CTA \} from '@\/lib\/ds';/);
   assert.match(plans, /\nconst CTA = PRIMARY_CTA;/);
@@ -78,15 +83,20 @@ test('T2 the three users wear PRIMARY_CTA bare (four until TRIPCARDS-03, 2026-11
   assert.match(trip, /\n {2}link: 'ts-story-card__post',/, 'the quiet pill: the port\'s class (tripCards03.test.ts holds its rule)');
   assert.match(trip, /<a href=\{href\} className=\{TRIP\.link\} data-was-here-post-link>\{READ_THE_POST\}<\/a>/, 'the post link\'s words and hook unchanged');
   assert.match(trip, /export const READ_THE_POST = 'Read the post →';/);
+  // HOME-TRAVEL-01 (Alex, 2026-11-12 20:26: "ok I approve the travel market place" — the board draws Look up as the quiet pill, beside Create free
+  // account): the lookup no longer wears PRIMARY_CTA. Until then: assert.match(lookup, /import \{ PRIMARY_CTA \} from '@\/lib\/ds';/) and the button
+  // '<button type="submit" disabled={busy} className={`${PRIMARY_CTA} shrink-0 disabled:opacity-60`} data-guest-open>' — "like lookup, purple" (Alex,
+  // 2026-11-08). Its type, disabled, data-guest-open and words are unchanged.
   const lookup = code(LOOKUP);
-  assert.match(lookup, /import \{ PRIMARY_CTA \} from '@\/lib\/ds';/);
-  assert.match(lookup, /<button type="submit" disabled=\{busy\} className=\{`\$\{PRIMARY_CTA\} shrink-0 disabled:opacity-60`\} data-guest-open>\n\s*Look up\n\s*<\/button>/, 'its type, disabled and data-guest-open unchanged');
+  assert.doesNotMatch(lookup, /PRIMARY_CTA|@\/lib\/ds/, 'the lookup imports and wears no PRIMARY_CTA');
+  assert.match(lookup, /<button type="submit" disabled=\{busy\} className="ts-tm-quiet ts-tm-lookup__button" data-guest-open>\n\s*Look up\n\s*<\/button>/, 'the quiet pill — its type, disabled and data-guest-open unchanged');
   const strip = code(STRIP);
   assert.match(strip, /import ComingSoonSection from '@\/components\/home\/ComingSoonSection'; import \{ PRIMARY_CTA \} from '@\/lib\/ds';/, 'the import rides an existing line — travelStripModes.tsx:181 is cited by number');
   assert.match(strip, /<a\n\s*href=\{eventsAnchor\}\n\s*className=\{`mt-3 \$\{PRIMARY_CTA\}`\}\n\s*>\n\s*Jump to them ↓\n\s*<\/a>/, 'the jump link: its href and its words unchanged');
-  // nothing beside the class but the three ruled extras
+  // nothing beside the class but the ruled extra — HOME-TRAVEL-01 (2026-11-12): the lookup's 'shrink-0 disabled:opacity-60' left with it (['mt-3',
+  // 'shrink-0 disabled:opacity-60'] until then)
   const worn = [...[plans, landing, trip, lookup, strip].join('\n').matchAll(/`([^`]*\$\{PRIMARY_CTA\}[^`]*)`/g)].map((m) => m[1].replace('${PRIMARY_CTA}', '').trim());
-  assert.deepEqual(worn.sort(), ['mt-3', 'shrink-0 disabled:opacity-60'], 'only mt-3, shrink-0 and disabled:opacity-60 ride beside it');
+  assert.deepEqual(worn.sort(), ['mt-3'], 'only mt-3 rides beside it');
 });
 
 test('T3 no ghost border left on the five public files', () => {

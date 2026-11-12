@@ -27,6 +27,9 @@
  *      WasHereSection.tsx import them and type neither; the trip log's h2 renders the leaf's word;
  *   T4 id={DEMO_ANCHOR} still renders once in Landing — on the third pillar's heading (HOME-FINISH-02; on the travel
  *      block's eyebrow row until then).
+ * HOME-TRAVEL-01 (Alex's brief, 2026-11-12; the board approved at 20:26): the travel block is the reference's cream band (.ts-tm) with the page
+ * container inside it (.ts-tm__inner), its heading in .ts-tm__title; the guest's strip left the page's list — it is the trip card under the booking
+ * box, inside the travel block (LandingBookingSection.tsx). T1, T2 and T4 are re-pointed, each with a dated note; ten places, eleven until then.
  * Source is read through code() only (the reader law). No line number, no clock, no live call.
  */
 import { test } from 'node:test';
@@ -40,7 +43,10 @@ const LEAF = 'src/lib/homeActWords.ts';
 
 // HOME-FINISH-02 (2026-11-10), Part 4: the travel section wears its own top and bottom padding (py-10) — the eyebrow row's pt-6 and the foot row's
 // pb-2 gave them until then, and both rows left. Until then: '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">'.
-const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 py-10 border-b border-border">';
+// HOME-TRAVEL-01 (Alex, 2026-11-12): the reference's cream band, its page container inside it — until then the section was itself the container:
+// '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 py-10 border-b border-border">'.
+const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="ts-tm">';
+const TRAVEL_INNER = '<div className="ts-tm__inner">';
 // HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila), in the brief's own words: "What We Do" keeps its element, its place and data-act-heading.
 // Only its look changes: the eyebrow. — the reference's heading box behind the house prefix. Until then (HOME-FINISH-02, Alex, 2026-11-10 20:56: the
 // heading in gold, one size up, alone in the page's container):
@@ -60,7 +66,9 @@ const HERO_OPEN = '<div className="ts-hero">';
 const HERO_CLOSE = '        </section>\n      </div>';
 // HOME-FINISH-02 (2026-11-10), Part 4: the anchor sits on the third pillar's heading. Until then this constant was ID_ROW, the eyebrow row:
 // '<div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">'.
-const ID_HEAD = '<h2 id={DEMO_ANCHOR} className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPLORE_PILLAR.heading}</h2>';
+// HOME-TRAVEL-01 (2026-11-12): in the reference's .ts-tm__title — '<h2 id={DEMO_ANCHOR} className="text-2xl sm:text-3xl font-medium tracking-tight
+// text-brand-purple">{EXPLORE_PILLAR.heading}</h2>' until then.
+const ID_HEAD = '<h2 id={DEMO_ANCHOR} className="ts-tm__title">{EXPLORE_PILLAR.heading}</h2>';
 /**
  * The twelve, in Alex's order. HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — the how-to and DONE-FOR-YOU moved above the travel
  * block, and "What We Do" joined the list as a place of its own (until then the eleven ran: the travel block · the booking box · the guest's strip ·
@@ -84,8 +92,10 @@ const MOUNTS: ReadonlyArray<readonly [string, string]> = [
   ['the travel block', TRAVEL_OPEN],
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): the purple band is gone — the experiences are the booking box's Events panel, inside the travel
   // block. Until then this entry was ['the experiences', '<ExperiencesSection today={today} />'], a block of its own between the travel block and the strip.
-  ['the booking box, the experiences inside it', '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />'],
-  ["the guest's strip", '<GuestTripStrip onRequireAuth={onRequireAuth} />'],
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): the booking mount is handed the server's day, for the trip card it renders under the box — and THE GUEST'S
+  // STRIP LEFT THIS LIST: it is that card, inside the travel block. Until then ["the guest's strip", '<GuestTripStrip onRequireAuth={onRequireAuth} />']
+  // stood here, between the booking box and Stop 0, and the box's mount read '<LandingBookingSection onRequireAuth={onRequireAuth} events={…} />'.
+  ['the booking box, the experiences inside it, the trip under it', '<LandingBookingSection onRequireAuth={onRequireAuth} today={today} events={<ExperiencesSection today={today} />} />'],
   ['Stop 0', '<StopZeroSection />'],
   ['MY TRIP', '<WasHereSection today={today} />'],
   // HOME-FINISH-02 (2026-11-10), Part 5: the door left the page — until then ['the door', '<section aria-label="How it all connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">'] stood here, and the list held twelve.
@@ -97,16 +107,17 @@ const count = (hay: string, needle: string): number => hay.split(needle).length 
 /** Whitespace collapsed, so a word broken across lines is still found. */
 const flat = (s: string): string => s.replace(/\s+/g, ' ');
 
-test('T1 the eleven, each once, in Alex\'s order (HOME-FINISH-02: plan → build → explore; the door left the page; HERO-CREST-01: the header lies over the hero): hero · header · "What We Do" · the how-to · DONE-FOR-YOU · travel · the booking box with the experiences inside it · guest strip · Stop 0 · MY TRIP · footer', () => {
+test('T1 the ten, each once, in Alex\'s order (HOME-FINISH-02: plan → build → explore; the door left the page; HERO-CREST-01: the header lies over the hero; HOME-TRAVEL-01: the guest\'s trip is a card in the travel block): hero · header · "What We Do" · the how-to · DONE-FOR-YOU · travel · the booking box with the experiences inside it and the trip under it · Stop 0 · MY TRIP · footer', () => {
   const landing = code(LANDING);
-  assert.equal(MOUNTS.length, 11);
+  assert.equal(MOUNTS.length, 10); // HOME-TRAVEL-01 (2026-11-12): eleven until then — the guest's strip had a place of its own
+  assert.equal(count(landing, '<GuestTripStrip'), 0, 'the guest\'s trip has no place of its own on the page — the booking box renders it');
   assert.equal(count(landing, 'aria-label="How it all connects"'), 0, 'the door to the 14 steps is not on this page');
   assert.equal(count(landing, 'PlansSection'), 0, 'the plans are mounted nowhere on this page — /pricing keeps them');
   assert.equal(count(landing, '<ExperiencesSection'), 1, 'the experiences are mounted once — in the booking box, never as a band of their own');
   for (const [name, mount] of MOUNTS) assert.equal(count(landing, mount), 1, `${name}: mounted exactly once`);
   const at = MOUNTS.map(([, mount]) => landing.indexOf(mount));
   assert.deepEqual(at, [...at].sort((a, b) => a - b), MOUNTS.map(([name]) => name).join(' → '));
-  assert.equal(new Set(at).size, 11, 'eleven places');
+  assert.equal(new Set(at).size, 10, 'ten places'); // HOME-TRAVEL-01 (2026-11-12): 'eleven places' until then
 });
 
 test('T2 "What We Do" (HOME-FINISH-02; HOME-PLANS-04: its box; About Us\'s type again since Alex\'s note on the built page): the data-act-heading h2 stands alone in its box, directly above the how-to; the travel block opens at its pillar\'s heading; its old label and headline are gone', () => {
@@ -130,7 +141,12 @@ test('T2 "What We Do" (HOME-FINISH-02; HOME-PLANS-04: its box; About Us\'s type 
   const travel = landing.indexOf(TRAVEL_OPEN);
   const idHead = landing.indexOf(ID_HEAD);
   assert.ok(travel > howTo && idHead > travel, 'the travel block stands below the how-to');
-  assert.match(landing.slice(travel + TRAVEL_OPEN.length, idHead), ONLY_COMMENTS, 'the travel section opens at its pillar\'s heading: a comment between, nothing else');
+  // HOME-TRAVEL-01 (2026-11-12): the page container opens inside the band, then the heading — until then the heading followed the section's
+  // opening tag with only a comment between.
+  const inner = landing.indexOf(TRAVEL_INNER, travel);
+  assert.ok(inner > travel && inner < idHead, 'the page container, inside the band, above the heading');
+  assert.match(landing.slice(travel + TRAVEL_OPEN.length, inner), ONLY_COMMENTS, 'the travel section → its page container: a comment between, nothing else');
+  assert.match(landing.slice(inner + TRAVEL_INNER.length, idHead), ONLY_COMMENTS, 'the travel section opens at its pillar\'s heading: a comment between, nothing else');
   // HOME-FINISH-02 (Alex, 2026-11-10 20:56), Part 4: the block's own label and headline left the page. Until then they stood under the id row,
   // inside the travel section — the label '>TRAVEL BOOKING &amp; EXPERIENCES</p>' (HOME-BRIEF-02: 'LIVE DEMO — TRAVEL' before that) and the
   // headline 'Search &amp; book travel — free today, no account needed.', each counted once: 'the label, then the headline, inside the travel section'.

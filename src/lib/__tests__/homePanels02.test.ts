@@ -27,6 +27,9 @@
  *      its two historical notes, MY TRIP, then the door's line (in place of THE PIPELINE header's) — lines moved, their
  *      words untouched (until then: MY TRIP, THE GUEST'S TRIP, DONE-FOR-YOU and its notes, THE PLANS, the door); the s08
  *      line the deck tests read, found by content in the deck's file (PIPELINE-PAGE-01 ended the Landing.tsx:1807 pins).
+ * HOME-TRAVEL-01 (Alex's brief, 2026-11-12; the board approved at 20:26): the guest's strip is the trip card under the booking box, INSIDE the travel
+ * block (LandingBookingSection.tsx renders it), so it has no place and no seam of its own on the page: the travel block's </section> → Stop 0, a comment
+ * between, and the travel band's own bottom line (.ts-tm, src/app/globals.css) closes that boundary. T1 and T2 are re-pointed, each with a dated note.
  * Source is read through code() and comments() only (the reader law). No clock.
  */
 import { test } from 'node:test';
@@ -40,12 +43,12 @@ const PLANS = 'src/components/offer/PlansSection.tsx';
 const DECK = 'src/components/landing/PipelineDeck.tsx'; // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — the header, its seam sentence and the ledger moved there whole
 
 const EXPERIENCES = '<ExperiencesSection today={today} />';
-const BOOKING = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />'; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking box, carrying the experiences catalog as its Events panel
+const BOOKING = '<LandingBookingSection onRequireAuth={onRequireAuth} today={today} events={<ExperiencesSection today={today} />} />'; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking box, carrying the experiences catalog as its Events panel. HOME-TRAVEL-01 (2026-11-12): and the server's day, for the trip card under the box ('… onRequireAuth={onRequireAuth} events={…} />' until then)
 // HOME-FINISH-02 (Alex, 2026-11-10 20:56), Part 4: the travel block's foot row left the page; its last child is the booking lookup, and that marks
 // the block's end now. Until then: TRAVEL_FOOT = 'One trip holds everything — plans, bookings, budget.'.
 const TRAVEL_FOOT = "<GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />";
 const MY_TRIP = '<WasHereSection today={today} />';
-const GUEST_STRIP = '<GuestTripStrip onRequireAuth={onRequireAuth} />';
+const GUEST_STRIP = '<GuestTripStrip onRequireAuth={onRequireAuth} />'; // HOME-TRAVEL-01 (2026-11-12): counted ZERO times now — the trip card renders inside the travel block (once, as the page's own act, until then)
 const STOP_ZERO = '<StopZeroSection />';
 const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />'; // HOME-BRIEF-03 (Alex, 2026-11-10): the how-to, between the plans and the services section. HOME-BRIEF-04 (2026-11-10): it IS the Software Plans — in the plans' seat, handed the door ('<HowToSection />' until then)
 // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the services section opens at the pillar's h2 ("Build Your Income."), and it is found from that. Until then
@@ -59,21 +62,24 @@ const SERVICES_MOUNT = '<ServicesSection />';
 const SERVICES_FILE = 'src/components/landing/ServicesSection.tsx';
 const SERVICES_FILE_OPEN = '<section id={SERVICES_ANCHOR} className="ts-ps" aria-labelledby="ps-title">';
 const SERVICES_FILE_HEAD = '<h2 className="ts-ps__title" id="ps-title">{BUILD_PILLAR.heading}</h2>';
-const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 py-10 border-b border-border">'; // (Part 4: the section wears py-10 — no padding of its own until then) HOME-FINISH-02 (2026-11-10): the travel block, third under "What We Do"
+const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="ts-tm">'; // (Part 4: the section wears py-10 — no padding of its own until then) HOME-FINISH-02 (2026-11-10): the travel block, third under "What We Do". HOME-TRAVEL-01 (2026-11-12): the reference's cream band — 'max-w-7xl mx-auto px-4 lg:px-8 py-10 border-b border-border' until then
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />"; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): no longer on this page — held here so T1 can say it is gone
 // HOME-FINISH-02 (2026-11-10), Part 5: the door left the home page — this pin is counted ZERO times now (once, as the last act, until then).
 const DOOR = '<section aria-label="How it all connects"'; // PIPELINE-PAGE-01 (2026-11-09): the door in the pipeline header's seat (HEADER was '<section aria-label="The pipeline"')
 /** code() blanks a JSX comment's words and keeps its braces — the guest law's own allowance. */
 const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
 
-test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → explore): the how-to → DONE-FOR-YOU → the travel block with the booking box → the guest strip → Stop 0 → MY TRIP, the last act — the door left the page; each once; nothing but a comment between each pair', () => {
+test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → explore): the how-to → DONE-FOR-YOU → the travel block with the booking box (and, HOME-TRAVEL-01, 2026-11-12, the trip card under it — the guest strip stood between the travel block and Stop 0 until then) → Stop 0 → MY TRIP, the last act — the door left the page; each once; nothing but a comment between each pair', () => {
   const landing = code(LANDING);
   const at = (s: string): number => { const i = landing.indexOf(s); assert.notEqual(i, -1, s); return i; };
   // HOME-SERVICES-01 (2026-11-12): the services section is found by its mount; its tag and its h2 are its own file's, once each. Until then
   // SECTION_OPEN and SERVICES_HEAD stood in this list, each once in Landing.tsx.
-  for (const s of [EXPERIENCES, BOOKING, GUEST_STRIP, HOW_TO, SERVICES_MOUNT, TRAVEL_OPEN, STOP_ZERO, MY_TRIP]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
+  for (const s of [EXPERIENCES, BOOKING, HOW_TO, SERVICES_MOUNT, TRAVEL_OPEN, STOP_ZERO, MY_TRIP]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
   for (const s of [SECTION_OPEN, SERVICES_HEAD]) assert.equal(landing.split(s).length - 1, 0, `${s.slice(0, 40)}… is no longer Landing.tsx's`);
   for (const s of [SERVICES_FILE_OPEN, SERVICES_FILE_HEAD]) assert.equal(code(SERVICES_FILE).split(s).length - 1, 1, `${s.slice(0, 40)}… once, in ServicesSection.tsx`);
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): the guest's strip is the card under the booking box, inside the travel block — GUEST_STRIP was counted once here until then.
+  assert.equal(landing.split(GUEST_STRIP).length - 1, 0, 'the guest\'s trip has no mount of its own on the page');
+  assert.equal(landing.split('<GuestTripStrip').length - 1, 0, 'in any form');
   assert.equal(landing.split(DOOR).length - 1, 0, 'the door to the 14 steps is no act of this page (HOME-FINISH-02) — the footer keeps it');
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): the purple band is gone — the catalog is mounted once, INSIDE the booking mount, as the box's
   // Events panel. Until then '<ExperiencesSection today={today} />' stood on its own between the travel block and the guest's strip, and this
@@ -92,16 +98,18 @@ test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → expl
   // DONE-FOR-YOU section's </section> → stop 0" as neighbour pairs.
   // HOME-SERVICES-01 (2026-11-12): the services section is its mount — until then this order read HOW_TO, SECTION_OPEN, SERVICES_HEAD, …, the
   // how-to → the services section ran to at(SECTION_OPEN), and the section ended at landing.indexOf('</section>', at(SERVICES_HEAD)).
-  const order = [HOW_TO, SERVICES_MOUNT, TRAVEL_OPEN, BOOKING, GUEST_STRIP, STOP_ZERO, MY_TRIP].map(at);
-  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the how-to → the services section → the travel block (the booking box, the experiences inside it) → the guest strip → stop 0 → my trip');
+  // HOME-TRAVEL-01 (2026-11-12): GUEST_STRIP left the order, between BOOKING and STOP_ZERO until then.
+  const order = [HOW_TO, SERVICES_MOUNT, TRAVEL_OPEN, BOOKING, STOP_ZERO, MY_TRIP].map(at);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the how-to → the services section → the travel block (the booking box, the experiences inside it, the trip under it) → stop 0 → my trip');
   assert.match(landing.slice(at(HOW_TO) + HOW_TO.length, at(SERVICES_MOUNT)), ONLY_COMMENTS, 'the how-to → the services section: a comment between, nothing else');
   const sectionEnd = at(SERVICES_MOUNT) + SERVICES_MOUNT.length;
   assert.ok(sectionEnd < at(TRAVEL_OPEN));
   assert.match(landing.slice(sectionEnd, at(TRAVEL_OPEN)), ONLY_COMMENTS, "the DONE-FOR-YOU section's </section> → the travel block: comments between, nothing else");
+  // HOME-TRAVEL-01 (2026-11-12): the travel block's </section> → Stop 0. Until then 'the travel block, which closes above the strip', 'the travel block's
+  // </section> → the strip: a comment between, nothing else — no band' and 'the strip → stop 0: a comment between, nothing else'.
   const travelEnd = landing.indexOf('</section>', at(TRAVEL_FOOT)) + '</section>'.length;
-  assert.ok(at(TRAVEL_FOOT) > at(BOOKING) && travelEnd > at(TRAVEL_FOOT) && travelEnd < at(GUEST_STRIP), 'the booking box sits in the travel block, which closes above the strip');
-  assert.match(landing.slice(travelEnd, at(GUEST_STRIP)), ONLY_COMMENTS, 'the travel block\'s </section> → the strip: a comment between, nothing else — no band');
-  assert.match(landing.slice(at(GUEST_STRIP) + GUEST_STRIP.length, at(STOP_ZERO)), ONLY_COMMENTS, 'the strip → stop 0: a comment between, nothing else');
+  assert.ok(at(TRAVEL_FOOT) > at(BOOKING) && travelEnd > at(TRAVEL_FOOT) && travelEnd < at(STOP_ZERO), 'the booking box sits in the travel block, which closes above stop 0');
+  assert.match(landing.slice(travelEnd, at(STOP_ZERO)), ONLY_COMMENTS, 'the travel block\'s </section> → stop 0: a comment between, nothing else — no band');
   assert.match(landing.slice(at(STOP_ZERO) + STOP_ZERO.length, at(MY_TRIP)), ONLY_COMMENTS, 'stop 0 → my trip: a comment between, nothing else');
   // HOME-FINISH-02 (2026-11-10), Part 5: MY TRIP is the last act. Until then: 'my trip → the door: a comment between, nothing else', the door last in the order.
   assert.ok(!landing.slice(at(MY_TRIP) + MY_TRIP.length, landing.indexOf('<LandingFooter />')).includes('<section'), 'my trip → the footer: no act between');
@@ -117,7 +125,12 @@ test('T2 the seams: one border-b per boundary from experiences to the door — m
   const tripAct = /\n {2}act: '([^']*)',/.exec(trip);
   const storyRule = /\n\.ts-story \{([^}]*)\}/.exec(code('src/app/globals.css'));
   assert.ok(tripAct && tripAct[1] === 'ts-story' && storyRule && storyRule[1].includes('border-bottom: 1px solid rgb(var(--ts-border));') && !/border-top|border:/.test(storyRule[1]), "my trip's border-b (the port's .ts-story, WasHereSection TRIP.act), no border-t");
-  assert.match(code(STRIP), /<section className="w-full border-b border-border bg-bg-terminal">/, "the guest strip's own border-b, when it renders");
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): the guest's strip is a card inside the travel block — no band and no rule of its own; the travel band's bottom line
+  // (.ts-tm's border-bottom) closes travel | Stop 0 whether or not the card renders. Until then: /<section className="w-full border-b border-border
+  // bg-bg-terminal">/ in GuestTripStrip.tsx — "the guest strip's own border-b, when it renders".
+  assert.match(code(STRIP), /<section className="ts-tm-trip" aria-label=\{TRIP_EYEBROW\} data-trip>/, 'the guest\'s trip: the card, inside the travel block');
+  assert.doesNotMatch(code(STRIP), /border-b|bg-bg-terminal|max-w-7xl/, 'no band and no rule of its own');
+  assert.match(code('src/app/globals.css'), /\n\.ts-tm \{ border-bottom: 1px solid rgb\(var\(--ts-border\)\);/, "the travel band's own bottom line closes travel | Stop 0");
   // HOME-FINISH-02 (2026-11-10): the section's opening tag gained its anchor (id={SERVICES_ANCHOR}); its classes — the seam — are unchanged. Until then: /<section className="w-full border-b border-border bg-bg-terminal">/g.
   // HOME-SERVICES-01 (2026-11-12): the section is ServicesSection.tsx's, and its rule is the reference's, ported (globals.css .ts-ps) — the
   // seam is the same: a bottom line, no top one. Until then: (landing.match(/<section id=\{SERVICES_ANCHOR\} className="w-full border-b

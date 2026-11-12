@@ -354,7 +354,9 @@ test('T7 Landing.tsx renders id={DEMO_ANCHOR}, its import on a line of its own; 
   const landing = code(LANDING);
   // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the eyebrow row left the page — the third pillar's heading carries the anchor. Until then:
   // '<div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">' ('the eyebrow row carries the anchor').
-  assert.equal(count(landing, '<h2 id={DEMO_ANCHOR} className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPLORE_PILLAR.heading}</h2>'), 1, 'the pillar\'s heading carries the anchor');
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): the heading wears the reference's .ts-tm__title, the pillars' size — until then the page's purple heading
+  // classes, 'text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple'. The anchor is unchanged.
+  assert.equal(count(landing, '<h2 id={DEMO_ANCHOR} className="ts-tm__title">{EXPLORE_PILLAR.heading}</h2>'), 1, 'the pillar\'s heading carries the anchor');
   assert.equal(count(landing, 'id={DEMO_ANCHOR}'), 1, 'once');
   assert.ok(!landing.includes('id="demo"'), 'never typed');
   assert.equal(landing.split('\n').filter((l) => /^import \{ DEMO_ANCHOR \} from '@\/lib\/homeAnchors';\s*$/.test(l)).length, 1, 'its import, on a line of its own');

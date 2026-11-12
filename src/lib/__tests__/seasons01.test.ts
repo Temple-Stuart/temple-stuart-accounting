@@ -208,7 +208,8 @@ test('T5 the section: ONE list — the I\'M INTO dropdown holds the nineteen eve
   assert.ok(!home.includes('>SEASONS<') && !home.includes('<optgroup') && !home.includes('role="group"'), 'no SEASONS label, no group heading, no row');
   assert.equal((home.match(/<select/g) ?? []).length, 1, 'one dropdown');
   // The label is drawn, not only named for a screen reader: a <p> right above the dropdown, which carries the same words as its name.
-  assert.match(home, new RegExp(`<p class="[^"]*">${asHtml(INTO_LABEL)}</p><select aria-label="${asHtml(INTO_LABEL)}"`), 'the I\'M INTO label, right above the dropdown it names');
+  // HOME-TRAVEL-01 (2026-11-12): the dropdown stands in its box (.ts-tm-select, with the reference's chevron) — '</p><select aria-label=…' until then.
+  assert.match(home, new RegExp(`<p class="[^"]*">${asHtml(INTO_LABEL)}</p><div class="ts-tm-select"><select aria-label="${asHtml(INTO_LABEL)}"`), 'the I\'M INTO label, right above the dropdown it names');
   // One choice across the whole list: the chosen category's option is selected, alone — an event one or a season one, the same way.
   const selectedIn = (html: string) => [...html.matchAll(/<option value="([^"]*)" selected="">/g)].map((m) => m[1]);
   assert.deepEqual(selectedIn(home), ['surfing']);
