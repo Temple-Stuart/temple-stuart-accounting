@@ -5,16 +5,24 @@
  * column under the heading "About Us"; the letter and the timeline went. T1, T3 and T4 hold the new content; T2 retired
  * with the timeline; T5 is as it was. The events band's line and its "Read my story ↓" link went the same day (Part 6):
  * T6 retired with the link, and T1 and T4 no longer hold the band's three words.
+ * HOME-ABOUT-01 (Alex, 2026-11-12 21:43 Manila: "ok last but not least , mock up that about me section"; the boards approved
+ * at 21:53): the section is drawn as design-refs/home-about-01/Section-Reference.html draws it — its classes the reference's
+ * behind the house prefix, the place line drawn as two parts (the stop, then the place), each quote as its two curly marks
+ * and its words, each part numbered, and the dates no longer italic. T1 (the words) and T5 (the mount) are as they were; T3
+ * (the rendered markup) and T4 (the source's opening tag and quote) are re-pointed, each change named where it stands. The
+ * port, the reference's markup and the helpers are held in src/lib/__tests__/homeAbout01.test.ts.
  *
  *   T1 the words — src/lib/stopZeroWords.ts exports exactly the ruled list; the anchor, the place, the dates and the three
  *      sections (heading, paragraphs, quote) are Alex's text, exact and in order; the heading is "About Us";
  *   T2 RETIRED (HOME-BRIEF-02, 2026-11-10) — it held the timeline, which is gone;
- *   T3 the section, rendered — id="stop-0" once, the h2, the place, the dates in italics, then the three sections in
- *      order, each its h3, its paragraphs and its quote LAST; twenty paragraphs, three quotes; the whole markup equal to
- *      that and nothing else (no grid, no card, no timeline, no list);
+ *   T3 the section, rendered — id="stop-0" once, the h2, the stop and the place, the dates (upright since HOME-ABOUT-01;
+ *      "in italics" until then), then the three sections in order, each its number, its h3, its paragraphs and its quote
+ *      LAST; twenty paragraphs, three quotes; the whole markup equal to that and nothing else (no grid, no card, no timeline,
+ *      no list);
  *   T4 the source — the section and the band type none of the words (they import them, whitespace collapsed so a word
  *      broken across lines is still found) and never retype the anchor; the section has no state, no fetch, no clock and
- *      no hex; the leaf is pure and imports nothing; nothing of the old story is left in either;
+ *      no hex; the leaf is pure and imports nothing; nothing of the old story is left in either. HOME-ABOUT-01: the
+ *      section's opening tag wears the port's class, and its quote is drawn as its marks and its words;
  *   T5 Landing — mounts the section once, directly between the DONE-FOR-YOU section and the MY TRIP mount (nothing but a
  *      comment between each — HOME-ORDER-01, 2026-11-10: Alex's order; directly under the experiences mount until then),
  *      and its import shares a line with the ExperiencesSection import;
@@ -117,27 +125,44 @@ test('T1 the words module exports exactly the ruled list, and every word is Alex
 
 // ── T3 · THE SECTION, RENDERED ───────────────────────────────────────────────
 
-test('T3 the section renders id="stop-0" once, the h2 "About Us", the place, the dates in italics, then the three sections — each its h3, its paragraphs and its quote last — in one column, and nothing else (HOME-BRIEF-02, 2026-11-10)', () => {
+test('T3 the section renders id="stop-0" once, the h2 "About Us", the stop and the place, the dates (upright — HOME-ABOUT-01), then the three sections — each its number, its h3, its paragraphs and its quote last — in one column, and nothing else (HOME-BRIEF-02, 2026-11-10; HOME-ABOUT-01, 2026-11-12)', () => {
   const html = renderToStaticMarkup(React.createElement(StopZeroSection));
-  const head = `<section id="${STOP_ZERO_ANCHOR}" aria-label="About us" class="w-full border-b border-border bg-bg-terminal"><div class="max-w-7xl mx-auto px-4 lg:px-8 py-10 lg:py-14">`;
+  // HOME-ABOUT-01 (Alex, 2026-11-12 21:43 Manila; the boards approved at 21:53): the reference's markup, its classes behind the house prefix
+  // (design-refs/home-about-01/Section-Reference.html). Until then: '<section id="stop-0" aria-label="About us" class="w-full border-b border-border
+  // bg-bg-terminal"><div class="max-w-7xl mx-auto px-4 lg:px-8 py-10 lg:py-14">'.
+  const head = `<section id="${STOP_ZERO_ANCHOR}" aria-label="About us" class="ts-about"><div class="ts-about__inner">`;
+  // The place line, drawn as two parts — the stop, then the place — typed here a second time so that a changed split fails by name.
+  const [STOP_WORD, PLACE_WORDS] = ['Stop 0', 'Los Angeles, California 🇺🇸'];
+  assert.equal(`${STOP_WORD} | ${PLACE_WORDS}`, STOP_ZERO_PLACE, 'the two parts are the leaf\'s line, split at its " | "');
   const top = [
-    // HOME-FINISH-02 (Alex, 2026-11-10 20:56): a section heading — gold, one size up ('mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple' until then)
-    `<h2 class="mt-3 text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold">${ABOUT_US_HEADING}</h2>`,
-    `<p class="mt-3 text-sm font-semibold text-text-primary">${asHtml(STOP_ZERO_PLACE)}</p>`,
-    `<p class="mt-1 text-sm italic text-text-secondary">${asHtml(STOP_ZERO_DATES)}</p>`,
+    // HOME-FINISH-02 (Alex, 2026-11-10 20:56): a section heading — gold, one size up ('mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple' until then).
+    // HOME-ABOUT-01 (2026-11-12): the act headings' type without its 'mt-3', as What We Do's wears it — 'mt-3 text-3xl sm:text-4xl font-medium tracking-tight
+    // text-brand-gold' until then.
+    `<div class="ts-about__column"><h2 class="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold">${ABOUT_US_HEADING}</h2>`,
+    // HOME-ABOUT-01 (2026-11-12): the stop, the place and the dates on one line that wraps. Until then: '<p class="mt-3 text-sm font-semibold text-text-primary">'
+    // with the place line whole, then '<p class="mt-1 text-sm italic text-text-secondary">' — the dates in italics (HOME-BRIEF-02).
+    `<div class="ts-about__meta"><span class="ts-about__stop">${STOP_WORD}</span><p class="ts-about__place">${asHtml(PLACE_WORDS)}</p><p class="ts-about__dates">${asHtml(STOP_ZERO_DATES)}</p></div></div>`,
   ].join('');
-  const parts = STOP_ZERO_STORY.map((part) => [
-    `<div class="mt-10"><h3 class="max-w-2xl text-lg font-semibold text-text-primary">${asHtml(part.heading)}</h3>`,
-    ...part.paragraphs.map((p) => `<p class="mt-4 max-w-2xl text-base leading-relaxed text-text-primary">${asHtml(p)}</p>`),
-    `<blockquote class="mt-6 max-w-2xl text-xl font-semibold leading-snug text-brand-purple">${asHtml(part.quote)}</blockquote></div>`,
+  // HOME-ABOUT-01 (2026-11-12): each part its number (01, 02, 03), its h3 and its paragraphs in the column, then its quote — its two curly marks and its
+  // words. Until then: '<div class="mt-10"><h3 class="max-w-2xl text-lg font-semibold text-text-primary">', each paragraph '<p class="mt-4 max-w-2xl
+  // text-base leading-relaxed text-text-primary">', and the quote whole, '<blockquote class="mt-6 max-w-2xl text-xl font-semibold leading-snug
+  // text-brand-purple">…</blockquote></div>'.
+  const parts = STOP_ZERO_STORY.map((part, i) => [
+    `<div class="ts-about-part"><div class="ts-about__column"><p class="ts-about-part__number" aria-hidden="true">${['01', '02', '03'][i]}</p><h3 class="ts-about-part__title">${asHtml(part.heading)}</h3>`,
+    ...part.paragraphs.map((p) => `<p class="ts-about-part__text">${asHtml(p)}</p>`),
+    `</div><blockquote class="ts-about-part__quote"><span class="ts-about-part__mark">“</span>${asHtml(part.quote.slice(1, -1))}<span class="ts-about-part__mark">”</span></blockquote></div>`,
   ].join('')).join('');
-  // The whole section, byte for byte: the act, its inner box, the heading, the place, the dates, the three sections — nothing else, nothing between.
+  // The whole section, byte for byte: the act, its inner box, the heading, the stop, the place, the dates, the three sections — nothing else, nothing between.
   assert.equal(html, `${head}${top}${parts}</div></section>`);
   assert.equal(count(html, 'id="stop-0"'), 1, 'id="stop-0" once');
   assert.equal(count(html, '<h2'), 1, 'one h2');
-  assert.match(html, /<h2 class="[^"]*">About Us<\/h2><p class="[^"]*">Stop 0 \| Los Angeles, California 🇺🇸<\/p><p class="[^"]*\bitalic\b[^"]*">January to June 2026<\/p>/, 'the heading, the place, then the dates in italics');
+  // HOME-ABOUT-01 (2026-11-12): the heading, the stop, the place, then the dates — upright. Until then: the heading, the place line whole, then the dates in
+  // italics (/<h2 class="[^"]*">About Us<\/h2><p class="[^"]*">Stop 0 \| Los Angeles, California 🇺🇸<\/p><p class="[^"]*\bitalic\b[^"]*">January to June 2026<\/p>/).
+  assert.match(html, /<h2 class="[^"]*">About Us<\/h2><div class="[^"]*"><span class="[^"]*">Stop 0<\/span><p class="[^"]*">Los Angeles, California 🇺🇸<\/p><p class="ts-about__dates">January to June 2026<\/p><\/div>/, 'the heading, the stop, the place, then the dates');
+  assert.equal(count(html, 'italic'), 0, 'nothing is italic: the dates wear the trip cards\' date look (HOME-ABOUT-01 reverses HOME-BRIEF-02\'s "the dates in italics")');
   assert.deepEqual([...html.matchAll(/<h3 class="[^"]*">([^<]*)<\/h3>/g)].map((m) => m[1]), ['Why I Built Temple Stuart', 'The Idea Behind Temple Stuart', 'Our Story Is Still Being Written'], 'the three headings, in his order');
-  assert.equal(count(html, 'text-base leading-relaxed text-text-primary'), 20, 'twenty paragraphs: four, seven, nine');
+  // HOME-ABOUT-01 (2026-11-12): each paragraph's class is the port's. Until then: count(html, 'text-base leading-relaxed text-text-primary').
+  assert.equal(count(html, '<p class="ts-about-part__text">'), 20, 'twenty paragraphs: four, seven, nine');
   assert.equal(count(html, '<blockquote'), 3, 'three quotes');
   assert.equal(count(html, '</blockquote></div>'), 3, 'each quote is the last thing in its section');
   for (const gone of ['<ol', '<li', 'grid', 'rounded-lg', 'HOW I GOT HERE', '— Alex', 'STOP 0', 'None of the blogs']) assert.equal(count(html, gone), 0, `no "${gone}" — no grid, no card, no timeline, nothing of the old story`);
@@ -163,9 +188,13 @@ test('T4 the section and the band type none of the words; the section holds no s
   assert.doesNotMatch(band, /stopZeroWords|STOP_ZERO_ANCHOR|EVENTS_STORY_|READ_MY_STORY|EXP\.story/, 'the band reads nothing of Stop 0\'s leaf');
   for (const gone of ['WHY EVENTS FIRST', 'Read my story', 'In 5th grade']) assert.ok(!flatBand.includes(gone) && !code(WORDS).includes(gone), `"${gone}" is typed in neither the band nor the leaf`);
   assert.ok(!section.includes('stop-0') && !band.includes('stop-0'), 'the anchor is the leaf\'s, never retyped — in either file, in any form');
-  assert.match(section, /<section id=\{STOP_ZERO_ANCHOR\} aria-label="About us" className="w-full border-b border-border bg-bg-terminal">/, 'the section takes its id from the leaf');
+  // HOME-ABOUT-01 (2026-11-12): the section wears the port's class (src/app/globals.css .ts-about). Until then: className="w-full border-b border-border bg-bg-terminal".
+  assert.match(section, /<section id=\{STOP_ZERO_ANCHOR\} aria-label="About us" className=\{STOP\.section\}>/, 'the section takes its id from the leaf');
+  assert.match(section, /\n {2}section: 'ts-about',\n/, 'the section\'s class is the port\'s, and only that');
   assert.match(section, /<h2 className=\{STOP\.h2\}>\{ABOUT_US_HEADING\}<\/h2>/, 'the h2 is the headings leaf\'s');
-  assert.match(section, /<blockquote className=\{STOP\.quote\}>\{part\.quote\}<\/blockquote>\s*<\/div>/, 'the quote is the last thing its section draws');
+  // HOME-ABOUT-01 (2026-11-12): the quote is drawn as its two curly marks and its words (quoteParts). Until then: <blockquote className={STOP.quote}>{part.quote}</blockquote>.
+  assert.match(section, /<blockquote className=\{STOP\.quote\}><span className=\{STOP\.mark\}>\{quote\.open\}<\/span>\{quote\.words\}<span className=\{STOP\.mark\}>\{quote\.close\}<\/span><\/blockquote>\s*<\/div>/, 'the quote is the last thing its section draws');
+  assert.match(section, /const quote = quoteParts\(part\.quote\);/, 'its marks and words are the leaf\'s quote, split');
   assert.doesNotMatch(section, /\buse(State|Effect|Reducer|Ref|Router|SearchParams)\b|\bfetch\s*\(|new Date\(|Date\.now\(|toLocale|\bIntl\.|localStorage|sessionStorage|document\.cookie/, 'no state, no fetch, no clock, no storage');
   assert.doesNotMatch(section, /#[0-9a-fA-F]{3,8}\b/, 'zero new hex');
   assert.doesNotMatch(section, /stopZeroTimeline|WAS_HERE|<ol\b|<li\b|\bgrid\b|STOP\.card/, 'no timeline, no list, no grid, no card');
