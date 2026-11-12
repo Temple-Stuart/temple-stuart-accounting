@@ -19,7 +19,7 @@ import { BUILT_ON } from '@/lib/builtOnWall';
  *
  * PUBLIC (middleware PUBLIC_PATHS '/how-it-works'): a static page — no route handler, no fetch, no paid call, no
  * database read, no env read, no session read. The /my-trip/[id] precedent: LandingHeader (no handlers — its Log in
- * and Create account fall back to links to '/', LandingHeader.tsx:72-75, :85-90), the view, LandingFooter. The title
+ * falls back to a link to '/'; HERO-CREST-01, 2026-11-11: "and Create account … LandingHeader.tsx:72-75, :85-90" until then — that button left the bar), the view, LandingFooter. The title
  * and the description come from ./pipelineWords.ts: the description is the deck header's own sub, imported, never
  * retyped (a 'use client' module's values cannot be read here, so the sentence lives in that leaf).
  * BUILTON-01 (2026-11-09): one file check, at build — per Built on logo slot, does public/logos/<slug>.svg exist

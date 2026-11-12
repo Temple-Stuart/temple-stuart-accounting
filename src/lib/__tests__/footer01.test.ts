@@ -23,7 +23,8 @@
  *      (Until then: footerBlogLinks(TRIP_POSTS) — Book travel, Events, Stop 0, My trip, then one link per written post.)
  *   T3 the other three columns, exactly: SERVICES (the three pillars on their sections), SOCIALS (the five accounts, the
  *      bar's own hrefs), THE RECORD (the 14 steps, the code, the licence — no arrows; the last two external); CODE_URL is
- *      LandingHeader.tsx's GitHub href. (Until then: FOOTER_RECORD_LINKS — the door's words and path, then the code.)
+ *      the URL the hero's "Clone it on GitHub" opens — HERO-CREST-01 (Alex, 2026-11-11): LandingHeader.tsx's GitHub ↗ until
+ *      then; it left the top bar. (Until HOME-FINISH-02: FOOTER_RECORD_LINKS — the door's words and path, then the code.)
  *   T4 the footer renders the four columns once, above the disclaimer, then the bar; every column link as listed, in
  *      order, in the ruled classes; the socials each an icon beside its name; no word or href typed in the component.
  *      (Until then: two columns.)
@@ -162,7 +163,7 @@ test('T2 footerStoryLinks(WAS_HERE): Stop 0, then one link per stop of the trip 
 
 // ── T3 · SERVICES, SOCIALS, THE RECORD ───────────────────────────────────────
 
-test('T3 the other three columns, exactly — SERVICES: the three pillars on their sections; SOCIALS: the five accounts, the bar\'s own hrefs; THE RECORD: the 14 steps, the code, the licence, no arrows; CODE_URL is LandingHeader.tsx\'s GitHub href', () => {
+test('T3 the other three columns, exactly — SERVICES: the three pillars on their sections; SOCIALS: the five accounts, the bar\'s own hrefs; THE RECORD: the 14 steps, the code, the licence, no arrows; CODE_URL is the hero\'s Clone-it-on-GitHub href (HERO-CREST-01: the top bar links GitHub no more)', () => {
   // HOME-FINISH-02 (2026-11-10). Until then this test read 'T3 FOOTER_RECORD_LINKS exactly — the door's words and path from pipelineWords.ts, then
   // the code, external': [{ label: PIPELINE_DOOR, href: PIPELINE_PATH }, { label: 'Built in public: the code ↗', href: CODE_URL, external: true }],
   // with PIPELINE_DOOR = 'How it all connects: the 14 steps →' and "import { PIPELINE_DOOR, PIPELINE_PATH } from '@/components/landing/pipelineWords';".
@@ -198,8 +199,13 @@ test('T3 the other three columns, exactly — SERVICES: the three pillars on the
   assert.match(words, /^import \{ PIPELINE_PATH \} from '@\/components\/landing\/pipelineWords';$/m, 'the path from the words leaf');
   assert.doesNotMatch(words, /PipelineDeck|PIPELINE_DOOR/, 'never from the deck\'s \'use client\' file; the door\'s old words are read no more');
   for (const f of [WORDS, FOOTER]) assert.doesNotMatch(code(f), /open[ -]?source/i, `${f}: the licence is the Business Source License — never called open source`);
-  const header = [...code(HEADER).matchAll(/href="(https:\/\/github\.com\/[^"]*)"/g)].map((m) => m[1]);
-  assert.deepEqual(header, [CODE_URL], 'LandingHeader.tsx\'s GitHub ↗ opens the same URL');
+  // HERO-CREST-01 (Alex, 2026-11-11: "remove github, the icon is enough, we dont need it 2x"): "GitHub ↗" left the top bar. Until then these lines
+  // read code(HEADER)'s github.com hrefs into `header` and held them equal to [CODE_URL] — 'LandingHeader.tsx's GitHub ↗ opens the same URL'. The
+  // same URL is still opened above the footer by the hero's "Clone it on GitHub" (Landing.tsx — the licence pill that stood above the headline left the hero too), so
+  // that is the link held equal now, and the bar is held to none.
+  const githubHrefs = (file: string): string[] => [...code(file).matchAll(/href="(https:\/\/github\.com\/[^"]*)"/g)].map((m) => m[1]);
+  assert.deepEqual(githubHrefs(HEADER), [], 'the top bar links GitHub no more');
+  assert.deepEqual(githubHrefs(LANDING), [CODE_URL], 'the hero\'s Clone it on GitHub opens the same URL — the home page\'s one typed GitHub link');
 });
 
 // ── T4 · THE FOOTER RENDERS THE FOUR COLUMNS ABOVE THE DISCLAIMER ────────────

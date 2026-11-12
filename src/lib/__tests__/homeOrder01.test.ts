@@ -2,8 +2,10 @@
  * HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story") — the home page's blocks stand in Alex's
  * order, under two headings. A MOVE of existing JSX: every block whole, with the comment above it; nothing copied.
  *
- *   T1 the eleven, each once, in the order: header · hero · "What We Do" · the how-to · DONE-FOR-YOU · the travel block ·
- *      the booking box (the experiences inside it) · the guest's strip · Stop 0 · MY TRIP · footer —
+ *   T1 the eleven, each once, in the order: hero · the header laid over it · "What We Do" · the how-to · DONE-FOR-YOU · the
+ *      travel block · the booking box (the experiences inside it) · the guest's strip · Stop 0 · MY TRIP · footer —
+ *      HERO-CREST-01 (Alex, design canvas, 2026-11-11): the top bar lies OVER the hero, inside its band, so the band opens first
+ *      and the header follows it (header · hero until then: a cream bar above a solid band);
  *      HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE, and (Part 5) the door to the 14 steps left the page
  *      — twelve with it, between MY TRIP and the footer, until then. Before HOME-FINISH-02 eleven, in the order header · hero · the
  *      travel block · the booking box (the experiences
@@ -14,7 +16,8 @@
  *   T2 "What We Do" — HOME-FINISH-02: the h2 that carries data-act-heading stands ALONE in the page's container, in
  *      gold and one size up, directly above the how-to; the travel block opens at its pillar's heading — its eyebrow row,
  *      label and headline left with Part 4 (until HOME-FINISH-02: the travel section's FIRST child, in the page's purple
- *      heading classes, above the id row, the block's own label and headline following);
+ *      heading classes, above the id row, the block's own label and headline following). HERO-CREST-01 (2026-11-11): "under
+ *      the hero" is under the band's own close — the band is a <div> holding the crest, the header and one <section>;
  *   T3 the two headings come from the leaf (src/lib/homeActWords.ts — pure, no directive); Landing.tsx and
  *      WasHereSection.tsx import them and type neither; the trip log's h2 renders the leaf's word;
  *   T4 id={DEMO_ANCHOR} still renders once in Landing — on the third pillar's heading (HOME-FINISH-02; on the travel
@@ -38,6 +41,11 @@ const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w
 const HEADING = '<h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>';
 const HEADING_BOX = '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">';
 const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />';
+// HERO-CREST-01 (Alex, design canvas, 2026-11-11): the hero is the reference's band (design-refs/hero-crest-01/Hero-Reference.html) — a <div> that
+// holds the crest, the top bar and ONE <section>, the copy. It opens here and ends at that section's close and its own. Until then the hero was
+// itself the <section> — '<section className="bg-brand-purple text-white pb-14 pt-12">' — and ended at the first '</section>' after its opening tag.
+const HERO_OPEN = '<div className="ts-hero">';
+const HERO_CLOSE = '        </section>\n      </div>';
 // HOME-FINISH-02 (2026-11-10), Part 4: the anchor sits on the third pillar's heading. Until then this constant was ID_ROW, the eyebrow row:
 // '<div id={DEMO_ANCHOR} className="flex items-baseline justify-between gap-3 pt-6">'.
 const ID_HEAD = '<h2 id={DEMO_ANCHOR} className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPLORE_PILLAR.heading}</h2>';
@@ -49,8 +57,12 @@ const ID_HEAD = '<h2 id={DEMO_ANCHOR} className="text-2xl sm:text-3xl font-mediu
  * handed the door. (HOME-BRIEF-03, 2026-11-10: the how-to joined — eleven before it, twelve with it.)
  */
 const MOUNTS: ReadonlyArray<readonly [string, string]> = [
-  ['the header', '<LandingHeader onRequireLogin={onRequireLogin} onRequireAuth={onRequireAuth} />'],
-  ['the hero', '<section className="bg-brand-purple text-white pb-14 pt-12">'],
+  // HERO-CREST-01 (Alex, design canvas, 2026-11-11): THE TOP BAR LIES OVER THE HERO — the band opens, then the header, glass, inside it. Until then
+  // the two stood the other way round, a cream bar above a solid band: ['the header', '<LandingHeader onRequireLogin={onRequireLogin}
+  // onRequireAuth={onRequireAuth} />'] then ['the hero', '<section className="bg-brand-purple text-white pb-14 pt-12">']. The bar's CREATE FREE
+  // ACCOUNT button left it by Alex's ruling, and the mount's onRequireAuth with it.
+  ['the hero', HERO_OPEN],
+  ['the header, laid over it', '<LandingHeader glass onRequireLogin={onRequireLogin} />'],
   ['What We Do', HEADING],
   ['the how-to', HOW_TO], // HOME-BRIEF-03 (Alex, 2026-11-10): the services display; HOME-BRIEF-04: the Software Plans itself, in the plans' seat; HOME-FINISH-02: first under "What We Do"
   ['DONE-FOR-YOU', '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'], // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then
@@ -70,7 +82,7 @@ const count = (hay: string, needle: string): number => hay.split(needle).length 
 /** Whitespace collapsed, so a word broken across lines is still found. */
 const flat = (s: string): string => s.replace(/\s+/g, ' ');
 
-test('T1 the eleven, each once, in Alex\'s order (HOME-FINISH-02: plan → build → explore; the door left the page): header · hero · "What We Do" · the how-to · DONE-FOR-YOU · travel · the booking box with the experiences inside it · guest strip · Stop 0 · MY TRIP · footer', () => {
+test('T1 the eleven, each once, in Alex\'s order (HOME-FINISH-02: plan → build → explore; the door left the page; HERO-CREST-01: the header lies over the hero): hero · header · "What We Do" · the how-to · DONE-FOR-YOU · travel · the booking box with the experiences inside it · guest strip · Stop 0 · MY TRIP · footer', () => {
   const landing = code(LANDING);
   assert.equal(MOUNTS.length, 11);
   assert.equal(count(landing, 'aria-label="How it all connects"'), 0, 'the door to the 14 steps is not on this page');
@@ -90,12 +102,16 @@ test('T2 "What We Do" (HOME-FINISH-02): the data-act-heading h2 stands alone in 
   // nothing between the section's opening tag and the heading, and a comment between the heading and the id row.
   const alone = `${HEADING_BOX}\n        ${HEADING}\n      </div>`;
   assert.equal(count(landing, alone), 1, 'alone in the page\'s container: max-w-7xl mx-auto px-4 lg:px-8 pt-10');
-  const hero = landing.indexOf('<section className="bg-brand-purple text-white pb-14 pt-12">');
+  // HERO-CREST-01 (2026-11-11): the hero's end is the band's own close (HERO_CLOSE). Until then: `const hero = landing.indexOf('<section
+  // className="bg-brand-purple text-white pb-14 pt-12">')`, and the hero ended at `landing.indexOf('</section>', hero)`.
+  const hero = landing.indexOf(HERO_OPEN);
+  const heroEnd = landing.indexOf(HERO_CLOSE, hero);
   const box = landing.indexOf(alone);
   const howTo = landing.indexOf(HOW_TO);
-  assert.ok(hero > -1 && box > landing.indexOf('</section>', hero) && howTo > box, 'under the hero, above the how-to');
+  assert.ok(hero > -1 && heroEnd > hero && box > heroEnd && howTo > box, 'under the hero, above the how-to');
+  assert.equal(count(landing.slice(hero, heroEnd + HERO_CLOSE.length), '<section'), 1, 'the band holds one <section> — the copy — and closes right after it');
   assert.match(landing.slice(box + alone.length, howTo), ONLY_COMMENTS, 'the heading → the how-to: comments between, nothing else');
-  assert.match(landing.slice(landing.indexOf('</section>', hero) + '</section>'.length, box), ONLY_COMMENTS, 'the hero → the heading: comments between, nothing else');
+  assert.match(landing.slice(heroEnd + HERO_CLOSE.length, box), ONLY_COMMENTS, 'the hero → the heading: comments between, nothing else');
   const travel = landing.indexOf(TRAVEL_OPEN);
   const idHead = landing.indexOf(ID_HEAD);
   assert.ok(travel > howTo && idHead > travel, 'the travel block stands below the how-to');

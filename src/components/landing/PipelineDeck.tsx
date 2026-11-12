@@ -30,7 +30,7 @@
  * essay is the copy's source — a copy change is an essay change first), DECK LAW #7 (show, don't echo), PR-COLLAPSE,
  * the RUST NOTE and ADDING A TEACHING SLIDE. The SEAM LEDGER over deck-01 moved whole with the markup; its rows from
  * the hero down to the pipeline header are the home page as it stood until this move. The seams on this page:
- * LandingHeader's border-b | the header (which draws no border-t); the header's border-b | 01 (01 draws none — its
+ * LandingHeader's border-b (HERO-CREST-01, 2026-11-11: the bar is a filled pill on the page's cream now and draws no rule — cream meets cream) | the header (which draws no border-t); the header's border-b | 01 (01 draws none — its
  * exception, unchanged); each step's own border-t when open, its bar's border when closed; 14 | the footer — the
  * footer's aubergine band closes it by colour.
  */
@@ -1811,8 +1811,8 @@ export default function PipelineDeck() {
             NO "FIRST GOLD ON THE PAGE" CLAIM IS MADE HERE, because every
             version of that claim has turned out false. Gold already appears
             ABOVE this act in three places, two of them outside this file:
-            the header's CTA fill (LandingHeader.tsx:80,87), the hero's
-            MONEY_ACTION CTA fill (this file, the hero act), and — whenever a
+            the header's CTA fill (LandingHeader.tsx:80,87 — until HERO-CREST-01, 2026-11-11: that button left the bar, whose gold is the Log in pill now), the hero's
+            MONEY_ACTION CTA fill (this file, the hero act — until HERO-CREST-01, 2026-11-11: the hero's button is the crest design's gold pill, in Landing.tsx), and — whenever a
             guest has trip records — GuestTripStrip's money numerals, which are
             text-brand-gold, i.e. gold INK, not just fill
             (GuestTripStrip.tsx:53,65). What IS true and worth recording: among

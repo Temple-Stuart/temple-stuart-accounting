@@ -2,7 +2,7 @@
 
 /**
  * HowToSection — FINANCIAL SOFTWARE, the first pillar on the guest landing (Landing.tsx mounts it; the section carries
- * id="modules", the anchor the checkout's cancel link, the /modules pages and the footer's first link land on).
+ * id="modules", the anchor the checkout's cancel link, the /modules pages, the footer's first link and — since HERO-CREST-01, 2026-11-11 — the top bar's first link land on).
  *
  * PILLAR-NAMES-01 (Alex, 2026-11-11): the pillar is named "Financial Software" — "Plan Your Escape." until then, so
  * the dated notes below, and in the files around this one, still call it that. The name is the leaf's

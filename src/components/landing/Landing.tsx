@@ -6,7 +6,7 @@
  * zero new hex; every colour is a token.
  *
  * THE ACTS, in document order:
- *   hero (full-bleed aubergine band)
+ *   hero (HERO-CREST-01, 2026-11-11: the crest design — a violet ground, the crest, the top bar laid over it as glass; a full-bleed aubergine band until then)
  *   (HOME-FINISH-02, 2026-11-10: THE ORDER IS PLAN → BUILD → EXPLORE — "What We Do" stands alone over THE PLANS, then DONE-FOR-YOU, then LIVE DEMO — TRAVEL with the experiences in its box and THE GUEST'S TRIP under it. The lines below were re-ordered, their words unchanged; until then the list ran LIVE DEMO — TRAVEL, EXPERIENCES, THE GUEST'S TRIP, THE PLANS, DONE-FOR-YOU. Stop 0, named on the EXPERIENCES line, still sits above MY TRIP.)
  *   THE PLANS           — four plan cards and one comparison table
  *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
@@ -414,7 +414,7 @@ interface Props {
 }
 
 // REPAINT-2 (Direction C): the local HERO_BG radial-glow const DIED — the
-// hero is a SOLID aubergine band (bg-brand-purple) on the cream page. The
+// hero was a SOLID aubergine band (bg-brand-purple) on the cream page from then until HERO-CREST-01 (2026-11-11 — the crest design, at its mount below). The
 // ELEV-2c/CARD-POP glow recipe died with it: every former CARD_BG mount in
 // this file is a flat card + lavender hairline now (deck/services = bg-white,
 // summary slides = bg-ts-white card cream, wall tiles = solid aubergine).
@@ -455,38 +455,50 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
 
   return (
     <div className="min-h-screen bg-bg-terminal text-text-primary">
-      {/* HEADER-CTA: onRequireAuth passed through so the header's Create
-          account button is the SAME register opener as the hero CTA. */}
-      <LandingHeader onRequireLogin={onRequireLogin} onRequireAuth={onRequireAuth} />
+      {/* ── HERO-CREST-01 (Alex, design canvas, 2026-11-11) — THE HERO, AS DRAWN. The spec is a file, not this note:
+            design-refs/hero-crest-01/Hero-Reference.html ("every value in its stylesheet is the design"), with its
+            README beside it. This band is that file's markup, element for element, and its classes are the reference's
+            own with the house prefix (.hero → .ts-hero …); their rules are the reference's own, ported to the foot of
+            src/app/globals.css, and the colours they read are tokens there (--ts-hero-*, --ts-glass-*). No colour is
+            typed in this file.
+              · THE GROUND — a violet sweep with a bloom behind the crest and a warm corner bottom right (.ts-hero).
+              · THE CREST — one <picture>, so only one file downloads: public/brand/hero-crest-desktop.svg from 1024px,
+                hero-crest-mobile.svg under it. Generated art, used as files: never redrawn, traced or hand-edited.
+                Decorative (alt="", aria-hidden) — the headline says what the page is.
+              · THE TOP BAR lies over the band as glass (`glass` — LandingHeader.tsx; every other mount gets the same
+                pill filled) and scrolls away with it. It stays a child of the band, outside the <section>, so it is
+                still the page's banner.
+              · THE HEADLINE — COMPANY_LINE's three sentences (src/lib/brandLines.ts), each a <span> the stylesheet
+                puts on its own line; the third is gold. THE SUBLINE — HERO_SUBLINE, the same leaf.
+              · TWO PILL BUTTONS, each with the handler or href it had: "Create free account" (onRequireAuth — the
+                register opener) and "Clone it on GitHub" (the repo, in a new tab), which now carries GitHub's mark —
+                public/logos/github.svg, the folder's own source (simple-icons), drawn through a mask so it takes the
+                button's ink and its hover — then the label, then the arrow from 1024px.
+            GONE, BY ALEX'S RULING (2026-11-11): the "✦ Source-available · BSL 1.1" pill that opened the hero — "the BSL
+            we have down in the footer, so lets just remove it from the hero". The footer's Software License link
+            (LICENSE_URL, src/lib/footerWords.ts) is the licence's door on this page. "GitHub ↗" and "CREATE FREE
+            ACCOUNT" left the bar by his rulings of the same day (LandingHeader.tsx); the header's onRequireAuth went
+            with the latter, so this button is the page's first register ask.
+            HISTORY, until this design: the band was a SOLID aubergine <section> (bg-brand-purple, REPAINT-2) under a
+            cream bar; its headline was bold with <br /> between the sentences and the third in the lavender wash
+            (brand-purple-wash — REPAINT-2 (E), after the gradient clip died; HOME-LINES-01, 2026-11-08, moved the words
+            to COMPANY_LINE); its primary button was the flat MONEY_ACTION gold, its secondary a bordered ghost reading
+            "Clone it on GitHub ↗" (HERO-REPO-1); the pill was HERO-PRESENCE's. Direction C's ban on gradients (globals.css, REPAINT-5: "gradients are banned under Direction C") stood on
+            this band from REPAINT-2 until this design, which draws one here and on the top bar and changes no other surface. ──── */}
+      <div className="ts-hero">
+        <picture className="ts-hero__crest">
+          <source media="(min-width: 1024px)" srcSet="/brand/hero-crest-desktop.svg" />
+          <img src="/brand/hero-crest-mobile.svg" alt="" aria-hidden="true" />{/* eslint-disable-line @next/next/no-img-element */}
+        </picture>
 
-      {/* ── Hero — the house Bloomberg treatment; copy + CTAs verbatim.
-            REPAINT-2: a SOLID aubergine full-bleed band (the glow died). ──── */}
-      <section className="bg-brand-purple text-white pb-14 pt-12">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="max-w-3xl">
-            {/* HERO-PRESENCE: the idea-state badge pill — first element in the
-                hero; the ✦ glyph wears the pop accent. */}
-            <a
-              href="https://github.com/Temple-Stuart/temple-stuart-accounting/blob/main/LICENSE"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 mb-6"
-            >
-              {/* REPAINT-2: the pop glyph re-inks lavender — pop is invisible
-                  on the aubergine band. */}
-              <span className="text-brand-purple-wash" aria-hidden="true">✦</span>
-              Source-available · BSL 1.1
-            </a>
-            <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">
-              {COMPANY_LINE[0]}<br />
-              {COMPANY_LINE[1]}<br />
-              {/* REPAINT-2 (E): the gradient clip died. The separable final
-                  segment wears the LAVENDER tint (brand-purple-wash #eae7f2)
-                  — brand-purple-hover (#4e3e85) measures ~1.4:1 against the
-                  aubergine band, illegible; the wash holds the family and
-                  reads. Copy untouched.
-                  HOME-LINES-01, 2026-11-08: the words are COMPANY_LINE, src/lib/brandLines.ts; the wash stays on the third */}
-              <span className="text-brand-purple-wash">{COMPANY_LINE[2]}</span>
+        <LandingHeader glass onRequireLogin={onRequireLogin} />
+
+        <section className="ts-hero__inner" aria-labelledby="hero-title">
+          <div className="ts-hero__copy">
+            <h1 className="ts-hero__title" id="hero-title">
+              <span>{COMPANY_LINE[0]}</span>
+              <span>{COMPANY_LINE[1]}</span>
+              <span>{COMPANY_LINE[2]}</span>
             </h1>
             {/* OFFER-01 (2026-09-23): the hero's registry count is GONE. It read
                 "Twenty-five tools, counted: two live, nine partial, fourteen on the
@@ -496,42 +508,32 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
                 buys it. The count stays in the registry and the audit trail.
                 (COCKPIT-PERF-01, 2026-10-27: "three plans" stood here — PLANS holds
                 four: personal, business, trading, everything.) */}
-            <p className="mb-6 max-w-xl text-base text-white/70">
-              {HERO_SUBLINE}
-            </p>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <p className="ts-hero__subline">{HERO_SUBLINE}</p>
+            <div className="ts-hero__cta">
               {/* HERO-REPO-1 (Alex's rationale): the hosted product leads —
-                  "Create free account" is the promoted white CTA. The repo
-                  joins as the bordered-ghost secondary: cloning requires
+                  "Create free account" is the promoted CTA. The repo
+                  joins as the secondary: cloning requires
                   provisioning every API (LiteAPI / Plaid / Stripe /
                   Anthropic / …) — most won't, many can't, and Alex sells setup
                   for those who want it; open-sourcing extends the honesty
                   thesis to the code. "See how it works ↓" left the hero (the
                   booking strip sits right below anyway; the demo trigger moved
                   to the pillar-deck header). */}
-              {/* REPAINT-2: the gradient died — the primary CTA is the
-                  MONEY_ACTION gold (bg-brand-gold + /90 hover) at the hero's
-                  own size/padding. */}
-              <button
-                type="button"
-                onClick={onRequireAuth}
-                className="px-6 py-3 bg-brand-gold text-white font-medium hover:bg-brand-gold/90 text-sm text-center"
-              >
-                Create free account
-              </button>
+              <button type="button" onClick={onRequireAuth} className="ts-pill-gold ts-cta-primary">Create free account</button>
               <a
+                className="ts-cta-secondary"
                 href="https://github.com/Temple-Stuart/temple-stuart-accounting"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-6 py-3 border border-white/40 text-white font-medium hover:bg-white/10 text-sm text-center"
               >
-                Clone it on GitHub ↗
+                <span className="ts-github-mark" aria-hidden="true" />
+                <span>Clone it on GitHub</span>
+                <svg className="ts-cta-arrow" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6" /></svg>
               </a>
             </div>
           </div>
-
-        </div>
-      </section>
+        </section>
+      </div>
 
       {/* ── HOME-FINISH-02 (Alex's brief "HOME-FINISH | Temple Stuart Homepage Copy, Layout & Footer", 2026-11-10 20:56):
             THE ORDER under the hero is PLAN → BUILD → EXPLORE. "What We Do" stands alone, in gold and one size up, over
@@ -647,7 +649,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             whole booking surfaces + result rows, not just a form.
             REPAINT-2: the mount moved OUT of the hero section (one JSX seat
             down, same props, zero wiring) — the hero is a solid aubergine
-            band now, so the strip sits on the cream page where its own
+            band now (it was, until HERO-CREST-01, 2026-11-11: the crest design's violet ground since), so the strip sits on the cream page where its own
             aubergine band (ds.BAND_BG) reads as a band. DECLARED INTERIM:
             the strip's INTERIOR (travel pickers/results) stays dark until
             Slice 4's trips pass. */}
@@ -662,7 +664,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           resolve to the OFFER now, not to this demo.
           id="demo" is NOT dropped — an element carries one id, so it sits on
           the eyebrow row a few px below. It has no href pointing at it in src/
-          today (the nav's Live-demo link retired, LandingHeader.tsx:35), but an
+          today (the nav's Live-demo link retired, LandingHeader.tsx:53-54 — :35 until HERO-CREST-01, 2026-11-11, which moved that note into the file's header; the top bar links it again, as its third product link, BAR_PRODUCT_LINKS), but an
           external bookmark costs nothing to keep alive.
           FOOTER-01 (2026-11-09): the id is DEMO_ANCHOR now (src/lib/homeAnchors.ts), and two links land on it — the footer's "Book travel" and the trip page's "Book the stay and the flight" (TripPostView.tsx BOOK_HREF, since TRIPPOST-01) — so "no href pointing at it" above is history.
 
@@ -671,7 +673,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           number. The numbered acts start below it at 01.
 
           SEAM: border-b, and it closes from BELOW on purpose. Above is the
-          hero, whose aubergine-to-cream edge is the page's one deliberate
+          hero, whose aubergine-to-cream edge (violet-to-cream since HERO-CREST-01, 2026-11-11) is the page's one deliberate
           zero-rule boundary, so a border-t here would be the defect the seam
           ledger warns about. Closing from below also single-rules the
           GuestTripStrip case — see the ledger on the problem section.

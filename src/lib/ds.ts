@@ -37,7 +37,7 @@ export const SURFACE = {
 
 /* REPAINT-3: HERO_BG DELETED — the hero radial glow died with the dark
  * shell; both heroes (Landing + HomeClient, the HOME-HERO-PARITY pair) are
- * solid bg-brand-purple bands now. */
+ * solid bg-brand-purple bands now. HERO-CREST-01 (Alex, design canvas, 2026-11-11): the landing's left that pair — its ground, its pills and the top bar are the crest design's, drawn by .ts-hero / .ts-bar at the foot of src/app/globals.css from the --ts-hero-* and --ts-glass-* tokens (DESIGN.md); no constant here. Two rulings in this file stop at that surface: "no glow anywhere" (CARD_BG's note, below) — the hero has a bloom behind its crest; and gold "reserved for money-moving actions" (MONEY_ACTION) — the design's Log in is a gold pill, in the hero's own gold. */
 
 /** PR-STRIP-DESIGN-2 → STRIP-FLAT-BAND: the booking strip's band. The
  *  4-layer glow composition died (the STRIP-VISUAL-2 audit: the electric

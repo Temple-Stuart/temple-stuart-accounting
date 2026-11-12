@@ -97,6 +97,40 @@
   --ts-accent:      184 134 11;   /* #B8860B = --ts-gold (RULING 3 fold) */
   --ts-accent-dark: 158 115 9;    /* #9E7309 — keeps the old accent→dark depth (≈0.86× per channel) */
 
+  /* ── HERO-CREST-01 (Alex, design canvas, 2026-11-11): THE GUEST HERO AND THE TOP BAR — their own colours ────
+     The approved hero (design-refs/hero-crest-01) brings colours the palette did not hold: a violet ground, a
+     lighter ink, a brighter gold. Adding a colour is a design change (DESIGN.md), and this is one — so each lands
+     here as a token, NAMED AND VALUED AS design-refs/hero-crest-01/README.md's TABLE (the reference's stylesheet
+     writes them --hero-* and --glass-*; the house prefix --ts- is added, nothing else). tailwind.config.ts maps
+     them as the `hero` and `glass` families. Hex where the stylesheet reads the token solid; space-separated RGB
+     channels where it reads it at an alpha — rgb(var(--ts-hero-bloom) / 0.5). (One hex is also drawn at an alpha
+     without its token: the open menu's panel is hero-well at 86%, typed as the reference types it.) Read by the
+     hero's and the bar's stylesheet at the foot of this file, and by nothing else yet. ──────────────────────── */
+  /* the ground: one diagonal sweep (155deg, stops 0 / 34 / 68 / 100%) and two blooms; the filled bar uses 1–3 */
+  --ts-hero-violet-1:    #6A33E0;                    /* the sweep, start */
+  --ts-hero-violet-2:    #4D1FBC;                    /* the sweep, 34% */
+  --ts-hero-violet-3:    #32118A;                    /* the sweep, 68% — and the band's flat colour under the gradients */
+  --ts-hero-violet-4:    #210A5E;                    /* the sweep, end */
+  --ts-hero-bloom:       162 107 255;                /* the light behind the crest: 50% → 16% at 45% → 0 at 72% */
+  --ts-hero-orchid:      217 70 239;                 /* the warm corner, bottom right: 28% → 10% → 0 (20% → 7% → 0 under 1024px) */
+  /* ink */
+  --ts-hero-ink:         #FAF8F4;                    /* headline, wordmark, menu rows */
+  --ts-hero-ink-soft:    #E4E0F2;                    /* subline */
+  --ts-hero-ink-nav:     #E8E4F5;                    /* the bar's links */
+  --ts-hero-gold:        #F6C95C;                    /* the headline's third sentence, link hover, focus ring */
+  /* the gold pills: 135deg, stops 0 / 52 / 100%, at 97% / 95% / 95% alpha */
+  --ts-hero-gold-1:      255 236 178;                /* the pill, start */
+  --ts-hero-gold-2:      248 203 90;                 /* the pill, 52% */
+  --ts-hero-gold-3:      236 178 62;                 /* the pill, end */
+  --ts-hero-on-gold:     #2A0F5C;                    /* ink on the gold pills */
+  /* the secondary button: a dark well inside a 1.5px rim, 120deg from gold to lilac */
+  --ts-hero-well:        #210B5C;                    /* the well */
+  --ts-hero-rim-gold:    #F8CB5A;                    /* the rim, start */
+  --ts-hero-rim-lilac:   #B9A2FF;                    /* the rim, end */
+  /* glass — the bar over the hero: white at a baked alpha (solid-only, like --ts-gold-wash), behind a blur of 18px
+     (16px under 1024px) at 140% saturation */
+  --ts-glass-fill:       rgb(255 255 255 / 0.10);    /* the pill's fill */
+  --ts-glass-line:       rgb(255 255 255 / 0.22);    /* the pill's 1px line */
   /* Dark "panel / terminal" surfaces. BG-DEPTH (resolves the
      PALETTE-OVERHAUL stop-gate deliberately): the page CANVAS gets its own
      token so page and cards move independently — hierarchy is
@@ -138,7 +172,7 @@ body {
 /* PALETTE-OVERHAUL: the one CTA gradient — pop → grad-mid → grad-end (tokens
    above). Used as a button fill (with text-white hover:brightness-110) and as
    gradient text (with bg-clip-text text-transparent). */
-/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. */
+/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) */
 
 /* BUILTON-MARQUEE: the Built-on strip's CSS-only infinite loop — the track
    renders its chip run TWICE and slides half its own width, so the wrap is
@@ -174,4 +208,223 @@ body {
     -webkit-mask-image: none;
     mask-image: none;
   }
+}
+
+/* ── HERO-CREST-01 (Alex, design canvas, 2026-11-11): THE GUEST HERO AND THE TOP BAR ──────────────────────────────
+   THE SPEC IS design-refs/hero-crest-01/Hero-Reference.html: "every value in its stylesheet is the design". What
+   follows is that stylesheet, rule for rule and value for value — not a redrawing of it:
+     · every class is the reference's with the house prefix: .hero → .ts-hero, .bar__pill → .ts-bar__pill, …;
+     · every custom property likewise: --hero-* → --ts-hero-*, --glass-* → --ts-glass-*, --crest-* → --ts-crest-*.
+   src/lib/__tests__/heroCrest01.test.ts reads both files and holds them equal, declaration by declaration, but for
+   the FIVE DIFFERENCES named here — each one where the reference is a page of its own and this is the app:
+     1. THE COLOURS are tokens: the reference's :root colour properties are the --ts-hero-* / --ts-glass-* block in
+        :root above. Its two geometry properties (--crest-x, --crest-w) are set on .ts-hero — the band, and the crest
+        inside it, are their only readers — and so is their under-1024px override.
+     2. THE FONTS are the site's own (src/app/layout.tsx loads Inter and IBM Plex Mono; the reference links Google
+        Fonts "only so this file renders on its own"): Inter is inherited from <body>; the mono is var(--font-mono).
+     3. line-height: normal on .ts-hero and .ts-bar. The reference is written against the browser's default line
+        height; the app's base is 1.5 (Tailwind's preflight), which would draw the bar's links taller than designed.
+     4. THE GITHUB MARK: .github-slot — a ring the handoff's README calls "a stand-in, not the design" (the reference's
+        own note on it: "This ring is a stand-in.") — is .ts-github-mark,
+        GitHub's own mark from public/logos/github.svg.
+     5. NOT PORTED: body { margin: 0 } and .plain-page, the reference page's own ground.
+   COLOURS TYPED AS LITERALS. The reference's stylesheet also types colours where it reads no variable, and the port
+   types the same ones, as typed: white at three alphas the README's table does not name (0.75, 0.32, 0.16) and at
+   0.22 — glass-line's own value, typed raw twice for the pill's inset highlight —, a shadow ink rgb(12 6 44 / …) five
+   times, and the open menu's panel rgb(33 11 92 / 0.86), which is hero-well at 86%. (Not ported, with the rules that
+   hold them: white at 0.14 on the stand-in ring, and .plain-page's two hexes.)
+   ONE DIFFERENCE IN WHAT THE SAME RULES DRAW. The gold pills that are <button>s — "Create free account", and Log in
+   where it opens the login box — come out about 3% darker here than the reference file renders them. Same rule; the
+   reference's buttons keep the browser's default grey button face under the 95–97% gold, and the app's base
+   (Tailwind's preflight) makes a button's background transparent, so the ground shows through instead. The
+   reference's own link-form pill has no such backing and matches the app's exactly.
+   NOTHING FOLLOWS THIS BLOCK, AND NOTHING ABOVE IT NAMES ITS CLASSES: a rule added to this file goes above this
+   comment and names none of this block's own classes (.ts-hero, .ts-bar__pill, .ts-pill-gold, … — by class selector
+   or through a class attribute selector), nor the headline's id — the test reads from .ts-hero { to the end of the
+   file as the port, and fails on any of these.
+   Used by src/components/landing/Landing.tsx (the hero) and src/components/landing/LandingHeader.tsx (the bar, on
+   every page that mounts it). REPAINT-5's note above — "gradients are banned under Direction C" — is the ruling this
+   design comes after: the approved hero is a gradient ground with gold-gradient pills and a glass bar, and the
+   guest's top bar wears the same violet on the other pages. (No test or law ever held that ban; other files under
+   src carry gradient classes of their own, before and after this.) ──────────────────────────────────────────── */
+/* ── 1. the hero band ─────────────────────────────────────────────────── */
+.ts-hero {
+  --ts-crest-x: calc(50% + clamp(294px, 29.2vw - 5px, 393px));
+  --ts-crest-w: min(2628px, max(157vw, 387vw - 2945px), max(1600px, 360svh - 540px));
+  position: relative;
+  overflow: hidden;
+  color: var(--ts-hero-ink);
+  line-height: normal;
+  background-color: var(--ts-hero-violet-3);
+  background-image:
+    radial-gradient(min(46vw, 680px) 56% at 100% 104%, rgb(var(--ts-hero-orchid) / 0.28) 0%, rgb(var(--ts-hero-orchid) / 0.10) 45%, rgb(var(--ts-hero-orchid) / 0) 72%),
+    radial-gradient(min(48vw, 700px) 62% at var(--ts-crest-x) 59%, rgb(var(--ts-hero-bloom) / 0.50) 0%, rgb(var(--ts-hero-bloom) / 0.16) 45%, rgb(var(--ts-hero-bloom) / 0) 72%),
+    linear-gradient(155deg, var(--ts-hero-violet-1) 0%, var(--ts-hero-violet-2) 34%, var(--ts-hero-violet-3) 68%, var(--ts-hero-violet-4) 100%);
+}
+.ts-hero__crest img {
+  position: absolute;
+  left: var(--ts-crest-x);
+  top: calc(50% + 79px);
+  width: var(--ts-crest-w);
+  height: auto;
+  max-width: none;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  user-select: none;
+}
+.ts-hero__inner {
+  position: relative; z-index: 1; box-sizing: border-box;
+  max-width: 1280px;                 /* the page container, so the hero's left edge meets every section below */
+  min-height: clamp(620px, 100svh, 880px);
+  margin-inline: auto;
+  padding: 124px 32px 56px;
+  display: flex; align-items: center;
+}
+.ts-hero__copy {
+  width: min(720px, 57.4%);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 28px;
+}
+.ts-hero__title { margin: 0; font-size: clamp(34px, 4.86vw, 70px); line-height: 1.05; font-weight: 500; letter-spacing: -0.035em; }
+.ts-hero__title span { display: block; }
+.ts-hero__title span:last-child { color: var(--ts-hero-gold); }
+.ts-hero__subline { margin: 0; max-width: 560px; font-size: 19px; line-height: 1.6; color: var(--ts-hero-ink-soft); text-wrap: pretty; }
+.ts-hero__cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+
+.ts-pill-gold {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  background-image: linear-gradient(135deg, rgb(var(--ts-hero-gold-1) / 0.97) 0%, rgb(var(--ts-hero-gold-2) / 0.95) 52%, rgb(var(--ts-hero-gold-3) / 0.95) 100%);
+  color: var(--ts-hero-on-gold);
+}
+.ts-pill-gold:hover { filter: brightness(1.05); }
+.ts-cta-primary {
+  height: 56px; padding: 0 30px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75), 0 10px 28px rgb(12 6 44 / 0.28);
+  font-family: inherit; font-size: 16px; font-weight: 600;
+}
+.ts-cta-secondary {
+  box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  height: 56px; padding: 0 26px 0 20px;
+  border: 1.5px solid transparent; border-radius: 999px;
+  background: linear-gradient(var(--ts-hero-well), var(--ts-hero-well)) padding-box, linear-gradient(120deg, var(--ts-hero-rim-gold) 0%, var(--ts-hero-rim-lilac) 100%) border-box;
+  color: var(--ts-hero-ink); font-size: 16px; font-weight: 500; text-decoration: none; white-space: nowrap;
+}
+.ts-cta-secondary:hover { color: var(--ts-hero-gold); }
+.ts-cta-secondary svg { flex: none; }
+/* THE GITHUB MARK — where the reference draws a stand-in ring (.github-slot — the README: "the ring is a stand-in,
+   not the design"). GitHub's own mark, public/logos/github.svg, 20 × 20 (17 × 17 on the phone composition), inked the
+   button's text colour: the file is the mask and currentColor the ink, so it turns gold with its label.
+   THE FILE: Simple Icons' icons/github.svg (simple-icons 16.37.0, CC0-1.0) in this folder's own form — fill="#ffffff"
+   on the root and a closing newline, as all eleven of its neighbours carry (eight of them are simple-icons 16.37.0's
+   own file with those two added, as this one is); the path data is untouched. Not a Built-on
+   slot (src/lib/builtOnWall.ts names no github), so it lights nothing on /how-it-works.
+   GITHUB'S OWN PAGE FOR THE MARK (brand.github.com/foundations/logo, read 2026-11-11) allows it "as a social button
+   to link to your GitHub profile or project", and says the mark "should only appear in white, black, or in few cases
+   grey or green". The ink here is the handoff's — the button's text colour, gold on hover — not one of those four. */
+.ts-github-mark { flex: none; width: 20px; height: 20px; background-color: currentColor; mask: url(/logos/github.svg) center / contain no-repeat; }
+
+.ts-hero :focus-visible, .ts-bar :focus-visible { outline: 2px solid var(--ts-hero-gold); outline-offset: 3px; }
+
+/* ── the top bar: one pill, two fills ─────────────────────────────────── */
+.ts-bar { z-index: 3; padding-inline: 32px; color: var(--ts-hero-ink); line-height: normal; }
+.ts-bar--overlay { position: absolute; top: 20px; left: 0; right: 0; }      /* laid over the hero */
+.ts-bar--solid { position: relative; padding-top: 20px; }                    /* in the flow of a plain page */
+.ts-bar__pill {
+  box-sizing: border-box;
+  max-width: 1216px;                 /* the page container minus its side padding */
+  min-height: 60px;
+  margin-inline: auto;
+  padding: 8px 8px 8px 22px;
+  display: flex; align-items: center; gap: 28px;
+  border: 1px solid var(--ts-glass-line);
+  border-radius: 30px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 30px rgb(12 6 44 / 0.22);
+}
+.ts-bar--overlay .ts-bar__pill { background-color: var(--ts-glass-fill); backdrop-filter: blur(18px) saturate(140%); }
+.ts-bar--solid .ts-bar__pill { background-image: linear-gradient(155deg, var(--ts-hero-violet-1) 0%, var(--ts-hero-violet-2) 55%, var(--ts-hero-violet-3) 100%); }
+.ts-bar a { color: inherit; text-decoration: none; }
+.ts-bar a:hover { color: var(--ts-hero-gold); }
+.ts-brand { display: flex; align-items: center; gap: 13px; min-height: 44px; }
+.ts-brand__mark { width: 25px; height: 36px; object-fit: contain; }
+.ts-brand__name { font-size: 16px; font-weight: 700; letter-spacing: 0.22em; white-space: nowrap; }
+.ts-bar__products, .ts-bar__account { display: flex; align-items: center; font-size: 15px; font-weight: 500; }
+.ts-bar__products { gap: 18px; margin-left: 20px; margin-right: auto; }
+.ts-bar__account { gap: 26px; }
+.ts-bar__products a, .ts-bar__account .ts-bar__link { padding: 12px 0; color: var(--ts-hero-ink-nav); white-space: nowrap; }
+.ts-bar__rule { width: 1px; height: 14px; background-color: rgb(255 255 255 / 0.32); }
+.ts-bar__login {
+  height: 44px; padding: 0 26px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75);
+  font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.ts-bar .ts-pill-gold, .ts-bar a.ts-pill-gold:hover { color: var(--ts-hero-on-gold); }
+.ts-bar__menu-button {
+  display: none; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: inherit; cursor: pointer;
+}
+.ts-menu { display: none; }
+
+/* 1024–1279px: the same bar, drawn a little tighter so nothing wraps */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .ts-bar__pill { gap: 16px; padding-left: 18px; }
+  .ts-brand { gap: 10px; }
+  .ts-brand__name { font-size: 15px; letter-spacing: 0.18em; }
+  .ts-bar__products { gap: 12px; margin-left: 8px; font-size: 14px; }
+  .ts-bar__account { gap: 18px; font-size: 14px; }
+  .ts-bar__login { padding: 0 20px; }
+}
+
+/* ── below 1024px: the phone composition ──────────────────────────────── */
+@media (max-width: 1023.98px) {
+    /* hero-crest-mobile.svg is 2000 × 2000 units; drawn 860px wide, its middle 320px down the band,
+       so the plume clears the bar and the shield's tip sits just above the headline */
+  .ts-hero {
+    --ts-crest-x: 50%;
+    --ts-crest-w: 860px;
+    background-image:
+      radial-gradient(80% 40% at 100% 104%, rgb(var(--ts-hero-orchid) / 0.20) 0%, rgb(var(--ts-hero-orchid) / 0.07) 45%, rgb(var(--ts-hero-orchid) / 0) 72%),
+      radial-gradient(95% 42% at 50% 32%, rgb(var(--ts-hero-bloom) / 0.50) 0%, rgb(var(--ts-hero-bloom) / 0.16) 45%, rgb(var(--ts-hero-bloom) / 0) 72%),
+      linear-gradient(155deg, var(--ts-hero-violet-1) 0%, var(--ts-hero-violet-2) 34%, var(--ts-hero-violet-3) 68%, var(--ts-hero-violet-4) 100%);
+  }
+  .ts-hero__crest img { top: 320px; }
+  .ts-hero__inner { max-width: 460px; min-height: 0; padding: 526px 20px 28px; text-align: center; }
+  .ts-hero__copy { width: 100%; align-items: center; gap: 16px; }
+  .ts-hero__title { font-size: min(34px, calc((100vw - 40px) / 9.75)); line-height: 1.06; letter-spacing: -0.03em; }   /* 34px from 372px wide; smaller below, so each sentence keeps its own line */
+  .ts-hero__subline { max-width: none; padding: 0 4px; font-size: 15px; line-height: 1.55; }
+  .ts-hero__cta { align-self: stretch; gap: 8px; margin-top: 4px; }                         /* side by side from 340px wide; they stack only below that */
+  .ts-cta-primary, .ts-cta-secondary { flex: 1 1 auto; height: 50px; padding: 0 8px; font-size: clamp(12.5px, 3.6vw, 14px); letter-spacing: -0.01em; }
+  .ts-cta-primary { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75), 0 8px 22px rgb(12 6 44 / 0.28); }
+  .ts-cta-secondary { gap: 7px; }
+  .ts-cta-secondary .ts-cta-arrow { display: none; }
+  .ts-github-mark { width: 17px; height: 17px; }
+
+  .ts-bar { padding-inline: 12px; }
+  .ts-bar--overlay { top: 12px; }
+  .ts-bar--solid { padding-top: 12px; }
+  .ts-bar__pill {
+    height: 54px; min-height: 0; padding: 0 5px 0 16px; gap: 12px; justify-content: space-between; border-radius: 27px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 8px 24px rgb(12 6 44 / 0.22);
+  }
+  .ts-bar--overlay .ts-bar__pill { backdrop-filter: blur(16px) saturate(140%); }
+  .ts-brand { gap: 10px; }
+  .ts-brand__mark { width: 22px; height: 32px; }
+  .ts-brand__name { font-size: 13.5px; letter-spacing: 0.2em; }
+  .ts-bar__products, .ts-bar__account { display: none; }
+  .ts-bar__menu-button { display: inline-flex; }
+
+  /* THE OPEN MENU. Not drawn on the design canvas: this panel is the proposal. */
+  .ts-menu:not([hidden]) {
+    position: absolute; top: calc(100% + 8px); left: 12px; right: 12px;
+    box-sizing: border-box; padding: 8px;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--ts-glass-line); border-radius: 22px;
+    background-color: rgb(33 11 92 / 0.86);
+    box-shadow: 0 16px 40px rgb(12 6 44 / 0.4);
+    backdrop-filter: blur(18px) saturate(140%);
+    font-size: 16px; font-weight: 500;
+  }
+  .ts-menu__row { display: flex; align-items: center; min-height: 48px; padding: 0 14px; border-radius: 12px; }
+  .ts-menu__rule { height: 1px; margin: 6px 14px; background-color: rgb(255 255 255 / 0.16); }
+  .ts-menu__login { height: 48px; margin: 6px; font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75); }
 }

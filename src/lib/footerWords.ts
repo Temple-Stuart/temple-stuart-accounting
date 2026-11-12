@@ -42,7 +42,7 @@
  * src/lib/__tests__/footer01.test.ts holds the two equal) — "without the full stop", above, is HOME-FINISH-02's note.
  * The three targets are unchanged: /#modules, /#services, /#demo.
  */
-import { DEMO_ANCHOR, SERVICES_ANCHOR, STOP_ZERO_ANCHOR } from './homeAnchors';
+import { DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR, STOP_ZERO_ANCHOR } from './homeAnchors';
 import { tripPostHref } from './tripPostWords';
 import type { WasHereRow } from './wasHere';
 import { stopWords, tripOrder } from './wasHereWords';
@@ -73,13 +73,14 @@ export function footerStoryLinks(rows: readonly WasHereRow[]): FooterLink[] {
 /**
  * The how-to's section id — src/components/landing/HowToSection.tsx's <section id="modules". It is that file's literal,
  * guarded there by the plan law (scripts/assert-tool-registry.ts); the checkout's cancel link and the /modules pages
- * land on it too. Typed here once, for the footer's link to the first pillar.
+ * land on it too. HERO-CREST-01 (2026-11-11): it was typed here, once and privately (`const PLANS_SECTION_ID = 'modules'`),
+ * for the footer's link to the first pillar. The top bar links the same section, so the copy moved to the anchors' one
+ * home — MODULES_ANCHOR, src/lib/homeAnchors.ts — and both read it. The footer's links are unchanged.
  */
-const PLANS_SECTION_ID = 'modules';
 
 /** SERVICES: the three pillars, each landing on its section of the home page — absolute, so they land from every page the footer is on. */
 export const FOOTER_SERVICES_LINKS: readonly FooterLink[] = [
-  { label: 'Financial Software', href: `/#${PLANS_SECTION_ID}` },
+  { label: 'Financial Software', href: `/#${MODULES_ANCHOR}` },
   { label: 'Professional Services', href: `/#${SERVICES_ANCHOR}` },
   { label: 'Travel Marketplace', href: `/#${DEMO_ANCHOR}` },
 ];
@@ -96,7 +97,7 @@ export const FOOTER_SOCIALS: ReadonlyArray<{ readonly name: SocialName; readonly
   { name: 'LinkedIn', href: 'https://www.linkedin.com/in/alexander-stuart-phi/' },
 ];
 
-/** The code, built in public — the same URL LandingHeader.tsx's GitHub ↗ opens (src/lib/__tests__/footer01.test.ts holds them equal). */
+/** The code, built in public — the same URL the hero's "Clone it on GitHub" opens (Landing.tsx; src/lib/__tests__/footer01.test.ts holds them equal). HERO-CREST-01 (2026-11-11): LandingHeader.tsx's GitHub ↗ until then — it left the top bar. */
 export const CODE_URL = 'https://github.com/Temple-Stuart/temple-stuart-accounting';
 
 /** The licence file on the default branch — the Business Source License 1.1. Never called open source. */
