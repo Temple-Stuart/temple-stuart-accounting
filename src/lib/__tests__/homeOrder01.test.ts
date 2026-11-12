@@ -14,7 +14,9 @@
  *      mount left the page — the how-to is the Software Plans and sits in its seat, with its door; twelve until then.
  *      HOME-BRIEF-03, 2026-11-10: the how-to joined, between the plans and the services section — eleven until then);
  *   T2 "What We Do" — HOME-FINISH-02: the h2 that carries data-act-heading stands ALONE in the page's container, in
- *      gold and one size up, directly above the how-to; the travel block opens at its pillar's heading — its eyebrow row,
+ *      gold and one size up, directly above the how-to — HOME-PLANS-04 (Alex's brief, 2026-11-12): it keeps its element,
+ *      its place and data-act-heading and wears the eyebrow, the reference's box and heading (.ts-fs-heading, .ts-fs-eyebrow,
+ *      design-refs/home-plans-04/Section-Reference.html), in place of "in gold and one size up"; the travel block opens at its pillar's heading — its eyebrow row,
  *      label and headline left with Part 4 (until HOME-FINISH-02: the travel section's FIRST child, in the page's purple
  *      heading classes, above the id row, the block's own label and headline following). HERO-CREST-01 (2026-11-11): "under
  *      the hero" is under the band's own close — the band is a <div> holding the crest, the header and one <section>;
@@ -36,10 +38,13 @@ const LEAF = 'src/lib/homeActWords.ts';
 // HOME-FINISH-02 (2026-11-10), Part 4: the travel section wears its own top and bottom padding (py-10) — the eyebrow row's pt-6 and the foot row's
 // pb-2 gave them until then, and both rows left. Until then: '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">'.
 const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 py-10 border-b border-border">';
-// HOME-FINISH-02 (Alex, 2026-11-10 20:56): the heading in gold, one size up, alone in the page's container. Until then it was the travel section's
-// first child: '<h2 className="pt-8 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-act-heading>{WHAT_WE_DO_HEADING}</h2>'.
-const HEADING = '<h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>';
-const HEADING_BOX = '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">';
+// HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila): "What We Do" keeps its element, its place and data-act-heading; only its look changes — the
+// eyebrow, the reference's heading box behind the house prefix. Until then (HOME-FINISH-02, Alex, 2026-11-10 20:56: the heading in gold, one size up,
+// alone in the page's container): HEADING '<h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>
+// {WHAT_WE_DO_HEADING}</h2>' in HEADING_BOX '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">'. Before that it was the travel section's first
+// child: '<h2 className="pt-8 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-act-heading>{WHAT_WE_DO_HEADING}</h2>'.
+const HEADING = '<h2 className="ts-fs-eyebrow" data-act-heading>{WHAT_WE_DO_HEADING}</h2>';
+const HEADING_BOX = '<div className="ts-fs-heading">';
 const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />';
 // HERO-CREST-01 (Alex, design canvas, 2026-11-11): the hero is the reference's band (design-refs/hero-crest-01/Hero-Reference.html) — a <div> that
 // holds the crest, the top bar and ONE <section>, the copy. It opens here and ends at that section's close and its own. Until then the hero was
@@ -94,14 +99,14 @@ test('T1 the eleven, each once, in Alex\'s order (HOME-FINISH-02: plan → build
   assert.equal(new Set(at).size, 11, 'eleven places');
 });
 
-test('T2 "What We Do" (HOME-FINISH-02): the data-act-heading h2 stands alone in the page\'s container, in gold and one size up, directly above the how-to; the travel block opens at its pillar\'s heading; its old label and headline are gone', () => {
+test('T2 "What We Do" (HOME-FINISH-02; HOME-PLANS-04: the eyebrow): the data-act-heading h2 stands alone in its box, directly above the how-to; the travel block opens at its pillar\'s heading; its old label and headline are gone', () => {
   const landing = code(LANDING);
   assert.equal(count(landing, HEADING), 1, 'the heading, once, as ruled');
   assert.equal(count(landing, 'data-act-heading'), 1, 'one act heading in this file');
   // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the heading left the travel section. Until then: 'the section opens → the heading → the id row', with
   // nothing between the section's opening tag and the heading, and a comment between the heading and the id row.
   const alone = `${HEADING_BOX}\n        ${HEADING}\n      </div>`;
-  assert.equal(count(landing, alone), 1, 'alone in the page\'s container: max-w-7xl mx-auto px-4 lg:px-8 pt-10');
+  assert.equal(count(landing, alone), 1, 'alone in its box — the eyebrow\'s, ts-fs-heading (the page\'s container, max-w-7xl mx-auto px-4 lg:px-8 pt-10, until HOME-PLANS-04)');
   // HERO-CREST-01 (2026-11-11): the hero's end is the band's own close (HERO_CLOSE). Until then: `const hero = landing.indexOf('<section
   // className="bg-brand-purple text-white pb-14 pt-12">')`, and the hero ended at `landing.indexOf('</section>', hero)`.
   const hero = landing.indexOf(HERO_OPEN);

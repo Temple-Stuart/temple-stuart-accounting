@@ -39,6 +39,15 @@
  *     BUILD_ and EXPLORE_ still name the pillars in the code. "PLAN → BUILD → EXPLORE", above, is HOME-FINISH-02's
  *     own note of the order.
  *
+ * HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30):
+ *   · WHAT_WE_DO_HEADING keeps its element, its place and data-act-heading, and wears the EYEBROW now — small gold mono
+ *     capitals over the first pillar's name (Landing.tsx, .ts-fs-heading / .ts-fs-eyebrow) — in place of HOME-FINISH-02's
+ *     "in gold and one size up", for its look only. About Us and Our Story keep their gold headings.
+ *   · PLAN_PILLAR: its heading is drawn, its paragraphs are not — one line stands where they stood (PLANS_SUBHEAD,
+ *     src/lib/offer/plans.ts). KEPT, NOT DRAWN (2026-11-12), by the brief's ruling c: "WHAT LEAVES THE PAGE: the pillar's
+ *     three paragraphs and the step lists in the cards. Both stay in their leaves, undrawn, with a dated note: the standing
+ *     HOME-PLANS-03 gave the comparison." His three paragraphs stay here, word for word, read by no page.
+ *
  * PURE, NO DIRECTIVE: no import, no state, no clock — one string each (a pillar: its heading and its paragraphs), so a
  * client component, a server component and a test all read the same words.
  */

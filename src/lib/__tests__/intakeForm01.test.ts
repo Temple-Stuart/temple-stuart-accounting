@@ -553,7 +553,9 @@ test('T8 the laws: GUEST_ROUTES doors the page on :225; PUBLIC_WRITERS\' 13th en
   assert.match(law, /if \(PUBLIC_WRITERS\.length !== SEC02_PINNED\.publicWriters \|\| SEC02_PINNED\.publicWriters !== 13\) guestFail\(`the ownership law’s public writers are \$\{PUBLIC_WRITERS\.length\} \(pinned \$\{SEC02_PINNED\.publicWriters\}\) — the census is 13: GUEST-01’s 11, the guest’s cancel, and CRM-02’s form POST`\);/);
   assert.doesNotMatch(law, /publicWriters !== 12\)/);
   const guards = [...law.matchAll(/^lawGuard\('([^']+)'/gm)].map((m) => m[1]);
-  assert.equal(guards[guards.length - 1], 'The intake form law', 'at the END');
+  // HOME-PLANS-04 (2026-11-12): the map law was added at the END after it, by the same rule — the intake form law is the last but one. (Until then: guards[guards.length - 1], 'at the END'.)
+  assert.equal(guards[guards.length - 2], 'The intake form law', 'at the END, but for the map law added after it');
+  assert.equal(guards[guards.length - 1], 'The map law', 'the map law (HOME-PLANS-04) is the last');
   assert.ok(law.indexOf("lawGuard('The intake form law'") < law.indexOf('if (violations.length > raised) {'), 'before the second gate');
   for (const must of [
     "const IF_PAGE = 'src/app/f/[slug]/page.tsx';", "const IF_CLIENT = 'src/components/crm/IntakeFormClient.tsx';", "const IF_ROUTE = 'src/app/api/f/[slug]/route.ts';", "const IF_FORM_ROUTE = 'src/app/api/crm/form/route.ts';",

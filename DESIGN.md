@@ -49,6 +49,40 @@ for rule to the foot of `globals.css` under the `ts-` prefix (`.ts-hero`, `.ts-b
 same values. The hero and the bar are gradients and glass by this design, which comes after Direction C's ban on
 gradients (`globals.css`, REPAINT-5); it changes no other surface.
 
+## The Financial Software section (HOME-PLANS-04, 2026-11-12)
+The approved section (`design-refs/home-plans-04/`) — "What We Do" as an eyebrow, the map of the 25 tools, three plan
+cards and the all-three band — is a design change too. It reads fourteen tokens the app already holds (`bg`, `border`,
+`gold` and the hero's violets, golds and inks) and brings seventeen: typed once in `src/app/globals.css` `:root` as
+`--ts-<token>`, mapped in `tailwind.config.ts` as the `fs` family, named and valued as the handoff's table. No hex is typed
+in a component, and none in the section's stylesheet.
+
+| Token | Value | Used for |
+|---|---|---|
+| `fs-white` | `255 255 255` | cards, tools and switches; text on violet and teal; on the band at 0.08 and 0.5; the gold button's top light at 0.75 |
+| `fs-teal` | `#0B7F73` | Trading: its fill and its ring; on white its word, line and ticks |
+| `fs-teal-deep` | `#0B5F57` | Trading's switch label while off |
+| `fs-teal-light` | `#8FE8DA` | Trading's word on the band |
+| `fs-gold-text` | `#8A6408` | gold as small text: the eyebrow; on white Business's word, line and ticks |
+| `fs-gold-deep` | `#6B4E00` | Business's switch label while off |
+| `fs-ink` | `#2B2545` | body text |
+| `fs-ink-soft` | `#4A4560` | the lede, explainers, family names, the price line |
+| `fs-ink-muted` | `#6F6988` | tools not in the plan, roles, counts |
+| `fs-line` | `#E9E4F2` | the panel's and the cards' border |
+| `fs-rule` | `#EEEAF5` | the rules inside them |
+| `fs-chip-line` | `#E4DFF0` | the border of a tool that is not in the plan |
+| `fs-button-line` | `#CFC6EC` | the quiet button's border |
+| `fs-band-muted` | `#D6CCF7` | the band's role and count |
+| `fs-band-ring` | `230 220 255` | the band's rings, at 0.08 |
+| `fs-shadow` | `33 10 94` | shadows on the cream: hero-violet-4 as channels |
+| `fs-band-shadow` | `12 6 44` | the shadow under the band's gold button |
+
+The section (`HowToSection.tsx`) and its eyebrow (`Landing.tsx`) are drawn by the reference's own stylesheet, ported rule for
+rule to `globals.css` under the house prefix (`.ts-fs`, `.ts-fs-map`, `.ts-fs-plan`, …), above the hero's block. One colour
+per module: Personal is the hero's violet, Business the hero's gold, Trading the new teal. It draws two more gradients, both
+on the board (the brief's ruling g): the picked plan's gold button and the band. `src/lib/__tests__/homePlans04.test.ts`
+holds the port equal to `design-refs/home-plans-04/Section-Reference.html`, the tokens to the handoff README's two tables,
+and this table to the same values.
+
 ## Shared primitives built on the system
 - **`src/components/ui/ToggleStrip.tsx`** — the one-strip / N-chip / show-hide
   toggle (all panels mounted, in-flight results survive). Consumed by BOTH the

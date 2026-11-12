@@ -59,10 +59,34 @@
  *   · DRAWN AGAIN: COMPARE_PLANS_WORDS and COMPARE_PLANS_PATH — the one link under the cards, to /pricing, where the
  *     plans' own comparison stands.
  *
+ * HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila: "… simple like lists, or something or an image... that like lists the
+ * Tabs , separated by Tier? … simple and easy to understand"; the board approved on the design canvas at 14:30): the home page
+ * draws THE MAP now (planMapView, at the foot of this file) — the sheet's 25 tools under its six families (PROBLEM_SHEET), each
+ * lit when the picked plan holds its module — then three plan cards and the all-three band, drawn by the section itself
+ * (src/components/landing/HowToSection.tsx; the spec is design-refs/home-plans-04/Section-Reference.html).
+ *   · KEPT, NOT DRAWN (2026-11-12): planCardSteps, with PlanCardSteps and PlanCardCategory — the step lists the four cards
+ *     drew. The brief's ruling c: "WHAT LEAVES THE PAGE: the pillar's three paragraphs and the step lists in the cards. Both
+ *     stay in their leaves, undrawn, with a dated note: the standing HOME-PLANS-03 gave the comparison." So it stands as the
+ *     comparison does: exported, tested (howTo01 T11 and T12), read by no page. PlanCards' `steps` branch
+ *     (src/components/offer/PlansSection.tsx) has no caller now — /pricing never handed it one — and is left as it is.
+ *   · A TOOL'S MODULE (toolModule) — ruling e: "A TOOL'S MODULE is the module of the capability rows that name it
+ *     (CAPABILITY_GROUPS), held by a law: one module per tool, or the build fails by name." mapLaw holds it at module scope,
+ *     with the one other thing the map derives that could disagree: a plan's name split into one coloured part per module
+ *     (nameParts). The build's law suite re-runs it (scripts/assert-tool-registry.ts, the map law).
+ *   · THE WORDS — ruling f: "WORDS. Nothing is typed in a component. The switches say the part each plan's name adds:
+ *     "+ Business", "+ Trading". Three words are new and need a leaf: "Your plan", "<n> of <total> tools", "All <total>
+ *     tools". Both numbers are computed." The three are typed here (YOUR_PLAN; toolCountWords, with ofToolsWords for the
+ *     words after the map's figure; allToolsWords); the switches' words are the plans' own names, split (nameParts); both
+ *     numbers count the sheet's tools. Drawn again: WHAT_YOU_RUN_LABEL (the switches' group, for a screen reader),
+ *     PERSONAL_ALWAYS, PLAN_MARKS' two labels (each tool's mark) and the link's words. Not drawn: ADD_BUSINESS and ADD_TRADE,
+ *     which stay — ADD_TRADE says "+ Trade", and the board says "+ Trading", as the plan does.
+ *   · "NOT HERE … no count of the tools", above, was HOME-BRIEF-03's board; this board draws one, by ruling f. And a mark
+ *     still says "in this plan", never "built" (ruling d): nothing the map draws reads a tool's status, and no price is drawn.
+ *
  * PURE: no directive, no fetch, no clock, no storage.
  */
 
-import type { ToolName } from './problemSheet';
+import { PROBLEM_SHEET, type ToolName } from './problemSheet';
 import { TOOL_REGISTRY, type ToolEntry, type ToolStatus } from './toolRegistry';
 import { CAPABILITY_GROUPS, PLANS, priceSlot, type CapabilityGroup, type CapabilityRow, type ModuleId, type Plan, type PlanId, type PriceSlot } from './offer/plans';
 import { OFFERS, priceLineFor, type Offer } from './offer';
@@ -74,6 +98,8 @@ import { OFFERS, priceLineFor, type Offer } from './offer';
 /** The label over the three, and the three: Personal is fixed, the other two are switches. */
 export const WHAT_YOU_RUN_LABEL = 'What you run · add any';
 export const PERSONAL_ALWAYS = 'Personal · always';
+// HOME-PLANS-04 (2026-11-12): NOT DRAWN — the map's switches say the part each plan's name adds (nameParts, below), so a switch
+// and its card cannot disagree. These two stay as they were, read by no page; ADD_TRADE's "+ Trade" is not the board's word.
 export const ADD_BUSINESS = '+ Business';
 export const ADD_TRADE = '+ Trade';
 /** After Personal, while neither Business nor Trade is on. */
@@ -646,4 +672,209 @@ export function howToLaw(
   return violations;
 }
 
+// ── THE MAP AND THE PLANS (HOME-PLANS-04) ────────────────────────────────────
+// HOME-PLANS-04 (Alex, 2026-11-12 14:07 Manila: "simple lists, or something or an image... that like lists the Tabs, separated by
+// Tier? … simple and easy to understand"; the board, approved on the design canvas at 14:30: "YES, OMG, GIVE ME THE PROMPT TO MAKE
+// THIS REAL!"). What the home page's first pillar draws now, under its name and one line (design-refs/home-plans-04/): THE MAP — the
+// sheet's 25 tools under its six families (PROBLEM_SHEET), each lit when the picked plan holds its module — then three plan cards and
+// the all-three band. Everything here is DERIVED from the plans leaf and the sheet; three words are typed, ruled new by the brief.
+// A mark says "in this plan" — never "built": nothing below reads a tool's status, and no price is drawn (rulings d and e).
+
+/** HOME-PLANS-04 ruling f: the tag the picked plan wears. */
+export const YOUR_PLAN = 'Your plan';
+/** HOME-PLANS-04 ruling f: the words after a count's figure — "of 25 tools". The map draws the figure in its own span, then these. */
+export function ofToolsWords(total: number): string {
+  return `of ${total} tools`;
+}
+/** HOME-PLANS-04 ruling f: "<n> of <total> tools" — a card's count: the figure, then ofToolsWords. Both numbers are computed. */
+export function toolCountWords(n: number, total: number): string {
+  return `${n} ${ofToolsWords(total)}`;
+}
+/** HOME-PLANS-04 ruling f: "All <total> tools" — the count of a plan that holds every tool on the sheet (the band's). */
+export function allToolsWords(total: number): string {
+  return `All ${total} tools`;
+}
+
+/** The sheet's shape, as the map reads it: a family's name and its tools, in order. */
+export type MapSheet = readonly { readonly header: string; readonly tools: readonly ToolName[] }[];
+
+/** The modules of the capability rows that name a tool, each once, in the rows' order. */
+function modulesNaming(name: ToolName, groups: readonly CapabilityGroup[]): ModuleId[] {
+  return [...new Set(groups.flatMap((g) => g.rows).filter((row) => row.tools.includes(name)).map((row) => row.module))];
+}
+/** What the map law says of a tool that does not have one module. */
+function oneModuleBreach(name: ToolName, modules: readonly ModuleId[]): string {
+  return modules.length === 0
+    ? `${name} is named by no capability row — a tool on the map wears its module's colour, and it has no module`
+    : `${name} is named by capability rows of ${modules.length} modules (${modules.join(', ')}) — a tool on the map wears one module's colour`;
+}
+
+/**
+ * HOME-PLANS-04 ruling e: A TOOL'S MODULE is the module of the capability rows that name it (CAPABILITY_GROUPS,
+ * src/lib/offer/plans.ts) — the colour it wears on the map, and whether a plan lights it. A tool no row names, or one named by
+ * rows of two modules, has no colour to wear: a throw, by name. mapLaw (below) refuses the same at module scope, and the build's
+ * law suite re-runs it (scripts/assert-tool-registry.ts, the map law), so the page never meets such a tool.
+ */
+export function toolModule(name: ToolName, groups: readonly CapabilityGroup[] = CAPABILITY_GROUPS): ModuleId {
+  const modules = modulesNaming(name, groups);
+  if (modules.length !== 1) throw new HowToLawError(`howTo: ${oneModuleBreach(name, modules)}`);
+  return modules[0];
+}
+
+/** One coloured part of a plan's name: its words, and the module it stands for. */
+export interface NamePart {
+  words: string;
+  module: ModuleId;
+}
+/** A plan's name split before each " + " — "Personal + Business" reads "Personal" and "+ Business". */
+const splitName = (name: string): string[] => name.split(/ (?=\+ )/);
+/**
+ * A plan's name in its coloured parts: split before each " + ", one part per module in the plan's own order — so its first
+ * part is the base and each later part is what the plan adds, in that module's colour. Joined with a space they are the
+ * name. A name that does not split into one part per module throws, by name.
+ */
+export function nameParts(plan: Pick<Plan, 'id' | 'name' | 'modules'>): readonly NamePart[] {
+  const words = splitName(plan.name);
+  if (words.length !== plan.modules.length) {
+    throw new HowToLawError(`howTo: the plan "${plan.id}" is named "${plan.name}" — ${words.length} part(s) for its ${plan.modules.length} module(s) [${plan.modules.join(', ')}]; a name's coloured parts are its modules, one each, in order`);
+  }
+  return words.map((w, i) => ({ words: w, module: plan.modules[i] }));
+}
+
+/** A switch on the map: the module it adds, its words — the part the name of the plan it picks adds — and whether it is on. */
+export interface MapSwitch {
+  module: 'business' | 'trading';
+  words: string;
+  pressed: boolean;
+}
+/** A tool on the map: its name, its module, and whether the picked plan holds it. */
+export interface MapTool {
+  name: ToolName;
+  module: ModuleId;
+  lit: boolean;
+}
+export interface MapFamily {
+  name: string;
+  tools: readonly MapTool[];
+}
+/** A plan as its card (or the band) draws it — every word the plans leaf's, every number computed. */
+export interface MapPlan {
+  id: PlanId;
+  role: string;
+  /** Its name, in coloured parts (nameParts). */
+  parts: readonly NamePart[];
+  audience: string;
+  /** Its positioning, then its relationship, as one paragraph. */
+  explainer: string;
+  benefits: readonly string[];
+  /** How many of the sheet's tools it holds: "13 of 25 tools", or "All 25 tools" for a plan that holds every one. */
+  count: string;
+  /** Its price slot's words — the launch words while no price is set — and its button's. */
+  price: string;
+  cta: string;
+  /** Is it the plan the switches pick? */
+  picked: boolean;
+}
+export interface PlanMapView {
+  /** Business, then Trading. */
+  switches: readonly MapSwitch[];
+  /** How many tools the picked plan lights, and the words after that figure. */
+  figure: number;
+  ofTotal: string;
+  families: readonly MapFamily[];
+  /** The plans that hold fewer than every module, in PLANS' order — three cards. */
+  cards: readonly MapPlan[];
+  /** The plan that holds every module — the band. */
+  band: MapPlan;
+}
+
+/** The two switches, in this order: what each adds, and which key of what you run it turns. */
+const SWITCHES = [
+  { module: 'business', key: 'business' },
+  { module: 'trading', key: 'trade' },
+] as const;
+
+/**
+ * Everything the section draws for what you run — the picked plan (planFor), each tool's module (toolModule) and whether the
+ * picked plan holds it, the figure over the sheet's tools, the switches' words from the names of the plans they pick, and each
+ * plan as its card draws it. No status is read, and a plan whose slot holds a price is a throw, by name: only the unannounced
+ * slot is designed, and the plan law fails the build on any price first (scripts/assert-tool-registry.ts, HOME-PLANS-01's guard).
+ */
+export function planMapView(
+  choice: HowToChoice,
+  opts: { plans?: readonly Plan[]; groups?: readonly CapabilityGroup[]; sheet?: MapSheet } = {},
+): PlanMapView {
+  const plans = opts.plans ?? PLANS;
+  const groups = opts.groups ?? CAPABILITY_GROUPS;
+  const sheet = opts.sheet ?? PROBLEM_SHEET;
+  const picked = planFor(choice, plans);
+  const tools = sheet.flatMap((family) => family.tools.map((name) => ({ name, module: toolModule(name, groups) })));
+  const total = tools.length;
+  const held = (plan: Pick<Plan, 'modules'>) => tools.filter((t) => plan.modules.includes(t.module)).length;
+  const asCard = (plan: Plan): MapPlan => {
+    const slot = priceSlot(plan);
+    if (slot.kind !== 'unannounced') throw new HowToLawError(`howTo: the plan "${plan.id}" carries a price — the section draws the unannounced slot only, and the plan law fails the build first`);
+    const n = held(plan);
+    return {
+      id: plan.id,
+      role: plan.role,
+      parts: nameParts(plan),
+      audience: plan.audience,
+      explainer: `${plan.positioning} ${plan.relationship}`,
+      benefits: plan.benefits,
+      count: n === total ? allToolsWords(total) : toolCountWords(n, total),
+      price: slot.text,
+      cta: slot.cta,
+      picked: plan === picked,
+    };
+  };
+  const all = planFor({ business: true, trade: true }, plans);
+  return {
+    switches: SWITCHES.map(({ module: adds, key }) => {
+      const part = nameParts(planFor({ business: key === 'business', trade: key === 'trade' }, plans)).find((p) => p.module === adds);
+      if (part === undefined) throw new HowToLawError(`howTo: no plan's name has a part for ${adds} — the switch has no words`);
+      return { module: adds, words: part.words, pressed: choice[key] };
+    }),
+    figure: held(picked),
+    ofTotal: ofToolsWords(total),
+    families: sheet.map((family) => ({
+      name: family.header,
+      tools: family.tools.map((name) => {
+        const own = toolModule(name, groups);
+        return { name, module: own, lit: picked.modules.includes(own) };
+      }),
+    })),
+    cards: plans.filter((plan) => plan !== all).map(asCard),
+    band: asCard(all),
+  };
+}
+
+/**
+ * THE MAP LAW (HOME-PLANS-04) — run at module scope below, and re-run at build by scripts/assert-tool-registry.ts (the map
+ * law). Ruling e: one module per tool, or the build fails by name. And a name's coloured parts are its modules, one each.
+ */
+export function mapLaw(
+  opts: { throwOnFail?: boolean; sheet?: MapSheet; groups?: readonly CapabilityGroup[]; plans?: readonly Pick<Plan, 'id' | 'name' | 'modules'>[] } = {},
+): string[] {
+  const sheet = opts.sheet ?? PROBLEM_SHEET;
+  const groups = opts.groups ?? CAPABILITY_GROUPS;
+  const plans = opts.plans ?? PLANS;
+  const violations: string[] = [];
+  // 1. Ruling e: every tool on the sheet is named by capability rows of ONE module.
+  for (const family of sheet) {
+    for (const name of family.tools) {
+      const modules = modulesNaming(name, groups);
+      if (modules.length !== 1) violations.push(oneModuleBreach(name, modules));
+    }
+  }
+  // 2. Every plan's name splits into one coloured part per module.
+  for (const plan of plans) {
+    const words = splitName(plan.name);
+    if (words.length !== plan.modules.length) violations.push(`the plan "${plan.id}" is named "${plan.name}" — ${words.length} part(s) for its ${plan.modules.length} module(s)`);
+  }
+  if (violations.length > 0 && opts.throwOnFail !== false) throw new HowToLawError(`map law: ${violations.join('; ')}`);
+  return violations;
+}
+
 howToLaw();
+mapLaw();

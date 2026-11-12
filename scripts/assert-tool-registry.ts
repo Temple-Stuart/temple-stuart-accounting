@@ -11206,6 +11206,33 @@ if (ifViolations === 0) console.log(`✔ The intake form law passed — the one 
 else console.log(`✖ The intake form law FAILED — ${ifViolations} violation(s).`);
 });
 
+// ── THE MAP LAW (HOME-PLANS-04, Alex’s brief, 2026-11-12 14:07 Manila) ──────────────────────────────────────
+// Ruling e, as the brief writes it: "A TOOL’S MODULE is the module of the capability rows that name it (CAPABILITY_GROUPS),
+// held by a law: one module per tool, or the build fails by name." The guest landing’s map (src/components/landing/HowToSection.tsx,
+// over src/lib/howTo.ts planMapView) draws the sheet’s 25 tools and lights each in its module’s colour when the picked plan holds
+// that module (toolModule). A tool named by no capability row, or by rows of two modules, has no colour to wear; and a plan whose
+// name does not split into one part per module has a part with no colour (nameParts — the handoff README: "a mismatch should fail
+// the build by name"). The leaf’s own law, mapLaw, refuses both at module scope; this seat re-runs it at build, so the deploy stops
+// by name and the page never throws in front of a visitor (/ is request-dynamic, src/app/page.tsx).
+// THE IMPORT SITS HERE, beside its one reader, and not with the imports at the head of the file: tests cite this file by line
+// number, and a line added up there would move every one of them. An import is hoisted wherever it stands.
+// Importing the leaf also runs its two module-scope laws (howToLaw, mapLaw) when this suite starts — a violation of either stops
+// the suite at the import, with the leaf’s own message, before the guards below run (the first gate, as planLaw’s import does).
+// Seeded regressions: scripts/proofs/map.seeds.ts.
+import { mapLaw } from '../src/lib/howTo';
+
+lawGuard('The map law', () => {
+  let mapViolations = 0;
+  const mapFail = (m: string) => { mapViolations += 1; violations.push(`map law: ${m} (HOME-PLANS-04)`); };
+  for (const v of mapLaw({ throwOnFail: false })) mapFail(v);
+  const mapTools = PROBLEM_SHEET.flatMap((family) => [...family.tools]);
+  const mapRows = CAPABILITY_GROUPS.flatMap((g) => g.rows);
+  const mapModuleOf = (name: string) => mapRows.find((row) => (row.tools as readonly string[]).includes(name))?.module;
+  const mapByModule = MODULES.map((m) => `${mapTools.filter((name) => mapModuleOf(name) === m).length} ${m}`).join(' · ');
+  if (mapViolations === 0) console.log(`✔ The map law passed — the ${mapTools.length} tools on the sheet are each named by capability rows of one module (${mapByModule}), and each of the ${PLANS.length} plans’ names splits into one part per module.`);
+  else console.log(`✖ The map law FAILED — ${mapViolations} violation(s).`);
+});
+
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,
 // posting, env, the observatory, the offer — pushes onto `violations`. Without
