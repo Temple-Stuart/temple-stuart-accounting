@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRIPCARDS-03 · reference</title>
+<!--
+  TRIPCARDS-03: the reference for the guest landing's trip log, Our Story (the MY TRIP act). The eyebrow, the heading and
+  its line; two arrows; one row of stop cards, edge to edge of the window, its first card under the heading. Each card
+  shows its photo whole, then the stop and how it stands, the place, the dates, what it cost, and the post.
+
+  Open this file in a browser from inside the repo (the photos are read from public/was-here/). Drag or swipe the row,
+  press the arrows, resize the window: the arrows show from 768px; a card is 352px wide, less on a phone so the next
+  one shows at the edge.
+
+  Every value in the stylesheet is the design, and the markup is the page as it opens on 2026-11-12 (Stop 7 is where
+  Alex is; 8, 9 and 10 are coming up; Cebu has no photo yet). The words are copies, for placement only: production
+  reads each one from its home (the README lists them) and types none. The script at the foot only makes the arrows
+  work in this file. The font link is here only so the file renders alone; the site already loads both faces.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root {
+    /* ALREADY IN THE APP: each is the same name behind the house prefix (--hero-violet-2 is --ts-hero-violet-2,
+       --bg is --ts-bg). Declared here only so this file renders on its own; the port adds none of these. */
+    --bg: 250 248 243;                /* the cream ground */
+    --border: 221 214 232;            /* the line under the section */
+    --hero-violet-2: #4D1FBC;         /* the arrows' chevrons; the ring and the filled chip of the stop he is at; the focus ring */
+    --hero-violet-3: #32118A;         /* the dates; a coming-up chip's words; the post button's words */
+    --hero-violet-4: #210A5E;         /* the heading and each place */
+
+    /* ADDED BY HOME-PLANS-04 (on main since PR #1971 as --ts-fs-*): reused here by the same names and values. Add none. */
+    --fs-white: 255 255 255;          /* the cards, the arrows, the chips and the post button; the filled chip's words */
+    --fs-ink: #2B2545;                /* body text; what each cost was */
+    --fs-ink-soft: #4A4560;           /* the line under the heading; each country */
+    --fs-ink-muted: #6F6988;          /* the stop number, the photo credit, the cost labels, n/a and not in my log yet */
+    --fs-gold-text: #8A6408;          /* the eyebrow; each amount paid */
+    --fs-line: #E9E4F2;               /* a card's border */
+    --fs-rule: #EEEAF5;               /* the rules between the costs; the photo's ground while it loads */
+    --fs-chip-line: #E4DFF0;          /* the arrows' border */
+    --fs-button-line: #CFC6EC;        /* a coming-up chip's border; the post button's border */
+    --fs-shadow: 33 10 94;            /* shadows on the cream: hero-violet-4 as channels */
+
+    /* NEW WITH THIS SECTION: none. Every colour above is already in the app. */
+  }
+
+  /* ── 1 · the section: the eyebrow, the heading, the line, the two arrows ─────────────────────── */
+  .story { padding: clamp(44px, 5.6vw, 80px) 0 clamp(40px, 5vw, 72px); border-bottom: 1px solid rgb(var(--border)); background-color: rgb(var(--bg)); color: var(--fs-ink); font-family: 'Inter', sans-serif; line-height: 1.5; }
+  .story :focus-visible { outline: 2px solid var(--hero-violet-2); outline-offset: 3px; }
+  .story__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding-inline: 16px; }
+  .story__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px 32px; }
+  .story__words { min-width: 0; }
+  .story__eyebrow { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fs-gold-text); }
+  .story__title { margin: 12px 0 0; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; font-weight: 500; letter-spacing: -0.03em; color: var(--hero-violet-4); }
+  .story__lede { margin: 16px 0 0; max-width: 640px; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--fs-ink-soft); text-wrap: pretty; }
+  /* the arrows: from 768px, where a pointer is the likelier hand; under it the row is swiped */
+  .story__arrows { display: none; gap: 10px; }
+  .story-arrow {
+    box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: 0; padding: 0;
+    border: 1px solid var(--fs-chip-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-2); cursor: pointer;
+    transition: border-color 0.16s, opacity 0.16s;
+  }
+  .story-arrow[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+
+  /* ── 2 · the row: one line of cards, edge to edge of the window, the first under the heading ──── */
+  .story-row {
+    box-sizing: border-box; display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+    margin-top: clamp(24px, 2.8vw, 40px); padding: 4px max(16px, calc((100% - 1280px) / 2 + 16px)) 32px;
+    scroll-padding-inline: max(16px, calc((100% - 1280px) / 2 + 16px));
+  }
+  .story-row::-webkit-scrollbar { display: none; }
+
+  /* ── 3 · a card: the photo whole, the stop, the place, the dates; at its foot what it cost and the post ── */
+  .story-card {
+    box-sizing: border-box; flex: 0 0 min(352px, calc(100% - 32px)); scroll-snap-align: start; display: flex; flex-direction: column; padding: 10px;
+    border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white));
+    box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.07);
+  }
+  /* the stop he is at: a violet ring */
+  .story-card[data-stop-status="now"] { border-color: var(--hero-violet-2); box-shadow: 0 0 0 1px var(--hero-violet-2), 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.1); }
+  /* the photo: 3 : 2, every photo's own shape, so nothing is cut; nothing is drawn on it */
+  .story-card__photo { display: block; overflow: hidden; border-radius: 14px; background-color: var(--fs-rule); }
+  .story-card__photo img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+  .story-card__body { display: flex; flex-direction: column; flex: 1 1 auto; padding: 14px 6px 6px; }
+  .story-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 24px; }
+  .story-card__stop { display: flex; align-items: center; gap: 8px; margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.2; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .story-chip {
+    box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px;
+    border: 1px solid var(--fs-button-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-3);
+    font-size: 10.5px; white-space: nowrap;
+  }
+  .story-chip[data-status="now"] { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); }
+  .story-chip__dot { display: block; width: 6px; height: 6px; border-radius: 999px; background-color: currentColor; }
+  .story-card__credit { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.2; color: var(--fs-ink-muted); white-space: nowrap; }
+  .story-card__city { margin: 10px 0 0; font-size: 20px; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; color: var(--hero-violet-4); }
+  /* a stop with no photo yet: the place, large, opens the card */
+  .story-card[data-was-here-image="none"] .story-card__city { margin-top: 14px; font-size: 30px; line-height: 1.15; letter-spacing: -0.02em; }
+  .story-card__country { margin: 2px 0 0; font-size: 14px; line-height: 1.5; color: var(--fs-ink-soft); }
+  .story-card__dates { margin: 8px 0 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.5; font-weight: 500; color: var(--hero-violet-3); }
+  .story-card__foot { margin-top: auto; padding-top: 16px; }
+
+  /* what it cost: the label, the name (it ends in "…" when it is long), the amount (never cut) */
+  .story-costs { margin: 0; border-top: 1px solid var(--fs-rule); }
+  .story-cost { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: baseline; column-gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--fs-rule); }
+  .story-cost__what { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .story-cost__name { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; line-height: 1.4; color: var(--fs-ink); }
+  .story-cost__amount { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.4; font-weight: 500; color: var(--fs-ink-muted); white-space: nowrap; text-align: right; }
+  .story-cost__amount[data-kind="paid"] { font-size: 13px; font-weight: 600; color: var(--fs-gold-text); }
+
+  /* the post: the quiet pill, the card's width */
+  .story-card__post {
+    box-sizing: border-box; display: flex; align-items: center; justify-content: center; height: 44px; margin-top: 14px;
+    border: 1.5px solid var(--fs-button-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-3);
+    font-size: 14px; line-height: 1.2; font-weight: 600; text-decoration: none; transition: border-color 0.16s;
+  }
+
+  /* ── 4 · wider windows ───────────────────────────────────────────────────────────────────────── */
+  @media (min-width: 768px) {
+    .story__arrows { display: flex; }
+  }
+  @media (min-width: 1024px) {
+    .story__inner { padding-inline: 32px; }
+    .story-row { padding-inline: max(32px, calc((100% - 1280px) / 2 + 32px)); scroll-padding-inline: max(32px, calc((100% - 1280px) / 2 + 32px)); }
+  }
+
+  /* ── 5 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+  @media (hover: hover) {
+    .story-arrow:not([aria-disabled="true"]):hover, .story-card__post:hover { border-color: var(--hero-violet-2); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .story-arrow, .story-card__post { transition: none; }
+  }
+
+  /* ── THIS PAGE'S OWN: not part of the design, not ported ─────────────────────────────────────── */
+  body { margin: 0; background-color: rgb(var(--bg)); }
+</style>
+</head>
+<body>
+
+<section class="story" id="my-trip" aria-label="My trip" data-my-trip>
+  <div class="story__inner">
+    <div class="story__head">
+      <div class="story__words">
+        <p class="story__eyebrow">MY TRIP</p>
+        <h2 class="story__title">Our Story</h2>
+        <p class="story__lede">Stop by stop, dated, with the whole story where I've written it up.</p>
+      </div>
+      <div class="story__arrows">
+        <button class="story-arrow" type="button" aria-label="Earlier stops" aria-controls="story-row" aria-disabled="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button>
+        <button class="story-arrow" type="button" aria-label="Later stops" aria-controls="story-row" aria-disabled="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button>
+      </div>
+    </div>
+  </div>
+  <div class="story-row" id="story-row" data-was-here-rail>
+      <article class="story-card" data-was-here="canggu-2026-07" data-was-here-image="photo" data-stop-status="past">
+        <a class="story-card__photo" href="/my-trip/canggu-2026-07" tabindex="-1" aria-hidden="true"><img src="../../public/was-here/canggu-2026-07.jpg" alt="Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave" loading="lazy"></a>
+        <div class="story-card__body">
+          <div class="story-card__meta">
+            <p class="story-card__stop" data-was-here-stop="1"><span>Stop 1</span></p>
+            <span class="story-card__credit">Photo: Alex Stuart</span>
+          </div>
+          <h3 class="story-card__city">Canggu, Bali</h3>
+          <p class="story-card__country">Indonesia</p>
+          <p class="story-card__dates" data-was-here-stay>Jul 1–30, 2026</p>
+          <div class="story-card__foot">
+            <dl class="story-costs" data-was-here-costs="canggu-2026-07">
+              <div class="story-cost" data-was-here-cost="Stay"><dt class="story-cost__what">Stay</dt><dd class="story-cost__name" title="The Daun">The Daun</dd><dd class="story-cost__amount" data-kind="paid">$708.14</dd></div>
+              <div class="story-cost" data-was-here-cost="Motorbike"><dt class="story-cost__what">Motorbike</dt><dd class="story-cost__name" title="Nyoman Motorbike (Nmax)">Nyoman Motorbike (Nmax)</dd><dd class="story-cost__amount" data-kind="paid">$131.79</dd></div>
+              <div class="story-cost" data-was-here-cost="Flight in"><dt class="story-cost__what">Flight in</dt><dd class="story-cost__name" title="China Air">China Air</dd><dd class="story-cost__amount" data-kind="paid">$837.20</dd></div>
+            </dl>
+            <a class="story-card__post" href="/my-trip/canggu-2026-07" data-was-here-post-link>Read the post →</a>
+          </div>
+        </div>
+      </article>
+      <article class="story-card" data-was-here="danang-2026-08" data-was-here-image="photo" data-stop-status="past">
+        <a class="story-card__photo" href="/my-trip/danang-2026-08" tabindex="-1" aria-hidden="true"><img src="../../public/was-here/danang-2026-08.jpg" alt="Da Nang&#x27;s Dragon Bridge breathing fire at night, a crowd along the railing filming it, red lanterns under the bridge and the city lit up behind" loading="lazy"></a>
+        <div class="story-card__body">
+          <div class="story-card__meta">
+            <p class="story-card__stop" data-was-here-stop="2"><span>Stop 2</span></p>
+            <span class="story-card__credit">Photo: Alex Stuart</span>
+          </div>
+          <h3 class="story-card__city">Da Nang / Hoi An</h3>
+          <p class="story-card__country">Vietnam</p>
+          <p class="story-card__dates" data-was-here-stay>Jul 30 – Aug 28, 2026</p>
+          <div class="story-card__foot">
+            <dl class="story-costs" data-was-here-costs="danang-2026-08">
+              <div class="story-cost" data-was-here-cost="Stay"><dt class="story-cost__what">Stay</dt><dd class="story-cost__name" title="Sky Village Đà Nẵng">Sky Village Đà Nẵng</dd><dd class="story-cost__amount" data-kind="paid">$980.73</dd></div>
+              <div class="story-cost" data-was-here-cost="Motorbike"><dt class="story-cost__what">Motorbike</dt><dd class="story-cost__name"></dd><dd class="story-cost__amount" data-kind="none">n/a</dd></div>
+              <div class="story-cost" data-was-here-cost="Flight in"><dt class="story-cost__what">Flight in</dt><dd class="story-cost__name" title="Vietjet">Vietjet</dd><dd class="story-cost__amount" data-kind="paid">$176.10</dd></div>
+            </dl>
+            <a class="story-card__post" href="/my-trip/danang-2026-08" data-was-here-post-link>Read the post →</a>
+          </div>
+        </div>
+      </article>
+      <article class="story-card" data-was-here="bangkok-2026-09" data-was-here-image="photo" data-stop-status="past">
+        <a class="story-card__photo" href="/my-trip/bangkok-2026-09" tabindex="-1" aria-hidden="true"><img src="../../public/was-here/bangkok-2026-09.jpg" alt="A giant golden seated Buddha lit up at night in Bangkok, seen in profile against a dark sky with the moon beside it" loading="lazy"></a>
+        <div class="story-card__body">
+          <div class="story-card__meta">
+            <p class="story-card__stop" data-was-here-stop="3"><span>Stop 3</span></p>
+            <span class="story-card__credit">Photo: Alex Stuart</span>
+          </div>
+          <h3 class="story-card__city">Bangkok</h3>
+          <p class="story-card__country">Thailand</p>
+          <p class="story-card__dates" data-was-here-stay>Aug 28 – Sep 25, 2026</p>
+          <div class="story-card__foot">
+            <dl class="story-costs" data-was-here-costs="bangkok-2026-09">
+              <div class="story-cost" data-was-here-cost="Stay"><dt class="story-cost__what">Stay</dt><dd class="story-cost__name" title="Premier Thonglor">Premier Thonglor</dd><dd class="story-cost__amount" data-kind="paid">$1,007.72</dd></div>
+              <div class="story-cost" data-was-here-cost="Motorbike"><dt class="story-cost__what">Motorbike</dt><dd class="story-cost__name"></dd><dd class="story-cost__amount" data-kind="none">n/a</dd></div>
+              <div class="story-cost" data-was-here-cost="Flight in"><dt class="story-cost__what">Flight in</dt><dd class="story-cost__name" title="Thai Vietjet">Thai Vietjet</dd><dd class="story-cost__amount" data-kind="paid">$149.90</dd></div>
+            </dl>
+            <a class="story-card__post" href="/my-trip/bangkok-2026-09" data-was-here-post-link>Read the post →</a>
+          </div>
+        </div>
+      </article>
+      <article class="story-card" data-was-here="phuket-2026-10" data-was-here-image="photo" data-stop-status="past">
+        <a class="story-card__photo" href="/my-trip/phuket-2026-10" tabindex="-1" aria-hidden="true"><img src="../../public/was-here/phuket-2026-10.jpg" alt="A shaded dirt path with a rope fence above a turquoise cove in Phuket, green hills around the bay" loading="lazy"></a>
+        <div class="story-card__body">
+          <div class="story-card__meta">
+            <p class="story-card__stop" data-was-here-stop="4"><span>Stop 4</span></p>
+            <span class="story-card__credit">Photo: Alex Stuart</span>
+          </div>
+          <h3 class="story-card__city">Phuket</h3>
+          <p class="story-card__country">Thailand</p>
+          <p class="story-card__dates" data-was-here-stay>Sep 25 – Oct 8, 2026</p>
+          <div class="story-card__foot">
+            <dl class="story-costs" data-was-here-costs="phuket-2026-10">
+              <div class="story-cost" data-was-here-cost="Stay"><dt class="story-cost__what">Stay</dt><dd class="story-cost__name" title="Amata Patong">Amata Patong</dd><dd class="story-cost__amount" data-kind="paid">$569.61</dd></div>
+              <div class="story-cost" data-was-here-cost="Motorbike"><dt class="story-cost__what">Motorbike</dt><dd class="story-cost__name" title="Joy Motorbike (ADV)">Joy Motorbike (ADV)</dd><dd class="story-cost__amount" data-kind="paid">$80.00</dd></div>
+              <div class="story-cost" data-was-here-cost="Flight in"><dt class="story-cost__what">Flight in</dt><dd class="story-cost__name" title="AirAsia">AirAsia</dd><dd class="story-cost__amount" data-kind="paid">$58.81</dd></div>
+            </dl>
+            <a class="story-card__post" href="/my-trip/phuket-2026-10" data-was-here-post-link>Read the post →</a>
+          </div>
+        </div>
+      </article>
+      <article class="story-card" data-was-here="chiangmai-2026-10" data-was-here-image="photo" data-stop-status="past">
+        <a class="story-card__photo" href="/my-trip/chiangmai-2026-10" tabindex="-1" aria-hidden="true"><img src="../../public/was-here/chiangmai-2026-10.jpg" alt="Sunset over the mountains behind Chiang Mai, rays of light breaking through the clouds above the city" loading="lazy"></a>
+        <div class="story-card__body">
+          <div class="story-card__meta">
+            <p class="story-card__stop" data-was-here-stop="5"><span>Stop 5</span></p>
+            <span class="story-card__credit">Photo: Alex Stuart</span>
+          </div>
+          <h3 class="story-card__city">Chiang Mai</h3>
+          <p class="story-card__country">Thailand</p>
+          <p class="story-card__dates" data-was-here-stay>Oct 8–21, 2026</p>
+          <div class="story-card__foot">
+            <dl class="story-costs" data-was-here-costs="chiangmai-2026-10">
+              <div class="story-cost" data-was-here-cost="Stay"><dt class="story-cost__what">Stay</dt><dd class="story-cost__name" title="Hillside Condo 3">Hillside Condo 3</dd><dd class="story-cost__amount" data-kind="paid">$413.37</dd></div>
+              <div class="story-cost" data-was-here-cost="Motorbike"><dt class="story-cost__what">Motorbike</dt><dd class="story-cost__name"></dd><dd class="story-cost__amount" data-kind="none">n/a</dd></div>
+              <div class="story-cost" data-was-here-cost="Flight in"><dt class="story-cost__what">Flight in</dt><dd class="story-cost__name" title="Vietjet">Vietjet</dd><dd class="story-cost__amount" data-kind="paid">$111.79</dd></div>
+            </dl>
+            <a class="story-card__post" href="/my-trip/chiangmai-2026-10" data-was-here-post-link>Read the post →</a>
+          </div>
+        </div>
+      </article>
+      <article class="story-card" data-was-here="bangkok-2026-10-21" data-was-here-image="photo" data-stop-status="past">
+        <a class="story-card__photo" href="/my-trip/bangkok-2026-10-21" tabindex="-1" aria-hidden="true"><img src="../../public/was-here/bangkok-2026-10-21.jpg" alt="Wat Arun lit gold at night at the end of a Bangkok street, a cyclist riding toward it" loading="lazy"></a>
+        <div class="story-card__body">
+          <div class="story-card__meta">
+            <p class="story-card__stop" data-was-here-stop="6"><span>Stop 6</span></p>
+            <span class="story-card__credit">Photo: Alex Stuart</span>
+          </div>
+          <h3 class="story-card__city">Bangkok</h3>
+          <p class="story-card__country">Thailand</p>
+          <p class="story-card__dates" data-was-here-stay>Oct 21–22, 2026</p>
+          <div class="story-card__foot">
+            <dl class="story-costs" data-was-here-costs="bangkok-2026-10-21">
+              <div class="story-cost" data-was-here-cost="Stay"><dt class="story-cost__what">Stay</dt><dd class="story-cost__name" title="Eleven Bangkok Sukhumvit 11">Eleven Bangkok Sukhumvit 11</dd><dd class="story-cost__amount" data-kind="paid">$43.98</dd></div>
+              <div class="story-cost" data-was-here-cost="Motorbike"><dt class="story-cost__what">Motorbike</dt><dd class="story-cost__name"></dd><dd class="story-cost__amount" data-kind="none">n/a</dd></div>
+              <div class="story-cost" data-was-here-cost="Flight in"><dt class="story-cost__what">Flight in</dt><dd class="story-cost__name" title="Vietjet">Vietjet</dd><dd class="story-cost__amount" data-kind="paid">$47.20</dd></div>
+            </dl>
+            <a class="story-card__post" href="/my-trip/bangkok-2026-10-21" data-was-here-post-link>Read the post →</a>
+          </div>
+        </div>
+      </article>
+      <article class="story-card" data-was-here="siargao-2026" data-was-here-image="photo" data-stop-status="now">
+        <a class="story-card__photo" href="/my-trip/siargao-2026" tabindex="-1" aria-hidden="true"><img src="../../public/was-here/siargao-2026.jpg" alt="A surfer paddling beside an outrigger boat off Siargao, the island and a breaking reef on the horizon" loading="lazy"></a>
+        <div class="story-card__body">
+          <div class="story-card__meta">
+            <p class="story-card__stop" data-was-here-stop="7"><span>Stop 7</span><span class="story-chip" data-status="now" data-was-here-label><span class="story-chip__dot" aria-hidden="true"></span>I'M HERE</span></p>
+            <span class="story-card__credit">Photo: Alex Stuart</span>
+          </div>
+          <h3 class="story-card__city">General Luna, Siargao</h3>
+          <p class="story-card__country">Philippines</p>
+          <p class="story-card__dates" data-was-here-stay>Oct 22 – Nov 13, 2026</p>
+          <div class="story-card__foot">
+            <dl class="story-costs" data-was-here-costs="siargao-2026">
+              <div class="story-cost" data-was-here-cost="Stay"><dt class="story-cost__what">Stay</dt><dd class="story-cost__name" title="Rodeo Sun Hotel">Rodeo Sun Hotel</dd><dd class="story-cost__amount" data-kind="paid">$638.24</dd></div>
+              <div class="story-cost" data-was-here-cost="Motorbike"><dt class="story-cost__what">Motorbike</dt><dd class="story-cost__name" title="Kook Moto Rental (Fazzio)">Kook Moto Rental (Fazzio)</dd><dd class="story-cost__amount" data-kind="paid">$63.53</dd></div>
+              <div class="story-cost" data-was-here-cost="Flight in"><dt class="story-cost__what">Flight in</dt><dd class="story-cost__name" title="Philippine Airlines">Philippine Airlines</dd><dd class="story-cost__amount" data-kind="paid">$260.50</dd></div>
+            </dl>
+            <a class="story-card__post" href="/my-trip/siargao-2026" data-was-here-post-link>Read the post →</a>
+          </div>
+        </div>
+      </article>
+      <article class="story-card" data-was-here="cebu-2026-11" data-was-here-image="none" data-stop-status="next">
+        <div class="story-card__body">
+          <div class="story-card__meta">
+            <p class="story-card__stop" data-was-here-stop="8"><span>Stop 8</span><span class="story-chip" data-status="next" data-was-here-label>COMING UP</span></p>
+          </div>
+          <h3 class="story-card__city">Cebu</h3>
+          <p class="story-card__country">Philippines</p>
+          <p class="story-card__dates" data-was-here-stay>Nov 13–20, 2026</p>
+          <div class="story-card__foot">
+            <dl class="story-costs" data-was-here-costs="cebu-2026-11">
+              <div class="story-cost" data-was-here-cost="Stay"><dt class="story-cost__what">Stay</dt><dd class="story-cost__name" title="The Noble Cebu">The Noble Cebu</dd><dd class="story-cost__amount" data-kind="paid">$217.26</dd></div>
+              <div class="story-cost" data-was-here-cost="Motorbike"><dt class="story-cost__what">Motorbike</dt><dd class="story-cost__name"></dd><dd class="story-cost__amount" data-kind="unknown">not in my log yet</dd></div>
+              <div class="story-cost" data-was-here-cost="Flight in"><dt class="story-cost__what">Flight in</dt><dd class="story-cost__name" title="Philippine Airlines">Philippine Airlines</dd><dd class="story-cost__amount" data-kind="paid">$104.05</dd></div>
+            </dl>
+            <a class="story-card__post" href="/my-trip/cebu-2026-11" data-was-here-post-link>Read the post →</a>
+          </div>
+        </div>
+      </article>
+      <article class="story-card" data-was-here="uluwatu-2026-11" data-was-here-image="photo" data-stop-status="next">
+        <a class="story-card__photo" href="/my-trip/uluwatu-2026-11" tabindex="-1" aria-hidden="true"><img src="../../public/was-here/uluwatu-2026-11.jpg" alt="A dirt road on the cliffs at Uluwatu, a scooter heading down it toward the sea, a hand-painted parking sign in the scrub and waves breaking on the reef" loading="lazy"></a>
+        <div class="story-card__body">
+          <div class="story-card__meta">
+            <p class="story-card__stop" data-was-here-stop="9"><span>Stop 9</span><span class="story-chip" data-status="next" data-was-here-label>COMING UP</span></p>
+            <span class="story-card__credit">Photo: Alex Stuart</span>
+          </div>
+          <h3 class="story-card__city">Uluwatu, Bali</h3>
+          <p class="story-card__country">Indonesia</p>
+          <p class="story-card__dates" data-was-here-stay>Nov 20 – Dec 1, 2026</p>
+          <div class="story-card__foot">
+            <dl class="story-costs" data-was-here-costs="uluwatu-2026-11">
+              <div class="story-cost" data-was-here-cost="Stay"><dt class="story-cost__what">Stay</dt><dd class="story-cost__name" title="Bombora Surf Camp">Bombora Surf Camp</dd><dd class="story-cost__amount" data-kind="paid">$400.16</dd></div>
+              <div class="story-cost" data-was-here-cost="Motorbike"><dt class="story-cost__what">Motorbike</dt><dd class="story-cost__name"></dd><dd class="story-cost__amount" data-kind="unknown">not in my log yet</dd></div>
+              <div class="story-cost" data-was-here-cost="Flight in"><dt class="story-cost__what">Flight in</dt><dd class="story-cost__name" title="Philippine Airlines">Philippine Airlines</dd><dd class="story-cost__amount" data-kind="paid">$265.12</dd></div>
+            </dl>
+            <a class="story-card__post" href="/my-trip/uluwatu-2026-11" data-was-here-post-link>Read the post →</a>
+          </div>
+        </div>
+      </article>
+      <article class="story-card" data-was-here="pererenan-2026-12" data-was-here-image="photo" data-stop-status="next">
+        <a class="story-card__photo" href="/my-trip/pererenan-2026-12" tabindex="-1" aria-hidden="true"><img src="../../public/was-here/pererenan-2026-12.jpg" alt="Sunset over Pererenan Beach, people walking along the sand and the rocks, a beach bar under the palms" loading="lazy"></a>
+        <div class="story-card__body">
+          <div class="story-card__meta">
+            <p class="story-card__stop" data-was-here-stop="10"><span>Stop 10</span><span class="story-chip" data-status="next" data-was-here-label>COMING UP</span></p>
+            <span class="story-card__credit">Photo: Alex Stuart</span>
+          </div>
+          <h3 class="story-card__city">Pererenan Beach, Bali</h3>
+          <p class="story-card__country">Indonesia</p>
+          <p class="story-card__dates" data-was-here-stay>Dec 1–11, 2026</p>
+          <div class="story-card__foot">
+            <dl class="story-costs" data-was-here-costs="pererenan-2026-12">
+              <div class="story-cost" data-was-here-cost="Stay"><dt class="story-cost__what">Stay</dt><dd class="story-cost__name" title="Anaya Boutique Hotel">Anaya Boutique Hotel</dd><dd class="story-cost__amount" data-kind="paid">$285.90</dd></div>
+              <div class="story-cost" data-was-here-cost="Motorbike"><dt class="story-cost__what">Motorbike</dt><dd class="story-cost__name"></dd><dd class="story-cost__amount" data-kind="unknown">not in my log yet</dd></div>
+              <div class="story-cost" data-was-here-cost="Flight in"><dt class="story-cost__what">Flight in</dt><dd class="story-cost__name"></dd><dd class="story-cost__amount" data-kind="unknown">not in my log yet</dd></div>
+            </dl>
+            <a class="story-card__post" href="/my-trip/pererenan-2026-12" data-was-here-post-link>Read the post →</a>
+          </div>
+        </div>
+      </article>
+  </div>
+</section>
+
+<script>
+  // REFERENCE ONLY: this makes the row work in this file. Production does the same with its own code: each arrow moves
+  // the row by one card and says when it can go no further (aria-disabled, so it keeps the focus), and a card the keyboard
+  // reaches comes into view whole.
+  // Nothing here is stored or sent.
+  const row = document.querySelector('.story-row');
+  const [back, forward] = document.querySelectorAll('.story-arrow');
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function ends() {
+    back.setAttribute('aria-disabled', String(row.scrollLeft <= 1));
+    forward.setAttribute('aria-disabled', String(row.scrollLeft + row.clientWidth >= row.scrollWidth - 1));
+  }
+  function step(dir) {
+    const card = row.querySelector('.story-card');
+    const gap = parseFloat(getComputedStyle(row).columnGap);
+    row.scrollBy({ left: dir * (card.getBoundingClientRect().width + gap), behavior: still.matches ? 'auto' : 'smooth' });
+  }
+  back.addEventListener('click', () => { if (back.getAttribute('aria-disabled') !== 'true') step(-1); });
+  forward.addEventListener('click', () => { if (forward.getAttribute('aria-disabled') !== 'true') step(1); });
+  // a card reached by the keyboard comes into view whole: if it stands past either edge of the window, it moves to the
+  // row's start (a snap point, so the row stays put once it gets there)
+  row.addEventListener('focusin', (event) => {
+    const card = event.target.closest('.story-card');
+    if (card === null) return;
+    const c = card.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    if (c.left < r.left - 0.5 || c.right > r.right + 0.5) card.scrollIntoView({ block: 'nearest', inline: 'start', behavior: still.matches ? 'auto' : 'smooth' });
+  });
+  row.addEventListener('scroll', ends, { passive: true });
+  window.addEventListener('resize', ends);
+  ends();
+</script>
+
+</body>
+</html>
