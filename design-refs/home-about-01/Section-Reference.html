@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOME-ABOUT-01 · reference</title>
+<!--
+  HOME-ABOUT-01: the reference for the guest landing's About Us. Alex's words, exact, in one column: the heading; Stop 0,
+  the place and the dates; then his three parts, each a number, its heading, his paragraphs, and his quote set as a
+  statement. The column stands in the middle of the page as a letter (the layout Alex approved).
+
+  Open this file in a browser and resize the window. Every value in the stylesheet is the design, and the markup is the
+  page. The words are copies, for placement only: production reads each one from its leaf (the README lists them) and
+  types none. The heading wears the act headings' Tailwind classes in the app; its rule here is written out only so the
+  file renders. The bar above the section is this page's own: it shows the board's other layout, which is built only if
+  Alex asks for it. The font link is here only so the file renders alone; the site already loads both faces.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root {
+    /* ALREADY IN THE APP: each is the same name behind the house prefix (--hero-violet-2 is --ts-hero-violet-2,
+       --gold is --ts-gold). Declared here only so this file renders on its own; the port adds none of these. */
+    --bg: 250 248 243;                /* the cream ground */
+    --border: 221 214 232;            /* the line under the section */
+    --gold: 184 134 11;               /* the heading (as text-brand-gold, the act headings' colour); the quotes' two marks */
+    --hero-violet-2: #4D1FBC;         /* the quotes */
+    --hero-violet-3: #32118A;         /* Stop 0; the dates */
+    --hero-violet-4: #210A5E;         /* the place; the three parts' headings */
+
+    /* ADDED BY HOME-PLANS-04 (on main since PR #1971 as --ts-fs-*): reused here by the same names and values. Add none. */
+    --fs-white: 255 255 255;          /* Stop 0's fill */
+    --fs-ink: #2B2545;                /* his paragraphs */
+    --fs-gold-text: #8A6408;          /* the parts' numbers */
+    --fs-line: #E9E4F2;               /* the rule over each part */
+    --fs-button-line: #CFC6EC;        /* Stop 0's border */
+
+    /* NEW WITH THIS SECTION: none. Every colour above is already in the app. */
+  }
+
+  /* ── 1 · the section: one column, centred on the page as a letter ────────────────────────────── */
+  .about { border-bottom: 1px solid rgb(var(--border)); background-color: rgb(var(--bg)); color: var(--fs-ink); font-family: 'Inter', sans-serif; line-height: 1.5; }
+  .about__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(52px, 6.4vw, 96px) 16px clamp(64px, 7.6vw, 112px); }
+  .about__column { max-width: 680px; margin-inline: auto; }
+  /* under the heading: Stop 0 as the trip cards write a stop, the place, the dates as the cards write dates */
+  .about__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 18px; }
+  .about__stop {
+    box-sizing: border-box; display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
+    border: 1px solid var(--fs-button-line); border-radius: 999px; background-color: rgb(var(--fs-white));
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--hero-violet-3); white-space: nowrap;
+  }
+  .about__place { margin: 0; font-size: 17px; line-height: 1.4; font-weight: 600; color: var(--hero-violet-4); }
+  .about__dates { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; font-weight: 500; color: var(--hero-violet-3); white-space: nowrap; }
+
+  /* ── 2 · a part: its number, its heading, his paragraphs, then his quote as a statement ──────── */
+  .about-part { max-width: 1040px; margin: clamp(40px, 4.4vw, 64px) auto 0; padding-top: clamp(36px, 4vw, 56px); border-top: 1px solid var(--fs-line); }
+  .about-part__number { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; color: var(--fs-gold-text); }
+  .about-part__title { margin: 12px 0 0; font-size: clamp(24px, 2.2vw, 32px); line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--hero-violet-4); text-wrap: balance; }
+  .about-part__text { margin: 16px 0 0; font-size: clamp(17px, 0.1vw + 16px, 18px); line-height: 1.7; color: var(--fs-ink); text-wrap: pretty; }
+  .about-part__title + .about-part__text { margin-top: 20px; }
+  .about-part__quote {
+    max-width: 1040px; margin: clamp(32px, 3.6vw, 52px) auto 0; padding: 0;
+    font-size: clamp(26px, 3.2vw, 46px); line-height: 1.2; font-weight: 500; letter-spacing: -0.025em; color: var(--hero-violet-2); text-align: center; text-wrap: balance;
+  }
+  /* his quote's own two marks, drawn in gold */
+  .about-part__mark { color: rgb(var(--gold)); }
+
+  /* ── 3 · wider windows ───────────────────────────────────────────────────────────────────────── */
+  @media (min-width: 1024px) {
+    .about__inner { padding-inline: 32px; }
+  }
+
+  /* ── 4 · the other layout on the board, "Page grid, left": the column at the page's left edge, the
+         rules the container's width, the quotes left with the opening mark hung. Built only if Alex says "left". ── */
+  .about--left .about__column { margin-inline: 0; }
+  .about--left .about-part { max-width: none; }
+  .about--left .about-part__quote { margin-inline: 0; text-align: left; text-indent: -0.42em; }
+
+  /* ── THE APP'S OWN CLASSES, NOT PORTED: the heading wears the act headings' type, the classes What We Do wears —
+         'text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold'. Written out here only so this file renders. ── */
+  .about__title { margin: 0; font-size: 30px; line-height: 36px; font-weight: 500; letter-spacing: -0.025em; color: rgb(var(--gold)); }
+  @media (min-width: 640px) {
+    .about__title { font-size: 36px; line-height: 40px; }
+  }
+
+  /* ── THIS PAGE'S OWN: not part of the design, not ported ─────────────────────────────────────── */
+  body { margin: 0; background-color: rgb(var(--bg)); }
+  .ref-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 12px 16px; border-bottom: 1px dashed rgb(var(--border)); font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.5; color: var(--fs-ink); }
+  .ref-bar button { height: 32px; padding: 0 12px; border: 1px solid rgb(var(--border)); border-radius: 8px; background-color: rgb(var(--fs-white)); color: var(--fs-ink); font: inherit; cursor: pointer; }
+  .ref-bar button[aria-pressed="true"] { border-color: var(--fs-ink); }
+</style>
+</head>
+<body>
+
+<!-- THIS PAGE'S OWN: not part of the design, not ported -->
+<nav class="ref-bar" aria-label="Reference layouts">
+  <span>THIS PAGE'S OWN · layout:</span>
+  <button type="button" data-layout="letter" aria-pressed="true">Letter, centred (approved)</button>
+  <button type="button" data-layout="left" aria-pressed="false">Page grid, left (only if Alex says "left")</button>
+</nav>
+
+<section class="about" id="stop-0" aria-label="About us">
+  <div class="about__inner">
+    <div class="about__column">
+      <h2 class="about__title">About Us</h2>
+      <div class="about__meta">
+        <span class="about__stop">Stop 0</span>
+        <p class="about__place">Los Angeles, California 🇺🇸</p>
+        <p class="about__dates">January to June 2026</p>
+      </div>
+    </div>
+    <div class="about-part">
+      <div class="about__column">
+        <p class="about-part__number" aria-hidden="true">01</p>
+        <h3 class="about-part__title">Why I Built Temple Stuart</h3>
+          <p class="about-part__text">I've wanted to travel the world, build businesses, and work for myself for as long as I can remember.</p>
+          <p class="about-part__text">I've been reading travel blogs since 2003, exploring everything from natural wonders to festivals, sporting events, and destinations around the world.</p>
+          <p class="about-part__text">There's no shortage of people telling you where to go, what to see, and which links to click.</p>
+          <p class="about-part__text">But I kept wondering how to actually build a life that could afford those experiences.</p>
+      </div>
+      <blockquote class="about-part__quote"><span class="about-part__mark">“</span>Everyone was showing me the life they were living. I wanted to understand how to build one of my own.<span class="about-part__mark">”</span></blockquote>
+    </div>
+    <div class="about-part">
+      <div class="about__column">
+        <p class="about-part__number" aria-hidden="true">02</p>
+        <h3 class="about-part__title">The Idea Behind Temple Stuart</h3>
+          <p class="about-part__text">I wanted to understand what living at home actually cost me, what I could afford elsewhere, and how to build a business that could finance it all.</p>
+          <p class="about-part__text">And I realized these weren't just travel problems.</p>
+          <p class="about-part__text">Whether you're managing personal finances, running a business, trading stocks, or planning a trip, you should be able to plan ahead, budget for it, and compare those plans with what actually happened.</p>
+          <p class="about-part__text">So I decided to build Temple Stuart.</p>
+          <p class="about-part__text">I cashed in my retirement savings to go all in. On New Year's Eve, instead of going out drinking and talking about my goals, I stayed home and started working on them.</p>
+          <p class="about-part__text">For the next six months, I focused on building connected bookkeeping, trading, and travel systems, all tied to a calendar.</p>
+          <p class="about-part__text">I wanted to separate personal, business, and trading finances, distinguish personal travel from business travel, and use actual financial records to make more informed plans and budgets.</p>
+      </div>
+      <blockquote class="about-part__quote"><span class="about-part__mark">“</span>One connected system for managing your money, planning your future, and measuring the outcomes of your decisions.<span class="about-part__mark">”</span></blockquote>
+    </div>
+    <div class="about-part">
+      <div class="about__column">
+        <p class="about-part__number" aria-hidden="true">03</p>
+        <h3 class="about-part__title">Our Story Is Still Being Written</h3>
+          <p class="about-part__text">By June 30, my financial records had shown me something interesting.</p>
+          <p class="about-part__text">I could spend less money traveling the world than I was spending just to pay rent in Los Angeles.</p>
+          <p class="about-part__text">Unfortunately, my system wasn't quite ready. The travel booking platform couldn't handle my first trip, the trading algorithm wasn't ready for daily use, and bookkeeping still needed work.</p>
+          <p class="about-part__text">But I left anyway.</p>
+          <p class="about-part__text">I wanted to test what I'd built, learn from firsthand experience, and improve the system based on what actually worked.</p>
+          <p class="about-part__text">Besides, I'd rather spend my money living the life I wanted than sitting around watching other people live theirs.</p>
+          <p class="about-part__text">Every destination after Los Angeles is another chapter in the story of Temple Stuart. I'll be documenting what I planned, what I spent, what worked, what didn't, and how those experiences influence the business I'm building.</p>
+          <p class="about-part__text">Maybe you want to travel the world, start a business, manage your investments, or simply understand your finances better.</p>
+          <p class="about-part__text">Whatever your goal, I want Temple Stuart to help you make more informed decisions about how to get there.</p>
+      </div>
+      <blockquote class="about-part__quote"><span class="about-part__mark">“</span>I don't just want to sell the dream. I want to guide people into living it for themselves.<span class="about-part__mark">”</span></blockquote>
+    </div>
+  </div>
+</section>
+
+<script>
+  // THIS PAGE'S OWN: switches the reference between the two layouts on the board. The section itself has no script.
+  for (const button of document.querySelectorAll('.ref-bar [data-layout]')) {
+    button.addEventListener('click', () => {
+      document.querySelector('.about').classList.toggle('about--left', button.dataset.layout === 'left');
+      for (const b of document.querySelectorAll('.ref-bar [data-layout]')) b.setAttribute('aria-pressed', String(b === button));
+    });
+  }
+</script>
+
+</body>
+</html>

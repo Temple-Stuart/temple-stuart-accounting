@@ -466,11 +466,13 @@ test('T4 the page at rest is the reference\'s markup with Alex\'s notes applied 
   const BOX = `<div className="ts-fs-heading">\n        <h2 className="${ACT_HEADING_TYPE}" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>`;
   assert.equal(flat(BOX), flat(box).replace('class="fs-heading"', 'className="ts-fs-heading"').replace('class="fs-eyebrow"', `className="${ACT_HEADING_TYPE}"`).replace('>What We Do<', '>{WHAT_WE_DO_HEADING}<'), 'the reference\'s box but for the h2\'s class and the leaf\'s word');
   assert.equal(count(landing, BOX), 1, 'Landing.tsx\'s heading box: the same element, the same place, data-act-heading — the act headings\' type, in the reference\'s box');
-  // the act headings' type is About Us's own: its h2 adds 'mt-3', and nothing else. TRIPCARDS-03 (Alex's brief, 2026-11-12; the board
+  // the act headings' type is About Us's own: its h2 wears it, and nothing else. TRIPCARDS-03 (Alex's brief, 2026-11-12; the board
   // approved on the design canvas at 21:21): Our Story's h2 is violet at the pillars' size now — WasHereSection.tsx TRIP.h2, the port's
   // .ts-story__title — HOME-FINISH-02's gold reversed. Until then this line held both: ['src/components/landing/StopZeroSection.tsx',
   // 'src/components/landing/WasHereSection.tsx'].
-  for (const file of ['src/components/landing/StopZeroSection.tsx']) assert.ok(code(file).includes(`h2: 'mt-3 ${ACT_HEADING_TYPE}'`), `${file}: its h2 wears the same type`);
+  // HOME-ABOUT-01 (2026-11-12; the README: "Its `mt-3` goes, as What We Do's did"): About Us's h2 wears the type exactly, as What We Do's
+  // does — until then it was held here to `h2: 'mt-3 ${ACT_HEADING_TYPE}'` ("its h2 adds 'mt-3', and nothing else").
+  assert.ok(code('src/components/landing/StopZeroSection.tsx').includes(`h2: '${ACT_HEADING_TYPE}',`), 'src/components/landing/StopZeroSection.tsx: its h2 wears the same type, and nothing else');
   assert.ok(!code('src/components/landing/WasHereSection.tsx').includes(ACT_HEADING_TYPE) && code('src/components/landing/WasHereSection.tsx').includes("h2: 'ts-story__title',"), 'Our Story\'s h2 wears the port\'s violet title (TRIPCARDS-03)');
   assert.equal(count(landing, 'ts-fs-eyebrow'), 0, 'the eyebrow is worn by nothing on the page');
   // a note in the JSX around the heading is a {/* */} block: a // line there is drawn on the page as text, and the reader takes it

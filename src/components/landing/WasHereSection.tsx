@@ -26,8 +26,8 @@
  * ported to src/app/globals.css behind the house prefix (.story → .ts-story). Top to bottom:
  *   · THE HEAD, in the page container: MY TRIP (the eyebrow, gold mono), Our Story (violet, at the pillars' size), the line; from
  *     768px, two round arrows on the right.
- *   · THE ROW, outside the page container — the full width of the section, its padding standing the first card under the heading.
- *     It snaps to a card's start when it comes to rest near one (proximity). No scrollbar is drawn.
+ *   · THE ROW, in the page container (AFTER THE BUILD, below — the reference runs it to the window's edges): whole cards only, its
+ *     first under the heading, and always at rest on a card. No scrollbar is drawn. Under 768px, a line of dots under it.
  *   · A CARD: white. Its photo WHOLE at 3 : 2, with nothing drawn on it (every photo is 3 : 2 within 1% — the build reads each
  *     one's header and refuses one that is not: src/lib/photoSize.ts), opening the stop's page out of the tab order. The stop line:
  *     "Stop n", its chip — I'M HERE filled with a dot, COMING UP outlined, none once he has left (src/lib/wasHereWords.ts
@@ -42,14 +42,25 @@
  *   · The heading leaves HOME-FINISH-02's gold (Alex's brief, 2026-11-10 20:56: a section heading, in gold and one size up) for
  *     violet at the pillars' size, as the board draws it.
  *
+ * AFTER THE BUILD — Alex's notes on the cards as built, 2026-11-12 (the fourth and fifth differences from the reference, named in
+ * src/app/globals.css and applied by tripCards03.test.ts before it compares):
+ *   · "the page seems aligned down the whole page, but when we get to trip cards on web they extend out to the right, and idk it
+ *     just looks lopisded and off..." — the row stands in the page container, after the head, so its edges are the page's on both
+ *     sides; a card is whole in it — one in view, two from 768px, three from 1024px (the three plan cards' own columns and gap).
+ *   · "then on the phone web, the second card slightly shows.. it would look better with those like 3 dots under to indicate
+ *     scrolling horizontal, but only show 1 card at a time, you know what I mean?" — under 768px one card fills the row, the row
+ *     always comes to rest on a card, and the dots under it — one per stop — light the one in view. They are a picture of where the
+ *     row stands, not controls (aria-hidden, nothing to tap): the cards are the content, and their posts are what a keyboard meets.
+ *
  * THE ROW AT WORK (the README, "The row: arrows and keyboard"). The arrows, "Earlier stops" and "Later stops", each name the row
  * in aria-controls and move it by one card (a card's width and the gap) — smoothly, or at once under prefers-reduced-motion. At
  * either end an arrow says it can go no further, aria-disabled="true" (so it keeps the focus), updated on every scroll and every
  * resize. A card the keyboard reaches comes into view whole: standing past either edge of the row, it moves to the row's start, a
  * snap point. The keyboard meets the two arrows, then each card's Read the post →, in trip order; the photos are skipped.
- * STATE: the row's scroll position is the browser's. The two ends the arrows show are React state DERIVED from it on every scroll
- * and every resize — before the first measure, the reference's own markup (back at its end, forward not: the page as it opens).
- * Nothing is stored: no storage, no URL, no cookie.
+ * STATE: the row's scroll position is the browser's. Where the row stands — its two ends, which the arrows show, and the card at its
+ * start, which the dots show — is React state DERIVED from it on every scroll and every resize; before the first measure, the page
+ * as it opens (the row at its start: back at its end, forward not, the first dot lit). Nothing is stored: no storage, no URL, no
+ * cookie.
  *
  * WORDS: every word is read from its home and the JSX types none — the section's own (the eyebrow, the line, Read the post →, and
  * the arrows' two, new with TRIPCARDS-03) as the constants below; the heading from src/lib/homeActWords.ts; a stop's from
@@ -94,8 +105,12 @@ const TRIP = {
   sub: 'ts-story__lede',
   arrows: 'ts-story__arrows',
   arrow: 'ts-story-arrow',
-  // TRIPCARDS-01 (2026-11-06): one row that scrolls sideways. TRIPCARDS-03: outside the page container, its scrollbar hidden.
+  // TRIPCARDS-01 (2026-11-06): one row that scrolls sideways. TRIPCARDS-03: its scrollbar hidden; in the page container since Alex's
+  // note on the cards as built (2026-11-12), whole cards only.
   list: 'ts-story-row',
+  // TRIPCARDS-03, Alex's note on the cards as built (2026-11-12): under 768px, one dot per stop, the one in view lit.
+  pager: 'ts-story-dots',
+  pagerDot: 'ts-story-dot',
   card: 'ts-story-card',
   // TRIPCARDS-03: the photo's frame is its link — 3 : 2, the photo whole, nothing on it.
   photo: 'ts-story-card__photo',
@@ -119,7 +134,7 @@ const TRIP = {
   link: 'ts-story-card__post',
 } as const;
 
-/** TRIPCARDS-03: where the row stands — at its start, back can go no further; at its end, forward can go no further. A pixel's slack, as the reference's script allows. */
+/** TRIPCARDS-03: the row's two ends — at its start, back can go no further; at its end, forward can go no further. A pixel's slack, as the reference's script allows. */
 export interface RowEnds {
   readonly start: boolean;
   readonly end: boolean;
@@ -127,8 +142,23 @@ export interface RowEnds {
 export function rowEnds(scrollLeft: number, clientWidth: number, scrollWidth: number): RowEnds {
   return { start: scrollLeft <= 1, end: scrollLeft + clientWidth >= scrollWidth - 1 };
 }
-/** The page as it opens — the reference's own markup: the row at its start, so back at its end and forward not. The row is measured as soon as it is in the page. */
-export const ROW_AS_IT_OPENS: RowEnds = { start: true, end: false };
+/**
+ * TRIPCARDS-03, Alex's note on the cards as built (2026-11-12): the card standing at the row's start — of the cards' left edges, the
+ * index of the one nearest the row's start (where a card comes to rest). -1 for a row that holds no card: then there is no dot to light.
+ */
+export function cardAtStart(cardLefts: readonly number[], rowStart: number): number {
+  let at = -1;
+  cardLefts.forEach((left, i) => {
+    if (at === -1 || Math.abs(left - rowStart) < Math.abs(cardLefts[at] - rowStart)) at = i;
+  });
+  return at;
+}
+/** Where the row stands: its two ends (the arrows) and the card at its start (the dots). */
+export interface RowPlace extends RowEnds {
+  readonly current: number;
+}
+/** The page as it opens — the reference's own markup: the row at its start, so back at its end, forward not, and the first card in view. The row is measured as soon as it is in the page. */
+export const ROW_AS_IT_OPENS: RowPlace = { start: true, end: false, current: 0 };
 /** TRIPCARDS-03: a card standing past either edge of the row (half a pixel's slack, as the reference's script allows) is brought into view whole. */
 export function cardCut(card: { readonly left: number; readonly right: number }, row: { readonly left: number; readonly right: number }): boolean {
   return card.left < row.left - 0.5 || card.right > row.right + 0.5;
@@ -206,10 +236,11 @@ function Entry({ row, costs, stop, today }: { row: WasHereRow; costs: TripCosts;
 /** Props in, markup out — the tests render it, at rest; in the page, the row's two ends follow its scroll position. */
 export function WasHereView({ rows, costs, today }: { rows: readonly WasHereRow[]; costs: readonly TripCosts[]; today: string }) {
   const rowRef = useRef<HTMLDivElement>(null);
-  const [ends, setEnds] = useState<RowEnds>(ROW_AS_IT_OPENS);
+  const [place, setPlace] = useState<RowPlace>(ROW_AS_IT_OPENS);
   const settle = useCallback((row: HTMLElement): void => {
-    const now = rowEnds(row.scrollLeft, row.clientWidth, row.scrollWidth);
-    setEnds((was) => (was.start === now.start && was.end === now.end ? was : now));
+    const rowStart = row.getBoundingClientRect().left + parseFloat(getComputedStyle(row).scrollPaddingLeft);
+    const now: RowPlace = { ...rowEnds(row.scrollLeft, row.clientWidth, row.scrollWidth), current: cardAtStart([...row.children].map((card) => card.getBoundingClientRect().left), rowStart) };
+    setPlace((was) => (was.start === now.start && was.end === now.end && was.current === now.current ? was : now));
   }, []);
   // On mount and on every resize; every scroll is the row's own onScroll, below.
   useEffect(() => {
@@ -241,17 +272,21 @@ export function WasHereView({ rows, costs, today }: { rows: readonly WasHereRow[
             <p className={TRIP.sub}>{MY_TRIP_LINE}</p>
           </div>
           <div className={TRIP.arrows}>
-            <button className={TRIP.arrow} type="button" aria-label={EARLIER_STOPS} aria-controls={STORY_ROW_ID} aria-disabled={ends.start} onClick={() => { if (!ends.start) step(-1); }}>
+            <button className={TRIP.arrow} type="button" aria-label={EARLIER_STOPS} aria-controls={STORY_ROW_ID} aria-disabled={place.start} onClick={() => { if (!place.start) step(-1); }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
             </button>
-            <button className={TRIP.arrow} type="button" aria-label={LATER_STOPS} aria-controls={STORY_ROW_ID} aria-disabled={ends.end} onClick={() => { if (!ends.end) step(1); }}>
+            <button className={TRIP.arrow} type="button" aria-label={LATER_STOPS} aria-controls={STORY_ROW_ID} aria-disabled={place.end} onClick={() => { if (!place.end) step(1); }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
             </button>
           </div>
         </div>
-      </div>
-      <div ref={rowRef} className={TRIP.list} id={STORY_ROW_ID} data-was-here-rail onScroll={(event) => settle(event.currentTarget)} onFocus={bringIntoView}>
-        {tripOrder(rows).map((row, i) => <Entry key={row.id} row={row} costs={costsFor(costs, row.id)} stop={i + 1} today={today} />)}
+        {/* TRIPCARDS-03, Alex's notes on the cards as built (2026-11-12): the row stands in the page container, the dots under it. */}
+        <div ref={rowRef} className={TRIP.list} id={STORY_ROW_ID} data-was-here-rail onScroll={(event) => settle(event.currentTarget)} onFocus={bringIntoView}>
+          {tripOrder(rows).map((row, i) => <Entry key={row.id} row={row} costs={costsFor(costs, row.id)} stop={i + 1} today={today} />)}
+        </div>
+        <div className={TRIP.pager} aria-hidden="true">
+          {tripOrder(rows).map((row, i) => <span key={row.id} className={TRIP.pagerDot} data-current={i === place.current} />)}
+        </div>
       </div>
     </section>
   );
