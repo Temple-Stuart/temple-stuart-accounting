@@ -13,9 +13,11 @@
  *      Landing.tsx — an h2 holding EXPERIENCE_LINE on one line, then the PROMISE, then the travel sentence; the band
  *      (ExperiencesView, rendered) repeats no headline: its eyebrow, then SUBHEAD. (Until then the band rendered the
  *      line as its own h2, the third in the wash, then the PROMISE paragraph, then SUBHEAD.)
- *   T4 the page description — layout.tsx reads SITE_DESCRIPTION three times and types none;
- *   T5 the link preview — opengraph-image.tsx renders COMPANY_LINE, the third in #eae7f2, no "Modules" (#eae7f2 was the
- *      hero's wash until HERO-CREST-01, 2026-11-11; the hero's third sentence is gold now and the preview is not that PR's);
+ *   T4 the page description — layout.tsx reads SITE_DESCRIPTION three times and types none (and the title, Alex's call
+ *      since OG-CREST-01, 2026-11-12, is "Temple Stuart | Connect, Create, Control");
+ *   T5 the link preview — OG-CREST-01 (Alex, 2026-11-12): opengraph-image.tsx draws the hero's crest and renders no line,
+ *      and types none of their words (src/lib/__tests__/ogCrest01.test.ts holds what it draws). Until then it rendered
+ *      COMPANY_LINE, the third in #eae7f2, no "Modules" (#eae7f2 was the hero's wash until HERO-CREST-01, 2026-11-11);
  *   T6 the retired line — no code under src/ carries it, and its two dead files are gone.
  *
  * Every text check reads code() — the comments that quote the retired line are history and stay.
@@ -56,7 +58,7 @@ test('T1 the four exports are the exact words, and SITE_DESCRIPTION is the compa
   assert.equal(HERO_SUBLINE, "Whether you're managing your personal finances, running a business, managing investments, or planning a trip for business or pleasure — Temple Stuart brings your plans, budgets, and financial records together so you can see the whole picture.");
   assert.equal(SITE_DESCRIPTION, "Connect your world. Create your freedom. Control your future. Whether you're managing your personal finances, running a business, managing investments, or planning a trip for business or pleasure — Temple Stuart brings your plans, budgets, and financial records together so you can see the whole picture.");
   assert.match(code(WORDS), /export const SITE_DESCRIPTION = `\$\{COMPANY_LINE\.join\(' '\)\} \$\{HERO_SUBLINE\}`;/, 'derived, never retyped');
-  assert.doesNotMatch(code(WORDS), /\bimport\b|\brequire\(/, 'pure, no imports — the preview image runs on the edge');
+  assert.doesNotMatch(code(WORDS), /\bimport\b|\brequire\(/, 'pure, no imports — a leaf any runtime can read (the preview image read it on the edge until OG-CREST-01)');
 });
 
 // ── T2 · THE HERO ────────────────────────────────────────────────────────────
@@ -143,20 +145,24 @@ test('T4 layout.tsx reads SITE_DESCRIPTION for all three descriptions and types 
   assert.equal((layout.match(/description:/g) ?? []).length, 3, 'no fourth description');
   assert.doesNotMatch(layout, /description:\s*["'`]/, 'no description typed');
   assert.doesNotMatch(layout, /Nine modules/i);
-  assert.match(layout, /title: "Temple Stuart \| Founder's Back Office"/, 'the title is unchanged — Alex\'s call, not made');
+  // OG-CREST-01 (Alex, 2026-11-12): "instead of founders back office... i want it to say : Connect, Create, Control" — his
+  // call, made. Until then: /title: "Temple Stuart \| Founder's Back Office"/ ('the title is unchanged — Alex's call, not made').
+  assert.match(layout, /title: "Temple Stuart \| Connect, Create, Control"/, 'the title — Alex\'s call, made (OG-CREST-01)');
 });
 
 // ── T5 · THE LINK PREVIEW ────────────────────────────────────────────────────
 
-test('T5 opengraph-image.tsx renders COMPANY_LINE — the third in the lavender wash, the hero\'s own until HERO-CREST-01 — and no Modules stat', () => {
+// OG-CREST-01 (Alex, 2026-11-12: "instead of the connect yur world. Create your freedom. Control your future... I wanna see
+// like this image from the hero"): the preview is the hero's crest on the hero's ground, with no words — what it draws is
+// src/lib/__tests__/ogCrest01.test.ts's. Until then T5 was 'opengraph-image.tsx renders COMPANY_LINE — the third in the
+// lavender wash, the hero's own until HERO-CREST-01 — and no Modules stat': the import from '@/lib/brandLines',
+// {COMPANY_LINE[k]} for k = 0, 1, 2, the third in a <span> wearing '#eae7f2', no "Modules", ">Plaid<" and ">Bank Sync<",
+// and none of the line's words typed.
+test('T5 opengraph-image.tsx renders no line — the company line left the link preview with OG-CREST-01 — and types none of the words', () => {
   const preview = code(PREVIEW);
-  assert.match(preview, /import \{ COMPANY_LINE \} from '@\/lib\/brandLines';/);
-  for (const k of [0, 1, 2]) assert.ok(preview.includes(`{COMPANY_LINE[${k}]}`), `line ${k + 1} renders COMPANY_LINE[${k}]`);
-  assert.match(preview, /<span style=\{\{ color: '#eae7f2', fontSize: '52px', fontWeight: '300' \}\}>\s*\{COMPANY_LINE\[2\]\}/, 'the third wears #eae7f2');
-  assert.ok(preview.includes('#eae7f2'));
-  assert.ok(!preview.includes('Modules'), 'the "9 / Modules" stat left');
-  assert.ok(preview.includes('>Plaid<') && preview.includes('>Bank Sync<'), 'Plaid / Bank Sync stays');
-  for (const words of COMPANY_LINE) assert.ok(!preview.includes(words), `"${words}" is not typed`);
+  assert.doesNotMatch(preview, /brandLines|COMPANY_LINE|EXPERIENCE_LINE|HERO_SUBLINE|SITE_DESCRIPTION/, 'the preview reads no line');
+  for (const words of [...COMPANY_LINE, ...EXPERIENCE_LINE, HERO_SUBLINE]) assert.ok(!preview.includes(words), `"${words.slice(0, 24)}" is not typed`);
+  assert.ok(!preview.includes('Modules'), 'the "9 / Modules" stat stays gone');
 });
 
 // ── T6 · THE RETIRED LINE ────────────────────────────────────────────────────
