@@ -115,7 +115,7 @@ test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → expl
   assert.ok(!landing.slice(at(MY_TRIP) + MY_TRIP.length, landing.indexOf('<LandingFooter />')).includes('<section'), 'my trip → the footer: no act between');
 });
 
-test('T2 the seams: one border-b per boundary from experiences to the door — my trip\'s, the strip\'s own, done-for-you\'s (no border-t), the plans act\'s, the door\'s (PIPELINE-PAGE-01); the header\'s own over 01, the ledger\'s three lines once each and the header\'s SEAM — in the deck\'s file; the SEAT paragraph', () => {
+test('T2 the seams: one border-b per boundary from experiences to the door — my trip\'s, the travel band\'s (.ts-tm — HOME-TRAVEL-01, 2026-11-12: the guest\'s trip card has no seam of its own; the strip\'s own until then), done-for-you\'s (no border-t), the plans act\'s, the door\'s (PIPELINE-PAGE-01); the header\'s own over 01, the ledger\'s three lines once each and the header\'s SEAM — in the deck\'s file; the SEAT paragraph', () => {
   const landing = code(LANDING);
   // the rules, read from the components that carry them
   const trip = code(TRIP);

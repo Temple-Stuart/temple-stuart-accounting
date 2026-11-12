@@ -208,10 +208,10 @@ export const StayNearContext = createContext<((row: Experience) => void) | null>
 /**
  * HOME-TRAVEL-01 (2026-11-12): what a row's "Add to trip" reads and does — whether the event is in the guest's trip, the press (it adds
  * the event, or takes it out), and — Q2, ruled by Alex 2026-11-12 — the line to say under the pressed row when the browser refused to save
- * it (null on every other row). The booking box provides it once it has read the trip (LandingBookingSection.tsx). Null, the default, means
- * no trip has been read: no row draws the button.
+ * it, with the box's count of refusals as its key, so a press refused twice is said twice (null on every other row). The booking box provides
+ * it once it has read the trip (LandingBookingSection.tsx). Null, the default, means no trip has been read: no row draws the button.
  */
-export const AddToTripContext = createContext<{ inTrip: (id: string) => boolean; onToggle: (row: Experience) => void; notSaved: (id: string) => string | null } | null>(null);
+export const AddToTripContext = createContext<{ inTrip: (id: string) => boolean; onToggle: (row: Experience) => void; notSaved: (id: string) => { words: string; seq: number } | null } | null>(null);
 
 /** EVENTS-03 (Alex, 2026-11-09): "Checked Nov 8, 2026" — the day a row was checked, in the foot of every card whose line does not already say it. */
 export function checkedWords(checkedOn: string): string {
@@ -360,9 +360,10 @@ function EventRow({ row, today }: { row: Experience; today: string }) {
             )}
           </div>
         )}
-        {/* HOME-TRAVEL-01 — Q2 (Alex, 2026-11-12: "say so where they pressed, and add nothing"): the browser refused to save this row's press —
-            one line under its buttons, in the lookup's failure line (the port's one red line); the next press clears it. */}
-        {notSaved !== null && <p className={EXP.notSaved} role="alert" data-not-saved={row.id}>{notSaved}</p>}
+        {/* HOME-TRAVEL-01 — Q2 (ruled by Alex 2026-11-12: yes to "say so where they pressed, and add nothing"): the browser refused to save this
+            row's press — one line under its buttons, in the lookup's failure line (the port's one red line); the next press clears it, and a
+            press refused again puts a new line in its place (keyed by the box's count of refusals), so it is said again. */}
+        {notSaved !== null && <p key={notSaved.seq} className={EXP.notSaved} role="alert" data-not-saved={row.id}>{notSaved.words}</p>}
       </div>
       {/* EVENTS-01c: every row names the page its dates came from.
           EVENTS-03: and the day it was checked, before the link, unless its line already says it. */}
