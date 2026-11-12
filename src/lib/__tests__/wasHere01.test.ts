@@ -381,7 +381,10 @@ test('T4 rendered with the live rows: the h2 "Our Story" (HOME-ORDER-01, 2026-11
   // [&::-webkit-scrollbar-thumb]:bg-border inside the container, and each card w-[21rem] shrink-0 snap-start flex flex-col.
   const rail = /<div class="([^"]*)" id="story-row" data-was-here-rail="true">/.exec(html);
   assert.ok(rail && rail[1] === 'ts-story-row', 'the row is drawn — the port\'s');
-  assert.ok(html.includes('</button></div></div></div><div class="ts-story-row" id="story-row" data-was-here-rail="true">'), 'the arrows, the head and the page container close before the row: it runs the section\'s full width');
+  // TRIPCARDS-03, Alex's note on the cards as built (2026-11-12: "…they extend out to the right, and idk it just looks lopisded and off…"): the row
+  // stands in the page container, after the head. Until then: html.includes('</button></div></div></div><div class="ts-story-row" …>') — the
+  // arrows, the head and the page container closed before the row, which ran the section's full width.
+  assert.ok(html.includes('</button></div></div><div class="ts-story-row" id="story-row" data-was-here-rail="true">'), 'the arrows and the head close, and the row opens inside the page container');
   assert.doesNotMatch(html, /sm:grid-cols-2|lg:grid-cols-3|flex-wrap/, 'no grid of cards and no wrapping — one row');
   assert.ok(!rail[1].split(' ').includes('grid'), 'the row is a flex row, not a grid');
   for (const id of TRIP) assert.match(html, new RegExp(`<article class="ts-story-card" data-was-here="${id}"`), `${id}: the port's card — one width, snapping to its start, a column`);
@@ -533,7 +536,9 @@ test('T4 the leaf, the words and the section read no clock; the section stores n
   // is stored, nothing is fetched, no URL is read. Until then the section held no state and no effect:
   // assert.doesNotMatch(section, /useState|useEffect|useSearchParams|useRouter|fetch\(/).
   assert.equal((section.match(/\buseState\b/g) ?? []).length, 2, 'one piece of state — its import and its one call');
-  assert.match(section, /const \[ends, setEnds\] = useState<RowEnds>\(ROW_AS_IT_OPENS\);/, 'the row\'s two ends, at first the page as it opens');
+  // TRIPCARDS-03, Alex's note on the cards as built (2026-11-12): the state holds the card in view too, which the dots light. Until then:
+  // /const \[ends, setEnds\] = useState<RowEnds>\(ROW_AS_IT_OPENS\);/ — the row's two ends alone.
+  assert.match(section, /const \[place, setPlace\] = useState<RowPlace>\(ROW_AS_IT_OPENS\);/, 'where the row stands — its two ends and the card in view — at first the page as it opens');
   assert.equal((section.match(/\buseEffect\(/g) ?? []).length, 1, 'one effect');
   assert.doesNotMatch(section, /localStorage|sessionStorage|document\.cookie|useSearchParams|useRouter|usePathname|history\.|fetch\(/, 'nothing stored, no URL, no fetch');
   assert.doesNotMatch(section, /\d{4}-\d{2}-\d{2}|Oct \d|Nov \d|Jul \d|days after|days before/, 'no retyped date, no typed gap');
