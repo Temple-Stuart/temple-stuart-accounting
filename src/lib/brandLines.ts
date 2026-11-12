@@ -9,9 +9,10 @@
  * hero's subline is his new sentence. The 15:40 relay above and "word for word from Landing.tsx" below are history.
  *
  * WHERE THEY RENDER — every surface reads them from here; none types them:
- *   · COMPANY_LINE     — the hero's h1 (src/components/landing/Landing.tsx), the page description
- *                        (src/app/layout.tsx, through SITE_DESCRIPTION) and the link-preview image
- *                        (src/app/opengraph-image.tsx);
+ *   · COMPANY_LINE     — the hero's h1 (src/components/landing/Landing.tsx) and the page description
+ *                        (src/app/layout.tsx, through SITE_DESCRIPTION). The link-preview image
+ *                        (src/app/opengraph-image.tsx) rendered it too until OG-CREST-01 (Alex, 2026-11-12):
+ *                        the preview is the hero's crest now, with no words;
  *   · EXPERIENCE_LINE  — the events section's h2 (src/components/landing/ExperiencesSection.tsx),
  *                        with "Book the experience, not just the destination." (that file's PROMISE) under it;
  *   · HERO_SUBLINE     — the hero's subline, moved here word for word from Landing.tsx :2085-2086;
@@ -21,7 +22,8 @@
  * hero's line since FOUNDERS-POSITIONING-AND-OG-TRUTH. It left every file that rendered or served it;
  * the comments that quote it are history and stay.
  *
- * PURE, NO IMPORTS: the preview image runs on the edge runtime (src/app/opengraph-image.tsx :3).
+ * PURE, NO IMPORTS: a leaf any runtime can read. (The reason it was written for: the preview image ran on the edge
+ * runtime and read COMPANY_LINE here — src/app/opengraph-image.tsx :3 — until OG-CREST-01, 2026-11-12.)
  */
 
 export const COMPANY_LINE = ['Connect your world.', 'Create your freedom.', 'Control your future.'] as const;

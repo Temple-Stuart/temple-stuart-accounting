@@ -147,13 +147,18 @@ function rootOf(css: string): Map<string, string> {
   }
   return map;
 }
-/** The port: globals.css from the section's first rule to the hero's — the rules between the chip strip's and HERO-CREST-01's. */
+/**
+ * The port: globals.css from the section's first rule to the next block's — the public footer's (FOOTER-02, 2026-11-12), which stands between this
+ * block and HERO-CREST-01's. Until FOOTER-02 the port ran to the hero's: "the rules between the chip strip's and HERO-CREST-01's", ending at
+ * '.ts-hero {'.
+ */
 const PORT_OPEN = '.ts-fs-heading {';
+const NEXT_PORT = '.ts-ft {';
 function portCss(): string {
   const css = code(GLOBALS);
   const at = css.indexOf(PORT_OPEN);
-  const end = css.indexOf('.ts-hero {');
-  assert.ok(at > -1 && end > at, 'the port opens at .ts-fs-heading and runs to the hero\'s block');
+  const end = css.indexOf(NEXT_PORT);
+  assert.ok(at > -1 && end > at && css.indexOf('.ts-hero {') > end, 'the port opens at .ts-fs-heading and runs to the footer\'s block, which stands above the hero\'s');
   return css.slice(at, end);
 }
 
@@ -396,13 +401,15 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   assert.match(layout, /variable:\s*["']--font-mono["']/, 'and --font-mono (IBM Plex Mono)');
   for (const [name] of NEW) assert.ok(read.has(`--ts-${name}`), `--ts-${name} is read by the stylesheet — no token without a reader`);
   for (const [name] of KEPT) assert.ok(read.has(`--ts-${name}`), `--ts-${name} is read by the stylesheet, as the README's table says`);
-  // where it stands: under the chip strip's rules, above the hero's block, with nothing between it and the hero but the hero's comment
+  // where it stands: under the chip strip's rules, above the footer's block and the hero's. FOOTER-02 (2026-11-12): the footer's port stands between
+  // this one and the hero's — until then, "above the hero's block, with nothing between it and the hero but the hero's comment", and the rules
+  // outside this port were read from '.ts-hero {' on; they are read from the footer's first rule on now, so its block is read as outside.
   const whole = code(GLOBALS);
   const at = whole.indexOf(PORT_OPEN);
   assert.ok(at > whole.lastIndexOf('.ts-chipfade'), 'under the chip strip\'s rules');
   assert.equal(count(whole, PORT_OPEN), 1, 'one port');
   // nothing outside the port names its classes — by class selector or through a class attribute selector
-  const outside = whole.slice(0, at) + whole.slice(whole.indexOf('.ts-hero {'));
+  const outside = whole.slice(0, at) + whole.slice(whole.indexOf(NEXT_PORT));
   assert.doesNotMatch(outside, /\.ts-fs\b|\.ts-fs[-_]/, 'no rule outside the port names one of its classes');
   assert.doesNotMatch(outside, /\[\s*class\s*[~|^$*]?=\s*["']?[^"'\]]*fs/, 'and none reaches them through a class attribute selector');
   // nor restyles the heading's type: since Alex's note on the built page, "What We Do" wears the act headings' five Tailwind

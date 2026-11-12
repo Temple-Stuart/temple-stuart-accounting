@@ -17,6 +17,15 @@
  * "each label is its pillar's heading, letter for letter" — and T3 gained one hold: no code under src still types an old
  * name. T4's list of words the component must not type names the new three. Nothing else in this file moved.
  *
+ * FOOTER-02 (Alex, design canvas: the board approved 2026-11-12 23:30 Manila — "lets get the hand off! yeet yett! i like it!"): THE FOOTER
+ * IN THE HERO'S VIOLET. The footer is the reference's markup now (design-refs/footer-02/Section-Reference.html), in its classes behind
+ * the house prefix; its look is held by src/lib/__tests__/footer02.test.ts. Here T4 and T5 are re-pointed to those classes — the
+ * lockup now opens the footer, a hairline stands over the disclaimer, a story link is drawn in two parts (its text reads the label with
+ * a space where its " | " stood), every column link wears the one row class, and the icons are aria-hidden beside the two ↗ — each with
+ * a dated note saying what it held until then. Every word, href, order and target they hold is unchanged. T1–T3, T6 and T7 stand; T8
+ * stands too, and the law's three citations it reads moved with the footer's lines (scripts/assert-tool-registry.ts re-cites them).
+ * T8 finds TERMS and PRIVACY as next/link now, as PRICING was — "Links that stay on the site use next/link" (the brief) — with a dated note.
+ *
  *   T1 the labels — OUR STORY, SERVICES, SOCIALS, THE RECORD (THE BLOG, THE RECORD until then) — from src/lib/footerWords.ts;
  *   T2 footerStoryLinks(WAS_HERE): "Stop 0 | Los Angeles" ('/#' + its anchor), then one link per stop of the trip log in
  *      trip order — "Stop <n> | <the row's city>" → that stop's page; a stop added to the log adds itself, in its place.
@@ -82,17 +91,27 @@ const HOW_TO = 'src/components/landing/HowToSection.tsx';
 const STOP_PAGE = 'src/app/my-trip/[id]/page.tsx';
 const THIS = 'src/lib/__tests__/footer01.test.ts';
 
-// HOME-FINISH-02 (2026-11-10): four columns — two by two on a phone, four across from lg. Until then: '<div class="max-w-7xl mx-auto px-4 lg:px-8 pt-10 grid gap-8 sm:grid-cols-2">'.
-const GRID_OPEN = '<div class="max-w-7xl mx-auto px-4 lg:px-8 pt-10 grid gap-8 grid-cols-2 lg:grid-cols-4">';
-const DISCLAIMER_OPEN = '<div class="max-w-3xl mx-auto px-4 lg:px-8 pt-8 text-center">';
-const BAR_OPEN = '<div class="max-w-7xl mx-auto px-4 lg:px-8 py-8">';
-const LABEL_CLASS = 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60';
-// HOME-FINISH-02 (2026-11-10): the column link gained lg:min-h-0 lg:py-1 — eleven 44px rows would stand 484px tall on a desktop; the 44px touch
-// height stays below lg. Until then: 'inline-flex min-h-[44px] items-center text-sm text-white/85 hover:text-white'.
-const LINK_CLASS = 'inline-flex min-h-[44px] items-center text-sm text-white/85 hover:text-white lg:min-h-0 lg:py-1';
-// A social's link in its column: the same row with its icon beside its name. Until then the socials stood in the bar, icon-only, as
-// SOCIAL_CLASS = 'p-3 lg:p-0 text-white/70 hover:text-white transition-colors'.
-const SOCIAL_LINK_CLASS = 'inline-flex min-h-[44px] items-center gap-2 text-sm text-white/85 hover:text-white lg:min-h-0 lg:py-1';
+// FOOTER-02 (Alex's board, approved 2026-11-12 23:30 Manila): the footer wears the reference's classes (design-refs/footer-02; their rules are
+// globals.css's FOOTER-02 block, held to the reference by footer02.test.ts). Until then these constants read —
+//   GRID_OPEN '<div class="max-w-7xl mx-auto px-4 lg:px-8 pt-10 grid gap-8 grid-cols-2 lg:grid-cols-4">' (HOME-FINISH-02, 2026-11-10: four columns,
+//     two by two on a phone, four across from lg — '<div class="max-w-7xl mx-auto px-4 lg:px-8 pt-10 grid gap-8 sm:grid-cols-2">' before it);
+//   DISCLAIMER_OPEN '<div class="max-w-3xl mx-auto px-4 lg:px-8 pt-8 text-center">'; BAR_OPEN '<div class="max-w-7xl mx-auto px-4 lg:px-8 py-8">';
+//   LABEL_CLASS 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60';
+//   LINK_CLASS 'inline-flex min-h-[44px] items-center text-sm text-white/85 hover:text-white lg:min-h-0 lg:py-1' (HOME-FINISH-02 added
+//     lg:min-h-0 lg:py-1 — eleven 44px rows would stand 484px tall on a desktop — to 'inline-flex min-h-[44px] items-center text-sm text-white/85
+//     hover:text-white');
+//   SOCIAL_LINK_CLASS 'inline-flex min-h-[44px] items-center gap-2 text-sm text-white/85 hover:text-white lg:min-h-0 lg:py-1' — a social's link in its
+//     column, its icon beside its name (in the bar, icon-only, before HOME-FINISH-02: SOCIAL_CLASS = 'p-3 lg:p-0 text-white/70 hover:text-white
+//     transition-colors'). The socials wear the one row class now, LINK_CLASS, like every column link: SOCIAL_LINK_CLASS left with its last reader.
+//   LEGAL_CLASS 'inline-block py-3.5 lg:py-0 font-mono text-xs lg:text-[10px] tracking-wider text-white/80 hover:text-white'.
+// A row is 44px tall below 1024px and 36px from it, by the port's rules now, not by a class on the link.
+const GRID_OPEN = '<div class="ts-ft-columns">';
+/** FOOTER-02: the hairline between the columns and the disclaimer — new with the design. */
+const RULE = '<div class="ts-ft-rule"></div>';
+const DISCLAIMER_OPEN = '<p class="ts-ft-disclaimer">';
+const BAR_OPEN = '<div class="ts-ft-bottom">';
+const LABEL_CLASS = 'ts-ft-label';
+const LINK_CLASS = 'ts-ft-link';
 /** The five accounts — the hrefs the bar held, in its order — and the first characters of each one's icon path, so a name and its icon cannot be swapped. */
 const SOCIALS: ReadonlyArray<readonly [string, string, string]> = [
   ['Instagram', 'https://www.instagram.com/temple_stuart_accounting/', 'M12 2.163c3.204 0 3.584'],
@@ -102,7 +121,7 @@ const SOCIALS: ReadonlyArray<readonly [string, string, string]> = [
   ['LinkedIn', 'https://www.linkedin.com/in/alexander-stuart-phi/', 'M20.447 20.452h-3.554v-5.569'],
 ];
 const DISCLAIMER = 'Temple Stuart is not a CPA firm, tax preparer, or licensed financial advisor. All tax figures generated by this platform are estimates for informational purposes only and must be verified by a qualified tax professional before filing. Use of this software does not constitute tax advice.';
-const LEGAL_CLASS = 'inline-block py-3.5 lg:py-0 font-mono text-xs lg:text-[10px] tracking-wider text-white/80 hover:text-white';
+const LEGAL_CLASS = 'ts-ft-legal__link';
 
 const count = (hay: string, needle: string): number => hay.split(needle).length - 1;
 const unescapeHtml = (s: string) => s.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
@@ -214,55 +233,67 @@ test('T4 the footer renders the four columns once, above the disclaimer, then th
   // HOME-FINISH-02 (2026-11-10). Until then: two columns — data-footer-blog (THE BLOG: footerBlogLinks(TRIP_POSTS)) and data-footer-record (THE
   // RECORD) — 'only the code opens a new tab', and the component held "import { TRIP_POSTS } from '@/lib/tripPosts';" and
   // '{footerBlogLinks(TRIP_POSTS).map('.
+  // FOOTER-02 (2026-11-12): the reference's markup — the lockup opens the footer, then the columns, a hairline, the disclaimer, the bar; each column
+  // a <div class="ts-ft-column ts-ft-column--<name>"> with its hook; every column link the one row class; a story link drawn in two parts, so its
+  // text reads the label with a space where its " | " stood; the icons aria-hidden, the Record's two external links each ending in a ↗. Until then
+  // this test held: html.startsWith(`<footer class="bg-brand-purple text-white">${GRID_OPEN}`) ('the columns open the footer — the solid purple
+  // stays'); grid === html.indexOf('>') + 1, the disclaimer next; each column opened `<div ${marker}="true">`; each link's text was its label; the
+  // socials wore SOCIAL_LINK_CLASS; each icon was '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">', five, 'and no other' <svg>.
   const html = render();
-  assert.ok(html.startsWith(`<footer class="bg-brand-purple text-white">${GRID_OPEN}`), 'the columns open the footer — the solid purple stays');
+  assert.ok(html.startsWith('<footer class="ts-ft"><div class="ts-ft__inner"><a class="ts-ft-brand" href="/">'), 'the lockup opens the footer — the band in the hero\'s violet');
+  assert.ok(!html.includes('bg-brand-purple'), 'the solid purple band is gone');
   const grid = html.indexOf(GRID_OPEN);
+  const rule = html.indexOf(RULE);
   const disclaimer = html.indexOf(DISCLAIMER_OPEN);
   const bar = html.indexOf(BAR_OPEN);
-  assert.ok(grid === html.indexOf('>') + 1 && disclaimer > grid && bar > disclaimer, 'the columns → the disclaimer → the bar');
-  for (const [s, what] of [[GRID_OPEN, 'the grid'], [DISCLAIMER_OPEN, 'the disclaimer'], [BAR_OPEN, 'the bar']] as const) assert.equal(count(html, s), 1, `${what} once`);
-  const columns = html.slice(grid, disclaimer);
+  assert.ok(grid === html.indexOf('</a>') + '</a>'.length && rule > grid && disclaimer === rule + RULE.length && bar > disclaimer, 'the lockup → the columns → the hairline → the disclaimer → the bar');
+  for (const [s, what] of [[GRID_OPEN, 'the grid'], [RULE, 'the hairline'], [DISCLAIMER_OPEN, 'the disclaimer'], [BAR_OPEN, 'the bar']] as const) assert.equal(count(html, s), 1, `${what} once`);
+  const columns = html.slice(grid, rule);
   const inner = columns.slice(GRID_OPEN.length, -'</div>'.length); // the four columns, the grid's own tags off
-  const sides: ReadonlyArray<readonly [string, string, readonly FooterLink[]]> = [
-    ['data-footer-story', FOOTER_STORY_LABEL, footerStoryLinks(WAS_HERE)],
-    ['data-footer-services', FOOTER_SERVICES_LABEL, FOOTER_SERVICES_LINKS],
-    ['data-footer-socials', FOOTER_SOCIALS_LABEL, FOOTER_SOCIALS.map((s): FooterLink => ({ label: s.name, href: s.href, external: true }))],
-    ['data-footer-record', FOOTER_RECORD_LABEL, FOOTER_RECORD_LINKS],
+  const sides: ReadonlyArray<readonly [string, string, string, readonly FooterLink[]]> = [
+    ['story', 'data-footer-story', FOOTER_STORY_LABEL, footerStoryLinks(WAS_HERE)],
+    ['services', 'data-footer-services', FOOTER_SERVICES_LABEL, FOOTER_SERVICES_LINKS],
+    ['socials', 'data-footer-socials', FOOTER_SOCIALS_LABEL, FOOTER_SOCIALS.map((s): FooterLink => ({ label: s.name, href: s.href, external: true }))],
+    ['record', 'data-footer-record', FOOTER_RECORD_LABEL, FOOTER_RECORD_LINKS],
   ];
-  const starts = sides.map(([marker]) => inner.indexOf(`<div ${marker}="true">`));
+  const opening = (name: string, marker: string): string => `<div class="ts-ft-column ts-ft-column--${name}" ${marker}="true">`;
+  const starts = sides.map(([name, marker]) => inner.indexOf(opening(name, marker)));
   assert.equal(starts[0], 0, 'OUR STORY first');
   assert.deepEqual(starts, [...starts].sort((x, y) => x - y), 'OUR STORY → SERVICES → SOCIALS → THE RECORD');
   assert.ok(starts.every((at) => at > -1), 'each has a column of its own');
   assert.equal(count(columns, '<ul'), 4, 'one list per column');
-  sides.forEach(([marker, label, links], i) => {
+  sides.forEach(([name, marker, label, links], i) => {
     const col = inner.slice(starts[i], i + 1 < sides.length ? starts[i + 1] : undefined);
     // each column is its label, then a <ul> of ITS OWN links — nothing else (attribute order free; the <ul>'s own attributes are not ruled)
     const shape = col.replace(/<a\b[^>]*>[\s\S]*?<\/a>/g, '<a/>').replace(/<ul\b[^>]*>/g, '<ul>');
-    assert.equal(shape, `<div ${marker}="true"><p class="${LABEL_CLASS}">${label}</p><ul>${'<li><a/></li>'.repeat(links.length)}</ul></div>`, `${label}: its label, then a <ul> of its own links, nothing else`);
+    assert.equal(shape, `${opening(name, marker)}<p class="${LABEL_CLASS}">${label}</p><ul>${'<li><a/></li>'.repeat(links.length)}</ul></div>`, `${label}: its label, then a <ul> of its own links, nothing else`);
     const drawn = anchorsIn(col);
-    assert.deepEqual(drawn.map((a) => ({ label: a.text, href: a.href })), links.map((l) => ({ label: l.label, href: l.href })), `${label}: its own links, in order`);
+    // a story link reads its label with a space where its " | " stood — the stop and the place, two spans (FOOTER-02)
+    assert.deepEqual(drawn.map((a) => ({ label: a.text, href: a.href })), links.map((l) => ({ label: name === 'story' ? l.label.replace(' | ', ' ') : l.label, href: l.href })), `${label}: its own links, in order`);
     drawn.forEach((a, j) => {
-      assert.equal(a.cls, marker === 'data-footer-socials' ? SOCIAL_LINK_CLASS : LINK_CLASS, `${a.text}: the ruled link class`);
+      assert.equal(a.cls, LINK_CLASS, `${a.text}: the ruled link class`);
       assert.deepEqual([a.target, a.rel], links[j].external === true ? ['_blank', 'noopener noreferrer'] : [null, null], `${a.text}: ${links[j].external === true ? 'leaves the site, in a new tab' : 'stays on the site'}`);
     });
   });
-  assert.equal(sides[0][2].length, 11, 'eleven story links today: Stop 0 and the ten stops');
-  // the socials: the bar's five SVGs, each beside its account's name — and nowhere else in the footer
+  assert.equal(sides[0][3].length, 11, 'eleven story links today: Stop 0 and the ten stops');
+  // the socials: the bar's five SVGs, each beside its account's name, aria-hidden — and nowhere else in the footer
   const socials = inner.slice(starts[2], starts[3]);
   for (const [name, href, path] of SOCIALS) {
-    assert.ok(new RegExp(`<a href="${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"]*"></path></svg><span>${name}</span></a>`).test(socials), `${name}: its own icon, then its name`);
+    assert.ok(new RegExp(`<a class="${LINK_CLASS}" href="${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*><svg class="ts-ft-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"]*"></path></svg><span>${name}</span></a>`).test(socials), `${name}: its own icon, then its name`);
   }
-  assert.equal(count(html, '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">'), 5, 'the five icons, as the bar drew them');
-  assert.equal(count(html, '<svg'), 5, 'and no other');
+  assert.equal(count(html, '<svg class="ts-ft-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'), 5, 'the five icons, aria-hidden');
+  assert.equal(count(html, '<svg'), 7, 'and the two ↗ that end the Record links leaving the site — no other');
   // every word and href from the words module — none typed in the component (an icon's key is the account's name: a type the words leaf exports)
   // PILLAR-NAMES-01 (2026-11-11): the three pillars' names in this list are the new ones — 'Plan Your Escape', 'Build Your Income', 'Explore the World' until then.
   const footer = code(FOOTER);
   for (const typed of ['OUR STORY', 'THE RECORD', 'THE BLOG', 'Stop 0', 'Los Angeles', 'Financial Software', 'Professional Services', 'Travel Marketplace', 'How It All Connects', 'Built in Public', 'Software License', '/how-it-works', 'github.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'x.com/', 'linkedin.com', '/my-trip', "'#", '/#']) {
     assert.ok(!footer.includes(typed), `LandingFooter.tsx types no "${typed}"`);
   }
-  for (const label of ['FOOTER_STORY_LABEL', 'FOOTER_SERVICES_LABEL', 'FOOTER_SOCIALS_LABEL', 'FOOTER_RECORD_LABEL']) assert.equal(count(footer, `<p className={COLUMN.label}>{${label}}</p>`), 1, `${label}, rendered from the leaf`);
+  // FOOTER-02 (2026-11-12): each label in the reference's class, and the story list split by the words leaf's storyLinkParts. Until then:
+  // `<p className={COLUMN.label}>{${label}}</p>`, and /\{footerStoryLinks\(WAS_HERE\)\.map\(columnLink\)\}/.
+  for (const label of ['FOOTER_STORY_LABEL', 'FOOTER_SERVICES_LABEL', 'FOOTER_SOCIALS_LABEL', 'FOOTER_RECORD_LABEL']) assert.equal(count(footer, `<p className="ts-ft-label">{${label}}</p>`), 1, `${label}, rendered from the leaf`);
   assert.match(footer, /^import \{ WAS_HERE \} from '@\/lib\/wasHere';$/m);
-  assert.match(footer, /\{footerStoryLinks\(WAS_HERE\)\.map\(columnLink\)\}/, 'the log passed in, so a stop added to it adds its own link');
+  assert.match(footer, /\{footerStoryLinks\(WAS_HERE\)\.map\(\(link\) => \{/, 'the log passed in, so a stop added to it adds its own link');
   assert.ok(!footer.includes('tripPosts') && !footer.includes('TRIP_POSTS'), 'the posts are read here no more');
   assert.doesNotMatch(footer, /^['"]use client['"]/m, 'still a server component where a server page renders it — no directive on any line');
 });
@@ -274,10 +305,15 @@ test('T5 below the columns: the disclaimer word for word; then one row — ©, P
   // email — their hrefs, words and classes': nine hrefs — the five socials (each _blank, noopener noreferrer, class 'p-3 lg:p-0 text-white/70
   // hover:text-white transition-colors', an icon each), then '/how-pricing-works', '/terms', '/privacy', 'mailto:astuart@templestuart.com' reading
   // PRICING, TERMS, PRIVACY and ASTUART@TEMPLESTUART.COM.
+  // FOOTER-02 (2026-11-12): the reference's classes — a hairline over the disclaimer, the disclaimer a <p> of its own, © a <p> opening the bar. Until
+  // then: tail.startsWith(`${DISCLAIMER_OPEN}<p class="text-xs text-white/50 leading-relaxed">${DISCLAIMER}</p></div>${BAR_OPEN}`) under the old
+  // DISCLAIMER_OPEN and BAR_OPEN (above), and © as '<div class="font-mono text-xs lg:text-[10px] uppercase tracking-wider text-white/60">© 2026
+  // TEMPLE STUART, LLC</div>'. Its words, the four links' words, hrefs and order are unchanged.
   const html = render();
   const tail = html.slice(html.indexOf(DISCLAIMER_OPEN));
-  assert.ok(tail.startsWith(`${DISCLAIMER_OPEN}<p class="text-xs text-white/50 leading-relaxed">${DISCLAIMER}</p></div>${BAR_OPEN}`), 'the disclaimer, word for word, then the bar');
-  assert.ok(tail.includes('<div class="font-mono text-xs lg:text-[10px] uppercase tracking-wider text-white/60">© 2026 TEMPLE STUART, LLC</div>'), '©');
+  assert.ok(html.includes(`${RULE}${DISCLAIMER_OPEN}`), 'the hairline, then the disclaimer');
+  assert.ok(tail.startsWith(`${DISCLAIMER_OPEN}${DISCLAIMER}</p>${BAR_OPEN}`), 'the disclaimer, word for word, then the bar');
+  assert.ok(tail.includes(`${BAR_OPEN}<p class="ts-ft-copy">© 2026 TEMPLE STUART, LLC</p>`), '© opens the bar');
   assert.deepEqual(anchorsIn(tail).map((a) => [a.text, a.href, a.cls, a.target]), [
     ['PRICING', '/how-pricing-works', LEGAL_CLASS, null],
     ['TERMS', '/terms', LEGAL_CLASS, null],
@@ -377,8 +413,10 @@ test('T8 GUEST_ROUTES names the lines PRICING, PRIVACY and TERMS sit on — read
     return at[0];
   };
   const pricing = lineOf(/>PRICING<\/Link>/);
-  const terms = lineOf(/>TERMS<\/a>/);
-  const privacy = lineOf(/>PRIVACY<\/a>/);
+  // FOOTER-02 (2026-11-12): TERMS and PRIVACY are next/link now, as PRICING is — "Links that stay on the site use next/link" (the brief). Until
+  // then they were plain <a>s: /<a href="\/terms" …>TERMS<\/a>/ and /<a href="\/privacy" …>PRIVACY<\/a>/ were read here as />TERMS<\/a>/ and />PRIVACY<\/a>/.
+  const terms = lineOf(/>TERMS<\/Link>/);
+  const privacy = lineOf(/>PRIVACY<\/Link>/);
   const law = code(LAW);
   // the header's own citation in the same entry is not this PR's (NOT in this PR: the header) — so it is not read here
   assert.match(law, new RegExp(`\\{ route: '/how-pricing-works', why: '[^']*LandingFooter\\.tsx:${pricing}[ ,(]`), `/how-pricing-works cites :${pricing}`);
