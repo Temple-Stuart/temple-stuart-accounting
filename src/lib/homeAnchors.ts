@@ -17,7 +17,8 @@
  *
  * HOME-FINISH-02 (Alex, 2026-11-10 20:56 — "a stable anchor so the footer can link directly to Build Your Income"): a fifth,
  *   · SERVICES_ANCHOR  'services' — the professional-services section, the second pillar under "What We Do"
- *                                  (Landing.tsx, <section id={SERVICES_ANCHOR}); new with HOME-FINISH-02.
+ *                                  (Landing.tsx, <section id={SERVICES_ANCHOR}); new with HOME-FINISH-02. HOME-SERVICES-01 (2026-11-12):
+ *                                  the section is ServicesSection.tsx's now, which Landing.tsx mounts; the id stands there.
  * The footer reads three of them now — four since HERO-CREST-01, 2026-11-11, with MODULES_ANCHOR (below) — (src/lib/footerWords.ts): STOP_ZERO_ANCHOR (OUR STORY's Stop 0), SERVICES_ANCHOR
  * (Build Your Income) and DEMO_ANCHOR (Explore the World — it sits on that pillar's heading). THE BLOG left the footer,
  * and its links to /#events and /#my-trip with it; the two sections and the trip page still read those anchors.

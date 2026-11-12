@@ -21,8 +21,8 @@
  *      that repeated the label is gone (HOME-BRIEF-04, 2026-11-10 — it stood, untouched, until then); the
  *      act list's line; :1807 still s08; the pins that stay (moved from close01). HOME-SERVICES-01 (Alex's brief, 2026-11-12): the
  *      panel is the Professional Services section's own component, src/components/landing/ServicesSection.tsx — the six doors are tiles
- *      that pick, the gold link carries the pick, his paragraph is one line — and T4 reads it there; each rewritten assertion keeps its
- *      old form in a dated note;
+ *      that pick, the gold link carries the pick, his paragraph is replaced by one line — and T4 reads it there; each rewritten
+ *      assertion keeps its old form in a dated note;
  *   T5 the form — needChoices() the six; Bookkeeping picked: the three lines in order, no modules question, the done
  *      placeholder; the lead; ?need=close picks nothing; the honeypot still at :371-380 (cited there by number);
  *   T6 the route — need z.enum(PROPOSAL_NEEDS): each of the six accepted, 'close' refused with an issue naming need;
@@ -290,6 +290,8 @@ const panelOf = (section: string): string => {
 test('T4 the section maps SERVICES once, in the panel\'s tile group; each door a tile that picks it and carries data-done-for-you (HOME-SERVICES-01, 2026-11-12: six equal Link cards in a white card until then)', () => {
   const landing = code(LANDING);
   const section = code(SECTION);
+  // HOME-SERVICES-01 (2026-11-12): the heading is the section's, found there. Until then: const head = landing.indexOf(PILLAR_HEAD);
+  // assert.ok(head > -1); assert.equal(landing.split(PILLAR_HEAD).length - 1, 1, 'the pillar\'s heading once (the eyebrow, until HOME-FINISH-02)').
   assert.equal(section.split(PILLAR_HEAD).length - 1, 1, 'the pillar\'s heading once');
   assert.equal(landing.split('BUILD_PILLAR').length - 1, 0, 'Landing.tsx draws the pillar nowhere — it mounts the section');
   for (const src of [landing, section]) assert.ok(!src.includes('DONE-FOR-YOU\n'), 'the old label is rendered nowhere');
@@ -298,6 +300,8 @@ test('T4 the section maps SERVICES once, in the panel\'s tile group; each door a
   // then: assert.match(landing, /import \{\n {2}PROPOSAL_FORM_PATH, SERVICES,\n\} from '@\/lib\/proposalNeeds';/).
   assert.doesNotMatch(landing, /from '@\/lib\/proposalNeeds'/, 'Landing.tsx imports nothing of the doors');
   assert.match(section, /^import \{\n {2}NEED_QUESTION, PROPOSAL_CTA, PROPOSAL_STEPS, SCOPED_BY_PROPOSAL, SERVICES, SERVICE_NEEDS,\n {2}formAsks, proposalFormHref, serviceDoor, servicePictureSrc, type ServiceNeed,\n\} from '@\/lib\/proposalNeeds';$/m, 'the section reads the doors from the one module');
+  // HOME-SERVICES-01 (2026-11-12): mapped in the section, and nowhere in Landing.tsx. Until then: assert.equal((landing.match(/SERVICES\.map\(/g)
+  // ?? []).length, 1, 'SERVICES mapped once').
   assert.equal((section.match(/SERVICES\.map\(/g) ?? []).length, 1, 'SERVICES mapped once — the tiles');
   assert.equal((landing.match(/SERVICES\.map\(/g) ?? []).length, 0, 'and nowhere in Landing.tsx');
   // HOME-SERVICES-01 (2026-11-12): each door is a tile — a button in the group the question labels, saying whether it is picked (README: "the
@@ -319,16 +323,15 @@ test('T4 nothing typed: no door\'s title or line, no line under the chip, no clo
   const landing = code(LANDING);
   const section = code(SECTION);
   const panel = panelOf(section);
-  // HOME-SERVICES-01 (2026-11-12): the panel is the section's, and a title counts as typed only as text — in quotes or between tags — so a name
-  // holding a door's word (the form's isBookkeeping) is not one. Until then: assert.ok(!panel.includes(s.title)) over Landing's panel.
-  const typed = (src: string, words: string): boolean => new RegExp(`["'\`>]\\s*${escapeRe(words)}\\s*["'\`<]`).test(src);
+  // HOME-SERVICES-01 (2026-11-12): the panel is the section's, found or the test fails (panelOf). Until then the same check ran over Landing's
+  // panel, found from the old PILLAR_HEAD with no check that it was found.
   for (const s of SIX) {
-    assert.ok(!typed(panel, s.title), `no typed title "${s.title}" in the panel`);
+    assert.ok(!panel.includes(s.title), `no typed title "${s.title}" in the panel`);
     for (const src of [landing, section]) assert.ok(!src.includes(s.line), `no typed line for ${s.need}`);
   }
   for (const src of [landing, section]) assert.ok(!src.includes('Your own hosted copy — every API wired, custom to your business, you own everything.'), 'the line under the chip went');
-  // HOME-SERVICES-01 (2026-11-12): ServiceNeed is the section's own pick's type (ruling a: the picked door in React state) — what went is the typed
-  // tuple array. Until then: assert.doesNotMatch(landing, /Embed a module|ServiceNeed\b|as const satisfies ReadonlyArray<readonly \[ServiceNeed/).
+  // HOME-SERVICES-01 (2026-11-12): Landing.tsx's check stands as it was. The section's own leaves out ServiceNeed\b: ServiceNeed is the type of
+  // the section's pick (ruling a: the picked door in React state), and what went is the typed tuple array.
   assert.doesNotMatch(landing, /Embed a module|ServiceNeed\b|as const satisfies ReadonlyArray<readonly \[ServiceNeed/, 'the typed tuple array went');
   assert.doesNotMatch(section, /Embed a module|as const satisfies ReadonlyArray<readonly \[ServiceNeed/, 'and the section types none');
   for (const src of [landing, section]) {

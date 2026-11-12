@@ -22,7 +22,8 @@
  *     additional promotional headings or explanatory paragraphs between these elements." A pillar is its heading (an
  *     h2) and its paragraphs (one <p> each, in order); the component that draws it types neither.
  *       PLAN_PILLAR  — over the plans (HowToSection.tsx).
- *       BUILD_PILLAR — over the six service cards (Landing.tsx, the professional-services section).
+ *       BUILD_PILLAR — over the six service cards (Landing.tsx, the professional-services section). HOME-SERVICES-01 (2026-11-12): over
+ *                      the six tiles now — ServicesSection.tsx, which Landing.tsx mounts.
  *       EXPLORE_PILLAR — over the booking box and the booking lookup (Landing.tsx, the travel section).
  *
  * PILLAR-NAMES-01 (Alex, 2026-11-11: "Financial Software | Professional Services | Travel Marketplace — these will

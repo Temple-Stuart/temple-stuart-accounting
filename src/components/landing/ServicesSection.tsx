@@ -36,7 +36,7 @@
  *      their lint line is this one's.
  *   f. "THE GOLD BUTTON replaces the purple one here; PRIMARY_CTA keeps its other users. "Send a project proposal →" and
  *      "Scoped by proposal" move from Landing.tsx into a leaf. The gold gradient is HOME-PLANS-04's; the picture's frame is the
- *      second gradient, on the board." — the link wears .ts-ps-cta, not PRIMARY_CTA (src/lib/ds.ts, untouched); both words are
+ *      second gradient, on the board." — the link wears .ts-ps-cta, not PRIMARY_CTA (src/lib/ds.ts: its value untouched); both words are
  *      src/lib/proposalNeeds.ts's; its href is the form's page with the pick (proposalFormHref), as the README has it:
  *      "The button links to the form's page with the pick: `/work-with-me?need=<key>`, the link each card carried until now."
  *   h. "HOOKS. data-done-for-you={need} moves to the tiles." — each tile carries it, in the place the reference's tile carries

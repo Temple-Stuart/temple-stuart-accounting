@@ -2,7 +2,8 @@
  * ONE-FORM-01 (Alex, 2026-11-06) — THE PROPOSAL FORM'S "WHAT DO YOU NEED?" VOCABULARY, typed once.
  *
  * SERVICES-01 (Alex, 2026-11-08 11:00 + 11:15) — THE SERVICES OFFER, ONE MODULE. The DONE-FOR-YOU panel holds six
- * equal doors; every door's key and words live HERE, and the panel (src/components/landing/Landing.tsx), the form
+ * equal doors; every door's key and words live HERE, and the panel (src/components/landing/Landing.tsx — ServicesSection.tsx since
+ * HOME-SERVICES-01, 2026-11-12, which Landing.tsx mounts), the form
  * (src/app/work-with-me/WorkWithMeForm.tsx), the route (src/app/api/proposals/route.ts) and the CRM
  * (src/lib/crm/crm.ts needWords) read them. The 2026 close retired everywhere — its card, its leaf
  * (src/lib/offer/close.ts), its words (src/lib/offer/closeWords.ts), its law and the form's close block; bookkeeping
@@ -13,7 +14,8 @@
  * prisma/migrations/20261108111500_services_01_bookkeeping_need): the six keys, and 'close' — kept for the rows the
  * old close door wrote, never offered on the form again and never accepted by the route.
  *
- *   SERVICES             the six doors, in the panel's order — { need, title, line } — the one place a door's key
+ *   SERVICES             the six doors, in the panel's order — { need, title, line }, and since HOME-SERVICES-01 (2026-11-12)
+ *                        its kind — the one place a door's key
  *                        (the word proposals.need stores) and its words (the card's title and line; the title is
  *                        the form's chip and the CRM's words) live;
  *   SERVICE_NEEDS        the six keys, in order (ServiceNeed is one of them);
