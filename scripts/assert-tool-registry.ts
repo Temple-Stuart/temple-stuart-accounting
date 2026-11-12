@@ -386,7 +386,7 @@ const schemaText = codeOf('prisma/schema.prisma');
  * PLAN_SURFACES are the PUBLIC offer — the landing and /pricing. HOME-BRIEF-04 (Alex, 2026-11-10 19:00): /pricing renders the
  * plans (src/components/offer/PlansSection.tsx over src/lib/offer/plans.ts); the landing's offer is the how-to now (HowToSection.tsx
  * over src/lib/howTo.ts), so the how-to's two files stand in this list beside it. None renders the builder's view: no tool count, no
- * beat vocabulary, no persona grid. THE PLAN LAW below holds them to it. ("They render the three plans" — both pages — until then.) (HOME-PLANS-04, 2026-11-12: the landing's map counts what a plan holds — "<n> of <total> tools" — not what is built; the count barred here is the registry's census, COUNT_TELLS in the plan law.)
+ * beat vocabulary, no persona grid. THE PLAN LAW below holds them to it. ("They render the three plans" — both pages — until then.) (HOME-PLANS-04, 2026-11-12: the landing's plan cards count what a plan holds — "<n> of <total> tools", "All <total> tools" — not what is built; the count barred here is the registry's census, COUNT_TELLS in the plan law. The map's own count left the same day, at Alex's note on the built page.)
  *
  * OFFER_CARD_SURFACES are the two IN-APP surfaces that still render the shared
  * <OfferCard/> from src/lib/offer.ts: the cockpit's locked-tab card and the

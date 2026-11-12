@@ -43,6 +43,10 @@
  *   · WHAT_WE_DO_HEADING keeps its element, its place and data-act-heading, and wears the EYEBROW now — small gold mono
  *     capitals over the first pillar's name (Landing.tsx, .ts-fs-heading / .ts-fs-eyebrow) — in place of HOME-FINISH-02's
  *     "in gold and one size up", for its look only. About Us and Our Story keep their gold headings.
+ *   · AFTER THE BUILD (Alex's note on the built page, 2026-11-12: "i like how about us and What We do were the same.  About
+ *     us is better size... IMO..."): WHAT_WE_DO_HEADING wears the act headings' type again — HOME-FINISH-02's "in gold and
+ *     one size up", as About Us and Our Story do — in its HOME-PLANS-04 box (Landing.tsx, .ts-fs-heading). The eyebrow,
+ *     above, is history.
  *   · PLAN_PILLAR: its heading is drawn, its paragraphs are not — one line stands where they stood (PLANS_SUBHEAD,
  *     src/lib/offer/plans.ts). KEPT, NOT DRAWN (2026-11-12), by the brief's ruling c: "WHAT LEAVES THE PAGE: the pillar's
  *     three paragraphs and the step lists in the cards. Both stay in their leaves, undrawn, with a dated note: the standing

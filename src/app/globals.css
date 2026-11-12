@@ -140,7 +140,9 @@
      README.md's TABLE "New with this section" (the reference's stylesheet writes them --fs-*; the house prefix --ts- is
      added, nothing else). tailwind.config.ts maps them as the `fs` family. Hex where the stylesheet reads the token solid;
      space-separated RGB channels where it reads it at an alpha — rgb(var(--ts-fs-shadow) / 0.08). Read by the section's
-     stylesheet, which stands above the hero's at the foot of this file. ───────────────────────────────────────────── */
+     stylesheet, which stands above the hero's at the foot of this file. Each comment is the table's "Used for", word for
+     word; since Alex's notes on the built page (2026-11-12) the eyebrow and the map's count are not drawn, so fs-gold-text's
+     "the eyebrow" names nothing on this page now — Business's word, line and ticks still read it. ──────────────────── */
   --ts-fs-white:       255 255 255;                /* cards, tools and switches; text on violet and teal; on the band at 0.08 and 0.5; the gold button's top light at 0.75 */
   --ts-fs-teal:        #0B7F73;                    /* Trading: its fill and its ring; on white its word, line and ticks */
   --ts-fs-teal-deep:   #0B5F57;                    /* Trading's switch label while off */
@@ -238,14 +240,15 @@ body {
 }
 
 /* ── HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30): THE
-   FINANCIAL SOFTWARE SECTION — "What We Do" as its eyebrow, the map, three plan cards, the all-three band ──────────────
+   FINANCIAL SOFTWARE SECTION — the heading box, the map, three plan cards, the all-three band ─────────────────────────
    THE SPEC IS design-refs/home-plans-04/Section-Reference.html: "Every value in its stylesheet is the design". What follows
    is that stylesheet, rule for rule and value for value, in its own order and with its own section notes:
-     · every class is the reference's with the house prefix: .fs → .ts-fs, .fs-map__count → .ts-fs-map__count, …;
+     · every class is the reference's with the house prefix: .fs → .ts-fs, .fs-map__grid → .ts-fs-map__grid, …;
      · every custom property it reads likewise: var(--fs-ink) → var(--ts-fs-ink), var(--hero-gold) → var(--ts-hero-gold),
        rgb(var(--bg)) → rgb(var(--ts-bg)).
    src/lib/__tests__/homePlans04.test.ts reads both files and holds them equal, declaration by declaration, but for the
-   THREE DIFFERENCES named here — each one where the reference is a page of its own and this is the app:
+   FIVE DIFFERENCES named here — the first three where the reference is a page of its own and this is the app, the last two
+   Alex's notes on the built page:
      1. THE COLOURS are tokens: the reference's :root is :root above — the seventeen --ts-fs-* this design brings, and the
         fourteen it declares only so that it "renders on its own", which the app already holds (--ts-bg, --ts-border,
         --ts-gold, --ts-hero-*).
@@ -253,18 +256,22 @@ body {
         rules read the two variables where the reference names the families ("the site already loads both faces").
      3. NOT PORTED: the reference page's own ground, body { margin: 0; background-color: … } — "THIS PAGE'S OWN: not part of
         the design, not ported".
+     4. NOT PORTED: the eyebrow, .fs-eyebrow. "What We Do" wears the act headings' type, About Us's — Tailwind's utilities in
+        src/components/landing/Landing.tsx — in the reference's box, .ts-fs-heading (Alex's note on the built page,
+        2026-11-12: "i like how about us and What We do were the same.  About us is better size... IMO...").
+     5. NOT PORTED: the map's count, .fs-map__count and .fs-map__figure. The map draws no count (Alex's note on the built
+        page, 2026-11-12: "then 13 of 25 tools is tacky, we dont need that to tell us, we can just count...").
    It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value
    outside :root").
    TWO GRADIENTS — the brief's ruling g, as written (2026-11-12): "TWO GRADIENTS, both on the board: the picked plan's gold
    button and the band." They are the picked plan's button — a card's or the band's (.ts-fs-plan[data-picked="true"] .ts-fs-plan__cta: the hero's
    three golds at 135deg, drawn solid) and the band (.ts-fs-plan--all: the hero's violets at 120deg, under rings 1px wide
    every 14px). REPAINT-5's ban on gradients, above, is the ruling this design comes after, as the hero's did.
-   Used by src/components/landing/Landing.tsx (the heading box: .ts-fs-heading, .ts-fs-eyebrow) and
+   Used by src/components/landing/Landing.tsx (the heading box: .ts-fs-heading) and
    src/components/landing/HowToSection.tsx (the section). It stands here, above the hero's block, because nothing may
    follow that one; it names none of the hero's classes, and nothing outside it names one of its own. ─────────────── */
-/* ── 1 · "What We Do": the act heading wears the eyebrow ─────────────────────────────────────── */
+/* ── 1 · "What We Do": the act heading's box (the reference's eyebrow is not ported — the fourth difference) ───── */
 .ts-fs-heading { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(52px, 6.6vw, 96px) 16px 0; }
-.ts-fs-eyebrow { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ts-fs-gold-text); }
 
 /* ── 2 · the section ─────────────────────────────────────────────────────────────────────────── */
 .ts-fs { scroll-margin-top: 48px; border-bottom: 1px solid rgb(var(--ts-border)); background-color: rgb(var(--ts-bg)); color: var(--ts-fs-ink); font-family: var(--font-sans); line-height: 1.5; }
@@ -273,7 +280,7 @@ body {
 .ts-fs__lede { margin: 16px 0 0; max-width: 620px; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--ts-fs-ink-soft); text-wrap: pretty; }
 .ts-fs :focus-visible { outline: 2px solid var(--ts-hero-violet-2); outline-offset: 3px; }
 
-/* ── 3 · the map: the question, the three choices, the count, then every tool by family ──────── */
+/* ── 3 · the map: the question, the three choices, then every tool by family (its count is not ported — the fifth) ─ */
 .ts-fs-map {
   box-sizing: border-box; margin-top: clamp(24px, 2.8vw, 40px); padding: clamp(18px, 2.3vw, 32px);
   border: 1px solid var(--ts-fs-line); border-radius: 24px; background-color: rgb(var(--ts-fs-white));
@@ -304,9 +311,6 @@ body {
 .ts-fs-switch[data-module="business"] .ts-fs-ring, .ts-fs-tool[data-module="business"] .ts-fs-ring { border-color: rgb(var(--ts-gold)); }
 .ts-fs-switch[data-module="trading"] .ts-fs-ring, .ts-fs-tool[data-module="trading"] .ts-fs-ring { border-color: var(--ts-fs-teal); }
 .ts-fs-tick { flex: none; }
-
-.ts-fs-map__count { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: 14px; line-height: 1.2; color: var(--ts-fs-ink-muted); white-space: nowrap; }
-.ts-fs-map__figure { font-size: clamp(26px, 2.4vw, 34px); line-height: 1; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ts-hero-violet-4); }
 
 .ts-fs-map__grid {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px clamp(10px, 1.2vw, 16px);

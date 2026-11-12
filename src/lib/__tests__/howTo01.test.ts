@@ -40,7 +40,8 @@
  *   T4 the section, in its four states (HOME-PLANS-04) — the pillar's name and the plans' subhead, the map, the cards and
  *      the band, the link last; none of what left (his three paragraphs, every step list, the comparison); no table,
  *      nothing that opens, no status word; two switches and a button per plan, each wired; the default export draws the
- *      pure half at rest.
+ *      pure half at rest. The cards and the band count their tools; the map draws no count of its own (Alex's note on the
+ *      built page, 2026-11-12 — it drew "<n> of 25 tools" until then).
  *      (Until HOME-PLANS-04, from HOME-PLANS-03: one render, nothing in it opened — the pillar, the four cards
  *      (PlanCards' own render WITH the leaf's steps), the one link, and nothing after; each card's categories and step
  *      titles the leaf's (planCardSteps, looped — no step typed here); the bundle drew its three benefits; no table, no
@@ -67,7 +68,9 @@
  *      grammar took a phone's values below `md` — HOME-PLANS-02. Before that: no status, no plan name, no price and
  *      none of the leaf's words; two switches in React state only; the row was MY TRIP's rail.)
  *   T6 Landing mounts the section once — first under "What We Do" (HOME-FINISH-02; under the guest's strip until then),
- *      above the services section; the heading box wears the eyebrow (HOME-PLANS-04; gold and one size up until then).
+ *      above the services section; the heading box is the reference's (HOME-PLANS-04) and its heading wears the act
+ *      headings' type, About Us's (Alex's note on the built page, 2026-11-12; the eyebrow from HOME-PLANS-04 until then,
+ *      and gold and one size up before that — the same type it wears again).
  *      Landing itself never names the plans section: the how-to draws its own three cards and the band (HOME-PLANS-04;
  *      PlanCards' four until then).
  *   T7 (HOME-PLANS-01, Alex, 2026-11-11 00:09: "Four plans. One comparison.") the four plan cards, exported whole from
@@ -108,8 +111,10 @@
  *      top label.
  * HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30): THE FINANCIAL SOFTWARE
  * SECTION — the pillar's name and one line, the map of the 25 tools with its two switches, three plan cards and the all-three band, the
- * one link; "What We Do" wears the eyebrow. The section's whole markup, its stylesheet, its tokens and its words are held to the
- * reference (design-refs/home-plans-04/Section-Reference.html) in homePlans04.test.ts. Re-written in place here, each under a dated
+ * one link; "What We Do" wore the eyebrow. The section's whole markup, its stylesheet, its tokens and its words are held to the
+ * reference (design-refs/home-plans-04/Section-Reference.html) in homePlans04.test.ts — but for Alex's notes on the built page
+ * (2026-11-12), which that file names: "What We Do" in About Us's type again, no count over the map, and the Personal pill says
+ * "Personal". Here they re-point T4's count pin and T6's heading box, in place, each under a dated note. Re-written in place here, each under a dated
  * note: the render helper (it takes what you run now), T4 and T5 (the section rendered, and its source), T6's heading box and its name
  * (the how-to draws its own three cards and the band now) and T10 (what a screen reader hears); the list above says what each holds
  * now, and what it held until then. T9 gains a note and no assertion: the guard stands as it was (the brief's ruling d). T1, T2, T3,
@@ -403,9 +408,13 @@ test('T4 (HOME-PLANS-04) the section, rendered in its four states: the pillar\'s
     // no table, nothing that opens, nothing that scrolls sideways, no screen-reader-only text
     for (const markup of ['<table', '<thead', '<tbody', '<th ', '<td', 'data-plan-comparison', 'data-comparison-', 'data-plan-step', 'data-plan-category', 'aria-expanded', 'sr-only', 'overflow-x-auto', 'colspan', 'colSpan']) assert.equal(count(html, markup), 0, `${w}: no ${markup}`);
     for (const word of gone) assert.equal(count(html, word), 0, `${w}: no "${word}"`);
-    // the counts are drawn now (ruling f: "Both numbers are computed"); still no guide line, nothing coming soon
+    // the cards' counts are drawn (ruling f: "Both numbers are computed"); still no guide line, nothing coming soon. The map's own count is not:
+    // AFTER THE BUILD (Alex's note on the built page, 2026-11-12: "then 13 of 25 tools is tacky, we dont need that to tell us, we can just
+    // count..."). Until then this pinned it: '<span class="ts-fs-map__figure">\d+<\/span> <span>of 25 tools<\/span>' — the count over the sheet's tools.
     assert.doesNotMatch(html, /\bguide\b|coming soon/i, `${w}: no guide line, nothing coming soon`);
-    assert.match(html, /<span class="ts-fs-map__figure">\d+<\/span> <span>of 25 tools<\/span>/, `${w}: the count over the sheet's tools`);
+    for (const markup of ['ts-fs-map__count', 'ts-fs-map__figure', 'aria-live']) assert.equal(count(html, markup), 0, `${w}: no count over the map — no ${markup}`);
+    assert.equal(count(html, 'of 25 tools'), 3, `${w}: the three cards count their tools — and nothing else does`);
+    assert.equal(count(html, 'All 25 tools'), 1, `${w}: the band counts all`);
     // THE LINK — one, last: the leaf's words, to the leaf's path
     assert.equal(count(html, '<a '), 1, `${w}: one link`);
     assert.ok(html.endsWith(`${LINK}</div></section>`), `${w}: the last thing in the section`);
@@ -561,7 +570,7 @@ test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no
 
 // ── T6 · THE SEAT ────────────────────────────────────────────────────────────
 
-test('T6 Landing mounts the how-to once, with the door — first under "What We Do" (HOME-FINISH-02) and above the services section, comments between each; the heading box wears the eyebrow (HOME-PLANS-04); Landing itself never names the plans section — the how-to draws its own three cards and the band (HOME-PLANS-04; PlanCards\' four until then)', () => {
+test('T6 Landing mounts the how-to once, with the door — first under "What We Do" (HOME-FINISH-02) and above the services section, comments between each; the heading box is the reference\'s (HOME-PLANS-04) and its heading wears About Us\'s type (Alex\'s note on the built page, 2026-11-12; the eyebrow until then); Landing itself never names the plans section — the how-to draws its own three cards and the band (HOME-PLANS-04; PlanCards\' four until then)', () => {
   const landing = code(LANDING);
   const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the how-to IS the Software Plans — the plans mount ("<PlansSection door={{ kind: 'button', onClick: () =>
@@ -572,7 +581,10 @@ test('T6 Landing mounts the how-to once, with the door — first under "What We 
   // HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila), in the brief's own words: "What We Do" keeps its element, its place and data-act-heading.
   // Only its look changes: the eyebrow. — the reference's box and heading behind the house prefix. Until then (HOME-FINISH-02: "in gold and one size up"):
   // '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">\n        <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>'
-  const HEADING_BOX = '<div className="ts-fs-heading">\n        <h2 className="ts-fs-eyebrow" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>';
+  // AFTER THE BUILD (Alex's note on the built page, 2026-11-12: "i like how about us and What We do were the same.  About us is better size...
+  // IMO..."): the heading wears the act headings' type again — HOME-FINISH-02's string, About Us's — in the reference's box. Until then (HOME-PLANS-04):
+  // '<div className="ts-fs-heading">\n        <h2 className="ts-fs-eyebrow" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>'
+  const HEADING_BOX = '<div className="ts-fs-heading">\n        <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>';
   const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />';
   const SERVICES_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'; // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then
   for (const s of [HEADING_BOX, HOW_TO, SERVICES_OPEN]) assert.equal(count(landing, s), 1, `${s} once`);

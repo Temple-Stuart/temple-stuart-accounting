@@ -1,37 +1,48 @@
 /**
  * HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30) — THE FINANCIAL
- * SOFTWARE SECTION, AS DRAWN: "What We Do" as an eyebrow, the pillar's name and one line, the map of the 25 tools, three plan
- * cards and the all-three band, the link to /pricing.
+ * SOFTWARE SECTION, AS DRAWN: "What We Do" over it, the pillar's name and one line, the map of the 25 tools, three plan cards
+ * and the all-three band, the link to /pricing.
  *
  * The spec is a file: design-refs/home-plans-04/Section-Reference.html ("Every value in its stylesheet is the design, and its
  * markup is the page at rest"), with its README beside it. The section is src/components/landing/HowToSection.tsx over
- * src/lib/howTo.ts (planMapView); the eyebrow is Landing.tsx's heading box; the stylesheet is the reference's own, ported to
+ * src/lib/howTo.ts (planMapView); "What We Do" is Landing.tsx's heading box; the stylesheet is the reference's own, ported to
  * src/app/globals.css under the house prefix.
+ *
+ * AFTER THE BUILD — Alex's notes on the built page (2026-11-12), three, each a NAMED DIFFERENCE from the reference that these
+ * tests apply to it before they compare, each once, and no other:
+ *   · "i like how about us and What We do were the same.  About us is better size... IMO..." — the heading's h2 wears the act
+ *     headings' type (About Us's), not the eyebrow; its box is the reference's. The port leaves out .fs-eyebrow.
+ *   · "then 13 of 25 tools is tacky, we dont need that to tell us, we can just count..." — the map draws no count. The port
+ *     leaves out .fs-map__count and .fs-map__figure; each card's count and the band's stay.
+ *   · "while youre at it, remove that word alwasy from personal... looks tacky too" — the Personal pill says "Personal", the
+ *     first part of the plans' names (planMapView's base); PERSONAL_ALWAYS stays in its leaf, undrawn.
  *
  *   T1  the handoff landed — the README and the reference, byte for byte (sha256) and by size;
  *   T2  the tokens, named and valued as the README's two tables — the fourteen already in the app, each the reference's value
  *       behind the house prefix in globals.css :root, declared once; the seventeen new ones, declared once each as --ts-fs-*,
  *       behind tailwind.config.ts's `fs` family and in DESIGN.md's table — its rows and their comments in globals.css the
  *       README's, column for column; the reference's :root holds those thirty-one and no other;
- *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the three
- *       differences named there; no hex and no rgb value typed; every variable it reads is declared and every new token is
- *       read; it stands under the chip strip's rules and above the hero's block; nothing else in the file reaches the section
- *       — not by its classes, its id, the state it is styled by or any data attribute it carries;
+ *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the five
+ *       differences named there (the last two Alex's notes); no hex and no rgb value typed; every variable it reads is
+ *       declared and every new token is read; it stands under the chip strip's rules and above the hero's block; nothing else
+ *       in the file reaches the section — not by its classes, its id, the state it is styled by or any data attribute it carries;
  *   T4  the page at rest — Landing.tsx's heading box and the section's render are the reference's markup, token for token
- *       (classes behind the house prefix, attributes in any order);
- *   T5  the four states — each render is the reference's markup with exactly the edits its own script makes, and no other:
- *       the switch's pressed state and mark, every tool's lit state and mark, the figure, the picked plan and its tag;
+ *       (classes behind the house prefix, attributes in any order), with Alex's three notes applied, each once;
+ *   T5  the four states — each render is the reference's markup, with his notes applied, and exactly the edits its own script
+ *       makes, and no other: the switch's pressed state and mark, every tool's lit state and mark, the picked plan and its tag;
  *   T6  the words — every word drawn is its leaf's, in order; the three new words are src/lib/howTo.ts's and both numbers are
- *       computed; the switches say the part each plan's name adds; the component types none, and writes no template literal;
- *   T7  the data — a tool's module is the module of the capability rows that name it (13 · 10 · 2); the counts 13 · 23 · 15 ·
- *       25; the map law refuses a tool of no module or of two, and a name that is not one part per module — by name; the
+ *       computed; the switches and the Personal pill say the parts of the plans' names; the component types none, and writes
+ *       no template literal;
+ *   T7  the data — a tool's module is the module of the capability rows that name it (13 · 10 · 2); the lit tools 13 · 23 ·
+ *       15 · 25; the map law refuses a tool of no module or of two, and a name that is not one part per module — by name; the
  *       law reads the sheet it is handed and the view the rows it is handed; both laws end the leaf, at its top level; the
  *       known difference (Bill Pay, FP&A and Brokerage stand in Personal's steps, the map follows the rows);
  *   T8  the state — two booleans in React state, both off at first, nothing stored, no browser global named; the switches
  *       turn them; every plan's button opens the door;
  *   T9  the build — the law suite's map law re-runs mapLaw and puts each violation on the build's violations, by name, and
  *       its seeds are on file;
- *   T10 the rulings — each quoted, dated, where it is built; what left the page stays in its leaf, undrawn, with its note.
+ *   T10 the rulings — each quoted, dated, where it is built, and Alex's notes on the built page with them; what left the page
+ *       stays in its leaf, undrawn, with its note.
  *
  * Source is read through code() and comments() only (the reader law); rejoin() where the whole file is the subject: the
  * digests, the reference (HTML, which the reader splits as TypeScript — referenceText), the token tables' rows (markdown,
@@ -236,6 +247,18 @@ const referenceSection = (): string => {
   const body = referenceBody();
   return body.slice(body.indexOf('<section'), body.lastIndexOf('</section>') + '</section>'.length);
 };
+/** ALEX'S NOTES ON THE BUILT PAGE (2026-11-12), as the reference's markup takes them — the map's count, out; the Personal pill, "Personal". */
+const REFERENCE_COUNT = '<p class="fs-map__count" aria-live="polite" aria-atomic="true"><span class="fs-map__figure">13</span> <span>of 25 tools</span></p>';
+const REFERENCE_ALWAYS = '</svg>Personal · always</span>';
+/** The reference's section with the two notes that reach it applied — each exactly once, so neither can quietly take more. */
+const referenceWithNotes = (): string => {
+  const rest = referenceSection();
+  assert.equal(count(rest, REFERENCE_COUNT), 1, 'the reference draws the count once');
+  assert.equal(count(rest, REFERENCE_ALWAYS), 1, 'and "Personal · always" once');
+  return rest.replace(REFERENCE_COUNT, '').replace(REFERENCE_ALWAYS, `</svg>${planMapView({ business: false, trade: false }).base.words}</span>`);
+};
+/** "What We Do"'s type since Alex's note: the act headings' — About Us's h2 (StopZeroSection.tsx), HOME-FINISH-02's string. */
+const ACT_HEADING_TYPE = 'text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold';
 
 /** The four states, as what you run. */
 type Run = { business: boolean; trade: boolean };
@@ -331,14 +354,19 @@ test('T2 the tokens, named and valued as the README\'s two tables: fourteen alre
 
 // ── T3 · THE STYLESHEET IS THE REFERENCE'S ───────────────────────────────────
 
-test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the three named differences; no hex and no rgb value typed; every variable it reads is declared and every new token read; it stands between the chip strip and the hero', () => {
+test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the five named differences (the last two Alex\'s notes on the built page); no hex and no rgb value typed; every variable it reads is declared and every new token read; it stands between the chip strip and the hero', () => {
   const expected: string[] = [];
+  const left = { eyebrow: 0, count: 0 };
   for (const line of declarations(referenceCss())) {
     const [media, selector, decl] = line.split(' | ');
     // 1. THE COLOURS are tokens in globals.css :root (T2), never re-declared here.
     if (selector === ':root') continue;
     // 3. NOT PORTED: the reference page's own ground.
     if (selector === 'body') continue;
+    // 4. NOT PORTED: the eyebrow — "What We Do" wears the act headings' type (Alex's note on the built page, 2026-11-12).
+    if (selector === '.fs-eyebrow') { left.eyebrow += 1; continue; }
+    // 5. NOT PORTED: the map's count — the map draws none (Alex's note on the built page, 2026-11-12).
+    if (selector === '.fs-map__count' || selector === '.fs-map__figure') { left.count += 1; continue; }
     // every class and every custom property behind the house prefix
     const renamed = [media, selector.replace(/\.([a-z])/g, '.ts-$1'), decl.replace(/var\(--/g, 'var(--ts-')];
     // 2. THE FONTS are the site's two: the reference names the families, the app reads the variables layout.tsx declares.
@@ -348,6 +376,8 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   const port = declarations(portCss());
   assert.deepEqual(port, expected, 'the port, line for line, and nothing more');
   assert.ok(port.length > 150, `a whole stylesheet was compared (${port.length} declarations)`);
+  assert.deepEqual(left, { eyebrow: 8, count: 14 }, 'the two notes leave out exactly the eyebrow\'s 8 declarations and the count\'s 14 — no more');
+  assert.doesNotMatch(portCss(), /\.ts-fs-eyebrow|\.ts-fs-map__count|\.ts-fs-map__figure/, 'and the port names neither, anywhere');
   for (const line of port) {
     const [, selector, decl] = line.split(' | ');
     for (const cls of selector.match(/\.[A-Za-z][\w-]*/g) ?? []) assert.ok(cls.startsWith('.ts-fs'), `${selector}: ${cls} wears the section's prefix`);
@@ -395,7 +425,8 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   assert.deepEqual(selectorsOutside.filter(typeFirst), [], 'no rule outside the port reaches the section by an element');
   for (const reaches of ['button', '*', 'body h2', 'h2[data-act-heading]', ':where(button)', 'li:last-child']) assert.ok(typeFirst(reaches), `"${reaches}" would be refused`);
   for (const scoped of ['.ts-bar a', '.ts-hero__title span', 'body', 'html', ':root', 'from', '0%', '@media (min-width: 1024px)']) assert.ok(!typeFirst(scoped), `"${scoped}" stands`);
-  // what the section and the heading box wear is ruled by the port — each class itself
+  // what the section and the heading box wear is ruled by the port — each class itself (the box's h2 wears Tailwind's
+  // utilities, the act headings' type, since Alex's note on the built page: the fourth difference)
   const ruled = new Set(port.flatMap((l) => l.split(' | ')[1].match(/\.ts-[A-Za-z][\w-]*/g) ?? []));
   const worn = [...code(SECTION).matchAll(/className="([^"]*)"/g), ...code(LANDING).matchAll(/className="(ts-fs[^"]*)"/g)].flatMap((m) => m[1].split(/\s+/));
   for (const cls of new Set(worn)) assert.ok(ruled.has(`.${cls}`), `.${cls} is named by a rule of the port`);
@@ -403,22 +434,31 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
 
 // ── T4 · THE PAGE AT REST ────────────────────────────────────────────────────
 
-test('T4 the page at rest is the reference\'s markup — Landing.tsx\'s heading box, and the section\'s render, token for token', () => {
-  // the heading box: the reference's, behind the house prefix, with the leaf's word
+test('T4 the page at rest is the reference\'s markup with Alex\'s notes applied — Landing.tsx\'s heading box (the act headings\' type on its h2) and the section\'s render, token for token', () => {
+  // the heading box: the reference's, behind the house prefix, with the leaf's word — and, since Alex's note on the built page
+  // (2026-11-12), the act headings' type on its h2 where the reference has the eyebrow: that one edit, and no other
   const body = referenceBody();
   const box = body.slice(body.indexOf('<div class="fs-heading">'), body.indexOf('</div>', body.indexOf('<div class="fs-heading">')) + '</div>'.length);
   assert.equal(flat(box), '<div class="fs-heading"> <h2 class="fs-eyebrow" data-act-heading>What We Do</h2> </div>', 'the reference\'s heading box');
   assert.equal(WHAT_WE_DO_HEADING, 'What We Do');
   const landing = code(LANDING);
-  const BOX = '<div className="ts-fs-heading">\n        <h2 className="ts-fs-eyebrow" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>';
-  assert.equal(count(landing, BOX), 1, 'Landing.tsx\'s heading box: the same element, the same place, data-act-heading — the eyebrow\'s classes');
+  const BOX = `<div className="ts-fs-heading">\n        <h2 className="${ACT_HEADING_TYPE}" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>`;
+  assert.equal(flat(BOX), flat(box).replace('class="fs-heading"', 'className="ts-fs-heading"').replace('class="fs-eyebrow"', `className="${ACT_HEADING_TYPE}"`).replace('>What We Do<', '>{WHAT_WE_DO_HEADING}<'), 'the reference\'s box but for the h2\'s class and the leaf\'s word');
+  assert.equal(count(landing, BOX), 1, 'Landing.tsx\'s heading box: the same element, the same place, data-act-heading — the act headings\' type, in the reference\'s box');
+  // the act headings' type is About Us's and Our Story's own: their h2s add 'mt-3', and nothing else
+  for (const file of ['src/components/landing/StopZeroSection.tsx', 'src/components/landing/WasHereSection.tsx']) assert.ok(code(file).includes(`h2: 'mt-3 ${ACT_HEADING_TYPE}'`), `${file}: its h2 wears the same type`);
+  assert.equal(count(landing, 'ts-fs-eyebrow'), 0, 'the eyebrow is worn by nothing on the page');
   // the section, rendered at rest, through the default export too
   const rest = render({ business: false, trade: false });
   assert.equal(renderToStaticMarkup(React.createElement(HowToSection, { onRequireAuth: noop })), rest, 'the default export draws the pure half, at rest');
-  const want = tokensOf(referenceSection(), true);
+  const want = tokensOf(referenceWithNotes(), true);
   const got = tokensOf(rest, false);
   assert.ok(want.length > 400, `a whole section was compared (${want.length} tokens)`);
-  assert.deepEqual(got, want, 'the section at rest IS the reference\'s markup: every tag with every attribute, every word, in order');
+  assert.deepEqual(got, want, 'the section at rest IS the reference\'s markup with Alex\'s notes applied: every tag with every attribute, every word, in order');
+  // the two notes as drawn: no count anywhere, and the Personal pill says the Personal plan's own name
+  for (const gone of ['ts-fs-map__count', 'ts-fs-map__figure', 'aria-live', 'aria-atomic', asHtml(PERSONAL_ALWAYS)]) assert.equal(count(rest, gone), 0, `no "${gone}"`);
+  assert.equal(count(rest, 'always'), count(rest, 'ts-fs-switch--always'), '"always" stands only in the pill\'s class name, the reference\'s own — never in a word drawn');
+  assert.equal(count(rest, `</svg>${nameParts(PLANS[0])[0].words}</span>`), 1, 'the Personal pill says "Personal", the first part of the plans\' names');
   // the act keeps what the laws and the doors read: its id first (the plan law, footer01 and heroCrest01 hold the literal), its label, its hook
   assert.ok(rest.startsWith('<section id="modules" class="ts-fs" aria-label="Software plans" data-how-to="true">'), 'the act\'s own tag');
   assert.equal(count(rest, 'id="modules"'), 1, 'the anchor, once');
@@ -426,12 +466,15 @@ test('T4 the page at rest is the reference\'s markup — Landing.tsx\'s heading 
 
 // ── T5 · THE FOUR STATES ─────────────────────────────────────────────────────
 
-test('T5 the four states — each render is the reference\'s markup with the edits its own script makes, and no other', () => {
-  const rest = referenceSection();
+test('T5 the four states — each render is the reference\'s markup with Alex\'s notes applied and the edits its own script makes, and no other', () => {
+  const rest = referenceWithNotes();
   const script = (() => { const html = referenceText(); return html.slice(html.indexOf('<script>'), html.indexOf('</script>')); })();
   // the script's two rules, as it writes them: a tool is lit when its module is Personal or switched on; the picked plan
   assert.ok(script.includes("const on = tool.dataset.module === 'personal' || run[tool.dataset.module];"), 'the script: a tool is lit when the picked plan holds its module');
   assert.ok(script.includes("const picked = run.business && run.trading ? 'everything' : run.business ? 'business' : run.trading ? 'trading' : 'personal';"), 'the script: the one plan the switches pick');
+  // the one edit of its own the page does not make: the script writes the count's figure, and the map draws no count (Alex's
+  // note on the built page, 2026-11-12)
+  assert.equal(count(script, "section.querySelector('.fs-map__figure').textContent = String(lit);"), 1, 'the script writes the figure — the one edit the page leaves, with the count');
   // the fragments the script moves, each as the page at rest draws it
   const exact = (re: RegExp): string => { const m = re.exec(rest); assert.ok(m, `the reference at rest draws ${re}`); return m[0]; };
   const TICK_HIDDEN = exact(/<svg class="fs-tick"[^>]*aria-hidden="true"><path[^>]*><\/path><\/svg>/);
@@ -441,15 +484,12 @@ test('T5 the four states — each render is the reference\'s markup with the edi
   assert.equal(count(rest, TAG), 1, 'one tag at rest');
   const painted = (run: Run): string => {
     const on = { business: run.business, trading: run.trade } as Record<string, boolean>;
-    let lit = 0;
     let html = rest.replace(/<button class="fs-switch" type="button" data-module="(\w+)" aria-pressed="false"><span class="fs-ring" aria-hidden="true"><\/span>/g,
       (whole: string, m: string) => (on[m] ? `<button class="fs-switch" type="button" data-module="${m}" aria-pressed="true">${TICK_HIDDEN}` : whole));
     html = html.replace(/<li class="fs-tool" data-module="(\w+)" data-lit="(?:true|false)">([^<]+)(?:<svg[\s\S]*?<\/svg>|<span class="fs-ring"[^>]*><\/span>)<\/li>/g, (_: string, m: string, name: string) => {
       const isLit = m === 'personal' || on[m];
-      if (isLit) lit += 1;
       return `<li class="fs-tool" data-module="${m}" data-lit="${isLit}">${name}${isLit ? TICK_IN : RING_OUT}</li>`;
     });
-    html = html.replace('<span class="fs-map__figure">13</span>', `<span class="fs-map__figure">${lit}</span>`);
     const picked = on.business && on.trading ? 'everything' : on.business ? 'business' : on.trading ? 'trading' : 'personal';
     html = html.replace(TAG, '').replace(/<div class="fs-plan( fs-plan--all)?" data-plan="(\w+)" data-picked="(?:true|false)">([\s\S]*?<div class="fs-plan__top"><p class="fs-plan__role">[^<]*<\/p>)<\/div>/g,
       (_: string, all: string | undefined, id: string, head: string) => `<div class="fs-plan${all ?? ''}" data-plan="${id}" data-picked="${id === picked}">${head}${id === picked ? TAG : ''}</div>`);
@@ -464,12 +504,13 @@ test('T5 the four states — each render is the reference\'s markup with the edi
     assert.equal(count(html, YOUR_PLAN), 1, `${name}: one plan tagged`);
     assert.equal(count(html, 'data-picked="true"'), 1, `${name}: one plan picked`);
   }
-  // the four differ — the switches matter — and each figure is the lit tools' count
+  // the four differ — the switches matter — and no state draws a count: the eye counts the lit tools, 13 · 23 · 15 · 25
   assert.equal(new Set(renders.values()).size, 4, 'four different renders');
+  assert.deepEqual(STATES.map(([name]) => count(renders.get(name) ?? '', 'data-lit="true"')), [13, 23, 15, 25], 'the lit tools: 13 · 23 · 15 · 25');
   for (const [name, run] of STATES) {
     const html = renders.get(name) ?? '';
     const lit = count(html, 'data-lit="true"');
-    assert.ok(html.includes(`<span class="ts-fs-map__figure">${lit}</span>`), `${name}: the figure is the lit tools' count (${lit})`);
+    for (const gone of ['ts-fs-map__count', 'ts-fs-map__figure', 'aria-live', 'aria-atomic']) assert.equal(count(html, gone), 0, `${name}: no count is drawn, and no live region ("${gone}")`);
     assert.equal(count(html, `aria-label="${PLAN_MARKS.inPlan.label}"`), lit, `${name}: every lit tool says "${PLAN_MARKS.inPlan.label}"`);
     assert.equal(count(html, `aria-label="${PLAN_MARKS.notInPlan.label}"`), SHEET_TOOLS.length - lit, `${name}: every other says "${PLAN_MARKS.notInPlan.label}"`);
     assert.equal(count(html, 'aria-pressed="true"'), Number(run.business) + Number(run.trade), `${name}: the switches pressed`);
@@ -478,20 +519,28 @@ test('T5 the four states — each render is the reference\'s markup with the edi
 
 // ── T6 · THE WORDS ───────────────────────────────────────────────────────────
 
-test('T6 every word drawn is its leaf\'s, in order — the three new words and both numbers computed, the switches the parts the plans\' names add; the component types none', () => {
+test('T6 every word drawn is its leaf\'s, in order — the three new words and both numbers computed, the switches and the Personal pill the parts of the plans\' names; the component types none', () => {
   // the three new words, typed once in src/lib/howTo.ts; both numbers computed
   assert.equal(YOUR_PLAN, 'Your plan');
   assert.equal(toolCountWords(13, 25), '13 of 25 tools');
   assert.equal(ofToolsWords(25), 'of 25 tools');
-  assert.equal(toolCountWords(13, 25), `13 ${ofToolsWords(25)}`, 'a card\'s count is the figure, then the map\'s words');
+  assert.equal(toolCountWords(13, 25), `13 ${ofToolsWords(25)}`, 'a card\'s count is its figure, then these words');
   assert.equal(allToolsWords(25), 'All 25 tools');
   const shorter = PROBLEM_SHEET.map((f) => ({ header: f.header, tools: f.tools.filter((t) => t !== 'Mileage') }));
   const small = planMapView({ business: false, trade: false }, { sheet: shorter });
-  assert.deepEqual([small.figure, small.ofTotal, small.band.count], [12, 'of 24 tools', 'All 24 tools'], 'both numbers follow the sheet — never typed');
+  assert.deepEqual([...small.cards.map((c) => c.count), small.band.count], ['12 of 24 tools', '22 of 24 tools', '14 of 24 tools', 'All 24 tools'], 'both numbers follow the sheet — never typed');
   // the switches: the part each plan's name adds — "a switch and its card cannot disagree"
   const view = planMapView({ business: false, trade: false });
   assert.deepEqual(view.switches.map((s) => s.words), ['+ Business', '+ Trading']);
   assert.deepEqual(view.switches.map((s) => s.words), [nameParts(PLANS[1])[1].words, nameParts(PLANS[2])[1].words], 'read from Personal + Business and Personal + Trading');
+  // the Personal pill: the first part of the plans' names, as the Personal plan's own name says it (Alex's note on the built
+  // page, 2026-11-12: "while youre at it, remove that word alwasy from personal... looks tacky too")
+  assert.deepEqual(view.base, { words: 'Personal', module: 'personal' }, 'the pill says "Personal"');
+  assert.deepEqual(view.base, nameParts(PLANS[0])[0], 'read from the Personal plan\'s own name');
+  for (const plan of PLANS) assert.deepEqual(nameParts(plan)[0], view.base, `${plan.id}: its name opens with the pill's part — the part every plan holds`);
+  for (const [name, run] of STATES) assert.deepEqual(planMapView(run).base, view.base, `${name}: the pill does not move`);
+  assert.equal(PERSONAL_ALWAYS, 'Personal · always', 'the old pill\'s words stand, undrawn');
+  for (const [name, run] of STATES) assert.equal(count(render(run), asHtml(PERSONAL_ALWAYS)), 0, `${name}: "Personal · always" is drawn nowhere`);
   assert.equal(ADD_BUSINESS, '+ Business', 'the old switch word stands, undrawn');
   assert.equal(ADD_TRADE, '+ Trade', 'and so does its pair, which the board does not say');
   for (const [name, run] of STATES) assert.equal(count(render(run), `>${ADD_TRADE}<`), 0, `${name}: "+ Trade" is drawn nowhere`);
@@ -504,7 +553,7 @@ test('T6 every word drawn is its leaf\'s, in order — the three new words and b
       plan.audience, plan.explainer, ...plan.benefits, plan.count, plan.price, plan.cta,
     ];
     const want = [
-      PLAN_PILLAR.heading, PLANS_SUBHEAD, PLANS_HEADLINE, PERSONAL_ALWAYS, ...v.switches.map((s) => s.words), String(v.figure), ' ', ofToolsWords(SHEET_TOOLS.length),
+      PLAN_PILLAR.heading, PLANS_SUBHEAD, PLANS_HEADLINE, v.base.words, ...v.switches.map((s) => s.words),
       ...PROBLEM_SHEET.flatMap((f) => [f.header, ...f.tools]),
       ...v.cards.flatMap(planWords), ...planWords(v.band), COMPARE_PLANS_WORDS,
     ].map((w) => `#text ${JSON.stringify(asHtml(w))}`);
@@ -534,7 +583,7 @@ test('T6 every word drawn is its leaf\'s, in order — the three new words and b
   for (const w of leafWords) assert.ok(!flat(section).includes(`'${w}'`) && !flat(section).includes(`"${w}"`) && !flat(section).includes(`>${w}<`), `the section does not type "${w.slice(0, 30)}"`);
   assert.deepEqual([...section.matchAll(/aria-label="([^"]*)"/g)].map((m) => m[1]), ['Software plans'], 'its one typed label is the act\'s own, as since HOME-PLANS-01');
   assert.equal(count(section, '`'), 0, 'and it writes no template literal, where a typed word could hide');
-  assert.deepEqual([...section.matchAll(/'([^']*)'/g)].map((m) => m[1]), ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/offer/plans', ' ', ' '], 'its single-quoted literals: the directive, its three imports\' paths and React\'s, and the space before each later part of a plan\'s name');
+  assert.deepEqual([...section.matchAll(/'([^']*)'/g)].map((m) => m[1]), ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/offer/plans', ' '], 'its single-quoted literals: the directive, its three imports\' paths and React\'s, and the space before each later part of a plan\'s name (the space between the map\'s figure and its words left with the count, at Alex\'s note)');
 });
 
 // ── T7 · THE DATA ────────────────────────────────────────────────────────────
@@ -558,7 +607,10 @@ test('T7 a tool\'s module is the module of the capability rows that name it — 
   assert.deepEqual(counts, [13, 23, 15, 25]);
   const view = planMapView({ business: false, trade: false });
   assert.deepEqual([...view.cards, view.band].map((p) => p.count), ['13 of 25 tools', '23 of 25 tools', '15 of 25 tools', 'All 25 tools']);
-  for (const [name, run] of STATES) assert.equal(planMapView(run).figure, counts[[STATES[0], STATES[1], STATES[2], STATES[3]].findIndex(([n]) => n === name)], `${name}: the figure`);
+  // the map draws no count since Alex's note on the built page (2026-11-12); the tools it lights are the picked plan's count
+  const litIn = (v: ReturnType<typeof planMapView>): number => v.families.flatMap((f) => f.tools).filter((t) => t.lit).length;
+  assert.deepEqual(STATES.map(([, run]) => litIn(planMapView(run))), counts, 'each state lights the picked plan\'s tools: 13 · 23 · 15 · 25');
+  assert.equal('figure' in view || 'ofTotal' in view, false, 'and the view carries no figure for a count to draw');
   // THE MAP LAW: the live leaves pass; a tool of two modules, a tool of none and a name of the wrong parts — each refused by name
   assert.deepEqual(mapLaw({ throwOnFail: false }), []);
   assert.match(code(LEAF), /^mapLaw\(\);$/m, 'run at module scope');
@@ -573,14 +625,18 @@ test('T7 a tool\'s module is the module of the capability rows that name it — 
   assert.ok(mapLaw({ throwOnFail: false, plans: misnamed }).some((v) => /the plan "business" is named "Personal and Business" — 1 part\(s\) for its 2 module\(s\)/.test(v)), 'a name that is not one part per module, by name');
   assert.throws(() => mapLaw({ groups: twoModules }), (e: unknown) => e instanceof HowToLawError && /^map law: /.test(e.message), 'it throws by default');
   assert.throws(() => toolModule('Mileage', noMileage), (e: unknown) => e instanceof HowToLawError && /Mileage is named by no capability row/.test(e.message), 'a tool of no module is a throw, as a tool of two is');
-  // the law reads the sheet it is handed, and the view the rows it is handed — the module, the light and the figure all follow them
+  // the law reads the sheet it is handed, and the view the rows it is handed — the module, the light and the cards' counts follow them
   assert.deepEqual(mapLaw({ throwOnFail: false, sheet: [{ header: 'A family of one', tools: ['Ledger Zero' as ToolName] }] }), ['Ledger Zero is named by no capability row — a tool on the map wears its module\'s colour, and it has no module']);
   assert.throws(() => planMapView({ business: false, trade: false }, { groups: twoModules }), (e: unknown) => e instanceof HowToLawError && /Expenses is named by capability rows of 2 modules/.test(e.message), 'a view over rows that give a tool two modules is refused');
   const mileageTrades = CAPABILITY_GROUPS.map((g) => ({ ...g, rows: g.rows.map((r) => ((r.tools as readonly string[]).includes('Mileage') ? { ...r, module: 'trading' as const } : r)) }));
   const mileageIn = (run: Run) => planMapView(run, { groups: mileageTrades }).families.flatMap((f) => f.tools).find((t) => t.name === 'Mileage');
   assert.deepEqual(mileageIn({ business: false, trade: false }), { name: 'Mileage', module: 'trading', lit: false }, 'Mileage wears the module its rows give it, unlit at rest');
   assert.deepEqual(mileageIn({ business: false, trade: true }), { name: 'Mileage', module: 'trading', lit: true }, 'and is lit when Trading is on');
-  assert.equal(planMapView({ business: false, trade: false }, { groups: mileageTrades }).figure, SHEET_TOOLS.filter((t) => modulesHere(t, mileageTrades)[0] === 'personal').length, 'the figure counts by the rows handed in');
+  const movedView = planMapView({ business: false, trade: false }, { groups: mileageTrades });
+  const personalHere = SHEET_TOOLS.filter((t) => modulesHere(t, mileageTrades)[0] === 'personal').length;
+  assert.equal(personalHere, 12, 'with Mileage moved, Personal holds 12');
+  assert.equal(litIn(movedView), personalHere, 'the light counts by the rows handed in');
+  assert.equal(movedView.cards[0].count, toolCountWords(personalHere, SHEET_TOOLS.length), 'and so does the Personal card\'s count');
   // both module-scope laws end the file, each a statement of its own at the top level — behind no condition, inside no block
   const leafCode = code(LEAF).trimEnd();
   assert.ok(leafCode.endsWith('\nhowToLaw();\nmapLaw();'), 'the leaf ends with its two laws, run at module scope');
@@ -669,7 +725,7 @@ test('T9 the build\'s map law re-runs mapLaw — one module per tool, or the bui
 
 // ── T10 · THE RULINGS ────────────────────────────────────────────────────────
 
-test('T10 each ruling is quoted, dated, where it is built; what left the page stays in its leaf, undrawn, with its note', () => {
+test('T10 each ruling is quoted, dated, where it is built, and Alex\'s notes on the built page with them, exact; what left the page stays in its leaf, undrawn, with its note', () => {
   const said = (file: string): string => flat(comments(file).replace(/^\s*(\*|\/\/)/gm, ' '));
   const section = said(SECTION);
   const leaf = said(LEAF);
@@ -726,6 +782,28 @@ test('T10 each ruling is quoted, dated, where it is built; what left the page st
   assert.deepEqual(quoted[SECTION].at1407, [WORDS_1407], 'the section quotes the 14:07 words whole');
   assert.equal(quoted[LEAF].at1407.length, 2, 'the leaf quotes them twice, each an excerpt');
   assert.deepEqual([quoted[SECTION].at1430.length, quoted[LEAF].at1430.length], [1, 1], 'and the 14:30 words once each');
+  // AFTER THE BUILD — Alex's notes on the built page (2026-11-12), exact, where each is built: every quote after the stamp
+  // "Alex's note(s) on the built page, 2026-11-12:" is a piece of his words, letter for letter (whitespace collapsed, as said()
+  // collapses it), and each file quotes the notes it builds
+  const NOTES = 'two small notes: first the what we do, whay did we shrink that , its so small, i like how about us and What We do were the same. About us is better size... IMO... then 13 of 25 tools is tacky, we dont need that to tell us, we can just count...';
+  const NOTE_3 = 'while youre at it, remove that word alwasy from personal... looks tacky too';
+  const SHRUNK = 'first the what we do, whay did we shrink that , its so small,';
+  const SAME = 'i like how about us and What We do were the same. About us is better size... IMO...';
+  const COUNT = 'then 13 of 25 tools is tacky, we dont need that to tell us, we can just count...';
+  for (const piece of [SHRUNK, SAME, COUNT]) assert.ok(NOTES.includes(piece), `"${piece.slice(0, 30)}…" is a piece of his notes`);
+  const notesQuoted = (notes: string): string[] => [...notes.matchAll(/Alex's notes? on the built page, 2026-11-12: ((?:"[^"]+"(?: · )?)+)/g)].flatMap((m) => [...m[1].matchAll(/"([^"]+)"/g)].map((q) => q[1]));
+  const BUILT_AT: ReadonlyArray<readonly [file: string, notes: string, quotes: readonly string[]]> = [
+    [LANDING, landing, [SHRUNK, SAME]],
+    [PILLARS, pillars, [SAME]],
+    [GLOBALS, globals, [SAME, COUNT]],
+    [SECTION, section, [COUNT, NOTE_3]],
+    [LEAF, leaf, [COUNT, NOTE_3, NOTE_3]],
+  ];
+  for (const [file, notes, quotes] of BUILT_AT) {
+    assert.deepEqual(notesQuoted(notes), quotes, `${file}: Alex's notes on the built page, quoted where they are built, in order`);
+    for (const q of notesQuoted(notes)) assert.ok(NOTES.includes(q) || q === NOTE_3, `${file}: "${q.slice(0, 30)}…" is his words, exact`);
+  }
+  assert.ok(leaf.includes(`AFTER THE BUILD (Alex's note on the built page, 2026-11-12: "${NOTE_3}"): NOT DRAWN`), 'PERSONAL_ALWAYS keeps its note: not drawn');
   // what left the page stays in its leaf, undrawn
   assert.equal(PLAN_PILLAR.paragraphs.length, 3, 'the pillar keeps its three paragraphs');
   const titles = planCardSteps().flatMap((card) => card.categories.flatMap((c) => [c.heading, ...c.steps]));
