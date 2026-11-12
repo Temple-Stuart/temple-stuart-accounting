@@ -645,7 +645,9 @@ test('T9 the rulings: the brief (21:08) and the approval (21:21) quoted exact wh
   const port = declarations(portCss());
   for (const decl of ['font-size: clamp(34px, 4vw, 56px)', 'color: var(--ts-hero-violet-4)', 'font-weight: 500']) assert.ok(port.includes(` | .ts-story__title | ${decl}`), `the heading: ${decl} — the pillars' size, in violet`);
   assert.ok(code(GLOBALS).includes('.ts-fs__title { margin: 0; font-size: clamp(34px, 4vw, 56px);'), 'the pillars\' own title is the same size');
-  // About Us: untouched — its h2 keeps the act headings' type, and it wears nothing of this port
+  // About Us: untouched by this port — its h2 keeps the act headings' type, and it wears nothing of this port. HOME-ABOUT-01 (2026-11-12;
+  // the README: "Its `mt-3` goes, as What We Do's did"): the type exactly, without the 'mt-3' it wore when this line was written — until then
+  // stopZero.includes(`h2: 'mt-3 ${ACT_HEADING_TYPE}'`).
   const stopZero = code(STOP_ZERO);
-  assert.ok(stopZero.includes(`h2: 'mt-3 ${ACT_HEADING_TYPE}'`) && !stopZero.includes('ts-story'), 'About Us is as it was');
+  assert.ok(stopZero.includes(`h2: '${ACT_HEADING_TYPE}',`) && !stopZero.includes('ts-story'), 'About Us keeps the act headings\' type and wears nothing of this port');
 });

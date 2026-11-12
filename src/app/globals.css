@@ -372,6 +372,67 @@ body {
   }
 }
 
+/* ── HOME-ABOUT-01 (Alex, 2026-11-12 21:43 Manila: "ok last but not least , mock up that about me section"; the boards approved on
+   the design canvas at 21:53: "okayy give me the prompt to send it!"): ABOUT US — Stop 0, in Alex's words, as drawn ─────────────
+   THE SPEC IS design-refs/home-about-01/Section-Reference.html: "Every value in its stylesheet is the design, and its markup is the
+   page." What follows is that stylesheet, rule for rule and value for value, in its own order and with its own section notes —
+   ported as HERO-CREST-01's, HOME-PLANS-04's and HOME-SERVICES-01's were:
+     · every class is the reference's with the house prefix: .about → .ts-about, .about-part__quote → .ts-about-part__quote, …;
+     · every custom property it reads likewise: var(--fs-ink) → var(--ts-fs-ink), rgb(var(--gold)) → rgb(var(--ts-gold)),
+       rgb(var(--bg)) → rgb(var(--ts-bg)).
+   src/lib/__tests__/homeAbout01.test.ts reads both files and holds them equal, declaration by declaration, but for the FIVE
+   DIFFERENCES named here:
+     1. THE COLOURS are tokens the app already holds: the reference's :root declares eleven only so that it renders on its own —
+        six the app's (bg, border, gold, the hero's three violets) and five HOME-PLANS-04 brought (--ts-fs-*), each the same name
+        and value behind the house prefix in :root above. This section adds none (the README: "New with this section: none").
+     2. THE FONTS are the site's: src/app/layout.tsx loads Inter and IBM Plex Mono as --font-sans and --font-mono, and these rules
+        read the two variables where the reference names the families ("the site already loads both faces").
+     3. NOT PORTED: the heading's rule (.about__title, and its size from 640px) — "THE APP'S OWN CLASSES, NOT PORTED". The h2 wears
+        the act headings' type, the classes What We Do's wears: 'text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold',
+        without the 'mt-3' it wore until now.
+     4. NOT PORTED: the board's other layout, "Page grid, left" (.about--left …) — "Built only if Alex says "left"." The message
+        that launched this build did not: the section is the letter, centred, as approved.
+     5. NOT PORTED: the reference page's own ground and bar (body, .ref-bar …) — "THIS PAGE'S OWN: not part of the design, not
+        ported".
+   It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value outside
+   :root"). No gradient. No border on a quote.
+   Used by src/components/landing/StopZeroSection.tsx, which Landing.tsx mounts. It stands here, directly under the chip strip's
+   rules and above the Travel Marketplace section's block, then the Professional Services section's: the brief's seat was under
+   the chip strip and above HOME-SERVICES-01's header, HOME-TRAVEL-01's block took that seat first, and its port runs from its own
+   first rule to HOME-SERVICES-01's, so this one stands above it. It names none of their classes, and nothing outside it names one
+   of its own.─────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* ── 1 · the section: one column, centred on the page as a letter ────────────────────────────── */
+.ts-about { border-bottom: 1px solid rgb(var(--ts-border)); background-color: rgb(var(--ts-bg)); color: var(--ts-fs-ink); font-family: var(--font-sans); line-height: 1.5; }
+.ts-about__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(52px, 6.4vw, 96px) 16px clamp(64px, 7.6vw, 112px); }
+.ts-about__column { max-width: 680px; margin-inline: auto; }
+/* under the heading: Stop 0 as the trip cards write a stop, the place, the dates as the cards write dates */
+.ts-about__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 18px; }
+.ts-about__stop {
+  box-sizing: border-box; display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
+  border: 1px solid var(--ts-fs-button-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white));
+  font-family: var(--font-mono); font-size: 11px; line-height: 1; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ts-hero-violet-3); white-space: nowrap;
+}
+.ts-about__place { margin: 0; font-size: 17px; line-height: 1.4; font-weight: 600; color: var(--ts-hero-violet-4); }
+.ts-about__dates { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.4; font-weight: 500; color: var(--ts-hero-violet-3); white-space: nowrap; }
+
+/* ── 2 · a part: its number, its heading, his paragraphs, then his quote as a statement ──────── */
+.ts-about-part { max-width: 1040px; margin: clamp(40px, 4.4vw, 64px) auto 0; padding-top: clamp(36px, 4vw, 56px); border-top: 1px solid var(--ts-fs-line); }
+.ts-about-part__number { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; color: var(--ts-fs-gold-text); }
+.ts-about-part__title { margin: 12px 0 0; font-size: clamp(24px, 2.2vw, 32px); line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--ts-hero-violet-4); text-wrap: balance; }
+.ts-about-part__text { margin: 16px 0 0; font-size: clamp(17px, 0.1vw + 16px, 18px); line-height: 1.7; color: var(--ts-fs-ink); text-wrap: pretty; }
+.ts-about-part__title + .ts-about-part__text { margin-top: 20px; }
+.ts-about-part__quote {
+  max-width: 1040px; margin: clamp(32px, 3.6vw, 52px) auto 0; padding: 0;
+  font-size: clamp(26px, 3.2vw, 46px); line-height: 1.2; font-weight: 500; letter-spacing: -0.025em; color: var(--ts-hero-violet-2); text-align: center; text-wrap: balance;
+}
+/* his quote's own two marks, drawn in gold */
+.ts-about-part__mark { color: rgb(var(--ts-gold)); }
+
+/* ── 3 · wider windows ───────────────────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .ts-about__inner { padding-inline: 32px; }
+}
+
 /* ── HOME-TRAVEL-01 (Alex's brief, 2026-11-12 16:08 Manila; the board approved on the design canvas at 20:26: "ok I approve the
    travel market place"): THE TRAVEL MARKETPLACE SECTION — the pillar's name and line, the box (eight tabs as tiles, one rule, the
    open tab's panel), the Events rows with Add to trip, the guest's trip under the box, the booking lookup ──────────────────────
