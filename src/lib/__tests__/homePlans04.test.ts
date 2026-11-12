@@ -405,6 +405,11 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   const outside = whole.slice(0, at) + whole.slice(whole.indexOf('.ts-hero {'));
   assert.doesNotMatch(outside, /\.ts-fs\b|\.ts-fs[-_]/, 'no rule outside the port names one of its classes');
   assert.doesNotMatch(outside, /\[\s*class\s*[~|^$*]?=\s*["']?[^"'\]]*fs/, 'and none reaches them through a class attribute selector');
+  // nor restyles the heading's type: since Alex's note on the built page, "What We Do" wears the act headings' five Tailwind
+  // utilities (About Us's and Our Story's too), and no hand-written rule anywhere in the file names one of them
+  for (const utility of ACT_HEADING_TYPE.split(' ')) {
+    assert.doesNotMatch(whole, new RegExp(`\\.${utility.replace(':', '\\\\:')}(?![\\w-])`), `no rule names .${utility.replace(':', '\\:')}`);
+  }
   // nor reaches the section another way: by its id, by the state attribute the port styles it by, or by any data attribute its
   // markup or the heading box carries
   const hooks = new Set<string>(['aria-pressed', 'data-act-heading']);
