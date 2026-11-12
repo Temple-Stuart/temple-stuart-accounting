@@ -8,14 +8,17 @@
  * src/lib/howTo.ts (planMapView); "What We Do" is Landing.tsx's heading box; the stylesheet is the reference's own, ported to
  * src/app/globals.css under the house prefix.
  *
- * AFTER THE BUILD — Alex's notes on the built page (2026-11-12), three, each a NAMED DIFFERENCE from the reference that these
- * tests apply to it before they compare, each once, and no other:
- *   · "i like how about us and What We do were the same.  About us is better size... IMO..." — the heading's h2 wears the act
- *     headings' type (About Us's), not the eyebrow; its box is the reference's. The port leaves out .fs-eyebrow.
- *   · "then 13 of 25 tools is tacky, we dont need that to tell us, we can just count..." — the map draws no count. The port
- *     leaves out .fs-map__count and .fs-map__figure; each card's count and the band's stay.
- *   · "while youre at it, remove that word alwasy from personal... looks tacky too" — the Personal pill says "Personal", the
- *     first part of the plans' names (planMapView's base); PERSONAL_ALWAYS stays in its leaf, undrawn.
+ * AFTER THE BUILD — three NAMED DIFFERENCES from the reference, one per note of Alex's on the built page, which these tests
+ * apply to it before they compare, each once, and no other:
+ *   · Alex's note on the built page, 2026-11-12: "i like how about us and What We do were the same.  About us is better
+ *     size... IMO..." — the heading's h2 wears the act headings' type (About Us's), not the eyebrow; its box is the
+ *     reference's. The port leaves out .fs-eyebrow.
+ *   · Alex's note on the built page, 2026-11-12: "then 13 of 25 tools is tacky, we dont need that to tell us, we can just
+ *     count..." — the map draws no count. The port leaves out .fs-map__count and .fs-map__figure; each card's count and the
+ *     band's stay.
+ *   · Alex's note on the built page, 2026-11-12: "while youre at it, remove that word alwasy from personal... looks tacky
+ *     too" — the Personal pill says "Personal", the first part of the plans' names (planMapView's base); PERSONAL_ALWAYS
+ *     stays in its leaf, undrawn.
  *
  *   T1  the handoff landed — the README and the reference, byte for byte (sha256) and by size;
  *   T2  the tokens, named and valued as the README's two tables — the fourteen already in the app, each the reference's value
@@ -402,6 +405,11 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   const outside = whole.slice(0, at) + whole.slice(whole.indexOf('.ts-hero {'));
   assert.doesNotMatch(outside, /\.ts-fs\b|\.ts-fs[-_]/, 'no rule outside the port names one of its classes');
   assert.doesNotMatch(outside, /\[\s*class\s*[~|^$*]?=\s*["']?[^"'\]]*fs/, 'and none reaches them through a class attribute selector');
+  // nor restyles the heading's type: since Alex's note on the built page, "What We Do" wears the act headings' five Tailwind
+  // utilities (About Us's and Our Story's too), and no hand-written rule anywhere in the file names one of them
+  for (const utility of ACT_HEADING_TYPE.split(' ')) {
+    assert.doesNotMatch(whole, new RegExp(`\\.${utility.replace(':', '\\\\:')}(?![\\w-])`), `no rule names .${utility.replace(':', '\\:')}`);
+  }
   // nor reaches the section another way: by its id, by the state attribute the port styles it by, or by any data attribute its
   // markup or the heading box carries
   const hooks = new Set<string>(['aria-pressed', 'data-act-heading']);
@@ -455,6 +463,12 @@ test('T4 the page at rest is the reference\'s markup with Alex\'s notes applied 
   // the act headings' type is About Us's and Our Story's own: their h2s add 'mt-3', and nothing else
   for (const file of ['src/components/landing/StopZeroSection.tsx', 'src/components/landing/WasHereSection.tsx']) assert.ok(code(file).includes(`h2: 'mt-3 ${ACT_HEADING_TYPE}'`), `${file}: its h2 wears the same type`);
   assert.equal(count(landing, 'ts-fs-eyebrow'), 0, 'the eyebrow is worn by nothing on the page');
+  // a note in the JSX around the heading is a {/* */} block: a // line there is drawn on the page as text, and the reader takes it
+  // for a comment, so its half is read at the code's own positions (the two halves align by code unit — sourceText.ts rejoin)
+  const heroEnd = landing.indexOf('        </section>\n      </div>', landing.indexOf('<div className="ts-hero">'));
+  const howToAt = landing.indexOf('<HowToSection onRequireAuth={onRequireAuth} />');
+  assert.ok(heroEnd > -1 && howToAt > heroEnd, 'the hero closes above the how-to');
+  assert.doesNotMatch(comments(LANDING).slice(heroEnd, howToAt), /^[ \t]*\/\//m, 'no // line between the hero and the how-to: JSX would draw it as text');
   // the section, rendered at rest, through the default export too
   const rest = render({ business: false, trade: false });
   assert.equal(renderToStaticMarkup(React.createElement(HowToSection, { onRequireAuth: noop })), rest, 'the default export draws the pure half, at rest');
@@ -462,7 +476,7 @@ test('T4 the page at rest is the reference\'s markup with Alex\'s notes applied 
   const got = tokensOf(rest, false);
   assert.ok(want.length > 400, `a whole section was compared (${want.length} tokens)`);
   assert.deepEqual(got, want, 'the section at rest IS the reference\'s markup with Alex\'s notes applied: every tag with every attribute, every word, in order');
-  // the two notes as drawn: no count anywhere, and the Personal pill says the Personal plan's own name
+  // the two notes as drawn: no count over the map (each card's and the band's stay), and the Personal pill says the Personal plan's own name
   for (const gone of ['ts-fs-map__count', 'ts-fs-map__figure', 'aria-live', 'aria-atomic', asHtml(PERSONAL_ALWAYS)]) assert.equal(count(rest, gone), 0, `no "${gone}"`);
   assert.equal(count(rest, 'always'), count(rest, 'ts-fs-switch--always'), '"always" stands only in the pill\'s class name, the reference\'s own — never in a word drawn');
   assert.equal(count(rest, `</svg>${nameParts(PLANS[0])[0].words}</span>`), 1, 'the Personal pill says "Personal", the first part of the plans\' names');
@@ -511,13 +525,13 @@ test('T5 the four states — each render is the reference\'s markup with Alex\'s
     assert.equal(count(html, YOUR_PLAN), 1, `${name}: one plan tagged`);
     assert.equal(count(html, 'data-picked="true"'), 1, `${name}: one plan picked`);
   }
-  // the four differ — the switches matter — and no state draws a count: the eye counts the lit tools, 13 · 23 · 15 · 25
+  // the four differ — the switches matter — and no state draws a count over the map: the eye counts the lit tools, 13 · 23 · 15 · 25
   assert.equal(new Set(renders.values()).size, 4, 'four different renders');
   assert.deepEqual(STATES.map(([name]) => count(renders.get(name) ?? '', 'data-lit="true"')), [13, 23, 15, 25], 'the lit tools: 13 · 23 · 15 · 25');
   for (const [name, run] of STATES) {
     const html = renders.get(name) ?? '';
     const lit = count(html, 'data-lit="true"');
-    for (const gone of ['ts-fs-map__count', 'ts-fs-map__figure', 'aria-live', 'aria-atomic']) assert.equal(count(html, gone), 0, `${name}: no count is drawn, and no live region ("${gone}")`);
+    for (const gone of ['ts-fs-map__count', 'ts-fs-map__figure', 'aria-live', 'aria-atomic']) assert.equal(count(html, gone), 0, `${name}: no count over the map, and no live region ("${gone}")`);
     assert.equal(count(html, `aria-label="${PLAN_MARKS.inPlan.label}"`), lit, `${name}: every lit tool says "${PLAN_MARKS.inPlan.label}"`);
     assert.equal(count(html, `aria-label="${PLAN_MARKS.notInPlan.label}"`), SHEET_TOOLS.length - lit, `${name}: every other says "${PLAN_MARKS.notInPlan.label}"`);
     assert.equal(count(html, 'aria-pressed="true"'), Number(run.business) + Number(run.trade), `${name}: the switches pressed`);
@@ -546,6 +560,13 @@ test('T6 every word drawn is its leaf\'s, in order — the three new words and b
   assert.deepEqual(view.base, nameParts(PLANS[0])[0], 'read from the Personal plan\'s own name');
   for (const plan of PLANS) assert.deepEqual(nameParts(plan)[0], view.base, `${plan.id}: its name opens with the pill's part — the part every plan holds`);
   for (const [name, run] of STATES) assert.deepEqual(planMapView(run).base, view.base, `${name}: the pill does not move`);
+  // derived, never typed: rename the plans and the pill says their new first part
+  const renamed = PLANS.map((p) => ({ ...p, name: p.name.replace(/^Personal\b/, 'Solo') }));
+  assert.deepEqual(renamed.map((p) => p.name), ['Solo', 'Solo + Business', 'Solo + Trading', 'Solo + Business + Trading']);
+  for (const [name, run] of STATES) assert.deepEqual(planMapView(run, { plans: renamed }).base, { words: 'Solo', module: 'personal' }, `${name}: the pill follows the plans' names`);
+  // and the section draws it from the view, reading the old words no more
+  assert.equal(count(code(SECTION), '<span className="ts-fs-switch ts-fs-switch--always"><Tick />{view.base.words}</span>'), 1, 'the pill draws planMapView\'s base');
+  assert.doesNotMatch(code(SECTION), /\bPERSONAL_ALWAYS\b/, 'the section reads PERSONAL_ALWAYS no more');
   assert.equal(PERSONAL_ALWAYS, 'Personal · always', 'the old pill\'s words stand, undrawn');
   for (const [name, run] of STATES) assert.equal(count(render(run), asHtml(PERSONAL_ALWAYS)), 0, `${name}: "Personal · always" is drawn nowhere`);
   assert.equal(ADD_BUSINESS, '+ Business', 'the old switch word stands, undrawn');
@@ -765,7 +786,7 @@ test('T10 each ruling is quoted, dated, where it is built, and Alex\'s notes on 
   // g — the two gradients
   assert.ok(globals.includes('"TWO GRADIENTS, both on the board: the picked plan\'s gold button and the band."'), 'g, at the stylesheet');
   // the heading's look
-  assert.ok(landing.includes('"What We Do" keeps its element, its place and data-act-heading. Only its look changes: the eyebrow. This replaces HOME-FINISH-02\'s "in gold and one size up" for the heading\'s look only.'), 'the eyebrow, at the heading box');
+  assert.ok(landing.includes('"What We Do" keeps its element, its place and data-act-heading. Only its look changes: the eyebrow. This replaces HOME-FINISH-02\'s "in gold and one size up" for the heading\'s look only.'), 'the brief\'s eyebrow ruling, kept as history at the heading box');
   // Alex's own words, wherever a file of this change quotes them, exact: a quote of his 14:07 words is the whole of them or an
   // excerpt cut only at an elision mark (…), every piece his, in his order; a quote of his 14:30 words is the whole of them
   const WORDS_1407 = 'Plaids sections with Title, Sub title, quick explainer paragraph, and then list of features. ours is a little more complex looking and harer to see separation … instead of this , we might have like some simple like lists, or something or an image... that like lists the Tabs , separated by Tier? … simple and easy to understand';
@@ -811,6 +832,14 @@ test('T10 each ruling is quoted, dated, where it is built, and Alex\'s notes on 
     for (const q of notesQuoted(notes)) assert.ok(NOTES.includes(q) || q === NOTE_3, `${file}: "${q.slice(0, 30)}…" is his words, exact`);
   }
   assert.ok(leaf.includes(`AFTER THE BUILD (Alex's note on the built page, 2026-11-12: "${NOTE_3}"): NOT DRAWN`), 'PERSONAL_ALWAYS keeps its note: not drawn');
+  // the tests' own quotes of the notes are held too: each exact, and none under his brief's or his approval's stamp
+  for (const file of ['src/lib/__tests__/homePlans04.test.ts', 'src/lib/__tests__/howTo01.test.ts', 'src/lib/__tests__/homeOrder01.test.ts']) {
+    const notes = said(file);
+    const quotes = notesQuoted(notes);
+    assert.ok(quotes.length > 0, `${file} quotes Alex's notes on the built page`);
+    for (const q of quotes) assert.ok(NOTES.includes(q) || q === NOTE_3, `${file}: "${q.slice(0, 30)}…" is his words, exact`);
+    for (const m of notes.matchAll(/14:(?:07|30)(?: Manila)?: "([^"]+)"/g)) assert.ok(excerptOf(m[1], WORDS_1407) || m[1] === WORDS_1430, `${file}: "${m[1].slice(0, 30)}…" under a 14:07 or 14:30 stamp is his brief's or his approval's words`);
+  }
   // what left the page stays in its leaf, undrawn
   assert.equal(PLAN_PILLAR.paragraphs.length, 3, 'the pillar keeps its three paragraphs');
   const titles = planCardSteps().flatMap((card) => card.categories.flatMap((c) => [c.heading, ...c.steps]));

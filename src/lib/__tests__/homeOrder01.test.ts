@@ -17,7 +17,8 @@
  *      gold and one size up, directly above the how-to — HOME-PLANS-04 (Alex's brief, 2026-11-12): it keeps its element,
  *      its place and data-act-heading and wears the eyebrow, the reference's box and heading (.ts-fs-heading, .ts-fs-eyebrow,
  *      design-refs/home-plans-04/Section-Reference.html), in place of "in gold and one size up" — and, since Alex's note on
- *      the built page (2026-11-12), "in gold and one size up" again, About Us's type, in the reference's box (.ts-fs-heading);
+ *      the built page (2026-11-12), HOME-FINISH-02's "in gold and one size up" again, About Us's type, in the reference's
+ *      box (.ts-fs-heading);
  *      the travel block opens at its pillar's heading — its eyebrow row,
  *      label and headline left with Part 4 (until HOME-FINISH-02: the travel section's FIRST child, in the page's purple
  *      heading classes, above the id row, the block's own label and headline following). HERO-CREST-01 (2026-11-11): "under
@@ -108,7 +109,7 @@ test('T1 the eleven, each once, in Alex\'s order (HOME-FINISH-02: plan → build
   assert.equal(new Set(at).size, 11, 'eleven places');
 });
 
-test('T2 "What We Do" (HOME-FINISH-02; HOME-PLANS-04: its box; Alex, 2026-11-12: About Us\'s type again): the data-act-heading h2 stands alone in its box, directly above the how-to; the travel block opens at its pillar\'s heading; its old label and headline are gone', () => {
+test('T2 "What We Do" (HOME-FINISH-02; HOME-PLANS-04: its box; About Us\'s type again since Alex\'s note on the built page): the data-act-heading h2 stands alone in its box, directly above the how-to; the travel block opens at its pillar\'s heading; its old label and headline are gone', () => {
   const landing = code(LANDING);
   assert.equal(count(landing, HEADING), 1, 'the heading, once, as ruled');
   assert.equal(count(landing, 'data-act-heading'), 1, 'one act heading in this file');
