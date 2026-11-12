@@ -556,8 +556,17 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             first pillar's name, in fs-gold-text — 5.06:1 on the cream, where brand gold's 3.1:1 held only for large type.
             Until then: the box was 'max-w-7xl mx-auto px-4 lg:px-8 pt-10' and the heading wore 'text-3xl sm:text-4xl
             font-medium tracking-tight text-brand-gold'. ─────────────────────────────────────────────────────────────── */}
+      {/* ── AFTER THE BUILD (Alex's note on the built page, 2026-11-12: "first the what we do, whay did we shrink that , its so
+            small," · "i like how about us and What We do were the same.  About us is better size... IMO..."): the heading
+            wears the act headings' type again — 'text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold', the
+            HOME-FINISH-02 string named above, as About Us's h2 (StopZeroSection.tsx) and Our Story's (WasHereSection.tsx) do;
+            theirs add 'mt-3'. Its element, its place, data-act-heading and the reference's box (.ts-fs-heading) are as they
+            were, so the space above it and the 12px down to the pillar's name are the board's. The eyebrow's rule (.fs-eyebrow)
+            is not ported: src/app/globals.css names that difference. brand gold on the cream is about 3.1:1 — large type only,
+            which this is, as the HOME-FINISH-02 note above says. Until then (HOME-PLANS-04): '<h2 className="ts-fs-eyebrow"
+            data-act-heading>'. ──────────────────────────────────────────────────────────────────────────────────────────── */}
       <div className="ts-fs-heading">
-        <h2 className="ts-fs-eyebrow" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
+        <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
       </div>
       {/* ── HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story"): THE ORDER of this page is
             Alex's of 2026-11-10 — under the hero: travel booking, the events, the guest's strip when a guest has one,

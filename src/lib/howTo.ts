@@ -76,13 +76,21 @@
  *   · THE WORDS — ruling f: "WORDS. Nothing is typed in a component. The switches say the part each plan's name adds:
  *     "+ Business", "+ Trading". Three words are new and need a leaf: "Your plan", "<n> of <total> tools", "All <total>
  *     tools". Both numbers are computed." The three are typed here (YOUR_PLAN; toolCountWords, with ofToolsWords for the
- *     words after the map's figure; allToolsWords); the switches' words are the plans' own names, split (nameParts); both
- *     numbers count the sheet's tools. Drawn again: WHAT_YOU_RUN_LABEL (the switches' group, for a screen reader),
- *     PERSONAL_ALWAYS and PLAN_MARKS' two labels (each tool's mark). Still drawn: the link's words and path. Not drawn:
+ *     words after its figure; allToolsWords); the switches' words — and, since Alex's notes below, the Personal pill's — are
+ *     the plans' own names, split (nameParts); both numbers count the sheet's tools. Drawn again: WHAT_YOU_RUN_LABEL (the
+ *     switches' group, for a screen reader) and PLAN_MARKS' two labels (each tool's mark) — and PERSONAL_ALWAYS, until
+ *     Alex's notes. Still drawn: the link's words and path. Not drawn:
  *     ADD_BUSINESS and ADD_TRADE, which stay — ADD_TRADE says "+ Trade", and the board says "+ Trading", as the plan does —
  *     and PLAN_MARKS' two glyphs (✓ and —): a tool's mark is the reference's tick or ring, carrying PLAN_MARKS' label.
- *   · "NOT HERE … no count of the tools", above, was HOME-BRIEF-03's board; this board draws one, by ruling f. And a mark
- *     still says "in this plan", never "built" (ruling d): nothing the map draws reads a tool's status, and no price is drawn.
+ *   · "NOT HERE … no count of the tools", above, was HOME-BRIEF-03's board; this board draws a count on each card and on
+ *     the band, by ruling f (the map's own count left at Alex's notes, below). And a mark still says "in this plan", never
+ *     "built" (ruling d): nothing the map draws reads a tool's status, and no price is drawn.
+ *   · AFTER THE BUILD (Alex's notes on the built page, 2026-11-12: "then 13 of 25 tools is tacky, we dont need that to tell
+ *     us, we can just count..." · "while youre at it, remove that word alwasy from personal... looks tacky too"): the map
+ *     draws no count — planMapView has no figure now, and the section no live region — and the Personal pill says the plans'
+ *     first part, "Personal" (planMapView's base, from nameParts), as the switches say theirs. PERSONAL_ALWAYS is read by no
+ *     page again; it stays, as ADD_BUSINESS and ADD_TRADE do. Each card's count and the band's stay (toolCountWords,
+ *     allToolsWords). His other note, "What We Do" in About Us's type, is Landing.tsx's.
  *
  * PURE: no directive, no fetch, no clock, no storage.
  */
@@ -99,6 +107,9 @@ import { OFFERS, priceLineFor, type Offer } from './offer';
 // PLANS_SUBHEAD do; the paragraphs stay in their leaf, undrawn.
 /** The label over the three, and the three: Personal is fixed, the other two are switches. */
 export const WHAT_YOU_RUN_LABEL = 'What you run · add any';
+// AFTER THE BUILD (Alex's note on the built page, 2026-11-12: "while youre at it, remove that word alwasy from personal... looks
+// tacky too"): NOT DRAWN — the map's Personal pill says the plans' first part, "Personal" (planMapView's base, from nameParts), as
+// the switches say theirs. This stays as it was, read by no page.
 export const PERSONAL_ALWAYS = 'Personal · always';
 // HOME-PLANS-04 (2026-11-12): NOT DRAWN — the map's switches say the part each plan's name adds (nameParts, below), so a switch
 // and its card cannot disagree. These two stay as they were, read by no page; ADD_TRADE's "+ Trade" is not the board's word.
@@ -686,7 +697,10 @@ export function howToLaw(
 
 /** HOME-PLANS-04 ruling f: the tag the picked plan wears. */
 export const YOUR_PLAN = 'Your plan';
-/** HOME-PLANS-04 ruling f: the words after a count's figure — "of 25 tools". The map draws the figure in its own span, then these. */
+/**
+ * HOME-PLANS-04 ruling f: the words after a count's figure — "of 25 tools". A card's count (toolCountWords) is its figure, then
+ * these; the map drew its own figure and these until Alex's note on the built page (2026-11-12).
+ */
 export function ofToolsWords(total: number): string {
   return `of ${total} tools`;
 }
@@ -780,11 +794,13 @@ export interface MapPlan {
   picked: boolean;
 }
 export interface PlanMapView {
+  /**
+   * The pill every plan holds — the first part of the plans' names, as the Personal plan's own name says it (nameParts):
+   * "Personal". Alex's note on the built page (2026-11-12) took "always" off it; PERSONAL_ALWAYS stays in its leaf, undrawn.
+   */
+  base: NamePart;
   /** Business, then Trading. */
   switches: readonly MapSwitch[];
-  /** How many tools the picked plan lights, and the words after that figure. */
-  figure: number;
-  ofTotal: string;
   families: readonly MapFamily[];
   /** The plans that hold fewer than every module, in PLANS' order — three cards. */
   cards: readonly MapPlan[];
@@ -800,9 +816,11 @@ const SWITCHES = [
 
 /**
  * Everything the section draws for what you run — the picked plan (planFor), each tool's module (toolModule) and whether the
- * picked plan holds it, the figure over the sheet's tools, the switches' words from the names of the plans they pick, and each
- * plan as its card draws it. No status is read, and a plan whose slot holds a price is a throw, by name: only the unannounced
- * slot is designed, and the plan law fails the build on any price first (scripts/assert-tool-registry.ts, HOME-PLANS-01's guard).
+ * picked plan holds it, the Personal pill's words and the switches' from the names of the plans they stand for, and each plan
+ * as its card draws it. No status is read, and a plan whose slot holds a price is a throw, by name: only the unannounced slot
+ * is designed, and the plan law fails the build on any price first (scripts/assert-tool-registry.ts, HOME-PLANS-01's guard).
+ * The map draws no count: its figure over the sheet's tools left at Alex's note on the built page (2026-11-12); each card's
+ * and the band's count stay.
  */
 export function planMapView(
   choice: HowToChoice,
@@ -834,14 +852,13 @@ export function planMapView(
   };
   const all = planFor({ business: true, trade: true }, plans);
   return {
+    base: nameParts(planFor({ business: false, trade: false }, plans))[0],
     switches: SWITCHES.map(({ module: adds, key }) => {
       const plan = planFor({ business: key === 'business', trade: key === 'trade' }, plans);
       const part = nameParts(plan).find((p) => p.module === adds);
       if (part === undefined) throw new HowToLawError(`howTo: the plan "${plan.id}" ("${plan.name}") has no part for ${adds} — the switch has no words`);
       return { module: adds, words: part.words, pressed: choice[key] };
     }),
-    figure: held(picked),
-    ofTotal: ofToolsWords(total),
     families: sheet.map((family) => ({
       name: family.header,
       tools: family.tools.map((name) => {
