@@ -10,26 +10,32 @@
  *
  *   T1  the handoff landed — the README and the reference, byte for byte (sha256) and by size;
  *   T2  the tokens, named and valued as the README's two tables — the fourteen already in the app, each the reference's value
- *       behind the house prefix in globals.css :root; the seventeen new ones, declared once each as --ts-fs-*, behind
- *       tailwind.config.ts's `fs` family and in DESIGN.md's table; the reference's :root holds those thirty-one and no other;
+ *       behind the house prefix in globals.css :root, declared once; the seventeen new ones, declared once each as --ts-fs-*,
+ *       behind tailwind.config.ts's `fs` family and in DESIGN.md's table — its rows and their comments in globals.css the
+ *       README's, column for column; the reference's :root holds those thirty-one and no other;
  *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the three
  *       differences named there; no hex and no rgb value typed; every variable it reads is declared and every new token is
- *       read; it stands under the chip strip's rules and above the hero's block; nothing else in the file names its classes;
+ *       read; it stands under the chip strip's rules and above the hero's block; nothing else in the file reaches the section
+ *       — not by its classes, its id, the state it is styled by or any data attribute it carries;
  *   T4  the page at rest — Landing.tsx's heading box and the section's render are the reference's markup, token for token
  *       (classes behind the house prefix, attributes in any order);
  *   T5  the four states — each render is the reference's markup with exactly the edits its own script makes, and no other:
  *       the switch's pressed state and mark, every tool's lit state and mark, the figure, the picked plan and its tag;
  *   T6  the words — every word drawn is its leaf's, in order; the three new words are src/lib/howTo.ts's and both numbers are
- *       computed; the switches say the part each plan's name adds; the component types none;
+ *       computed; the switches say the part each plan's name adds; the component types none, and writes no template literal;
  *   T7  the data — a tool's module is the module of the capability rows that name it (13 · 10 · 2); the counts 13 · 23 · 15 ·
  *       25; the map law refuses a tool of no module or of two, and a name that is not one part per module — by name; the
+ *       law reads the sheet it is handed and the view the rows it is handed; both laws end the leaf, at its top level; the
  *       known difference (Bill Pay, FP&A and Brokerage stand in Personal's steps, the map follows the rows);
- *   T8  the state — two booleans in React state, both off at first, nothing stored; the switches turn them; every plan's
- *       button opens the door;
- *   T9  the build — the law suite's map law re-runs mapLaw and fails by name, and its seeds are on file;
+ *   T8  the state — two booleans in React state, both off at first, nothing stored, no browser global named; the switches
+ *       turn them; every plan's button opens the door;
+ *   T9  the build — the law suite's map law re-runs mapLaw and puts each violation on the build's violations, by name, and
+ *       its seeds are on file;
  *   T10 the rulings — each quoted, dated, where it is built; what left the page stays in its leaf, undrawn, with its note.
  *
- * Source is read through code() and comments() only (the reader law); rejoin() for whole-file digests alone. No clock, no
+ * Source is read through code() and comments() only (the reader law); rejoin() where the whole file is the subject: the
+ * digests, the reference (HTML, which the reader splits as TypeScript — referenceText), the token tables' rows (markdown,
+ * and globals.css's token lines with their comments) and each seed's find (prove.ts reads the whole file). No clock, no
  * live call. What a browser must show — the look at 1440, 1024 and 390, no sideways scroll from 340px, the same height in all
  * four states — cannot be held here; it is in the PR.
  */
@@ -296,6 +302,31 @@ test('T2 the tokens, named and valued as the README\'s two tables: fourteen alre
   assert.deepEqual(colors.fs, expected, 'tailwind.config.ts: the fs family holds its seventeen tokens, each reading its variable');
   // DESIGN.md's table: the same names on the same values, in the README's order
   assert.deepEqual(designTable('## The Financial Software section'), NEW.map(([n, v]) => [n, v]), 'DESIGN.md\'s table');
+  // every column: DESIGN.md's rows are the README's, character for character, and each new token's comment in globals.css is its
+  // "Used for". Markdown is split by the reader as TypeScript, so the rows are read from the whole file (rejoin).
+  const rowsAfter = (file: string, lead: string): string[] => {
+    const doc = rejoin(code(file), comments(file));
+    const from = doc.indexOf(lead);
+    assert.ok(from > -1, `${file} has "${lead.trim()}"`);
+    const rows: string[] = [];
+    for (const line of doc.slice(from).split('\n').slice(1)) {
+      if (line.startsWith('|')) rows.push(line);
+      else if (rows.length > 0) break;
+    }
+    return rows.filter((l) => l.startsWith('| `'));
+  };
+  const readmeRows = rowsAfter(README, '**New with this section.**');
+  assert.equal(readmeRows.length, 17);
+  assert.deepEqual(rowsAfter('DESIGN.md', '\n## The Financial Software section'), readmeRows, 'DESIGN.md\'s table is the README\'s, row for row and column for column');
+  const globalsLines = rejoin(code(GLOBALS), comments(GLOBALS)).split('\n');
+  for (const row of readmeRows) {
+    const [name, value, usedFor] = row.split('|').slice(1, 4).map((c) => c.trim().replace(/^`|`$/g, ''));
+    const lines = globalsLines.filter((l) => l.trimStart().startsWith(`--ts-${name}:`));
+    assert.equal(lines.length, 1, `globals.css declares --ts-${name} on one line`);
+    assert.ok(lines[0].includes(` ${value};`) && lines[0].trimEnd().endsWith(`/* ${usedFor} */`), `--ts-${name}: ${value}, and its comment is the README's "${usedFor}"`);
+  }
+  // the fourteen already in the app are declared once each too — none re-declared in a scope that would reach the section
+  for (const [name] of KEPT) assert.equal([...css.matchAll(new RegExp(`--ts-${name}\\s*:`, 'g'))].length, 1, `--ts-${name}: declared once in globals.css`);
 });
 
 // ── T3 · THE STYLESHEET IS THE REFERENCE'S ───────────────────────────────────
@@ -341,6 +372,29 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   const outside = whole.slice(0, at) + whole.slice(whole.indexOf('.ts-hero {'));
   assert.doesNotMatch(outside, /\.ts-fs\b|\.ts-fs[-_]/, 'no rule outside the port names one of its classes');
   assert.doesNotMatch(outside, /\[\s*class\s*[~|^$*]?=\s*["']?[^"'\]]*fs/, 'and none reaches them through a class attribute selector');
+  // nor reaches the section another way: by its id, by the state attribute the port styles it by, or by any data attribute its
+  // markup or the heading box carries
+  const hooks = new Set<string>(['aria-pressed', 'data-act-heading']);
+  for (const [, run] of STATES) for (const m of render(run).matchAll(/ (data-[\w-]+)="/g)) hooks.add(m[1]);
+  assert.deepEqual([...hooks].sort(), ['aria-pressed', 'data-act-heading', 'data-compare-plans', 'data-how-to', 'data-lit', 'data-module', 'data-picked', 'data-plan'], 'the hooks the section and its heading carry');
+  const selectorsOutside = [...outside.matchAll(/([^{};]+)\{/g)].map((m) => flat(m[1]));
+  assert.ok(selectorsOutside.length > 50, `the rules outside the port were read (${selectorsOutside.length})`);
+  for (const sel of selectorsOutside) {
+    assert.ok(!sel.includes('#modules'), `${sel}: no rule outside the port reaches the section by its id`);
+    for (const hook of hooks) assert.ok(!sel.includes(`[${hook}`), `${sel}: no rule outside the port reaches the section by [${hook}]`);
+  }
+  // nor by an element: no selector outside the port STARTS with a type, the universal selector or :is/:where/:not (past an html,
+  // body or :root prefix) — those reach every such element on the page, the section's among them. One scoped under a class
+  // (.ts-bar a, the hero's) reaches only inside that class.
+  const typeFirst = (selector: string): boolean => selector.split(',').some((one) => {
+    const compounds = one.trim().split(/\s*[\s>+~]\s*/).filter(Boolean);
+    while (compounds.length > 1 && /^(html|body|:root)$/.test(compounds[0])) compounds.shift();
+    // a compound that opens with a letter is a type selector (keyframe stops excepted)
+    return /^(?:[a-z][a-z0-9-]*|\*|:(?:is|where|not)\()/i.test(compounds[0]) && !/^(html|body|from|to)$/i.test(compounds[0]);
+  });
+  assert.deepEqual(selectorsOutside.filter(typeFirst), [], 'no rule outside the port reaches the section by an element');
+  for (const reaches of ['button', '*', 'body h2', 'h2[data-act-heading]', ':where(button)', 'li:last-child']) assert.ok(typeFirst(reaches), `"${reaches}" would be refused`);
+  for (const scoped of ['.ts-bar a', '.ts-hero__title span', 'body', 'html', ':root', 'from', '0%', '@media (min-width: 1024px)']) assert.ok(!typeFirst(scoped), `"${scoped}" stands`);
   // what the section and the heading box wear is ruled by the port — each class itself
   const ruled = new Set(port.flatMap((l) => l.split(' | ')[1].match(/\.ts-[A-Za-z][\w-]*/g) ?? []));
   const worn = [...code(SECTION).matchAll(/className="([^"]*)"/g), ...code(LANDING).matchAll(/className="(ts-fs[^"]*)"/g)].flatMap((m) => m[1].split(/\s+/));
@@ -479,6 +533,8 @@ test('T6 every word drawn is its leaf\'s, in order — the three new words and b
     ...PLANS.flatMap((p) => [p.name, p.role, p.audience, p.positioning, p.relationship, ...p.benefits])];
   for (const w of leafWords) assert.ok(!flat(section).includes(`'${w}'`) && !flat(section).includes(`"${w}"`) && !flat(section).includes(`>${w}<`), `the section does not type "${w.slice(0, 30)}"`);
   assert.deepEqual([...section.matchAll(/aria-label="([^"]*)"/g)].map((m) => m[1]), ['Software plans'], 'its one typed label is the act\'s own, as since HOME-PLANS-01');
+  assert.equal(count(section, '`'), 0, 'and it writes no template literal, where a typed word could hide');
+  assert.deepEqual([...section.matchAll(/'([^']*)'/g)].map((m) => m[1]), ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/offer/plans', ' ', ' '], 'its single-quoted literals: the directive, its three imports\' paths and React\'s, and the space before each later part of a plan\'s name');
 });
 
 // ── T7 · THE DATA ────────────────────────────────────────────────────────────
@@ -516,6 +572,21 @@ test('T7 a tool\'s module is the module of the capability rows that name it — 
   const misnamed = PLANS.map((p) => (p.id === 'business' ? { ...p, name: 'Personal and Business' } : p));
   assert.ok(mapLaw({ throwOnFail: false, plans: misnamed }).some((v) => /the plan "business" is named "Personal and Business" — 1 part\(s\) for its 2 module\(s\)/.test(v)), 'a name that is not one part per module, by name');
   assert.throws(() => mapLaw({ groups: twoModules }), (e: unknown) => e instanceof HowToLawError && /^map law: /.test(e.message), 'it throws by default');
+  assert.throws(() => toolModule('Mileage', noMileage), (e: unknown) => e instanceof HowToLawError && /Mileage is named by no capability row/.test(e.message), 'a tool of no module is a throw, as a tool of two is');
+  // the law reads the sheet it is handed, and the view the rows it is handed — the module, the light and the figure all follow them
+  assert.deepEqual(mapLaw({ throwOnFail: false, sheet: [{ header: 'A family of one', tools: ['Ledger Zero' as ToolName] }] }), ['Ledger Zero is named by no capability row — a tool on the map wears its module\'s colour, and it has no module']);
+  assert.throws(() => planMapView({ business: false, trade: false }, { groups: twoModules }), (e: unknown) => e instanceof HowToLawError && /Expenses is named by capability rows of 2 modules/.test(e.message), 'a view over rows that give a tool two modules is refused');
+  const mileageTrades = CAPABILITY_GROUPS.map((g) => ({ ...g, rows: g.rows.map((r) => ((r.tools as readonly string[]).includes('Mileage') ? { ...r, module: 'trading' as const } : r)) }));
+  const mileageIn = (run: Run) => planMapView(run, { groups: mileageTrades }).families.flatMap((f) => f.tools).find((t) => t.name === 'Mileage');
+  assert.deepEqual(mileageIn({ business: false, trade: false }), { name: 'Mileage', module: 'trading', lit: false }, 'Mileage wears the module its rows give it, unlit at rest');
+  assert.deepEqual(mileageIn({ business: false, trade: true }), { name: 'Mileage', module: 'trading', lit: true }, 'and is lit when Trading is on');
+  assert.equal(planMapView({ business: false, trade: false }, { groups: mileageTrades }).figure, SHEET_TOOLS.filter((t) => modulesHere(t, mileageTrades)[0] === 'personal').length, 'the figure counts by the rows handed in');
+  // both module-scope laws end the file, each a statement of its own at the top level — behind no condition, inside no block
+  const leafCode = code(LEAF).trimEnd();
+  assert.ok(leafCode.endsWith('\nhowToLaw();\nmapLaw();'), 'the leaf ends with its two laws, run at module scope');
+  const beforeLaws = leafCode.slice(0, -'\nhowToLaw();\nmapLaw();'.length).trimEnd();
+  assert.match(beforeLaws.slice(-1), /[;}]/, 'after a finished statement, so no condition holds them');
+  assert.equal(count(beforeLaws, '{'), count(beforeLaws, '}'), 'and at the top level, inside no block');
   // a priced plan is not drawn: only the unannounced slot is designed (the plan law fails the build on a price first)
   const priced = PLANS.map((p) => ({ ...p, price: { ...p.price, monthly: 29, billingNote: 'billed monthly' } }));
   assert.throws(() => planMapView({ business: false, trade: false }, { plans: priced }), (e: unknown) => e instanceof HowToLawError && /the plan "personal" carries a price/.test(e.message));
@@ -535,7 +606,14 @@ test('T8 what you run is two booleans in React state — both off at first, noth
   assert.equal(count(section, 'const [business, setBusiness] = useState(false);'), 1, 'Business: off at first');
   assert.equal(count(section, 'const [trade, setTrade] = useState(false);'), 1, 'Trading: off at first');
   assert.equal(count(section, 'useState('), 2, 'and no other state');
-  assert.doesNotMatch(section, /\buse(Effect|LayoutEffect|Reducer|Ref|Router|SearchParams|Pathname|Context|SyncExternalStore)\b|localStorage|sessionStorage|indexedDB|document\.cookie|window\.|location\b|history\.|\bfetch\s*\(|new Date\(|Date\.now\(/, 'no storage, no URL, no cookie, no clock');
+  assert.doesNotMatch(section, /\buse(Effect|LayoutEffect|Reducer|Ref|Router|SearchParams|Pathname|Context|SyncExternalStore)\b|\b(globalThis|window|self|document|navigator|history|location|localStorage|sessionStorage|indexedDB|cookieStore|caches|cookie)\b|\bfetch\s*\(|new Date\(|Date\.now\(/, 'no storage, no URL, no cookie, no clock — no browser global named at all');
+  assert.equal(section.slice(section.indexOf('export default function HowToSection(')).trim(), [
+    'export default function HowToSection({ onRequireAuth }: { onRequireAuth: () => void }) {',
+    '  const [business, setBusiness] = useState(false);',
+    '  const [trade, setTrade] = useState(false);',
+    '  return <HowToView business={business} trade={trade} onBusiness={() => setBusiness((on) => !on)} onTrade={() => setTrade((on) => !on)} onJoin={onRequireAuth} />;',
+    '}',
+  ].join('\n'), 'the default export, whole, ends the file: two booleans and the pure half — nothing else runs in it');
   // the default export, driven inside a host's render: an act made during that render re-draws the host
   const acts: Array<(props: HowToViewProps) => void> = [(p) => p.onBusiness(), (p) => p.onTrade(), (p) => p.onBusiness(), (p) => p.onTrade()];
   const passes: string[] = [];
@@ -575,6 +653,8 @@ test('T9 the build\'s map law re-runs mapLaw — one module per tool, or the bui
   assert.equal(count(law, "import { mapLaw } from '../src/lib/howTo';"), 1, 'the leaf\'s own law, imported');
   const seat = law.slice(law.indexOf("lawGuard('The map law', () => {"));
   assert.ok(seat.includes('for (const v of mapLaw({ throwOnFail: false })) mapFail(v);'), 'the seat re-runs the leaf\'s law and fails on each violation');
+  assert.ok(seat.includes('const mapFail = (m: string) => { mapViolations += 1; violations.push(`map law: ${m} (HOME-PLANS-04)`); };'), 'each violation goes onto the build\'s violations, which the second gate fails on');
+  assert.equal(count(law, "import { mapLaw } from '../src/lib/howTo';\n\nlawGuard('The map law', () => {\n"), 1, 'the seat is a statement of its own, right under its import — no condition holds it');
   assert.ok(law.indexOf("lawGuard('The map law', () => {") < law.lastIndexOf('if (violations.length > raised) {'), 'above the second gate, so its violations fail the build');
   assert.ok(law.lastIndexOf("lawGuard('") === law.indexOf("lawGuard('The map law', () => {"), 'the last seat in the file');
   // the seeds: each find occurs once in its file; each expect is what the law says of that very change
@@ -615,7 +695,7 @@ test('T10 each ruling is quoted, dated, where it is built; what left the page st
   // e — the tool's module, in the leaf and in the build's law
   const E = '"A TOOL\'S MODULE is the module of the capability rows that name it (CAPABILITY_GROUPS), held by a law: one module per tool, or the build fails by name."';
   assert.ok(leaf.includes(E), 'e, in the leaf');
-  assert.ok(law.includes(E.replace(/'/g, '’')), 'e, at the build\'s law (with a typographer\'s apostrophe, as that file writes)');
+  assert.ok(law.includes(E), 'e, at the build\'s law');
   // f — the words
   const F = '"WORDS. Nothing is typed in a component. The switches say the part each plan\'s name adds: "+ Business", "+ Trading". Three words are new and need a leaf: "Your plan", "<n> of <total> tools", "All <total> tools". Both numbers are computed."';
   assert.ok(section.includes(F) && leaf.includes(F), 'f, in the section and in the leaf');
@@ -623,6 +703,29 @@ test('T10 each ruling is quoted, dated, where it is built; what left the page st
   assert.ok(globals.includes('"TWO GRADIENTS, both on the board: the picked plan\'s gold button and the band."'), 'g, at the stylesheet');
   // the heading's look
   assert.ok(landing.includes('"What We Do" keeps its element, its place and data-act-heading. Only its look changes: the eyebrow. This replaces HOME-FINISH-02\'s "in gold and one size up" for the heading\'s look only.'), 'the eyebrow, at the heading box');
+  // Alex's own words, wherever a file of this change quotes them, exact: a quote of his 14:07 words is the whole of them or an
+  // excerpt cut only at an elision mark (…), every piece his, in his order; a quote of his 14:30 words is the whole of them
+  const WORDS_1407 = 'Plaids sections with Title, Sub title, quick explainer paragraph, and then list of features. ours is a little more complex looking and harer to see separation … instead of this , we might have like some simple like lists, or something or an image... that like lists the Tabs , separated by Tier? … simple and easy to understand';
+  const WORDS_1430 = 'YES, OMG, GIVE ME THE PROMPT TO MAKE THIS REAL!';
+  const excerptOf = (quote: string, whole: string): boolean => {
+    let from = 0;
+    for (const piece of quote.split('…').map((p) => p.trim()).filter(Boolean)) {
+      const at = whole.indexOf(piece, from);
+      if (at < 0) return false;
+      from = at + piece.length;
+    }
+    return true;
+  };
+  const quoted: Record<string, { at1407: string[]; at1430: string[] }> = {};
+  for (const file of [SECTION, LEAF, PILLARS, GLOBALS, LANDING, LAW, 'scripts/proofs/map.seeds.ts', 'tailwind.config.ts']) {
+    const notes = said(file);
+    quoted[file] = { at1407: [...notes.matchAll(/14:07 Manila: "([^"]+)"/g)].map((m) => m[1]), at1430: [...notes.matchAll(/14:30(?: Manila)?: "([^"]+)"/g)].map((m) => m[1]) };
+    for (const q of quoted[file].at1407) assert.ok(excerptOf(q, WORDS_1407), `${file}: "${q.slice(0, 40)}…" is Alex's 14:07 words, exact`);
+    for (const q of quoted[file].at1430) assert.equal(q, WORDS_1430, `${file}: his 14:30 words, exact`);
+  }
+  assert.deepEqual(quoted[SECTION].at1407, [WORDS_1407], 'the section quotes the 14:07 words whole');
+  assert.equal(quoted[LEAF].at1407.length, 2, 'the leaf quotes them twice, each an excerpt');
+  assert.deepEqual([quoted[SECTION].at1430.length, quoted[LEAF].at1430.length], [1, 1], 'and the 14:30 words once each');
   // what left the page stays in its leaf, undrawn
   assert.equal(PLAN_PILLAR.paragraphs.length, 3, 'the pillar keeps its three paragraphs');
   const titles = planCardSteps().flatMap((card) => card.categories.flatMap((c) => [c.heading, ...c.steps]));

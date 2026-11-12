@@ -38,11 +38,12 @@ const LEAF = 'src/lib/homeActWords.ts';
 // HOME-FINISH-02 (2026-11-10), Part 4: the travel section wears its own top and bottom padding (py-10) — the eyebrow row's pt-6 and the foot row's
 // pb-2 gave them until then, and both rows left. Until then: '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 border-b border-border">'.
 const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 py-10 border-b border-border">';
-// HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila): "What We Do" keeps its element, its place and data-act-heading; only its look changes — the
-// eyebrow, the reference's heading box behind the house prefix. Until then (HOME-FINISH-02, Alex, 2026-11-10 20:56: the heading in gold, one size up,
-// alone in the page's container): HEADING '<h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>
-// {WHAT_WE_DO_HEADING}</h2>' in HEADING_BOX '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">'. Before that it was the travel section's first
-// child: '<h2 className="pt-8 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-act-heading>{WHAT_WE_DO_HEADING}</h2>'.
+// HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila), in the brief's own words: "What We Do" keeps its element, its place and data-act-heading.
+// Only its look changes: the eyebrow. — the reference's heading box behind the house prefix. Until then (HOME-FINISH-02, Alex, 2026-11-10 20:56: the
+// heading in gold, one size up, alone in the page's container):
+// HEADING '<h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>'
+// in HEADING_BOX '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">'. Before that it was the travel section's first child:
+// '<h2 className="pt-8 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-act-heading>{WHAT_WE_DO_HEADING}</h2>'.
 const HEADING = '<h2 className="ts-fs-eyebrow" data-act-heading>{WHAT_WE_DO_HEADING}</h2>';
 const HEADING_BOX = '<div className="ts-fs-heading">';
 const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />';

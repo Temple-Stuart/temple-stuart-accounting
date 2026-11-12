@@ -199,7 +199,7 @@ body {
 /* PALETTE-OVERHAUL: the one CTA gradient — pop → grad-mid → grad-end (tokens
    above). Used as a button fill (with text-white hover:brightness-110) and as
    gradient text (with bg-clip-text text-transparent). */
-/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) */
+/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) (HOME-PLANS-04, 2026-11-12: and the Financial Software section's two — the picked plan's gold button and the band (ruling g), in the block above the hero's.) */
 
 /* BUILTON-MARQUEE: the Built-on strip's CSS-only infinite loop — the track
    renders its chip run TWICE and slides half its own width, so the wrap is
@@ -256,7 +256,7 @@ body {
    It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value
    outside :root").
    TWO GRADIENTS — the brief's ruling g, as written (2026-11-12): "TWO GRADIENTS, both on the board: the picked plan's gold
-   button and the band." They are the picked card's button (.ts-fs-plan[data-picked="true"] .ts-fs-plan__cta: the hero's
+   button and the band." They are the picked plan's button — a card's or the band's (.ts-fs-plan[data-picked="true"] .ts-fs-plan__cta: the hero's
    three golds at 135deg, drawn solid) and the band (.ts-fs-plan--all: the hero's violets at 120deg, under rings 1px wide
    every 14px). REPAINT-5's ban on gradients, above, is the ruling this design comes after, as the hero's did.
    Used by src/components/landing/Landing.tsx (the heading box: .ts-fs-heading, .ts-fs-eyebrow) and

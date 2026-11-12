@@ -13,7 +13,7 @@
  * leaf's own mapLaw() at module scope, so the suite dies at the import with the leaf's message — "map law: Expenses is named by
  * capability rows of 2 modules …" — before the guarded seat speaks. The expect names what actually prints. (A tool named by NO
  * row is not seeded here: the plan law's coverage clause refuses that first, at the plans leaf's own import — "in the registry
- * and in no capability row" — and its seeds are its own.)
+ * and in no capability row" — a clause no seed exercises yet.)
  */
 import type { Seed } from '../prove';
 

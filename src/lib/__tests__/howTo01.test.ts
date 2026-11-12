@@ -37,13 +37,17 @@
  *   T3 the counts — the steps, how many are live and pending, and how many need Books, computed HERE from the leaf's
  *      steps and the registry and held equal to what the leaf says; a step is LIVE exactly when every tool in it is; the
  *      Books lines follow the Books offer;
- *   T4 the section, rendered (HOME-PLANS-03) — it has one render, nothing in it opens: the pillar, the four cards
+ *   T4 the section, in its four states (HOME-PLANS-04) — the pillar's name and the plans' subhead, the map, the cards and
+ *      the band, the link last; none of what left (his three paragraphs, every step list, the comparison); no table,
+ *      nothing that opens, no status word; two switches and a button per plan, each wired; the default export draws the
+ *      pure half at rest.
+ *      (Until HOME-PLANS-04, from HOME-PLANS-03: one render, nothing in it opened — the pillar, the four cards
  *      (PlanCards' own render WITH the leaf's steps), the one link, and nothing after; each card's categories and step
- *      titles are the leaf's (planCardSteps, looped — no step is typed here); the bundle draws its three benefits; no
- *      table, no data-comparison hook, no aria-expanded and no screen-reader-only text; the link's words and href are
- *      the leaf's; none of the status words, the switches' words, the plan line or the legend; a card's button opens
- *      the door; the default export holds no state.
- *      (Until HOME-PLANS-03, from HOME-PLANS-01: at rest — the pillar, the four cards with their benefits, the table
+ *      titles the leaf's (planCardSteps, looped — no step typed here); the bundle drew its three benefits; no table, no
+ *      data-comparison hook, no aria-expanded and no screen-reader-only text; the link's words and href the leaf's; none
+ *      of the status words, the switches' words, the plan line or the legend; a card's button opened the door; the
+ *      default export held no state.
+ *      Until HOME-PLANS-03, from HOME-PLANS-01: at rest — the pillar, the four cards with their benefits, the table
  *      with Personal open and three closed, 8 step rows and no tool row; with Business open; with a step open — its
  *      tools, their lines and its note; every button's aria-expanded; the marks under each plan for all 26 steps; no
  *      "Compare all four plans" in any render; a toggle called back with its key; the two sets, through the default
@@ -51,16 +55,21 @@
  *      plan line with its price line, its button and the link to the four plans, the steps line and the Books line,
  *      each section's steps in ONE row that swiped sideways, the card — its step and its state, the title, each tool
  *      and its mark, its note — the Travel lines with and without Business, and the legend.)
- *   T5 the source (HOME-PLANS-03) — the section types no leaf word, no mark, no status and no price; its only typed
- *      words are its aria-label; it holds no state — no hook, no storage, no URL; it reads the cards' steps and the
- *      link from the leaf and takes PlanCards and nothing else from the plans section; the table left with every name
- *      only it used; the link wears the house text link; the leaf is pure and keeps the comparison, undrawn.
- *      (Until HOME-PLANS-03, from HOME-PLANS-01: two sets in React state only; the table's box, head row and toggle
+ *   T5 the source (HOME-PLANS-04) — no leaf word, mark, status or price typed; its one typed label; two booleans in
+ *      React state and nothing stored; it reads the how-to leaf, the pillars leaf and the plans leaf, and nothing from
+ *      the plans section; every class is the ported stylesheet's; the leaf pure, keeping the comparison and the cards'
+ *      steps, undrawn.
+ *      (Until HOME-PLANS-04, from HOME-PLANS-03: no state — no hook, no storage, no URL; it read the cards' steps and the
+ *      link from the leaf and took PlanCards and nothing else from the plans section; the table left with every name
+ *      only it used; the link wore the house text link; the leaf pure, keeping the comparison, undrawn.
+ *      Until HOME-PLANS-03, from HOME-PLANS-01: two sets in React state only; the table's box, head row and toggle
  *      were the plans table's own idioms; the marks' colours were never the status colours; eight keys of the class
  *      grammar took a phone's values below `md` — HOME-PLANS-02. Before that: no status, no plan name, no price and
  *      none of the leaf's words; two switches in React state only; the row was MY TRIP's rail.)
  *   T6 Landing mounts the section once — first under "What We Do" (HOME-FINISH-02; under the guest's strip until then),
- *      above the services section. Landing itself never names the plans section: the how-to draws the four cards.
+ *      above the services section; the heading box wears the eyebrow (HOME-PLANS-04; gold and one size up until then).
+ *      Landing itself never names the plans section: the how-to draws its own three cards and the band (HOME-PLANS-04;
+ *      PlanCards' four until then).
  *   T7 (HOME-PLANS-01, Alex, 2026-11-11 00:09: "Four plans. One comparison.") the four plan cards, exported whole from
  *      the plans section — PlanCards alone stands whole inside PlansSection's render, once, right under its subhead; four
  *      cards in PLANS' order, each with its top label, its name, its two lines, who it is for, three benefits, the
@@ -74,10 +83,14 @@
  *      new refusal by name; the status view's notes unchanged by the field move.
  *   T9 (HOME-PLANS-01) the guard — one statement at the end of the plan law's line that holds the how-to's anchor
  *      (scripts/assert-tool-registry.ts): a plan that carries a price fails the build, by name; no plan carries one.
- *   T10 (HOME-PLANS-03) nothing in the section scrolls sideways, and nothing in it is drawn for a screen reader alone:
- *      the comparison's box left with its table — no box, no overflow-x-auto and no sr-only span, in the source or in
- *      the render; the plans table's own box is untouched; the section's header says what left.
- *      (Until HOME-PLANS-03, from HOME-PLANS-01's fix after the look: the comparison's box held its own screen-reader
+ *   T10 (HOME-PLANS-04) nothing scrolls sideways and nothing is drawn for a screen reader alone — no box, no overflow
+ *      and no sr-only text, in the source or in any state's render; what a screen reader hears is what a visitor reads:
+ *      every decorative mark hidden, every tool's mark carrying its label; the plans table's own box is untouched; the
+ *      section's header says what left.
+ *      (Until HOME-PLANS-04, from HOME-PLANS-03: the comparison's box left with its table — no box, no overflow-x-auto
+ *      and no sr-only span, in the source or in the render; the plans table's own box untouched; the section's header
+ *      said what left.
+ *      Until HOME-PLANS-03, from HOME-PLANS-01's fix after the look: the comparison's box held its own screen-reader
  *      text — the box was positioned and was the one thing in the section that scrolled sideways; every sr-only span
  *      the section drew sat inside it, at rest and with everything open; the reason stood where the class was typed.
  *      Before the fix the box was unpositioned: that text was laid out against the page, outside the box's clip, and
@@ -97,17 +110,10 @@
  * SECTION — the pillar's name and one line, the map of the 25 tools with its two switches, three plan cards and the all-three band, the
  * one link; "What We Do" wears the eyebrow. The section's whole markup, its stylesheet, its tokens and its words are held to the
  * reference (design-refs/home-plans-04/Section-Reference.html) in homePlans04.test.ts. Re-written in place here, each under a dated
- * note: the render helper (it takes what you run now), T4 and T5 (the section rendered, and its source), T6's heading box and T10 (what
- * a screen reader hears). T9 gains a note and no assertion: the guard stands as it was (the brief's ruling d). T1, T2, T3, T7, T8, T11
- * and T12 are untouched — PlanCards, the comparison and planCardSteps stand as they were, undrawn on this page.
- *   T4 (HOME-PLANS-04) the section, in its four states — the pillar's name and the plans' subhead, the map, the cards and the band, the
- *      link last; none of what left (his three paragraphs, every step list, the comparison); no table, nothing that opens, no status
- *      word; two switches and a button per plan, each wired; the default export draws the pure half at rest.
- *   T5 (HOME-PLANS-04) the source — no leaf word, mark, status or price typed; its one typed label; two booleans in React state and
- *      nothing stored; it reads the how-to leaf, the pillars leaf and the plans leaf, and nothing from the plans section; every class is
- *      the ported stylesheet's; the leaf pure, keeping the comparison and the cards' steps, undrawn.
- *   T10 (HOME-PLANS-04) nothing scrolls sideways; what a screen reader hears is what a visitor reads — every decorative mark hidden,
- *      every tool's mark carrying its label; the section's header says what left.
+ * note: the render helper (it takes what you run now), T4 and T5 (the section rendered, and its source), T6's heading box and its name
+ * (the how-to draws its own three cards and the band now) and T10 (what a screen reader hears); the list above says what each holds
+ * now, and what it held until then. T9 gains a note and no assertion: the guard stands as it was (the brief's ruling d). T1, T2, T3,
+ * T7, T8, T11 and T12 are untouched — PlanCards, the comparison and planCardSteps stand as they were, undrawn on this page.
  *
  * Source is read through code() and comments() only (the reader law). No count of what is live is typed: each is
  * computed (T3). The step counts — 8 · 9 · 4 · 5 — are the brief's own figures, held both ways (T8, T11). No clock, no live call.
@@ -157,8 +163,9 @@ const count = (hay: string, needle: string) => hay.split(needle).length - 1;
  * (Until then — HOME-PLANS-03 — it had ONE render: nothing in the section opened, so it took the door and nothing else:
  * `renderToStaticMarkup(React.createElement(HowToView, { onJoin: () => {} }))`. Before that it was rendered for one open state of the comparison —
  * `type Open = { categories; steps }`, `render(open)` handing HowToView the two sets and their two handlers — and BOX_TAG held the comparison's box as
- * drawn, positioned and the one thing in the section that scrolled sideways: '<div class="relative mt-8 overflow-x-auto rounded-lg border
- * border-border bg-white" data-plan-comparison="true">'. Until HOME-PLANS-01 it took a choice and the two switches' handlers.)
+ * drawn, positioned and the one thing in the section that scrolled sideways:
+ * '<div class="relative mt-8 overflow-x-auto rounded-lg border border-border bg-white" data-plan-comparison="true">'.
+ * Until HOME-PLANS-01 it took a choice and the two switches' handlers.)
  */
 const render = (choice: HowToChoice = HOW_TO_CHOICES[0]): string =>
   renderToStaticMarkup(React.createElement(HowToView, { business: choice.business, trade: choice.trade, onBusiness: () => {}, onTrade: () => {}, onJoin: () => {} }));
@@ -294,14 +301,14 @@ test('T3 the counts are the registry\'s: steps, live, pending and needs-Books co
 const NO_STATUS = ['LIVE', 'PENDING', 'PARTIAL', 'NOT BUILT', 'NOT_BUILT', 'NEEDS BOOKS', 'on sale', 'live today'];
 /**
  * The act's own tag, as drawn. HOME-PLANS-04 (2026-11-12): the ported stylesheet's class, the id first — the plan law, footer01 and heroCrest01 hold the
- * literal `<section id="modules"`. (Until then: '<section id="modules" aria-label="Software plans" class="w-full border-b border-border bg-bg-terminal"
- * data-how-to="true">'.)
+ * literal `<section id="modules"`. (Until then:
+ * '<section id="modules" aria-label="Software plans" class="w-full border-b border-border bg-bg-terminal" data-how-to="true">'.)
  */
 const ACT_TAG = '<section id="modules" class="ts-fs" aria-label="Software plans" data-how-to="true">';
 /**
- * The one link under the band, as drawn — the reference's (.ts-fs__compare): the leaf's words, to the leaf's path. HOME-PLANS-04 (2026-11-12). (Until
- * then it wore the house text link under a top margin, held here as COMPARE_CLASSES: 'mt-4 inline-flex min-h-[44px] items-center font-mono text-xs
- * tracking-wider text-brand-purple hover:text-brand-purple-hover'.)
+ * The one link under the band, as drawn — the reference's (.ts-fs__compare): the leaf's words, to the leaf's path. HOME-PLANS-04 (2026-11-12).
+ * (Until then it wore the house text link under a top margin, held here as COMPARE_CLASSES:
+ * 'mt-4 inline-flex min-h-[44px] items-center font-mono text-xs tracking-wider text-brand-purple hover:text-brand-purple-hover'.)
  */
 const LINK = `<a class="ts-fs__compare" href="${COMPARE_PLANS_PATH}" data-compare-plans="true">${asHtml(COMPARE_PLANS_WORDS)}</a>`;
 /**
@@ -554,7 +561,7 @@ test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no
 
 // ── T6 · THE SEAT ────────────────────────────────────────────────────────────
 
-test('T6 Landing mounts the how-to once, with the door — first under "What We Do" (HOME-FINISH-02) and above the services section, comments between each; Landing itself never names the plans section — the how-to draws the four cards (HOME-PLANS-01)', () => {
+test('T6 Landing mounts the how-to once, with the door — first under "What We Do" (HOME-FINISH-02) and above the services section, comments between each; the heading box wears the eyebrow (HOME-PLANS-04); Landing itself never names the plans section — the how-to draws its own three cards and the band (HOME-PLANS-04; PlanCards\' four until then)', () => {
   const landing = code(LANDING);
   const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the how-to IS the Software Plans — the plans mount ("<PlansSection door={{ kind: 'button', onClick: () =>
@@ -562,9 +569,9 @@ test('T6 Landing mounts the how-to once, with the door — first under "What We 
   // HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — the how-to is the first pillar, directly under the "What We Do" heading, which
   // stands alone in the page's container. Until then its upper neighbour was the guest's strip ('<GuestTripStrip onRequireAuth={onRequireAuth} />':
   // "the guest's strip → the how-to → the services section", a comment between each).
-  // HOME-PLANS-04 (Alex's brief, 2026-11-12): "What We Do" keeps its element, its place and data-act-heading, and wears the eyebrow — the reference's box
-  // and heading behind the house prefix. Until then: '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">\n        <h2 className="text-3xl sm:text-4xl
-  // font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>' (HOME-FINISH-02: "in gold and one size up").
+  // HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila), in the brief's own words: "What We Do" keeps its element, its place and data-act-heading.
+  // Only its look changes: the eyebrow. — the reference's box and heading behind the house prefix. Until then (HOME-FINISH-02: "in gold and one size up"):
+  // '<div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">\n        <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>'
   const HEADING_BOX = '<div className="ts-fs-heading">\n        <h2 className="ts-fs-eyebrow" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>';
   const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />';
   const SERVICES_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'; // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then

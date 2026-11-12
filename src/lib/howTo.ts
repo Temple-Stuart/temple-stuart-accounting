@@ -78,8 +78,9 @@
  *     tools". Both numbers are computed." The three are typed here (YOUR_PLAN; toolCountWords, with ofToolsWords for the
  *     words after the map's figure; allToolsWords); the switches' words are the plans' own names, split (nameParts); both
  *     numbers count the sheet's tools. Drawn again: WHAT_YOU_RUN_LABEL (the switches' group, for a screen reader),
- *     PERSONAL_ALWAYS, PLAN_MARKS' two labels (each tool's mark) and the link's words. Not drawn: ADD_BUSINESS and ADD_TRADE,
- *     which stay — ADD_TRADE says "+ Trade", and the board says "+ Trading", as the plan does.
+ *     PERSONAL_ALWAYS and PLAN_MARKS' two labels (each tool's mark). Still drawn: the link's words and path. Not drawn:
+ *     ADD_BUSINESS and ADD_TRADE, which stay — ADD_TRADE says "+ Trade", and the board says "+ Trading", as the plan does —
+ *     and PLAN_MARKS' two glyphs (✓ and —): a tool's mark is the reference's tick or ring, carrying PLAN_MARKS' label.
  *   · "NOT HERE … no count of the tools", above, was HOME-BRIEF-03's board; this board draws one, by ruling f. And a mark
  *     still says "in this plan", never "built" (ruling d): nothing the map draws reads a tool's status, and no price is drawn.
  *
@@ -94,7 +95,8 @@ import { OFFERS, priceLineFor, type Offer } from './offer';
 // ── THE WORDS ────────────────────────────────────────────────────────────────
 
 // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the block's label, its h2 and its one line left with their last reader — the Plan pillar's
-// heading and paragraphs (src/lib/homeActWords.ts) stand over the tool now.
+// heading and paragraphs (src/lib/homeActWords.ts) stand over the tool now. HOME-PLANS-04 (2026-11-12): its heading and
+// PLANS_SUBHEAD do; the paragraphs stay in their leaf, undrawn.
 /** The label over the three, and the three: Personal is fixed, the other two are switches. */
 export const WHAT_YOU_RUN_LABEL = 'What you run · add any';
 export const PERSONAL_ALWAYS = 'Personal · always';
@@ -569,6 +571,8 @@ export function planComparison(
 // ── THE CARDS' STEPS ─────────────────────────────────────────────────────────
 // HOME-PLANS-03 (Alex, 2026-11-11 18:17 Manila). What the home page draws INSIDE the four plan cards: the steps each plan
 // ADDS. This part reads the plans' modules and the steps' titles — no tool, no note, nothing of what is built.
+// KEPT, NOT DRAWN (HOME-PLANS-04, 2026-11-12): the home page draws the map and its own cards now; this stays, undrawn — the
+// header says why (ruling c).
 
 /** One category on a plan's card. */
 export interface PlanCardCategory {
@@ -673,12 +677,12 @@ export function howToLaw(
 }
 
 // ── THE MAP AND THE PLANS (HOME-PLANS-04) ────────────────────────────────────
-// HOME-PLANS-04 (Alex, 2026-11-12 14:07 Manila: "simple lists, or something or an image... that like lists the Tabs, separated by
-// Tier? … simple and easy to understand"; the board, approved on the design canvas at 14:30: "YES, OMG, GIVE ME THE PROMPT TO MAKE
-// THIS REAL!"). What the home page's first pillar draws now, under its name and one line (design-refs/home-plans-04/): THE MAP — the
-// sheet's 25 tools under its six families (PROBLEM_SHEET), each lit when the picked plan holds its module — then three plan cards and
-// the all-three band. Everything here is DERIVED from the plans leaf and the sheet; three words are typed, ruled new by the brief.
-// A mark says "in this plan" — never "built": nothing below reads a tool's status, and no price is drawn (rulings d and e).
+// HOME-PLANS-04 (Alex, 2026-11-12 14:07 Manila: "… simple like lists, or something or an image... that like lists the Tabs ,
+// separated by Tier? … simple and easy to understand"; the board, approved on the design canvas at 14:30: "YES, OMG, GIVE ME THE
+// PROMPT TO MAKE THIS REAL!"). What the home page's first pillar draws now, under its name and one line (design-refs/home-plans-04/):
+// THE MAP — the sheet's 25 tools under its six families (PROBLEM_SHEET), each lit when the picked plan holds its module — then three
+// plan cards and the all-three band. Everything here is DERIVED from the plans leaf and the sheet; three words are typed, ruled new by
+// the brief. A mark says "in this plan" — never "built": nothing below reads a tool's status, and no price is drawn (ruling d).
 
 /** HOME-PLANS-04 ruling f: the tag the picked plan wears. */
 export const YOUR_PLAN = 'Your plan';
@@ -831,8 +835,9 @@ export function planMapView(
   const all = planFor({ business: true, trade: true }, plans);
   return {
     switches: SWITCHES.map(({ module: adds, key }) => {
-      const part = nameParts(planFor({ business: key === 'business', trade: key === 'trade' }, plans)).find((p) => p.module === adds);
-      if (part === undefined) throw new HowToLawError(`howTo: no plan's name has a part for ${adds} — the switch has no words`);
+      const plan = planFor({ business: key === 'business', trade: key === 'trade' }, plans);
+      const part = nameParts(plan).find((p) => p.module === adds);
+      if (part === undefined) throw new HowToLawError(`howTo: the plan "${plan.id}" ("${plan.name}") has no part for ${adds} — the switch has no words`);
       return { module: adds, words: part.words, pressed: choice[key] };
     }),
     figure: held(picked),

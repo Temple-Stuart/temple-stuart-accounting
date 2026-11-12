@@ -13,10 +13,13 @@
  *   1. the pillar's name — PLAN_PILLAR.heading (src/lib/homeActWords.ts) — then ONE line, PLANS_SUBHEAD (src/lib/offer/plans.ts),
  *      where the pillar's three paragraphs stood;
  *   2. THE MAP: the question (PLANS_HEADLINE), Personal · always, the two switches, the count, then the 25 tools under the six
- *      families of PROBLEM_SHEET, each lit or not by the picked plan — every part of it read from planMapView (src/lib/howTo.ts);
+ *      families of PROBLEM_SHEET, each lit or not by the picked plan — the switches, the count and the tools from planMapView
+ *      (src/lib/howTo.ts); the question, Personal · always, the group's label and the marks' labels from their leaves;
  *   3. three plan cards and the all-three band, drawn here; the picked plan is ringed, tagged and gold;
- *   4. the one link to /pricing, as it was.
- * "What We Do" stays where it stands, in Landing.tsx, and wears the eyebrow (.ts-fs-heading, .ts-fs-eyebrow).
+ *   4. the one link to /pricing — its words and path as they were, in the reference's look.
+ * "What We Do" stays where it stands, in Landing.tsx, and wears the eyebrow (.ts-fs-heading, .ts-fs-eyebrow). The section keeps
+ * id="modules", the anchor the checkout's cancel link, the /modules pages, the footer's first link and — since HERO-CREST-01,
+ * 2026-11-11 — the top bar's first link land on.
  *
  * THE RULINGS, AS BUILT HERE (Alex's brief, 2026-11-12 14:07 Manila):
  *   a. "STATE. The section holds two booleans in React state: what you run. No storage, no URL, no cookie; a reload starts at
@@ -29,9 +32,10 @@
  *      slot's launch words.
  *   f. "WORDS. Nothing is typed in a component. The switches say the part each plan's name adds: "+ Business", "+ Trading". Three
  *      words are new and need a leaf: "Your plan", "<n> of <total> tools", "All <total> tools". Both numbers are computed." — every
- *      word is a leaf's: the three new ones are src/lib/howTo.ts's (YOUR_PLAN, toolCountWords, allToolsWords), the switches' are
- *      the plans' own names, split (nameParts). This file types its section's aria-label, as it has since HOME-PLANS-01, and
- *      nothing a visitor reads.
+ *      word is a leaf's: the three new ones are src/lib/howTo.ts's (YOUR_PLAN; toolCountWords with ofToolsWords; allToolsWords),
+ *      the switches' are the plans' own names, split (nameParts). One thing here is typed, as it has been since HOME-PLANS-01:
+ *      the section's aria-label, which a screen reader announces and no one sees. It has no leaf: giving it one would be a
+ *      fourth new word, past the brief's three, so it stays as it was.
  *   (c, e and g are built where they live: c in src/lib/homeActWords.ts and src/lib/howTo.ts, e in src/lib/howTo.ts and the
  *   build's law suite, g in src/app/globals.css.)
  * 'use client' STAYS, FOR THE STATE AND THE DOOR: the two switches are React state, and each plan's button calls the door Landing
@@ -40,7 +44,7 @@
  * UNTIL THIS BRIEF (HOME-PLANS-03, Alex, 2026-11-11 18:17 Manila): the pillar's heading and his three paragraphs, the four plan
  * cards — PlanCards, /pricing's own component, handed the leaf's planCardSteps, so each card listed the steps its plan adds — and
  * the one link; NO STATE: the default export handed its door to the pure half and nothing that opens or closes. Its class grammar
- * was four keys — inner, h2, pillar, compare — in Tailwind utilities, and the section wore border-b border-border bg-bg-terminal.
+ * was four keys — inner, h2, pillar, compare — in Tailwind utilities, and the section wore 'w-full border-b border-border bg-bg-terminal'.
  * Both the paragraphs and the step lists stay in their leaves, undrawn (src/lib/homeActWords.ts PLAN_PILLAR.paragraphs,
  * src/lib/howTo.ts planCardSteps), with the standing HOME-PLANS-03 gave the comparison. PlanCards' `steps` branch has no caller
  * now; it is left as it is (not this brief's to change).
