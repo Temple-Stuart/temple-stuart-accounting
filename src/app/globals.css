@@ -216,7 +216,7 @@ body {
 /* PALETTE-OVERHAUL: the one CTA gradient — pop → grad-mid → grad-end (tokens
    above). Used as a button fill (with text-white hover:brightness-110) and as
    gradient text (with bg-clip-text text-transparent). */
-/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) (HOME-PLANS-04, 2026-11-12: and the Financial Software section's two — the picked plan's gold button and the band (ruling g), in the block above the hero's.) (HOME-SERVICES-01, 2026-11-12: and the Professional Services section's two, both on the board — the gold button and the picture's frame (ruling f), in the block above the Financial Software section's.) (HOME-TRAVEL-01, 2026-11-12: and the Travel Marketplace section's one, on the board — the trip card's gold Search flights → (.ts-tm-cta), in the block above the Professional Services section's.) */
+/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) (HOME-PLANS-04, 2026-11-12: and the Financial Software section's two — the picked plan's gold button and the band (ruling g), in the block above the hero's.) (HOME-SERVICES-01, 2026-11-12: and the Professional Services section's two, both on the board — the gold button and the picture's frame (ruling f), in the block above the Financial Software section's.) (HOME-TRAVEL-01, 2026-11-12: and the Travel Marketplace section's one, on the board — the trip card's gold Search flights → (.ts-tm-cta), in the block above the Professional Services section's.) (FOOTER-02, 2026-11-12: and the public footer's band — the hero's violet sweep under its bloom, as the board draws it, in the block directly above the hero's.) */
 
 /* BUILTON-MARQUEE: the Built-on strip's CSS-only infinite loop — the track
    renders its chip run TWICE and slides half its own width, so the wrap is
@@ -273,7 +273,8 @@ body {
    more than 1% from 3 : 2 (scripts/assert-tool-registry.ts, the trip log law), so the card never crops one.
    Used by src/components/landing/WasHereSection.tsx, which Landing.tsx mounts. It stands here, under the marquee's keyframes and
    above the chip strip's rules, the HOME-SERVICES-01 block and the HOME-PLANS-04 block: nothing may follow the hero's block, the
-   Financial Software port runs from its own first rule to the hero's, and the Professional Services port from its own first rule
+   Financial Software port runs from its own first rule to the hero's (to the footer's since FOOTER-02, 2026-11-12, whose block
+   stands between the two), and the Professional Services port from its own first rule
    to the Financial Software section's. It names none of their classes, and nothing outside it names one of its own. ────────── */
 /* ── 1 · the section: the eyebrow, the heading, the line, the two arrows ─────────────────────── */
 .ts-story { padding: clamp(44px, 5.6vw, 80px) 0 clamp(40px, 5vw, 72px); border-bottom: 1px solid rgb(var(--ts-border)); background-color: rgb(var(--ts-bg)); color: var(--ts-fs-ink); font-family: var(--font-sans); line-height: 1.5; }
@@ -697,7 +698,8 @@ body {
    its own display would show what is meant to be hidden." Five of the six pictures are in the page and hidden.
    Used by src/components/landing/ServicesSection.tsx, which Landing.tsx mounts. It stands here, above the Financial Software
    section's block and the hero's, because nothing may follow the hero's and the Financial Software port runs from its own
-   first rule to the hero's; it names none of their classes, and nothing outside it names one of its own. ─────────────── */
+   first rule to the hero's (to the footer's since FOOTER-02, 2026-11-12, whose block stands between the two); it names none of
+   their classes, and nothing outside it names one of its own. ─────────────── */
 /* ── 1 · the section ─────────────────────────────────────────────────────────────────────────── */
 .ts-ps { scroll-margin-top: 48px; border-bottom: 1px solid rgb(var(--ts-border)); background-color: rgb(var(--ts-bg)); color: var(--ts-fs-ink); font-family: var(--font-sans); line-height: 1.5; }
 .ts-ps__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(44px, 5.6vw, 80px) 16px clamp(52px, 6.2vw, 88px); }
@@ -1008,6 +1010,120 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .ts-fs-switch, .ts-fs-tool, .ts-fs-plan, .ts-fs-plan__cta { transition: none; }
+}
+
+/* ── FOOTER-02 (Alex, design canvas: his ask, 2026-11-12 22:44 Manila — "… all thats left to touch up is the footer!!!"; the board
+   approved at 23:30 — "lets get the hand off! yeet yett! i like it!"; his footer note of 2026-11-10 still stands — "Less text.
+   Higher impact. A clean, professional presentation."): THE PUBLIC FOOTER IN THE HERO'S VIOLET — the lockup, the four columns, a
+   hairline, the disclaimer, ©, the four links ────────────────────────────────────────────────────────────────────────────────
+   THE SPEC IS design-refs/footer-02/Section-Reference.html: "Every value in its stylesheet is the design, and its markup is the
+   footer." What follows is that stylesheet, rule for rule and value for value, in its own order and with its own section notes —
+   every rule but its :root and "THIS PAGE'S OWN" — ported as HERO-CREST-01's, HOME-PLANS-04's and HOME-ABOUT-01's were:
+     · every class is the reference's with the house prefix: .ft → .ts-ft, .ft__inner → .ts-ft__inner, .ft-link__stop →
+       .ts-ft-link__stop, …;
+     · every custom property it reads likewise: var(--hero-gold) → var(--ts-hero-gold), rgb(var(--hero-bloom) / 0.24) →
+       rgb(var(--ts-hero-bloom) / 0.24), rgb(var(--fs-white) / 0.72) → rgb(var(--ts-fs-white) / 0.72).
+   src/lib/__tests__/footer02.test.ts reads both files and holds them equal, declaration by declaration, but for the THREE
+   DIFFERENCES named here — each one where the reference is a page of its own and this is the app:
+     1. THE COLOURS are tokens the app already holds: the reference's :root declares nine colours only so that it renders on its
+        own — eight the hero's (violet-2, violet-3, violet-4, bloom, ink, ink-nav, gold, rim-lilac) and one HOME-PLANS-04 brought
+        (fs-white) — each the same name and value behind the house prefix in :root above. This footer adds none (the README:
+        "New with this footer: none"). Its tenth, --bg, is the page's own cream above the footer, not the footer's.
+     2. THE FONTS are the site's: src/app/layout.tsx loads Inter and IBM Plex Mono as --font-sans and --font-mono, and these rules
+        read the two variables where the reference names the families ("the site already loads both faces").
+     3. NOT PORTED: the reference page's own ground and strip, body { … } and .ref-page — "THIS PAGE'S OWN: not part of the
+        design, not ported".
+   It types no hex and no rgb value: every colour is a token, and rgb() only ever wraps one (the README: "The stylesheet types no
+   hex and no rgb value outside :root"). ITS BAND IS A GRADIENT — the hero's violet sweep under a bloom in its top-left corner, as
+   the board draws it; REPAINT-5's ban on gradients, above, is the ruling this design comes after, as the hero's was.
+   THE LOCKUP HAS RULES OF ITS OWN (.ts-ft-brand…): the bar draws its crest and wordmark smaller from 1024 to 1279px and under
+   1024px, and the footer's lockup does not — 25 × 36 and 16px at every width (the README: "at the bar's full size on every
+   width").
+   ALL FOUR WIDTH TIERS stand as the reference has them: under 640px (the rules outside any @media), from 640px, from 1024px and
+   from 1280px.
+   Used by src/components/landing/LandingFooter.tsx, on its five mounts: the landing (Landing.tsx), the /modules pages
+   (ModulePageClient.tsx), /how-it-works, /pricing and /my-trip/[id]. It stands here, directly above the hero's block, which stays
+   last: the Financial Software section's port, above it, now runs from its own first rule to this block's. It names none of
+   their classes, and nothing outside it names one of its own. ─────────────────────────────────────────────────────────────── */
+/* ── 1 · the band: the hero's violets, light at the top left, deepening to the bottom right ──── */
+.ts-ft {
+  color: var(--ts-hero-ink); font-family: var(--font-sans); line-height: 1.5;
+  background-color: var(--ts-hero-violet-3);
+  background-image:
+    radial-gradient(70% 90% at 0% 0%, rgb(var(--ts-hero-bloom) / 0.24) 0%, rgb(var(--ts-hero-bloom) / 0.08) 45%, rgb(var(--ts-hero-bloom) / 0) 72%),
+    linear-gradient(155deg, var(--ts-hero-violet-2) 0%, var(--ts-hero-violet-3) 48%, var(--ts-hero-violet-4) 100%);
+}
+.ts-ft :focus-visible { outline: 2px solid var(--ts-hero-gold); outline-offset: 3px; }
+.ts-ft__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(56px, 6vw, 88px) 16px clamp(28px, 3vw, 40px); }
+
+/* the lockup: the top bar's gold crest and wordmark, at the bar's full size on every width */
+.ts-ft-brand { display: inline-flex; align-items: center; gap: 13px; min-height: 44px; color: var(--ts-hero-ink); text-decoration: none; }
+.ts-ft-brand__mark { display: block; width: 25px; height: 36px; object-fit: contain; }
+.ts-ft-brand__name { font-size: 16px; line-height: 1.2; font-weight: 700; letter-spacing: 0.22em; white-space: nowrap; }
+
+/* ── 2 · the four columns ─────────────────────────────────────────────────────────────────────── */
+/* on a phone: Our Story across, then Services and Socials side by side (three fifths and two, so "Professional
+   Services" keeps one line down to 340px), then The Record across */
+.ts-ft-columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 36px 40px; margin-top: clamp(36px, 4vw, 56px); }
+.ts-ft-column { min-width: 0; }
+.ts-ft-column--story, .ts-ft-column--record { grid-column: 1 / -1; }
+.ts-ft-label { margin: 0; font-family: var(--font-mono); font-size: 12px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ts-hero-gold); }
+.ts-ft-list { margin: 14px 0 0; padding: 0; list-style: none; }
+/* the stops run down, then across; while Our Story runs the full width, its columns stand on the columns beneath it */
+.ts-ft-list--stops { column-gap: 40px; }
+.ts-ft-list--stops li { break-inside: avoid; }
+/* a row: 44px tall where a finger is the likelier hand, 36px from 1024px */
+.ts-ft-link {
+  display: flex; align-items: center; gap: 10px; min-height: 44px;
+  color: var(--ts-hero-ink-nav); font-size: 15px; line-height: 1.35; text-decoration: none; transition: color 0.16s;
+}
+/* a stop: its number small, in mono capitals, then its place */
+.ts-ft-link__stop { flex: 0 0 auto; min-width: 56px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgb(var(--ts-fs-white) / 0.72); }
+.ts-ft-link__place { min-width: 0; }
+.ts-ft-link__icon { flex: none; width: 16px; height: 16px; color: rgb(var(--ts-fs-white) / 0.72); }
+/* the two links that leave the site: a small arrow */
+.ts-ft-link__out { flex: none; width: 12px; height: 12px; color: var(--ts-hero-rim-lilac); }
+/* a row's number, icon and arrow take the hover's gold with its words */
+.ts-ft-link__stop, .ts-ft-link__icon, .ts-ft-link__out { transition: color 0.16s; }
+
+/* ── 3 · under the columns: a hairline, the disclaimer, ©, the four links ──────────────────────── */
+.ts-ft-rule { height: 1px; margin: clamp(40px, 4.4vw, 56px) 0 24px; background-color: rgb(var(--ts-fs-white) / 0.14); }
+.ts-ft-disclaimer { margin: 0; max-width: 760px; font-size: 13px; line-height: 1.6; color: rgb(var(--ts-fs-white) / 0.72); }
+.ts-ft-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; margin-top: 20px; }
+.ts-ft-copy { margin: 0; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.4; font-weight: 500; letter-spacing: 0.1em; color: rgb(var(--ts-fs-white) / 0.72); }
+.ts-ft-legal { display: flex; flex-wrap: wrap; align-items: center; gap: 0 24px; }
+.ts-ft-legal__link {
+  display: inline-flex; align-items: center; min-height: 44px;
+  font-family: var(--font-mono); font-size: 11.5px; line-height: 1.4; font-weight: 500; letter-spacing: 0.1em; color: var(--ts-hero-ink-nav); text-decoration: none; transition: color 0.16s;
+}
+
+/* ── 4 · wider windows ───────────────────────────────────────────────────────────────────────── */
+@media (min-width: 640px) {
+  /* Services and Socials in halves; the stops in two columns, on those halves */
+  .ts-ft-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ts-ft-list--stops { columns: 2; }
+}
+@media (min-width: 1024px) {
+  /* Our Story across, its stops in three columns; under it Services, Socials and The Record, on the same thirds */
+  .ts-ft__inner { padding-inline: 32px; }
+  .ts-ft-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ts-ft-column--record { grid-column: auto; }
+  .ts-ft-list--stops { columns: 3; }
+  .ts-ft-link { min-height: 36px; }
+}
+@media (min-width: 1280px) {
+  /* the four columns side by side, as the board draws them: Our Story widest, its stops in two columns 24px apart */
+  .ts-ft-columns { grid-template-columns: minmax(0, 3fr) minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1.5fr); }
+  .ts-ft-column--story { grid-column: auto; }
+  .ts-ft-list--stops { columns: 2; column-gap: 24px; }
+}
+
+/* ── 5 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+@media (hover: hover) {
+  .ts-ft-link:hover, .ts-ft-legal__link:hover, .ts-ft-brand:hover, .ts-ft-link:hover .ts-ft-link__stop, .ts-ft-link:hover .ts-ft-link__icon, .ts-ft-link:hover .ts-ft-link__out { color: var(--ts-hero-gold); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-ft-link, .ts-ft-legal__link, .ts-ft-link__stop, .ts-ft-link__icon, .ts-ft-link__out { transition: none; }
 }
 
 /* ── HERO-CREST-01 (Alex, design canvas, 2026-11-11): THE GUEST HERO AND THE TOP BAR ──────────────────────────────

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FOOTER-02 · reference</title>
+<!--
+  FOOTER-02: the reference for the public footer (LandingFooter.tsx: the landing, /pricing, /how-it-works, the /modules
+  pages, the trip pages). The band in the hero's violet; the top bar's gold crest and wordmark; the four columns as they
+  stand (Our Story, Services, Socials, The Record); a hairline; the disclaimer word for word; ©; the four links.
+
+  Open this file in a browser from inside the repo (the crest is read from public/brand/). Resize the window: the four
+  columns stand side by side from 1280px, as the board draws them. From 1024px, Our Story runs across with its stops in
+  three columns, and Services, Socials and The Record share the row under it. Below 1024px, Our Story and The Record
+  run across and Services and Socials share a row; the stops take two columns from 640px.
+
+  Every value in the stylesheet is the design, and the markup is the footer. The words and links are copies, for
+  placement only: production reads each from its home (the README lists them) and types none. The font link is here
+  only so the file renders alone; the site already loads both faces.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;700&display=swap">
+<style>
+  :root {
+    /* ALREADY IN THE APP: each is the same name behind the house prefix (--hero-violet-2 is --ts-hero-violet-2).
+       Declared here only so this file renders on its own; the port adds none of these. */
+    --bg: 250 248 243;                /* this page's own ground above the footer (not the footer's) */
+    --hero-violet-2: #4D1FBC;         /* the band, top left */
+    --hero-violet-3: #32118A;         /* the band, 48%; its flat colour under the gradients */
+    --hero-violet-4: #210A5E;         /* the band, bottom right */
+    --hero-bloom: 162 107 255;        /* the light in the top-left corner: 24% → 8% at 45% → 0 at 72% */
+    --hero-ink: #FAF8F4;              /* the wordmark */
+    --hero-ink-nav: #E8E4F5;          /* every link, as the top bar's links */
+    --hero-gold: #F6C95C;             /* the four labels; hover; the focus ring */
+    --hero-rim-lilac: #B9A2FF;        /* the ↗ after the two links that leave the site */
+
+    /* ADDED BY HOME-PLANS-04 (on main since PR #1971 as --ts-fs-*): reused here by the same name and value. Add none. */
+    --fs-white: 255 255 255;          /* at 0.72: the stops' numbers, the icons, the disclaimer, ©; at 0.14: the hairline */
+
+    /* NEW WITH THIS FOOTER: none. Every colour above is already in the app. */
+  }
+
+  /* ── 1 · the band: the hero's violets, light at the top left, deepening to the bottom right ──── */
+  .ft {
+    color: var(--hero-ink); font-family: 'Inter', sans-serif; line-height: 1.5;
+    background-color: var(--hero-violet-3);
+    background-image:
+      radial-gradient(70% 90% at 0% 0%, rgb(var(--hero-bloom) / 0.24) 0%, rgb(var(--hero-bloom) / 0.08) 45%, rgb(var(--hero-bloom) / 0) 72%),
+      linear-gradient(155deg, var(--hero-violet-2) 0%, var(--hero-violet-3) 48%, var(--hero-violet-4) 100%);
+  }
+  .ft :focus-visible { outline: 2px solid var(--hero-gold); outline-offset: 3px; }
+  .ft__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(56px, 6vw, 88px) 16px clamp(28px, 3vw, 40px); }
+
+  /* the lockup: the top bar's gold crest and wordmark, at the bar's full size on every width */
+  .ft-brand { display: inline-flex; align-items: center; gap: 13px; min-height: 44px; color: var(--hero-ink); text-decoration: none; }
+  .ft-brand__mark { display: block; width: 25px; height: 36px; object-fit: contain; }
+  .ft-brand__name { font-size: 16px; line-height: 1.2; font-weight: 700; letter-spacing: 0.22em; white-space: nowrap; }
+
+  /* ── 2 · the four columns ─────────────────────────────────────────────────────────────────────── */
+  /* on a phone: Our Story across, then Services and Socials side by side (three fifths and two, so "Professional
+     Services" keeps one line down to 340px), then The Record across */
+  .ft-columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 36px 40px; margin-top: clamp(36px, 4vw, 56px); }
+  .ft-column { min-width: 0; }
+  .ft-column--story, .ft-column--record { grid-column: 1 / -1; }
+  .ft-label { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--hero-gold); }
+  .ft-list { margin: 14px 0 0; padding: 0; list-style: none; }
+  /* the stops run down, then across; while Our Story runs the full width, its columns stand on the columns beneath it */
+  .ft-list--stops { column-gap: 40px; }
+  .ft-list--stops li { break-inside: avoid; }
+  /* a row: 44px tall where a finger is the likelier hand, 36px from 1024px */
+  .ft-link {
+    display: flex; align-items: center; gap: 10px; min-height: 44px;
+    color: var(--hero-ink-nav); font-size: 15px; line-height: 1.35; text-decoration: none; transition: color 0.16s;
+  }
+  /* a stop: its number small, in mono capitals, then its place */
+  .ft-link__stop { flex: 0 0 auto; min-width: 56px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgb(var(--fs-white) / 0.72); }
+  .ft-link__place { min-width: 0; }
+  .ft-link__icon { flex: none; width: 16px; height: 16px; color: rgb(var(--fs-white) / 0.72); }
+  /* the two links that leave the site: a small arrow */
+  .ft-link__out { flex: none; width: 12px; height: 12px; color: var(--hero-rim-lilac); }
+  /* a row's number, icon and arrow take the hover's gold with its words */
+  .ft-link__stop, .ft-link__icon, .ft-link__out { transition: color 0.16s; }
+
+  /* ── 3 · under the columns: a hairline, the disclaimer, ©, the four links ──────────────────────── */
+  .ft-rule { height: 1px; margin: clamp(40px, 4.4vw, 56px) 0 24px; background-color: rgb(var(--fs-white) / 0.14); }
+  .ft-disclaimer { margin: 0; max-width: 760px; font-size: 13px; line-height: 1.6; color: rgb(var(--fs-white) / 0.72); }
+  .ft-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; margin-top: 20px; }
+  .ft-copy { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; line-height: 1.4; font-weight: 500; letter-spacing: 0.1em; color: rgb(var(--fs-white) / 0.72); }
+  .ft-legal { display: flex; flex-wrap: wrap; align-items: center; gap: 0 24px; }
+  .ft-legal__link {
+    display: inline-flex; align-items: center; min-height: 44px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; line-height: 1.4; font-weight: 500; letter-spacing: 0.1em; color: var(--hero-ink-nav); text-decoration: none; transition: color 0.16s;
+  }
+
+  /* ── 4 · wider windows ───────────────────────────────────────────────────────────────────────── */
+  @media (min-width: 640px) {
+    /* Services and Socials in halves; the stops in two columns, on those halves */
+    .ft-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ft-list--stops { columns: 2; }
+  }
+  @media (min-width: 1024px) {
+    /* Our Story across, its stops in three columns; under it Services, Socials and The Record, on the same thirds */
+    .ft__inner { padding-inline: 32px; }
+    .ft-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ft-column--record { grid-column: auto; }
+    .ft-list--stops { columns: 3; }
+    .ft-link { min-height: 36px; }
+  }
+  @media (min-width: 1280px) {
+    /* the four columns side by side, as the board draws them: Our Story widest, its stops in two columns 24px apart */
+    .ft-columns { grid-template-columns: minmax(0, 3fr) minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1.5fr); }
+    .ft-column--story { grid-column: auto; }
+    .ft-list--stops { columns: 2; column-gap: 24px; }
+  }
+
+  /* ── 5 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+  @media (hover: hover) {
+    .ft-link:hover, .ft-legal__link:hover, .ft-brand:hover, .ft-link:hover .ft-link__stop, .ft-link:hover .ft-link__icon, .ft-link:hover .ft-link__out { color: var(--hero-gold); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ft-link, .ft-legal__link, .ft-link__stop, .ft-link__icon, .ft-link__out { transition: none; }
+  }
+
+  /* ── THIS PAGE'S OWN: not part of the design, not ported ─────────────────────────────────────── */
+  body { margin: 0; background-color: rgb(var(--bg)); }
+  .ref-page { height: 120px; }
+</style>
+</head>
+<body>
+
+<!-- THIS PAGE'S OWN: a strip of the page's cream above the footer, so it is seen where it sits -->
+<div class="ref-page"></div>
+
+<footer class="ft">
+  <div class="ft__inner">
+    <a class="ft-brand" href="/"><img class="ft-brand__mark" src="../../public/brand/temple-stuart-crest-gold.png" alt=""><span class="ft-brand__name">TEMPLE STUART</span></a>
+    <div class="ft-columns">
+      <div class="ft-column ft-column--story" data-footer-story>
+        <p class="ft-label">OUR STORY</p>
+        <ul class="ft-list ft-list--stops">
+            <li><a class="ft-link" href="/#stop-0"><span class="ft-link__stop">Stop 0</span> <span class="ft-link__place">Los Angeles</span></a></li>
+            <li><a class="ft-link" href="/my-trip/canggu-2026-07"><span class="ft-link__stop">Stop 1</span> <span class="ft-link__place">Canggu, Bali</span></a></li>
+            <li><a class="ft-link" href="/my-trip/danang-2026-08"><span class="ft-link__stop">Stop 2</span> <span class="ft-link__place">Da Nang / Hoi An</span></a></li>
+            <li><a class="ft-link" href="/my-trip/bangkok-2026-09"><span class="ft-link__stop">Stop 3</span> <span class="ft-link__place">Bangkok</span></a></li>
+            <li><a class="ft-link" href="/my-trip/phuket-2026-10"><span class="ft-link__stop">Stop 4</span> <span class="ft-link__place">Phuket</span></a></li>
+            <li><a class="ft-link" href="/my-trip/chiangmai-2026-10"><span class="ft-link__stop">Stop 5</span> <span class="ft-link__place">Chiang Mai</span></a></li>
+            <li><a class="ft-link" href="/my-trip/bangkok-2026-10-21"><span class="ft-link__stop">Stop 6</span> <span class="ft-link__place">Bangkok</span></a></li>
+            <li><a class="ft-link" href="/my-trip/siargao-2026"><span class="ft-link__stop">Stop 7</span> <span class="ft-link__place">General Luna, Siargao</span></a></li>
+            <li><a class="ft-link" href="/my-trip/cebu-2026-11"><span class="ft-link__stop">Stop 8</span> <span class="ft-link__place">Cebu</span></a></li>
+            <li><a class="ft-link" href="/my-trip/uluwatu-2026-11"><span class="ft-link__stop">Stop 9</span> <span class="ft-link__place">Uluwatu, Bali</span></a></li>
+            <li><a class="ft-link" href="/my-trip/pererenan-2026-12"><span class="ft-link__stop">Stop 10</span> <span class="ft-link__place">Pererenan Beach, Bali</span></a></li>
+        </ul>
+      </div>
+      <div class="ft-column ft-column--services" data-footer-services>
+        <p class="ft-label">SERVICES</p>
+        <ul class="ft-list">
+            <li><a class="ft-link" href="/#modules"><span>Financial Software</span></a></li>
+            <li><a class="ft-link" href="/#services"><span>Professional Services</span></a></li>
+            <li><a class="ft-link" href="/#demo"><span>Travel Marketplace</span></a></li>
+        </ul>
+      </div>
+      <div class="ft-column ft-column--socials" data-footer-socials>
+        <p class="ft-label">SOCIALS</p>
+        <ul class="ft-list">
+            <li><a class="ft-link" href="https://www.instagram.com/temple_stuart_accounting/" target="_blank" rel="noopener noreferrer"><svg class="ft-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"></path></svg><span>Instagram</span></a></li>
+            <li><a class="ft-link" href="https://www.tiktok.com/@temple_stuart" target="_blank" rel="noopener noreferrer"><svg class="ft-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"></path></svg><span>TikTok</span></a></li>
+            <li><a class="ft-link" href="https://www.youtube.com/@Temple-Stuart" target="_blank" rel="noopener noreferrer"><svg class="ft-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"></path></svg><span>YouTube</span></a></li>
+            <li><a class="ft-link" href="https://x.com/Alex_Stuart_APS" target="_blank" rel="noopener noreferrer"><svg class="ft-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg><span>X</span></a></li>
+            <li><a class="ft-link" href="https://www.linkedin.com/in/alexander-stuart-phi/" target="_blank" rel="noopener noreferrer"><svg class="ft-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"></path></svg><span>LinkedIn</span></a></li>
+        </ul>
+      </div>
+      <div class="ft-column ft-column--record" data-footer-record>
+        <p class="ft-label">THE RECORD</p>
+        <ul class="ft-list">
+            <li><a class="ft-link" href="/how-it-works"><span>How It All Connects: The 14 Steps</span></a></li>
+            <li><a class="ft-link" href="https://github.com/Temple-Stuart/temple-stuart-accounting" target="_blank" rel="noopener noreferrer"><span>Built in Public: The Code</span><svg class="ft-link__out" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11 11 5M6 5h5v5"></path></svg></a></li>
+            <li><a class="ft-link" href="https://github.com/Temple-Stuart/temple-stuart-accounting/blob/main/LICENSE" target="_blank" rel="noopener noreferrer"><span>Software License</span><svg class="ft-link__out" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11 11 5M6 5h5v5"></path></svg></a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="ft-rule"></div>
+    <p class="ft-disclaimer">Temple Stuart is not a CPA firm, tax preparer, or licensed financial advisor. All tax figures generated by this platform are estimates for informational purposes only and must be verified by a qualified tax professional before filing. Use of this software does not constitute tax advice.</p>
+    <div class="ft-bottom">
+      <p class="ft-copy">© 2026 TEMPLE STUART, LLC</p>
+      <div class="ft-legal">
+        <a class="ft-legal__link" href="/how-pricing-works">PRICING</a>
+        <a class="ft-legal__link" href="/terms">TERMS</a>
+        <a class="ft-legal__link" href="/privacy">PRIVACY</a>
+        <a class="ft-legal__link" href="mailto:astuart@templestuart.com">CONTACT</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
