@@ -1,95 +1,187 @@
 'use client';
 
 /**
- * HowToSection — FINANCIAL SOFTWARE, the first pillar on the guest landing (Landing.tsx mounts it; the section carries
- * id="modules", the anchor the checkout's cancel link, the /modules pages, the footer's first link and — since HERO-CREST-01, 2026-11-11 — the top bar's first link land on).
+ * HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila: "Plaids sections with Title, Sub title, quick explainer paragraph, and
+ * then list of features. ours is a little more complex looking and harer to see separation … instead of this , we might have like
+ * some simple like lists, or something or an image... that like lists the Tabs , separated by Tier? … simple and easy to
+ * understand"; his approval of the board on the design canvas, 2026-11-12 14:30 Manila: "YES, OMG, GIVE ME THE PROMPT TO MAKE THIS
+ * REAL!") — THE FINANCIAL SOFTWARE SECTION, AS DRAWN. The spec is a file, not this note: design-refs/home-plans-04/Section-Reference.html
+ * ("Every value in its stylesheet is the design, and its markup is the page at rest"), with its README beside it. This section is
+ * that file's markup, element for element; its classes are the reference's own with the house prefix (.fs-map → .ts-fs-map), and
+ * their rules are the reference's own, ported to src/app/globals.css (src/lib/__tests__/homePlans04.test.ts holds both equal). No
+ * colour is typed in this file. Top to bottom:
+ *   1. the pillar's name — PLAN_PILLAR.heading (src/lib/homeActWords.ts) — then ONE line, PLANS_SUBHEAD (src/lib/offer/plans.ts),
+ *      where the pillar's three paragraphs stood;
+ *   2. THE MAP: the question (PLANS_HEADLINE), Personal · always, the two switches, the count, then the 25 tools under the six
+ *      families of PROBLEM_SHEET, each lit or not by the picked plan — the switches, the count and the tools from planMapView
+ *      (src/lib/howTo.ts); the question, Personal · always, the group's label and the marks' labels from their leaves;
+ *   3. three plan cards and the all-three band, drawn here; the picked plan is ringed, tagged and gold;
+ *   4. the one link to /pricing — its words and path as they were, in the reference's look.
+ * "What We Do" stays where it stands, in Landing.tsx, and wears the eyebrow (.ts-fs-heading, .ts-fs-eyebrow). The section keeps
+ * id="modules", the anchor the checkout's cancel link, the /modules pages, the footer's first link and — since HERO-CREST-01,
+ * 2026-11-11 — the top bar's first link land on.
  *
- * PILLAR-NAMES-01 (Alex, 2026-11-11): the pillar is named "Financial Software" — "Plan Your Escape." until then, so
- * the dated notes below, and in the files around this one, still call it that. The name is the leaf's
- * (src/lib/homeActWords.ts PLAN_PILLAR.heading — the constant keeps its name); no code in this file changed with it.
+ * THE RULINGS, AS BUILT HERE (Alex's brief, 2026-11-12 14:07 Manila):
+ *   a. "STATE. The section holds two booleans in React state: what you run. No storage, no URL, no cookie; a reload starts at
+ *      Personal. This ends HOME-PLANS-03's "NO STATE" for these two switches and nothing else." — the default export, below: two
+ *      useState booleans, both false at first; HowToView draws any of the four states from props and holds none.
+ *   b. "THE CARDS ARE THE SECTION'S OWN. /pricing keeps PlanCards, its table and every class it has, untouched." — the three cards
+ *      and the band are drawn here; nothing is imported from src/components/offer/PlansSection.tsx, which is not edited.
+ *   d. "A MARK STILL SAYS "IN THIS PLAN", NEVER "BUILT". The map draws no status and no price, so the plan law's price guard stays
+ *      as it is." — a tool's mark carries PLAN_MARKS' label; nothing here reads the registry; each plan's foot says its price
+ *      slot's launch words.
+ *   f. "WORDS. Nothing is typed in a component. The switches say the part each plan's name adds: "+ Business", "+ Trading". Three
+ *      words are new and need a leaf: "Your plan", "<n> of <total> tools", "All <total> tools". Both numbers are computed." — every
+ *      word is a leaf's: the three new ones are src/lib/howTo.ts's (YOUR_PLAN; toolCountWords with ofToolsWords; allToolsWords),
+ *      the switches' are the plans' own names, split (nameParts). One thing here is typed, as it has been since HOME-PLANS-01:
+ *      the section's aria-label, which a screen reader announces and no one sees. It has no leaf: giving it one would be a
+ *      fourth new word, past the brief's three, so it stays as it was.
+ *   (c, e and g are built where they live: c in src/lib/homeActWords.ts and src/lib/howTo.ts, e in src/lib/howTo.ts and the
+ *   build's law suite, g in src/app/globals.css.)
+ * 'use client' STAYS, FOR THE STATE AND THE DOOR: the two switches are React state, and each plan's button calls the door Landing
+ * hands in (onRequireAuth — the sign-up modal).
  *
- * HOME-PLANS-03 (Alex, 2026-11-11 18:17 Manila: "take the table and have the steps listed inside the cards… as they
- * apply… so that there are just 4 neat cards … and no added table, to save room and look cleaner and more crisp").
- *
- * WHAT IT RENDERS, top to bottom, and nothing else — no label, no intro line, no table, no price and no button outside
- * the cards:
- *   1. the pillar — its heading and Alex's three paragraphs, read from src/lib/homeActWords.ts PLAN_PILLAR;
- *   2. the four plan cards — PlanCards, the very component /pricing draws (src/components/offer/PlansSection.tsx), with
- *      a button door ("Join early access" opens the door Landing hands in: sign-up) and with `steps`: what each card
- *      lists, from src/lib/howTo.ts planCardSteps. A card lists the steps its plan ADDS, by category — Personal: its own
- *      and Travel's; Personal + Business: Business's; Personal + Trading: Trade's — where its three benefits stood. The
- *      bundle adds no category of its own, so it keeps its three benefits. What a card inherits, its own line says
- *      ("Everything in Personal, plus the company.");
- *   3. ONE LINK under the cards — the leaf's words, to the leaf's path: /pricing, where the plans' own comparison stands.
- * A MARK SAYS "IN THIS PLAN" — never "built". No status is drawn here: no chip, no count of what is live, no legend. The
- * status view stays in the leaf (src/lib/howTo.ts howToView), undrawn, and so does the comparison (planComparison). The
- * build script's plan law holds the counterweight: no plan may carry a price while this page draws no status.
- *
- * EVERY WORD IS A LEAF'S: the pillar's (homeActWords.ts); the cards' (src/lib/offer/plans.ts, through PlanCards); each
- * category's heading and each step's title (src/lib/howTo.ts planCardSteps, through PlanCards); the link's
- * (COMPARE_PLANS_WORDS, COMPARE_PLANS_PATH). This file types its aria-label, and nothing a visitor reads.
- *
- * NO STATE: nothing opens and nothing closes, so the section holds none — no hook, no storage, no URL. HowToView is the
- * pure half (props in, markup out; the tests render it); the default export hands it the door.
- * 'use client' STAYS, FOR THE DOOR: this file builds the button door's click handler (`onClick: () => onJoin()`) and
- * hands it to PlanCards, a client component — a function cannot cross from a server module to a client one.
- *
- * PAINT: house tokens only, zero new hex. A cream act with its own border-b. The cards are the plans section's own.
- * The link wears the house text link — brand purple, the hover purple, mono, at least 44px tall: the look this very
- * link wore here until HOME-PLANS-01 (HOME-BRIEF-04, 2026-11-10), under a top margin.
- *
- * UNTIL THEN (HOME-PLANS-01, 2026-11-11 00:09: "Four plans. One comparison."; HOME-PLANS-02, the same day: the
- * comparison fits a phone): under the four cards — which drew their three benefits each, as /pricing's do — stood ONE
- * COMPARISON: a table in a rounded white box (data-plan-comparison) that scrolled sideways inside itself. Its head row
- * was the first head and the four plans; then one <tbody> per category — the category's row, a button with
- * aria-expanded over its heading ("PERSONAL — 8 steps") and a mark under each plan; when open, its line and a row per
- * step, each a button with aria-expanded and the same marks; when a step was open, its tools with their lines and its
- * note. Two sets in React state held what was open (Personal at rest; stepKey, toggled, OPEN_AT_REST). All of it left
- * the public page with this brief, with every class key, import, helper and data- hook only it used. The section drew
- * no link to /pricing then.
- *
- * BEFORE THAT (HOME-BRIEF-03 and -04, 2026-11-10; HOME-FINISH-02, 2026-11-10 put the pillar over it): the section was
- * THE HOW-TO — "What you run · add any" with two switches (+ Business, + Trade), the plan line with its price line, its
- * button and a link to /pricing, the steps line and the needs-Books line, each section's steps as one row of cards that
- * swiped sideways (every tool with its status chip, every step LIVE or PENDING), and the legend. All of it left the
- * public page with HOME-PLANS-01, with every class key, import and data- hook only it used.
+ * UNTIL THIS BRIEF (HOME-PLANS-03, Alex, 2026-11-11 18:17 Manila): the pillar's heading and his three paragraphs, the four plan
+ * cards — PlanCards, /pricing's own component, handed the leaf's planCardSteps, so each card listed the steps its plan adds — and
+ * the one link; NO STATE: the default export handed its door to the pure half and nothing that opens or closes. Its class grammar
+ * was four keys — inner, h2, pillar, compare — in Tailwind utilities, and the section wore 'w-full border-b border-border bg-bg-terminal'.
+ * Both the paragraphs and the step lists stay in their leaves, undrawn (src/lib/homeActWords.ts PLAN_PILLAR.paragraphs,
+ * src/lib/howTo.ts planCardSteps), with the standing HOME-PLANS-03 gave the comparison. PlanCards' `steps` branch has no caller
+ * now; it is left as it is (not this brief's to change).
+ * UNTIL THEN (HOME-PLANS-01, 2026-11-11 00:09: "Four plans. One comparison."): the pillar, the four cards and one comparison — a
+ * table in a rounded white box (data-plan-comparison) that scrolled sideways inside itself, its categories and steps opening and
+ * closing in React state. All of it left the public page with HOME-PLANS-03. Before that, the how-to drew the switches, the plan
+ * line, the steps in rows and a legend (HOME-BRIEF-03, HOME-BRIEF-04), each still a word of src/lib/howTo.ts.
  */
 
-import { COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, planCardSteps } from '@/lib/howTo';
+import { useState } from 'react';
+import { COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, PERSONAL_ALWAYS, PLAN_MARKS, WHAT_YOU_RUN_LABEL, YOUR_PLAN, planMapView, type MapPlan, type NamePart } from '@/lib/howTo';
 import { PLAN_PILLAR } from '@/lib/homeActWords';
-import { PlanCards } from '@/components/offer/PlansSection';
+import { PLANS_HEADLINE, PLANS_SUBHEAD } from '@/lib/offer/plans';
 
-// THE CLASS GRAMMAR — one const, house tokens only. The act's own classes sit on its <section>, as ruled.
-const HOW = {
-  inner: 'max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-10',
-  h2: 'text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple',
-  pillar: 'mt-3 max-w-3xl text-base text-text-secondary',
-  // The one link under the cards: the house text link — at least 44px tall, so a thumb finds it.
-  compare: 'mt-4 inline-flex min-h-[44px] items-center font-mono text-xs tracking-wider text-brand-purple hover:text-brand-purple-hover',
-} as const;
+/** The reference's tick. Hidden from a screen reader where the words beside it say it (a switch, Personal); carrying its label where it is a tool's mark. */
+function Tick({ label }: { label?: string }) {
+  return label === undefined
+    ? <svg className="ts-fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg>
+    : <svg className="ts-fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label={label}><path d="M3.5 8.5l3 3 6-7" /></svg>;
+}
+
+/** The reference's check, beside each of a plan's three benefits. Decorative: the benefit's words are what it says. */
+function Check() {
+  return <svg className="ts-fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2" /><path d="M6.4 10.3l2.4 2.4 4.8-5.2" /></svg>;
+}
+
+/** One part of a plan's name: the first as it stands; each later one after a space, in a span that wears its module's colour. */
+function NameWords({ part, first }: { part: NamePart; first: boolean }) {
+  return first ? <>{part.words}</> : <>{' '}<span data-module={part.module}>{part.words}</span></>;
+}
+
+/** A plan's top line, its name in its coloured parts, and who it is for with what it is — a card's first three parts, the band's lead. */
+function PlanHead({ plan }: { plan: MapPlan }) {
+  return (
+    <>
+      <div className="ts-fs-plan__top"><p className="ts-fs-plan__role">{plan.role}</p>{plan.picked ? <span className="ts-fs-plan__tag">{YOUR_PLAN}</span> : null}</div>
+      <h3 className="ts-fs-plan__name">{plan.parts.map((part, i) => <NameWords key={part.module} part={part} first={i === 0} />)}</h3>
+      <div>
+        <p className="ts-fs-plan__audience">{plan.audience}</p>
+        <p className="ts-fs-plan__explainer">{plan.explainer}</p>
+      </div>
+    </>
+  );
+}
+
+/** A plan's three benefits, then its foot: how many tools it holds, its price slot's words, and its button — the door. */
+function PlanBody({ plan, onJoin }: { plan: MapPlan; onJoin: () => void }) {
+  return (
+    <>
+      <ul className="ts-fs-plan__points">
+        {plan.benefits.map((words) => <li key={words} className="ts-fs-plan__point"><Check />{words}</li>)}
+      </ul>
+      <div className="ts-fs-plan__foot">
+        <p className="ts-fs-plan__meta"><span>{plan.count}</span><span className="ts-fs-plan__price">{plan.price}</span></p>
+        <button className="ts-fs-plan__cta" type="button" onClick={() => onJoin()}>{plan.cta}</button>
+      </div>
+    </>
+  );
+}
 
 export interface HowToViewProps {
-  /** A plan card's button — the door Landing hands in. */
+  /** What you run: Business on, Trading on. */
+  business: boolean;
+  trade: boolean;
+  /** Each switch's press. */
+  onBusiness: () => void;
+  onTrade: () => void;
+  /** The door every plan's button opens — Landing's onRequireAuth (the sign-up modal). */
   onJoin: () => void;
 }
 
-/** The pure half: props in, markup out. */
-export function HowToView({ onJoin }: HowToViewProps) {
+/** THE PURE HALF: the whole section for one state of the two switches. It holds no state; the default export does. */
+export function HowToView({ business, trade, onBusiness, onTrade, onJoin }: HowToViewProps) {
+  const view = planMapView({ business, trade });
+  const press = { business: onBusiness, trading: onTrade } as const;
   return (
-    <section id="modules" aria-label="Software plans" className="w-full border-b border-border bg-bg-terminal" data-how-to>
-      <div className={HOW.inner}>
-        <h2 className={HOW.h2}>{PLAN_PILLAR.heading}</h2>
-        {PLAN_PILLAR.paragraphs.map((words) => <p key={words} className={HOW.pillar}>{words}</p>)}
+    <section id="modules" className="ts-fs" aria-label="Software plans" data-how-to>
+      <div className="ts-fs__inner">
+        <h2 className="ts-fs__title">{PLAN_PILLAR.heading}</h2>
+        <p className="ts-fs__lede">{PLANS_SUBHEAD}</p>
 
-        <PlanCards door={{ kind: 'button', onClick: () => onJoin() }} steps={planCardSteps()} />
+        <div className="ts-fs-map">
+          <div className="ts-fs-map__head">
+            <div className="ts-fs-map__ask">
+              <h3 className="ts-fs-map__question">{PLANS_HEADLINE}</h3>
+              <div className="ts-fs-switches" role="group" aria-label={WHAT_YOU_RUN_LABEL}>
+                <span className="ts-fs-switch ts-fs-switch--always"><Tick />{PERSONAL_ALWAYS}</span>
+                {view.switches.map((s) => (
+                  <button key={s.module} className="ts-fs-switch" type="button" data-module={s.module} aria-pressed={s.pressed} onClick={() => press[s.module]()}>
+                    {s.pressed ? <Tick /> : <span className="ts-fs-ring" aria-hidden="true" />}{s.words}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="ts-fs-map__count" aria-live="polite" aria-atomic="true"><span className="ts-fs-map__figure">{view.figure}</span>{' '}<span>{view.ofTotal}</span></p>
+          </div>
+          <div className="ts-fs-map__grid">
+            {view.families.map((family) => (
+              <div key={family.name}>
+                <h4 className="ts-fs-family__name">{family.name}</h4>
+                <ul className="ts-fs-family__tools">
+                  {family.tools.map((t) => (
+                    <li key={t.name} className="ts-fs-tool" data-module={t.module} data-lit={t.lit}>
+                      {t.name}{t.lit ? <Tick label={PLAN_MARKS.inPlan.label} /> : <span className="ts-fs-ring" role="img" aria-label={PLAN_MARKS.notInPlan.label} />}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        <a href={COMPARE_PLANS_PATH} className={HOW.compare} data-compare-plans>{COMPARE_PLANS_WORDS}</a>
+        <div className="ts-fs-plans">
+          {view.cards.map((plan) => (
+            <div key={plan.id} className="ts-fs-plan" data-plan={plan.id} data-picked={plan.picked}>
+              <PlanHead plan={plan} />
+              <PlanBody plan={plan} onJoin={onJoin} />
+            </div>
+          ))}
+        </div>
+
+        <div className="ts-fs-plan ts-fs-plan--all" data-plan={view.band.id} data-picked={view.band.picked}>
+          <div className="ts-fs-plan__lead">
+            <PlanHead plan={view.band} />
+          </div>
+          <PlanBody plan={view.band} onJoin={onJoin} />
+        </div>
+
+        <a className="ts-fs__compare" href={COMPARE_PLANS_PATH} data-compare-plans>{COMPARE_PLANS_WORDS}</a>
       </div>
     </section>
   );
 }
 
-/** A plan card's button opens the door Landing hands in. The section holds no state. */
+/** Ruling a: what you run is two booleans in React state, and nothing else — a reload starts at Personal. */
 export default function HowToSection({ onRequireAuth }: { onRequireAuth: () => void }) {
-  return <HowToView onJoin={onRequireAuth} />;
+  const [business, setBusiness] = useState(false);
+  const [trade, setTrade] = useState(false);
+  return <HowToView business={business} trade={trade} onBusiness={() => setBusiness((on) => !on)} onTrade={() => setTrade((on) => !on)} onJoin={onRequireAuth} />;
 }

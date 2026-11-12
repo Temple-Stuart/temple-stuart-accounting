@@ -335,7 +335,8 @@ test('I the home month law stands at the end of the laws script, after the home 
   const gateAt = laws.indexOf('if (violations.length > raised) {');
   assert.ok(ledgerAt > -1 && monthAt > ledgerAt && gateAt > monthAt, 'appended at the END, never above an existing law');
   // CRM-02 (2026-11-07): the intake form law was added at the END, after this one — a new law check goes at the END (the CRM-02 ruling); the month law still stands after the ledger law, above the second gate.
-  assert.equal(laws.slice(monthAt).match(/lawGuard\(/g)?.length, 2, 'the last but one — the intake form law (CRM-02) stands after it');
+  // HOME-PLANS-04 (2026-11-12): the map law was added at the END in its turn, after the intake form law — so the month law is the third from last (2 until then).
+  assert.equal(laws.slice(monthAt).match(/lawGuard\(/g)?.length, 3, 'the third from last — the intake form law (CRM-02) and the map law (HOME-PLANS-04) stand after it');
   assert.ok(laws.indexOf("lawGuard('The intake form law', () => {") > monthAt, 'the intake form law after the month law');
   for (const piece of [
     "const HM_HOST = 'src/components/home/HomeMonth.tsx';",

@@ -111,6 +111,30 @@ const config: Config = {
           fill: 'var(--ts-glass-fill)',                                       // rgb(255 255 255 / 0.10) — baked alpha, solid-only
           line: 'var(--ts-glass-line)',                                       // rgb(255 255 255 / 0.22) — baked alpha, solid-only
         },
+        // HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30): the
+        // Financial Software section's own colours — the seventeen the approved section brings, named and valued as
+        // design-refs/home-plans-04/README.md's table "New with this section", typed once in globals.css :root (--ts-fs-*).
+        // The same two shapes as above. The section's stylesheet (globals.css, above the hero's) reads the variables
+        // directly; these names make the same colours utilities for the next surface. ADDITIVE, as `hero` and `glass` were.
+        fs: {
+          white: 'rgb(var(--ts-fs-white) / <alpha-value>)',                 // 255 255 255 — cards, tools and switches; text on violet and teal
+          teal: 'var(--ts-fs-teal)',                                        // #0B7F73 — Trading: its fill and its ring; on white its word, line and ticks
+          'teal-deep': 'var(--ts-fs-teal-deep)',                            // #0B5F57 — Trading's switch label while off
+          'teal-light': 'var(--ts-fs-teal-light)',                          // #8FE8DA — Trading's word on the band
+          'gold-text': 'var(--ts-fs-gold-text)',                            // #8A6408 — gold as small text: the eyebrow; Business's word on white
+          'gold-deep': 'var(--ts-fs-gold-deep)',                            // #6B4E00 — Business's switch label while off
+          ink: 'var(--ts-fs-ink)',                                          // #2B2545 — body text
+          'ink-soft': 'var(--ts-fs-ink-soft)',                              // #4A4560 — the lede, explainers, family names, the price line
+          'ink-muted': 'var(--ts-fs-ink-muted)',                            // #6F6988 — tools not in the plan, roles, counts
+          line: 'var(--ts-fs-line)',                                        // #E9E4F2 — the panel's and the cards' border
+          rule: 'var(--ts-fs-rule)',                                        // #EEEAF5 — the rules inside them
+          'chip-line': 'var(--ts-fs-chip-line)',                            // #E4DFF0 — the border of a tool that is not in the plan
+          'button-line': 'var(--ts-fs-button-line)',                        // #CFC6EC — the quiet button's border
+          'band-muted': 'var(--ts-fs-band-muted)',                          // #D6CCF7 — the band's role and count
+          'band-ring': 'rgb(var(--ts-fs-band-ring) / <alpha-value>)',       // 230 220 255 — the band's rings
+          shadow: 'rgb(var(--ts-fs-shadow) / <alpha-value>)',               // 33 10 94 — shadows on the cream
+          'band-shadow': 'rgb(var(--ts-fs-band-shadow) / <alpha-value>)',   // 12 6 44 — the shadow under the band's gold button
+        },
       },
       fontFamily: {
         mono: ["'IBM Plex Mono'", 'ui-monospace', 'monospace'],

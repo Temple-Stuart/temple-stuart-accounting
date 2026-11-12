@@ -544,8 +544,16 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             seat notes on each block are history: each says where its block sat on the day it was written). Each block
             moved WHOLE with the note above it, byte for byte; only this heading left its block. brand-gold on the cream
             is about 3.1:1 — large type only, which is why the size went up with the colour. ─────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-10">
-        <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
+      {/* ── HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30), in the
+            brief's own words: "What We Do" keeps its element, its place and data-act-heading. Only its look changes: the
+            eyebrow. This replaces HOME-FINISH-02's "in gold and one size up" for the heading's look only. The box and the
+            heading wear the reference's classes with the house prefix (design-refs/home-plans-04/Section-Reference.html,
+            .fs-heading and .fs-eyebrow; their rules are ported to src/app/globals.css): small gold mono capitals over the
+            first pillar's name, in fs-gold-text — 5.06:1 on the cream, where brand gold's 3.1:1 held only for large type.
+            Until then: the box was 'max-w-7xl mx-auto px-4 lg:px-8 pt-10' and the heading wore 'text-3xl sm:text-4xl
+            font-medium tracking-tight text-brand-gold'. ─────────────────────────────────────────────────────────────── */}
+      <div className="ts-fs-heading">
+        <h2 className="ts-fs-eyebrow" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
       </div>
       {/* ── HOME-ORDER-01 (Alex, 2026-11-10 16:27: "What We Do → About Us → Our Story"): THE ORDER of this page is
             Alex's of 2026-11-10 — under the hero: travel booking, the events, the guest's strip when a guest has one,
@@ -567,6 +575,9 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             the door: the plan's button opens the sign-up modal, as the plan cards' button did. No price is set, so the
             price line says so and the button joins early access; both are read from the plan's price slot
             (src/lib/offer/plans.ts), never typed. Its steps are one row per section, swiped sideways. ─────────── */}
+      {/* HOME-PLANS-04 (2026-11-12): the how-to is the Financial Software section as the board draws it — the pillar's name and
+            one line, the map of the 25 tools with its two switches (React state only), three plan cards and the all-three
+            band, the link to /pricing (HowToSection.tsx). The notes above are history: no steps are drawn here now. */}
       <HowToSection onRequireAuth={onRequireAuth} />
 
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is

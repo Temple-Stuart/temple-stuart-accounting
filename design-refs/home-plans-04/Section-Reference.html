@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOME-PLANS-04 · reference</title>
+<!--
+  HOME-PLANS-04: the reference for the guest landing's first pillar, Financial Software.
+  "What We Do" as its eyebrow, the tool map with its two switches, three plan cards, the all-three band, one link.
+
+  Open this file in a browser. Press "+ Business" and "+ Trading": the map lights, the count changes, and the plan
+  that matches is ringed, tagged "Your plan" and given the gold button. Resize the window: the tools stand in six
+  columns from 1024px, three from 640px and two below; the three cards stand side by side from 1024px.
+
+  Every value in the stylesheet is the design, and the markup is the page at rest. The words are copies, for
+  placement only: production reads each one from its home (the README lists them) and types none. The script at the
+  foot only makes this file work on its own: production keeps the two switches in React state and renders this same
+  markup from them. The font link is here only so the file renders alone; the site already loads both faces.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root {
+    /* ALREADY IN THE APP: each is the same name behind the house prefix (--hero-violet-2 is --ts-hero-violet-2,
+       --bg is --ts-bg). Declared here only so this file renders on its own; the port adds none of these. */
+    --bg: 250 248 243;                /* the cream ground */
+    --border: 221 214 232;            /* the line under the section */
+    --gold: 184 134 11;               /* brand gold: Business's ring while it is off (the switch's border, the tools' rings) */
+    --hero-violet-1: #6A33E0;         /* the band's sweep, end */
+    --hero-violet-2: #4D1FBC;         /* Personal: its fill, its line and ticks; the picked card's ring and tag; the focus ring */
+    --hero-violet-3: #32118A;         /* the band's sweep, start, and its flat colour under the gradients; the link and the quiet button's label */
+    --hero-violet-4: #210A5E;         /* headings and the count */
+    --hero-gold: #F6C95C;             /* Business: its fill; on the band its word, the audience line, the ticks, the tag and the ring */
+    --hero-gold-1: 255 236 178;       /* the gold button, start */
+    --hero-gold-2: 248 203 90;        /* the gold button, 52% */
+    --hero-gold-3: 236 178 62;        /* the gold button, end */
+    --hero-on-gold: #2A0F5C;          /* ink on gold */
+    --hero-ink: #FAF8F4;              /* text on the band */
+    --hero-ink-soft: #E4E0F2;         /* the band's explainer and price line */
+
+    /* NEW WITH THIS SECTION */
+    --fs-white: 255 255 255;          /* cards, tools and switches; text on violet and teal; on the band at 0.08 and 0.5; the gold button's top light at 0.75 */
+    --fs-teal: #0B7F73;               /* Trading: its fill and its ring; on white its word, line and ticks */
+    --fs-teal-deep: #0B5F57;          /* Trading's switch label while off */
+    --fs-teal-light: #8FE8DA;         /* Trading's word on the band */
+    --fs-gold-text: #8A6408;          /* gold as small text: the eyebrow; on white Business's word, line and ticks */
+    --fs-gold-deep: #6B4E00;          /* Business's switch label while off */
+    --fs-ink: #2B2545;                /* body text */
+    --fs-ink-soft: #4A4560;           /* the lede, explainers, family names, the price line */
+    --fs-ink-muted: #6F6988;          /* tools not in the plan, roles, counts */
+    --fs-line: #E9E4F2;               /* the panel's and the cards' border */
+    --fs-rule: #EEEAF5;               /* the rules inside them */
+    --fs-chip-line: #E4DFF0;          /* the border of a tool that is not in the plan */
+    --fs-button-line: #CFC6EC;        /* the quiet button's border */
+    --fs-band-muted: #D6CCF7;         /* the band's role and count */
+    --fs-band-ring: 230 220 255;      /* the band's rings, at 0.08 */
+    --fs-shadow: 33 10 94;            /* shadows on the cream: hero-violet-4 as channels */
+    --fs-band-shadow: 12 6 44;        /* the shadow under the band's gold button */
+  }
+
+  /* ── 1 · "What We Do": the act heading wears the eyebrow ─────────────────────────────────────── */
+  .fs-heading { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(52px, 6.6vw, 96px) 16px 0; }
+  .fs-eyebrow { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fs-gold-text); }
+
+  /* ── 2 · the section ─────────────────────────────────────────────────────────────────────────── */
+  .fs { scroll-margin-top: 48px; border-bottom: 1px solid rgb(var(--border)); background-color: rgb(var(--bg)); color: var(--fs-ink); font-family: 'Inter', sans-serif; line-height: 1.5; }
+  .fs__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: 12px 16px clamp(52px, 6.2vw, 88px); }
+  .fs__title { margin: 0; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; font-weight: 500; letter-spacing: -0.03em; color: var(--hero-violet-4); }
+  .fs__lede { margin: 16px 0 0; max-width: 620px; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--fs-ink-soft); text-wrap: pretty; }
+  .fs :focus-visible { outline: 2px solid var(--hero-violet-2); outline-offset: 3px; }
+
+  /* ── 3 · the map: the question, the three choices, the count, then every tool by family ──────── */
+  .fs-map {
+    box-sizing: border-box; margin-top: clamp(24px, 2.8vw, 40px); padding: clamp(18px, 2.3vw, 32px);
+    border: 1px solid var(--fs-line); border-radius: 24px; background-color: rgb(var(--fs-white));
+    box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.05), 0 20px 48px rgb(var(--fs-shadow) / 0.08);
+  }
+  .fs-map__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 32px; }
+  .fs-map__ask { flex: 1 1 300px; min-width: 0; }
+  .fs-map__question { margin: 0; font-size: clamp(18px, 1.6vw, 22px); line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--hero-violet-4); }
+
+  .fs-switches { display: flex; flex-wrap: wrap; gap: 8px; max-width: 480px; margin-top: 14px; }
+  .fs-switch {
+    box-sizing: border-box; flex: 1 1 120px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 44px; margin: 0; padding: 0 16px; border: 1.5px solid transparent; border-radius: 999px;
+    font-family: inherit; font-size: 14px; line-height: 1.2; font-weight: 600; white-space: nowrap;
+    transition: background-color 0.16s, border-color 0.16s, color 0.16s, box-shadow 0.16s;
+  }
+  .fs-switch[aria-pressed] { cursor: pointer; }
+  /* Personal is not a switch: everyone has it. It takes a row of its own until there is room for all three. */
+  .fs-switch--always { flex-basis: 100%; background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); }
+  /* off: white, ringed in the module's colour. on: filled with it. */
+  .fs-switch[data-module="business"] { border-color: rgb(var(--gold)); background-color: rgb(var(--fs-white)); color: var(--fs-gold-deep); }
+  .fs-switch[data-module="trading"] { border-color: var(--fs-teal); background-color: rgb(var(--fs-white)); color: var(--fs-teal-deep); }
+  .fs-switch[data-module="business"][aria-pressed="true"] { border-color: var(--hero-gold); background-color: var(--hero-gold); color: var(--hero-on-gold); }
+  .fs-switch[data-module="trading"][aria-pressed="true"] { background-color: var(--fs-teal); color: rgb(var(--fs-white)); }
+
+  /* the two marks: a ring while a module is not in the plan, a tick once it is */
+  .fs-ring { box-sizing: border-box; flex: none; width: 10px; height: 10px; border: 2px solid currentColor; border-radius: 50%; }
+  .fs-switch[data-module="business"] .fs-ring, .fs-tool[data-module="business"] .fs-ring { border-color: rgb(var(--gold)); }
+  .fs-switch[data-module="trading"] .fs-ring, .fs-tool[data-module="trading"] .fs-ring { border-color: var(--fs-teal); }
+  .fs-tick { flex: none; }
+
+  .fs-map__count { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: 14px; line-height: 1.2; color: var(--fs-ink-muted); white-space: nowrap; }
+  .fs-map__figure { font-size: clamp(26px, 2.4vw, 34px); line-height: 1; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--hero-violet-4); }
+
+  .fs-map__grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px clamp(10px, 1.2vw, 16px);
+    margin-top: clamp(18px, 1.8vw, 24px); padding-top: clamp(16px, 1.6vw, 22px); border-top: 1px solid var(--fs-rule);
+  }
+  .fs-family__name { margin: 0 0 10px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fs-ink-soft); }
+  .fs-family__tools { display: flex; flex-direction: column; gap: clamp(6px, 0.6vw, 8px); margin: 0; padding: 0; list-style: none; }
+  .fs-tool {
+    box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    height: clamp(36px, 0.5vw + 32px, 38px); padding: 0 10px;
+    border: 1px solid var(--fs-chip-line); border-radius: 10px; background-color: rgb(var(--fs-white)); color: var(--fs-ink-muted);
+    font-size: 13px; line-height: 1.2; font-weight: 500; white-space: nowrap;
+    transition: background-color 0.16s, border-color 0.16s, color 0.16s;
+  }
+  .fs-tool[data-lit="true"][data-module="personal"] { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); }
+  .fs-tool[data-lit="true"][data-module="business"] { border-color: var(--hero-gold); background-color: var(--hero-gold); color: var(--hero-on-gold); }
+  .fs-tool[data-lit="true"][data-module="trading"] { border-color: var(--fs-teal); background-color: var(--fs-teal); color: rgb(var(--fs-white)); }
+
+  /* ── 4 · the plans: three cards, then the all-three band ─────────────────────────────────────── */
+  .fs-plans { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; margin-top: 20px; }
+  .fs-plan {
+    box-sizing: border-box; display: flex; flex-direction: column; padding: 28px;
+    border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white));
+    box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 12px 32px rgb(var(--fs-shadow) / 0.07);
+    transition: border-color 0.16s, box-shadow 0.16s;
+  }
+  /* the plan the switches pick: a 2px ring (the border and 1px more), the tag, and the gold button */
+  .fs-plan[data-picked="true"] { border-color: var(--hero-violet-2); box-shadow: 0 0 0 1px var(--hero-violet-2), 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 12px 32px rgb(var(--fs-shadow) / 0.07); }
+  .fs-plan__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 24px; }
+  .fs-plan__role { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .fs-plan__tag { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); font-size: 12px; line-height: 1.2; font-weight: 600; white-space: nowrap; }
+  .fs-plan__name { margin: 10px 0 0; font-size: 26px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--hero-violet-4); }
+  .fs-plan__name [data-module] { white-space: nowrap; }
+  .fs-plan__name [data-module="business"] { color: var(--fs-gold-text); }
+  .fs-plan__name [data-module="trading"] { color: var(--fs-teal); }
+  .fs-plan__audience { margin: 6px 0 0; font-size: 15px; line-height: 1.4; font-weight: 500; }
+  .fs-plan__explainer { margin: 14px 0 0; font-size: 15px; line-height: 1.55; color: var(--fs-ink-soft); text-wrap: pretty; }
+  .fs-plan__points { display: flex; flex-direction: column; gap: 12px; margin: 20px 0 24px; padding: 18px 0 0; border-top: 1px solid var(--fs-rule); list-style: none; font-size: 15px; line-height: 1.45; color: var(--fs-ink); }
+  .fs-plan__point { display: flex; gap: 10px; }
+  .fs-check { flex: none; margin-top: 2px; }
+  /* each card's line and ticks wear the colour of what it adds */
+  .fs-plan[data-plan="personal"] .fs-plan__audience, .fs-plan[data-plan="personal"] .fs-check { color: var(--hero-violet-2); }
+  .fs-plan[data-plan="business"] .fs-plan__audience, .fs-plan[data-plan="business"] .fs-check { color: var(--fs-gold-text); }
+  .fs-plan[data-plan="trading"] .fs-plan__audience, .fs-plan[data-plan="trading"] .fs-check { color: var(--fs-teal); }
+  .fs-plan__foot { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
+  .fs-plan__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin: 0; font-size: 13px; line-height: 1.4; color: var(--fs-ink-muted); }
+  .fs-plan__price { font-family: 'IBM Plex Mono', monospace; font-weight: 500; color: var(--fs-ink-soft); }
+  .fs-plan__cta {
+    box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 100%; height: 48px; margin: 0; padding: 0 20px;
+    border: 1.5px solid var(--fs-button-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-3);
+    font-family: inherit; font-size: 15px; line-height: 1.2; font-weight: 600; cursor: pointer;
+    transition: border-color 0.16s, filter 0.16s;
+  }
+  .fs-plan[data-picked="true"] .fs-plan__cta {
+    border: 0; background-image: linear-gradient(135deg, rgb(var(--hero-gold-1)) 0%, rgb(var(--hero-gold-2)) 52%, rgb(var(--hero-gold-3)) 100%);
+    box-shadow: inset 0 1px 0 rgb(var(--fs-white) / 0.75), 0 8px 20px rgb(var(--fs-shadow) / 0.16); color: var(--hero-on-gold);
+  }
+
+  /* the all-three band: the same parts as a card, laid in a row on the hero's violet */
+  .fs-plan--all {
+    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 24px 40px; margin-top: 20px; border: 0;
+    background-color: var(--hero-violet-3);
+    background-image:
+      repeating-radial-gradient(circle at 50% 320%, rgb(var(--fs-band-ring) / 0) 0px, rgb(var(--fs-band-ring) / 0) 13px, rgb(var(--fs-band-ring) / 0.08) 13px, rgb(var(--fs-band-ring) / 0.08) 14px),
+      linear-gradient(120deg, var(--hero-violet-3) 0%, var(--hero-violet-2) 58%, var(--hero-violet-1) 100%);
+    box-shadow: 0 16px 40px rgb(var(--fs-shadow) / 0.22); color: var(--hero-ink);
+  }
+  .fs-plan--all[data-picked="true"] { box-shadow: inset 0 0 0 2px var(--hero-gold), 0 16px 40px rgb(var(--fs-shadow) / 0.22); }
+  .fs-plan--all :focus-visible { outline-color: var(--hero-gold); }
+  .fs-plan--all .fs-plan__lead { flex: 5 1 300px; min-width: 0; }
+  .fs-plan--all .fs-plan__top { justify-content: flex-start; }
+  .fs-plan--all .fs-plan__role { color: var(--fs-band-muted); }
+  .fs-plan--all .fs-plan__tag { background-color: var(--hero-gold); color: var(--hero-on-gold); }
+  .fs-plan--all .fs-plan__name { color: rgb(var(--fs-white)); }
+  .fs-plan--all .fs-plan__name [data-module="business"] { color: var(--hero-gold); }
+  .fs-plan--all .fs-plan__name [data-module="trading"] { color: var(--fs-teal-light); }
+  .fs-plan--all .fs-plan__audience { color: var(--hero-gold); }
+  .fs-plan--all .fs-plan__explainer { max-width: 420px; color: var(--hero-ink-soft); }
+  .fs-plan--all .fs-plan__points { flex: 5 1 300px; min-width: 0; margin: 0; padding: 0; border-top: 0; color: var(--hero-ink); }
+  .fs-plan--all .fs-check { color: var(--hero-gold); }
+  .fs-plan--all .fs-plan__foot { flex: 3 1 220px; min-width: 0; margin-top: 0; }
+  .fs-plan--all .fs-plan__meta { color: var(--fs-band-muted); }
+  .fs-plan--all .fs-plan__price { color: var(--hero-ink-soft); }
+  .fs-plan--all .fs-plan__cta { border-color: rgb(var(--fs-white) / 0.5); background-color: rgb(var(--fs-white) / 0.08); color: rgb(var(--fs-white)); }
+  .fs-plan--all[data-picked="true"] .fs-plan__cta { box-shadow: inset 0 1px 0 rgb(var(--fs-white) / 0.75), 0 8px 20px rgb(var(--fs-band-shadow) / 0.28); }
+
+  .fs__compare { display: inline-flex; align-items: center; min-height: 44px; margin-top: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 500; letter-spacing: 0.04em; color: var(--hero-violet-3); text-decoration: none; }
+
+  /* ── 5 · wider windows ───────────────────────────────────────────────────────────────────────── */
+  @media (min-width: 360px) {
+    .fs-tool { padding: 0 12px; font-size: 14px; }
+  }
+  @media (min-width: 640px) {
+    .fs-map__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (min-width: 768px) {
+    .fs-switch--always { flex-basis: 150px; }
+  }
+  @media (min-width: 1024px) {
+    .fs-heading, .fs__inner { padding-inline: 32px; }
+    .fs-map__grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    /* three across. Each card's five parts (role, name, who it is for and what it is, the list, the foot) sit on the
+       row's own five lines, so the rules and the buttons line up whatever the words do. */
+    .fs-plans { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(5, auto); gap: 0 20px; }
+    .fs-plans .fs-plan { display: grid; grid-template-rows: subgrid; grid-row: span 5; row-gap: 0; padding: clamp(24px, 2vw, 28px); }
+    .fs-plans .fs-plan__name { font-size: clamp(22px, 2vw, 26px); }
+    .fs-plans .fs-plan__foot { align-self: end; margin-top: 0; }
+  }
+
+  /* ── 6 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+  @media (hover: hover) {
+    .fs-switch[data-module="business"][aria-pressed="false"]:hover { box-shadow: inset 0 0 0 1px rgb(var(--gold)); }
+    .fs-switch[data-module="trading"][aria-pressed="false"]:hover { box-shadow: inset 0 0 0 1px var(--fs-teal); }
+    .fs-switch[aria-pressed="true"]:hover { filter: brightness(1.04); }
+    .fs-plan__cta:hover { border-color: var(--hero-violet-2); }
+    .fs-plan[data-picked="true"] .fs-plan__cta:hover { filter: brightness(1.04); }
+    .fs-plan--all .fs-plan__cta:hover { border-color: rgb(var(--fs-white)); }
+    .fs__compare:hover { color: var(--hero-violet-2); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fs-switch, .fs-tool, .fs-plan, .fs-plan__cta { transition: none; }
+  }
+
+  /* ── THIS PAGE'S OWN: not part of the design, not ported ─────────────────────────────────────── */
+  body { margin: 0; background-color: rgb(var(--bg)); }
+</style>
+</head>
+<body>
+
+<!-- 1 · Landing.tsx: the heading box, where it stands today. "What We Do" wears the eyebrow. -->
+<div class="fs-heading">
+  <h2 class="fs-eyebrow" data-act-heading>What We Do</h2>
+</div>
+
+<!-- 2 · HowToSection.tsx: the section, at rest. Nothing is switched on, so Personal is the plan. -->
+<section class="fs" id="modules" aria-label="Software plans" data-how-to>
+  <div class="fs__inner">
+    <h2 class="fs__title">Financial Software</h2>
+    <p class="fs__lede">Everyone gets Personal. Add a business, a trading book, or both.</p>
+
+    <div class="fs-map">
+      <div class="fs-map__head">
+        <div class="fs-map__ask">
+          <h3 class="fs-map__question">Four plans. One question: what do you run?</h3>
+          <div class="fs-switches" role="group" aria-label="What you run · add any">
+            <span class="fs-switch fs-switch--always"><svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"></path></svg>Personal · always</span>
+            <button class="fs-switch" type="button" data-module="business" aria-pressed="false"><span class="fs-ring" aria-hidden="true"></span>+ Business</button>
+            <button class="fs-switch" type="button" data-module="trading" aria-pressed="false"><span class="fs-ring" aria-hidden="true"></span>+ Trading</button>
+          </div>
+        </div>
+        <p class="fs-map__count" aria-live="polite" aria-atomic="true"><span class="fs-map__figure">13</span> <span>of 25 tools</span></p>
+      </div>
+      <div class="fs-map__grid">
+        <div>
+          <h4 class="fs-family__name">THE WORK</h4>
+          <ul class="fs-family__tools">
+            <li class="fs-tool" data-module="personal" data-lit="true">Calendar<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="personal" data-lit="true">Tasks<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="personal" data-lit="true">Time<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="fs-family__name">MONEY IN</h4>
+          <ul class="fs-family__tools">
+            <li class="fs-tool" data-module="business" data-lit="false">CRM<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+            <li class="fs-tool" data-module="business" data-lit="false">Contracts<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+            <li class="fs-tool" data-module="business" data-lit="false">Invoicing<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+            <li class="fs-tool" data-module="business" data-lit="false">Payments<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="fs-family__name">MONEY OUT</h4>
+          <ul class="fs-family__tools">
+            <li class="fs-tool" data-module="business" data-lit="false">Bill Pay<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+            <li class="fs-tool" data-module="business" data-lit="false">Payroll<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+            <li class="fs-tool" data-module="personal" data-lit="true">Expenses<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="personal" data-lit="true">Travel<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="personal" data-lit="true">Mileage<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="personal" data-lit="true">Budget<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="fs-family__name">WHAT YOU OWN</h4>
+          <ul class="fs-family__tools">
+            <li class="fs-tool" data-module="personal" data-lit="true">Banking<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="personal" data-lit="true">Fixed Assets<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="personal" data-lit="true">Retirement<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="trading" data-lit="false">Brokerage<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+            <li class="fs-tool" data-module="trading" data-lit="false">Trade Log<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="fs-family__name">WHAT YOU OWE</h4>
+          <ul class="fs-family__tools">
+            <li class="fs-tool" data-module="personal" data-lit="true">Debt<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="business" data-lit="false">Sales Tax<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+            <li class="fs-tool" data-module="business" data-lit="false">Ent Filings<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="fs-family__name">THE PROOF</h4>
+          <ul class="fs-family__tools">
+            <li class="fs-tool" data-module="personal" data-lit="true">Bookkeeping<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="personal" data-lit="true">Tax<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="In this plan"><path d="M3.5 8.5l3 3 6-7"></path></svg></li>
+            <li class="fs-tool" data-module="business" data-lit="false">Compliance<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+            <li class="fs-tool" data-module="business" data-lit="false">FP&amp;A<span class="fs-ring" role="img" aria-label="Not in this plan"></span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="fs-plans">
+      <div class="fs-plan" data-plan="personal" data-picked="true">
+        <div class="fs-plan__top"><p class="fs-plan__role">Start here</p><span class="fs-plan__tag">Your plan</span></div>
+        <h3 class="fs-plan__name">Personal</h3>
+        <div>
+          <p class="fs-plan__audience">For students, creators and nomads.</p>
+          <p class="fs-plan__explainer">Know where your money goes, and what’s next. Your own money, start to finish.</p>
+        </div>
+        <ul class="fs-plan__points">
+          <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>Every account in one place, and what you actually have.</li>
+          <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>Your days and what they cost, on one calendar.</li>
+          <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>Book the trip and keep the receipt.</li>
+        </ul>
+        <div class="fs-plan__foot">
+          <p class="fs-plan__meta"><span>13 of 25 tools</span><span class="fs-plan__price">Pricing announced at launch</span></p>
+          <button class="fs-plan__cta" type="button">Join early access</button>
+        </div>
+      </div>
+      <div class="fs-plan" data-plan="business" data-picked="false">
+        <div class="fs-plan__top"><p class="fs-plan__role">Add a business</p></div>
+        <h3 class="fs-plan__name">Personal <span data-module="business">+ Business</span></h3>
+        <div>
+          <p class="fs-plan__audience">For founders, freelancers and small business owners.</p>
+          <p class="fs-plan__explainer">Run the business that funds your life. Everything in Personal, plus the company.</p>
+        </div>
+        <ul class="fs-plan__points">
+          <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>Get paid, pay people, and know what is left.</li>
+          <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>Books that write themselves from what you already did.</li>
+          <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>One set of records for you and the business.</li>
+        </ul>
+        <div class="fs-plan__foot">
+          <p class="fs-plan__meta"><span>23 of 25 tools</span><span class="fs-plan__price">Pricing announced at launch</span></p>
+          <button class="fs-plan__cta" type="button">Join early access</button>
+        </div>
+      </div>
+      <div class="fs-plan" data-plan="trading" data-picked="false">
+        <div class="fs-plan__top"><p class="fs-plan__role">Add a trading book</p></div>
+        <h3 class="fs-plan__name">Personal <span data-module="trading">+ Trading</span></h3>
+        <div>
+          <p class="fs-plan__audience">For traders running their own money.</p>
+          <p class="fs-plan__explainer">Your book and your own money, in one set of records. Everything in Personal, plus the trading book.</p>
+        </div>
+        <ul class="fs-plan__points">
+          <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>Every fill finds its order and lands in the books.</li>
+          <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>Positions and returns beside the rest of your money.</li>
+          <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>The tax year is ready before April.</li>
+        </ul>
+        <div class="fs-plan__foot">
+          <p class="fs-plan__meta"><span>15 of 25 tools</span><span class="fs-plan__price">Pricing announced at launch</span></p>
+          <button class="fs-plan__cta" type="button">Join early access</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="fs-plan fs-plan--all" data-plan="everything" data-picked="false">
+      <div class="fs-plan__lead">
+        <div class="fs-plan__top"><p class="fs-plan__role">Add both</p></div>
+        <h3 class="fs-plan__name">Personal <span data-module="business">+ Business</span> <span data-module="trading">+ Trading</span></h3>
+        <div>
+          <p class="fs-plan__audience">For founder-traders.</p>
+          <p class="fs-plan__explainer">The company and the book, on one set of books. Personal, the company and the trading book, in one set of records.</p>
+        </div>
+      </div>
+      <ul class="fs-plan__points">
+        <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>One ledger for the business and the book.</li>
+        <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>Every number traces to what actually happened.</li>
+        <li class="fs-plan__point"><svg class="fs-check" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8.2"></circle><path d="M6.4 10.3l2.4 2.4 4.8-5.2"></path></svg>Nothing to reconcile between two systems.</li>
+      </ul>
+      <div class="fs-plan__foot">
+        <p class="fs-plan__meta"><span>All 25 tools</span><span class="fs-plan__price">Pricing announced at launch</span></p>
+        <button class="fs-plan__cta" type="button">Join early access</button>
+      </div>
+    </div>
+
+    <a class="fs__compare" href="/pricing" data-compare-plans>Compare all four plans →</a>
+  </div>
+</section>
+
+<script>
+  // REFERENCE ONLY: this makes the file work on its own. Production holds the same two booleans in React state and
+  // renders the markup above from them. A tool is lit when the picked plan holds its module; the count is how many
+  // are lit; the picked plan is the one plan whose modules are Personal plus whatever is switched on.
+  const run = { business: false, trading: false };
+  const section = document.querySelector('.fs');
+  const say = (label) => (label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"');
+  const tick = (label) => `<svg class="fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" ${say(label)}><path d="M3.5 8.5l3 3 6-7"></path></svg>`;
+  const ring = (label) => `<span class="fs-ring" ${say(label)}></span>`;
+  const mark = (holder, html) => { holder.querySelector('.fs-tick, .fs-ring').outerHTML = html; };
+
+  function paint() {
+    let lit = 0;
+    for (const tool of section.querySelectorAll('.fs-tool')) {
+      const on = tool.dataset.module === 'personal' || run[tool.dataset.module];
+      tool.dataset.lit = String(on);
+      mark(tool, on ? tick('In this plan') : ring('Not in this plan'));
+      if (on) lit += 1;
+    }
+    section.querySelector('.fs-map__figure').textContent = String(lit);
+    for (const button of section.querySelectorAll('.fs-switch[aria-pressed]')) {
+      const on = run[button.dataset.module];
+      button.setAttribute('aria-pressed', String(on));
+      mark(button, on ? tick() : ring());
+    }
+    const picked = run.business && run.trading ? 'everything' : run.business ? 'business' : run.trading ? 'trading' : 'personal';
+    for (const plan of section.querySelectorAll('.fs-plan')) {
+      const on = plan.dataset.plan === picked;
+      plan.dataset.picked = String(on);
+      const top = plan.querySelector('.fs-plan__top');
+      const tag = top.querySelector('.fs-plan__tag');
+      if (on && !tag) top.insertAdjacentHTML('beforeend', '<span class="fs-plan__tag">Your plan</span>');
+      if (!on && tag) tag.remove();
+    }
+  }
+
+  for (const button of section.querySelectorAll('.fs-switch[aria-pressed]')) {
+    button.addEventListener('click', () => { run[button.dataset.module] = !run[button.dataset.module]; paint(); });
+  }
+</script>
+
+</body>
+</html>

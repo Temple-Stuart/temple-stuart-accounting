@@ -386,7 +386,7 @@ const schemaText = codeOf('prisma/schema.prisma');
  * PLAN_SURFACES are the PUBLIC offer — the landing and /pricing. HOME-BRIEF-04 (Alex, 2026-11-10 19:00): /pricing renders the
  * plans (src/components/offer/PlansSection.tsx over src/lib/offer/plans.ts); the landing's offer is the how-to now (HowToSection.tsx
  * over src/lib/howTo.ts), so the how-to's two files stand in this list beside it. None renders the builder's view: no tool count, no
- * beat vocabulary, no persona grid. THE PLAN LAW below holds them to it. ("They render the three plans" — both pages — until then.)
+ * beat vocabulary, no persona grid. THE PLAN LAW below holds them to it. ("They render the three plans" — both pages — until then.) (HOME-PLANS-04, 2026-11-12: the landing's map counts what a plan holds — "<n> of <total> tools" — not what is built; the count barred here is the registry's census, COUNT_TELLS in the plan law.)
  *
  * OFFER_CARD_SURFACES are the two IN-APP surfaces that still render the shared
  * <OfferCard/> from src/lib/offer.ts: the cockpit's locked-tab card and the
@@ -11204,6 +11204,35 @@ for (const f of [IF_PAGE, IF_CLIENT, IF_ROUTE]) {
 }
 if (ifViolations === 0) console.log(`✔ The intake form law passed — the one public page prefix (/f: ${IF_PAGE}, its client half ${IF_CLIENT}) and the one public writer (/api/f: ${IF_ROUTE}) are listed BY RULING in src/middleware.ts and alone under their prefixes; the route reads the honeypot, then the per-ip_hash limit, then the form by its slug, then the shape, then the frozen answers, then makes its one insert for the form owner; the schema holds crm_forms and crm_form_submissions; the registry’s CRM row cites both routes; no vendor client and no cookie in any of the three files.`);
 else console.log(`✖ The intake form law FAILED — ${ifViolations} violation(s).`);
+});
+
+// ── THE MAP LAW (HOME-PLANS-04, Alex's brief, 2026-11-12 14:07 Manila) ──────────────────────────────────────
+// Ruling e, as the brief writes it: "A TOOL'S MODULE is the module of the capability rows that name it (CAPABILITY_GROUPS),
+// held by a law: one module per tool, or the build fails by name." The guest landing's map (src/components/landing/HowToSection.tsx,
+// over src/lib/howTo.ts planMapView) draws the sheet's 25 tools and lights each in its module's colour when the picked plan holds
+// that module (toolModule). A tool named by no capability row, or by rows of two modules, has no colour to wear; and a plan whose
+// name does not split into one part per module has a part with no colour, or a module with no part (nameParts — the handoff
+// README: "a mismatch should fail the build by name"). The leaf's own law, mapLaw, refuses both at module scope, so importing the
+// leaf puts mapLaw in the build: a violation stops the suite at that import, by name, before any guard runs (the first gate, as
+// planLaw's import does — measured with both seeds), and the deploy stops there, so the page never throws in front of a visitor
+// (/ is request-dynamic, src/app/page.tsx). This seat re-runs it for its verdict line, and would be the one to speak if the
+// module-scope call were ever relaxed.
+// THE IMPORT SITS HERE, beside its one reader, and not with the imports at the head of the file: tests cite this file by line
+// number, and a line added up there would move every one of them. An import is hoisted wherever it stands — and importing the
+// leaf runs both its module-scope laws (howToLaw, mapLaw) when this suite starts, each with the leaf's own message.
+// Seeded regressions: scripts/proofs/map.seeds.ts.
+import { mapLaw } from '../src/lib/howTo';
+
+lawGuard('The map law', () => {
+  let mapViolations = 0;
+  const mapFail = (m: string) => { mapViolations += 1; violations.push(`map law: ${m} (HOME-PLANS-04)`); };
+  for (const v of mapLaw({ throwOnFail: false })) mapFail(v);
+  const mapTools = PROBLEM_SHEET.flatMap((family) => [...family.tools]);
+  const mapRows = CAPABILITY_GROUPS.flatMap((g) => g.rows);
+  const mapModuleOf = (name: string) => mapRows.find((row) => (row.tools as readonly string[]).includes(name))?.module;
+  const mapByModule = MODULES.map((m) => `${mapTools.filter((name) => mapModuleOf(name) === m).length} ${m}`).join(' · ');
+  if (mapViolations === 0) console.log(`✔ The map law passed — the ${mapTools.length} tools on the sheet are each named by capability rows of one module (${mapByModule}), and each of the ${PLANS.length} plans’ names splits into one part per module.`);
+  else console.log(`✖ The map law FAILED — ${mapViolations} violation(s).`);
 });
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────

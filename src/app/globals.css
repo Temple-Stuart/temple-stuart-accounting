@@ -105,7 +105,8 @@
      them as the `hero` and `glass` families. Hex where the stylesheet reads the token solid; space-separated RGB
      channels where it reads it at an alpha — rgb(var(--ts-hero-bloom) / 0.5). (One hex is also drawn at an alpha
      without its token: the open menu's panel is hero-well at 86%, typed as the reference types it.) Read by the
-     hero's and the bar's stylesheet at the foot of this file, and by nothing else yet. ──────────────────────── */
+     hero's and the bar's stylesheet at the foot of this file — and, since HOME-PLANS-04 (2026-11-12), by the Financial
+     Software section's, which reads the violets, the golds and the inks (its block stands above the hero's). ─────── */
   /* the ground: one diagonal sweep (155deg, stops 0 / 34 / 68 / 100%) and two blooms; the filled bar uses 1–3 */
   --ts-hero-violet-1:    #6A33E0;                    /* the sweep, start */
   --ts-hero-violet-2:    #4D1FBC;                    /* the sweep, 34% */
@@ -131,6 +132,32 @@
      (16px under 1024px) at 140% saturation */
   --ts-glass-fill:       rgb(255 255 255 / 0.10);    /* the pill's fill */
   --ts-glass-line:       rgb(255 255 255 / 0.22);    /* the pill's 1px line */
+  /* ── HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30): THE
+     FINANCIAL SOFTWARE SECTION — its own colours ─────────────────────────────────────────────────────────────────
+     The approved section (design-refs/home-plans-04) reads fourteen tokens the app already holds — bg, border, gold and
+     the hero's violets, golds and inks, each the reference's value behind the house prefix (README, "Already in the app":
+     "Add none") — and brings seventeen more. Each lands here as a token, NAMED AND VALUED AS design-refs/home-plans-04/
+     README.md's TABLE "New with this section" (the reference's stylesheet writes them --fs-*; the house prefix --ts- is
+     added, nothing else). tailwind.config.ts maps them as the `fs` family. Hex where the stylesheet reads the token solid;
+     space-separated RGB channels where it reads it at an alpha — rgb(var(--ts-fs-shadow) / 0.08). Read by the section's
+     stylesheet, which stands above the hero's at the foot of this file. ───────────────────────────────────────────── */
+  --ts-fs-white:       255 255 255;                /* cards, tools and switches; text on violet and teal; on the band at 0.08 and 0.5; the gold button's top light at 0.75 */
+  --ts-fs-teal:        #0B7F73;                    /* Trading: its fill and its ring; on white its word, line and ticks */
+  --ts-fs-teal-deep:   #0B5F57;                    /* Trading's switch label while off */
+  --ts-fs-teal-light:  #8FE8DA;                    /* Trading's word on the band */
+  --ts-fs-gold-text:   #8A6408;                    /* gold as small text: the eyebrow; on white Business's word, line and ticks */
+  --ts-fs-gold-deep:   #6B4E00;                    /* Business's switch label while off */
+  --ts-fs-ink:         #2B2545;                    /* body text */
+  --ts-fs-ink-soft:    #4A4560;                    /* the lede, explainers, family names, the price line */
+  --ts-fs-ink-muted:   #6F6988;                    /* tools not in the plan, roles, counts */
+  --ts-fs-line:        #E9E4F2;                    /* the panel's and the cards' border */
+  --ts-fs-rule:        #EEEAF5;                    /* the rules inside them */
+  --ts-fs-chip-line:   #E4DFF0;                    /* the border of a tool that is not in the plan */
+  --ts-fs-button-line: #CFC6EC;                    /* the quiet button's border */
+  --ts-fs-band-muted:  #D6CCF7;                    /* the band's role and count */
+  --ts-fs-band-ring:   230 220 255;                /* the band's rings, at 0.08 */
+  --ts-fs-shadow:      33 10 94;                   /* shadows on the cream: hero-violet-4 as channels */
+  --ts-fs-band-shadow: 12 6 44;                    /* the shadow under the band's gold button */
   /* Dark "panel / terminal" surfaces. BG-DEPTH (resolves the
      PALETTE-OVERHAUL stop-gate deliberately): the page CANVAS gets its own
      token so page and cards move independently — hierarchy is
@@ -172,7 +199,7 @@ body {
 /* PALETTE-OVERHAUL: the one CTA gradient — pop → grad-mid → grad-end (tokens
    above). Used as a button fill (with text-white hover:brightness-110) and as
    gradient text (with bg-clip-text text-transparent). */
-/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) */
+/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) (HOME-PLANS-04, 2026-11-12: and the Financial Software section's two — the picked plan's gold button and the band (ruling g), in the block above the hero's.) */
 
 /* BUILTON-MARQUEE: the Built-on strip's CSS-only infinite loop — the track
    renders its chip run TWICE and slides half its own width, so the wrap is
@@ -208,6 +235,199 @@ body {
     -webkit-mask-image: none;
     mask-image: none;
   }
+}
+
+/* ── HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30): THE
+   FINANCIAL SOFTWARE SECTION — "What We Do" as its eyebrow, the map, three plan cards, the all-three band ──────────────
+   THE SPEC IS design-refs/home-plans-04/Section-Reference.html: "Every value in its stylesheet is the design". What follows
+   is that stylesheet, rule for rule and value for value, in its own order and with its own section notes:
+     · every class is the reference's with the house prefix: .fs → .ts-fs, .fs-map__count → .ts-fs-map__count, …;
+     · every custom property it reads likewise: var(--fs-ink) → var(--ts-fs-ink), var(--hero-gold) → var(--ts-hero-gold),
+       rgb(var(--bg)) → rgb(var(--ts-bg)).
+   src/lib/__tests__/homePlans04.test.ts reads both files and holds them equal, declaration by declaration, but for the
+   THREE DIFFERENCES named here — each one where the reference is a page of its own and this is the app:
+     1. THE COLOURS are tokens: the reference's :root is :root above — the seventeen --ts-fs-* this design brings, and the
+        fourteen it declares only so that it "renders on its own", which the app already holds (--ts-bg, --ts-border,
+        --ts-gold, --ts-hero-*).
+     2. THE FONTS are the site's: src/app/layout.tsx loads Inter and IBM Plex Mono as --font-sans and --font-mono, and these
+        rules read the two variables where the reference names the families ("the site already loads both faces").
+     3. NOT PORTED: the reference page's own ground, body { margin: 0; background-color: … } — "THIS PAGE'S OWN: not part of
+        the design, not ported".
+   It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value
+   outside :root").
+   TWO GRADIENTS — the brief's ruling g, as written (2026-11-12): "TWO GRADIENTS, both on the board: the picked plan's gold
+   button and the band." They are the picked plan's button — a card's or the band's (.ts-fs-plan[data-picked="true"] .ts-fs-plan__cta: the hero's
+   three golds at 135deg, drawn solid) and the band (.ts-fs-plan--all: the hero's violets at 120deg, under rings 1px wide
+   every 14px). REPAINT-5's ban on gradients, above, is the ruling this design comes after, as the hero's did.
+   Used by src/components/landing/Landing.tsx (the heading box: .ts-fs-heading, .ts-fs-eyebrow) and
+   src/components/landing/HowToSection.tsx (the section). It stands here, above the hero's block, because nothing may
+   follow that one; it names none of the hero's classes, and nothing outside it names one of its own. ─────────────── */
+/* ── 1 · "What We Do": the act heading wears the eyebrow ─────────────────────────────────────── */
+.ts-fs-heading { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(52px, 6.6vw, 96px) 16px 0; }
+.ts-fs-eyebrow { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ts-fs-gold-text); }
+
+/* ── 2 · the section ─────────────────────────────────────────────────────────────────────────── */
+.ts-fs { scroll-margin-top: 48px; border-bottom: 1px solid rgb(var(--ts-border)); background-color: rgb(var(--ts-bg)); color: var(--ts-fs-ink); font-family: var(--font-sans); line-height: 1.5; }
+.ts-fs__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: 12px 16px clamp(52px, 6.2vw, 88px); }
+.ts-fs__title { margin: 0; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; font-weight: 500; letter-spacing: -0.03em; color: var(--ts-hero-violet-4); }
+.ts-fs__lede { margin: 16px 0 0; max-width: 620px; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--ts-fs-ink-soft); text-wrap: pretty; }
+.ts-fs :focus-visible { outline: 2px solid var(--ts-hero-violet-2); outline-offset: 3px; }
+
+/* ── 3 · the map: the question, the three choices, the count, then every tool by family ──────── */
+.ts-fs-map {
+  box-sizing: border-box; margin-top: clamp(24px, 2.8vw, 40px); padding: clamp(18px, 2.3vw, 32px);
+  border: 1px solid var(--ts-fs-line); border-radius: 24px; background-color: rgb(var(--ts-fs-white));
+  box-shadow: 0 1px 2px rgb(var(--ts-fs-shadow) / 0.05), 0 20px 48px rgb(var(--ts-fs-shadow) / 0.08);
+}
+.ts-fs-map__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 32px; }
+.ts-fs-map__ask { flex: 1 1 300px; min-width: 0; }
+.ts-fs-map__question { margin: 0; font-size: clamp(18px, 1.6vw, 22px); line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--ts-hero-violet-4); }
+
+.ts-fs-switches { display: flex; flex-wrap: wrap; gap: 8px; max-width: 480px; margin-top: 14px; }
+.ts-fs-switch {
+  box-sizing: border-box; flex: 1 1 120px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; margin: 0; padding: 0 16px; border: 1.5px solid transparent; border-radius: 999px;
+  font-family: inherit; font-size: 14px; line-height: 1.2; font-weight: 600; white-space: nowrap;
+  transition: background-color 0.16s, border-color 0.16s, color 0.16s, box-shadow 0.16s;
+}
+.ts-fs-switch[aria-pressed] { cursor: pointer; }
+/* Personal is not a switch: everyone has it. It takes a row of its own until there is room for all three. */
+.ts-fs-switch--always { flex-basis: 100%; background-color: var(--ts-hero-violet-2); color: rgb(var(--ts-fs-white)); }
+/* off: white, ringed in the module's colour. on: filled with it. */
+.ts-fs-switch[data-module="business"] { border-color: rgb(var(--ts-gold)); background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-gold-deep); }
+.ts-fs-switch[data-module="trading"] { border-color: var(--ts-fs-teal); background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-teal-deep); }
+.ts-fs-switch[data-module="business"][aria-pressed="true"] { border-color: var(--ts-hero-gold); background-color: var(--ts-hero-gold); color: var(--ts-hero-on-gold); }
+.ts-fs-switch[data-module="trading"][aria-pressed="true"] { background-color: var(--ts-fs-teal); color: rgb(var(--ts-fs-white)); }
+
+/* the two marks: a ring while a module is not in the plan, a tick once it is */
+.ts-fs-ring { box-sizing: border-box; flex: none; width: 10px; height: 10px; border: 2px solid currentColor; border-radius: 50%; }
+.ts-fs-switch[data-module="business"] .ts-fs-ring, .ts-fs-tool[data-module="business"] .ts-fs-ring { border-color: rgb(var(--ts-gold)); }
+.ts-fs-switch[data-module="trading"] .ts-fs-ring, .ts-fs-tool[data-module="trading"] .ts-fs-ring { border-color: var(--ts-fs-teal); }
+.ts-fs-tick { flex: none; }
+
+.ts-fs-map__count { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: 14px; line-height: 1.2; color: var(--ts-fs-ink-muted); white-space: nowrap; }
+.ts-fs-map__figure { font-size: clamp(26px, 2.4vw, 34px); line-height: 1; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ts-hero-violet-4); }
+
+.ts-fs-map__grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px clamp(10px, 1.2vw, 16px);
+  margin-top: clamp(18px, 1.8vw, 24px); padding-top: clamp(16px, 1.6vw, 22px); border-top: 1px solid var(--ts-fs-rule);
+}
+.ts-fs-family__name { margin: 0 0 10px; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ts-fs-ink-soft); }
+.ts-fs-family__tools { display: flex; flex-direction: column; gap: clamp(6px, 0.6vw, 8px); margin: 0; padding: 0; list-style: none; }
+.ts-fs-tool {
+  box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  height: clamp(36px, 0.5vw + 32px, 38px); padding: 0 10px;
+  border: 1px solid var(--ts-fs-chip-line); border-radius: 10px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-ink-muted);
+  font-size: 13px; line-height: 1.2; font-weight: 500; white-space: nowrap;
+  transition: background-color 0.16s, border-color 0.16s, color 0.16s;
+}
+.ts-fs-tool[data-lit="true"][data-module="personal"] { border-color: var(--ts-hero-violet-2); background-color: var(--ts-hero-violet-2); color: rgb(var(--ts-fs-white)); }
+.ts-fs-tool[data-lit="true"][data-module="business"] { border-color: var(--ts-hero-gold); background-color: var(--ts-hero-gold); color: var(--ts-hero-on-gold); }
+.ts-fs-tool[data-lit="true"][data-module="trading"] { border-color: var(--ts-fs-teal); background-color: var(--ts-fs-teal); color: rgb(var(--ts-fs-white)); }
+
+/* ── 4 · the plans: three cards, then the all-three band ─────────────────────────────────────── */
+.ts-fs-plans { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; margin-top: 20px; }
+.ts-fs-plan {
+  box-sizing: border-box; display: flex; flex-direction: column; padding: 28px;
+  border: 1px solid var(--ts-fs-line); border-radius: 20px; background-color: rgb(var(--ts-fs-white));
+  box-shadow: 0 1px 2px rgb(var(--ts-fs-shadow) / 0.04), 0 12px 32px rgb(var(--ts-fs-shadow) / 0.07);
+  transition: border-color 0.16s, box-shadow 0.16s;
+}
+/* the plan the switches pick: a 2px ring (the border and 1px more), the tag, and the gold button */
+.ts-fs-plan[data-picked="true"] { border-color: var(--ts-hero-violet-2); box-shadow: 0 0 0 1px var(--ts-hero-violet-2), 0 1px 2px rgb(var(--ts-fs-shadow) / 0.04), 0 12px 32px rgb(var(--ts-fs-shadow) / 0.07); }
+.ts-fs-plan__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 24px; }
+.ts-fs-plan__role { margin: 0; font-family: var(--font-mono); font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ts-fs-ink-muted); }
+.ts-fs-plan__tag { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background-color: var(--ts-hero-violet-2); color: rgb(var(--ts-fs-white)); font-size: 12px; line-height: 1.2; font-weight: 600; white-space: nowrap; }
+.ts-fs-plan__name { margin: 10px 0 0; font-size: 26px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--ts-hero-violet-4); }
+.ts-fs-plan__name [data-module] { white-space: nowrap; }
+.ts-fs-plan__name [data-module="business"] { color: var(--ts-fs-gold-text); }
+.ts-fs-plan__name [data-module="trading"] { color: var(--ts-fs-teal); }
+.ts-fs-plan__audience { margin: 6px 0 0; font-size: 15px; line-height: 1.4; font-weight: 500; }
+.ts-fs-plan__explainer { margin: 14px 0 0; font-size: 15px; line-height: 1.55; color: var(--ts-fs-ink-soft); text-wrap: pretty; }
+.ts-fs-plan__points { display: flex; flex-direction: column; gap: 12px; margin: 20px 0 24px; padding: 18px 0 0; border-top: 1px solid var(--ts-fs-rule); list-style: none; font-size: 15px; line-height: 1.45; color: var(--ts-fs-ink); }
+.ts-fs-plan__point { display: flex; gap: 10px; }
+.ts-fs-check { flex: none; margin-top: 2px; }
+/* each card's line and ticks wear the colour of what it adds */
+.ts-fs-plan[data-plan="personal"] .ts-fs-plan__audience, .ts-fs-plan[data-plan="personal"] .ts-fs-check { color: var(--ts-hero-violet-2); }
+.ts-fs-plan[data-plan="business"] .ts-fs-plan__audience, .ts-fs-plan[data-plan="business"] .ts-fs-check { color: var(--ts-fs-gold-text); }
+.ts-fs-plan[data-plan="trading"] .ts-fs-plan__audience, .ts-fs-plan[data-plan="trading"] .ts-fs-check { color: var(--ts-fs-teal); }
+.ts-fs-plan__foot { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
+.ts-fs-plan__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin: 0; font-size: 13px; line-height: 1.4; color: var(--ts-fs-ink-muted); }
+.ts-fs-plan__price { font-family: var(--font-mono); font-weight: 500; color: var(--ts-fs-ink-soft); }
+.ts-fs-plan__cta {
+  box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 100%; height: 48px; margin: 0; padding: 0 20px;
+  border: 1.5px solid var(--ts-fs-button-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-3);
+  font-family: inherit; font-size: 15px; line-height: 1.2; font-weight: 600; cursor: pointer;
+  transition: border-color 0.16s, filter 0.16s;
+}
+.ts-fs-plan[data-picked="true"] .ts-fs-plan__cta {
+  border: 0; background-image: linear-gradient(135deg, rgb(var(--ts-hero-gold-1)) 0%, rgb(var(--ts-hero-gold-2)) 52%, rgb(var(--ts-hero-gold-3)) 100%);
+  box-shadow: inset 0 1px 0 rgb(var(--ts-fs-white) / 0.75), 0 8px 20px rgb(var(--ts-fs-shadow) / 0.16); color: var(--ts-hero-on-gold);
+}
+
+/* the all-three band: the same parts as a card, laid in a row on the hero's violet */
+.ts-fs-plan--all {
+  flex-direction: row; flex-wrap: wrap; align-items: center; gap: 24px 40px; margin-top: 20px; border: 0;
+  background-color: var(--ts-hero-violet-3);
+  background-image:
+    repeating-radial-gradient(circle at 50% 320%, rgb(var(--ts-fs-band-ring) / 0) 0px, rgb(var(--ts-fs-band-ring) / 0) 13px, rgb(var(--ts-fs-band-ring) / 0.08) 13px, rgb(var(--ts-fs-band-ring) / 0.08) 14px),
+    linear-gradient(120deg, var(--ts-hero-violet-3) 0%, var(--ts-hero-violet-2) 58%, var(--ts-hero-violet-1) 100%);
+  box-shadow: 0 16px 40px rgb(var(--ts-fs-shadow) / 0.22); color: var(--ts-hero-ink);
+}
+.ts-fs-plan--all[data-picked="true"] { box-shadow: inset 0 0 0 2px var(--ts-hero-gold), 0 16px 40px rgb(var(--ts-fs-shadow) / 0.22); }
+.ts-fs-plan--all :focus-visible { outline-color: var(--ts-hero-gold); }
+.ts-fs-plan--all .ts-fs-plan__lead { flex: 5 1 300px; min-width: 0; }
+.ts-fs-plan--all .ts-fs-plan__top { justify-content: flex-start; }
+.ts-fs-plan--all .ts-fs-plan__role { color: var(--ts-fs-band-muted); }
+.ts-fs-plan--all .ts-fs-plan__tag { background-color: var(--ts-hero-gold); color: var(--ts-hero-on-gold); }
+.ts-fs-plan--all .ts-fs-plan__name { color: rgb(var(--ts-fs-white)); }
+.ts-fs-plan--all .ts-fs-plan__name [data-module="business"] { color: var(--ts-hero-gold); }
+.ts-fs-plan--all .ts-fs-plan__name [data-module="trading"] { color: var(--ts-fs-teal-light); }
+.ts-fs-plan--all .ts-fs-plan__audience { color: var(--ts-hero-gold); }
+.ts-fs-plan--all .ts-fs-plan__explainer { max-width: 420px; color: var(--ts-hero-ink-soft); }
+.ts-fs-plan--all .ts-fs-plan__points { flex: 5 1 300px; min-width: 0; margin: 0; padding: 0; border-top: 0; color: var(--ts-hero-ink); }
+.ts-fs-plan--all .ts-fs-check { color: var(--ts-hero-gold); }
+.ts-fs-plan--all .ts-fs-plan__foot { flex: 3 1 220px; min-width: 0; margin-top: 0; }
+.ts-fs-plan--all .ts-fs-plan__meta { color: var(--ts-fs-band-muted); }
+.ts-fs-plan--all .ts-fs-plan__price { color: var(--ts-hero-ink-soft); }
+.ts-fs-plan--all .ts-fs-plan__cta { border-color: rgb(var(--ts-fs-white) / 0.5); background-color: rgb(var(--ts-fs-white) / 0.08); color: rgb(var(--ts-fs-white)); }
+.ts-fs-plan--all[data-picked="true"] .ts-fs-plan__cta { box-shadow: inset 0 1px 0 rgb(var(--ts-fs-white) / 0.75), 0 8px 20px rgb(var(--ts-fs-band-shadow) / 0.28); }
+
+.ts-fs__compare { display: inline-flex; align-items: center; min-height: 44px; margin-top: 16px; font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 500; letter-spacing: 0.04em; color: var(--ts-hero-violet-3); text-decoration: none; }
+
+/* ── 5 · wider windows ───────────────────────────────────────────────────────────────────────── */
+@media (min-width: 360px) {
+  .ts-fs-tool { padding: 0 12px; font-size: 14px; }
+}
+@media (min-width: 640px) {
+  .ts-fs-map__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 768px) {
+  .ts-fs-switch--always { flex-basis: 150px; }
+}
+@media (min-width: 1024px) {
+  .ts-fs-heading, .ts-fs__inner { padding-inline: 32px; }
+  .ts-fs-map__grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  /* three across. Each card's five parts (role, name, who it is for and what it is, the list, the foot) sit on the
+     row's own five lines, so the rules and the buttons line up whatever the words do. */
+  .ts-fs-plans { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(5, auto); gap: 0 20px; }
+  .ts-fs-plans .ts-fs-plan { display: grid; grid-template-rows: subgrid; grid-row: span 5; row-gap: 0; padding: clamp(24px, 2vw, 28px); }
+  .ts-fs-plans .ts-fs-plan__name { font-size: clamp(22px, 2vw, 26px); }
+  .ts-fs-plans .ts-fs-plan__foot { align-self: end; margin-top: 0; }
+}
+
+/* ── 6 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+@media (hover: hover) {
+  .ts-fs-switch[data-module="business"][aria-pressed="false"]:hover { box-shadow: inset 0 0 0 1px rgb(var(--ts-gold)); }
+  .ts-fs-switch[data-module="trading"][aria-pressed="false"]:hover { box-shadow: inset 0 0 0 1px var(--ts-fs-teal); }
+  .ts-fs-switch[aria-pressed="true"]:hover { filter: brightness(1.04); }
+  .ts-fs-plan__cta:hover { border-color: var(--ts-hero-violet-2); }
+  .ts-fs-plan[data-picked="true"] .ts-fs-plan__cta:hover { filter: brightness(1.04); }
+  .ts-fs-plan--all .ts-fs-plan__cta:hover { border-color: rgb(var(--ts-fs-white)); }
+  .ts-fs__compare:hover { color: var(--ts-hero-violet-2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-fs-switch, .ts-fs-tool, .ts-fs-plan, .ts-fs-plan__cta { transition: none; }
 }
 
 /* ── HERO-CREST-01 (Alex, design canvas, 2026-11-11): THE GUEST HERO AND THE TOP BAR ──────────────────────────────
