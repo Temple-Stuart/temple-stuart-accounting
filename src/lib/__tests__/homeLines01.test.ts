@@ -105,10 +105,13 @@ test('T3 (HOME-FINISH-02, 2026-11-10) the travel section opens at the pillar\'s 
   const landing = code(LANDING);
   assert.match(landing, /^import \{ EXPLORE_PILLAR \} from '@\/lib\/homeActWords';\s*$/m, 'the pillar\'s words, imported on a line of its own');
   for (const gone of ['EXPERIENCE_LINE', 'PROMISE', 'SAVE_TRIPS_LINE']) assert.ok(!landing.includes(gone), `Landing.tsx no longer reads ${gone}`);
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): the heading and its line wear the reference's .ts-tm__title and .ts-tm__lede, the pillars' size — until then
+  // 'text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple' and 'mt-3 max-w-3xl text-base text-text-secondary'; and the booking mount is
+  // handed the server's day, for the trip card under the box — '<LandingBookingSection onRequireAuth={onRequireAuth} events={…} />' until then.
   const steps = [
-    '<h2 id={DEMO_ANCHOR} className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{EXPLORE_PILLAR.heading}</h2>',
-    '{EXPLORE_PILLAR.paragraphs.map((words) => <p key={words} className="mt-3 max-w-3xl text-base text-text-secondary">{words}</p>)}',
-    '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />', // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking box carries the catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then
+    '<h2 id={DEMO_ANCHOR} className="ts-tm__title">{EXPLORE_PILLAR.heading}</h2>',
+    '{EXPLORE_PILLAR.paragraphs.map((words) => <p key={words} className="ts-tm__lede">{words}</p>)}',
+    '<LandingBookingSection onRequireAuth={onRequireAuth} today={today} events={<ExperiencesSection today={today} />} />', // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking box carries the catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then
   ];
   for (const step of steps) assert.equal(landing.split(step).length - 1, 1, `${step} — once`);
   const at = steps.map((step) => landing.indexOf(step));
@@ -123,7 +126,9 @@ test('T3 (HOME-FINISH-02, 2026-11-10) the travel section opens at the pillar\'s 
   const html = renderToStaticMarkup(React.createElement(ExperiencesView, { rows: EXPERIENCES, today: '2026-11-08', choice: { category: EXPERIENCE_CATEGORIES[0].id }, onPick: () => {} })); // EVENTS-05 (2026-11-11): the leaf's first category, named here — DEFAULT_INTO until then
   assert.equal((html.match(/<h2/g) ?? []).length, 0, 'the panel renders no h2');
   assert.ok(!html.includes('Book the experience, not just the destination.') && EXPERIENCE_LINE.every((line) => !html.includes(line)), 'neither the promise nor the experience line');
-  assert.match(html, new RegExp(`^<section id="events" aria-label="Book the experience"[^>]*><p class="font-mono text-xs lg:text-\\[10px\\] font-semibold uppercase tracking-wider text-text-faint">${esc(asHtml(INTO_LABEL))}</p>`), 'the panel opens at the chips\' label; the id and the aria-label unchanged');
+  // HOME-TRAVEL-01 (2026-11-12): the label in the reference's .ts-tm-label — until then 'font-mono text-xs lg:text-[10px] font-semibold uppercase
+  // tracking-wider text-text-faint'.
+  assert.match(html, new RegExp(`^<section id="events" aria-label="Book the experience"[^>]*><p class="ts-tm-label">${esc(asHtml(INTO_LABEL))}</p>`), 'the panel opens at the chips\' label; the id and the aria-label unchanged');
   for (const gone of ['THE BEST EXPERIENCES ON EARTH', 'Pick what you']) assert.ok(!html.includes(gone), `the panel no longer draws "${gone}…"`);
   const panel = code(EVENTS_PANEL);
   for (const gone of ['EYEBROW', 'SUBHEAD', 'PROMISE', 'EXP.eyebrow', 'EXP.sub', 'THE BEST EXPERIENCES ON EARTH', 'Book the experience, not just the destination.']) assert.ok(!panel.includes(gone), `${gone} left the panel's code with its last reader`);

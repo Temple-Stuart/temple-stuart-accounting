@@ -372,6 +372,214 @@ body {
   }
 }
 
+/* ── HOME-TRAVEL-01 (Alex's brief, 2026-11-12 16:08 Manila; the board approved on the design canvas at 20:26: "ok I approve the
+   travel market place"): THE TRAVEL MARKETPLACE SECTION — the pillar's name and line, the box (eight tabs as tiles, one rule, the
+   open tab's panel), the Events rows with Add to trip, the guest's trip under the box, the booking lookup ──────────────────────
+   THE SPEC IS design-refs/home-travel-01/Section-Reference.html: "Every value in its stylesheet is the design". What follows is
+   that stylesheet, rule for rule and value for value, in its own order and with its own section notes:
+     · every class is the reference's with the house prefix: .tm → .ts-tm, .tm-box → .ts-tm-box, .tm-trip__when → .ts-tm-trip__when, …;
+     · every custom property it reads likewise: var(--fs-ink) → var(--ts-fs-ink), var(--hero-violet-2) → var(--ts-hero-violet-2),
+       rgb(var(--bg)) → rgb(var(--ts-bg)), rgb(var(--red)) → rgb(var(--ts-red)).
+   src/lib/__tests__/homeTravel01.test.ts reads both files and holds them equal, declaration by declaration, but for the THREE
+   DIFFERENCES named here — each one where the reference is a page of its own and this is the app:
+     1. THE COLOURS are tokens: the reference's :root is :root above. This section adds NO token — every colour it reads is the
+        house's (--ts-bg, --ts-border, --ts-red, --ts-hero-*) or HOME-PLANS-04's (--ts-fs-*), each the reference's value behind
+        the house prefix (README, "Tokens": "Add none").
+     2. THE FONTS are the site's: src/app/layout.tsx loads Inter and IBM Plex Mono as --font-sans and --font-mono, and these
+        rules read the two variables where the reference names the families ("the site already loads both faces").
+     3. NOT PORTED: "THIS PAGE'S OWN" — the reference page's ground (body), its state bar (.ref-bar) and the dashed frames that
+        stand where each tab's search sits (.ref-stand): "not part of the design, not ported".
+   It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value outside
+   :root").
+   ONE GRADIENT, the gold button (.ts-tm-cta, Search flights →): the hero's three golds at 135deg, stops 0 / 52 / 100%, as
+   HOME-PLANS-04's is, with --ts-hero-gold-2 under it "so the button's default face never tints its edges". REPAINT-5's ban on
+   gradients, above, is the ruling this design comes after, as the hero's and HOME-PLANS-04's did.
+   Used by src/components/landing/Landing.tsx (the section, its heading, its line and the lookup's seat),
+   src/components/landing/TravelBox.tsx (the box: the tabs and the panels), src/components/landing/LandingBookingSection.tsx (the
+   stay line and the disclosure), src/components/landing/ExperiencesSection.tsx (the Events panel),
+   src/components/landing/GuestTripStrip.tsx (the trip) and src/components/guest/GuestBookingLookup.tsx (the lookup — on the home
+   page and on /booking/manage, which draws it outside the section: .ts-tm-lookup__form carries its own focus ring and hiding rule).
+   It stands here, under the chip strip's rules and above HOME-SERVICES-01's block — and so above HOME-PLANS-04's and the hero's:
+   each of those ports runs from its own first rule to the next block's, and nothing may follow the hero's. (The brief, written
+   while HOME-SERVICES-01 was in flight, put this block directly above HOME-PLANS-04's; HOME-SERVICES-01 landed first, in that
+   very seat.) It names none of their classes, and nothing outside it names one of its own. ─────────────────────────────────── */
+/* ── 1 · the section: the pillar's name and its line ─────────────────────────────────────────── */
+.ts-tm { border-bottom: 1px solid rgb(var(--ts-border)); background-color: rgb(var(--ts-bg)); color: var(--ts-fs-ink); font-family: var(--font-sans); line-height: 1.5; }
+.ts-tm__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(44px, 5.6vw, 80px) 16px clamp(52px, 6.2vw, 88px); }
+.ts-tm__title { margin: 0; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; font-weight: 500; letter-spacing: -0.03em; color: var(--ts-hero-violet-4); }
+.ts-tm__lede { margin: 16px 0 0; max-width: 640px; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--ts-fs-ink-soft); text-wrap: pretty; }
+.ts-tm :focus-visible { outline: 2px solid var(--ts-hero-violet-2); outline-offset: 3px; }
+.ts-tm [hidden] { display: none; }               /* the one rule for everything the section hides; it outranks each block's own display */
+
+/* ── 2 · the box: eight tabs, one rule, the open tab's panel ─────────────────────────────────── */
+.ts-tm-box {
+  box-sizing: border-box; margin-top: clamp(24px, 2.8vw, 40px); padding: clamp(18px, 2.3vw, 32px); scroll-margin-top: 24px;
+  border: 1px solid var(--ts-fs-line); border-radius: 24px; background-color: rgb(var(--ts-fs-white));
+  box-shadow: 0 1px 2px rgb(var(--ts-fs-shadow) / 0.05), 0 20px 48px rgb(var(--ts-fs-shadow) / 0.08);
+}
+.ts-tm-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: clamp(5px, 0.8vw, 10px); }
+.ts-tm-tab {
+  box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-width: 0; min-height: clamp(76px, 6vw, 86px); margin: 0; padding: 10px 3px; border: 1px solid var(--ts-fs-chip-line); border-radius: 14px;
+  background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-2); font-family: inherit; text-align: center; cursor: pointer;
+  transition: background-color 0.16s, border-color 0.16s, color 0.16s, box-shadow 0.16s;
+}
+.ts-tm-tab__icon { flex: none; }
+.ts-tm-tab__label { font-size: clamp(11.5px, 0.3vw + 10.5px, 13px); line-height: 1.25; font-weight: 600; }
+.ts-tm-tab__soon { font-family: var(--font-mono); font-size: 10px; line-height: 1.2; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ts-fs-ink-muted); }
+/* a tab that is coming soon: grey until it is open */
+.ts-tm-tab[data-soon] { color: var(--ts-fs-ink-muted); }
+/* the open tab: filled violet */
+.ts-tm-tab[aria-pressed="true"] { border-color: var(--ts-hero-violet-2); background-color: var(--ts-hero-violet-2); color: rgb(var(--ts-fs-white)); box-shadow: 0 8px 20px rgb(var(--ts-fs-shadow) / 0.18); }
+.ts-tm-tab[aria-pressed="true"] .ts-tm-tab__soon { color: var(--ts-fs-band-muted); }
+
+.ts-tm-panels { margin-top: clamp(18px, 1.8vw, 24px); padding-top: clamp(18px, 1.8vw, 24px); border-top: 1px solid var(--ts-fs-rule); }
+/* every tab but Events: its headline, then (Hotels) the stay line, the panel as it is, then (the four that pay) the disclosure */
+.ts-tm-panel__headline { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 600; color: var(--ts-hero-violet-4); }
+.ts-tm-stay { margin: 14px 0 0; padding-left: 12px; border-left: 2px solid var(--ts-hero-violet-2); font-size: 14px; line-height: 1.5; color: var(--ts-fs-ink); }
+.ts-tm-disclosure { margin: 14px 0 0; font-size: 13px; line-height: 1.5; color: var(--ts-fs-ink-soft); }
+
+/* ── 3 · the Events panel: the category, its rows, Add to trip ───────────────────────────────── */
+.ts-tm-label { margin: 0; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ts-fs-ink-soft); }
+.ts-tm-label--list { margin-top: 28px; }
+.ts-tm-select { position: relative; max-width: 340px; margin-top: 10px; }
+.ts-tm-select__field {
+  box-sizing: border-box; display: block; width: 100%; height: 46px; margin: 0; padding: 0 42px 0 14px;
+  border: 1px solid rgb(var(--ts-border)); border-radius: 12px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-ink);
+  font-family: inherit; font-size: 15px; line-height: 1.2; appearance: none; -webkit-appearance: none; cursor: pointer;
+}
+.ts-tm-select__chevron { position: absolute; top: 15px; right: 14px; color: var(--ts-hero-violet-2); pointer-events: none; }
+.ts-tm-refused { margin: 12px 0 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; color: var(--ts-fs-ink); }
+.ts-tm-nothing { margin: 10px 0 0; font-size: 14px; line-height: 1.5; color: var(--ts-fs-ink-soft); }
+.ts-tm-closing { margin: 22px 0 0; font-size: 13px; line-height: 1.5; color: var(--ts-fs-ink-muted); }
+
+.ts-tm-rows { margin-top: 12px; border-top: 1px solid var(--ts-fs-rule); }
+.ts-tm-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px clamp(16px, 2vw, 28px); padding: 18px 0; border-bottom: 1px solid var(--ts-fs-rule); }
+.ts-tm-row__when { flex: 0 0 100%; margin: 0; padding-top: 2px; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; font-weight: 500; color: var(--ts-hero-violet-3); }
+.ts-tm-row__body { flex: 1 1 320px; min-width: 0; }
+.ts-tm-row__series { margin: 0 0 2px; font-family: var(--font-mono); font-size: 11px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ts-fs-ink-muted); }
+.ts-tm-row__name { margin: 0; font-size: 16px; line-height: 1.35; font-weight: 600; color: var(--ts-hero-violet-4); }
+.ts-tm-row__place { margin: 2px 0 0; font-size: 14px; line-height: 1.5; color: var(--ts-fs-ink-soft); }
+.ts-tm-row__notes { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--ts-fs-ink-muted); }
+.ts-tm-row__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 8px; }
+.ts-tm-row__foot { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 0 14px; margin-left: auto; }
+.ts-tm-checked { font-family: var(--font-mono); font-size: 12px; line-height: 1.4; color: var(--ts-fs-ink-muted); white-space: nowrap; }
+
+/* the row's two links (Stay near it →, Source ↗), and Stay near it → in the trip: words only, 44px tall */
+.ts-tm-link {
+  display: inline-flex; align-items: center; min-height: 44px; margin: 0; padding: 0; border: 0; background: none;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 500; color: var(--ts-hero-violet-3);
+  text-decoration: none; text-underline-offset: 4px; white-space: nowrap; cursor: pointer;
+}
+/* Add to trip, and once pressed, In your trip: an outlined pill that fills */
+.ts-tm-add {
+  box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 44px; margin: 0; padding: 0 14px;
+  border: 1.5px solid var(--ts-fs-button-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-3);
+  font-family: inherit; font-size: 13px; line-height: 1.2; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: background-color 0.16s, border-color 0.16s, color 0.16s;
+}
+.ts-tm-add[data-in-trip="true"] { border-color: var(--ts-hero-violet-2); background-color: var(--ts-hero-violet-2); color: rgb(var(--ts-fs-white)); }
+
+/* ── 4 · the trip: under the box, on every tab ───────────────────────────────────────────────── */
+.ts-tm-trip {
+  box-sizing: border-box; margin-top: 20px; padding: clamp(18px, 2.2vw, 28px);
+  border: 1px solid var(--ts-fs-line); border-radius: 20px; background-color: rgb(var(--ts-fs-white));
+  box-shadow: 0 1px 2px rgb(var(--ts-fs-shadow) / 0.04), 0 12px 32px rgb(var(--ts-fs-shadow) / 0.07);
+}
+.ts-tm-trip__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; }
+.ts-tm-trip__heading { min-width: 0; }
+.ts-tm-trip__eyebrow { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ts-fs-gold-text); }
+.ts-tm-trip__summary { margin: 8px 0 0; font-size: clamp(19px, 1.7vw, 24px); line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--ts-hero-violet-4); }
+.ts-tm-cta {
+  box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 100%; height: 48px; margin: 0; padding: 0 26px;
+  border: 0; border-radius: 999px; background-color: rgb(var(--ts-hero-gold-2)); background-image: linear-gradient(135deg, rgb(var(--ts-hero-gold-1)) 0%, rgb(var(--ts-hero-gold-2)) 52%, rgb(var(--ts-hero-gold-3)) 100%);
+  box-shadow: inset 0 1px 0 rgb(var(--ts-fs-white) / 0.75), 0 8px 20px rgb(var(--ts-fs-shadow) / 0.16); color: var(--ts-hero-on-gold);
+  font-family: inherit; font-size: 15px; line-height: 1.2; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: filter 0.16s;
+}
+.ts-tm-trip__list { margin: 18px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--ts-fs-rule); }
+.ts-tm-trip__row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px clamp(16px, 2vw, 28px); padding: 14px 0; border-bottom: 1px solid var(--ts-fs-rule); }
+.ts-tm-trip__when { flex: 0 0 100%; margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; font-weight: 600; color: var(--ts-hero-violet-3); }
+.ts-tm-trip__event { flex: 1 1 260px; min-width: 0; }
+.ts-tm-trip__name { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--ts-hero-violet-4); }
+.ts-tm-trip__place { margin: 2px 0 0; font-size: 13px; line-height: 1.5; color: var(--ts-fs-ink-soft); }
+.ts-tm-trip__actions { display: flex; align-items: center; gap: 4px 14px; margin-left: auto; }
+.ts-tm-remove {
+  box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: 0; padding: 0;
+  border: 1px solid var(--ts-fs-chip-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-ink-muted); cursor: pointer;
+  transition: border-color 0.16s, color 0.16s;
+}
+/* between two dated events: the days between them, or that they overlap */
+.ts-tm-gap { display: flex; align-items: center; gap: 10px; padding: 6px 0 6px 2px; border-bottom: 1px solid var(--ts-fs-rule); font-family: var(--font-mono); font-size: 12px; line-height: 1.4; color: var(--ts-fs-ink-muted); }
+.ts-tm-gap svg { flex: none; }
+.ts-tm-gap[data-overlap="true"] { color: var(--ts-fs-gold-text); }
+/* a booking made as a guest (the BOOK-3 records): its kind, its name and code, its amount; then the total */
+.ts-tm-trip__kind { flex: 0 0 100%; margin: 0; font-family: var(--font-mono); font-size: 11px; line-height: 1.5; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ts-fs-ink-muted); }
+.ts-tm-trip__code { margin: 2px 0 0; font-family: var(--font-mono); font-size: 12px; line-height: 1.5; color: var(--ts-fs-ink-muted); }
+.ts-tm-trip__amount { margin: 0 0 0 auto; font-family: var(--font-mono); font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--ts-fs-gold-text); white-space: nowrap; }
+.ts-tm-trip__row--booked .ts-tm-trip__event { flex-basis: 120px; }   /* so the amount stays beside the name on a phone */
+.ts-tm-trip__total { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--ts-fs-rule); }
+.ts-tm-trip__total-label { font-family: var(--font-mono); font-size: 12px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ts-fs-ink-soft); }
+.ts-tm-trip__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin-top: 16px; }
+.ts-tm-trip__pitch { flex: 1 1 340px; margin: 0; font-size: 14px; line-height: 1.5; color: var(--ts-fs-ink-soft); }
+/* the quiet button: Create free account, Look up */
+.ts-tm-quiet {
+  box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; height: 44px; margin: 0; padding: 0 20px;
+  border: 1.5px solid var(--ts-fs-button-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-3);
+  font-family: inherit; font-size: 14px; line-height: 1.2; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: border-color 0.16s;
+}
+.ts-tm-quiet:disabled { cursor: not-allowed; opacity: 0.6; }
+
+/* ── 5 · the booking lookup, under the trip (and on /booking/manage, the same look) ──────────── */
+.ts-tm-lookup { margin-top: clamp(28px, 3vw, 40px); padding-top: clamp(22px, 2.4vw, 28px); border-top: 1px solid var(--ts-fs-line); }
+/* /booking/manage draws the lookup outside the section, so its form carries its own focus ring and its own hiding rule */
+.ts-tm-lookup__form :focus-visible { outline: 2px solid var(--ts-hero-violet-2); outline-offset: 3px; }
+.ts-tm-lookup__form [hidden] { display: none; }
+.ts-tm-lookup__set { min-width: 0; margin: 0; padding: 0; border: 0; }
+.ts-tm-lookup__legend { padding: 0; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--ts-hero-violet-4); }
+.ts-tm-lookup__fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; max-width: 760px; margin-top: 14px; }
+.ts-tm-field { flex: 1 1 220px; min-width: 0; }
+.ts-tm-field__label { display: block; margin: 0 0 7px; font-size: 13px; line-height: 1.4; font-weight: 600; color: var(--ts-fs-ink); }
+.ts-tm-input {
+  box-sizing: border-box; display: block; width: 100%; height: 46px; margin: 0; padding: 0 14px;
+  border: 1px solid rgb(var(--ts-border)); border-radius: 12px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-ink);
+  font-family: inherit; font-size: 15px; line-height: 1.2;
+}
+.ts-tm-input:disabled { cursor: not-allowed; opacity: 0.6; }
+.ts-tm-input:focus-visible, .ts-tm-select__field:focus-visible { outline-offset: 1px; border-color: var(--ts-hero-violet-2); }
+.ts-tm-lookup__button { flex: 0 0 100%; height: 46px; padding: 0 24px; }
+.ts-tm-lookup__hint { margin: 10px 0 0; font-size: 13px; line-height: 1.45; color: var(--ts-fs-ink-muted); }
+.ts-tm-lookup__failure { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: rgb(var(--ts-red)); }
+
+/* ── 6 · wider windows ───────────────────────────────────────────────────────────────────────── */
+@media (min-width: 480px) {
+  .ts-tm-cta, .ts-tm-lookup__button { flex-basis: auto; }
+}
+@media (min-width: 768px) {
+  .ts-tm-tabs { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  /* a row's dates stand beside it */
+  .ts-tm-row__when { flex-basis: 250px; }
+  .ts-tm-trip__when, .ts-tm-trip__kind { flex-basis: 200px; }
+}
+@media (min-width: 1024px) {
+  .ts-tm__inner { padding-inline: 32px; }
+  /* where a pointer is the likelier hand, the pill and the round button stand at 36px; below, the house's 44px touch height */
+  .ts-tm-add { height: 36px; }
+  .ts-tm-remove { width: 36px; height: 36px; }
+}
+
+/* ── 7 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+@media (hover: hover) {
+  .ts-tm-tab[aria-pressed="false"]:hover, .ts-tm-add[data-in-trip="false"]:hover, .ts-tm-quiet:not(:disabled):hover, .ts-tm-select__field:hover { border-color: var(--ts-hero-violet-2); }
+  .ts-tm-link:hover { color: var(--ts-hero-violet-2); text-decoration: underline; }
+  .ts-tm-remove:hover { border-color: var(--ts-hero-violet-2); color: var(--ts-hero-violet-2); }
+  .ts-tm-cta:hover { filter: brightness(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-tm-tab, .ts-tm-add, .ts-tm-remove, .ts-tm-quiet, .ts-tm-cta { transition: none; }
+}
+
 /* ── HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila; the board approved on the design canvas at 15:41): THE
    PROFESSIONAL SERVICES SECTION — the heading and its line, the six service tiles, the picked service's picture and
    words, how a proposal goes, the gold button ─────────────────────────────────────────────────────────────────────────

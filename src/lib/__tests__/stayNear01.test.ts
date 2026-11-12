@@ -21,6 +21,9 @@
  *      role="status", the place is the row's; the same row pressed again is a new place; no 'hotels' mode is a throw;
  *   T7 the freeze — travelStripModes.tsx, PublicHotelSearch.tsx and PublicFlightSearch.tsx still hash to their pins, and
  *      the new files call nothing but what the picker called before.
+ * HOME-TRAVEL-01 (Alex's brief, 2026-11-12; the board approved at 20:26): the row's actions stand in one block under its note (Add to trip, then
+ * Stay near it →), every class is the reference's (src/app/globals.css), and the box is the landing's own view of the same modes (TravelBox.tsx) —
+ * T2 and T6 are re-pointed, each with a dated note. What a press does is unchanged.
  * Source is read through code() and comments() only (the reader law). No clock, no network, no new test tooling: pure
  * functions, static renders, and a component called inside a host's render where a hook needs one.
  */
@@ -48,8 +51,12 @@ const STRIP_MODES = 'src/components/trips/travelStripModes.tsx';
 const HOTEL_FORM = 'src/components/trips/PublicHotelSearch.tsx';
 const FLIGHT_FORM = 'src/components/trips/PublicFlightSearch.tsx';
 const TODAY = '2026-10-30';
-/** The Source link's classes — the action wears them (ExperiencesSection.tsx EXP.source). */
-const SOURCE_LOOK = 'inline-flex min-h-[44px] items-center font-mono text-xs text-brand-purple underline-offset-4 hover:text-brand-purple-hover hover:underline';
+/** The Source link's classes — the action wears them (ExperiencesSection.tsx EXP.source). HOME-TRAVEL-01 (2026-11-12): the reference's link,
+ *  .ts-tm-link — until then 'inline-flex min-h-[44px] items-center font-mono text-xs text-brand-purple underline-offset-4 hover:text-brand-purple-hover
+ *  hover:underline'. */
+const SOURCE_LOOK = 'ts-tm-link';
+/** HOME-TRAVEL-01 (2026-11-12): the block that holds a row's actions, under its note. */
+const ACTIONS_OPEN = '<div class="ts-tm-row__actions">';
 /**
  * The picker's static render on main 4564346, before a starting place existed — captured from that file and held here
  * whole: with no starting place the picker must draw exactly this.
@@ -127,19 +134,22 @@ test('T2 the row: no handler, no action; with one, every row with a fixed city c
     const card = cardOf(golf, r.id);
     const button = `<button type="button" class="${SOURCE_LOOK}" data-stay-near="${r.id}">${asHtml(STAY_NEAR_WORDS)}</button>`;
     assert.equal(count(card, button), 1, `${r.id}: the action — a button, in the Source link's classes`);
-    // in the row's body, last, under the note when the row has one and under the place when it has none
+    // in the row's body, last, under the note when the row has one and under the place when it has none — HOME-TRAVEL-01 (2026-11-12): in the actions
+    // block (with no trip read, it holds this one action); `${before}${button}</div><div class="` until then
     const before = r.notes === null ? `${asHtml(`${r.venue} · ${r.city}, ${r.country}`)}</p>` : `${asHtml(r.notes)}</p>`;
-    assert.ok(card.includes(`${before}${button}</div><div class="`), `${r.id}: the body's last child, right under its ${r.notes === null ? 'place' : 'note'}, and the foot follows`);
-    // the foot is still the row's last child, unchanged: the checked words if any, then the Source link
-    assert.match(card, new RegExp(`<div class="[^"]*">(?:<span class="font-mono text-xs text-text-faint" data-checked="${r.id}">[^<]*</span>)?<a href="[^"]+" rel="noopener" target="_blank" class="${esc(SOURCE_LOOK)}" data-source="${r.id}">${SOURCE_LINK}</a></div>$`), `${r.id}: the foot ends the row`);
+    assert.ok(card.includes(`${before}${ACTIONS_OPEN}${button}</div></div><div class="`), `${r.id}: the body's last child, right under its ${r.notes === null ? 'place' : 'note'}, and the foot follows`);
+    // the foot is still the row's last child, unchanged: the checked words if any, then the Source link (HOME-TRAVEL-01: the checked words in
+    // .ts-tm-checked — 'font-mono text-xs text-text-faint' until then)
+    assert.match(card, new RegExp(`<div class="[^"]*">(?:<span class="ts-tm-checked" data-checked="${r.id}">[^<]*</span>)?<a href="[^"]+" rel="noopener" target="_blank" class="${esc(SOURCE_LOOK)}" data-source="${r.id}">${SOURCE_LINK}</a></div>$`), `${r.id}: the foot ends the row`);
     assert.ok(!/aria-pressed/.test(card), `${r.id}: nothing pressed on a row`);
   }
   // EVENTS-05 (2026-11-11): re-pointed — until then "the chips stay the only pressed things: twenty-six, with or without a handler" (/aria-pressed="(true|false)"/ × 26,
   // twice). The chips are one dropdown now: nothing in the panel is pressed, and the one list — "Select a category" and the twenty-six — is drawn either way.
   assert.ok(!/aria-pressed/.test(golf) && (golf.match(/<option value="[^"]*"/g) ?? []).length === 27, 'with a handler: nothing pressed, the one list');
   assert.ok(!/aria-pressed/.test(view('golf')) && (view('golf').match(/<option value="[^"]*"/g) ?? []).length === 27, 'without one: the same');
-  // without the action the two renders are the same markup
-  assert.equal(golf.replace(/<button type="button" class="[^"]*" data-stay-near="[^"]*">[^<]*<\/button>/g, ''), view('golf'), 'the action is the only difference a handler makes');
+  // without the action the two renders are the same markup — HOME-TRAVEL-01 (2026-11-12): the action and the block that holds it (the button alone
+  // until then)
+  assert.equal(golf.replace(/<div class="ts-tm-row__actions"><button type="button" class="[^"]*" data-stay-near="[^"]*">[^<]*<\/button><\/div>/g, ''), view('golf'), 'the action is the only difference a handler makes');
   // Skate: two rows with a city, and the two with none
   const skate = view('skate', () => {});
   const skateRows = EXPERIENCES.filter((r) => r.category === 'skate');
@@ -286,14 +296,16 @@ test('T5 the strip: with neither prop its first mode is open, as always; with bo
 test('T6 the box: at rest no line and no starting place, the Hotels panel the builder\'s own; a press opens Hotels with the line over the form and the row\'s place; the same row pressed again is a new place; no hotels mode is a throw, by name', async () => {
   const { travelStripModes } = await import('../../components/trips/travelStripModes');
   const { default: LandingBookingSection } = await import('../../components/landing/LandingBookingSection');
-  const { default: ToggleStrip } = await import('../../components/ui/ToggleStrip');
+  // HOME-TRAVEL-01 (2026-11-12): the box is the landing's own view of the same modes, TravelBox.tsx — it takes the list and the open tab exactly as the
+  // shared strip did (ToggleStrip until then: 'the shared strip, once').
+  const { default: TravelBox } = await import('../../components/landing/TravelBox');
   type StripProps = { modes: ToggleMode[]; activeKey?: string; onActiveChange?: (key: string) => void };
   const catalog = React.createElement('section', { id: 'events' }, 'the catalog');
   const onRequireAuth = () => {};
   const masters = row('masters-2027');
   const stripOf = (tree: React.ReactNode): React.ReactElement<StripProps> => {
-    const strips = elementsIn(tree).filter((el) => el.type === ToggleStrip) as unknown as React.ReactElement<StripProps>[];
-    assert.equal(strips.length, 1, 'the shared strip, once');
+    const strips = elementsIn(tree).filter((el) => el.type === TravelBox) as unknown as React.ReactElement<StripProps>[];
+    assert.equal(strips.length, 1, 'the box, once');
     return strips[0];
   };
   const hotelsOf = (tree: React.ReactNode): El => {
@@ -304,7 +316,7 @@ test('T6 the box: at rest no line and no starting place, the Hotels panel the bu
   const handlerOf = (tree: React.ReactNode): ((r: Experience) => void) => {
     const providers = elementsIn(tree).filter((el) => el.type === StayNearContext.Provider);
     assert.equal(providers.length, 1, 'the press handler is provided once, around the strip');
-    assert.ok(elementsIn(providers[0].props.children as React.ReactNode).some((el) => el.type === ToggleStrip), 'the strip — and so the catalog in it — sits inside');
+    assert.ok(elementsIn(providers[0].props.children as React.ReactNode).some((el) => el.type === TravelBox), 'the box — and so the catalog in it — sits inside');
     assert.equal(typeof providers[0].props.value, 'function');
     return providers[0].props.value as (r: Experience) => void;
   };
@@ -313,7 +325,7 @@ test('T6 the box: at rest no line and no starting place, the Hotels panel the bu
   const boxAfter = (presses: Experience[]): React.ReactNode[] => {
     const passes: React.ReactNode[] = [];
     const Host = () => {
-      const tree = LandingBookingSection({ onRequireAuth, events: catalog });
+      const tree = LandingBookingSection({ onRequireAuth, today: TODAY, events: catalog });
       passes.push(tree);
       if (passes.length <= presses.length) handlerOf(tree)(presses[passes.length - 1]);
       return null;
@@ -338,7 +350,7 @@ test('T6 the box: at rest no line and no starting place, the Hotels panel the bu
   assert.equal(restChildren.length, 3);
   assert.equal(restChildren[0], false, 'no line');
   assert.equal((restChildren[1] as El).type, (builtHotels.panel as El).type, 'and the builder\'s own Hotels panel, second');
-  const DISCLOSURE = `<p class="mt-3 text-xs text-text-secondary" data-commission-line="true">${COMMISSION_LINE}</p>`;
+  const DISCLOSURE = `<p class="ts-tm-disclosure" data-commission-line="true">${COMMISSION_LINE}</p>`; // HOME-TRAVEL-01 (2026-11-12): class="mt-3 text-xs text-text-secondary" until then
   assert.equal(renderToStaticMarkup(restChildren[2] as El), DISCLOSURE, 'then the disclosure, third and last');
   assert.equal(renderToStaticMarkup(restHotels), renderToStaticMarkup(builtHotels.panel as El) + DISCLOSURE, 'at rest the Hotels panel draws exactly what the builder\'s draws, and then the disclosure');
   for (const m of stripOf(rest).props.modes) {
@@ -353,9 +365,11 @@ test('T6 the box: at rest no line and no starting place, the Hotels panel the bu
     assert.equal(renderToStaticMarkup(kids[1] as El), DISCLOSURE, `${m.key}: then the disclosure`);
   }
   assert.equal(stripOf(rest).props.modes[0].panel, catalog, 'the catalog is still the Events panel itself');
-  const whole = renderToStaticMarkup(React.createElement(LandingBookingSection, { onRequireAuth, events: catalog }));
+  const whole = renderToStaticMarkup(React.createElement(LandingBookingSection, { onRequireAuth, today: TODAY, events: catalog }));
   assert.equal(count(whole, 'data-stay-near-line'), 0, 'rendered whole: no line');
-  assert.match(whole, /^<div class="scroll-mt-4"><div class="mt-6 rounded-lg border border-border bg-white p-4">/, 'the white box, in the plain box a press brings into view');
+  // HOME-TRAVEL-01 (2026-11-12): the box is itself what a press brings into view (.ts-tm-box) — until then /^<div class="scroll-mt-4"><div class="mt-6
+  // rounded-lg border border-border bg-white p-4">/, 'the white box, in the plain box a press brings into view'.
+  assert.match(whole, /^<div class="ts-tm-box" data-box="true"><div class="ts-tm-tabs">/, 'the box, which a press brings into view');
   // one press: Hotels opens, the line stands over the form, the place is the row's
   const [, once] = boxAfter([masters]);
   assert.equal(stripOf(once).props.activeKey, 'hotels', 'a press opens the Hotels tab');
@@ -368,8 +382,11 @@ test('T6 the box: at rest no line and no starting place, the Hotels panel the bu
   assert.equal(line.props.children, stayNearLine(masters), 'the line names the event and its place');
   assert.equal((onceChildren[1] as El).type, (builtHotels.panel as El).type, 'the form keeps its seat — second child — so it is never remounted');
   const drawn = renderToStaticMarkup(once as El);
-  assert.ok(drawn.includes(`<div class="block"><p role="status" class="mt-4 border-l-2 border-brand-purple pl-3 text-sm text-text-primary" data-stay-near-line="true">${asHtml(stayNearLine(masters))}</p><div class="mt-4 rounded-lg border border-border bg-white p-4 space-y-3"><p class="sr-only">Hotels</p><form `), 'drawn: Hotels is the open panel, and the line is over the form');
-  assert.ok(drawn.includes('<div class="hidden"><section id="events">the catalog</section></div>'), 'the catalog stays mounted, hidden');
+  // HOME-TRAVEL-01 (2026-11-12): the open panel opens with its mode's headline, then the line in the reference's .ts-tm-stay, then the form — until then
+  // '<div class="block"><p role="status" class="mt-4 border-l-2 border-brand-purple pl-3 text-sm text-text-primary" …>' straight over the form, and the
+  // catalog in '<div class="hidden">'.
+  assert.ok(drawn.includes(`<div class="ts-tm-panel" data-panel="hotels"><p class="ts-tm-panel__headline">${asHtml(builtHotels.headline ?? '')}</p><p role="status" class="ts-tm-stay" data-stay-near-line="true">${asHtml(stayNearLine(masters))}</p><div class="mt-4 rounded-lg border border-border bg-white p-4 space-y-3"><p class="sr-only">Hotels</p><form `), 'drawn: Hotels is the open panel, and the line is over the form');
+  assert.ok(drawn.includes('<div class="ts-tm-panel" data-panel="events" hidden=""><section id="events">the catalog</section></div>'), 'the catalog stays mounted, hidden');
   assert.equal(count(drawn, 'data-stay-near-line'), 1);
   // the same row pressed again: a new place — the picker applies a place once per object
   const [, first, second] = boxAfter([masters, masters]);

@@ -5,6 +5,20 @@
  * under the booking strip on the guest landing (Landing.tsx, after the LIVE DEMO
  * act): the marquee events a guest books a stay and a flight around.
  *
+ * HOME-TRAVEL-01 (Alex's brief, 2026-11-12 16:08 Manila: "this one is basically set, not much to change, just need to match astehetics of
+ * the site to make it follow along... also with the events, it would be cool if someone selects events, they add to a queue table below the
+ * search bar"; the board approved on the design canvas at 20:26: "ok I approve the travel market place") — THE SAME PANEL, AS DRAWN. The
+ * same rows, words, ?into= and Stay near it →, in the look of design-refs/home-travel-01/Section-Reference.html: every class below is the
+ * reference's behind the house prefix (EXP, ruled in src/app/globals.css's HOME-TRAVEL-01 block). The dropdown sits in its box with the
+ * reference's chevron; COMING UP / WHEN TO GO and the rows stand in one list block (data-list); a row's dates stand beside it from 768px.
+ * The panel draws no hairline of its own: the box draws one rule between its tabs and every panel (TravelBox.tsx), so the section carries
+ * no class. ADD TO TRIP: every row carries one more action, before Stay near it → — "Add to trip", which flips to "In your trip" once the
+ * event is in the guest's trip and takes it out again when pressed (ADD_TO_TRIP, IN_YOUR_TRIP, src/lib/experienceWords.ts). Its words say
+ * its state, so it carries no aria-pressed. What a press DOES is the box's: the trip and the press handler arrive through
+ * AddToTripContext, which LandingBookingSection.tsx provides once the guest's trip has been read; with none — the pure half on its own,
+ * every test that renders it, and the box before its first read — a row draws no Add button, as it draws no Stay near it → with no
+ * handler. A row with neither action draws no actions block. Every data hook stays; data-add and data-in-trip are new.
+ *
  * EVENTS-05 (Alex, 2026-11-11 17:54-17:56 Manila: "its expanded and too big and looks shitty on web and also on phone… IDK why IM INTO
  * AND SEASONS… ITs JUST ONE LIST… 1 drop down… select a category… have it start with select a categoty, so theres nothing expanded from
  * the start") — ONE DROPDOWN, AND NOTHING OPEN UNTIL A CATEGORY IS PICKED. The two chip rows — I'M INTO… with nineteen chips, SEASONS with
@@ -149,6 +163,7 @@ import {
   type Experience, type ExperienceCategoryId,
 } from '@/lib/experiences';
 import { STAY_NEAR_WORDS, canStayNear, dayWords, experienceLine, notAnnouncedLine, seasonNotAnnouncedLine, upcoming } from '@/lib/experienceWords';
+import { ADD_TO_TRIP, IN_YOUR_TRIP } from '@/lib/experienceWords'; // HOME-TRAVEL-01 (2026-11-12): the Add button's two words — on a line of their own, so the line above keeps its text
 
 /** The section's anchor — the strip's Events mode and the dropdown's URL both name it (EVENTS-05, 2026-11-11: "the chips' URL" until then). FOOTER-01 (2026-11-09): its one home is src/lib/homeAnchors.ts — imported back here, still exported from here. */
 import { EVENTS_ANCHOR } from '@/lib/homeAnchors';
@@ -190,6 +205,13 @@ export function nothingUpcoming(categoryLabel: string): string {
  */
 export const StayNearContext = createContext<((row: Experience) => void) | null>(null);
 
+/**
+ * HOME-TRAVEL-01 (2026-11-12): what a row's "Add to trip" reads and does — whether the event is in the guest's trip, and the press (it adds
+ * the event, or takes it out). The booking box provides it once it has read the trip (LandingBookingSection.tsx). Null, the default, means
+ * no trip has been read: no row draws the button.
+ */
+export const AddToTripContext = createContext<{ inTrip: (id: string) => boolean; onToggle: (row: Experience) => void } | null>(null);
+
 /** EVENTS-03 (Alex, 2026-11-09): "Checked Nov 8, 2026" — the day a row was checked, in the foot of every card whose line does not already say it. */
 export function checkedWords(checkedOn: string): string {
   return `Checked ${dayWords(checkedOn)}`;
@@ -214,37 +236,63 @@ export function landOnEvents(hash: string, find: (id: string) => { scrollIntoVie
 // over inner 'max-w-7xl mx-auto px-4 lg:px-8 py-10 lg:py-14'; the eyebrow and the series name in brand-amber; every other ink a white
 // (white/90 the date line, white/80 the place and the source link, white/70 the sub and the line, white/60 the labels, the notes, the
 // checked words and the closing line); hairlines white/15; the chosen chip white with purple words, the others white/40-outlined.
+// HOME-TRAVEL-01 (Alex's brief, 2026-11-12; the board approved at 20:26): EVERY CLASS IS THE REFERENCE'S, behind the house prefix —
+// design-refs/home-travel-01/Section-Reference.html's .tm-label … .tm-closing, ruled in src/app/globals.css's HOME-TRAVEL-01 block, which
+// holds the 44px targets (.ts-tm-link, .ts-tm-add) and the dropdown's 46px field. The keys are kept, so every JSX line that names one reads as
+// it did. Until then, the Tailwind strings of HOME-BRIEF-04's white box: panel 'mt-6 border-t border-border pt-6' (the panel's own hairline —
+// the box draws the one rule now, so the key left with it); label 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider
+// text-text-faint'; select 'mt-3 block w-full rounded border border-border bg-white px-3 py-2 text-sm text-text-primary min-h-[44px] lg:w-72'
+// (EVENTS-05: the booking lookup's FIELD, read as mt-3, with a 44px target and w-72 from lg); refused 'mt-2 font-mono text-xs
+// text-text-primary' (drawn with mt-10 before it); rail 'mt-3 divide-y divide-border border-y border-border'; row 'flex flex-col gap-1 py-3
+// md:flex-row md:items-baseline md:gap-6'; rowLine 'font-mono text-xs leading-relaxed text-text-primary md:w-72 md:shrink-0'; rowBody
+// 'min-w-0 md:flex-1'; rowSeries 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint'; rowName 'text-sm
+// font-semibold text-text-primary'; rowPlace 'text-sm text-text-secondary'; rowNotes 'mt-1 text-xs text-text-secondary'; rowFoot 'flex
+// flex-wrap items-center gap-x-3 md:shrink-0 md:justify-end'; checked 'font-mono text-xs text-text-faint'; source 'inline-flex min-h-[44px]
+// items-center font-mono text-xs text-brand-purple underline-offset-4 hover:text-brand-purple-hover hover:underline'; line 'mt-4 text-sm
+// text-text-secondary'; closing 'mt-8 text-xs text-text-faint'; the label over the rows drew EXP.label with mt-10 before it.
 const EXP = {
-  // The panel of the Events tab: no band and no box of its own — the hairline and the spacing every panel of the strip opens with.
-  panel: 'mt-6 border-t border-border pt-6',
   // HOME-FINISH-02 (2026-11-10): the keys of the panel's two opening lines (eyebrow, sub) left with the lines.
-  label: 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  // EVENTS-05 (Alex, 2026-11-11): the one dropdown under the label. It wears the booking lookup's field classes — GuestBookingLookup.tsx FIELD, the
-  // "Manage reference" input's: 'mt-1 block w-full rounded border border-border bg-white px-3 py-2 text-sm text-text-primary', copied 2026-11-11 — with
-  // FIELD's mt-1 read as mt-3 (the gap the chip row kept under the label), then a 44px target and a fixed width from lg up; under lg it fills the panel.
-  // Until then: chipRow 'mt-3 flex flex-wrap gap-2', and the two pills — chipOn (filled brand purple, white words) and chipOff (outlined).
-  select: 'mt-3 block w-full rounded border border-border bg-white px-3 py-2 text-sm text-text-primary min-h-[44px] lg:w-72',
-  refused: 'mt-2 font-mono text-xs text-text-primary',
+  label: 'ts-tm-label',
+  // HOME-TRAVEL-01: the label over the rows — the same label, 28px under the dropdown (the reference's .tm-label--list).
+  listLabel: 'ts-tm-label ts-tm-label--list',
+  // EVENTS-05 (Alex, 2026-11-11): the one dropdown under the label. HOME-TRAVEL-01: it stands in its box (selectBox, 340px at most) with the
+  // reference's chevron over its right edge — the field 46px tall, in the house's own field line, as the lookup's two fields are.
+  selectBox: 'ts-tm-select',
+  select: 'ts-tm-select__field',
+  chevron: 'ts-tm-select__chevron',
+  refused: 'ts-tm-refused',
   // HOME-BRIEF-02 (Alex, 2026-11-10): a compact list — a hairline above, below and between its rows; nothing scrolls sideways.
   // (EVENTS-01c's row of cards, one width, snapping, with its drawn thumb, stood here until then.) The key is still `rail`:
   // it is the element that carries data-coming-up-rail.
-  rail: 'mt-3 divide-y divide-border border-y border-border',
-  // One event, one row: stacked on a phone; from md the date line, then the name over the place, then the foot, on one baseline.
-  row: 'flex flex-col gap-1 py-3 md:flex-row md:items-baseline md:gap-6',
-  rowLine: 'font-mono text-xs leading-relaxed text-text-primary md:w-72 md:shrink-0',
-  rowBody: 'min-w-0 md:flex-1',
+  rail: 'ts-tm-rows',
+  // One event, one row: its dates across the top on a phone, beside the rest from 768px; then the series, the name, the place, the note and the
+  // actions; then the foot.
+  row: 'ts-tm-row',
+  rowLine: 'ts-tm-row__when',
+  rowBody: 'ts-tm-row__body',
   // HOME-BRIEF-03 (Alex, 2026-11-10): the series name, small, over the event's name — the card's top line wore these classes.
-  rowSeries: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  rowName: 'text-sm font-semibold text-text-primary',
-  rowPlace: 'text-sm text-text-secondary',
-  rowNotes: 'mt-1 text-xs text-text-secondary',
-  // EVENTS-03 (2026-11-09): the checked words and the source link on one line; from md they close the row, at its right edge.
-  rowFoot: 'flex flex-wrap items-center gap-x-3 md:shrink-0 md:justify-end',
-  checked: 'font-mono text-xs text-text-faint',
-  source: 'inline-flex min-h-[44px] items-center font-mono text-xs text-brand-purple underline-offset-4 hover:text-brand-purple-hover hover:underline',
-  line: 'mt-4 text-sm text-text-secondary',
-  closing: 'mt-8 text-xs text-text-faint',
+  rowSeries: 'ts-tm-row__series',
+  rowName: 'ts-tm-row__name',
+  rowPlace: 'ts-tm-row__place',
+  rowNotes: 'ts-tm-row__notes',
+  // HOME-TRAVEL-01: the row's actions — Add to trip, then Stay near it →.
+  actions: 'ts-tm-row__actions',
+  add: 'ts-tm-add',
+  // EVENTS-03 (2026-11-09): the checked words and the source link on one line, closing the row.
+  rowFoot: 'ts-tm-row__foot',
+  checked: 'ts-tm-checked',
+  // The Source link — and Stay near it →, which wears its look (HOME-BRIEF-05): words only, 44px tall.
+  source: 'ts-tm-link',
+  line: 'ts-tm-nothing',
+  closing: 'ts-tm-closing',
 } as const;
+
+/** HOME-TRAVEL-01 (2026-11-12): the Add button's mark, as the reference draws it — a plus while the event is out of the trip, a tick once it is in. */
+function AddMark({ inTrip }: { inTrip: boolean }) {
+  return inTrip
+    ? <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg>
+    : <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" /></svg>;
+}
 
 const placeOf = (row: Experience): string => `${row.venue} · ${row.city}, ${row.country}`;
 
@@ -276,6 +324,8 @@ export function pickedOf(value: string): ExperienceCategoryId | null {
 /** HOME-BRIEF-02 (Alex, 2026-11-10): one event, one row of the list — when, what, where, the note, then the day it was checked and its source. */
 function EventRow({ row, today }: { row: Experience; today: string }) {
   const onStayNear = useContext(StayNearContext);
+  const trip = useContext(AddToTripContext);
+  const inTrip = trip !== null && trip.inTrip(row.id);
   const line = experienceLine(row, today);
   // EVENTS-03 (2026-11-09): the not-announced words already say "(checked …)" — read off the line, never a list of statuses.
   // EVENTS-04 (2026-11-09): either sentence — the edition's or the season's.
@@ -290,10 +340,20 @@ function EventRow({ row, today }: { row: Experience; today: string }) {
         <h3 className={EXP.rowName}>{row.name}</h3>
         <p className={EXP.rowPlace}>{placeOf(row)}</p>
         {row.notes !== null && <p className={EXP.rowNotes}>{row.notes}</p>}
-        {/* HOME-BRIEF-05 (Alex, 2026-11-10): the row's one action, under its note — only where a handler listens and the row's city is fixed
-            (canStayNear). The Source link's look; a button, not a link: it goes nowhere, it opens the Hotels tab. */}
-        {onStayNear !== null && canStayNear(row) && (
-          <button type="button" onClick={() => onStayNear(row)} className={EXP.source} data-stay-near={row.id}>{STAY_NEAR_WORDS}</button>
+        {/* HOME-TRAVEL-01 (2026-11-12): the row's actions, under its note — Add to trip, then Stay near it →; a row with neither draws no block. */}
+        {(trip !== null || (onStayNear !== null && canStayNear(row))) && (
+          <div className={EXP.actions}>
+            {/* HOME-TRAVEL-01 (Alex, 2026-11-12): Add to trip — one button that flips; its words say its state, so no aria-pressed. Only where the
+                guest's trip has been read (AddToTripContext). The press is the box's: it adds the event, or takes it out. */}
+            {trip !== null && (
+              <button type="button" onClick={() => trip.onToggle(row)} className={EXP.add} data-add={row.id} data-in-trip={inTrip}><AddMark inTrip={inTrip} />{inTrip ? IN_YOUR_TRIP : ADD_TO_TRIP}</button>
+            )}
+            {/* HOME-BRIEF-05 (Alex, 2026-11-10): the row's one action, under its note — only where a handler listens and the row's city is fixed
+                (canStayNear). The Source link's look; a button, not a link: it goes nowhere, it opens the Hotels tab. */}
+            {onStayNear !== null && canStayNear(row) && (
+              <button type="button" onClick={() => onStayNear(row)} className={EXP.source} data-stay-near={row.id}>{STAY_NEAR_WORDS}</button>
+            )}
+          </div>
         )}
       </div>
       {/* EVENTS-01c: every row names the page its dates came from.
@@ -318,26 +378,34 @@ export function ExperiencesView({ rows, today, choice, onPick }: ExperiencesView
   // EVENTS-03 (Alex, 2026-11-09): a season category has its own lines — its group read from EXPERIENCE_CATEGORIES, never a list of ids. (EVENTS-05, 2026-11-11: "a season chip" until then.)
   const isSeason = EXPERIENCE_CATEGORIES.some((c) => c.id === into && c.group === 'season');
   return (
-    <section id={EVENTS_ANCHOR} aria-label="Book the experience" className={EXP.panel} data-experiences>
+    // HOME-TRAVEL-01 (2026-11-12): the section carries no class — the box draws the one rule over every panel (TravelBox.tsx), so this panel
+    // draws none of its own. Until then: className={EXP.panel}, 'mt-6 border-t border-border pt-6'.
+    <section id={EVENTS_ANCHOR} aria-label="Book the experience" data-experiences>
       <p className={EXP.label}>{INTO_LABEL}</p>
       {/* EVENTS-05 (Alex, 2026-11-11): ONE LIST — every category of the leaf, in its order, in one dropdown; the first option is no category. It shows
           the URL's category, and "Select a category" when the URL names none or names a value that is refused. (Until then: two rows of chips — the
-          event categories under this label, the season ones under SEASONS — each a pressed-or-not button.) */}
-      <select aria-label={INTO_LABEL} value={into === null ? '' : into} onChange={(e) => onPick(pickedOf(e.target.value))} className={EXP.select} data-into-select>
-        <option value="">{SELECT_CATEGORY}</option>
-        {EXPERIENCE_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-      </select>
+          event categories under this label, the season ones under SEASONS — each a pressed-or-not button.)
+          HOME-TRAVEL-01 (2026-11-12): in its box, with the reference's chevron over its right edge (drawn for the eye; the dropdown is named by its label). */}
+      <div className={EXP.selectBox}>
+        <select aria-label={INTO_LABEL} value={into === null ? '' : into} onChange={(e) => onPick(pickedOf(e.target.value))} className={EXP.select} data-into-select>
+          <option value="">{SELECT_CATEGORY}</option>
+          {EXPERIENCE_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+        <svg className={EXP.chevron} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </div>
 
-      {refused !== null && <p className={`mt-10 ${EXP.refused}`} role="status" data-into-refused>{notACategory(refused)}</p>}
+      {/* HOME-TRAVEL-01 (2026-11-12): the refusal 12px under the dropdown, the reference's own spacing (mt-10 stood before EXP.refused until then). */}
+      {refused !== null && <p className={EXP.refused} role="status" data-into-refused>{notACategory(refused)}</p>}
       {into !== null && (
-        <>
-          <p className={`mt-10 ${EXP.label}`}>{isSeason ? WHEN_TO_GO_LABEL : COMING_UP_LABEL}</p>
+        // HOME-TRAVEL-01 (2026-11-12): the label over the rows and the rows stand in one list block, as the reference's do (a fragment until then).
+        <div data-list>
+          <p className={EXP.listLabel}>{isSeason ? WHEN_TO_GO_LABEL : COMING_UP_LABEL}</p>
           {/* EVENTS-03: a season category says no "Nothing announced yet" — a usual window is a season, not an edition waiting to be announced. (EVENTS-05, 2026-11-11: "a season chip" until then.) */}
           {comingUp.length === 0 && !isSeason && <p className={EXP.line} data-nothing-upcoming>{nothingUpcoming(experienceCategoryLabel(into))}</p>}
           <div key={into} className={EXP.rail} data-coming-up-rail>
             {cards.map((row) => <EventRow key={row.id} row={row} today={today} />)}
           </div>
-        </>
+        </div>
       )}
 
       {/* EVENTS-05 (2026-11-11): the closing line closes a view that is open — a category's, or the refusal's. With nothing chosen the panel ends at

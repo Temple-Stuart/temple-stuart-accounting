@@ -13,6 +13,9 @@
  *      default export that mounts it: the view is mounted nowhere else;
  *   T7 what left — no aria-pressed, role="group", SEASONS_LABEL, DEFAULT_INTO or chip class in the section's code; the leaf's note is corrected;
  *   T8 the look — the dropdown wears the booking lookup's field classes (read from GuestBookingLookup.tsx), a 44px target, w-72 from lg up.
+ *      HOME-TRAVEL-01 (Alex, 2026-11-12): the dropdown and the lookup's two fields wear the reference's field — 46px, a 12px radius, the house's
+ *      field line — each by its own class (.ts-tm-select__field, .ts-tm-input), ruled in src/app/globals.css; the dropdown stands in its box
+ *      (340px at most) with the reference's chevron. T1, T3, T4 and T8 are re-pointed, each with a dated note.
  * The view is rendered as experiences01 renders it; source is read through code() / comments(). No live call, no database, no clock. No line
  * number and no line count is pinned here.
  */
@@ -42,9 +45,15 @@ const view = (choice: IntoChoice, today = TODAY, rows: readonly Experience[] = E
   renderToStaticMarkup(React.createElement(ExperiencesView, { rows, today, choice, onPick: () => {} }));
 
 /** The panel's opening tag, its label, and the label's classes — untouched by this change (homeLines01 holds the same opening). */
-const LABEL_CLASS = 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint';
-const PANEL_OPEN = '<section id="events" aria-label="Book the experience" class="mt-6 border-t border-border pt-6" data-experiences="true">';
+// HOME-TRAVEL-01 (Alex, 2026-11-12): the reference's classes (src/app/globals.css) — the label .ts-tm-label; the panel's section carries no class, since
+// the box draws the one rule over every panel. Until then: LABEL_CLASS 'font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider
+// text-text-faint' and PANEL_OPEN '<section id="events" aria-label="Book the experience" class="mt-6 border-t border-border pt-6" data-experiences="true">'.
+const LABEL_CLASS = 'ts-tm-label';
+const PANEL_OPEN = '<section id="events" aria-label="Book the experience" data-experiences="true">';
 const LABEL = `<p class="${LABEL_CLASS}">${asHtml(INTO_LABEL)}</p>`;
+/** HOME-TRAVEL-01 (2026-11-12): the dropdown's box opens around it, and closes after the reference's chevron. */
+const SELECT_BOX = '<div class="ts-tm-select">';
+const CHEVRON = '<svg class="ts-tm-select__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
 
 interface Option { value: string; words: string; selected: boolean }
 /** The dropdown's options as drawn, in order — and the dropdown must be the one the label names. */
@@ -56,11 +65,12 @@ const optionsIn = (html: string): Option[] => {
   return options;
 };
 const selectedIn = (html: string) => optionsIn(html).filter((o) => o.selected).map((o) => o.value);
-/** What the panel draws under the dropdown. */
+/** What the panel draws under the dropdown. HOME-TRAVEL-01 (2026-11-12): under its box — the dropdown, then the chevron, then the box's close (right after '</select>' until then). */
 const under = (html: string) => {
-  const at = html.indexOf('</select>');
-  assert.ok(at > -1 && count(html, '</select>') === 1, 'one dropdown');
-  return html.slice(at + '</select>'.length);
+  const end = `</select>${CHEVRON}</div>`;
+  const at = html.indexOf(end);
+  assert.ok(at > -1 && count(html, '</select>') === 1 && count(html, end) === 1, 'one dropdown, in its box, the chevron over it');
+  return html.slice(at + end.length);
 };
 const cardsOf = (html: string) => [...html.matchAll(/data-coming-up="([^"]+)"/g)].map((m) => m[1]);
 
@@ -84,16 +94,20 @@ test('T1 none — nothing in the URL: the panel is its label and the dropdown an
   assert.equal(SELECT_CATEGORY, 'Select a category');
   const none = view({ none: true });
   // The label is still the panel's first child, exactly as it was; the dropdown is right under it; and there the panel ends.
-  assert.ok(none.startsWith(`${PANEL_OPEN}${LABEL}<select aria-label="${asHtml(INTO_LABEL)}" class="`), 'the panel opens with the I\'M INTO label, then the dropdown it names');
-  assert.ok(none.endsWith('</option></select></section>'), 'the panel ends at the dropdown');
+  // HOME-TRAVEL-01 (2026-11-12): the dropdown stands in its box with the chevron — until then '…${LABEL}<select …' and '…</option></select></section>'.
+  assert.ok(none.startsWith(`${PANEL_OPEN}${LABEL}${SELECT_BOX}<select aria-label="${asHtml(INTO_LABEL)}" class="`), 'the panel opens with the I\'M INTO label, then the dropdown it names');
+  assert.ok(none.endsWith(`</option></select>${CHEVRON}</div></section>`), 'the panel ends at the dropdown');
   assert.equal(under(none), '</section>', 'nothing under the dropdown');
-  // Two children, by the tree: the label and the dropdown — everything else is not drawn (false), not hidden.
+  // Two children, by the tree: the label and the dropdown — everything else is not drawn (false), not hidden. HOME-TRAVEL-01 (2026-11-12): the
+  // dropdown in its box, beside the chevron (['p', 'select'] until then).
   const drawn = React.Children.toArray((treeOf({ none: true }) as El).props.children).filter((k): k is El => React.isValidElement(k));
-  assert.deepEqual(drawn.map((k) => k.type), ['p', 'select']);
+  assert.deepEqual(drawn.map((k) => k.type), ['p', 'div']);
+  assert.deepEqual(React.Children.toArray(drawn[1].props.children).filter((k): k is El => React.isValidElement(k)).map((k) => k.type), ['select', 'svg'], 'the box: the dropdown, then its chevron');
   for (const gone of ['data-coming-up-rail', 'data-coming-up=', COMING_UP_LABEL, WHEN_TO_GO_LABEL, asHtml(CLOSING_LINE), asHtml(SEASONS_CLOSING_LINE), 'data-into-refused', 'data-nothing-upcoming', 'is not a category', '<article', 'role="status"', 'Source ↗']) {
     assert.ok(!none.includes(gone), `none draws no "${gone}"`);
   }
-  assert.equal(count(none, '<p'), 1, 'one paragraph: the label — no label over rows, no line, no closing line');
+  // HOME-TRAVEL-01 (2026-11-12): counted as paragraphs — the chevron's <path> opens with "<p" too (count(none, '<p') until then).
+  assert.equal((none.match(/<p[\s>]/g) ?? []).length, 1, 'one paragraph: the label — no label over rows, no line, no closing line');
   // The dropdown reads "Select a category": its first option, with no value, selected — alone.
   assert.deepEqual(selectedIn(none), ['']);
   assert.ok(none.includes(`<option value="" selected="">${SELECT_CATEGORY}</option>`));
@@ -146,13 +160,15 @@ test('T2 the one list — "Select a category", then every category of the leaf i
 test('T3 a picked category — every category of the leaf: its option selected alone, the label over its rows right under the dropdown, its rail keyed by it with every one of its rows, its closing line closing the panel', () => {
   for (const c of EXPERIENCE_CATEGORIES) {
     const html = view({ category: c.id });
-    assert.ok(html.startsWith(`${PANEL_OPEN}${LABEL}<select aria-label="${asHtml(INTO_LABEL)}" class="`), `${c.label}: the label, then the dropdown`);
+    assert.ok(html.startsWith(`${PANEL_OPEN}${LABEL}${SELECT_BOX}<select aria-label="${asHtml(INTO_LABEL)}" class="`), `${c.label}: the label, then the dropdown`);
     assert.deepEqual(selectedIn(html), [c.id], `${c.label}: its option selected, alone`);
     assert.equal(count(html, ' selected=""'), 1, `${c.label}: nothing else selected`);
     // Under the dropdown: the label over the rows first — WHEN TO GO for a season, COMING UP for an event — and the closing line last.
+    // HOME-TRAVEL-01 (2026-11-12): the label and the rows stand in one list block (data-list), in the reference's classes; until then '<p class="mt-10
+    // ${LABEL_CLASS}">' opened what follows the dropdown and '<p class="mt-8 text-xs text-text-faint">' was the closing line.
     const below = under(html);
-    assert.ok(below.startsWith(`<p class="mt-10 ${LABEL_CLASS}">${c.group === 'season' ? WHEN_TO_GO_LABEL : COMING_UP_LABEL}</p>`), `${c.label}: the label over its rows, right under the dropdown`);
-    assert.ok(below.endsWith(`<p class="mt-8 text-xs text-text-faint">${asHtml(c.group === 'season' ? SEASONS_CLOSING_LINE : CLOSING_LINE)}</p></section>`), `${c.label}: its closing line closes the panel`);
+    assert.ok(below.startsWith(`<div data-list="true"><p class="ts-tm-label ts-tm-label--list">${c.group === 'season' ? WHEN_TO_GO_LABEL : COMING_UP_LABEL}</p>`), `${c.label}: the label over its rows, right under the dropdown`);
+    assert.ok(below.endsWith(`<p class="ts-tm-closing">${asHtml(c.group === 'season' ? SEASONS_CLOSING_LINE : CLOSING_LINE)}</p></section>`), `${c.label}: its closing line closes the panel`);
     // Its rail, once, holding every row of the category and no other.
     assert.equal(count(html, 'data-coming-up-rail="true"'), 1, `${c.label}: its rail`);
     const rows = EXPERIENCES.filter((r) => r.category === c.id);
@@ -175,12 +191,14 @@ test('T3 a picked category — every category of the leaf: its option selected a
 
 test('T4 the refused view — a value that names no category: the dropdown reads "Select a category", the refusal and the closing line print as before, no row, no substitute', () => {
   const bad = view({ refused: 'nope' });
-  assert.ok(bad.startsWith(`${PANEL_OPEN}${LABEL}<select aria-label="${asHtml(INTO_LABEL)}" class="`));
+  assert.ok(bad.startsWith(`${PANEL_OPEN}${LABEL}${SELECT_BOX}<select aria-label="${asHtml(INTO_LABEL)}" class="`));
   assert.deepEqual(selectedIn(bad), [''], 'the dropdown reads Select a category — no category stands in');
   assert.equal(notACategory('nope'), 'nope is not a category — pick one above.', 'the words, unchanged — "above" is the dropdown');
+  // HOME-TRAVEL-01 (2026-11-12): the refusal and the closing line in the reference's classes — until then '<p class="mt-10 mt-2 font-mono text-xs
+  // text-text-primary" role="status" data-into-refused="true">' and '<p class="mt-8 text-xs text-text-faint">'.
   assert.equal(
     under(bad),
-    `<p class="mt-10 mt-2 font-mono text-xs text-text-primary" role="status" data-into-refused="true">${asHtml(notACategory('nope'))}</p><p class="mt-8 text-xs text-text-faint">${asHtml(CLOSING_LINE)}</p></section>`,
+    `<p class="ts-tm-refused" role="status" data-into-refused="true">${asHtml(notACategory('nope'))}</p><p class="ts-tm-closing">${asHtml(CLOSING_LINE)}</p></section>`,
     'under the dropdown: the refusal, then the events\' closing line — nothing else',
   );
   assert.equal(dropdownOf({ refused: 'nope' }).props.value, '');
@@ -190,7 +208,8 @@ test('T4 the refused view — a value that names no category: the dropdown reads
   // The refusal and none are different views: none says nothing, refuses nothing and closes with nothing.
   assert.notEqual(view({ none: true }), bad);
   const section = code(SECTION);
-  assert.equal(count(section, '{refused !== null && <p className={`mt-10 ${EXP.refused}`} role="status" data-into-refused>{notACategory(refused)}</p>}'), 1);
+  // HOME-TRAVEL-01 (2026-11-12): the refusal 12px under the dropdown, the reference's spacing — '<p className={`mt-10 ${EXP.refused}`} …' until then.
+  assert.equal(count(section, '{refused !== null && <p className={EXP.refused} role="status" data-into-refused>{notACategory(refused)}</p>}'), 1);
   assert.equal(count(section, '{(into !== null || refused !== null) && <p className={EXP.closing}>{isSeason ? SEASONS_CLOSING_LINE : CLOSING_LINE}</p>}'), 1, 'the closing line closes a view that is open — never none');
 });
 
@@ -341,33 +360,51 @@ test('T7 what left with its last reader — no aria-pressed, no role="group", no
 
 // ── T8 · THE LOOK ────────────────────────────────────────────────────────────
 
-test('T8 the look — the dropdown wears the classes the booking lookup\'s "Manage reference" input wears, with the label\'s mt-3 gap, a 44px target, full width under lg and w-72 from it; no new colour, no new font; the label is untouched', () => {
-  // The lookup's field classes, read where they live — the home page's "Manage reference" input wears them.
+// HOME-TRAVEL-01 (Alex, 2026-11-12; the board approved at 20:26): RE-POINTED. Until then T8 held the dropdown to the booking lookup's FIELD classes
+// ('mt-1 block w-full rounded border border-border bg-white px-3 py-2 text-sm text-text-primary', read from GuestBookingLookup.tsx), with FIELD's mt-1
+// read as mt-3, then 'min-h-[44px]' and 'lg:w-72' — EVENTS-05's "the dropdown wears the booking lookup's field classes". Both now wear the reference's
+// field, each by its own class, and the README says it once: "The dropdown and the lookup's fields wear the house's own field line, --ts-border".
+// So T8 reads the two rules in src/app/globals.css and holds the field's look equal between them.
+test('T8 the look (HOME-TRAVEL-01, 2026-11-12) — the dropdown and the lookup\'s "Manage reference" input wear the reference\'s field, each by its own class: 46px tall, a 12px radius, the house\'s field line, white, body ink at 15px; the dropdown in its box (340px at most) with its chevron; no colour and no font of its own; the label is untouched', () => {
+  // The lookup's field class, read where it lives — the home page's "Manage reference" input wears it.
   const lookup = code(LOOKUP);
   const field = /\nconst FIELD = '([^']*)';\n/.exec(lookup);
   assert.ok(field, 'the lookup\'s FIELD');
-  assert.match(lookup, /Manage reference\s*<input name="reference"[^\n]*className=\{FIELD\} data-guest-reference \/>/, 'the Manage reference input wears FIELD');
-  const fieldClasses = field[1].split(' ');
-  assert.ok(fieldClasses.includes('mt-1'), 'FIELD carries its own top margin — the gap inside the lookup\'s label');
-  // The dropdown's classes, as drawn.
+  assert.equal(field[1], 'ts-tm-input', 'the reference\'s .tm-input, behind the house prefix');
+  assert.match(lookup, /Manage reference<\/span>\s*<input name="reference"[^\n]*className=\{FIELD\} data-guest-reference \/>/, 'the Manage reference input wears FIELD');
+  // The dropdown's class, as drawn — the same on every view.
   const drawn = /<select aria-label="[^"]*" class="([^"]*)" data-into-select="true">/.exec(view({ none: true }));
   assert.ok(drawn);
-  const dropdown = drawn[1].split(' ');
-  // The label's gap as the chip row had it (mt-3, in place of FIELD's mt-1); every other class of the field, in the field's order; then the 44px target and
-  // the fixed width from lg up.
-  assert.deepEqual(dropdown, ['mt-3', ...fieldClasses.filter((cls) => cls !== 'mt-1'), 'min-h-[44px]', 'lg:w-72']);
-  assert.equal(dropdown.filter((cls) => /^mt-/.test(cls)).length, 1, 'one top margin');
-  assert.ok(dropdown.includes('w-full') && dropdown.includes('lg:w-72'), 'full width under lg, a fixed width from lg up');
-  // No new colour and no new font: every colour class is one the field wears, and the dropdown names no font of its own.
-  const colours = dropdown.filter((cls) => /^(bg|text|border)-(?!\d|\[)[a-z]/.test(cls) && !/^text-(xs|sm|base|lg)$/.test(cls));
-  assert.ok(colours.length > 0 && colours.every((cls) => fieldClasses.includes(cls)), `the colours are the field's: ${colours.join(' ')}`);
-  assert.ok(!dropdown.some((cls) => /^font-/.test(cls) || /purple|rounded-full/.test(cls)), 'no font of its own, no pill, no purple fill');
-  // The same classes on every view.
+  assert.equal(drawn[1], 'ts-tm-select__field', 'the reference\'s .tm-select__field, alone');
   for (const choice of [{ category: 'surfing' }, { category: 'wildlife' }, { refused: 'nope' }] as IntoChoice[]) {
     assert.equal(/<select aria-label="[^"]*" class="([^"]*)" data-into-select="true">/.exec(view(choice))?.[1], drawn[1]);
   }
-  // The label: the panel's first child, in its own classes, with no margin over it — exactly as it was.
+  // The two rules, read from the stylesheet: one declaration per line of each body, whitespace collapsed.
+  const css = code('src/app/globals.css');
+  const ruleOf = (selector: string): Map<string, string> => {
+    const at = css.indexOf(`\n${selector} {`);
+    assert.ok(at > -1 && css.indexOf(`\n${selector} {`, at + 1) === -1, `${selector}: one rule`);
+    const body = css.slice(css.indexOf('{', at) + 1, css.indexOf('}', at));
+    return new Map(body.split(';').map((d) => d.replace(/\s+/g, ' ').trim()).filter(Boolean).map((d) => [d.slice(0, d.indexOf(':')).trim(), d.slice(d.indexOf(':') + 1).trim()] as [string, string]));
+  };
+  const select = ruleOf('.ts-tm-select__field');
+  const input = ruleOf('.ts-tm-input');
+  for (const [prop, value] of [['height', '46px'], ['border', '1px solid rgb(var(--ts-border))'], ['border-radius', '12px'], ['background-color', 'rgb(var(--ts-fs-white))'], ['color', 'var(--ts-fs-ink)'], ['font-size', '15px'], ['font-family', 'inherit'], ['box-sizing', 'border-box'], ['display', 'block'], ['width', '100%']] as const) {
+    assert.equal(select.get(prop), value, `the dropdown: ${prop}: ${value}`);
+    assert.equal(input.get(prop), value, `the lookup's field: ${prop}: ${value}`);
+  }
+  assert.equal(select.get('padding'), '0 42px 0 14px', 'room for the chevron on the right');
+  assert.equal(input.get('padding'), '0 14px');
+  assert.equal(ruleOf('.ts-tm-select').get('max-width'), '340px', 'the dropdown\'s box: 340px at most');
+  // No colour and no font of its own: every colour either rule reads is a token, and neither names a face.
+  for (const [prop, value] of [...select, ...input]) {
+    assert.doesNotMatch(value, /#[0-9a-fA-F]{3,8}\b|rgba?\(\s*\d/, `${prop}: ${value} — no hex, no rgb value`);
+    if (prop === 'font-family') assert.equal(value, 'inherit', 'the face is the section\'s');
+  }
+  // The chevron over the dropdown's right edge, drawn for the eye — the dropdown is named by its label.
+  assert.ok(view({ none: true }).includes(`</select>${CHEVRON}</div>`), 'the chevron, aria-hidden, after the dropdown in its box');
+  // The label: the panel's first child, in its own class, with no margin over it — exactly as it was.
   assert.equal(count(code(SECTION), '<p className={EXP.label}>{INTO_LABEL}</p>'), 1);
-  assert.ok(view({ none: true }).startsWith(`${PANEL_OPEN}${LABEL}<select `));
+  assert.ok(view({ none: true }).startsWith(`${PANEL_OPEN}${LABEL}${SELECT_BOX}<select `));
   assert.equal(INTO_LABEL, "I'M INTO…");
 });

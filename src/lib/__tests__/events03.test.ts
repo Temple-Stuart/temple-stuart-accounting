@@ -68,13 +68,16 @@ const footOf = (card: string, id: string) => {
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the catalog sits in the booking box's white surface — the checked words in faint ink, Source ↗ in brand
   // purple. Until then, on the purple band: the span 'font-mono text-xs text-white/60' and the link 'inline-flex min-h-[44px] items-center
   // font-mono text-xs text-white/80 underline-offset-4 hover:text-white hover:underline'. The markup around the classes is unchanged.
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): the reference's classes (src/app/globals.css) — the span .ts-tm-checked, the link .ts-tm-link (44px tall, in
+  // the links' violet), the foot .ts-tm-row__foot (flex, wrapping, centred: the two on one line). Until then: the span 'font-mono text-xs
+  // text-text-faint', the link 'inline-flex min-h-[44px] items-center font-mono text-xs text-brand-purple underline-offset-4
+  // hover:text-brand-purple-hover hover:underline', and the foot's classes held to include 'flex', 'flex-wrap' and 'items-center'.
   const m = new RegExp(
-    `<div class="([^"]*)">(?:<span class="font-mono text-xs text-text-faint" data-checked="${id}">([^<]*)</span>)?`
-    + `<a href="[^"]+" rel="noopener" target="_blank" class="inline-flex min-h-\\[44px\\] items-center font-mono text-xs text-brand-purple underline-offset-4 hover:text-brand-purple-hover hover:underline" data-source="${id}">${SOURCE_LINK}</a></div>$`,
+    `<div class="([^"]*)">(?:<span class="ts-tm-checked" data-checked="${id}">([^<]*)</span>)?`
+    + `<a href="[^"]+" rel="noopener" target="_blank" class="ts-tm-link" data-source="${id}">${SOURCE_LINK}</a></div>$`,
   ).exec(card);
   assert.ok(m, `${id}: the foot ends the card — the checked words if any, then the Source ↗ link`);
-  const cls = m[1].split(' ');
-  for (const c of ['flex', 'flex-wrap', 'items-center']) assert.ok(cls.includes(c), `${id}: the foot sets the two on one line (${c})`); // HOME-BRIEF-02 (2026-11-10): 'mt-auto' left with the card — a row of the list has no bottom edge to push its foot to
+  assert.deepEqual(m[1].split(' '), ['ts-tm-row__foot'], `${id}: the foot sets the two on one line (.ts-tm-row__foot)`); // HOME-BRIEF-02 (2026-11-10): 'mt-auto' left with the card — a row of the list has no bottom edge to push its foot to
   return { checked: m[2] };
 };
 /** The card says the day it was checked once: in its foot (`expected`), or — when its line already says it — nowhere else. */

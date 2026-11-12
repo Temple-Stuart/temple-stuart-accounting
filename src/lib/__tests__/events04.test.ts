@@ -40,8 +40,11 @@ const FAR_LATER = '2099-12-31';
 // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the catalog is repainted for the booking box's white surface — the list's hairlines are the house
 // lavender and the labels are faint ink. Until then, on the purple band: 'mt-3 divide-y divide-white/15 border-y border-white/15' and
 // '<p class="mt-10 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-white/60">'.
-const RAIL_CLASSES = 'mt-3 divide-y divide-border border-y border-border';
-const LABEL_P = '<p class="mt-10 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">';
+// HOME-TRAVEL-01 (Alex, 2026-11-12): the reference's classes (src/app/globals.css) — the list .ts-tm-rows (a hairline above, and one under every row),
+// the label over it .ts-tm-label with .ts-tm-label--list (28px under the dropdown). Until then: 'mt-3 divide-y divide-border border-y border-border'
+// and '<p class="mt-10 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">'.
+const RAIL_CLASSES = 'ts-tm-rows';
+const LABEL_P = '<p class="ts-tm-label ts-tm-label--list">';
 
 const SEASONS = EXPERIENCE_CATEGORIES.filter((c) => c.group === 'season');
 const EVENTS = EXPERIENCE_CATEGORIES.filter((c) => c.group === 'event');

@@ -223,10 +223,14 @@ const SEEDS: Seed[] = [
     expect: 'does not mount the lookup directly under the booking section',
   },
   {
+    // HOME-TRAVEL-01 (2026-11-12): RE-ANCHORED. The find was '        <LandingBookingSection onRequireAuth={onRequireAuth} />\n' — the mount as GUEST-01
+    // wrote it — and it had matched nothing since HOME-BRIEF-04 (2026-11-10) gave the mount its events prop: a harness failure the next time this law's
+    // seeds ran. It stands on the mount as it reads now (the server's day added by HOME-TRAVEL-01, inside the travel section's page container); same
+    // seed, same violation.
     name: 'guest01-z2 the lookup moves above the booking section',
     file: LANDING,
-    find: '        <LandingBookingSection onRequireAuth={onRequireAuth} />\n',
-    replace: "        <GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />\n        <LandingBookingSection onRequireAuth={onRequireAuth} />\n",
+    find: '          <LandingBookingSection onRequireAuth={onRequireAuth} today={today} events={<ExperiencesSection today={today} />} />\n',
+    replace: "          <GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />\n          <LandingBookingSection onRequireAuth={onRequireAuth} today={today} events={<ExperiencesSection today={today} />} />\n",
     expect: 'does not mount the lookup directly under the booking section',
   },
   {
@@ -254,11 +258,21 @@ const SEEDS: Seed[] = [
     expect: 'does not mount the one lookup box, or keeps a form of its own',
   },
   {
+    // HOME-TRAVEL-01 (2026-11-12): re-anchored on the reference's fields row — find 'className="flex flex-col gap-3 sm:flex-row sm:items-end"', replace
+    // 'className="flex flex-row gap-3 items-end"' until then. A row that does not wrap holds both fields on a phone's line.
     name: 'guest01-z6 the fields no longer stack on a phone',
     file: LOOKUP,
-    find: 'className="flex flex-col gap-3 sm:flex-row sm:items-end"',
-    replace: 'className="flex flex-row gap-3 items-end"',
+    find: '<div className="ts-tm-lookup__fields">',
+    replace: '<div className="flex flex-row gap-3 items-end">',
     expect: 'fields do not stack on a phone',
+  },
+  {
+    // HOME-TRAVEL-01 (2026-11-12): the clause's other half — the failure line loses its brand red.
+    name: 'guest01-z7 the one failure line is not brand red',
+    file: LOOKUP,
+    find: '<p className="ts-tm-lookup__failure" role="alert" data-guest-failure>',
+    replace: '<p className="ts-tm-lookup__hint" role="alert" data-guest-failure>',
+    expect: 'its one failure line is not brand red',
   },
   // ── 5. the code travels only by email ──
   {
@@ -292,8 +306,10 @@ const SEEDS: Seed[] = [
   {
     name: 'guest01-ad2 the lookup box can be submitted before hydration (a native GET — the code in the URL)',
     file: LOOKUP,
-    find: '<fieldset className="space-y-3" disabled={!live}>',
-    replace: '<fieldset className="space-y-3">',
+    // HOME-TRAVEL-01 (2026-11-12): re-anchored on the reference's fieldset class — find '<fieldset className="space-y-3" disabled={!live}>', replace
+    // '<fieldset className="space-y-3">' until then.
+    find: '<fieldset className="ts-tm-lookup__set" disabled={!live}>',
+    replace: '<fieldset className="ts-tm-lookup__set">',
     expect: 'can be submitted before the page is live',
   },
   {

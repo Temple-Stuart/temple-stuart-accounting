@@ -423,10 +423,15 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   // (each class this section wears is ruled by this port, below), so it reaches nothing of this section. Until then this loop held every
   // selector outside the port to the hooks, with no exception; it still holds every selector to the id.
   const psOwn = (sel: string): boolean => sel.split(',').every((one) => /^\.ts-ps(?:[-_][\w-]*)?(?![\w-])/.test(one.trim()));
-  assert.ok(selectorsOutside.some((sel) => psOwn(sel) && sel.includes('[aria-pressed')), 'the Professional Services port is read, and it is the one exception');
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): and the Travel Marketplace section's port, above the Professional Services one (.ts-tm), styles its own tiles by
+  // [aria-pressed] too — every part of each such selector opens with one of that section's own classes, which no element here wears — so it is the
+  // second exception, alike. Until then the Professional Services port was "the one exception".
+  const tmOwn = (sel: string): boolean => sel.split(',').every((one) => /^\.ts-tm(?:[-_][\w-]*)?(?![\w-])/.test(one.trim()));
+  assert.ok(selectorsOutside.some((sel) => psOwn(sel) && sel.includes('[aria-pressed')), 'the Professional Services port is read, and it is one exception');
+  assert.ok(selectorsOutside.some((sel) => tmOwn(sel) && sel.includes('[aria-pressed')), 'the Travel Marketplace port is read, and it is the other');
   for (const sel of selectorsOutside) {
     assert.ok(!sel.includes('#modules'), `${sel}: no rule outside the port reaches the section by its id`);
-    if (psOwn(sel)) continue;
+    if (psOwn(sel) || tmOwn(sel)) continue;
     for (const hook of hooks) assert.ok(!sel.includes(`[${hook}`), `${sel}: no rule outside the port reaches the section by [${hook}]`);
   }
   // nor by an element: no selector outside the port STARTS with a type, the universal selector or :is/:where/:not (past an html,

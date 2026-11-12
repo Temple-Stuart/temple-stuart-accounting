@@ -149,7 +149,8 @@ test('T2 the categories, in the ruled order, with their EVENTS-01b labels; no ca
   // and nothing else is drawn.
   const none = render({ choice: { none: true } });
   assert.ok(none.includes(`<option value="" selected="">${SELECT_CATEGORY}</option>`) && SELECT_CATEGORY === 'Select a category', 'no param → none: the dropdown shows Select a category');
-  assert.ok(none.endsWith('</select></section>') && !/data-coming-up|COMING UP|WHEN TO GO|data-into-refused|data-nothing-upcoming|<article/.test(none) && !none.includes(CLOSING_LINE), 'and nothing else is drawn — the panel ends at the dropdown');
+  // HOME-TRAVEL-01 (2026-11-12): the dropdown stands in its box with the reference's chevron — none.endsWith('</select></section>') until then.
+  assert.ok(/<\/select><svg class="ts-tm-select__chevron"[^>]*>[\s\S]*?<\/svg><\/div><\/section>$/.test(none) && !/data-coming-up|COMING UP|WHEN TO GO|data-into-refused|data-nothing-upcoming|<article/.test(none) && !none.includes(CLOSING_LINE), 'and nothing else is drawn — the panel ends at the dropdown');
   assert.doesNotMatch(code(SECTION), /DEFAULT_INTO/, 'no default is kept in the section, read or unread');
 });
 
@@ -280,7 +281,9 @@ test('T4 rendered for the leaf\'s first category, Surf — a list of all six sur
   assert.ok(rail, 'the list is drawn');
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the list sits in the booking box's white surface — the house lavender hairline ('divide-white/15',
   // 'border-white/15' on the purple band until then); no white ink and no band anywhere in the panel.
-  for (const cls of ['divide-y', 'divide-border', 'border-y', 'border-border']) assert.ok(rail[1].split(' ').includes(cls), `the list carries ${cls}`);
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): the reference's list, .ts-tm-rows (src/app/globals.css: a hairline above it, one under every row, in the box's
+  // rule colour) — until then 'divide-y', 'divide-border', 'border-y' and 'border-border', each held here.
+  assert.deepEqual(rail[1].split(' '), ['ts-tm-rows'], 'the list wears the reference\'s rows');
   // EVENTS-05 (2026-11-11; Alex's ruling the same day, on the report that CLOSED 6 and this line could not both hold): re-pointed. Until then the first check
   // of this loop refused 'bg-white' and 'w-full' on EVERY class attribute in the panel (cls === 'bg-white' || cls === 'w-full', unconditionally). The dropdown
   // wears the booking lookup's field classes — a white field on the white box, full width under lg: not white-on-purple ink, not a section class — so those two
@@ -293,20 +296,25 @@ test('T4 rendered for the leaf\'s first category, Surf — a list of all six sur
     assert.ok(!classes.includes('text-white') || classes.includes('bg-brand-purple'), `white words only on the chosen chip's purple: "${m[1]}"`);
     assert.ok(!classes.includes('bg-brand-purple') || classes.includes('rounded-full'), `brand purple fills only a chip: "${m[1]}"`);
   }
-  const section = /^<section id="events" aria-label="Book the experience" class="([^"]*)" data-experiences="true">/.exec(html);
-  assert.ok(section, 'the panel opens with its section — the id, the label and the hook unchanged');
-  assert.deepEqual(section[1].split(' '), ['mt-6', 'border-t', 'border-border', 'pt-6'], 'the panel sits inside the box: the hairline and the spacing every panel of the strip opens with');
+  // HOME-TRAVEL-01 (2026-11-12): the panel's section carries no class — the box draws one rule between its tabs and every panel (TravelBox.tsx), so this
+  // panel draws none of its own (the README: "A panel that opens with its own hairline … draws none inside this box"). Until then its classes were
+  // held here: ['mt-6', 'border-t', 'border-border', 'pt-6'] — 'the hairline and the spacing every panel of the strip opens with'.
+  assert.match(html, /^<section id="events" aria-label="Book the experience" data-experiences="true">/, 'the panel opens with its section — the id, the label and the hook unchanged, and no class');
   // EVENTS-05 (2026-11-11): re-pointed — until then these five lines read the pressed chip's classes (/aria-pressed="true" class="([^"]*)" data-into="surfing"/:
   // filled brand purple, white words) and an unpressed chip's (/aria-pressed="false" class="([^"]*)" data-into="golf"/: outlined, unfilled). The chips are the
   // dropdown: it sits right under the label, named by it, in the booking lookup's field look, 44px tall, a fixed width from lg up.
-  const dropdown = /<\/p><select aria-label="I&#x27;M INTO…" class="([^"]*)" data-into-select="true">/.exec(html);
+  // HOME-TRAVEL-01 (2026-11-12): the dropdown stands in its box (.ts-tm-select) and wears the reference's field, .ts-tm-select__field — events05 T8 holds its
+  // look equal to the lookup's field. Until then: '</p><select …' and the lookup's FIELD classes with a 44px target and w-72 from lg, each held here.
+  const dropdown = /<\/p><div class="ts-tm-select"><select aria-label="I&#x27;M INTO…" class="([^"]*)" data-into-select="true">/.exec(html);
   assert.ok(dropdown, 'the dropdown, right under the label and named by it');
-  for (const cls of ['mt-3', 'block', 'w-full', 'rounded', 'border', 'border-border', 'bg-white', 'px-3', 'py-2', 'text-sm', 'text-text-primary', 'min-h-[44px]', 'lg:w-72']) assert.ok(dropdown[1].split(' ').includes(cls), `the dropdown wears the lookup field's look — its white fill and its full width under lg included — a 44px target and a fixed width from lg up (${cls})`);
+  assert.deepEqual(dropdown[1].split(' '), ['ts-tm-select__field'], 'the reference\'s field');
   assert.ok(!dropdown[1].split(' ').some((cls) => /purple|rounded-full|font-mono/.test(cls)), 'no pill and no purple fill — a field, not a chip');
   const source = /<a href="[^"]+" rel="noopener" target="_blank" class="([^"]*)" data-source="philippines-pro-2026">/.exec(html);
-  assert.ok(source && source[1].split(' ').includes('text-brand-purple'), 'Source ↗ in brand purple');
+  assert.ok(source && source[1] === 'ts-tm-link', 'Source ↗ in the links\' violet — the reference\'s .ts-tm-link (HOME-TRAVEL-01, 2026-11-12: text-brand-purple until then)');
   for (const cls of ['flex', 'overflow-x-auto', 'snap-x', 'snap-proximity']) assert.ok(!rail[1].split(' ').includes(cls), `the list does not carry ${cls} — nothing scrolls sideways`);
-  for (const id of cardsOf(html)) assert.match(html, new RegExp(`<article class="flex flex-col [^"]*md:flex-row[^"]*" data-coming-up="${id}"><p class="[^"]*" data-experience-line="true">`), `${id}: one row — stacked on a phone, across from md, its date line first`);
+  // HOME-TRAVEL-01 (2026-11-12): the reference's row — its dates across the top on a phone, beside the rest from 768px (.ts-tm-row, .ts-tm-row__when).
+  // Until then: '<article class="flex flex-col … md:flex-row …" …>' — stacked on a phone, across from md.
+  for (const id of cardsOf(html)) assert.match(html, new RegExp(`<article class="ts-tm-row" data-coming-up="${id}"><p class="ts-tm-row__when" data-experience-line="true">`), `${id}: one row, its date line first`);
   assert.ok(pos(html, 'COMING UP') < pos(html, 'data-coming-up-rail'), 'the label → the list');
   assert.doesNotMatch(html, /data-into-refused/);
   assert.doesNotMatch(html, /<img|countdown|BUY NOW/i);
@@ -370,7 +378,10 @@ test('T4 the section, the words and the leaf read no clock; the section carries 
   // writes the URL with the browser's own replace now: router.replace is a round trip to the server on this page, and until it answered the dropdown showed
   // the value it had before the pick. Next's useSearchParams follows the browser's replace at once. The router is no longer read here.
   assert.ok(/window\.history\.replaceState\(null, '', pickHref\(/.test(section) && !/useRouter|router\./.test(section), 'a pick replaces the URL with the browser\'s own replace — no router, no request');
-  assert.match(section, /min-h-\[44px\]/);
+  // HOME-TRAVEL-01 (2026-11-12): the 44px target is the reference's link rule — the section wears it (EXP.source, .ts-tm-link) and src/app/globals.css
+  // holds the height. Until then: assert.match(section, /min-h-\[44px\]/), the Tailwind class in the section's own code.
+  assert.match(section, /\n {2}source: 'ts-tm-link',\n/);
+  assert.match(code('src/app/globals.css'), /\n\.ts-tm-link \{[^}]*\bmin-height: 44px;/);
   assert.match(section, /const comingUp = upcoming\(chosen, today, chosen\.length\);\n\s*const cards = \[\.\.\.comingUp, \.\.\.chosen\.filter\(\(r\) => !comingUp\.includes\(r\)\)\];/, 'EVENTS-01c: every row — upcoming first, then the rest');
   assert.doesNotMatch(section, /grid-cols|pillRow|COMING_UP_COUNT/, 'no grid of cards, no pill row and no count — one row of every card');
   assert.doesNotMatch(section, /#[0-9a-fA-F]{3,8}\b/, 'zero new hex');
@@ -383,8 +394,10 @@ test('T5 Landing mounts the section once — inside the booking mount, as the bo
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): the purple band is gone — the catalog is handed to the booking box as its events panel. Until
   // then: the mount '<ExperiencesSection today={today} />' stood alone, 'demo footer row → experiences → guest strip', and the booking mount read
   // '<LandingBookingSection onRequireAuth={onRequireAuth} />' (counted once here).
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): the booking mount is handed the server's day too, for the trip card under the box — until then
+  // '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />'.
   const mount = '<ExperiencesSection today={today} />';
-  const booking = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />';
+  const booking = '<LandingBookingSection onRequireAuth={onRequireAuth} today={today} events={<ExperiencesSection today={today} />} />';
   assert.equal((landing.match(/<ExperiencesSection today=\{today\}/g) ?? []).length, 1);
   assert.equal(landing.split('<ExperiencesSection').length - 1, 1, 'mounted once, nowhere else');
   assert.equal(landing.split(booking).length - 1, 1, 'the booking mount, once, carrying the catalog');
@@ -394,12 +407,16 @@ test('T5 Landing mounts the section once — inside the booking mount, as the bo
   // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the demo's foot row left the page, so the travel block's last child is the booking lookup — the marker
   // now. Until then: tripRow = landing.indexOf('One trip holds everything — plans, bookings, budget.') and 'the booking box (the catalog inside it)
   // → the demo footer row → the guest strip'.
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): the guest's trip is a card INSIDE the travel section — the booking box renders it under the box
+  // (LandingBookingSection.tsx) — so Landing mounts no strip. Until then: stripAt = landing.indexOf('<GuestTripStrip'), 'the booking box (the
+  // catalog inside it) → the booking lookup → the guest strip', and 'the travel block's </section> → the guest strip: comments only'.
   const lookupAt = landing.indexOf('data-guest-lookup-home');
-  const stripAt = landing.indexOf('<GuestTripStrip');
   assert.ok(mountAt > bookingAt && mountAt < bookingAt + booking.length, 'the one mount is the booking box\'s events prop');
-  assert.ok(bookingAt > -1 && lookupAt > bookingAt && stripAt > lookupAt, 'the booking box (the catalog inside it) → the booking lookup → the guest strip');
+  assert.ok(bookingAt > -1 && lookupAt > bookingAt, 'the booking box (the catalog inside it, the trip card under it) → the booking lookup');
+  assert.equal(landing.split('<GuestTripStrip').length - 1, 0, 'no strip of its own under the section');
+  assert.equal(code(LANDING_BOOKING).split('<GuestTripStrip trip={trip} today={today} ').length - 1, 1, 'the box renders the trip card, on the server\'s day');
   const travelEnd = landing.indexOf('</section>', lookupAt) + '</section>'.length;
-  assert.match(landing.slice(travelEnd, stripAt), /^\s*(\{\s*\}\s*)*$/, 'the travel block\'s </section> → the guest strip: comments only — no band between them');
+  assert.match(landing.slice(travelEnd, landing.indexOf('<StopZeroSection />')), /^\s*(\{\s*\}\s*)*$/, 'the travel block\'s </section> → Stop 0: comments only — no band between them');
   assert.match(landing, /<GuestBookingLookup onOpened=\{\(\) => window\.location\.assign\('\/booking\/manage'\)\} \/>/);
   assert.match(landing, /import ExperiencesSection from '\.\/ExperiencesSection';/);
   assert.match(landing, /  today: string;\n\}/);
@@ -507,6 +524,7 @@ test('T6 (HOME-BRIEF-04, 2026-11-10; HOME-BRIEF-05: the wrapper holds the open t
   const { travelStripModes } = await import('../../components/trips/travelStripModes');
   const { default: LandingBookingSection, linksToEvents } = await import('../../components/landing/LandingBookingSection');
   const { default: ToggleStrip } = await import('../../components/ui/ToggleStrip');
+  const { default: TravelBox } = await import('../../components/landing/TravelBox'); // HOME-TRAVEL-01 (2026-11-12): the box the wrapper mounts — ToggleStrip until then
   const catalog = React.createElement('section', { id: 'events', 'data-probe': 'the catalog' }, 'the catalog');
   const onRequireAuth = () => {};
   // HOME-BRIEF-05 (Alex, 2026-11-10 19:00): the wrapper HOLDS THE OPEN TAB in React state, so it is a component with hooks and cannot be called as a
@@ -515,19 +533,25 @@ test('T6 (HOME-BRIEF-04, 2026-11-10; HOME-BRIEF-05: the wrapper holds the open t
   // doesNotMatch(/defaultKey|useState|useEffect/) ('the wrapper keeps no state and picks no default: first in the list is the rule').
   // It is RENDERED instead, twice: inside a host that keeps what it returns (the strip element in it is found and its props read; the strip is not
   // drawn), and whole.
-  type StripProps = { modes: ToggleMode[]; className?: string; defaultKey?: string; activeKey?: string; onActiveChange?: (key: string) => void };
+  type StripProps = { modes: ToggleMode[]; className?: string; defaultKey?: string; activeKey?: string; onActiveChange?: (key: string) => void; bare?: string };
   const elementsIn = (node: React.ReactNode): React.ReactElement<Record<string, unknown>>[] => (Array.isArray(node) ? node.flatMap((n) => elementsIn(n as React.ReactNode))
     : React.isValidElement<Record<string, unknown>>(node) ? [node, ...elementsIn(node.props.children as React.ReactNode)] : []);
   let returned: React.ReactNode;
-  const Host = () => { returned = LandingBookingSection({ onRequireAuth, events: catalog }); return null; };
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): THE BOX IS THE LANDING'S OWN VIEW OF THE SAME MODES — TravelBox.tsx, handed the same list and the open tab
+  // exactly as the strip was (activeKey + onActiveChange). Until then the wrapper mounted the shared strip ('el.type === ToggleStrip', 'the
+  // wrapper mounts the shared strip, once') with className 'mt-6 rounded-lg border border-border bg-white p-4' ('the white box, as before'); the
+  // box draws its own card now (.ts-tm-box) and takes no class. The wrapper is handed the server's day, for the trip card under the box.
+  const Host = () => { returned = LandingBookingSection({ onRequireAuth, today: TODAY, events: catalog }); return null; };
   assert.equal(renderToStaticMarkup(React.createElement(Host)), '', 'the host draws nothing of its own');
-  const strips = elementsIn(returned).filter((el) => el.type === ToggleStrip) as unknown as React.ReactElement<StripProps>[];
-  assert.equal(strips.length, 1, 'the wrapper mounts the shared strip, once');
+  assert.equal(elementsIn(returned).filter((el) => el.type === ToggleStrip).length, 0, 'the shared strip is not mounted on the landing');
+  const strips = elementsIn(returned).filter((el) => el.type === TravelBox) as unknown as React.ReactElement<StripProps>[];
+  assert.equal(strips.length, 1, 'the wrapper mounts the box, once');
   const strip = strips[0];
   assert.equal(strip.props.defaultKey, undefined, 'no default key');
   assert.equal(strip.props.activeKey, 'events', 'the wrapper holds the open tab, and it starts on Events');
-  assert.equal(typeof strip.props.onActiveChange, 'function', 'and it hands the strip the way to change it');
-  assert.equal(strip.props.className, 'mt-6 rounded-lg border border-border bg-white p-4', 'the white box, as before');
+  assert.equal(typeof strip.props.onActiveChange, 'function', 'and it hands the box the way to change it');
+  assert.equal(strip.props.className, undefined, 'the box draws its own card');
+  assert.equal(strip.props.bare, 'events', 'the Events panel opens with its own first line, not its headline');
   const built = travelStripModes({ onRequireAuth, authed: false, eventsAnchor: '#events' });
   const modes = strip.props.modes;
   assert.deepEqual(modes.map((m) => m.key), ['events', 'flights', 'hotels', 'transit', 'activities', 'visa', 'insurance', 'esim'], 'Events first, then the builder\'s order');
@@ -545,11 +569,14 @@ test('T6 (HOME-BRIEF-04, 2026-11-10; HOME-BRIEF-05: the wrapper holds the open t
   assert.equal(modes[0].label, 'Events');
   assert.equal(modes[0].badge, undefined, 'no Soon badge on the landing');
   // rendered whole, with its real panels: eight tabs in that order, Events the pressed one; the catalog shown, the seven others mounted and hidden
-  const whole = renderToStaticMarkup(React.createElement(LandingBookingSection, { onRequireAuth, events: catalog }));
-  const tabs = [...whole.matchAll(/<button type="button" aria-pressed="(true|false)" class="[^"]*"><span aria-hidden="true"[^>]*>[\s\S]*?<\/span><span class="w-min[^"]*">([^<]*)<\/span>/g)].map((m) => [m[2], m[1]]);
+  // HOME-TRAVEL-01 (2026-11-12): each tab a tile — the mode's icon, then its label (.ts-tm-tab); each panel the box's, hidden by the attribute while
+  // closed. Until then the strip's icon tabs ('<span aria-hidden="true">' over '<span class="w-min …">') and its '<div class="block">' /
+  // '<div class="hidden">' panels.
+  const whole = renderToStaticMarkup(React.createElement(LandingBookingSection, { onRequireAuth, today: TODAY, events: catalog }));
+  const tabs = [...whole.matchAll(/<button class="ts-tm-tab" type="button" aria-pressed="(true|false)" data-tab="[^"]+"[^>]*><svg[\s\S]*?<\/svg><span class="ts-tm-tab__label">([^<]*)<\/span>/g)].map((m) => [m[2], m[1]]);
   assert.deepEqual(tabs, modes.map((m, i) => [m.label.replace(/&/g, '&amp;'), i === 0 ? 'true' : 'false']), 'the eight tabs, in order, Events open');
-  assert.ok(whole.includes('<div class="block"><section id="events" data-probe="the catalog">the catalog</section></div><div class="hidden">'), 'the catalog is the open panel, first');
-  assert.deepEqual(whole.match(/<div class="(block|hidden)">/g), ['<div class="block">', ...Array.from({ length: 7 }, () => '<div class="hidden">')], 'one panel open, the seven others mounted and hidden');
+  assert.ok(whole.includes('<div class="ts-tm-panel" data-panel="events"><section id="events" data-probe="the catalog">the catalog</section></div><div class="ts-tm-panel" data-panel="flights" hidden="">'), 'the catalog is the open panel, first');
+  assert.deepEqual([...whole.matchAll(/<div class="ts-tm-panel" data-panel="[a-z]+"( hidden="")?>/g)].map((m) => m[1] === undefined ? 'open' : 'hidden'), ['open', ...Array.from({ length: 7 }, () => 'hidden')], 'one panel open, the seven others mounted and hidden');
   // the strip opens on its first mode — rendered: the first panel is shown, every other stays mounted and hidden
   const two: ToggleMode[] = [{ key: 'events', label: 'Events', panel: catalog }, { key: 'flights', label: 'Flights', panel: React.createElement('p', null, 'the flights') }];
   const html = renderToStaticMarkup(React.createElement(ToggleStrip, { modes: two }));
@@ -581,7 +608,8 @@ test('T6 (HOME-BRIEF-04, 2026-11-10; HOME-BRIEF-05: the wrapper holds the open t
   }
   // the source: the prop, the unchanged call, the throw by name, the state it holds, the two listeners and the landing — and nothing stored
   const wrapper = code(LANDING_BOOKING);
-  assert.match(wrapper, /export default function LandingBookingSection\(\{ onRequireAuth, events \}: \{ onRequireAuth: \(\) => void; events: ReactNode \}\) \{/);
+  // HOME-TRAVEL-01 (2026-11-12): and the server's day — '({ onRequireAuth, events }: { onRequireAuth: () => void; events: ReactNode })' until then.
+  assert.match(wrapper, /export default function LandingBookingSection\(\{ onRequireAuth, today, events \}: \{ onRequireAuth: \(\) => void; today: string; events: ReactNode \}\) \{/);
   assert.match(wrapper, /const modes: ToggleMode\[\] = travelStripModes\(\{ onRequireAuth, authed: false, eventsAnchor: '#events' \}\);/, 'the call, exactly as before');
   assert.match(wrapper, /const eventsMode = modes\.find\(\(m\) => m\.key === EVENTS_KEY\);\n\s*if \(!eventsMode\) throw new Error\(`LandingBookingSection: travelStripModes returned no '\$\{EVENTS_KEY\}' mode/, 'no events mode → a throw that names it');
   assert.match(wrapper, /const ordered: ToggleMode\[\] = \[\{ \.\.\.eventsMode, panel: events \}, \.\.\.modes\.filter\(\(m\) => m\.key !== EVENTS_KEY\)\];/);

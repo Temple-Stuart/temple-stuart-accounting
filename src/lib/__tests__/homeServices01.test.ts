@@ -421,7 +421,10 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   const hooks = new Set<string>(['aria-pressed', 'aria-live', 'aria-labelledby', 'hidden']);
   for (const need of SERVICE_NEEDS) for (const m of render(need).matchAll(/ (data-[\w-]+)="/g)) hooks.add(m[1]);
   assert.deepEqual([...hooks].sort(), ['aria-labelledby', 'aria-live', 'aria-pressed', 'data-asks', 'data-done-for-you', 'data-need', 'data-picked', 'data-step', 'hidden'], 'the hooks the section carries');
-  const besideOwn = (sel: string): boolean => sel.split(',').every((one) => /^\.ts-(?:fs|menu)(?:[-_][\w-]*)?(?![\w-])/.test(one.trim()));
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): and the Travel Marketplace section's port, which stands above this one (.ts-tm…: its tiles by [aria-pressed],
+  // what it hides by [hidden]) — every part of each such selector opens with one of that section's own classes, which no element here wears.
+  // Until then the exception named the Financial Software section's and the top bar's menu alone: /^\.ts-(?:fs|menu)…/.
+  const besideOwn = (sel: string): boolean => sel.split(',').every((one) => /^\.ts-(?:fs|menu|tm)(?:[-_][\w-]*)?(?![\w-])/.test(one.trim()));
   const landing = code(LANDING);
   assert.ok(landing.includes('\n  return (\n    <div className="min-h-screen bg-bg-terminal text-text-primary">\n') && landing.includes('\n      <ServicesSection />\n'), 'mounted directly under the page\'s root, which wears no ts- class');
   const selectorsOutside = [...outside.matchAll(/([^{};]+)\{/g)].map((m) => flat(m[1]));

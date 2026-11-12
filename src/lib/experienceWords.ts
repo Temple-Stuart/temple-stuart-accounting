@@ -30,6 +30,17 @@
  *                                section reads this, never a status (HOME-BRIEF-05)
  *   stayNearLine(row)            "Stay near <name> — <venue> · <city>, <country>. Set your dates, then Search." —
  *                                the one line over the Hotels form once the action is pressed (HOME-BRIEF-05)
+ *   ADD_TO_TRIP · IN_YOUR_TRIP   "Add to trip" · "In your trip" — an event row's one button that flips: its words
+ *                                say its state (HOME-TRAVEL-01, 2026-11-12)
+ *   experienceWindowWords(row)   THE WINDOW PART: the dated part a line opens with, without its source — "Window Nov 1,
+ *                                2026 – Mar 31, 2027" · "Season Nov 1, 2026 – May 2, 2027" · "Usually Nov – May" ·
+ *                                "Jan 17–31, 2027". experienceWindowLine reads it, and so does the guest's trip
+ *                                (HOME-TRAVEL-01)
+ *   tripWhenWords(row, today)    an event's dates in the guest's trip: the window part, or NOT_ANNOUNCED_YET ("Not
+ *                                announced yet") where the line says not announced — read off the line (HOME-TRAVEL-01)
+ *   dayNumber(iso)               a day's number — days from 1970-01-01 on the civil calendar — by integer arithmetic on
+ *                                the date's own parts, never Date: the trip counts the days between two events with it
+ *                                (HOME-TRAVEL-01)
  *
  * EVENTS-01b (2026-10-30): the series summary and its pill are DELETED — the section
  * always shows one category, so every row is its own pill and nothing collapses; a
@@ -80,6 +91,20 @@ export function weekdayWords(iso: string): string {
   const y = p.month < 3 ? Number(p.year) - 1 : Number(p.year);
   const index = (y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) + SAKAMOTO[p.month - 1] + p.day) % 7;
   return WEEKDAYS[index];
+}
+
+/**
+ * HOME-TRAVEL-01 (2026-11-12): a day's number — the days from 1970-01-01 on the civil calendar (Hinnant's days_from_civil,
+ * the reference's dayNumber) — by integer arithmetic on the date's own parts, as weekdayWords is: no Date, no Intl, no locale.
+ * The guest's trip counts the days between two events with it: dayNumber(second start) − dayNumber(first end) − 1.
+ */
+export function dayNumber(iso: string): number {
+  const p = parts(iso);
+  const y = Number(p.year) - (p.month <= 2 ? 1 : 0);
+  const era = Math.floor(y / 400);
+  const yoe = y - era * 400;
+  const doy = Math.floor((153 * (p.month + (p.month > 2 ? -3 : 9)) + 2) / 5) + p.day - 1;
+  return era * 146097 + yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy - 719468;
 }
 
 /** One day: "Oct 30, 2026". */
@@ -152,26 +177,50 @@ export function experienceLine(row: Experience, today: string): string {
 }
 
 /**
+ * HOME-TRAVEL-01 (Alex's brief, 2026-11-12; design-refs/home-travel-01/README.md, "The trip: the rules"): THE WINDOW PART — the
+ * dated part a row's line opens with, without its source: the dates, with "Window " or "Season " before them as the line has it
+ * ("Window Nov 1, 2026 – Mar 31, 2027", "Season Nov 1, 2026 – May 2, 2027", "Jan 17–31, 2027"), or a usual season's months
+ * ("Usually Nov – May", usualWindowWords). experienceWindowLine reads it and adds the source; the guest's trip reads it as an
+ * event's dates (tripWhenWords) — "one function beside experienceWindowLine … and both should read it, so the line and the card
+ * never drift". A row with no window is refused by name, never a guess.
+ */
+export function experienceWindowWords(row: Experience): string {
+  if (row.status === 'not_announced' || row.start === null || row.end === null) throw new ExperienceWordsError(`${row.id}: status ${row.status} has no window to name`);
+  if (row.windowKind === 'season') return row.status === 'typical' ? usualWindowWords(row.start, row.end) : `Season ${dateWords(row.start, row.end)}`;
+  return `${row.windowKind === 'fixed' ? '' : 'Window '}${dateWords(row.start, row.end)}`;
+}
+
+/**
  * TRIPCARDS-01 (2026-11-05): an announced or conflicting row's window in words — experienceLine's
  * dated words, with no day in them. A row with no window is refused by name, never a guess.
+ * HOME-TRAVEL-01 (2026-11-12): the dated part is experienceWindowWords's (above), read here — the words are unchanged; until then
+ * this function built the dates and their "Window " / "Season " / usual months itself.
  */
 export function experienceWindowLine(row: Experience): string {
-  if (row.status === 'not_announced' || row.start === null || row.end === null) throw new ExperienceWordsError(`${row.id}: status ${row.status} has no window to name`);
+  const part = experienceWindowWords(row);
   // SEASONS-01 (2026-11-08): a place's season — its usual months (typical) or this season's published dates (announced),
   // "per <source>" whatever the sourceKind: the ruled words (CLOSED 3); the notes name a source that is not the place's own.
-  if (row.windowKind === 'season') {
-    return row.status === 'typical'
-      ? `${usualWindowWords(row.start, row.end)} · per ${row.sourceName}`
-      : `Season ${dateWords(row.start, row.end)} · per ${row.sourceName}`;
-  }
-  const words = dateWords(row.start, row.end);
-  const prefix = row.windowKind === 'fixed' ? '' : 'Window ';
+  if (row.windowKind === 'season') return `${part} · per ${row.sourceName}`;
   let line: string;
-  if (row.status === 'conflict') line = `${prefix}${words} · window being confirmed`;
-  else if (row.sourceKind === 'official') line = `${prefix}${words} · per ${row.sourceName}`;
-  else line = `${prefix}${words} · reported by ${row.sourceName}, not yet confirmed by the organizer`;
+  if (row.status === 'conflict') line = `${part} · window being confirmed`;
+  else if (row.sourceKind === 'official') line = `${part} · per ${row.sourceName}`;
+  else line = `${part} · reported by ${row.sourceName}, not yet confirmed by the organizer`;
   if (row.windowKind === 'swell') line += ' · called on a swell';
   return line;
+}
+
+/** HOME-TRAVEL-01 (2026-11-12): an event's dates in the guest's trip where the panel's line says not announced. */
+export const NOT_ANNOUNCED_YET = 'Not announced yet';
+
+/**
+ * HOME-TRAVEL-01 (Alex's brief, 2026-11-12): AN EVENT'S DATES IN THE GUEST'S TRIP — "the dated part of the panel's line, without
+ * its source": the window part (experienceWindowWords) where the line names a window, and NOT_ANNOUNCED_YET where the line says
+ * not announced — a row with no dates, and one whose window has closed by `today`. Read off the line (the section's own idiom for
+ * "checked"), never a list of statuses, so the line and the card never drift.
+ */
+export function tripWhenWords(row: Experience, today: string): string {
+  const line = experienceLine(row, today);
+  return line === notAnnouncedLine(row.checkedOn) || line === seasonNotAnnouncedLine(row.checkedOn) ? NOT_ANNOUNCED_YET : experienceWindowWords(row);
 }
 
 /** Announced or conflicting rows whose window is still open, by start (ties keep the leaf's order), the first n. */
@@ -189,6 +238,16 @@ export function upcoming(rows: readonly Experience[], today: string, n: number):
 
 /** The action's words, on every row that can be stayed near. */
 export const STAY_NEAR_WORDS = 'Stay near it →';
+
+// ── HOME-TRAVEL-01 (Alex's brief, 2026-11-12 16:08 Manila: "if someone selects events, they add to a queue table below the search
+// bar, so the person who adds them can see them for review"; the board approved 20:26) — ADD TO TRIP: every event row's other
+// action. One button that flips: pressed, it says the event is in the trip, and pressed again it takes it out. Its words say its
+// state, so it carries no aria-pressed. ──
+
+/** The button's words while the event is not in the guest's trip. */
+export const ADD_TO_TRIP = 'Add to trip';
+/** …and once it is. */
+export const IN_YOUR_TRIP = 'In your trip';
 
 /** THE RULE: an event can be stayed near when its city is fixed — anything but the leaf's "not fixed" mark. Read off the row's place, never off a status. */
 export function canStayNear(row: Pick<Experience, 'city'>): boolean {

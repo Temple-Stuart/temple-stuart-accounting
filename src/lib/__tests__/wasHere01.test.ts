@@ -558,8 +558,10 @@ test('T5 Landing mounts the log once, after the experiences mount and the guest 
   assert.equal((landing.match(/<WasHereSection today=\{today\}/g) ?? []).length, 1);
   const events = landing.indexOf('<ExperiencesSection today={today} />');
   const mount = landing.indexOf('<WasHereSection today={today} />');
-  const strip = landing.indexOf('<GuestTripStrip');
-  assert.ok(events > -1 && strip > events && mount > strip, 'experiences → guest strip → my trip'); // HOME-ORDER-01 (2026-11-10): Alex's order — the log sits under the guest strip now (the plans, DONE-FOR-YOU and Stop 0 between); 'experiences → my trip → guest strip' until then
+  // HOME-TRAVEL-01 (Alex, 2026-11-12): the guest's strip is the trip card under the booking box, inside the travel block — Landing mounts no strip.
+  // Until then: strip = landing.indexOf('<GuestTripStrip') and 'experiences → guest strip → my trip'.
+  assert.equal(landing.indexOf('<GuestTripStrip'), -1, 'no strip of its own');
+  assert.ok(events > -1 && mount > events, 'experiences (and the trip card under them) → my trip'); // HOME-ORDER-01 (2026-11-10): Alex's order — the log sits under the guest strip now (the plans, DONE-FOR-YOU and Stop 0 between); 'experiences → my trip → guest strip' until then
   assert.match(landing, /import WasHereSection from '\.\/WasHereSection';/);
   const notes = comments(LANDING);
   assert.match(notes, /MY TRIP {13}— the trip log, a card per stop, each opening its stop's page \(TRIPCARDS-01\)/);

@@ -10381,7 +10381,7 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_CANCEL, G_FLOW, G_PAGE, G_RE
   // THE DOOR (Alex's ruling 17:04): the lookup under the home page's booking section, not a header link.
   if (/booking\/manage/.test(codeOf('src/components/landing/LandingHeader.tsx'))) guestFail('LandingHeader.tsx links /booking/manage — the door is the home page\u2019s lookup, not the header');
   const landing = codeOf(G_LANDING);
-  const SECTION = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />'; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking mount carries the experiences catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then
+  const SECTION = '<LandingBookingSection onRequireAuth={onRequireAuth} today={today} events={<ExperiencesSection today={today} />} />'; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking mount carries the experiences catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then. HOME-TRAVEL-01 (Alex, 2026-11-12): and the server's day, for the guest's trip card it renders under the box — '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />' until then
   const BOX = "<GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />";
   const sectionAt = landing.indexOf(SECTION);
   const boxAt = landing.indexOf(BOX);
@@ -10396,7 +10396,13 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_CANCEL, G_FLOW, G_PAGE, G_RE
   const lookup = codeOf(G_LOOKUP);
   for (const words of ['Booked without an account? Look up your booking', 'Look up', 'Your reference and manage code are in your booking email.', 'Manage reference', 'Manage code']) if (!lookup.includes(words)) guestFail(`${G_LOOKUP} lost "${words}"`);
   if (/useEffect|useLayoutEffect/.test(lookup) || (lookup.match(/\bfetch\(/g) ?? []).length !== 1 || !lookup.includes("fetch('/api/guest/session', {")) guestFail(`${G_LOOKUP} asks something on load, or calls more than the submitted lookup — the home page is the guest\u2019s sales floor`);
-  if (!lookup.includes('className="flex flex-col gap-3 sm:flex-row sm:items-end"') || !lookup.includes('text-brand-red')) guestFail(`${G_LOOKUP}\u2019s fields do not stack on a phone, or its one failure line is not brand red`);
+  // HOME-TRAVEL-01 (Alex, 2026-11-12; the board approved at 20:26): the lookup wears the reference's classes, ruled in src/app/globals.css's HOME-TRAVEL-01
+  // block — the fields still stack on a phone (their row wraps, each field 220px or more, Look up a line of its own under 480px) and the one failure
+  // line is still brand red (.ts-tm-lookup__failure reads --ts-red, the token text-brand-red reads). Until then: lookup.includes('className="flex flex-col
+  // gap-3 sm:flex-row sm:items-end"') and lookup.includes('text-brand-red').
+  const lookupCss = codeOf('src/app/globals.css');
+  if (!lookup.includes('<div className="ts-tm-lookup__fields">') || !/\n\.ts-tm-lookup__fields \{ display: flex; flex-wrap: wrap;/.test(lookupCss) || !/\n\.ts-tm-field \{ flex: 1 1 220px; min-width: 0; \}/.test(lookupCss) || !/\n\.ts-tm-lookup__button \{ flex: 0 0 100%;/.test(lookupCss)
+    || !lookup.includes('<p className="ts-tm-lookup__failure" role="alert" data-guest-failure>') || !/\n\.ts-tm-lookup__failure \{[^}]*\bcolor: rgb\(var\(--ts-red\)\);/.test(lookupCss)) guestFail(`${G_LOOKUP}\u2019s fields do not stack on a phone, or its one failure line is not brand red`);
 }
 
 // 5. the code travels only by email.
@@ -10428,7 +10434,8 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_CANCEL, G_FLOW, G_PAGE, G_RE
   for (const f of G_TEMPLATES) if (!/guestManage\?: GuestManage;/.test(codeOf(f))) guestFail(`${f} does not take the optional guestManage`);
   if (!codeOf(G_LOOKUP).includes('body: JSON.stringify({ reference, code }),')) guestFail(`${G_LOOKUP} does not post the code in the body`);
   // Before hydration the box is a plain <form>: a native submit would be a GET with the code in the URL.
-  if (!codeOf(G_LOOKUP).includes('<fieldset className="space-y-3" disabled={!live}>') || !codeOf(G_LOOKUP).includes('const live = useSyncExternalStore(NO_SUBSCRIPTION, () => true, () => false);')) guestFail(`${G_LOOKUP} can be submitted before the page is live — the browser would send the code in the URL`);
+  // HOME-TRAVEL-01 (2026-11-12): the fieldset wears the reference's .ts-tm-lookup__set — '<fieldset className="space-y-3" disabled={!live}>' until then; the clause is unchanged.
+  if (!codeOf(G_LOOKUP).includes('<fieldset className="ts-tm-lookup__set" disabled={!live}>') || !codeOf(G_LOOKUP).includes('const live = useSyncExternalStore(NO_SUBSCRIPTION, () => true, () => false);')) guestFail(`${G_LOOKUP} can be submitted before the page is live — the browser would send the code in the URL`);
   for (const f of [G_PAGE, G_LOOKUP]) if (/[?&]code=|get\('code'\)|localStorage|sessionStorage|router\.|location\.href\s*=|console\./.test(codeOf(f))) guestFail(`${f} puts the code in a URL, keeps it in browser storage, or logs it — it is posted in the body only`);
   const openRoute = codeOf(G_OPEN);
   if (!openRoute.includes('const res = NextResponse.json({ ok: true });') || /json\(\{[^}]*\bcode\b/.test(openRoute)) guestFail(`${G_OPEN} answers with the code`);

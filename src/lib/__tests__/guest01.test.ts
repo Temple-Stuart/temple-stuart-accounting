@@ -446,10 +446,18 @@ test('T6 the door: ONE lookup box, mounted by /booking/manage and by the home pa
   assert.equal((lookup.match(/\bfetch\(/g) ?? []).length, 1, 'its one call is the submitted lookup');
   assert.ok(lookup.includes("fetch('/api/guest/session', {"));
   assert.doesNotMatch(lookup, /useEffect|useLayoutEffect|localStorage|sessionStorage|[?&]code=|console\./);
-  assert.ok(lookup.includes('className="flex flex-col gap-3 sm:flex-row sm:items-end"'), 'the fields stack on a phone');
-  assert.ok(lookup.includes('<fieldset className="space-y-3" disabled={!live}>'), 'disabled until live — a native submit would be a GET with the code in the URL');
+  // HOME-TRAVEL-01 (Alex, 2026-11-12; the board approved at 20:26): the lookup wears the reference's classes (src/app/globals.css). Its fields still
+  // stack on a phone: the fields' row wraps, each field 220px or more, Look up full width under 480px. Until then: lookup.includes('className="flex
+  // flex-col gap-3 sm:flex-row sm:items-end"') ('the fields stack on a phone') and '<fieldset className="space-y-3" disabled={!live}>'.
+  assert.ok(lookup.includes('<div className="ts-tm-lookup__fields">'), 'the fields\' row');
+  const css = code('src/app/globals.css');
+  assert.match(css, /\n\.ts-tm-lookup__fields \{ display: flex; flex-wrap: wrap;/, 'it wraps');
+  assert.match(css, /\n\.ts-tm-field \{ flex: 1 1 220px; min-width: 0; \}/, 'each field 220px or more — two cannot share a phone\'s line');
+  assert.match(css, /\n\.ts-tm-lookup__button \{ flex: 0 0 100%;/, 'Look up on a line of its own on a phone');
+  assert.ok(lookup.includes('<fieldset className="ts-tm-lookup__set" disabled={!live}>'), 'disabled until live — a native submit would be a GET with the code in the URL');
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the booking mount carries the experiences catalog as its Events panel — '<LandingBookingSection onRequireAuth={onRequireAuth} />' until then (here and in the slice below).
-  const BOOKING_MOUNT = '<LandingBookingSection onRequireAuth={onRequireAuth} events={<ExperiencesSection today={today} />} />';
+  // HOME-TRAVEL-01 (2026-11-12): and the server's day, for the trip card under the box — '… onRequireAuth={onRequireAuth} events={…} />' until then.
+  const BOOKING_MOUNT = '<LandingBookingSection onRequireAuth={onRequireAuth} today={today} events={<ExperiencesSection today={today} />} />';
   const section = landing.indexOf(BOOKING_MOUNT);
   const box = landing.indexOf("<GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />");
   // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the demo's footer row left the page, so the end of the block is what follows the lookup now — the close
@@ -468,8 +476,10 @@ test('T6 the door: ONE lookup box, mounted by /booking/manage and by the home pa
 test('T6 the lookup box, rendered: the label, the two fields, "Look up" and the hint; a reference handed in is prefilled; a failure the page hands in is the one brand-red line', async () => {
   const { default: GuestBookingLookup } = await import('../../components/guest/GuestBookingLookup');
   const html = renderToStaticMarkup(React.createElement(GuestBookingLookup, { onOpened: () => {} }));
-  assert.ok(html.includes('<fieldset class="space-y-3" disabled="">'), 'the server’s HTML cannot be submitted — the fields wait for the page to be live');
-  assert.ok(html.includes('<legend class="text-sm font-semibold text-text-primary">Booked without an account? Look up your booking</legend>'));
+  // HOME-TRAVEL-01 (2026-11-12): the reference's classes — '<fieldset class="space-y-3" disabled="">' and '<legend class="text-sm font-semibold
+  // text-text-primary">' until then.
+  assert.ok(html.includes('<fieldset class="ts-tm-lookup__set" disabled="">'), 'the server’s HTML cannot be submitted — the fields wait for the page to be live');
+  assert.ok(html.includes('<legend class="ts-tm-lookup__legend">Booked without an account? Look up your booking</legend>'));
   assert.ok(html.includes('Manage reference') && html.includes('Manage code'));
   assert.match(html, /<button type="submit"[^>]*data-guest-open="true">Look up<\/button>/);
   assert.ok(html.includes('Your reference and manage code are in your booking email.'));
@@ -477,7 +487,10 @@ test('T6 the lookup box, rendered: the label, the two fields, "Look up" and the 
   const prefilled = renderToStaticMarkup(React.createElement(GuestBookingLookup, { initialReference: 'GBK-1', initialFailure: 'the booking read answered 500', onOpened: () => {} }));
   assert.match(prefilled, /name="reference"[^>]*value="GBK-1"/);
   assert.match(prefilled, /name="code"[^>]*value=""/);
-  assert.match(prefilled, /<p class="text-sm text-brand-red" role="alert" data-guest-failure="true">the booking read answered 500<\/p>/);
+  // HOME-TRAVEL-01 (2026-11-12): the failure line is the reference's .ts-tm-lookup__failure, in brand red's own token (--ts-red) — '<p class="text-sm
+  // text-brand-red" …>' until then.
+  assert.match(prefilled, /<p class="ts-tm-lookup__failure" role="alert" data-guest-failure="true">the booking read answered 500<\/p>/);
+  assert.match(code('src/app/globals.css'), /\n\.ts-tm-lookup__failure \{[^}]*\bcolor: rgb\(var\(--ts-red\)\);/, 'brand red: --ts-red, the token text-brand-red reads');
 });
 
 test('T6 rendered: the guest receipt draws the header, stay, vendor and refunds with its actions — no Bank, Ledger, History or settlement; the owner’s sections sit where they did', async () => {

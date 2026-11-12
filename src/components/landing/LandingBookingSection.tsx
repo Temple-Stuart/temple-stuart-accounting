@@ -72,14 +72,37 @@
 // the thing booked. On Hotels it stands after the form inside the starting place's provider, so the form keeps its seat
 // among the provider's children and is never remounted; on the other three it is the builder's panel and then the
 // sentence. The builder's file is not edited. A paying key the builder does not return → a throw, by name.
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
+// HOME-TRAVEL-01 (Alex's brief, 2026-11-12 16:08 Manila: "this one is basically set, not much to change, just need to match astehetics of the
+// site to make it follow along... also with the events, it would be cool if someone selects events, they add to a queue table below the search
+// bar"; the board approved on the design canvas at 20:26: "ok I approve the travel market place") — THE BOX AND THE TRIP, AS DRAWN
+// (design-refs/home-travel-01/Section-Reference.html). Four things change here, and the list above, its order, the open tab in React state,
+// Stay near it →, the links to the events and the disclosure's four panels do not:
+//   · THE BOX is the landing's own view of the same modes — TravelBox.tsx: the eight tabs as tiles, one rule, every panel but Events opening with
+//     its mode's headline, the panels mounted and hidden when closed. It takes the open tab exactly as the strip did (activeKey + onActiveChange).
+//     The shared ToggleStrip, DS.iconTab and the app's band are not touched: the app's travel tab draws what it drew. The stay line and the
+//     disclosure wear the reference's classes (until then STAY_LINE 'mt-4 border-l-2 border-brand-purple pl-3 text-sm text-text-primary' — the
+//     house explainer's hairline — and the disclosure 'mt-3 text-xs text-text-secondary'); the plain box around the strip ('scroll-mt-4') is the
+//     box itself now, 24px of cream above it when it is brought into view.
+//   · THE TRIP — the guest's events join the guest trip (src/lib/guestTrip.ts). This file makes the one read (GuestTripStrip.tsx useGuestTrip),
+//     hands every row's "Add to trip" what it needs through AddToTripContext (ExperiencesSection.tsx) — whether the event is in, and the press,
+//     which adds it or takes it out — and renders the trip card directly under the box, on every tab (GuestTripStrip.tsx; it stood under the
+//     whole section, in Landing.tsx, until then), so the card reaches the open tab and Stay near it →.
+//   · SEARCH FLIGHTS → opens Flights and brings the box into view, exactly as Stay near it → does with Hotels. It fills nothing: no airport, no
+//     date (Alex, 2026-11-09: "would be cool if that populated destination but like user gonna wanna pick their own travel dates"). No 'flights'
+//     mode from the builder → a throw, by name.
+//   · `today` — the server's UTC day (src/app/page.tsx), handed down by Landing.tsx: the card reads every event's dates on it, as the panel does.
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { ToggleMode } from '@/components/ui/ToggleStrip';
 import { EVENTS_ANCHOR } from '@/lib/homeAnchors';
 import type { Experience } from '@/lib/experiences';
 import { stayNearLine } from '@/lib/experienceWords';
 import { COMMISSION_LINE } from '@/lib/disclosureWords';
 import { StartingPlaceContext, type StartingPlace } from '@/components/trips/startingPlace';
 import { StayNearContext, landOnEvents } from './ExperiencesSection';
+import { AddToTripContext } from './ExperiencesSection'; // HOME-TRAVEL-01 (2026-11-12): what every row's Add to trip reads — on a line of its own, so the line above keeps its text
+import TravelBox from './TravelBox'; // HOME-TRAVEL-01 (2026-11-12): the box, in the landing's own look — ToggleStrip until then
+import GuestTripStrip, { useGuestTrip } from './GuestTripStrip'; // HOME-TRAVEL-01 (2026-11-12): the trip card, under the box, and its one read
+import { addGuestTripEvent, removeGuestTripEvent } from '@/lib/guestTrip'; // HOME-TRAVEL-01 (2026-11-12): the event writers a row's press calls
 // PR-ELEV-1: the modes come from the ONE shared builder (8 chips — 5 live + 3
 // "Soon"), so the guest landing and the app travel tab render the same strip
 // and light up together as affiliate IDs land.
@@ -89,10 +112,12 @@ import { travelStripModes } from '@/components/trips/travelStripModes';
 const EVENTS_KEY = 'events';
 /** HOME-BRIEF-05 (2026-11-10): the builder's Hotels mode, by its key — the tab "Stay near it" opens. */
 const HOTELS_KEY = 'hotels';
+/** HOME-TRAVEL-01 (2026-11-12): the builder's Flights mode, by its key — the tab "Search flights →" opens. */
+const FLIGHTS_KEY = 'flights';
 /** HOME-FINISH-02 (2026-11-10): the four modes whose bookings can pay a commission, by their keys (travelStripModes.tsx) — the disclosure is the last line of their panels. */
 const PAYING_KEYS: readonly string[] = ['flights', 'hotels', 'transit', 'activities'];
-/** HOME-BRIEF-05: the one line over the Hotels form — the house explainer's hairline (src/lib/ds.ts EXPLAINER), in primary ink at the form's size. */
-const STAY_LINE = 'mt-4 border-l-2 border-brand-purple pl-3 text-sm text-text-primary';
+/** HOME-BRIEF-05: the one line over the Hotels form. HOME-TRAVEL-01 (2026-11-12): the reference's stay line (.ts-tm-stay — a violet rule at its left, body ink). */
+const STAY_LINE = 'ts-tm-stay';
 
 /**
  * HOME-BRIEF-05 (2026-11-10): does this link go to THIS page's events block? `href` is the link's target and `here` the
@@ -105,7 +130,7 @@ export function linksToEvents(href: string, here: string): boolean {
   return to.origin === at.origin && to.pathname === at.pathname && to.hash === `#${EVENTS_ANCHOR}`;
 }
 
-export default function LandingBookingSection({ onRequireAuth, events }: { onRequireAuth: () => void; events: ReactNode }) {
+export default function LandingBookingSection({ onRequireAuth, today, events }: { onRequireAuth: () => void; today: string; events: ReactNode }) {
   // HOME-BRIEF-05 (2026-11-10): the open tab — held here, in React state only, starting on Events.
   const [open, setOpen] = useState<string>(EVENTS_KEY);
   // How many times a link or a hash change has asked for the catalog: each one lands once, after the render that opens the tab.
@@ -153,6 +178,28 @@ export default function LandingBookingSection({ onRequireAuth, events }: { onReq
     if (box.current === null) throw new Error('LandingBookingSection: the box is not on the page — "Stay near it" has no top to bring into view');
     box.current.scrollIntoView();
   }, [tops]);
+  // HOME-TRAVEL-01 (2026-11-12): SEARCH FLIGHTS → — Flights open, and one top asked for, as a press of Stay near it → asks for one. Nothing is filled.
+  const searchFlights = useCallback(() => {
+    setOpen(FLIGHTS_KEY);
+    setTops((n) => n + 1);
+  }, []);
+  // HOME-TRAVEL-01: THE GUEST'S TRIP — the one read (after mount, and again on every update signal). Once it has been made, every row's Add to
+  // trip reads it and presses through it: in the trip → the press takes the event out; out of it → the press adds it. Before it, no row draws
+  // the button (null).
+  const trip = useGuestTrip();
+  const addToTrip = useMemo(() => (trip === null ? null : {
+    inTrip: (id: string) => trip.events.includes(id),
+    onToggle: (row: Experience) => {
+      if (trip.events.includes(row.id)) removeGuestTripEvent(row.id);
+      else addGuestTripEvent(row.id);
+    },
+  }), [trip]);
+  // HOME-TRAVEL-01: the trip's last event taken out — the focus goes to the open tab, the box's pressed tile.
+  const focusOpenTab = useCallback(() => {
+    const tab = box.current === null ? null : box.current.querySelector<HTMLButtonElement>('[data-tab][aria-pressed="true"]');
+    if (tab === null) throw new Error('LandingBookingSection: the box shows no open tab to take the focus');
+    tab.focus();
+  }, []);
   // EVENTS-01b (2026-10-30): this strip sits in Landing.tsx, which mounts the experiences
   // section with id="events" directly under it — so the Events mode's jump link names it.
   // (experiences01.test.ts holds this literal equal to ExperiencesSection's EVENTS_ANCHOR.)
@@ -167,11 +214,13 @@ export default function LandingBookingSection({ onRequireAuth, events }: { onReq
   // event is pressed. The panel keeps its seat in the list and its place among the provider's children, so the form is
   // never remounted: its dates, its results and the picker's lists survive a press.
   if (!ordered.some((m) => m.key === HOTELS_KEY)) throw new Error(`LandingBookingSection: travelStripModes returned no '${HOTELS_KEY}' mode (it returned ${modes.map((m) => m.key).join(', ') || 'none'}) — "Stay near it" has no Hotels form to open`);
+  if (!ordered.some((m) => m.key === FLIGHTS_KEY)) throw new Error(`LandingBookingSection: travelStripModes returned no '${FLIGHTS_KEY}' mode (it returned ${modes.map((m) => m.key).join(', ') || 'none'}) — the trip card's flights button has no Flights search to open`);
   // HOME-FINISH-02: the disclosure — the last line of each panel that can pay. Secondary ink: a disclosure has to be easy to read.
   for (const key of PAYING_KEYS) {
     if (!ordered.some((m) => m.key === key)) throw new Error(`LandingBookingSection: travelStripModes returned no '${key}' mode (it returned ${modes.map((m) => m.key).join(', ') || 'none'}) — the commission disclosure has no '${key}' panel to close`);
   }
-  const disclosure = <p className="mt-3 text-xs text-text-secondary" data-commission-line>{COMMISSION_LINE}</p>;
+  // HOME-TRAVEL-01 (2026-11-12): the reference's disclosure (.ts-tm-disclosure, the lede's ink) — 'mt-3 text-xs text-text-secondary' until then.
+  const disclosure = <p className="ts-tm-disclosure" data-commission-line>{COMMISSION_LINE}</p>;
   // Flights, Getting around, Things to do: the builder's panel, then the sentence. Every other mode but Hotels: as it came.
   const withDisclosure = (m: ToggleMode): ToggleMode => (PAYING_KEYS.includes(m.key) ? { ...m, panel: <>{m.panel}{disclosure}</> } : m);
   const shown: ToggleMode[] = ordered.map((m) => (m.key !== HOTELS_KEY ? withDisclosure(m) : {
@@ -199,15 +248,21 @@ export default function LandingBookingSection({ onRequireAuth, events }: { onReq
     // only. Wiring untouched: same modes builder, same props.
     // HOME-BRIEF-05: the press handler reaches the catalog (the Events panel) through StayNearContext; the plain box
     // around the strip is what a press brings into view (scroll-mt-4: a little cream above the box's top edge).
+    // HOME-TRAVEL-01 (2026-11-12): the box is TravelBox, and it is itself what a press brings into view (.ts-tm-box: 24px of cream above it).
+    // Until then: '<div ref={box} className="scroll-mt-4">' around '<ToggleStrip className="mt-6 rounded-lg border border-border bg-white p-4"
+    // modes={shown} activeKey={open} onActiveChange={setOpen} />'. Every row's Add to trip reads the trip through AddToTripContext; the trip card
+    // follows the box, inside the same press handler's reach.
     <StayNearContext.Provider value={stayNear}>
-      <div ref={box} className="scroll-mt-4">
-        <ToggleStrip
-          className="mt-6 rounded-lg border border-border bg-white p-4"
+      <AddToTripContext.Provider value={addToTrip}>
+        <TravelBox
           modes={shown}
           activeKey={open}
           onActiveChange={setOpen}
+          bare={EVENTS_KEY}
+          boxRef={box}
         />
-      </div>
+      </AddToTripContext.Provider>
+      <GuestTripStrip trip={trip} today={today} onRequireAuth={onRequireAuth} onStayNear={stayNear} onSearchFlights={searchFlights} onNoEventLeft={focusOpenTab} />
     </StayNearContext.Provider>
   );
 }
