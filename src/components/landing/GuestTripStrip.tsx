@@ -9,6 +9,9 @@
 // <HomeClient/>, never the Landing); authed users have the real trip hub.
 // Fail-honest: readGuestTrip validates every row (guestTrip.ts) — absent or
 // unparseable storage renders NOTHING; rows are never invented.
+// HOME-TRAVEL-01 (2026-11-12): the card reads readGuestTripWhole now — the same strict read, for the bookings and the events (useGuestTrip,
+// below). And, read at main 72e224a: an authed arrival at / is redirected to /home (src/app/page.tsx, HOME-02 · HOME-03), not handed
+// <HomeClient/> as above — the Landing, and so this card, still renders for a guest alone.
 //
 // HOME-TRAVEL-01 (Alex's brief, 2026-11-12 16:08 Manila: "if someone selects events, they add to a queue table below the search bar, so the
 // person who adds them can see them for review to like aid in booking flights and stuff.... the see what they wanna do when it is, so they know
@@ -18,7 +21,7 @@
 // every tab, so its Stay near it → and Search flights → reach the box's open tab. Its own full-width band below the section is gone (until then:
 // '<section className="w-full border-b border-border bg-bg-terminal">' over 'max-w-7xl mx-auto px-4 lg:px-8 py-8', a mono purple eyebrow, a
 // white table of the bookings and a total row, the pitch and a flat gold button). It holds the guest's EVENTS as well as their bookings:
-//   · the eyebrow, then — only while the trip holds an event — the summary ("3 events · Jan 17 – Mar 14, 2027", aria-live) and the gold
+//   · the eyebrow, then — only while the trip holds an event the catalog lists (Q1) — the summary ("3 events · Jan 17 – Mar 14, 2027", aria-live) and the gold
 //     Search flights →, which opens Flights and brings the box into view and fills nothing: no airport, no date (Alex, 2026-11-09: "would be cool
 //     if that populated destination but like user gonna wanna pick their own travel dates");
 //   · the events, in src/lib/guestTripWords.ts's order — each with its dates, its name, "{city}, {country}", Stay near it → where the row can be
@@ -32,8 +35,8 @@
 // Q1 (ruled by Alex 2026-11-12: yes to "keep its row, say it is no longer listed, and give it its × to remove it"): an event the catalog no
 // longer holds keeps its row — "No longer listed" where its dates go, its stored id where its name goes, no place, no Stay near it →, its ×.
 // Q2 (ruled by Alex 2026-11-12: yes to "say so where they pressed, and add nothing"): a × the browser refuses to save leaves the trip as it was
-// and says so under that row (the box's `notSaved`); the focus stays on the pressed ×. The press goes through the box (onRemove), which catches
-// that one refusal and nothing else.
+// and says so on a line of its own directly under that row (the box's `notSaved`); the focus stays on the pressed ×. The press goes through the
+// box (onRemove), which catches that one refusal and nothing else.
 
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { GUEST_TRIP_EVENT, readGuestTripWhole, type GuestTripRecord } from '@/lib/guestTrip';
@@ -88,8 +91,8 @@ export default function GuestTripStrip({ trip, today, onRequireAuth, onStayNear,
   onSearchFlights: () => void;
   /** A ×: the box takes the event out — true when it did; false when the browser refused to save it (Q2), and nothing changed. */
   onRemove: (id: string) => boolean;
-  /** Q2: the line under the row whose × the browser refused to save — null when there is none. */
-  notSaved: { id: string; words: string } | null;
+  /** Q2: the line under the row whose × the browser refused to save — null when there is none. `seq` counts the box's refusals: the line's key. */
+  notSaved: { id: string; words: string; seq: number } | null;
   /** The last event was taken out: the box's open tab takes the focus. */
   onNoEventLeft: () => void;
 }) {
@@ -134,32 +137,39 @@ export default function GuestTripStrip({ trip, today, onRequireAuth, onStayNear,
         <button className="ts-tm-cta" type="button" data-search-flights hidden={view.summary === null} onClick={onSearchFlights}>{SEARCH_FLIGHTS}</button>
       </div>
       <ul className="ts-tm-trip__list">
-        {view.events.map((e) => (
-          <Fragment key={e.id}>
-            {e.gap !== null && <li className="ts-tm-gap" data-overlap={e.gap.overlap}><GapMark /><span>{e.gap.words}</span></li>}
-            <li className="ts-tm-trip__row" data-trip-event={e.id} data-unlisted={e.row === null ? true : undefined}>
-              <p className="ts-tm-trip__when">{e.when}</p>
-              <div className="ts-tm-trip__event">
-                <p className="ts-tm-trip__name">{e.name}</p>
-                {e.place !== null && <p className="ts-tm-trip__place">{e.place}</p>}
-              </div>
-              <div className="ts-tm-trip__actions">
-                {e.stay && e.row !== null && <button className="ts-tm-link" type="button" data-stay-near={e.id} onClick={() => { if (e.row !== null) onStayNear(e.row); }}>{STAY_NEAR_WORDS}</button>}
-                <button
-                  className="ts-tm-remove"
-                  type="button"
-                  aria-label={removeWords(e.name)}
-                  data-remove={e.id}
-                  onClick={() => remove(e.id)}
-                  ref={(el) => { if (el === null) removeButtons.current.delete(e.id); else removeButtons.current.set(e.id, el); }}
-                >
-                  <RemoveMark />
-                </button>
-              </div>
-              {notSaved !== null && notSaved.id === e.id && <p className="ts-tm-lookup__failure" role="alert" data-not-saved={e.id}>{notSaved.words}</p>}
-            </li>
-          </Fragment>
-        ))}
+        {view.events.map((e) => {
+          const row = e.row;
+          return (
+            <Fragment key={e.id}>
+              {e.gap !== null && <li className="ts-tm-gap" data-overlap={e.gap.overlap}><GapMark /><span>{e.gap.words}</span></li>}
+              <li className="ts-tm-trip__row" data-trip-event={e.id} data-unlisted={row === null ? true : undefined}>
+                <p className="ts-tm-trip__when">{e.when}</p>
+                <div className="ts-tm-trip__event">
+                  <p className="ts-tm-trip__name">{e.name}</p>
+                  {e.place !== null && <p className="ts-tm-trip__place">{e.place}</p>}
+                </div>
+                <div className="ts-tm-trip__actions">
+                  {e.stay && row !== null && <button className="ts-tm-link" type="button" data-stay-near={e.id} onClick={() => onStayNear(row)}>{STAY_NEAR_WORDS}</button>}
+                  <button
+                    className="ts-tm-remove"
+                    type="button"
+                    aria-label={removeWords(e.name)}
+                    data-remove={e.id}
+                    onClick={() => remove(e.id)}
+                    ref={(el) => { if (el === null) removeButtons.current.delete(e.id); else removeButtons.current.set(e.id, el); }}
+                  >
+                    <RemoveMark />
+                  </button>
+                </div>
+              </li>
+              {/* Q2 (ruled by Alex 2026-11-12: yes to "say so where they pressed, and add nothing"): the browser refused to save this row's × — one
+                  line, the lookup's failure line, on its own directly under the row. Inside the row (a wrapping flex row) it stood beside the × on a
+                  wide screen, so a plain list item holds it — no rule is added; the alert is the line itself, so the <li> stays a list item. Keyed
+                  by the box's count of refusals: a × refused twice puts a new alert in the page, and it is said again. */}
+              {notSaved !== null && notSaved.id === e.id && <li key={notSaved.seq}><p className="ts-tm-lookup__failure" role="alert" data-not-saved={e.id}>{notSaved.words}</p></li>}
+            </Fragment>
+          );
+        })}
         {trip.bookings.map((r) => (
           <li key={`${r.ts}-${r.confirmationCode ?? r.name}`} className="ts-tm-trip__row ts-tm-trip__row--booked" data-trip-booked>
             <p className="ts-tm-trip__kind">{r.type}</p>

@@ -191,7 +191,10 @@ export default function LandingBookingSection({ onRequireAuth, today, events }: 
   // HOME-TRAVEL-01 — Q2 (ruled by Alex 2026-11-12: yes to "say so where they pressed, and add nothing"): ONE WRITE PER PRESS. Every press clears the
   // last line; a write the browser refuses (GuestTripWriteRefused, src/lib/guestTrip.ts — private mode, a full quota) leaves the trip as it was and
   // says so under the pressed button — a row's (where 'row') or the trip card's × (where 'card'). Any other error is not caught here: it is thrown.
-  const [notSaved, setNotSaved] = useState<{ id: string; where: 'row' | 'card'; words: string } | null>(null);
+  // Every refusal is counted (seq, the line's key): a press refused twice puts a NEW alert in the page, so it is said again — the same words in the
+  // same node would change nothing, and a screen reader would hear nothing.
+  const [notSaved, setNotSaved] = useState<{ id: string; where: 'row' | 'card'; words: string; seq: number } | null>(null);
+  const refusals = useRef(0);
   const write = useCallback((id: string, adding: boolean, where: 'row' | 'card'): boolean => {
     setNotSaved(null);
     try {
@@ -200,7 +203,8 @@ export default function LandingBookingSection({ onRequireAuth, today, events }: 
       return true;
     } catch (err) {
       if (!(err instanceof GuestTripWriteRefused)) throw err;
-      setNotSaved({ id, where, words: adding ? NOT_SAVED_ADD : NOT_SAVED_REMOVE });
+      refusals.current += 1;
+      setNotSaved({ id, where, words: adding ? NOT_SAVED_ADD : NOT_SAVED_REMOVE, seq: refusals.current });
       return false;
     }
   }, []);
@@ -209,7 +213,7 @@ export default function LandingBookingSection({ onRequireAuth, today, events }: 
     onToggle: (row: Experience) => {
       write(row.id, !trip.events.includes(row.id), 'row');
     },
-    notSaved: (id: string) => (notSaved !== null && notSaved.where === 'row' && notSaved.id === id ? notSaved.words : null),
+    notSaved: (id: string) => (notSaved !== null && notSaved.where === 'row' && notSaved.id === id ? { words: notSaved.words, seq: notSaved.seq } : null),
   }), [trip, write, notSaved]);
   const removeFromTrip = useCallback((id: string) => write(id, false, 'card'), [write]);
   // HOME-TRAVEL-01: the trip's last event taken out — the focus goes to the open tab, the box's pressed tile.
@@ -287,7 +291,7 @@ export default function LandingBookingSection({ onRequireAuth, today, events }: 
         onStayNear={stayNear}
         onSearchFlights={searchFlights}
         onRemove={removeFromTrip}
-        notSaved={notSaved !== null && notSaved.where === 'card' ? { id: notSaved.id, words: notSaved.words } : null}
+        notSaved={notSaved !== null && notSaved.where === 'card' ? { id: notSaved.id, words: notSaved.words, seq: notSaved.seq } : null}
         onNoEventLeft={focusOpenTab}
       />
     </StayNearContext.Provider>

@@ -12,8 +12,10 @@
  *   · BETWEEN TWO DATED EVENTS IN A ROW — the days strictly between the first's end and the second's start, counted from the date
  *     strings' own parts (dayNumber, src/lib/experienceWords.ts), never Date: "{n} days between", "1 day between", "Back to back"
  *     at 0; "Overlaps the one above" when the second starts on or before the first ends.
- *   · THE SUMMARY — "{n} event" / "{n} events" (every event in the trip), " · ", then dateWords(first start, latest end) over the
- *     dated ones; "dates not announced yet" after the dot when none has dates. Only when the trip holds an event.
+ *   · THE SUMMARY — "{n} event" / "{n} events" (every event in the trip that the catalog lists — Q1, ruled by Alex 2026-11-12: an event it
+ *     no longer holds counts in no summary), " · ", then dateWords(first start, latest end) over the dated ones; "dates not announced yet"
+ *     after the dot when none has dates. Only while the trip holds an event the catalog lists — and the gold Search flights → with it.
+ *     (Until Q1: every event in the trip, whenever it held one.)
  *   · AN EVENT'S DATES — tripWhenWords (src/lib/experienceWords.ts, beside experienceWindowLine); ITS PLACE — "{city}, {country}",
  *     a city that is not fixed printing the leaf's own mark ("—, USA"); STAY NEAR IT → — where canStayNear says so.
  * The four words GuestTripStrip.tsx typed until this brief live here too: "Your trip so far", the pitch, "Create free account",

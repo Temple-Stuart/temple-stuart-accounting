@@ -14,7 +14,8 @@
  *   T2  no token — the reference's :root is the README's two tables, every one already in globals.css :root on the same value; nothing --ts-tm-*;
  *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the three differences named there;
  *       no hex and no rgb value typed; every variable it reads is declared and every one the README names is read; it stands under the chip strip's
- *       rules and right above HOME-PLANS-04's; nothing else in the file reaches the section; every class the section wears is the reference's;
+ *       rules and right above HOME-SERVICES-01's (and so above HOME-PLANS-04's and the hero's); nothing else in the file reaches the section;
+ *       every class the section wears is the reference's;
  *   T4  the board's markup — the tabs, the Events panel (Tennis, the board's three events in the trip), the trip and the lookup, token for token,
  *       but for the named differences of an app that keeps its hooks; the panels' headlines and disclosures; the section's own frame in Landing.tsx;
  *   T5  the trip's dates — one function beside experienceWindowLine gives the window part, and both read it: for every row on many days, the card's
@@ -365,7 +366,8 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   // every class the section wears is the reference's own (behind the house prefix): ruled by the port, or worn by the reference's markup
   const ruled = new Set(port.flatMap((l) => l.split(' | ')[1].match(/\.ts-[A-Za-z][\w-]*/g) ?? []).map((c) => c.slice(1)));
   const referenceClasses = new Set([...referenceBoard().matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/)).map((c) => `ts-${c}`));
-  const worn = [BOX, CARD, LOOKUP, SECTION, WRAPPER, LANDING].flatMap((f) => [...code(f).matchAll(/(?:className="|className=\{EXP\.\w+\}|: ')(ts-tm[\w\- ]*)['"]/g)].flatMap((m) => m[1].split(/\s+/)));
+  const worn = [BOX, CARD, LOOKUP, SECTION, WRAPPER, LANDING].flatMap((f) => [...code(f).matchAll(/(?:className="|[:=] ')(ts-tm[\w\- ]*)['"]/g)].flatMap((m) => m[1].split(/\s+/)));
+  assert.ok(worn.includes('ts-tm-input') && worn.includes('ts-tm-stay'), 'the classes bound to a name are read too (FIELD, STAY_LINE)');
   assert.ok(worn.length > 50, `the section's classes were read (${worn.length})`);
   for (const cls of new Set(worn)) assert.ok(ruled.has(cls) || referenceClasses.has(cls), `.${cls} is the reference's own`);
 });
@@ -392,9 +394,10 @@ test('T4 the board\'s markup — the tabs, the Events panel (Tennis, the three i
   const headlines = (html: string, cls: string) => [...html.matchAll(new RegExp(`<p class="${cls}">([^<]*)</p>`, 'g'))].map((m) => unescapeHtml(m[1]));
   assert.deepEqual(headlines(whole, 'ts-tm-panel__headline'), headlines(board, 'tm-panel__headline'), 'the seven headlines, as drawn');
   assert.equal(headlines(board, 'tm-panel__headline').length, 7);
-  const disclosed = (html: string, panel: string, cls: string) => [...html.matchAll(new RegExp(`<p class="${cls}"[^>]*>${COMMISSION_LINE}</p>\\s*</div>`, 'g'))].length + (panel ? 0 : 0);
-  assert.equal(disclosed(whole, '', 'ts-tm-disclosure'), 4, 'the four that pay close with the disclosure');
-  assert.equal(disclosed(board, '', 'tm-disclosure'), 4, 'as the reference draws them');
+  // (which four is bookDisclose01's: it walks every mode the box is handed)
+  const disclosed = (html: string, cls: string) => [...html.matchAll(new RegExp(`<p class="${cls}"[^>]*>${COMMISSION_LINE}</p>\\s*</div>`, 'g'))].length;
+  assert.equal(disclosed(whole, 'ts-tm-disclosure'), 4, 'the four that pay close with the disclosure');
+  assert.equal(disclosed(board, 'tm-disclosure'), 4, 'as the reference draws them');
   // the Events panel: Tennis, the board's three in the trip — the panel's inside, as drawn
   const section = panelOnTheBoard();
   assert.ok(section.startsWith('<section id="events" aria-label="Book the experience" data-experiences="true">'), 'the panel, its id and its name');
@@ -521,6 +524,9 @@ test('T6 the trip\'s rules — dated events first by start (ties in the order ad
   const onlyGone = tripEventsView(['renamed-event-2027'], TODAY);
   assert.deepEqual([onlyGone.events.length, onlyGone.summary], [1, null], 'an unlisted event alone: its row, and no summary and no gold button');
   assert.equal(focusAfterRemove(gone.events.map((e) => e.id), 'renamed-event-2027'), 'whistler-ski-season-2026-27', 'its × takes part in the focus rule');
+  // …among the undated IN THE ORDER ADDED — not after them: added first, it stands first
+  assert.deepEqual(tripEventsView(['renamed-event-2027', 'whistler-ski-season-2026-27', BOARD[0]], TODAY).events.map((e) => e.id),
+    [BOARD[0], 'renamed-event-2027', 'whistler-ski-season-2026-27'], 'the dated first; then the unlisted and the undated, in the order added');
   // no event, no summary; an id stored twice is refused by name
   assert.deepEqual(tripEventsView([], TODAY), { events: [], summary: null });
   assert.throws(() => tripEventsView([BOARD[0], BOARD[0]], TODAY), (e: unknown) => e instanceof GuestTripWordsError && /holds australian-open-2027 twice/.test(e.message));
@@ -676,14 +682,16 @@ test('T8 the box — the same modes, Events first and open; Search flights → o
   (add.props.onClick as () => void)();
   assert.deepEqual(pressed, ['masters-2027'], 'the press hands the box its row');
   // Q2 (Alex, 2026-11-12): a refused save is said under the pressed row's buttons — that row alone — in the lookup's failure line, as an alert
-  const refusedRow = renderToStaticMarkup(React.createElement(AddToTripContext.Provider, { value: { inTrip: () => false, onToggle: noop, notSaved: (id: string) => (id === 'masters-2027' ? NOT_SAVED_ADD : null) } },
+  const refusedRow = renderToStaticMarkup(React.createElement(AddToTripContext.Provider, { value: { inTrip: () => false, onToggle: noop, notSaved: (id: string) => (id === 'masters-2027' ? { words: NOT_SAVED_ADD, seq: 1 } : null) } },
     React.createElement(ExperiencesView, { rows: EXPERIENCES, today: TODAY, choice: { category: 'golf' }, onPick: noop })));
   assert.equal(count(refusedRow, 'data-not-saved='), 1, 'one line, on the pressed row');
   assert.match(refusedRow, new RegExp(`data-add="masters-2027"[^>]*>[\\s\\S]*?</div><p class="ts-tm-lookup__failure" role="alert" data-not-saved="masters-2027">${NOT_SAVED_ADD.replace(/'/g, '&#x27;')}</p></div><div class="ts-tm-row__foot">`), 'under its buttons, the last line of its body');
-  // …and under the trip card's ×, on the row it was pressed on — the trip as it was
-  const refusedCard = renderToStaticMarkup(React.createElement(GuestTripStrip, { trip: { bookings: [], events: [...BOARD] }, today: TODAY, onRequireAuth: noop, onStayNear: noop, onSearchFlights: noop, onRemove: () => false, notSaved: { id: BOARD[1], words: NOT_SAVED_REMOVE }, onNoEventLeft: noop }));
+  // …and under the trip card's row whose × was pressed — a list item of its own, directly after the row (inside the row, a wrapping flex row, it
+  // stood beside the × on a wide screen: the review's measure, 2026-11-12); the alert is the <p>, so the <li> stays a list item — the trip as it was
+  const refusedCard = renderToStaticMarkup(React.createElement(GuestTripStrip, { trip: { bookings: [], events: [...BOARD] }, today: TODAY, onRequireAuth: noop, onStayNear: noop, onSearchFlights: noop, onRemove: () => false, notSaved: { id: BOARD[1], words: NOT_SAVED_REMOVE, seq: 1 }, onNoEventLeft: noop }));
   assert.equal(count(refusedCard, 'data-not-saved='), 1);
-  assert.match(refusedCard, new RegExp(`data-remove="${BOARD[1]}"[\\s\\S]*?</button></div><p class="ts-tm-lookup__failure" role="alert" data-not-saved="${BOARD[1]}">${NOT_SAVED_REMOVE.replace(/'/g, '&#x27;')}</p></li>`), 'the last line of that trip row');
+  assert.match(refusedCard, new RegExp(`data-remove="${BOARD[1]}"[\\s\\S]*?</button></div></li><li><p class="ts-tm-lookup__failure" role="alert" data-not-saved="${BOARD[1]}">${NOT_SAVED_REMOVE.replace(/'/g, '&#x27;')}</p></li>`), 'its own line, directly under that trip row');
+  assert.doesNotMatch(refusedCard, /<li[^>]*role="alert"/, 'no list item is the alert');
   assert.equal(count(refusedCard, 'data-trip-event='), 3, 'the trip as it was');
   // Q1 (Alex, 2026-11-12): an unlisted event's row, drawn — "No longer listed", its stored id, no place, no Stay near it →, its ×
   const goneCard = renderToStaticMarkup(React.createElement(GuestTripStrip, { trip: { bookings: [], events: ['renamed-event-2027'] }, today: TODAY, onRequireAuth: noop, onStayNear: noop, onSearchFlights: noop, onRemove: () => true, notSaved: null, onNoEventLeft: noop }));
@@ -696,9 +704,15 @@ test('T8 the box — the same modes, Events first and open; Search flights → o
   assert.match(wrapper, /if \(!ordered\.some\(\(m\) => m\.key === FLIGHTS_KEY\)\) throw new Error\(`LandingBookingSection: travelStripModes returned no '\$\{FLIGHTS_KEY\}' mode/, 'no Flights → a throw that names it');
   // ONE WRITE PER PRESS (Q2, Alex 2026-11-12): in the trip → out, out → in; every press clears the last line; the one refusal is said, any other error thrown
   assert.match(wrapper, /onToggle: \(row: Experience\) => \{\n\s*write\(row\.id, !trip\.events\.includes\(row\.id\), 'row'\);\n\s*\},/, 'in the trip → out; out → in');
-  assert.match(wrapper, /const write = useCallback\(\(id: string, adding: boolean, where: 'row' \| 'card'\): boolean => \{\n\s*setNotSaved\(null\);\n\s*try \{\n\s*if \(adding\) addGuestTripEvent\(id\);\n\s*else removeGuestTripEvent\(id\);\n\s*return true;\n\s*\} catch \(err\) \{\n\s*if \(!\(err instanceof GuestTripWriteRefused\)\) throw err;\n\s*setNotSaved\(\{ id, where, words: adding \? NOT_SAVED_ADD : NOT_SAVED_REMOVE \}\);\n\s*return false;\n\s*\}\n\s*\}, \[\]\);/, 'the one refusal caught — everything else rethrown');
+  assert.match(wrapper, /const write = useCallback\(\(id: string, adding: boolean, where: 'row' \| 'card'\): boolean => \{\n\s*setNotSaved\(null\);\n\s*try \{\n\s*if \(adding\) addGuestTripEvent\(id\);\n\s*else removeGuestTripEvent\(id\);\n\s*return true;\n\s*\} catch \(err\) \{\n\s*if \(!\(err instanceof GuestTripWriteRefused\)\) throw err;\n\s*refusals\.current \+= 1;\n\s*setNotSaved\(\{ id, where, words: adding \? NOT_SAVED_ADD : NOT_SAVED_REMOVE, seq: refusals\.current \}\);\n\s*return false;\n\s*\}\n\s*\}, \[\]\);/, 'the one refusal caught — everything else rethrown');
   assert.equal(count(wrapper, 'catch ('), 1, 'and no other catch in the box');
   assert.match(code(CARD), /if \(onRemove\(id\)\) focusNext\.current = next;/, 'a refused × leaves the focus on the pressed ×');
+  // A PRESS REFUSED AGAIN IS SAID AGAIN: each refusal is counted, and both lines are keyed by the count — a new alert in the page each time
+  assert.match(wrapper, /const refusals = useRef\(0\);/, 'the box counts the refusals');
+  assert.match(wrapper, /notSaved: \(id: string\) => \(notSaved !== null && notSaved\.where === 'row' && notSaved\.id === id \? \{ words: notSaved\.words, seq: notSaved\.seq \} : null\),/, 'the row\'s line, with its count');
+  assert.match(wrapper, /notSaved=\{notSaved !== null && notSaved\.where === 'card' \? \{ id: notSaved\.id, words: notSaved\.words, seq: notSaved\.seq \} : null\}/, 'the card\'s line, with its count');
+  assert.match(code(SECTION), /\{notSaved !== null && <p key=\{notSaved\.seq\} className=\{EXP\.notSaved\} role="alert" data-not-saved=\{row\.id\}>\{notSaved\.words\}<\/p>\}/, 'the row\'s line is keyed by the count');
+  assert.match(code(CARD), /\{notSaved !== null && notSaved\.id === e\.id && <li key=\{notSaved\.seq\}><p className="ts-tm-lookup__failure" role="alert" data-not-saved=\{e\.id\}>\{notSaved\.words\}<\/p><\/li>\}/, 'and the card\'s');
   assert.equal(count(wrapper, 'const trip = useGuestTrip();'), 1, 'the one read, for the card and every Add button');
   assert.doesNotMatch(wrapper, /sessionStorage|localStorage|\bfetch\s*\(|new Date\(|Date\.now\(/, 'the box stores nothing itself and sets no date');
   const card = code(CARD);
@@ -760,7 +774,7 @@ test('T10 each ruling is quoted, dated, where it is built — Alex\'s words exac
     assert.ok(notes.includes('2026-11-12'), `${file} dates it`);
   }
   for (const file of [GLOBALS, LANDING, BOX, SECTION, CARD, LOOKUP]) assert.ok(said(file).includes('design-refs/home-travel-01/Section-Reference.html'), `${file} names the spec where it is built`);
-  // Alex's words, wherever a file of this change quotes them: an excerpt of his 16:08 brief, cut only at its own "..." or an elision; his 20:26
+  // Alex's words, wherever a file of this change quotes them: an exact, unaltered run of his 16:08 brief's words (an excerpt, never reworded); his 20:26
   // approval whole; his 2026-11-09 line on Search flights whole
   const WORDS_1608 = 'this one is basically set, not much to change, just need to match astehetics of the site to make it follow along... also with the events, it would be cool if someone selects events, they add to a queue table below the search bar, so the person who adds them can see them for review to like aid in booking flights and stuff.... the see what they wanna do when it is, so they know dates they need to filter for flights and stuff, to build around the events.';
   const WORDS_2026 = 'ok I approve the travel market place';
