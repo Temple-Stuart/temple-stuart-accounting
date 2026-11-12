@@ -560,7 +560,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             were, so the space above it and the 12px down to the pillar's name are the board's. The eyebrow's rule (.fs-eyebrow)
             is not ported: src/app/globals.css names that difference. brand gold on the cream is about 3.1:1 — large type only,
             which this is, as the HOME-FINISH-02 note above says. Until then (HOME-PLANS-04): '<h2 className="ts-fs-eyebrow"
-            data-act-heading>'. ──────────────────────────────────────────────────────────────────────────────────────────── */}
+            data-act-heading>' — so the HOME-PLANS-04 note above is history for the heading's look (its eyebrow and .fs-eyebrow's
+            rule); its box stands. ──────────────────────────────────────────────────────────────────────────────────────── */}
       <div className="ts-fs-heading">
         <h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>
       </div>

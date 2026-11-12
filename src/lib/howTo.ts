@@ -796,7 +796,8 @@ export interface MapPlan {
 export interface PlanMapView {
   /**
    * The pill every plan holds — the first part of the plans' names, as the Personal plan's own name says it (nameParts):
-   * "Personal". Alex's note on the built page (2026-11-12) took "always" off it; PERSONAL_ALWAYS stays in its leaf, undrawn.
+   * "Personal". Alex's note on the built page (2026-11-12) took PERSONAL_ALWAYS's last word off it; PERSONAL_ALWAYS stays in
+   * its leaf, undrawn.
    */
   base: NamePart;
   /** Business, then Trading. */

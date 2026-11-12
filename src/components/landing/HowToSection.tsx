@@ -68,7 +68,11 @@ import { COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, PLAN_MARKS, WHAT_YOU_RUN_LABEL
 import { PLAN_PILLAR } from '@/lib/homeActWords';
 import { PLANS_HEADLINE, PLANS_SUBHEAD } from '@/lib/offer/plans';
 
-/** The reference's tick. Hidden from a screen reader where the words beside it say it (a switch, Personal); carrying its label where it is a tool's mark. */
+/**
+ * The reference's tick. Hidden from a screen reader where something else says it — a switch's own pressed state, and for the
+ * Personal pill the line over the map (PLANS_SUBHEAD: everyone gets Personal; the pill's own words said it too, "Personal ·
+ * always", until Alex's note on the built page) — and carrying its label where it is a tool's mark.
+ */
 function Tick({ label }: { label?: string }) {
   return label === undefined
     ? <svg className="ts-fs-tick" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg>

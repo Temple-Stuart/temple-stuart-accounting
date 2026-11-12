@@ -114,10 +114,10 @@
  * one link; "What We Do" wore the eyebrow. The section's whole markup, its stylesheet, its tokens and its words are held to the
  * reference (design-refs/home-plans-04/Section-Reference.html) in homePlans04.test.ts — but for Alex's notes on the built page
  * (2026-11-12), which that file names: "What We Do" in About Us's type again, no count over the map, and the Personal pill says
- * "Personal". Here they re-point T4's count pin and T6's heading box, in place, each under a dated note. Re-written in place here, each under a dated
- * note: the render helper (it takes what you run now), T4 and T5 (the section rendered, and its source), T6's heading box and its name
- * (the how-to draws its own three cards and the band now) and T10 (what a screen reader hears); the list above says what each holds
- * now, and what it held until then. T9 gains a note and no assertion: the guard stands as it was (the brief's ruling d). T1, T2, T3,
+ * "Personal". Re-written in place here, each under a dated note: the render helper (it takes what you run now), T4 and T5 (the
+ * section rendered, and its source), T6's heading box and its name (the how-to draws its own three cards and the band now) and T10
+ * (what a screen reader hears) — and, for Alex's notes, T4's count pin and T6's heading box again; the list above says what each
+ * holds now, and what it held until then. T9 gains a note and no assertion: the guard stands as it was (the brief's ruling d). T1, T2, T3,
  * T7, T8, T11 and T12 are untouched — PlanCards, the comparison and planCardSteps stand as they were, undrawn on this page.
  *
  * Source is read through code() and comments() only (the reader law). No count of what is live is typed: each is
@@ -854,7 +854,8 @@ test('T10 (HOME-PLANS-04) nothing in the section scrolls sideways and nothing in
     const html = render(choice);
     const w = words(choice);
     for (const drawn of ['data-plan-comparison', 'overflow-x-', 'overflow-auto', 'sr-only', 'min-w-[', '<table']) assert.equal(count(html, drawn), 0, `${w}: the section draws no ${drawn}`);
-    // hidden from a screen reader: the decorative marks alone — Personal's tick and each switch's mark (the words beside them say it), each benefit's check
+    // hidden from a screen reader: the decorative marks alone — Personal's tick (the line over the map says everyone gets Personal; the pill's
+    // own words said it too until Alex's note on the built page, 2026-11-12) and each switch's mark (its pressed state says it), each benefit's check
     const hidden = [...html.matchAll(/<(?:svg|span) class="([^"]*)"[^>]*aria-hidden="true"/g)].map((m) => m[1]);
     const switchMark = (on: boolean) => (on ? 'ts-fs-tick' : 'ts-fs-ring');
     assert.deepEqual(hidden, ['ts-fs-tick', switchMark(choice.business), switchMark(choice.trade), ...PLANS.flatMap((p) => p.benefits.map(() => 'ts-fs-check'))], `${w}: hidden from a screen reader — the decorative marks, and nothing else`);

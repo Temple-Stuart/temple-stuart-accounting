@@ -242,7 +242,8 @@ body {
 /* ── HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30): THE
    FINANCIAL SOFTWARE SECTION — the heading box, the map, three plan cards, the all-three band ─────────────────────────
    THE SPEC IS design-refs/home-plans-04/Section-Reference.html: "Every value in its stylesheet is the design". What follows
-   is that stylesheet, rule for rule and value for value, in its own order and with its own section notes:
+   is that stylesheet, rule for rule and value for value, in its own order and with its own section notes (notes 1 and 3 now
+   also name the fourth and fifth differences, below):
      · every class is the reference's with the house prefix: .fs → .ts-fs, .fs-map__grid → .ts-fs-map__grid, …;
      · every custom property it reads likewise: var(--fs-ink) → var(--ts-fs-ink), var(--hero-gold) → var(--ts-hero-gold),
        rgb(var(--bg)) → rgb(var(--ts-bg)).
