@@ -7,17 +7,19 @@
  * understand"; his approval of the board on the design canvas, 2026-11-12 14:30 Manila: "YES, OMG, GIVE ME THE PROMPT TO MAKE THIS
  * REAL!") — THE FINANCIAL SOFTWARE SECTION, AS DRAWN. The spec is a file, not this note: design-refs/home-plans-04/Section-Reference.html
  * ("Every value in its stylesheet is the design, and its markup is the page at rest"), with its README beside it. This section is
- * that file's markup, element for element; its classes are the reference's own with the house prefix (.fs-map → .ts-fs-map), and
- * their rules are the reference's own, ported to src/app/globals.css (src/lib/__tests__/homePlans04.test.ts holds both equal). No
- * colour is typed in this file. Top to bottom:
+ * that file's markup, element for element, but for Alex's notes on the built page (below); its classes are the reference's own
+ * with the house prefix (.fs-map → .ts-fs-map), and their rules are the reference's own, ported to src/app/globals.css
+ * (src/lib/__tests__/homePlans04.test.ts holds both equal, but for the differences it names). No colour is typed in this file.
+ * Top to bottom:
  *   1. the pillar's name — PLAN_PILLAR.heading (src/lib/homeActWords.ts) — then ONE line, PLANS_SUBHEAD (src/lib/offer/plans.ts),
  *      where the pillar's three paragraphs stood;
- *   2. THE MAP: the question (PLANS_HEADLINE), Personal · always, the two switches, the count, then the 25 tools under the six
- *      families of PROBLEM_SHEET, each lit or not by the picked plan — the switches, the count and the tools from planMapView
- *      (src/lib/howTo.ts); the question, Personal · always, the group's label and the marks' labels from their leaves;
+ *   2. THE MAP: the question (PLANS_HEADLINE), the Personal pill, the two switches, then the 25 tools under the six families of
+ *      PROBLEM_SHEET, each lit or not by the picked plan — the Personal pill's words, the switches and the tools from planMapView
+ *      (src/lib/howTo.ts); the question, the group's label and the marks' labels from their leaves;
  *   3. three plan cards and the all-three band, drawn here; the picked plan is ringed, tagged and gold;
  *   4. the one link to /pricing — its words and path as they were, in the reference's look.
- * "What We Do" stays where it stands, in Landing.tsx, and wears the eyebrow (.ts-fs-heading, .ts-fs-eyebrow). The section keeps
+ * "What We Do" stays where it stands, in Landing.tsx, in the reference's box (.ts-fs-heading), and wears the act headings' type
+ * since Alex's note on the built page (the eyebrow, .ts-fs-eyebrow, until then). The section keeps
  * id="modules", the anchor the checkout's cancel link, the /modules pages, the footer's first link and — since HERO-CREST-01,
  * 2026-11-11 — the top bar's first link land on.
  *
@@ -33,13 +35,20 @@
  *   f. "WORDS. Nothing is typed in a component. The switches say the part each plan's name adds: "+ Business", "+ Trading". Three
  *      words are new and need a leaf: "Your plan", "<n> of <total> tools", "All <total> tools". Both numbers are computed." — every
  *      word is a leaf's: the three new ones are src/lib/howTo.ts's (YOUR_PLAN; toolCountWords with ofToolsWords; allToolsWords),
- *      the switches' are the plans' own names, split (nameParts). One thing here is typed, as it has been since HOME-PLANS-01:
- *      the section's aria-label, which a screen reader announces and no one sees. It has no leaf: giving it one would be a
- *      fourth new word, past the brief's three, so it stays as it was.
+ *      the switches' and the Personal pill's are the plans' own names, split (nameParts). One thing here is typed, as it has
+ *      been since HOME-PLANS-01: the section's aria-label, which a screen reader announces and no one sees. It has no leaf:
+ *      giving it one would be a fourth new word, past the brief's three, so it stays as it was.
  *   (c, e and g are built where they live: c in src/lib/homeActWords.ts and src/lib/howTo.ts, e in src/lib/howTo.ts and the
  *   build's law suite, g in src/app/globals.css.)
  * 'use client' STAYS, FOR THE STATE AND THE DOOR: the two switches are React state, and each plan's button calls the door Landing
  * hands in (onRequireAuth — the sign-up modal).
+ *
+ * AFTER THE BUILD (Alex's notes on the built page, 2026-11-12: "then 13 of 25 tools is tacky, we dont need that to tell us, we
+ * can just count..." · "while youre at it, remove that word alwasy from personal... looks tacky too"): the map draws no count —
+ * the reference's <p class="fs-map__count"> and its two rules are left out, and with it the section's one live region, so pressing
+ * a switch announces its own pressed state and no more — and the Personal pill says "Personal", the first part of the plans'
+ * names (planMapView's base), as the switches say theirs; PERSONAL_ALWAYS ("Personal · always") stays in its leaf, undrawn. His
+ * first note, "What We Do" in About Us's type, is Landing.tsx's. Each card's count and the band's stay.
  *
  * UNTIL THIS BRIEF (HOME-PLANS-03, Alex, 2026-11-11 18:17 Manila): the pillar's heading and his three paragraphs, the four plan
  * cards — PlanCards, /pricing's own component, handed the leaf's planCardSteps, so each card listed the steps its plan adds — and
@@ -55,7 +64,7 @@
  */
 
 import { useState } from 'react';
-import { COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, PERSONAL_ALWAYS, PLAN_MARKS, WHAT_YOU_RUN_LABEL, YOUR_PLAN, planMapView, type MapPlan, type NamePart } from '@/lib/howTo';
+import { COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, PLAN_MARKS, WHAT_YOU_RUN_LABEL, YOUR_PLAN, planMapView, type MapPlan, type NamePart } from '@/lib/howTo';
 import { PLAN_PILLAR } from '@/lib/homeActWords';
 import { PLANS_HEADLINE, PLANS_SUBHEAD } from '@/lib/offer/plans';
 
@@ -131,7 +140,7 @@ export function HowToView({ business, trade, onBusiness, onTrade, onJoin }: HowT
             <div className="ts-fs-map__ask">
               <h3 className="ts-fs-map__question">{PLANS_HEADLINE}</h3>
               <div className="ts-fs-switches" role="group" aria-label={WHAT_YOU_RUN_LABEL}>
-                <span className="ts-fs-switch ts-fs-switch--always"><Tick />{PERSONAL_ALWAYS}</span>
+                <span className="ts-fs-switch ts-fs-switch--always"><Tick />{view.base.words}</span>
                 {view.switches.map((s) => (
                   <button key={s.module} className="ts-fs-switch" type="button" data-module={s.module} aria-pressed={s.pressed} onClick={() => press[s.module]()}>
                     {s.pressed ? <Tick /> : <span className="ts-fs-ring" aria-hidden="true" />}{s.words}
@@ -139,7 +148,6 @@ export function HowToView({ business, trade, onBusiness, onTrade, onJoin }: HowT
                 ))}
               </div>
             </div>
-            <p className="ts-fs-map__count" aria-live="polite" aria-atomic="true"><span className="ts-fs-map__figure">{view.figure}</span>{' '}<span>{view.ofTotal}</span></p>
           </div>
           <div className="ts-fs-map__grid">
             {view.families.map((family) => (

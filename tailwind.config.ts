@@ -121,7 +121,7 @@ const config: Config = {
           teal: 'var(--ts-fs-teal)',                                        // #0B7F73 — Trading: its fill and its ring; on white its word, line and ticks
           'teal-deep': 'var(--ts-fs-teal-deep)',                            // #0B5F57 — Trading's switch label while off
           'teal-light': 'var(--ts-fs-teal-light)',                          // #8FE8DA — Trading's word on the band
-          'gold-text': 'var(--ts-fs-gold-text)',                            // #8A6408 — gold as small text: the eyebrow; Business's word on white
+          'gold-text': 'var(--ts-fs-gold-text)',                            // #8A6408 — gold as small text: Business's word on white (the eyebrow's too, until Alex's note of 2026-11-12)
           'gold-deep': 'var(--ts-fs-gold-deep)',                            // #6B4E00 — Business's switch label while off
           ink: 'var(--ts-fs-ink)',                                          // #2B2545 — body text
           'ink-soft': 'var(--ts-fs-ink-soft)',                              // #4A4560 — the lede, explainers, family names, the price line
