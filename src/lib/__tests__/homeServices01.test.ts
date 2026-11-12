@@ -50,6 +50,7 @@ import {
   SERVICES, SERVICE_KINDS, SERVICE_NEEDS, SERVICE_PICTURES_PATH, ServicesLawError, formAsks, proposalFormHref, serviceDoor, servicePictureSrc, type ServiceNeed,
 } from '../proposalNeeds';
 import { BUILD_PILLAR } from '../homeActWords';
+import { SEGMENT } from '../ds';
 import { SERVICES_ANCHOR } from '../homeAnchors';
 import ServicesSection, { ServicesView, type ServicesViewProps } from '@/components/landing/ServicesSection';
 import WorkWithMeForm from '@/app/work-with-me/WorkWithMeForm';
@@ -288,7 +289,9 @@ function paintedReference(need: string): string {
 /**
  * WHAT THIS PR BUILDS OF THE REFERENCE — its four differences, each named: the tiles carry data-done-for-you where the reference's
  * carry data-need (ruling h); a picture's path is the app's (public/ is served at /); the gold button is a link to the form's page with
- * the pick (the README: "HOME-SERVICES-01 builds this as a link"); and the form, HOME-SERVICES-02's, is not drawn.
+ * the pick (the reference's own note on it: "HOME-SERVICES-01 builds this as a link to the form's page with the pick:
+ * /work-with-me?need=<picked>."; the README: "The button is a link to the form's page with the pick."); and the form, HOME-SERVICES-02's,
+ * is not drawn.
  */
 function asBuilt(html: string, need: string): string {
   let out = html.replace(/(<button class="ps-tile" type="button" aria-pressed="(?:true|false)") data-need="/g, '$1 data-done-for-you="');
@@ -534,7 +537,8 @@ test('T7 step 2 follows the form\'s own rule — for each door the form, rendere
   let asked = 0;
   for (const need of SERVICE_NEEDS) {
     const form = renderForm(need);
-    assert.match(form, new RegExp(`aria-pressed="true"[^>]*data-need="${need}"|data-need="${need}"[^>]*aria-pressed="true"|class="[^"]*" data-need="${need}"`), `${need}: the form opens with the door picked`);
+    assert.equal(count(form, `class="${SEGMENT.item(true)}" data-need="`), 1, `${need}: one chip picked`);
+    assert.ok(form.includes(`class="${SEGMENT.item(true)}" data-need="${need}"`), `${need}: the form opens with this door picked`);
     const modules = /\bdata-modules\b/.test(form);
     assert.equal(modules, formAsks(need).includes('Modules'), `${need}: the form ${modules ? 'asks' : 'does not ask'} the modules question, and step 2 ${modules ? 'lists' : 'drops'} Modules`);
     if (modules) asked += 1;
@@ -625,7 +629,7 @@ test('T10 each ruling is quoted, dated, where it is built; Alex\'s words exact w
   assert.ok(law.includes('“A door with no picture, or a picture with no door, fails the build by name.”'), 'd, at the build\'s law');
   // e — the steps' words and the form's rule
   assert.ok(vocab.includes('"THE STEPS\' WORDS ARE NEW and live beside FORM_INTRO. Step 2 follows the form\'s own rule (no modules for bookkeeping): one rule read by both, or a test that renders the form for each door and holds the two equal. The form changes only where it must read a word or a rule it now shares with the landing ("What do you need?" is one)."'), 'e, beside the words');
-  assert.ok(form.includes('"The form changes only where it must read a word or a rule it now shares with the landing"'), 'e, at the form');
+  assert.ok(form.includes('"The form changes only where it must read a word or a rule it now shares with the landing ("What do you need?" is one)."'), 'e, at the form');
   // f — the gold button, in the section; its gradient at the stylesheet
   assert.ok(section.includes('"THE GOLD BUTTON replaces the purple one here; PRIMARY_CTA keeps its other users. "Send a project proposal →" and "Scoped by proposal" move from Landing.tsx into a leaf. The gold gradient is HOME-PLANS-04\'s; the picture\'s frame is the second gradient, on the board."'), 'f, in the section');
   assert.ok(globals.includes('"The gold gradient is HOME-PLANS-04\'s; the picture\'s frame is the second gradient, on the board."'), 'f, at the stylesheet');
@@ -635,24 +639,27 @@ test('T10 each ruling is quoted, dated, where it is built; Alex\'s words exact w
   assert.ok(section.includes('"HOOKS. data-done-for-you={need} moves to the tiles."'), 'h, in the section');
   // his paragraph, quoted and dated in the leaf's note (ruling b)
   assert.ok(pillars.includes('"Want to build your own system or something customized for your business? From full setup and custom development to integrations, ongoing maintenance, and bookkeeping, Temple Stuart offers hands-on services tailored to your needs."'), 'his paragraph, word for word');
-  // Alex's own words, wherever a file of this change quotes them, exact: a quote of his 15:16 words, as the brief quotes them, is the
-  // whole of them or an excerpt cut only at an elision mark (…), every piece his, in his order; a quote of his 15:41 words is the whole
+  // Alex's own words, exact, wherever a file of this change quotes them after their time ("15:16 Manila: "…", "15:41 Manila: "…"): a quote
+  // of his 15:16 words, as the brief quotes them, is whole pieces of them — each piece one of the brief's own, cut only at its elision marks
+  // (…) — in his order; a quote of his 15:41 words is the whole
   const WORDS_1516 = 'do we have like a form under the table that adjusts questions being asked by what you click? … remove that text about and replace with like an image that SHOWS what and why and how, rather than telling with words … obviously following the style of the page weve built thus far since this is a continuation of all that is above it!';
   const WORDS_1541 = 'yea, I approve , this looks good, lets build this for sure';
-  const excerptOf = (quote: string, all: string): boolean => {
+  const SEGMENTS_1516 = WORDS_1516.split('…').map((p) => p.trim());
+  const excerptOf = (quote: string): boolean => {
     let from = 0;
     for (const piece of quote.split('…').map((p) => p.trim()).filter(Boolean)) {
-      const at = all.indexOf(piece, from);
+      const at = SEGMENTS_1516.indexOf(piece, from);
       if (at < 0) return false;
-      from = at + piece.length;
+      from = at + 1;
     }
     return true;
   };
+  assert.ok(!excerptOf('form under the table') && !excerptOf('SHOWS what') && excerptOf(SEGMENTS_1516[1]), 'a piece counts only whole');
   const quoted: Record<string, { at1516: string[]; at1541: string[] }> = {};
   for (const file of [SECTION, VOCAB, PILLARS, GLOBALS, LANDING, LAW, FORM, SEEDS_FILE, 'tailwind.config.ts']) {
     const notes = said(file);
     quoted[file] = { at1516: [...notes.matchAll(/15:16 Manila: "([^"]+)"/g)].map((m) => m[1]), at1541: [...notes.matchAll(/15:41(?: Manila)?: "([^"]+)"/g)].map((m) => m[1]) };
-    for (const q of quoted[file].at1516) assert.ok(excerptOf(q, WORDS_1516), `${file}: "${q.slice(0, 40)}…" is Alex's 15:16 words, exact`);
+    for (const q of quoted[file].at1516) assert.ok(excerptOf(q), `${file}: "${q.slice(0, 40)}…" is Alex's 15:16 words, whole pieces, in order`);
     for (const q of quoted[file].at1541) assert.equal(q, WORDS_1541, `${file}: his 15:41 words, exact`);
   }
   assert.deepEqual(quoted[SECTION].at1516, [WORDS_1516], 'the section quotes the 15:16 words whole');

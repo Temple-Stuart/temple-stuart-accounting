@@ -36,7 +36,7 @@ import { useState } from 'react';
 import { CONTROL, SECTION_HEADER, SEGMENT, STATE, SURFACE, toggleChip } from '@/lib/ds';
 // SERVICES-01 (2026-11-08): the six doors, the lead and the bookkeeping block's words — one module; the close's
 // leaf and words retired with the close.
-import { ASK_BUDGET, ASK_TIMELINE, BOOKKEEPING_WORDS, FORM_INTRO, NEED_QUESTION, PROPOSAL_STEPS, SCOPED_BY_PROPOSAL, SERVICES, type ServiceNeed } from '@/lib/proposalNeeds'; // HOME-SERVICES-01 (2026-11-12): the need question, two labels, the thank-you's words and the note by Send — the landing's section draws them too, so both read them here (the brief's ruling e: "The form changes only where it must read a word or a rule it now shares with the landing")
+import { ASK_BUDGET, ASK_TIMELINE, BOOKKEEPING_WORDS, FORM_INTRO, NEED_QUESTION, PROPOSAL_STEPS, SCOPED_BY_PROPOSAL, SERVICES, type ServiceNeed } from '@/lib/proposalNeeds'; // HOME-SERVICES-01 (2026-11-12): the need question, two labels, the thank-you's words and the note by Send — the landing's section draws them too, so both read them here (the brief's ruling e: "The form changes only where it must read a word or a rule it now shares with the landing ("What do you need?" is one).")
 
 // The 9 modules — ids + labels REUSED from Landing.tsx PILLAR_CARDS
 // (:241-313), the deck's one module vocabulary. Literals because PILLAR_CARDS
