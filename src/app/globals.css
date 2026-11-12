@@ -242,8 +242,9 @@ body {
    HOME-PLANS-04's and HOME-SERVICES-01's were:
      · every class is the reference's with the house prefix: .story → .ts-story, .story-card → .ts-story-card, …;
      · every custom property it reads likewise: var(--fs-ink) → var(--ts-fs-ink), rgb(var(--bg)) → rgb(var(--ts-bg)).
-   src/lib/__tests__/tripCards03.test.ts reads both files and holds them equal, declaration by declaration, but for the THREE
-   DIFFERENCES named here — each one where the reference is a page of its own and this is the app:
+   src/lib/__tests__/tripCards03.test.ts reads both files and holds them equal, declaration by declaration, but for the FIVE
+   DIFFERENCES named here — the first three where the reference is a page of its own and this is the app, the last two Alex's
+   notes on the cards as built:
      1. THE COLOURS are tokens: the reference's :root is :root above. It declares fifteen, only so that it renders on its own, and
         the app holds every one by the same name behind the house prefix — five the app's own (--ts-bg, --ts-border and the hero's
         violets 2, 3 and 4) and ten HOME-PLANS-04 brought (--ts-fs-*). This section adds NO token (the README: "New with this
@@ -252,6 +253,19 @@ body {
         read the two variables where the reference names the families ("the site already loads both faces").
      3. NOT PORTED: the reference page's own ground, body { margin: 0; background-color: … } — "THIS PAGE'S OWN: not part of the
         design, not ported".
+     4. THE ROW STANDS IN THE PAGE. Alex's note on the cards as built, 2026-11-12: "the page seems aligned down the whole page, but
+        when we get to trip cards on web they extend out to the right, and idk it just looks lopisded and off..." The reference
+        runs the row to the window's edges; here it stands in the page container, after the head, so its edges are the page's on
+        both sides. It reaches 8px into the gutter on each side so the ring and the shadow of a card at either edge are not cut —
+        less than the 20px gap, so no other card shows. A card is whole in it: two in view from 768px, three from 1024px — the
+        three plan cards' own columns and gap, above it. (The reference's card is min(352px, 100% − 32px), the next one showing
+        at the edge; its 1024px rule for the row's padding goes with it.)
+     5. ONE CARD AT A TIME ON A PHONE, WITH DOTS. Alex's note on the cards as built, 2026-11-12: "then on the phone web, the second
+        card slightly shows.. it would look better with those like 3 dots under to indicate scrolling horizontal, but only show 1
+        card at a time, you know what I mean?" Under 768px one card fills the row, and a line of dots under it, one per stop,
+        says which is in view (that one hero-violet-2, the rest fs-button-line); from 768px the arrows show and the dots do not.
+        The row always comes to rest on a card — scroll-snap-type: x mandatory where the reference has proximity — at every
+        width, so it stays aligned however it is scrolled.
    It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value outside
    :root"). It draws no gradient.
    WHAT LEAVES with it — TRIPCARDS-02's trip.com look (2026-11-08): the dark card and its 320px crop, the stop chip and the dark
@@ -279,17 +293,22 @@ body {
 }
 .ts-story-arrow[aria-disabled="true"] { opacity: 0.4; cursor: default; }
 
-/* ── 2 · the row: one line of cards, edge to edge of the window, the first under the heading ──── */
+/* ── 2 · the row: one line of cards in the page, whole cards only, the first under the heading (the fourth and fifth
+   differences: Alex's notes on the cards as built — the reference runs it to the window's edges) ─────────────────────────── */
 .ts-story-row {
-  box-sizing: border-box; display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
-  margin-top: clamp(24px, 2.8vw, 40px); padding: 4px max(16px, calc((100% - 1280px) / 2 + 16px)) 32px;
-  scroll-padding-inline: max(16px, calc((100% - 1280px) / 2 + 16px));
+  box-sizing: border-box; display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  margin: clamp(24px, 2.8vw, 40px) -8px 0; padding: 4px 8px 32px;
+  scroll-padding-inline: 8px;
 }
 .ts-story-row::-webkit-scrollbar { display: none; }
+/* the dots: one per stop, the one in view violet — under 768px, where the row is swiped one card at a time */
+.ts-story-dots { display: flex; justify-content: center; gap: 8px; margin-top: -12px; pointer-events: none; }
+.ts-story-dot { display: block; width: 6px; height: 6px; border-radius: 999px; background-color: var(--ts-fs-button-line); transition: background-color 0.16s; }
+.ts-story-dot[data-current="true"] { background-color: var(--ts-hero-violet-2); }
 
 /* ── 3 · a card: the photo whole, the stop, the place, the dates; at its foot what it cost and the post ── */
 .ts-story-card {
-  box-sizing: border-box; flex: 0 0 min(352px, calc(100% - 32px)); scroll-snap-align: start; display: flex; flex-direction: column; padding: 10px;
+  box-sizing: border-box; flex: 0 0 100%; scroll-snap-align: start; display: flex; flex-direction: column; padding: 10px;
   border: 1px solid var(--ts-fs-line); border-radius: 20px; background-color: rgb(var(--ts-fs-white));
   box-shadow: 0 1px 2px rgb(var(--ts-fs-shadow) / 0.04), 0 8px 24px rgb(var(--ts-fs-shadow) / 0.07);
 }
@@ -334,10 +353,12 @@ body {
 /* ── 4 · wider windows ───────────────────────────────────────────────────────────────────────── */
 @media (min-width: 768px) {
   .ts-story__arrows { display: flex; }
+  .ts-story-dots { display: none; }
+  .ts-story-card { flex-basis: calc((100% - 20px) / 2); }
 }
 @media (min-width: 1024px) {
   .ts-story__inner { padding-inline: 32px; }
-  .ts-story-row { padding-inline: max(32px, calc((100% - 1280px) / 2 + 32px)); scroll-padding-inline: max(32px, calc((100% - 1280px) / 2 + 32px)); }
+  .ts-story-card { flex-basis: calc((100% - 40px) / 3); }
 }
 
 /* ── 5 · pointer and motion ──────────────────────────────────────────────────────────────────── */
@@ -345,7 +366,7 @@ body {
   .ts-story-arrow:not([aria-disabled="true"]):hover, .ts-story-card__post:hover { border-color: var(--ts-hero-violet-2); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ts-story-arrow, .ts-story-card__post { transition: none; }
+  .ts-story-arrow, .ts-story-card__post, .ts-story-dot { transition: none; }
 }
 
 /* CHIP-FADE (390 audit finding 2): edge-fade mask for the modules chip

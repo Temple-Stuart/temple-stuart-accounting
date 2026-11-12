@@ -13,12 +13,13 @@
  *   T2  the tokens — the README's two tables (five already in the app, ten HOME-PLANS-04 brought), each the reference's value behind
  *       the house prefix in globals.css :root, declared once; the reference's :root holds those fifteen and no other; "New with this
  *       section: none" — the port declares no property and every one of the fifteen is read;
- *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the three differences
- *       named there; no hex, no rgb value typed, no gradient; every class behind the prefix; every variable it reads declared; it stands
- *       directly above the CHIP-FADE comment, under the marquee's keyframes; nothing else in the file reaches the section; the classes
- *       the section wears and the classes the port rules are the same;
+ *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the five differences
+ *       named there (the last two Alex's notes on the cards as built, applied as named edits); no hex, no rgb value typed, no gradient; every
+ *       class behind the prefix; every variable it reads declared; it stands directly above the CHIP-FADE comment, under the marquee's
+ *       keyframes; nothing else in the file reaches the section; the classes the section wears and the classes the port rules are the same;
  *   T4  the page at rest — the section's render on 2026-11-12 IS the reference's markup, token for token (classes behind the prefix,
- *       attributes in any order, entities read as the characters they are), but for one difference: a photo's path in the app;
+ *       attributes in any order, entities read as the characters they are), but for a photo's path in the app and Alex's two notes: the
+ *       row in the page container, and the dots under it;
  *   T5  the card — the stop line from the day (no chip once he has left, COMING UP outlined, I'M HERE filled with its dot), the ring on
  *       the stop he is at, on other days too; each amount's kind from the data, never from the words, painted by the port; the photo
  *       whole, out of the tab order; a stop with no photo has no frame and no credit;
@@ -30,7 +31,10 @@
  *       the nine photos on disk as their headers say, each within 1%; the law's photo line holds the clause with no line added; no
  *       dependency; the seeds on file, each expecting the clause's own words;
  *   T9  the rulings — Alex's brief and approval quoted exact wherever quoted; the two reversed rulings named with his words; the heading
- *       violet (no word of gold launched this run); About Us untouched.
+ *       violet (no word of gold launched this run); About Us untouched;
+ *   T10 Alex's notes on the cards as built (2026-11-12) — the row in the page, whole cards only (one, two from 768px, three from 1024px:
+ *       the plan cards' own columns), at rest on a card; under 768px one card at a time and the dots, one per stop, the one in view lit,
+ *       a picture and not controls; the card in view as a pure function; his words quoted exact wherever quoted.
  *
  * Source is read through code() and comments() only (the reader law); rejoin() where the whole file is the subject: the digests, the
  * reference (HTML, which the reader splits as TypeScript) and the README's tables. A photo's bytes are read through photoSize.ts's
@@ -54,7 +58,7 @@ import { OUR_STORY_HEADING } from '../homeActWords';
 import { MY_TRIP_ANCHOR } from '../homeAnchors';
 import { THREE_TWO_TOLERANCE, headerSize, jpegSize, offThreeTwo, photoBytes, photoShapeViolations, webpSize } from '../photoSize';
 import WasHereSection, {
-  EARLIER_STOPS, LATER_STOPS, MY_TRIP_EYEBROW, MY_TRIP_HEADLINE, MY_TRIP_LINE, READ_THE_POST, ROW_AS_IT_OPENS, STORY_ROW_ID, WasHereView, cardCut, rowEnds,
+  EARLIER_STOPS, LATER_STOPS, MY_TRIP_EYEBROW, MY_TRIP_HEADLINE, MY_TRIP_LINE, READ_THE_POST, ROW_AS_IT_OPENS, STORY_ROW_ID, WasHereView, cardAtStart, cardCut, rowEnds,
 } from '@/components/landing/WasHereSection';
 import { SEEDS as TRIPCARDS_SEEDS } from '../../../scripts/proofs/tripcards03.seeds';
 
@@ -155,6 +159,50 @@ function referencePorted(): string[] {
     return `${media} | ${sel.replace(/\.story(?=$|[^A-Za-z0-9])/g, '.ts-story')} | ${port}`;
   });
 }
+/** Alex's notes on the cards as built, 2026-11-12 — his words, exact. */
+const NOTE_ROW = 'the page seems aligned down the whole page, but when we get to trip cards on web they extend out to the right, and idk it just looks lopisded and off...';
+const NOTE_PHONE = 'then on the phone web, the second card slightly shows.. it would look better with those like 3 dots under to indicate scrolling horizontal, but only show 1 card at a time, you know what I mean?';
+/** An edit the notes make to the reference's declarations: one replaced, dropped or added after another — each anchor found exactly once. */
+type NoteEdit = { note: 4 | 5; replace: string; by: string } | { note: 4 | 5; drop: string } | { note: 4 | 5; after: string; add: readonly string[] };
+const ROW_PAD = 'max(16px, calc((100% - 1280px) / 2 + 16px))';
+const ROW_PAD_WIDE = 'max(32px, calc((100% - 1280px) / 2 + 32px))';
+/**
+ * THE FOURTH AND FIFTH DIFFERENCES (globals.css, its header) — Alex's notes on the cards as built, as named edits:
+ *   4. the row stands in the page: no full-bleed padding, 8px into the gutter each side; a card whole in it — one, two from 768px,
+ *      three from 1024px; the reference's 1024px rule for the row's padding goes;
+ *   5. one card at a time on a phone, with dots: the row always rests on a card (mandatory, where the reference has proximity); the
+ *      dots' rules under the row's, hidden from 768px with the arrows shown; the dots skip their transition under reduced motion.
+ */
+const NOTE_EDITS: readonly NoteEdit[] = [
+  { note: 5, replace: ' | .ts-story-row | scroll-snap-type: x proximity', by: ' | .ts-story-row | scroll-snap-type: x mandatory' },
+  { note: 4, replace: ' | .ts-story-row | margin-top: clamp(24px, 2.8vw, 40px)', by: ' | .ts-story-row | margin: clamp(24px, 2.8vw, 40px) -8px 0' },
+  { note: 4, replace: ` | .ts-story-row | padding: 4px ${ROW_PAD} 32px`, by: ' | .ts-story-row | padding: 4px 8px 32px' },
+  { note: 4, replace: ` | .ts-story-row | scroll-padding-inline: ${ROW_PAD}`, by: ' | .ts-story-row | scroll-padding-inline: 8px' },
+  { note: 5, after: ' | .ts-story-row::-webkit-scrollbar | display: none', add: [
+    ' | .ts-story-dots | display: flex', ' | .ts-story-dots | justify-content: center', ' | .ts-story-dots | gap: 8px', ' | .ts-story-dots | margin-top: -12px', ' | .ts-story-dots | pointer-events: none',
+    ' | .ts-story-dot | display: block', ' | .ts-story-dot | width: 6px', ' | .ts-story-dot | height: 6px', ' | .ts-story-dot | border-radius: 999px',
+    ' | .ts-story-dot | background-color: var(--ts-fs-button-line)', ' | .ts-story-dot | transition: background-color 0.16s',
+    ' | .ts-story-dot[data-current="true"] | background-color: var(--ts-hero-violet-2)',
+  ] },
+  { note: 4, replace: ' | .ts-story-card | flex: 0 0 min(352px, calc(100% - 32px))', by: ' | .ts-story-card | flex: 0 0 100%' },
+  { note: 4, after: '@media (min-width: 768px) | .ts-story__arrows | display: flex', add: ['@media (min-width: 768px) | .ts-story-dots | display: none', '@media (min-width: 768px) | .ts-story-card | flex-basis: calc((100% - 20px) / 2)'] },
+  { note: 4, drop: `@media (min-width: 1024px) | .ts-story-row | padding-inline: ${ROW_PAD_WIDE}` },
+  { note: 4, replace: `@media (min-width: 1024px) | .ts-story-row | scroll-padding-inline: ${ROW_PAD_WIDE}`, by: '@media (min-width: 1024px) | .ts-story-card | flex-basis: calc((100% - 40px) / 3)' },
+  { note: 5, replace: '@media (prefers-reduced-motion: reduce) | .ts-story-arrow, .ts-story-card__post | transition: none', by: '@media (prefers-reduced-motion: reduce) | .ts-story-arrow, .ts-story-card__post, .ts-story-dot | transition: none' },
+];
+/** The reference's declarations, ported, with Alex's two notes applied — each edit finding its one place, or the test says which did not. */
+function withNotes(declared: readonly string[]): string[] {
+  let out = [...declared];
+  for (const edit of NOTE_EDITS) {
+    const anchor = 'replace' in edit ? edit.replace : 'drop' in edit ? edit.drop : edit.after;
+    assert.equal(out.filter((d) => d === anchor).length, 1, `note ${edit.note}: "${anchor}" stands once in the reference, ported`);
+    const at = out.indexOf(anchor);
+    if ('replace' in edit) out[at] = edit.by;
+    else if ('drop' in edit) out = [...out.slice(0, at), ...out.slice(at + 1)];
+    else out = [...out.slice(0, at + 1), ...edit.add, ...out.slice(at + 1)];
+  }
+  return out;
+}
 /** The port: globals.css from the section's first rule to the chip strip's — the rules between the marquee's keyframes and CHIP-FADE. */
 const PORT_OPEN = '.ts-story {';
 const NEXT_RULE = '.ts-chipfade {';
@@ -237,8 +285,23 @@ function referenceSection(): string {
   const body = html.slice(html.indexOf('<body>') + '<body>'.length, html.indexOf('<script>'));
   return body.slice(body.indexOf('<section'), body.lastIndexOf('</section>') + '</section>'.length);
 }
-/** WHAT THIS PR BUILDS OF THE REFERENCE — its one difference: a photo's path is the app's (public/ is served at /). */
-const asBuilt = (html: string): string => html.replace(/src="\.\.\/\.\.\/public\/was-here\//g, 'src="/was-here/');
+/**
+ * WHAT IS BUILT OF THE REFERENCE'S MARKUP — a photo's path is the app's (public/ is served at /), and Alex's two notes on the cards as built
+ * (2026-11-12): the row moves into the page container, after the head (note 4); the dots follow it, one per stop, the first lit as the
+ * page opens (note 5).
+ */
+function asBuilt(html: string): string {
+  const out = html.replace(/src="\.\.\/\.\.\/public\/was-here\//g, 'src="/was-here/');
+  const rowAt = out.indexOf('<div class="story-row"');
+  const end = out.lastIndexOf('</section>');
+  assert.equal(count(out, '<div class="story-row"'), 1, 'the reference draws one row');
+  const innerClose = out.lastIndexOf('</div>', rowAt);
+  assert.ok(rowAt > -1 && end > rowAt && innerClose > out.indexOf('<div class="story__inner">'), 'the reference\'s row follows the page container, the section\'s last child');
+  const row = out.slice(rowAt, end).trim();
+  const stops = count(row, '<article ');
+  const dots = `<div class="story-dots" aria-hidden="true">${Array.from({ length: stops }, (_, i) => `<span class="story-dot" data-current="${i === 0}"></span>`).join('')}</div>`;
+  return `${out.slice(0, innerClose)}${row}${dots}</div>${out.slice(innerClose + '</div>'.length, rowAt)}${out.slice(end)}`;
+}
 /** Every class in a render. */
 const classesOf = (html: string): string[] => [...html.matchAll(/ class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/));
 
@@ -286,9 +349,9 @@ test('T2 the tokens, named and valued as the README\'s two tables: five already 
 
 // ── T3 · THE STYLESHEET ──────────────────────────────────────────────────────
 
-test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the three named differences; no hex, no rgb value, no gradient; every class behind the prefix; every variable it reads declared; it stands directly above CHIP-FADE, under the marquee\'s keyframes; nothing else reaches the section; what it wears is what the port rules', () => {
+test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the five named differences (the last two Alex\'s notes on the cards as built); no hex, no rgb value, no gradient; every class behind the prefix; every variable it reads declared; it stands directly above CHIP-FADE, under the marquee\'s keyframes; nothing else reaches the section; what it wears is what the port rules', () => {
   const port = declarations(portCss());
-  assert.deepEqual(port, referencePorted(), 'the port is the reference\'s stylesheet, as the three differences leave it');
+  assert.deepEqual(port, withNotes(referencePorted()), 'the port is the reference\'s stylesheet, as the five differences leave it');
   assert.ok(port.length > 100, `the port was read (${port.length} declarations)`);
   const text = portCss();
   assert.doesNotMatch(text, /#[0-9a-fA-F]{3,8}\b/, 'no hex typed');
@@ -306,7 +369,7 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   const all = whole(GLOBALS);
   assert.equal(count(all, '\n.ts-story {'), 1, 'one port');
   assert.ok(all.includes('  to { transform: translateX(-50%); }\n}\n\n/* ── TRIPCARDS-03 (Alex\'s brief, 2026-11-12 21:08 Manila;'), 'its header comment follows the marquee\'s keyframes');
-  assert.ok(all.includes('  .ts-story-arrow, .ts-story-card__post { transition: none; }\n}\n\n/* CHIP-FADE (390 audit finding 2)'), 'and its last rule stands directly above the CHIP-FADE comment');
+  assert.ok(all.includes('  .ts-story-arrow, .ts-story-card__post, .ts-story-dot { transition: none; }\n}\n\n/* CHIP-FADE (390 audit finding 2)'), 'and its last rule stands directly above the CHIP-FADE comment');
   const css = code(GLOBALS);
   const at = css.indexOf(PORT_OPEN);
   const end = css.indexOf(NEXT_RULE);
@@ -318,7 +381,7 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   const html = render(DAY);
   const hooks = new Set<string>(['aria-disabled', 'aria-controls']);
   for (const m of html.matchAll(/ (data-[\w-]+)="/g)) hooks.add(m[1]);
-  assert.deepEqual([...hooks].sort(), ['aria-controls', 'aria-disabled', 'data-kind', 'data-my-trip', 'data-status', 'data-stop-status', 'data-was-here', 'data-was-here-cost', 'data-was-here-costs', 'data-was-here-image', 'data-was-here-label', 'data-was-here-post-link', 'data-was-here-rail', 'data-was-here-stay', 'data-was-here-stop'], 'the hooks the section carries');
+  assert.deepEqual([...hooks].sort(), ['aria-controls', 'aria-disabled', 'data-current', 'data-kind', 'data-my-trip', 'data-status', 'data-stop-status', 'data-was-here', 'data-was-here-cost', 'data-was-here-costs', 'data-was-here-image', 'data-was-here-label', 'data-was-here-post-link', 'data-was-here-rail', 'data-was-here-stay', 'data-was-here-stop'], 'the hooks the section carries');
   const selectorsOutside = [...outside.matchAll(/([^{};]+)\{/g)].map((m) => flat(m[1]));
   assert.ok(selectorsOutside.length > 50, `the rules outside the port were read (${selectorsOutside.length})`);
   for (const sel of selectorsOutside) {
@@ -343,18 +406,21 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
 
 // ── T4 · THE PAGE AT REST ────────────────────────────────────────────────────
 
-test('T4 the page at rest — the section\'s render on 2026-11-12 is the reference\'s markup, token for token, but for a photo\'s path in the app; the default export draws the view with the live leaves', () => {
+test('T4 the page at rest — the section\'s render on 2026-11-12 is the reference\'s markup, token for token, but for a photo\'s path in the app and Alex\'s two notes on the cards as built (the row in the page container, the dots under it); the default export draws the view with the live leaves', () => {
   const html = renderToStaticMarkup(React.createElement(WasHereSection, { today: DAY }));
   assert.equal(html, render(DAY), 'the default export: the live rows and their costs');
   const want = tokensOf(asBuilt(referenceSection()), true);
   const got = tokensOf(html, false);
   assert.ok(want.length > 600, `a whole section was compared (${want.length} tokens)`);
   assert.deepEqual(got, want, 'the section at rest IS the reference\'s markup: every tag with every attribute, every word, in order');
-  // the one difference, where it is meant to be and nowhere else
+  // the photo's path, where it is meant to be and nowhere else
   assert.equal(count(referenceSection(), 'src="../../public/was-here/'), 9, 'the reference reads its nine photos from public/');
   assert.equal(count(html, 'src="/was-here/'), 9, 'the app serves them from /was-here/');
-  // the page as it opens: the row at its start
-  assert.deepEqual(ROW_AS_IT_OPENS, { start: true, end: false });
+  // Alex's notes, where they are meant to be: the row inside the page container, after the head; the dots after the row, one per stop
+  assert.ok(html.includes('</button></div></div><div class="ts-story-row" id="story-row" data-was-here-rail="true">'), 'the arrows and the head close, and the row opens inside the page container');
+  assert.ok(html.includes('</article></div><div class="ts-story-dots" aria-hidden="true">') && html.endsWith('</span></div></div></section>'), 'the dots follow the row, the page container closes after them');
+  // the page as it opens: the row at its start, the first dot lit
+  assert.deepEqual(ROW_AS_IT_OPENS, { start: true, end: false, current: 0 });
   assert.ok(html.includes(`aria-label="${EARLIER_STOPS}" aria-controls="${STORY_ROW_ID}" aria-disabled="true"`) && html.includes(`aria-label="${LATER_STOPS}" aria-controls="${STORY_ROW_ID}" aria-disabled="false"`), 'back at its end, forward not');
 });
 
@@ -440,13 +506,13 @@ test('T6 the row at work: where it stands and when a card is cut, as pure functi
   assert.equal(STORY_ROW_ID, 'story-row', 'the reference\'s own id');
   assert.ok(section.includes('<div ref={rowRef} className={TRIP.list} id={STORY_ROW_ID} data-was-here-rail onScroll={(event) => settle(event.currentTarget)} onFocus={bringIntoView}>'), 'the row: its id, its scroll measured, its focus watched');
   assert.equal(count(section, 'aria-controls={STORY_ROW_ID}'), 2, 'both arrows name the row');
-  assert.ok(section.includes('aria-label={EARLIER_STOPS} aria-controls={STORY_ROW_ID} aria-disabled={ends.start} onClick={() => { if (!ends.start) step(-1); }}'), 'back: says its end, and moves nothing there');
-  assert.ok(section.includes('aria-label={LATER_STOPS} aria-controls={STORY_ROW_ID} aria-disabled={ends.end} onClick={() => { if (!ends.end) step(1); }}'), 'forward: the same');
+  assert.ok(section.includes('aria-label={EARLIER_STOPS} aria-controls={STORY_ROW_ID} aria-disabled={place.start} onClick={() => { if (!place.start) step(-1); }}'), 'back: says its end, and moves nothing there');
+  assert.ok(section.includes('aria-label={LATER_STOPS} aria-controls={STORY_ROW_ID} aria-disabled={place.end} onClick={() => { if (!place.end) step(1); }}'), 'forward: the same');
   assert.ok(section.includes('row.scrollBy({ left: direction * (card.getBoundingClientRect().width + parseFloat(getComputedStyle(row).columnGap)), behavior: motion() });'), 'one card: its width and the gap');
   assert.ok(section.includes("const motion = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');"), 'smoothly, or at once under reduced motion');
   assert.ok(section.includes("if (cardCut(card.getBoundingClientRect(), event.currentTarget.getBoundingClientRect())) card.scrollIntoView({ block: 'nearest', inline: 'start', behavior: motion() });"), 'a cut card the keyboard reaches moves to the row\'s start');
   assert.ok(section.includes("window.addEventListener('resize', onResize);") && section.includes("return () => window.removeEventListener('resize', onResize);") && section.includes('settle(row);\n'), 'measured on mount and on every resize, the listener removed with the section');
-  assert.ok(section.includes('setEnds((was) => (was.start === now.start && was.end === now.end ? was : now));'), 'a scroll that moves no end draws nothing again');
+  assert.ok(section.includes('setPlace((was) => (was.start === now.start && was.end === now.end && was.current === now.current ? was : now));'), 'a scroll that moves no end and no card draws nothing again');
   assert.doesNotMatch(section, /localStorage|sessionStorage|document\.cookie|useSearchParams|useRouter|usePathname|history\.|fetch\(/, 'nothing stored, no URL, no fetch — "No state but the row\'s scroll position, which is the browser\'s. Nothing is stored."');
   // the keyboard's order: the two arrows, then each card's post, in trip order — the photos skipped
   const html = render(DAY);
@@ -458,11 +524,11 @@ test('T6 the row at work: where it stands and when a card is cut, as pure functi
   for (const decl of [
     ' | .ts-story__arrows | display: none', '@media (min-width: 768px) | .ts-story__arrows | display: flex',
     ' | .ts-story-arrow[aria-disabled="true"] | opacity: 0.4', ' | .ts-story-arrow | width: 44px', ' | .ts-story-arrow | height: 44px',
-    ' | .ts-story-row | overflow-x: auto', ' | .ts-story-row | scroll-snap-type: x proximity', ' | .ts-story-row | scrollbar-width: none', ' | .ts-story-row::-webkit-scrollbar | display: none',
-    ' | .ts-story-row | gap: 20px', ' | .ts-story-card | scroll-snap-align: start', ' | .ts-story-card | flex: 0 0 min(352px, calc(100% - 32px))',
-    ' | .ts-story-row | scroll-padding-inline: max(16px, calc((100% - 1280px) / 2 + 16px))',
-    '@media (min-width: 1024px) | .ts-story-row | scroll-padding-inline: max(32px, calc((100% - 1280px) / 2 + 32px))',
-    ' | .ts-story-card__post | height: 44px', '@media (prefers-reduced-motion: reduce) | .ts-story-arrow, .ts-story-card__post | transition: none',
+    ' | .ts-story-row | overflow-x: auto', ' | .ts-story-row | scroll-snap-type: x mandatory', ' | .ts-story-row | scrollbar-width: none', ' | .ts-story-row::-webkit-scrollbar | display: none',
+    ' | .ts-story-row | gap: 20px', ' | .ts-story-card | scroll-snap-align: start', ' | .ts-story-card | flex: 0 0 100%',
+    ' | .ts-story-row | scroll-padding-inline: 8px',
+    '@media (min-width: 768px) | .ts-story-card | flex-basis: calc((100% - 20px) / 2)', '@media (min-width: 1024px) | .ts-story-card | flex-basis: calc((100% - 40px) / 3)',
+    ' | .ts-story-card__post | height: 44px', '@media (prefers-reduced-motion: reduce) | .ts-story-arrow, .ts-story-card__post, .ts-story-dot | transition: none',
   ]) assert.ok(port.includes(decl), `the port: ${decl}`);
 });
 
@@ -650,4 +716,54 @@ test('T9 the rulings: the brief (21:08) and the approval (21:21) quoted exact wh
   // stopZero.includes(`h2: 'mt-3 ${ACT_HEADING_TYPE}'`).
   const stopZero = code(STOP_ZERO);
   assert.ok(stopZero.includes(`h2: '${ACT_HEADING_TYPE}',`) && !stopZero.includes('ts-story'), 'About Us keeps the act headings\' type and wears nothing of this port');
+});
+
+// ── T10 · ALEX'S NOTES ON THE BUILT PAGE ─────────────────────────────────────
+
+test('T10 Alex\'s notes on the cards as built (2026-11-12): the row stands in the page — whole cards only, one in view, two from 768px, three from 1024px (the plan cards\' own columns), at rest on a card; under 768px one card at a time and the dots, one per stop, the one in view lit, a picture and not controls; his words exact wherever quoted', () => {
+  // the card in view, as a pure function: of the cards' left edges, the one nearest the row's start; -1 when the row holds none
+  assert.equal(cardAtStart([], 24), -1, 'no card: no dot to light');
+  assert.equal(cardAtStart([24, 402, 780], 24), 0, 'the row at its start: the first');
+  assert.equal(cardAtStart([-354, 24, 402], 24), 1, 'one card along: the second');
+  assert.equal(cardAtStart([-3000, -2622, 23.6], 24), 2, 'at its end: the last, within a fraction of a pixel');
+  assert.equal(cardAtStart([-150, 228], 24), 0, 'part-way: the nearer');
+  assert.equal(cardAtStart([-165, 213], 24), 0, 'half-way exactly: the first of the two');
+  // the dots, as the page opens: one per stop, in trip order, the first lit; a picture of where the row stands, not controls
+  const html = render(DAY);
+  const dots = /<div class="ts-story-dots" aria-hidden="true">((?:<span class="ts-story-dot" data-current="(?:true|false)"><\/span>)*)<\/div>/.exec(html);
+  assert.ok(dots, 'one line of dots, hidden from assistive technology');
+  assert.deepEqual([...dots[1].matchAll(/data-current="(true|false)"/g)].map((m) => m[1]), TRIP.map((_, i) => String(i === 0)), 'a dot per stop, the first lit');
+  assert.equal(count(html, 'class="ts-story-dots"'), 1, 'one line of them');
+  const section = code(SECTION);
+  assert.ok(section.includes('<div className={TRIP.pager} aria-hidden="true">'), 'the dots are hidden from assistive technology');
+  assert.ok(section.includes('{tripOrder(rows).map((row, i) => <span key={row.id} className={TRIP.pagerDot} data-current={i === place.current} />)}'), 'one per stop, in trip order, lit by the card in view');
+  assert.doesNotMatch(section.slice(section.indexOf('<div className={TRIP.pager}'), section.indexOf('</div>', section.indexOf('<div className={TRIP.pager}'))), /onClick|onKeyDown|tabIndex|<button|role=/, 'nothing to tap or reach');
+  assert.ok(section.includes('const rowStart = row.getBoundingClientRect().left + parseFloat(getComputedStyle(row).scrollPaddingLeft);'), 'measured from the row\'s start, where a card comes to rest');
+  assert.ok(section.includes('current: cardAtStart([...row.children].map((card) => card.getBoundingClientRect().left), rowStart)'), 'the card in view, on every scroll and every resize');
+  // the port's rules, as the notes draw them
+  const port = declarations(portCss());
+  for (const decl of [
+    ' | .ts-story-row | margin: clamp(24px, 2.8vw, 40px) -8px 0', ' | .ts-story-row | padding: 4px 8px 32px', ' | .ts-story-row | scroll-padding-inline: 8px',
+    ' | .ts-story-row | gap: 20px', ' | .ts-story-row | scroll-snap-type: x mandatory', ' | .ts-story-card | scroll-snap-align: start',
+    ' | .ts-story-card | flex: 0 0 100%', '@media (min-width: 768px) | .ts-story-card | flex-basis: calc((100% - 20px) / 2)', '@media (min-width: 1024px) | .ts-story-card | flex-basis: calc((100% - 40px) / 3)',
+    ' | .ts-story-dots | pointer-events: none', '@media (min-width: 768px) | .ts-story-dots | display: none', '@media (min-width: 768px) | .ts-story__arrows | display: flex',
+    ' | .ts-story-dot | background-color: var(--ts-fs-button-line)', ' | .ts-story-dot[data-current="true"] | background-color: var(--ts-hero-violet-2)',
+  ]) assert.ok(port.includes(decl), `the port: ${decl}`);
+  assert.doesNotMatch(portCss(), /100% - 1280px/, 'nothing pads the row out to the window\'s edges any more');
+  // the row reaches into the gutter less far than the gap, so no other card shows at either edge
+  const reach = Number(/margin: clamp\(24px, 2\.8vw, 40px\) -(\d+)px 0/.exec(portCss())?.[1]);
+  const pad = Number(/padding: 4px (\d+)px 32px/.exec(portCss())?.[1]);
+  const gap = Number(/\.ts-story-row \{[^}]*gap: (\d+)px/.exec(portCss())?.[1]);
+  assert.ok(reach === 8 && pad === reach && gap === 20 && reach < gap, `the row reaches ${reach}px into the gutter, pads itself back by as much, and the gap is ${gap}px`);
+  // three across from 1024px are the plan cards' own columns: the same page container, three columns 20px apart
+  const all = declarations(code(GLOBALS));
+  for (const decl of [' | .ts-story__inner | max-width: 1280px', ' | .ts-story__inner | padding-inline: 16px', '@media (min-width: 1024px) | .ts-story__inner | padding-inline: 32px']) assert.ok(all.includes(decl), `the trip log's container: ${decl}`);
+  for (const decl of [' | .ts-fs__inner | max-width: 1280px', ' | .ts-fs__inner | padding: 12px 16px clamp(52px, 6.2vw, 88px)', '@media (min-width: 1024px) | .ts-fs-heading, .ts-fs__inner | padding-inline: 32px', '@media (min-width: 1024px) | .ts-fs-plans | grid-template-columns: repeat(3, minmax(0, 1fr))', '@media (min-width: 1024px) | .ts-fs-plans | gap: 0 20px']) assert.ok(all.includes(decl), `the plans above it: ${decl}`);
+  // his words, exact: the stylesheet quotes both under their stamp, and the section both
+  const header = flat(whole(GLOBALS).slice(whole(GLOBALS).indexOf('/* ── TRIPCARDS-03'), whole(GLOBALS).indexOf('/* ── 1 · the section: the eyebrow')));
+  const stamped = [...header.matchAll(/Alex's note on the cards as built, 2026-11-12: "([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(stamped, [NOTE_ROW, NOTE_PHONE], 'the port names the fourth and fifth differences with his two notes, exact');
+  const notes = flat(comments(SECTION).replace(/^\s*(\*|\/\/)/gm, ' '));
+  for (const note of [NOTE_ROW, NOTE_PHONE]) assert.ok(notes.includes(`"${note}"`), `WasHereSection.tsx quotes "${note.slice(0, 30)}…" exact`);
+  assert.ok(notes.includes('AFTER THE BUILD — Alex\'s notes on the cards as built, 2026-11-12'), 'and names them, dated');
 });
