@@ -158,6 +158,21 @@
   --ts-fs-band-ring:   230 220 255;                /* the band's rings, at 0.08 */
   --ts-fs-shadow:      33 10 94;                   /* shadows on the cream: hero-violet-4 as channels */
   --ts-fs-band-shadow: 12 6 44;                    /* the shadow under the band's gold button */
+  /* ── HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila; the board approved on the design canvas at 15:41): THE
+     PROFESSIONAL SERVICES SECTION — its own colours ───────────────────────────────────────────────────────────────
+     The approved section (design-refs/home-services-01) reads twenty-one tokens the app already holds — ten the app's
+     (bg, border, red, the hero's violets and golds, hero-on-gold) and eleven HOME-PLANS-04 brought (--ts-fs-*), each by the
+     same name and value (README, "Add none of them twice") — and brings six. Each lands here as a token, NAMED AND VALUED AS
+     design-refs/home-services-01/README.md's TABLE "New with this section" (the reference writes them --ps-*; the house
+     prefix --ts- is added, nothing else); the brief's ruling g: "COLOURS. Every colour this section shares with HOME-PLANS-04
+     is that PR's token, by value (the README maps each). Add only the six new ones." tailwind.config.ts maps them as the
+     `ps` family. Hex where the stylesheet reads the token solid; channels where it reads it at an alpha. ────── */
+  --ts-ps-field-line:  #DCD5EC;                    /* the border of a field and a pick; the steps' wire */
+  --ts-ps-wash:        #F6F2FE;                    /* the picked chip's fill; the thank-you's fill */
+  --ts-ps-art:         #F3EFFC;                    /* the picture's frame: its flat colour, under its gradients */
+  --ts-ps-art-1:       #F8F5FE;                    /* the frame's gradient, start */
+  --ts-ps-art-2:       #ECE6FA;                    /* the frame's gradient, end */
+  --ts-ps-art-ring:    77 31 188;                  /* the frame's rings, at 0.05: hero-violet-2 as channels */
   /* Dark "panel / terminal" surfaces. BG-DEPTH (resolves the
      PALETTE-OVERHAUL stop-gate deliberately): the page CANVAS gets its own
      token so page and cards move independently — hierarchy is
@@ -199,7 +214,7 @@ body {
 /* PALETTE-OVERHAUL: the one CTA gradient — pop → grad-mid → grad-end (tokens
    above). Used as a button fill (with text-white hover:brightness-110) and as
    gradient text (with bg-clip-text text-transparent). */
-/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) (HOME-PLANS-04, 2026-11-12: and the Financial Software section's two — the picked plan's gold button and the band (ruling g), in the block above the hero's.) */
+/* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) (HOME-PLANS-04, 2026-11-12: and the Financial Software section's two — the picked plan's gold button and the band (ruling g), in the block above the hero's.) (HOME-SERVICES-01, 2026-11-12: and the Professional Services section's two, both on the board — the gold button and the picture's frame (ruling f), in the block above the Financial Software section's.) */
 
 /* BUILTON-MARQUEE: the Built-on strip's CSS-only infinite loop — the track
    renders its chip run TWICE and slides half its own width, so the wrap is
@@ -235,6 +250,158 @@ body {
     -webkit-mask-image: none;
     mask-image: none;
   }
+}
+
+/* ── HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila; the board approved on the design canvas at 15:41): THE
+   PROFESSIONAL SERVICES SECTION — the heading and its line, the six service tiles, the picked service's picture and
+   words, how a proposal goes, the gold button ─────────────────────────────────────────────────────────────────────────
+   THE SPEC IS design-refs/home-services-01/Section-Reference.html: "Every value in its stylesheet is the design". What
+   follows is that stylesheet, rule for rule and value for value, in its own order and with its own section notes — ported
+   as HERO-CREST-01's and HOME-PLANS-04's were:
+     · every class is the reference's with the house prefix: .ps → .ts-ps, .ps-tile__kind → .ts-ps-tile__kind, …;
+     · every custom property it reads likewise: var(--ps-wash) → var(--ts-ps-wash), var(--fs-ink) → var(--ts-fs-ink),
+       rgb(var(--bg)) → rgb(var(--ts-bg)).
+   src/lib/__tests__/homeServices01.test.ts reads both files and holds them equal, declaration by declaration, but for the
+   FOUR DIFFERENCES named here — the first three where the reference is a page of its own and this is the app, the fourth
+   the brief's own ("The form drawn in the reference is HOME-SERVICES-02, a later PR: do not build it here."):
+     1. THE COLOURS are tokens: the reference's :root is :root above — the six --ts-ps-* this design brings, and the
+        twenty-one it declares only so that it renders on its own, which the app already holds (--ts-bg, --ts-border,
+        --ts-red, the hero's violets and golds, and the eleven --ts-fs-* HOME-PLANS-04 brought).
+     2. THE FONTS are the site's: src/app/layout.tsx loads Inter and IBM Plex Mono as --font-sans and --font-mono, and these
+        rules read the two variables where the reference names the families ("the site already loads both faces").
+     3. NOT PORTED: the reference page's own ground, body { margin: 0; background-color: … } — "THIS PAGE'S OWN: not part of
+        the design, not ported".
+     4. NOT PORTED HERE: the form, in place — the reference's section 4 whole, and the four rules of sections 5 and 6 that
+        name only the form's elements (.ps-fields from 640px; the hover of Close, the link buttons, a pick and Project
+        details). HOME-SERVICES-02 ports them with the form. A rule that names this PR's elements is ported as written,
+        the form's selectors in it included: .ps-cta:disabled, and the reduced-motion rule for .ps-tile, .ps-cta and .ps-pick.
+        The two colours only the form reads — red (its error) and fs-gold-text (its eyebrow) — are read by nothing here yet.
+   It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value
+   outside :root").
+   TWO GRADIENTS — the brief's ruling f, as written (2026-11-12): "The gold gradient is HOME-PLANS-04's; the picture's frame
+   is the second gradient, on the board." They are the gold button (.ts-ps-cta: the hero's three golds at 135deg, stops
+   0 / 52 / 100%, with hero-gold-2 under it so a button's default face never shows through) and the picture's frame
+   (.ts-ps-stage__art: ps-art-1 to ps-art-2 at 135deg, under rings 1px wide every 16px at 0.05). REPAINT-5's ban on
+   gradients, above, is the ruling this design comes after, as the other two blocks' did.
+   ONE RULE HIDES WHAT THE SECTION HIDES: .ts-ps [hidden] { display: none } — the README: "Without it, every block that sets
+   its own display would show what is meant to be hidden." Five of the six pictures are in the page and hidden.
+   Used by src/components/landing/ServicesSection.tsx, which Landing.tsx mounts. It stands here, above the Financial Software
+   section's block and the hero's, because nothing may follow the hero's and the Financial Software port runs from its own
+   first rule to the hero's; it names none of their classes, and nothing outside it names one of its own. ─────────────── */
+/* ── 1 · the section ─────────────────────────────────────────────────────────────────────────── */
+.ts-ps { scroll-margin-top: 48px; border-bottom: 1px solid rgb(var(--ts-border)); background-color: rgb(var(--ts-bg)); color: var(--ts-fs-ink); font-family: var(--font-sans); line-height: 1.5; }
+.ts-ps__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(44px, 5.6vw, 80px) 16px clamp(52px, 6.2vw, 88px); }
+.ts-ps__title { margin: 0; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; font-weight: 500; letter-spacing: -0.03em; color: var(--ts-hero-violet-4); }
+.ts-ps__lede { margin: 16px 0 0; max-width: 620px; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--ts-fs-ink-soft); text-wrap: pretty; }
+.ts-ps :focus-visible { outline: 2px solid var(--ts-hero-violet-2); outline-offset: 3px; }
+.ts-ps [hidden] { display: none; }               /* the one rule for everything the section hides; it outranks each block's own display */
+
+/* ── 2 · the panel: the question and the six services ────────────────────────────────────────── */
+.ts-ps-panel {
+  box-sizing: border-box; margin-top: clamp(24px, 2.8vw, 40px); padding: clamp(18px, 2.3vw, 32px);
+  border: 1px solid var(--ts-fs-line); border-radius: 24px; background-color: rgb(var(--ts-fs-white));
+  box-shadow: 0 1px 2px rgb(var(--ts-fs-shadow) / 0.05), 0 20px 48px rgb(var(--ts-fs-shadow) / 0.08);
+}
+.ts-ps-panel__question { margin: 0; font-size: clamp(18px, 1.6vw, 22px); line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--ts-hero-violet-4); }
+
+.ts-ps-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: clamp(8px, 1vw, 12px); margin-top: 16px; }
+.ts-ps-tile {
+  box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 14px;
+  min-height: 104px; margin: 0; padding: 14px 14px 12px; border: 1px solid var(--ts-fs-chip-line); border-radius: 14px;
+  background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-2); font-family: inherit; text-align: left; cursor: pointer;
+  transition: background-color 0.16s, border-color 0.16s, box-shadow 0.16s;
+}
+.ts-ps-tile__icon { flex: none; }
+.ts-ps-tile__words { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ts-ps-tile__title { font-size: 14px; line-height: 1.3; font-weight: 600; color: var(--ts-hero-violet-4); }
+.ts-ps-tile__kind { min-height: 14px; font-family: var(--font-mono); font-size: 10.5px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ts-fs-ink-muted); }
+/* the picked service: filled violet */
+.ts-ps-tile[aria-pressed="true"] { border-color: var(--ts-hero-violet-2); background-color: var(--ts-hero-violet-2); color: rgb(var(--ts-fs-white)); box-shadow: 0 8px 20px rgb(var(--ts-fs-shadow) / 0.18); }
+.ts-ps-tile[aria-pressed="true"] .ts-ps-tile__title { color: rgb(var(--ts-fs-white)); }
+.ts-ps-tile[aria-pressed="true"] .ts-ps-tile__kind { color: var(--ts-fs-band-muted); }
+
+/* ── 3 · the stage: the picked service's picture, its words, how it goes, the button ─────────── */
+.ts-ps-stage {
+  display: flex; flex-direction: column; gap: clamp(20px, 2.6vw, 40px);
+  margin-top: clamp(18px, 1.8vw, 24px); padding-top: clamp(18px, 1.8vw, 24px); border-top: 1px solid var(--ts-fs-rule);
+}
+.ts-ps-stage__art {
+  box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-width: 0;
+  padding: clamp(12px, 1.6vw, 24px); border-radius: 18px;
+  background-color: var(--ts-ps-art);
+  background-image:
+    repeating-radial-gradient(circle at 50% 260%, rgb(var(--ts-ps-art-ring) / 0) 0px, rgb(var(--ts-ps-art-ring) / 0) 15px, rgb(var(--ts-ps-art-ring) / 0.05) 15px, rgb(var(--ts-ps-art-ring) / 0.05) 16px),
+    linear-gradient(135deg, var(--ts-ps-art-1) 0%, var(--ts-ps-art-2) 100%);
+}
+.ts-ps-stage__art img { display: block; width: 100%; max-width: 560px; height: auto; }
+.ts-ps-stage__text { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.ts-ps-stage__title { margin: 0; font-size: clamp(24px, 2.2vw, 30px); line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--ts-hero-violet-4); }
+.ts-ps-stage__line { margin: 10px 0 0; max-width: 540px; font-size: 16px; line-height: 1.55; color: var(--ts-fs-ink-soft); text-wrap: pretty; }
+
+.ts-ps-steps { display: flex; flex-direction: column; margin: 20px 0 0; padding: 0; list-style: none; }
+.ts-ps-step { display: grid; grid-template-columns: 26px minmax(0, 1fr); column-gap: 12px; }
+.ts-ps-step__rail { display: flex; flex-direction: column; align-items: center; }
+.ts-ps-step__wire { flex: 1; width: 1.5px; min-height: 12px; margin: 4px 0; background-color: var(--ts-ps-field-line); }
+.ts-ps-step__mark {
+  box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border: 1.5px solid var(--ts-fs-button-line); border-radius: 50%;
+  font-size: 13px; line-height: 1; font-weight: 600; color: var(--ts-fs-ink-muted);
+}
+.ts-ps-step[data-step="done"] .ts-ps-step__mark { border-color: var(--ts-hero-violet-2); background-color: var(--ts-hero-violet-2); color: rgb(var(--ts-fs-white)); }
+.ts-ps-step[data-step="now"] .ts-ps-step__mark { border-color: var(--ts-hero-violet-2); color: var(--ts-hero-violet-2); }
+.ts-ps-step__body { min-width: 0; padding-bottom: 14px; }
+.ts-ps-step:last-child .ts-ps-step__body { padding-bottom: 0; }
+.ts-ps-step__title { margin: 0; padding-top: 3px; font-size: 15px; line-height: 1.35; font-weight: 600; color: var(--ts-hero-violet-4); }
+.ts-ps-step__note { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--ts-fs-ink-muted); }
+.ts-ps-chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.ts-ps-chip {
+  box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+  border: 1px solid var(--ts-fs-chip-line); border-radius: 8px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-ink-soft);
+  font-size: 13px; line-height: 1.2; font-weight: 500; white-space: nowrap;
+}
+.ts-ps-chip--picked { border-color: var(--ts-fs-button-line); background-color: var(--ts-ps-wash); color: var(--ts-hero-violet-3); font-weight: 600; }
+
+.ts-ps-cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 22px; }
+.ts-ps-cta {
+  box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 48px; margin: 0; padding: 0 26px;
+  border: 0; border-radius: 999px; background-color: rgb(var(--ts-hero-gold-2)); background-image: linear-gradient(135deg, rgb(var(--ts-hero-gold-1)) 0%, rgb(var(--ts-hero-gold-2)) 52%, rgb(var(--ts-hero-gold-3)) 100%);
+  box-shadow: inset 0 1px 0 rgb(var(--ts-fs-white) / 0.75), 0 8px 20px rgb(var(--ts-fs-shadow) / 0.16); color: var(--ts-hero-on-gold);
+  font-family: inherit; font-size: 15px; line-height: 1.2; font-weight: 600; white-space: nowrap; text-decoration: none; cursor: pointer;
+  transition: filter 0.16s;
+}
+.ts-ps-cta:disabled { cursor: not-allowed; opacity: 0.5; }
+.ts-ps-note { font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 500; color: var(--ts-fs-ink-soft); }
+
+/* ── 4 · the form, in place (HOME-SERVICES-02) — NOT PORTED HERE: the form is a later PR, and its rules come with it ── */
+
+/* ── 5 · wider windows ───────────────────────────────────────────────────────────────────────── */
+@media (min-width: 480px) {
+  .ts-ps-cta { width: auto; }
+}
+@media (min-width: 640px) {
+  .ts-ps-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .ts-ps__inner { padding-inline: 32px; }
+  .ts-ps-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  /* the picture beside the words. The line keeps two lines' room, so the panel keeps its height from one service to the next. */
+  .ts-ps-stage { flex-direction: row; align-items: stretch; }
+  .ts-ps-stage__art { flex: 5 1 260px; }
+  .ts-ps-stage__text { flex: 6 1 280px; }
+  .ts-ps-stage__line { min-height: 3.1em; }
+}
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  /* where five of the form's questions wrap to a second row, every service keeps that row's room */
+  .ts-ps-chips--asks { min-height: 62px; }
+}
+
+/* ── 6 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+@media (hover: hover) {
+  .ts-ps-tile[aria-pressed="false"]:hover { border-color: var(--ts-hero-violet-2); }
+  .ts-ps-cta:not(:disabled):hover { filter: brightness(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-ps-tile, .ts-ps-cta, .ts-ps-pick { transition: none; }
 }
 
 /* ── HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30): THE

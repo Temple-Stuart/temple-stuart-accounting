@@ -135,6 +135,19 @@ const config: Config = {
           shadow: 'rgb(var(--ts-fs-shadow) / <alpha-value>)',               // 33 10 94 — shadows on the cream
           'band-shadow': 'rgb(var(--ts-fs-band-shadow) / <alpha-value>)',   // 12 6 44 — the shadow under the band's gold button
         },
+        // HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila; the board approved on the design canvas at 15:41): the
+        // Professional Services section's own colours — the six the approved section brings, named and valued as
+        // design-refs/home-services-01/README.md's table "New with this section", typed once in globals.css :root (--ts-ps-*).
+        // The same two shapes as above. The section's stylesheet (globals.css, above the Financial Software section's) reads the
+        // variables directly; these names make the same colours utilities for the next surface. ADDITIVE, as `fs` was.
+        ps: {
+          'field-line': 'var(--ts-ps-field-line)',                          // #DCD5EC — the border of a field and a pick; the steps' wire
+          wash: 'var(--ts-ps-wash)',                                        // #F6F2FE — the picked chip's fill; the thank-you's fill
+          art: 'var(--ts-ps-art)',                                          // #F3EFFC — the picture's frame: its flat colour, under its gradients
+          'art-1': 'var(--ts-ps-art-1)',                                    // #F8F5FE — the frame's gradient, start
+          'art-2': 'var(--ts-ps-art-2)',                                    // #ECE6FA — the frame's gradient, end
+          'art-ring': 'rgb(var(--ts-ps-art-ring) / <alpha-value>)',         // 77 31 188 — the frame's rings
+        },
       },
       fontFamily: {
         mono: ["'IBM Plex Mono'", 'ui-monospace', 'monospace'],

@@ -379,8 +379,15 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   assert.deepEqual([...hooks].sort(), ['aria-pressed', 'data-act-heading', 'data-compare-plans', 'data-how-to', 'data-lit', 'data-module', 'data-picked', 'data-plan'], 'the hooks the section and its heading carry');
   const selectorsOutside = [...outside.matchAll(/([^{};]+)\{/g)].map((m) => flat(m[1]));
   assert.ok(selectorsOutside.length > 50, `the rules outside the port were read (${selectorsOutside.length})`);
+  // HOME-SERVICES-01 (Alex's brief, 2026-11-12): the Professional Services section's port stands above this one (.ts-ps), and its tiles are
+  // styled by [aria-pressed] too — every part of each such selector opens with one of that section's own classes, which no element here wears
+  // (each class this section wears is ruled by this port, below), so it reaches nothing of this section. Until then this loop held every
+  // selector outside the port to the hooks, with no exception; it still holds every selector to the id.
+  const psOwn = (sel: string): boolean => sel.split(',').every((one) => /^\.ts-ps(?:[-_][\w-]*)?(?![\w-])/.test(one.trim()));
+  assert.ok(selectorsOutside.some((sel) => psOwn(sel) && sel.includes('[aria-pressed')), 'the Professional Services port is read, and it is the one exception');
   for (const sel of selectorsOutside) {
     assert.ok(!sel.includes('#modules'), `${sel}: no rule outside the port reaches the section by its id`);
+    if (psOwn(sel)) continue;
     for (const hook of hooks) assert.ok(!sel.includes(`[${hook}`), `${sel}: no rule outside the port reaches the section by [${hook}]`);
   }
   // nor by an element: no selector outside the port STARTS with a type, the universal selector or :is/:where/:not (past an html,

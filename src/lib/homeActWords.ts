@@ -48,6 +48,16 @@
  *     three paragraphs and the step lists in the cards. Both stay in their leaves, undrawn, with a dated note: the standing
  *     HOME-PLANS-03 gave the comparison." His three paragraphs stay here, word for word, read by no page.
  *
+ * HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila: "remove that text about and replace with like an image that SHOWS
+ * what and why and how, rather than telling with words"; the board approved on the design canvas, 15:41 Manila):
+ *   · BUILD_PILLAR: its heading stands; its paragraph is REPLACED by one line — the brief's ruling b, "THE PARAGRAPH IS
+ *     REPLACED. BUILD_PILLAR.paragraphs holds the one new line, "Hands-on services, tailored to your needs."; his paragraph is
+ *     quoted, dated, in the leaf's note. HOME-FINISH-02's "Approved description" is this line now." His paragraph, word for
+ *     word as it stood from HOME-FINISH-02 (2026-11-10) until this brief: "Want to build your own system or something
+ *     customized for your business? From full setup and custom development to integrations, ongoing maintenance, and
+ *     bookkeeping, Temple Stuart offers hands-on services tailored to your needs." The section that draws the line is
+ *     src/components/landing/ServicesSection.tsx now (Landing.tsx mounts it), and the pictures there show the rest.
+ *
  * PURE, NO DIRECTIVE: no import, no state, no clock — one string each (a pillar: its heading and its paragraphs), so a
  * client component, a server component and a test all read the same words.
  */
@@ -76,7 +86,7 @@ export const PLAN_PILLAR: Pillar = {
 export const BUILD_PILLAR: Pillar = {
   heading: 'Professional Services',
   paragraphs: [
-    'Want to build your own system or something customized for your business? From full setup and custom development to integrations, ongoing maintenance, and bookkeeping, Temple Stuart offers hands-on services tailored to your needs.',
+    'Hands-on services, tailored to your needs.',
   ],
 };
 

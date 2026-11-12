@@ -52,6 +52,13 @@ const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />'; // HOME-BRIEF-0
 // this constant was EYEBROW, the label: 'text-text-faint">\n            PROFESSIONAL SERVICES\n' — its note follows.
 const SERVICES_HEAD = '<h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{BUILD_PILLAR.heading}</h2>'; // (EYEBROW's note) HOME-BRIEF-03 (Alex, 2026-11-10): the section's label reads PROFESSIONAL SERVICES — 'DONE-FOR-YOU\n' until then; found with the end of its own <p>, since the card's chip says the same words
 const SECTION_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'; // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then
+// HOME-SERVICES-01 (Alex's brief, 2026-11-12): the services section is its own component — src/components/landing/ServicesSection.tsx, which
+// Landing.tsx mounts — so the page's order finds it by its mount, and its h2 and its section tag stand in that file, in the reference's classes.
+// SERVICES_HEAD and SECTION_OPEN, above, are what Landing.tsx held until then: they are counted ZERO times there now (T1).
+const SERVICES_MOUNT = '<ServicesSection />';
+const SERVICES_FILE = 'src/components/landing/ServicesSection.tsx';
+const SERVICES_FILE_OPEN = '<section id={SERVICES_ANCHOR} className="ts-ps" aria-labelledby="ps-title">';
+const SERVICES_FILE_HEAD = '<h2 className="ts-ps__title" id="ps-title">{BUILD_PILLAR.heading}</h2>';
 const TRAVEL_OPEN = '<section aria-label="Live demo — travel" className="max-w-7xl mx-auto px-4 lg:px-8 py-10 border-b border-border">'; // (Part 4: the section wears py-10 — no padding of its own until then) HOME-FINISH-02 (2026-11-10): the travel block, third under "What We Do"
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />"; // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): no longer on this page — held here so T1 can say it is gone
 // HOME-FINISH-02 (2026-11-10), Part 5: the door left the home page — this pin is counted ZERO times now (once, as the last act, until then).
@@ -62,7 +69,11 @@ const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
 test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → explore): the how-to → DONE-FOR-YOU → the travel block with the booking box → the guest strip → Stop 0 → MY TRIP, the last act — the door left the page; each once; nothing but a comment between each pair', () => {
   const landing = code(LANDING);
   const at = (s: string): number => { const i = landing.indexOf(s); assert.notEqual(i, -1, s); return i; };
-  for (const s of [EXPERIENCES, BOOKING, GUEST_STRIP, HOW_TO, SECTION_OPEN, SERVICES_HEAD, TRAVEL_OPEN, STOP_ZERO, MY_TRIP]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
+  // HOME-SERVICES-01 (2026-11-12): the services section is found by its mount; its tag and its h2 are its own file's, once each. Until then
+  // SECTION_OPEN and SERVICES_HEAD stood in this list, each once in Landing.tsx.
+  for (const s of [EXPERIENCES, BOOKING, GUEST_STRIP, HOW_TO, SERVICES_MOUNT, TRAVEL_OPEN, STOP_ZERO, MY_TRIP]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
+  for (const s of [SECTION_OPEN, SERVICES_HEAD]) assert.equal(landing.split(s).length - 1, 0, `${s.slice(0, 40)}… is no longer Landing.tsx's`);
+  for (const s of [SERVICES_FILE_OPEN, SERVICES_FILE_HEAD]) assert.equal(code(SERVICES_FILE).split(s).length - 1, 1, `${s.slice(0, 40)}… once, in ServicesSection.tsx`);
   assert.equal(landing.split(DOOR).length - 1, 0, 'the door to the 14 steps is no act of this page (HOME-FINISH-02) — the footer keeps it');
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): the purple band is gone — the catalog is mounted once, INSIDE the booking mount, as the box's
   // Events panel. Until then '<ExperiencesSection today={today} />' stood on its own between the travel block and the guest's strip, and this
@@ -79,11 +90,13 @@ test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → expl
   // HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — the how-to and the services section moved above the travel block. Until then
   // the order ran the booking box → the guest strip → the how-to → the services section → stop 0, with 'the strip → the how-to' and "the
   // DONE-FOR-YOU section's </section> → stop 0" as neighbour pairs.
-  const order = [HOW_TO, SECTION_OPEN, SERVICES_HEAD, TRAVEL_OPEN, BOOKING, GUEST_STRIP, STOP_ZERO, MY_TRIP].map(at);
+  // HOME-SERVICES-01 (2026-11-12): the services section is its mount — until then this order read HOW_TO, SECTION_OPEN, SERVICES_HEAD, …, the
+  // how-to → the services section ran to at(SECTION_OPEN), and the section ended at landing.indexOf('</section>', at(SERVICES_HEAD)).
+  const order = [HOW_TO, SERVICES_MOUNT, TRAVEL_OPEN, BOOKING, GUEST_STRIP, STOP_ZERO, MY_TRIP].map(at);
   assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the how-to → the services section → the travel block (the booking box, the experiences inside it) → the guest strip → stop 0 → my trip');
-  assert.match(landing.slice(at(HOW_TO) + HOW_TO.length, at(SECTION_OPEN)), ONLY_COMMENTS, 'the how-to → the services section: a comment between, nothing else');
-  const sectionEnd = landing.indexOf('</section>', at(SERVICES_HEAD)) + '</section>'.length;
-  assert.ok(sectionEnd > at(SERVICES_HEAD) && sectionEnd < at(TRAVEL_OPEN));
+  assert.match(landing.slice(at(HOW_TO) + HOW_TO.length, at(SERVICES_MOUNT)), ONLY_COMMENTS, 'the how-to → the services section: a comment between, nothing else');
+  const sectionEnd = at(SERVICES_MOUNT) + SERVICES_MOUNT.length;
+  assert.ok(sectionEnd < at(TRAVEL_OPEN));
   assert.match(landing.slice(sectionEnd, at(TRAVEL_OPEN)), ONLY_COMMENTS, "the DONE-FOR-YOU section's </section> → the travel block: comments between, nothing else");
   const travelEnd = landing.indexOf('</section>', at(TRAVEL_FOOT)) + '</section>'.length;
   assert.ok(at(TRAVEL_FOOT) > at(BOOKING) && travelEnd > at(TRAVEL_FOOT) && travelEnd < at(GUEST_STRIP), 'the booking box sits in the travel block, which closes above the strip');
@@ -102,7 +115,12 @@ test('T2 the seams: one border-b per boundary from experiences to the door — m
   assert.ok(tripAct && /\bborder-b border-border\b/.test(tripAct[1]) && !/border-t/.test(tripAct[1]), "my trip's border-b (WasHereSection TRIP.act), no border-t");
   assert.match(code(STRIP), /<section className="w-full border-b border-border bg-bg-terminal">/, "the guest strip's own border-b, when it renders");
   // HOME-FINISH-02 (2026-11-10): the section's opening tag gained its anchor (id={SERVICES_ANCHOR}); its classes — the seam — are unchanged. Until then: /<section className="w-full border-b border-border bg-bg-terminal">/g.
-  assert.equal((landing.match(/<section id=\{SERVICES_ANCHOR\} className="w-full border-b border-border bg-bg-terminal">/g) ?? []).length, 1, "DONE-FOR-YOU's section: border-b, no border-t");
+  // HOME-SERVICES-01 (2026-11-12): the section is ServicesSection.tsx's, and its rule is the reference's, ported (globals.css .ts-ps) — the
+  // seam is the same: a bottom line, no top one. Until then: (landing.match(/<section id=\{SERVICES_ANCHOR\} className="w-full border-b
+  // border-border bg-bg-terminal">/g) ?? []).length === 1.
+  assert.equal(code(SERVICES_FILE).split(SERVICES_FILE_OPEN).length - 1, 1, "DONE-FOR-YOU's section, in its own file");
+  const psRule = /\n\.ts-ps \{([^}]*)\}/.exec(code('src/app/globals.css'));
+  assert.ok(psRule && psRule[1].includes('border-bottom: 1px solid rgb(var(--ts-border));') && !/border-top|border:/.test(psRule[1]), "DONE-FOR-YOU's section: border-b, no border-t");
   assert.match(code(PLANS), /<section id=\{headingId\} aria-label="Plans" className="w-full border-b border-border bg-bg-terminal" data-plans>/, "the plans act's border-b (PlansSection.tsx), no border-t");
   // PIPELINE-PAGE-01 (2026-11-09): the door stands in the header's seat — its border-b, no border-t; the header moved with the
   // deck and keeps its own border-b, closing header | 01 on /how-it-works.

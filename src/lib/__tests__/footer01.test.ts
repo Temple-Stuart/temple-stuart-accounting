@@ -333,12 +333,19 @@ test('T6 one home for the anchors: each equals its owner\'s export; the sections
     "src/lib/stopZeroWords.ts: _ANCHOR = 'stop-0'",
   ].sort(), 'each anchor typed once, in its home — and the one literal a pinned test still holds');
   assert.equal(code(STOP_ZERO_LEAF).split('\n').filter((l) => l.includes("'stop-0'")).length, 1, 'Stop 0\'s leaf types it once');
-  // HOME-FINISH-02 (2026-11-10): the fifth anchor's reader — the professional-services section's own id, its import on a line of its own
+  // HOME-FINISH-02 (2026-11-10): the fifth anchor's reader — the professional-services section's own id, its import on a line of its own.
+  // HOME-SERVICES-01 (2026-11-12): the section is its own component now — src/components/landing/ServicesSection.tsx, which Landing.tsx
+  // mounts — so the import and the id moved there with it, and Landing.tsx reads the anchor nowhere. Until then, of Landing.tsx:
+  // count(landing, '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">') === 1; its import alone on
+  // its line (/^import \{ SERVICES_ANCHOR \} from '@\/lib\/homeAnchors';\s*$/); count(landing, 'SERVICES_ANCHOR') === 2.
   const landing = code(LANDING);
-  assert.equal(count(landing, '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'), 1, 'the professional-services section carries the anchor');
-  assert.equal(landing.split('\n').filter((l) => /^import \{ SERVICES_ANCHOR \} from '@\/lib\/homeAnchors';\s*$/.test(l)).length, 1, 'its import, on a line of its own');
-  assert.equal(count(landing, 'SERVICES_ANCHOR'), 2, 'the import and the id — nothing else in Landing reads it');
-  assert.ok(!landing.includes('id="services"'), 'never typed');
+  const services = code('src/components/landing/ServicesSection.tsx');
+  assert.equal(count(services, '<section id={SERVICES_ANCHOR} className="ts-ps" aria-labelledby="ps-title">'), 1, 'the professional-services section carries the anchor');
+  assert.equal(services.split('\n').filter((l) => /^import \{ SERVICES_ANCHOR \} from '@\/lib\/homeAnchors';\s*$/.test(l)).length, 1, 'its import, on a line of its own');
+  assert.equal(count(services, 'SERVICES_ANCHOR'), 2, 'the import and the id — nothing else in the section reads it');
+  assert.equal(count(landing, 'SERVICES_ANCHOR'), 0, 'Landing.tsx mounts the section and reads the anchor nowhere');
+  assert.equal(count(landing, '<ServicesSection />'), 1, 'the section, mounted once');
+  for (const src of [landing, services]) assert.ok(!src.includes('id="services"'), 'never typed');
 });
 
 // ── T7 · THE DEMO'S ID AND THE TRIP PAGE'S LINKS BACK ────────────────────────

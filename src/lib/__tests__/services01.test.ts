@@ -19,7 +19,10 @@
  *      2026-11-10: "Build Your Income." and Alex's words — the label PROFESSIONAL SERVICES and the h2 "Need help? Send a
  *      proposal." until then) and the one button stand, and the chip
  *      that repeated the label is gone (HOME-BRIEF-04, 2026-11-10 — it stood, untouched, until then); the
- *      act list's line; :1807 still s08; the pins that stay (moved from close01);
+ *      act list's line; :1807 still s08; the pins that stay (moved from close01). HOME-SERVICES-01 (Alex's brief, 2026-11-12): the
+ *      panel is the Professional Services section's own component, src/components/landing/ServicesSection.tsx — the six doors are tiles
+ *      that pick, the gold link carries the pick, his paragraph is one line — and T4 reads it there; each rewritten assertion keeps its
+ *      old form in a dated note;
  *   T5 the form — needChoices() the six; Bookkeeping picked: the three lines in order, no modules question, the done
  *      placeholder; the lead; ?need=close picks nothing; the honeypot still at :371-380 (cited there by number);
  *   T6 the route — need z.enum(PROPOSAL_NEEDS): each of the six accepted, 'close' refused with an issue naming need;
@@ -42,7 +45,7 @@ import { z } from 'zod';
 import { code, comments, rejoin } from '../sourceText';
 import * as vocabulary from '../proposalNeeds';
 import {
-  BOOKKEEPING_WORDS, FORM_INTRO, LEGACY_NEED_TITLES, PROPOSAL_FORM_PATH, PROPOSAL_NEEDS, SERVICES, SERVICE_NEEDS, ServicesLawError,
+  BOOKKEEPING_WORDS, FORM_INTRO, LEGACY_NEED_TITLES, PROPOSAL_CTA, PROPOSAL_FORM_PATH, PROPOSAL_NEEDS, SCOPED_BY_PROPOSAL, SERVICES, SERVICE_NEEDS, ServicesLawError,
   needCheckWords, servicesLaw, sqlCode, type Service,
 } from '../proposalNeeds';
 import { CrmLawError, needWords } from '../crm/crm';
@@ -108,7 +111,12 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // ── T1 · THE MODULE ──────────────────────────────────────────────────────────
 
 test('T1 SERVICES is exactly the six doors in order, with the ruled words; the keys, PROPOSAL_NEEDS, the legacy title, the path and the lead', () => {
-  assert.deepEqual(SERVICES.map((s) => ({ ...s })), SIX);
+  // HOME-SERVICES-01 (Alex's brief, 2026-11-12; ruling c: "THE DOORS ARE SERVICES'. Titles, lines and order unchanged. Each door gains a kind:
+  // Project (setup, custom, embed), Monthly (maintenance, bookkeeping), none (unsure)."): each door carries its kind beside its words, so the
+  // six are held by key, title and line — unchanged — and by kind. Until then: assert.deepEqual(SERVICES.map((s) => ({ ...s })), SIX).
+  assert.deepEqual(SERVICES.map(({ need, title, line }) => ({ need, title, line })), SIX, 'titles, lines and order unchanged (ruling c)');
+  assert.deepEqual(SERVICES.map((s) => [s.need, s.kind]), [['setup', 'Project'], ['maintenance', 'Monthly'], ['custom', 'Project'], ['embed', 'Project'], ['bookkeeping', 'Monthly'], ['unsure', null]], 'each door\'s kind — none for unsure (ruling c)');
+  assert.deepEqual(SERVICES.map((s) => Object.keys(s)), SIX.map(() => ['need', 'title', 'line', 'kind']), 'a door is its key, its words and its kind — nothing else');
   assert.deepEqual([...SERVICE_NEEDS], KEYS, 'the keys, in the doors\' order');
   assert.deepEqual([...PROPOSAL_NEEDS], KEYS, 'what the route accepts: the six — \'close\' is not one');
   assert.ok(!(PROPOSAL_NEEDS as readonly string[]).includes('close'));
@@ -262,81 +270,137 @@ test('T3 the schema\'s need comment lists the seven words, \'close\' legacy, and
  * then it was found from the label: SERVICES_LABEL = 'text-text-faint">\n            PROFESSIONAL SERVICES\n' (HOME-BRIEF-03, Alex, 2026-11-10:
  * the section's label reads PROFESSIONAL SERVICES — 'DONE-FOR-YOU\n' until then. Found with the end of its own <p>: the card's chip said the same
  * words until HOME-BRIEF-04 (2026-11-10) took the chip out).
+ * HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila; the board approved on the design canvas at 15:41): the section is its own component —
+ * src/components/landing/ServicesSection.tsx, which Landing.tsx mounts — drawn as design-refs/home-services-01/Section-Reference.html draws it, the
+ * reference's classes behind the house prefix; the panel is found there, from the pillar's h2 in the reference's class and id. Until then, of
+ * Landing.tsx: PILLAR_HEAD = '<h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{BUILD_PILLAR.heading}</h2>'.
+ * These T4 tests hold what SERVICES-01 ruled of the doors; homeServices01.test.ts holds the section to the reference, token for token.
  */
-const PILLAR_HEAD = '<h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{BUILD_PILLAR.heading}</h2>';
+const SECTION = 'src/components/landing/ServicesSection.tsx';
+const PILLAR_HEAD = '<h2 className="ts-ps__title" id="ps-title">{BUILD_PILLAR.heading}</h2>';
+/** The panel: the section's code from the pillar's h2 to its </section> — asserted found, so no check below passes on nothing. */
+const panelOf = (section: string): string => {
+  const head = section.indexOf(PILLAR_HEAD);
+  assert.ok(head > -1, 'the pillar\'s heading, in the section');
+  const panel = section.slice(head, section.indexOf('</section>', head));
+  assert.ok(panel.length > PILLAR_HEAD.length, 'the panel is found');
+  return panel;
+};
 
-test('T4 Landing maps SERVICES once inside the DONE-FOR-YOU card, in the ruled grid; each door the same Link, class, href and data-done-for-you', () => {
+test('T4 the section maps SERVICES once, in the panel\'s tile group; each door a tile that picks it and carries data-done-for-you (HOME-SERVICES-01, 2026-11-12: six equal Link cards in a white card until then)', () => {
   const landing = code(LANDING);
-  const head = landing.indexOf(PILLAR_HEAD);
-  assert.ok(head > -1);
-  assert.equal(landing.split(PILLAR_HEAD).length - 1, 1, 'the pillar\'s heading once (the eyebrow, until HOME-FINISH-02)');
-  assert.ok(!landing.includes('DONE-FOR-YOU\n'), 'the old label is rendered nowhere');
-  const sectionEnd = landing.indexOf('</section>', head);
-  const panel = landing.slice(head, sectionEnd);
-  assert.match(landing, /import \{\n {2}PROPOSAL_FORM_PATH, SERVICES,\n\} from '@\/lib\/proposalNeeds';/);
-  assert.equal((landing.match(/SERVICES\.map\(/g) ?? []).length, 1, 'SERVICES mapped once');
-  // HOME-FINISH-01 (Alex, 2026-11-08): auto-rows-fr — every row as tall as the tallest, six doors of one height at every width.
-  assert.match(panel, /<div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">\n {16}\{SERVICES\.map\(\(\{ need, title, line \}\) => \(\n {18}<Link key=\{need\} href=\{`\$\{PROPOSAL_FORM_PATH\}\?need=\$\{need\}`\} className="rounded-lg border border-border bg-white p-4 text-text-primary hover:bg-brand-purple-wash" data-done-for-you=\{need\}>\n {20}<div className="text-sm font-medium">\{title\}<\/div>\n {20}<p className="mt-1 text-xs text-text-muted">\{line\}<\/p>\n {18}<\/Link>\n {16}\)\)\}\n {14}<\/div>/, 'the grid, the door, the title and the line in today\'s classes');
-  const card = panel.indexOf('<div className="mt-4 rounded-lg border border-border bg-white p-5">');
-  assert.ok(card > -1 && card < panel.indexOf('SERVICES.map('), 'inside the white card');
-  assert.equal((panel.match(/className="mt-4 grid auto-rows-fr gap-3/g) ?? []).length, 1, 'one grid');
+  const section = code(SECTION);
+  assert.equal(section.split(PILLAR_HEAD).length - 1, 1, 'the pillar\'s heading once');
+  assert.equal(landing.split('BUILD_PILLAR').length - 1, 0, 'Landing.tsx draws the pillar nowhere — it mounts the section');
+  for (const src of [landing, section]) assert.ok(!src.includes('DONE-FOR-YOU\n'), 'the old label is rendered nowhere');
+  const panel = panelOf(section);
+  // HOME-SERVICES-01 (2026-11-12): the section reads the doors and their words from the one module, and Landing.tsx reads none of it. Until
+  // then: assert.match(landing, /import \{\n {2}PROPOSAL_FORM_PATH, SERVICES,\n\} from '@\/lib\/proposalNeeds';/).
+  assert.doesNotMatch(landing, /from '@\/lib\/proposalNeeds'/, 'Landing.tsx imports nothing of the doors');
+  assert.match(section, /^import \{\n {2}NEED_QUESTION, PROPOSAL_CTA, PROPOSAL_STEPS, SCOPED_BY_PROPOSAL, SERVICES, SERVICE_NEEDS,\n {2}formAsks, proposalFormHref, serviceDoor, servicePictureSrc, type ServiceNeed,\n\} from '@\/lib\/proposalNeeds';$/m, 'the section reads the doors from the one module');
+  assert.equal((section.match(/SERVICES\.map\(/g) ?? []).length, 1, 'SERVICES mapped once — the tiles');
+  assert.equal((landing.match(/SERVICES\.map\(/g) ?? []).length, 0, 'and nowhere in Landing.tsx');
+  // HOME-SERVICES-01 (2026-11-12): each door is a tile — a button in the group the question labels, saying whether it is picked (README: "the
+  // form's own single-pick idiom, with its state said"), carrying data-done-for-you (ruling h: "data-done-for-you={need} moves to the tiles.").
+  // Until then (HOME-FINISH-01, 2026-11-08: auto-rows-fr — every row as tall as the tallest): assert.match(panel, /<div className="mt-4 grid
+  // auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">\n {16}\{SERVICES\.map\(\(\{ need, title, line \}\) => \(\n {18}<Link key=\{need\}
+  // href=\{`\$\{PROPOSAL_FORM_PATH\}\?need=\$\{need\}`\} className="rounded-lg border border-border bg-white p-4 text-text-primary
+  // hover:bg-brand-purple-wash" data-done-for-you=\{need\}>\n {20}<div className="text-sm font-medium">\{title\}<\/div>\n {20}<p className="mt-1
+  // text-xs text-text-muted">\{line\}<\/p>\n {18}<\/Link>\n {16}\)\)\}\n {14}<\/div>/); the white card ('<div className="mt-4 rounded-lg border
+  // border-border bg-white p-5">') before SERVICES.map(; one grid. Every row as tall as the tallest is the port's rule now.
+  assert.match(panel, /<div className="ts-ps-tiles" role="group" aria-labelledby="ps-question">\n {12}\{SERVICES\.map\(\(\{ need, title, kind \}\) => \(\n {14}<button key=\{need\} className="ts-ps-tile" type="button" aria-pressed=\{need === picked\} data-done-for-you=\{need\} onClick=\{\(\) => onPick\(need\)\}>\n {16}<TileIcon need=\{need\} \/><span className="ts-ps-tile__words"><span className="ts-ps-tile__title">\{title\}<\/span><span className="ts-ps-tile__kind">\{kind\}<\/span><\/span>\n {14}<\/button>\n {12}\)\)\}\n {10}<\/div>/, 'the group the question labels; each door a tile that picks it and says so; data-done-for-you on the tile');
+  const box = panel.indexOf('<div className="ts-ps-panel">');
+  assert.ok(box > -1 && box < panel.indexOf('SERVICES.map('), 'the tiles inside the panel');
+  assert.equal((panel.match(/className="ts-ps-tiles"/g) ?? []).length, 1, 'one tile group');
+  assert.match(code('src/app/globals.css'), /\n\.ts-ps-tiles \{[^}]*grid-auto-rows: 1fr;/, 'every row as tall as the tallest — the port\'s rule');
 });
 
-test('T4 nothing typed: no door\'s title or line, no line under the chip, no close card, no CloseOffer*, no "2026 close" in Landing\'s code', () => {
+test('T4 nothing typed: no door\'s title or line, no line under the chip, no close card, no CloseOffer*, no "2026 close" — in Landing\'s code or the section\'s', () => {
   const landing = code(LANDING);
-  const head = landing.indexOf(PILLAR_HEAD);
-  const panel = landing.slice(head, landing.indexOf('</section>', head));
+  const section = code(SECTION);
+  const panel = panelOf(section);
+  // HOME-SERVICES-01 (2026-11-12): the panel is the section's, and a title counts as typed only as text — in quotes or between tags — so a name
+  // holding a door's word (the form's isBookkeeping) is not one. Until then: assert.ok(!panel.includes(s.title)) over Landing's panel.
+  const typed = (src: string, words: string): boolean => new RegExp(`["'\`>]\\s*${escapeRe(words)}\\s*["'\`<]`).test(src);
   for (const s of SIX) {
-    assert.ok(!panel.includes(s.title), `no typed title "${s.title}" in the panel`);
-    assert.ok(!landing.includes(s.line), `no typed line for ${s.need}`);
+    assert.ok(!typed(panel, s.title), `no typed title "${s.title}" in the panel`);
+    for (const src of [landing, section]) assert.ok(!src.includes(s.line), `no typed line for ${s.need}`);
   }
-  assert.ok(!landing.includes('Your own hosted copy — every API wired, custom to your business, you own everything.'), 'the line under the chip went');
+  for (const src of [landing, section]) assert.ok(!src.includes('Your own hosted copy — every API wired, custom to your business, you own everything.'), 'the line under the chip went');
+  // HOME-SERVICES-01 (2026-11-12): ServiceNeed is the section's own pick's type (ruling a: the picked door in React state) — what went is the typed
+  // tuple array. Until then: assert.doesNotMatch(landing, /Embed a module|ServiceNeed\b|as const satisfies ReadonlyArray<readonly \[ServiceNeed/).
   assert.doesNotMatch(landing, /Embed a module|ServiceNeed\b|as const satisfies ReadonlyArray<readonly \[ServiceNeed/, 'the typed tuple array went');
-  assert.doesNotMatch(landing, /CloseOffer|closeWords|closeFormHref|CLOSE_ANCHOR|offer\/close|data-close|id="close"/);
-  assert.doesNotMatch(landing, /2026 close|THE 2026 CLOSE/i, 'no "2026 close" in the code — comments may tell the history');
+  assert.doesNotMatch(section, /Embed a module|as const satisfies ReadonlyArray<readonly \[ServiceNeed/, 'and the section types none');
+  for (const src of [landing, section]) {
+    assert.doesNotMatch(src, /CloseOffer|closeWords|closeFormHref|CLOSE_ANCHOR|offer\/close|data-close|id="close"/);
+    assert.doesNotMatch(src, /2026 close|THE 2026 CLOSE/i, 'no "2026 close" in the code — comments may tell the history');
+  }
   assert.ok(!existsSync(resolve(process.cwd(), 'src/components/landing/CloseOfferCard.tsx')));
   assert.match(comments(LANDING), /SERVICES-01 \(Alex, 2026-11-08\): SIX EQUAL\n\s+DOORS/, 'the ONE-FORM-01 comment re-said, dated');
 });
 
-test('T4 the pillar\'s heading and its paragraph stand over the card (HOME-FINISH-02, 2026-11-10) and the one button stands; the chip that repeated the label is gone (HOME-BRIEF-04, 2026-11-10); the panel holds no other link', () => {
+test('T4 the pillar\'s heading and its one line stand over the panel (HOME-SERVICES-01, 2026-11-12: his paragraph until then); the gold link to the form with the pick, and the note beside it; the chip is gone; the panel holds no other link', () => {
   const landing = code(LANDING);
-  const head = landing.indexOf(PILLAR_HEAD);
-  const panel = landing.slice(head, landing.indexOf('</section>', head));
+  const section = code(SECTION);
+  const panel = panelOf(section);
+  const head = section.indexOf(PILLAR_HEAD);
   // HOME-FINISH-02 (Alex, 2026-11-10 20:56): "Purple title → Approved description → Existing functionality … No additional promotional headings or
-  // explanatory paragraphs between these elements." The section's h2 is the pillar's heading, his one paragraph follows it, and the card follows
-  // that — nothing between. Until then this line held 'the h2, untouched':
+  // explanatory paragraphs between these elements." Until then this line held 'the h2, untouched':
   // <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple"> reading "Need help? Send a proposal.", under the label.
-  assert.ok(panel.startsWith(`${PILLAR_HEAD}\n          {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="mt-3 max-w-3xl text-base text-text-secondary">{words}</p>)}\n          <div className="mt-4 rounded-lg border border-border bg-white p-5">`), 'the heading → the paragraph → the card, nothing between');
+  // HOME-SERVICES-01 (Alex's brief, 2026-11-12; ruling b: "THE PARAGRAPH IS REPLACED. BUILD_PILLAR.paragraphs holds the one new line, "Hands-on
+  // services, tailored to your needs."; his paragraph is quoted, dated, in the leaf's note. HOME-FINISH-02's "Approved description" is this line
+  // now."): the heading → the one line → the panel, nothing between, in the reference's classes. Until then: assert.ok(panel.startsWith(
+  // `${PILLAR_HEAD}\n          {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="mt-3 max-w-3xl text-base text-text-secondary">{words}</p>)}\n
+  //           <div className="mt-4 rounded-lg border border-border bg-white p-5">`), 'the heading → the paragraph → the card, nothing between').
+  assert.ok(panel.startsWith(`${PILLAR_HEAD}\n        {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="ts-ps__lede">{words}</p>)}\n\n        <div className="ts-ps-panel">`), 'the heading → the line → the panel, nothing between');
   // PILLAR-NAMES-01 (Alex, 2026-11-11: "Financial Software | Professional Services | Travel Marketplace — these will replace Plan your Escape /
-  // Build your Income / Explore the World"): the second pillar's name, and no full stop — 'Build Your Income.' until then. His paragraph is untouched.
+  // Build your Income / Explore the World"): the second pillar's name, and no full stop — 'Build Your Income.' until then.
   assert.equal(BUILD_PILLAR.heading, 'Professional Services');
-  assert.deepEqual([...BUILD_PILLAR.paragraphs], ['Want to build your own system or something customized for your business? From full setup and custom development to integrations, ongoing maintenance, and bookkeeping, Temple Stuart offers hands-on services tailored to your needs.'], 'his paragraph, word for word');
-  for (const words of [BUILD_PILLAR.heading, ...BUILD_PILLAR.paragraphs, 'Need help?', 'Send a proposal.']) assert.ok(!landing.includes(words), `Landing's code does not type "${words.slice(0, 40)}"`);
-  // the section's opening: its id from the anchors leaf, then the inner box, then — after a comment — the pillar's heading
-  const sectionOpen = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">\n        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">';
-  assert.equal(landing.split(sectionOpen).length - 1, 1, 'the section, its id and its inner box');
-  assert.match(landing.slice(landing.indexOf(sectionOpen) + sectionOpen.length, head), ONLY_COMMENTS, 'the heading is the first thing in the section — a comment between, nothing else');
+  // HOME-SERVICES-01 (2026-11-12), ruling b. Until then: assert.deepEqual([...BUILD_PILLAR.paragraphs], ['Want to build your own system or something
+  // customized for your business? From full setup and custom development to integrations, ongoing maintenance, and bookkeeping, Temple Stuart offers
+  // hands-on services tailored to your needs.'], 'his paragraph, word for word').
+  assert.deepEqual([...BUILD_PILLAR.paragraphs], ['Hands-on services, tailored to your needs.'], 'the one line where his paragraph stood (ruling b)');
+  const leafNote = comments('src/lib/homeActWords.ts').replace(/^\s*\*/gm, ' ').replace(/\s+/g, ' ');
+  assert.ok(leafNote.includes('"Want to build your own system or something customized for your business? From full setup and custom development to integrations, ongoing maintenance, and bookkeeping, Temple Stuart offers hands-on services tailored to your needs."'), 'his paragraph, word for word, quoted in the leaf\'s note');
+  assert.match(leafNote, /HOME-SERVICES-01 \(Alex's brief, 2026-11-12 15:16 Manila/, 'dated');
+  for (const words of [BUILD_PILLAR.heading, ...BUILD_PILLAR.paragraphs, 'Want to build your own system', 'Need help?', 'Send a proposal.']) {
+    for (const src of [landing, section]) assert.ok(!src.includes(words), `no code types "${words.slice(0, 40)}"`);
+  }
+  // the section's opening: its id from the anchors leaf, its label, the inner box, then the pillar's heading. HOME-SERVICES-01 (2026-11-12): the
+  // reference's tag behind the house prefix. Until then, of Landing.tsx: '<section id={SERVICES_ANCHOR} className="w-full border-b border-border
+  // bg-bg-terminal">\n        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">', a comment between it and the heading.
+  const sectionOpen = '<section id={SERVICES_ANCHOR} className="ts-ps" aria-labelledby="ps-title">\n      <div className="ts-ps__inner">';
+  assert.equal(section.split(sectionOpen).length - 1, 1, 'the section, its id, its label and its inner box');
+  assert.match(section.slice(section.indexOf(sectionOpen) + sectionOpen.length, head), ONLY_COMMENTS, 'the heading is the first thing in the section — a comment between, nothing else');
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the small chip inside the card repeated the label's words — it went with its span. Until then this
   // line held 'the chip, untouched': <span className="rounded border border-border px-2 py-0.5 font-mono text-xs … text-text-secondary">PROFESSIONAL SERVICES</span>.
   assert.doesNotMatch(panel, /<span className="rounded border border-border px-2 py-0\.5/, 'the chip is gone');
   // HOME-FINISH-02 (2026-11-10): the label left too — until then 'the words stand once in Landing's code — the label above the headline' (1).
-  assert.equal(landing.split('PROFESSIONAL SERVICES').length - 1, 0, 'the words stand nowhere in Landing\'s code');
-  // HOME-FINISH-01 (Alex, 2026-11-08): the button is the public page's one filled button (src/lib/ds.ts PRIMARY_CTA), 44px tall — words and href unchanged.
-  // The follow-up on #1931 (2026-11-08): the shape lives in the class (44px, the label centred), so the button wears it bare.
-  assert.match(panel, /<div className="mt-4 flex flex-wrap items-center gap-4">\n\s*<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*className=\{PRIMARY_CTA\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>\n\s*<span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal<\/span>/, 'the button row: its words, its href, the filled class');
-  assert.equal((panel.match(/href=\{PROPOSAL_FORM_PATH\}/g) ?? []).length, 1, 'one button');
-  assert.equal((panel.match(/<Link\b/g) ?? []).length, 2, 'the door template and the button — nothing else links');
-  // the grid is the first thing inside the card's inner box: nothing but a comment between (HOME-BRIEF-04: 'between the chip and the doors' until the chip went)
-  const CARD_INNER = '<div className="mt-4 rounded-lg border border-border bg-white p-5">\n            <div className="mt-4">';
-  const innerEnd = panel.indexOf(CARD_INNER) + CARD_INNER.length;
-  assert.ok(panel.indexOf(CARD_INNER) > -1, 'the white card and its inner box');
-  assert.match(panel.slice(innerEnd, panel.indexOf('<div className="mt-4 grid auto-rows-fr gap-3')), ONLY_COMMENTS, 'nothing but a comment between the card\'s inner box and the doors');
-  assert.doesNotMatch(landing, /WORK WITH ME/);
+  for (const src of [landing, section]) assert.equal(src.split('PROFESSIONAL SERVICES').length - 1, 0, 'the words stand nowhere in the code');
+  // HOME-SERVICES-01 (2026-11-12), ruling f: "THE GOLD BUTTON replaces the purple one here; PRIMARY_CTA keeps its other users. "Send a project
+  // proposal →" and "Scoped by proposal" move from Landing.tsx into a leaf." — and the README: "The button links to the form's page with the pick".
+  // Until then (HOME-FINISH-01, 2026-11-08: the public page's one filled button, src/lib/ds.ts PRIMARY_CTA, 44px tall; the follow-up on #1931: worn
+  // bare): assert.match(panel, /<div className="mt-4 flex flex-wrap items-center gap-4">\n\s*<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*
+  // className=\{PRIMARY_CTA\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>\n\s*<span className="ml-auto font-mono text-xs italic
+  // text-text-faint">Scoped by proposal<\/span>/); one href={PROPOSAL_FORM_PATH}; two Links — the door template and the button.
+  assert.match(panel, /<div className="ts-ps-cta-row">\n {16}<Link className="ts-ps-cta" href=\{proposalFormHref\(picked\)\}>\{PROPOSAL_CTA\}<\/Link>\n {16}<span className="ts-ps-note">\{SCOPED_BY_PROPOSAL\}<\/span>\n {14}<\/div>/, 'the gold link to the form with the pick, the note beside it — both words from their leaf');
+  assert.deepEqual([PROPOSAL_CTA, SCOPED_BY_PROPOSAL], ['Send a project proposal →', 'Scoped by proposal'], 'the two words, moved unchanged');
+  assert.equal((panel.match(/\bhref=/g) ?? []).length, 1, 'one link — to the form');
+  assert.equal((panel.match(/<Link\b/g) ?? []).length, 1, 'the gold link — the tiles are buttons; nothing else links');
+  assert.equal((panel.match(/<button\b/g) ?? []).length, 1, 'one tile template');
+  assert.doesNotMatch(panel, /PRIMARY_CTA|href=\{PROPOSAL_FORM_PATH\}/, 'no purple button, no bare link to the form');
+  // the question, then the group it labels — nothing between. HOME-SERVICES-01 (2026-11-12). Until then (HOME-BRIEF-04: 'between the chip and the
+  // doors' until the chip went): CARD_INNER = '<div className="mt-4 rounded-lg border border-border bg-white p-5">\n            <div className="mt-4">',
+  // and nothing but a comment between it and the doors' grid.
+  const PANEL_OPEN = '<div className="ts-ps-panel">\n          <h3 className="ts-ps-panel__question" id="ps-question">{NEED_QUESTION}</h3>\n          <div className="ts-ps-tiles" role="group" aria-labelledby="ps-question">';
+  assert.equal(panel.split(PANEL_OPEN).length - 1, 1, 'the question, then the group it labels — nothing between');
+  for (const src of [landing, section]) assert.doesNotMatch(src, /WORK WITH ME/);
 });
 
 test('T4 the act list\'s line rewritten in place, dated; the history stays; the s08 line is the deck\'s, found by content (PIPELINE-PAGE-01); the pins that stay (moved from close01)', () => {
   const notes = comments(LANDING);
   assert.ok(notes.includes(' *   DONE-FOR-YOU        — the professional-services panel, six doors from src/lib/proposalNeeds.ts — SERVICES-01, 2026-11-08: the close retired, bookkeeping a door (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)\n'));
+  assert.ok(notes.includes(' *                         (HOME-SERVICES-01, 2026-11-12: the act is the Professional Services section now — ServicesSection over src/lib/proposalNeeds.ts:'), 'HOME-SERVICES-01\'s line under it, dated');
   assert.ok(notes.includes(" *   (THE CLOSE          — HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal)"), 'the historical note stays');
   assert.ok(comments(DECK).includes('(the close | pipeline header → gone: HOME-PANELS-01, 2026-11-07'), 'the seam ledger\'s note stays'); // PIPELINE-PAGE-01 (2026-11-09): the ledger moved with the deck
   // PIPELINE-PAGE-01 (2026-11-09): the s08 line moved with the deck to PipelineDeck.tsx — found by content (the one line whose code starts with s08:), never by number.
@@ -344,9 +408,10 @@ test('T4 the act list\'s line rewritten in place, dated; the history stays; the 
   // close01's pins that stay (HOME-05a, 2026-11-03; moved here by SERVICES-01): cockpitPerf01's three phrases; the plan law's tells absent
   for (const phrase of [/THE PLANS\s+— four plan cards and one comparison table/, /id="modules" lives on THE PLANS act/, /said by the four plans below/]) assert.match(notes, phrase);
   // PIPELINE-PAGE-01 (2026-11-09): the deck's text left Landing.tsx for its own page — it is held to the plan law's tells still, as the law holds it (clause 1).
-  for (const f of [LANDING, DECK]) for (const tell of ['heroCountsLine', 'statusCounts', 'numberWord', 'tools, counted', 'SIX LIVES', 'PERSONAS', 'Who is this for?']) assert.ok(!code(f).includes(tell), `${f} carries no "${tell}"`);
+  // HOME-SERVICES-01 (2026-11-12): the services section's own file joins the two (it was Landing.tsx's markup until then).
+  for (const f of [LANDING, DECK, SECTION]) for (const tell of ['heroCountsLine', 'statusCounts', 'numberWord', 'tools, counted', 'SIX LIVES', 'PERSONAS', 'Who is this for?']) assert.ok(!code(f).includes(tell), `${f} carries no "${tell}"`);
   const BEAT_WORDS = ['discover', 'decide', 'commit', 'record'];
-  for (const f of [LANDING, DECK]) assert.doesNotMatch(code(f), new RegExp(`partial\\s*[—-]\\s*(?:${BEAT_WORDS.join('|')})|(?:${BEAT_WORDS.join('|')})\\s*·\\s*(?:${BEAT_WORDS.join('|')})`), `no beat claim in ${f}`);
+  for (const f of [LANDING, DECK, SECTION]) assert.doesNotMatch(code(f), new RegExp(`partial\\s*[—-]\\s*(?:${BEAT_WORDS.join('|')})|(?:${BEAT_WORDS.join('|')})\\s*·\\s*(?:${BEAT_WORDS.join('|')})`), `no beat claim in ${f}`);
 });
 
 // ── T5 · THE FORM ────────────────────────────────────────────────────────────
