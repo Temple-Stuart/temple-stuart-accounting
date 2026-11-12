@@ -406,7 +406,8 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   assert.doesNotMatch(outside, /\.ts-fs\b|\.ts-fs[-_]/, 'no rule outside the port names one of its classes');
   assert.doesNotMatch(outside, /\[\s*class\s*[~|^$*]?=\s*["']?[^"'\]]*fs/, 'and none reaches them through a class attribute selector');
   // nor restyles the heading's type: since Alex's note on the built page, "What We Do" wears the act headings' five Tailwind
-  // utilities (About Us's and Our Story's too), and no hand-written rule anywhere in the file names one of them
+  // utilities (About Us's too — and Our Story's until TRIPCARDS-03, 2026-11-12: its h2 is the port's violet title now), and no
+  // hand-written rule anywhere in the file names one of them
   for (const utility of ACT_HEADING_TYPE.split(' ')) {
     assert.doesNotMatch(whole, new RegExp(`\\.${utility.replace(':', '\\\\:')}(?![\\w-])`), `no rule names .${utility.replace(':', '\\:')}`);
   }
@@ -460,8 +461,12 @@ test('T4 the page at rest is the reference\'s markup with Alex\'s notes applied 
   const BOX = `<div className="ts-fs-heading">\n        <h2 className="${ACT_HEADING_TYPE}" data-act-heading>{WHAT_WE_DO_HEADING}</h2>\n      </div>`;
   assert.equal(flat(BOX), flat(box).replace('class="fs-heading"', 'className="ts-fs-heading"').replace('class="fs-eyebrow"', `className="${ACT_HEADING_TYPE}"`).replace('>What We Do<', '>{WHAT_WE_DO_HEADING}<'), 'the reference\'s box but for the h2\'s class and the leaf\'s word');
   assert.equal(count(landing, BOX), 1, 'Landing.tsx\'s heading box: the same element, the same place, data-act-heading — the act headings\' type, in the reference\'s box');
-  // the act headings' type is About Us's and Our Story's own: their h2s add 'mt-3', and nothing else
-  for (const file of ['src/components/landing/StopZeroSection.tsx', 'src/components/landing/WasHereSection.tsx']) assert.ok(code(file).includes(`h2: 'mt-3 ${ACT_HEADING_TYPE}'`), `${file}: its h2 wears the same type`);
+  // the act headings' type is About Us's own: its h2 adds 'mt-3', and nothing else. TRIPCARDS-03 (Alex's brief, 2026-11-12; the board
+  // approved on the design canvas at 21:21): Our Story's h2 is violet at the pillars' size now — WasHereSection.tsx TRIP.h2, the port's
+  // .ts-story__title — HOME-FINISH-02's gold reversed. Until then this line held both: ['src/components/landing/StopZeroSection.tsx',
+  // 'src/components/landing/WasHereSection.tsx'].
+  for (const file of ['src/components/landing/StopZeroSection.tsx']) assert.ok(code(file).includes(`h2: 'mt-3 ${ACT_HEADING_TYPE}'`), `${file}: its h2 wears the same type`);
+  assert.ok(!code('src/components/landing/WasHereSection.tsx').includes(ACT_HEADING_TYPE) && code('src/components/landing/WasHereSection.tsx').includes("h2: 'ts-story__title',"), 'Our Story\'s h2 wears the port\'s violet title (TRIPCARDS-03)');
   assert.equal(count(landing, 'ts-fs-eyebrow'), 0, 'the eyebrow is worn by nothing on the page');
   // a note in the JSX around the heading is a {/* */} block: a // line there is drawn on the page as text, and the reader takes it
   // for a comment, so its half is read at the code's own positions (the two halves align by code unit — sourceText.ts rejoin)

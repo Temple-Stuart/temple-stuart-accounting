@@ -111,8 +111,12 @@ test('T2 the seams: one border-b per boundary from experiences to the door — m
   const landing = code(LANDING);
   // the rules, read from the components that carry them
   const trip = code(TRIP);
-  const tripAct = /act: '([^']*)'/.exec(trip);
-  assert.ok(tripAct && /\bborder-b border-border\b/.test(tripAct[1]) && !/border-t/.test(tripAct[1]), "my trip's border-b (WasHereSection TRIP.act), no border-t");
+  // TRIPCARDS-03 (2026-11-12): the trip log is the reference's port (WasHereSection.tsx TRIP.act is the port's .ts-story, globals.css) —
+  // the seam is the same: a bottom line, no top one. Until then: const tripAct = /act: '([^']*)'/.exec(trip); assert.ok(tripAct &&
+  // /\bborder-b border-border\b/.test(tripAct[1]) && !/border-t/.test(tripAct[1]), "my trip's border-b (WasHereSection TRIP.act), no border-t").
+  const tripAct = /\n {2}act: '([^']*)',/.exec(trip);
+  const storyRule = /\n\.ts-story \{([^}]*)\}/.exec(code('src/app/globals.css'));
+  assert.ok(tripAct && tripAct[1] === 'ts-story' && storyRule && storyRule[1].includes('border-bottom: 1px solid rgb(var(--ts-border));') && !/border-top|border:/.test(storyRule[1]), "my trip's border-b (the port's .ts-story, WasHereSection TRIP.act), no border-t");
   assert.match(code(STRIP), /<section className="w-full border-b border-border bg-bg-terminal">/, "the guest strip's own border-b, when it renders");
   // HOME-FINISH-02 (2026-11-10): the section's opening tag gained its anchor (id={SERVICES_ANCHOR}); its classes — the seam — are unchanged. Until then: /<section className="w-full border-b border-border bg-bg-terminal">/g.
   // HOME-SERVICES-01 (2026-11-12): the section is ServicesSection.tsx's, and its rule is the reference's, ported (globals.css .ts-ps) — the

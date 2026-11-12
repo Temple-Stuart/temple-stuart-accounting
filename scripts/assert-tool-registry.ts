@@ -159,7 +159,7 @@ import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, pro
 // EVENTS-01: the experiences leaf — every marquee event dated from its own calendar, with the day checked. SERVICES-01 (2026-11-08): the services module beside it, in the seat the close offer leaf (HOME-05a) held until the close retired.
 import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/experiences'; import { SERVICES, servicesLaw } from '../src/lib/proposalNeeds';
 // WASHERE-01: the trip log — Alex's own stops, each naming an experience by id, a photo each as they land. TRIPPOST-01: the trip posts' two leaves beside it.
-import { WAS_HERE, wasHereLaw } from '../src/lib/wasHere'; import { TRIP_POSTS, tripPostsLaw } from '../src/lib/tripPosts'; import { TRIP_COSTS, tripCostsLaw } from '../src/lib/tripCosts';
+import { WAS_HERE, wasHereLaw } from '../src/lib/wasHere'; import { TRIP_POSTS, tripPostsLaw } from '../src/lib/tripPosts'; import { TRIP_COSTS, tripCostsLaw } from '../src/lib/tripCosts'; import { photoBytes, photoShapeViolations } from '../src/lib/photoSize'; // TRIPCARDS-03 (2026-11-12): each photo's shape, from its own header — on this line, so no line below moves
 // DATAFLOW-01 (ruling D): the deck's S14 law, by name. Importing the deck runs every slide's layout law at module scope.
 import { s14Law } from '../src/components/landing/PipelineDeck'; // PIPELINE-PAGE-01 (2026-11-09): the deck's own file — Landing.tsx until the 14 steps moved to /how-it-works
 import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, latestViews, latestViewsSql, parseViews } from '../src/lib/kindViews';
@@ -712,7 +712,7 @@ console.log(`counts: LIVE ${counts.LIVE} · PARTIAL ${counts.PARTIAL} · NOT_BUI
 // The leaf's own law first (src/lib/wasHere.ts wasHereLaw — one place at a time,
 // every date in shape, a photo only from public/was-here), then what only the
 // script can see: every experienceId names an EXPERIENCES row, every photo exists
-// under public/ at no more than 400 KB, and the landing mounts the log exactly once
+// under public/ at no more than 400 KB and within 1% of 3 : 2 by its own header (TRIPCARDS-03, 2026-11-12), and the landing mounts the log exactly once
 // with the server's day.
 {
   const before = violations.length;
@@ -722,12 +722,12 @@ console.log(`counts: LIVE ${counts.LIVE} · PARTIAL ${counts.PARTIAL} · NOT_BUI
     if (row.image !== null) {
       const abs = resolve(ROOT, 'public', row.image.src.replace(/^\//, ''));
       if (!existsSync(abs)) violations.push(`was here: ${row.id}'s image ${row.image.src} does not exist under public/ (WASHERE-01)`);
-      else if (statSync(abs).size > 400 * 1024) violations.push(`was here: ${row.id}'s image ${row.image.src} is ${statSync(abs).size} bytes — at most 400 KB (WASHERE-01)`);
+      else if (statSync(abs).size > 400 * 1024) violations.push(`was here: ${row.id}'s image ${row.image.src} is ${statSync(abs).size} bytes — at most 400 KB (WASHERE-01)`); if (existsSync(abs)) violations.push(...photoShapeViolations(row.id, row.image.src, photoBytes(abs))); // TRIPCARDS-03 (Alex's brief, 2026-11-12): the card shows every photo whole at 3 : 2, so the build reads each one's size from its own header (src/lib/photoSize.ts) and refuses, by name, one more than 1% from 3 : 2 — on this line, so no line below moves
     }
   }
   const logMounts = (codeOf('src/components/landing/Landing.tsx').match(/<WasHereSection today=\{today\}/g) ?? []).length;
   if (logMounts !== 1) violations.push(`was here: Landing.tsx mounts <WasHereSection today={today} ${logMounts} time(s) — exactly once, after Stop 0 (WASHERE-01; STOP0-01 seated Stop 0 between the experiences and the log — these words re-said by PIPELINE-PAGE-01, 2026-11-09)`);
-  if (violations.length === before) console.log(`✔ The trip log law passed — ${WAS_HERE.length} stop(s), ${WAS_HERE.filter((r) => r.start > r.writtenOn).length} booked ahead, ${WAS_HERE.filter((r) => r.image !== null).length} with a photo on disk at no more than 400 KB; every event named exists; the landing mounts the log once with the day the front door computed.`);
+  if (violations.length === before) console.log(`✔ The trip log law passed — ${WAS_HERE.length} stop(s), ${WAS_HERE.filter((r) => r.start > r.writtenOn).length} booked ahead, ${WAS_HERE.filter((r) => r.image !== null).length} with a photo on disk at no more than 400 KB, each within 1% of 3 : 2 by its own header; every event named exists; the landing mounts the log once with the day the front door computed.`);
   else console.log(`✖ The trip log law FAILED — ${violations.length - before} violation(s).`);
 }
 { const before = violations.length; violations.push(...tripPostsLaw({ throwOnFail: false }), ...tripCostsLaw({ throwOnFail: false })); const stopIds = WAS_HERE.map((r) => r.id).sort().join(','); const costIds = TRIP_COSTS.map((c) => c.stopId).sort().join(','); if (costIds !== stopIds) violations.push(`trip costs: the costs [${costIds}] and the trip log [${stopIds}] do not hold the same stops — a row for every stop (TRIPCARDS-01)`); const postIds = TRIP_POSTS.map((p) => p.stopId).sort().join(','); for (const post of TRIP_POSTS) { const row = WAS_HERE.find((r) => r.id === post.stopId); if (row === undefined) { violations.push(`trip posts: ${post.stopId} is not a WAS_HERE id (TRIPPOST-01)`); continue; } const last = row.end === null ? post.writtenOn : row.end; for (const week of post.weeks) for (const day of week.days) if (day.date < row.start || day.date > last) violations.push(`trip posts: ${post.stopId} has a day ${day.date} outside its stay ${row.start} – ${row.end ?? 'now'} (TRIPPOST-01)`); } if (!existsSync(resolve(ROOT, 'src/app/my-trip/[id]/page.tsx'))) violations.push('trip posts: src/app/my-trip/[id]/page.tsx does not exist — every post needs its page (TRIPPOST-01)'); console.log(violations.length === before ? `✔ The trip post law passed — ${TRIP_POSTS.length} post(s) [${postIds}], ${TRIP_POSTS.reduce((n, p) => n + p.weeks.reduce((m, w) => m + w.days.length, 0), 0)} day(s), every one inside its stay; what it cost for all ${TRIP_COSTS.length} stops; the page route on disk (src/lib/tripPosts.ts, src/lib/tripCosts.ts).` : `✖ The trip post law FAILED — ${violations.length - before} violation(s).`); } // ── THE TRIP POST LAW (TRIPPOST-01, 2026-11-05): both leaves' laws, then what only the script sees — on the blank line after the trip log law, so no line the deck cites moves.

@@ -230,6 +230,124 @@ body {
   to { transform: translateX(-50%); }
 }
 
+/* ── TRIPCARDS-03 (Alex's brief, 2026-11-12 21:08 Manila; the board approved on the design canvas at 21:21): OUR STORY — THE
+   STOP CARDS, AS DRAWN — the eyebrow, the heading and its line, two arrows, one row of stop cards ─────────────────────────────
+   His brief, 21:08 Manila: "so these cards (a) dont follow the new asthetics of the page, and also when we made these, it like
+   cuts out parts of my photos and for example the sunset pic in bali, its cutting out surfers in the sunset which were a big part
+   of the image... (b) like how the other cards had the issue, the data just looks like kinda crammed and messy and shanty on the
+   card now...." His approval, 21:21 Manila: "omg yesssssssss that is fucking sexy, our story, yassss yassss yasssss! give me the
+   prmpt to turn this real!"
+   THE SPEC IS design-refs/tripcards-03/Section-Reference.html: "Every value in its stylesheet is the design". What follows is that
+   stylesheet, rule for rule and value for value, in its own order and with its own section notes — ported as HERO-CREST-01's,
+   HOME-PLANS-04's and HOME-SERVICES-01's were:
+     · every class is the reference's with the house prefix: .story → .ts-story, .story-card → .ts-story-card, …;
+     · every custom property it reads likewise: var(--fs-ink) → var(--ts-fs-ink), rgb(var(--bg)) → rgb(var(--ts-bg)).
+   src/lib/__tests__/tripCards03.test.ts reads both files and holds them equal, declaration by declaration, but for the THREE
+   DIFFERENCES named here — each one where the reference is a page of its own and this is the app:
+     1. THE COLOURS are tokens: the reference's :root is :root above. It declares fifteen, only so that it renders on its own, and
+        the app holds every one by the same name behind the house prefix — five the app's own (--ts-bg, --ts-border and the hero's
+        violets 2, 3 and 4) and ten HOME-PLANS-04 brought (--ts-fs-*). This section adds NO token (the README: "New with this
+        section: none").
+     2. THE FONTS are the site's: src/app/layout.tsx loads Inter and IBM Plex Mono as --font-sans and --font-mono, and these rules
+        read the two variables where the reference names the families ("the site already loads both faces").
+     3. NOT PORTED: the reference page's own ground, body { margin: 0; background-color: … } — "THIS PAGE'S OWN: not part of the
+        design, not ported".
+   It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value outside
+   :root"). It draws no gradient.
+   WHAT LEAVES with it — TRIPCARDS-02's trip.com look (2026-11-08): the dark card and its 320px crop, the stop chip and the dark
+   band drawn on the photo, and the row's drawn scrollbar. Every photo shows whole now, at 3 : 2 — and the build refuses a photo
+   more than 1% from 3 : 2 (scripts/assert-tool-registry.ts, the trip log law), so the card never crops one.
+   Used by src/components/landing/WasHereSection.tsx, which Landing.tsx mounts. It stands here, under the marquee's keyframes and
+   above the chip strip's rules, the HOME-SERVICES-01 block and the HOME-PLANS-04 block: nothing may follow the hero's block, the
+   Financial Software port runs from its own first rule to the hero's, and the Professional Services port from its own first rule
+   to the Financial Software section's. It names none of their classes, and nothing outside it names one of its own. ────────── */
+/* ── 1 · the section: the eyebrow, the heading, the line, the two arrows ─────────────────────── */
+.ts-story { padding: clamp(44px, 5.6vw, 80px) 0 clamp(40px, 5vw, 72px); border-bottom: 1px solid rgb(var(--ts-border)); background-color: rgb(var(--ts-bg)); color: var(--ts-fs-ink); font-family: var(--font-sans); line-height: 1.5; }
+.ts-story :focus-visible { outline: 2px solid var(--ts-hero-violet-2); outline-offset: 3px; }
+.ts-story__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding-inline: 16px; }
+.ts-story__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px 32px; }
+.ts-story__words { min-width: 0; }
+.ts-story__eyebrow { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ts-fs-gold-text); }
+.ts-story__title { margin: 12px 0 0; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; font-weight: 500; letter-spacing: -0.03em; color: var(--ts-hero-violet-4); }
+.ts-story__lede { margin: 16px 0 0; max-width: 640px; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--ts-fs-ink-soft); text-wrap: pretty; }
+/* the arrows: from 768px, where a pointer is the likelier hand; under it the row is swiped */
+.ts-story__arrows { display: none; gap: 10px; }
+.ts-story-arrow {
+  box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: 0; padding: 0;
+  border: 1px solid var(--ts-fs-chip-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-2); cursor: pointer;
+  transition: border-color 0.16s, opacity 0.16s;
+}
+.ts-story-arrow[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+
+/* ── 2 · the row: one line of cards, edge to edge of the window, the first under the heading ──── */
+.ts-story-row {
+  box-sizing: border-box; display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+  margin-top: clamp(24px, 2.8vw, 40px); padding: 4px max(16px, calc((100% - 1280px) / 2 + 16px)) 32px;
+  scroll-padding-inline: max(16px, calc((100% - 1280px) / 2 + 16px));
+}
+.ts-story-row::-webkit-scrollbar { display: none; }
+
+/* ── 3 · a card: the photo whole, the stop, the place, the dates; at its foot what it cost and the post ── */
+.ts-story-card {
+  box-sizing: border-box; flex: 0 0 min(352px, calc(100% - 32px)); scroll-snap-align: start; display: flex; flex-direction: column; padding: 10px;
+  border: 1px solid var(--ts-fs-line); border-radius: 20px; background-color: rgb(var(--ts-fs-white));
+  box-shadow: 0 1px 2px rgb(var(--ts-fs-shadow) / 0.04), 0 8px 24px rgb(var(--ts-fs-shadow) / 0.07);
+}
+/* the stop he is at: a violet ring */
+.ts-story-card[data-stop-status="now"] { border-color: var(--ts-hero-violet-2); box-shadow: 0 0 0 1px var(--ts-hero-violet-2), 0 1px 2px rgb(var(--ts-fs-shadow) / 0.04), 0 8px 24px rgb(var(--ts-fs-shadow) / 0.1); }
+/* the photo: 3 : 2, every photo's own shape, so nothing is cut; nothing is drawn on it */
+.ts-story-card__photo { display: block; overflow: hidden; border-radius: 14px; background-color: var(--ts-fs-rule); }
+.ts-story-card__photo img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+.ts-story-card__body { display: flex; flex-direction: column; flex: 1 1 auto; padding: 14px 6px 6px; }
+.ts-story-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 24px; }
+.ts-story-card__stop { display: flex; align-items: center; gap: 8px; margin: 0; font-family: var(--font-mono); font-size: 11px; line-height: 1.2; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ts-fs-ink-muted); }
+.ts-story-chip {
+  box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px;
+  border: 1px solid var(--ts-fs-button-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-3);
+  font-size: 10.5px; white-space: nowrap;
+}
+.ts-story-chip[data-status="now"] { border-color: var(--ts-hero-violet-2); background-color: var(--ts-hero-violet-2); color: rgb(var(--ts-fs-white)); }
+.ts-story-chip__dot { display: block; width: 6px; height: 6px; border-radius: 999px; background-color: currentColor; }
+.ts-story-card__credit { margin-left: auto; font-family: var(--font-mono); font-size: 11px; line-height: 1.2; color: var(--ts-fs-ink-muted); white-space: nowrap; }
+.ts-story-card__city { margin: 10px 0 0; font-size: 20px; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; color: var(--ts-hero-violet-4); }
+/* a stop with no photo yet: the place, large, opens the card */
+.ts-story-card[data-was-here-image="none"] .ts-story-card__city { margin-top: 14px; font-size: 30px; line-height: 1.15; letter-spacing: -0.02em; }
+.ts-story-card__country { margin: 2px 0 0; font-size: 14px; line-height: 1.5; color: var(--ts-fs-ink-soft); }
+.ts-story-card__dates { margin: 8px 0 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; font-weight: 500; color: var(--ts-hero-violet-3); }
+.ts-story-card__foot { margin-top: auto; padding-top: 16px; }
+
+/* what it cost: the label, the name (it ends in "…" when it is long), the amount (never cut) */
+.ts-story-costs { margin: 0; border-top: 1px solid var(--ts-fs-rule); }
+.ts-story-cost { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: baseline; column-gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--ts-fs-rule); }
+.ts-story-cost__what { margin: 0; font-family: var(--font-mono); font-size: 10.5px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ts-fs-ink-muted); }
+.ts-story-cost__name { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; line-height: 1.4; color: var(--ts-fs-ink); }
+.ts-story-cost__amount { margin: 0; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; font-weight: 500; color: var(--ts-fs-ink-muted); white-space: nowrap; text-align: right; }
+.ts-story-cost__amount[data-kind="paid"] { font-size: 13px; font-weight: 600; color: var(--ts-fs-gold-text); }
+
+/* the post: the quiet pill, the card's width */
+.ts-story-card__post {
+  box-sizing: border-box; display: flex; align-items: center; justify-content: center; height: 44px; margin-top: 14px;
+  border: 1.5px solid var(--ts-fs-button-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-3);
+  font-size: 14px; line-height: 1.2; font-weight: 600; text-decoration: none; transition: border-color 0.16s;
+}
+
+/* ── 4 · wider windows ───────────────────────────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .ts-story__arrows { display: flex; }
+}
+@media (min-width: 1024px) {
+  .ts-story__inner { padding-inline: 32px; }
+  .ts-story-row { padding-inline: max(32px, calc((100% - 1280px) / 2 + 32px)); scroll-padding-inline: max(32px, calc((100% - 1280px) / 2 + 32px)); }
+}
+
+/* ── 5 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+@media (hover: hover) {
+  .ts-story-arrow:not([aria-disabled="true"]):hover, .ts-story-card__post:hover { border-color: var(--ts-hero-violet-2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-story-arrow, .ts-story-card__post { transition: none; }
+}
+
 /* CHIP-FADE (390 audit finding 2): edge-fade mask for the modules chip
    scroll strip — the 968px row hides six chips in a 390px viewport with a
    clean hard cut and zero scroll signal. The mask fades the strip's CONTENT

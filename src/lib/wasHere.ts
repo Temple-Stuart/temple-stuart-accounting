@@ -36,8 +36,10 @@
  *
  * THE LAW (module scope; re-run at build by scripts/assert-tool-registry.ts,
  * which adds what only it can see — every experienceId exists in EXPERIENCES,
- * every image file exists under public/ at ≤ 400 KB, the landing mounts the
- * section once). It refuses by name: a duplicate id; an empty city, country or
+ * every image file exists under public/ at ≤ 400 KB and — TRIPCARDS-03,
+ * 2026-11-12: the card shows a photo whole — within 1% of 3 : 2 by its own
+ * header (src/lib/photoSize.ts), the landing mounts the section once). It
+ * refuses by name: a duplicate id; an empty city, country or
  * line (a line is null or says something); a countryCode not two upper-case
  * letters; start or writtenOn not 'YYYY-MM-DD'; a planned stop (start after
  * writtenOn) with anything in did or learned; an end that is set and before start; more
@@ -55,7 +57,7 @@
  */
 
 export interface WasHereImage {
-  /** A file under public/: /was-here/<slug>.jpg or .webp, at most 400 KB (the build checks). */
+  /** A file under public/: /was-here/<slug>.jpg or .webp, at most 400 KB and 3 : 2 within 1% — the card shows it whole (the build checks both; TRIPCARDS-03, 2026-11-12). */
   src: string;
   alt: string;
   credit: string;
