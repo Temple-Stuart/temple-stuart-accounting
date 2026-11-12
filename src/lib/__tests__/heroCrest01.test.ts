@@ -44,6 +44,11 @@
  *       by content, so the citation cannot drift;
  *   T13 the rulings are on the page — each of Alex's three removals quoted where it was made.
  *
+ * FOOTER-02 (Alex's board, approved 2026-11-12 23:30 Manila): the footer opens with the bar's gold crest and wordmark, so the mark's path
+ * and the wordmark moved to one plain leaf, src/lib/brandLockup.ts, which the bar and the footer both read. The bar draws exactly what it
+ * drew, and re-exports BAR_MARK_SRC (this file still imports it from the bar). T7's closed list of the bar's imports gained that leaf's
+ * line, with a dated note; the law's door to /how-pricing-works (T12) re-cites BAR_PRICING's line, one lower. Nothing else here moved.
+ *
  * Source is read through code() and comments() only (the reader law). rejoin() is used for whole-file digests alone.
  * Every pattern that holds code reads code(); T13 reads comments(), where the rulings are quoted.
  * No clock, no live call, no database. What a browser must show — the look at 1440, 1024 and 390, no sideways scroll
@@ -550,14 +555,19 @@ test('T7 the phone menu: open or closed is React state and nothing else; it clos
   // the bar's own Log in (from 1024px) calls the login opener — the rendered markup in T6 cannot show a handler, so it is held here
   assert.equal(count(flat(header), '<button type="button" onClick={onRequireLogin} className="ts-pill-gold ts-bar__login">Log in</button>'), 1, 'the bar\'s Log in calls the login opener');
   assert.equal(count(header, 'onRequireLogin'), 6, 'the opener is named six times: the prop, its type, the two mode tests and the two calls — and wired nowhere else');
-  // what the bar imports is everything it can reach: React's three, next/link, the anchors and the pillars' names — a new import is a new
-  // dependency of every page that mounts the bar (and the only way state could leave this file unseen)
+  // what the bar imports is everything it can reach: React's three, next/link, the anchors, the pillars' names and — since FOOTER-02 (2026-11-12) —
+  // the lockup's leaf, src/lib/brandLockup.ts: the mark and the wordmark, which the footer reads there too (this file is 'use client', and its
+  // exports reach a server component as client references, so the two moved to a plain leaf). A new import is a new dependency of every page that
+  // mounts the bar (and the only way state could leave this file unseen). Until FOOTER-02 the list was the first four lines below — 'the bar
+  // imports these four lines and nothing else'.
   assert.deepEqual(header.split('\n').filter((line) => /^import\b/.test(line)), [
     "import { Fragment, useEffect, useState } from 'react';",
     "import Link from 'next/link';",
     "import { DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR } from '@/lib/homeAnchors';",
     "import { BUILD_PILLAR, EXPLORE_PILLAR, PLAN_PILLAR } from '@/lib/homeActWords';",
-  ], 'the bar imports these four lines and nothing else');
+    "import { BAR_MARK_SRC, BAR_WORDMARK } from '@/lib/brandLockup';",
+  ], 'the bar imports these five lines and nothing else');
+  assert.doesNotMatch(code('src/lib/brandLockup.ts'), /^\s*(import\b|['"]use )/m, 'and the lockup\'s leaf imports nothing and carries no directive — no state can leave through it');
   assert.match(header, /useEffect\(\(\) => \{\s*if \(!menuOpen\) return;\s*const closeOnEscape = \(e: KeyboardEvent\) => \{ if \(e\.key === 'Escape'\) setMenuOpen\(false\); \};\s*document\.addEventListener\('keydown', closeOnEscape\);\s*return \(\) => document\.removeEventListener\('keydown', closeOnEscape\);\s*\}, \[menuOpen\]\);/, 'Escape closes it; the listener is on only while it is open, and is taken off again');
   assert.equal(count(header, 'useEffect('), 1, 'one effect');
   // the menu's id is typed, never generated: useId gave the server and the browser different ids on the landing (a hydration mismatch)

@@ -71,6 +71,7 @@ import { Fragment, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR } from '@/lib/homeAnchors';
 import { BUILD_PILLAR, EXPLORE_PILLAR, PLAN_PILLAR } from '@/lib/homeActWords';
+import { BAR_MARK_SRC, BAR_WORDMARK } from '@/lib/brandLockup';
 
 /**
  * HERO-CREST-01: the bar's three product links — the home page's three pillars. Each is its pillar's heading (Financial
@@ -88,8 +89,8 @@ export const BAR_PRODUCT_LINKS = [
 /** Pricing keeps its page — /how-pricing-works (the reachability law's GUEST_ROUTES cites this line as that page's door). */
 export const BAR_PRICING = { label: 'Pricing', href: '/how-pricing-works' } as const;
 
-/** The mark the design ships for the bar: public/brand/temple-stuart-crest.png with its white knocked out and its ink gold. */
-export const BAR_MARK_SRC = '/brand/temple-stuart-crest-gold.png';
+/** FOOTER-02 (2026-11-12): the mark and the wordmark live in src/lib/brandLockup.ts — the footer's lockup reads them there, since this file is 'use client'. The mark is re-exported here for this file's readers. */
+export { BAR_MARK_SRC };
 
 /**
  * The phone menu's id — what the menu button's aria-controls names. ONE FIXED ID, as the reference types its own
@@ -119,7 +120,7 @@ export default function LandingHeader({ onRequireLogin, glass = false }: {
       <div className="ts-bar__pill">
         <Link className="ts-brand" href="/">
           <img className="ts-brand__mark" src={BAR_MARK_SRC} alt="" />{/* eslint-disable-line @next/next/no-img-element */}
-          <span className="ts-brand__name">TEMPLE STUART</span>
+          <span className="ts-brand__name">{BAR_WORDMARK}</span>
         </Link>
         <nav className="ts-bar__products" aria-label="Products">
           {BAR_PRODUCT_LINKS.map((link, i) => (

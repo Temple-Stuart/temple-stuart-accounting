@@ -41,6 +41,11 @@
  * stop with the same ruling, so each label IS its pillar's heading now, letter for letter (src/lib/homeActWords.ts;
  * src/lib/__tests__/footer01.test.ts holds the two equal) — "without the full stop", above, is HOME-FINISH-02's note.
  * The three targets are unchanged: /#modules, /#services, /#demo.
+ *
+ * FOOTER-02 (Alex, 2026-11-12: his ask at 22:44 Manila — "… all thats left to touch up is the footer!!!"; the board approved at
+ * 23:30): the footer in the hero's violet (design-refs/footer-02). Every word and href here stands as it was, in its order — the
+ * design adds no word. One helper joins them: storyLinkParts, which splits a story link's label at its " | " into the stop and the
+ * place, so the footer can draw the two apart — and refuses, by name (FooterStoryLabelError), a label with no " | " or with two.
  */
 import { DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR, STOP_ZERO_ANCHOR } from './homeAnchors';
 import { tripPostHref } from './tripPostWords';
@@ -68,6 +73,30 @@ export function footerStoryLinks(rows: readonly WasHereRow[]): FooterLink[] {
     { label: FOOTER_STOP_ZERO_LABEL, href: `/#${STOP_ZERO_ANCHOR}` },
     ...tripOrder(rows).map((row, i) => ({ label: `${stopWords(i + 1)} | ${row.city}`, href: tripPostHref(row.id) })),
   ];
+}
+
+/** A story link's label without exactly one " | " — refused by name, naming the label. Never a guess, never a fallback. */
+export class FooterStoryLabelError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FooterStoryLabelError';
+  }
+}
+
+/** Where a story link's label splits: its stop before, its place after — the " | " footerStoryLinks writes between them. */
+const STORY_LABEL_SPLIT = ' | ';
+
+/**
+ * FOOTER-02 (Alex's board, approved 2026-11-12 23:30 Manila): OUR STORY draws each link in two parts — its stop, small, in mono
+ * capitals, then its place ("STOP 1, then Canggu, Bali"). One label, split at its " | ": the stop, then the place. A label with no
+ * " | ", or with two (overlapping ones counted), is refused by name.
+ */
+export function storyLinkParts(label: string): { stop: string; place: string } {
+  const at = label.indexOf(STORY_LABEL_SPLIT);
+  if (at < 0 || label.indexOf(STORY_LABEL_SPLIT, at + 1) > -1) {
+    throw new FooterStoryLabelError(`storyLinkParts: "${label}" is not its stop, one " | ", then its place`);
+  }
+  return { stop: label.slice(0, at), place: label.slice(at + STORY_LABEL_SPLIT.length) };
 }
 
 /**
