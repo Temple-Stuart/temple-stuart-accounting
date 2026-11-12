@@ -42,7 +42,9 @@ const EXPERIENCES_MOUNT = '<ExperiencesSection today={today} />';
 const STOP_ZERO_MOUNT = '<StopZeroSection />';
 const MY_TRIP_MOUNT = '<WasHereSection today={today} />';
 // HOME-FINISH-02 (2026-11-10): the section carries its anchor now — '<section className="w-full border-b border-border bg-bg-terminal">' until then.
-const DONE_FOR_YOU_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'; // HOME-ORDER-01 (2026-11-10): Stop 0's upper neighbour — until HOME-FINISH-02
+// HOME-SERVICES-01 (2026-11-12): the DONE-FOR-YOU section is its own component (ServicesSection.tsx), so the page finds it by its mount. Until then:
+// const DONE_FOR_YOU_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'; // HOME-ORDER-01 (2026-11-10): Stop 0's upper neighbour — until HOME-FINISH-02
+const DONE_FOR_YOU_OPEN = '<ServicesSection />';
 const GUEST_STRIP_MOUNT = '<GuestTripStrip onRequireAuth={onRequireAuth} />'; // HOME-FINISH-02 (2026-11-10): Stop 0's upper neighbour now
 /** code() blanks a JSX comment's words and keeps its braces. */
 const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;

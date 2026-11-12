@@ -36,7 +36,7 @@ import { useState } from 'react';
 import { CONTROL, SECTION_HEADER, SEGMENT, STATE, SURFACE, toggleChip } from '@/lib/ds';
 // SERVICES-01 (2026-11-08): the six doors, the lead and the bookkeeping block's words — one module; the close's
 // leaf and words retired with the close.
-import { BOOKKEEPING_WORDS, FORM_INTRO, SERVICES, type ServiceNeed } from '@/lib/proposalNeeds';
+import { ASK_BUDGET, ASK_TIMELINE, BOOKKEEPING_WORDS, FORM_INTRO, NEED_QUESTION, PROPOSAL_STEPS, SCOPED_BY_PROPOSAL, SERVICES, type ServiceNeed } from '@/lib/proposalNeeds'; // HOME-SERVICES-01 (2026-11-12): the need question, two labels, the thank-you's words and the note by Send — the landing's section draws them too, so both read them here (the brief's ruling e: "The form changes only where it must read a word or a rule it now shares with the landing")
 
 // The 9 modules — ids + labels REUSED from Landing.tsx PILLAR_CARDS
 // (:241-313), the deck's one module vocabulary. Literals because PILLAR_CARDS
@@ -189,7 +189,7 @@ export default function WorkWithMeForm({ initialNeed }: { initialNeed: string | 
               role="status"
               className="mt-4 rounded-lg border border-status-success/30 bg-status-success/10 p-3 text-xs text-status-success"
             >
-              Got it — I read every one of these myself. You&apos;ll hear from me at {submittedEmail}.
+              Got it — {PROPOSAL_STEPS.read}. You&apos;ll hear from me at {submittedEmail}.
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-5">
@@ -225,7 +225,7 @@ export default function WorkWithMeForm({ initialNeed }: { initialNeed: string | 
               </div>
 
               <div>
-                <span className={CONTROL.label}>What do you need?</span>
+                <span className={CONTROL.label}>{NEED_QUESTION}</span>
                 <div className={`${SEGMENT.wrap} mt-1 max-w-full flex-wrap`}>
                   {needs.map((n) => (
                     <button
@@ -317,7 +317,7 @@ export default function WorkWithMeForm({ initialNeed }: { initialNeed: string | 
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <span className={CONTROL.label}>Timeline</span>
+                  <span className={CONTROL.label}>{ASK_TIMELINE}</span>
                   <div className={`${SEGMENT.wrap} mt-1 max-w-full flex-wrap`}>
                     {START_WINDOWS.map((w) => (
                       <button
@@ -332,7 +332,7 @@ export default function WorkWithMeForm({ initialNeed }: { initialNeed: string | 
                   </div>
                 </div>
                 <div>
-                  <span className={CONTROL.label}>Budget range</span>
+                  <span className={CONTROL.label}>{ASK_BUDGET}</span>
                   <div className={`${SEGMENT.wrap} mt-1 max-w-full flex-wrap`}>
                     {BUDGET_RANGES.map((b) => (
                       <button
@@ -563,7 +563,7 @@ export default function WorkWithMeForm({ initialNeed }: { initialNeed: string | 
                 >
                   {submitting ? 'Sending…' : 'Send proposal'}
                 </button>
-                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
+                <span className="ml-auto font-mono text-xs italic text-text-faint">{SCOPED_BY_PROPOSAL}</span>
               </div>
             </form>
           )}

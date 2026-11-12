@@ -28,7 +28,7 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code, comments } from '../sourceText';
 // SERVICES-01 (2026-11-08): the path, the keys and the doors from the one module; the close's leaf and words retired.
-import { PROPOSAL_FORM_PATH, PROPOSAL_NEEDS, SERVICES, SERVICE_NEEDS } from '../proposalNeeds';
+import { PROPOSAL_FORM_PATH, PROPOSAL_NEEDS, SERVICES, SERVICE_NEEDS, proposalFormHref } from '../proposalNeeds';
 import { SEGMENT } from '../ds';
 import { z } from 'zod';
 import WorkWithMeForm, { needChoices } from '@/app/work-with-me/WorkWithMeForm';
@@ -167,11 +167,17 @@ test('T4 the form sends no modules for bookkeeping, and the Other description do
 test('T5 the six DONE-FOR-YOU doors open the form with their key; the path from the module, never typed (SERVICES-01: the close card retired)', () => {
   const landing = code(LANDING);
   // SERVICES-01 (2026-11-08): the path moved from the retired leaf to src/lib/proposalNeeds.ts, beside the doors.
-  assert.match(landing, /import \{\n {2}PROPOSAL_FORM_PATH, SERVICES,\n\} from '@\/lib\/proposalNeeds';/);
-  assert.match(landing, /\{SERVICES\.map\(\(\{ need, title, line \}\) => \(/, 'the doors from the module — none typed');
-  assert.match(landing, /href=\{`\$\{PROPOSAL_FORM_PATH\}\?need=\$\{need\}`\}/, 'each door: the form with its key');
-  assert.match(landing, /href=\{PROPOSAL_FORM_PATH\}/, 'the Send a project proposal button');
-  assert.doesNotMatch(landing, /['"`]\/work-with-me['"`?]/, 'the path is never typed in Landing');
+  // HOME-SERVICES-01 (Alex's brief, 2026-11-12): the doors are the Professional Services section's six tiles (ServicesSection.tsx, which
+  // Landing.tsx mounts): a tile picks its door, and the gold link opens the form with the pick — proposalFormHref(picked), the brief's
+  // `${PROPOSAL_FORM_PATH}?need=<picked>`, "the link each card carried until now". Until then, of Landing.tsx: the import
+  // /import \{\n {2}PROPOSAL_FORM_PATH, SERVICES,\n\} from '@\/lib\/proposalNeeds';/; the doors /\{SERVICES\.map\(\(\{ need, title, line \}\) => \(/;
+  // each door's href /href=\{`\$\{PROPOSAL_FORM_PATH\}\?need=\$\{need\}`\}/; the Send a project proposal button's /href=\{PROPOSAL_FORM_PATH\}/.
+  const section = code('src/components/landing/ServicesSection.tsx');
+  assert.match(section, /\{SERVICES\.map\(\(\{ need, title, kind \}\) => \(/, 'the doors from the module — none typed');
+  assert.match(section, /<Link className="ts-ps-cta" href=\{proposalFormHref\(picked\)\}>/, 'the gold link: the form with the picked door\'s key');
+  for (const s of SERVICES) assert.equal(proposalFormHref(s.need), `${PROPOSAL_FORM_PATH}?need=${s.need}`, `${s.need}: the form with its key`);
+  assert.doesNotMatch(landing, /PROPOSAL_FORM_PATH|from '@\/lib\/proposalNeeds'/, 'Landing.tsx reads neither the doors nor the path — the section does');
+  for (const src of [landing, section]) assert.doesNotMatch(src, /['"`]\/work-with-me['"`?]/, 'the path is never typed in Landing or in the section');
   assert.equal(PROPOSAL_FORM_PATH, '/work-with-me');
   assert.doesNotMatch(landing, /CloseOffer|closeFormHref|offer\/close/);
   assert.ok(!existsSync(resolve(process.cwd(), 'src/components/landing/CloseOfferCard.tsx')), 'the close card retired');

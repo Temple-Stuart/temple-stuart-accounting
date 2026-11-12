@@ -71,7 +71,10 @@ const MOUNTS: ReadonlyArray<readonly [string, string]> = [
   ['the header, laid over it', '<LandingHeader glass onRequireLogin={onRequireLogin} />'],
   ['What We Do', HEADING],
   ['the how-to', HOW_TO], // HOME-BRIEF-03 (Alex, 2026-11-10): the services display; HOME-BRIEF-04: the Software Plans itself, in the plans' seat; HOME-FINISH-02: first under "What We Do"
-  ['DONE-FOR-YOU', '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'], // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then
+  // HOME-SERVICES-01 (2026-11-12): DONE-FOR-YOU is the Professional Services section, its own component (ServicesSection.tsx), mounted here.
+  // Until then this entry was ['DONE-FOR-YOU', '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'] —
+  // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then.
+  ['DONE-FOR-YOU', '<ServicesSection />'],
   ['the travel block', TRAVEL_OPEN],
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): the purple band is gone — the experiences are the booking box's Events panel, inside the travel
   // block. Until then this entry was ['the experiences', '<ExperiencesSection today={today} />'], a block of its own between the travel block and the strip.

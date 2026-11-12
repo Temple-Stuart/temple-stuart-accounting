@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOME-SERVICES-01 · reference</title>
+<!--
+  HOME-SERVICES-01 and -02: the reference for the guest landing's second pillar, Professional Services.
+  The six services as tiles; the picked one's picture, its words and how a proposal goes; the gold button; and,
+  for HOME-SERVICES-02, the one proposal form opened in place under them.
+
+  Open this file in a browser from inside the repo (the six pictures are read from public/brand/services/).
+  Press a tile: the picture, the words and what the form will ask change with it. Press the gold button: the form
+  opens below, already following the pick. Resize the window: the tiles stand in six columns from 1024px, three from
+  640px and two below; the picture stands beside the words from 1024px.
+
+  Every value in the stylesheet is the design, and the markup is the page at rest. The words are copies, for
+  placement only: production reads each one from its home (the README lists them) and types none. The script at the
+  foot only makes this file work on its own: production keeps the pick and open-or-closed in React state, and the
+  form is the app's own form. No request is ever sent from here: pressing Send shows the state the form shows after
+  a successful send. The font link is here only so the file renders alone; the site already loads both faces.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root {
+    /* ALREADY IN THE APP: each is the same name behind the house prefix (--hero-violet-2 is --ts-hero-violet-2,
+       --bg is --ts-bg). Declared here only so this file renders on its own; the port adds none of these. */
+    --bg: 250 248 243;                /* the cream ground; the form's two inset boxes */
+    --border: 221 214 232;            /* the line under the section */
+    --red: 197 48 48;                 /* the form's error, at 0.3 (border), 0.06 (fill) and solid (text) */
+    --hero-violet-2: #4D1FBC;         /* the picked tile; icons; the steps' marks; picks that are on; the focus ring */
+    --hero-violet-3: #32118A;         /* the picked service's chip; the add-link button's label */
+    --hero-violet-4: #210A5E;         /* headings, tile titles and the thank-you */
+    --hero-gold-1: 255 236 178;       /* the gold button, start */
+    --hero-gold-2: 248 203 90;        /* the gold button, 52% */
+    --hero-gold-3: 236 178 62;        /* the gold button, end */
+    --hero-on-gold: #2A0F5C;          /* ink on the gold button */
+
+    /* ADDED BY HOME-PLANS-04 (design-refs/home-plans-04): reused here, by the same names and values. If that PR
+       ported them under other names, use its names; add none of these twice. */
+    --fs-white: 255 255 255;          /* the panel, tiles, chips and fields; text on violet; the gold button's top light at 0.75 */
+    --fs-ink: #2B2545;                /* body text; the form's labels and what is typed */
+    --fs-ink-soft: #4A4560;           /* the lede, the service's line, the chips, the notes, the bookkeeping box's last line */
+    --fs-ink-muted: #6F6988;          /* tile kinds; step 3's mark and note; hints; placeholders */
+    --fs-gold-text: #8A6408;          /* the form's eyebrow */
+    --fs-line: #E9E4F2;               /* the panel's border */
+    --fs-rule: #EEEAF5;               /* the rules inside it */
+    --fs-chip-line: #E4DFF0;          /* the border of a tile, a chip and the Close button */
+    --fs-button-line: #CFC6EC;        /* step 3's ring; the picked chip's border; the thank-you's border; the Project details underline */
+    --fs-band-muted: #D6CCF7;         /* the picked tile's kind */
+    --fs-shadow: 33 10 94;            /* shadows on the cream: hero-violet-4 as channels */
+
+    /* NEW WITH THIS SECTION */
+    --ps-field-line: #DCD5EC;         /* the border of a field and a pick; the steps' wire */
+    --ps-wash: #F6F2FE;               /* the picked chip's fill; the thank-you's fill */
+    --ps-art: #F3EFFC;                /* the picture's frame: its flat colour, under its gradients */
+    --ps-art-1: #F8F5FE;              /* the frame's gradient, start */
+    --ps-art-2: #ECE6FA;              /* the frame's gradient, end */
+    --ps-art-ring: 77 31 188;         /* the frame's rings, at 0.05: hero-violet-2 as channels */
+  }
+
+  /* ── 1 · the section ─────────────────────────────────────────────────────────────────────────── */
+  .ps { scroll-margin-top: 48px; border-bottom: 1px solid rgb(var(--border)); background-color: rgb(var(--bg)); color: var(--fs-ink); font-family: 'Inter', sans-serif; line-height: 1.5; }
+  .ps__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(44px, 5.6vw, 80px) 16px clamp(52px, 6.2vw, 88px); }
+  .ps__title { margin: 0; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; font-weight: 500; letter-spacing: -0.03em; color: var(--hero-violet-4); }
+  .ps__lede { margin: 16px 0 0; max-width: 620px; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--fs-ink-soft); text-wrap: pretty; }
+  .ps :focus-visible { outline: 2px solid var(--hero-violet-2); outline-offset: 3px; }
+  .ps [hidden] { display: none; }               /* the one rule for everything the section hides; it outranks each block's own display */
+
+  /* ── 2 · the panel: the question and the six services ────────────────────────────────────────── */
+  .ps-panel {
+    box-sizing: border-box; margin-top: clamp(24px, 2.8vw, 40px); padding: clamp(18px, 2.3vw, 32px);
+    border: 1px solid var(--fs-line); border-radius: 24px; background-color: rgb(var(--fs-white));
+    box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.05), 0 20px 48px rgb(var(--fs-shadow) / 0.08);
+  }
+  .ps-panel__question { margin: 0; font-size: clamp(18px, 1.6vw, 22px); line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--hero-violet-4); }
+
+  .ps-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: clamp(8px, 1vw, 12px); margin-top: 16px; }
+  .ps-tile {
+    box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 14px;
+    min-height: 104px; margin: 0; padding: 14px 14px 12px; border: 1px solid var(--fs-chip-line); border-radius: 14px;
+    background-color: rgb(var(--fs-white)); color: var(--hero-violet-2); font-family: inherit; text-align: left; cursor: pointer;
+    transition: background-color 0.16s, border-color 0.16s, box-shadow 0.16s;
+  }
+  .ps-tile__icon { flex: none; }
+  .ps-tile__words { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .ps-tile__title { font-size: 14px; line-height: 1.3; font-weight: 600; color: var(--hero-violet-4); }
+  .ps-tile__kind { min-height: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  /* the picked service: filled violet */
+  .ps-tile[aria-pressed="true"] { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); box-shadow: 0 8px 20px rgb(var(--fs-shadow) / 0.18); }
+  .ps-tile[aria-pressed="true"] .ps-tile__title { color: rgb(var(--fs-white)); }
+  .ps-tile[aria-pressed="true"] .ps-tile__kind { color: var(--fs-band-muted); }
+
+  /* ── 3 · the stage: the picked service's picture, its words, how it goes, the button ─────────── */
+  .ps-stage {
+    display: flex; flex-direction: column; gap: clamp(20px, 2.6vw, 40px);
+    margin-top: clamp(18px, 1.8vw, 24px); padding-top: clamp(18px, 1.8vw, 24px); border-top: 1px solid var(--fs-rule);
+  }
+  .ps-stage__art {
+    box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-width: 0;
+    padding: clamp(12px, 1.6vw, 24px); border-radius: 18px;
+    background-color: var(--ps-art);
+    background-image:
+      repeating-radial-gradient(circle at 50% 260%, rgb(var(--ps-art-ring) / 0) 0px, rgb(var(--ps-art-ring) / 0) 15px, rgb(var(--ps-art-ring) / 0.05) 15px, rgb(var(--ps-art-ring) / 0.05) 16px),
+      linear-gradient(135deg, var(--ps-art-1) 0%, var(--ps-art-2) 100%);
+  }
+  .ps-stage__art img { display: block; width: 100%; max-width: 560px; height: auto; }
+  .ps-stage__text { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+  .ps-stage__title { margin: 0; font-size: clamp(24px, 2.2vw, 30px); line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--hero-violet-4); }
+  .ps-stage__line { margin: 10px 0 0; max-width: 540px; font-size: 16px; line-height: 1.55; color: var(--fs-ink-soft); text-wrap: pretty; }
+
+  .ps-steps { display: flex; flex-direction: column; margin: 20px 0 0; padding: 0; list-style: none; }
+  .ps-step { display: grid; grid-template-columns: 26px minmax(0, 1fr); column-gap: 12px; }
+  .ps-step__rail { display: flex; flex-direction: column; align-items: center; }
+  .ps-step__wire { flex: 1; width: 1.5px; min-height: 12px; margin: 4px 0; background-color: var(--ps-field-line); }
+  .ps-step__mark {
+    box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border: 1.5px solid var(--fs-button-line); border-radius: 50%;
+    font-size: 13px; line-height: 1; font-weight: 600; color: var(--fs-ink-muted);
+  }
+  .ps-step[data-step="done"] .ps-step__mark { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); }
+  .ps-step[data-step="now"] .ps-step__mark { border-color: var(--hero-violet-2); color: var(--hero-violet-2); }
+  .ps-step__body { min-width: 0; padding-bottom: 14px; }
+  .ps-step:last-child .ps-step__body { padding-bottom: 0; }
+  .ps-step__title { margin: 0; padding-top: 3px; font-size: 15px; line-height: 1.35; font-weight: 600; color: var(--hero-violet-4); }
+  .ps-step__note { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--fs-ink-muted); }
+  .ps-chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+  .ps-chip {
+    box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+    border: 1px solid var(--fs-chip-line); border-radius: 8px; background-color: rgb(var(--fs-white)); color: var(--fs-ink-soft);
+    font-size: 13px; line-height: 1.2; font-weight: 500; white-space: nowrap;
+  }
+  .ps-chip--picked { border-color: var(--fs-button-line); background-color: var(--ps-wash); color: var(--hero-violet-3); font-weight: 600; }
+
+  .ps-cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 22px; }
+  .ps-cta {
+    box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 48px; margin: 0; padding: 0 26px;
+    border: 0; border-radius: 999px; background-color: rgb(var(--hero-gold-2)); background-image: linear-gradient(135deg, rgb(var(--hero-gold-1)) 0%, rgb(var(--hero-gold-2)) 52%, rgb(var(--hero-gold-3)) 100%);
+    box-shadow: inset 0 1px 0 rgb(var(--fs-white) / 0.75), 0 8px 20px rgb(var(--fs-shadow) / 0.16); color: var(--hero-on-gold);
+    font-family: inherit; font-size: 15px; line-height: 1.2; font-weight: 600; white-space: nowrap; text-decoration: none; cursor: pointer;
+    transition: filter 0.16s;
+  }
+  .ps-cta:disabled { cursor: not-allowed; opacity: 0.5; }
+  .ps-note { font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 500; color: var(--fs-ink-soft); }
+
+  /* ── 4 · the form, in place (HOME-SERVICES-02) ──────────────────────────────────────────────── */
+  .ps-form { margin-top: clamp(22px, 2.4vw, 32px); padding-top: clamp(22px, 2.4vw, 32px); border-top: 1px solid var(--fs-rule); }
+  .ps-form__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .ps-form__eyebrow { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fs-gold-text); }
+  .ps-close {
+    box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; height: 40px; margin: 0; padding: 0 14px;
+    border: 1px solid var(--fs-chip-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--fs-ink-soft);
+    font-family: inherit; font-size: 13px; line-height: 1.2; font-weight: 600; cursor: pointer;
+  }
+  .ps-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px clamp(16px, 2vw, 28px); max-width: 860px; margin-top: 18px; }
+  .ps-fields--more { margin-top: 12px; padding: clamp(14px, 1.6vw, 20px); border-radius: 14px; background-color: rgb(var(--bg)); }
+  .ps-field { min-width: 0; }
+  .ps-field--wide { grid-column: 1 / -1; }
+  .ps-label { display: block; margin: 0 0 7px; font-size: 13px; line-height: 1.4; font-weight: 600; color: var(--fs-ink); }
+  .ps-input, .ps-area {
+    box-sizing: border-box; display: block; width: 100%; margin: 0; border: 1px solid var(--ps-field-line); border-radius: 12px;
+    background-color: rgb(var(--fs-white)); color: var(--fs-ink); font-family: inherit; font-size: 15px;
+  }
+  .ps-input { height: 46px; padding: 0 14px; line-height: 1.2; }
+  .ps-area { min-height: 84px; padding: 12px 14px; line-height: 1.5; resize: vertical; }
+  .ps-input::placeholder, .ps-area::placeholder { color: var(--fs-ink-muted); opacity: 1; }
+  .ps-input:disabled { opacity: 0.5; }
+  .ps-input:focus-visible, .ps-area:focus-visible { outline-offset: 1px; border-color: var(--hero-violet-2); }
+  .ps-hint { margin: 7px 0 0; font-size: 13px; line-height: 1.45; color: var(--fs-ink-muted); }
+  .ps-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ps-pick {
+    box-sizing: border-box; display: inline-flex; align-items: center; height: 38px; margin: 0; padding: 0 14px;
+    border: 1px solid var(--ps-field-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--fs-ink-soft);
+    font-family: inherit; font-size: 14px; line-height: 1.2; font-weight: 500; white-space: nowrap; cursor: pointer;
+    transition: background-color 0.16s, border-color 0.16s, color 0.16s;
+  }
+  .ps-pick[aria-pressed="true"] { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); font-weight: 600; }
+  .ps-pick--below { margin-top: 8px; }
+  .ps-offer { grid-column: 1 / -1; box-sizing: border-box; padding: clamp(14px, 1.6vw, 20px); border-radius: 14px; background-color: rgb(var(--bg)); }
+  .ps-offer p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--fs-ink); text-wrap: pretty; }
+  .ps-offer p + p { margin-top: 10px; }
+  .ps-offer p:last-child { margin-top: 6px; color: var(--fs-ink-soft); }
+  .ps-more { display: inline-flex; align-items: center; min-height: 32px; margin: 0; padding: 0; border: 0; background: none; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 500; color: var(--fs-ink-soft); text-decoration: underline; text-decoration-color: var(--fs-button-line); text-underline-offset: 4px; cursor: pointer; }
+  .ps-links { display: flex; flex-direction: column; gap: 8px; }
+  .ps-link { display: flex; align-items: center; gap: 8px; }
+  .ps-link__remove {
+    box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; margin: 0; padding: 0;
+    border: 1px solid var(--ps-field-line); border-radius: 12px; background-color: rgb(var(--fs-white)); color: var(--fs-ink-muted); font-family: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+  }
+  .ps-add {
+    box-sizing: border-box; display: inline-flex; align-items: center; height: 38px; margin: 8px 0 0; padding: 0 14px;
+    border: 1px solid var(--ps-field-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-3);
+    font-family: inherit; font-size: 14px; line-height: 1.2; font-weight: 600; cursor: pointer;
+  }
+  .ps-error { grid-column: 1 / -1; box-sizing: border-box; padding: 12px 14px; border: 1px solid rgb(var(--red) / 0.3); border-radius: 12px; background-color: rgb(var(--red) / 0.06); color: rgb(var(--red)); font-size: 14px; line-height: 1.5; }
+  .ps-send { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+  .ps-sent {
+    display: flex; align-items: flex-start; gap: 12px; max-width: 860px; margin-top: 18px; padding: 16px 18px; border: 1px solid var(--fs-button-line); border-radius: 14px;
+    background-color: var(--ps-wash); color: var(--hero-violet-4); font-size: 15px; line-height: 1.55;
+  }
+  .ps-sent .ps-step__mark { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); }
+  .ps-sent p { margin: 2px 0 0; }
+
+  /* ── 5 · wider windows ───────────────────────────────────────────────────────────────────────── */
+  @media (min-width: 480px) {
+    .ps-cta { width: auto; }
+  }
+  @media (min-width: 640px) {
+    .ps-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ps-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1024px) {
+    .ps__inner { padding-inline: 32px; }
+    .ps-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    /* the picture beside the words. The line keeps two lines' room, so the panel keeps its height from one service to the next. */
+    .ps-stage { flex-direction: row; align-items: stretch; }
+    .ps-stage__art { flex: 5 1 260px; }
+    .ps-stage__text { flex: 6 1 280px; }
+    .ps-stage__line { min-height: 3.1em; }
+  }
+  @media (min-width: 1024px) and (max-width: 1279.98px) {
+    /* where five of the form's questions wrap to a second row, every service keeps that row's room */
+    .ps-chips--asks { min-height: 62px; }
+  }
+
+  /* ── 6 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+  @media (hover: hover) {
+    .ps-tile[aria-pressed="false"]:hover { border-color: var(--hero-violet-2); }
+    .ps-cta:not(:disabled):hover { filter: brightness(1.04); }
+    .ps-close:hover, .ps-link__remove:hover, .ps-add:hover { border-color: var(--hero-violet-2); }
+    .ps-pick[aria-pressed="false"]:hover { border-color: var(--hero-violet-2); }
+    .ps-more:hover { color: var(--hero-violet-2); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ps-tile, .ps-cta, .ps-pick { transition: none; }
+  }
+
+  /* ── THIS PAGE'S OWN: not part of the design, not ported ─────────────────────────────────────── */
+  body { margin: 0; background-color: rgb(var(--bg)); }
+</style>
+</head>
+<body>
+
+<section class="ps" id="services" aria-labelledby="ps-title">
+  <div class="ps__inner">
+    <h2 class="ps__title" id="ps-title">Professional Services</h2>
+    <p class="ps__lede">Hands-on services, tailored to your needs.</p>
+
+    <div class="ps-panel">
+      <h3 class="ps-panel__question" id="ps-question">What do you need?</h3>
+      <div class="ps-tiles" role="group" aria-labelledby="ps-question">
+          <button class="ps-tile" type="button" aria-pressed="true" data-need="setup"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3.5"></rect><path d="M3 9.2h18M7.2 12.6h3.6v3.4H7.2zM13.2 12.6h3.6v3.4h-3.6z"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Full setup</span><span class="ps-tile__kind">Project</span></span></button>
+          <button class="ps-tile" type="button" aria-pressed="false" data-need="maintenance"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 12.4a7.5 7.5 0 0 1 -13 4.7M4.5 11.6a7.5 7.5 0 0 1 13 -4.7M17.8 3.4v3.8H14M6.2 20.6v-3.8H10"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Monthly maintenance</span><span class="ps-tile__kind">Monthly</span></span></button>
+          <button class="ps-tile" type="button" aria-pressed="false" data-need="custom"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4" stroke-dasharray="3.2 2.6"></rect><path d="M12 8.4v7.2M8.4 12h7.2"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Custom builds</span><span class="ps-tile__kind">Project</span></span></button>
+          <button class="ps-tile" type="button" aria-pressed="false" data-need="embed"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3.4v4.4M15 3.4v4.4M6.4 7.8h11.2v3.4a5.6 5.6 0 0 1 -11.2 0zM12 16.8v3.8"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Integration</span><span class="ps-tile__kind">Project</span></span></button>
+          <button class="ps-tile" type="button" aria-pressed="false" data-need="bookkeeping"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2.6"></rect><path d="M8.6 8h6.8M8.6 11.6h6.8M8.6 15.2h3.6"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Bookkeeping</span><span class="ps-tile__kind">Monthly</span></span></button>
+          <button class="ps-tile" type="button" aria-pressed="false" data-need="unsure"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.8h14a2 2 0 0 1 2 2v8.4a2 2 0 0 1 -2 2h-6.6L8 20.6v-3.4H5a2 2 0 0 1 -2 -2V6.8a2 2 0 0 1 2 -2z"></path><path d="M8.4 11h.01M12 11h.01M15.6 11h.01" stroke-width="2.6"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Something else</span><span class="ps-tile__kind"></span></span></button>
+      </div>
+
+      <div class="ps-stage">
+        <div class="ps-stage__art">
+          <img src="../../public/brand/services/setup.svg" alt="" width="560" height="380" data-need="setup">
+          <img src="../../public/brand/services/maintenance.svg" alt="" width="560" height="380" data-need="maintenance" hidden>
+          <img src="../../public/brand/services/custom.svg" alt="" width="560" height="380" data-need="custom" hidden>
+          <img src="../../public/brand/services/embed.svg" alt="" width="560" height="380" data-need="embed" hidden>
+          <img src="../../public/brand/services/bookkeeping.svg" alt="" width="560" height="380" data-need="bookkeeping" hidden>
+          <img src="../../public/brand/services/unsure.svg" alt="" width="560" height="380" data-need="unsure" hidden>
+        </div>
+        <div class="ps-stage__text">
+          <h3 class="ps-stage__title" aria-live="polite">Full setup</h3>
+          <p class="ps-stage__line">Your own hosted copy, every API wired, you own everything.</p>
+          <ol class="ps-steps">
+            <li class="ps-step" data-step="done"><span class="ps-step__rail"><span class="ps-step__mark" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"></path></svg></span><span class="ps-step__wire"></span></span><div class="ps-step__body"><p class="ps-step__title">Pick what fits</p><p class="ps-chips"><span class="ps-chip ps-chip--picked" data-picked><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"></path></svg><span>Full setup</span></span></p></div></li>
+            <li class="ps-step" data-step="now"><span class="ps-step__rail"><span class="ps-step__mark" aria-hidden="true">2</span><span class="ps-step__wire"></span></span><div class="ps-step__body"><p class="ps-step__title">Tell me about your business</p><ul class="ps-chips ps-chips--asks" data-asks><li class="ps-chip">Your business</li><li class="ps-chip">Modules</li><li class="ps-chip">Timeline</li><li class="ps-chip">Budget range</li><li class="ps-chip">What done looks like</li></ul></div></li>
+            <li class="ps-step" data-step="next"><span class="ps-step__rail"><span class="ps-step__mark" aria-hidden="true">3</span></span><div class="ps-step__body"><p class="ps-step__title">I read every one of these myself</p><p class="ps-step__note">You’ll hear from me by email.</p></div></li>
+          </ol>
+          <div class="ps-cta-row">
+            <!-- HOME-SERVICES-01 builds this as a link to the form's page with the pick: /work-with-me?need=<picked>.
+                 HOME-SERVICES-02 makes it a button that opens the form below, as it does here. -->
+            <button class="ps-cta" type="button" aria-controls="ps-form">Send a project proposal →</button>
+            <span class="ps-note">Scoped by proposal</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- HOME-SERVICES-02: the one proposal form, opened in place. Its fields, rules and words are the form's own. -->
+      <div class="ps-form" id="ps-form" hidden>
+        <div class="ps-form__head">
+          <p class="ps-form__eyebrow">Work with me</p>
+          <button class="ps-close" type="button">Close<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"></path></svg></button>
+        </div>
+        <form class="ps-fields" data-form>
+          <div class="ps-field"><label class="ps-label" for="ps-name">Name</label><input class="ps-input" id="ps-name" type="text" required maxlength="255"></div>
+          <div class="ps-field"><label class="ps-label" for="ps-email">Email</label><input class="ps-input" id="ps-email" type="email" required maxlength="255"></div>
+          <div class="ps-offer" data-offer hidden><p>Catch-up on the months you fell behind, or monthly bookkeeping going forward: every bank and card account reconciled, every transaction categorized, and the statements whoever files your taxes needs.</p><p>Bookkeeping, not tax filing or tax advice. I have six years in accounting and I'm a CPA candidate, not a licensed CPA.</p><p>If a month I closed has to be reopened because of my error, I correct it at no charge.</p></div>
+          <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-business">What's your business? (or: it's just for me)</label><textarea class="ps-area" id="ps-business" required maxlength="5000" placeholder="e.g. I run a 12-unit property management company in Austin — we collect rent, pay vendors, file 1099s"></textarea><p class="ps-hint">One or two sentences: what you do, who pays you.</p></div>
+          <div class="ps-field ps-field--wide" data-modules><span class="ps-label" id="ps-modules-label">Which modules interest you</span><div class="ps-picks" role="group" aria-labelledby="ps-modules-label" data-picks="modules"><button class="ps-pick" type="button" aria-pressed="false">Travel</button><button class="ps-pick" type="button" aria-pressed="false">Runway</button><button class="ps-pick" type="button" aria-pressed="false">Books</button><button class="ps-pick" type="button" aria-pressed="false">Trade</button><button class="ps-pick" type="button" aria-pressed="false">Tax</button><button class="ps-pick" type="button" aria-pressed="false">Compliance</button><button class="ps-pick" type="button" aria-pressed="false">Routines</button><button class="ps-pick" type="button" aria-pressed="false">Projects</button><button class="ps-pick" type="button" aria-pressed="false">Content</button><button class="ps-pick" type="button" aria-pressed="false">Other</button></div><p class="ps-hint">Pick Other if you need something custom-built that isn't listed.</p>
+            <div class="ps-field" data-other hidden style="margin-top: 14px"><label class="ps-label" for="ps-other">What is it?</label><textarea class="ps-area" id="ps-other" maxlength="1900" placeholder="Describe what you need built."></textarea></div></div>
+          <div class="ps-field"><span class="ps-label" id="ps-timeline-label">Timeline</span><div class="ps-picks" role="group" aria-labelledby="ps-timeline-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">Now</button><button class="ps-pick" type="button" aria-pressed="false">2–4 weeks</button><button class="ps-pick" type="button" aria-pressed="false">1–3 months</button><button class="ps-pick" type="button" aria-pressed="true">Exploring</button></div></div>
+          <div class="ps-field"><span class="ps-label" id="ps-budget-label">Budget range</span><div class="ps-picks" role="group" aria-labelledby="ps-budget-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">&lt;$2k</button><button class="ps-pick" type="button" aria-pressed="false">$2–10k</button><button class="ps-pick" type="button" aria-pressed="false">$10–50k</button><button class="ps-pick" type="button" aria-pressed="false">$50k+</button><button class="ps-pick" type="button" aria-pressed="true">not sure</button></div></div>
+          <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-notes">What does done look like?</label><textarea class="ps-area" id="ps-notes" required maxlength="3000" placeholder="e.g. By March I can see all my rentals&#x27; income in one dashboard and my CPA gets a clean export."></textarea><p class="ps-hint">Describe the finish line — what's true when this project is done?</p></div>
+          <div class="ps-field ps-field--wide">
+            <button class="ps-more" type="button" aria-expanded="true" aria-controls="ps-more">Project details</button>
+            <div class="ps-fields ps-fields--more" id="ps-more">
+              <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-stack">What tools do you use today? (optional)</label><textarea class="ps-area" id="ps-stack" maxlength="5000" placeholder="e.g. QuickBooks, Excel, Shopify, a custom site"></textarea><p class="ps-hint">The apps your business runs on. 'None / spreadsheets' is a real answer.</p></div>
+              <div class="ps-field"><label class="ps-label" for="ps-deadline">Hard deadline</label><input class="ps-input" id="ps-deadline" type="date"><button class="ps-pick ps-pick--below" type="button" aria-pressed="false" data-no-deadline>No deadline — exploring</button></div>
+              <div class="ps-field"><label class="ps-label" for="ps-driver">What's driving it?</label><input class="ps-input" id="ps-driver" type="text" maxlength="2000"></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label">Links</span><div class="ps-links" data-links><div class="ps-link"><input class="ps-input" type="url" maxlength="500" placeholder="https:// — your site, a Google Doc, a Loom…"><button class="ps-link__remove" type="button" aria-label="Remove link" hidden>✕</button></div></div><button class="ps-add" type="button" data-add>＋ Add link</button><p class="ps-hint">Anything that shows what you're working with.</p></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-team-label">Team size</span><div class="ps-picks" role="group" aria-labelledby="ps-team-label" data-picks="toggle"><button class="ps-pick" type="button" aria-pressed="false">Just me</button><button class="ps-pick" type="button" aria-pressed="false">2–10</button><button class="ps-pick" type="button" aria-pressed="false">11–50</button><button class="ps-pick" type="button" aria-pressed="false">50+</button></div></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-found-label">How did you find me?</span><div class="ps-picks" role="group" aria-labelledby="ps-found-label" data-picks="found"><button class="ps-pick" type="button" aria-pressed="false">Reddit</button><button class="ps-pick" type="button" aria-pressed="false">Instagram</button><button class="ps-pick" type="button" aria-pressed="false">TikTok</button><button class="ps-pick" type="button" aria-pressed="false">X</button><button class="ps-pick" type="button" aria-pressed="false">YouTube</button><button class="ps-pick" type="button" aria-pressed="false">Referral</button><button class="ps-pick" type="button" aria-pressed="false">Other</button></div>
+                <div class="ps-field" data-found-detail hidden style="margin-top: 14px"><label class="ps-label" for="ps-found-detail"></label><input class="ps-input" id="ps-found-detail" type="text" maxlength="90"></div></div>
+            </div>
+          </div>
+          <div class="ps-error" role="alert" hidden></div>
+          <div class="ps-send"><button class="ps-cta" type="submit" data-send>Send proposal</button><span class="ps-note">Scoped by proposal</span></div>
+        </form>
+        <div class="ps-sent" role="status" hidden><span class="ps-step__mark" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"></path></svg></span><p>Got it — I read every one of these myself. You'll hear from me at <span data-email></span>.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // REFERENCE ONLY: this makes the file work on its own. Production keeps the pick and open-or-closed in React state,
+  // and the form is the app's own form (WorkWithMeForm), with its own state, rules and submit. Nothing here is sent.
+  const DATA = {"services": [["setup", "Full setup", "Your own hosted copy, every API wired, you own everything."], ["maintenance", "Monthly maintenance", "I keep it updated and running."], ["custom", "Custom builds", "Need a feature? I build it."], ["embed", "Integration", "One piece of this system (the booking engine, the books, the scanner) wired into the system you already run."], ["bookkeeping", "Bookkeeping", "Fell behind, or need a bookkeeper? Catch-up and monthly bookkeeping, billed monthly — the price follows your volume."], ["unsure", "Something else", "Out of scope, or not sure which fits? Tell me what you need."]], "asks": ["Your business", "Modules", "Timeline", "Budget range", "What done looks like"], "noModules": ["bookkeeping"], "done": "e.g. By March I can see all my rentals' income in one dashboard and my CPA gets a clean export.", "bookkeepingDone": "e.g. 3 bank and card accounts, about 400 transactions a month, books current through March — caught up, then kept every month.", "referred": "Who referred you? (name)", "where": "Where'd you find me?", "send": "Send proposal", "tick": "<svg width=\"11\" height=\"11\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3.5 8.5l3 3 6-7\"></path></svg>"};
+  const section = document.querySelector('.ps');
+  const $ = (s, root = section) => root.querySelector(s);
+  const $$ = (s, root = section) => [...root.querySelectorAll(s)];
+  const state = { need: 'setup', open: false };
+
+  function paint() {
+    const [, title, line] = DATA.services.find(([need]) => need === state.need);
+    for (const tile of $$('.ps-tile')) tile.setAttribute('aria-pressed', String(tile.dataset.need === state.need));
+    for (const img of $$('.ps-stage__art img')) img.hidden = img.dataset.need !== state.need;
+    $('.ps-stage__title').textContent = title;
+    $('.ps-stage__line').textContent = line;
+    $('[data-picked] span').textContent = title;
+    const asksModules = !DATA.noModules.includes(state.need);
+    $('[data-asks]').innerHTML = DATA.asks.filter((a) => asksModules || a !== 'Modules').map((a) => `<li class="ps-chip">${a}</li>`).join('');
+    // the form follows the pick
+    $('[data-offer]').hidden = asksModules;
+    $('[data-modules]').hidden = !asksModules;
+    $('#ps-notes').placeholder = asksModules ? DATA.done : DATA.bookkeepingDone;
+    $('.ps-cta-row').hidden = state.open;
+    $('#ps-form').hidden = !state.open;
+    gate();
+  }
+
+  // the form's own rule for its button: Other needs its description, the deadline needs a date or "exploring",
+  // a referral needs its name or its place
+  function gate() {
+    const other = !$('[data-modules]').hidden && $('[data-picks="modules"] .ps-pick:last-child').getAttribute('aria-pressed') === 'true';
+    $('[data-other]').hidden = !other;
+    $('#ps-other').required = other;
+    const noDeadline = $('[data-no-deadline]').getAttribute('aria-pressed') === 'true';
+    const found = $$('[data-picks="found"] .ps-pick').find((b) => b.getAttribute('aria-pressed') === 'true')?.textContent ?? null;
+    const asksWho = found === 'Referral' || found === 'Other';
+    $('[data-found-detail]').hidden = !asksWho;
+    $('#ps-found-detail').required = asksWho;
+    if (asksWho) $('[for="ps-found-detail"]').textContent = found === 'Referral' ? DATA.referred : DATA.where;
+    $('[data-send]').disabled = (other && $('#ps-other').value.trim() === '') || (!noDeadline && $('#ps-deadline').value === '') || (asksWho && $('#ps-found-detail').value.trim() === '');
+  }
+
+  for (const tile of $$('.ps-tile')) tile.addEventListener('click', () => { state.need = tile.dataset.need; paint(); });
+  $('.ps-cta-row .ps-cta').addEventListener('click', () => { state.open = true; paint(); $('#ps-name').focus(); });
+  $('.ps-close').addEventListener('click', () => { state.open = false; paint(); $('.ps-cta-row .ps-cta').focus(); });
+
+  // picks: one of a set (Timeline, Budget range), one or none (Team size, How did you find me?), any (modules)
+  for (const group of $$('.ps-form .ps-picks')) {
+    for (const pick of $$('.ps-pick', group)) {
+      pick.addEventListener('click', () => {
+        const on = pick.getAttribute('aria-pressed') === 'true';
+        if (group.dataset.picks === 'one') { for (const p of $$('.ps-pick', group)) p.setAttribute('aria-pressed', String(p === pick)); }
+        else if (group.dataset.picks === 'modules') pick.setAttribute('aria-pressed', String(!on));
+        else { for (const p of $$('.ps-pick', group)) p.setAttribute('aria-pressed', String(p === pick && !on)); if (group.dataset.picks === 'found') $('#ps-found-detail').value = ''; }
+        gate();
+      });
+    }
+  }
+  $('[data-no-deadline]').addEventListener('click', (event) => {
+    const on = event.currentTarget.getAttribute('aria-pressed') !== 'true';
+    event.currentTarget.setAttribute('aria-pressed', String(on));
+    if (on) $('#ps-deadline').value = '';
+    $('#ps-deadline').disabled = on;
+    gate();
+  });
+  for (const input of ['#ps-other', '#ps-deadline', '#ps-found-detail']) $(input).addEventListener('input', gate);
+  $('.ps-more').addEventListener('click', (event) => {
+    const open = event.currentTarget.getAttribute('aria-expanded') !== 'true';
+    event.currentTarget.setAttribute('aria-expanded', String(open));
+    $('#ps-more').hidden = !open;
+  });
+  // links: up to five rows; a row can be removed while there is more than one
+  function relink() {
+    const rows = $$('.ps-link');
+    for (const row of rows) $('.ps-link__remove', row).hidden = rows.length < 2;
+    $('[data-add]').hidden = rows.length >= 5;
+  }
+  $('[data-add]').addEventListener('click', () => {
+    const row = $('.ps-link').cloneNode(true);
+    $('input', row).value = '';
+    $('[data-links]').append(row);
+    relink();
+  });
+  $('[data-links]').addEventListener('click', (event) => {
+    const remove = event.target.closest('.ps-link__remove');
+    if (remove) { remove.closest('.ps-link').remove(); relink(); }
+  });
+  $('[data-form]').addEventListener('submit', (event) => {
+    event.preventDefault();
+    $('[data-email]').textContent = $('#ps-email').value;
+    $('[data-form]').hidden = true;
+    $('.ps-sent').hidden = false;
+  });
+  paint();
+</script>
+
+</body>
+</html>

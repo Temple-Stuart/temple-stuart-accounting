@@ -13,6 +13,7 @@
  *                         the section carries id="modules"
  *                         (HOME-BRIEF-04, 2026-11-10: on this page the act is THE HOW-TO now — HowToSection over src/lib/howTo.ts, under the same label, SOFTWARE PLANS, carrying id="modules"; the plan cards and the table stand on /pricing alone)
  *   DONE-FOR-YOU        — the professional-services panel, six doors from src/lib/proposalNeeds.ts — SERVICES-01, 2026-11-08: the close retired, bookkeeping a door (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)
+ *                         (HOME-SERVICES-01, 2026-11-12: the act is the Professional Services section now — ServicesSection over src/lib/proposalNeeds.ts: the pillar's name and one line, six tiles, the picked door's picture and words, how a proposal goes, the gold button; it carries id="services")
  *   (COCKPIT-PERF-01, 2026-10-27: the PERSONAS act — "one system · six lives" —
  *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
  *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
@@ -132,7 +133,8 @@
  * showDemo declaration.
  */
 
-import Link from 'next/link';
+// HOME-SERVICES-01 (2026-11-12): next/link's Link left this page with its two readers here, the six doors and the purple
+// proposal button — ./ServicesSection draws the section now, and its gold button is a Link there.
 import { useEffect, useState } from 'react';
 // MODULES-RETIRED: the lucide category icons left with DECK_CATEGORIES, and
 // GLIMPSES left with the stage — the merged modules section was their only
@@ -207,9 +209,11 @@ import WasHereSection from './WasHereSection';
 // CloseOfferCard.tsx, both over src/lib/offer/close.ts. SERVICES-01 (Alex, 2026-11-08) retired it — card, leaf, words
 // and law are gone; bookkeeping is a door now. ONE-FORM-01 (2026-11-06): the doors open the ONE proposal form with
 // their choice picked — the six doors (key, title, line) and the form's path from src/lib/proposalNeeds.ts, never typed here.
-import {
-  PROPOSAL_FORM_PATH, SERVICES,
-} from '@/lib/proposalNeeds'; import { PRIMARY_CTA } from '@/lib/ds'; // HOME-FINISH-01 (2026-11-08): the proposal button's class, the public page's one filled button
+// HOME-SERVICES-01 (2026-11-12): the six doors and the form's path (src/lib/proposalNeeds.ts), and PRIMARY_CTA (src/lib/ds.ts) —
+// the purple proposal button's class, which HOME-FINISH-01 (2026-11-08) imported here as "the public page's one filled button" —
+// left this page with the section that read them: ./ServicesSection draws it as design-refs/home-services-01 does, and the
+// gold button is its own. PRIMARY_CTA keeps its other users (the brief's ruling f).
+import ServicesSection from './ServicesSection';
 import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 // PIPELINE-PAGE-01 (2026-11-09): the deck's own imports — PROBLEM_SHEET, ANSWER_ROWS, ANSWER_INPUTS, PROVIDER_MENU,
 // ROUTING_RULES, isRetired, liveMenuCell, ALL_BEATS_LINE, ownTableLine, KIND_VIEWS_HONEST_LINE and react's Fragment —
@@ -220,9 +224,9 @@ import { DECK_STEP_IDS } from './pipelineWords';
 // HOME-FINISH-02 (2026-11-10): the door left this page (the footer's THE RECORD keeps it), so its words are imported no more; the path stays — the old-links effect reads it.
 import { PIPELINE_PATH } from './pipelineWords';
 import { DEMO_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the live demo's anchor, from its one home — the footer's "Book travel" lands on it (HOME-FINISH-02, 2026-11-10: the footer's "Explore the World" now, and the anchor sits on that pillar's heading)
-import { SERVICES_ANCHOR } from '@/lib/homeAnchors'; // HOME-FINISH-02 (2026-11-10): the professional-services section's id, from its one home — Alex: "a stable anchor so the footer can link directly to Build Your Income"
+// HOME-SERVICES-01 (2026-11-12): SERVICES_ANCHOR — HOME-FINISH-02's (2026-11-10) "stable anchor so the footer can link directly to Build Your Income" — is imported by ./ServicesSection, which carries it; it stood here until then
 import { WHAT_WE_DO_HEADING } from '@/lib/homeActWords';
-import { BUILD_PILLAR } from '@/lib/homeActWords'; // HOME-FINISH-02 (2026-11-10): the second pillar's heading and paragraph — Alex's words, from the leaf, never typed here
+// HOME-SERVICES-01 (2026-11-12): BUILD_PILLAR — the second pillar's heading and its one line — is imported by ./ServicesSection, which draws them; it stood here until then (HOME-FINISH-02, 2026-11-10)
 import { EXPLORE_PILLAR } from '@/lib/homeActWords'; // HOME-FINISH-02 (2026-11-10): the third pillar's heading and paragraph — Alex's words, from the leaf, never typed here. Four imports left this spot with their last readers: EXPERIENCE_LINE (@/lib/brandLines), SAVE_TRIPS_LINE (@/lib/homeActWords), PROMISE (./ExperiencesSection) and COMMISSION_LINE (@/lib/disclosureWords — the box renders it now)
 import HowToSection from './HowToSection';
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
@@ -608,51 +612,32 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             closed plans|done-for-you until now. (HOME-05a, 2026-11-03, seated
             the close act under this section; HOME-PANELS-01, 2026-11-07, folded
             the close into this card as its fifth door; both seams are history.) ── */}
-      <section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          {/* HOME-FINISH-02 (Alex, 2026-11-10 20:56): THE SECOND PILLAR — "Build Your Income." His rule for all three: "Purple title →
-              Approved description → Existing functionality … No additional promotional headings or explanatory paragraphs between
-              these elements." So the section opens at the pillar's h2 (the page's purple heading classes) and his one paragraph
-              follows — both read from src/lib/homeActWords.ts BUILD_PILLAR, typed nowhere here — and the card follows directly,
-              keeping its own mt-4. The section carries id={SERVICES_ANCHOR} (src/lib/homeAnchors.ts): his "stable anchor so the
-              footer can link directly to Build Your Income".
-              UNTIL THEN, here: the label — a mono, upper-case line reading PROFESSIONAL SERVICES ("DONE-FOR-YOU" until HOME-BRIEF-03,
-              2026-11-10) — and under it the h2 "Need help? Send a proposal." (mt-3, the travel act's h2 treatment, class for class).
-              The notes above, the act list and the data-done-for-you hooks keep the name DONE-FOR-YOU for this same section. */}
-          <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{BUILD_PILLAR.heading}</h2>
-          {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="mt-3 max-w-3xl text-base text-text-secondary">{words}</p>)}
-          <div className="mt-4 rounded-lg border border-border bg-white p-5">
-            <div className="mt-4">
-              {/* HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the small chip that repeated the label's words stood here, over the
-                  doors; it went — the label above the headline says them once. */}
-              {/* ONE-FORM-01 (Alex, 2026-11-06): each card is a door to the ONE proposal form with its choice
-                  picked (?need=<key>, the form's own query key). SERVICES-01 (Alex, 2026-11-08): SIX EQUAL
-                  DOORS — every door's key, title and line from SERVICES in src/lib/proposalNeeds.ts, the one
-                  module the form and the CRM read too, and the form's path beside them; nothing typed here.
-                  Two rows of three from lg, three rows of two from sm, one column below. The close's card
-                  retired with the close, and the typed line under the chip went: it restated the first
-                  door's line, with "custom to your business" added. HOME-FINISH-01 (Alex, 2026-11-08): auto-rows-fr — every row as tall as the tallest, so the six doors are one height at every width. */}
-              <div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {SERVICES.map(({ need, title, line }) => (
-                  <Link key={need} href={`${PROPOSAL_FORM_PATH}?need=${need}`} className="rounded-lg border border-border bg-white p-4 text-text-primary hover:bg-brand-purple-wash" data-done-for-you={need}>
-                    <div className="text-sm font-medium">{title}</div>
-                    <p className="mt-1 text-xs text-text-muted">{line}</p>
-                  </Link>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-4">
-                <Link
-                  href={PROPOSAL_FORM_PATH}
-                  className={PRIMARY_CTA}
-                >
-                  Send a project proposal →
-                </Link>
-                <span className="ml-auto font-mono text-xs italic text-text-faint">Scoped by proposal</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* HOME-FINISH-02 (Alex, 2026-11-10 20:56): THE SECOND PILLAR — "Build Your Income." His rule for all three: "Purple title →
+          Approved description → Existing functionality … No additional promotional headings or explanatory paragraphs between
+          these elements." So the section opens at the pillar's h2 (the page's purple heading classes) and his one paragraph
+          follows — both read from src/lib/homeActWords.ts BUILD_PILLAR, typed nowhere here — and the card follows directly,
+          keeping its own mt-4. The section carries id={SERVICES_ANCHOR} (src/lib/homeAnchors.ts): his "stable anchor so the
+          footer can link directly to Build Your Income".
+          UNTIL THEN, here: the label — a mono, upper-case line reading PROFESSIONAL SERVICES ("DONE-FOR-YOU" until HOME-BRIEF-03,
+          2026-11-10) — and under it the h2 "Need help? Send a proposal." (mt-3, the travel act's h2 treatment, class for class).
+          The notes above, the act list and the data-done-for-you hooks keep the name DONE-FOR-YOU for this same section. */}
+      {/* HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the small chip that repeated the label's words stood here, over the
+          doors; it went — the label above the headline says them once. */}
+      {/* ONE-FORM-01 (Alex, 2026-11-06): each card is a door to the ONE proposal form with its choice
+          picked (?need=<key>, the form's own query key). SERVICES-01 (Alex, 2026-11-08): SIX EQUAL
+          DOORS — every door's key, title and line from SERVICES in src/lib/proposalNeeds.ts, the one
+          module the form and the CRM read too, and the form's path beside them; nothing typed here.
+          Two rows of three from lg, three rows of two from sm, one column below. The close's card
+          retired with the close, and the typed line under the chip went: it restated the first
+          door's line, with "custom to your business" added. HOME-FINISH-01 (Alex, 2026-11-08): auto-rows-fr — every row as tall as the tallest, so the six doors are one height at every width. */}
+      {/* HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila; the board approved on the design canvas at 15:41): the
+            Professional Services section, as the board draws it — the pillar's name and one line where his paragraph stood,
+            six tiles (one always picked, in React state only), the picked door's picture, title and line, how a proposal goes
+            in three steps, and the gold button to the form with the pick (ServicesSection.tsx). His paragraph, the six equal
+            cards and the purple button left the page. The notes above are history: none of it is drawn here now. The section
+            keeps id={SERVICES_ANCHOR}, its seat (under the Financial Software section, above the Travel Marketplace) and its
+            seam (its own bottom line, no top one). */}
+      <ServicesSection />
 
       {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
             where the teaser sat (directly under the CTA row; pre-BOOK-1

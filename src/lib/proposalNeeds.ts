@@ -37,6 +37,38 @@
  * over for an older migration. Its words must be exactly SERVICE_NEEDS and the legacy keys, each once. It runs at
  * module scope over the module alone (a browser has no migrations) and again at build over every migration
  * (scripts/assert-tool-registry.ts, the close offer law's old seat). No clock anywhere.
+ *
+ * HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila: "do we have like a form under the table that adjusts questions
+ * being asked by what you click? … remove that text about and replace with like an image that SHOWS what and why and how,
+ * rather than telling with words"; the board approved on the design canvas, 15:41 Manila: "yea, I approve , this looks good,
+ * lets build this for sure") — THE PROFESSIONAL SERVICES SECTION READS ITS WORDS HERE TOO (src/components/landing/
+ * ServicesSection.tsx, as design-refs/home-services-01/Section-Reference.html draws it):
+ *   SERVICE_KINDS        ruling c, "THE DOORS ARE SERVICES'. Titles, lines and order unchanged. Each door gains a kind:
+ *                        Project (setup, custom, embed), Monthly (maintenance, bookkeeping), none (unsure). One home per door's
+ *                        words is the aim; the audit proposes where." — where, as the audit proposed it: HERE. The two words
+ *                        are typed once, in SERVICE_KINDS, and each door carries its kind beside its title and line
+ *                        (ServiceDoor), so a door's words keep one home. The form, the route and the CRM read no kind;
+ *   NEED_QUESTION        "What do you need?" — the panel's question over its tiles, and the form's over its chips (the form
+ *                        typed it until now; ruling e: "The form changes only where it must read a word or a rule it now
+ *                        shares with the landing ("What do you need?" is one).");
+ *   PROPOSAL_STEPS       ruling e, whole: "THE STEPS' WORDS ARE NEW and live beside FORM_INTRO. Step 2 follows the form's own rule
+ *                        (no modules for bookkeeping): one rule read by both, or a test that renders the form for each door and
+ *                        holds the two equal. The form changes only where it must read a word or a rule it now shares with the
+ *                        landing ("What do you need?" is one)." — how a proposal goes, in three steps.
+ *                        The first two titles are FORM_INTRO's own two halves; the third is the form's thank-you, which the
+ *                        form reads from here now; step 3's note is new;
+ *   FORM_ASKS, formAsks  step 2: the form's questions by short name, in the form's order — "Timeline" and "Budget range" are
+ *                        its labels as they stand (ASK_TIMELINE, ASK_BUDGET: the form reads them from here now) — less Modules
+ *                        where the form asks none (NO_MODULES_NEEDS). Ruling e: "Step 2 follows the form's own rule (no
+ *                        modules for bookkeeping): one rule read by both, or a test that renders the form for each door and
+ *                        holds the two equal." — the test (src/lib/__tests__/homeServices01.test.ts): the form keeps its own
+ *                        rule, isBookkeeping, as SERVICES-01 pinned it;
+ *   PROPOSAL_CTA, SCOPED_BY_PROPOSAL, proposalFormHref
+ *                        ruling f, in part: ""Send a project proposal →" and "Scoped by proposal" move from Landing.tsx into
+ *                        a leaf." The form reads the second from here too. The gold button links to the form's page with the
+ *                        pick — the brief's `${PROPOSAL_FORM_PATH}?need=<picked>`, "the link each card carried until now".
+ * The pictures (ruling d) are files, public/brand/services/<need>.svg; the build holds them to the doors, by name, on the
+ * services law's one line (scripts/assert-tool-registry.ts).
  */
 
 /** One door of the DONE-FOR-YOU panel. */
@@ -49,15 +81,25 @@ export interface Service {
   readonly line: string;
 }
 
-/** The six doors, in the panel's order (Alex, 2026-11-08: Alex is the voice; he vetoes words in chat). */
+/** HOME-SERVICES-01 (ruling c): the kind of work a door is — its two words, typed once. Something else is neither. */
+export const SERVICE_KINDS = { project: 'Project', monthly: 'Monthly' } as const;
+export type ServiceKind = (typeof SERVICE_KINDS)[keyof typeof SERVICE_KINDS];
+
+/** HOME-SERVICES-01: a door as the section draws it — its key and words (Service), and the kind of work it is, or none. */
+export interface ServiceDoor extends Service {
+  /** The tile's kind, under its title: Project, Monthly — or null, which the tile draws as nothing. */
+  readonly kind: ServiceKind | null;
+}
+
+/** The six doors, in the panel's order (Alex, 2026-11-08: Alex is the voice; he vetoes words in chat). HOME-SERVICES-01 (2026-11-12): each gains its kind. */
 export const SERVICES = [
-  { need: 'setup', title: 'Full setup', line: 'Your own hosted copy, every API wired, you own everything.' },
-  { need: 'maintenance', title: 'Monthly maintenance', line: 'I keep it updated and running.' },
-  { need: 'custom', title: 'Custom builds', line: 'Need a feature? I build it.' },
-  { need: 'embed', title: 'Integration', line: 'One piece of this system (the booking engine, the books, the scanner) wired into the system you already run.' },
-  { need: 'bookkeeping', title: 'Bookkeeping', line: 'Fell behind, or need a bookkeeper? Catch-up and monthly bookkeeping, billed monthly — the price follows your volume.' },
-  { need: 'unsure', title: 'Something else', line: 'Out of scope, or not sure which fits? Tell me what you need.' },
-] as const satisfies ReadonlyArray<Service>;
+  { need: 'setup', title: 'Full setup', line: 'Your own hosted copy, every API wired, you own everything.', kind: SERVICE_KINDS.project },
+  { need: 'maintenance', title: 'Monthly maintenance', line: 'I keep it updated and running.', kind: SERVICE_KINDS.monthly },
+  { need: 'custom', title: 'Custom builds', line: 'Need a feature? I build it.', kind: SERVICE_KINDS.project },
+  { need: 'embed', title: 'Integration', line: 'One piece of this system (the booking engine, the books, the scanner) wired into the system you already run.', kind: SERVICE_KINDS.project },
+  { need: 'bookkeeping', title: 'Bookkeeping', line: 'Fell behind, or need a bookkeeper? Catch-up and monthly bookkeeping, billed monthly — the price follows your volume.', kind: SERVICE_KINDS.monthly },
+  { need: 'unsure', title: 'Something else', line: 'Out of scope, or not sure which fits? Tell me what you need.', kind: null },
+] as const satisfies ReadonlyArray<ServiceDoor>;
 
 export type ServiceNeed = (typeof SERVICES)[number]['need'];
 type NeedsOf<T extends ReadonlyArray<Service>> = { readonly [K in keyof T]: T[K] extends { readonly need: infer N } ? N : never };
@@ -80,6 +122,68 @@ export const PROPOSAL_FORM_PATH = '/work-with-me';
 
 /** The form's lead (SERVICES-01): the typed setup sentence (it restated the first door's line) and the close's sentence went. */
 export const FORM_INTRO = 'Pick what fits below and tell me about your business.';
+
+/** HOME-SERVICES-01 (ruling e): the need question — the panel's, over its six tiles, and the form's, over its six chips. */
+export const NEED_QUESTION = 'What do you need?';
+
+/**
+ * HOME-SERVICES-01 (ruling e): HOW A PROPOSAL GOES — the panel's three steps, beside the lead they come from. `pick` and `tell` are
+ * FORM_INTRO's two halves, as a title writes them; `read` is the form's thank-you ("Got it — I read every one of these myself."),
+ * which the form reads from here; `note` is new.
+ */
+export const PROPOSAL_STEPS = {
+  pick: 'Pick what fits',
+  tell: 'Tell me about your business',
+  read: 'I read every one of these myself',
+  note: 'You’ll hear from me by email.',
+} as const;
+
+/** HOME-SERVICES-01: two of the form's labels, as they stand — step 2 names them, and the form reads them from here. */
+export const ASK_TIMELINE = 'Timeline';
+export const ASK_BUDGET = 'Budget range';
+
+/** HOME-SERVICES-01 (ruling e): step 2 — what the form will ask, by short name, in the form's order. */
+export const FORM_ASKS = [
+  { ask: 'business', name: 'Your business' },
+  { ask: 'modules', name: 'Modules' },
+  { ask: 'timeline', name: ASK_TIMELINE },
+  { ask: 'budget', name: ASK_BUDGET },
+  { ask: 'done', name: 'What done looks like' },
+] as const;
+
+/** The doors whose form asks no modules question — the form's own rule, as SERVICES-01 wrote it ("no modules question for bookkeeping"). */
+export const NO_MODULES_NEEDS: readonly ServiceNeed[] = ['bookkeeping'];
+
+/** Step 2 for one door: the form's questions, less Modules where the form asks none. */
+export function formAsks(need: ServiceNeed): readonly string[] {
+  return FORM_ASKS.filter((a) => a.ask !== 'modules' || !NO_MODULES_NEEDS.includes(need)).map((a) => a.name);
+}
+
+/** HOME-SERVICES-01 (ruling f): the gold button's words and the note beside it, moved here from Landing.tsx — the form reads the note too. */
+export const PROPOSAL_CTA = 'Send a project proposal →';
+export const SCOPED_BY_PROPOSAL = 'Scoped by proposal';
+
+/** The form's page with a door picked — the link each card carried, and the gold button's now (the page picks the door it names). */
+export function proposalFormHref(need: ServiceNeed): string {
+  return `${PROPOSAL_FORM_PATH}?need=${need}`;
+}
+
+/**
+ * HOME-SERVICES-01 (ruling d): THE PICTURES ARE FILES, one per door, named by its key — public/brand/services/<need>.svg, served
+ * at /brand/services/<need>.svg. Drawn as they were handed over (the README: "Never redraw, trace or edit them"). The build holds
+ * the folder to the doors by name: a door with no picture, or a picture with no door, fails it (the services law's one line).
+ */
+export const SERVICE_PICTURES_PATH = '/brand/services';
+export function servicePictureSrc(need: ServiceNeed): string {
+  return `${SERVICE_PICTURES_PATH}/${need}.svg`;
+}
+
+/** The door a key names — the panel's pick. A key no door holds is refused by name, never mapped to another door. */
+export function serviceDoor(need: ServiceNeed): (typeof SERVICES)[number] {
+  const door = SERVICES.find((s) => s.need === need);
+  if (door === undefined) throw new ServicesLawError(`services: no door holds the key "${need}" — the doors are ${SERVICE_NEEDS.join(', ')}`);
+  return door;
+}
 
 /** SERVICES-01 (2026-11-08): the form's bookkeeping block and the done question's example; notTax and remedy verbatim from the retired closeWords. */
 export const BOOKKEEPING_WORDS = {

@@ -5,9 +5,12 @@
  * 44px tall, the label centred, so every user wears it bare — the plans' doors, "Send a project proposal →", "Read the
  * post →", "Look up" and the strip's "Jump to them ↓". Words, hrefs and data hooks unchanged. CONTROL.primaryButton and
  * ghostButton — the app's — are untouched.
+ * HOME-SERVICES-01 (Alex's brief, 2026-11-12): FOUR USERS NOW — "Send a project proposal →" is the Professional Services section's
+ * gold link (src/components/landing/ServicesSection.tsx, .ts-ps-cta), by the brief's ruling f: "THE GOLD BUTTON replaces the purple
+ * one here; PRIMARY_CTA keeps its other users." Landing.tsx wears PRIMARY_CTA nowhere, and its words live in src/lib/proposalNeeds.ts.
  *
  *   T1 PRIMARY_CTA exported with the exact string, beside CONTROL, dated; the app's two buttons unchanged;
- *   T2 the five users wear it with no display or height class of their own — only mt-3 (the jump link), shrink-0 and
+ *   T2 the four users (five until HOME-SERVICES-01, 2026-11-12) wear it with no display or height class of their own — only mt-3 (the jump link), shrink-0 and
  *      disabled:opacity-60 (the lookup) beside it; their words, hrefs and hooks unchanged;
  *   T3 no ghost border (`border-brand-purple/40`) left in Landing.tsx, WasHereSection.tsx, PlansSection.tsx,
  *      GuestBookingLookup.tsx or travelStripModes.tsx;
@@ -45,7 +48,7 @@ test('T1 PRIMARY_CTA is exported with the exact string — the shape in the clas
   assert.equal(CONTROL.ghostButton, 'rounded border border-brand-purple/40 px-4 py-2 text-sm font-medium text-brand-purple transition-colors hover:bg-brand-purple-wash', 'the app\'s ghost, unchanged');
 });
 
-test('T2 the five users wear PRIMARY_CTA bare — no display or height class of their own; only mt-3, shrink-0 and disabled:opacity-60 beside it; words, hrefs and hooks unchanged', () => {
+test('T2 the four users wear PRIMARY_CTA bare (five until HOME-SERVICES-01, 2026-11-12: the proposal button is gold now) — no display or height class of their own; only mt-3, shrink-0 and disabled:opacity-60 beside it; words, hrefs and hooks unchanged', () => {
   const plans = code(PLANS);
   assert.match(plans, /import \{ DATA, PRIMARY_CTA \} from '@\/lib\/ds';/);
   assert.match(plans, /\nconst CTA = PRIMARY_CTA;/);
@@ -53,8 +56,15 @@ test('T2 the five users wear PRIMARY_CTA bare — no display or height class of 
   assert.match(plans, /<Link href=\{door\.href\} className=\{CTA\} data-plan-cta=\{plan\.id\}>\{label\}<\/Link>/, 'the link door');
   assert.match(plans, /<button type="button" onClick=\{\(\) => door\.onClick\(plan\.id\)\} className=\{CTA\} data-plan-cta=\{plan\.id\}>/, 'the button door');
   const landing = code(LANDING);
-  assert.match(landing, /\} from '@\/lib\/proposalNeeds'; import \{ PRIMARY_CTA \} from '@\/lib\/ds';/, 'the import rides an existing line — every line above :1807 stays');
-  assert.match(landing, /<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*className=\{PRIMARY_CTA\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>/);
+  // HOME-SERVICES-01 (Alex's brief, 2026-11-12; ruling f: "THE GOLD BUTTON replaces the purple one here; PRIMARY_CTA keeps its other
+  // users. "Send a project proposal →" and "Scoped by proposal" move from Landing.tsx into a leaf."): the proposal button is the
+  // Professional Services section's gold link (ServicesSection.tsx), so Landing.tsx neither imports nor wears PRIMARY_CTA, and types
+  // neither word. Until then: assert.match(landing, /\} from '@\/lib\/proposalNeeds'; import \{ PRIMARY_CTA \} from '@\/lib\/ds';/,
+  // 'the import rides an existing line — every line above :1807 stays'); assert.match(landing, /<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*
+  // className=\{PRIMARY_CTA\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>/). The gold link's own pins are homeServices01.test.ts's.
+  assert.doesNotMatch(landing, /\bPRIMARY_CTA\b/, 'Landing.tsx wears PRIMARY_CTA nowhere — the proposal button is gold, in ServicesSection.tsx');
+  assert.ok(!landing.includes('Send a project proposal →') && !landing.includes('Scoped by proposal'), 'neither word is typed in Landing.tsx');
+  assert.doesNotMatch(code('src/components/landing/ServicesSection.tsx'), /\bPRIMARY_CTA\b/, 'the gold link wears the section\'s own class, not PRIMARY_CTA');
   // PIPELINE-PAGE-01 (2026-11-09): the s08 line moved with the deck to PipelineDeck.tsx — found by content (the one line whose code starts with s08:), never by number.
   assert.equal(code(DECK).split('\n').filter((l) => /^\s+s08: /.test(l)).length, 1, 'exactly one s08 line, in the deck\'s file');
   const trip = code(TRIP);
