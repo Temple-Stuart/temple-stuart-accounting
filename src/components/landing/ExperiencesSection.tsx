@@ -10,7 +10,9 @@
  * search bar"; the board approved on the design canvas at 20:26: "ok I approve the travel market place") — THE SAME PANEL, AS DRAWN. The
  * same rows, words, ?into= and Stay near it →, in the look of design-refs/home-travel-01/Section-Reference.html: every class below is the
  * reference's behind the house prefix (EXP, ruled in src/app/globals.css's HOME-TRAVEL-01 block). The dropdown sits in its box with the
- * reference's chevron; COMING UP / WHEN TO GO and the rows stand in one list block (data-list); a row's dates stand beside it from 768px.
+ * reference's chevron, in the reference's own field class (.ts-tm-select__field) — not the lookup's FIELD (.ts-tm-input), so EVENTS-05's
+ * note below ("The dropdown wears the booking lookup's field classes") is history; events05 T8 holds the two rules to one look, the
+ * dropdown's padding leaving room for the chevron. COMING UP / WHEN TO GO and the rows stand in one list block (data-list); a row's dates stand beside it from 768px.
  * The panel draws no hairline of its own: the box draws one rule between its tabs and every panel (TravelBox.tsx), so the section carries
  * no class. ADD TO TRIP: every row carries one more action, before Stay near it → — "Add to trip", which flips to "In your trip" once the
  * event is in the guest's trip and takes it out again when pressed (ADD_TO_TRIP, IN_YOUR_TRIP, src/lib/experienceWords.ts). Its words say
