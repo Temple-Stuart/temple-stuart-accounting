@@ -18,10 +18,12 @@
  *   - SEC-TASKS-01: requireRoutineOwner(userId) gates FIRST — the Routine builds the
  *     owner's repository, so anyone else → RoutineOwnerOnlyError, before the cap is
  *     touched or the env is read (src/lib/operations/ownerOnly.ts).
+ *   - The task is loaded ownership-scoped ({ id, project_id, user_id }); not found → throw.
+ *   - A malformed task (no title, no description/notes, blank project_id) throws before
+ *     the cap, so it never takes a daily slot and never reaches the Routine.
  *   - requireExecBudget(userId) gates next — over the daily exec cap throws
  *     ExecBudgetError and NO fire happens (a SEPARATE Anthropic meter from the pipe
  *     and the audit Routine).
- *   - The task is loaded ownership-scoped ({ id, project_id, user_id }); not found → throw.
  *   - The token is read from env (EXEC_ROUTINE_TOKEN), never hardcoded, never logged.
  *   - FAIL LOUD — missing env, non-2xx, or an unparseable response all throw. No
  *     silent fallback, no fake session, no fabricated PR.
@@ -55,17 +57,7 @@ export async function fireExecutionRoutine(input: FireExecutionRoutineInput): Pr
   //     the cap is touched or the env is read: a refusal spends nothing.
   requireRoutineOwner(userId);
 
-  // 1 · COST GATE — over the daily exec cap → ExecBudgetError, no fire.
-  await requireExecBudget(userId);
-
-  // 2 · Config — fail loud if the Routine endpoint/token aren't set (server-only env).
-  const fireUrl = process.env.EXEC_ROUTINE_FIRE_URL;
-  const token = process.env.EXEC_ROUTINE_TOKEN;
-  if (!fireUrl || !token) {
-    throw new Error('EXEC_ROUTINE_FIRE_URL / EXEC_ROUTINE_TOKEN not set — cannot fire the execution Routine');
-  }
-
-  // 3 · Load the task ownership-scoped (defensive — never another user's task).
+  // 1 · Load the task ownership-scoped (defensive — never another user's task).
   const task = await prisma.operations_project_tasks.findFirst({
     where: { id: taskId, project_id: projectId, user_id: userId },
   });
@@ -73,7 +65,39 @@ export async function fireExecutionRoutine(input: FireExecutionRoutineInput): Pr
     throw new Error(`task ${taskId} not found for project ${projectId} / user ${userId} — cannot fire execution Routine`);
   }
 
-  // 4 · Build the exec payload from the task's what / how / why-and-test. A
+  // 2 · PAYLOAD-INTEGRITY GUARD — refuse to fire a malformed/empty payload.
+  //       A blank task (no title, or no actionable instruction in description/notes)
+  //       produces a template-looking fire the exec-ingest callback can never match,
+  //       burning a Routine run. This runs BEFORE the budget gate so a malformed task
+  //       never consumes a daily exec slot. Fail loud rather than POST garbage (per the
+  //       file's no-silent-fallback contract). The error carries the task id but
+  //       NEVER the token or any header.
+  const hasTitle = typeof task.title === 'string' && task.title.trim().length > 0;
+  if (!hasTitle) {
+    throw new Error(`cannot fire execution Routine: task ${taskId} has no title — refusing to send a malformed payload`);
+  }
+  const hasInstruction =
+    (typeof task.description === 'string' && task.description.trim().length > 0) ||
+    (typeof task.notes === 'string' && task.notes.trim().length > 0);
+  if (!hasInstruction) {
+    throw new Error(`cannot fire execution Routine: task ${taskId} has no description/notes (no actionable instruction) — refusing to send a malformed payload`);
+  }
+  if (!projectId.trim()) {
+    throw new Error(`cannot fire execution Routine: task ${taskId} has a blank project_id — the exec-ingest callback could never be matched`);
+  }
+
+  // 3 · COST GATE — over the daily exec cap → ExecBudgetError, no fire. Runs after the
+  //     integrity guard so a malformed task is rejected without reserving a paid slot.
+  await requireExecBudget(userId);
+
+  // 4 · Config — fail loud if the Routine endpoint/token aren't set (server-only env).
+  const fireUrl = process.env.EXEC_ROUTINE_FIRE_URL;
+  const token = process.env.EXEC_ROUTINE_TOKEN;
+  if (!fireUrl || !token) {
+    throw new Error('EXEC_ROUTINE_FIRE_URL / EXEC_ROUTINE_TOKEN not set — cannot fire the execution Routine');
+  }
+
+  // 5 · Build the exec payload from the task's what / how / why-and-test. A
   //     correlation trailer carries the task + run id so the exec-ingest callback
   //     can match the returned PR to this fire.
   const correlationId = randomUUID();
@@ -84,7 +108,7 @@ export async function fireExecutionRoutine(input: FireExecutionRoutineInput): Pr
     `---\nWhen reporting the result back, include this exact correlation block so it can be matched:\n` +
     `correlation_id: ${correlationId}\nproject_id: ${projectId}`;
 
-  // 5 · POST to the Routines /fire endpoint (the verified shape).
+  // 6 · POST to the Routines /fire endpoint (the verified shape).
   const res = await fetch(fireUrl, {
     method: 'POST',
     headers: {
@@ -96,13 +120,13 @@ export async function fireExecutionRoutine(input: FireExecutionRoutineInput): Pr
     body: JSON.stringify({ text }),
   });
 
-  // 6 · FAIL LOUD on non-2xx — surface status + body, NEVER the token/headers.
+  // 7 · FAIL LOUD on non-2xx — surface status + body, NEVER the token/headers.
   if (!res.ok) {
     const body = await res.text().catch(() => '<unreadable body>');
     throw new Error(`execution Routine fire failed (${res.status}): ${body.slice(0, 500)}`);
   }
 
-  // 7 · Parse the session pointer — fail loud if the expected fields are absent.
+  // 8 · Parse the session pointer — fail loud if the expected fields are absent.
   const json = (await res.json().catch(() => null)) as
     | { type?: string; claude_code_session_id?: string; claude_code_session_url?: string }
     | null;
