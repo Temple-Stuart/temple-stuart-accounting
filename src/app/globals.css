@@ -242,9 +242,9 @@ body {
    HOME-PLANS-04's and HOME-SERVICES-01's were:
      · every class is the reference's with the house prefix: .story → .ts-story, .story-card → .ts-story-card, …;
      · every custom property it reads likewise: var(--fs-ink) → var(--ts-fs-ink), rgb(var(--bg)) → rgb(var(--ts-bg)).
-   src/lib/__tests__/tripCards03.test.ts reads both files and holds them equal, declaration by declaration, but for the FIVE
-   DIFFERENCES named here — the first three where the reference is a page of its own and this is the app, the last two Alex's
-   notes on the cards as built:
+   src/lib/__tests__/tripCards03.test.ts reads both files and holds them equal, declaration by declaration, but for the SIX
+   DIFFERENCES named here — the first three where the reference is a page of its own and this is the app, the fourth and fifth
+   Alex's notes on the cards as built, the sixth what the fifth asks of a narrow window:
      1. THE COLOURS are tokens: the reference's :root is :root above. It declares fifteen, only so that it renders on its own, and
         the app holds every one by the same name behind the house prefix — five the app's own (--ts-bg, --ts-border and the hero's
         violets 2, 3 and 4) and ten HOME-PLANS-04 brought (--ts-fs-*). This section adds NO token (the README: "New with this
@@ -256,16 +256,26 @@ body {
      4. THE ROW STANDS IN THE PAGE. Alex's note on the cards as built, 2026-11-12: "the page seems aligned down the whole page, but
         when we get to trip cards on web they extend out to the right, and idk it just looks lopisded and off..." The reference
         runs the row to the window's edges; here it stands in the page container, after the head, so its edges are the page's on
-        both sides. It reaches 8px into the gutter on each side so the ring and the shadow of a card at either edge are not cut —
-        less than the 20px gap, so no other card shows. A card is whole in it: two in view from 768px, three from 1024px — the
-        three plan cards' own columns and gap, above it. (The reference's card is min(352px, 100% − 32px), the next one showing
-        at the edge; its 1024px rule for the row's padding goes with it.)
+        both sides. It reaches 8px into the gutter on each side, so the ring of a card at either edge is never cut — and less
+        than the 20px gap, so no other card shows. (The soft outer tail of that card's shadow is cut there, 8px out: no reach
+        under the gap keeps it, and fading it would take a gradient.) A card is whole in it: two in view from 768px, three from
+        1024px — the three plan cards' own columns and gap, above it. (The reference's card is min(352px, 100% − 32px), the next
+        one showing at the edge; its 1024px rule for the row's padding goes with it.)
      5. ONE CARD AT A TIME ON A PHONE, WITH DOTS. Alex's note on the cards as built, 2026-11-12: "then on the phone web, the second
         card slightly shows.. it would look better with those like 3 dots under to indicate scrolling horizontal, but only show 1
         card at a time, you know what I mean?" Under 768px one card fills the row, and a line of dots under it, one per stop,
-        says which is in view (that one hero-violet-2, the rest fs-button-line); from 768px the arrows show and the dots do not.
-        The row always comes to rest on a card — scroll-snap-type: x mandatory where the reference has proximity — at every
-        width, so it stays aligned however it is scrolled.
+        says which is in view: that one a hero-violet-2 disc, the rest fs-ink-muted rings. Under 768px they are the only sign
+        that the row holds more stops, so each reads at 3 : 1 or more on the cream (WCAG 2.2, 1.4.11 non-text contrast: 4.88 a
+        ring, 8.84 the disc), and the one in view differs by shape as well as colour — drawn by its border alone, it stays a
+        disc where a forced-colours theme repaints them all. A trip with more dots than the line holds wraps them, never
+        squeezes them. From 768px the arrows show and the dots do not. The row always comes to rest on a card —
+        scroll-snap-type: x mandatory where the reference has proximity — at every width, so it stays aligned however it is
+        scrolled.
+     6. AN AMOUNT WRAPS RATHER THAN WIDEN ITS CARD. The reference's amount never wraps (white-space: nowrap); here its words may
+        (normal), so one card fills the row at any width, as the fifth asks, and the README's "Nothing is cut off" holds. At 292px
+        of CSS width and below (a 390px phone zoomed to 134% or more), "not in my log yet" on one line made its card wider than the
+        page's column, and at 284px and below the row cut it. A figure holds no space and is never broken; at any width where the
+        line fits, it is the reference's.
    It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value outside
    :root"). It draws no gradient.
    WHAT LEAVES with it — TRIPCARDS-02's trip.com look (2026-11-08): the dark card and its 320px crop, the stop chip and the dark
@@ -302,10 +312,10 @@ body {
   scroll-padding-inline: 8px;
 }
 .ts-story-row::-webkit-scrollbar { display: none; }
-/* the dots: one per stop, the one in view violet — under 768px, where the row is swiped one card at a time */
-.ts-story-dots { display: flex; justify-content: center; gap: 8px; margin-top: -12px; pointer-events: none; }
-.ts-story-dot { display: block; width: 6px; height: 6px; border-radius: 999px; background-color: var(--ts-fs-button-line); transition: background-color 0.16s; }
-.ts-story-dot[data-current="true"] { background-color: var(--ts-hero-violet-2); }
+/* the dots: one per stop, rings, the one in view a violet disc — under 768px, where the row is swiped one card at a time */
+.ts-story-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: -12px; pointer-events: none; }
+.ts-story-dot { box-sizing: border-box; display: block; width: 6px; height: 6px; border: 1px solid var(--ts-fs-ink-muted); border-radius: 999px; transition: border-color 0.16s, border-width 0.16s; }
+.ts-story-dot[data-current="true"] { border-width: 3px; border-color: var(--ts-hero-violet-2); }
 
 /* ── 3 · a card: the photo whole, the stop, the place, the dates; at its foot what it cost and the post ── */
 .ts-story-card {
@@ -336,12 +346,13 @@ body {
 .ts-story-card__dates { margin: 8px 0 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; font-weight: 500; color: var(--ts-hero-violet-3); }
 .ts-story-card__foot { margin-top: auto; padding-top: 16px; }
 
-/* what it cost: the label, the name (it ends in "…" when it is long), the amount (never cut) */
+/* what it cost: the label, the name (it ends in "…" when it is long), the amount (never cut — its words wrap before its card
+   outgrows the row: the sixth difference) */
 .ts-story-costs { margin: 0; border-top: 1px solid var(--ts-fs-rule); }
 .ts-story-cost { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: baseline; column-gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--ts-fs-rule); }
 .ts-story-cost__what { margin: 0; font-family: var(--font-mono); font-size: 10.5px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ts-fs-ink-muted); }
 .ts-story-cost__name { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; line-height: 1.4; color: var(--ts-fs-ink); }
-.ts-story-cost__amount { margin: 0; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; font-weight: 500; color: var(--ts-fs-ink-muted); white-space: nowrap; text-align: right; }
+.ts-story-cost__amount { margin: 0; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; font-weight: 500; color: var(--ts-fs-ink-muted); white-space: normal; text-align: right; }
 .ts-story-cost__amount[data-kind="paid"] { font-size: 13px; font-weight: 600; color: var(--ts-fs-gold-text); }
 
 /* the post: the quiet pill, the card's width */
