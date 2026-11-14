@@ -3,7 +3,7 @@
  *
  * The spec is a file: design-refs/hero-crest-01/Hero-Reference.html ("every value in its stylesheet is the design"), with
  * its README beside it. The hero is src/components/landing/Landing.tsx's band; the bar is
- * src/components/landing/LandingHeader.tsx, on its six mounts; both are drawn by the reference's own stylesheet, ported
+ * src/components/landing/LandingHeader.tsx, on its six mounts (nine since HOME-PAGES-01, 2026-11-14); both are drawn by the reference's own stylesheet, ported
  * to the foot of src/app/globals.css.
  *
  *   T1  the handoff landed — four files byte for byte (sha256): the README, the reference, the two crest files. The
@@ -32,10 +32,12 @@
  *   T7  the phone menu's open-or-closed is React state and nothing else — and the bar's imports are a closed list, so
  *       no helper can carry it out; it closes on a link, on Log in, on Escape and on the button; the bar's own Log in
  *       calls the login opener;
- *   T8  six mounts — the landing asks for glass, the other five pass nothing new, four of them nothing at all; no
- *       mount hands the bar a register opener; six files import the bar, under its own name, and no seventh;
+ *   T8  nine mounts — the landing asks for glass, the other eight pass nothing new, seven of them nothing at all; no
+ *       mount hands the bar a register opener; nine files import the bar, under its own name, and no tenth. (Six, five,
+ *       four and "no seventh" until HOME-PAGES-01, 2026-11-14: the three sections' own pages mount the bar too.)
  *   T9  "create account" is still reachable from Log in — the one LoginBox's own switch, and the openers that reach it;
- *   T10 #modules has one home — MODULES_ANCHOR, read by the bar and by the footer; it equals the how-to's own id;
+ *   T10 #modules has one home — MODULES_ANCHOR, read by the bar (and by the footer until HOME-PAGES-01, 2026-11-14: its
+ *       first link opens the how-to's own page now); it equals the how-to's own id;
  *   T11 GitHub's mark — public/logos/github.svg, in the form the folder's Simple Icons files have (only this file is
  *       held to it: the Built-on wall's own files may be dropped in whatever form their vendors ship), drawn through a
  *       mask in the button's ink, 20px (17px under 1024px), decorative; its path typed in no .ts or .tsx file under src outside
@@ -88,8 +90,13 @@ const ANCHORS = 'src/lib/homeAnchors.ts';
 const FOOTER_WORDS = 'src/lib/footerWords.ts';
 const HOW_TO = 'src/components/landing/HowToSection.tsx';
 const LAW = 'scripts/assert-tool-registry.ts';
-/** The five mounts that are not the landing — the first passes a login opener, the other four pass nothing. */
-const OTHER_MOUNTS = [HOME_CLIENT, 'src/app/modules/[pillar]/ModulePageClient.tsx', 'src/app/how-it-works/page.tsx', 'src/app/pricing/page.tsx', 'src/app/my-trip/[id]/page.tsx'] as const;
+/**
+ * The eight mounts that are not the landing — the first passes a login opener, the other seven pass nothing. HOME-PAGES-01 (Alex's
+ * brief, 2026-11-14, ruling b: "THE SHELL is /how-it-works's: the min-h-screen wrapper, <LandingHeader /> filled, <main>,
+ * <LandingFooter />."): the last three joined — the pages three of the home page's sections got. Until then: "The five mounts that are
+ * not the landing — the first passes a login opener, the other four pass nothing", the list ending at the trip page.
+ */
+const OTHER_MOUNTS = [HOME_CLIENT, 'src/app/modules/[pillar]/ModulePageClient.tsx', 'src/app/how-it-works/page.tsx', 'src/app/pricing/page.tsx', 'src/app/my-trip/[id]/page.tsx', 'src/app/financial-software/page.tsx', 'src/app/professional-services/page.tsx', 'src/app/about/page.tsx'] as const;
 
 const count = (hay: string, needle: string): number => hay.split(needle).length - 1;
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim();
@@ -464,7 +471,14 @@ test('T5 the bar: the three pillars, each by its own name and on its own section
   ]);
   assert.deepEqual(BAR_PRODUCT_LINKS.map((l) => l.href), [`/#${MODULES_ANCHOR}`, `/#${SERVICES_ANCHOR}`, `/#${DEMO_ANCHOR}`], 'each built from its section\'s anchor');
   assert.deepEqual(BAR_PRODUCT_LINKS.map((l) => l.label), [PLAN_PILLAR.heading, BUILD_PILLAR.heading, EXPLORE_PILLAR.heading], 'each label is its pillar\'s heading — the design\'s three words are the pillars\' names (PILLAR-NAMES-01)');
-  assert.deepEqual(BAR_PRODUCT_LINKS.map((l) => ({ label: l.label, href: l.href })), FOOTER_SERVICES_LINKS.map((l) => ({ label: l.label, href: l.href })), 'the same three names on the same three sections as the footer\'s SERVICES column, in its order');
+  // HOME-PAGES-01 (Alex's brief, 2026-11-14): the footer's first two SERVICES links open the sections' own pages. The bar's three are not that
+  // brief's — its "NOT IN THIS PR" names "The top bar and its links." — and still land on the home page's sections. So the two lists share their
+  // names, in order, and one target. Until then this line held them equal, name and href: assert.deepEqual(BAR_PRODUCT_LINKS.map((l) => ({ label:
+  // l.label, href: l.href })), FOOTER_SERVICES_LINKS.map((l) => ({ label: l.label, href: l.href })), 'the same three names on the same three
+  // sections as the footer's SERVICES column, in its order').
+  assert.deepEqual(BAR_PRODUCT_LINKS.map((l) => l.label), FOOTER_SERVICES_LINKS.map((l) => l.label), 'the same three names as the footer\'s SERVICES column, in its order');
+  assert.equal(BAR_PRODUCT_LINKS[2].href, FOOTER_SERVICES_LINKS[2].href, 'and the one target the two still share: the Travel Marketplace\'s section');
+  assert.deepEqual(FOOTER_SERVICES_LINKS.slice(0, 2).map((l) => l.href), ['/financial-software', '/professional-services'], 'the footer\'s first two open the sections\' own pages');
   assert.deepEqual(BAR_PRICING, { label: 'Pricing', href: '/how-pricing-works' });
   assert.equal(BAR_MARK_SRC, '/brand/temple-stuart-crest-gold.png');
   assert.ok(existsSync(resolve(ROOT, `public${BAR_MARK_SRC}`)), 'the mark is a file in public/');
@@ -500,7 +514,7 @@ test('T5 the bar: the three pillars, each by its own name and on its own section
 test('T6 rendered: filled is the default and glass is asked for; Log in is a button where a login opener is given and a link to / where none is; the phone menu repeats the bar and starts closed', () => {
   const PRODUCTS = ['/#modules', '/#services', '/#demo'];
   const WORDS = 'TEMPLE STUART Financial Software Professional Services Travel Marketplace Pricing Log in Financial Software Professional Services Travel Marketplace Pricing Log in';
-  // 1. no props — the four pages with no login modal: filled, Log in a link to the front door
+  // 1. no props — the seven pages with no login modal (four until HOME-PAGES-01, 2026-11-14): filled, Log in a link to the front door
   const plain = render();
   assert.ok(plain.startsWith('<header class="ts-bar ts-bar--solid">'), 'filled, in the page\'s flow, with nothing passed');
   assert.deepEqual(hrefsOf(plain), ['/', ...PRODUCTS, '/how-pricing-works', '/', ...PRODUCTS, '/how-pricing-works', '/'], 'the brand, the three products, Pricing, Log in — then the menu: the three, Pricing, Log in');
@@ -583,9 +597,12 @@ test('T7 the phone menu: open or closed is React state and nothing else; it clos
   assert.ok(port.includes(' | .ts-bar__menu-button | width: 44px') && port.includes(' | .ts-bar__menu-button | height: 44px'), 'a 44px button');
 });
 
-// ── T8 · THE SIX MOUNTS ──────────────────────────────────────────────────────
+// ── T8 · THE NINE MOUNTS (six until HOME-PAGES-01, 2026-11-14) ───────────────
 
-test('T8 six mounts: the landing asks for glass; the other five pass nothing new — four of them nothing at all; no mount hands the bar a register opener; there is no seventh', () => {
+// HOME-PAGES-01 (2026-11-14): three sections have pages of their own, each in /how-it-works's shell — so each mounts the bar, filled, with nothing
+// passed. Until then this test read 'T8 six mounts: the landing asks for glass; the other five pass nothing new — four of them nothing at all; no
+// mount hands the bar a register opener; there is no seventh', with 'six files mount the bar' and 'the same six import it, and no seventh' below.
+test('T8 nine mounts: the landing asks for glass; the other eight pass nothing new — seven of them nothing at all; no mount hands the bar a register opener; there is no tenth', () => {
   const mountOf = (file: string): string => {
     const src = code(file);
     assert.equal(count(src, '<LandingHeader'), 1, `${file} mounts the bar once`);
@@ -594,13 +611,13 @@ test('T8 six mounts: the landing asks for glass; the other five pass nothing new
   };
   assert.equal(mountOf(LANDING), '<LandingHeader glass onRequireLogin={onRequireLogin} />', 'the landing: glass, and its login opener');
   assert.equal(mountOf(HOME_CLIENT), "<LandingHeader onRequireLogin={() => { setLoginMode('login'); setShowLogin(true); }} />", 'the signed-out cockpit: filled, and its login opener');
-  // the two lines above and the one below pin each mount whole: none of the five asks for glass, and none of the six hands the bar a register opener
+  // the two lines above and the one below pin each mount whole: none of the eight asks for glass, and none of the nine hands the bar a register opener
   for (const file of OTHER_MOUNTS.slice(1)) assert.equal(mountOf(file), '<LandingHeader />', `${file}: filled, Log in a link — nothing passed`);
   const mounts = srcFiles(resolve(ROOT, 'src')).filter((f) => f !== HEADER && code(f).includes('<LandingHeader')).sort();
-  assert.deepEqual(mounts, [LANDING, ...OTHER_MOUNTS].sort(), 'six files mount the bar');
-  // and six files import it — under whatever name: a seventh mount cannot hide behind an alias
+  assert.deepEqual(mounts, [LANDING, ...OTHER_MOUNTS].sort(), 'nine files mount the bar');
+  // and nine files import it — under whatever name: a tenth mount cannot hide behind an alias
   const importers = srcFiles(resolve(ROOT, 'src')).filter((f) => f !== HEADER && /from\s+['"](?:[^'"]*\/)?LandingHeader['"]/.test(code(f))).sort();
-  assert.deepEqual(importers, [LANDING, ...OTHER_MOUNTS].sort(), 'the same six import it, and no seventh');
+  assert.deepEqual(importers, [LANDING, ...OTHER_MOUNTS].sort(), 'the same nine import it, and no tenth');
   for (const f of importers) assert.match(code(f), /^import LandingHeader from ['"](?:[^'"]*\/)?LandingHeader['"];$/m, `${f} imports it under its own name`);
   // the glass bar is positioned against the band it lies over, so nothing above the landing can come between them
   const port = declarations(portCss());
@@ -629,18 +646,29 @@ test('T9 "create account" is still reachable from Log in: the one LoginBox switc
 
 // ── T10 · #modules HAS ONE HOME ──────────────────────────────────────────────
 
-test('T10 #modules has one home: MODULES_ANCHOR in src/lib/homeAnchors.ts, read by the bar and by the footer\'s first link; it equals the how-to\'s own section id', () => {
+test('T10 #modules has one home: MODULES_ANCHOR in src/lib/homeAnchors.ts, read by the bar — and no more by the footer, whose first link opens the how-to\'s own page (HOME-PAGES-01); it equals the how-to\'s own section id', () => {
   assert.equal(MODULES_ANCHOR, 'modules');
   assert.match(code(ANCHORS), /^export const MODULES_ANCHOR = 'modules';$/m, 'typed once, in the anchors\' home');
   assert.ok(code(HOW_TO).includes(`<section id="${MODULES_ANCHOR}"`), 'the how-to\'s <section> wears it — that literal is the plan law\'s, and these two are held equal here');
   const words = code(FOOTER_WORDS);
-  assert.match(words, /^import \{ DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR, STOP_ZERO_ANCHOR \} from '\.\/homeAnchors';$/m, 'the footer reads it from the same home');
-  assert.ok(words.includes("{ label: 'Financial Software', href: `/#${MODULES_ANCHOR}` },"), 'for its first SERVICES link');
+  // HOME-PAGES-01 (Alex's brief, 2026-11-14, step 4: "The footer's doors to them: Financial Software → /financial-software, Professional Services →
+  // /professional-services, and Stop 0 | Los Angeles → /about#stop-0. Travel Marketplace stays /#demo." — and his answer to the audit the same
+  // day: "The href is the leaf's /about path. footerWords.ts builds nothing from STOP_ZERO_ANCHOR for it; if that leaves the import unread there,
+  // it goes."): the footer's first link opens the how-to's own page, so the footer reads this anchor no more — nor the two others its doors
+  // left. Until then four lines here held the footer to it: its import, /^import \{ DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR,
+  // STOP_ZERO_ANCHOR \} from '\.\/homeAnchors';$/m ('the footer reads it from the same home'); words.includes("{ label: 'Financial Software', href:
+  // `/#${MODULES_ANCHOR}` },") ('for its first SERVICES link'); FOOTER_SERVICES_LINKS[0].href === '/#modules' ('and the footer's link is what it
+  // was'); and, below, BAR_PRODUCT_LINKS[0].href === FOOTER_SERVICES_LINKS[0].href ('the bar's first link and the footer's land on the one
+  // section'). The test's name read 'read by the bar and by the footer's first link'.
+  assert.match(words, /^import \{ DEMO_ANCHOR \} from '\.\/homeAnchors';$/m, 'the footer reads one anchor from that home now: the demo\'s');
+  assert.doesNotMatch(words, /MODULES_ANCHOR|SERVICES_ANCHOR|STOP_ZERO_ANCHOR/, 'and not this one, nor the two others its doors left');
+  assert.ok(words.includes("{ label: 'Financial Software', href: FINANCIAL_SOFTWARE_PATH },"), 'its first SERVICES link reads the page\'s path, from the pages\' leaf');
   assert.doesNotMatch(words, /'modules'|PLANS_SECTION_ID/, 'the footer\'s private copy is gone');
-  assert.equal(FOOTER_SERVICES_LINKS[0].href, '/#modules', 'and the footer\'s link is what it was');
+  assert.equal(FOOTER_SERVICES_LINKS[0].href, '/financial-software', 'the footer\'s first link opens the how-to\'s own page');
   assert.match(code(HEADER), /^import \{ DEMO_ANCHOR, MODULES_ANCHOR, SERVICES_ANCHOR \} from '@\/lib\/homeAnchors';$/m, 'the bar reads it from the same home');
   assert.ok(code(HEADER).includes('href: `/#${MODULES_ANCHOR}` },'), 'for its first link');
-  assert.equal(BAR_PRODUCT_LINKS[0].href, FOOTER_SERVICES_LINKS[0].href, 'the bar\'s first link and the footer\'s land on the one section');
+  assert.equal(BAR_PRODUCT_LINKS[0].href, '/#modules', 'the bar\'s first link lands on the home page\'s section, as it did');
+  assert.notEqual(BAR_PRODUCT_LINKS[0].href, FOOTER_SERVICES_LINKS[0].href, 'so the two part: the bar lands on the section, the footer opens its page');
   // any constant, whatever its name. (The word is typed in two more places, both the plan law's and neither a constant: the how-to's
   // id literal, held equal above, and the plans section's default headingId prop.)
   const typed = srcFiles(resolve(ROOT, 'src')).filter((f) => /\b[A-Z][A-Z0-9_]*\s*=\s*'modules'/.test(code(f)));

@@ -7,7 +7,7 @@
  * .ft-link__stop → .ts-ft-link__stop, …); the rules are the reference's own, ported to src/app/globals.css's FOOTER-02 block. The
  * design adds no word: every word and link is one this footer had.
  *   · THE LOCKUP opens it — the top bar's gold crest and wordmark, a link to /. Both are read from src/lib/brandLockup.ts, never from
- *     LandingHeader.tsx: that file is 'use client', and this one is a server component on three pages (below).
+ *     LandingHeader.tsx: that file is 'use client', and this one is a server component on three pages (below; six since HOME-PAGES-01, 2026-11-14).
  *   · THE FOUR COLUMNS stand as they did — each a <div> with its hook (data-footer-story, -services, -socials, -record), its label a
  *     <p>, its links a <ul> — every word and href from src/lib/footerWords.ts, in its order. OUR STORY draws each stop in two parts:
  *     storyLinkParts splits the label at its " | ", and a space stands between the two spans, so the link reads "Stop 1 Canggu, Bali"
@@ -16,10 +16,10 @@
  *     external.
  *   · UNDER THEM: a hairline; the disclaimer, word for word, left-aligned now; then one row — © and PRICING · TERMS · PRIVACY ·
  *     CONTACT, on their targets.
- * THE MARKUP'S ONE DIFFERENCE from the reference's: the crest's src. The reference reads the file from its own place in the repo
+ * THE MARKUP'S ONE DIFFERENCE from the reference's: the crest's src (and, since HOME-PAGES-01, 2026-11-14, three hrefs: the reference keeps /#stop-0, /#modules and /#services where src/lib/footerWords.ts now hands /about, /financial-software and /professional-services). The reference reads the file from its own place in the repo
  * (../../public/brand/temple-stuart-crest-gold.png); the app serves public/ at its root, so the mark is BAR_MARK_SRC's /brand/….
  * WHAT STAYS: every word and href; the five SVG paths, byte for byte; a plain <a> with target="_blank" rel="noopener noreferrer" on
- * every link that leaves the site (CONTACT's mailto a plain <a> too); the five mounts. NEXT/LINK FOR EVERY LINK THAT STAYS ON THE SITE —
+ * every link that leaves the site (CONTACT's mailto a plain <a> too); the five mounts (eight since HOME-PAGES-01, 2026-11-14: the three sections' own pages). NEXT/LINK FOR EVERY LINK THAT STAYS ON THE SITE —
  * the lockup's, the columns', PRICING, and TERMS and PRIVACY, plain <a> until FOOTER-02 (the brief: "Links that stay on the site use
  * next/link"). WHAT GOES: the solid bg-brand-purple band, the Tailwind classes that drew it, their two inline notes (LANDING-V3's below).
  *

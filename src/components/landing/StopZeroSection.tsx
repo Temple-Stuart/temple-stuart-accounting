@@ -2,7 +2,8 @@
 
 /**
  * StopZeroSection — ABOUT US, on the guest landing (Landing.tsx) between the Travel Marketplace (and the guest's strip, when a
- * guest has one) and Our Story. Alex's words in ONE readable column — HOME-BRIEF-02's structure (Alex's home page brief,
+ * guest has one) and Our Story — and, since HOME-PAGES-01 (2026-11-14), on /about, a page of its own, above Our Story
+ * (src/app/about/page.tsx). Alex's words in ONE readable column — HOME-BRIEF-02's structure (Alex's home page brief,
  * 2026-11-10 16:27): the heading, the place, the dates, then three parts, each an h3, its paragraphs and its quote last. No grid,
  * no card, no timeline, no border on a quote. (STOP0-01, 2026-11-08, drew his letter beside a dated timeline here; both went with
  * that ruling — git history holds them.)
@@ -23,11 +24,14 @@
  *     upright — as the approved board draws them.
  *   · THE WORDS are the leaves', and none is typed here: the heading from src/lib/homeActWords.ts, the rest from
  *     src/lib/stopZeroWords.ts, which stays byte for byte ("Never reworded, trimmed or added to here: a change to these words is
- *     Alex's."). Two pure helpers below split what the section draws — the place line at its " | " (the stop, then the place),
+ *     Alex's." — HOME-PAGES-01, 2026-11-14: his words stand as they stood; two notes in that file, on where the footer's link lands,
+ *     were re-said by his yes of 2026-11-15). Two pure helpers below split what the section draws — the place line at its " | " (the stop, then the place),
  *     and each quote into its two curly marks and its words — and each refuses, by name, a string without that shape. The parts'
  *     numbers come from his order and are aria-hidden: the heading under each says which part it is.
- *   · THE HOOKS STAY: id={STOP_ZERO_ANCHOR} (the footer's link lands on it), the aria-label "About us" on the <section> tag, the
- *     line under the section, and the mount in Landing.tsx.
+ *   · THE HOOKS STAY: id={STOP_ZERO_ANCHOR} (the footer's link landed on it), the aria-label "About us" on the <section> tag, the
+ *     line under the section, and the mount in Landing.tsx. (HOME-PAGES-01, 2026-11-14: the footer's link landed on the id
+ *     until then. It opens /about now, at the page's top, with no fragment — Alex's answer to the audit: "The letter is the
+ *     first thing on that page, so the fragment only scrolled the bar away." No link lands on the id any more; it stays.)
  * No state, no fetch, no clock: it is text.
  *
  * UNTIL HOME-ABOUT-01 (HOME-BRIEF-02, 2026-11-10; the heading HOME-FINISH-02's, 2026-11-10 20:56): the section wore

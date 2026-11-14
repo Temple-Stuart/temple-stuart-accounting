@@ -22,12 +22,17 @@
  * The footer reads three of them now — four since HERO-CREST-01, 2026-11-11, with MODULES_ANCHOR (below) — (src/lib/footerWords.ts): STOP_ZERO_ANCHOR (OUR STORY's Stop 0), SERVICES_ANCHOR
  * (Build Your Income) and DEMO_ANCHOR (Explore the World — it sits on that pillar's heading). THE BLOG left the footer,
  * and its links to /#events and /#my-trip with it; the two sections and the trip page still read those anchors.
+ * HOME-PAGES-01 (Alex's brief, 2026-11-14; his answer to the audit the same day): the footer reads ONE of them now, DEMO_ANCHOR.
+ * Its other three doors open the sections' own pages (src/lib/homePages.ts: /financial-software, /professional-services and
+ * /about — with no fragment), so MODULES_ANCHOR is the bar's alone, SERVICES_ANCHOR the bar's and its section's, and
+ * STOP_ZERO_ANCHOR its section's alone: no link lands on #stop-0 now, and the id stays.
  *
  * ONE LITERAL REMAINS, NAMED: LandingBookingSection.tsx hands the strip `eventsAnchor: '#events'`, and
  * src/lib/__tests__/experiences01.test.ts T6 pins that call's text (its next line holds it equal to `#${EVENTS_ANCHOR}`).
  * Existing tests are not re-pinned in this PR, so it stays typed until a ruling moves that pin.
  *
- * PURE, NO DIRECTIVE: the footer renders as a server component on /pricing, /my-trip/[id] and /how-it-works, and a
+ * PURE, NO DIRECTIVE: the footer renders as a server component on /pricing, /my-trip/[id] and /how-it-works (and, since
+ * HOME-PAGES-01, on /financial-software, /professional-services and /about), and a
  * 'use client' module's exports reach a server component as client references, never strings — so the anchors cannot
  * live in the two 'use client' sections. The re-export brings src/lib/stopZeroWords.ts (and what it imports) along.
  *
@@ -38,7 +43,7 @@
  * (HowToSection.tsx, guarded there by the plan law in scripts/assert-tool-registry.ts — which is why FOOTER-01 left it
  * "outside this ruling", above) and a PRIVATE copy for the footer's first link, src/lib/footerWords.ts
  * `const PLANS_SECTION_ID = 'modules'`. That copy MOVED here, under the name its neighbours wear; the footer and the
- * bar both read it, so it is typed once for both. (Not through footerWords.ts: that leaf imports tripPostWords.ts, which
+ * bar both read it, so it is typed once for both (HOME-PAGES-01, 2026-11-14: the bar alone reads it now). (Not through footerWords.ts: that leaf imports tripPostWords.ts, which
  * imports experienceWords.ts, which imports src/lib/experiences.ts — 101 KB of source — and the bar is also mounted by
  * HomeClient.tsx, the cockpit, which imports none of them today.) The section's own literal stays where the plan law
  * holds it; src/lib/__tests__/heroCrest01.test.ts holds the two equal. WHAT THE BAR PAYS FOR READING IT HERE: the re-export below brings src/lib/stopZeroWords.ts into the bar's chunk — about 3 KB (1.3 to 1.4 KB gzipped, over two production builds) of Stop 0's words, on pages that never draw them.
@@ -55,4 +60,8 @@ export const MY_TRIP_ANCHOR = 'my-trip';
 
 export const SERVICES_ANCHOR = 'services';
 
+// HOME-PAGES-01 (2026-11-14): no file outside the tests reads this re-export now — the footer was its one reader, and its Stop 0
+// opens /about with no fragment. It stays: this is the anchors' one home. src/lib/stopZeroWords.ts said "the footer's link lands
+// on it", twice (its header and the note over the constant): true until this brief, and re-said there by Alex's yes of 2026-11-15 — that leaf is
+// held byte for byte (src/lib/__tests__/homeAbout01.test.ts), so the pin moved with the two notes; his words did not.
 export { STOP_ZERO_ANCHOR } from './stopZeroWords';

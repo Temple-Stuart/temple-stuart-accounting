@@ -71,6 +71,46 @@ const PUBLIC_PATHS = [
   // LandingFooter, the deck and the pure leaves the deck reads. isPublic's rule is p or p + '/', and nothing lives
   // under /how-it-works but the page itself. Next to /how-pricing-works, so '/my-trip' stays the list's last entry.
   '/how-it-works',
+  // HOME-PAGES-01 (Alex's brief, 2026-11-14 — ruling f: "PUBLIC. The three paths join PUBLIC_PATHS, each with a dated note and
+  // its proof, as /how-it-works's entry gives one: no route handler under it, no fetch, no paid call, no database read, no
+  // session read."): three of the home page's sections on pages of their own, each the section's own component in
+  // /how-it-works's shell. Their doors are the footer's links, on every public page that mounts the footer: without these
+  // entries each link would 307 a guest back to '/'. Each proof below was read over the whole import closure of the six
+  // components the pages mount — 28 files: the 27 the audit read, and this change's own leaf, src/lib/homePages.ts — and
+  // src/lib/__tests__/homePages01.test.ts walks that closure again on every run. ONE THING IS THE ROOT LAYOUT'S, on every
+  // page of the app, and not these pages' own: the session check on load (src/components/Providers.tsx — GET
+  // /api/auth/session, public by '/api/auth' above).
+  // Alex's answer to the audit, 2026-11-14: "signed out, each of the three pages makes exactly one request under /api, the
+  // root layout's GET /api/auth/session, and none to another origin."
+  //
+  // /financial-software (HOME-PAGES-01, 2026-11-14) — the Financial Software section
+  // (src/components/landing/HowToSection.tsx; the home page keeps its own mount). SAFE BY CONSTRUCTION: a static server
+  // page (src/app/financial-software/page.tsx) over a client section with no data path — its only state is two React
+  // booleans — no route handler under it, no fetch, no paid API, no database read, no env read, no session read; its
+  // imports are LandingHeader, the section, LandingFooter and the pure leaves they read (the plans, the offer, the sheet
+  // and the tool registry: data and laws — the registry's /api/… paths and schema names are citations inside strings,
+  // never calls). Each plan's button is a link to the front door, as /pricing's is. isPublic's rule is p or p + '/', and
+  // nothing lives under /financial-software but the page itself; '/f', below, is /f and /f/… only and never covered this
+  // path.
+  '/financial-software',
+  // /professional-services (HOME-PAGES-01, 2026-11-14) — the Professional Services section
+  // (src/components/landing/ServicesSection.tsx; the home page keeps its own mount). SAFE BY CONSTRUCTION: a static server
+  // page (src/app/professional-services/page.tsx) over a client section with no data path — its only state is the picked
+  // door — no route handler under it, no fetch, no paid API, no database read, no env read, no session read; its imports
+  // are LandingHeader, the section, LandingFooter and the pure leaves they read. Its six pictures are files under
+  // public/brand/services; its one link is the proposal form's page with the door picked (/work-with-me?need=<key>),
+  // public by its own entry below. isPublic's rule is p or p + '/', and nothing lives under /professional-services but the
+  // page itself.
+  '/professional-services',
+  // /about (HOME-PAGES-01, 2026-11-14) — About Us and, under it, Our Story (src/components/landing/StopZeroSection.tsx,
+  // WasHereSection.tsx; the home page keeps its own mount of each). SAFE BY CONSTRUCTION: a server page
+  // (src/app/about/page.tsx) rendered on every request for one reason — the day: it computes the UTC calendar date once,
+  // with the front door's own expression (src/app/page.tsx), and hands it to the trip log — over two client sections with
+  // no data path: no route handler under it, no fetch, no paid API, no database read, no env read, no session read (it
+  // calls neither cookies() nor headers()); its imports are LandingHeader, the two sections, LandingFooter and the pure
+  // leaves they read. The trip photos are files under public/was-here, and each card's link is its stop's page, public by
+  // '/my-trip' below. isPublic's rule is p or p + '/', and nothing lives under /about but the page itself.
+  '/about',
   // FD-1d: the nine /modules/<pillar> info pages — static marketing surfaces
   // (Bloomberg header → the pillar's showcase deck → access block → footer).
   // Safety proof, audited per deck: all nine decks + the TabShowcases wrappers
@@ -181,7 +221,9 @@ const PUBLIC_PATHS = [
   // its public slug and hands the client nothing of the account beyond the form's title, line and the questions asked
   // (an unknown slug 404s; no authed read, no paid call, no write). Prefix-matching makes every /f/* path public —
   // acceptable because that one page is all there is under it. isPublic's rule is p or p + '/', so this entry covers
-  // nothing else: /favicon.ico has its own entry above, and no other path starts with /f.
+  // nothing else: /favicon.ico has its own entry above, and no other path is /f or under /f/. (HOME-PAGES-01, 2026-11-14:
+  // "and no other path starts with /f" until then. /financial-software begins with those two characters; it has its own
+  // entry above, and this one never matched it.)
   '/f',
   // CRM-02 (Alex, 2026-11-07): public BY RULING — the form's POST, /api/f/<slug>: DB-write only, no paid API, no email.
   // The only file under src/app/api/f is [slug]/route.ts, with the proposal route's guards in the proposal route's

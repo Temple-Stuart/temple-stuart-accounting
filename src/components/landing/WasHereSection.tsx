@@ -68,8 +68,10 @@
  * WORDS: every word is read from its home and the JSX types none — the section's own (the eyebrow, the line, Read the post →, and
  * the arrows' two, new with TRIPCARDS-03) as the constants below; the heading from src/lib/homeActWords.ts; a stop's from
  * src/lib/wasHere.ts through src/lib/wasHereWords.ts; what it cost from src/lib/tripCosts.ts through src/lib/tripPostWords.ts.
- * "My trip" is the act's aria-label, a hook, typed where it stands. THE DAY RULE: `today` is the UTC calendar date src/app/page.tsx
- * computed ONCE and passed down; nothing here reads the clock. PAINT: the port's classes only — no hex, no colour typed here. No
+ * "My trip" is the act's aria-label, a hook, typed where it stands. THE DAY RULE: `today` is the UTC calendar date the page that
+ * mounts the section computed ONCE and passed down — src/app/page.tsx for the landing and, since HOME-PAGES-01 (2026-11-14),
+ * src/app/about/page.tsx for /about, which mounts the section under About Us ("the UTC calendar date src/app/page.tsx computed
+ * ONCE" until then); nothing here reads the clock. PAINT: the port's classes only — no hex, no colour typed here. No
  * emoji, no countdown, no urgency words.
  */
 

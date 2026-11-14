@@ -26,11 +26,18 @@
  * stands too, and the law's three citations it reads moved with the footer's lines (scripts/assert-tool-registry.ts re-cites them).
  * T8 finds TERMS and PRIVACY as next/link now, as PRICING was — "Links that stay on the site use next/link" (the brief) — with a dated note.
  *
+ * HOME-PAGES-01 (Alex's brief, 2026-11-14 19:11 Manila; his answer to the audit, 2026-11-14): THREE DOORS MOVE. Three of the home
+ * page's sections have pages of their own (src/lib/homePages.ts), and the footer is each one's door: SERVICES' first two links open
+ * /financial-software and /professional-services, and OUR STORY's Stop 0 opens /about — with no fragment (his answer: "The footer's
+ * Stop 0 | Los Angeles goes to /about, with no fragment."). Travel Marketplace stays /#demo. T2 and T3 are re-pointed below, each with
+ * a note saying what it held until then; T1, T4, T5, T7 and T8 stand, and T6 stands too — the footer reads one anchor now, and the
+ * census of where each is typed did not move.
+ *
  *   T1 the labels — OUR STORY, SERVICES, SOCIALS, THE RECORD (THE BLOG, THE RECORD until then) — from src/lib/footerWords.ts;
- *   T2 footerStoryLinks(WAS_HERE): "Stop 0 | Los Angeles" ('/#' + its anchor), then one link per stop of the trip log in
+ *   T2 footerStoryLinks(WAS_HERE): "Stop 0 | Los Angeles" (→ /about, About Us's own page, since HOME-PAGES-01; '/#' + its anchor until then), then one link per stop of the trip log in
  *      trip order — "Stop <n> | <the row's city>" → that stop's page; a stop added to the log adds itself, in its place.
  *      (Until then: footerBlogLinks(TRIP_POSTS) — Book travel, Events, Stop 0, My trip, then one link per written post.)
- *   T3 the other three columns, exactly: SERVICES (the three pillars on their sections), SOCIALS (the five accounts, the
+ *   T3 the other three columns, exactly: SERVICES (the three pillars — the first two on pages of their own since HOME-PAGES-01, the third on its section; "on their sections" until then), SOCIALS (the five accounts, the
  *      bar's own hrefs), THE RECORD (the 14 steps, the code, the licence — no arrows; the last two external); CODE_URL is
  *      the URL the hero's "Clone it on GitHub" opens — HERO-CREST-01 (Alex, 2026-11-11): LandingHeader.tsx's GitHub ↗ until
  *      then; it left the top bar. (Until HOME-FINISH-02: FOOTER_RECORD_LINKS — the door's words and path, then the code.)
@@ -68,6 +75,7 @@ import {
   FOOTER_STORY_LABEL, LICENSE_URL, footerStoryLinks, type FooterLink,
 } from '../footerWords';
 import { DEMO_ANCHOR, EVENTS_ANCHOR, MY_TRIP_ANCHOR, SERVICES_ANCHOR, STOP_ZERO_ANCHOR } from '../homeAnchors';
+import { ABOUT_PATH, FINANCIAL_SOFTWARE_PATH, PROFESSIONAL_SERVICES_PATH } from '../homePages';
 import { STOP_ZERO_ANCHOR as STOP_ZERO_IN_ITS_LEAF } from '../stopZeroWords';
 import { PIPELINE_PATH } from '@/components/landing/pipelineWords';
 import { EVENTS_ANCHOR as EVENTS_FROM_ITS_SECTION } from '@/components/landing/ExperiencesSection';
@@ -152,8 +160,12 @@ test('T2 footerStoryLinks(WAS_HERE): Stop 0, then one link per stop of the trip 
   // tripPostHref(post.stopId) } per post ({ label: 'Thirty days in Canggu with no plan.', href: '/my-trip/canggu-2026-07' } today).
   const links = footerStoryLinks(WAS_HERE);
   assert.equal(FOOTER_STOP_ZERO_LABEL, 'Stop 0 | Los Angeles');
-  assert.deepEqual(links[0], { label: 'Stop 0 | Los Angeles', href: `/#${STOP_ZERO_ANCHOR}` }, 'Stop 0 first: "/#" + its anchor');
-  assert.equal(links[0].href, '/#stop-0');
+  // HOME-PAGES-01 (Alex's answer to the audit, 2026-11-14: "The footer's Stop 0 | Los Angeles goes to /about, with no fragment. This replaces
+  // "/about#stop-0" in step 4. The letter is the first thing on that page, so the fragment only scrolled the bar away."): Stop 0 opens About
+  // Us's own page, at its top. Until then these two lines held { label: 'Stop 0 | Los Angeles', href: `/#${STOP_ZERO_ANCHOR}` } — 'Stop 0 first:
+  // "/#" + its anchor' — and links[0].href === '/#stop-0': the home page's About Us act, by its anchor.
+  assert.deepEqual(links[0], { label: 'Stop 0 | Los Angeles', href: ABOUT_PATH }, 'Stop 0 first: About Us\'s own page, from the pages\' leaf');
+  assert.equal(links[0].href, '/about', 'the page, with no fragment');
   const stops = tripOrder(WAS_HERE);
   assert.deepEqual(links.slice(1), stops.map((row, i) => ({ label: `Stop ${i + 1} | ${row.city}`, href: tripPostHref(row.id) })), 'derived from the log, in trip order: the number, the row\'s own city, the stop\'s page');
   assert.equal(links.length, WAS_HERE.length + 1, 'Stop 0 and one link per stop — those still ahead included');
@@ -182,18 +194,23 @@ test('T2 footerStoryLinks(WAS_HERE): Stop 0, then one link per stop of the trip 
 
 // ── T3 · SERVICES, SOCIALS, THE RECORD ───────────────────────────────────────
 
-test('T3 the other three columns, exactly — SERVICES: the three pillars on their sections; SOCIALS: the five accounts, the bar\'s own hrefs; THE RECORD: the 14 steps, the code, the licence, no arrows; CODE_URL is the hero\'s Clone-it-on-GitHub href (HERO-CREST-01: the top bar links GitHub no more)', () => {
+test('T3 the other three columns, exactly — SERVICES: the three pillars, two on pages of their own and the third on its section; SOCIALS: the five accounts, the bar\'s own hrefs; THE RECORD: the 14 steps, the code, the licence, no arrows; CODE_URL is the hero\'s Clone-it-on-GitHub href (HERO-CREST-01: the top bar links GitHub no more)', () => {
   // HOME-FINISH-02 (2026-11-10). Until then this test read 'T3 FOOTER_RECORD_LINKS exactly — the door's words and path from pipelineWords.ts, then
   // the code, external': [{ label: PIPELINE_DOOR, href: PIPELINE_PATH }, { label: 'Built in public: the code ↗', href: CODE_URL, external: true }],
   // with PIPELINE_DOOR = 'How it all connects: the 14 steps →' and "import { PIPELINE_DOOR, PIPELINE_PATH } from '@/components/landing/pipelineWords';".
   // PILLAR-NAMES-01 (Alex, 2026-11-11): the three pillars' new names, on the targets they had. Until then the labels were 'Plan Your Escape',
   // 'Build Your Income' and 'Explore the World'.
+  // HOME-PAGES-01 (Alex's brief, 2026-11-14, step 4: "The footer's doors to them: Financial Software → /financial-software, Professional
+  // Services → /professional-services, and Stop 0 | Los Angeles → /about#stop-0. Travel Marketplace stays /#demo."): the first two open the
+  // sections' own pages, their paths from the pages' leaf. Until then this held [{ label: 'Financial Software', href: '/#modules' }, { label:
+  // 'Professional Services', href: `/#${SERVICES_ANCHOR}` }, { label: 'Travel Marketplace', href: `/#${DEMO_ANCHOR}` }] and the hrefs ['/#modules',
+  // '/#services', '/#demo'] — and the test's name read 'SERVICES: the three pillars on their sections'.
   assert.deepEqual(FOOTER_SERVICES_LINKS, [
-    { label: 'Financial Software', href: '/#modules' },
-    { label: 'Professional Services', href: `/#${SERVICES_ANCHOR}` },
+    { label: 'Financial Software', href: FINANCIAL_SOFTWARE_PATH },
+    { label: 'Professional Services', href: PROFESSIONAL_SERVICES_PATH },
     { label: 'Travel Marketplace', href: `/#${DEMO_ANCHOR}` },
   ]);
-  assert.deepEqual(FOOTER_SERVICES_LINKS.map((l) => l.href), ['/#modules', '/#services', '/#demo'], 'absolute paths, so they land from every page the footer is on');
+  assert.deepEqual(FOOTER_SERVICES_LINKS.map((l) => l.href), ['/financial-software', '/professional-services', '/#demo'], 'absolute paths, so they land from every page the footer is on');
   // PILLAR-NAMES-01: the headings dropped their full stop, so a label IS its pillar's heading. Until then this line held `${l.label}.` equal to the
   // three headings — 'each label is its pillar's heading, without the full stop'.
   assert.deepEqual(FOOTER_SERVICES_LINKS.map((l) => l.label), [PLAN_PILLAR.heading, BUILD_PILLAR.heading, EXPLORE_PILLAR.heading], 'each label is its pillar\'s heading, letter for letter');
@@ -203,7 +220,11 @@ test('T3 the other three columns, exactly — SERVICES: the three pillars on the
   for (const old of ['Plan Your Escape', 'Build Your Income', 'Explore the World']) {
     assert.deepEqual(srcFiles().filter((file) => code(file).includes(old)), [], `no code under src types "${old}"`);
   }
-  assert.ok(code(HOW_TO).includes('<section id="modules"'), 'the first link\'s target: the how-to\'s own section id');
+  // HOME-PAGES-01 (2026-11-14): the first link's target is the how-to's own PAGE. Until then this line was the whole of it — code(HOW_TO).includes(
+  // '<section id="modules"'), 'the first link's target: the how-to's own section id'. The id stays (the plan law, howTo01 and heroCrest01 hold it):
+  // the top bar's first link and the checkout's cancel link still land on it.
+  assert.equal(code('src/app/financial-software/page.tsx').split('<HowToSection ').length - 1, 1, 'the first link\'s target: the page that mounts the how-to, once');
+  assert.ok(code(HOW_TO).includes('<section id="modules"'), 'and the how-to keeps its own section id, for the links that still land on it');
   assert.deepEqual(FOOTER_SOCIALS, SOCIALS.map(([name, href]) => ({ name, href })), 'the five accounts, the bar\'s hrefs, in its order');
   assert.deepEqual(FOOTER_RECORD_LINKS, [
     { label: 'How It All Connects: The 14 Steps', href: PIPELINE_PATH },

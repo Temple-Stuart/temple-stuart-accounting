@@ -524,7 +524,14 @@ test('T7 the middleware: \'/f\' and \'/api/f\' after \'/api/proposals\', each BY
   assert.deepEqual(sourceFiles(resolve(process.cwd(), 'src/app/f')), ['src/app/f/[slug]/page.tsx']);
   assert.deepEqual(sourceFiles(resolve(process.cwd(), 'src/app/api/f')), ['src/app/api/f/[slug]/route.ts']);
   assert.ok(existsSync(resolve(process.cwd(), CLIENT)), 'the client half sits beside the CRM\'s components');
-  assert.ok(!readdirSync(resolve(process.cwd(), 'src/app')).some((d) => d !== 'f' && d !== 'favicon.ico' && d.startsWith('f')), 'nothing else under src/app starts with f');
+  // HOME-PAGES-01 (Alex's brief, 2026-11-14): a third name under src/app starts with f — financial-software, the Financial Software section's own
+  // page. The '/f' entry never covered it: isPublic's rule is p or p + '/', and '/financial-software' is neither '/f' nor under '/f/'; it is public
+  // by its own entry, and by no other. Until then this line read: assert.ok(!readdirSync(resolve(process.cwd(), 'src/app')).some((d) => d !== 'f' &&
+  // d !== 'favicon.ico' && d.startsWith('f')), 'nothing else under src/app starts with f').
+  assert.deepEqual(readdirSync(resolve(process.cwd(), 'src/app')).filter((d) => d.startsWith('f')).sort(), ['f', 'favicon.ico', 'financial-software'], 'the names under src/app that start with f: the form, the icon and the Financial Software page — no fourth');
+  for (const [path, entry] of [['/favicon.ico', '/favicon.ico'], ['/financial-software', '/financial-software']] as const) {
+    assert.deepEqual(paths.filter((p) => path === p || path.startsWith(p + '/')), [entry], `${path} is public by its own entry, never by '/f'`);
+  }
   // CLOSED 5: the embed works with no header change
   assert.doesNotMatch(code('next.config.ts'), /frame-ancestors|X-Frame-Options/i);
   assert.doesNotMatch(mw, /frame-ancestors|X-Frame-Options/i);

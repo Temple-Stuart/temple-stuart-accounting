@@ -20,8 +20,10 @@
  *      and "Scoped by proposal" (SCOPED_BY_PROPOSAL) beside it.
  * The form the reference draws in place, under the stage, is HOME-SERVICES-02's — a later PR. The brief: "The form drawn in the
  * reference is HOME-SERVICES-02, a later PR: do not build it here." Until then the gold button is the link each card carried.
- * The section keeps id={SERVICES_ANCHOR} (src/lib/homeAnchors.ts), the anchor the footer's and the top bar's links to Professional
- * Services land on.
+ * The section keeps id={SERVICES_ANCHOR} (src/lib/homeAnchors.ts), the anchor the top bar's link to Professional Services lands
+ * on. (HOME-PAGES-01, 2026-11-14: "the footer's and the top bar's links" until then. The footer's opens /professional-services
+ * now — a page of this section's own, src/app/professional-services/page.tsx, which mounts it as Landing.tsx does: whole, and
+ * directly under an element that wears none of its classes.)
  *
  * THE RULINGS, AS BUILT HERE (Alex's brief, 2026-11-12 15:16 Manila):
  *   a. "STATE. The picked door, in React state only. No storage, no URL, no cookie; a reload starts at the first door." — the
