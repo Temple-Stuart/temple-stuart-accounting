@@ -6,22 +6,33 @@
  * The second PR of the shorter home page. HOME-PAGES-01 gave the letter a page of its own; this one takes the letter off the home page
  * and puts one band in its seat: the heading, the first quote of the letter, one door to /about. The spec is a file:
  * design-refs/home-trim-01/Section-Reference.html ("Every value in its stylesheet is the design, and its markup is the page."), with its
- * README beside it. The band is src/components/landing/AboutBand.tsx, which Landing.tsx mounts; its stylesheet is the reference's own,
- * ported to src/app/globals.css under the house prefix. What is held here, as homeAbout01 holds the letter:
+ * README beside it. The band is src/components/landing/AboutBand.tsx, which Landing.tsx mounts; its stylesheet was the reference's own,
+ * ported to src/app/globals.css under the house prefix ("is" until HOME-ABOUT-02, below). What is held here, as homeAbout01 holds the letter:
+ *
+ * HOME-ABOUT-02 (Alex's brief, 2026-11-15 22:40 Manila; built 2026-11-15): the band draws the letter's three parts now — each its number, its
+ * title and its quote — and its spec is design-refs/home-about-02, held by src/lib/__tests__/homeAbout02.test.ts: the handoff, the ten tokens,
+ * the port against that reference, the render against its section, every word. design-refs/home-trim-01 stays in the tree, byte for byte (T1),
+ * the record of the first band. What HOME-TRIM-01 ruled that still stands is held here; T1, T6, T7 and T8 stand as they were, and T2 to T5 are
+ * re-pointed, each with what it held until then (the lines in quotes below are their entries until then). The brief's ruling f:
+ * "HOME-TRIM-01'S QUOTES STAY WHERE THEY STAND. homeTrim01 T8 stands unedited: its stamp, its rulings and its counts in AboutBand.tsx,
+ * homeActWords.ts, globals.css, Landing.tsx and homeTrim01 itself. Re-say around them, never through them, and quote that brief nowhere it
+ * is not quoted today."
  *
  *   T1 the handoff — the README and the reference are in the tree, byte for byte (sha256) and by size, and the folder holds the two;
- *   T2 the tokens — the README's two tables, five already in the app and two HOME-PLANS-04 brought; the reference's :root holds those
- *      seven and no other, each the app's token by the same name behind the house prefix, with the same value, declared once; the
- *      port reads all seven and nothing else but the font variable; no token is new;
- *   T3 the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the four differences
- *      named there; no hex, no rgb value typed, no gradient; every class behind the prefix and the band's own; its seat is above
- *      every other port, directly under the base rules and over the marquee's keyframes; nothing outside it names one of its classes;
- *   T4 the markup — the band's render is the reference's section, token for token (classes behind the house prefix, attributes in any
- *      order), but for the heading's class: the act headings' type; every other class it wears is ruled by the port, and the port
- *      rules no class the band does not wear; the region's label, no id; one thing that takes the keyboard's focus;
- *   T5 the words — the three the band draws are two leaves' own, in order: the heading, the letter's FIRST quote as the letter's
- *      own helper splits it, the door's words; the reference draws the same; the band types none of them and writes no split of its
- *      own; the door's words are one constant beside the heading's, and stand in no other file's code under src but the tests;
+ *   T2 no new token — the first band's seven, named and valued as its README's two tables, are the app's tokens by the same names behind
+ *      the house prefix, each declared once; no token is named for the band, and its port declares none ("the tokens — the README's two
+ *      tables, … the port reads all seven and nothing else but the font variable; no token is new;" until HOME-ABOUT-02);
+ *   T3 the class and the seat — every class the port names is the band's own behind the prefix, the one word; its seat is above every
+ *      other port, directly under the base rules and over the marquee's keyframes; nothing outside it names one of its classes ("the
+ *      stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the four differences named
+ *      there; no hex, no rgb value typed, no gradient; …" until HOME-ABOUT-02);
+ *   T4 the heading, the label, the tab stop — the band's h2 wears the act headings' type; the region's label, no id; one thing that
+ *      takes the keyboard's focus ("the markup — the band's render is the reference's section, token for token … every other class it
+ *      wears is ruled by the port, and the port rules no class the band does not wear; …" until HOME-ABOUT-02);
+ *   T5 nothing typed, the letter's own helper, the door's words — the band types none of the words it draws and writes no split of its
+ *      own, its quotes split by the letter's quoteParts; the door's words are one constant beside the heading's, and stand in no other
+ *      file's code under src but the tests ("the words — the three the band draws are two leaves' own, in order: the heading, the
+ *      letter's FIRST quote as the letter's own helper splits it, the door's words; the reference draws the same; …" until HOME-ABOUT-02);
  *   T6 the mount — the band once on the home page, in the letter's seat: its import where the letter's stood, on the
  *      ExperiencesSection import's line, its mount between the travel section's close and Our Story, on the two lines the brief
  *      names; the letter nowhere on that page; the letter still on /about, once, and the band not there;
@@ -43,7 +54,7 @@ import { join, resolve } from 'node:path';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code, comments, rejoin } from '../sourceText';
-import { ABOUT_US_DOOR, ABOUT_US_HEADING } from '../homeActWords';
+import { ABOUT_US_DOOR } from '../homeActWords';
 import { ABOUT_PATH } from '../homePages';
 import { STOP_ZERO_STORY } from '../stopZeroWords';
 import AboutBand from '@/components/landing/AboutBand';
@@ -140,26 +151,9 @@ function rootOf(css: string): Map<string, string> {
   }
   return map;
 }
-/**
- * THE FOUR DIFFERENCES the port names (globals.css, its header), applied to the reference's declarations:
- *   1. the colours are tokens — the reference's :root is dropped here, and every custom property it reads gains the house prefix;
- *   2. the font is the site's — 'Inter', sans-serif is var(--font-sans);
- *   3. the heading's rule is not ported — the h2 wears the act headings' Tailwind classes;
- *   4. the reference page's own ground (body) is not ported.
- * Every class gains the house prefix: .aboutband → .ts-aboutband.
- */
-const NOT_PORTED = [':root', '.aboutband__title', 'body'];
-function referencePorted(): string[] {
-  const all = declarations(uncommented(referenceStyle()));
-  const dropped = all.filter((d) => NOT_PORTED.includes(d.split(' | ')[1]));
-  assert.deepEqual([...new Set(dropped.map((d) => d.split(' | ')[1]))], NOT_PORTED, 'what is not ported, in the reference\'s order: its :root, the heading\'s rule, the page\'s own ground');
-  assert.deepEqual([...new Set(dropped.filter((d) => d.split(' | ')[1] === '.aboutband__title').map((d) => d.split(' | ')[0]))], ['', '@media (min-width: 640px)'], 'the heading\'s rule, and its size from 640px');
-  return all.filter((d) => !NOT_PORTED.includes(d.split(' | ')[1])).map((d) => {
-    const [media, sel, decl] = d.split(' | ');
-    const port = decl.replace(/var\(--/g, 'var(--ts-').replace("'Inter', sans-serif", 'var(--font-sans)');
-    return `${media} | ${sel.replace(/\.aboutband(?=$|[^A-Za-z0-9])/g, '.ts-aboutband')} | ${port}`;
-  });
-}
+// HOME-ABOUT-02 (2026-11-15): THE FOUR DIFFERENCES — the reading that applied them to design-refs/home-trim-01's declarations (NOT_PORTED and
+// referencePorted(), which T3 held the port to) left this file: the port is design-refs/home-about-02's stylesheet now, and homeAbout02.test.ts
+// applies the four differences its header names to that reference's declarations.
 /** The port: globals.css from the band's first rule to the next block's — the marquee's keyframes. */
 const PORT_OPEN = '.ts-aboutband {';
 const NEXT_BLOCK = '@keyframes ts-marquee {';
@@ -230,18 +224,9 @@ function tokensOf(html: string, prefix: boolean): string[] {
   return out;
 }
 const textsOf = (html: string, prefix = false): string[] => tokensOf(html, prefix).filter((t) => t.startsWith('#text ')).map((t) => JSON.parse(t.slice('#text '.length)) as string);
-/** The reference's section: from <section to its </section>. */
-function referenceSection(): string {
-  const html = referenceText();
-  const body = html.slice(html.indexOf('<body>') + '<body>'.length, html.indexOf('</body>'));
-  assert.equal(count(body, '<section'), 1, 'one section in the reference');
-  return body.slice(body.indexOf('<section'), body.indexOf('</section>') + '</section>'.length);
-}
+// HOME-ABOUT-02 (2026-11-15): the reference's section (referenceSection()), the letter's FIRST_QUOTE and the band's three DRAWN words, which T4
+// and T5 held the band to, left this file with those holds — homeAbout02.test.ts reads design-refs/home-about-02's section and every word now.
 const render = (): string => renderToStaticMarkup(React.createElement(AboutBand));
-/** The letter's first quote, as its leaf writes it, and its words between the two marks — typed here by position, not by split. */
-const FIRST_QUOTE = STOP_ZERO_STORY[0].quote;
-/** The three words the band draws, in order — the quote as its two marks and its words. */
-const DRAWN: readonly string[] = [ABOUT_US_HEADING, '“', FIRST_QUOTE.slice(1, -1), '”', ABOUT_US_DOOR];
 /** code() blanks a JSX comment's words and keeps its braces. */
 const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
 
@@ -283,9 +268,15 @@ test('T1 the handoff is in the tree — the README and the reference, byte for b
   assert.deepEqual(readdirSync(resolve(ROOT, FOLDER)).sort(), ['README.md', 'Section-Reference.html'], 'the reference\'s folder holds the two files');
 });
 
-// ── T2 · THE TOKENS ──────────────────────────────────────────────────────────
+// ── T2 · NO NEW TOKEN ────────────────────────────────────────────────────────
 
-test('T2 the tokens, named and valued as the README\'s two tables — five already in the app and two HOME-PLANS-04 brought, the same values behind the house prefix, each declared once; the port reads all seven and nothing else but the font; none is new', () => {
+// HOME-ABOUT-02 (Alex's brief, 2026-11-15 22:40 Manila; built 2026-11-15), its ruling d: "THE BAND'S PORT IS REPLACED AT ITS SEAT." The port reads ten
+// tokens now — these seven and three more — and two font variables; homeAbout02 T2 holds the ten, named and valued as its README's table, and that the
+// port reads them and nothing else. What HOME-TRIM-01 ruled of the tokens stands here: none is new. Until then this test was named "T2 the tokens,
+// named and valued as the README's two tables — five already in the app and two HOME-PLANS-04 brought, the same values behind the house prefix, each
+// declared once; the port reads all seven and nothing else but the font; none is new", and it held, too, that the port read the seven and the font
+// variable and no other (deepEqual of the variables it reads with the seven and '--font-sans'), and that src/app/layout.tsx declares --font-sans.
+test('T2 no token is new — the first band\'s seven, named and valued as its README\'s two tables, are still the app\'s by the same names behind the house prefix, each declared once; no token is named for the band, and its port declares none (the ten its port reads now: homeAbout02 T2)', () => {
   assert.deepEqual(readmeTable('**Already in the app.**').map(([n, v]) => [n, v]), KEPT, 'the README\'s first table');
   assert.deepEqual(readmeTable('**Added by HOME-PLANS-04**').map(([n, v]) => [n, v]), SHARED, 'its second');
   assert.ok(whole(README).includes('**New with this section: none.** No gradient.'), 'and its word on new tokens: none');
@@ -299,45 +290,26 @@ test('T2 the tokens, named and valued as the README\'s two tables — five alrea
     assert.equal(root.get(`--ts-${name}`), value, `--ts-${name} is ${value}`);
     assert.equal([...globals.matchAll(new RegExp(`--ts-${name}\\s*:`, 'g'))].length, 1, `--ts-${name} declared once in globals.css, wherever it stands (homePlans04.test.ts's count)`);
   }
-  // the port reads every one of the seven — no token listed without a reader — and nothing else but the font variable
-  const read = new Set([...portCss().matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]));
-  assert.deepEqual([...read].sort(), [...[...KEPT, ...SHARED].map(([n]) => `--ts-${n}`), '--font-sans'].sort(), 'the seven and the font, and no other');
-  assert.match(code('src/app/layout.tsx'), /variable:\s*["']--font-sans["']/, 'src/app/layout.tsx declares --font-sans (Inter)');
   // ruling h — "NO NEW TOKEN." — no custom property is declared for this section: in :root, or in the port
   assert.deepEqual([...root.keys()].filter((k) => /aboutband|about-band/i.test(k)), [], 'no token is named for this section');
   assert.doesNotMatch(portCss(), /(?:^|[\s;{])--[\w-]+\s*:/, 'the port declares no custom property');
 });
 
-// ── T3 · THE STYLESHEET ──────────────────────────────────────────────────────
+// ── T3 · THE CLASS AND THE SEAT ──────────────────────────────────────────────
 
-test('T3 the band\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the four named differences; no hex, no rgb value typed, no gradient; every class behind the prefix and the band\'s own; its seat is above every other port, directly under the base rules and over the marquee\'s keyframes; nothing outside it names one of its classes', () => {
+// HOME-ABOUT-02 (Alex's brief, 2026-11-15 22:40 Manila; built 2026-11-15), its ruling d: the band's rules are design-refs/home-about-02's stylesheet now,
+// at this seat; homeAbout02 T3 holds them equal to that reference, declaration by declaration, but for the four differences the port's header names,
+// and holds that no colour is typed. What HOME-TRIM-01 ruled of the port stands here: the one-word class and the seat. Until then this test was named
+// "T3 the band's stylesheet in globals.css is the reference's, declaration by declaration and in order, but for the four named differences; no hex, no
+// rgb value typed, no gradient; every class behind the prefix and the band's own; its seat is above every other port, directly under the base rules
+// and over the marquee's keyframes; nothing outside it names one of its classes", and it held the port to design-refs/home-trim-01's stylesheet —
+// forty-six declarations in ten rules, every variable declared — and the port's header to that reference's four differences.
+test('T3 the band\'s port keeps the one-word class and its seat — every class it names is the band\'s own, behind the prefix; above every other port, directly under the base rules and over the marquee\'s keyframes; nothing outside it names one of its classes (the port against its reference: homeAbout02 T3)', () => {
   const port = declarations(portCss());
-  assert.deepEqual(port, referencePorted(), 'the port is the reference\'s stylesheet, as the four differences leave it');
-  // what is not ported is what the reference itself marks so: its :root, which it says is declared only so that the file renders on its own,
-  // and its two last section notes, with every rule under each
-  const style = referenceStyle();
-  const APP_OWN = '/* ── THE APP\'S OWN CLASSES, NOT PORTED:';
-  const PAGE_OWN = '/* ── THIS PAGE\'S OWN: not part of the design, not ported';
-  assert.ok(count(style, APP_OWN) === 1 && count(style, PAGE_OWN) === 1 && style.indexOf(PAGE_OWN) > style.indexOf(APP_OWN), 'the reference marks two things not ported, in this order');
-  const selectorsOf = (css: string): string[] => [...new Set(declarations(uncommented(css)).map((d) => d.split(' | ')[1]))];
-  const designed = selectorsOf(style.slice(0, style.indexOf(APP_OWN)));
-  assert.equal(designed[0], ':root', 'above the marks: the reference\'s :root first');
-  assert.ok(designed.length === 9 && designed.slice(1).every((sel) => /^\.aboutband(?:$|__| )/.test(sel) && !NOT_PORTED.includes(sel)), 'then the design\'s eight selectors, every one the band\'s and every one ported');
-  assert.deepEqual(selectorsOf(style.slice(style.indexOf(APP_OWN), style.indexOf(PAGE_OWN))), ['.aboutband__title'], 'under "THE APP\'S OWN CLASSES, NOT PORTED": the heading\'s rule alone');
-  assert.deepEqual(selectorsOf(style.slice(style.indexOf(PAGE_OWN))), ['body'], 'under "THIS PAGE\'S OWN": the page\'s ground alone');
-  assert.ok(flat(style).includes(`the heading wears the act headings' type, the classes What We Do and the letter's About Us wear — '${ACT_HEADING_TYPE}'.`), 'and the reference names the heading\'s classes: the act headings\' type, whole');
-  assert.equal(port.length, 46, 'forty-six declarations');
-  assert.equal(new Set(port.map((d) => `${d.split(' | ')[0]} | ${d.split(' | ')[1]}`)).size, 10, 'in ten rules: seven, and three inside @media');
-  const text = portCss();
-  assert.doesNotMatch(text, /#[0-9a-fA-F]{3,8}\b/, 'no hex typed');
-  assert.doesNotMatch(text, /rgba?\((?!var\()/, 'no rgb value typed — rgb() only ever wraps a token');
-  assert.doesNotMatch(text, /gradient\(/, 'no gradient — the README: "No gradient."');
+  assert.ok(port.length > 0, `the port was read (${port.length} declarations)`);
   // every class it names carries the house prefix and is the band's own — the one word, aboutband (ruling g)
   const selectors = [...new Set(port.map((d) => d.split(' | ')[1]))];
   for (const sel of selectors) for (const m of sel.matchAll(/\.([A-Za-z][\w-]*)/g)) assert.match(m[1], /^ts-aboutband(?:$|__)/, `${sel}: .${m[1]} is the band's, behind the prefix`);
-  // every variable it reads is declared — the font by the layout
-  const root = rootOf(code(GLOBALS));
-  for (const v of new Set([...text.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]))) assert.ok(root.has(v) || v === '--font-sans', `${v} is declared`);
   // THE SEAT (ruling g: "The port takes a seat in globals.css that moves no other port's pin."): above every other port. Each port's test reads
   // its port from its own first rule to the next block's first rule (the hero's, the last, to the end of the file), so a block set under any of
   // them would be read as part of it — and the
@@ -361,41 +333,25 @@ test('T3 the band\'s stylesheet in globals.css is the reference\'s, declaration 
   assert.doesNotMatch(outside, /\[\s*class\s*[~|^$*]?=\s*["']?[^"'\]]*aboutband/, 'and none reaches them through a class attribute selector');
   // the letter's port stands where it stood and names its own classes alone: homeAbout01.test.ts holds it equal to its reference (ruling a)
   assert.equal(count(css, '.ts-about {'), 1, 'the letter\'s port still opens once: ".ts-about {" is no part of ".ts-aboutband {"');
-  // the four differences, named in the port's header — the note that stands over the port, from its title to the line that says who wears it
-  const notes = prose(GLOBALS);
-  const TITLE = 'ABOUT US, AS ONE BAND ON THE HOME PAGE';
-  assert.equal(count(notes, TITLE), 1, 'the port\'s header, once');
-  const close = notes.indexOf('Used by src/components/landing/AboutBand.tsx, which Landing.tsx mounts in the seat the letter held.', notes.indexOf(TITLE));
-  assert.ok(close > notes.indexOf(TITLE), 'and it closes on the line that says who wears the port');
-  const header = notes.slice(notes.indexOf(TITLE), close);
-  for (const lead of ['the FOUR DIFFERENCES named here:', '1. THE COLOURS are tokens the app already holds.', '2. THE FONT is the site\'s:', '3. NOT PORTED: the heading\'s rule (.aboutband__title, and its size from 640px)', '4. NOT PORTED: the reference page\'s own ground (body)']) {
-    assert.equal(count(header, lead), 1, `the port's header names: ${lead}`);
-  }
-  assert.doesNotMatch(header, /\b5\. [A-Z]{3}/, 'four, and no fifth');
 });
 
-// ── T4 · THE MARKUP ──────────────────────────────────────────────────────────
+// ── T4 · THE HEADING, THE LABEL, THE TAB STOP ────────────────────────────────
 
-test('T4 the band\'s render is the reference\'s section, token for token, but for the heading\'s class — the act headings\' type; every other class it wears is ruled by the port, and the port rules no class it does not wear; the region\'s label and no id; one thing takes the keyboard\'s focus', () => {
-  const reference = tokensOf(referenceSection(), true);
-  const REFERENCE_HEADING = '<h2 class="ts-aboutband__title">';
-  assert.equal(reference.filter((t) => t === REFERENCE_HEADING).length, 1, 'the reference\'s heading, once');
-  const asBuilt = reference.map((t) => (t === REFERENCE_HEADING ? `<h2 class="${ACT_HEADING_TYPE}">` : t));
+// HOME-ABOUT-02 (Alex's brief, 2026-11-15 22:40 Manila; built 2026-11-15), its ruling a: the band is design-refs/home-about-02's section now — the
+// heading, the letter's three parts, the door; homeAbout02 T4 holds the render to that section, token for token, and the classes it wears to the classes
+// its port rules. What HOME-TRIM-01 ruled of the markup stands here: the heading's classes, the label and no id, one tab stop. Until then this test was
+// named "T4 the band's render is the reference's section, token for token, but for the heading's class — the act headings' type; every other class it
+// wears is ruled by the port, and the port rules no class it does not wear; the region's label and no id; one thing takes the keyboard's focus", and it
+// held the render to design-refs/home-trim-01's section — twenty-one tokens: eight elements, their closes, and five runs of text — and to the six classes
+// the band wore (ts-aboutband, ts-aboutband__go, ts-aboutband__inner, ts-aboutband__mark, ts-aboutband__quote, ts-aboutband__words).
+test('T4 the band\'s heading wears the act headings\' type, the string What We Do\'s h2 and the letter\'s h2 wear; the region\'s label and no id; one thing takes the keyboard\'s focus (the render against its reference: homeAbout02 T4)', () => {
   const html = render();
-  const app = tokensOf(html, false);
-  assert.deepEqual(app, asBuilt, 'the band is the reference\'s section, but for the heading\'s class');
-  assert.equal(app.length, 21, 'twenty-one tokens: eight elements, their closes, and five runs of text');
   // the heading wears the act headings' type — the string What We Do's h2 wears in Landing.tsx and the letter's h2 wears, whole (ruling f)
   assert.equal(count(code(LANDING), `<h2 className="${ACT_HEADING_TYPE}" data-act-heading>`), 1, 'What We Do\'s h2 wears the act headings\' type');
   assert.equal(count(code(LETTER), `h2: '${ACT_HEADING_TYPE}',`), 1, 'the letter\'s h2 wears it');
   assert.equal(count(code(BAND), `h2: '${ACT_HEADING_TYPE}',`), 1, 'and the band\'s: the same string');
   assert.equal(count(html, `<h2 class="${ACT_HEADING_TYPE}">`), 1, 'drawn so');
   assert.doesNotMatch(html, /ts-aboutband__title/, 'the reference\'s heading class is worn by nothing');
-  // what the band wears is what the port rules — each class itself, but for the heading's Tailwind type — and no class is ruled for nothing
-  const ruled = new Set(declarations(portCss()).flatMap((d) => d.split(' | ')[1].match(/\.ts-[A-Za-z][\w-]*/g) ?? []).map((c) => c.slice(1)));
-  const worn = new Set([...html.matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/)).filter((c) => !ACT_HEADING_TYPE.split(' ').includes(c)));
-  assert.deepEqual([...worn].sort(), ['ts-aboutband', 'ts-aboutband__go', 'ts-aboutband__inner', 'ts-aboutband__mark', 'ts-aboutband__quote', 'ts-aboutband__words'], 'the six classes the band wears');
-  assert.deepEqual([...ruled].sort(), [...worn].sort(), 'are the six the port rules');
   // the hooks (ruling e): the region's label, typed on the tag as the letter types its own; no id
   assert.equal(count(html, '<section class="ts-aboutband" aria-label="About us">'), 1, 'the section, with its label');
   assert.equal(count(code(LETTER), 'aria-label="About us"'), 1, 'the letter types the same label on its own tag');
@@ -405,47 +361,46 @@ test('T4 the band\'s render is the reference\'s section, token for token, but fo
   assert.doesNotMatch(html, /<(?:button|input|select|textarea|summary|iframe|details|audio|video)\b|\stabindex=|\scontenteditable/, 'nothing else can be focused');
 });
 
-// ── T5 · THE WORDS ───────────────────────────────────────────────────────────
+// ── T5 · NOTHING TYPED, THE LETTER'S OWN HELPER, THE DOOR'S WORDS ────────────
 
-test('T5 the words the band draws are two leaves\' own, in order — the heading, the letter\'s first quote as the letter\'s own helper splits it, the door\'s words; the reference draws the same; the band types none and writes no split of its own; the door\'s words are one constant beside the heading\'s, and stand in no other file\'s code under src but the tests', () => {
+// HOME-ABOUT-02 (Alex's brief, 2026-11-15 22:40 Manila; built 2026-11-15), its ruling b: the band draws the letter's three parts — each its number, its
+// heading and its quote — from the leaves, each number the letter's partNumber; homeAbout02 T5 holds every word, in order, against the leaves and the
+// reference, quote 2 exactly as its ruling c gives it, and the band's imports. What HOME-TRIM-01 ruled of the words stands here: nothing is typed in the
+// band, its quotes are split by the letter's own helper and by nothing else, and the door's words are one constant beside the heading's. Until then this
+// test was named "T5 the words the band draws are two leaves' own, in order — the heading, the letter's first quote as the letter's own helper splits it,
+// the door's words; the reference draws the same; the band types none and writes no split of its own; the door's words are one constant beside the
+// heading's, and stand in no other file's code under src but the tests", and it held the band's three words and the reference's, the letter's FIRST quote
+// alone (const quote = quoteParts(STOP_ZERO_STORY[0].quote), "one thing" of the leaf), the band's five imports with { quoteParts } alone from the letter's
+// file, seven class strings among its literals and ['About us'] for its double-quoted ones.
+test('T5 nothing is typed in the band, and the letter\'s own helper splits its quotes — no split of its own, no catch, no default; the door\'s words are one constant beside the heading\'s, and stand in no other file\'s code under src but the tests (every word, in order: homeAbout02 T5)', () => {
   const html = render();
-  assert.deepEqual(textsOf(html), DRAWN, 'the words drawn, in order');
-  assert.deepEqual(textsOf(referenceSection(), true), DRAWN, 'the reference\'s words are the same, in the same order');
-  // the quote is the letter's FIRST, and the split loses nothing
-  assert.equal(FIRST_QUOTE, '“Everyone was showing me the life they were living. I wanted to understand how to build one of my own.”', 'the first quote of his letter, as its leaf writes it');
-  assert.deepEqual(quoteParts(FIRST_QUOTE), { open: '“', words: FIRST_QUOTE.slice(1, -1), close: '”' }, 'split by the letter\'s own helper: its two marks and its words');
   const band = code(BAND);
-  assert.equal(count(band, 'const quote = quoteParts(STOP_ZERO_STORY[0].quote);'), 1, 'the band reads one thing of the letter\'s words: the first quote, split');
-  assert.equal(count(band, 'STOP_ZERO_STORY'), 2, 'and names the leaf\'s story twice: its import, and that one read');
-  assert.equal(count(band, 'STOP_ZERO_'), 2, 'nothing else of that leaf: not its place, its dates or its anchor');
-  assert.ok(prose(BAND).includes('of that leaf this file reads ONE thing, STOP_ZERO_STORY[0].quote, the letter\'s first quote, and draws it under the same heading.'), 'and it says so in its own file (ruling a)');
+  // every quote is split by the letter's own helper, imported from the letter's file, and drawn mark, words, mark — as the letter draws one
+  assert.match(band, /^import \{[^}\n]*\bquoteParts\b[^}\n]*\} from '\.\/StopZeroSection';$/m, 'quoteParts, imported from the letter\'s own file');
+  assert.equal(count(band, 'const quote = quoteParts(part.quote);'), 1, 'each quote, split by it');
   assert.equal(count(band, '<blockquote className={BAND.quote}><span className={BAND.mark}>{quote.open}</span>{quote.words}<span className={BAND.mark}>{quote.close}</span></blockquote>'), 1, 'drawn mark, words, mark');
   assert.equal(count(code(LETTER), '<blockquote className={STOP.quote}><span className={STOP.mark}>{quote.open}</span>{quote.words}<span className={STOP.mark}>{quote.close}</span></blockquote>'), 1, 'as the letter draws a quote');
+  for (const part of STOP_ZERO_STORY) assert.deepEqual(quoteParts(part.quote), { open: '“', words: part.quote.slice(1, -1), close: '”' }, `"${part.heading}": split into its two marks and its words, losing nothing`);
   // no second split is written, and a refusal is never swallowed
   assert.doesNotMatch(band, /\.(?:slice|split|replace|substring|substr|match|trim)\(|[“”]/, 'no split of its own, and neither mark typed');
   assert.doesNotMatch(band, /\bcatch\b|\?\?|\|\|/, 'no catch and no default: a quote without its shape is refused by name');
-  assert.throws(() => quoteParts(FIRST_QUOTE.slice(1)), (e: unknown) => e instanceof StopZeroShapeError && e.name === 'StopZeroShapeError', 'as the letter\'s helper refuses one');
-  // the imports: the three leaves, the letter's helper, the link — each on a line of its own
-  assert.deepEqual(band.split('\n').filter((l) => /^import /.test(l)), [
-    "import Link from 'next/link';",
-    "import { ABOUT_US_DOOR, ABOUT_US_HEADING } from '@/lib/homeActWords';",
-    "import { ABOUT_PATH } from '@/lib/homePages';",
-    "import { STOP_ZERO_STORY } from '@/lib/stopZeroWords';",
-    "import { quoteParts } from './StopZeroSection';",
-  ], 'the band\'s five imports');
-  assert.equal(count(band, 'import'), 5, 'and no other, in any form');
-  // nothing is typed in the band (ruling c): its string literals are its directive, its imports' paths and its classes; its one double-quoted
-  // literal is the region's label, which no leaf holds and which is not drawn; no template literal; no text between its tags
+  assert.throws(() => quoteParts(STOP_ZERO_STORY[0].quote.slice(1)), (e: unknown) => e instanceof StopZeroShapeError && e.name === 'StopZeroShapeError', 'as the letter\'s helper refuses one');
+  // nothing is typed in the band (ruling c): its string literals are its directive, its imports' paths and its classes; its double-quoted literals
+  // are the region's label, which no leaf holds and which is not drawn, and aria-hidden's "true" on each number, typed as the letter types its own;
+  // no template literal; no text between its tags
   assert.deepEqual([...band.matchAll(/'([^']*)'/g)].map((m) => m[1]), [
     'use client', 'next/link', '@/lib/homeActWords', '@/lib/homePages', '@/lib/stopZeroWords', './StopZeroSection',
-    'ts-aboutband', 'ts-aboutband__inner', 'ts-aboutband__words', ACT_HEADING_TYPE, 'ts-aboutband__quote', 'ts-aboutband__mark', 'ts-aboutband__go',
-  ], 'its single-quoted literals: the directive, five paths, seven class strings');
-  assert.deepEqual([...band.matchAll(/"([^"]*)"/g)].map((m) => m[1]), ['About us'], 'its one double-quoted literal: the region\'s label');
+    'ts-aboutband', 'ts-aboutband__inner', ACT_HEADING_TYPE, 'ts-aboutband__parts', 'ts-aboutband__part', 'ts-aboutband__number', 'ts-aboutband__heading', 'ts-aboutband__quote', 'ts-aboutband__mark', 'ts-aboutband__go',
+  ], 'its single-quoted literals: the directive, five paths, ten class strings');
+  assert.deepEqual([...band.matchAll(/"([^"]*)"/g)].map((m) => m[1]), ['About us', 'true'], 'its double-quoted literals: the region\'s label, and aria-hidden="true" on the numbers');
+  assert.equal(count(code(LETTER), '<p className={STOP.number} aria-hidden="true">{partNumber(index)}</p>'), 1, '(the letter types aria-hidden="true" on its numbers the same way)');
   assert.equal(count(band, '`'), 0, 'no template literal, where a typed word could hide');
   const jsx = band.slice(band.indexOf('return ('), band.lastIndexOf(');'));
   assert.ok(jsx.includes('<section') && jsx.includes('</section>'), '(the band\'s markup was read)');
   assert.deepEqual([...jsx.matchAll(/>([^<>{}]*)</g)].map((m) => m[1]).filter((t) => t.trim() !== ''), [], 'no text between its tags: every word is handed in braces');
-  for (const word of DRAWN) assert.ok(!band.includes(word), `the band does not type "${word.slice(0, 30)}"`);
+  const drawn = textsOf(html);
+  assert.ok(drawn.length > 10, `(the band's words were read: ${drawn.length} runs of text)`);
+  for (const word of drawn) assert.ok(!band.includes(word), `the band does not type "${word.slice(0, 30)}"`);
   // the door's words: one constant, beside the heading's, the arrow in the string
   assert.equal(ABOUT_US_DOOR, 'Read my story →');
   const leaf = code(HEADINGS);
