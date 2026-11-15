@@ -103,7 +103,7 @@ const PUBLIC_PATHS = [
   // page itself.
   '/professional-services',
   // /about (HOME-PAGES-01, 2026-11-14) — About Us and, under it, Our Story (src/components/landing/StopZeroSection.tsx,
-  // WasHereSection.tsx; the home page keeps its own mount of each). SAFE BY CONSTRUCTION: a server page
+  // WasHereSection.tsx; the home page keeps its own mount of Our Story, and of About Us one band in the letter's seat — HOME-TRIM-01, 2026-11-15: "the home page keeps its own mount of each" until then). SAFE BY CONSTRUCTION: a server page
   // (src/app/about/page.tsx) rendered on every request for one reason — the day: it computes the UTC calendar date once,
   // with the front door's own expression (src/app/page.tsx), and hands it to the trip log — over two client sections with
   // no data path: no route handler under it, no fetch, no paid API, no database read, no env read, no session read (it

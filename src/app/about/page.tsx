@@ -9,12 +9,12 @@ import { STOP_ZERO_STORY } from '@/lib/stopZeroWords';
 /**
  * /about (HOME-PAGES-01 — Alex's brief, 2026-11-14 19:11 Manila; his approval of the boards on the design canvas, 20:01
  * Manila) — ABOUT US AND, UNDER IT, OUR STORY, ON A PAGE OF THEIR OWN: the filled top bar, the two sections whole, the footer.
- * The home page keeps its own mount of each, unchanged. Its door: the footer's OUR STORY column, "Stop 0 | Los Angeles"
+ * The home page keeps its own mount of Our Story, unchanged; of About Us it kept one until HOME-TRIM-01 (2026-11-15: "The home page keeps its own mount of each, unchanged." until then) and draws one band in that seat now, AboutBand.tsx, whose button opens this page. Its door: the footer's OUR STORY column, "Stop 0 | Los Angeles"
  * (src/lib/footerWords.ts) — to the page's top, with no fragment (Alex's answer to the audit, 2026-11-14).
  *
  * THE RULINGS BUILT HERE (Alex's brief, 2026-11-14):
  *   a. "NOTHING IS REDRAWN. Each page mounts the section's own component: no copy, no second stylesheet." — the two sections
- *      are StopZeroSection and WasHereSection, mounted one under the other as the home page stacks them, and nothing here wears
+ *      are StopZeroSection and WasHereSection, mounted one under the other as the home page stacked them until HOME-TRIM-01 (2026-11-15: a band stands over Our Story there now, and the letter is mounted here alone), and nothing here wears
  *      a class of either port.
  *   b. "THE SHELL is /how-it-works's: the min-h-screen wrapper, <LandingHeader /> filled, <main>, <LandingFooter />." — below,
  *      as src/app/how-it-works/page.tsx has it.

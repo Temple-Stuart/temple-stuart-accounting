@@ -3,7 +3,7 @@
  * order, under two headings. A MOVE of existing JSX: every block whole, with the comment above it; nothing copied.
  *
  *   T1 the eleven, each once, in the order: hero · the header laid over it · "What We Do" · the how-to · DONE-FOR-YOU · the
- *      travel block · the booking box (the experiences inside it) · the guest's strip · Stop 0 · MY TRIP · footer —
+ *      travel block · the booking box (the experiences inside it) · the guest's strip · Stop 0 (HOME-TRIM-01, 2026-11-15: the About Us band, AboutBand.tsx, in that place now; Stop 0, the letter, until then — it stands on /about) · MY TRIP · footer —
  *      HERO-CREST-01 (Alex, design canvas, 2026-11-11): the top bar lies OVER the hero, inside its band, so the band opens first
  *      and the header follows it (header · hero until then: a cream bar above a solid band);
  *      HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE, and (Part 5) the door to the 14 steps left the page
@@ -96,7 +96,7 @@ const MOUNTS: ReadonlyArray<readonly [string, string]> = [
   // STRIP LEFT THIS LIST: it is that card, inside the travel block. Until then ["the guest's strip", '<GuestTripStrip onRequireAuth={onRequireAuth} />']
   // stood here, between the booking box and Stop 0, and the box's mount read '<LandingBookingSection onRequireAuth={onRequireAuth} events={…} />'.
   ['the booking box, the experiences inside it, the trip under it', '<LandingBookingSection onRequireAuth={onRequireAuth} today={today} events={<ExperiencesSection today={today} />} />'],
-  ['Stop 0', '<StopZeroSection />'],
+  ['About Us, the band', '<AboutBand />'], // HOME-TRIM-01 (2026-11-15): the letter left this page for /about and one band stands in its seat — until then this entry was ['Stop 0', '<StopZeroSection />']
   ['MY TRIP', '<WasHereSection today={today} />'],
   // HOME-FINISH-02 (2026-11-10), Part 5: the door left the page — until then ['the door', '<section aria-label="How it all connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">'] stood here, and the list held twelve.
   ['the footer', '<LandingFooter />'],
@@ -107,13 +107,13 @@ const count = (hay: string, needle: string): number => hay.split(needle).length 
 /** Whitespace collapsed, so a word broken across lines is still found. */
 const flat = (s: string): string => s.replace(/\s+/g, ' ');
 
-test('T1 the ten, each once, in Alex\'s order (HOME-FINISH-02: plan → build → explore; the door left the page; HERO-CREST-01: the header lies over the hero; HOME-TRAVEL-01: the guest\'s trip is a card in the travel block): hero · header · "What We Do" · the how-to · DONE-FOR-YOU · travel · the booking box with the experiences inside it and the trip under it · Stop 0 · MY TRIP · footer', () => {
+test('T1 the ten, each once, in Alex\'s order (HOME-FINISH-02: plan → build → explore; the door left the page; HERO-CREST-01: the header lies over the hero; HOME-TRAVEL-01: the guest\'s trip is a card in the travel block): hero · header · "What We Do" · the how-to · DONE-FOR-YOU · travel · the booking box with the experiences inside it and the trip under it · About Us (the band — HOME-TRIM-01, 2026-11-15: Stop 0, the letter, until then; it stands on /about) · MY TRIP · footer', () => {
   const landing = code(LANDING);
   assert.equal(MOUNTS.length, 10); // HOME-TRAVEL-01 (2026-11-12): eleven until then — the guest's strip had a place of its own
   assert.equal(count(landing, '<GuestTripStrip'), 0, 'the guest\'s trip has no place of its own on the page — the booking box renders it');
   assert.equal(count(landing, 'aria-label="How it all connects"'), 0, 'the door to the 14 steps is not on this page');
   assert.equal(count(landing, 'PlansSection'), 0, 'the plans are mounted nowhere on this page — /pricing keeps them');
-  assert.equal(count(landing, '<ExperiencesSection'), 1, 'the experiences are mounted once — in the booking box, never as a band of their own');
+  assert.equal(count(landing, '<ExperiencesSection'), 1, 'the experiences are mounted once — in the booking box, never as a band of their own'); assert.equal(count(landing, 'StopZeroSection'), 0, 'the letter is mounted nowhere on this page, and named nowhere in its code — /about holds it (HOME-TRIM-01, 2026-11-15)');
   for (const [name, mount] of MOUNTS) assert.equal(count(landing, mount), 1, `${name}: mounted exactly once`);
   const at = MOUNTS.map(([, mount]) => landing.indexOf(mount));
   assert.deepEqual(at, [...at].sort((a, b) => a - b), MOUNTS.map(([name]) => name).join(' → '));

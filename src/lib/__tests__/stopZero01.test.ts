@@ -10,7 +10,7 @@
  * behind the house prefix, the place line drawn as two parts (the stop, then the place), each quote as its two curly marks
  * and its words, each part numbered, and the dates no longer italic. T1 (the words) and T5 (the mount) are as they were; T3
  * (the rendered markup) and T4 (the source's opening tag and quote) are re-pointed, each change named where it stands. The
- * port, the reference's markup and the helpers are held in src/lib/__tests__/homeAbout01.test.ts.
+ * port, the reference's markup and the helpers are held in src/lib/__tests__/homeAbout01.test.ts. HOME-TRIM-01 (Alex's brief of 2026-11-14; built 2026-11-15): the section left the home page for /about, where it stands whole, and the About Us band stands in its seat. T1, T3 and T4 are as they were; T5 is re-pointed, and says what it held until then.
  *
  *   T1 the words — src/lib/stopZeroWords.ts exports exactly the ruled list; the anchor, the place, the dates and the three
  *      sections (heading, paragraphs, quote) are Alex's text, exact and in order; the heading is "About Us";
@@ -23,9 +23,9 @@
  *      broken across lines is still found) and never retype the anchor; the section has no state, no fetch, no clock and
  *      no hex; the leaf is pure and imports nothing; nothing of the old story is left in either. HOME-ABOUT-01: the
  *      section's opening tag wears the port's class, and its quote is drawn as its marks and its words;
- *   T5 Landing — mounts the section once, directly between the DONE-FOR-YOU section and the MY TRIP mount (nothing but a
+ *   T5 Landing — HOME-TRIM-01 (Alex's brief of 2026-11-14; built 2026-11-15): mounts the section NOWHERE and imports it nowhere. The About Us band stands in its seat (AboutBand.tsx: mounted once, directly between the travel block and the MY TRIP mount, nothing but a comment between each, its import on the ExperiencesSection import's line — src/lib/__tests__/homeTrim01.test.ts holds the band itself), and /about's page mounts the section, once. Until then: "mounts the section once, directly between the DONE-FOR-YOU section and the MY TRIP mount (nothing but a
  *      comment between each — HOME-ORDER-01, 2026-11-10: Alex's order; directly under the experiences mount until then),
- *      and its import shares a line with the ExperiencesSection import;
+ *      and its import shares a line with the ExperiencesSection import";
  *   T6 RETIRED (HOME-BRIEF-02, 2026-11-10) — it held the events band's link to "#stop-0"; the link is gone.
  * Source is read through code() only (the reader law). No line number, no line count, no clock, no live call.
  */
@@ -47,7 +47,7 @@ const EXPERIENCES_SECTION = 'src/components/landing/ExperiencesSection.tsx';
 const LANDING = 'src/components/landing/Landing.tsx';
 
 const EXPERIENCES_MOUNT = '<ExperiencesSection today={today} />';
-const STOP_ZERO_MOUNT = '<StopZeroSection />';
+const STOP_ZERO_MOUNT = '<StopZeroSection />'; const ABOUT_BAND_MOUNT = '<AboutBand />'; // HOME-TRIM-01 (2026-11-15): the About Us band, in the letter's seat on the home page — the letter's mount is counted ZERO times there now, and once on /about's page
 const MY_TRIP_MOUNT = '<WasHereSection today={today} />';
 // HOME-FINISH-02 (2026-11-10): the section carries its anchor now — '<section className="w-full border-b border-border bg-bg-terminal">' until then.
 // HOME-SERVICES-01 (2026-11-12): the DONE-FOR-YOU section is its own component (ServicesSection.tsx), so the page finds it by its mount. Until then:
@@ -206,11 +206,11 @@ test('T4 the section and the band type none of the words; the section holds no s
 
 // ── T5 · LANDING ─────────────────────────────────────────────────────────────
 
-test('T5 Landing mounts the section once, directly between the travel block and MY TRIP (HOME-TRAVEL-01, 2026-11-12: the guest\'s strip is a card inside the travel block; HOME-FINISH-02, 2026-11-10: directly under the guest\'s strip until then), and its import rides the ExperiencesSection import\'s line', () => {
+test('T5 Landing mounts the letter NOWHERE and imports it nowhere (HOME-TRIM-01, 2026-11-15): the About Us band stands in its seat, directly between the travel block and MY TRIP, its import on the ExperiencesSection import\'s line; /about\'s page mounts the letter, once. (Until then: "T5 Landing mounts the section once, directly between the travel block and MY TRIP (HOME-TRAVEL-01, 2026-11-12: the guest\'s strip is a card inside the travel block; HOME-FINISH-02, 2026-11-10: directly under the guest\'s strip until then), and its import rides the ExperiencesSection import\'s line")', () => {
   const landing = code(LANDING);
-  assert.equal(count(landing, STOP_ZERO_MOUNT), 1, 'mounted once');
-  assert.equal(count(landing, '<StopZeroSection'), 1);
-  // HOME-ORDER-01 (2026-11-10): Alex's order — Stop 0 sits directly under the DONE-FOR-YOU section now, still directly above MY TRIP. Until then it sat
+  assert.equal(count(landing, STOP_ZERO_MOUNT) + count(landing, '<StopZeroSection') + count(landing, 'StopZeroSection'), 0, 'the letter is mounted nowhere on the home page, and its file is named nowhere in the page\'s code'); // HOME-TRIM-01 (2026-11-15): until then assert.equal(count(landing, STOP_ZERO_MOUNT), 1, 'mounted once')
+  assert.equal(count(landing, ABOUT_BAND_MOUNT), 1, 'the About Us band, mounted once'); assert.equal(count(landing, '<AboutBand'), 1, 'and no second mount of it, however it is written'); // until then: assert.equal(count(landing, '<StopZeroSection'), 1)
+  // HOME-ORDER-01 (2026-11-10): Alex's order — Stop 0 sits directly under the DONE-FOR-YOU section now, still directly above MY TRIP (HOME-TRIM-01, 2026-11-15: that held until then; the About Us band stands above MY TRIP now, and Stop 0, the letter, on /about). Until then it sat
   // directly under the experiences mount ('the experiences → stop 0: a comment between, nothing else').
   // HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — DONE-FOR-YOU moved above the travel block, so Stop 0 sits directly under the
   // guest's strip now. Until then: 'experiences → … → DONE-FOR-YOU → stop 0 → my trip', with "DONE-FOR-YOU's </section> → stop 0: a comment between".
@@ -219,17 +219,17 @@ test('T5 Landing mounts the section once, directly between the travel block and 
   const doneForYou = landing.indexOf(DONE_FOR_YOU_OPEN);
   // HOME-TRAVEL-01 (Alex, 2026-11-12): the guest's strip is the trip card under the booking box, INSIDE the travel block (LandingBookingSection.tsx
   // renders it), so Stop 0's upper neighbour is the travel block's close. Until then: count(landing, GUEST_STRIP_MOUNT) === 1 ('the guest's strip, once'),
-  // 'DONE-FOR-YOU → experiences → the guest's strip → stop 0 → my trip' and "the guest's strip → stop 0: a comment between, nothing else".
+  // 'DONE-FOR-YOU → experiences → the guest's strip → stop 0 → my trip' and "the guest's strip → stop 0: a comment between, nothing else". HOME-TRIM-01 (2026-11-15): Stop 0, the letter, left the page; the About Us band took its seat, under the travel block's close and over MY TRIP ("so Stop 0's upper neighbour is the travel block's close" until then).
   assert.equal(count(landing, GUEST_STRIP_MOUNT), 0, 'the guest\'s strip has no mount of its own on the page');
   const travelEnd = landing.indexOf('</section>', experiences) + '</section>'.length;
-  const stopZero = landing.indexOf(STOP_ZERO_MOUNT);
+  const band = landing.indexOf(ABOUT_BAND_MOUNT); // HOME-TRIM-01 (2026-11-15): const stopZero = landing.indexOf(STOP_ZERO_MOUNT) until then
   const myTrip = landing.indexOf(MY_TRIP_MOUNT);
-  assert.ok(doneForYou > -1 && experiences > doneForYou && travelEnd > experiences && stopZero > travelEnd && myTrip > stopZero, 'DONE-FOR-YOU → experiences (the trip card under them) → stop 0 → my trip');
-  assert.match(landing.slice(travelEnd, stopZero), ONLY_COMMENTS, "the travel block's </section> → stop 0: a comment between, nothing else");
-  assert.match(landing.slice(stopZero + STOP_ZERO_MOUNT.length, myTrip), ONLY_COMMENTS, 'stop 0 → my trip: a comment between, nothing else');
-  const imports = landing.split('\n').filter((l) => l.includes("import StopZeroSection from './StopZeroSection';"));
-  assert.equal(imports.length, 1, 'imported once');
-  assert.match(imports[0], /^import ExperiencesSection from '\.\/ExperiencesSection'; import StopZeroSection from '\.\/StopZeroSection';\s*$/, 'the import shares the ExperiencesSection import\'s line');
+  assert.ok(doneForYou > -1 && experiences > doneForYou && travelEnd > experiences && band > travelEnd && myTrip > band, 'DONE-FOR-YOU → experiences (the trip card under them) → the About Us band → my trip'); // HOME-TRIM-01 (2026-11-15): '… → stop 0 → my trip' until then, on stopZero
+  assert.match(landing.slice(travelEnd, band), ONLY_COMMENTS, "the travel block's </section> → the About Us band: a comment between, nothing else"); // until then: "the travel block's </section> → stop 0: a comment between, nothing else"
+  assert.match(landing.slice(band + ABOUT_BAND_MOUNT.length, myTrip), ONLY_COMMENTS, 'the About Us band → my trip: a comment between, nothing else'); // until then: 'stop 0 → my trip: a comment between, nothing else'
+  const imports = landing.split('\n').filter((l) => l.includes("import AboutBand from './AboutBand';")); // HOME-TRIM-01 (2026-11-15): "import StopZeroSection from './StopZeroSection';" until then
+  assert.equal(imports.length, 1, 'imported once'); assert.equal(count(code('src/app/about/page.tsx'), STOP_ZERO_MOUNT), 1, 'and the letter is mounted once, by /about\'s page');
+  assert.match(imports[0], /^import ExperiencesSection from '\.\/ExperiencesSection'; import AboutBand from '\.\/AboutBand';\s*$/, 'the band\'s import shares the ExperiencesSection import\'s line, where the letter\'s stood'); // HOME-TRIM-01 (2026-11-15): until then the pattern had import StopZeroSection from './StopZeroSection' in the second import's place, and the message read: the import shares the ExperiencesSection import's line
 });
 
 // ── T6 · THE EVENTS BAND — RETIRED ───────────────────────────────────────────

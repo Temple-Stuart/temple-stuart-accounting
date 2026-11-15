@@ -226,7 +226,7 @@ test('T6 DECK_STEP_IDS is defined once, in pipelineWords.ts; the deck imports it
     seen.add(f);
     queue.push(...importsOf(f));
   }
-  for (const reached of [GUEST, LANDING, WORDS, 'src/components/home/HomeClient.tsx', 'src/components/landing/StopZeroSection.tsx', 'src/lib/ds.ts']) assert.ok(seen.has(reached), `the walk reaches ${reached}`); // the last two ride a line after another import
+  for (const reached of [GUEST, LANDING, WORDS, 'src/components/home/HomeClient.tsx', 'src/components/landing/AboutBand.tsx', 'src/components/landing/StopZeroSection.tsx', 'src/lib/ds.ts']) assert.ok(seen.has(reached), `the walk reaches ${reached}`); // HOME-TRIM-01 (2026-11-15): the About Us band's file joined the list — it rides a line after another import, as ds.ts does, and the letter's file is reached through the band now, which reads its quote helper there. Until then the list held no AboutBand.tsx and this note read "the last two ride a line after another import"
   assert.ok(!seen.has(DECK), `nothing the home page imports reaches ${DECK} (${seen.size} files walked)`);
   assert.ok(!seen.has(STRIP), 'nor the strip');
 });

@@ -109,7 +109,7 @@
  *      categories — the same chips and one choice across both rows (?into=<id>);
  *   3. (WASHERE-01, 2026-10-31: the card EVENTS-01 pinned here with Alex's line LEFT
  *      this section — "I was here" is Alex's own trip and lives in the MY TRIP act,
- *      WasHereSection.tsx, below Stop 0 (STOP0-01, 2026-11-09: was "directly below"); the experiences are the reader's filter and
+ *      WasHereSection.tsx, below Stop 0 (STOP0-01, 2026-11-09: was "directly below"; HOME-TRIM-01, 2026-11-15: on the home page it stands under the About Us band now, AboutBand.tsx, and below Stop 0 on /about, where the letter is); the experiences are the reader's filter and
  *      nothing here is Alex's but item 5's one line, which points to his story (STOP0-01, 2026-11-09).)
  *   4. COMING UP — EVENTS-01c (Alex, 2026-11-06): "this part [THE LINEUP] can be removed and
  *      added to the COMING UP section … and just horizontal scroll cards". EVERY row of the

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOME-TRIM-01 · reference</title>
+<!--
+  HOME-TRIM-01: the reference for About Us on the guest landing, as one band. The heading, the first quote of Alex's
+  letter, and one button that opens the letter on its own page, /about. The letter is not drawn here: it is
+  HOME-ABOUT-01's section, whole and unchanged, and /about mounts it.
+
+  Open this file in a browser and resize the window. Every value in the stylesheet is the design, and the markup is the
+  page. The words are copies, for placement only: production reads each one from its leaf (the README lists them) and
+  types none. The heading wears the act headings' Tailwind classes in the app; its rule here is written out only so the
+  file renders. The font link is here only so the file renders alone; the site already loads the face.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&display=swap">
+<style>
+  :root {
+    /* ALREADY IN THE APP: each is the same name behind the house prefix (--hero-violet-2 is --ts-hero-violet-2,
+       --gold is --ts-gold). Declared here only so this file renders on its own; the port adds none of these. */
+    --bg: 250 248 243;                /* the cream ground */
+    --border: 221 214 232;            /* the line under the band */
+    --gold: 184 134 11;               /* the heading (as text-brand-gold, the act headings' colour); the quote's two marks */
+    --hero-violet-2: #4D1FBC;         /* the quote; the button's border when it is pointed at; the focus ring */
+    --hero-violet-3: #32118A;         /* the button's words */
+
+    /* ADDED BY HOME-PLANS-04 (on main since PR #1971 as --ts-fs-*): reused here by the same names and values. Add none. */
+    --fs-white: 255 255 255;          /* the button's fill */
+    --fs-button-line: #CFC6EC;        /* the button's border */
+
+    /* NEW WITH THIS SECTION: none. Every colour above is already in the app. */
+  }
+
+  /* ── 1 · the band: the heading and his first quote on the left, the door to his letter on the right ── */
+  .aboutband { border-bottom: 1px solid rgb(var(--border)); background-color: rgb(var(--bg)); font-family: 'Inter', sans-serif; }
+  .aboutband__inner {
+    box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(44px, 2vw + 36px, 64px) 16px clamp(40px, 1.6vw + 33.6px, 56px);
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 22px 48px;
+  }
+  /* the words keep a readable measure; under about 812px the button has no room beside them and stands under the quote */
+  .aboutband__words { flex: 1 1 560px; min-width: 0; max-width: 880px; }
+  /* his quote, in the letter's quote colour and weight, at the size a band can carry */
+  .aboutband__quote {
+    margin: 20px 0 0; padding: 0;
+    font-size: clamp(26px, 0.8vw + 22.8px, 34px); line-height: 1.2; font-weight: 500; letter-spacing: -0.025em; color: var(--hero-violet-2); text-wrap: pretty;
+  }
+  /* his quote's own two marks, drawn in gold, as the letter draws them */
+  .aboutband__mark { color: rgb(var(--gold)); }
+  /* the door: the quiet pill, at the plan cards' height */
+  .aboutband__go {
+    box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 24px;
+    border: 1.5px solid var(--fs-button-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-3);
+    font-size: 15px; line-height: 1.2; font-weight: 600; text-decoration: none; white-space: nowrap; transition: border-color 0.16s;
+  }
+  .aboutband :focus-visible { outline: 2px solid var(--hero-violet-2); outline-offset: 3px; }
+
+  /* ── 2 · wider windows ───────────────────────────────────────────────────────────────────────── */
+  @media (min-width: 1024px) {
+    .aboutband__inner { padding-inline: 32px; }
+  }
+
+  /* ── 3 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+  @media (hover: hover) {
+    .aboutband__go:hover { border-color: var(--hero-violet-2); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aboutband__go { transition: none; }
+  }
+
+  /* ── THE APP'S OWN CLASSES, NOT PORTED: the heading wears the act headings' type, the classes What We Do and the
+         letter's About Us wear — 'text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold'. Written out here
+         only so this file renders. ── */
+  .aboutband__title { margin: 0; font-size: 30px; line-height: 36px; font-weight: 500; letter-spacing: -0.025em; color: rgb(var(--gold)); }
+  @media (min-width: 640px) {
+    .aboutband__title { font-size: 36px; line-height: 40px; }
+  }
+
+  /* ── THIS PAGE'S OWN: not part of the design, not ported ─────────────────────────────────────── */
+  body { margin: 0; background-color: rgb(var(--bg)); }
+</style>
+</head>
+<body>
+
+<section class="aboutband" aria-label="About us">
+  <div class="aboutband__inner">
+    <div class="aboutband__words">
+      <h2 class="aboutband__title">About Us</h2>
+      <blockquote class="aboutband__quote"><span class="aboutband__mark">“</span>Everyone was showing me the life they were living. I wanted to understand how to build one of my own.<span class="aboutband__mark">”</span></blockquote>
+    </div>
+    <a class="aboutband__go" href="/about">Read my story →</a>
+  </div>
+</section>
+
+</body>
+</html>

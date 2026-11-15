@@ -25,8 +25,8 @@
  *      on the law's one line, each citing the footer; the Financial Software page on both lists of selling surfaces (PLAN_SURFACES,
  *      which the plan law's clause 1 reads, and SELLING_SURFACES, which the offer law counts); no data path in the pages or in
  *      anything they import, to the end of the closure — and the packages that closure reaches are a closed list of three;
- *   T8 the home page does not change — Landing.tsx mounts each of the four sections once, as typed, and reads nothing of the
- *      new leaf, which the footer's words and the three pages alone read; no travel page;
+ *   T8 the home page — HOME-TRIM-01 (2026-11-15) changed it: Landing.tsx mounts the bar, the two pillars' sections, the About Us band, Our Story and the footer once each, as typed, and the letter nowhere; it reads nothing of the pages' leaf, which the footer's words, the three pages and that band read. Until then this entry was: the home page does not change — Landing.tsx mounts each of the four sections once, as typed, and reads nothing of the
+ *      new leaf, which the footer's words and the three pages alone read. No travel page, then and now;
  *   T9 the rulings — each quoted, dated, where it is built; and in every one of the change's twenty-six files, a quote that follows
  *      a sentence of his for twenty characters is his words from there — whole, or to a full stop — and each file's count of the
  *      quotes read is held. (A new quote that leaves his words sooner opens nothing: T9 says, where it reads, what it does not hold.)
@@ -79,7 +79,7 @@ const HEADER = 'src/components/landing/LandingHeader.tsx';
 const FOOTER = 'src/components/landing/LandingFooter.tsx';
 const HOW_TO = 'src/components/landing/HowToSection.tsx';
 const SERVICES = 'src/components/landing/ServicesSection.tsx';
-const ABOUT_US = 'src/components/landing/StopZeroSection.tsx';
+const ABOUT_US = 'src/components/landing/StopZeroSection.tsx'; const ABOUT_BAND = 'src/components/landing/AboutBand.tsx'; // HOME-TRIM-01 (2026-11-15): the About Us band, the home page's About Us now — a fifth reader of the pages' leaf (T8)
 const OUR_STORY = 'src/components/landing/WasHereSection.tsx';
 const PLANS_SECTION = 'src/components/offer/PlansSection.tsx';
 const SIX_COMPONENTS = [HEADER, FOOTER, HOW_TO, SERVICES, ABOUT_US, OUR_STORY] as const;
@@ -659,7 +659,7 @@ test('T7 public: the three paths in PUBLIC_PATHS directly after \'/how-it-works\
   for (const [page, sentence] of [
     [FS, '/financial-software (HOME-PAGES-01, 2026-11-14) — the Financial Software section (src/components/landing/HowToSection.tsx; the home page keeps its own mount). SAFE BY CONSTRUCTION: a static server page (src/app/financial-software/page.tsx) over a client section with no data path — its only state is two React booleans — no route handler under it,'],
     [PS, '/professional-services (HOME-PAGES-01, 2026-11-14) — the Professional Services section (src/components/landing/ServicesSection.tsx; the home page keeps its own mount). SAFE BY CONSTRUCTION: a static server page (src/app/professional-services/page.tsx) over a client section with no data path — its only state is the picked door — no route handler under it,'],
-    [ABOUT, '/about (HOME-PAGES-01, 2026-11-14) — About Us and, under it, Our Story (src/components/landing/StopZeroSection.tsx, WasHereSection.tsx; the home page keeps its own mount of each). SAFE BY CONSTRUCTION: a server page (src/app/about/page.tsx) rendered on every request for one reason — the day:'],
+    [ABOUT, '/about (HOME-PAGES-01, 2026-11-14) — About Us and, under it, Our Story (src/components/landing/StopZeroSection.tsx, WasHereSection.tsx; the home page keeps its own mount of Our Story, and of About Us one band in the letter\'s seat — HOME-TRIM-01, 2026-11-15: "the home page keeps its own mount of each" until then). SAFE BY CONSTRUCTION: a server page (src/app/about/page.tsx) rendered on every request for one reason — the day:'], // HOME-TRIM-01 (2026-11-15): the one clause of that note the brief's ruling b re-said — '…; the home page keeps its own mount of each). SAFE BY CONSTRUCTION: …' until then
   ] as const) assert.equal(count(notes, sentence), 1, `${page.path}: its proof opens as written — dated, the section's own component named, what renders it and what it holds`);
   for (const page of PAGES) assert.equal(count(notes, `nothing lives under ${page.path} but the page itself`), 1, `${page.path}: what the prefix covers, said`);
   assert.ok(notes.includes(`HOME-PAGES-01 (Alex's brief, 2026-11-14 — ruling f: "${RULING.f.slice(0, RULING.f.indexOf(' They join GUEST_ROUTES'))}"`), 'ruling f\'s first half, quoted over the three');
@@ -728,19 +728,19 @@ test('T7 public: the three paths in PUBLIC_PATHS directly after \'/how-it-works\
   assert.doesNotMatch(code('src/lib/toolRegistry.ts'), /\bfetch\s*\(|from\s+['"]@prisma\/client['"]/, 'which calls nothing');
 });
 
-// ── T8 · THE HOME PAGE DOES NOT CHANGE ───────────────────────────────────────
+// ── T8 · THE HOME PAGE — as HOME-PAGES-01 left it (unchanged), then as HOME-TRIM-01 left it (one band for the letter) ─────────
 
-test('T8 the home page does not change: Landing.tsx mounts the bar, the four sections and the footer once each, as typed, and reads nothing of the pages\' leaf — the footer\'s words and the three pages alone read it; no travel page', () => {
+test('T8 the home page, as HOME-TRIM-01 left it (2026-11-15): Landing.tsx mounts the bar, the two pillars\' sections, the About Us band, Our Story and the footer once each, as typed, and the letter nowhere; it reads nothing of the pages\' leaf — the footer\'s words, the three pages and the band read it; no travel page. (HOME-PAGES-01\'s ruling h held the page unchanged until then, and this test was named: T8 the home page does not change: Landing.tsx mounts the bar, the four sections and the footer once each, as typed, and reads nothing of the pages\' leaf — the footer\'s words and the three pages alone read it; no travel page)', () => {
   const landing = code(LANDING);
-  for (const mount of ['<LandingHeader glass onRequireLogin={onRequireLogin} />', '<HowToSection onRequireAuth={onRequireAuth} />', '<ServicesSection />', '<StopZeroSection />', '<WasHereSection today={today} />', '<LandingFooter />']) {
+  for (const mount of ['<LandingHeader glass onRequireLogin={onRequireLogin} />', '<HowToSection onRequireAuth={onRequireAuth} />', '<ServicesSection />', '<AboutBand />', '<WasHereSection today={today} />', '<LandingFooter />']) { // HOME-TRIM-01 (2026-11-15): the fourth was '<StopZeroSection />' until then — the letter's one mount is /about's page's now (T1), and the About Us band holds its seat here
     assert.equal(count(landing, mount), 1, `Landing.tsx: ${mount}, once, as typed`);
   }
-  const order = ['<HowToSection ', '<ServicesSection ', '<StopZeroSection ', '<WasHereSection ', '<LandingFooter '].map((m) => landing.indexOf(m));
+  const order = ['<HowToSection ', '<ServicesSection ', '<AboutBand ', '<WasHereSection ', '<LandingFooter '].map((m) => landing.indexOf(m)); assert.equal(count(landing, 'StopZeroSection'), 0, 'the letter is mounted nowhere on the home page, and named nowhere in its code'); // '<StopZeroSection ' third in this order until HOME-TRIM-01
   assert.deepEqual(order, [...order].sort((x, y) => x - y), 'in the order they stood');
   assert.ok(!landing.includes('homePages') && !landing.includes('ts-fs-page'), 'the landing reads nothing of the pages\' leaf and wears nothing of the page\'s hook');
-  // who reads the leaf: the footer's words and the three pages
+  // who reads the leaf: the footer's words, the three pages and — since HOME-TRIM-01 (2026-11-15) — the About Us band, whose one door opens /about by the leaf's path (the footer's words and the three pages alone, until then)
   const readers = srcFiles().filter((f) => specsOf(code(f), f).some((spec) => /(?:^|\/)homePages$/.test(spec))).sort();
-  assert.deepEqual(readers, [...PAGES.map((p) => p.file), FOOTER_WORDS].sort(), 'the three pages and the footer\'s words — no component, no other page, by any import, export … from, import() or require() that names its module by a literal');
+  assert.deepEqual(readers, [...PAGES.map((p) => p.file), FOOTER_WORDS, ABOUT_BAND].sort(), 'the three pages, the footer\'s words and the About Us band — no other component, no other page, by any import, export … from, import() or require() that names its module by a literal');
   // ruling g: no travel page — /travel is the cockpit's
   assert.ok(!existsSync(resolve(ROOT, 'src/app/travel')), 'no src/app/travel');
   assert.match(code('src/app/[tab]/page.tsx'), /const TAB_PATHS = new Set\(\[\s*'runway', 'travel', 'trade', 'books', 'tax',\s*\]\);/, '/travel is one of the cockpit\'s tab paths');

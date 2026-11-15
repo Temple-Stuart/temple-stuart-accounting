@@ -7,7 +7,7 @@
  * moved whole into Alex's order. T1 and T3 hold the new order; T2 (the seams, the SEAT paragraph's words) is untouched.
  *
  *   T1 the order, by index — HOME-FINISH-02 (Alex, 2026-11-10 20:56): PLAN → BUILD → EXPLORE — the how-to → DONE-FOR-YOU → the
- *      travel block with the booking box → the guest strip → Stop 0 → MY TRIP, the last act (Part 5: the door to the 14
+ *      travel block with the booking box → the guest strip → Stop 0 (HOME-TRIM-01, 2026-11-15: the About Us band, AboutBand.tsx, in that place now; Stop 0, the letter, until then — it stands on /about) → MY TRIP, the last act (Part 5: the door to the 14
  *      steps left the page; it closed the order until then). Until then —
  *      HOME-BRIEF-03 (2026-11-10): the how-to stands between THE PLANS and the services section,
  *      a comment between each. HOME-ORDER-01 (2026-11-10): experiences → the guest strip → THE PLANS → DONE-FOR-YOU (the
@@ -29,7 +29,7 @@
  *      line the deck tests read, found by content in the deck's file (PIPELINE-PAGE-01 ended the Landing.tsx:1807 pins).
  * HOME-TRAVEL-01 (Alex's brief, 2026-11-12; the board approved at 20:26): the guest's strip is the trip card under the booking box, INSIDE the travel
  * block (LandingBookingSection.tsx renders it), so it has no place and no seam of its own on the page: the travel block's </section> → Stop 0, a comment
- * between, and the travel band's own bottom line (.ts-tm, src/app/globals.css) closes that boundary. T1 and T2 are re-pointed, each with a dated note.
+ * between, and the travel band's own bottom line (.ts-tm, src/app/globals.css) closes that boundary. T1 and T2 are re-pointed, each with a dated note. HOME-TRIM-01 (Alex's brief of 2026-11-14; built 2026-11-15): Stop 0, the letter, left this page for /about, and the About Us band stands in its seat (AboutBand.tsx) — so the boundary is the travel block's </section> → the About Us band, and T1's order ends … → the About Us band → MY TRIP. T1 is re-pointed, each line with what it held until then; T2's message is re-said, with what it said until then.
  * Source is read through code() and comments() only (the reader law). No clock.
  */
 import { test } from 'node:test';
@@ -49,7 +49,7 @@ const BOOKING = '<LandingBookingSection onRequireAuth={onRequireAuth} today={tod
 const TRAVEL_FOOT = "<GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />";
 const MY_TRIP = '<WasHereSection today={today} />';
 const GUEST_STRIP = '<GuestTripStrip onRequireAuth={onRequireAuth} />'; // HOME-TRAVEL-01 (2026-11-12): counted ZERO times now — the trip card renders inside the travel block (once, as the page's own act, until then)
-const STOP_ZERO = '<StopZeroSection />';
+const STOP_ZERO = '<StopZeroSection />'; const ABOUT_BAND = '<AboutBand />'; // HOME-TRIM-01 (2026-11-15): the About Us band holds the letter's seat on this page — STOP_ZERO is counted ZERO times now (once, between the travel block and MY TRIP, until then), and ABOUT_BAND once in its place
 const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />'; // HOME-BRIEF-03 (Alex, 2026-11-10): the how-to, between the plans and the services section. HOME-BRIEF-04 (2026-11-10): it IS the Software Plans — in the plans' seat, handed the door ('<HowToSection />' until then)
 // HOME-FINISH-02 (Alex, 2026-11-10 20:56): the services section opens at the pillar's h2 ("Build Your Income."), and it is found from that. Until then
 // this constant was EYEBROW, the label: 'text-text-faint">\n            PROFESSIONAL SERVICES\n' — its note follows.
@@ -69,12 +69,12 @@ const DOOR = '<section aria-label="How it all connects"'; // PIPELINE-PAGE-01 (2
 /** code() blanks a JSX comment's words and keeps its braces — the guest law's own allowance. */
 const ONLY_COMMENTS = /^\s*(\{\s*\}\s*)*$/;
 
-test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → explore): the how-to → DONE-FOR-YOU → the travel block with the booking box (and, HOME-TRAVEL-01, 2026-11-12, the trip card under it — the guest strip stood between the travel block and Stop 0 until then) → Stop 0 → MY TRIP, the last act — the door left the page; each once; nothing but a comment between each pair', () => {
+test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → explore): the how-to → DONE-FOR-YOU → the travel block with the booking box (and, HOME-TRAVEL-01, 2026-11-12, the trip card under it — the guest strip stood between the travel block and Stop 0 until then) → the About Us band (HOME-TRIM-01, 2026-11-15: Stop 0, the letter, until then — it stands on /about) → MY TRIP, the last act — the door left the page; each once; nothing but a comment between each pair', () => {
   const landing = code(LANDING);
   const at = (s: string): number => { const i = landing.indexOf(s); assert.notEqual(i, -1, s); return i; };
   // HOME-SERVICES-01 (2026-11-12): the services section is found by its mount; its tag and its h2 are its own file's, once each. Until then
   // SECTION_OPEN and SERVICES_HEAD stood in this list, each once in Landing.tsx.
-  for (const s of [EXPERIENCES, BOOKING, HOW_TO, SERVICES_MOUNT, TRAVEL_OPEN, STOP_ZERO, MY_TRIP]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`);
+  for (const s of [EXPERIENCES, BOOKING, HOW_TO, SERVICES_MOUNT, TRAVEL_OPEN, ABOUT_BAND, MY_TRIP]) assert.equal(landing.split(s).length - 1, 1, `${s.trim()} once`); assert.equal(landing.split(STOP_ZERO).length - 1 + (landing.split('<StopZeroSection').length - 1), 0, 'the letter\'s mount is no longer Landing.tsx\'s (HOME-TRIM-01, 2026-11-15: STOP_ZERO stood in the list above, counted once, until then)');
   for (const s of [SECTION_OPEN, SERVICES_HEAD]) assert.equal(landing.split(s).length - 1, 0, `${s.slice(0, 40)}… is no longer Landing.tsx's`);
   for (const s of [SERVICES_FILE_OPEN, SERVICES_FILE_HEAD]) assert.equal(code(SERVICES_FILE).split(s).length - 1, 1, `${s.slice(0, 40)}… once, in ServicesSection.tsx`);
   // HOME-TRAVEL-01 (Alex, 2026-11-12): the guest's strip is the card under the booking box, inside the travel block — GUEST_STRIP was counted once here until then.
@@ -99,8 +99,8 @@ test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → expl
   // HOME-SERVICES-01 (2026-11-12): the services section is its mount — until then this order read HOW_TO, SECTION_OPEN, SERVICES_HEAD, …, the
   // how-to → the services section ran to at(SECTION_OPEN), and the section ended at landing.indexOf('</section>', at(SERVICES_HEAD)).
   // HOME-TRAVEL-01 (2026-11-12): GUEST_STRIP left the order, between BOOKING and STOP_ZERO until then.
-  const order = [HOW_TO, SERVICES_MOUNT, TRAVEL_OPEN, BOOKING, STOP_ZERO, MY_TRIP].map(at);
-  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the how-to → the services section → the travel block (the booking box, the experiences inside it, the trip under it) → stop 0 → my trip');
+  const order = [HOW_TO, SERVICES_MOUNT, TRAVEL_OPEN, BOOKING, ABOUT_BAND, MY_TRIP].map(at); // HOME-TRIM-01 (2026-11-15): STOP_ZERO left the order, between BOOKING and MY_TRIP until then — ABOUT_BAND holds its place
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the how-to → the services section → the travel block (the booking box, the experiences inside it, the trip under it) → the About Us band → my trip'); // '… → stop 0 → my trip' until HOME-TRIM-01
   assert.match(landing.slice(at(HOW_TO) + HOW_TO.length, at(SERVICES_MOUNT)), ONLY_COMMENTS, 'the how-to → the services section: a comment between, nothing else');
   const sectionEnd = at(SERVICES_MOUNT) + SERVICES_MOUNT.length;
   assert.ok(sectionEnd < at(TRAVEL_OPEN));
@@ -108,9 +108,9 @@ test('T1 the order by index (HOME-FINISH-02, 2026-11-10: plan → build → expl
   // HOME-TRAVEL-01 (2026-11-12): the travel block's </section> → Stop 0. Until then 'the travel block, which closes above the strip', 'the travel block's
   // </section> → the strip: a comment between, nothing else — no band' and 'the strip → stop 0: a comment between, nothing else'.
   const travelEnd = landing.indexOf('</section>', at(TRAVEL_FOOT)) + '</section>'.length;
-  assert.ok(at(TRAVEL_FOOT) > at(BOOKING) && travelEnd > at(TRAVEL_FOOT) && travelEnd < at(STOP_ZERO), 'the booking box sits in the travel block, which closes above stop 0');
-  assert.match(landing.slice(travelEnd, at(STOP_ZERO)), ONLY_COMMENTS, 'the travel block\'s </section> → stop 0: a comment between, nothing else — no band');
-  assert.match(landing.slice(at(STOP_ZERO) + STOP_ZERO.length, at(MY_TRIP)), ONLY_COMMENTS, 'stop 0 → my trip: a comment between, nothing else');
+  assert.ok(at(TRAVEL_FOOT) > at(BOOKING) && travelEnd > at(TRAVEL_FOOT) && travelEnd < at(ABOUT_BAND), 'the booking box sits in the travel block, which closes above the About Us band'); // HOME-TRIM-01 (2026-11-15): '… which closes above stop 0' until then, on at(STOP_ZERO) — as the two lines below
+  assert.match(landing.slice(travelEnd, at(ABOUT_BAND)), ONLY_COMMENTS, 'the travel block\'s </section> → the About Us band: a comment between, nothing else — no act of the guest\'s trip'); // until then: 'the travel block\'s </section> → stop 0: a comment between, nothing else — no band' (the band it ruled out was the guest strip's own)
+  assert.match(landing.slice(at(ABOUT_BAND) + ABOUT_BAND.length, at(MY_TRIP)), ONLY_COMMENTS, 'the About Us band → my trip: a comment between, nothing else'); // until then: 'stop 0 → my trip: a comment between, nothing else'
   // HOME-FINISH-02 (2026-11-10), Part 5: MY TRIP is the last act. Until then: 'my trip → the door: a comment between, nothing else', the door last in the order.
   assert.ok(!landing.slice(at(MY_TRIP) + MY_TRIP.length, landing.indexOf('<LandingFooter />')).includes('<section'), 'my trip → the footer: no act between');
 });
@@ -127,10 +127,10 @@ test('T2 the seams: one border-b per boundary from experiences to the door — m
   assert.ok(tripAct && tripAct[1] === 'ts-story' && storyRule && storyRule[1].includes('border-bottom: 1px solid rgb(var(--ts-border));') && !/border-top|border:/.test(storyRule[1]), "my trip's border-b (the port's .ts-story, WasHereSection TRIP.act), no border-t");
   // HOME-TRAVEL-01 (Alex, 2026-11-12): the guest's strip is a card inside the travel block — no band and no rule of its own; the travel band's bottom line
   // (.ts-tm's border-bottom) closes travel | Stop 0 whether or not the card renders. Until then: /<section className="w-full border-b border-border
-  // bg-bg-terminal">/ in GuestTripStrip.tsx — "the guest strip's own border-b, when it renders".
+  // bg-bg-terminal">/ in GuestTripStrip.tsx — "the guest strip's own border-b, when it renders". HOME-TRIM-01 (2026-11-15): the seam is travel | About Us now — the band holds Stop 0's seat.
   assert.match(code(STRIP), /<section className="ts-tm-trip" aria-label=\{TRIP_EYEBROW\} data-trip>/, 'the guest\'s trip: the card, inside the travel block');
   assert.doesNotMatch(code(STRIP), /border-b|bg-bg-terminal|max-w-7xl/, 'no band and no rule of its own');
-  assert.match(code('src/app/globals.css'), /\n\.ts-tm \{ border-bottom: 1px solid rgb\(var\(--ts-border\)\);/, "the travel band's own bottom line closes travel | Stop 0");
+  assert.match(code('src/app/globals.css'), /\n\.ts-tm \{ border-bottom: 1px solid rgb\(var\(--ts-border\)\);/, "the travel band's own bottom line closes travel | About Us"); // HOME-TRIM-01 (2026-11-15): the seam's lower side is the About Us band now — "… closes travel | Stop 0" until then; the band's own bottom line, About Us | Our Story, is homeTrim01's to hold
   // HOME-FINISH-02 (2026-11-10): the section's opening tag gained its anchor (id={SERVICES_ANCHOR}); its classes — the seam — are unchanged. Until then: /<section className="w-full border-b border-border bg-bg-terminal">/g.
   // HOME-SERVICES-01 (2026-11-12): the section is ServicesSection.tsx's, and its rule is the reference's, ported (globals.css .ts-ps) — the
   // seam is the same: a bottom line, no top one. Until then: (landing.match(/<section id=\{SERVICES_ANCHOR\} className="w-full border-b
