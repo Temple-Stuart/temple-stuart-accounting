@@ -65,7 +65,7 @@
  *                        modules for bookkeeping): one rule read by both, or a test that renders the form for each door and
  *                        holds the two equal." — the test (src/lib/__tests__/homeServices01.test.ts): the form keeps its own
  *                        rule, isBookkeeping, as SERVICES-01 pinned it;
- *   PROPOSAL_CTA, SCOPED_BY_PROPOSAL, proposalFormHref
+ *   PROPOSAL_CTA, SCOPED_BY_PROPOSAL, proposalFormHref (and, since HOME-TRIM-03, 2026-11-15, SEE_HOW_A_PROPOSAL_WORKS — the short view's link, its note below)
  *                        ruling f, in part: ""Send a project proposal →" and "Scoped by proposal" move from Landing.tsx into
  *                        a leaf." The form reads the second from here too. The gold button links to the form's page with the
  *                        pick — the brief's `${PROPOSAL_FORM_PATH}?need=<picked>`, "the link each card carried until now".
@@ -164,6 +164,19 @@ export function formAsks(need: ServiceNeed): readonly string[] {
 /** HOME-SERVICES-01 (ruling f): the gold button's words and the note beside it, moved here from Landing.tsx — the form reads the note too. */
 export const PROPOSAL_CTA = 'Send a project proposal →';
 export const SCOPED_BY_PROPOSAL = 'Scoped by proposal';
+/**
+ * HOME-TRIM-03 (Alex's brief, 2026-11-14 19:11 Manila: "I would like to take this feedback, consider it deeply, review the home page in
+ * its current state, and then come up with a mock up to meet the requests of the beta users feedback."; two of his four beta users'
+ * notes, as he pasted them: "Cut the scrolling length of the landing page in half. Make the user explore to find the information behind
+ * info pages" · "Make it exploratory. Click to learn more."; his approval of the boards on the design canvas, 2026-11-14 20:01 Manila:
+ * "ALL LOOKS GOOD … OTHERWISE, LETS DO IT"; of the corrected boards, 20:41: "thats it!  yeet yeet!"; built 2026-11-15) — THE SHORT VIEW'S
+ * ONE NEW WORD: the link under the panel, on the home page, to the section's own page. Ruling d: "THE WORDS. Nothing is typed. "See how a
+ * proposal works →" is new: one constant in src/lib/proposalNeeds.ts beside SCOPED_BY_PROPOSAL (:166), the arrow in the string, with a
+ * dated note. Its link is a next/link Link, as the gold link is, to PROFESSIONAL_SERVICES_PATH (src/lib/homePages.ts:42). It carries no
+ * state." — read by ServicesShortView (src/components/landing/ServicesSection.tsx), which draws it in the README's class, .ts-ps-how; the
+ * path is the pages' leaf's, read there: this leaf imports nothing.
+ */
+export const SEE_HOW_A_PROPOSAL_WORKS = 'See how a proposal works →';
 
 /** The form's page with a door picked — the link each card carried, and the gold button's now (the page picks the door it names). */
 export function proposalFormHref(need: ServiceNeed): string {

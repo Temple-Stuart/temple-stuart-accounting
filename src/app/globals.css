@@ -747,8 +747,8 @@ body {
      · every custom property it reads likewise: var(--ps-wash) → var(--ts-ps-wash), var(--fs-ink) → var(--ts-fs-ink),
        rgb(var(--bg)) → rgb(var(--ts-bg)).
    src/lib/__tests__/homeServices01.test.ts reads both files and holds them equal, declaration by declaration, but for the
-   FOUR DIFFERENCES named here — the first three where the reference is a page of its own and this is the app, the fourth
-   the brief's own ("The form drawn in the reference is HOME-SERVICES-02, a later PR: do not build it here."):
+   FIVE DIFFERENCES named here (HOME-TRIM-03, 2026-11-15: FOUR DIFFERENCES until then) — the first three where the reference is a page of its own and this is the app, the fourth
+   the brief's own ("The form drawn in the reference is HOME-SERVICES-02, a later PR: do not build it here."), the fifth the home page's short view:
      1. THE COLOURS are tokens: the reference's :root is :root above — the six --ts-ps-* this design brings, and the
         twenty-one it declares only so that it renders on its own, which the app already holds (--ts-bg, --ts-border,
         --ts-red, the hero's violets and golds, and the eleven --ts-fs-* HOME-PLANS-04 brought).
@@ -761,6 +761,8 @@ body {
         details). HOME-SERVICES-02 ports them with the form. A rule that names this PR's elements is ported as written,
         the form's selectors in it included: .ps-cta:disabled, and the reduced-motion rule for .ps-tile, .ps-cta and .ps-pick.
         The two colours only the form reads — red (its error) and fs-gold-text (its eyebrow) — are read by nothing here yet.
+     5. ADDED, the home page's short view (HOME-TRIM-03, 2026-11-15): design-refs/home-trim-03's second stylesheet, behind the
+        house prefix, as this port's last rules — section 7, at its foot, with its own notes; homeServices01 T3 holds them as FIFTH.
    It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value
    outside :root").
    TWO GRADIENTS — the brief's ruling f, as written (2026-11-12): "The gold gradient is HOME-PLANS-04's; the picture's frame
@@ -769,8 +771,10 @@ body {
    (.ts-ps-stage__art: ps-art-1 to ps-art-2 at 135deg, under rings 1px wide every 16px at 0.05). REPAINT-5's ban on
    gradients, above, is the ruling this design comes after, as the other two blocks' did.
    ONE RULE HIDES WHAT THE SECTION HIDES: .ts-ps [hidden] { display: none } — the README: "Without it, every block that sets
-   its own display would show what is meant to be hidden." Five of the six pictures are in the page and hidden.
-   Used by src/components/landing/ServicesSection.tsx, which Landing.tsx mounts. It stands here, above the Financial Software
+   its own display would show what is meant to be hidden." Five of the six pictures are in the page and hidden — the whole view's page,
+   /professional-services (its own page since HOME-PAGES-01, 2026-11-14), alone since HOME-TRIM-03 (2026-11-15): the home page's short view draws none.
+   Used by src/components/landing/ServicesSection.tsx — its whole view on /professional-services, and its short view, which Landing.tsx
+   mounts (HOME-TRIM-03, 2026-11-15: "which Landing.tsx mounts" said the whole section until then). It stands here, above the Financial Software
    section's block and the hero's, because nothing may follow the hero's and the Financial Software port runs from its own
    first rule to the hero's (to the footer's since FOOTER-02, 2026-11-12, whose block stands between the two); it names none of
    their classes, and nothing outside it names one of its own. ─────────────── */
@@ -888,6 +892,38 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .ts-ps-tile, .ts-ps-cta, .ts-ps-pick { transition: none; }
+}
+
+/* ── 7 · the short view: the fifth difference (HOME-TRIM-03 — Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15) ────────
+   THE SPEC IS design-refs/home-trim-03/Section-Reference.html: its second stylesheet, "what the short view adds. The only rules to port."
+   What follows is that stylesheet, rule for rule and value for value, in its own order and with its own notes, behind the house prefix:
+   .ps--short → .ts-ps--short, .ps-brief → .ts-ps-brief (and __text, __go), .ps-how → .ts-ps-how; var(--fs-rule) → var(--ts-fs-rule),
+   var(--hero-violet-3) → var(--ts-hero-violet-3), var(--hero-violet-2) → var(--ts-hero-violet-2). Ruling e (the port: these rules join
+   this port, after its last rule, in the reference's order — homeServices01 T3 names them as its fifth difference, declaration by
+   declaration): "The family is var(--font-mono), as the port's other mono rules have it." — where the reference names 'IBM Plex Mono',
+   monospace, as the port's second difference reads every family. Ruling f (no new token): "The block reads three that are in :root
+   already (the README's table)." — --ts-fs-rule, --ts-hero-violet-3 and --ts-hero-violet-2, each the value the README gives. Ruling g
+   (the arrows): the "→" in the two links is drawn by the fallback face, as the gold link's already is on main — named, not fixed here;
+   no face is added for U+2192. The name and the line keep the stage's classes (.ts-ps-stage__title, .ts-ps-stage__line) outside the
+   stage: their rules are not scoped to it. The link's class is ts-ps-how — ps-more is taken: it is the form's "Project details" button
+   in home-services-01. Used by ServicesShortView (src/components/landing/ServicesSection.tsx), which Landing.tsx mounts. ─────── */
+/* the section's top and foot, as the boards draw them: 44px each up to 400px wide; 72px and 64px from 1400px */
+.ts-ps--short .ts-ps__inner { padding-top: clamp(44px, 2.8vw + 32.8px, 72px); padding-bottom: clamp(44px, 2vw + 36px, 64px); }
+/* under the services: the picked one's name and line, then its button and its note, in one row when there is room */
+.ts-ps-brief {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 40px;
+  margin-top: clamp(18px, 1.8vw, 24px); padding-top: clamp(18px, 1.8vw, 24px); border-top: 1px solid var(--ts-fs-rule);
+}
+.ts-ps-brief__text { flex: 1 1 420px; min-width: 0; }
+.ts-ps-brief__go { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+/* the door to the whole section, under the panel, in the plans' link type */
+.ts-ps-how {
+  display: inline-flex; align-items: center; min-height: 44px; margin-top: 16px;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 500; letter-spacing: 0.04em;
+  color: var(--ts-hero-violet-3); text-decoration: none;
+}
+@media (hover: hover) {
+  .ts-ps-how:hover { color: var(--ts-hero-violet-2); }
 }
 
 /* ── HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30): THE

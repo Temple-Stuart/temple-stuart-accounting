@@ -58,7 +58,7 @@ const SECTION_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b b
 // HOME-SERVICES-01 (Alex's brief, 2026-11-12): the services section is its own component — src/components/landing/ServicesSection.tsx, which
 // Landing.tsx mounts — so the page's order finds it by its mount, and its h2 and its section tag stand in that file, in the reference's classes.
 // SERVICES_HEAD and SECTION_OPEN, above, are what Landing.tsx held until then: they are counted ZERO times there now (T1).
-const SERVICES_MOUNT = '<ServicesSection />';
+const SERVICES_MOUNT = '<ServicesSection view="short" />'; // HOME-TRIM-03 (2026-11-15), ruling a: Landing mounts the section with view="short" — '<ServicesSection />' until then
 const SERVICES_FILE = 'src/components/landing/ServicesSection.tsx';
 const SERVICES_FILE_OPEN = '<section id={SERVICES_ANCHOR} className="ts-ps" aria-labelledby="ps-title">';
 const SERVICES_FILE_HEAD = '<h2 className="ts-ps__title" id="ps-title">{BUILD_PILLAR.heading}</h2>';

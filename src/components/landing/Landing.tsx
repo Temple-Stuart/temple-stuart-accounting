@@ -13,7 +13,7 @@
  *                         the section carries id="modules"
  *                         (HOME-BRIEF-04, 2026-11-10: on this page the act is THE HOW-TO now — HowToSection over src/lib/howTo.ts, under the same label, SOFTWARE PLANS, carrying id="modules"; the plan cards and the table stand on /pricing alone)
  *   DONE-FOR-YOU        — the professional-services panel, six doors from src/lib/proposalNeeds.ts — SERVICES-01, 2026-11-08: the close retired, bookkeeping a door (HOME-PANELS-02, 2026-11-07: under MY TRIP, above THE PLANS)
- *                         (HOME-SERVICES-01, 2026-11-12: the act is the Professional Services section now — ServicesSection over src/lib/proposalNeeds.ts: the pillar's name and one line, six tiles, the picked door's picture and words, how a proposal goes, the gold button; it carries id="services")
+ *                         (HOME-SERVICES-01, 2026-11-12: the act is the Professional Services section now — ServicesSection over src/lib/proposalNeeds.ts: the pillar's name and one line, six tiles, the picked door's picture and words, how a proposal goes, the gold button; it carries id="services"; HOME-TRIM-03, 2026-11-15: its short view here — the picked door's name and line with the gold button in one row under the tiles, then a link to /professional-services, where the picture and the steps stand — and "the picked door's picture and words, how a proposal goes, the gold button" said the home page's act until then)
  *   (COCKPIT-PERF-01, 2026-10-27: the PERSONAS act — "one system · six lives" —
  *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
  *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
@@ -211,7 +211,7 @@ import WasHereSection from './WasHereSection';
 // their choice picked — the six doors (key, title, line) and the form's path from src/lib/proposalNeeds.ts, never typed here.
 // HOME-SERVICES-01 (2026-11-12): the six doors and the form's path (src/lib/proposalNeeds.ts), and PRIMARY_CTA (src/lib/ds.ts) —
 // the purple proposal button's class, which HOME-FINISH-01 (2026-11-08) imported here as "the public page's one filled button" —
-// left this page with the section that read them: ./ServicesSection draws it as design-refs/home-services-01 does, and the
+// left this page with the section that read them: ./ServicesSection draws it as design-refs/home-services-01 does (its whole view, on /professional-services — its own page since HOME-PAGES-01, 2026-11-14; since HOME-TRIM-03, 2026-11-15, here it draws its short view, as design-refs/home-trim-03 does), and the
 // gold button is its own. PRIMARY_CTA keeps its other users (the brief's ruling f).
 import ServicesSection from './ServicesSection';
 import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
@@ -641,13 +641,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           retired with the close, and the typed line under the chip went: it restated the first
           door's line, with "custom to your business" added. HOME-FINISH-01 (Alex, 2026-11-08): auto-rows-fr — every row as tall as the tallest, so the six doors are one height at every width. */}
       {/* HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila; the board approved on the design canvas at 15:41): the
-            Professional Services section, as the board draws it — the pillar's name and one line where his paragraph stood,
+            Professional Services section, as the board draws it. UNTIL HOME-TRIM-03 this note went on, true until then: "— the pillar's name and one line where his paragraph stood,
             six tiles (one always picked, in React state only), the picked door's picture, title and line, how a proposal goes
-            in three steps, and the gold button to the form with the pick (ServicesSection.tsx). His paragraph, the six equal
+            in three steps, and the gold button to the form with the pick (ServicesSection.tsx)." — all of it the section's WHOLE view now, on /professional-services. HOME-TRIM-03 (Alex's brief, 2026-11-14 19:11 Manila; the boards approved on the design canvas at 20:01 and, corrected, at 20:41; built 2026-11-15): HERE THE SECTION DRAWS ITS SHORT VIEW (ServicesShortView, design-refs/home-trim-03) — the pillar's name and one line, the six tiles, under them the picked door's name and line with the gold button and its note, then one link to /professional-services; the picture and the three steps are not in its markup. Its ruling a: "Landing.tsx mounts view="short", /professional-services view="whole"." Its rulings i and j, by their letters: this note is re-said in place, on its own seven lines, and nothing else on this page changes. His paragraph, the six equal
             cards and the purple button left the page. The notes above are history: none of it is drawn here now. The section
             keeps id={SERVICES_ANCHOR}, its seat (under the Financial Software section, above the Travel Marketplace) and its
             seam (its own bottom line, no top one). */}
-      <ServicesSection />
+      <ServicesSection view="short" />
 
       {/* ── TOGGLE-1: the lobby books — the five-way toggle strip, mounted
             where the teaser sat (directly under the CTA row; pre-BOOK-1

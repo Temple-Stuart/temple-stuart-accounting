@@ -104,7 +104,7 @@ form's (its error and its eyebrow), and come with it in HOME-SERVICES-02.
 | `ps-art-2` | `#ECE6FA` | the frame's gradient, end |
 | `ps-art-ring` | `77 31 188` | the frame's rings, at 0.05: hero-violet-2 as channels |
 
-The section (`ServicesSection.tsx`, which `Landing.tsx` mounts) is drawn by the reference's own stylesheet, ported rule for
+The section (`ServicesSection.tsx`, which `Landing.tsx` mounts — whole until HOME-TRIM-03 (2026-11-15), and whole on `/professional-services` — its own page since HOME-PAGES-01 (2026-11-14) — alone since, where the home page draws its short view, `design-refs/home-trim-03/`, whose stylesheet reads three tokens the app holds and adds none) is drawn by the reference's own stylesheet, ported rule for
 rule to `globals.css` under the house prefix (`.ts-ps`, `.ts-ps-tile`, `.ts-ps-stage`, …), above the Financial Software
 section's block. The six pictures are files, `public/brand/services/<key>.svg`, one per door, drawn as they were handed
 over. It draws two more gradients, both on the board (the brief's ruling f): the gold button — the Financial Software

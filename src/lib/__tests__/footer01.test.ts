@@ -399,9 +399,9 @@ test('T6 one home for the anchors: each equals its owner\'s export; the sections
   const services = code('src/components/landing/ServicesSection.tsx');
   assert.equal(count(services, '<section id={SERVICES_ANCHOR} className="ts-ps" aria-labelledby="ps-title">'), 1, 'the professional-services section carries the anchor');
   assert.equal(services.split('\n').filter((l) => /^import \{ SERVICES_ANCHOR \} from '@\/lib\/homeAnchors';\s*$/.test(l)).length, 1, 'its import, on a line of its own');
-  assert.equal(count(services, 'SERVICES_ANCHOR'), 2, 'the import and the id — nothing else in the section reads it');
+  assert.equal(count(services, 'SERVICES_ANCHOR'), 3, 'the import and each view\'s id — nothing else in the section reads it (HOME-TRIM-03, 2026-11-15, ruling b: the short view\'s own tag keeps the id; 2, the import and the one id, until then)');
   assert.equal(count(landing, 'SERVICES_ANCHOR'), 0, 'Landing.tsx mounts the section and reads the anchor nowhere');
-  assert.equal(count(landing, '<ServicesSection />'), 1, 'the section, mounted once');
+  assert.equal(count(landing, '<ServicesSection view="short" />'), 1, 'the section, mounted once — its short view (HOME-TRIM-03, 2026-11-15, ruling a: \'<ServicesSection />\' until then)');
   for (const src of [landing, services]) assert.ok(!src.includes('id="services"'), 'never typed');
 });
 
