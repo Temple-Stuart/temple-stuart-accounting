@@ -899,9 +899,10 @@ body {
      · every custom property it reads likewise: var(--fs-ink) → var(--ts-fs-ink), var(--hero-gold) → var(--ts-hero-gold),
        rgb(var(--bg)) → rgb(var(--ts-bg)).
    src/lib/__tests__/homePlans04.test.ts reads both files and holds them equal, declaration by declaration, but for the
-   SIX DIFFERENCES named here — the first three where the reference is a page of its own and this is the app, the next two
-   Alex's notes on the built page, the sixth the section's own page (HOME-PAGES-01, 2026-11-14: FIVE DIFFERENCES until then,
-   "the last two Alex's notes on the built page"):
+   SEVEN DIFFERENCES named here — the first three where the reference is a page of its own and this is the app, the next two
+   Alex's notes on the built page, the sixth the section's own page, the seventh the home page's short view (HOME-TRIM-02,
+   2026-11-15: SIX DIFFERENCES until then; HOME-PAGES-01, 2026-11-14: FIVE before that, "the last two Alex's notes on the
+   built page"):
      1. THE COLOURS are tokens: the reference's :root is :root above — the seventeen --ts-fs-* this design brings, and the
         fourteen it declares only so that it "renders on its own", which the app already holds (--ts-bg, --ts-border,
         --ts-gold, --ts-hero-*).
@@ -920,6 +921,11 @@ body {
         section's inner top padding is clamp(44px, 5.6vw, 80px), the value .ts-ps__inner and .ts-tm__inner carry, where the
         home page has 12px under the What We Do box. The page draws no "What We Do"."). The hook, ts-fs-page, is worn by that
         page's <main> and by nothing on the home page, so the 12px of the rule above it stands there untouched.
+     7. ADDED, the home page's short view (HOME-TRIM-02, Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15): the second
+        stylesheet of design-refs/home-trim-02/Section-Reference.html — whose first is this port's spec, home-plans-04's, byte
+        for byte — behind the house prefix, as this port's last rules and in its own order: twelve rules, twenty-five
+        declarations (section 7, below). Its one rule that is that page's own, .fs-yours > [hidden], is not ported: the short
+        view draws the picked plan alone.
    It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value
    outside :root").
    TWO GRADIENTS — the brief's ruling g, as written (2026-11-12): "TWO GRADIENTS, both on the board: the picked plan's gold
@@ -927,7 +933,8 @@ body {
    three golds at 135deg, drawn solid) and the band (.ts-fs-plan--all: the hero's violets at 120deg, under rings 1px wide
    every 14px). REPAINT-5's ban on gradients, above, is the ruling this design comes after, as the hero's did.
    Used by src/components/landing/Landing.tsx (the heading box: .ts-fs-heading),
-   src/components/landing/HowToSection.tsx (the section) and — the sixth difference's hook alone, since HOME-PAGES-01 —
+   src/components/landing/HowToSection.tsx (the section: its whole view and, since HOME-TRIM-02, its short view) and — the sixth
+   difference's hook alone, since HOME-PAGES-01 —
    src/app/financial-software/page.tsx (its <main>). It stands here, above the hero's block, because nothing may
    follow that one; it names none of the hero's classes, and nothing outside it names one of its own. ─────────────── */
 /* ── 1 · "What We Do": the act heading's box (the reference's eyebrow is not ported — the fourth difference) ───── */
@@ -1096,6 +1103,39 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .ts-fs-switch, .ts-fs-tool, .ts-fs-plan, .ts-fs-plan__cta { transition: none; }
+}
+/* ── 7 · the short view: the seventh difference (HOME-TRIM-02 — Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15) ────────
+   design-refs/home-trim-02/Section-Reference.html's second stylesheet, "what the short view adds", rule for rule and value for value,
+   behind the house prefix (.fs--short → .ts-fs--short, .fs-plan--row → .ts-fs-plan--row), with its own notes. The rulings built here:
+   f. "THE PORT. The block's rules name the section's classes, so they join its port: homePlans04:425 holds that no rule outside the
+      port names one. They stand after the port's last rule, in the reference's order, and homePlans04 T3 names them as its seventh
+      difference, declaration by declaration, as HOME-PAGES-01 named the sixth. The rest of the port does not change." — they stand
+      here, after the port's last rule and above the footer's block, and every rule above is as it was;
+   g. "NO NEW TOKEN. The block reads no variable." — no var(), no colour, no font: every colour stays the port's own;
+   h. "THE TOP. The "What We Do" box (Landing.tsx:569-570) and the section's 12px top stay as they are. HOME-DOORS-01, later in this
+      series, changes both." — the block sets the inner box's foot alone, padding-bottom; its top is the 12px of .ts-fs__inner above;
+   i. "THE ARROWS in the two links are drawn by the fallback face, as "Compare all four plans →" already is on main. A later PR fixes
+      every arrow at once. Name those pixels; do not fix them here." — the links keep .ts-fs__compare's face (var(--font-mono)): no
+      face is added for U+2192 here. ─────────────────────────────────────────────────────────────────────────────────────────── */
+/* the section ends sooner: 44px under the plan up to 400px wide, 64px from 1400px. Its top stays 12px, under the "What We Do" box
+   (HOME-DOORS-01, later in this series, changes it). */
+.ts-fs--short .ts-fs__inner { padding-bottom: clamp(44px, 2vw + 36px, 64px); }
+/* the panel's two links: beside the question's choices when there is room, under them when there is not */
+.ts-fs-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 28px; }
+.ts-fs-links .ts-fs__compare { margin-top: 0; }
+/* the one plan the choices pick, under the panel */
+.ts-fs-yours { margin-top: 20px; }
+.ts-fs-yours .ts-fs-plan--all { margin-top: 0; }
+/* a card laid in a row, as the band is: who it is for, what you get, then its count and its button */
+.ts-fs-plan--row { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 24px 40px; }
+.ts-fs-plan--row .ts-fs-plan__lead { flex: 5 1 300px; min-width: 0; }
+.ts-fs-plan--row .ts-fs-plan__explainer { max-width: 420px; }
+.ts-fs-plan--row .ts-fs-plan__points { flex: 5 1 300px; min-width: 0; margin: 0; padding: 0; border-top: 0; }
+.ts-fs-plan--row .ts-fs-plan__foot { flex: 3 1 220px; min-width: 0; margin-top: 0; }
+/* under 1024px the plan keeps who it is for, its count and its button; its list and its explainer are on /financial-software */
+@media (max-width: 1023.98px) {
+  .ts-fs-yours .ts-fs-plan__points, .ts-fs-yours .ts-fs-plan__explainer { display: none; }
+  .ts-fs-plan--row { gap: 18px; }
 }
 
 /* ── FOOTER-02 (Alex, design canvas: his ask, 2026-11-12 22:44 Manila — "… all thats left to touch up is the footer!!!"; the board

@@ -386,7 +386,7 @@ const schemaText = codeOf('prisma/schema.prisma');
  * PLAN_SURFACES are the PUBLIC offer — the landing and /pricing (and, since HOME-PAGES-01, 2026-11-14, /financial-software: the how-to on a page of its own). HOME-BRIEF-04 (Alex, 2026-11-10 19:00): /pricing renders the
  * plans (src/components/offer/PlansSection.tsx over src/lib/offer/plans.ts); the landing's offer is the how-to now (HowToSection.tsx
  * over src/lib/howTo.ts), so the how-to's two files stand in this list beside it. None renders the builder's view: no tool count, no
- * beat vocabulary, no persona grid. THE PLAN LAW below holds them to it. ("They render the three plans" — both pages — until then.) (HOME-PLANS-04, 2026-11-12: the landing's plan cards count what a plan holds — "<n> of <total> tools", "All <total> tools" — not what is built; the count barred here is the registry's census, COUNT_TELLS in the plan law. The map's own count left the same day, at Alex's note on the built page.)
+ * beat vocabulary, no persona grid. THE PLAN LAW below holds them to it. ("They render the three plans" — both pages — until then.) (HOME-PLANS-04, 2026-11-12: the landing's plan cards count what a plan holds — "<n> of <total> tools", "All <total> tools" — not what is built; the count barred here is the registry's census, COUNT_TELLS in the plan law. The map's own count left the same day, at Alex's note on the built page. HOME-TRIM-02, 2026-11-15: the landing draws one of those plans, the one its choices pick, and its count; the three cards and the band count on /financial-software; and its link "See all <total> tools →" counts the sheet, the same total — none is the registry's census. "The landing's plan cards" until then.)
  *
  * OFFER_CARD_SURFACES are the two IN-APP surfaces that still render the shared
  * <OfferCard/> from src/lib/offer.ts: the cockpit's locked-tab card and the
@@ -11215,8 +11215,8 @@ else console.log(`✖ The intake form law FAILED — ${ifViolations} violation(s
 
 // ── THE MAP LAW (HOME-PLANS-04, Alex's brief, 2026-11-12 14:07 Manila) ──────────────────────────────────────
 // Ruling e, as the brief writes it: "A TOOL'S MODULE is the module of the capability rows that name it (CAPABILITY_GROUPS),
-// held by a law: one module per tool, or the build fails by name." The guest landing's map (src/components/landing/HowToSection.tsx,
-// over src/lib/howTo.ts planMapView) draws the sheet's 25 tools and lights each in its module's colour when the picked plan holds
+// held by a law: one module per tool, or the build fails by name." The map (src/components/landing/HowToSection.tsx's whole view, on
+// /financial-software since HOME-PAGES-01, 2026-11-14, and there alone since HOME-TRIM-02, 2026-11-15 — the guest landing's too until then; over src/lib/howTo.ts planMapView) draws the sheet's 25 tools and lights each in its module's colour when the picked plan holds
 // that module (toolModule). A tool named by no capability row, or by rows of two modules, has no colour to wear; and a plan whose
 // name does not split into one part per module has a part with no colour, or a module with no part (nameParts — the handoff
 // README: "a mismatch should fail the build by name"). The leaf's own law, mapLaw, refuses both at module scope, so importing the

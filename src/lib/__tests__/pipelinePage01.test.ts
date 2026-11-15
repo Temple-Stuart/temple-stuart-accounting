@@ -47,7 +47,7 @@ const LAW = 'scripts/assert-tool-registry.ts';
 
 const FOURTEEN = ['deck-01', 'deck-02', 'deck-03', 'deck-04', 'deck-05', 'deck-06', 'deck-07', 'deck-08', 'deck-09', 'deck-10', 'deck-11', 'deck-12', 'deck-13', 'deck-14'];
 const PLANS_MOUNT = "<PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />";
-const HOW_TO_MOUNT = '<HowToSection onRequireAuth={onRequireAuth} />'; // HOME-BRIEF-04 (2026-11-10): the home page's offer, in the plans' seat
+const HOW_TO_MOUNT = '<HowToSection view="short" onRequireAuth={onRequireAuth} />'; // HOME-BRIEF-04 (2026-11-10): the home page's offer, in the plans' seat. HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: its short view — '<HowToSection onRequireAuth={onRequireAuth} />' until then
 const MY_TRIP_MOUNT = '<WasHereSection today={today} />'; // HOME-ORDER-01 (2026-11-10): the door's upper neighbour
 // HOME-FINISH-02 (2026-11-10): the door left the home page, and its two pins left this file with it — DOOR_OPEN ('<section aria-label="How it all
 // connects" className="max-w-7xl mx-auto px-4 lg:px-8 py-9 border-b border-border">') and DOOR_LINK ('<Link href={PIPELINE_PATH}

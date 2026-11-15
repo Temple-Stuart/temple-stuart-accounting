@@ -5,14 +5,15 @@
  * then list of features. ours is a little more complex looking and harer to see separation … instead of this , we might have like
  * some simple like lists, or something or an image... that like lists the Tabs , separated by Tier? … simple and easy to
  * understand"; his approval of the board on the design canvas, 2026-11-12 14:30 Manila: "YES, OMG, GIVE ME THE PROMPT TO MAKE THIS
- * REAL!") — THE FINANCIAL SOFTWARE SECTION, AS DRAWN. The spec is a file, not this note: design-refs/home-plans-04/Section-Reference.html
+ * REAL!") — THE FINANCIAL SOFTWARE SECTION, AS DRAWN — since HOME-TRIM-02 (2026-11-15), its WHOLE view, on its own page (view="whole"; the
+ * home page draws its short view, below). The spec is a file, not this note: design-refs/home-plans-04/Section-Reference.html
  * ("Every value in its stylesheet is the design, and its markup is the page at rest"), with its README beside it. This section is
  * that file's markup, element for element, but for Alex's notes on the built page (below) — and, since HOME-PAGES-01
  * (2026-11-14), but for each plan's door where the caller hands a link: an <a> in the button's own class where the reference
  * draws a <button> (the section's own page; below). Its classes are the reference's own
  * with the house prefix (.fs-map → .ts-fs-map), and their rules are the reference's own, ported to src/app/globals.css
  * (src/lib/__tests__/homePlans04.test.ts holds both equal, but for the differences it names). No colour is typed in this file.
- * Top to bottom:
+ * Top to bottom, the whole view:
  *   1. the pillar's name — PLAN_PILLAR.heading (src/lib/homeActWords.ts) — then ONE line, PLANS_SUBHEAD (src/lib/offer/plans.ts),
  *      where the pillar's three paragraphs stood;
  *   2. THE MAP: the question (PLANS_HEADLINE), the Personal pill, the two switches, then the 25 tools under the six families of
@@ -44,7 +45,8 @@
  *   (c, e and g are built where they live: c in src/lib/homeActWords.ts and src/lib/howTo.ts, e in src/lib/howTo.ts and the
  *   build's law suite, g in src/app/globals.css.)
  * 'use client' STAYS, FOR THE STATE AND THE DOOR: the two switches are React state, and each plan's button calls the door Landing
- * hands in (onRequireAuth — the sign-up modal).
+ * hands in (onRequireAuth — the sign-up modal). (HOME-TRIM-02, 2026-11-15: on the home page, one plan is drawn — the one the choices
+ * pick — and its button calls that door.)
  *
  * HOME-PAGES-01 (Alex's brief, 2026-11-14, ruling d: "THE JOIN BUTTON on /financial-software is /pricing's door: a link to the
  * front door (PlansSection.tsx: "The door is the caller's: /pricing hands a link, the home page a button that opens sign-up.").
@@ -54,7 +56,19 @@
  * PlanDoor's link arm (src/components/offer/PlansSection.tsx), retyped here because this file reads nothing of the plans
  * section (ruling b, above) — drawn as a plain <a> in the button's own class, as the compare link under the cards is a plain
  * <a>. The page hands /pricing's own door, { kind: 'link', href: '/' }. The link travels under the name onRequireAuth: the
- * smallest change, and Landing.tsx's mount stands as typed. Each arm is drawn as what it is; neither stands in for the other.
+ * smallest change, and Landing.tsx's mount stood as typed ("stands as typed" until HOME-TRIM-02, 2026-11-15, which adds
+ * view="short" to it — ruling a, at the default export). Each arm is drawn as what it is; neither stands in for the other.
+ *
+ * HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila, with his four beta users' notes on the home page; the boards approved on the
+ * design canvas at 20:01 and, corrected, at 20:41; built 2026-11-15) — ONE SECTION, TWO VIEWS. On its own page the section draws its
+ * WHOLE view (view="whole", src/app/financial-software/page.tsx): HowToView, everything this header describes, its render main's
+ * byte for byte. On the home page it draws its SHORT view (view="short", Landing.tsx): the section's name and its line, the panel
+ * with the question, the three choices and two links, then the one plan the choices pick — the section of
+ * design-refs/home-trim-02/Section-Reference.html, element for element (HowToShortView, below: rulings b, c and e are quoted there,
+ * ruling a at the default export, ruling d at the choices). The parts both views draw are written once. Ruling l, which re-said this header and the
+ * other notes that went false: "NOTES THAT GO FALSE ARE RE-SAID IN PLACE, dated, as HOME-TRIM-01 re-said its own: every sentence
+ * that says the home page draws the map, the three cards, the band at rest or the link at the foot. No line moves in a file whose
+ * lines a test or a law cites." — "AS DRAWN" and "Top to bottom" above name the whole view now, and the door's note above is dated.
  *
  * AFTER THE BUILD (Alex's notes on the built page, 2026-11-12: "then 13 of 25 tools is tacky, we dont need that to tell us, we
  * can just count..." · "while youre at it, remove that word alwasy from personal... looks tacky too"): the map draws no count —
@@ -77,8 +91,9 @@
  */
 
 import { useState } from 'react';
-import { COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, PLAN_MARKS, WHAT_YOU_RUN_LABEL, YOUR_PLAN, planMapView, type MapPlan, type NamePart } from '@/lib/howTo';
+import { COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, PLAN_MARKS, WHAT_YOU_RUN_LABEL, YOUR_PLAN, planMapView, type MapPlan, type NamePart, type PlanMapView } from '@/lib/howTo';
 import { PLAN_PILLAR } from '@/lib/homeActWords';
+import { FINANCIAL_SOFTWARE_PATH } from '@/lib/homePages';
 import { PLANS_HEADLINE, PLANS_SUBHEAD } from '@/lib/offer/plans';
 
 /**
@@ -144,6 +159,44 @@ function PlanBody({ plan, onJoin }: { plan: MapPlan; onJoin: JoinDoor }) {
   );
 }
 
+/**
+ * HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15) — WHAT BOTH VIEWS DRAW IS WRITTEN ONCE, in this file: the
+ * section's name and its line (here), the question with its three choices (Choices), the band (Band) and the link to /pricing
+ * (CompareLink). Until this brief HowToView drew each of them inline; it draws them through these now, and its render is main's,
+ * byte for byte (src/lib/__tests__/homeTrim02.test.ts holds it).
+ */
+function SectionName() {
+  return (
+    <>
+      <h2 className="ts-fs__title">{PLAN_PILLAR.heading}</h2>
+      <p className="ts-fs__lede">{PLANS_SUBHEAD}</p>
+    </>
+  );
+}
+
+/**
+ * The question and the three choices — the panel's head in both views. HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built
+ * 2026-11-15), ruling d: "THE CHOICES are the section's own:
+ * the same state, words, marks and handlers. Nothing is stored and nothing goes in the URL." — the state is the default export's
+ * two booleans; the handlers are the ones it hands both views.
+ */
+function Choices({ view, onBusiness, onTrade }: { view: PlanMapView; onBusiness: () => void; onTrade: () => void }) {
+  const press = { business: onBusiness, trading: onTrade } as const;
+  return (
+    <div className="ts-fs-map__ask">
+      <h3 className="ts-fs-map__question">{PLANS_HEADLINE}</h3>
+      <div className="ts-fs-switches" role="group" aria-label={WHAT_YOU_RUN_LABEL}>
+        <span className="ts-fs-switch ts-fs-switch--always"><Tick />{view.base.words}</span>
+        {view.switches.map((s) => (
+          <button key={s.module} className="ts-fs-switch" type="button" data-module={s.module} aria-pressed={s.pressed} onClick={() => press[s.module]()}>
+            {s.pressed ? <Tick /> : <span className="ts-fs-ring" aria-hidden="true" />}{s.words}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export interface HowToViewProps {
   /** What you run: Business on, Trading on. */
   business: boolean;
@@ -158,26 +211,14 @@ export interface HowToViewProps {
 /** THE PURE HALF: the whole section for one state of the two switches. It holds no state; the default export does. */
 export function HowToView({ business, trade, onBusiness, onTrade, onJoin }: HowToViewProps) {
   const view = planMapView({ business, trade });
-  const press = { business: onBusiness, trading: onTrade } as const;
   return (
     <section id="modules" className="ts-fs" aria-label="Software plans" data-how-to>
       <div className="ts-fs__inner">
-        <h2 className="ts-fs__title">{PLAN_PILLAR.heading}</h2>
-        <p className="ts-fs__lede">{PLANS_SUBHEAD}</p>
+        <SectionName />
 
         <div className="ts-fs-map">
           <div className="ts-fs-map__head">
-            <div className="ts-fs-map__ask">
-              <h3 className="ts-fs-map__question">{PLANS_HEADLINE}</h3>
-              <div className="ts-fs-switches" role="group" aria-label={WHAT_YOU_RUN_LABEL}>
-                <span className="ts-fs-switch ts-fs-switch--always"><Tick />{view.base.words}</span>
-                {view.switches.map((s) => (
-                  <button key={s.module} className="ts-fs-switch" type="button" data-module={s.module} aria-pressed={s.pressed} onClick={() => press[s.module]()}>
-                    {s.pressed ? <Tick /> : <span className="ts-fs-ring" aria-hidden="true" />}{s.words}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <Choices view={view} onBusiness={onBusiness} onTrade={onTrade} />
           </div>
           <div className="ts-fs-map__grid">
             {view.families.map((family) => (
@@ -204,25 +245,105 @@ export function HowToView({ business, trade, onBusiness, onTrade, onJoin }: HowT
           ))}
         </div>
 
-        <div className="ts-fs-plan ts-fs-plan--all" data-plan={view.band.id} data-picked={view.band.picked}>
-          <div className="ts-fs-plan__lead">
-            <PlanHead plan={view.band} />
+        <Band plan={view.band} onJoin={onJoin} />
+
+        <CompareLink />
+      </div>
+    </section>
+  );
+}
+
+/** The all-three band: under the whole view's three cards; and, with both choices on, the short view's one plan (ruling c, below). */
+function Band({ plan, onJoin }: { plan: MapPlan; onJoin: JoinDoor }) {
+  return (
+    <div className="ts-fs-plan ts-fs-plan--all" data-plan={plan.id} data-picked={plan.picked}>
+      <div className="ts-fs-plan__lead">
+        <PlanHead plan={plan} />
+      </div>
+      <PlanBody plan={plan} onJoin={onJoin} />
+    </div>
+  );
+}
+
+/** The link to /pricing, its words and path as they were: at the whole view's foot, and in the short view's panel (ruling e, below). */
+function CompareLink() {
+  return <a className="ts-fs__compare" href={COMPARE_PLANS_PATH} data-compare-plans>{COMPARE_PLANS_WORDS}</a>;
+}
+
+/**
+ * HOME-TRIM-02 — THE SHORT VIEW, the home page's: the section's name and its line, the panel with the question, the three choices and
+ * two links, then the one plan the choices pick. The spec is a file: design-refs/home-trim-02/Section-Reference.html, whose markup is
+ * the page at rest; this is its section, element for element, behind the house prefix, and its second stylesheet is ported as the
+ * port's last rules (src/app/globals.css). The rulings built here (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15):
+ *   b. "WHAT THE SHORT VIEW DRAWS is the reference's section. The map's grid, the three-card grid, the plans not picked and the link
+ *      at the foot are absent from its markup, not hidden. The panel keeps its class, .ts-fs-map. The section keeps id="modules"
+ *      (the plan law's :9448 reads '<section id="modules"'), aria-label="Software plans" and data-how-to, and adds the reference's
+ *      hook, ts-fs--short." — so this view writes its own section tag and its own inner box, and nothing it does not draw;
+ *   c. "THE PLAN is the one planMapView picks, in a holder, .ts-fs-yours. It is a card in a row (.ts-fs-plan--row, its first three
+ *      parts in .ts-fs-plan__lead, as the band's are), or the band itself when both choices are on. It wears the tag and the gold
+ *      button, as the picked plan does today. On the home page its button opens sign-up, as it does today." — the cards are
+ *      filtered to the picked one and the band is drawn only when it is the picked one, so exactly one plan is in the markup;
+ *      PlanHead draws its tag and the port's rule its gold button; PlanBody's button calls Landing's door (the sign-up modal);
+ *   e. "THE WORDS. Nothing is typed. "See all ‹total› tools →" is new: one function in src/lib/howTo.ts beside allToolsWords
+ *      (:712). Its total is the sheet's count that the cards count against, never typed. Its link is a plain anchor in the compare
+ *      link's class (.ts-fs__compare) to FINANCIAL_SOFTWARE_PATH (src/lib/homePages.ts:39). "Compare all four plans →" moves into
+ *      the panel in the short view with its path and its data-compare-plans hook; in the whole view it stays at the foot. Neither
+ *      link carries state." — the first link's words are planMapView's seeAll (seeAllToolsWords over the cards' own total).
+ * Its props are HowToView's; it holds no state.
+ */
+export function HowToShortView({ business, trade, onBusiness, onTrade, onJoin }: HowToViewProps) {
+  const view = planMapView({ business, trade });
+  return (
+    <section id="modules" className="ts-fs ts-fs--short" aria-label="Software plans" data-how-to>
+      <div className="ts-fs__inner">
+        <SectionName />
+
+        <div className="ts-fs-map">
+          <div className="ts-fs-map__head">
+            <Choices view={view} onBusiness={onBusiness} onTrade={onTrade} />
+            <div className="ts-fs-links">
+              <a className="ts-fs__compare" href={FINANCIAL_SOFTWARE_PATH}>{view.seeAll}</a>
+              <CompareLink />
+            </div>
           </div>
-          <PlanBody plan={view.band} onJoin={onJoin} />
         </div>
 
-        <a className="ts-fs__compare" href={COMPARE_PLANS_PATH} data-compare-plans>{COMPARE_PLANS_WORDS}</a>
+        <div className="ts-fs-yours">
+          {view.cards.filter((plan) => plan.picked).map((plan) => (
+            <div key={plan.id} className="ts-fs-plan ts-fs-plan--row" data-plan={plan.id} data-picked={plan.picked}>
+              <div className="ts-fs-plan__lead">
+                <PlanHead plan={plan} />
+              </div>
+              <PlanBody plan={plan} onJoin={onJoin} />
+            </div>
+          ))}
+          {view.band.picked ? <Band plan={view.band} onJoin={onJoin} /> : null}
+        </div>
       </div>
     </section>
   );
 }
 
 /**
+ * Each view by its name, in an object with no prototype: a name that is neither — a missing one, or one of Object's own, as toString —
+ * finds no view here, and React refuses to draw it. No view is assumed.
+ */
+const VIEWS = { __proto__: null, short: HowToShortView, whole: HowToView } as const;
+
+/**
  * Ruling a: what you run is two booleans in React state, and nothing else — a reload starts at Personal. The door is the
  * caller's (HOME-PAGES-01, 2026-11-14): Landing's function, or /financial-software's link.
+ * HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: "ONE SECTION, TWO VIEWS. HowToSection takes one
+ * more prop, view: 'short' | 'whole', required, with no default. Landing.tsx mounts it with view="short", /financial-software with
+ * view="whole". The whole view renders byte for byte what main renders, on /financial-software and wherever a test renders it. The
+ * audit names the smallest shape inside the file (a prop on HowToView, or a second pure view beside it) and builds the one that
+ * moves fewer pins. Nothing in the whole view is copied into a second file." — the second pure view, HowToShortView, beside
+ * HowToView: a prop on HowToView would have moved the six calls of it in three tests. The view is looked up by name, one element drawn,
+ * the same state and door handed to either.
  */
-export default function HowToSection({ onRequireAuth }: { onRequireAuth: JoinDoor }) {
+export default function HowToSection({ view, onRequireAuth }: { view: 'short' | 'whole'; onRequireAuth: JoinDoor }) {
   const [business, setBusiness] = useState(false);
   const [trade, setTrade] = useState(false);
-  return <HowToView business={business} trade={trade} onBusiness={() => setBusiness((on) => !on)} onTrade={() => setTrade((on) => !on)} onJoin={onRequireAuth} />;
+  const View = VIEWS[view];
+  return <View business={business} trade={trade} onBusiness={() => setBusiness((on) => !on)} onTrade={() => setTrade((on) => !on)} onJoin={onRequireAuth} />;
 }

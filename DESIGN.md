@@ -51,7 +51,7 @@ gradients (`globals.css`, REPAINT-5); it changes no other surface.
 
 ## The Financial Software section (HOME-PLANS-04, 2026-11-12)
 The approved section (`design-refs/home-plans-04/`) — the map of the 25 tools, three plan cards and the all-three band,
-under "What We Do" — is a design change too. It reads fourteen tokens the app already holds (`bg`, `border`,
+under "What We Do" on the home page until HOME-TRIM-02 (2026-11-15), on /financial-software — its own page since HOME-PAGES-01 (2026-11-14) — alone since, where the home page draws its short view (`design-refs/home-trim-02/`, whose stylesheet reads no token and adds none) — is a design change too. It reads fourteen tokens the app already holds (`bg`, `border`,
 `gold` and the hero's violets, golds and inks) and brings seventeen: typed once in `src/app/globals.css` `:root` as
 `--ts-<token>`, mapped in `tailwind.config.ts` as the `fs` family, named and valued as the handoff's table. No hex is typed
 in a component, and none in the section's stylesheet.

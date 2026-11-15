@@ -58,7 +58,8 @@ const TRAVEL_INNER = '<div className="ts-tm__inner">';
 // HEADING '<h2 className="ts-fs-eyebrow" data-act-heading>{WHAT_WE_DO_HEADING}</h2>'.
 const HEADING = '<h2 className="text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold" data-act-heading>{WHAT_WE_DO_HEADING}</h2>';
 const HEADING_BOX = '<div className="ts-fs-heading">';
-const HOW_TO = '<HowToSection onRequireAuth={onRequireAuth} />';
+// HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: Landing mounts the section with view="short" — '<HowToSection onRequireAuth={onRequireAuth} />' until then.
+const HOW_TO = '<HowToSection view="short" onRequireAuth={onRequireAuth} />';
 // HERO-CREST-01 (Alex, design canvas, 2026-11-11): the hero is the reference's band (design-refs/hero-crest-01/Hero-Reference.html) — a <div> that
 // holds the crest, the top bar and ONE <section>, the copy. It opens here and ends at that section's close and its own. Until then the hero was
 // itself the <section> — '<section className="bg-brand-purple text-white pb-14 pt-12">' — and ended at the first '</section>' after its opening tag.
