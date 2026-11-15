@@ -63,7 +63,7 @@
  * Tabs , separated by Tier? … simple and easy to understand"; the board approved on the design canvas at 14:30): the home page
  * drew THE MAP (planMapView, at the foot of this file) — the sheet's 25 tools under its six families (PROBLEM_SHEET), each
  * lit when the picked plan holds its module — then three plan cards and the all-three band, drawn by the section itself (src/components/landing/HowToSection.tsx; the spec is design-refs/home-plans-04/Section-Reference.html).
- * HOME-TRIM-02 (2026-11-15): that is the section's whole view, on /financial-software (its own page since HOME-PAGES-01, 2026-11-14) and there alone now; the home page draws its short view, from the same planMapView (the home page "draws THE MAP now" until then; see seeAllToolsWords).
+ * HOME-TRIM-02 (2026-11-15): that is the section's whole view, on /financial-software (its own page since HOME-PAGES-01, 2026-11-14) and there alone now; the home page draws its short view, from the same planMapView (the home page "draws THE MAP now" until then; see seeAllToolsWords) — and, since HOME-PLANS-05 (2026-11-16), that view's two toggles open the map's grid and the three cards with the band there too, each while it is open.
  *   · KEPT, NOT DRAWN (2026-11-12): planCardSteps, with PlanCardSteps and PlanCardCategory — the step lists the four cards
  *     drew. The brief's ruling c: "WHAT LEAVES THE PAGE: the pillar's three paragraphs and the step lists in the cards. Both
  *     stay in their leaves, undrawn, with a dated note: the standing HOME-PLANS-03 gave the comparison." So it stands as the
@@ -118,7 +118,7 @@ export const ADD_TRADE = '+ Trade';
 /** After Personal, while neither Business nor Trade is on. */
 export const NEXT_LINE = 'Next, earn abroad: run a business, trade, or both — add them above.';
 /** HOME-BRIEF-04 (2026-11-10): beside the plan's button, the door to the four plans and their table. */
-export const COMPARE_PLANS_WORDS = 'Compare all four plans →';
+export const COMPARE_PLANS_WORDS = 'Compare all four plans →'; /** HOME-PLANS-05 (2026-11-16), ruling f (quoted at seeAllToolsWords): the second toggle's words — the compare link's, typed whole, without its arrow — on COMPARE_PLANS_WORDS's own line, so no line below moves. */ export const COMPARE_PLANS_TOGGLE_WORDS = 'Compare all four plans';
 export const COMPARE_PLANS_PATH = '/pricing';
 export const LEGEND_TITLE = 'How to read the marks';
 export const LEGEND_STEP_LINE = 'A step is LIVE when every tool in it is live, and PENDING until then.';
@@ -583,7 +583,7 @@ export function planComparison(
 // HOME-PLANS-03 (Alex, 2026-11-11 18:17 Manila). What the home page draws INSIDE the four plan cards: the steps each plan
 // ADDS. This part reads the plans' modules and the steps' titles — no tool, no note, nothing of what is built.
 // KEPT, NOT DRAWN (HOME-PLANS-04, 2026-11-12): the section draws the map and its own cards — on the home page until HOME-TRIM-02 (2026-11-15), on /financial-software since HOME-PAGES-01 (2026-11-14) and there alone since
-// ("the home page draws the map and its own cards now" until then); this stays, undrawn — the header says why (ruling c).
+// ("the home page draws the map and its own cards now" until then) — until HOME-PLANS-05 (2026-11-16), whose toggles open them on the home page again, each while it is open; this stays, undrawn — the header says why (ruling c).
 
 /** One category on a plan's card. */
 export interface PlanCardCategory {
@@ -692,7 +692,7 @@ export function howToLaw(
 // separated by Tier? … simple and easy to understand"; the board, approved on the design canvas at 14:30: "YES, OMG, GIVE ME THE
 // PROMPT TO MAKE THIS REAL!"). What the home page's first pillar drew, under its name and one line, until HOME-TRIM-02 (2026-11-15) — the section's whole view, on /financial-software since HOME-PAGES-01 (2026-11-14) and there alone since ("draws now" until then; design-refs/home-plans-04/):
 // THE MAP — the sheet's 25 tools under its six families (PROBLEM_SHEET), each lit when the picked plan holds its module — then three
-// plan cards and the all-three band. The home page's short view (design-refs/home-trim-02/) draws from the same view: the picked plan alone, and seeAll. Everything here is DERIVED from the plans leaf and the sheet; three words are typed (and, since HOME-TRIM-02, 2026-11-15, a fourth: seeAllToolsWords, its ruling e), ruled new by
+// plan cards and the all-three band. The home page's short view (design-refs/home-trim-02/) draws from the same view: the picked plan and seeAll — and, since HOME-PLANS-05 (2026-11-16; design-refs/home-plans-05/), the families, and the three cards with the band, each while its toggle is open (the picked plan alone and seeAll until then). Everything here is DERIVED from the plans leaf and the sheet; three words are typed (and, since HOME-TRIM-02, 2026-11-15, a fourth: seeAllToolsWords, its ruling e), ruled new by
 // the brief. A mark says "in this plan" — never "built": nothing below reads a tool's status, and no price is drawn (ruling d).
 
 /** HOME-PLANS-04 ruling f: the tag the picked plan wears. */
@@ -720,9 +720,9 @@ export function allToolsWords(total: number): string {
  * on the design canvas, 2026-11-14 20:01 Manila: "ALL LOOKS GOOD … OTHERWISE, LETS DO IT"; of the corrected boards, 20:41: "thats it!
  * yeet yeet!"; built 2026-11-15) — THE SHORT VIEW ON THE HOME PAGE. The Financial Software section draws its short view there
  * (src/components/landing/HowToSection.tsx, HowToShortView; the spec is design-refs/home-trim-02/Section-Reference.html): the
- * question, its three choices and two links, then the one plan planMapView picks; the whole view — the map, the three cards, the
+ * question, its three choices and two toggles (two links until HOME-PLANS-05, 2026-11-16, below), then the one plan planMapView picks; the whole view — the map, the three cards, the
  * band and the link at the foot — stands on /financial-software. Both read planMapView. One word is new, the short view's first
- * link's: seeAllToolsWords, below, beside allToolsWords (ruling e, quoted under this paragraph), and planMapView hands it the total its cards count
+ * link's — its first toggle's since HOME-PLANS-05, without the arrow: seeAllToolsWords, below, beside allToolsWords (ruling e, quoted under this paragraph), and planMapView hands it the total its cards count
  * against (seeAll, below). Ruling l re-said this file's notes that went false, in place and dated: "NOTES THAT GO FALSE ARE RE-SAID IN
  * PLACE, dated, as HOME-TRIM-01 re-said its own: every sentence that says the home page draws the map, the three cards, the band at
  * rest or the link at the foot. No line moves in a file whose lines a test or a law cites."
@@ -732,11 +732,11 @@ export function allToolsWords(total: number): string {
  * against, never typed. Its link is a plain anchor in the compare link's class (.ts-fs__compare) to FINANCIAL_SOFTWARE_PATH
  * (src/lib/homePages.ts:39). "Compare all four plans →" moves into the panel in the short view with its path and its
  * data-compare-plans hook; in the whole view it stays at the foot. Neither link carries state." — the short view's first link, to
- * the section's own page; the arrow is part of the string, as COMPARE_PLANS_WORDS has its own. planMapView hands it the total its
- * cards count against (seeAll, below), so the two cannot disagree.
+ * the section's own page, until HOME-PLANS-05 made it a toggle (below); the arrow was part of the string then, as COMPARE_PLANS_WORDS has its own. planMapView hands it the total its
+ * cards count against (seeAll, below), so the two cannot disagree. HOME-PLANS-05 (Alex's brief, 2026-11-16 00:04 Manila; the boards approved on the design canvas at 00:19; built 2026-11-16), ruling f: "A TOGGLE'S WORDS ARE ITS LINK'S WORDS WITHOUT THE ARROW. seeAllToolsWords loses its arrow where it stands, its total still the cards' own. One new constant in src/lib/howTo.ts, beside COMPARE_PLANS_WORDS, holds the words "Compare all four plans"; COMPARE_PLANS_WORDS keeps its arrow for the whole view's foot link. No string is sliced from another, and FINANCIAL_SOFTWARE_PATH leaves HowToSection.tsx with its last use there." — this function, in place and over the same total, says the first toggle's words; the second's, COMPARE_PLANS_TOGGLE_WORDS, are typed whole on COMPARE_PLANS_WORDS's own line (above), so no line of this file moves and :712, which ruling e cites, is allToolsWords still.
  */
 export function seeAllToolsWords(total: number): string {
-  return `See all ${total} tools →`;
+  return `See all ${total} tools`;
 }
 
 /** The sheet's shape, as the map reads it: a family's name and its tools, in order. */
@@ -834,7 +834,7 @@ export interface PlanMapView {
   /** The plan that holds every module — the band. */
   band: MapPlan;
   /**
-   * The short view's first link's words, "See all <total> tools →" (HOME-TRIM-02, ruling e): seeAllToolsWords over the total each card's
+   * The short view's first toggle's words, "See all <total> tools" (HOME-PLANS-05, 2026-11-16, ruling f; its first link's, with the arrow, from HOME-TRIM-02's ruling e until then): seeAllToolsWords over the total each card's
    * count is out of — words, not a figure: the view still carries no figure for a count to draw.
    */
   seeAll: string;

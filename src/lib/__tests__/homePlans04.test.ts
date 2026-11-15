@@ -25,9 +25,9 @@
  *       behind the house prefix in globals.css :root, declared once; the seventeen new ones, declared once each as --ts-fs-*,
  *       behind tailwind.config.ts's `fs` family and in DESIGN.md's table — its rows and their comments in globals.css the
  *       README's, column for column; the reference's :root holds those thirty-one and no other;
- *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the seven
+ *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the eight
  *       differences named there (the fourth and fifth Alex's notes; the sixth the section's own page, HOME-PAGES-01, 2026-11-14 —
- *       "the five differences named there (the last two Alex's notes)" until then; the seventh the home page's short view, HOME-TRIM-02, 2026-11-15 — "the six" until then); no hex and no rgb value typed; every variable it reads is
+ *       "the five differences named there (the last two Alex's notes)" until then; the seventh the home page's short view, HOME-TRIM-02, 2026-11-15 — "the six" until then; the eighth that view's toggles, HOME-PLANS-05, 2026-11-16 — "the seven" until then); no hex and no rgb value typed; every variable it reads is
  *       declared and every new token is read; it stands under the chip strip's rules and above the hero's block; nothing else
  *       in the file reaches the section — not by its classes, its id, the state it is styled by or any data attribute it carries;
  *   T4  the page at rest — Landing.tsx's heading box and the section's render (its whole view; the home page's at rest until HOME-TRIM-02, 2026-11-15) are the reference's markup, token for token
@@ -366,7 +366,7 @@ test('T2 the tokens, named and valued as the README\'s two tables: fourteen alre
 // HOME-PAGES-01 (Alex's brief, 2026-11-14): a SIXTH named difference — the one rule the port holds that the reference does not, for the section's own
 // page. Until then this test read '… but for the five named differences (the last two Alex's notes on the built page) …' and built `expected` from
 // the reference alone.
-test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the seven named differences (the fourth and fifth Alex\'s notes on the built page, the sixth the section\'s own page, the seventh the home page\'s short view); no hex and no rgb value typed; every variable it reads is declared and every new token read; it stands between the chip strip and the hero', () => {
+test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the eight named differences (the fourth and fifth Alex\'s notes on the built page, the sixth the section\'s own page, the seventh the home page\'s short view, the eighth its toggles — HOME-PLANS-05, 2026-11-16: "but for the seven named differences" until then); no hex and no rgb value typed; every variable it reads is declared and every new token read; it stands between the chip strip and the hero', () => {
   const expected: string[] = [];
   const left = { eyebrow: 0, count: 0 };
   // 6. ADDED: the section's own page (HOME-PAGES-01 — Alex's brief, 2026-11-14, ruling a: "NOTHING IS REDRAWN. Each page mounts the section's own component: no copy, no second stylesheet. One value is new. On /financial-software the section's inner top padding is clamp(44px, 5.6vw, 80px), the value .ts-ps__inner and .ts-tm__inner carry, where the home page has 12px under the What We Do box. The page draws no "What We Do".").
@@ -394,7 +394,7 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   }
   assert.equal(added, 1, 'the sixth difference adds one declaration, once: the inner box\'s top padding on the section\'s own page');
   const port = declarations(portCss());
-  assert.deepEqual(port, [...expected, ...SHORT_VIEW], 'the port, line for line, and nothing more — its last twenty-five the seventh difference, the short view\'s (SHORT_VIEW, below T3)');
+  assert.deepEqual(port, [...expected, ...SHORT_VIEW, ...TOGGLES], 'the port, line for line, and nothing more — then the seventh difference, the short view\'s twenty (SHORT_VIEW, below T3), and last the eighth, its toggles\' thirty-four (TOGGLES, below it) — HOME-PLANS-05 (2026-11-16): "its last twenty-five the seventh difference" until then');
   assert.ok(port.length > 150, `a whole stylesheet was compared (${port.length} declarations)`);
   assert.deepEqual(left, { eyebrow: 8, count: 14 }, 'the two notes leave out exactly the eyebrow\'s 8 declarations and the count\'s 14 — no more');
   assert.doesNotMatch(portCss(), /\.ts-fs-eyebrow|\.ts-fs-map__count|\.ts-fs-map__figure/, 'and the port names neither, anywhere');
@@ -432,9 +432,9 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   }
   // nor reaches the section another way: by its id, by the state attribute the port styles it by, or by any data attribute its
   // markup or the heading box carries
-  const hooks = new Set<string>(['aria-pressed', 'data-act-heading']);
+  const hooks = new Set<string>(['aria-pressed', 'aria-expanded', 'data-act-heading']); // HOME-PLANS-05 (2026-11-16): aria-expanded, the state the port styles the short view's toggles by, joins aria-pressed — ['aria-pressed', 'data-act-heading'] until then
   for (const [, run] of STATES) for (const m of render(run).matchAll(/ (data-[\w-]+)="/g)) hooks.add(m[1]);
-  assert.deepEqual([...hooks].sort(), ['aria-pressed', 'data-act-heading', 'data-compare-plans', 'data-how-to', 'data-lit', 'data-module', 'data-picked', 'data-plan'], 'the hooks the section and its heading carry');
+  assert.deepEqual([...hooks].sort(), ['aria-expanded', 'aria-pressed', 'data-act-heading', 'data-compare-plans', 'data-how-to', 'data-lit', 'data-module', 'data-picked', 'data-plan'], 'the hooks the section and its heading carry — and, since HOME-PLANS-05, the toggles\' state');
   const selectorsOutside = [...outside.matchAll(/([^{};]+)\{/g)].map((m) => flat(m[1]));
   assert.ok(selectorsOutside.length > 50, `the rules outside the port were read (${selectorsOutside.length})`);
   // HOME-SERVICES-01 (Alex's brief, 2026-11-12): the Professional Services section's port stands above this one (.ts-ps), and its tiles are
@@ -476,16 +476,14 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
 //    rules name the section's classes, so they join its port: homePlans04:425 holds that no rule outside the port names one. They stand after the
 //    port's last rule, in the reference's order, and homePlans04 T3 names them as its seventh difference, declaration by declaration, as HOME-PAGES-01
 //    named the sixth. The rest of the port does not change." Typed here, as the sixth is (OWN_PAGE, in T3): design-refs/home-trim-02's second
-//    stylesheet behind the house prefix, twelve rules and twenty-five declarations, in its order, after the reference's last declaration; its one
+//    stylesheet behind the house prefix, ten rules and twenty declarations, in its order, after the reference's last declaration; its one
 //    rule that is that page's own (.fs-yours > [hidden]) is not ported. homeTrim02.test.ts reads them from that file and holds the same. They stand
 //    below T3, not in it, so that no line of T3 moves: :425 is the line ruling f cites. Until HOME-TRIM-02, T3 held the port to `expected` alone.
+//    HOME-PLANS-05 (2026-11-16), its ruling e: the two rules of .ts-fs-links went with their last wearer, the links the toggles replaced. Until then
+//    the list held twelve rules and twenty-five declarations, and after the first these five: .ts-fs-links { display: flex; flex-wrap: wrap;
+//    align-items: center; gap: 0 28px } and .ts-fs-links .ts-fs__compare { margin-top: 0 }.
 const SHORT_VIEW: readonly string[] = [
   ' | .ts-fs--short .ts-fs__inner | padding-bottom: clamp(44px, 2vw + 36px, 64px)',
-  ' | .ts-fs-links | display: flex',
-  ' | .ts-fs-links | flex-wrap: wrap',
-  ' | .ts-fs-links | align-items: center',
-  ' | .ts-fs-links | gap: 0 28px',
-  ' | .ts-fs-links .ts-fs__compare | margin-top: 0',
   ' | .ts-fs-yours | margin-top: 20px',
   ' | .ts-fs-yours .ts-fs-plan--all | margin-top: 0',
   ' | .ts-fs-plan--row | flex-direction: row',
@@ -505,6 +503,49 @@ const SHORT_VIEW: readonly string[] = [
   ' | .ts-fs-plan--row .ts-fs-plan__foot | margin-top: 0',
   '@media (max-width: 1023.98px) | .ts-fs-yours .ts-fs-plan__points, .ts-fs-yours .ts-fs-plan__explainer | display: none',
   '@media (max-width: 1023.98px) | .ts-fs-plan--row | gap: 18px',
+];
+
+// 8. ADDED: the short view's toggles — HOME-PLANS-05 (Alex's brief, 2026-11-16 00:04 Manila; the boards approved on the design canvas at 00:19;
+//    built 2026-11-16), ruling e: "THE TOGGLES' RULES JOIN THE SECTION'S PORT after the short view's, and homePlans04 T3 names them as its eighth
+//    difference. The two .ts-fs-links rules go with their last wearer, and the seventh difference says so. Every other rule of the port stays as it
+//    is." Typed here, as the seventh is (SHORT_VIEW, above): design-refs/home-plans-05's third stylesheet behind the house prefix, nine rules and
+//    thirty-four declarations, in its order, after the seventh's; its one rule that is that page's own (.fs-map__grid[hidden]) is not ported.
+//    homePlans05.test.ts reads them from that file and holds the same. They read five tokens of :root and declare none, so T3's reads stand.
+const TOGGLES: readonly string[] = [
+  ' | .ts-fs-toggles | display: flex',
+  ' | .ts-fs-toggles | flex-wrap: wrap',
+  ' | .ts-fs-toggles | gap: 8px',
+  ' | .ts-fs-toggles | flex: 1 1 100%',
+  ' | .ts-fs-toggle | box-sizing: border-box',
+  ' | .ts-fs-toggle | flex: 1 1 auto',
+  ' | .ts-fs-toggle | display: inline-flex',
+  ' | .ts-fs-toggle | align-items: center',
+  ' | .ts-fs-toggle | justify-content: center',
+  ' | .ts-fs-toggle | gap: 8px',
+  ' | .ts-fs-toggle | height: 44px',
+  ' | .ts-fs-toggle | margin: 0',
+  ' | .ts-fs-toggle | padding: 0 16px 0 18px',
+  ' | .ts-fs-toggle | border: 1.5px solid var(--ts-fs-button-line)',
+  ' | .ts-fs-toggle | border-radius: 999px',
+  ' | .ts-fs-toggle | background-color: rgb(var(--ts-fs-white))',
+  ' | .ts-fs-toggle | color: var(--ts-hero-violet-3)',
+  ' | .ts-fs-toggle | font-family: inherit',
+  ' | .ts-fs-toggle | font-size: 14px',
+  ' | .ts-fs-toggle | line-height: 1.2',
+  ' | .ts-fs-toggle | font-weight: 600',
+  ' | .ts-fs-toggle | white-space: nowrap',
+  ' | .ts-fs-toggle | cursor: pointer',
+  ' | .ts-fs-toggle | transition: border-color 0.16s, background-color 0.16s, color 0.16s',
+  ' | .ts-fs-chevron | flex: none',
+  ' | .ts-fs-chevron | transition: transform 0.2s',
+  ' | .ts-fs-toggle[aria-expanded="true"] | border-color: var(--ts-hero-violet-2)',
+  ' | .ts-fs-toggle[aria-expanded="true"] | background-color: var(--ts-fs-rule)',
+  ' | .ts-fs-toggle[aria-expanded="true"] | color: var(--ts-hero-violet-2)',
+  ' | .ts-fs-toggle[aria-expanded="true"] .ts-fs-chevron | transform: rotate(180deg)',
+  '@media (min-width: 640px) | .ts-fs-toggles | flex: none',
+  '@media (min-width: 640px) | .ts-fs-toggle | flex: none',
+  '@media (hover: hover) | .ts-fs-toggle:hover | border-color: var(--ts-hero-violet-2)',
+  '@media (prefers-reduced-motion: reduce) | .ts-fs-toggle, .ts-fs-chevron | transition: none',
 ];
 
 // ── T4 · THE PAGE AT REST ────────────────────────────────────────────────────
@@ -688,7 +729,10 @@ test('T6 every word drawn is its leaf\'s, in order — the three new words and b
   // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15): three more, and none is a word a visitor reads — '@/lib/homePages', the path of the leaf that holds FINANCIAL_SOFTWARE_PATH
   // (ruling e: the short view's first link), and the view's two names, 'short' and 'whole' (ruling a). Until then the list ended at 'function',
   // with no '@/lib/homePages'.
-  assert.deepEqual([...section.matchAll(/'([^']*)'/g)].map((m) => m[1]), ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/homePages', '@/lib/offer/plans', ' ', 'link', 'function', 'short', 'whole'], 'its single-quoted literals: the directive, its four imports\' paths and React\'s, the space before each later part of a plan\'s name (the space between the map\'s figure and its words left with the count, at Alex\'s note), the door\'s two — the link arm\'s kind and the typeof that tells a function from it — and the view\'s two names (HOME-TRIM-02, 2026-11-15: "its three imports\' paths", and no view, until then)');
+  // HOME-PLANS-05 (2026-11-16), its ruling f: FINANCIAL_SOFTWARE_PATH leaves HowToSection.tsx with its last use there, so '@/lib/homePages' leaves
+  // the list; the toggles add no single-quoted literal (their ids are JSX attributes). Until then the list held '@/lib/homePages' after
+  // '@/lib/homeActWords', and the message said "its four imports' paths".
+  assert.deepEqual([...section.matchAll(/'([^']*)'/g)].map((m) => m[1]), ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/offer/plans', ' ', 'link', 'function', 'short', 'whole'], 'its single-quoted literals: the directive, its three imports\' paths and React\'s, the space before each later part of a plan\'s name (the space between the map\'s figure and its words left with the count, at Alex\'s note), the door\'s two — the link arm\'s kind and the typeof that tells a function from it — and the view\'s two names (HOME-TRIM-02, 2026-11-15: "its three imports\' paths", and no view, until then; its four, with the pages\' leaf, from then until HOME-PLANS-05, 2026-11-16)');
 });
 
 // ── T7 · THE DATA ────────────────────────────────────────────────────────────
@@ -766,7 +810,10 @@ test('T8 what you run is two booleans in React state — both off at first, noth
   assert.match(section, /^'use client';/);
   assert.equal(count(section, 'const [business, setBusiness] = useState(false);'), 1, 'Business: off at first');
   assert.equal(count(section, 'const [trade, setTrade] = useState(false);'), 1, 'Trading: off at first');
-  assert.equal(count(section, 'useState('), 2, 'and no other state');
+  // HOME-PLANS-05 (2026-11-16), its ruling c: the short view's two toggles are two more booleans, closed at first, kept by the short view's holder
+  // (HowToShortHolder), not here — the default export below is as it was. Until then: count(section, 'useState(') === 2, 'and no other state'.
+  assert.equal(count(section, 'const [toolsOpen, setToolsOpen] = useState(false);') + count(section, 'const [plansOpen, setPlansOpen] = useState(false);'), 2, 'the toggles: closed at first');
+  assert.equal(count(section, 'useState('), 4, 'and no other state');
   assert.doesNotMatch(section, /\buse(Effect|LayoutEffect|Reducer|Ref|Router|SearchParams|Pathname|Context|SyncExternalStore)\b|\b(globalThis|window|self|document|navigator|history|location|localStorage|sessionStorage|indexedDB|cookieStore|caches|cookie)\b|\bfetch\s*\(|new Date\(|Date\.now\(/, 'no storage, no URL, no cookie, no clock — no browser global named at all');
   assert.equal(section.slice(section.indexOf('export default function HowToSection(')).trim(), [
     // HOME-PAGES-01 (Alex's brief, 2026-11-14, ruling d): the parameter's TYPE alone moved — the door is Landing's function or, on the section's

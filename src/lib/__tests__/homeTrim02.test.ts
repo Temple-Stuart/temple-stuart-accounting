@@ -11,26 +11,30 @@
  *
  * The third PR of the shorter home page. HOME-PAGES-01 gave the section a page of its own, /financial-software; HOME-TRIM-01 made About
  * Us one band; this one draws the section's short view on the home page: the section's name and its line, the panel with the question,
- * the three choices and two links, then the one plan the choices pick. The spec is a file: design-refs/home-trim-02/Section-Reference.html,
+ * the three choices and two links (two toggles since HOME-PLANS-05, 2026-11-16, which open the map's grid and the four plans in place), then the one plan the choices pick. The spec is a file: design-refs/home-trim-02/Section-Reference.html,
  * with its README beside it ("Its markup is the page at rest."). The short view is HowToShortView in
  * src/components/landing/HowToSection.tsx, which the section draws when Landing.tsx hands it view="short"; its stylesheet is the
- * reference's second, ported as the Financial Software port's last rules in src/app/globals.css. What is held here:
+ * reference's second, ported after the Financial Software port's own rules in src/app/globals.css (its last rules until HOME-PLANS-05's
+ * toggles followed them; the links' two rules left with the links). What is held here:
  *
  *   T1 the handoff — the README and the reference are in the tree, byte for byte (sha256) and by size, and the folder holds the two; the
  *      reference's first stylesheet is design-refs/home-plans-04's, byte for byte, and so is its font link;
  *   T2 the block — the port's new rules ARE the reference's second stylesheet, declaration by declaration and in order, behind the house
- *      prefix, its one rule that is the reference page's own left out; it reads no variable, types no colour, and stands directly after
- *      the port's last rule; the rest of the port is main's, declaration by declaration;
+ *      prefix, its one rule that is the reference page's own left out (and, since HOME-PLANS-05, its links' two rules, which left with the
+ *      links); it reads no variable, types no colour, and stands directly after the port's last rule, the toggles' rules after it; the
+ *      rest of the port is main's, declaration by declaration;
  *   T3 the short view — its render is the reference's section, token for token, in each of the four states, as the reference's own
- *      script paints it, with the plans it hides taken out: absent, not hidden; one plan, one anchor id, the act's tag first;
+ *      script paints it, with the plans it hides taken out: absent, not hidden; one plan, one anchor id, the act's tag first — its links'
+ *      box home-plans-05's two toggles, closed, since HOME-PLANS-05 (2026-11-16);
  *   T4 the whole view — its render is main's, byte for byte (sha256), in the four states with either door, and the default export
  *      handed "whole" draws it;
  *   T5 the words — every word the short view draws is a leaf's, in order; the one new one is computed, its total the cards' own, and
- *      follows the sheet; typed in the leaf alone, beside allToolsWords;
+ *      follows the sheet; typed in the leaf alone, beside allToolsWords — its arrow gone since HOME-PLANS-05, the first toggle's words;
  *   T6 the two mounts — Landing.tsx hands "short" on its line 595, the page hands "whole"; the view is required, with no default: a
  *      mount that names none draws nothing — React refuses it;
- *   T7 the behaviour — the same two booleans and handlers drive the short view through the four states; two choices and the plan's
- *      button; the two links are plain anchors, the first to FINANCIAL_SOFTWARE_PATH, the second the compare link with its hook;
+ *   T7 the behaviour — the same two booleans and handlers drive the short view through the four states; two choices, two toggles and
+ *      the plan's button — the two links, plain anchors to FINANCIAL_SOFTWARE_PATH and to /pricing with its hook, until HOME-PLANS-05
+ *      (2026-11-16), which made them the toggles;
  *   T8 the rulings — each quoted, exact, where it is built, under the brief's stamp; ruling l's notes re-said in place, no cited line
  *      moved; in every source file of the change a quote that follows a sentence of his for twenty characters is his words from there,
  *      whole or to a full stop, the quotes under his three stamps are the words they date, and each file's count of his quotes is held.
@@ -49,12 +53,13 @@ import { join, resolve } from 'node:path';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code, comments, rejoin } from '../sourceText';
-import { COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS, YOUR_PLAN, allToolsWords, planMapView, seeAllToolsWords } from '../howTo';
+// HOME-PLANS-05 (2026-11-16): COMPARE_PLANS_TOGGLE_WORDS and the short view's holder are read here now; COMPARE_PLANS_PATH, COMPARE_PLANS_WORDS and
+// FINANCIAL_SOFTWARE_PATH, which the two links read, are read here no more (the whole view's foot link is homePlans04.test.ts's and howTo01.test.ts's).
+import { COMPARE_PLANS_TOGGLE_WORDS, YOUR_PLAN, allToolsWords, planMapView, seeAllToolsWords } from '../howTo';
 import { PLAN_PILLAR } from '../homeActWords';
-import { FINANCIAL_SOFTWARE_PATH } from '../homePages';
 import { PLANS, PLANS_HEADLINE, PLANS_SUBHEAD } from '../offer/plans';
 import { PROBLEM_SHEET } from '../problemSheet';
-import HowToSection, { HowToShortView, HowToView, type HowToViewProps, type JoinDoor } from '@/components/landing/HowToSection';
+import HowToSection, { HowToShortHolder, HowToShortView, HowToView, type HowToViewProps, type JoinDoor } from '@/components/landing/HowToSection';
 
 Object.assign(globalThis, { React });
 
@@ -136,15 +141,22 @@ const prefixed = (selector: string): string => selector.replace(/\.fs(?=$|[^A-Za
 /** The port, read as homePlans04.test.ts reads it: from its first rule to the footer's. */
 const PORT_OPEN = '.ts-fs-heading {';
 const NEXT_PORT = '.ts-ft {';
-/** The block: from its first rule to the footer's. */
+/**
+ * The block: from its first rule to the toggles' — HOME-PLANS-05 (2026-11-16), its ruling e: the toggles' rules join the port after this block
+ * (homePlans05.test.ts holds them). Until then the block ran to the footer's: css.indexOf(NEXT_PORT), 'the block opens at .ts-fs--short
+ * .ts-fs__inner and runs to the footer\'s port'.
+ */
 const BLOCK_OPEN = '.ts-fs--short .ts-fs__inner {';
+const TOGGLES_OPEN = '.ts-fs-toggles {';
 function blockCss(): string {
   const css = code(GLOBALS);
   const at = css.indexOf(BLOCK_OPEN);
-  const end = css.indexOf(NEXT_PORT);
-  assert.ok(at > -1 && end > at, 'the block opens at .ts-fs--short .ts-fs__inner and runs to the footer\'s port');
+  const end = css.indexOf(TOGGLES_OPEN);
+  assert.ok(at > -1 && end > at && css.indexOf(NEXT_PORT) > end, 'the block opens at .ts-fs--short .ts-fs__inner and runs to the toggles\' rules, which run to the footer\'s port');
   return css.slice(at, end);
 }
+/** HOME-PLANS-05 (2026-11-16): the second stylesheet's two rules of the links' row, which went with their last wearer when the links became toggles. */
+const LINKS_RULES: readonly string[] = ['.fs-links', '.fs-links .fs__compare'];
 
 // ── the markup, read as tokens ───────────────────────────────────────────────
 
@@ -194,7 +206,9 @@ const STATES: ReadonlyArray<readonly [name: string, run: Run, picked: string]> =
 ];
 const noop = (): void => {};
 const LINK_DOOR = { kind: 'link', href: '/' } as const;
-const shortRender = (run: Run, onJoin: JoinDoor = noop): string => renderToStaticMarkup(React.createElement(HowToShortView, { ...run, onBusiness: noop, onTrade: noop, onJoin }));
+// HOME-PLANS-05 (2026-11-16): the short view takes its two toggles too — closed here (`closed`, below), as the page draws it at rest. Until then
+// it took HowToView's props alone: { ...run, onBusiness: noop, onTrade: noop, onJoin }.
+const shortRender = (run: Run, onJoin: JoinDoor = noop): string => renderToStaticMarkup(React.createElement(HowToShortView, { ...run, ...closed, onBusiness: noop, onTrade: noop, onJoin }));
 const wholeRender = (run: Run, onJoin: JoinDoor = noop): string => renderToStaticMarkup(React.createElement(HowToView, { ...run, onBusiness: noop, onTrade: noop, onJoin }));
 /**
  * The reference's section painted for a state as its own script paints it — each switch's aria-pressed and its tick or ring, and the one
@@ -216,6 +230,20 @@ function painted(run: Run, picked: string): string {
   for (const p of plans) html = html.replace(p.html, p.id === picked ? p.html.replace(' hidden>', '>') : '');
   return html;
 }
+/**
+ * HOME-PLANS-05 (2026-11-16): the panel's two links are two toggles — design-refs/home-plans-05's, at rest, as its section draws them. This file's
+ * reference draws the links' box; the short view draws the toggles in its place, and homePlans05.test.ts holds them and what they open in all
+ * sixteen states. Here the reference's section is read with that one box swapped for those toggles, closed, and held token for token as before.
+ */
+const PLANS05_REFERENCE = 'design-refs/home-plans-05/Section-Reference.html';
+const LINKS_BOX = /<div class="fs-links">[\s\S]*?<\/div>/;
+function withToggles(html: string): string {
+  assert.equal(count(html, '<div class="fs-links">'), 1, 'the reference draws the links\' box once');
+  const toggles = /<div class="fs-toggles">[\s\S]*?<\/div>/.exec(whole(PLANS05_REFERENCE));
+  assert.ok(toggles && count(toggles[0], 'aria-expanded="false"') === 2, 'home-plans-05 draws the two toggles, closed');
+  return html.replace(LINKS_BOX, toggles[0]);
+}
+const closed = { toolsOpen: false, plansOpen: false, onTools: noop, onPlans: noop } as const;
 function drawnElementsOf(node: React.ReactNode): React.ReactElement<Record<string, unknown>>[] {
   if (Array.isArray(node)) return node.flatMap((child) => drawnElementsOf(child as React.ReactNode));
   if (!React.isValidElement<Record<string, unknown>>(node)) return [];
@@ -276,15 +304,21 @@ test('T1 the handoff is in the tree — the README and the reference, byte for b
 /** The port's declarations at main (0ade717), before this block: sha256 of their lines, joined, and their count. */
 const PORT_AT_MAIN = { declarations: 327, sha: 'b2d89df20aecf557bdf1ab8fdd9594a963a775fa8744fdb59d4e71bc42a708ec' };
 
-test('T2 the block is the reference\'s second stylesheet, declaration by declaration and in order, behind the house prefix, the page\'s own rule left out; it reads no variable and types no colour; it stands directly after the port\'s last rule, and the rest of the port is main\'s', () => {
+// HOME-PLANS-05 (2026-11-16), its ruling e — T2 RE-WRITTEN IN PLACE: the two rules of .ts-fs-links went with their last wearer, the toggles' rules
+// follow the block, and the block ends where theirs begin. Until then T2 held the block to the whole second stylesheet but its page's own rule
+// (twenty-five declarations in twelve rules), read to the footer's port, and as the port's last twenty-five declarations.
+test('T2 the block is the reference\'s second stylesheet, declaration by declaration and in order, behind the house prefix, the page\'s own rule left out — and, since HOME-PLANS-05 (2026-11-16), the links\' two rules, which left with the links; it reads no variable and types no colour; it stands directly after the port\'s last rule, the toggles\' rules after it; and the rest of the port is main\'s', () => {
   const second = stylesOf(referenceText())[1];
   const all = declarations(uncommented(second));
   const own = all.filter((d) => d.split(' | ')[1] === OWN_RULE);
   assert.deepEqual(own, [' | .fs-yours > [hidden] | display: none'], 'the reference page\'s own rule — one declaration — is not ported');
-  const expected = all.filter((d) => d.split(' | ')[1] !== OWN_RULE).map((d) => { const [media, sel, decl] = d.split(' | '); return `${media} | ${prefixed(sel)} | ${decl}`; });
-  assert.equal(expected.length, 25, 'twenty-five declarations in twelve rules');
+  const links = all.filter((d) => LINKS_RULES.includes(d.split(' | ')[1]));
+  assert.deepEqual(links, [' | .fs-links | display: flex', ' | .fs-links | flex-wrap: wrap', ' | .fs-links | align-items: center', ' | .fs-links | gap: 0 28px', ' | .fs-links .fs__compare | margin-top: 0'], 'the links\' row: two rules, five declarations, which left with the links (HOME-PLANS-05)');
+  const expected = all.filter((d) => d.split(' | ')[1] !== OWN_RULE && !LINKS_RULES.includes(d.split(' | ')[1])).map((d) => { const [media, sel, decl] = d.split(' | '); return `${media} | ${prefixed(sel)} | ${decl}`; });
+  assert.equal(expected.length, 20, 'twenty declarations in ten rules (twenty-five in twelve until HOME-PLANS-05)');
   const block = declarations(blockCss());
-  assert.deepEqual(block, expected, 'the block is the second stylesheet, declaration by declaration, in its order, renamed');
+  assert.deepEqual(block, expected, 'the block is the second stylesheet, declaration by declaration, in its order, renamed — but for the links\' row');
+  assert.doesNotMatch(code(GLOBALS), /\.ts-fs-links\b/, 'and .ts-fs-links is ruled nowhere: it has no wearer');
   // ruling g: "NO NEW TOKEN. The block reads no variable."
   assert.doesNotMatch(blockCss(), /var\(|--[\w-]+\s*:|#[0-9a-fA-F]{3,8}\b|rgba?\(|!important/, 'no variable read or declared, no colour typed, no !important');
   for (const line of block) for (const cls of line.split(' | ')[1].match(/\.[A-Za-z][\w-]*/g) ?? []) assert.ok(cls.startsWith('.ts-fs'), `${line}: ${cls} is the section's`);
@@ -297,18 +331,22 @@ test('T2 the block is the reference\'s second stylesheet, declaration by declara
   assert.ok(css.indexOf('.ts-fs-plan {') < css.indexOf('.ts-fs-plan--row {'), 'after .ts-fs-plan, whose column the row overrides at equal weight');
   // ruling f: "The rest of the port does not change." — the port's declarations before the block are main's
   const port = declarations(css.slice(css.indexOf(PORT_OPEN), css.indexOf(NEXT_PORT)));
-  assert.deepEqual(port.slice(-25), expected, 'the block is the port\'s last twenty-five declarations');
-  const before = port.slice(0, -25);
+  const toggles = declarations(css.slice(css.indexOf(TOGGLES_OPEN), css.indexOf(NEXT_PORT)));
+  assert.ok(toggles.length > 0 && toggles.every((d) => d.split(' | ')[1].startsWith('.ts-fs-toggle') || d.split(' | ')[1].startsWith('.ts-fs-chevron')), 'after the block, the toggles\' rules alone (HOME-PLANS-05; homePlans05.test.ts holds them)');
+  assert.deepEqual(port.slice(-(expected.length + toggles.length), -toggles.length), expected, 'the block, then the toggles\' rules, end the port — "the block is the port\'s last twenty-five declarations" until HOME-PLANS-05');
+  const before = port.slice(0, -(expected.length + toggles.length));
   assert.equal(before.length, PORT_AT_MAIN.declarations, 'the port before the block: main\'s count');
   assert.equal(sha256(before.join('\n')), PORT_AT_MAIN.sha, 'and main\'s declarations, every one');
 });
 
 // ── T3 · THE SHORT VIEW'S MARKUP ─────────────────────────────────────────────
 
-test('T3 the short view\'s render is the reference\'s section, token for token, in each of the four states, as the reference\'s script paints it with the plans it hides taken out — absent, not hidden; one plan, the tag once, the act\'s tag first, the anchor once', () => {
+// HOME-PLANS-05 (2026-11-16), its ruling a: the panel's two links are two toggles, so the reference's section is read with its links' box swapped
+// for home-plans-05's toggles, closed (withToggles, above); every other token is held as it was. Until then: tokensOf(painted(run, picked), true).
+test('T3 the short view\'s render is the reference\'s section, token for token, in each of the four states, as the reference\'s script paints it with the plans it hides taken out — absent, not hidden; one plan, the tag once, the act\'s tag first, the anchor once — its links\' box home-plans-05\'s two toggles, closed, since HOME-PLANS-05 (2026-11-16)', () => {
   for (const [name, run, picked] of STATES) {
     const html = shortRender(run);
-    assert.deepEqual(tokensOf(html, false), tokensOf(painted(run, picked), true), `${name}: the reference's section, token for token`);
+    assert.deepEqual(tokensOf(html, false), tokensOf(withToggles(painted(run, picked)), true), `${name}: the reference's section, token for token, its links' box the two toggles`);
     assert.ok(html.startsWith('<section id="modules" class="ts-fs ts-fs--short" aria-label="Software plans" data-how-to="true">'), `${name}: the act's tag — the id, the label and the hook kept, ts-fs--short added (ruling b)`);
     assert.equal(count(html, 'id="modules"'), 1, `${name}: the anchor, once`);
     assert.equal(count(html, 'data-plan='), 1, `${name}: one plan`);
@@ -355,8 +393,9 @@ test('T4 the whole view\'s render is main\'s, byte for byte, in the four states 
 // ── T5 · THE WORDS ───────────────────────────────────────────────────────────
 
 test('T5 every word the short view draws is a leaf\'s, in order; the one new one is computed — its total the cards\' own — follows the sheet, and is typed in the leaf alone, beside allToolsWords', () => {
-  // ruling e's new words, and its total
-  assert.equal(seeAllToolsWords(25), 'See all 25 tools →', '"See all ‹total› tools →", the arrow in the string');
+  // ruling e's new words, and its total — HOME-PLANS-05 (2026-11-16), its ruling f: the words lose their arrow where they stand, the first toggle's
+  // now. Until then: seeAllToolsWords(25) === 'See all 25 tools →', '"See all ‹total› tools →", the arrow in the string'; and 'See all 24 tools →' below.
+  assert.equal(seeAllToolsWords(25), 'See all 25 tools', '"See all ‹total› tools", the arrow gone (HOME-PLANS-05)');
   const total = PROBLEM_SHEET.flatMap((f) => f.tools).length;
   assert.equal(total, 25, 'the sheet\'s count');
   const rest = planMapView({ business: false, trade: false });
@@ -364,28 +403,33 @@ test('T5 every word the short view draws is a leaf\'s, in order; the one new one
   assert.equal(planMapView({ business: true, trade: true }).band.count, allToolsWords(total), 'the count the band\'s own words are out of — the same total');
   assert.ok(rest.cards.every((c) => c.count.endsWith(`of ${total} tools`)), 'and the three cards\' counts are out of it too');
   const shorter = PROBLEM_SHEET.map((f) => ({ header: f.header, tools: f.tools.filter((t) => t !== 'Mileage') }));
-  assert.equal(planMapView({ business: false, trade: false }, { sheet: shorter }).seeAll, 'See all 24 tools →', 'it follows the sheet — never typed');
+  assert.equal(planMapView({ business: false, trade: false }, { sheet: shorter }).seeAll, 'See all 24 tools', 'it follows the sheet — never typed');
   assert.equal('figure' in rest || 'total' in rest, false, 'the view carries words, not a figure for a count to draw');
   // typed once, in the leaf, beside allToolsWords
   const leaf = code(LEAF);
   const at = leaf.indexOf('export function seeAllToolsWords(');
   assert.ok(at > -1 && at > leaf.indexOf('export function allToolsWords(') && at < leaf.indexOf('export type MapSheet'), 'beside allToolsWords, before the map\'s types');
   assert.deepEqual(srcFiles().filter((f) => code(f).includes('See all')), [LEAF], 'the words stand in one file\'s code under src but the tests');
-  // every word drawn, in order: the leaves' own
+  // every word drawn, in order: the leaves' own — HOME-PLANS-05 (2026-11-16), its ruling f: after the switches, the two toggles' words, seeAll and
+  // COMPARE_PLANS_TOGGLE_WORDS, read against the reference's section with its links' box swapped for the toggles (withToggles). Until then: v.seeAll
+  // and COMPARE_PLANS_WORDS, read against painted(…) alone.
   for (const [name, run] of STATES) {
     const v = planMapView(run);
     const plan = [...v.cards, v.band].find((p) => p.picked);
     assert.ok(plan, `${name}: a picked plan`);
-    const words = [PLAN_PILLAR.heading, PLANS_SUBHEAD, PLANS_HEADLINE, v.base.words, ...v.switches.map((s) => s.words), v.seeAll, COMPARE_PLANS_WORDS,
+    const words = [PLAN_PILLAR.heading, PLANS_SUBHEAD, PLANS_HEADLINE, v.base.words, ...v.switches.map((s) => s.words), v.seeAll, COMPARE_PLANS_TOGGLE_WORDS,
       plan.role, YOUR_PLAN, ...plan.parts.map((p) => p.words), plan.audience, plan.explainer, ...plan.benefits, plan.count, plan.price, plan.cta];
     assert.deepEqual(textsOf(shortRender(run)).map((t) => t.trim()).filter((t) => t !== ''), words, `${name}: every word a leaf's, in order`);
-    assert.deepEqual(textsOf(painted(run, STATES.find((s) => s[0] === name)?.[2] ?? '')).map((t) => t.trim()).filter((t) => t !== ''), words, `${name}: and the reference draws the same words`);
+    assert.deepEqual(textsOf(withToggles(painted(run, STATES.find((s) => s[0] === name)?.[2] ?? ''))).map((t) => t.trim()).filter((t) => t !== ''), words, `${name}: and the reference draws the same words`);
   }
   // the section types none of them: it writes no template literal, and its only typed label is the act's
   const section = code(SECTION);
   assert.equal(count(section, '`'), 0, 'no template literal in the section');
   assert.ok(!section.includes('See all') && !section.includes('/financial-software') && !section.includes('/pricing'), 'the words and both paths are read, not typed');
-  assert.equal(count(section, '<a className="ts-fs__compare" href={FINANCIAL_SOFTWARE_PATH}>{view.seeAll}</a>'), 1, 'the first link: the compare link\'s class, the pages\' leaf\'s path, the view\'s words');
+  // HOME-PLANS-05 (2026-11-16), its ruling a: the first link is the first toggle, a button with the same words, which opens the map's grid in place.
+  // Until then: count(section, '<a className="ts-fs__compare" href={FINANCIAL_SOFTWARE_PATH}>{view.seeAll}</a>') === 1.
+  assert.equal(count(section, '<Toggle words={view.seeAll} open={toolsOpen} controls="fs-all-tools" onPress={onTools} />'), 1, 'the first toggle: the view\'s words, its part the map\'s grid');
+  assert.equal(count(section, 'FINANCIAL_SOFTWARE_PATH'), 0, 'and the pages\' leaf\'s path is read nowhere in the section now');
   assert.equal(PLANS.length, 4);
 });
 
@@ -399,11 +443,13 @@ test('T6 Landing.tsx hands "short" on its line 595, /financial-software hands "w
   assert.equal(lines.length, 816, 'Landing.tsx is the 815 lines it was (and its closing line break)');
   assert.equal(count(code(FS_PAGE), '<HowToSection view="whole" onRequireAuth={{ kind: \'link\', href: \'/\' }} />'), 1, '/financial-software: the whole view, and /pricing\'s door');
   assert.deepEqual(srcFiles().filter((f) => code(f).includes('<HowToSection')).sort(), [FS_PAGE, LANDING].sort(), 'mounted by those two alone');
-  assert.ok(!landing.includes('homePages') && !landing.includes('FINANCIAL_SOFTWARE_PATH'), 'Landing.tsx reads nothing of the pages\' leaf: the section does');
+  assert.ok(!landing.includes('homePages') && !landing.includes('FINANCIAL_SOFTWARE_PATH'), 'Landing.tsx reads nothing of the pages\' leaf — nor, since HOME-PLANS-05 (2026-11-16), does the section ("the section does" until then)');
   // ruling a: "required, with no default"
   const section = code(SECTION);
   assert.match(section, /export default function HowToSection\(\{ view, onRequireAuth \}: \{ view: 'short' \| 'whole'; onRequireAuth: JoinDoor \}\) \{/, 'the view: two names, required');
-  assert.match(section, /^const VIEWS = \{ __proto__: null, short: HowToShortView, whole: HowToView \} as const;$/m, 'each view by its name, in an object with no prototype to lend one');
+  // HOME-PLANS-05 (2026-11-16), its ruling c: the short view's name finds the short view's holder, which keeps the toggles' two booleans and draws
+  // HowToShortView with them. Until then: short: HowToShortView.
+  assert.match(section, /^const VIEWS = \{ __proto__: null, short: HowToShortHolder, whole: HowToView \} as const;$/m, 'each view by its name, in an object with no prototype to lend one');
   assert.equal(count(section, 'const View = VIEWS[view];'), 1, 'looked up, not chosen by a ternary');
   assert.doesNotMatch(section, /view \?\?|view \|\||view === |view !== |= 'whole'|= 'short'/, 'no default and no fall-through: nothing stands in for a missing view');
   assert.throws(() => renderToStaticMarkup(React.createElement(HowToSection as unknown as React.FC<{ onRequireAuth: JoinDoor }>, { onRequireAuth: noop })), /Element type is invalid/, 'a mount that names no view draws nothing: React refuses it');
@@ -414,14 +460,17 @@ test('T6 Landing.tsx hands "short" on its line 595, /financial-software hands "w
 
 // ── T7 · THE SHORT VIEW'S BEHAVIOUR ──────────────────────────────────────────
 
-test('T7 the same two booleans and handlers drive the short view through the four states; two choices and the plan\'s button, which opens the door handed in; the two links are plain anchors that carry no state', () => {
+// HOME-PLANS-05 (2026-11-16), its rulings a and c — T7 RE-WRITTEN IN PLACE: the default export hands the short view's holder the same two booleans
+// and door, and the short view draws two toggles where the two links stood. Until then: the default export drew HowToShortView itself; three
+// buttons (two choices and the plan's) and two plain anchors, the first to FINANCIAL_SOFTWARE_PATH; and two useState in the file.
+test('T7 the same two booleans and handlers drive the short view through the four states; two choices, two toggles and the plan\'s button, which opens the door handed in — the two links plain anchors that carried no state until HOME-PLANS-05 (2026-11-16), two toggles since', () => {
   // ruling d: "THE CHOICES are the section's own: the same state, words, marks and handlers. Nothing is stored and nothing goes in the URL."
   const acts: Array<(props: HowToViewProps) => void> = [(p) => p.onBusiness(), (p) => p.onTrade(), (p) => p.onBusiness(), (p) => p.onTrade()];
   const passes: string[] = [];
   const door = (): void => {};
   const Host = (): null => {
     const el = HowToSection({ view: 'short', onRequireAuth: door }) as React.ReactElement<HowToViewProps>;
-    assert.equal(el.type, HowToShortView, 'handed "short", the default export draws the short view');
+    assert.equal(el.type, HowToShortHolder, 'handed "short", the default export draws the short view\'s holder, which draws the short view');
     assert.equal(el.props.onJoin, door, 'with the door Landing hands in');
     passes.push(`${el.props.business ? 'B' : '-'}${el.props.trade ? 'T' : '-'}`);
     if (passes.length <= acts.length) acts[passes.length - 1](el.props);
@@ -431,23 +480,21 @@ test('T7 the same two booleans and handlers drive the short view through the fou
   assert.deepEqual(passes, ['--', 'B-', 'BT', '-T', '--'], 'at rest → + Business → both → + Trading → at rest');
   for (const [name, run, picked] of STATES) {
     const calls: string[] = [];
-    const drawn = drawnElementsOf(HowToShortView({ ...run, onBusiness: () => calls.push('business'), onTrade: () => calls.push('trade'), onJoin: () => calls.push('join') }));
+    const drawn = drawnElementsOf(HowToShortView({ ...run, ...closed, onBusiness: () => calls.push('business'), onTrade: () => calls.push('trade'), onTools: () => calls.push('tools'), onPlans: () => calls.push('plans'), onJoin: () => calls.push('join') }));
     const buttons = drawn.filter((el) => el.type === 'button');
-    assert.equal(buttons.length, 3, `${name}: two choices and the plan's button`);
+    assert.equal(buttons.length, 5, `${name}: two choices, two toggles and the plan's button`);
     for (const b of buttons) (b.props.onClick as () => void)();
-    assert.deepEqual(calls, ['business', 'trade', 'join'], `${name}: each choice turns its own; the plan's button opens the door — on the home page, sign-up (ruling c)`);
+    assert.deepEqual(calls, ['business', 'trade', 'tools', 'plans', 'join'], `${name}: each choice turns its own, each toggle its own; the plan's button opens the door — on the home page, sign-up (ruling c)`);
     assert.deepEqual(buttons.slice(0, 2).map((b) => [b.props['data-module'], b.props['aria-pressed']]), [['business', run.business], ['trading', run.trade]], `${name}: aria-pressed says what is on`);
+    assert.deepEqual(buttons.slice(2, 4).map((b) => [b.props.type, b.props['aria-expanded'], b.props['aria-controls']]), [['button', false, 'fs-all-tools'], ['button', false, 'fs-all-plans']], `${name}: the two toggles, closed, each naming its part`);
     const anchors = drawn.filter((el) => el.type === 'a');
-    assert.deepEqual(anchors.map((a) => [Object.keys(a.props).sort(), a.props.href, a.props.className]), [
-      [['children', 'className', 'href'], FINANCIAL_SOFTWARE_PATH, 'ts-fs__compare'],
-      [['children', 'className', 'data-compare-plans', 'href'], COMPARE_PLANS_PATH, 'ts-fs__compare'],
-    ], `${name}: two plain links in the compare link's class — the page's first, then /pricing with its hook; no handler, no state (ruling e)`);
-    const linkDoor = drawnElementsOf(HowToShortView({ ...run, onBusiness: noop, onTrade: noop, onJoin: LINK_DOOR })).filter((el) => el.type === 'a');
-    assert.deepEqual(linkDoor.map((a) => a.props.href), [FINANCIAL_SOFTWARE_PATH, COMPARE_PLANS_PATH, '/'], `${name}: a link door is the plan's own link (${picked})`);
+    assert.deepEqual(anchors, [], `${name}: no link in the short view — the toggles are buttons, and a function door is a button`);
+    const linkDoor = drawnElementsOf(HowToShortView({ ...run, ...closed, onBusiness: noop, onTrade: noop, onJoin: LINK_DOOR })).filter((el) => el.type === 'a');
+    assert.deepEqual(linkDoor.map((a) => a.props.href), ['/'], `${name}: a link door is the plan's own link (${picked}), and the only one`);
   }
-  // nothing stored, nothing in the URL: the section's only state is the default export's two booleans
+  // nothing stored, nothing in the URL: the section's only state is the default export's two booleans — and, since HOME-PLANS-05, the holder's two
   const section = code(SECTION);
-  assert.equal(count(section, 'useState('), 2, 'two booleans, and no other state');
+  assert.equal(count(section, 'useState('), 4, 'two booleans and the toggles\' two, and no other state');
   assert.doesNotMatch(section, /localStorage|sessionStorage|document\.cookie|window\.|location\b|\bfetch\s*\(|searchParams|useRouter/, 'nothing stored, nothing read from or written to the URL');
 });
 

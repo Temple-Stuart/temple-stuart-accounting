@@ -959,10 +959,10 @@ body {
      · every custom property it reads likewise: var(--fs-ink) → var(--ts-fs-ink), var(--hero-gold) → var(--ts-hero-gold),
        rgb(var(--bg)) → rgb(var(--ts-bg)).
    src/lib/__tests__/homePlans04.test.ts reads both files and holds them equal, declaration by declaration, but for the
-   SEVEN DIFFERENCES named here — the first three where the reference is a page of its own and this is the app, the next two
-   Alex's notes on the built page, the sixth the section's own page, the seventh the home page's short view (HOME-TRIM-02,
-   2026-11-15: SIX DIFFERENCES until then; HOME-PAGES-01, 2026-11-14: FIVE before that, "the last two Alex's notes on the
-   built page"):
+   EIGHT DIFFERENCES named here (HOME-PLANS-05, 2026-11-16: the SEVEN DIFFERENCES named here until then) — the first three where
+   the reference is a page of its own and this is the app, the next two Alex's notes on the built page, the sixth the section's own
+   page, the seventh the home page's short view (HOME-TRIM-02, 2026-11-15: SIX DIFFERENCES until then; HOME-PAGES-01, 2026-11-14:
+   FIVE before that, "the last two Alex's notes on the built page"), the eighth that view's toggles:
      1. THE COLOURS are tokens: the reference's :root is :root above — the seventeen --ts-fs-* this design brings, and the
         fourteen it declares only so that it "renders on its own", which the app already holds (--ts-bg, --ts-border,
         --ts-gold, --ts-hero-*).
@@ -983,9 +983,16 @@ body {
         page's <main> and by nothing on the home page, so the 12px of the rule above it stands there untouched.
      7. ADDED, the home page's short view (HOME-TRIM-02, Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15): the second
         stylesheet of design-refs/home-trim-02/Section-Reference.html — whose first is this port's spec, home-plans-04's, byte
-        for byte — behind the house prefix, as this port's last rules and in its own order: twelve rules, twenty-five
-        declarations (section 7, below). Its one rule that is that page's own, .fs-yours > [hidden], is not ported: the short
-        view draws the picked plan alone.
+        for byte — behind the house prefix, after the port's own rules and in its own order: ten rules, twenty declarations
+        (section 7, below). Its one rule that is that page's own, .fs-yours > [hidden], is not ported: the short view draws the
+        picked plan alone. Nor, since HOME-PLANS-05 (2026-11-16), are the two rules of the links' row, .fs-links and .fs-links
+        .fs__compare — five declarations — which went with their last wearer when the panel's two links became toggles ("as this
+        port's last rules", and "twelve rules, twenty-five declarations", until then).
+     8. ADDED, the short view's toggles (HOME-PLANS-05, 2026-11-16): the third stylesheet of
+        design-refs/home-plans-05/Section-Reference.html — whose first is home-plans-04's and whose second is home-trim-02's
+        second, byte for byte — behind the house prefix, as this port's last rules and in its own order: nine rules,
+        thirty-four declarations (section 8, below). Its one rule that is that page's own, .fs-map__grid[hidden], is not ported:
+        a closed part is not drawn.
    It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value
    outside :root").
    TWO GRADIENTS — the brief's ruling g, as written (2026-11-12): "TWO GRADIENTS, both on the board: the picked plan's gold
@@ -1166,23 +1173,24 @@ body {
 }
 /* ── 7 · the short view: the seventh difference (HOME-TRIM-02 — Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15) ────────
    design-refs/home-trim-02/Section-Reference.html's second stylesheet, "what the short view adds", rule for rule and value for value,
-   behind the house prefix (.fs--short → .ts-fs--short, .fs-plan--row → .ts-fs-plan--row), with its own notes. The rulings built here:
+   behind the house prefix (.fs--short → .ts-fs--short, .fs-plan--row → .ts-fs-plan--row), with its own notes — but for its two rules
+   of the links' row, .fs-links and .fs-links .fs__compare, which left with the links (HOME-PLANS-05, 2026-11-16: the seventh
+   difference above says so; the toggles' rules follow, section 8). The rulings built here:
    f. "THE PORT. The block's rules name the section's classes, so they join its port: homePlans04:425 holds that no rule outside the
       port names one. They stand after the port's last rule, in the reference's order, and homePlans04 T3 names them as its seventh
       difference, declaration by declaration, as HOME-PAGES-01 named the sixth. The rest of the port does not change." — they stand
-      here, after the port's last rule and above the footer's block, and every rule above is as it was;
+      here, after the port's last rule and above the footer's block (and above the toggles' rules, which follow them since
+      HOME-PLANS-05, 2026-11-16), and every rule above is as it was;
    g. "NO NEW TOKEN. The block reads no variable." — no var(), no colour, no font: every colour stays the port's own;
    h. "THE TOP. The "What We Do" box (Landing.tsx:569-570) and the section's 12px top stay as they are. HOME-DOORS-01, later in this
       series, changes both." — the block sets the inner box's foot alone, padding-bottom; its top is the 12px of .ts-fs__inner above;
    i. "THE ARROWS in the two links are drawn by the fallback face, as "Compare all four plans →" already is on main. A later PR fixes
-      every arrow at once. Name those pixels; do not fix them here." — the links keep .ts-fs__compare's face (var(--font-mono)): no
-      face is added for U+2192 here. ─────────────────────────────────────────────────────────────────────────────────────────── */
+      every arrow at once. Name those pixels; do not fix them here." — the links kept .ts-fs__compare's face (var(--font-mono)) while
+      they stood, and no face was added for U+2192; since HOME-PLANS-05 (2026-11-16) the short view draws no arrow at all — its
+      toggles' words carry none — and the one left in the section is the whole view's foot link's, as on main. ───────────────── */
 /* the section ends sooner: 44px under the plan up to 400px wide, 64px from 1400px. Its top stays 12px, under the "What We Do" box
    (HOME-DOORS-01, later in this series, changes it). */
 .ts-fs--short .ts-fs__inner { padding-bottom: clamp(44px, 2vw + 36px, 64px); }
-/* the panel's two links: beside the question's choices when there is room, under them when there is not */
-.ts-fs-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 28px; }
-.ts-fs-links .ts-fs__compare { margin-top: 0; }
 /* the one plan the choices pick, under the panel */
 .ts-fs-yours { margin-top: 20px; }
 .ts-fs-yours .ts-fs-plan--all { margin-top: 0; }
@@ -1196,6 +1204,48 @@ body {
 @media (max-width: 1023.98px) {
   .ts-fs-yours .ts-fs-plan__points, .ts-fs-yours .ts-fs-plan__explainer { display: none; }
   .ts-fs-plan--row { gap: 18px; }
+}
+/* ── 8 · the toggles: the eighth difference (HOME-PLANS-05 — Alex's brief, 2026-11-16 00:04 Manila; the boards approved on the design
+   canvas at 00:19; built 2026-11-16) ───────────────────────────────────────────────────────────────────────────────────────────────
+   design-refs/home-plans-05/Section-Reference.html's third stylesheet, what the panel's two links become, rule for rule and value for
+   value, behind the house prefix (.fs-toggles → .ts-fs-toggles, .fs-toggle → .ts-fs-toggle, .fs-chevron → .ts-fs-chevron), with its own
+   notes; every custom property it reads likewise (var(--fs-button-line) → var(--ts-fs-button-line), var(--fs-white) → var(--ts-fs-white),
+   var(--fs-rule) → var(--ts-fs-rule), var(--hero-violet-3) → var(--ts-hero-violet-3), var(--hero-violet-2) → var(--ts-hero-violet-2)).
+   Its one rule that is that page's own, .fs-map__grid[hidden], is not ported: production draws a closed part not at all. The rulings
+   built here:
+   d. "A TOGGLE LOOKS AS THE REFERENCE DRAWS IT: the choices' height and type in the quiet button's look, a soft fill and the violet line
+      while open, the chevron turned. It reads five tokens that are in :root already (the README's table); none is added." — the five
+      above, each the README's value, and no token declared; its family is the section's (font-family: inherit), so no face is read;
+   e. "THE TOGGLES' RULES JOIN THE SECTION'S PORT after the short view's, and homePlans04 T3 names them as its eighth difference. The two
+      .ts-fs-links rules go with their last wearer, and the seventh difference says so. Every other rule of the port stays as it is." —
+      they stand here, after section 7 and above the footer's block, and the two rules of .ts-fs-links left section 7 with the links.
+   Used by the short view's two toggles (HowToShortView, src/components/landing/HowToSection.tsx). ────────────────────────────────── */
+/* the two toggles, where the links stood: beside the choices when there is room, under them when there is not */
+.ts-fs-toggles { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 100%; }
+/* a toggle: the choices' height and type, the quiet button's line and fill, and a chevron where the arrow was */
+.ts-fs-toggle {
+  box-sizing: border-box; flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; margin: 0; padding: 0 16px 0 18px; border: 1.5px solid var(--ts-fs-button-line); border-radius: 999px;
+  background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-3);
+  font-family: inherit; font-size: 14px; line-height: 1.2; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: border-color 0.16s, background-color 0.16s, color 0.16s;
+}
+.ts-fs-chevron { flex: none; transition: transform 0.2s; }
+/* open: the soft fill, the violet line, the chevron turned */
+.ts-fs-toggle[aria-expanded="true"] { border-color: var(--ts-hero-violet-2); background-color: var(--ts-fs-rule); color: var(--ts-hero-violet-2); }
+.ts-fs-toggle[aria-expanded="true"] .ts-fs-chevron { transform: rotate(180deg); }
+
+/* from 640px each toggle keeps its own width; under 640px each fills its row */
+@media (min-width: 640px) {
+  .ts-fs-toggles { flex: none; }
+  .ts-fs-toggle { flex: none; }
+}
+
+@media (hover: hover) {
+  .ts-fs-toggle:hover { border-color: var(--ts-hero-violet-2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-fs-toggle, .ts-fs-chevron { transition: none; }
 }
 
 /* ── FOOTER-02 (Alex, design canvas: his ask, 2026-11-12 22:44 Manila — "… all thats left to touch up is the footer!!!"; the board

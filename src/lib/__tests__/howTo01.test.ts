@@ -57,7 +57,7 @@
  *      each section's steps in ONE row that swiped sideways, the card — its step and its state, the title, each tool
  *      and its mark, its note — the Travel lines with and without Business, and the legend.)
  *   T5 the source (HOME-PLANS-04) — no leaf word, mark, status or price typed; its one typed label; two booleans in
- *      React state and nothing stored; it reads the how-to leaf, the pillars leaf and the plans leaf — and, since HOME-TRIM-02 (2026-11-15), the
+ *      React state (and, since HOME-PLANS-05, 2026-11-16, the short view's two toggles in its holder) and nothing stored; it reads the how-to leaf, the pillars leaf and the plans leaf — and, from HOME-TRIM-02 (2026-11-15) until HOME-PLANS-05 (2026-11-16), the
  *      pages' leaf, for the short view's first link — and nothing from the plans section; every class is the ported stylesheet's; the leaf pure, keeping the comparison and the cards'
  *      steps, undrawn.
  *      (Until HOME-PLANS-04, from HOME-PLANS-03: no state — no hook, no storage, no URL; it read the cards' steps and the
@@ -72,7 +72,7 @@
  *      headings' type, About Us's (Alex's note on the built page, 2026-11-12; the eyebrow from HOME-PLANS-04 until then,
  *      and gold and one size up before that — the same type it wears again).
  *      Landing itself never names the plans section: the how-to draws its own plans — on the home page, since HOME-TRIM-02
- *      (2026-11-15), the one the choices pick (view="short"; "its own three cards and the band" until then, which stand on
+ *      (2026-11-15), the one the choices pick, and all four while the short view's second toggle is open (HOME-PLANS-05, 2026-11-16) (view="short"; "its own three cards and the band" until then, which stand on
  *      /financial-software now; PlanCards' four before HOME-PLANS-04).
  *   T7 (HOME-PLANS-01, Alex, 2026-11-11 00:09: "Four plans. One comparison.") the four plan cards, exported whole from
  *      the plans section — PlanCards alone stands whole inside PlansSection's render, once, right under its subhead; four
@@ -116,7 +116,7 @@
  * reference (design-refs/home-plans-04/Section-Reference.html) in homePlans04.test.ts — but for Alex's notes on the built page
  * (2026-11-12), which that file names: "What We Do" in About Us's type again, no count over the map, and the Personal pill says
  * "Personal". Re-written in place here, each under a dated note: the render helper (it takes what you run now), T4 and T5 (the
- * section rendered, and its source), T6's heading box and its name (the how-to drew its own three cards and the band — on the home page until HOME-TRIM-02, 2026-11-15; on /financial-software since HOME-PAGES-01, 2026-11-14, and there alone since; the home page draws the one plan the choices pick) and T10
+ * section rendered, and its source), T6's heading box and its name (the how-to drew its own three cards and the band — on the home page until HOME-TRIM-02, 2026-11-15; on /financial-software since HOME-PAGES-01, 2026-11-14, and there alone since, until HOME-PLANS-05, 2026-11-16, whose second toggle opens them on the home page again; the home page draws the one plan the choices pick at rest) and T10
  * (what a screen reader hears) — and, for Alex's notes, T4's count pin and T6's heading box again; the list above says what each
  * holds now, and what it held until then. T9 gains a note and no assertion: the guard stands as it was (the brief's ruling d). T1, T2, T3,
  * T7, T8, T11 and T12 are untouched — PlanCards, the comparison and planCardSteps stand as they were, undrawn on this page.
@@ -451,7 +451,7 @@ test('T4 (HOME-PLANS-04) the section, rendered in its four states: the pillar\'s
 // inner 'max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-10', h2 'text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple', pillar 'mt-3 max-w-3xl text-base
 // text-text-secondary', compare (the house text link); the order pillar → cards → link; and "'use client' STAYS, FOR THE DOOR: this file builds the
 // button door's click handler". (The comparison's source pins before that, HOME-PLANS-01 and -02, are named in T5's own history above.)
-test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no status and no price — its only typed words are its aria-label; two booleans in React state and nothing stored; it reads the how-to leaf, the pillars leaf and the plans leaf — and, since HOME-TRIM-02 (2026-11-15), the pages\' leaf, for the short view\'s first link — and nothing from the plans section; every class is the ported stylesheet\'s; the leaf is pure and keeps the comparison and the cards\' steps, undrawn', () => {
+test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no status and no price — its only typed words are its aria-label; two booleans in React state (and, since HOME-PLANS-05, 2026-11-16, the short view\'s two toggles, in its holder) and nothing stored; it reads the how-to leaf, the pillars leaf and the plans leaf — and, since HOME-TRIM-02 (2026-11-15), the pages\' leaf, for the short view\'s first link, until HOME-PLANS-05 (2026-11-16) made it a toggle — and nothing from the plans section; every class is the ported stylesheet\'s; the leaf is pure and keeps the comparison and the cards\' steps, undrawn', () => {
   const section = code(SECTION);
   const flat = section.replace(/\s+/g, ' ');
   const view = planComparison();
@@ -504,8 +504,13 @@ test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no
   // nothing opens, so nothing signs it: no − and no +, no aria-expanded (until HOME-PLANS-03 a category's and a step's sign each stood once, in expressions).
   // HOME-PLANS-04: its buttons are the board's — a switch, written once and drawn for each module the leaf names, and a plan's, written once and drawn
   // for each plan (until then: no <button> of its own)
-  for (const sign of ['−', '\'+\'', 'aria-expanded']) assert.equal(count(section, sign), 0, `the section types no ${sign}`);
-  assert.equal(count(section, '<button'), 2, 'two buttons written: the switch and the plan\'s');
+  // HOME-PLANS-05 (2026-11-16), its ruling a: something opens again — the short view's two toggles, a toggle written once and drawn twice, each
+  // with aria-expanded — and still nothing signs it with − or +. Until then: ['−', '\'+\'', 'aria-expanded'] each typed nowhere, and
+  // count(section, '<button') === 2, 'two buttons written: the switch and the plan\'s'.
+  for (const sign of ['−', '\'+\'']) assert.equal(count(section, sign), 0, `the section types no ${sign}`);
+  assert.equal(count(section, 'aria-expanded={open}'), 1, 'one aria-expanded written: the toggle\'s, which says whether its part is open');
+  assert.equal(count(section, 'aria-expanded'), 1, 'and no other');
+  assert.equal(count(section, '<button'), 3, 'three buttons written: the switch, the toggle and the plan\'s');
   assert.equal(count(section, 'aria-pressed={s.pressed}'), 1, 'a switch says whether it is on');
   // the act, as ruled; the pillar's name, and the one line where his paragraphs stood
   assert.match(section, /^'use client';/);
@@ -522,7 +527,9 @@ test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no
   // what it reads: React's state; the how-to leaf; the pillars leaf; the plans leaf — and nothing from the plans section
   // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling e: the short view's first link goes to FINANCIAL_SOFTWARE_PATH, read from the pages' leaf — a fifth import. Until then
   // the four below without '@/lib/homePages'.
-  assert.deepEqual([...section.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]), ['react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/homePages', '@/lib/offer/plans'], 'five imports — PlanCards and the plans section left; the pages\' leaf for the short view\'s first link');
+  // HOME-PLANS-05 (2026-11-16), its ruling f: FINANCIAL_SOFTWARE_PATH leaves the section with its last use there — the first link, a toggle now — and
+  // the pages' leaf leaves its imports. Until then: the five, '@/lib/homePages' fourth, 'five imports — … the pages\' leaf for the short view\'s first link'.
+  assert.deepEqual([...section.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]), ['react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/offer/plans'], 'four imports — PlanCards and the plans section left; the pages\' leaf left with the short view\'s first link');
   assert.match(section, /^import \{ useState \} from 'react';$/m, 'React\'s state, and nothing else of React');
   assert.match(section, /^import \{ PLANS_HEADLINE, PLANS_SUBHEAD \} from '@\/lib\/offer\/plans';$/m, 'the question and the line, from the plans leaf');
   for (const goneName of ['PlanCards', 'PlansSection', 'planCardSteps', 'planComparison', 'howToView', 'TOOL_MARKS', 'LEGEND_', 'ADD_BUSINESS', 'ADD_TRADE', 'HowToChoice', 'PRIMARY_CTA', 'chip(', "from 'next/link'", 'pipelineWords', 'PIPELINE_',
@@ -537,7 +544,9 @@ test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no
   assert.equal(count(section, '<a className="ts-fs-plan__cta" href={onJoin.href}>{plan.cta}</a>'), 1, 'the plan\'s door as a link: the button\'s own class, the door\'s href, the plan\'s own words');
   // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling e: a third link is WRITTEN — the short view's "See all ‹total› tools →", a plain anchor in the compare link's class to
   // FINANCIAL_SOFTWARE_PATH. Until then: count(section, '<a ') === 2, 'and no third link'.
-  assert.equal(count(section, '<a '), 3, 'and the short view\'s first link, and no fourth');
+  // HOME-PLANS-05 (2026-11-16), its ruling a: that link is a toggle, a button — neither toggle is a link. Until then: count(section, '<a ') === 3,
+  // 'and the short view\'s first link, and no fourth'.
+  assert.equal(count(section, '<a '), 2, 'and no third: the short view\'s toggles are buttons');
   // the order: the name → the line → the map → the cards → the band → the link → the act closes. HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila;
   // built 2026-11-15), ruling a: what both views draw is written once, as small functions in this file — the name and the line (SectionName), the band
   // (Band), the link (CompareLink) — so the order is read where the whole view draws them: in HowToView's own body, and the name above the line in
@@ -548,8 +557,15 @@ test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no
   assert.ok(wholeView.startsWith('export function HowToView('), 'HowToView, the whole view, read whole');
   const nameAndLine = section.slice(section.indexOf('function SectionName() {'), section.indexOf('function Choices('));
   assert.ok(nameAndLine.indexOf('<h2 className="ts-fs__title">') > -1 && nameAndLine.indexOf('<p className="ts-fs__lede">') > nameAndLine.indexOf('<h2 className="ts-fs__title">'), 'the name → the line');
-  const order = ['<SectionName />', '<div className="ts-fs-map">', '<div className="ts-fs-plans">', '<Band plan={view.band} onJoin={onJoin} />', '<CompareLink />', '</section>'].map((s) => wholeView.indexOf(s));
-  assert.ok(order.every((at, i) => at > -1 && (i === 0 || at > order[i - 1])), 'the name and the line → the map → the cards → the band → the link → the act closes, in the whole view');
+  // HOME-PLANS-05 (2026-11-16), its ruling b: the map's grid and the four plans are written once too, as ToolGrid and AllPlans, which the short view
+  // draws while its toggles are open — so the whole view's order reads them by name, and the cards → the band is read in AllPlans' own body. Until
+  // then: ['<SectionName />', '<div className="ts-fs-map">', '<div className="ts-fs-plans">', '<Band plan={view.band} onJoin={onJoin} />',
+  // '<CompareLink />', '</section>'], all in HowToView's body.
+  const order = ['<SectionName />', '<div className="ts-fs-map">', '<ToolGrid view={view} />', '<AllPlans view={view} onJoin={onJoin} />', '<CompareLink />', '</section>'].map((s) => wholeView.indexOf(s));
+  assert.ok(order.every((at, i) => at > -1 && (i === 0 || at > order[i - 1])), 'the name and the line → the map with its grid → the cards and the band → the link → the act closes, in the whole view');
+  const fourPlans = section.slice(section.indexOf('function AllPlans('), section.indexOf('export interface HowToViewProps'));
+  assert.ok(fourPlans.startsWith('function AllPlans({ view, onJoin }: { view: PlanMapView; onJoin: JoinDoor }) {'), 'AllPlans, read whole: it stands directly above the views\' props');
+  assert.ok(fourPlans.indexOf('<div className="ts-fs-plans">') > -1 && fourPlans.indexOf('<Band plan={view.band} onJoin={onJoin} />') > fourPlans.indexOf('<div className="ts-fs-plans">'), 'the cards → the band, in AllPlans');
   assert.ok(section.includes('function Band({ plan, onJoin }: { plan: MapPlan; onJoin: JoinDoor }) {\n  return (\n    <div className="ts-fs-plan ts-fs-plan--all"'), 'the band is Band\'s');
   // HOME-PAGES-01 (2026-11-14, ruling d): the parameter keeps its name and its TYPE widens — the door is Landing's function or, on the section's own
   // page, a link. Until then: /export default function HowToSection\(\{ onRequireAuth \}: \{ onRequireAuth: \(\) => void \}\) \{/, 'Landing hands it
@@ -560,7 +576,10 @@ test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no
   assert.equal(count(section, "export type JoinDoor = (() => void) | { readonly kind: 'link'; readonly href: string };"), 1, 'the door\'s two arms, declared in this file — nothing of the plans section is imported for it');
   assert.equal(count(section, 'onJoin={onRequireAuth}'), 1, 'and every plan\'s button gets that door');
   // STATE (ruling a): two booleans, both off at first — no other hook, nothing stored, no URL, no clock
-  assert.equal(count(section, 'useState('), 2, 'two booleans in React state');
+  // HOME-PLANS-05 (2026-11-16), its ruling c: and the short view's two toggles, closed at first, in its holder. Until then: count(section, 'useState(')
+  // === 2, 'two booleans in React state'.
+  assert.equal(count(section, 'useState('), 4, 'two booleans in React state, and the toggles\' two');
+  assert.equal(count(section, 'const [toolsOpen, setToolsOpen] = useState(false);') + count(section, 'const [plansOpen, setPlansOpen] = useState(false);'), 2, 'both closed at first: a reload starts closed');
   assert.equal(count(section, 'const [business, setBusiness] = useState(false);') + count(section, 'const [trade, setTrade] = useState(false);'), 2, 'both off at first: a reload starts at Personal');
   assert.doesNotMatch(section, /\buse(Effect|LayoutEffect|Reducer|Ref|Router|SearchParams|Pathname|Context)\b/, 'no other hook');
   assert.doesNotMatch(section, /localStorage|sessionStorage|document\.cookie|window\.|location\b|\bfetch\s*\(|new Date\(|Date\.now\(/, 'no storage, no URL, no fetch, no clock');
@@ -855,7 +874,7 @@ test('T8 (HOME-PLANS-01) the comparison of the live leaf: four columns and their
 // HOME-PLANS-04 (2026-11-12): NO ASSERTION CHANGED. The brief's ruling d: "A MARK STILL SAYS "IN THIS PLAN", NEVER "BUILT". The map draws no status and
 // no price, so the plan law's price guard stays as it is." The guard's words name the comparison HOME-PLANS-01 drew; the landing drew the map's marks
 // (src/lib/howTo.ts planMapView) until HOME-TRIM-02 (2026-11-15) — "draws … now" until then — and /financial-software, which has drawn them since
-// HOME-PAGES-01 (2026-11-14), alone since, the home page its one plan's price line; both with the same standing, and the guard holds them as it held the comparison. No assertion changed here.
+// HOME-PAGES-01 (2026-11-14), alone since — and the landing again since HOME-PLANS-05 (2026-11-16), while its first toggle is open — the home page its one plan's price line; both with the same standing, and the guard holds them as it held the comparison. No assertion changed here.
 test('T9 (HOME-PLANS-01) the guard stands on the plan law\'s line: a plan that carries a price fails the build, by name — the landing\'s comparison marks what each plan covers and draws no status; no plan carries a price today', () => {
   const law = code(LAW);
   const lines = law.split('\n').filter((l) => l.includes(`codeOf('src/components/landing/HowToSection.tsx').includes('<section id="modules"')`));
