@@ -7,7 +7,7 @@
  *
  * THE ACTS, in document order:
  *   hero (HERO-CREST-01, 2026-11-11: the crest design — a violet ground, the crest, the top bar laid over it as glass; a full-bleed aubergine band until then)
- *   (HOME-FINISH-02, 2026-11-10: THE ORDER IS PLAN → BUILD → EXPLORE — "What We Do" stands alone over THE PLANS, then DONE-FOR-YOU, then LIVE DEMO — TRAVEL with the experiences in its box and THE GUEST'S TRIP under it. The lines below were re-ordered, their words unchanged; until then the list ran LIVE DEMO — TRAVEL, EXPERIENCES, THE GUEST'S TRIP, THE PLANS, DONE-FOR-YOU. Stop 0, named on the EXPERIENCES line, still sits above MY TRIP.)
+ *   (HOME-FINISH-02, 2026-11-10: THE ORDER IS PLAN → BUILD → EXPLORE — "What We Do" stands alone over THE PLANS, then DONE-FOR-YOU, then LIVE DEMO — TRAVEL with the experiences in its box and THE GUEST'S TRIP under it. The lines below were re-ordered, their words unchanged; until then the list ran LIVE DEMO — TRAVEL, EXPERIENCES, THE GUEST'S TRIP, THE PLANS, DONE-FOR-YOU. Stop 0, named on the EXPERIENCES line, still sits above MY TRIP. HOME-TRIM-01, 2026-11-15: it sat there until then — the About Us band stands in its seat now (AboutBand.tsx), and Stop 0, the letter, stands on /about.)
  *   THE PLANS           — four plan cards and one comparison table
  *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
  *                         the section carries id="modules"
@@ -20,7 +20,7 @@
  *   with THE PLANS.)
  *   (THE CLOSE          — HOME-05a's own act, gone: HOME-PANELS-01, 2026-11-07, folded the 2026 close into DONE-FOR-YOU as its fifth door, priced by proposal)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
- *   EXPERIENCES         — the events section under the strip (EVENTS-01); under it, above MY TRIP, STOP 0 — Alex's letter and how he got here (StopZeroSection — STOP0-01, 2026-11-09: named on this line, so the act list gains no line)
+ *   EXPERIENCES         — the events section under the strip (EVENTS-01); under it, above MY TRIP, STOP 0 — Alex's letter and how he got here (StopZeroSection — STOP0-01, 2026-11-09: named on this line, so the act list gains no line) (HOME-TRIM-01, 2026-11-15: in that seat, above MY TRIP, ABOUT US now — one band: the heading, the letter's first quote and the door to /about, AboutBand.tsx; Stop 0, the letter, left this page for /about — named on this line too, so the list still gains none)
  *                         (HOME-BRIEF-04, 2026-11-10: no band of its own any more — the experiences are the booking box's Events panel, first in the row and open, inside the travel block above; mounted once, handed to LandingBookingSection as its events prop)
  *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
  *                         renders only when records exist
@@ -201,7 +201,7 @@ import LandingFooter from './LandingFooter';
 // booking box renders the trip as a card directly under the box (LandingBookingSection.tsx), so this file names it no more.
 // EVENTS-01 (2026-10-30): the experiences under the strip — the leaf's rows, the
 // words module's lines, the URL's one filter; it reads the day the server passed.
-import ExperiencesSection from './ExperiencesSection'; import StopZeroSection from './StopZeroSection'; // STOP0-01 (2026-11-09): Stop 0, Alex's letter, mounted between the experiences and MY TRIP — the import rides this line, so every line above :1807 stays
+import ExperiencesSection from './ExperiencesSection'; import AboutBand from './AboutBand'; // HOME-TRIM-01 (2026-11-15): the About Us band — the heading, the first quote of Alex's letter, one door to /about — takes the letter's import on this line, as its mount takes the letter's below (the brief's ruling e); the letter stands on /about alone now (src/app/about/page.tsx). Until then: "import StopZeroSection from './StopZeroSection'; // STOP0-01 (2026-11-09): Stop 0, Alex's letter, mounted between the experiences and MY TRIP — the import rides this line, so every line above :1807 stays"
 // WASHERE-01 (2026-10-31): the trip log — Alex's own stops, in trip order, each naming
 // an experience by id; the leaf's rows, the words modules' lines, the server's day.
 import WasHereSection from './WasHereSection';
@@ -542,7 +542,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
       {/* ── HOME-FINISH-02 (Alex's brief "HOME-FINISH | Temple Stuart Homepage Copy, Layout & Footer", 2026-11-10 20:56):
             THE ORDER under the hero is PLAN → BUILD → EXPLORE. "What We Do" stands alone, in gold and one size up, over
             the three pillars: the plans (the how-to), the professional services, then travel booking with the events —
-            and the guest's strip when a guest has one. Then Stop 0 under "About Us", the trip cards under "Our Story".
+            and the guest's strip when a guest has one. Then Stop 0 under "About Us" (HOME-TRIM-01, 2026-11-15: one band under "About Us" now — the heading, the letter's first quote and the door to /about, AboutBand.tsx; Stop 0, the letter, stood here until then and stands on /about), the trip cards under "Our Story".
             Until then the heading was the travel block's first child, in the page's purple heading classes, and the
             order was travel → the guest's strip → the plans → the services (HOME-ORDER-01's note, kept below, and the
             seat notes on each block are history: each says where its block sat on the day it was written). Each block
@@ -559,8 +559,8 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
       {/* ── AFTER THE BUILD (Alex's note on the built page, 2026-11-12: "first the what we do, whay did we shrink that , its so
             small," · "i like how about us and What We do were the same.  About us is better size... IMO..."): the heading
             wears the act headings' type again — 'text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold', the
-            HOME-FINISH-02 string named above, as About Us's h2 (StopZeroSection.tsx) and Our Story's (WasHereSection.tsx) do;
-            theirs add 'mt-3'. Its element, its place, data-act-heading and the reference's box (.ts-fs-heading) are as they
+            HOME-FINISH-02 string named above, as About Us's h2 does, with no 'mt-3': on this page the band's, AboutBand.tsx, and the letter's on /about (HOME-TRIM-01, 2026-11-15: "as About Us's h2 (StopZeroSection.tsx) and Our Story's (WasHereSection.tsx) do; theirs add 'mt-3'." until then — and already then the letter's 'mt-3' had gone, with HOME-ABOUT-01, and Our Story's h2 wore its port's .ts-story__title, since TRIPCARDS-03, both 2026-11-12).
+            Its element, its place, data-act-heading and the reference's box (.ts-fs-heading) are as they
             were, so the space above it and the 12px down to the pillar's name are the board's. The eyebrow's rule (.fs-eyebrow)
             is not ported: src/app/globals.css names that difference. brand gold on the cream is about 3.1:1 — large type only,
             which this is, as the HOME-FINISH-02 note above says. Until then (HOME-PLANS-04): '<h2 className="ts-fs-eyebrow"
@@ -746,11 +746,11 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             mounts it (GuestTripStrip.tsx) — so nothing stands here: the travel section's own bottom line closes it. Until then
             '<GuestTripStrip onRequireAuth={onRequireAuth} />' stood here, a full-width band of its own under the section. */}
 
-      {/* ── STOP0-01 (Alex, 2026-11-08 15:11 + 16:18; board K tag 8): STOP 0 — Alex's letter in his
-            own words and a short dated timeline of how he got here, between the experiences and
-            MY TRIP; every visible word from src/lib/stopZeroWords.ts. A cream act with its own border-b,
-            id="stop-0" — the events band's "Read my story ↓" (K tag 7) points at it. ──────── */}
-      <StopZeroSection />
+      {/* ── HOME-TRIM-01 (Alex's brief, 2026-11-14 19:11 Manila; the boards approved on the design canvas at 20:01 and, corrected, at 20:41; built 2026-11-15): ABOUT US IS ONE BAND HERE — the heading, the first quote of his letter and one door to /about, where the letter stands whole (AboutBand.tsx, as design-refs/home-trim-01 draws it). The brief's ruling e: "THE SEAT. In Landing.tsx the band's import takes the letter's on :204 and its mount takes the letter's on :753. The notes around them are re-said. No line moves. The section keeps aria-label="About us" and carries no id: STOP_ZERO_ANCHOR stays the letter's section's alone (src/lib/homeAnchors.ts:28), the band does not read it, and /#stop-0 does nothing on the home page, as the old-links effect's note already says (Landing.tsx:453). No redirect is added."
+            Nothing else on this page moved — ruling i: "OUR STORY IS NOT TOUCHED: WasHereSection, its styles, its mount, its props." · ruling j: "NOTHING ELSE ON THE HOME PAGE CHANGES: not the hero, the three pillars, the travel section or the footer." · and ruling b, for the notes: "NOTES THAT GO FALSE ARE RE-SAID IN PLACE, dated, as HOME-PAGES-01 re-said its own: every sentence in the tree that says the letter stands on the home page, or that Landing.tsx mounts it."
+            UNTIL THEN (STOP0-01 — Alex, 2026-11-08 15:11 + 16:18; board K tag 8) these four lines read: "STOP 0 — Alex's letter in his own words and a short dated timeline of how he got here, between the experiences and MY TRIP; every visible word from src/lib/stopZeroWords.ts. A cream act with its own border-b,
+            id="stop-0" — the events band's "Read my story ↓" (K tag 7) points at it." and the mount under them was the letter's, StopZeroSection. ──────── */}
+      <AboutBand />
 
       {/* ── WASHERE-01 (Alex, 2026-10-31): MY TRIP — the trip log, in trip order, built for
             photos. The card EVENTS-01 pinned inside the experiences lives here now: the

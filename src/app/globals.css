@@ -218,6 +218,69 @@ body {
    gradient text (with bg-clip-text text-transparent). */
 /* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) (HOME-PLANS-04, 2026-11-12: and the Financial Software section's two — the picked plan's gold button and the band (ruling g), in the block above the hero's.) (HOME-SERVICES-01, 2026-11-12: and the Professional Services section's two, both on the board — the gold button and the picture's frame (ruling f), in the block above the Financial Software section's.) (HOME-TRAVEL-01, 2026-11-12: and the Travel Marketplace section's one, on the board — the trip card's gold Search flights → (.ts-tm-cta), in the block above the Professional Services section's.) (FOOTER-02, 2026-11-12: and the public footer's band — the hero's violet sweep under its bloom, as the board draws it, in the block directly above the hero's.) */
 
+/* ── HOME-TRIM-01 (Alex's brief, 2026-11-14 19:11 Manila; the boards approved on the design canvas at 20:01 and, corrected, at 20:41;
+   built 2026-11-15): ABOUT US, AS ONE BAND ON THE HOME PAGE — the heading, the first quote of his letter, one door to /about ────────
+   THE SPEC IS design-refs/home-trim-01/Section-Reference.html: "Every value in its stylesheet is the design, and its markup is the
+   page." What follows is that stylesheet, rule for rule and value for value, in its own order and with its own section notes —
+   ported as the letter's (HOME-ABOUT-01) and the other sections' were:
+     · every class is the reference's with the house prefix: .aboutband → .ts-aboutband, .aboutband__go → .ts-aboutband__go, …;
+     · every custom property it reads likewise: var(--hero-violet-2) → var(--ts-hero-violet-2), rgb(var(--gold)) → rgb(var(--ts-gold)).
+   src/lib/__tests__/homeTrim01.test.ts reads both files and holds them equal, declaration by declaration, but for the FOUR
+   DIFFERENCES named here:
+     1. THE COLOURS are tokens the app already holds. The brief's ruling h: "NO NEW TOKEN. The seven the reference reads are in :root
+        already (the README's two tables)." The reference's :root declares the seven only so that it renders on its own — five the
+        app's (bg, border, gold, the hero's violets 2 and 3) and two HOME-PLANS-04 brought (--ts-fs-white, --ts-fs-button-line), each
+        the same name and value behind the house prefix in :root above. This section adds none.
+     2. THE FONT is the site's: src/app/layout.tsx loads Inter as --font-sans, and the band's rule reads that variable where the
+        reference names the family (as the README's list of what the port changes has it: the family → `var(--font-sans)`).
+     3. NOT PORTED: the heading's rule (.aboutband__title, and its size from 640px) — the reference files it under THE APP'S OWN CLASSES, NOT PORTED. The h2
+        wears the act headings' type, the classes What We Do's h2 and the letter's h2 wear: 'text-3xl sm:text-4xl font-medium
+        tracking-tight text-brand-gold'.
+     4. NOT PORTED: the reference page's own ground (body) — "THIS PAGE'S OWN: not part of the design, not ported".
+   It types no hex and no rgb value: every colour is a token. No gradient.
+   THE CLASS AND THE SEAT — the brief's ruling g: "THE CLASS is one word, aboutband, so homeAbout01:304 ("no rule outside the port
+   names one of its classes") stands unedited. The port takes a seat in globals.css that moves no other port's pin. The audit names
+   the seat." The seat is HERE, above every other port: each port's test reads its port from its own first rule to the next block's
+   first rule (the hero's, the last, to the end of the file), so a block set under any of them would be read as part of it, and the chip strip's two neighbours — the trip cards'
+   port above it, the letter's below — are held to it with nothing between. This was the one seat below the base rules that no port's test held:
+   under them, over the marquee's keyframes. It names no other port's class, and nothing outside it names one of its own.
+   Used by src/components/landing/AboutBand.tsx, which Landing.tsx mounts in the seat the letter held. ──────────────────────────── */
+/* ── 1 · the band: the heading and his first quote on the left, the door to his letter on the right ── */
+.ts-aboutband { border-bottom: 1px solid rgb(var(--ts-border)); background-color: rgb(var(--ts-bg)); font-family: var(--font-sans); }
+.ts-aboutband__inner {
+  box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(44px, 2vw + 36px, 64px) 16px clamp(40px, 1.6vw + 33.6px, 56px);
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 22px 48px;
+}
+/* the words keep a readable measure; under about 812px the button has no room beside them and stands under the quote */
+.ts-aboutband__words { flex: 1 1 560px; min-width: 0; max-width: 880px; }
+/* his quote, in the letter's quote colour and weight, at the size a band can carry */
+.ts-aboutband__quote {
+  margin: 20px 0 0; padding: 0;
+  font-size: clamp(26px, 0.8vw + 22.8px, 34px); line-height: 1.2; font-weight: 500; letter-spacing: -0.025em; color: var(--ts-hero-violet-2); text-wrap: pretty;
+}
+/* his quote's own two marks, drawn in gold, as the letter draws them */
+.ts-aboutband__mark { color: rgb(var(--ts-gold)); }
+/* the door: the quiet pill, at the plan cards' height */
+.ts-aboutband__go {
+  box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 24px;
+  border: 1.5px solid var(--ts-fs-button-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-3);
+  font-size: 15px; line-height: 1.2; font-weight: 600; text-decoration: none; white-space: nowrap; transition: border-color 0.16s;
+}
+.ts-aboutband :focus-visible { outline: 2px solid var(--ts-hero-violet-2); outline-offset: 3px; }
+
+/* ── 2 · wider windows ───────────────────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .ts-aboutband__inner { padding-inline: 32px; }
+}
+
+/* ── 3 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+@media (hover: hover) {
+  .ts-aboutband__go:hover { border-color: var(--ts-hero-violet-2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-aboutband__go { transition: none; }
+}
+
 /* BUILTON-MARQUEE: the Built-on strip's CSS-only infinite loop — the track
    renders its chip run TWICE and slides half its own width, so the wrap is
    seamless. Consumed via the Tailwind arbitrary animate value in Landing.tsx
@@ -429,7 +492,7 @@ body {
         ported".
    It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value outside
    :root"). No gradient. No border on a quote.
-   Used by src/components/landing/StopZeroSection.tsx, which Landing.tsx mounts. It stands here, directly under the chip strip's
+   Used by src/components/landing/StopZeroSection.tsx, which src/app/about/page.tsx mounts (HOME-TRIM-01, 2026-11-15: "which Landing.tsx mounts" until then — the home page draws one band in the letter's seat now, .ts-aboutband, above). It stands here, directly under the chip strip's
    rules and above the Travel Marketplace section's block, then the Professional Services section's: the brief's seat was under
    the chip strip and above HOME-SERVICES-01's header, HOME-TRAVEL-01's block took that seat first, and its port runs from its own
    first rule to HOME-SERVICES-01's, so this one stands above it. It names none of their classes, and nothing outside it names one

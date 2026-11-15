@@ -416,7 +416,7 @@ test('T5 Landing mounts the section once — inside the booking mount, as the bo
   assert.equal(landing.split('<GuestTripStrip').length - 1, 0, 'no strip of its own under the section');
   assert.equal((code(LANDING_BOOKING).match(/<GuestTripStrip\s+trip=\{trip\}\s+today=\{today\}\s/g) ?? []).length, 1, 'the box renders the trip card, on the server\'s day');
   const travelEnd = landing.indexOf('</section>', lookupAt) + '</section>'.length;
-  assert.match(landing.slice(travelEnd, landing.indexOf('<StopZeroSection />')), /^\s*(\{\s*\}\s*)*$/, 'the travel block\'s </section> → Stop 0: comments only — no band between them');
+  assert.match(landing.slice(travelEnd, landing.indexOf('<AboutBand />')), /^\s*(\{\s*\}\s*)*$/, 'the travel block\'s </section> → the About Us band: comments only — no act of the guest\'s trip between them'); assert.ok(landing.indexOf('<AboutBand />') > travelEnd, 'and the band is there to be found'); // HOME-TRIM-01 (2026-11-15): the letter left the home page for /about and the About Us band took its seat (AboutBand.tsx). Until then this line sliced to landing.indexOf('<StopZeroSection />') and its message read 'the travel block\'s </section> → Stop 0: comments only — no band between them' — the band it ruled out was the guest strip's own, HOME-TRAVEL-01's note above.
   assert.match(landing, /<GuestBookingLookup onOpened=\{\(\) => window\.location\.assign\('\/booking\/manage'\)\} \/>/);
   assert.match(landing, /import ExperiencesSection from '\.\/ExperiencesSection';/);
   assert.match(landing, /  today: string;\n\}/);

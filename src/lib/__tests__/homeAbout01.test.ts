@@ -3,7 +3,7 @@
  * design canvas at 21:53: "okayy give me the prompt to send it!") — ABOUT US: STOP 0, IN ALEX'S WORDS, AS DRAWN.
  *
  * The spec is a file: design-refs/home-about-01/Section-Reference.html ("Every value in its stylesheet is the design, and its markup is
- * the page"), with its README beside it. The section is src/components/landing/StopZeroSection.tsx, which Landing.tsx mounts; its
+ * the page"), with its README beside it. The section is src/components/landing/StopZeroSection.tsx, which /about's page mounts (HOME-TRIM-01, 2026-11-15: "which Landing.tsx mounts" until then — the home page draws one band in its seat, held by homeTrim01.test.ts); its
  * words are src/lib/stopZeroWords.ts's (byte for byte, as they stood — HOME-PAGES-01, 2026-11-14: its code still is; two notes in it were
  * re-said, T5) and src/lib/homeActWords.ts's; its stylesheet is the reference's
  * own, ported to src/app/globals.css under the house prefix. What Alex approved is the letter, centred: the board's other layout ("Page

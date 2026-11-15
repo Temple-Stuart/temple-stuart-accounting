@@ -5,8 +5,8 @@
  *                          carries data-act-heading): the heading over travel booking, the events, the guest's strip,
  *                          the plans and the professional services.
  *   · OUR_STORY_HEADING  — the trip log's h2 (WasHereSection.tsx, MY_TRIP_HEADLINE), over the trip cards.
- *   · ABOUT_US_HEADING   — the h2 of the act between them (StopZeroSection.tsx), over Alex's text; that text is its own
- *                          leaf's (src/lib/stopZeroWords.ts), not this file's.
+ *   · ABOUT_US_HEADING   — the h2 of the act between them. HOME-TRIM-01 (2026-11-15): on the home page that act is one band now (AboutBand.tsx) — the heading over the first quote of Alex's letter and one door — and the letter's own h2 wears the same words on /about (StopZeroSection.tsx); "the h2 of the act between them (StopZeroSection.tsx), over Alex's text" until then. That text is its own
+ *                          leaf's (src/lib/stopZeroWords.ts), not this file's. The band's door has its words here: ABOUT_US_DOOR, below.
  *
  * HOME-BRIEF-03 (Alex, 2026-11-10 18:09): one more line of the home page lived here —
  *   · SAVE_TRIPS_LINE    — in the travel block's foot row, right after "One trip holds everything — plans, bookings,
@@ -70,6 +70,20 @@
 export const WHAT_WE_DO_HEADING = 'What We Do';
 
 export const ABOUT_US_HEADING = 'About Us';
+
+/**
+ * HOME-TRIM-01 (Alex's brief, 2026-11-14 19:11 Manila; the boards approved on the design canvas at 20:01 and, corrected, at 20:41;
+ * built 2026-11-15) — THE WORDS OF THE ABOUT US BAND'S ONE DOOR on the home page (src/components/landing/AboutBand.tsx): a link to
+ * /about, where Alex's letter stands whole. The brief's ruling c: "THE WORDS. Nothing is typed in the band. The heading is
+ * ABOUT_US_HEADING. The quote is STOP_ZERO_STORY[0].quote, split by the letter's own quoteParts, imported from ./StopZeroSection: no
+ * second split is written, and a quote without that shape is refused by name, as it is there. "Read my story →" is new: one
+ * constant, ABOUT_US_DOOR, in src/lib/homeActWords.ts beside ABOUT_US_HEADING, the arrow in the string, with a dated note. It does
+ * not go in stopZeroWords.ts (stopZero01:189 holds that "Read my story" is typed nowhere in that leaf)." The arrow is part of the
+ * string, as it is in "Compare all four plans →" (src/lib/howTo.ts COMPARE_PLANS_WORDS). These are not the words the events band
+ * once carried — "Read my story ↓" (STOP0-01), which pointed down the page at Stop 0 and went with HOME-BRIEF-02, 2026-11-10: this
+ * door opens a page.
+ */
+export const ABOUT_US_DOOR = 'Read my story →';
 
 export const OUR_STORY_HEADING = 'Our Story';
 

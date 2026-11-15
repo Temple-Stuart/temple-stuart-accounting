@@ -25,7 +25,7 @@
  * HOME-PAGES-01 (Alex's brief, 2026-11-14; his answer to the audit the same day): the footer reads ONE of them now, DEMO_ANCHOR.
  * Its other three doors open the sections' own pages (src/lib/homePages.ts: /financial-software, /professional-services and
  * /about — with no fragment), so MODULES_ANCHOR is the bar's alone, SERVICES_ANCHOR the bar's and its section's, and
- * STOP_ZERO_ANCHOR its section's alone: no link lands on #stop-0 now, and the id stays.
+ * STOP_ZERO_ANCHOR its section's alone: no link lands on #stop-0 now, and the id stays. HOME-TRIM-01 (2026-11-15): that section, Alex's letter, stands on /about alone now — the home page's About Us is one band with no id (AboutBand.tsx) — so of the anchors FOOTER-01 called the front door's, above, stop-0 is on no element of the front door: it is the letter's section's on /about, and still no link lands on it.
  *
  * ONE LITERAL REMAINS, NAMED: LandingBookingSection.tsx hands the strip `eventsAnchor: '#events'`, and
  * src/lib/__tests__/experiences01.test.ts T6 pins that call's text (its next line holds it equal to `#${EVENTS_ANCHOR}`).
