@@ -625,101 +625,105 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
   // and sha256. A note made false, undated or misquoted fails here by name, with its words as they now stand; a later brief that re-says one of these
   // lines re-hashes it here, beside a dated note. (From the review of HOME-MENU-01, 2026-11-16, whose hunters changed words inside these notes that no
   // phrase above reached: a count, a column, a ruling's letter, a date.)
-  const WRITTEN: ReadonlyArray<readonly [file: string, opens: string, nth: number, length: number, sha: string]> = [
-    ["src/components/landing/LandingHeader.tsx", "mark and the wordmark · Financial Software | Pro", 0, 304, '830262276e6831d9328fec03639c023b349fcb5f42be7c4bc1abb87d35b190b4'],
-    ["src/components/landing/LandingHeader.tsx", "reference's own, ported to the foot of src/app/g", 0, 199, '7b0e356f6d1a84f46012b41441f7da98a65cbb6304f7eee28d728bce81ef16bf'],
-    ["src/components/landing/LandingHeader.tsx", "· THE THREE LINKS were the home page's three pil", 0, 759, '92cce693438d1c8cd4d4974ec75a90eff70f46af68f52e94951d715b4cf0c548'],
-    ["src/components/landing/LandingHeader.tsx", "· UNDER 1024px the bar's row folds into a menu b", 0, 462, '1c65b181a1b2f7666ef60789fbd8aedcd4eba356565166086975803c45039d47'],
-    ["src/components/landing/LandingHeader.tsx", "signed-out cockpit tabs mount none: this link wa", 0, 312, '80de73ae38491c7e72d86e8e83842a99063dbbe7a14d770cd31ea764be6291d5'],
-    ["src/components/landing/LandingHeader.tsx", "Pricing keeps its page — /how-pricing-works (the", 0, 296, 'a04058f7d93769f5f914c571c7eda85913ae487f56223d60777e27157d64a9ca'],
-    ["src/components/landing/LandingHeader.tsx", "THE COPIES. HOME-MENU-01 (Alex: the boards, 2026", 0, 1527, 'acad00e0257dd5f78c9ceefd269c3595546a0798e56611fafcb23c6603835df8'],
-    ["src/components/landing/LandingHeader.tsx", "The code, which leaves the site. HOME-MENU-01 (A", 0, 1545, 'bd31315f7e18045d609f76f0271f4421752d01d2802c11dcdbfb136d0d146a65'],
-    ["src/components/landing/LandingHeader.tsx", "The four columns' keys, in the reference's order", 0, 2142, '1aaf78acac9e50021a27664dde4ff43ce730113b5b2649d050d3c45d0843458d'],
-    ["src/components/landing/LandingHeader.tsx", "aria-controls and id; the fixed id gave none in ", 0, 282, '588b386f8584c01b74082ab2b647d62edb6953695839b217ddf28a5850509868'],
-    ["src/components/landing/LandingHeader.tsx", "HOME-MENU-01 (2026-11-16): the panel's one fixed", 0, 211, '5624fabe868542777d0fa5819af80319d671574cc0d1d5162cb172c59327bbf4'],
-    ["src/components/landing/LandingHeader.tsx", "The bar's two props, shared by the stateful bar ", 0, 64, 'e6ae75a7c920cbead3ffe1f989c07d331d80c487f3c0b7629e35dc626b17ecf9'],
-    ["src/components/landing/LandingHeader.tsx", "THE VIEW — the bar drawn from its state, pure, s", 0, 1936, 'c3d9f9b526d3e7b0cc8a40616a304c6e8625c8be301e7f1eaca8f156952d79c0'],
-    ["src/components/landing/LandingHeader.tsx", "closed, its two bars; open, the cross the 390 bo", 0, 71, '9a0dba785eb07132593b36ec0d8a1d43bfab03eebee6262a1922157bf9721372'],
-    ["src/components/landing/LandingHeader.tsx", "THE PANEL (HOME-MENU-01, 2026-11-16): from 1024p", 0, 716, '108d4593e34a4ec79b78475f3131726d5eaa1046252e88ddd3f5844aa61ee49f'],
-    ["src/components/landing/LandingHeader.tsx", "THE BAR — its state, and the view drawn with it.", 0, 2015, '932452bdeb8600ee553a1affebfa474ac33018f2b1293994e8a90d682c4cd557'],
-    ["src/app/globals.css", "without its token: the open menu's panel is hero", 0, 236, 'fa472605be7606bcabcef40ca9cd88bf67d41bf797927e22ce74caad23acd2ea'],
-    ["src/app/globals.css", "above the chip strip's rules, the HOME-SERVICES-", 0, 198, 'b85d6027db36315736b2af2959532d88d135f2d831cc5e2e6a00caa65f1ab06b'],
-    ["src/app/globals.css", "each of those ports runs from its own first rule", 0, 196, '49191d5f2370a597ea571a402c46e3fcffc254cc388c624760e24b5ae2fff335'],
-    ["src/app/globals.css", "section's block and the hero's, because nothing ", 0, 191, '42129b08d957a2c940835dde2b7213a9dab27798bf8760942f6259c9457ba184'],
-    ["src/app/globals.css", "last (HOME-MENU-01, 2026-11-16: but for the menu", 0, 192, 'd22835af0b595b884746f8258bf1b48601a71baf77b5f7d46c6985c493a5c0ee'],
-    ["src/app/globals.css", "NOTHING FOLLOWS THIS BLOCK BUT THE MENU'S, AND N", 0, 246, 'e0159e8f2d0652c5ed26610a7b69ad98fd7d60f3115e0f8b888a3ddc858e7fb5'],
-    ["src/app/globals.css", "file as the port, and fails on any of these (the", 0, 175, '3776164985ea464a2630d2898139f9d17d2c05f6e765dc1ff73131e9a674a1ff'],
-    ["src/app/globals.css", "THE OPEN MENU. Drawn on the design canvas: the m", 0, 300, 'eeddbe59c42bedc5d05f240d6acf5d33228bcd34df8e5ba73da99c83189a96b7'],
-    ["src/app/globals.css", "── HOME-MENU-01 (Alex: the boards, 2026-11-14 20", 0, 3480, '35abecdb84181bc8fece50c38ac9c4f6c99b841f9fa4e3c79f6bf9b5daa2d094'],
-    ["src/components/landing/Landing.tsx", "ACCOUNT\" left the bar by his rulings of the same", 0, 209, 'e65757a1893d5bda7a785e2d0e99eca12b8b259046e0c2fff25d4c019806f9c9'],
-    ["src/components/landing/Landing.tsx", "today (the nav's Live-demo link retired, Landing", 0, 369, '8012487a12a8ab0739c5e8fc72ce79ad1b1873ec4d89271a5f09feaa5de9ef8d'],
-    ["scripts/assert-tool-registry.ts", "goes to /booking/manage. LandingHeader carries n", 0, 395, '3a24660dc504ab5a475cfcaaf65cae2879f5266098893b59b0ad196d4635b0a4'],
-    ["scripts/assert-tool-registry.ts", "THE DOOR (Alex's ruling 17:04): the lookup under", 0, 305, '5d510f0d4a3709d4e06b40824d84076b8d98c81cb79735395e5cc407896313ee'],
-    ["scripts/assert-tool-registry.ts", "HOME-FINISH-02 (Alex, 2026-11-10 20:56): NOTHING", 0, 664, 'af7c34f92b09ce87828156cce387d6b4814674f41fc62db6b69c91e5b3807dc6'],
-    ["scripts/proofs/guest01.seeds.ts", "above the booking section, asking on load, or th", 0, 283, '29a27dda51d75a4e60a8bbbbbba6886314669b3ecf785a686691af8a7f0f62e0'],
-    ["scripts/proofs/guest01.seeds.ts", "The door (Alex's ruling 17:04): the lookup under", 0, 274, '7cb14dbf115d0d09a3ed32d277a479ce4dca46acbe56f2576f32980ab52632d8'],
-    ["scripts/proofs/guest01.seeds.ts", "HOME-MENU-01 (2026-11-16), rulings g and h: the ", 0, 401, 'b2baf86ed4d9bd1fd2a78636a3110e9bf54e53ccf40b8df17e82cdd5ca544150'],
-    ["scripts/proofs/guest01.seeds.ts", "HOME-MENU-01 (2026-11-16), ruling g: the one lin", 0, 643, '6966e8a474ff689d6fb31827ea8fa7f950bd8e866e23085dc6f6b8418ac7ce9a'],
-    ["src/lib/homeAnchors.ts", "/about — with no fragment), so MODULES_ANCHOR is", 0, 287, 'ccc706d401ff8db20866756ad4037b2bf075022a44ed663ef976266ec1bf81a6'],
-    ["src/lib/homeAnchors.ts", "The top bar (LandingHeader.tsx) linked the three", 0, 384, 'ebd028eaa72fe32c52c134796688869fde026c747d14eb62ecccc0fb1e71d76d'],
-    ["src/lib/homeAnchors.ts", "bar both read it, so it is typed once for both (", 0, 311, '4cac34b15ab149201ab852c42f93a04d67d7e5dd575d5bb1c979c7a0a4e42546'],
-    ["src/lib/homeAnchors.ts", "holds it; src/lib/__tests__/heroCrest01.test.ts ", 0, 448, '31b1445141809f574bb722149d2266b1e99bc8b80caa703c15b6fc474bc5ba66'],
-    ["src/lib/footerWords.ts", "still land on the home page's sections), and eve", 0, 287, 'd727621f06af100f76d9ceefc9733c6bb5314b38dce96a042044ab0263530082'],
-    ["src/lib/footerWords.ts", "HOME-PAGES-01 (2026-11-14): the footer reads it ", 0, 238, '01c6492d5aa458068b7bd6a99fb6166a7a991e3d927111799a28cfccf94c079e'],
-    ["src/lib/footerWords.ts", "The code, built in public — the same URL the her", 0, 461, 'e1a88d9dc6525c75c620361923d57654eac023682332ceedb800ee65d7bedb35'],
-    ["src/components/landing/pipelineWords.ts", "outside the deck lives here, and nothing reads t", 0, 169, 'dbe120f86d1095f39a3b2e0feed3155fedb774cbb2b50ddde950c12ba82b9e96'],
-    ["src/components/landing/pipelineWords.ts", "FOOTER-01 (2026-11-09): the footer's THE RECORD ", 0, 156, '47a35556422782ef2ab65ff990f0bba8f437e8413ada10f94380dd1b3e87c456'],
-    ["src/components/landing/ServicesSection.tsx", "on (until HOME-MENU-01, 2026-11-16: the bar's Pr", 0, 302, 'fb56551094bd8616f2e00ce5813d801780c07a6dca45751cda1c4f5b3c9f23f3'],
-    ["src/components/landing/HowToSection.tsx", "bar's first link land on (the top bar's first li", 0, 231, 'f4950de89c2e4386a3dbc5d063d6ee688f7523b42e0430480326f77808d16baf'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "to the foot of src/app/globals.css (and the bar'", 0, 183, '79b9c489893bf2cac0fb290df1d046af007b3840dd1e620ddc62f76d415bf1e6'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "named in globals.css; no hex in it; every variab", 0, 281, 'a821a094c8138d9b7dcfa07dcf9882ae118e1035cf82a8c2ac660b6deef466d6'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "T5 the bar's words and links — the four names th", 0, 493, 'd5e4237d4180f1a067ddc54caf426bb03bd055bc5809173d2f538d23f6881ab4'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "where a login opener is given, a link to '/' whe", 0, 277, 'eb419bc0a9befab278f5dda9a799215137b33f437f84ba79e00a00753b5fd146'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "calls the login opener (HOME-MENU-01, 2026-11-16", 0, 200, 'a3de9689ed477742fef17ed87c43a5b6e0e26acd05a3df2c1a99a947d659c5cb'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "T10 #modules has one home — MODULES_ANCHOR, read", 0, 254, '4dbefef1bf46b7f6987a66371d94a403a5b4b1b98afea9d9dc8a870c1511dd2c'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling d: BAR_MENU wh", 0, 93, '2631a7e95644e23c64872bc2a3cb332b7b1fd9f7789324aa832206c2efe5a47b'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling i: the menu's ", 0, 532, 'f635afc79900d78a06b79e7045bc599dd2c80f149231dab9639671ce601d6861'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings a, d and e: t", 0, 519, 'e902b5444471561aff8323ffcfa70352d54e234306c2936f2384c294fb8dead1'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), beside the note above", 0, 394, 'b9aa61475d27fbf6deb0d1386bcdf563d003968833b0607a32b77345c8b8e916'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16): the menu builds its t", 0, 318, '1c61ed332d0ca05c94dbd2e4f1e89dcf0ec85adea350de1b9f243ea8442193a2'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "gone, by Alex's ruling — and (HOME-MENU-01, 2026", 0, 326, '3dc5c38d075524ceabf6223eacd1191ae8c95f83cac80d548f118f1308e4929a'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings a to d: the f", 0, 822, '645f161b546f65e2fedb7a203f050ba3a68df1a5ee5a32a9634d9361bc6fbd9c'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "the pill: mark and wordmark · the three names wi", 0, 287, 'fa80320cf752c68aec12984f1292aa867fb232a800b71b32b009cfea84c48702'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "the menu: closed, named by the button, the four ", 0, 151, '99ae807033841883faee7506306d16f338ac53a90dfc5ce2c669220f9d4eb6dd'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16): the About Us list dra", 0, 534, 'fca3e5cf3fcfa9889abd2ef55a41da43385e3a95c39bbb2fed27bdff2a7b528c'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling c: the panel's", 0, 187, 'b97f81124f84994eaf45e6fc3ae8d871af98df6ea999c3f879ac17dc7415bbe1'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "imports these four lines and nothing else'. HOME", 0, 558, '165541e3c1aea2c4bccb45e1e23a6bb3469d757f0c29ab7ba123ee11b6af8c7f'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings a and b: the ", 0, 688, '0b0b1b831b9260ccd976e04faf7e5c034e91ef355c6081f3888ef5ccac157600'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling j, beside the ", 0, 638, 'b13f558b404a96a9271665a193dd26b5654ade1dcc342b468cc9ad2ad6f6c195'],
-    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling h, beside the ", 0, 211, '0c8e485e22beafcdb70980a28ef45911e871cc097b7537762c589376d91ecdf3'],
-    ["src/lib/__tests__/homePages01.test.ts", "pages, Travel Marketplace on /#demo; drawn so; t", 0, 211, '2efb93fceffd3e82c46e4efa0abe880ee0ad9d181ee21b528468642caf55a855'],
-    ["src/lib/__tests__/homePages01.test.ts", "T8 the home page — HOME-TRIM-01 (2026-11-15) cha", 0, 891, '17c30d7b5f6687eb31e58d2cc38cf8e31be4a7741a3fab9d6bc954d10313380e'],
-    ["src/lib/__tests__/homePages01.test.ts", "HOME-MENU-01 (2026-11-16): the import reader — s", 0, 232, 'c10fe1771a9e89d69c66e5cd88c0d6b5f2afdcbe648fbb710f274f9fc5a9e12c'],
-    ["src/lib/__tests__/homePages01.test.ts", "HOME-MENU-01 (2026-11-16), ruling d: BAR_PRODUCT", 0, 83, 'de71829269fcac2bdeb2793ae4f5600cfa0fb95f1e4795690a3d3ea0373cb7e5'],
-    ["src/lib/__tests__/homePages01.test.ts", "the brief's \"NOT IN THIS PR\" names \"The top bar ", 0, 419, '5da01355f68d3539978d063d7d79e79f9d84cd7f9d48ebc617eed79e837a7f91'],
-    ["src/lib/__tests__/homePages01.test.ts", "who reads the leaf: the footer's words, the thre", 0, 693, '02bf9f6043705804abfb1e21fe875ffcad6db5a9d5eae8b37d7ba8cc154b4220'],
-    ["src/lib/__tests__/footer01.test.ts", "then; it left the top bar (until HOME-MENU-01, 2", 0, 291, 'b507ca801dab3b3f500de9bbe0eb1e43040f541bd50973cc7844a9f21807578d'],
-    ["src/lib/__tests__/footer01.test.ts", "HOME-MENU-01 (2026-11-16): the bar's one link to", 0, 69, '7d34b1a2f4cb6c829043b4798ba2927f08948c99ba034f68d0e2cb162a742d08'],
-    ["src/lib/__tests__/footer01.test.ts", "the top bar's first link (until HOME-MENU-01, 20", 0, 135, 'a0427b225c9fa13c00910b13729ba91901c047e910d458d8fdfdb71b0180d7e1'],
-    ["src/lib/__tests__/footer01.test.ts", "HOME-MENU-01 (2026-11-16), ruling h, beside the ", 0, 415, '91b7ee6e8c985e06e4cce41bc1808caa214f37c635c33da92d7b7dfe88ebaeaf'],
-    ["src/lib/__tests__/footer02.test.ts", "stays last (but for the menu's block after it, s", 0, 175, 'd9e6b70bf4f94427642c6359aac1793177d6c4bbcbcecb76f87f819be48e9400'],
-    ["src/lib/__tests__/footer02.test.ts", "The port: globals.css from the footer's first ru", 0, 178, '2f1a95b9481652c618995750974d06453a7ab9f3c4e8b7f8236b9415a4856b68'],
-    ["src/lib/__tests__/footer02.test.ts", "but for the menu's block after it (HOME-MENU-01,", 0, 60, '2426bccbc1075e31620cd8c46ed78dfb4130c67804acc0a233005ba2233c9a6d'],
-    ["src/lib/__tests__/howTo01.test.ts", "the act: its id (the checkout's cancel link and ", 0, 289, '4387354f418a26d0ac428122db20f3d72e690e3b88140541faf46c376c124ef3'],
-    ["src/lib/__tests__/guest01.test.ts", "on the home page and on /booking/manage (Alex's ", 0, 246, 'ecd041feafdd6b5aac79176259b3a2dc0840468f126fe3a27b554ea18243269e'],
-    ["src/lib/__tests__/guest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings g and h: line", 0, 326, '76bd1fe8c10b35f25848f8ddd7376a6f6a73395a87206513ffc941efd5f8cbf7'],
-    ["src/lib/__tests__/guest01.test.ts", "BOOK-DISCLOSE-01 (2026-11-08): the disclosure si", 0, 512, '69a2745d4795e0374f916721e23bd439d8e5d30ab4bb2d5296bb4b8c623a984c'],
-    ["src/lib/__tests__/homeServices01.test.ts", "(.ts-fs…: its switches by [aria-pressed], its pl", 0, 210, 'b9198e95d7aa49c4fcadd7bc3ee7ace12d794e311596ee62503137f97fa5c987'],
-    ["DESIGN.md", "gradients (`globals.css`, REPAINT-5); it changes", 0, 405, '4841afeb5f841f7432503722f448f358d9c50fd2449f876c0ba4fae3831de2ae'],
+  const WRITTEN: ReadonlyArray<readonly [file: string, opens: string, nth: number, length: number, before: number, after: number, sha: string]> = [
+    ["src/components/landing/LandingHeader.tsx", "mark and the wordmark · Financial Software | Pro", 0, 304, 16, 16, 'd6ecfcfbb85acf567e2b1c9255eb697e9afa78df581017f20282d005a4adfd31'],
+    ["src/components/landing/LandingHeader.tsx", "reference's own, ported to the foot of src/app/g", 0, 199, 16, 16, '709d3094b6f4c6ae2224193c8af57a34ce38b384e9d9a8f75838226057f6d480'],
+    ["src/components/landing/LandingHeader.tsx", "· THE THREE LINKS were the home page's three pil", 0, 759, 16, 16, '8ebbbcae517b43f32d7dc660f3e1ea5f6b30ab9603f16d0897c733ab93a1f6dc'],
+    ["src/components/landing/LandingHeader.tsx", "· UNDER 1024px the bar's row folds into a menu b", 0, 462, 16, 16, 'f0655a8096609aed013ed49f464b2fe5ec80dbcb3e2788af83e88af1acf6bed8'],
+    ["src/components/landing/LandingHeader.tsx", "signed-out cockpit tabs mount none: this link wa", 0, 312, 16, 16, 'aeac2ea0c16e7a2ec80044017bb13281ddc2d1b89008f5c25bca3b138895c9f7'],
+    ["src/components/landing/LandingHeader.tsx", "Pricing keeps its page — /how-pricing-works (the", 0, 296, 16, 16, '09de29eb18b43d67d6371565e27879211199ad3a0e1d860c3995da1fb30a3eb5'],
+    ["src/components/landing/LandingHeader.tsx", "THE COPIES. HOME-MENU-01 (Alex: the boards, 2026", 0, 1527, 16, 16, '5aaa02b386169c7ca64ca4a70770845f9b32c30d238a57dcc39fa71d0c416f13'],
+    ["src/components/landing/LandingHeader.tsx", "The code, which leaves the site. HOME-MENU-01 (A", 0, 1545, 16, 16, '99e7d34298b120818b808a65782bd0baa9841b69f3364c41499d79ba66af6f89'],
+    ["src/components/landing/LandingHeader.tsx", "The four columns' keys, in the reference's order", 0, 2142, 16, 16, '12f664dc26c945b7d0ee6c7a960029fbc4465a6168a0a1cc43213e1a221232c1'],
+    ["src/components/landing/LandingHeader.tsx", "aria-controls and id; the fixed id gave none in ", 0, 282, 16, 16, '55605fd0161420eaa31493d288f71c95e522dd3714551aac7c1d5bd1fd268c0e'],
+    ["src/components/landing/LandingHeader.tsx", "HOME-MENU-01 (2026-11-16): the panel's one fixed", 0, 211, 16, 16, '45ca8c4ead3a437a31f8f2e458fd86cae36e95519cac3f005e47efa1585b3e08'],
+    ["src/components/landing/LandingHeader.tsx", "The bar's two props, shared by the stateful bar ", 0, 64, 16, 16, '5c742cef5868c2c270f48c0797b52451d4f12d13a5b7d99ba21430d2fd44072d'],
+    ["src/components/landing/LandingHeader.tsx", "THE VIEW — the bar drawn from its state, pure, s", 0, 1936, 16, 16, '01d8629bb50f85ce21a78cdabee31febbcf762ec41b6699e2ae399df12668d00'],
+    ["src/components/landing/LandingHeader.tsx", "closed, its two bars; open, the cross the 390 bo", 0, 71, 16, 16, '9714593e9295257860a6ef31d69372fced81ddc035cf1e550f1488d913d4a579'],
+    ["src/components/landing/LandingHeader.tsx", "THE PANEL (HOME-MENU-01, 2026-11-16): from 1024p", 0, 716, 16, 16, 'dd2c310a3a8bdf63c13f6379f4fcdf65a34d7ea2b7b7eb93f72d7ae3a2b866fb'],
+    ["src/components/landing/LandingHeader.tsx", "THE BAR — its state, and the view drawn with it.", 0, 2015, 16, 0, 'b8fb2814369d328d6db999217a425b21bdddd13de294056ffb439834c6734d7d'],
+    ["src/app/globals.css", "without its token: the open menu's panel is hero", 0, 236, 16, 16, '8a07b7d07ba3b0eeb5626520251fb5f9f2ecd7c6fd0c6518dce7fb2751734c62'],
+    ["src/app/globals.css", "above the chip strip's rules, the HOME-SERVICES-", 0, 198, 16, 16, '78152c1d578892a81cc051b35399190e0ed8a3b62e34ab608c2b27683b721086'],
+    ["src/app/globals.css", "each of those ports runs from its own first rule", 0, 196, 16, 16, 'aae5d739d5ab1d1317be390ecf0f54d83289459ddeca51497f2d22a0daefc578'],
+    ["src/app/globals.css", "section's block and the hero's, because nothing ", 0, 191, 16, 16, 'c19b78db731c76c82933f40daed651cd3845a5e4bfe3d9ca57ed2f00183d0dd1'],
+    ["src/app/globals.css", "last (HOME-MENU-01, 2026-11-16: but for the menu", 0, 192, 16, 16, 'a5e7b134092f1034506eb5366ed3331bf0e741a910f306641dde5978a6eb8ad2'],
+    ["src/app/globals.css", "NOTHING FOLLOWS THIS BLOCK BUT THE MENU'S, AND N", 0, 246, 16, 16, '287102f29bccca3144d02bdcaea526f17928930bb6cca356ffec613f541a7845'],
+    ["src/app/globals.css", "file as the port, and fails on any of these (the", 0, 175, 16, 16, '00d6075bd26a6638461a237535b0858ade1b43d7b7ccd01f6b06edc11897aad5'],
+    ["src/app/globals.css", "THE OPEN MENU. Drawn on the design canvas: the m", 0, 300, 16, 16, '8c657576e81f2984ca2c0fa20de2b2146fce9e68dc6d340d1edf41b99f861187'],
+    ["src/app/globals.css", "── HOME-MENU-01 (Alex: the boards, 2026-11-14 20", 0, 3480, 16, 0, '53a139e326c9f5d7ffab91e0a63d9bb46afd16dde7736775b49afb5ac4c3e35d'],
+    ["src/components/landing/Landing.tsx", "ACCOUNT\" left the bar by his rulings of the same", 0, 209, 16, 16, 'b50b8c1824d2ab050a91770b796eb1bc432bedaf88c24606d873c55645e1d2d9'],
+    ["src/components/landing/Landing.tsx", "today (the nav's Live-demo link retired, Landing", 0, 369, 16, 16, '1cf79ebad0adb45a723ff7ddc1667eaa334d91086a234622d0933537fb7dc549'],
+    ["scripts/assert-tool-registry.ts", "goes to /booking/manage. LandingHeader carries n", 0, 395, 16, 16, '29bd50000df068fbc399e27804567764b0a517c802259acc09989adedc861c28'],
+    ["scripts/assert-tool-registry.ts", "THE DOOR (Alex's ruling 17:04): the lookup under", 0, 305, 16, 16, '7cd7a6a6b30dab025ae3a0a006b960ae89a420afc51842fec83f32d8fb6d2eea'],
+    ["scripts/assert-tool-registry.ts", "HOME-FINISH-02 (Alex, 2026-11-10 20:56): NOTHING", 0, 664, 16, 16, '44a5c01eb4d4820ac0cfb1405a65094cb2a64a99e69c616b2e74c20614cfe333'],
+    ["scripts/proofs/guest01.seeds.ts", "above the booking section, asking on load, or th", 0, 283, 16, 16, 'd6c1d44207325d27d28b1306c0ee6f71e7b593c43d528a1c447818746eb25f56'],
+    ["scripts/proofs/guest01.seeds.ts", "The door (Alex's ruling 17:04): the lookup under", 0, 274, 16, 16, '1544b104f59ef1b8277088a79a16fb89b76843b922204e65501352e2e66aa1dd'],
+    ["scripts/proofs/guest01.seeds.ts", "HOME-MENU-01 (2026-11-16), rulings g and h: the ", 0, 401, 16, 16, '4343626801cb27afb6312e4a97f2a2e7cadb53a7c419bd2eb79163364cbf1114'],
+    ["scripts/proofs/guest01.seeds.ts", "HOME-MENU-01 (2026-11-16), ruling g: the one lin", 0, 643, 16, 16, '1387cd3a01d4ea28b25c47402cb62d15cc162e72fcb158d5cb0890ec910d7913'],
+    ["src/lib/homeAnchors.ts", "/about — with no fragment), so MODULES_ANCHOR is", 0, 287, 16, 16, '75550f15dc39acebade2808f9dc0d5adf110e193244fdd3e1decba9db970752c'],
+    ["src/lib/homeAnchors.ts", "The top bar (LandingHeader.tsx) linked the three", 0, 384, 16, 16, 'b75d871182945bb8ef9b6ffc2925f3a7019f1d930a26cf2cd35b44be9a6b28dd'],
+    ["src/lib/homeAnchors.ts", "bar both read it, so it is typed once for both (", 0, 311, 16, 16, '99e8272f92602fd94a1d50ff9a7ff4003fc55ca6b0c197e0e731aa682cddef7f'],
+    ["src/lib/homeAnchors.ts", "holds it; src/lib/__tests__/heroCrest01.test.ts ", 0, 448, 16, 16, '4b113471573c1d8ad2612208e76b550ee467cdc31d0db5a0f29687a4e5cc332e'],
+    ["src/lib/footerWords.ts", "still land on the home page's sections), and eve", 0, 287, 16, 16, '7811fbc7641619db6542f6a9b78d2b19a90853c62496d1ef108b3b1df17a9f3b'],
+    ["src/lib/footerWords.ts", "HOME-PAGES-01 (2026-11-14): the footer reads it ", 0, 238, 16, 16, '8d4f163746d3d20190f3fe4b2576249b566b59e6f140afa064664a9c9715e742'],
+    ["src/lib/footerWords.ts", "The code, built in public — the same URL the her", 0, 461, 16, 16, '765c179b804eb207cb7a0dc6f5ae740d7adae45b400475097e201e0d3d877ca1'],
+    ["src/components/landing/pipelineWords.ts", "outside the deck lives here, and nothing reads t", 0, 169, 16, 16, '54c5a72eac801227174b9c65fb927fb2a2442eb9e518988f282ca6273022009d'],
+    ["src/components/landing/pipelineWords.ts", "FOOTER-01 (2026-11-09): the footer's THE RECORD ", 0, 156, 16, 16, 'ae4cbc54e314dc88f0becf1e799bceda015148c99d00fb875607320357bf8a19'],
+    ["src/components/landing/ServicesSection.tsx", "on (until HOME-MENU-01, 2026-11-16: the bar's Pr", 0, 302, 16, 16, 'cdf380743a956b0126cf3a5bf53ae02e1e143c3aaddd4b2ae6327f0722232f45'],
+    ["src/components/landing/HowToSection.tsx", "bar's first link land on (the top bar's first li", 0, 231, 16, 16, 'e70e868e72fe4456f4e5099197ccfec95bb7df70e2fc085740c7330cdb83a3a8'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "to the foot of src/app/globals.css (and the bar'", 0, 183, 16, 16, '0c15a162bf5ac798fd6c9113508037f569c07dc778f4aa4dfe19fd9baa1c43a9'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "named in globals.css; no hex in it; every variab", 0, 281, 16, 16, '3ee84a1493a24f455749fa4905061b233fdb3f57e4f5dc5991ac8d74369feae9'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "T5 the bar's words and links — the four names th", 0, 493, 16, 16, 'f7ea0a593dcf0f46f698c5ed37085b867ba43c2040e52a7b6cff4293a9e821a8'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "where a login opener is given, a link to '/' whe", 0, 277, 16, 16, '557221038e9a0ee5b430c86ba5ed9e7a507386d6f3f39c4fafde22ec00ef51b5'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "calls the login opener (HOME-MENU-01, 2026-11-16", 0, 200, 16, 16, '2a0875d81a4fcba383caec3e056484bbb3e1142897d18ee9afb02ae4e46824c8'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "T10 #modules has one home — MODULES_ANCHOR, read", 0, 254, 16, 16, '85cbb9442655c206dd659d5409d3704af4a00a48a0a28c9e7168f96a9dda3a51'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling d: BAR_MENU wh", 0, 93, 16, 16, '2f4169ffe9a02635a2dd6b91eb83a2536c225783a97faac5c114b6161dbe2f4b'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling i: the menu's ", 0, 532, 16, 16, 'b001fb8a48e0301a0cb72920529e62f07f28ceab3f92541f3912ffeb2192db35'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings a, d and e: t", 0, 519, 16, 16, 'ae21809e195e5759215ff6ae152953a8509e5ec1532bc7149d2adb75a128bbd0'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), beside the note above", 0, 394, 16, 16, 'd9a15ef1e09d54d5aace6fc47efcc0adb28d59ef7ce8cb518ba161cedab1aaf6'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16): the menu builds its t", 0, 318, 16, 16, '302d0374d041d0b7dc06d4876ab2f8118194ed1d4cc546cb00e6e38e1c89615a'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "gone, by Alex's ruling — and (HOME-MENU-01, 2026", 0, 326, 16, 16, '738b91b1d27cf757203a57eee143cb55384b9c530a091cd85a0a4a7b7e21bc6c'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings a to d: the f", 0, 822, 16, 16, '019159413290f796a1b4f76606e775df9ee9d6a073d4e934fb21dc4ccc8866e9'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "the pill: mark and wordmark · the three names wi", 0, 287, 16, 16, '57052a13e31f8f40f61aa85d26de73f4d869b202a1e3a7afdb5e68be5c71645d'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "the menu: closed, named by the button, the four ", 0, 151, 16, 16, '6771e0a425f2a1fe5531c29df344157a9a50584bc3f859a31bd6218efb3491a6'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16): the About Us list dra", 0, 534, 16, 16, '960ed1bcb5d960860c82069fbd6a0d7a229172200803295d1e002e96df8a5b34'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling c: the panel's", 0, 187, 16, 16, '908e355d376f40816504c4e45b73e59e1b5a62c316f2acad3e67892d1ad09a01'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "imports these four lines and nothing else'. HOME", 0, 558, 16, 16, '52b28cce9b4d9460ae439e8d9ed52a8a71712aa53539100c153db94b13aa6783'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings a and b: the ", 0, 688, 16, 16, 'b5b1ec6ebfb076369d318d317664b7963d96c408540229f0a912553b2217eb6d'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling j, beside the ", 0, 638, 16, 16, '92d77bb29f9866b2c51f2607793338f31cb624568a94fbe144d8c48dfa5080f7'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling h, beside the ", 0, 211, 16, 0, 'a5a62c2c4e9563dd518d282ef256e423e7965be6122a66e5668873b1732abff7'],
+    ["src/lib/__tests__/homePages01.test.ts", "pages, Travel Marketplace on /#demo; drawn so; t", 0, 211, 16, 16, '422b33c33505bf8d3deec4c58fde42a850389a04fd543188dedb06d77437c635'],
+    ["src/lib/__tests__/homePages01.test.ts", "T8 the home page — HOME-TRIM-01 (2026-11-15) cha", 0, 891, 16, 16, '0ef25fbfbe270461eb520752579ed9b628b1964b02efc03613b51a05ea09ed7b'],
+    ["src/lib/__tests__/homePages01.test.ts", "HOME-MENU-01 (2026-11-16): the import reader — s", 0, 232, 16, 16, 'd6a1671067c6972824cdc492e1d6d5e86fe8bcf910de77bb72f374240ec3dbda'],
+    ["src/lib/__tests__/homePages01.test.ts", "HOME-MENU-01 (2026-11-16), ruling d: BAR_PRODUCT", 0, 83, 16, 16, '56a90e714ea6dfbf66df5c3e756bd29d80de7a9da50e44ba53704230866f65a9'],
+    ["src/lib/__tests__/homePages01.test.ts", "the brief's \"NOT IN THIS PR\" names \"The top bar ", 0, 419, 16, 16, 'c3e2d764542866fd888328091c7c26f22341f5c71337a84cd1d8a32a64237b55'],
+    ["src/lib/__tests__/homePages01.test.ts", "who reads the leaf: the footer's words, the thre", 0, 693, 16, 16, 'd6e4b353425d2cea798dd6be09d50053b94660daa962dd2dfe868fab276ccac6'],
+    ["src/lib/__tests__/footer01.test.ts", "then; it left the top bar (until HOME-MENU-01, 2", 0, 291, 16, 16, 'eba933c3d207526949eb2c7220911e9c767f64713a9467875107bb3d735ae146'],
+    ["src/lib/__tests__/footer01.test.ts", "HOME-MENU-01 (2026-11-16): the bar's one link to", 0, 69, 16, 16, 'f1a723259710b332d72e0abe7fd073ea918ba80c899ff6933ecd25c9fc23fb0b'],
+    ["src/lib/__tests__/footer01.test.ts", "the top bar's first link (until HOME-MENU-01, 20", 0, 135, 16, 16, '5ac4a7c8076f7afc6125a6ed26152f846f36a8a1c6341ae046f5263a8ce07439'],
+    ["src/lib/__tests__/footer01.test.ts", "HOME-MENU-01 (2026-11-16), ruling h, beside the ", 0, 415, 16, 16, '98e754db2e7af191010dedcc52c2742df94181b1633e22d3d3668afa8ec51141'],
+    ["src/lib/__tests__/footer02.test.ts", "stays last (but for the menu's block after it, s", 0, 175, 16, 16, '8e6959439a1fd3be57d33b96e060c39d6677b0eaa339c38dd337ed090f391604'],
+    ["src/lib/__tests__/footer02.test.ts", "The port: globals.css from the footer's first ru", 0, 178, 16, 16, '36f3be4830659dc810395da55c6b18ab98fbd454d1bbc4fd2437d3591b7ecaf6'],
+    ["src/lib/__tests__/footer02.test.ts", "but for the menu's block after it (HOME-MENU-01,", 0, 60, 16, 16, 'a505db213f6bd920cd727e79900c7e732d936202952600e532619c938d9953c5'],
+    ["src/lib/__tests__/howTo01.test.ts", "the act: its id (the checkout's cancel link and ", 0, 289, 16, 16, 'c1d95d7de8e44832ed37cc4de191efb3a5f0aa6217eda5891586c6abff06d972'],
+    ["src/lib/__tests__/guest01.test.ts", "on the home page and on /booking/manage (Alex's ", 0, 246, 16, 16, '7a216bd654619ef2bb9d611dd73387564c3d0152d36049300a597c6b9ae782d8'],
+    ["src/lib/__tests__/guest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings g and h: line", 0, 326, 16, 16, 'aafb29ce690ab82f817df9123bea756b65fe49aeb8f3b20db0ddd15d33f818c0'],
+    ["src/lib/__tests__/guest01.test.ts", "BOOK-DISCLOSE-01 (2026-11-08): the disclosure si", 0, 512, 16, 16, 'ba23e167823b90359d740ae0a23ebce9407b15438e3f7b42121830777de399b1'],
+    ["src/lib/__tests__/homeServices01.test.ts", "(.ts-fs…: its switches by [aria-pressed], its pl", 0, 210, 16, 16, '80fac52dc801a47427b3f3e04b9006a6f195ecd74c3c95bad2b276ba3e6f9edb'],
+    ["DESIGN.md", "gradients (`globals.css`, REPAINT-5); it changes", 0, 405, 16, 16, '11fb9a448a7f13cca086b22be59671095b23d0535878516c0eda3222a00d5ba2'],
   ];
   assert.equal(WRITTEN.length, 85, 'eighty-five runs of comment lines, in eighteen files');
-  for (const [file, opens, nth, length, sha] of WRITTEN) {
+  for (const [file, opens, nth, length, before, after, sha] of WRITTEN) {
     const said = file.endsWith('.md') ? flat(whole(file)) : prose(file);
     let at = -1;
     for (let k = 0; k <= nth; k += 1) { at = said.indexOf(opens, at + 1); if (at < 0) break; }
     assert.ok(at > -1, `${file}: a note HOME-MENU-01 wrote, opening "${opens}…", stands`);
-    const now = said.slice(at, at + length);
-    assert.equal(sha256(now), sha, `${file}: the note HOME-MENU-01 wrote, opening "${opens}…", stands as written — it reads now «${now}» (${sha256(now)})`);
+    // the note, and up to sixteen characters on either side of it: nothing is set beside it unseen — and where fewer stood on a side, the file's
+    // comments begin or end there still
+    if (before < 16) assert.equal(at - before, 0, `${file}: nothing stands before the note HOME-MENU-01 wrote, opening "${opens}…", but what stood there`);
+    if (after < 16) assert.equal(said.length, at + length + after, `${file}: nothing follows the note HOME-MENU-01 wrote, opening "${opens}…", but what followed it`);
+    const now = said.slice(at - before, at + length + after);
+    assert.equal(sha256(now), sha, `${file}: the note HOME-MENU-01 wrote, opening "${opens}…", stands as written, with what stands beside it — it reads now «${now}» (${sha256(now)})`);
   }
   assert.match(flat(whole('DESIGN.md')), /Since HOME-MENU-01 \(2026-11-16\) the bar's menu — the four names' carets, the panel and the phone menu's lists — is drawn by `design-refs\/home-menu-01\/`'s second stylesheet/, 'DESIGN.md: the bar\'s stylesheet, re-said');
   // the tests' titles it re-said, and the seed it re-named — strings, so read in the code
@@ -761,7 +765,7 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
   // opens a quote of him — what stands from there to the closing mark is his words from that sentence on, to the end of the piece or to a full
   // stop, or this fails, naming the longest such part; a whole sentence of his shorter than that is read too, and counted. Each file's count is held.
   // (homeTrim03's census, at twelve characters: twenty until the review of HOME-MENU-01, 2026-11-16, which let a misquote parting at fifteen through.)
-  const CHANGED = [THIS, HEADER, GLOBALS, LANDING, LAW, SEEDS, ANCHORS, FOOTER_WORDS, PIPELINE_WORDS, SERVICES_SECTION, HOW_TO, ...['heroCrest01', 'homePages01', 'footer01', 'footer02', 'howTo01', 'guest01', 'homeServices01', 'pipelinePage01'].map(tests), 'src/lib/__tests__/importReader.ts'];
+  const CHANGED = [THIS, HEADER, GLOBALS, LANDING, LAW, SEEDS, ANCHORS, FOOTER_WORDS, PIPELINE_WORDS, SERVICES_SECTION, HOW_TO, ...['heroCrest01', 'homePages01', 'footer01', 'footer02', 'howTo01', 'guest01', 'homeServices01', 'pipelinePage01'].map(tests), 'src/lib/__tests__/importReader.ts', 'DESIGN.md'];
   for (const file of CHANGED) assert.ok(existsSync(resolve(ROOT, file)), `${file} is in the tree`);
   // ruling k: the 2026-11-14 approvals are named by their times, and their words are quoted nowhere new. Their words are built here from their
   // parts, so this file does not hold them; in the comments and in the code of every file of the change they stand as often as before it — once,
@@ -769,7 +773,7 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
   // typed the words; then it looked for their stamps, which a stamp wrapped onto the next line passed.)
   const approvals = [['ALL', 'LOOKS', 'GOOD'].join(' '), ['yeet', 'yeet'].join(' ')];
   for (const file of CHANGED) {
-    const held = approvals.map((words) => [count(prose(file), words), count(flat(code(file)), words)]);
+    const held = approvals.map((words) => (file.endsWith('.md') ? [count(flat(whole(file)), words), 0] : [count(prose(file), words), count(flat(code(file)), words)]));
     assert.deepEqual(held, file === tests('homePages01') ? [[0, 1], [0, 0]] : [[0, 0], [0, 0]], `${file}: the approvals' words, in its comments and its code, as often as before this change`);
   }
   const HIS_WORDS = [...Object.values(RULING), ANSWER];
@@ -778,7 +782,7 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
   const closesASentence = (text: string, n: number): boolean => n === text.length || (/[.!?]/.test(text[n - 1]) && text[n] === ' ');
   const census: Record<string, number> = {};
   for (const file of CHANGED) {
-    const said = prose(file);
+    const said = file.endsWith('.md') ? flat(whole(file)) : prose(file);
     for (let at = said.indexOf('"'); at > -1; at = said.indexOf('"', at + 1)) {
       const rest = said.slice(at + 1);
       let his = false;
@@ -800,5 +804,5 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [THIS]: 3, // the header: his answer; rulings k and l (T7)
     [HEADER]: 11, // rulings a, b, c, d, e, f, g, h, j and m, and his answer
     [GLOBALS]: 1, // ruling i, over the block
-  }, 'each file\'s quotes of him, counted — fifteen in three of the twenty: a quote that stood and no longer opens on his words leaves its file\'s count, and fails here');
+  }, 'each file\'s quotes of him, counted — fifteen in three of the twenty-one: a quote that stood and no longer opens on his words leaves its file\'s count, and fails here');
 });
