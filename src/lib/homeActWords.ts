@@ -61,7 +61,7 @@
  *     word as it stood from HOME-FINISH-02 (2026-11-10) until this brief: "Want to build your own system or something
  *     customized for your business? From full setup and custom development to integrations, ongoing maintenance, and
  *     bookkeeping, Temple Stuart offers hands-on services tailored to your needs." The section that draws the line is
- *     src/components/landing/ServicesSection.tsx now (Landing.tsx mounts it), and the pictures there show the rest.
+ *     src/components/landing/ServicesSection.tsx now (Landing.tsx mounts it), and the pictures there show the rest — in its whole view, on /professional-services (its own page since HOME-PAGES-01, 2026-11-14), and there alone since HOME-TRIM-03 (2026-11-15): the home page draws its short view, which draws none.
  *
  * PURE, NO DIRECTIVE: no import, no state, no clock — one string each (a pillar: its heading and its paragraphs), so a
  * client component, a server component and a test all read the same words.

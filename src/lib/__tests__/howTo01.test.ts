@@ -627,7 +627,7 @@ test('T6 Landing mounts the how-to once, with the door and the short view (HOME-
   // HOME-SERVICES-01 (Alex's brief, 2026-11-12): the services section is its own component (ServicesSection.tsx), mounted here — found by its
   // mount. Until then: const SERVICES_OPEN = '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'; //
   // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then
-  const SERVICES_OPEN = '<ServicesSection />';
+  const SERVICES_OPEN = '<ServicesSection view="short" />'; // HOME-TRIM-03 (2026-11-15), ruling a: Landing mounts the section with view="short" — '<ServicesSection />' until then
   for (const s of [HEADING_BOX, HOW_TO, SERVICES_OPEN]) assert.equal(count(landing, s), 1, `${s} once`);
   assert.equal(count(landing, '<HowToSection'), 1);
   assert.equal(count(landing, 'PlansSection'), 0, 'the plans section is neither imported nor mounted here — /pricing keeps it');

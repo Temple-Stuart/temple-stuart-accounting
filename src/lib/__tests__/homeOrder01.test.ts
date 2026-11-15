@@ -89,7 +89,7 @@ const MOUNTS: ReadonlyArray<readonly [string, string]> = [
   // HOME-SERVICES-01 (2026-11-12): DONE-FOR-YOU is the Professional Services section, its own component (ServicesSection.tsx), mounted here.
   // Until then this entry was ['DONE-FOR-YOU', '<section id={SERVICES_ANCHOR} className="w-full border-b border-border bg-bg-terminal">'] —
   // HOME-FINISH-02 (2026-11-10): the section carries its anchor — '<section className="w-full border-b border-border bg-bg-terminal">' until then.
-  ['DONE-FOR-YOU', '<ServicesSection />'],
+  ['DONE-FOR-YOU', '<ServicesSection view="short" />'], // HOME-TRIM-03 (2026-11-15), ruling a: Landing mounts the section with view="short" — '<ServicesSection />' until then
   ['the travel block', TRAVEL_OPEN],
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00 · 19:03): the purple band is gone — the experiences are the booking box's Events panel, inside the travel
   // block. Until then this entry was ['the experiences', '<ExperiencesSection today={today} />'], a block of its own between the travel block and the strip.

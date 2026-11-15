@@ -271,7 +271,7 @@ test('T3 the schema\'s need comment lists the seven words, \'close\' legacy, and
  * the section's label reads PROFESSIONAL SERVICES — 'DONE-FOR-YOU\n' until then. Found with the end of its own <p>: the card's chip said the same
  * words until HOME-BRIEF-04 (2026-11-10) took the chip out).
  * HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila; the board approved on the design canvas at 15:41): the section is its own component —
- * src/components/landing/ServicesSection.tsx, which Landing.tsx mounts — drawn as design-refs/home-services-01/Section-Reference.html draws it, the
+ * src/components/landing/ServicesSection.tsx, which Landing.tsx mounts — drawn as design-refs/home-services-01/Section-Reference.html draws it (its whole view, on /professional-services; the home page's mount draws its short view since HOME-TRIM-03, 2026-11-15, as design-refs/home-trim-03 draws it — "which Landing.tsx mounts — drawn as" said the home page's until then), the
  * reference's classes behind the house prefix; the panel is found there, from the pillar's h2 in the reference's class and id. Until then, of
  * Landing.tsx: PILLAR_HEAD = '<h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">{BUILD_PILLAR.heading}</h2>'.
  * These T4 tests hold what SERVICES-01 ruled of the doors; homeServices01.test.ts holds the section to the reference, token for token.
@@ -299,7 +299,7 @@ test('T4 the section maps SERVICES once, in the panel\'s tile group; each door a
   // HOME-SERVICES-01 (2026-11-12): the section reads the doors and their words from the one module, and Landing.tsx reads none of it. Until
   // then: assert.match(landing, /import \{\n {2}PROPOSAL_FORM_PATH, SERVICES,\n\} from '@\/lib\/proposalNeeds';/).
   assert.doesNotMatch(landing, /from '@\/lib\/proposalNeeds'/, 'Landing.tsx imports nothing of the doors');
-  assert.match(section, /^import \{\n {2}NEED_QUESTION, PROPOSAL_CTA, PROPOSAL_STEPS, SCOPED_BY_PROPOSAL, SERVICES, SERVICE_NEEDS,\n {2}formAsks, proposalFormHref, serviceDoor, servicePictureSrc, type ServiceNeed,\n\} from '@\/lib\/proposalNeeds';$/m, 'the section reads the doors from the one module');
+  assert.match(section, /^import \{\n {2}NEED_QUESTION, PROPOSAL_CTA, PROPOSAL_STEPS, SCOPED_BY_PROPOSAL, SEE_HOW_A_PROPOSAL_WORKS, SERVICES, SERVICE_NEEDS,\n {2}formAsks, proposalFormHref, serviceDoor, servicePictureSrc, type ServiceNeed,\n\} from '@\/lib\/proposalNeeds';$/m, 'the section reads the doors from the one module — and, since HOME-TRIM-03 (2026-11-15, ruling d), the short view\'s link words: SEE_HOW_A_PROPOSAL_WORKS joined the block\'s first line, after SCOPED_BY_PROPOSAL; the block held six names on its first line and five on its second until then');
   // HOME-SERVICES-01 (2026-11-12): mapped in the section, and nowhere in Landing.tsx. Until then: assert.equal((landing.match(/SERVICES\.map\(/g)
   // ?? []).length, 1, 'SERVICES mapped once').
   assert.equal((section.match(/SERVICES\.map\(/g) ?? []).length, 1, 'SERVICES mapped once — the tiles');
@@ -312,9 +312,9 @@ test('T4 the section maps SERVICES once, in the panel\'s tile group; each door a
   // hover:bg-brand-purple-wash" data-done-for-you=\{need\}>\n {20}<div className="text-sm font-medium">\{title\}<\/div>\n {20}<p className="mt-1
   // text-xs text-text-muted">\{line\}<\/p>\n {18}<\/Link>\n {16}\)\)\}\n {14}<\/div>/); the white card ('<div className="mt-4 rounded-lg border
   // border-border bg-white p-5">') before SERVICES.map(; one grid. Every row as tall as the tallest is the port's rule now.
-  assert.match(panel, /<div className="ts-ps-tiles" role="group" aria-labelledby="ps-question">\n {12}\{SERVICES\.map\(\(\{ need, title, kind \}\) => \(\n {14}<button key=\{need\} className="ts-ps-tile" type="button" aria-pressed=\{need === picked\} data-done-for-you=\{need\} onClick=\{\(\) => onPick\(need\)\}>\n {16}<TileIcon need=\{need\} \/><span className="ts-ps-tile__words"><span className="ts-ps-tile__title">\{title\}<\/span><span className="ts-ps-tile__kind">\{kind\}<\/span><\/span>\n {14}<\/button>\n {12}\)\)\}\n {10}<\/div>/, 'the group the question labels; each door a tile that picks it and says so; data-done-for-you on the tile');
+  assert.match(panel, /<div className="ts-ps-tiles" role="group" aria-labelledby="ps-question">\n {8}\{SERVICES\.map\(\(\{ need, title, kind \}\) => \(\n {10}<button key=\{need\} className="ts-ps-tile" type="button" aria-pressed=\{need === picked\} data-done-for-you=\{need\} onClick=\{\(\) => onPick\(need\)\}>\n {12}<TileIcon need=\{need\} \/><span className="ts-ps-tile__words"><span className="ts-ps-tile__title">\{title\}<\/span><span className="ts-ps-tile__kind">\{kind\}<\/span><\/span>\n {10}<\/button>\n {8}\)\)\}\n {6}<\/div>/, 'the group the question labels; each door a tile that picks it and says so; data-done-for-you on the tile — in Tiles, written once for both views (HOME-TRIM-03, 2026-11-15, ruling a: at 12, 14 and 16 spaces inside ServicesView until then)');
   const box = panel.indexOf('<div className="ts-ps-panel">');
-  assert.ok(box > -1 && box < panel.indexOf('SERVICES.map('), 'the tiles inside the panel');
+  assert.ok(box > -1 && panel.slice(box).startsWith('<div className="ts-ps-panel">\n          <Tiles picked={picked} onPick={onPick} />') && section.split('<div className="ts-ps-panel">\n          <Tiles picked={picked} onPick={onPick} />').length - 1 === 2, 'the tiles inside the panel — each view\'s panel opens on Tiles (HOME-TRIM-03, 2026-11-15, ruling a: box < panel.indexOf(\'SERVICES.map(\') until then)');
   assert.equal((panel.match(/className="ts-ps-tiles"/g) ?? []).length, 1, 'one tile group');
   assert.match(code('src/app/globals.css'), /\n\.ts-ps-tiles \{[^}]*grid-auto-rows: 1fr;/, 'every row as tall as the tallest — the port\'s rule');
 });
@@ -355,7 +355,7 @@ test('T4 the pillar\'s heading and its one line stand over the panel (HOME-SERVI
   // now."): the heading → the one line → the panel, nothing between, in the reference's classes. Until then: assert.ok(panel.startsWith(
   // `${PILLAR_HEAD}\n          {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="mt-3 max-w-3xl text-base text-text-secondary">{words}</p>)}\n
   //           <div className="mt-4 rounded-lg border border-border bg-white p-5">`), 'the heading → the paragraph → the card, nothing between').
-  assert.ok(panel.startsWith(`${PILLAR_HEAD}\n        {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="ts-ps__lede">{words}</p>)}\n\n        <div className="ts-ps-panel">`), 'the heading → the line → the panel, nothing between');
+  assert.ok(panel.startsWith(`${PILLAR_HEAD}\n      {BUILD_PILLAR.paragraphs.map((words) => <p key={words} className="ts-ps__lede">{words}</p>)}\n    </>`) && section.split('<SectionName />\n\n        <div className="ts-ps-panel">').length - 1 === 2, 'the heading → the line, nothing between, in SectionName; and in each view SectionName → the panel, nothing between (HOME-TRIM-03, 2026-11-15, ruling a: the view typed the heading, the line and the panel box in a row until then)');
   // PILLAR-NAMES-01 (Alex, 2026-11-11: "Financial Software | Professional Services | Travel Marketplace — these will replace Plan your Escape /
   // Build your Income / Explore the World"): the second pillar's name, and no full stop — 'Build Your Income.' until then.
   assert.equal(BUILD_PILLAR.heading, 'Professional Services');
@@ -374,7 +374,7 @@ test('T4 the pillar\'s heading and its one line stand over the panel (HOME-SERVI
   // bg-bg-terminal">\n        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">', a comment between it and the heading.
   const sectionOpen = '<section id={SERVICES_ANCHOR} className="ts-ps" aria-labelledby="ps-title">\n      <div className="ts-ps__inner">';
   assert.equal(section.split(sectionOpen).length - 1, 1, 'the section, its id, its label and its inner box');
-  assert.match(section.slice(section.indexOf(sectionOpen) + sectionOpen.length, head), ONLY_COMMENTS, 'the heading is the first thing in the section — a comment between, nothing else');
+  const nameAt = section.indexOf('<SectionName />', section.indexOf(sectionOpen)); assert.ok(nameAt > section.indexOf(sectionOpen), 'SectionName, in the whole view'); assert.match(section.slice(section.indexOf(sectionOpen) + sectionOpen.length, nameAt), ONLY_COMMENTS, 'the heading is the first thing in the section — a comment between, nothing else (HOME-TRIM-03, 2026-11-15: up to SectionName, which draws it — up to the h2 until then, which stands above the views now, so the old slice would read nothing)');
   // HOME-BRIEF-04 (Alex, 2026-11-10 19:00): the small chip inside the card repeated the label's words — it went with its span. Until then this
   // line held 'the chip, untouched': <span className="rounded border border-border px-2 py-0.5 font-mono text-xs … text-text-secondary">PROFESSIONAL SERVICES</span>.
   assert.doesNotMatch(panel, /<span className="rounded border border-border px-2 py-0\.5/, 'the chip is gone');
@@ -386,17 +386,17 @@ test('T4 the pillar\'s heading and its one line stand over the panel (HOME-SERVI
   // bare): assert.match(panel, /<div className="mt-4 flex flex-wrap items-center gap-4">\n\s*<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*
   // className=\{PRIMARY_CTA\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>\n\s*<span className="ml-auto font-mono text-xs italic
   // text-text-faint">Scoped by proposal<\/span>/); one href={PROPOSAL_FORM_PATH}; two Links — the door template and the button.
-  assert.match(panel, /<div className="ts-ps-cta-row">\n {16}<Link className="ts-ps-cta" href=\{proposalFormHref\(picked\)\}>\{PROPOSAL_CTA\}<\/Link>\n {16}<span className="ts-ps-note">\{SCOPED_BY_PROPOSAL\}<\/span>\n {14}<\/div>/, 'the gold link to the form with the pick, the note beside it — both words from their leaf');
+  assert.match(panel, /<Link className="ts-ps-cta" href=\{proposalFormHref\(picked\)\}>\{PROPOSAL_CTA\}<\/Link>\n {6}<span className="ts-ps-note">\{SCOPED_BY_PROPOSAL\}<\/span>[\s\S]*<div className="ts-ps-cta-row">\n {16}<GoldLink picked=\{picked\} \/>\n {14}<\/div>/, 'the gold link to the form with the pick, the note beside it — both words from their leaf; in GoldLink, written once, which the whole view\'s row holds (HOME-TRIM-03, 2026-11-15, ruling a: the row held the two inline until then)');
   assert.deepEqual([PROPOSAL_CTA, SCOPED_BY_PROPOSAL], ['Send a project proposal →', 'Scoped by proposal'], 'the two words, moved unchanged');
   assert.equal((panel.match(/\bhref=/g) ?? []).length, 1, 'one link — to the form');
-  assert.equal((panel.match(/<Link\b/g) ?? []).length, 1, 'the gold link — the tiles are buttons; nothing else links');
+  assert.equal((panel.match(/<Link\b/g) ?? []).length, 1, 'the gold link — the tiles are buttons; nothing else links'); const shortView = section.slice(section.indexOf('export function ServicesShortView('), section.indexOf('\nconst VIEWS = ')); assert.deepEqual(shortView.match(/<Link\b[^>]*>/g), ['<Link className="ts-ps-how" href={PROFESSIONAL_SERVICES_PATH}>'], 'and the short view links once more, to the section\'s own page (HOME-TRIM-03, 2026-11-15, ruling d) — the panel, from the heading to the first </section>, is the shared parts and the whole view, read above');
   assert.equal((panel.match(/<button\b/g) ?? []).length, 1, 'one tile template');
   assert.doesNotMatch(panel, /PRIMARY_CTA|href=\{PROPOSAL_FORM_PATH\}/, 'no purple button, no bare link to the form');
   // the question, then the group it labels — nothing between. HOME-SERVICES-01 (2026-11-12). Until then (HOME-BRIEF-04: 'between the chip and the
   // doors' until the chip went): CARD_INNER = '<div className="mt-4 rounded-lg border border-border bg-white p-5">\n            <div className="mt-4">',
   // and nothing but a comment between it and the doors' grid.
-  const PANEL_OPEN = '<div className="ts-ps-panel">\n          <h3 className="ts-ps-panel__question" id="ps-question">{NEED_QUESTION}</h3>\n          <div className="ts-ps-tiles" role="group" aria-labelledby="ps-question">';
-  assert.equal(panel.split(PANEL_OPEN).length - 1, 1, 'the question, then the group it labels — nothing between');
+  const PANEL_OPEN = '<>\n      <h3 className="ts-ps-panel__question" id="ps-question">{NEED_QUESTION}</h3>\n      <div className="ts-ps-tiles" role="group" aria-labelledby="ps-question">'; // HOME-TRIM-03 (2026-11-15, ruling a): Tiles' own opening — the panel box, then these, at 10 spaces, until then
+  assert.equal(panel.split(PANEL_OPEN).length - 1, 1, 'the question, then the group it labels — nothing between (in Tiles, written once)');
   for (const src of [landing, section]) assert.doesNotMatch(src, /WORK WITH ME/);
 });
 

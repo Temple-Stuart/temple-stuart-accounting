@@ -1,11 +1,11 @@
 /**
  * HOME-SERVICES-01 (Alex's brief, 2026-11-12 15:16 Manila; the board approved on the design canvas at 15:41) — THE PROFESSIONAL
  * SERVICES SECTION, AS DRAWN: the pillar's name and one line, six service tiles (one always picked), the picked door's picture and
- * words, how a proposal goes in three steps, the gold button to the form with the pick.
+ * words, how a proposal goes in three steps, the gold button to the form with the pick — on the home page until HOME-TRIM-03 (2026-11-15), which draws the section's short view there (design-refs/home-trim-03, held by homeTrim03.test.ts); this file holds the whole view, which stands on /professional-services (its own page since HOME-PAGES-01, 2026-11-14) and there alone since.
  *
  * The spec is a file: design-refs/home-services-01/Section-Reference.html ("Every value in its stylesheet is the design, and its
  * markup is the page at rest"), with its README beside it and the six pictures in public/brand/services/. The section is
- * src/components/landing/ServicesSection.tsx, which Landing.tsx mounts; its words are src/lib/proposalNeeds.ts's and
+ * src/components/landing/ServicesSection.tsx, which Landing.tsx mounts (its short view since HOME-TRIM-03, 2026-11-15; its whole view on /professional-services); its words are src/lib/proposalNeeds.ts's and
  * src/lib/homeActWords.ts's; its stylesheet is the reference's own, ported to src/app/globals.css under the house prefix. The form the
  * reference draws in place is HOME-SERVICES-02's, a later PR: nothing here builds it.
  *
@@ -14,13 +14,13 @@
  *       each the reference's value behind the house prefix in globals.css :root; the six new ones declared once each as --ts-ps-*,
  *       their comments the README's "Used for", behind tailwind.config.ts's `ps` family and in DESIGN.md's table; the reference's
  *       :root holds those twenty-seven and no other;
- *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the four differences
- *       named there; no hex and no rgb value typed; every class behind the prefix; every variable it reads declared and every new
+ *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the five differences
+ *       named there (the fifth the home page's short view, HOME-TRIM-03, 2026-11-15 — "the four" until then); no hex and no rgb value typed; every class behind the prefix; every variable it reads declared and every new
  *       token read; it stands under the chip strip's rules and above the Financial Software section's; nothing else in the file
  *       reaches the section — not by its classes, its id, the state it is styled by or any data attribute it carries;
- *   T4  the page at rest — the section's render is the reference's markup, token for token (classes behind the house prefix,
+ *   T4  the page at rest — the section's render (its whole view; the home page's at rest until HOME-TRIM-03, 2026-11-15) is the reference's markup, token for token (classes behind the house prefix,
  *       attributes in any order), but for the four differences this PR is: the tiles' hook (ruling h), the pictures' path in the
- *       app, the gold button a link to the form with the pick, and no form; Landing.tsx mounts it once;
+ *       app, the gold button a link to the form with the pick, and no form; Landing.tsx mounts it once (handing it view="short" since HOME-TRIM-03, 2026-11-15 — the short view's markup is homeTrim03.test.ts's);
  *   T5  each of the six doors — each render is the reference's markup with exactly the edits its own script makes for that pick,
  *       and no other: which tile is pressed, which picture shows, the title and line, step 1's chip, step 2's list — and the link;
  *   T6  the words — every word drawn is its leaf's, in order; the steps' first two are FORM_INTRO's halves and the third the form's
@@ -138,12 +138,12 @@ function rootOf(css: string): Map<string, string> {
   return map;
 }
 /**
- * THE FOUR DIFFERENCES the port names (globals.css, its header), applied to the reference's declarations:
+ * THE FIVE DIFFERENCES the port names (globals.css, its header — "THE FOUR" until HOME-TRIM-03, 2026-11-15); four applied here to the reference's declarations:
  *   1. the colours are tokens — the reference's :root is dropped here, and every custom property it reads gains the house prefix;
  *   2. the fonts are the site's — 'Inter' and 'IBM Plex Mono' are --font-sans and --font-mono;
  *   3. the reference page's own ground (body) is not ported;
  *   4. the form is not ported here — section 4 whole, and the four rules of sections 5 and 6 that name only the form's elements.
- * Every class gains the house prefix: .ps → .ts-ps.
+ * Every class gains the house prefix: .ps → .ts-ps. The fifth — the home page's short view, design-refs/home-trim-03's second stylesheet — is the port's last twenty-eight declarations, typed as FIFTH at the foot of this file, and T3 holds them after these.
  */
 const FORM_ONLY_RULES = ['.ps-fields', '.ps-close:hover, .ps-link__remove:hover, .ps-add:hover', '.ps-pick[aria-pressed="false"]:hover', '.ps-more:hover'];
 function referencePorted(): string[] {
@@ -310,11 +310,11 @@ function asBuilt(html: string, need: string): string {
 }
 const noop = (): void => {};
 const render = (picked: ServiceNeed): string => renderToStaticMarkup(React.createElement(ServicesView, { picked, onPick: noop }));
-/** Every element in a tree, depth first. Components are not called: the tiles and the link are drawn by the view itself. */
+/** Every element in a tree, depth first — its function components drawn too: HOME-TRIM-03 (2026-11-15, ruling a) writes the tiles once, as Tiles, for both views ("Components are not called: the tiles and the link are drawn by the view itself." until then). */
 function elementsOf(node: React.ReactNode): React.ReactElement<Record<string, unknown>>[] {
   if (Array.isArray(node)) return node.flatMap((child) => elementsOf(child as React.ReactNode));
   if (!React.isValidElement<Record<string, unknown>>(node)) return [];
-  return [node, ...elementsOf(node.props.children as React.ReactNode)];
+  return typeof node.type === 'function' ? elementsOf((node.type as (props: Record<string, unknown>) => React.ReactNode)(node.props)) : [node, ...elementsOf(node.props.children as React.ReactNode)];
 }
 const renderForm = (need: ServiceNeed): string => renderToStaticMarkup(React.createElement(WorkWithMeForm, { initialNeed: need }));
 const BANNED: Array<[RegExp, string]> = [
@@ -380,9 +380,9 @@ test('T2 the tokens, named and valued as the README\'s three tables: ten already
 
 // ── T3 · THE STYLESHEET ──────────────────────────────────────────────────────
 
-test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the four named differences; no hex and no rgb value typed; every class behind the prefix; every variable it reads declared and every new token read; it stands between the chip strip and the Financial Software section; nothing else reaches the section', () => {
+test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the five named differences (the fifth the home page\'s short view, HOME-TRIM-03, 2026-11-15 — "the four" until then); no hex and no rgb value typed; every class behind the prefix; every variable it reads declared and every new token read; it stands between the chip strip and the Financial Software section; nothing else reaches the section', () => {
   const port = declarations(portCss());
-  assert.deepEqual(port, referencePorted(), 'the port is the reference\'s stylesheet, as the four differences leave it');
+  assert.deepEqual(port, [...referencePorted(), ...FIFTH], 'the port is the reference\'s stylesheet, as the four differences leave it — then its last twenty-eight, the fifth difference, the short view\'s (FIFTH, at the foot of this file; HOME-TRIM-03, 2026-11-15, ruling e: referencePorted() alone until then)');
   assert.ok(port.length > 100, `the port was read (${port.length} declarations)`);
   const text = portCss();
   assert.doesNotMatch(text, /#[0-9a-fA-F]{3,8}\b/, 'no hex typed');
@@ -426,7 +426,7 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   // Until then the exception named the Financial Software section's and the top bar's menu alone: /^\.ts-(?:fs|menu)…/.
   const besideOwn = (sel: string): boolean => sel.split(',').every((one) => /^\.ts-(?:fs|menu|tm)(?:[-_][\w-]*)?(?![\w-])/.test(one.trim()));
   const landing = code(LANDING);
-  assert.ok(landing.includes('\n  return (\n    <div className="min-h-screen bg-bg-terminal text-text-primary">\n') && landing.includes('\n      <ServicesSection />\n'), 'mounted directly under the page\'s root, which wears no ts- class');
+  assert.ok(landing.includes('\n  return (\n    <div className="min-h-screen bg-bg-terminal text-text-primary">\n') && landing.includes('\n      <ServicesSection view="short" />\n'), 'mounted directly under the page\'s root, which wears no ts- class — handed the short view since HOME-TRIM-03 (2026-11-15, ruling a: \'<ServicesSection />\' until then)');
   const selectorsOutside = [...outside.matchAll(/([^{};]+)\{/g)].map((m) => flat(m[1]));
   assert.ok(selectorsOutside.length > 50, `the rules outside the port were read (${selectorsOutside.length})`);
   for (const sel of selectorsOutside) {
@@ -443,7 +443,7 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
 
 // ── T4 · THE PAGE AT REST ────────────────────────────────────────────────────
 
-test('T4 the page at rest is the reference\'s markup, token for token, but for the four differences this PR is — the tiles\' hook, the pictures\' path, the gold link with the pick, no form; Landing.tsx mounts it once', () => {
+test('T4 the page at rest is the reference\'s markup, token for token, but for the four differences this PR is — the tiles\' hook, the pictures\' path, the gold link with the pick, no form; Landing.tsx mounts it once — its whole view: the home page\'s at rest until HOME-TRIM-03 (2026-11-15), which mounts the short view there', () => {
   const first = SERVICES[0].need;
   assert.equal(paintedReference(first), referenceSection(), 'the reference\'s markup is the page at rest: its script paints the first door as drawn');
   const app = tokensOf(render(first), false);
@@ -457,9 +457,9 @@ test('T4 the page at rest is the reference\'s markup, token for token, but for t
   assert.equal(count(html, '<a '), 1, 'one link');
   assert.equal(count(html, `href="${PROPOSAL_FORM_PATH}?need=${first}"`), 1, 'the gold link: the form with the first door');
   assert.doesNotMatch(html, /ps-form|aria-controls|<form|<input|<textarea/, 'no form — HOME-SERVICES-02\'s');
-  // the page mounts it once, imported once
+  // the page mounts it once, imported once — its short view since HOME-TRIM-03 (2026-11-15); the render above is the whole view's
   const landing = code(LANDING);
-  assert.equal(count(landing, '<ServicesSection />'), 1, 'mounted once');
+  assert.equal(count(landing, '<ServicesSection view="short" />'), 1, 'mounted once — handed the short view (HOME-TRIM-03, 2026-11-15, ruling a: \'<ServicesSection />\' until then)');
   assert.equal(landing.split('\n').filter((l) => l === "import ServicesSection from './ServicesSection';").length, 1, 'imported once, on a line of its own');
 });
 
@@ -555,11 +555,11 @@ test('T7 step 2 follows the form\'s own rule — for each door the form, rendere
 
 test('T8 the picked door is React state — the first door at first, nothing stored, no URL, no cookie; each tile picks its own door', () => {
   const section = code(SECTION);
-  assert.match(section, /export default function ServicesSection\(\) \{\n {2}const \[picked, setPicked\] = useState<ServiceNeed>\(SERVICES\[0\]\.need\);\n {2}return <ServicesView picked=\{picked\} onPick=\{setPicked\} \/>;\n\}/, 'one value in React state: the picked door, the first at first');
+  assert.match(section, /export default function ServicesSection\(\{ view \}: \{ view: 'short' \| 'whole' \}\) \{\n {2}const \[picked, setPicked\] = useState<ServiceNeed>\(SERVICES\[0\]\.need\);\n {2}const View = VIEWS\[view\];\n {2}return <View picked=\{picked\} onPick=\{setPicked\} \/>;\n\}/, 'one value in React state: the picked door, the first at first — handed to the view the caller names (HOME-TRIM-03, 2026-11-15, rulings a and c: ServicesSection() and <ServicesView …/> until then)');
   assert.equal((section.match(/\buseState\b/g) ?? []).length, 2, 'one piece of state — its import and its one call');
   assert.ok(section.includes("import { useState, type ReactNode } from 'react';"), 'React\'s own state, and nothing else of React\'s but a type');
   assert.doesNotMatch(section, /localStorage|sessionStorage|document\.cookie|cookies\(|useSearchParams|useRouter|usePathname|window\.|history\.|\blocation\b|useEffect|useId/, 'no storage, no URL, no cookie, no effect, no generated id (ruling a)');
-  assert.equal(renderToStaticMarkup(React.createElement(ServicesSection)), render(SERVICES[0].need), 'a fresh page shows the first door');
+  assert.equal(renderToStaticMarkup(React.createElement(ServicesSection, { view: 'whole' })), render(SERVICES[0].need), 'a fresh page shows the first door — handed the whole view, as /professional-services hands it (HOME-TRIM-03, 2026-11-15, ruling a: no view until then)');
   // each tile, pressed, picks its own door — and the view draws the door it is handed
   const picks: string[] = [];
   const props: ServicesViewProps = { picked: 'bookkeeping', onPick: (need) => { picks.push(need); } };
@@ -669,3 +669,44 @@ test('T10 each ruling is quoted, dated, where it is built; Alex\'s words exact w
   assert.deepEqual([quoted[SECTION].at1541.length, quoted[VOCAB].at1541.length], [1, 1], 'and the 15:41 words, in the section and beside the words');
   assert.ok(quoted[PILLARS].at1516.length === 1 && quoted[VOCAB].at1516.length === 1, 'the leaves quote the 15:16 words once each');
 });
+
+// ── THE FIFTH DIFFERENCE ─────────────────────────────────────────────────────
+
+// 5. ADDED: the home page's short view — HOME-TRIM-03 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling e: "THE PORT. The
+//    block's rules name the section's classes, so they join its port: homeServices01:419 holds that no rule outside the port names one. They
+//    stand after the port's last rule, in the reference's order, and homeServices01 T3 names them as its fifth difference, declaration by
+//    declaration. The family is var(--font-mono), as the port's other mono rules have it. The rest of the port does not change." Typed here,
+//    as homePlans04 types its seventh (SHORT_VIEW): design-refs/home-trim-03's second stylesheet behind the house prefix, six rules and
+//    twenty-eight declarations, in its order, after the reference's last declaration; its family the site's mono. homeTrim03.test.ts reads them
+//    from that file and holds the same. They stand at the foot of this file, so that no line of it moves: :419 is the line ruling e cites.
+//    Until HOME-TRIM-03, T3 held the port to referencePorted() alone.
+const FIFTH: readonly string[] = [
+  ' | .ts-ps--short .ts-ps__inner | padding-top: clamp(44px, 2.8vw + 32.8px, 72px)',
+  ' | .ts-ps--short .ts-ps__inner | padding-bottom: clamp(44px, 2vw + 36px, 64px)',
+  ' | .ts-ps-brief | display: flex',
+  ' | .ts-ps-brief | flex-wrap: wrap',
+  ' | .ts-ps-brief | align-items: center',
+  ' | .ts-ps-brief | justify-content: space-between',
+  ' | .ts-ps-brief | gap: 18px 40px',
+  ' | .ts-ps-brief | margin-top: clamp(18px, 1.8vw, 24px)',
+  ' | .ts-ps-brief | padding-top: clamp(18px, 1.8vw, 24px)',
+  ' | .ts-ps-brief | border-top: 1px solid var(--ts-fs-rule)',
+  ' | .ts-ps-brief__text | flex: 1 1 420px',
+  ' | .ts-ps-brief__text | min-width: 0',
+  ' | .ts-ps-brief__go | display: flex',
+  ' | .ts-ps-brief__go | flex-wrap: wrap',
+  ' | .ts-ps-brief__go | align-items: center',
+  ' | .ts-ps-brief__go | gap: 12px 18px',
+  ' | .ts-ps-how | display: inline-flex',
+  ' | .ts-ps-how | align-items: center',
+  ' | .ts-ps-how | min-height: 44px',
+  ' | .ts-ps-how | margin-top: 16px',
+  ' | .ts-ps-how | font-family: var(--font-mono)',
+  ' | .ts-ps-how | font-size: 13px',
+  ' | .ts-ps-how | line-height: 1.3',
+  ' | .ts-ps-how | font-weight: 500',
+  ' | .ts-ps-how | letter-spacing: 0.04em',
+  ' | .ts-ps-how | color: var(--ts-hero-violet-3)',
+  ' | .ts-ps-how | text-decoration: none',
+  '@media (hover: hover) | .ts-ps-how:hover | color: var(--ts-hero-violet-2)',
+];
