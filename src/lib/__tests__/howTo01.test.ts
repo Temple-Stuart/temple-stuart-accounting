@@ -391,7 +391,8 @@ test('T4 (HOME-PLANS-04) the section, rendered in its four states: the pillar\'s
   for (const choice of HOW_TO_CHOICES) {
     const html = render(choice);
     const w = words(choice);
-    // the act: its id (the checkout's cancel link, /modules and the footer's first link land on it), its label, its class
+    // the act: its id (the checkout's cancel link, /modules and the top bar's first link land on it — "the footer's first link" too, until
+    // HOME-PAGES-01, 2026-11-14: it opens the section's own page now), its label, its class
     assert.ok(html.startsWith(ACT_TAG), `${w}: the act's own tag — aria-label "How to" until HOME-PLANS-01`);
     assert.equal(count(html, 'id="modules"'), 1, `${w}: the anchor, once`);
     // the pillar's name, the one line where his paragraphs stood, then the map
@@ -515,12 +516,20 @@ test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no
   }
   // the one link: the leaf's path and words, the reference's class
   assert.equal(count(section, '<a className="ts-fs__compare" href={COMPARE_PLANS_PATH} data-compare-plans>{COMPARE_PLANS_WORDS}</a>'), 1, 'the one link: the leaf\'s path, the leaf\'s words');
-  assert.equal(count(section, '<a '), 1, 'and no other link');
+  // HOME-PAGES-01 (Alex's brief, 2026-11-14, ruling d: "THE JOIN BUTTON on /financial-software is /pricing's door: a link to the front door (PlansSection.tsx: "The door is the caller's: /pricing hands a link, the home page a button that opens sign-up."). No second sign-up modal and no new auth code."): a second
+  // link is WRITTEN — the plan's door, drawn where the door handed in is a link (the section's own page, /financial-software). Until then this line
+  // held count(section, '<a ') === 1, 'and no other link'. For Landing's door, a function, every render above still draws the ONE link.
+  assert.equal(count(section, '<a className="ts-fs-plan__cta" href={onJoin.href}>{plan.cta}</a>'), 1, 'the plan\'s door as a link: the button\'s own class, the door\'s href, the plan\'s own words');
+  assert.equal(count(section, '<a '), 2, 'and no third link');
   // the order: the name → the line → the map → the cards → the band → the link → the act closes
   const drawnClose = section.lastIndexOf('</section>');
   const order = ['<h2 className="ts-fs__title">', '<p className="ts-fs__lede">', '<div className="ts-fs-map">', '<div className="ts-fs-plans">', '<div className="ts-fs-plan ts-fs-plan--all"', '<a className="ts-fs__compare"'].map((s) => section.indexOf(s));
   assert.ok(order.every((at, i) => at > -1 && (i === 0 || at > order[i - 1])) && drawnClose > order[order.length - 1], 'the name → the line → the map → the cards → the band → the link');
-  assert.match(section, /export default function HowToSection\(\{ onRequireAuth \}: \{ onRequireAuth: \(\) => void \}\) \{/, 'Landing hands it the door');
+  // HOME-PAGES-01 (2026-11-14, ruling d): the parameter keeps its name and its TYPE widens — the door is Landing's function or, on the section's own
+  // page, a link. Until then: /export default function HowToSection\(\{ onRequireAuth \}: \{ onRequireAuth: \(\) => void \}\) \{/, 'Landing hands it
+  // the door'.
+  assert.match(section, /export default function HowToSection\(\{ onRequireAuth \}: \{ onRequireAuth: JoinDoor \}\) \{/, 'the caller hands it the door: Landing a function, the section\'s own page a link');
+  assert.equal(count(section, "export type JoinDoor = (() => void) | { readonly kind: 'link'; readonly href: string };"), 1, 'the door\'s two arms, declared in this file — nothing of the plans section is imported for it');
   assert.equal(count(section, 'onJoin={onRequireAuth}'), 1, 'and every plan\'s button gets that door');
   // STATE (ruling a): two booleans, both off at first — no other hook, nothing stored, no URL, no clock
   assert.equal(count(section, 'useState('), 2, 'two booleans in React state');

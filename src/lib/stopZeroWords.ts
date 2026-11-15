@@ -8,14 +8,14 @@
  * and signature — and its timeline, HOW I GOT HERE, with the first commit's day and the Stop 1 row derived from the trip
  * log; the three imports only the timeline used went with them. Those words are in git history.
  *
- * WHAT STAYS: STOP_ZERO_ANCHOR, the section's id (src/lib/homeAnchors.ts re-exports it; the footer's link lands on it).
+ * WHAT STAYS: STOP_ZERO_ANCHOR, the section's id (src/lib/homeAnchors.ts re-exports it; the footer's link landed on it until HOME-PAGES-01, 2026-11-14 — Alex's answer to the audit: "The footer's Stop 0 | Los Angeles goes to /about, with no fragment." — and no link lands on it now).
  * The three words at the foot of the events band — WHY EVENTS FIRST, its line and "Read my story ↓" (STOP0-01, K tag 7) —
  * went with that paragraph, the same day.
  *
  * PURE: no import, no clock, no locale call, no fetch, no React.
  */
 
-/** The section's anchor — src/lib/homeAnchors.ts re-exports it, and the footer's link lands on it. */
+/** The section's anchor — src/lib/homeAnchors.ts re-exports it. (HOME-PAGES-01, 2026-11-14: "and the footer's link lands on it" until then; the footer's Stop 0 opens /about, at the page's top, now.) */
 export const STOP_ZERO_ANCHOR = 'stop-0';
 
 /** Where, then when — the two lines under the heading. */

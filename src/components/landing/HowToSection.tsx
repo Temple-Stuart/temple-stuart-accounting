@@ -7,7 +7,9 @@
  * understand"; his approval of the board on the design canvas, 2026-11-12 14:30 Manila: "YES, OMG, GIVE ME THE PROMPT TO MAKE THIS
  * REAL!") — THE FINANCIAL SOFTWARE SECTION, AS DRAWN. The spec is a file, not this note: design-refs/home-plans-04/Section-Reference.html
  * ("Every value in its stylesheet is the design, and its markup is the page at rest"), with its README beside it. This section is
- * that file's markup, element for element, but for Alex's notes on the built page (below); its classes are the reference's own
+ * that file's markup, element for element, but for Alex's notes on the built page (below) — and, since HOME-PAGES-01
+ * (2026-11-14), but for each plan's door where the caller hands a link: an <a> in the button's own class where the reference
+ * draws a <button> (the section's own page; below). Its classes are the reference's own
  * with the house prefix (.fs-map → .ts-fs-map), and their rules are the reference's own, ported to src/app/globals.css
  * (src/lib/__tests__/homePlans04.test.ts holds both equal, but for the differences it names). No colour is typed in this file.
  * Top to bottom:
@@ -20,8 +22,9 @@
  *   4. the one link to /pricing — its words and path as they were, in the reference's look.
  * "What We Do" stays where it stands, in Landing.tsx, in the reference's box (.ts-fs-heading), and wears the act headings' type
  * since Alex's note on the built page (the eyebrow, .ts-fs-eyebrow, until then). The section keeps
- * id="modules", the anchor the checkout's cancel link, the /modules pages, the footer's first link and — since HERO-CREST-01,
- * 2026-11-11 — the top bar's first link land on.
+ * id="modules", the anchor the checkout's cancel link, the /modules pages and — since HERO-CREST-01, 2026-11-11 — the top
+ * bar's first link land on. (HOME-PAGES-01, 2026-11-14: "the footer's first link" stood in that list until then; it opens
+ * /financial-software now, this section's own page.)
  *
  * THE RULINGS, AS BUILT HERE (Alex's brief, 2026-11-12 14:07 Manila):
  *   a. "STATE. The section holds two booleans in React state: what you run. No storage, no URL, no cookie; a reload starts at
@@ -42,6 +45,16 @@
  *   build's law suite, g in src/app/globals.css.)
  * 'use client' STAYS, FOR THE STATE AND THE DOOR: the two switches are React state, and each plan's button calls the door Landing
  * hands in (onRequireAuth — the sign-up modal).
+ *
+ * HOME-PAGES-01 (Alex's brief, 2026-11-14, ruling d: "THE JOIN BUTTON on /financial-software is /pricing's door: a link to the
+ * front door (PlansSection.tsx: "The door is the caller's: /pricing hands a link, the home page a button that opens sign-up.").
+ * No second sign-up modal and no new auth code.") — THE DOOR MAY BE A LINK. The section has a page of its own now
+ * (src/app/financial-software/page.tsx), a server page, which cannot hand a function in. So the door is one of two things
+ * (JoinDoor, below): the function Landing hands in, drawn as the button it has always been; or a link, { kind: 'link', href } —
+ * PlanDoor's link arm (src/components/offer/PlansSection.tsx), retyped here because this file reads nothing of the plans
+ * section (ruling b, above) — drawn as a plain <a> in the button's own class, as the compare link under the cards is a plain
+ * <a>. The page hands /pricing's own door, { kind: 'link', href: '/' }. The link travels under the name onRequireAuth: the
+ * smallest change, and Landing.tsx's mount stands as typed. Each arm is drawn as what it is; neither stands in for the other.
  *
  * AFTER THE BUILD (Alex's notes on the built page, 2026-11-12: "then 13 of 25 tools is tacky, we dont need that to tell us, we
  * can just count..." · "while youre at it, remove that word alwasy from personal... looks tacky too"): the map draws no count —
@@ -103,8 +116,19 @@ function PlanHead({ plan }: { plan: MapPlan }) {
   );
 }
 
-/** A plan's three benefits, then its foot: how many tools it holds, its price slot's words, and its button — the door. */
-function PlanBody({ plan, onJoin }: { plan: MapPlan; onJoin: () => void }) {
+/**
+ * The door a plan's button opens (HOME-PAGES-01, 2026-11-14): the function Landing hands in — the sign-up modal — or a link, on
+ * the section's own page. The link arm is PlanDoor's (src/components/offer/PlansSection.tsx), retyped: this file imports
+ * nothing of the plans section.
+ */
+export type JoinDoor = (() => void) | { readonly kind: 'link'; readonly href: string };
+
+/**
+ * A plan's three benefits, then its foot: how many tools it holds, its price slot's words, and its button — the door: a button
+ * that calls it where the door is a function, a link to it where the door is a link (HOME-PAGES-01, 2026-11-14; a button
+ * always, until then).
+ */
+function PlanBody({ plan, onJoin }: { plan: MapPlan; onJoin: JoinDoor }) {
   return (
     <>
       <ul className="ts-fs-plan__points">
@@ -112,7 +136,9 @@ function PlanBody({ plan, onJoin }: { plan: MapPlan; onJoin: () => void }) {
       </ul>
       <div className="ts-fs-plan__foot">
         <p className="ts-fs-plan__meta"><span>{plan.count}</span><span className="ts-fs-plan__price">{plan.price}</span></p>
-        <button className="ts-fs-plan__cta" type="button" onClick={() => onJoin()}>{plan.cta}</button>
+        {typeof onJoin === 'function'
+          ? <button className="ts-fs-plan__cta" type="button" onClick={() => onJoin()}>{plan.cta}</button>
+          : <a className="ts-fs-plan__cta" href={onJoin.href}>{plan.cta}</a>}
       </div>
     </>
   );
@@ -125,8 +151,8 @@ export interface HowToViewProps {
   /** Each switch's press. */
   onBusiness: () => void;
   onTrade: () => void;
-  /** The door every plan's button opens — Landing's onRequireAuth (the sign-up modal). */
-  onJoin: () => void;
+  /** The door every plan's button opens — Landing's onRequireAuth (the sign-up modal), or a link on the section's own page. */
+  onJoin: JoinDoor;
 }
 
 /** THE PURE HALF: the whole section for one state of the two switches. It holds no state; the default export does. */
@@ -191,8 +217,11 @@ export function HowToView({ business, trade, onBusiness, onTrade, onJoin }: HowT
   );
 }
 
-/** Ruling a: what you run is two booleans in React state, and nothing else — a reload starts at Personal. */
-export default function HowToSection({ onRequireAuth }: { onRequireAuth: () => void }) {
+/**
+ * Ruling a: what you run is two booleans in React state, and nothing else — a reload starts at Personal. The door is the
+ * caller's (HOME-PAGES-01, 2026-11-14): Landing's function, or /financial-software's link.
+ */
+export default function HowToSection({ onRequireAuth }: { onRequireAuth: JoinDoor }) {
   const [business, setBusiness] = useState(false);
   const [trade, setTrade] = useState(false);
   return <HowToView business={business} trade={trade} onBusiness={() => setBusiness((on) => !on)} onTrade={() => setTrade((on) => !on)} onJoin={onRequireAuth} />;

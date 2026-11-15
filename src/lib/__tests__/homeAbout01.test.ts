@@ -4,7 +4,8 @@
  *
  * The spec is a file: design-refs/home-about-01/Section-Reference.html ("Every value in its stylesheet is the design, and its markup is
  * the page"), with its README beside it. The section is src/components/landing/StopZeroSection.tsx, which Landing.tsx mounts; its
- * words are src/lib/stopZeroWords.ts's (byte for byte, as they stood) and src/lib/homeActWords.ts's; its stylesheet is the reference's
+ * words are src/lib/stopZeroWords.ts's (byte for byte, as they stood — HOME-PAGES-01, 2026-11-14: its code still is; two notes in it were
+ * re-said, T5) and src/lib/homeActWords.ts's; its stylesheet is the reference's
  * own, ported to src/app/globals.css under the house prefix. What Alex approved is the letter, centred: the board's other layout ("Page
  * grid, left") is built only if he says "left", and the message that launched this build did not.
  *
@@ -21,7 +22,8 @@
  *      other class the section wears is ruled by the port;
  *   T5 the words — every word the section draws is a leaf's, in order: the heading; the stop and the place, the leaf's line split
  *      at its " | "; the dates; then each part's number (from his order), heading, paragraphs and quote — its two marks and its
- *      words; the reference draws the same words in the same order; the leaf is byte for byte as it stood;
+ *      words; the reference draws the same words in the same order; the leaf's code — every word of his — is as it stood, and the
+ *      whole file is held byte for byte at its HOME-PAGES-01 form ("the leaf is byte for byte as it stood" until then);
  *   T6 the helpers — placeParts and quoteParts split exactly, and refuse, by name (StopZeroShapeError), a string without their
  *      shape; partNumber counts from 01; the section draws only what they hand it;
  *   T7 the layout and the rulings — the letter, centred: no rule of the board's other layout is ported and nothing wears it; Alex's
@@ -335,13 +337,16 @@ test('T4 the section\'s render is the reference\'s section, token for token, but
   assert.ok(worn.length > 30, `the section's classes were read (${worn.length})`);
   for (const c of new Set(worn)) assert.ok(ruled.has(c), `.${c} is ruled by the port`);
   // the hooks stay: the anchor, the region's label, once each
-  assert.equal(count(html, `id="${STOP_ZERO_ANCHOR}"`), 1, 'id="stop-0" once — the footer\'s link lands on it');
+  // HOME-PAGES-01 (Alex's answer to the audit, 2026-11-14: "The footer's Stop 0 | Los Angeles goes to /about, with no fragment."): no link lands on
+  // the id now. It stays: "No scroll margin is added and the About Us port is not touched." Until then this line's message read 'id="stop-0" once —
+  // the footer's link lands on it'.
+  assert.equal(count(html, `id="${STOP_ZERO_ANCHOR}"`), 1, 'id="stop-0" once — the hook stays, though the footer\'s link opens /about at its top now and lands on no id');
   assert.equal(count(html, 'aria-label="About us"'), 1, 'the region\'s label');
 });
 
 // ── T5 · THE WORDS ───────────────────────────────────────────────────────────
 
-test('T5 every word the section draws is a leaf\'s, in order — the heading, the stop and the place, the dates, then each part\'s number, heading, paragraphs and quote; the reference draws the same; the leaf is byte for byte as it stood', () => {
+test('T5 every word the section draws is a leaf\'s, in order — the heading, the stop and the place, the dates, then each part\'s number, heading, paragraphs and quote; the reference draws the same; the leaf\'s words are as they stood, and the file is held byte for byte', () => {
   const html = render();
   assert.deepEqual(textsOf(html), DRAWN, 'the words drawn, in order');
   assert.deepEqual(textsOf(referenceSection(), true), DRAWN, 'the reference\'s words are the same, in the same order (the README: "Every word on the page, in order, is the leaves\' own")');
@@ -353,9 +358,15 @@ test('T5 every word the section draws is a leaf\'s, in order — the heading, th
   }
   // the numbers come from his order and are aria-hidden: the heading under each says which part it is
   assert.deepEqual([...html.matchAll(/<p class="ts-about-part__number" aria-hidden="true">(\d\d)<\/p><h3 /g)].map((m) => m[1]), ['01', '02', '03'], 'three numbers, aria-hidden, each directly over its part\'s heading');
-  // the leaf stays byte for byte — its sha256 at ed10acc, the main this was built from ("a change to these words is Alex's")
-  assert.equal(sha256(whole(WORDS)), '6b26ef4b9790280aa67bf55c94ff64a04eadae8736b8ab4bf1903dae8c62feb6', 'src/lib/stopZeroWords.ts is as it stood');
-  assert.equal(size(WORDS), 4874);
+  // the leaf stays byte for byte ("a change to these words is Alex's"). HOME-PAGES-01 (2026-11-14; Alex's answer to the audit: "The footer's Stop
+  // 0 | Los Angeles goes to /about, with no fragment."; and his yes of 2026-11-15 to the one question put to him before the push, whether to re-say them): two NOTES in it said the
+  // footer's link lands on #stop-0, which that answer made false, and both are re-said — so the file's digest and size moved, and the pin moves
+  // with them. Until then: sha256 '6b26ef4b9790280aa67bf55c94ff64a04eadae8736b8ab4bf1903dae8c62feb6' — "its sha256 at ed10acc, the main this was
+  // built from" — and 4874 bytes, 'src/lib/stopZeroWords.ts is as it stood'. HIS WORDS did not move: the leaf's code, its comments set aside and its
+  // whitespace collapsed, has the digest it had at ed10acc and at e7b26a9, held on the line below.
+  assert.equal(sha256(code(WORDS).replace(/\s+/g, ' ').trim()), 'a93588d7302bd48938f20e638666b8ac2de3372588b7c3c974bb88b653c4cb94', 'the leaf\'s code — every word of his — is as it stood');
+  assert.equal(sha256(whole(WORDS)), '0892996fd39edca9aa7db16d8985e60948fbdc4345bd76e1dc142a1a71c1ffb5', 'src/lib/stopZeroWords.ts, whole, as HOME-PAGES-01 left it: two notes re-said, nothing else');
+  assert.equal(size(WORDS), 5141);
 });
 
 // ── T6 · THE HELPERS ─────────────────────────────────────────────────────────
@@ -422,7 +433,8 @@ test('T7 the layout is the letter, centred, as approved — nothing of the board
   assert.ok(readme.includes('It is no longer italic: HOME-BRIEF-02 said "the dates in italics", and the PR says so.'), 'the README says so');
   assert.ok(prose(SECTION).includes('ONE PART OF HOME-BRIEF-02 REVERSES: it set "the dates in italics"'), 'and the section\'s note');
   assert.doesNotMatch(render(), /italic/, 'nothing drawn is italic');
-  // the words' leaf says why it is not touched, in the words the README quotes
+  // the words' leaf says why its WORDS are not touched, in the words the README quotes. (HOME-PAGES-01: two of its notes were re-said by Alex's yes
+  // of 2026-11-15 — T5; this line read "the words' leaf says why it is not touched" until then.)
   assert.ok(prose(WORDS).includes("Never reworded, trimmed or added to here: a change to these words is Alex's."), 'src/lib/stopZeroWords.ts\'s header');
   assert.ok(readme.includes("\"Never reworded, trimmed or added to here: a change to these words is Alex's.\""), 'as the README quotes it');
 });

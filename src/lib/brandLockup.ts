@@ -8,7 +8,7 @@
  * and the bar and the footer both read them here.
  *
  * PURE, NO DIRECTIVE. LandingHeader.tsx is 'use client', and LandingFooter.tsx is a server component under /pricing,
- * /how-it-works and /my-trip/[id]. An export of a 'use client' module reaches a server component as a client reference, not as
+ * /how-it-works and /my-trip/[id] (and, since HOME-PAGES-01, 2026-11-14, /financial-software, /professional-services and /about). An export of a 'use client' module reaches a server component as a client reference, not as
  * its string, so the footer never reads these from the bar — as it reads PIPELINE_PATH from pipelineWords.ts, never from the
  * deck's 'use client' file. The bar re-exports BAR_MARK_SRC, where its readers (heroCrest01) find it.
  * NOT THIS HOME'S: the day card's own BRAND_WORDS (src/components/workbench/operations/day/dayCard.ts) — the card's word, left

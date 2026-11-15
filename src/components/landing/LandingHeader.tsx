@@ -2,7 +2,7 @@
 
 /**
  * LandingHeader — THE GUEST'S TOP BAR, on every page that mounts it: the landing, /pricing, /how-it-works, the
- * /modules pages, a trip page and the signed-out cockpit tabs.
+ * /modules pages, a trip page and the signed-out cockpit tabs (and, since HOME-PAGES-01, 2026-11-14, /financial-software, /professional-services and /about).
  *
  * HERO-CREST-01 (Alex, design canvas, 2026-11-11) — ONE PILL, TWO FILLS. The bar is the reference's pill
  * (design-refs/hero-crest-01/Hero-Reference.html — "every value in its stylesheet is the design"): the gold crest
@@ -10,7 +10,7 @@
  * classes are the reference's own with the house prefix (.bar__pill → .ts-bar__pill …), and their rules are the
  * reference's own, ported to the foot of src/app/globals.css; no colour is typed in this file.
  *   · FILLED IS THE DEFAULT — the pill filled with the hero's violet, in the page's flow, on that page's own cream.
- *     Five mounts take it by passing nothing new.
+ *     Five mounts take it by passing nothing new (eight since HOME-PAGES-01, 2026-11-14: the three sections' own pages).
  *   · GLASS IS THE LANDING'S — `glass` lays the same pill over the hero (Landing.tsx), where it scrolls away with it.
  *   · THE THREE LINKS are the home page's three pillars: each wears its pillar's own name — the pillar's heading,
  *     src/lib/homeActWords.ts (PILLAR-NAMES-01, 2026-11-11) — and lands on that pillar's section by the section's own

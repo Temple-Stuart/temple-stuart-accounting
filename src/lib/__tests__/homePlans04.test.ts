@@ -25,8 +25,9 @@
  *       behind the house prefix in globals.css :root, declared once; the seventeen new ones, declared once each as --ts-fs-*,
  *       behind tailwind.config.ts's `fs` family and in DESIGN.md's table — its rows and their comments in globals.css the
  *       README's, column for column; the reference's :root holds those thirty-one and no other;
- *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the five
- *       differences named there (the last two Alex's notes); no hex and no rgb value typed; every variable it reads is
+ *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the six
+ *       differences named there (the fourth and fifth Alex's notes; the sixth the section's own page, HOME-PAGES-01, 2026-11-14 —
+ *       "the five differences named there (the last two Alex's notes)" until then); no hex and no rgb value typed; every variable it reads is
  *       declared and every new token is read; it stands under the chip strip's rules and above the hero's block; nothing else
  *       in the file reaches the section — not by its classes, its id, the state it is styled by or any data attribute it carries;
  *   T4  the page at rest — Landing.tsx's heading box and the section's render are the reference's markup, token for token
@@ -362,9 +363,18 @@ test('T2 the tokens, named and valued as the README\'s two tables: fourteen alre
 
 // ── T3 · THE STYLESHEET IS THE REFERENCE'S ───────────────────────────────────
 
-test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the five named differences (the last two Alex\'s notes on the built page); no hex and no rgb value typed; every variable it reads is declared and every new token read; it stands between the chip strip and the hero', () => {
+// HOME-PAGES-01 (Alex's brief, 2026-11-14): a SIXTH named difference — the one rule the port holds that the reference does not, for the section's own
+// page. Until then this test read '… but for the five named differences (the last two Alex's notes on the built page) …' and built `expected` from
+// the reference alone.
+test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the six named differences (the fourth and fifth Alex\'s notes on the built page, the sixth the section\'s own page); no hex and no rgb value typed; every variable it reads is declared and every new token read; it stands between the chip strip and the hero', () => {
   const expected: string[] = [];
   const left = { eyebrow: 0, count: 0 };
+  // 6. ADDED: the section's own page (HOME-PAGES-01 — Alex's brief, 2026-11-14, ruling a: "NOTHING IS REDRAWN. Each page mounts the section's own component: no copy, no second stylesheet. One value is new. On /financial-software the section's inner top padding is clamp(44px, 5.6vw, 80px), the value .ts-ps__inner and .ts-tm__inner carry, where the home page has 12px under the What We Do box. The page draws no "What We Do".").
+  //    One rule, of one declaration, that the reference does not have: where <main> wears ts-fs-page (src/app/financial-software/page.tsx, and
+  //    nothing on the home page) the inner box's top padding is the pillars' own. It stands directly after the inner box's own rule, whose 12px it
+  //    replaces there and nowhere else.
+  const OWN_PAGE = ' | .ts-fs-page .ts-fs__inner | padding-top: clamp(44px, 5.6vw, 80px)';
+  let added = 0;
   for (const line of declarations(referenceCss())) {
     const [media, selector, decl] = line.split(' | ');
     // 1. THE COLOURS are tokens in globals.css :root (T2), never re-declared here.
@@ -380,7 +390,9 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
     // 2. THE FONTS are the site's two: the reference names the families, the app reads the variables layout.tsx declares.
     renamed[2] = renamed[2].replace("font-family: 'IBM Plex Mono', monospace", 'font-family: var(--font-mono)').replace("font-family: 'Inter', sans-serif", 'font-family: var(--font-sans)');
     expected.push(renamed.join(' | '));
+    if (media === '' && selector === '.fs__inner' && decl.startsWith('padding:')) { expected.push(OWN_PAGE); added += 1; }
   }
+  assert.equal(added, 1, 'the sixth difference adds one declaration, once: the inner box\'s top padding on the section\'s own page');
   const port = declarations(portCss());
   assert.deepEqual(port, expected, 'the port, line for line, and nothing more');
   assert.ok(port.length > 150, `a whole stylesheet was compared (${port.length} declarations)`);
@@ -630,7 +642,10 @@ test('T6 every word drawn is its leaf\'s, in order — the three new words and b
   for (const w of leafWords) assert.ok(!flat(section).includes(`'${w}'`) && !flat(section).includes(`"${w}"`) && !flat(section).includes(`>${w}<`), `the section does not type "${w.slice(0, 30)}"`);
   assert.deepEqual([...section.matchAll(/aria-label="([^"]*)"/g)].map((m) => m[1]), ['Software plans'], 'its one typed label is the act\'s own, as since HOME-PLANS-01');
   assert.equal(count(section, '`'), 0, 'and it writes no template literal, where a typed word could hide');
-  assert.deepEqual([...section.matchAll(/'([^']*)'/g)].map((m) => m[1]), ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/offer/plans', ' '], 'its single-quoted literals: the directive, its three imports\' paths and React\'s, and the space before each later part of a plan\'s name (the space between the map\'s figure and its words left with the count, at Alex\'s note)');
+  // HOME-PAGES-01 (Alex's brief, 2026-11-14, ruling d): two literals joined, and neither is a word a visitor reads — 'link', the kind of the door
+  // the section's own page hands in (JoinDoor's link arm), and 'function', the typeof that tells Landing's door from it. Until then the list ended
+  // at ' ': ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/offer/plans', ' '].
+  assert.deepEqual([...section.matchAll(/'([^']*)'/g)].map((m) => m[1]), ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/offer/plans', ' ', 'link', 'function'], 'its single-quoted literals: the directive, its three imports\' paths and React\'s, the space before each later part of a plan\'s name (the space between the map\'s figure and its words left with the count, at Alex\'s note), and the door\'s two — the link arm\'s kind and the typeof that tells a function from it');
 });
 
 // ── T7 · THE DATA ────────────────────────────────────────────────────────────
@@ -711,7 +726,9 @@ test('T8 what you run is two booleans in React state — both off at first, noth
   assert.equal(count(section, 'useState('), 2, 'and no other state');
   assert.doesNotMatch(section, /\buse(Effect|LayoutEffect|Reducer|Ref|Router|SearchParams|Pathname|Context|SyncExternalStore)\b|\b(globalThis|window|self|document|navigator|history|location|localStorage|sessionStorage|indexedDB|cookieStore|caches|cookie)\b|\bfetch\s*\(|new Date\(|Date\.now\(/, 'no storage, no URL, no cookie, no clock — no browser global named at all');
   assert.equal(section.slice(section.indexOf('export default function HowToSection(')).trim(), [
-    'export default function HowToSection({ onRequireAuth }: { onRequireAuth: () => void }) {',
+    // HOME-PAGES-01 (Alex's brief, 2026-11-14, ruling d): the parameter's TYPE alone moved — the door is Landing's function or, on the section's
+    // own page, a link (JoinDoor). Until then: 'export default function HowToSection({ onRequireAuth }: { onRequireAuth: () => void }) {'.
+    'export default function HowToSection({ onRequireAuth }: { onRequireAuth: JoinDoor }) {',
     '  const [business, setBusiness] = useState(false);',
     '  const [trade, setTrade] = useState(false);',
     '  return <HowToView business={business} trade={trade} onBusiness={() => setBusiness((on) => !on)} onTrade={() => setTrade((on) => !on)} onJoin={onRequireAuth} />;',
