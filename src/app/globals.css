@@ -1253,14 +1253,20 @@ body {
    Higher impact. A clean, professional presentation."): THE PUBLIC FOOTER IN THE HERO'S VIOLET — the lockup, the four columns, a
    hairline, the disclaimer, ©, the four links ────────────────────────────────────────────────────────────────────────────────
    THE SPEC IS design-refs/footer-02/Section-Reference.html: "Every value in its stylesheet is the design, and its markup is the
-   footer." What follows is that stylesheet, rule for rule and value for value, in its own order and with its own section notes —
-   every rule but its :root and "THIS PAGE'S OWN" — ported as HERO-CREST-01's, HOME-PLANS-04's and HOME-ABOUT-01's were:
+   footer." (HOME-PHONE-01, 2026-11-16: and, for the footer under 1024px, design-refs/home-phone-01/Footer-Reference.html, whose first
+   stylesheet is that one byte for byte; "THE SPEC IS design-refs/footer-02/Section-Reference.html" said the whole of it until then.)
+   What follows is that stylesheet, rule for rule and value for value, in its own order and with its own section notes —
+   every rule but its :root and "THIS PAGE'S OWN" — ported as HERO-CREST-01's, HOME-PLANS-04's and HOME-ABOUT-01's were (HOME-PHONE-01,
+   2026-11-16: then, after its last rule, the footer under 1024px — design-refs/home-phone-01's second stylesheet, ported the same way,
+   its own header over it; "What follows is that stylesheet" said the whole of the block until then):
      · every class is the reference's with the house prefix: .ft → .ts-ft, .ft__inner → .ts-ft__inner, .ft-link__stop →
        .ts-ft-link__stop, …;
      · every custom property it reads likewise: var(--hero-gold) → var(--ts-hero-gold), rgb(var(--hero-bloom) / 0.24) →
        rgb(var(--ts-hero-bloom) / 0.24), rgb(var(--fs-white) / 0.72) → rgb(var(--ts-fs-white) / 0.72).
    src/lib/__tests__/footer02.test.ts reads both files and holds them equal, declaration by declaration, but for the THREE
-   DIFFERENCES named here — each one where the reference is a page of its own and this is the app:
+   DIFFERENCES named here — each one where the reference is a page of its own and this is the app (HOME-PHONE-01, 2026-11-16: up to
+   the phone rules at the block's foot, which footer02 T3 finds there and src/lib/__tests__/homePhone01.test.ts holds equal to their
+   reference, line for line; until then the two were held equal to the block's end):
      1. THE COLOURS are tokens the app already holds: the reference's :root declares nine colours only so that it renders on its
         own — eight the hero's (violet-2, violet-3, violet-4, bloom, ink, ink-nav, gold, rim-lilac) and one HOME-PLANS-04 brought
         (fs-white) — each the same name and value behind the house prefix in :root above. This footer adds none (the README:
@@ -1276,8 +1282,11 @@ body {
    1024px, and the footer's lockup does not — 25 × 36 and 16px at every width (the README: "at the bar's full size on every
    width").
    ALL FOUR WIDTH TIERS stand as the reference has them: under 640px (the rules outside any @media), from 640px, from 1024px and
-   from 1280px.
-   Used by src/components/landing/LandingFooter.tsx, on its eight mounts: the landing (Landing.tsx), the /modules pages
+   from 1280px. (HOME-PHONE-01, 2026-11-16: under 1024px the phone rules at the block's foot override the first two where they meet —
+   the columns stand one under another, three of them folded, the socials last as five marks, the hairline closer — and the rest of the
+   two draws as before, the stops' two columns from 640px among it; until then nothing at the block's foot overrode them.)
+   Used by src/components/landing/LandingFooter.tsx (and, since HOME-PHONE-01, 2026-11-16, by src/components/landing/FooterFold.tsx,
+   which it draws in three columns), on its eight mounts: the landing (Landing.tsx), the /modules pages
    (ModulePageClient.tsx), /how-it-works, /pricing, /my-trip/[id] and — since HOME-PAGES-01, 2026-11-14 ("its five mounts" until
    then) — /financial-software, /professional-services and /about. It stands here, directly above the hero's block, which stays
    last: the Financial Software section's port, above it, now runs from its own first rule to this block's. It names none of
@@ -1300,13 +1309,17 @@ body {
 
 /* ── 2 · the four columns ─────────────────────────────────────────────────────────────────────── */
 /* on a phone: Our Story across, then Services and Socials side by side (three fifths and two, so "Professional
-   Services" keeps one line down to 340px), then The Record across */
+   Services" keeps one line down to 340px), then The Record across (HOME-PHONE-01, 2026-11-16: no width draws this now — under
+   1024px the phone rules at this block's foot stand the columns one under another, and from 1024px the tiers below set the grid;
+   this was the footer on a phone until then) */
 .ts-ft-columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 36px 40px; margin-top: clamp(36px, 4vw, 56px); }
 .ts-ft-column { min-width: 0; }
 .ts-ft-column--story, .ts-ft-column--record { grid-column: 1 / -1; }
 .ts-ft-label { margin: 0; font-family: var(--font-mono); font-size: 12px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ts-hero-gold); }
 .ts-ft-list { margin: 14px 0 0; padding: 0; list-style: none; }
-/* the stops run down, then across; while Our Story runs the full width, its columns stand on the columns beneath it */
+/* the stops run down, then across; while Our Story runs the full width, its columns stand on the columns beneath it (HOME-PHONE-01,
+   2026-11-16: from 1024px — under it the columns stand one under another, so nothing stands beneath the stops' two columns but a
+   fold's row; until then this held from 640px) */
 .ts-ft-list--stops { column-gap: 40px; }
 .ts-ft-list--stops li { break-inside: avoid; }
 /* a row: 44px tall where a finger is the likelier hand, 36px from 1024px */
@@ -1336,7 +1349,9 @@ body {
 
 /* ── 4 · wider windows ───────────────────────────────────────────────────────────────────────── */
 @media (min-width: 640px) {
-  /* Services and Socials in halves; the stops in two columns, on those halves */
+  /* Services and Socials in halves; the stops in two columns, on those halves (HOME-PHONE-01, 2026-11-16: the stops' two columns
+     stand; the halves are drawn at no width now — from 640 to 1023px the phone rules at this block's foot stand the columns one under
+     another, and from 1024px the next tier sets the grid; "Services and Socials in halves" held from 640px until then) */
   .ts-ft-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ts-ft-list--stops { columns: 2; }
 }
@@ -1361,6 +1376,69 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .ts-ft-link, .ts-ft-legal__link, .ts-ft-link__stop, .ts-ft-link__icon, .ts-ft-link__out { transition: none; }
+}
+
+/* ── 6 · HOME-PHONE-01 · THE FOOTER UNDER 1024PX — the last rules of this block (Alex's brief, 2026-11-16 01:42 Manila — his ask: "ok i
+   sent it now what about the footer"; the phone footer approved on the design canvas with the home page's boards, 2026-11-14 at 20:01
+   and, corrected, at 20:41 Manila) ──────────────────────────────────────────────────────────────────────────────────────────────────
+   THE SPEC IS design-refs/home-phone-01/Footer-Reference.html, with its README beside it. Its first stylesheet is design-refs/footer-02's,
+   byte for byte — the rules above. Its second is what follows, rule for rule and value for value, in its own order and with its own notes
+   (but for its first line, which names it the only part to port): every class behind the house prefix (.ft-fold → .ts-ft-fold,
+   .ft-column--socials → .ts-ft-column--socials, …) and every custom property likewise, as above — rgb(var(--fs-white) / 0.14) →
+   rgb(var(--ts-fs-white) / 0.14), var(--hero-gold) → var(--ts-hero-gold). It reads those two tokens, both in :root, and adds none.
+   src/lib/__tests__/homePhone01.test.ts holds the two equal, declaration by declaration, and holds them here: after the block's last
+   rule above, directly above HERO-CREST-01's header.
+   WHERE THEY MEET THE RULES ABOVE, under 1024px: .ts-ft-columns and .ts-ft-rule are overridden by the same selectors, so at the same
+   specificity, and they win by coming after; a fold's list, the socials' list and their icons are reached through one class more
+   (.ts-ft-fold + .ts-ft-list, .ts-ft-column--socials .ts-ft-list, .ts-ft-column--socials .ts-ft-link__icon), as the reference writes
+   them. Every other declaration below sets what no rule above sets. Nothing here is !important, and from 1024px only the first rule
+   applies: a fold's row is not drawn.
+   THE BRIEF'S RULINGS BUILT HERE:
+     a. (its last sentence) "Under 1024px the row stands in for the name; from 1024px the row is never drawn and the name stands as it does
+        today." — .ts-ft-fold is display: none at every width, and display: flex under 1024px, where the three columns' own labels are
+        not drawn; a folded list ([data-folded]) is not drawn under 1024px, and from 1024px nothing reads the attribute.
+     b. "THE SOCIALS CLOSE THE COLUMNS AS FIVE MARKS. Under 1024px they stand last, their name and then the five icons in a row, each
+        account's name drawn off-screen in its link. Their markup does not change." — .ts-ft-column--socials, order 4, its list a row of
+        44px squares, each icon at 20px and each name in the link, clipped to a pixel and drawn for a screen reader alone.
+     e. "THE PHONE RULES END FOOTER-02'S PORT, after its last rule and directly above HERO-CREST-01's header: under 1024px they override
+        its rules, at the same specificity. Its classes wear the house prefix and its colours are tokens, as FOOTER-02's port has them:
+        rgb() wraps --ts-fs-white, and the gold is --ts-hero-gold. footer02 T3 is re-said: the port is the reference's stylesheet
+        followed by this block, which homePhone01 holds line for line. No token is added." — here, as said above; two of the overrides
+        are at the same specificity, and three carry one class more, as the reference's selectors do.
+     f. "WHAT THE FOLDS MAKE FALSE IS RE-SAID BESIDE IT, dated. Among them is any sentence saying that LandingFooter.tsx renders
+        footer-02's markup tag for tag, that a column is its name and its list and nothing else, that a phone draws every column's
+        links, that the footer imports plain modules only, or that two column classes are worn without a rule. If the legal links'
+        lines move, GUEST_ROUTES re-cites them in its rows for /how-pricing-works, /privacy and /terms, newest first, as FOOTER-02
+        re-cited them. Apart from those, a line that a test or a law cites by its number stays on that number, and Landing.tsx keeps
+        its 815 lines." — in this block: its header's five notes and three of its section notes, each dated.
+     i. "ONLY THE FOOTER UNDER 1024PX CHANGES: not the footer from 1024px, its words or links, the socials' markup, the pages that mount
+        it, or anything above it." — every rule below but the first is under 1024px, and the first hides a row only the folds draw.
+   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* a fold: the column's name as a row that opens its links — drawn only under 1024px */
+.ts-ft-fold { display: none; }
+
+@media (max-width: 1023.98px) {
+  /* the columns stand one under another: Our Story, Services and The Record fold; the socials close them, as marks */
+  .ts-ft-columns { display: flex; flex-direction: column; gap: 0; margin-top: 24px; }
+  .ts-ft-column--story > .ts-ft-label, .ts-ft-column--services > .ts-ft-label, .ts-ft-column--record > .ts-ft-label { display: none; }
+  .ts-ft-fold {
+    box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 52px;
+    margin: 0; padding: 0; border: 0; border-top: 1px solid rgb(var(--ts-fs-white) / 0.14); background: none;
+    color: var(--ts-hero-gold); font-family: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; text-align: left; cursor: pointer;
+  }
+  .ts-ft-fold__caret { flex: none; }
+  /* a folded column's links are not drawn; an open column's stand under its row */
+  .ts-ft-list[data-folded] { display: none; }
+  .ts-ft-fold + .ts-ft-list { margin: 0 0 12px; }
+  /* the socials: their name, then the five marks in a row; each account's name stays, for a screen reader alone */
+  .ts-ft-column--socials { order: 4; padding-top: 20px; border-top: 1px solid rgb(var(--ts-fs-white) / 0.14); }
+  .ts-ft-column--socials .ts-ft-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .ts-ft-column--socials .ts-ft-link { justify-content: center; width: 44px; }
+  .ts-ft-column--socials .ts-ft-link span {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .ts-ft-column--socials .ts-ft-link__icon { width: 20px; height: 20px; }
+  .ts-ft-rule { margin: 28px 0 22px; }
 }
 
 /* ── HERO-CREST-01 (Alex, design canvas, 2026-11-11): THE GUEST HERO AND THE TOP BAR ──────────────────────────────

@@ -3,25 +3,62 @@
  * approved at 23:30: "lets get the hand off! yeet yett! i like it!"; and his footer note of 2026-11-10, which still stands: "Less
  * text. Higher impact. A clean, professional presentation."): THE FOOTER IN THE HERO'S VIOLET. The spec is a file —
  * design-refs/footer-02/Section-Reference.html: "Every value in its stylesheet is the design, and its markup is the footer" — with its
- * README beside it. This file renders that markup, tag for tag, each class the reference's behind the house prefix (.ft → .ts-ft,
- * .ft-link__stop → .ts-ft-link__stop, …); the rules are the reference's own, ported to src/app/globals.css's FOOTER-02 block. The
- * design adds no word: every word and link is one this footer had.
+ * README beside it; and under 1024px, since HOME-PHONE-01 (2026-11-16), a second, design-refs/home-phone-01/Footer-Reference.html, whose
+ * first stylesheet is that one byte for byte and whose markup adds the three folds ("The spec is a file" said the whole of it until then).
+ * This file renders that markup, tag for tag — and, since HOME-PHONE-01 (2026-11-16), the three folds, each drawn by FooterFold.tsx ("This file renders
+ * that markup, tag for tag" said the whole of it until then) — each class the reference's behind the house prefix (.ft → .ts-ft,
+ * .ft-link__stop → .ts-ft-link__stop, …); the rules are the reference's own, ported to src/app/globals.css's FOOTER-02 block, and at the
+ * block's foot, since HOME-PHONE-01 (2026-11-16), design-refs/home-phone-01's second stylesheet ("the rules are the reference's own" said the whole of them
+ * until then). The design adds no word: every word and link is one this footer had.
  *   · THE LOCKUP opens it — the top bar's gold crest and wordmark, a link to /. Both are read from src/lib/brandLockup.ts, never from
  *     LandingHeader.tsx: that file is 'use client', and this one is a server component on three pages (below; six since HOME-PAGES-01, 2026-11-14).
  *   · THE FOUR COLUMNS stand as they did — each a <div> with its hook (data-footer-story, -services, -socials, -record), its label a
- *     <p>, its links a <ul> — every word and href from src/lib/footerWords.ts, in its order. OUR STORY draws each stop in two parts:
+ *     <p>, its links a <ul>, and in OUR STORY, SERVICES and THE RECORD a fold's row between the two since HOME-PHONE-01 (2026-11-16:
+ *     FooterFold.tsx draws the row and the <ul>, the links this file hands it; under 1024px the row stands in for the label, and the
+ *     links are drawn only while it is open — "its label a <p>, its links a <ul>" was all of each column until then) — every word and
+ *     href from src/lib/footerWords.ts, in its order. OUR STORY draws each stop in two parts:
  *     storyLinkParts splits the label at its " | ", and a space stands between the two spans, so the link reads "Stop 1 Canggu, Bali"
  *     (the row draws no space for it: its parts stand 10px apart). A label without exactly one " | " is refused by name — no guess,
  *     no fallback. Each social's icon and each ↗ is aria-hidden and drawn in currentColor; the ↗ ends only the Record links marked
  *     external.
  *   · UNDER THEM: a hairline; the disclaimer, word for word, left-aligned now; then one row — © and PRICING · TERMS · PRIVACY ·
  *     CONTACT, on their targets.
- * THE MARKUP'S ONE DIFFERENCE from the reference's: the crest's src (and, since HOME-PAGES-01, 2026-11-14, three hrefs: the reference keeps /#stop-0, /#modules and /#services where src/lib/footerWords.ts now hands /about, /financial-software and /professional-services). The reference reads the file from its own place in the repo
+ * THE MARKUP'S ONE DIFFERENCE from the reference's: the crest's src (and, since HOME-PAGES-01, 2026-11-14, three hrefs: the reference keeps /#stop-0, /#modules and /#services where src/lib/footerWords.ts now hands /about, /financial-software and /professional-services; and, since HOME-PHONE-01, 2026-11-16, the three folds, which design-refs/home-phone-01/Footer-Reference.html draws: against that file's footer the differences are the crest's src and the three lists' ids, which the rows' aria-controls name — ts-ft-story, ts-ft-services and ts-ft-record here, ft-story, ft-services and ft-record there, the house prefix). The reference reads the file from its own place in the repo
  * (../../public/brand/temple-stuart-crest-gold.png); the app serves public/ at its root, so the mark is BAR_MARK_SRC's /brand/….
  * WHAT STAYS: every word and href; the five SVG paths, byte for byte; a plain <a> with target="_blank" rel="noopener noreferrer" on
  * every link that leaves the site (CONTACT's mailto a plain <a> too); the five mounts (eight since HOME-PAGES-01, 2026-11-14: the three sections' own pages). NEXT/LINK FOR EVERY LINK THAT STAYS ON THE SITE —
  * the lockup's, the columns', PRICING, and TERMS and PRIVACY, plain <a> until FOOTER-02 (the brief: "Links that stay on the site use
  * next/link"). WHAT GOES: the solid bg-brand-purple band, the Tailwind classes that drew it, their two inline notes (LANDING-V3's below).
+ *
+ * HOME-PHONE-01 (Alex's brief, 2026-11-16 01:42 Manila — his ask: "ok i sent it now what about the footer"; the phone footer approved on
+ * the design canvas with the home page's boards, 2026-11-14 at 20:01 and, corrected, at 20:41 Manila): THE FOOTER ON A PHONE. The spec is
+ * design-refs/home-phone-01/Footer-Reference.html, with its README beside it: its footer is the one above, but for three folds. Under
+ * 1024px OUR STORY, SERVICES and THE RECORD fold, and the socials close the columns as five marks; from 1024px the footer is FOOTER-02's.
+ * Its rules end FOOTER-02's block in src/app/globals.css; the fold is src/components/landing/FooterFold.tsx.
+ * THE BRIEF'S RULINGS BUILT HERE:
+ *   a. "THREE COLUMNS FOLD UNDER 1024PX. In Our Story, Services and The Record, a button of type button stands between the column's
+ *      name and its list. It holds the name in a span of the label's class and the reference's caret, with aria-expanded, and
+ *      aria-controls naming its list: ts-ft-story, ts-ft-services and ts-ft-record. A press opens that column's links and a second press
+ *      closes them. All three start closed, and any number can be open. Under 1024px the row stands in for the name; from 1024px the row
+ *      is never drawn and the name stands as it does today." — each of the three columns keeps its <p> and hands its links to a
+ *      FooterFold, which draws the row and the <ul>; the socials' column draws its own <ul>, as it did.
+ *   c. "THE FOOTER STAYS A SERVER COMPONENT, WITH ONE CLIENT ISLAND. A fold's state lives in FooterFold.tsx, a client component that
+ *      draws the row and the list it opens. LandingFooter.tsx hands it the column's name, the list's id and class, and the links, which
+ *      LandingFooter.tsx still draws. That state is React's alone: nothing is kept in storage or in the URL. A folded list carries
+ *      data-folded, which the stylesheet reads under 1024px only. The tests reach each open state through a pure view that the stateful
+ *      fold draws, so it renders on the server; the audit names that view's shape, the smallest by the pins it moves." — this file
+ *      carries no directive still, and hands each fold four props: label, id, listClassName and its links as children, each row drawn by
+ *      row() below as it was. FooterFold.tsx is its one client module; its other imports are the plain modules they were.
+ *   d. "NOT ONE WORD IS NEW. A fold's name is its column's label from src/lib/footerWords.ts, read where LandingFooter.tsx reads it today,
+ *      and the three ids are the only strings added." — each fold's label is the FOOTER_*_LABEL this file imports from the words leaf
+ *      and draws in the column's <p>; the three ids are typed once each, on the fold.
+ *   f. "WHAT THE FOLDS MAKE FALSE IS RE-SAID BESIDE IT, dated. Among them is any sentence saying that LandingFooter.tsx renders
+ *      footer-02's markup tag for tag, that a column is its name and its list and nothing else, that a phone draws every column's links,
+ *      that the footer imports plain modules only, or that two column classes are worn without a rule. If the legal links' lines move,
+ *      GUEST_ROUTES re-cites them in its rows for /how-pricing-works, /privacy and /terms, newest first, as FOOTER-02 re-cited them.
+ *      Apart from those, a line that a test or a law cites by its number stays on that number, and Landing.tsx keeps its 815 lines." —
+ *      five sentences above, each re-said where it stands and dated. The legal links moved down with this note and the fold's import, so
+ *      scripts/assert-tool-registry.ts re-cites their lines in GUEST_ROUTES (footer01 T8 reads them by content).
  *
  * Every note below is history: it says how the footer stood until FOOTER-02.
  *
@@ -78,6 +115,7 @@ import {
   FOOTER_RECORD_LABEL, FOOTER_RECORD_LINKS, FOOTER_SERVICES_LABEL, FOOTER_SERVICES_LINKS, FOOTER_SOCIALS, FOOTER_SOCIALS_LABEL, FOOTER_STORY_LABEL,
   footerStoryLinks, storyLinkParts, type FooterLink, type SocialName,
 } from '@/lib/footerWords';
+import FooterFold from './FooterFold';
 
 /**
  * The five socials' icons — each SVG's path, moved here byte for byte from the bar's icon row. The one <svg> around a path is the
@@ -118,16 +156,16 @@ export default function LandingFooter() {
         <div className="ts-ft-columns">
           <div className="ts-ft-column ts-ft-column--story" data-footer-story>
             <p className="ts-ft-label">{FOOTER_STORY_LABEL}</p>
-            <ul className="ts-ft-list ts-ft-list--stops">
+            <FooterFold label={FOOTER_STORY_LABEL} id="ts-ft-story" listClassName="ts-ft-list ts-ft-list--stops">
               {footerStoryLinks(WAS_HERE).map((link) => {
                 const { stop, place } = storyLinkParts(link.label);
                 return row(link, <><span className="ts-ft-link__stop">{stop}</span>{' '}<span className="ts-ft-link__place">{place}</span></>);
               })}
-            </ul>
+            </FooterFold>
           </div>
           <div className="ts-ft-column ts-ft-column--services" data-footer-services>
             <p className="ts-ft-label">{FOOTER_SERVICES_LABEL}</p>
-            <ul className="ts-ft-list">{FOOTER_SERVICES_LINKS.map((link) => row(link, <span>{link.label}</span>))}</ul>
+            <FooterFold label={FOOTER_SERVICES_LABEL} id="ts-ft-services" listClassName="ts-ft-list">{FOOTER_SERVICES_LINKS.map((link) => row(link, <span>{link.label}</span>))}</FooterFold>
           </div>
           <div className="ts-ft-column ts-ft-column--socials" data-footer-socials>
             <p className="ts-ft-label">{FOOTER_SOCIALS_LABEL}</p>
@@ -144,14 +182,14 @@ export default function LandingFooter() {
           </div>
           <div className="ts-ft-column ts-ft-column--record" data-footer-record>
             <p className="ts-ft-label">{FOOTER_RECORD_LABEL}</p>
-            <ul className="ts-ft-list">
+            <FooterFold label={FOOTER_RECORD_LABEL} id="ts-ft-record" listClassName="ts-ft-list">
               {FOOTER_RECORD_LINKS.map((link) => row(link, (
                 <>
                   <span>{link.label}</span>
                   {link.external && <svg className="ts-ft-link__out" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={OUT_ARROW_PATH} /></svg>}
                 </>
               )))}
-            </ul>
+            </FooterFold>
           </div>
         </div>
         <div className="ts-ft-rule" />
