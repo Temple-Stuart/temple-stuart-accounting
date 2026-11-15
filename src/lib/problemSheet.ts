@@ -1,7 +1,7 @@
 // NAV-01a: the deck's PROBLEM_SHEET extracted to a shared LEAF module (zero
 // imports, server- and client-safe — the tabDescriptors / modulePillars
 // precedent). ONE source for the six families and the 25 tools: the landing
-// rendered it (Landing.tsx — the deck until PIPELINE-PAGE-01, 2026-11-09; the Financial Software section's map until HOME-TRIM-02, 2026-11-15: "renders" until then) — the deck renders it on /how-it-works (PipelineDeck.tsx) and the map on /financial-software (src/lib/howTo.ts planMapView) — the tool registry keys on it (toolRegistry.ts), and
+// rendered it (Landing.tsx — the deck until PIPELINE-PAGE-01, 2026-11-09; the Financial Software section's map until HOME-TRIM-02, 2026-11-15: "renders" until then) — the deck renders it on /how-it-works (PipelineDeck.tsx) and the map on /financial-software (src/lib/howTo.ts planMapView), and the landing renders that map's grid again, since HOME-PLANS-05 (2026-11-16), while its first toggle is open — the tool registry keys on it (toolRegistry.ts), and
 // the build-time assert reads it (scripts/assert-tool-registry.ts). Never a
 // retyped second copy. Order is the ruled sheet order and renders as such.
 export const PROBLEM_SHEET = [

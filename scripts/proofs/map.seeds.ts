@@ -3,7 +3,7 @@
  *
  * Ruling e: "A TOOL'S MODULE is the module of the capability rows that name it (CAPABILITY_GROUPS), held by a law: one module
  * per tool, or the build fails by name." The map — the Financial Software section's whole view, on /financial-software since
- * HOME-PAGES-01 (2026-11-14), and there alone since HOME-TRIM-02 (2026-11-15; the guest landing's too until then) — lights each tool in its module's colour (src/lib/howTo.ts
+ * HOME-PAGES-01 (2026-11-14), and there alone since HOME-TRIM-02 (2026-11-15; the guest landing's too until then), its grid on the guest landing again since HOME-PLANS-05 (2026-11-16) while the short view's first toggle is open — lights each tool in its module's colour (src/lib/howTo.ts
  * toolModule), and each plan's name is drawn in one coloured part per module (nameParts), on both of the section's views. The two seeds below are the law's two
  * clauses, each broken the one way the data could break it:
  *
