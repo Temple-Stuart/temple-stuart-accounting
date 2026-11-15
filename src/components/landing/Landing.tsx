@@ -481,7 +481,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             GONE, BY ALEX'S RULING (2026-11-11): the "✦ Source-available · BSL 1.1" pill that opened the hero — "the BSL
             we have down in the footer, so lets just remove it from the hero". The footer's Software License link
             (LICENSE_URL, src/lib/footerWords.ts) is the licence's door on this page. "GitHub ↗" and "CREATE FREE
-            ACCOUNT" left the bar by his rulings of the same day (LandingHeader.tsx); the header's onRequireAuth went
+            ACCOUNT" left the bar by his rulings of the same day (LandingHeader.tsx; HOME-MENU-01, 2026-11-16: the code's link came back, in the bar's menu's About Us column, in a new tab); the header's onRequireAuth went
             with the latter, so this button is the page's first register ask.
             HISTORY, until this design: the band was a SOLID aubergine <section> (bg-brand-purple, REPAINT-2) under a
             cream bar; its headline was bold with <br /> between the sentences and the third in the lavender wash

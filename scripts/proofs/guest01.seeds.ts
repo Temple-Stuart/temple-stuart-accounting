@@ -11,8 +11,8 @@
  * vendor's side (no session check, the guest fence dropped, a bank part, a cached
  * answer, a settlement column, a Bank section on the guest page, a bank note); the
  * public surface and its door (a prefix entry, a DELETE; the home page's lookup gone, moved
- * above the booking section, asking on load, or the header link back — HOME-MENU-01, 2026-11-16: since then a second header link, or the
- * header's one link with other words or in another column, "the header link back" until then); the code by email
+ * above the booking section, asking on load, or the header link back — HOME-MENU-01, 2026-11-16: since then a second header link, typed or
+ * drawn from BAR_LOOKUP again, or the header's one link with other words or in another column, "the header link back" until then); the code by email
  * only (the guard dropped, the code in a url, "See this booking" kept for a guest, the
  * code in the page's URL, a block line changed, a book route's block dropped, the code
  * answered); the dated re-pins.
@@ -265,12 +265,22 @@ const SEEDS: Seed[] = [
     expect: 'one link to /booking/manage is not the travel column',
   },
   {
-    // HOME-MENU-01 (2026-11-16), ruling g: the same link, its words intact, no longer the travel column's foot link.
-    name: 'guest01-z4c the header\'s one lookup link leaves the travel column',
+    // HOME-MENU-01 (2026-11-16), ruling g: the same link, its words intact, moved to another column — Professional Services' foot link, the travel
+    // column's none. (Until the review, 2026-11-16, this seed dropped it from the travel column and set it nowhere.)
+    name: 'guest01-z4c the header\'s one lookup link moves to another column',
     file: 'src/components/landing/LandingHeader.tsx',
-    find: 'more: BAR_LOOKUP },\n',
-    replace: 'more: null },\n',
+    find: 'kind: service.kind })), more: null },\n  { key: \'tm\', name: EXPLORE_PILLAR.heading, links: [{ label: BAR_EVENTS, href: `/#${EVENTS_ANCHOR}` }, ...BAR_TRAVEL_TABS.map((label) => ({ label, href: `/#${DEMO_ANCHOR}` }))], more: BAR_LOOKUP },\n',
+    replace: 'kind: service.kind })), more: BAR_LOOKUP },\n  { key: \'tm\', name: EXPLORE_PILLAR.heading, links: [{ label: BAR_EVENTS, href: `/#${EVENTS_ANCHOR}` }, ...BAR_TRAVEL_TABS.map((label) => ({ label, href: `/#${DEMO_ANCHOR}` }))], more: null },\n',
     expect: 'one link to /booking/manage is not the travel column',
+  },
+  {
+    // HOME-MENU-01 (2026-11-16), ruling g, from the review: a second link drawn from the same constant — no second path typed, so only the count of
+    // BAR_LOOKUP's names catches it. The About Us column gains it.
+    name: 'guest01-z4d the header draws its one lookup link a second time, from BAR_LOOKUP',
+    file: 'src/components/landing/LandingHeader.tsx',
+    find: '      { label: BAR_PRICING.label, href: BAR_PRICING.href },\n',
+    replace: '      { label: BAR_PRICING.label, href: BAR_PRICING.href },\n      { label: BAR_LOOKUP.label, href: BAR_LOOKUP.href },\n',
+    expect: 'LandingHeader.tsx names BAR_LOOKUP',
   },
   {
     name: 'guest01-z5 the page keeps a form of its own',

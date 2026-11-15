@@ -4,7 +4,7 @@
  * The spec is a file: design-refs/hero-crest-01/Hero-Reference.html ("every value in its stylesheet is the design"), with
  * its README beside it. The hero is src/components/landing/Landing.tsx's band; the bar is
  * src/components/landing/LandingHeader.tsx, on its six mounts (nine since HOME-PAGES-01, 2026-11-14); both are drawn by the reference's own stylesheet, ported
- * to the foot of src/app/globals.css.
+ * to the foot of src/app/globals.css (and the bar's menu, since HOME-MENU-01, 2026-11-16, by design-refs/home-menu-01's second stylesheet after it: homeMenu01.test.ts holds that block).
  *
  *   T1  the handoff landed — four files byte for byte (sha256): the README, the reference, the two crest files. The
  *       mark is held by its presence and exact size only (a PNG does not survive the reader's utf8, so its bytes are
@@ -380,7 +380,7 @@ test('T3 the hero\'s and the bar\'s stylesheet in globals.css is the reference\'
   // renamed, which homeMenu01.test.ts holds line for line, with nothing after it. Until then: assert.deepEqual(port.slice(expected.length), [], 'nothing
   // follows the port in globals.css — a new rule goes above the HERO-CREST-01 block, not after it').
   const tail = code(GLOBALS).slice(code(GLOBALS).indexOf('.ts-bar__trigger {'));
-  assert.deepEqual(port.slice(expected.length), declarations(tail), 'what follows the port is the menu\'s block alone, from its first rule to the end of the file — a new rule goes above the HERO-CREST-01 block, not after it or the menu\'s');
+  assert.deepEqual(port.slice(expected.length), declarations(tail), 'what follows the port is the menu\'s block, from its first rule to the end of the file, with nothing between the two — homeMenu01 T2 holds the block line for line, and that nothing follows it; a new rule goes above the HERO-CREST-01 block, not after it or the menu\'s');
   assert.ok(port.length > 200, `a whole stylesheet was compared (${port.length} declarations)`);
   // nothing above the port names one of its classes — as a class selector or inside a class attribute selector, at any depth: a
   // restyle from above (inside @layer or @supports too) would pass the equality. The text above is searched, not its parsed rules.
@@ -496,15 +496,15 @@ test('T5 the bar: four names that open its menu, each by its own name (the three
   assert.equal(BAR_MARK_SRC, '/brand/temple-stuart-crest-gold.png');
   assert.ok(existsSync(resolve(ROOT, `public${BAR_MARK_SRC}`)), 'the mark is a file in public/');
   const header = code(HEADER);
-  assert.match(header, /^import \{ DEMO_ANCHOR, EVENTS_ANCHOR, MY_TRIP_ANCHOR \} from '@\/lib\/homeAnchors';$/m, 'the menu\'s three ids come from their one home (HOME-MENU-01, ruling e: DEMO_ANCHOR, MODULES_ANCHOR and SERVICES_ANCHOR until then)');
-  assert.match(header, /^import \{ ABOUT_US_HEADING, BUILD_PILLAR, EXPLORE_PILLAR, OUR_STORY_HEADING, PLAN_PILLAR \} from '@\/lib\/homeActWords';$/m, 'the four names and Our Story come from theirs (HOME-MENU-01, ruling e: the three pillars alone until then)');
+  assert.match(header, /^import \{ DEMO_ANCHOR, EVENTS_ANCHOR, MY_TRIP_ANCHOR \} from '@\/lib\/homeAnchors';$/m, 'the menu\'s three ids come from their one home (HOME-MENU-01, 2026-11-16, ruling e: DEMO_ANCHOR, MODULES_ANCHOR and SERVICES_ANCHOR until then)');
+  assert.match(header, /^import \{ ABOUT_US_HEADING, BUILD_PILLAR, EXPLORE_PILLAR, OUR_STORY_HEADING, PLAN_PILLAR \} from '@\/lib\/homeActWords';$/m, 'the four names and Our Story come from theirs (HOME-MENU-01, 2026-11-16, ruling e: the three pillars alone until then)');
   // HOME-MENU-01 (2026-11-16): the menu builds its three fragments from the anchors. Until then each of the three product rows did, in BAR_PRODUCT_LINKS:
   // header.includes(`{ label: ${pillar}.heading, href: \`/#\${${anchor}}\` },`) for PLAN_PILLAR/MODULES_ANCHOR, BUILD_PILLAR/SERVICES_ANCHOR and EXPLORE_PILLAR/DEMO_ANCHOR.
   for (const anchor of ['EVENTS_ANCHOR', 'DEMO_ANCHOR', 'MY_TRIP_ANCHOR']) assert.ok(header.includes(`href: \`/#\${${anchor}}\``), `the menu builds /#\${${anchor}} from its anchor`);
   assert.doesNotMatch(header, /#(modules|services|demo|events|my-trip|stop-0)\b/, 'no section id is typed in the bar');
   assert.doesNotMatch(header, /id="/, 'and it declares none');
   for (const name of ['Financial Software', 'Professional Services', 'Travel Marketplace']) assert.ok(!header.includes(name), `"${name}" is not typed in the bar — it is read from the pillar`);
-  assert.equal(count(header, "'Pricing'"), 1, '"Pricing" is typed once — the bar\'s row, the phone menu and (HOME-MENU-01) the menu\'s About Us column draw the same link');
+  assert.equal(count(header, "'Pricing'"), 1, '"Pricing" is typed once — the bar\'s row, the phone menu and (HOME-MENU-01, 2026-11-16) the menu\'s About Us column draw the same link');
   // gone, by Alex's ruling — and (HOME-MENU-01, 2026-11-16, ruling h, his newer choice) the code's link back, in the menu's About Us column, in a new
   // tab: the bar types the footer's CODE_URL once more (ruling f), so "github" stands once in its code. Until then: assert.doesNotMatch(header,
   // /github/i, 'no GitHub link in the bar').
@@ -533,9 +533,10 @@ test('T6 rendered: filled is the default and glass is asked for; Log in is a but
   // the closed markup (ruling c). Until then: const PRODUCTS = ['/#modules', '/#services', '/#demo'], and the words were the three products, Pricing
   // and Log in, twice.
   const MENU = ['/financial-software', '/financial-software', '/financial-software', '/financial-software', '/pricing', '/work-with-me?need=setup', '/work-with-me?need=maintenance', '/work-with-me?need=custom', '/work-with-me?need=embed', '/work-with-me?need=bookkeeping', '/work-with-me?need=unsure', '/#events', '/#demo', '/#demo', '/#demo', '/#demo', '/#demo', '/booking/manage', '/about', '/#my-trip', '/how-it-works', '/how-pricing-works', CODE_URL];
-  const panelWords = BAR_MENU.flatMap((c) => [c.name, ...c.links.flatMap((l) => [l.label, ...(l.audience ? [l.audience] : []), ...(l.kind ? [l.kind] : [])]), ...(c.more ? [c.more.label] : [])]);
-  const listWords = BAR_MENU.flatMap((c) => [c.name, ...c.links.map((l) => l.label), ...(c.more ? [c.more.label] : [])]);
-  const WORDS = ['TEMPLE STUART', ...BAR_MENU.map((c) => c.name), 'Pricing', 'Log in', ...panelWords, ...listWords, 'Pricing', 'Log in'].join(' ');
+  // The words, typed: the bar's row; the panel's four columns, each its name, its links (with a plan's audience and a service's kind) and its foot
+  // link; the phone menu's four lists; Pricing and Log in. (Built from BAR_MENU itself until the review of HOME-MENU-01, 2026-11-16, when the check
+  // held none of the menu's words; homeMenu01.test.ts holds each of them to its home.)
+  const WORDS = 'TEMPLE STUART Financial Software Professional Services Travel Marketplace About Us Pricing Log in Financial Software Personal For students, creators and nomads. Personal + Business For founders, freelancers and small business owners. Personal + Trading For traders running their own money. Personal + Business + Trading For founder-traders. Compare all four plans → Professional Services Full setup Project Monthly maintenance Monthly Custom builds Project Integration Project Bookkeeping Monthly Something else Travel Marketplace Events Flights Hotels Getting around Things to do Visa Look up your booking → About Us About Us Our Story How It All Connects: The 14 Steps Pricing Built in Public: The Code Financial Software Personal Personal + Business Personal + Trading Personal + Business + Trading Compare all four plans → Professional Services Full setup Monthly maintenance Custom builds Integration Bookkeeping Something else Travel Marketplace Events Flights Hotels Getting around Things to do Visa Look up your booking → About Us About Us Our Story How It All Connects: The 14 Steps Pricing Built in Public: The Code Pricing Log in';
   // 1. no props — the seven pages with no login modal (four until HOME-PAGES-01, 2026-11-14): filled, Log in a link to the front door
   const plain = render();
   assert.ok(plain.startsWith('<header class="ts-bar ts-bar--solid">'), 'filled, in the page\'s flow, with nothing passed');
@@ -543,7 +544,7 @@ test('T6 rendered: filled is the default and glass is asked for; Log in is a but
   assert.equal(textOf(plain), WORDS, 'the words, in order');
   assert.equal(count(plain, '<a class="ts-pill-gold ts-bar__login" href="/">Log in</a>'), 1, 'Log in: a link to / in the bar');
   assert.equal(count(plain, '<a class="ts-pill-gold ts-menu__login" href="/">Log in</a>'), 1, 'and in the menu');
-  assert.equal(count(plain, '<button'), 9, 'nine buttons: the four names, the menu\'s, its four rows (HOME-MENU-01: the menu\'s alone until then)');
+  assert.equal(count(plain, '<button'), 9, 'nine buttons: the four names, the menu\'s, its four rows (HOME-MENU-01, 2026-11-16: the menu\'s alone until then)');
   // 2. the landing — glass, Log in a button
   const glass = render({ glass: true, onRequireLogin: () => {} });
   assert.ok(glass.startsWith('<header class="ts-bar ts-bar--overlay">'), 'glass, laid over the hero, when asked');
@@ -558,18 +559,18 @@ test('T6 rendered: filled is the default and glass is asked for; Log in is a but
   assert.equal(cockpit.replace('<header class="ts-bar ts-bar--solid">', '<header class="ts-bar ts-bar--overlay">'), glass, 'the two fills differ by the header\'s class and nothing else');
   for (const html of [plain, glass, cockpit]) {
     const [bar, menu] = halves(html);
-    // the pill: mark and wordmark · the three names with a rule between · About Us · Pricing · Log in · the menu button (HOME-MENU-01: the three products,
-    // then Pricing, until then); then the panel (HOME-MENU-01), still in this half — the menu's half starts at its <nav>
+    // the pill: mark and wordmark · the three names with a rule between · About Us · Pricing · Log in · the menu button (HOME-MENU-01, 2026-11-16: the three products,
+    // then Pricing, until then); then the panel (HOME-MENU-01, 2026-11-16), still in this half — the menu's half starts at its <nav>
     assert.match(bar, /^<header [^>]*><div class="ts-bar__pill"><a class="ts-brand" href="\/"><img class="ts-brand__mark" src="\/brand\/temple-stuart-crest-gold\.png" alt=""\/><span class="ts-brand__name">TEMPLE STUART<\/span><\/a><nav class="ts-bar__products" aria-label="Products">/, 'the pill opens with the gold mark and the wordmark, then the products');
     assert.equal(count(bar, '<span class="ts-bar__rule" aria-hidden="true"></span>'), 2, 'a hairline rule between the three products');
-    assert.equal(count(bar, '<nav class="ts-bar__account" aria-label="Account"><button class="ts-bar__trigger" type="button" aria-expanded="false" aria-controls="ts-bar-mega"><span>About Us</span>'), 1, 'About Us opens the account group (HOME-MENU-01, ruling a: Pricing until then)');
+    assert.equal(count(bar, '<nav class="ts-bar__account" aria-label="Account"><button class="ts-bar__trigger" type="button" aria-expanded="false" aria-controls="ts-bar-mega"><span>About Us</span>'), 1, 'About Us opens the account group (HOME-MENU-01, 2026-11-16, ruling a: Pricing until then)');
     assert.equal(count(bar, '</svg></button><a class="ts-bar__link" href="/how-pricing-works">Pricing</a>'), 1, 'then Pricing');
     assert.equal(count(bar, `<button type="button" class="ts-bar__menu-button" aria-label="Open menu" aria-expanded="false" aria-controls="${BAR_MENU_ID}">`), 1, 'the menu button says what it does, that the menu is closed, and which element it controls');
     assert.equal(count(bar, `aria-controls="${BAR_MENU_ID}"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 8h16M3 14h16"></path></svg></button>`), 1, 'and draws its two bars — the reference\'s icon, decorative, in the bar\'s ink');
-    // the menu: closed, named by the button, the four rows, each with its list, a rule, Pricing, Log in (HOME-MENU-01: the three rows until then)
+    // the menu: closed, named by the button, the four rows, each with its list, a rule, Pricing, Log in (HOME-MENU-01, 2026-11-16: the three rows until then)
     assert.ok(menu.startsWith(`<nav class="ts-menu" id="${BAR_MENU_ID}" aria-label="Menu" hidden="">`), 'the menu starts closed, and is the element the button controls');
     assert.equal(count(html, `id="${BAR_MENU_ID}"`), 1, 'the id is on one element');
-    assert.equal(count(menu, 'class="ts-menu__row"'), 1, 'one plain row: Pricing (HOME-MENU-01: four until then — the three products and Pricing)');
+    assert.equal(count(menu, 'class="ts-menu__row"'), 1, 'one plain row: Pricing (HOME-MENU-01, 2026-11-16: four until then — the three products and Pricing)');
     assert.equal(count(menu, 'class="ts-menu__row ts-menu__row--group"'), 4, 'and four rows that open a list: the four names');
     assert.equal(count(menu, '<span class="ts-menu__rule" aria-hidden="true"></span>'), 1, 'one rule');
     // HOME-MENU-01 (2026-11-16): the About Us list draws Pricing too, before the rule — so the rule is held after the last list. Until then:
@@ -589,7 +590,7 @@ test('T6 rendered: filled is the default and glass is asked for; Log in is a but
 test('T7 the phone menu: open or closed is React state and nothing else; it closes on a link, on Log in, on Escape and on the button (HOME-MENU-01, 2026-11-16: the panel\'s opener and the open list are React state beside it, and Escape gives focus back)', () => {
   const header = code(HEADER);
   assert.match(header, /^'use client';/, 'a client component — it holds state');
-  assert.equal(count(header, 'const [menuOpen, setMenuOpen] = useState(false);'), 1, 'the menu\'s state: closed to start ("one state" until HOME-MENU-01)');
+  assert.equal(count(header, 'const [menuOpen, setMenuOpen] = useState(false);'), 1, 'the menu\'s state: closed to start ("one state" until HOME-MENU-01, 2026-11-16)');
   // HOME-MENU-01 (2026-11-16), ruling c: the panel's opener and the open list are React state too, each none to start. Until then:
   // assert.equal(count(header, 'useState('), 1, 'and no other').
   assert.equal(count(header, 'const [panelFrom, setPanelFrom] = useState<BarMenuKey | null>(null);'), 1, 'the panel: which name opened it, none to start');
@@ -774,6 +775,8 @@ test('T12 the reachability law\'s door to /how-pricing-works cites the line the 
 
 test('T13 Alex\'s three removals are quoted where each was made, and the design is named where it is built', () => {
   const header = flat(comments(HEADER).replace(/^\s*\*/gm, ' '));
+  // HOME-MENU-01 (2026-11-16), ruling h, beside the quote below: it took the bar's own GitHub link, which stays gone; his newer choice draws the
+  // footer's code link again, in the menu's About Us column, in a new tab.
   assert.ok(header.includes('"remove github, the icon is enough, we dont need it 2x"'), 'the bar: GitHub ↗');
   assert.ok(header.includes('"create free account top right, that can be login… we dont need it twice"'), 'the bar: CREATE FREE ACCOUNT');
   const landing = flat(comments(LANDING));

@@ -104,7 +104,7 @@
      writes them --hero-* and --glass-*; the house prefix --ts- is added, nothing else). tailwind.config.ts maps
      them as the `hero` and `glass` families. Hex where the stylesheet reads the token solid; space-separated RGB
      channels where it reads it at an alpha — rgb(var(--ts-hero-bloom) / 0.5). (One hex is also drawn at an alpha
-     without its token: the open menu's panel is hero-well at 86%, typed as the reference types it.) Read by the
+     without its token: the open menu's panel is hero-well at 86%, typed as the reference types it; HOME-MENU-01, 2026-11-16: and the menu's panel is hero-well at 95%, typed as its reference types it.) Read by the
      hero's and the bar's stylesheet at the foot of this file — and, since HOME-PLANS-04 (2026-11-12), by the Financial
      Software section's, which reads the violets, the golds and the inks (its block stands above the hero's). ─────── */
   /* the ground: one diagonal sweep (155deg, stops 0 / 34 / 68 / 100%) and two blooms; the filled bar uses 1–3 */
@@ -1644,7 +1644,7 @@ body {
   .ts-bar__products, .ts-bar__account { display: none; }
   .ts-bar__menu-button { display: inline-flex; }
 
-  /* THE OPEN MENU. Drawn on the design canvas since HOME-MENU-01 (2026-11-16): the menu's 390 board, approved with the home page's boards on 2026-11-14 at 20:01 and, corrected, 20:41 Manila, draws it open with one list ("Not drawn on the design canvas: this panel is the proposal." until then). */
+  /* THE OPEN MENU. Drawn on the design canvas: the menu's 390 board, approved with the home page's boards on 2026-11-14 at 20:01 and, corrected, 20:41 Manila, draws it open with one list, and HOME-MENU-01 built it (2026-11-16: "Not drawn on the design canvas: this panel is the proposal." until then). */
   .ts-menu:not([hidden]) {
     position: absolute; top: calc(100% + 8px); left: 12px; right: 12px;
     box-sizing: border-box; padding: 8px;
@@ -1671,9 +1671,9 @@ body {
    glass-line. Its other colours are typed as the reference types them: hero-well at 95% (the panel's fill), the bar's shadow ink at
    0.45, white at 0.72 (who a plan is for, a service's kind) and at 0.08 (an open list's ground).
    Used by src/components/landing/LandingHeader.tsx: the four names' buttons and carets, the panel (.ts-mega) with its four columns,
-   and the phone menu's rows and the lists they open. Its six reused selectors (.ts-bar__pill, .ts-bar__products, .ts-bar__account,
-   .ts-bar__login, .ts-brand__name, and .ts-menu as a parent) are the bar's own, at the same specificity and in the same media
-   queries, so standing after the bar's rules is what makes them win. src/lib/__tests__/homeMenu01.test.ts holds this block equal to
+   and the phone menu's rows and the lists they open. Six of its selectors are the bar's own classes (.ts-bar__pill, .ts-bar__products, .ts-bar__account,
+   .ts-bar__login, .ts-brand__name, and .ts-menu as a parent). The first five re-rule the bar's values at the same specificity — from 1024px to 1279px over the bar's rules in that range, and the account group's gap from 1280px over its rule for every width — so standing
+   after the bar's rules is what makes them win; the .ts-menu parent rules, two classes, outrank the bar's .ts-menu__row and .ts-bar a by specificity, wherever they stand. src/lib/__tests__/homeMenu01.test.ts holds this block equal to
    the reference's second stylesheet, declaration by declaration, renamed, and holds that nothing follows it. ───────────────── */
 /* the four names that open the menu: the bar's links' look, as buttons, each with a caret */
 .ts-bar__trigger {

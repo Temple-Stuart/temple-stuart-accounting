@@ -251,7 +251,7 @@ test('T3 the other three columns, exactly — SERVICES: the three pillars, two o
   const githubHrefs = (file: string): string[] => [...code(file).matchAll(/href="(https:\/\/github\.com\/[^"]*)"/g)].map((m) => m[1]);
   assert.deepEqual(githubHrefs(HEADER), [], 'the bar types no github.com href attribute');
   assert.deepEqual(BAR_MENU.flatMap((c) => c.links).filter((l) => l.href.includes('github.com')), [{ label: FOOTER_RECORD_LINKS[1].label, href: CODE_URL, newTab: true }], 'its one GitHub link is the menu\'s: the About Us column\'s, the record\'s words on CODE_URL, in a new tab');
-  assert.deepEqual(githubHrefs(LANDING), [CODE_URL], 'the hero\'s Clone it on GitHub opens the same URL — Landing.tsx\'s one typed GitHub link (the home page\'s one until HOME-MENU-01, whose bar carries another, as data)');
+  assert.deepEqual(githubHrefs(LANDING), [CODE_URL], 'the hero\'s Clone it on GitHub opens the same URL — Landing.tsx\'s one typed GitHub link (the home page\'s one until HOME-MENU-01, 2026-11-16, whose bar carries another, as data)');
 });
 
 // ── T4 · THE FOOTER RENDERS THE FOUR COLUMNS ABOVE THE DISCLAIMER ────────────

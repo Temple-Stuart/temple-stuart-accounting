@@ -18,9 +18,9 @@
  *      fixed ids and the mark's path;
  *   T4 the words — every word and destination in BAR_MENU, each read from its home where the home is light, or held equal to it where
  *      it is copied; the one new word typed once;
- *   T5 the graph — every module the bar reaches, listed, so that no heavy home can join it unseen;
- *   T6 the state — the panel and the lists closed at first; which press opens and which closes each; Escape and the press outside;
- *      nothing stored;
+ *   T5 the graph — every module the bar reaches, as TypeScript's own parser reads its imports, listed, so that no heavy home can join it unseen;
+ *   T6 the state — the panel and the lists closed at first; which press opens and which closes each; Escape and the press outside, the
+ *      one effect run for real against a stand-in document; nothing stored;
  *   T7 the rulings — each quoted, exact, where it is built, under the brief's stamp; the notes it made false re-said, dated; no cited
  *      line moved; a census of the brief's quotes in every source file of the change, each file's count held.
  *
@@ -36,6 +36,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import ts from 'typescript';
 import { code, comments, rejoin } from '../sourceText';
 import { ABOUT_US_HEADING, BUILD_PILLAR, EXPLORE_PILLAR, OUR_STORY_HEADING, PLAN_PILLAR } from '../homeActWords';
 import { DEMO_ANCHOR, EVENTS_ANCHOR, MY_TRIP_ANCHOR } from '../homeAnchors';
@@ -159,7 +160,7 @@ function tokensOf(html: string, reference: boolean): string[] {
     if (close) { out.push(`</${tag}>`); continue; }
     const attrs = [...rest.matchAll(/([a-zA-Z_:][\w:.-]*)(?:="([^"]*)")?/g)].map(([, k, v]) => {
       let val = v ?? '';
-      if (k === 'class') val = val.split(/\s+/).filter(Boolean).map((c) => (reference ? c : c.replace(/^ts-/, ''))).join(' ');
+      if (k === 'class') val = val.split(/\s+/).filter(Boolean).map((c) => { if (reference) return c; assert.ok(c.startsWith('ts-'), `the app's class "${c}" wears the house prefix`); return c.slice(3); }).join(' ');
       if (k === 'id' || k === 'aria-controls') val = reference ? val.replace(/^mega-(hero|plain)$/, 'MEGA').replace(/^menu-(hero|plain)/, 'MENU') : val.replace(new RegExp(`^${BAR_MEGA_ID}$`), 'MEGA').replace(new RegExp(`^${BAR_MENU_ID}`), 'MENU');
       if (k === 'src' && tag === 'img') val = reference ? val.replace('../../public/brand/', '/brand/') : val;
       return `${k}=${val}`;
@@ -254,7 +255,11 @@ test('T2 the block is the reference\'s second stylesheet, declaration by declara
   const heroAt = css.indexOf('.ts-hero {');
   assert.ok(heroAt > -1 && heroAt < css.indexOf(BLOCK_OPEN), 'it stands after the hero\'s and the bar\'s rules, whose values it overrides from 1024px to 1279px at the same specificity (ruling i)');
   assert.equal(count(css, BLOCK_OPEN), 1, 'its first rule, once at the start of a line');
-  assert.ok(declarations(css.slice(heroAt)).slice(-block.length).join('\n') === block.join('\n'), 'the port\'s last declarations are the block, and nothing follows it');
+  // nothing follows it: the block runs to the file's end, so a rule after it is a declaration more than the reference's (above), and the file's last
+  // text is the reference's last rule (until the review of HOME-MENU-01, 2026-11-16, this line compared the block's declarations with themselves)
+  assert.match(css, /@media \(hover: hover\) \{\s*\.ts-bar__trigger:hover \{ color: var\(--ts-hero-gold\); \}\s*\}\s*$/, 'the file ends at the reference\'s last rule, the names\' hover');
+  // and no rule in the file names the bar's fixed ids: the panel, the menu and the lists are ruled by their classes alone, as the reference rules them
+  assert.doesNotMatch(css, new RegExp(`#(?:${BAR_MEGA_ID}|${BAR_MENU_ID})`), 'no rule names the panel\'s, the menu\'s or a list\'s id');
   for (const sel of ['.ts-bar__pill', '.ts-bar__products', '.ts-bar__account', '.ts-bar__login', '.ts-brand__name']) {
     const hero = declarations(css.slice(heroAt, css.indexOf(BLOCK_OPEN))).filter((d) => d.split(' | ')[1] === sel);
     assert.ok(hero.length > 0, `${sel} is the bar's own class, ruled in the hero's block before the menu's`);
@@ -314,33 +319,71 @@ test('T4 BAR_MENU, every word and destination: the four names, Our Story, the an
   assert.deepEqual(tm.more, { label: 'Look up your booking →', href: '/booking/manage' }, 'the travel column\'s foot link');
   assert.deepEqual([ps.more, about.more], [null, null], 'the other two columns have none');
   const header = code(HEADER);
-  for (const word of ['Personal', 'Personal + Business', 'Personal + Trading', 'Personal + Business + Trading', 'For students, creators and nomads.', 'For founders, freelancers and small business owners.', 'For traders running their own money.', 'For founder-traders.', 'Compare all four plans →', '/pricing', 'Events', 'Flights', 'Hotels', 'Getting around', 'Things to do', 'Visa', 'How It All Connects: The 14 Steps', 'Built in Public: The Code', CODE_URL, 'Look up your booking →', '/booking/manage']) {
+  for (const word of ['Personal', 'Personal + Business', 'Personal + Trading', 'Personal + Business + Trading', 'For students, creators and nomads.', 'For founders, freelancers and small business owners.', 'For traders running their own money.', 'For founder-traders.', 'Compare all four plans →', '/pricing', 'Events', 'Flights', 'Hotels', 'Getting around', 'Things to do', 'Visa', 'How It All Connects: The 14 Steps', 'Built in Public: The Code', CODE_URL, 'Look up your booking →', '/booking/manage', '/how-pricing-works']) {
     assert.equal(count(header, `'${word}'`), 1, `"${word}" is typed once in the bar`);
   }
-  for (const name of ['Financial Software', 'Professional Services', 'Travel Marketplace', 'About Us', 'Our Story', 'Full setup', '/financial-software', '/about', '/how-it-works', '/work-with-me']) assert.ok(!header.includes(name), `"${name}" is read from its home, not typed in the bar`);
+  for (const name of new Set(['Financial Software', 'Professional Services', 'Travel Marketplace', 'About Us', 'Our Story', ...SERVICES.map((s) => s.title), ...Object.values(SERVICE_KINDS), '/financial-software', '/about', '/how-it-works', '/work-with-me'])) assert.ok(!header.includes(name), `"${name}" is read from its home, not typed in the bar`);
+  assert.equal((header.match(/\bBAR_LOOKUP\b/g) ?? []).length, 2, 'BAR_LOOKUP is named twice — its declaration and the travel column\'s foot link: nothing else draws it (ruling g)');
+  // ruling d: a destination on the site is a next/link Link, the code's a plain anchor in a new tab. next/link draws an anchor's markup, so the render
+  // cannot hold this; the code does: two plain anchors, the code's (the panel's and the list's), and eleven Links — the mark, Pricing and Log in in the
+  // bar; the panel's three kinds of link and its foot link; the list's link and its foot link; Pricing and Log in in the phone menu
+  const anchors = header.match(/<a\b[^>]*>/g) ?? [];
+  assert.equal(anchors.length, 2, 'two plain anchors in the bar');
+  for (const a of anchors) assert.ok(a.includes('href={link.href} target="_blank" rel="noopener noreferrer"'), `${a}: the code's link, in a new tab`);
+  assert.equal(count(header, '<Link '), 11, 'and eleven next/link Links');
   assert.doesNotMatch(header, /#(modules|services|demo|events|my-trip|stop-0)\b/, 'no section id typed: the menu builds its fragments from the anchors');
   assert.doesNotMatch(header, /from '@\/lib\/(offer\/plans|howTo|footerWords)'|from '@\/components\/trips\/travelStripModes'/, 'and no heavy home is imported (ruling f)');
 });
 
 // ── T5 · THE GRAPH ───────────────────────────────────────────────────────────
 
-/** Every module under src a file reaches through its imports and re-exports, and the packages it names. */
+/**
+ * Every module a file's code names, as TypeScript's own parser reads the file — homePages01.test.ts's reader (its specsOf), here for the bar: each
+ * import and export declaration wherever it stands, import-equals, an import type, each import() and each require(). A module named by anything
+ * but a literal is returned as such, and the closed list of packages below refuses it by name. (Until the review of HOME-MENU-01, 2026-11-16, a
+ * pattern of this test's own read only single-quoted statements that started a line.)
+ */
+const NOT_A_LITERAL = '(a module named by something that is not a literal)';
+function specsOf(src: string, file: string): string[] {
+  const tree = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, false, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  const specs: string[] = [];
+  const named = (node: ts.Node | undefined): void => {
+    if (node !== undefined) specs.push(ts.isStringLiteralLike(node) ? node.text : NOT_A_LITERAL);
+  };
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node)) named(node.moduleSpecifier);
+    else if (ts.isExportDeclaration(node)) named(node.moduleSpecifier);
+    else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) named(node.moduleReference.expression);
+    else if (ts.isImportTypeNode(node)) named(ts.isLiteralTypeNode(node.argument) ? node.argument.literal : node.argument);
+    else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === 'require') || (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'require'))) named(node.arguments[0]);
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  return specs;
+}
+/** The file an import names under src, or null for a package. A path that names no file, or more than one, fails by name. */
+function fileOf(from: string, spec: string): string | null {
+  const base = spec.startsWith('@/') ? join('src', spec.slice(2)) : spec.startsWith('.') ? join(dirname(from), spec) : null;
+  if (base === null) return null;
+  const found = [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')].filter((f) => existsSync(resolve(ROOT, f)) && statSync(resolve(ROOT, f)).isFile());
+  assert.equal(found.length, 1, `${from}: "${spec}" names one file under src (found ${JSON.stringify(found)})`);
+  return found[0];
+}
+/** Every module under src a file reaches through what its code names, to the end, and the packages it names. */
 function graphOf(entry: string): { files: string[]; packages: string[] } {
   const files = new Set<string>();
   const packages = new Set<string>();
-  const visit = (file: string): void => {
-    if (files.has(file)) return;
+  const queue = [entry];
+  while (queue.length > 0) {
+    const file = queue.pop() as string;
+    if (files.has(file)) continue;
     files.add(file);
-    for (const m of code(file).matchAll(/^(?:import|export)\b[^'"]*?from '([^']+)';|^import '([^']+)';/gm)) {
-      const spec = m[1] ?? m[2];
-      const base = spec.startsWith('@/') ? join('src', spec.slice(2)) : spec.startsWith('.') ? join(dirname(file), spec) : null;
-      if (base === null) { packages.add(spec); continue; }
-      const hit = [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')].find((f) => existsSync(resolve(ROOT, f)));
-      assert.ok(hit, `${file} imports ${spec}, which resolves to a file`);
-      visit(hit as string);
+    for (const spec of specsOf(code(file), file)) {
+      const next = fileOf(file, spec);
+      if (next === null) packages.add(spec);
+      else queue.push(next);
     }
-  };
-  visit(entry);
+  }
   return { files: [...files].sort(), packages: [...packages].sort() };
 }
 
@@ -383,6 +426,52 @@ function pressable(start: ViewState, login = false): { state: ViewState; els: ()
 const nameOf = (els: El[], key: BarMenuKey): El => els.filter((el) => el.props['aria-controls'] === BAR_MEGA_ID)[BAR_MENU.findIndex((c) => c.key === key)];
 const rowOf = (els: El[], key: BarMenuKey): El => els.find((el) => el.props['aria-controls'] === `${BAR_MENU_ID}-${key}`) as El;
 const press = (el: El, target?: { closest: (s: string) => unknown }): void => (el.props.onClick as (e: unknown) => void)({ target });
+/** A stand-in for an element the effect meets: what closest() answers for the selectors it asks, and a focus it records. */
+type Stand = { place: string; closest: (selector: string) => unknown; focus: () => void };
+/**
+ * THE EFFECT, RUN FOR REAL. The default export called once under a dispatcher that hands it a state and records its one effect — React 18's own
+ * internals hold the dispatcher, as booksGate01.test.ts drives a component — then that effect run against a stand-in document, as the browser runs
+ * it after the render: what has focus, the listeners it adds and takes away, the four names and the menu button it gives focus back to.
+ */
+function runEffect(state: ViewState, focusOn: 'panel' | 'menu' | 'page' | null) {
+  const writes: string[] = [];
+  const focused: string[] = [];
+  const listeners: Record<string, Array<(e: unknown) => void>> = {};
+  const removed: string[] = [];
+  const effects: Array<{ run: () => unknown; deps: unknown[] }> = [];
+  const values: unknown[] = [state.menuOpen, state.panelFrom, state.openList];
+  const stateNames = ['menuOpen', 'panelFrom', 'openList'];
+  let calls = 0;
+  const dispatcher = {
+    useState: () => { const i = calls; calls += 1; return [values[i], (next: unknown) => { writes.push(`${stateNames[i]} ← ${String(next)}`); }]; },
+    useEffect: (run: () => unknown, deps: unknown[]) => { effects.push({ run, deps }); },
+  };
+  const internals = (React as unknown as { __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: { ReactCurrentDispatcher: { current: unknown } } })
+    .__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher;
+  const prev = internals.current;
+  internals.current = dispatcher;
+  try { LandingHeader({}); } finally { internals.current = prev; }
+  assert.equal(calls, 3, 'the bar holds three states');
+  assert.equal(effects.length, 1, 'and one effect');
+  const stand = (place: string, inside: string | null): Stand => ({ place, closest: (s) => (inside !== null && s === inside ? { inside } : null), focus: () => { focused.push(place); } });
+  const names = BAR_MENU.map((c) => stand(`the name ${c.key}`, `button[aria-controls="${BAR_MEGA_ID}"]`));
+  const places = { names, menuButton: stand('the menu button', null), inPanel: stand('a link in the panel', `#${BAR_MEGA_ID}`), inMenu: stand('a link in the menu', `#${BAR_MENU_ID}`), page: stand('the page', null) };
+  const doc = {
+    activeElement: focusOn === 'panel' ? places.inPanel : focusOn === 'menu' ? places.inMenu : focusOn === 'page' ? places.page : null,
+    body: places.page,
+    addEventListener: (type: string, fn: (e: unknown) => void) => { if (!listeners[type]) listeners[type] = []; listeners[type].push(fn); },
+    removeEventListener: (type: string) => { removed.push(type); },
+    querySelectorAll: (s: string) => (s === `button[aria-controls="${BAR_MEGA_ID}"]` ? names : []),
+    querySelector: (s: string) => (s === `button[aria-controls="${BAR_MENU_ID}"]` ? places.menuButton : null),
+  };
+  const g = globalThis as unknown as { document?: unknown };
+  const saved = g.document;
+  const inDocument = <T,>(f: () => T): T => { g.document = doc; try { return f(); } finally { g.document = saved; } };
+  const cleanup = inDocument(() => effects[0].run());
+  const fire = (type: string, event: unknown): void => inDocument(() => { for (const fn of listeners[type] ? listeners[type] : []) fn(event); });
+  const clean = (): void => inDocument(() => { (cleanup as () => void)(); });
+  return { writes, focused, listeners, removed, deps: effects[0].deps, cleanup, clean, fire, places };
+}
 
 test('T6 the state: the panel, the phone menu and its lists closed at first; a name opens the panel and the name pressed last closes it; a link in it closes it; a row opens its list and closes the one open; the menu closes on a link, on Log in and on its button; Escape and the press outside, held in the one effect; nothing stored', () => {
   // closed at first: the default export draws the view with nothing open
@@ -416,13 +505,45 @@ test('T6 the state: the panel, the phone menu and its lists closed at first; a n
   press(menuButton()); press(menuButton()); assert.equal(phone.state.menuOpen, false, 'and its button closes it');
   press(menuButton());
   press(phone.els().find((el) => el.props.className === 'ts-pill-gold ts-menu__login') as El); assert.deepEqual([phone.state.menuOpen, phone.logins], [false, 1], 'Log in closes it, then opens the login');
-  // Escape and the press outside: the one effect, held by its code (the server draws no effect; the browser's run is in the PR)
+  // Escape and the press outside: the one effect, run for real (until the review of HOME-MENU-01, 2026-11-16, held by four phrases of its code, which an
+  // inverted guard or a wrong target passed)
+  const closedRun = runEffect(CLOSED, null);
+  assert.deepEqual(closedRun.deps, [false, null], 'the effect follows the menu\'s state and the panel\'s, and nothing else');
+  assert.deepEqual([closedRun.cleanup, Object.keys(closedRun.listeners)], [undefined, []], 'closed, it listens for nothing');
+  let run = runEffect({ ...CLOSED, panelFrom: 'tm' }, 'panel');
+  assert.deepEqual(run.deps, [false, 'tm'], 'opened from Travel Marketplace');
+  assert.deepEqual(Object.keys(run.listeners).sort(), ['click', 'keydown'], 'open, it listens for a key and for a press');
+  run.fire('keydown', { key: 'Enter' });
+  assert.deepEqual([run.writes, run.focused], [[], []], 'another key does nothing');
+  run.fire('keydown', { key: 'Escape' });
+  assert.deepEqual([run.writes, run.focused], [['panelFrom ← null'], ['the name tm']], 'Escape closes the panel and gives focus back to the name that opened it, when focus was inside');
+  run = runEffect({ ...CLOSED, panelFrom: 'tm' }, 'page');
+  run.fire('keydown', { key: 'Escape' });
+  assert.deepEqual([run.writes, run.focused], [['panelFrom ← null'], []], 'with focus elsewhere, Escape closes it and focus stays where it was');
+  run = runEffect({ ...CLOSED, panelFrom: 'tm' }, null);
+  run.fire('click', { target: run.places.inPanel });
+  assert.deepEqual(run.writes, [], 'a press inside the panel is not a press outside');
+  for (const name of run.places.names) run.fire('click', { target: name });
+  assert.deepEqual(run.writes, [], 'nor is a press on any of the four names: the name\'s own press decides');
+  run.fire('click', { target: run.places.page });
+  assert.deepEqual(run.writes, ['panelFrom ← null'], 'a press outside the panel and the four names closes it');
+  assert.equal(typeof run.cleanup, 'function', 'the effect hands back its cleanup');
+  run.clean();
+  assert.deepEqual(run.removed.sort(), ['click', 'keydown'], 'which takes both listeners away');
+  run = runEffect({ ...CLOSED, menuOpen: true }, 'menu');
+  assert.deepEqual(run.deps, [true, null], 'the phone menu open');
+  run.fire('keydown', { key: 'Escape' });
+  assert.deepEqual([run.writes, run.focused], [['menuOpen ← false'], ['the menu button']], 'Escape closes the menu and gives focus back to its button, when focus was inside');
+  run = runEffect({ ...CLOSED, menuOpen: true }, 'page');
+  run.fire('keydown', { key: 'Escape' });
+  assert.deepEqual([run.writes, run.focused], [['menuOpen ← false'], []], 'with focus elsewhere, Escape closes it and focus stays');
+  run = runEffect({ ...CLOSED, menuOpen: true }, null);
+  run.fire('click', { target: run.places.page });
+  assert.deepEqual(run.writes, [], 'a press outside closes no phone menu: the panel alone closes so');
+  run = runEffect({ ...CLOSED, menuOpen: true, panelFrom: 'fs' }, 'page');
+  run.fire('keydown', { key: 'Escape' });
+  assert.deepEqual(run.writes, ['panelFrom ← null', 'menuOpen ← false'], 'both open (a window narrowed with the panel open): Escape closes both');
   const header = code(HEADER);
-  const effect = flat(header.slice(header.indexOf('useEffect(() => {'), header.indexOf('}, [menuOpen, panelFrom]);')));
-  assert.ok(effect.startsWith('useEffect(() => { if (!menuOpen && panelFrom === null) return;'), 'the effect listens only while the menu or the panel is open');
-  assert.ok(effect.includes("const back = focused !== null && focused.closest(`#${BAR_MEGA_ID}`) !== null; setPanelFrom(null); if (back)"), 'Escape closes the panel and, when focus was inside, gives it back to the name that opened it');
-  assert.ok(effect.includes("const back = focused !== null && focused.closest(`#${BAR_MENU_ID}`) !== null; setMenuOpen(false); if (back) document.querySelector<HTMLButtonElement>(`button[aria-controls=\"${BAR_MENU_ID}\"]`)!.focus();"), 'and the menu, giving focus back to its button');
-  assert.ok(effect.includes('target.closest(`#${BAR_MEGA_ID}`) === null && target.closest(`button[aria-controls="${BAR_MEGA_ID}"]`) === null) setPanelFrom(null);'), 'a press outside the panel and the four names closes it');
   assert.equal(count(header, 'useEffect('), 1, 'one effect');
   // nothing stored, nothing in the URL (ruling c)
   assert.doesNotMatch(header, /localStorage|sessionStorage|indexedDB|\.cookie|useSearchParams|usePathname|useRouter|location\.|history\.|\bfetch\(/, 'no storage, no cookie, no URL, no call');
@@ -430,7 +551,7 @@ test('T6 the state: the panel, the phone menu and its lists closed at first; a n
 
 // ── T7 · THE RULINGS ─────────────────────────────────────────────────────────
 
-test('T7 each ruling is quoted, exact, where it is built, under the brief\'s stamp; the notes the menu made false are re-said in place, dated; no cited line moved; in every source file of the change a quote that follows a sentence of his for twenty characters is his words from there, and each file\'s count of his quotes is held', () => {
+test('T7 each ruling is quoted, exact, where it is built, under the brief\'s stamp; the notes the menu made false are re-said in place, dated; no cited line moved; in every source file of the change a quote that follows a sentence of his for twelve characters is his words from there, and each file\'s count of his quotes is held', () => {
   const quoted = (file: string, words: string): boolean => prose(file).includes(`"${flat(words)}"`);
   // where each is built: in the bar — the names, the rows, the state, the list, the light homes, the copies, the new word, the code's link,
   // the notes and nothing else changing; in globals.css the block; in this file, HOME-MENU-01 (Alex: the boards, 2026-11-14 20:01 and,
@@ -459,14 +580,17 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [HEADER, /Log in \(HOME-MENU-01, 2026-11-16: the three names with a caret each, then About Us with its own, first in the account group, before Pricing/, /Travel Marketplace · Pricing · Log in\. Its/],
     [HEADER, /ported to the foot of src\/app\/globals\.css \(and, since HOME-MENU-01, 2026-11-16, design-refs\/home-menu-01's second stylesheet after them: the menu's\)/, null],
     [HEADER, /THE THREE LINKS were the home page's three pillars until HOME-MENU-01 \(2026-11-16\)/, /THE THREE LINKS are the home page's three pillars/],
-    [HEADER, /UNDER 1024px the links folded into a menu behind one 44px button until HOME-MENU-01 \(2026-11-16\); since then its first four rows are the four names/, /UNDER 1024px the links fold into a menu/],
+    [HEADER, /UNDER 1024px the bar's row folds into a menu behind one 44px button — the menu repeated the three links, Pricing and Log in until HOME-MENU-01 \(2026-11-16\); since then its first four rows are the four names/, /UNDER 1024px the links fold into a menu behind one 44px button\. Open or closed is React state/],
+    [HEADER, /No pillar name and no id is typed here \(the menu's other words are BAR_MENU's, below, the heavy homes' copied once: ruling f\)\. Its links are absolute/, /No name and no id is typed here/],
+    [HEADER, /The bar's own link to the code was "GitHub ↗" until HERO-CREST-01 \(2026-11-11\) took it out, by his words the note above quotes; from then until HOME-MENU-01 \(2026-11-16\) the bar linked no code/, null],
     [HEADER, /HOME-MENU-01 \(2026-11-16\), his newer choice, beside it: the menu's About Us column draws the footer's code link again/, null],
     [HEADER, /Until then this place held BAR_PRODUCT_LINKS/, /HERO-CREST-01: the bar's three product links — the home page's three pillars\. Each is its pillar's heading/],
     [HEADER, /HOME-MENU-01 \(2026-11-16\): five more fixed ids, for the same reason/, null],
     [HEADER, /THE OPEN MENU — under 1024px, a dark glass panel under the bar: the four names as rows/, /THE OPEN MENU — the README's first proposal/],
     [LANDING, /as its third product link, BAR_PRODUCT_LINKS — until HOME-MENU-01, 2026-11-16: since then from its menu's Travel Marketplace column/, /as its third product link, BAR_PRODUCT_LINKS\), but an/],
+    [LANDING, /left the bar by his rulings of the same day \(LandingHeader\.tsx; HOME-MENU-01, 2026-11-16: the code's link came back, in the bar's menu's About Us column, in a new tab\)/, /left the bar by his rulings of the same day \(LandingHeader\.tsx\);/],
     [ANCHORS, /SERVICES_ANCHOR the bar's and its section's \(HOME-MENU-01, 2026-11-16: since then MODULES_ANCHOR is read by nothing under src but this file/, null],
-    [ANCHORS, /may not retype an id \(until HOME-MENU-01, 2026-11-16: since then its names open the menu/, /may not retype an id\. Until now/],
+    [ANCHORS, /linked the three pillars — \/#modules, \/#services, \/#demo — from every page that mounts it until HOME-MENU-01 \(2026-11-16: since then its names open the menu, and the menu's links read EVENTS_ANCHOR, DEMO_ANCHOR and MY_TRIP_ANCHOR here\), and it may not retype an id/, /links the three pillars — \/#modules, \/#services, \/#demo — from every page that mounts it, and may not retype an id/],
     [ANCHORS, /the bar alone reads it now; HOME-MENU-01, 2026-11-16: nothing under src reads it now but this file/, /the bar alone reads it now\)\./],
     [ANCHORS, /WHAT THE BAR PAYS FOR READING IT HERE \(its anchors since HOME-MENU-01, 2026-11-16/, /WHAT THE BAR PAYS FOR READING IT HERE:/],
     [FOOTER_WORDS, /every section keeps its id\. HOME-MENU-01 \(2026-11-16\): the bar read the first two until then/, null],
@@ -481,10 +605,11 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [GLOBALS, /because nothing may follow the hero's \(but HOME-MENU-01's, 2026-11-16: the menu's rules follow the bar's own\) and the Financial Software port/, /because nothing may follow the hero's and the Financial Software port/],
     [GLOBALS, /which stays last \(HOME-MENU-01, 2026-11-16: but for the menu's block, which follows it\):/, /which stays last: the Financial Software section's port/],
     [GLOBALS, /NOTHING FOLLOWS THIS BLOCK BUT THE MENU'S, AND NOTHING ABOVE IT NAMES ITS CLASSES \(HOME-MENU-01, 2026-11-16, its ruling i/, /NOTHING FOLLOWS THIS BLOCK, AND NOTHING ABOVE IT NAMES ITS CLASSES: a rule/],
-    [GLOBALS, /THE OPEN MENU\. Drawn on the design canvas since HOME-MENU-01 \(2026-11-16\)/, /THE OPEN MENU\. Not drawn on the design canvas: this panel is the proposal\. \*\//],
+    [GLOBALS, /THE OPEN MENU\. Drawn on the design canvas: the menu's 390 board, approved with the home page's boards on 2026-11-14 at 20:01 and, corrected, 20:41 Manila, draws it open with one list, and HOME-MENU-01 built it \(2026-11-16/, /THE OPEN MENU\. Not drawn on the design canvas: this panel is the proposal\. \*\//],
+    [GLOBALS, /the open menu's panel is hero-well at 86%, typed as the reference types it; HOME-MENU-01, 2026-11-16: and the menu's panel is hero-well at 95%/, null],
     [LAW, /LandingHeader carries no link to it\. \(HOME-MENU-01, 2026-11-16, its rulings g and h, beside the 17:04 ruling/, null],
     [LAW, /never a header link\. \(HOME-MENU-01, 2026-11-16, rulings g and h: it is still the door/, null],
-    [SEEDS, /HOME-MENU-01, 2026-11-16: since then a second header link, or the header's one link with other words or in another column/, null],
+    [SEEDS, /HOME-MENU-01, 2026-11-16: since then a second header link, typed or drawn from BAR_LOOKUP again, or the header's one link with other words or in another column/, null],
     [SEEDS, /The door \(Alex's ruling 17:04\): the lookup under the home page's booking section\. HOME-MENU-01 \(2026-11-16\), ruling h, beside it/, null],
     [tests('heroCrest01'), /nothing follows it in the file but the menu's block \(HOME-MENU-01, 2026-11-16/, /nothing follows it in the file and nothing above/],
     [tests('heroCrest01'), /T10 #modules has one home — MODULES_ANCHOR, read by the bar until HOME-MENU-01 \(2026-11-16\) and by nothing under src since/, /MODULES_ANCHOR, read by the bar \(and by the footer/],
@@ -495,6 +620,10 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [tests('footer02'), /stays last \(but for the menu's block after it, since HOME-MENU-01, 2026-11-16\)/, null],
     [tests('howTo01'), /and the top bar's first link, until HOME-MENU-01, 2026-11-16: its first name opens the menu now/, /\/modules and the top bar's first link land on it/],
     [tests('guest01'), /the door still \(HOME-MENU-01, 2026-11-16, ruling h, beside it: the header carries one link to \/booking\/manage since then/, null],
+    [tests('guest01'), /HOME-MENU-01 \(2026-11-16\), rulings g and h: this line, :334, re-said — the header links \/booking\/manage exactly once/, null],
+    [tests('heroCrest01'), /ported to the foot of src\/app\/globals\.css \(and the bar's menu, since HOME-MENU-01, 2026-11-16, by design-refs\/home-menu-01's second stylesheet after it/, null],
+    [tests('heroCrest01'), /HOME-MENU-01 \(2026-11-16\), ruling h, beside the quote below: it took the bar's own GitHub link, which stays gone/, null],
+    [tests('homeServices01'), /\.ts-menu:not\(\[hidden\]\), HERO-CREST-01; and its lists', \.ts-menu__sub:not\(\[hidden\]\), since HOME-MENU-01, 2026-11-16/, null],
   ];
   for (const [file, now, gone] of RESAID) {
     assert.match(prose(file), now, `${file}: its note re-said, dated`);
@@ -511,6 +640,11 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [tests('footer02'), "which stays last but for the menu\\'s block (HOME-MENU-01, 2026-11-16)"],
     [tests('guest01'), "one header link, the menu’s travel column’s foot link (the door is still the home page’s lookup — HOME-MENU-01, 2026-11-16: no header link until then)"],
     [SEEDS, "name: 'guest01-z4 the header links /booking/manage a second time'"],
+    [SEEDS, "name: 'guest01-z4c the header\\'s one lookup link moves to another column'"],
+    [SEEDS, "name: 'guest01-z4d the header draws its one lookup link a second time, from BAR_LOOKUP'"],
+    [tests('heroCrest01'), "with nothing between the two — homeMenu01 T2 holds the block line for line, and that nothing follows it"],
+    [tests('guest01'), "'Alex’s ruling 17:04, re-said by HOME-MENU-01 (2026-11-16): one header link, typed once'"],
+    [tests('pipelinePage01'), "pipelineWords.ts\\'s code is untouched (HOME-MENU-01, 2026-11-16, re-said two of its notes)"],
   ];
   for (const [file, now] of TITLES) assert.ok(code(file).includes(now), `${file}: re-said — "${now.slice(0, 60)}…"`);
   // no cited line moved: the lines a test or a law cites by number, where they stood
@@ -518,17 +652,21 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
   assert.equal(whole(LAW).split('\n').length - 1, 11254, 'the law: 11,254 lines, as it was (homeTrim02 and homeTrim03 hold it)');
   assert.ok(comments(ANCHORS).split('\n')[27].includes("STOP_ZERO_ANCHOR its section's alone: no link lands on #stop-0 now, and the id stays."), 'homeAnchors.ts:28, which HOME-TRIM-01\'s ruling e cites, where it stood');
   assert.ok(comments(HEADER).split('\n')[52].includes('LANDING-V3 (spec :34-47) → THREE-TRIMS'), 'LandingHeader.tsx:53-54, which Landing.tsx:673 cites, where it stood');
-  // ruling k: the 2026-11-14 approvals are named by their times, and their words are quoted in no file of the change that did not quote them
-  for (const file of [HEADER, LAW, SEEDS, ANCHORS, FOOTER_WORDS, PIPELINE_WORDS, SERVICES_SECTION, HOW_TO, tests('heroCrest01'), tests('footer01'), tests('footer02'), tests('guest01'), tests('howTo01'), THIS]) {
-    for (const words of ['ALL LOOKS GOOD', 'yeet yeet']) assert.ok(!prose(file).includes(words), `${file}: the approvals' words are quoted nowhere new`);
-  }
-  // EVERY SOURCE FILE OF THE CHANGE: a straight mark followed by twenty or more characters of one of his sentences, from the sentence's start,
+  assert.ok(code(tests('guest01')).split('\n')[333].startsWith("  assert.equal((code(HEADER).match(/booking\\/manage/g) ?? []).length, 1,"), 'guest01:334, which ruling g cites, holds the re-said check');
+  assert.ok(code(LAW).split('\n')[10381].startsWith("  { const bar = codeOf('src/components/landing/LandingHeader.tsx'); const links = (bar.match(/booking\\/manage/g) ?? []).length;"), 'the law\'s :10382, which ruling g cites, holds the re-said check');
+  // EVERY SOURCE FILE OF THE CHANGE: a straight mark followed by twelve or more characters of one of his sentences, from the sentence's start,
   // opens a quote of him — what stands from there to the closing mark is his words from that sentence on, to the end of the piece or to a full
-  // stop, or this fails; a whole sentence of his shorter than that is read too, and counted. Each file's count is held. (homeTrim03's census.)
-  const CHANGED = [THIS, HEADER, GLOBALS, LANDING, LAW, SEEDS, ANCHORS, FOOTER_WORDS, PIPELINE_WORDS, SERVICES_SECTION, HOW_TO, ...['heroCrest01', 'homePages01', 'footer01', 'footer02', 'howTo01', 'guest01'].map(tests)];
+  // stop, or this fails, naming the longest such part; a whole sentence of his shorter than that is read too, and counted. Each file's count is held.
+  // (homeTrim03's census, at twelve characters: twenty until the review of HOME-MENU-01, 2026-11-16, which let a misquote parting at fifteen through.)
+  const CHANGED = [THIS, HEADER, GLOBALS, LANDING, LAW, SEEDS, ANCHORS, FOOTER_WORDS, PIPELINE_WORDS, SERVICES_SECTION, HOW_TO, ...['heroCrest01', 'homePages01', 'footer01', 'footer02', 'howTo01', 'guest01', 'homeServices01', 'pipelinePage01'].map(tests)];
   for (const file of CHANGED) assert.ok(existsSync(resolve(ROOT, file)), `${file} is in the tree`);
+  // ruling k: the 2026-11-14 approvals are named by their times, and their words are quoted nowhere new — no file of the change holds a quote under
+  // their stamps but homePages01.test.ts, which held its two before this change (HOME-PAGES-01's). The pattern is built from its parts, so this file
+  // does not hold the form it looks for; and their words are not typed here (until the review of HOME-MENU-01, 2026-11-16, this test typed them)
+  const approvalStamps = new RegExp(['20:01 Manila', '20:41(?: Manila)?'].map((time) => `${time}: "`).join('|'), 'g');
+  for (const file of CHANGED) assert.equal((whole(file).match(approvalStamps) ?? []).length, file === tests('homePages01') ? 2 : 0, `${file}: the approvals quoted under their stamps as often as before this change`);
   const HIS_WORDS = [...Object.values(RULING), ANSWER];
-  assert.equal(HIS_WORDS.length, 14);
+  assert.equal(HIS_WORDS.length, 14, 'his words: the thirteen rulings and his answer — a ruling dropped from the table above fails here');
   const sentencesOf = (text: string): number[] => [0, ...[...text.matchAll(/[.!?] /g)].map((m) => (m.index as number) + 2)];
   const closesASentence = (text: string, n: number): boolean => n === text.length || (/[.!?]/.test(text[n - 1]) && text[n] === ' ');
   const census: Record<string, number> = {};
@@ -538,12 +676,13 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
       const rest = said.slice(at + 1);
       let his = false;
       let parted = '';
+      let longest = 0;
       for (const text of HIS_WORDS) {
         for (const from of sentencesOf(text)) {
           let n = 0;
           while (from + n < text.length && rest[n] === text[from + n]) n += 1;
           if (n > 0 && closesASentence(text, from + n) && rest[n] === '"') his = true;
-          else if (n >= 20) parted = `a quote follows a sentence of the brief for ${n} characters ("${rest.slice(0, n)}"), then goes on "${rest.slice(n, n + 24)}…" where his words go on "${text.slice(from + n, from + n + 24)}…"`;
+          else if (n >= 12 && n > longest) { longest = n; parted = `a quote follows a sentence of the brief for ${n} characters ("${rest.slice(0, n)}"), then goes on "${rest.slice(n, n + 24)}…" where his words go on "${text.slice(from + n, from + n + 24)}…"`; }
         }
       }
       assert.ok(his || parted === '', `${file}: ${parted}`);
@@ -554,5 +693,5 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [THIS]: 3, // the header: his answer; rulings k and l (T7)
     [HEADER]: 11, // rulings a, b, c, d, e, f, g, h, j and m, and his answer
     [GLOBALS]: 1, // ruling i, over the block
-  }, 'each file\'s quotes of him, counted — fifteen in three of the seventeen: a quote that stood and no longer opens on his words leaves its file\'s count, and fails here');
+  }, 'each file\'s quotes of him, counted — fifteen in three of the nineteen: a quote that stood and no longer opens on his words leaves its file\'s count, and fails here');
 });

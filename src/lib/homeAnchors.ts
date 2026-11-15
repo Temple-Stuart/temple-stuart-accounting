@@ -38,8 +38,8 @@
  *
  * HERO-CREST-01 (Alex, design canvas, 2026-11-11): a sixth name, and no new literal —
  *   · MODULES_ANCHOR   'modules' — the first pillar's section, the how-to (HowToSection.tsx, <section id="modules").
- * The top bar (LandingHeader.tsx) links the three pillars — /#modules, /#services, /#demo — from every page that mounts
- * it, and may not retype an id (until HOME-MENU-01, 2026-11-16: since then its names open the menu, and the menu's links read EVENTS_ANCHOR, DEMO_ANCHOR and MY_TRIP_ANCHOR here). Until now this one had no home a second reader could import: the element's own literal
+ * The top bar (LandingHeader.tsx) linked the three pillars — /#modules, /#services, /#demo — from every page that mounts
+ * it until HOME-MENU-01 (2026-11-16: since then its names open the menu, and the menu's links read EVENTS_ANCHOR, DEMO_ANCHOR and MY_TRIP_ANCHOR here), and it may not retype an id. Until now this one had no home a second reader could import: the element's own literal
  * (HowToSection.tsx, guarded there by the plan law in scripts/assert-tool-registry.ts — which is why FOOTER-01 left it
  * "outside this ruling", above) and a PRIVATE copy for the footer's first link, src/lib/footerWords.ts
  * `const PLANS_SECTION_ID = 'modules'`. That copy MOVED here, under the name its neighbours wear; the footer and the

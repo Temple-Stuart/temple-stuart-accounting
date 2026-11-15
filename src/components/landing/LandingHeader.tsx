@@ -14,11 +14,11 @@
  *   · GLASS IS THE LANDING'S — `glass` lays the same pill over the hero (Landing.tsx), where it scrolls away with it.
  *   · THE THREE LINKS were the home page's three pillars until HOME-MENU-01 (2026-11-16): each wore its pillar's own name — the pillar's heading,
  *     src/lib/homeActWords.ts (PILLAR-NAMES-01, 2026-11-11) — and landed on that pillar's section by the section's own anchor from src/lib/homeAnchors.ts
- *     (MODULES_ANCHOR · SERVICES_ANCHOR · DEMO_ANCHOR). Since then THE FOUR NAMES — the three pillars' headings and About Us, read from homeActWords.ts — are buttons that open one panel of the site's destinations and land on no section (BAR_MENU and the view, below). No name and no id is typed
- *     here. The menu's links are absolute (/#…), so they land from every page the bar is on.
+ *     (MODULES_ANCHOR · SERVICES_ANCHOR · DEMO_ANCHOR). Since then THE FOUR NAMES — the three pillars' headings and About Us, read from homeActWords.ts — are buttons that open one panel of the site's destinations and land on no section (BAR_MENU and the view, below). No pillar name and no id is typed
+ *     here (the menu's other words are BAR_MENU's, below, the heavy homes' copied once: ruling f). Its links are absolute (/#… and /…), so they land from every page the bar is on.
  *   · LOG IN KEEPS ITS TWO MODES (ROUTE-1, below): a button calling onRequireLogin where a login modal exists, a link
  *     to '/' where none does.
- *   · UNDER 1024px the links folded into a menu behind one 44px button until HOME-MENU-01 (2026-11-16); since then its first four rows are the four names, each opening its own list. Open or closed — the menu, the panel and the open list — is React state, and nothing
+ *   · UNDER 1024px the bar's row folds into a menu behind one 44px button — the menu repeated the three links, Pricing and Log in until HOME-MENU-01 (2026-11-16); since then its first four rows are the four names, each opening its own list, before the rule, Pricing and Log in. Open or closed — the menu, the panel and the open list — is React state, and nothing
  *     else: no storage, no cookie, no URL. The menu closes on a link, on Log in, on Escape and on the button.
  * GONE, BY ALEX'S RULING (2026-11-11):
  *   · "GitHub ↗" — "remove github, the icon is enough, we dont need it 2x": the hero's "Clone it on GitHub" carries
@@ -98,7 +98,7 @@ const BAR_TRAVEL_TABS = ['Flights', 'Hotels', 'Getting around', 'Things to do', 
 const BAR_STEPS = 'How It All Connects: The 14 Steps';
 /**
  * The code, which leaves the site. HOME-MENU-01 (Alex: the boards, 2026-11-14 20:01 and, corrected, 20:41 Manila; the destinations, 2026-11-16 00:52 Manila; built 2026-11-16), ruling h: "HIS NEWER CHOICE SUPERSEDES TWO OLDER RULINGS. GUEST-01's door ruling (Alex, 17:04, as the law quotes it) is re-said as ruling g says. HERO-CREST-01's "remove github, the icon is enough, we dont need it 2x" took the bar's own GitHub link; now the About Us column draws the footer's code link again, in a new tab. Both quotes stay where they stand, and each place that holds them is re-said beside them, dated."
- * The bar's own link to the code until then was "GitHub ↗" (the note above, where his 2026-11-11 words stand).
+ * The bar's own link to the code was "GitHub ↗" until HERO-CREST-01 (2026-11-11) took it out, by his words the note above quotes; from then until HOME-MENU-01 (2026-11-16) the bar linked no code.
  */
 const BAR_CODE = { label: 'Built in Public: The Code', href: 'https://github.com/Temple-Stuart/temple-stuart-accounting' } as const;
 /**
@@ -115,7 +115,7 @@ type BarLink = { label: string; href: string; audience?: string; kind?: string |
 type BarColumn = { key: BarMenuKey; name: string; links: readonly BarLink[]; more: { label: string; href: string } | null };
 
 /**
- * HOME-MENU-01 — THE MENU: ONE LIST, DRAWN TWICE — the panel's four columns from 1024px, the phone menu's four lists under it — so the
+ * HOME-MENU-01 (2026-11-16) — THE MENU: ONE LIST, DRAWN TWICE — the panel's four columns from 1024px, the phone menu's four lists under it — so the
  * two cannot drift. Until then this place held BAR_PRODUCT_LINKS (HERO-CREST-01: the bar's three product links, each its pillar's
  * heading on its pillar's section by that section's own anchor, drawn as the bar's row and as the phone menu's rows). HOME-MENU-01 (Alex: the boards, 2026-11-14 20:01 and, corrected, 20:41 Manila; the destinations, 2026-11-16 00:52 Manila; built 2026-11-16),
  * ruling d: "THE FOUR COLUMNS ARE ONE EXPORTED LIST, BAR_MENU, where BAR_PRODUCT_LINKS stands, in the reference's order. Each column holds its key, its name, its links and its foot link or none. A link holds its words and its destination, and also a plan's audience, a service's kind, or the code's new tab. The panel draws the list as four columns and the phone menu as four lists. A destination on the site is a next/link Link, as the bar's are now; the code's is a plain anchor with target _blank and rel noopener noreferrer, as the footer's is. BAR_PRODUCT_LINKS goes with its last reader. BAR_PRICING stays in LandingHeader.tsx and the About Us column draws it; if its line moves, the law's GUEST_ROUTES row re-cites it, newest first, as FOOTER-02 re-cited it."
@@ -222,7 +222,7 @@ export function LandingHeaderView({ onRequireLogin, glass = false, menuOpen, set
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d={menuOpen ? 'M5.5 5.5l11 11M16.5 5.5l-11 11' : 'M3 8h16M3 14h16'} /></svg>
         </button>
       </div>
-      {/* THE PANEL (HOME-MENU-01): from 1024px, under the pill, the four columns; always in the markup, hidden while closed. A press on any
+      {/* THE PANEL (HOME-MENU-01, 2026-11-16): from 1024px, under the pill, the four columns; always in the markup, hidden while closed. A press on any
           link in it closes it. Under 1024px the stylesheet never draws it. */}
       <div className="ts-mega" id={BAR_MEGA_ID} hidden={panelFrom === null} onClick={(e) => { if ((e.target as HTMLElement).closest('a')) setPanelFrom(null); }}>
         <div className="ts-mega__panel">
@@ -293,7 +293,7 @@ export function LandingHeaderView({ onRequireLogin, glass = false, menuOpen, set
  * as it was, as the reference's own script does.
  */
 export default function LandingHeader(props: LandingHeaderProps) {
-  // The menu under 1024px: open or closed, in React state only (HOME-MENU-01: and the panel's opener and the open list beside it).
+  // The menu under 1024px: open or closed, in React state only (HOME-MENU-01, 2026-11-16: and the panel's opener and the open list beside it).
   const [menuOpen, setMenuOpen] = useState(false);
   const [panelFrom, setPanelFrom] = useState<BarMenuKey | null>(null);
   const [openList, setOpenList] = useState<BarMenuKey | null>(null);

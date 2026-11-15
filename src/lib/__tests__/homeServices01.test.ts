@@ -412,7 +412,7 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   assert.ok(at > css.lastIndexOf('.ts-chipfade') && next > at && css.indexOf('.ts-hero {') > next, 'the chip strip → this port → the Financial Software section\'s → the hero\'s');
   // nothing outside it names its classes, its id or the hooks its markup carries — but the rules of the two blocks beside it that are
   // styled by the same attributes, every part of each opening with one of that block's own classes: the Financial Software section's
-  // (.ts-fs…: its switches by [aria-pressed], its plans by [data-picked]) and the top bar's menu (.ts-menu:not([hidden]), HERO-CREST-01).
+  // (.ts-fs…: its switches by [aria-pressed], its plans by [data-picked]) and the top bar's menu (.ts-menu:not([hidden]), HERO-CREST-01; and its lists', .ts-menu__sub:not([hidden]), since HOME-MENU-01, 2026-11-16).
   // This section wears none of their classes (each class it wears is ruled by its port, below), and no element around it wears one:
   // it is mounted directly under the page's root, whose classes are Tailwind's.
   const outside = css.slice(0, at) + css.slice(next);

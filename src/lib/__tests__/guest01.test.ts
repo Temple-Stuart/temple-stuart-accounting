@@ -14,8 +14,7 @@
  *      for an account;
  *   T5 the guest projection — the receipt's own vendor side, no settlement, no bank;
  *   T6 both pages mounting the one renderer, rendered; the one lookup box — the door —
- *      on the home page and on /booking/manage (Alex's ruling 17:04), rendered — the door still (HOME-MENU-01, 2026-11-16, ruling h,
- *      beside it: the header carries one link to /booking/manage since then, the menu's travel column's foot link, held in T3).
+ *      on the home page and on /booking/manage (Alex's ruling 17:04), rendered — the door still (HOME-MENU-01, 2026-11-16, ruling h, beside it: the header carries one link to /booking/manage since then, the menu's travel column's foot link, held in T3).
  * No live call, no database.
  */
 import { test } from 'node:test';
@@ -332,10 +331,11 @@ test('T3 the public surface: exactly the page and the two guest routes in PUBLIC
   const paths = Array.from(list.matchAll(/'([^']+)'/g), (m) => m[1]);
   assert.deepEqual(paths.filter((p) => p.startsWith('/api/guest') || p === '/booking/manage').sort(), ['/api/guest/booking', '/api/guest/session', '/booking/manage']);
   assert.equal((comments(MIDDLEWARE).match(/GUEST-01/g) ?? []).length, 3, 'three entries, three reasons');
-  // HOME-MENU-01 (2026-11-16), rulings g and h: the header links /booking/manage exactly once — the menu's travel column's foot link, its words and path
-  // typed together — and the lookup stays the door. Until then: assert.doesNotMatch(code(HEADER), /booking\/manage/, 'Alex’s ruling 17:04: no header link').
-  assert.equal((code(HEADER).match(/booking\/manage/g) ?? []).length, 1, 'Alex’s ruling 17:04, re-said by HOME-MENU-01: one header link, typed once');
+  assert.equal((code(HEADER).match(/booking\/manage/g) ?? []).length, 1, 'Alex’s ruling 17:04, re-said by HOME-MENU-01 (2026-11-16): one header link, typed once');
   assert.ok(code(HEADER).includes("const BAR_LOOKUP = { label: 'Look up your booking →', href: '/booking/manage' } as const;") && /\{ key: 'tm', name: EXPLORE_PILLAR\.heading, links: [^\n]*, more: BAR_LOOKUP \},/.test(code(HEADER)), 'and it is the menu’s travel column’s foot link, Look up your booking →');
+  assert.equal((code(HEADER).match(/\bBAR_LOOKUP\b/g) ?? []).length, 2, 'and drawn from nowhere else: BAR_LOOKUP is named twice, its declaration and the travel column’s foot link');
+  // HOME-MENU-01 (2026-11-16), rulings g and h: this line, :334, re-said — the header links /booking/manage exactly once, the menu's travel column's foot link,
+  // its words and path typed together, and the lookup stays the door. Until then: assert.doesNotMatch(code(HEADER), /booking\/manage/, 'Alex’s ruling 17:04: no header link').
 });
 
 // ── T4. the templates and the sender ─────────────────────────────────────────
