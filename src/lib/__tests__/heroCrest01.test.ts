@@ -379,7 +379,7 @@ test('T3 the hero\'s and the bar\'s stylesheet in globals.css is the reference\'
   // HOME-MENU-01 (2026-11-16), ruling i: the menu's rules follow the bar's own at the foot of the file — design-refs/home-menu-01's second stylesheet,
   // renamed, which homeMenu01.test.ts holds line for line, with nothing after it. Until then: assert.deepEqual(port.slice(expected.length), [], 'nothing
   // follows the port in globals.css — a new rule goes above the HERO-CREST-01 block, not after it').
-  const tail = code(GLOBALS).slice(code(GLOBALS).indexOf('.ts-bar__trigger {'));
+  const tail = code(GLOBALS).slice(code(GLOBALS).indexOf('\n.ts-bar__trigger {') + 1); // the block's first rule, at the start of a line: a rule set between the two blocks is no part of it (the review of HOME-MENU-01, 2026-11-16)
   assert.deepEqual(port.slice(expected.length), declarations(tail), 'what follows the port is the menu\'s block, from its first rule to the end of the file, with nothing between the two — homeMenu01 T2 holds the block line for line, and that nothing follows it; a new rule goes above the HERO-CREST-01 block, not after it or the menu\'s');
   assert.ok(port.length > 200, `a whole stylesheet was compared (${port.length} declarations)`);
   // nothing above the port names one of its classes — as a class selector or inside a class attribute selector, at any depth: a

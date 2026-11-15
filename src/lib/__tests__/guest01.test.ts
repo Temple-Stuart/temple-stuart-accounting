@@ -334,7 +334,7 @@ test('T3 the public surface: exactly the page and the two guest routes in PUBLIC
   assert.equal((code(HEADER).match(/booking\/manage/g) ?? []).length, 1, 'Alex’s ruling 17:04, re-said by HOME-MENU-01 (2026-11-16): one header link, typed once');
   assert.ok(code(HEADER).includes("const BAR_LOOKUP = { label: 'Look up your booking →', href: '/booking/manage' } as const;") && /\{ key: 'tm', name: EXPLORE_PILLAR\.heading, links: [^\n]*, more: BAR_LOOKUP \},/.test(code(HEADER)), 'and it is the menu’s travel column’s foot link, Look up your booking →');
   assert.equal((code(HEADER).match(/\bBAR_LOOKUP\b/g) ?? []).length, 2, 'and drawn from nowhere else: BAR_LOOKUP is named twice, its declaration and the travel column’s foot link');
-  // HOME-MENU-01 (2026-11-16), rulings g and h: this line, :334, re-said — the header links /booking/manage exactly once, the menu's travel column's foot link,
+  // HOME-MENU-01 (2026-11-16), rulings g and h: line 334, above, re-said — the header links /booking/manage exactly once, the menu's travel column's foot link,
   // its words and path typed together, and the lookup stays the door. Until then: assert.doesNotMatch(code(HEADER), /booking\/manage/, 'Alex’s ruling 17:04: no header link').
 });
 

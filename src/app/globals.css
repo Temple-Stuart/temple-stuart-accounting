@@ -104,7 +104,7 @@
      writes them --hero-* and --glass-*; the house prefix --ts- is added, nothing else). tailwind.config.ts maps
      them as the `hero` and `glass` families. Hex where the stylesheet reads the token solid; space-separated RGB
      channels where it reads it at an alpha — rgb(var(--ts-hero-bloom) / 0.5). (One hex is also drawn at an alpha
-     without its token: the open menu's panel is hero-well at 86%, typed as the reference types it; HOME-MENU-01, 2026-11-16: and the menu's panel is hero-well at 95%, typed as its reference types it.) Read by the
+     without its token: the open menu's panel is hero-well at 86%, typed as the reference types it; HOME-MENU-01, 2026-11-16: and the top bar's menu's panel, .ts-mega__panel, is hero-well at 95%, typed as its reference types it.) Read by the
      hero's and the bar's stylesheet at the foot of this file — and, since HOME-PLANS-04 (2026-11-12), by the Financial
      Software section's, which reads the violets, the golds and the inks (its block stands above the hero's). ─────── */
   /* the ground: one diagonal sweep (155deg, stops 0 / 34 / 68 / 100%) and two blooms; the filled bar uses 1–3 */
@@ -1472,7 +1472,7 @@ body {
    NOTHING FOLLOWS THIS BLOCK BUT THE MENU'S, AND NOTHING ABOVE IT NAMES ITS CLASSES (HOME-MENU-01, 2026-11-16, its ruling i: the menu's rules follow the bar's own — "NOTHING FOLLOWS THIS BLOCK" until then): a rule added to this file goes above this
    comment and names none of this block's own classes (.ts-hero, .ts-bar__pill, .ts-pill-gold, … — by class selector
    or through a class attribute selector), nor the headline's id — the test reads from .ts-hero { to the end of the
-   file as the port, and fails on any of these (the menu's block among it since HOME-MENU-01: homeMenu01.test.ts holds it line for line, and that nothing follows it).
+   file as the port, and fails on any of these (the menu's block among it since HOME-MENU-01, 2026-11-16: homeMenu01.test.ts holds it line for line, and that nothing follows it).
    Used by src/components/landing/Landing.tsx (the hero) and src/components/landing/LandingHeader.tsx (the bar, on
    every page that mounts it). REPAINT-5's note above — "gradients are banned under Direction C" — is the ruling this
    design comes after: the approved hero is a gradient ground with gold-gradient pills and a glass bar, and the

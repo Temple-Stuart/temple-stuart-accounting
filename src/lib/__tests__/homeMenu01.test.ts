@@ -19,10 +19,12 @@
  *   T4 the words — every word and destination in BAR_MENU, each read from its home where the home is light, or held equal to it where
  *      it is copied; the one new word typed once;
  *   T5 the graph — every module the bar reaches, as TypeScript's own parser reads its imports, listed, so that no heavy home can join it unseen;
- *   T6 the state — the panel and the lists closed at first; which press opens and which closes each; Escape and the press outside, the
- *      one effect run for real against a stand-in document; nothing stored;
- *   T7 the rulings — each quoted, exact, where it is built, under the brief's stamp; the notes it made false re-said, dated; no cited
- *      line moved; a census of the brief's quotes in every source file of the change, each file's count held.
+ *   T6 the state — the panel and the lists closed at first; which press opens and which closes each, and what it leaves as it was; the
+ *      default export's wiring of its three states into the view; Escape and the press outside, the one effect run for real against a
+ *      stand-in document, its listeners added and taken away as they were; nothing stored;
+ *   T7 the rulings — each quoted, exact, where it is built, under the brief's stamp; the notes it made false re-said, dated, and every
+ *      comment line it wrote held as written; no cited line moved, and the guest law's re-said line as its seeds proved it; the approvals
+ *      quoted nowhere new; a census of the brief's quotes in every source file of the change, each file's count held.
  *
  * Source is read through code() and comments() only (the reader law); rejoin() where the whole file is the subject (the digests, the two
  * references). No clock, no live call. What a browser must show — the bar beside the reference at 1440, 1280, 1024, 768 and 390, on the
@@ -36,8 +38,8 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import ts from 'typescript';
 import { code, comments, rejoin } from '../sourceText';
+import { closureOf } from './importReader';
 import { ABOUT_US_HEADING, BUILD_PILLAR, EXPLORE_PILLAR, OUR_STORY_HEADING, PLAN_PILLAR } from '../homeActWords';
 import { DEMO_ANCHOR, EVENTS_ANCHOR, MY_TRIP_ANCHOR } from '../homeAnchors';
 import { ABOUT_PATH, FINANCIAL_SOFTWARE_PATH } from '../homePages';
@@ -259,7 +261,12 @@ test('T2 the block is the reference\'s second stylesheet, declaration by declara
   // text is the reference's last rule (until the review of HOME-MENU-01, 2026-11-16, this line compared the block's declarations with themselves)
   assert.match(css, /@media \(hover: hover\) \{\s*\.ts-bar__trigger:hover \{ color: var\(--ts-hero-gold\); \}\s*\}\s*$/, 'the file ends at the reference\'s last rule, the names\' hover');
   // and no rule in the file names the bar's fixed ids: the panel, the menu and the lists are ruled by their classes alone, as the reference rules them
-  assert.doesNotMatch(css, new RegExp(`#(?:${BAR_MEGA_ID}|${BAR_MENU_ID})`), 'no rule names the panel\'s, the menu\'s or a list\'s id');
+  assert.doesNotMatch(css, /ts-bar-me(?:ga|nu)/, 'no rule names the panel\'s, the menu\'s or a list\'s id, by #id or by [id…] (the ids are ts-bar-mega and ts-bar-menu…)');
+  // and nothing redefines what the block reads: each of the five tokens is declared once, in :root, and the site's mono is the layout's (next/font
+  // sets --font-mono on the page), declared nowhere in this file — so no rule can hand the menu another value
+  const rootBlock = css.slice(css.indexOf(':root {'), css.indexOf('}', css.indexOf(':root {')));
+  for (const [token] of TOKENS) assert.deepEqual([count(css, `--ts-${token}:`), count(rootBlock, `--ts-${token}:`)], [1, 1], `--ts-${token} is declared once, in :root`);
+  assert.equal(count(css, '--font-mono:'), 0, 'and --font-mono nowhere in this file');
   for (const sel of ['.ts-bar__pill', '.ts-bar__products', '.ts-bar__account', '.ts-bar__login', '.ts-brand__name']) {
     const hero = declarations(css.slice(heroAt, css.indexOf(BLOCK_OPEN))).filter((d) => d.split(' | ')[1] === sel);
     assert.ok(hero.length > 0, `${sel} is the bar's own class, ruled in the hero's block before the menu's`);
@@ -331,61 +338,19 @@ test('T4 BAR_MENU, every word and destination: the four names, Our Story, the an
   assert.equal(anchors.length, 2, 'two plain anchors in the bar');
   for (const a of anchors) assert.ok(a.includes('href={link.href} target="_blank" rel="noopener noreferrer"'), `${a}: the code's link, in a new tab`);
   assert.equal(count(header, '<Link '), 11, 'and eleven next/link Links');
+  // Pricing's word is drawn from BAR_PRICING wherever the bar draws it, never typed as text (the markup is the same either way, so the code holds it)
+  assert.equal(count(header, '{BAR_PRICING.label}'), 2, 'the bar\'s Pricing and the phone menu\'s draw BAR_PRICING.label');
+  assert.doesNotMatch(header, />\s*Pricing\s*</, 'and no Pricing typed as JSX text');
   assert.doesNotMatch(header, /#(modules|services|demo|events|my-trip|stop-0)\b/, 'no section id typed: the menu builds its fragments from the anchors');
   assert.doesNotMatch(header, /from '@\/lib\/(offer\/plans|howTo|footerWords)'|from '@\/components\/trips\/travelStripModes'/, 'and no heavy home is imported (ruling f)');
 });
 
 // ── T5 · THE GRAPH ───────────────────────────────────────────────────────────
 
-/**
- * Every module a file's code names, as TypeScript's own parser reads the file — homePages01.test.ts's reader (its specsOf), here for the bar: each
- * import and export declaration wherever it stands, import-equals, an import type, each import() and each require(). A module named by anything
- * but a literal is returned as such, and the closed list of packages below refuses it by name. (Until the review of HOME-MENU-01, 2026-11-16, a
- * pattern of this test's own read only single-quoted statements that started a line.)
- */
-const NOT_A_LITERAL = '(a module named by something that is not a literal)';
-function specsOf(src: string, file: string): string[] {
-  const tree = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, false, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-  const specs: string[] = [];
-  const named = (node: ts.Node | undefined): void => {
-    if (node !== undefined) specs.push(ts.isStringLiteralLike(node) ? node.text : NOT_A_LITERAL);
-  };
-  const visit = (node: ts.Node): void => {
-    if (ts.isImportDeclaration(node)) named(node.moduleSpecifier);
-    else if (ts.isExportDeclaration(node)) named(node.moduleSpecifier);
-    else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) named(node.moduleReference.expression);
-    else if (ts.isImportTypeNode(node)) named(ts.isLiteralTypeNode(node.argument) ? node.argument.literal : node.argument);
-    else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === 'require') || (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'require'))) named(node.arguments[0]);
-    ts.forEachChild(node, visit);
-  };
-  visit(tree);
-  return specs;
-}
-/** The file an import names under src, or null for a package. A path that names no file, or more than one, fails by name. */
-function fileOf(from: string, spec: string): string | null {
-  const base = spec.startsWith('@/') ? join('src', spec.slice(2)) : spec.startsWith('.') ? join(dirname(from), spec) : null;
-  if (base === null) return null;
-  const found = [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')].filter((f) => existsSync(resolve(ROOT, f)) && statSync(resolve(ROOT, f)).isFile());
-  assert.equal(found.length, 1, `${from}: "${spec}" names one file under src (found ${JSON.stringify(found)})`);
-  return found[0];
-}
-/** Every module under src a file reaches through what its code names, to the end, and the packages it names. */
-function graphOf(entry: string): { files: string[]; packages: string[] } {
-  const files = new Set<string>();
-  const packages = new Set<string>();
-  const queue = [entry];
-  while (queue.length > 0) {
-    const file = queue.pop() as string;
-    if (files.has(file)) continue;
-    files.add(file);
-    for (const spec of specsOf(code(file), file)) {
-      const next = fileOf(file, spec);
-      if (next === null) packages.add(spec);
-      else queue.push(next);
-    }
-  }
-  return { files: [...files].sort(), packages: [...packages].sort() };
-}
+/** The bar's import closure — homePages01.test.ts's reader, shared with it in ./importReader.ts (TypeScript's own parser reads each file's imports:
+ * declarations wherever they stand, import(), require(), re-exports; a module named by anything but a literal is returned as such and refused by
+ * the closed list below). Until the review of HOME-MENU-01 (2026-11-16) this test read imports with a pattern of its own, and then with a copy. */
+const graphOf = (entry: string): { files: string[]; packages: string[] } => closureOf([entry]);
 
 test('T5 the bar\'s import graph, listed: eight modules under src and two packages — the light homes it reads, and none of the heavy ones (rulings e and f)', () => {
   const { files, packages } = graphOf(HEADER);
@@ -433,44 +398,50 @@ type Stand = { place: string; closest: (selector: string) => unknown; focus: () 
  * internals hold the dispatcher, as booksGate01.test.ts drives a component — then that effect run against a stand-in document, as the browser runs
  * it after the render: what has focus, the listeners it adds and takes away, the four names and the menu button it gives focus back to.
  */
-function runEffect(state: ViewState, focusOn: 'panel' | 'menu' | 'page' | null) {
+function runEffect(state: ViewState) {
   const writes: string[] = [];
   const focused: string[] = [];
   const listeners: Record<string, Array<(e: unknown) => void>> = {};
-  const removed: string[] = [];
+  const added: Array<{ type: string; fn: unknown; options: unknown }> = [];
+  const removed: Array<{ type: string; fn: unknown; options: unknown }> = [];
   const effects: Array<{ run: () => unknown; deps: unknown[] }> = [];
   const values: unknown[] = [state.menuOpen, state.panelFrom, state.openList];
   const stateNames = ['menuOpen', 'panelFrom', 'openList'];
+  const setters = stateNames.map((name) => (next: unknown): void => { writes.push(`${name} ← ${String(next)}`); });
   let calls = 0;
   const dispatcher = {
-    useState: () => { const i = calls; calls += 1; return [values[i], (next: unknown) => { writes.push(`${stateNames[i]} ← ${String(next)}`); }]; },
+    useState: () => { const i = calls; calls += 1; return [values[i], setters[i]]; },
     useEffect: (run: () => unknown, deps: unknown[]) => { effects.push({ run, deps }); },
   };
   const internals = (React as unknown as { __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: { ReactCurrentDispatcher: { current: unknown } } })
     .__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher;
   const prev = internals.current;
   internals.current = dispatcher;
-  try { LandingHeader({}); } finally { internals.current = prev; }
+  let drawn: unknown;
+  try { drawn = LandingHeader({ glass: true }); } finally { internals.current = prev; }
   assert.equal(calls, 3, 'the bar holds three states');
   assert.equal(effects.length, 1, 'and one effect');
   const stand = (place: string, inside: string | null): Stand => ({ place, closest: (s) => (inside !== null && s === inside ? { inside } : null), focus: () => { focused.push(place); } });
   const names = BAR_MENU.map((c) => stand(`the name ${c.key}`, `button[aria-controls="${BAR_MEGA_ID}"]`));
   const places = { names, menuButton: stand('the menu button', null), inPanel: stand('a link in the panel', `#${BAR_MEGA_ID}`), inMenu: stand('a link in the menu', `#${BAR_MENU_ID}`), page: stand('the page', null) };
   const doc = {
-    activeElement: focusOn === 'panel' ? places.inPanel : focusOn === 'menu' ? places.inMenu : focusOn === 'page' ? places.page : null,
+    activeElement: null as Stand | null,
     body: places.page,
-    addEventListener: (type: string, fn: (e: unknown) => void) => { if (!listeners[type]) listeners[type] = []; listeners[type].push(fn); },
-    removeEventListener: (type: string) => { removed.push(type); },
+    addEventListener: (type: string, fn: (e: unknown) => void, options?: unknown) => { added.push({ type, fn, options }); if (!listeners[type]) listeners[type] = []; listeners[type].push(fn); },
+    removeEventListener: (type: string, fn: unknown, options?: unknown) => { removed.push({ type, fn, options }); },
     querySelectorAll: (s: string) => (s === `button[aria-controls="${BAR_MEGA_ID}"]` ? names : []),
     querySelector: (s: string) => (s === `button[aria-controls="${BAR_MENU_ID}"]` ? places.menuButton : null),
   };
   const g = globalThis as unknown as { document?: unknown };
+  const had = Object.prototype.hasOwnProperty.call(g, 'document');
   const saved = g.document;
-  const inDocument = <T,>(f: () => T): T => { g.document = doc; try { return f(); } finally { g.document = saved; } };
+  const inDocument = <T,>(f: () => T): T => { g.document = doc; try { return f(); } finally { if (had) g.document = saved; else delete g.document; } };
   const cleanup = inDocument(() => effects[0].run());
+  // focus moves when the person moves it — after the effect has run, before the key — so a handler that read it early reads it wrong
+  const focus = (on: 'panel' | 'menu' | 'page' | null): void => { doc.activeElement = on === 'panel' ? places.inPanel : on === 'menu' ? places.inMenu : on === 'page' ? places.page : null; };
   const fire = (type: string, event: unknown): void => inDocument(() => { for (const fn of listeners[type] ? listeners[type] : []) fn(event); });
   const clean = (): void => inDocument(() => { (cleanup as () => void)(); });
-  return { writes, focused, listeners, removed, deps: effects[0].deps, cleanup, clean, fire, places };
+  return { writes, focused, listeners, added, removed, deps: effects[0].deps, cleanup, clean, focus, fire, places, drawn, setters };
 }
 
 test('T6 the state: the panel, the phone menu and its lists closed at first; a name opens the panel and the name pressed last closes it; a link in it closes it; a row opens its list and closes the one open; the menu closes on a link, on Log in and on its button; Escape and the press outside, held in the one effect; nothing stored', () => {
@@ -500,6 +471,10 @@ test('T6 the state: the panel, the phone menu and its lists closed at first; a n
   press(rowOf(phone.els(), 'fs')); assert.equal(phone.state.openList, 'fs', 'a row opens its list');
   press(rowOf(phone.els(), 'tm')); assert.equal(phone.state.openList, 'tm', 'and closes the one open');
   press(rowOf(phone.els(), 'tm')); assert.equal(phone.state.openList, null, 'an open row closes its own');
+  assert.deepEqual([phone.state.menuOpen, phone.state.panelFrom], [true, null], 'and the rows leave the menu open, and the panel as it was');
+  const both = pressable({ ...CLOSED, menuOpen: true });
+  for (const key of ['fs', 'about', 'about'] as BarMenuKey[]) press(nameOf(both.els(), key));
+  assert.deepEqual([both.state.menuOpen, both.state.openList], [true, null], 'a press of a name leaves the phone menu and its lists as they were: the four closers are a link, Log in, Escape and the button (ruling b)');
   const menu = (): El => phone.els().find((el) => el.props.id === BAR_MENU_ID) as El;
   press(menu(), { closest: (s) => (s === 'a' ? {} : null) }); assert.equal(phone.state.menuOpen, false, 'a link closes the menu');
   press(menuButton()); press(menuButton()); assert.equal(phone.state.menuOpen, false, 'and its button closes it');
@@ -507,20 +482,29 @@ test('T6 the state: the panel, the phone menu and its lists closed at first; a n
   press(phone.els().find((el) => el.props.className === 'ts-pill-gold ts-menu__login') as El); assert.deepEqual([phone.state.menuOpen, phone.logins], [false, 1], 'Log in closes it, then opens the login');
   // Escape and the press outside: the one effect, run for real (until the review of HOME-MENU-01, 2026-11-16, held by four phrases of its code, which an
   // inverted guard or a wrong target passed)
-  const closedRun = runEffect(CLOSED, null);
+  // the default export draws the view with its three states and their setters, each where it belongs (an openList handed the panel's state, or
+  // a row's setter that is the panel's, would draw on the server just the same), and hands on what it was given
+  const wired = runEffect({ menuOpen: true, panelFrom: 'tm', openList: 'fs' });
+  const view = wired.drawn as React.ReactElement<Record<string, unknown>>;
+  assert.equal(view.type, LandingHeaderView, 'the default export draws the pure view');
+  assert.deepEqual([view.props.glass, view.props.menuOpen, view.props.panelFrom, view.props.openList], [true, true, 'tm', 'fs'], 'with what it was handed and its three states, each in its own place');
+  assert.deepEqual([view.props.setMenuOpen, view.props.setPanelFrom, view.props.setOpenList].map((f) => wired.setters.indexOf(f as (next: unknown) => void)), [0, 1, 2], 'and each state\'s own setter');
+  const closedRun = runEffect(CLOSED);
   assert.deepEqual(closedRun.deps, [false, null], 'the effect follows the menu\'s state and the panel\'s, and nothing else');
-  assert.deepEqual([closedRun.cleanup, Object.keys(closedRun.listeners)], [undefined, []], 'closed, it listens for nothing');
-  let run = runEffect({ ...CLOSED, panelFrom: 'tm' }, 'panel');
+  assert.deepEqual([closedRun.cleanup, closedRun.added], [undefined, []], 'closed, it listens for nothing');
+  let run = runEffect({ ...CLOSED, panelFrom: 'tm' });
   assert.deepEqual(run.deps, [false, 'tm'], 'opened from Travel Marketplace');
-  assert.deepEqual(Object.keys(run.listeners).sort(), ['click', 'keydown'], 'open, it listens for a key and for a press');
+  assert.deepEqual(run.added.map((a) => [a.type, a.options]).sort(), [['click', undefined], ['keydown', undefined]], 'open, it listens for a key and for a press, with no options: every key and every press, in the bubbling phase');
+  run.focus('panel');
   run.fire('keydown', { key: 'Enter' });
   assert.deepEqual([run.writes, run.focused], [[], []], 'another key does nothing');
   run.fire('keydown', { key: 'Escape' });
-  assert.deepEqual([run.writes, run.focused], [['panelFrom ← null'], ['the name tm']], 'Escape closes the panel and gives focus back to the name that opened it, when focus was inside');
-  run = runEffect({ ...CLOSED, panelFrom: 'tm' }, 'page');
+  assert.deepEqual([run.writes, run.focused], [['panelFrom ← null'], ['the name tm']], 'Escape closes the panel and gives focus back to the name that opened it, when focus was inside — read when the key is pressed');
+  run = runEffect({ ...CLOSED, panelFrom: 'tm' });
+  run.focus('page');
   run.fire('keydown', { key: 'Escape' });
   assert.deepEqual([run.writes, run.focused], [['panelFrom ← null'], []], 'with focus elsewhere, Escape closes it and focus stays where it was');
-  run = runEffect({ ...CLOSED, panelFrom: 'tm' }, null);
+  run = runEffect({ ...CLOSED, panelFrom: 'tm' });
   run.fire('click', { target: run.places.inPanel });
   assert.deepEqual(run.writes, [], 'a press inside the panel is not a press outside');
   for (const name of run.places.names) run.fire('click', { target: name });
@@ -529,20 +513,27 @@ test('T6 the state: the panel, the phone menu and its lists closed at first; a n
   assert.deepEqual(run.writes, ['panelFrom ← null'], 'a press outside the panel and the four names closes it');
   assert.equal(typeof run.cleanup, 'function', 'the effect hands back its cleanup');
   run.clean();
-  assert.deepEqual(run.removed.sort(), ['click', 'keydown'], 'which takes both listeners away');
-  run = runEffect({ ...CLOSED, menuOpen: true }, 'menu');
+  assert.deepEqual(run.removed.map((r) => [r.type, r.options]).sort(), [['click', undefined], ['keydown', undefined]], 'which takes both listeners away, as they were added');
+  for (const r of run.removed) assert.ok(run.added.some((a) => a.type === r.type && a.fn === r.fn), `the cleanup takes away the very ${r.type} listener the effect added`);
+  run = runEffect({ ...CLOSED, menuOpen: true });
   assert.deepEqual(run.deps, [true, null], 'the phone menu open');
+  run.focus('menu');
   run.fire('keydown', { key: 'Escape' });
   assert.deepEqual([run.writes, run.focused], [['menuOpen ← false'], ['the menu button']], 'Escape closes the menu and gives focus back to its button, when focus was inside');
-  run = runEffect({ ...CLOSED, menuOpen: true }, 'page');
+  run = runEffect({ ...CLOSED, menuOpen: true });
+  run.focus('page');
   run.fire('keydown', { key: 'Escape' });
   assert.deepEqual([run.writes, run.focused], [['menuOpen ← false'], []], 'with focus elsewhere, Escape closes it and focus stays');
-  run = runEffect({ ...CLOSED, menuOpen: true }, null);
+  run = runEffect({ ...CLOSED, menuOpen: true });
   run.fire('click', { target: run.places.page });
   assert.deepEqual(run.writes, [], 'a press outside closes no phone menu: the panel alone closes so');
-  run = runEffect({ ...CLOSED, menuOpen: true, panelFrom: 'fs' }, 'page');
+  run = runEffect({ ...CLOSED, menuOpen: true, panelFrom: 'fs' });
+  run.fire('click', { target: run.places.page });
+  assert.deepEqual(run.writes, ['panelFrom ← null'], 'both open (a window narrowed with the panel open): a press outside closes the panel, whatever the menu');
+  run = runEffect({ ...CLOSED, menuOpen: true, panelFrom: 'fs' });
+  run.focus('page');
   run.fire('keydown', { key: 'Escape' });
-  assert.deepEqual(run.writes, ['panelFrom ← null', 'menuOpen ← false'], 'both open (a window narrowed with the panel open): Escape closes both');
+  assert.deepEqual(run.writes, ['panelFrom ← null', 'menuOpen ← false'], 'and Escape closes both');
   const header = code(HEADER);
   assert.equal(count(header, 'useEffect('), 1, 'one effect');
   // nothing stored, nothing in the URL (ruling c)
@@ -606,7 +597,7 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [GLOBALS, /which stays last \(HOME-MENU-01, 2026-11-16: but for the menu's block, which follows it\):/, /which stays last: the Financial Software section's port/],
     [GLOBALS, /NOTHING FOLLOWS THIS BLOCK BUT THE MENU'S, AND NOTHING ABOVE IT NAMES ITS CLASSES \(HOME-MENU-01, 2026-11-16, its ruling i/, /NOTHING FOLLOWS THIS BLOCK, AND NOTHING ABOVE IT NAMES ITS CLASSES: a rule/],
     [GLOBALS, /THE OPEN MENU\. Drawn on the design canvas: the menu's 390 board, approved with the home page's boards on 2026-11-14 at 20:01 and, corrected, 20:41 Manila, draws it open with one list, and HOME-MENU-01 built it \(2026-11-16/, /THE OPEN MENU\. Not drawn on the design canvas: this panel is the proposal\. \*\//],
-    [GLOBALS, /the open menu's panel is hero-well at 86%, typed as the reference types it; HOME-MENU-01, 2026-11-16: and the menu's panel is hero-well at 95%/, null],
+    [GLOBALS, /the open menu's panel is hero-well at 86%, typed as the reference types it; HOME-MENU-01, 2026-11-16: and the top bar's menu's panel, \.ts-mega__panel, is hero-well at 95%/, null],
     [LAW, /LandingHeader carries no link to it\. \(HOME-MENU-01, 2026-11-16, its rulings g and h, beside the 17:04 ruling/, null],
     [LAW, /never a header link\. \(HOME-MENU-01, 2026-11-16, rulings g and h: it is still the door/, null],
     [SEEDS, /HOME-MENU-01, 2026-11-16: since then a second header link, typed or drawn from BAR_LOOKUP again, or the header's one link with other words or in another column/, null],
@@ -620,7 +611,7 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [tests('footer02'), /stays last \(but for the menu's block after it, since HOME-MENU-01, 2026-11-16\)/, null],
     [tests('howTo01'), /and the top bar's first link, until HOME-MENU-01, 2026-11-16: its first name opens the menu now/, /\/modules and the top bar's first link land on it/],
     [tests('guest01'), /the door still \(HOME-MENU-01, 2026-11-16, ruling h, beside it: the header carries one link to \/booking\/manage since then/, null],
-    [tests('guest01'), /HOME-MENU-01 \(2026-11-16\), rulings g and h: this line, :334, re-said — the header links \/booking\/manage exactly once/, null],
+    [tests('guest01'), /HOME-MENU-01 \(2026-11-16\), rulings g and h: line 334, above, re-said — the header links \/booking\/manage exactly once/, null],
     [tests('heroCrest01'), /ported to the foot of src\/app\/globals\.css \(and the bar's menu, since HOME-MENU-01, 2026-11-16, by design-refs\/home-menu-01's second stylesheet after it/, null],
     [tests('heroCrest01'), /HOME-MENU-01 \(2026-11-16\), ruling h, beside the quote below: it took the bar's own GitHub link, which stays gone/, null],
     [tests('homeServices01'), /\.ts-menu:not\(\[hidden\]\), HERO-CREST-01; and its lists', \.ts-menu__sub:not\(\[hidden\]\), since HOME-MENU-01, 2026-11-16/, null],
@@ -628,6 +619,107 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
   for (const [file, now, gone] of RESAID) {
     assert.match(prose(file), now, `${file}: its note re-said, dated`);
     if (gone) assert.doesNotMatch(prose(file), gone, `${file}: and main's sentence is gone`);
+  }
+  // THE WORDS THIS CHANGE WROTE. Every run of comment lines HOME-MENU-01 added or re-said in the files it touched stands exactly as written: read as
+  // prose (the reader law's comments, flattened; DESIGN.md as text), found by its first words — and which occurrence of them — and held by its length
+  // and sha256. A note made false, undated or misquoted fails here by name, with its words as they now stand; a later brief that re-says one of these
+  // lines re-hashes it here, beside a dated note. (From the review of HOME-MENU-01, 2026-11-16, whose hunters changed words inside these notes that no
+  // phrase above reached: a count, a column, a ruling's letter, a date.)
+  const WRITTEN: ReadonlyArray<readonly [file: string, opens: string, nth: number, length: number, sha: string]> = [
+    ["src/components/landing/LandingHeader.tsx", "mark and the wordmark · Financial Software | Pro", 0, 304, '830262276e6831d9328fec03639c023b349fcb5f42be7c4bc1abb87d35b190b4'],
+    ["src/components/landing/LandingHeader.tsx", "reference's own, ported to the foot of src/app/g", 0, 199, '7b0e356f6d1a84f46012b41441f7da98a65cbb6304f7eee28d728bce81ef16bf'],
+    ["src/components/landing/LandingHeader.tsx", "· THE THREE LINKS were the home page's three pil", 0, 759, '92cce693438d1c8cd4d4974ec75a90eff70f46af68f52e94951d715b4cf0c548'],
+    ["src/components/landing/LandingHeader.tsx", "· UNDER 1024px the bar's row folds into a menu b", 0, 462, '1c65b181a1b2f7666ef60789fbd8aedcd4eba356565166086975803c45039d47'],
+    ["src/components/landing/LandingHeader.tsx", "signed-out cockpit tabs mount none: this link wa", 0, 312, '80de73ae38491c7e72d86e8e83842a99063dbbe7a14d770cd31ea764be6291d5'],
+    ["src/components/landing/LandingHeader.tsx", "Pricing keeps its page — /how-pricing-works (the", 0, 296, 'a04058f7d93769f5f914c571c7eda85913ae487f56223d60777e27157d64a9ca'],
+    ["src/components/landing/LandingHeader.tsx", "THE COPIES. HOME-MENU-01 (Alex: the boards, 2026", 0, 1527, 'acad00e0257dd5f78c9ceefd269c3595546a0798e56611fafcb23c6603835df8'],
+    ["src/components/landing/LandingHeader.tsx", "The code, which leaves the site. HOME-MENU-01 (A", 0, 1545, 'bd31315f7e18045d609f76f0271f4421752d01d2802c11dcdbfb136d0d146a65'],
+    ["src/components/landing/LandingHeader.tsx", "The four columns' keys, in the reference's order", 0, 2142, '1aaf78acac9e50021a27664dde4ff43ce730113b5b2649d050d3c45d0843458d'],
+    ["src/components/landing/LandingHeader.tsx", "aria-controls and id; the fixed id gave none in ", 0, 282, '588b386f8584c01b74082ab2b647d62edb6953695839b217ddf28a5850509868'],
+    ["src/components/landing/LandingHeader.tsx", "HOME-MENU-01 (2026-11-16): the panel's one fixed", 0, 211, '5624fabe868542777d0fa5819af80319d671574cc0d1d5162cb172c59327bbf4'],
+    ["src/components/landing/LandingHeader.tsx", "The bar's two props, shared by the stateful bar ", 0, 64, 'e6ae75a7c920cbead3ffe1f989c07d331d80c487f3c0b7629e35dc626b17ecf9'],
+    ["src/components/landing/LandingHeader.tsx", "THE VIEW — the bar drawn from its state, pure, s", 0, 1936, 'c3d9f9b526d3e7b0cc8a40616a304c6e8625c8be301e7f1eaca8f156952d79c0'],
+    ["src/components/landing/LandingHeader.tsx", "closed, its two bars; open, the cross the 390 bo", 0, 71, '9a0dba785eb07132593b36ec0d8a1d43bfab03eebee6262a1922157bf9721372'],
+    ["src/components/landing/LandingHeader.tsx", "THE PANEL (HOME-MENU-01, 2026-11-16): from 1024p", 0, 716, '108d4593e34a4ec79b78475f3131726d5eaa1046252e88ddd3f5844aa61ee49f'],
+    ["src/components/landing/LandingHeader.tsx", "THE BAR — its state, and the view drawn with it.", 0, 2015, '932452bdeb8600ee553a1affebfa474ac33018f2b1293994e8a90d682c4cd557'],
+    ["src/app/globals.css", "without its token: the open menu's panel is hero", 0, 236, 'fa472605be7606bcabcef40ca9cd88bf67d41bf797927e22ce74caad23acd2ea'],
+    ["src/app/globals.css", "above the chip strip's rules, the HOME-SERVICES-", 0, 198, 'b85d6027db36315736b2af2959532d88d135f2d831cc5e2e6a00caa65f1ab06b'],
+    ["src/app/globals.css", "each of those ports runs from its own first rule", 0, 196, '49191d5f2370a597ea571a402c46e3fcffc254cc388c624760e24b5ae2fff335'],
+    ["src/app/globals.css", "section's block and the hero's, because nothing ", 0, 191, '42129b08d957a2c940835dde2b7213a9dab27798bf8760942f6259c9457ba184'],
+    ["src/app/globals.css", "last (HOME-MENU-01, 2026-11-16: but for the menu", 0, 192, 'd22835af0b595b884746f8258bf1b48601a71baf77b5f7d46c6985c493a5c0ee'],
+    ["src/app/globals.css", "NOTHING FOLLOWS THIS BLOCK BUT THE MENU'S, AND N", 0, 246, 'e0159e8f2d0652c5ed26610a7b69ad98fd7d60f3115e0f8b888a3ddc858e7fb5'],
+    ["src/app/globals.css", "file as the port, and fails on any of these (the", 0, 175, '3776164985ea464a2630d2898139f9d17d2c05f6e765dc1ff73131e9a674a1ff'],
+    ["src/app/globals.css", "THE OPEN MENU. Drawn on the design canvas: the m", 0, 300, 'eeddbe59c42bedc5d05f240d6acf5d33228bcd34df8e5ba73da99c83189a96b7'],
+    ["src/app/globals.css", "── HOME-MENU-01 (Alex: the boards, 2026-11-14 20", 0, 3480, '35abecdb84181bc8fece50c38ac9c4f6c99b841f9fa4e3c79f6bf9b5daa2d094'],
+    ["src/components/landing/Landing.tsx", "ACCOUNT\" left the bar by his rulings of the same", 0, 209, 'e65757a1893d5bda7a785e2d0e99eca12b8b259046e0c2fff25d4c019806f9c9'],
+    ["src/components/landing/Landing.tsx", "today (the nav's Live-demo link retired, Landing", 0, 369, '8012487a12a8ab0739c5e8fc72ce79ad1b1873ec4d89271a5f09feaa5de9ef8d'],
+    ["scripts/assert-tool-registry.ts", "goes to /booking/manage. LandingHeader carries n", 0, 395, '3a24660dc504ab5a475cfcaaf65cae2879f5266098893b59b0ad196d4635b0a4'],
+    ["scripts/assert-tool-registry.ts", "THE DOOR (Alex's ruling 17:04): the lookup under", 0, 305, '5d510f0d4a3709d4e06b40824d84076b8d98c81cb79735395e5cc407896313ee'],
+    ["scripts/assert-tool-registry.ts", "HOME-FINISH-02 (Alex, 2026-11-10 20:56): NOTHING", 0, 664, 'af7c34f92b09ce87828156cce387d6b4814674f41fc62db6b69c91e5b3807dc6'],
+    ["scripts/proofs/guest01.seeds.ts", "above the booking section, asking on load, or th", 0, 283, '29a27dda51d75a4e60a8bbbbbba6886314669b3ecf785a686691af8a7f0f62e0'],
+    ["scripts/proofs/guest01.seeds.ts", "The door (Alex's ruling 17:04): the lookup under", 0, 274, '7cb14dbf115d0d09a3ed32d277a479ce4dca46acbe56f2576f32980ab52632d8'],
+    ["scripts/proofs/guest01.seeds.ts", "HOME-MENU-01 (2026-11-16), rulings g and h: the ", 0, 401, 'b2baf86ed4d9bd1fd2a78636a3110e9bf54e53ccf40b8df17e82cdd5ca544150'],
+    ["scripts/proofs/guest01.seeds.ts", "HOME-MENU-01 (2026-11-16), ruling g: the one lin", 0, 643, '6966e8a474ff689d6fb31827ea8fa7f950bd8e866e23085dc6f6b8418ac7ce9a'],
+    ["src/lib/homeAnchors.ts", "/about — with no fragment), so MODULES_ANCHOR is", 0, 287, 'ccc706d401ff8db20866756ad4037b2bf075022a44ed663ef976266ec1bf81a6'],
+    ["src/lib/homeAnchors.ts", "The top bar (LandingHeader.tsx) linked the three", 0, 384, 'ebd028eaa72fe32c52c134796688869fde026c747d14eb62ecccc0fb1e71d76d'],
+    ["src/lib/homeAnchors.ts", "bar both read it, so it is typed once for both (", 0, 311, '4cac34b15ab149201ab852c42f93a04d67d7e5dd575d5bb1c979c7a0a4e42546'],
+    ["src/lib/homeAnchors.ts", "holds it; src/lib/__tests__/heroCrest01.test.ts ", 0, 448, '31b1445141809f574bb722149d2266b1e99bc8b80caa703c15b6fc474bc5ba66'],
+    ["src/lib/footerWords.ts", "still land on the home page's sections), and eve", 0, 287, 'd727621f06af100f76d9ceefc9733c6bb5314b38dce96a042044ab0263530082'],
+    ["src/lib/footerWords.ts", "HOME-PAGES-01 (2026-11-14): the footer reads it ", 0, 238, '01c6492d5aa458068b7bd6a99fb6166a7a991e3d927111799a28cfccf94c079e'],
+    ["src/lib/footerWords.ts", "The code, built in public — the same URL the her", 0, 461, 'e1a88d9dc6525c75c620361923d57654eac023682332ceedb800ee65d7bedb35'],
+    ["src/components/landing/pipelineWords.ts", "outside the deck lives here, and nothing reads t", 0, 169, 'dbe120f86d1095f39a3b2e0feed3155fedb774cbb2b50ddde950c12ba82b9e96'],
+    ["src/components/landing/pipelineWords.ts", "FOOTER-01 (2026-11-09): the footer's THE RECORD ", 0, 156, '47a35556422782ef2ab65ff990f0bba8f437e8413ada10f94380dd1b3e87c456'],
+    ["src/components/landing/ServicesSection.tsx", "on (until HOME-MENU-01, 2026-11-16: the bar's Pr", 0, 302, 'fb56551094bd8616f2e00ce5813d801780c07a6dca45751cda1c4f5b3c9f23f3'],
+    ["src/components/landing/HowToSection.tsx", "bar's first link land on (the top bar's first li", 0, 231, 'f4950de89c2e4386a3dbc5d063d6ee688f7523b42e0430480326f77808d16baf'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "to the foot of src/app/globals.css (and the bar'", 0, 183, '79b9c489893bf2cac0fb290df1d046af007b3840dd1e620ddc62f76d415bf1e6'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "named in globals.css; no hex in it; every variab", 0, 281, 'a821a094c8138d9b7dcfa07dcf9882ae118e1035cf82a8c2ac660b6deef466d6'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "T5 the bar's words and links — the four names th", 0, 493, 'd5e4237d4180f1a067ddc54caf426bb03bd055bc5809173d2f538d23f6881ab4'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "where a login opener is given, a link to '/' whe", 0, 277, 'eb419bc0a9befab278f5dda9a799215137b33f437f84ba79e00a00753b5fd146'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "calls the login opener (HOME-MENU-01, 2026-11-16", 0, 200, 'a3de9689ed477742fef17ed87c43a5b6e0e26acd05a3df2c1a99a947d659c5cb'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "T10 #modules has one home — MODULES_ANCHOR, read", 0, 254, '4dbefef1bf46b7f6987a66371d94a403a5b4b1b98afea9d9dc8a870c1511dd2c'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling d: BAR_MENU wh", 0, 93, '2631a7e95644e23c64872bc2a3cb332b7b1fd9f7789324aa832206c2efe5a47b'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling i: the menu's ", 0, 532, 'f635afc79900d78a06b79e7045bc599dd2c80f149231dab9639671ce601d6861'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings a, d and e: t", 0, 519, 'e902b5444471561aff8323ffcfa70352d54e234306c2936f2384c294fb8dead1'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), beside the note above", 0, 394, 'b9aa61475d27fbf6deb0d1386bcdf563d003968833b0607a32b77345c8b8e916'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16): the menu builds its t", 0, 318, '1c61ed332d0ca05c94dbd2e4f1e89dcf0ec85adea350de1b9f243ea8442193a2'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "gone, by Alex's ruling — and (HOME-MENU-01, 2026", 0, 326, '3dc5c38d075524ceabf6223eacd1191ae8c95f83cac80d548f118f1308e4929a'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings a to d: the f", 0, 822, '645f161b546f65e2fedb7a203f050ba3a68df1a5ee5a32a9634d9361bc6fbd9c'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "the pill: mark and wordmark · the three names wi", 0, 287, 'fa80320cf752c68aec12984f1292aa867fb232a800b71b32b009cfea84c48702'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "the menu: closed, named by the button, the four ", 0, 151, '99ae807033841883faee7506306d16f338ac53a90dfc5ce2c669220f9d4eb6dd'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16): the About Us list dra", 0, 534, 'fca3e5cf3fcfa9889abd2ef55a41da43385e3a95c39bbb2fed27bdff2a7b528c'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling c: the panel's", 0, 187, 'b97f81124f84994eaf45e6fc3ae8d871af98df6ea999c3f879ac17dc7415bbe1'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "imports these four lines and nothing else'. HOME", 0, 558, '165541e3c1aea2c4bccb45e1e23a6bb3469d757f0c29ab7ba123ee11b6af8c7f'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings a and b: the ", 0, 688, '0b0b1b831b9260ccd976e04faf7e5c034e91ef355c6081f3888ef5ccac157600'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling j, beside the ", 0, 638, 'b13f558b404a96a9271665a193dd26b5654ade1dcc342b468cc9ad2ad6f6c195'],
+    ["src/lib/__tests__/heroCrest01.test.ts", "HOME-MENU-01 (2026-11-16), ruling h, beside the ", 0, 211, '0c8e485e22beafcdb70980a28ef45911e871cc097b7537762c589376d91ecdf3'],
+    ["src/lib/__tests__/homePages01.test.ts", "pages, Travel Marketplace on /#demo; drawn so; t", 0, 211, '2efb93fceffd3e82c46e4efa0abe880ee0ad9d181ee21b528468642caf55a855'],
+    ["src/lib/__tests__/homePages01.test.ts", "T8 the home page — HOME-TRIM-01 (2026-11-15) cha", 0, 891, '17c30d7b5f6687eb31e58d2cc38cf8e31be4a7741a3fab9d6bc954d10313380e'],
+    ["src/lib/__tests__/homePages01.test.ts", "HOME-MENU-01 (2026-11-16): the import reader — s", 0, 232, 'c10fe1771a9e89d69c66e5cd88c0d6b5f2afdcbe648fbb710f274f9fc5a9e12c'],
+    ["src/lib/__tests__/homePages01.test.ts", "HOME-MENU-01 (2026-11-16), ruling d: BAR_PRODUCT", 0, 83, 'de71829269fcac2bdeb2793ae4f5600cfa0fb95f1e4795690a3d3ea0373cb7e5'],
+    ["src/lib/__tests__/homePages01.test.ts", "the brief's \"NOT IN THIS PR\" names \"The top bar ", 0, 419, '5da01355f68d3539978d063d7d79e79f9d84cd7f9d48ebc617eed79e837a7f91'],
+    ["src/lib/__tests__/homePages01.test.ts", "who reads the leaf: the footer's words, the thre", 0, 693, '02bf9f6043705804abfb1e21fe875ffcad6db5a9d5eae8b37d7ba8cc154b4220'],
+    ["src/lib/__tests__/footer01.test.ts", "then; it left the top bar (until HOME-MENU-01, 2", 0, 291, 'b507ca801dab3b3f500de9bbe0eb1e43040f541bd50973cc7844a9f21807578d'],
+    ["src/lib/__tests__/footer01.test.ts", "HOME-MENU-01 (2026-11-16): the bar's one link to", 0, 69, '7d34b1a2f4cb6c829043b4798ba2927f08948c99ba034f68d0e2cb162a742d08'],
+    ["src/lib/__tests__/footer01.test.ts", "the top bar's first link (until HOME-MENU-01, 20", 0, 135, 'a0427b225c9fa13c00910b13729ba91901c047e910d458d8fdfdb71b0180d7e1'],
+    ["src/lib/__tests__/footer01.test.ts", "HOME-MENU-01 (2026-11-16), ruling h, beside the ", 0, 415, '91b7ee6e8c985e06e4cce41bc1808caa214f37c635c33da92d7b7dfe88ebaeaf'],
+    ["src/lib/__tests__/footer02.test.ts", "stays last (but for the menu's block after it, s", 0, 175, 'd9e6b70bf4f94427642c6359aac1793177d6c4bbcbcecb76f87f819be48e9400'],
+    ["src/lib/__tests__/footer02.test.ts", "The port: globals.css from the footer's first ru", 0, 178, '2f1a95b9481652c618995750974d06453a7ab9f3c4e8b7f8236b9415a4856b68'],
+    ["src/lib/__tests__/footer02.test.ts", "but for the menu's block after it (HOME-MENU-01,", 0, 60, '2426bccbc1075e31620cd8c46ed78dfb4130c67804acc0a233005ba2233c9a6d'],
+    ["src/lib/__tests__/howTo01.test.ts", "the act: its id (the checkout's cancel link and ", 0, 289, '4387354f418a26d0ac428122db20f3d72e690e3b88140541faf46c376c124ef3'],
+    ["src/lib/__tests__/guest01.test.ts", "on the home page and on /booking/manage (Alex's ", 0, 246, 'ecd041feafdd6b5aac79176259b3a2dc0840468f126fe3a27b554ea18243269e'],
+    ["src/lib/__tests__/guest01.test.ts", "HOME-MENU-01 (2026-11-16), rulings g and h: line", 0, 326, '76bd1fe8c10b35f25848f8ddd7376a6f6a73395a87206513ffc941efd5f8cbf7'],
+    ["src/lib/__tests__/guest01.test.ts", "BOOK-DISCLOSE-01 (2026-11-08): the disclosure si", 0, 512, '69a2745d4795e0374f916721e23bd439d8e5d30ab4bb2d5296bb4b8c623a984c'],
+    ["src/lib/__tests__/homeServices01.test.ts", "(.ts-fs…: its switches by [aria-pressed], its pl", 0, 210, 'b9198e95d7aa49c4fcadd7bc3ee7ace12d794e311596ee62503137f97fa5c987'],
+    ["DESIGN.md", "gradients (`globals.css`, REPAINT-5); it changes", 0, 405, '4841afeb5f841f7432503722f448f358d9c50fd2449f876c0ba4fae3831de2ae'],
+  ];
+  assert.equal(WRITTEN.length, 85, 'eighty-five runs of comment lines, in eighteen files');
+  for (const [file, opens, nth, length, sha] of WRITTEN) {
+    const said = file.endsWith('.md') ? flat(whole(file)) : prose(file);
+    let at = -1;
+    for (let k = 0; k <= nth; k += 1) { at = said.indexOf(opens, at + 1); if (at < 0) break; }
+    assert.ok(at > -1, `${file}: a note HOME-MENU-01 wrote, opening "${opens}…", stands`);
+    const now = said.slice(at, at + length);
+    assert.equal(sha256(now), sha, `${file}: the note HOME-MENU-01 wrote, opening "${opens}…", stands as written — it reads now «${now}» (${sha256(now)})`);
   }
   assert.match(flat(whole('DESIGN.md')), /Since HOME-MENU-01 \(2026-11-16\) the bar's menu — the four names' carets, the panel and the phone menu's lists — is drawn by `design-refs\/home-menu-01\/`'s second stylesheet/, 'DESIGN.md: the bar\'s stylesheet, re-said');
   // the tests' titles it re-said, and the seed it re-named — strings, so read in the code
@@ -654,17 +746,32 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
   assert.ok(comments(HEADER).split('\n')[52].includes('LANDING-V3 (spec :34-47) → THREE-TRIMS'), 'LandingHeader.tsx:53-54, which Landing.tsx:673 cites, where it stood');
   assert.ok(code(tests('guest01')).split('\n')[333].startsWith("  assert.equal((code(HEADER).match(/booking\\/manage/g) ?? []).length, 1,"), 'guest01:334, which ruling g cites, holds the re-said check');
   assert.ok(code(LAW).split('\n')[10381].startsWith("  { const bar = codeOf('src/components/landing/LandingHeader.tsx'); const links = (bar.match(/booking\\/manage/g) ?? []).length;"), 'the law\'s :10382, which ruling g cites, holds the re-said check');
+  // the line itself, character for character, as guest01's seeds z4 to z4d proved it: a law is proven by its seeds (scripts/prove.ts), which run only
+  // when the law is edited, so an edit to this line fails here first — re-prove the seeds, then re-hash (from the review of HOME-MENU-01, 2026-11-16,
+  // whose hunters loosened its counts and its column and found no test that saw it). Each seed's expected words stand in it, and each plant is the one meant.
+  const lawLine = whole(LAW).split('\n')[10381];
+  assert.equal(sha256(lawLine), '3363fc4ad9168b20eff08c3973d414eddc33f93af2c1d3119c1d5611e28bd9dc', `the law's :10382, as its seeds proved it — now ${sha256(lawLine)}`);
+  for (const expect of ['LandingHeader.tsx links /booking/manage', 'one link to /booking/manage is not the travel column', 'LandingHeader.tsx names BAR_LOOKUP']) {
+    assert.ok(lawLine.includes(expect), `the law's :10382 says "${expect}"`);
+    assert.ok(code(SEEDS).includes(`expect: '${expect}',`), `and a seed expects it`);
+  }
+  assert.ok(code(SEEDS).includes("replace: 'kind: service.kind })), more: BAR_LOOKUP },"), 'guest01-z4c plants the lookup in Professional Services\' column');
+  assert.ok(code(SEEDS).includes("replace: '      { label: BAR_PRICING.label, href: BAR_PRICING.href },\\n      { label: BAR_LOOKUP.label, href: BAR_LOOKUP.href },\\n',"), 'guest01-z4d draws it a second time, from BAR_LOOKUP');
   // EVERY SOURCE FILE OF THE CHANGE: a straight mark followed by twelve or more characters of one of his sentences, from the sentence's start,
   // opens a quote of him — what stands from there to the closing mark is his words from that sentence on, to the end of the piece or to a full
   // stop, or this fails, naming the longest such part; a whole sentence of his shorter than that is read too, and counted. Each file's count is held.
   // (homeTrim03's census, at twelve characters: twenty until the review of HOME-MENU-01, 2026-11-16, which let a misquote parting at fifteen through.)
-  const CHANGED = [THIS, HEADER, GLOBALS, LANDING, LAW, SEEDS, ANCHORS, FOOTER_WORDS, PIPELINE_WORDS, SERVICES_SECTION, HOW_TO, ...['heroCrest01', 'homePages01', 'footer01', 'footer02', 'howTo01', 'guest01', 'homeServices01', 'pipelinePage01'].map(tests)];
+  const CHANGED = [THIS, HEADER, GLOBALS, LANDING, LAW, SEEDS, ANCHORS, FOOTER_WORDS, PIPELINE_WORDS, SERVICES_SECTION, HOW_TO, ...['heroCrest01', 'homePages01', 'footer01', 'footer02', 'howTo01', 'guest01', 'homeServices01', 'pipelinePage01'].map(tests), 'src/lib/__tests__/importReader.ts'];
   for (const file of CHANGED) assert.ok(existsSync(resolve(ROOT, file)), `${file} is in the tree`);
-  // ruling k: the 2026-11-14 approvals are named by their times, and their words are quoted nowhere new — no file of the change holds a quote under
-  // their stamps but homePages01.test.ts, which held its two before this change (HOME-PAGES-01's). The pattern is built from its parts, so this file
-  // does not hold the form it looks for; and their words are not typed here (until the review of HOME-MENU-01, 2026-11-16, this test typed them)
-  const approvalStamps = new RegExp(['20:01 Manila', '20:41(?: Manila)?'].map((time) => `${time}: "`).join('|'), 'g');
-  for (const file of CHANGED) assert.equal((whole(file).match(approvalStamps) ?? []).length, file === tests('homePages01') ? 2 : 0, `${file}: the approvals quoted under their stamps as often as before this change`);
+  // ruling k: the 2026-11-14 approvals are named by their times, and their words are quoted nowhere new. Their words are built here from their
+  // parts, so this file does not hold them; in the comments and in the code of every file of the change they stand as often as before it — once,
+  // in the code of homePages01.test.ts (HOME-PAGES-01's own APPROVAL), and nowhere else. (Until the review of HOME-MENU-01, 2026-11-16, this test
+  // typed the words; then it looked for their stamps, which a stamp wrapped onto the next line passed.)
+  const approvals = [['ALL', 'LOOKS', 'GOOD'].join(' '), ['yeet', 'yeet'].join(' ')];
+  for (const file of CHANGED) {
+    const held = approvals.map((words) => [count(prose(file), words), count(flat(code(file)), words)]);
+    assert.deepEqual(held, file === tests('homePages01') ? [[0, 1], [0, 0]] : [[0, 0], [0, 0]], `${file}: the approvals' words, in its comments and its code, as often as before this change`);
+  }
   const HIS_WORDS = [...Object.values(RULING), ANSWER];
   assert.equal(HIS_WORDS.length, 14, 'his words: the thirteen rulings and his answer — a ruling dropped from the table above fails here');
   const sentencesOf = (text: string): number[] => [0, ...[...text.matchAll(/[.!?] /g)].map((m) => (m.index as number) + 2)];
@@ -693,5 +800,5 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [THIS]: 3, // the header: his answer; rulings k and l (T7)
     [HEADER]: 11, // rulings a, b, c, d, e, f, g, h, j and m, and his answer
     [GLOBALS]: 1, // ruling i, over the block
-  }, 'each file\'s quotes of him, counted — fifteen in three of the nineteen: a quote that stood and no longer opens on his words leaves its file\'s count, and fails here');
+  }, 'each file\'s quotes of him, counted — fifteen in three of the twenty: a quote that stood and no longer opens on his words leaves its file\'s count, and fails here');
 });
