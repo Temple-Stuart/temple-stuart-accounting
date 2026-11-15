@@ -1,7 +1,7 @@
 /**
  * HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30) — THE FINANCIAL
  * SOFTWARE SECTION, AS DRAWN: "What We Do" over it, the pillar's name and one line, the map of the 25 tools, three plan cards
- * and the all-three band, the link to /pricing.
+ * and the all-three band, the link to /pricing — on the home page until HOME-TRIM-02 (2026-11-15), which draws the section's short view there (design-refs/home-trim-02, held by homeTrim02.test.ts); this file holds the whole view, which stands on /financial-software with no "What We Do" over it.
  *
  * The spec is a file: design-refs/home-plans-04/Section-Reference.html ("Every value in its stylesheet is the design, and its
  * markup is the page at rest"), with its README beside it. The section is src/components/landing/HowToSection.tsx over
@@ -25,12 +25,12 @@
  *       behind the house prefix in globals.css :root, declared once; the seventeen new ones, declared once each as --ts-fs-*,
  *       behind tailwind.config.ts's `fs` family and in DESIGN.md's table — its rows and their comments in globals.css the
  *       README's, column for column; the reference's :root holds those thirty-one and no other;
- *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the six
+ *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the seven
  *       differences named there (the fourth and fifth Alex's notes; the sixth the section's own page, HOME-PAGES-01, 2026-11-14 —
- *       "the five differences named there (the last two Alex's notes)" until then); no hex and no rgb value typed; every variable it reads is
+ *       "the five differences named there (the last two Alex's notes)" until then; the seventh the home page's short view, HOME-TRIM-02, 2026-11-15 — "the six" until then); no hex and no rgb value typed; every variable it reads is
  *       declared and every new token is read; it stands under the chip strip's rules and above the hero's block; nothing else
  *       in the file reaches the section — not by its classes, its id, the state it is styled by or any data attribute it carries;
- *   T4  the page at rest — Landing.tsx's heading box and the section's render are the reference's markup, token for token
+ *   T4  the page at rest — Landing.tsx's heading box and the section's render (its whole view; the home page's at rest until HOME-TRIM-02, 2026-11-15) are the reference's markup, token for token
  *       (classes behind the house prefix, attributes in any order), with Alex's three notes applied, each once;
  *   T5  the four states — each render is the reference's markup, with his notes applied, and exactly the edits its own script
  *       makes, and no other: the switch's pressed state and mark, every tool's lit state and mark, the picked plan and its tag;
@@ -366,7 +366,7 @@ test('T2 the tokens, named and valued as the README\'s two tables: fourteen alre
 // HOME-PAGES-01 (Alex's brief, 2026-11-14): a SIXTH named difference — the one rule the port holds that the reference does not, for the section's own
 // page. Until then this test read '… but for the five named differences (the last two Alex's notes on the built page) …' and built `expected` from
 // the reference alone.
-test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the six named differences (the fourth and fifth Alex\'s notes on the built page, the sixth the section\'s own page); no hex and no rgb value typed; every variable it reads is declared and every new token read; it stands between the chip strip and the hero', () => {
+test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the seven named differences (the fourth and fifth Alex\'s notes on the built page, the sixth the section\'s own page, the seventh the home page\'s short view); no hex and no rgb value typed; every variable it reads is declared and every new token read; it stands between the chip strip and the hero', () => {
   const expected: string[] = [];
   const left = { eyebrow: 0, count: 0 };
   // 6. ADDED: the section's own page (HOME-PAGES-01 — Alex's brief, 2026-11-14, ruling a: "NOTHING IS REDRAWN. Each page mounts the section's own component: no copy, no second stylesheet. One value is new. On /financial-software the section's inner top padding is clamp(44px, 5.6vw, 80px), the value .ts-ps__inner and .ts-tm__inner carry, where the home page has 12px under the What We Do box. The page draws no "What We Do".").
@@ -394,7 +394,7 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   }
   assert.equal(added, 1, 'the sixth difference adds one declaration, once: the inner box\'s top padding on the section\'s own page');
   const port = declarations(portCss());
-  assert.deepEqual(port, expected, 'the port, line for line, and nothing more');
+  assert.deepEqual(port, [...expected, ...SHORT_VIEW], 'the port, line for line, and nothing more — its last twenty-five the seventh difference, the short view\'s (SHORT_VIEW, below T3)');
   assert.ok(port.length > 150, `a whole stylesheet was compared (${port.length} declarations)`);
   assert.deepEqual(left, { eyebrow: 8, count: 14 }, 'the two notes leave out exactly the eyebrow\'s 8 declarations and the count\'s 14 — no more');
   assert.doesNotMatch(portCss(), /\.ts-fs-eyebrow|\.ts-fs-map__count|\.ts-fs-map__figure/, 'and the port names neither, anywhere');
@@ -472,9 +472,44 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   for (const cls of new Set(worn)) assert.ok(ruled.has(`.${cls}`), `.${cls} is named by a rule of the port`);
 });
 
+// 7. ADDED: the home page's short view — HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling f: "THE PORT. The block's
+//    rules name the section's classes, so they join its port: homePlans04:425 holds that no rule outside the port names one. They stand after the
+//    port's last rule, in the reference's order, and homePlans04 T3 names them as its seventh difference, declaration by declaration, as HOME-PAGES-01
+//    named the sixth. The rest of the port does not change." Typed here, as the sixth is (OWN_PAGE, in T3): design-refs/home-trim-02's second
+//    stylesheet behind the house prefix, twelve rules and twenty-five declarations, in its order, after the reference's last declaration; its one
+//    rule that is that page's own (.fs-yours > [hidden]) is not ported. homeTrim02.test.ts reads them from that file and holds the same. They stand
+//    below T3, not in it, so that no line of T3 moves: :425 is the line ruling f cites. Until HOME-TRIM-02, T3 held the port to `expected` alone.
+const SHORT_VIEW: readonly string[] = [
+  ' | .ts-fs--short .ts-fs__inner | padding-bottom: clamp(44px, 2vw + 36px, 64px)',
+  ' | .ts-fs-links | display: flex',
+  ' | .ts-fs-links | flex-wrap: wrap',
+  ' | .ts-fs-links | align-items: center',
+  ' | .ts-fs-links | gap: 0 28px',
+  ' | .ts-fs-links .ts-fs__compare | margin-top: 0',
+  ' | .ts-fs-yours | margin-top: 20px',
+  ' | .ts-fs-yours .ts-fs-plan--all | margin-top: 0',
+  ' | .ts-fs-plan--row | flex-direction: row',
+  ' | .ts-fs-plan--row | flex-wrap: wrap',
+  ' | .ts-fs-plan--row | align-items: center',
+  ' | .ts-fs-plan--row | gap: 24px 40px',
+  ' | .ts-fs-plan--row .ts-fs-plan__lead | flex: 5 1 300px',
+  ' | .ts-fs-plan--row .ts-fs-plan__lead | min-width: 0',
+  ' | .ts-fs-plan--row .ts-fs-plan__explainer | max-width: 420px',
+  ' | .ts-fs-plan--row .ts-fs-plan__points | flex: 5 1 300px',
+  ' | .ts-fs-plan--row .ts-fs-plan__points | min-width: 0',
+  ' | .ts-fs-plan--row .ts-fs-plan__points | margin: 0',
+  ' | .ts-fs-plan--row .ts-fs-plan__points | padding: 0',
+  ' | .ts-fs-plan--row .ts-fs-plan__points | border-top: 0',
+  ' | .ts-fs-plan--row .ts-fs-plan__foot | flex: 3 1 220px',
+  ' | .ts-fs-plan--row .ts-fs-plan__foot | min-width: 0',
+  ' | .ts-fs-plan--row .ts-fs-plan__foot | margin-top: 0',
+  '@media (max-width: 1023.98px) | .ts-fs-yours .ts-fs-plan__points, .ts-fs-yours .ts-fs-plan__explainer | display: none',
+  '@media (max-width: 1023.98px) | .ts-fs-plan--row | gap: 18px',
+];
+
 // ── T4 · THE PAGE AT REST ────────────────────────────────────────────────────
 
-test('T4 the page at rest is the reference\'s markup with Alex\'s notes applied — Landing.tsx\'s heading box (the act headings\' type on its h2) and the section\'s render, token for token', () => {
+test('T4 the page at rest is the reference\'s markup with Alex\'s notes applied — Landing.tsx\'s heading box (the act headings\' type on its h2) and the section\'s render, token for token — its whole view, the home page\'s at rest until HOME-TRIM-02 (2026-11-15)', () => {
   // the heading box: the reference's, behind the house prefix, with the leaf's word — and, since Alex's note on the built page
   // (2026-11-12), the act headings' type on its h2 where the reference has the eyebrow: that one edit, and no other
   const body = referenceBody();
@@ -497,12 +532,15 @@ test('T4 the page at rest is the reference\'s markup with Alex\'s notes applied 
   // a note in the JSX around the heading is a {/* */} block: a // line there is drawn on the page as text, and the reader takes it
   // for a comment, so its half is read at the code's own positions (the two halves align by code unit — sourceText.ts rejoin)
   const heroEnd = landing.indexOf('        </section>\n      </div>', landing.indexOf('<div className="ts-hero">'));
-  const howToAt = landing.indexOf('<HowToSection onRequireAuth={onRequireAuth} />');
+  // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: Landing mounts the section with view="short" — until then '<HowToSection onRequireAuth={onRequireAuth} />'.
+  const howToAt = landing.indexOf('<HowToSection view="short" onRequireAuth={onRequireAuth} />');
   assert.ok(heroEnd > -1 && howToAt > heroEnd, 'the hero closes above the how-to');
   assert.doesNotMatch(comments(LANDING).slice(heroEnd, howToAt), /^[ \t]*\/\//m, 'no // line between the hero and the how-to: JSX would draw it as text');
   // the section, rendered at rest, through the default export too
   const rest = render({ business: false, trade: false });
-  assert.equal(renderToStaticMarkup(React.createElement(HowToSection, { onRequireAuth: noop })), rest, 'the default export draws the pure half, at rest');
+  // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: the view is required, with no default, so the default export is handed one — the whole view, which this file holds
+  // to the reference (the short view at rest is homeTrim02.test.ts's). Until then it was handed { onRequireAuth: noop } alone.
+  assert.equal(renderToStaticMarkup(React.createElement(HowToSection, { view: 'whole', onRequireAuth: noop })), rest, 'the default export, handed the whole view, draws the pure half, at rest');
   const want = tokensOf(referenceWithNotes(), true);
   const got = tokensOf(rest, false);
   assert.ok(want.length > 400, `a whole section was compared (${want.length} tokens)`);
@@ -640,12 +678,17 @@ test('T6 every word drawn is its leaf\'s, in order — the three new words and b
     PLAN_MARKS.inPlan.label, PLAN_MARKS.notInPlan.label, '+ Business', '+ Trading', 'of 25', 'tools', ...PROBLEM_SHEET.flatMap((f) => [f.header, ...f.tools]),
     ...PLANS.flatMap((p) => [p.name, p.role, p.audience, p.positioning, p.relationship, ...p.benefits])];
   for (const w of leafWords) assert.ok(!flat(section).includes(`'${w}'`) && !flat(section).includes(`"${w}"`) && !flat(section).includes(`>${w}<`), `the section does not type "${w.slice(0, 30)}"`);
-  assert.deepEqual([...section.matchAll(/aria-label="([^"]*)"/g)].map((m) => m[1]), ['Software plans'], 'its one typed label is the act\'s own, as since HOME-PLANS-01');
+  // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling b: the short view's section keeps aria-label="Software plans" and writes its own tag, so the act's label is typed twice —
+  // once per view, one drawn on each page. Until then: ['Software plans'], 'its one typed label is the act's own, as since HOME-PLANS-01'.
+  assert.deepEqual([...section.matchAll(/aria-label="([^"]*)"/g)].map((m) => m[1]), ['Software plans', 'Software plans'], 'its one typed label is the act\'s own, as since HOME-PLANS-01 — on each view\'s section');
   assert.equal(count(section, '`'), 0, 'and it writes no template literal, where a typed word could hide');
   // HOME-PAGES-01 (Alex's brief, 2026-11-14, ruling d): two literals joined, and neither is a word a visitor reads — 'link', the kind of the door
   // the section's own page hands in (JoinDoor's link arm), and 'function', the typeof that tells Landing's door from it. Until then the list ended
   // at ' ': ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/offer/plans', ' '].
-  assert.deepEqual([...section.matchAll(/'([^']*)'/g)].map((m) => m[1]), ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/offer/plans', ' ', 'link', 'function'], 'its single-quoted literals: the directive, its three imports\' paths and React\'s, the space before each later part of a plan\'s name (the space between the map\'s figure and its words left with the count, at Alex\'s note), and the door\'s two — the link arm\'s kind and the typeof that tells a function from it');
+  // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15): three more, and none is a word a visitor reads — '@/lib/homePages', the path of the leaf that holds FINANCIAL_SOFTWARE_PATH
+  // (ruling e: the short view's first link), and the view's two names, 'short' and 'whole' (ruling a). Until then the list ended at 'function',
+  // with no '@/lib/homePages'.
+  assert.deepEqual([...section.matchAll(/'([^']*)'/g)].map((m) => m[1]), ['use client', 'react', '@/lib/howTo', '@/lib/homeActWords', '@/lib/homePages', '@/lib/offer/plans', ' ', 'link', 'function', 'short', 'whole'], 'its single-quoted literals: the directive, its four imports\' paths and React\'s, the space before each later part of a plan\'s name (the space between the map\'s figure and its words left with the count, at Alex\'s note), the door\'s two — the link arm\'s kind and the typeof that tells a function from it — and the view\'s two names (HOME-TRIM-02, 2026-11-15: "its three imports\' paths", and no view, until then)');
 });
 
 // ── T7 · THE DATA ────────────────────────────────────────────────────────────
@@ -728,18 +771,23 @@ test('T8 what you run is two booleans in React state — both off at first, noth
   assert.equal(section.slice(section.indexOf('export default function HowToSection(')).trim(), [
     // HOME-PAGES-01 (Alex's brief, 2026-11-14, ruling d): the parameter's TYPE alone moved — the door is Landing's function or, on the section's
     // own page, a link (JoinDoor). Until then: 'export default function HowToSection({ onRequireAuth }: { onRequireAuth: () => void }) {'.
-    'export default function HowToSection({ onRequireAuth }: { onRequireAuth: JoinDoor }) {',
+    // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: one more prop, the view, required and with no default; the pure half it draws is looked up by that name —
+    // HowToView, or the short view beside it — one element, the same two booleans and the same door. Until then the signature had no view and
+    // the return drew HowToView: '  return <HowToView business={business} trade={trade} onBusiness=… onJoin={onRequireAuth} />;'.
+    'export default function HowToSection({ view, onRequireAuth }: { view: \'short\' | \'whole\'; onRequireAuth: JoinDoor }) {',
     '  const [business, setBusiness] = useState(false);',
     '  const [trade, setTrade] = useState(false);',
-    '  return <HowToView business={business} trade={trade} onBusiness={() => setBusiness((on) => !on)} onTrade={() => setTrade((on) => !on)} onJoin={onRequireAuth} />;',
+    '  const View = VIEWS[view];',
+    '  return <View business={business} trade={trade} onBusiness={() => setBusiness((on) => !on)} onTrade={() => setTrade((on) => !on)} onJoin={onRequireAuth} />;',
     '}',
-  ].join('\n'), 'the default export, whole, ends the file: two booleans and the pure half — nothing else runs in it');
+  ].join('\n'), 'the default export, whole, ends the file: two booleans and the pure half its view names — nothing else runs in it');
   // the default export, driven inside a host's render: an act made during that render re-draws the host
   const acts: Array<(props: HowToViewProps) => void> = [(p) => p.onBusiness(), (p) => p.onTrade(), (p) => p.onBusiness(), (p) => p.onTrade()];
   const passes: string[] = [];
   const door = (): void => {};
   const Host = (): null => {
-    const el = HowToSection({ onRequireAuth: door }) as React.ReactElement<HowToViewProps>;
+    // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: handed the whole view, which this file holds (the short view's drive is homeTrim02.test.ts's). Until then no view.
+    const el = HowToSection({ view: 'whole', onRequireAuth: door }) as React.ReactElement<HowToViewProps>;
     assert.equal(el.type, HowToView, 'the default export draws the pure half');
     assert.equal(el.props.onJoin, door, 'handing it the door Landing hands in');
     passes.push(`${el.props.business ? 'B' : '-'}${el.props.trade ? 'T' : '-'}`);

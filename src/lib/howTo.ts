@@ -61,9 +61,9 @@
  *
  * HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila: "… simple like lists, or something or an image... that like lists the
  * Tabs , separated by Tier? … simple and easy to understand"; the board approved on the design canvas at 14:30): the home page
- * draws THE MAP now (planMapView, at the foot of this file) — the sheet's 25 tools under its six families (PROBLEM_SHEET), each
- * lit when the picked plan holds its module — then three plan cards and the all-three band, drawn by the section itself
- * (src/components/landing/HowToSection.tsx; the spec is design-refs/home-plans-04/Section-Reference.html).
+ * drew THE MAP (planMapView, at the foot of this file) — the sheet's 25 tools under its six families (PROBLEM_SHEET), each
+ * lit when the picked plan holds its module — then three plan cards and the all-three band, drawn by the section itself (src/components/landing/HowToSection.tsx; the spec is design-refs/home-plans-04/Section-Reference.html).
+ * HOME-TRIM-02 (2026-11-15): that is the section's whole view, on /financial-software (its own page since HOME-PAGES-01, 2026-11-14) and there alone now; the home page draws its short view, from the same planMapView (the home page "draws THE MAP now" until then; see seeAllToolsWords).
  *   · KEPT, NOT DRAWN (2026-11-12): planCardSteps, with PlanCardSteps and PlanCardCategory — the step lists the four cards
  *     drew. The brief's ruling c: "WHAT LEAVES THE PAGE: the pillar's three paragraphs and the step lists in the cards. Both
  *     stay in their leaves, undrawn, with a dated note: the standing HOME-PLANS-03 gave the comparison." So it stands as the
@@ -582,8 +582,8 @@ export function planComparison(
 // ── THE CARDS' STEPS ─────────────────────────────────────────────────────────
 // HOME-PLANS-03 (Alex, 2026-11-11 18:17 Manila). What the home page draws INSIDE the four plan cards: the steps each plan
 // ADDS. This part reads the plans' modules and the steps' titles — no tool, no note, nothing of what is built.
-// KEPT, NOT DRAWN (HOME-PLANS-04, 2026-11-12): the home page draws the map and its own cards now; this stays, undrawn — the
-// header says why (ruling c).
+// KEPT, NOT DRAWN (HOME-PLANS-04, 2026-11-12): the section draws the map and its own cards — on the home page until HOME-TRIM-02 (2026-11-15), on /financial-software since HOME-PAGES-01 (2026-11-14) and there alone since
+// ("the home page draws the map and its own cards now" until then); this stays, undrawn — the header says why (ruling c).
 
 /** One category on a plan's card. */
 export interface PlanCardCategory {
@@ -690,9 +690,9 @@ export function howToLaw(
 // ── THE MAP AND THE PLANS (HOME-PLANS-04) ────────────────────────────────────
 // HOME-PLANS-04 (Alex, 2026-11-12 14:07 Manila: "… simple like lists, or something or an image... that like lists the Tabs ,
 // separated by Tier? … simple and easy to understand"; the board, approved on the design canvas at 14:30: "YES, OMG, GIVE ME THE
-// PROMPT TO MAKE THIS REAL!"). What the home page's first pillar draws now, under its name and one line (design-refs/home-plans-04/):
+// PROMPT TO MAKE THIS REAL!"). What the home page's first pillar drew, under its name and one line, until HOME-TRIM-02 (2026-11-15) — the section's whole view, on /financial-software since HOME-PAGES-01 (2026-11-14) and there alone since ("draws now" until then; design-refs/home-plans-04/):
 // THE MAP — the sheet's 25 tools under its six families (PROBLEM_SHEET), each lit when the picked plan holds its module — then three
-// plan cards and the all-three band. Everything here is DERIVED from the plans leaf and the sheet; three words are typed, ruled new by
+// plan cards and the all-three band. The home page's short view (design-refs/home-trim-02/) draws from the same view: the picked plan alone, and seeAll. Everything here is DERIVED from the plans leaf and the sheet; three words are typed (and, since HOME-TRIM-02, 2026-11-15, a fourth: seeAllToolsWords, its ruling e), ruled new by
 // the brief. A mark says "in this plan" — never "built": nothing below reads a tool's status, and no price is drawn (ruling d).
 
 /** HOME-PLANS-04 ruling f: the tag the picked plan wears. */
@@ -711,6 +711,32 @@ export function toolCountWords(n: number, total: number): string {
 /** HOME-PLANS-04 ruling f: "All <total> tools" — the count of a plan that holds every tool on the sheet (the band's). */
 export function allToolsWords(total: number): string {
   return `All ${total} tools`;
+}
+/**
+ * HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila, with his four beta users' notes on the home page: "I would like to take this
+ * feedback, consider it deeply, review the home page in its current state, and then come up with a mock up to meet the requests of the
+ * beta users feedback." Two of the notes, as he pasted them: "Cut the scrolling length of the landing page in half. Make the user
+ * explore to find the information behind info pages" · "I like the + options for business and trading." His approval of the boards
+ * on the design canvas, 2026-11-14 20:01 Manila: "ALL LOOKS GOOD … OTHERWISE, LETS DO IT"; of the corrected boards, 20:41: "thats it!
+ * yeet yeet!"; built 2026-11-15) — THE SHORT VIEW ON THE HOME PAGE. The Financial Software section draws its short view there
+ * (src/components/landing/HowToSection.tsx, HowToShortView; the spec is design-refs/home-trim-02/Section-Reference.html): the
+ * question, its three choices and two links, then the one plan planMapView picks; the whole view — the map, the three cards, the
+ * band and the link at the foot — stands on /financial-software. Both read planMapView. One word is new, the short view's first
+ * link's: seeAllToolsWords, below, beside allToolsWords (ruling e, quoted under this paragraph), and planMapView hands it the total its cards count
+ * against (seeAll, below). Ruling l re-said this file's notes that went false, in place and dated: "NOTES THAT GO FALSE ARE RE-SAID IN
+ * PLACE, dated, as HOME-TRIM-01 re-said its own: every sentence that says the home page draws the map, the three cards, the band at
+ * rest or the link at the foot. No line moves in a file whose lines a test or a law cites."
+ *
+ * HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling e: "THE WORDS. Nothing is typed. "See all ‹total›
+ * tools →" is new: one function in src/lib/howTo.ts beside allToolsWords (:712). Its total is the sheet's count that the cards count
+ * against, never typed. Its link is a plain anchor in the compare link's class (.ts-fs__compare) to FINANCIAL_SOFTWARE_PATH
+ * (src/lib/homePages.ts:39). "Compare all four plans →" moves into the panel in the short view with its path and its
+ * data-compare-plans hook; in the whole view it stays at the foot. Neither link carries state." — the short view's first link, to
+ * the section's own page; the arrow is part of the string, as COMPARE_PLANS_WORDS has its own. planMapView hands it the total its
+ * cards count against (seeAll, below), so the two cannot disagree.
+ */
+export function seeAllToolsWords(total: number): string {
+  return `See all ${total} tools →`;
 }
 
 /** The sheet's shape, as the map reads it: a family's name and its tools, in order. */
@@ -807,6 +833,11 @@ export interface PlanMapView {
   cards: readonly MapPlan[];
   /** The plan that holds every module — the band. */
   band: MapPlan;
+  /**
+   * The short view's first link's words, "See all <total> tools →" (HOME-TRIM-02, ruling e): seeAllToolsWords over the total each card's
+   * count is out of — words, not a figure: the view still carries no figure for a count to draw.
+   */
+  seeAll: string;
 }
 
 /** The two switches, in this order: what each adds, and which key of what you run it turns. */
@@ -869,6 +900,7 @@ export function planMapView(
     })),
     cards: plans.filter((plan) => plan !== all).map(asCard),
     band: asCard(all),
+    seeAll: seeAllToolsWords(total),
   };
 }
 

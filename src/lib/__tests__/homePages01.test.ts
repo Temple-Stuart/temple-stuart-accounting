@@ -25,7 +25,7 @@
  *      on the law's one line, each citing the footer; the Financial Software page on both lists of selling surfaces (PLAN_SURFACES,
  *      which the plan law's clause 1 reads, and SELLING_SURFACES, which the offer law counts); no data path in the pages or in
  *      anything they import, to the end of the closure — and the packages that closure reaches are a closed list of three;
- *   T8 the home page — HOME-TRIM-01 (2026-11-15) changed it: Landing.tsx mounts the bar, the two pillars' sections, the About Us band, Our Story and the footer once each, as typed, and the letter nowhere; it reads nothing of the pages' leaf, which the footer's words, the three pages and that band read. Until then this entry was: the home page does not change — Landing.tsx mounts each of the four sections once, as typed, and reads nothing of the
+ *   T8 the home page — HOME-TRIM-01 (2026-11-15) changed it: Landing.tsx mounts the bar, the two pillars' sections, the About Us band, Our Story and the footer once each, as typed, and the letter nowhere; it reads nothing of the pages' leaf, which the footer's words, the three pages and that band read. HOME-TRIM-02 (2026-11-15) changed it again: the Financial Software section is mounted with its short view, and reads the leaf for that view's first link. Until then this entry was: the home page does not change — Landing.tsx mounts each of the four sections once, as typed, and reads nothing of the
  *      new leaf, which the footer's words and the three pages alone read. No travel page, then and now;
  *   T9 the rulings — each quoted, dated, where it is built; and in every one of the change's twenty-six files, a quote that follows
  *      a sentence of his for twenty characters is his words from there — whole, or to a full stop — and each file's count of the
@@ -125,7 +125,8 @@ interface OwnPage {
 }
 const FS: OwnPage = {
   path: FINANCIAL_SOFTWARE_PATH, file: 'src/app/financial-software/page.tsx', fn: 'FinancialSoftwarePage', main: '<main className="ts-fs-page">',
-  mounts: [`<HowToSection onRequireAuth={${LINK_DOOR_TEXT}} />`],
+  // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: the page mounts the section with view="whole". Until then: `<HowToSection onRequireAuth={${LINK_DOOR_TEXT}} />`.
+  mounts: [`<HowToSection view="whole" onRequireAuth={${LINK_DOOR_TEXT}} />`],
   imports: ['next', '@/components/landing/LandingHeader', '@/components/landing/LandingFooter', '@/components/landing/HowToSection', '@/lib/homePages', '@/lib/offer/plans'],
   title: 'FINANCIAL_SOFTWARE_TITLE', description: 'PLANS_SUBHEAD', exports: ['metadata', 'FinancialSoftwarePage'], literals: ['link', '/'],
 };
@@ -379,7 +380,9 @@ test('T2 each title is its section\'s heading and the ending PIPELINE_PAGE_TITLE
     assert.ok(src.includes(`export const metadata: Metadata = {\n  title: ${page.title},\n  description: ${page.description},\n};`), `${page.file}: its title and description, each read from a leaf`);
     // a page types no word: its single-quoted literals are its imports' paths and what its shell needs; its double-quoted ones are classes
     assert.deepEqual([...src.matchAll(/'([^']*)'/g)].map((m) => m[1]), [...page.imports, ...page.literals], `${page.file}: its single-quoted literals — its imports' paths, and ${page.literals.length === 0 ? 'no other' : page.literals.map((l) => `'${l}'`).join(', ')}`);
-    assert.deepEqual([...src.matchAll(/"([^"]*)"/g)].map((m) => m[1]), page === FS ? ['min-h-screen bg-bg-terminal text-text-primary', 'ts-fs-page'] : ['min-h-screen bg-bg-terminal text-text-primary'], `${page.file}: its double-quoted literals are classes`);
+    // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: the Financial Software page's third, 'whole', is the view it hands the section, and no word a visitor reads.
+    // Until then its two classes alone: ['min-h-screen bg-bg-terminal text-text-primary', 'ts-fs-page'].
+    assert.deepEqual([...src.matchAll(/"([^"]*)"/g)].map((m) => m[1]), page === FS ? ['min-h-screen bg-bg-terminal text-text-primary', 'ts-fs-page', 'whole'] : ['min-h-screen bg-bg-terminal text-text-primary'], `${page.file}: its double-quoted literals are classes${page === FS ? ', and the view it hands the section' : ''}`);
     assert.equal(count(src, '`'), 0, `${page.file}: no template literal, where a typed word could hide`);
     assert.deepEqual([...src.matchAll(/>([^<>{}]+)</g)].map((m) => m[1].trim()).filter((t) => /[A-Za-z0-9]/.test(t)), [], `${page.file}: no text typed between its tags`);
   }
@@ -535,7 +538,9 @@ test('T4 ruling a\'s one value: one rule inside the Financial Software port, of 
   assert.deepEqual(srcFiles().filter((f) => code(f).includes('ts-fs-page')), [FS.file], 'one file under src wears the hook');
   assert.equal(count(code(FS.file), 'ts-fs-page'), 1);
   assert.equal(count(code(FS.file), '<main className="ts-fs-page">'), 1, 'on <main>');
-  assert.equal(count(code(HOW_TO), 'className="ts-fs__inner"'), 1, 'and the inner box is the section\'s own, as it was');
+  // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling b: the short view's section has its own inner box, as its reference draws it — written once in each view, and
+  // neither wears the hook. Until then: 1, 'and the inner box is the section's own, as it was'.
+  assert.equal(count(code(HOW_TO), 'className="ts-fs__inner"'), 2, 'and the inner box is the section\'s own, as it was — one in each view');
   // the page draws no "What We Do": the box over the section on the home page is Landing.tsx's, and no page mounts or types it
   assert.equal(count(code(LANDING), 'className="ts-fs-heading"'), 1, 'the What We Do box is the landing\'s');
   for (const page of PAGES) assert.doesNotMatch(code(page.file), /ts-fs-heading|WHAT_WE_DO_HEADING|What We Do/, `${page.file} draws no "What We Do"`);
@@ -572,18 +577,22 @@ test('T5 the door: a function is drawn as the button it was, a link as a link in
   for (const b of buttons) (b.props.onClick as () => void)();
   assert.deepEqual(calls, ['business', 'trade'], 'the two switches turn their own, and nothing else is pressed');
   // the default export hands the door on, whichever it is
-  assert.equal(renderToStaticMarkup(React.createElement(HowToSection, { onRequireAuth: link })), render(STATES[0], link), 'the default export, handed a link: the pure half at rest, with that door');
-  assert.equal(renderToStaticMarkup(React.createElement(HowToSection, { onRequireAuth: noop })), render(STATES[0], noop), 'handed a function: as the home page has it');
+  // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: the view is required, with no default — each call hands the whole view, the one this test renders (the short
+  // view's door is homeTrim02.test.ts's). Until then no view was handed, and the second line read 'handed a function: as the home page has it' —
+  // the home page hands the short view now.
+  assert.equal(renderToStaticMarkup(React.createElement(HowToSection, { view: 'whole', onRequireAuth: link })), render(STATES[0], link), 'the default export, handed a link: the pure half at rest, with that door');
+  assert.equal(renderToStaticMarkup(React.createElement(HowToSection, { view: 'whole', onRequireAuth: noop })), render(STATES[0], noop), 'handed a function — the home page\'s kind of door — and the whole view');
   const Host = (): null => {
-    const el = HowToSection({ onRequireAuth: link }) as React.ReactElement<HowToViewProps>;
+    const el = HowToSection({ view: 'whole', onRequireAuth: link }) as React.ReactElement<HowToViewProps>;
     assert.equal(el.props.onJoin, link, 'the very door it was handed');
     return null;
   };
   assert.equal(renderToStaticMarkup(React.createElement(Host)), '');
   // the page hands /pricing's own door (ruling d), and the landing its function, as typed
   assert.equal(count(code(PRICING_PAGE), `door={${LINK_DOOR_TEXT}}`), 1, '/pricing\'s door: a link to the front door');
-  assert.equal(count(code(FS.file), `<HowToSection onRequireAuth={${LINK_DOOR_TEXT}} />`), 1, '/financial-software hands the same door');
-  assert.equal(count(code(LANDING), '<HowToSection onRequireAuth={onRequireAuth} />'), 1, 'the landing hands its function, as typed');
+  // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: each hands its view too — the page the whole view, the landing the short view. Until then neither named a view.
+  assert.equal(count(code(FS.file), `<HowToSection view="whole" onRequireAuth={${LINK_DOOR_TEXT}} />`), 1, '/financial-software hands the same door, and the whole view');
+  assert.equal(count(code(LANDING), '<HowToSection view="short" onRequireAuth={onRequireAuth} />'), 1, 'the landing hands its function, as typed, and the short view');
   // the link arm is PlanDoor's, retyped: the section imports nothing of the plans section, and draws the link itself
   assert.ok(code(PLANS_SECTION).includes("| { kind: 'link'; href: string };"), 'PlanDoor\'s link arm, the precedent');
   const section = code(HOW_TO);
@@ -728,19 +737,19 @@ test('T7 public: the three paths in PUBLIC_PATHS directly after \'/how-it-works\
   assert.doesNotMatch(code('src/lib/toolRegistry.ts'), /\bfetch\s*\(|from\s+['"]@prisma\/client['"]/, 'which calls nothing');
 });
 
-// ── T8 · THE HOME PAGE — as HOME-PAGES-01 left it (unchanged), then as HOME-TRIM-01 left it (one band for the letter) ─────────
+// ── T8 · THE HOME PAGE — as HOME-PAGES-01 left it (unchanged), then as HOME-TRIM-01 left it (one band for the letter), then as HOME-TRIM-02 left it (the short view) ──
 
-test('T8 the home page, as HOME-TRIM-01 left it (2026-11-15): Landing.tsx mounts the bar, the two pillars\' sections, the About Us band, Our Story and the footer once each, as typed, and the letter nowhere; it reads nothing of the pages\' leaf — the footer\'s words, the three pages and the band read it; no travel page. (HOME-PAGES-01\'s ruling h held the page unchanged until then, and this test was named: T8 the home page does not change: Landing.tsx mounts the bar, the four sections and the footer once each, as typed, and reads nothing of the pages\' leaf — the footer\'s words and the three pages alone read it; no travel page)', () => {
+test('T8 the home page, as HOME-TRIM-02 left it (2026-11-15; "as HOME-TRIM-01 left it" until then): Landing.tsx mounts the bar, the two pillars\' sections (the Financial Software section\'s short view), the About Us band, Our Story and the footer once each, as typed, and the letter nowhere; it reads nothing of the pages\' leaf — the footer\'s words, the three pages, the band and (HOME-TRIM-02, 2026-11-15) the Financial Software section read it; no travel page. (HOME-PAGES-01\'s ruling h held the page unchanged until then, and this test was named: T8 the home page does not change: Landing.tsx mounts the bar, the four sections and the footer once each, as typed, and reads nothing of the pages\' leaf — the footer\'s words and the three pages alone read it; no travel page)', () => {
   const landing = code(LANDING);
-  for (const mount of ['<LandingHeader glass onRequireLogin={onRequireLogin} />', '<HowToSection onRequireAuth={onRequireAuth} />', '<ServicesSection />', '<AboutBand />', '<WasHereSection today={today} />', '<LandingFooter />']) { // HOME-TRIM-01 (2026-11-15): the fourth was '<StopZeroSection />' until then — the letter's one mount is /about's page's now (T1), and the About Us band holds its seat here
+  for (const mount of ['<LandingHeader glass onRequireLogin={onRequireLogin} />', '<HowToSection view="short" onRequireAuth={onRequireAuth} />', '<ServicesSection />', '<AboutBand />', '<WasHereSection today={today} />', '<LandingFooter />']) { // HOME-TRIM-01 (2026-11-15): the fourth was '<StopZeroSection />' until then — the letter's one mount is /about's page's now (T1), and the About Us band holds its seat here; HOME-TRIM-02 (2026-11-15, ruling a): the second was '<HowToSection onRequireAuth={onRequireAuth} />' until then — the how-to mounts its short view here
     assert.equal(count(landing, mount), 1, `Landing.tsx: ${mount}, once, as typed`);
   }
   const order = ['<HowToSection ', '<ServicesSection ', '<AboutBand ', '<WasHereSection ', '<LandingFooter '].map((m) => landing.indexOf(m)); assert.equal(count(landing, 'StopZeroSection'), 0, 'the letter is mounted nowhere on the home page, and named nowhere in its code'); // '<StopZeroSection ' third in this order until HOME-TRIM-01
   assert.deepEqual(order, [...order].sort((x, y) => x - y), 'in the order they stood');
   assert.ok(!landing.includes('homePages') && !landing.includes('ts-fs-page'), 'the landing reads nothing of the pages\' leaf and wears nothing of the page\'s hook');
-  // who reads the leaf: the footer's words, the three pages and — since HOME-TRIM-01 (2026-11-15) — the About Us band, whose one door opens /about by the leaf's path (the footer's words and the three pages alone, until then)
+  // who reads the leaf: the footer's words, the three pages and — since HOME-TRIM-01 (2026-11-15) — the About Us band, whose one door opens /about by the leaf's path (the footer's words and the three pages alone, until then); and — since HOME-TRIM-02 (2026-11-15, ruling e) — the Financial Software section, whose short view's first link opens /financial-software by the leaf's path
   const readers = srcFiles().filter((f) => specsOf(code(f), f).some((spec) => /(?:^|\/)homePages$/.test(spec))).sort();
-  assert.deepEqual(readers, [...PAGES.map((p) => p.file), FOOTER_WORDS, ABOUT_BAND].sort(), 'the three pages, the footer\'s words and the About Us band — no other component, no other page, by any import, export … from, import() or require() that names its module by a literal');
+  assert.deepEqual(readers, [...PAGES.map((p) => p.file), FOOTER_WORDS, ABOUT_BAND, HOW_TO].sort(), 'the three pages, the footer\'s words, the About Us band and the Financial Software section — no other component, no other page, by any import, export … from, import() or require() that names its module by a literal');
   // ruling g: no travel page — /travel is the cockpit's
   assert.ok(!existsSync(resolve(ROOT, 'src/app/travel')), 'no src/app/travel');
   assert.match(code('src/app/[tab]/page.tsx'), /const TAB_PATHS = new Set\(\[\s*'runway', 'travel', 'trade', 'books', 'tax',\s*\]\);/, '/travel is one of the cockpit\'s tab paths');
