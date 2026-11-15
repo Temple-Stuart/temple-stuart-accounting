@@ -5,7 +5,7 @@
  *                          carries data-act-heading): the heading over travel booking, the events, the guest's strip,
  *                          the plans and the professional services.
  *   · OUR_STORY_HEADING  — the trip log's h2 (WasHereSection.tsx, MY_TRIP_HEADLINE), over the trip cards.
- *   · ABOUT_US_HEADING   — the h2 of the act between them. HOME-TRIM-01 (2026-11-15): on the home page that act is one band now (AboutBand.tsx) — the heading over the first quote of Alex's letter and one door — and the letter's own h2 wears the same words on /about (StopZeroSection.tsx); "the h2 of the act between them (StopZeroSection.tsx), over Alex's text" until then. That text is its own
+ *   · ABOUT_US_HEADING   — the h2 of the act between them. HOME-TRIM-01 (2026-11-15): on the home page that act is one band now (AboutBand.tsx) — the heading over the three parts of Alex's letter, each its number, its title and its quote, and one door (HOME-ABOUT-02, 2026-11-15: "over the first quote of Alex's letter and one door" until then) — and the letter's own h2 wears the same words on /about (StopZeroSection.tsx); "the h2 of the act between them (StopZeroSection.tsx), over Alex's text" until then. That text is its own
  *                          leaf's (src/lib/stopZeroWords.ts), not this file's. The band's door has its words here: ABOUT_US_DOOR, below.
  *
  * HOME-BRIEF-03 (Alex, 2026-11-10 18:09): one more line of the home page lived here —

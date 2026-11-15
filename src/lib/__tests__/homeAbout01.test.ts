@@ -3,9 +3,9 @@
  * design canvas at 21:53: "okayy give me the prompt to send it!") — ABOUT US: STOP 0, IN ALEX'S WORDS, AS DRAWN.
  *
  * The spec is a file: design-refs/home-about-01/Section-Reference.html ("Every value in its stylesheet is the design, and its markup is
- * the page"), with its README beside it. The section is src/components/landing/StopZeroSection.tsx, which /about's page mounts (HOME-TRIM-01, 2026-11-15: "which Landing.tsx mounts" until then — the home page draws one band in its seat, held by homeTrim01.test.ts); its
- * words are src/lib/stopZeroWords.ts's (byte for byte, as they stood — HOME-PAGES-01, 2026-11-14: its code still is; two notes in it were
- * re-said, T5) and src/lib/homeActWords.ts's; its stylesheet is the reference's
+ * the page"), with its README beside it. The section is src/components/landing/StopZeroSection.tsx, which /about's page mounts (HOME-TRIM-01, 2026-11-15: "which Landing.tsx mounts" until then — the home page draws one band in its seat, held by homeTrim01.test.ts and, since HOME-ABOUT-02 (2026-11-15), by homeAbout02.test.ts: the letter's three parts, drawn there); its
+ * words are src/lib/stopZeroWords.ts's (held byte for byte — HOME-PAGES-01, 2026-11-14: its code stood as it was; two notes in it were
+ * re-said, T5; HOME-ABOUT-02, 2026-11-15: its second quote is Alex's new words, the one change to his words since — "byte for byte, as they stood" and "its code still is" until then) and src/lib/homeActWords.ts's; its stylesheet is the reference's
  * own, ported to src/app/globals.css under the house prefix. What Alex approved is the letter, centred: the board's other layout ("Page
  * grid, left") is built only if he says "left", and the message that launched this build did not.
  *
@@ -18,12 +18,12 @@
  *      own; it stands directly under the chip strip's rules and above the Travel Marketplace section's (HOME-TRAVEL-01), then the
  *      Professional Services section's; nothing outside it reaches the section — not by its classes, its id or the elements it draws;
  *   T4 the markup — the section's render is the reference's section, token for token (classes behind the house prefix, attributes
- *      in any order), but for the heading's class: the act headings' type, the one What We Do's h2 wears in Landing.tsx; every
+ *      in any order), but for the heading's class: the act headings' type, the one What We Do's h2 wears in Landing.tsx — and, since HOME-ABOUT-02 (2026-11-15), quote 2's words, Alex's new first sentence in front of the words the reference draws; every
  *      other class the section wears is ruled by the port;
  *   T5 the words — every word the section draws is a leaf's, in order: the heading; the stop and the place, the leaf's line split
  *      at its " | "; the dates; then each part's number (from his order), heading, paragraphs and quote — its two marks and its
- *      words; the reference draws the same words in the same order; the leaf's code — every word of his — is as it stood, and the
- *      whole file is held byte for byte at its HOME-PAGES-01 form ("the leaf is byte for byte as it stood" until then);
+ *      words; the reference draws the same words in the same order, but for quote 2's (HOME-ABOUT-02, 2026-11-15: Alex's new first sentence — the one difference); the leaf's code — every word of his — is as he left it at 22:57 Manila that day, and the
+ *      whole file is held byte for byte at its HOME-ABOUT-02 form (its code "as it stood" and the file at its HOME-PAGES-01 form until HOME-ABOUT-02; "the leaf is byte for byte as it stood" until HOME-PAGES-01);
  *   T6 the helpers — placeParts and quoteParts split exactly, and refuse, by name (StopZeroShapeError), a string without their
  *      shape; partNumber counts from 01; the section draws only what they hand it;
  *   T7 the layout and the rulings — the letter, centred: no rule of the board's other layout is ported and nothing wears it; Alex's
@@ -316,16 +316,32 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   }
 });
 
+/**
+ * HOME-ABOUT-02 (Alex's brief, 2026-11-15 22:40 Manila; built 2026-11-15) — QUOTE 2, AS THE REFERENCE DRAWS IT: the words Alex's change of 22:57
+ * Manila put his new first sentence in front of. Its ruling c: "QUOTE 2 IS ALEX'S CHANGE OF 2026-11-15 22:57 MANILA." The leaf's quote is his new
+ * words now; design-refs/home-about-01 stays byte for byte (T1), so T4 and T5 name this one difference, by position, and nothing else.
+ */
+const QUOTE_2_AS_DRAWN = '“One connected system for managing your money, planning your future, and measuring the outcomes of your decisions.”';
+const QUOTE_2_FIRST_SENTENCE = "That's what I set out to build with Temple Stuart. ";
+
 // ── T4 · THE MARKUP ──────────────────────────────────────────────────────────
 
-test('T4 the section\'s render is the reference\'s section, token for token, but for the heading\'s class — the act headings\' type, What We Do\'s; every other class it wears is ruled by the port', () => {
+// HOME-ABOUT-02 (2026-11-15): the render is the reference's but for the heading's class and quote 2's words. Until then this test was named "T4 the
+// section's render is the reference's section, token for token, but for the heading's class — the act headings' type, What We Do's; every other class it
+// wears is ruled by the port", and asBuilt swapped the heading's class alone.
+test('T4 the section\'s render is the reference\'s section, token for token, but for the heading\'s class — the act headings\' type, What We Do\'s — and quote 2\'s words: Alex\'s new first sentence in front of the words the reference draws (HOME-ABOUT-02, 2026-11-15); every other class it wears is ruled by the port', () => {
   const reference = tokensOf(referenceSection(), true);
   const REFERENCE_HEADING = '<h2 class="ts-about__title">';
   assert.equal(reference.filter((t) => t === REFERENCE_HEADING).length, 1, 'the reference\'s heading, once');
-  const asBuilt = reference.map((t) => (t === REFERENCE_HEADING ? `<h2 class="${ACT_HEADING_TYPE}">` : t));
+  // the one difference of words: the reference draws quote 2 as it stood; the leaf's is his new first sentence and those words
+  assert.equal(STOP_ZERO_STORY[1].quote, `“${QUOTE_2_FIRST_SENTENCE}${QUOTE_2_AS_DRAWN.slice(1)}`, 'the leaf\'s quote 2: his new first sentence, then the words the reference draws, inside the same two marks');
+  const REFERENCE_QUOTE_2 = `#text ${JSON.stringify(QUOTE_2_AS_DRAWN.slice(1, -1))}`;
+  assert.equal(reference.filter((t) => t === REFERENCE_QUOTE_2).length, 1, 'the reference\'s quote 2, once');
+  const asBuilt = reference.map((t) => (t === REFERENCE_HEADING ? `<h2 class="${ACT_HEADING_TYPE}">` : t === REFERENCE_QUOTE_2 ? `#text ${JSON.stringify(STOP_ZERO_STORY[1].quote.slice(1, -1))}` : t));
   const html = render();
   const app = tokensOf(html, false);
-  assert.deepEqual(app, asBuilt, 'the section is the reference\'s, but for the heading\'s class');
+  assert.deepEqual(app, asBuilt, 'the section is the reference\'s, but for the heading\'s class and quote 2\'s words');
+  assert.equal(app.filter((t, i) => t !== reference[i]).length, 2, 'and two tokens differ from the reference\'s: the heading\'s tag and quote 2\'s words');
   assert.ok(app.length > 100, `the render was read (${app.length} tokens)`);
   // the heading wears the act headings' type — exactly the classes What We Do's h2 wears in Landing.tsx, and nothing else
   assert.equal(count(code(LANDING), `<h2 className="${ACT_HEADING_TYPE}" data-act-heading>`), 1, 'What We Do\'s h2 wears the act headings\' type');
@@ -346,10 +362,16 @@ test('T4 the section\'s render is the reference\'s section, token for token, but
 
 // ── T5 · THE WORDS ───────────────────────────────────────────────────────────
 
-test('T5 every word the section draws is a leaf\'s, in order — the heading, the stop and the place, the dates, then each part\'s number, heading, paragraphs and quote; the reference draws the same; the leaf\'s words are as they stood, and the file is held byte for byte', () => {
+// HOME-ABOUT-02 (2026-11-15): the reference's words are the leaves' but for quote 2's, and the leaf is held at its new digests (below). Until then this
+// test was named "T5 every word the section draws is a leaf's, in order — the heading, the stop and the place, the dates, then each part's number,
+// heading, paragraphs and quote; the reference draws the same; the leaf's words are as they stood, and the file is held byte for byte", and it held
+// textsOf(referenceSection(), true) equal to DRAWN whole.
+test('T5 every word the section draws is a leaf\'s, in order — the heading, the stop and the place, the dates, then each part\'s number, heading, paragraphs and quote; the reference draws the same but for quote 2\'s words, Alex\'s new first sentence in front of them (HOME-ABOUT-02, 2026-11-15); the leaf\'s words are as he left them, and the file is held byte for byte', () => {
   const html = render();
   assert.deepEqual(textsOf(html), DRAWN, 'the words drawn, in order');
-  assert.deepEqual(textsOf(referenceSection(), true), DRAWN, 'the reference\'s words are the same, in the same order (the README: "Every word on the page, in order, is the leaves\' own")');
+  const referenceWords = textsOf(referenceSection(), true);
+  assert.deepEqual(referenceWords.filter((w, i) => w !== DRAWN[i]), [QUOTE_2_AS_DRAWN.slice(1, -1)], 'the reference\'s words differ from the leaves\' in one place: quote 2, as it stood');
+  assert.deepEqual(referenceWords.map((w) => (w === QUOTE_2_AS_DRAWN.slice(1, -1) ? STOP_ZERO_STORY[1].quote.slice(1, -1) : w)), DRAWN, 'and with his new words in its place, they are the same, in the same order (the README: "Every word on the page, in order, is the leaves\' own")');
   // the splits lose nothing: the two parts are the leaf's line; each quote's marks and words are the leaf's quote
   assert.equal(['Stop 0', 'Los Angeles, California 🇺🇸'].join(' | '), STOP_ZERO_PLACE, 'the stop and the place are the leaf\'s line, split at its " | "');
   for (const part of STOP_ZERO_STORY) {
@@ -358,15 +380,21 @@ test('T5 every word the section draws is a leaf\'s, in order — the heading, th
   }
   // the numbers come from his order and are aria-hidden: the heading under each says which part it is
   assert.deepEqual([...html.matchAll(/<p class="ts-about-part__number" aria-hidden="true">(\d\d)<\/p><h3 /g)].map((m) => m[1]), ['01', '02', '03'], 'three numbers, aria-hidden, each directly over its part\'s heading');
+  // HOME-ABOUT-02 (Alex's brief, 2026-11-15 22:40 Manila; built 2026-11-15; his change of 22:57 Manila): the leaf's second quote is his new words — its
+  // ruling c: "QUOTE 2 IS ALEX'S CHANGE OF 2026-11-15 22:57 MANILA." — so its code's digest, its whole digest and its size moved, and the three pins move
+  // with them. Until then: the code 'a93588d7302bd48938f20e638666b8ac2de3372588b7c3c974bb88b653c4cb94' ('the leaf\'s code — every word of his — is as it
+  // stood'), the whole file '0892996fd39edca9aa7db16d8985e60948fbdc4345bd76e1dc142a1a71c1ffb5' ('src/lib/stopZeroWords.ts, whole, as HOME-PAGES-01 left it:
+  // two notes re-said, nothing else') and 5141 bytes. His other words did not move: with quote 2 as it stood, the leaf's code has the digest it had —
+  // homeAbout02.test.ts T5 holds that.
   // the leaf stays byte for byte ("a change to these words is Alex's"). HOME-PAGES-01 (2026-11-14; Alex's answer to the audit: "The footer's Stop
   // 0 | Los Angeles goes to /about, with no fragment."; and his yes of 2026-11-15 to the one question put to him before the push, whether to re-say them): two NOTES in it said the
   // footer's link lands on #stop-0, which that answer made false, and both are re-said — so the file's digest and size moved, and the pin moves
   // with them. Until then: sha256 '6b26ef4b9790280aa67bf55c94ff64a04eadae8736b8ab4bf1903dae8c62feb6' — "its sha256 at ed10acc, the main this was
   // built from" — and 4874 bytes, 'src/lib/stopZeroWords.ts is as it stood'. HIS WORDS did not move: the leaf's code, its comments set aside and its
   // whitespace collapsed, has the digest it had at ed10acc and at e7b26a9, held on the line below.
-  assert.equal(sha256(code(WORDS).replace(/\s+/g, ' ').trim()), 'a93588d7302bd48938f20e638666b8ac2de3372588b7c3c974bb88b653c4cb94', 'the leaf\'s code — every word of his — is as it stood');
-  assert.equal(sha256(whole(WORDS)), '0892996fd39edca9aa7db16d8985e60948fbdc4345bd76e1dc142a1a71c1ffb5', 'src/lib/stopZeroWords.ts, whole, as HOME-PAGES-01 left it: two notes re-said, nothing else');
-  assert.equal(size(WORDS), 5141);
+  assert.equal(sha256(code(WORDS).replace(/\s+/g, ' ').trim()), '04e9b84c582fd73983e7599eca39f5aafa1f3ea6c7532f396fb8d3567ec3a197', 'the leaf\'s code — every word of his — is as he left it: quote 2 his new words, every other word as it stood');
+  assert.equal(sha256(whole(WORDS)), 'd863bdde5db461150628c97b9db285e9418de7cd7e4ef86a4a4c72d0d1de4b52', 'src/lib/stopZeroWords.ts, whole, as HOME-ABOUT-02 left it: quote 2 and its dated note, nothing else');
+  assert.equal(size(WORDS), 6342);
 });
 
 // ── T6 · THE HELPERS ─────────────────────────────────────────────────────────

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOME-ABOUT-02 · reference</title>
+<!--
+  HOME-ABOUT-02: the reference for About Us on the guest landing with all three of the letter's quotes. The heading,
+  then the letter's three parts, each with its number, its title and the quote that ends it, then the one button that
+  opens the letter on /about. On a wide window the three stand side by side and the button stands beside the heading;
+  on a narrow one they stack, in order, and the button comes last. The quotes flow into each other, so all three are
+  always shown: nothing swipes, folds or hides.
+
+  It takes the place of design-refs/home-trim-01's band, whose stylesheet the app ports today. The letter is not drawn
+  here: it is HOME-ABOUT-01's section, whole, on /about.
+
+  Open this file in a browser and resize the window. Every value in the stylesheet is the design, and the markup is the
+  page. The words are copies, for placement only: production reads each one from its leaf (the README lists them) and
+  types none. The second quote carries Alex's new first sentence (2026-11-15). The heading wears the act headings'
+  Tailwind classes in the app; its rule here is written out only so the file renders. The font link is here only so the
+  file renders alone; the site already loads both faces.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@600&family=Inter:wght@500;600&display=swap">
+<style>
+  :root {
+    /* ALREADY IN THE APP: each is the same name behind the house prefix (--hero-violet-2 is --ts-hero-violet-2,
+       --gold is --ts-gold). Declared here only so this file renders on its own; the port adds none of these. */
+    --bg: 250 248 243;                /* the cream ground */
+    --border: 221 214 232;            /* the line under the band */
+    --gold: 184 134 11;               /* the heading (as text-brand-gold, the act headings' colour); the quotes' marks */
+    --hero-violet-2: #4D1FBC;         /* the quotes; the button's border when it is pointed at; the focus ring */
+    --hero-violet-3: #32118A;         /* the button's words */
+    --hero-violet-4: #210A5E;         /* each part's title */
+
+    /* ADDED BY HOME-PLANS-04 (on main as --ts-fs-*): reused here by the same names and values. Add none. */
+    --fs-white: 255 255 255;          /* the button's fill */
+    --fs-gold-text: #8A6408;          /* each part's number, as the letter's numbers wear it */
+    --fs-line: #E9E4F2;               /* the rule above each part, as the letter's parts have it */
+    --fs-button-line: #CFC6EC;        /* the button's border */
+
+    /* NEW WITH THIS SECTION: none. Every colour above is already in the app. */
+  }
+
+  /* ── 1 · the band: the heading, the letter's three parts, the door to the letter ───────────────── */
+  .aboutband { border-bottom: 1px solid rgb(var(--border)); background-color: rgb(var(--bg)); font-family: 'Inter', sans-serif; }
+  .aboutband__inner {
+    box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(44px, 2vw + 36px, 64px) 16px clamp(40px, 1.6vw + 33.6px, 56px);
+    display: grid; grid-template-columns: minmax(0, 1fr);
+  }
+  /* the three parts, in the letter's order: one column here, three side by side from 1024px */
+  .aboutband__parts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; margin: 24px 0 0; padding: 0; list-style: none; }
+  /* a part: the letter's rule above it, then its number, its title and the quote that ends it */
+  .aboutband__part { min-width: 0; padding-top: 20px; border-top: 1px solid var(--fs-line); }
+  .aboutband__number { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; color: var(--fs-gold-text); }
+  .aboutband__heading { margin: 8px 0 0; font-size: 17px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--hero-violet-4); }
+  /* the quote, in the letter's quote colour and weight, at the size three side by side can carry */
+  .aboutband__quote {
+    margin: 12px 0 0; padding: 0;
+    font-size: clamp(22px, 0.2vw + 21.2px, 24px); line-height: 1.25; font-weight: 500; letter-spacing: -0.02em; color: var(--hero-violet-2); text-wrap: pretty;
+  }
+  /* each quote's own two marks, drawn in gold, as the letter draws them */
+  .aboutband__mark { color: rgb(var(--gold)); }
+  /* the door: the quiet pill, at the plan cards' height, after the three parts */
+  .aboutband__go {
+    box-sizing: border-box; justify-self: start; display: inline-flex; align-items: center; justify-content: center; height: 48px; margin-top: 28px; padding: 0 24px;
+    border: 1.5px solid var(--fs-button-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-3);
+    font-size: 15px; line-height: 1.2; font-weight: 600; text-decoration: none; white-space: nowrap; transition: border-color 0.16s;
+  }
+  .aboutband :focus-visible { outline: 2px solid var(--hero-violet-2); outline-offset: 3px; }
+
+  /* ── 2 · wider windows: the button beside the heading, the three parts side by side under them ──── */
+  @media (min-width: 1024px) {
+    .aboutband__inner { padding-inline: 32px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 48px; }
+    .aboutband__parts { grid-column: 1 / -1; grid-row: 2; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; margin-top: 28px; }
+    .aboutband__go { grid-column: 2; grid-row: 1; justify-self: end; margin-top: 0; }
+  }
+
+  /* ── 3 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+  @media (hover: hover) {
+    .aboutband__go:hover { border-color: var(--hero-violet-2); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aboutband__go { transition: none; }
+  }
+
+  /* ── THE APP'S OWN CLASSES, NOT PORTED: the heading wears the act headings' type, the classes What We Do and the
+         letter's About Us wear — 'text-3xl sm:text-4xl font-medium tracking-tight text-brand-gold'. Written out here
+         only so this file renders. It takes the grid's first cell by itself: no rule places it. ── */
+  .aboutband__title { margin: 0; font-size: 30px; line-height: 36px; font-weight: 500; letter-spacing: -0.025em; color: rgb(var(--gold)); }
+  @media (min-width: 640px) {
+    .aboutband__title { font-size: 36px; line-height: 40px; }
+  }
+
+  /* ── THIS PAGE'S OWN: not part of the design, not ported ─────────────────────────────────────── */
+  body { margin: 0; background-color: rgb(var(--bg)); }
+</style>
+</head>
+<body>
+
+<section class="aboutband" aria-label="About us">
+  <div class="aboutband__inner">
+    <h2 class="aboutband__title">About Us</h2>
+    <ol class="aboutband__parts">
+      <li class="aboutband__part">
+        <p class="aboutband__number" aria-hidden="true">01</p>
+        <h3 class="aboutband__heading">Why I Built Temple Stuart</h3>
+        <blockquote class="aboutband__quote"><span class="aboutband__mark">“</span>Everyone was showing me the life they were living. I wanted to understand how to build one of my own.<span class="aboutband__mark">”</span></blockquote>
+      </li>
+      <li class="aboutband__part">
+        <p class="aboutband__number" aria-hidden="true">02</p>
+        <h3 class="aboutband__heading">The Idea Behind Temple Stuart</h3>
+        <blockquote class="aboutband__quote"><span class="aboutband__mark">“</span>That's what I set out to build with Temple Stuart. One connected system for managing your money, planning your future, and measuring the outcomes of your decisions.<span class="aboutband__mark">”</span></blockquote>
+      </li>
+      <li class="aboutband__part">
+        <p class="aboutband__number" aria-hidden="true">03</p>
+        <h3 class="aboutband__heading">Our Story Is Still Being Written</h3>
+        <blockquote class="aboutband__quote"><span class="aboutband__mark">“</span>I don't just want to sell the dream. I want to guide people into living it for themselves.<span class="aboutband__mark">”</span></blockquote>
+      </li>
+    </ol>
+    <a class="aboutband__go" href="/about">Read my story →</a>
+  </div>
+</section>
+
+</body>
+</html>

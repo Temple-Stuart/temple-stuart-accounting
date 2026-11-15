@@ -23,9 +23,9 @@
  *   · ONE PART OF HOME-BRIEF-02 REVERSES: it set "the dates in italics"; they wear the trip cards' date look now — violet mono,
  *     upright — as the approved board draws them.
  *   · THE WORDS are the leaves', and none is typed here: the heading from src/lib/homeActWords.ts, the rest from
- *     src/lib/stopZeroWords.ts, which stays byte for byte ("Never reworded, trimmed or added to here: a change to these words is
- *     Alex's." — HOME-PAGES-01, 2026-11-14: his words stand as they stood; two notes in that file, on where the footer's link lands,
- *     were re-said by his yes of 2026-11-15). Two pure helpers below split what the section draws — the place line at its " | " (the stop, then the place),
+ *     src/lib/stopZeroWords.ts, held byte for byte ("Never reworded, trimmed or added to here: a change to these words is
+ *     Alex's." — HOME-PAGES-01, 2026-11-14: his words stood as they were; two notes in that file, on where the footer's link lands,
+ *     were re-said by his yes of 2026-11-15; HOME-ABOUT-02, 2026-11-15: and the second quote gained his new first sentence, his change of 22:57 Manila — "which stays byte for byte" and "his words stand as they stood" until then). Two pure helpers below split what the section draws — the place line at its " | " (the stop, then the place),
  *     and each quote into its two curly marks and its words — and each refuses, by name, a string without that shape. The parts'
  *     numbers come from his order and are aria-hidden: the heading under each says which part it is.
  *   · THE HOOKS STAY: id={STOP_ZERO_ANCHOR} (the footer's link landed on it), the aria-label "About us" on the <section> tag, the

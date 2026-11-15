@@ -809,7 +809,7 @@ test('T9 each ruling is quoted, dated, where it is built; and in every one of th
   for (const note of BETA_NOTES) assert.ok(quoted(LEAF, note), `the leaf quotes "${note.slice(0, 30)}…", exact`);
   assert.ok(said(LEAF).includes(`2026-11-14 20:01 Manila: "${APPROVAL}"`), 'and his approval, under its stamp');
   // EVERY FILE OF THE CHANGE — the twenty-six: six new, five whose code changed, eight whose notes alone did (the eighth is the About Us words'
-  // leaf: two notes re-said by Alex's yes of 2026-11-15, its code as it stood — homeAbout01 T5 holds both), seven re-pointed tests
+  // leaf: two notes re-said by Alex's yes of 2026-11-15, its code as it stood — homeAbout01 T5 held both until HOME-ABOUT-02, 2026-11-15, which gave the leaf's second quote his new first sentence: "holds both" until then), seven re-pointed tests
   const CHANGED = [
     LEAF, ...PAGES.map((p) => p.file), THIS, SEEDS_FILE,
     HOW_TO, FOOTER_WORDS, MIDDLEWARE, GLOBALS, LAW,

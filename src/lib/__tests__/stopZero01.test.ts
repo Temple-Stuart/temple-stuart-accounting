@@ -10,7 +10,7 @@
  * behind the house prefix, the place line drawn as two parts (the stop, then the place), each quote as its two curly marks
  * and its words, each part numbered, and the dates no longer italic. T1 (the words) and T5 (the mount) are as they were; T3
  * (the rendered markup) and T4 (the source's opening tag and quote) are re-pointed, each change named where it stands. The
- * port, the reference's markup and the helpers are held in src/lib/__tests__/homeAbout01.test.ts. HOME-TRIM-01 (Alex's brief of 2026-11-14; built 2026-11-15): the section left the home page for /about, where it stands whole, and the About Us band stands in its seat. T1, T3 and T4 are as they were; T5 is re-pointed, and says what it held until then.
+ * port, the reference's markup and the helpers are held in src/lib/__tests__/homeAbout01.test.ts. HOME-TRIM-01 (Alex's brief of 2026-11-14; built 2026-11-15): the section left the home page for /about, where it stands whole, and the About Us band stands in its seat. T1, T3 and T4 are as they were; T5 is re-pointed, and says what it held until then. HOME-ABOUT-02 (Alex's brief, 2026-11-15 22:40 Manila; built 2026-11-15): the second quote is Alex's new words, his change of 22:57 Manila — T1 holds them and says on their line what it held until then; T3, T4 and T5 are as they were (T3 and T4 read the quotes from the leaf).
  *
  *   T1 the words — src/lib/stopZeroWords.ts exports exactly the ruled list; the anchor, the place, the dates and the three
  *      sections (heading, paragraphs, quote) are Alex's text, exact and in order; the heading is "About Us";
@@ -95,7 +95,7 @@ test('T1 the words module exports exactly the ruled list, and every word is Alex
         'For the next six months, I focused on building connected bookkeeping, trading, and travel systems, all tied to a calendar.',
         'I wanted to separate personal, business, and trading finances, distinguish personal travel from business travel, and use actual financial records to make more informed plans and budgets.',
       ],
-      quote: '“One connected system for managing your money, planning your future, and measuring the outcomes of your decisions.”',
+      quote: "“That's what I set out to build with Temple Stuart. One connected system for managing your money, planning your future, and measuring the outcomes of your decisions.”", // HOME-ABOUT-02 (Alex's brief, 2026-11-15 22:40 Manila; his change of 22:57 Manila — its ruling c: "QUOTE 2 IS ALEX'S CHANGE OF 2026-11-15 22:57 MANILA."): his new first sentence. Until then this line held quote: '“One connected system for managing your money, planning your future, and measuring the outcomes of your decisions.”'
     },
     {
       heading: 'Our Story Is Still Being Written',

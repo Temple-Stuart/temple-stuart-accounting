@@ -219,58 +219,82 @@ body {
 /* REPAINT-5: .ts-cta-gradient deleted — gradients are banned under Direction C. (HERO-CREST-01, 2026-11-11: but for the guest hero and the top bar — the approved crest design, at the foot of this file.) (HOME-PLANS-04, 2026-11-12: and the Financial Software section's two — the picked plan's gold button and the band (ruling g), in the block above the hero's.) (HOME-SERVICES-01, 2026-11-12: and the Professional Services section's two, both on the board — the gold button and the picture's frame (ruling f), in the block above the Financial Software section's.) (HOME-TRAVEL-01, 2026-11-12: and the Travel Marketplace section's one, on the board — the trip card's gold Search flights → (.ts-tm-cta), in the block above the Professional Services section's.) (FOOTER-02, 2026-11-12: and the public footer's band — the hero's violet sweep under its bloom, as the board draws it, in the block directly above the hero's.) */
 
 /* ── HOME-TRIM-01 (Alex's brief, 2026-11-14 19:11 Manila; the boards approved on the design canvas at 20:01 and, corrected, at 20:41;
-   built 2026-11-15): ABOUT US, AS ONE BAND ON THE HOME PAGE — the heading, the first quote of his letter, one door to /about ────────
-   THE SPEC IS design-refs/home-trim-01/Section-Reference.html: "Every value in its stylesheet is the design, and its markup is the
-   page." What follows is that stylesheet, rule for rule and value for value, in its own order and with its own section notes —
+   built 2026-11-15): ABOUT US, AS ONE BAND ON THE HOME PAGE — the heading, the letter's three parts, one door to /about (HOME-ABOUT-02,
+   2026-11-15: "the heading, the first quote of his letter, one door to /about" until then) ───────────────────────────────────────────────
+   HOME-ABOUT-02 (Alex's brief, 2026-11-15 22:40 Manila; built 2026-11-15): THE BAND SHOWS THE LETTER'S THREE PARTS — each its number,
+   its title and the quote that ends it in the letter — side by side from 1024px, stacked in order under it, the door beside the heading
+   from 1024px and after the third part under it. Alex at 22:49 Manila: "it should be all showing, no swipe on quotes, cause they flow
+   into eachother."
+   THE SPEC IS design-refs/home-about-02/Section-Reference.html: "Every value in its stylesheet is the design, and its markup is the
+   page." (design-refs/home-trim-01/Section-Reference.html until HOME-ABOUT-02, 2026-11-15; that folder stays in the tree, the record of
+   the first band.) What follows is that stylesheet, rule for rule and value for value, in its own order and with its own section notes —
    ported as the letter's (HOME-ABOUT-01) and the other sections' were:
-     · every class is the reference's with the house prefix: .aboutband → .ts-aboutband, .aboutband__go → .ts-aboutband__go, …;
+     · every class is the reference's with the house prefix: .aboutband → .ts-aboutband, .aboutband__part → .ts-aboutband__part, …;
      · every custom property it reads likewise: var(--hero-violet-2) → var(--ts-hero-violet-2), rgb(var(--gold)) → rgb(var(--ts-gold)).
-   src/lib/__tests__/homeTrim01.test.ts reads both files and holds them equal, declaration by declaration, but for the FOUR
-   DIFFERENCES named here:
-     1. THE COLOURS are tokens the app already holds. The brief's ruling h: "NO NEW TOKEN. The seven the reference reads are in :root
-        already (the README's two tables)." The reference's :root declares the seven only so that it renders on its own — five the
-        app's (bg, border, gold, the hero's violets 2 and 3) and two HOME-PLANS-04 brought (--ts-fs-white, --ts-fs-button-line), each
-        the same name and value behind the house prefix in :root above. This section adds none.
-     2. THE FONT is the site's: src/app/layout.tsx loads Inter as --font-sans, and the band's rule reads that variable where the
-        reference names the family (as the README's list of what the port changes has it: the family → `var(--font-sans)`).
+   HOME-ABOUT-02's ruling d: "THE BAND'S PORT IS REPLACED AT ITS SEAT. Its rules become the reference's stylesheet behind the house
+   prefix, with the four differences its header names: the colours are the app's tokens; the families are var(--font-sans) and
+   var(--font-mono); the heading's rule is not ported; the page's own ground is not ported. .ts-aboutband__words goes with its last
+   wearer. The class stays one word, aboutband, so homeAbout01:304 stands unedited." UNTIL THEN these rules were
+   design-refs/home-trim-01's stylesheet, ported the same way: the heading and the first quote in a column of their own (the words'
+   column, 560px at least beside the door and 880px at most), the door beside them from about 812px and under them below it, laid out
+   by flex wrapping; the quote clamp(26px, 0.8vw + 22.8px, 34px) / 1.2, −0.025em, 20px under the heading.
+   src/lib/__tests__/homeAbout02.test.ts reads both files and holds them equal, declaration by declaration, but for the FOUR
+   DIFFERENCES named here (src/lib/__tests__/homeTrim01.test.ts held the first band's rules to design-refs/home-trim-01 until then):
+     1. THE COLOURS are tokens the app already holds. HOME-TRIM-01's ruling h, for the first band: "NO NEW TOKEN. The seven the reference
+        reads are in :root already (the README's two tables)." HOME-ABOUT-02's ruling e, for this one: "THE TEN TOKENS ARE THE APP'S. The
+        reference reads ten, all in :root already (the README's table); none is added." The reference's :root declares the ten only so
+        that it renders on its own — six the app's (bg, border, gold, the hero's violets 2, 3 and 4) and four HOME-PLANS-04 brought
+        (--ts-fs-white, --ts-fs-gold-text, --ts-fs-line, --ts-fs-button-line), each the same name and value behind the house prefix in
+        :root above (the seven of the first band until HOME-ABOUT-02, 2026-11-15: five the app's and two HOME-PLANS-04 brought). This
+        section adds none.
+     2. THE FONTS are the site's: src/app/layout.tsx loads Inter as --font-sans and IBM Plex Mono as --font-mono, and these rules read
+        the two variables where the reference names the two families (as the README's "When porting" has it: the families →
+        `var(--font-sans)` and `var(--font-mono)`). (HOME-ABOUT-02, 2026-11-15: "THE FONT is the site's" until then — the first band
+        named Inter alone.)
      3. NOT PORTED: the heading's rule (.aboutband__title, and its size from 640px) — the reference files it under THE APP'S OWN CLASSES, NOT PORTED. The h2
         wears the act headings' type, the classes What We Do's h2 and the letter's h2 wear: 'text-3xl sm:text-4xl font-medium
         tracking-tight text-brand-gold'.
      4. NOT PORTED: the reference page's own ground (body) — "THIS PAGE'S OWN: not part of the design, not ported".
    It types no hex and no rgb value: every colour is a token. No gradient.
-   THE CLASS AND THE SEAT — the brief's ruling g: "THE CLASS is one word, aboutband, so homeAbout01:304 ("no rule outside the port
+   THE CLASS AND THE SEAT — HOME-TRIM-01's ruling g, which stands: "THE CLASS is one word, aboutband, so homeAbout01:304 ("no rule outside the port
    names one of its classes") stands unedited. The port takes a seat in globals.css that moves no other port's pin. The audit names
    the seat." The seat is HERE, above every other port: each port's test reads its port from its own first rule to the next block's
    first rule (the hero's, the last, to the end of the file), so a block set under any of them would be read as part of it, and the chip strip's two neighbours — the trip cards'
    port above it, the letter's below — are held to it with nothing between. This was the one seat below the base rules that no port's test held:
    under them, over the marquee's keyframes. It names no other port's class, and nothing outside it names one of its own.
    Used by src/components/landing/AboutBand.tsx, which Landing.tsx mounts in the seat the letter held. ──────────────────────────── */
-/* ── 1 · the band: the heading and his first quote on the left, the door to his letter on the right ── */
+/* ── 1 · the band: the heading, the letter's three parts, the door to the letter ───────────────── */
 .ts-aboutband { border-bottom: 1px solid rgb(var(--ts-border)); background-color: rgb(var(--ts-bg)); font-family: var(--font-sans); }
 .ts-aboutband__inner {
   box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(44px, 2vw + 36px, 64px) 16px clamp(40px, 1.6vw + 33.6px, 56px);
-  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 22px 48px;
+  display: grid; grid-template-columns: minmax(0, 1fr);
 }
-/* the words keep a readable measure; under about 812px the button has no room beside them and stands under the quote */
-.ts-aboutband__words { flex: 1 1 560px; min-width: 0; max-width: 880px; }
-/* his quote, in the letter's quote colour and weight, at the size a band can carry */
+/* the three parts, in the letter's order: one column here, three side by side from 1024px */
+.ts-aboutband__parts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; margin: 24px 0 0; padding: 0; list-style: none; }
+/* a part: the letter's rule above it, then its number, its title and the quote that ends it */
+.ts-aboutband__part { min-width: 0; padding-top: 20px; border-top: 1px solid var(--ts-fs-line); }
+.ts-aboutband__number { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; color: var(--ts-fs-gold-text); }
+.ts-aboutband__heading { margin: 8px 0 0; font-size: 17px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--ts-hero-violet-4); }
+/* the quote, in the letter's quote colour and weight, at the size three side by side can carry */
 .ts-aboutband__quote {
-  margin: 20px 0 0; padding: 0;
-  font-size: clamp(26px, 0.8vw + 22.8px, 34px); line-height: 1.2; font-weight: 500; letter-spacing: -0.025em; color: var(--ts-hero-violet-2); text-wrap: pretty;
+  margin: 12px 0 0; padding: 0;
+  font-size: clamp(22px, 0.2vw + 21.2px, 24px); line-height: 1.25; font-weight: 500; letter-spacing: -0.02em; color: var(--ts-hero-violet-2); text-wrap: pretty;
 }
-/* his quote's own two marks, drawn in gold, as the letter draws them */
+/* each quote's own two marks, drawn in gold, as the letter draws them */
 .ts-aboutband__mark { color: rgb(var(--ts-gold)); }
-/* the door: the quiet pill, at the plan cards' height */
+/* the door: the quiet pill, at the plan cards' height, after the three parts */
 .ts-aboutband__go {
-  box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 24px;
+  box-sizing: border-box; justify-self: start; display: inline-flex; align-items: center; justify-content: center; height: 48px; margin-top: 28px; padding: 0 24px;
   border: 1.5px solid var(--ts-fs-button-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-3);
   font-size: 15px; line-height: 1.2; font-weight: 600; text-decoration: none; white-space: nowrap; transition: border-color 0.16s;
 }
 .ts-aboutband :focus-visible { outline: 2px solid var(--ts-hero-violet-2); outline-offset: 3px; }
 
-/* ── 2 · wider windows ───────────────────────────────────────────────────────────────────────── */
+/* ── 2 · wider windows: the button beside the heading, the three parts side by side under them ──── */
 @media (min-width: 1024px) {
-  .ts-aboutband__inner { padding-inline: 32px; }
+  .ts-aboutband__inner { padding-inline: 32px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 48px; }
+  .ts-aboutband__parts { grid-column: 1 / -1; grid-row: 2; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; margin-top: 28px; }
+  .ts-aboutband__go { grid-column: 2; grid-row: 1; justify-self: end; margin-top: 0; }
 }
 
 /* ── 3 · pointer and motion ──────────────────────────────────────────────────────────────────── */
