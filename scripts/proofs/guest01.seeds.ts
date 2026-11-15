@@ -11,7 +11,8 @@
  * vendor's side (no session check, the guest fence dropped, a bank part, a cached
  * answer, a settlement column, a Bank section on the guest page, a bank note); the
  * public surface and its door (a prefix entry, a DELETE; the home page's lookup gone, moved
- * above the booking section, asking on load, or the header link back); the code by email
+ * above the booking section, asking on load, or the header link back — HOME-MENU-01, 2026-11-16: since then a second header link, or the
+ * header's one link with other words or in another column, "the header link back" until then); the code by email
  * only (the guard dropped, the code in a url, "See this booking" kept for a guest, the
  * code in the page's URL, a block line changed, a book route's block dropped, the code
  * answered); the dated re-pins.
@@ -214,7 +215,8 @@ const SEEDS: Seed[] = [
     replace: 'export async function DELETE() {\n  return NextResponse.json({ ok: true });\n}\n\nexport async function POST() {',
     expect: 'src/app/api/guest/session/end/route.ts exports DELETE, PATCH or PUT',
   },
-  // The door (Alex's ruling 17:04): the lookup under the home page's booking section.
+  // The door (Alex's ruling 17:04): the lookup under the home page's booking section. HOME-MENU-01 (2026-11-16), ruling h, beside it: still the
+  // door; since then the header carries exactly one link to /booking/manage, the menu's travel column's foot link (z4, z4b and z4c below).
   {
     name: 'guest01-z the home page loses its lookup (Alex\'s seed: the door is the lookup)',
     file: LANDING,
@@ -244,11 +246,31 @@ const SEEDS: Seed[] = [
     // HERO-CREST-01 (2026-11-11): RE-ANCHORED. The seed stood in front of the bar's "GitHub ↗" link — find: '            <a\n              href=
     // "https://github.com/Temple-Stuart/temple-stuart-accounting"' — and that link left the bar by Alex's ruling, so the find would have matched
     // nothing: a harness failure the next time this law's seeds run. It stands at the head of the bar's Account nav now; same seed, same violation.
-    name: 'guest01-z4 the header link comes back',
+    // HOME-MENU-01 (2026-11-16), rulings g and h: the bar links /booking/manage once since then, the menu's travel column's foot link (and the
+    // About Us column draws the code's link again, in a new tab: the GitHub link above no longer "left the bar" for good). So the same plant is a
+    // SECOND header link now, and the law, which counts, refuses it: "the header link comes back" was this seed's name until then.
+    name: 'guest01-z4 the header links /booking/manage a second time',
     file: 'src/components/landing/LandingHeader.tsx',
     find: '        <nav className="ts-bar__account" aria-label="Account">\n',
     replace: '        <nav className="ts-bar__account" aria-label="Account">\n          <Link href="/booking/manage">Manage booking</Link>\n',
     expect: 'LandingHeader.tsx links /booking/manage',
+  },
+  {
+    // HOME-MENU-01 (2026-11-16), ruling g: the one link is the travel column's foot link, its words and path typed together. Its words changed,
+    // the count stays one, and the law still refuses it.
+    name: 'guest01-z4b the header\'s one lookup link loses its words',
+    file: 'src/components/landing/LandingHeader.tsx',
+    find: "const BAR_LOOKUP = { label: 'Look up your booking →', href: '/booking/manage' } as const;",
+    replace: "const BAR_LOOKUP = { label: 'Manage your booking →', href: '/booking/manage' } as const;",
+    expect: 'one link to /booking/manage is not the travel column',
+  },
+  {
+    // HOME-MENU-01 (2026-11-16), ruling g: the same link, its words intact, no longer the travel column's foot link.
+    name: 'guest01-z4c the header\'s one lookup link leaves the travel column',
+    file: 'src/components/landing/LandingHeader.tsx',
+    find: 'more: BAR_LOOKUP },\n',
+    replace: 'more: null },\n',
+    expect: 'one link to /booking/manage is not the travel column',
   },
   {
     name: 'guest01-z5 the page keeps a form of its own',

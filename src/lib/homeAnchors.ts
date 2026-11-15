@@ -24,7 +24,7 @@
  * and its links to /#events and /#my-trip with it; the two sections and the trip page still read those anchors.
  * HOME-PAGES-01 (Alex's brief, 2026-11-14; his answer to the audit the same day): the footer reads ONE of them now, DEMO_ANCHOR.
  * Its other three doors open the sections' own pages (src/lib/homePages.ts: /financial-software, /professional-services and
- * /about — with no fragment), so MODULES_ANCHOR is the bar's alone, SERVICES_ANCHOR the bar's and its section's, and
+ * /about — with no fragment), so MODULES_ANCHOR is the bar's alone, SERVICES_ANCHOR the bar's and its section's (HOME-MENU-01, 2026-11-16: since then MODULES_ANCHOR is read by nothing under src but this file, and SERVICES_ANCHOR is its section's alone — the bar's names open its menu), and
  * STOP_ZERO_ANCHOR its section's alone: no link lands on #stop-0 now, and the id stays. HOME-TRIM-01 (2026-11-15): that section, Alex's letter, stands on /about alone now — the home page's About Us is one band with no id (AboutBand.tsx) — so of the anchors FOOTER-01 called the front door's, above, stop-0 is on no element of the front door: it is the letter's section's on /about, and still no link lands on it.
  *
  * ONE LITERAL REMAINS, NAMED: LandingBookingSection.tsx hands the strip `eventsAnchor: '#events'`, and
@@ -39,14 +39,14 @@
  * HERO-CREST-01 (Alex, design canvas, 2026-11-11): a sixth name, and no new literal —
  *   · MODULES_ANCHOR   'modules' — the first pillar's section, the how-to (HowToSection.tsx, <section id="modules").
  * The top bar (LandingHeader.tsx) links the three pillars — /#modules, /#services, /#demo — from every page that mounts
- * it, and may not retype an id. Until now this one had no home a second reader could import: the element's own literal
+ * it, and may not retype an id (until HOME-MENU-01, 2026-11-16: since then its names open the menu, and the menu's links read EVENTS_ANCHOR, DEMO_ANCHOR and MY_TRIP_ANCHOR here). Until now this one had no home a second reader could import: the element's own literal
  * (HowToSection.tsx, guarded there by the plan law in scripts/assert-tool-registry.ts — which is why FOOTER-01 left it
  * "outside this ruling", above) and a PRIVATE copy for the footer's first link, src/lib/footerWords.ts
  * `const PLANS_SECTION_ID = 'modules'`. That copy MOVED here, under the name its neighbours wear; the footer and the
- * bar both read it, so it is typed once for both (HOME-PAGES-01, 2026-11-14: the bar alone reads it now). (Not through footerWords.ts: that leaf imports tripPostWords.ts, which
+ * bar both read it, so it is typed once for both (HOME-PAGES-01, 2026-11-14: the bar alone reads it now; HOME-MENU-01, 2026-11-16: nothing under src reads it now but this file, and heroCrest01.test.ts still holds it equal to the how-to's id). (Not through footerWords.ts: that leaf imports tripPostWords.ts, which
  * imports experienceWords.ts, which imports src/lib/experiences.ts — 101 KB of source — and the bar is also mounted by
  * HomeClient.tsx, the cockpit, which imports none of them today.) The section's own literal stays where the plan law
- * holds it; src/lib/__tests__/heroCrest01.test.ts holds the two equal. WHAT THE BAR PAYS FOR READING IT HERE: the re-export below brings src/lib/stopZeroWords.ts into the bar's chunk — about 3 KB (1.3 to 1.4 KB gzipped, over two production builds) of Stop 0's words, on pages that never draw them.
+ * holds it; src/lib/__tests__/heroCrest01.test.ts holds the two equal. WHAT THE BAR PAYS FOR READING IT HERE (its anchors since HOME-MENU-01, 2026-11-16: EVENTS_ANCHOR, DEMO_ANCHOR and MY_TRIP_ANCHOR — MODULES_ANCHOR, SERVICES_ANCHOR and DEMO_ANCHOR until then): the re-export below brings src/lib/stopZeroWords.ts into the bar's chunk — about 3 KB (1.3 to 1.4 KB gzipped, over two production builds) of Stop 0's words, on pages that never draw them.
  */
 
 /** The first pillar's section — the how-to's `<section id="modules"` (HowToSection.tsx). HERO-CREST-01: moved here from src/lib/footerWords.ts, where it was the private PLANS_SECTION_ID. */

@@ -14,7 +14,8 @@
  *      for an account;
  *   T5 the guest projection — the receipt's own vendor side, no settlement, no bank;
  *   T6 both pages mounting the one renderer, rendered; the one lookup box — the door —
- *      on the home page and on /booking/manage (Alex's ruling 17:04), rendered.
+ *      on the home page and on /booking/manage (Alex's ruling 17:04), rendered — the door still (HOME-MENU-01, 2026-11-16, ruling h,
+ *      beside it: the header carries one link to /booking/manage since then, the menu's travel column's foot link, held in T3).
  * No live call, no database.
  */
 import { test } from 'node:test';
@@ -325,13 +326,16 @@ test('T3 the booking route: GET only; every read fenced to the guest and the ses
   assert.doesNotMatch(src, /settle|transaction|journal|ledger|commission|timeline|\.(create|update|upsert|delete)\w*\s*\(/i);
 });
 
-test('T3 the public surface: exactly the page and the two guest routes in PUBLIC_PATHS, each with its reason; no header link (the door is the home page’s lookup)', () => {
+test('T3 the public surface: exactly the page and the two guest routes in PUBLIC_PATHS, each with its reason; one header link, the menu’s travel column’s foot link (the door is still the home page’s lookup — HOME-MENU-01, 2026-11-16: no header link until then)', () => {
   const mw = code(MIDDLEWARE);
   const list = /const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(mw)?.[1] ?? '';
   const paths = Array.from(list.matchAll(/'([^']+)'/g), (m) => m[1]);
   assert.deepEqual(paths.filter((p) => p.startsWith('/api/guest') || p === '/booking/manage').sort(), ['/api/guest/booking', '/api/guest/session', '/booking/manage']);
   assert.equal((comments(MIDDLEWARE).match(/GUEST-01/g) ?? []).length, 3, 'three entries, three reasons');
-  assert.doesNotMatch(code(HEADER), /booking\/manage/, 'Alex’s ruling 17:04: no header link');
+  // HOME-MENU-01 (2026-11-16), rulings g and h: the header links /booking/manage exactly once — the menu's travel column's foot link, its words and path
+  // typed together — and the lookup stays the door. Until then: assert.doesNotMatch(code(HEADER), /booking\/manage/, 'Alex’s ruling 17:04: no header link').
+  assert.equal((code(HEADER).match(/booking\/manage/g) ?? []).length, 1, 'Alex’s ruling 17:04, re-said by HOME-MENU-01: one header link, typed once');
+  assert.ok(code(HEADER).includes("const BAR_LOOKUP = { label: 'Look up your booking →', href: '/booking/manage' } as const;") && /\{ key: 'tm', name: EXPLORE_PILLAR\.heading, links: [^\n]*, more: BAR_LOOKUP \},/.test(code(HEADER)), 'and it is the menu’s travel column’s foot link, Look up your booking →');
 });
 
 // ── T4. the templates and the sender ─────────────────────────────────────────
@@ -465,7 +469,7 @@ test('T6 the door: ONE lookup box, mounted by /booking/manage and by the home pa
   // footer = landing.indexOf('One trip holds everything — plans, bookings, budget.') and 'under the booking section, above the demo’s footer row'.
   const footer = landing.indexOf('</section>', section);
   assert.ok(section > 0 && section < box && box < footer, 'under the booking section, inside that section');
-  // BOOK-DISCLOSE-01 (2026-11-08): the disclosure sits under the booking box — the one commission line (src/lib/disclosureWords.ts COMMISSION_LINE), optional, may stand between the section and the lookup, and nothing else may; the GUEST-01 door ruling stands (the lookup under the booking section, never a header link), with only this line between.
+  // BOOK-DISCLOSE-01 (2026-11-08): the disclosure sits under the booking box — the one commission line (src/lib/disclosureWords.ts COMMISSION_LINE), optional, may stand between the section and the lookup, and nothing else may; the GUEST-01 door ruling stands (the lookup under the booking section, never a header link), with only this line between. (HOME-MENU-01, 2026-11-16, rulings g and h: still the door; the header links /booking/manage once since then, the menu's travel column's foot link — never until then.)
   // HOME-FINISH-02: NOTHING stands between the booking mount and the lookup but a comment — the commission line moved inside the box
   // (LandingBookingSection.tsx). Until then the slice could open with that one line, optional:
   // (<p className="mt-3 font-mono text-xs text-text-secondary" data-commission-line>\{COMMISSION_LINE\}<\/p>)?

@@ -24,7 +24,7 @@
  * "What We Do" stays where it stands, in Landing.tsx, in the reference's box (.ts-fs-heading), and wears the act headings' type
  * since Alex's note on the built page (the eyebrow, .ts-fs-eyebrow, until then). The section keeps
  * id="modules", the anchor the checkout's cancel link, the /modules pages and — since HERO-CREST-01, 2026-11-11 — the top
- * bar's first link land on. (HOME-PAGES-01, 2026-11-14: "the footer's first link" stood in that list until then; it opens
+ * bar's first link land on (the top bar's first link until HOME-MENU-01, 2026-11-16: its first name opens the menu now, and lands nowhere). (HOME-PAGES-01, 2026-11-14: "the footer's first link" stood in that list until then; it opens
  * /financial-software now, this section's own page.)
  *
  * THE RULINGS, AS BUILT HERE (Alex's brief, 2026-11-12 14:07 Manila):

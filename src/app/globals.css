@@ -369,7 +369,7 @@ body {
    band drawn on the photo, and the row's drawn scrollbar. Every photo shows whole now, at 3 : 2 — and the build refuses a photo
    more than 1% from 3 : 2 (scripts/assert-tool-registry.ts, the trip log law), so the card never crops one.
    Used by src/components/landing/WasHereSection.tsx, which Landing.tsx mounts. It stands here, under the marquee's keyframes and
-   above the chip strip's rules, the HOME-SERVICES-01 block and the HOME-PLANS-04 block: nothing may follow the hero's block, the
+   above the chip strip's rules, the HOME-SERVICES-01 block and the HOME-PLANS-04 block: nothing may follow the hero's block (but HOME-MENU-01's, 2026-11-16: the menu's rules follow the bar's own), the
    Financial Software port runs from its own first rule to the hero's (to the footer's since FOOTER-02, 2026-11-12, whose block
    stands between the two), and the Professional Services port from its own first rule
    to the Financial Software section's. It names none of their classes, and nothing outside it names one of its own. ────────── */
@@ -581,7 +581,7 @@ body {
    src/components/landing/GuestTripStrip.tsx (the trip) and src/components/guest/GuestBookingLookup.tsx (the lookup — on the home
    page and on /booking/manage, which draws it outside the section: .ts-tm-lookup__form carries its own focus ring and hiding rule).
    It stands here, under the chip strip's rules and above HOME-SERVICES-01's block — and so above HOME-PLANS-04's and the hero's:
-   each of those ports runs from its own first rule to the next block's, and nothing may follow the hero's. (The brief, written
+   each of those ports runs from its own first rule to the next block's, and nothing may follow the hero's (but HOME-MENU-01's, 2026-11-16: the menu's rules follow the bar's own). (The brief, written
    while HOME-SERVICES-01 was in flight, put this block directly above HOME-PLANS-04's; HOME-SERVICES-01 landed first, in that
    very seat.) It names none of their classes, and nothing outside it names one of its own. ─────────────────────────────────── */
 /* ── 1 · the section: the pillar's name and its line ─────────────────────────────────────────── */
@@ -799,7 +799,7 @@ body {
    /professional-services (its own page since HOME-PAGES-01, 2026-11-14), alone since HOME-TRIM-03 (2026-11-15): the home page's short view draws none.
    Used by src/components/landing/ServicesSection.tsx — its whole view on /professional-services, and its short view, which Landing.tsx
    mounts (HOME-TRIM-03, 2026-11-15: "which Landing.tsx mounts" said the whole section until then). It stands here, above the Financial Software
-   section's block and the hero's, because nothing may follow the hero's and the Financial Software port runs from its own
+   section's block and the hero's, because nothing may follow the hero's (but HOME-MENU-01's, 2026-11-16: the menu's rules follow the bar's own) and the Financial Software port runs from its own
    first rule to the hero's (to the footer's since FOOTER-02, 2026-11-12, whose block stands between the two); it names none of
    their classes, and nothing outside it names one of its own. ─────────────── */
 /* ── 1 · the section ─────────────────────────────────────────────────────────────────────────── */
@@ -1289,7 +1289,7 @@ body {
    which it draws in three columns), on its eight mounts: the landing (Landing.tsx), the /modules pages
    (ModulePageClient.tsx), /how-it-works, /pricing, /my-trip/[id] and — since HOME-PAGES-01, 2026-11-14 ("its five mounts" until
    then) — /financial-software, /professional-services and /about. It stands here, directly above the hero's block, which stays
-   last: the Financial Software section's port, above it, now runs from its own first rule to this block's. It names none of
+   last (HOME-MENU-01, 2026-11-16: but for the menu's block, which follows it): the Financial Software section's port, above it, now runs from its own first rule to this block's. It names none of
    their classes, and nothing outside it names one of its own. ─────────────────────────────────────────────────────────────── */
 /* ── 1 · the band: the hero's violets, light at the top left, deepening to the bottom right ──── */
 .ts-ft {
@@ -1469,10 +1469,10 @@ body {
    reference's buttons keep the browser's default grey button face under the 95–97% gold, and the app's base
    (Tailwind's preflight) makes a button's background transparent, so the ground shows through instead. The
    reference's own link-form pill has no such backing and matches the app's exactly.
-   NOTHING FOLLOWS THIS BLOCK, AND NOTHING ABOVE IT NAMES ITS CLASSES: a rule added to this file goes above this
+   NOTHING FOLLOWS THIS BLOCK BUT THE MENU'S, AND NOTHING ABOVE IT NAMES ITS CLASSES (HOME-MENU-01, 2026-11-16, its ruling i: the menu's rules follow the bar's own — "NOTHING FOLLOWS THIS BLOCK" until then): a rule added to this file goes above this
    comment and names none of this block's own classes (.ts-hero, .ts-bar__pill, .ts-pill-gold, … — by class selector
    or through a class attribute selector), nor the headline's id — the test reads from .ts-hero { to the end of the
-   file as the port, and fails on any of these.
+   file as the port, and fails on any of these (the menu's block among it since HOME-MENU-01: homeMenu01.test.ts holds it line for line, and that nothing follows it).
    Used by src/components/landing/Landing.tsx (the hero) and src/components/landing/LandingHeader.tsx (the bar, on
    every page that mounts it). REPAINT-5's note above — "gradients are banned under Direction C" — is the ruling this
    design comes after: the approved hero is a gradient ground with gold-gradient pills and a glass bar, and the
@@ -1644,7 +1644,7 @@ body {
   .ts-bar__products, .ts-bar__account { display: none; }
   .ts-bar__menu-button { display: inline-flex; }
 
-  /* THE OPEN MENU. Not drawn on the design canvas: this panel is the proposal. */
+  /* THE OPEN MENU. Drawn on the design canvas since HOME-MENU-01 (2026-11-16): the menu's 390 board, approved with the home page's boards on 2026-11-14 at 20:01 and, corrected, 20:41 Manila, draws it open with one list ("Not drawn on the design canvas: this panel is the proposal." until then). */
   .ts-menu:not([hidden]) {
     position: absolute; top: calc(100% + 8px); left: 12px; right: 12px;
     box-sizing: border-box; padding: 8px;
@@ -1658,4 +1658,102 @@ body {
   .ts-menu__row { display: flex; align-items: center; min-height: 48px; padding: 0 14px; border-radius: 12px; }
   .ts-menu__rule { height: 1px; margin: 6px 14px; background-color: rgb(255 255 255 / 0.16); }
   .ts-menu__login { height: 48px; margin: 6px; font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75); }
+}
+
+/* ── HOME-MENU-01 (Alex: the boards, 2026-11-14 20:01 and, corrected, 20:41 Manila; the destinations, 2026-11-16 00:52 Manila; built 2026-11-16): THE TOP BAR'S MENU ──────────────────────────────
+   THE SPEC IS design-refs/home-menu-01/Menu-Reference.html, whose second stylesheet is the one part to port ("every value in it
+   is the design", in the reference's own words). What follows is that stylesheet, rule for rule and value for value, in its own order
+   and with its own section notes, behind the house prefix: .bar__trigger → .ts-bar__trigger, .mega__panel → .ts-mega__panel, …;
+   var(--hero-*) → var(--ts-hero-*) and var(--glass-line) → var(--ts-glass-line); and its mono is the site's, var(--font-mono), as in
+   the hero's port's second difference. HOME-MENU-01 (Alex: the boards, 2026-11-14 20:01 and, corrected, 20:41 Manila; the destinations, 2026-11-16 00:52 Manila; built 2026-11-16), ruling i:
+   "THE MENU'S RULES FOLLOW THE BAR'S OWN at the foot of src/app/globals.css: from 1024px to 1279px they override some of its values, at the same specificity. Every class takes the house prefix, and the mono is var(--font-mono), as in the port's second difference. The note that nothing may follow the HERO-CREST-01 block is re-said in place. heroCrest01 T3's line that nothing follows the port is re-said: this block follows it, and homeMenu01 holds the block line for line. No token is added: the five it reads are in :root already (the README's table)."
+   The five tokens it reads are the README's table, each in :root above: hero-ink-nav, hero-ink, hero-gold, hero-rim-lilac and
+   glass-line. Its other colours are typed as the reference types them: hero-well at 95% (the panel's fill), the bar's shadow ink at
+   0.45, white at 0.72 (who a plan is for, a service's kind) and at 0.08 (an open list's ground).
+   Used by src/components/landing/LandingHeader.tsx: the four names' buttons and carets, the panel (.ts-mega) with its four columns,
+   and the phone menu's rows and the lists they open. Its six reused selectors (.ts-bar__pill, .ts-bar__products, .ts-bar__account,
+   .ts-bar__login, .ts-brand__name, and .ts-menu as a parent) are the bar's own, at the same specificity and in the same media
+   queries, so standing after the bar's rules is what makes them win. src/lib/__tests__/homeMenu01.test.ts holds this block equal to
+   the reference's second stylesheet, declaration by declaration, renamed, and holds that nothing follows it. ───────────────── */
+/* the four names that open the menu: the bar's links' look, as buttons, each with a caret */
+.ts-bar__trigger {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 12px 0; border: 0; background: none;
+  color: var(--ts-hero-ink-nav); font-family: inherit; font-size: inherit; font-weight: inherit; line-height: inherit;
+  white-space: nowrap; cursor: pointer;
+}
+.ts-bar__caret { flex: none; opacity: 0.85; }
+
+/* the menu: one panel under the pill, in four columns: what each pillar holds, and About Us */
+.ts-mega { position: absolute; top: calc(100% + 10px); left: 32px; right: 32px; z-index: 4; }
+.ts-mega__panel {
+  box-sizing: border-box; max-width: 1216px; margin-inline: auto; padding: 28px 32px 22px;
+  display: grid; grid-template-columns: 1.3fr 1fr 1fr 1.15fr; gap: 8px 40px;
+  border: 1px solid var(--ts-glass-line); border-radius: 26px; background-color: rgb(33 11 92 / 0.95);
+  box-shadow: 0 24px 60px rgb(12 6 44 / 0.45); backdrop-filter: blur(18px) saturate(140%);
+  color: var(--ts-hero-ink);
+}
+.ts-mega__col { display: flex; flex-direction: column; align-items: stretch; min-width: 0; }
+.ts-mega__label {
+  margin: 0 0 8px; font-family: var(--font-mono); font-size: 12px; line-height: 1.3; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ts-hero-gold);
+}
+/* a destination: its name, and under it who a plan is for; a service's kind beside its name */
+.ts-mega .ts-mega__link {
+  box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; min-height: 50px; padding: 3px 0;
+  color: var(--ts-hero-ink); font-size: 15px; line-height: 1.35; font-weight: 500; text-decoration: none;
+}
+.ts-mega .ts-mega__link--row { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+.ts-mega__sub { font-size: 13px; line-height: 1.4; font-weight: 400; color: rgb(255 255 255 / 0.72); }
+.ts-mega__kind {
+  font-family: var(--font-mono); font-size: 10.5px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em;
+  text-transform: uppercase; color: rgb(255 255 255 / 0.72);
+}
+/* the hero's outward arrow, drawn small: it ends the one link that leaves the site */
+.ts-mega__out, .ts-menu__out { display: inline-block; flex: none; margin-left: 6px; color: var(--ts-hero-rim-lilac); vertical-align: -1px; }
+/* a column's last line: where to go for all of it */
+.ts-mega .ts-mega__more {
+  display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; font-family: var(--font-mono);
+  font-size: 13px; line-height: 1.3; font-weight: 500; letter-spacing: 0.04em; color: var(--ts-hero-rim-lilac); text-decoration: none;
+}
+
+/* the phone menu: each pillar, and About Us, is a row that opens its own list; opening one closes the other */
+.ts-menu .ts-menu__row--group {
+  justify-content: space-between; box-sizing: border-box; width: 100%; margin: 0; border: 0; background: none;
+  color: inherit; font-family: inherit; font-size: inherit; font-weight: inherit; text-align: left; cursor: pointer;
+}
+.ts-menu__sub:not([hidden]) {
+  display: flex; flex-direction: column; margin: 0 6px 6px; padding: 6px 0; border-radius: 14px;
+  background-color: rgb(255 255 255 / 0.08);
+}
+.ts-menu .ts-menu__subrow {
+  display: flex; align-items: center; min-height: 44px; padding: 0 14px;
+  color: var(--ts-hero-ink); font-size: 15px; line-height: 1.3; font-weight: 500; text-decoration: none;
+}
+.ts-menu .ts-menu__subrow--more { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--ts-hero-rim-lilac); }
+
+/* from 1280px About Us joins the account's row at 24px; from 1024px to 1279px the whole row is tighter still than
+   hero-crest-01's own tighter values, so that the carets and About Us fit */
+@media (min-width: 1280px) {
+  .ts-bar__account { gap: 24px; }
+}
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .ts-bar__pill { gap: 12px; }
+  .ts-bar__products { gap: 8px; margin-left: 4px; }
+  .ts-bar__account { gap: 14px; }
+  .ts-bar__trigger { gap: 4px; }
+  .ts-bar__login { padding: 0 16px; }
+  .ts-brand__name { letter-spacing: 0.14em; }
+  .ts-mega__panel { padding: 24px 24px 20px; gap: 8px 28px; }
+  .ts-mega__label { letter-spacing: 0.1em; }
+  .ts-mega .ts-mega__link { font-size: 14px; }
+  .ts-mega .ts-mega__link--row { flex-wrap: wrap; column-gap: 10px; row-gap: 0; }
+}
+
+/* under 1024px the menu is the phone's: the panel is not drawn */
+@media (max-width: 1023.98px) {
+  .ts-mega { display: none; }
+}
+
+@media (hover: hover) {
+  .ts-bar__trigger:hover { color: var(--ts-hero-gold); }
 }

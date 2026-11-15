@@ -40,7 +40,8 @@
  *   T3 the other three columns, exactly: SERVICES (the three pillars — the first two on pages of their own since HOME-PAGES-01, the third on its section; "on their sections" until then), SOCIALS (the five accounts, the
  *      bar's own hrefs), THE RECORD (the 14 steps, the code, the licence — no arrows; the last two external); CODE_URL is
  *      the URL the hero's "Clone it on GitHub" opens — HERO-CREST-01 (Alex, 2026-11-11): LandingHeader.tsx's GitHub ↗ until
- *      then; it left the top bar. (Until HOME-FINISH-02: FOOTER_RECORD_LINKS — the door's words and path, then the code.)
+ *      then; it left the top bar (until HOME-MENU-01, 2026-11-16: the bar's menu opens it again, in a new tab — the About Us column's, from
+ *      the bar's own copy, which homeMenu01.test.ts holds equal to CODE_URL). (Until HOME-FINISH-02: FOOTER_RECORD_LINKS — the door's words and path, then the code.)
  *   T4 the footer renders the four columns once, above the disclaimer, then the bar; every column link as listed, in
  *      order, in the ruled classes; the socials each an icon beside its name; no word or href typed in the component.
  *      (Until then: two columns.)
@@ -82,6 +83,7 @@ import { EVENTS_ANCHOR as EVENTS_FROM_ITS_SECTION } from '@/components/landing/E
 import { MY_TRIP_ANCHOR as MY_TRIP_FROM_ITS_SECTION } from '@/components/landing/WasHereSection';
 import { BOOK_HREF, POST_BACK_HREF } from '@/components/trip/TripPostView';
 import LandingFooter from '@/components/landing/LandingFooter';
+import { BAR_MENU } from '@/components/landing/LandingHeader'; // HOME-MENU-01 (2026-11-16): the bar's one link to the code, held in T3
 
 Object.assign(globalThis, { React });
 
@@ -194,7 +196,7 @@ test('T2 footerStoryLinks(WAS_HERE): Stop 0, then one link per stop of the trip 
 
 // ── T3 · SERVICES, SOCIALS, THE RECORD ───────────────────────────────────────
 
-test('T3 the other three columns, exactly — SERVICES: the three pillars, two on pages of their own and the third on its section; SOCIALS: the five accounts, the bar\'s own hrefs; THE RECORD: the 14 steps, the code, the licence, no arrows; CODE_URL is the hero\'s Clone-it-on-GitHub href (HERO-CREST-01: the top bar links GitHub no more)', () => {
+test('T3 the other three columns, exactly — SERVICES: the three pillars, two on pages of their own and the third on its section; SOCIALS: the five accounts, the bar\'s own hrefs; THE RECORD: the 14 steps, the code, the licence, no arrows; CODE_URL is the hero\'s Clone-it-on-GitHub href (HERO-CREST-01: the top bar linked GitHub no more, until HOME-MENU-01, 2026-11-16: its menu\'s About Us column opens CODE_URL again, in a new tab)', () => {
   // HOME-FINISH-02 (2026-11-10). Until then this test read 'T3 FOOTER_RECORD_LINKS exactly — the door's words and path from pipelineWords.ts, then
   // the code, external': [{ label: PIPELINE_DOOR, href: PIPELINE_PATH }, { label: 'Built in public: the code ↗', href: CODE_URL, external: true }],
   // with PIPELINE_DOOR = 'How it all connects: the 14 steps →' and "import { PIPELINE_DOOR, PIPELINE_PATH } from '@/components/landing/pipelineWords';".
@@ -222,7 +224,7 @@ test('T3 the other three columns, exactly — SERVICES: the three pillars, two o
   }
   // HOME-PAGES-01 (2026-11-14): the first link's target is the how-to's own PAGE. Until then this line was the whole of it — code(HOW_TO).includes(
   // '<section id="modules"'), 'the first link's target: the how-to's own section id'. The id stays (the plan law, howTo01 and heroCrest01 hold it):
-  // the top bar's first link and the checkout's cancel link still land on it.
+  // the top bar's first link (until HOME-MENU-01, 2026-11-16: its names open its menu now) and the checkout's cancel link still land on it.
   assert.equal(code('src/app/financial-software/page.tsx').split('<HowToSection ').length - 1, 1, 'the first link\'s target: the page that mounts the how-to, once');
   assert.ok(code(HOW_TO).includes('<section id="modules"'), 'and the how-to keeps its own section id, for the links that still land on it');
   assert.deepEqual(FOOTER_SOCIALS, SOCIALS.map(([name, href]) => ({ name, href })), 'the five accounts, the bar\'s hrefs, in its order');
@@ -243,9 +245,13 @@ test('T3 the other three columns, exactly — SERVICES: the three pillars, two o
   // read code(HEADER)'s github.com hrefs into `header` and held them equal to [CODE_URL] — 'LandingHeader.tsx's GitHub ↗ opens the same URL'. The
   // same URL is still opened above the footer by the hero's "Clone it on GitHub" (Landing.tsx — the licence pill that stood above the headline left the hero too), so
   // that is the link held equal now, and the bar is held to none.
+  // HOME-MENU-01 (2026-11-16), ruling h, beside the quote above, which stands: the bar's menu opens the code again, in a new tab — the About Us column's,
+  // from the bar's own copy of CODE_URL (ruling f), drawn from the menu's data rather than typed as an attribute, so the line below sees none and the
+  // menu's data is held instead. Until then: assert.deepEqual(githubHrefs(HEADER), [], 'the top bar links GitHub no more').
   const githubHrefs = (file: string): string[] => [...code(file).matchAll(/href="(https:\/\/github\.com\/[^"]*)"/g)].map((m) => m[1]);
-  assert.deepEqual(githubHrefs(HEADER), [], 'the top bar links GitHub no more');
-  assert.deepEqual(githubHrefs(LANDING), [CODE_URL], 'the hero\'s Clone it on GitHub opens the same URL — the home page\'s one typed GitHub link');
+  assert.deepEqual(githubHrefs(HEADER), [], 'the bar types no github.com href attribute');
+  assert.deepEqual(BAR_MENU.flatMap((c) => c.links).filter((l) => l.href.includes('github.com')), [{ label: FOOTER_RECORD_LINKS[1].label, href: CODE_URL, newTab: true }], 'its one GitHub link is the menu\'s: the About Us column\'s, the record\'s words on CODE_URL, in a new tab');
+  assert.deepEqual(githubHrefs(LANDING), [CODE_URL], 'the hero\'s Clone it on GitHub opens the same URL — Landing.tsx\'s one typed GitHub link (the home page\'s one until HOME-MENU-01, whose bar carries another, as data)');
 });
 
 // ── T4 · THE FOOTER RENDERS THE FOUR COLUMNS ABOVE THE DISCLAIMER ────────────

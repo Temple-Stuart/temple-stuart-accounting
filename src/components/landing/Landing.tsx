@@ -670,7 +670,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           resolve to the OFFER now, not to this demo.
           id="demo" is NOT dropped — an element carries one id, so it sits on
           the eyebrow row a few px below. It has no href pointing at it in src/
-          today (the nav's Live-demo link retired, LandingHeader.tsx:53-54 — :35 until HERO-CREST-01, 2026-11-11, which moved that note into the file's header; the top bar links it again, as its third product link, BAR_PRODUCT_LINKS), but an
+          today (the nav's Live-demo link retired, LandingHeader.tsx:53-54 — :35 until HERO-CREST-01, 2026-11-11, which moved that note into the file's header; the top bar links it again, as its third product link, BAR_PRODUCT_LINKS — until HOME-MENU-01, 2026-11-16: since then from its menu's Travel Marketplace column, whose five travel tabs open /#demo by DEMO_ANCHOR), but an
           external bookmark costs nothing to keep alive.
           FOOTER-01 (2026-11-09): the id is DEMO_ANCHOR now (src/lib/homeAnchors.ts), and two links land on it — the footer's "Book travel" and the trip page's "Book the stay and the flight" (TripPostView.tsx BOOK_HREF, since TRIPPOST-01) — so "no href pointing at it" above is history.
 

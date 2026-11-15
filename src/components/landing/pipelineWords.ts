@@ -3,9 +3,9 @@
  *
  * The pipeline header and its fourteen steps moved whole from the home page to /how-it-works
  * (src/components/landing/PipelineDeck.tsx, rendered by src/app/how-it-works/page.tsx). Every word the move needed
- * outside the deck lives here, and nothing reads them anywhere else:
+ * outside the deck lives here, and nothing reads them anywhere else (HOME-MENU-01, 2026-11-16: but the top bar's menu, which links PIPELINE_PATH from its About Us column):
  *   · PIPELINE_PATH       — the page's path: the home page's door (Landing.tsx) and its old-links effect read it;
- *                           FOOTER-01 (2026-11-09): the footer's THE RECORD links to it (src/lib/footerWords.ts);
+ *                           FOOTER-01 (2026-11-09): the footer's THE RECORD links to it (src/lib/footerWords.ts); HOME-MENU-01 (2026-11-16): and the top bar's menu (LandingHeader.tsx);
  *   · PIPELINE_DOOR       — the door's words, where the pipeline header stood (Landing.tsx, after the plans);
  *                           FOOTER-01 (2026-11-09): and the words of THE RECORD's first link (src/lib/footerWords.ts);
  *   · PIPELINE_PAGE_TITLE — the page's metadata title;

@@ -47,7 +47,7 @@ for rule to the foot of `globals.css` under the `ts-` prefix (`.ts-hero`, `.ts-b
 `ds.ts` constants. `src/lib/__tests__/heroCrest01.test.ts` holds the port equal to
 `design-refs/hero-crest-01/Hero-Reference.html`, the tokens to the handoff README's table, and this table to the
 same values. The hero and the bar are gradients and glass by this design, which comes after Direction C's ban on
-gradients (`globals.css`, REPAINT-5); it changes no other surface.
+gradients (`globals.css`, REPAINT-5); it changes no other surface. Since HOME-MENU-01 (2026-11-16) the bar's menu — the four names' carets, the panel and the phone menu's lists — is drawn by `design-refs/home-menu-01/`'s second stylesheet, ported after it at the foot of `globals.css` under the same prefix; it reads five of these tokens and adds none, and `src/lib/__tests__/homeMenu01.test.ts` holds it.
 
 ## The Financial Software section (HOME-PLANS-04, 2026-11-12)
 The approved section (`design-refs/home-plans-04/`) — the map of the 25 tools, three plan cards and the all-three band,
