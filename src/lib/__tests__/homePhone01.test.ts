@@ -400,7 +400,7 @@ test('T2 the port\'s new rules ARE the reference\'s second stylesheet, declarati
   assert.ok(blockEnd < heroHeader, 'the block\'s last rule ends above HERO-CREST-01\'s header — every rule of it, not only its first');
   assert.match(w.slice(blockEnd, heroHeader + 1), /^\s*$/, 'directly above HERO-CREST-01\'s header: nothing between the block\'s last rule and it');
   const headers = [...w.matchAll(/\n\/\* ── ([A-Z]+(?:-[A-Z]+)*-\d+) \(/g)].map((m) => m[1]);
-  assert.deepEqual(headers.slice(-2), ['FOOTER-02', 'HERO-CREST-01'], 'its note is no block\'s header: it ends FOOTER-02\'s block, and HERO-CREST-01\'s stays the last');
+  assert.deepEqual(headers.slice(-3), ['FOOTER-02', 'HERO-CREST-01', 'HOME-MENU-01'], 'its note is no block\'s header: it ends FOOTER-02\'s block, and HERO-CREST-01\'s follows it, the last but for the menu\'s block after it (HOME-MENU-01, 2026-11-16, its ruling i; re-said at its rebase with Alex\'s leave, 2026-11-16 13:28 Manila — the last two, "and HERO-CREST-01\'s stays the last", until then)');
   // its colours: tokens — rgb() wraps --ts-fs-white, the gold is --ts-hero-gold; both in :root at the README's values; none typed, none added
   const text = blockCss();
   assert.doesNotMatch(text, /#[0-9a-fA-F]{3,8}\b/, 'no hex typed');
