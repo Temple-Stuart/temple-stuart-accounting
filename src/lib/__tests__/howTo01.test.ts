@@ -392,8 +392,8 @@ test('T4 (HOME-PLANS-04) the section, rendered in its four states: the pillar\'s
   for (const choice of HOW_TO_CHOICES) {
     const html = render(choice);
     const w = words(choice);
-    // the act: its id (the checkout's cancel link, /modules and the top bar's first link land on it — "the footer's first link" too, until
-    // HOME-PAGES-01, 2026-11-14: it opens the section's own page now), its label, its class
+    // the act: its id (the checkout's cancel link and /modules land on it — "the footer's first link" too, until
+    // HOME-PAGES-01, 2026-11-14: it opens the section's own page now; and the top bar's first link, until HOME-MENU-01, 2026-11-16: its first name opens the menu now), its label, its class
     assert.ok(html.startsWith(ACT_TAG), `${w}: the act's own tag — aria-label "How to" until HOME-PLANS-01`);
     assert.equal(count(html, 'id="modules"'), 1, `${w}: the anchor, once`);
     // the pillar's name, the one line where his paragraphs stood, then the map

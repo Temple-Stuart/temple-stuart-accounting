@@ -19,13 +19,14 @@
  *   T5 the door — a function is drawn as the button it was, a link as a link in the button's class; the two renders are equal
  *      but for the door; the page hands /pricing's own door; no handler on the link;
  *   T6 the footer's doors — the three, from the pages' leaf: Stop 0 to /about with no fragment, the first two pillars to their
- *      pages, Travel Marketplace on /#demo; drawn so; the top bar's three links where they were;
+ *      pages, Travel Marketplace on /#demo; drawn so; the top bar's three links where they were (until HOME-MENU-01, 2026-11-16: its names open
+ *      its menu now, whose four plans and About Us open the pages' leaf's paths);
  *   T7 public, with the security review — the three paths in PUBLIC_PATHS directly after '/how-it-works', each with its dated
  *      proof, the root layout's session check named; the middleware lets each through and nothing beside it; in GUEST_ROUTES
  *      on the law's one line, each citing the footer; the Financial Software page on both lists of selling surfaces (PLAN_SURFACES,
  *      which the plan law's clause 1 reads, and SELLING_SURFACES, which the offer law counts); no data path in the pages or in
  *      anything they import, to the end of the closure — and the packages that closure reaches are a closed list of three;
- *   T8 the home page — HOME-TRIM-01 (2026-11-15) changed it: Landing.tsx mounts the bar, the two pillars' sections, the About Us band, Our Story and the footer once each, as typed, and the letter nowhere; it reads nothing of the pages' leaf, which the footer's words, the three pages and that band read. HOME-TRIM-02 (2026-11-15) changed it again: the Financial Software section is mounted with its short view, and read the leaf for that view's first link until HOME-PLANS-05 (2026-11-16) made that link a toggle, which opens no page — the section reads the leaf no more. HOME-TRIM-03 (2026-11-15) changed it once more: the Professional Services section is mounted with its short view, and reads the leaf for that view's link. Until then this entry was: the home page does not change — Landing.tsx mounts each of the four sections once, as typed, and reads nothing of the
+ *   T8 the home page — HOME-TRIM-01 (2026-11-15) changed it: Landing.tsx mounts the bar, the two pillars' sections, the About Us band, Our Story and the footer once each, as typed, and the letter nowhere; it reads nothing of the pages' leaf, which the footer's words, the three pages and that band read. HOME-TRIM-02 (2026-11-15) changed it again: the Financial Software section is mounted with its short view, and read the leaf for that view's first link until HOME-PLANS-05 (2026-11-16) made that link a toggle, which opens no page — the section reads the leaf no more. HOME-TRIM-03 (2026-11-15) changed it once more: the Professional Services section is mounted with its short view, and reads the leaf for that view's link. HOME-MENU-01 (2026-11-16) adds one more reader: the top bar (LandingHeader.tsx), whose menu opens FINANCIAL_SOFTWARE_PATH and ABOUT_PATH. Until then this entry was: the home page does not change — Landing.tsx mounts each of the four sections once, as typed, and reads nothing of the
  *      new leaf, which the footer's words and the three pages alone read. No travel page, then and now;
  *   T9 the rulings — each quoted, dated, where it is built; and in every one of the change's twenty-six files, a quote that follows
  *      a sentence of his for twenty characters is his words from there — whole, or to a full stop — and each file's count of the
@@ -44,6 +45,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { NextRequest } from 'next/server';
 import ts from 'typescript';
 import { code, comments, rejoin, stripComments } from '../sourceText';
+import { NOT_A_LITERAL, closureOf, specsOf } from './importReader';
+// HOME-MENU-01 (2026-11-16): the import reader — specsOf, closureOf and NOT_A_LITERAL, with the fileOf they use — stands in ./importReader.ts now,
+// shared with homeMenu01.test.ts; it stood here until then, word for word as it is there.
 import { middleware } from '../../middleware';
 import { ABOUT_US_HEADING, BUILD_PILLAR, PLAN_PILLAR } from '../homeActWords';
 import { DEMO_ANCHOR } from '../homeAnchors';
@@ -56,7 +60,7 @@ import { STOP_ZERO_STORY } from '../stopZeroWords';
 import { WAS_HERE } from '../wasHere';
 import HowToSection, { HowToView, type HowToViewProps, type JoinDoor } from '@/components/landing/HowToSection';
 import LandingFooter from '@/components/landing/LandingFooter';
-import { BAR_PRODUCT_LINKS } from '@/components/landing/LandingHeader';
+import { BAR_MENU } from '@/components/landing/LandingHeader'; // HOME-MENU-01 (2026-11-16), ruling d: BAR_PRODUCT_LINKS was imported here until then
 import { PIPELINE_PAGE_TITLE } from '@/components/landing/pipelineWords';
 import { SEEDS as HOME_PAGES_SEEDS } from '../../../scripts/proofs/homepages01.seeds';
 
@@ -211,60 +215,6 @@ function drawnElementsOf(node: React.ReactNode): React.ReactElement<Record<strin
   return [node, ...drawnElementsOf(node.props.children as React.ReactNode)];
 }
 
-/** The file an import names, when it is one of this repo's under src — null for a package. A path that names no file fails by name. */
-function fileOf(from: string, spec: string): string | null {
-  const base = spec.startsWith('@/') ? join('src', spec.slice(2)) : spec.startsWith('.') ? join(dirname(from), spec) : null;
-  if (base === null) return null;
-  const found = [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')].filter((f) => existsSync(resolve(ROOT, f)) && statSync(resolve(ROOT, f)).isFile());
-  assert.equal(found.length, 1, `${from}: "${spec}" names one file under src (found ${JSON.stringify(found)})`);
-  return found[0];
-}
-/**
- * Every module a file's code names, as TypeScript's own PARSER reads the file (ts.createSourceFile): each import declaration and each
- * `export … from` — a namespace re-export too — wherever it stands on a line (this repo writes a second import on a line: Landing.tsx's
- * StopZeroSection), import-equals, an import type, each import() call, and each call of require or of a property named require. Text inside
- * a string, a template literal, a regex literal or JSX text is not an import (the tool registry's citations hold a `from "…"`). Such a call
- * that names its module by anything but a literal names none this reader can follow: it is returned as NOT_A_LITERAL, and the closed list of
- * packages then refuses it by name. NOT READ: a require reached under another name (`const r = require; r('x')`), which only a deliberate edit
- * writes. T7 holds the shapes. (Until the second review of HOME-PAGES-01, 2026-11-14, this was four patterns of the test's own, which read a
- * statement only where it started a line; then, until the third review, TypeScript's scanner ts.preProcessFile, which did not read
- * `export * as ns from`.)
- */
-const NOT_A_LITERAL = '(a module named by something that is not a literal)';
-function specsOf(src: string, file: string): string[] {
-  const tree = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, false, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-  const specs: string[] = [];
-  const named = (node: ts.Node | undefined): void => {
-    if (node !== undefined) specs.push(ts.isStringLiteralLike(node) ? node.text : NOT_A_LITERAL);
-  };
-  const visit = (node: ts.Node): void => {
-    if (ts.isImportDeclaration(node)) named(node.moduleSpecifier);
-    else if (ts.isExportDeclaration(node)) named(node.moduleSpecifier);
-    else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) named(node.moduleReference.expression);
-    else if (ts.isImportTypeNode(node)) named(ts.isLiteralTypeNode(node.argument) ? node.argument.literal : node.argument);
-    else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === 'require') || (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'require'))) named(node.arguments[0]);
-    ts.forEachChild(node, visit);
-  };
-  visit(tree);
-  return specs;
-}
-/** Everything a set of files imports, and what those import, to the end: the files under src, and the packages they reach outside it. */
-function closureOf(entries: readonly string[]): { files: string[]; packages: string[] } {
-  const seen = new Set<string>();
-  const packages = new Set<string>();
-  const queue = [...entries];
-  while (queue.length > 0) {
-    const file = queue.pop() as string;
-    if (seen.has(file)) continue;
-    seen.add(file);
-    for (const spec of specsOf(code(file), file)) {
-      const next = fileOf(file, spec);
-      if (next === null) packages.add(spec);
-      else queue.push(next);
-    }
-  }
-  return { files: [...seen].sort(), packages: [...packages].sort() };
-}
 
 // ── THE BRIEF'S RULINGS AND ALEX'S ANSWER, EXACT ─────────────────────────────
 
@@ -603,7 +553,7 @@ test('T5 the door: a function is drawn as the button it was, a link as a link in
 
 // ── T6 · THE FOOTER'S DOORS ──────────────────────────────────────────────────
 
-test('T6 the footer\'s doors, from the pages\' leaf: Stop 0 | Los Angeles to /about with no fragment, Financial Software and Professional Services to their pages, Travel Marketplace on /#demo; drawn so; the top bar\'s three links where they were', () => {
+test('T6 the footer\'s doors, from the pages\' leaf: Stop 0 | Los Angeles to /about with no fragment, Financial Software and Professional Services to their pages, Travel Marketplace on /#demo; drawn so; the top bar\'s menu opens the pages\' paths (HOME-MENU-01, 2026-11-16: its three links where they were, until then)', () => {
   assert.deepEqual(FOOTER_SERVICES_LINKS, [
     { label: 'Financial Software', href: FINANCIAL_SOFTWARE_PATH },
     { label: 'Professional Services', href: PROFESSIONAL_SERVICES_PATH },
@@ -627,8 +577,10 @@ test('T6 the footer\'s doors, from the pages\' leaf: Stop 0 | Los Angeles to /ab
   for (const page of PAGES) assert.equal(count(html, `href="${page.path}"`), 1, `the footer draws one link to ${page.path}`);
   for (const gone of ['href="/#stop-0"', 'href="/#modules"', 'href="/#services"', 'href="/about#']) assert.equal(count(html, gone), 0, `and none to ${gone.slice(6)}`);
   assert.equal(count(html, 'href="/#demo"'), 1, 'Travel Marketplace, on its section');
-  // the brief's "NOT IN THIS PR" names "The top bar and its links." — they land where they did
-  assert.deepEqual(BAR_PRODUCT_LINKS.map((l) => l.href), ['/#modules', '/#services', '/#demo'], 'the top bar\'s three links land on the home page\'s sections, as they did');
+  // the brief's "NOT IN THIS PR" names "The top bar and its links." — they land where they did (until HOME-MENU-01, 2026-11-16, rulings d and e: the bar's
+  // names open its menu now, and its four plans and About Us open the pages' leaf's paths. Until then: assert.deepEqual(BAR_PRODUCT_LINKS.map((l) => l.href),
+  // ['/#modules', '/#services', '/#demo'], 'the top bar's three links land on the home page's sections, as they did'))
+  assert.deepEqual(BAR_MENU.flatMap((c) => c.links).filter((l) => l.href === FINANCIAL_SOFTWARE_PATH || l.href === ABOUT_PATH).map((l) => l.label), [...PLANS.map((p) => p.name), ABOUT_US_HEADING], 'the top bar\'s menu opens the pages\' paths: the four plans to /financial-software, About Us to /about');
   // the anchors' home keeps Stop 0's re-export, though the footer reads it no more; the section keeps its id
   assert.match(code(ANCHORS), /^export \{ STOP_ZERO_ANCHOR \} from '\.\/stopZeroWords';$/m);
   assert.equal(count(code(ABOUT_US), 'id={STOP_ZERO_ANCHOR}'), 1, 'About Us keeps its id (homeAbout01 T3 holds its port, line for line: no scroll margin can join it unseen)');
@@ -739,7 +691,7 @@ test('T7 public: the three paths in PUBLIC_PATHS directly after \'/how-it-works\
 
 // ── T8 · THE HOME PAGE — as HOME-PAGES-01 left it (unchanged), then as HOME-TRIM-01 left it (one band for the letter), then as HOME-TRIM-02 left it (the short view), then as HOME-TRIM-03 left it (2026-11-15: the Professional Services section's short view too) ──
 
-test('T8 the home page, as HOME-TRIM-02 left it (2026-11-15; "as HOME-TRIM-01 left it" until then), and HOME-TRIM-03 after it (2026-11-15): Landing.tsx mounts the bar, the two pillars\' sections (each its short view: the Financial Software section\'s since HOME-TRIM-02, the Professional Services section\'s since HOME-TRIM-03), the About Us band, Our Story and the footer once each, as typed, and the letter nowhere; it reads nothing of the pages\' leaf — the footer\'s words, the three pages, the band and (HOME-TRIM-03, 2026-11-15) the Professional Services section read it, as the Financial Software section did from HOME-TRIM-02 (2026-11-15) until HOME-PLANS-05 (2026-11-16), whose toggles open no page; no travel page. (HOME-PAGES-01\'s ruling h held the page unchanged until then, and this test was named: T8 the home page does not change: Landing.tsx mounts the bar, the four sections and the footer once each, as typed, and reads nothing of the pages\' leaf — the footer\'s words and the three pages alone read it; no travel page)', () => {
+test('T8 the home page, as HOME-TRIM-02 left it (2026-11-15; "as HOME-TRIM-01 left it" until then), and HOME-TRIM-03 after it (2026-11-15): Landing.tsx mounts the bar, the two pillars\' sections (each its short view: the Financial Software section\'s since HOME-TRIM-02, the Professional Services section\'s since HOME-TRIM-03), the About Us band, Our Story and the footer once each, as typed, and the letter nowhere; it reads nothing of the pages\' leaf — the footer\'s words, the three pages, the band, (HOME-TRIM-03, 2026-11-15) the Professional Services section and (HOME-MENU-01, 2026-11-16) the top bar read it, as the Financial Software section did from HOME-TRIM-02 (2026-11-15) until HOME-PLANS-05 (2026-11-16), whose toggles open no page; no travel page. (HOME-PAGES-01\'s ruling h held the page unchanged until then, and this test was named: T8 the home page does not change: Landing.tsx mounts the bar, the four sections and the footer once each, as typed, and reads nothing of the pages\' leaf — the footer\'s words and the three pages alone read it; no travel page)', () => {
   const landing = code(LANDING);
   for (const mount of ['<LandingHeader glass onRequireLogin={onRequireLogin} />', '<HowToSection view="short" onRequireAuth={onRequireAuth} />', '<ServicesSection view="short" />', '<AboutBand />', '<WasHereSection today={today} />', '<LandingFooter />']) { // HOME-TRIM-01 (2026-11-15): the fourth was '<StopZeroSection />' until then — the letter's one mount is /about's page's now (T1), and the About Us band holds its seat here; HOME-TRIM-02 (2026-11-15, ruling a): the second was '<HowToSection onRequireAuth={onRequireAuth} />' until then — the how-to mounts its short view here; HOME-TRIM-03 (2026-11-15, ruling a): the third was '<ServicesSection />' until then — the services section mounts its short view here
     assert.equal(count(landing, mount), 1, `Landing.tsx: ${mount}, once, as typed`);
@@ -747,11 +699,11 @@ test('T8 the home page, as HOME-TRIM-02 left it (2026-11-15; "as HOME-TRIM-01 le
   const order = ['<HowToSection ', '<ServicesSection ', '<AboutBand ', '<WasHereSection ', '<LandingFooter '].map((m) => landing.indexOf(m)); assert.equal(count(landing, 'StopZeroSection'), 0, 'the letter is mounted nowhere on the home page, and named nowhere in its code'); // '<StopZeroSection ' third in this order until HOME-TRIM-01
   assert.deepEqual(order, [...order].sort((x, y) => x - y), 'in the order they stood');
   assert.ok(!landing.includes('homePages') && !landing.includes('ts-fs-page'), 'the landing reads nothing of the pages\' leaf and wears nothing of the page\'s hook');
-  // who reads the leaf: the footer's words, the three pages and — since HOME-TRIM-01 (2026-11-15) — the About Us band, whose one door opens /about by the leaf's path (the footer's words and the three pages alone, until then); and — from HOME-TRIM-02 (2026-11-15, ruling e) until HOME-PLANS-05 (2026-11-16) — the Financial Software section, whose short view's first link opened /financial-software by the leaf's path (that link is a toggle since, which opens no page, and the section reads the leaf no more); and — since HOME-TRIM-03 (2026-11-15, ruling d) — the Professional Services section, whose short view's link opens /professional-services by the leaf's path
+  // who reads the leaf: the footer's words, the three pages and — since HOME-TRIM-01 (2026-11-15) — the About Us band, whose one door opens /about by the leaf's path (the footer's words and the three pages alone, until then); and — from HOME-TRIM-02 (2026-11-15, ruling e) until HOME-PLANS-05 (2026-11-16) — the Financial Software section, whose short view's first link opened /financial-software by the leaf's path (that link is a toggle since, which opens no page, and the section reads the leaf no more); and — since HOME-TRIM-03 (2026-11-15, ruling d) — the Professional Services section, whose short view's link opens /professional-services by the leaf's path; and — since HOME-MENU-01 (2026-11-16, ruling e) — the top bar, whose menu's four plans and About Us open /financial-software and /about by the leaf's paths
   // HOME-PLANS-05 (2026-11-16), ruling f — FINANCIAL_SOFTWARE_PATH leaves HowToSection.tsx with its last use there: HOW_TO leaves this list.
   // Until then: [...PAGES.map((p) => p.file), FOOTER_WORDS, ABOUT_BAND, HOW_TO, SERVICES], '… the About Us band, the Financial Software section and the Professional Services section …'.
   const readers = srcFiles().filter((f) => specsOf(code(f), f).some((spec) => /(?:^|\/)homePages$/.test(spec))).sort();
-  assert.deepEqual(readers, [...PAGES.map((p) => p.file), FOOTER_WORDS, ABOUT_BAND, SERVICES].sort(), 'the three pages, the footer\'s words, the About Us band and the Professional Services section — no other component, no other page, by any import, export … from, import() or require() that names its module by a literal');
+  assert.deepEqual(readers, [...PAGES.map((p) => p.file), FOOTER_WORDS, ABOUT_BAND, SERVICES, HEADER].sort(), 'the three pages, the footer\'s words, the About Us band, the Professional Services section and (HOME-MENU-01, 2026-11-16) the top bar — no other component, no other page, by any import, export … from, import() or require() that names its module by a literal');
   // ruling g: no travel page — /travel is the cockpit's
   assert.ok(!existsSync(resolve(ROOT, 'src/app/travel')), 'no src/app/travel');
   assert.match(code('src/app/[tab]/page.tsx'), /const TAB_PATHS = new Set\(\[\s*'runway', 'travel', 'trade', 'books', 'tax',\s*\]\);/, '/travel is one of the cockpit\'s tab paths');

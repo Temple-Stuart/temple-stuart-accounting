@@ -5,7 +5,7 @@
  * equal doors; every door's key and words live HERE, and the panel (src/components/landing/Landing.tsx — ServicesSection.tsx since
  * HOME-SERVICES-01, 2026-11-12, which Landing.tsx mounts), the form
  * (src/app/work-with-me/WorkWithMeForm.tsx), the route (src/app/api/proposals/route.ts) and the CRM
- * (src/lib/crm/crm.ts needWords) read them. The 2026 close retired everywhere — its card, its leaf
+ * (src/lib/crm/crm.ts needWords) read them (HOME-MENU-01, 2026-11-16: and the top bar's menu, src/components/landing/LandingHeader.tsx — its Professional Services column, each service's title and kind, to proposalFormHref; those four alone until then). The 2026 close retired everywhere — its card, its leaf
  * (src/lib/offer/close.ts), its words (src/lib/offer/closeWords.ts), its law and the form's close block; bookkeeping
  * is a door, a service billed monthly and priced by proposal. PURE: no import, no fetch, no env, no clock, no React —
  * server- and client-safe.

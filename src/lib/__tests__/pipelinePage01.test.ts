@@ -142,7 +142,7 @@ test('T4 the door left the home page (HOME-FINISH-02, 2026-11-10): no door act a
   // left the home page and the how-to took its seat.)
   const landing = code(LANDING);
   assert.equal(PIPELINE_PATH, '/how-it-works');
-  assert.equal(PIPELINE_DOOR, 'How it all connects: the 14 steps →', 'the leaf\'s words stand — pipelineWords.ts is untouched');
+  assert.equal(PIPELINE_DOOR, 'How it all connects: the 14 steps →', 'the leaf\'s words stand — pipelineWords.ts\'s code is untouched (HOME-MENU-01, 2026-11-16, re-said two of its notes)');
   assert.equal(count(landing, 'aria-label="How it all connects"'), 0, 'no door act on the home page');
   assert.ok(!landing.includes('PIPELINE_DOOR'), 'Landing reads the door\'s words no more');
   assert.equal(count(landing, 'href={PIPELINE_PATH}'), 0, 'and its own body links to the 14 steps nowhere — the footer does');

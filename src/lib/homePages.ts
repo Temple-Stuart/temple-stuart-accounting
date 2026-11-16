@@ -13,7 +13,7 @@
  *                              (src/components/landing/WasHereSection.tsx).
  * Each page (src/app/<path>/page.tsx) is /how-it-works's shell around the section's own component, and each one's door is the
  * footer's (src/lib/footerWords.ts reads the three paths here): Financial Software, Professional Services, and
- * Stop 0 | Los Angeles.
+ * Stop 0 | Los Angeles. (HOME-MENU-01, 2026-11-16: and the top bar's menu reads two of the paths, FINANCIAL_SOFTWARE_PATH for its four plans and ABOUT_PATH for About Us, in src/components/landing/LandingHeader.tsx — the footer's words alone read them until then.)
  *
  * THE RULINGS BUILT HERE (Alex's brief, 2026-11-14):
  *   c. "WORDS. Nothing is typed in a page. Three titles are new and need a leaf: each is the section's heading, then

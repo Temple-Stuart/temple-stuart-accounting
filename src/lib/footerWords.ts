@@ -50,7 +50,7 @@
  *
  * HOME-PAGES-01 (Alex's brief, 2026-11-14 19:11 Manila; his answer to the audit, 2026-11-14): THREE DOORS MOVE, AND NOTHING ELSE.
  * Three of the home page's sections have pages of their own (src/lib/homePages.ts holds their paths), and the footer is each one's
- * door. The brief's step 4: "The footer's doors to them: Financial Software → /financial-software, Professional Services →
+ * door (HOME-MENU-01, 2026-11-16: and, for /financial-software and /about, the top bar's menu too — the footer alone until then). The brief's step 4: "The footer's doors to them: Financial Software → /financial-software, Professional Services →
  * /professional-services, and Stop 0 | Los Angeles → /about#stop-0. Travel Marketplace stays /#demo." His answer changed one of
  * them: "The footer's Stop 0 | Los Angeles goes to /about, with no fragment. This replaces "/about#stop-0" in step 4. The letter is
  * the first thing on that page, so the fragment only scrolled the bar away. No scroll margin is added and the About Us port is not
@@ -62,7 +62,7 @@
  *   · OUR STORY's Stop 0 opens /about, at its top — /#stop-0, the home page's About Us act by its anchor, until then.
  *   · So this leaf reads ONE anchor now, DEMO_ANCHOR. MODULES_ANCHOR, SERVICES_ANCHOR and STOP_ZERO_ANCHOR left its import with
  *     their last use here. The top bar still reads the first two (LandingHeader.tsx: its three links are not this brief's, and
- *     still land on the home page's sections), and every section keeps its id.
+ *     still land on the home page's sections), and every section keeps its id. HOME-MENU-01 (2026-11-16): the bar read the first two until then; its names open its menu now and land on no section, MODULES_ANCHOR has no reader under src but its home, and SERVICES_ANCHOR is its section's alone.
  *   · The labels, their order and every other href stand. Ruling h: "THE HOME PAGE DOES NOT CHANGE. Landing.tsx keeps every mount
  *     where it is, once each. The only thing a visitor to / can notice is three footer links' targets."
  */
@@ -125,7 +125,7 @@ export function storyLinkParts(label: string): { stop: string; place: string } {
  * land on it too. HERO-CREST-01 (2026-11-11): it was typed here, once and privately (`const PLANS_SECTION_ID = 'modules'`),
  * for the footer's link to the first pillar. The top bar links the same section, so the copy moved to the anchors' one
  * home — MODULES_ANCHOR, src/lib/homeAnchors.ts — and both read it. The footer's links are unchanged.
- * HOME-PAGES-01 (2026-11-14): the footer reads it no more — its first link opens /financial-software; the bar still does.
+ * HOME-PAGES-01 (2026-11-14): the footer reads it no more — its first link opens /financial-software; the bar still does (until HOME-MENU-01, 2026-11-16: its names open the menu now, and nothing under src reads MODULES_ANCHOR but its home).
  */
 
 /** SERVICES: the three pillars — the first two open their sections' own pages (HOME-PAGES-01, 2026-11-14; "each landing on its section of the home page" until then), the third lands on its section of the home page. Absolute, so they land from every page the footer is on. */
@@ -147,7 +147,7 @@ export const FOOTER_SOCIALS: ReadonlyArray<{ readonly name: SocialName; readonly
   { name: 'LinkedIn', href: 'https://www.linkedin.com/in/alexander-stuart-phi/' },
 ];
 
-/** The code, built in public — the same URL the hero's "Clone it on GitHub" opens (Landing.tsx; src/lib/__tests__/footer01.test.ts holds them equal). HERO-CREST-01 (2026-11-11): LandingHeader.tsx's GitHub ↗ until then — it left the top bar. */
+/** The code, built in public — the same URL the hero's "Clone it on GitHub" opens (Landing.tsx; src/lib/__tests__/footer01.test.ts holds them equal). HERO-CREST-01 (2026-11-11): LandingHeader.tsx's GitHub ↗ until then — it left the top bar. HOME-MENU-01 (2026-11-16): the bar's menu opens it again, in a new tab — its About Us column's Built in Public: The Code, from the bar's own copy of this URL, which src/lib/__tests__/homeMenu01.test.ts holds equal to it. */
 export const CODE_URL = 'https://github.com/Temple-Stuart/temple-stuart-accounting';
 
 /** The licence file on the default branch — the Business Source License 1.1. Never called open source. */

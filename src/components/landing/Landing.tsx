@@ -481,7 +481,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
             GONE, BY ALEX'S RULING (2026-11-11): the "✦ Source-available · BSL 1.1" pill that opened the hero — "the BSL
             we have down in the footer, so lets just remove it from the hero". The footer's Software License link
             (LICENSE_URL, src/lib/footerWords.ts) is the licence's door on this page. "GitHub ↗" and "CREATE FREE
-            ACCOUNT" left the bar by his rulings of the same day (LandingHeader.tsx); the header's onRequireAuth went
+            ACCOUNT" left the bar by his rulings of the same day (LandingHeader.tsx; HOME-MENU-01, 2026-11-16: the code's link came back, in the bar's menu's About Us column, in a new tab); the header's onRequireAuth went
             with the latter, so this button is the page's first register ask.
             HISTORY, until this design: the band was a SOLID aubergine <section> (bg-brand-purple, REPAINT-2) under a
             cream bar; its headline was bold with <br /> between the sentences and the third in the lavender wash
@@ -670,7 +670,7 @@ export default function Landing({ onRequireAuth, onRequireLogin, today }: Props)
           resolve to the OFFER now, not to this demo.
           id="demo" is NOT dropped — an element carries one id, so it sits on
           the eyebrow row a few px below. It has no href pointing at it in src/
-          today (the nav's Live-demo link retired, LandingHeader.tsx:53-54 — :35 until HERO-CREST-01, 2026-11-11, which moved that note into the file's header; the top bar links it again, as its third product link, BAR_PRODUCT_LINKS), but an
+          today (the nav's Live-demo link retired, LandingHeader.tsx:53-54 — :35 until HERO-CREST-01, 2026-11-11, which moved that note into the file's header; the top bar links it again, as its third product link, BAR_PRODUCT_LINKS — until HOME-MENU-01, 2026-11-16: since then from its menu's Travel Marketplace column, whose five travel tabs open /#demo by DEMO_ANCHOR), but an
           external bookmark costs nothing to keep alive.
           FOOTER-01 (2026-11-09): the id is DEMO_ANCHOR now (src/lib/homeAnchors.ts), and two links land on it — the footer's "Book travel" and the trip page's "Book the stay and the flight" (TripPostView.tsx BOOK_HREF, since TRIPPOST-01) — so "no href pointing at it" above is history.
 

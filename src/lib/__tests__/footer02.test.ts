@@ -23,7 +23,7 @@
  *      T3 is re-said: the port is the reference's stylesheet followed by this block, which homePhone01 holds line for line." (the block was the
  *      reference's to its end until then); the four width tiers as they stand, then the phone rules' one; no hex and no rgb value typed;
  *      every class behind the prefix and the footer's own; the lockup's own rules, which do not shrink; it stands directly above
- *      HERO-CREST-01's header, which stays last; nothing outside it reaches the footer — not by its classes, its hooks or the elements it
+ *      HERO-CREST-01's header, which stays last (but for the menu's block after it, since HOME-MENU-01, 2026-11-16); nothing outside it reaches the footer — not by its classes, its hooks or the elements it
  *      draws, the folds' <button> among them since HOME-PHONE-01 (2026-11-16);
  *   T4 the markup — the footer's render, its three folds set aside since HOME-PHONE-01 (2026-11-16: each fold's row, and the id and
  *      data-folded its list carries — this reference draws none of them and homePhone01.test.ts holds them against design-refs/home-phone-01,
@@ -40,7 +40,7 @@
  *      currentColor, as each fold's caret is; the hairline; the disclaimer;
  *      ©; the four links on their targets; next/link for every link that stays on the site (TERMS and PRIVACY too, plain <a>s until
  *      FOOTER-02), a plain <a> for every one that leaves;
- *   T6 the words — every word from its home, and none typed twice: the columns' from footerWords.ts; the mark and the wordmark from
+ *   T6 the words — every word from its home, and none typed twice in the footer's own files (HOME-MENU-01, 2026-11-16: the bar types the record's two labels and the code's URL once more, among its menu's copies, which homeMenu01 holds equal — none typed twice in all of src until then): the columns' from footerWords.ts; the mark and the wordmark from
  *      brandLockup.ts, read there by the bar and the footer and typed nowhere else in src but the day card's own BRAND_WORDS; the
  *      disclaimer, © and the four links typed once, in LandingFooter.tsx; the footer reads nothing from LandingHeader.tsx ('use client');
  *   T7 the split — storyLinkParts splits every footerStoryLinks label into its stop and its place, and refuses by name
@@ -215,7 +215,7 @@ function referencePorted(): string[] {
     return `${media} | ${sel.replace(/\.ft(?=$|[^A-Za-z0-9])/g, '.ts-ft')} | ${port}`;
   });
 }
-/** The port: globals.css from the footer's first rule to the hero's — HERO-CREST-01's block, which stays last. */
+/** The port: globals.css from the footer's first rule to the hero's — HERO-CREST-01's block, which stays last (but for the menu's block after it, since HOME-MENU-01, 2026-11-16). */
 const PORT_OPEN = '.ts-ft {';
 const NEXT_PORT = '.ts-hero {';
 function portCss(): string {
@@ -363,7 +363,7 @@ test('T2 the tokens, named and valued as the README\'s two tables — eight alre
 
 // ── T3 · THE STYLESHEET ──────────────────────────────────────────────────────
 
-test('T3 the footer\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, after the renames, but for its :root and THIS PAGE\'S OWN, and then the phone rules (HOME-PHONE-01); the four width tiers, then the phone rules\' one; no hex, no rgb value typed; every class behind the prefix; the lockup does not shrink; directly above HERO-CREST-01\'s header, which stays last; nothing outside it reaches the footer', () => {
+test('T3 the footer\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, after the renames, but for its :root and THIS PAGE\'S OWN, and then the phone rules (HOME-PHONE-01); the four width tiers, then the phone rules\' one; no hex, no rgb value typed; every class behind the prefix; the lockup does not shrink; directly above HERO-CREST-01\'s header, which stays last but for the menu\'s block (HOME-MENU-01, 2026-11-16); nothing outside it reaches the footer', () => {
   const port = declarations(portCss());
   // HOME-PHONE-01 (Alex's brief, 2026-11-16 01:42 Manila), ruling e: "footer02 T3 is re-said: the port is the reference's stylesheet followed
   // by this block, which homePhone01 holds line for line." The block runs on past the reference's last rule into the footer under 1024px — the
@@ -394,6 +394,7 @@ test('T3 the footer\'s stylesheet in globals.css is the reference\'s, declaratio
   assert.ok(port.includes(' | .ts-ft-brand__mark | width: 25px') && port.includes(' | .ts-ft-brand__mark | height: 36px') && port.includes(' | .ts-ft-brand__name | font-size: 16px'), 'the lockup at the bar\'s full size');
   assert.deepEqual(port.filter((d) => /^@media \(m(in|ax)-width/.test(d) && /\.ts-ft-brand/.test(d.split(' | ')[1])), [], 'and no width tier resizes it');
   // where it stands: under the Financial Software section's port, directly above HERO-CREST-01's header — nothing between them — which stays last
+  // but for the menu's block after it (HOME-MENU-01, 2026-11-16)
   const css = code(GLOBALS);
   const w = whole(GLOBALS);
   const at = css.indexOf(PORT_OPEN);
@@ -411,7 +412,7 @@ test('T3 the footer\'s stylesheet in globals.css is the reference\'s, declaratio
   assert.match(css.slice(before + 1, at), /^\s*$/, 'and only comments between the Financial Software port\'s last rule and this one\'s first');
   assert.ok(w.slice(before + 1, at).includes('/* ── FOOTER-02 ('), 'its own header among them');
   const headers = [...w.matchAll(/\n\/\* ── ([A-Z]+(?:-[A-Z]+)*-\d+) \(/g)].map((m) => m[1]);
-  assert.deepEqual(headers.slice(-2), ['FOOTER-02', 'HERO-CREST-01'], 'FOOTER-02\'s block, then HERO-CREST-01\'s — the last');
+  assert.deepEqual(headers.slice(-3), ['FOOTER-02', 'HERO-CREST-01', 'HOME-MENU-01'], 'FOOTER-02\'s block, then HERO-CREST-01\'s, then the menu\'s — the last (HOME-MENU-01, 2026-11-16, ruling i: the last two were FOOTER-02 and HERO-CREST-01 until then)');
   // nothing outside it names its classes, reaches its hooks, or reaches the elements it draws
   const outside = css.slice(0, at) + css.slice(hero);
   assert.doesNotMatch(outside, /\.ts-ft(?![A-Za-z0-9])/, 'no rule outside the port names one of its classes');
@@ -585,7 +586,7 @@ test('T5 the structure, by name: the lockup; the four hooks in order, three with
 
 // ── T6 · THE WORDS ───────────────────────────────────────────────────────────
 
-test('T6 every word from its home, none typed twice: the columns\' from footerWords.ts; the mark and the wordmark from brandLockup.ts, read by the bar and the footer; the disclaimer, © and the four links in LandingFooter.tsx; nothing read from the \'use client\' bar', () => {
+test('T6 every word from its home, none typed twice: the columns\' from footerWords.ts; the mark and the wordmark from brandLockup.ts, read by the bar and the footer; the disclaimer, © and the four links in LandingFooter.tsx; nothing read from the \'use client\' bar (HOME-MENU-01, 2026-11-16: the bar types the record\'s two labels and the code\'s URL once more, among its menu\'s copies, which homeMenu01 holds equal; in the footer\'s own files none is typed twice)', () => {
   const footer = code(FOOTER);
   const header = code(HEADER);
   const lockup = code(LOCKUP);
@@ -610,7 +611,7 @@ test('T6 every word from its home, none typed twice: the columns\' from footerWo
   assert.deepEqual(wordmarks, [DAY_CARD, LOCKUP].sort(), 'the wordmark is typed in its home, and in the day card\'s own word, and nowhere else in src');
   assert.match(code(DAY_CARD), /^export const BRAND_WORDS = 'TEMPLE STUART';$/m, 'the day card\'s BRAND_WORDS, untouched');
   assert.deepEqual(srcFiles().filter((f) => code(f).includes('temple-stuart-crest-gold.png')), [LOCKUP], 'the mark\'s path is typed in its home alone');
-  // THE COLUMNS' WORDS — typed once, in footerWords.ts; the footer types none of them
+  // THE COLUMNS' WORDS — typed once, in footerWords.ts; the footer types none of them (HOME-MENU-01, 2026-11-16: the bar types two of them once more, the record's two labels, among its menu's copies, which homeMenu01 holds equal — once in all of src until then)
   const COLUMN_WORDS = [FOOTER_STORY_LABEL, FOOTER_SERVICES_LABEL, FOOTER_SOCIALS_LABEL, FOOTER_RECORD_LABEL, FOOTER_STOP_ZERO_LABEL, ...FOOTER_SERVICES_LINKS.map((l) => l.label), ...FOOTER_RECORD_LINKS.map((l) => l.label)];
   for (const word of COLUMN_WORDS) {
     assert.equal(count(words, `'${word}'`), 1, `"${word}" is typed once, in footerWords.ts`);
