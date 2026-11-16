@@ -720,7 +720,7 @@ export function allToolsWords(total: number): string {
  * on the design canvas, 2026-11-14 20:01 Manila: "ALL LOOKS GOOD … OTHERWISE, LETS DO IT"; of the corrected boards, 20:41: "thats it!
  * yeet yeet!"; built 2026-11-15) — THE SHORT VIEW ON THE HOME PAGE. The Financial Software section draws its short view there
  * (src/components/landing/HowToSection.tsx, HowToShortView; the spec is design-refs/home-trim-02/Section-Reference.html): the
- * question, its three choices and two toggles (two links until HOME-PLANS-05, 2026-11-16, below), then the one plan planMapView picks; the whole view — the map, the three cards, the
+ * question, its three choices and two toggles (two links until HOME-PLANS-05, 2026-11-16, below), then the one plan planMapView picks — or, while the second toggle is open, the three cards and the band in its place, as the first opens the map's grid in the panel (HOME-PLANS-05, 2026-11-16: "then the one plan planMapView picks" alone until then); the whole view — the map, the three cards, the
  * band and the link at the foot — stands on /financial-software. Both read planMapView. One word is new, the short view's first
  * link's — its first toggle's since HOME-PLANS-05, without the arrow: seeAllToolsWords, below, beside allToolsWords (ruling e, quoted under this paragraph), and planMapView hands it the total its cards count
  * against (seeAll, below). Ruling l re-said this file's notes that went false, in place and dated: "NOTES THAT GO FALSE ARE RE-SAID IN

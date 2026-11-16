@@ -549,7 +549,7 @@ test('T5 (HOME-PLANS-04) the source: the section types no leaf word, no mark, no
   assert.equal(count(section, '<a '), 2, 'and no third: the short view\'s toggles are buttons');
   // the order: the name → the line → the map → the cards → the band → the link → the act closes. HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila;
   // built 2026-11-15), ruling a: what both views draw is written once, as small functions in this file — the name and the line (SectionName), the band
-  // (Band), the link (CompareLink) — so the order is read where the whole view draws them: in HowToView's own body, and the name above the line in
+  // (Band), the link (CompareLink; the whole view's alone since HOME-PLANS-05, 2026-11-16 — both views drew it until then, the short view in its panel) — so the order is read where the whole view draws them: in HowToView's own body, and the name above the line in
   // SectionName's. Until then these six strings were read across the whole file, where HowToView typed each inline:
   // ['<h2 className="ts-fs__title">', '<p className="ts-fs__lede">', '<div className="ts-fs-map">', '<div className="ts-fs-plans">',
   // '<div className="ts-fs-plan ts-fs-plan--all"', '<a className="ts-fs__compare"'], the file's last '</section>' after them.
@@ -874,7 +874,7 @@ test('T8 (HOME-PLANS-01) the comparison of the live leaf: four columns and their
 // HOME-PLANS-04 (2026-11-12): NO ASSERTION CHANGED. The brief's ruling d: "A MARK STILL SAYS "IN THIS PLAN", NEVER "BUILT". The map draws no status and
 // no price, so the plan law's price guard stays as it is." The guard's words name the comparison HOME-PLANS-01 drew; the landing drew the map's marks
 // (src/lib/howTo.ts planMapView) until HOME-TRIM-02 (2026-11-15) — "draws … now" until then — and /financial-software, which has drawn them since
-// HOME-PAGES-01 (2026-11-14), alone since — and the landing again since HOME-PLANS-05 (2026-11-16), while its first toggle is open — the home page its one plan's price line; both with the same standing, and the guard holds them as it held the comparison. No assertion changed here.
+// HOME-PAGES-01 (2026-11-14), alone since — and the landing again since HOME-PLANS-05 (2026-11-16), while its first toggle is open — the home page its one plan's price line, and, while its second toggle is open, all four plans' (HOME-PLANS-05, 2026-11-16); both with the same standing, and the guard holds them as it held the comparison. No assertion changed here.
 test('T9 (HOME-PLANS-01) the guard stands on the plan law\'s line: a plan that carries a price fails the build, by name — the landing\'s comparison marks what each plan covers and draws no status; no plan carries a price today', () => {
   const law = code(LAW);
   const lines = law.split('\n').filter((l) => l.includes(`codeOf('src/components/landing/HowToSection.tsx').includes('<section id="modules"')`));

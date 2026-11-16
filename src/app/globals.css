@@ -984,10 +984,10 @@ body {
      7. ADDED, the home page's short view (HOME-TRIM-02, Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15): the second
         stylesheet of design-refs/home-trim-02/Section-Reference.html — whose first is this port's spec, home-plans-04's, byte
         for byte — behind the house prefix, after the port's own rules and in its own order: ten rules, twenty declarations
-        (section 7, below). Its one rule that is that page's own, .fs-yours > [hidden], is not ported: the short view draws the
-        picked plan alone. Nor, since HOME-PLANS-05 (2026-11-16), are the two rules of the links' row, .fs-links and .fs-links
-        .fs__compare — five declarations — which went with their last wearer when the panel's two links became toggles ("as this
-        port's last rules", and "twelve rules, twenty-five declarations", until then).
+        (section 7, below). Its one rule that is that page's own, .fs-yours > [hidden], is not ported: the short view hides no plan — its holder
+        draws the picked plan alone, and while the second toggle is open the four plans stand in the holder's place (HOME-PLANS-05, 2026-11-16: "the
+        short view draws the picked plan alone" until then). Nor, since HOME-PLANS-05 (2026-11-16), are the two rules of the links' row, .fs-links and
+        .fs-links .fs__compare — five declarations — which went with their last wearer when the panel's two links became toggles ("as this port's last rules", and "twelve rules, twenty-five declarations", until then).
      8. ADDED, the short view's toggles (HOME-PLANS-05, 2026-11-16): the third stylesheet of
         design-refs/home-plans-05/Section-Reference.html — whose first is home-plans-04's and whose second is home-trim-02's
         second, byte for byte — behind the house prefix, as this port's last rules and in its own order: nine rules,

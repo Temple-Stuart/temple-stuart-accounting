@@ -41,7 +41,7 @@
  *       15 · 25; the map law refuses a tool of no module or of two, and a name that is not one part per module — by name; the
  *       law reads the sheet it is handed and the view the rows it is handed; both laws end the leaf, at its top level; the
  *       known difference (Bill Pay, FP&A and Brokerage stand in Personal's steps, the map follows the rows);
- *   T8  the state — two booleans in React state, both off at first, nothing stored, no browser global named; the switches
+ *   T8  the state — two booleans in React state (and, since HOME-PLANS-05, 2026-11-16, the short view's two toggles, in its holder), both off at first, nothing stored, no browser global named; the switches
  *       turn them; every plan's button opens the door;
  *   T9  the build — the law suite's map law re-runs mapLaw and puts each violation on the build's violations, by name, and
  *       its seeds are on file;
@@ -819,7 +819,7 @@ test('T8 what you run is two booleans in React state — both off at first, noth
     // HOME-PAGES-01 (Alex's brief, 2026-11-14, ruling d): the parameter's TYPE alone moved — the door is Landing's function or, on the section's
     // own page, a link (JoinDoor). Until then: 'export default function HowToSection({ onRequireAuth }: { onRequireAuth: () => void }) {'.
     // HOME-TRIM-02 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling a: one more prop, the view, required and with no default; the pure half it draws is looked up by that name —
-    // HowToView, or the short view beside it — one element, the same two booleans and the same door. Until then the signature had no view and
+    // HowToView, or the short view beside it (since HOME-PLANS-05, 2026-11-16, the short view's holder, which keeps its two toggles and draws it, pure) — one element, the same two booleans and the same door. Until then the signature had no view and
     // the return drew HowToView: '  return <HowToView business={business} trade={trade} onBusiness=… onJoin={onRequireAuth} />;'.
     'export default function HowToSection({ view, onRequireAuth }: { view: \'short\' | \'whole\'; onRequireAuth: JoinDoor }) {',
     '  const [business, setBusiness] = useState(false);',
@@ -827,7 +827,7 @@ test('T8 what you run is two booleans in React state — both off at first, noth
     '  const View = VIEWS[view];',
     '  return <View business={business} trade={trade} onBusiness={() => setBusiness((on) => !on)} onTrade={() => setTrade((on) => !on)} onJoin={onRequireAuth} />;',
     '}',
-  ].join('\n'), 'the default export, whole, ends the file: two booleans and the pure half its view names — nothing else runs in it');
+  ].join('\n'), 'the default export, whole, ends the file: two booleans and the half its view names — the pure whole view, or, since HOME-PLANS-05 (2026-11-16), the short view\'s holder, which keeps its two toggles — nothing else runs in it');
   // the default export, driven inside a host's render: an act made during that render re-draws the host
   const acts: Array<(props: HowToViewProps) => void> = [(p) => p.onBusiness(), (p) => p.onTrade(), (p) => p.onBusiness(), (p) => p.onTrade()];
   const passes: string[] = [];
