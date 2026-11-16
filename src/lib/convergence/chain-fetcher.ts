@@ -85,6 +85,20 @@ export interface ChainFetchResult {
 
 // ===== HELPERS =====
 
+// NYSE full closures, 2026–2028 (Jan 1, 2028 is a Saturday and is not observed).
+const NYSE_HOLIDAYS = new Set([
+  '2026-01-01','2026-01-19','2026-02-16','2026-04-03','2026-05-25','2026-06-19','2026-07-03','2026-09-07','2026-11-26','2026-12-25',
+  '2027-01-01','2027-01-18','2027-02-15','2027-03-26','2027-05-31','2027-06-18','2027-07-05','2027-09-06','2027-11-25','2027-12-24',
+  '2028-01-17','2028-02-21','2028-04-14','2028-05-29','2028-06-19','2028-07-04','2028-09-04','2028-11-23','2028-12-25',
+]);
+
+// NYSE early closes: the regular session ends at 1:00 PM ET.
+const NYSE_EARLY_CLOSES = new Set([
+  '2026-11-27','2026-12-24',
+  '2027-11-26',
+  '2028-07-03','2028-11-24',
+]);
+
 export function isMarketOpen(): { open: boolean; reason?: string } {
   const now = new Date();
   const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
@@ -95,13 +109,10 @@ export function isMarketOpen(): { open: boolean; reason?: string } {
 
   if (day === 0 || day === 6) return { open: false, reason: 'weekend' };
 
-  const holidays2026 = [
-    '2026-01-01','2026-01-19','2026-02-16','2026-04-03',
-    '2026-05-25','2026-07-03','2026-09-07','2026-11-26','2026-12-25',
-  ];
-  const dateStr = et.toISOString().slice(0, 10);
-  if (holidays2026.includes(dateStr)) return { open: false, reason: `market holiday (${dateStr})` };
-  if (timeNum < 930 || timeNum >= 1600) return { open: false, reason: `outside market hours (${hour}:${String(minute).padStart(2, '0')} ET)` };
+  const dateStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  if (NYSE_HOLIDAYS.has(dateStr)) return { open: false, reason: `market holiday (${dateStr})` };
+  const closeNum = NYSE_EARLY_CLOSES.has(dateStr) ? 1300 : 1600;
+  if (timeNum < 930 || timeNum >= closeNum) return { open: false, reason: `outside market hours (${hour}:${String(minute).padStart(2, '0')} ET)` };
 
   return { open: true };
 }
