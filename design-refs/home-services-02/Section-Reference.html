@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOME-SERVICES-02 · reference</title>
+<!--
+  HOME-SERVICES-02: Professional Services on the guest landing, short, with the proposal form in place and a form for each
+  service. The section's name and its line, the question with its six services. At rest no service is picked and nothing
+  else is drawn. A press on a service picks it and opens the one proposal form under the six, inside the panel: its eyebrow
+  and Close, the picked service's name and line, then the form. A press on another service changes the form in place; a
+  press on the picked one, or Close, closes it. Nothing in the section leads to another page.
+
+  The form: five questions open every service's form (Name, Email, the business with a website if there is one, and the
+  visitor's part in the decision), and How did you find me closes it. Between them, each service asks its own questions,
+  as the doc "Professional Services intake: what top firms ask, and a questionnaire for each service" proposes them.
+  Monthly services ask monthly budgets. The button waits for the answers a quote needs, never for a deadline. Everything
+  optional sits under More details, closed at first. "Send proposal" ends it.
+
+  Open this file in a browser. Press a service, press it again, press another; read each service's form; open More
+  details; answer what is asked to wake the button; send it to see the thank-you. Resize the window.
+
+  The first stylesheet is design-refs/home-services-01's, byte for byte, as design-refs/home-trim-03's first is. Its form's
+  rules (its section 4, and the form's rules in its sections 5 and 6) are this brief's to port. The second stylesheet is
+  the short view's, as this brief leaves it: home-trim-03's, without the brief row's rules and the link's, with the rules
+  the form in place needs. The third is this page's own. The markup is the page at rest. The words are copies, for
+  placement only: production reads each from its home and types none. The script at the foot only makes this file work
+  on its own.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root {
+    /* ALREADY IN THE APP: each is the same name behind the house prefix (--hero-violet-2 is --ts-hero-violet-2,
+       --bg is --ts-bg). Declared here only so this file renders on its own; the port adds none of these. */
+    --bg: 250 248 243;                /* the cream ground; the form's two inset boxes */
+    --border: 221 214 232;            /* the line under the section */
+    --red: 197 48 48;                 /* the form's error, at 0.3 (border), 0.06 (fill) and solid (text) */
+    --hero-violet-2: #4D1FBC;         /* the picked tile; icons; the steps' marks; picks that are on; the focus ring */
+    --hero-violet-3: #32118A;         /* the picked service's chip; the add-link button's label */
+    --hero-violet-4: #210A5E;         /* headings, tile titles and the thank-you */
+    --hero-gold-1: 255 236 178;       /* the gold button, start */
+    --hero-gold-2: 248 203 90;        /* the gold button, 52% */
+    --hero-gold-3: 236 178 62;        /* the gold button, end */
+    --hero-on-gold: #2A0F5C;          /* ink on the gold button */
+
+    /* ADDED BY HOME-PLANS-04 (design-refs/home-plans-04): reused here, by the same names and values. If that PR
+       ported them under other names, use its names; add none of these twice. */
+    --fs-white: 255 255 255;          /* the panel, tiles, chips and fields; text on violet; the gold button's top light at 0.75 */
+    --fs-ink: #2B2545;                /* body text; the form's labels and what is typed */
+    --fs-ink-soft: #4A4560;           /* the lede, the service's line, the chips, the notes, the bookkeeping box's last line */
+    --fs-ink-muted: #6F6988;          /* tile kinds; step 3's mark and note; hints; placeholders */
+    --fs-gold-text: #8A6408;          /* the form's eyebrow */
+    --fs-line: #E9E4F2;               /* the panel's border */
+    --fs-rule: #EEEAF5;               /* the rules inside it */
+    --fs-chip-line: #E4DFF0;          /* the border of a tile, a chip and the Close button */
+    --fs-button-line: #CFC6EC;        /* step 3's ring; the picked chip's border; the thank-you's border; the Project details underline */
+    --fs-band-muted: #D6CCF7;         /* the picked tile's kind */
+    --fs-shadow: 33 10 94;            /* shadows on the cream: hero-violet-4 as channels */
+
+    /* NEW WITH THIS SECTION */
+    --ps-field-line: #DCD5EC;         /* the border of a field and a pick; the steps' wire */
+    --ps-wash: #F6F2FE;               /* the picked chip's fill; the thank-you's fill */
+    --ps-art: #F3EFFC;                /* the picture's frame: its flat colour, under its gradients */
+    --ps-art-1: #F8F5FE;              /* the frame's gradient, start */
+    --ps-art-2: #ECE6FA;              /* the frame's gradient, end */
+    --ps-art-ring: 77 31 188;         /* the frame's rings, at 0.05: hero-violet-2 as channels */
+  }
+
+  /* ── 1 · the section ─────────────────────────────────────────────────────────────────────────── */
+  .ps { scroll-margin-top: 48px; border-bottom: 1px solid rgb(var(--border)); background-color: rgb(var(--bg)); color: var(--fs-ink); font-family: 'Inter', sans-serif; line-height: 1.5; }
+  .ps__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(44px, 5.6vw, 80px) 16px clamp(52px, 6.2vw, 88px); }
+  .ps__title { margin: 0; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; font-weight: 500; letter-spacing: -0.03em; color: var(--hero-violet-4); }
+  .ps__lede { margin: 16px 0 0; max-width: 620px; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--fs-ink-soft); text-wrap: pretty; }
+  .ps :focus-visible { outline: 2px solid var(--hero-violet-2); outline-offset: 3px; }
+  .ps [hidden] { display: none; }               /* the one rule for everything the section hides; it outranks each block's own display */
+
+  /* ── 2 · the panel: the question and the six services ────────────────────────────────────────── */
+  .ps-panel {
+    box-sizing: border-box; margin-top: clamp(24px, 2.8vw, 40px); padding: clamp(18px, 2.3vw, 32px);
+    border: 1px solid var(--fs-line); border-radius: 24px; background-color: rgb(var(--fs-white));
+    box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.05), 0 20px 48px rgb(var(--fs-shadow) / 0.08);
+  }
+  .ps-panel__question { margin: 0; font-size: clamp(18px, 1.6vw, 22px); line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--hero-violet-4); }
+
+  .ps-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: clamp(8px, 1vw, 12px); margin-top: 16px; }
+  .ps-tile {
+    box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 14px;
+    min-height: 104px; margin: 0; padding: 14px 14px 12px; border: 1px solid var(--fs-chip-line); border-radius: 14px;
+    background-color: rgb(var(--fs-white)); color: var(--hero-violet-2); font-family: inherit; text-align: left; cursor: pointer;
+    transition: background-color 0.16s, border-color 0.16s, box-shadow 0.16s;
+  }
+  .ps-tile__icon { flex: none; }
+  .ps-tile__words { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .ps-tile__title { font-size: 14px; line-height: 1.3; font-weight: 600; color: var(--hero-violet-4); }
+  .ps-tile__kind { min-height: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  /* the picked service: filled violet */
+  .ps-tile[aria-pressed="true"] { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); box-shadow: 0 8px 20px rgb(var(--fs-shadow) / 0.18); }
+  .ps-tile[aria-pressed="true"] .ps-tile__title { color: rgb(var(--fs-white)); }
+  .ps-tile[aria-pressed="true"] .ps-tile__kind { color: var(--fs-band-muted); }
+
+  /* ── 3 · the stage: the picked service's picture, its words, how it goes, the button ─────────── */
+  .ps-stage {
+    display: flex; flex-direction: column; gap: clamp(20px, 2.6vw, 40px);
+    margin-top: clamp(18px, 1.8vw, 24px); padding-top: clamp(18px, 1.8vw, 24px); border-top: 1px solid var(--fs-rule);
+  }
+  .ps-stage__art {
+    box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-width: 0;
+    padding: clamp(12px, 1.6vw, 24px); border-radius: 18px;
+    background-color: var(--ps-art);
+    background-image:
+      repeating-radial-gradient(circle at 50% 260%, rgb(var(--ps-art-ring) / 0) 0px, rgb(var(--ps-art-ring) / 0) 15px, rgb(var(--ps-art-ring) / 0.05) 15px, rgb(var(--ps-art-ring) / 0.05) 16px),
+      linear-gradient(135deg, var(--ps-art-1) 0%, var(--ps-art-2) 100%);
+  }
+  .ps-stage__art img { display: block; width: 100%; max-width: 560px; height: auto; }
+  .ps-stage__text { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+  .ps-stage__title { margin: 0; font-size: clamp(24px, 2.2vw, 30px); line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--hero-violet-4); }
+  .ps-stage__line { margin: 10px 0 0; max-width: 540px; font-size: 16px; line-height: 1.55; color: var(--fs-ink-soft); text-wrap: pretty; }
+
+  .ps-steps { display: flex; flex-direction: column; margin: 20px 0 0; padding: 0; list-style: none; }
+  .ps-step { display: grid; grid-template-columns: 26px minmax(0, 1fr); column-gap: 12px; }
+  .ps-step__rail { display: flex; flex-direction: column; align-items: center; }
+  .ps-step__wire { flex: 1; width: 1.5px; min-height: 12px; margin: 4px 0; background-color: var(--ps-field-line); }
+  .ps-step__mark {
+    box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border: 1.5px solid var(--fs-button-line); border-radius: 50%;
+    font-size: 13px; line-height: 1; font-weight: 600; color: var(--fs-ink-muted);
+  }
+  .ps-step[data-step="done"] .ps-step__mark { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); }
+  .ps-step[data-step="now"] .ps-step__mark { border-color: var(--hero-violet-2); color: var(--hero-violet-2); }
+  .ps-step__body { min-width: 0; padding-bottom: 14px; }
+  .ps-step:last-child .ps-step__body { padding-bottom: 0; }
+  .ps-step__title { margin: 0; padding-top: 3px; font-size: 15px; line-height: 1.35; font-weight: 600; color: var(--hero-violet-4); }
+  .ps-step__note { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--fs-ink-muted); }
+  .ps-chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+  .ps-chip {
+    box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+    border: 1px solid var(--fs-chip-line); border-radius: 8px; background-color: rgb(var(--fs-white)); color: var(--fs-ink-soft);
+    font-size: 13px; line-height: 1.2; font-weight: 500; white-space: nowrap;
+  }
+  .ps-chip--picked { border-color: var(--fs-button-line); background-color: var(--ps-wash); color: var(--hero-violet-3); font-weight: 600; }
+
+  .ps-cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 22px; }
+  .ps-cta {
+    box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 48px; margin: 0; padding: 0 26px;
+    border: 0; border-radius: 999px; background-color: rgb(var(--hero-gold-2)); background-image: linear-gradient(135deg, rgb(var(--hero-gold-1)) 0%, rgb(var(--hero-gold-2)) 52%, rgb(var(--hero-gold-3)) 100%);
+    box-shadow: inset 0 1px 0 rgb(var(--fs-white) / 0.75), 0 8px 20px rgb(var(--fs-shadow) / 0.16); color: var(--hero-on-gold);
+    font-family: inherit; font-size: 15px; line-height: 1.2; font-weight: 600; white-space: nowrap; text-decoration: none; cursor: pointer;
+    transition: filter 0.16s;
+  }
+  .ps-cta:disabled { cursor: not-allowed; opacity: 0.5; }
+  .ps-note { font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 500; color: var(--fs-ink-soft); }
+
+  /* ── 4 · the form, in place (HOME-SERVICES-02) ──────────────────────────────────────────────── */
+  .ps-form { margin-top: clamp(22px, 2.4vw, 32px); padding-top: clamp(22px, 2.4vw, 32px); border-top: 1px solid var(--fs-rule); }
+  .ps-form__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .ps-form__eyebrow { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fs-gold-text); }
+  .ps-close {
+    box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; height: 40px; margin: 0; padding: 0 14px;
+    border: 1px solid var(--fs-chip-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--fs-ink-soft);
+    font-family: inherit; font-size: 13px; line-height: 1.2; font-weight: 600; cursor: pointer;
+  }
+  .ps-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px clamp(16px, 2vw, 28px); max-width: 860px; margin-top: 18px; }
+  .ps-fields--more { margin-top: 12px; padding: clamp(14px, 1.6vw, 20px); border-radius: 14px; background-color: rgb(var(--bg)); }
+  .ps-field { min-width: 0; }
+  .ps-field--wide { grid-column: 1 / -1; }
+  .ps-label { display: block; margin: 0 0 7px; font-size: 13px; line-height: 1.4; font-weight: 600; color: var(--fs-ink); }
+  .ps-input, .ps-area {
+    box-sizing: border-box; display: block; width: 100%; margin: 0; border: 1px solid var(--ps-field-line); border-radius: 12px;
+    background-color: rgb(var(--fs-white)); color: var(--fs-ink); font-family: inherit; font-size: 15px;
+  }
+  .ps-input { height: 46px; padding: 0 14px; line-height: 1.2; }
+  .ps-area { min-height: 84px; padding: 12px 14px; line-height: 1.5; resize: vertical; }
+  .ps-input::placeholder, .ps-area::placeholder { color: var(--fs-ink-muted); opacity: 1; }
+  .ps-input:disabled { opacity: 0.5; }
+  .ps-input:focus-visible, .ps-area:focus-visible { outline-offset: 1px; border-color: var(--hero-violet-2); }
+  .ps-hint { margin: 7px 0 0; font-size: 13px; line-height: 1.45; color: var(--fs-ink-muted); }
+  .ps-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ps-pick {
+    box-sizing: border-box; display: inline-flex; align-items: center; height: 38px; margin: 0; padding: 0 14px;
+    border: 1px solid var(--ps-field-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--fs-ink-soft);
+    font-family: inherit; font-size: 14px; line-height: 1.2; font-weight: 500; white-space: nowrap; cursor: pointer;
+    transition: background-color 0.16s, border-color 0.16s, color 0.16s;
+  }
+  .ps-pick[aria-pressed="true"] { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); font-weight: 600; }
+  .ps-pick--below { margin-top: 8px; }
+  .ps-offer { grid-column: 1 / -1; box-sizing: border-box; padding: clamp(14px, 1.6vw, 20px); border-radius: 14px; background-color: rgb(var(--bg)); }
+  .ps-offer p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--fs-ink); text-wrap: pretty; }
+  .ps-offer p + p { margin-top: 10px; }
+  .ps-offer p:last-child { margin-top: 6px; color: var(--fs-ink-soft); }
+  .ps-more { display: inline-flex; align-items: center; min-height: 32px; margin: 0; padding: 0; border: 0; background: none; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 500; color: var(--fs-ink-soft); text-decoration: underline; text-decoration-color: var(--fs-button-line); text-underline-offset: 4px; cursor: pointer; }
+  .ps-links { display: flex; flex-direction: column; gap: 8px; }
+  .ps-link { display: flex; align-items: center; gap: 8px; }
+  .ps-link__remove {
+    box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; margin: 0; padding: 0;
+    border: 1px solid var(--ps-field-line); border-radius: 12px; background-color: rgb(var(--fs-white)); color: var(--fs-ink-muted); font-family: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+  }
+  .ps-add {
+    box-sizing: border-box; display: inline-flex; align-items: center; height: 38px; margin: 8px 0 0; padding: 0 14px;
+    border: 1px solid var(--ps-field-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-3);
+    font-family: inherit; font-size: 14px; line-height: 1.2; font-weight: 600; cursor: pointer;
+  }
+  .ps-error { grid-column: 1 / -1; box-sizing: border-box; padding: 12px 14px; border: 1px solid rgb(var(--red) / 0.3); border-radius: 12px; background-color: rgb(var(--red) / 0.06); color: rgb(var(--red)); font-size: 14px; line-height: 1.5; }
+  .ps-send { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+  .ps-sent {
+    display: flex; align-items: flex-start; gap: 12px; max-width: 860px; margin-top: 18px; padding: 16px 18px; border: 1px solid var(--fs-button-line); border-radius: 14px;
+    background-color: var(--ps-wash); color: var(--hero-violet-4); font-size: 15px; line-height: 1.55;
+  }
+  .ps-sent .ps-step__mark { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); color: rgb(var(--fs-white)); }
+  .ps-sent p { margin: 2px 0 0; }
+
+  /* ── 5 · wider windows ───────────────────────────────────────────────────────────────────────── */
+  @media (min-width: 480px) {
+    .ps-cta { width: auto; }
+  }
+  @media (min-width: 640px) {
+    .ps-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ps-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1024px) {
+    .ps__inner { padding-inline: 32px; }
+    .ps-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    /* the picture beside the words. The line keeps two lines' room, so the panel keeps its height from one service to the next. */
+    .ps-stage { flex-direction: row; align-items: stretch; }
+    .ps-stage__art { flex: 5 1 260px; }
+    .ps-stage__text { flex: 6 1 280px; }
+    .ps-stage__line { min-height: 3.1em; }
+  }
+  @media (min-width: 1024px) and (max-width: 1279.98px) {
+    /* where five of the form's questions wrap to a second row, every service keeps that row's room */
+    .ps-chips--asks { min-height: 62px; }
+  }
+
+  /* ── 6 · pointer and motion ──────────────────────────────────────────────────────────────────── */
+  @media (hover: hover) {
+    .ps-tile[aria-pressed="false"]:hover { border-color: var(--hero-violet-2); }
+    .ps-cta:not(:disabled):hover { filter: brightness(1.04); }
+    .ps-close:hover, .ps-link__remove:hover, .ps-add:hover { border-color: var(--hero-violet-2); }
+    .ps-pick[aria-pressed="false"]:hover { border-color: var(--hero-violet-2); }
+    .ps-more:hover { color: var(--hero-violet-2); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ps-tile, .ps-cta, .ps-pick { transition: none; }
+  }
+
+  /* ── THIS PAGE'S OWN: not part of the design, not ported ─────────────────────────────────────── */
+  body { margin: 0; background-color: rgb(var(--bg)); }
+</style>
+<style>
+  /* ── HOME-SERVICES-02 · THE SHORT VIEW, AS THIS BRIEF LEAVES IT: what it adds to the first stylesheet ─────────────── */
+  /* the section's top and foot, as the boards draw them: 44px each up to 400px wide; 72px and 64px from 1400px */
+  .ps--short .ps__inner { padding-top: clamp(44px, 2.8vw + 32.8px, 72px); padding-bottom: clamp(44px, 2vw + 36px, 64px); }
+  /* the picked service's name and line, under the form's eyebrow */
+  .ps-form__door { margin-top: 10px; }
+  /* the thank-you, 860px wide at most from border to border, as the fields above it: the app's base already sizes every box so */
+  .ps-sent { box-sizing: border-box; }
+  /* Bookkeeping's three counts, side by side: bank, cards, loans */
+  .ps-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 420px; }
+  .ps-count { display: block; min-width: 0; }
+  .ps-count__name { display: block; margin: 0 0 6px; font-size: 13px; line-height: 1.4; color: var(--fs-ink-soft); }
+  /* a short number: how many entities */
+  .ps-input--short { max-width: 140px; }
+  /* a pick wider than its row wraps its words, rather than pushing the page sideways; a one-line pick keeps its 38px */
+  .ps-pick { height: auto; min-height: 38px; padding-top: 8px; padding-bottom: 8px; white-space: normal; text-align: left; }
+  /* a date and its reason, side by side from 640px */
+  .ps-dated { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  @media (min-width: 640px) { .ps-dated { grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 12px; } }
+</style>
+<style>
+  /* ── THIS PAGE'S OWN: not part of the design, not ported ─────────────────────────────────────────────────────────── */
+  /* the six services' questions are all in this page, each laid into the grid as if alone; production draws the picked one */
+  .ps-set { display: contents; }
+</style>
+</head>
+<body>
+
+<!-- ServicesSection.tsx, the home page's short view, at rest: no service is picked and the form is closed. -->
+<section class="ps ps--short" id="services" aria-labelledby="ps-title">
+  <div class="ps__inner">
+    <h2 class="ps__title" id="ps-title">Professional Services</h2>
+    <p class="ps__lede">Hands-on services, tailored to your needs.</p>
+
+    <div class="ps-panel">
+      <h3 class="ps-panel__question" id="ps-question">What do you need?</h3>
+      <div class="ps-tiles" role="group" aria-labelledby="ps-question">
+          <button class="ps-tile" type="button" aria-pressed="false" aria-controls="ps-form" data-done-for-you="setup"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3.5"></rect><path d="M3 9.2h18M7.2 12.6h3.6v3.4H7.2zM13.2 12.6h3.6v3.4h-3.6z"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Full setup</span><span class="ps-tile__kind">Project</span></span></button>
+          <button class="ps-tile" type="button" aria-pressed="false" aria-controls="ps-form" data-done-for-you="maintenance"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 12.4a7.5 7.5 0 0 1 -13 4.7M4.5 11.6a7.5 7.5 0 0 1 13 -4.7M17.8 3.4v3.8H14M6.2 20.6v-3.8H10"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Monthly maintenance</span><span class="ps-tile__kind">Monthly</span></span></button>
+          <button class="ps-tile" type="button" aria-pressed="false" aria-controls="ps-form" data-done-for-you="custom"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4" stroke-dasharray="3.2 2.6"></rect><path d="M12 8.4v7.2M8.4 12h7.2"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Custom builds</span><span class="ps-tile__kind">Project</span></span></button>
+          <button class="ps-tile" type="button" aria-pressed="false" aria-controls="ps-form" data-done-for-you="embed"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3.4v4.4M15 3.4v4.4M6.4 7.8h11.2v3.4a5.6 5.6 0 0 1 -11.2 0zM12 16.8v3.8"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Integration</span><span class="ps-tile__kind">Project</span></span></button>
+          <button class="ps-tile" type="button" aria-pressed="false" aria-controls="ps-form" data-done-for-you="bookkeeping"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2.6"></rect><path d="M8.6 8h6.8M8.6 11.6h6.8M8.6 15.2h3.6"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Bookkeeping</span><span class="ps-tile__kind">Monthly</span></span></button>
+          <button class="ps-tile" type="button" aria-pressed="false" aria-controls="ps-form" data-done-for-you="unsure"><svg class="ps-tile__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.8h14a2 2 0 0 1 2 2v8.4a2 2 0 0 1 -2 2h-6.6L8 20.6v-3.4H5a2 2 0 0 1 -2 -2V6.8a2 2 0 0 1 2 -2z"></path><path d="M8.4 11h.01M12 11h.01M15.6 11h.01" stroke-width="2.6"></path></svg><span class="ps-tile__words"><span class="ps-tile__title">Something else</span><span class="ps-tile__kind"></span></span></button>
+      </div>
+
+      <!-- the one proposal form, opened in place by a service. Its fields, rules and words are the form's own (WorkWithMeForm.tsx). -->
+      <div class="ps-form" id="ps-form" hidden>
+        <div class="ps-form__head">
+          <p class="ps-form__eyebrow">WORK WITH ME</p>
+          <button class="ps-close" type="button">Close<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"></path></svg></button>
+        </div>
+        <div class="ps-form__door">
+          <h3 class="ps-stage__title" aria-live="polite">Full setup</h3>
+          <p class="ps-stage__line">Your own hosted copy, every API wired, you own everything.</p>
+        </div>
+        <form class="ps-fields" data-form>
+          <div class="ps-field"><label class="ps-label" for="ps-name">Name</label><input class="ps-input" id="ps-name" type="text" required></div>
+          <div class="ps-field"><label class="ps-label" for="ps-email">Email</label><input class="ps-input" id="ps-email" type="email" required></div>
+          <div class="ps-offer" data-offer hidden><p>Catch-up on the months you fell behind, or monthly bookkeeping going forward: every bank and card account reconciled, every transaction categorized, and the statements whoever files your taxes needs.</p><p>Bookkeeping, not tax filing or tax advice. I have six years in accounting and I'm a CPA candidate, not a licensed CPA.</p><p>If a month I closed has to be reopened because of my error, I correct it at no charge.</p></div>
+          <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-business">What&#x27;s your business? (or: it&#x27;s just for me)</label><textarea class="ps-area" id="ps-business" required placeholder="e.g. I run a 12-unit property management company in Austin — we collect rent, pay vendors, file 1099s"></textarea><p class="ps-hint">One or two sentences: what you do, who pays you.</p></div>
+          <div class="ps-field"><label class="ps-label" for="ps-website">Website (optional)</label><input class="ps-input" id="ps-website" type="url" placeholder="https://"></div>
+          <div class="ps-field"><span class="ps-label" id="ps-role-label">Your part in the decision</span><div class="ps-picks" role="group" aria-labelledby="ps-role-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">I decide</button><button class="ps-pick" type="button" aria-pressed="false">I recommend, someone else approves</button><button class="ps-pick" type="button" aria-pressed="false">Just looking</button></div></div>
+          <div class="ps-set" data-set="setup" hidden>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-setup-who-label">Who is it for?</span><div class="ps-picks" role="group" aria-labelledby="ps-setup-who-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Just me</button><button class="ps-pick" type="button" aria-pressed="false">My household</button><button class="ps-pick" type="button" aria-pressed="false">My business</button><button class="ps-pick" type="button" aria-pressed="false">Several businesses or entities</button></div>
+            <div class="ps-field" data-follow="Several businesses or entities" hidden style="margin-top: 14px"><label class="ps-label" for="ps-setup-entities">How many?</label><input class="ps-input ps-input--short" id="ps-setup-entities" type="number" inputmode="numeric" min="0"></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-setup-modules-label">What should it run on day one?</span><div class="ps-picks" role="group" aria-labelledby="ps-setup-modules-label" data-picks="many" data-required><button class="ps-pick" type="button" aria-pressed="false">Travel</button><button class="ps-pick" type="button" aria-pressed="false">Runway</button><button class="ps-pick" type="button" aria-pressed="false">Books</button><button class="ps-pick" type="button" aria-pressed="false">Trade</button><button class="ps-pick" type="button" aria-pressed="false">Tax</button><button class="ps-pick" type="button" aria-pressed="false">Compliance</button><button class="ps-pick" type="button" aria-pressed="false">Routines</button><button class="ps-pick" type="button" aria-pressed="false">Projects</button><button class="ps-pick" type="button" aria-pressed="false">Content</button><button class="ps-pick" type="button" aria-pressed="false">Other</button></div><p class="ps-hint">Pick Other if you need something custom-built that isn&#x27;t listed.</p>
+            <div class="ps-field" data-follow="Other" data-required hidden style="margin-top: 14px"><label class="ps-label" for="ps-setup-other">What is it?</label><textarea class="ps-area" id="ps-setup-other" placeholder="Describe what you need built."></textarea></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-setup-accounts-label">How many bank, card and brokerage accounts should it connect?</span><div class="ps-picks" role="group" aria-labelledby="ps-setup-accounts-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">1–3</button><button class="ps-pick" type="button" aria-pressed="false">4–10</button><button class="ps-pick" type="button" aria-pressed="false">11–25</button><button class="ps-pick" type="button" aria-pressed="false">More than 25</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-setup-moving-label">What are you moving off?</span><div class="ps-picks" role="group" aria-labelledby="ps-setup-moving-label" data-picks="many" data-required><button class="ps-pick" type="button" aria-pressed="false">QuickBooks</button><button class="ps-pick" type="button" aria-pressed="false">Xero</button><button class="ps-pick" type="button" aria-pressed="false">Spreadsheets</button><button class="ps-pick" type="button" aria-pressed="false" data-alone>Nothing</button><button class="ps-pick" type="button" aria-pressed="false">Other</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-setup-host-label">Where should it run?</span><div class="ps-picks" role="group" aria-labelledby="ps-setup-host-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Host it for me</button><button class="ps-pick" type="button" aria-pressed="false">In my own cloud account</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+          <div class="ps-field"><span class="ps-label" id="ps-setup-timeline-label">Timeline</span><div class="ps-picks" role="group" aria-labelledby="ps-setup-timeline-label" data-picks="one" data-keep><button class="ps-pick" type="button" aria-pressed="false">Now</button><button class="ps-pick" type="button" aria-pressed="false">2–4 weeks</button><button class="ps-pick" type="button" aria-pressed="false">1–3 months</button><button class="ps-pick" type="button" aria-pressed="true">Exploring</button></div></div>
+          <div class="ps-field"><span class="ps-label" id="ps-setup-budget-label">Budget range</span><div class="ps-picks" role="group" aria-labelledby="ps-setup-budget-label" data-picks="one" data-keep><button class="ps-pick" type="button" aria-pressed="false">&lt;$2k</button><button class="ps-pick" type="button" aria-pressed="false">$2–10k</button><button class="ps-pick" type="button" aria-pressed="false">$10–50k</button><button class="ps-pick" type="button" aria-pressed="false">$50k+</button><button class="ps-pick" type="button" aria-pressed="true">not sure</button></div></div>
+          </div>
+          <div class="ps-set" data-set="maintenance" hidden>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-maintenance-copy-label">Which copy will I look after?</span><div class="ps-picks" role="group" aria-labelledby="ps-maintenance-copy-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">One you set up for me</button><button class="ps-pick" type="button" aria-pressed="false">One I set up myself</button><button class="ps-pick" type="button" aria-pressed="false">Not running yet</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-maintenance-runs-label">Where does it run?</span><div class="ps-picks" role="group" aria-labelledby="ps-maintenance-runs-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Vercel</button><button class="ps-pick" type="button" aria-pressed="false">Azure</button><button class="ps-pick" type="button" aria-pressed="false">AWS</button><button class="ps-pick" type="button" aria-pressed="false">Google Cloud</button><button class="ps-pick" type="button" aria-pressed="false">My own server</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-maintenance-users-label">How many people use it?</span><div class="ps-picks" role="group" aria-labelledby="ps-maintenance-users-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Just me</button><button class="ps-pick" type="button" aria-pressed="false">2–10</button><button class="ps-pick" type="button" aria-pressed="false">11–50</button><button class="ps-pick" type="button" aria-pressed="false">More than 50</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-maintenance-stopped-label">If it stopped for a day</span><div class="ps-picks" role="group" aria-labelledby="ps-maintenance-stopped-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">A nuisance</button><button class="ps-pick" type="button" aria-pressed="false">It slows us down</button><button class="ps-pick" type="button" aria-pressed="false">It stops the business</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-maintenance-reach-label">When should I be reachable?</span><div class="ps-picks" role="group" aria-labelledby="ps-maintenance-reach-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Business hours in my time zone</button><button class="ps-pick" type="button" aria-pressed="false">Longer hours</button><button class="ps-pick" type="button" aria-pressed="false">Around the clock for outages</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-maintenance-budget-label">Monthly budget</span><div class="ps-picks" role="group" aria-labelledby="ps-maintenance-budget-label" data-picks="one" data-keep><button class="ps-pick" type="button" aria-pressed="false">Under $250</button><button class="ps-pick" type="button" aria-pressed="false">$250–750</button><button class="ps-pick" type="button" aria-pressed="false">$750–2,000</button><button class="ps-pick" type="button" aria-pressed="false">More than $2,000</button><button class="ps-pick" type="button" aria-pressed="true">Not sure</button></div></div>
+          </div>
+          <div class="ps-set" data-set="custom" hidden>
+          <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-custom-problem">What should it let you do that you can&#x27;t today?</label><textarea class="ps-area" id="ps-custom-problem" required></textarea></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-custom-users-label">Who will use it?</span><div class="ps-picks" role="group" aria-labelledby="ps-custom-users-label" data-picks="many" data-required><button class="ps-pick" type="button" aria-pressed="false">Me</button><button class="ps-pick" type="button" aria-pressed="false">My team</button><button class="ps-pick" type="button" aria-pressed="false">My customers</button><button class="ps-pick" type="button" aria-pressed="false">The public</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-custom-lives-label">Where should it live?</span><div class="ps-picks" role="group" aria-labelledby="ps-custom-lives-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">In my Temple Stuart copy</button><button class="ps-pick" type="button" aria-pressed="false">In another system</button><button class="ps-pick" type="button" aria-pressed="false">On its own</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+          <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-custom-worked">How will you know it worked?</label><textarea class="ps-area" id="ps-custom-worked" required placeholder="e.g. Month-end takes an hour, not a day."></textarea></div>
+          <div class="ps-field"><span class="ps-label" id="ps-custom-timeline-label">Timeline</span><div class="ps-picks" role="group" aria-labelledby="ps-custom-timeline-label" data-picks="one" data-keep><button class="ps-pick" type="button" aria-pressed="false">Now</button><button class="ps-pick" type="button" aria-pressed="false">2–4 weeks</button><button class="ps-pick" type="button" aria-pressed="false">1–3 months</button><button class="ps-pick" type="button" aria-pressed="true">Exploring</button></div></div>
+          <div class="ps-field"><span class="ps-label" id="ps-custom-budget-label">Budget range</span><div class="ps-picks" role="group" aria-labelledby="ps-custom-budget-label" data-picks="one" data-keep><button class="ps-pick" type="button" aria-pressed="false">&lt;$2k</button><button class="ps-pick" type="button" aria-pressed="false">$2–10k</button><button class="ps-pick" type="button" aria-pressed="false">$10–50k</button><button class="ps-pick" type="button" aria-pressed="false">$50k+</button><button class="ps-pick" type="button" aria-pressed="true">not sure</button></div></div>
+          </div>
+          <div class="ps-set" data-set="embed" hidden>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-embed-piece-label">Which piece?</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-piece-label" data-picks="many" data-required><button class="ps-pick" type="button" aria-pressed="false">The booking engine</button><button class="ps-pick" type="button" aria-pressed="false">The books</button><button class="ps-pick" type="button" aria-pressed="false">The scanner</button><button class="ps-pick" type="button" aria-pressed="false">Something else</button></div></div>
+          <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-embed-system">Into which system?</label><input class="ps-input" id="ps-embed-system" type="text" required placeholder="e.g. NetSuite, Shopify, our own app"></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-embed-direction-label">Which way does data move?</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-direction-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Into your system</button><button class="ps-pick" type="button" aria-pressed="false">Out of it</button><button class="ps-pick" type="button" aria-pressed="false">Both ways</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-embed-often-label">How often?</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-often-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">As it happens</button><button class="ps-pick" type="button" aria-pressed="false">Hourly</button><button class="ps-pick" type="button" aria-pressed="false">Daily</button><button class="ps-pick" type="button" aria-pressed="false">On demand</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-embed-volume-label">How much, on a busy day?</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-volume-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Under 100</button><button class="ps-pick" type="button" aria-pressed="false">100–1,000</button><button class="ps-pick" type="button" aria-pressed="false">1,000–10,000</button><button class="ps-pick" type="button" aria-pressed="false">More than 10,000 records</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-embed-reached-label">How can that system be reached?</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-reached-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">An API with documentation</button><button class="ps-pick" type="button" aria-pressed="false">An API without it</button><button class="ps-pick" type="button" aria-pressed="false">Files only (CSV, SFTP)</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+          <div class="ps-field"><span class="ps-label" id="ps-embed-timeline-label">Timeline</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-timeline-label" data-picks="one" data-keep><button class="ps-pick" type="button" aria-pressed="false">Now</button><button class="ps-pick" type="button" aria-pressed="false">2–4 weeks</button><button class="ps-pick" type="button" aria-pressed="false">1–3 months</button><button class="ps-pick" type="button" aria-pressed="true">Exploring</button></div></div>
+          <div class="ps-field"><span class="ps-label" id="ps-embed-budget-label">Budget range</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-budget-label" data-picks="one" data-keep><button class="ps-pick" type="button" aria-pressed="false">&lt;$2k</button><button class="ps-pick" type="button" aria-pressed="false">$2–10k</button><button class="ps-pick" type="button" aria-pressed="false">$10–50k</button><button class="ps-pick" type="button" aria-pressed="false">$50k+</button><button class="ps-pick" type="button" aria-pressed="true">not sure</button></div></div>
+          </div>
+          <div class="ps-set" data-set="bookkeeping" hidden>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-need-label">What do you need?</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-need-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Catch-up only</button><button class="ps-pick" type="button" aria-pressed="false">Monthly from now on</button><button class="ps-pick" type="button" aria-pressed="false">Catch-up, then monthly</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-behind-label">How far behind are the books?</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-behind-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Up to date</button><button class="ps-pick" type="button" aria-pressed="false">1–3 months</button><button class="ps-pick" type="button" aria-pressed="false">4–6 months</button><button class="ps-pick" type="button" aria-pressed="false">7–12 months</button><button class="ps-pick" type="button" aria-pressed="false">More than a year</button><button class="ps-pick" type="button" aria-pressed="false">Never kept</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-entity-label">What kind of entity?</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-entity-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Sole proprietor</button><button class="ps-pick" type="button" aria-pressed="false">Single-member LLC</button><button class="ps-pick" type="button" aria-pressed="false">Partnership or multi-member LLC</button><button class="ps-pick" type="button" aria-pressed="false">S corporation</button><button class="ps-pick" type="button" aria-pressed="false">C corporation</button><button class="ps-pick" type="button" aria-pressed="false">Nonprofit</button><button class="ps-pick" type="button" aria-pressed="false">Personal or household</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-accounts-label">How many accounts to reconcile?</span><div class="ps-counts" role="group" aria-labelledby="ps-bookkeeping-accounts-label"><label class="ps-count"><span class="ps-count__name">Bank</span><input class="ps-input" type="number" inputmode="numeric" min="0" required></label><label class="ps-count"><span class="ps-count__name">Cards</span><input class="ps-input" type="number" inputmode="numeric" min="0" required></label><label class="ps-count"><span class="ps-count__name">Loans</span><input class="ps-input" type="number" inputmode="numeric" min="0" required></label></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-volume-label">Transactions a month, across all of them</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-volume-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">Under 50</button><button class="ps-pick" type="button" aria-pressed="false">50–150</button><button class="ps-pick" type="button" aria-pressed="false">150–300</button><button class="ps-pick" type="button" aria-pressed="false">300–600</button><button class="ps-pick" type="button" aria-pressed="false">More than 600</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-kept-label">Where are the books kept now?</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-kept-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">QuickBooks Online</button><button class="ps-pick" type="button" aria-pressed="false">Xero</button><button class="ps-pick" type="button" aria-pressed="false">Spreadsheets</button><button class="ps-pick" type="button" aria-pressed="false">Nowhere</button><button class="ps-pick" type="button" aria-pressed="false">Other</button></div></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-budget-label">Monthly budget</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-budget-label" data-picks="one" data-keep><button class="ps-pick" type="button" aria-pressed="false">Under $300</button><button class="ps-pick" type="button" aria-pressed="false">$300–600</button><button class="ps-pick" type="button" aria-pressed="false">$600–1,000</button><button class="ps-pick" type="button" aria-pressed="false">More than $1,000</button><button class="ps-pick" type="button" aria-pressed="true">Not sure</button></div></div>
+          </div>
+          <div class="ps-set" data-set="unsure" hidden>
+          <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-unsure-need">What do you need?</label><textarea class="ps-area" id="ps-unsure-need" required></textarea></div>
+          <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-unsure-closer-label">Is it closer to</span><div class="ps-picks" role="group" aria-labelledby="ps-unsure-closer-label" data-picks="one" data-required><button class="ps-pick" type="button" aria-pressed="false">A one-time project</button><button class="ps-pick" type="button" aria-pressed="false">Something ongoing</button><button class="ps-pick" type="button" aria-pressed="false">Advice or a second opinion</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+          <div class="ps-field"><span class="ps-label" id="ps-unsure-timeline-label">Timeline</span><div class="ps-picks" role="group" aria-labelledby="ps-unsure-timeline-label" data-picks="one" data-keep><button class="ps-pick" type="button" aria-pressed="false">Now</button><button class="ps-pick" type="button" aria-pressed="false">2–4 weeks</button><button class="ps-pick" type="button" aria-pressed="false">1–3 months</button><button class="ps-pick" type="button" aria-pressed="true">Exploring</button></div></div>
+          <div class="ps-field"><span class="ps-label" id="ps-unsure-budget-label">Budget range</span><div class="ps-picks" role="group" aria-labelledby="ps-unsure-budget-label" data-picks="one" data-keep><button class="ps-pick" type="button" aria-pressed="false">&lt;$2k</button><button class="ps-pick" type="button" aria-pressed="false">$2–10k</button><button class="ps-pick" type="button" aria-pressed="false">$10–50k</button><button class="ps-pick" type="button" aria-pressed="false">$50k+</button><button class="ps-pick" type="button" aria-pressed="true">not sure</button></div></div>
+          </div>
+          <div class="ps-field ps-field--wide">
+            <button class="ps-more" type="button" aria-expanded="false" aria-controls="ps-more">More details (optional)</button>
+            <div class="ps-fields ps-fields--more" id="ps-more" hidden>
+              <div class="ps-set" data-set="setup" hidden>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-setup-history-label">How much history should come across?</span><div class="ps-picks" role="group" aria-labelledby="ps-setup-history-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">None</button><button class="ps-pick" type="button" aria-pressed="false">This year</button><button class="ps-pick" type="button" aria-pressed="false">2–3 years</button><button class="ps-pick" type="button" aria-pressed="false">All of it</button></div></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-setup-after-label">Who keeps it running after launch?</span><div class="ps-picks" role="group" aria-labelledby="ps-setup-after-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">Me or my team</button><button class="ps-pick" type="button" aria-pressed="false">You, monthly</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+              <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-setup-security">Security or compliance needs</label><textarea class="ps-area" id="ps-setup-security" placeholder="e.g. single sign-on, SOC 2, where data may be stored"></textarea></div>
+              <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-setup-done">What does done look like?</label><textarea class="ps-area" id="ps-setup-done" placeholder="e.g. By March I can see all my rentals&#x27; income in one dashboard and my CPA gets a clean export."></textarea><p class="ps-hint">Describe the finish line — what&#x27;s true when this project is done?</p></div>
+              </div>
+<div class="ps-set" data-set="maintenance" hidden>
+              <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-maintenance-attention">What needs attention now?</label><textarea class="ps-area" id="ps-maintenance-attention" placeholder="What is broken, slow or out of date"></textarea></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-maintenance-change-label">How much change do you expect?</span><div class="ps-picks" role="group" aria-labelledby="ps-maintenance-change-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">Updates and fixes only</button><button class="ps-pick" type="button" aria-pressed="false">A small feature a month</button><button class="ps-pick" type="button" aria-pressed="false">Ongoing development</button></div></div>
+              <div class="ps-field"><label class="ps-label" for="ps-maintenance-takeover">When should I take over?</label><input class="ps-input" id="ps-maintenance-takeover" type="month"></div>
+              <div class="ps-field"><label class="ps-label" for="ps-maintenance-timezone">Your time zone</label><input class="ps-input" id="ps-maintenance-timezone" type="text" placeholder="e.g. Manila, New York"></div>
+              </div>
+<div class="ps-set" data-set="custom" hidden>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-custom-data-label">What data does it touch?</span><div class="ps-picks" role="group" aria-labelledby="ps-custom-data-label" data-picks="many"><button class="ps-pick" type="button" aria-pressed="false">Money</button><button class="ps-pick" type="button" aria-pressed="false">Personal details</button><button class="ps-pick" type="button" aria-pressed="false" data-alone>Neither</button><button class="ps-pick" type="button" aria-pressed="false" data-alone>Not sure</button></div></div>
+              <div class="ps-field ps-field--wide"><label class="ps-label" for="ps-custom-musts">Must-haves, and what can wait</label><textarea class="ps-area" id="ps-custom-musts"></textarea></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-custom-open-label">Can the code join the open-source core?</span><div class="ps-picks" role="group" aria-labelledby="ps-custom-open-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">Yes</button><button class="ps-pick" type="button" aria-pressed="false">I&#x27;d rather it stay mine</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label">Designs, documents or examples</span><div class="ps-links" data-links><div class="ps-link"><input class="ps-input" type="url" maxlength="500" placeholder="https:// — your site, a Google Doc, a Loom…"><button class="ps-link__remove" type="button" aria-label="Remove link" hidden>✕</button></div></div><button class="ps-add" type="button" data-add>＋ Add link</button></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-custom-date-label">A date it must exist by, and why</span><div class="ps-dated" role="group" aria-labelledby="ps-custom-date-label"><input class="ps-input" type="date" aria-label="Date"><input class="ps-input" type="text" aria-label="Why" placeholder="Why that date?"></div></div>
+              </div>
+<div class="ps-set" data-set="embed" hidden>
+              <div class="ps-field"><span class="ps-label" id="ps-embed-test-label">Is there a test copy of it?</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-test-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">Yes</button><button class="ps-pick" type="button" aria-pressed="false">No</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+              <div class="ps-field"><span class="ps-label" id="ps-embed-admin-label">Is there an admin or developer on that system?</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-admin-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">Yes</button><button class="ps-pick" type="button" aria-pressed="false">No</button></div></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-embed-crosses-label">What data crosses?</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-crosses-label" data-picks="many"><button class="ps-pick" type="button" aria-pressed="false">Money</button><button class="ps-pick" type="button" aria-pressed="false">Personal details</button><button class="ps-pick" type="button" aria-pressed="false">Card numbers</button><button class="ps-pick" type="button" aria-pressed="false" data-alone>Not sure</button></div></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-embed-fails-label">If a sync fails</span><div class="ps-picks" role="group" aria-labelledby="ps-embed-fails-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">Alert me</button><button class="ps-pick" type="button" aria-pressed="false">Retry, then alert me</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+              </div>
+<div class="ps-set" data-set="bookkeeping" hidden>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-platforms-label">Payment platforms</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-platforms-label" data-picks="many"><button class="ps-pick" type="button" aria-pressed="false">Stripe</button><button class="ps-pick" type="button" aria-pressed="false">PayPal</button><button class="ps-pick" type="button" aria-pressed="false">Square</button><button class="ps-pick" type="button" aria-pressed="false">Shopify</button><button class="ps-pick" type="button" aria-pressed="false">Venmo</button><button class="ps-pick" type="button" aria-pressed="false">Other</button></div></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-payroll-label">Payroll</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-payroll-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">None</button><button class="ps-pick" type="button" aria-pressed="false">Gusto</button><button class="ps-pick" type="button" aria-pressed="false">ADP</button><button class="ps-pick" type="button" aria-pressed="false">Rippling</button><button class="ps-pick" type="button" aria-pressed="false">Other</button></div></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-adds-label">Anything that adds work</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-adds-label" data-picks="many"><button class="ps-pick" type="button" aria-pressed="false">Inventory</button><button class="ps-pick" type="button" aria-pressed="false">Sales tax in more than one state</button><button class="ps-pick" type="button" aria-pressed="false">Contractors paid on 1099</button><button class="ps-pick" type="button" aria-pressed="false">More than one entity</button><button class="ps-pick" type="button" aria-pressed="false">Foreign currency</button><button class="ps-pick" type="button" aria-pressed="false">Investor reporting</button></div></div>
+              <div class="ps-field"><span class="ps-label" id="ps-bookkeeping-basis-label">Cash or accrual?</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-basis-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">Cash</button><button class="ps-pick" type="button" aria-pressed="false">Accrual</button><button class="ps-pick" type="button" aria-pressed="false">Not sure</button></div></div>
+              <div class="ps-field"><span class="ps-label" id="ps-bookkeeping-files-label">Who files your taxes?</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-files-label" data-picks="one"><button class="ps-pick" type="button" aria-pressed="false">A CPA or enrolled agent</button><button class="ps-pick" type="button" aria-pressed="false">I do</button><button class="ps-pick" type="button" aria-pressed="false">No one yet</button></div></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-reports-label">Reports you want</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-reports-label" data-picks="many"><button class="ps-pick" type="button" aria-pressed="false">Monthly P&amp;L and balance sheet</button><button class="ps-pick" type="button" aria-pressed="false">Cash flow</button><button class="ps-pick" type="button" aria-pressed="false">Budget against actual</button><button class="ps-pick" type="button" aria-pressed="false">Investor package</button></div></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-open-label">Anything open?</span><div class="ps-picks" role="group" aria-labelledby="ps-bookkeeping-open-label" data-picks="many"><button class="ps-pick" type="button" aria-pressed="false">Notices from the IRS or a state</button><button class="ps-pick" type="button" aria-pressed="false">Unfiled sales tax</button><button class="ps-pick" type="button" aria-pressed="false">Problems left by a previous bookkeeper</button><button class="ps-pick" type="button" aria-pressed="false" data-alone>None</button></div></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label" id="ps-bookkeeping-date-label">A date the books must be ready by</span><div class="ps-dated" role="group" aria-labelledby="ps-bookkeeping-date-label"><input class="ps-input" type="date" aria-label="Date"><input class="ps-input" type="text" aria-label="Why" placeholder="e.g. a tax deadline, a loan, an investor"></div></div>
+              <div class="ps-field"><label class="ps-label" for="ps-bookkeeping-pay">What do you pay for bookkeeping now?</label><input class="ps-input" id="ps-bookkeeping-pay" type="text" placeholder="e.g. $400 a month, or nothing"></div>
+              </div>
+<div class="ps-set" data-set="unsure" hidden>
+              <div class="ps-field"><label class="ps-label" for="ps-unsure-driver">What&#x27;s driving it?</label><input class="ps-input" id="ps-unsure-driver" type="text"></div>
+              <div class="ps-field ps-field--wide"><span class="ps-label">Links</span><div class="ps-links" data-links><div class="ps-link"><input class="ps-input" type="url" maxlength="500" placeholder="https:// — your site, a Google Doc, a Loom…"><button class="ps-link__remove" type="button" aria-label="Remove link" hidden>✕</button></div></div><button class="ps-add" type="button" data-add>＋ Add link</button></div>
+              </div>
+<div class="ps-field ps-field--wide"><span class="ps-label" id="ps-found-label">How did you find me?</span><div class="ps-picks" role="group" aria-labelledby="ps-found-label" data-picks="one" data-found><button class="ps-pick" type="button" aria-pressed="false">Reddit</button><button class="ps-pick" type="button" aria-pressed="false">Instagram</button><button class="ps-pick" type="button" aria-pressed="false">TikTok</button><button class="ps-pick" type="button" aria-pressed="false">X</button><button class="ps-pick" type="button" aria-pressed="false">YouTube</button><button class="ps-pick" type="button" aria-pressed="false">Referral</button><button class="ps-pick" type="button" aria-pressed="false">Other</button></div>
+            <div class="ps-field" data-follow="Referral|Other" data-required hidden style="margin-top: 14px"><label class="ps-label" for="ps-found-detail"></label><input class="ps-input" id="ps-found-detail" type="text" maxlength="90"></div></div>
+            </div>
+          </div>
+          <div class="ps-error" role="alert" hidden></div>
+          <div class="ps-send"><button class="ps-cta" type="submit" data-send>Send proposal</button></div>
+        </form>
+        <div class="ps-sent" role="status" hidden><span class="ps-step__mark" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"></path></svg></span><p>Got it — I read every one of these myself. You'll hear from me at <span data-email></span>.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // REFERENCE ONLY: this makes the file work on its own. Production keeps the pick in React state and the form's answers, its
+  // rule and its send in the form's own hook, the one /work-with-me reads. Nothing here is sent.
+  const DATA = {"services": [["setup", "Full setup", "Your own hosted copy, every API wired, you own everything."], ["maintenance", "Monthly maintenance", "I keep it updated and running."], ["custom", "Custom builds", "Need a feature? I build it."], ["embed", "Integration", "One piece of this system (the booking engine, the books, the scanner) wired into the system you already run."], ["bookkeeping", "Bookkeeping", "Fell behind, or need a bookkeeper? Catch-up and monthly bookkeeping, billed monthly — the price follows your volume."], ["unsure", "Something else", "Out of scope, or not sure which fits? Tell me what you need."]], "referred": "Who referred you? (name)", "where": "Where'd you find me?", "project": {"label": "Budget range", "bands": ["<$2k", "$2–10k", "$10–50k", "$50k+", "not sure"], "default": "not sure"}, "ongoing": {"on": "Something ongoing", "label": "Monthly budget", "bands": ["Under $250", "$250–750", "$750–2,000", "More than $2,000", "Not sure"], "default": "Not sure"}};
+  const section = document.querySelector('.ps--short');
+  const $ = (s, root = section) => root.querySelector(s);
+  const $$ = (s, root = section) => [...root.querySelectorAll(s)];
+  const state = { need: null, sent: false };
+  const pressed = (group) => [...group.querySelectorAll('.ps-pick')].filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent);
+  // what the button waits for, in the core and in the picked service's own questions
+  const live = () => [...$$('form > .ps-field'), ...$$(`.ps-set[data-set="${state.need}"] > .ps-field`), ...$$('#ps-more > .ps-field')];
+
+  function paint() {
+    for (const tile of $$('.ps-tile')) tile.setAttribute('aria-pressed', String(tile.dataset.doneForYou === state.need));
+    $('#ps-form').hidden = state.need === null;
+    if (state.need !== null) {
+      const [, title, line] = DATA.services.find(([need]) => need === state.need);
+      $('.ps-form__door .ps-stage__title').textContent = title;
+      $('.ps-form__door .ps-stage__line').textContent = line;
+    }
+    for (const set of $$('.ps-set')) set.hidden = set.dataset.set !== state.need;
+    $('[data-offer]').hidden = state.need !== 'bookkeeping';
+    // once sent, the thank-you stands in place of the service's words and the fields
+    $('.ps-form__door').hidden = state.sent;
+    $('[data-form]').hidden = state.sent;
+    $('.ps-sent').hidden = !state.sent;
+    gate();
+  }
+
+  function follow(group) {
+    const values = pressed(group);
+    for (const box of group.parentElement.querySelectorAll(':scope > [data-follow]')) box.hidden = !box.dataset.follow.split('|').some((v) => values.includes(v));
+    if (group.hasAttribute('data-found')) {
+      const label = group.parentElement.querySelector('[data-follow] label');
+      if (values.includes('Referral')) label.textContent = DATA.referred;
+      if (values.includes('Other')) label.textContent = DATA.where;
+    }
+  }
+
+  // Something else: "Something ongoing" asks the monthly bands, under their monthly name
+  function bands() {
+    const closer = $('#ps-unsure-closer-label').nextElementSibling;
+    const ongoing = pressed(closer).includes(DATA.ongoing.on);
+    const want = ongoing ? DATA.ongoing : DATA.project;
+    const label = $('#ps-unsure-budget-label');
+    if (label.textContent === want.label) return;
+    label.textContent = want.label;
+    label.nextElementSibling.innerHTML = want.bands.map((b) => `<button class="ps-pick" type="button" aria-pressed="${b === want.default}">${b}</button>`).join('');
+  }
+
+  function gate() {
+    if (state.need === null) return;
+    const fields = live().filter((f) => !f.closest('[hidden]'));
+    const groupsOk = fields.flatMap((f) => [...f.querySelectorAll(':scope > [data-picks][data-required]')]).every((g) => pressed(g).length > 0);
+    const countsOk = fields.flatMap((f) => [...f.querySelectorAll('.ps-counts input')]).every((i) => i.value !== '');
+    const followsOk = fields.flatMap((f) => [...f.querySelectorAll(':scope > [data-follow][data-required]')]).filter((b) => !b.hidden)
+      .every((b) => b.querySelector('input, textarea').value.trim() !== '');
+    $('[data-send]').disabled = !(groupsOk && countsOk && followsOk);
+  }
+
+  section.addEventListener('click', (event) => {
+    const pick = event.target.closest('.ps-pick');
+    const tile = event.target.closest('.ps-tile');
+    if (tile) { state.need = state.need === tile.dataset.doneForYou ? null : tile.dataset.doneForYou; paint(); return; }
+    if (!pick) return;
+    const group = pick.closest('[data-picks]');
+    const on = pick.getAttribute('aria-pressed') === 'true';
+    if (group.dataset.picks === 'one') {
+      if (on && group.hasAttribute('data-keep')) return;
+      for (const b of group.querySelectorAll('.ps-pick')) b.setAttribute('aria-pressed', 'false');
+      pick.setAttribute('aria-pressed', String(!on));
+    } else {
+      if (pick.hasAttribute('data-alone')) { for (const b of group.querySelectorAll('.ps-pick')) if (b !== pick) b.setAttribute('aria-pressed', 'false'); }
+      else for (const b of group.querySelectorAll('[data-alone]')) b.setAttribute('aria-pressed', 'false');
+      pick.setAttribute('aria-pressed', String(!on));
+    }
+    follow(group);
+    if (group.closest('.ps-set[data-set="unsure"]') && group.previousElementSibling.id === 'ps-unsure-closer-label') bands();
+    gate();
+  });
+  section.addEventListener('input', gate);
+
+  // Close: no service is picked, and focus goes back to the one that was
+  $('.ps-close').addEventListener('click', () => { const was = state.need; state.need = null; paint(); $(`.ps-tile[data-done-for-you="${was}"]`).focus(); });
+  // More details: open and close
+  $('.ps-more').addEventListener('click', () => { const open = $('.ps-more').getAttribute('aria-expanded') !== 'true'; $('.ps-more').setAttribute('aria-expanded', String(open)); $('#ps-more').hidden = !open; });
+  // links: a row more, a row less
+  for (const add of $$('[data-add]')) add.addEventListener('click', () => {
+    const list = add.previousElementSibling;
+    const row = list.firstElementChild.cloneNode(true);
+    row.querySelector('input').value = '';
+    list.append(row);
+    for (const b of list.querySelectorAll('.ps-link__remove')) b.hidden = list.children.length === 1;
+  });
+  section.addEventListener('click', (event) => {
+    const remove = event.target.closest('.ps-link__remove');
+    if (!remove) return;
+    const list = remove.closest('[data-links]');
+    remove.closest('.ps-link').remove();
+    for (const b of list.querySelectorAll('.ps-link__remove')) b.hidden = list.children.length === 1;
+  });
+  $('[data-form]').addEventListener('submit', (event) => {
+    event.preventDefault();
+    $('[data-email]').textContent = $('#ps-email').value;
+    state.sent = true;
+    paint();
+  });
+  paint();
+</script>
+
+</body>
+</html>
