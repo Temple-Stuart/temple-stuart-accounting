@@ -19,7 +19,7 @@
  *
  * FOOTER-02 (Alex, design canvas: the board approved 2026-11-12 23:30 Manila — "lets get the hand off! yeet yett! i like it!"): THE FOOTER
  * IN THE HERO'S VIOLET. The footer is the reference's markup now (design-refs/footer-02/Section-Reference.html), in its classes behind
- * the house prefix; its look is held by src/lib/__tests__/footer02.test.ts. Here T4 and T5 are re-pointed to those classes — the
+ * the house prefix; its look is held by src/lib/__tests__/footer02.test.ts. (HOME-PHONE-01, 2026-11-16: and three folds, which design-refs/home-phone-01 draws and src/lib/__tests__/homePhone01.test.ts holds — "the reference's markup now" said all of it until then; T4's column shape and its count of <svg> are re-pointed for them below, each with a dated note, and nothing else here moves.) Here T4 and T5 are re-pointed to those classes — the
  * lockup now opens the footer, a hairline stands over the disclaimer, a story link is drawn in two parts (its text reads the label with
  * a space where its " | " stood), every column link wears the one row class, and the icons are aria-hidden beside the two ↗ — each with
  * a dated note saying what it held until then. Every word, href, order and target they hold is unchanged. T1–T3, T6 and T7 stand; T8
@@ -285,9 +285,9 @@ test('T4 the footer renders the four columns once, above the disclaimer, then th
   assert.equal(count(columns, '<ul'), 4, 'one list per column');
   sides.forEach(([name, marker, label, links], i) => {
     const col = inner.slice(starts[i], i + 1 < sides.length ? starts[i + 1] : undefined);
-    // each column is its label, then a <ul> of ITS OWN links — nothing else (attribute order free; the <ul>'s own attributes are not ruled)
-    const shape = col.replace(/<a\b[^>]*>[\s\S]*?<\/a>/g, '<a/>').replace(/<ul\b[^>]*>/g, '<ul>');
-    assert.equal(shape, `${opening(name, marker)}<p class="${LABEL_CLASS}">${label}</p><ul>${'<li><a/></li>'.repeat(links.length)}</ul></div>`, `${label}: its label, then a <ul> of its own links, nothing else`);
+    // each column is its label, then a <ul> of ITS OWN links — and, in OUR STORY, SERVICES and THE RECORD, its fold's row between the two; nothing else (attribute order free; the <ul>'s own attributes are not ruled). HOME-PHONE-01 (Alex's brief, 2026-11-16 01:42 Manila), ruling a: "In Our Story, Services and The Record, a button of type button stands between the column's name and its list." The row's own markup is homePhone01.test.ts's. Until then this note read 'its label, then a <ul> of ITS OWN links — nothing else', and the shape held no row in any column: `${opening(name, marker)}<p class="${LABEL_CLASS}">${label}</p><ul>…</ul></div>`.
+    const shape = col.replace(/<a\b[^>]*>[\s\S]*?<\/a>/g, '<a/>').replace(/<button\b[^>]*>[\s\S]*?<\/button>/g, '<button/>').replace(/<ul\b[^>]*>/g, '<ul>');
+    assert.equal(shape, `${opening(name, marker)}<p class="${LABEL_CLASS}">${label}</p>${name === 'socials' ? '' : '<button/>'}<ul>${'<li><a/></li>'.repeat(links.length)}</ul></div>`, `${label}: its label, ${name === 'socials' ? '' : 'its fold\'s row, '}then a <ul> of its own links, nothing else`);
     const drawn = anchorsIn(col);
     // a story link reads its label with a space where its " | " stood — the stop and the place, two spans (FOOTER-02)
     assert.deepEqual(drawn.map((a) => ({ label: a.text, href: a.href })), links.map((l) => ({ label: name === 'story' ? l.label.replace(' | ', ' ') : l.label, href: l.href })), `${label}: its own links, in order`);
@@ -303,7 +303,7 @@ test('T4 the footer renders the four columns once, above the disclaimer, then th
     assert.ok(new RegExp(`<a class="${LINK_CLASS}" href="${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*><svg class="ts-ft-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"]*"></path></svg><span>${name}</span></a>`).test(socials), `${name}: its own icon, then its name`);
   }
   assert.equal(count(html, '<svg class="ts-ft-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'), 5, 'the five icons, aria-hidden');
-  assert.equal(count(html, '<svg'), 7, 'and the two ↗ that end the Record links leaving the site — no other');
+  assert.equal(count(html, '<svg'), 10, 'and the two ↗ that end the Record links leaving the site, and the three folds\' carets (HOME-PHONE-01, 2026-11-16: 7, the five and the two, until then) — no other');
   // every word and href from the words module — none typed in the component (an icon's key is the account's name: a type the words leaf exports)
   // PILLAR-NAMES-01 (2026-11-11): the three pillars' names in this list are the new ones — 'Plan Your Escape', 'Build Your Income', 'Explore the World' until then.
   const footer = code(FOOTER);
