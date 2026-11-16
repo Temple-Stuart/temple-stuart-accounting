@@ -4,7 +4,7 @@
  * steps fill in, in order, across Personal, Business, Travel and Trade. src/components/landing/HowToSection.tsx draws it
  * and types none of these words.
  *
- * TYPED HERE, ONCE: the section's words, and the steps — each a number, a title, the tools that do it and, on a few, a
+ * TYPED HERE, ONCE: the section's words (HOME-MENU-01, 2026-11-16: but the compare link's, which the top bar's menu types once more, in src/components/landing/LandingHeader.tsx, held equal to COMPARE_PLANS_WORDS by homeMenu01 — once, here, until then), and the steps — each a number, a title, the tools that do it and, on a few, a
  * note. NEVER TYPED, anywhere:
  *   · a tool's status — read from TOOL_REGISTRY (src/lib/toolRegistry.ts). A step is LIVE when every tool in it is LIVE
  *     there, and PENDING otherwise;

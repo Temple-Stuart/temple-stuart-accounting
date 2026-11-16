@@ -70,6 +70,10 @@ const SERVICES_SECTION = 'src/components/landing/ServicesSection.tsx';
 const HOW_TO = 'src/components/landing/HowToSection.tsx';
 const FS_PAGE = 'src/app/financial-software/page.tsx';
 const LEAF = 'src/lib/howTo.ts';
+const SERVICES_LEAF = 'src/lib/proposalNeeds.ts';
+const PAGES_LEAF = 'src/lib/homePages.ts';
+const ABOUT_PAGE = 'src/app/about/page.tsx';
+const STEPS_PAGE = 'src/app/how-it-works/page.tsx';
 const STRIP = 'src/components/trips/travelStripModes.tsx';
 const tests = (name: string): string => `src/lib/__tests__/${name}.test.ts`;
 
@@ -630,6 +634,13 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [tests('footer02'), /T6 the words — every word from its home, and none typed twice in the footer's own files \(HOME-MENU-01, 2026-11-16: the bar types the record's two labels and the code's URL once more, among its menu's copies, which homeMenu01 holds equal — none typed twice in all of src until then\)/, /and none typed twice: the columns' from footerWords\.ts/],
     [tests('footer02'), /THE COLUMNS' WORDS — typed once, in footerWords\.ts; the footer types none of them \(HOME-MENU-01, 2026-11-16: the bar types two of them once more, the record's two labels/, null],
     [tests('heroCrest01'), /The port: everything in globals\.css from the hero's first rule to the end of the file \(HOME-MENU-01, 2026-11-16: and so the menu's block with it, which follows the port to the end of the file and which T3 sets apart/, null],
+    // and the rebase's completeness critic: lists of a page's doors and a leaf's readers that the menu lengthens, which the first round left
+    [SERVICES_LEAF, /read them \(HOME-MENU-01, 2026-11-16: and the top bar's menu, src\/components\/landing\/LandingHeader\.tsx — its Professional Services column, each service's title and kind, to proposalFormHref; those four alone until then\)/, null],
+    [LEAF, /TYPED HERE, ONCE: the section's words \(HOME-MENU-01, 2026-11-16: but the compare link's, which the top bar's menu types once more, in src\/components\/landing\/LandingHeader\.tsx, held equal to COMPARE_PLANS_WORDS by homeMenu01 — once, here, until then\)/, null],
+    [ABOUT_PAGE, /Since HOME-MENU-01 \(2026-11-16\) the About Us column of the top bar's menu opens it too, on every page that mounts the bar \(BAR_MENU, in src\/components\/landing\/LandingHeader\.tsx\) — the footer's link and the band's button alone until then\./, null],
+    [STEPS_PAGE, /the footer's THE RECORD links here too\. HOME-MENU-01 \(2026-11-16\): and the top bar's menu, from its About Us column, by PIPELINE_PATH \(BAR_MENU, in src\/components\/landing\/LandingHeader\.tsx\)\./, null],
+    [PAGES_LEAF, /Stop 0 \| Los Angeles\. \(HOME-MENU-01, 2026-11-16: and the top bar's menu reads two of the paths, FINANCIAL_SOFTWARE_PATH for its four plans and ABOUT_PATH for About Us, in src\/components\/landing\/LandingHeader\.tsx — the footer's words alone read them until then\.\)/, null],
+    [FOOTER_WORDS, /and the footer is each one's door \(HOME-MENU-01, 2026-11-16: and, for \/financial-software and \/about, the top bar's menu too — the footer alone until then\)\. The brief's step 4/, null],
   ];
   for (const [file, now, gone] of RESAID) {
     assert.match(prose(file), now, `${file}: its note re-said, dated`);
@@ -645,7 +656,9 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
   // footer02, the T3 note on the port's seat, and the note under it, whose neighbours they re-said. The other eighty-one stand as written. And six
   // runs join them, the notes the rebase's sweep found the menu makes false: the Financial Software port's seat in globals.css, its page's door,
   // the leaf's NEVER TYPED (src/app/financial-software/page.tsx and src/lib/howTo.ts join the table's files), footer02's T6 entry and its note on
-  // the columns' words, and heroCrest01's port helper.
+  // the columns' words, and heroCrest01's port helper. Then six more, which its completeness critic found the first round had left: the services'
+  // leaf's readers, the leaf's TYPED HERE, ONCE, the doors of /about and /how-it-works, the pages' leaf's readers and the footer's words' door
+  // (src/lib/proposalNeeds.ts, src/lib/homePages.ts, src/app/about/page.tsx and src/app/how-it-works/page.tsx join the table's files).
   const WRITTEN: ReadonlyArray<readonly [file: string, opens: string, nth: number, length: number, before: number, after: number, sha: string]> = [
     ["src/components/landing/LandingHeader.tsx", "mark and the wordmark · Financial Software | Pro", 0, 304, 16, 16, 'd6ecfcfbb85acf567e2b1c9255eb697e9afa78df581017f20282d005a4adfd31'],
     ["src/components/landing/LandingHeader.tsx", "reference's own, ported to the foot of src/app/g", 0, 199, 16, 16, '709d3094b6f4c6ae2224193c8af57a34ce38b384e9d9a8f75838226057f6d480'],
@@ -686,6 +699,7 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     ["src/lib/homeAnchors.ts", "The top bar (LandingHeader.tsx) linked the three", 0, 384, 16, 16, 'b75d871182945bb8ef9b6ffc2925f3a7019f1d930a26cf2cd35b44be9a6b28dd'],
     ["src/lib/homeAnchors.ts", "bar both read it, so it is typed once for both (", 0, 311, 16, 16, '99e8272f92602fd94a1d50ff9a7ff4003fc55ca6b0c197e0e731aa682cddef7f'],
     ["src/lib/homeAnchors.ts", "holds it; src/lib/__tests__/heroCrest01.test.ts ", 0, 448, 16, 16, '4b113471573c1d8ad2612208e76b550ee467cdc31d0db5a0f29687a4e5cc332e'],
+    ["src/lib/footerWords.ts", "door (HOME-MENU-01, 2026-11-16: and, for /financ", 0, 242, 16, 16, 'ce75c5af498831f7c17059bc8423344bedf7d9c84fc86698232a0ae22c9c0429'],
     ["src/lib/footerWords.ts", "still land on the home page's sections), and eve", 0, 287, 16, 16, '7811fbc7641619db6542f6a9b78d2b19a90853c62496d1ef108b3b1df17a9f3b'],
     ["src/lib/footerWords.ts", "HOME-PAGES-01 (2026-11-14): the footer reads it ", 0, 238, 16, 16, '8d4f163746d3d20190f3fe4b2576249b566b59e6f140afa064664a9c9715e742'],
     ["src/lib/footerWords.ts", "The code, built in public — the same URL the her", 0, 461, 16, 16, '765c179b804eb207cb7a0dc6f5ae740d7adae45b400475097e201e0d3d877ca1'],
@@ -737,9 +751,14 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     ["src/lib/__tests__/homeServices01.test.ts", "(.ts-fs…: its switches by [aria-pressed], its pl", 0, 210, 16, 16, '80fac52dc801a47427b3f3e04b9006a6f195ecd74c3c95bad2b276ba3e6f9edb'],
     ["DESIGN.md", "gradients (`globals.css`, REPAINT-5); it changes", 0, 405, 16, 16, '11fb9a448a7f13cca086b22be59671095b23d0535878516c0eda3222a00d5ba2'],
     ["src/app/financial-software/page.tsx", "Its door: the footer's SERVICES column, \"Financi", 0, 854, 16, 16, 'c2560456d0b544ce5f93c7cfbe6baec5f2ad158f694c0006a1a23b8d79d90a0b'],
+    ["src/lib/howTo.ts", "TYPED HERE, ONCE: the section's words (HOME-MENU", 0, 328, 16, 16, 'fdb5ad775fc5c7f7226225cb7f277b86483030db1baae52281c364c3cbe24f3f'],
     ["src/lib/howTo.ts", "· a plan's name or its audience line — read from", 0, 341, 16, 16, '47d5b91ae4ccb627777a451a27e1f52b9e960d23f86d82515cbb2b9de4002bfe'],
+    ["src/lib/proposalNeeds.ts", "(src/lib/crm/crm.ts needWords) read them (HOME-M", 0, 305, 16, 16, '264abaf0ae0e58cc9139d1b28522fd7166278002baa61484dc1f291149470d18'],
+    ["src/lib/homePages.ts", "Stop 0 | Los Angeles. (HOME-MENU-01, 2026-11-16:", 0, 261, 16, 16, '3c7d7f77f122965363857ee51b4f7b7577e29debf2b423dc0206a26a868f3c4b'],
+    ["src/app/about/page.tsx", "(src/lib/footerWords.ts) — to the page's top, wi", 0, 342, 16, 16, '19c5fbbe3e4b3a8e9213b35c5f077d9d5c1f0372c389ff4a9cb217501e6cde93'],
+    ["src/app/how-it-works/page.tsx", "(the deck's own hash effect then opens that step", 0, 265, 16, 16, '5728f44b576c2e4f0248a922a0cf661bf16f8b93ae11404b9f8989a88183a11f'],
   ];
-  assert.equal(WRITTEN.length, 91, 'ninety-one runs of comment lines, in twenty files (eighty-five in eighteen until the rebase, 2026-11-16)');
+  assert.equal(WRITTEN.length, 97, 'ninety-seven runs of comment lines, in twenty-four files (eighty-five in eighteen until the rebase, 2026-11-16)');
   for (const [file, opens, nth, length, before, after, sha] of WRITTEN) {
     const said = file.endsWith('.md') ? flat(whole(file)) : prose(file);
     let at = -1;
@@ -806,7 +825,7 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
   // opens a quote of him — what stands from there to the closing mark is his words from that sentence on, to the end of the piece or to a full
   // stop, or this fails, naming the longest such part; a whole sentence of his shorter than that is read too, and counted. Each file's count is held.
   // (homeTrim03's census, at twelve characters: twenty until the review of HOME-MENU-01, 2026-11-16, which let a misquote parting at fifteen through.)
-  const CHANGED = [THIS, HEADER, GLOBALS, LANDING, LAW, SEEDS, ANCHORS, FOOTER_WORDS, PIPELINE_WORDS, SERVICES_SECTION, HOW_TO, ...['heroCrest01', 'homePages01', 'footer01', 'footer02', 'howTo01', 'guest01', 'homeServices01', 'pipelinePage01', 'homePlans05', 'homePhone01'].map(tests), 'src/lib/__tests__/importReader.ts', 'DESIGN.md', FS_PAGE, LEAF];
+  const CHANGED = [THIS, HEADER, GLOBALS, LANDING, LAW, SEEDS, ANCHORS, FOOTER_WORDS, PIPELINE_WORDS, SERVICES_SECTION, HOW_TO, ...['heroCrest01', 'homePages01', 'footer01', 'footer02', 'howTo01', 'guest01', 'homeServices01', 'pipelinePage01', 'homePlans05', 'homePhone01'].map(tests), 'src/lib/__tests__/importReader.ts', 'DESIGN.md', FS_PAGE, LEAF, SERVICES_LEAF, PAGES_LEAF, ABOUT_PAGE, STEPS_PAGE];
   for (const file of CHANGED) assert.ok(existsSync(resolve(ROOT, file)), `${file} is in the tree`);
   // ruling k: the 2026-11-14 approvals are named by their times, and their words are quoted nowhere new. Their words are built here from their
   // parts, so this file does not hold them; in the comments and in the code of every file of the change they stand as often as before it — once,
@@ -815,9 +834,11 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
   const approvals = [['ALL', 'LOOKS', 'GOOD'].join(' '), ['yeet', 'yeet'].join(' ')];
   for (const file of CHANGED) {
     const held = approvals.map((words) => (file.endsWith('.md') ? [count(flat(whole(file)), words), 0] : [count(prose(file), words), count(flat(code(file)), words)]));
-    // homePages01's own APPROVAL, in its code; and the leaf's comment (HOME-TRIM-02's note, howTo.ts:720-721), which quotes both and stood so on main
-    // before this change — the leaf joined the change's files at the rebase (2026-11-16), for one dated note on its line 11
-    const before = file === tests('homePages01') ? [[0, 1], [0, 0]] : file === LEAF ? [[1, 0], [1, 0]] : [[0, 0], [0, 0]];
+    // homePages01's own APPROVAL, in its code; and three comments that quote them and stood so on main before this change, in files that joined
+    // the change's files at the rebase (2026-11-16) for one dated note each: the leaf's (HOME-TRIM-02's note, howTo.ts:720-721) and the services'
+    // leaf's (HOME-TRIM-03's, proposalNeeds.ts:172), which quote both, and the pages' leaf's (HOME-PAGES-01's own, homePages.ts:5), which quotes one
+    // — and in every other file of the change, none
+    const before = file === tests('homePages01') ? [[0, 1], [0, 0]] : file === LEAF || file === SERVICES_LEAF ? [[1, 0], [1, 0]] : file === PAGES_LEAF ? [[1, 0], [0, 0]] : [[0, 0], [0, 0]];
     assert.deepEqual(held, before, `${file}: the approvals' words, in its comments and its code, as often as before this change`);
   }
   const HIS_WORDS = [...Object.values(RULING), ANSWER, LEAVE];
@@ -857,5 +878,5 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [THIS]: 4, // the header: his answer; rulings k and l (T7); his leave at the rebase (T7) — three until then
     [HEADER]: 11, // rulings a, b, c, d, e, f, g, h, j and m, and his answer
     [GLOBALS]: 1, // ruling i, over the block
-  }, 'each file\'s quotes of him, counted — sixteen in three of the twenty-five (fifteen in three of the twenty-one until the rebase): a quote that stood and no longer opens on his words leaves its file\'s count, and fails here');
+  }, 'each file\'s quotes of him, counted — sixteen in three of the twenty-nine (fifteen in three of the twenty-one until the rebase): a quote that stood and no longer opens on his words leaves its file\'s count, and fails here');
 });

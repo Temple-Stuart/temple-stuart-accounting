@@ -10,7 +10,7 @@ import { STOP_ZERO_STORY } from '@/lib/stopZeroWords';
  * /about (HOME-PAGES-01 — Alex's brief, 2026-11-14 19:11 Manila; his approval of the boards on the design canvas, 20:01
  * Manila) — ABOUT US AND, UNDER IT, OUR STORY, ON A PAGE OF THEIR OWN: the filled top bar, the two sections whole, the footer.
  * The home page keeps its own mount of Our Story, unchanged; of About Us it kept one until HOME-TRIM-01 (2026-11-15: "The home page keeps its own mount of each, unchanged." until then) and draws one band in that seat now, AboutBand.tsx, whose button opens this page. Its door: the footer's OUR STORY column, "Stop 0 | Los Angeles"
- * (src/lib/footerWords.ts) — to the page's top, with no fragment (Alex's answer to the audit, 2026-11-14).
+ * (src/lib/footerWords.ts) — to the page's top, with no fragment (Alex's answer to the audit, 2026-11-14). Since HOME-MENU-01 (2026-11-16) the About Us column of the top bar's menu opens it too, on every page that mounts the bar (BAR_MENU, in src/components/landing/LandingHeader.tsx) — the footer's link and the band's button alone until then.
  *
  * THE RULINGS BUILT HERE (Alex's brief, 2026-11-14):
  *   a. "NOTHING IS REDRAWN. Each page mounts the section's own component: no copy, no second stylesheet." — the two sections

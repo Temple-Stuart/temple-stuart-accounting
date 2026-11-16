@@ -13,7 +13,7 @@ import { BUILT_ON } from '@/lib/builtOnWall';
  * header and its 14 steps on their own page, moved whole and unchanged from the home page
  * (src/components/landing/PipelineDeck.tsx). Its doors: the home page's "How it all connects: the 14 steps →" where
  * the header stood (Landing.tsx), and every old /#deck-NN link, which the home page sends on here with its hash
- * (the deck's own hash effect then opens that step). FOOTER-01 (2026-11-09): the footer's THE RECORD links here too.
+ * (the deck's own hash effect then opens that step). FOOTER-01 (2026-11-09): the footer's THE RECORD links here too. HOME-MENU-01 (2026-11-16): and the top bar's menu, from its About Us column, by PIPELINE_PATH (BAR_MENU, in src/components/landing/LandingHeader.tsx).
  * BUILTON-01 (Alex, ruled 2026-10-30; 2026-11-09): Built on renders here, under the 14 steps and above the footer —
  * the strip moved whole from the foot of the home page (src/components/landing/BuiltOnStrip.tsx).
  *

@@ -50,7 +50,7 @@
  *
  * HOME-PAGES-01 (Alex's brief, 2026-11-14 19:11 Manila; his answer to the audit, 2026-11-14): THREE DOORS MOVE, AND NOTHING ELSE.
  * Three of the home page's sections have pages of their own (src/lib/homePages.ts holds their paths), and the footer is each one's
- * door. The brief's step 4: "The footer's doors to them: Financial Software → /financial-software, Professional Services →
+ * door (HOME-MENU-01, 2026-11-16: and, for /financial-software and /about, the top bar's menu too — the footer alone until then). The brief's step 4: "The footer's doors to them: Financial Software → /financial-software, Professional Services →
  * /professional-services, and Stop 0 | Los Angeles → /about#stop-0. Travel Marketplace stays /#demo." His answer changed one of
  * them: "The footer's Stop 0 | Los Angeles goes to /about, with no fragment. This replaces "/about#stop-0" in step 4. The letter is
  * the first thing on that page, so the fragment only scrolled the bar away. No scroll margin is added and the About Us port is not
