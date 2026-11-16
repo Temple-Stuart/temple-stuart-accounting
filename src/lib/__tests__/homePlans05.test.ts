@@ -493,7 +493,7 @@ test('T5 every word drawn in the sixteen states is a leaf\'s, in order, and the 
   assert.ok(leaf.includes('  return `See all ${total} tools`;\n}'), 'seeAllToolsWords, in place, without the arrow');
   assert.doesNotMatch(leaf, /COMPARE_PLANS_WORDS\s*\.\s*(slice|replace|substring|substr|split|trim)|seeAll\s*\.\s*(slice|replace)|\.slice\(0, -[12]\)/, 'no string is sliced from another');
   assert.deepEqual(srcFiles().filter((f) => code(f).includes('Compare all four plans')), ['src/components/landing/LandingHeader.tsx', LEAF], 'the words stand in two files\' code under src but the tests: the leaf, and the top bar\'s menu, which types the compare link\'s words once more, held equal to COMPARE_PLANS_WORDS by homeMenu01 (HOME-MENU-01, 2026-11-16, its ruling f; re-said at its rebase with Alex\'s leave, 2026-11-16 13:28 Manila — the leaf alone, "in one file\'s code", until then)');
-  assert.deepEqual(srcFiles().filter((f) => code(f).includes('See all')), [LEAF], 'and so do the first toggle\'s');
+  assert.deepEqual(srcFiles().filter((f) => code(f).includes('See all')), [LEAF], 'and the first toggle\'s stand in the leaf alone: the menu types none (HOME-MENU-01, 2026-11-16, re-said with the line above at its rebase, with Alex\'s leave, 2026-11-16 13:28 Manila — "and so do the first toggle\'s" until then)');
   // the section types none of them, and reads the pages' leaf no more
   const section = code(SECTION);
   assert.ok(!section.includes('See all') && !section.includes('Compare all') && !section.includes('→'), 'the section types neither toggle\'s words, nor an arrow');

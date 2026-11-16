@@ -1003,7 +1003,7 @@ body {
    src/components/landing/HowToSection.tsx (the section: its whole view and, since HOME-TRIM-02, its short view) and — the sixth
    difference's hook alone, since HOME-PAGES-01 —
    src/app/financial-software/page.tsx (its <main>). It stands here, above the hero's block, because nothing may
-   follow that one; it names none of the hero's classes, and nothing outside it names one of its own. ─────────────── */
+   follow that one (but HOME-MENU-01's, 2026-11-16: the menu's rules follow the bar's own); it names none of the hero's classes, and nothing outside it names one of its own. ─────────────── */
 /* ── 1 · "What We Do": the act heading's box (the reference's eyebrow is not ported — the fourth difference) ───── */
 .ts-fs-heading { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding: clamp(52px, 6.6vw, 96px) 16px 0; }
 

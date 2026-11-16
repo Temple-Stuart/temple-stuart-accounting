@@ -161,7 +161,7 @@ function rootTokens(): Map<string, string> {
   }
   return map;
 }
-/** The port: everything in globals.css from the hero's first rule to the end of the file. */
+/** The port: everything in globals.css from the hero's first rule to the end of the file (HOME-MENU-01, 2026-11-16: and so the menu's block with it, which follows the port to the end of the file and which T3 sets apart — the port alone ran to the end of the file until then). */
 function portCss(): string {
   const css = code(GLOBALS);
   const at = css.indexOf('.ts-hero {');

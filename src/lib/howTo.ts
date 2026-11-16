@@ -8,7 +8,7 @@
  * note. NEVER TYPED, anywhere:
  *   · a tool's status — read from TOOL_REGISTRY (src/lib/toolRegistry.ts). A step is LIVE when every tool in it is LIVE
  *     there, and PENDING otherwise;
- *   · a plan's name or its audience line — read from PLANS (src/lib/offer/plans.ts). What you run picks the plan whose
+ *   · a plan's name or its audience line — read from PLANS (src/lib/offer/plans.ts; HOME-MENU-01, 2026-11-16: but for the top bar's menu, which types the four plans' names and audiences once more, in src/components/landing/LandingHeader.tsx, held equal to PLANS by homeMenu01 — never typed anywhere until then). What you run picks the plan whose
  *     modules are exactly personal, plus business when Business is on, plus trading when Trade is on; no such plan
  *     throws, by name;
  *   · whether Books is on sale — read from src/lib/offer.ts (booksNotOnSale, below).
