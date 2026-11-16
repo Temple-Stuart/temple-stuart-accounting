@@ -19,8 +19,8 @@
  *   T3 the short view — its render is the reference's section, token for token, as its script paints it, in all sixteen states (each of
  *      the four plans, each toggle open and closed), its hidden parts left out: a closed part is absent, not hidden; and each open part is
  *      the whole view's own markup, but for the id its toggle names;
- *   T4 the whole view — its render is main's, byte for byte, in the four states with either door; the parts both views draw are main's
- *      functions, and /financial-software and /pricing are main's code;
+ *   T4 the whole view — its render is main's, byte for byte, in the four states with either door; the functions main drew it through are
+ *      main's still (the short view draws through all of them but the foot link, the whole view's alone now), and /financial-software and /pricing are main's code;
  *   T5 the words — every word drawn in the sixteen states a leaf's, in order; the toggles' words exactly as ruling f gives them;
  *   T6 the state — two booleans in the short view's holder, both closed at first; each toggle opens and closes its own part, either with
  *      the other; nothing stored, nothing in the URL;
@@ -428,7 +428,7 @@ const WHOLE_AT_MAIN: Readonly<Record<string, string>> = {
   'both function': '5717eed3206c484e8214bc61adc4705f61acd84d8940b12492d86c2e3be45aa7',
   'both link': 'ecee2b9f26ce8447971aa9780bf03c28048d42ad02608c1747b8de203e4e947f',
 };
-/** At main (284e976): the sha256 of each function both views draw through, as code() reads it — the choices, the plan's parts and its button, the band, the foot link. */
+/** At main (284e976): the sha256 of each function main's whole view drew through, as code() reads it — the choices, the plan's parts and its button, the band, the foot link. The short view draws through all of them but the foot link, the whole view's alone now; ToolGrid and AllPlans, new, are held by the eight renders above and by T3. */
 const FUNCTIONS_AT_MAIN: Readonly<Record<string, string>> = {
   Tick: 'cb5afb00db58ab68f146dd4981effced608e52772e3429bc0b3fa49e4d592453',
   Check: '44eb3cfb2ce856d9fb659b7c828a24340a23728deb1577badb4c1be972c3afb1',
@@ -446,7 +446,7 @@ const PAGES_AT_MAIN: ReadonlyArray<readonly [file: string, sha: string]> = [
   ['src/app/pricing/page.tsx', '7bcb9d2cac70f9aa34d18da9d9b77c0777b3e754b2ffc2132429b29217e80626'],
 ];
 
-test('T4 the whole view\'s render is main\'s, byte for byte, in the four states with either door, through the same components the short view opens; the functions both views draw through are main\'s; /financial-software and /pricing are main\'s code', () => {
+test('T4 the whole view\'s render is main\'s, byte for byte, in the four states with either door, through the same components the short view opens; the functions main drew it through are main\'s still; /financial-software and /pricing are main\'s code', () => {
   for (const [name, run] of PLAN_STATES) {
     assert.equal(sha256(wholeRender(run)), WHOLE_AT_MAIN[`${name} function`], `${name}, a function door: main's render, byte for byte`);
     assert.equal(sha256(wholeRender(run, LINK_DOOR)), WHOLE_AT_MAIN[`${name} link`], `${name}, a link door: main's render, byte for byte`);
@@ -573,13 +573,25 @@ test('T6 open or closed is React state: two booleans in the short view\'s holder
     const html = shortRender(run, open);
     for (const [part, isOpen] of [['fs-all-tools', open.tools], ['fs-all-plans', open.plans]] as const) assert.equal(count(html, `id="${part}"`), Number(isOpen), `${name}: ${part} drawn only while open`);
     assert.equal(count(html, '<svg class="ts-fs-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"></path></svg></button>'), 2, `${name}: each toggle carries its chevron, inline and hidden from a screen reader, last`);
-    // the head stands as it is when a part opens: only the toggles' aria-expanded tells two states apart there — React keeps each button, so focus stays on it
+    // the head stands as it is when a part opens: in its markup only the toggles' aria-expanded tells two states apart. That focus then stays on the
+    // pressed toggle is the browser's to show, and the browser check shows it; here, the toggle and its two uses are held whole (below the loop), so
+    // no key can be added that would make React draw a new button in its place.
     const head = (h: string): string => divOpening(h, '<div class="ts-fs-map__head">').replace(/aria-expanded="(true|false)"/g, 'aria-expanded');
     assert.equal(head(html), head(shortRender(run, OPEN_STATES[0][1])), `${name}: the panel's head is the head at rest but for aria-expanded`);
   }
-  // the keyboard's order at rest: the two choices, the two toggles, then the plan's button; the grid has no stops
-  const order = drawnElementsOf(HowToShortView(shortProps(PLAN_STATES[0][1], OPEN_STATES[3][1]))).filter((el) => el.type === 'button' || el.type === 'a').map((el) => String(el.props.className));
-  assert.deepEqual(order, ['ts-fs-switch', 'ts-fs-switch', 'ts-fs-toggle', 'ts-fs-toggle', 'ts-fs-plan__cta', 'ts-fs-plan__cta', 'ts-fs-plan__cta', 'ts-fs-plan__cta'], 'both open: the choices, the toggles, then the four plans\' buttons in the one plan\'s place — the grid adds no stop');
+  assert.equal(fnText(section, 'Toggle'), [
+    'function Toggle({ words, open, controls, onPress }: { words: string; open: boolean; controls: string; onPress: () => void }) {',
+    '  return <button className="ts-fs-toggle" type="button" aria-expanded={open} aria-controls={controls} onClick={() => onPress()}>{words}<Chevron /></button>;',
+    '}',
+  ].join('\n'), 'the toggle, whole: a button of type button, no key, its state in aria-expanded alone');
+  assert.equal(count(section, '<Toggle '), 2, 'the toggle, used twice');
+  assert.equal(count(section, '<Toggle words={view.seeAll} open={toolsOpen} controls="fs-all-tools" onPress={onTools} />'), 1, 'the first, as it is written: no key');
+  assert.equal(count(section, '<Toggle words={COMPARE_PLANS_TOGGLE_WORDS} open={plansOpen} controls="fs-all-plans" onPress={onPlans} />'), 1, 'the second, as it is written: no key');
+  // the keyboard's order: at rest, the two choices, the two toggles, then the plan's button; with both parts open, the four plans' buttons stand in the
+  // one's place, and the grid adds no stop
+  const stops = (open: Open): string[] => drawnElementsOf(HowToShortView(shortProps(PLAN_STATES[0][1], open))).filter((el) => el.type === 'button' || el.type === 'a').map((el) => String(el.props.className));
+  assert.deepEqual(stops(OPEN_STATES[0][1]), ['ts-fs-switch', 'ts-fs-switch', 'ts-fs-toggle', 'ts-fs-toggle', 'ts-fs-plan__cta'], 'at rest: the choices, the toggles, then the plan\'s button');
+  assert.deepEqual(stops(OPEN_STATES[3][1]), ['ts-fs-switch', 'ts-fs-switch', 'ts-fs-toggle', 'ts-fs-toggle', 'ts-fs-plan__cta', 'ts-fs-plan__cta', 'ts-fs-plan__cta', 'ts-fs-plan__cta'], 'both open: the choices, the toggles, then the four plans\' buttons in the one plan\'s place — the grid adds no stop');
 });
 
 // ── T7 · THE RULINGS ─────────────────────────────────────────────────────────
@@ -621,7 +633,7 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     }
   }
   // HOME-PLANS-05 (Alex's brief, 2026-11-16 00:04 Manila; the boards approved on the design canvas at 00:19; built 2026-11-16), ruling g — built here,
-  // by the four hashes below and by the four censuses themselves, which run unedited: "EARLIER BRIEFS' QUOTES STAY WHERE THEY STAND. The quote censuses
+  // by the five hashes above and by the five censuses themselves, which run unedited: "EARLIER BRIEFS' QUOTES STAY WHERE THEY STAND. The quote censuses
   // of homeTrim01, homeTrim02 and homePages01 stand unedited, as do HOME-TRIM-03's and HOME-ABOUT-02's when they land. Write around their quotes, never
   // through them, and quote those briefs nowhere they are not quoted today." HOME-ABOUT-02's census was not on main at 284e976; it landed at ac0fc25,
   // before this change was pushed, and joins the list from there.
@@ -682,6 +694,17 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [tests('homePages01'), /and read the leaf for that view's first link until HOME-PLANS-05 \(2026-11-16\) made that link a toggle, which opens no page/, /and reads the leaf for that view's first link\. HOME-TRIM-03/],
     [tests('homePages01'), /from HOME-TRIM-02 \(2026-11-15, ruling e\) until HOME-PLANS-05 \(2026-11-16\) — the Financial Software section, whose short view's first link opened/, null],
     [tests('homeTrim02'), /the three choices and two links \(two toggles since HOME-PLANS-05, 2026-11-16, which open the map's grid and the four plans in place\)/, null],
+    [tests('homeTrim02'), /two choices, two toggles and the plan's button — the two links, plain anchors to FINANCIAL_SOFTWARE_PATH and to \/pricing with its hook, until HOME-PLANS-05 \(2026-11-16\), which made them the toggles/, /the two links are plain anchors, the first to FINANCIAL_SOFTWARE_PATH/],
+    [GLOBALS, /what the panel's two links become, rule for rule and value for value/, /the panel's two links: beside the question's choices/],
+    // and those re-said after the review of 2026-11-16, each the open part's own: the plans in the one plan's place, the foot link the whole view's alone
+    [SECTION, /so exactly one plan is in the holder's markup \(HOME-PLANS-05, 2026-11-16: while the second toggle is open the holder is not drawn and the four plans stand in its place — "exactly one plan is in the markup" until then\)/, /so exactly one plan is in the markup;/],
+    [SECTION, /\(AllPlans, which draws them in both views since HOME-PLANS-05, 2026-11-16 — in the whole view alone until then\)/, /\(AllPlans, in both views since HOME-PLANS-05\);/],
+    [GLOBALS, /the short view hides no plan — its holder draws the picked plan alone, and while the second toggle is open the four plans stand in the holder's place \(HOME-PLANS-05, 2026-11-16: "the short view draws the picked plan alone" until then\)/, /is not ported: the short view draws the picked plan alone\./],
+    [LEAF, /then the one plan planMapView picks — or, while the second toggle is open, the three cards and the band in its place, as the first opens the map's grid in the panel \(HOME-PLANS-05, 2026-11-16: "then the one plan planMapView picks" alone until then\)/, /then the one plan planMapView picks; the whole view/],
+    [tests('howTo01'), /the link \(CompareLink; the whole view's alone since HOME-PLANS-05, 2026-11-16 — both views drew it until then, the short view in its panel\)/, /the link \(CompareLink\) — so the order is read/],
+    [tests('howTo01'), /the home page its one plan's price line, and, while its second toggle is open, all four plans' \(HOME-PLANS-05, 2026-11-16\)/, /the home page its one plan's price line; both with/],
+    [tests('homePlans04'), /two booleans in React state \(and, since HOME-PLANS-05, 2026-11-16, the short view's two toggles, in its holder\), both off at first/, /T8 the state — two booleans in React state, both off at first/],
+    [tests('homePlans04'), /HowToView, or the short view beside it \(since HOME-PLANS-05, 2026-11-16, the short view's holder, which keeps its two toggles and draws it, pure\)/, /HowToView, or the short view beside it — one element/],
   ];
   for (const [file, now, gone] of RESAID) {
     assert.match(prose(file), now, `${file}: its sentence re-said, dated`);
@@ -695,13 +718,14 @@ test('T7 each ruling is quoted, exact, where it is built, under the brief\'s sta
     [tests('howTo01'), 'for the short view\\\'s first link, until HOME-PLANS-05 (2026-11-16) made it a toggle', null],
     [tests('homePages01'), 'as the Financial Software section did from HOME-TRIM-02 (2026-11-15) until HOME-PLANS-05 (2026-11-16), whose toggles open no page', 'the band and (HOME-TRIM-02, 2026-11-15) the Financial Software section read it'],
     [tests('homeTrim02'), 'two choices, two toggles and the plan\\\'s button', 'two choices and the plan\\\'s button, which opens the door handed in; the two links are plain anchors that carry no state'],
+    [tests('homePlans04'), 'two booleans and the half its view names — the pure whole view, or, since HOME-PLANS-05 (2026-11-16), the short view\\\'s holder, which keeps its two toggles', 'two booleans and the pure half its view names — nothing else runs in it'],
   ];
   for (const [file, now, gone] of TITLES) {
     assert.ok(code(file).includes(now), `${file}: a title re-said — "${now.slice(0, 60)}"`);
     if (gone) assert.ok(!code(file).includes(gone), `${file}: and main's title is gone`);
   }
-  // EVERY SOURCE FILE OF THE CHANGE — this one, the four whose code changed, the nine whose notes alone did (DESIGN.md, prose no guard reads, aside),
-  // and the four re-pointed tests. The handoff's two files are the owner's own and are held byte for byte (T1).
+  // EVERY SOURCE FILE OF THE CHANGE — this one, the four whose code changed, the five whose notes alone did (DESIGN.md, prose no guard reads, aside),
+  // and the three re-pointed tests. The handoff's two files are the owner's own and are held byte for byte (T1).
   const CHANGED = [
     THIS,
     SECTION, LEAF, GLOBALS, tests('homePlans04'),

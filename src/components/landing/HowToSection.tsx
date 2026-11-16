@@ -308,7 +308,7 @@ export function HowToView({ business, trade, onBusiness, onTrade, onJoin }: HowT
   );
 }
 
-/** The all-three band: under the whole view's three cards (AllPlans, in both views since HOME-PLANS-05); and, with both choices on, the short view's one plan (ruling c, below). */
+/** The all-three band: under the whole view's three cards (AllPlans, which draws them in both views since HOME-PLANS-05, 2026-11-16 — in the whole view alone until then); and, with both choices on, the short view's one plan (ruling c, below). */
 function Band({ plan, onJoin }: { plan: MapPlan; onJoin: JoinDoor }) {
   return (
     <div className="ts-fs-plan ts-fs-plan--all" data-plan={plan.id} data-picked={plan.picked}>
@@ -366,7 +366,7 @@ export interface HowToShortViewProps extends HowToViewProps {
  *   c. "THE PLAN is the one planMapView picks, in a holder, .ts-fs-yours. It is a card in a row (.ts-fs-plan--row, its first three
  *      parts in .ts-fs-plan__lead, as the band's are), or the band itself when both choices are on. It wears the tag and the gold
  *      button, as the picked plan does today. On the home page its button opens sign-up, as it does today." — the cards are
- *      filtered to the picked one and the band is drawn only when it is the picked one, so exactly one plan is in the markup;
+ *      filtered to the picked one and the band is drawn only when it is the picked one, so exactly one plan is in the holder's markup (HOME-PLANS-05, 2026-11-16: while the second toggle is open the holder is not drawn and the four plans stand in its place — "exactly one plan is in the markup" until then);
  *      PlanHead draws its tag and the port's rule its gold button; PlanBody's button calls Landing's door (the sign-up modal);
  *   e. "THE WORDS. Nothing is typed. "See all ‹total› tools →" is new: one function in src/lib/howTo.ts beside allToolsWords
  *      (:712). Its total is the sheet's count that the cards count against, never typed. Its link is a plain anchor in the compare
