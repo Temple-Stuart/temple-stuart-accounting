@@ -111,6 +111,23 @@
  * state stays here — `shown` is still filtered then sorted in this file, the
  * filters still reset with the period. The pins that moved carry dated notes
  * in ledger01, ledger02 and ledger04; idiom01.test.ts pins the extraction.
+ *
+ * TIMESHEET-01 (Alex, 2026-11-24): THE TIME SHEET, PART ONE.
+ * "its so much more than trip sheet... this is just all time sheet...."
+ * The table draws the answer's `sheet` (ledgerReads.ts), not its `rows`: every
+ * stop and every charge planned on Expenses that carries an amount, one row
+ * per occurrence, on its day — a row he recorded as it read before, a row he
+ * has not recorded as its plan with "—" where a record would be. Oldest day
+ * first; within a day the all-day rows, then the clock (ledger.ts orders it).
+ * Three cells more, twenty-one now: START and END after DATE, WENT after
+ * VENDOR (ledger.ts startOf, endOf, wentOf through their cell words; a null
+ * cell wears the blank class, as every other). Each row is keyed by its own
+ * key — a plan row has no record id. "link" stands on every row, recorded or
+ * not: a link is keyed on the occurrence. The TOTAL row's label spans the
+ * fifteen columns before BUDGET; its figures are ledgerTotals over the rows
+ * shown, as they were. The title, the period controls, "+ expense", the
+ * filters, the sort, the notes and the summary are where they were; nothing
+ * is written here that was not written before.
  */
 
 'use client';
@@ -132,8 +149,9 @@ import {
   ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutTotal, leftOutWords, matchCellTitle, matchCellWords, matchCoverageWords, matchState, matchTotalWords, noLineWords, noRowsWords,
   noStayWords, notPlacedWords, notRecordedWords, noteCellWords, notesCount, notesToggleWords, perDayWords, periodOf, periodWords, readableMatchCents, sortRows, starsCellWords, stepAnchor,
   underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords, vendorCellWords,
+  endCellWords, endOf, startCellWords, startOf, wentCellWords, wentOf, // TIMESHEET-01 (2026-11-24): the three facts of a sheet row and their cells
   hoursWords, loggedCoverageWords, minutesCellWords, plannedCoverageWords, // TIME-03 (2026-10-26): the minutes cells, the hours and their coverage
-  type ColumnFilters, type GroupKey, type LedgerColumn, type LedgerRow, type LedgerSort, type MatchState, type Period, type PeriodKind,
+  type ColumnFilters, type GroupKey, type LedgerColumn, type LedgerSheetRow, type LedgerSort, type MatchState, type Period, type PeriodKind,
 } from '@/lib/operations/ledger';
 
 // IDIOM-01 (2026-10-24): the chip, head, cell and money classes are the shared table's (DataTable.tsx), imported under the names this file always used.
@@ -192,7 +210,8 @@ export default function LedgerSection() {
     setFilters(NO_COLUMN_FILTERS);
     setOpenFilter(null);
   }, [period?.from, period?.to]);
-  const rows: readonly LedgerRow[] = answer !== null && answer.read.ok ? answer.read.value.rows : [];
+  // TIMESHEET-01 (Alex, 2026-11-24): the table's rows are the answer's `sheet` — every priced line of the period, planned and recorded (its `rows`, the recorded expenses alone, are the home ledger's).
+  const rows: readonly LedgerSheetRow[] = answer !== null && answer.read.ok ? answer.read.value.sheet : [];
   // LEDGER-04: the rows filtered (every column, AND across), then sorted — the TOTAL row, the coverage, the summary and the CSV read these.
   const shown = sortRows(applyColumnFilters(rows, filters), sort);
   const totals = ledgerTotals(shown);
@@ -247,10 +266,13 @@ export default function LedgerSection() {
         renderRow={(row) => {
           const delta = deltaWords(row.actualCents, row.cents);
           return (
-            <Fragment key={row.id}>
+            <Fragment key={row.key}>
               <tr className="border-t border-border" data-ledger-row={row.key} data-ledger-day={row.day}>
                 <td className={`${cell} whitespace-nowrap`} data-ledger-cell="day">{dayLongWords(row.day)}</td>
                 <td className={`${cell} whitespace-nowrap tabular-nums`} data-ledger-cell="date">{row.day}</td>
+                {/* TIMESHEET-01 (2026-11-24): START and END after DATE — the clock, the all-day word on a charge, "—" for a blank. */}
+                <td className={`${cell} whitespace-nowrap tabular-nums ${startOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="start">{startCellWords(row)}</td>
+                <td className={`${cell} whitespace-nowrap tabular-nums ${endOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="end">{endCellWords(row)}</td>
                 <td className={`${cell} ${row.place === null ? BLANK_CLASS : ''}`} data-ledger-cell="city">{CELL_WORDS.city(row)}</td>
                 <td className={`${cell} ${row.place === null || row.place.country === null ? BLANK_CLASS : ''}`} data-ledger-cell="country">{CELL_WORDS.country(row)}</td>
                 <td className={`${cell} whitespace-nowrap ${row.book === null ? BLANK_CLASS : ''}`} data-ledger-cell="book">{bookCellWords(row)}</td>
@@ -258,6 +280,8 @@ export default function LedgerSection() {
                 <td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : ''}`} data-ledger-cell="account-name">{accountNameCellWords(row)}</td>
                 <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name">{row.description}</td>
                 <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor">{vendorCellWords(row.vendor)}</td>
+                {/* TIMESHEET-01 (2026-11-24): WENT after VENDOR — went, skipped, planned, not recorded; "—" on a charge. */}
+                <td className={`${cell} whitespace-nowrap ${wentOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="went">{wentCellWords(row)}</td>
                 <td className={`${cell} whitespace-nowrap ${row.rating === null ? BLANK_CLASS : ''}`} data-ledger-cell="stars">{starsCellWords(row.rating)}</td>
                 {/* TIME-03 (2026-10-26): the minutes after STARS — the line's planned and the record's logged, whole minutes, "—" for null. */}
                 <td className={`${cell} whitespace-nowrap tabular-nums ${row.plannedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-cell="planned-minutes">{minutesCellWords(row.plannedMinutes)}</td>
@@ -284,9 +308,9 @@ export default function LedgerSection() {
         }}
         foot={(
           <tfoot>
-            {/* LEDGER-02 (amended): TOTAL spans the columns before BUDGET (twelve since TIME-03 — PLANNED MIN and LOGGED MIN sit among them; their sums are the summary's hours, not this row's); VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
+            {/* LEDGER-02 (amended): TOTAL spans the columns before BUDGET (fifteen since TIMESHEET-01, 2026-11-24 — START, END and WENT sit among them; twelve since TIME-03 — PLANNED MIN and LOGGED MIN sit among them; their sums are the summary's hours, not this row's); VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
             <tr className="border-t border-border font-bold text-text-primary" data-ledger-total>
-              <th scope="row" colSpan={12} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
+              <th scope="row" colSpan={15} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
               <td className={`${money} ${totals.budgetCents === null ? BLANK_CLASS : ''}`} data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}</td>
               <td className={`${money} ${totals.actualCents === null ? BLANK_CLASS : totals.varianceCents === null ? '' : varianceTone(totals.varianceCents)}`} data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>
               <td className={`${money} ${varianceTone(totals.varianceCents)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
