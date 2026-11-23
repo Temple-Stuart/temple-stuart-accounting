@@ -65,7 +65,7 @@ export const SEND_FAILED_PREFIX_WORDS = 'Not sent — ';
 export const sendFailedWords = (words: string): string => `${SEND_FAILED_PREFIX_WORDS}${words}`;
 export const goesToWords = (title: string): string => `Goes straight to ${title}. Nothing else is done with it.`;
 export const FORM_BY_WORDS = 'Form by Temple Stuart';
-/** The honeypot's label — a human never sees it (WorkWithMeForm.tsx:371-380's idiom). */
+/** The honeypot's label — a human never sees it (WorkWithMeForm.tsx:371-380's idiom — ServicesForm.tsx:37-40's since HOME-SERVICES-02, 2026-11-16). */
 export const HONEYPOT_LABEL_WORDS = 'Website';
 
 // ── THE TABLE (forms.ts submissionsTable, CrmSection.tsx) ─────────────────────

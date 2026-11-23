@@ -20,11 +20,13 @@ export const CONTACT_HEAD_WORDS = {
   budget: 'Budget', start: 'Start', stage: 'Stage', next_step: 'Next step', last_touch: 'Last touch',
 } as const;
 
-/** PROPOSALS, every field of the form in the form's order. */
+/** PROPOSALS, every field of the form in the form's order — the old form's fields, then (HOME-SERVICES-02, 2026-11-16) a new row's answers. */
 export const PROPOSAL_HEAD_WORDS = {
   came_in: 'Came in', name: 'Name', email: 'Email', business: 'Business', need: 'Need', modules: 'Modules', timeline: 'Timeline',
   budget: 'Budget', tools_today: 'Tools today', deadline: 'Deadline', why_that_date: 'Why that date', links: 'Links', team: 'Team',
   heard_from: 'Heard from', done: 'What does done look like',
+  // HOME-SERVICES-02 (2026-11-16): a new row's answers, each under its question's words (crm.ts proposalsTable)
+  answers: 'Answers',
 } as const;
 
 /** SIGNUPS: Signed up on · Name · Email · Signed up with · Email verified · Plan. */

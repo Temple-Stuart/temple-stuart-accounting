@@ -1667,12 +1667,12 @@ model proposals {
   name           String    @db.VarChar(255)
   email          String    @db.VarChar(255)
   business       String    @db.Text
-  currentStack   String    @db.Text @map("current_stack")
+  currentStack   String?   @db.Text @map("current_stack")
   need           String    @db.VarChar(20) // CHECK-enforced in SQL (proposals_need_chk): 'setup' | 'maintenance' | 'custom' | 'embed' | 'unsure' | 'bookkeeping' | 'close' (legacy) — SERVICES-01 (2026-11-08) added 'bookkeeping', a door of the six (src/lib/proposalNeeds.ts SERVICES; prisma/migrations/20261108111500_services_01_bookkeeping_need), and kept 'close' for the rows the retired close door wrote — no longer offered or accepted (ONE-FORM-01, 2026-11-06, added it: prisma/migrations/20261106120000_one_form_01_close_need); the five older words are production's own `\d proposals` (HOME-05)
-  modules        Json      @default("[]")
-  startWindow    String    @default("exploring") @db.VarChar(20) @map("start_window")
-  budgetRange    String    @db.VarChar(50) @map("budget_range")
-  notesFromThem  String    @db.Text @map("notes_from_them")
+  modules        Json?
+  startWindow    String?   @db.VarChar(20) @map("start_window")
+  budgetRange    String?   @db.VarChar(50) @map("budget_range")
+  notesFromThem  String?   @db.Text @map("notes_from_them")
   hardDeadline   DateTime? @db.Date @map("hard_deadline")
   deadlineDriver String?   @db.Text @map("deadline_driver")
   links          Json?
@@ -1681,7 +1681,7 @@ model proposals {
   status         String    @default("new") @db.VarChar(20) // CRM-01b (2026-11-07): no longer written — the CRM's stage and next step live in crm_contacts; CLEAN rules on dropping
   ownerNotes     String?   @db.Text @map("owner_notes") // CRM-01b (2026-11-07): no longer written — the CRM's stage and next step live in crm_contacts; CLEAN rules on dropping
   ipHash         String    @db.VarChar(64) @map("ip_hash")
-
+  answers        Json? // HOME-SERVICES-02 (2026-11-16): the website, the decision role and the picked service's answered questions, each under its key (src/lib/proposalNeeds.ts); NULL on a row stored before 20261116132400_home_services_02_answers, whose columns above (current_stack … notes_from_them) a new row leaves NULL
   @@index([createdAt(sort: Desc)], map: "proposals_created_at_idx")
   @@index([status], map: "proposals_status_idx")
   @@map("proposals")

@@ -84,7 +84,7 @@ test('T1 contactKeyOf: the three shapes read back; four refusals by name; every 
   assert.throws(() => contactKeyOf('signup:'), stops(/contactKeyOf: "signup:" names no row — the id after the colon is empty/));
   const working: WorkingInput[] = [{ id: 'w-1', source: 'manual', source_ref: null, name: 'Barbara Liskov', business: null, email: 'barbara@example.com', stage: 'sent', next_step: null, last_touch_at: null, created_at: '2026-11-04T08:00:00.000Z' }];
   const rows = contactsOf({
-    proposals: [{ id: 'p-1', created_at: '2026-11-01T10:00:00.000Z', name: 'Ada', email: 'ada@example.com', business: 'AE', need: 'setup', need_words: 'Setup', modules: [], start_window: 'now', budget_range: '<$2k', current_stack: '', hard_deadline: null, deadline_driver: null, links: null, team_size: null, referral_source: null, notes_from_them: '' }],
+    proposals: [{ id: 'p-1', created_at: '2026-11-01T10:00:00.000Z', name: 'Ada', email: 'ada@example.com', business: 'AE', need: 'setup', need_words: 'Setup', modules: [], start_window: 'now', budget_range: '<$2k', current_stack: '', hard_deadline: null, deadline_driver: null, links: null, team_size: null, referral_source: null, notes_from_them: '', answers: null }], // HOME-SERVICES-02 (2026-11-16): an old row, no answers — the row had no answers field until then
     signups: [{ id: 'u-1', created_at: '2026-11-02T10:00:00.000Z', name: 'Grace', email: 'grace@example.com', signed_up_with: 'github', email_verified_at: null, plan: 'Free' }],
     submissions: [],
     working,

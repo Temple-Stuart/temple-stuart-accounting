@@ -9,7 +9,7 @@ import { PROFESSIONAL_SERVICES_TITLE } from '@/lib/homePages';
  * /professional-services (HOME-PAGES-01 — Alex's brief, 2026-11-14 19:11 Manila; his approval of the boards on the design
  * canvas, 20:01 Manila) — THE PROFESSIONAL SERVICES SECTION ON A PAGE OF ITS OWN: the filled top bar, the section whole, the
  * footer. The home page keeps its own mount of the same component ("unchanged" until HOME-TRIM-03 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), which hands the home page's mount view="short" and this one view="whole" — its ruling a: "Landing.tsx mounts view="short", /professional-services view="whole"."; its ruling j: "NOTHING ELSE CHANGES: not the hero, the other sections, About Us, Our Story, the footer, /work-with-me or /professional-services."). Its door: the footer's SERVICES column,
- * "Professional Services" (src/lib/footerWords.ts) — and, since HOME-TRIM-03, the link under the home page's short view.
+ * "Professional Services" (src/lib/footerWords.ts) — and, from HOME-TRIM-03 until HOME-SERVICES-02 (2026-11-16, its ruling j: the section sends nobody elsewhere), the link under the home page's short view.
  *
  * THE RULINGS BUILT HERE (Alex's brief, 2026-11-14):
  *   a. "NOTHING IS REDRAWN. Each page mounts the section's own component: no copy, no second stylesheet." — the section is

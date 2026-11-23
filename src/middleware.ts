@@ -97,7 +97,7 @@ const PUBLIC_PATHS = [
   // (src/components/landing/ServicesSection.tsx; the home page keeps its own mount). SAFE BY CONSTRUCTION: a static server
   // page (src/app/professional-services/page.tsx) over a client section with no data path — its only state is the picked
   // door — no route handler under it, no fetch, no paid API, no database read, no env read, no session read; its imports
-  // are LandingHeader, the section, LandingFooter and the pure leaves they read. Its six pictures are files under
+  // are LandingHeader, the section, LandingFooter and the pure leaves they read — and, since HOME-SERVICES-02 (2026-11-16), the proposal form's hook (src/hooks/useProposalForm.ts), whose one fetch, the form's POST to /api/proposals (public by its own entry above), this page never makes: the whole view draws no form (Alex's answer to that brief's audit, A). Its six pictures are files under
   // public/brand/services; its one link is the proposal form's page with the door picked (/work-with-me?need=<key>),
   // public by its own entry below. isPublic's rule is p or p + '/', and nothing lives under /professional-services but the
   // page itself.

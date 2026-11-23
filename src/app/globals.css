@@ -772,7 +772,8 @@ body {
        rgb(var(--bg)) → rgb(var(--ts-bg)).
    src/lib/__tests__/homeServices01.test.ts reads both files and holds them equal, declaration by declaration, but for the
    FIVE DIFFERENCES named here (HOME-TRIM-03, 2026-11-15: FOUR DIFFERENCES until then) — the first three where the reference is a page of its own and this is the app, the fourth
-   the brief's own ("The form drawn in the reference is HOME-SERVICES-02, a later PR: do not build it here."), the fifth the home page's short view:
+   the brief's own ("The form drawn in the reference is HOME-SERVICES-02, a later PR: do not build it here.") — the note's rule since
+   HOME-SERVICES-02 (2026-11-16), which ported the form — the fifth the home page's short view:
      1. THE COLOURS are tokens: the reference's :root is :root above — the six --ts-ps-* this design brings, and the
         twenty-one it declares only so that it renders on its own, which the app already holds (--ts-bg, --ts-border,
         --ts-red, the hero's violets and golds, and the eleven --ts-fs-* HOME-PLANS-04 brought).
@@ -780,13 +781,16 @@ body {
         rules read the two variables where the reference names the families ("the site already loads both faces").
      3. NOT PORTED: the reference page's own ground, body { margin: 0; background-color: … } — "THIS PAGE'S OWN: not part of
         the design, not ported".
-     4. NOT PORTED HERE: the form, in place — the reference's section 4 whole, and the four rules of sections 5 and 6 that
-        name only the form's elements (.ps-fields from 640px; the hover of Close, the link buttons, a pick and Project
-        details). HOME-SERVICES-02 ports them with the form. A rule that names this PR's elements is ported as written,
-        the form's selectors in it included: .ps-cta:disabled, and the reduced-motion rule for .ps-tile, .ps-cta and .ps-pick.
-        The two colours only the form reads — red (its error) and fs-gold-text (its eyebrow) — are read by nothing here yet.
-     5. ADDED, the home page's short view (HOME-TRIM-03, 2026-11-15): design-refs/home-trim-03's second stylesheet, behind the
-        house prefix, as this port's last rules — section 7, at its foot, with its own notes; homeServices01 T3 holds them as FIFTH.
+     4. NOT PORTED: the note's rule, .ps-note — "Scoped by proposal" left every page (HOME-SERVICES-02, 2026-11-16, ruling k).
+        Until that brief the fourth was the form, not ported here — the reference's section 4 whole, and the four rules of
+        sections 5 and 6 that name only the form's elements (.ps-fields from 640px; the hover of Close, the link buttons, a
+        pick and More details); HOME-SERVICES-02 ported them with the form, as the first stylesheet writes them. A rule that
+        names the form's elements was ported as written before them: .ps-cta:disabled, and the reduced-motion rule for
+        .ps-tile, .ps-cta and .ps-pick. The two colours only the form reads — red (its error) and fs-gold-text (its eyebrow) —
+        are read now, by its rules.
+     5. ADDED, the home page's short view (HOME-TRIM-03, 2026-11-15; re-said by HOME-SERVICES-02, 2026-11-16): design-refs/
+        home-services-02's second stylesheet (home-trim-03's until that brief), behind the house prefix, as this port's last
+        rules — section 7, at its foot, with its own notes; homeServices01 T3 holds them as FIFTH.
    It types no hex and no rgb value: every colour is a token (the README: "The stylesheet types no hex and no rgb value
    outside :root").
    TWO GRADIENTS — the brief's ruling f, as written (2026-11-12): "The gold gradient is HOME-PLANS-04's; the picture's frame
@@ -798,7 +802,7 @@ body {
    its own display would show what is meant to be hidden." Five of the six pictures are in the page and hidden — the whole view's page,
    /professional-services (its own page since HOME-PAGES-01, 2026-11-14), alone since HOME-TRIM-03 (2026-11-15): the home page's short view draws none.
    Used by src/components/landing/ServicesSection.tsx — its whole view on /professional-services, and its short view, which Landing.tsx
-   mounts (HOME-TRIM-03, 2026-11-15: "which Landing.tsx mounts" said the whole section until then). It stands here, above the Financial Software
+   mounts (HOME-TRIM-03, 2026-11-15: "which Landing.tsx mounts" said the whole section until then) — and, since HOME-SERVICES-02 (2026-11-16), by the short view's form, ServicesForm.tsx. It stands here, above the Financial Software
    section's block and the hero's, because nothing may follow the hero's (but HOME-MENU-01's, 2026-11-16: the menu's rules follow the bar's own) and the Financial Software port runs from its own
    first rule to the hero's (to the footer's since FOOTER-02, 2026-11-12, whose block stands between the two); it names none of
    their classes, and nothing outside it names one of its own. ─────────────── */
@@ -884,9 +888,64 @@ body {
   transition: filter 0.16s;
 }
 .ts-ps-cta:disabled { cursor: not-allowed; opacity: 0.5; }
-.ts-ps-note { font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 500; color: var(--ts-fs-ink-soft); }
 
-/* ── 4 · the form, in place (HOME-SERVICES-02) — NOT PORTED HERE: the form is a later PR, and its rules come with it ── */
+/* ── 4 · the form, in place (HOME-SERVICES-02) ──────────────────────────────────────────────── */
+.ts-ps-form { margin-top: clamp(22px, 2.4vw, 32px); padding-top: clamp(22px, 2.4vw, 32px); border-top: 1px solid var(--ts-fs-rule); }
+.ts-ps-form__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.ts-ps-form__eyebrow { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ts-fs-gold-text); }
+.ts-ps-close {
+  box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; height: 40px; margin: 0; padding: 0 14px;
+  border: 1px solid var(--ts-fs-chip-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-ink-soft);
+  font-family: inherit; font-size: 13px; line-height: 1.2; font-weight: 600; cursor: pointer;
+}
+.ts-ps-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px clamp(16px, 2vw, 28px); max-width: 860px; margin-top: 18px; }
+.ts-ps-fields--more { margin-top: 12px; padding: clamp(14px, 1.6vw, 20px); border-radius: 14px; background-color: rgb(var(--ts-bg)); }
+.ts-ps-field { min-width: 0; }
+.ts-ps-field--wide { grid-column: 1 / -1; }
+.ts-ps-label { display: block; margin: 0 0 7px; font-size: 13px; line-height: 1.4; font-weight: 600; color: var(--ts-fs-ink); }
+.ts-ps-input, .ts-ps-area {
+  box-sizing: border-box; display: block; width: 100%; margin: 0; border: 1px solid var(--ts-ps-field-line); border-radius: 12px;
+  background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-ink); font-family: inherit; font-size: 15px;
+}
+.ts-ps-input { height: 46px; padding: 0 14px; line-height: 1.2; }
+.ts-ps-area { min-height: 84px; padding: 12px 14px; line-height: 1.5; resize: vertical; }
+.ts-ps-input::placeholder, .ts-ps-area::placeholder { color: var(--ts-fs-ink-muted); opacity: 1; }
+.ts-ps-input:disabled { opacity: 0.5; }
+.ts-ps-input:focus-visible, .ts-ps-area:focus-visible { outline-offset: 1px; border-color: var(--ts-hero-violet-2); }
+.ts-ps-hint { margin: 7px 0 0; font-size: 13px; line-height: 1.45; color: var(--ts-fs-ink-muted); }
+.ts-ps-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.ts-ps-pick {
+  box-sizing: border-box; display: inline-flex; align-items: center; height: 38px; margin: 0; padding: 0 14px;
+  border: 1px solid var(--ts-ps-field-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-ink-soft);
+  font-family: inherit; font-size: 14px; line-height: 1.2; font-weight: 500; white-space: nowrap; cursor: pointer;
+  transition: background-color 0.16s, border-color 0.16s, color 0.16s;
+}
+.ts-ps-pick[aria-pressed="true"] { border-color: var(--ts-hero-violet-2); background-color: var(--ts-hero-violet-2); color: rgb(var(--ts-fs-white)); font-weight: 600; }
+.ts-ps-pick--below { margin-top: 8px; }
+.ts-ps-offer { grid-column: 1 / -1; box-sizing: border-box; padding: clamp(14px, 1.6vw, 20px); border-radius: 14px; background-color: rgb(var(--ts-bg)); }
+.ts-ps-offer p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--ts-fs-ink); text-wrap: pretty; }
+.ts-ps-offer p + p { margin-top: 10px; }
+.ts-ps-offer p:last-child { margin-top: 6px; color: var(--ts-fs-ink-soft); }
+.ts-ps-more { display: inline-flex; align-items: center; min-height: 32px; margin: 0; padding: 0; border: 0; background: none; font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 500; color: var(--ts-fs-ink-soft); text-decoration: underline; text-decoration-color: var(--ts-fs-button-line); text-underline-offset: 4px; cursor: pointer; }
+.ts-ps-links { display: flex; flex-direction: column; gap: 8px; }
+.ts-ps-link { display: flex; align-items: center; gap: 8px; }
+.ts-ps-link__remove {
+  box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; margin: 0; padding: 0;
+  border: 1px solid var(--ts-ps-field-line); border-radius: 12px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-fs-ink-muted); font-family: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+}
+.ts-ps-add {
+  box-sizing: border-box; display: inline-flex; align-items: center; height: 38px; margin: 8px 0 0; padding: 0 14px;
+  border: 1px solid var(--ts-ps-field-line); border-radius: 999px; background-color: rgb(var(--ts-fs-white)); color: var(--ts-hero-violet-3);
+  font-family: inherit; font-size: 14px; line-height: 1.2; font-weight: 600; cursor: pointer;
+}
+.ts-ps-error { grid-column: 1 / -1; box-sizing: border-box; padding: 12px 14px; border: 1px solid rgb(var(--ts-red) / 0.3); border-radius: 12px; background-color: rgb(var(--ts-red) / 0.06); color: rgb(var(--ts-red)); font-size: 14px; line-height: 1.5; }
+.ts-ps-send { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.ts-ps-sent {
+  display: flex; align-items: flex-start; gap: 12px; max-width: 860px; margin-top: 18px; padding: 16px 18px; border: 1px solid var(--ts-fs-button-line); border-radius: 14px;
+  background-color: var(--ts-ps-wash); color: var(--ts-hero-violet-4); font-size: 15px; line-height: 1.55;
+}
+.ts-ps-sent .ts-ps-step__mark { border-color: var(--ts-hero-violet-2); background-color: var(--ts-hero-violet-2); color: rgb(var(--ts-fs-white)); }
+.ts-ps-sent p { margin: 2px 0 0; }
 
 /* ── 5 · wider windows ───────────────────────────────────────────────────────────────────────── */
 @media (min-width: 480px) {
@@ -894,6 +953,7 @@ body {
 }
 @media (min-width: 640px) {
   .ts-ps-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ts-ps-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1024px) {
   .ts-ps__inner { padding-inline: 32px; }
@@ -913,42 +973,49 @@ body {
 @media (hover: hover) {
   .ts-ps-tile[aria-pressed="false"]:hover { border-color: var(--ts-hero-violet-2); }
   .ts-ps-cta:not(:disabled):hover { filter: brightness(1.04); }
+  .ts-ps-close:hover, .ts-ps-link__remove:hover, .ts-ps-add:hover { border-color: var(--ts-hero-violet-2); }
+  .ts-ps-pick[aria-pressed="false"]:hover { border-color: var(--ts-hero-violet-2); }
+  .ts-ps-more:hover { color: var(--ts-hero-violet-2); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ts-ps-tile, .ts-ps-cta, .ts-ps-pick { transition: none; }
 }
 
-/* ── 7 · the short view: the fifth difference (HOME-TRIM-03 — Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15) ────────
-   THE SPEC IS design-refs/home-trim-03/Section-Reference.html: its second stylesheet, "what the short view adds. The only rules to port."
-   What follows is that stylesheet, rule for rule and value for value, in its own order and with its own notes, behind the house prefix:
-   .ps--short → .ts-ps--short, .ps-brief → .ts-ps-brief (and __text, __go), .ps-how → .ts-ps-how; var(--fs-rule) → var(--ts-fs-rule),
-   var(--hero-violet-3) → var(--ts-hero-violet-3), var(--hero-violet-2) → var(--ts-hero-violet-2). Ruling e (the port: these rules join
-   this port, after its last rule, in the reference's order — homeServices01 T3 names them as its fifth difference, declaration by
-   declaration): "The family is var(--font-mono), as the port's other mono rules have it." — where the reference names 'IBM Plex Mono',
-   monospace, as the port's second difference reads every family. Ruling f (no new token): "The block reads three that are in :root
-   already (the README's table)." — --ts-fs-rule, --ts-hero-violet-3 and --ts-hero-violet-2, each the value the README gives. Ruling g
-   (the arrows): the "→" in the two links is drawn by the fallback face, as the gold link's already is on main — named, not fixed here;
-   no face is added for U+2192. The name and the line keep the stage's classes (.ts-ps-stage__title, .ts-ps-stage__line) outside the
-   stage: their rules are not scoped to it. The link's class is ts-ps-how — ps-more is taken: it is the form's "Project details" button
-   in home-services-01. Used by ServicesShortView (src/components/landing/ServicesSection.tsx), which Landing.tsx mounts. ─────── */
+/* ── 7 · the short view: the fifth difference, as HOME-SERVICES-02 leaves it (Alex's brief, 2026-11-16 13:24 Manila) ────────
+   THE SPEC IS design-refs/home-services-02/Section-Reference.html: its second stylesheet, "what it adds to the first stylesheet". What
+   follows is that stylesheet, rule for rule and value for value, in its own order and with its own notes, behind the house prefix:
+   .ps--short → .ts-ps--short, .ps-form__door → .ts-ps-form__door, .ps-count → .ts-ps-count, …; var(--fs-ink-soft) → var(--ts-fs-ink-soft).
+   Ruling p: "THE PORT TAKES THE FORM'S RULES AS THE FIRST STYLESHEET WRITES THEM: its section 4 into the port's empty section 4, and the four rules of its sections 5 and 6 that name only the form's elements, renamed, in its order. The second stylesheet becomes the short view's block, renamed: its nine new rules come, and the brief's and the link's rules go. The third stylesheet is the reference page's own and is not ported. The 14px margins written on the follow-ups come with the markup. homeServices01 T3 and homeTrim03 T2 are re-said to hold the port as it now stands, its difference 4 and difference 5 included. The port adds no token." — section 4 above is the first stylesheet's section 4, whole; sections 5 and 6 hold its four form-only rules, in its
+   order; the note's rule (.ts-ps-note, section 3 until then) is gone (ruling k), the fourth difference now. The third stylesheet, the
+   reference page's own (.ps-set { display: contents } — it lays every service's questions into the grid at once), is not ported: the
+   form draws the picked service's alone. Used by the short view and its form (src/components/landing/ServicesSection.tsx,
+   src/components/landing/ServicesForm.tsx), which Landing.tsx mounts.
+   Until HOME-SERVICES-02 this section was design-refs/home-trim-03's second stylesheet (HOME-TRIM-03 — Alex's brief, 2026-11-14 19:11
+   Manila; built 2026-11-15): its section's top and foot, which stays, first; then the picked door's row (.ts-ps-brief, its __text and
+   __go) and the link under the panel (.ts-ps-how), which went with the row and the link (ruling j). Ruling e (the port: these rules
+   joined this port, after its last rule, in the reference's order — homeServices01 T3 named them as its fifth difference): "The family is
+   var(--font-mono), as the port's other mono rules have it." — the link's, where that reference named 'IBM Plex Mono', monospace.
+   Ruling f (no new token): "The block reads three that are in :root already (the README's table)." — --ts-fs-rule, --ts-hero-violet-3
+   and --ts-hero-violet-2. Ruling g (the arrows): the "→" in the two links is drawn by the fallback face, as the gold link's already was on
+   main — named, not fixed there; no face was added for U+2192. The link under the panel left with the row; the gold link stays, the whole
+   view's. This block reads one token, --ts-fs-ink-soft, in :root already: the port adds no token. ─────── */
 /* the section's top and foot, as the boards draw them: 44px each up to 400px wide; 72px and 64px from 1400px */
 .ts-ps--short .ts-ps__inner { padding-top: clamp(44px, 2.8vw + 32.8px, 72px); padding-bottom: clamp(44px, 2vw + 36px, 64px); }
-/* under the services: the picked one's name and line, then its button and its note, in one row when there is room */
-.ts-ps-brief {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 40px;
-  margin-top: clamp(18px, 1.8vw, 24px); padding-top: clamp(18px, 1.8vw, 24px); border-top: 1px solid var(--ts-fs-rule);
-}
-.ts-ps-brief__text { flex: 1 1 420px; min-width: 0; }
-.ts-ps-brief__go { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
-/* the door to the whole section, under the panel, in the plans' link type */
-.ts-ps-how {
-  display: inline-flex; align-items: center; min-height: 44px; margin-top: 16px;
-  font-family: var(--font-mono); font-size: 13px; line-height: 1.3; font-weight: 500; letter-spacing: 0.04em;
-  color: var(--ts-hero-violet-3); text-decoration: none;
-}
-@media (hover: hover) {
-  .ts-ps-how:hover { color: var(--ts-hero-violet-2); }
-}
+/* the picked service's name and line, under the form's eyebrow */
+.ts-ps-form__door { margin-top: 10px; }
+/* the thank-you, 860px wide at most from border to border, as the fields above it: the app's base already sizes every box so */
+.ts-ps-sent { box-sizing: border-box; }
+/* Bookkeeping's three counts, side by side: bank, cards, loans */
+.ts-ps-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 420px; }
+.ts-ps-count { display: block; min-width: 0; }
+.ts-ps-count__name { display: block; margin: 0 0 6px; font-size: 13px; line-height: 1.4; color: var(--ts-fs-ink-soft); }
+/* a short number: how many entities */
+.ts-ps-input--short { max-width: 140px; }
+/* a pick wider than its row wraps its words, rather than pushing the page sideways; a one-line pick keeps its 38px */
+.ts-ps-pick { height: auto; min-height: 38px; padding-top: 8px; padding-bottom: 8px; white-space: normal; text-align: left; }
+/* a date and its reason, side by side from 640px */
+.ts-ps-dated { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+@media (min-width: 640px) { .ts-ps-dated { grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 12px; } }
 
 /* ── HOME-PLANS-04 (Alex's brief, 2026-11-12 14:07 Manila; the board approved on the design canvas at 14:30): THE
    FINANCIAL SOFTWARE SECTION — the heading box, the map, three plan cards, the all-three band ─────────────────────────
