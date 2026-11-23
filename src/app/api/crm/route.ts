@@ -70,7 +70,7 @@ export async function GET() {
           orderBy: { createdAt: 'desc' },
           select: {
             id: true, createdAt: true, name: true, email: true, business: true, need: true, modules: true, startWindow: true, budgetRange: true,
-            currentStack: true, hardDeadline: true, deadlineDriver: true, links: true, teamSize: true, referralSource: true, notesFromThem: true,
+            currentStack: true, hardDeadline: true, deadlineDriver: true, links: true, teamSize: true, referralSource: true, notesFromThem: true, answers: true,
           },
         }),
         prisma.users.findMany({
@@ -99,7 +99,7 @@ export async function GET() {
         id: p.id, created_at: p.createdAt.toISOString(), name: p.name, email: p.email, business: p.business, need: p.need, modules: p.modules,
         start_window: p.startWindow, budget_range: p.budgetRange, current_stack: p.currentStack,
         hard_deadline: p.hardDeadline === null ? null : p.hardDeadline.toISOString().slice(0, 10), deadline_driver: p.deadlineDriver,
-        links: p.links, team_size: p.teamSize, referral_source: p.referralSource, notes_from_them: p.notesFromThem,
+        links: p.links, team_size: p.teamSize, referral_source: p.referralSource, notes_from_them: p.notesFromThem, answers: p.answers, // HOME-SERVICES-02 (2026-11-16): a new row's answers
       })));
       signups = signupRowsOf({
         users: userRows.map((u) => ({

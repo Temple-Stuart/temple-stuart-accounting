@@ -681,11 +681,20 @@ test('T7 public: the three paths in PUBLIC_PATHS directly after \'/how-it-works\
     ['a server action', /['"]use server['"]/], ['a database client', /from\s+['"](?:@prisma\/client|@\/lib\/prisma|pg)['"]|\bnew PrismaClient\b/], ['an env read', /process\.env/],
     ['a cookie or header read', /\b(?:cookies|headers)\(\s*\)/], ['a session read', /\b(?:getServerSession|getToken|useSession|getVerifiedEmail|verifyCookie|getCurrentUser)\b/],
   ];
-  for (const f of closure) for (const [what, shape] of CALLS) assert.doesNotMatch(code(f), shape, `${f} makes ${what}`);
+  // HOME-SERVICES-02 (2026-11-16) — Alex's answer to its audit (A): the closure holds the proposal form's hook, whose one fetch is the form's
+  // POST to /api/proposals, made on a press of Send proposal and never by the whole view these pages draw. That file is allowed that one fetch
+  // and '/api/' in its one path, nothing else of the list; until then no file of the closure made a fetch, and '/api/' stood in the registry alone.
+  const HOOK = 'src/hooks/useProposalForm.ts';
+  assert.ok(closure.includes(HOOK), 'the hook is in the closure: /professional-services draws the section, which reads it');
+  for (const f of closure) for (const [what, shape] of CALLS) if (!(f === HOOK && what === 'a fetch')) assert.doesNotMatch(code(f), shape, `${f} makes ${what}`);
+  assert.equal((code(HOOK).match(/\bfetch\s*\(/g) ?? []).length, 1, 'the hook: one fetch');
+  assert.match(code(HOOK), /const res = await fetch\(PROPOSALS_API, \{\n\s+method: 'POST',/, 'a POST, to PROPOSALS_API, in the send');
+  assert.match(code(HOOK), /^export const PROPOSALS_API = '\/api\/proposals';$/m, 'which is /api/proposals');
+  assert.equal(code(HOOK).split('/api/').length - 1, 1, 'its one path');
   // the pages and the six components carry not even the words; among the leaves, one file does — the tool registry, whose '/api/…' paths and
   // schema names stand inside citation strings and are never called
   for (const f of [...PAGES.map((p) => p.file), ...SIX_COMPONENTS]) for (const tell of ['fetch(', '/api/', 'prisma', 'process.env']) assert.ok(!code(f).includes(tell), `${f} carries no ${tell}`);
-  for (const tell of ['/api/', 'prisma']) for (const f of closure.filter((file) => code(file).includes(tell))) assert.equal(f, 'src/lib/toolRegistry.ts', `"${tell}" stands in no file of the closure but the registry, where it is a citation inside a string (found in ${f})`);
+  for (const tell of ['/api/', 'prisma']) for (const f of closure.filter((file) => code(file).includes(tell) && !(tell === '/api/' && file === HOOK))) assert.equal(f, 'src/lib/toolRegistry.ts', `"${tell}" stands in no file of the closure but the registry, where it is a citation inside a string (found in ${f})`);
   assert.doesNotMatch(code('src/lib/toolRegistry.ts'), /\bfetch\s*\(|from\s+['"]@prisma\/client['"]/, 'which calls nothing');
 });
 
@@ -703,7 +712,9 @@ test('T8 the home page, as HOME-TRIM-02 left it (2026-11-15; "as HOME-TRIM-01 le
   // HOME-PLANS-05 (2026-11-16), ruling f — FINANCIAL_SOFTWARE_PATH leaves HowToSection.tsx with its last use there: HOW_TO leaves this list.
   // Until then: [...PAGES.map((p) => p.file), FOOTER_WORDS, ABOUT_BAND, HOW_TO, SERVICES], '… the About Us band, the Financial Software section and the Professional Services section …'.
   const readers = srcFiles().filter((f) => specsOf(code(f), f).some((spec) => /(?:^|\/)homePages$/.test(spec))).sort();
-  assert.deepEqual(readers, [...PAGES.map((p) => p.file), FOOTER_WORDS, ABOUT_BAND, SERVICES, HEADER].sort(), 'the three pages, the footer\'s words, the About Us band, the Professional Services section and (HOME-MENU-01, 2026-11-16) the top bar — no other component, no other page, by any import, export … from, import() or require() that names its module by a literal');
+  // HOME-SERVICES-02 (2026-11-16, ruling j): the Professional Services section reads the leaf no more — its link to /professional-services left;
+  // SERVICES stood in this list until then.
+  assert.deepEqual(readers, [...PAGES.map((p) => p.file), FOOTER_WORDS, ABOUT_BAND, HEADER].sort(), 'the three pages, the footer\'s words, the About Us band and (HOME-MENU-01, 2026-11-16) the top bar — the Professional Services section until HOME-SERVICES-02, 2026-11-16 — no other component, no other page, by any import, export … from, import() or require() that names its module by a literal');
   // ruling g: no travel page — /travel is the cockpit's
   assert.ok(!existsSync(resolve(ROOT, 'src/app/travel')), 'no src/app/travel');
   assert.match(code('src/app/[tab]/page.tsx'), /const TAB_PATHS = new Set\(\[\s*'runway', 'travel', 'trade', 'books', 'tax',\s*\]\);/, '/travel is one of the cockpit\'s tab paths');

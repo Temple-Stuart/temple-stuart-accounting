@@ -16,13 +16,15 @@
  *   panel, the route and the CRM read; nothing typed here. The 2026 close retired:
  *   no close chip, no close block. Bookkeeping picked shows its own lines (what it
  *   is, what it is not, the remedy — BOOKKEEPING_WORDS) and the modules question
- *   leaves (bookkeeping has no modules — the submit sends none).
+ *   leaves (bookkeeping has no modules — the submit sends none). So it stood until HOME-SERVICES-02 (2026-11-16): each door
+ *   asks its own set now, from the list, and Bookkeeping's lines stay.
  *   · `?need=<key>` picks a door on arrival — the home page's doors. The server page
  *     (page.tsx) hands the query down; a word the form does not offer picks nothing,
  *     'close' from an old link included (no redirect, no error, nothing mapped — the
  *     form simply opens unpicked).
  * This file is the client half (the RSVPClient precedent): state, the submit, the
- * markup. It reads no clock.
+ * markup — the answers, the rule, the submit and its errors left for the hook in HOME-SERVICES-02 (2026-11-16); the
+ * page keeps its need and its markup. It reads no clock.
  *
  * House shell throughout: SURFACE.page canvas, SURFACE.card panel,
  * SECTION_HEADER bar, CONTROL input family, SEGMENT single-picks, toggleChip
@@ -30,29 +32,29 @@
  * success tokens — the CheckoutResultBanner idiom). The optional block rides
  * the DISCLOSURE precedent (CoverageDeclaration.tsx:42,92-93 — useState +
  * aria-expanded button, default collapsed).
+ *
+ * HOME-SERVICES-02 (Alex, 2026-11-16 12:08 Manila: "have questions how its the same for a bunch of the categories"; 12:59: "ok lets do it,
+ * lets build it") — EACH DOOR ASKS ITS OWN QUESTIONS, and the page draws them with its own controls: CONTROL's label, input and textarea,
+ * SEGMENT for a pick-one, toggleChip for a pick-any; a count, a date with its why and a month are the new kinds of field, in the same
+ * controls. Alex's brief, 2026-11-16 13:24 Manila, ruling d, in part: "WorkWithMeForm.tsx draws it with the page's own controls, as it
+ * draws today's questions, and its need question stays and picks the set." — the need question (needChoices, the page's own state) picks
+ * the set the hook reads; with no door picked the core and How did you find me? stand, and the button waits for the need. The answers,
+ * the rule, the body, the send and its errors are the hook's (src/hooks/useProposalForm.ts), the panel's form reads the same; every word
+ * is the list's (src/lib/proposalNeeds.ts). More details starts closed (the hook, ruling h); Project details, the stack question, the
+ * hard deadline and its No deadline — exploring, Team size and the done question are asked no more (ruling c), and the note by Send
+ * left with ruling k. The honeypot is the trap both forms draw (ProposalTrap, src/components/landing/ServicesForm.tsx).
  */
 
 import { useState } from 'react';
 import { CONTROL, SECTION_HEADER, SEGMENT, STATE, SURFACE, toggleChip } from '@/lib/ds';
 // SERVICES-01 (2026-11-08): the six doors, the lead and the bookkeeping block's words — one module; the close's
 // leaf and words retired with the close.
-import { ASK_BUDGET, ASK_TIMELINE, BOOKKEEPING_WORDS, FORM_INTRO, NEED_QUESTION, PROPOSAL_STEPS, SCOPED_BY_PROPOSAL, SERVICES, type ServiceNeed } from '@/lib/proposalNeeds'; // HOME-SERVICES-01 (2026-11-12): the need question, two labels, the thank-you's words and the note by Send — the services section draws them too (its whole view, on /professional-services, all five; since HOME-TRIM-03, 2026-11-15, the home page's short view draws the need question and the note, and "the landing's section draws them too" stood until then), so both read them here (the brief's ruling e: "The form changes only where it must read a word or a rule it now shares with the landing ("What do you need?" is one).")
-
-// The 9 modules — ids + labels REUSED from Landing.tsx PILLAR_CARDS
-// (:241-313), the deck's one module vocabulary. Literals because PILLAR_CARDS
-// lives inside the Landing client component; the POST route validates against
-// the same 9 ids (api/proposals/route.ts MODULE_IDS) — drift rejects loudly.
-const MODULES = [
-  { id: 'travel', label: 'Travel' },
-  { id: 'runway', label: 'Runway' },
-  { id: 'books', label: 'Books' },
-  { id: 'trade', label: 'Trade' },
-  { id: 'tax', label: 'Tax' },
-  { id: 'compliance', label: 'Compliance' },
-  { id: 'routines', label: 'Routines' },
-  { id: 'projects', label: 'Projects' },
-  { id: 'content', label: 'Content' },
-] as const;
+import {
+  BOOKKEEPING_WORDS, CORE_QUESTIONS, FORM_INTRO, FORM_WORDS, FOUND_QUESTION, LINK_ROWS, NEED_QUESTION, PROPOSAL_STEPS, SERVICES,
+  followOpen, followWords, type Question, type ServiceNeed,
+} from '@/lib/proposalNeeds'; // HOME-SERVICES-01 (2026-11-12): the need question, two labels, the thank-you's words and the note by Send — the services section draws them too (its whole view, on /professional-services, all five; since HOME-TRIM-03, 2026-11-15, the home page's short view draws the need question and the note, and "the landing's section draws them too" stood until then), so both read them here (the brief's ruling e: "The form changes only where it must read a word or a rule it now shares with the landing ("What do you need?" is one).") HOME-SERVICES-02 (2026-11-16): the note left every page (its ruling k), and the short view draws the need question alone of these now; the two labels stand in the list's questions, which this form reads.
+import { useProposalForm, type ProposalForm } from '@/hooks/useProposalForm';
+import { ProposalTrap } from '@/components/landing/ServicesForm';
 
 /**
  * ONE-FORM-01 → SERVICES-01 (Alex, 2026-11-08): the choices — the six doors, in the panel's order, each chip the
@@ -65,117 +67,132 @@ export function needChoices(): ReadonlyArray<{ value: ServiceNeed; label: string
   return SERVICES.map(({ need, title }) => ({ value: need, label: title }));
 }
 
-const START_WINDOWS = [
-  { value: 'now', label: 'Now' },
-  { value: '2-4wk', label: '2–4 weeks' },
-  { value: '1-3mo', label: '1–3 months' },
-  { value: 'exploring', label: 'Exploring' },
-] as const;
-
-const BUDGET_RANGES = ['<$2k', '$2–10k', '$10–50k', '$50k+', 'not sure'] as const;
-const TEAM_SIZES = ['Just me', '2–10', '11–50', '50+'] as const;
-const REFERRAL_SOURCES = ['Reddit', 'Instagram', 'TikTok', 'X', 'YouTube', 'Referral', 'Other'] as const;
-
 const TEXTAREA_CLASS = `${CONTROL.input} min-h-[72px] w-full resize-y`;
+const HINT_CLASS = 'mt-1 text-xs text-text-faint';
+
+/** HOME-SERVICES-02: a question's control in the page's own dress, with its label — a follow-up's words may be its opening answer's. */
+function PageControl({ q, id, words, form }: { q: Question; id: string; words: string; form: ProposalForm }) {
+  const hint = q.hint === undefined ? null : <p className={HINT_CLASS}>{q.hint}</p>;
+  switch (q.kind) {
+    case 'one':
+    case 'many': {
+      const now = form.value(q.key);
+      const on = (answer: string) => (typeof now === 'string' ? now === answer : (now as readonly string[]).includes(answer));
+      return (
+        <>
+          <span id={`${id}-label`} className={CONTROL.label}>{words}</span>
+          <div role="group" aria-labelledby={`${id}-label`} className={q.kind === 'one' ? `${SEGMENT.wrap} mt-1 max-w-full flex-wrap` : 'mt-1 flex flex-wrap gap-1.5'}>
+            {q.answers.map((answer) => (
+              <button key={answer} type="button" onClick={() => form.press(q.key, answer)} aria-pressed={on(answer)} className={q.kind === 'one' ? SEGMENT.item(on(answer)) : toggleChip(on(answer))}>
+                {answer}
+              </button>
+            ))}
+          </div>
+          {hint}
+        </>
+      );
+    }
+    case 'counts': {
+      const parts = form.parts(q.key);
+      return (
+        <>
+          <span id={`${id}-label`} className={CONTROL.label}>{words}</span>
+          <div role="group" aria-labelledby={`${id}-label`} className="mt-1 grid max-w-[420px] grid-cols-3 gap-3">
+            {q.parts.map((part) => (
+              <label key={part.key} className="block">
+                <span className="text-xs text-text-muted">{part.words}</span>
+                <input type="number" inputMode="numeric" min={0} required={q.required} value={parts[part.key]} onChange={(e) => form.writePart(q.key, part.key, e.target.value)} className={`${CONTROL.input} mt-1 w-full`} />
+              </label>
+            ))}
+          </div>
+        </>
+      );
+    }
+    case 'dated': {
+      const parts = form.parts(q.key);
+      return (
+        <>
+          <span id={`${id}-label`} className={CONTROL.label}>{words}</span>
+          <div role="group" aria-labelledby={`${id}-label`} className="mt-1 grid gap-2 sm:grid-cols-[220px_1fr]">
+            <input type="date" aria-label={FORM_WORDS.date} value={parts.date} onChange={(e) => form.writePart(q.key, 'date', e.target.value)} className={`${CONTROL.input} w-full`} />
+            <input type="text" aria-label={FORM_WORDS.why} placeholder={q.placeholder} value={parts.why} onChange={(e) => form.writePart(q.key, 'why', e.target.value)} className={`${CONTROL.input} w-full`} />
+          </div>
+        </>
+      );
+    }
+    case 'links': {
+      const rows = form.rows(q.key);
+      return (
+        <>
+          <span className={CONTROL.label}>{words}</span>
+          {rows.map((row, i) => (
+            <div key={i} className="mt-1 flex items-center gap-2">
+              <input type="url" maxLength={q.max} placeholder={FORM_WORDS.linkPlaceholder} value={row} onChange={(e) => form.writeRow(q.key, i, e.target.value)} className={`${CONTROL.input} w-full`} />
+              {rows.length > 1 && (
+                <button type="button" onClick={() => form.removeRow(q.key, i)} aria-label={FORM_WORDS.removeLink} className="shrink-0 text-text-faint hover:text-text-primary">
+                  {FORM_WORDS.removeMark}
+                </button>
+              )}
+            </div>
+          ))}
+          {rows.length < LINK_ROWS && (
+            <button type="button" onClick={() => form.addRow(q.key)} className={`${CONTROL.ghostButton} mt-2 px-3 py-1 text-xs`}>
+              {FORM_WORDS.addLink}
+            </button>
+          )}
+        </>
+      );
+    }
+    case 'area':
+      return (
+        <>
+          <label htmlFor={id} className={CONTROL.label}>{words}</label>
+          <textarea id={id} required={q.required} maxLength={q.max} placeholder={q.placeholder} value={form.text(q.key)} onChange={(e) => form.write(q.key, e.target.value)} className={`${TEXTAREA_CLASS} mt-1`} />
+          {hint}
+        </>
+      );
+    default:
+      return (
+        <>
+          <label htmlFor={id} className={CONTROL.label}>{words}</label>
+          <input id={id} type={q.kind} inputMode={q.kind === 'number' ? 'numeric' : undefined} min={q.kind === 'number' ? 0 : undefined} required={q.required} maxLength={q.max} placeholder={q.placeholder} value={form.text(q.key)} onChange={(e) => form.write(q.key, e.target.value)} className={`${CONTROL.input} mt-1 w-full`} />
+          {hint}
+        </>
+      );
+  }
+}
+
+/** HOME-SERVICES-02: one question, full width when the list says wide; its follow-up under it while asked, as the page drew What is it? and the referral's question. */
+function PageField({ q, id, form }: { q: Question; id: string; form: ProposalForm }) {
+  const follow = q.follow;
+  const answer = form.value(q.key);
+  return (
+    <div className={q.wide ? 'sm:col-span-2' : undefined}>
+      <PageControl q={q} id={id} words={q.words} form={form} />
+      {follow !== undefined && followOpen(q, answer) && (
+        <div className="mt-3">
+          <PageControl q={follow.question} id={`${id}-${follow.question.key}`} words={followWords(follow, answer)} form={form} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function WorkWithMeForm({ initialNeed }: { initialNeed: string | null }) {
   // SERVICES-01 (2026-11-08): the six doors — the choices depend on no day, so the form takes none.
   const needs = needChoices();
   const isDoor = (word: string): word is ServiceNeed => needs.some((n) => n.value === word);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [business, setBusiness] = useState('');
-  const [currentStack, setCurrentStack] = useState('');
   // ONE-FORM-01: `?need=` picks a choice on arrival when it names a door — an old link's 'close' names none.
   const [need, setNeed] = useState<ServiceNeed | null>(initialNeed !== null && isDoor(initialNeed) ? initialNeed : null);
   const isBookkeeping = need === 'bookkeeping';
-  const [modules, setModules] = useState<string[]>([]);
-  const [startWindow, setStartWindow] = useState('exploring');
-  const [budgetRange, setBudgetRange] = useState('not sure');
-  const [notes, setNotes] = useState('');
-  const [otherModuleText, setOtherModuleText] = useState('');
-  // FORM-V2: the detail block is EXPANDED BY DEFAULT (collapse still works,
-  // aria kept — the DISCLOSURE precedent's mechanics, inverted default).
-  const [moreOpen, setMoreOpen] = useState(true);
-  const [hardDeadline, setHardDeadline] = useState('');
-  const [noDeadline, setNoDeadline] = useState(false);
-  const [deadlineDriver, setDeadlineDriver] = useState('');
-  const [linkRows, setLinkRows] = useState<string[]>(['']);
-  const [teamSize, setTeamSize] = useState<string | null>(null);
-  const [referralSource, setReferralSource] = useState<string | null>(null);
-  const [referralDetail, setReferralDetail] = useState('');
-  // Honeypot — humans never see or fill this.
-  const [website, setWebsite] = useState('');
-
-  const [submitting, setSubmitting] = useState(false);
-  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const toggleModule = (id: string) =>
-    setModules((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
-    try {
-      const links = linkRows.map((l) => l.trim()).filter(Boolean);
-      // FORM-V2 assembly — NO new columns. The Other-module description
-      // PREPENDS to the done-looks-like answer:
-      //   'OTHER MODULE: {text}\n\n' + notes  → notesFromThem
-      // and the referral follow-ups fold into the one referral_source string:
-      //   base token, or 'referral: {name}' / 'other: {text}'.
-      const notesAssembled =
-        !isBookkeeping && modules.includes('other') && otherModuleText.trim()
-          ? `OTHER MODULE: ${otherModuleText.trim()}\n\n${notes}`
-          : notes;
-      const referralAssembled =
-        referralSource === 'Referral'
-          ? `referral: ${referralDetail.trim()}`
-          : referralSource === 'Other'
-            ? `other: ${referralDetail.trim()}`
-            : referralSource;
-      const res = await fetch('/api/proposals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          email,
-          business,
-          ...(currentStack.trim() ? { currentStack: currentStack.trim() } : {}),
-          need,
-          // SERVICES-01: bookkeeping has no modules — none are asked, none are sent (the close's rule, kept).
-          modules: isBookkeeping ? [] : modules,
-          startWindow,
-          budgetRange,
-          notesFromThem: notesAssembled,
-          // The exploring toggle means an honest NULL, never a fake date.
-          ...(!noDeadline && hardDeadline ? { hardDeadline } : {}),
-          ...(deadlineDriver.trim() ? { deadlineDriver: deadlineDriver.trim() } : {}),
-          ...(links.length > 0 ? { links } : {}),
-          ...(teamSize ? { teamSize } : {}),
-          ...(referralAssembled ? { referralSource: referralAssembled } : {}),
-          website,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        const issues = Array.isArray(data?.issues) ? ` (${data.issues.join('; ')})` : '';
-        setError(`${data?.error ?? `Request failed (${res.status})`}${issues}`);
-        return;
-      }
-      setSubmittedEmail(email);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error — please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  // HOME-SERVICES-02 (2026-11-16): the answers, the rule, the body and the send — the hook both forms read, handed the picked need.
+  const form = useProposalForm(need);
+  const here = (q: Question) => (need === null ? `p-${q.key}` : `p-${need}-${q.key}`);
 
   return (
     <div className={`min-h-screen ${SURFACE.page} px-4 py-10 lg:px-8`}>
       <div className={`mx-auto max-w-2xl ${SURFACE.card}`}>
-        <div className={SECTION_HEADER}>WORK WITH ME</div>
+        <div className={SECTION_HEADER}>{FORM_WORDS.eyebrow}</div>
         <div className="p-4 sm:p-6">
           {/* ONE-FORM-01: one form for every door. SERVICES-01 (Alex, 2026-11-08): the lead is one sentence
               (FORM_INTRO in src/lib/proposalNeeds.ts) — the typed setup sentence, which restated the first door's line,
@@ -184,44 +201,18 @@ export default function WorkWithMeForm({ initialNeed }: { initialNeed: string | 
             {FORM_INTRO}
           </p>
 
-          {submittedEmail ? (
+          {form.sentEmail !== null ? (
             <div
               role="status"
               className="mt-4 rounded-lg border border-status-success/30 bg-status-success/10 p-3 text-xs text-status-success"
             >
-              Got it — {PROPOSAL_STEPS.read}. You&apos;ll hear from me at {submittedEmail}.
+              {FORM_WORDS.sentLead} {PROPOSAL_STEPS.read}. {FORM_WORDS.sentHear} {form.sentEmail}.
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-5">
+            <form onSubmit={form.send} className="mt-5 flex flex-col gap-5">
+              {/* HOME-SERVICES-02: the core's first two, Name and Email, side by side above the need question, as they stood. */}
               <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="p-name" className={CONTROL.label}>
-                    Name
-                  </label>
-                  <input
-                    id="p-name"
-                    type="text"
-                    required
-                    maxLength={255}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className={`${CONTROL.input} mt-1 w-full`}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="p-email" className={CONTROL.label}>
-                    Email
-                  </label>
-                  <input
-                    id="p-email"
-                    type="email"
-                    required
-                    maxLength={255}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={`${CONTROL.input} mt-1 w-full`}
-                  />
-                </div>
+                {CORE_QUESTIONS.slice(0, 2).map((q) => <PageField key={q.key} q={q} id={`p-${q.key}`} form={form} />)}
               </div>
 
               <div>
@@ -251,319 +242,42 @@ export default function WorkWithMeForm({ initialNeed }: { initialNeed: string | 
                 )}
               </div>
 
-              <div>
-                <label htmlFor="p-business" className={CONTROL.label}>
-                  {"What's your business? (or: it's just for me)"}
-                </label>
-                <textarea
-                  id="p-business"
-                  required
-                  maxLength={5000}
-                  placeholder="e.g. I run a 12-unit property management company in Austin — we collect rent, pay vendors, file 1099s"
-                  value={business}
-                  onChange={(e) => setBusiness(e.target.value)}
-                  className={`${TEXTAREA_CLASS} mt-1`}
-                />
-                <p className="mt-1 text-xs text-text-faint">One or two sentences: what you do, who pays you.</p>
-              </div>
-
-              {/* SERVICES-01: no modules question for bookkeeping — the block leaves, and the submit sends none. */}
-              {!isBookkeeping && <div data-modules>
-                <span className={CONTROL.label}>Which modules interest you</span>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {MODULES.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => toggleModule(m.id)}
-                      aria-pressed={modules.includes(m.id)}
-                      className={toggleChip(modules.includes(m.id))}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                  {/* FORM-V2: the escape hatch — 'other' rides the modules
-                      array (route enum extended); its description prepends to
-                      notesFromThem at submit, no new column. */}
-                  <button
-                    type="button"
-                    onClick={() => toggleModule('other')}
-                    aria-pressed={modules.includes('other')}
-                    className={toggleChip(modules.includes('other'))}
-                  >
-                    Other
-                  </button>
-                </div>
-                <p className="mt-1 text-xs text-text-faint">
-                  {"Pick Other if you need something custom-built that isn't listed."}
-                </p>
-                {modules.includes('other') && (
-                  <div className="mt-3">
-                    <label htmlFor="p-other-module" className={CONTROL.label}>
-                      What is it?
-                    </label>
-                    <textarea
-                      id="p-other-module"
-                      required
-                      maxLength={1900}
-                      placeholder="Describe what you need built."
-                      value={otherModuleText}
-                      onChange={(e) => setOtherModuleText(e.target.value)}
-                      className={`${TEXTAREA_CLASS} mt-1`}
-                    />
-                  </div>
-                )}
-              </div>}
-
+              {/* HOME-SERVICES-02: the rest of the core, then the picked door's own questions — the list's, in its order. */}
               <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <span className={CONTROL.label}>{ASK_TIMELINE}</span>
-                  <div className={`${SEGMENT.wrap} mt-1 max-w-full flex-wrap`}>
-                    {START_WINDOWS.map((w) => (
-                      <button
-                        key={w.value}
-                        type="button"
-                        onClick={() => setStartWindow(w.value)}
-                        className={SEGMENT.item(startWindow === w.value)}
-                      >
-                        {w.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <span className={CONTROL.label}>{ASK_BUDGET}</span>
-                  <div className={`${SEGMENT.wrap} mt-1 max-w-full flex-wrap`}>
-                    {BUDGET_RANGES.map((b) => (
-                      <button
-                        key={b}
-                        type="button"
-                        onClick={() => setBudgetRange(b)}
-                        className={SEGMENT.item(budgetRange === b)}
-                      >
-                        {b}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {CORE_QUESTIONS.slice(2).map((q) => <PageField key={q.key} q={q} id={`p-${q.key}`} form={form} />)}
+                {form.questions.filter((q) => !q.more).map((q) => <PageField key={q.key} q={q} id={here(q)} form={form} />)}
               </div>
 
-              <div>
-                <label htmlFor="p-notes" className={CONTROL.label}>
-                  What does done look like?
-                </label>
-                <textarea
-                  id="p-notes"
-                  required
-                  maxLength={3000}
-                  placeholder={isBookkeeping ? BOOKKEEPING_WORDS.done : "e.g. By March I can see all my rentals' income in one dashboard and my CPA gets a clean export."}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className={`${TEXTAREA_CLASS} mt-1`}
-                />
-                <p className="mt-1 text-xs text-text-faint">
-                  {"Describe the finish line — what's true when this project is done?"}
-                </p>
-              </div>
-
-              {/* Honeypot — off-screen, unreachable by keyboard, invisible to
-                  screen readers. A filled value marks the submit as a bot. */}
-              <div aria-hidden="true" className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden">
-                <label htmlFor="p-website">Website</label>
-                <input
-                  id="p-website"
-                  type="text"
-                  name="website"
-                  tabIndex={-1}
-                  autoComplete="off"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                />
-              </div>
+              {/* Honeypot — the trap both forms draw (ServicesForm.tsx). */}
+              <ProposalTrap id="p-website" form={form} />
 
               <div>
                 <button
                   type="button"
-                  onClick={() => setMoreOpen((v) => !v)}
-                  aria-expanded={moreOpen}
+                  onClick={form.toggleMore}
+                  aria-expanded={form.moreOpen}
                   className="font-mono text-xs text-text-muted underline decoration-border hover:text-text-primary"
                 >
-                  Project details
+                  {FORM_WORDS.more}
                 </button>
-                {moreOpen && (
-                  <div className="mt-4 flex flex-col gap-5 rounded bg-bg-row p-4">
-                    <div>
-                      <label htmlFor="p-stack" className={CONTROL.label}>
-                        What tools do you use today? (optional)
-                      </label>
-                      <textarea
-                        id="p-stack"
-                        maxLength={5000}
-                        placeholder="e.g. QuickBooks, Excel, Shopify, a custom site"
-                        value={currentStack}
-                        onChange={(e) => setCurrentStack(e.target.value)}
-                        className={`${TEXTAREA_CLASS} mt-1`}
-                      />
-                      <p className="mt-1 text-xs text-text-faint">
-                        {"The apps your business runs on. 'None / spreadsheets' is a real answer."}
-                      </p>
-                    </div>
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      <div>
-                        <label htmlFor="p-deadline" className={CONTROL.label}>
-                          Hard deadline
-                        </label>
-                        <input
-                          id="p-deadline"
-                          type="date"
-                          disabled={noDeadline}
-                          value={hardDeadline}
-                          onChange={(e) => setHardDeadline(e.target.value)}
-                          className={`${CONTROL.input} mt-1 w-full disabled:opacity-50`}
-                        />
-                        {/* FORM-V2: exploring = an honest NULL — the toggle
-                            clears + disables the date; submit needs one of
-                            the two. */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNoDeadline((v) => {
-                              if (!v) setHardDeadline('');
-                              return !v;
-                            })
-                          }
-                          aria-pressed={noDeadline}
-                          className={`${toggleChip(noDeadline)} mt-2`}
-                        >
-                          No deadline — exploring
-                        </button>
-                      </div>
-                      <div>
-                        <label htmlFor="p-driver" className={CONTROL.label}>
-                          What&apos;s driving it?
-                        </label>
-                        <input
-                          id="p-driver"
-                          type="text"
-                          maxLength={2000}
-                          value={deadlineDriver}
-                          onChange={(e) => setDeadlineDriver(e.target.value)}
-                          className={`${CONTROL.input} mt-1 w-full`}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <span className={CONTROL.label}>Links</span>
-                      {linkRows.map((row, i) => (
-                        <div key={i} className="mt-1 flex items-center gap-2">
-                          <input
-                            type="url"
-                            maxLength={500}
-                            placeholder="https:// — your site, a Google Doc, a Loom…"
-                            value={row}
-                            onChange={(e) =>
-                              setLinkRows((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
-                            }
-                            className={`${CONTROL.input} w-full`}
-                          />
-                          {linkRows.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => setLinkRows((prev) => prev.filter((_, j) => j !== i))}
-                              aria-label="Remove link"
-                              className="shrink-0 text-text-faint hover:text-text-primary"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      {linkRows.length < 5 && (
-                        <button
-                          type="button"
-                          onClick={() => setLinkRows((prev) => [...prev, ''])}
-                          className={`${CONTROL.ghostButton} mt-2 px-3 py-1 text-xs`}
-                        >
-                          ＋ Add link
-                        </button>
-                      )}
-                      <p className="mt-1 text-xs text-text-faint">
-                        {"Anything that shows what you're working with."}
-                      </p>
-                    </div>
-                    <div>
-                      <span className={CONTROL.label}>Team size</span>
-                      <div className={`${SEGMENT.wrap} mt-1 max-w-full flex-wrap`}>
-                        {TEAM_SIZES.map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => setTeamSize((prev) => (prev === t ? null : t))}
-                            className={SEGMENT.item(teamSize === t)}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <span className={CONTROL.label}>How did you find me?</span>
-                      <div className={`${SEGMENT.wrap} mt-1 max-w-full flex-wrap`}>
-                        {REFERRAL_SOURCES.map((r) => (
-                          <button
-                            key={r}
-                            type="button"
-                            onClick={() => {
-                              setReferralSource((prev) => (prev === r ? null : r));
-                              setReferralDetail('');
-                            }}
-                            className={SEGMENT.item(referralSource === r)}
-                          >
-                            {r}
-                          </button>
-                        ))}
-                      </div>
-                      {(referralSource === 'Referral' || referralSource === 'Other') && (
-                        <div className="mt-3">
-                          <label htmlFor="p-referral-detail" className={CONTROL.label}>
-                            {referralSource === 'Referral' ? 'Who referred you? (name)' : "Where'd you find me?"}
-                          </label>
-                          <input
-                            id="p-referral-detail"
-                            type="text"
-                            required
-                            maxLength={90}
-                            value={referralDetail}
-                            onChange={(e) => setReferralDetail(e.target.value)}
-                            className={`${CONTROL.input} mt-1 w-full`}
-                          />
-                        </div>
-                      )}
-                    </div>
+                {form.moreOpen && (
+                  <div className="mt-4 grid gap-5 rounded bg-bg-row p-4 sm:grid-cols-2">
+                    {form.questions.filter((q) => q.more).map((q) => <PageField key={q.key} q={q} id={here(q)} form={form} />)}
+                    <PageField q={FOUND_QUESTION} id={`p-${FOUND_QUESTION.key}`} form={form} />
                   </div>
                 )}
               </div>
 
-              {error && <div className={STATE.errorCard}>{error}</div>}
+              {form.error && <div className={STATE.errorCard}>{form.error}</div>}
 
               <div className="flex items-center gap-4">
                 <button
                   type="submit"
-                  disabled={
-                    submitting ||
-                    // FORM-V2 client blocks: Other picked needs its description;
-                    // the deadline question needs ONE of date/exploring; a
-                    // Referral/Other source needs its follow-up.
-                    (!isBookkeeping && modules.includes('other') && otherModuleText.trim() === '') ||
-                    (!noDeadline && hardDeadline === '') ||
-                    ((referralSource === 'Referral' || referralSource === 'Other') &&
-                      referralDetail.trim() === '')
-                  }
+                  disabled={form.submitting || form.held}
                   className="px-8 py-2 bg-brand-gold text-white font-bold text-sm rounded transition-colors hover:bg-brand-gold/90 whitespace-nowrap disabled:opacity-50"
                 >
-                  {submitting ? 'Sending…' : 'Send proposal'}
+                  {form.submitting ? FORM_WORDS.sending : FORM_WORDS.send}
                 </button>
-                <span className="ml-auto font-mono text-xs italic text-text-faint">{SCOPED_BY_PROPOSAL}</span>
               </div>
             </form>
           )}

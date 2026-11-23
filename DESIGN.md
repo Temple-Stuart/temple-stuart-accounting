@@ -93,7 +93,8 @@ already holds (ten the app's — `bg`, `border`, `red`, the hero's violets and g
 Financial Software section's `fs` family) and brings six: typed once in `src/app/globals.css` `:root` as `--ts-<token>`,
 mapped in `tailwind.config.ts` as the `ps` family, named and valued as the handoff's table. No hex is typed in a component,
 and none in the section's stylesheet. This PR's stylesheet reads nineteen of the twenty-one: `red` and `fs-gold-text` are the
-form's (its error and its eyebrow), and come with it in HOME-SERVICES-02.
+form's (its error and its eyebrow), and come with it in HOME-SERVICES-02. HOME-SERVICES-02 (2026-11-16) brought them: the
+port reads all twenty-one now, and adds none.
 
 | Token | Value | Used for |
 |---|---|---|
@@ -108,8 +109,9 @@ The section (`ServicesSection.tsx`, which `Landing.tsx` mounts — whole until H
 rule to `globals.css` under the house prefix (`.ts-ps`, `.ts-ps-tile`, `.ts-ps-stage`, …), above the Financial Software
 section's block. The six pictures are files, `public/brand/services/<key>.svg`, one per door, drawn as they were handed
 over. It draws two more gradients, both on the board (the brief's ruling f): the gold button — the Financial Software
-section's — and the picture's frame. The form the reference draws in place is a later PR's (HOME-SERVICES-02), and so are
-its rules. `src/lib/__tests__/homeServices01.test.ts` holds the port equal to
+section's — and the picture's frame. The form the reference draws in place was a later PR's (HOME-SERVICES-02), and so were
+its rules: that PR (2026-11-16) draws it in the short view's panel, and ports its rules as the first stylesheet writes them. The
+home page's short view is `design-refs/home-services-02/`'s since, whose second stylesheet reads one token the app holds and adds none. `src/lib/__tests__/homeServices01.test.ts` holds the port equal to
 `design-refs/home-services-01/Section-Reference.html`, the tokens to the handoff README's three tables, and this table to the
 same values.
 

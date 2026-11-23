@@ -12,7 +12,7 @@
  * The fourth PR of the shorter home page, and the last of its three trims. HOME-PAGES-01 gave the section a page of its own,
  * /professional-services; HOME-TRIM-02 drew Financial Software's short view; this one draws Professional Services' short view on the home
  * page: the section's name and its line, the panel with the question and the six services, under them the picked service's name and
- * line with the gold link and its note, then one link under the panel. The spec is a file: design-refs/home-trim-03/Section-Reference.html,
+ * line with the gold link and its note, then one link under the panel (so the short view stood until HOME-SERVICES-02, 2026-11-16, which opens the proposal form in place and links nowhere; T2 to T7 are re-said for it, each saying what it held). The spec is a file: design-refs/home-trim-03/Section-Reference.html,
  * with its README beside it ("Its markup is the page at rest."). The short view is ServicesShortView in
  * src/components/landing/ServicesSection.tsx, which the section draws when Landing.tsx hands it view="short"; its stylesheet is the
  * reference's second, ported as the Professional Services port's last rules in src/app/globals.css. What is held here:
@@ -26,11 +26,11 @@
  *      reference's own script paints it; the picture, the steps and their rail absent, not hidden; the act's tag first;
  *   T4 the whole view — its render is main's, byte for byte (sha256), with each of the six services picked, and the default export
  *      handed "whole" draws it;
- *   T5 the words — every word the short view draws is a leaf's, in order; the one new one is one constant in the leaf, beside
+ *   T5 the words — every word the short view draws is a leaf's, in order (above its form, since HOME-SERVICES-02); the one new one was one constant in the leaf, beside
  *      SCOPED_BY_PROPOSAL, the arrow in the string, typed nowhere else;
  *   T6 the two mounts — Landing.tsx hands "short" on its line 650, the page hands "whole"; the view is required, with no default: a
  *      mount that names none, or a name that is neither, draws nothing — React refuses it;
- *   T7 the behaviour — the pick is one React state, the first door at rest, handed to the short view; each tile picks its own door; the
+ *   T7 the behaviour — the pick is one React state, the first door at rest, handed to the short view (the whole view's since HOME-SERVICES-02, 2026-11-16: the short view's holder keeps its own, none at rest); each tile picks its own door; the
  *      gold link is the Link to the form with the pick; the link under the panel is a Link to the section's own page, carrying no state;
  *   T8 the rulings — each quoted, exact, where it is built, under the brief's stamp (cited by its letter where an older census forbids its
  *      words); ruling i's notes re-said in place, no cited line moved; in every source file of the change a quote that follows a sentence
@@ -55,10 +55,13 @@ import { BUILD_PILLAR } from '../homeActWords';
 import { PROFESSIONAL_SERVICES_PATH } from '../homePages';
 import { SERVICES_ANCHOR } from '../homeAnchors';
 import {
-  NEED_QUESTION, PROPOSAL_CTA, PROPOSAL_FORM_PATH, SCOPED_BY_PROPOSAL, SEE_HOW_A_PROPOSAL_WORKS, SERVICES, SERVICE_NEEDS, proposalFormHref, serviceDoor,
+  NEED_QUESTION, PROPOSAL_CTA, PROPOSAL_FORM_PATH, SERVICES, SERVICE_NEEDS, proposalFormHref, serviceDoor,
   type ServiceNeed,
 } from '../proposalNeeds';
 import ServicesSection, { ServicesShortView, ServicesView, type ServicesViewProps } from '@/components/landing/ServicesSection';
+// HOME-SERVICES-02 (2026-11-16): the short view draws the proposal form, from the hook its holder calls; SCOPED_BY_PROPOSAL and
+// SEE_HOW_A_PROPOSAL_WORKS, which this file imported until then, are gone from the leaf (its rulings k and j)
+import { useProposalForm, type ProposalForm } from '@/hooks/useProposalForm';
 
 Object.assign(globalThis, { React });
 
@@ -216,7 +219,24 @@ function painted(need: string): string {
   return once(html, /(<a class="ps-cta" href=")[^"]*(">)/, `$1/work-with-me?need=${need}$2`);
 }
 const noop = (): void => {};
-const shortRender = (picked: ServiceNeed): string => renderToStaticMarkup(React.createElement(ServicesShortView, { picked, onPick: noop }));
+/**
+ * HOME-SERVICES-02 (2026-11-16): the short view with a pick, drawn with the hook its holder calls — the proposal form under the tiles. Until then
+ * the view took the pick alone: React.createElement(ServicesShortView, { picked, onPick: noop }). shortHead cuts a render at the form: what this
+ * brief's section still is of it — the tag, the inner box, the name and line, the panel's question and tiles (each naming the form it opens,
+ * aria-controls="ps-form", HOME-SERVICES-02's ruling a); refHead cuts the reference at its row, which left with that brief (its ruling j).
+ */
+const ShortWithForm = ({ picked }: { picked: ServiceNeed }) => React.createElement(ServicesShortView, { picked, onPick: noop, form: useProposalForm(picked), onClose: noop });
+const shortRender = (picked: ServiceNeed): string => renderToStaticMarkup(React.createElement(ShortWithForm, { picked }));
+const shortHead = (html: string): string => html.slice(0, html.indexOf('<div class="ts-ps-form"')).replace(/ aria-controls="ps-form"/g, '');
+const refHead = (html: string): string => html.slice(0, html.indexOf('<div class="ps-brief">'));
+/** The hook's form for a pick, as a render hands it — for a call of the pure view outside one. */
+function formFor(picked: ServiceNeed): ProposalForm {
+  let form: ProposalForm | null = null;
+  const Capture = (): null => { form = useProposalForm(picked); return null; };
+  renderToStaticMarkup(React.createElement(Capture));
+  if (form === null) throw new Error('the hook was not called');
+  return form;
+}
 const wholeRender = (picked: ServiceNeed): string => renderToStaticMarkup(React.createElement(ServicesView, { picked, onPick: noop }));
 /** Every element a view draws, depth first — its function components drawn too (homeTrim02.test.ts's reading). */
 function drawnElementsOf(node: React.ReactNode): React.ReactElement<Record<string, unknown>>[] {
@@ -276,6 +296,8 @@ test('T1 the handoff is in the tree — the README and the reference, byte for b
 
 /** The port's declarations at main (79948a9), before this block: their count, and sha256 of their lines, joined. */
 const PORT_AT_MAIN = { declarations: 237, sha: '3250e920765f400b23772eaf9429a303f76781c99e8516e2aa41f082dcf67f99' };
+/** HOME-SERVICES-02 (2026-11-16): the port before the block as that brief leaves it — the form's rules in, the note's out. */
+const PORT_WITH_THE_FORM = { declarations: 432, sha: 'cdb0386e3b61cf27513d1770644846ff5eebf321034adf8928176f936ef82f9c' };
 /** The README's table of the three tokens the block reads (README, "Already in the app, read by the short view's stylesheet"). */
 const TOKENS: ReadonlyArray<readonly [token: string, value: string]> = [['fs-rule', '#EEEAF5'], ['hero-violet-3', '#32118A'], ['hero-violet-2', '#4D1FBC']];
 
@@ -288,12 +310,18 @@ test('T2 the block is the reference\'s second stylesheet, declaration by declara
   });
   assert.equal(expected.length, 28, 'twenty-eight declarations in six rules');
   const block = declarations(blockCss());
-  assert.deepEqual(block, expected, 'the block is the second stylesheet, declaration by declaration, in its order, renamed — its family the site\'s mono (ruling e)');
-  assert.ok(block.includes(' | .ts-ps-how | font-family: var(--font-mono)'), 'the link\'s family is var(--font-mono), as the port\'s other mono rules have it');
+  // HOME-SERVICES-02 (2026-11-16), its ruling p: the block is design-refs/home-services-02's second stylesheet now (homeServices02.test.ts holds it,
+  // declaration by declaration): this reference's first rule, the section's top and foot, stands first in it; the row's and the link's rules left
+  // with the row and the link (its ruling j). Until then: assert.deepEqual(block, expected, …) — the block was this second stylesheet, whole —
+  // and the link's family, ' | .ts-ps-how | font-family: var(--font-mono)', stood in it (ruling e).
+  assert.deepEqual(block.slice(0, 2), expected.slice(0, 2), 'the section\'s top and foot, as this reference has them, first in the block');
+  assert.equal(block.length, 27, 'the block as HOME-SERVICES-02 leaves it: twenty-seven declarations');
+  for (const gone of ['.ts-ps-brief', '.ts-ps-how']) assert.ok(!block.some((d) => d.includes(gone)), `${gone}: its rules left with it`);
   // HOME-TRIM-03 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling f: "NO NEW TOKEN. The block reads three that are in :root
   // already (the README's table)." — it reads the three, each in :root at the README's value, and declares none
   const read = [...new Set([...blockCss().matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]))];
-  assert.deepEqual(read, ['--ts-fs-rule', '--font-mono', '--ts-hero-violet-3', '--ts-hero-violet-2'], 'it reads the three tokens and the site\'s mono, nothing else');
+  // HOME-SERVICES-02 (2026-11-16): the block reads one token, in :root already — the three below and the site's mono until then, which stay in :root
+  assert.deepEqual(read, ['--ts-fs-ink-soft'], 'it reads one token, nothing else (until HOME-SERVICES-02: [\'--ts-fs-rule\', \'--font-mono\', \'--ts-hero-violet-3\', \'--ts-hero-violet-2\'])');
   const readme = flat(whole(README));
   for (const [token, value] of TOKENS) {
     assert.ok(readme.includes(`| \`${token}\` | \`${value}\` |`), `the README's table: ${token} is ${value}`);
@@ -309,10 +337,13 @@ test('T2 the block is the reference\'s second stylesheet, declaration by declara
   assert.ok(css.indexOf(PORT_OPEN) < css.indexOf(BLOCK_OPEN) && css.indexOf(BLOCK_OPEN) < css.indexOf(NEXT_PORT), 'inside the port, above the Financial Software section\'s');
   // ruling e: "The rest of the port does not change." — the port's declarations before the block are main's
   const port = declarations(css.slice(css.indexOf(PORT_OPEN), css.indexOf(NEXT_PORT)));
-  assert.deepEqual(port.slice(-28), expected, 'the block is the port\'s last twenty-eight declarations');
-  const before = port.slice(0, -28);
-  assert.equal(before.length, PORT_AT_MAIN.declarations, 'the port before the block: main\'s count');
-  assert.equal(sha256(before.join('\n')), PORT_AT_MAIN.sha, 'and main\'s declarations, every one');
+  // HOME-SERVICES-02 (2026-11-16): the block is the port's last twenty-seven, and before it the port holds the form's rules (its section 4, the four
+  // rules of sections 5 and 6) and no note's — 432 declarations, PORT_WITH_THE_FORM; until then the last twenty-eight, PORT_AT_MAIN before them
+  assert.deepEqual(port.slice(-27), block, 'the block is the port\'s last twenty-seven declarations');
+  const before = port.slice(0, -27);
+  assert.equal(before.length, PORT_WITH_THE_FORM.declarations, 'the port before the block: as HOME-SERVICES-02 leaves it');
+  assert.equal(sha256(before.join('\n')), PORT_WITH_THE_FORM.sha, 'every declaration of it');
+  assert.equal(PORT_AT_MAIN.declarations, 237, 'main\'s count before HOME-SERVICES-02, kept for the record');
 });
 
 // ── T3 · THE SHORT VIEW'S MARKUP ─────────────────────────────────────────────
@@ -320,27 +351,36 @@ test('T2 the block is the reference\'s second stylesheet, declaration by declara
 test('T3 the short view\'s render is the reference\'s section, token for token, with each of the six services picked, as the reference\'s script paints it; the picture, the steps and their rail absent, not hidden; the act\'s tag first, the anchor once', () => {
   assert.deepEqual(referenceDoors(), SERVICES.map((s) => [s.need, s.title, s.line]), 'the reference\'s doors are SERVICES, in order — the same words');
   assert.equal(painted(SERVICES[0].need), referenceSection(), 'the reference\'s markup is the page at rest: its script paints the first door as drawn');
+  // HOME-SERVICES-02 (2026-11-16): the short view is design-refs/home-services-02's section now, the proposal form under the tiles (homeServices02
+  // holds it token for token). Of this reference it keeps everything above its row — the tag, the box, the name and line, the panel's question
+  // and tiles, each tile naming the form it opens. Until then the whole render was this reference's section, token for token, with each pick.
   for (const need of SERVICE_NEEDS) {
     const html = shortRender(need);
-    assert.deepEqual(tokensOf(html, false), tokensOf(painted(need), true), `${need}: the reference's section, token for token`);
+    assert.deepEqual(tokensOf(shortHead(html), false), tokensOf(refHead(painted(need)), true), `${need}: the reference's section above its row, token for token`);
     assert.ok(html.startsWith(`<section id="${SERVICES_ANCHOR}" class="ts-ps ts-ps--short" aria-labelledby="ps-title">`), `${need}: the act's tag — the id and the label kept, ts-ps--short added (ruling b)`);
     assert.equal(count(html, `id="${SERVICES_ANCHOR}"`), 1, `${need}: the anchor, once`);
     assert.equal(count(html, ' data-done-for-you="'), 6, `${need}: each tile keeps its hook`);
-    assert.equal(count(html, 'aria-pressed="true"'), 1, `${need}: one tile pressed`);
-    assert.ok(html.includes(`aria-pressed="true" data-done-for-you="${need}"`), `${need}: its own`);
+    assert.equal(count(shortHead(html), 'aria-pressed="true"'), 1, `${need}: one tile pressed (above the form — its picks with a default are pressed too, since HOME-SERVICES-02, 2026-11-16)`);
+    assert.ok(html.includes(`aria-pressed="true" aria-controls="ps-form" data-done-for-you="${need}"`), `${need}: its own — naming the form it opens since HOME-SERVICES-02 (2026-11-16)`);
     assert.equal(count(html, '<h3 class="ts-ps-stage__title" aria-live="polite">'), 1, `${need}: the picked service's name keeps aria-live="polite" (ruling b)`);
-    assert.equal(count(html, '<a '), 2, `${need}: two links`);
-    assert.equal(count(html, `<a class="ts-ps-cta" href="${proposalFormHref(need)}">`), 1, `${need}: the gold link, to the form with the pick (ruling c)`);
-    assert.equal(count(html, `<a class="ts-ps-how" href="${PROFESSIONAL_SERVICES_PATH}">`), 1, `${need}: the link under the panel, to the section's own page (ruling d)`);
-    for (const gone of ['<img', 'ts-ps-stage"', 'ts-ps-stage__art', 'ts-ps-stage__text', 'ts-ps-steps', 'ts-ps-step', 'ts-ps-chip', 'ts-ps-cta-row', '<ol']) assert.equal(count(html, gone), 0, `${need}: no ${gone} — absent from the markup (ruling b)`);
-    assert.doesNotMatch(html, /\shidden(?=[\s>=])/, `${need}: nothing hidden — what is not drawn is not there`);
+    // HOME-SERVICES-02 (2026-11-16, ruling j): no link — the gold link to the form with the pick (ruling c) and the link under the panel to the
+    // section's own page (ruling d) stood here until then, '<a ' twice
+    assert.equal(count(html, '<a '), 0, `${need}: no link — the section sends nobody elsewhere`);
+    assert.ok(!html.includes(`href="${proposalFormHref(need)}"`) && !html.includes(`href="${PROFESSIONAL_SERVICES_PATH}"`), `${need}: neither path`);
+    // absent from the markup (ruling b); ts-ps-step's mark is the thank-you's since HOME-SERVICES-02 ('ts-ps-step' stood in this list until then)
+    for (const gone of ['<img', 'ts-ps-stage"', 'ts-ps-stage__art', 'ts-ps-stage__text', 'ts-ps-steps', 'ts-ps-step"', 'ts-ps-step__rail', 'ts-ps-chip', 'ts-ps-cta-row', '<ol']) assert.equal(count(html, gone), 0, `${need}: no ${gone} — absent from the markup (ruling b)`);
+    assert.doesNotMatch(shortHead(html), /\shidden(?=[\s>=])/, `${need}: nothing hidden above the form — what is not drawn is not there (the whole render, until HOME-SERVICES-02 drew the form, whose closed parts hide)`);
   }
-  assert.equal(renderToStaticMarkup(React.createElement(ServicesSection, { view: 'short' })), shortRender(SERVICES[0].need), 'the default export, handed "short", draws the short view at rest: the first door');
+  // HOME-SERVICES-02 (2026-11-16, ruling a): at rest nothing is picked and the form hides — "draws the short view at rest: the first door", equal to shortRender(SERVICES[0].need), until then
+  const atRest = renderToStaticMarkup(React.createElement(ServicesSection, { view: 'short' }));
+  assert.equal(count(atRest, 'aria-pressed="true"'), 0, 'the default export, handed "short", draws the short view at rest: no service picked');
+  assert.ok(atRest.includes('<div class="ts-ps-form" id="ps-form" hidden="">'), 'and the form, hidden');
   // every class the short view wears is the port's, and the block rules nothing it does not wear
   const css = code(GLOBALS);
   const port = declarations(css.slice(css.indexOf(PORT_OPEN), css.indexOf(NEXT_PORT)));
   const ruled = new Set(port.flatMap((l) => l.split(' | ')[1].match(/\.ts-[A-Za-z][\w-]*/g) ?? []));
-  const worn = new Set(SERVICE_NEEDS.flatMap((need) => [...shortRender(need).matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/))));
+  // HOME-SERVICES-02 (2026-11-16): the trap, /work-with-me's honeypot, wears Tailwind's classes, as it did there — the classes read are the house's
+  const worn = new Set(SERVICE_NEEDS.flatMap((need) => [...shortRender(need).matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/))).filter((cls) => cls.startsWith('ts-')));
   for (const cls of worn) assert.ok(ruled.has(`.${cls}`), `.${cls} is named by a rule of the port`);
   for (const cls of new Set(declarations(blockCss()).flatMap((l) => l.split(' | ')[1].match(/\.ts-[A-Za-z][\w-]*/g) ?? []))) assert.ok(worn.has(cls.slice(1)), `${cls}, which the block rules, is worn by the short view`);
 });
@@ -360,37 +400,43 @@ const WHOLE_AT_MAIN: Readonly<Record<string, string>> = {
 test('T4 the whole view\'s render is main\'s, byte for byte, with each of the six services picked, and the default export handed "whole" draws it', () => {
   // ruling a: "The whole view renders byte for byte what main renders, on /professional-services and wherever a test renders it."
   assert.deepEqual(Object.keys(WHOLE_AT_MAIN), [...SERVICE_NEEDS], 'a digest for each door, in order');
-  for (const need of SERVICE_NEEDS) assert.equal(sha256(wholeRender(need)), WHOLE_AT_MAIN[need], `${need}: main's render, byte for byte`);
-  assert.equal(sha256(renderToStaticMarkup(React.createElement(ServicesSection, { view: 'whole' }))), WHOLE_AT_MAIN.setup, 'the default export, handed "whole": main\'s render at rest, the first door — as /professional-services hands it');
+  // HOME-SERVICES-02 (Alex's brief, 2026-11-16 13:24 Manila), ruling l, in part: "Its render is main's but for the note." — with the note put back beside the gold link, each render
+  // is main's, byte for byte; it is not there (ruling k). Until then the render itself hashed to main's.
+  const withNote = (html: string): string => html.replace(/(<a class="ts-ps-cta" [^>]*>[^<]*<\/a>)/, '$1<span class="ts-ps-note">Scoped by proposal</span>');
+  for (const need of SERVICE_NEEDS) {
+    assert.equal(sha256(withNote(wholeRender(need))), WHOLE_AT_MAIN[need], `${need}: main's render, byte for byte, but for the note`);
+    assert.ok(!wholeRender(need).includes('ts-ps-note'), `${need}: no note`);
+  }
+  assert.equal(sha256(withNote(renderToStaticMarkup(React.createElement(ServicesSection, { view: 'whole' })))), WHOLE_AT_MAIN.setup, 'the default export, handed "whole": main\'s render at rest, the first door, but for the note — as /professional-services hands it');
 });
 
 // ── T5 · THE WORDS ───────────────────────────────────────────────────────────
 
 test('T5 every word the short view draws is a leaf\'s, in order, and the reference draws the same; the one new one is one constant in the leaf, beside SCOPED_BY_PROPOSAL, the arrow in the string, typed nowhere else', () => {
-  // ruling d: the new words, the arrow in the string
-  assert.equal(SEE_HOW_A_PROPOSAL_WORKS, 'See how a proposal works →', '"See how a proposal works →", the arrow in the string');
-  assert.doesNotMatch(SEE_HOW_A_PROPOSAL_WORKS, /\$\s*\d/, 'no fixed price');
-  // one constant in the leaf, beside SCOPED_BY_PROPOSAL — whose line, :166, the brief cites, stays where it was
-  const leaf = code(LEAF).split('\n');
-  assert.equal(leaf[165], "export const SCOPED_BY_PROPOSAL = 'Scoped by proposal';", 'proposalNeeds.ts:166 is SCOPED_BY_PROPOSAL, where it stood');
-  const at = leaf.findIndex((l) => l.startsWith('export const SEE_HOW_A_PROPOSAL_WORKS = '));
-  assert.ok(at > 165 && leaf.slice(166, at).every((l) => l.trim() === ''), 'the new constant stands beside it: directly after, its note between');
-  assert.equal(leaf[at], "export const SEE_HOW_A_PROPOSAL_WORKS = 'See how a proposal works →';", 'typed once, there');
-  assert.deepEqual(srcFiles().filter((f) => code(f).includes('See how a proposal works')), [LEAF], 'the words stand in one file\'s code under src but the tests');
+  // HOME-SERVICES-02 (2026-11-16, rulings j and k): the link's words and the note left the leaf with the link and the note — "See how a proposal
+  // works →" was one constant there (ruling d), SEE_HOW_A_PROPOSAL_WORKS, directly after SCOPED_BY_PROPOSAL, whose line, :166, the brief cites:
+  // that line is gone with the constant (ruling k). Until then this test held the constant, its arrow, its seat after :166, and one file typing it.
+  assert.deepEqual(srcFiles().filter((f) => code(f).includes('See how a proposal works') || code(f).includes('SEE_HOW_A_PROPOSAL_WORKS')), [], 'the link\'s words stand in no file\'s code under src but the tests');
+  assert.ok(!code(LEAF).includes('SCOPED_BY_PROPOSAL'), 'proposalNeeds.ts:166, SCOPED_BY_PROPOSAL, is gone with the note');
   // every word drawn, in order: the leaves' own — and the reference draws the same
   for (const need of SERVICE_NEEDS) {
     const door = serviceDoor(need);
-    const words = [BUILD_PILLAR.heading, ...BUILD_PILLAR.paragraphs, NEED_QUESTION, ...SERVICES.flatMap((s) => (s.kind === null ? [s.title] : [s.title, s.kind])),
-      door.title, door.line, PROPOSAL_CTA, SCOPED_BY_PROPOSAL, SEE_HOW_A_PROPOSAL_WORKS];
-    assert.deepEqual(textsOf(shortRender(need)), words, `${need}: every word a leaf's, in order`);
-    assert.deepEqual(textsOf(painted(need)), words, `${need}: and the reference draws the same words`);
+    // HOME-SERVICES-02 (2026-11-16): above the form, the words this reference draws above its row; the door's name and line stand in the form's head
+    // now, and the form's words are the list's (homeServices02 holds them). Until then, after the tiles: door.title, door.line, PROPOSAL_CTA,
+    // SCOPED_BY_PROPOSAL and SEE_HOW_A_PROPOSAL_WORKS, the whole render's words and the reference's.
+    const words = [BUILD_PILLAR.heading, ...BUILD_PILLAR.paragraphs, NEED_QUESTION, ...SERVICES.flatMap((s) => (s.kind === null ? [s.title] : [s.title, s.kind]))];
+    assert.deepEqual(textsOf(shortHead(shortRender(need))), words, `${need}: every word a leaf's, in order`);
+    assert.deepEqual(textsOf(refHead(painted(need))), words, `${need}: and the reference draws the same words`);
+    assert.ok(textsOf(shortRender(need)).includes(door.title) && textsOf(shortRender(need)).includes(door.line), `${need}: the door's name and line, in the form's head`);
   }
   // the section types none of them, and neither path: it writes no template literal
   const section = code(SECTION);
   assert.equal(count(section, '`'), 0, 'no template literal in the section');
-  for (const w of new Set(SERVICE_NEEDS.flatMap((need) => textsOf(shortRender(need))))) assert.ok(!section.includes(w), `ServicesSection.tsx does not type "${w}"`);
+  // HOME-SERVICES-02 (2026-11-16): the words above the form — the form's are the list's, typed in src/lib/proposalNeeds.ts (homeServices02 holds that
+  // no component types one); the whole render's words until then
+  for (const w of new Set(SERVICE_NEEDS.flatMap((need) => textsOf(shortHead(shortRender(need)))))) assert.ok(!section.includes(w), `ServicesSection.tsx does not type "${w}"`);
   assert.ok(!section.includes(PROFESSIONAL_SERVICES_PATH) && !section.includes(PROPOSAL_FORM_PATH), 'both paths are read, not typed');
-  assert.equal(count(section, '<Link className="ts-ps-how" href={PROFESSIONAL_SERVICES_PATH}>{SEE_HOW_A_PROPOSAL_WORKS}</Link>'), 1, 'the link: a next/link Link, the README\'s class, the pages\' leaf\'s path, the leaf\'s words (ruling d)');
+  assert.equal(count(section, 'className="ts-ps-how"'), 0, 'no link under the panel (HOME-SERVICES-02, 2026-11-16, ruling j) — a next/link Link in the README\'s class, to the pages\' leaf\'s path, with the leaf\'s words, until then (ruling d)');
 });
 
 // ── T6 · THE TWO MOUNTS ──────────────────────────────────────────────────────
@@ -407,7 +453,9 @@ test('T6 Landing.tsx hands "short" on its line 650, /professional-services hands
   // ruling a: "required, with no default" — "a lookup that refuses any other name, as HowToSection does"
   const section = code(SECTION);
   assert.match(section, /export default function ServicesSection\(\{ view \}: \{ view: 'short' \| 'whole' \}\) \{/, 'the view: two names, required');
-  assert.match(section, /^const VIEWS = \{ __proto__: null, short: ServicesShortView, whole: ServicesView \} as const;$/m, 'each view by its name, in an object with no prototype to lend one');
+  // HOME-SERVICES-02 (2026-11-16, ruling a): "short" finds the short view's holder, which keeps its own pick and draws ServicesShortView — short:
+  // ServicesShortView until then
+  assert.match(section, /^const VIEWS = \{ __proto__: null, short: ServicesShortHolder, whole: ServicesView \} as const;$/m, 'each view by its name, in an object with no prototype to lend one');
   assert.equal(count(section, 'const View = VIEWS[view];'), 1, 'looked up, not chosen by a ternary');
   assert.doesNotMatch(section, /view \?\?|view \|\||view === |view !== |= 'whole'|= 'short'/, 'no default and no fall-through: nothing stands in for a missing view');
   assert.throws(() => renderToStaticMarkup(React.createElement(ServicesSection as unknown as React.FC)), /Element type is invalid/, 'a mount that names no view draws nothing: React refuses it');
@@ -420,31 +468,28 @@ test('T6 Landing.tsx hands "short" on its line 650, /professional-services hands
 test('T7 the pick is one React state, the first door at rest, handed to the short view; each tile picks its own door; the gold link is the Link to the form with the pick; the link under the panel is a Link to the section\'s own page that carries no state', () => {
   // HOME-TRIM-03 (Alex's brief, 2026-11-14 19:11 Manila; built 2026-11-15), ruling c: "THE PICK is the section's own: React state, the first
   // door at rest, nothing stored and nothing in the URL. The gold link is the same Link to proposalFormHref(picked)."
-  const order = [...SERVICE_NEEDS.slice(1), SERVICE_NEEDS[0]];
-  const passes: string[] = [];
+  // HOME-SERVICES-02 (2026-11-16, rulings a and l): the default export's pick is the whole view's; handed "short" it draws the short view's holder,
+  // which keeps its own — none at rest (homeServices02 holds the toggle). Until then the one state was handed to the short view: the first door
+  // at rest, then each pick, as the state held it (a Host called the default export and drove onPick through the six).
   const Host = (): null => {
     const el = ServicesSection({ view: 'short' }) as React.ReactElement<ServicesViewProps>;
-    assert.equal(el.type, ServicesShortView, 'handed "short", the default export draws the short view');
-    passes.push(el.props.picked);
-    if (passes.length <= order.length) el.props.onPick(order[passes.length - 1]);
+    assert.equal((el.type as { name?: string }).name, 'ServicesShortHolder', 'handed "short", the default export draws the short view\'s holder');
     return null;
   };
   assert.equal(renderToStaticMarkup(React.createElement(Host)), '');
-  assert.deepEqual(passes, [SERVICE_NEEDS[0], ...order], 'the first door at rest, then each pick, as the state holds it');
   for (const need of SERVICE_NEEDS) {
     const picks: string[] = [];
-    const drawn = drawnElementsOf(ServicesShortView({ picked: need, onPick: (n) => { picks.push(n); } }));
-    const tiles = drawn.filter((el) => el.type === 'button');
+    const drawn = drawnElementsOf(ServicesShortView({ picked: need, onPick: (n) => { picks.push(n); }, form: formFor(need), onClose: noop }));
+    // HOME-SERVICES-02 (2026-11-16): the form's buttons are drawn too — the tiles are the buttons with the hook (every button, until then)
+    const tiles = drawn.filter((el) => el.type === 'button' && typeof el.props['data-done-for-you'] === 'string');
     assert.deepEqual(tiles.map((el) => el.props['data-done-for-you']), [...SERVICE_NEEDS], `${need}: six tiles, in the doors' order`);
     assert.deepEqual(tiles.map((el) => el.props['aria-pressed']), SERVICE_NEEDS.map((n) => n === need), `${need}: the picked one is pressed, and only it`);
     for (const tile of tiles) (tile.props.onClick as () => void)();
     assert.deepEqual(picks, [...SERVICE_NEEDS], `${need}: each tile picks its own door`);
-    const links = drawn.filter((el) => typeof el.props.href === 'string');
-    assert.deepEqual(links.map((el) => [el.props.className, el.props.href, Object.keys(el.props).sort()]), [
-      ['ts-ps-cta', proposalFormHref(need), ['children', 'className', 'href']],
-      ['ts-ps-how', PROFESSIONAL_SERVICES_PATH, ['children', 'className', 'href']],
-    ], `${need}: the gold link to the form with the pick (ruling c), then the link to the section's own page, which carries no state (ruling d)`);
-    assert.ok(links.every((el) => el.type === links[0].type && typeof el.type === 'object'), `${need}: both are next/link Links, the same component`);
+    // HOME-SERVICES-02 (2026-11-16, ruling j): no link — until then the gold link to the form with the pick (ruling c), ['ts-ps-cta',
+    // proposalFormHref(need)], then the link to the section's own page, which carried no state (ruling d), ['ts-ps-how', PROFESSIONAL_SERVICES_PATH],
+    // both next/link Links
+    assert.deepEqual(drawn.filter((el) => typeof el.props.href === 'string'), [], `${need}: no link`);
   }
   // nothing stored, nothing in the URL: the section's only state is the default export's pick
   const section = code(SECTION);
@@ -554,7 +599,8 @@ test('T8 each ruling is quoted, exact, where it is built, under the brief\'s sta
   // no cited line moved: the files whose lines a test or a law cites, held to their lines
   const LINES: ReadonlyArray<readonly [file: string, line: number, text: string]> = [
     [LANDING, 650, '      <ServicesSection view="short" />'],
-    [LEAF, 166, "export const SCOPED_BY_PROPOSAL = 'Scoped by proposal';"],
+    // HOME-SERVICES-02 (2026-11-16, ruling k): proposalNeeds.ts:166, "export const SCOPED_BY_PROPOSAL = 'Scoped by proposal';", stood here until then — the
+    // line left with the note it held, and the brief's citation of it, ruling d's "(:166)", is history (T5 holds the constant gone)
     ['src/lib/homePages.ts', 42, "export const PROFESSIONAL_SERVICES_PATH = '/professional-services';"],
   ];
   for (const [file, line, text] of LINES) assert.equal(code(file).split('\n')[line - 1], text, `${file}:${line}, the line the brief cites, where it stood`);

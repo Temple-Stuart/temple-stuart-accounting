@@ -29,6 +29,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { code, comments } from '../sourceText';
 // SERVICES-01 (2026-11-08): the path, the keys and the doors from the one module; the close's leaf and words retired.
 import { PROPOSAL_FORM_PATH, PROPOSAL_NEEDS, SERVICES, SERVICE_NEEDS, proposalFormHref } from '../proposalNeeds';
+// HOME-SERVICES-02 (2026-11-16): each door's own questions, and the body the hook both forms read builds
+import { SERVICE_QUESTIONS, startAnswers } from '../proposalNeeds';
+import { CORE_START, proposalBody } from '@/hooks/useProposalForm';
 import { SEGMENT } from '../ds';
 import { z } from 'zod';
 import WorkWithMeForm, { needChoices } from '@/app/work-with-me/WorkWithMeForm';
@@ -49,6 +52,8 @@ const SIX = ['setup', 'maintenance', 'custom', 'embed', 'bookkeeping', 'unsure']
 
 // SERVICES-01 (2026-11-08): the form takes no day — only the door the link names.
 const render = (initialNeed: string | null) => renderToStaticMarkup(React.createElement(WorkWithMeForm, { initialNeed }));
+/** HOME-SERVICES-02: Full setup's modules question — "What should it run on day one?", the list's (until then the form typed "Which modules interest you" in a block marked data-modules). */
+const MODULES_WORDS = SERVICE_QUESTIONS.setup.filter((q) => q.key === 'modules').map((q) => q.words)[0];
 const chip = (html: string, need: string) => {
   const m = new RegExp(`<button type="button" class="([^"]*)" data-need="${need}">([^<]*)</button>`).exec(html);
   return m ? { className: m[1], words: m[2] } : null;
@@ -99,16 +104,17 @@ test('T2 the schema\'s need names the CHECK, the seven words (\'close\' legacy) 
   assert.match(schema, new RegExp(`prisma/migrations/${MIGRATION_DIR}`));
   assert.match(schema, /prisma\/migrations\/20261108111500_services_01_bookkeeping_need/);
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration before the newest (CRM-01a followed)');
-  assert.equal(dirs[dirs.length - 6], '20261103200000_travel_02c_stay_link_living_baselines');
+  // HOME-SERVICES-02 (2026-11-16): its migration, 20261116132400_home_services_02_answers (proposals gains answers), is the newest now — every position read from the end below moved by one, and a message that says "the newest" names the one before it.
+  assert.equal(dirs[dirs.length - 6], MIGRATION_DIR, 'the migration before the newest (CRM-01a followed)');
+  assert.equal(dirs[dirs.length - 7], '20261103200000_travel_02c_stay_link_living_baselines');
   // CRM-01a (2026-11-07): crm_contacts, the CRM's working table, followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 4], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
+  assert.equal(dirs[dirs.length - 5], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
   // CRM-02 (2026-11-07): crm_forms and crm_form_submissions, the intake form's two tables, followed — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 3], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 4], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
   // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 2], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 3], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
   // CASH-02a (2026-11-08): travel_expenses gains paid_with — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 1], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  assert.equal(dirs[dirs.length - 2], '20261108120000_cash_02a_paid_with', 'the newest migration');
 });
 
 // ── T3 · THE SERVER PAGE ─────────────────────────────────────────────────────
@@ -134,7 +140,8 @@ test('T4 arriving with ?need=setup: setup picked, the modules asked, no bookkeep
   const setup = render('setup');
   assert.equal(chip(setup, 'setup')?.className, SEGMENT.item(true));
   for (const other of SIX.filter((n) => n !== 'setup')) assert.equal(chip(setup, other)?.className, SEGMENT.item(false), `${other} not picked`);
-  assert.match(setup, /data-modules/);
+  // HOME-SERVICES-02 (2026-11-16): Full setup's own set asks its modules question, the list's words — /data-modules/ until then
+  assert.ok(setup.includes(MODULES_WORDS), 'the modules asked, as Full setup\'s set asks them');
   // SERVICES-01 (2026-11-08): the close block retired; bookkeeping's block shows only when bookkeeping is picked.
   assert.doesNotMatch(setup, /data-bookkeeping-offer|data-close-offer/);
   assert.match(setup, /<div class="[^"]*">WORK WITH ME<\/div>/);
@@ -147,17 +154,23 @@ test('T4 a word the form does not offer picks nothing — SERVICES-01: ?need=clo
     for (const need of SIX) assert.equal(chip(html, need)?.className, SEGMENT.item(false), `"${word}": ${need} not picked`);
     assert.equal(chip(html, 'close'), null, 'no close chip');
     assert.doesNotMatch(html, /data-close-offer|data-bookkeeping-offer|books, closed/);
-    assert.match(html, /data-modules/, 'nothing picked — the modules are asked');
+    // HOME-SERVICES-02 (2026-11-16): nothing picked, no set is asked — the core and How did you find me? alone ("nothing picked — the modules are asked", /data-modules/, until then)
+    assert.ok(!html.includes(MODULES_WORDS), 'nothing picked — no service\'s questions are asked');
   }
   const none = render(null);
   for (const need of SIX) assert.equal(chip(none, need)?.className, SEGMENT.item(false));
 });
 
 test('T4 the form sends no modules for bookkeeping, and the Other description does not ride along (SERVICES-01: the close\'s rule, kept for bookkeeping)', () => {
+  // HOME-SERVICES-02 (2026-11-16): the body is the hook's (src/hooks/useProposalForm.ts proposalBody), and each door sends its own set:
+  // Bookkeeping's asks no modules, so its body carries none; Full setup's "What is it?" rides only while Other is picked. Until then the
+  // form's own submit held the rule: /modules: isBookkeeping \? \[\] : modules,/, the Other text prepended to notesFromThem, and its guard.
+  const books = proposalBody('bookkeeping', CORE_START, startAnswers('bookkeeping'), '');
+  assert.ok(!('modules' in books.answers) && !('other' in books.answers), 'Bookkeeping sends no modules and no Other description');
+  const typed = { ...startAnswers('setup'), modules: ['Books'], other: 'A payroll bridge' };
+  assert.ok(!('other' in proposalBody('setup', CORE_START, typed, '').answers), 'Other not picked: its description stays home');
+  assert.equal(proposalBody('setup', CORE_START, { ...typed, modules: ['Books', 'Other'] }, '').answers.other, 'A payroll bridge', 'Other picked: it rides, under its own key');
   const form = code(FORM);
-  assert.match(form, /modules: isBookkeeping \? \[\] : modules,/);
-  assert.match(form, /!isBookkeeping && modules\.includes\('other'\) && otherModuleText\.trim\(\)/);
-  assert.match(form, /\(!isBookkeeping && modules\.includes\('other'\) && otherModuleText\.trim\(\) === ''\)/, 'the submit guard too');
   assert.match(form, /const isBookkeeping = need === 'bookkeeping';/);
   assert.doesNotMatch(form, /isClose|CLOSE_OFFER|closeWords/);
 });

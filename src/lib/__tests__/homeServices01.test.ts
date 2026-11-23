@@ -7,7 +7,7 @@
  * markup is the page at rest"), with its README beside it and the six pictures in public/brand/services/. The section is
  * src/components/landing/ServicesSection.tsx, which Landing.tsx mounts (its short view since HOME-TRIM-03, 2026-11-15; its whole view on /professional-services); its words are src/lib/proposalNeeds.ts's and
  * src/lib/homeActWords.ts's; its stylesheet is the reference's own, ported to src/app/globals.css under the house prefix. The form the
- * reference draws in place is HOME-SERVICES-02's, a later PR: nothing here builds it.
+ * reference draws in place is HOME-SERVICES-02's, a later PR: nothing here builds it — so it stood until HOME-SERVICES-02 (2026-11-16) built it, in the short view's panel; homeServices02.test.ts holds it.
  *
  *   T1  the handoff landed — the README, the reference and the six pictures, byte for byte (sha256) and by size;
  *   T2  the tokens, named and valued as the README's three tables — the ten already in the app and the eleven HOME-PLANS-04 brought,
@@ -46,8 +46,8 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code, comments, rejoin } from '../sourceText';
 import {
-  ASK_BUDGET, ASK_TIMELINE, FORM_ASKS, FORM_INTRO, NEED_QUESTION, NO_MODULES_NEEDS, PROPOSAL_CTA, PROPOSAL_FORM_PATH, PROPOSAL_STEPS, SCOPED_BY_PROPOSAL,
-  SERVICES, SERVICE_KINDS, SERVICE_NEEDS, SERVICE_PICTURES_PATH, ServicesLawError, formAsks, proposalFormHref, serviceDoor, servicePictureSrc, type ServiceNeed,
+  ASK_BUDGET, ASK_TIMELINE, FORM_ASKS, FORM_INTRO, NEED_QUESTION, NO_MODULES_NEEDS, PROPOSAL_CTA, PROPOSAL_FORM_PATH, PROPOSAL_STEPS,
+  SERVICES, SERVICE_KINDS, SERVICE_NEEDS, SERVICE_PICTURES_PATH, SERVICE_QUESTIONS, ServicesLawError, formAsks, proposalFormHref, serviceDoor, servicePictureSrc, type ServiceNeed,
 } from '../proposalNeeds';
 import { BUILD_PILLAR } from '../homeActWords';
 import { SEGMENT } from '../ds';
@@ -142,18 +142,18 @@ function rootOf(css: string): Map<string, string> {
  *   1. the colours are tokens — the reference's :root is dropped here, and every custom property it reads gains the house prefix;
  *   2. the fonts are the site's — 'Inter' and 'IBM Plex Mono' are --font-sans and --font-mono;
  *   3. the reference page's own ground (body) is not ported;
- *   4. the form is not ported here — section 4 whole, and the four rules of sections 5 and 6 that name only the form's elements.
- * Every class gains the house prefix: .ps → .ts-ps. The fifth — the home page's short view, design-refs/home-trim-03's second stylesheet — is the port's last twenty-eight declarations, typed as FIFTH at the foot of this file, and T3 holds them after these.
+ *   4. the note's rule, .ps-note, is not ported — HOME-SERVICES-02 (2026-11-16, ruling k); until then the form was not ported here: section 4 whole, and the four rules of sections 5 and 6 that name only the form's elements.
+ * Every class gains the house prefix: .ps → .ts-ps. The fifth — the home page's short view, design-refs/home-services-02's second stylesheet since HOME-SERVICES-02 (2026-11-16; home-trim-03's, twenty-eight declarations, until then) — is the port's last twenty-seven declarations, typed as FIFTH at the foot of this file, and T3 holds them after these.
  */
-const FORM_ONLY_RULES = ['.ps-fields', '.ps-close:hover, .ps-link__remove:hover, .ps-add:hover', '.ps-pick[aria-pressed="false"]:hover', '.ps-more:hover'];
+const NOT_PORTED = ['.ps-note']; // HOME-SERVICES-02 (2026-11-16): the note's rule; until then FORM_ONLY_RULES, ['.ps-fields', '.ps-close:hover, .ps-link__remove:hover, .ps-add:hover', '.ps-pick[aria-pressed="false"]:hover', '.ps-more:hover'], and section 4 whole
 function referencePorted(): string[] {
   const style = referenceStyle();
   const s4 = style.indexOf('/* ── 4 · the form, in place (HOME-SERVICES-02)');
   const s5 = style.indexOf('/* ── 5 · wider windows');
-  assert.ok(s4 > -1 && s5 > s4, 'the reference\'s section 4 — the form — stands between its sections 3 and 5');
-  const kept = declarations(uncommented(style.slice(0, s4) + style.slice(s5)));
-  const dropped = kept.filter((d) => { const sel = d.split(' | ')[1]; return sel === ':root' || sel === 'body' || FORM_ONLY_RULES.includes(sel); });
-  assert.deepEqual([...new Set(dropped.map((d) => d.split(' | ')[1]))], [':root', ...FORM_ONLY_RULES, 'body'], 'what is not ported: the :root, the four form-only rules, the page\'s own ground');
+  assert.ok(s4 > -1 && s5 > s4, 'the reference\'s section 4 — the form — stands between its sections 3 and 5, ported with them since HOME-SERVICES-02 (2026-11-16; left out until then)');
+  const kept = declarations(uncommented(style));
+  const dropped = kept.filter((d) => { const sel = d.split(' | ')[1]; return sel === ':root' || sel === 'body' || NOT_PORTED.includes(sel); });
+  assert.deepEqual([...new Set(dropped.map((d) => d.split(' | ')[1]))], [':root', ...NOT_PORTED, 'body'], 'what is not ported: the :root, the note\'s rule, the page\'s own ground (the four form-only rules where the note\'s stands, until HOME-SERVICES-02, 2026-11-16)');
   return kept.filter((d) => !dropped.includes(d)).map((d) => {
     const [media, sel, decl] = d.split(' | ');
     const port = decl.replace(/var\(--/g, 'var(--ts-').replace("'IBM Plex Mono', monospace", 'var(--font-mono)').replace("'Inter', sans-serif", 'var(--font-sans)');
@@ -291,11 +291,11 @@ function paintedReference(need: string): string {
  * carry data-need (ruling h); a picture's path is the app's (public/ is served at /); the gold button is a link to the form's page with
  * the pick (the reference's own note on it: "HOME-SERVICES-01 builds this as a link to the form's page with the pick:
  * /work-with-me?need=<picked>."; the README: "The button is a link to the form's page with the pick."); and the form, HOME-SERVICES-02's,
- * is not drawn.
+ * is not drawn — nor, since HOME-SERVICES-02 (2026-11-16, ruling k), the note beside the gold button (<span class="ps-note">, drawn until then).
  */
 function asBuilt(html: string, need: string): string {
   let out = html.replace(/(<button class="ps-tile" type="button" aria-pressed="(?:true|false)") data-need="/g, '$1 data-done-for-you="');
-  out = out.replace(/src="\.\.\/\.\.\/public\/brand\/services\//g, 'src="/brand/services/');
+  out = out.replace(/src="\.\.\/\.\.\/public\/brand\/services\//g, 'src="/brand/services/').replace('<span class="ps-note">Scoped by proposal</span>', '');
   out = once(out, /<button class="ps-cta" type="button" aria-controls="ps-form">([^<]*)<\/button>/, (_m, words) => `<a class="ps-cta" href="${PROPOSAL_FORM_PATH}?need=${need}">${words}</a>`);
   const open = out.indexOf('<div class="ps-form" id="ps-form" hidden>');
   assert.ok(open > -1, 'the reference draws the form in place');
@@ -382,7 +382,7 @@ test('T2 the tokens, named and valued as the README\'s three tables: ten already
 
 test('T3 the section\'s stylesheet in globals.css is the reference\'s, declaration by declaration and in order, but for the five named differences (the fifth the home page\'s short view, HOME-TRIM-03, 2026-11-15 — "the four" until then); no hex and no rgb value typed; every class behind the prefix; every variable it reads declared and every new token read; it stands between the chip strip and the Financial Software section; nothing else reaches the section', () => {
   const port = declarations(portCss());
-  assert.deepEqual(port, [...referencePorted(), ...FIFTH], 'the port is the reference\'s stylesheet, as the four differences leave it — then its last twenty-eight, the fifth difference, the short view\'s (FIFTH, at the foot of this file; HOME-TRIM-03, 2026-11-15, ruling e: referencePorted() alone until then)');
+  assert.deepEqual(port, [...referencePorted(), ...FIFTH], 'the port is the reference\'s stylesheet, as the four differences leave it (the fourth the note\'s rule since HOME-SERVICES-02, 2026-11-16 — the form until then) — then its last twenty-seven, the fifth difference, the short view\'s (FIFTH, at the foot of this file: home-services-02\'s second stylesheet since that brief, home-trim-03\'s twenty-eight until then; HOME-TRIM-03, 2026-11-15, ruling e: referencePorted() alone until then)');
   assert.ok(port.length > 100, `the port was read (${port.length} declarations)`);
   const text = portCss();
   assert.doesNotMatch(text, /#[0-9a-fA-F]{3,8}\b/, 'no hex typed');
@@ -395,8 +395,8 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   const read = new Set([...text.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]));
   for (const v of read) assert.ok(root.has(v) || v === '--font-sans' || v === '--font-mono', `${v} is declared`);
   for (const [name] of NEW) assert.ok(read.has(`--ts-${name}`), `--ts-${name} is read — no token without a reader`);
-  // of the twenty-one the app already held, the port reads nineteen: the other two are the form's (HOME-SERVICES-02) — DESIGN.md says so
-  assert.deepEqual([...KEPT, ...SHARED].map(([n]) => n).filter((n) => !read.has(`--ts-${n}`)), ['red', 'fs-gold-text'], 'the form\'s error and its eyebrow, read by nothing here yet');
+  // of the twenty-one the app already held, the port reads all since HOME-SERVICES-02 (2026-11-16) brought the form — nineteen until then, the other two the form's — DESIGN.md says so
+  assert.deepEqual([...KEPT, ...SHARED].map(([n]) => n).filter((n) => !read.has(`--ts-${n}`)), [], 'the form\'s error and its eyebrow are read now (until HOME-SERVICES-02, 2026-11-16: [\'red\', \'fs-gold-text\'], read by nothing here yet)');
   assert.ok(whole('DESIGN.md').includes('This PR\'s stylesheet reads nineteen of the twenty-one: `red` and `fs-gold-text` are the\nform\'s (its error and its eyebrow), and come with it in HOME-SERVICES-02.'), 'DESIGN.md says which two');
   // the two gradients on the board (ruling f): the gold button, the hero's golds at 135deg with hero-gold-2 under it; the frame's
   assert.ok(port.includes(' | .ts-ps-cta | background-image: linear-gradient(135deg, rgb(var(--ts-hero-gold-1)) 0%, rgb(var(--ts-hero-gold-2)) 52%, rgb(var(--ts-hero-gold-3)) 100%)'), 'the gold gradient — HOME-PLANS-04\'s');
@@ -493,7 +493,7 @@ test('T6 every word drawn is its leaf\'s, in order; the steps come from the form
       PROPOSAL_STEPS.pick, door.title,
       '2', PROPOSAL_STEPS.tell, ...formAsks(need),
       '3', PROPOSAL_STEPS.read, PROPOSAL_STEPS.note,
-      PROPOSAL_CTA, SCOPED_BY_PROPOSAL,
+      PROPOSAL_CTA, // HOME-SERVICES-02 (2026-11-16, ruling k): SCOPED_BY_PROPOSAL stood last, until then
     ], `${need}: every word, in order`);
   }
   // the words, as the README's "Words" table has them
@@ -503,22 +503,24 @@ test('T6 every word drawn is its leaf\'s, in order; the steps come from the form
   assert.deepEqual({ ...PROPOSAL_STEPS }, { pick: 'Pick what fits', tell: 'Tell me about your business', read: 'I read every one of these myself', note: 'You’ll hear from me by email.' });
   assert.deepEqual(FORM_ASKS.map((a) => a.name), ['Your business', 'Modules', 'Timeline', 'Budget range', 'What done looks like'], 'step 2\'s short names, in the form\'s order');
   assert.deepEqual([ASK_TIMELINE, ASK_BUDGET], ['Timeline', 'Budget range'], 'two of them the form\'s labels as they stand');
-  assert.deepEqual([PROPOSAL_CTA, SCOPED_BY_PROPOSAL], ['Send a project proposal →', 'Scoped by proposal'], 'the two moved words (ruling f)');
+  assert.equal(PROPOSAL_CTA, 'Send a project proposal →', 'the moved word that stays (ruling f) — and SCOPED_BY_PROPOSAL, \'Scoped by proposal\', beside it until HOME-SERVICES-02 (2026-11-16, ruling k)');
   // "The first two come from FORM_INTRO, the last two from the form's thank-you line."
   const lower = (s: string): string => `${s[0].toLowerCase()}${s.slice(1)}`;
   assert.equal(FORM_INTRO, `${PROPOSAL_STEPS.pick} below and ${lower(PROPOSAL_STEPS.tell)}.`, 'steps 1 and 2 are the form\'s lead, in two');
   const form = code(FORM);
-  assert.ok(form.includes('Got it — {PROPOSAL_STEPS.read}. You&apos;ll hear from me at {submittedEmail}.'), 'step 3 is the form\'s thank-you, which reads it from the leaf');
-  // the form reads the five words it shares, each in its own place, and types none of them (ruling e)
-  for (const [name, at] of [['NEED_QUESTION', '<span className={CONTROL.label}>{NEED_QUESTION}</span>'], ['ASK_TIMELINE', '<span className={CONTROL.label}>{ASK_TIMELINE}</span>'], ['ASK_BUDGET', '<span className={CONTROL.label}>{ASK_BUDGET}</span>'], ['SCOPED_BY_PROPOSAL', '<span className="ml-auto font-mono text-xs italic text-text-faint">{SCOPED_BY_PROPOSAL}</span>']] as const) {
-    assert.equal(count(form, at), 1, `the form reads ${name} where it typed it`);
-  }
-  for (const w of [NEED_QUESTION, SCOPED_BY_PROPOSAL, PROPOSAL_STEPS.read, ASK_BUDGET]) assert.ok(!form.includes(w), `the form types "${w}" no more`);
+  // HOME-SERVICES-02 (2026-11-16): the thank-you's other words are the list's too — 'Got it — {PROPOSAL_STEPS.read}. You&apos;ll hear from me at {submittedEmail}.' until then
+  assert.ok(form.includes('{FORM_WORDS.sentLead} {PROPOSAL_STEPS.read}. {FORM_WORDS.sentHear} {form.sentEmail}.'), 'step 3 is the form\'s thank-you, which reads it from the leaf');
+  // the form reads the words it shares, and types none of them (ruling e). HOME-SERVICES-02 (2026-11-16): the need question where it typed it;
+  // Timeline and Budget range as the list's questions' words (TIMELINE and PROJECT_BANDS read ASK_TIMELINE and ASK_BUDGET), drawn by its one
+  // label; the note gone (ruling k). Until then the five stood each in its own <span className={CONTROL.label}>, the note in its own span.
+  assert.equal(count(form, '<span className={CONTROL.label}>{NEED_QUESTION}</span>'), 1, 'the form reads NEED_QUESTION where it typed it');
+  assert.equal(count(form, '{words}</span>'), 4, 'and every other question\'s label from the list — a pick\'s, a count\'s, a date\'s, the links\' — by the page\'s one control for each kind');
+  for (const w of [NEED_QUESTION, PROPOSAL_STEPS.read, ASK_BUDGET]) assert.ok(!form.includes(w), `the form types "${w}" no more`);
   assert.doesNotMatch(form, />\s*Timeline\s*<|['"]Timeline['"]/, 'nor "Timeline"');
   const formHtml = renderForm('setup');
-  for (const w of [NEED_QUESTION, ASK_TIMELINE, ASK_BUDGET, SCOPED_BY_PROPOSAL]) assert.equal(count(formHtml, `>${asHtml(w)}</span>`), 1, `the form still shows "${w}" once`);
+  for (const w of [NEED_QUESTION, ASK_TIMELINE, ASK_BUDGET]) assert.equal(count(formHtml, `>${asHtml(w)}</span>`), 1, `the form still shows "${w}" once`); // and SCOPED_BY_PROPOSAL, until HOME-SERVICES-02 (2026-11-16)
   // no fixed price and no sales tone in any new word
-  for (const w of [...BUILD_PILLAR.paragraphs, NEED_QUESTION, ...Object.values(SERVICE_KINDS), ...Object.values(PROPOSAL_STEPS), ...FORM_ASKS.map((a) => a.name), PROPOSAL_CTA, SCOPED_BY_PROPOSAL]) {
+  for (const w of [...BUILD_PILLAR.paragraphs, NEED_QUESTION, ...Object.values(SERVICE_KINDS), ...Object.values(PROPOSAL_STEPS), ...FORM_ASKS.map((a) => a.name), PROPOSAL_CTA]) { // SCOPED_BY_PROPOSAL too, until HOME-SERVICES-02 (2026-11-16)
     assert.doesNotMatch(w, /\$\s*\d/, `no fixed price: "${w}"`);
     for (const [re, what] of BANNED) assert.doesNotMatch(w, re, `no ${what}: "${w}"`);
   }
@@ -531,24 +533,27 @@ test('T6 every word drawn is its leaf\'s, in order; the steps come from the form
   assert.ok(section.includes(': i + 1}'), 'a step\'s number is its place');
   assert.ok(!section.includes('`'), 'no template literal — the link is the leaf\'s');
   assert.doesNotMatch(section, /#[0-9a-fA-F]{3,8}\b|rgba?\(/, 'no colour typed');
-  for (const f of [LANDING, SECTION]) for (const w of [PROPOSAL_CTA, SCOPED_BY_PROPOSAL, NEED_QUESTION]) assert.ok(!code(f).includes(w), `${f} types "${w}" nowhere`);
+  for (const f of [LANDING, SECTION]) for (const w of [PROPOSAL_CTA, 'Scoped by proposal', NEED_QUESTION]) assert.ok(!code(f).includes(w), `${f} types "${w}" nowhere`);
 });
 
 // ── T7 · STEP 2 AND THE FORM ─────────────────────────────────────────────────
 
 test('T7 step 2 follows the form\'s own rule — for each door the form, rendered, asks the modules question exactly when step 2 lists Modules (ruling e: a test that renders the form for each door and holds the two equal)', () => {
-  let asked = 0;
+  // HOME-SERVICES-02 (2026-11-16): each door asks its own set now, from the list (src/lib/proposalNeeds.ts) — Full setup's alone asks the modules
+  // question, "What should it run on day one?" — and the whole view's step 2 stays as main drew it (that brief's ruling l: its render is main's but
+  // for the note), so the two are no longer held equal: a later PR re-says step 2 by the picked set. Until then, for each door: the form asked the
+  // modules question (/\bdata-modules\b/) exactly when step 2 listed Modules — five doors, bookkeeping not.
+  const modulesWords = SERVICE_QUESTIONS.setup.filter((q) => q.key === 'modules').map((q) => q.words);
+  assert.equal(modulesWords.length, 1, 'Full setup asks the modules question once');
   for (const need of SERVICE_NEEDS) {
     const form = renderForm(need);
     assert.equal(count(form, `class="${SEGMENT.item(true)}" data-need="`), 1, `${need}: one chip picked`);
     assert.ok(form.includes(`class="${SEGMENT.item(true)}" data-need="${need}"`), `${need}: the form opens with this door picked`);
-    const modules = /\bdata-modules\b/.test(form);
-    assert.equal(modules, formAsks(need).includes('Modules'), `${need}: the form ${modules ? 'asks' : 'does not ask'} the modules question, and step 2 ${modules ? 'lists' : 'drops'} Modules`);
-    if (modules) asked += 1;
+    assert.equal(form.includes(modulesWords[0]), need === 'setup', `${need}: the form ${need === 'setup' ? 'asks' : 'does not ask'} the modules question`);
+    for (const q of SERVICE_QUESTIONS[need].filter((asked) => !asked.more)) assert.ok(form.includes(asHtml(q.words)), `${need}: it asks "${q.words}"`);
   }
-  assert.equal(asked, 5, 'five doors ask it; bookkeeping does not');
-  assert.deepEqual(SERVICE_NEEDS.filter((n) => !formAsks(n).includes('Modules')), ['bookkeeping'], 'step 2 drops Modules for bookkeeping alone');
-  assert.match(code(FORM), /const isBookkeeping = need === 'bookkeeping';/, 'the form keeps its own rule, as SERVICES-01 pinned it');
+  assert.deepEqual(SERVICE_NEEDS.filter((n) => !formAsks(n).includes('Modules')), ['bookkeeping'], 'step 2 drops Modules for bookkeeping alone — as main drew it');
+  assert.match(code(FORM), /const isBookkeeping = need === 'bookkeeping';/, 'the form keeps its own rule for Bookkeeping\'s lines, as SERVICES-01 pinned it');
 });
 
 // ── T8 · THE STATE ───────────────────────────────────────────────────────────
@@ -556,8 +561,10 @@ test('T7 step 2 follows the form\'s own rule — for each door the form, rendere
 test('T8 the picked door is React state — the first door at first, nothing stored, no URL, no cookie; each tile picks its own door', () => {
   const section = code(SECTION);
   assert.match(section, /export default function ServicesSection\(\{ view \}: \{ view: 'short' \| 'whole' \}\) \{\n {2}const \[picked, setPicked\] = useState<ServiceNeed>\(SERVICES\[0\]\.need\);\n {2}const View = VIEWS\[view\];\n {2}return <View picked=\{picked\} onPick=\{setPicked\} \/>;\n\}/, 'one value in React state: the picked door, the first at first — handed to the view the caller names (HOME-TRIM-03, 2026-11-15, rulings a and c: ServicesSection() and <ServicesView …/> until then)');
-  assert.equal((section.match(/\buseState\b/g) ?? []).length, 2, 'one piece of state — its import and its one call');
-  assert.ok(section.includes("import { useState, type ReactNode } from 'react';"), 'React\'s own state, and nothing else of React\'s but a type');
+  // HOME-SERVICES-02 (2026-11-16): the short view's holder keeps its own pick (rulings a and l), and the click's type is React's — until then
+  // two (the import and the one call) and "import { useState, type ReactNode } from 'react';"
+  assert.equal((section.match(/\buseState\b/g) ?? []).length, 3, 'two pieces of state — the import, the whole view\'s pick, the short view\'s');
+  assert.ok(section.includes("import { useState, type MouseEvent, type ReactNode } from 'react';"), 'React\'s own state, and nothing else of React\'s but two types');
   assert.doesNotMatch(section, /localStorage|sessionStorage|document\.cookie|cookies\(|useSearchParams|useRouter|usePathname|window\.|history\.|\blocation\b|useEffect|useId/, 'no storage, no URL, no cookie, no effect, no generated id (ruling a)');
   assert.equal(renderToStaticMarkup(React.createElement(ServicesSection, { view: 'whole' })), render(SERVICES[0].need), 'a fresh page shows the first door — handed the whole view, as /professional-services hands it (HOME-TRIM-03, 2026-11-15, ruling a: no view until then)');
   // each tile, pressed, picks its own door — and the view draws the door it is handed
@@ -680,33 +687,37 @@ test('T10 each ruling is quoted, dated, where it is built; Alex\'s words exact w
 //    twenty-eight declarations, in its order, after the reference's last declaration; its family the site's mono. homeTrim03.test.ts reads them
 //    from that file and holds the same. They stand at the foot of this file, so that no line of it moves: :419 is the line ruling e cites.
 //    Until HOME-TRIM-03, T3 held the port to referencePorted() alone.
+// HOME-SERVICES-02 (Alex's brief, 2026-11-16 13:24 Manila), ruling p, in part: "The second stylesheet becomes the short view's block, renamed: its
+//    nine new rules come, and the brief's and the link's rules go." — FIFTH is design-refs/home-services-02's second stylesheet behind the house
+//    prefix now: the section's top and foot, which stay, then nine rules, twenty-seven declarations, in its order. Until then it held
+//    home-trim-03's twenty-eight: the top and foot, .ts-ps-brief (eight), .ts-ps-brief__text (two), .ts-ps-brief__go (four), .ts-ps-how (eleven)
+//    and its hover (one). homeServices02.test.ts reads them from the reference and holds the same.
 const FIFTH: readonly string[] = [
   ' | .ts-ps--short .ts-ps__inner | padding-top: clamp(44px, 2.8vw + 32.8px, 72px)',
   ' | .ts-ps--short .ts-ps__inner | padding-bottom: clamp(44px, 2vw + 36px, 64px)',
-  ' | .ts-ps-brief | display: flex',
-  ' | .ts-ps-brief | flex-wrap: wrap',
-  ' | .ts-ps-brief | align-items: center',
-  ' | .ts-ps-brief | justify-content: space-between',
-  ' | .ts-ps-brief | gap: 18px 40px',
-  ' | .ts-ps-brief | margin-top: clamp(18px, 1.8vw, 24px)',
-  ' | .ts-ps-brief | padding-top: clamp(18px, 1.8vw, 24px)',
-  ' | .ts-ps-brief | border-top: 1px solid var(--ts-fs-rule)',
-  ' | .ts-ps-brief__text | flex: 1 1 420px',
-  ' | .ts-ps-brief__text | min-width: 0',
-  ' | .ts-ps-brief__go | display: flex',
-  ' | .ts-ps-brief__go | flex-wrap: wrap',
-  ' | .ts-ps-brief__go | align-items: center',
-  ' | .ts-ps-brief__go | gap: 12px 18px',
-  ' | .ts-ps-how | display: inline-flex',
-  ' | .ts-ps-how | align-items: center',
-  ' | .ts-ps-how | min-height: 44px',
-  ' | .ts-ps-how | margin-top: 16px',
-  ' | .ts-ps-how | font-family: var(--font-mono)',
-  ' | .ts-ps-how | font-size: 13px',
-  ' | .ts-ps-how | line-height: 1.3',
-  ' | .ts-ps-how | font-weight: 500',
-  ' | .ts-ps-how | letter-spacing: 0.04em',
-  ' | .ts-ps-how | color: var(--ts-hero-violet-3)',
-  ' | .ts-ps-how | text-decoration: none',
-  '@media (hover: hover) | .ts-ps-how:hover | color: var(--ts-hero-violet-2)',
+  ' | .ts-ps-form__door | margin-top: 10px',
+  ' | .ts-ps-sent | box-sizing: border-box',
+  ' | .ts-ps-counts | display: grid',
+  ' | .ts-ps-counts | grid-template-columns: repeat(3, minmax(0, 1fr))',
+  ' | .ts-ps-counts | gap: 12px',
+  ' | .ts-ps-counts | max-width: 420px',
+  ' | .ts-ps-count | display: block',
+  ' | .ts-ps-count | min-width: 0',
+  ' | .ts-ps-count__name | display: block',
+  ' | .ts-ps-count__name | margin: 0 0 6px',
+  ' | .ts-ps-count__name | font-size: 13px',
+  ' | .ts-ps-count__name | line-height: 1.4',
+  ' | .ts-ps-count__name | color: var(--ts-fs-ink-soft)',
+  ' | .ts-ps-input--short | max-width: 140px',
+  ' | .ts-ps-pick | height: auto',
+  ' | .ts-ps-pick | min-height: 38px',
+  ' | .ts-ps-pick | padding-top: 8px',
+  ' | .ts-ps-pick | padding-bottom: 8px',
+  ' | .ts-ps-pick | white-space: normal',
+  ' | .ts-ps-pick | text-align: left',
+  ' | .ts-ps-dated | display: grid',
+  ' | .ts-ps-dated | grid-template-columns: minmax(0, 1fr)',
+  ' | .ts-ps-dated | gap: 8px',
+  '@media (min-width: 640px) | .ts-ps-dated | grid-template-columns: minmax(0, 220px) minmax(0, 1fr)',
+  '@media (min-width: 640px) | .ts-ps-dated | gap: 12px',
 ];

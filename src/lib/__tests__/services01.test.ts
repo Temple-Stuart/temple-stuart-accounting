@@ -24,7 +24,9 @@
  *      that pick, the gold link carries the pick, his paragraph is replaced by one line — and T4 reads it there; each rewritten
  *      assertion keeps its old form in a dated note;
  *   T5 the form — needChoices() the six; Bookkeeping picked: the three lines in order, no modules question, the done
- *      placeholder; the lead; ?need=close picks nothing; the honeypot still at :371-380 (cited there by number);
+ *      placeholder; the lead; ?need=close picks nothing; the honeypot still at :371-380 (cited there by number) — so it read until
+ *      HOME-SERVICES-02 (2026-11-16): each door asks its own set, none the done question, and the honeypot is the trap both forms
+ *      draw, ServicesForm.tsx:37-40 (cited there by number);
  *   T6 the route — need z.enum(PROPOSAL_NEEDS): each of the six accepted, 'close' refused with an issue naming need;
  *      the comment re-said; the lines other files cite by number unmoved; its public-writer entry unchanged;
  *   T7 the CRM — needWords for the six and the legacy 'close'; a stranger throws by name;
@@ -45,7 +47,7 @@ import { z } from 'zod';
 import { code, comments, rejoin } from '../sourceText';
 import * as vocabulary from '../proposalNeeds';
 import {
-  BOOKKEEPING_WORDS, FORM_INTRO, LEGACY_NEED_TITLES, PROPOSAL_CTA, PROPOSAL_FORM_PATH, PROPOSAL_NEEDS, SCOPED_BY_PROPOSAL, SERVICES, SERVICE_NEEDS, ServicesLawError,
+  BOOKKEEPING_WORDS, FORM_INTRO, LEGACY_NEED_TITLES, PROPOSAL_CTA, PROPOSAL_FORM_PATH, PROPOSAL_NEEDS, SERVICES, SERVICE_NEEDS, SERVICE_QUESTIONS, ServicesLawError,
   needCheckWords, servicesLaw, sqlCode, type Service,
 } from '../proposalNeeds';
 import { CrmLawError, needWords } from '../crm/crm';
@@ -133,8 +135,9 @@ test('T1 BOOKKEEPING_WORDS: what it is, what it is not and the remedy (the last 
     what: 'Catch-up on the months you fell behind, or monthly bookkeeping going forward: every bank and card account reconciled, every transaction categorized, and the statements whoever files your taxes needs.',
     notTax: CLOSE_NOT_TAX,
     remedy: CLOSE_REMEDY,
-    done: 'e.g. 3 bank and card accounts, about 400 transactions a month, books current through March — caught up, then kept every month.',
   });
+  // HOME-SERVICES-02 (2026-11-16): done left — Bookkeeping's questions are its own set, none the done question. Until then the fourth word:
+  // done: 'e.g. 3 bank and card accounts, about 400 transactions a month, books current through March — caught up, then kept every month.'
 });
 
 test('T1 the module is pure — no import, no clock, no env, no network — and its words carry no fixed price and no sales tone', () => {
@@ -236,9 +239,10 @@ test('T2 the law throws by name by default, and runs at module scope', () => {
 test('T3 the migration: the newest; drops proposals_need_chk by its production name and re-adds it with the seven words — nothing else; never IF EXISTS', () => {
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
   // CASH-02a (2026-11-08): travel_expenses gains paid_with — the newest now; every pin below moved by one more.
-  assert.equal(dirs[dirs.length - 1], '20261108120000_cash_02a_paid_with', 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'right before CASH-02a\'s');
-  assert.equal(dirs[dirs.length - 3], '20261107212000_crm_02_intake_forms', 'right after CRM-02\'s');
+  // HOME-SERVICES-02 (2026-11-16): its migration, 20261116132400_home_services_02_answers (proposals gains answers), is the newest now — every position read from the end below moved by one, and a message that says "the newest" names the one before it.
+  assert.equal(dirs[dirs.length - 2], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 4], '20261107212000_crm_02_intake_forms', 'right after CRM-02\'s');
   const sql = code(MIGRATION);
   assert.equal(
     sql.trim(),
@@ -299,7 +303,9 @@ test('T4 the section maps SERVICES once, in the panel\'s tile group; each door a
   // HOME-SERVICES-01 (2026-11-12): the section reads the doors and their words from the one module, and Landing.tsx reads none of it. Until
   // then: assert.match(landing, /import \{\n {2}PROPOSAL_FORM_PATH, SERVICES,\n\} from '@\/lib\/proposalNeeds';/).
   assert.doesNotMatch(landing, /from '@\/lib\/proposalNeeds'/, 'Landing.tsx imports nothing of the doors');
-  assert.match(section, /^import \{\n {2}NEED_QUESTION, PROPOSAL_CTA, PROPOSAL_STEPS, SCOPED_BY_PROPOSAL, SEE_HOW_A_PROPOSAL_WORKS, SERVICES, SERVICE_NEEDS,\n {2}formAsks, proposalFormHref, serviceDoor, servicePictureSrc, type ServiceNeed,\n\} from '@\/lib\/proposalNeeds';$/m, 'the section reads the doors from the one module — and, since HOME-TRIM-03 (2026-11-15, ruling d), the short view\'s link words: SEE_HOW_A_PROPOSAL_WORKS joined the block\'s first line, after SCOPED_BY_PROPOSAL; the block held six names on its first line and five on its second until then');
+  assert.match(section, /^import \{\n {2}NEED_QUESTION, PROPOSAL_CTA, PROPOSAL_STEPS, SERVICES, SERVICE_NEEDS,\n {2}formAsks, proposalFormHref, serviceDoor, servicePictureSrc, type ServiceNeed,\n\} from '@\/lib\/proposalNeeds';$/m, 'the section reads the doors from the one module — and, since HOME-TRIM-03 (2026-11-15, ruling d), the short view\'s link words: SEE_HOW_A_PROPOSAL_WORKS joined the block\'s first line, after SCOPED_BY_PROPOSAL; the block held six names on its first line and five on its second until then');
+  // HOME-SERVICES-02 (2026-11-16): SCOPED_BY_PROPOSAL and SEE_HOW_A_PROPOSAL_WORKS left that import with the note and the link (its rulings k
+  // and j); until then it named both after PROPOSAL_STEPS.
   // HOME-SERVICES-01 (2026-11-12): mapped in the section, and nowhere in Landing.tsx. Until then: assert.equal((landing.match(/SERVICES\.map\(/g)
   // ?? []).length, 1, 'SERVICES mapped once').
   assert.equal((section.match(/SERVICES\.map\(/g) ?? []).length, 1, 'SERVICES mapped once — the tiles');
@@ -312,9 +318,12 @@ test('T4 the section maps SERVICES once, in the panel\'s tile group; each door a
   // hover:bg-brand-purple-wash" data-done-for-you=\{need\}>\n {20}<div className="text-sm font-medium">\{title\}<\/div>\n {20}<p className="mt-1
   // text-xs text-text-muted">\{line\}<\/p>\n {18}<\/Link>\n {16}\)\)\}\n {14}<\/div>/); the white card ('<div className="mt-4 rounded-lg border
   // border-border bg-white p-5">') before SERVICES.map(; one grid. Every row as tall as the tallest is the port's rule now.
-  assert.match(panel, /<div className="ts-ps-tiles" role="group" aria-labelledby="ps-question">\n {8}\{SERVICES\.map\(\(\{ need, title, kind \}\) => \(\n {10}<button key=\{need\} className="ts-ps-tile" type="button" aria-pressed=\{need === picked\} data-done-for-you=\{need\} onClick=\{\(\) => onPick\(need\)\}>\n {12}<TileIcon need=\{need\} \/><span className="ts-ps-tile__words"><span className="ts-ps-tile__title">\{title\}<\/span><span className="ts-ps-tile__kind">\{kind\}<\/span><\/span>\n {10}<\/button>\n {8}\)\)\}\n {6}<\/div>/, 'the group the question labels; each door a tile that picks it and says so; data-done-for-you on the tile — in Tiles, written once for both views (HOME-TRIM-03, 2026-11-15, ruling a: at 12, 14 and 16 spaces inside ServicesView until then)');
+  assert.match(panel, /<div className="ts-ps-tiles" role="group" aria-labelledby="ps-question">\n {8}\{SERVICES\.map\(\(\{ need, title, kind \}\) => \(\n {10}<button key=\{need\} className="ts-ps-tile" type="button" aria-pressed=\{need === picked\} aria-controls=\{controls\} data-done-for-you=\{need\} onClick=\{\(\) => onPick\(need\)\}>\n {12}<TileIcon need=\{need\} \/><span className="ts-ps-tile__words"><span className="ts-ps-tile__title">\{title\}<\/span><span className="ts-ps-tile__kind">\{kind\}<\/span><\/span>\n {10}<\/button>\n {8}\)\)\}\n {6}<\/div>/, 'the group the question labels; each door a tile that picks it and says so; data-done-for-you on the tile — in Tiles, written once for both views (HOME-TRIM-03, 2026-11-15, ruling a: at 12, 14 and 16 spaces inside ServicesView until then)');
+  // HOME-SERVICES-02 (2026-11-16): each tile names the form it opens (aria-controls={controls}, the short view's alone) — the regex above read
+  // aria-pressed then data-done-for-you until then; and the short view's panel opens on Tiles handed controls={FORM_ID}, so the whole view's
+  // opening below stands once, not twice.
   const box = panel.indexOf('<div className="ts-ps-panel">');
-  assert.ok(box > -1 && panel.slice(box).startsWith('<div className="ts-ps-panel">\n          <Tiles picked={picked} onPick={onPick} />') && section.split('<div className="ts-ps-panel">\n          <Tiles picked={picked} onPick={onPick} />').length - 1 === 2, 'the tiles inside the panel — each view\'s panel opens on Tiles (HOME-TRIM-03, 2026-11-15, ruling a: box < panel.indexOf(\'SERVICES.map(\') until then)');
+  assert.ok(box > -1 && panel.slice(box).startsWith('<div className="ts-ps-panel">\n          <Tiles picked={picked} onPick={onPick} />') && section.split('<div className="ts-ps-panel">\n          <Tiles picked={picked} onPick={onPick} />').length - 1 === 1 && section.split('<div className="ts-ps-panel">\n          <Tiles picked={picked} onPick={onPick} controls={FORM_ID} />').length - 1 === 1, 'the tiles inside the panel — each view\'s panel opens on Tiles (HOME-TRIM-03, 2026-11-15, ruling a: box < panel.indexOf(\'SERVICES.map(\') until then)');
   assert.equal((panel.match(/className="ts-ps-tiles"/g) ?? []).length, 1, 'one tile group');
   assert.match(code('src/app/globals.css'), /\n\.ts-ps-tiles \{[^}]*grid-auto-rows: 1fr;/, 'every row as tall as the tallest — the port\'s rule');
 });
@@ -386,10 +395,12 @@ test('T4 the pillar\'s heading and its one line stand over the panel (HOME-SERVI
   // bare): assert.match(panel, /<div className="mt-4 flex flex-wrap items-center gap-4">\n\s*<Link\n\s*href=\{PROPOSAL_FORM_PATH\}\n\s*
   // className=\{PRIMARY_CTA\}\n\s*>\n\s*Send a project proposal →\n\s*<\/Link>\n\s*<span className="ml-auto font-mono text-xs italic
   // text-text-faint">Scoped by proposal<\/span>/); one href={PROPOSAL_FORM_PATH}; two Links — the door template and the button.
-  assert.match(panel, /<Link className="ts-ps-cta" href=\{proposalFormHref\(picked\)\}>\{PROPOSAL_CTA\}<\/Link>\n {6}<span className="ts-ps-note">\{SCOPED_BY_PROPOSAL\}<\/span>[\s\S]*<div className="ts-ps-cta-row">\n {16}<GoldLink picked=\{picked\} \/>\n {14}<\/div>/, 'the gold link to the form with the pick, the note beside it — both words from their leaf; in GoldLink, written once, which the whole view\'s row holds (HOME-TRIM-03, 2026-11-15, ruling a: the row held the two inline until then)');
-  assert.deepEqual([PROPOSAL_CTA, SCOPED_BY_PROPOSAL], ['Send a project proposal →', 'Scoped by proposal'], 'the two words, moved unchanged');
+  // HOME-SERVICES-02 (2026-11-16, ruling k): the note left GoldLink — until then /…<\/Link>\n {6}<span className="ts-ps-note">\{SCOPED_BY_PROPOSAL\}<\/span>[\s\S]*…/ followed the link
+  assert.match(panel, /return <Link className="ts-ps-cta" href=\{proposalFormHref\(picked\)\}>\{PROPOSAL_CTA\}<\/Link>;[\s\S]*<div className="ts-ps-cta-row">\n {16}<GoldLink picked=\{picked\} \/>\n {14}<\/div>/, 'the gold link to the form with the pick, the note beside it — both words from their leaf; in GoldLink, written once, which the whole view\'s row holds (HOME-TRIM-03, 2026-11-15, ruling a: the row held the two inline until then)');
+  assert.equal(PROPOSAL_CTA, 'Send a project proposal →', 'the gold link\'s words, moved unchanged — and, until HOME-SERVICES-02 (2026-11-16, ruling k), SCOPED_BY_PROPOSAL beside them, \'Scoped by proposal\'');
+  assert.ok(!('SCOPED_BY_PROPOSAL' in vocabulary), 'the note\'s constant is gone');
   assert.equal((panel.match(/\bhref=/g) ?? []).length, 1, 'one link — to the form');
-  assert.equal((panel.match(/<Link\b/g) ?? []).length, 1, 'the gold link — the tiles are buttons; nothing else links'); const shortView = section.slice(section.indexOf('export function ServicesShortView('), section.indexOf('\nconst VIEWS = ')); assert.deepEqual(shortView.match(/<Link\b[^>]*>/g), ['<Link className="ts-ps-how" href={PROFESSIONAL_SERVICES_PATH}>'], 'and the short view links once more, to the section\'s own page (HOME-TRIM-03, 2026-11-15, ruling d) — the panel, from the heading to the first </section>, is the shared parts and the whole view, read above');
+  assert.equal((panel.match(/<Link\b/g) ?? []).length, 1, 'the gold link — the tiles are buttons; nothing else links'); const shortView = section.slice(section.indexOf('export function ServicesShortView('), section.indexOf('\nconst VIEWS = ')); assert.equal(shortView.match(/<Link\b[^>]*>/g), null, 'and the short view links nowhere: HOME-SERVICES-02 (2026-11-16, ruling j) — from HOME-TRIM-03 (2026-11-15, ruling d) until then it linked once more, [\'<Link className="ts-ps-how" href={PROFESSIONAL_SERVICES_PATH}>\'], to the section\'s own page; the panel, from the heading to the first </section>, is the shared parts and the whole view, read above');
   assert.equal((panel.match(/<button\b/g) ?? []).length, 1, 'one tile template');
   assert.doesNotMatch(panel, /PRIMARY_CTA|href=\{PROPOSAL_FORM_PATH\}/, 'no purple button, no bare link to the form');
   // the question, then the group it labels — nothing between. HOME-SERVICES-01 (2026-11-12). Until then (HOME-BRIEF-04: 'between the chip and the
@@ -436,7 +447,10 @@ test('T5 Bookkeeping picked: the three lines in order in the close block\'s clas
   assert.ok(block, 'the bookkeeping block');
   assert.equal(block[1], `<p>${escapeHtml(BOOKKEEPING_WORDS.what)}</p><p class="mt-2">${escapeHtml(BOOKKEEPING_WORDS.notTax)}</p><p class="mt-1 text-text-secondary">${escapeHtml(BOOKKEEPING_WORDS.remedy)}</p>`, 'what · notTax · remedy, in the close block\'s classes');
   assert.doesNotMatch(html, /data-modules|Which modules interest you/, 'no modules question for bookkeeping');
-  assert.match(html, new RegExp(`placeholder="${escapeRe(BOOKKEEPING_WORDS.done)}"`), 'the done question\'s example');
+  // HOME-SERVICES-02 (2026-11-16): Bookkeeping's own set is asked — its first question, the list's — and no done question; until then
+  // /placeholder="<BOOKKEEPING_WORDS.done>"/ was the done question's example
+  assert.ok(unescape(html).includes(SERVICE_QUESTIONS.bookkeeping[0].words) && unescape(html).includes(SERVICE_QUESTIONS.bookkeeping[1].words), 'Bookkeeping\'s own questions');
+  assert.doesNotMatch(html, /What does done look like/, 'no done question');
   assert.doesNotMatch(unescape(block[1]), /\$\s*\d/, 'no figure');
   assert.doesNotMatch(html, /data-close-offer|books, closed|Close my/);
 });
@@ -446,8 +460,9 @@ test('T5 another door picked: no bookkeeping block, the modules asked, the gener
     const html = render(need);
     assert.equal(chip(html, need)?.className, SEGMENT.item(true), `${need} picked`);
     assert.doesNotMatch(html, /data-bookkeeping-offer/);
-    assert.match(html, /data-modules/);
-    assert.doesNotMatch(html, new RegExp(`placeholder="${escapeRe(BOOKKEEPING_WORDS.done)}"`));
+    // HOME-SERVICES-02 (2026-11-16): each door asks its own set — its first question, the list's; /data-modules/ and no done placeholder
+    // until then (the modules question was every door's but Bookkeeping's)
+    assert.ok(unescape(html).includes(SERVICE_QUESTIONS[need as keyof typeof SERVICE_QUESTIONS][0].words), `${need}: its own first question`);
   }
   const html = render(null);
   assert.match(unescape(html), new RegExp(`<p class="text-xs leading-relaxed text-text-muted">${escapeRe(FORM_INTRO)}</p>`), 'the lead, one sentence');
@@ -464,23 +479,27 @@ test('T5 an old link /work-with-me?need=close opens the form with nothing picked
   assert.match(form, /const isDoor = \(word: string\): word is ServiceNeed => needs\.some\(\(n\) => n\.value === word\);/);
   assert.match(form, /useState<ServiceNeed \| null>\(initialNeed !== null && isDoor\(initialNeed\) \? initialNeed : null\)/, 'a door, or nothing picked');
   assert.match(form, /const isBookkeeping = need === 'bookkeeping';/);
-  assert.match(form, /modules: isBookkeeping \? \[\] : modules,/);
-  assert.match(form, /\(!isBookkeeping && modules\.includes\('other'\) && otherModuleText\.trim\(\) === ''\)/, 'the submit guard');
+  // HOME-SERVICES-02 (2026-11-16): the body and the rule are the hook's (src/hooks/useProposalForm.ts), read with the need; until then
+  // /modules: isBookkeeping \? \[\] : modules,/ and the Other guard stood here
+  assert.match(form, /const form = useProposalForm\(need\);/, 'the hook, handed the page\'s own need');
   assert.doesNotMatch(form, /isClose|CLOSE_OFFER|closeWords|SERVICE_NEED_LABELS|'close'/);
   assert.match(form, /export default function WorkWithMeForm\(\{ initialNeed \}: \{ initialNeed: string \| null \}\)/, 'the form takes no today');
 });
 
-test('T5 no clock anywhere on the form\'s path: the page computes no day and hands none down; both headers say so; the honeypot is still at WorkWithMeForm.tsx:371-380', () => {
+test('T5 no clock anywhere on the form\'s path: the page computes no day and hands none down; both headers say so; the honeypot at ServicesForm.tsx:37-40 (HOME-SERVICES-02, 2026-11-16; still at WorkWithMeForm.tsx:371-380 until then)', () => {
   const page = code(PAGE);
   assert.match(page, /<WorkWithMeForm initialNeed=\{initialNeed\} \/>/);
   assert.doesNotMatch(page, /\btoday\b|new Date\(|Date\.now\(/);
   assert.match(comments(PAGE), /It reads no clock\./);
   assert.match(comments(FORM), /It reads no clock\.\n/);
   assert.doesNotMatch(code(FORM), /new Date\(|Date\.now\(|today=|today:/);
-  // IntakeFormClient.tsx (:6, :128) and src/lib/crm/formWords.ts (:68) cite the honeypot by number — the lines stand.
-  const lines = code(FORM).split('\n');
-  assert.equal(lines[370], '              <div aria-hidden="true" className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden">');
-  assert.equal(lines[379], '                  onChange={(e) => setWebsite(e.target.value)}');
+  // IntakeFormClient.tsx (:6, :128) and src/lib/crm/formWords.ts (:68) cite the honeypot by number — the lines stand. HOME-SERVICES-02
+  // (2026-11-16): the trap both forms draw, ServicesForm.tsx:37-40, the citers re-said; until then WorkWithMeForm.tsx:371-380 — its line 371
+  // the div, its line 380 '                  onChange={(e) => setWebsite(e.target.value)}'.
+  const lines = code('src/components/landing/ServicesForm.tsx').split('\n');
+  assert.equal(lines[36], '    <div aria-hidden="true" className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden">');
+  assert.equal(lines[39], '    </div>');
+  assert.match(code(FORM), /<ProposalTrap id="p-website" form=\{form\} \/>/, 'the page draws it');
 });
 
 // ── T6 · THE ROUTE ───────────────────────────────────────────────────────────

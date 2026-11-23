@@ -43,6 +43,8 @@ import { dayWords, instantColumn, instantDayWords, textColumn, valueColumn } fro
 import { OFFERS } from '@/lib/offer';
 import { GOOGLE_CATEGORY_KEYS, TAB_ENTITLEMENT_KEYS } from '@/lib/categoryKeys';
 import { LEGACY_NEED_TITLES, SERVICES, SERVICE_NEEDS, type LegacyNeed } from '@/lib/proposalNeeds';
+// HOME-SERVICES-02 (2026-11-16): the list — a new row's answers are read under their questions' words, in its order
+import { CORE_COLUMNS, CORE_QUESTIONS, followWords, setOf, type Answer, type Answers, type Question } from '@/lib/proposalNeeds';
 import type { SubmissionRow } from './forms';
 import {
   CONTACT_HEAD_WORDS, EMAIL_AND_PASSWORD_WORDS, FREE_PLAN_WORDS, FROM_WORDS, LEGACY_KEY_WORDS, LIST_JOIN, NOT_YET_WORDS,
@@ -69,7 +71,11 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 // ── WHAT THE ROUTE HANDS IN ─────────────────────────────────────────────────
 
-/** A proposals row as read — every field of the form; never status, owner_notes or ip_hash (ruling B.2). Instants and days as ISO strings. */
+/**
+ * A proposals row as read — every field of the form; never status, owner_notes or ip_hash (ruling B.2). Instants and days as ISO strings.
+ * HOME-SERVICES-02 (2026-11-16): a row stored since its migration (20261116132400_home_services_02_answers) holds its answers and NULL
+ * in the old questions' columns; a row stored before holds those columns, and NULL answers.
+ */
 export interface ProposalInput {
   readonly id: string;
   readonly created_at: string;
@@ -79,9 +85,9 @@ export interface ProposalInput {
   readonly need: string;
   /** Json in the table — a list of module words. */
   readonly modules: unknown;
-  readonly start_window: string;
-  readonly budget_range: string;
-  readonly current_stack: string;
+  readonly start_window: string | null;
+  readonly budget_range: string | null;
+  readonly current_stack: string | null;
   /** 'YYYY-MM-DD' or null. */
   readonly hard_deadline: string | null;
   readonly deadline_driver: string | null;
@@ -89,7 +95,9 @@ export interface ProposalInput {
   readonly links: unknown;
   readonly team_size: string | null;
   readonly referral_source: string | null;
-  readonly notes_from_them: string;
+  readonly notes_from_them: string | null;
+  /** HOME-SERVICES-02: Json in the table — each answer under its question's key (src/lib/proposalNeeds.ts); null on a row stored before. */
+  readonly answers: unknown;
 }
 
 /** A users row as read: `passwordless` is users.password === '' — the route asks the database, the hash never leaves it. */
@@ -127,16 +135,27 @@ export interface ProposalRow {
   readonly need: string;
   /** The door's title for the need, or the legacy title for 'close' (needWords). */
   readonly need_words: string;
-  readonly modules: readonly string[];
-  readonly start_window: string;
-  readonly budget_range: string;
-  readonly current_stack: string;
+  /** An old row's modules; null on a new row, whose answers hold Full setup's own. */
+  readonly modules: readonly string[] | null;
+  /** The start and the budget: an old row's columns; a new row's Timeline and budget answers (HOME-SERVICES-02) — the contacts' Start and Budget read them. */
+  readonly start_window: string | null;
+  readonly budget_range: string | null;
+  readonly current_stack: string | null;
   readonly hard_deadline: string | null;
   readonly deadline_driver: string | null;
   readonly links: readonly string[] | null;
   readonly team_size: string | null;
   readonly referral_source: string | null;
-  readonly notes_from_them: string;
+  readonly notes_from_them: string | null;
+  /** HOME-SERVICES-02 (ruling o): a new row's answers, each under its question's words, in the list's order; null on an old row. */
+  readonly answers: readonly ProposalAnswer[] | null;
+}
+
+/** One answer of a new row: its question's key and words, and the answer in words. */
+export interface ProposalAnswer {
+  readonly key: string;
+  readonly question: string;
+  readonly answer: string;
 }
 
 export interface SignupRow {
@@ -263,14 +282,74 @@ const newestFirst = <T>(rows: readonly T[], instantOf: (row: T) => string, keyOf
 
 // ── THE ROWS ────────────────────────────────────────────────────────────────
 
-/** PROPOSALS: one row per proposals row, newest first, each with its need in the door's title (the legacy title for 'close'). */
+/** HOME-SERVICES-02: one answer in words — a pick-any's answers and the links joined, a count by its parts' words, a date and its why. */
+function answerWordsOf(id: string, q: Question, value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && value.every((v) => typeof v === 'string')) return value.join(LIST_JOIN);
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const parts = value as Record<string, unknown>;
+    if (Object.values(parts).every((v) => typeof v === 'string')) {
+      if (q.kind === 'counts') return q.parts.map((part) => `${part.words} ${String(parts[part.key])}`).join(LIST_JOIN);
+      if (q.kind === 'dated') return [parts.date, parts.why].filter((v) => v !== undefined).join(' — ');
+    }
+  }
+  throw new CrmLawError(`proposal ${id}: the answer to "${q.words}" is of a shape no form writes — a data error, reported`);
+}
+
+/**
+ * HOME-SERVICES-02 (Alex's brief, 2026-11-16 13:24 Manila), ruling o: "OLD ROWS STAY AS THEY WERE STORED. The CRM shows a new proposal's answers under their questions' words, read from the list, and shows an old proposal as it does today." — a new row's answers under their questions' words, read from the
+ * list in its order: the core's two (the website, the decision role), then the service's set as its form asked it (setOf: Something else's
+ * budget by its billing), a follow-up after its question. A key no question of the service asks is refused by name — a data error, reported.
+ */
+function answersOf(p: ProposalInput): ProposalAnswer[] {
+  const given = p.answers;
+  if (typeof given !== 'object' || given === null || Array.isArray(given)) throw new CrmLawError(`proposal ${p.id}: answers is not a set of answers — a data error, reported`);
+  const answers = given as Record<string, unknown>;
+  const door = SERVICES.find((s) => s.need === p.need);
+  if (door === undefined) throw new CrmLawError(`proposal ${p.id}: answers stand on "${p.need}", which no service holds — a data error, reported`);
+  const asked = [...CORE_QUESTIONS.filter((q) => !(CORE_COLUMNS as readonly string[]).includes(q.key)), ...setOf(door.need, answers as Answers)];
+  const read: ProposalAnswer[] = [];
+  const under = (q: Question, words: string) => {
+    if (answers[q.key] !== undefined) read.push({ key: q.key, question: words, answer: answerWordsOf(p.id, q, answers[q.key]) });
+  };
+  for (const q of asked) {
+    under(q, q.words);
+    if (q.follow !== undefined) under(q.follow.question, followWords(q.follow, answers[q.key] as Answer));
+  }
+  for (const key of Object.keys(answers)) {
+    if (!read.some((a) => a.key === key)) throw new CrmLawError(`proposal ${p.id}: answers holds "${key}", which no question of ${door.title} asks — a data error, reported`);
+  }
+  return read;
+}
+
+/** The words of a new row's answer under a key, or none when it was not answered. */
+const answeredUnder = (answers: readonly ProposalAnswer[], key: string): string | null => {
+  const found = answers.find((a) => a.key === key);
+  return found === undefined ? null : found.answer;
+};
+
+/**
+ * PROPOSALS: one row per proposals row, newest first, each with its need in the door's title (the legacy title for 'close').
+ * HOME-SERVICES-02 (2026-11-16, ruling o): an old row (answers NULL) reads as it read until then; a new row reads its answers.
+ */
 export function proposalRowsOf(proposals: readonly ProposalInput[]): ProposalRow[] {
-  return newestFirst(proposals.map((p): ProposalRow => ({
-    id: p.id, created_at: p.created_at, name: p.name, email: p.email, business: p.business, need: p.need, need_words: needWords(p.need),
-    modules: wordsOf(p.modules, `proposal ${p.id}: modules`, false) as string[], start_window: p.start_window, budget_range: p.budget_range,
-    current_stack: p.current_stack, hard_deadline: p.hard_deadline, deadline_driver: p.deadline_driver, links: wordsOf(p.links, `proposal ${p.id}: links`, true),
-    team_size: p.team_size, referral_source: p.referral_source, notes_from_them: p.notes_from_them,
-  })), (r) => r.created_at, (r) => r.id);
+  return newestFirst(proposals.map((p): ProposalRow => {
+    if (p.answers === null) {
+      return {
+        id: p.id, created_at: p.created_at, name: p.name, email: p.email, business: p.business, need: p.need, need_words: needWords(p.need),
+        modules: wordsOf(p.modules, `proposal ${p.id}: modules`, false) as string[], start_window: p.start_window, budget_range: p.budget_range,
+        current_stack: p.current_stack, hard_deadline: p.hard_deadline, deadline_driver: p.deadline_driver, links: wordsOf(p.links, `proposal ${p.id}: links`, true),
+        team_size: p.team_size, referral_source: p.referral_source, notes_from_them: p.notes_from_them, answers: null,
+      };
+    }
+    const answers = answersOf(p);
+    return {
+      id: p.id, created_at: p.created_at, name: p.name, email: p.email, business: p.business, need: p.need, need_words: needWords(p.need),
+      modules: null, start_window: answeredUnder(answers, 'timeline'), budget_range: answeredUnder(answers, 'budget'),
+      current_stack: null, hard_deadline: null, deadline_driver: null, links: null,
+      team_size: null, referral_source: p.referral_source, notes_from_them: null, answers,
+    };
+  }), (r) => r.created_at, (r) => r.id);
 }
 
 /** SIGNUPS: one row per users row except the reader's own, newest first; each signup's plan is its OWN active keys (ruling 3). */
@@ -353,7 +432,7 @@ export function contactsOf(input: {
 
 export const CONTACT_COLUMNS = ['came_in', 'name', 'business', 'email', 'from', 'need', 'budget', 'start', 'stage', 'next_step', 'last_touch'] as const;
 export type ContactColumn = (typeof CONTACT_COLUMNS)[number];
-export const PROPOSAL_COLUMNS = ['came_in', 'name', 'email', 'business', 'need', 'modules', 'timeline', 'budget', 'tools_today', 'deadline', 'why_that_date', 'links', 'team', 'heard_from', 'done'] as const;
+export const PROPOSAL_COLUMNS = ['came_in', 'name', 'email', 'business', 'need', 'modules', 'timeline', 'budget', 'tools_today', 'deadline', 'why_that_date', 'links', 'team', 'heard_from', 'done', 'answers'] as const;
 export type ProposalColumn = (typeof PROPOSAL_COLUMNS)[number];
 export const SIGNUP_COLUMNS = ['signed_up_on', 'name', 'email', 'signed_up_with', 'email_verified', 'plan'] as const;
 export type SignupColumn = (typeof SIGNUP_COLUMNS)[number];
@@ -404,6 +483,8 @@ export function proposalsTable(): readonly TableColumn<ProposalRow, ProposalColu
     valueColumn<ProposalRow, ProposalColumn>('team', h.team, (r) => r.team_size),
     valueColumn<ProposalRow, ProposalColumn>('heard_from', h.heard_from, (r) => r.referral_source),
     textColumn<ProposalRow, ProposalColumn>('done', h.done, (r) => r.notes_from_them),
+    // HOME-SERVICES-02 (2026-11-16, ruling o): a new row's answers, each "question: answer"; an old row has none (the forms.ts idiom)
+    textColumn<ProposalRow, ProposalColumn>('answers', h.answers, (r) => (r.answers === null ? null : r.answers.map((a) => `${a.question}: ${a.answer}`).join(LIST_JOIN))),
   ];
 }
 

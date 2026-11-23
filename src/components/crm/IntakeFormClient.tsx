@@ -3,7 +3,7 @@
 /**
  * CRM-02 (Alex, 2026-11-07) — THE PUBLIC INTAKE FORM, the client half (WorkWithMeForm.tsx's idiom, the RSVPClient
  * precedent): the title, the line, the three fixed fields, each question ASKED by its kind (short → an input; long → a
- * textarea; email → an email input; yesno → two radios, Yes / No), the 'website' honeypot (WorkWithMeForm.tsx:371-380,
+ * textarea; email → an email input; yesno → two radios, Yes / No), the 'website' honeypot (WorkWithMeForm.tsx:371-380 until HOME-SERVICES-02, 2026-11-16; ServicesForm.tsx:37-40 since, the trap both proposal forms draw,
  * copied), Send → POST /api/f/<slug>. The sent words name the form's title; a failed send prints the route's own words
  * (its message, else its error), never swallowed; the goes-to line under the button; "Form by Temple Stuart" links home.
  * Every word is src/lib/crm/formWords.ts's — none typed here.
@@ -125,7 +125,7 @@ export default function IntakeFormClient({ form, embed }: { form: PublicForm; em
 
             {form.questions.map((q) => field(q))}
 
-            {/* Honeypot — off-screen, unreachable by keyboard, invisible to screen readers (WorkWithMeForm.tsx:371-380).
+            {/* Honeypot — off-screen, unreachable by keyboard, invisible to screen readers (WorkWithMeForm.tsx:371-380 until HOME-SERVICES-02, 2026-11-16; ServicesForm.tsx:37-40 since).
                 A filled value marks the submit as a bot. */}
             <div aria-hidden="true" className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden">
               <label htmlFor="f-website">{HONEYPOT_LABEL_WORDS}</label>

@@ -80,7 +80,10 @@ const TODAY = '2026-11-07';
 const proposal = (o: Partial<ProposalInput> & { id: string; created_at: string }): ProposalInput => ({
   name: 'Ada Lovelace', email: 'ada@example.com', business: 'Analytical Engines', need: 'setup', modules: ['books', 'tax'], start_window: 'now',
   budget_range: '$2–10k', current_stack: 'Spreadsheets and a shoebox', hard_deadline: null, deadline_driver: null, links: null, team_size: null,
-  referral_source: null, notes_from_them: 'Every month closed by the 10th.', ...o,
+  referral_source: null, notes_from_them: 'Every month closed by the 10th.',
+  // HOME-SERVICES-02 (2026-11-16): a row as the route reads it carries answers — NULL on a row stored before its migration, as these two
+  // are; until then the fixture had no answers at all. A new row's answers are read in homeServices02.test.ts.
+  answers: null, ...o,
 });
 const user = (o: Partial<UserInput> & { id: string; email: string; created_at: string }): UserInput => ({ name: 'Someone', passwordless: false, email_verified_at: null, ...o });
 const workingRow = (o: Partial<WorkingInput> & { id: string; source: string }): WorkingInput => ({
@@ -164,6 +167,7 @@ test('T1 proposalRowsOf and signupRowsOf: every field the form and the signup co
     id: 'p-2', created_at: '2026-11-03T09:00:00.000Z', name: 'Edsger Dijkstra', email: 'edsger@example.com', business: 'Shortest Paths', need: 'close',
     need_words: 'Close my 2026 books (the old close door)', modules: [], start_window: '2-4wk', budget_range: '<$2k', current_stack: 'Spreadsheets and a shoebox', hard_deadline: '2026-12-15',
     deadline_driver: 'The year closes', links: ['https://example.com/books'], team_size: '2-5', referral_source: 'A friend', notes_from_them: 'Twelve months closed.',
+    answers: null, // HOME-SERVICES-02 (2026-11-16): an old row reads as it read until then, and has no answers
   });
   for (const k of ['status', 'owner_notes', 'ownerNotes', 'ip_hash', 'ipHash']) assert.ok(!(k in p[0]), `no ${k}`);
   const s = signups();
@@ -285,7 +289,8 @@ function headRow<Row, Key extends string>(name: string, columns: readonly TableC
 
 test('T4 the three tables: the heads in the ruled orders, every one drawn by the shared DataTable from crmWords', () => {
   const CONTACTS = ['Came in', 'Name', 'Business', 'Email', 'From', 'What they need', 'Budget', 'Start', 'Stage', 'Next step', 'Last touch'];
-  const PROPOSALS = ['Came in', 'Name', 'Email', 'Business', 'Need', 'Modules', 'Timeline', 'Budget', 'Tools today', 'Deadline', 'Why that date', 'Links', 'Team', 'Heard from', 'What does done look like'];
+  // HOME-SERVICES-02 (2026-11-16): + 'Answers', last — a new row's answers under their questions' words; the fifteen heads alone until then
+  const PROPOSALS = ['Came in', 'Name', 'Email', 'Business', 'Need', 'Modules', 'Timeline', 'Budget', 'Tools today', 'Deadline', 'Why that date', 'Links', 'Team', 'Heard from', 'What does done look like', 'Answers'];
   const SIGNUPS = ['Signed up on', 'Name', 'Email', 'Signed up with', 'Email verified', 'Plan'];
   assert.deepEqual(contactsTable().map((c) => c.label), CONTACTS);
   assert.deepEqual(proposalsTable().map((c) => c.label), PROPOSALS);
@@ -475,13 +480,14 @@ test('T7 the plans row derives ◐ with the customer line (ruling 10); /owner ke
 test('T8 the migration: the newest; one table — the four CHECKs by name, the partial unique index, the cascade to users — nothing written, nothing dropped; authored, not applied', () => {
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
   // CASH-02a (2026-11-08): travel_expenses gains paid_with — the newest now; every pin below moved by one more.
-  assert.equal(dirs[dirs.length - 1], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  // HOME-SERVICES-02 (2026-11-16): its migration, 20261116132400_home_services_02_answers (proposals gains answers), is the newest now — every position read from the end below moved by one, and a message that says "the newest" names the one before it.
+  assert.equal(dirs[dirs.length - 2], '20261108120000_cash_02a_paid_with', 'the newest migration');
   // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — the newest now; every pin below moved by one more.
-  assert.equal(dirs[dirs.length - 2], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 3], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
   // CRM-02 (2026-11-07): the intake form's two tables followed — CRM-01a's is second-newest now; its content pins below stand.
-  assert.equal(dirs[dirs.length - 3], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
-  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'right before it, CRM-01a\'s');
-  assert.equal(dirs[dirs.length - 5], '20261106120000_one_form_01_close_need', 'right after ONE-FORM-01\'s');
+  assert.equal(dirs[dirs.length - 4], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'right before it, CRM-01a\'s');
+  assert.equal(dirs[dirs.length - 6], '20261106120000_one_form_01_close_need', 'right after ONE-FORM-01\'s');
   const sql = code(MIGRATION);
   assert.match(sql, /CREATE TABLE "crm_contacts" \(\n\s+"id"\s+UUID NOT NULL DEFAULT gen_random_uuid\(\),\n\s+"user_id"\s+TEXT NOT NULL,\n\s+"source"\s+VARCHAR\(20\) NOT NULL,\n\s+"source_ref"\s+TEXT,\n\s+"name"\s+VARCHAR\(255\),\n\s+"business"\s+TEXT,\n\s+"email"\s+VARCHAR\(255\),\n\s+"stage"\s+VARCHAR\(20\) NOT NULL DEFAULT 'new',\n\s+"next_step"\s+TEXT,\n\s+"last_touch_at"\s+TIMESTAMPTZ\(6\),\n\s+"created_at"\s+TIMESTAMP\(3\) NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\s+"updated_at"\s+TIMESTAMP\(3\) NOT NULL,\n\s+CONSTRAINT "crm_contacts_pkey" PRIMARY KEY \("id"\),/);
   assert.match(sql, /CONSTRAINT "crm_contacts_source_chk" CHECK \("source" IN \('proposal', 'signup', 'manual'\)\)/);
