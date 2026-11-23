@@ -285,12 +285,17 @@ export interface ServicesShortProps {
  * name). Ruling i: "THE FORM IS IN THE PAGE FROM THE START, HIDDEN WHILE NOTHING IS PICKED. It is never unmounted, so a close keeps what was typed. The pick is React state, none at rest; nothing is stored and nothing is put in the URL. Which shape holds the short view's state is the audit's to name, the smallest by the pins it moves." — the holder calls the hook (src/hooks/useProposalForm.ts), so the answers live as long as the section, and the
  * form it draws (ServicesForm.tsx) hides while the pick is none and is never unmounted. Nothing is stored, nothing goes in the URL.
  * The pick the default export hands every view is the whole view's (ruling l): this view takes those props and draws from its own pick.
+ * nextPick is the toggle, pure, so the tests reach it: a press picks the service pressed, or none when it is the one picked.
  */
+export function nextPick(now: ServiceNeed | null, pressed: ServiceNeed): ServiceNeed | null {
+  return now === pressed ? null : pressed;
+}
+
 function ServicesShortHolder(wholeViewsPick: ServicesViewProps) {
   const [picked, setPicked] = useState<ServiceNeed | null>(null);
   const form = useProposalForm(picked);
   void wholeViewsPick;
-  const onPick = (need: ServiceNeed) => setPicked((now) => (now === need ? null : need));
+  const onPick = (need: ServiceNeed) => setPicked((now) => nextPick(now, need));
   const onClose = (event: MouseEvent<HTMLButtonElement>) => {
     const section = event.currentTarget.closest('section');
     const tile = section === null ? undefined : Array.from(section.querySelectorAll<HTMLButtonElement>('.ts-ps-tile')).find((each) => each.dataset.doneForYou === picked);

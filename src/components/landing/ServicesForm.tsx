@@ -41,9 +41,14 @@ export function ProposalTrap({ id, form }: { id: string; form: ProposalForm }) {
   );
 }
 
-/** A question's control in the panel's dress, with its label: words are the label's (a follow-up's may be its opening answer's). */
-function Control({ q, id, words, form }: { q: Question; id: string; words: string; form: ProposalForm }) {
+/**
+ * A question's control in the panel's dress, with its label: words are the label's (a follow-up's may be its opening answer's). A follow-up's
+ * control carries no required attribute, as the reference's carries none: it stands in the page while hidden, and a hidden required field
+ * would hold every send. The button waits for it while it is asked (the hook's rule, ruling f).
+ */
+function Control({ q, id, words, form, follow = false }: { q: Question; id: string; words: string; form: ProposalForm; follow?: boolean }) {
   const hint = q.hint === undefined ? null : <p className="ts-ps-hint">{q.hint}</p>;
+  const required = q.required && !follow;
   switch (q.kind) {
     case 'one':
     case 'many': {
@@ -103,7 +108,7 @@ function Control({ q, id, words, form }: { q: Question; id: string; words: strin
       return (
         <>
           <label className="ts-ps-label" htmlFor={id}>{words}</label>
-          <textarea className="ts-ps-area" id={id} required={q.required} placeholder={q.placeholder} value={text} onChange={(e) => form.write(q.key, e.target.value)} />
+          <textarea className="ts-ps-area" id={id} required={required} placeholder={q.placeholder} value={text} onChange={(e) => form.write(q.key, e.target.value)} />
           {hint}
         </>
       );
@@ -114,7 +119,7 @@ function Control({ q, id, words, form }: { q: Question; id: string; words: strin
       return (
         <>
           <label className="ts-ps-label" htmlFor={id}>{words}</label>
-          <input className={number ? 'ts-ps-input ts-ps-input--short' : 'ts-ps-input'} id={id} type={q.kind} inputMode={number ? 'numeric' : undefined} min={number ? '0' : undefined} required={q.required} maxLength={q.max} placeholder={q.placeholder} value={text} onChange={(e) => form.write(q.key, e.target.value)} />
+          <input className={number ? 'ts-ps-input ts-ps-input--short' : 'ts-ps-input'} id={id} type={q.kind} inputMode={number ? 'numeric' : undefined} min={number ? '0' : undefined} required={required} maxLength={q.max} placeholder={q.placeholder} value={text} onChange={(e) => form.write(q.key, e.target.value)} />
           {hint}
         </>
       );
@@ -131,7 +136,7 @@ function Field({ q, id, form }: { q: Question; id: string; form: ProposalForm })
       <Control q={q} id={id} words={q.words} form={form} />
       {follow === undefined ? null : (
         <div className="ts-ps-field" hidden={!followOpen(q, answer)} style={FOLLOW_GAP}>
-          <Control q={follow.question} id={`${id}-${follow.question.key}`} words={followWords(follow, answer)} form={form} />
+          <Control q={follow.question} id={`${id}-${follow.question.key}`} words={followWords(follow, answer)} form={form} follow />
         </div>
       )}
     </div>
@@ -147,7 +152,10 @@ export interface ServicesFormProps {
   onClose: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
-/** THE FORM IN THE PANEL: the eyebrow and Close, the door's words, the core and the picked set, More details, Send proposal; after a send, the thank-you. */
+/**
+ * THE FORM IN THE PANEL: the eyebrow and Close, the door's words, the core and the picked set, More details, Send proposal; after a send, the
+ * thank-you — its sentence one run of text, as the reference writes it (a run per word would set the line 0.03px apart from it).
+ */
 export default function ServicesForm({ form, door, onClose }: ServicesFormProps) {
   const sent = form.sentEmail !== null;
   const need = form.need;
@@ -175,7 +183,7 @@ export default function ServicesForm({ form, door, onClose }: ServicesFormProps)
         <div className="ts-ps-error" role="alert" hidden={form.error === null}>{form.error}</div>
         <div className="ts-ps-send"><button className="ts-ps-cta" type="submit" disabled={form.held || form.submitting}>{form.submitting ? FORM_WORDS.sending : FORM_WORDS.send}</button></div>
       </form>
-      <div className="ts-ps-sent" role="status" hidden={!sent}><span className="ts-ps-step__mark" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg></span><p>{FORM_WORDS.sentLead} {PROPOSAL_STEPS.read}. {FORM_WORDS.sentHear} <span>{form.sentEmail}</span>.</p></div>
+      <div className="ts-ps-sent" role="status" hidden={!sent}><span className="ts-ps-step__mark" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg></span><p>{`${FORM_WORDS.sentLead} ${PROPOSAL_STEPS.read}. ${FORM_WORDS.sentHear} `}<span>{form.sentEmail}</span>.</p></div>
     </div>
   );
 }

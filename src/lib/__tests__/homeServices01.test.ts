@@ -7,7 +7,7 @@
  * markup is the page at rest"), with its README beside it and the six pictures in public/brand/services/. The section is
  * src/components/landing/ServicesSection.tsx, which Landing.tsx mounts (its short view since HOME-TRIM-03, 2026-11-15; its whole view on /professional-services); its words are src/lib/proposalNeeds.ts's and
  * src/lib/homeActWords.ts's; its stylesheet is the reference's own, ported to src/app/globals.css under the house prefix. The form the
- * reference draws in place is HOME-SERVICES-02's, a later PR: nothing here builds it.
+ * reference draws in place is HOME-SERVICES-02's, a later PR: nothing here builds it — so it stood until HOME-SERVICES-02 (2026-11-16) built it, in the short view's panel; homeServices02.test.ts holds it.
  *
  *   T1  the handoff landed — the README, the reference and the six pictures, byte for byte (sha256) and by size;
  *   T2  the tokens, named and valued as the README's three tables — the ten already in the app and the eleven HOME-PLANS-04 brought,

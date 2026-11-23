@@ -12,7 +12,7 @@
  * The fourth PR of the shorter home page, and the last of its three trims. HOME-PAGES-01 gave the section a page of its own,
  * /professional-services; HOME-TRIM-02 drew Financial Software's short view; this one draws Professional Services' short view on the home
  * page: the section's name and its line, the panel with the question and the six services, under them the picked service's name and
- * line with the gold link and its note, then one link under the panel. The spec is a file: design-refs/home-trim-03/Section-Reference.html,
+ * line with the gold link and its note, then one link under the panel (so the short view stood until HOME-SERVICES-02, 2026-11-16, which opens the proposal form in place and links nowhere; T2 to T7 are re-said for it, each saying what it held). The spec is a file: design-refs/home-trim-03/Section-Reference.html,
  * with its README beside it ("Its markup is the page at rest."). The short view is ServicesShortView in
  * src/components/landing/ServicesSection.tsx, which the section draws when Landing.tsx hands it view="short"; its stylesheet is the
  * reference's second, ported as the Professional Services port's last rules in src/app/globals.css. What is held here:
@@ -26,11 +26,11 @@
  *      reference's own script paints it; the picture, the steps and their rail absent, not hidden; the act's tag first;
  *   T4 the whole view — its render is main's, byte for byte (sha256), with each of the six services picked, and the default export
  *      handed "whole" draws it;
- *   T5 the words — every word the short view draws is a leaf's, in order; the one new one is one constant in the leaf, beside
+ *   T5 the words — every word the short view draws is a leaf's, in order (above its form, since HOME-SERVICES-02); the one new one was one constant in the leaf, beside
  *      SCOPED_BY_PROPOSAL, the arrow in the string, typed nowhere else;
  *   T6 the two mounts — Landing.tsx hands "short" on its line 650, the page hands "whole"; the view is required, with no default: a
  *      mount that names none, or a name that is neither, draws nothing — React refuses it;
- *   T7 the behaviour — the pick is one React state, the first door at rest, handed to the short view; each tile picks its own door; the
+ *   T7 the behaviour — the pick is one React state, the first door at rest, handed to the short view (the whole view's since HOME-SERVICES-02, 2026-11-16: the short view's holder keeps its own, none at rest); each tile picks its own door; the
  *      gold link is the Link to the form with the pick; the link under the panel is a Link to the section's own page, carrying no state;
  *   T8 the rulings — each quoted, exact, where it is built, under the brief's stamp (cited by its letter where an older census forbids its
  *      words); ruling i's notes re-said in place, no cited line moved; in every source file of the change a quote that follows a sentence
