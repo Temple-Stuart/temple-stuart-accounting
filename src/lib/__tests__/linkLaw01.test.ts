@@ -20,7 +20,7 @@ import {
   LINKED_POSTING_SELECT, PAYING_POSTING_WHERE, POSTING_LINES_SELECT, POSTING_STATE_SELECT, REVERSED_POSTING_WHERE, isReversedPosting, reversedCandidatesWords,
   reversedLinkedWords, reversedRefusalWords,
 } from '../calendar/postingAmount';
-import { ledgerOf, linkInputOf, matchCellWords, matchOf, notesCount, readableMatchCents, type LedgerInput, type LedgerLinkInput, type LedgerRecordInput } from '../operations/ledger';
+import { ledgerOf, linkInputOf, matchCellWords, matchOf, notesCount, planMinutesOf, readableMatchCents, type LedgerInput, type LedgerLinkInput, type LedgerRecordInput } from '../operations/ledger';
 import { routineMonthOf, type RoutineMonthRoutine } from '../operations/routineMonth';
 import { taskMatchesOf, type TaskLinkRow } from '../operations/taskMatch';
 import { linkedSourceLine, sumLinks } from '../calendar/links';
@@ -227,7 +227,7 @@ const RECORDS: LedgerRecordInput[] = [{ record: clientRecord, routineId: 'client
 const built = buildRoutineBudgetLines([CLIENT], '2026-10-13', '2026-10-13');
 const ledgerInput = (links: readonly LedgerLinkInput[]): LedgerInput => ({
   from: '2026-10-13', to: '2026-10-13', now: new Date('2026-10-14T00:00:00.000Z'), records: RECORDS, links, lines: built.lines, notPlaced: built.notPlaced,
-  routines: new Map([['client', { name: 'Client lunch', timezone: BKK, steps: new Map() }]]), roles: new Map([['client', 'place']]), vendors: [], stays: [],
+  routines: new Map([['client', { name: 'Client lunch', timezone: BKK, steps: new Map() }]]), roles: new Map([['client', 'place']]), minutes: planMinutesOf([CLIENT]), vendors: [], stays: [], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
   accounts: [{ entityId: 'B', code: '6100', name: 'Client meals' }], books: [{ id: 'B', entityType: 'sole_prop' }],
 });
 const clientLink = (journalEntryId: string, amountCents: number, reversed: boolean): LedgerLinkInput => ({ kind: 'routine', targetId: 'client', instant: CLIENT_13, journalEntryId, amountCents, reversed });

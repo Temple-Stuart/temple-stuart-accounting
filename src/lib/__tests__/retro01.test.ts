@@ -25,7 +25,7 @@ import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
 import type { RoutineWords } from '../budget/planLines';
 import {
   AMOUNT_ZERO_WORDS, EMPTY_EXPENSE, EXPENSE_FIELDS, EXPENSE_FIELD_WORDS, EXPENSE_STEPS, EXPENSE_WORDS, NO_MONEY_ROLES, NOT_ASKED_WORDS, NOT_TRIED_WORDS, STEP_WORDS, VENDOR_BOTH_WORDS, WRITTEN_WORDS,
-  dayTypedWords, expenseInput, expenseLandedWords, ledgerOf, ledgerTotals, leftOutWords, lineCountWords, oneOffBody, outcomeWords, recordBody, requiredWords, starsTypedWords, timeTypedWords, vendorBody, withNotTried, zoneWords,
+  dayTypedWords, expenseInput, expenseLandedWords, ledgerOf, ledgerTotals, leftOutWords, lineCountWords, oneOffBody, outcomeWords, planMinutesOf, recordBody, requiredWords, starsTypedWords, timeTypedWords, vendorBody, withNotTried, zoneWords,
   type ExpenseDraft, type ExpenseValues, type LedgerInput, type LedgerRecordInput,
 } from '../operations/ledger';
 import { MOVE_BODY_WORDS, moveInput, movedWords, recordThereWords, type StopRecordRow } from '../operations/stopRecord';
@@ -96,7 +96,7 @@ const RECORDS: LedgerRecordInput[] = [
 ];
 const built = buildRoutineBudgetLines(ROUTINES, DAY, DAY);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: DAY, to: DAY, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, vendors: [], stays: [],
+  from: DAY, to: DAY, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: [], stays: [], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
   accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], ...over,
 });
 

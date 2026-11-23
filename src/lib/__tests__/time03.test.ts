@@ -56,7 +56,7 @@ const UNCHANGED = [
 ];
 
 const SIXTEEN = ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION'];
-const EIGHTEEN = ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION'];
+const TWENTY_ONE = ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']; // TIMESHEET-01 (Alex, 2026-11-24): the heads are twenty-one — START · END after DATE, WENT after VENDOR; this list was EIGHTEEN (without the three) until then
 const CUSTOMER = 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.';
 
 // ── FIXTURE: four records over two Bangkok days — a line with both minutes, a stepless routine with logged minutes only, a line planned with nothing logged, a stop with neither ──
@@ -79,7 +79,7 @@ const RECORDS: LedgerRecordInput[] = [
 ];
 const INPUT: LedgerInput = {
   from: '2026-10-12', to: '2026-10-13', now: new Date('2026-10-14T00:00:00.000Z'), records: RECORDS, links: [], lines: [], notPlaced: [], routines: WORDS,
-  roles: new Map([['morning', 'place'], ['gym', 'place']]), vendors: [], stays: [], accounts: [], books: [{ id: 'P', entityType: 'personal' }],
+  roles: new Map([['morning', 'place'], ['gym', 'place']]), minutes: new Map(), vendors: [], stays: [], accounts: [], books: [{ id: 'P', entityType: 'personal' }], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes; this fixture hands the rule no plan line, so none is asked
 };
 const ledger = ledgerOf(INPUT);
 const rowOf = (id: string): LedgerRow => {
@@ -92,14 +92,14 @@ const NOTHING_SAID: LedgerSaid = { noLine: 0, doubled: 0, noStay: 0, unplaced: [
 
 // ── RULING A · THE TWO COLUMNS ───────────────────────────────────────────────
 
-test('A the eighteen heads in Alex’s order — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; both VALUE columns; the spec, the filters map and the CSV header follow', () => {
-  assert.deepEqual(LEDGER_HEAD_WORDS, EIGHTEEN);
-  assert.equal(LEDGER_HEAD_WORDS.length, 18);
-  assert.deepEqual(LEDGER_COLUMNS, ['day', 'date', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'stars', 'plannedMinutes', 'loggedMinutes', 'budget', 'actual', 'variance', 'match', 'underOver', 'description']);
+test('A the heads in Alex’s order (twenty-one since TIMESHEET-01; eighteen until then) — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; both VALUE columns; the spec, the filters map and the CSV header follow', () => {
+  assert.deepEqual(LEDGER_HEAD_WORDS, TWENTY_ONE);
+  assert.equal(LEDGER_HEAD_WORDS.length, 21); // TIMESHEET-01 (Alex, 2026-11-24): 18 until then
+  assert.deepEqual(LEDGER_COLUMNS, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'budget', 'actual', 'variance', 'match', 'underOver', 'description']); // TIMESHEET-01 (Alex, 2026-11-24): start and end after date, went after vendor
   assert.deepEqual([headWordOf('plannedMinutes'), headWordOf('loggedMinutes')], ['PLANNED MIN', 'LOGGED MIN']);
   const stars = LEDGER_HEAD_WORDS.indexOf('STARS');
   assert.deepEqual([LEDGER_HEAD_WORDS[stars + 1], LEDGER_HEAD_WORDS[stars + 2], LEDGER_HEAD_WORDS[stars + 3]], ['PLANNED MIN', 'LOGGED MIN', 'BUDGET'], 'inserted after STARS, before BUDGET');
-  assert.deepEqual(LEDGER_HEAD_WORDS.filter((h) => h !== 'PLANNED MIN' && h !== 'LOGGED MIN'), SIXTEEN, 'nothing reordered: the sixteen stand in their order');
+  assert.deepEqual(LEDGER_HEAD_WORDS.filter((h) => h !== 'PLANNED MIN' && h !== 'LOGGED MIN' && h !== 'START' && h !== 'END' && h !== 'WENT'), SIXTEEN, 'nothing reordered: the sixteen stand in their order'); // TIMESHEET-01 (Alex, 2026-11-24): the three new heads set aside too — the sixteen still stand in their order
   assert.deepEqual([columnKind('plannedMinutes'), columnKind('loggedMinutes')], ['value', 'value'], 'value columns — a checklist filter, not a money min/max');
   assert.ok(VALUE_COLUMNS.includes('plannedMinutes') && VALUE_COLUMNS.includes('loggedMinutes'));
   assert.deepEqual(MONEY_COLUMNS, ['budget', 'actual', 'variance', 'match'], 'the money columns unchanged');
@@ -107,11 +107,11 @@ test('A the eighteen heads in Alex’s order — PLANNED MIN · LOGGED MIN after
   assert.deepEqual(LEDGER_TABLE.map((c) => c.label), [...LEDGER_HEAD_WORDS]);
   assert.deepEqual(Object.keys(NO_COLUMN_FILTERS).sort(), [...LEDGER_COLUMNS].sort(), 'one filter per column');
   assert.deepEqual([NO_COLUMN_FILTERS.plannedMinutes, NO_COLUMN_FILTERS.loggedMinutes], [NO_VALUE_FILTER, NO_VALUE_FILTER]);
-  assert.equal(ledgerCsv([]), `${EIGHTEEN.join(',')}\r\n`, 'the CSV header is the eighteen heads');
-  assert.equal(ledgerCsv([]).split('\r\n')[0], 'DAY,DATE,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION');
+  assert.equal(ledgerCsv([]), `${TWENTY_ONE.join(',')}\r\n`, 'the CSV header is the twenty-one heads');
+  assert.equal(ledgerCsv([]).split('\r\n')[0], 'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION'); // TIMESHEET-01 (Alex, 2026-11-24): the header follows the heads
 });
 
-test('A PLANNED MIN is the line’s duration_minutes (blank for a stepless routine), LOGGED MIN the record’s actual_minutes — whole minutes, "—" for null, sorted as numbers, bare integers in the CSV; the DOM and the CSV agree on the eighteen', () => {
+test('A PLANNED MIN is the line’s duration_minutes (blank for a stepless routine), LOGGED MIN the record’s actual_minutes — whole minutes, "—" for null, sorted as numbers, bare integers in the CSV; the DOM and the CSV agree on every column (twenty-one since TIMESHEET-01)', () => {
   const coffee = rowOf('r-coffee');
   const lunch = rowOf('r-lunch');
   const gym = rowOf('r-gym');
@@ -144,12 +144,12 @@ test('A PLANNED MIN is the line’s duration_minutes (blank for a stepless routi
   // The CSV: bare integers, an EMPTY field for null, in the head's places.
   const P = LEDGER_HEAD_WORDS.indexOf('PLANNED MIN');
   const L = LEDGER_HEAD_WORDS.indexOf('LOGGED MIN');
-  assert.deepEqual([P, L], [10, 11]);
+  assert.deepEqual([P, L], [13, 14]); // TIMESHEET-01 (Alex, 2026-11-24): START, END and WENT sit before them — [10, 11] until then
   const lines = ledgerCsv(ledger.rows).split('\r\n');
   const field = (id: string, i: number): string => lines[1 + ledger.rows.findIndex((r) => r.id === id)].split(',')[i];
   assert.deepEqual([field('r-coffee', P), field('r-coffee', L), field('r-gym', P), field('r-gym', L), field('r-lunch', P), field('r-lunch', L), field('r-gym-12', P), field('r-gym-12', L)], ['45', '50', '', '30', '60', '', '', '']);
-  assert.equal(lines[1], 'Tuesday,2026-10-13,,,,,,Coffee,,,45,50,,12.00,,,,', 'the whole line — the minutes between STARS and BUDGET');
-  assert.equal(lines[3], 'Tuesday,2026-10-13,,,,,,Gym,,,,30,,,,,,', 'a stepless routine: PLANNED MIN empty');
+  assert.equal(lines[1], 'Tuesday,2026-10-13,07:30,08:15,,,,,,Coffee,,went,,45,50,,12.00,,,,', 'the whole line — the minutes between STARS and BUDGET'); // TIMESHEET-01 (Alex, 2026-11-24): START 07:30, END 08:15 (07:30 and the 45 planned minutes), WENT went — the other eighteen fields as they were
+  assert.equal(lines[3], 'Tuesday,2026-10-13,20:00,,,,,,,Gym,,went,,,30,,,,,,', 'a stepless routine: PLANNED MIN empty'); // TIMESHEET-01 (Alex, 2026-11-24): START 20:00, END empty (no planned minutes), WENT went
   assert.deepEqual([LEDGER_CSV.plannedMinutes(coffee), LEDGER_CSV.loggedMinutes(gym12)], ['45', '']);
   assert.doesNotMatch(ledgerCsv(ledger.rows), /—/, 'no "—" in the file');
   // IDIOM-01's byte proof, re-proved on the eighteen: the DOM's words and the CSV's field come from the one spec, column by column, and agree — a null is "—" on screen and empty in the file, a figure is the same digits in both.
@@ -187,13 +187,13 @@ test('A the read grows additively: the route selects the line’s duration_minut
   assert.match(code(DAY_CARD), /actualMinutes: record\.actual_minutes,/);
 });
 
-test('A the section: the two cells after STARS, each its words and the blank class when null; the TOTAL row spans the twelve columns before BUDGET (the minutes are the summary’s hours, not the TOTAL row’s)', () => {
+test('A the section: the two cells after STARS, each its words and the blank class when null; the TOTAL row spans the fifteen columns before BUDGET (TIMESHEET-01; twelve until then — the minutes are the summary’s hours, not the TOTAL row’s)', () => {
   const s = code(SECTION);
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(cells, ['day', 'date', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description']);
+  assert.deepEqual(cells, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description']); // TIMESHEET-01 (Alex, 2026-11-24): start and end after date, went after vendor — eighteen cells until then
   assert.match(s, /data-ledger-cell="stars">\{starsCellWords\(row\.rating\)\}<\/td>\n(?:\s*\{\s*\}\n)?\s*<td className=\{`\$\{cell\} whitespace-nowrap tabular-nums \$\{row\.plannedMinutes === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="planned-minutes">\{minutesCellWords\(row\.plannedMinutes\)\}<\/td>\n\s*<td className=\{`\$\{cell\} whitespace-nowrap tabular-nums \$\{row\.loggedMinutes === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="logged-minutes">\{minutesCellWords\(row\.loggedMinutes\)\}<\/td>\n\s*<td [^\n]*data-ledger-cell="budget">/, 'STARS, then the two minutes cells, then BUDGET');
-  assert.match(s, /<th scope="row" colSpan=\{12\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/);
-  assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 12);
+  assert.match(s, /<th scope="row" colSpan=\{15\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // TIMESHEET-01 (Alex, 2026-11-24): colSpan={12} until then
+  assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 15);
   assert.doesNotMatch(s, /data-ledger-total-planned|data-ledger-total-logged|totals\.plannedMinutes\)\}<\/td>\n\s*<td[^\n]*data-ledger-total/, 'no minutes in the TOTAL row');
   assert.match(comments(SECTION), /TIME-03 \(Alex, 2026-10-26\): WHERE THE HOURS WENT — Time is LIVE/);
   assert.match(code('src/components/table/DataTable.tsx'), /<th key=\{c\.key\} className=\{c\.kind === 'money' \? `\$\{headClass\} text-right` : headClass\}>/, 'a VALUE head is left-aligned, as the others');

@@ -23,7 +23,7 @@ import {
   BOOK_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVEN_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_TABLE, LEDGER_TITLE_WORDS, MONEY_HEAD_WORDS,
   NO_BOOK_GROUP_WORDS, OVER_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, UNDER_WORDS,
   accountCellWords, accountNameCellWords, actualCellWords, bookCellWords, bookGroupWords, bookWordOf, dayLongWords, ledgerCsv, ledgerCsvFileName, ledgerOf, ledgerSummary, ledgerTotals,
-  matchCellWords, matchCoverageWords, underOverWords, varianceCellWords, varianceCoverageWords, varianceSignWords,
+  matchCellWords, matchCoverageWords, planMinutesOf, underOverWords, varianceCellWords, varianceCoverageWords, varianceSignWords,
   type LedgerInput, type LedgerRecordInput, type LedgerRow,
 } from '../operations/ledger';
 
@@ -99,7 +99,7 @@ const RECORDS: LedgerRecordInput[] = [
 
 const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over,
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over, // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
 });
 const ledger = ledgerOf(input());
 const rowOf = (id: string): LedgerRow => {
@@ -152,12 +152,12 @@ test('R1 the row: book from the matched line’s book (personal → Personal, so
 
 // ── R2 · THE COLUMNS AND THE CELLS ──────────────────────────────────────────
 
-test('R2 the eighteen head words in Alex’s order (TIME-03: PLANNED MIN · LOGGED MIN after STARS); the cells each one fact: DAY the full weekday, DATE the day, BOOK the word, ACCOUNT the code with its letter, ACCOUNT NAME the chart’s, ACTUAL the amount alone, VARIANCE signed dollars or EMPTY, MATCH empty, UNDER / OVER the word or EMPTY', () => {
+test('R2 the twenty-one head words in Alex’s order (TIMESHEET-01: START · END after DATE, WENT after VENDOR; TIME-03: PLANNED MIN · LOGGED MIN after STARS); the cells each one fact: DAY the full weekday, DATE the day, BOOK the word, ACCOUNT the code with its letter, ACCOUNT NAME the chart’s, ACTUAL the amount alone, VARIANCE signed dollars or EMPTY, MATCH empty, UNDER / OVER the word or EMPTY', () => {
   // LEDGER-04 (Alex, 2026-10-20): SUB ACCOUNT NAME where DESCRIPTION stood (the stop's name IS the sub-account's) and DESCRIPTION where NOTES stood (the record's note). Moved, not loosened.
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
-  assert.equal(LEDGER_HEAD_WORDS.length, 18);
-  assert.equal(new Set(LEDGER_HEAD_WORDS).size, 18, 'no head word twice');
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']); // TIMESHEET-01 (Alex, 2026-11-24): twenty-one — START · END after DATE, WENT after VENDOR, nothing else moved; eighteen until then
+  assert.equal(LEDGER_HEAD_WORDS.length, 21);
+  assert.equal(new Set(LEDGER_HEAD_WORDS).size, 21, 'no head word twice');
   assert.deepEqual(MONEY_HEAD_WORDS, ['BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH'], 'the money columns, right-aligned');
   assert.equal(dayLongWords('2026-10-13'), 'Tuesday');
   assert.equal(dayLongWords('2026-10-11'), 'Sunday');
@@ -191,7 +191,7 @@ test('R2 the eighteen head words in Alex’s order (TIME-03: PLANNED MIN · LOGG
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
   // LEDGER-04 (Alex, 2026-10-20): the cells carry the column's name — sub-account-name prints row.description, description prints row.note.
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
-  assert.deepEqual(cells, ['day', 'date', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description'], 'one cell per head word, in its order');
+  assert.deepEqual(cells, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description'], 'one cell per head word, in its order'); // TIMESHEET-01 (Alex, 2026-11-24): start and end after date, went after vendor — eighteen cells until then
   assert.equal(cells.length, LEDGER_HEAD_WORDS.length);
   assert.match(s, /data-ledger-cell="day">\{dayLongWords\(row\.day\)\}/, 'DAY the full weekday');
   assert.match(s, /data-ledger-cell="date">\{row\.day\}/, 'DATE the day alone — the weekday left the cell');
@@ -234,12 +234,12 @@ test('R3 the TOTAL row: colSpan the columns before BUDGET; VARIANCE the two tota
   assert.deepEqual([mixed.budgetCents, mixed.actualCents, mixed.varianceCents, mixed.withVariance], [1000, 1398, -102, 1], 'the yoga’s $5 is in the ACTUAL total but not in the VARIANCE total — its row has no variance (1398 − 1000 = 398 is NOT the answer)');
   const s = code(SECTION);
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The span grows by two; the minutes are summed in the summary as hours, not in the TOTAL row.
-  assert.match(s, /<th scope="row" colSpan=\{12\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/);
-  assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 12, 'the colSpan is the columns before BUDGET');
+  assert.match(s, /<th scope="row" colSpan=\{15\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // TIMESHEET-01 (Alex, 2026-11-24): the label spans fifteen — START, END and WENT sit before BUDGET too; colSpan={12} until then
+  assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 15, 'the colSpan is the columns before BUDGET');
   inOrder(s, ['data-ledger-total>', 'data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}', 'data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>', "data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}", 'data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>', 'data-ledger-total-under-over>{underOverWords(totals.varianceCents)}', '<td className={cell} data-ledger-total-description />'], 'the TOTAL row’s cells, under their columns'); // LEDGER-04: the last cell is DESCRIPTION's
   assert.match(s, /const varianceTone = \(cents: number \| null\): string => \(cents === null \? BLANK_CLASS : actualTone\(cents > 0\)\);/, 'the sign’s tone (amended)');
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
-  assert.equal((tfoot.match(/<td\b/g) ?? []).length, 6, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES — six cells after the span of twelve (TIME-03)');
+  assert.equal((tfoot.match(/<td\b/g) ?? []).length, 6, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES — six cells after the span of fifteen (TIMESHEET-01; twelve since TIME-03)');
   assert.doesNotMatch(tfoot, /totals\.words|totals\.over/, 'no delta words and no recorded-rows tone in the TOTAL row (amended: one truth per row)');
 });
 
@@ -268,8 +268,8 @@ test('R4 the summary: a seventh group, BOOK, after COA; rows with no book under 
 
 // ── R5 · THE RENAME ─────────────────────────────────────────────────────────
 
-test('R5 the rename: "Task ledger"; the Time row’s why and customer say "the task ledger"; the two-lists law’s messages say so; every comment in the reach carries a dated LEDGER-02 note, the history lines their words', () => {
-  assert.equal(LEDGER_TITLE_WORDS, 'Task ledger');
+test('R5 the rename: "Task ledger" (TIMESHEET-01: the title reads "Time sheet" now — nothing else renamed); the Time row’s why and customer say "the task ledger"; the two-lists law’s messages say so; every comment in the reach carries a dated LEDGER-02 note, the history lines their words', () => {
+  assert.equal(LEDGER_TITLE_WORDS, 'Time sheet'); // TIMESHEET-01 (Alex, 2026-11-24): the title alone — 'Task ledger' until then; the files, the component, the route and the law's messages below keep their names
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time')!;
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book" — "every stop" kept, the book added.
   // HOME-01 (Alex, 2026-10-24, ruling C): the row's words are the tables' — "the task ledger" and "every stop" kept, the card's narration gone with the card (time02.test.ts pins the words).
@@ -306,7 +306,7 @@ test('R5 the rename: "Task ledger"; the Time row’s why and customer say "the t
 
 // ── R6 · THE CSV ────────────────────────────────────────────────────────────
 
-test('R6 ledgerCsv: the eighteen head words (TIME-03), one line per row in table order, RFC 4180 minimal quoting with doubled quotes, money as dollars with two decimals, null an EMPTY field, stars a number, dates YYYY-MM-DD, CRLF on every line, no BOM', () => {
+test('R6 ledgerCsv: the twenty-one head words (TIMESHEET-01; eighteen since TIME-03), one line per row in table order, RFC 4180 minimal quoting with doubled quotes, money as dollars with two decimals, null an EMPTY field, stars a number, dates YYYY-MM-DD, CRLF on every line, no BOM', () => {
   const csv = ledgerCsv(ledger.rows);
   const lines = csv.split('\r\n');
   assert.equal(lines[lines.length - 1], '', 'the last line ends CRLF too');
@@ -314,16 +314,16 @@ test('R6 ledgerCsv: the eighteen head words (TIME-03), one line per row in table
   assert.equal(lines.length, ledger.rows.length + 1, 'the header and one line per row');
   // LEDGER-04 (Alex, 2026-10-20): the header follows the heads — SUB ACCOUNT NAME and DESCRIPTION; the fields under them are as they were (row.description, row.note).
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Two bare fields after STARS; empty here (no fixture states minutes — time03.test.ts does).
-  assert.equal(lines[0], 'DAY,DATE,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION');
+  assert.equal(lines[0], 'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION'); // TIMESHEET-01 (Alex, 2026-11-24): three fields more in each line — START and END after DATE (END empty: no fixture here states minutes), WENT after VENDOR; the other eighteen as they were
   assert.equal(lines[0], LEDGER_HEAD_WORDS.join(','), 'the head words, none needing quotes');
   assert.deepEqual(lines.slice(1), [
-    'Tuesday,2026-10-13,Chiang Mai,Thailand 🇹🇭,Personal,P-5100,Meals,Stretch,,,,,8.00,,,,,rain',
-    'Tuesday,2026-10-13,Chiang Mai,Thailand 🇹🇭,Personal,P-5100,Meals,Coffee,Luka Café,4,,,10.00,8.98,-1.02,,under,"khao soi, ""the good one"""',
-    'Tuesday,2026-10-13,Chiang Mai,Thailand 🇹🇭,Personal,P-5200,,Lunch,,3,,,15.00,,,,,',
-    'Tuesday,2026-10-13,Chiang Mai,Thailand 🇹🇭,Business,B-6100,Client meals,Client lunch,,5,,,25.00,30.00,5.00,,over,',
-    'Monday,2026-10-12,,,Personal,P-5100,Meals,Coffee,Luka Café,5,,,10.00,12.00,2.00,,over,latte',
-    'Monday,2026-10-12,,,,,,Yoga,,2,,,,5.00,,,,',
-    'Sunday,2026-10-11,,,Personal,P-5100,Meals,Coffee,Luka Café,,,,10.00,10.00,0.00,,even,',
+    'Tuesday,2026-10-13,06:30,,Chiang Mai,Thailand 🇹🇭,Personal,P-5100,Meals,Stretch,,skipped,,,,8.00,,,,,rain',
+    'Tuesday,2026-10-13,07:30,,Chiang Mai,Thailand 🇹🇭,Personal,P-5100,Meals,Coffee,Luka Café,went,4,,,10.00,8.98,-1.02,,under,"khao soi, ""the good one"""',
+    'Tuesday,2026-10-13,12:00,,Chiang Mai,Thailand 🇹🇭,Personal,P-5200,,Lunch,,went,3,,,15.00,,,,,',
+    'Tuesday,2026-10-13,12:30,,Chiang Mai,Thailand 🇹🇭,Business,B-6100,Client meals,Client lunch,,went,5,,,25.00,30.00,5.00,,over,',
+    'Monday,2026-10-12,07:30,,,,Personal,P-5100,Meals,Coffee,Luka Café,went,5,,,10.00,12.00,2.00,,over,latte',
+    'Monday,2026-10-12,17:00,,,,,,,Yoga,,went,2,,,,5.00,,,,',
+    'Sunday,2026-10-11,07:30,,,,Personal,P-5100,Meals,Coffee,Luka Café,went,,,,10.00,10.00,0.00,,even,',
   ], 'each field the table’s fact: the weekday, the day, the place (empty with no stay), the book, the code and the name, the stars as a number, the money, MATCH empty, the sign, the note');
   assert.doesNotMatch(csv, /(^|[^\r])\n/, 'no bare LF');
   assert.doesNotMatch(csv, /—/, 'no "—" in the file — a null is an empty field');
@@ -336,10 +336,10 @@ test('R6 ledgerCsv: the eighteen head words (TIME-03), one line per row in table
   assert.equal(quoted.slice(1, -1).replace(/""/g, '"'), 'khao soi, "the good one"');
   // A CR or an LF in a field is quoted too; a bare field is written bare.
   const cr = ledgerCsv([{ ...rowOf('r-coffee-11'), note: 'line one\r\nline two', description: 'plain' }]).split('\r\n');
-  assert.equal(cr[1], 'Sunday,2026-10-11,,,Personal,P-5100,Meals,plain,Luka Café,,,,10.00,10.00,0.00,,even,"line one'); // TIME-03: the two empty minutes fields
+  assert.equal(cr[1], 'Sunday,2026-10-11,07:30,,,,Personal,P-5100,Meals,plain,Luka Café,went,,,,10.00,10.00,0.00,,even,"line one'); // TIME-03: the two empty minutes fields. TIMESHEET-01: START, an empty END, WENT
   assert.equal(cr[2], 'line two"');
   assert.equal(ledgerCsv([]), `${LEDGER_HEAD_WORDS.join(',')}\r\n`, 'no rows: the header alone');
-  assert.equal(ledgerCsvFileName('2026-10-01', '2026-10-31'), 'task-ledger_2026-10-01_2026-10-31.csv');
+  assert.equal(ledgerCsvFileName('2026-10-01', '2026-10-31'), 'time-sheet_2026-10-01_2026-10-31.csv'); // TIMESHEET-01 (Alex, 2026-11-24): the file is named for the sheet — 'task-ledger_2026-10-01_2026-10-31.csv' until then
   assert.equal(CSV_DOWNLOAD_WORDS, 'download CSV');
   assert.equal(CSV_NO_ROWS_WORDS, 'no row shown — nothing to download');
   // Pure: the CSV block of the rules file knows no React, no DOM, no Blob.
@@ -392,7 +392,7 @@ test('A1 one marker: on screen every null cell prints "—" — VARIANCE, MATCH 
   assert.equal(matchCellWords(null), '—'); // LEDGER-03: no link is "—"
   // The CSV of the same row: empty fields where the screen prints "—".
   const line = ledgerCsv([yoga]).split('\r\n')[1];
-  assert.equal(line, 'Monday,2026-10-12,,,,,,Yoga,,2,,,,5.00,,,,', 'BOOK · ACCOUNT · ACCOUNT NAME · PLANNED MIN · LOGGED MIN · BUDGET · VARIANCE · MATCH · UNDER / OVER each an empty field'); // TIME-03: the two minutes fields, empty
+  assert.equal(line, 'Monday,2026-10-12,17:00,,,,,,,Yoga,,went,2,,,,5.00,,,,', 'END · BOOK · ACCOUNT · ACCOUNT NAME · PLANNED MIN · LOGGED MIN · BUDGET · VARIANCE · MATCH · UNDER / OVER each an empty field'); // TIME-03: the two minutes fields, empty. TIMESHEET-01: START 17:00, END empty, WENT went
   assert.doesNotMatch(ledgerCsv(ledger.rows), /—/, 'no "—" anywhere in the file');
   // The sign rule is one function the screen and the CSV both call; the CSV calls it directly, never a screen helper.
   assert.deepEqual([varianceSignWords(-1), varianceSignWords(1), varianceSignWords(0)], ['under', 'over', 'even']);

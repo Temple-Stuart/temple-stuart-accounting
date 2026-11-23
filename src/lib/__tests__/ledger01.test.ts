@@ -28,7 +28,7 @@ import {
   NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
   actualCellWords, averageStarsWords, budgetCellWords, coaWords, daysWords, dayParamWords, firstRecordUnplacedWords, ledgerFailedWords, ledgerOf,
   ledgerStarsWords, ledgerSummary, ledgerTotals, mondayOf, monthOf, monthWords, noLineWords, noRowsWords, noStayWords, notPlacedWords, notRecordedWords, orderWords,
-  perDayWords, periodOf, periodWords, spanDays, spanInput, spanWords, starsCellWords, stepAnchor, unplacedWords, weekWords,
+  perDayWords, periodOf, periodWords, planMinutesOf, spanDays, spanInput, spanWords, starsCellWords, stepAnchor, unplacedWords, weekWords,
   type LedgerInput, type LedgerRecordInput, type LedgerRow,
 } from '../operations/ledger';
 import { captionTags, CAPTION_TAGS, dayTotals } from '@/components/workbench/operations/day/dayCard';
@@ -112,7 +112,7 @@ const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const doubled: BudgetLine[] = [...built.lines, built.lines.find((l) => l.sourceId === occurrenceKey({ routineId: 'gym', lineId: null, instant: new Date(GYM_12) })) as BudgetLine];
 
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: doubled, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over,
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: doubled, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over, // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
 });
 
 const ledger = ledgerOf(input());
@@ -337,7 +337,7 @@ test('T4 periodOf: the calendar month, Monday to Sunday, the day, ALL from the f
   assert.deepEqual(PERIOD_WORDS, { month: 'Month', week: 'Week', day: 'Day', all: 'All' });
   assert.equal(periodWords({ from: '2026-10-01', to: '2026-10-31' }), 'Thu Oct 1 – Sat Oct 31');
   assert.equal(periodWords({ from: '2026-10-16', to: '2026-10-16' }), 'Fri Oct 16');
-  assert.equal(noRowsWords({ from: '2026-10-16', to: '2026-10-16' }), 'no stop recorded Fri Oct 16');
+  assert.equal(noRowsWords({ from: '2026-10-16', to: '2026-10-16' }), 'nothing planned or recorded Fri Oct 16'); // TIMESHEET-01 (Alex, 2026-11-24): the sheet lists the plan too — 'no stop recorded Fri Oct 16' until then
   // The route's two parameters.
   assert.equal(LEDGER_SPAN_MAX_DAYS, 400);
   assert.equal(spanDays('2026-10-01', '2026-10-31'), 31);
@@ -399,7 +399,7 @@ test('T5 the route: GET only, the stops GET’s gate first, from and to by the o
     'const built = buildRoutineBudgetLines(routineInputs, from, to);',
     'toReportAccount(row, bookOf(row.entity_id',
     'const ledger = ledgerOf({',
-    'return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, said: ledger.said };',
+    'return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, said: ledger.said };', // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet`, between rows and said — `rows: ledger.rows, said: ledger.said` until then
   ], 'the reads, the rules, the answer — in the route’s order, every one by the caller’s id');
   for (const [f, src] of [[ROUTE, r], [ANSWER, a]] as const) {
     assert.doesNotMatch(src, /\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(|\$executeRaw|\$queryRaw|writeAuditLog/, `${f}: read only — nothing is written`);
@@ -434,7 +434,7 @@ test('T6 the read: one URL through the one reader; an answer without its rows is
   const calls: string[] = [];
   const g = globalThis as unknown as { fetch: unknown };
   const real = g.fetch;
-  g.fetch = async (url: string) => { calls.push(url); return new Response(JSON.stringify({ from: '2026-10-01', to: '2026-10-31', as_of: 'x', first_record: null, rows: [], said: {} }), { status: 200, headers: { 'content-type': 'application/json' } }); };
+  g.fetch = async (url: string) => { calls.push(url); return new Response(JSON.stringify({ from: '2026-10-01', to: '2026-10-31', as_of: 'x', first_record: null, rows: [], sheet: [], said: {} }), { status: 200, headers: { 'content-type': 'application/json' } }); }; // TIMESHEET-01 (Alex, 2026-11-24): the answer carries its `sheet` — one without it is a failure in words (timesheet01.test.ts); `rows: [], said: {}` until then
   try {
     const read = await readLedger('2026-10-01', '2026-10-31');
     assert.ok(read.ok);
@@ -468,7 +468,7 @@ test('T6 the section: the columns (eighteen since TIME-03; sixteen from LEDGER-0
   // LEDGER-02 (Alex, 2026-10-19): sixteen columns in Alex's order — one fact each; until then the ten: DATE · CITY · COUNTRY · COA · VENDOR · DESCRIPTION · STARS · NOTES · BUDGET · ACTUAL.
   // LEDGER-04 (Alex, 2026-10-20): the stop's name is the SUB ACCOUNT NAME (was DESCRIPTION) and the note is the DESCRIPTION (was NOTES).
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']); // TIMESHEET-01 (Alex, 2026-11-24): twenty-one — START · END after DATE, WENT after VENDOR, nothing else moved; eighteen until then
   // IDIOM-01 (Alex, 2026-10-24): eight attributes left for the shared table — written there with the caller's name (dataAttr), "ledger" here; the loop after this one holds them there.
   for (const attr of ['data-ledger', 'data-ledger-period={k}', 'data-ledger-previous', 'data-ledger-anchor', 'data-ledger-next', 'data-ledger-notes-toggle', 'data-ledger-row={row.key}', 'data-ledger-cell="day"', 'data-ledger-cell="date"', 'data-ledger-cell="city"', 'data-ledger-cell="country"', 'data-ledger-cell="book"', 'data-ledger-cell="account"', 'data-ledger-cell="account-name"', 'data-ledger-cell="vendor"', 'data-ledger-cell="sub-account-name"', 'data-ledger-cell="stars"', 'data-ledger-cell="planned-minutes"', 'data-ledger-cell="logged-minutes"', 'data-ledger-cell="description"', 'data-ledger-cell="budget"', 'data-ledger-cell="actual"', 'data-ledger-cell="variance"', 'data-ledger-cell="match"', 'data-ledger-cell="under-over"', 'data-ledger-total', 'data-ledger-total-budget', 'data-ledger-total-actual', 'data-ledger-total-variance', 'data-ledger-total-match', 'data-ledger-total-under-over', 'data-ledger-said', 'data-ledger-said-variance', 'data-ledger-said-match', 'data-ledger-said-planned', 'data-ledger-said-logged', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book', 'data-ledger-summary', 'data-ledger-by={g}', 'data-ledger-group={g.key}', 'data-ledger-group-per-day', 'data-ledger-group-stars', 'data-ledger-group-planned-hours', 'data-ledger-group-logged-hours', 'data-ledger-none', 'data-ledger-loading', 'data-ledger-failed', 'data-ledger-no-first']) {
     assert.ok(s.includes(attr), `the section carries ${attr}`);
@@ -497,7 +497,7 @@ test('T6 the section: the columns (eighteen since TIME-03; sixteen from LEDGER-0
   for (const p of printed) assert.doesNotMatch(p, /^'[^']*'$|^"[^"]*"$|^`[^`]*`$/, `${p} is not a literal sentence`);
   assert.doesNotMatch(s, />[A-Za-z][^<>{}]*[a-z][^<>{}]*</, 'no bare prose between tags');
   assert.doesNotMatch(s, /<StageStrip|<ProofStrip|HubCalendar/, 'no strip, no grid (the two-lists law walks this tree)');
-  assert.equal(LEDGER_TITLE_WORDS, 'Task ledger'); // LEDGER-02 (Alex, 2026-10-19): 'City ledger' until then — "it's really a Task Ledger, not a City Ledger"
+  assert.equal(LEDGER_TITLE_WORDS, 'Time sheet'); // TIMESHEET-01 (Alex, 2026-11-24): 'Task ledger' until then; LEDGER-02 (Alex, 2026-10-19): 'City ledger' before that — "it's really a Task Ledger, not a City Ledger"
   assert.equal(LEDGER_LOADING_WORDS, 'reading the ledger…');
   assert.equal(ledgerFailedWords('x'), 'The ledger could not be read — x');
   assert.equal(NO_ROWS_SHOWN_WORDS, 'no row matches the filters');

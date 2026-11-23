@@ -80,11 +80,11 @@ const NOTHING_SAID: LedgerSaid = { noLine: 0, doubled: 0, noStay: 0, unplaced: [
 
 test('R1 the heads: SUB ACCOUNT NAME where DESCRIPTION stood, DESCRIPTION where NOTES stood; the CSV header follows; the fields keep their names and say which column each prints to; the expense form and the stop form say the same; the summary’s groups and the registry untouched', () => {
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
-  assert.equal(ledgerCsv([]).split('\r\n')[0], 'DAY,DATE,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION');
-  // The row's fields keep their names; the CSV line is as LEDGER-02 wrote it — description eighth, note sixteenth.
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']); // TIMESHEET-01 (Alex, 2026-11-24): twenty-one — START · END after DATE, WENT after VENDOR, nothing else moved; eighteen until then
+  assert.equal(ledgerCsv([]).split('\r\n')[0], 'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION');
+  // The row's fields keep their names; the CSV line is as LEDGER-02 wrote it — description eighth, note sixteenth. TIMESHEET-01 (Alex, 2026-11-24): tenth and twenty-first now — START 07:30, an empty END (no minutes) and WENT went ride the line.
   const line = ledgerCsv([BRUNCH]).split('\r\n')[1];
-  assert.equal(line, 'Tuesday,2026-10-13,Chiang Mai,Thailand 🇹🇭,Personal,P-6150,Dining Out,Brunch,Luka Café,4,,,25.00,22.00,-3.00,22.00,under,"khao soi, worth it"', 'the stop’s name eighth, the note (quoted — it holds a comma) last; TIME-03: two empty minutes fields after the stars');
+  assert.equal(line, 'Tuesday,2026-10-13,07:30,,Chiang Mai,Thailand 🇹🇭,Personal,P-6150,Dining Out,Brunch,Luka Café,went,4,,,25.00,22.00,-3.00,22.00,under,"khao soi, worth it"', 'the stop’s name tenth, the note (quoted — it holds a comma) last; TIME-03: two empty minutes fields after the stars; TIMESHEET-01: START and an empty END after the date, WENT after the vendor');
   const rules = code(RULES);
   assert.match(rules, /readonly description: string;\n\s*readonly rating: number \| null;\n\s*readonly note: string \| null;/, 'no field rename — the route’s payload is unchanged');
   assert.match(comments(RULES), /LEDGER-04 \(Alex, 2026-10-20\): printed under SUB ACCOUNT NAME/);
@@ -105,16 +105,16 @@ test('R1 the heads: SUB ACCOUNT NAME where DESCRIPTION stood, DESCRIPTION where 
 
 // ── R2 · THE COLUMN FILTERS ─────────────────────────────────────────────────
 
-test('R2 the columns: eighteen keys in the head’s order (TIME-03), each a VALUE, MONEY or TEXT column; the cell key is the words the table prints, "—" for a blank; the money figure is the CSV’s own', () => {
-  assert.equal(LEDGER_COLUMNS.length, 18); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
+test('R2 the columns: twenty-one keys in the head’s order (TIMESHEET-01; eighteen since TIME-03), each a VALUE, MONEY or TEXT column; the cell key is the words the table prints, "—" for a blank; the money figure is the CSV’s own', () => {
+  assert.equal(LEDGER_COLUMNS.length, 21); // TIMESHEET-01 (Alex, 2026-11-24): start and end after date, went after vendor — 18 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
   assert.deepEqual(LEDGER_COLUMNS.map(headWordOf), [...LEDGER_HEAD_WORDS], 'LEDGER_COLUMNS[i] is LEDGER_HEAD_WORDS[i]');
   assert.deepEqual([...VALUE_COLUMNS, ...MONEY_COLUMNS, ...TEXT_COLUMNS].sort(), [...LEDGER_COLUMNS].sort(), 'every column has one kind');
-  assert.deepEqual(VALUE_COLUMNS, ['day', 'date', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'stars', 'plannedMinutes', 'loggedMinutes', 'underOver']); // TIME-03: the minutes are VALUE columns
+  assert.deepEqual(VALUE_COLUMNS, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'underOver']); // TIME-03: the minutes are VALUE columns. TIMESHEET-01: start, end and went too — thirteen until then
   assert.deepEqual(MONEY_COLUMNS, ['budget', 'actual', 'variance', 'match']);
   assert.deepEqual(TEXT_COLUMNS, ['description']);
-  assert.deepEqual(LEDGER_COLUMNS.map(columnKind), ['value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'money', 'money', 'money', 'money', 'value', 'text']);
-  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(BRUNCH, c)), ['Tuesday', '2026-10-13', 'Chiang Mai', 'Thailand 🇹🇭', 'Personal', 'P-6150', 'Dining Out', 'Brunch', 'Luka Café', '★★★★', BLANK, BLANK, '$25', '$22', '−$3.00', '$22', 'under', 'khao soi, worth it']); // TIME-03: the minutes cells, blank in this fixture
-  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(YOGA, c)), ['Monday', '2026-10-12', BLANK, BLANK, BLANK, BLANK, BLANK, 'Yoga', BLANK, '★★', BLANK, BLANK, BLANK, '$5', BLANK, BLANK, BLANK, BLANK], 'a blank cell is BLANK, as the table prints it');
+  assert.deepEqual(LEDGER_COLUMNS.map(columnKind), ['value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'money', 'money', 'money', 'money', 'value', 'text']); // TIMESHEET-01 (Alex, 2026-11-24): fifteen value columns before the money — twelve until then
+  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(BRUNCH, c)), ['Tuesday', '2026-10-13', '07:30', BLANK, 'Chiang Mai', 'Thailand 🇹🇭', 'Personal', 'P-6150', 'Dining Out', 'Brunch', 'Luka Café', 'went', '★★★★', BLANK, BLANK, '$25', '$22', '−$3.00', '$22', 'under', 'khao soi, worth it']); // TIME-03: the minutes cells, blank in this fixture. TIMESHEET-01: START the row's clock, END blank (no minutes), WENT went
+  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(YOGA, c)), ['Monday', '2026-10-12', '07:30', BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, 'Yoga', BLANK, 'went', '★★', BLANK, BLANK, BLANK, '$5', BLANK, BLANK, BLANK, BLANK], 'a blank cell is BLANK, as the table prints it'); // TIMESHEET-01 (Alex, 2026-11-24): START, END and WENT in their places
   assert.equal(cellWordsOf(GYM, 'actual'), 'skipped', 'the ACTUAL cell’s own words');
   assert.deepEqual(MONEY_COLUMNS.map((c) => cellCentsOf(BRUNCH, c)), [2500, 2200, -300, 2200]);
   assert.deepEqual(MONEY_COLUMNS.map((c) => cellCentsOf(CLIENT, c)), [2500, 2500, 0, null], 'an unreadable posting: no MATCH figure (readableMatchCents)');
