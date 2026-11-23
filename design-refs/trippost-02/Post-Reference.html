@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRIPPOST-02 · reference</title>
+<!--
+  TRIPPOST-02: the reference for a stop's page, /my-trip/<stop>. Two pages are drawn here, one under the other:
+
+    1. A STOP ALEX HAS WRITTEN UP: Stop 1, Canggu (/my-trip/canggu-2026-07). The way back and the stop's place in the
+       trip; the title beside the photo; four figures; the tabs; then the short version, the day, his favorites, what it
+       cost, the journal, what he learned and what was on; the stop before and after, the band, the day it was written.
+    2. A STOP NOT WRITTEN UP YET: Stop 7, General Luna (/my-trip/siargao-2026). The place as the title, the dates, the
+       line that says it is not written; the photo; the four figures; his line and the event the stop was around; what
+       it cost; the stop before and after, and the band.
+
+  Open this file in a browser from inside the repo (the photos are read from public/was-here/). Press the tabs, pick
+  a day, a week, the arrows and "Read that day"; resize the window.
+
+  Every value in the stylesheet is the design, and the markup is each page as it opens. The words are copies, for
+  placement only: production reads each one from its home (the README lists them) and types none. The site's top bar
+  stands above this and its footer below, as on every page: neither is drawn here and neither changes. The script at
+  the foot only makes the tabs and the journal work in this file. The font link is here only so the file renders alone;
+  the site already loads both faces.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    /* ALREADY IN THE APP: each is the same name behind the house prefix (--hero-violet-2 is --ts-hero-violet-2,
+       --bg is --ts-bg). Declared here only so this file renders on its own; the port adds none of these. */
+    --bg: 250 248 243;                /* the cream ground; behind the tabs at 0.92 */
+    --border: 221 214 232;            /* the line under the tabs, at 0.7 */
+    --gold: 184 134 11;               /* two parts of a bar and their dots: activity, and the flight in */
+    --hero-violet-1: #6A33E0;         /* the band's sweep, end; the bar's entertainment */
+    --hero-violet-2: #4D1FBC;         /* what is lit: the tab and the day; the small violet labels and the quotes; the arrows; the total; the focus ring */
+    --hero-violet-3: #32118A;         /* the links and the dates; a tab's and a day's words; the band's flat colour */
+    --hero-violet-4: #210A5E;         /* the title, the headings and every name; the bar's sleep */
+    --hero-ink: #FAF8F4;              /* the band's line */
+    --hero-gold: #F6C95C;             /* the focus ring on the band */
+    --hero-gold-1: 255 236 178;       /* the band's button, start */
+    --hero-gold-2: 248 203 90;        /* the band's button, 52% */
+    --hero-gold-3: 236 178 62;        /* the band's button, end */
+    --hero-on-gold: #2A0F5C;          /* the words on the band's button */
+    --hero-rim-lilac: #B9A2FF;        /* two parts of a bar and their dots: meals, and the motorbike */
+
+    /* ADDED BY HOME-PLANS-04 (on main as --ts-fs-*): reused here by the same names and values. Add none. */
+    --fs-white: 255 255 255;          /* the cards, the tabs, the buttons; the words on what is lit; the button's top light at 0.75 */
+    --fs-gold-text: #8A6408;          /* the eyebrows, each amount paid, a lesson's number, the quote marks */
+    --fs-ink: #2B2545;                /* body text; a day's story */
+    --fs-ink-soft: #4A4560;           /* the dek, each section's line, the explainers */
+    --fs-ink-muted: #6F6988;          /* the small grey labels, the photo credits, n/a and not in my log yet */
+    --fs-line: #E9E4F2;               /* a card's border; the rule over a section */
+    --fs-rule: #EEEAF5;               /* the rules inside a card; a photo's ground while it loads */
+    --fs-chip-line: #E4DFF0;          /* a chip's border; the arrows' border */
+    --fs-button-line: #CFC6EC;        /* the quiet buttons' border: a tab, Read that day, the two stops; the rule over the total */
+    --fs-band-ring: 230 220 255;      /* the band's rings, at 0.08 */
+    --fs-shadow: 33 10 94;            /* shadows on the cream */
+    --fs-band-shadow: 12 6 44;        /* the shadow under the band's button */
+
+    /* ADDED BY HOME-SERVICES-01 (on main as --ts-ps-*): reused here by the same names and values. Add none. */
+    --ps-field-line: #DCD5EC;         /* a day's border in the calendar */
+    --ps-wash: #F6F2FE;               /* the lavender tiles: the short version, the takeaway, his line, what is not counted, a day, a day's chips, the open week */
+
+    /* NEW WITH THIS PAGE: none. Every colour above is already in the app. */
+  }
+
+  /* ── 1 · the page: its ground, the page container, the way back, the stop's place in the trip ── */
+  .post { background-color: rgb(var(--bg)); color: var(--fs-ink); font-family: 'Inter', sans-serif; line-height: 1.5; }
+  .post :focus-visible { outline: 2px solid var(--hero-violet-2); outline-offset: 3px; }
+  .post__inner { box-sizing: border-box; max-width: 1280px; margin-inline: auto; padding-inline: 16px; }
+  .post__top { padding-top: clamp(12px, 1.6vw, 22px); }
+  .post__body { padding-bottom: clamp(48px, 5vw, 72px); }
+  .post__crumb { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 24px; }
+  .post__back { display: inline-flex; align-items: center; min-height: 44px; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; line-height: 1.3; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--hero-violet-3); text-decoration: none; }
+  .post__count { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.3; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fs-ink-muted); }
+
+  /* ── 2 · the head: the eyebrow, the title, the dek, the place and the dates; the stop's photo, whole ── */
+  .post__hero { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(24px, 4vw, 56px); margin-top: clamp(8px, 1.2vw, 16px); }
+  .post__head { flex: 1 1 320px; min-width: 0; }
+  .post__eyebrow { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fs-gold-text); }
+  .post__title { margin: 12px 0 0; font-size: clamp(34px, 4vw, 56px); line-height: 1.05; font-weight: 500; letter-spacing: -0.03em; color: var(--hero-violet-4); text-wrap: balance; }
+  .post__dek { margin: 16px 0 0; max-width: 560px; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--fs-ink-soft); text-wrap: pretty; }
+  /* the place, then the dates; a stop not written up carries the dates alone (its place is the title) */
+  .post__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 18px 0 0; }
+  .post__meta span { font-size: 17px; line-height: 1.4; font-weight: 600; color: var(--hero-violet-4); }
+  .post__meta span:last-child { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500; color: var(--hero-violet-3); white-space: nowrap; }
+  /* a stop not written up says so, under its dates */
+  .post__unwritten { box-sizing: border-box; display: inline-block; margin: 16px 0 0; padding: 10px 16px; border-radius: 12px; background-color: var(--ps-wash); font-size: 15px; line-height: 1.5; color: var(--fs-ink-soft); }
+  /* the photo: 3 : 2, every photo's own shape, so nothing is cut; nothing is drawn on it. A stop with no photo has no frame */
+  .post-photo { flex: 1.15 1 360px; min-width: 0; box-sizing: border-box; margin: 0; padding: 10px; border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white)); box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.07); }
+  .post-photo__img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 14px; background-color: var(--fs-rule); }
+  .post-photo__credit { padding: 10px 6px 2px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.2; color: var(--fs-ink-muted); text-align: right; }
+
+  /* ── 3 · the four figures: how long, the stay a night, the motorbike a day, the fixed bookings ── */
+  .post-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; overflow: hidden; margin-top: clamp(24px, 2.8vw, 40px); border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white)); box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.07); }
+  .post-tile { padding: clamp(16px, 1.8vw, 22px) clamp(16px, 2vw, 26px); box-shadow: 1px 0 0 var(--fs-rule), 0 1px 0 var(--fs-rule); }
+  .post-tile__label { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .post-tile__value { margin: 8px 0 0; font-size: clamp(22px, 1.2vw + 17px, 30px); line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; color: var(--hero-violet-4); }
+  .post-tile__unit { font-size: 14px; font-weight: 400; letter-spacing: 0; color: var(--fs-ink-soft); }
+  /* a figure that cannot be worked out says why, in words: smaller and muted, never a number */
+  .post-tile__value--words { font-size: 16px; line-height: 1.4; font-weight: 500; letter-spacing: 0; color: var(--fs-ink-muted); }
+  .post-tile__note { margin: 6px 0 0; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; line-height: 1.4; color: var(--fs-ink-muted); }
+
+  /* ── 4 · what the stop holds of its own: Alex's line, the event it was around, and his two lists ── */
+  .post-own { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: 20px; margin-top: clamp(24px, 2.8vw, 40px); }
+  .post-line { box-sizing: border-box; margin: 0; padding: clamp(22px, 2.6vw, 32px); border-radius: 20px; background-color: var(--ps-wash); font-size: clamp(20px, 2vw, 26px); line-height: 1.3; font-weight: 500; letter-spacing: -0.02em; color: var(--hero-violet-2); text-wrap: balance; }
+  .post-line::before { content: '\201C'; color: var(--fs-gold-text); }
+  .post-line::after { content: '\201D'; color: var(--fs-gold-text); }
+  .post-event { box-sizing: border-box; padding: clamp(20px, 2.2vw, 28px); border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white)); box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.07); }
+  .post-event__kind { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fs-gold-text); }
+  .post-event__name { margin: 10px 0 0; font-size: 20px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--hero-violet-4); text-wrap: balance; }
+  .post-event__venue { margin: 4px 0 0; font-size: 15px; line-height: 1.5; color: var(--fs-ink-soft); }
+  .post-event__window { margin: 12px 0 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.5; font-weight: 500; color: var(--hero-violet-3); }
+  .post-list { box-sizing: border-box; padding: clamp(20px, 2.2vw, 28px); border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white)); box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.07); }
+  .post-list__label { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .post-list__text { margin: 10px 0 0; font-size: 16px; line-height: 1.6; color: var(--fs-ink); text-wrap: pretty; }
+
+  /* ── 5 · the tabs: one link per section, the one being read filled; they stay at the top ── */
+  .post-tabs { position: sticky; top: 0; z-index: 2; margin-top: clamp(20px, 2.4vw, 32px); border-bottom: 1px solid rgb(var(--border) / 0.7); background-color: rgb(var(--bg) / 0.92); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .post-tabs__row { box-sizing: border-box; display: flex; gap: 8px; max-width: 1280px; margin-inline: auto; padding: 10px 16px; overflow-x: auto; scrollbar-width: none; }
+  .post-tabs__row::-webkit-scrollbar { display: none; }
+  .post-tab { box-sizing: border-box; flex: none; display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border: 1.5px solid var(--fs-button-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-3); font-size: 14px; line-height: 1.2; font-weight: 600; white-space: nowrap; text-decoration: none; transition: border-color 0.16s; }
+  .post-tab--on { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); box-shadow: 0 8px 20px rgb(var(--fs-shadow) / 0.18); color: rgb(var(--fs-white)); }
+
+  /* ── 6 · a section: its number and small heading, its heading, its line ── */
+  .post-section { margin-top: clamp(40px, 4.4vw, 64px); padding-top: clamp(36px, 4vw, 56px); border-top: 1px solid var(--fs-line); scroll-margin-top: 64px; }
+  /* the section directly under the tabs has no rule above it */
+  .post-section--first { margin-top: 0; padding-top: clamp(32px, 3.6vw, 48px); border-top: 0; }
+  .post-section__eyebrow { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fs-gold-text); }
+  .post-section__title { margin: 12px 0 0; font-size: clamp(24px, 2.2vw, 32px); line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--hero-violet-4); text-wrap: balance; }
+  .post-section__intro { margin: 12px 0 0; max-width: 720px; font-size: 17px; line-height: 1.6; color: var(--fs-ink-soft); text-wrap: pretty; }
+  /* what a section holds, under its head: one column of blocks, 16px apart */
+  .post-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: clamp(20px, 2.4vw, 32px); }
+  /* a white card, as the stop cards on the front door */
+  .post-card { box-sizing: border-box; padding: clamp(20px, 2.2vw, 28px); border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white)); box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.07); }
+  .post-card--stack { display: flex; flex-direction: column; }
+  .post-card__label { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .post-card__label--more { margin-top: 26px; }
+  .post-card__title { margin: 10px 0 0; font-size: 20px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--hero-violet-4); }
+  .post-card__text { margin: 6px 0 0; font-size: 15px; line-height: 1.6; color: var(--fs-ink-soft); text-wrap: pretty; }
+
+  /* ── 7 · the short version: his lines, one tile each ── */
+  .post-short { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: clamp(20px, 2.4vw, 32px); }
+  .post-short__item { box-sizing: border-box; padding: 22px 24px 24px; border-radius: 20px; background-color: var(--ps-wash); }
+  .post-short__label { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--hero-violet-2); }
+  .post-short__value { margin: 10px 0 0; font-size: 20px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--hero-violet-4); text-wrap: pretty; }
+  .post-short__value::first-letter { text-transform: uppercase; }
+
+  /* ── 8 · the day: one bar of 24 hours, its key, the two cards. The split of a day's cost wears the same bar ── */
+  .post-bar { display: flex; gap: 3px; height: 22px; overflow: hidden; border-radius: 999px; }
+  .post-bar--split { margin-top: 20px; }
+  /* a part's share of the bar is its own number, set on it (flex-grow) */
+  .post-bar__part { flex-basis: 0%; }
+  .post-ink--activity { background-color: rgb(var(--gold)); }
+  .post-ink--meals { background-color: var(--hero-rim-lilac); }
+  .post-ink--focus { background-color: var(--hero-violet-2); }
+  .post-ink--entertainment { background-color: var(--hero-violet-1); }
+  .post-ink--sleep { background-color: var(--hero-violet-4); }
+  .post-ink--stay { background-color: var(--hero-violet-2); }
+  .post-ink--moto { background-color: var(--hero-rim-lilac); }
+  .post-ink--flight { background-color: rgb(var(--gold)); }
+  .post-key { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 16px 0 0; padding: 0; list-style: none; font-size: 13.5px; line-height: 1.4; color: var(--fs-ink-soft); }
+  .post-key__item { display: inline-flex; align-items: center; gap: 8px; }
+  .post-dot { flex: none; width: 9px; height: 9px; border-radius: 999px; }
+  .post-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px; }
+
+  /* ── 9 · his favorites: the one with a photo, then his lists ── */
+  .post-feature { box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 28px; padding: 10px; border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white)); box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.07); }
+  .post-feature__photo { flex: 1 1 320px; max-width: 480px; min-width: 0; }
+  .post-feature__img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 14px; background-color: var(--fs-rule); }
+  .post-feature__words { flex: 1.4 1 300px; min-width: 0; box-sizing: border-box; padding: 14px 14px 14px 6px; }
+  .post-feature__label { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--hero-violet-2); }
+  .post-feature__value { margin: 10px 0 0; font-size: clamp(22px, 2vw, 28px); line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--hero-violet-4); text-wrap: balance; }
+  .post-feature__value::first-letter { text-transform: uppercase; }
+  .post-feature__line { margin: 14px 0 0; max-width: 520px; font-size: clamp(18px, 1.5vw, 21px); line-height: 1.4; font-weight: 500; letter-spacing: -0.01em; color: var(--hero-violet-2); text-wrap: pretty; }
+  .post-feature__line::before { content: '\201C'; color: var(--fs-gold-text); }
+  .post-feature__line::after { content: '\201D'; color: var(--fs-gold-text); }
+  .post-feature__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-top: 18px; }
+  .post-feature__go { box-sizing: border-box; display: inline-flex; align-items: center; height: 44px; padding: 0 20px; border: 1.5px solid var(--fs-button-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-3); font-size: 14px; line-height: 1.2; font-weight: 600; white-space: nowrap; text-decoration: none; transition: border-color 0.16s; }
+  .post-feature__credit { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.2; color: var(--fs-ink-muted); }
+  .post-picks { box-sizing: border-box; padding: 6px clamp(18px, 2.2vw, 28px); border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white)); box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.07); }
+  .post-pick { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; padding: 16px 0; border-top: 1px solid var(--fs-rule); }
+  .post-pick:first-child { border-top-color: transparent; }
+  .post-pick__heading { flex: 0 0 176px; margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.5; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .post-pick__items { flex: 1 1 280px; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .post-pick__item { box-sizing: border-box; display: inline-flex; align-items: center; min-height: 32px; padding: 4px 13px; border: 1px solid var(--fs-chip-line); border-radius: 999px; background-color: rgb(var(--fs-white)); font-size: 13.5px; line-height: 1.35; color: var(--fs-ink); }
+
+  /* ── 10 · what it cost: the bookings and their total; a day's share of them; what is not in these numbers ── */
+  .post-costs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: 20px; margin-top: clamp(20px, 2.4vw, 32px); }
+  .post-cost { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--fs-rule); }
+  .post-cost > div { min-width: 0; }
+  .post-cost--first { margin-top: 6px; }
+  .post-cost__what { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .post-cost__name { margin: 3px 0 0; font-size: 16px; line-height: 1.35; font-weight: 600; color: var(--hero-violet-4); }
+  .post-cost__detail { margin: 1px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--fs-ink-soft); }
+  /* an amount paid is gold; "n/a" and "not in my log yet" are muted */
+  .post-cost__amount { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; font-weight: 500; color: var(--fs-ink-muted); white-space: nowrap; text-align: right; }
+  .post-cost__amount--paid { font-size: 15px; font-weight: 600; color: var(--fs-gold-text); }
+  /* a cost of the post's own, under "Also in my log": what it was, then its detail */
+  .post-cost--own { padding: 12px 0 2px; border-bottom: 0; }
+  .post-cost--own .post-cost__name { margin-top: 0; }
+  .post-total { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 16px; margin-top: -1px; padding: 16px 0 4px; border-top: 2px solid var(--fs-button-line); }
+  .post-total > div { min-width: 0; }
+  .post-total__label { margin: 0; font-size: 16px; line-height: 1.35; font-weight: 600; color: var(--hero-violet-4); }
+  .post-total__note { margin: 2px 0 0; font-size: 13px; line-height: 1.5; color: var(--fs-ink-muted); }
+  .post-total__amount { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 18px; line-height: 1.4; font-weight: 600; color: var(--hero-violet-2); white-space: nowrap; }
+  .post-rate { margin: 14px 0 0; font-size: clamp(36px, 3.4vw, 48px); line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; color: var(--hero-violet-4); }
+  .post-rate__unit { font-size: 15px; font-weight: 400; letter-spacing: 0; color: var(--fs-ink-soft); }
+  .post-rate__note { margin: 10px 0 0; max-width: 460px; font-size: 14px; line-height: 1.55; color: var(--fs-ink-soft); text-wrap: pretty; }
+  .post-split { margin: 16px 0 20px; border-top: 1px solid var(--fs-rule); }
+  .post-split__row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--fs-rule); }
+  .post-split__what { margin: 0; min-width: 0; font-size: 14.5px; line-height: 1.45; color: var(--fs-ink); }
+  .post-split__name { font-weight: 600; }
+  .post-split__sum { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--fs-ink-muted); white-space: nowrap; }
+  .post-split__rate { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--fs-gold-text); white-space: nowrap; }
+  /* what is not in these numbers: at the foot of the day's card, or — where a day's share cannot be worked out — alone beside the bookings */
+  .post-rest { box-sizing: border-box; padding: 18px 20px; border-radius: 14px; background-color: var(--ps-wash); }
+  .post-rest--foot { margin-top: auto; }
+  .post-rest--alone { align-self: start; padding: 22px 24px 24px; border-radius: 20px; }
+  .post-rest__label { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--hero-violet-2); }
+  .post-rest__text { margin: 8px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--fs-ink-soft); text-wrap: pretty; }
+
+  /* ── 11 · the journal: the days as a calendar, the weeks, the open day ── */
+  .post-journal { box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "cal" "entry" "weeks"; gap: 18px clamp(20px, 2.4vw, 32px); margin-top: clamp(20px, 2.4vw, 32px); padding: 12px; border: 1px solid var(--fs-line); border-radius: 24px; background-color: rgb(var(--fs-white)); box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.05), 0 20px 48px rgb(var(--fs-shadow) / 0.08); }
+  .post-cal { grid-area: cal; max-width: 460px; min-width: 0; }
+  .post-cal__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .post-cal__span { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--hero-violet-4); }
+  .post-cal__count { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.3; font-weight: 600; color: var(--hero-violet-3); }
+  /* seven days across: on a phone the days are 4px apart and the box's padding is 12px, so a day is 44px wide from 390px */
+  .post-cal__weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; line-height: 1.4; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fs-ink-muted); text-align: center; }
+  .post-cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 6px; }
+  .post-day { box-sizing: border-box; height: 44px; margin: 0; padding: 0; border: 1px solid var(--ps-field-line); border-radius: 10px; background-color: var(--ps-wash); color: var(--hero-violet-3); font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1; font-weight: 600; cursor: pointer; transition: border-color 0.16s; }
+  .post-day--on { border-color: var(--hero-violet-2); background-color: var(--hero-violet-2); box-shadow: 0 8px 20px rgb(var(--fs-shadow) / 0.18); color: rgb(var(--fs-white)); }
+  /* a date the post has no entry for: an empty seat, so every day stands under its weekday */
+  .post-day--none { border-color: transparent; background-color: transparent; cursor: default; }
+  .post-weeks { grid-area: weeks; max-width: 460px; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-top: 12px; border-top: 1px solid var(--fs-rule); }
+  .post-week { box-sizing: border-box; display: block; width: 100%; min-height: 44px; margin: 0; padding: 8px 10px; border: 0; border-radius: 10px; background-color: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .post-week--on { background-color: var(--ps-wash); }
+  .post-week__when { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .post-week__title { display: block; margin-top: 1px; font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--hero-violet-4); }
+  .post-entries { grid-area: entry; min-width: 0; box-sizing: border-box; min-height: 300px; padding: clamp(18px, 2vw, 26px); border: 1px solid var(--fs-line); border-radius: 16px; background-color: rgb(var(--fs-white)); }
+  .post-steps { float: right; display: flex; gap: 8px; margin: 0 0 8px 16px; }
+  .post-step { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: 0; padding: 0; border: 1px solid var(--fs-chip-line); border-radius: 999px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-2); font: inherit; cursor: pointer; transition: border-color 0.16s, opacity 0.16s; }
+  .post-step--off { opacity: 0.4; cursor: default; }
+  /* a day's entry: shown or hidden by its own attribute, so it takes no display here; a long word breaks rather than widen the panel */
+  .post-entry { overflow-wrap: break-word; }
+  .post-entry__day { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.4; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--hero-violet-2); }
+  .post-entry__week { margin: 3px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--fs-ink-muted); }
+  .post-entry__week span { font-weight: 600; color: var(--fs-ink); }
+  .post-entry__story { clear: both; margin: 0; padding-top: 18px; max-width: 660px; font-size: clamp(16px, 0.2vw + 15px, 17.5px); line-height: 1.7; color: var(--fs-ink); text-wrap: pretty; }
+  .post-entry__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .post-chip { box-sizing: border-box; display: inline-flex; align-items: baseline; gap: 8px; min-height: 32px; padding: 6px 13px; border: 1px solid var(--fs-chip-line); border-radius: 999px; background-color: var(--ps-wash); font-size: 13.5px; line-height: 1.35; font-weight: 500; color: var(--hero-violet-3); }
+  .post-chip__kind { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fs-ink-muted); }
+
+  /* ── 12 · what he learned: a card a lesson, then the one to take away ── */
+  .post-lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr)); gap: 16px; margin: clamp(20px, 2.4vw, 32px) 0 0; padding: 0; list-style: none; }
+  .post-lesson { box-sizing: border-box; display: flex; gap: 16px; padding: 22px 24px; border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white)); box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.07); }
+  .post-lesson__n { flex: none; width: 26px; margin: 3px 0 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 600; letter-spacing: 0.14em; color: var(--fs-gold-text); }
+  .post-lesson__words { min-width: 0; }
+  .post-lesson__lead { margin: 0; font-size: 17px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; color: var(--hero-violet-4); }
+  .post-lesson__rest { margin: 5px 0 0; font-size: 15px; line-height: 1.6; color: var(--fs-ink-soft); text-wrap: pretty; }
+  .post-takeaway { box-sizing: border-box; margin-top: 16px; padding: clamp(24px, 3vw, 40px); border-radius: 20px; background-color: var(--ps-wash); }
+  .post-takeaway__label { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--hero-violet-2); }
+  .post-takeaway__line { margin: 12px 0 0; font-size: clamp(26px, 3vw, 42px); line-height: 1.2; font-weight: 500; letter-spacing: -0.025em; color: var(--hero-violet-2); text-wrap: balance; }
+  .post-takeaway__line::before { content: '\201C'; color: var(--fs-gold-text); }
+  .post-takeaway__line::after { content: '\201D'; color: var(--fs-gold-text); }
+
+  /* ── 13 · what was on while he was there: each event and its source ── */
+  .post-on { box-sizing: border-box; margin-top: clamp(20px, 2.4vw, 32px); padding: 4px clamp(18px, 2.2vw, 28px); border: 1px solid var(--fs-line); border-radius: 20px; background-color: rgb(var(--fs-white)); box-shadow: 0 1px 2px rgb(var(--fs-shadow) / 0.04), 0 8px 24px rgb(var(--fs-shadow) / 0.07); }
+  .post-on__row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px clamp(16px, 2vw, 28px); padding: 16px 0; border-top: 1px solid var(--fs-rule); }
+  .post-on__row:first-child { border-top-color: transparent; }
+  .post-on__words { flex: 1 1 320px; min-width: 0; }
+  .post-on__when { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.5; font-weight: 500; color: var(--hero-violet-3); }
+  .post-on__name { margin: 2px 0 0; font-size: 16px; line-height: 1.35; font-weight: 600; color: var(--hero-violet-4); }
+  .post-on__place { margin: 2px 0 0; font-size: 14px; line-height: 1.5; color: var(--fs-ink-soft); }
+  .post-on__source { display: inline-flex; align-items: center; min-height: 44px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.3; font-weight: 500; color: var(--hero-violet-3); text-decoration: none; white-space: nowrap; }
+
+  /* ── 14 · the foot: the stop before and the stop after, the band, the day it was written ── */
+  .post-pager { display: flex; flex-wrap: wrap; gap: 16px; margin-top: clamp(40px, 4.4vw, 64px); }
+  .post-pager__card { box-sizing: border-box; flex: 1 1 280px; min-width: 0; display: block; padding: 18px 22px; border: 1.5px solid var(--fs-button-line); border-radius: 20px; background-color: rgb(var(--fs-white)); color: var(--hero-violet-4); text-decoration: none; transition: border-color 0.16s; }
+  .post-pager__card--next { text-align: right; }
+  .post-pager__stop { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.3; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .post-pager__place { display: block; margin-top: 6px; font-size: 20px; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; color: var(--hero-violet-4); }
+  /* the band: the all-three band's violet and rings, the gold button it carries (HOME-PLANS-04) */
+  .post-band { box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 40px; margin-top: 16px; padding: clamp(24px, 3vw, 40px); border-radius: 24px; background-color: var(--hero-violet-3); background-image: repeating-radial-gradient(circle at 50% 320%, rgb(var(--fs-band-ring) / 0) 0px, rgb(var(--fs-band-ring) / 0) 13px, rgb(var(--fs-band-ring) / 0.08) 13px, rgb(var(--fs-band-ring) / 0.08) 14px), linear-gradient(120deg, var(--hero-violet-3) 0%, var(--hero-violet-2) 58%, var(--hero-violet-1) 100%); box-shadow: 0 16px 40px rgb(var(--fs-shadow) / 0.22); color: var(--hero-ink); }
+  .post-band :focus-visible { outline-color: var(--hero-gold); }
+  .post-band__line { flex: 1 1 320px; min-width: 0; margin: 0; font-size: clamp(20px, 2vw, 26px); line-height: 1.25; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
+  .post-band__go { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; height: 52px; padding: 0 28px; border-radius: 999px; background-image: linear-gradient(135deg, rgb(var(--hero-gold-1)) 0%, rgb(var(--hero-gold-2)) 52%, rgb(var(--hero-gold-3)) 100%); box-shadow: inset 0 1px 0 rgb(var(--fs-white) / 0.75), 0 8px 20px rgb(var(--fs-band-shadow) / 0.28); color: var(--hero-on-gold); font-size: 15px; line-height: 1.2; font-weight: 600; white-space: nowrap; text-decoration: none; }
+  .post__written { margin: 22px 0 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.4; color: var(--fs-ink-muted); }
+
+  /* ── 15 · wider windows ── */
+  @media (min-width: 520px) {
+    .post-short { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .post-journal { padding: clamp(18px, 2.3vw, 32px); }
+    .post-cal__weekdays, .post-cal__grid { gap: 6px; }
+  }
+  @media (min-width: 640px) {
+    .post-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+  @media (min-width: 900px) {
+    .post-journal { grid-template-columns: minmax(0, 420px) minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "cal entry" "weeks entry"; }
+  }
+  @media (min-width: 1024px) {
+    .post__inner { padding-inline: 32px; }
+    .post-tabs__row { flex-wrap: wrap; padding-inline: 32px; overflow-x: visible; }
+    .post-short { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+
+  /* ── 16 · pointer and motion ── */
+  @media (hover: hover) {
+    .post__back:hover, .post-on__source:hover { color: var(--hero-violet-2); }
+    .post-tab:hover, .post-day:hover, .post-step:hover, .post-feature__go:hover, .post-pager__card:hover { border-color: var(--hero-violet-2); }
+    .post-day--none:hover { border-color: transparent; }
+    .post-step--off:hover { border-color: var(--fs-chip-line); }
+    .post-band__go:hover { filter: brightness(1.05); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .post-tab, .post-day, .post-step, .post-feature__go, .post-pager__card { transition: none; }
+  }
+
+  /* ── THIS PAGE'S OWN: not part of the design, not ported ─────────────────────────────────────── */
+  body { margin: 0; background-color: rgb(var(--bg)); }
+  .ref-note { box-sizing: border-box; max-width: 1280px; margin: 0 auto; padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.4; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fs-ink-muted); }
+  .ref-note--next { margin-top: 56px; padding-top: 28px; border-top: 2px dashed var(--fs-button-line); }
+</style>
+</head>
+<body>
+
+<p class="ref-note">1 · A stop Alex has written up · /my-trip/canggu-2026-07</p>
+
+<div class="post" data-trip-post="canggu-2026-07" data-trip-post-kind="written">
+<div class="post__inner post__top">
+  <div class="post__crumb">
+    <a href="/#my-trip" class="post__back" data-trip-post-back="true">← Back to my trip</a>
+    <p class="post__count">Stop 1 of 10</p>
+  </div>
+  <div class="post__hero">
+    <header class="post__head" data-trip-post-section="header">
+      <p class="post__eyebrow">My trip · Stop 1</p>
+      <h1 class="post__title">Thirty days in Canggu with no plan.</h1>
+      <p class="post__dek">I showed up in Bali without a plan. Here’s every day of it: where I ate, what I did, what it cost, and what I’d do differently.</p>
+      <p class="post__meta"><span>Canggu, Bali, Indonesia</span><span>Jul 1–30, 2026</span></p>
+    </header>
+    <figure class="post-photo" data-trip-post-section="photo"><img src="../../public/was-here/canggu-2026-07.jpg" alt="Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave" class="post-photo__img"><figcaption class="post-photo__credit">Photo: Alex Stuart</figcaption></figure>
+  </div>
+  <div class="post-tiles" data-trip-post-section="tiles">
+    <div class="post-tile"><p class="post-tile__label">Duration</p><p class="post-tile__value">29 <span class="post-tile__unit">nights</span></p><p class="post-tile__note">Jul 1–30, 2026</p></div>
+    <div class="post-tile"><p class="post-tile__label">Stay / night</p><p class="post-tile__value">$24.42</p><p class="post-tile__note">$708.14 ÷ 29 nights</p></div>
+    <div class="post-tile"><p class="post-tile__label">Motorbike / day</p><p class="post-tile__value">$4.88</p><p class="post-tile__note">$131.79 ÷ 27 days</p></div>
+    <div class="post-tile"><p class="post-tile__label">Fixed bookings</p><p class="post-tile__value">$1,677.13</p><p class="post-tile__note">stay + motorbike + flight in</p></div>
+  </div>
+</div>
+<nav class="post-tabs" aria-label="On this page" data-trip-post-section="tabs">
+  <div class="post-tabs__row">
+    <a href="#post-story" class="post-tab post-tab--on" aria-current="true">The story</a>
+    <a href="#post-routine" class="post-tab">Daily routine</a>
+    <a href="#post-favorites" class="post-tab">My favorites</a>
+    <a href="#post-costs" class="post-tab">Real costs</a>
+    <a href="#post-journal" class="post-tab">Daily journal</a>
+    <a href="#post-learned" class="post-tab">What I learned</a>
+    <a href="#post-on" class="post-tab">What was on</a>
+  </div>
+</nav>
+<div class="post__inner post__body">
+  <section id="post-story" aria-label="The story" class="post-section post-section--first" data-trip-post-section="short">
+    <p class="post-section__eyebrow">01 / The experience</p>
+    <h2 class="post-section__title">The short version.</h2>
+    <div class="post-short">
+      <div class="post-short__item"><p class="post-short__label">Favorite restaurant</p><p class="post-short__value">Ulekan</p></div>
+      <div class="post-short__item"><p class="post-short__label">Best day</p><p class="post-short__value">the Uluwatu day trip, Jul 5</p></div>
+      <div class="post-short__item"><p class="post-short__label">Best night</p><p class="post-short__value">FINNS Beach Club, then the G Swing, Jul 28</p></div>
+      <div class="post-short__item"><p class="post-short__label">Biggest mistake</p><p class="post-short__value">showing up with no plan</p></div>
+    </div>
+  </section>
+  <section id="post-routine" aria-label="Daily routine" class="post-section" data-trip-post-section="routine">
+    <p class="post-section__eyebrow">02 / How I structure my day</p>
+    <h2 class="post-section__title">24 hours. Intentionally spent.</h2>
+    <p class="post-section__intro">The daily structure I aim for, rather than a claim that every day follows it perfectly.</p>
+    <div class="post-stack">
+      <div class="post-card">
+        <div class="post-bar" role="img" aria-label="A day in 24 hours: activity 2 hours, meals 2 hours, focus 8 hours, entertainment 4 hours, sleep 8 hours"><span class="post-bar__part post-ink--activity" style="flex-grow:2"></span><span class="post-bar__part post-ink--meals" style="flex-grow:1"></span><span class="post-bar__part post-ink--focus" style="flex-grow:8"></span><span class="post-bar__part post-ink--meals" style="flex-grow:1"></span><span class="post-bar__part post-ink--entertainment" style="flex-grow:4"></span><span class="post-bar__part post-ink--sleep" style="flex-grow:8"></span></div>
+        <ul class="post-key"><li class="post-key__item"><span class="post-dot post-ink--activity" aria-hidden="true"></span>Activity · 2h</li><li class="post-key__item"><span class="post-dot post-ink--meals" aria-hidden="true"></span>Meals · 2h</li><li class="post-key__item"><span class="post-dot post-ink--focus" aria-hidden="true"></span>Focus · 8h</li><li class="post-key__item"><span class="post-dot post-ink--entertainment" aria-hidden="true"></span>Entertainment · 4h</li><li class="post-key__item"><span class="post-dot post-ink--sleep" aria-hidden="true"></span>Sleep · 8h</li></ul>
+      </div>
+      <div class="post-pair">
+        <div class="post-card"><p class="post-card__label">The focus</p><p class="post-card__title">Temple Stuart</p><p class="post-card__text">Product development, marketing, professional services, and building the tools I use to manage the trip.</p></div>
+        <div class="post-card"><p class="post-card__label">The life</p><p class="post-card__title">Beyond the laptop</p><p class="post-card__text">Training, surf, cafes, local food, sunsets, social experiences, and exploring wherever I happen to be.</p></div>
+      </div>
+    </div>
+  </section>
+  <section id="post-favorites" aria-label="My favorites" class="post-section" data-trip-post-section="picks">
+    <p class="post-section__eyebrow">03 / Experienced firsthand</p>
+    <h2 class="post-section__title">Places worth returning to.</h2>
+    <p class="post-section__intro">My favorite discoveries from the stop. Real vendors, personal impressions, and the experiences that stood out.</p>
+    <div class="post-stack">
+      <div class="post-feature">
+        <div class="post-feature__photo"><img src="../../public/was-here/uluwatu-2026-11.jpg" alt="A dirt road on the cliffs at Uluwatu, a scooter heading down it toward the sea, a hand-painted parking sign in the scrub and waves breaking on the reef" class="post-feature__img"></div>
+        <div class="post-feature__words">
+          <p class="post-feature__label">Best day</p>
+          <p class="post-feature__value">the Uluwatu day trip, Jul 5</p>
+          <p class="post-feature__line">I’m already planning a trip back just for Uluwatu.</p>
+          <div class="post-feature__foot"><a href="#post-journal" class="post-feature__go" data-trip-post-pick="2026-07-05">Read that day →</a><p class="post-feature__credit">Photo: Alex Stuart</p></div>
+        </div>
+      </div>
+      <div class="post-picks">
+        <div class="post-pick"><p class="post-pick__heading">Favorite restaurant</p><ul class="post-pick__items"><li class="post-pick__item">Ulekan</li></ul></div>
+        <div class="post-pick"><p class="post-pick__heading">Breakfast and brunch</p><ul class="post-pick__items"><li class="post-pick__item">Open House</li><li class="post-pick__item">Fold (the cold brew)</li><li class="post-pick__item">Revolver</li><li class="post-pick__item">Cafe Coach (coconut cold brew)</li><li class="post-pick__item">Cocomo (pricey, worth it)</li><li class="post-pick__item">Kawisari Coffee Farm Shop &amp; Eatery</li><li class="post-pick__item">7AM | 7PM</li><li class="post-pick__item">Doppio Café</li><li class="post-pick__item">Tiga</li></ul></div>
+        <div class="post-pick"><p class="post-pick__heading">Dinner</p><ul class="post-pick__items"><li class="post-pick__item">Papi Sapi Neighbourhood Grill, Uluwatu</li><li class="post-pick__item">Smoke Bali</li><li class="post-pick__item">ACME (the brisket sandwich)</li><li class="post-pick__item">Yumei Noodles (hidden ramen)</li><li class="post-pick__item">YUKI</li></ul></div>
+        <div class="post-pick"><p class="post-pick__heading">Sunsets</p><ul class="post-pick__items"><li class="post-pick__item">Times Beach Warung</li><li class="post-pick__item">Echo Beach sunset point</li><li class="post-pick__item">Warung Alus, Munggu Beach</li><li class="post-pick__item">Jimmy Beach Cafe, Balangan</li></ul></div>
+        <div class="post-pick"><p class="post-pick__heading">At night</p><ul class="post-pick__items"><li class="post-pick__item">FINNS Beach Club</li><li class="post-pick__item">The G Swing</li><li class="post-pick__item">Shooters, Seminyak (mini golf and axe throwing)</li></ul></div>
+        <div class="post-pick"><p class="post-pick__heading">Shopping</p><ul class="post-pick__items"><li class="post-pick__item">Sundaze Uluwatu Market at Hatch</li><li class="post-pick__item">beachwalk Shopping Center</li><li class="post-pick__item">Bali Niki Art Market</li></ul></div>
+        <div class="post-pick"><p class="post-pick__heading">Practical</p><ul class="post-pick__items"><li class="post-pick__item">March Wash Laundry</li><li class="post-pick__item">Pepito Market</li><li class="post-pick__item">Nyoman Motorbike Rental</li></ul></div>
+      </div>
+    </div>
+  </section>
+  <section id="post-costs" aria-label="Real costs" class="post-section" data-trip-post-section="cost">
+    <p class="post-section__eyebrow">04 / Transparent spending</p>
+    <h2 class="post-section__title">What it actually cost.</h2>
+    <p class="post-section__intro">Verified booking figures from the travel log. Shared costs are allocated by stay duration; unrecorded daily expenses are not assumed to be zero.</p>
+    <div class="post-costs">
+      <div class="post-card">
+        <p class="post-card__label">Booking breakdown</p>
+        <div class="post-cost post-cost--first" data-trip-post-cost="true"><div><p class="post-cost__what">Stay</p><p class="post-cost__name">The Daun</p><p class="post-cost__detail">29 nights</p></div><p class="post-cost__amount post-cost__amount--paid">$708.14</p></div>
+        <div class="post-cost" data-trip-post-cost="true"><div><p class="post-cost__what">Motorbike</p><p class="post-cost__name">Nyoman Motorbike (Nmax)</p><p class="post-cost__detail">27 days · Jul 3–30, 2026</p></div><p class="post-cost__amount post-cost__amount--paid">$131.79</p></div>
+        <div class="post-cost" data-trip-post-cost="true"><div><p class="post-cost__what">Flight in</p><p class="post-cost__name">China Air</p></div><p class="post-cost__amount post-cost__amount--paid">$837.20</p></div>
+        <div class="post-total"><div><p class="post-total__label">Fixed bookings total</p><p class="post-total__note">Excludes meals, activities and other spending</p></div><p class="post-total__amount">$1,677.13</p></div>
+        <p class="post-card__label post-card__label--more">Also in my log</p>
+        <div class="post-cost post-cost--own" data-trip-post-cost="true"><div><p class="post-cost__name">My next visa (Vietnam, for stop 2)</p><p class="post-cost__detail">Expedited, because I applied late · standard is $25</p></div><p class="post-cost__amount post-cost__amount--paid">$100.00</p></div>
+      </div>
+      <div class="post-card post-card--stack">
+        <p class="post-card__label">Daily cost allocation</p>
+        <p class="post-rate">$58.17 <span class="post-rate__unit">/ day</span></p>
+        <p class="post-rate__note">Fixed bookings normalized over the 29-night stay; motorbike over its 27 rental days.</p>
+        <div class="post-bar post-bar--split" role="img" aria-label="A day from the fixed bookings: stay $24.42, motorbike $4.88, flight in $28.87"><span class="post-bar__part post-ink--stay" style="flex-grow:2442"></span><span class="post-bar__part post-ink--moto" style="flex-grow:488"></span><span class="post-bar__part post-ink--flight" style="flex-grow:2887"></span></div>
+        <div class="post-split">
+          <div class="post-split__row"><span class="post-dot post-ink--stay" aria-hidden="true"></span><p class="post-split__what"><span class="post-split__name">Stay</span> <span class="post-split__sum">$708.14 ÷ 29 nights</span></p><p class="post-split__rate">$24.42</p></div>
+          <div class="post-split__row"><span class="post-dot post-ink--moto" aria-hidden="true"></span><p class="post-split__what"><span class="post-split__name">Motorbike</span> <span class="post-split__sum">$131.79 ÷ 27 days</span></p><p class="post-split__rate">$4.88</p></div>
+          <div class="post-split__row"><span class="post-dot post-ink--flight" aria-hidden="true"></span><p class="post-split__what"><span class="post-split__name">Flight in</span> <span class="post-split__sum">$837.20 ÷ 29 nights</span></p><p class="post-split__rate">$28.87</p></div>
+        </div>
+        <div class="post-rest post-rest--foot"><p class="post-rest__label">The rest</p><p class="post-rest__text">These are the numbers in my log. The rest of the month’s spending isn’t in this post yet.</p></div>
+      </div>
+    </div>
+  </section>
+  <section id="post-journal" aria-label="Daily journal" class="post-section" data-trip-post-section="days">
+    <p class="post-section__eyebrow">05 / Day by day</p>
+    <h2 class="post-section__title">The daily journal.</h2>
+    <p class="post-section__intro">Pick a day to see what happened, where I ate, and how the day actually unfolded.</p>
+    <div class="post-journal">
+      <div class="post-cal">
+        <div class="post-cal__head"><p class="post-cal__span">Jul 1–30, 2026</p><p class="post-cal__count">30 days</p></div>
+        <div class="post-cal__weekdays" aria-hidden="true"><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span><span>Mon</span><span>Tue</span></div>
+        <div class="post-cal__grid">
+          <button type="button" class="post-day post-day--on" aria-label="Wed Jul 1" aria-pressed="true" data-trip-post-pick="2026-07-01">01</button>
+          <button type="button" class="post-day" aria-label="Thu Jul 2" aria-pressed="false" data-trip-post-pick="2026-07-02">02</button>
+          <button type="button" class="post-day" aria-label="Fri Jul 3" aria-pressed="false" data-trip-post-pick="2026-07-03">03</button>
+          <button type="button" class="post-day" aria-label="Sat Jul 4" aria-pressed="false" data-trip-post-pick="2026-07-04">04</button>
+          <button type="button" class="post-day" aria-label="Sun Jul 5" aria-pressed="false" data-trip-post-pick="2026-07-05">05</button>
+          <button type="button" class="post-day" aria-label="Mon Jul 6" aria-pressed="false" data-trip-post-pick="2026-07-06">06</button>
+          <button type="button" class="post-day" aria-label="Tue Jul 7" aria-pressed="false" data-trip-post-pick="2026-07-07">07</button>
+          <button type="button" class="post-day" aria-label="Wed Jul 8" aria-pressed="false" data-trip-post-pick="2026-07-08">08</button>
+          <button type="button" class="post-day" aria-label="Thu Jul 9" aria-pressed="false" data-trip-post-pick="2026-07-09">09</button>
+          <button type="button" class="post-day" aria-label="Fri Jul 10" aria-pressed="false" data-trip-post-pick="2026-07-10">10</button>
+          <button type="button" class="post-day" aria-label="Sat Jul 11" aria-pressed="false" data-trip-post-pick="2026-07-11">11</button>
+          <button type="button" class="post-day" aria-label="Sun Jul 12" aria-pressed="false" data-trip-post-pick="2026-07-12">12</button>
+          <button type="button" class="post-day" aria-label="Mon Jul 13" aria-pressed="false" data-trip-post-pick="2026-07-13">13</button>
+          <button type="button" class="post-day" aria-label="Tue Jul 14" aria-pressed="false" data-trip-post-pick="2026-07-14">14</button>
+          <button type="button" class="post-day" aria-label="Wed Jul 15" aria-pressed="false" data-trip-post-pick="2026-07-15">15</button>
+          <button type="button" class="post-day" aria-label="Thu Jul 16" aria-pressed="false" data-trip-post-pick="2026-07-16">16</button>
+          <button type="button" class="post-day" aria-label="Fri Jul 17" aria-pressed="false" data-trip-post-pick="2026-07-17">17</button>
+          <button type="button" class="post-day" aria-label="Sat Jul 18" aria-pressed="false" data-trip-post-pick="2026-07-18">18</button>
+          <button type="button" class="post-day" aria-label="Sun Jul 19" aria-pressed="false" data-trip-post-pick="2026-07-19">19</button>
+          <button type="button" class="post-day" aria-label="Mon Jul 20" aria-pressed="false" data-trip-post-pick="2026-07-20">20</button>
+          <button type="button" class="post-day" aria-label="Tue Jul 21" aria-pressed="false" data-trip-post-pick="2026-07-21">21</button>
+          <button type="button" class="post-day" aria-label="Wed Jul 22" aria-pressed="false" data-trip-post-pick="2026-07-22">22</button>
+          <button type="button" class="post-day" aria-label="Thu Jul 23" aria-pressed="false" data-trip-post-pick="2026-07-23">23</button>
+          <button type="button" class="post-day" aria-label="Fri Jul 24" aria-pressed="false" data-trip-post-pick="2026-07-24">24</button>
+          <button type="button" class="post-day" aria-label="Sat Jul 25" aria-pressed="false" data-trip-post-pick="2026-07-25">25</button>
+          <button type="button" class="post-day" aria-label="Sun Jul 26" aria-pressed="false" data-trip-post-pick="2026-07-26">26</button>
+          <button type="button" class="post-day" aria-label="Mon Jul 27" aria-pressed="false" data-trip-post-pick="2026-07-27">27</button>
+          <button type="button" class="post-day" aria-label="Tue Jul 28" aria-pressed="false" data-trip-post-pick="2026-07-28">28</button>
+          <button type="button" class="post-day" aria-label="Wed Jul 29" aria-pressed="false" data-trip-post-pick="2026-07-29">29</button>
+          <button type="button" class="post-day" aria-label="Thu Jul 30" aria-pressed="false" data-trip-post-pick="2026-07-30">30</button>
+        </div>
+      </div>
+      <div class="post-entries">
+        <div class="post-steps"><button type="button" class="post-step post-step--off" aria-label="Earlier day" aria-disabled="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3L5 8l5 5"></path></svg></button><button type="button" class="post-step" aria-label="Later day" aria-disabled="false"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"></path></svg></button></div>
+        <div class="post-entry" data-trip-post-day="2026-07-01">
+          <p class="post-entry__day"><span>Wed Jul 1</span> · Day 1 of 30</p>
+          <p class="post-entry__week">Week 1 · Jul 1–7, 2026 · <span>Finding my feet</span></p>
+          <p class="post-entry__story">Landed in Bali around sunset and took a Grab to The Daun in Canggu. Really good price, amazing location. By the time I got there it was dark, so I walked next door to M Mart for water and called it a night.</p>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-02" hidden="">
+          <p class="post-entry__day"><span>Thu Jul 2</span> · Day 2 of 30</p>
+          <p class="post-entry__week">Week 1 · Jul 1–7, 2026 · <span>Finding my feet</span></p>
+          <p class="post-entry__story">Walked across the street for breakfast at Negrita Cafe. No scooter yet. Found out US wall chargers don’t fit Indonesian outlets, so back to M Mart for an adapter. Walked down the road to check out ZIN Cafe and its gym, ZINFIT, then the beach to look at the surf schools and board rentals. A friend took me to Times Beach Warung for sunset dinner and drinks, and then we walked around Canggu so I could get my bearings. I’d suggested we walk. She said: OK, you want to walk, let’s walk, you’ll see. I saw.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Negrita Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Times Beach Warung</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-03" hidden="">
+          <p class="post-entry__day"><span>Fri Jul 3</span> · Day 3 of 30</p>
+          <p class="post-entry__week">Week 1 · Jul 1–7, 2026 · <span>Finding my feet</span></p>
+          <p class="post-entry__story">Up at 6 for breakfast, and I learned fast that Canggu is a 7:30–8am kind of town. Found Doppio Café: great food and a great look. At 9 the rental shop next to The Daun set me up with a scooter, and they do petrol fill-ups too. Spent the afternoon planning the trip, then rode with a friend to Ulekan for dinner, probably my favorite restaurant of the whole trip and where I found out how good Indonesian food really is. After dinner: Shooters, for mini golf and throwing axes at a wall.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Doppio Café</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Ulekan</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>Scooter (Nmax) from Nyoman Motorbike Rental</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>Shooters</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-04" hidden="">
+          <p class="post-entry__day"><span>Sat Jul 4</span> · Day 4 of 30</p>
+          <p class="post-entry__week">Week 1 · Jul 1–7, 2026 · <span>Finding my feet</span></p>
+          <p class="post-entry__story">Rode around alone to learn Canggu. Breakfast at Tiga, very good. At 9 sharp a friend picked me up on her bike for beachwalk Shopping Center, since it’s far and she knows the shortcuts. She said I should practice in Bali traffic before I tried them or I’d slow us down. She was probably right. Bought a bunch of island-vibe clothes, came back, and spent the evening planning the activities I want to do and what they’ll cost.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Tiga</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>beachwalk Shopping Center</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-05" hidden="">
+          <p class="post-entry__day"><span>Sun Jul 5</span> · Day 5 of 30</p>
+          <p class="post-entry__week">Week 1 · Jul 1–7, 2026 · <span>Finding my feet</span></p>
+          <p class="post-entry__story">Cold brew at The Daun’s own café. Canggu has a real trend for good coffee. Then a friend and I rode out to Uluwatu for the day, and it’s amazing. I’m already planning a trip back just for Uluwatu. Lunch at Jimmy Beach Cafe on Balangan Beach with a front-row view of the left-hand reef break and super blue water. Then the Sundaze market at Hatch for a few tees and board shorts at a good price, a haircut at Cukuruku Barbershop while she was at her hair appointment, and dinner at Papi Sapi. Amazing. Uluwatu left a lasting impression on me.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Jimmy Beach Cafe, Balangan</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Papi Sapi Neighbourhood Grill, Uluwatu</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>Haircut at Cukuruku Barbershop</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>Sundaze Uluwatu Market at Hatch</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-06" hidden="">
+          <p class="post-entry__day"><span>Mon Jul 6</span> · Day 6 of 30</p>
+          <p class="post-entry__week">Week 1 · Jul 1–7, 2026 · <span>Finding my feet</span></p>
+          <p class="post-entry__story">Slow morning, then brunch and more trip planning: what I’ll do each day. Sunset at Times Beach Warung with a friend, her cousin and another friend. Sunset dinner and drinks is basically a daily ritual in Bali. After that we all went to Berawa’s Kitchen to eat more, sit and talk. Caught up with a college friend in Jakarta about coming to visit.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Times Beach Warung</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>Berawa’s Kitchen</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-07" hidden="">
+          <p class="post-entry__day"><span>Tue Jul 7</span> · Day 7 of 30</p>
+          <p class="post-entry__week">Week 1 · Jul 1–7, 2026 · <span>Finding my feet</span></p>
+          <p class="post-entry__story">Filled up the scooter and learned it’s called petrol here. Call it gas and people look at you like an alien. Then a whole day at the café planning the trip ahead. Didn’t do much else.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>ZIN Cafe</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-08" hidden="">
+          <p class="post-entry__day"><span>Wed Jul 8</span> · Day 8 of 30</p>
+          <p class="post-entry__week">Week 2 · Jul 8–14, 2026 · <span>Sick, then sunsets</span></p>
+          <p class="post-entry__story">Surfed for an hour on a board from My Mate Surf, then breakfast on the beach at Manta the Oasis with a view of the surfers. Later that day I had every symptom of dengue. Not great, but there was no way I was missing a minute of Bali, so I pushed through. Dinner with a new friend at La Baruna, the beachfront restaurant in Pererenan, then a walk through the streets and the Bali Niki Art Market looking for board shorts.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Manta the Oasis</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>La Baruna, Pererenan</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>Surfboard from My Mate Surf</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>Bali Niki Art Market</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-09" hidden="">
+          <p class="post-entry__day"><span>Thu Jul 9</span> · Day 9 of 30</p>
+          <p class="post-entry__week">Week 2 · Jul 8–14, 2026 · <span>Sick, then sunsets</span></p>
+          <p class="post-entry__story">Really feeling it today: totally fine until I eat, then 20–30 minutes of feeling awful, and low energy all day. Dropped my laundry with the hotel staff and tested breakfast at Negrita Cafe. Same thing. Spent most of the day in bed. Felt better by evening, so I picked up a friend on the scooter for ramen at Chotto Motto in Seseh, and my stomach hit again right after. Ice cream was a struggle. She told me to try coconut water, so I took one home.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Negrita Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Chotto Motto Ramen, Seseh</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-10" hidden="">
+          <p class="post-entry__day"><span>Fri Jul 10</span> · Day 10 of 30</p>
+          <p class="post-entry__week">Week 2 · Jul 8–14, 2026 · <span>Sick, then sunsets</span></p>
+          <p class="post-entry__story">Finally feeling better. It only lasted a few days. Lay in the sun outside my room, did push-ups, squats and crunches, then spent the day at the café still trying to plan the whole trip. I left with no clear plan, so I keep sitting around trying to figure out how to plan the things I want to do.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>ZIN Cafe</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-11" hidden="">
+          <p class="post-entry__day"><span>Sat Jul 11</span> · Day 11 of 30</p>
+          <p class="post-entry__week">Week 2 · Jul 8–14, 2026 · <span>Sick, then sunsets</span></p>
+          <p class="post-entry__story">Laundry came back after two days: washed, folded, vacuum-sealed and smelling amazing. Straight into the suitcase. Brunch at Open House with a new friend. Amazing food and good vibes, one of my favorites. Sunset drinks at Warung Alus on Munggu Beach with kites all over the sky, a super beautiful spot. Custom frozen yogurt at MIYO for dessert, then home after a long day exploring.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Open House</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Warung Alus, Munggu Beach</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>MIYO</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-12" hidden="">
+          <p class="post-entry__day"><span>Sun Jul 12</span> · Day 12 of 30</p>
+          <p class="post-entry__week">Week 2 · Jul 8–14, 2026 · <span>Sick, then sunsets</span></p>
+          <p class="post-entry__story">Morning at the café sorting out what activities and entertainment I want to do, when, and what they’ll cost, in a way that’s clear to me. Dinner with a friend: appetizers at YUKI, which were amazing, then she took me to a local spot with authentic Indonesian food, better prices, and money that stays in the community. I wish I knew its name. Drove around looking at the villas I could have rented, then home.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>YUKI, then a local spot (name unknown)</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-13" hidden="">
+          <p class="post-entry__day"><span>Mon Jul 13</span> · Day 13 of 30</p>
+          <p class="post-entry__week">Week 2 · Jul 8–14, 2026 · <span>Sick, then sunsets</span></p>
+          <p class="post-entry__story">More planning, more budgeting, more time sitting and suffering because I didn’t plan this trip before I left. Then another haircut, at Dirty Sanchez. Then a night at Alex Villas, since I’m thinking about coming back to Bali and wanted to see what a nicer villa is like. Super nice. A friend came over, we had manicures, pedicures and massages come to us, ordered sushi on Grab and watched movies. Had a blast.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Sushi on Grab</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>Haircut at Dirty Sanchez Barber Shop</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>Alex Villas</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-14" hidden="">
+          <p class="post-entry__day"><span>Tue Jul 14</span> · Day 14 of 30</p>
+          <p class="post-entry__week">Week 2 · Jul 8–14, 2026 · <span>Sick, then sunsets</span></p>
+          <p class="post-entry__story">Week two done. Duck and spicy rice on Grab for breakfast, snacks and water from Pepito Market for my room, dropped my friend home, then the café until close, sorting out a trip to Jakarta.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Grab</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>Pepito Market</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-15" hidden="">
+          <p class="post-entry__day"><span>Wed Jul 15</span> · Day 15 of 30</p>
+          <p class="post-entry__week">Week 3 · Jul 15–21, 2026 · <span>The gym, a Jakarta detour, and a new café</span></p>
+          <p class="post-entry__story">Breakfast at the café, then my first workout of the trip on a day pass at ZINFIT, the gym upstairs. First time lifting in kilos: I almost died putting 225 on the bench thinking it was 135. A Grab to beachwalk Shopping Center to meet a friend, sushi at Genki Sushi, a few hours walking around, then back to hang by the pool with the staff where I’m staying.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Genki Sushi, beachwalk Shopping Center</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>Gym day pass, ZINFIT GYM</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>beachwalk Shopping Center</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-16" hidden="">
+          <p class="post-entry__day"><span>Thu Jul 16</span> · Day 16 of 30</p>
+          <p class="post-entry__week">Week 3 · Jul 15–21, 2026 · <span>The gym, a Jakarta detour, and a new café</span></p>
+          <p class="post-entry__story">Making plans for two days in Jakarta, hoping to see a college buddy. Day two at the gym, and pretty sore after. Home early.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>Gym, ZINFIT GYM</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-17" hidden="">
+          <p class="post-entry__day"><span>Fri Jul 17</span> · Day 17 of 30</p>
+          <p class="post-entry__week">Week 3 · Jul 15–21, 2026 · <span>The gym, a Jakarta detour, and a new café</span></p>
+          <p class="post-entry__story">Breakfast at the café, then a Grab to the airport with a friend and a flight to Jakarta. Checked into the Shangri-La. My college buddy had gone to Singapore for the weekend, so we missed each other. We met my friend’s friends at a club, and I love that clubs in Asia are restaurants and clubs at once, because I’m an old man and I like to sit and eat when I drink. Pretty good night.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Bali airport</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>A club in Jakarta</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-18" hidden="">
+          <p class="post-entry__day"><span>Sat Jul 18</span> · Day 18 of 30</p>
+          <p class="post-entry__week">Week 3 · Jul 15–21, 2026 · <span>The gym, a Jakarta detour, and a new café</span></p>
+          <p class="post-entry__story">Breakfast at the hotel’s restaurant downstairs, then a three-hour Grab to Serang in Banten with my friend. Checked into the Aston and took it easy. That was the day.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Nishimura, Shangri-La Jakarta</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Ivy Restaurant, Aston Serang Hotel &amp; Convention Center</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-19" hidden="">
+          <p class="post-entry__day"><span>Sun Jul 19</span> · Day 19 of 30</p>
+          <p class="post-entry__week">Week 3 · Jul 15–21, 2026 · <span>The gym, a Jakarta detour, and a new café</span></p>
+          <p class="post-entry__story">Breakfast at the hotel, a ride back to Jakarta, a flight to Bali, more driving. A travel day. Home around 9:30pm, dinner on Grab in bed and movies.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Ivy Restaurant, Aston Serang Hotel &amp; Convention Center</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Grab</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-20" hidden="">
+          <p class="post-entry__day"><span>Mon Jul 20</span> · Day 20 of 30</p>
+          <p class="post-entry__week">Week 3 · Jul 15–21, 2026 · <span>The gym, a Jakarta detour, and a new café</span></p>
+          <p class="post-entry__story">The whole day at the café getting the trip better laid out. Brunch there, dinner there, home to sleep.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>ZIN Cafe</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>ZIN Cafe</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-21" hidden="">
+          <p class="post-entry__day"><span>Tue Jul 21</span> · Day 21 of 30</p>
+          <p class="post-entry__week">Week 3 · Jul 15–21, 2026 · <span>The gym, a Jakarta detour, and a new café</span></p>
+          <p class="post-entry__story">Realized I’d been eating at the same café way too much, so I tried Fold, and I’m really happy I did: amazing food and cold brew. Dinner on a rooftop watching the sunset.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Fold</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-22" hidden="">
+          <p class="post-entry__day"><span>Wed Jul 22</span> · Day 22 of 30</p>
+          <p class="post-entry__week">Week 4 · Jul 22–30, 2026 · <span>The best food of the trip, then goodbye</span></p>
+          <p class="post-entry__story">Breakfast at Revolver, which three people had told me to try, and now I see why. Another rooftop dinner at sunset.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Revolver</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-23" hidden="">
+          <p class="post-entry__day"><span>Thu Jul 23</span> · Day 23 of 30</p>
+          <p class="post-entry__week">Week 4 · Jul 22–30, 2026 · <span>The best food of the trip, then goodbye</span></p>
+          <p class="post-entry__story">Cafe Coach for breakfast. Amazing food again, and a coconut cold brew that was so, so good. Bali has a ton of good restaurants.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Cafe Coach</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-24" hidden="">
+          <p class="post-entry__day"><span>Fri Jul 24</span> · Day 24 of 30</p>
+          <p class="post-entry__week">Week 4 · Jul 22–30, 2026 · <span>The best food of the trip, then goodbye</span></p>
+          <p class="post-entry__story">Brunch at Cocomo: pricey, but wow, that food was amazing. Dropped my laundry at March Wash for wash-and-fold: same day, faster, and half the price of having the hotel do it. Planned the trip while I waited, picked it up, then dinner on Grab and movies in bed.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Cocomo</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Grab</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>March Wash Laundry</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-25" hidden="">
+          <p class="post-entry__day"><span>Sat Jul 25</span> · Day 25 of 30</p>
+          <p class="post-entry__week">Week 4 · Jul 22–30, 2026 · <span>The best food of the trip, then goodbye</span></p>
+          <p class="post-entry__story">Brunch at Two Face. I had plans for a wild adventure, but a pretty cool guy started talking and we sat there five hours. Caught the sunset at the beach, then a new friend messaged me on Instagram about dinner. Better than nothing! We got ramen at Yumei Noodles, right next to where I’m staying and hidden off the street. I never knew it was there.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Two Face</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Yumei Noodles</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>Sunset at Times Beach Warung</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-26" hidden="">
+          <p class="post-entry__day"><span>Sun Jul 26</span> · Day 26 of 30</p>
+          <p class="post-entry__week">Week 4 · Jul 22–30, 2026 · <span>The best food of the trip, then goodbye</span></p>
+          <p class="post-entry__story">Brunch with the same friend at Kawisari Coffee Farm Shop &amp; Eatery. So good. We left the bikes there and walked Echo Beach up to the sunset point, then Smoke Bali for American BBQ. Two hits in one day. Walked back to the bikes and rode home.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Kawisari Coffee Farm Shop &amp; Eatery</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Smoke Bali</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>Echo Beach sunset point</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-27" hidden="">
+          <p class="post-entry__day"><span>Mon Jul 27</span> · Day 27 of 30</p>
+          <p class="post-entry__week">Week 4 · Jul 22–30, 2026 · <span>The best food of the trip, then goodbye</span></p>
+          <p class="post-entry__story">Authentic Indonesian breakfast at Warung Varuna, on a friend’s suggestion. Then planning stop 2: I hadn’t even booked my hotel in Da Nang yet, so I booked it today on Airbnb. I also applied for my Vietnam visa at the last minute. I was supposed to do it three weeks ahead, and paid $100 for an expedited service instead of $25. Dinner with a friend at ACME, which I can’t believe I hadn’t tried. The brisket sandwich is super good. At least I tried it before it was time to go.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>Warung Varuna</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>ACME</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-28" hidden="">
+          <p class="post-entry__day"><span>Tue Jul 28</span> · Day 28 of 30</p>
+          <p class="post-entry__week">Week 4 · Jul 22–30, 2026 · <span>The best food of the trip, then goodbye</span></p>
+          <p class="post-entry__story">Brunch with a friend at 7AM | 7PM. Lots of hype, and I see why. Walked to Pererenan Beach to see the Gajah Mina statue, then along to Echo Beach to watch the surfers and the sunset, and back for the bikes. Ramen at Ramen Hamatora because I kept seeing Naruto on the sign, and it was good. Then, finally, FINNS Beach Club, and it was sick. I’m old and sick of clubs, but this one excited me. Then the G Swing to wrap up the day.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>7AM | 7PM</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>Ramen Hamatora</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>The G Swing</span></span><span class="post-chip" data-trip-post-chip="entertainment"><span class="post-chip__kind">Entertainment</span><span>FINNS Beach Club</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-29" hidden="">
+          <p class="post-entry__day"><span>Wed Jul 29</span> · Day 29 of 30</p>
+          <p class="post-entry__week">Week 4 · Jul 22–30, 2026 · <span>The best food of the trip, then goodbye</span></p>
+          <p class="post-entry__story">My last full day in Bali, and I’m sad. Laundry to March Wash so I’d pack clean clothes, brunch at BAKED while I caught up with a buddy back home on FaceTime, then cleaned my room so the staff wouldn’t have much to do after I left. Packed, unpacked and repacked. I always get paranoid I’ll leave something behind. Dinner at KYND Community: I’m not vegan and didn’t know it was a vegan place, but I didn’t want to be rude and leave, and honestly I enjoyed it.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>BAKED.</span></span><span class="post-chip" data-trip-post-chip="dinner"><span class="post-chip__kind">Dinner</span><span>KYND Community</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>March Wash Laundry</span></span></div>
+        </div>
+        <div class="post-entry" data-trip-post-day="2026-07-30" hidden="">
+          <p class="post-entry__day"><span>Thu Jul 30</span> · Day 30 of 30</p>
+          <p class="post-entry__week">Week 4 · Jul 22–30, 2026 · <span>The best food of the trip, then goodbye</span></p>
+          <p class="post-entry__story">Returned the scooter, walked to ACME for one more brisket sandwich, and took a Grab to the airport. Sad the whole ride, and a little excited for the next stop. Then I got a little tipsy at the airport bar and missed my flight. It was the last day of my visa, so I bought a new ticket to Hanoi for a night and decided to have a good time with my mistake. More on that in stop 2.</p>
+          <div class="post-entry__chips"><span class="post-chip" data-trip-post-chip="brunch"><span class="post-chip__kind">Brunch</span><span>ACME</span></span><span class="post-chip" data-trip-post-chip="activity"><span class="post-chip__kind">Activity</span><span>Scooter returned</span></span></div>
+        </div>
+      </div>
+      <div class="post-weeks">
+        <button type="button" class="post-week post-week--on" aria-pressed="true" data-trip-post-week="1" data-trip-post-pick="2026-07-01"><span class="post-week__when">Week 1 · Jul 1–7, 2026</span><span class="post-week__title">Finding my feet</span></button>
+        <button type="button" class="post-week" aria-pressed="false" data-trip-post-week="2" data-trip-post-pick="2026-07-08"><span class="post-week__when">Week 2 · Jul 8–14, 2026</span><span class="post-week__title">Sick, then sunsets</span></button>
+        <button type="button" class="post-week" aria-pressed="false" data-trip-post-week="3" data-trip-post-pick="2026-07-15"><span class="post-week__when">Week 3 · Jul 15–21, 2026</span><span class="post-week__title">The gym, a Jakarta detour, and a new café</span></button>
+        <button type="button" class="post-week" aria-pressed="false" data-trip-post-week="4" data-trip-post-pick="2026-07-22"><span class="post-week__when">Week 4 · Jul 22–30, 2026</span><span class="post-week__title">The best food of the trip, then goodbye</span></button>
+      </div>
+    </div>
+  </section>
+  <section id="post-learned" aria-label="What I learned" class="post-section" data-trip-post-section="differently">
+    <p class="post-section__eyebrow">06 / What I would tell someone going</p>
+    <h2 class="post-section__title">What I learned the hard way.</h2>
+    <ol class="post-lessons">
+      <li class="post-lesson"><span class="post-lesson__n" aria-hidden="true">01</span><div class="post-lesson__words"><p class="post-lesson__lead">Plan before you land.</p><p class="post-lesson__rest">I left with no clear plan and spent too many days at a café trying to figure out what to do, when, and what it would cost.</p></div></li>
+      <li class="post-lesson"><span class="post-lesson__n" aria-hidden="true">02</span><div class="post-lesson__words"><p class="post-lesson__lead">Get a scooter on day one.</p><p class="post-lesson__rest">I suggested we walk. We walked. You need a bike in Canggu.</p></div></li>
+      <li class="post-lesson"><span class="post-lesson__n" aria-hidden="true">03</span><div class="post-lesson__words"><p class="post-lesson__lead">Pack a plug adapter.</p><p class="post-lesson__rest">US chargers don’t fit Indonesian outlets.</p></div></li>
+      <li class="post-lesson"><span class="post-lesson__n" aria-hidden="true">04</span><div class="post-lesson__words"><p class="post-lesson__lead">Canggu wakes up around 7:30–8am.</p><p class="post-lesson__rest">I was out at 6 looking for breakfast.</p></div></li>
+      <li class="post-lesson"><span class="post-lesson__n" aria-hidden="true">05</span><div class="post-lesson__words"><p class="post-lesson__lead">It’s petrol.</p><p class="post-lesson__rest">Call it gas and people look at you like an alien.</p></div></li>
+      <li class="post-lesson"><span class="post-lesson__n" aria-hidden="true">06</span><div class="post-lesson__words"><p class="post-lesson__lead">Wear repellent.</p><p class="post-lesson__rest">One mosquito bite and I had every symptom of dengue for a few days.</p></div></li>
+      <li class="post-lesson"><span class="post-lesson__n" aria-hidden="true">07</span><div class="post-lesson__words"><p class="post-lesson__lead">Use a wash-and-fold shop.</p><p class="post-lesson__rest">Same day, and half the price of the hotel’s laundry.</p></div></li>
+      <li class="post-lesson"><span class="post-lesson__n" aria-hidden="true">08</span><div class="post-lesson__words"><p class="post-lesson__lead">Apply for your next visa three weeks out.</p><p class="post-lesson__rest">I paid $100 for an expedited one instead of $25.</p></div></li>
+      <li class="post-lesson"><span class="post-lesson__n" aria-hidden="true">09</span><div class="post-lesson__words"><p class="post-lesson__lead">Skip the airport bar.</p><p class="post-lesson__rest">I got tipsy, missed my flight, and spent a night in Hanoi.</p></div></li>
+      <li class="post-lesson"><span class="post-lesson__n" aria-hidden="true">10</span><div class="post-lesson__words"><p class="post-lesson__lead">Give Uluwatu its own trip.</p><p class="post-lesson__rest">One day there wasn’t enough.</p></div></li>
+    </ol>
+    <div class="post-takeaway"><p class="post-takeaway__label">The big takeaway</p><p class="post-takeaway__line">Plan before you land.</p></div>
+  </section>
+  <section id="post-on" aria-label="What was on" class="post-section" data-trip-post-section="on">
+    <p class="post-section__eyebrow">07 / While I was there</p>
+    <h2 class="post-section__title">What was on while I was there.</h2>
+    <div class="post-on">
+      <div class="post-on__row"><div class="post-on__words"><p class="post-on__when">Jun 13 – Jul 11, 2026 · took place · reported by Antara</p><p class="post-on__name">Pesta Kesenian Bali XLVIII (Bali Arts Festival)</p><p class="post-on__place">Taman Werdhi Budaya Art Centre</p></div><a href="https://www.antaranews.com/foto/5607117/ribuan-seniman-ramaikan-pawai-pembukaan-pesta-kesenian-bali-2026" rel="noopener" target="_blank" class="post-on__source" data-trip-post-event="Pesta Kesenian Bali XLVIII (Bali Arts Festival)">Source ↗</a></div>
+      <div class="post-on__row"><div class="post-on__words"><p class="post-on__when">Jul 21, 2026 · took place · per Rip Curl Indonesia</p><p class="post-on__name">Rip Curl Cup Padang Padang 2026 — women's local trials</p><p class="post-on__place">Padang Padang Beach</p></div><a href="https://www.ripcurl.co.id/blogs/ripcurlcup/taina-izquierdo-and-paris-nalendra-secure-their-spots-in-the-rip-curl-cup-padang-padang-2026-main-event" rel="noopener" target="_blank" class="post-on__source" data-trip-post-event="Rip Curl Cup Padang Padang 2026 — women's local trials">Source ↗</a></div>
+      <div class="post-on__row"><div class="post-on__words"><p class="post-on__when">Jul 23–26, 2026 · took place · reported by Antara Bali</p><p class="post-on__name">Rare Angon International Kite Festival 2026</p><p class="post-on__place">Mertasari Beach</p></div><a href="https://bali.antaranews.com/tag/festival-rare" rel="noopener" target="_blank" class="post-on__source" data-trip-post-event="Rare Angon International Kite Festival 2026">Source ↗</a></div>
+    </div>
+  </section>
+  <nav class="post-pager" aria-label="More stops" data-trip-post-section="pager">
+    <a href="/about" class="post-pager__card"><span class="post-pager__stop">← Stop 0</span><span class="post-pager__place">Los Angeles</span></a>
+    <a href="/my-trip/danang-2026-08" class="post-pager__card post-pager__card--next"><span class="post-pager__stop">Stop 2 →</span><span class="post-pager__place">Da Nang / Hoi An</span></a>
+  </nav>
+  <section aria-label="Book the stay and the flight" class="post-band" data-trip-post-section="book"><p class="post-band__line">Going to Canggu, Bali? Book the stay and the flight here.</p><a href="/#demo" class="post-band__go">Book the stay and the flight</a></section>
+  <p class="post__written" data-trip-post-section="written">Written Nov 5, 2026</p>
+</div>
+</div>
+
+<p class="ref-note ref-note--next">2 · A stop not written up yet · /my-trip/siargao-2026</p>
+
+<div class="post" data-trip-post="siargao-2026" data-trip-post-kind="stop">
+<div class="post__inner post__top">
+  <div class="post__crumb">
+    <a href="/#my-trip" class="post__back" data-trip-post-back="true">← Back to my trip</a>
+    <p class="post__count">Stop 7 of 10</p>
+  </div>
+  <div class="post__hero">
+    <header class="post__head" data-trip-post-section="header">
+      <p class="post__eyebrow">My trip · Stop 7</p>
+      <h1 class="post__title">General Luna, Siargao, Philippines</h1>
+      <p class="post__meta"><span>Oct 22 – Nov 13, 2026</span></p>
+      <p class="post__unwritten" data-trip-post-unwritten="true">I haven’t written this stop up yet.</p>
+    </header>
+    <figure class="post-photo" data-trip-post-section="photo"><img src="../../public/was-here/siargao-2026.jpg" alt="A surfer paddling beside an outrigger boat off Siargao, the island and a breaking reef on the horizon" class="post-photo__img"><figcaption class="post-photo__credit">Photo: Alex Stuart</figcaption></figure>
+  </div>
+  <div class="post-tiles" data-trip-post-section="tiles">
+    <div class="post-tile"><p class="post-tile__label">Duration</p><p class="post-tile__value">22 <span class="post-tile__unit">nights</span></p><p class="post-tile__note">Oct 22 – Nov 13, 2026</p></div>
+    <div class="post-tile"><p class="post-tile__label">Stay / night</p><p class="post-tile__value">$29.01</p><p class="post-tile__note">$638.24 ÷ 22 nights</p></div>
+    <div class="post-tile"><p class="post-tile__label">Motorbike / day</p><p class="post-tile__value post-tile__value--words">not in my log yet</p><p class="post-tile__note">$63.53 total</p></div>
+    <div class="post-tile"><p class="post-tile__label">Fixed bookings</p><p class="post-tile__value">$962.27</p><p class="post-tile__note">stay + motorbike + flight in</p></div>
+  </div>
+  <div class="post-own">
+    <p class="post-line" data-trip-post-section="line">I landed in Siargao in the middle of the WSL by luck. Don't get lucky. Book around it.</p>
+    <div class="post-event" data-trip-post-section="event" data-trip-post-experience="philippines-pro-2026"><p class="post-event__kind">Surf · WSL Championship Tour</p><p class="post-event__name">Philippines Pro presented by the Philippine Sports Commission</p><p class="post-event__venue">Cloud 9</p><p class="post-event__window">Window Oct 30 – Nov 10, 2026 · window being confirmed</p></div>
+  </div>
+</div>
+<div class="post__inner post__body">
+  <section aria-label="Real costs" class="post-section" data-trip-post-section="cost">
+    <p class="post-section__eyebrow">Transparent spending</p>
+    <h2 class="post-section__title">What it actually cost.</h2>
+    <p class="post-section__intro">Verified booking figures from the travel log. Unrecorded daily expenses are not assumed to be zero.</p>
+    <div class="post-costs">
+      <div class="post-card">
+        <p class="post-card__label">Booking breakdown</p>
+        <div class="post-cost post-cost--first" data-trip-post-cost="true"><div><p class="post-cost__what">Stay</p><p class="post-cost__name">Rodeo Sun Hotel</p><p class="post-cost__detail">22 nights</p></div><p class="post-cost__amount post-cost__amount--paid">$638.24</p></div>
+        <div class="post-cost" data-trip-post-cost="true"><div><p class="post-cost__what">Motorbike</p><p class="post-cost__name">Kook Moto Rental (Fazzio)</p></div><p class="post-cost__amount post-cost__amount--paid">$63.53</p></div>
+        <div class="post-cost" data-trip-post-cost="true"><div><p class="post-cost__what">Flight in</p><p class="post-cost__name">Philippine Airlines</p></div><p class="post-cost__amount post-cost__amount--paid">$260.50</p></div>
+        <div class="post-total"><div><p class="post-total__label">Fixed bookings total</p><p class="post-total__note">Excludes meals, activities and other spending</p></div><p class="post-total__amount">$962.27</p></div>
+      </div>
+      <div class="post-rest post-rest--alone"><p class="post-rest__label">The rest</p><p class="post-rest__text">These are the stay, the motorbike and the flight in. The rest of what I spent isn’t in my log yet.</p></div>
+    </div>
+  </section>
+  <nav class="post-pager" aria-label="More stops" data-trip-post-section="pager">
+    <a href="/my-trip/bangkok-2026-10-21" class="post-pager__card"><span class="post-pager__stop">← Stop 6</span><span class="post-pager__place">Bangkok</span></a>
+    <a href="/my-trip/cebu-2026-11" class="post-pager__card post-pager__card--next"><span class="post-pager__stop">Stop 8 →</span><span class="post-pager__place">Cebu</span></a>
+  </nav>
+  <section aria-label="Book the stay and the flight" class="post-band" data-trip-post-section="book"><p class="post-band__line">Going to General Luna, Siargao? Book the stay and the flight here.</p><a href="/#demo" class="post-band__go">Book the stay and the flight</a></section>
+</div>
+</div>
+
+<script>
+  // REFERENCE ONLY: this makes the tabs and the journal work in this file, for the written post (the first of the two pages
+  // drawn here). Production does the same with its own code: the tab of the section being read is lit; a day, a week, an
+  // arrow or "Read that day" opens a day, and every other day is hidden. Nothing here is stored or sent.
+  const post = document.querySelector('.post');
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // THE TABS. A section is being read once its top is within 160px of the window's top; until the second one is, the first.
+  const READING_LINE = 160;
+  const row = post.querySelector('.post-tabs__row');
+  const tabs = [...post.querySelectorAll('.post-tab')];
+  const sections = tabs.map((tab) => document.getElementById(tab.getAttribute('href').slice(1)));
+  let lit = 0;
+  function light(index) {
+    lit = index;
+    tabs.forEach((tab, i) => {
+      tab.classList.toggle('post-tab--on', i === index);
+      if (i === index) tab.setAttribute('aria-current', 'true'); else tab.removeAttribute('aria-current');
+    });
+    // under 1024px the tabs are one row that scrolls sideways: the lit one comes into view in it
+    const r = row.getBoundingClientRect();
+    const t = tabs[index].getBoundingClientRect();
+    if (t.left < r.left + 16 || t.right > r.right - 16) row.scrollTo({ left: row.scrollLeft + t.left - r.left - 16, behavior: still.matches ? 'auto' : 'smooth' });
+  }
+  function reading() {
+    let index = 0;
+    sections.forEach((section, i) => { if (section.getBoundingClientRect().top <= READING_LINE) index = i; });
+    if (index !== lit) light(index);
+  }
+  window.addEventListener('scroll', reading, { passive: true });
+  window.addEventListener('resize', reading);
+  tabs.forEach((tab, i) => tab.addEventListener('click', () => light(i)));
+
+  // THE JOURNAL. One day is open; the rest are in the page, hidden.
+  const entries = [...post.querySelectorAll('.post-entry')];
+  const dates = entries.map((entry) => entry.getAttribute('data-trip-post-day'));
+  const days = [...post.querySelectorAll('.post-day[data-trip-post-pick]')];
+  const weeks = [...post.querySelectorAll('.post-week')];
+  const weekStarts = weeks.map((week) => dates.indexOf(week.getAttribute('data-trip-post-pick')));
+  const [earlier, later] = post.querySelectorAll('.post-step');
+  let open = 0;
+  function show(index) {
+    open = index;
+    entries.forEach((entry, i) => { if (i === index) entry.removeAttribute('hidden'); else entry.setAttribute('hidden', ''); });
+    days.forEach((day) => {
+      const on = day.getAttribute('data-trip-post-pick') === dates[index];
+      day.classList.toggle('post-day--on', on);
+      day.setAttribute('aria-pressed', String(on));
+    });
+    weeks.forEach((week, w) => {
+      const on = index >= weekStarts[w] && (w === weeks.length - 1 || index < weekStarts[w + 1]);
+      week.classList.toggle('post-week--on', on);
+      week.setAttribute('aria-pressed', String(on));
+    });
+    const ends = [[earlier, index === 0], [later, index === entries.length - 1]];
+    for (const [step, off] of ends) { step.classList.toggle('post-step--off', off); step.setAttribute('aria-disabled', String(off)); }
+  }
+  // a day, a week (its first day) and "Read that day" each name the day they open
+  for (const control of post.querySelectorAll('[data-trip-post-pick]')) {
+    control.addEventListener('click', () => { const index = dates.indexOf(control.getAttribute('data-trip-post-pick')); if (index > -1) show(index); });
+  }
+  earlier.addEventListener('click', () => { if (open > 0) show(open - 1); });
+  later.addEventListener('click', () => { if (open < entries.length - 1) show(open + 1); });
+</script>
+
+</body>
+</html>
