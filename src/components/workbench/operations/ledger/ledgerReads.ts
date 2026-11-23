@@ -7,8 +7,7 @@
  * is read: ok, or the route's own words; signed out by name; nothing filled in).
  * LedgerSection.tsx fetches nothing itself.
  */
-import type { LedgerRow, LedgerSaid } from '@/lib/operations/ledger';
-import { ledgerFailedWords } from '@/lib/operations/ledger';
+import { ledgerFailedWords, type LedgerRow, type LedgerSaid, type LedgerSheetRow } from '@/lib/operations/ledger';
 import { readJson, type Read } from '../week/weekReads';
 
 export interface LedgerAnswer {
@@ -19,15 +18,17 @@ export interface LedgerAnswer {
   /** The caller's earliest record's day, for ALL; its reason when its zone could not be read; null when nothing was recorded. */
   readonly first_record: { readonly day: string } | { readonly words: string } | null;
   readonly rows: readonly LedgerRow[];
+  readonly sheet: readonly LedgerSheetRow[]; // TIMESHEET-01 (Alex, 2026-11-24): the table's rows — every priced line of the period, planned and recorded; `rows` (the recorded expenses) is as it was
   readonly said: LedgerSaid;
 }
 
-/** The ledger for a span of days; an answer without its rows is a failure in words, never read as "no stop recorded". */
+/** The ledger for a span of days; an answer without its rows — or, TIMESHEET-01, without its sheet — is a failure in words, never read as an empty period. */
 export async function readLedger(from: string, to: string): Promise<Read<LedgerAnswer>> {
   const read = await readJson(`/api/operations/ledger?${new URLSearchParams({ from, to }).toString()}`);
   if (!read.ok) return { ok: false, words: ledgerFailedWords(read.words) };
   if (!Array.isArray(read.value.rows) || typeof read.value.said !== 'object' || read.value.said === null || !('first_record' in read.value)) {
     return { ok: false, words: ledgerFailedWords('the ledger came back without its rows') };
   }
+  if (!Array.isArray(read.value.sheet)) return { ok: false, words: ledgerFailedWords('the ledger came back without its sheet') };
   return { ok: true, value: read.value as unknown as LedgerAnswer };
 }

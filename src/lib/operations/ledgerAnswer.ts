@@ -4,7 +4,7 @@ import { BudgetInputError, toReportAccount, toReportEntity, toRoutinePlanInput }
 import type { RoutineWords } from '@/lib/budget/planLines';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { LINKED_POSTING_SELECT } from '@/lib/calendar/postingAmount';
-import { ledgerOf, linkInputOf, type LedgerRecordInput } from '@/lib/operations/ledger';
+import { ledgerOf, linkInputOf, planMinutesOf, type LedgerRecordInput } from '@/lib/operations/ledger';
 import { recordsWindowOf, refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
 import { plannedMinutesOf } from '@/lib/operations/supersession';
 import { stayRowOf } from '@/lib/operations/stay';
@@ -18,7 +18,7 @@ import { instantToZoned } from '@/lib/time';
  * other (the chart, the ONE loader per entity, the routine roles, the plan's vendors, the stays, the records in the
  * span's window with their plan's words, the first record, the occurrence links with each posting's lines), the words,
  * the accounts, the first record's day, ledgerOf, and the exact answer object the route serializes —
- * `{ from, to, as_of, first_record, rows, said }`. RECORD_PLAN and its helpers (RecordRow, recordInputOf, HOUR_MS,
+ * `{ from, to, as_of, first_record, rows, sheet, said }` (sheet: TIMESHEET-01, 2026-11-24). RECORD_PLAN and its helpers (RecordRow, recordInputOf, HOUR_MS,
  * DAY_MS, messageOf) moved with it (SUPERSEDE-00 decision 9); the registry's Time row cites RECORD_PLAN's two lines here.
  * SUPERSEDE-01c (Alex, 2026-11-08, ruling D): HOUR_MS retired; the records' window is stopRecord.ts recordsWindowOf.
  *
@@ -140,12 +140,15 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
     notPlaced: built.notPlaced,
     routines: routineWords,
     roles: new Map(roles.map((r) => [r.id, r.role])),
+    // TIMESHEET-01 (Alex, 2026-11-24): each plan's planned minutes by the one rule, over the routines the loader already read (routineInputs) — the sheet prints them on a line with no record; no query added.
+    minutes: planMinutesOf(routineInputs),
     vendors: planVendors,
     stays: stayRows.map(stayRowOf),
     accounts: accounts.map((a) => ({ entityId: a.entityId, code: a.code, name: a.name })),
     books: books.map((b) => ({ id: b.id, entityType: b.entityType })),
   });
-  return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, said: ledger.said };
+  // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet` — the table's rows; `rows` is as it was (/api/home-ledger reads it).
+  return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, said: ledger.said };
 }
 
 export type TaskLedgerAnswer = Awaited<ReturnType<typeof taskLedgerAnswerOf>>;

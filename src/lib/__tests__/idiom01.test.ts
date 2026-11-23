@@ -104,7 +104,7 @@ test('T1 the kinds are value | money | text — exactly the ledger’s; `date` i
 
 // ── T2 · THE LEDGER'S SPEC ──────────────────────────────────────────────────
 
-test('T2 LEDGER_TABLE: the eighteen columns (TIME-03; sixteen until then) in the head’s order — key, head word, kind, the cell words (cellWordsOf), the sort key (sortKeyOf), the CSV field (LEDGER_CSV); money columns carry cellCentsOf, the text column the note; columnOf throws on a key the spec does not name', () => {
+test('T2 LEDGER_TABLE: the twenty-one columns (TIMESHEET-01; eighteen since TIME-03; sixteen until then) in the head’s order — key, head word, kind, the cell words (cellWordsOf), the sort key (sortKeyOf), the CSV field (LEDGER_CSV); money columns carry cellCentsOf, the text column the note; columnOf throws on a key the spec does not name', () => {
   assert.deepEqual(LEDGER_TABLE.map((c) => c.key), [...LEDGER_COLUMNS]);
   assert.deepEqual(LEDGER_TABLE.map((c) => c.label), [...LEDGER_HEAD_WORDS]);
   assert.deepEqual(LEDGER_TABLE.map((c) => c.kind), LEDGER_COLUMNS.map(columnKind));
@@ -247,9 +247,9 @@ test('T5 the CSV: RFC 4180 minimal quoting (a comma, a quote, a CR or an LF — 
   assert.equal(ledgerCsv([]), `${LEDGER_HEAD_WORDS.join(',')}\r\n`);
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The byte pins MOVE to the new shape — two bare fields after STARS, empty here (null); time03.test.ts proves the
   // DOM and the CSV agree on the eighteen (each column's words and its csv field from the one spec), not identity with the sixteen-column bytes.
-  assert.equal(ledgerCsv([BRUNCH]).split('\r\n')[1], 'Tuesday,2026-10-13,Chiang Mai,Thailand 🇹🇭,Personal,P-6150,Dining Out,Brunch,Luka Café,4,,,25.00,22.00,-3.00,22.00,under,"khao soi, worth it"', 'the ledger04 line');
-  assert.equal(ledgerCsv([YOGA]).split('\r\n')[1], 'Monday,2026-10-12,,,,,,Yoga,,2,,,,5.00,,,,', 'the ledger02 line — a null is an EMPTY field');
-  assert.match(code(RULES), /export function ledgerCsv\(rows: readonly LedgerRow\[\]\): string \{\n\s*return tableCsv\(LEDGER_TABLE, rows\);\n\}/);
+  assert.equal(ledgerCsv([BRUNCH]).split('\r\n')[1], 'Tuesday,2026-10-13,07:30,,Chiang Mai,Thailand 🇹🇭,Personal,P-6150,Dining Out,Brunch,Luka Café,went,4,,,25.00,22.00,-3.00,22.00,under,"khao soi, worth it"', 'the ledger04 line'); // TIMESHEET-01 (Alex, 2026-11-24): START, an empty END and WENT ride the line — the other eighteen fields as they were
+  assert.equal(ledgerCsv([YOGA]).split('\r\n')[1], 'Monday,2026-10-12,07:30,,,,,,,Yoga,,went,2,,,,5.00,,,,', 'the ledger02 line — a null is an EMPTY field'); // TIMESHEET-01 (Alex, 2026-11-24): START, an empty END and WENT ride the line
+  assert.match(code(RULES), /export function ledgerCsv\(rows: readonly LedgerSheetRow\[\]\): string \{\n\s*return tableCsv\(LEDGER_TABLE, rows\);\n\}/); // TIMESHEET-01 (Alex, 2026-11-24): the rows shown are the sheet's (a recorded row is one of them) — `rows: readonly LedgerRow[]` until then; the body is the same call
 });
 
 // ── T6 · THE WORDS ──────────────────────────────────────────────────────────

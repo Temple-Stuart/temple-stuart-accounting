@@ -33,7 +33,7 @@ import { POSTING_LINES_SELECT, amountCentsOf } from '../calendar/postingAmount';
 import {
   CANDIDATES_WORDS, LEDGER_HEAD_WORDS, LINKED_POSTINGS_WORDS, LINKS_LOADING_WORDS, LINK_WORDS, NO_CANDIDATES_WORDS, NO_LINKED_POSTINGS_WORDS, NO_READABLE_AMOUNT_WORDS, NO_SUGGESTION_WORDS,
   PICKER_CANCEL_WORDS, UNLINK_WORDS,
-  ledgerCsv, ledgerOf, ledgerTotals, linkKeyOf, matchCellTitle, matchCellWords, matchCoverageWords, matchOf, matchState, matchTotalWords, postingAmountWords, postingDateWords, readableMatchCents,
+  ledgerCsv, ledgerOf, ledgerTotals, linkKeyOf, matchCellTitle, matchCellWords, matchCoverageWords, matchOf, matchState, matchTotalWords, planMinutesOf, postingAmountWords, postingDateWords, readableMatchCents,
   unreadableWords, varianceCoverageWords,
   type LedgerInput, type LedgerLinkInput, type LedgerRecordInput, type LedgerRow,
 } from '../operations/ledger';
@@ -130,7 +130,7 @@ const LINKS: LedgerLinkInput[] = [
 
 const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over,
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over, // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
 });
 const ledger = ledgerOf(input());
 const rowOf = (id: string): LedgerRow => {
@@ -192,7 +192,7 @@ test('R2 the join: a record meets its links by (kind, target_id, occurrence_at) 
   assert.match(route, /links: linkRows\.map\(linkInputOf\),/);
   // ROUTINES-03 (Alex, 2026-10-25): linkInputOf moved to ledger.ts, unchanged, so the routines' month route reads a link the same way — the pins moved with it.
   // READS-01b (Alex, 2026-11-07): the import split with the body — the route keeps spanInput; the answer file takes ledgerOf, linkInputOf and the input type.
-  assert.match(route, /import \{ ledgerOf, linkInputOf, type LedgerRecordInput \} from '@\/lib\/operations\/ledger';/);
+  assert.match(route, /import \{ ledgerOf, linkInputOf, planMinutesOf, type LedgerRecordInput \} from '@\/lib\/operations\/ledger';/); // TIMESHEET-01 (Alex, 2026-11-24): the answer function reads planMinutesOf too (each plan's planned minutes, for the sheet) — `{ ledgerOf, linkInputOf, type LedgerRecordInput }` until then
   assert.match(code(LEDGER_ROUTE), /import \{ spanInput \} from '@\/lib\/operations\/ledger';/);
   for (const f of [LEDGER_ROUTE, LEDGER_ANSWER]) assert.doesNotMatch(code(f), /function linkInputOf\(/, `${f}: the mapper lives in ledger.ts now`);
   // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the mapper reads the posting's reversal state too (LinkedPostingRow) and says whether it was reversed.
@@ -267,7 +267,7 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
   const lines = ledgerCsv(ledger.rows).split('\r\n');
   const field = (id: string, i: number): string => lines[1 + ledger.rows.findIndex((r) => r.id === id)].split(',')[i];
   const MATCH = LEDGER_HEAD_WORDS.indexOf('MATCH');
-  assert.equal(MATCH, 15); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
+  assert.equal(MATCH, 18); // TIMESHEET-01 (Alex, 2026-11-24): START, END and WENT sit before it — 15 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
   assert.equal(field('r-coffee-13', MATCH), '8.98');
   assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-coffee-13')], /,10\.00,8\.98,-1\.02,8\.98,under,"khao soi, ""the good one"""$/, 'BUDGET · ACTUAL · VARIANCE · MATCH 8.98 · UNDER / OVER');
   assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-client-13')], /,25\.00,30\.00,5\.00,30\.00,over,$/);
@@ -283,7 +283,7 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
   assert.match(s, /<td className=\{`\$\{money\} \$\{totals\.matchCents === null \? BLANK_CLASS : ''\}`\} data-ledger-total-match>\{matchTotalWords\(totals\.matchCents\)\}<\/td>/, 'the TOTAL row’s MATCH, no tone');
   assert.match(s, /\{shown\.length > 0 && <p data-ledger-said-match>\{matchCoverageWords\(totals\.withMatch, shown\.length\)\}<\/p>\}/, 'the coverage line');
   assert.doesNotMatch(s, /MATCH_NOTE_WORDS|MATCH_CELL_WORDS/);
-  assert.equal(LEDGER_HEAD_WORDS.length, 18, 'the cue is a tone, not a column (TIME-03 added the two minutes columns, not a MATCH cue)'); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
+  assert.equal(LEDGER_HEAD_WORDS.length, 21, 'the cue is a tone, not a column (TIME-03 added the two minutes columns and TIMESHEET-01 START, END and WENT — not a MATCH cue)'); // TIMESHEET-01 (Alex, 2026-11-24): twenty-one — 18 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
 });
 
 // ── R4 · THE PICKER ─────────────────────────────────────────────────────────
