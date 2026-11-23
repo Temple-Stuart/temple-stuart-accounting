@@ -19,6 +19,15 @@
  * is not paid | none | unknown; a paid line with an empty name or an amountCents that is not a
  * positive safe integer, or whose keys are not exactly kind, name, amountCents; a none or unknown
  * line carrying anything but its kind.
+ *
+ * TRIPPOST-02 (Alex, 2026-11-23) — A RENTAL'S DAYS. The stop's page spreads the motorbike over the
+ * days he had it, so TRIP_MOTO_DAYS holds them for each rental whose days his log holds: keyed by
+ * stop id, exactly { from, to } — the day he got it and the day he returned it, 'YYYY-MM-DD' each.
+ * Canggu is the one row: Jul 3 to Jul 30, by his own journal. A rental with no row has no days, and
+ * the page says so in words — never a guess. The row shape above does not change (TRIP_COST_FIELDS
+ * stays four). The law refuses, by name: a key that is no row's stop; a row whose motorbike is not
+ * paid; keys that are not exactly from, to; a date that is not 'YYYY-MM-DD'; a from that is not
+ * before its to. The build adds what only it can see: each lies inside its stop's stay.
  */
 
 export type TripCostLine =
@@ -56,6 +65,17 @@ export const TRIP_COSTS: readonly TripCosts[] = [
   { stopId: 'pererenan-2026-12', stay: paid('Anaya Boutique Hotel', 28590), moto: UNKNOWN, flightIn: UNKNOWN },
 ];
 
+/** TRIPPOST-02: a rental's days — the day he got the motorbike and the day he returned it, 'YYYY-MM-DD' each. */
+export interface TripMotoDays {
+  from: string;
+  to: string;
+}
+
+/** TRIPPOST-02: the rentals whose days his log holds, keyed by stop id. Phuket's and Siargao's are his to give. */
+export const TRIP_MOTO_DAYS: Readonly<Record<string, TripMotoDays>> = {
+  'canggu-2026-07': { from: '2026-07-03', to: '2026-07-30' },
+};
+
 export class TripCostsLawError extends Error {
   constructor(message: string) {
     super(message);
@@ -65,6 +85,8 @@ export class TripCostsLawError extends Error {
 
 const keysOf = (value: object): string => Object.keys(value).sort().join(',');
 const nonEmpty = (value: unknown): boolean => typeof value === 'string' && value.trim() !== '';
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const isIso = (value: unknown): value is string => typeof value === 'string' && ISO_DATE.test(value);
 
 function lineViolations(who: string, field: string, line: unknown): string[] {
   if (line === null || typeof line !== 'object') return [`${who}: ${field} is not a cost line`];
@@ -80,8 +102,12 @@ function lineViolations(who: string, field: string, line: unknown): string[] {
   return keysOf(l) === 'kind' ? [] : [`${who}: ${field} is ${String(l.kind)} and carries [${Object.keys(l).join(', ')}] — it carries its kind only`];
 }
 
-/** THE LAW. Throws on failure by default; returns the violations list when asked not to throw. `rows` is injectable for tests. */
-export function tripCostsLaw(opts: { throwOnFail?: boolean; rows?: readonly TripCosts[] } = {}): string[] {
+/**
+ * THE LAW. Throws on failure by default; returns the violations list when asked not to throw. `rows` and `motoDays` are injectable
+ * for tests (TRIPPOST-02): an injected table of rentals' days is read against the rows in force; the live table is always read
+ * against the live rows, which are the rows it describes.
+ */
+export function tripCostsLaw(opts: { throwOnFail?: boolean; rows?: readonly TripCosts[]; motoDays?: Readonly<Record<string, TripMotoDays>> } = {}): string[] {
   const violations: string[] = [];
   const rows = opts.rows ?? TRIP_COSTS;
   const ids = new Set<string>();
@@ -94,6 +120,25 @@ export function tripCostsLaw(opts: { throwOnFail?: boolean; rows?: readonly Trip
     ids.add(row.stopId);
     for (const field of ['stay', 'moto', 'flightIn'] as const) violations.push(...lineViolations(who, field, row[field]));
   }
+
+  // TRIPPOST-02 — THE RENTALS' DAYS.
+  const motoDays = opts.motoDays ?? TRIP_MOTO_DAYS;
+  const motoRows = opts.motoDays === undefined ? TRIP_COSTS : rows;
+  for (const [stopId, days] of Object.entries(motoDays)) {
+    const who = `${stopId}: TRIP_MOTO_DAYS`;
+    const row = motoRows.find((r) => r.stopId === stopId);
+    const motoKind: unknown = row === undefined || row.moto === null || typeof row.moto !== 'object' ? undefined : (row.moto as { kind?: unknown }).kind;
+    if (row === undefined) violations.push(`${who} holds a rental's days for a stop that is no row's stop — they are keyed by a costs row's stopId`);
+    else if (motoKind === undefined) violations.push(`${who} holds a rental's days, but the row's motorbike is not a cost line — only a paid motorbike has days`);
+    else if (motoKind !== 'paid') violations.push(`${who} holds a rental's days, but the row's motorbike is ${String(motoKind)} — only a paid motorbike has days`);
+    if (days === null || typeof days !== 'object' || keysOf(days) !== 'from,to') {
+      violations.push(`${who} keys are [${days !== null && typeof days === 'object' ? Object.keys(days).join(', ') : String(days)}] — a rental's days are exactly from, to`);
+      continue;
+    }
+    if (!isIso(days.from)) violations.push(`${who} from "${String(days.from)}" is not YYYY-MM-DD`);
+    if (!isIso(days.to)) violations.push(`${who} to "${String(days.to)}" is not YYYY-MM-DD`);
+    if (isIso(days.from) && isIso(days.to) && days.from >= days.to) violations.push(`${who} from ${days.from} is not before its to ${days.to}`);
+  }
   if (violations.length && opts.throwOnFail !== false) throw new TripCostsLawError(`TRIP COSTS LAW failed:\n  ${violations.join('\n  ')}`);
   return violations;
 }
@@ -101,6 +146,12 @@ export function tripCostsLaw(opts: { throwOnFail?: boolean; rows?: readonly Trip
 /** A stop's costs — or null for a stop that has no row (the build refuses that for every WAS_HERE stop). */
 export function costsOf(stopId: string): TripCosts | null {
   return TRIP_COSTS.find((c) => c.stopId === stopId) ?? null;
+}
+
+/** TRIPPOST-02: a stop's rental days — or null for a stop whose rental's days are not in his log, or that had no rental. */
+export function motoDaysOf(stopId: string): TripMotoDays | null {
+  const found = Object.entries(TRIP_MOTO_DAYS).find(([id]) => id === stopId);
+  return found === undefined ? null : found[1];
 }
 
 tripCostsLaw();

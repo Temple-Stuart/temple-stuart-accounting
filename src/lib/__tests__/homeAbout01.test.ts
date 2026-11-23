@@ -15,7 +15,7 @@
  *      port reads all eleven and nothing else but the two font variables; no token is new ("New with this section: none");
  *   T3 the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for the five differences
  *      named there; no hex, no rgb value typed, no gradient, no border on a quote; every class behind the prefix and the section's
- *      own; it stands directly under the chip strip's rules and above the Travel Marketplace section's (HOME-TRAVEL-01), then the
+ *      own; it stands under the chip strip's rules with the stop page's port between (TRIPPOST-02), and above the Travel Marketplace section's (HOME-TRAVEL-01), then the
  *      Professional Services section's; nothing outside it reaches the section — not by its classes, its id or the elements it draws;
  *   T4 the markup — the section's render is the reference's section, token for token (classes behind the house prefix, attributes
  *      in any order), but for the heading's class: the act headings' type, the one What We Do's h2 wears in Landing.tsx — and, since HOME-ABOUT-02 (2026-11-15), quote 2's words, Alex's new first sentence in front of the words the reference draws; every
@@ -289,15 +289,15 @@ test('T3 the section\'s stylesheet in globals.css is the reference\'s, declarati
   // every variable it reads is declared — the fonts by the layout
   const root = rootOf(code(GLOBALS));
   for (const v of new Set([...text.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]))) assert.ok(root.has(v) || v === '--font-sans' || v === '--font-mono', `${v} is declared`);
-  // where it stands: directly under the chip strip's rules — nothing between but comments — then the Travel Marketplace section's port, the
-  // Professional Services section's and the hero's. HOME-TRAVEL-01 (2026-11-12) landed first in the seat this brief named, under the chip strip and
-  // above HOME-SERVICES-01's header; its port runs from its own first rule to HOME-SERVICES-01's (homeTravel01.test.ts), so this one stands above
-  // it. Until then the last line read: css.indexOf('.ts-ps {') > at && css.indexOf('.ts-hero {') > at ('above the Professional Services
-  // section's port, and the hero's').
+  // where it stands: under the chip strip's rules, the stop page's port between them and this one (TRIPPOST-02, ruling i: directly under them until
+  // then) — nothing at either seam but comments — then the Travel Marketplace section's port, the Professional Services section's and the hero's.
+  // HOME-TRAVEL-01 (2026-11-12) landed first in the seat this brief named, under the chip strip and above HOME-SERVICES-01's header; its port runs from
+  // its own first rule to HOME-SERVICES-01's (homeTravel01.test.ts), so this one stands above it. Until then the line after the seams read:
+  // css.indexOf('.ts-ps {') > at && css.indexOf('.ts-hero {') > at ('above the Professional Services section's port, and the hero's').
   const css = code(GLOBALS);
   const at = css.indexOf(PORT_OPEN);
   assert.equal(count(css, PORT_OPEN), 1, 'one port');
-  assert.match(css.slice(css.lastIndexOf('.ts-chipfade'), at), /^\.ts-chipfade \{[^{}]*\}\s*\}\s*$/, 'directly under the chip strip\'s last rule (its @media from 1024px), comments between and nothing else');
+  assert.match(css.slice(css.lastIndexOf('.ts-chipfade', at), css.indexOf('.ts-post {')), /^\.ts-chipfade \{[^{}]*\}\s*\}\s*$/, 'the chip strip\'s last rule (its @media from 1024px), then the stop page\'s port: comments between and nothing else'); assert.match(css.slice(css.lastIndexOf('.ts-post', at), at), /^\.ts-post-pager__card \{[^{}]*\}\s*\}\s*$/, 'the stop page\'s last rule (its reduced-motion @media), then this port: comments between and nothing else'); // TRIPPOST-02 (ruling i): both seams on this line. Until then: assert.match(css.slice(css.lastIndexOf('.ts-chipfade'), at), /^\.ts-chipfade \{[^{}]*\}\s*\}\s*$/, 'directly under the chip strip\'s last rule (its @media from 1024px), comments between and nothing else');
   assert.ok(css.indexOf(NEXT_PORT) > at && css.indexOf('.ts-ps {') > css.indexOf(NEXT_PORT) && css.indexOf('.ts-hero {') > css.indexOf('.ts-ps {'), 'the chip strip → this port → Travel Marketplace → Professional Services → the hero');
   // nothing outside it names its classes, reaches its id, or reaches the elements it draws
   const outside = css.slice(0, at) + css.slice(css.indexOf(NEXT_PORT));

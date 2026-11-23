@@ -30,12 +30,12 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { code } from '../sourceText';
 import { WAS_HERE, type WasHereRow } from '../wasHere';
-import { onPill, stayWords } from '../wasHereWords';
+import { onPill, stayWords, stopEventLine, stopEventPlace } from '../wasHereWords'; // TRIPPOST-02 (m2): an event's line and place, each drawn. Until then: import { onPill, stayWords } from '../wasHereWords';
 import { existsSync } from 'node:fs';
 import { experienceWindowLine, shortDayWords, weekdayWords } from '../experienceWords';
 import { EXPERIENCES, type Experience } from '../experiences';
 import { TRIP_POSTS, TRIP_POST_FIELDS, TripPostsLawError, postOf, tripPostsLaw, type TripPost } from '../tripPosts';
-import { TRIP_COSTS, TRIP_COST_FIELDS, TripCostsLawError, costsOf, tripCostsLaw, type TripCosts } from '../tripCosts';
+import { TRIP_COSTS, TRIP_COST_FIELDS, TripCostsLawError, costsOf, motoDaysOf, tripCostsLaw, type TripCosts } from '../tripCosts'; import { stopsAround } from '../tripPostPageWords'; // TRIPPOST-02 (m4): the renders' three new props. Until then: import { TRIP_COSTS, TRIP_COST_FIELDS, TripCostsLawError, costsOf, tripCostsLaw, type TripCosts } from '../tripCosts';
 import {
   NOT_APPLICABLE, NOT_IN_LOG, STOP_COST_LABELS, UNWRITTEN_COST_NOTE, bookLine, chipLabel, costRows, dayLabel, postEyebrow, postMeta, stopCostRows, stopHeading, stopNumber,
   tripPostHref, unwrittenLine, weekCount, weekEyebrow, writtenLine,
@@ -95,7 +95,7 @@ const FIX: TripPost = {
     { title: 'Arriving', days: [{ date: '2026-09-01', story: 'Landed.', chips: [{ kind: 'brunch', value: 'A café' }, { kind: 'dinner', value: 'A tasca' }] }] },
     { title: 'Leaving', days: [{ date: '2026-09-08', story: 'Left.', chips: [] }] },
   ],
-  picks: [{ heading: 'Food', items: ['Pastel de nata'] }], writtenOn: '2026-09-21',
+  picks: [{ heading: 'Food', items: ['Pastel de nata'] }], writtenOn: '2026-09-21', routine: null, feature: null, // TRIPPOST-02 (m5): a post carries its day and its favorite, none here. Until then: picks: [{ heading: 'Food', items: ['Pastel de nata'] }], writtenOn: '2026-09-21',
 };
 const postsOver = (...posts: TripPost[]) => tripPostsLaw({ throwOnFail: false, posts });
 const refusesPost = (post: TripPost, words: string) => {
@@ -113,7 +113,7 @@ test('T1 the live post and costs pass their laws; each law throws by default; th
   assert.deepEqual(tripCostsLaw({ throwOnFail: false }), []);
   assert.throws(() => tripCostsLaw({ rows: [{ ...COSTS, stopId: '' }] }), TripCostsLawError);
   assert.deepEqual([...TRIP_COST_FIELDS], ['stopId', 'stay', 'moto', 'flightIn']);
-  assert.deepEqual([...TRIP_POST_FIELDS], ['stopId', 'title', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn'], 'TRIPCARDS-01: the title moved in from the card leaf');
+  assert.deepEqual([...TRIP_POST_FIELDS], ['stopId', 'title', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn', 'routine', 'feature'], 'TRIPCARDS-01: the title moved in from the card leaf; TRIPPOST-02: the day and the favorite joined it'); // TRIPPOST-02 (m5): twelve fields. Until then: assert.deepEqual([...TRIP_POST_FIELDS], ['stopId', 'title', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn'], 'TRIPCARDS-01: the title moved in from the card leaf');
   assert.equal(existsSync(CARDS), false, 'TRIPCARDS-01: a card shows only the stop and its costs — the card leaf left with the post block');
 });
 
@@ -136,8 +136,8 @@ test('T1 every costs refusal, by name (TRIPCARDS-01)', () => {
 
 test('T1 every post refusal, by name', () => {
   refusesPost({ ...FIX, stopId: '' }, 'empty stopId');
-  refusesPost({ ...FIX, extra: 1 } as unknown as TripPost, 'a post carries exactly the ten ruled fields');
-  refusesPost(Object.fromEntries(Object.entries(FIX).filter(([k]) => k !== 'title')) as unknown as TripPost, 'a post carries exactly the ten ruled fields');
+  refusesPost({ ...FIX, extra: 1 } as unknown as TripPost, 'a post carries exactly the twelve ruled fields'); // TRIPPOST-02 (m5). Until then: refusesPost({ ...FIX, extra: 1 } as unknown as TripPost, 'a post carries exactly the ten ruled fields');
+  refusesPost(Object.fromEntries(Object.entries(FIX).filter(([k]) => k !== 'title')) as unknown as TripPost, 'a post carries exactly the twelve ruled fields'); // TRIPPOST-02 (m5). Until then: refusesPost(Object.fromEntries(Object.entries(FIX).filter(([k]) => k !== 'title')) as unknown as TripPost, 'a post carries exactly the ten ruled fields');
   refusesPost({ ...FIX, title: ' ' }, 'empty title');
   assert.ok(postsOver(FIX, FIX).some((l) => l.includes('duplicate stopId')));
   refusesPost({ ...FIX, dek: '' }, 'empty dek');
@@ -282,7 +282,7 @@ test('T3 the words and the date module read no clock and no locale; the words im
 // ── T4 · THE VIEW, RENDERED ──────────────────────────────────────────────────
 
 test('T4 the post rendered: the back link, the title, the photo, all thirty stories once, four weeks with only the first open, 77 chips, the three event links, the band, the order', () => {
-  const page = renderToStaticMarkup(React.createElement(TripPostView, { row: ROW, costs: COSTS, post: POST, event: null, stop: stopNumber(WAS_HERE, ID) }));
+  const page = renderToStaticMarkup(React.createElement(TripPostView, { row: ROW, costs: COSTS, post: POST, event: null, stop: stopNumber(WAS_HERE, ID), motoDays: motoDaysOf(ID), stops: WAS_HERE.length, around: stopsAround(WAS_HERE, ID) })); // TRIPPOST-02 (m4). Until then: const page = renderToStaticMarkup(React.createElement(TripPostView, { row: ROW, costs: COSTS, post: POST, event: null, stop: stopNumber(WAS_HERE, ID) }));
   assert.match(page, /data-trip-post-kind="written"/);
   assert.doesNotMatch(page, /data-trip-post-section="(line|event|did|learned)"/, 'Canggu holds no line, no event and no lists of its own — its post holds its story');
   assert.equal(POST_BACK_HREF, '/#my-trip');
@@ -294,16 +294,16 @@ test('T4 the post rendered: the back link, the title, the photo, all thirty stor
   assert.ok(page.includes('>$837.20<') && page.includes('>$131.79<'));
   assert.doesNotMatch(page, /data-trip-post-unwritten/);
   for (const d of days(POST)) assert.equal(count(page, html(d.story)), 1, `${d.date}: its story, once`);
-  assert.equal(count(page, '<details'), 4);
-  assert.equal(count(page, ' open=""'), 1);
-  assert.ok(pos(page, ' open=""') < pos(page, 'data-trip-post-week="2"'), 'the first week is the open one');
-  assert.match(page, /<details class="[^"]*" open="" data-trip-post-week="1">/);
-  assert.deepEqual([...page.matchAll(/data-trip-post-count="true">(\d+ days?) · /g)].map((m) => m[1]), ['7 days', '7 days', '7 days', '9 days']);
+  assert.equal(count(page, '<details'), 0, 'no fold-outs: the month is a journal'); // TRIPPOST-02 (m1). Until then: assert.equal(count(page, '<details'), 4);
+  assert.equal(count(page, ' hidden=""'), 29, 'thirty days in the page, 29 of them hidden'); // TRIPPOST-02 (m1). Until then: assert.equal(count(page, ' open=""'), 1);
+  assert.match(page, /<div class="[^"]*" data-trip-post-day="2026-07-01">/, 'the first day is the one shown'); // TRIPPOST-02 (m1). Until then: assert.ok(pos(page, ' open=""') < pos(page, 'data-trip-post-week="2"'), 'the first week is the open one');
+  assert.deepEqual([...page.matchAll(/<button type="button" class="[^"]*" aria-pressed="(true|false)" data-trip-post-week="(\d+)" data-trip-post-pick="([^"]+)">/g)].map((m) => [m[1], m[2], m[3]]), [['true', '1', '2026-07-01'], ['false', '2', '2026-07-08'], ['false', '3', '2026-07-15'], ['false', '4', '2026-07-22']], 'four week buttons, each naming its first day; the first pressed'); // TRIPPOST-02 (m1). Until then: assert.match(page, /<details class="[^"]*" open="" data-trip-post-week="1">/);
+  assert.match(page, /<button type="button" class="[^"]*" aria-label="Wed Jul 1" aria-pressed="true" data-trip-post-pick="2026-07-01">01<\/button>/, 'the first day, pressed'); // TRIPPOST-02 (m1). Until then: assert.deepEqual([...page.matchAll(/data-trip-post-count="true">(\d+ days?) · /g)].map((m) => m[1]), ['7 days', '7 days', '7 days', '9 days']);
   assert.equal(count(page, 'data-trip-post-chip='), 77);
   assert.equal(count(page, 'data-trip-post-day='), 30);
   assert.ok(page.includes('>Wed Jul 1<') && page.includes('>Thu Jul 30<'));
   const links = [...page.matchAll(/<a href="([^"]+)" rel="noopener" target="_blank" class="[^"]*" data-trip-post-event="[^"]*">([^<]*)<\/a>/g)].map((m) => [m[1], m[2]]);
-  assert.deepEqual(links, ROW.events.map((ev) => [html(ev.sourceUrl), html(onPill(ev))]));
+  assert.deepEqual(links, ROW.events.map((ev) => [html(ev.sourceUrl), 'Source ↗'])); for (const ev of ROW.events) { for (const part of [stopEventLine(ev), ev.name, stopEventPlace(ev)]) assert.ok(page.includes(`>${html(part)}<`), `${part}: drawn`); assert.ok(!page.includes(html(onPill(ev))), 'no longer one line in a pill'); } // TRIPPOST-02 (m2). Until then: assert.deepEqual(links, ROW.events.map((ev) => [html(ev.sourceUrl), html(onPill(ev))]));
   assert.equal(links.length, 3);
   // TRIPPHOTO-01 (2026-11-05): the stop's photo under the header — Alex's own, its credit under it.
   assert.match(page, /<figure class="[^"]*" data-trip-post-section="photo"><img src="\/was-here\/canggu-2026-07\.jpg" alt="Sunset at Canggu: the sun sinking into a low cloud over the sea, a surfer in silhouette riding a wave" class="[^"]*"\/><figcaption class="[^"]*">Photo: Alex Stuart<\/figcaption><\/figure>/);
@@ -312,14 +312,14 @@ test('T4 the post rendered: the back link, the title, the photo, all thirty stor
   assert.match(page, /<a href="\/#demo" class="[^"]*">Book the stay and the flight<\/a>/);
   assert.ok(page.includes('>Going to Canggu, Bali? Book the stay and the flight here.<'));
   assert.ok(page.includes('>Written Nov 5, 2026<'));
-  const order = ['data-trip-post-back', 'data-trip-post-section="header"', 'data-trip-post-section="short"', 'data-trip-post-section="differently"', 'data-trip-post-section="cost"', 'data-trip-post-section="days"', 'data-trip-post-section="on"', 'data-trip-post-section="picks"', 'data-trip-post-section="book"', 'data-trip-post-section="written"'];
+  const order = ['data-trip-post-back', 'data-trip-post-section="header"', 'data-trip-post-section="photo"', 'data-trip-post-section="tiles"', 'data-trip-post-section="tabs"', 'data-trip-post-section="short"', 'data-trip-post-section="routine"', 'data-trip-post-section="picks"', 'data-trip-post-section="cost"', 'data-trip-post-section="days"', 'data-trip-post-section="differently"', 'data-trip-post-section="on"', 'data-trip-post-section="pager"', 'data-trip-post-section="book"', 'data-trip-post-section="written"']; // TRIPPOST-02 (m3). Until then: const order = ['data-trip-post-back', 'data-trip-post-section="header"', 'data-trip-post-section="short"', 'data-trip-post-section="differently"', 'data-trip-post-section="cost"', 'data-trip-post-section="days"', 'data-trip-post-section="on"', 'data-trip-post-section="picks"', 'data-trip-post-section="book"', 'data-trip-post-section="written"'];
   const at = order.map((n) => pos(page, n));
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'the sections, top to bottom');
   assert.match(page, /Ice cream was a struggle\./, 'the Jul 9 story renders on the post page');
 });
 
 test('T4 a stop not written up yet: the place as the h1, the dates, the line that says which, the stop\'s three costs, what was on, the band — and none of a post\'s sections (TRIPCARDS-01)', () => {
-  const render = (id: string) => renderToStaticMarkup(React.createElement(TripPostView, { row: rowOf(id), costs: costsFor(id), post: null, event: eventFor(id), stop: stopNumber(WAS_HERE, id) }));
+  const render = (id: string) => renderToStaticMarkup(React.createElement(TripPostView, { row: rowOf(id), costs: costsFor(id), post: null, event: eventFor(id), stop: stopNumber(WAS_HERE, id), motoDays: motoDaysOf(id), stops: WAS_HERE.length, around: stopsAround(WAS_HERE, id) })); // TRIPPOST-02 (m4). Until then: const render = (id: string) => renderToStaticMarkup(React.createElement(TripPostView, { row: rowOf(id), costs: costsFor(id), post: null, event: eventFor(id), stop: stopNumber(WAS_HERE, id) }));
   const danang = render('danang-2026-08');
   assert.match(danang, /data-trip-post-kind="stop"/);
   assert.match(danang, /<h1 class="[^"]*">Da Nang \/ Hoi An, Vietnam<\/h1>/);
@@ -350,7 +350,7 @@ test('T4 a stop not written up yet: the place as the h1, the dates, the line tha
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'header → photo → his line → the event → the costs → the band');
   // A stop holding both lists shows DID (joined) and LEARNED (a paragraph each) after its line — never an empty eyebrow.
   const lisbon: WasHereRow = { ...rowOf('danang-2026-08'), id: 'lisbon-2026', city: 'Lisbon', country: 'Portugal', countryCode: 'PT', start: '2026-09-01', end: '2026-09-20', line: 'Three weeks of pastel de nata.', image: null, events: [], did: ['the 28 tram', 'Belém by bike'], learned: ['Book the tram early.', 'Then the pastel.'] };
-  const fixture = renderToStaticMarkup(React.createElement(TripPostView, { row: lisbon, costs: { ...COSTS, stopId: 'lisbon-2026' }, post: null, event: null, stop: 1 }));
+  const fixture = renderToStaticMarkup(React.createElement(TripPostView, { row: lisbon, costs: { ...COSTS, stopId: 'lisbon-2026' }, post: null, event: null, stop: 1, motoDays: null, stops: 1, around: { before: null, after: null } })); // TRIPPOST-02 (m4): the fixture has no stops around it. Until then: const fixture = renderToStaticMarkup(React.createElement(TripPostView, { row: lisbon, costs: { ...COSTS, stopId: 'lisbon-2026' }, post: null, event: null, stop: 1 }));
   assert.match(fixture, /data-trip-post-section="did"><p class="[^"]*">DID<\/p><p class="[^"]*">the 28 tram · Belém by bike<\/p><\/section>/);
   assert.match(fixture, /data-trip-post-section="learned"><p class="[^"]*">LEARNED<\/p><p class="[^"]*">Book the tram early\.<\/p><p class="[^"]*">Then the pastel\.<\/p><\/section>/);
   const lines = ['data-trip-post-section="line"', 'data-trip-post-section="did"', 'data-trip-post-section="learned"', 'data-trip-post-section="cost"'].map((n) => pos(fixture, n));

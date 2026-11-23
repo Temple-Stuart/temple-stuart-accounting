@@ -5,9 +5,9 @@ import LandingFooter from '@/components/landing/LandingFooter';
 import TripPostView from '@/components/trip/TripPostView';
 import { WAS_HERE, type WasHereRow } from '@/lib/wasHere';
 import { postOf, type TripPost } from '@/lib/tripPosts';
-import { costsOf, type TripCosts } from '@/lib/tripCosts';
+import { costsOf, motoDaysOf, type TripCosts } from '@/lib/tripCosts';
 import { EXPERIENCES, type Experience } from '@/lib/experiences';
-import { stopHeading, stopNumber } from '@/lib/tripPostWords';
+import { stopHeading, stopNumber } from '@/lib/tripPostWords'; import { stopsAround } from '@/lib/tripPostPageWords';
 
 /**
  * /my-trip/<stop id> (TRIPPOST-01, Alex, 2026-11-05) — one stop's page, opened from that stop's
@@ -52,6 +52,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title, description, openGraph: { title, description, type: 'article' } };
 }
 
+/**
+ * TRIPPOST-02 (Alex, 2026-11-23; ruling c): the view takes three more, each resolved here as the others are — the rental's days
+ * (src/lib/tripCosts.ts, or null), how many stops the log holds, and the stop before and the stop after it, from the footer's own
+ * list (src/lib/tripPostPageWords.ts stopsAround), so the two never disagree.
+ */
 export default async function TripPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const entry = entryOf(id);
@@ -60,7 +65,7 @@ export default async function TripPostPage({ params }: { params: Promise<{ id: s
     <div className="min-h-screen bg-bg-terminal text-text-primary">
       <LandingHeader />
       <main data-trip-post-page>
-        <TripPostView row={entry.row} costs={entry.costs} post={entry.post} event={entry.event} stop={stopNumber(WAS_HERE, id)} />
+        <TripPostView row={entry.row} costs={entry.costs} post={entry.post} event={entry.event} stop={stopNumber(WAS_HERE, id)} motoDays={motoDaysOf(id)} stops={WAS_HERE.length} around={stopsAround(WAS_HERE, id)} />
       </main>
       <LandingFooter />
     </div>

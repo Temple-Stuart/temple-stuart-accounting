@@ -17,7 +17,7 @@
  * and "no post body ships in the home page's JavaScript" above are history.
  *
  * THE SHAPE. Every post is exactly { stopId, title, dek, short, lessons, costs, costNote, weeks,
- * picks, writtenOn }:
+ * picks, writtenOn, routine, feature } (the last two TRIPPOST-02's):
  *   · stopId names a WAS_HERE row (the build checks it);
  *   · title is the post's title — its page's h1;
  *   · dek is the line under the title;
@@ -31,12 +31,19 @@
  *   · weeks — THE MONTH, DAY BY DAY — exactly { title, days } each; a day is exactly { date,
  *     story, chips }, a chip exactly { kind, value }, kind one of TRIP_POST_CHIP_KINDS;
  *   · picks — MY PICKS — exactly { heading, items } each;
- *   · writtenOn — the day the post was written, 'YYYY-MM-DD'.
+ *   · writtenOn — the day the post was written, 'YYYY-MM-DD';
+ *   · routine — TRIPPOST-02 (Alex, 2026-11-23) — the day he aims for, or null: exactly { blocks,
+ *     cards }; a block exactly { kind, hours }, kind one of TRIP_POST_ROUTINE_KINDS and hours
+ *     whole, the blocks in clock order and 24 hours in all; a card exactly { label, title, text };
+ *   · feature — TRIPPOST-02 — his favorite with a photo, or null: exactly { short, day, line,
+ *     image } — the label of the short version's line it is, the day it happened, his words from
+ *     that day's story letter for letter, and the photo, exactly { src, alt, credit }.
+ * The takeaway is the first lesson's lead, by rule: no field holds it (TRIPPOST-02).
  *
  * THE LAW (module scope; re-run at build by scripts/assert-tool-registry.ts, which adds what
  * only it can see — every post's stop id is a WAS_HERE id, and every day falls inside its
  * stop's stay). It refuses by name: an empty or duplicate stopId; a post whose keys are not
- * exactly the ten; an empty title, dek or costNote; writtenOn not
+ * exactly the twelve (the ten until TRIPPOST-02); an empty title, dek or costNote; writtenOn not
  * 'YYYY-MM-DD'; no short entries, or an empty label or value; no lessons, or an empty lead or
  * rest; a cost with an empty what or detail, or an amountCents neither null nor a positive safe
  * integer; no weeks; a week with an empty title or no days; a day date not 'YYYY-MM-DD'; day
@@ -44,6 +51,15 @@
  * writtenOn; an empty story; a chip kind not one of the four; an empty chip value; two chips of
  * one kind on one day; no picks, an empty heading, or a heading with no items or an empty item;
  * and any nested entry whose keys are not exactly its ruled ones. No clock anywhere.
+ * TRIPPOST-02 adds, by name — the routine: keys that are not exactly blocks, cards; no blocks; a
+ * block whose keys are not exactly kind, hours; a kind not one of the five; hours that are not a
+ * positive whole number; hours that do not come to 24; no cards; a card whose keys are not exactly
+ * label, title, text, or with one of them empty. The feature: keys that are not exactly short, day,
+ * line, image; a short that is no line of the short version; a day that is no day of the post; a
+ * line not found in that day's story, letter for letter (an empty line is not found); an image
+ * whose keys are not exactly src, alt, credit, or with one of them empty. The build adds what only
+ * it can see: the photo is /was-here/<slug>.jpg or .webp, on disk under public/, 400 KB at most,
+ * and within 1% of 3 : 2 by its own header.
  */
 
 export type TripPostChipKind = 'brunch' | 'dinner' | 'activity' | 'entertainment';
@@ -89,6 +105,46 @@ export interface TripPostPick {
   items: string[];
 }
 
+/** TRIPPOST-02: the five kinds a day's hours are spent on. */
+export type TripPostRoutineKind = 'activity' | 'meals' | 'focus' | 'entertainment' | 'sleep';
+export const TRIP_POST_ROUTINE_KINDS: readonly TripPostRoutineKind[] = ['activity', 'meals', 'focus', 'entertainment', 'sleep'];
+
+export interface TripPostRoutineBlock {
+  kind: TripPostRoutineKind;
+  /** Whole hours. */
+  hours: number;
+}
+
+export interface TripPostRoutineCard {
+  label: string;
+  title: string;
+  text: string;
+}
+
+/** TRIPPOST-02: the day he aims for — its blocks in clock order, 24 hours in all, and his cards. */
+export interface TripPostRoutine {
+  blocks: TripPostRoutineBlock[];
+  cards: TripPostRoutineCard[];
+}
+
+export interface TripPostFeatureImage {
+  /** /was-here/<slug>.jpg or .webp — the build holds it to the stop photos' law. */
+  src: string;
+  alt: string;
+  credit: string;
+}
+
+/** TRIPPOST-02: his favorite with a photo. */
+export interface TripPostFeature {
+  /** The label of the short version's line it is. */
+  short: string;
+  /** 'YYYY-MM-DD' — a day of the post. */
+  day: string;
+  /** His words from that day's story, letter for letter. */
+  line: string;
+  image: TripPostFeatureImage;
+}
+
 export interface TripPost {
   /** A WAS_HERE id. */
   stopId: string;
@@ -103,10 +159,14 @@ export interface TripPost {
   picks: TripPostPick[];
   /** 'YYYY-MM-DD'. */
   writtenOn: string;
+  /** TRIPPOST-02: the day he aims for, or null. */
+  routine: TripPostRoutine | null;
+  /** TRIPPOST-02: his favorite with a photo, or null. */
+  feature: TripPostFeature | null;
 }
 
-/** The ten keys every post carries, in the ruled order. */
-export const TRIP_POST_FIELDS = ['stopId', 'title', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn'] as const;
+/** The twelve keys every post carries, in the ruled order (TRIPPOST-02 added the last two). */
+export const TRIP_POST_FIELDS = ['stopId', 'title', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn', 'routine', 'feature'] as const;
 
 export const TRIP_POSTS: readonly TripPost[] = [
   {
@@ -185,6 +245,28 @@ export const TRIP_POSTS: readonly TripPost[] = [
       { heading: 'Practical', items: ['March Wash Laundry', 'Pepito Market', 'Nyoman Motorbike Rental'] },
     ],
     writtenOn: '2026-11-05',
+    // TRIPPOST-02 (Alex, 2026-11-23 12:52, on the board: the work card is his focus): the day, as approved.
+    routine: {
+      blocks: [
+        { kind: 'activity', hours: 2 },
+        { kind: 'meals', hours: 1 },
+        { kind: 'focus', hours: 8 },
+        { kind: 'meals', hours: 1 },
+        { kind: 'entertainment', hours: 4 },
+        { kind: 'sleep', hours: 8 },
+      ],
+      cards: [
+        { label: 'The focus', title: 'Temple Stuart', text: 'Product development, marketing, professional services, and building the tools I use to manage the trip.' },
+        { label: 'The life', title: 'Beyond the laptop', text: 'Training, surf, cafes, local food, sunsets, social experiences, and exploring wherever I happen to be.' },
+      ],
+    },
+    // TRIPPOST-02: his favorite with a photo — the Uluwatu day. The photo is the Uluwatu stop's for now, with that photo's own alt and credit; it keeps its file when that stop gets its own.
+    feature: {
+      short: 'Best day',
+      day: '2026-07-05',
+      line: 'I’m already planning a trip back just for Uluwatu.',
+      image: { src: '/was-here/uluwatu-2026-11.jpg', alt: 'A dirt road on the cliffs at Uluwatu, a scooter heading down it toward the sea, a hand-painted parking sign in the scrub and waves breaking on the reef', credit: 'Photo: Alex Stuart' },
+    },
   },
 ];
 
@@ -210,7 +292,7 @@ export function tripPostsLaw(opts: { throwOnFail?: boolean; posts?: readonly Tri
   for (const post of posts) {
     const who = nonEmpty(post.stopId) ? post.stopId : '(no stopId)';
     if (!nonEmpty(post.stopId)) violations.push(`${who}: empty stopId`);
-    if (!keysAre(post as unknown as Record<string, unknown>, TRIP_POST_FIELDS)) violations.push(`${who}: keys are [${Object.keys(post).join(', ')}] — a post carries exactly the ten ruled fields`);
+    if (!keysAre(post as unknown as Record<string, unknown>, TRIP_POST_FIELDS)) violations.push(`${who}: keys are [${Object.keys(post).join(', ')}] — a post carries exactly the twelve ruled fields`);
     if (ids.has(post.stopId)) violations.push(`${who}: duplicate stopId`);
     ids.add(post.stopId);
     if (!nonEmpty(post.title)) violations.push(`${who}: empty title`);
@@ -286,6 +368,48 @@ export function tripPostsLaw(opts: { throwOnFail?: boolean; posts?: readonly Tri
       if (!Array.isArray(p.items) || p.items.length === 0) violations.push(`${who}: picks[${i}] has no items`);
       else p.items.forEach((item, j) => { if (!nonEmpty(item)) violations.push(`${who}: picks[${i}] item ${j} is empty`); });
     });
+
+    // TRIPPOST-02 — THE DAY HE AIMS FOR, or null. The hours are summed only when every block's are whole.
+    if (post.routine !== null) {
+      const routine: unknown = post.routine;
+      if (!isObject(routine) || !keysAre(routine, ['blocks', 'cards'])) violations.push(`${who}: routine keys are not exactly blocks, cards`);
+      else {
+        if (!Array.isArray(routine.blocks) || routine.blocks.length === 0) violations.push(`${who}: routine has no blocks`);
+        else {
+          let hours = 0;
+          let whole = true;
+          routine.blocks.forEach((block: unknown, i: number) => {
+            if (!isObject(block) || !keysAre(block, ['kind', 'hours'])) { violations.push(`${who}: routine.blocks[${i}] keys are not exactly kind, hours`); whole = false; return; }
+            if (!(TRIP_POST_ROUTINE_KINDS as readonly unknown[]).includes(block.kind)) violations.push(`${who}: routine.blocks[${i}] kind "${String(block.kind)}" is not activity | meals | focus | entertainment | sleep`);
+            if (typeof block.hours !== 'number' || !Number.isSafeInteger(block.hours) || block.hours <= 0) { violations.push(`${who}: routine.blocks[${i}] hours ${JSON.stringify(block.hours)} is not a positive whole number`); whole = false; }
+            else hours += block.hours;
+          });
+          if (whole && hours !== 24) violations.push(`${who}: routine hours come to ${hours}, not 24`);
+        }
+        if (!Array.isArray(routine.cards) || routine.cards.length === 0) violations.push(`${who}: routine has no cards`);
+        else routine.cards.forEach((card: unknown, i: number) => {
+          if (!isObject(card) || !keysAre(card, ['label', 'title', 'text'])) { violations.push(`${who}: routine.cards[${i}] keys are not exactly label, title, text`); return; }
+          for (const field of ['label', 'title', 'text'] as const) if (!nonEmpty(card[field])) violations.push(`${who}: routine.cards[${i}] has an empty ${field}`);
+        });
+      }
+    }
+
+    // TRIPPOST-02 — HIS FAVORITE WITH A PHOTO, or null: a line of the short version, a day of the post, his words from that day.
+    if (post.feature !== null) {
+      const feature: unknown = post.feature;
+      if (!isObject(feature) || !keysAre(feature, ['short', 'day', 'line', 'image'])) violations.push(`${who}: feature keys are not exactly short, day, line, image`);
+      else {
+        const labels: unknown[] = Array.isArray(post.short) ? post.short.map((s: unknown) => (isObject(s) ? s.label : undefined)) : [];
+        if (!nonEmpty(feature.short) || !labels.includes(feature.short)) violations.push(`${who}: feature short "${String(feature.short)}" is no line of the short version`);
+        const postDays: unknown[] = Array.isArray(post.weeks) ? post.weeks.flatMap((week: unknown) => (isObject(week) && Array.isArray(week.days) ? week.days : [])) : [];
+        const day = postDays.find((d): d is Record<string, unknown> => isObject(d) && d.date === feature.day);
+        if (!isIso(feature.day) || day === undefined) violations.push(`${who}: feature day "${String(feature.day)}" is no day of the post`);
+        else if (!nonEmpty(feature.line) || typeof day.story !== 'string' || !day.story.includes(feature.line as string)) violations.push(`${who}: feature line is not found in the story of ${feature.day}, letter for letter`);
+        const image = feature.image;
+        if (!isObject(image) || !keysAre(image, ['src', 'alt', 'credit'])) violations.push(`${who}: feature image keys are not exactly src, alt, credit`);
+        else for (const field of ['src', 'alt', 'credit'] as const) if (!nonEmpty(image[field])) violations.push(`${who}: feature image has an empty ${field}`);
+      }
+    }
   }
   if (violations.length && opts.throwOnFail !== false) throw new TripPostsLawError(`TRIP POSTS LAW failed:\n  ${violations.join('\n  ')}`);
   return violations;
