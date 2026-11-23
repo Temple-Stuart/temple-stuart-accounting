@@ -716,7 +716,7 @@ test('T8 the nine photos on disk are 3 : 2 within 1% (within 0.1%, as the README
   assert.equal(photoLine.length, 1, 'one photo line');
   const clause = 'if (existsSync(abs)) violations.push(...photoShapeViolations(row.id, row.image.src, photoBytes(abs)));';
   assert.ok(photoLine[0].indexOf('at most 400 KB (WASHERE-01)`);') < photoLine[0].indexOf(clause), 'the clause follows the 400 KB check on its line');
-  assert.equal(count(code(LAW), 'photoShapeViolations('), 1, 'called once');
+  assert.equal(count(code(LAW), 'photoShapeViolations('), 2, 'called twice: the stop photos on the trip log law\'s photo line, and the posts\' favorite photos on the trip post law\'s line'); // TRIPPOST-02 (2026-11-23): re-pointed by Alex's yes, since ruling h holds the favorite photo to the stop photos' law. Until then: assert.equal(count(code(LAW), 'photoShapeViolations('), 1, 'called once');
   assert.ok(lines.some((l) => l.startsWith("import { WAS_HERE, wasHereLaw } from '../src/lib/wasHere';") && l.includes("import { photoBytes, photoShapeViolations } from '../src/lib/photoSize';")), 'its import rides the trip log\'s import line');
   assert.ok(lines.some((l) => l.includes('with a photo on disk at no more than 400 KB, each within 1% of 3 : 2 by its own header;')), 'the verdict says so');
   // no line moved: the lines other files cite by number still hold what they cite

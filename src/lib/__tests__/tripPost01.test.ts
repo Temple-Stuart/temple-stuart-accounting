@@ -95,7 +95,7 @@ const FIX: TripPost = {
     { title: 'Arriving', days: [{ date: '2026-09-01', story: 'Landed.', chips: [{ kind: 'brunch', value: 'A café' }, { kind: 'dinner', value: 'A tasca' }] }] },
     { title: 'Leaving', days: [{ date: '2026-09-08', story: 'Left.', chips: [] }] },
   ],
-  picks: [{ heading: 'Food', items: ['Pastel de nata'] }], writtenOn: '2026-09-21',
+  picks: [{ heading: 'Food', items: ['Pastel de nata'] }], writtenOn: '2026-09-21', routine: null, feature: null, // TRIPPOST-02 (m5): a post carries its day and its favorite, none here. Until then: picks: [{ heading: 'Food', items: ['Pastel de nata'] }], writtenOn: '2026-09-21',
 };
 const postsOver = (...posts: TripPost[]) => tripPostsLaw({ throwOnFail: false, posts });
 const refusesPost = (post: TripPost, words: string) => {
@@ -113,7 +113,7 @@ test('T1 the live post and costs pass their laws; each law throws by default; th
   assert.deepEqual(tripCostsLaw({ throwOnFail: false }), []);
   assert.throws(() => tripCostsLaw({ rows: [{ ...COSTS, stopId: '' }] }), TripCostsLawError);
   assert.deepEqual([...TRIP_COST_FIELDS], ['stopId', 'stay', 'moto', 'flightIn']);
-  assert.deepEqual([...TRIP_POST_FIELDS], ['stopId', 'title', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn'], 'TRIPCARDS-01: the title moved in from the card leaf');
+  assert.deepEqual([...TRIP_POST_FIELDS], ['stopId', 'title', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn', 'routine', 'feature'], 'TRIPCARDS-01: the title moved in from the card leaf; TRIPPOST-02: the day and the favorite joined it'); // TRIPPOST-02 (m5): twelve fields. Until then: assert.deepEqual([...TRIP_POST_FIELDS], ['stopId', 'title', 'dek', 'short', 'lessons', 'costs', 'costNote', 'weeks', 'picks', 'writtenOn'], 'TRIPCARDS-01: the title moved in from the card leaf');
   assert.equal(existsSync(CARDS), false, 'TRIPCARDS-01: a card shows only the stop and its costs — the card leaf left with the post block');
 });
 
@@ -136,8 +136,8 @@ test('T1 every costs refusal, by name (TRIPCARDS-01)', () => {
 
 test('T1 every post refusal, by name', () => {
   refusesPost({ ...FIX, stopId: '' }, 'empty stopId');
-  refusesPost({ ...FIX, extra: 1 } as unknown as TripPost, 'a post carries exactly the ten ruled fields');
-  refusesPost(Object.fromEntries(Object.entries(FIX).filter(([k]) => k !== 'title')) as unknown as TripPost, 'a post carries exactly the ten ruled fields');
+  refusesPost({ ...FIX, extra: 1 } as unknown as TripPost, 'a post carries exactly the twelve ruled fields'); // TRIPPOST-02 (m5). Until then: refusesPost({ ...FIX, extra: 1 } as unknown as TripPost, 'a post carries exactly the ten ruled fields');
+  refusesPost(Object.fromEntries(Object.entries(FIX).filter(([k]) => k !== 'title')) as unknown as TripPost, 'a post carries exactly the twelve ruled fields'); // TRIPPOST-02 (m5). Until then: refusesPost(Object.fromEntries(Object.entries(FIX).filter(([k]) => k !== 'title')) as unknown as TripPost, 'a post carries exactly the ten ruled fields');
   refusesPost({ ...FIX, title: ' ' }, 'empty title');
   assert.ok(postsOver(FIX, FIX).some((l) => l.includes('duplicate stopId')));
   refusesPost({ ...FIX, dek: '' }, 'empty dek');
