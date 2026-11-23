@@ -19,6 +19,7 @@
  *   numberedEyebrow(n, words)      "01 / The experience"
  *   dayOfWords(n, days)            "Day 1 of 30"
  *   pagerBeforeWords · pagerAfterWords  "← Stop 0" · "Stop 2 →"
+ *   stopsAround(rows, stopId)      the stop before and the stop after, from the footer's own list (ruling d)
  *   eventKindWords(event)          the event block's first line: its category, and its series where it has one
  */
 
@@ -29,7 +30,8 @@ import type { LineFigure, StopFigures } from './tripFigures';
 import { experienceCategoryLabel, type Experience } from './experiences';
 import { dateWords } from './experienceWords';
 import { stayWords, stopWords } from './wasHereWords';
-import { NOT_APPLICABLE, NOT_IN_LOG, STOP_COST_LABELS } from './tripPostWords';
+import { NOT_APPLICABLE, NOT_IN_LOG, STOP_COST_LABELS, tripPostHref } from './tripPostWords';
+import { footerStoryLinks, storyLinkParts } from './footerWords';
 import { functionalMoneyWords } from './books/functionalCurrency';
 
 export class TripPostPageWordsError extends Error {
@@ -300,4 +302,23 @@ export function pagerBeforeWords(stop: string): string {
 /** The stop after: "Stop 2 →". */
 export function pagerAfterWords(stop: string): string {
   return `${stop} →`;
+}
+
+/** A stop beside this one: its stop, its place, and where it opens. */
+export interface StopAround {
+  stop: string;
+  place: string;
+  href: string;
+}
+
+/**
+ * The stop before and the stop after (ruling d), from the footer's own list, so the two never disagree: footerStoryLinks — Stop 0
+ * first, then every stop in trip order — each split by storyLinkParts. This stop is the entry whose href is its page; before it is
+ * the entry before, after it the entry after; the last stop has none after it. A stop the list does not hold is refused by name.
+ */
+export function stopsAround(rows: readonly WasHereRow[], stopId: string): { before: StopAround | null; after: StopAround | null } {
+  const entries: StopAround[] = footerStoryLinks(rows).map((link) => ({ ...storyLinkParts(link.label), href: link.href }));
+  const at = entries.findIndex((e) => e.href === tripPostHref(stopId));
+  if (at === -1) throw new TripPostPageWordsError(`stopsAround: "${stopId}" is not in the footer's story list`);
+  return { before: at > 0 ? entries[at - 1] : null, after: at < entries.length - 1 ? entries[at + 1] : null };
 }

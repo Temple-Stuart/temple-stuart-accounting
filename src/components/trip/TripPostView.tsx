@@ -1,298 +1,377 @@
 /**
- * TripPostView (TRIPPOST-01, Alex, 2026-11-05) — one stop's page, the body of
- * /my-trip/<stop id> (src/app/my-trip/[id]/page.tsx). PURE and server-safe: props in, markup
- * out — no 'use client', no state, no effect, no fetch; the tests render it. Every word of the
- * post comes from src/lib/tripPosts.ts through src/lib/tripPostWords.ts; every word of the stop
- * and its events from src/lib/wasHere.ts through src/lib/wasHereWords.ts; the event it was
- * around from src/lib/experiences.ts through src/lib/experienceWords.ts; what it cost from
- * src/lib/tripCosts.ts — never typed here, the section headings aside.
+ * TripPostView (TRIPPOST-02, Alex, 2026-11-23; TRIPPOST-01 and TRIPCARDS-01, 2026-11-05, before it) — one stop's page, the body of
+ * /my-trip/<stop id> (src/app/my-trip/[id]/page.tsx), drawn in the home page's look for every stop from the handoff:
+ * design-refs/trippost-02/Post-Reference.html, whose markup it is, token for token, its classes behind the house prefix — and the
+ * README beside it. Its stylesheet is that file's, ported into src/app/globals.css (the .ts-post block).
  *
- * TRIPCARDS-01 (Alex, 2026-11-05): EVERY stop has this page, and it holds everything about the
- * stop that its card does not (the card is the stop and what it cost). Two kinds, by whether the
- * stop is written up (a post in tripPosts.ts):
- *   · WRITTEN — the post's title as the h1, its dek, the place and dates; the short version, what
- *     he'd do differently, what it cost (the stop's three, then the post's own), the month day by
- *     day, what was on, his picks, the band, the day it was written;
- *   · NOT WRITTEN YET — the place as the h1, the dates, the line that says which (booked ahead,
- *     or lived and not yet written); what it cost (the stop's three), what was on, the band.
- * Either kind also carries, when the stop holds them: Alex's line, the event the stop was around
- * (its block, as the card once drew it — the window's words with no day in them, so the static
- * page never goes stale), and DID / LEARNED.
- *
- * TOP TO BOTTOM: the back link; the eyebrow, the title, the dek, the meta; the stop's photo when
- * it has one (WasHereSection's figure — no placeholder while it is null); Alex's line; the event;
- * DID; LEARNED; THE SHORT VERSION; WHAT I'D DO DIFFERENTLY; WHAT IT COST; THE MONTH, DAY BY DAY —
- * one native <details> per week, the first open and the rest closed, no state and no script
- * (Tailwind's group-open swaps Open / Close); WHAT WAS ON WHILE I WAS THERE — the stop's own
- * events, each linking its source (none, no section); MY PICKS; the closing band, its button the
- * hero's money-action gold as it stood until HERO-CREST-01 (2026-11-11: the hero's buttons are the crest design's pills now; this one keeps the flat gold — Landing.tsx:518 at 094837a92, the last commit that had it; this note cited :506, its line when BUILTON-01 re-cited it, 2026-11-09: was :511; FOOTER-01, 2026-11-09: was :2100); the day it was written.
- *
- * PAINT: house tokens only, zero new hex, no new font — WasHereSection's TRIP grammar. 44px tap
- * targets. Nothing scrolls sideways at 390px. No emoji, no clock.
+ * ONE COMPONENT, BOTH KINDS (ruling b): a stop written up (its post in src/lib/tripPosts.ts) and a stop not written up yet. A part is
+ * drawn only when the stop holds what it shows; nothing is drawn empty and nothing is a placeholder (README, What changes):
+ *   · the way back and the stop's place among the stops in the log;
+ *   · the head — the eyebrow, the post's title, its dek, the place and the dates; or, not written up, the place as the title, the
+ *     dates and the line that says so — beside the stop's photo, whole (a stop with no photo has no frame);
+ *   · the four figures (src/lib/tripFigures.ts), each with its sum, or why not, in words;
+ *   · what the stop holds of its own: Alex's line, the event it was around (its four lines), DID and LEARNED;
+ *   · written up: the tabs (TripPostTabs.tsx), then the short version, his day, his favorites, what it cost, the journal
+ *     (TripPostJournal.tsx), what he learned and what was on, each numbered by its place;
+ *   · not written up: what it cost and, where it has events, what was on, unnumbered;
+ *   · the stop before and the stop after (the footer's own list), the band, and on a stop written up the day it was written.
+ * PURE and server-safe: props in, markup out. The lit tab and the open day are the two client pieces' own state; nothing else
+ * changes on the page. Every word is read from the home the README's Words table names, and every new one from
+ * src/lib/tripPostPageWords.ts: none is typed here. No clock.
  */
 
+import type { ReactNode } from 'react';
 import type { WasHereRow } from '@/lib/wasHere';
-import type { TripPost } from '@/lib/tripPosts';
-import type { TripCosts } from '@/lib/tripCosts';
-import { experienceCategoryLabel, type Experience } from '@/lib/experiences';
-import { experienceWindowLine } from '@/lib/experienceWords';
-import { listWords, onPill, stayWords } from '@/lib/wasHereWords';
-import { UNWRITTEN_COST_NOTE, bookLine, chipLabel, costRows, dayLabel, postEyebrow, postMeta, stopHeading, unwrittenLine, weekCount, weekEyebrow, writtenLine } from '@/lib/tripPostWords';
+import type { TripPost, TripPostRoutineKind } from '@/lib/tripPosts';
+import type { TripCosts, TripMotoDays } from '@/lib/tripCosts';
+import type { Experience } from '@/lib/experiences';
+import { dateWords, experienceWindowLine, weekdayWords } from '@/lib/experienceWords';
+import { listWords, stayWords, stopEventLine, stopEventPlace } from '@/lib/wasHereWords';
+import { UNWRITTEN_COST_NOTE, bookLine, chipLabel, costRows, dayLabel, postEyebrow, postMeta, stopHeading, unwrittenLine, weekEyebrow, writtenLine } from '@/lib/tripPostWords';
+import { calendarSeats, routineTotals, stopFigures, weekdayDates } from '@/lib/tripFigures';
+import {
+  ALSO_IN_LOG, BREAKDOWN_LABEL, COSTS_INTRO, COSTS_INTRO_SHARED, EARLIER_DAY, FAVORITES_INTRO, JOIN, JOURNAL_INTRO, LATER_DAY, PAGER_LABEL, PER_DAY, READ_THAT_DAY,
+  REST_LABEL, ROUTINE_INTRO, SECTION_WORDS, SHARE_LABEL, SOURCE_WORD, TABS_LABEL, TAKEAWAY_LABEL, TOTAL_NOTE, TripPostPageWordsError, calendarDayWords, dayOfWords,
+  daysWords, eventKindWords, motoDetailWords, numberedEyebrow, pagerAfterWords, pagerBeforeWords, routineBarWords, routineKeyWords, shareNoteWords, splitBarWords,
+  splitRows, stayDetailWords, stopCountWords, tileWords, totalAmountWords, totalLabel, twoDigits, type PostSectionKey, type StopAround,
+} from '@/lib/tripPostPageWords';
+import { functionalMoneyWords } from '@/lib/books/functionalCurrency';
 import { DEMO_ANCHOR, MY_TRIP_ANCHOR } from '@/lib/homeAnchors'; // FOOTER-01 (2026-11-09): the front door's anchors, from their one home
+import TripPostTabs from './TripPostTabs';
+import TripPostJournal, { type JournalDay, type JournalWeek } from './TripPostJournal';
 
 export const POST_BACK = '← Back to my trip';
 export const POST_BACK_HREF = `/#${MY_TRIP_ANCHOR}`;
-export const SHORT_VERSION = 'THE SHORT VERSION';
-export const DIFFERENTLY = "WHAT I'D DO DIFFERENTLY";
-export const WHAT_IT_COST = 'WHAT IT COST';
-export const DAY_BY_DAY = 'THE MONTH, DAY BY DAY';
-export const WHAT_WAS_ON_THERE = 'WHAT WAS ON WHILE I WAS THERE';
-export const MY_PICKS = 'MY PICKS';
 /** TRIPCARDS-01: the stop's two lists, as the card once headed them. */
 export const DID = 'DID';
 export const LEARNED = 'LEARNED';
 export const BOOK_BUTTON = 'Book the stay and the flight';
 /** The booking strip on the front door (Landing.tsx's live demo act, id={DEMO_ANCHOR}). */
 export const BOOK_HREF = `/#${DEMO_ANCHOR}`;
-export const OPEN_WORD = 'Open';
-export const CLOSE_WORD = 'Close';
 
-// THE CLASS GRAMMAR — one const, every string whole, house tokens only (WasHereSection's TRIP idiom).
-const POST = {
-  article: 'max-w-3xl mx-auto px-4 lg:px-8 pt-8 pb-10',
-  back: 'inline-flex min-h-[44px] items-center text-sm text-brand-purple hover:text-brand-purple-hover',
-  eyebrow: 'mt-4 font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  h1: 'mt-3 text-3xl sm:text-4xl font-medium tracking-tight text-brand-purple',
-  dek: 'mt-3 text-base sm:text-lg leading-relaxed text-text-secondary',
-  unwritten: 'mt-4 rounded-lg border border-border-light bg-bg-row px-4 py-3 text-sm text-text-secondary',
-  meta: 'mt-3 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs uppercase tracking-wider text-text-faint',
-  figure: 'mt-6',
-  image: 'aspect-[3/2] w-full rounded object-cover',
-  credit: 'mt-1 font-mono text-[10px] text-text-faint',
-  // TRIPCARDS-01: Alex's line and the event block, in WasHereSection's old card idiom.
-  quote: 'mt-6 text-lg leading-relaxed text-text-primary',
-  event: 'mt-6 rounded-lg border border-border-light bg-bg-row p-4',
-  eventEyebrow: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-amber',
-  eventName: 'mt-1 text-base font-semibold text-text-primary',
-  eventVenue: 'mt-1 text-sm text-text-secondary',
-  eventLine: 'mt-2 font-mono text-xs leading-relaxed text-text-primary',
-  joined: 'mt-1 text-base leading-relaxed text-text-primary',
-  paragraph: 'mt-2 text-base leading-relaxed text-text-primary',
-  card: 'mt-8 rounded-lg border border-border bg-white p-5',
-  section: 'mt-8',
-  sectionEyebrow: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  shortGrid: 'mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 text-base text-text-primary',
-  muted: 'text-text-secondary',
-  lessons: 'mt-3',
-  lesson: 'flex gap-4 border-t border-border-light py-3',
-  lessonNumber: 'w-7 shrink-0 font-mono text-xs text-text-faint pt-1',
-  lessonWords: 'text-base leading-relaxed text-text-primary',
-  lessonLead: 'font-semibold',
-  costRow: 'flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border-light py-3',
-  costWhat: 'text-base font-semibold text-text-primary',
-  costDetail: 'text-sm text-text-secondary',
-  costAmount: 'font-mono text-sm text-text-primary',
-  costNote: 'mt-3 text-xs text-text-muted',
-  week: 'group mt-3 rounded-lg border border-border bg-white px-5',
-  summary: 'flex min-h-[44px] cursor-pointer list-none flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-4 [&::-webkit-details-marker]:hidden',
-  weekEyebrow: 'block font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  weekTitle: 'mt-1 block text-lg font-semibold text-text-primary',
-  weekCount: 'font-mono text-xs uppercase tracking-wider text-brand-purple',
-  openWord: 'group-open:hidden',
-  closeWord: 'hidden group-open:inline',
-  day: 'grid grid-cols-1 gap-x-5 gap-y-2 border-t border-border-light py-4 sm:grid-cols-[7rem_1fr]',
-  dayLabel: 'font-mono text-xs uppercase tracking-wider text-text-faint sm:pt-1',
-  story: 'text-base leading-relaxed text-text-primary',
-  chips: 'mt-2 flex flex-wrap gap-2',
-  chip: 'inline-flex items-baseline gap-2 rounded border border-border bg-bg-row px-3 py-1 text-sm text-text-primary',
-  chipKind: 'font-mono text-[10px] uppercase tracking-wider text-text-faint',
-  pillRow: 'mt-3 flex flex-col gap-2',
-  pill: 'inline-flex min-h-[44px] items-center whitespace-normal break-words rounded border border-border bg-bg-row px-3 py-2 text-left font-mono text-xs leading-snug text-text-primary hover:bg-brand-purple-wash',
-  pick: 'mt-4 first:mt-3',
-  pickHeading: 'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint',
-  pickItems: 'mt-1 text-base leading-relaxed text-text-primary',
-  band: 'mt-2 bg-brand-purple text-white',
-  bandInner: 'max-w-3xl mx-auto px-4 lg:px-8 py-10 flex flex-wrap items-center justify-between gap-4',
-  bandLine: 'text-xl font-medium',
-  // The money-action gold, at 44px — the hero's primary CTA wore these classes until HERO-CREST-01 (2026-11-11), when the hero took the crest design's pills (Landing.tsx:518 at 094837a92, the last commit that had it; this note cited :506, its line when BUILTON-01 re-cited it, 2026-11-09: was :511; FOOTER-01, 2026-11-09: was :2100). This button is unchanged.
-  bandButton: 'inline-flex min-h-[44px] items-center px-6 py-3 bg-brand-gold text-white font-medium hover:bg-brand-gold/90 text-sm text-center',
-  written: 'max-w-3xl mx-auto px-4 lg:px-8 py-6 font-mono text-xs text-text-faint',
-} as const;
+/** Each section's id — what its tab opens — on a stop written up. A stop not written up has no tabs and no ids. */
+const SECTION_IDS: Readonly<Record<PostSectionKey, string>> = {
+  story: 'post-story',
+  routine: 'post-routine',
+  favorites: 'post-favorites',
+  costs: 'post-costs',
+  journal: 'post-journal',
+  learned: 'post-learned',
+  on: 'post-on',
+};
+/** Each section's hook, as the page's tests have read it since TRIPPOST-01. */
+const SECTION_HOOKS: Readonly<Record<PostSectionKey, string>> = {
+  story: 'short',
+  routine: 'routine',
+  favorites: 'picks',
+  costs: 'cost',
+  journal: 'days',
+  learned: 'differently',
+  on: 'on',
+};
+/** The page's order; a written-up stop draws its day only if the post has one, and what was on only if the stop has events. */
+const SECTION_ORDER: readonly PostSectionKey[] = ['story', 'routine', 'favorites', 'costs', 'journal', 'learned', 'on'];
+/** The ink of each part of a bar, and of its dot: a day's kinds, the bookings' three lines. */
+const KIND_INK: Readonly<Record<TripPostRoutineKind, string>> = {
+  activity: 'ts-post-ink--activity',
+  meals: 'ts-post-ink--meals',
+  focus: 'ts-post-ink--focus',
+  entertainment: 'ts-post-ink--entertainment',
+  sleep: 'ts-post-ink--sleep',
+};
+const LINE_INK = { stay: 'ts-post-ink--stay', moto: 'ts-post-ink--moto', flightIn: 'ts-post-ink--flight' } as const;
 
-const two = (n: number): string => (n < 10 ? `0${n}` : String(n));
-
-export default function TripPostView({ row, costs, post, event, stop }: { row: WasHereRow; costs: TripCosts; post: TripPost | null; event: Experience | null; stop: number }) {
-  // The two kinds of page — written up (its post) or not yet.
-  const written = post === null ? null : { post };
+/** A section: its small heading, its heading, its line where it has one, then what it holds. */
+function PostSection({ id, label, first, hook, eyebrow, title, intro, children }: {
+  id: string | null;
+  label: string;
+  first: boolean;
+  hook: string;
+  eyebrow: string;
+  title: string;
+  intro: string | null;
+  children: ReactNode;
+}) {
   return (
-    <div data-trip-post={row.id} data-trip-post-kind={written === null ? 'stop' : 'written'}>
-      <article className={POST.article}>
-        <a href={POST_BACK_HREF} className={POST.back} data-trip-post-back>{POST_BACK}</a>
+    <section id={id === null ? undefined : id} aria-label={label} className={first ? 'ts-post-section ts-post-section--first' : 'ts-post-section'} data-trip-post-section={hook}>
+      <p className="ts-post-section__eyebrow">{eyebrow}</p>
+      <h2 className="ts-post-section__title">{title}</h2>
+      {intro !== null && <p className="ts-post-section__intro">{intro}</p>}
+      {children}
+    </section>
+  );
+}
 
-        {written !== null ? (
-          <header data-trip-post-section="header">
-            <p className={POST.eyebrow}>{postEyebrow(stop)}</p>
-            <h1 className={POST.h1}>{written.post.title}</h1>
-            <p className={POST.dek}>{written.post.dek}</p>
-            <p className={POST.meta}>
-              {postMeta(row).map((part) => <span key={part}>{part}</span>)}
-            </p>
-          </header>
-        ) : (
-          <header data-trip-post-section="header">
-            <p className={POST.eyebrow}>{postEyebrow(stop)}</p>
-            <h1 className={POST.h1}>{stopHeading(row)}</h1>
-            <p className={POST.meta}><span>{stayWords(row)}</span></p>
-            <p className={POST.unwritten} data-trip-post-unwritten>{unwrittenLine(row)}</p>
-          </header>
-        )}
+/** The value of the short version's line a favorite names — refused by name where it names none (the posts law holds it). */
+function shortValueOf(post: TripPost, label: string): string {
+  const line = post.short.find((s) => s.label === label);
+  if (line === undefined) throw new TripPostPageWordsError(`${post.stopId}: its favorite names "${label}", no line of its short version`);
+  return line.value;
+}
 
-        {row.image !== null && (
-          <figure className={POST.figure} data-trip-post-section="photo">
-            {/* A plain <img>, WasHereSection's precedent: a file under public/, served as-is. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={row.image.src} alt={row.image.alt} className={POST.image} />
-            <figcaption className={POST.credit}>{row.image.credit}</figcaption>
-          </figure>
-        )}
+export default function TripPostView({ row, costs, post, event, stop, motoDays, stops, around }: {
+  row: WasHereRow;
+  costs: TripCosts;
+  post: TripPost | null;
+  event: Experience | null;
+  stop: number;
+  /** The rental's days, or null (TRIP_MOTO_DAYS). */
+  motoDays: TripMotoDays | null;
+  /** How many stops the log holds. */
+  stops: number;
+  /** The stop before and the stop after (the footer's own list), each or null. */
+  around: { before: StopAround | null; after: StopAround | null };
+}) {
+  const figures = stopFigures(row, costs, motoDays);
+  const tiles = tileWords(row, figures);
+  const rows = costRows(costs, post);
+  const lines = rows.slice(0, 3);
+  const own = rows.slice(3);
+  const details = [stayDetailWords(figures), motoDetailWords(figures, motoDays), null];
+  const split = figures.dayShareCents === null ? [] : splitRows(figures);
+  const note = post === null ? UNWRITTEN_COST_NOTE : post.costNote;
+  const keys = post === null ? [] : SECTION_ORDER.filter((key) => (key !== 'routine' || post.routine !== null) && (key !== 'on' || row.events.length > 0));
+  const head = (key: PostSectionKey) => ({
+    id: post === null ? null : SECTION_IDS[key],
+    label: SECTION_WORDS[key].tab,
+    first: post !== null && keys[0] === key,
+    hook: SECTION_HOOKS[key],
+    eyebrow: post === null ? SECTION_WORDS[key].eyebrow : numberedEyebrow(keys.indexOf(key) + 1, SECTION_WORDS[key].eyebrow),
+    title: SECTION_WORDS[key].title,
+  });
+  const ownParts = row.line !== null || event !== null || row.did.length > 0 || row.learned.length > 0;
+  const favorite = post === null || post.feature === null ? null : { ...post.feature, value: shortValueOf(post, post.feature.short) };
 
-        {/* TRIPCARDS-01: what the card no longer carries — Alex's line, the event, DID and LEARNED. */}
-        {row.line !== null && <p className={POST.quote} data-trip-post-section="line">{row.line}</p>}
+  // the journal, in the words it is drawn in: every day, its place among the post's days, its week
+  const flatDays = post === null ? [] : post.weeks.flatMap((week, w) => week.days.map((day) => ({ day, week, w })));
+  const dates = flatDays.map(({ day }) => day.date);
+  const journalDays: JournalDay[] = flatDays.map(({ day, week, w }, i) => ({
+    date: day.date,
+    label: dayLabel(day.date),
+    seat: calendarDayWords(day.date),
+    place: dayOfWords(i + 1, flatDays.length),
+    week: weekEyebrow(w + 1, week),
+    weekTitle: week.title,
+    story: day.story,
+    chips: day.chips.map((chip) => ({ kind: chip.kind, label: chipLabel(chip.kind), value: chip.value })),
+  }));
+  const journalWeeks: JournalWeek[] = post === null ? [] : post.weeks.map((week, w) => ({ n: w + 1, when: weekEyebrow(w + 1, week), title: week.title, first: week.days[0].date }));
 
-        {event !== null && (
-          <div className={POST.event} data-trip-post-section="event" data-trip-post-experience={event.id}>
-            <p className={POST.eventEyebrow}>{event.series === null ? experienceCategoryLabel(event.category) : `${experienceCategoryLabel(event.category)} · ${event.series}`}</p>
-            <p className={POST.eventName}>{event.name}</p>
-            <p className={POST.eventVenue}>{event.venue}</p>
-            <p className={POST.eventLine}>{experienceWindowLine(event)}</p>
-          </div>
-        )}
-
-        {row.did.length > 0 && (
-          <section aria-label="What I did" className={POST.section} data-trip-post-section="did">
-            <p className={POST.sectionEyebrow}>{DID}</p>
-            <p className={POST.joined}>{listWords(row.did)}</p>
-          </section>
-        )}
-
-        {row.learned.length > 0 && (
-          <section aria-label="What I learned" className={POST.section} data-trip-post-section="learned">
-            <p className={POST.sectionEyebrow}>{LEARNED}</p>
-            {row.learned.map((paragraph, i) => <p key={`learned-${i}`} className={POST.paragraph}>{paragraph}</p>)}
-          </section>
-        )}
-
-        {written !== null && (
-          <section aria-label="The short version" className={POST.card} data-trip-post-section="short">
-            <p className={POST.sectionEyebrow}>{SHORT_VERSION}</p>
-            <div className={POST.shortGrid}>
-              {written.post.short.map((s) => (
-                <p key={s.label}><span className={POST.muted}>{s.label}:</span> {s.value}</p>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {written !== null && (
-          <section aria-label="What I'd do differently" className={POST.section} data-trip-post-section="differently">
-            <p className={POST.sectionEyebrow}>{DIFFERENTLY}</p>
-            <ol className={POST.lessons}>
-              {written.post.lessons.map((l, i) => (
-                <li key={l.lead} className={POST.lesson}>
-                  <span className={POST.lessonNumber}>{two(i + 1)}</span>
-                  <span className={POST.lessonWords}><strong className={POST.lessonLead}>{l.lead}</strong> {l.rest}</span>
-                </li>
-              ))}
-            </ol>
-          </section>
-        )}
-
-        <section aria-label="What it cost" className={POST.card} data-trip-post-section="cost">
-          <p className={POST.sectionEyebrow}>{WHAT_IT_COST}</p>
-          <div className="mt-2">
-            {costRows(costs, written === null ? null : written.post).map((c) => (
-              <div key={c.what} className={POST.costRow} data-trip-post-cost>
-                <div>
-                  <p className={POST.costWhat}>{c.what}</p>
-                  {c.detail !== '' && <p className={POST.costDetail}>{c.detail}</p>}
-                </div>
-                <p className={POST.costAmount}>{c.amount}</p>
+  const costSection = (
+    <PostSection {...head('costs')} intro={figures.dayShareCents === null ? COSTS_INTRO : COSTS_INTRO_SHARED}>
+      <div className="ts-post-costs">
+        <div className="ts-post-card">
+          <p className="ts-post-card__label">{BREAKDOWN_LABEL}</p>
+          {lines.map((line, i) => (
+            <div key={line.what} className={i === 0 ? 'ts-post-cost ts-post-cost--first' : 'ts-post-cost'} data-trip-post-cost>
+              <div>
+                <p className="ts-post-cost__what">{line.what}</p>
+                {line.kind === 'paid' && <p className="ts-post-cost__name">{line.detail}</p>}
+                {details[i] !== null && <p className="ts-post-cost__detail">{details[i]}</p>}
               </div>
-            ))}
-          </div>
-          <p className={POST.costNote}>{written === null ? UNWRITTEN_COST_NOTE : written.post.costNote}</p>
-        </section>
-
-        {written !== null && (
-          <section aria-label="The month, day by day" className={POST.section} data-trip-post-section="days">
-            <p className={POST.sectionEyebrow}>{DAY_BY_DAY}</p>
-            {written.post.weeks.map((week, w) => (
-              <details key={week.title} className={POST.week} open={w === 0} data-trip-post-week={w + 1}>
-                <summary className={POST.summary}>
-                  <span>
-                    <span className={POST.weekEyebrow}>{weekEyebrow(w + 1, week)}</span>
-                    <span className={POST.weekTitle}>{week.title}</span>
-                  </span>
-                  <span className={POST.weekCount} data-trip-post-count>
-                    {weekCount(week)} · <span className={POST.openWord}>{OPEN_WORD}</span><span className={POST.closeWord}>{CLOSE_WORD}</span>
-                  </span>
-                </summary>
-                {week.days.map((day) => (
-                  <div key={day.date} className={POST.day} data-trip-post-day={day.date}>
-                    <p className={POST.dayLabel}>{dayLabel(day.date)}</p>
-                    <div>
-                      <p className={POST.story}>{day.story}</p>
-                      {day.chips.length > 0 && (
-                        <div className={POST.chips}>
-                          {day.chips.map((chip) => (
-                            <span key={chip.kind} className={POST.chip} data-trip-post-chip={chip.kind}>
-                              <span className={POST.chipKind}>{chipLabel(chip.kind)}</span>{chip.value}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </details>
-            ))}
-          </section>
-        )}
-
-        {row.events.length > 0 && (
-          <section aria-label="What was on while I was there" className={POST.section} data-trip-post-section="on">
-            <p className={POST.sectionEyebrow}>{WHAT_WAS_ON_THERE}</p>
-            <div className={POST.pillRow}>
-              {row.events.map((ev) => (
-                <a key={`${ev.name} · ${ev.start}`} href={ev.sourceUrl} rel="noopener" target="_blank" className={POST.pill} data-trip-post-event={ev.name}>
-                  {onPill(ev)}
-                </a>
-              ))}
+              <p className={line.kind === 'paid' ? 'ts-post-cost__amount ts-post-cost__amount--paid' : 'ts-post-cost__amount'}>{line.amount}</p>
             </div>
-          </section>
-        )}
-
-        {written !== null && (
-          <section aria-label="My picks" className={POST.card} data-trip-post-section="picks">
-            <p className={POST.sectionEyebrow}>{MY_PICKS}</p>
-            {written.post.picks.map((p) => (
-              <div key={p.heading} className={POST.pick}>
-                <p className={POST.pickHeading}>{p.heading}</p>
-                <p className={POST.pickItems}>{listWords(p.items)}</p>
-              </div>
-            ))}
-          </section>
-        )}
-      </article>
-
-      <section aria-label="Book the stay and the flight" className={POST.band} data-trip-post-section="book">
-        <div className={POST.bandInner}>
-          <p className={POST.bandLine}>{bookLine(row)}</p>
-          <a href={BOOK_HREF} className={POST.bandButton}>{BOOK_BUTTON}</a>
+          ))}
+          <div className="ts-post-total"><div><p className="ts-post-total__label">{totalLabel(figures)}</p><p className="ts-post-total__note">{TOTAL_NOTE}</p></div><p className="ts-post-total__amount">{totalAmountWords(figures)}</p></div>
+          {own.length > 0 && <p className="ts-post-card__label ts-post-card__label--more">{ALSO_IN_LOG}</p>}
+          {own.map((cost) => (
+            <div key={cost.what} className="ts-post-cost ts-post-cost--own" data-trip-post-cost>
+              <div><p className="ts-post-cost__name">{cost.what}</p>{cost.detail !== '' && <p className="ts-post-cost__detail">{cost.detail}</p>}</div>
+              <p className={cost.kind === 'paid' ? 'ts-post-cost__amount ts-post-cost__amount--paid' : 'ts-post-cost__amount'}>{cost.amount}</p>
+            </div>
+          ))}
         </div>
-      </section>
+        {figures.dayShareCents === null ? (
+          <div className="ts-post-rest ts-post-rest--alone"><p className="ts-post-rest__label">{REST_LABEL}</p><p className="ts-post-rest__text">{note}</p></div>
+        ) : (
+          <div className="ts-post-card ts-post-card--stack">
+            <p className="ts-post-card__label">{SHARE_LABEL}</p>
+            <p className="ts-post-rate">{functionalMoneyWords(figures.dayShareCents)} <span className="ts-post-rate__unit">{PER_DAY}</span></p>
+            <p className="ts-post-rate__note">{shareNoteWords(figures)}</p>
+            <div className="ts-post-bar ts-post-bar--split" role="img" aria-label={splitBarWords(figures)}>
+              {split.map((part) => <span key={part.key} className={`ts-post-bar__part ${LINE_INK[part.key]}`} style={{ flexGrow: part.rateCents }} />)}
+            </div>
+            <div className="ts-post-split">
+              {split.map((part) => (
+                <div key={part.key} className="ts-post-split__row"><span className={`ts-post-dot ${LINE_INK[part.key]}`} aria-hidden="true" /><p className="ts-post-split__what"><span className="ts-post-split__name">{part.name}</span> <span className="ts-post-split__sum">{part.sum}</span></p><p className="ts-post-split__rate">{part.rate}</p></div>
+              ))}
+            </div>
+            <div className="ts-post-rest ts-post-rest--foot"><p className="ts-post-rest__label">{REST_LABEL}</p><p className="ts-post-rest__text">{note}</p></div>
+          </div>
+        )}
+      </div>
+    </PostSection>
+  );
 
-      {written !== null && <p className={POST.written} data-trip-post-section="written">{writtenLine(written.post)}</p>}
+  const onSection = row.events.length > 0 && (
+    <PostSection {...head('on')} intro={null}>
+      <div className="ts-post-on">
+        {row.events.map((ev) => (
+          <div key={ev.name} className="ts-post-on__row"><div className="ts-post-on__words"><p className="ts-post-on__when">{stopEventLine(ev)}</p><p className="ts-post-on__name">{ev.name}</p><p className="ts-post-on__place">{stopEventPlace(ev)}</p></div><a href={ev.sourceUrl} rel="noopener" target="_blank" className="ts-post-on__source" data-trip-post-event={ev.name}>{SOURCE_WORD}</a></div>
+        ))}
+      </div>
+    </PostSection>
+  );
+
+  return (
+    <div className="ts-post" data-trip-post={row.id} data-trip-post-kind={post === null ? 'stop' : 'written'}>
+      <div className="ts-post__inner ts-post__top">
+        <div className="ts-post__crumb">
+          <a href={POST_BACK_HREF} className="ts-post__back" data-trip-post-back>{POST_BACK}</a>
+          <p className="ts-post__count">{stopCountWords(stop, stops)}</p>
+        </div>
+        <div className="ts-post__hero">
+          {post !== null ? (
+            <header className="ts-post__head" data-trip-post-section="header">
+              <p className="ts-post__eyebrow">{postEyebrow(stop)}</p>
+              <h1 className="ts-post__title">{post.title}</h1>
+              <p className="ts-post__dek">{post.dek}</p>
+              <p className="ts-post__meta">{postMeta(row).map((part) => <span key={part}>{part}</span>)}</p>
+            </header>
+          ) : (
+            <header className="ts-post__head" data-trip-post-section="header">
+              <p className="ts-post__eyebrow">{postEyebrow(stop)}</p>
+              <h1 className="ts-post__title">{stopHeading(row)}</h1>
+              <p className="ts-post__meta"><span>{stayWords(row)}</span></p>
+              <p className="ts-post__unwritten" data-trip-post-unwritten>{unwrittenLine(row)}</p>
+            </header>
+          )}
+          {row.image !== null && (
+            <figure className="ts-post-photo" data-trip-post-section="photo">
+              {/* A plain <img>, WasHereSection's precedent: a file under public/, served as-is. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={row.image.src} alt={row.image.alt} className="ts-post-photo__img" />
+              <figcaption className="ts-post-photo__credit">{row.image.credit}</figcaption>
+            </figure>
+          )}
+        </div>
+        <div className="ts-post-tiles" data-trip-post-section="tiles">
+          {tiles.map((tile) => (
+            <div key={tile.label} className="ts-post-tile">
+              <p className="ts-post-tile__label">{tile.label}</p>
+              {tile.value.kind === 'words' ? (
+                <p className="ts-post-tile__value ts-post-tile__value--words">{tile.value.text}</p>
+              ) : (
+                <p className="ts-post-tile__value">{tile.value.text}{tile.value.unit !== null && <> <span className="ts-post-tile__unit">{tile.value.unit}</span></>}</p>
+              )}
+              {tile.note !== null && <p className="ts-post-tile__note">{tile.note}</p>}
+            </div>
+          ))}
+        </div>
+        {ownParts && (
+          <div className="ts-post-own">
+            {row.line !== null && <p className="ts-post-line" data-trip-post-section="line">{row.line}</p>}
+            {event !== null && (
+              <div className="ts-post-event" data-trip-post-section="event" data-trip-post-experience={event.id}>
+                <p className="ts-post-event__kind">{eventKindWords(event)}</p>
+                <p className="ts-post-event__name">{event.name}</p>
+                <p className="ts-post-event__venue">{event.venue}</p>
+                <p className="ts-post-event__window">{experienceWindowLine(event)}</p>
+              </div>
+            )}
+            {row.did.length > 0 && (
+              <section className="ts-post-list" data-trip-post-section="did"><p className="ts-post-list__label">{DID}</p><p className="ts-post-list__text">{listWords(row.did)}</p></section>
+            )}
+            {row.learned.length > 0 && (
+              <section className="ts-post-list" data-trip-post-section="learned"><p className="ts-post-list__label">{LEARNED}</p>{row.learned.map((paragraph, i) => <p key={i} className="ts-post-list__text">{paragraph}</p>)}</section>
+            )}
+          </div>
+        )}
+      </div>
+
+      {post !== null && <TripPostTabs label={TABS_LABEL} tabs={keys.map((key) => ({ href: `#${SECTION_IDS[key]}`, label: SECTION_WORDS[key].tab }))} />}
+
+      <div className="ts-post__inner ts-post__body">
+        {post !== null && (
+          <PostSection {...head('story')} intro={null}>
+            <div className="ts-post-short">
+              {post.short.map((s) => <div key={s.label} className="ts-post-short__item"><p className="ts-post-short__label">{s.label}</p><p className="ts-post-short__value">{s.value}</p></div>)}
+            </div>
+          </PostSection>
+        )}
+
+        {post !== null && post.routine !== null && (
+          <PostSection {...head('routine')} intro={ROUTINE_INTRO}>
+            <div className="ts-post-stack">
+              <div className="ts-post-card">
+                <div className="ts-post-bar" role="img" aria-label={routineBarWords(routineTotals(post.routine))}>
+                  {post.routine.blocks.map((block, i) => <span key={i} className={`ts-post-bar__part ${KIND_INK[block.kind]}`} style={{ flexGrow: block.hours }} />)}
+                </div>
+                <ul className="ts-post-key">
+                  {routineTotals(post.routine).map((total) => <li key={total.kind} className="ts-post-key__item"><span className={`ts-post-dot ${KIND_INK[total.kind]}`} aria-hidden="true" />{routineKeyWords(total.kind, total.hours)}</li>)}
+                </ul>
+              </div>
+              <div className="ts-post-pair">
+                {post.routine.cards.map((card) => <div key={card.label} className="ts-post-card"><p className="ts-post-card__label">{card.label}</p><p className="ts-post-card__title">{card.title}</p><p className="ts-post-card__text">{card.text}</p></div>)}
+              </div>
+            </div>
+          </PostSection>
+        )}
+
+        {post !== null && (
+          <PostSection {...head('favorites')} intro={FAVORITES_INTRO}>
+            <div className="ts-post-stack">
+              {favorite !== null && (
+                <div className="ts-post-feature">
+                  <div className="ts-post-feature__photo">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={favorite.image.src} alt={favorite.image.alt} className="ts-post-feature__img" />
+                  </div>
+                  <div className="ts-post-feature__words">
+                    <p className="ts-post-feature__label">{favorite.short}</p>
+                    <p className="ts-post-feature__value">{favorite.value}</p>
+                    <p className="ts-post-feature__line">{favorite.line}</p>
+                    <div className="ts-post-feature__foot"><a href={`#${SECTION_IDS.journal}`} className="ts-post-feature__go" data-trip-post-pick={favorite.day}>{READ_THAT_DAY}</a><p className="ts-post-feature__credit">{favorite.image.credit}</p></div>
+                  </div>
+                </div>
+              )}
+              <div className="ts-post-picks">
+                {post.picks.map((pick) => <div key={pick.heading} className="ts-post-pick"><p className="ts-post-pick__heading">{pick.heading}</p><ul className="ts-post-pick__items">{pick.items.map((item) => <li key={item} className="ts-post-pick__item">{item}</li>)}</ul></div>)}
+              </div>
+            </div>
+          </PostSection>
+        )}
+
+        {costSection}
+
+        {post !== null && (
+          <PostSection {...head('journal')} intro={JOURNAL_INTRO}>
+            <TripPostJournal
+              span={dateWords(dates[0], dates[dates.length - 1])}
+              count={daysWords(dates.length)}
+              weekdays={weekdayDates(dates[0]).map(weekdayWords)}
+              seats={calendarSeats(dates)}
+              days={journalDays}
+              weeks={journalWeeks}
+              earlier={EARLIER_DAY}
+              later={LATER_DAY}
+              join={JOIN}
+            />
+          </PostSection>
+        )}
+
+        {post !== null && (
+          <PostSection {...head('learned')} intro={null}>
+            <ol className="ts-post-lessons">
+              {post.lessons.map((lesson, i) => <li key={lesson.lead} className="ts-post-lesson"><span className="ts-post-lesson__n" aria-hidden="true">{twoDigits(i + 1)}</span><div className="ts-post-lesson__words"><p className="ts-post-lesson__lead">{lesson.lead}</p><p className="ts-post-lesson__rest">{lesson.rest}</p></div></li>)}
+            </ol>
+            <div className="ts-post-takeaway"><p className="ts-post-takeaway__label">{TAKEAWAY_LABEL}</p><p className="ts-post-takeaway__line">{post.lessons[0].lead}</p></div>
+          </PostSection>
+        )}
+
+        {onSection}
+
+        {(around.before !== null || around.after !== null) && (
+          <nav className="ts-post-pager" aria-label={PAGER_LABEL} data-trip-post-section="pager">
+            {around.before !== null && <a href={around.before.href} className="ts-post-pager__card"><span className="ts-post-pager__stop">{pagerBeforeWords(around.before.stop)}</span><span className="ts-post-pager__place">{around.before.place}</span></a>}
+            {around.after !== null && <a href={around.after.href} className="ts-post-pager__card ts-post-pager__card--next"><span className="ts-post-pager__stop">{pagerAfterWords(around.after.stop)}</span><span className="ts-post-pager__place">{around.after.place}</span></a>}
+          </nav>
+        )}
+
+        <section aria-label={BOOK_BUTTON} className="ts-post-band" data-trip-post-section="book"><p className="ts-post-band__line">{bookLine(row)}</p><a href={BOOK_HREF} className="ts-post-band__go">{BOOK_BUTTON}</a></section>
+
+        {post !== null && <p className="ts-post__written" data-trip-post-section="written">{writtenLine(post)}</p>}
+      </div>
     </div>
   );
 }
