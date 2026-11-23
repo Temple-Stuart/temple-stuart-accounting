@@ -11,6 +11,12 @@
  *
  *   T1  the handoff landed — the README and the reference, byte for byte (sha256) and by size; the folder holds the two; the reference
  *       has one stylesheet and draws two pages; it reads its photos from public/was-here/ and nothing else but the fonts;
+ *   T2  the tokens — the README's three tables (fourteen already in the app, twelve HOME-PLANS-04 brought, two HOME-SERVICES-01 brought):
+ *       each name and value in the reference's :root, which holds those 28 and no other, and behind the house prefix in globals.css's
+ *       :root, declared once; the port declares none and reads every one;
+ *   T3  the stylesheet — globals.css's port IS the reference's, declaration by declaration and in order, but for ruling j's three
+ *       differences; no hex, no rgb value typed, three gradients and all the band's; ruling k's four properties of every selector; its
+ *       seat (ruling i), comments between and nothing else at either seam; nothing outside it names one of its classes;
  *   T6  the figures leaf — a rate's half rounds up; a day's share is the rounding of the unrounded sum, never the sum of the rounded
  *       rates; when it is not drawn; dayNumber's inverse across a span of years; an empty seat for a date with no entry; and the README's
  *       table of the ten stops' figures, cell for cell, as the two leaves build it;
@@ -18,7 +24,7 @@
  *   T8  the data — the two leaves' new refusals, each by name over injected rows and posts; the live data as the README gives it; the
  *       build law's two clauses on the trip post law's line, and the file's length; the seeds on file;
  *   T10 Alex's two messages, quoted exact wherever a file this brief touches quotes them.
- * T2–T5 and T9 arrive with the stylesheet and the page (parts 4 and 5 of the build).
+ * T4, T5 and T9 arrive with the page (part 5 of the build).
  *
  * Source is read through code() and comments() only (the reader law); rejoin() where the whole file is the subject. No clock, no live
  * call.
@@ -54,6 +60,10 @@ const COSTS = 'src/lib/tripCosts.ts';
 const POSTS = 'src/lib/tripPosts.ts';
 const LAW = 'scripts/assert-tool-registry.ts';
 const SEEDS_FILE = 'scripts/proofs/trippost02.seeds.ts';
+const GLOBALS = 'src/app/globals.css';
+/** The port's first rule, and the letter's (HOME-ABOUT-01), which stands directly under the port's last. */
+const PORT_OPEN = '.ts-post {';
+const NEXT_PORT = '.ts-about {';
 
 /** Alex's two messages, as he wrote them (2026-11-23, Bali): his brief at 11:38, his yes on the board at 12:52. */
 const HIS_BRIEF = 'Okay, I would like to have the blog posts designed something like this.... review the images, then mock up something that follows the current pages layout and all that good stuff!';
@@ -72,6 +82,91 @@ function readmeSection(heading: string): string {
   const next = doc.indexOf('\n## ', at + 1);
   return doc.slice(at, next < 0 ? undefined : next);
 }
+const flat = (s: string): string => s.replace(/\s+/g, ' ').trim();
+
+// ── the stylesheets, read as lists of declarations (tripCards03.test.ts's readers, as they stand) ──
+
+/** A stylesheet (its comments already removed) as one line per declaration, in order: "<media> | <selector> | <property>: <value>". */
+function declarations(css: string): string[] {
+  const out: string[] = [];
+  const walk = (text: string, media: string): void => {
+    let i = 0;
+    while (i < text.length) {
+      const open = text.indexOf('{', i);
+      if (open < 0) break;
+      let depth = 1;
+      let j = open + 1;
+      for (; j < text.length && depth > 0; j += 1) {
+        if (text[j] === '{') depth += 1;
+        else if (text[j] === '}') depth -= 1;
+      }
+      assert.equal(depth, 0, 'every block closes');
+      const prelude = flat(text.slice(i, open));
+      const body = text.slice(open + 1, j - 1);
+      if (prelude.startsWith('@media')) walk(body, prelude);
+      else for (const d of body.split(';').map(flat).filter(Boolean)) out.push(`${media} | ${prelude} | ${d}`);
+      i = j;
+    }
+  };
+  walk(css, '');
+  return out;
+}
+/** CSS comments blanked, newlines kept. */
+const uncommented = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '));
+/** The reference's stylesheet, as written: what stands between <style> and </style>. */
+function referenceStyle(): string {
+  const html = whole(REFERENCE);
+  return html.slice(html.indexOf('<style>') + '<style>'.length, html.indexOf('</style>'));
+}
+/** A stylesheet's :root block as name → value. */
+function rootOf(css: string): Map<string, string> {
+  const at = css.indexOf(':root {');
+  assert.ok(at > -1, 'a :root block');
+  const map = new Map<string, string>();
+  for (const line of declarations(css.slice(at, css.indexOf('}', at) + 1))) {
+    const decl = line.split(' | ')[2];
+    map.set(decl.slice(0, decl.indexOf(':')), decl.slice(decl.indexOf(':') + 1).trim());
+  }
+  return map;
+}
+/** How many times a stylesheet declares a custom property. */
+const declaredTimes = (css: string, name: string): number => (css.match(new RegExp(`(^|[\\s;{])${name.replace(/[-]/g, '\\-')}\\s*:`, 'gm')) ?? []).length;
+/** The README's Tokens section: the rows of the table under one bold lead, each [name, value, what it is for]. */
+function readmeTable(lead: string): Array<[name: string, value: string, use: string]> {
+  const section = readmeSection('Tokens');
+  const from = section.indexOf(lead);
+  assert.ok(from > -1, `the README's Tokens section has "${lead}"`);
+  const rows: string[] = [];
+  let started = false;
+  for (const line of section.slice(from).split('\n').slice(1)) {
+    if (line.startsWith('|')) { started = true; rows.push(line); continue; }
+    if (started) break;
+  }
+  return rows.filter((l) => l.startsWith('| `')).map((r) => {
+    const cells = r.split('|').slice(1, -1).map((c) => c.trim());
+    const name = /^`([^`]+)`$/.exec(cells[0]);
+    const value = /^`([^`]+)`$/.exec(cells[1]);
+    assert.ok(name && value && cells.length === 3, `${README}: "${r}" names one token, one value and its use`);
+    return [name[1], value[1], cells[2]] as [string, string, string];
+  });
+}
+/** The port in globals.css, its comments removed: from its first rule to the letter's first rule. */
+function port(): string {
+  const css = code(GLOBALS);
+  const at = css.indexOf(PORT_OPEN);
+  const end = css.indexOf(NEXT_PORT);
+  assert.ok(at > -1 && end > at && count(css, PORT_OPEN) === 1, 'one port, from .ts-post to the letter\'s first rule');
+  return css.slice(at, end);
+}
+/** The reference page's own rules, which ruling j leaves unported with the reference's :root. */
+const THIS_PAGES_OWN = new Set([':root', 'body', '.ref-note', '.ref-note--next']);
+/** Ruling j's first two differences, applied to one declaration of the reference: the house prefix on its classes and its custom properties; the site's two font variables. */
+const ported = (line: string): string => {
+  const [media, selector, decl] = line.split(' | ');
+  const value = decl.replace(/var\(--/g, 'var(--ts-').replace("'Inter', sans-serif", 'var(--font-sans)').replace("'IBM Plex Mono', monospace", 'var(--font-mono)');
+  return `${media} | ${selector.replace(/\.post(?=[-_\s:,.>)]|$)/g, '.ts-post')} | ${value}`;
+};
+
 const row = (id: string): WasHereRow => { const found = WAS_HERE.find((r) => r.id === id); assert.ok(found, `${id} is a stop`); return found; };
 const costs = (id: string): TripCosts => { const found = costsOf(id); assert.ok(found, `${id} has its costs`); return found; };
 const figuresOf = (id: string): StopFigures => stopFigures(row(id), costs(id), motoDaysOf(id));
@@ -94,6 +189,67 @@ test('T1 the handoff landed byte for byte: the README and the reference by sha25
   for (const photo of sources) assert.ok(statSync(resolve(ROOT, FOLDER, photo)).isFile(), `${photo} is on disk`);
   assert.deepEqual([...html.matchAll(/<link\b[^>]*>/g)].map((m) => m[0]), ['<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap">'], 'and the fonts: nothing else is loaded');
   assert.doesNotMatch(html, /url\(|@import|<script\s+src/, 'no other file, by any road');
+});
+
+// ── T2 · THE TOKENS ──────────────────────────────────────────────────────────
+
+test('T2 the tokens: the README\'s three tables, each name and value in the reference\'s :root (those 28 and no other) and behind the prefix in globals.css\'s :root, declared once; the port declares none and reads every one', () => {
+  const tables = [readmeTable('**Already in the app.**'), readmeTable('**Added by HOME-PLANS-04**'), readmeTable('**Added by HOME-SERVICES-01**')];
+  assert.deepEqual(tables.map((t) => t.length), [14, 12, 2], 'fourteen, twelve and two');
+  const tokens = tables.flat();
+  const reference = rootOf(uncommented(referenceStyle()));
+  assert.deepEqual([...reference.keys()].sort(), tokens.map(([name]) => `--${name}`).sort(), 'the reference\'s :root holds the 28 and no other');
+  const globals = code(GLOBALS);
+  const root = rootOf(globals);
+  for (const [name, value] of tokens) {
+    assert.equal(reference.get(`--${name}`), value, `the reference's --${name} is the README's ${value}`);
+    assert.equal(root.get(`--ts-${name}`), value, `globals.css's --ts-${name} is ${value}`);
+    assert.equal(declaredTimes(globals, `--ts-${name}`), 1, `--ts-${name} is declared once`);
+  }
+  assert.ok(readmeSection('Tokens').includes('**New with this page: none.**'), 'the README adds none');
+  const text = port();
+  assert.doesNotMatch(text, /(^|[\s;{])--[\w-]+\s*:/m, 'the port declares no custom property');
+  const read = new Set([...text.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]));
+  assert.deepEqual([...read].filter((v) => !v.startsWith('--font-')).sort(), tokens.map(([name]) => `--ts-${name}`).sort(), 'the port reads every one of the 28, and no other token');
+  assert.deepEqual([...read].filter((v) => v.startsWith('--font-')).sort(), ['--font-mono', '--font-sans'], 'and the site\'s two fonts');
+});
+
+// ── T3 · THE STYLESHEET ──────────────────────────────────────────────────────
+
+test('T3 the port IS the reference\'s stylesheet, declaration by declaration and in order, but for ruling j\'s three differences; no hex, no rgb value typed, three gradients and all the band\'s', () => {
+  const reference = declarations(uncommented(referenceStyle()));
+  const kept = reference.filter((line) => !THIS_PAGES_OWN.has(line.split(' | ')[1]));
+  assert.deepEqual([...new Set(reference.filter((line) => !kept.includes(line)).map((line) => line.split(' | ')[1]))], [':root', 'body', '.ref-note', '.ref-note--next'], 'the third difference: neither its :root nor its own page\'s rules');
+  assert.deepEqual(declarations(port()), kept.map(ported), 'every other declaration, in order, behind the prefix and in the site\'s fonts');
+  const text = port();
+  assert.doesNotMatch(text, /#[0-9a-fA-F]{3,8}\b/, 'no hex typed');
+  assert.doesNotMatch(text, /rgba?\(\s*[\d.]/, 'no rgb value typed: every rgb() reads a token');
+  assert.equal(count(text, 'gradient('), 3, 'three gradients');
+  assert.deepEqual(declarations(text).filter((d) => d.includes('gradient(')).map((d) => d.split(' | ')[1]), ['.ts-post-band', '.ts-post-band__go'], 'all the band\'s: its rings and sweep, and its gold button');
+  assert.ok(comments(GLOBALS).includes('THREE DIFFERENCES ruling j names, and no fourth'), 'its header names them');
+});
+
+test('T3 ruling k\'s four properties of every selector; the seat of ruling i, comments between and nothing else at either seam; nothing outside the port names one of its classes', () => {
+  const text = port();
+  const selectors = [...new Set(declarations(text).map((d) => d.split(' | ')[1]))];
+  assert.ok(selectors.length > 150, `the port's selectors were read (${selectors.length})`);
+  for (const sel of selectors) {
+    assert.ok(!sel.includes('['), `${sel}: no attribute selector`);
+    assert.ok(!sel.includes('#'), `${sel}: no id`);
+    assert.doesNotMatch(sel, /\bbutton\b/, `${sel}: no button`);
+    for (const one of sel.split(',')) assert.match(one.trim(), /^\.ts-post(?:[-_][\w-]*)?(?=$|[\s:.>])/, `${one.trim()}: begins with one of the page's own classes`);
+    for (const m of sel.matchAll(/\.([A-Za-z][\w-]*)/g)) assert.match(m[1], /^ts-post(?:$|[-_])/, `${sel}: .${m[1]} is the page's, behind the prefix`);
+  }
+  const css = code(GLOBALS);
+  const at = css.indexOf(PORT_OPEN);
+  const next = css.indexOf(NEXT_PORT);
+  assert.match(css.slice(css.lastIndexOf('.ts-chipfade', at), at), /^\.ts-chipfade \{[^{}]*\}\s*\}\s*$/, 'directly under the chip strip\'s last rule (its @media from 1024px): comments between and nothing else');
+  assert.match(css.slice(css.lastIndexOf('.ts-post', next), next), /^\.ts-post-pager__card \{[^{}]*\}\s*\}\s*$/, 'its last rule (its reduced-motion @media) directly above the letter\'s first: comments between and nothing else');
+  const full = whole(GLOBALS);
+  assert.ok(full.indexOf('/* ── TRIPPOST-02 (') > full.lastIndexOf('.ts-chipfade') && full.indexOf('/* ── TRIPPOST-02 (') < full.indexOf('/* ── HOME-ABOUT-01 ('), 'its header between the two');
+  const outside = css.slice(0, at) + css.slice(next);
+  assert.doesNotMatch(outside, /\.ts-post\b|\.ts-post[-_]/, 'no rule outside the port names one of its classes');
+  assert.doesNotMatch(outside, /\[\s*class\s*[~|^$*]?=\s*["']?[^"'\]]*\bpost/, 'and none reaches them through a class attribute selector');
 });
 
 // ── T6 · THE FIGURES ─────────────────────────────────────────────────────────
@@ -387,7 +543,7 @@ test('T8 the build law: two clauses on the trip post law\'s line, each refused b
 // ── T10 · HIS WORDS ──────────────────────────────────────────────────────────
 
 test('T10 Alex\'s two messages, quoted exact wherever a file this brief touches quotes them', () => {
-  const files = [README, REFERENCE, FIGURES, WORDS, COSTS, POSTS, LAW, SEEDS_FILE, 'src/lib/__tests__/tripPost02.test.ts'];
+  const files = [README, REFERENCE, FIGURES, WORDS, COSTS, POSTS, LAW, SEEDS_FILE, GLOBALS, 'src/lib/__tests__/homeAbout01.test.ts', 'src/lib/__tests__/tripPost02.test.ts'];
   let quoted = 0;
   for (const file of files) {
     const text = whole(file).replace(/\n \* /g, ' ');
@@ -399,5 +555,5 @@ test('T10 Alex\'s two messages, quoted exact wherever a file this brief touches 
       }
     }
   }
-  assert.ok(quoted >= 4, 'the README and this file quote both');
+  assert.ok(quoted >= 6, 'the README, the port\'s header and this file quote both');
 });
