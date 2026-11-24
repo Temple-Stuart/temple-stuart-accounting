@@ -140,8 +140,8 @@ Three things the leaves do not hold today.
 1. **The motorbike's days**, in the costs leaf: Canggu, 2026-07-03 to 2026-07-30. A rental's days lie inside its stop's stay, and only a paid motorbike has them.
 2. **The day**, on a post, or none: its blocks in clock order (each a kind and whole hours, 24 in all) and his two cards. Canggu's, as approved with "focus" for "work":
    - activity 2, meals 1, focus 8, meals 1, entertainment 4, sleep 8;
-   - The focus · Temple Stuart · "Product development, marketing, professional services, and building the tools I use to manage the trip."
-   - The life · Beyond the laptop · "Training, surf, cafes, local food, sunsets, social experiences, and exploring wherever I happen to be."
+   - The focus · Planning ahead · "A system to plan ahead, so I wake up every day knowing what I’m going to do and what it’s going to cost, and never have to figure out a plan on the spot, which stresses me out."
+   - The life · The authentic side · "Exercising and doing things I enjoy, like surfing and hiking. Eating healthy and trying the local food. Seeing the sunsets. Meeting locals, getting to know them and making new lifelong friends. Getting to experience the authentic side of where I’m visiting, not just the touristy side."
 3. **The favorite with a photo**, on a post, or none: which line of the short version it is, the day it happened, his words from that day's own entry, and the photo. Canggu's: "Best day"; 2026-07-05; "I’m already planning a trip back just for Uluwatu."; `/was-here/uluwatu-2026-11.jpg`, with that photo's own alt and credit.
    - His words must be found in that day's story, letter for letter. The photo is held to the stop photos' law: on disk, 400 KB at most, 3 : 2 within 1%.
    - That file is also the Uluwatu stop's photo for now ("his photo from a day there during the Canggu stay, until he has one from the stop", `wasHere.ts`). When the Uluwatu stop gets its own photo, this one keeps its file.
