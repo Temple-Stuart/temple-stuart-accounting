@@ -1858,3 +1858,15 @@ export const NO_READABLE_AMOUNT_WORDS = 'no readable amount';
 /** A posting's amount as the books hold it, two decimals; an unreadable one is said, never shown as $0. */
 export const postingAmountWords = (cents: number | null): string => (cents === null ? NO_READABLE_AMOUNT_WORDS : formatCents(cents));
 export const postingDateWords = (date: string | null): string => (date === null ? BLANK : date);
+
+// ── TIMEWIDE-01 (Alex, 2026-11-24): THE SHEET'S TABLE CLASS ──────────────────
+//
+// The class the time sheet hands the shared table for its <table> (ledger/LedgerSection.tsx tableClassName; the shared table sets it
+// beside w-full — components/table/DataTable.tsx). min-w-[96rem] is the floor the table always had. The three variants reach the
+// table's own cells from here, so the shared table's file is not edited: a head cell may wrap (a head of several words can go onto a
+// second line instead of holding its column open), and every cell's side padding — head, body and the TOTAL row — is 0.375rem where
+// it was 0.5rem. Each variant compiles to a class AND an element (`.… th`, `.… td`), which outranks the shared table's own
+// single-class whitespace-nowrap and px-2 on those cells; a money cell keeps its own nowrap. The string is typed whole: tailwind scans
+// src/lib for whole class strings (tailwind.config.ts), and a class assembled from parts is never compiled. It stands at the END of
+// this file so that no line the registry or a test cites moves — and the section's file keeps its line count, so the change is dated here.
+export const LEDGER_TABLE_CLASS = 'min-w-[96rem] [&_th]:whitespace-normal [&_th]:px-1.5 [&_td]:px-1.5';
