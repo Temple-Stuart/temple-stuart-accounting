@@ -54,6 +54,14 @@ export interface AppLayoutProps {
    */
   page?: boolean;
   /**
+   * TIMEWIDE-01 (Alex, 2026-11-24): a `page` that takes the window's width — the
+   * page's own gutter and padding, and no cap. Read only together with `page`;
+   * without it this prop does nothing. A `page` main stops at max-w-7xl (1,216 px
+   * of content from lg), and the time sheet's table is wider than that at its
+   * narrowest (96rem), so /time passes it — and no other page does.
+   */
+  wide?: boolean;
+  /**
    * SHELL-02: does the CHILD bring its own rail? The cockpit does — ModuleLauncher
    * mounts the rail in SELECT mode (:589), where a step switches tab in place
    * instead of navigating. One shell, one rail: when the child has one, this
@@ -100,7 +108,7 @@ function fmtMom(n: number | undefined): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOpenTaxSettings, bookkeepingBar, page = false, rail = true }: AppLayoutProps) {
+export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOpenTaxSettings, bookkeepingBar, page = false, wide = false, rail = true }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
@@ -280,7 +288,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
           </div>
         )}
 
-        <main className={page ? 'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : 'max-w-[1800px] mx-auto w-full'}>
+        <main className={page && wide ? 'w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : page ? 'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : 'max-w-[1800px] mx-auto w-full'}>
           {profileError && (
             <p role="alert" className="mb-4 font-mono text-[10px] text-rose-700">Profile read failed — {profileError}. Utilities hidden.</p>
           )}
