@@ -790,7 +790,7 @@ test('T10 the section: the "record" chip in the WENT cell on every row whose ent
   assert.doesNotMatch(s, /setAnswer\(null\)/, 'never blanked outright');
   // While that read is in flight the loading words stand where the loading line stood; the table's own conditions are as they were.
   assert.match(s, /\{period !== null && \(answer === null \|\| reading\) && <div className="text-xs text-text-muted" data-ledger-loading>\{LEDGER_LOADING_WORDS\}<\/div>\}/);
-  assert.match(s, /loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName="min-w-\[96rem\]"/, 'loaded as it was; the table’s width as it was');
+  assert.match(s, /loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName=\{LEDGER_TABLE_CLASS\}/, 'loaded as it was; the table’s floor as it was, inside the rule’s class'); // TIMEWIDE-01 (Alex, 2026-11-24): the table's class is the rule file's LEDGER_TABLE_CLASS — its floor still min-w-[96rem] (timewide01.test.ts); `tableClassName="min-w-[96rem]"`, 'the table’s width as it was', until then
   assert.match(code(TABLE), /\{loaded && rows\.length > 0 && \(\n\s*<div className="overflow-x-auto border border-border rounded bg-white">/, 'the shared table still draws only while loaded — it is not edited');
   // One cell per head word, in its order — no column added.
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
