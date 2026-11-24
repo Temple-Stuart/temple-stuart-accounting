@@ -253,8 +253,11 @@ test('T7 the sections: one component with its kind; the period control copied ve
   assert.match(code(READS), /if \(!Array\.isArray\(read\.value\.journals\) \|\| !\('first_day' in read\.value\)\) return \{ ok: false, words: journalsFailedWords\('the journals came back without their list'\) \};/, 'an answer without its list is a failure in words');
   // The period control — the ledger's lines, copied (LedgerSection.tsx is untouched by this PR; its own pins stand).
   const ledger = code(LEDGER_SECTION);
+  // TIMESHEET-03 (Alex, 2026-11-24, ruling A): the default left the lines the two controls share — the ledger opens on today's rows (Day) now, and the journal tables still open on the
+  // month. Until then `const [kind, setKind] = useState<PeriodKind>('month');` stood first in the list below, carried verbatim by both.
+  assert.ok(t.includes("const [kind, setKind] = useState<PeriodKind>('month');"), 'the journal table still opens on the month');
+  assert.ok(ledger.includes("const [kind, setKind] = useState<PeriodKind>('day');"), 'the ledger opens on Day');
   for (const line of [
-    "const [kind, setKind] = useState<PeriodKind>('month');",
     'const [anchor, setAnchor] = useState<string | null>(null);',
     'const t = localToday();\n    setToday(t);\n    setAnchor(t);',
     "const period = today === null || anchor === null ? null : periodOf(kind, anchor, today, ",

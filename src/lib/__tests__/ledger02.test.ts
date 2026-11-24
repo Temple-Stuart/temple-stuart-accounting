@@ -196,12 +196,12 @@ test('R2 the twenty-one head words in Alex’s order (TIMESHEET-01: START · END
   assert.match(s, /data-ledger-cell="day">\{dayLongWords\(row\.day\)\}/, 'DAY the full weekday');
   assert.match(s, /data-ledger-cell="date">\{row\.day\}/, 'DATE the day alone — the weekday left the cell');
   assert.doesNotMatch(s, /dayShortWords/, 'no short weekday in any cell');
-  assert.match(s, /data-ledger-cell="book">\{bookCellWords\(row\)\}/);
+  assert.match(s, /data-ledger-cell="book">\{bookPill === null \? bookCellWords\(row\) : <span className=\{bookPill\} data-ledger-pill="book">\{bookCellWords\(row\)\}<\/span>\}/); // TIMESHEET-03 (Alex, 2026-11-24): the word in a pill toned by the book, bare when there is none — `data-ledger-cell="book">{bookCellWords(row)}` until then
   assert.match(s, /data-ledger-cell="account">\{accountCellWords\(row\)\}/);
-  assert.match(s, /data-ledger-cell="account-name">\{accountNameCellWords\(row\)\}/);
+  assert.match(s, /data-ledger-cell="account-name">\{accountPill === null \? accountNameCellWords\(row\) : <span className=\{accountPill\} data-ledger-pill="account-name">\{accountNameCellWords\(row\)\}<\/span>\}/); // TIMESHEET-03 (Alex, 2026-11-24): the name in a pill toned by the account, bare when there is none — `data-ledger-cell="account-name">{accountNameCellWords(row)}` until then
   assert.doesNotMatch(s, /CELL_WORDS\.coa\(row\)|data-ledger-cell="coa"/, 'the combined COA cell is gone');
   assert.match(s, /data-ledger-cell="actual">\{actualCellWords\(row\)\}/);
-  assert.match(s, /className=\{`\$\{money\} \$\{row\.varianceCents === null \? BLANK_CLASS : `font-semibold \$\{actualTone\(delta\.over\)\}`\}`\} data-ledger-cell="variance">\{varianceCellWords\(row\.varianceCents\)\}/, 'VARIANCE in the row’s tone, the blank class when null (amended)');
+  assert.match(s, /className=\{`\$\{money\} \$\{NOT_TYPED_TINT\} \$\{row\.varianceCents === null \? BLANK_CLASS : `font-semibold \$\{actualTone\(delta\.over\)\}`\}`\} data-ledger-cell="variance">\{varianceCellWords\(row\.varianceCents\)\}/, 'VARIANCE in the row’s tone, the blank class when null (amended)'); // TIMESHEET-03 (Alex, 2026-11-24): the cell carries the tint of the cells nobody types on a row — `${money} ${row.varianceCents === null ? …` until then
   // LEDGER-03 (Alex, 2026-10-19): the MATCH cell prints the row's match (matchCellWords) — "—" with no link, as every cell was until then; ledger03.test.ts pins the cell.
   assert.match(s, /data-ledger-cell="match" title=\{matchCellTitle\(row\.match\) \?\? undefined\}>\n\s*<span data-ledger-match>\{matchCellWords\(row\.match\)\}<\/span>/, 'MATCH: the row’s match, "—" with no link (LEDGER-03)');
   assert.equal(matchCellWords(null), '—');

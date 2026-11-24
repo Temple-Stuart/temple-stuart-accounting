@@ -128,6 +128,31 @@
  * shown, as they were. The title, the period controls, "+ expense", the
  * filters, the sort, the notes and the summary are where they were; nothing
  * is written here that was not written before.
+ *
+ * TIMESHEET-03 (Alex, 2026-11-24): THE TIME SHEET'S LOOK — TODAY FIRST, PILLS, THE TINT.
+ * "also we made it look like this before, i want this style table for sure...."
+ * "the only thing that i see here is the COA column in the table, this would be great to include to how it SHOULD look..."
+ * Nothing is renamed, moved, added or removed: the same rows, the same
+ * twenty-one columns in the same order with the same words, and the CSV byte
+ * for byte what it was. Three things about how it is drawn:
+ *   TODAY FIRST — the period starts on Day, anchored today as before (Month
+ * until then); Month, Week, All, ‹ ›, the date box and the period's words work
+ * as they did.
+ *   THE PILLS — two cells, in this file's own row: BOOK prints its word in the
+ * app's pill, toned by the book; ACCOUNT NAME prints the account's name in a
+ * pill toned by the account's place among the accounts the active plans use —
+ * the answer's `tones` (ledgerReads.ts), read through ledger.ts
+ * (bookPillClassOf, accountPillClassOf: the pill's classes, or null). A row
+ * with no book, and a cell with no name, print their blank as before, with no
+ * pill. The ACCOUNT cell — the code — is not touched.
+ *   THE TINT — on every body row the four cells nobody types on a row (BUDGET,
+ * VARIANCE, MATCH, UNDER / OVER) carry one tint, whatever else their classes
+ * say; the TOTAL row is not tinted. One legend line above the table while rows
+ * are shown — a swatch of the same tint and ledger.ts's words
+ * (NOT_TYPED_WORDS) — in the shared table's children slot, where the loading
+ * and nothing-recorded lines stand. The shared table (DataTable.tsx) is not
+ * edited: the pills and the tint are in this section's own cells. No box in a
+ * row, nothing typed here that was not typed before.
  */
 
 'use client';
@@ -151,12 +176,15 @@ import {
   underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords, vendorCellWords,
   endCellWords, endOf, startCellWords, startOf, wentCellWords, wentOf, // TIMESHEET-01 (2026-11-24): the three facts of a sheet row and their cells
   hoursWords, loggedCoverageWords, minutesCellWords, plannedCoverageWords, // TIME-03 (2026-10-26): the minutes cells, the hours and their coverage
+  NOT_TYPED_WORDS, accountPillClassOf, bookPillClassOf, type AccountPlaces, // TIMESHEET-03 (2026-11-24): the legend's words, the two pills' classes, and the accounts' places they are toned by
   type ColumnFilters, type GroupKey, type LedgerColumn, type LedgerSheetRow, type LedgerSort, type MatchState, type Period, type PeriodKind,
 } from '@/lib/operations/ledger';
 
 // IDIOM-01 (2026-10-24): the chip, head, cell and money classes are the shared table's (DataTable.tsx), imported under the names this file always used.
 const chipOn = 'px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs';
 const BLANK_CLASS = 'text-text-faint';
+/** TIMESHEET-03 (2026-11-24): the tint of the cells nobody types on a row — BUDGET, VARIANCE, MATCH, UNDER / OVER — and of the legend's swatch. One class, typed whole. */
+const NOT_TYPED_TINT = 'bg-blue-50';
 
 /** The colour of an actual against its budget, as the card's: over red, under or on it green, no budget to compare muted. */
 const actualTone = (over: boolean | null): string => (over === null ? 'text-text-muted' : over ? 'text-brand-red' : 'text-brand-green');
@@ -167,7 +195,8 @@ const matchTone = (state: MatchState | null): string => (state === null ? '' : s
 
 export default function LedgerSection() {
   const [today, setToday] = useState<string | null>(null);
-  const [kind, setKind] = useState<PeriodKind>('month');
+  // TIMESHEET-03 (Alex, 2026-11-24, ruling A): TODAY FIRST — the period starts on Day, anchored today (below); 'month' until then. Month, Week and All are one tap away, as before.
+  const [kind, setKind] = useState<PeriodKind>('day');
   const [anchor, setAnchor] = useState<string | null>(null);
   // LEDGER-04: one filter per column (ledger.ts ColumnFilters), the sort (one column, or the ledger's own order), the column whose popover is
   // open and the notes toggle — React state only, nothing stored. IDIOM-01 (2026-10-24): the ▾ buttons' ref map is DataTable's now; the state stays here.
@@ -212,6 +241,8 @@ export default function LedgerSection() {
   }, [period?.from, period?.to]);
   // TIMESHEET-01 (Alex, 2026-11-24): the table's rows are the answer's `sheet` — every priced line of the period, planned and recorded (its `rows`, the recorded expenses alone, are the home ledger's).
   const rows: readonly LedgerSheetRow[] = answer !== null && answer.read.ok ? answer.read.value.sheet : [];
+  // TIMESHEET-03 (Alex, 2026-11-24): each account's place among the accounts the active plans use — the answer's `tones`; the ACCOUNT NAME pill is toned by it (ledger.ts accountPillClassOf).
+  const tones: AccountPlaces = answer !== null && answer.read.ok ? answer.read.value.tones : {};
   // LEDGER-04: the rows filtered (every column, AND across), then sorted — the TOTAL row, the coverage, the summary and the CSV read these.
   const shown = sortRows(applyColumnFilters(rows, filters), sort);
   const totals = ledgerTotals(shown);
@@ -265,6 +296,12 @@ export default function LedgerSection() {
         )}
         renderRow={(row) => {
           const delta = deltaWords(row.actualCents, row.cents);
+          // TIMESHEET-03 (2026-11-24): THE PILLS — BOOK and ACCOUNT NAME print the same words in the app's pill, toned by the book and by the account's place; the classes are the
+          // rule's, null when the cell prints its blank (a row with no book; a cell with no name) — a blank stays a blank, no pill. ACCOUNT, the code between them, is as it was.
+          // THE TINT — BUDGET, VARIANCE, MATCH and UNDER / OVER carry NOT_TYPED_TINT on every body row, whatever else their classes say: nobody types them on a row. ACTUAL,
+          // among them, is not tinted, and neither is the TOTAL row.
+          const bookPill = bookPillClassOf(row);
+          const accountPill = accountPillClassOf(row, tones);
           return (
             <Fragment key={row.key}>
               <tr className="border-t border-border" data-ledger-row={row.key} data-ledger-day={row.day}>
@@ -275,9 +312,9 @@ export default function LedgerSection() {
                 <td className={`${cell} whitespace-nowrap tabular-nums ${endOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="end">{endCellWords(row)}</td>
                 <td className={`${cell} ${row.place === null ? BLANK_CLASS : ''}`} data-ledger-cell="city">{CELL_WORDS.city(row)}</td>
                 <td className={`${cell} ${row.place === null || row.place.country === null ? BLANK_CLASS : ''}`} data-ledger-cell="country">{CELL_WORDS.country(row)}</td>
-                <td className={`${cell} whitespace-nowrap ${row.book === null ? BLANK_CLASS : ''}`} data-ledger-cell="book">{bookCellWords(row)}</td>
+                <td className={`${cell} whitespace-nowrap ${row.book === null ? BLANK_CLASS : ''}`} data-ledger-cell="book">{bookPill === null ? bookCellWords(row) : <span className={bookPill} data-ledger-pill="book">{bookCellWords(row)}</span>}</td>
                 <td className={`${cell} whitespace-nowrap ${row.coa === null ? BLANK_CLASS : ''}`} data-ledger-cell="account">{accountCellWords(row)}</td>
-                <td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : ''}`} data-ledger-cell="account-name">{accountNameCellWords(row)}</td>
+                <td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : ''}`} data-ledger-cell="account-name">{accountPill === null ? accountNameCellWords(row) : <span className={accountPill} data-ledger-pill="account-name">{accountNameCellWords(row)}</span>}</td>
                 <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name">{row.description}</td>
                 <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor">{vendorCellWords(row.vendor)}</td>
                 {/* TIMESHEET-01 (2026-11-24): WENT after VENDOR — went, skipped, planned, not recorded; "—" on a charge. */}
@@ -286,14 +323,14 @@ export default function LedgerSection() {
                 {/* TIME-03 (2026-10-26): the minutes after STARS — the line's planned and the record's logged, whole minutes, "—" for null. */}
                 <td className={`${cell} whitespace-nowrap tabular-nums ${row.plannedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-cell="planned-minutes">{minutesCellWords(row.plannedMinutes)}</td>
                 <td className={`${cell} whitespace-nowrap tabular-nums ${row.loggedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-cell="logged-minutes">{minutesCellWords(row.loggedMinutes)}</td>
-                <td className={`${money} ${row.cents === null ? BLANK_CLASS : 'font-semibold text-text-primary'}`} data-ledger-cell="budget">{budgetCellWords(row.cents)}</td>
+                <td className={`${money} ${NOT_TYPED_TINT} ${row.cents === null ? BLANK_CLASS : 'font-semibold text-text-primary'}`} data-ledger-cell="budget">{budgetCellWords(row.cents)}</td>
                 <td className={`${money} ${row.outcome === 'skipped' ? 'text-text-muted' : row.actualCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="actual">{actualCellWords(row)}</td>
-                <td className={`${money} ${row.varianceCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}</td>
-                <td className={`${money} ${readableMatchCents(row.match) === null ? BLANK_CLASS : `font-semibold ${matchTone(matchState(row.match, row.actualCents))}`}`} data-ledger-cell="match" title={matchCellTitle(row.match) ?? undefined}>
+                <td className={`${money} ${NOT_TYPED_TINT} ${row.varianceCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}</td>
+                <td className={`${money} ${NOT_TYPED_TINT} ${readableMatchCents(row.match) === null ? BLANK_CLASS : `font-semibold ${matchTone(matchState(row.match, row.actualCents))}`}`} data-ledger-cell="match" title={matchCellTitle(row.match) ?? undefined}>
                   <span data-ledger-match>{matchCellWords(row.match)}</span>
                   <button type="button" className={`${chip} ml-1 font-normal`} onClick={() => setPicking(picking === row.key ? null : row.key)} data-ledger-link={row.key} aria-expanded={picking === row.key}>{LINK_WORDS}</button>
                 </td>
-                <td className={`${cell} whitespace-nowrap ${row.varianceCents === null ? BLANK_CLASS : actualTone(delta.over)}`} data-ledger-cell="under-over">{underOverWords(row.varianceCents)}</td>
+                <td className={`${cell} whitespace-nowrap ${NOT_TYPED_TINT} ${row.varianceCents === null ? BLANK_CLASS : actualTone(delta.over)}`} data-ledger-cell="under-over">{underOverWords(row.varianceCents)}</td>
                 <td className={`${cell} ${row.note === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="description">{noteCellWords(row.note)}</td>
               </tr>
               {picking === row.key && (
@@ -324,6 +361,8 @@ export default function LedgerSection() {
         {period !== null && answer === null && <div className="text-xs text-text-muted" data-ledger-loading>{LEDGER_LOADING_WORDS}</div>}
         {answer !== null && !answer.read.ok && <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" data-ledger-failed>{answer.read.words}</div>}
         {answer !== null && answer.read.ok && rows.length === 0 && <div className="text-xs text-text-muted" data-ledger-none>{noRowsWords(answer.period)}</div>}
+        {/* TIMESHEET-03 (Alex, 2026-11-24): THE TINT'S LEGEND — one line above the table while rows are shown: a swatch of the same tint, and what it means in ledger.ts's words. */}
+        {answer !== null && answer.read.ok && shown.length > 0 && <div className="flex items-center gap-1.5 text-xs text-text-muted" data-ledger-legend><span className={`inline-block h-3 w-3 rounded-sm border border-border ${NOT_TYPED_TINT}`} aria-hidden="true" data-ledger-legend-swatch /><span>{NOT_TYPED_WORDS}</span></div>}
       </DataTable>
       {answer !== null && answer.read.ok && (
         <>
