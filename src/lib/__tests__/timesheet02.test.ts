@@ -6,6 +6,7 @@
  * take one and hands each row's form what it needs on the ONE answer (`recording`, after `sheet`); the form's own rule
  * (recordDraftOf, recordInput) builds the stops POST's body. With it, the review's fixes to TIMESHEET-01: the all-day word typed
  * once, the notes counting the rows the table lists, two plan lines at one stop no longer reading "not recorded".
+ * It stands ON TOP OF TIMESHEET-03 (the look): on the answer `recording` follows `tones`, and the look's cells are as they were.
  *
  * The rule is DRIVEN over a fixture built the Budget's own way, on timesheet01.test.ts's model: HERMETIC — no database, no
  * network, and the only clock is the `now` handed in. Every name, place and amount below is made up. The answer function is
@@ -32,9 +33,9 @@ import { TOOL_REGISTRY } from '../toolRegistry';
 import { taskLedgerAnswerOf } from '../operations/ledgerAnswer';
 import { readLedger } from '@/components/workbench/operations/ledger/ledgerReads';
 import {
-  CANCEL_EXPENSE_WORDS, CLEAR_RECORD_WORDS, DOUBLED_NO_VENDOR_WORDS, EXPENSE_FIELD_WORDS, LEDGER_COLUMNS, MINUTES_RANGE_WORDS, NOTE_LONG_WORDS, NO_LINE_NO_VENDOR_WORDS, PLANNED_WORD, RECORD_FIELDS, RECORD_FIELD_WORDS,
+  ACCOUNT_TONES, BOOK_TONES, CANCEL_EXPENSE_WORDS, CLEAR_RECORD_WORDS, DOUBLED_NO_VENDOR_WORDS, EXPENSE_FIELD_WORDS, LEDGER_COLUMNS, MINUTES_RANGE_WORDS, NEUTRAL_TONE, NOTE_LONG_WORDS, NOT_TYPED_WORDS, NO_LINE_NO_VENDOR_WORDS, PILL_CLASS, PLANNED_WORD, RECORD_FIELDS, RECORD_FIELD_WORDS,
   RECORD_ON_OWN_ROW_WORDS, RECORD_TITLE_WORDS, RECORD_WORDS, SAVE_RECORD_WORDS, SKIP_REASON_PLACEHOLDER_WORDS, STARS_RUBRIC_WORDS, STOP_AHEAD_WORDS, TWO_LINES_NO_RECORD_WORDS, WENT_WORD,
-  headWordOf, ledgerFailedWords, ledgerOf, noStayWords, notRecordedWords, notesCount, planMinutesOf, recordBody, recordDraftOf, recordInput, startOf, starsTypedWords, wentCellWords, wentOf,
+  accountPlacesOf, headWordOf, ledgerFailedWords, ledgerOf, noStayWords, notRecordedWords, notesCount, planMinutesOf, recordBody, recordDraftOf, recordInput, startOf, starsTypedWords, wentCellWords, wentOf,
   type LedgerInput, type LedgerLinkInput, type LedgerPlanRow, type LedgerRecordInput, type LedgerRecording, type LedgerRecordingTaken, type LedgerRow, type LedgerSaid, type LedgerSheetRow, type RecordDraft,
 } from '../operations/ledger';
 
@@ -350,7 +351,9 @@ test('T4 the three notes that count rows count the sheet’s rows: the rows that
     assert.equal(l.said.notRecorded, l.sheet.filter((r) => wentOf(r) === NOT_RECORDED_WORDS).length, `at ${now.toISOString()}`);
     counts.push(l.said.notRecorded);
   }
-  assert.deepEqual(counts, [0, 0, 2, 2, 4, 7], 'nothing past · Monday’s swim AT the clock is not past yet · the two swims · the lunch AT 12:30 not past · its two lines one millisecond on · every row that takes a record and has none, once the span is behind');
+  // The last, counted by hand over the twenty rows once the span is behind: Monday's swim (1); Tuesday's swim, bread and soup (3); Wednesday's swim, bread, soup and tea (4) — eight.
+  // The kiosk, Monday's bread, soup and tea hold a record; the four tea rows at a doubled stop, the three market rows and the locker take none.
+  assert.deepEqual(counts, [0, 0, 2, 2, 4, 8], 'nothing past · Monday’s swim AT the clock is not past yet · the two swims · the lunch AT 12:30 not past · its two lines one millisecond on · every row that takes a record and has none, once the span is behind');
   assert.equal(notRecordedWords(2), '2 priced stops planned in the period, already past, with no record', 'the note keeps its words');
   // reversed: over the sheet's rows — the reversed posting on a row with NO record, the one on the all-day charge, and the one beside a recorded line's paying posting.
   const swim = rowAt(sheet, stopAt('swim', MON, '07:00'));
@@ -594,9 +597,9 @@ function fakeDb(rows: Readonly<Record<string, readonly unknown[]>>, calls: Call[
   return db as unknown as Parameters<typeof taskLedgerAnswerOf>[0];
 }
 
-test('T9 the answer function: `recording` rides the one answer after `sheet`, from the reads it already makes — no query added, removed, widened or reordered; it round-trips JSON', async () => {
+test('T9 the answer function: `recording` rides the one answer after `tones` — nine keys — from the reads it already makes: no query added, removed, widened or reordered; it round-trips JSON', async () => {
   const a = code(ANSWER);
-  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, recording: ledger\.recording, said: ledger\.said \};/);
+  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, said: ledger\.said \};/);
   assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'the eight reads — no query added');
   assert.doesNotMatch(a, /\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/, 'writes nothing');
   assert.match(code(ROUTE), /return NextResponse\.json\(await taskLedgerAnswerOf\(prisma, user\.id, \{ from, to \}, new Date\(\)\)\);/, 'the route’s code is unchanged');
@@ -621,7 +624,8 @@ test('T9 the answer function: `recording` rides the one answer after `sheet`, fr
     operations_routines: ROUTINE_ROWS, planned_item_vendors: [], operations_stays: [], operations_stop_records: [RECORD_ROW], planned_item_links: [],
   }, calls);
   const answer = await taskLedgerAnswerOf(db, 'someone', { from: TUE, to: TUE }, NOW);
-  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'recording', 'said'], 'ONE key more, after the sheet');
+  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'said'], 'nine keys: `recording` after `tones`, before what is said');
+  assert.deepEqual(answer.tones, { 'P-6150': 0, 'P-6200': 1, 'P-7450': 2 }, 'the accounts’ places, as they were — the lunch’s line and the market share one');
   assert.deepEqual(JSON.parse(JSON.stringify(answer)), answer, 'wire-shaped as built');
   assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany'], 'the same reads, in the same order — the loader’s (once an entity) among them');
   assert.deepEqual(answer.rows.map((r) => r.id), ['rec-swim'], 'the recorded expense, as before');
@@ -637,19 +641,24 @@ test('T9 the answer function: `recording` rides the one answer after `sheet`, fr
 
 test('T9 the read: the client carries `recording`; an answer without it, or whose `recording` lacks a sheet row’s key, is a failure in words — never a row with no form', async () => {
   const reads = code(READS);
-  assert.match(reads, /readonly sheet: readonly LedgerSheetRow\[\];\n\s*readonly recording: Readonly<Record<string, LedgerRecording>>;\n\s*readonly said: LedgerSaid;/);
+  assert.match(reads, /readonly sheet: readonly LedgerSheetRow\[\];\s*\n\s*readonly tones: AccountPlaces;\s*\n\s*readonly recording: Readonly<Record<string, LedgerRecording>>;\s*\n\s*readonly said: LedgerSaid;/, 'rows, sheet, tones, recording — in that order');
+  // The refusals stand in the same order: rows, the sheet, the tones, then the recording.
+  const order = ['the ledger came back without its rows', 'the ledger came back without its sheet', 'the ledger came back without its tones', 'the ledger came back without its recording', 'the ledger came back with no recording for the row'].map((words) => reads.indexOf(words));
+  assert.ok(order.every((at) => at > -1), 'the five refusals');
+  assert.deepEqual([...order].sort((x, y) => x - y), order, 'the recording’s after the tones’');
   assert.match(reads, /if \(typeof recording !== 'object' \|\| recording === null \|\| Array\.isArray\(recording\)\) return \{ ok: false, words: ledgerFailedWords\('the ledger came back without its recording'\) \};/);
   assert.equal((reads.match(/readJson\(/g) ?? []).length, 1, 'still one read — none when a form opens');
   const g = globalThis as unknown as { fetch: unknown };
   const real = g.fetch;
   const answers = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
-  const whole = { from: MON, to: WED, as_of: NOW.toISOString(), first_record: { day: MON }, rows: ledger.rows, sheet, recording, said: ledger.said };
+  const tones = accountPlacesOf(ROUTINES);
+  const whole = { from: MON, to: WED, as_of: NOW.toISOString(), first_record: { day: MON }, rows: ledger.rows, sheet, tones, recording, said: ledger.said };
   try {
     g.fetch = answers(whole);
     const ok = await readLedger(MON, WED);
     assert.equal(ok.ok, true);
     if (ok.ok) assert.deepEqual(ok.value.recording, recording, 'as the rule built it, through the wire');
-    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], sheet: [], recording: {}, said: {} });
+    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, said: {} });
     assert.equal((await readLedger(MON, WED)).ok, true, 'an empty period: no row, no entry');
     // Without it.
     const { recording: _left, ...without } = whole;
@@ -666,10 +675,14 @@ test('T9 the read: the client carries `recording`; an answer without it, or whos
     assert.deepEqual(await readLedger(MON, WED), { ok: false, words: ledgerFailedWords(`the ledger came back with no recording for the row ${JSON.stringify(lacks)}`) });
     g.fetch = answers({ ...whole, recording: {} });
     assert.deepEqual(await readLedger(MON, WED), { ok: false, words: ledgerFailedWords(`the ledger came back with no recording for the row ${JSON.stringify(sheet[0].key)}`) }, 'the first row it lacks is named');
-    // The earlier refusals stand, in their order.
-    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], recording: {}, said: {} });
+    // The earlier refusals stand, in their order — the tones' before the recording's: an answer lacking both is refused for its tones.
+    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], sheet: [], said: {} });
+    assert.deepEqual(await readLedger(MON, WED), { ok: false, words: ledgerFailedWords('the ledger came back without its tones') });
+    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, said: {} });
+    assert.deepEqual(await readLedger(MON, WED), { ok: false, words: ledgerFailedWords('the ledger came back without its recording') }, 'with its tones and no recording');
+    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], tones: {}, recording: {}, said: {} });
     assert.deepEqual(await readLedger(MON, WED), { ok: false, words: ledgerFailedWords('the ledger came back without its sheet') });
-    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, sheet: [], recording: {}, said: {} });
+    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, sheet: [], tones: {}, recording: {}, said: {} });
     assert.deepEqual(await readLedger(MON, WED), { ok: false, words: ledgerFailedWords('the ledger came back without its rows') });
   } finally {
     g.fetch = real;
@@ -740,7 +753,7 @@ test('T10 the leaf: the vendor’s block above the form and outside it; went | s
   assert.match(f, /const \[draft, setDraft\] = useState<RecordDraft>\(\(\) => recordDraftOf\(entry\.held\)\);/, 'it opens with what the row holds');
   // No sentence of its own: every printed word is an identifier of the rule's, and no prose stands between tags.
   const printed = [...f.matchAll(/>\{([^}]+)\}<\//g)].map((m) => m[1]);
-  assert.deepEqual(printed, ['RECORD_TITLE_WORDS', 'RECORD_FIELD_WORDS[name]', 'RECORD_FIELD_WORDS.went', 'WENT_WORD', 'SKIPPED_WORD', 'SAVE_RECORD_WORDS', 'CLEAR_RECORD_WORDS', 'CANCEL_EXPENSE_WORDS', 'refusal.message']);
+  assert.deepEqual(printed, ['RECORD_FIELD_WORDS[name]', 'RECORD_TITLE_WORDS', 'RECORD_FIELD_WORDS.went', 'WENT_WORD', 'SKIPPED_WORD', 'SAVE_RECORD_WORDS', 'CLEAR_RECORD_WORDS', 'CANCEL_EXPENSE_WORDS', 'refusal.message'], 'as the source prints them — a box’s label first: its helper stands above the markup that calls it');
   assert.doesNotMatch(f, />[A-Za-z][^<>{}]*[a-z][^<>{}]*</, 'no bare prose between tags');
   assert.doesNotMatch(f, /placeholder="|title="|aria-label="/, 'no word typed in an attribute');
   // The words themselves.
@@ -785,6 +798,44 @@ test('T10 the section: the "record" chip in the WENT cell on every row whose ent
   assert.equal((s.match(/colSpan=\{LEDGER_HEAD_WORDS\.length\}/g) ?? []).length, 2, 'the two rows beneath span every column');
   assert.match(comments(SECTION), /TIMESHEET-02 \(Alex, 2026-11-24\): THE TIME SHEET, PART TWO — RECORD ON THE ROW\./);
   assert.match(comments(RULES), /TIMESHEET-02 \(Alex, 2026-11-24\) — THE TIME SHEET, PART TWO: RECORD ON THE ROW\./);
+});
+
+test('T10 on top of TIMESHEET-03: the answer’s nine keys in order, `tones` built as it was; the look’s cells as main has them — Day first, the two pills, the tint on its four cells and not on WENT, the legend through a re-read', () => {
+  // The answer's keys, read off its own return: `recording` after `tones`, before what is said (ruling J.2).
+  const a = code(ANSWER);
+  const returned = /return \{ ([^}]+) \};\n\}/.exec(a);
+  if (returned === null) return assert.fail('the answer function ends on its return');
+  assert.deepEqual(returned[1].split(', ').map((part) => part.split(':')[0]), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'said']);
+  // `tones` is built as it was — by the places' own function over the routines already read, never by the rule.
+  assert.match(a, /sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, said: ledger\.said/);
+  assert.deepEqual(accountPlacesOf(ROUTINES), { 'P-6150': 0, 'P-6200': 1, 'P-7450': 2 }, 'the fixture’s accounts: the lunch’s lines, the tea and the market share one; the stalls carry no code');
+  assert.equal('tones' in ledger, false, 'the rule returns no tones — its six keys are from, to, rows, sheet, recording, said');
+  // The look's own rule, as it was.
+  assert.equal(PILL_CLASS, 'inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap');
+  assert.deepEqual([ACCOUNT_TONES.length, ACCOUNT_TONES[0], ACCOUNT_TONES[12], NEUTRAL_TONE], [13, 'bg-blue-200 text-blue-950', 'bg-sky-200 text-sky-950', 'bg-gray-200 text-gray-800']);
+  assert.deepEqual(BOOK_TONES, { Personal: 'bg-gray-300 text-gray-900', Business: 'bg-violet-200 text-violet-950', Trading: 'bg-emerald-200 text-emerald-950' });
+  assert.equal(NOT_TYPED_WORDS, 'not typed on a row — from your plan, from Books, or worked out');
+  // The section: the period still starts on Day.
+  const s = code(SECTION);
+  assert.match(s, /const \[kind, setKind\] = useState<PeriodKind>\('day'\);/);
+  // The two pills, and the places they are toned by.
+  assert.match(s, /const tones: AccountPlaces = answer !== null && answer\.read\.ok \? answer\.read\.value\.tones : \{\};/);
+  assert.match(s, /const bookPill = bookPillClassOf\(row\);\n\s*const accountPill = accountPillClassOf\(row, tones\);/);
+  assert.match(s, /<td className=\{`\$\{cell\} whitespace-nowrap \$\{row\.book === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="book">\{bookPill === null \? bookCellWords\(row\) : <span className=\{bookPill\} data-ledger-pill="book">\{bookCellWords\(row\)\}<\/span>\}<\/td>/);
+  assert.match(s, /<td className=\{`\$\{cell\} \$\{row\.coa === null \|\| row\.coa\.name === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="account-name">\{accountPill === null \? accountNameCellWords\(row\) : <span className=\{accountPill\} data-ledger-pill="account-name">\{accountNameCellWords\(row\)\}<\/span>\}<\/td>/);
+  // The tint: on BUDGET, VARIANCE, MATCH and UNDER / OVER and on no other cell — WENT, where the chip stands, is not tinted.
+  const cells = [...s.matchAll(/<td className=\{`([^\n]*?)`\} data-ledger-cell="([a-z-]+)"/g)].map((m) => ({ name: m[2], tinted: m[1].includes('${NOT_TYPED_TINT}') }));
+  assert.equal(cells.length, 21);
+  assert.deepEqual(cells.filter((c) => c.tinted).map((c) => c.name), ['budget', 'variance', 'match', 'under-over']);
+  assert.match(s, /const NOT_TYPED_TINT = 'bg-blue-50';/);
+  // The legend: where it stood, on the same condition — it does not read `reading`, so it stays while a re-read of the same span is in flight (rows are still shown).
+  const legend = /\n\s*(\{answer !== null && answer\.read\.ok && shown\.length > 0 && <div className="flex items-center gap-1\.5 text-xs text-text-muted" data-ledger-legend>[^\n]*)\n\s*<\/DataTable>/.exec(s);
+  if (legend === null) return assert.fail('the legend line stands last in the shared table’s children slot');
+  assert.ok(legend[1].includes('<span>{NOT_TYPED_WORDS}</span>'));
+  assert.doesNotMatch(legend[1], /reading/);
+  // The form's row is the leaf's mount — no box in the section's own row.
+  const row = s.slice(s.indexOf('renderRow={(row) => {'), s.indexOf('foot={('));
+  assert.doesNotMatch(row, /<input|<select|<textarea|<form|contentEditable/);
 });
 
 // ── T11 · THE REGISTRY (ruling H) ────────────────────────────────────────────

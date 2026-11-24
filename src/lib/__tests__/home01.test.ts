@@ -177,13 +177,14 @@ test('C the Time row: home /time, LIVE since TIME-03 (no why); the citation and 
   assert.equal(time.status, 'LIVE');
   assert.equal(time.why, undefined);
   assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
-  for (const f of ['src/components/workbench/operations/ledger/ledgerReads.ts:27', 'src/components/workbench/operations/journal/journalReads.ts:26', 'src/components/workbench/operations/ledger/LedgerSection.tsx', 'src/components/workbench/operations/journal/MorningJournalTable.tsx', 'src/components/workbench/operations/journal/EveningJournalTable.tsx']) {
+  // TIMESHEET-02 (Alex, 2026-11-24): the ledger's read is cited at :28 — the answer's interface gained its `recording` line above it; `ledgerReads.ts:27` and `split('\n')[26]` until then.
+  for (const f of ['src/components/workbench/operations/ledger/ledgerReads.ts:28', 'src/components/workbench/operations/journal/journalReads.ts:26', 'src/components/workbench/operations/ledger/LedgerSection.tsx', 'src/components/workbench/operations/journal/MorningJournalTable.tsx', 'src/components/workbench/operations/journal/EveningJournalTable.tsx']) {
     assert.ok(time.citation.includes(f), `the citation names ${f}`);
   }
   assert.doesNotMatch(time.citation, /dayReads\.ts/, 'the card\'s six GETs are not the tables\' evidence');
   assert.match(time.note ?? '', /^HOME-03 \(2026-10-27\): the day itself is entered on the day card — Time's component, shown on the home page, \/home/); // HOME-03 (Alex, 2026-10-27): the note says where the card is now
   // The cited lines are what they say.
-  assert.match(code('src/components/workbench/operations/ledger/ledgerReads.ts').split('\n')[26] ?? '', /\/api\/operations\/ledger\?/);
+  assert.match(code('src/components/workbench/operations/ledger/ledgerReads.ts').split('\n')[27] ?? '', /\/api\/operations\/ledger\?/);
   assert.match(code('src/components/workbench/operations/journal/journalReads.ts').split('\n')[25] ?? '', /\/api\/operations\/journal\/range\?/);
   // Tasks and the rest: unchanged words.
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
