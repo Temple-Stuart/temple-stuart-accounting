@@ -176,15 +176,64 @@
  * nothing for a routine with no money — days.ts), a stop whose role takes no
  * money, filling a row in place.
  *
+ * TIMESHEET-02 (Alex, 2026-11-24) — THE TIME SHEET, PART TWO: RECORD ON THE ROW.
+ * "Id love to make sure I can add in the spending details into the time tab, and can cut out the spread sheets."
+ * "can we build it, and once its built, we can make adjustments as needed?"
+ * A row of the sheet takes its record where it is drawn — went or skipped, what
+ * was paid, the stars, the minutes, what he had, the vendor — through the
+ * writers that already exist (stops/stopWrites.ts; the stops routes stay the
+ * authority). WHICH ROWS TAKE ONE is decided here, from what the rule already
+ * holds, by the stops route's own refusals. Every recorded row takes one: it is
+ * edited or cleared there. A plan row takes one unless its line is all day
+ * (stopRole.ts NOT_A_STOP_RECORD_WORDS), or it is a routine's own line while
+ * that routine has an active line (stopRecord.ts LINES_WORDS), or its address
+ * is not its alone — a recorded expense that could not be joined to one line
+ * holds its key, or another plan line of the sheet stands at the same (kind,
+ * id, instant). The count decides, never a "#n" in a key: the first of two
+ * lines at one stop keeps the bare key and takes none either. WENT on a plan
+ * row that takes none is blank — the all-day blank's rule, now all three
+ * causes'; 'planned' and 'not recorded' are for the rows that take one.
+ *   WHAT THE FORM IS GIVEN RIDES THE ONE ANSWER — no read when a form opens. The
+ * rule gains ONE key, `recording`, after `sheet`: an object keyed by the sheet
+ * row's key, one entry for every row of the sheet (LedgerRecording). A row that
+ * takes none: { takes: false, words } — the cause's one sentence. A row that
+ * takes one: { takes: true, plannedAt, held, vendor } — the stop's planned
+ * instant by the day card's own rule (dayCard.ts dayStops: a line whose step
+ * states a time of day → that clock on the row's day in the routine's zone;
+ * else the occurrence's instant itself), the row's record as the stops GET
+ * answers it (or null), and the day card's own vendor slot (dayCard.ts
+ * VendorSlot): the plan line as the Budget holds it, or the reason a recorded
+ * row has no line to plan on. `rows` and every row's own fields are as they
+ * were — nothing is added to LedgerRow — and LedgerInput gains nothing: the
+ * rule already holds the lines, the records, the routines' zones and each
+ * line's time.
+ *   THE RULE THE FORM SAVES BY is here too, after "+ expense" (recordDraftOf,
+ * recordInput): went | skipped and four boxes, every box a string; the body is
+ * the stops POST's at the row's own address. A first went from the sheet is
+ * done at the stop's planned instant, as "+ expense" records it; an edit keeps
+ * the held record's own done time, which the sheet has no box for — neither
+ * stands in for the other. A stop still ahead of the clock handed in (past the
+ * route's own skew) is refused before the write. A blank box is null, never 0.
+ *   THE REVIEW'S FIXES TO TIMESHEET-01. The all-day word is stopRole.ts's
+ * (ROLE_SHORT_WORDS.all_day): this file no longer imports work.ts, which reads
+ * the same word there, so it is typed once and the two files no longer import
+ * each other. The notes that count rows count the rows the table lists — the
+ * sheet's rows as the rule built them, whatever a filter hides: the rows that
+ * read 'not recorded' (the separate count over the budget lines is gone), the
+ * rows on a day no stay covers, and the reversed postings their MATCH left
+ * out. The notes about records and lines (no line, doubled, unplaced, left
+ * out, not placed) keep their rules and their words. Two plan lines at one
+ * stop no longer read 'not recorded'.
+ *
  * Here: the rule (ledgerOf — the route's pure half), the period (periodOf,
  * stepAnchor, the 400-day cap), the ledger's spec and its calls into the
  * idiom's filters and sort (LEDGER-04 → IDIOM-01), the totals and the summary
  * (the screen's pure half), the CSV's fields (LEDGER_CSV, LEDGER-02 → IDIOM-01),
- * the "+ expense" form's rule and bodies (RETRO-01, at the end), and the
- * words. No fetch, no Prisma, no React; the clock is handed in (now). The
- * tests drive every rule.
+ * the "+ expense" form's rule and bodies (RETRO-01, at the end), the record
+ * form's rule and body after it (TIMESHEET-02), and the words. No fetch, no
+ * Prisma, no React; the clock is handed in (now). The tests drive every rule.
  */
-import { centsFromDecimalString, isIsoDay, readOccurrenceKey, type NotPlaced, type RoutinePlanInput } from '@/lib/budget/days';
+import { centsFromDecimalString, isIsoDay, type NotPlaced, type RoutinePlanInput } from '@/lib/budget/days';
 import { columnOf, type ColumnKind, type SortKey, type TableColumn } from '@/lib/table/columns';
 import { csvMoney, tableCsv } from '@/lib/table/csv';
 import { NO_MONEY_FILTER, NO_TEXT_FILTER, NO_VALUE_FILTER, anyFilterOn, columnValuesOf, filterOn, filterRows, rowPasses, type ColumnValue, type MoneyFilter, type TextFilter, type ValueFilter } from '@/lib/table/filters';
@@ -195,15 +244,16 @@ import { dayPlanOf, daysOf, type PlanLine, type PlanVendorRow, type RoutineWords
 import { shiftDay } from '@/lib/budget/reportView';
 import { deriveAccountString } from '@/lib/accountString';
 import { coveringStay, placeParts, type PlaceParts, type StayRow } from '@/lib/operations/stay';
-import { NEGATIVE_AMOUNT_WORDS, NOT_RECORDED_WORDS, SKIPPED_WORD, amountWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
-import { ROLE_SHORT_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
-// TIMESHEET-01 (2026-11-24): the planned minutes by the one rule (a pure leaf), the clock's arithmetic (the calendar's minutesOf, the rule helpers' clockWords — reused,
-// not rebuilt) and the one all-day word (work.ts — which reads this file's varianceCellWords; each reads the other's name inside a function, never at load).
+import { DONE_AT_SKEW_MS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTE_MAX, NOT_RECORDED_WORDS, RATING_WORDS, SKIPPED_WORD, SKIP_REASON_WORDS, amountWords, minutesTypedWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
+import { NOT_A_STOP_RECORD_WORDS, ROLE_SHORT_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
+// TIMESHEET-01 (2026-11-24): the planned minutes by the one rule (a pure leaf) and the clock's arithmetic (the calendar's minutesOf, the rule helpers' clockWords — reused,
+// not rebuilt). TIMESHEET-02 (2026-11-24): the one all-day word is stopRole.ts's (ROLE_SHORT_WORDS.all_day, above) — this file imports nothing from work.ts, which reads it there too.
 import { plannedMinutesOf } from '@/lib/operations/supersession';
 import { clockWords } from '@/lib/operations/rruleHelpers';
-import { ALL_DAY_WORDS } from '@/lib/operations/work';
 import { minutesOf } from '@/lib/calendar/day';
 import { asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, stopName } from '@/components/workbench/operations/day/dayCard';
+// TIMESHEET-02 (2026-11-24): the day card's own vendor slot — the shape a row's record form is handed (a type; nothing of the card runs here).
+import type { VendorSlot } from '@/components/workbench/operations/day/dayCard';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
 import { amountCentsOf, isReversedPosting, type LinkedPostingRow } from '@/lib/calendar/postingAmount';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
@@ -395,6 +445,15 @@ export const WENT_WORD = 'went';
 export const PLANNED_WORD = 'planned';
 /** What WENT says of a line the sheet lists: its record is done · its record is skipped · no record and the occurrence is at or after the clock handed in · no record and it is before it. */
 export type Went = typeof WENT_WORD | typeof SKIPPED_WORD | typeof PLANNED_WORD | typeof NOT_RECORDED_WORDS;
+/**
+ * TIMESHEET-02 (Alex, 2026-11-24): why a plan row takes no record — one sentence per cause, and its WENT is blank. Two are the stops
+ * route's own refusals, read where the route reads them (stopRole.ts NOT_A_STOP_RECORD_WORDS — the line is all day; stopRecord.ts
+ * LINES_WORDS — a routine's own line while the routine has an active line). The two below are this file's: the row's address is not
+ * its alone. A recorded expense that could not be joined to one line holds the same key; or another plan line of the sheet stands at
+ * the same (kind, id, instant). Both hold → the first.
+ */
+export const RECORD_ON_OWN_ROW_WORDS = "this stop's record is on its own row — it could not be joined to one plan line";
+export const TWO_LINES_NO_RECORD_WORDS = 'two plan lines stand at this stop — neither is taken, so this row takes no record';
 
 /**
  * A PLAN LINE OF THE PERIOD WITH NO RECORD ON IT — the plan, and null where a record would be. The fields are LedgerRow's,
@@ -438,15 +497,36 @@ export interface LedgerPlanRow {
   readonly loggedMinutes: null;
   /** The line's routine is all day (stopRole.ts — a charge on a date, not a stop): START says so, END and WENT are blank, and it takes no record. */
   readonly allDay: boolean;
-  /** planned · not recorded, against the clock handed in; null on an all-day line. */
+  /** planned · not recorded, against the clock handed in — on a row that takes a record. TIMESHEET-02 (2026-11-24, ruling A): null on every row that takes none — an all-day line, a routine's own line while the routine has lines, an address that is not the row's alone (`recording` says which, in words). */
   readonly went: typeof PLANNED_WORD | typeof NOT_RECORDED_WORDS | null;
 }
 
 /** A row of the sheet: a recorded expense — the row of `rows`, itself — or a plan line with no record. `id === null` is the plan line. */
 export type LedgerSheetRow = LedgerRow | LedgerPlanRow;
 
-/** START: 'all day' on an all-day line (the one word, work.ts ALL_DAY_WORDS); else the row's clock, 'HH:MM'; null when the row has none. */
-export const startOf = (row: LedgerSheetRow): string | null => (row.id === null && row.allDay ? ALL_DAY_WORDS : row.time);
+// ── TIMESHEET-02 (Alex, 2026-11-24): WHAT A ROW'S RECORD FORM IS GIVEN ──────
+
+/** Why a recorded row has no plan line to plan a vendor on — one sentence per cause (its budgetState: 'none', 'doubled'). */
+export const NO_LINE_NO_VENDOR_WORDS = 'no budget line matches this record — a vendor is planned on a line';
+export const DOUBLED_NO_VENDOR_WORDS = 'two plan lines stand at this stop — neither is taken, so no vendor is planned here';
+
+/**
+ * A SHEET ROW'S ENTRY IN `recording` — whether the row takes a record and, when it does, everything its form is given, so a form
+ * opens with no read. `takes: false` carries the one sentence saying why (the row's WENT is blank). `takes: true` carries the
+ * stop's planned instant (ISO text — the day card's own rule: a line whose step states a time of day → that clock on the row's day
+ * in the routine's zone; else the occurrence's instant itself), the row's record as the stops GET answers it (null on a plan row),
+ * and the day card's own vendor slot: { kind: 'box', line } with the plan line as the Budget holds it — the plan row's own line, a
+ * recorded row's matched line — or { kind: 'reason', words } on a recorded row with no line to plan on. Wire-shaped: strings,
+ * numbers, booleans and nulls.
+ */
+export type LedgerRecording =
+  | { readonly takes: false; readonly words: string }
+  | { readonly takes: true; readonly plannedAt: string; readonly held: StopRecordRow | null; readonly vendor: VendorSlot };
+/** The entry of a row that takes a record — what the form and its rule are handed. */
+export type LedgerRecordingTaken = Extract<LedgerRecording, { readonly takes: true }>;
+
+/** START: 'all day' on an all-day line (the one word — stopRole.ts ROLE_SHORT_WORDS.all_day; TIMESHEET-02, 2026-11-24: work.ts's until then); else the row's clock, 'HH:MM'; null when the row has none. */
+export const startOf = (row: LedgerSheetRow): string | null => (row.id === null && row.allDay ? ROLE_SHORT_WORDS.all_day : row.time);
 
 const DAY_MINUTES = 24 * 60;
 /** Minutes past midnight of a row's clock ('HH:MM' — the loader's reading of a @db.Time, or lib/time.ts instantToZoned's); a text that is no clock is the read's error, thrown by name. */
@@ -475,16 +555,17 @@ export interface LedgerSaid {
   /** Records no budget line matches (the doubled among them counted again, by name). */
   readonly noLine: number;
   readonly doubled: number;
+  /** TIMESHEET-02 (2026-11-24, ruling F.2): the sheet's rows on a day no stay covers — the rows the table lists, planned and recorded (the recorded rows alone until then). */
   readonly noStay: number;
   /** Records whose routine's zone could not be read — named with the reason, never placed in UTC. */
   readonly unplaced: readonly { readonly record: StopRecordRow; readonly detail: string }[];
-  /** Priced stops planned in the period, already past, with no record. */
+  /** Priced stops planned in the period, already past, with no record. TIMESHEET-02 (2026-11-24, ruling F.2): exactly the sheet's rows whose WENT reads 'not recorded' (a separate count over the budget lines until then). */
   readonly notRecorded: number;
   /** The Budget's routine lines in the period it could not place (days.ts NotPlaced). */
   readonly notPlaced: number;
   /** RETRO-01: records in the period left out because their plan's role takes no money, by role. */
   readonly leftOut: Readonly<Record<NoMoneyRole, number>>;
-  /** LINK-LAW-01 (ruling C): linked postings the rows' MATCH left out because they are a reversal or were reversed. */
+  /** LINK-LAW-01 (ruling C): linked postings the rows' MATCH left out because they are a reversal or were reversed. TIMESHEET-02 (2026-11-24, ruling F.2): over the sheet's rows — a link is keyed on an occurrence, recorded or not (the recorded rows alone until then). */
   readonly reversed: number;
 }
 
@@ -499,6 +580,8 @@ export interface Ledger {
   readonly rows: readonly LedgerRow[];
   /** TIMESHEET-01: the table's rows — every priced line of the period that takes money or is all day, planned and recorded, and each recorded expense no line's row took. Day ascending; within a day the all-day rows, then the clock. */
   readonly sheet: readonly LedgerSheetRow[];
+  /** TIMESHEET-02 (2026-11-24): by the sheet row's key, one entry for EVERY row of `sheet`, in the sheet's order — whether the row takes a record, and what its form is given. */
+  readonly recording: Readonly<Record<string, LedgerRecording>>;
   readonly said: LedgerSaid;
 }
 
@@ -524,6 +607,14 @@ function dayLines(input: LedgerInput, day: string): readonly PlanLine[] {
 
 /** LEDGER-03: the join key — a record's (kind, target_id, occurrence_at) and a link's (target_kind, target_id, target_instant) are the same three strings. */
 export const linkKeyOf = (kind: string, id: string, instant: string): string => `${kind}:${id}:${instant}`;
+
+/**
+ * TIMESHEET-02 (Alex, 2026-11-24): THE STOP'S PLANNED INSTANT, by the day card's own rule (dayCard.ts dayStops — "the line's own time
+ * of day on the card's day in the routine's zone, else the occurrence"): a line whose step states a time of day → that clock on the
+ * row's day in the routine's zone (lib/time.ts zonedToInstant); a line that states none, and a stepless routine → the occurrence's
+ * instant itself. ISO text. `timeOfDay` is the line's own, 'HH:MM' or null — never a stepless routine's clock.
+ */
+const plannedAtOf = (day: string, timeOfDay: string | null, zone: string, instant: string): string => (timeOfDay === null ? instant : zonedToInstant(day, timeOfDay, zone).toISOString());
 
 /**
  * LEDGER-03: a record's match from its links — null with none; the readable amounts summed, the unreadable counted, never summed as zero.
@@ -602,6 +693,10 @@ export function ledgerOf(input: LedgerInput): Ledger {
     linesByDay.set(day, byKey);
   }
 
+  // TIMESHEET-02 (Alex, 2026-11-24): what each sheet row's record form is given, by the row's key — a recorded row's entry is set where
+  // its row is built (the record, its matched line and its line's time are in hand there); a plan row's by the sheet, below.
+  const recordingAt = new Map<string, LedgerRecording>();
+
   const rows: LedgerRow[] = expenses.map(({ r, day, time }) => {
     const key = recordKey(r.record);
     const exact = linesByDay.get(day)?.get(key) ?? [];
@@ -621,6 +716,15 @@ export function ledgerOf(input: LedgerInput): Ledger {
     const actualCents = r.record.actual_cents;
     // LEDGER-03: the record's own address, and its links by that address — byte for byte.
     const address: LedgerAddress = { kind: r.record.kind, id: r.record.target_id, instant: r.record.occurrence_at };
+    // TIMESHEET-02 (ruling A): every recorded row takes a record — it is edited or cleared there. Its form is given the stop's planned
+    // instant (the line's own time on the record's day in its routine's zone, else the occurrence), the record itself, and the vendor
+    // slot: the Budget's box on the matched line, or the one reason there is no line to plan on.
+    recordingAt.set(key, {
+      takes: true,
+      plannedAt: plannedAtOf(day, r.timeOfDay, r.zone, r.record.occurrence_at),
+      held: r.record,
+      vendor: line !== null ? { kind: 'box', line } : { kind: 'reason', words: budgetState === 'doubled' ? DOUBLED_NO_VENDOR_WORDS : NO_LINE_NO_VENDOR_WORDS },
+    });
     return {
       id: r.record.id,
       key,
@@ -650,22 +754,9 @@ export function ledgerOf(input: LedgerInput): Ledger {
   const label = new Map(expenses.map((p) => [p.r.record.id, { label: p.r.routineName, line: p.r.activity }]));
   rows.sort((a, b) => cmp(b.day, a.day) || cmpMaybe(a.time, b.time) || cmp(label.get(a.id)!.label, label.get(b.id)!.label) || cmpMaybe(label.get(a.id)!.line, label.get(b.id)!.line) || cmp(a.id, b.id));
 
-  // Priced stops planned in the period, already past, with no record — an all-day line is in the plan, not a stop (it takes no record).
-  const recorded = new Set(rows.map((row) => row.key));
-  const missing = new Set<string>();
-  for (const l of input.lines) {
-    const read = readOccurrenceKey(l.sourceId);
-    if (read === null || read.routineId === null || read.address.instant === null) throw new Error(`ledger: budget line ${JSON.stringify(l.sourceId)} is no routine occurrence's key`);
-    const role = input.roles.get(read.routineId);
-    if (role === undefined) throw new Error(`ledger: budget line ${l.sourceId} names routine ${read.routineId}, whose role was not read`);
-    if (!isStopRole(role)) throw new Error(`ledger: routine ${read.routineId} carries role ${JSON.stringify(role)} — not one of the six`);
-    if (!isStop(role)) continue;
-    // RETRO-01: a stop whose role takes no money never records money — not an expense missing.
-    if (!asksAmount(role)) continue;
-    if (read.address.instant.getTime() >= input.now.getTime()) continue;
-    const key = lineKey({ kind: read.address.kind, id: read.address.id, instant: read.address.instant.toISOString() });
-    if (!recorded.has(key)) missing.add(key);
-  }
+  // TIMESHEET-02 (Alex, 2026-11-24, ruling F.2): the priced stops past with no record are counted from the sheet's own rows, below — the
+  // rows whose WENT reads 'not recorded'. The separate count over the budget lines that stood here (a key counted once, and never one a
+  // record held) is gone with it: one rule says which rows read 'not recorded', and the note counts those rows.
 
   // ── TIMESHEET-01 (Alex, 2026-11-24): THE SHEET — every priced line of the period, planned and recorded ──
   // The rows above are untouched. For every day of the span: the day's plan lines (planOn — the rule's own reader) whose
@@ -679,6 +770,16 @@ export function ledgerOf(input: LedgerInput): Ledger {
   const sheeted: { readonly row: LedgerSheetRow; readonly label: string; readonly line: string | null }[] = [];
   const onALine = new Set<string>();
   const withoutRecord = new Map<string, number>();
+  // TIMESHEET-02 (ruling A.3): how many plan lines stand at each key, counted before any row is built — the count decides whether a row's
+  // address is its alone, never a "#n" in its key (the first of two lines at one stop keeps the bare key). Two lines at one key are one
+  // routine's, so its role lists both or neither.
+  const standing = new Map<string, number>();
+  for (const day of daysOf(from, to)) {
+    for (const l of planOn(day)) {
+      const key = lineKey(l.address);
+      standing.set(key, (standing.get(key) ?? 0) + 1);
+    }
+  }
   for (const day of daysOf(from, to)) {
     const stay = coveringStay(input.stays, day);
     for (const l of planOn(day)) {
@@ -708,6 +809,18 @@ export function ledgerOf(input: LedgerInput): Ledger {
       // The row's own key: the line's, with its count among the rows without a record there appended when the key is not its alone.
       const nth = (withoutRecord.get(key) ?? 0) + 1;
       withoutRecord.set(key, nth);
+      // TIMESHEET-02 (Alex, 2026-11-24, ruling A): DOES THIS ROW TAKE A RECORD? By the stops route's own refusals, from what the rule
+      // already holds — one sentence per cause, in this order: (1) its line is all day (the route's NOT_A_STOP_RECORD_WORDS); (2) it is a
+      // routine's own line and that routine has an active line (the route's LINES_WORDS — the routine's active lines are RoutineWords.steps,
+      // as the loader read them); (3) its address is not its alone — (a) a recorded expense that could not be joined to one line holds the
+      // same key, or (b) another plan line of the sheet stands at the same (kind, id, instant); both hold → (a). null: it takes one.
+      const lines = standing.get(key);
+      if (lines === undefined) throw new Error(`ledger: plan line ${key} was not counted among the plan lines of ${day}`);
+      const noRecordWords = allDay ? NOT_A_STOP_RECORD_WORDS
+        : kind === 'routine' && routine.steps.size > 0 ? LINES_WORDS
+          : recordedAt.has(key) ? RECORD_ON_OWN_ROW_WORDS
+            : lines > 1 ? TWO_LINES_NO_RECORD_WORDS
+              : null;
       const row: LedgerPlanRow = {
         id: null,
         key: nth === 1 && !recordedAt.has(key) ? key : `${key}#${nth}`,
@@ -730,9 +843,15 @@ export function ledgerOf(input: LedgerInput): Ledger {
         plannedMinutes: stated,
         loggedMinutes: null,
         allDay,
-        // The not-recorded count's own test, on the occurrence's instant against the clock handed in.
-        went: allDay ? null : Date.parse(instant) >= input.now.getTime() ? PLANNED_WORD : NOT_RECORDED_WORDS,
+        // The occurrence's instant against the clock handed in — on a row that takes a record. TIMESHEET-02 (ruling A): blank on every row
+        // that takes none; the all-day blank's rule, now all three causes'.
+        went: noRecordWords !== null ? null : Date.parse(instant) >= input.now.getTime() ? PLANNED_WORD : NOT_RECORDED_WORDS,
       };
+      // TIMESHEET-02 (ruling B): the row's entry — its sentence, or what its form is given: the planned instant (a line's own time of day
+      // on this day in the routine's zone, else the occurrence), no record held, and the Budget's box on the row's own plan line.
+      recordingAt.set(row.key, noRecordWords !== null
+        ? { takes: false, words: noRecordWords }
+        : { takes: true, plannedAt: plannedAtOf(day, kind === 'routine_line' ? l.time : null, routine.timezone, instant), held: null, vendor: { kind: 'box', line: l } });
       sheeted.push({ row, label: l.label, line: l.line });
     }
   }
@@ -743,21 +862,34 @@ export function ledgerOf(input: LedgerInput): Ledger {
   // Day ascending; within a day the all-day rows, then the clock (a blank last), the routine's name, the line's activity, the key.
   const afterAllDay = (row: LedgerSheetRow): number => (row.id === null && row.allDay ? 0 : 1);
   sheeted.sort((a, b) => cmp(a.row.day, b.row.day) || afterAllDay(a.row) - afterAllDay(b.row) || cmpMaybe(a.row.time, b.row.time) || cmp(a.label, b.label) || cmpMaybe(a.line, b.line) || cmp(a.row.key, b.row.key));
+  const sheet: readonly LedgerSheetRow[] = sheeted.map((s) => s.row);
+
+  // TIMESHEET-02 (ruling B): `recording` — one entry for EVERY row of the sheet, by the row's key, in the sheet's order. A row with none
+  // is this rule's error, thrown by name — never a row whose form opens on nothing.
+  const recording: Record<string, LedgerRecording> = {};
+  for (const row of sheet) {
+    const entry = recordingAt.get(row.key);
+    if (entry === undefined) throw new Error(`ledger: sheet row ${row.key} has no entry in recording — every row of the sheet has one`);
+    recording[row.key] = entry;
+  }
 
   return {
     from,
     to,
     rows,
-    sheet: sheeted.map((s) => s.row),
+    sheet,
+    recording,
     said: {
       noLine: rows.filter((row) => row.budgetState !== 'matched').length,
       doubled: rows.filter((row) => row.budgetState === 'doubled').length,
-      noStay: rows.filter((row) => row.place === null).length,
+      // TIMESHEET-02 (ruling F.2): the three notes that count rows count the rows the table lists — the sheet's rows as built here (the
+      // period's, whatever a filter hides): on a day no stay covers; reading 'not recorded'; and the reversed postings their MATCH left out.
+      noStay: sheet.filter((row) => row.place === null).length,
       unplaced,
-      notRecorded: missing.size,
+      notRecorded: sheet.filter((row) => wentOf(row) === NOT_RECORDED_WORDS).length,
       notPlaced: input.notPlaced.length,
       leftOut,
-      reversed: rows.reduce((sum, row) => sum + (row.match === null ? 0 : row.match.reversed), 0),
+      reversed: sheet.reduce((sum, row) => sum + (row.match === null ? 0 : row.match.reversed), 0),
     },
   };
 }
@@ -1205,7 +1337,8 @@ export const spanWords = (days: number): string => `from and to span ${days} day
 /** Under the table, by name and count — nothing is hidden. */
 export const noLineWords = (n: number, doubled: number): string =>
   `${n} record${n === 1 ? '' : 's'} no budget line matches${doubled === 0 ? '' : ` (${doubled} with two plan lines at one stop — neither taken)`}`;
-export const noStayWords = (n: number): string => `${n} record${n === 1 ? '' : 's'} on days no stay covers`;
+/** TIMESHEET-02 (2026-11-24, ruling F.2): the note counts the rows the table lists — "row" / "rows" ("record" / "records" until then). */
+export const noStayWords = (n: number): string => `${n} row${n === 1 ? '' : 's'} on days no stay covers`;
 export const unplacedWords = (list: readonly { readonly record: StopRecordRow; readonly detail: string }[]): string =>
   `${list.length} record${list.length === 1 ? '' : 's'} whose routine's zone could not be read${list.length === 0 ? '' : ` — ${list.map((u) => `${u.record.id}: ${u.detail}`).join('; ')}`}`;
 export const notRecordedWords = (n: number): string => `${n} priced stop${n === 1 ? '' : 's'} planned in the period, already past, with no record`;
@@ -1470,6 +1603,124 @@ export const VENDORS_LOADING_WORDS = 'reading the vendors…';
 export const lineCountWords = (n: number): string => `the one-off came back with ${n} lines — one was written`;
 export const ROUTINE_NO_ID_WORDS = 'the routine came back without its id';
 export const VENDOR_NO_ID_WORDS = 'the vendor came back without its id';
+
+// ── TIMESHEET-02 (Alex, 2026-11-24): THE RECORD ON THE ROW ──────────────────
+//
+// A row of the sheet takes its record where it is drawn: LedgerSection.tsx opens
+// RecordForm.tsx under the row, handed the row's entry in `recording`. Here: the
+// form's draft (recordDraftOf — from the held record, or blank), the one rule
+// for what the form is given (recordInput — the boxes read in their order, the
+// first bad one named, nothing filled in, the clock handed in) with the stops
+// POST's body at the row's own address, and the words. The vendor is not this
+// rule's: it is planned through the Budget's own box, above the form
+// (stops/StopVendor.tsx). The write is the one writer's (stops/stopWrites.ts
+// setStopRecord, clearStopRecord) and the stops route stays the authority — a
+// refusal of its own is shown in its own words.
+
+/** The form's boxes, in the order they stand — the order the rule reads them in. */
+export const RECORD_FIELDS = ['went', 'actual', 'stars', 'minutes', 'note'] as const;
+export type RecordField = (typeof RECORD_FIELDS)[number];
+/** went | skipped — the WENT column's own two words for a record. */
+export type RecordWent = typeof WENT_WORD | typeof SKIPPED_WORD;
+
+/** The form's draft — went or skipped, and every box a string. */
+export interface RecordDraft {
+  readonly went: RecordWent;
+  readonly actual: string;
+  readonly stars: string;
+  readonly minutes: string;
+  readonly note: string;
+}
+
+/**
+ * The draft a form opens with. From the held record: its outcome, its dollars (csv.ts csvMoney — two decimals from the integer
+ * cents, so centsOf reads them back to the same cents), its stars, its minutes, its note. With none: went, every box blank.
+ */
+export function recordDraftOf(held: StopRecordRow | null): RecordDraft {
+  if (held === null) return { went: WENT_WORD, actual: '', stars: '', minutes: '', note: '' };
+  return {
+    went: held.outcome === 'skipped' ? SKIPPED_WORD : WENT_WORD,
+    actual: csvMoney(held.actual_cents),
+    stars: held.rating === null ? '' : String(held.rating),
+    minutes: held.actual_minutes === null ? '' : String(held.actual_minutes),
+    note: held.note === null ? '' : held.note,
+  };
+}
+
+export type RecordInputResult = { readonly ok: true; readonly body: StopBody } | { readonly ok: false; readonly field: RecordField; readonly message: string };
+const refuseRecord = (field: RecordField, message: string): RecordInputResult => ({ ok: false, field, message });
+
+/** went on a stop whose done time would run past the clock handed in plus the route's own skew (stopRecord.ts DONE_AT_SKEW_MS — stopInput's test), said before the write. */
+export const STOP_AHEAD_WORDS = "this stop is still ahead — went is saved at the stop's own time; skip it with its reason, or record it once that time has come";
+/** The two boxes' bounds, each named by its own head word (stopRecord.ts MINUTES_MAX, NOTE_MAX — the route's). */
+export const MINUTES_RANGE_WORDS = `${headWordOf('loggedMinutes')} is 0 to ${MINUTES_MAX}`;
+export const NOTE_LONG_WORDS = `${EXPENSE_FIELD_WORDS.note} is at most ${NOTE_MAX} characters`;
+
+/**
+ * THE ONE RULE FOR WHAT THE RECORD FORM IS GIVEN (ruling C) — the boxes read in their order, the first bad one named, nothing filled
+ * in; the body is the stops POST's (stops/stopWrites.ts StopBody) at the row's own address (kind, id, instant).
+ *   went → outcome 'done'. Its done_at has two states, one source each. An EDIT of a done record keeps that record's own done_at —
+ * the sheet has no box for it, so it is never rewritten unseen. A FIRST went from the sheet — no record held, or a held skip — is
+ * done at the stop's planned instant (RETRO-01's rule: recordBody, "done at the stop's own instant"). Neither stands in for the
+ * other: a held done record with no done_at, and a done time that is no instant, are the read's error, thrown by name. A done_at
+ * later than the clock handed in plus DONE_AT_SKEW_MS — the route's own test (stopRecord.ts stopInput) — is refused before the write.
+ *   skipped → done_at null, and DESCRIPTION is required (stopRecord.ts SKIP_REASON_WORDS).
+ *   ACTUAL: blank → null, never 0; else dollars by this file's centsOf. STARS: blank → null; else 1 to 5. LOGGED MIN: blank → null;
+ * else a whole number from 0 to MINUTES_MAX. DESCRIPTION: trimmed, spaces collapsed; blank → null; at most NOTE_MAX characters.
+ */
+export function recordInput(draft: RecordDraft, address: LedgerAddress, given: Pick<LedgerRecordingTaken, 'plannedAt' | 'held'>, now: Date): RecordInputResult {
+  let doneAt: string | null = null;
+  if (draft.went === WENT_WORD) {
+    if (given.held !== null && given.held.outcome === 'done') {
+      // An edit: the held record's own done time, kept.
+      if (given.held.done_at === null) throw new Error(`ledger: record ${given.held.id} is done with no done_at — the stops route holds one for every done record`);
+      doneAt = given.held.done_at;
+    } else {
+      // A first went from the sheet — no record held, or a held skip: done at the stop's planned instant.
+      doneAt = given.plannedAt;
+    }
+    const at = Date.parse(doneAt);
+    if (!Number.isFinite(at)) throw new Error(`ledger: ${JSON.stringify(doneAt)} is no instant — a done time is ISO text`);
+    if (at > now.getTime() + DONE_AT_SKEW_MS) return refuseRecord('went', STOP_AHEAD_WORDS);
+  }
+  let actualCents: number | null = null;
+  if (draft.actual.trim() !== '') {
+    const read = centsOf(draft.actual.trim());
+    if (!read.ok) return refuseRecord('actual', read.message);
+    actualCents = read.cents;
+  }
+  let rating: number | null = null;
+  if (draft.stars.trim() !== '') {
+    if (!/^[1-5]$/.test(draft.stars.trim())) return refuseRecord('stars', starsTypedWords(draft.stars));
+    rating = Number(draft.stars.trim());
+  }
+  let actualMinutes: number | null = null;
+  if (draft.minutes.trim() !== '') {
+    if (!/^\d+$/.test(draft.minutes.trim())) return refuseRecord('minutes', minutesTypedWords(draft.minutes));
+    const typed = Number(draft.minutes.trim());
+    if (typed > MINUTES_MAX) return refuseRecord('minutes', MINUTES_RANGE_WORDS);
+    actualMinutes = typed;
+  }
+  const note = draft.note.trim().replace(/\s+/g, ' ');
+  if (note.length > NOTE_MAX) return refuseRecord('note', NOTE_LONG_WORDS);
+  if (draft.went === SKIPPED_WORD && note === '') return refuseRecord('note', SKIP_REASON_WORDS);
+  return {
+    ok: true,
+    body: { kind: address.kind, id: address.id, instant: address.instant, outcome: draft.went === SKIPPED_WORD ? 'skipped' : 'done', done_at: doneAt, actual_cents: actualCents, rating, note: note === '' ? null : note, actual_minutes: actualMinutes },
+  };
+}
+
+/** The chip in the WENT cell, and the form's own words — RecordForm.tsx prints these and a rule file's, and no sentence of its own. "cancel" is CANCEL_EXPENSE_WORDS, above. */
+export const RECORD_WORDS = 'record';
+export const RECORD_TITLE_WORDS = "this row's record — went is saved at the stop's own time; a done time already recorded is kept";
+export const SAVE_RECORD_WORDS = 'save';
+export const CLEAR_RECORD_WORDS = 'clear';
+/** DESCRIPTION's placeholder while skipped — a skip needs its reason. */
+export const SKIP_REASON_PLACEHOLDER_WORDS = 'why — required';
+/** The STARS box's title — the rubric (stopRecord.ts RATING_WORDS), five to one, so a star typed here means what it means on the card. */
+export const STARS_RUBRIC_WORDS = ([5, 4, 3, 2, 1] as const).map((n) => `${n} — ${RATING_WORDS[n]}`).join(' · ');
+/** The form's labels: a column's own head word, or the "+ expense" form's — no second word for a thing the table already names. */
+export const RECORD_FIELD_WORDS: Readonly<Record<RecordField, string>> = { went: headWordOf('went'), actual: EXPENSE_FIELD_WORDS.actual, stars: EXPENSE_FIELD_WORDS.stars, minutes: headWordOf('loggedMinutes'), note: EXPENSE_FIELD_WORDS.note };
 
 // ── LEDGER-03 (Alex, 2026-10-19): THE PICKER'S WORDS — LINK-01's list, on the row ──
 //

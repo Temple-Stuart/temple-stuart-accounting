@@ -138,6 +138,7 @@ import { DAYS_NONE_WORDS, byClockThenName, cadenceWords, daysWords, endedBy, isO
 import { isOpenProjectStatus } from '@/lib/operations/morningLog';
 import { monthLineKey, type RoutineMonthLine } from '@/lib/operations/routineMonth';
 import { varianceCellWords } from '@/lib/operations/ledger';
+import { ROLE_SHORT_WORDS } from '@/lib/operations/stopRole'; // TIMESHEET-02 (2026-11-24): the one all-day word, read where it is typed
 import { instantToZoned } from '@/lib/time';
 import type { Routine } from '@/components/workbench/operations/routines/types';
 import type { CoaAccountSummary, Project, Task } from '@/components/workbench/operations/projects/types';
@@ -406,7 +407,7 @@ export type RoutineStatus = (typeof ROUTINE_STATUSES)[number];
 export const routineStatusOf = (routine: Pick<Routine, 'is_active'>, end: RoutineEnd): RoutineStatus => (end.ended ? 'ended' : routine.is_active ? 'active' : 'inactive');
 
 /** TIME — where the rule names no clock, or the routine is all day (ALLDAY-01: a charge on a date, not a stop). */
-export const ALL_DAY_WORDS = 'all day';
+export const ALL_DAY_WORDS = ROLE_SHORT_WORDS.all_day; // TIMESHEET-02 (2026-11-24): stopRole.ts's word ('all day' was typed here until then) — typed once; the time sheet reads the same one there
 export function routineTimeOf(row: RoutineRow): string {
   const words = timeWords(row.routine);
   return words === DAYS_NONE_WORDS ? ALL_DAY_WORDS : words;
