@@ -176,6 +176,38 @@
  * nothing for a routine with no money — days.ts), a stop whose role takes no
  * money, filling a row in place.
  *
+ * TIMESHEET-03 (Alex, 2026-11-24) — THE TIME SHEET'S LOOK: TODAY FIRST, PILLS, THE TINT.
+ * "also we made it look like this before, i want this style table for sure...."
+ * "the only thing that i see here is the COA column in the table, this would be great to include to how it SHOULD look..."
+ * Nothing is renamed, moved, added or removed: the twenty-one columns, their
+ * heads, their order, every cell's words, the filters, the sort, the totals,
+ * the notes, the summary and the CSV's bytes are as they were — the COA columns
+ * stay where they are. What changes is how the table is drawn, and this file
+ * holds what it is drawn by.
+ *   THE PILLS. BOOK and ACCOUNT NAME print their words in the app's pill
+ * (PILL_CLASS — the shape of projects/TaskRowView.tsx's). A book's tone is by
+ * its word (BOOK_TONES, one for each word of BOOK_WORDS). An account's tone is
+ * by its PLACE (accountPlacesOf): the accounts the caller's ACTIVE plans use —
+ * each routine's own code and each of its active lines' codes, a null code
+ * skipped — as the label the ACCOUNT cell prints (accountString.ts
+ * deriveAccountString over the routine's book and the code), distinct, in
+ * ascending order of that label by plain code-unit comparison, no locale; each
+ * takes its place, 0, 1, 2 … Its tone is the wheel's at that place
+ * (ACCOUNT_TONES, thirteen), the wheel repeating after its last; an account no
+ * active plan uses takes the neutral tone (NEUTRAL_TONE). So a tone does not
+ * change with the period shown, and no two accounts share one until the plans
+ * use more than thirteen. The places are built from the routines the loader
+ * already read (ledgerAnswer.ts hands them in, as it hands planMinutesOf its —
+ * no query added) and ride the answer as ONE key, `tones`, after `sheet`.
+ * ledgerOf, `rows`, `sheet` and every row's own fields are as they were. Every
+ * class string — the pill, the thirteen, the neutral, the three books' — is
+ * typed WHOLE here: tailwind.config.ts scans src/lib, and a class assembled
+ * from parts is never compiled.
+ *   THE TINT'S WORDS. The four cells nobody types on a row — BUDGET, VARIANCE,
+ * MATCH, UNDER / OVER — are tinted by the section, and one line above the table
+ * says what the tint means (NOT_TYPED_WORDS). TODAY FIRST is the section's
+ * alone: its period starts on Day.
+ *
  * TIMESHEET-02 (Alex, 2026-11-24) — THE TIME SHEET, PART TWO: RECORD ON THE ROW.
  * "Id love to make sure I can add in the spending details into the time tab, and can cut out the spread sheets."
  * "can we build it, and once its built, we can make adjustments as needed?"
@@ -230,7 +262,8 @@
  * idiom's filters and sort (LEDGER-04 → IDIOM-01), the totals and the summary
  * (the screen's pure half), the CSV's fields (LEDGER_CSV, LEDGER-02 → IDIOM-01),
  * the "+ expense" form's rule and bodies (RETRO-01, at the end), the record
- * form's rule and body after it (TIMESHEET-02), and the words. No fetch, no
+ * form's rule and body after it (TIMESHEET-02), the pills' classes and tones
+ * (TIMESHEET-03, after the inputs' mappers), and the words. No fetch, no
  * Prisma, no React; the clock is handed in (now). The tests drive every rule.
  */
 import { centsFromDecimalString, isIsoDay, type NotPlaced, type RoutinePlanInput } from '@/lib/budget/days';
@@ -347,6 +380,88 @@ export function planMinutesOf(routines: readonly Pick<RoutinePlanInput, 'id' | '
   }
   return minutes;
 }
+
+// ── TIMESHEET-03 (Alex, 2026-11-24): THE LOOK — THE PILLS AND THEIR TONES ───
+//
+// BOOK and ACCOUNT NAME are coloured pills; the words in them do not change. Every class string below is typed WHOLE:
+// tailwind.config.ts scans src/lib, and a class assembled from parts is never compiled.
+
+/** The app's pill (projects/TaskRowView.tsx pillClass — its shape), kept on one line. */
+export const PILL_CLASS = 'inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap';
+/** BOOK's tone, by the book's word — one for each word of BOOK_WORDS. */
+export const BOOK_TONES: Readonly<Record<BookWord, string>> = {
+  Personal: 'bg-gray-300 text-gray-900',
+  Business: 'bg-violet-200 text-violet-950',
+  Trading: 'bg-emerald-200 text-emerald-950',
+};
+/** THE WHEEL — an account's tone is the wheel's at the account's place: thirteen, in this order, repeating after its last. */
+export const ACCOUNT_TONES = [
+  'bg-blue-200 text-blue-950',
+  'bg-orange-200 text-orange-950',
+  'bg-green-200 text-green-950',
+  'bg-pink-200 text-pink-950',
+  'bg-teal-200 text-teal-950',
+  'bg-amber-300 text-amber-950',
+  'bg-purple-200 text-purple-950',
+  'bg-cyan-200 text-cyan-950',
+  'bg-rose-200 text-rose-950',
+  'bg-lime-200 text-lime-950',
+  'bg-indigo-200 text-indigo-950',
+  'bg-yellow-200 text-yellow-950',
+  'bg-sky-200 text-sky-950',
+] as const;
+/** The tone of an account no active plan uses. */
+export const NEUTRAL_TONE = 'bg-gray-200 text-gray-800';
+
+/** The answer's `tones`: an account's label, as the ACCOUNT cell prints it ("P-6150") → its place, 0, 1, 2 … among the accounts the caller's active plans use. Wire-shaped — an object of whole numbers. */
+export type AccountPlaces = Readonly<Record<string, number>>;
+
+/**
+ * TIMESHEET-03 (Alex, 2026-11-24): EACH ACCOUNT'S PLACE — what an account's tone is decided by. The accounts the caller's ACTIVE
+ * plans use: each routine's own code and each of its active lines' codes (a line the loader marks inactive is not one; a null code
+ * is skipped), each as the label the ACCOUNT cell prints — accountString.ts deriveAccountString over the routine's book and the
+ * code, the rule's own call for a row. Distinct; in ascending order of that label by plain code-unit comparison, no locale; each
+ * takes its place, 0, 1, 2 … It reads nothing but the routines it is handed — no period, no row, no clock — so an account's place,
+ * and its tone, do not change with the period shown. One mapper: the answer function calls it with the routines it already read
+ * (no query added), as it calls planMinutesOf.
+ */
+export function accountPlacesOf(routines: readonly Pick<RoutinePlanInput, 'entityType' | 'coaCode' | 'steps'>[]): AccountPlaces {
+  const labels = new Set<string>();
+  for (const routine of routines) {
+    if (routine.coaCode !== null) labels.add(deriveAccountString({ entityType: routine.entityType, code: routine.coaCode }));
+    for (const step of routine.steps) {
+      // An active line: absent means active (the loader filters on the server), false is honoured — days.ts RoutineLinePlanInput.
+      if (step.isActive === false || step.coaCode === null) continue;
+      labels.add(deriveAccountString({ entityType: routine.entityType, code: step.coaCode }));
+    }
+  }
+  const places: Record<string, number> = {};
+  [...labels].sort(cmp).forEach((label, place) => { places[label] = place; });
+  return places;
+}
+
+/** An account's place among the places handed in — null when no active plan uses the account. */
+export const placeOf = (places: AccountPlaces, label: string): number | null => (Object.prototype.hasOwnProperty.call(places, label) ? places[label] : null);
+
+/**
+ * THE TONE OF A PLACE: the wheel's at that place, the wheel repeating after its last (the fourteenth account is back on the first
+ * tone); an account with no place — no active plan uses it — takes the neutral tone. A place that is no whole number 0 or above is
+ * the read's error, thrown by name, never drawn in some tone.
+ */
+export function toneOfPlace(place: number | null): string {
+  if (place === null) return NEUTRAL_TONE;
+  if (!Number.isInteger(place) || place < 0) throw new Error(`ledger: ${JSON.stringify(place)} is no place — an account's place is a whole number, 0 or above`);
+  return ACCOUNT_TONES[place % ACCOUNT_TONES.length];
+}
+
+/** BOOK's pill: its classes, toned by the row's book — null when the row has no book (the cell prints its blank, no pill). */
+export const bookPillClassOf = (row: Pick<LedgerSheetRow, 'book'>): string | null => (row.book === null ? null : `${PILL_CLASS} ${BOOK_TONES[row.book]}`);
+/** ACCOUNT NAME's pill: its classes, toned by the account's place — null when the cell has no name (its blank, no pill). The account is the label the ACCOUNT cell prints. */
+export const accountPillClassOf = (row: Pick<LedgerSheetRow, 'coa'>, places: AccountPlaces): string | null =>
+  (row.coa === null || row.coa.name === null ? null : `${PILL_CLASS} ${toneOfPlace(placeOf(places, row.coa.account))}`);
+
+/** THE TINT'S LEGEND — one line above the table: the tinted cells (BUDGET, VARIANCE, MATCH, UNDER / OVER) are the ones nobody types on a row. */
+export const NOT_TYPED_WORDS = 'not typed on a row — from your plan, from Books, or worked out';
 
 export interface LedgerInput {
   readonly from: string;
