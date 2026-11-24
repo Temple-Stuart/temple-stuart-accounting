@@ -57,6 +57,17 @@
  * card, then THE SHEET. This page is unchanged — the three tables; a dated
  * /time?date= or ?step= is sent to /home now (307); the law holds the card's
  * mount on /home.
+ *
+ * TIMEWIDE-01 (Alex, 2026-11-24) — THE PAGE TAKES THE WINDOW'S WIDTH.
+ * "i sent what I want the table to look like and its not the same we agreed?"
+ * — and his standing word: "Its hard to think if I cant see everything". A
+ * tool page's main stops at max-w-7xl (ui/AppLayout.tsx `page` — 1,216 px of
+ * content from lg), and the time sheet's table is wider than that at its
+ * narrowest (96rem), so its last columns sat off to the right. This page alone
+ * passes `wide` beside `page`: the page's own gutter and padding, and no cap —
+ * the sheet and the two journal tables under it take the width the window
+ * gives beside the rail. Nothing else here changes: the same three sections in
+ * the same order, and the rail as it is.
  */
 import AppLayout from '@/components/ui/AppLayout';
 import ToolOpener from '@/components/shell/ToolOpener';
@@ -69,7 +80,7 @@ import EveningJournalTable from '@/components/workbench/operations/journal/Eveni
 
 export default function TimePage() {
   return (
-    <AppLayout page>
+    <AppLayout page wide>
       <ToolOpener tools={[navToolByName('Time', TOOL_GATE)]} />
       <OperationsEntityProvider>
         <div className="space-y-3" data-tool-page="Time">
