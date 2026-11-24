@@ -268,10 +268,10 @@ const LISBON_ROW: WasHereRow = { ...row('danang-2026-08'), id: 'lisbon-2026', ci
 // ── T1 · THE HANDOFF ─────────────────────────────────────────────────────────
 
 test('T1 the handoff landed byte for byte: the README and the reference by sha256 and size; the folder holds the two; one stylesheet, two pages; the photos from public/was-here/ and nothing else but the fonts', () => {
-  assert.equal(sha256(whole(REFERENCE)), '2ba42489bca3a0eda54129380e17c896c1f6f9ab1ee6f12cdba5437a780cc9a0');
-  assert.equal(size(REFERENCE), 103510);
-  assert.equal(sha256(whole(README)), '4fc358f062589dfe869bb98d600bcd51b3a4efdfc129cbd3b9b8f73d02223c83');
-  assert.equal(size(README), 28260);
+  assert.equal(sha256(whole(REFERENCE)), '849916bad67549d819f97b034cba9175326c49e471cd5af68268a5a00a8900d3');
+  assert.equal(size(REFERENCE), 103774);
+  assert.equal(sha256(whole(README)), 'a3c885bdb07f1daeae94ead2707cb01268bd04346170e0eb2333fc1ecb4cac7f');
+  assert.equal(size(README), 28524);
   assert.deepEqual(readdirSync(resolve(ROOT, FOLDER)).sort(), ['Post-Reference.html', 'README.md']);
   const html = whole(REFERENCE);
   assert.equal(count(html, '<style>'), 1, 'one stylesheet');
@@ -662,8 +662,8 @@ test('T8 a post\'s day and its favorite: twelve fields; Canggu\'s as the README 
   assert.deepEqual(canggu.routine, {
     blocks: [{ kind: 'activity', hours: 2 }, { kind: 'meals', hours: 1 }, { kind: 'focus', hours: 8 }, { kind: 'meals', hours: 1 }, { kind: 'entertainment', hours: 4 }, { kind: 'sleep', hours: 8 }],
     cards: [
-      { label: 'The focus', title: 'Temple Stuart', text: 'Product development, marketing, professional services, and building the tools I use to manage the trip.' },
-      { label: 'The life', title: 'Beyond the laptop', text: 'Training, surf, cafes, local food, sunsets, social experiences, and exploring wherever I happen to be.' },
+      { label: 'The focus', title: 'Planning ahead', text: 'A system to plan ahead, so I wake up every day knowing what I’m going to do and what it’s going to cost, and never have to figure out a plan on the spot, which stresses me out.' },
+      { label: 'The life', title: 'The authentic side', text: 'Exercising and doing things I enjoy, like surfing and hiking. Eating healthy and trying the local food. Seeing the sunsets. Meeting locals, getting to know them and making new lifelong friends. Getting to experience the authentic side of where I’m visiting, not just the touristy side.' },
     ],
   }, 'his day as approved, with focus for work (README, Data)');
   const uluwatu = row('uluwatu-2026-11').image ?? assert.fail('Uluwatu has its photo');

@@ -256,8 +256,8 @@ export const TRIP_POSTS: readonly TripPost[] = [
         { kind: 'sleep', hours: 8 },
       ],
       cards: [
-        { label: 'The focus', title: 'Temple Stuart', text: 'Product development, marketing, professional services, and building the tools I use to manage the trip.' },
-        { label: 'The life', title: 'Beyond the laptop', text: 'Training, surf, cafes, local food, sunsets, social experiences, and exploring wherever I happen to be.' },
+        { label: 'The focus', title: 'Planning ahead', text: 'A system to plan ahead, so I wake up every day knowing what I’m going to do and what it’s going to cost, and never have to figure out a plan on the spot, which stresses me out.' },
+        { label: 'The life', title: 'The authentic side', text: 'Exercising and doing things I enjoy, like surfing and hiking. Eating healthy and trying the local food. Seeing the sunsets. Meeting locals, getting to know them and making new lifelong friends. Getting to experience the authentic side of where I’m visiting, not just the touristy side.' },
       ],
     },
     // TRIPPOST-02: his favorite with a photo — the Uluwatu day. The photo is the Uluwatu stop's for now, with that photo's own alt and credit; it keeps its file when that stop gets its own.
