@@ -153,6 +153,30 @@
  * and nothing-recorded lines stand. The shared table (DataTable.tsx) is not
  * edited: the pills and the tint are in this section's own cells. No box in a
  * row, nothing typed here that was not typed before.
+ *
+ * TIMESHEET-02 (Alex, 2026-11-24): THE TIME SHEET, PART TWO — RECORD ON THE ROW.
+ * "Id love to make sure I can add in the spending details into the time tab, and can cut out the spread sheets."
+ * "can we build it, and once its built, we can make adjustments as needed?"
+ * Beside WENT, every row that takes a record carries one "record" chip; it
+ * opens, under the row, RecordForm.tsx — its own state (the row's key, React
+ * state only), its own <tr> spanning the columns, the leaf keyed by the row's
+ * key. The "link" chip, the picker's row and its state are untouched; both may
+ * be open. WHICH ROWS TAKE ONE, and what the form is given, is the answer's
+ * `recording` (ledger.ts LedgerRecording, by the row's key): the section asks
+ * no row which kind it is. A row that takes none has no chip, and its WENT
+ * cell's title is the entry's own sentence. After a write the form closes and
+ * the section does what it does after "+ expense": the span is read again and
+ * the day is announced; a write of the vendor's box reads the span again and
+ * leaves the form open.
+ *   A WRITE NO LONGER TAKES THE TABLE AWAY. The read effect blanked the answer
+ * on every re-read, and the shared table draws only while loaded, so each
+ * write — a link, an expense — unmounted every row until the read returned,
+ * and would have taken an open form with what was typed in it. Now the answer
+ * on screen is blanked only when the period's span changes: a re-read of the
+ * same span leaves it drawn, with the loading words shown where the loading
+ * line stands while the read is in flight; the new answer replaces it when it
+ * arrives, and a read that fails replaces it with its failure, as before. No
+ * column is added; the table's width is what it was.
  */
 
 'use client';
@@ -164,6 +188,7 @@ import { deltaWords } from '../day/dayCard';
 import { readLedger, type LedgerAnswer } from './ledgerReads';
 import ExpenseForm from './ExpenseForm';
 import LinkPicker from './LinkPicker';
+import RecordForm from './RecordForm';
 import { reversedLinkedWords } from '@/lib/calendar/postingAmount';
 import DataTable, { cellClass as cell, chipClass as chip, headClass as head, moneyClass as money } from '@/components/table/DataTable';
 import { announceDayWritten } from '../dayWritten';
@@ -177,6 +202,7 @@ import {
   endCellWords, endOf, startCellWords, startOf, wentCellWords, wentOf, // TIMESHEET-01 (2026-11-24): the three facts of a sheet row and their cells
   hoursWords, loggedCoverageWords, minutesCellWords, plannedCoverageWords, // TIME-03 (2026-10-26): the minutes cells, the hours and their coverage
   NOT_TYPED_WORDS, accountPillClassOf, bookPillClassOf, type AccountPlaces, // TIMESHEET-03 (2026-11-24): the legend's words, the two pills' classes, and the accounts' places they are toned by
+  RECORD_WORDS, type LedgerRecording, // TIMESHEET-02 (2026-11-24): the chip's word, and a row's entry in the answer's `recording`
   type ColumnFilters, type GroupKey, type LedgerColumn, type LedgerSheetRow, type LedgerSort, type MatchState, type Period, type PeriodKind,
 } from '@/lib/operations/ledger';
 
@@ -212,6 +238,10 @@ export default function LedgerSection() {
   const [writes, setWrites] = useState(0);
   // LEDGER-03: the row whose picker is open (its key), or none. React state only — nothing stored.
   const [picking, setPicking] = useState<string | null>(null);
+  // TIMESHEET-02 (2026-11-24): the row whose record form is open (its key), or none — its own state, beside the picker's; both may be open. React state only — nothing stored.
+  const [entering, setEntering] = useState<string | null>(null);
+  // TIMESHEET-02 (2026-11-24): a read is in flight — said where the loading line stands while the answer already on screen stays drawn.
+  const [reading, setReading] = useState(false);
 
   useEffect(() => {
     const t = localToday();
@@ -225,11 +255,16 @@ export default function LedgerSection() {
   useEffect(() => {
     if (period === null) return;
     let live = true;
-    setAnswer(null);
+    // TIMESHEET-02 (Alex, 2026-11-24, ruling E): A WRITE NO LONGER TAKES THE TABLE AWAY. The answer on screen is blanked only when the period's span changes; a
+    // re-read of the same span (a write bumped `writes`) leaves it drawn — every row, and a form open under one with what is typed in it — until the new answer
+    // replaces it, or the read's failure does. (Until then: setAnswer(null) on every re-read, which unmounted the table for the length of the read.)
+    setAnswer((held) => (held !== null && held.period.from === period.from && held.period.to === period.to ? held : null));
+    setReading(true);
     (async () => {
       const read = await readLedger(period.from, period.to);
       if (!live) return;
       setAnswer({ period, read });
+      setReading(false);
       if (read.ok) setFirstRecord(read.value.first_record);
     })();
     return () => { live = false; };
@@ -243,6 +278,8 @@ export default function LedgerSection() {
   const rows: readonly LedgerSheetRow[] = answer !== null && answer.read.ok ? answer.read.value.sheet : [];
   // TIMESHEET-03 (Alex, 2026-11-24): each account's place among the accounts the active plans use — the answer's `tones`; the ACCOUNT NAME pill is toned by it (ledger.ts accountPillClassOf).
   const tones: AccountPlaces = answer !== null && answer.read.ok ? answer.read.value.tones : {};
+  // TIMESHEET-02 (Alex, 2026-11-24): whether each row takes a record, and what its form is given — the answer's `recording`, by the row's key (the read refuses an answer that lacks a row's entry). No row is asked which kind it is.
+  const recording: Readonly<Record<string, LedgerRecording>> = answer !== null && answer.read.ok ? answer.read.value.recording : {};
   // LEDGER-04: the rows filtered (every column, AND across), then sorted — the TOTAL row, the coverage, the summary and the CSV read these.
   const shown = sortRows(applyColumnFilters(rows, filters), sort);
   const totals = ledgerTotals(shown);
@@ -302,6 +339,8 @@ export default function LedgerSection() {
           // among them, is not tinted, and neither is the TOTAL row.
           const bookPill = bookPillClassOf(row);
           const accountPill = accountPillClassOf(row, tones);
+          // TIMESHEET-02 (2026-11-24): the row's entry in `recording` — it takes a record (the chip, and what its form is given), or it does not (its one sentence).
+          const entry = recording[row.key];
           return (
             <Fragment key={row.key}>
               <tr className="border-t border-border" data-ledger-row={row.key} data-ledger-day={row.day}>
@@ -317,8 +356,13 @@ export default function LedgerSection() {
                 <td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : ''}`} data-ledger-cell="account-name">{accountPill === null ? accountNameCellWords(row) : <span className={accountPill} data-ledger-pill="account-name">{accountNameCellWords(row)}</span>}</td>
                 <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name">{row.description}</td>
                 <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor">{vendorCellWords(row.vendor)}</td>
-                {/* TIMESHEET-01 (2026-11-24): WENT after VENDOR — went, skipped, planned, not recorded; "—" on a charge. */}
-                <td className={`${cell} whitespace-nowrap ${wentOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="went">{wentCellWords(row)}</td>
+                {/* TIMESHEET-01 (2026-11-24): WENT after VENDOR — went, skipped, planned, not recorded; "—" on a charge. TIMESHEET-02 (2026-11-24): after the word, the
+                    "record" chip on every row whose entry takes a record — it opens the row's form beneath; a row that takes none has no chip, its WENT reads "—", and the
+                    cell's title is the entry's own sentence saying why. */}
+                <td className={`${cell} whitespace-nowrap ${wentOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="went" title={entry.takes ? undefined : entry.words}>
+                  <span data-ledger-went>{wentCellWords(row)}</span>
+                  {entry.takes && <button type="button" className={`${chip} ml-1 font-normal`} onClick={() => setEntering(entering === row.key ? null : row.key)} data-ledger-record={row.key} aria-expanded={entering === row.key}>{RECORD_WORDS}</button>}
+                </td>
                 <td className={`${cell} whitespace-nowrap ${row.rating === null ? BLANK_CLASS : ''}`} data-ledger-cell="stars">{starsCellWords(row.rating)}</td>
                 {/* TIME-03 (2026-10-26): the minutes after STARS — the line's planned and the record's logged, whole minutes, "—" for null. */}
                 <td className={`${cell} whitespace-nowrap tabular-nums ${row.plannedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-cell="planned-minutes">{minutesCellWords(row.plannedMinutes)}</td>
@@ -340,6 +384,15 @@ export default function LedgerSection() {
                   </td>
                 </tr>
               )}
+              {/* TIMESHEET-02 (Alex, 2026-11-24): THE ROW'S RECORD — its own row beneath, as the picker's: the leaf keyed by the row's key, handed the row and its entry. An accepted
+                  write closes it, reads the span again and announces the day ("+ expense"'s own two); the vendor's box reads the span again and leaves it open. */}
+              {entering === row.key && entry.takes && (
+                <tr className="border-t border-border" data-ledger-recording={row.key}>
+                  <td colSpan={LEDGER_HEAD_WORDS.length} className={cell}>
+                    <RecordForm key={row.key} row={row} entry={entry} onWritten={(day) => { setEntering(null); setWrites((n) => n + 1); announceDayWritten(day); }} onVendor={() => setWrites((n) => n + 1)} onClose={() => setEntering(null)} />
+                  </td>
+                </tr>
+              )}
             </Fragment>
           );
         }}
@@ -358,7 +411,8 @@ export default function LedgerSection() {
           </tfoot>
         )}
       >
-        {period !== null && answer === null && <div className="text-xs text-text-muted" data-ledger-loading>{LEDGER_LOADING_WORDS}</div>}
+        {/* TIMESHEET-02 (2026-11-24): the loading words while no answer is on screen — and, the answer kept through a re-read of the same span, while that read is in flight. */}
+        {period !== null && (answer === null || reading) && <div className="text-xs text-text-muted" data-ledger-loading>{LEDGER_LOADING_WORDS}</div>}
         {answer !== null && !answer.read.ok && <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" data-ledger-failed>{answer.read.words}</div>}
         {answer !== null && answer.read.ok && rows.length === 0 && <div className="text-xs text-text-muted" data-ledger-none>{noRowsWords(answer.period)}</div>}
         {/* TIMESHEET-03 (Alex, 2026-11-24): THE TINT'S LEGEND — one line above the table while rows are shown: a swatch of the same tint, and what it means in ledger.ts's words. */}

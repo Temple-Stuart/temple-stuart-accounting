@@ -174,7 +174,7 @@ test('T5 the registry: the Time row says the tables (HOME-01, ruling C); the Tas
   // HOME-01 (Alex, 2026-10-24, ruling C): the row's words are the tables'.
   assert.equal(time.why, undefined); // TIME-03 (Alex, 2026-10-26): a LIVE row carries no why — the tables' line left with the status (time03.test.ts pins the row)
   // HOME-01 (Alex, 2026-10-24): discover is the two tables' reads; the card's routes stay the decide and commit beats (the card is Time's, on the dashboard).
-  assert.match(time.citation, /discover: src\/components\/workbench\/operations\/ledger\/ledgerReads\.ts:27 \(GET \/api\/operations\/ledger\?from=&to=/);
+  assert.match(time.citation, /discover: src\/components\/workbench\/operations\/ledger\/ledgerReads\.ts:28 \(GET \/api\/operations\/ledger\?from=&to=/); // TIMESHEET-02 (Alex, 2026-11-24): the ledger's read re-cited, :27 → :28 — the answer's interface gained its `recording` line above it
   assert.match(time.citation, /src\/components\/workbench\/operations\/journal\/journalReads\.ts:26 \(GET \/api\/operations\/journal\/range\?from=&to=/);
   assert.match(time.citation, /decide: src\/app\/api\/operations\/journal\/route\.ts:61 \(PUT/); // REGISTRY-TRUTH-01 (2026-11-10): the PUT re-cited, :51 → :61
   assert.match(time.citation, /commit: src\/app\/api\/operations\/stops\/route\.ts \(POST/);

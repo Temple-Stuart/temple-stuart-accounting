@@ -152,14 +152,16 @@ const MAIN_ROWS: readonly LedgerRow[] = [
   { id: 'r-ferry-1', key: 'routine:ferry:2027-03-01T18:00:00.000Z', address: { kind: 'routine', id: 'ferry', instant: '2027-03-01T18:00:00.000Z' }, match: null, day: '2027-03-01', time: '15:00', place: null, book: null, coa: null, vendor: null, description: 'Ferry', rating: null, note: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 1200, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
   { id: 'r-climbing-1', key: 'routine:climbing:2027-03-01T22:00:00.000Z', address: { kind: 'routine', id: 'climbing', instant: '2027-03-01T22:00:00.000Z' }, match: null, day: '2027-03-01', time: '19:00', place: null, book: 'Personal', coa: { account: 'P-6200', name: 'Sport' }, vendor: null, description: 'Climbing', rating: 5, note: null, cents: 1800, budgetState: 'matched', outcome: 'done', actualCents: 1800, varianceCents: 0, plannedMinutes: 90, loggedMinutes: null },
 ];
-const MAIN_SAID: LedgerSaid = { noLine: 1, doubled: 0, noStay: 4, unplaced: [], notRecorded: 3, notPlaced: 0, leftOut: { journal: 1, plan: 0, execute: 0, all_day: 0 }, reversed: 0 };
+// TIMESHEET-02 (Alex, 2026-11-24, ruling F.2): the notes that count rows count the rows the table lists — noStay is the sheet's six rows on Monday, the day no stay covers (`noStay: 4`,
+// the four recorded rows of that day, until then — what main 22e26f3 gave). notRecorded stands at 3: the same three rows read "not recorded" (T3). Every other count is as main gave it.
+const MAIN_SAID: LedgerSaid = { noLine: 1, doubled: 0, noStay: 6, unplaced: [], notRecorded: 3, notPlaced: 0, leftOut: { journal: 1, plan: 0, execute: 0, all_day: 0 }, reversed: 0 };
 
 // ── T1 · THE OLD LIST STAYS (ruling B.1) ─────────────────────────────────────
 
 test('T1 `rows` and what is said are what main gives for the same fixture — one row per recorded expense, newest day first; the answer gains one list beside them', () => {
   assert.deepEqual(ledger.rows, MAIN_ROWS, 'the recorded expenses, cell for cell, in main’s order');
   assert.deepEqual(ledger.said, MAIN_SAID, 'every note keeps its count');
-  assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'said'], 'ONE list more');
+  assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'said'], 'ONE list more'); // TIMESHEET-02 (Alex, 2026-11-24, ruling B): and ONE key, `recording`, after `sheet` — five keys until then
   assert.deepEqual(ledger.rows.map((r) => r.id), ['r-porridge-2', 'r-print-2', 'r-juice-1', 'r-porridge-1', 'r-ferry-1', 'r-climbing-1'], 'newest day first, then the card’s clock');
   // A row of `rows` carries no new field: the three facts are read from the fields it always had.
   for (const row of ledger.rows) assert.deepEqual(Object.keys(row), Object.keys(MAIN_ROWS[0]), `${row.id}: the row’s shape is main’s`);
@@ -167,7 +169,8 @@ test('T1 `rows` and what is said are what main gives for the same fixture — on
   const rules = code(RULES);
   assert.match(rules, /const rows: LedgerRow\[\] = expenses\.map\(\(\{ r, day, time \}\) => \{/);
   assert.match(rules, /rows\.sort\(\(a, b\) => cmp\(b\.day, a\.day\) \|\| cmpMaybe\(a\.time, b\.time\) \|\| cmp\(label\.get\(a\.id\)!\.label, label\.get\(b\.id\)!\.label\) \|\| cmpMaybe\(label\.get\(a\.id\)!\.line, label\.get\(b\.id\)!\.line\) \|\| cmp\(a\.id, b\.id\)\);/, 'newest day first — untouched');
-  assert.match(rules, /rows,\n\s*sheet: sheeted\.map\(\(s\) => s\.row\),\n\s*said: \{/, 'the sheet beside the rows, in the one answer');
+  assert.match(rules, /const sheet: readonly LedgerSheetRow\[\] = sheeted\.map\(\(s\) => s\.row\);/);
+  assert.match(rules, /rows,\n\s*sheet,\n\s*recording,\n\s*said: \{/, 'the sheet beside the rows, in the one answer'); // TIMESHEET-02 (Alex, 2026-11-24): the sheet is named once, above (the notes count its rows), and `recording` stands after it — `rows,` / `sheet: sheeted.map((s) => s.row),` / `said: {` until then
 });
 
 // ── T2 · THE SHEET'S ROWS (ruling B.2) ───────────────────────────────────────
@@ -244,7 +247,7 @@ test('T3 WENT: went (the record is done) · skipped · planned (no record, the o
   assert.equal(climbAt(new Date(at('2027-03-02', '19:00'))), 'planned');
   assert.equal(climbAt(new Date(Date.parse(at('2027-03-02', '19:00')) + 1)), 'not recorded');
   const rules = code(RULES);
-  assert.match(rules, /went: allDay \? null : Date\.parse\(instant\) >= input\.now\.getTime\(\) \? PLANNED_WORD : NOT_RECORDED_WORDS,/, 'against the clock handed in — no other');
+  assert.match(rules, /went: noRecordWords !== null \? null : Date\.parse\(instant\) >= input\.now\.getTime\(\) \? PLANNED_WORD : NOT_RECORDED_WORDS,/, 'against the clock handed in — no other'); // TIMESHEET-02 (Alex, 2026-11-24, ruling A): blank on every row that takes no record, the all-day line among them — `went: allDay ? null : …` until then
   assert.doesNotMatch(rules, /new Date\(\)|Date\.now\(/, 'the rule reads no clock of its own');
   assert.doesNotMatch(code(THIS), /new Date\(\)|Date\.now\(/, 'nor does this test');
 });
@@ -320,7 +323,8 @@ test('T4 START: the line’s own time; else the occurrence’s local time in the
   assert.throws(() => ends('soon', 30), /ledger: "soon" is not a clock — a stop's time is HH:MM/);
   // In the source: the calendar's arithmetic and the rule helpers' clock, reused; the all-day word imported, not retyped.
   const rules = code(RULES);
-  assert.match(rules, /import \{ ALL_DAY_WORDS \} from '@\/lib\/operations\/work';/);
+  assert.doesNotMatch(rules, /from '@\/lib\/operations\/work'/); // TIMESHEET-02 (Alex, 2026-11-24, ruling F.1): the word is stopRole.ts's, read there by this file and by work.ts — `import { ALL_DAY_WORDS } from '@/lib/operations/work';` until then
+  assert.match(rules, /row\.id === null && row\.allDay \? ROLE_SHORT_WORDS\.all_day : row\.time/);
   assert.match(rules, /import \{ minutesOf \} from '@\/lib\/calendar\/day';/);
   assert.match(rules, /import \{ clockWords \} from '@\/lib\/operations\/rruleHelpers';/);
   assert.doesNotMatch(rules, /'all day'/, 'the word is not typed in the rule');
@@ -556,7 +560,7 @@ test('T8 the words: the title reads "Time sheet", the file is time-sheet_<from>_
 
 test('T9 one answer, one read — { from, to, as_of, first_record, rows, sheet, said }: no query added; the client reads `sheet`; an answer without it is a failure in words', async () => {
   const a = code(ANSWER);
-  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), said: ledger\.said \};/); // TIMESHEET-03 (Alex, 2026-11-24): the answer gains ONE key, `tones`, after `sheet` — `sheet: ledger.sheet, said: ledger.said` until then; the rule's own keys (T1) are as they were
+  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, said: ledger\.said \};/); // TIMESHEET-02 (Alex, 2026-11-24): and ONE key, `recording`, after `tones` — `tones: accountPlacesOf(routineInputs), said: ledger.said` until then. TIMESHEET-03 (Alex, 2026-11-24): the answer gains ONE key, `tones`, after `sheet` — `sheet: ledger.sheet, said: ledger.said` until then
   assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'the eight reads — no query added');
   assert.match(a, /minutes: planMinutesOf\(routineInputs\),/, 'the planned minutes from the routines the loader already read');
   assert.match(a, /const routineInputs = routineGroups\.flatMap\(\(group\) => group\.rows\.map\(\(row\) => toRoutinePlanInput\(row, bookOf\(group\.entityId, `the routines of entity \$\{group\.entityId\}`\)\)\)\);/);
@@ -571,7 +575,7 @@ test('T9 one answer, one read — { from, to, as_of, first_record, rows, sheet, 
   const real = g.fetch;
   const answers = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
   try {
-    g.fetch = answers({ from: FROM, to: TO, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, said: {} }); // TIMESHEET-03 (Alex, 2026-11-24): the answer carries its `tones` too — one without them is a failure in words (timesheet03.test.ts); `sheet: [], said: {}` until then
+    g.fetch = answers({ from: FROM, to: TO, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, said: {} }); // TIMESHEET-02 (Alex, 2026-11-24): and its `recording` — one without it is a failure in words (timesheet02.test.ts); `tones: {}, said: {}` until then. TIMESHEET-03 (Alex, 2026-11-24): the answer carries its `tones` too — one without them is a failure in words (timesheet03.test.ts); `sheet: [], said: {}` until then
     assert.equal((await readLedger(FROM, TO)).ok, true);
     g.fetch = answers({ from: FROM, to: TO, as_of: 'x', first_record: null, rows: [], said: {} });
     assert.deepEqual(await readLedger(FROM, TO), { ok: false, words: ledgerFailedWords('the ledger came back without its sheet') }, 'never read as an empty period');
@@ -616,7 +620,7 @@ test('T9 the answer function: the sheet rides the one answer from the reads it a
     operations_stop_records: [RECORD_ROW], planned_item_links: [],
   }, calls);
   const answer = await taskLedgerAnswerOf(db, 'someone', { from: '2027-03-02', to: '2027-03-02' }, NOW);
-  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'said']); // TIMESHEET-03 (Alex, 2026-11-24): `tones` after `sheet` — seven keys until then
+  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'said']); // TIMESHEET-02 (Alex, 2026-11-24): `recording` after `tones` — eight keys until then. TIMESHEET-03 (Alex, 2026-11-24): `tones` after `sheet` — seven keys until then
   assert.deepEqual(JSON.parse(JSON.stringify(answer)), answer, 'wire-shaped as built');
   assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany'], 'the same reads, in the same order — the loader’s (once an entity) among them');
   assert.deepEqual(answer.rows.map((r) => r.id), ['rec-porridge'], 'the recorded expense, as before');
@@ -667,7 +671,7 @@ test('T11 the section draws `sheet`: three cells more in their places, each the 
   assert.deepEqual(cells, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description'], 'one cell per head word, in its order');
   assert.equal(cells.length, LEDGER_HEAD_WORDS.length);
   assert.match(s, /data-ledger-cell="date">\{row\.day\}<\/td>\n(?:\s*\{\s*\}\n)?\s*<td className=\{`\$\{cell\} whitespace-nowrap tabular-nums \$\{startOf\(row\) === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="start">\{startCellWords\(row\)\}<\/td>\n\s*<td className=\{`\$\{cell\} whitespace-nowrap tabular-nums \$\{endOf\(row\) === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="end">\{endCellWords\(row\)\}<\/td>\n\s*<td [^\n]*data-ledger-cell="city">/, 'DATE, then START and END, then CITY');
-  assert.match(s, /data-ledger-cell="vendor">\{vendorCellWords\(row\.vendor\)\}<\/td>\n(?:\s*\{\s*\}\n)?\s*<td className=\{`\$\{cell\} whitespace-nowrap \$\{wentOf\(row\) === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="went">\{wentCellWords\(row\)\}<\/td>\n\s*<td [^\n]*data-ledger-cell="stars">/, 'VENDOR, then WENT, then STARS');
+  assert.match(s, /data-ledger-cell="vendor">\{vendorCellWords\(row\.vendor\)\}<\/td>\n(?:\s*\{\s*\}\n)?\s*<td className=\{`\$\{cell\} whitespace-nowrap \$\{wentOf\(row\) === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="went" title=\{entry\.takes \? undefined : entry\.words\}>\n\s*<span data-ledger-went>\{wentCellWords\(row\)\}<\/span>\n\s*\{entry\.takes && <button [^\n]*data-ledger-record=\{row\.key\}[^\n]*>\{RECORD_WORDS\}<\/button>\}\n\s*<\/td>\n\s*<td [^\n]*data-ledger-cell="stars">/, 'VENDOR, then WENT, then STARS'); // TIMESHEET-02 (Alex, 2026-11-24, ruling E): the word, then the "record" chip on a row that takes one; a row that takes none says why in the cell's title — `data-ledger-cell="went">{wentCellWords(row)}</td>` until then
   // Each row keyed by its own key — a plan row has no record id.
   assert.match(s, /<Fragment key=\{row\.key\}>\n\s*<tr className="border-t border-border" data-ledger-row=\{row\.key\} data-ledger-day=\{row\.day\}>/);
   assert.doesNotMatch(s, /key=\{row\.id\}/);
@@ -695,14 +699,15 @@ test('T12 two plan lines at one stop: the record that names them both is its own
   const doubled = ledgerOf(input({ lines: [...built.lines, climb] }));
   const K = stopAt('climbing', '2027-03-01', '19:00');
   const there = doubled.sheet.filter((r) => r.day === '2027-03-01' && r.description === 'Climbing');
-  assert.deepEqual(there.map((r) => [r.key, r.id, r.cents, wentOf(r)]), [[K, 'r-climbing-1', null, 'went'], [`${K}#1`, null, 1800, 'not recorded'], [`${K}#2`, null, 1800, 'not recorded']], 'the record as `rows` gives it (BUDGET "—", neither taken), then the two lines it could not be joined to');
+  assert.deepEqual(there.map((r) => [r.key, r.id, r.cents, wentOf(r)]), [[K, 'r-climbing-1', null, 'went'], [`${K}#1`, null, 1800, null], [`${K}#2`, null, 1800, null]], 'the record as `rows` gives it (BUDGET "—", neither taken), then the two lines it could not be joined to'); // TIMESHEET-02 (Alex, 2026-11-24, rulings A.3 and F.3): the two lines' rows take no record, so their WENT is blank — 'not recorded' on each until then
   assert.equal(doubled.rows.find((r) => r.id === 'r-climbing-1')?.budgetState, 'doubled');
   assert.equal(new Set(doubled.sheet.map((r) => r.key)).size, doubled.sheet.length, 'every row has a key of its own — the row’s key, the picker’s and the list’s');
   assert.equal(doubled.sheet.length, 19);
   assert.deepEqual(doubled.sheet.filter(isRecord).map((r) => r.id).sort(), doubled.rows.map((r) => r.id).sort(), 'nothing recorded leaves, none twice');
-  // The note's rule is untouched: it counts a key once, and never a key a record holds — so here it stays at 3 while five rows read "not recorded".
+  // TIMESHEET-02 (Alex, 2026-11-24, ruling F.2): the note counts exactly the rows that read "not recorded" — three here, the two doubled lines' rows blank now. Until then the note's own
+  // rule counted a key once and never a key a record held, so it stood at 3 while five rows read "not recorded" (the count below was 5).
   assert.deepEqual([doubled.said.notRecorded, doubled.said.noLine, doubled.said.doubled], [3, 2, 1]);
-  assert.equal(doubled.sheet.filter((r) => wentOf(r) === NOT_RECORDED_WORDS).length, 5);
+  assert.equal(doubled.sheet.filter((r) => wentOf(r) === NOT_RECORDED_WORDS).length, 3);
   // Two lines at one stop and no record: the first keeps the line's key.
   const unrecorded = ledgerOf(input({ lines: [...built.lines, climb], records: RECORDS.filter((r) => r.record.id !== 'r-climbing-1') }));
   assert.deepEqual(unrecorded.sheet.filter((r) => r.day === '2027-03-01' && r.description === 'Climbing').map((r) => r.key), [K, `${K}#2`]);

@@ -219,9 +219,13 @@ test('T2 the cells’ words: the ACTUAL amount alone (LEDGER-02; the delta was i
 test('T2 said, not hidden: no line (the doubled named), no stay, the zone, the priced stops past with no record (an all-day line is not a stop), the lines not placed', () => {
   // RETRO-01 (Alex, 2026-10-16): what is said gains the records left out by role (none here — every fixture is a place stop; retro01.test.ts drives it).
   // LINK-LAW-01 (Alex, 2026-10-28, ruling C): and the linked postings MATCH left out because they were reversed (none here; linkLaw01.test.ts drives it).
+  // TIMESHEET-02 (Alex, 2026-11-24, ruling F.2): the notes that count rows count the rows the table lists — noStay is the sheet's eight rows on Oct 12, the day no stay
+  // covers (`noStay: 3`, that day's three recorded rows, until then). notRecorded stands at 2: the same two rows read "not recorded".
   assert.deepEqual(ledger.said, {
-    noLine: 2, doubled: 1, noStay: 3, unplaced: ledger.said.unplaced, notRecorded: 2, notPlaced: 0, leftOut: { journal: 0, plan: 0, execute: 0, all_day: 0 }, reversed: 0,
+    noLine: 2, doubled: 1, noStay: 8, unplaced: ledger.said.unplaced, notRecorded: 2, notPlaced: 0, leftOut: { journal: 0, plan: 0, execute: 0, all_day: 0 }, reversed: 0,
   });
+  assert.equal(ledger.sheet.filter((row) => row.place === null).length, 8, 'the note is the count of the rows shown with no place');
+  assert.deepEqual([...new Set(ledger.sheet.filter((row) => row.place === null).map((row) => row.day))], ['2026-10-12'], 'every one of them on the day no stay covers');
   // Past NOW (Oct 12, 19:00 Bangkok): the morning's Oct 12 stops — coffee recorded, stretch and lunch not; the gym at 20:00 and every
   // Oct 13 stop are not past; Netflix's line is all day — in the plan, not a stop, never counted.
   const later = ledgerOf(input({ now: new Date('2026-10-14T00:00:00.000Z') }));
@@ -235,7 +239,8 @@ test('T2 said, not hidden: no line (the doubled named), no stay, the zone, the p
   assert.throws(() => ledgerOf(input({ from: TO, to: FROM })), /is not a span of days/);
   assert.equal(noLineWords(2, 1), '2 records no budget line matches (1 with two plan lines at one stop — neither taken)');
   assert.equal(noLineWords(1, 0), '1 record no budget line matches');
-  assert.equal(noStayWords(3), '3 records on days no stay covers');
+  assert.equal(noStayWords(3), '3 rows on days no stay covers'); // TIMESHEET-02 (Alex, 2026-11-24, ruling F.2): the note counts the sheet's rows and says "row" — '3 records on days no stay covers' until then
+  assert.equal(noStayWords(1), '1 row on days no stay covers');
   assert.equal(unplacedWords([]), '0 records whose routine\'s zone could not be read');
   assert.match(unplacedWords(ledger.said.unplaced), /^1 record whose routine's zone could not be read — r-mars: the routine's day cannot be read — timezone not recognised/);
   assert.equal(notRecordedWords(2), '2 priced stops planned in the period, already past, with no record');
@@ -399,7 +404,7 @@ test('T5 the route: GET only, the stops GET’s gate first, from and to by the o
     'const built = buildRoutineBudgetLines(routineInputs, from, to);',
     'toReportAccount(row, bookOf(row.entity_id',
     'const ledger = ledgerOf({',
-    'return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, tones: accountPlacesOf(routineInputs), said: ledger.said };', // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet`, between rows and said — `rows: ledger.rows, said: ledger.said` until then. TIMESHEET-03 (Alex, 2026-11-24): and ONE key, `tones`, after `sheet` — `sheet: ledger.sheet, said: ledger.said` until then
+    'return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, tones: accountPlacesOf(routineInputs), recording: ledger.recording, said: ledger.said };', // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet`, between rows and said — `rows: ledger.rows, said: ledger.said` until then. TIMESHEET-03 (Alex, 2026-11-24): and ONE key, `tones`, after `sheet` — `sheet: ledger.sheet, said: ledger.said` until then. TIMESHEET-02 (Alex, 2026-11-24): and ONE key, `recording`, after `tones` — `tones: accountPlacesOf(routineInputs), said: ledger.said` until then
   ], 'the reads, the rules, the answer — in the route’s order, every one by the caller’s id');
   for (const [f, src] of [[ROUTE, r], [ANSWER, a]] as const) {
     assert.doesNotMatch(src, /\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(|\$executeRaw|\$queryRaw|writeAuditLog/, `${f}: read only — nothing is written`);
@@ -434,7 +439,7 @@ test('T6 the read: one URL through the one reader; an answer without its rows is
   const calls: string[] = [];
   const g = globalThis as unknown as { fetch: unknown };
   const real = g.fetch;
-  g.fetch = async (url: string) => { calls.push(url); return new Response(JSON.stringify({ from: '2026-10-01', to: '2026-10-31', as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, said: {} }), { status: 200, headers: { 'content-type': 'application/json' } }); }; // TIMESHEET-03 (Alex, 2026-11-24): and its `tones` — one without them is a failure in words (timesheet03.test.ts); `sheet: [], said: {}` until then. TIMESHEET-01 (Alex, 2026-11-24): the answer carries its `sheet` — one without it is a failure in words (timesheet01.test.ts); `rows: [], said: {}` until then
+  g.fetch = async (url: string) => { calls.push(url); return new Response(JSON.stringify({ from: '2026-10-01', to: '2026-10-31', as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, said: {} }), { status: 200, headers: { 'content-type': 'application/json' } }); }; // TIMESHEET-02 (Alex, 2026-11-24): and its `recording` — one without it is a failure in words (timesheet02.test.ts); `tones: {}, said: {}` until then. TIMESHEET-03 (Alex, 2026-11-24): and its `tones` — one without them is a failure in words (timesheet03.test.ts); `sheet: [], said: {}` until then. TIMESHEET-01 (Alex, 2026-11-24): the answer carries its `sheet` — one without it is a failure in words (timesheet01.test.ts); `rows: [], said: {}` until then
   try {
     const read = await readLedger('2026-10-01', '2026-10-31');
     assert.ok(read.ok);
@@ -529,8 +534,14 @@ test('T6 the ledger mounts first on /time (HOME-01: the day card is on the dashb
   const rules = code(RULES);
   assert.doesNotMatch(rules, /\bfetch\b|new Date\(\)|Date\.now\(|@prisma\/client|from 'react'|from 'next/, 'pure');
   assert.match(rules, /readonly now: Date;/);
-  assert.match(rules, /if \(read\.address\.instant\.getTime\(\) >= input\.now\.getTime\(\)\) continue;/, '"already past" against the clock handed in');
-  assert.match(rules, /if \(!isStop\(role\)\) continue;/, 'an all-day line is in the plan, not a stop');
+  // TIMESHEET-02 (Alex, 2026-11-24, ruling F.2): the note that counted the stops not recorded had a loop of its own over the budget lines — its two gates,
+  // `if (read.address.instant.getTime() >= input.now.getTime()) continue;` and `if (!isStop(role)) continue;`, were pinned here until then. The note now counts the
+  // rows that read "not recorded" on the sheet, so the same two rules are the sheet's: WENT against the clock handed in, and an all-day line taking no record.
+  assert.match(rules, /went: noRecordWords !== null \? null : Date\.parse\(instant\) >= input\.now\.getTime\(\) \? PLANNED_WORD : NOT_RECORDED_WORDS,/, '"already past" against the clock handed in');
+  assert.match(rules, /notRecorded: sheet\.filter\(\(row\) => wentOf\(row\) === NOT_RECORDED_WORDS\)\.length,/, 'the note is the count of those rows');
+  assert.match(rules, /const allDay = !isStop\(role\);/);
+  assert.match(rules, /const noRecordWords = allDay \? NOT_A_STOP_RECORD_WORDS\s*\n/, 'an all-day line is in the plan, not a stop');
+  assert.doesNotMatch(rules, /read\.address\.instant\.getTime\(\) >= input\.now\.getTime\(\)|if \(!isStop\(role\)\) continue;/, 'the loop that counted apart is gone');
   // SUPERSEDE-01b (2026-11-08): the plan takes marked lines — the task ledger states its lines unmarked (markLines over no marks).
   assert.match(rules, /const plan = dayPlanOf\(\{ view: \{ kind: 'day', day \}, lines: markLines\(input\.lines, new Map\(\)\), notPlaced: input\.notPlaced, routines: input\.routines, tasks: new Map\(\), vendors: input\.vendors \}\);/, 'the vendor by the plan’s grain — planLines.ts’s rule, reused');
   assert.match(rules, /const exact = linesByDay\.get\(day\)\?\.get\(key\) \?\? \[\];\n\s*const line = exact\.length === 1 \? exact\[0\] : null;/, 'the card’s match: one line at the exact instant');

@@ -126,7 +126,7 @@ test('T4 the registry: the Time row is a customer\'s line with no build note; th
     assert.doesNotMatch(line, /\b(discover|decide|commit|record)\b/, 'no beat word on a public line (the plan law)');
   }
   // HOME-01 (Alex, 2026-10-24, ruling C): discover is the tables' reads; decide, commit and record keep the card's routes and the ledger.
-  for (const beat of ['discover: src/components/workbench/operations/ledger/ledgerReads.ts:27', 'decide: src/app/api/operations/journal/route.ts:61 (PUT', 'commit: src/app/api/operations/stops/route.ts (POST', 'record: src/components/workbench/operations/ledger/LedgerSection.tsx']) { // REGISTRY-TRUTH-01 (2026-11-10): the PUT re-cited, :51 → :61
+  for (const beat of ['discover: src/components/workbench/operations/ledger/ledgerReads.ts:28', 'decide: src/app/api/operations/journal/route.ts:61 (PUT', 'commit: src/app/api/operations/stops/route.ts (POST', 'record: src/components/workbench/operations/ledger/LedgerSection.tsx']) { // REGISTRY-TRUTH-01 (2026-11-10): the PUT re-cited, :51 → :61. TIMESHEET-02 (Alex, 2026-11-24): the ledger's read re-cited, :27 → :28 — the answer's interface gained its `recording` line above it
     assert.ok(time.citation.includes(beat), `the citation keeps ${beat.split(':')[0]}`);
   }
   assert.doesNotMatch(time.citation, /operations\/content|daily-plan|unscheduled/, 'no pipeline route in the citation');

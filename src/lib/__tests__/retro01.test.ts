@@ -118,9 +118,11 @@ test('T1 ledgerOf lists a record only when its plan’s role takes money (asksAm
   const noBrunch = ledgerOf(input({ records: RECORDS.filter((r) => r.record.id !== 'r-brunch') }));
   assert.equal(noBrunch.said.notRecorded, 1, 'the priced brunch, past with no record, still is');
   assert.throws(() => ledgerOf(input({ records: [stop('gym', 'Gym', 'sometimes', RECORDS[3].record)] })), /not one of the six/, 'a role that is not one of the six is the route’s error, never guessed');
-  // The rule in the source: the filter before the lines are read, the count by role, the missing loop's gate.
+  // The rule in the source: the filter before the lines are read, the count by role, the sheet's gate.
+  // TIMESHEET-02 (Alex, 2026-11-24, ruling F.2): the note that counts the stops not recorded counts the sheet's rows, so the loop that counted them apart is gone and
+  // the gate is the sheet's own — 'if (!isStop(role)) continue;', 'if (!asksAmount(role)) continue;' (the missing loop's two) stood in this list until then.
   const r = code(RULES);
-  inOrder(r, ['const leftOut: Record<NoMoneyRole, number> = { journal: 0, plan: 0, execute: 0, all_day: 0 };', 'const expenses = placed.filter((p) => {', 'if (!isStopRole(role)) throw', 'if (asksAmount(role)) return true;', 'leftOut[role as NoMoneyRole] += 1;', 'for (const day of new Set(expenses.map((p) => p.day)))', 'const rows: LedgerRow[] = expenses.map(', 'if (!isStop(role)) continue;', 'if (!asksAmount(role)) continue;', 'leftOut,'], 'expenses only, in the rule');
+  inOrder(r, ['const leftOut: Record<NoMoneyRole, number> = { journal: 0, plan: 0, execute: 0, all_day: 0 };', 'const expenses = placed.filter((p) => {', 'if (!isStopRole(role)) throw', 'if (asksAmount(role)) return true;', 'leftOut[role as NoMoneyRole] += 1;', 'for (const day of new Set(expenses.map((p) => p.day)))', 'const rows: LedgerRow[] = expenses.map(', 'const allDay = !isStop(role);', 'if (!allDay && !asksAmount(role)) continue;', 'leftOut,'], 'expenses only, in the rule');
   // LEDGER-02 (Alex, 2026-10-19): rowActualWords left the import — the ACTUAL cell is the amount alone (planDollars).
   assert.match(r, /import \{ asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, stopName \} from '@\/components\/workbench\/operations\/day\/dayCard';/, 'the card’s own rule for which stops take money');
   // The words.
