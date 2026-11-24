@@ -192,7 +192,7 @@ test('R2 the join: a record meets its links by (kind, target_id, occurrence_at) 
   assert.match(route, /links: linkRows\.map\(linkInputOf\),/);
   // ROUTINES-03 (Alex, 2026-10-25): linkInputOf moved to ledger.ts, unchanged, so the routines' month route reads a link the same way — the pins moved with it.
   // READS-01b (Alex, 2026-11-07): the import split with the body — the route keeps spanInput; the answer file takes ledgerOf, linkInputOf and the input type.
-  assert.match(route, /import \{ ledgerOf, linkInputOf, planMinutesOf, type LedgerRecordInput \} from '@\/lib\/operations\/ledger';/); // TIMESHEET-01 (Alex, 2026-11-24): the answer function reads planMinutesOf too (each plan's planned minutes, for the sheet) — `{ ledgerOf, linkInputOf, type LedgerRecordInput }` until then
+  assert.match(route, /import \{ accountPlacesOf, ledgerOf, linkInputOf, planMinutesOf, type LedgerRecordInput \} from '@\/lib\/operations\/ledger';/); // TIMESHEET-03 (Alex, 2026-11-24): and accountPlacesOf (each account's place, for the pills' tones) — `{ ledgerOf, linkInputOf, planMinutesOf, type LedgerRecordInput }` until then. TIMESHEET-01 (Alex, 2026-11-24): the answer function reads planMinutesOf too (each plan's planned minutes, for the sheet) — `{ ledgerOf, linkInputOf, type LedgerRecordInput }` until then
   assert.match(code(LEDGER_ROUTE), /import \{ spanInput \} from '@\/lib\/operations\/ledger';/);
   for (const f of [LEDGER_ROUTE, LEDGER_ANSWER]) assert.doesNotMatch(code(f), /function linkInputOf\(/, `${f}: the mapper lives in ledger.ts now`);
   // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the mapper reads the posting's reversal state too (LinkedPostingRow) and says whether it was reversed.
@@ -277,7 +277,7 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
   assert.match(rules, /csvMoney\(readableMatchCents\(row\.match\)\),/);
   // The section: the cell, its tone, its title; the TOTAL row's MATCH; the coverage line where the note was.
   const s = code(SECTION);
-  assert.match(s, /<td className=\{`\$\{money\} \$\{readableMatchCents\(row\.match\) === null \? BLANK_CLASS : `font-semibold \$\{matchTone\(matchState\(row\.match, row\.actualCents\)\)\}`\}`\} data-ledger-cell="match" title=\{matchCellTitle\(row\.match\) \?\? undefined\}>/, 'the cell');
+  assert.match(s, /<td className=\{`\$\{money\} \$\{NOT_TYPED_TINT\} \$\{readableMatchCents\(row\.match\) === null \? BLANK_CLASS : `font-semibold \$\{matchTone\(matchState\(row\.match, row\.actualCents\)\)\}`\}`\} data-ledger-cell="match" title=\{matchCellTitle\(row\.match\) \?\? undefined\}>/, 'the cell'); // TIMESHEET-03 (Alex, 2026-11-24): the cell carries the tint of the cells nobody types on a row — `${money} ${readableMatchCents(row.match) === null ? …` until then
   assert.match(s, /const matchTone = \(state: MatchState \| null\): string => \(state === null \? '' : state === 'equal' \? 'text-brand-green' : 'text-brand-red'\);/, 'the cue — and no third colour');
   assert.match(s, /<span data-ledger-match>\{matchCellWords\(row\.match\)\}<\/span>/);
   assert.match(s, /<td className=\{`\$\{money\} \$\{totals\.matchCents === null \? BLANK_CLASS : ''\}`\} data-ledger-total-match>\{matchTotalWords\(totals\.matchCents\)\}<\/td>/, 'the TOTAL row’s MATCH, no tone');

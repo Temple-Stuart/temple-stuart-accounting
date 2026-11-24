@@ -54,7 +54,7 @@ test('A taskLedgerAnswerOf(db, userId, span, now) holds the route\'s body verbat
     'let firstRecord: { readonly day: string } | { readonly words: string } | null = null;',
     "firstRecord = { words: refusedWords('timezone not recognised', `${JSON.stringify(first.zone)}: ${messageOf(error)}`) };",
     'const ledger = ledgerOf({', 'records: recordRows.map(recordInputOf),', 'links: linkRows.map(linkInputOf),', 'stays: stayRows.map(stayRowOf),',
-    'return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, said: ledger.said };', // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet` — `rows: ledger.rows, said: ledger.said` until then; no read is added (the count below stands at eight)
+    'return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, tones: accountPlacesOf(routineInputs), said: ledger.said };', // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet` — `rows: ledger.rows, said: ledger.said` until then; no read is added (the count below stands at eight). TIMESHEET-03 (Alex, 2026-11-24): and ONE key, `tones`, after `sheet`, from the routines already read — `sheet: ledger.sheet, said: ledger.said` until then; the count still stands at eight
   ], 'the body, in the route\'s order');
   assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'the eight reads — no query added');
   assert.equal((a.match(/new Date\(\)/g) ?? []).length, 0, 'the clock is a parameter, never read here');

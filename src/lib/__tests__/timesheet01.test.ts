@@ -556,7 +556,7 @@ test('T8 the words: the title reads "Time sheet", the file is time-sheet_<from>_
 
 test('T9 one answer, one read — { from, to, as_of, first_record, rows, sheet, said }: no query added; the client reads `sheet`; an answer without it is a failure in words', async () => {
   const a = code(ANSWER);
-  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, said: ledger\.said \};/);
+  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), said: ledger\.said \};/); // TIMESHEET-03 (Alex, 2026-11-24): the answer gains ONE key, `tones`, after `sheet` — `sheet: ledger.sheet, said: ledger.said` until then; the rule's own keys (T1) are as they were
   assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'the eight reads — no query added');
   assert.match(a, /minutes: planMinutesOf\(routineInputs\),/, 'the planned minutes from the routines the loader already read');
   assert.match(a, /const routineInputs = routineGroups\.flatMap\(\(group\) => group\.rows\.map\(\(row\) => toRoutinePlanInput\(row, bookOf\(group\.entityId, `the routines of entity \$\{group\.entityId\}`\)\)\)\);/);
@@ -571,7 +571,7 @@ test('T9 one answer, one read — { from, to, as_of, first_record, rows, sheet, 
   const real = g.fetch;
   const answers = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
   try {
-    g.fetch = answers({ from: FROM, to: TO, as_of: 'x', first_record: null, rows: [], sheet: [], said: {} });
+    g.fetch = answers({ from: FROM, to: TO, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, said: {} }); // TIMESHEET-03 (Alex, 2026-11-24): the answer carries its `tones` too — one without them is a failure in words (timesheet03.test.ts); `sheet: [], said: {}` until then
     assert.equal((await readLedger(FROM, TO)).ok, true);
     g.fetch = answers({ from: FROM, to: TO, as_of: 'x', first_record: null, rows: [], said: {} });
     assert.deepEqual(await readLedger(FROM, TO), { ok: false, words: ledgerFailedWords('the ledger came back without its sheet') }, 'never read as an empty period');
@@ -616,7 +616,7 @@ test('T9 the answer function: the sheet rides the one answer from the reads it a
     operations_stop_records: [RECORD_ROW], planned_item_links: [],
   }, calls);
   const answer = await taskLedgerAnswerOf(db, 'someone', { from: '2027-03-02', to: '2027-03-02' }, NOW);
-  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'said']);
+  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'said']); // TIMESHEET-03 (Alex, 2026-11-24): `tones` after `sheet` — seven keys until then
   assert.deepEqual(JSON.parse(JSON.stringify(answer)), answer, 'wire-shaped as built');
   assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany'], 'the same reads, in the same order — the loader’s (once an entity) among them');
   assert.deepEqual(answer.rows.map((r) => r.id), ['rec-porridge'], 'the recorded expense, as before');
