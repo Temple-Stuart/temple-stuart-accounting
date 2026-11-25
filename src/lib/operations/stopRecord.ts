@@ -28,6 +28,13 @@ export const NOTE_MAX = 280;
 export const MINUTES_MAX = 1440;
 /** The actual_cents column is an INTEGER. */
 export const CENTS_MAX = 2_147_483_647;
+/**
+ * FORM-BOUNDS-01 (Alex, 2026-11-25): does the text hold a character a note may not — a C0 or C1 control, or a surrogate half with no
+ * partner (not UTF-8 — the database would refuse it)? THE ONE TEST: this rule's own (stopInput, on the note trimmed and its spaces
+ * collapsed) and the two forms' (ledger.ts expenseInput and recordInput), so a form refuses first exactly what this rule would.
+ */
+// eslint-disable-next-line no-control-regex
+export const holdsControl = (text: string): boolean => /[\u0000-\u001f\u007f-\u009f]/.test(text) || /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(text);
 
 /** A record as the routes answer it — instants as ISO text. */
 export interface StopRecordRow {
@@ -210,9 +217,7 @@ export function stopInput(body: unknown, now: Date): StopInputResult {
   if (given(b.note)) {
     if (typeof b.note !== 'string') return refuse('note', 'note must be a string');
     const n = b.note.trim().replace(/\s+/g, ' ');
-    // C0 and C1 controls, and a surrogate half with no partner (not UTF-8 — the database would refuse it).
-    // eslint-disable-next-line no-control-regex
-    if (/[\u0000-\u001f\u007f-\u009f]/.test(n) || /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(n)) return refuse('note', 'control characters are not a note');
+    if (holdsControl(n)) return refuse('note', 'control characters are not a note');
     if (n.length > NOTE_MAX) return refuse('note', `note is at most ${NOTE_MAX} characters (${n.length} given)`);
     note = n === '' ? null : n;
   }

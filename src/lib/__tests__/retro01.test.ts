@@ -331,14 +331,14 @@ test('T5 the audit type: the enum value last, the one ADD VALUE line applied at 
 const DRAFT: ExpenseDraft = { ...EMPTY_EXPENSE, day: DAY, time: '12:30', name: 'Khao soi', amount: '7.50', coa: '6150', book: 'P', actual: '7', stars: '4', note: 'Khao soi at Luka' };
 
 test('T6 expenseInput: the first bad field named; the stop is the day and time in the viewer’s zone; the three bodies — a one-off with ONE line carrying the amount and the COA, the vendor on that line’s occurrence, the record done at the stop', () => {
-  const read = expenseInput(DRAFT, BKK);
+  const read = expenseInput(DRAFT, BKK, NOW); // FORM-BOUNDS-01 (Alex, 2026-11-25): the rule takes the clock — this file's NOW, by which every stop of the day is past; `expenseInput(DRAFT, BKK)` until then, here and on the six calls below
   assert.ok(read.ok);
   const v: ExpenseValues = read.value;
-  assert.deepEqual(v, { day: DAY, time: '12:30', zone: BKK, instant: '2026-10-13T05:30:00.000Z', name: 'Khao soi', amount: '7.50', coa: '6150', bookId: 'P', vendor: { kind: 'none' }, actualCents: 700, rating: 4, note: 'Khao soi at Luka' });
-  assert.deepEqual(expenseInput({ ...DRAFT, vendorId: 'v1' }, BKK), { ok: true, value: { ...v, vendor: { kind: 'existing', id: 'v1' } } });
-  assert.deepEqual(expenseInput({ ...DRAFT, vendorName: '  Luka  Café ' }, BKK), { ok: true, value: { ...v, vendor: { kind: 'new', name: 'Luka Café' } } });
-  assert.deepEqual(expenseInput({ ...DRAFT, actual: '', stars: '', note: '  ' }, BKK), { ok: true, value: { ...v, actualCents: null, rating: null, note: null } }, 'blank is not given — never 0, never an empty note');
-  assert.deepEqual(expenseInput({ ...DRAFT, time: '12:30' }, 'America/Los_Angeles').ok && expenseInput({ ...DRAFT }, 'America/Los_Angeles'), { ok: true, value: { ...v, zone: 'America/Los_Angeles', instant: '2026-10-13T19:30:00.000Z' } }, 'the zone is the viewer’s');
+  assert.deepEqual(v, { day: DAY, time: '12:30', zone: BKK, instant: '2026-10-13T05:30:00.000Z', name: 'Khao soi', amount: '7.50', coa: '6150', bookId: 'P', vendor: { kind: 'none' }, actualCents: 700, rating: 4, note: 'Khao soi at Luka', ahead: false }); // FORM-BOUNDS-01 (Alex, 2026-11-25): the value says whether the stop is still ahead of the clock — not here; no `ahead` until then
+  assert.deepEqual(expenseInput({ ...DRAFT, vendorId: 'v1' }, BKK, NOW), { ok: true, value: { ...v, vendor: { kind: 'existing', id: 'v1' } } });
+  assert.deepEqual(expenseInput({ ...DRAFT, vendorName: '  Luka  Café ' }, BKK, NOW), { ok: true, value: { ...v, vendor: { kind: 'new', name: 'Luka Café' } } });
+  assert.deepEqual(expenseInput({ ...DRAFT, actual: '', stars: '', note: '  ' }, BKK, NOW), { ok: true, value: { ...v, actualCents: null, rating: null, note: null } }, 'blank is not given — never 0, never an empty note');
+  assert.deepEqual(expenseInput({ ...DRAFT, time: '12:30' }, 'America/Los_Angeles', new Date('2026-10-13T20:00:00.000Z')).ok && expenseInput({ ...DRAFT }, 'America/Los_Angeles', new Date('2026-10-13T20:00:00.000Z')), { ok: true, value: { ...v, zone: 'America/Los_Angeles', instant: '2026-10-13T19:30:00.000Z' } }, 'the zone is the viewer’s'); // FORM-BOUNDS-01 (Alex, 2026-11-25): in that zone the stop is at 19:30Z, past NOW — so a later clock, 20:00Z, by which it has come; no clock until then
   const refusals: [Partial<ExpenseDraft>, string, string][] = [
     [{ day: '' }, 'day', requiredWords('day')], [{ day: 'Oct 13' }, 'day', dayTypedWords('Oct 13')],
     [{ time: '' }, 'time', requiredWords('time')], [{ time: '25:00' }, 'time', timeTypedWords('25:00')], [{ time: '9:30' }, 'time', timeTypedWords('9:30')],
@@ -349,7 +349,7 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
     [{ actual: 'lots' }, 'actual', '"lots" is not an amount (dollars, at most two decimals)'], [{ actual: '-1' }, 'actual', 'an amount is 0 or more'],
     [{ stars: '6' }, 'stars', starsTypedWords('6')], [{ stars: 'four' }, 'stars', starsTypedWords('four')],
   ];
-  for (const [over, field, message] of refusals) assert.deepEqual(expenseInput({ ...DRAFT, ...over }, BKK), { ok: false, field, message }, `${field}: ${message}`);
+  for (const [over, field, message] of refusals) assert.deepEqual(expenseInput({ ...DRAFT, ...over }, BKK, NOW), { ok: false, field, message }, `${field}: ${message}`);
   assert.deepEqual(EXPENSE_FIELDS, ['day', 'time', 'name', 'amount', 'coa', 'book', 'vendor', 'actual', 'stars', 'note']);
   assert.deepEqual(Object.keys(EXPENSE_FIELD_WORDS), [...EXPENSE_FIELDS]);
   // The one-off: cadence once on the day at the time in the zone, role place, ONE line — the thing itself, the amount and the COA on it, nothing on the routine.
@@ -383,7 +383,7 @@ test('T7 ledgerWrites: the one-off, its line read back, the vendor added, the ve
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
   let answer: () => Response = () => json({ routine: { id: 'rt-1' }, lines: 1, isCreate: true }, 201);
   globalThis.fetch = (async (url: string, init?: RequestInit) => { sent.push({ url, init }); return answer(); }) as typeof fetch;
-  const v = (expenseInput(DRAFT, BKK) as { value: ExpenseValues }).value;
+  const v = (expenseInput(DRAFT, BKK, NOW) as { value: ExpenseValues }).value; // FORM-BOUNDS-01 (Alex, 2026-11-25): the rule takes the clock — `expenseInput(DRAFT, BKK)` until then
   try {
     assert.deepEqual(await createOneOff(oneOffBody(v)), { ok: true, value: { routineId: 'rt-1' } });
     answer = () => json({ error: 'Validation', field: 'lines[0].coa_code', message: 'no such account in this book' }, 400);
@@ -423,7 +423,7 @@ test('T7 ledgerWrites: the one-off, its line read back, the vendor added, the ve
   const f = code(FORM);
   assert.match(f, /^'use client';/m);
   inOrder(f, [
-    'const read = expenseInput(draft, zone);', 'if (!read.ok) { setRefusal(read); return; }',
+    'const read = expenseInput(draft, zone, new Date());', 'if (!read.ok) { setRefusal(read); return; }', // FORM-BOUNDS-01 (Alex, 2026-11-25): the form hands the rule the browser's clock, read once at save — 'const read = expenseInput(draft, zone);' until then. The writes below still stand in the form, in this order (the record's three inside the branch of a stop that is not ahead — formbounds01.test.ts)
     'const created = await createOneOff(oneOffBody(v));', "if (!created.ok) { failed('stop', created.words); return; }", "done.push({ step: 'stop', state: 'written', words: '' });",
     'const line = await readOneOffLine(created.value.routineId);', "if (!line.ok) { failed('line', line.words); return; }",
     "if (v.vendor.kind === 'new') {", 'const added = await addVendor(v.bookId, v.vendor.name);', "if (!added.ok) { failed('directory', added.words); return; }", "done.push({ step: 'directory', state: 'not asked', words: '' });",

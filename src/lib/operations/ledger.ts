@@ -277,7 +277,7 @@ import { dayPlanOf, daysOf, type PlanLine, type PlanVendorRow, type RoutineWords
 import { shiftDay } from '@/lib/budget/reportView';
 import { deriveAccountString } from '@/lib/accountString';
 import { coveringStay, placeParts, type PlaceParts, type StayRow } from '@/lib/operations/stay';
-import { DONE_AT_SKEW_MS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTE_MAX, NOT_RECORDED_WORDS, RATING_WORDS, SKIPPED_WORD, SKIP_REASON_WORDS, amountWords, minutesTypedWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
+import { CENTS_MAX, DONE_AT_SKEW_MS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTE_MAX, NOT_RECORDED_WORDS, RATING_WORDS, SKIPPED_WORD, SKIP_REASON_WORDS, amountWords, holdsControl, minutesTypedWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { NOT_A_STOP_RECORD_WORDS, ROLE_SHORT_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
 // TIMESHEET-01 (2026-11-24): the planned minutes by the one rule (a pure leaf) and the clock's arithmetic (the calendar's minutesOf, the rule helpers' clockWords — reused,
 // not rebuilt). TIMESHEET-02 (2026-11-24): the one all-day word is stopRole.ts's (ROLE_SHORT_WORDS.all_day, above) — this file imports nothing from work.ts, which reads it there too.
@@ -1585,6 +1585,8 @@ export interface ExpenseValues {
   readonly actualCents: number | null;
   readonly rating: number | null;
   readonly note: string | null;
+  /** FORM-BOUNDS-01 (2026-11-25): the stop is past the clock handed in by more than the stops rule allows a done time (stopRecord.ts DONE_AT_SKEW_MS) — it is PLANNED, and takes no record yet. */
+  readonly ahead: boolean;
 }
 
 export type ExpenseInputResult = { readonly ok: true; readonly value: ExpenseValues } | { readonly ok: false; readonly field: ExpenseField; readonly message: string };
@@ -1601,6 +1603,27 @@ export const starsTypedWords = (typed: string): string => `${JSON.stringify(type
 export const NAME_LONG_WORDS = 'NAME is at most 200 characters';
 export const AMOUNT_ZERO_WORDS = 'an expense has an amount above 0';
 export const VENDOR_BOTH_WORDS = 'pick a vendor or type a new name — not both';
+
+// ── FORM-BOUNDS-01 (Alex, 2026-11-25): "+ EXPENSE" PLANS A STOP STILL AHEAD; THE TWO FORMS REFUSE FIRST WHAT THE RECORD STEP WOULD ──
+//
+// His words (2026-11-23): "be able to like plan where I wanna eat, and activities and entertianment I wann do? and recored notes on it after"
+//
+// Until then "+ expense" always asked the stops route for a record done at the stop's own time. For a stop still ahead the route
+// refuses that done time — after the stop was already written: the list ended in red, the form stayed filled, the sheet was not read
+// again, and a second save wrote a second stop. Now the rule is handed the clock. A stop is AHEAD when its instant is later than that
+// clock plus DONE_AT_SKEW_MS — stopInput's own test for a done time (stopRecord.ts), so a stop is ahead exactly where the route would
+// refuse its record. A stop ahead is PLANNED: the stop and its vendor are written, the record is not asked (ExpenseForm.tsx), and the
+// row's "record" chip takes what happened once its time has come. ACTUAL, STARS and DESCRIPTION are the record's: typed for a stop
+// still ahead, each is refused by name before anything is written — nothing typed is dropped.
+//   And the two bounds the stops rule holds on a record are refused in BOTH forms first, each naming its box: an ACTUAL past the
+// column's range (CENTS_MAX), and a DESCRIPTION that holds a control character (holdsControl — the stops rule's own test, on the same
+// trimmed and collapsed text, so a tab or a line break is still read as a space). The stops rule's order: controls, then length.
+/** ACTUAL past what the column holds — both forms. It reads "ACTUAL is at most $21,474,836.47". */
+export const ACTUAL_RANGE_WORDS = `${EXPENSE_FIELD_WORDS.actual} is at most ${formatCents(CENTS_MAX)}`;
+/** DESCRIPTION holding a control character or a surrogate half with no partner — both forms. */
+export const NOTE_CONTROL_WORDS = `${EXPENSE_FIELD_WORDS.note} holds a control character — type it again without it`;
+/** A box of the record, typed in "+ expense" for a stop still ahead. */
+export const aheadFieldWords = (field: 'actual' | 'stars' | 'note'): string => `${EXPENSE_FIELD_WORDS[field]} is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come`;
 
 /** Dollars typed → cents by the Budget's own rule, or the words. */
 function centsOf(typed: string): { readonly ok: true; readonly cents: number } | { readonly ok: false; readonly message: string } {
@@ -1621,8 +1644,12 @@ function centsOf(typed: string): { readonly ok: true; readonly cents: number } |
  * required; the vendor one of the two ways or none; the actual dollars 0 or more
  * or blank; the stars 1–5 or blank; the note trimmed or blank. The stop is the
  * day and time in the viewer's zone. The first bad field is named.
+ * FORM-BOUNDS-01 (2026-11-25): the clock is handed in. The stop's instant is read once, before the record's three boxes, and the stop
+ * is AHEAD when that instant is later than the clock plus DONE_AT_SKEW_MS (stopInput's own test). Ahead, a typed ACTUAL, STARS or
+ * DESCRIPTION is refused by name (aheadFieldWords), before that box's own reading. Not ahead: ACTUAL at most CENTS_MAX; DESCRIPTION
+ * without a control character (holdsControl), then at most NOTE_MAX characters. The value carries the instant and `ahead`.
  */
-export function expenseInput(draft: ExpenseDraft, zone: string): ExpenseInputResult {
+export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): ExpenseInputResult {
   if (draft.day === '') return refuseExpense('day', requiredWords('day'));
   if (!isIsoDay(draft.day)) return refuseExpense('day', dayTypedWords(draft.day));
   if (draft.time === '') return refuseExpense('time', requiredWords('time'));
@@ -1641,23 +1668,32 @@ export function expenseInput(draft: ExpenseDraft, zone: string): ExpenseInputRes
   const vendorName = draft.vendorName.trim().replace(/\s+/g, ' ');
   if (draft.vendorId !== '' && vendorName !== '') return refuseExpense('vendor', VENDOR_BOTH_WORDS);
   const vendor: ExpenseVendor = draft.vendorId !== '' ? { kind: 'existing', id: draft.vendorId } : vendorName !== '' ? { kind: 'new', name: vendorName } : { kind: 'none' };
+  // The stop's instant, read once — and whether it is still ahead of the clock handed in, by the stops rule's own test for a done time.
+  const instant = zonedToInstant(draft.day, draft.time, zone);
+  const ahead = instant.getTime() > now.getTime() + DONE_AT_SKEW_MS;
   let actualCents: number | null = null;
   if (draft.actual.trim() !== '') {
+    if (ahead) return refuseExpense('actual', aheadFieldWords('actual'));
     const read = centsOf(draft.actual.trim());
     if (!read.ok) return refuseExpense('actual', read.message);
+    if (read.cents > CENTS_MAX) return refuseExpense('actual', ACTUAL_RANGE_WORDS);
     actualCents = read.cents;
   }
   let rating: number | null = null;
   if (draft.stars.trim() !== '') {
+    if (ahead) return refuseExpense('stars', aheadFieldWords('stars'));
     if (!/^[1-5]$/.test(draft.stars.trim())) return refuseExpense('stars', starsTypedWords(draft.stars));
     rating = Number(draft.stars.trim());
   }
   const note = draft.note.trim().replace(/\s+/g, ' ');
+  if (note !== '' && ahead) return refuseExpense('note', aheadFieldWords('note'));
+  if (holdsControl(note)) return refuseExpense('note', NOTE_CONTROL_WORDS);
+  if (note.length > NOTE_MAX) return refuseExpense('note', NOTE_LONG_WORDS);
   return {
     ok: true,
     value: {
-      day: draft.day, time: draft.time, zone, instant: zonedToInstant(draft.day, draft.time, zone).toISOString(),
-      name, amount, coa, bookId: draft.book, vendor, actualCents, rating, note: note === '' ? null : note,
+      day: draft.day, time: draft.time, zone, instant: instant.toISOString(),
+      name, amount, coa, bookId: draft.book, vendor, actualCents, rating, note: note === '' ? null : note, ahead,
     },
   };
 }
@@ -1684,7 +1720,7 @@ export const recordBody = (v: ExpenseValues, lineId: string): StopBody =>
 // The outcome: one line per step, each said by name.
 export const EXPENSE_STEPS = ['stop', 'line', 'directory', 'vendor', 'record'] as const;
 export type ExpenseStep = (typeof EXPENSE_STEPS)[number];
-export type ExpenseState = 'written' | 'failed' | 'not tried' | 'not asked';
+export type ExpenseState = 'written' | 'failed' | 'not tried' | 'not asked' | 'ahead'; // FORM-BOUNDS-01 (2026-11-25): 'ahead' — the record of a stop still ahead: planned, not asked
 export interface ExpenseOutcome {
   readonly step: ExpenseStep;
   readonly state: ExpenseState;
@@ -1697,8 +1733,10 @@ export const STEP_WORDS: Readonly<Record<ExpenseStep, string>> = {
 export const WRITTEN_WORDS = 'written';
 export const NOT_TRIED_WORDS = 'not tried — stopped at the failure before it';
 export const NOT_ASKED_WORDS = 'none given';
+/** FORM-BOUNDS-01 (2026-11-25): the record step of a stop still ahead — it reads "the record — not asked — this stop is still ahead; record it on its row once its time has come". */
+export const RECORD_AHEAD_WORDS = 'not asked — this stop is still ahead; record it on its row once its time has come';
 export const outcomeWords = (o: ExpenseOutcome): string =>
-  `${STEP_WORDS[o.step]} — ${o.state === 'written' ? WRITTEN_WORDS : o.state === 'not tried' ? NOT_TRIED_WORDS : o.state === 'not asked' ? NOT_ASKED_WORDS : `not written: ${o.words}`}`;
+  `${STEP_WORDS[o.step]} — ${o.state === 'written' ? WRITTEN_WORDS : o.state === 'not tried' ? NOT_TRIED_WORDS : o.state === 'not asked' ? NOT_ASKED_WORDS : o.state === 'ahead' ? RECORD_AHEAD_WORDS : `not written: ${o.words}`}`;
 /** Every step after a failure, not tried — so the list always names all five. */
 export const withNotTried = (done: readonly ExpenseOutcome[]): ExpenseOutcome[] => {
   const said = new Set(done.map((o) => o.step));
@@ -1802,6 +1840,7 @@ export function recordInput(draft: RecordDraft, address: LedgerAddress, given: P
   if (draft.actual.trim() !== '') {
     const read = centsOf(draft.actual.trim());
     if (!read.ok) return refuseRecord('actual', read.message);
+    if (read.cents > CENTS_MAX) return refuseRecord('actual', ACTUAL_RANGE_WORDS); // FORM-BOUNDS-01 (2026-11-25): the column's range, refused here first
     actualCents = read.cents;
   }
   let rating: number | null = null;
@@ -1817,6 +1856,7 @@ export function recordInput(draft: RecordDraft, address: LedgerAddress, given: P
     actualMinutes = typed;
   }
   const note = draft.note.trim().replace(/\s+/g, ' ');
+  if (holdsControl(note)) return refuseRecord('note', NOTE_CONTROL_WORDS); // FORM-BOUNDS-01 (2026-11-25): the stops rule's own test, on the same collapsed text — controls, then length
   if (note.length > NOTE_MAX) return refuseRecord('note', NOTE_LONG_WORDS);
   if (draft.went === SKIPPED_WORD && note === '') return refuseRecord('note', SKIP_REASON_WORDS);
   return {
