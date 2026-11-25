@@ -499,7 +499,7 @@ test('T8 the TOTAL row is ledgerTotals over the rows shown, as it stood: BUDGET 
   // The span.
   assert.equal(LEDGER_COLUMNS.indexOf('budget'), 15, 'the columns before BUDGET');
   const s = code(SECTION);
-  assert.match(s, /<th scope="row" colSpan=\{15\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/);
+  assert.match(s, /<th scope="row" colSpan=\{15 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
   assert.equal((tfoot.match(/<td\b/g) ?? []).length, 6, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · DESCRIPTION after the span');
   // No new arithmetic: the totals' body is the one ledger01 pins; only what it is handed widened.

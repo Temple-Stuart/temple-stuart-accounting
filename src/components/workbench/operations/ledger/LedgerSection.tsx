@@ -195,7 +195,7 @@ import { announceDayWritten } from '../dayWritten';
 import {
   BY_WORDS, CELL_WORDS, EVERY_BOOK_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_LOADING_WORDS, LEDGER_TABLE, LEDGER_TABLE_CLASS, LEDGER_TITLE_WORDS, LINK_WORDS, NEXT_WORDS, NO_COLUMN_FILTERS,
   NO_FIRST_RECORD_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
-  accountCellWords, accountNameCellWords, actualCellWords, applyColumnFilters, averageStarsWords, bookCellWords, budgetCellWords, dayLongWords, daysWords, firstRecordUnplacedWords,
+  accountCellWords, accountNameCellWords, actualCellWords, applyColumnFilters, averageStarsWords, bookCellWords, budgetCellWords, dayFoldClass, dayFoldCount, dayLongWords, dayPlaceWords, daysWords, firstRecordUnplacedWords,
   ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutTotal, leftOutWords, matchCellTitle, matchCellWords, matchCoverageWords, matchState, matchTotalWords, noLineWords, noRowsWords,
   noStayWords, notPlacedWords, notRecordedWords, noteCellWords, notesCount, notesToggleWords, perDayWords, periodOf, periodWords, readableMatchCents, sortRows, starsCellWords, stepAnchor,
   underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords, vendorCellWords,
@@ -290,7 +290,7 @@ export default function LedgerSection() {
   const csv = csvPeriod === null ? null : { name: ledgerCsvFileName(csvPeriod.from, csvPeriod.to) };
 
   return (
-    <section className="space-y-3" data-ledger>
+    <section className={dayFoldClass('space-y-3', period)} data-ledger>
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-bold text-brand-purple">{LEDGER_TITLE_WORDS}</h2>
       </div>
@@ -322,7 +322,7 @@ export default function LedgerSection() {
             <button type="button" className={chip} disabled={kind === 'all' || anchor === null} onClick={() => anchor !== null && setAnchor(stepAnchor(kind, anchor, -1))} data-ledger-previous aria-label="previous">{PREVIOUS_WORDS}</button>
             <input type="date" value={anchor ?? ''} disabled={kind === 'all'} onChange={(e) => { if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) setAnchor(e.target.value); }} className="px-1.5 py-0.5 border border-border rounded text-xs" data-ledger-anchor />
             <button type="button" className={chip} disabled={kind === 'all' || anchor === null} onClick={() => anchor !== null && setAnchor(stepAnchor(kind, anchor, 1))} data-ledger-next aria-label="next">{NEXT_WORDS}</button>
-            {period !== null && <span className="font-semibold text-text-secondary" data-ledger-period-words>{periodWords(period)}</span>}
+            {period !== null && <span className="font-semibold text-text-secondary" data-ledger-period-words>{periodWords(period)}</span>}{dayPlaceWords(period, rows) !== null && <span className="font-semibold text-text-secondary" data-ledger-day-place>{dayPlaceWords(period, rows)}</span>}
           </>
         )}
         trailing={(
@@ -379,7 +379,7 @@ export default function LedgerSection() {
               </tr>
               {picking === row.key && (
                 <tr className="border-t border-border" data-ledger-picker={row.key}>
-                  <td colSpan={LEDGER_HEAD_WORDS.length} className={cell}>
+                  <td colSpan={LEDGER_HEAD_WORDS.length - dayFoldCount(period)} className={cell}>
                     <LinkPicker kind={row.address.kind} id={row.address.id} instant={row.address.instant} near={row.day} onChanged={() => setWrites((n) => n + 1)} onClose={() => setPicking(null)} />
                   </td>
                 </tr>
@@ -388,7 +388,7 @@ export default function LedgerSection() {
                   write closes it, reads the span again and announces the day ("+ expense"'s own two); the vendor's box reads the span again and leaves it open. */}
               {entering === row.key && entry.takes && (
                 <tr className="border-t border-border" data-ledger-recording={row.key}>
-                  <td colSpan={LEDGER_HEAD_WORDS.length} className={cell}>
+                  <td colSpan={LEDGER_HEAD_WORDS.length - dayFoldCount(period)} className={cell}>
                     <RecordForm key={row.key} row={row} entry={entry} onWritten={(day) => { setEntering(null); setWrites((n) => n + 1); announceDayWritten(day); }} onVendor={() => setWrites((n) => n + 1)} onClose={() => setEntering(null)} />
                   </td>
                 </tr>
@@ -398,9 +398,9 @@ export default function LedgerSection() {
         }}
         foot={(
           <tfoot>
-            {/* LEDGER-02 (amended): TOTAL spans the columns before BUDGET (fifteen since TIMESHEET-01, 2026-11-24 — START, END and WENT sit among them; twelve since TIME-03 — PLANNED MIN and LOGGED MIN sit among them; their sums are the summary's hours, not this row's); VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
+            {/* LEDGER-02 (amended): TOTAL spans the columns before BUDGET (fifteen since TIMESHEET-01, 2026-11-24 — START, END and WENT sit among them; less the four a single day folds, TIMEDAY-01, 2026-11-24 — ledger.ts dayFoldCount; twelve since TIME-03 — PLANNED MIN and LOGGED MIN sit among them; their sums are the summary's hours, not this row's); VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
             <tr className="border-t border-border font-bold text-text-primary" data-ledger-total>
-              <th scope="row" colSpan={15} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
+              <th scope="row" colSpan={15 - dayFoldCount(period)} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
               <td className={`${money} ${totals.budgetCents === null ? BLANK_CLASS : ''}`} data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}</td>
               <td className={`${money} ${totals.actualCents === null ? BLANK_CLASS : totals.varianceCents === null ? '' : varianceTone(totals.varianceCents)}`} data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>
               <td className={`${money} ${varianceTone(totals.varianceCents)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
