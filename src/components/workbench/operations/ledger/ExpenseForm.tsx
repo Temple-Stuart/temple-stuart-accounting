@@ -73,7 +73,7 @@ function Fields({ onWritten, close }: { onWritten: (day: string) => void; close:
 
   const save = async () => {
     if (busy || zone === null) return;
-    const read = expenseInput(draft, zone);
+    const read = expenseInput(draft, zone, new Date());
     if (!read.ok) { setRefusal(read); return; }
     setRefusal(null);
     setBusy(true);
@@ -107,16 +107,23 @@ function Fields({ onWritten, close }: { onWritten: (day: string) => void; close:
       } else {
         done.push({ step: 'vendor', state: 'not asked', words: '' });
       }
-      // 3. The record, through the one writer.
-      let record: Awaited<ReturnType<typeof setStopRecord>>;
-      try {
-        record = await setStopRecord(recordBody(v, line.value.lineId));
-      } catch (error) {
-        failed('record', error instanceof Error ? error.message : String(error));
-        return;
+      // 3. The record, through the one writer. FORM-BOUNDS-01 (Alex, 2026-11-25): a stop still AHEAD is planned — its record is not asked (the rule
+      // read the stop against the clock handed in above, by the stops route's own test, and refused any box of the record typed for it): the step is
+      // said as 'ahead', and the row's "record" chip takes what happened once its time has come. Until then the record was asked on every save, and the
+      // route refused it for a stop ahead — after the stop was written. The tail below runs after both: the form clears and the sheet reads again.
+      if (v.ahead) {
+        done.push({ step: 'record', state: 'ahead', words: '' });
+      } else {
+        let record: Awaited<ReturnType<typeof setStopRecord>>;
+        try {
+          record = await setStopRecord(recordBody(v, line.value.lineId));
+        } catch (error) {
+          failed('record', error instanceof Error ? error.message : String(error));
+          return;
+        }
+        if (!record.ok) { failed('record', record.message); return; }
+        done.push({ step: 'record', state: 'written', words: '' });
       }
-      if (!record.ok) { failed('record', record.message); return; }
-      done.push({ step: 'record', state: 'written', words: '' });
       setOutcome(done);
       setLanded(v.day);
       setDraft((d) => ({ ...EMPTY_EXPENSE, book: d.book }));
