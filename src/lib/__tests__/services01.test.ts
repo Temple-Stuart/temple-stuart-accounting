@@ -240,9 +240,10 @@ test('T3 the migration: the newest; drops proposals_need_chk by its production n
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
   // CASH-02a (2026-11-08): travel_expenses gains paid_with — the newest now; every pin below moved by one more.
   // HOME-SERVICES-02 (2026-11-16): its migration, 20261116132400_home_services_02_answers (proposals gains answers), is the newest now — every position read from the end below moved by one, and a message that says "the newest" names the one before it.
-  assert.equal(dirs[dirs.length - 2], '20261108120000_cash_02a_paid_with', 'the newest migration');
-  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'right before CASH-02a\'s');
-  assert.equal(dirs[dirs.length - 4], '20261107212000_crm_02_intake_forms', 'right after CRM-02\'s');
+  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more.
+  assert.equal(dirs[dirs.length - 3], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 5], '20261107212000_crm_02_intake_forms', 'right after CRM-02\'s');
   const sql = code(MIGRATION);
   assert.equal(
     sql.trim(),

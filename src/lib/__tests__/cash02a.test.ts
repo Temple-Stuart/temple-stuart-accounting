@@ -116,8 +116,9 @@ test('B nothing is defaulted: the rule names no default way, and its words live 
 test('A the migration: the newest; exactly the column, the CHECK and TRAVEL-02b\'s freeze body verbatim with paid_with frozen after coa_code — no DEFAULT, no UPDATE, no DROP, the triggers untouched', () => {
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
   // HOME-SERVICES-02 (2026-11-16): its migration, 20261116132400_home_services_02_answers (proposals gains answers), is the newest now — every position read from the end below moved by one, and a message that says "the newest" names the one before it.
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 3], '20261108111500_services_01_bookkeeping_need', 'right after SERVICES-01\'s');
+  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more.
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the newest migration');
+  assert.equal(dirs[dirs.length - 4], '20261108111500_services_01_bookkeeping_need', 'right after SERVICES-01\'s');
   // The freeze, as TRAVEL-02b wrote it — the one line added after coa_code, nothing else changed.
   const old = code(TRAVEL_02B_MIGRATION);
   const start = old.indexOf('CREATE OR REPLACE FUNCTION prevent_travel_expense_mutation()');

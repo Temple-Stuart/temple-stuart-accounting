@@ -4,10 +4,10 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { readVendorName, takenBy } from '@/lib/operations/planVendor';
+import { readInstagramTag, readVendorId, readVendorName, takenBy } from '@/lib/operations/planVendor';
 
-// VENDOR-01 (2026-09-29): this file now CREATES vendors — the directory's first
-// write, the POST below. It never updates or deletes one: no vendor is renamed,
+// VENDOR-01 (2026-09-29) · TIMESHEET-04a (2026-11-27): this file CREATES vendors (the POST) and holds ONE update — the PATCH's,
+// a vendor's Instagram tag, a column of its own ("tag is own column"; it held no update until then). No vendor is renamed,
 // archived or removed here (the vendor law, scripts/assert-tool-registry.ts).
 //
 // GET /api/operations/vendor-directory — DIM-3: the minimal USER-SCOPED vendor
@@ -34,7 +34,7 @@ export async function GET() {
     const vendors = await prisma.operations_vendor_directory.findMany({
       where: { user_id: user.id, is_active: true },
       orderBy: { vendor_name: 'asc' },
-      select: { id: true, vendor_name: true, entity_id: true, category: true },
+      select: { id: true, vendor_name: true, entity_id: true, category: true, instagram_tag: true },
     });
 
     return NextResponse.json({ vendors });
@@ -135,5 +135,75 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'vendor-exists', message: 'this book gained a vendor of that name at the same moment — read the list again' }, { status: 409 });
     }
     return failClosedResponse('Vendor directory POST', 'Failed to add the vendor', error);
+  }
+}
+
+/**
+ * PATCH /api/operations/vendor-directory — TIMESHEET-04a (2026-11-27): a vendor's Instagram tag.
+ *
+ * Body { id, instagramTag }. This file's ONE update, and the only update of the directory anywhere (the vendor law pins it to
+ * its shape): instagram_tag alone, where id and the caller. "tag is own column" — no vendor is renamed, archived or removed.
+ *   · the caller first — the GET's own gate;
+ *   · the JSON body, and a body that is not an object, refused as the POST refuses them;
+ *   · instagramTag must be SAID: absent → 400. A text sets the tag; null clears it;
+ *   · the tag, read by the rule (planVendor.ts readInstagramTag): trimmed, ONE leading @ dropped, then letters, digits, dots and
+ *     underscores, 1–30 — else 400 in the rule's words. Both refusals come before any query of the directory;
+ *   · the vendor: an id that is no UUID names no row, and no query is made for it (readVendorId). Else the caller's own row, by
+ *     { id, user_id } — active or archived. None → 404: ONE answer for an id that is no UUID, a missing row and another user's;
+ *   · the same tag as the row holds → 200 with the row and changed: false — nothing is written, nothing audited;
+ *   · else THE ONE WRITE, then its audit — operations_vendor_updated, with the row before and after — and 200 with the row and
+ *     changed: true.
+ * No 403 anywhere. No rate limit: the POST has none.
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    let raw: unknown;
+    try { raw = await request.json(); } catch { return NextResponse.json({ error: 'A JSON body is required.' }, { status: 400 }); }
+    // TAB13-04 (R7 b): a body that is not an object — null, an array, a number — is refused, never read as one.
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      return NextResponse.json({ error: 'A JSON object body is required.' }, { status: 400 });
+    }
+    const body = raw as { id?: unknown; instagramTag?: unknown };
+    if (body.instagramTag === undefined) {
+      return NextResponse.json({ error: 'Validation', message: 'instagramTag is required — text, or null for none' }, { status: 400 });
+    }
+    const read = readInstagramTag(body.instagramTag);
+    if (!read.ok) return NextResponse.json({ error: read.error, message: read.message }, { status: read.status });
+
+    // The vendor — the caller's own row, active or archived. An id that is no UUID names no row: no query is made for it.
+    const id = readVendorId(body.id);
+    const before = id === null ? null : await prisma.operations_vendor_directory.findFirst({
+      where: { id, user_id: user.id },
+      select: { id: true, vendor_name: true, entity_id: true, instagram_tag: true },
+    });
+    if (before === null) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    // The same tag as the row holds: nothing is written and nothing is audited.
+    if (before.instagram_tag === read.tag) return NextResponse.json({ ...before, changed: false });
+
+    const after = await prisma.operations_vendor_directory.update({ where: { id: before.id, user_id: user.id }, data: { instagram_tag: read.tag }, select: { id: true, vendor_name: true, entity_id: true, instagram_tag: true } });
+
+    await writeAuditLog({
+      actor: { user_id: user.id, email: userEmail, type: 'human_user' },
+      action: { type: 'operations_vendor_updated', description: `${read.tag === null ? 'Cleared' : 'Set'} the Instagram tag of "${after.vendor_name}"` },
+      target: { table: 'operations_vendor_directory', id: after.id },
+      payload: { before, after, metadata: { entity_id: after.entity_id } },
+    });
+
+    return NextResponse.json({ ...after, changed: true });
+  } catch (error) {
+    return failClosedResponse('Vendor directory PATCH', 'Failed to set the vendor\'s Instagram tag', error);
   }
 }
