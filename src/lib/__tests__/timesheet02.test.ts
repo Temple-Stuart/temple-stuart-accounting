@@ -712,9 +712,10 @@ test('T10 the leaf: the vendor’s block above the form and outside it; went | s
   const files = walk('src');
   assert.deepEqual(files.filter((file) => /<VendorBox\b/.test(code(file))), [VENDOR_BLOCK], 'one file mounts the vendor box');
   assert.deepEqual(files.filter((file) => /<StopVendor\b/.test(code(file))).sort(), ['src/components/workbench/operations/day/DayCard.tsx', LEAF].sort(), 'the card and this leaf mount the block');
+  // PASTE-02 (Alex, 2026-11-27): the paste's leaf joins — it hands setStopRecord to the one runner (pasteSave.ts runPaste) and calls it nowhere. Five files until then.
   assert.deepEqual(files.filter((file) => /from '(\.\.\/stops|\.|@\/components\/workbench\/operations\/stops)\/stopWrites'/.test(code(file))).sort(), [
-    'src/components/workbench/operations/ledger/ExpenseForm.tsx', LEAF, 'src/components/workbench/operations/stops/AttachRecord.tsx', 'src/components/workbench/operations/stops/StopForm.tsx', RULES,
-  ].sort(), 'who reads the one writer: the card’s form, the attach, "+ expense", this leaf — and the rule, for the body’s type');
+    'src/components/workbench/operations/ledger/ExpenseForm.tsx', LEAF, 'src/components/workbench/operations/ledger/PasteRows.tsx', 'src/components/workbench/operations/stops/AttachRecord.tsx', 'src/components/workbench/operations/stops/StopForm.tsx', RULES,
+  ].sort(), 'who reads the one writer: the card’s form, the attach, "+ expense", this leaf, the paste’s leaf — and the rule, for the body’s type');
   assert.equal((code(WRITES).match(/\bfetch\s*\(/g) ?? []).length, 3, 'three requests, in the one writer — none added');
   // The vendor's block: mounted once, handed the entry's slot, ABOVE the form and never inside it.
   assert.equal((f.match(/<StopVendor /g) ?? []).length, 1);

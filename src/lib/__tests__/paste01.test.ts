@@ -19,8 +19,9 @@ import { BLANK } from '../budget/format';
 import { CENTS_MAX, NOTE_MAX, NOT_RECORDED_WORDS, type StopRecordRow } from '../operations/stopRecord';
 import { PLANNED_WORD, WENT_WORD, headWordOf, type LedgerPlanRow, type LedgerRecording, type LedgerRow, type LedgerSheetRow } from '../operations/ledger';
 import * as rule from '../operations/pasteRows';
+import * as saveRule from '../operations/pasteSave';
 import {
-  ALREADY_ON_SHEET_WORDS, ALREADY_RECORDED_WORDS, AMOUNT_MOST_WORDS, BLANK_DATE_WORDS, BOOKING_WORDS, ITEMS_AHEAD_WORDS, ITEMS_CONTROL_WORDS, ITEMS_LONG_WORDS, ITEMS_NO_TOTAL_WORDS,
+  ALREADY_RECORDED_WORDS, AMOUNT_MOST_WORDS, BLANK_DATE_WORDS, BOOKING_WORDS, ITEMS_AHEAD_WORDS, ITEMS_CONTROL_WORDS, ITEMS_LONG_WORDS, ITEMS_NO_TOTAL_WORDS,
   LANDS_WORDS, NOTHING_PASTED_WORDS, NO_ROW_WORDS, NO_TOTAL_WORDS, ONE_OFF_NO_BUDGET_WORDS, ONE_OFF_NO_START_WORDS, ON_TIME_SHEET_COLUMNS, ON_TIME_SHEET_KEYS, ON_TIME_SHEET_WORDS,
   PASTE_NO_COLUMN_HEADS, PASTE_READ_HEADS, PASTE_REQUIRED_HEADS, PASTE_WORKED_OUT_HEADS, PLANNED_AHEAD_WORDS, RECORDED_NOT_WRITTEN_WORDS, TOTAL_AHEAD_WORDS, UNCLOSED_QUOTE_WORDS, YOUR_SHEET_COLUMNS, YOUR_SHEET_WORDS,
   accountWords, blankCellWords, bookNamed, chartOf, chartUnreadWords, countsWords, kindKeyOf, notReadLines, offeredBooksOf, pasteKindsOf, pasteShown, pasteSpanOf, pastedVendorOf,
@@ -422,15 +423,21 @@ test('T7 on a plan, refused: the stop an earlier row of the paste already holds;
   assert.equal(landed({ 'Start Date': '5/10/27', Category: 'Food', Entity: 'Personal', Type: 'Market' }, ON_PLAN('Market')).placement.kind, 'plan', 'the same plan’s stop that does take one');
 });
 
-test('T7 the paste never writes over what stands: a stop already recorded keeps its record, and a stop whose planned vendor is another name keeps it — each said; the same name is nothing to write', () => {
-  // A stop already recorded: the row lands on it, and what it typed for the record is said as not written.
+test('T7 the paste never writes over what stands: a stop already recorded keeps its record, and a stop whose planned vendor is another name keeps it — each said where the row says something else; the same record and the same name are quiet', () => {
+  // PASTE-02 (Alex, 2026-11-27, ruling A.1): what stands is said ONLY WHERE THE ROW SAYS SOMETHING ELSE. Until then the record's sentence was said whenever the row held a
+  // Total (USD) or Items, and this test's first case — the record's own Total (USD) and Items — expected it. That case is quiet now; the said case types another Total (USD).
   const dinner: Typed = { 'Start Date': '5/10/27', Category: 'Dining', Entity: 'Personal', Type: 'Dinner' };
-  const both = landed({ ...dinner, Items: 'the set menu', 'Total (USD)': '$15' }, ON_PLAN('Dinner'));
+  // The record's own two — done, its amount the row's Total (USD), its note the row's Items: the row lands on the stop, and nothing is said.
+  const quiet = landed({ ...dinner, Items: 'the set menu', 'Total (USD)': '$15' }, ON_PLAN('Dinner'));
+  assert.deepEqual(quiet.placement.kind === 'plan' && [quiet.placement.stop.key, quiet.placement.happened, quiet.placement.notWritten], [DINNER.key, { kind: 'recorded' }, []]);
+  assert.equal(quiet.shown.lands, `on "Dinner", its 19:00 stop · ${ALREADY_RECORDED_WORDS}`, 'the same rows pasted again are no warning');
+  // Another Total (USD): the record is kept, and what the row typed for it is said as not written.
+  const both = landed({ ...dinner, Items: 'the set menu', 'Total (USD)': '$16' }, ON_PLAN('Dinner'));
   assert.deepEqual(both.placement.kind === 'plan' && [both.placement.stop.key, both.placement.happened, both.placement.notWritten], [DINNER.key, { kind: 'recorded' }, ['Total (USD), Items — not written: this stop is already recorded — the paste does not write over a record']]);
   assert.deepEqual(sheetCells(both.shown.sheet), { start: '19:00', end: BLANK, account: 'P-6150', accountName: 'Dining Out', subAccountName: 'Dinner', went: WENT_WORD, budget: '$15', actual: '$15' }, 'the record that stands, as the time sheet prints it');
   assert.equal(both.shown.lands, `on "Dinner", its 19:00 stop · ${ALREADY_RECORDED_WORDS} · Total (USD), Items — not written: this stop is already recorded — the paste does not write over a record`);
   assert.equal(RECORDED_NOT_WRITTEN_WORDS, 'Total (USD), Items — not written: this stop is already recorded — the paste does not write over a record');
-  // The one sentence, as ruled, when the row holds either of the two.
+  // The one sentence, as ruled, in every other case where the row holds either of the two: the record's Total (USD) without its note, its note without its Total (USD).
   assert.equal(landed({ ...dinner, 'Total (USD)': '$15' }, ON_PLAN('Dinner')).shown.lands, `on "Dinner", its 19:00 stop · already recorded · ${RECORDED_NOT_WRITTEN_WORDS}`);
   assert.equal(landed({ ...dinner, Items: 'the set menu' }, ON_PLAN('Dinner')).shown.lands, `on "Dinner", its 19:00 stop · already recorded · ${RECORDED_NOT_WRITTEN_WORDS}`);
   assert.equal(landed(dinner, ON_PLAN('Dinner')).shown.lands, 'on "Dinner", its 19:00 stop · already recorded', 'nothing typed for the record: nothing said');
@@ -478,7 +485,7 @@ test('T8 a one-off, under an account of the book: at its day and Start Time in t
   assert.equal(landed({ ...climbing, Entity: 'Business', Type: 'Paper' }, ONE_OFF('6400')).shown.lands, 'a one-off at 20:00, under B-6400 Supplies · vendor: Business\'s own · recorded: went, $18.00');
 });
 
-test('T8 a one-off, refused: no such account in the book’s chart; no Start Time; no Budget (USD), or 0; a stop of this name already on the time sheet at this day and time', () => {
+test('T8 a one-off, refused: no such account in the book’s chart; no Start Time; no Budget (USD), or 0 — and a stop of this name already on the time sheet at this day and time takes the row', () => {
   const climbing: Typed = { 'Start Date': '5/10/27', 'Start Time': '8:00 PM', Category: 'Fun', Entity: 'Personal', Type: 'Climbing', 'Total (USD)': '18', 'Budget (USD)': '18' };
   assert.deepEqual(refusedRow(landed(climbing, ONE_OFF('9999'))), ['Category', 'the book\'s chart has no account "9999"']);
   assert.deepEqual(refusedRow(landed(climbing, ONE_OFF('6400'))), ['Category', 'the book\'s chart has no account "6400"'], 'another book’s account is not this book’s');
@@ -489,10 +496,13 @@ test('T8 a one-off, refused: no such account in the book’s chart; no Start Tim
   // In the ruling's order: the account, then the Start Time, then the Budget.
   assert.deepEqual(refusedRow(landed({ ...climbing, 'Start Time': '', 'Budget (USD)': '' }, ONE_OFF('9999')))[0], 'Category');
   assert.deepEqual(refusedRow(landed({ ...climbing, 'Start Time': '', 'Budget (USD)': '' }, ONE_OFF('6200')))[0], 'Start Time');
-  // Already on the time sheet: that book, day, start time and name.
+  // PASTE-02 (Alex, 2026-11-27, ruling A.4): a stop of the row's own name already on the time sheet — that book, day, start time and name — TAKES the row. Until then the row was
+  // refused on Type: 'already on the time sheet — a stop of this name stands at this day and time' (ALREADY_ON_SHEET_WORDS, which is gone).
   const cinema: Typed = { ...climbing, 'Start Time': '9:00 PM', Type: 'Cinema' };
-  assert.deepEqual(refusedRow(landed(cinema, ONE_OFF('6200'))), ['Type', ALREADY_ON_SHEET_WORDS]);
-  assert.equal(ALREADY_ON_SHEET_WORDS, 'already on the time sheet — a stop of this name stands at this day and time');
+  const taken = landed(cinema, ONE_OFF('6200'));
+  assert.deepEqual(taken.placement.kind === 'plan' && [taken.placement.standing, taken.placement.plan, taken.placement.stop.key], [true, 'Cinema', CINEMA_MON.key]);
+  assert.equal(taken.shown.lands, 'on the stop "Cinema" at 21:00, already on the time sheet · recorded: went, $18.00');
+  assert.ok(!('ALREADY_ON_SHEET_WORDS' in rule), 'the refusal is gone from the rule file');
   for (const over of [{ 'Start Time': '9:30 PM' }, { 'Start Date': '5/11/27' }, { Type: 'Cinema club' }, { Entity: 'Business' }] as const) {
     assert.equal(landed({ ...cinema, ...over }, over.Entity === undefined ? ONE_OFF('6200') : ONE_OFF('6400')).placement.kind, 'oneOff', `another ${Object.keys(over)[0]} is another stop`);
   }
@@ -591,10 +601,11 @@ test('T11 the counts, one line — every row counted once, under what became of 
   const picks = { [key('Dining', 'Lunch')]: ON_PLAN('Lunch'), [key('Dining', 'Tea')]: ON_PLAN('Tea'), [key('Fun', 'Climbing')]: ONE_OFF('6200') };
   const placed = placePaste(paste, picks, CONTEXT);
   assert.deepEqual(placed.map((p) => p.kind), ['plan', 'refused', 'plan', 'oneOff', 'oneOff', 'booking', 'blank', 'blank', 'pick', 'refused']);
-  assert.equal(countsWords(placed), '10 rows read · 2 on a plan · 2 one-offs · 1 booking · 1 waiting for a pick · 2 that cannot be placed · 2 dates with nothing on them');
+  // PASTE-02 (Alex, 2026-11-27, ruling A.5): the one-offs say how many are new — '2 one-offs' and '1 one-off' until then; with none the line still reads '0 one-offs'.
+  assert.equal(countsWords(placed), '10 rows read · 2 on a plan · 2 one-offs (2 new) · 1 booking · 1 waiting for a pick · 2 that cannot be placed · 2 dates with nothing on them');
   // The singulars.
   assert.equal(countsWords(placePaste(pasteOf({ 'Start Date': '5/12/27' }), {}, CONTEXT)), '1 row read · 0 on a plan · 0 one-offs · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 1 date with nothing on it');
-  assert.equal(landed({ 'Start Date': '5/10/27', 'Start Time': '8:00 PM', Category: 'Fun', Entity: 'Personal', Type: 'Climbing', 'Budget (USD)': '18' }, ONE_OFF('6200')).counts, '1 row read · 0 on a plan · 1 one-off · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 0 dates with nothing on them');
+  assert.equal(landed({ 'Start Date': '5/10/27', 'Start Time': '8:00 PM', Category: 'Fun', Entity: 'Personal', Type: 'Climbing', 'Budget (USD)': '18' }, ONE_OFF('6200')).counts, '1 row read · 0 on a plan · 1 one-off (1 new) · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 0 dates with nothing on them');
   assert.equal(landed(LUNCH, ON_PLAN('Lunch')).counts, '1 row read · 1 on a plan · 0 one-offs · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 0 dates with nothing on them');
   // Every row is counted once: the six after "rows read" add up to it.
   const numbers = countsWords(placed).split(' · ').map((part) => Number(part.split(' ')[0]));
@@ -612,79 +623,111 @@ test('T12 the rule file is pure and names no function previewOf; its header quot
   assert.doesNotMatch(rules, /\bpreviewOf\b/, 'src/lib/table/preview.ts owns that name');
   assert.match(comments(RULES), /^\/\*\*\n \* pasteRows — ROWS PASTED FROM A SHEET: EVERY ROW READ, PLACED AND SHOWN\. NOTHING IS WRITTEN \(PASTE-01, Alex, 2026-11-25\)\./);
   // What it reads from the rules that already stand — one import of each, none of a writer.
-  for (const from of ['@/lib/accountString', '@/lib/budget/days', '@/lib/budget/format', '@/lib/operations/ledger', '@/lib/operations/planVendor', '@/lib/operations/stopRecord', '@/lib/time']) assert.equal(countOf(rules, new RegExp(`from '${from}';`, 'g')), 1, from);
-  assert.equal(countOf(rules, /^import /gm), 7, 'and nothing else');
+  // PASTE-02 (Alex, 2026-11-27): nine, not seven — @/lib/calendar/day (a one-off's minutes) and @/lib/table/csv (an amount as the two forms' rules read one) join.
+  for (const from of ['@/lib/accountString', '@/lib/budget/days', '@/lib/budget/format', '@/lib/calendar/day', '@/lib/operations/ledger', '@/lib/operations/planVendor', '@/lib/operations/stopRecord', '@/lib/table/csv', '@/lib/time']) assert.equal(countOf(rules, new RegExp(`from '${from}';`, 'g')), 1, from);
+  assert.equal(countOf(rules, /^import /gm), 9, 'and nothing else');
   // The leaf's own words, as they read.
   assert.deepEqual([rule.PASTE_OPEN_WORDS, rule.PASTE_TITLE_WORDS, rule.PASTE_HOW_WORDS, rule.PASTE_READ_WORDS, rule.PASTE_CLEAR_WORDS, rule.PASTE_CLOSE_WORDS, rule.PASTE_PICKS_WORDS, rule.PASTE_NO_PICK_WORDS, rule.PASTE_ON_PLAN_WORDS, rule.PASTE_ONE_OFF_WORDS], [
-    '+ paste rows from a sheet', 'rows from your sheet — read and placed here; nothing is written', 'copy the rows in your sheet with its header row, and paste them here',
+    '+ paste rows from a sheet', 'rows from your sheet — read and placed here; nothing is written until you save' /* PASTE-02 (2026-11-27): '… nothing is written' until then */, 'copy the rows in your sheet with its header row, and paste them here',
     'read the rows', 'clear', 'close', 'where each kind of row goes — nothing is chosen for you', '— pick —', 'on your plan', 'a one-off, under',
   ]);
   assert.equal(PLANNED_AHEAD_WORDS, 'planned: still ahead');
 });
 
-// ── T13 · THE LEAF (ruling B) ────────────────────────────────────────────────
+// ── T13 · THE LEAF (ruling B; PASTE-02 ruling D) ─────────────────────────────
 
-test('T13 the leaf writes nothing: no request with a method, no writer imported, nothing stored in the browser; it reads by the time sheet’s read, the one JSON reader, the directory’s hook and the provider’s list', () => {
+test('T13 the leaf writes through the one runner alone: the six writers handed to it and called nowhere else, no request and no method of its own, nothing stored in the browser; it reads by the time sheet’s read, the one JSON reader and the provider’s list', () => {
+  // PASTE-02 (Alex, 2026-11-27, ruling D): THE LEAF WRITES NOW. Until then this test was 'T13 the leaf writes nothing: …' and pinned no writer imported, the vendors read by the
+  // Budget's hook (useDirectory), a new read forgetting the picks (setPicks({}) in it), the reads inside "read the rows" itself, and the box mounted with `close` alone.
   const leaf = code(LEAF);
   assert.match(leaf, /^'use client';/m);
-  // No fetch of its own at all, and no method anywhere.
-  assert.doesNotMatch(leaf, /\bfetch\s*\(|\bmethod\b|\bPOST\b|\bPUT\b|\bPATCH\b|\bDELETE\b/, 'no request with a method');
-  // No writer: not the stops', not the ledger's, not the vendor box's two.
-  assert.doesNotMatch(leaf, /stopWrites|ledgerWrites|setStopRecord|clearStopRecord|createOneOff|addVendor|setVendor|clearVendor/);
-  assert.match(leaf, /import \{ useDirectory \} from '@\/components\/budget\/VendorBox';/, 'the directory’s read alone, as the expense form reads it');
+  // No request of its own at all, and no method anywhere: every write is a writer's.
+  assert.doesNotMatch(leaf, /\bfetch\s*\(|\bmethod\b|\bPOST\b|\bPUT\b|\bPATCH\b|\bDELETE\b/, 'no request and no method of its own');
+  // The six writers: imported, handed to the ONE runner in one object — and named nowhere else, so the leaf calls none itself.
+  assert.match(leaf, /import \{ setStopRecord \} from '\.\.\/stops\/stopWrites';/);
+  assert.match(leaf, /import \{ addVendor, createOneOff, readOneOffLine, setLineMinutes, setVendor \} from '\.\/ledgerWrites';/);
+  assert.match(leaf, /const outcomes = await runPaste\(placed\.writes, \{ createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setRecord: setStopRecord \}, \(progress\) => \{/);
+  for (const writer of ['createOneOff', 'readOneOffLine', 'setLineMinutes', 'addVendor', 'setVendor', 'setStopRecord']) assert.equal(countOf(leaf, new RegExp(`\\b${writer}\\b`, 'g')), 2, `${writer}: imported, and handed to the runner`);
+  assert.equal(countOf(leaf, /\brunPaste\(/g), 1, 'the one runner, once');
+  assert.doesNotMatch(leaf, /clearStopRecord|moveStopRecord|clearVendor/, 'nothing is cleared, moved or undone');
   // Nothing stored in the browser.
   assert.doesNotMatch(leaf, /localStorage|sessionStorage|document\.cookie|indexedDB|\bcookie\b/i);
-  // What it reads, and how: GET only, through the readers that already stand.
-  assert.match(leaf, /import \{ readJson \} from '\.\.\/week\/weekReads';/);
+  // What it reads, and how: GET only, through the readers that already stand — the vendors by the one JSON reader now, through the rule; the Budget's hook is gone.
+  assert.match(leaf, /import \{ readJson, type Read \} from '\.\.\/week\/weekReads';/);
   assert.match(leaf, /import \{ readLedger \} from '\.\/ledgerReads';/);
   assert.match(leaf, /import \{ useOperationsEntity \} from '\.\.\/EntitySelector';/);
+  assert.doesNotMatch(leaf, /useDirectory|VendorBox/);
   assert.equal(countOf(leaf, /await readLedger\(days\.from, days\.to\);/g), 1);
   assert.equal(countOf(leaf, /await readJson\(`\/api\/chart-of-accounts\?entity_id=\$\{encodeURIComponent\(book\.id\)\}`\);/g), 1);
-  assert.equal(countOf(leaf, /\/api\//g), 1, 'the chart route, and no other');
-  // The sheet's own span rule first: its refusal is shown and nothing is sent.
-  assert.match(leaf, /const span = pasteSpanOf\(paste\.value\);\n\s*if \(span !== null\) \{\n\s*const days = spanInput\(span\.from, span\.to\);\n\s*if \(!days\.ok\) \{ setRefusal\(days\.message\); return; \}\n\s*setBusy\(true\);\n\s*try \{\n\s*const ledger = await readLedger\(days\.from, days\.to\);/);
+  assert.match(leaf, /const listed = await readJson\('\/api\/operations\/vendor-directory'\);\n\s*if \(!listed\.ok\) return \{ ok: false, words: vendorsUnreadWords\(listed\.words\) \};\n\s*const vendors = vendorsOf\(listed\.value\);\n\s*if \(!vendors\.ok\) return \{ ok: false, words: vendorsUnreadWords\(vendors\.words\) \};/);
+  assert.deepEqual([...leaf.matchAll(/\/api\/[\w/-]+/g)].map((m) => m[0]), ['/api/chart-of-accounts', '/api/operations/vendor-directory'], 'the chart route and the directory route, each read — and no other');
+  // ONE read function: the sheet's own span rule first — its refusal is the answer and nothing is sent; no readable row, nothing read.
+  assert.equal(countOf(leaf, /async function readAgainst\(paste: Paste, books: readonly PasteBook\[\], zone: string\): Promise<Read<PasteContext>> \{/g), 1);
+  assert.match(leaf, /const span = pasteSpanOf\(paste\);\n\s*if \(span === null\) return \{ ok: true, value: \{ books, sheet: \[\], recording: \{\}, charts: \{\}, vendors: \[\], zone, now \} \};\n\s*const days = spanInput\(span\.from, span\.to\);\n\s*if \(!days\.ok\) return \{ ok: false, words: days\.message \};\n\s*const ledger = await readLedger\(days\.from, days\.to\);/);
   // A chart that cannot be read is said with the book's name — never taken as an empty list.
-  assert.match(leaf, /if \(!answer\.ok\) \{ setRefusal\(chartUnreadWords\(book\.name, answer\.words\)\); return; \}\n\s*const chart = chartOf\(answer\.value\);\n\s*if \(!chart\.ok\) \{ setRefusal\(chartUnreadWords\(book\.name, chart\.words\)\); return; \}\n\s*charts\[book\.id\] = chart\.accounts;/);
-  // The clock is the browser's, read once per read; the zone is the browser's, read on mount.
+  assert.match(leaf, /if \(!answer\.ok\) return \{ ok: false, words: chartUnreadWords\(book\.name, answer\.words\) \};\n\s*const chart = chartOf\(answer\.value\);\n\s*if \(!chart\.ok\) return \{ ok: false, words: chartUnreadWords\(book\.name, chart\.words\) \};\n\s*charts\[book\.id\] = chart\.accounts;/);
+  // The clock is the browser's, read once per read — in the one read function; the zone is the browser's, read on mount.
   assert.equal(countOf(leaf, /new Date\(/g), 1);
+  assert.match(leaf, /async function readAgainst\([^)]*\): Promise<Read<PasteContext>> \{\n\s*const now = new Date\(\);/);
   assert.match(leaf, /useEffect\(\(\) => \{ setZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\); \}, \[\]\);/);
-  // A new read forgets the rows and the picks; a pick places every row again through the rule.
-  assert.match(leaf, /setRefusal\(null\);\n\s*setRows\(null\);\n\s*setPicks\(\{\}\);\n\s*const paste = readPaste\(text\);\n\s*if \(!paste\.ok\) \{ setRefusal\(paste\.words\); return; \}/);
-  assert.match(leaf, /const placed = placePaste\(rows\.paste, picks, rows\.context\);/);
-  assert.match(leaf, /\}, \[rows, picks\]\);/);
-  // The box is mounted only while it is open.
-  assert.match(leaf, /\{!open && <button type="button" className=\{chip\} onClick=\{\(\) => setOpen\(true\)\} data-ledger-paste-open>\{PASTE_OPEN_WORDS\}<\/button>\}\n\s*\{open && <Box close=\{\(\) => setOpen\(false\)\} \/>\}/);
+  // A new read forgets the rows, the run and the changed line — and KEEPS the picks; "clear" alone forgets them.
+  assert.match(leaf, /setRefusal\(null\);\n\s*setRows\(null\);\n\s*setRun\(null\);\n\s*setChanged\(false\);\n\s*const paste = readPaste\(text\);\n\s*if \(!paste\.ok\) \{ setRefusal\(paste\.words\); return; \}/);
+  assert.equal(countOf(leaf, /setPicks\(\{\}\)/g), 1, '"clear" alone forgets the picks');
+  // A pick places every row again through the rule — with the picks that still stand.
+  assert.match(leaf, /const standing = standingPicks\(picks, kinds, read\.context\);\n\s*const placed = placePaste\(read\.paste, standing, read\.context\);/);
+  assert.match(leaf, /const shown = useMemo\(\(\) => \(rows === null \? null : placedOf\(rows, picks\)\), \[rows, picks\]\);/);
+  // The box is mounted only while it is open — and its mount carries the picks, which live above it.
+  assert.match(leaf, /\{!open && <button type="button" className=\{chip\} onClick=\{\(\) => setOpen\(true\)\} data-ledger-paste-open>\{PASTE_OPEN_WORDS\}<\/button>\}\n\s*\{open && <Box close=\{\(\) => setOpen\(false\)\} picks=\{picks\} setPicks=\{setPicks\} onWritten=\{onWritten\} \/>\}/);
   // The table wears the shared table's classes.
   assert.match(leaf, /import \{ cellClass as cell, chipClass as chip, headClass as head, moneyClass as money \} from '@\/components\/table\/DataTable';/);
 });
 
-test('T13 every sentence the leaf prints comes from pasteRows.ts: no text typed between its tags, no word of the rule typed again, and every printed expression is the rule’s own or a value it returned', () => {
+test('T13 every sentence the leaf prints comes from the two rule files, and the zone’s line from ledger.ts: no text typed between its tags, no word of a rule typed again, and every printed expression is a rule’s own or a value it returned', () => {
+  // PASTE-02 (Alex, 2026-11-27, ruling D.10): TWO rule files — pasteRows.ts and pasteSave.ts — and "+ expense"'s own zone line. Until then this test was 'T13 every sentence the
+  // leaf prints comes from pasteRows.ts: …', the printed expressions were the read's alone, and the refusals were set one by one inside "read the rows".
   const leaf = code(LEAF);
   // No text between tags: every child that prints is an expression.
   assert.doesNotMatch(leaf, />[^<>{}()=]*[A-Za-z][^<>{}()=]*<\//, 'no sentence typed in the markup');
   // What is printed between tags, expression by expression.
   const printed = [...new Set([...leaf.matchAll(/>\{([^{}]+)\}<\//g)].map((m) => m[1]))].sort();
-  assert.deepEqual(printed, ['LANDS_WORDS', 'ON_TIME_SHEET_WORDS', 'PASTE_CLEAR_WORDS', 'PASTE_CLOSE_WORDS', 'PASTE_HOW_WORDS', 'PASTE_NO_PICK_WORDS', 'PASTE_OPEN_WORDS', 'PASTE_PICKS_WORDS', 'PASTE_READ_WORDS', 'PASTE_TITLE_WORDS', 'YOUR_SHEET_WORDS', 'accountWords(account)', 'column.head', 'kind.label', 'kind.rows', 'line', 'plan', 'refusal', 'row.lands', 'shown.counts', 'words'].sort());
+  assert.deepEqual(printed, [
+    'LANDS_WORDS', 'ON_TIME_SHEET_WORDS', 'PASTE_CLEAR_WORDS', 'PASTE_CLOSE_WORDS', 'PASTE_HOW_WORDS', 'PASTE_NO_PICK_WORDS', 'PASTE_OPEN_WORDS', 'PASTE_PICKS_WORDS', 'PASTE_READ_WORDS', 'PASTE_TITLE_WORDS', 'YOUR_SHEET_WORDS',
+    'accountWords(account)', 'column.head', 'kind.label', 'kind.rows', 'line', 'plan', 'refusal', 'row.lands', 'shown.counts', 'words',
+    // The save's: the amber line, the button, nothing to save, the two lines while it runs, the changed line, the run's line, the read-again line, a row's outcome — and the zone.
+    'VENDORS_STAY_WORDS', 'saveWords(shown.writes)', 'NOTHING_TO_SAVE_WORDS', 'CHECKING_WORDS', 'savingWords(saving.i, saving.of, saving.row)', 'CHANGED_WORDS', 'runWords(run.outcomes)', 'SPENT_WORDS', 'pasteOutcomeWords(outcome)', 'zoneWords(zone)',
+  ].sort());
   // And in attributes: the box's label and the two groups of a pick.
   assert.deepEqual([...leaf.matchAll(/(?:aria-label|label)=\{([^{}]+)\}/g)].map((m) => m[1]), ['PASTE_HOW_WORDS', 'PASTE_ON_PLAN_WORDS', 'PASTE_ONE_OFF_WORDS']);
   assert.doesNotMatch(leaf, /(?:aria-label|label|title|placeholder|alt)="/, 'no word typed in an attribute');
-  // Every refusal it shows is the rule's, the span rule's or a read's own words.
-  assert.deepEqual([...leaf.matchAll(/setRefusal\(([^;]*)\);/g)].map((m) => m[1]), ['null', 'paste.words', 'vendorsUnreadWords(directory.words)', 'days.message', 'ledger.words', 'chartUnreadWords(book.name, answer.words)', 'chartUnreadWords(book.name, chart.words)', 'null']);
-  // Each of those names is the rule file's — imported from it, and from nowhere else.
-  const imported = /import \{([^}]*)\} from '@\/lib\/operations\/pasteRows';/.exec(leaf);
-  if (imported === null) return assert.fail('the leaf imports the rule');
-  const names = imported[1].split(',').map((name) => name.trim()).filter((name) => name !== '' && !name.startsWith('type '));
-  for (const name of ['LANDS_WORDS', 'ON_TIME_SHEET_WORDS', 'PASTE_CLEAR_WORDS', 'PASTE_CLOSE_WORDS', 'PASTE_HOW_WORDS', 'PASTE_NO_PICK_WORDS', 'PASTE_ONE_OFF_WORDS', 'PASTE_ON_PLAN_WORDS', 'PASTE_OPEN_WORDS', 'PASTE_PICKS_WORDS', 'PASTE_READ_WORDS', 'PASTE_TITLE_WORDS', 'YOUR_SHEET_WORDS', 'accountWords', 'chartUnreadWords', 'vendorsUnreadWords', 'countsWords', 'notReadLines', 'pasteShown', 'placePaste', 'readPaste']) {
+  // Every refusal it shows: the rule's reading of the text, or the one read function's answer — in "read the rows", and again in the save.
+  assert.deepEqual([...leaf.matchAll(/setRefusal\(([^;]*)\);/g)].map((m) => m[1]), ['null', 'paste.words', 'against.words', 'null', 'null', 'against.words']);
+  // …and that answer's words are the span rule's, a read's own, or a rule's sentence over a read's own.
+  assert.deepEqual([...leaf.matchAll(/return \{ ok: false, words: ([^;]*) \};/g)].map((m) => m[1]), [
+    'days.message', 'ledger.words', 'chartUnreadWords(book.name, answer.words)', 'chartUnreadWords(book.name, chart.words)', 'vendorsUnreadWords(listed.words)', 'vendorsUnreadWords(vendors.words)',
+  ]);
+  // Each printed name is a rule file's — imported from it, and from nowhere else; the zone's line is ledger.ts's.
+  const importedFrom = (module: string): string[] => {
+    const found = new RegExp(`import \\{([^}]*)\\} from '@/lib/operations/${module}';`).exec(leaf);
+    if (found === null) return assert.fail(`the leaf imports ${module}`);
+    return found[1].split(',').map((name) => name.trim()).filter((name) => name !== '' && !name.startsWith('type '));
+  };
+  const names = importedFrom('pasteRows');
+  for (const name of ['LANDS_WORDS', 'ON_TIME_SHEET_WORDS', 'PASTE_CLEAR_WORDS', 'PASTE_CLOSE_WORDS', 'PASTE_HOW_WORDS', 'PASTE_NO_PICK_WORDS', 'PASTE_ONE_OFF_WORDS', 'PASTE_ON_PLAN_WORDS', 'PASTE_OPEN_WORDS', 'PASTE_PICKS_WORDS', 'PASTE_READ_WORDS', 'PASTE_TITLE_WORDS', 'YOUR_SHEET_WORDS', 'accountWords', 'chartUnreadWords', 'vendorsUnreadWords', 'countsWords', 'notReadLines', 'pasteShown', 'placePaste', 'readPaste', 'standingPicks', 'vendorsOf']) {
     assert.ok(names.includes(name), `${name} is the rule's`);
   }
   for (const name of names) assert.ok(name in rule, `${name} is exported by the rule file`);
-  // No sentence of the rule is typed again in the leaf: every one of its words of two or more is in the rule file alone.
-  const exported: Readonly<Record<string, unknown>> = rule;
+  const saveNames = importedFrom('pasteSave');
+  assert.deepEqual([...saveNames].sort(), ['CHANGED_WORDS', 'CHECKING_WORDS', 'NOTHING_TO_SAVE_WORDS', 'SPENT_WORDS', 'VENDORS_STAY_WORDS', 'daysReached', 'newVendorLines', 'pasteOutcomeWords', 'pasteWritesOf', 'runPaste', 'runStopped', 'runWords', 'saveWords', 'savingWords', 'shownChanged'].sort());
+  for (const name of saveNames) assert.ok(name in saveRule, `${name} is exported by the save's rule file`);
+  assert.match(leaf, /import \{ spanInput, zoneWords \} from '@\/lib\/operations\/ledger';/, 'the zone’s line is "+ expense"’s own');
+  // No sentence of either rule is typed again in the leaf: every one of their words of two or more is in its rule file alone.
   const sentences: [string, string][] = [];
-  for (const [name, value] of Object.entries(exported)) if (typeof value === 'string' && /\s/.test(value)) sentences.push([name, value]);
-  assert.ok(sentences.length > 20, 'the rule file types the sentences');
-  for (const [name, words] of sentences) assert.ok(!leaf.includes(words), `${name} is typed in the rule file alone`);
-  // The only words of the leaf's own are class names, test hooks and paths: no string in it reads as a sentence with a capital or a dash.
+  for (const exported of [rule, saveRule] as readonly Readonly<Record<string, unknown>>[]) {
+    for (const [name, value] of Object.entries(exported)) if (typeof value === 'string' && /\s/.test(value)) sentences.push([name, value]);
+  }
+  assert.ok(sentences.length > 25, 'the two rule files type the sentences');
+  for (const [name, words] of sentences) assert.ok(!leaf.includes(words), `${name} is typed in its rule file alone`);
+  // The only words of the leaf's own are class names, test hooks, states and paths: no string in it reads as a sentence with a capital or a dash.
   for (const m of leaf.matchAll(/'([^'\n]*)'|"([^"\n]*)"/g)) {
     const text = m[1] === undefined ? m[2] : m[1];
     assert.doesNotMatch(text, /[A-Z][a-z]+ [a-z]+|—| – |\.\s|,\s/, `${JSON.stringify(text)} is no sentence`);
@@ -697,19 +740,21 @@ test('T14 the section mounts the leaf after the expense form, on the same line, 
   const s = code(SECTION);
   assert.equal(linesOf(SECTION).length, 488, 'no line added, none removed — the registry cites three of its lines');
   assert.ok(s.includes("\nimport ExpenseForm from './ExpenseForm'; import PasteRows from './PasteRows';\n"), 'the two imports on the one line');
-  assert.ok(s.includes('\n      <ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows />\n'), 'the expense form’s mount, character for character, and the leaf after it');
+  // PASTE-02 (Alex, 2026-11-27, ruling E): the leaf is handed what the section does when a day is written — read the time sheet again, and tell the day's card — for every day a save
+  // reached. Until then it was mounted bare (`<PasteRows />`): it wrote nothing, so the section had nothing to read again. ONE line edited in place; no line added.
+  assert.ok(s.includes('\n      <ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} />\n'), 'the expense form’s mount, character for character, and the leaf after it');
   assert.deepEqual([countOf(s, /import PasteRows from '\.\/PasteRows';/g), countOf(s, /<PasteRows\b/g), countOf(s, /\bPasteRows\b/g)], [1, 1, 3], 'imported once and mounted once — the name, its path and the mount, and nowhere else');
   assert.equal(countOf(s, /<ExpenseForm\b/g), 1);
-  // The leaf is handed nothing and hands nothing back: it writes nothing, so the section has nothing to read again.
-  assert.match(s, /<PasteRows \/>/);
+  // The leaf is handed the one thing, and nothing else: the days a save reached — the time sheet reads again once, and each day's card is told.
+  assert.match(s, /<PasteRows onWritten=\{\(days\) => \{ setWrites\(\(n\) => n \+ 1\); days\.forEach\(announceDayWritten\); \}\} \/>/);
   // Under "+ expense", above the table.
-  assert.ok(s.indexOf('<PasteRows />') < s.indexOf('<DataTable\n'), 'above the time sheet');
+  assert.ok(s.indexOf('<PasteRows ') > 0 && s.indexOf('<PasteRows ') < s.indexOf('<DataTable\n'), 'above the time sheet');
   // No other file mounts it.
   assert.doesNotMatch(code(TIME_PAGE), /PasteRows|pasteRows/);
   // /time mounts what it did: the time sheet, then the two journal tables — the leaf is the section's, not the page's.
   const page = code(TIME_PAGE);
   assert.match(page, /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
-  // The section's file does not name this change: the dated note is the leaf's and the rule's.
-  assert.doesNotMatch(whole(SECTION), /PASTE-01/);
+  // The section's file names neither change: the dated notes are the leaf's and the rules'.
+  assert.doesNotMatch(whole(SECTION), /PASTE-01|PASTE-02/);
   assert.match(comments(LEAF), /PasteRows — "\+ paste rows from a sheet" on the time sheet \(PASTE-01, Alex, 2026-11-25\)\./);
 });
