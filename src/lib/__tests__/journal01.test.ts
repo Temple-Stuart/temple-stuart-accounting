@@ -94,7 +94,7 @@ const task = (id: string, title: string, status: NonNullable<DailyPlanItem['task
   id, title, status, project_id: 'proj', coa_code: null, estimated_cost_usd: null, actual_cost_usd, actual_minutes: null, completed_at,
 });
 const record = (over: Partial<StopRecordRow> & { kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
-  id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+  id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
 });
 
 const morning = routine({

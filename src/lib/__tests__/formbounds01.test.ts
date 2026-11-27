@@ -73,7 +73,7 @@ const expenseValue = (over: Partial<ExpenseDraft>, now: Date): ExpenseValues => 
 /** The row's record form: a stop at the same instant, nothing held. */
 const ADDRESS: LedgerAddress = { kind: 'routine_line', id: 'soup', instant: STOP };
 const FIRST: Pick<LedgerRecordingTaken, 'plannedAt' | 'held'> = { plannedAt: STOP, held: null };
-const BLANK: RecordDraft = { went: 'went', actual: '', stars: '', minutes: '', note: '' };
+const BLANK: RecordDraft = { went: 'went', actual: '', stars: '', minutes: '', note: '', notes: '' }; // TIMESHEET-04b (2026-11-27): the draft holds a NOTES box — blank in these drafts
 const record = (over: Partial<RecordDraft>, now: Date, given: Pick<LedgerRecordingTaken, 'plannedAt' | 'held'> = FIRST) => recordInput({ ...BLANK, ...over }, ADDRESS, given, now);
 
 /** The stops POST's body for that stop, done at its own instant — what the route's rule is handed. */
@@ -119,7 +119,8 @@ test('T1 in the source: stopRecord.ts holds each of the two regexes once, in the
   // stopInput: the note trimmed and collapsed, the one named test, then the length — three lines, in this order.
   const rule = bodyOfFunction(STOPS, 'stopInput');
   assert.match(rule, /const n = b\.note\.trim\(\)\.replace\(\/\\s\+\/g, ' '\);\n\s*if \(holdsControl\(n\)\) return refuse\('note', 'control characters are not a note'\);\n\s*if \(n\.length > NOTE_MAX\) return refuse\('note', `note is at most \$\{NOTE_MAX\} characters \(\$\{n\.length\} given\)`\);\n\s*note = n === '' \? null : n;/);
-  assert.equal(countOf(stops, /\bholdsControl\b/g), 2, 'defined once, and called once — by stopInput');
+  assert.equal(countOf(stops, /\bholdsControl\b/g), 3, 'defined once, and called twice — by stopInput, on the note and on the notes'); // TIMESHEET-04b (2026-11-27): stopInput reads the notes as it reads the note, by the same one test — 2, 'defined once, and called once — by stopInput', until then
+  assert.match(rule, /const n = b\.notes\.trim\(\)\.replace\(\/\\s\+\/g, ' '\);\n\s*if \(holdsControl\(n\)\) return refuse\('notes', 'control characters are not notes'\);\n\s*if \(n\.length > NOTES_MAX\) return refuse\('notes', `notes are at most \$\{NOTES_MAX\} characters \(\$\{n\.length\} given\)`\);\n\s*notes = n === '' \? null : n;/, 'the notes: trimmed and collapsed, the one named test, then the length — the note\'s own three lines');
   assert.doesNotMatch(rule, /\\u0000|\\ud800/, 'no second test left in the rule');
 });
 
@@ -273,7 +274,7 @@ test('T5 both forms: a control in DESCRIPTION is refused by NOTE_CONTROL_WORDS, 
   // In the source: the collapse, the one named test, then the length — in each form's rule; the rule file holds no regex of its own for it.
   assert.match(bodyOfFunction(RULES, 'expenseInput'), /const note = draft\.note\.trim\(\)\.replace\(\/\\s\+\/g, ' '\);\n\s*if \(note !== '' && ahead\) return refuseExpense\('note', aheadFieldWords\('note'\)\);\n\s*if \(holdsControl\(note\)\) return refuseExpense\('note', NOTE_CONTROL_WORDS\);\n\s*if \(note\.length > NOTE_MAX\) return refuseExpense\('note', NOTE_LONG_WORDS\);/);
   assert.match(bodyOfFunction(RULES, 'recordInput'), /const note = draft\.note\.trim\(\)\.replace\(\/\\s\+\/g, ' '\);\n\s*if \(holdsControl\(note\)\) return refuseRecord\('note', NOTE_CONTROL_WORDS\);\s*\n\s*if \(note\.length > NOTE_MAX\) return refuseRecord\('note', NOTE_LONG_WORDS\);/);
-  assert.equal(countOf(code(RULES), /\bholdsControl\(/g), 2, 'the one test, read by the two rules');
+  assert.equal(countOf(code(RULES), /\bholdsControl\(/g), 3, 'the one test, read by the two rules — the record form on DESCRIPTION and on NOTES'); // TIMESHEET-04b (2026-11-27): recordInput reads NOTES by the same test — 2, 'the one test, read by the two rules', until then
   assert.doesNotMatch(code(RULES), /\\u0000|\\u001f|\\ud800/, 'no second test in the rule file');
 });
 
@@ -284,7 +285,7 @@ const STARS = ['', '1', '5', '6'];
 const NOTES = ['', 'thick', 'two\tkinds\nof soup', 'n'.repeat(NOTE_MAX), 'n'.repeat(NOTE_MAX + 1), 'so\u0000up', 'so\u0085up', 'so\ud83dup', `soup ${WHOLE_PAIR}`];
 
 test('T6 THE CLOSURE, the record form — over a table of drafts, clocks and held records: every body recordInput accepts, stopInput accepts with the same clock, and stores what the form sent', () => {
-  const HELD_DONE: StopRecordRow = { id: 'r-soup', kind: 'routine_line', target_id: 'soup', occurrence_at: STOP, outcome: 'done', done_at: STOP, actual_cents: 600, rating: 4, note: 'with rice', actual_minutes: 18 };
+  const HELD_DONE: StopRecordRow = { id: 'r-soup', kind: 'routine_line', target_id: 'soup', occurrence_at: STOP, outcome: 'done', done_at: STOP, actual_cents: 600, rating: 4, note: 'with rice', notes: null, actual_minutes: 18 };
   const HELD_SKIP: StopRecordRow = { ...HELD_DONE, outcome: 'skipped', done_at: null, actual_cents: null, rating: null, note: 'closed', actual_minutes: null };
   let accepted = 0;
   let refused = 0;
@@ -355,14 +356,14 @@ test('T7 outcomeWords says RECORD_AHEAD_WORDS for the record ahead; the four sta
   assert.match(rules, /export type ExpenseState = 'written' \| 'failed' \| 'not tried' \| 'not asked' \| 'ahead';/);
   assert.match(rules, /export const NOT_ASKED_WORDS = 'none given';\n(?:[ \t]*\n)*export const RECORD_AHEAD_WORDS = 'not asked — this stop is still ahead; record it on its row once its time has come';\n/);
   assert.match(rules, /readonly note: string \| null;\n(?:[ \t]*\n)* {2}readonly ahead: boolean;\n\}\n\nexport type ExpenseInputResult/);
-  assert.ok(rules.includes("({ kind: 'routine_line', id: lineId, instant: v.instant, outcome: 'done', done_at: v.instant, actual_cents: v.actualCents, rating: v.rating, note: v.note, actual_minutes: null });"), 'recordBody: done at the stop’s own instant, as it was');
+  assert.ok(rules.includes("({ kind: 'routine_line', id: lineId, instant: v.instant, outcome: 'done', done_at: v.instant, actual_cents: v.actualCents, rating: v.rating, note: v.note, notes: null, actual_minutes: null });"), 'recordBody: done at the stop’s own instant, as it was — and it says its notes: none'); // TIMESHEET-04b (2026-11-27): "+ expense" has no NOTES box, so its body says null — the body without "notes: null" until then
 });
 
 // ── T8 · WHERE THE RULE FILE'S WORDS STAND (ruling B) ────────────────────────
 
 test('T8 the rule file: the import gains CENTS_MAX and holdsControl in place; the three words stand in one dated block under VENDOR_BOTH_WORDS, typed as ruled', () => {
   const rules = code(RULES);
-  assert.ok(rules.includes("import { CENTS_MAX, DONE_AT_SKEW_MS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTE_MAX, NOT_RECORDED_WORDS, RATING_WORDS, SKIPPED_WORD, SKIP_REASON_WORDS, amountWords, holdsControl, minutesTypedWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';"), 'one import line, as it was, with the two names in their places');
+  assert.ok(rules.includes("import { CENTS_MAX, DONE_AT_SKEW_MS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTES_MAX, NOTE_MAX, NOT_RECORDED_WORDS, RATING_WORDS, SKIPPED_WORD, SKIP_REASON_WORDS, amountWords, holdsControl, minutesTypedWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';"), 'one import line, as it was, with the two names in their places'); // TIMESHEET-04b (2026-11-27): the line gains NOTES_MAX, before NOTE_MAX — every other name where it stood
   assert.equal(countOf(rules, /from '@\/lib\/operations\/stopRecord';/g), 1);
   // The block: a dated heading right under VENDOR_BOTH_WORDS, then the three words in order, then the rule's own helper.
   const file = whole(RULES);

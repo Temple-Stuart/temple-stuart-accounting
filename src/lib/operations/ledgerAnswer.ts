@@ -82,8 +82,8 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
     db.planned_item_vendors.findMany({
       where: { user_id: userId, OR: [{ occurrence_at: null }, { occurrence_at: { gte: vendorsFrom, lt: vendorsTo } }] },
       select: {
-        id: true, routine_id: true, step_id: true, task_id: true, occurrence_at: true,
-        vendor: { select: { id: true, vendor_name: true, entity_id: true } },
+        id: true, routine_id: true, step_id: true, task_id: true, occurrence_at: true, items: true, // TIMESHEET-04b (2026-11-27): the row's planned items, and (next line) its vendor's Instagram tag — two columns more of a read that already ran; no query added
+        vendor: { select: { id: true, vendor_name: true, entity_id: true, instagram_tag: true } },
         routine: { select: { name: true, timezone: true } },
         step: { select: { activity: true, routine_id: true, routine: { select: { name: true, timezone: true } } } },
         task: { select: { title: true } },

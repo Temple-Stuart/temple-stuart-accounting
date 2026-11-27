@@ -61,7 +61,7 @@ const ENDED = plan({ id: 'ended', name: 'Ended', endDate: '2026-10-05', budgetAm
 /** A plan found holding both grains. */
 const BOTH = plan({ id: 'both', name: 'Both', budgetAmount: '1', coaCode: '6150' });
 const record = (o: Partial<StopRecordRow> & { id: string; kind: 'routine' | 'routine_line'; target_id: string; occurrence_at: string }): StopRecordRow => ({
-  outcome: 'done', done_at: o.occurrence_at, actual_cents: null, rating: null, note: null, actual_minutes: null, ...o,
+  outcome: 'done', done_at: o.occurrence_at, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...o,
 });
 const link = (o: Partial<LedgerLinkInput> & { journalEntryId: string; instant: string; amountCents: number | null }): LedgerLinkInput => ({ kind: 'routine_line', targetId: 's1', reversed: false, ...o });
 const vendor = (o: Partial<PlanVendorRow> & { id: string }): PlanVendorRow => ({

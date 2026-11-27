@@ -78,7 +78,7 @@ const item = (over: Partial<DailyPlanItem> & { id: string }): DailyPlanItem => (
   notes: null, created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z', created_by: null, task: null, calendar_blocks: [], ...over,
 });
 const record = (over: Partial<StopRecordRow> & { kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
-  id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+  id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
 });
 // TRAVEL-01b (Alex, 2026-10-31): the input gains `travel` — null, as the records: unknown, never none.
 const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, marks: null, ...over });
@@ -312,14 +312,17 @@ test('T4 the form asks what the role asks; the vendor box is the card’s child,
   assert.match(f, /const differs = typedCents !== null && \(stop\.cents === null \|\| typedCents !== stop\.cents\);/, '"why" once the amount differs from the plan — or whenever the plan is unknown');
   assert.match(f, /try \{ const r = centsFromDecimalString\(draft\.amount\); return r\.ok \? r\.cents : null; \} catch \{ return null; \}/, 'a non-amount typed is no amount yet — never a render crash');
   // A field the role does not ask is shown while it holds a value; what is not shown is sent as null — never carried unseen.
-  assert.match(f, /const shown = \{\n\s*amount: asks\.amount \|\| draft\.amount !== '',\n\s*rating: asks\.rating \|\| draft\.rating !== null,\n\s*minutes: asks\.minutes \|\| draft\.minutes !== '',\n\s*note: asks\.note \|\| draft\.note !== '',\n\s*\};/);
+  assert.match(f, /const shown = \{\n\s*amount: asks\.amount \|\| draft\.amount !== '',\n\s*rating: asks\.rating \|\| draft\.rating !== null,\n\s*minutes: asks\.minutes \|\| draft\.minutes !== '',\n\s*note: asks\.note \|\| draft\.note !== '',\n\s*notes: draft\.notes !== '',\n\s*\};/); // TIMESHEET-04b (2026-11-27): the notes box — no role asks for it, so it shows only while the record holds some; the four without it until then
   assert.match(f, /if \(shown\.amount && d\.amount\.trim\(\) !== ''\) \{/);
   assert.match(f, /if \(shown\.minutes && d\.minutes\.trim\(\) !== ''\) \{/);
   assert.match(f, /const note = shown\.note \? d\.note\.trim\(\) : '';/);
   assert.match(f, /rating: shown\.rating \? d\.rating : null/);
   // JOURNAL-01 (2026-10-13): a journal stop asks the minutes only — its words are the journal's own questions; the note only for a skip's reason. The pin moved; the shown/null invariants above stand.
   assert.match(f, /const asks = role === 'place'\n\s*\? \{ amount: true, rating: true, minutes: false, note: draft\.outcome === 'skipped' \|\| differs \}\n\s*: role === 'none'\n\s*\? \{ amount: true, rating: true, minutes: true, note: true \}\n\s*: role === 'journal'\n\s*\? \{ amount: false, rating: false, minutes: true, note: draft\.outcome === 'skipped' \}\n\s*: \{ amount: false, rating: false, minutes: true, note: true \};/);
-  for (const ask of ['shown.amount', 'shown.rating', 'shown.minutes', 'shown.note']) assert.ok(f.includes(`{${ask} && (`), `${ask} gates its field`);
+  for (const ask of ['shown.amount', 'shown.rating', 'shown.minutes', 'shown.note', 'shown.notes']) assert.ok(f.includes(`{${ask} && (`), `${ask} gates its field`); // TIMESHEET-04b (2026-11-27): and the notes box
+  // TIMESHEET-04b (2026-11-27): the record's notes ride with every save from the card — the box's text trimmed, null when blank; never carried along unseen, for the box shows whenever it holds text.
+  assert.match(f, /const notes = d\.notes\.trim\(\);/);
+  assert.match(f, /note: note === '' \? null : note, notes: notes === '' \? null : notes, actual_minutes: actualMinutes \}/);
   assert.doesNotMatch(f, /\{asks\.\w+ && \(/, 'the screen gates on shown, never on asks alone');
   assert.match(f, /placeholder=\{draft\.outcome === 'skipped' \? 'why — required' : NOTE_PROMPT_WORDS\[role\]\}/, 'the note is prompted by the role');
   // VENDOR-02 (2026-10-14) — Alex's ruling: the vendor box shows for EVERY priced stop, whatever its role, directly above the

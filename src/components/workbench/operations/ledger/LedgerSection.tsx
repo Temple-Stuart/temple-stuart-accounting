@@ -202,13 +202,13 @@ import {
   endCellWords, endOf, startCellWords, startOf, wentCellWords, wentOf, // TIMESHEET-01 (2026-11-24): the three facts of a sheet row and their cells
   hoursWords, loggedCoverageWords, minutesCellWords, plannedCoverageWords, // TIME-03 (2026-10-26): the minutes cells, the hours and their coverage
   NOT_TYPED_WORDS, accountPillClassOf, bookPillClassOf, type AccountPlaces, // TIMESHEET-03 (2026-11-24): the legend's words, the two pills' classes, and the accounts' places they are toned by
-  RECORD_WORDS, type LedgerRecording, // TIMESHEET-02 (2026-11-24): the chip's word, and a row's entry in the answer's `recording`
+  RECORD_WORDS, type LedgerRecording, PLANNED_ITEMS_TITLE_WORDS, descriptionOf, plannedDescription, tagCellWords, // TIMESHEET-02 (2026-11-24): the chip's word, and a row's entry in the answer's `recording` · TIMESHEET-04b (2026-11-27): the planned cell's title, what DESCRIPTION says of a row and whether it is planned, and the tag's cell
   type ColumnFilters, type GroupKey, type LedgerColumn, type LedgerSheetRow, type LedgerSort, type MatchState, type Period, type PeriodKind,
 } from '@/lib/operations/ledger';
 
 // IDIOM-01 (2026-10-24): the chip, head, cell and money classes are the shared table's (DataTable.tsx), imported under the names this file always used.
 const chipOn = 'px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs';
-const BLANK_CLASS = 'text-text-faint';
+const BLANK_CLASS = 'text-text-faint'; const PLANNED_CLASS = 'text-text-faint italic'; // TIMESHEET-04b (2026-11-27): a plan row's planned items under DESCRIPTION — faint and italic: planned, not a record's note. Typed whole, on this line so the file keeps its line count
 /** TIMESHEET-03 (2026-11-24): the tint of the cells nobody types on a row — BUDGET, VARIANCE, MATCH, UNDER / OVER — and of the legend's swatch. One class, typed whole. */
 const NOT_TYPED_TINT = 'bg-blue-50';
 
@@ -355,7 +355,7 @@ export default function LedgerSection() {
                 <td className={`${cell} whitespace-nowrap ${row.coa === null ? BLANK_CLASS : ''}`} data-ledger-cell="account">{accountCellWords(row)}</td>
                 <td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : ''}`} data-ledger-cell="account-name">{accountPill === null ? accountNameCellWords(row) : <span className={accountPill} data-ledger-pill="account-name">{accountNameCellWords(row)}</span>}</td>
                 <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name">{row.description}</td>
-                <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor">{vendorCellWords(row.vendor)}</td>
+                <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor">{vendorCellWords(row.vendor)}</td><td className={`${cell} whitespace-nowrap ${row.instagramTag === null ? BLANK_CLASS : ''}`} data-ledger-cell="instagram-tag">{tagCellWords(row.instagramTag)}</td>
                 {/* TIMESHEET-01 (2026-11-24): WENT after VENDOR — went, skipped, planned, not recorded; "—" on a charge. TIMESHEET-02 (2026-11-24): after the word, the
                     "record" chip on every row whose entry takes a record — it opens the row's form beneath; a row that takes none has no chip, its WENT reads "—", and the
                     cell's title is the entry's own sentence saying why. */}
@@ -375,7 +375,7 @@ export default function LedgerSection() {
                   <button type="button" className={`${chip} ml-1 font-normal`} onClick={() => setPicking(picking === row.key ? null : row.key)} data-ledger-link={row.key} aria-expanded={picking === row.key}>{LINK_WORDS}</button>
                 </td>
                 <td className={`${cell} whitespace-nowrap ${NOT_TYPED_TINT} ${row.varianceCents === null ? BLANK_CLASS : actualTone(delta.over)}`} data-ledger-cell="under-over">{underOverWords(row.varianceCents)}</td>
-                <td className={`${cell} ${row.note === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="description">{noteCellWords(row.note)}</td>
+                <td className={`${cell} ${descriptionOf(row) === null ? BLANK_CLASS : plannedDescription(row) ? PLANNED_CLASS : 'text-text-muted'}`} data-ledger-cell="description" data-ledger-planned={plannedDescription(row) ? '' : undefined} title={plannedDescription(row) ? PLANNED_ITEMS_TITLE_WORDS : undefined}>{noteCellWords(descriptionOf(row))}</td><td className={`${cell} ${row.notes === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="notes">{noteCellWords(row.notes)}</td>
               </tr>
               {picking === row.key && (
                 <tr className="border-t border-border" data-ledger-picker={row.key}>
@@ -398,15 +398,15 @@ export default function LedgerSection() {
         }}
         foot={(
           <tfoot>
-            {/* LEDGER-02 (amended): TOTAL spans the columns before BUDGET (fifteen since TIMESHEET-01, 2026-11-24 — START, END and WENT sit among them; less the four a single day folds, TIMEDAY-01, 2026-11-24 — ledger.ts dayFoldCount; twelve since TIME-03 — PLANNED MIN and LOGGED MIN sit among them; their sums are the summary's hours, not this row's); VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
+            {/* LEDGER-02 (amended): TOTAL spans the columns before BUDGET (sixteen since TIMESHEET-04b, 2026-11-27 — INSTAGRAM TAG sits among them; fifteen since TIMESHEET-01, 2026-11-24 — START, END and WENT sit among them; less the four a single day folds, TIMEDAY-01, 2026-11-24 — ledger.ts dayFoldCount; twelve since TIME-03 — PLANNED MIN and LOGGED MIN sit among them; their sums are the summary's hours, not this row's); VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
             <tr className="border-t border-border font-bold text-text-primary" data-ledger-total>
-              <th scope="row" colSpan={15 - dayFoldCount(period)} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
+              <th scope="row" colSpan={16 - dayFoldCount(period)} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
               <td className={`${money} ${totals.budgetCents === null ? BLANK_CLASS : ''}`} data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}</td>
               <td className={`${money} ${totals.actualCents === null ? BLANK_CLASS : totals.varianceCents === null ? '' : varianceTone(totals.varianceCents)}`} data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>
               <td className={`${money} ${varianceTone(totals.varianceCents)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
               <td className={`${money} ${totals.matchCents === null ? BLANK_CLASS : ''}`} data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>
               <td className={`${cell} whitespace-nowrap ${varianceTone(totals.varianceCents)}`} data-ledger-total-under-over>{underOverWords(totals.varianceCents)}</td>
-              <td className={cell} data-ledger-total-description />
+              <td className={cell} data-ledger-total-description /><td className={cell} data-ledger-total-notes />
             </tr>
           </tfoot>
         )}

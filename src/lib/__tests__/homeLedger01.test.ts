@@ -44,8 +44,10 @@ const record = (over: Partial<LedgerRow> & Pick<LedgerRow, 'id' | 'description'>
   book: null,
   coa: null,
   vendor: null,
+  instagramTag: null,
   rating: null,
   note: null,
+  notes: null, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag, no notes
   cents: null,
   budgetState: 'none',
   outcome: 'done',

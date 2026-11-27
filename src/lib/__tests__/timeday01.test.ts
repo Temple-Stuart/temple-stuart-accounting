@@ -52,13 +52,13 @@ const NORTHPORT_ELSEWHERE: PlaceParts = { city: 'Northport', country: 'Ruritania
 /** A recorded row in the ledger's own shape (timesheet01.test.ts's builder) — the day and the place are what each case sets. */
 const recorded = (id: string, day: string, place: PlaceParts | null): LedgerRow => ({
   id, key: `routine:${id}:${day}T03:00:00.000Z`, address: { kind: 'routine', id, instant: `${day}T03:00:00.000Z` }, match: null, day, time: '11:00',
-  place, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Oat House', description: 'Porridge', rating: 4, note: 'with fruit',
+  place, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Oat House', instagramTag: null, description: 'Porridge', rating: 4, note: 'with fruit', notes: null, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag, no notes
   cents: 650, budgetState: 'matched', outcome: 'done', actualCents: 690, varianceCents: 40, plannedMinutes: 30, loggedMinutes: 25,
 });
 /** A plan row — a priced line with no record on it. */
 const planned = (id: string, day: string, place: PlaceParts | null): LedgerPlanRow => ({
   id: null, key: `routine:${id}:${day}T12:00:00.000Z`, address: { kind: 'routine', id, instant: `${day}T12:00:00.000Z` }, match: null, day, time: '20:00',
-  place, book: 'Personal', coa: { account: 'P-6200', name: 'Recreation' }, vendor: null, description: 'Climbing', rating: null, note: null,
+  place, book: 'Personal', coa: { account: 'P-6200', name: 'Recreation' }, vendor: null, instagramTag: null, description: 'Climbing', rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
   cents: 1800, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 90, loggedMinutes: null, allDay: false, went: PLANNED_WORD,
 });
 
@@ -156,23 +156,23 @@ test('T5 dayFoldClass: the own class alone for no period and for a week; on one 
 
 // ── T6 · THE COUNT (ruling A.5) ──────────────────────────────────────────────
 
-test('T6 dayFoldCount: 0 for no period and for a week, DAY_FOLD_COLUMNS.length on one day — so 21 and 17 columns are shown and the TOTAL’s label spans 15 and 11, worked from LEDGER_COLUMNS', () => {
+test('T6 dayFoldCount: 0 for no period and for a week, DAY_FOLD_COLUMNS.length on one day — so 23 and 19 columns are shown and the TOTAL’s label spans 16 and 12, worked from LEDGER_COLUMNS', () => {
   assert.equal(dayFoldCount(null), 0);
   assert.equal(dayFoldCount(WEEK), 0);
   assert.equal(dayFoldCount(MONTH), 0);
   assert.equal(dayFoldCount(ONE_DAY), DAY_FOLD_COLUMNS.length);
   // The columns shown: every one, less the folded.
   const shown = (period: Period | null): number => LEDGER_COLUMNS.length - dayFoldCount(period);
-  assert.deepEqual([shown(null), shown(WEEK), shown(MONTH), shown(ONE_DAY)], [21, 21, 21, 17]);
+  assert.deepEqual([shown(null), shown(WEEK), shown(MONTH), shown(ONE_DAY)], [23, 23, 23, 19]); // TIMESHEET-04b (2026-11-27): twenty-three columns, nineteen on one day — [21, 21, 21, 17] until then
   assert.equal(LEDGER_HEAD_WORDS.length, LEDGER_COLUMNS.length, 'the section spans the rows beneath by the head words’ count — the same count');
-  // The TOTAL's label spans the columns before BUDGET: fifteen, less the folded — all of which sit before BUDGET (T1).
+  // The TOTAL's label spans the columns before BUDGET: sixteen (TIMESHEET-04b, 2026-11-27 — INSTAGRAM TAG among them; fifteen until then), less the folded — all of which sit before BUDGET (T1).
   const beforeBudget = LEDGER_COLUMNS.indexOf('budget');
-  assert.equal(beforeBudget, 15, 'the fifteen the section types');
-  assert.deepEqual([beforeBudget - dayFoldCount(WEEK), beforeBudget - dayFoldCount(ONE_DAY)], [15, 11]);
+  assert.equal(beforeBudget, 16, 'the sixteen the section types'); // TIMESHEET-04b (2026-11-27): INSTAGRAM TAG sits before BUDGET, after VENDOR — 15 until then
+  assert.deepEqual([beforeBudget - dayFoldCount(WEEK), beforeBudget - dayFoldCount(ONE_DAY)], [16, 12]); // TIMESHEET-04b (2026-11-27): [15, 11] until then
   assert.equal(DAY_FOLD_COLUMNS.filter((key) => LEDGER_COLUMNS.indexOf(key) < beforeBudget).length, dayFoldCount(ONE_DAY), 'the label loses exactly the folded columns before it');
-  // The cells after the label are the six they were, on every view: the TOTAL row still adds up to the columns shown.
-  assert.equal(LEDGER_COLUMNS.length - beforeBudget, 6);
-  assert.deepEqual([(beforeBudget - dayFoldCount(WEEK)) + 6, (beforeBudget - dayFoldCount(ONE_DAY)) + 6], [shown(WEEK), shown(ONE_DAY)]);
+  // The cells after the label are the same on every view: the TOTAL row still adds up to the columns shown. TIMESHEET-04b (2026-11-27): seven — one more, under NOTES; the six they were until then.
+  assert.equal(LEDGER_COLUMNS.length - beforeBudget, 7);
+  assert.deepEqual([(beforeBudget - dayFoldCount(WEEK)) + 7, (beforeBudget - dayFoldCount(ONE_DAY)) + 7], [shown(WEEK), shown(ONE_DAY)]);
   // Never typed as a number: the count is the list's length.
   assert.ok(code(RULES).includes('export const dayFoldCount = (period: Period | null): number => (isOneDay(period) ? DAY_FOLD_COLUMNS.length : 0);'));
 });
@@ -250,7 +250,7 @@ test('T9 the new block stands between the picker’s words and the table’s cla
 
 const kebab = (key: string): string => key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
-test('T10 the section: the five lines as ruled and the three names on one import line; the mount untouched; the twenty-one cells of a row still drawn, in order; 488 lines', () => {
+test('T10 the section: the five lines as ruled and the three names on one import line; the mount untouched; the twenty-three cells of a row still drawn, in order; 488 lines', () => {
   const s = code(SECTION);
   assert.equal(linesOf(SECTION).length, 488, 'no line added, none removed — the registry cites three of its lines');
   // The import: the three names on the line that held their neighbours, in its alphabetical order.
@@ -269,18 +269,18 @@ test('T10 the section: the five lines as ruled and the three names on one import
   // 3, 4 · the two rows beneath span the columns still shown.
   assert.equal(countOf(s, /<td colSpan=\{LEDGER_HEAD_WORDS\.length - dayFoldCount\(period\)\} className=\{cell\}>/g), 2);
   // 5 · the TOTAL's label.
-  assert.ok(s.includes('<th scope="row" colSpan={15 - dayFoldCount(period)} className={`${cell} text-left`}>{TOTAL_WORDS}</th>'));
+  assert.ok(s.includes('<th scope="row" colSpan={16 - dayFoldCount(period)} className={`${cell} text-left`}>{TOTAL_WORDS}</th>')); // TIMESHEET-04b (2026-11-27): sixteen less the folded — `15 - dayFoldCount(period)` until then
   assert.equal(countOf(s, /colSpan=/g), 3, 'the three spans, and no other');
   // The section types no fold of its own: the class, the count and the words are the rule's.
   assert.doesNotMatch(s, /:hidden|data-ledger-sort|isOneDay|DAY_FOLD/, 'no class, no selector and no test of the period typed here');
   // THE MOUNT IS NOT TOUCHED: the shared table is handed every column on every view — its CSV is built from them.
   assert.match(s, /<DataTable\n\s*name="ledger"\n\s*columns=\{LEDGER_TABLE\}\n\s*rows=\{rows\}\n\s*shown=\{shown\}\n\s*loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName=\{LEDGER_TABLE_CLASS\}\n\s*filters=\{filters\}\n\s*onFilters=\{setFilters\}\n\s*noFilters=\{NO_COLUMN_FILTERS\}\n\s*sort=\{sort\}\n\s*onSort=\{setSort\}\n\s*openFilter=\{openFilter\}\n\s*onOpenFilter=\{setOpenFilter\}\n\s*csv=\{csv\}\n\s*controls=\{\(/);
-  // The twenty-one cells of a row are drawn on every view, in the columns' order — the fold removes none from the document.
+  // The twenty-three cells of a row are drawn on every view, in the columns' order — the fold removes none from the document.
   const row = s.slice(s.indexOf('data-ledger-row={row.key}'), s.indexOf('{picking === row.key && ('));
   const cells = [...row.matchAll(/<td className=\{[^\n]*? data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
   assert.deepEqual(cells, LEDGER_COLUMNS.map(kebab));
-  assert.equal(cells.length, 21);
-  assert.equal(countOf(row, /<td\b/g), 21, 'no cell is left out for a view');
+  assert.equal(cells.length, 23); // TIMESHEET-04b (2026-11-27): twenty-three cells — the instagram-tag and the notes cells among them; 21 until then
+  assert.equal(countOf(row, /<td\b/g), 23, 'no cell is left out for a view');
   assert.doesNotMatch(row, /dayFold|isOneDay|period\b/, 'a row is drawn the same whatever the period');
   // The four the class finds are td cells carrying the folded keys themselves.
   for (const key of DAY_FOLD_COLUMNS) assert.equal(countOf(row, new RegExp(`<td className=\\{[^\\n]*? data-ledger-cell="${key}">`, 'g')), 1, `${key}: one td, found by its key`);
@@ -288,7 +288,7 @@ test('T10 the section: the five lines as ruled and the three names on one import
 
 // ── T11 · THE CSV (ruling B) ─────────────────────────────────────────────────
 
-test('T11 ledgerCsv for a one-day fixture has the twenty-one head words and twenty-one fields a row, the four folded columns among them — the fold is on the screen only', () => {
+test('T11 ledgerCsv for a one-day fixture has the twenty-three head words and twenty-three fields a row, the four folded columns among them — the fold is on the screen only', () => {
   const rows: readonly LedgerSheetRow[] = [recorded('porridge', TUE, NORTHPORT), planned('climbing', TUE, NORTHPORT)];
   assert.equal(dayPlaceWords(ONE_DAY, rows), '· Northport, Freedonia', 'a day the line above the table gives a place');
   assert.equal(dayFoldCount(ONE_DAY), 4, 'and on which the screen folds four columns');
@@ -296,14 +296,14 @@ test('T11 ledgerCsv for a one-day fixture has the twenty-one head words and twen
   const lines = csv.split('\r\n');
   assert.equal(lines.at(-1), '', 'every line ends CRLF, the last one too');
   assert.equal(lines.length, 4, 'the head, the two rows, and the end');
-  // The head: all twenty-one words, in order.
+  // The head: all twenty-three words, in order (TIMESHEET-04b, 2026-11-27: twenty-one until then).
   assert.equal(lines[0], LEDGER_HEAD_WORDS.join(','));
-  assert.equal(lines[0].split(',').length, 21);
+  assert.equal(lines[0].split(',').length, 23); // TIMESHEET-04b (2026-11-27): twenty-three head words — 21 until then
   for (const key of DAY_FOLD_COLUMNS) assert.ok(lines[0].split(',').includes(LEDGER_HEAD_WORDS[LEDGER_COLUMNS.indexOf(key)]), `${key}: its head is in the file`);
-  // Each row: twenty-one fields, the folded columns' own among them, in their places.
+  // Each row: twenty-three fields, the folded columns' own among them, in their places.
   for (const [i, sheetRow] of rows.entries()) {
     const fields = lines[i + 1].split(',');
-    assert.equal(fields.length, 21, 'no field of this fixture holds a comma');
+    assert.equal(fields.length, 23, 'no field of this fixture holds a comma'); // TIMESHEET-04b (2026-11-27): twenty-three fields a row — 21 until then
     for (const key of DAY_FOLD_COLUMNS) assert.equal(fields[LEDGER_COLUMNS.indexOf(key)], LEDGER_CSV[key](sheetRow), `${key}: the cell's own word`);
   }
   assert.deepEqual(DAY_FOLD_COLUMNS.map((key) => lines[1].split(',')[LEDGER_COLUMNS.indexOf(key)]), ['Tuesday', TUE, 'Northport', 'Freedonia']);

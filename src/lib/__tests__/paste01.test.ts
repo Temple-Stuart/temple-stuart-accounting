@@ -70,14 +70,14 @@ const NOW = new Date('2027-05-11T09:00:00.000Z');
 /** A plan row of the sheet — a priced line with no record on it — in the ledger's own shape. */
 const planned = (id: string, day: string, clock: string, name: string, over: Partial<LedgerPlanRow> = {}): LedgerPlanRow => ({
   id: null, key: `routine:${id}:${at(day, clock)}`, address: { kind: 'routine', id, instant: at(day, clock) }, match: null, day, time: clock,
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, description: name, rating: null, note: null,
+  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
   cents: 650, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 30, loggedMinutes: null, allDay: false, went: NOT_RECORDED_WORDS, ...over,
 });
 /** A recorded row — a stop that already has its record. */
-const DINNER_RECORD: StopRecordRow = { id: 'r-dinner', kind: 'routine', target_id: 'dinner', occurrence_at: at(MON, '19:00'), outcome: 'done', done_at: at(MON, '19:40'), actual_cents: 1500, rating: 4, note: 'the set menu', actual_minutes: 40 };
+const DINNER_RECORD: StopRecordRow = { id: 'r-dinner', kind: 'routine', target_id: 'dinner', occurrence_at: at(MON, '19:00'), outcome: 'done', done_at: at(MON, '19:40'), actual_cents: 1500, rating: 4, note: 'the set menu', notes: null, actual_minutes: 40 };
 const DINNER: LedgerRow = {
   id: 'r-dinner', key: `routine:dinner:${at(MON, '19:00')}`, address: { kind: 'routine', id: 'dinner', instant: at(MON, '19:00') }, match: null, day: MON, time: '19:00',
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, description: 'Dinner', rating: 4, note: 'the set menu',
+  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Dinner', rating: 4, note: 'the set menu', notes: null, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag, no notes
   cents: 1500, budgetState: 'matched', outcome: 'done', actualCents: 1500, varianceCents: 0, plannedMinutes: null, loggedMinutes: 40,
 };
 

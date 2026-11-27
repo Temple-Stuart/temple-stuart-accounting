@@ -85,7 +85,7 @@ const ROUTINES: RoutinePlanInput[] = [
 const ROLES = new Map([['brunch', 'place'], ['journal', 'journal'], ['plan', 'plan'], ['gym', 'none']]);
 const WORDS = new Map<string, RoutineWords>(ROUTINES.map((r) => [r.id, { name: r.name, timezone: BKK, steps: new Map() }]));
 const record = (over: Partial<StopRecordRow> & { id: string; kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
-  outcome: 'done', done_at: over.occurrence_at, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+  outcome: 'done', done_at: over.occurrence_at, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
 });
 const stop = (id: string, name: string, role: string, r: StopRecordRow): LedgerRecordInput => ({ record: r, routineId: id, routineName: name, zone: BKK, role, activity: null, timeOfDay: null, durationMinutes: null });
 const RECORDS: LedgerRecordInput[] = [

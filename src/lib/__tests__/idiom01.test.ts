@@ -76,7 +76,7 @@ const f = (over: Record<string, TableFilters[string]>): TableFilters => ({ ...OF
 
 const row = (over: Partial<LedgerRow> & { readonly id: string }): LedgerRow => ({
   key: `routine:${over.id}:2026-10-13T00:30:00.000Z`, address: { kind: 'routine', id: over.id, instant: '2026-10-13T00:30:00.000Z' }, match: null, day: '2026-10-13', time: '07:30',
-  place: { city: 'Chiang Mai', country: 'Thailand 🇹🇭' }, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, description: 'Brunch', rating: null, note: null,
+  place: { city: 'Chiang Mai', country: 'Thailand 🇹🇭' }, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Brunch', rating: null, note: null, notes: null, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag, no notes
   cents: null, budgetState: 'none', outcome: 'done', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null, ...over, // TIME-03: the row's two minutes fields
 });
 const GYM = row({ id: 'e', day: '2026-10-17', coa: { account: 'P-5300', name: 'Fitness' }, vendor: 'Fitness First', description: 'Gym', rating: 3, note: 'leg day', outcome: 'skipped', cents: 1500, budgetState: 'matched' });
@@ -104,7 +104,7 @@ test('T1 the kinds are value | money | text — exactly the ledger’s; `date` i
 
 // ── T2 · THE LEDGER'S SPEC ──────────────────────────────────────────────────
 
-test('T2 LEDGER_TABLE: the twenty-one columns (TIMESHEET-01; eighteen since TIME-03; sixteen until then) in the head’s order — key, head word, kind, the cell words (cellWordsOf), the sort key (sortKeyOf), the CSV field (LEDGER_CSV); money columns carry cellCentsOf, the text column the note; columnOf throws on a key the spec does not name', () => {
+test('T2 LEDGER_TABLE: the twenty-three columns (TIMESHEET-04b; twenty-one since TIMESHEET-01; eighteen since TIME-03; sixteen until then) in the head’s order — key, head word, kind, the cell words (cellWordsOf), the sort key (sortKeyOf), the CSV field (LEDGER_CSV); money columns carry cellCentsOf, a text column its text (TIMESHEET-04b: two — DESCRIPTION the note, NOTES the notes); columnOf throws on a key the spec does not name', () => {
   assert.deepEqual(LEDGER_TABLE.map((c) => c.key), [...LEDGER_COLUMNS]);
   assert.deepEqual(LEDGER_TABLE.map((c) => c.label), [...LEDGER_HEAD_WORDS]);
   assert.deepEqual(LEDGER_TABLE.map((c) => c.kind), LEDGER_COLUMNS.map(columnKind));
@@ -114,11 +114,12 @@ test('T2 LEDGER_TABLE: the twenty-one columns (TIMESHEET-01; eighteen since TIME
       assert.deepEqual(c.sortKey(r), sortKeyOf(r, c.key), `${c.key} sort key of ${r.id}`);
       assert.equal(c.csv(r), LEDGER_CSV[c.key](r), `${c.key} csv of ${r.id}`);
       if (c.kind === 'money') assert.equal(c.cents(r), cellCentsOf(r, c.key as MoneyColumn), `${c.key} cents of ${r.id}`);
-      if (c.kind === 'text') assert.equal(c.text(r), r.note, `${c.key} text of ${r.id}`);
+      // TIMESHEET-04b (2026-11-27): two TEXT columns now — DESCRIPTION's text is a recorded row's note (these rows are recorded), NOTES's its notes; `r.note` for the one TEXT column until then.
+      if (c.kind === 'text') assert.equal(c.text(r), c.key === 'notes' ? r.notes : r.note, `${c.key} text of ${r.id}`);
     }
   }
   assert.deepEqual(LEDGER_TABLE.filter((c) => c.kind === 'money').map((c) => c.key), ['budget', 'actual', 'variance', 'match']);
-  assert.deepEqual(LEDGER_TABLE.filter((c) => c.kind === 'text').map((c) => c.key), ['description']);
+  assert.deepEqual(LEDGER_TABLE.filter((c) => c.kind === 'text').map((c) => c.key), ['description', 'notes']); // TIMESHEET-04b (2026-11-27): NOTES is a TEXT column beside DESCRIPTION — ['description'] until then
   assert.equal(ledgerColumnOf('city').label, 'CITY');
   assert.throws(() => columnOf(SPEC, 'stars' as 'city'), /no column "stars" among \[city cents note\]/);
   // The spec is built after the words and the CSV fields it reads, and it is the one list every ledger rule calls the idiom with.
@@ -247,8 +248,8 @@ test('T5 the CSV: RFC 4180 minimal quoting (a comma, a quote, a CR or an LF — 
   assert.equal(ledgerCsv([]), `${LEDGER_HEAD_WORDS.join(',')}\r\n`);
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The byte pins MOVE to the new shape — two bare fields after STARS, empty here (null); time03.test.ts proves the
   // DOM and the CSV agree on the eighteen (each column's words and its csv field from the one spec), not identity with the sixteen-column bytes.
-  assert.equal(ledgerCsv([BRUNCH]).split('\r\n')[1], 'Tuesday,2026-10-13,07:30,,Chiang Mai,Thailand 🇹🇭,Personal,P-6150,Dining Out,Brunch,Luka Café,went,4,,,25.00,22.00,-3.00,22.00,under,"khao soi, worth it"', 'the ledger04 line'); // TIMESHEET-01 (Alex, 2026-11-24): START, an empty END and WENT ride the line — the other eighteen fields as they were
-  assert.equal(ledgerCsv([YOGA]).split('\r\n')[1], 'Monday,2026-10-12,07:30,,,,,,,Yoga,,went,2,,,,5.00,,,,', 'the ledger02 line — a null is an EMPTY field'); // TIMESHEET-01 (Alex, 2026-11-24): START, an empty END and WENT ride the line
+  assert.equal(ledgerCsv([BRUNCH]).split('\r\n')[1], 'Tuesday,2026-10-13,07:30,,Chiang Mai,Thailand 🇹🇭,Personal,P-6150,Dining Out,Brunch,Luka Café,,went,4,,,25.00,22.00,-3.00,22.00,under,"khao soi, worth it",', 'the ledger04 line'); // TIMESHEET-01 (Alex, 2026-11-24): START, an empty END and WENT ride the line — the other eighteen fields as they were · TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then
+  assert.equal(ledgerCsv([YOGA]).split('\r\n')[1], 'Monday,2026-10-12,07:30,,,,,,,Yoga,,,went,2,,,,5.00,,,,,', 'the ledger02 line — a null is an EMPTY field'); // TIMESHEET-01 (Alex, 2026-11-24): START, an empty END and WENT ride the line · TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then
   assert.match(code(RULES), /export function ledgerCsv\(rows: readonly LedgerSheetRow\[\]\): string \{\n\s*return tableCsv\(LEDGER_TABLE, rows\);\n\}/); // TIMESHEET-01 (Alex, 2026-11-24): the rows shown are the sheet's (a recorded row is one of them) — `rows: readonly LedgerRow[]` until then; the body is the same call
 });
 

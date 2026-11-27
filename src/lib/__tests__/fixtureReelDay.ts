@@ -76,7 +76,7 @@ export function build(recs: Partial<Record<Id, Rec>>, opts: { readonly task?: bo
     const r = recs[s.id] as Rec;
     return {
       id: `rec-${s.id}`, kind: 'routine', target_id: s.id, occurrence_at: s.at, outcome: r.outcome, done_at: r.outcome === 'done' ? s.at : null,
-      actual_cents: r.actual ?? null, rating: r.rating ?? null, note: r.note ?? null, actual_minutes: null,
+      actual_cents: r.actual ?? null, rating: r.rating ?? null, note: r.note ?? null, notes: null, actual_minutes: null,
     };
   });
   const withTask = opts.task !== false;

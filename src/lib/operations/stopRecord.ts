@@ -24,6 +24,8 @@ export type StopOutcome = (typeof STOP_OUTCOMES)[number];
 
 /** The note column (VARCHAR(280)). */
 export const NOTE_MAX = 280;
+/** TIMESHEET-04b (Alex, 2026-11-27): the notes column (VARCHAR(2000) — prisma/schema.prisma operations_stop_records.notes, TIMESHEET-04a's migration). */
+export const NOTES_MAX = 2000;
 /** A stop's minutes fit in a day (the migration's CHECK). */
 export const MINUTES_MAX = 1440;
 /** The actual_cents column is an INTEGER. */
@@ -48,6 +50,8 @@ export interface StopRecordRow {
   readonly actual_cents: number | null;
   readonly rating: number | null;
   readonly note: string | null;
+  /** TIMESHEET-04b (2026-11-27): the stop's notes — up to NOTES_MAX characters, never blank (the column's CHECK); null with none. Beside the note, never in its place. */
+  readonly notes: string | null;
   readonly actual_minutes: number | null;
 }
 
@@ -61,6 +65,7 @@ export interface StopRecordDbRow {
   readonly actual_cents: number | null;
   readonly rating: number | null;
   readonly note: string | null;
+  readonly notes: string | null;
   readonly actual_minutes: number | null;
 }
 
@@ -81,6 +86,7 @@ export function stopRecordRowOf(row: StopRecordDbRow): StopRecordRow {
     actual_cents: row.actual_cents,
     rating: row.rating,
     note: row.note,
+    notes: row.notes,
     actual_minutes: row.actual_minutes,
   };
 }
@@ -129,10 +135,12 @@ export interface StopRecordValues {
   readonly actualCents: number | null;
   readonly rating: number | null;
   readonly note: string | null;
+  /** TIMESHEET-04b (2026-11-27): the notes as the rule keeps them — one line, or null. */
+  readonly notes: string | null;
   readonly actualMinutes: number | null;
 }
 
-export type StopField = 'kind' | 'id' | 'instant' | 'outcome' | 'done_at' | 'actual_cents' | 'rating' | 'note' | 'actual_minutes';
+export type StopField = 'kind' | 'id' | 'instant' | 'outcome' | 'done_at' | 'actual_cents' | 'rating' | 'note' | 'notes' | 'actual_minutes';
 
 export type StopInputResult =
   | { readonly ok: true; readonly value: StopRecordValues }
@@ -177,6 +185,10 @@ const given = (raw: unknown): boolean => raw !== undefined && raw !== null;
  * collapsed, 1–280 characters, no control characters, or absent — and REQUIRED
  * when skipped; actual_minutes 0–1440 or absent. The first bad field is named;
  * nothing is filled in.
+ * TIMESHEET-04b (Alex, 2026-11-27): notes — read after the note and before the minutes, as the note is read: absent or null is
+ * none; a string, trimmed, every run of whitespace one space, no control characters (holdsControl), at most NOTES_MAX characters;
+ * '' is none. Each refusal names the field 'notes'. NEVER REQUIRED, done or skipped: a skip's reason is still its note. A body
+ * that names no notes writes none — a record is written whole.
  */
 export function stopInput(body: unknown, now: Date): StopInputResult {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
@@ -223,6 +235,15 @@ export function stopInput(body: unknown, now: Date): StopInputResult {
   }
   if (b.outcome === 'skipped' && note === null) return refuse('note', SKIP_REASON_WORDS);
 
+  let notes: string | null = null;
+  if (given(b.notes)) {
+    if (typeof b.notes !== 'string') return refuse('notes', 'notes must be a string');
+    const n = b.notes.trim().replace(/\s+/g, ' ');
+    if (holdsControl(n)) return refuse('notes', 'control characters are not notes');
+    if (n.length > NOTES_MAX) return refuse('notes', `notes are at most ${NOTES_MAX} characters (${n.length} given)`);
+    notes = n === '' ? null : n;
+  }
+
   let actualMinutes: number | null = null;
   if (given(b.actual_minutes)) {
     const m = b.actual_minutes;
@@ -230,16 +251,17 @@ export function stopInput(body: unknown, now: Date): StopInputResult {
     actualMinutes = m;
   }
 
-  return { ok: true, value: { kind: b.kind, id: b.id, instant, outcome: b.outcome, doneAt, actualCents, rating, note, actualMinutes } };
+  return { ok: true, value: { kind: b.kind, id: b.id, instant, outcome: b.outcome, doneAt, actualCents, rating, note, notes, actualMinutes } };
 }
 
-/** Would writing `v` over `row` change nothing? (The instant and the plan are the row's address — the same by construction.) */
+/** Would writing `v` over `row` change nothing? (The instant and the plan are the row's address — the same by construction.) TIMESHEET-04b (2026-11-27): the notes are compared too — a write whose notes alone differ is a change. */
 export const unchanged = (row: StopRecordRow, v: StopRecordValues): boolean =>
   row.outcome === v.outcome
   && row.done_at === (v.doneAt === null ? null : v.doneAt.toISOString())
   && row.actual_cents === v.actualCents
   && row.rating === v.rating
   && row.note === v.note
+  && row.notes === v.notes
   && row.actual_minutes === v.actualMinutes;
 
 // ── WORDS ───────────────────────────────────────────────────────────────────

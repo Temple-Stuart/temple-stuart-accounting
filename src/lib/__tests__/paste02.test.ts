@@ -89,16 +89,16 @@ const NOW = new Date('2027-06-14T09:00:00.000Z');
 /** A plan row of the sheet — a priced stop with no record on it — in the ledger's own shape, at a line's address or (kind 'routine') a routine's own. */
 const planned = (kind: 'routine_line' | 'routine', id: string, day: string, clock: string, name: string, over: Partial<LedgerPlanRow> = {}): LedgerPlanRow => ({
   id: null, key: `${kind}:${id}:${at(day, clock)}`, address: { kind, id, instant: at(day, clock) }, match: null, day, time: clock,
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, description: name, rating: null, note: null,
+  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
   cents: 650, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 30, loggedMinutes: null, allDay: false, went: NOT_RECORDED_WORDS, ...over,
 });
 /** A recorded row, and the record it holds as the stops GET answers one. */
 const recordOf = (id: string, target: string, day: string, clock: string, over: Partial<StopRecordRow> = {}): StopRecordRow => ({
-  id, kind: 'routine_line', target_id: target, occurrence_at: at(day, clock), outcome: 'done', done_at: at(day, clock), actual_cents: 1500, rating: null, note: 'the set menu', actual_minutes: null, ...over,
+  id, kind: 'routine_line', target_id: target, occurrence_at: at(day, clock), outcome: 'done', done_at: at(day, clock), actual_cents: 1500, rating: null, note: 'the set menu', notes: null, actual_minutes: null, ...over,
 });
 const recorded = (record: StopRecordRow, day: string, clock: string, name: string, over: Partial<LedgerRow> = {}): LedgerRow => ({
   id: record.id, key: `routine_line:${record.target_id}:${at(day, clock)}`, address: { kind: 'routine_line', id: record.target_id, instant: at(day, clock) }, match: null, day, time: clock,
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, description: name, rating: record.rating, note: record.note,
+  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: record.rating, note: record.note, notes: record.notes, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag; the record's notes
   cents: 1500, budgetState: 'matched', outcome: record.outcome, actualCents: record.actual_cents, varianceCents: null, plannedMinutes: null, loggedMinutes: record.actual_minutes, ...over,
 });
 
@@ -176,12 +176,12 @@ test('T1 a row on a stop that stands, recorded went: its record is the record fo
   const went = onStop(landed(LUNCH, ON_PLAN('Lunch')).placement);
   assert.deepEqual([went.standing, went.plan, went.stop.key, went.happened], [false, 'Lunch', LUNCH_SUN.key, { kind: 'went', cents: 690, items: 'two kinds of soup' }]);
   // The body is the one rule's, handed the row as the record form's boxes: went, the Total (USD) as dollars, no stars, no minutes, the Items.
-  const form = recordInput({ went: WENT_WORD, actual: '6.90', stars: '', minutes: '', note: 'two kinds of soup' }, LUNCH_SUN.address, { plannedAt: at(SUN, '12:30'), held: null }, NOW);
+  const form = recordInput({ went: WENT_WORD, actual: '6.90', stars: '', minutes: '', note: 'two kinds of soup', notes: '' }, LUNCH_SUN.address, { plannedAt: at(SUN, '12:30'), held: null }, NOW);
   assert.ok(form.ok);
   assert.deepEqual(went.record, form.body);
   assert.deepEqual(went.record, {
-    kind: 'routine_line', id: 'line-lunch', instant: at(SUN, '12:30'), outcome: 'done', done_at: at(SUN, '12:30'), actual_cents: 690, rating: null, note: 'two kinds of soup', actual_minutes: null,
-  }, 'done at the stop’s planned instant, as the row’s own form saves a first went; no stars and no minutes are filled');
+    kind: 'routine_line', id: 'line-lunch', instant: at(SUN, '12:30'), outcome: 'done', done_at: at(SUN, '12:30'), actual_cents: 690, rating: null, note: 'two kinds of soup', notes: null, actual_minutes: null,
+  }, 'done at the stop’s planned instant, as the row’s own form saves a first went; no stars, no minutes and no notes are filled'); // TIMESHEET-04b (2026-11-27): the body says its notes — null: the paste fills none until it reads a Notes column (TIMESHEET-04c)
   // The stops route's own rule takes that body, with the same clock, and stores what was sent.
   const taken = stopInput(went.record, NOW);
   assert.ok(taken.ok, taken.ok ? '' : `${taken.field}: ${taken.message}`);
@@ -480,7 +480,7 @@ test('T8 the writes of a paste: the placed rows that have something to write, in
   // On a stop: the sheet row's own address — a line's, a routine's — and the record's body.
   assert.deepEqual([stopWrite(SAVE_WRITES[0]).address, stopWrite(SAVE_WRITES[1]).address], [LUNCH_SUN.address, GYM_SUN.address]);
   assert.deepEqual([stopWrite(SAVE_WRITES[0]).record, stopWrite(SAVE_WRITES[1]).record], [onStop(SAVE_PLACED[0]).record, onStop(SAVE_PLACED[1]).record]);
-  assert.deepEqual(stopWrite(SAVE_WRITES[1]).record, { kind: 'routine', id: 'rt-gym', instant: at(SUN, '18:00'), outcome: 'done', done_at: at(SUN, '18:00'), actual_cents: 900, rating: null, note: null, actual_minutes: null });
+  assert.deepEqual(stopWrite(SAVE_WRITES[1]).record, { kind: 'routine', id: 'rt-gym', instant: at(SUN, '18:00'), outcome: 'done', done_at: at(SUN, '18:00'), actual_cents: 900, rating: null, note: null, notes: null, actual_minutes: null }); // TIMESHEET-04b (2026-11-27): the body says its notes — null: the paste fills none until it reads a Notes column (TIMESHEET-04c)
   // A one-off: "+ expense"'s values for it, its minutes or none, and whether it is recorded went.
   assert.deepEqual(SAVE_WRITES.slice(2).map((write) => [oneOffWrite(write).values, oneOffWrite(write).minutes, oneOffWrite(write).went]), [
     [oneOff(SAVE_PLACED[2]).values, 90, true], [oneOff(SAVE_PLACED[3]).values, null, false], [oneOff(SAVE_PLACED[5]).values, null, true],
@@ -552,7 +552,7 @@ test('T9 the runner writes a row at a time, each step in its order with its own 
   ]);
   // The bodies are "+ expense"'s own: a one-off of one line in the book, its vendor on that line's occurrence, its record done at the stop's own instant.
   assert.deepEqual(vendorBody(bowling, 'line-of-rt-1', 'v-new-1'), { kind: 'routine_line', id: 'line-of-rt-1', instant: at(SUN, '20:00'), vendorId: 'v-new-1' });
-  assert.deepEqual(recordBody(bowling, 'line-of-rt-1'), { kind: 'routine_line', id: 'line-of-rt-1', instant: at(SUN, '20:00'), outcome: 'done', done_at: at(SUN, '20:00'), actual_cents: 1800, rating: null, note: 'two games', actual_minutes: null });
+  assert.deepEqual(recordBody(bowling, 'line-of-rt-1'), { kind: 'routine_line', id: 'line-of-rt-1', instant: at(SUN, '20:00'), outcome: 'done', done_at: at(SUN, '20:00'), actual_cents: 1800, rating: null, note: 'two games', notes: null, actual_minutes: null }); // TIMESHEET-04b (2026-11-27): "+ expense"'s record body says its notes — null: that form has no NOTES box
   // PASTE-02b (Alex, 2026-11-27): the routine is named for its day and time — the bare name ('Bowling') until then; its one line keeps the bare name.
   const body = oneOffBody(bowling);
   assert.deepEqual([body.name, body.entity_id, body.cadence_mode, body.start_date, body.start_time, body.timezone, body.lines], [`Bowling · ${SUN} 20:00`, 'P', 'once', SUN, '20:00', NBO, [{ activity: 'Bowling', budget_amount: '20.00', coa_code: '6200' }]]);

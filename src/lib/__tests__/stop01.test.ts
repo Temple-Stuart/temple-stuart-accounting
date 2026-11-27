@@ -97,7 +97,7 @@ const gym = routine({ id: GYM_ID, name: 'Gym', location: 'Fitness First', schedu
 const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, marks: null, ...over });
 
 const record = (over: Partial<StopRecordRow> & { kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
-  id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+  id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
 });
 /** Coffee, done 07:41 Bangkok (11 min late), $12 against a $10 plan, four stars. */
 const coffeeDone = record({ kind: 'routine_line', target_id: STEP_ID, occurrence_at: AT, done_at: '2026-10-11T00:41:00.000Z', actual_cents: 1200, rating: 4, note: 'the oat milk', actual_minutes: 42 });
@@ -109,7 +109,7 @@ test('T1 stopInput: the kind, the id, the instant, the outcome; done_at when don
   const base = { kind: 'routine_line', id: STEP_ID, instant: AT, outcome: 'done', done_at: '2026-10-11T00:41:00.000Z' };
   const ok = stopInput({ ...base, actual_cents: 1200, rating: 4, note: '  the  oat milk ', actual_minutes: 42 }, NOW);
   assert.ok(ok.ok);
-  assert.deepEqual(ok.value, { kind: 'routine_line', id: STEP_ID, instant: new Date(AT), outcome: 'done', doneAt: new Date('2026-10-11T00:41:00.000Z'), actualCents: 1200, rating: 4, note: 'the oat milk', actualMinutes: 42 });
+  assert.deepEqual(ok.value, { kind: 'routine_line', id: STEP_ID, instant: new Date(AT), outcome: 'done', doneAt: new Date('2026-10-11T00:41:00.000Z'), actualCents: 1200, rating: 4, note: 'the oat milk', notes: null, actualMinutes: 42 }); // TIMESHEET-04b (2026-11-27): the values say their notes — null, the body names none
   const bare = stopInput(base, NOW);
   assert.ok(bare.ok);
   assert.deepEqual([bare.value.actualCents, bare.value.rating, bare.value.note, bare.value.actualMinutes], [null, null, null, null], 'absent is null — never 0, never ""');
@@ -182,7 +182,7 @@ test('T1 stopInput: the kind, the id, the instant, the outcome; done_at when don
 });
 
 test('T1 rows, keys, the plan columns, unchanged, the window', () => {
-  const db = { id: 'r1', routine_id: null, step_id: STEP_ID, occurrence_at: new Date(AT), outcome: 'done', done_at: new Date('2026-10-11T00:41:00.000Z'), actual_cents: 1200, rating: 4, note: 'the oat milk', actual_minutes: 42 };
+  const db = { id: 'r1', routine_id: null, step_id: STEP_ID, occurrence_at: new Date(AT), outcome: 'done', done_at: new Date('2026-10-11T00:41:00.000Z'), actual_cents: 1200, rating: 4, note: 'the oat milk', notes: null, actual_minutes: 42 };
   assert.deepEqual(stopRecordRowOf(db), { id: 'r1', kind: 'routine_line', target_id: STEP_ID, occurrence_at: AT, outcome: 'done', done_at: '2026-10-11T00:41:00.000Z', actual_cents: 1200, rating: 4, note: 'the oat milk', actual_minutes: 42 });
   assert.equal(stopRecordRowOf({ ...db, step_id: null, routine_id: GYM_ID, outcome: 'skipped', done_at: null }).kind, 'routine');
   assert.throws(() => stopRecordRowOf({ ...db, routine_id: GYM_ID }), /names two plans/, 'both columns set is the database’s error');
@@ -597,7 +597,7 @@ test('T5 the routes: the caller proven, the day placed by each routine’s zone;
   let at = -1;
   for (const stepText of order) { const i = post.indexOf(stepText); assert.ok(i > at, `POST: ${stepText} comes after the step before it (at ${i}, previous ${at})`); at = i; }
   assert.match(post, /data: \{ user_id: user\.id, routine_id: plan\.routine_id, step_id: plan\.step_id, occurrence_at: v\.instant, \.\.\.data \}/, 'the write is the rule’s answer at the plan’s address');
-  assert.match(post, /const data = \{ outcome: v\.outcome, done_at: v\.doneAt, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, actual_minutes: v\.actualMinutes \};/);
+  assert.match(post, /const data = \{ outcome: v\.outcome, done_at: v\.doneAt, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, notes: v\.notes, actual_minutes: v\.actualMinutes \};/); // TIMESHEET-04b (2026-11-27): the record's notes ride with the record, after the note — the line without "notes: v.notes" until then
   assert.doesNotMatch(post, /project_task|operations_project_tasks/, 'a task has no record here');
   assert.equal((post.match(/is_active: true/g) ?? []).length, 4, 'the line’s flag, the routine’s flag in both branches, and the active-lines filter');
   assert.equal((post.match(/role: true/g) ?? []).length, 2, 'the routine’s role read in both branches (ROLE-01: an all-day routine takes no record)');
@@ -633,7 +633,7 @@ test('T6 the one writer: POST / DELETE to the stops routes, the answer read as t
   const realFetch = globalThis.fetch;
   let answer: () => Response = () => new Response(JSON.stringify({ record: { id: 'r1' }, changed: true }), { status: 201, headers: { 'content-type': 'application/json' } });
   globalThis.fetch = (async (url: string, init?: RequestInit) => { sent.push({ url, init }); return answer(); }) as typeof fetch;
-  const body = { kind: 'routine_line' as const, id: STEP_ID, instant: AT, outcome: 'done' as const, done_at: '2026-10-11T00:41:00.000Z', actual_cents: 1200, rating: 4, note: 'the oat milk', actual_minutes: 42 };
+  const body = { kind: 'routine_line' as const, id: STEP_ID, instant: AT, outcome: 'done' as const, done_at: '2026-10-11T00:41:00.000Z', actual_cents: 1200, rating: 4, note: 'the oat milk', notes: null, actual_minutes: 42 };
   try {
     assert.deepEqual(await setStopRecord(body), { ok: true });
     answer = () => new Response(JSON.stringify({ error: 'Validation', field: 'instant', message: `no stop at ${AT} — the routine has no stop on ${DAY}` }), { status: 400, headers: { 'content-type': 'application/json' } });

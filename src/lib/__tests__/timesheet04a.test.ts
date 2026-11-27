@@ -268,7 +268,8 @@ test('T5 the schema moves with it: each model declares its new field once, with 
   const section = rule.slice(rule.indexOf('export function takenBy<'), rule.indexOf('export const PLAN_VENDOR_KINDS'));
   assert.deepEqual(
     [...section.matchAll(/^export (?:const|function|interface|type) (\w+)/gm)].map((m) => m[1]),
-    ['takenBy', 'INSTAGRAM_TAG_MAX', 'INSTAGRAM_TAG_WORDS', 'readInstagramTag', 'readVendorId', 'PLANNED_ITEMS_MAX', 'readPlannedItems', 'itemsAfter'],
+    // TIMESHEET-04b (2026-11-27): ONE export more, after readVendorId — instagramTagWords, the tag as it is printed, with its @ (the time sheet's cell and CSV field). The seven without it until then.
+    ['takenBy', 'INSTAGRAM_TAG_MAX', 'INSTAGRAM_TAG_WORDS', 'readInstagramTag', 'readVendorId', 'instagramTagWords', 'PLANNED_ITEMS_MAX', 'readPlannedItems', 'itemsAfter'],
   );
   assert.doesNotMatch(section, /@prisma\/client|@\/lib\/prisma|next\/server|process\.env|toLowerCase\(/, 'pure, and nothing is lower-cased');
 });

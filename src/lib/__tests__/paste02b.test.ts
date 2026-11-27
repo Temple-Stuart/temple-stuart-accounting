@@ -173,7 +173,7 @@ test('T2 the create route’s body: the routine’s name is the dated one and it
   assert.equal(v.name, 'Bowling');
   // The vendor's body and the record's are as they were, and carry no name.
   assert.deepEqual(vendorBody(v, 'line-1', 'v-1'), { kind: 'routine_line', id: 'line-1', instant: at(SUN, '20:00'), vendorId: 'v-1' });
-  assert.deepEqual(recordBody(v, 'line-1'), { kind: 'routine_line', id: 'line-1', instant: at(SUN, '20:00'), outcome: 'done', done_at: at(SUN, '20:00'), actual_cents: 1800, rating: null, note: 'two games', actual_minutes: null });
+  assert.deepEqual(recordBody(v, 'line-1'), { kind: 'routine_line', id: 'line-1', instant: at(SUN, '20:00'), outcome: 'done', done_at: at(SUN, '20:00'), actual_cents: 1800, rating: null, note: 'two games', notes: null, actual_minutes: null }); // TIMESHEET-04b (2026-11-27): the record's body says its notes — null: "+ expense" has no NOTES box. The body without it until then
 });
 
 // ── T3 · THE BOUND (ruling A.2) ──────────────────────────────────────────────
@@ -288,10 +288,10 @@ test('T6 after a save, the one-off’s own row on the time sheet — its name th
   /** A one-off as the time sheet lists it once it is written: a plan row whose `description` is the LINE's name — the bare name. */
   const written = (id: string, day: string, clock: string, name: string, over: Partial<LedgerPlanRow> = {}): LedgerPlanRow => ({
     id: null, key: `routine_line:${id}:${at(day, clock)}`, address: { kind: 'routine_line', id, instant: at(day, clock) }, match: null, day, time: clock,
-    place: null, book: 'Personal', coa: { account: 'P-6200', name: 'Recreation' }, vendor: null, description: name, rating: null, note: null,
+    place: null, book: 'Personal', coa: { account: 'P-6200', name: 'Recreation' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
     cents: 2000, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 90, loggedMinutes: null, allDay: false, went: NOT_RECORDED_WORDS, ...over,
   });
-  const record = (id: string, day: string): StopRecordRow => ({ id: `rec-${id}`, kind: 'routine_line', target_id: id, occurrence_at: at(day, '20:00'), outcome: 'done', done_at: at(day, '20:00'), actual_cents: 1800, rating: null, note: 'two games', actual_minutes: null });
+  const record = (id: string, day: string): StopRecordRow => ({ id: `rec-${id}`, kind: 'routine_line', target_id: id, occurrence_at: at(day, '20:00'), outcome: 'done', done_at: at(day, '20:00'), actual_cents: 1800, rating: null, note: 'two games', notes: null, actual_minutes: null });
   const sat = written('line-sat', SAT, '20:00', 'Bowling');
   const sun = written('line-sun', SUN, '20:00', 'Bowling');
   const mon = written('line-mon', MON, '20:00', 'Bowling', { went: 'planned' });
@@ -335,7 +335,7 @@ test('T7 in the source: the dated name stands once, in the one body both callers
   assert.equal(countOf(ledger, /\boneOffRoutineName\b/g), 2, 'declared, and called by the one body — nowhere else in the rule file');
   // The vendor's and the record's bodies are as they were.
   assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, vendorId }\);/);
-  assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, outcome: 'done', done_at: v\.instant, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, actual_minutes: null }\);/);
+  assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, outcome: 'done', done_at: v\.instant, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, notes: null, actual_minutes: null }\);/); // TIMESHEET-04b (2026-11-27): the record's body says "notes: null" after the note — the line without it until then
   // Both callers still send that one body, and neither names this change: "+ expense"'s form and the save's rule were not edited.
   assert.equal(countOf(code(FORM), /await createOneOff\(oneOffBody\(v\)\);/g), 1);
   assert.equal(countOf(code(SAVE), /await writers\.createOneOff\(oneOffBody\(values\)\);/g), 1);

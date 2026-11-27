@@ -257,6 +257,21 @@
  * out, not placed) keep their rules and their words. Two plan lines at one
  * stop no longer read 'not recorded'.
  *
+ * TIMESHEET-04b (Alex, 2026-11-25 + 2026-11-27) — THE SHEET SHOWS THE TAG, THE PLANNED ITEMS AND THE NOTES.
+ * TIMESHEET-04a put three columns in the database: a vendor's Instagram tag ("tag is own column"), a plan's planned items, a
+ * stop's notes. Here they reach the sheet. Twenty-three columns: INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION — each
+ * beside the fact it extends, the twenty-one as they stood; the CSV's fields are the table's columns, in its order (LEDGER_CSV).
+ *   THE TAG is the vendor's (LedgerVendorRow — the plan-vendor rows the answer already reads, each with its vendor's tag): a
+ * recorded row's from its matched line's vendor, a plan row's from its line's; null with no vendor, or a vendor with none. The
+ * cell prints it with its @ (planVendor.ts instagramTagWords), "—" with none. A VALUE column.
+ *   THE PLANNED ITEMS are a plan row's (LedgerPlanRow.plannedItems): what the plan's vendor row holds at that row's own grain —
+ * every occurrence, or this one. DESCRIPTION prints them where no record is held (descriptionOf), drawn as planned
+ * (plannedDescription, PLANNED_ITEMS_TITLE_WORDS), and the record's own note where one is — never one standing in for the
+ * other. The blank draft of such a row's form holds them in DESCRIPTION (rowDraftOf).
+ *   THE NOTES are the record's (stopRecord.ts — up to NOTES_MAX characters). A TEXT column, and a box in the record form after
+ * DESCRIPTION (RECORD_FIELDS, recordInput): never required. "+ expense" has no NOTES box and says none (recordBody).
+ *   The paste filling the tag and the planned items is TIMESHEET-04c: until then no screen calls the tag's PATCH or sends a plan's items.
+ *
  * Here: the rule (ledgerOf — the route's pure half), the period (periodOf,
  * stepAnchor, the 400-day cap), the ledger's spec and its calls into the
  * idiom's filters and sort (LEDGER-04 → IDIOM-01), the totals and the summary
@@ -277,8 +292,10 @@ import { dayPlanOf, daysOf, type PlanLine, type PlanVendorRow, type RoutineWords
 import { shiftDay } from '@/lib/budget/reportView';
 import { deriveAccountString } from '@/lib/accountString';
 import { coveringStay, placeParts, type PlaceParts, type StayRow } from '@/lib/operations/stay';
-import { CENTS_MAX, DONE_AT_SKEW_MS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTE_MAX, NOT_RECORDED_WORDS, RATING_WORDS, SKIPPED_WORD, SKIP_REASON_WORDS, amountWords, holdsControl, minutesTypedWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
+import { CENTS_MAX, DONE_AT_SKEW_MS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTES_MAX, NOTE_MAX, NOT_RECORDED_WORDS, RATING_WORDS, SKIPPED_WORD, SKIP_REASON_WORDS, amountWords, holdsControl, minutesTypedWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { NOT_A_STOP_RECORD_WORDS, ROLE_SHORT_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
+// TIMESHEET-04b (2026-11-27): the tag as it is printed, with its @ — the vendor rule's one word for it (planVendor.ts imports nothing of this file).
+import { instagramTagWords } from '@/lib/operations/planVendor';
 // TIMESHEET-01 (2026-11-24): the planned minutes by the one rule (a pure leaf) and the clock's arithmetic (the calendar's minutesOf, the rule helpers' clockWords — reused,
 // not rebuilt). TIMESHEET-02 (2026-11-24): the one all-day word is stopRole.ts's (ROLE_SHORT_WORDS.all_day, above) — this file imports nothing from work.ts, which reads it there too.
 import { plannedMinutesOf } from '@/lib/operations/supersession';
@@ -463,6 +480,14 @@ export const accountPillClassOf = (row: Pick<LedgerSheetRow, 'coa'>, places: Acc
 /** THE TINT'S LEGEND — one line above the table: the tinted cells (BUDGET, VARIANCE, MATCH, UNDER / OVER) are the ones nobody types on a row. */
 export const NOT_TYPED_WORDS = 'not typed on a row — from your plan, from Books, or worked out';
 
+/**
+ * TIMESHEET-04b (Alex, 2026-11-27): A PLAN-VENDOR ROW AS THE LEDGER READS IT — the Budget's own row (planLines.ts PlanVendorRow,
+ * unchanged: the Budget, Expenses, bill pay and the month read it as they did) and the two things the sheet prints beside it: the
+ * row's planned items (planned_item_vendors.items) and its vendor's Instagram tag (operations_vendor_directory.instagram_tag). null
+ * is none for both — stated, never absent.
+ */
+export type LedgerVendorRow = PlanVendorRow & { readonly items: string | null; readonly vendor: PlanVendorRow['vendor'] & { readonly instagram_tag: string | null } };
+
 export interface LedgerInput {
   readonly from: string;
   readonly to: string;
@@ -480,8 +505,8 @@ export interface LedgerInput {
   readonly roles: ReadonlyMap<string, string>;
   /** TIMESHEET-01: plan key (planKeyOf) → the plan's planned minutes by the one rule (planMinutesOf) — a sheet row with no record prints them. null is stated, never absent. */
   readonly minutes: ReadonlyMap<string, number | null>;
-  /** The caller's plan-vendor rows: every every-occurrence row, and the occurrence rows in the span's window. */
-  readonly vendors: readonly PlanVendorRow[];
+  /** The caller's plan-vendor rows: every every-occurrence row, and the occurrence rows in the span's window. TIMESHEET-04b (2026-11-27): each with its planned items and its vendor's tag (LedgerVendorRow; PlanVendorRow until then). */
+  readonly vendors: readonly LedgerVendorRow[];
   readonly stays: readonly StayRow[];
   readonly accounts: readonly LedgerAccount[];
   readonly books: readonly LedgerBook[];
@@ -535,11 +560,15 @@ export interface LedgerRow {
   readonly book: BookWord | null;
   readonly coa: LedgerCoa | null;
   readonly vendor: string | null;
+  /** TIMESHEET-04b (2026-11-27): the matched line's vendor's Instagram tag, without its @ (the cell prints it with — tagCellWords); null with no line, no vendor, or a vendor that has none. */
+  readonly instagramTag: string | null;
   /** The card's bold name (stopName). LEDGER-04 (Alex, 2026-10-20): printed under SUB ACCOUNT NAME — the stop's name IS the sub-account's (numbered later, SUBACCT-01). The field keeps its name; the route's payload is unchanged. */
   readonly description: string;
   readonly rating: number | null;
   /** The record's note (280). LEDGER-04 (Alex, 2026-10-20): printed under DESCRIPTION — what was ordered. The field keeps its name. */
   readonly note: string | null;
+  /** TIMESHEET-04b (2026-11-27): the record's notes (stopRecord.ts NOTES_MAX) — printed under NOTES; null with none. */
+  readonly notes: string | null;
   /** The matched line's cents — the card's BUDGET cell; null when none. */
   readonly cents: number | null;
   readonly budgetState: BudgetState;
@@ -598,10 +627,16 @@ export interface LedgerPlanRow {
   readonly coa: LedgerCoa;
   /** The planned vendor, by the plan's one grain. */
   readonly vendor: string | null;
+  /** TIMESHEET-04b (2026-11-27): that vendor's Instagram tag, without its @; null with no vendor, or a vendor that has none. */
+  readonly instagramTag: string | null;
   /** The card's bold name (stopName) — printed under SUB ACCOUNT NAME, as a recorded row's. */
   readonly description: string;
   readonly rating: null;
   readonly note: null;
+  /** TIMESHEET-04b (2026-11-27): what is planned to be had at this stop — the items the plan's vendor row holds at that row's own grain (every occurrence, or this one); null with no vendor, or a vendor row that holds none. Printed under DESCRIPTION while the row has no record (descriptionOf). */
+  readonly plannedItems: string | null;
+  /** TIMESHEET-04b (2026-11-27): notes are a record's — a row with no record has none. */
+  readonly notes: null;
   /** The line's cents — BUDGET. */
   readonly cents: number;
   readonly outcome: null;
@@ -665,6 +700,15 @@ export function endOf(row: LedgerSheetRow): string | null {
 
 /** WENT: a recorded row by its outcome — went (done) or skipped; a plan row by what the rule found against its clock — planned or not recorded; null on an all-day line. */
 export const wentOf = (row: LedgerSheetRow): Went | null => (row.id === null ? row.went : row.outcome === 'skipped' ? SKIPPED_WORD : WENT_WORD);
+
+/**
+ * TIMESHEET-04b (Alex, 2026-11-27): WHAT DESCRIPTION SAYS OF A ROW. A row with no record: what is planned to be had there (its
+ * plannedItems). A recorded row: the record's own line (its note). Never one standing in for the other — a recorded row with no
+ * note is blank, whatever was planned. One rule: the cell's words, its filter's text, its sort key and its CSV field all read this.
+ */
+export const descriptionOf = (row: LedgerSheetRow): string | null => (row.id === null ? row.plannedItems : row.note);
+/** DESCRIPTION is printing a plan row's planned items — the section draws them as planned (its class, and PLANNED_ITEMS_TITLE_WORDS as the cell's title). */
+export const plannedDescription = (row: LedgerSheetRow): boolean => row.id === null && row.plannedItems !== null;
 
 export interface LedgerSaid {
   /** Records no budget line matches (the doubled among them counted again, by name). */
@@ -755,6 +799,33 @@ export function ledgerOf(input: LedgerInput): Ledger {
     linksByKey.set(k, [...(linksByKey.get(k) ?? []), l]);
   }
   const names = new Map(input.accounts.map((a) => [`${a.entityId}:${a.code}`, a.name]));
+  // TIMESHEET-04b (Alex, 2026-11-27): the two things a row prints beside its vendor, both read off the plan-vendor rows handed in — no
+  // query added. A vendor's TAG by the vendor's id. A row's PLANNED ITEMS by its plan and its grain — '' for every occurrence, else the
+  // occurrence's instant as ISO text: the vendor row's own address. A line's vendor comes from these same rows (dayLines), so a line
+  // whose vendor they do not hold — or hold without its tag or its items, a read that did not select them — is this rule's error, thrown by name: never a blank.
+  const tagByVendor = new Map<string, string | null>();
+  const itemsByGrain = new Map<string, string | null>();
+  const grainKeyOf = (plan: string, grain: string): string => `${plan}@${grain}`;
+  for (const v of input.vendors) {
+    tagByVendor.set(v.vendor.id, v.vendor.instagram_tag);
+    // A row's plan, as planLines.ts reads it; a task's row is on no row of this sheet.
+    const plan = v.step_id !== null ? planKeyOf('routine_line', v.step_id) : v.routine_id !== null ? planKeyOf('routine', v.routine_id) : null;
+    if (plan !== null) itemsByGrain.set(grainKeyOf(plan, v.occurrence_at === null ? '' : v.occurrence_at.toISOString()), v.items);
+  }
+  const tagOf = (l: PlanLine, key: string): string | null => {
+    if (l.vendor === null) return null;
+    const tag = tagByVendor.get(l.vendor.id);
+    if (tag === undefined) throw new Error(`ledger: line ${key} names vendor ${l.vendor.id}, whose Instagram tag the plan-vendor rows do not hold — a tag is a text or null, never guessed`);
+    return tag;
+  };
+  // A plan row's planned items, at its vendor's own grain — the plan's ONE grain (planLines.ts planHoldsOf): an every-occurrence vendor's
+  // row holds them for every occurrence, an occurrence's vendor's row for that occurrence alone. `plan` is the row's plan key (planKeyOf).
+  const plannedItemsOf = (vendor: PlanLine['vendor'], plan: string, instant: string, key: string): string | null => {
+    if (vendor === null) return null;
+    const items = itemsByGrain.get(grainKeyOf(plan, vendor.grain === 'every' ? '' : instant));
+    if (items === undefined) throw new Error(`ledger: line ${key} holds a vendor ${vendor.grain === 'every' ? 'for every occurrence' : `at ${instant}`}, whose planned items the plan-vendor rows do not hold — planned items are a text or null, never guessed`);
+    return items;
+  };
 
   // Each record on its routine's own local day (the stops GET's placing); the window the route read is a superset of the span.
   const placed: { readonly r: LedgerRecordInput; readonly day: string; readonly time: string }[] = [];
@@ -851,9 +922,12 @@ export function ledgerOf(input: LedgerInput): Ledger {
       book: bookWord,
       coa,
       vendor: line !== null && line.vendor !== null ? line.vendor.name : null,
+      // TIMESHEET-04b (2026-11-27): the tag of the matched line's vendor — null with no line or no vendor; and the record's own notes.
+      instagramTag: line === null ? null : tagOf(line, key),
       description: line !== null ? stopName({ line: line.line, label: line.label }) : stopName({ line: r.activity, label: r.routineName }),
       rating: r.record.rating,
       note: r.record.note,
+      notes: r.record.notes,
       cents,
       budgetState,
       outcome: r.record.outcome,
@@ -948,9 +1022,13 @@ export function ledgerOf(input: LedgerInput): Ledger {
         book: bookWordOf(book.entityType),
         coa: { account: deriveAccountString({ entityType: book.entityType, code: l.code }), name: names.get(`${l.entityId}:${l.code}`) ?? null },
         vendor: l.vendor !== null ? l.vendor.name : null,
+        // TIMESHEET-04b (2026-11-27): the vendor's tag, and what is planned to be had here — the items of the plan's vendor row at that row's own grain.
+        instagramTag: tagOf(l, key),
         description: stopName({ line: l.line, label: l.label }),
         rating: null,
         note: null,
+        plannedItems: plannedItemsOf(l.vendor, planKeyOf(kind, id), instant, key),
+        notes: null,
         cents: l.cents,
         outcome: null,
         actualCents: null,
@@ -1088,13 +1166,13 @@ export const CELL_WORDS: Readonly<Record<CellWordsKey, (row: LedgerSheetRow) => 
 
 // ── LEDGER-04 (Alex, 2026-10-20): THE COLUMNS — FILTERS THE SHEET'S WAY, AND SORT ──
 
-/** The twenty-one columns by key, in the head's order — LEDGER_HEAD_WORDS[i] is LEDGER_COLUMNS[i]'s word (headWordOf). TIME-03 (2026-10-26): plannedMinutes and loggedMinutes after stars, nothing reordered; sixteen until then. TIMESHEET-01 (2026-11-24): start and end after date, went after vendor — each beside the fact it extends, nothing else moved; eighteen until then. */
-export const LEDGER_COLUMNS = ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'budget', 'actual', 'variance', 'match', 'underOver', 'description'] as const;
+/** The twenty-three columns by key, in the head's order — LEDGER_HEAD_WORDS[i] is LEDGER_COLUMNS[i]'s word (headWordOf). TIME-03 (2026-10-26): plannedMinutes and loggedMinutes after stars, nothing reordered; sixteen until then. TIMESHEET-01 (2026-11-24): start and end after date, went after vendor — each beside the fact it extends, nothing else moved; eighteen until then. TIMESHEET-04b (2026-11-27): instagramTag after vendor, notes after description — each beside the fact it extends, nothing else moved; twenty-one until then. */
+export const LEDGER_COLUMNS = ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'instagramTag', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'budget', 'actual', 'variance', 'match', 'underOver', 'description', 'notes'] as const;
 export type LedgerColumn = (typeof LEDGER_COLUMNS)[number];
-/** A VALUE column filters by a checklist of its cell words; a MONEY column by a min and a max; the TEXT column by a contains-text. TIME-03: the two minutes columns are VALUE columns — whole minutes as words, sorted as numbers. TIMESHEET-01: START, END and WENT are VALUE columns — START and END sorted by the clock. */
-export const VALUE_COLUMNS = ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'underOver'] as const;
+/** A VALUE column filters by a checklist of its cell words; a MONEY column by a min and a max; a TEXT column by a contains-text. TIME-03: the two minutes columns are VALUE columns — whole minutes as words, sorted as numbers. TIMESHEET-01: START, END and WENT are VALUE columns — START and END sorted by the clock. TIMESHEET-04b (2026-11-27): INSTAGRAM TAG is a VALUE column (a checklist of the tags present); NOTES a TEXT column beside DESCRIPTION (one TEXT column until then). */
+export const VALUE_COLUMNS = ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'instagramTag', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'underOver'] as const;
 export const MONEY_COLUMNS = ['budget', 'actual', 'variance', 'match'] as const;
-export const TEXT_COLUMNS = ['description'] as const;
+export const TEXT_COLUMNS = ['description', 'notes'] as const;
 export type ValueColumn = (typeof VALUE_COLUMNS)[number];
 export type MoneyColumn = (typeof MONEY_COLUMNS)[number];
 export type TextColumn = (typeof TEXT_COLUMNS)[number];
@@ -1117,6 +1195,7 @@ export function cellWordsOf(row: LedgerSheetRow, column: LedgerColumn): string {
     case 'accountName': return accountNameCellWords(row);
     case 'subAccountName': return row.description;
     case 'vendor': return vendorCellWords(row.vendor);
+    case 'instagramTag': return tagCellWords(row.instagramTag);
     case 'went': return wentCellWords(row);
     case 'stars': return starsCellWords(row.rating);
     case 'plannedMinutes': return minutesCellWords(row.plannedMinutes);
@@ -1126,16 +1205,18 @@ export function cellWordsOf(row: LedgerSheetRow, column: LedgerColumn): string {
     case 'variance': return varianceCellWords(row.varianceCents);
     case 'match': return matchCellWords(row.match);
     case 'underOver': return underOverWords(row.varianceCents);
-    case 'description': return noteCellWords(row.note);
+    case 'description': return noteCellWords(descriptionOf(row)); // TIMESHEET-04b (2026-11-27): a plan row's planned items, a recorded row's note (descriptionOf) — the record's note alone until then
+    case 'notes': return noteCellWords(row.notes);
   }
 }
 /** A MONEY column's figure in cents — the CSV's own figure for the cell (ACTUAL as held whether done or skipped; MATCH the readable sum); null is a blank cell. */
 export const cellCentsOf = (row: LedgerSheetRow, column: MoneyColumn): number | null =>
   (column === 'budget' ? row.cents : column === 'actual' ? row.actualCents : column === 'variance' ? row.varianceCents : readableMatchCents(row.match));
-/** The TEXT column's text — what its contains-text reads (IDIOM-01): DESCRIPTION is the record's note; null is a blank cell. */
+/** A TEXT column's text — what its contains-text reads (IDIOM-01): DESCRIPTION is what the cell prints (descriptionOf — TIMESHEET-04b, 2026-11-27: a plan row's planned items, a recorded row's note; the record's note alone until then), NOTES the record's notes; null is a blank cell. */
 export function cellTextOf(row: LedgerSheetRow, column: TextColumn): string | null {
   switch (column) {
-    case 'description': return row.note;
+    case 'description': return descriptionOf(row);
+    case 'notes': return row.notes;
   }
 }
 
@@ -1153,13 +1234,13 @@ export { NO_VALUE_FILTER, NO_MONEY_FILTER, NO_TEXT_FILTER, containsNeedle, choic
 export type { SortDirection } from '@/lib/table/sort';
 export type { SortKey } from '@/lib/table/columns';
 export { nextSort } from '@/lib/table/sort';
-/** The ledger's filters: one per column, by the column's kind — the idiom's three shapes in a typed map of twenty-one (sixteen until TIME-03; eighteen until TIMESHEET-01). */
+/** The ledger's filters: one per column, by the column's kind — the idiom's three shapes in a typed map of twenty-three (sixteen until TIME-03; eighteen until TIMESHEET-01; twenty-one until TIMESHEET-04b). */
 export type ColumnFilters = { readonly [C in ValueColumn]: ValueFilter } & { readonly [C in MoneyColumn]: MoneyFilter } & { readonly [C in TextColumn]: TextFilter };
 export const NO_COLUMN_FILTERS: ColumnFilters = Object.freeze({
   day: NO_VALUE_FILTER, date: NO_VALUE_FILTER, start: NO_VALUE_FILTER, end: NO_VALUE_FILTER, city: NO_VALUE_FILTER, country: NO_VALUE_FILTER, book: NO_VALUE_FILTER, account: NO_VALUE_FILTER, accountName: NO_VALUE_FILTER,
-  subAccountName: NO_VALUE_FILTER, vendor: NO_VALUE_FILTER, went: NO_VALUE_FILTER, stars: NO_VALUE_FILTER, plannedMinutes: NO_VALUE_FILTER, loggedMinutes: NO_VALUE_FILTER, underOver: NO_VALUE_FILTER,
+  subAccountName: NO_VALUE_FILTER, vendor: NO_VALUE_FILTER, instagramTag: NO_VALUE_FILTER, went: NO_VALUE_FILTER, stars: NO_VALUE_FILTER, plannedMinutes: NO_VALUE_FILTER, loggedMinutes: NO_VALUE_FILTER, underOver: NO_VALUE_FILTER,
   budget: NO_MONEY_FILTER, actual: NO_MONEY_FILTER, variance: NO_MONEY_FILTER, match: NO_MONEY_FILTER,
-  description: NO_TEXT_FILTER,
+  description: NO_TEXT_FILTER, notes: NO_TEXT_FILTER,
 });
 /** Whether a column's filter narrows anything — the mark on its header. */
 export const columnFilterOn = (filters: ColumnFilters, column: LedgerColumn): boolean => filterOn(filters, column, columnKind(column));
@@ -1193,13 +1274,15 @@ export function sortKeyOf(row: LedgerSheetRow, column: LedgerColumn): SortKey {
     case 'accountName': return text(row.coa === null ? null : row.coa.name);
     case 'subAccountName': return text(row.description);
     case 'vendor': return text(row.vendor);
+    case 'instagramTag': return text(row.instagramTag);
     case 'went': return text(wentOf(row));
     case 'stars': return num(row.rating);
     case 'plannedMinutes': return num(row.plannedMinutes);
     case 'loggedMinutes': return num(row.loggedMinutes);
     case 'budget': case 'actual': case 'variance': case 'match': return num(cellCentsOf(row, column));
     case 'underOver': return text(row.varianceCents === null ? null : varianceSignWords(row.varianceCents));
-    case 'description': return text(row.note);
+    case 'description': return text(descriptionOf(row));
+    case 'notes': return text(row.notes);
   }
 }
 /** The rows by one column; ties keep the order given (a stable sort), blanks last either way; null gives the rows as they came. The TOTAL row is not a row here. */
@@ -1338,8 +1421,9 @@ export const LEDGER_TITLE_WORDS = 'Time sheet';
  * the SUB ACCOUNT NAME (was DESCRIPTION) and the record's note is the DESCRIPTION (was NOTES); the CSV header follows (ledgerCsv).
  * TIME-03 (Alex, 2026-10-26): eighteen — PLANNED MIN · LOGGED MIN after STARS, nothing reordered (the day card's minutes, as the row holds them).
  * TIMESHEET-01 (Alex, 2026-11-24): twenty-one — START · END after DATE, WENT after VENDOR, each beside the fact it extends; no other column renamed, moved or restyled.
+ * TIMESHEET-04b (Alex, 2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR ("tag is own column"), NOTES after DESCRIPTION, each beside the fact it extends; the twenty-one as they stood.
  */
-export const LEDGER_HEAD_WORDS = ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION'] as const;
+export const LEDGER_HEAD_WORDS = ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION', 'NOTES'] as const;
 /** The money columns — right-aligned in the table. */
 export const MONEY_HEAD_WORDS = ['BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH'] as const;
 export const PERIOD_WORDS: Readonly<Record<PeriodKind, string>> = { month: 'Month', week: 'Week', day: 'Day', all: 'All' };
@@ -1437,6 +1521,10 @@ export const hoursWords = (minutes: number | null): string => (minutes === null 
 export const starsCellWords = (rating: number | null): string => (rating === null ? BLANK : ledgerStarsWords(rating));
 export const noteCellWords = (note: string | null): string => (note === null ? BLANK : note);
 export const vendorCellWords = (vendor: string | null): string => (vendor === null ? BLANK : vendor);
+/** TIMESHEET-04b (2026-11-27): the INSTAGRAM TAG cell — the tag with its @ (planVendor.ts instagramTagWords: the row holds it without), "—" with none. */
+export const tagCellWords = (tag: string | null): string => (tag === null ? BLANK : instagramTagWords(tag));
+/** TIMESHEET-04b (2026-11-27): the DESCRIPTION cell's title on a row that prints its planned items (plannedDescription) — what the faint italic text is. */
+export const PLANNED_ITEMS_TITLE_WORDS = "planned — the record's own line stands here once this stop is recorded";
 /** TIMESHEET-01: the START, END and WENT cells — the row's fact (startOf, endOf, wentOf), "—" for a blank: an all-day line's END and WENT, a clock or minutes not stated. */
 const factCellWords = (fact: string | null): string => (fact === null ? BLANK : fact);
 export const startCellWords = (row: LedgerSheetRow): string => factCellWords(startOf(row));
@@ -1498,6 +1586,8 @@ export const LEDGER_CSV: Readonly<Record<LedgerColumn, (row: LedgerSheetRow) => 
   accountName: (row) => row.coa === null || row.coa.name === null ? '' : row.coa.name,
   subAccountName: (row) => row.description,
   vendor: (row) => row.vendor ?? '',
+  // TIMESHEET-04b (2026-11-27): the tag with its @, as the cell prints it; a null is an EMPTY field.
+  instagramTag: (row) => row.instagramTag === null ? '' : instagramTagWords(row.instagramTag),
   went: (row) => wentOf(row) ?? '',
   stars: (row) => row.rating === null ? '' : String(row.rating),
   // TIME-03: whole minutes as bare integers; a null is an EMPTY field.
@@ -1508,10 +1598,12 @@ export const LEDGER_CSV: Readonly<Record<LedgerColumn, (row: LedgerSheetRow) => 
   variance: (row) => csvMoney(row.varianceCents),
   match: (row) => csvMoney(readableMatchCents(row.match)),
   underOver: (row) => row.varianceCents === null ? '' : varianceSignWords(row.varianceCents),
-  description: (row) => row.note ?? '',
+  // TIMESHEET-04b (2026-11-27): DESCRIPTION is what the cell prints (descriptionOf — a plan row's planned items, a recorded row's note); NOTES the record's notes.
+  description: (row) => descriptionOf(row) ?? '',
+  notes: (row) => row.notes ?? '',
 };
 /**
- * IDIOM-01 (Alex, 2026-10-24): THE LEDGER'S SPEC for the shared idiom (src/lib/table/columns.ts TableColumn) — the columns (twenty-one since TIMESHEET-01, over the sheet's rows; eighteen since TIME-03, sixteen until then) in the
+ * IDIOM-01 (Alex, 2026-10-24): THE LEDGER'S SPEC for the shared idiom (src/lib/table/columns.ts TableColumn) — the columns (twenty-three since TIMESHEET-04b; twenty-one since TIMESHEET-01, over the sheet's rows; eighteen since TIME-03, sixteen until then) in the
  * head's order, each its head word, its kind (columnKind), its cell words (cellWordsOf — what a filter matches and a checklist lists), what
  * it sorts by (sortKeyOf), its CSV field (LEDGER_CSV), and by kind its cents (cellCentsOf) or its text (cellTextOf). Built here, after the
  * words and the CSV fields it reads; every rule the ledger exports calls the idiom with it.
@@ -1527,7 +1619,7 @@ export const LEDGER_TABLE: readonly TableColumn<LedgerSheetRow, LedgerColumn>[] 
 /** The ledger's column of the spec, by key. */
 export const ledgerColumnOf = (column: LedgerColumn): TableColumn<LedgerSheetRow, LedgerColumn> => columnOf(LEDGER_TABLE, column);
 /**
- * The rows shown, as a CSV — the idiom's writer over the ledger's spec (csv.ts tableCsv): the head words (twenty-one since TIMESHEET-01; eighteen since TIME-03), then one line per row
+ * The rows shown, as a CSV — the idiom's writer over the ledger's spec (csv.ts tableCsv): the head words (twenty-three since TIMESHEET-04b; twenty-one since TIMESHEET-01; eighteen since TIME-03), then one line per row
  * in the table's order, each field LEDGER_CSV's; RFC 4180 with minimal quoting (a field holding a comma, a quote, a CR or an LF is
  * quoted, its quotes doubled); every line ends CRLF, the last one too; UTF-8 with no BOM (the screen writes it as a Blob of this string).
  */
@@ -1729,9 +1821,9 @@ export const oneOffBody = (v: ExpenseValues): RoutineForm => ({
 export const vendorBody = (v: ExpenseValues, lineId: string, vendorId: string): { readonly kind: 'routine_line'; readonly id: string; readonly instant: string; readonly vendorId: string } =>
   ({ kind: 'routine_line', id: lineId, instant: v.instant, vendorId });
 
-/** The stops POST's body: the line's record at its occurrence — done at the stop's own instant, the actual, the stars, the note. */
+/** The stops POST's body: the line's record at its occurrence — done at the stop's own instant, the actual, the stars, the note. TIMESHEET-04b (2026-11-27): it SAYS its notes — null: "+ expense" has no NOTES box. */
 export const recordBody = (v: ExpenseValues, lineId: string): StopBody =>
-  ({ kind: 'routine_line', id: lineId, instant: v.instant, outcome: 'done', done_at: v.instant, actual_cents: v.actualCents, rating: v.rating, note: v.note, actual_minutes: null });
+  ({ kind: 'routine_line', id: lineId, instant: v.instant, outcome: 'done', done_at: v.instant, actual_cents: v.actualCents, rating: v.rating, note: v.note, notes: null, actual_minutes: null });
 
 // The outcome: one line per step, each said by name.
 export const EXPENSE_STEPS = ['stop', 'line', 'directory', 'vendor', 'record'] as const;
@@ -1786,8 +1878,8 @@ export const VENDOR_NO_ID_WORDS = 'the vendor came back without its id';
 // setStopRecord, clearStopRecord) and the stops route stays the authority — a
 // refusal of its own is shown in its own words.
 
-/** The form's boxes, in the order they stand — the order the rule reads them in. */
-export const RECORD_FIELDS = ['went', 'actual', 'stars', 'minutes', 'note'] as const;
+/** The form's boxes, in the order they stand — the order the rule reads them in. TIMESHEET-04b (2026-11-27): NOTES last, after DESCRIPTION (five until then). */
+export const RECORD_FIELDS = ['went', 'actual', 'stars', 'minutes', 'note', 'notes'] as const;
 export type RecordField = (typeof RECORD_FIELDS)[number];
 /** went | skipped — the WENT column's own two words for a record. */
 export type RecordWent = typeof WENT_WORD | typeof SKIPPED_WORD;
@@ -1799,21 +1891,36 @@ export interface RecordDraft {
   readonly stars: string;
   readonly minutes: string;
   readonly note: string;
+  /** TIMESHEET-04b (2026-11-27): the NOTES box. */
+  readonly notes: string;
 }
 
 /**
  * The draft a form opens with. From the held record: its outcome, its dollars (csv.ts csvMoney — two decimals from the integer
  * cents, so centsOf reads them back to the same cents), its stars, its minutes, its note. With none: went, every box blank.
+ * TIMESHEET-04b (2026-11-27): and its notes — '' with none.
  */
 export function recordDraftOf(held: StopRecordRow | null): RecordDraft {
-  if (held === null) return { went: WENT_WORD, actual: '', stars: '', minutes: '', note: '' };
+  if (held === null) return { went: WENT_WORD, actual: '', stars: '', minutes: '', note: '', notes: '' };
   return {
     went: held.outcome === 'skipped' ? SKIPPED_WORD : WENT_WORD,
     actual: csvMoney(held.actual_cents),
     stars: held.rating === null ? '' : String(held.rating),
     minutes: held.actual_minutes === null ? '' : String(held.actual_minutes),
     note: held.note === null ? '' : held.note,
+    notes: held.notes === null ? '' : held.notes,
   };
+}
+
+/**
+ * TIMESHEET-04b (Alex, 2026-11-27): THE DRAFT A ROW'S FORM OPENS WITH. A row that holds a record: that record's draft
+ * (recordDraftOf). A row with none: the blank draft — and, when the row holds planned items, DESCRIPTION opens with them, so what
+ * was planned is the record's line unless he types otherwise. Nothing is written by opening the form.
+ */
+export function rowDraftOf(row: LedgerSheetRow, held: StopRecordRow | null): RecordDraft {
+  if (held !== null) return recordDraftOf(held);
+  const blank = recordDraftOf(null);
+  return row.id === null && row.plannedItems !== null ? { ...blank, note: row.plannedItems } : blank;
 }
 
 export type RecordInputResult = { readonly ok: true; readonly body: StopBody } | { readonly ok: false; readonly field: RecordField; readonly message: string };
@@ -1824,6 +1931,9 @@ export const STOP_AHEAD_WORDS = "this stop is still ahead — went is saved at t
 /** The two boxes' bounds, each named by its own head word (stopRecord.ts MINUTES_MAX, NOTE_MAX — the route's). */
 export const MINUTES_RANGE_WORDS = `${headWordOf('loggedMinutes')} is 0 to ${MINUTES_MAX}`;
 export const NOTE_LONG_WORDS = `${EXPENSE_FIELD_WORDS.note} is at most ${NOTE_MAX} characters`;
+/** TIMESHEET-04b (2026-11-27): the NOTES box's two refusals, each named by the column's own head word (stopRecord.ts NOTES_MAX, holdsControl — the route's). */
+export const NOTES_LONG_WORDS = `${headWordOf('notes')} is at most ${NOTES_MAX} characters`;
+export const NOTES_CONTROL_WORDS = `${headWordOf('notes')} holds a control character — type it again without it`;
 
 /**
  * THE ONE RULE FOR WHAT THE RECORD FORM IS GIVEN (ruling C) — the boxes read in their order, the first bad one named, nothing filled
@@ -1836,6 +1946,9 @@ export const NOTE_LONG_WORDS = `${EXPENSE_FIELD_WORDS.note} is at most ${NOTE_MA
  *   skipped → done_at null, and DESCRIPTION is required (stopRecord.ts SKIP_REASON_WORDS).
  *   ACTUAL: blank → null, never 0; else dollars by this file's centsOf. STARS: blank → null; else 1 to 5. LOGGED MIN: blank → null;
  * else a whole number from 0 to MINUTES_MAX. DESCRIPTION: trimmed, spaces collapsed; blank → null; at most NOTE_MAX characters.
+ *   TIMESHEET-04b (Alex, 2026-11-27) — NOTES, read after DESCRIPTION: trimmed, spaces collapsed; without a control character
+ * (holdsControl), then at most NOTES_MAX characters — the stops rule's own order; blank → null. NEVER REQUIRED, went or skipped: a
+ * skip's reason is still its DESCRIPTION. The body says its notes.
  */
 export function recordInput(draft: RecordDraft, address: LedgerAddress, given: Pick<LedgerRecordingTaken, 'plannedAt' | 'held'>, now: Date): RecordInputResult {
   let doneAt: string | null = null;
@@ -1875,9 +1988,13 @@ export function recordInput(draft: RecordDraft, address: LedgerAddress, given: P
   if (holdsControl(note)) return refuseRecord('note', NOTE_CONTROL_WORDS); // FORM-BOUNDS-01 (2026-11-25): the stops rule's own test, on the same collapsed text — controls, then length
   if (note.length > NOTE_MAX) return refuseRecord('note', NOTE_LONG_WORDS);
   if (draft.went === SKIPPED_WORD && note === '') return refuseRecord('note', SKIP_REASON_WORDS);
+  // TIMESHEET-04b (2026-11-27): NOTES after DESCRIPTION — the stops rule's own reading (stopInput), on the same trimmed and collapsed text: controls, then length. Never required.
+  const notes = draft.notes.trim().replace(/\s+/g, ' ');
+  if (holdsControl(notes)) return refuseRecord('notes', NOTES_CONTROL_WORDS);
+  if (notes.length > NOTES_MAX) return refuseRecord('notes', NOTES_LONG_WORDS);
   return {
     ok: true,
-    body: { kind: address.kind, id: address.id, instant: address.instant, outcome: draft.went === SKIPPED_WORD ? 'skipped' : 'done', done_at: doneAt, actual_cents: actualCents, rating, note: note === '' ? null : note, actual_minutes: actualMinutes },
+    body: { kind: address.kind, id: address.id, instant: address.instant, outcome: draft.went === SKIPPED_WORD ? 'skipped' : 'done', done_at: doneAt, actual_cents: actualCents, rating, note: note === '' ? null : note, notes: notes === '' ? null : notes, actual_minutes: actualMinutes },
   };
 }
 
@@ -1891,7 +2008,7 @@ export const SKIP_REASON_PLACEHOLDER_WORDS = 'why — required';
 /** The STARS box's title — the rubric (stopRecord.ts RATING_WORDS), five to one, so a star typed here means what it means on the card. */
 export const STARS_RUBRIC_WORDS = ([5, 4, 3, 2, 1] as const).map((n) => `${n} — ${RATING_WORDS[n]}`).join(' · ');
 /** The form's labels: a column's own head word, or the "+ expense" form's — no second word for a thing the table already names. */
-export const RECORD_FIELD_WORDS: Readonly<Record<RecordField, string>> = { went: headWordOf('went'), actual: EXPENSE_FIELD_WORDS.actual, stars: EXPENSE_FIELD_WORDS.stars, minutes: headWordOf('loggedMinutes'), note: EXPENSE_FIELD_WORDS.note };
+export const RECORD_FIELD_WORDS: Readonly<Record<RecordField, string>> = { went: headWordOf('went'), actual: EXPENSE_FIELD_WORDS.actual, stars: EXPENSE_FIELD_WORDS.stars, minutes: headWordOf('loggedMinutes'), note: EXPENSE_FIELD_WORDS.note, notes: headWordOf('notes') };
 
 // ── LEDGER-03 (Alex, 2026-10-19): THE PICKER'S WORDS — LINK-01's list, on the row ──
 //

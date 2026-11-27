@@ -56,7 +56,7 @@ const UNCHANGED = [
 ];
 
 const SIXTEEN = ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION'];
-const TWENTY_ONE = ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']; // TIMESHEET-01 (Alex, 2026-11-24): the heads are twenty-one — START · END after DATE, WENT after VENDOR; this list was EIGHTEEN (without the three) until then
+const TWENTY_THREE = ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION', 'NOTES']; // TIMESHEET-04b (2026-11-27): the heads are twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION; this list was TWENTY_ONE (without the two) until then. TIMESHEET-01 (Alex, 2026-11-24): the heads are twenty-one — START · END after DATE, WENT after VENDOR; this list was EIGHTEEN (without the three) until then
 const CUSTOMER = 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.';
 
 // ── FIXTURE: four records over two Bangkok days — a line with both minutes, a stepless routine with logged minutes only, a line planned with nothing logged, a stop with neither ──
@@ -65,7 +65,7 @@ const MORNING_13 = '2026-10-13T00:00:00.000Z'; // 07:00 in Bangkok, Oct 13
 const GYM_13 = '2026-10-13T13:00:00.000Z'; // 20:00
 const GYM_12 = '2026-10-12T13:00:00.000Z';
 const record = (over: Partial<StopRecordRow> & { id: string; kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
-  outcome: 'done', done_at: `${over.occurrence_at.slice(0, 11)}00:41:00.000Z`, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+  outcome: 'done', done_at: `${over.occurrence_at.slice(0, 11)}00:41:00.000Z`, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
 });
 const WORDS = new Map<string, RoutineWords>([
   ['morning', { name: 'Morning', timezone: BKK, steps: new Map([['coffee', { activity: 'Coffee', timeOfDay: '07:30' }], ['lunch', { activity: 'Lunch', timeOfDay: '12:00' }]]) }],
@@ -92,14 +92,14 @@ const NOTHING_SAID: LedgerSaid = { noLine: 0, doubled: 0, noStay: 0, unplaced: [
 
 // ── RULING A · THE TWO COLUMNS ───────────────────────────────────────────────
 
-test('A the heads in Alex’s order (twenty-one since TIMESHEET-01; eighteen until then) — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; both VALUE columns; the spec, the filters map and the CSV header follow', () => {
-  assert.deepEqual(LEDGER_HEAD_WORDS, TWENTY_ONE);
-  assert.equal(LEDGER_HEAD_WORDS.length, 21); // TIMESHEET-01 (Alex, 2026-11-24): 18 until then
-  assert.deepEqual(LEDGER_COLUMNS, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'budget', 'actual', 'variance', 'match', 'underOver', 'description']); // TIMESHEET-01 (Alex, 2026-11-24): start and end after date, went after vendor
+test('A the heads in Alex’s order (twenty-three since TIMESHEET-04b; twenty-one since TIMESHEET-01; eighteen until then) — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; both VALUE columns; the spec, the filters map and the CSV header follow', () => {
+  assert.deepEqual(LEDGER_HEAD_WORDS, TWENTY_THREE);
+  assert.equal(LEDGER_HEAD_WORDS.length, 23); // TIMESHEET-04b (2026-11-27): 21 until then. TIMESHEET-01 (Alex, 2026-11-24): 18 until then
+  assert.deepEqual(LEDGER_COLUMNS, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'instagramTag', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'budget', 'actual', 'variance', 'match', 'underOver', 'description', 'notes']); // TIMESHEET-01 (Alex, 2026-11-24): start and end after date, went after vendor · TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then
   assert.deepEqual([headWordOf('plannedMinutes'), headWordOf('loggedMinutes')], ['PLANNED MIN', 'LOGGED MIN']);
   const stars = LEDGER_HEAD_WORDS.indexOf('STARS');
   assert.deepEqual([LEDGER_HEAD_WORDS[stars + 1], LEDGER_HEAD_WORDS[stars + 2], LEDGER_HEAD_WORDS[stars + 3]], ['PLANNED MIN', 'LOGGED MIN', 'BUDGET'], 'inserted after STARS, before BUDGET');
-  assert.deepEqual(LEDGER_HEAD_WORDS.filter((h) => h !== 'PLANNED MIN' && h !== 'LOGGED MIN' && h !== 'START' && h !== 'END' && h !== 'WENT'), SIXTEEN, 'nothing reordered: the sixteen stand in their order'); // TIMESHEET-01 (Alex, 2026-11-24): the three new heads set aside too — the sixteen still stand in their order
+  assert.deepEqual(LEDGER_HEAD_WORDS.filter((h) => h !== 'PLANNED MIN' && h !== 'LOGGED MIN' && h !== 'START' && h !== 'END' && h !== 'WENT' && h !== 'INSTAGRAM TAG' && h !== 'NOTES'), SIXTEEN, /* TIMESHEET-04b (2026-11-27): the two new heads set aside with the five — the sixteen stand as they stood */ 'nothing reordered: the sixteen stand in their order'); // TIMESHEET-01 (Alex, 2026-11-24): the three new heads set aside too — the sixteen still stand in their order
   assert.deepEqual([columnKind('plannedMinutes'), columnKind('loggedMinutes')], ['value', 'value'], 'value columns — a checklist filter, not a money min/max');
   assert.ok(VALUE_COLUMNS.includes('plannedMinutes') && VALUE_COLUMNS.includes('loggedMinutes'));
   assert.deepEqual(MONEY_COLUMNS, ['budget', 'actual', 'variance', 'match'], 'the money columns unchanged');
@@ -107,8 +107,8 @@ test('A the heads in Alex’s order (twenty-one since TIMESHEET-01; eighteen unt
   assert.deepEqual(LEDGER_TABLE.map((c) => c.label), [...LEDGER_HEAD_WORDS]);
   assert.deepEqual(Object.keys(NO_COLUMN_FILTERS).sort(), [...LEDGER_COLUMNS].sort(), 'one filter per column');
   assert.deepEqual([NO_COLUMN_FILTERS.plannedMinutes, NO_COLUMN_FILTERS.loggedMinutes], [NO_VALUE_FILTER, NO_VALUE_FILTER]);
-  assert.equal(ledgerCsv([]), `${TWENTY_ONE.join(',')}\r\n`, 'the CSV header is the twenty-one heads');
-  assert.equal(ledgerCsv([]).split('\r\n')[0], 'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION'); // TIMESHEET-01 (Alex, 2026-11-24): the header follows the heads
+  assert.equal(ledgerCsv([]), `${TWENTY_THREE.join(',')}\r\n`, 'the CSV header is the twenty-three heads'); // TIMESHEET-04b (2026-11-27): twenty-three — the twenty-one until then
+  assert.equal(ledgerCsv([]).split('\r\n')[0], 'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,INSTAGRAM TAG,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION,NOTES'); // TIMESHEET-01 (Alex, 2026-11-24): the header follows the heads · TIMESHEET-04b (2026-11-27): the header gains INSTAGRAM TAG after VENDOR and NOTES at its end
 });
 
 test('A PLANNED MIN is the line’s duration_minutes (blank for a stepless routine), LOGGED MIN the record’s actual_minutes — whole minutes, "—" for null, sorted as numbers, bare integers in the CSV; the DOM and the CSV agree on every column (twenty-one since TIMESHEET-01)', () => {
@@ -144,12 +144,12 @@ test('A PLANNED MIN is the line’s duration_minutes (blank for a stepless routi
   // The CSV: bare integers, an EMPTY field for null, in the head's places.
   const P = LEDGER_HEAD_WORDS.indexOf('PLANNED MIN');
   const L = LEDGER_HEAD_WORDS.indexOf('LOGGED MIN');
-  assert.deepEqual([P, L], [13, 14]); // TIMESHEET-01 (Alex, 2026-11-24): START, END and WENT sit before them — [10, 11] until then
+  assert.deepEqual([P, L], [14, 15]); // TIMESHEET-04b (2026-11-27): INSTAGRAM TAG sits before them too, after VENDOR — [13, 14] until then. TIMESHEET-01 (Alex, 2026-11-24): START, END and WENT sit before them — [10, 11] until then
   const lines = ledgerCsv(ledger.rows).split('\r\n');
   const field = (id: string, i: number): string => lines[1 + ledger.rows.findIndex((r) => r.id === id)].split(',')[i];
   assert.deepEqual([field('r-coffee', P), field('r-coffee', L), field('r-gym', P), field('r-gym', L), field('r-lunch', P), field('r-lunch', L), field('r-gym-12', P), field('r-gym-12', L)], ['45', '50', '', '30', '60', '', '', '']);
-  assert.equal(lines[1], 'Tuesday,2026-10-13,07:30,08:15,,,,,,Coffee,,went,,45,50,,12.00,,,,', 'the whole line — the minutes between STARS and BUDGET'); // TIMESHEET-01 (Alex, 2026-11-24): START 07:30, END 08:15 (07:30 and the 45 planned minutes), WENT went — the other eighteen fields as they were
-  assert.equal(lines[3], 'Tuesday,2026-10-13,20:00,,,,,,,Gym,,went,,,30,,,,,,', 'a stepless routine: PLANNED MIN empty'); // TIMESHEET-01 (Alex, 2026-11-24): START 20:00, END empty (no planned minutes), WENT went
+  assert.equal(lines[1], 'Tuesday,2026-10-13,07:30,08:15,,,,,,Coffee,,,went,,45,50,,12.00,,,,,', 'the whole line — the minutes between STARS and BUDGET'); // TIMESHEET-01 (Alex, 2026-11-24): START 07:30, END 08:15 (07:30 and the 45 planned minutes), WENT went — the other eighteen fields as they were · TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then
+  assert.equal(lines[3], 'Tuesday,2026-10-13,20:00,,,,,,,Gym,,,went,,,30,,,,,,,', 'a stepless routine: PLANNED MIN empty'); // TIMESHEET-01 (Alex, 2026-11-24): START 20:00, END empty (no planned minutes), WENT went · TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then
   assert.deepEqual([LEDGER_CSV.plannedMinutes(coffee), LEDGER_CSV.loggedMinutes(gym12)], ['45', '']);
   assert.doesNotMatch(ledgerCsv(ledger.rows), /—/, 'no "—" in the file');
   // IDIOM-01's byte proof, re-proved on the eighteen: the DOM's words and the CSV's field come from the one spec, column by column, and agree — a null is "—" on screen and empty in the file, a figure is the same digits in both.
@@ -187,13 +187,13 @@ test('A the read grows additively: the route selects the line’s duration_minut
   assert.match(code(DAY_CARD), /actualMinutes: record\.actual_minutes,/);
 });
 
-test('A the section: the two cells after STARS, each its words and the blank class when null; the TOTAL row spans the fifteen columns before BUDGET (TIMESHEET-01; twelve until then — the minutes are the summary’s hours, not the TOTAL row’s)', () => {
+test('A the section: the two cells after STARS, each its words and the blank class when null; the TOTAL row spans the sixteen columns before BUDGET (TIMESHEET-04b; fifteen since TIMESHEET-01; twelve until then — the minutes are the summary’s hours, not the TOTAL row’s)', () => {
   const s = code(SECTION);
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(cells, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description']); // TIMESHEET-01 (Alex, 2026-11-24): start and end after date, went after vendor — eighteen cells until then
+  assert.deepEqual(cells, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'instagram-tag', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description', 'notes']); // TIMESHEET-01 (Alex, 2026-11-24): start and end after date, went after vendor — eighteen cells until then · TIMESHEET-04b (2026-11-27): the instagram-tag cell after vendor's, the notes cell after description's — twenty-three cells
   assert.match(s, /data-ledger-cell="stars">\{starsCellWords\(row\.rating\)\}<\/td>\n(?:\s*\{\s*\}\n)?\s*<td className=\{`\$\{cell\} whitespace-nowrap tabular-nums \$\{row\.plannedMinutes === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="planned-minutes">\{minutesCellWords\(row\.plannedMinutes\)\}<\/td>\n\s*<td className=\{`\$\{cell\} whitespace-nowrap tabular-nums \$\{row\.loggedMinutes === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="logged-minutes">\{minutesCellWords\(row\.loggedMinutes\)\}<\/td>\n\s*<td [^\n]*data-ledger-cell="budget">/, 'STARS, then the two minutes cells, then BUDGET');
-  assert.match(s, /<th scope="row" colSpan=\{15 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then. TIMESHEET-01 (Alex, 2026-11-24): colSpan={12} until then
-  assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 15);
+  assert.match(s, /<th scope="row" colSpan=\{16 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // TIMESHEET-04b (2026-11-27): sixteen — INSTAGRAM TAG sits among the columns before BUDGET; `15 - dayFoldCount(period)` until then. TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then. TIMESHEET-01 (Alex, 2026-11-24): colSpan={12} until then
+  assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 16); // TIMESHEET-04b (2026-11-27): 15 until then
   assert.doesNotMatch(s, /data-ledger-total-planned|data-ledger-total-logged|totals\.plannedMinutes\)\}<\/td>\n\s*<td[^\n]*data-ledger-total/, 'no minutes in the TOTAL row');
   assert.match(comments(SECTION), /TIME-03 \(Alex, 2026-10-26\): WHERE THE HOURS WENT — Time is LIVE/);
   assert.match(code('src/components/table/DataTable.tsx'), /<th key=\{c\.key\} className=\{c\.kind === 'money' \? `\$\{headClass\} text-right` : headClass\}>/, 'a VALUE head is left-aligned, as the others');

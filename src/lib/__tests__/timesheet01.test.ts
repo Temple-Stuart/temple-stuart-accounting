@@ -17,7 +17,7 @@ import { code, comments } from '../sourceText';
 import { BLANK } from '../budget/format';
 import { buildRoutineBudgetLines, occurrenceKey, readOccurrenceKey, type RoutinePlanInput } from '../budget/days';
 import type { BudgetLine } from '../budget/report';
-import type { PlanVendorRow, RoutineWords } from '../budget/planLines';
+import type { RoutineWords } from '../budget/planLines';
 import type { StayRow } from '../operations/stay';
 import { NOT_RECORDED_WORDS, SKIPPED_WORD, type StopRecordRow } from '../operations/stopRecord';
 import { ALL_DAY_WORDS } from '../operations/work';
@@ -30,7 +30,7 @@ import {
   LEDGER_COLUMNS, LEDGER_CSV, LEDGER_HEAD_WORDS, LEDGER_TABLE, LEDGER_TITLE_WORDS, MONEY_COLUMNS, NO_COLUMN_FILTERS, NO_VALUE_FILTER, PLANNED_WORD, TEXT_COLUMNS, VALUE_COLUMNS, WENT_WORD,
   applyColumnFilters, cellWordsOf, columnKind, columnValues, daysWords, endCellWords, endOf, headWordOf, ledgerCsv, ledgerCsvFileName, ledgerFailedWords, ledgerOf, ledgerSummary, ledgerTotals,
   noRowsWords, notRecordedWords, perDayWords, planKeyOf, planMinutesOf, sortKeyOf, sortRows, startCellWords, startOf, varianceCoverageWords, wentCellWords, wentOf,
-  type LedgerInput, type LedgerLinkInput, type LedgerPlanRow, type LedgerRecordInput, type LedgerRow, type LedgerSaid, type LedgerSheetRow,
+  type LedgerInput, type LedgerLinkInput, type LedgerPlanRow, type LedgerRecordInput, type LedgerRow, type LedgerVendorRow, type LedgerSaid, type LedgerSheetRow,
 } from '../operations/ledger';
 
 const RULES = 'src/lib/operations/ledger.ts';
@@ -80,9 +80,9 @@ const WORDS = new Map<string, RoutineWords>(ROUTINES.map((r): [string, RoutineWo
   name: r.name, timezone: MVD,
   steps: new Map(r.id === 'breakfast' ? [['porridge', { activity: 'Porridge', timeOfDay: '08:15' }], ['juice', { activity: 'Juice', timeOfDay: null }]] : []),
 }]));
-const VENDORS: PlanVendorRow[] = [
-  { id: 'pv-every', routine_id: null, step_id: 'porridge', task_id: null, occurrence_at: null, vendor: { id: 'v1', vendor_name: 'Oat House', entity_id: 'P' }, routine: null, step: { activity: 'Porridge', routine_id: 'breakfast', routine: { name: 'Breakfast', timezone: MVD } }, task: null },
-  { id: 'pv-once', routine_id: 'night', step_id: null, task_id: null, occurrence_at: new Date(at('2027-03-03', '22:00')), vendor: { id: 'v2', vendor_name: 'Stall Nine', entity_id: 'P' }, routine: { name: 'Night market', timezone: MVD }, step: null, task: null },
+const VENDORS: LedgerVendorRow[] = [ // TIMESHEET-04b (2026-11-27): the ledger's vendor rows carry their planned items and their vendor's Instagram tag (ledger.ts LedgerVendorRow; PlanVendorRow until then) — none in this fixture
+  { id: 'pv-every', routine_id: null, step_id: 'porridge', task_id: null, occurrence_at: null, items: null, vendor: { id: 'v1', vendor_name: 'Oat House', entity_id: 'P', instagram_tag: null }, routine: null, step: { activity: 'Porridge', routine_id: 'breakfast', routine: { name: 'Breakfast', timezone: MVD } }, task: null },
+  { id: 'pv-once', routine_id: 'night', step_id: null, task_id: null, occurrence_at: new Date(at('2027-03-03', '22:00')), items: null, vendor: { id: 'v2', vendor_name: 'Stall Nine', entity_id: 'P', instagram_tag: null }, routine: { name: 'Night market', timezone: MVD }, step: null, task: null },
 ];
 /** Tuesday and Wednesday only — Monday has no stay. */
 const STAYS: StayRow[] = [{ id: 'np', place: 'Northport, Freedonia', starts_on: '2027-03-02', ends_on: '2027-03-09' }];
@@ -90,7 +90,7 @@ const ACCOUNTS = [{ entityId: 'P', code: '6150', name: 'Dining Out' }, { entityI
 const BOOKS = [{ id: 'P', entityType: 'personal' }, { id: 'B', entityType: 'sole_prop' }];
 
 const record = (over: Partial<StopRecordRow> & { id: string; kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
-  outcome: 'done', done_at: over.occurrence_at, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+  outcome: 'done', done_at: over.occurrence_at, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
 });
 const line = (r: StopRecordRow, activity: string, timeOfDay: string | null, durationMinutes: number | null): LedgerRecordInput => ({ record: r, routineId: 'breakfast', routineName: 'Breakfast', zone: MVD, role: 'place', activity, timeOfDay, durationMinutes });
 const stop = (routineId: string, routineName: string, role: string, durationMinutes: number | null, r: StopRecordRow): LedgerRecordInput => ({ record: r, routineId, routineName, zone: MVD, role, activity: null, timeOfDay: null, durationMinutes });
@@ -137,20 +137,22 @@ const stopAt = (id: string, day: string, clock: string): string => `routine:${id
 /** A recorded row in the ledger's own shape (ledger04's builder) — for the facts driven directly. */
 const recorded = (over: Partial<LedgerRow> & { readonly id: string }): LedgerRow => ({
   key: `routine:${over.id}:2027-03-01T11:00:00.000Z`, address: { kind: 'routine', id: over.id, instant: '2027-03-01T11:00:00.000Z' }, match: null, day: '2027-03-01', time: '08:00',
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, description: 'Porridge', rating: null, note: null,
+  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Porridge', rating: null, note: null, notes: null, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag, no notes
   cents: null, budgetState: 'none', outcome: 'done', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null, ...over,
 });
 
 // ── WHAT MAIN GIVES: ledgerOf(input()).rows and .said, computed on main 22e26f3 over this fixture (the rule before this
 //    change, which reads no `minutes`) — pinned here so the old list cannot drift under the new one. ──
 
+// TIMESHEET-04b (2026-11-27): a recorded row holds two fields more — instagramTag after vendor, notes after note. Each row below says them: null, for this fixture's
+// vendors hold no tag and its records no notes. Every other field of every row is as it was pinned.
 const MAIN_ROWS: readonly LedgerRow[] = [
-  { id: 'r-porridge-2', key: 'line:porridge:2027-03-02T11:00:00.000Z', address: { kind: 'routine_line', id: 'porridge', instant: '2027-03-02T11:00:00.000Z' }, match: null, day: '2027-03-02', time: '08:15', place: { city: 'Northport', country: 'Freedonia' }, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Oat House', description: 'Porridge', rating: null, note: null, cents: 650, budgetState: 'matched', outcome: 'done', actualCents: 650, varianceCents: 0, plannedMinutes: 30, loggedMinutes: null },
-  { id: 'r-print-2', key: 'routine:print:2027-03-02T14:00:00.000Z', address: { kind: 'routine', id: 'print', instant: '2027-03-02T14:00:00.000Z' }, match: null, day: '2027-03-02', time: '11:00', place: { city: 'Northport', country: 'Freedonia' }, book: 'Business', coa: { account: 'B-6400', name: 'Printing' }, vendor: null, description: 'Print shop', rating: null, note: 'forty copies', cents: 750, budgetState: 'matched', outcome: 'done', actualCents: 600, varianceCents: -150, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-juice-1', key: 'line:juice:2027-03-01T11:00:00.000Z', address: { kind: 'routine_line', id: 'juice', instant: '2027-03-01T11:00:00.000Z' }, match: null, day: '2027-03-01', time: '08:00', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, description: 'Juice', rating: null, note: 'none left', cents: 325, budgetState: 'matched', outcome: 'skipped', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-porridge-1', key: 'line:porridge:2027-03-01T11:00:00.000Z', address: { kind: 'routine_line', id: 'porridge', instant: '2027-03-01T11:00:00.000Z' }, match: { cents: 690, postings: 1, unreadable: 0, reversed: 0 }, day: '2027-03-01', time: '08:15', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Oat House', description: 'Porridge', rating: 4, note: 'with fruit', cents: 650, budgetState: 'matched', outcome: 'done', actualCents: 690, varianceCents: 40, plannedMinutes: 30, loggedMinutes: 25 },
-  { id: 'r-ferry-1', key: 'routine:ferry:2027-03-01T18:00:00.000Z', address: { kind: 'routine', id: 'ferry', instant: '2027-03-01T18:00:00.000Z' }, match: null, day: '2027-03-01', time: '15:00', place: null, book: null, coa: null, vendor: null, description: 'Ferry', rating: null, note: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 1200, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-climbing-1', key: 'routine:climbing:2027-03-01T22:00:00.000Z', address: { kind: 'routine', id: 'climbing', instant: '2027-03-01T22:00:00.000Z' }, match: null, day: '2027-03-01', time: '19:00', place: null, book: 'Personal', coa: { account: 'P-6200', name: 'Sport' }, vendor: null, description: 'Climbing', rating: 5, note: null, cents: 1800, budgetState: 'matched', outcome: 'done', actualCents: 1800, varianceCents: 0, plannedMinutes: 90, loggedMinutes: null },
+  { id: 'r-porridge-2', key: 'line:porridge:2027-03-02T11:00:00.000Z', address: { kind: 'routine_line', id: 'porridge', instant: '2027-03-02T11:00:00.000Z' }, match: null, day: '2027-03-02', time: '08:15', place: { city: 'Northport', country: 'Freedonia' }, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Oat House', instagramTag: null, description: 'Porridge', rating: null, note: null, notes: null, cents: 650, budgetState: 'matched', outcome: 'done', actualCents: 650, varianceCents: 0, plannedMinutes: 30, loggedMinutes: null },
+  { id: 'r-print-2', key: 'routine:print:2027-03-02T14:00:00.000Z', address: { kind: 'routine', id: 'print', instant: '2027-03-02T14:00:00.000Z' }, match: null, day: '2027-03-02', time: '11:00', place: { city: 'Northport', country: 'Freedonia' }, book: 'Business', coa: { account: 'B-6400', name: 'Printing' }, vendor: null, instagramTag: null, description: 'Print shop', rating: null, note: 'forty copies', notes: null, cents: 750, budgetState: 'matched', outcome: 'done', actualCents: 600, varianceCents: -150, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-juice-1', key: 'line:juice:2027-03-01T11:00:00.000Z', address: { kind: 'routine_line', id: 'juice', instant: '2027-03-01T11:00:00.000Z' }, match: null, day: '2027-03-01', time: '08:00', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Juice', rating: null, note: 'none left', notes: null, cents: 325, budgetState: 'matched', outcome: 'skipped', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-porridge-1', key: 'line:porridge:2027-03-01T11:00:00.000Z', address: { kind: 'routine_line', id: 'porridge', instant: '2027-03-01T11:00:00.000Z' }, match: { cents: 690, postings: 1, unreadable: 0, reversed: 0 }, day: '2027-03-01', time: '08:15', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Oat House', instagramTag: null, description: 'Porridge', rating: 4, note: 'with fruit', notes: null, cents: 650, budgetState: 'matched', outcome: 'done', actualCents: 690, varianceCents: 40, plannedMinutes: 30, loggedMinutes: 25 },
+  { id: 'r-ferry-1', key: 'routine:ferry:2027-03-01T18:00:00.000Z', address: { kind: 'routine', id: 'ferry', instant: '2027-03-01T18:00:00.000Z' }, match: null, day: '2027-03-01', time: '15:00', place: null, book: null, coa: null, vendor: null, instagramTag: null, description: 'Ferry', rating: null, note: null, notes: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 1200, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-climbing-1', key: 'routine:climbing:2027-03-01T22:00:00.000Z', address: { kind: 'routine', id: 'climbing', instant: '2027-03-01T22:00:00.000Z' }, match: null, day: '2027-03-01', time: '19:00', place: null, book: 'Personal', coa: { account: 'P-6200', name: 'Sport' }, vendor: null, instagramTag: null, description: 'Climbing', rating: 5, note: null, notes: null, cents: 1800, budgetState: 'matched', outcome: 'done', actualCents: 1800, varianceCents: 0, plannedMinutes: 90, loggedMinutes: null },
 ];
 // TIMESHEET-02 (Alex, 2026-11-24, ruling F.2): the notes that count rows count the rows the table lists — noStay is the sheet's six rows on Monday, the day no stay covers (`noStay: 4`,
 // the four recorded rows of that day, until then — what main 22e26f3 gave). notRecorded stands at 3: the same three rows read "not recorded" (T3). Every other count is as main gave it.
@@ -212,11 +214,11 @@ test('T2 a recorded line is printed on its line’s row, its cells unchanged —
   const plan = rowAt(sheet, lineAt('porridge', '2027-03-03', '08:00'));
   assert.deepEqual(plan, {
     id: null, key: 'line:porridge:2027-03-03T11:00:00.000Z', address: { kind: 'routine_line', id: 'porridge', instant: '2027-03-03T11:00:00.000Z' }, match: null,
-    day: '2027-03-03', time: '08:15', place: { city: 'Northport', country: 'Freedonia' }, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Oat House', description: 'Porridge',
-    rating: null, note: null, cents: 650, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 30, loggedMinutes: null, allDay: false, went: 'planned',
+    day: '2027-03-03', time: '08:15', place: { city: 'Northport', country: 'Freedonia' }, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Oat House', instagramTag: null, description: 'Porridge',
+    rating: null, note: null, plannedItems: null, notes: null, cents: 650, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 30, loggedMinutes: null, allDay: false, went: 'planned',
   } satisfies LedgerPlanRow, 'the plan — day, clock, place, book, account, name, the planned vendor, planned minutes, budget — and null where a record would be');
   // Its cells: the plan's words, and "—" where a record would be.
-  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(plan, c)), ['Wednesday', '2027-03-03', '08:15', '08:45', 'Northport', 'Freedonia', 'Personal', 'P-6150', 'Dining Out', 'Porridge', 'Oat House', 'planned', BLANK, '30', BLANK, '$6.50', BLANK, BLANK, BLANK, BLANK, BLANK]);
+  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(plan, c)), ['Wednesday', '2027-03-03', '08:15', '08:45', 'Northport', 'Freedonia', 'Personal', 'P-6150', 'Dining Out', 'Porridge', 'Oat House', BLANK, 'planned', BLANK, '30', BLANK, '$6.50', BLANK, BLANK, BLANK, BLANK, BLANK, BLANK]); // TIMESHEET-04b (2026-11-27): INSTAGRAM TAG after the vendor and NOTES at the end, both blank — the vendor holds no tag, and a row with no record has no notes
   // The planned vendor by the plan's one grain: the every-occurrence vendor on every porridge, the occurrence vendor on Wednesday's night market alone.
   assert.deepEqual(sheet.filter((r) => r.description === 'Night market').map((r) => r.vendor), [null, null, 'Stall Nine']);
   // The business book's line carries its book and its account with its letter; a code the chart has no name for prints the account alone.
@@ -393,24 +395,25 @@ test('T6 the sheet’s order: day ascending; within a day the all-day rows first
 
 // ── T7 · THE TWENTY-ONE COLUMNS (ruling C) ───────────────────────────────────
 
-test('T7 the columns: twenty-one, in order — START and END after DATE, WENT after VENDOR; the three are VALUE columns through the spec, the filters and the CSV; nothing else moved', () => {
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
-  assert.deepEqual(LEDGER_COLUMNS, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'budget', 'actual', 'variance', 'match', 'underOver', 'description']);
-  assert.equal(LEDGER_COLUMNS.length, 21);
+test('T7 the columns: twenty-three, in order (TIMESHEET-04b; twenty-one until then) — START and END after DATE, WENT after VENDOR; the three are VALUE columns through the spec, the filters and the CSV; nothing else moved', () => {
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION', 'NOTES']); // TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then
+  assert.deepEqual(LEDGER_COLUMNS, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'instagramTag', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'budget', 'actual', 'variance', 'match', 'underOver', 'description', 'notes']); // TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then
+  assert.equal(LEDGER_COLUMNS.length, 23); // TIMESHEET-04b (2026-11-27): twenty-three — 21 until then
   assert.deepEqual([headWordOf('start'), headWordOf('end'), headWordOf('went')], ['START', 'END', 'WENT']);
   // Nothing else moved: without the three, the eighteen stand in their order.
-  assert.deepEqual(LEDGER_HEAD_WORDS.filter((h) => h !== 'START' && h !== 'END' && h !== 'WENT'), ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
+  // TIMESHEET-04b (2026-11-27): INSTAGRAM TAG and NOTES set aside with the three — the eighteen stand as they stood.
+  assert.deepEqual(LEDGER_HEAD_WORDS.filter((h) => h !== 'START' && h !== 'END' && h !== 'WENT' && h !== 'INSTAGRAM TAG' && h !== 'NOTES'), ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
   // The kinds.
   assert.deepEqual([columnKind('start'), columnKind('end'), columnKind('went')], ['value', 'value', 'value'], 'a checklist filter each');
-  assert.deepEqual(VALUE_COLUMNS, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'underOver']);
-  assert.deepEqual([MONEY_COLUMNS, TEXT_COLUMNS], [['budget', 'actual', 'variance', 'match'], ['description']], 'the money and the text columns unchanged');
-  assert.deepEqual(LEDGER_COLUMNS.map(columnKind), ['value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'money', 'money', 'money', 'money', 'value', 'text']);
+  assert.deepEqual(VALUE_COLUMNS, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'instagramTag', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'underOver']); // TIMESHEET-04b (2026-11-27): INSTAGRAM TAG is a VALUE column, after vendor
+  assert.deepEqual([MONEY_COLUMNS, TEXT_COLUMNS], [['budget', 'actual', 'variance', 'match'], ['description', 'notes']], 'the money columns unchanged; NOTES a TEXT column beside DESCRIPTION'); // TIMESHEET-04b (2026-11-27): ['description'] alone, and 'the money and the text columns unchanged', until then
+  assert.deepEqual(LEDGER_COLUMNS.map(columnKind), ['value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'money', 'money', 'money', 'money', 'value', 'text', 'text']); // TIMESHEET-04b (2026-11-27): one more value column before the money (INSTAGRAM TAG) and a second TEXT column at the end (NOTES)
   // The spec, the filters map and the CSV follow.
   assert.deepEqual(LEDGER_TABLE.map((c) => c.key), [...LEDGER_COLUMNS]);
   assert.deepEqual(LEDGER_TABLE.map((c) => c.label), [...LEDGER_HEAD_WORDS]);
   assert.deepEqual(Object.keys(NO_COLUMN_FILTERS).sort(), [...LEDGER_COLUMNS].sort(), 'one filter per column');
   assert.deepEqual([NO_COLUMN_FILTERS.start, NO_COLUMN_FILTERS.end, NO_COLUMN_FILTERS.went], [NO_VALUE_FILTER, NO_VALUE_FILTER, NO_VALUE_FILTER]);
-  assert.equal(ledgerCsv([]), 'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION\r\n');
+  assert.equal(ledgerCsv([]), 'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,INSTAGRAM TAG,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION,NOTES\r\n'); // TIMESHEET-04b (2026-11-27): the header gains INSTAGRAM TAG after VENDOR and NOTES at its end
   // The cell words, the sort key and the CSV field of every column come from the one spec, for either kind of row.
   for (const r of sheet) {
     for (const c of LEDGER_TABLE) {
@@ -468,10 +471,10 @@ test('T7 the CSV carries the three in the same places: a planned row, the all-da
   const lines = ledgerCsv(sheet).split('\r\n');
   assert.equal(lines.length, sheet.length + 2, 'the header, one line per row, and the last CRLF');
   const lineOf = (key: string): string => lines[1 + sheet.findIndex((r) => r.key === key)];
-  assert.equal(lineOf(stopAt('night', '2027-03-03', '22:00')), 'Wednesday,2027-03-03,22:00,02:00,Northport,Freedonia,Personal,P-6150,Dining Out,Night market,Stall Nine,planned,,240,,9.00,,,,,', 'a row not lived yet: the plan, and an empty field where a record would be');
-  assert.equal(lineOf(stopAt('magazine', '2027-03-02', '00:00')), 'Tuesday,2027-03-02,all day,,Northport,Freedonia,Personal,P-7450,,Magazine,,,,,,4.75,,,4.75,,', 'the charge: START the all-day word, END and WENT empty, MATCH the posting linked to it');
-  assert.equal(lineOf(lineAt('porridge', '2027-03-01', '08:00')), 'Monday,2027-03-01,08:15,08:45,,,Personal,P-6150,Dining Out,Porridge,Oat House,went,4,30,25,6.50,6.90,0.40,6.90,over,with fruit', 'a recorded row: START, END and WENT beside the cells it always had');
-  assert.equal(lineOf(stopAt('night', '2027-03-01', '22:00')), 'Monday,2027-03-01,22:00,02:00,,,Personal,P-6150,Dining Out,Night market,,not recorded,,240,,9.00,,,9.00,,');
+  assert.equal(lineOf(stopAt('night', '2027-03-03', '22:00')), 'Wednesday,2027-03-03,22:00,02:00,Northport,Freedonia,Personal,P-6150,Dining Out,Night market,Stall Nine,,planned,,240,,9.00,,,,,,', 'a row not lived yet: the plan, and an empty field where a record would be'); // TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then
+  assert.equal(lineOf(stopAt('magazine', '2027-03-02', '00:00')), 'Tuesday,2027-03-02,all day,,Northport,Freedonia,Personal,P-7450,,Magazine,,,,,,,4.75,,,4.75,,,', 'the charge: START the all-day word, END and WENT empty, MATCH the posting linked to it'); // TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then
+  assert.equal(lineOf(lineAt('porridge', '2027-03-01', '08:00')), 'Monday,2027-03-01,08:15,08:45,,,Personal,P-6150,Dining Out,Porridge,Oat House,,went,4,30,25,6.50,6.90,0.40,6.90,over,with fruit,', 'a recorded row: START, END and WENT beside the cells it always had'); // TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then
+  assert.equal(lineOf(stopAt('night', '2027-03-01', '22:00')), 'Monday,2027-03-01,22:00,02:00,,,Personal,P-6150,Dining Out,Night market,,,not recorded,,240,,9.00,,,9.00,,,'); // TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then
   assert.doesNotMatch(ledgerCsv(sheet), /—/, 'no "—" in the file — a null is an empty field');
   assert.equal(ledgerCsvFileName('2027-03-01', '2027-03-31'), 'time-sheet_2027-03-01_2027-03-31.csv');
   // The CSV's own null path — never a screen helper.
@@ -484,7 +487,7 @@ test('T7 the CSV carries the three in the same places: a planned row, the all-da
 
 // ── T8 · THE FIGURES — NO NEW ARITHMETIC (ruling D) ──────────────────────────
 
-test('T8 the TOTAL row is ledgerTotals over the rows shown, as it stood: BUDGET the period’s whole plan, ACTUAL what was logged, VARIANCE and UNDER / OVER only the rows that carry both; its label spans the fifteen columns before BUDGET', () => {
+test('T8 the TOTAL row is ledgerTotals over the rows shown, as it stood: BUDGET the period’s whole plan, ACTUAL what was logged, VARIANCE and UNDER / OVER only the rows that carry both; its label spans the sixteen columns before BUDGET (TIMESHEET-04b; fifteen until then)', () => {
   const t = ledgerTotals(sheet);
   assert.equal(t.budgetCents, 13750, 'the whole plan: ($6.50 + $3.25 + $7.50 + $18 + $9) × 3 days + the $4.75 charge — the record with no line adds nothing');
   assert.equal(t.actualCents, 4940, 'what was logged: $6.90 + $18 + $12 + $6.50 + $6');
@@ -497,11 +500,11 @@ test('T8 the TOTAL row is ledgerTotals over the rows shown, as it stood: BUDGET 
   const old = ledgerTotals(ledger.rows);
   assert.deepEqual([old.budgetCents, old.actualCents, old.varianceCents, old.withVariance], [4175, 4940, -110, 4]);
   // The span.
-  assert.equal(LEDGER_COLUMNS.indexOf('budget'), 15, 'the columns before BUDGET');
+  assert.equal(LEDGER_COLUMNS.indexOf('budget'), 16, 'the columns before BUDGET'); // TIMESHEET-04b (2026-11-27): INSTAGRAM TAG sits among them — 15 until then
   const s = code(SECTION);
-  assert.match(s, /<th scope="row" colSpan=\{15 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then
+  assert.match(s, /<th scope="row" colSpan=\{16 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // TIMESHEET-04b (2026-11-27): sixteen less the folded — `15 - dayFoldCount(period)` until then. TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
-  assert.equal((tfoot.match(/<td\b/g) ?? []).length, 6, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · DESCRIPTION after the span');
+  assert.equal((tfoot.match(/<td\b/g) ?? []).length, 7, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · DESCRIPTION · NOTES after the span'); // TIMESHEET-04b (2026-11-27): one more cell, under NOTES — six until then
   // No new arithmetic: the totals' body is the one ledger01 pins; only what it is handed widened.
   assert.match(code(RULES), /export function ledgerTotals\(rows: readonly LedgerSheetRow\[\]\): LedgerTotals \{\n\s*const actuals = rows\.map\(\(r\) => r\.actualCents\)\.filter\(\(c\): c is number => c !== null\);\n\s*const totals = dayTotals\(\{ stops: rows, spentCents: actuals\.reduce\(\(sum, c\) => sum \+ c, 0\), withActual: actuals\.length \}, null\);/);
 });
@@ -610,7 +613,7 @@ test('T9 the answer function: the sheet rides the one answer from the reads it a
     { id: 'magazine', name: 'Magazine', role: 'all_day', is_active: true, end_date: null, start_date: null, budget_amount: 4.75, coa_code: '7450', schedule_rrule: 'FREQ=MONTHLY;BYMONTHDAY=2;BYHOUR=0;BYMINUTE=0', timezone: MVD, start_time: null, end_time: null, steps: [] },
   ];
   const RECORD_ROW = {
-    id: 'rec-porridge', routine_id: null, step_id: 'porridge', occurrence_at: day(at('2027-03-02', '08:00')), outcome: 'done', done_at: day(at('2027-03-02', '08:20')), actual_cents: 680, rating: 4, note: null, actual_minutes: 25,
+    id: 'rec-porridge', routine_id: null, step_id: 'porridge', occurrence_at: day(at('2027-03-02', '08:00')), outcome: 'done', done_at: day(at('2027-03-02', '08:20')), actual_cents: 680, rating: 4, note: null, notes: null, actual_minutes: 25, // TIMESHEET-04b (2026-11-27): the table holds a notes column — the fake row says it, as the database would
     routine: null, step: { activity: 'Porridge', time_of_day: time('08:15'), duration_minutes: 30, routine_id: 'breakfast', routine: { name: 'Breakfast', timezone: MVD, role: 'place' } },
   };
   const calls: Call[] = [];
@@ -668,10 +671,10 @@ test('T11 the section draws `sheet`: three cells more in their places, each the 
   assert.doesNotMatch(s, /answer\.read\.value\.rows/, 'the old list is the home ledger’s — not drawn here');
   assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/, 'filtered, sorted, totalled and summed as before');
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(cells, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description'], 'one cell per head word, in its order');
+  assert.deepEqual(cells, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'instagram-tag', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description', 'notes'], 'one cell per head word, in its order'); // TIMESHEET-04b (2026-11-27): the instagram-tag cell after vendor's, the notes cell after description's — twenty-three cells
   assert.equal(cells.length, LEDGER_HEAD_WORDS.length);
   assert.match(s, /data-ledger-cell="date">\{row\.day\}<\/td>\n(?:\s*\{\s*\}\n)?\s*<td className=\{`\$\{cell\} whitespace-nowrap tabular-nums \$\{startOf\(row\) === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="start">\{startCellWords\(row\)\}<\/td>\n\s*<td className=\{`\$\{cell\} whitespace-nowrap tabular-nums \$\{endOf\(row\) === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="end">\{endCellWords\(row\)\}<\/td>\n\s*<td [^\n]*data-ledger-cell="city">/, 'DATE, then START and END, then CITY');
-  assert.match(s, /data-ledger-cell="vendor">\{vendorCellWords\(row\.vendor\)\}<\/td>\n(?:\s*\{\s*\}\n)?\s*<td className=\{`\$\{cell\} whitespace-nowrap \$\{wentOf\(row\) === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="went" title=\{entry\.takes \? undefined : entry\.words\}>\n\s*<span data-ledger-went>\{wentCellWords\(row\)\}<\/span>\n\s*\{entry\.takes && <button [^\n]*data-ledger-record=\{row\.key\}[^\n]*>\{RECORD_WORDS\}<\/button>\}\n\s*<\/td>\n\s*<td [^\n]*data-ledger-cell="stars">/, 'VENDOR, then WENT, then STARS'); // TIMESHEET-02 (Alex, 2026-11-24, ruling E): the word, then the "record" chip on a row that takes one; a row that takes none says why in the cell's title — `data-ledger-cell="went">{wentCellWords(row)}</td>` until then
+  assert.match(s, /data-ledger-cell="vendor">\{vendorCellWords\(row\.vendor\)\}<\/td><td className=\{`\$\{cell\} whitespace-nowrap \$\{row\.instagramTag === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="instagram-tag">\{tagCellWords\(row\.instagramTag\)\}<\/td>\n(?:\s*\{\s*\}\n)?\s*<td className=\{`\$\{cell\} whitespace-nowrap \$\{wentOf\(row\) === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="went" title=\{entry\.takes \? undefined : entry\.words\}>\n\s*<span data-ledger-went>\{wentCellWords\(row\)\}<\/span>\n\s*\{entry\.takes && <button [^\n]*data-ledger-record=\{row\.key\}[^\n]*>\{RECORD_WORDS\}<\/button>\}\n\s*<\/td>\n\s*<td [^\n]*data-ledger-cell="stars">/, 'VENDOR, then INSTAGRAM TAG on its line, then WENT, then STARS'); // TIMESHEET-04b (2026-11-27): the tag's cell stands on the vendor cell's line, after it — the tag with its @, the blank class when null ('VENDOR, then WENT, then STARS' until then). TIMESHEET-02 (Alex, 2026-11-24, ruling E): the word, then the "record" chip on a row that takes one; a row that takes none says why in the cell's title — `data-ledger-cell="went">{wentCellWords(row)}</td>` until then
   // Each row keyed by its own key — a plan row has no record id.
   assert.match(s, /<Fragment key=\{row\.key\}>\n\s*<tr className="border-t border-border" data-ledger-row=\{row\.key\} data-ledger-day=\{row\.day\}>/);
   assert.doesNotMatch(s, /key=\{row\.id\}/);

@@ -26,7 +26,7 @@ import { resolve } from 'node:path';
 import { AuditActionType } from '@prisma/client';
 import { code, comments, rejoin } from '../sourceText';
 import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
-import type { PlanVendorRow, RoutineWords } from '../budget/planLines';
+import type { RoutineWords } from '../budget/planLines';
 import type { StayRow } from '../operations/stay';
 import type { StopRecordRow } from '../operations/stopRecord';
 import { POSTING_LINES_SELECT, amountCentsOf } from '../calendar/postingAmount';
@@ -35,7 +35,7 @@ import {
   PICKER_CANCEL_WORDS, UNLINK_WORDS,
   ledgerCsv, ledgerOf, ledgerTotals, linkKeyOf, matchCellTitle, matchCellWords, matchCoverageWords, matchOf, matchState, matchTotalWords, planMinutesOf, postingAmountWords, postingDateWords, readableMatchCents,
   unreadableWords, varianceCoverageWords,
-  type LedgerInput, type LedgerLinkInput, type LedgerRecordInput, type LedgerRow,
+  type LedgerInput, type LedgerLinkInput, type LedgerRecordInput, type LedgerRow, type LedgerVendorRow,
 } from '../operations/ledger';
 
 const RULES = 'src/lib/operations/ledger.ts';
@@ -87,13 +87,13 @@ const WORDS = new Map<string, RoutineWords>([
   ['morning', { name: 'Morning', timezone: BKK, steps: new Map([['coffee', { activity: 'Coffee', timeOfDay: '07:30' }], ['stretch', { activity: 'Stretch', timeOfDay: '06:30' }], ['lunch', { activity: 'Lunch', timeOfDay: '12:00' }]]) }],
   ['client', { name: 'Client lunch', timezone: BKK, steps: new Map() }],
 ]);
-const VENDORS: PlanVendorRow[] = [];
+const VENDORS: LedgerVendorRow[] = []; // TIMESHEET-04b (2026-11-27): the ledger's vendor rows carry their planned items and their vendor's Instagram tag (ledger.ts LedgerVendorRow; PlanVendorRow until then) — none in this fixture
 const STAYS: StayRow[] = [{ id: 'cnx', place: 'Chiang Mai, Thailand 🇹🇭', starts_on: '2026-10-13', ends_on: '2026-10-20' }];
 const ACCOUNTS = [{ entityId: 'P', code: '5100', name: 'Meals' }, { entityId: 'B', code: '6100', name: 'Client meals' }];
 const BOOKS = [{ id: 'P', entityType: 'personal' }, { id: 'B', entityType: 'sole_prop' }];
 
 const record = (over: Partial<StopRecordRow> & { id: string; kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
-  outcome: 'done', done_at: `${over.occurrence_at.slice(0, 11)}00:41:00.000Z`, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+  outcome: 'done', done_at: `${over.occurrence_at.slice(0, 11)}00:41:00.000Z`, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
 });
 const morningLine = (r: StopRecordRow, activity: string, timeOfDay: string): LedgerRecordInput => ({ record: r, routineId: 'morning', routineName: 'Morning', zone: BKK, role: 'place', activity, timeOfDay, durationMinutes: null }); // TIME-03: the input grows additively — null here, time03.test.ts drives the minutes
 
@@ -267,10 +267,10 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
   const lines = ledgerCsv(ledger.rows).split('\r\n');
   const field = (id: string, i: number): string => lines[1 + ledger.rows.findIndex((r) => r.id === id)].split(',')[i];
   const MATCH = LEDGER_HEAD_WORDS.indexOf('MATCH');
-  assert.equal(MATCH, 18); // TIMESHEET-01 (Alex, 2026-11-24): START, END and WENT sit before it — 15 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
+  assert.equal(MATCH, 19); // TIMESHEET-04b (2026-11-27): INSTAGRAM TAG sits before it too, after VENDOR — 18 until then. TIMESHEET-01 (Alex, 2026-11-24): START, END and WENT sit before it — 15 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
   assert.equal(field('r-coffee-13', MATCH), '8.98');
-  assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-coffee-13')], /,10\.00,8\.98,-1\.02,8\.98,under,"khao soi, ""the good one"""$/, 'BUDGET · ACTUAL · VARIANCE · MATCH 8.98 · UNDER / OVER');
-  assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-client-13')], /,25\.00,30\.00,5\.00,30\.00,over,$/);
+  assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-coffee-13')], /,10\.00,8\.98,-1\.02,8\.98,under,"khao soi, ""the good one""",$/, 'BUDGET · ACTUAL · VARIANCE · MATCH 8.98 · UNDER / OVER'); // TIMESHEET-04b (2026-11-27): the line ends with the empty NOTES field after DESCRIPTION — it ended with DESCRIPTION until then
+  assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-client-13')], /,25\.00,30\.00,5\.00,30\.00,over,,$/); // TIMESHEET-04b (2026-11-27): an empty DESCRIPTION, then the empty NOTES
   assert.equal(field('r-yoga-12', MATCH), '', 'unreadable: empty');
   assert.equal(field('r-stretch-13', MATCH), '', 'no link: empty');
   assert.equal(field('r-lunch-13', MATCH), '15.00');
@@ -283,7 +283,7 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
   assert.match(s, /<td className=\{`\$\{money\} \$\{totals\.matchCents === null \? BLANK_CLASS : ''\}`\} data-ledger-total-match>\{matchTotalWords\(totals\.matchCents\)\}<\/td>/, 'the TOTAL row’s MATCH, no tone');
   assert.match(s, /\{shown\.length > 0 && <p data-ledger-said-match>\{matchCoverageWords\(totals\.withMatch, shown\.length\)\}<\/p>\}/, 'the coverage line');
   assert.doesNotMatch(s, /MATCH_NOTE_WORDS|MATCH_CELL_WORDS/);
-  assert.equal(LEDGER_HEAD_WORDS.length, 21, 'the cue is a tone, not a column (TIME-03 added the two minutes columns and TIMESHEET-01 START, END and WENT — not a MATCH cue)'); // TIMESHEET-01 (Alex, 2026-11-24): twenty-one — 18 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
+  assert.equal(LEDGER_HEAD_WORDS.length, 23, 'the cue is a tone, not a column (TIME-03 added the two minutes columns, TIMESHEET-01 START, END and WENT, TIMESHEET-04b INSTAGRAM TAG and NOTES — not a MATCH cue)'); // TIMESHEET-04b (2026-11-27): twenty-three — 21 until then. TIMESHEET-01 (Alex, 2026-11-24): twenty-one — 18 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
 });
 
 // ── R4 · THE PICKER ─────────────────────────────────────────────────────────

@@ -41,7 +41,9 @@ test('A taskLedgerAnswerOf(db, userId, span, now) holds the route\'s body verbat
     'Promise.all(entities.map(async (e) => ({ entityId: e.id, rows: await loadRoutineBudgetInputs(db, userId, e.id) }))),',
     'db.operations_routines.findMany({ where: { user_id: userId }, select: { id: true, role: true } }),',
     'db.planned_item_vendors.findMany({', 'where: { user_id: userId, OR: [{ occurrence_at: null }, { occurrence_at: { gte: vendorsFrom, lt: vendorsTo } }] },',
-    'vendor: { select: { id: true, vendor_name: true, entity_id: true } },', 'task: { select: { title: true } },',
+    // TIMESHEET-04b (2026-11-27): the plan-vendor read's select reads two more columns of the rows it already read — the row's planned items (on the select's first line) and its vendor's
+    // Instagram tag. No query is added, removed, widened or reordered. Until then the vendor's line read 'vendor: { select: { id: true, vendor_name: true, entity_id: true } },'.
+    'id: true, routine_id: true, step_id: true, task_id: true, occurrence_at: true, items: true,', 'vendor: { select: { id: true, vendor_name: true, entity_id: true, instagram_tag: true } },', 'task: { select: { title: true } },',
     "db.operations_stays.findMany({ where: { user_id: userId }, orderBy: { starts_on: 'asc' } }),",
     'db.operations_stop_records.findMany({', 'where: { user_id: userId, occurrence_at: recordsWindowOf(from, to) },', 'include: RECORD_PLAN,', "orderBy: { occurrence_at: 'asc' },",
     "db.operations_stop_records.findFirst({ where: { user_id: userId }, include: RECORD_PLAN, orderBy: { occurrence_at: 'asc' } }),",
@@ -139,7 +141,7 @@ function fakeDb(rows: Readonly<Record<string, readonly unknown[]>>, calls: Call[
 const at = (iso: string): Date => new Date(iso);
 const RECORD = {
   id: 'rec-gym', routine_id: 'r-gym', step_id: null, occurrence_at: at('2026-11-20T12:00:00Z'), outcome: 'done', done_at: at('2026-11-20T12:50:00Z'),
-  actual_cents: 500, rating: 4, note: null, actual_minutes: 50,
+  actual_cents: 500, rating: 4, note: null, notes: null, actual_minutes: 50, // TIMESHEET-04b (2026-11-27): the table holds a notes column — the fake row says it, as the database would
   routine: { name: 'Gym', timezone: 'Asia/Makassar', role: 'place', start_time: at('1970-01-01T20:00:00Z'), end_time: at('1970-01-01T21:00:00Z') },
   step: null,
 } as const;

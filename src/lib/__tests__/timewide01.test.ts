@@ -243,12 +243,12 @@ test('T8 the registry’s Time row cites the same thirteen lines as on main, and
     ['stops/stopWrites.ts:39', `${OPS}/stops/stopWrites.ts`, /const res = await fetch\('\/api\/operations\/stops', \{/],
     ['ledger/RecordForm.tsx:126', `${OPS}/ledger/RecordForm.tsx`, /void write\(\(\) => setStopRecord\(body\)\);/],
     ['ledger/ExpenseForm.tsx:87', `${OPS}/ledger/ExpenseForm.tsx`, /const created = await createOneOff\(oneOffBody\(v\)\);/],
-    ['src/lib/operations/ledger.ts:1342', RULES, /^export const LEDGER_HEAD_WORDS = \[/],
+    ['src/lib/operations/ledger.ts:1426', RULES, /^export const LEDGER_HEAD_WORDS = \[/], // TIMESHEET-04b (2026-11-27): the rule file grew above this line (the sheet's two columns, a plan row's planned items, the record form's NOTES) and the registry re-pointed its cite — :1342 until then
     ['src/lib/operations/ledgerAnswer.ts:43', 'src/lib/operations/ledgerAnswer.ts', /duration_minutes: true/],
     ['src/lib/operations/ledgerAnswer.ts:42', 'src/lib/operations/ledgerAnswer.ts', /start_time: true, end_time: true/],
     ['src/components/workbench/operations/ledger/LedgerSection.tsx:368', SECTION, /data-ledger-cell="planned-minutes"/],
     ['LedgerSection.tsx:475', SECTION, /data-ledger-group-planned-hours/],
-    ['src/lib/operations/ledger.ts:1359', RULES, /^export const SUMMARY_HEAD_WORDS = \[/],
+    ['src/lib/operations/ledger.ts:1443', RULES, /^export const SUMMARY_HEAD_WORDS = \[/], // TIMESHEET-04b (2026-11-27): re-pointed with it — :1359 until then
     ['LedgerSection.tsx:432', SECTION, /data-ledger-said-planned/],
   ];
   assert.deepEqual(cited, HOLDS.map(([citation]) => citation), 'the same lines, in the same order');
@@ -261,17 +261,17 @@ test('T8 the registry’s Time row cites the same thirteen lines as on main, and
   assert.match(linesOf('src/app/api/operations/stops/route.ts')[176] ?? '', /operations_stop_records\.create\(/);
   // Nothing cites a line of the rule file below its last cited one, so a constant added at its end moves no citation.
   const ruleLines = cited.filter((c) => c.startsWith(`${RULES}:`)).map((c) => Number(c.slice(c.lastIndexOf(':') + 1)));
-  assert.deepEqual(ruleLines, [1342, 1359]);
+  assert.deepEqual(ruleLines, [1426, 1443]); // TIMESHEET-04b (2026-11-27): [1342, 1359] until then
   assert.ok(linesOf(RULES).length > Math.max(...ruleLines));
   assert.equal(linesOf(RULES).findIndex((line) => line.startsWith('export const LEDGER_TABLE_CLASS')) + 1, linesOf(RULES).length, 'the constant is the last line — below every cited one');
 });
 
 // ── T9 · THE SHEET'S WORDS ───────────────────────────────────────────────────
 
-test('T9 the sheet’s columns are as they were — twenty-one head words in their order; the long heads the class lets wrap are each of several words; the class changes no word', () => {
-  assert.deepEqual([...LEDGER_HEAD_WORDS], ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
-  assert.equal(LEDGER_HEAD_WORDS.length, 21);
-  // A head can go onto a second line only at a space: the four long ones each have one.
+test('T9 the sheet’s columns are as they were — twenty-three head words in their order (TIMESHEET-04b; twenty-one until then); the long heads the class lets wrap are each of several words; the class changes no word', () => {
+  assert.deepEqual([...LEDGER_HEAD_WORDS], ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION', 'NOTES']); // TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then
+  assert.equal(LEDGER_HEAD_WORDS.length, 23); // TIMESHEET-04b (2026-11-27): 21 until then
+  // A head can go onto a second line only at a space: the four long ones each have one (TIMESHEET-04b: INSTAGRAM TAG is a fifth head of two words — the class lets it wrap as it lets these).
   const several = LEDGER_HEAD_WORDS.filter((head) => head.includes(' '));
   for (const long of ['SUB ACCOUNT NAME', 'PLANNED MIN', 'LOGGED MIN', 'UNDER / OVER']) assert.ok(several.includes(long as (typeof several)[number]), `${long}: of several words`);
   // The class is classes only: a width and three variants of two utilities — no content, no order, no visibility.
