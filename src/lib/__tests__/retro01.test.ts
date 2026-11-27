@@ -342,7 +342,7 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
   const refusals: [Partial<ExpenseDraft>, string, string][] = [
     [{ day: '' }, 'day', requiredWords('day')], [{ day: 'Oct 13' }, 'day', dayTypedWords('Oct 13')],
     [{ time: '' }, 'time', requiredWords('time')], [{ time: '25:00' }, 'time', timeTypedWords('25:00')], [{ time: '9:30' }, 'time', timeTypedWords('9:30')],
-    [{ name: '  ' }, 'name', requiredWords('name')], [{ name: 'x'.repeat(201) }, 'name', 'NAME is at most 200 characters'],
+    [{ name: '  ' }, 'name', requiredWords('name')], [{ name: 'x'.repeat(182) }, 'name', 'NAME is at most 181 characters'], // PASTE-02b (Alex, 2026-11-27): a name is at most 181 — the one-off's routine carries its day and time after the name, and the two fit the column's 200; 201 characters and 'NAME is at most 200 characters' until then
     [{ amount: '' }, 'amount', requiredWords('amount')], [{ amount: '0' }, 'amount', AMOUNT_ZERO_WORDS], [{ amount: '-5' }, 'amount', 'an amount is 0 or more'], [{ amount: 'ten' }, 'amount', '"ten" is not an amount (dollars, at most two decimals)'],
     [{ coa: '' }, 'coa', requiredWords('coa')], [{ book: '' }, 'book', requiredWords('book')],
     [{ vendorId: 'v1', vendorName: 'Luka' }, 'vendor', VENDOR_BOTH_WORDS],
@@ -355,7 +355,7 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
   // The one-off: cadence once on the day at the time in the zone, role place, ONE line — the thing itself, the amount and the COA on it, nothing on the routine.
   const body = oneOffBody(v);
   assert.equal(body.cadence_mode, 'once');
-  assert.deepEqual([body.start_date, body.end_date, body.start_time, body.byhour, body.byminute, body.timezone, body.role, body.entity_id, body.name, body.is_active], [DAY, '', '12:30', '12', '30', BKK, 'place', 'P', 'Khao soi', true]);
+  assert.deepEqual([body.start_date, body.end_date, body.start_time, body.byhour, body.byminute, body.timezone, body.role, body.entity_id, body.name, body.is_active], [DAY, '', '12:30', '12', '30', BKK, 'place', 'P', `Khao soi · ${DAY} 12:30`, true]); // PASTE-02b (Alex, 2026-11-27): the routine is named for its day and time — the name, ' · ', the day, a space, the time; the bare name until then. The line, below, keeps the bare name
   assert.deepEqual(body.lines, [{ activity: 'Khao soi', budget_amount: '7.50', coa_code: '6150' }]);
   assert.deepEqual([body.budget_amount, body.coa_code, body.location, body.latitude, body.longitude, body.description, body.custom_rrule, body.weekly_byday], ['', '', '', '', '', '', '', []]);
   assert.deepEqual(vendorBody(v, 'line-1', 'v1'), { kind: 'routine_line', id: 'line-1', instant: '2026-10-13T05:30:00.000Z', vendorId: 'v1' });

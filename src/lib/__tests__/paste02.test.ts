@@ -328,11 +328,13 @@ test('T4 a new one-off is "+ expense"’s: its values are that form’s one rule
   assert.equal(flat.shown.lands, `a one-off at 20:00, under P-6200 Recreation · vendor: new to Personal · recorded: went, $18.00 · ${END_IS_START_WORDS}`);
   assert.equal(sheetCells(landed(BOWLING, ONE_OFF('6200')).shown.sheet).end, '21:30', 'the END is shown when its minutes are written');
   // The form's rule refusing: the row is refused under the column its box was filled from, in the form's own words.
-  const long = landed({ ...BOWLING, Type: 'b'.repeat(201) }, ONE_OFF('6200'));
+  // PASTE-02b (Alex, 2026-11-27): a name is at most 181 characters — the one-off's routine is named for its day and time, and the name with that tail fits the column's 200. Until then
+  // the refused Type was 201 characters, the words 'NAME is at most 200 characters', and the longest Type that landed 200.
+  const long = landed({ ...BOWLING, Type: 'b'.repeat(182) }, ONE_OFF('6200'));
   assert.deepEqual(refusedAt(long.placement), ['Type', NAME_LONG_WORDS]);
-  assert.equal(NAME_LONG_WORDS, 'NAME is at most 200 characters');
+  assert.equal(NAME_LONG_WORDS, 'NAME is at most 181 characters');
   assert.deepEqual([long.shown.lands, long.shown.tone], [`Type — ${NAME_LONG_WORDS}`, 'refused']);
-  assert.equal(oneOff(landed({ ...BOWLING, Type: 'b'.repeat(200) }, ONE_OFF('6200')).placement).name, 'b'.repeat(200));
+  assert.equal(oneOff(landed({ ...BOWLING, Type: 'b'.repeat(181) }, ONE_OFF('6200')).placement).name, 'b'.repeat(181));
 });
 
 // ── T5 · THE COUNTS AND LANDS (ruling A.5) ───────────────────────────────────
@@ -551,8 +553,9 @@ test('T9 the runner writes a row at a time, each step in its order with its own 
   // The bodies are "+ expense"'s own: a one-off of one line in the book, its vendor on that line's occurrence, its record done at the stop's own instant.
   assert.deepEqual(vendorBody(bowling, 'line-of-rt-1', 'v-new-1'), { kind: 'routine_line', id: 'line-of-rt-1', instant: at(SUN, '20:00'), vendorId: 'v-new-1' });
   assert.deepEqual(recordBody(bowling, 'line-of-rt-1'), { kind: 'routine_line', id: 'line-of-rt-1', instant: at(SUN, '20:00'), outcome: 'done', done_at: at(SUN, '20:00'), actual_cents: 1800, rating: null, note: 'two games', actual_minutes: null });
+  // PASTE-02b (Alex, 2026-11-27): the routine is named for its day and time — the bare name ('Bowling') until then; its one line keeps the bare name.
   const body = oneOffBody(bowling);
-  assert.deepEqual([body.name, body.entity_id, body.cadence_mode, body.start_date, body.start_time, body.timezone, body.lines], ['Bowling', 'P', 'once', SUN, '20:00', NBO, [{ activity: 'Bowling', budget_amount: '20.00', coa_code: '6200' }]]);
+  assert.deepEqual([body.name, body.entity_id, body.cadence_mode, body.start_date, body.start_time, body.timezone, body.lines], [`Bowling · ${SUN} 20:00`, 'P', 'once', SUN, '20:00', NBO, [{ activity: 'Bowling', budget_amount: '20.00', coa_code: '6200' }]]);
   // Every record the save sends is one the stops rule takes, with the clock the rows were placed with.
   for (const call of calls) if (call[0] === 'setRecord') assert.ok(stopInput(call[1], NOW).ok, JSON.stringify(call[1]));
   // One outcome a write, in order: every step it had.

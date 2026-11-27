@@ -1600,7 +1600,23 @@ export const requiredWords = (field: ExpenseField): string => `${EXPENSE_FIELD_W
 export const dayTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a 'YYYY-MM-DD' day`;
 export const timeTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a time (HH:MM)`;
 export const starsTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not 1 to 5`;
-export const NAME_LONG_WORDS = 'NAME is at most 200 characters';
+// ── PASTE-02b (Alex, 2026-11-27): A ONE-OFF'S ROUTINE IS NAMED FOR ITS DAY AND TIME ──
+// The routines hold ONE name a user: the table's own rule (prisma/schema.prisma operations_routines — @@unique([user_id, name])), which the
+// create route asks first and refuses 409 (routines/route.ts), and the rename too (routines/[id]/route.ts). A one-off was a routine named
+// by the expense's own name — so a second expense of one name, on another day or at another time, was refused, in "+ expense" and in the
+// paste's save alike (both send oneOffBody, below), and that stop was never written.
+//   Now the ROUTINE's name is the expense's name, ' · ', its day and its time — the values' own, in the zone the form reads them in;
+// nothing is looked up. A name on another day, or at another time, is another routine, and the one-name rule stands as it is. The tail is
+// 19 characters, so a name is at most 181 (200 until then): the routine's name always fits its column (VarChar(200)), and the form
+// refuses first what the route would.
+//   The one-off's LINE keeps the bare name (oneOffBody — `activity: v.name`): the line is what the time sheet prints under SUB ACCOUNT
+// NAME (dayCard.ts stopName — the line when there is one) and what Expenses prints under its own SUB ACCOUNT NAME (work.ts
+// routineSubAccountOf); the routine's name is what Expenses' routine column prints (work.ts routineNameOf). No routine that stands is
+// read or touched by this: a one-off made before it has the name it was given.
+export const ONE_OFF_NAME_TAIL = ' · YYYY-MM-DD HH:MM'.length;
+export const ONE_OFF_NAME_MAX = 200 - ONE_OFF_NAME_TAIL;
+export const oneOffRoutineName = (v: Pick<ExpenseValues, 'name' | 'day' | 'time'>): string => `${v.name} · ${v.day} ${v.time}`;
+export const NAME_LONG_WORDS = `NAME is at most ${ONE_OFF_NAME_MAX} characters`;
 export const AMOUNT_ZERO_WORDS = 'an expense has an amount above 0';
 export const VENDOR_BOTH_WORDS = 'pick a vendor or type a new name — not both';
 
@@ -1656,7 +1672,7 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
   if (!TIME_RE.test(draft.time)) return refuseExpense('time', timeTypedWords(draft.time));
   const name = draft.name.trim().replace(/\s+/g, ' ');
   if (name === '') return refuseExpense('name', requiredWords('name'));
-  if (name.length > 200) return refuseExpense('name', NAME_LONG_WORDS);
+  if (name.length > ONE_OFF_NAME_MAX) return refuseExpense('name', NAME_LONG_WORDS);
   const amount = draft.amount.trim();
   if (amount === '') return refuseExpense('amount', requiredWords('amount'));
   const amountCents = centsOf(amount);
@@ -1698,9 +1714,9 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
   };
 }
 
-/** The create route's body: a one-off (cadence once on the day, at the time, in the zone), role place, one line — the thing itself, with the amount and the COA. */
+/** The create route's body: a one-off (cadence once on the day, at the time, in the zone), role place, one line — the thing itself, with the amount and the COA. PASTE-02b (2026-11-27): the routine is named for its day and time (oneOffRoutineName) — the bare name until then, which the one-name rule refused the second time; its line keeps the bare name. */
 export const oneOffBody = (v: ExpenseValues): RoutineForm => ({
-  name: v.name, description: '', entity_id: v.bookId,
+  name: oneOffRoutineName(v), description: '', entity_id: v.bookId,
   cadence_mode: 'once', days: 'once' /* FORM-01 (2026-10-19): the form's days choice — a one-off */, weekly_byday: [], monthly_day_of_month: '1', monthly_nth: '1', monthly_weekday: 'MO', custom_rrule: '',
   byhour: v.time.slice(0, 2), byminute: v.time.slice(3, 5), timezone: v.zone,
   ideal_time_label: '', fail_threshold_minutes: '0', role: 'place',
