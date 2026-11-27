@@ -83,7 +83,7 @@ export default function PasteRows({ onWritten }: { onWritten: (days: readonly st
   // PASTE-02: the picks live here, above the box — kept through a read and through closing the box. React state only: nothing is stored.
   const [picks, setPicks] = useState<Picks>({});
   return (
-    <div className="space-y-2" data-ledger-paste>
+    <div className={open ? 'order-last w-full space-y-2' : 'contents'} data-ledger-paste>
       {!open && <button type="button" className={chip} onClick={() => setOpen(true)} data-ledger-paste-open>{PASTE_OPEN_WORDS}</button>}
       {open && <Box close={() => setOpen(false)} picks={picks} setPicks={setPicks} onWritten={onWritten} />}
     </div>

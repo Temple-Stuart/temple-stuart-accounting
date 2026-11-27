@@ -134,7 +134,7 @@ const teaOn = (day: string): BudgetLine => {
 /** Monday's tea twice (and a record there), Tuesday's tea twice (and none). */
 const LINES: readonly BudgetLine[] = [...built.lines, teaOn(MON), teaOn(TUE)];
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: MON, to: WED, now: NOW, records: RECORDS, links: LINKS, lines: LINES, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over,
+  from: MON, to: WED, now: NOW, records: RECORDS, links: LINKS, lines: LINES, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
 });
 const ledger = ledgerOf(input());
 const { sheet, recording } = ledger;
@@ -163,12 +163,12 @@ const refusedWith = (entry: LedgerRecording | undefined, what: string): string =
 //    the old list cannot drift under the new key. On main the same fixture said noStay 4, notRecorded 3 and reversed 1 (T4). ──
 
 // TIMESHEET-04b (2026-11-27): a recorded row holds two fields more — instagramTag after vendor, notes after note. Each row below says them: null, for this fixture's
-// vendors hold no tag and its records no notes. Every other field of every row is as it was pinned.
+// vendors hold no tag and its records no notes. Every other field of every row is as it was pinned. COALEVELS-01 (2026-11-27): and two more, after book — location and segments: no routine of this fixture says a Location and none of its accounts holds a sub-account, so a row with a line holds { entity, category, code } and null for the other two levels; a row with no line (or with two) holds null for both.
 const MAIN_ROWS: readonly LedgerRow[] = [
-  { id: 'r-kiosk-1', key: 'routine:kiosk:2027-05-10T07:00:00.000Z', address: { kind: 'routine', id: 'kiosk', instant: '2027-05-10T07:00:00.000Z' }, match: null, day: '2027-05-10', time: '10:00', place: null, book: null, coa: null, vendor: null, instagramTag: null, description: 'Kiosk', rating: null, note: null, notes: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 150, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-bread-1', key: 'line:bread:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'bread', instant: '2027-05-10T09:30:00.000Z' }, match: null, day: '2027-05-10', time: '12:30', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Bread', rating: null, note: 'sold out', notes: null, cents: 225, budgetState: 'matched', outcome: 'skipped', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-soup-1', key: 'line:soup:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'soup', instant: '2027-05-10T09:30:00.000Z' }, match: { cents: 600, postings: 1, unreadable: 0, reversed: 1 }, day: '2027-05-10', time: '12:45', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Ladle & Co', instagramTag: null, description: 'Soup', rating: 4, note: 'with rice', notes: null, cents: 550, budgetState: 'matched', outcome: 'done', actualCents: 600, varianceCents: 50, plannedMinutes: 20, loggedMinutes: 18 },
-  { id: 'r-tea-1', key: 'routine:tea:2027-05-10T12:00:00.000Z', address: { kind: 'routine', id: 'tea', instant: '2027-05-10T12:00:00.000Z' }, match: null, day: '2027-05-10', time: '15:00', place: null, book: null, coa: null, vendor: null, instagramTag: null, description: 'Tea', rating: null, note: null, notes: null, cents: null, budgetState: 'doubled', outcome: 'done', actualCents: 300, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-kiosk-1', key: 'routine:kiosk:2027-05-10T07:00:00.000Z', address: { kind: 'routine', id: 'kiosk', instant: '2027-05-10T07:00:00.000Z' }, match: null, day: '2027-05-10', time: '10:00', place: null, book: null, location: null, segments: null, coa: null, vendor: null, instagramTag: null, description: 'Kiosk', rating: null, note: null, notes: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 150, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-bread-1', key: 'line:bread:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'bread', instant: '2027-05-10T09:30:00.000Z' }, match: null, day: '2027-05-10', time: '12:30', place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Bread', rating: null, note: 'sold out', notes: null, cents: 225, budgetState: 'matched', outcome: 'skipped', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-soup-1', key: 'line:soup:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'soup', instant: '2027-05-10T09:30:00.000Z' }, match: { cents: 600, postings: 1, unreadable: 0, reversed: 1 }, day: '2027-05-10', time: '12:45', place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Ladle & Co', instagramTag: null, description: 'Soup', rating: 4, note: 'with rice', notes: null, cents: 550, budgetState: 'matched', outcome: 'done', actualCents: 600, varianceCents: 50, plannedMinutes: 20, loggedMinutes: 18 },
+  { id: 'r-tea-1', key: 'routine:tea:2027-05-10T12:00:00.000Z', address: { kind: 'routine', id: 'tea', instant: '2027-05-10T12:00:00.000Z' }, match: null, day: '2027-05-10', time: '15:00', place: null, book: null, location: null, segments: null, coa: null, vendor: null, instagramTag: null, description: 'Tea', rating: null, note: null, notes: null, cents: null, budgetState: 'doubled', outcome: 'done', actualCents: 300, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
 ];
 
 // ── T1 · THE OLD LIST STAYS; ONE KEY MORE (ruling B) ─────────────────────────
@@ -176,7 +176,7 @@ const MAIN_ROWS: readonly LedgerRow[] = [
 test('T1 `rows` is what main gives for the same fixture and no field is added to a row of it; the rule gains ONE key, `recording`, after `sheet` — exactly the sheet’s keys, in its order', () => {
   assert.deepEqual(ledger.rows, MAIN_ROWS, 'the recorded expenses, cell for cell, in main’s order');
   for (const row of ledger.rows) assert.deepEqual(Object.keys(row), Object.keys(MAIN_ROWS[0]), `${row.id}: the row’s shape is main’s — nothing added to LedgerRow`);
-  assert.deepEqual(Object.keys(MAIN_ROWS[0]), ['id', 'key', 'address', 'match', 'day', 'time', 'place', 'book', 'coa', 'vendor', 'instagramTag', 'description', 'rating', 'note', 'notes', 'cents', 'budgetState', 'outcome', 'actualCents', 'varianceCents', 'plannedMinutes', 'loggedMinutes']); // TIMESHEET-04b (2026-11-27): a recorded row holds two fields more — instagramTag after vendor, notes after note (the twenty without them until then). TIMESHEET-02 itself added none.
+  assert.deepEqual(Object.keys(MAIN_ROWS[0]), ['id', 'key', 'address', 'match', 'day', 'time', 'place', 'book', 'location', 'segments', 'coa', 'vendor', 'instagramTag', 'description', 'rating', 'note', 'notes', 'cents', 'budgetState', 'outcome', 'actualCents', 'varianceCents', 'plannedMinutes', 'loggedMinutes']); // TIMESHEET-04b (2026-11-27): a recorded row holds two fields more — instagramTag after vendor, notes after note (the twenty without them until then). TIMESHEET-02 itself added none. COALEVELS-01 (2026-11-27): and two more — location and segments after book (the twenty-two without them until then).
   assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'said'], 'ONE key more, after the sheet');
   // One entry for EVERY row of the sheet, by the row's key, in the sheet's order — and no entry besides.
   assert.equal(sheet.length, 20);
@@ -191,7 +191,7 @@ test('T1 `rows` is what main gives for the same fixture and no field is added to
   const rules = code(RULES);
   assert.match(rules, /rows,\n\s*sheet,\n\s*recording,\n\s*said: \{/, 'rows, then the sheet, then recording, then what is said');
   assert.match(rules, /const rows: LedgerRow\[\] = expenses\.map\(\(\{ r, day, time \}\) => \{/);
-  assert.match(rules, /export interface LedgerInput \{\n\s*readonly from: string;\n\s*readonly to: string;\n\s*readonly now: Date;\n\s*readonly records: readonly LedgerRecordInput\[\];\n\s*readonly links: readonly LedgerLinkInput\[\];\n\s*readonly lines: readonly BudgetLine\[\];\n\s*readonly notPlaced: readonly NotPlaced\[\];\n\s*readonly routines: ReadonlyMap<string, RoutineWords>;\n\s*readonly roles: ReadonlyMap<string, string>;\n\s*readonly minutes: ReadonlyMap<string, number \| null>;\n\s*readonly vendors: readonly LedgerVendorRow\[\];\n\s*readonly stays: readonly StayRow\[\];\n\s*readonly accounts: readonly LedgerAccount\[\];\n\s*readonly books: readonly LedgerBook\[\];\n\}/, 'LedgerInput gains no key'); // TIMESHEET-04b (2026-11-27): the vendors' rows are LedgerVendorRow — the Budget's row with its planned items and its vendor's tag. "readonly PlanVendorRow[]" and 'LedgerInput gains nothing' until then
+  assert.match(rules, /export interface LedgerInput \{\n\s*readonly from: string;\n\s*readonly to: string;\n\s*readonly now: Date;\n\s*readonly records: readonly LedgerRecordInput\[\];\n\s*readonly links: readonly LedgerLinkInput\[\];\n\s*readonly lines: readonly BudgetLine\[\];\n\s*readonly notPlaced: readonly NotPlaced\[\];\n\s*readonly routines: ReadonlyMap<string, RoutineWords>;\n\s*readonly roles: ReadonlyMap<string, string>;\n\s*readonly locations: ReadonlyMap<string, LocationClass \| null>;\n\s*readonly subAccounts: readonly LedgerSubAccount\[\];\n\s*readonly minutes: ReadonlyMap<string, number \| null>;\n\s*readonly vendors: readonly LedgerVendorRow\[\];\n\s*readonly stays: readonly StayRow\[\];\n\s*readonly accounts: readonly LedgerAccount\[\];\n\s*readonly books: readonly LedgerBook\[\];\n\}/, 'LedgerInput, key by key'); // COALEVELS-01 (2026-11-27): the input gains two keys, after roles — every routine's Location and the caller's sub-accounts; 'LedgerInput gains no key' until then. TIMESHEET-04b (2026-11-27): the vendors' rows are LedgerVendorRow — the Budget's row with its planned items and its vendor's tag. "readonly PlanVendorRow[]" and 'LedgerInput gains nothing' until then
 });
 
 // ── T2 · WHICH ROWS TAKE A RECORD (ruling A) ─────────────────────────────────
@@ -428,7 +428,7 @@ test('T6 the body: a first went is done at the planned instant; an edited went k
   assert.deepEqual(bodyOf(BLANK_DRAFT), { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30'), outcome: 'done', done_at: PLANNED, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null }, 'every blank box null — never 0'); // TIMESHEET-04b (2026-11-27): the body says its notes — null, the draft's NOTES box is blank
   assert.deepEqual(Object.keys(bodyOf(BLANK_DRAFT)), ['kind', 'id', 'instant', 'outcome', 'done_at', 'actual_cents', 'rating', 'note', 'notes', 'actual_minutes'], 'the one writer’s body'); // TIMESHEET-04b (2026-11-27): the body says its notes, after the note — the nine keys without it until then
   // What "+ expense" records at a stop is the same shape, done at the stop's own instant.
-  assert.deepEqual(Object.keys(recordBody({ day: MON, time: '12:30', zone: NBO, instant: at(MON, '12:30'), name: 'x', amount: '1', coa: '6150', bookId: 'P', vendor: { kind: 'none' }, actualCents: null, rating: null, note: null, ahead: false }, 'soup')), Object.keys(bodyOf(BLANK_DRAFT))); // FORM-BOUNDS-01 (Alex, 2026-11-25): an expense's value says whether its stop is still ahead (ledger.ts ExpenseValues) — this one, built by hand, is not; no `ahead` until then (the test passed without it and the type check did not)
+  assert.deepEqual(Object.keys(recordBody({ day: MON, time: '12:30', zone: NBO, instant: at(MON, '12:30'), name: 'x', amount: '1', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: null, rating: null, note: null, ahead: false }, 'soup')), Object.keys(bodyOf(BLANK_DRAFT))); // COALEVELS-01 (2026-11-27): and its Location — none. FORM-BOUNDS-01 (Alex, 2026-11-25): an expense's value says whether its stop is still ahead (ledger.ts ExpenseValues) — this one, built by hand, is not; no `ahead` until then (the test passed without it and the type check did not)
   // Every box typed.
   assert.deepEqual(bodyOf({ went: 'went', actual: ' 6.9 ', stars: ' 5 ', minutes: ' 25 ', note: '  two   kinds\tof  soup ', notes: '' }), { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30'), outcome: 'done', done_at: PLANNED, actual_cents: 690, rating: 5, note: 'two kinds of soup', notes: null, actual_minutes: 25 }, 'trimmed; the note’s spaces collapsed'); // TIMESHEET-04b (2026-11-27): the body says its notes — null, the draft's NOTES box is blank
   assert.equal(bodyOf({ ...BLANK_DRAFT, actual: '0', minutes: '0' }).actual_cents, 0, 'a typed 0 is 0');
@@ -478,7 +478,7 @@ test('T6 each refusal by name — the amount, a negative one, the stars, the min
   assert.deepEqual(refusalOf({ ...BLANK_DRAFT, note: 'n'.repeat(NOTE_MAX + 1) }), ['note', NOTE_LONG_WORDS]);
   assert.equal(bodyOf({ ...BLANK_DRAFT, note: 'n'.repeat(NOTE_MAX) }).note?.length, 280, 'the edge is inside');
   assert.equal(bodyOf({ ...BLANK_DRAFT, note: ` ${'a  '.repeat(140)}` }).note?.length, 279, 'collapsed before it is counted');
-  assert.deepEqual([NOTE_MAX, NOTE_LONG_WORDS], [280, 'DESCRIPTION is at most 280 characters']);
+  assert.deepEqual([NOTE_MAX, NOTE_LONG_WORDS], [280, 'ITEMS is at most 280 characters']); // COALEVELS-01 (2026-11-27): the form says the sheet's word — the description's head word is ITEMS now; 'DESCRIPTION is at most 280 characters' until then
   assert.equal(NOTE_LONG_WORDS, `${EXPENSE_FIELD_WORDS.note} is at most ${NOTE_MAX} characters`);
   // The first bad box is named — in the boxes' own order: went, ACTUAL, STARS, LOGGED MIN, DESCRIPTION, NOTES.
   assert.deepEqual(RECORD_FIELDS, ['went', 'actual', 'stars', 'minutes', 'note', 'notes']); // TIMESHEET-04b (2026-11-27): NOTES last, after DESCRIPTION — the five without it until then
@@ -602,19 +602,19 @@ function fakeDb(rows: Readonly<Record<string, readonly unknown[]>>, calls: Call[
 test('T9 the answer function: `recording` rides the one answer after `tones` — nine keys — from the reads it already makes: no query added, removed, widened or reordered; it round-trips JSON', async () => {
   const a = code(ANSWER);
   assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, said: ledger\.said \};/);
-  assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'the eight reads — no query added');
+  assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 9, 'the nine reads'); // COALEVELS-01 (2026-11-27): nine — the caller's active sub-accounts joined the eight (ledgerAnswer.ts); no other query added
   assert.doesNotMatch(a, /\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/, 'writes nothing');
   assert.match(code(ROUTE), /return NextResponse\.json\(await taskLedgerAnswerOf\(prisma, user\.id, \{ from, to \}, new Date\(\)\)\);/, 'the route’s code is unchanged');
   const day = (iso: string): Date => new Date(iso);
   const time = (clock: string): Date => new Date(`1970-01-01T${clock}:00.000Z`);
-  // The rows as the client reads them: one routine row serves the loader's read and the roles read.
+  // The rows as the client reads them: one routine row serves the loader's read and the roles read. COALEVELS-01 (2026-11-27): each row says its Location (none) — the roles read selects location_class now.
   const ROUTINE_ROWS = [
-    { id: 'lunch', name: 'Lunch', role: 'place', is_active: true, end_date: null, start_date: null, budget_amount: null, coa_code: null, schedule_rrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=30', timezone: NBO, start_time: null, end_time: null,
+    { id: 'lunch', name: 'Lunch', role: 'place', location_class: null, is_active: true, end_date: null, start_date: null, budget_amount: null, coa_code: null, schedule_rrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=30', timezone: NBO, start_time: null, end_time: null,
       steps: [{ id: 'soup', is_active: true, budget_amount: 5.5, coa_code: '6150', step_order: 1, activity: 'Soup', time_of_day: time('12:45'), duration_minutes: 20 }] },
-    { id: 'market', name: 'Market', role: 'place', is_active: true, end_date: null, start_date: null, budget_amount: 12, coa_code: '6150', schedule_rrule: 'FREQ=DAILY;BYHOUR=17;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null,
+    { id: 'market', name: 'Market', role: 'place', location_class: null, is_active: true, end_date: null, start_date: null, budget_amount: 12, coa_code: '6150', schedule_rrule: 'FREQ=DAILY;BYHOUR=17;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null,
       steps: [{ id: 'stall-a', is_active: true, budget_amount: null, coa_code: null, step_order: 1, activity: 'Stall A', time_of_day: null, duration_minutes: null }] },
-    { id: 'locker', name: 'Locker', role: 'all_day', is_active: true, end_date: null, start_date: null, budget_amount: 9.75, coa_code: '7450', schedule_rrule: 'FREQ=MONTHLY;BYMONTHDAY=11;BYHOUR=0;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null, steps: [] },
-    { id: 'swim', name: 'Swim', role: 'none', is_active: true, end_date: null, start_date: null, budget_amount: 4, coa_code: '6200', schedule_rrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null, steps: [] },
+    { id: 'locker', name: 'Locker', role: 'all_day', location_class: null, is_active: true, end_date: null, start_date: null, budget_amount: 9.75, coa_code: '7450', schedule_rrule: 'FREQ=MONTHLY;BYMONTHDAY=11;BYHOUR=0;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null, steps: [] },
+    { id: 'swim', name: 'Swim', role: 'none', location_class: null, is_active: true, end_date: null, start_date: null, budget_amount: 4, coa_code: '6200', schedule_rrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null, steps: [] },
   ];
   const RECORD_ROW = {
     id: 'rec-swim', routine_id: 'swim', step_id: null, occurrence_at: day(at(TUE, '07:00')), outcome: 'done', done_at: day(at(TUE, '07:40')), actual_cents: 400, rating: 3, note: null, notes: null, actual_minutes: 35, // TIMESHEET-04b (2026-11-27): the table holds a notes column — the fake row says it, as the database would
@@ -622,14 +622,14 @@ test('T9 the answer function: `recording` rides the one answer after `tones` —
   };
   const calls: Call[] = [];
   const db = fakeDb({
-    entities: [{ id: 'P', name: 'Personal', entity_type: 'personal' }], chart_of_accounts: [{ entity_id: 'P', code: '6150', name: 'Dining Out', account_type: 'expense', balance_type: 'D' }],
+    entities: [{ id: 'P', name: 'Personal', entity_type: 'personal' }], chart_of_accounts: [{ id: 'acct-6150', entity_id: 'P', code: '6150', name: 'Dining Out', account_type: 'expense', balance_type: 'D' }], chart_of_sub_accounts: [], // COALEVELS-01 (2026-11-27): the chart row's id (the read selects it now) and the caller's sub-accounts — none
     operations_routines: ROUTINE_ROWS, planned_item_vendors: [], operations_stays: [], operations_stop_records: [RECORD_ROW], planned_item_links: [],
   }, calls);
   const answer = await taskLedgerAnswerOf(db, 'someone', { from: TUE, to: TUE }, NOW);
   assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'said'], 'nine keys: `recording` after `tones`, before what is said');
   assert.deepEqual(answer.tones, { 'P-6150': 0, 'P-6200': 1, 'P-7450': 2 }, 'the accounts’ places, as they were — the lunch’s line and the market share one');
   assert.deepEqual(JSON.parse(JSON.stringify(answer)), answer, 'wire-shaped as built');
-  assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany'], 'the same reads, in the same order — the loader’s (once an entity) among them');
+  assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'chart_of_sub_accounts.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany'], 'the reads, in their order — the loader’s (once an entity) among them'); // COALEVELS-01 (2026-11-27): the sub-accounts read stands after the roles read — the one read added; 'the same reads, in the same order' until then
   assert.deepEqual(answer.rows.map((r) => r.id), ['rec-swim'], 'the recorded expense, as before');
   assert.deepEqual(Object.keys(answer.recording), answer.sheet.map((r) => r.key));
   const said = (key: string) => { const e = answer.recording[key]; return e.takes ? [true, e.plannedAt, e.held === null ? null : e.held.id, e.vendor.kind] : [false, e.words]; };
@@ -762,9 +762,9 @@ test('T10 the leaf: the vendor’s block above the form and outside it; went | s
   assert.doesNotMatch(f, /placeholder="|title="|aria-label="/, 'no word typed in an attribute');
   // The words themselves.
   assert.deepEqual([RECORD_WORDS, SAVE_RECORD_WORDS, CLEAR_RECORD_WORDS, CANCEL_EXPENSE_WORDS, SKIP_REASON_PLACEHOLDER_WORDS], ['record', 'save', 'clear', 'cancel', 'why — required']);
-  assert.deepEqual(RECORD_FIELD_WORDS, { went: 'WENT', actual: 'ACTUAL', stars: 'STARS', minutes: 'LOGGED MIN', note: 'DESCRIPTION', notes: 'NOTES' }, 'a label is the column’s own head word — no second word for a thing the table already names'); // TIMESHEET-04b (2026-11-27): NOTES, the new column's own head word
+  assert.deepEqual(RECORD_FIELD_WORDS, { went: 'WENT', actual: 'ACTUAL', stars: 'STARS', minutes: 'LOGGED MIN', note: 'ITEMS', notes: 'NOTES' }, 'a label is the column’s own head word — no second word for a thing the table already names'); // TIMESHEET-04b (2026-11-27): NOTES, the new column's own head word · COALEVELS-01 (2026-11-27): the note's box is labelled ITEMS — the description's head word in his sheet's words; DESCRIPTION until then
   for (const column of ['went', 'actual', 'stars', 'loggedMinutes', 'description', 'notes'] as const) assert.ok(Object.values(RECORD_FIELD_WORDS).includes(headWordOf(column)), `${column}: the head word`);
-  assert.equal(LEDGER_COLUMNS.length, 23, 'TIMESHEET-02 added no column; TIMESHEET-04b two'); // TIMESHEET-04b (2026-11-27): twenty-three — 21, and 'no column is added', until then
+  assert.equal(LEDGER_COLUMNS.length, 25, 'TIMESHEET-02 added no column; TIMESHEET-04b two; COALEVELS-01 two'); // TIMESHEET-04b (2026-11-27): twenty-three — 21, and 'no column is added', until then · COALEVELS-01 (2026-11-27): twenty-five — REGION and LOCATION; 23 until then
   assert.equal(STARS_RUBRIC_WORDS, [5, 4, 3, 2, 1].map((n) => `${n} — ${RATING_WORDS[n as 1 | 2 | 3 | 4 | 5]}`).join(' · '), 'the rubric, five to one');
   assert.match(comments(LEAF), /RecordForm — A ROW'S RECORD, ON THE TIME SHEET \(TIMESHEET-02, Alex, 2026-11-24\)\./);
 });
@@ -796,9 +796,9 @@ test('T10 the section: the "record" chip in the WENT cell on every row whose ent
   assert.match(s, /\{period !== null && \(answer === null \|\| reading\) && <div className="text-xs text-text-muted" data-ledger-loading>\{LEDGER_LOADING_WORDS\}<\/div>\}/);
   assert.match(s, /loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName=\{LEDGER_TABLE_CLASS\}/, 'loaded as it was; the table’s floor as it was, inside the rule’s class'); // TIMEWIDE-01 (Alex, 2026-11-24): the table's class is the rule file's LEDGER_TABLE_CLASS — its floor still min-w-[96rem] (timewide01.test.ts); `tableClassName="min-w-[96rem]"`, 'the table’s width as it was', until then
   assert.match(code(TABLE), /\{loaded && rows\.length > 0 && \(\n\s*<div className="overflow-x-auto border border-border rounded bg-white">/, 'the shared table still draws only while loaded — it is not edited');
-  // One cell per head word, in its order — TIMESHEET-02 added no column. TIMESHEET-04b (2026-11-27): twenty-three — the instagram-tag cell after vendor's, the notes cell after description's; 21 until then.
+  // One cell per head word, in its order — TIMESHEET-02 added no column. TIMESHEET-04b (2026-11-27): twenty-three — the instagram-tag cell after vendor's, the notes cell after description's; 21 until then. COALEVELS-01 (2026-11-27): twenty-five — the region's and the location's cells; 23 until then.
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
-  assert.equal(cells.length, 23);
+  assert.equal(cells.length, 25);
   assert.equal((s.match(/colSpan=\{LEDGER_HEAD_WORDS\.length - dayFoldCount\(period\)\}/g) ?? []).length, 2, 'the two rows beneath span every column shown'); // TIMEDAY-01 (Alex, 2026-11-24): both rows span the columns still shown, the same way — `/colSpan=\{LEDGER_HEAD_WORDS\.length\}/g`, 'the two rows beneath span every column', until then
   assert.match(comments(SECTION), /TIMESHEET-02 \(Alex, 2026-11-24\): THE TIME SHEET, PART TWO — RECORD ON THE ROW\./);
   assert.match(comments(RULES), /TIMESHEET-02 \(Alex, 2026-11-24\) — THE TIME SHEET, PART TWO: RECORD ON THE ROW\./);
@@ -825,17 +825,17 @@ test('T10 on top of TIMESHEET-03: the answer’s nine keys in order, `tones` bui
   // The two pills, and the places they are toned by.
   assert.match(s, /const tones: AccountPlaces = answer !== null && answer\.read\.ok \? answer\.read\.value\.tones : \{\};/);
   assert.match(s, /const bookPill = bookPillClassOf\(row\);\n\s*const accountPill = accountPillClassOf\(row, tones\);/);
-  assert.match(s, /<td className=\{`\$\{cell\} whitespace-nowrap \$\{row\.book === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="book">\{bookPill === null \? bookCellWords\(row\) : <span className=\{bookPill\} data-ledger-pill="book">\{bookCellWords\(row\)\}<\/span>\}<\/td>/);
-  assert.match(s, /<td className=\{`\$\{cell\} \$\{row\.coa === null \|\| row\.coa\.name === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="account-name">\{accountPill === null \? accountNameCellWords\(row\) : <span className=\{accountPill\} data-ledger-pill="account-name">\{accountNameCellWords\(row\)\}<\/span>\}<\/td>/);
+  assert.match(s, /<td className=\{`\$\{cell\} whitespace-nowrap \$\{row\.book === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="book">\{row\.segments !== null && row\.segments\.entity !== null && <span className=\{CODE_CLASS\}>\{row\.segments\.entity\}<\/span>\}\{bookPill === null \? bookCellWords\(row\) : <span className=\{bookPill\} data-ledger-pill="book">\{bookCellWords\(row\)\}<\/span>\}<\/td>/); // COALEVELS-01 (2026-11-27): the entity's letter before the pill, in the code's class, where the row's levels hold one — the pill and its words as they were
+  assert.match(s, /<td className=\{`\$\{cell\} \$\{row\.coa === null \|\| row\.coa\.name === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="account-name">\{row\.segments !== null && <span className=\{CODE_CLASS\}>\{row\.segments\.category\}<\/span>\}\{accountPill === null \? accountNameCellWords\(row\) : <span className=\{accountPill\} data-ledger-pill="account-name">\{accountNameCellWords\(row\)\}<\/span>\}<\/td>/); // COALEVELS-01 (2026-11-27): the category's code before the pill, in the code's class, on every row that has a line — the pill and its words as they were
   // The tint: on BUDGET, VARIANCE, MATCH and UNDER / OVER and on no other cell — WENT, where the chip stands, is not tinted.
   const cells = [...s.matchAll(/<td className=\{`([^\n]*?)`\} data-ledger-cell="([a-z-]+)"/g)].map((m) => ({ name: m[2], tinted: m[1].includes('${NOT_TYPED_TINT}') }));
-  assert.equal(cells.length, 23); // TIMESHEET-04b (2026-11-27): twenty-three cells, the two new ones untinted (a tag and notes are typed, not worked out) — 21 until then
+  assert.equal(cells.length, 25); // TIMESHEET-04b (2026-11-27): twenty-three cells, the two new ones untinted (a tag and notes are typed, not worked out) — 21 until then · COALEVELS-01 (2026-11-27): twenty-five — the region's and the location's cells, untinted (a place and a Location are the plan's own, typed); 23 until then
   assert.deepEqual(cells.filter((c) => c.tinted).map((c) => c.name), ['budget', 'variance', 'match', 'under-over']);
   assert.match(s, /const NOT_TYPED_TINT = 'bg-blue-50';/);
-  // The legend: where it stood, on the same condition — it does not read `reading`, so it stays while a re-read of the same span is in flight (rows are still shown).
-  const legend = /\n\s*(\{answer !== null && answer\.read\.ok && shown\.length > 0 && <div className="flex items-center gap-1\.5 text-xs text-text-muted" data-ledger-legend>[^\n]*)\n\s*<\/DataTable>/.exec(s);
-  if (legend === null) return assert.fail('the legend line stands last in the shared table’s children slot');
-  assert.ok(legend[1].includes('<span>{NOT_TYPED_WORDS}</span>'));
+  // The legend: on the same condition — it does not read `reading`, so it stays while a re-read of the same span is in flight (rows are still shown). COALEVELS-01 (2026-11-27): the legend is its swatch at the head of the controls row's trailing, its meaning in its label and title — a separate line beneath the table, the sentence beside the swatch, until then.
+  const legend = /\n\s*<>(\{answer !== null && answer\.read\.ok && shown\.length > 0 && <span className=\{`inline-block h-3 w-3 rounded-sm border border-border \$\{NOT_TYPED_TINT\}`\} role="img" aria-label=\{NOT_TYPED_WORDS\} title=\{NOT_TYPED_WORDS\} data-ledger-legend data-ledger-legend-swatch \/>\})/.exec(s);
+  if (legend === null) return assert.fail('the legend — its swatch — stands first in the controls row’s trailing');
+  assert.ok(legend[1].includes('aria-label={NOT_TYPED_WORDS} title={NOT_TYPED_WORDS}'));
   assert.doesNotMatch(legend[1], /reading/);
   // The form's row is the leaf's mount — no box in the section's own row.
   const row = s.slice(s.indexOf('renderRow={(row) => {'), s.indexOf('foot={('));

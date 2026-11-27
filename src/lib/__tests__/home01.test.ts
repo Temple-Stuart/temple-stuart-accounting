@@ -149,7 +149,7 @@ test('B the cockpit\'s tab-switch rewrite keeps every other parameter — ?date 
 
 test('C /time mounts exactly the three tables, in order, in the one provider — no card, no boundary; the header says so', () => {
   const page = code(TIME_PAGE);
-  assert.match(page, /<ToolOpener tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  assert.match(page, /<ToolOpener compact tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // COALEVELS-01 (2026-11-27): the page passes its opener `compact` — one line above the sheet; the three tables as they were
   assert.doesNotMatch(page, /DayCard|Suspense|useSearchParams/);
   for (const f of [`${OPS}/ledger/LedgerSection.tsx`, `${OPS}/journal/MorningJournalTable.tsx`, `${OPS}/journal/EveningJournalTable.tsx`, `${OPS}/journal/JournalDayTable.tsx`]) assert.doesNotMatch(code(f), /useSearchParams/, `${f} reads no URL — no boundary needed`);
   assert.match(comments(TIME_PAGE), /HOME-01 \(Alex, 2026-10-24\) — THE CARD MOVED TO THE DASHBOARD; \/time IS THE\s*\n\s*\* TABLES/);

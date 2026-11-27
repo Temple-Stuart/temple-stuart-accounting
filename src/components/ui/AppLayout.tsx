@@ -58,7 +58,7 @@ export interface AppLayoutProps {
    * page's own gutter and padding, and no cap. Read only together with `page`;
    * without it this prop does nothing. A `page` main stops at max-w-7xl (1,216 px
    * of content from lg), and the time sheet's table is wider than that at its
-   * narrowest (96rem), so /time passes it — and no other page does.
+   * narrowest (96rem), so /time passes it — and no other page does. COALEVELS-01 (2026-11-27): the wide page's padding is its OWN — px-3 py-2, so the sheet starts right under the bar; the page's (px-4 lg:px-8 py-6 sm:py-8) until then.
    */
   wide?: boolean;
   /**
@@ -288,7 +288,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
           </div>
         )}
 
-        <main className={page && wide ? 'w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : page ? 'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : 'max-w-[1800px] mx-auto w-full'}>
+        <main className={page && wide ? 'w-full min-w-0 px-3 py-2' : page ? 'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : 'max-w-[1800px] mx-auto w-full'}>
           {profileError && (
             <p role="alert" className="mb-4 font-mono text-[10px] text-rose-700">Profile read failed — {profileError}. Utilities hidden.</p>
           )}

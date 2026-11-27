@@ -42,7 +42,7 @@ const record = (over: Partial<LedgerRow> & Pick<LedgerRow, 'id' | 'description'>
   time: '06:00',
   place: null,
   book: null,
-  coa: null,
+  location: null, segments: null, coa: null, // COALEVELS-01 (2026-11-27): a recorded row's two new fields — no Location and no account levels on a row with no line; a row that names its `coa` says its segments too (the coffee, below)
   vendor: null,
   instagramTag: null,
   rating: null,
@@ -118,7 +118,7 @@ const input = (zone: string, over: Partial<HomeLedgerInput> = {}): HomeLedgerInp
   reversedEntryIds: ['je-r'],
   taskRows: [
     // Matched to the coffee line (its MATCH is that posting's $12.50); typed $13.00 — ACTUAL stays $12.50, once, on the books row.
-    record({ id: 'rec-coffee', description: 'Coffee', book: 'Personal', coa: { account: 'P-6150', name: 'Food & drink' }, cents: 300, budgetState: 'matched', actualCents: 1300, varianceCents: 1000, match: { cents: 1250, postings: 1, unreadable: 0, reversed: 0 } }),
+    record({ id: 'rec-coffee', description: 'Coffee', book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Food & drink' }, cents: 300, budgetState: 'matched', actualCents: 1300, varianceCents: 1000, match: { cents: 1250, postings: 1, unreadable: 0, reversed: 0 } }),
     // Matched to nothing — 'no account', counted (decision 12).
     record({ id: 'rec-gym', description: 'Gym', actualCents: 500 }),
   ],

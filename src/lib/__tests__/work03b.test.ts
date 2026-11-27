@@ -138,12 +138,12 @@ test('2 the ledger: a stepless record’s PLANNED MIN prints the window’s leng
   ];
   const INPUT: LedgerInput = {
     from: '2026-10-13', to: '2026-10-13', now: new Date('2026-10-14T00:00:00.000Z'), records, links: [], lines: [], notPlaced: [], routines: WORDS,
-    roles: new Map([['gym', 'place']]), minutes: new Map(), vendors: [], stays: [], accounts: [], books: [{ id: 'P', entityType: 'personal' }], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes; this fixture hands the rule no plan line, so none is asked
+    roles: new Map([['gym', 'place']]), minutes: new Map(), vendors: [], stays: [], accounts: [], books: [{ id: 'P', entityType: 'personal' }], locations: new Map([['gym', null]]), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes; this fixture hands the rule no plan line, so none is asked
   };
   const ledger = ledgerOf(INPUT);
   assert.equal(ledger.rows.length, 1);
   assert.deepEqual([ledger.rows[0].plannedMinutes, ledger.rows[0].loggedMinutes], [60, 30], 'PLANNED MIN 60 — the window’s length; LOGGED MIN the record’s own');
-  assert.equal(ledgerCsv(ledger.rows).split('\r\n')[1], 'Tuesday,2026-10-13,20:00,21:00,,,,,,Gym,,,went,,60,30,,,,,,,', 'the CSV: 60 where TIME-03’s stepless fixture printed nothing'); // TIMESHEET-01 (Alex, 2026-11-24): START 20:00, END 21:00 (the window's 60 minutes on), WENT went — the other eighteen fields as they were · TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then
+  assert.equal(ledgerCsv(ledger.rows).split('\r\n')[1], 'Tuesday,2026-10-13,20:00,21:00,,,,,,,Gym,,,,went,,60,30,,,,,,,', 'the CSV: 60 where TIME-03’s stepless fixture printed nothing'); // TIMESHEET-01 (Alex, 2026-11-24): START 20:00, END 21:00 (the window's 60 minutes on), WENT went — the other eighteen fields as they were · TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then · COALEVELS-01 (2026-11-27): the line's fields follow the columns' new order — an empty REGION after CITY and an empty LOCATION after COUNTRY (no place of this fixture names a region, no routine says a Location); CATEGORY · ENTITY · TYPE · ITEMS; the COA before BUDGET; NOTES last
   // The route: the routine select grows by the two times; the step's select is TIME-03's, byte for byte; both kinds through the one rule.
   const route = code(ANSWER);
   assert.match(route, /routine: \{ select: \{ name: true, timezone: true, role: true, start_time: true, end_time: true \} \},\n\s*step: \{ select: \{ activity: true, time_of_day: true, duration_minutes: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true, role: true \} \} \} \},/);
@@ -153,7 +153,7 @@ test('2 the ledger: a stepless record’s PLANNED MIN prints the window’s leng
   assert.match(route, /import \{ plannedMinutesOf \} from '@\/lib\/operations\/supersession';/); // SUPERSEDE-01a (2026-11-07): the leaf is the one door
   assert.equal((route.match(/plannedMinutesOf\(/g) ?? []).length, 2, 'the answer function applies the rule; it restates nothing');
   // READS-01b (2026-11-07): the nine queries are the gate's users read, still on the route, and the eight the answer function runs — no new query.
-  assert.equal((route.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'no new query — the times ride the record include');
+  assert.equal((route.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 9, 'the times ride the record include — no query was added for them'); // COALEVELS-01 (2026-11-27): nine — the caller's active sub-accounts joined the eight; eight until then
   assert.equal((code(ROUTE).match(/prisma\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 1, 'the route reads the users row and nothing else');
   for (const f of [ROUTE, ANSWER]) assert.doesNotMatch(code(f), /start_time\.|end_time\.|getUTCHours|toISOString\(\)\.slice\(11, 16\)\) -/, `no arithmetic on the times in ${f}`);
   // The pure half: the row copies the figure; the words say what it is now.

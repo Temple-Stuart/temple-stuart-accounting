@@ -6,14 +6,23 @@
  * are driven with made-up values; the migration, the schema, the new route and the two routines routes are read from source
  * through sourceText — code() for what the code does, comments() only for a header's words.
  *
+ * PART 2 (G below): THE SHEET. ledgerOf over made-up plans — a row's Location from its routine and its account's levels
+ * (the entity's letter, the Location's code, the line's code, the code of the sub-account of that account whose name is the
+ * stop's) with the whole code they render; the twenty-five columns in his sheet's words and order; the fold of five and the
+ * day's place; the ten groups; the expense form's Location; and, in the source, the section, the grid's class, the compact
+ * opener, the answer's nine reads and the registry's two cites.
+ *
  * HERMETIC: no database, no request, no clock. No route is run here and no SQL: what a database does with the migration is
  * not this file's to say. Every name, place, code and amount below is made up.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { code, comments } from '../sourceText';
+import { BLANK } from '../budget/format';
+import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
+import type { RoutineWords } from '../budget/planLines';
 import { ValidationError } from '../errors/ValidationError';
 import { deriveAccountString } from '../accountString';
 import { renderCode } from '../coa/scheme';
@@ -23,9 +32,18 @@ import {
   type NewSubAccount, type SubAccountDb, type SubAccountParent, type SubAccountRef, type SubAccountRow,
 } from '../coa/subAccounts';
 import {
-  LOCATION_CHOICE_WORDS, LOCATION_CLASSES, LOCATION_CODES, LOCATION_NOT_TEXT_WORDS, LOCATION_WORDS, isLocationClass, locationClassOf, locationUnknownWords, readLocationClass,
+  LOCATION_CHOICE_WORDS, LOCATION_CLASSES, LOCATION_CODES, LOCATION_NOT_TEXT_WORDS, LOCATION_WORDS, isLocationClass, locationClassOf, locationUnknownWords, readLocationClass, type LocationClass,
 } from '../operations/locationClass';
-import { placeParts } from '../operations/stay';
+import { placeParts, type StayRow } from '../operations/stay';
+import type { StopRecordRow } from '../operations/stopRecord';
+import { taskLedgerAnswerOf } from '../operations/ledgerAnswer';
+import {
+  DAY_FOLD_CLASS, DAY_FOLD_COLUMNS, EMPTY_EXPENSE, EXPENSE_FIELDS, EXPENSE_FIELD_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_COLUMNS, LEDGER_CSV, LEDGER_HEAD_WORDS, LEDGER_TABLE, LEDGER_TABLE_CLASS,
+  LOCATION_CLASSES as SHEET_LOCATION_CLASSES, LOCATION_WORDS as SHEET_LOCATION_WORDS, NO_COLUMN_FILTERS, NO_LOCATION_WORDS, NO_VALUE_FILTER, SUMMARY_TITLE_WORDS, TEXT_COLUMNS, VALUE_COLUMNS,
+  accountCellWords, applyColumnFilters, cellWordsOf, codeCellWords, columnKind, columnValues, dayFoldCount, dayPlaceWords, expenseInput, headWordOf, ledgerCsv, ledgerOf, ledgerSummary, locationCellWords,
+  oneOffBody, planMinutesOf, regionWords, requiredWords, sortKeyOf, sortRows, typeGroupWords,
+  type ExpenseDraft, type LedgerInput, type LedgerRecordInput, type LedgerSegments, type LedgerSheetRow, type LedgerSubAccount,
+} from '../operations/ledger';
 import { TOOL_REGISTRY } from '../toolRegistry';
 import { CAPTION_TAGS, captionTags } from '@/components/workbench/operations/day/dayCard';
 
@@ -448,4 +466,483 @@ test('R2 the two routines routes take the Location: read by the one rule after t
   assert.match(linesOf(ROUTINE_ROUTE)[cited(/routines\/\[id\]\/route\.ts:(\d+) \(PATCH\)/) - 1], /^export async function PATCH\(/);
   assert.match(linesOf(ROUTINE_ROUTE)[cited(/routines\/\[id\]\/route\.ts:(\d+) \(DELETE\)/) - 1], /^export async function DELETE\(/);
   assert.match(comments('src/lib/toolRegistry.ts'), /COALEVELS-01 \(2026-11-27\): the routine route grew again \(the read of a stop's Location, after the place\) — :581 → :\d+ \(DELETE\); what it cites unchanged\./);
+});
+
+// ═══ PART 2 · THE SHEET ══════════════════════════════════════════════════════
+// Made-up plans: a lined stop whose routine says Travel (two lines on one account), a stop of its own whose routine says
+// Homebase, and a stop on a second book whose routine says no Location; a stay from the second day whose place names a region.
+
+const EAT = 'Africa/Nairobi'; // UTC+3 the year round
+const D1 = '2027-10-04'; // a Monday — no stay covers it
+const D2 = '2027-10-05';
+const D3 = '2027-10-06';
+/** Tuesday, 12:00 in the zone: all of Monday is past, Tuesday's supper is ahead. */
+const SHEET_NOW = new Date('2027-10-05T09:00:00.000Z');
+const atEat = (day: string, clock: string): string => new Date(`${day}T${clock}:00.000+03:00`).toISOString();
+const plan = (over: Partial<RoutinePlanInput> & { id: string; name: string; scheduleRrule: string }): RoutinePlanInput => ({
+  entityId: 'P', entityType: 'personal', timezone: EAT, startDate: null, endDate: null, budgetAmount: null, coaCode: null, steps: [], startTime: null, endTime: null, role: 'place', ...over,
+});
+const PLANS: RoutinePlanInput[] = [
+  plan({ id: 'supper', name: 'Supper', scheduleRrule: 'FREQ=DAILY;BYHOUR=19;BYMINUTE=0', steps: [
+    { id: 'curry', stepOrder: 1, budgetAmount: 9, coaCode: '6150', durationMinutes: null, timeOfDay: null },
+    { id: 'lassi', stepOrder: 2, budgetAmount: 2.5, coaCode: '6150', durationMinutes: null, timeOfDay: null },
+  ] }),
+  plan({ id: 'climb', name: 'Climbing', scheduleRrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', budgetAmount: 14, coaCode: '6200' }),
+  plan({ id: 'print', name: 'Print shop', entityId: 'B', entityType: 'sole_prop', scheduleRrule: 'FREQ=DAILY;BYHOUR=10;BYMINUTE=0', budgetAmount: 4, coaCode: '6400', role: 'none' }),
+];
+const PLAN_WORDS = new Map<string, RoutineWords>(PLANS.map((r): [string, RoutineWords] => [r.id, {
+  name: r.name, timezone: EAT, steps: new Map(r.id === 'supper' ? [['curry', { activity: 'Curry', timeOfDay: null }], ['lassi', { activity: 'Lassi', timeOfDay: null }]] : []),
+}]));
+const PLAN_LOCATIONS = new Map<string, LocationClass | null>([['supper', 'travel'], ['climb', 'homebase'], ['print', null]]);
+const PLAN_SUBS: LedgerSubAccount[] = [
+  { entityId: 'P', code: '6150', sub: '20', name: 'Curry' },
+  // The stop's name in another case: a name is matched by its key.
+  { entityId: 'P', code: '6200', sub: '30', name: 'CLIMBING' },
+  { entityId: 'B', code: '6400', sub: '10', name: 'Print shop' },
+  // The curry's name under ANOTHER account, and the lassi's under the same code in ANOTHER book: neither codes a line of P:6150.
+  { entityId: 'P', code: '6200', sub: '40', name: 'Curry' },
+  { entityId: 'B', code: '6150', sub: '50', name: 'Lassi' },
+];
+const sheetRecord = (over: Partial<StopRecordRow> & { id: string; kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
+  outcome: 'done', done_at: over.occurrence_at, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
+});
+const PLAN_RECORDS: LedgerRecordInput[] = [
+  // Monday's curry, recorded on its line.
+  { record: sheetRecord({ id: 'r-curry-1', kind: 'routine_line', target_id: 'curry', occurrence_at: atEat(D1, '19:00'), actual_cents: 950 }), routineId: 'supper', routineName: 'Supper', zone: EAT, role: 'place', activity: 'Curry', timeOfDay: null, durationMinutes: null },
+  // A record of a routine the loader no longer lists — no line matches it.
+  { record: sheetRecord({ id: 'r-kiosk-1', kind: 'routine', target_id: 'kiosk', occurrence_at: atEat(D1, '11:00'), actual_cents: 150 }), routineId: 'kiosk', routineName: 'Kiosk', zone: EAT, role: 'place', activity: null, timeOfDay: null, durationMinutes: null },
+];
+const PLAN_STAYS: StayRow[] = [{ id: 'hv', place: 'Harborview, Eastmarch, Ruritania', starts_on: D2, ends_on: '2027-10-20' }];
+const planBuilt = buildRoutineBudgetLines(PLANS, D1, D3);
+const sheetInput = (over: Partial<LedgerInput> = {}): LedgerInput => ({
+  from: D1, to: D3, now: SHEET_NOW, records: PLAN_RECORDS, links: [], lines: planBuilt.lines, notPlaced: planBuilt.notPlaced, routines: PLAN_WORDS,
+  roles: new Map(PLANS.map((r): [string, string] => [r.id, r.role])), locations: PLAN_LOCATIONS, subAccounts: PLAN_SUBS, minutes: planMinutesOf(PLANS), vendors: [], stays: PLAN_STAYS,
+  accounts: [{ entityId: 'P', code: '6150', name: 'Dining Out' }, { entityId: 'P', code: '6200', name: 'Recreation' }, { entityId: 'B', code: '6400', name: 'Printing' }],
+  books: [{ id: 'P', entityType: 'personal' }, { id: 'B', entityType: 'sole_prop' }], ...over,
+});
+const planLedger = ledgerOf(sheetInput());
+const planSheet = planLedger.sheet;
+/** The sheet's one row of a name on a day — or the test fails by name. */
+const rowOn = (rows: readonly LedgerSheetRow[], name: string, day: string): LedgerSheetRow => {
+  const found = rows.filter((r) => r.description === name && r.day === day);
+  assert.equal(found.length, 1, `one ${name} on ${day}`);
+  return found[0];
+};
+const thrown = (run: () => unknown): string => {
+  try { run(); } catch (error) { return error instanceof Error ? error.message : String(error); }
+  return assert.fail('nothing was thrown');
+};
+
+const SHEET_RULES = 'src/lib/operations/ledger.ts';
+const SHEET_ANSWER = 'src/lib/operations/ledgerAnswer.ts';
+const SHEET_SECTION = 'src/components/workbench/operations/ledger/LedgerSection.tsx';
+const EXPENSE_LEAF = 'src/components/workbench/operations/ledger/ExpenseForm.tsx';
+const PASTE_LEAF = 'src/components/workbench/operations/ledger/PasteRows.tsx';
+const OPENER = 'src/components/shell/ToolOpener.tsx';
+const TIME_PAGE = 'src/app/time/page.tsx';
+const LAYOUT = 'src/components/ui/AppLayout.tsx';
+const REGISTRY = 'src/lib/toolRegistry.ts';
+const walk = (dir: string, ending: RegExp): string[] => readdirSync(dir).flatMap((name) => {
+  const path = join(dir, name);
+  return statSync(path).isDirectory() ? walk(path, ending) : ending.test(name) ? [path] : [];
+});
+
+test('G1 a row’s Location is its ROUTINE’s: a routine’s own line by the routine’s id, a line by the routine that holds it — on a plan row and on a recorded row alike; a routine that says none gives null; a routine `locations` does not hold is thrown by name', () => {
+  assert.equal(planSheet.length, 13, 'three days of the four lines, and Monday’s record no line matches');
+  // A routine's own line: every climb is Homebase.
+  for (const day of [D1, D2, D3]) assert.equal(rowOn(planSheet, 'Climbing', day).location, 'homebase', `${day}: the stop’s own routine`);
+  // A line: the routine that holds it — both lines of the supper, on every day.
+  for (const day of [D1, D2, D3]) assert.deepEqual([rowOn(planSheet, 'Curry', day).location, rowOn(planSheet, 'Lassi', day).location], ['travel', 'travel'], `${day}: the lines’ routine`);
+  // A routine that says no Location: null, said.
+  for (const day of [D1, D2, D3]) assert.equal(rowOn(planSheet, 'Print shop', day).location, null);
+  // The recorded line is the row of `rows` — the same Location as the plan rows of its line.
+  const recorded = rowOn(planSheet, 'Curry', D1);
+  assert.deepEqual([recorded.id, recorded.location], ['r-curry-1', 'travel']);
+  assert.equal(planLedger.rows.find((r) => r.id === 'r-curry-1'), recorded, 'the same row, not a copy');
+  // The Location is the routine's, whatever the day or the place: a stay changes none.
+  assert.deepEqual(ledgerOf(sheetInput({ stays: [] })).sheet.map((r) => r.location), planSheet.map((r) => r.location));
+  // Every routine a line can be of is handed in — one that is not is this rule's error, by name; null is a value, not an absence.
+  const without = new Map([...PLAN_LOCATIONS].filter(([id]) => id !== 'climb'));
+  assert.match(thrown(() => ledgerOf(sheetInput({ locations: without }))), /^ledger: line routine:climb:\S+ is of routine climb, whose Location was not read$/);
+  assert.match(thrown(() => ledgerOf(sheetInput({ locations: new Map([...PLAN_LOCATIONS].filter(([id]) => id !== 'supper')) }))), /^ledger: line line:(curry|lassi):\S+ is of routine supper, whose Location was not read$/);
+  assert.doesNotThrow(() => ledgerOf(sheetInput({ locations: new Map([...PLAN_LOCATIONS.keys()].map((id): [string, null] => [id, null])) })));
+  // In the source: the map is read with no default beside it.
+  const rules = code(SHEET_RULES);
+  assert.match(rules, /const location = input\.locations\.get\(routineId\);\n\s*if \(location === undefined\) throw new Error\(/);
+  assert.doesNotMatch(rules, /input\.locations\.get\([^)]*\) \?\?/, 'a routine that is not held is never read as none');
+});
+
+test('G2 a row’s segments are its account, level by level — the entity’s letter, the Location’s code, the line’s code, the code of the sub-account of THAT account whose name is the stop’s — and the whole code they render; a level that is not there is left out, never invented', () => {
+  const seg = (name: string, day: string, rows: readonly LedgerSheetRow[] = planSheet): LedgerSegments | null => rowOn(rows, name, day).segments;
+  // A Location and a sub-account of its name.
+  assert.deepEqual(seg('Curry', D2), { entity: 'P', location: 'TRV', category: '6150', type: '20', code: 'P-TRV-6150-20' });
+  assert.deepEqual(seg('Climbing', D2), { entity: 'P', location: 'HOM', category: '6200', type: '30', code: 'P-HOM-6200-30' }, 'the name matched by its key — case does not part them');
+  // A Location, and no sub-account of its name under ITS account: the same name under another account, or the same code in another book, codes nothing.
+  assert.deepEqual(seg('Lassi', D2), { entity: 'P', location: 'TRV', category: '6150', type: null, code: 'P-TRV-6150' });
+  // No Location, and a sub-account of its name.
+  assert.deepEqual(seg('Print shop', D2), { entity: 'B', location: null, category: '6400', type: '10', code: 'B-6400-10' });
+  // Neither: the entity and the code alone — what the cell printed until this change.
+  const bare = ledgerOf(sheetInput({ subAccounts: [], locations: new Map([...PLAN_LOCATIONS.keys()].map((id): [string, null] => [id, null])) })).sheet;
+  assert.deepEqual(seg('Curry', D2, bare), { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' });
+  assert.deepEqual(seg('Print shop', D2, bare), { entity: 'B', location: null, category: '6400', type: null, code: 'B-6400' });
+  for (const row of bare) if (row.segments !== null && row.coa !== null) assert.equal(row.segments.code, row.coa.account, `${row.key}: no Location and no sub-account — the whole code is the entity and the code`);
+  // A recorded row whose line matched holds its line's levels — the plan row's own.
+  assert.deepEqual(seg('Curry', D1), seg('Curry', D2));
+  // The code is the one renderer's over the levels, and each level's code is its rule's own.
+  for (const row of planSheet) {
+    if (row.segments === null) continue;
+    const s = row.segments;
+    assert.equal(s.code, [s.entity, s.location, s.category, s.type].filter((part) => part !== null).join('-'), `${row.key}: the levels, in their order`);
+    assert.equal(s.location, row.location === null ? null : LOCATION_CODES[row.location], `${row.key}: the Location’s code`);
+  }
+  // `coa` is as it was — the entity and the code, and the chart's name: the tones and the group by category still read it.
+  assert.deepEqual(rowOn(planSheet, 'Curry', D2).coa, { account: 'P-6150', name: 'Dining Out' });
+  assert.equal(accountCellWords(rowOn(planSheet, 'Curry', D2)), 'P-6150');
+  // Two sub-accounts of one name under the line's account: the rule's own join names them, and picks neither.
+  assert.equal(thrown(() => ledgerOf(sheetInput({ subAccounts: [...PLAN_SUBS, { entityId: 'P', code: '6150', sub: '60', name: ' curry ' }] }))), 'subAccounts: account P:6150 holds 2 sub-accounts named "Curry" (20, 60) — a name stands once under an account');
+  // Wire-shaped: the sheet round-trips JSON unchanged.
+  assert.deepEqual(JSON.parse(JSON.stringify(planSheet)), planSheet);
+  // In the source: the join is the sub-account rule's own, keyed as the accounts' names are; the code is the one renderer's.
+  const rules = code(SHEET_RULES);
+  assert.match(rules, /const sub = subAccountOf\(subAccounts, `\$\{l\.entityId\}:\$\{l\.code\}`, name\);/);
+  assert.match(rules, /code: deriveAccountString\(\{ entityType, locationCode, code: l\.code, subType: type \}\)/);
+  assert.match(rules, /input\.subAccounts\.map\(\(s\) => \(\{ accountId: `\$\{s\.entityId\}:\$\{s\.code\}`, code: s\.sub, name: s\.name \}\)\)/);
+});
+
+test('G3 a recorded row no line matches holds no Location and no segments — null, said; its four cells are the sheet’s blank and its CSV fields empty', () => {
+  const kiosk = rowOn(planSheet, 'Kiosk', D1);
+  assert.deepEqual([kiosk.id, kiosk.book, kiosk.coa, kiosk.location, kiosk.segments], ['r-kiosk-1', null, null, null, null]);
+  assert.deepEqual([cellWordsOf(kiosk, 'location'), cellWordsOf(kiosk, 'account'), cellWordsOf(kiosk, 'accountName'), cellWordsOf(kiosk, 'book')], [BLANK, BLANK, BLANK, BLANK]);
+  assert.deepEqual([LEDGER_CSV.location(kiosk), LEDGER_CSV.account(kiosk), LEDGER_CSV.region(kiosk)], ['', '', '']);
+  assert.deepEqual([locationCellWords(kiosk), codeCellWords(kiosk), regionWords(kiosk)], [BLANK, BLANK, BLANK]);
+  assert.equal(ledgerCsv([kiosk]).split('\r\n')[1], ['Monday', D1, '11:00', '', '', '', '', '', '', '', 'Kiosk', '', '', '', 'went', '', '', '', '', '', '1.50', '', '', '', ''].join(','));
+  // Both fields stand on every row, after book — a recorded row's and a plan row's alike.
+  for (const row of planSheet) {
+    const keys = Object.keys(row);
+    assert.deepEqual(keys.slice(keys.indexOf('book'), keys.indexOf('book') + 4), ['book', 'location', 'segments', 'coa'], row.key);
+  }
+});
+
+test('G4 the twenty-five columns in his sheet’s words and order; REGION and LOCATION are VALUE columns; the cell words, the sort and the CSV of a row with a place of three parts, a Location and a whole code', () => {
+  assert.deepEqual([...LEDGER_COLUMNS], ['day', 'date', 'start', 'end', 'city', 'region', 'country', 'location', 'accountName', 'book', 'subAccountName', 'description', 'vendor', 'instagramTag', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'account', 'budget', 'actual', 'variance', 'match', 'underOver', 'notes']);
+  assert.deepEqual([...LEDGER_HEAD_WORDS], ['DAY', 'DATE', 'START', 'END', 'CITY', 'REGION', 'COUNTRY', 'LOCATION', 'CATEGORY', 'ENTITY', 'TYPE', 'ITEMS', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'COA', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES']);
+  assert.deepEqual([LEDGER_COLUMNS.length, LEDGER_HEAD_WORDS.length, LEDGER_TABLE.length, new Set(LEDGER_HEAD_WORDS).size], [25, 25, 25, 25]);
+  // No key is renamed: each prints under its new word.
+  assert.deepEqual((['accountName', 'book', 'subAccountName', 'description', 'account', 'region', 'location'] as const).map(headWordOf), ['CATEGORY', 'ENTITY', 'TYPE', 'ITEMS', 'COA', 'REGION', 'LOCATION']);
+  // The kinds: the two new columns filter by a checklist; nothing else changed its kind.
+  assert.deepEqual([columnKind('region'), columnKind('location'), columnKind('account'), columnKind('description'), columnKind('notes')], ['value', 'value', 'value', 'text', 'text']);
+  assert.ok(VALUE_COLUMNS.includes('region') && VALUE_COLUMNS.includes('location'));
+  assert.deepEqual([VALUE_COLUMNS.length, TEXT_COLUMNS.length, Object.keys(NO_COLUMN_FILTERS).length], [19, 2, 25]);
+  assert.deepEqual([NO_COLUMN_FILTERS.region, NO_COLUMN_FILTERS.location], [NO_VALUE_FILTER, NO_VALUE_FILTER]);
+  // A row, whole: Tuesday's curry — a stay of three parts, the routine's Location, the whole code under COA.
+  const curry = rowOn(planSheet, 'Curry', D2);
+  assert.deepEqual(curry.place, { city: 'Harborview', region: 'Eastmarch', country: 'Ruritania' });
+  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(curry, c)), ['Tuesday', D2, '19:00', BLANK, 'Harborview', 'Eastmarch', 'Ruritania', 'Travel', 'Dining Out', 'Personal', 'Curry', BLANK, BLANK, BLANK, 'planned', BLANK, BLANK, BLANK, 'P-TRV-6150-20', '$9', BLANK, BLANK, BLANK, BLANK, BLANK]);
+  assert.equal(ledgerCsv([curry]).split('\r\n')[1], ['Tuesday', D2, '19:00', '', 'Harborview', 'Eastmarch', 'Ruritania', 'Travel', 'Dining Out', 'Personal', 'Curry', '', '', '', 'planned', '', '', '', 'P-TRV-6150-20', '9.00', '', '', '', '', ''].join(','));
+  assert.equal(ledgerCsv([]), `${LEDGER_HEAD_WORDS.join(',')}\r\n`, 'no rows: the header alone');
+  // Monday has no stay: the region is the blank with the place; a place of two parts names no region (the stay's rule, PART 1).
+  assert.deepEqual([regionWords(rowOn(planSheet, 'Curry', D1)), regionWords(curry), regionWords({ ...curry, place: { city: 'Harborview', region: null, country: 'Ruritania' } })], [BLANK, 'Eastmarch', BLANK]);
+  // The spec: every column's words, sort key and CSV field are the rule's own, for every row.
+  for (const row of planSheet) {
+    for (const c of LEDGER_TABLE) {
+      assert.equal(c.words(row), cellWordsOf(row, c.key), `${c.key} words of ${row.key}`);
+      assert.deepEqual(c.sortKey(row), sortKeyOf(row, c.key), `${c.key} sort key of ${row.key}`);
+      assert.equal(c.csv(row), LEDGER_CSV[c.key](row), `${c.key} csv of ${row.key}`);
+    }
+    // The screen and the file agree on the three: a blank is "—" on screen and empty in the file.
+    for (const key of ['region', 'location', 'account'] as const) assert.equal(LEDGER_CSV[key](row), cellWordsOf(row, key) === BLANK ? '' : cellWordsOf(row, key), `${key} of ${row.key}`);
+  }
+  // The checklists, each in its column's order, the blank last; a filter over them; the sort by each.
+  assert.deepEqual(columnValues(planSheet, 'location'), [{ key: 'Homebase', count: 3 }, { key: 'Travel', count: 6 }, { key: BLANK, count: 4 }]);
+  assert.deepEqual(columnValues(planSheet, 'region'), [{ key: 'Eastmarch', count: 8 }, { key: BLANK, count: 5 }]);
+  assert.deepEqual(applyColumnFilters(planSheet, { ...NO_COLUMN_FILTERS, location: { dropped: ['Travel', BLANK] } }).map((r) => r.description), ['Climbing', 'Climbing', 'Climbing']);
+  assert.deepEqual(applyColumnFilters(planSheet, { ...NO_COLUMN_FILTERS, region: { dropped: ['Eastmarch'] } }).map((r) => r.day), [D1, D1, D1, D1, D1]);
+  const byLocation = sortRows(planSheet, { column: 'location', direction: 'asc' }).map((r) => cellWordsOf(r, 'location'));
+  assert.deepEqual(byLocation, [...Array(3).fill('Homebase'), ...Array(6).fill('Travel'), ...Array(4).fill(BLANK)], 'by the word, the blank last');
+  assert.deepEqual(sortRows(planSheet, { column: 'location', direction: 'desc' }).map((r) => cellWordsOf(r, 'location')).slice(0, 7), [...Array(6).fill('Travel'), 'Homebase'], 'descending: the blank still last');
+  const byCode = sortRows(planSheet, { column: 'account', direction: 'asc' }).map((r) => cellWordsOf(r, 'account'));
+  assert.deepEqual([...new Set(byCode)], ['B-6400-10', 'P-HOM-6200-30', 'P-TRV-6150', 'P-TRV-6150-20', BLANK], 'by the WHOLE code');
+  // In the source: the CSV's own null path — never a screen helper; the COA cell reads the levels' code, not `coa`.
+  const rules = code(SHEET_RULES);
+  const block = rules.slice(rules.indexOf('export const LEDGER_CSV'), rules.indexOf('export const LEDGER_TABLE'));
+  assert.doesNotMatch(block, /CellWords|BLANK|regionWords/, 'the CSV never calls a screen helper');
+  assert.match(block, /region: \(row\) => row\.place === null \|\| row\.place\.region === null \? '' : row\.place\.region,/);
+  assert.match(block, /location: \(row\) => row\.location === null \? '' : LOCATION_WORDS\[row\.location\],/);
+  assert.match(rules, /case 'account': return codeCellWords\(row\);/);
+  assert.match(rules, /export const accountCellWords = /, 'the entity and the code alone stay exported for what else reads them');
+});
+
+test('G5 a single day folds FIVE columns — REGION with the place — and its line above the table says the place’s three parts when every row of the day shares them; a region is a value, null too', () => {
+  assert.deepEqual([...DAY_FOLD_COLUMNS], ['day', 'date', 'city', 'region', 'country']);
+  assert.deepEqual(DAY_FOLD_CLASS.split(' '), [...DAY_FOLD_COLUMNS.map((key) => `[&_th:has([data-ledger-sort=${key}])]:hidden`), ...DAY_FOLD_COLUMNS.map((key) => `[&_td[data-ledger-cell=${key}]]:hidden`)]);
+  assert.ok(code(SHEET_RULES).includes(`export const DAY_FOLD_CLASS = '${DAY_FOLD_CLASS}';`), 'typed whole, on one line');
+  const tuesday = { from: D2, to: D2 };
+  assert.deepEqual([dayFoldCount(tuesday), dayFoldCount({ from: D1, to: D3 }), dayFoldCount(null)], [5, 0, 0]);
+  assert.ok(DAY_FOLD_COLUMNS.every((key) => LEDGER_COLUMNS.indexOf(key) < LEDGER_COLUMNS.indexOf('budget')), 'all five sit before BUDGET');
+  assert.deepEqual([LEDGER_COLUMNS.indexOf('budget'), LEDGER_COLUMNS.indexOf('budget') - dayFoldCount(tuesday), LEDGER_COLUMNS.length - dayFoldCount(tuesday)], [19, 14, 20], 'the TOTAL’s label spans nineteen, fourteen on one day; twenty columns shown');
+  // The day's place.
+  assert.equal(dayPlaceWords(tuesday, planSheet), '· Harborview, Eastmarch, Ruritania');
+  assert.equal(dayPlaceWords({ from: D1, to: D1 }, planSheet), null, 'no stay covers Monday');
+  assert.equal(dayPlaceWords({ from: D2, to: D3 }, planSheet), null, 'two days are not one');
+  const ofTuesday = planSheet.filter((r) => r.day === D2);
+  const withRegion = (region: string | null, rows: readonly LedgerSheetRow[] = ofTuesday): LedgerSheetRow[] => rows.map((r) => ({ ...r, place: r.place === null ? null : { ...r.place, region } }));
+  assert.equal(dayPlaceWords(tuesday, withRegion(null)), '· Harborview, Ruritania', 'a place that names no region: the two parts, as before');
+  assert.equal(dayPlaceWords(tuesday, [...withRegion('Southmarch', ofTuesday.slice(0, 1)), ...ofTuesday.slice(1)]), null, 'two rows of the day differ by their region alone: no words');
+  assert.equal(dayPlaceWords(tuesday, [...withRegion(null, ofTuesday.slice(0, 1)), ...ofTuesday.slice(1)]), null, 'a null region is a value: it differs from a named one');
+  assert.match(code(SHEET_RULES), /row\.place\.city !== place\.city \|\| row\.place\.region !== place\.region \|\| row\.place\.country !== place\.country/);
+});
+
+test('G6 the summary groups by TEN: region after city, location after country, type after the category — a row’s key by region and by location its cell’s words, by type its category’s name and its own; the chips say his sheet’s words; the title says by entity', () => {
+  assert.deepEqual([...GROUP_KEYS], ['day', 'week', 'month', 'city', 'region', 'country', 'location', 'coa', 'type', 'book']);
+  assert.deepEqual(GROUP_WORDS, { day: 'Day', week: 'Week', month: 'Month', city: 'City', region: 'Region', country: 'Country', location: 'Location', coa: 'Category', type: 'Type', book: 'Entity' });
+  assert.deepEqual(GROUP_KEYS.map((g) => GROUP_WORDS[g]), ['Day', 'Week', 'Month', 'City', 'Region', 'Country', 'Location', 'Category', 'Type', 'Entity'], 'the chips, in their order');
+  assert.equal(SUMMARY_TITLE_WORDS, 'over time, by place and by entity');
+  const groups = (by: (typeof GROUP_KEYS)[number]) => ledgerSummary(planSheet, by).map((g) => [g.key, g.totals.budgetCents, g.totals.actualCents]);
+  // By region: Monday's five rows under the blank; the stay's two days under its region.
+  assert.deepEqual(groups('region'), [[BLANK, 2950, 1100], ['Eastmarch', 5900, null]]);
+  // By location: the cell's words — the routine that says none, and the record no line matches, under the blank.
+  assert.deepEqual(groups('location'), [[BLANK, 1200, 150], ['Homebase', 4200, null], ['Travel', 3450, 950]]);
+  // By type: the category's name, then the stop's own — the row with no account under the blank's.
+  assert.deepEqual(groups('type'), [[`${BLANK} › Kiosk`, null, 150], ['Dining Out › Curry', 2700, 950], ['Dining Out › Lassi', 750, null], ['Printing › Print shop', 1200, null], ['Recreation › Climbing', 4200, null]]);
+  // One name under two categories is two types.
+  const curry = rowOn(planSheet, 'Curry', D2);
+  assert.deepEqual([typeGroupWords(curry), typeGroupWords({ ...curry, coa: { account: 'P-6200', name: 'Recreation' } })], ['Dining Out › Curry', 'Recreation › Curry']);
+  // The five that stood keep their keys' own words: the category still groups by the code and the name, the book by its word.
+  assert.deepEqual(ledgerSummary(planSheet, 'book').map((g) => g.key), ['Business', 'no account', 'Personal']);
+  assert.deepEqual(ledgerSummary(planSheet, 'city').map((g) => g.key), [BLANK, 'Harborview']);
+  // Every group's totals are the one rule's over its rows.
+  for (const by of GROUP_KEYS) assert.equal(ledgerSummary(planSheet, by).reduce((sum, g) => sum + (g.totals.budgetCents ?? 0), 0), 8850, `${by}: the groups part the rows — (9 + 2.50 + 14 + 4) × 3`);
+});
+
+test('G7 "+ expense" asks the stop’s LOCATION after the ENTITY — none, Travel or Homebase, read by the one rule and never required; a word that is neither is refused on `location` in that rule’s words; its one-off’s body says location_class; the form’s labels are the sheet’s words', () => {
+  assert.deepEqual([...EXPENSE_FIELDS], ['day', 'time', 'name', 'amount', 'coa', 'book', 'location', 'vendor', 'actual', 'stars', 'note']);
+  assert.deepEqual([EXPENSE_FIELD_WORDS.name, EXPENSE_FIELD_WORDS.coa, EXPENSE_FIELD_WORDS.book, EXPENSE_FIELD_WORDS.location, EXPENSE_FIELD_WORDS.note], ['TYPE', 'CATEGORY', 'ENTITY', 'LOCATION', 'ITEMS']);
+  assert.deepEqual([EXPENSE_FIELD_WORDS.name, EXPENSE_FIELD_WORDS.coa, EXPENSE_FIELD_WORDS.book, EXPENSE_FIELD_WORDS.location, EXPENSE_FIELD_WORDS.note], (['subAccountName', 'accountName', 'book', 'location', 'description'] as const).map(headWordOf), 'each the column’s own head word');
+  assert.deepEqual([requiredWords('name'), requiredWords('coa'), requiredWords('book')], ['TYPE is required', 'CATEGORY is required', 'ENTITY is required'], 'every sentence built from them follows');
+  assert.equal(EMPTY_EXPENSE.location, '');
+  assert.equal(NO_LOCATION_WORDS, BLANK);
+  assert.equal(SHEET_LOCATION_CLASSES, LOCATION_CLASSES, 'the form’s choices are the rule file’s own list, read through the sheet’s rules');
+  assert.equal(SHEET_LOCATION_WORDS, LOCATION_WORDS, 'and its own words');
+  const draft: ExpenseDraft = { ...EMPTY_EXPENSE, day: D1, time: '13:15', name: 'Dumplings', amount: '7.25', coa: '6150', book: 'P' };
+  const read = (over: Partial<ExpenseDraft>) => expenseInput({ ...draft, ...over }, EAT, SHEET_NOW);
+  const locationOf = (typed: string): LocationClass | null => {
+    const r = read({ location: typed });
+    if (!r.ok) return assert.fail(`refused: ${r.field} — ${r.message}`);
+    return r.value.location;
+  };
+  // None, the two by their keys, and by their words in either case.
+  assert.deepEqual(['', '   ', 'travel', 'homebase', 'Travel', 'HOMEBASE', ' Homebase '].map(locationOf), [null, null, 'travel', 'homebase', 'travel', 'homebase', 'homebase']);
+  // A word that is neither: the rule's own words, on the form's `location`.
+  assert.deepEqual(read({ location: 'abroad' }), { ok: false, field: 'location', message: locationUnknownWords('abroad') });
+  // Read after the ENTITY and before the vendor: the first bad box is the one named.
+  assert.deepEqual(read({ book: '', location: 'abroad' }), { ok: false, field: 'book', message: requiredWords('book') });
+  assert.deepEqual(read({ location: 'abroad', vendorId: 'v1', vendorName: 'Steam Stall' }), { ok: false, field: 'location', message: locationUnknownWords('abroad') });
+  // The one-off's body says it — beside the venue's text, which is as it was.
+  const travel = read({ location: 'Travel' });
+  const none = read({});
+  assert.ok(travel.ok && none.ok);
+  assert.deepEqual([oneOffBody(travel.value).location_class, oneOffBody(none.value).location_class, oneOffBody(travel.value).location], ['travel', null, '']);
+  assert.deepEqual(Object.keys(oneOffBody(travel.value)).filter((key) => !Object.keys(oneOffBody(none.value)).includes(key)), [], 'the same keys, said or not');
+  // In the source: the leaf's box — none first, then the rule's two; and the rule reads it with the one reader.
+  const leaf = code(EXPENSE_LEAF);
+  assert.ok(leaf.includes(`{field('location', <select value={draft.location} onChange={(e) => set('location')(e.target.value)} className={box} data-ledger-expense-location><option value="">{NO_LOCATION_WORDS}</option>{LOCATION_CLASSES.map((c) => <option key={c} value={c}>{LOCATION_WORDS[c]}</option>)}</select>)}`));
+  assert.ok(leaf.indexOf('data-ledger-expense-book') < leaf.indexOf('data-ledger-expense-location'), 'after the ENTITY’s box');
+  assert.match(code(SHEET_RULES), /const location = readLocationClass\(draft\.location\);\n\s*if \(!location\.ok\) return refuseExpense\('location', location\.words\);/);
+  assert.match(code(SHEET_RULES), /location_class: v\.location,/);
+});
+
+test('G8 in the source, the section: 488 lines, the three lines the registry cites where they stood; the controls on ONE line — title, two leaves, divider — and the tint’s swatch in the trailing; the cells in the sheet’s order, a level’s code before its word in four, a cut cell titled; the TOTAL’s label over nineteen and one cell under NOTES', () => {
+  const s = code(SHEET_SECTION);
+  const lines = linesOf(SHEET_SECTION);
+  assert.equal(lines.length, 488);
+  assert.match(lines[367], /data-ledger-cell="planned-minutes"/, ':368');
+  assert.match(lines[431], /data-ledger-said-planned/, ':432');
+  assert.match(lines[474], /data-ledger-group-planned-hours/, ':475');
+  // The section's class: the table's box takes what is left of the window.
+  assert.ok(lines[292].includes("<section className={dayFoldClass('space-y-1.5 [&_div:has(>[data-ledger-table])]:max-h-[calc(100vh-8rem)] [&_div:has(>[data-ledger-table])]:overflow-y-auto', period)} data-ledger>"), ':293');
+  // The five lines under it are a note: no markup stands between the section's tag and the shared table.
+  assert.equal(lines.slice(293, 298).join('').replace(/\s+/g, ''), '{}', ':294–:298 hold one comment and nothing else');
+  // The controls on ONE line: title, the two leaves exactly as they were mounted, a divider — at the head of the shared table's controls.
+  assert.ok(lines[317].trim().startsWith('<><h2 className="text-sm font-bold text-brand-purple" data-ledger-title>{LEDGER_TITLE_WORDS}</h2><ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} /><span className="h-4 w-px bg-border" aria-hidden="true" />'), ':318');
+  assert.deepEqual([countOf(s, /<h2\b/g), countOf(s, /<ExpenseForm\b/g), countOf(s, /<PasteRows\b/g)], [1, 1, 1]);
+  // The swatch: the tint's legend, its meaning its label and its title.
+  assert.ok(lines[328].trim().startsWith('<>{answer !== null && answer.read.ok && shown.length > 0 && <span className={`inline-block h-3 w-3 rounded-sm border border-border ${NOT_TYPED_TINT}`} role="img" aria-label={NOT_TYPED_WORDS} title={NOT_TYPED_WORDS} data-ledger-legend data-ledger-legend-swatch />}'), ':329');
+  assert.deepEqual([countOf(s, /data-ledger-legend(?![-\w])/g), countOf(s, /data-ledger-legend-swatch/g)], [1, 1], 'the legend is the swatch — no separate line beneath the table');
+  // The cells, one per head word, in the head's order; each keeps its name.
+  const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(cells, LEDGER_COLUMNS.map((key) => key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)));
+  const cellOn = (n: number, name: string): string => {
+    const line = lines[n - 1];
+    const at = line.indexOf(`data-ledger-cell="${name}"`);
+    assert.ok(at >= 0, `:${n} holds the ${name} cell`);
+    return line.slice(line.lastIndexOf('<td ', at), line.indexOf('</td>', at) + '</td>'.length);
+  };
+  // :352 city, then region; :353 country, then location; :355 CATEGORY; :356 ENTITY; :357 TYPE, then ITEMS; :358 vendor, then tag; :369 logged minutes, then COA; :378 notes.
+  assert.equal(cellOn(352, 'region'), '<td className={`${cell} ${row.place === null || row.place.region === null ? BLANK_CLASS : \'\'}`} data-ledger-cell="region">{regionWords(row)}</td>');
+  assert.ok(lines[351].indexOf('data-ledger-cell="city"') < lines[351].indexOf('data-ledger-cell="region"'));
+  assert.equal(cellOn(353, 'location'), '<td className={`${cell} ${row.location === null ? BLANK_CLASS : \'\'}`} data-ledger-cell="location">{row.segments !== null && row.segments.location !== null && <span className={CODE_CLASS}>{row.segments.location}</span>}{locationCellWords(row)}</td>');
+  assert.ok(lines[352].indexOf('data-ledger-cell="country"') < lines[352].indexOf('data-ledger-cell="location"'));
+  assert.equal(lines[353].replace(/\s+/g, ''), '{}', ':354 — a note where the book’s cell stood');
+  assert.equal(cellOn(355, 'account-name'), '<td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : \'\'}`} data-ledger-cell="account-name">{row.segments !== null && <span className={CODE_CLASS}>{row.segments.category}</span>}{accountPill === null ? accountNameCellWords(row) : <span className={accountPill} data-ledger-pill="account-name">{accountNameCellWords(row)}</span>}</td>');
+  assert.equal(cellOn(356, 'book'), '<td className={`${cell} whitespace-nowrap ${row.book === null ? BLANK_CLASS : \'\'}`} data-ledger-cell="book">{row.segments !== null && row.segments.entity !== null && <span className={CODE_CLASS}>{row.segments.entity}</span>}{bookPill === null ? bookCellWords(row) : <span className={bookPill} data-ledger-pill="book">{bookCellWords(row)}</span>}</td>');
+  assert.equal(cellOn(357, 'sub-account-name'), '<td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name" title={row.description}>{row.segments !== null && row.segments.type !== null && <span className={CODE_CLASS}>{row.segments.type}</span>}{row.description}</td>');
+  assert.equal(cellOn(357, 'description'), '<td className={`${cell} ${descriptionOf(row) === null ? BLANK_CLASS : plannedDescription(row) ? PLANNED_CLASS : \'text-text-muted\'}`} data-ledger-cell="description" data-ledger-planned={plannedDescription(row) ? \'\' : undefined} title={plannedDescription(row) ? `${PLANNED_ITEMS_TITLE_WORDS} — ${noteCellWords(descriptionOf(row))}` : descriptionOf(row) ?? undefined}>{noteCellWords(descriptionOf(row))}</td>');
+  assert.ok(lines[356].indexOf('data-ledger-cell="sub-account-name"') < lines[356].indexOf('data-ledger-cell="description"'));
+  assert.equal(cellOn(358, 'vendor'), '<td className={`${cell} ${row.vendor === null ? BLANK_CLASS : \'\'}`} data-ledger-cell="vendor" title={row.vendor ?? undefined}>{vendorCellWords(row.vendor)}</td>');
+  assert.ok(lines[357].includes('data-ledger-cell="instagram-tag">{tagCellWords(row.instagramTag)}</td>'));
+  assert.equal(cellOn(369, 'account'), '<td className={`${cell} whitespace-nowrap ${row.segments === null ? BLANK_CLASS : \'font-mono text-[11px] font-semibold text-text-primary\'}`} data-ledger-cell="account">{codeCellWords(row)}</td>');
+  assert.ok(lines[368].indexOf('data-ledger-cell="logged-minutes"') < lines[368].indexOf('data-ledger-cell="account"'));
+  assert.equal(lines[377].trim(), '<td className={`${cell} ${row.notes === null ? BLANK_CLASS : \'text-text-muted\'}`} data-ledger-cell="notes" title={row.notes ?? undefined}>{noteCellWords(row.notes)}</td>', ':378 — the notes’ cell alone');
+  // A level's code is printed before its word in FOUR cells, in the one class — typed whole, once — and never where the row has none.
+  assert.ok(s.includes("const CODE_CLASS = 'font-mono text-[11px] text-text-muted mr-1.5 tabular-nums';"));
+  assert.deepEqual([...s.matchAll(/<span className=\{CODE_CLASS\}>\{row\.segments\.([a-z]+)\}<\/span>/g)].map((m) => m[1]), ['location', 'category', 'entity', 'type']);
+  assert.equal(countOf(s, /\bCODE_CLASS\b/g), 5, 'typed once, read by the four cells');
+  assert.equal(countOf(s, /row\.segments !== null && /g), 4, 'no segments — no span');
+  assert.equal(countOf(s, /row\.segments\.(location|entity|type) !== null && <span/g), 3, 'a level that is null — no span (the category is never null)');
+  // A cut cell says itself whole on hover: the four the table's class cuts.
+  assert.deepEqual([...s.matchAll(/data-ledger-cell="([a-z-]+)"[^>]*? title=\{/g)].map((m) => m[1]).filter((name) => name !== 'went' && name !== 'match'), ['sub-account-name', 'description', 'vendor', 'notes']);
+  assert.deepEqual(LEDGER_TABLE_CLASS.split(' ').filter((c) => c.endsWith(':truncate')), ['sub-account-name', 'description', 'vendor', 'notes'].map((name) => `[&_td[data-ledger-cell=${name}]]:truncate`), 'the same four');
+  // The TOTAL row: its label over the nineteen columns before BUDGET (less a single day's fold), the five it has, then ONE cell under NOTES.
+  const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
+  assert.ok(tfoot.includes('<th scope="row" colSpan={19 - dayFoldCount(period)} className={`${cell} text-left`}>{TOTAL_WORDS}</th>'));
+  assert.deepEqual([...tfoot.matchAll(/data-ledger-total-([a-z-]+)/g)].map((m) => m[1]), ['budget', 'actual', 'variance', 'match', 'under-over', 'notes']);
+  assert.equal(19 + 6, LEDGER_COLUMNS.length);
+  assert.doesNotMatch(s, /data-ledger-total-description/);
+  // The section imports the three cell rules it prints, and no longer the entity-and-code one.
+  assert.deepEqual([countOf(s, /\bcodeCellWords\b/g), countOf(s, /\blocationCellWords\b/g), countOf(s, /\bregionWords\b/g), countOf(s, /\baccountCellWords\b/g)], [2, 2, 2, 0]);
+  // No sentence of its own, no box in a row, nothing fetched or stored.
+  assert.doesNotMatch(s, />[A-Za-z][^<>{}]*[a-z][^<>{}]*</, 'no bare prose between tags');
+  assert.doesNotMatch(s, /\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie|contentEditable/);
+  assert.match(comments(SHEET_SECTION), /COALEVELS-01 \(2026-11-27\), Alex — ONE LINE OF CONTROLS\./);
+});
+
+/** The grid's class, as ruled — typed whole here too, so a variant that drifts is named by the test and not by the eye. */
+const RULED_TABLE_CLASS = 'min-w-[96rem] [&_th]:whitespace-normal [&_th]:px-1.5 [&_th]:py-1 [&_th]:align-bottom [&_td]:px-1.5 [&_td[data-ledger-cell]]:py-0.5 [&_td[data-ledger-cell]]:align-middle [&_td[data-ledger-cell]]:whitespace-nowrap [&_th]:border-l [&_th]:border-border [&_td]:border-l [&_td]:border-border [&_th:first-child]:border-l-0 [&_td:first-child]:border-l-0 [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-bg-row [&_thead_th]:shadow-[inset_0_-1px_0_rgb(var(--ts-border))] [&_tfoot_th]:sticky [&_tfoot_th]:bottom-0 [&_tfoot_th]:bg-bg-row [&_tfoot_th]:py-0.5 [&_tfoot_th]:shadow-[inset_0_1px_0_rgb(var(--ts-border))] [&_tfoot_td]:sticky [&_tfoot_td]:bottom-0 [&_tfoot_td]:bg-bg-row [&_tfoot_td]:py-0.5 [&_tfoot_td]:shadow-[inset_0_1px_0_rgb(var(--ts-border))] [&_tr[data-ledger-row]:hover]:bg-bg-row [&_[data-ledger-pill]]:px-1.5 [&_[data-ledger-pill]]:py-0 [&_td[data-ledger-cell]_button]:px-1 [&_td[data-ledger-cell]_button]:py-0 [&_td[data-ledger-cell]_button]:leading-[14px] [&_td[data-ledger-cell=sub-account-name]]:max-w-[12rem] [&_td[data-ledger-cell=sub-account-name]]:truncate [&_td[data-ledger-cell=description]]:max-w-[16rem] [&_td[data-ledger-cell=description]]:truncate [&_td[data-ledger-cell=vendor]]:max-w-[11rem] [&_td[data-ledger-cell=vendor]]:truncate [&_td[data-ledger-cell=notes]]:max-w-[14rem] [&_td[data-ledger-cell=notes]]:truncate';
+
+test('G9 the grid’s class is typed WHOLE, exactly as ruled — the rule file’s last export and last line, its note above it saying what the variants do; every attribute a variant finds a cell by is one the section or the shared table writes', () => {
+  assert.equal(LEDGER_TABLE_CLASS, RULED_TABLE_CLASS);
+  const line = `export const LEDGER_TABLE_CLASS = '${RULED_TABLE_CLASS}';`;
+  const rules = code(SHEET_RULES);
+  assert.equal(rules.split(line).length - 1, 1, 'typed once, whole, on one line');
+  assert.equal(rules.replace(/\s+$/, '').split('\n').at(-1), line, 'the file’s last line');
+  assert.equal(rules.split('\n').filter((l) => /^export /.test(l)).at(-1), line, 'its last export');
+  assert.doesNotMatch(line, /\$\{|`| \+ |\.join\(/, 'a plain string literal — nothing joined');
+  const classes = RULED_TABLE_CLASS.split(' ');
+  assert.deepEqual([classes.length, new Set(classes).size, classes[0]], [44, 44, 'min-w-[96rem]'], 'the floor the table had, and forty-three variants — each once');
+  assert.ok(classes.slice(1).every((c) => /^\[&_[^ ]+\]:[^ ]+$/.test(c)), 'every other class is a variant: an element under the table, then one utility');
+  // What a variant finds: the section's own attributes, and nothing the shared table does not hold.
+  const section = code(SHEET_SECTION);
+  for (const attr of ['data-ledger-row={row.key}', 'data-ledger-pill="book"', 'data-ledger-pill="account-name"', 'data-ledger-cell="sub-account-name"', 'data-ledger-cell="description"', 'data-ledger-cell="vendor"', 'data-ledger-cell="notes"']) assert.ok(section.includes(attr), attr);
+  assert.match(section, /tableClassName=\{LEDGER_TABLE_CLASS\}/);
+  assert.match(section, /<tfoot>/);
+  // The section's own class reaches the table's box by the attribute the shared table writes on the table itself.
+  assert.match(code('src/components/table/DataTable.tsx'), /<div className="overflow-x-auto border border-border rounded bg-white">\n\s*<table className=\{`w-full \$\{tableClassName\} border-collapse text-xs`\} \{\.\.\.dataAttr\(name, 'table'\)\}>/);
+  // The note above the class says what the variants do now.
+  const whole = comments(SHEET_RULES);
+  assert.match(whole, /COALEVELS-01 \(Alex, 2026-11-27\): THE GRID\./);
+});
+
+test('G10 the shell: ToolOpener takes ONE new prop, `compact` — false when not passed — and /time alone passes it; compact is one line: the family, then each tool’s number, name, status and its registry line cut to the line, whole in its title; the wide page’s padding; the two leaves’ roots by `open`', () => {
+  const o = code(OPENER);
+  assert.ok(o.includes('export default function ToolOpener({ tools, line, actions, compact = false }: {'));
+  assert.match(o, /\n\s*compact\?: boolean;\n/);
+  assert.equal(countOf(o, /\bcompact\b/g), 3, 'the prop, its default, and the one test of it');
+  const start = o.indexOf('  if (compact) {\n');
+  assert.ok(start > 0, 'the one test of the prop');
+  const branch = o.slice(start, o.indexOf('\n  }\n', start));
+  assert.ok(branch.includes('<header className="mb-1.5 flex items-baseline gap-x-2 text-xs" data-tool-opener={tools.map((t) => t.name).join(\' + \')}>'), 'one line');
+  assert.match(branch, /<p className="[^"]*\bwhitespace-nowrap\b[^"]*">\n\s*\{familyWord\(first\.family\)\}\n\s*<\/p>/, 'the family, on the line');
+  assert.ok(branch.includes('<span key={tool.name} className="flex min-w-0 flex-1 items-baseline gap-x-2" data-opener-tool={tool.name} id={tool.name.toLowerCase().replace(/[^a-z0-9]+/g, \'-\')}>'));
+  assert.ok(branch.includes('<h1 className="text-sm font-semibold tracking-tight text-text-primary">{tool.name}</h1>'));
+  assert.ok(branch.includes('<StatusChip status={tool.status} />'));
+  assert.ok(branch.includes('{tool.line && <span className="min-w-0 flex-1 truncate text-text-muted" title={tool.line}>{tool.line}</span>}'), 'the registry line, cut to the line and whole in its title');
+  assert.doesNotMatch(branch, /StageStrip|phases|\{line\}|\{actions\}/, 'the family, the name and the registry line — no other prose, no strip, no actions');
+  // Not passed, the opener is as it was: the full header still stands after the compact branch.
+  assert.equal(countOf(o, /<header\b/g), 2);
+  // /time alone passes it.
+  /** Every mount of the opener in a file, whole: a one-line mount to its line's end, a longer one to the `/>` at its own indent. */
+  const mountsOf = (file: string): string[] => {
+    const text = code(file).split('\n');
+    const found: string[] = [];
+    text.forEach((line, i) => {
+      const at = line.indexOf('<ToolOpener');
+      if (at < 0) return;
+      if (line.includes('/>', at)) { found.push(line.slice(at).trim()); return; }
+      const end = text.findIndex((l, j) => j > i && l === `${line.slice(0, at)}/>`);
+      assert.ok(end > i, `${file}:${i + 1} — the mount closes at its own indent`);
+      found.push(text.slice(i, end + 1).map((l) => l.trim()).join(' '));
+    });
+    return found;
+  };
+  const mounts = walk('src', /\.tsx$/).filter((file) => file !== OPENER).flatMap((file) => mountsOf(file).map((mount) => ({ file, mount })));
+  assert.ok(mounts.length > 10, 'the walk found the mounts');
+  assert.deepEqual(mounts.filter((m) => /\bcompact\b/.test(m.mount)), [{ file: TIME_PAGE, mount: "<ToolOpener compact tools={[navToolByName('Time', TOOL_GATE)]} />" }]);
+  // The wide page — /time's alone — has its own padding.
+  assert.ok(code(LAYOUT).includes("<main className={page && wide ? 'w-full min-w-0 px-3 py-2' : page ? 'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : 'max-w-[1800px] mx-auto w-full'}>"));
+  // The two leaves' roots: shut, the root is `contents` and its button stands in the controls row; open, it takes the row's whole width beneath.
+  for (const [file, attr] of [[EXPENSE_LEAF, 'data-ledger-expense'], [PASTE_LEAF, 'data-ledger-paste']] as const) {
+    assert.ok(code(file).includes(`<div className={open ? 'order-last w-full space-y-2' : 'contents'} ${attr}>`), file);
+  }
+  // The registry's cite into the expense form still holds its one-off's write.
+  assert.match(linesOf(EXPENSE_LEAF)[86], /const created = await createOneOff\(oneOffBody\(v\)\);/, 'ExpenseForm.tsx:87');
+});
+
+test('G11 the answer reads NINE — the caller’s active sub-accounts beside the eight — and hands the rule every routine’s Location and each sub-account by its account’s book and code; over a stand-in client the levels ride the one answer; a sub-account of no chart row read, and a stored Location that is neither, are thrown by name; the registry’s two cites follow the rule file', async () => {
+  const a = code(SHEET_ANSWER);
+  assert.equal(countOf(a, /db\.[a-z_]+\.(findMany|findFirst)\(/g), 9);
+  assert.match(a, /db\.chart_of_sub_accounts\.findMany\(\{ where: \{ userId: userId, is_archived: false \}, select: \{ account_id: true, code: true, name: true \} \}\),/);
+  assert.match(a, /select: \{ id: true, entity_id: true, code: true, name: true, account_type: true, balance_type: true \},/);
+  assert.match(a, /db\.operations_routines\.findMany\(\{ where: \{ user_id: userId \}, select: \{ id: true, role: true, location_class: true \} \}\),/);
+  assert.match(a, /locations: new Map\(roles\.map\(\(r\) => \[r\.id, locationClassOf\(r\.location_class, `routine \$\{r\.id\}`\)\]\)\),\n\s*subAccounts,/);
+  assert.match(a, /return \{ entityId: account\.entityId, code: account\.code, sub: s\.code, name: s\.name \};/);
+  assert.doesNotMatch(a, /\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/, 'writes nothing');
+  // The two lines the registry cites in it are where they stood.
+  assert.match(linesOf(SHEET_ANSWER)[41], /start_time: true, end_time: true/, ':42');
+  assert.match(linesOf(SHEET_ANSWER)[42], /duration_minutes: true/, ':43');
+  // Over a stand-in client: one routine row serves the loader's read and the roles read.
+  type Call = { readonly table: string; readonly method: string };
+  const standIn = (rows: Readonly<Record<string, readonly unknown[]>>, calls: Call[]) => {
+    const db: Record<string, { findMany: () => Promise<unknown[]>; findFirst: () => Promise<unknown> }> = {};
+    for (const table of Object.keys(rows)) {
+      db[table] = {
+        findMany: async () => { calls.push({ table, method: 'findMany' }); return [...rows[table]]; },
+        findFirst: async () => { calls.push({ table, method: 'findFirst' }); return rows[table].length === 0 ? null : rows[table][0]; },
+      };
+    }
+    return db as unknown as Parameters<typeof taskLedgerAnswerOf>[0];
+  };
+  const routineRow = (locationClass: string | null) => ({
+    id: 'supper', name: 'Supper', role: 'place', location_class: locationClass, is_active: true, end_date: null, start_date: null, budget_amount: null, coa_code: null, schedule_rrule: 'FREQ=DAILY;BYHOUR=19;BYMINUTE=0', timezone: EAT, start_time: null, end_time: null,
+    steps: [{ id: 'curry', is_active: true, budget_amount: 9, coa_code: '6150', step_order: 1, activity: 'Curry', time_of_day: null, duration_minutes: null }],
+  });
+  const tables = (over: { readonly location?: string | null; readonly subs?: readonly unknown[] } = {}) => ({
+    entities: [{ id: 'P', name: 'Personal', entity_type: 'personal' }],
+    chart_of_accounts: [{ id: 'acct-6150', entity_id: 'P', code: '6150', name: 'Dining Out', account_type: 'expense', balance_type: 'D' }],
+    chart_of_sub_accounts: over.subs ?? [{ account_id: 'acct-6150', code: '20', name: 'Curry' }],
+    operations_routines: [routineRow(over.location === undefined ? 'travel' : over.location)], planned_item_vendors: [], operations_stays: [], operations_stop_records: [], planned_item_links: [],
+  });
+  const calls: Call[] = [];
+  const answer = await taskLedgerAnswerOf(standIn(tables(), calls), 'someone', { from: D2, to: D2 }, SHEET_NOW);
+  assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'chart_of_sub_accounts.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany']);
+  assert.deepEqual(answer.sheet.map((r) => [r.description, r.location, r.segments]), [['Curry', 'travel', { entity: 'P', location: 'TRV', category: '6150', type: '20', code: 'P-TRV-6150-20' }]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(answer)), answer, 'wire-shaped as built');
+  // A routine that says none, and a caller with no sub-accounts: the levels that are there, and no others.
+  const bare = await taskLedgerAnswerOf(standIn(tables({ location: null, subs: [] }), []), 'someone', { from: D2, to: D2 }, SHEET_NOW);
+  assert.deepEqual(bare.sheet.map((r) => [r.location, r.segments]), [[null, { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }]]);
+  // A sub-account whose account is no chart row read; a stored Location that is neither of the two — each thrown by name, nothing printed as none.
+  await assert.rejects(taskLedgerAnswerOf(standIn(tables({ subs: [{ account_id: 'acct-gone', code: '20', name: 'Curry' }] }), []), 'someone', { from: D2, to: D2 }, SHEET_NOW), /ledger GET: sub-account "20" "Curry" names account acct-gone, which is no chart row read/);
+  await assert.rejects(taskLedgerAnswerOf(standIn(tables({ location: 'abroad' }), []), 'someone', { from: D2, to: D2 }, SHEET_NOW), /locationClass: routine supper holds the Location "abroad" — not one of travel, homebase/);
+  // THE REGISTRY: the Time row's two cites into the rule file stand where the two lines stand; no status, beat or word of it changed.
+  const time = TOOL_REGISTRY.find((t) => t.name === 'Time');
+  assert.ok(time);
+  assert.deepEqual([time.status, time.beats, time.home, time.why], ['LIVE', { discover: true, decide: true, commit: true, record: true }, '/time', undefined]);
+  const cited = (re: RegExp): number => { const m = time.citation.match(re); if (m === null) return assert.fail(`the citation names ${re}`); return Number(m[1]); };
+  const heads = cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS — COALEVELS-01, 2026-11-27: was :\d+/);
+  const sums = cited(/the summary's sums, src\/lib\/operations\/ledger\.ts:(\d+) \(was :\d+\)/);
+  assert.match(linesOf(SHEET_RULES)[heads - 1], /^export const LEDGER_HEAD_WORDS = \[/);
+  assert.match(linesOf(SHEET_RULES)[sums - 1], /^export const SUMMARY_HEAD_WORDS = \[/);
+  assert.equal(countOf(time.citation, /src\/lib\/operations\/ledger\.ts:\d+/g), 2);
+  const said = comments(REGISTRY).split('\n').find((l) => l.includes('COALEVELS-01 (Alex, 2026-11-27): ledger.ts grew'));
+  assert.ok(said !== undefined, 'the dated sentence, on the row’s comment line');
+  assert.match(said, new RegExp(`ledger\\.ts :\\d+ → :${heads} \\(LEDGER_HEAD_WORDS\\), :\\d+ → :${sums} \\(SUMMARY_HEAD_WORDS\\); what each cites unchanged\\.`));
 });

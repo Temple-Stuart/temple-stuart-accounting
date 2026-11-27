@@ -67,17 +67,17 @@ const at = (day: string, clock: string): string => new Date(`${day}T${clock}:00.
 /** Tuesday noon in the zone: Sunday and Monday are past, Tuesday's 12:30 is half an hour ahead. */
 const NOW = new Date('2027-05-11T09:00:00.000Z');
 
-/** A plan row of the sheet — a priced line with no record on it — in the ledger's own shape. */
+/** A plan row of the sheet — a priced line with no record on it — in the ledger's own shape. COALEVELS-01 (2026-11-27): a row says its location (none) and its segments — its entity's letter and its account's code, as its `coa` says them; a row whose `coa` is its own says its own segments too. */
 const planned = (id: string, day: string, clock: string, name: string, over: Partial<LedgerPlanRow> = {}): LedgerPlanRow => ({
   id: null, key: `routine:${id}:${at(day, clock)}`, address: { kind: 'routine', id, instant: at(day, clock) }, match: null, day, time: clock,
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
+  place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
   cents: 650, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 30, loggedMinutes: null, allDay: false, went: NOT_RECORDED_WORDS, ...over,
 });
 /** A recorded row — a stop that already has its record. */
 const DINNER_RECORD: StopRecordRow = { id: 'r-dinner', kind: 'routine', target_id: 'dinner', occurrence_at: at(MON, '19:00'), outcome: 'done', done_at: at(MON, '19:40'), actual_cents: 1500, rating: 4, note: 'the set menu', notes: null, actual_minutes: 40 };
 const DINNER: LedgerRow = {
   id: 'r-dinner', key: `routine:dinner:${at(MON, '19:00')}`, address: { kind: 'routine', id: 'dinner', instant: at(MON, '19:00') }, match: null, day: MON, time: '19:00',
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Dinner', rating: 4, note: 'the set menu', notes: null, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag, no notes
+  place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Dinner', rating: 4, note: 'the set menu', notes: null, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag, no notes
   cents: 1500, budgetState: 'matched', outcome: 'done', actualCents: 1500, varianceCents: 0, plannedMinutes: null, loggedMinutes: 40,
 };
 
@@ -90,8 +90,8 @@ const MARKET_MON = planned('market', MON, '10:00', 'Market', { cents: 2000 });
 const MARKET_TUE = planned('market', TUE, '10:00', 'Market', { cents: 2000, went: null });
 const COFFEE_SUN = planned('coffee', SUN, '08:00', 'Coffee', { cents: 250, vendor: 'Bean Bar' });
 const COFFEE_MON = planned('coffee', MON, '08:00', 'Coffee', { cents: 250, vendor: 'Bean Bar' });
-const CINEMA_MON = planned('cinema', MON, '21:00', 'Cinema', { cents: 1200, coa: { account: 'P-6200', name: 'Recreation' } });
-const PRINT_MON = planned('print', MON, '11:00', 'Print shop', { book: 'Business', coa: { account: 'B-6400', name: 'Supplies' }, cents: 750 });
+const CINEMA_MON = planned('cinema', MON, '21:00', 'Cinema', { cents: 1200, segments: { entity: 'P', location: null, category: '6200', type: null, code: 'P-6200' }, coa: { account: 'P-6200', name: 'Recreation' } });
+const PRINT_MON = planned('print', MON, '11:00', 'Print shop', { book: 'Business', location: null, segments: { entity: 'B', location: null, category: '6400', type: null, code: 'B-6400' }, coa: { account: 'B-6400', name: 'Supplies' }, cents: 750 });
 const SHEET: readonly LedgerSheetRow[] = [COFFEE_SUN, SWIM_MON_1, SWIM_MON_2, COFFEE_MON, MARKET_MON, PRINT_MON, LUNCH_MON, TEA_MON, DINNER, CINEMA_MON, MARKET_TUE, LUNCH_TUE];
 
 const MARKET_HAS_LINES_WORDS = 'the routine has lines — record each line, not the routine';
@@ -564,11 +564,11 @@ test('T11 the table: YOUR SHEET’s eight columns as he typed them, a blank cell
   assert.deepEqual(YOUR_SHEET_COLUMNS.map((column) => column.head), ['ROW', 'DATE', 'TIME', 'ENTITY', 'CATEGORY › TYPE', 'VENDOR', 'ITEMS', 'TOTAL (USD)']);
   assert.deepEqual([...ON_TIME_SHEET_KEYS], ['start', 'end', 'account', 'accountName', 'subAccountName', 'went', 'budget', 'actual']);
   assert.deepEqual(ON_TIME_SHEET_COLUMNS.map((column) => column.head), ON_TIME_SHEET_KEYS.map(headWordOf));
-  assert.deepEqual(ON_TIME_SHEET_COLUMNS.map((column) => column.head), ['START', 'END', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'WENT', 'BUDGET', 'ACTUAL']);
+  assert.deepEqual(ON_TIME_SHEET_COLUMNS.map((column) => column.head), ['START', 'END', 'COA', 'CATEGORY', 'TYPE', 'WENT', 'BUDGET', 'ACTUAL']); // COALEVELS-01 (2026-11-27): the time sheet's own head words are his sheet's now — COA, CATEGORY and TYPE where ACCOUNT, ACCOUNT NAME and SUB ACCOUNT NAME stood; the eight keys and their order as they were
   assert.deepEqual([YOUR_SHEET_WORDS, ON_TIME_SHEET_WORDS, LANDS_WORDS], ['YOUR SHEET', 'ON THE TIME SHEET', 'LANDS']);
   // Money set right; the long cells — names, items, where it lands — are the ones that may wrap.
   assert.deepEqual([...YOUR_SHEET_COLUMNS, ...ON_TIME_SHEET_COLUMNS].filter((column) => column.money).map((column) => column.head), ['TOTAL (USD)', 'BUDGET', 'ACTUAL']);
-  assert.deepEqual([...YOUR_SHEET_COLUMNS, ...ON_TIME_SHEET_COLUMNS].filter((column) => !column.short).map((column) => column.head), ['CATEGORY › TYPE', 'VENDOR', 'ITEMS', 'ACCOUNT NAME', 'SUB ACCOUNT NAME']);
+  assert.deepEqual([...YOUR_SHEET_COLUMNS, ...ON_TIME_SHEET_COLUMNS].filter((column) => !column.short).map((column) => column.head), ['CATEGORY › TYPE', 'VENDOR', 'ITEMS', 'CATEGORY', 'TYPE']); // COALEVELS-01 (2026-11-27): the same two long columns of the time sheet, under their new head words
   // YOUR SHEET: the row's number, then what he typed — TIME the start, or start – end.
   assert.deepEqual(landed(LUNCH, null).shown.yours, ['2', '5/10/27', '12:30 PM – 1:00 PM', 'Personal', 'Dining › Lunch', 'Oat House', 'two kinds of soup', '$6.90']);
   assert.deepEqual(landed({ ...LUNCH, 'End Time': '', Vendor: '', Items: '', 'Total (USD)': '' }, null).shown.yours, ['2', '5/10/27', '12:30 PM', 'Personal', 'Dining › Lunch', BLANK, BLANK, BLANK]);
@@ -736,19 +736,19 @@ test('T13 every sentence the leaf prints comes from the two rule files, and the 
 
 // ── T14 · THE MOUNT (ruling C) ───────────────────────────────────────────────
 
-test('T14 the section mounts the leaf after the expense form, on the same line, and imports it beside it — two lines, 488 lines still; the expense form’s mount is unchanged; /time mounts what it did', () => {
+test('T14 the section mounts the leaf after the expense form, on the same line — at the head of the controls row (COALEVELS-01, 2026-11-27) — and imports it beside it — two lines, 488 lines still; the expense form’s mount is unchanged; /time mounts what it did', () => {
   const s = code(SECTION);
   assert.equal(linesOf(SECTION).length, 488, 'no line added, none removed — the registry cites three of its lines');
   assert.ok(s.includes("\nimport ExpenseForm from './ExpenseForm'; import PasteRows from './PasteRows';\n"), 'the two imports on the one line');
   // PASTE-02 (Alex, 2026-11-27, ruling E): the leaf is handed what the section does when a day is written — read the time sheet again, and tell the day's card — for every day a save
   // reached. Until then it was mounted bare (`<PasteRows />`): it wrote nothing, so the section had nothing to read again. ONE line edited in place; no line added.
-  assert.ok(s.includes('\n      <ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} />\n'), 'the expense form’s mount, character for character, and the leaf after it');
+  assert.ok(s.includes('<h2 className="text-sm font-bold text-brand-purple" data-ledger-title>{LEDGER_TITLE_WORDS}</h2><ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} /><span className="h-4 w-px bg-border" aria-hidden="true" />\n'), 'the expense form’s mount, character for character, and the leaf after it'); // COALEVELS-01 (2026-11-27): the two mounts stand at the head of the shared table's controls row, after the title and before a divider — on a line of their own above the table until then
   assert.deepEqual([countOf(s, /import PasteRows from '\.\/PasteRows';/g), countOf(s, /<PasteRows\b/g), countOf(s, /\bPasteRows\b/g)], [1, 1, 3], 'imported once and mounted once — the name, its path and the mount, and nowhere else');
   assert.equal(countOf(s, /<ExpenseForm\b/g), 1);
   // The leaf is handed the one thing, and nothing else: the days a save reached — the time sheet reads again once, and each day's card is told.
   assert.match(s, /<PasteRows onWritten=\{\(days\) => \{ setWrites\(\(n\) => n \+ 1\); days\.forEach\(announceDayWritten\); \}\} \/>/);
-  // Under "+ expense", above the table.
-  assert.ok(s.indexOf('<PasteRows ') > 0 && s.indexOf('<PasteRows ') < s.indexOf('<DataTable\n'), 'above the time sheet');
+  // Beside "+ expense", in the shared table's controls — above its rows. COALEVELS-01 (2026-11-27): 'Under "+ expense", above the table' (before the table's mount) until then.
+  assert.ok(s.indexOf('<DataTable\n') > 0 && s.indexOf('<DataTable\n') < s.indexOf('<PasteRows ') && s.indexOf('<PasteRows ') < s.indexOf('renderRow={(row) => {'), 'in the controls, above the time sheet’s rows');
   // No other file mounts it.
   assert.doesNotMatch(code(TIME_PAGE), /PasteRows|pasteRows/);
   // /time mounts what it did: the time sheet, then the two journal tables — the leaf is the section's, not the page's.

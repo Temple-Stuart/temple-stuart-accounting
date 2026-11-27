@@ -224,7 +224,7 @@ test('D the lines law names the two Budget routes as the bridges, holds each to 
   // READS-01b (Alex, 2026-11-07): the route's body — the loader call and its own routine query — is src/lib/operations/ledgerAnswer.ts taskLedgerAnswerOf.
   const ledger = code('src/lib/operations/ledgerAnswer.ts');
   assert.match(ledger, /loadRoutineBudgetInputs\(/);
-  assert.match(ledger, /db\.operations_routines\.findMany\(\{ where: \{ user_id: userId \}, select: \{ id: true, role: true \} \}\)/);
+  assert.match(ledger, /db\.operations_routines\.findMany\(\{ where: \{ user_id: userId \}, select: \{ id: true, role: true, location_class: true \} \}\)/); // COALEVELS-01 (2026-11-27): the routine query of its own selects the routine's Location too — `{ id: true, role: true }` until then
 });
 
 test('D the seeds: lines-a against the report route\'s loader call, lines-e against the cell route\'s; b, c, d on the loader as before; every anchor occurs exactly once', () => {

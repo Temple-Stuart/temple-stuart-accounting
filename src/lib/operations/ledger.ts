@@ -272,6 +272,17 @@
  * DESCRIPTION (RECORD_FIELDS, recordInput): never required. "+ expense" has no NOTES box and says none (recordBody).
  *   The paste filling the tag and the planned items is TIMESHEET-04c: until then no screen calls the tag's PATCH or sends a plan's items.
  *
+ * COALEVELS-01 (Alex, 2026-11-27) — THE SHEET'S FOUR COLUMNS ARE THE ACCOUNT. A row's account has four levels, each a column:
+ * ENTITY (its book), LOCATION (its routine's — locationClass.ts: travel, homebase, or not said), CATEGORY (its line's chart
+ * account) and TYPE (the sub-account of that account whose name is the stop's — coa/subAccounts.ts subAccountOf). A row with a
+ * line carries them as `location` and `segments` (LedgerSegments: each level's own code, and the whole code they render —
+ * accountString.ts deriveAccountString); a recorded row no line matches carries neither. Twenty-five columns, in the sheet's
+ * order and words: REGION between CITY and COUNTRY (what the stay's place holds between its first comma and its last — stay.ts placeParts), then LOCATION ·
+ * CATEGORY · ENTITY · TYPE · ITEMS, and COA — the whole code — before BUDGET. No key is renamed: accountName prints under
+ * CATEGORY, book under ENTITY, subAccountName under TYPE, description under ITEMS, account under COA. The summary groups by
+ * region, location and type too; a single day folds REGION with its place; "+ expense" asks the Location, and both forms say
+ * the sheet's words.
+ *
  * Here: the rule (ledgerOf — the route's pure half), the period (periodOf,
  * stepAnchor, the 400-day cap), the ledger's spec and its calls into the
  * idiom's filters and sort (LEDGER-04 → IDIOM-01), the totals and the summary
@@ -290,12 +301,15 @@ import { BLANK, formatCents } from '@/lib/budget/format';
 import { markLines, type BudgetLine } from '@/lib/budget/report';
 import { dayPlanOf, daysOf, type PlanLine, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
 import { shiftDay } from '@/lib/budget/reportView';
-import { deriveAccountString } from '@/lib/accountString';
+import { deriveAccountString, entityLetter } from '@/lib/accountString';
 import { coveringStay, placeParts, type PlaceParts, type StayRow } from '@/lib/operations/stay';
 import { CENTS_MAX, DONE_AT_SKEW_MS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTES_MAX, NOTE_MAX, NOT_RECORDED_WORDS, RATING_WORDS, SKIPPED_WORD, SKIP_REASON_WORDS, amountWords, holdsControl, minutesTypedWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { NOT_A_STOP_RECORD_WORDS, ROLE_SHORT_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
 // TIMESHEET-04b (2026-11-27): the tag as it is printed, with its @ — the vendor rule's one word for it (planVendor.ts imports nothing of this file).
 import { instagramTagWords } from '@/lib/operations/planVendor';
+// COALEVELS-01 (2026-11-27): the two rules a row's account levels are read by — a Location's words, codes and reading, and the join of a stop to its sub-account by name (pure leaves; neither imports this file).
+import { LOCATION_CODES, LOCATION_WORDS, readLocationClass, type LocationClass } from '@/lib/operations/locationClass';
+import { subAccountOf, type SubAccountRef } from '@/lib/coa/subAccounts';
 // TIMESHEET-01 (2026-11-24): the planned minutes by the one rule (a pure leaf) and the clock's arithmetic (the calendar's minutesOf, the rule helpers' clockWords — reused,
 // not rebuilt). TIMESHEET-02 (2026-11-24): the one all-day word is stopRole.ts's (ROLE_SHORT_WORDS.all_day, above) — this file imports nothing from work.ts, which reads it there too.
 import { plannedMinutesOf } from '@/lib/operations/supersession';
@@ -488,6 +502,14 @@ export const NOT_TYPED_WORDS = 'not typed on a row — from your plan, from Book
  */
 export type LedgerVendorRow = PlanVendorRow & { readonly items: string | null; readonly vendor: PlanVendorRow['vendor'] & { readonly instagram_tag: string | null } };
 
+/** COALEVELS-01 (Alex, 2026-11-27): A SUB-ACCOUNT AS THE LEDGER IS HANDED IT — its account by the book and the code (as LedgerAccount names an account), its own two-digit code (`sub`), and its name. The active ones only: a retired one codes no row. */
+export interface LedgerSubAccount {
+  readonly entityId: string;
+  readonly code: string;
+  readonly sub: string;
+  readonly name: string;
+}
+
 export interface LedgerInput {
   readonly from: string;
   readonly to: string;
@@ -503,6 +525,10 @@ export interface LedgerInput {
   readonly routines: ReadonlyMap<string, RoutineWords>;
   /** Routine id → role, for the lines: an all-day line is in the plan, not a stop. */
   readonly roles: ReadonlyMap<string, string>;
+  /** COALEVELS-01 (2026-11-27): routine id → its Location (locationClass.ts — travel, homebase, or null: not said), for EVERY routine a line can be of. A routine it does not hold is this rule's error, thrown by name. */
+  readonly locations: ReadonlyMap<string, LocationClass | null>;
+  /** COALEVELS-01 (2026-11-27): the caller's active sub-accounts — a row's TYPE is the one of its line's account whose name is the stop's. */
+  readonly subAccounts: readonly LedgerSubAccount[];
   /** TIMESHEET-01: plan key (planKeyOf) → the plan's planned minutes by the one rule (planMinutesOf) — a sheet row with no record prints them. null is stated, never absent. */
   readonly minutes: ReadonlyMap<string, number | null>;
   /** The caller's plan-vendor rows: every every-occurrence row, and the occurrence rows in the span's window. TIMESHEET-04b (2026-11-27): each with its planned items and its vendor's tag (LedgerVendorRow; PlanVendorRow until then). */
@@ -541,6 +567,22 @@ export interface LedgerMatch {
   readonly reversed: number;
 }
 
+/**
+ * COALEVELS-01 (Alex, 2026-11-27): A ROW'S ACCOUNT, LEVEL BY LEVEL — each level's own code, and the whole code they render.
+ *   entity:   the book's letter (accountString.ts entityLetter) — null for a book type that draws none.
+ *   location: the code of the row's Location (locationClass.ts LOCATION_CODES) — null when its routine says none.
+ *   category: the line's chart code.
+ *   type:     the code of the sub-account of that account whose name is the stop's — null when the account holds none of that name.
+ *   code:     the levels together (deriveAccountString) — a level that is null is left out, never an invented segment.
+ */
+export interface LedgerSegments {
+  readonly entity: string | null;
+  readonly location: string | null;
+  readonly category: string;
+  readonly type: string | null;
+  readonly code: string;
+}
+
 export interface LedgerRow {
   /** The record's id. */
   readonly id: string;
@@ -558,6 +600,10 @@ export interface LedgerRow {
   readonly place: PlaceParts | null;
   /** LEDGER-02: the matched line's book as a word; null when no line matched. */
   readonly book: BookWord | null;
+  /** COALEVELS-01 (2026-11-27): the matched line's routine's Location; null when that routine says none, or no line matched. */
+  readonly location: LocationClass | null;
+  /** COALEVELS-01 (2026-11-27): the matched line's account, level by level; null when no line matched. */
+  readonly segments: LedgerSegments | null;
   readonly coa: LedgerCoa | null;
   readonly vendor: string | null;
   /** TIMESHEET-04b (2026-11-27): the matched line's vendor's Instagram tag, without its @ (the cell prints it with — tagCellWords); null with no line, no vendor, or a vendor that has none. */
@@ -624,6 +670,10 @@ export interface LedgerPlanRow {
   readonly time: string | null;
   readonly place: PlaceParts | null;
   readonly book: BookWord;
+  /** COALEVELS-01 (2026-11-27): the line's routine's Location; null when that routine says none. */
+  readonly location: LocationClass | null;
+  /** COALEVELS-01 (2026-11-27): the line's account, level by level. A plan row always holds them; the field's type is the recorded row's, so a reader asks either row the one question. */
+  readonly segments: LedgerSegments | null;
   readonly coa: LedgerCoa;
   /** The planned vendor, by the plan's one grain. */
   readonly vendor: string | null;
@@ -826,6 +876,27 @@ export function ledgerOf(input: LedgerInput): Ledger {
     if (items === undefined) throw new Error(`ledger: line ${key} holds a vendor ${vendor.grain === 'every' ? 'for every occurrence' : `at ${instant}`}, whose planned items the plan-vendor rows do not hold — planned items are a text or null, never guessed`);
     return items;
   };
+  // COALEVELS-01 (Alex, 2026-11-27): A ROW'S LOCATION AND ITS ACCOUNT'S LEVELS. A line's routine: a routine's own line by its id, a line
+  // by the routine that holds it (RoutineWords.steps — the map is built ONCE here, for the recorded rows and for the sheet below). The
+  // Location is that routine's; a routine `locations` does not hold is this rule's error, thrown by name. The TYPE is the rule's own
+  // join (coa/subAccounts.ts subAccountOf): the sub-account of the line's account — keyed as the accounts' names are, above, by the
+  // book and the code — whose name is the stop's own name.
+  const routineOfLine = new Map<string, string>();
+  for (const [routineId, words] of input.routines) for (const stepId of words.steps.keys()) routineOfLine.set(stepId, routineId);
+  const subAccounts: SubAccountRef[] = input.subAccounts.map((s) => ({ accountId: `${s.entityId}:${s.code}`, code: s.sub, name: s.name }));
+  const locationOf = (l: PlanLine, key: string): LocationClass | null => {
+    const routineId = l.address.kind === 'routine' ? l.address.id : routineOfLine.get(l.address.id);
+    if (routineId === undefined) throw new Error(`ledger: line ${key} names no routine the loader read, so its Location has none to be read from`);
+    const location = input.locations.get(routineId);
+    if (location === undefined) throw new Error(`ledger: line ${key} is of routine ${routineId}, whose Location was not read`);
+    return location;
+  };
+  const segmentsOf = (l: PlanLine, entityType: string, location: LocationClass | null, name: string): LedgerSegments => {
+    const sub = subAccountOf(subAccounts, `${l.entityId}:${l.code}`, name);
+    const locationCode = location === null ? null : LOCATION_CODES[location];
+    const type = sub === null ? null : sub.code;
+    return { entity: entityLetter(entityType), location: locationCode, category: l.code, type, code: deriveAccountString({ entityType, locationCode, code: l.code, subType: type }) };
+  };
 
   // Each record on its routine's own local day (the stops GET's placing); the window the route read is a superset of the span.
   const placed: { readonly r: LedgerRecordInput; readonly day: string; readonly time: string }[] = [];
@@ -890,12 +961,17 @@ export function ledgerOf(input: LedgerInput): Ledger {
     const budgetState: BudgetState = exact.length === 1 ? 'matched' : exact.length > 1 ? 'doubled' : 'none';
     let coa: LedgerCoa | null = null;
     let bookWord: BookWord | null = null;
+    // COALEVELS-01 (2026-11-27): the matched line's routine's Location and its account's levels — neither, with no line.
+    let location: LocationClass | null = null;
+    let segments: LedgerSegments | null = null;
     if (line !== null) {
       const book = books.get(line.entityId);
       if (book === undefined) throw new Error(`ledger: line ${key} is on entity ${line.entityId}, which is not one of the user's books`);
       coa = { account: deriveAccountString({ entityType: book.entityType, code: line.code }), name: names.get(`${line.entityId}:${line.code}`) ?? null };
       // LEDGER-02: the book as a word, from the same entity type the letter is drawn from.
       bookWord = bookWordOf(book.entityType);
+      location = locationOf(line, key);
+      segments = segmentsOf(line, book.entityType, location, stopName({ line: line.line, label: line.label }));
     }
     const stay = coveringStay(input.stays, day);
     const cents = line === null ? null : line.cents;
@@ -920,6 +996,8 @@ export function ledgerOf(input: LedgerInput): Ledger {
       time: r.timeOfDay !== null ? r.timeOfDay : time,
       place: stay === null ? null : placeParts(stay.place),
       book: bookWord,
+      location,
+      segments,
       coa,
       vendor: line !== null && line.vendor !== null ? line.vendor.name : null,
       // TIMESHEET-04b (2026-11-27): the tag of the matched line's vendor — null with no line or no vendor; and the record's own notes.
@@ -953,9 +1031,7 @@ export function ledgerOf(input: LedgerInput): Ledger {
   // printed on that line's row — the row of `rows`, itself; every other listed line is a row without a record. Then each
   // recorded expense no line's row took ('none', 'doubled') is its own row, as `rows` gives it: nothing recorded leaves the
   // sheet, and none is on it twice.
-  const recordedAt = new Map(rows.map((row) => [row.key, row]));
-  const routineOfLine = new Map<string, string>();
-  for (const [routineId, words] of input.routines) for (const stepId of words.steps.keys()) routineOfLine.set(stepId, routineId);
+  const recordedAt = new Map(rows.map((row) => [row.key, row])); // COALEVELS-01 (2026-11-27): the routine of a line (routineOfLine) is built once, above the recorded rows — it stood here until then
   const sheeted: { readonly row: LedgerSheetRow; readonly label: string; readonly line: string | null }[] = [];
   const onALine = new Set<string>();
   const withoutRecord = new Map<string, number>();
@@ -1005,6 +1081,7 @@ export function ledgerOf(input: LedgerInput): Ledger {
       // same key, or (b) another plan line of the sheet stands at the same (kind, id, instant); both hold → (a). null: it takes one.
       const lines = standing.get(key);
       if (lines === undefined) throw new Error(`ledger: plan line ${key} was not counted among the plan lines of ${day}`);
+      const location = locationOf(l, key); // COALEVELS-01 (2026-11-27): the line's routine's Location
       const noRecordWords = allDay ? NOT_A_STOP_RECORD_WORDS
         : kind === 'routine' && routine.steps.size > 0 ? LINES_WORDS
           : recordedAt.has(key) ? RECORD_ON_OWN_ROW_WORDS
@@ -1020,6 +1097,8 @@ export function ledgerOf(input: LedgerInput): Ledger {
         time: allDay ? null : l.time !== null ? l.time : instantToZoned(new Date(instant), routine.timezone).time,
         place: stay === null ? null : placeParts(stay.place),
         book: bookWordOf(book.entityType),
+        location,
+        segments: segmentsOf(l, book.entityType, location, stopName({ line: l.line, label: l.label })),
         coa: { account: deriveAccountString({ entityType: book.entityType, code: l.code }), name: names.get(`${l.entityId}:${l.code}`) ?? null },
         vendor: l.vendor !== null ? l.vendor.name : null,
         // TIMESHEET-04b (2026-11-27): the vendor's tag, and what is planned to be had here — the items of the plan's vendor row at that row's own grain.
@@ -1160,17 +1239,23 @@ export function spanInput(from: unknown, to: unknown): SpanResult {
 /** The cell's words — what the table prints, what the summary's place and COA groups are keyed by, and (LEDGER-04) what a column filter matches. */
 export const cityWords = (row: LedgerSheetRow): string => (row.place === null ? BLANK : row.place.city);
 export const countryWords = (row: LedgerSheetRow): string => (row.place === null || row.place.country === null ? BLANK : row.place.country);
+/** COALEVELS-01 (2026-11-27): the REGION cell — what the stay's place holds between its first comma and its last (stay.ts placeParts); "—" with no stay, or a place that names none. */
+export const regionWords = (row: LedgerSheetRow): string => (row.place === null || row.place.region === null ? BLANK : row.place.region);
+/** COALEVELS-01 (2026-11-27): the LOCATION cell — the Location's word (locationClass.ts LOCATION_WORDS); "—" when the routine says none, or no line matched. */
+export const locationCellWords = (row: Pick<LedgerSheetRow, 'location'>): string => (row.location === null ? BLANK : LOCATION_WORDS[row.location]);
+/** COALEVELS-01 (2026-11-27): the COA cell — the row's WHOLE code (LedgerSegments.code); "—" when no line matched. Until then the cell printed the entity and the code alone — accountCellWords, which the tones and coaWords still read. */
+export const codeCellWords = (row: Pick<LedgerSheetRow, 'segments'>): string => (row.segments === null ? BLANK : row.segments.code);
 export const coaWords = (row: LedgerSheetRow): string => (row.coa === null ? BLANK : row.coa.name === null ? row.coa.account : `${row.coa.account} · ${row.coa.name}`);
 export type CellWordsKey = 'city' | 'country' | 'coa';
 export const CELL_WORDS: Readonly<Record<CellWordsKey, (row: LedgerSheetRow) => string>> = { city: cityWords, country: countryWords, coa: coaWords };
 
 // ── LEDGER-04 (Alex, 2026-10-20): THE COLUMNS — FILTERS THE SHEET'S WAY, AND SORT ──
 
-/** The twenty-three columns by key, in the head's order — LEDGER_HEAD_WORDS[i] is LEDGER_COLUMNS[i]'s word (headWordOf). TIME-03 (2026-10-26): plannedMinutes and loggedMinutes after stars, nothing reordered; sixteen until then. TIMESHEET-01 (2026-11-24): start and end after date, went after vendor — each beside the fact it extends, nothing else moved; eighteen until then. TIMESHEET-04b (2026-11-27): instagramTag after vendor, notes after description — each beside the fact it extends, nothing else moved; twenty-one until then. */
-export const LEDGER_COLUMNS = ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'instagramTag', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'budget', 'actual', 'variance', 'match', 'underOver', 'description', 'notes'] as const;
+/** The twenty-three columns by key, in the head's order — LEDGER_HEAD_WORDS[i] is LEDGER_COLUMNS[i]'s word (headWordOf). TIME-03 (2026-10-26): plannedMinutes and loggedMinutes after stars, nothing reordered; sixteen until then. TIMESHEET-01 (2026-11-24): start and end after date, went after vendor — each beside the fact it extends, nothing else moved; eighteen until then. TIMESHEET-04b (2026-11-27): instagramTag after vendor, notes after description — each beside the fact it extends, nothing else moved; twenty-one until then. COALEVELS-01 (Alex, 2026-11-27): TWENTY-FIVE, in the sheet's own order — region after city, location after country, then accountName · book · subAccountName · description (the account's levels, and the items), account before budget, notes last. NO KEY IS RENAMED: each prints under the sheet's word for it (LEDGER_HEAD_WORDS). Twenty-three, in the app's order, until then. */
+export const LEDGER_COLUMNS = ['day', 'date', 'start', 'end', 'city', 'region', 'country', 'location', 'accountName', 'book', 'subAccountName', 'description', 'vendor', 'instagramTag', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'account', 'budget', 'actual', 'variance', 'match', 'underOver', 'notes'] as const;
 export type LedgerColumn = (typeof LEDGER_COLUMNS)[number];
-/** A VALUE column filters by a checklist of its cell words; a MONEY column by a min and a max; a TEXT column by a contains-text. TIME-03: the two minutes columns are VALUE columns — whole minutes as words, sorted as numbers. TIMESHEET-01: START, END and WENT are VALUE columns — START and END sorted by the clock. TIMESHEET-04b (2026-11-27): INSTAGRAM TAG is a VALUE column (a checklist of the tags present); NOTES a TEXT column beside DESCRIPTION (one TEXT column until then). */
-export const VALUE_COLUMNS = ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'instagramTag', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'underOver'] as const;
+/** A VALUE column filters by a checklist of its cell words; a MONEY column by a min and a max; a TEXT column by a contains-text. TIME-03: the two minutes columns are VALUE columns — whole minutes as words, sorted as numbers. TIMESHEET-01: START, END and WENT are VALUE columns — START and END sorted by the clock. TIMESHEET-04b (2026-11-27): INSTAGRAM TAG is a VALUE column (a checklist of the tags present); NOTES a TEXT column beside DESCRIPTION (one TEXT column until then). COALEVELS-01 (2026-11-27): REGION and LOCATION are VALUE columns — region after city, location after country. */
+export const VALUE_COLUMNS = ['day', 'date', 'start', 'end', 'city', 'region', 'country', 'location', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'instagramTag', 'went', 'stars', 'plannedMinutes', 'loggedMinutes', 'underOver'] as const;
 export const MONEY_COLUMNS = ['budget', 'actual', 'variance', 'match'] as const;
 export const TEXT_COLUMNS = ['description', 'notes'] as const;
 export type ValueColumn = (typeof VALUE_COLUMNS)[number];
@@ -1189,9 +1274,11 @@ export function cellWordsOf(row: LedgerSheetRow, column: LedgerColumn): string {
     case 'start': return startCellWords(row);
     case 'end': return endCellWords(row);
     case 'city': return cityWords(row);
+    case 'region': return regionWords(row);
     case 'country': return countryWords(row);
+    case 'location': return locationCellWords(row);
     case 'book': return bookCellWords(row);
-    case 'account': return accountCellWords(row);
+    case 'account': return codeCellWords(row); // COALEVELS-01 (2026-11-27): the row's WHOLE code — accountCellWords (the entity and the code alone) until then
     case 'accountName': return accountNameCellWords(row);
     case 'subAccountName': return row.description;
     case 'vendor': return vendorCellWords(row.vendor);
@@ -1234,10 +1321,10 @@ export { NO_VALUE_FILTER, NO_MONEY_FILTER, NO_TEXT_FILTER, containsNeedle, choic
 export type { SortDirection } from '@/lib/table/sort';
 export type { SortKey } from '@/lib/table/columns';
 export { nextSort } from '@/lib/table/sort';
-/** The ledger's filters: one per column, by the column's kind — the idiom's three shapes in a typed map of twenty-three (sixteen until TIME-03; eighteen until TIMESHEET-01; twenty-one until TIMESHEET-04b). */
+/** The ledger's filters: one per column, by the column's kind — the idiom's three shapes in a typed map of twenty-five (sixteen until TIME-03; eighteen until TIMESHEET-01; twenty-one until TIMESHEET-04b; twenty-three until COALEVELS-01). */
 export type ColumnFilters = { readonly [C in ValueColumn]: ValueFilter } & { readonly [C in MoneyColumn]: MoneyFilter } & { readonly [C in TextColumn]: TextFilter };
 export const NO_COLUMN_FILTERS: ColumnFilters = Object.freeze({
-  day: NO_VALUE_FILTER, date: NO_VALUE_FILTER, start: NO_VALUE_FILTER, end: NO_VALUE_FILTER, city: NO_VALUE_FILTER, country: NO_VALUE_FILTER, book: NO_VALUE_FILTER, account: NO_VALUE_FILTER, accountName: NO_VALUE_FILTER,
+  day: NO_VALUE_FILTER, date: NO_VALUE_FILTER, start: NO_VALUE_FILTER, end: NO_VALUE_FILTER, city: NO_VALUE_FILTER, region: NO_VALUE_FILTER, country: NO_VALUE_FILTER, location: NO_VALUE_FILTER, book: NO_VALUE_FILTER, account: NO_VALUE_FILTER, accountName: NO_VALUE_FILTER,
   subAccountName: NO_VALUE_FILTER, vendor: NO_VALUE_FILTER, instagramTag: NO_VALUE_FILTER, went: NO_VALUE_FILTER, stars: NO_VALUE_FILTER, plannedMinutes: NO_VALUE_FILTER, loggedMinutes: NO_VALUE_FILTER, underOver: NO_VALUE_FILTER,
   budget: NO_MONEY_FILTER, actual: NO_MONEY_FILTER, variance: NO_MONEY_FILTER, match: NO_MONEY_FILTER,
   description: NO_TEXT_FILTER, notes: NO_TEXT_FILTER,
@@ -1268,9 +1355,11 @@ export function sortKeyOf(row: LedgerSheetRow, column: LedgerColumn): SortKey {
     case 'start': return num(row.id === null && row.allDay ? ALL_DAY_FIRST : clockSortNumber(row.time));
     case 'end': return num(clockSortNumber(endOf(row)));
     case 'city': return text(row.place === null ? null : row.place.city);
+    case 'region': return text(row.place === null ? null : row.place.region);
     case 'country': return text(row.place === null ? null : row.place.country);
+    case 'location': return text(row.location === null ? null : LOCATION_WORDS[row.location]);
     case 'book': return text(row.book);
-    case 'account': return text(row.coa === null ? null : row.coa.account);
+    case 'account': return text(row.segments === null ? null : row.segments.code); // COALEVELS-01 (2026-11-27): by the whole code — the entity and the code alone until then
     case 'accountName': return text(row.coa === null ? null : row.coa.name);
     case 'subAccountName': return text(row.description);
     case 'vendor': return text(row.vendor);
@@ -1356,8 +1445,8 @@ export function ledgerTotals(rows: readonly LedgerSheetRow[]): LedgerTotals {
   };
 }
 
-/** LEDGER-02 (2026-10-19): a seventh group, BOOK — the row's book; rows with no book under NO_BOOK_GROUP_WORDS. */
-export const GROUP_KEYS = ['day', 'week', 'month', 'city', 'country', 'coa', 'book'] as const;
+/** LEDGER-02 (2026-10-19): a seventh group, BOOK — the row's book; rows with no book under NO_BOOK_GROUP_WORDS. COALEVELS-01 (Alex, 2026-11-27): TEN — region after city, location after country, type after the category ('coa'). The keys keep their names; their chips say the sheet's words (GROUP_WORDS). */
+export const GROUP_KEYS = ['day', 'week', 'month', 'city', 'region', 'country', 'location', 'coa', 'type', 'book'] as const;
 export type GroupKey = (typeof GROUP_KEYS)[number];
 
 export interface LedgerGroup {
@@ -1378,8 +1467,10 @@ export const monthWords = (month: string): string => MONTH_FORMAT.format(new Dat
 /** "week of Mon Oct 12" */
 export const weekWords = (monday: string): string => `week of ${dayShortWords(monday)}`;
 
+/** COALEVELS-01 (2026-11-27): a row's TYPE group — its category's name, then its own name: one name under two categories is two types. */
+export const typeGroupWords = (row: LedgerSheetRow): string => `${accountNameCellWords(row)} › ${row.description}`;
 const groupKeyOf = (row: LedgerSheetRow, by: GroupKey): string =>
-  by === 'day' ? row.day : by === 'week' ? mondayOf(row.day) : by === 'month' ? monthOf(row.day) : by === 'book' ? bookGroupWords(row) : CELL_WORDS[by](row);
+  by === 'day' ? row.day : by === 'week' ? mondayOf(row.day) : by === 'month' ? monthOf(row.day) : by === 'book' ? bookGroupWords(row) : by === 'region' ? regionWords(row) : by === 'location' ? locationCellWords(row) : by === 'type' ? typeGroupWords(row) : CELL_WORDS[by](row);
 const groupLabelOf = (key: string, by: GroupKey): string => (by === 'day' ? dayShortWords(key) : by === 'week' ? weekWords(key) : by === 'month' ? monthWords(key) : key);
 
 /**
@@ -1422,8 +1513,9 @@ export const LEDGER_TITLE_WORDS = 'Time sheet';
  * TIME-03 (Alex, 2026-10-26): eighteen — PLANNED MIN · LOGGED MIN after STARS, nothing reordered (the day card's minutes, as the row holds them).
  * TIMESHEET-01 (Alex, 2026-11-24): twenty-one — START · END after DATE, WENT after VENDOR, each beside the fact it extends; no other column renamed, moved or restyled.
  * TIMESHEET-04b (Alex, 2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR ("tag is own column"), NOTES after DESCRIPTION, each beside the fact it extends; the twenty-one as they stood.
+ * COALEVELS-01 (Alex, 2026-11-27): TWENTY-FIVE, in the sheet's own words and order — REGION after CITY, LOCATION after COUNTRY; CATEGORY, ENTITY, TYPE and ITEMS where ACCOUNT NAME, BOOK, SUB ACCOUNT NAME and DESCRIPTION stood; COA (was ACCOUNT) before BUDGET; NOTES last.
  */
-export const LEDGER_HEAD_WORDS = ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION', 'NOTES'] as const;
+export const LEDGER_HEAD_WORDS = ['DAY', 'DATE', 'START', 'END', 'CITY', 'REGION', 'COUNTRY', 'LOCATION', 'CATEGORY', 'ENTITY', 'TYPE', 'ITEMS', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'COA', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES'] as const;
 /** The money columns — right-aligned in the table. */
 export const MONEY_HEAD_WORDS = ['BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH'] as const;
 export const PERIOD_WORDS: Readonly<Record<PeriodKind, string>> = { month: 'Month', week: 'Week', day: 'Day', all: 'All' };
@@ -1436,9 +1528,9 @@ export const NOTES_OPEN_MARK = '▾';
 export const notesToggleWords = (n: number, open: boolean): string => `${n} note${n === 1 ? '' : 's'} ${open ? NOTES_OPEN_MARK : NOTES_CLOSED_MARK}`;
 export const PREVIOUS_WORDS = '‹';
 export const NEXT_WORDS = '›';
-export const SUMMARY_TITLE_WORDS = 'over time, by place and by book';
+export const SUMMARY_TITLE_WORDS = 'over time, by place and by entity'; // COALEVELS-01 (2026-11-27): the sheet's word for the book — 'over time, by place and by book' until then
 export const BY_WORDS = 'by';
-export const GROUP_WORDS: Readonly<Record<GroupKey, string>> = { day: 'Day', week: 'Week', month: 'Month', city: 'City', country: 'Country', coa: 'COA', book: 'Book' };
+export const GROUP_WORDS: Readonly<Record<GroupKey, string>> = { day: 'Day', week: 'Week', month: 'Month', city: 'City', region: 'Region', country: 'Country', location: 'Location', coa: 'Category', type: 'Type', book: 'Entity' }; // COALEVELS-01 (2026-11-27): ten chips in the sheet's words — Region, Location and Type are new; 'COA' and 'Book' until then
 /** TIME-03 (Alex, 2026-10-26): PLANNED HOURS · LOGGED HOURS after STARS — each group's minutes summed, printed as hours (hoursWords); six heads until then. */
 export const SUMMARY_HEAD_WORDS = ['DAYS', 'BUDGET', 'ACTUAL', 'UNDER / OVER', 'ACTUAL PER RECORDED DAY', 'STARS', 'PLANNED HOURS', 'LOGGED HOURS'] as const;
 export const TOTAL_WORDS = 'TOTAL';
@@ -1580,9 +1672,12 @@ export const LEDGER_CSV: Readonly<Record<LedgerColumn, (row: LedgerSheetRow) => 
   start: (row) => startOf(row) ?? '',
   end: (row) => endOf(row) ?? '',
   city: (row) => row.place === null ? '' : row.place.city,
+  // COALEVELS-01 (2026-11-27): the region and the Location's word; the account is the row's WHOLE code — a null is an EMPTY field.
+  region: (row) => row.place === null || row.place.region === null ? '' : row.place.region,
   country: (row) => row.place === null || row.place.country === null ? '' : row.place.country,
+  location: (row) => row.location === null ? '' : LOCATION_WORDS[row.location],
   book: (row) => row.book ?? '',
-  account: (row) => row.coa === null ? '' : row.coa.account,
+  account: (row) => row.segments === null ? '' : row.segments.code,
   accountName: (row) => row.coa === null || row.coa.name === null ? '' : row.coa.name,
   subAccountName: (row) => row.description,
   vendor: (row) => row.vendor ?? '',
@@ -1603,7 +1698,7 @@ export const LEDGER_CSV: Readonly<Record<LedgerColumn, (row: LedgerSheetRow) => 
   notes: (row) => row.notes ?? '',
 };
 /**
- * IDIOM-01 (Alex, 2026-10-24): THE LEDGER'S SPEC for the shared idiom (src/lib/table/columns.ts TableColumn) — the columns (twenty-three since TIMESHEET-04b; twenty-one since TIMESHEET-01, over the sheet's rows; eighteen since TIME-03, sixteen until then) in the
+ * IDIOM-01 (Alex, 2026-10-24): THE LEDGER'S SPEC for the shared idiom (src/lib/table/columns.ts TableColumn) — the columns (twenty-five since COALEVELS-01; twenty-three since TIMESHEET-04b; twenty-one since TIMESHEET-01, over the sheet's rows; eighteen since TIME-03, sixteen until then) in the
  * head's order, each its head word, its kind (columnKind), its cell words (cellWordsOf — what a filter matches and a checklist lists), what
  * it sorts by (sortKeyOf), its CSV field (LEDGER_CSV), and by kind its cents (cellCentsOf) or its text (cellTextOf). Built here, after the
  * words and the CSV fields it reads; every rule the ledger exports calls the idiom with it.
@@ -1619,7 +1714,7 @@ export const LEDGER_TABLE: readonly TableColumn<LedgerSheetRow, LedgerColumn>[] 
 /** The ledger's column of the spec, by key. */
 export const ledgerColumnOf = (column: LedgerColumn): TableColumn<LedgerSheetRow, LedgerColumn> => columnOf(LEDGER_TABLE, column);
 /**
- * The rows shown, as a CSV — the idiom's writer over the ledger's spec (csv.ts tableCsv): the head words (twenty-three since TIMESHEET-04b; twenty-one since TIMESHEET-01; eighteen since TIME-03), then one line per row
+ * The rows shown, as a CSV — the idiom's writer over the ledger's spec (csv.ts tableCsv): the head words (twenty-five since COALEVELS-01; twenty-three since TIMESHEET-04b; twenty-one since TIMESHEET-01; eighteen since TIME-03), then one line per row
  * in the table's order, each field LEDGER_CSV's; RFC 4180 with minimal quoting (a field holding a comma, a quote, a CR or an LF is
  * quoted, its quotes doubled); every line ends CRLF, the last one too; UTF-8 with no BOM (the screen writes it as a Blob of this string).
  */
@@ -1641,7 +1736,7 @@ export function ledgerCsv(rows: readonly LedgerSheetRow[]): string {
 // stops at its step and is said by name; nothing is retried, nothing is rolled
 // back — what was written is said as written.
 
-export const EXPENSE_FIELDS = ['day', 'time', 'name', 'amount', 'coa', 'book', 'vendor', 'actual', 'stars', 'note'] as const;
+export const EXPENSE_FIELDS = ['day', 'time', 'name', 'amount', 'coa', 'book', 'location', 'vendor', 'actual', 'stars', 'note'] as const; // COALEVELS-01 (2026-11-27): LOCATION after the book — ten boxes until then
 export type ExpenseField = (typeof EXPENSE_FIELDS)[number];
 
 /** The form's draft — every box a string; vendorId '' and vendorName '' mean no vendor. */
@@ -1652,13 +1747,15 @@ export interface ExpenseDraft {
   readonly amount: string;
   readonly coa: string;
   readonly book: string;
+  /** COALEVELS-01 (2026-11-27): the stop's Location — '' (none), 'travel' or 'homebase'. */
+  readonly location: string;
   readonly vendorId: string;
   readonly vendorName: string;
   readonly actual: string;
   readonly stars: string;
   readonly note: string;
 }
-export const EMPTY_EXPENSE: ExpenseDraft = { day: '', time: '', name: '', amount: '', coa: '', book: '', vendorId: '', vendorName: '', actual: '', stars: '', note: '' };
+export const EMPTY_EXPENSE: ExpenseDraft = { day: '', time: '', name: '', amount: '', coa: '', book: '', location: '', vendorId: '', vendorName: '', actual: '', stars: '', note: '' };
 
 export type ExpenseVendor = { readonly kind: 'none' } | { readonly kind: 'existing'; readonly id: string } | { readonly kind: 'new'; readonly name: string };
 
@@ -1673,6 +1770,8 @@ export interface ExpenseValues {
   readonly amount: string;
   readonly coa: string;
   readonly bookId: string;
+  /** COALEVELS-01 (2026-11-27): the stop's Location, or null — not said. */
+  readonly location: LocationClass | null;
   readonly vendor: ExpenseVendor;
   readonly actualCents: number | null;
   readonly rating: number | null;
@@ -1686,8 +1785,12 @@ export type ExpenseInputResult = { readonly ok: true; readonly value: ExpenseVal
 const refuseExpense = (field: ExpenseField, message: string): ExpenseInputResult => ({ ok: false, field, message });
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-/** LEDGER-04 (Alex, 2026-10-20): the stop's name is the SUB ACCOUNT NAME and the note the DESCRIPTION — the ledger's own heads; the fields keep their names. */
-export const EXPENSE_FIELD_WORDS: Readonly<Record<ExpenseField, string>> = { day: 'DAY', time: 'TIME', name: 'SUB ACCOUNT NAME', amount: 'AMOUNT', coa: 'COA', book: 'BOOK', vendor: 'VENDOR', actual: 'ACTUAL', stars: 'STARS', note: 'DESCRIPTION' };
+/** LEDGER-04 (Alex, 2026-10-20): the stop's name is the SUB ACCOUNT NAME and the note the DESCRIPTION — the ledger's own heads; the fields keep their names. COALEVELS-01 (Alex, 2026-11-27): THE FORM SAYS THE SHEET'S WORDS — the name is the TYPE, the account the CATEGORY, the book the ENTITY, the note the ITEMS, and the new box the LOCATION: each the column's own head word (headWordOf), so every sentence built from them follows. 'SUB ACCOUNT NAME', 'COA', 'BOOK' and 'DESCRIPTION', typed here, until then. */
+export const EXPENSE_FIELD_WORDS: Readonly<Record<ExpenseField, string>> = { day: 'DAY', time: 'TIME', name: headWordOf('subAccountName'), amount: 'AMOUNT', coa: headWordOf('accountName'), book: headWordOf('book'), location: headWordOf('location'), vendor: 'VENDOR', actual: 'ACTUAL', stars: 'STARS', note: headWordOf('description') };
+/** COALEVELS-01 (2026-11-27): the Location's choices, for the form that asks it — the rule file's own (locationClass.ts), read here so the form names one home for its words. */
+export { LOCATION_CLASSES, LOCATION_WORDS } from '@/lib/operations/locationClass';
+/** COALEVELS-01 (2026-11-27): the LOCATION box's first choice — none: the stop says no Location. The sheet's own marker for a blank. */
+export const NO_LOCATION_WORDS = BLANK;
 export const requiredWords = (field: ExpenseField): string => `${EXPENSE_FIELD_WORDS[field]} is required`;
 export const dayTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a 'YYYY-MM-DD' day`;
 export const timeTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a time (HH:MM)`;
@@ -1773,6 +1876,9 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
   const coa = draft.coa.trim();
   if (coa === '') return refuseExpense('coa', requiredWords('coa'));
   if (draft.book === '') return refuseExpense('book', requiredWords('book'));
+  // COALEVELS-01 (2026-11-27): the stop's Location — none, Travel or Homebase — read by the one rule; a word that is neither is refused in that rule's words. Never required.
+  const location = readLocationClass(draft.location);
+  if (!location.ok) return refuseExpense('location', location.words);
   const vendorName = draft.vendorName.trim().replace(/\s+/g, ' ');
   if (draft.vendorId !== '' && vendorName !== '') return refuseExpense('vendor', VENDOR_BOTH_WORDS);
   const vendor: ExpenseVendor = draft.vendorId !== '' ? { kind: 'existing', id: draft.vendorId } : vendorName !== '' ? { kind: 'new', name: vendorName } : { kind: 'none' };
@@ -1801,7 +1907,7 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
     ok: true,
     value: {
       day: draft.day, time: draft.time, zone, instant: instant.toISOString(),
-      name, amount, coa, bookId: draft.book, vendor, actualCents, rating, note: note === '' ? null : note, ahead,
+      name, amount, coa, bookId: draft.book, location: location.value, vendor, actualCents, rating, note: note === '' ? null : note, ahead,
     },
   };
 }
@@ -1813,7 +1919,7 @@ export const oneOffBody = (v: ExpenseValues): RoutineForm => ({
   byhour: v.time.slice(0, 2), byminute: v.time.slice(3, 5), timezone: v.zone,
   ideal_time_label: '', fail_threshold_minutes: '0', role: 'place',
   start_date: v.day, end_date: '', start_time: v.time, end_time: '', is_active: true,
-  budget_amount: '', coa_code: '', location: '', latitude: '', longitude: '',
+  budget_amount: '', coa_code: '', location: '', latitude: '', longitude: '', location_class: v.location, // COALEVELS-01 (2026-11-27): the stop's Location, or null — not said (`location` beside it is the venue's text)
   lines: [{ activity: v.name, budget_amount: v.amount, coa_code: v.coa }],
 });
 
@@ -2050,25 +2156,26 @@ export const postingDateWords = (date: string | null): string => (date === null 
 //   This block stands above the table's class so that class stays the file's last export and last line; its code names no other
 // block's class.
 
-/** The four columns a single day folds, in the sheet's own order — keys of LEDGER_COLUMNS, never head words. All four sit before BUDGET. */
-export const DAY_FOLD_COLUMNS: readonly LedgerColumn[] = ['day', 'date', 'city', 'country'];
+/** The columns a single day folds, in the sheet's own order — keys of LEDGER_COLUMNS, never head words. All sit before BUDGET. COALEVELS-01 (2026-11-27): FIVE — region after city, the place's middle part folding with the place; four until then. */
+export const DAY_FOLD_COLUMNS: readonly LedgerColumn[] = ['day', 'date', 'city', 'region', 'country'];
 /** A period of ONE day: its `from` is its `to`, whatever chip it was reached by. No period (null) is not one. */
 export const isOneDay = (period: Period | null): boolean => period !== null && period.from === period.to;
 /**
- * The class that takes the four off the screen — eight variants, a head cell and a body cell for each column, each `display: none`
+ * The class that takes them off the screen — ten variants (COALEVELS-01 (2026-11-27): region's two; eight until then), a head cell and a body cell for each column, each `display: none`
  * on a th that holds that column's sort button or a td that is that column's cell. Typed WHOLE on one line: tailwind scans src/lib for
  * whole class strings (tailwind.config.ts), and a class assembled from parts is never compiled.
  */
-export const DAY_FOLD_CLASS = '[&_th:has([data-ledger-sort=day])]:hidden [&_th:has([data-ledger-sort=date])]:hidden [&_th:has([data-ledger-sort=city])]:hidden [&_th:has([data-ledger-sort=country])]:hidden [&_td[data-ledger-cell=day]]:hidden [&_td[data-ledger-cell=date]]:hidden [&_td[data-ledger-cell=city]]:hidden [&_td[data-ledger-cell=country]]:hidden';
+export const DAY_FOLD_CLASS = '[&_th:has([data-ledger-sort=day])]:hidden [&_th:has([data-ledger-sort=date])]:hidden [&_th:has([data-ledger-sort=city])]:hidden [&_th:has([data-ledger-sort=region])]:hidden [&_th:has([data-ledger-sort=country])]:hidden [&_td[data-ledger-cell=day]]:hidden [&_td[data-ledger-cell=date]]:hidden [&_td[data-ledger-cell=city]]:hidden [&_td[data-ledger-cell=region]]:hidden [&_td[data-ledger-cell=country]]:hidden';
 /** An element's own class as handed in; on one day, that class, one space, DAY_FOLD_CLASS. Never a trailing space. */
 export const dayFoldClass = (own: string, period: Period | null): string => (isOneDay(period) ? `${own} ${DAY_FOLD_CLASS}` : own);
 /** How many columns the period folds: every one of DAY_FOLD_COLUMNS on one day, none otherwise. */
 export const dayFoldCount = (period: Period | null): number => (isOneDay(period) ? DAY_FOLD_COLUMNS.length : 0);
 /**
  * The day's place as the line above the table prints it — '· City, Country', or '· City' when the stay names no country — or null.
+ * COALEVELS-01 (2026-11-27): '· City, Region, Country' when the stay's place names a region — and the day's rows must share it too.
  * It reads ONLY the sheet rows whose `day` is the period's day (the answer of the period before can still be in hand for one render:
  * a row of another day is never read). There are words only when at least one such row stands and every one holds the same place —
- * the same city and the same country, a null country being a value. No such row, a row whose place is null, two rows that differ, a
+ * the same city, the same region and the same country, a null region and a null country each being a value. No such row, a row whose place is null, two rows that differ, a
  * period that is not one day, or no period → null. Nothing stands in for it.
  */
 export function dayPlaceWords(period: Period | null, rows: readonly LedgerSheetRow[]): string | null {
@@ -2078,9 +2185,9 @@ export function dayPlaceWords(period: Period | null, rows: readonly LedgerSheetR
   const place = ofDay[0].place;
   if (place === null) return null;
   for (const row of ofDay) {
-    if (row.place === null || row.place.city !== place.city || row.place.country !== place.country) return null;
+    if (row.place === null || row.place.city !== place.city || row.place.region !== place.region || row.place.country !== place.country) return null;
   }
-  return place.country === null ? `· ${place.city}` : `· ${place.city}, ${place.country}`;
+  return `· ${[place.city, place.region, place.country].filter((part): part is string => part !== null).join(', ')}`;
 }
 
 // ── TIMEWIDE-01 (Alex, 2026-11-24): THE SHEET'S TABLE CLASS ──────────────────
@@ -2093,4 +2200,12 @@ export function dayPlaceWords(period: Period | null, rows: readonly LedgerSheetR
 // single-class whitespace-nowrap and px-2 on those cells; a money cell keeps its own nowrap. The string is typed whole: tailwind scans
 // src/lib for whole class strings (tailwind.config.ts), and a class assembled from parts is never compiled. It stands at the END of
 // this file so that no line the registry or a test cites moves — and the section's file keeps its line count, so the change is dated here.
-export const LEDGER_TABLE_CLASS = 'min-w-[96rem] [&_th]:whitespace-normal [&_th]:px-1.5 [&_td]:px-1.5';
+//   COALEVELS-01 (Alex, 2026-11-27): THE GRID. The same floor, and the variants now make the table a sheet: a head cell wraps, sits
+// low in its row and keeps the tight side padding; a body cell (a td that carries data-ledger-cell — never the row beneath a row) is
+// ONE line, tight above and below, its text in the middle; a thin line stands between every two cells, none before the first. The
+// head row stays at the top of the table's box and the TOTAL row at its bottom while the rows scroll between them (the box is the
+// section's — LedgerSection.tsx gives it its height), each on the row's own ground with a line drawn inside it, since a border does
+// not travel with a sticky cell. A row is marked under the pointer. A pill and a chip inside a cell are drawn small enough for a
+// one-line row. Four cells that hold free text — the type, the items, the vendor, the notes — are cut at a width and say
+// themselves whole in their title (the section sets it). Three variants until then.
+export const LEDGER_TABLE_CLASS = 'min-w-[96rem] [&_th]:whitespace-normal [&_th]:px-1.5 [&_th]:py-1 [&_th]:align-bottom [&_td]:px-1.5 [&_td[data-ledger-cell]]:py-0.5 [&_td[data-ledger-cell]]:align-middle [&_td[data-ledger-cell]]:whitespace-nowrap [&_th]:border-l [&_th]:border-border [&_td]:border-l [&_td]:border-border [&_th:first-child]:border-l-0 [&_td:first-child]:border-l-0 [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-bg-row [&_thead_th]:shadow-[inset_0_-1px_0_rgb(var(--ts-border))] [&_tfoot_th]:sticky [&_tfoot_th]:bottom-0 [&_tfoot_th]:bg-bg-row [&_tfoot_th]:py-0.5 [&_tfoot_th]:shadow-[inset_0_1px_0_rgb(var(--ts-border))] [&_tfoot_td]:sticky [&_tfoot_td]:bottom-0 [&_tfoot_td]:bg-bg-row [&_tfoot_td]:py-0.5 [&_tfoot_td]:shadow-[inset_0_1px_0_rgb(var(--ts-border))] [&_tr[data-ledger-row]:hover]:bg-bg-row [&_[data-ledger-pill]]:px-1.5 [&_[data-ledger-pill]]:py-0 [&_td[data-ledger-cell]_button]:px-1 [&_td[data-ledger-cell]_button]:py-0 [&_td[data-ledger-cell]_button]:leading-[14px] [&_td[data-ledger-cell=sub-account-name]]:max-w-[12rem] [&_td[data-ledger-cell=sub-account-name]]:truncate [&_td[data-ledger-cell=description]]:max-w-[16rem] [&_td[data-ledger-cell=description]]:truncate [&_td[data-ledger-cell=vendor]]:max-w-[11rem] [&_td[data-ledger-cell=vendor]]:truncate [&_td[data-ledger-cell=notes]]:max-w-[14rem] [&_td[data-ledger-cell=notes]]:truncate';

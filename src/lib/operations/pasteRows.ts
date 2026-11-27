@@ -635,8 +635,8 @@ function happenedAt(instant: string, cells: PasteCells, now: Date): { readonly h
 
 /** The record form's boxes the paste fills, each under the sheet column it is filled from. It fills no stars and no minutes. TIMESHEET-04b (2026-11-27): and no notes — the record form holds a NOTES box now, and the paste fills none until it reads a Notes column (TIMESHEET-04c). */
 const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' | 'minutes' | 'notes'>, PasteHead>> = { went: 'Start Date', actual: 'Total (USD)', note: 'Items' };
-/** "+ expense"'s boxes the paste fills, each under the sheet column it is filled from. It fills no stars. */
-const EXPENSE_HEADS: Readonly<Record<Exclude<ExpenseField, 'stars'>, PasteHead>> = {
+/** "+ expense"'s boxes the paste fills, each under the sheet column it is filled from. It fills no stars. COALEVELS-01 (2026-11-27): and no Location — "+ expense" asks one now, and the paste fills none until it reads the Location column (PART 3 of this change). */
+const EXPENSE_HEADS: Readonly<Record<Exclude<ExpenseField, 'stars' | 'location'>, PasteHead>> = {
   day: 'Start Date', time: 'Start Time', name: 'Type', amount: 'Budget (USD)', coa: 'Category', book: 'Entity', vendor: 'Vendor', actual: 'Total (USD)', note: 'Items',
 };
 /** A refusal of the record form's rule, in its own words, under the column its box was filled from. A box the paste never fills is this file's error, thrown by name. */
@@ -646,7 +646,7 @@ function refusedByRecord(field: RecordField, message: string): PastePlacement {
 }
 /** A refusal of "+ expense"'s rule, in the form's own words, under the column its box was filled from. */
 function refusedByExpense(field: ExpenseField, message: string): PastePlacement {
-  if (field === 'stars') throw new Error(`pasteRows: "+ expense"'s rule refused stars, which the paste never fills — ${message}`);
+  if (field === 'stars' || field === 'location') throw new Error(`pasteRows: "+ expense"'s rule refused ${field}, which the paste never fills — ${message}`);
   return { kind: 'refused', head: EXPENSE_HEADS[field], why: message };
 }
 
@@ -754,7 +754,7 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
     const { happened, notWritten } = happenedAt(instant, cells, context.now);
     const vendor = pastedVendorOf(cells.vendor, book, context.vendors);
     const read = expenseInput({
-      day: cells.day, time: start, name: cells.type, amount: csvMoney(cells.budgetCents), coa: account.code, book: book.id,
+      day: cells.day, time: start, name: cells.type, amount: csvMoney(cells.budgetCents), coa: account.code, book: book.id, location: '',
       vendorId: vendor.kind === 'own' ? vendor.id : '', vendorName: vendor.kind === 'new' ? vendor.name : '',
       actual: happened.kind === 'went' ? csvMoney(happened.cents) : '', stars: '', note: happened.kind === 'went' && happened.items !== null ? happened.items : '',
     }, context.zone, context.now);

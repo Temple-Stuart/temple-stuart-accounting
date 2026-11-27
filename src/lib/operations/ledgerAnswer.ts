@@ -7,14 +7,14 @@ import { LINKED_POSTING_SELECT } from '@/lib/calendar/postingAmount';
 import { accountPlacesOf, ledgerOf, linkInputOf, planMinutesOf, type LedgerRecordInput } from '@/lib/operations/ledger';
 import { recordsWindowOf, refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
 import { plannedMinutesOf } from '@/lib/operations/supersession';
-import { stayRowOf } from '@/lib/operations/stay';
+import { stayRowOf } from '@/lib/operations/stay'; import { locationClassOf } from '@/lib/operations/locationClass'; // COALEVELS-01 (2026-11-27): a routine's stored Location, read by its one rule — imported on this line so the two lines the registry cites below do not move
 import { instantToZoned } from '@/lib/time';
 
 /**
  * READS-01b (Alex, 2026-11-07, ruling A) — THE TASK LEDGER'S ANSWER, AS A FUNCTION.
  *
  * GET /api/operations/ledger's body after its gate and its span (LEDGER-01, LEDGER-03, TIME-03, WORK-03b — the route's
- * header keeps the story), moved here VERBATIM: the two windows, the caller's entities, the eight reads beside each
+ * header keeps the story), moved here VERBATIM: the two windows, the caller's entities, the nine reads (COALEVELS-01 (2026-11-27): the caller's active sub-accounts joined them — eight until then; the chart read selects its id and the roles read the routine's location_class too) beside each
  * other (the chart, the ONE loader per entity, the routine roles, the plan's vendors, the stays, the records in the
  * span's window with their plan's words, the first record, the occurrence links with each posting's lines), the words,
  * the accounts, the first record's day, ledgerOf, and the exact answer object the route serializes —
@@ -32,7 +32,7 @@ import { instantToZoned } from '@/lib/time';
  * thrown here (BudgetDaysError, BudgetInputError, a row naming no plan) lands in the caller's catch, as it did in the
  * route's.
  */
-type Db = Pick<PrismaClient, 'entities' | 'chart_of_accounts' | 'operations_routines' | 'planned_item_vendors' | 'operations_stays' | 'operations_stop_records' | 'planned_item_links'>;
+type Db = Pick<PrismaClient, 'entities' | 'chart_of_accounts' | 'chart_of_sub_accounts' | 'operations_routines' | 'planned_item_vendors' | 'operations_stays' | 'operations_stop_records' | 'planned_item_links'>;
 
 const DAY_MS = 86_400_000;
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -72,13 +72,15 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
   const entityIds = entities.map((e) => e.id);
   const books = entities.map(toReportEntity);
 
-  const [chart, routineGroups, roles, planVendors, stayRows, recordRows, firstRow, linkRows] = await Promise.all([
+  const [chart, routineGroups, roles, subAccountRows, planVendors, stayRows, recordRows, firstRow, linkRows] = await Promise.all([
     db.chart_of_accounts.findMany({
       where: { entity_id: { in: entityIds }, entity: { userId: userId } },
-      select: { entity_id: true, code: true, name: true, account_type: true, balance_type: true },
+      select: { id: true, entity_id: true, code: true, name: true, account_type: true, balance_type: true }, // COALEVELS-01 (2026-11-27): its id too — a sub-account names its account by it
     }),
     Promise.all(entities.map(async (e) => ({ entityId: e.id, rows: await loadRoutineBudgetInputs(db, userId, e.id) }))),
-    db.operations_routines.findMany({ where: { user_id: userId }, select: { id: true, role: true } }),
+    db.operations_routines.findMany({ where: { user_id: userId }, select: { id: true, role: true, location_class: true } }), // COALEVELS-01 (2026-11-27): the routine's Location too
+    // COALEVELS-01 (2026-11-27): THE ONE READ ADDED — the caller's active sub-accounts, each naming its account by id; a row's TYPE is the one of its line's account whose name is the stop's (ledger.ts ledgerOf).
+    db.chart_of_sub_accounts.findMany({ where: { userId: userId, is_archived: false }, select: { account_id: true, code: true, name: true } }),
     db.planned_item_vendors.findMany({
       where: { user_id: userId, OR: [{ occurrence_at: null }, { occurrence_at: { gte: vendorsFrom, lt: vendorsTo } }] },
       select: {
@@ -118,6 +120,13 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
     steps: new Map(row.steps.map((s) => [s.id, { activity: s.activity, timeOfDay: s.time_of_day }])),
   }])));
   const accounts = chart.map((row) => toReportAccount(row, bookOf(row.entity_id, `chart row ${JSON.stringify(row.code)}`)));
+  // COALEVELS-01 (2026-11-27): each sub-account as the rule names it — by its account's book and code, as the one reader above reads the chart row. A sub-account whose account is no chart row read is thrown by name.
+  const accountOfId = new Map(chart.map((row, i) => [row.id, accounts[i]]));
+  const subAccounts = subAccountRows.map((s) => {
+    const account = accountOfId.get(s.account_id);
+    if (account === undefined) throw new Error(`ledger GET: sub-account ${JSON.stringify(s.code)} ${JSON.stringify(s.name)} names account ${s.account_id}, which is no chart row read`);
+    return { entityId: account.entityId, code: account.code, sub: s.code, name: s.name };
+  });
 
   // The earliest instant is the earliest local day in every zone (UTC−12 … UTC+14 cannot reorder two instants' days).
   let firstRecord: { readonly day: string } | { readonly words: string } | null = null;
@@ -140,6 +149,9 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
     notPlaced: built.notPlaced,
     routines: routineWords,
     roles: new Map(roles.map((r) => [r.id, r.role])),
+    // COALEVELS-01 (2026-11-27): every routine's Location, read by its one rule (a stored one that is neither of the two is thrown by name), and the sub-accounts.
+    locations: new Map(roles.map((r) => [r.id, locationClassOf(r.location_class, `routine ${r.id}`)])),
+    subAccounts,
     // TIMESHEET-01 (Alex, 2026-11-24): each plan's planned minutes by the one rule, over the routines the loader already read (routineInputs) — the sheet prints them on a line with no record; no query added.
     minutes: planMinutesOf(routineInputs),
     vendors: planVendors,

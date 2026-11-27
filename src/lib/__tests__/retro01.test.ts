@@ -97,7 +97,7 @@ const RECORDS: LedgerRecordInput[] = [
 const built = buildRoutineBudgetLines(ROUTINES, DAY, DAY);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
   from: DAY, to: DAY, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: [], stays: [], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
-  accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], ...over,
+  accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
 });
 
 // ── T1 · R1 EXPENSES ONLY ───────────────────────────────────────────────────
@@ -335,7 +335,7 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
   const read = expenseInput(DRAFT, BKK, NOW); // FORM-BOUNDS-01 (Alex, 2026-11-25): the rule takes the clock — this file's NOW, by which every stop of the day is past; `expenseInput(DRAFT, BKK)` until then, here and on the six calls below
   assert.ok(read.ok);
   const v: ExpenseValues = read.value;
-  assert.deepEqual(v, { day: DAY, time: '12:30', zone: BKK, instant: '2026-10-13T05:30:00.000Z', name: 'Khao soi', amount: '7.50', coa: '6150', bookId: 'P', vendor: { kind: 'none' }, actualCents: 700, rating: 4, note: 'Khao soi at Luka', ahead: false }); // FORM-BOUNDS-01 (Alex, 2026-11-25): the value says whether the stop is still ahead of the clock — not here; no `ahead` until then
+  assert.deepEqual(v, { day: DAY, time: '12:30', zone: BKK, instant: '2026-10-13T05:30:00.000Z', name: 'Khao soi', amount: '7.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: 700, rating: 4, note: 'Khao soi at Luka', ahead: false }); // COALEVELS-01 (2026-11-27): the value says the stop's Location — null here: the draft's box is left at none. FORM-BOUNDS-01 (Alex, 2026-11-25): the value says whether the stop is still ahead of the clock — not here; no `ahead` until then
   assert.deepEqual(expenseInput({ ...DRAFT, vendorId: 'v1' }, BKK, NOW), { ok: true, value: { ...v, vendor: { kind: 'existing', id: 'v1' } } });
   assert.deepEqual(expenseInput({ ...DRAFT, vendorName: '  Luka  Café ' }, BKK, NOW), { ok: true, value: { ...v, vendor: { kind: 'new', name: 'Luka Café' } } });
   assert.deepEqual(expenseInput({ ...DRAFT, actual: '', stars: '', note: '  ' }, BKK, NOW), { ok: true, value: { ...v, actualCents: null, rating: null, note: null } }, 'blank is not given — never 0, never an empty note');
@@ -351,14 +351,14 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
     [{ stars: '6' }, 'stars', starsTypedWords('6')], [{ stars: 'four' }, 'stars', starsTypedWords('four')],
   ];
   for (const [over, field, message] of refusals) assert.deepEqual(expenseInput({ ...DRAFT, ...over }, BKK, NOW), { ok: false, field, message }, `${field}: ${message}`);
-  assert.deepEqual(EXPENSE_FIELDS, ['day', 'time', 'name', 'amount', 'coa', 'book', 'vendor', 'actual', 'stars', 'note']);
+  assert.deepEqual(EXPENSE_FIELDS, ['day', 'time', 'name', 'amount', 'coa', 'book', 'location', 'vendor', 'actual', 'stars', 'note']); // COALEVELS-01 (2026-11-27): eleven boxes — LOCATION after the book; ten until then
   assert.deepEqual(Object.keys(EXPENSE_FIELD_WORDS), [...EXPENSE_FIELDS]);
   // The one-off: cadence once on the day at the time in the zone, role place, ONE line — the thing itself, the amount and the COA on it, nothing on the routine.
   const body = oneOffBody(v);
   assert.equal(body.cadence_mode, 'once');
   assert.deepEqual([body.start_date, body.end_date, body.start_time, body.byhour, body.byminute, body.timezone, body.role, body.entity_id, body.name, body.is_active], [DAY, '', '12:30', '12', '30', BKK, 'place', 'P', `Khao soi · ${DAY} 12:30`, true]); // PASTE-02b (Alex, 2026-11-27): the routine is named for its day and time — the name, ' · ', the day, a space, the time; the bare name until then. The line, below, keeps the bare name
   assert.deepEqual(body.lines, [{ activity: 'Khao soi', budget_amount: '7.50', coa_code: '6150' }]);
-  assert.deepEqual([body.budget_amount, body.coa_code, body.location, body.latitude, body.longitude, body.description, body.custom_rrule, body.weekly_byday], ['', '', '', '', '', '', '', []]);
+  assert.deepEqual([body.budget_amount, body.coa_code, body.location, body.latitude, body.longitude, body.description, body.custom_rrule, body.weekly_byday], ['', '', '', '', '', '', '', []]); assert.equal(body.location_class, null, 'the stop’s Location: not said'); // COALEVELS-01 (2026-11-27): the one-off's body says its Location — null, the value's (`location` beside it is the venue's text, as it was)
   assert.deepEqual(vendorBody(v, 'line-1', 'v1'), { kind: 'routine_line', id: 'line-1', instant: '2026-10-13T05:30:00.000Z', vendorId: 'v1' });
   assert.deepEqual(recordBody(v, 'line-1'), { kind: 'routine_line', id: 'line-1', instant: '2026-10-13T05:30:00.000Z', outcome: 'done', done_at: '2026-10-13T05:30:00.000Z', actual_cents: 700, rating: 4, note: 'Khao soi at Luka', notes: null, actual_minutes: null }, 'done at the stop’s own instant'); // TIMESHEET-04b (2026-11-27): the record's body says its notes — null: "+ expense" has no NOTES box. The body without it until then
   // The outcome: five steps, each said by name; what was not reached is "not tried", what was not given "none given".

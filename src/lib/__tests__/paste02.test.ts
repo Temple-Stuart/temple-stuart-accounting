@@ -86,10 +86,10 @@ const at = (day: string, clock: string): string => new Date(`${day}T${clock}:00.
 /** Monday noon in the zone: Saturday and Sunday are past, Monday's 12:30 is half an hour ahead. */
 const NOW = new Date('2027-06-14T09:00:00.000Z');
 
-/** A plan row of the sheet — a priced stop with no record on it — in the ledger's own shape, at a line's address or (kind 'routine') a routine's own. */
+/** A plan row of the sheet — a priced stop with no record on it — in the ledger's own shape, at a line's address or (kind 'routine') a routine's own. COALEVELS-01 (2026-11-27): a row says its location (none) and its segments — its entity's letter and its account's code, as its `coa` says them; a row whose `coa` is its own says its own segments too. */
 const planned = (kind: 'routine_line' | 'routine', id: string, day: string, clock: string, name: string, over: Partial<LedgerPlanRow> = {}): LedgerPlanRow => ({
   id: null, key: `${kind}:${id}:${at(day, clock)}`, address: { kind, id, instant: at(day, clock) }, match: null, day, time: clock,
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
+  place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
   cents: 650, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 30, loggedMinutes: null, allDay: false, went: NOT_RECORDED_WORDS, ...over,
 });
 /** A recorded row, and the record it holds as the stops GET answers one. */
@@ -98,15 +98,15 @@ const recordOf = (id: string, target: string, day: string, clock: string, over: 
 });
 const recorded = (record: StopRecordRow, day: string, clock: string, name: string, over: Partial<LedgerRow> = {}): LedgerRow => ({
   id: record.id, key: `routine_line:${record.target_id}:${at(day, clock)}`, address: { kind: 'routine_line', id: record.target_id, instant: at(day, clock) }, match: null, day, time: clock,
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: record.rating, note: record.note, notes: record.notes, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag; the record's notes
+  place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: record.rating, note: record.note, notes: record.notes, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag; the record's notes
   cents: 1500, budgetState: 'matched', outcome: record.outcome, actualCents: record.actual_cents, varianceCents: null, plannedMinutes: null, loggedMinutes: record.actual_minutes, ...over,
 });
 
 const LUNCH_SUN = planned('routine_line', 'line-lunch', SUN, '12:30', 'Lunch');
 const LUNCH_MON = planned('routine_line', 'line-lunch', MON, '12:30', 'Lunch', { went: PLANNED_WORD });
 const COFFEE_SUN = planned('routine_line', 'line-coffee', SUN, '08:00', 'Coffee', { cents: 250, vendor: 'Bean Bar' });
-const GYM_SUN = planned('routine', 'rt-gym', SUN, '18:00', 'Gym', { cents: 900, coa: { account: 'P-6200', name: 'Recreation' } });
-const CINEMA_SUN = planned('routine_line', 'line-cinema', SUN, '21:00', 'Cinema', { cents: 1200, plannedMinutes: 120, coa: { account: 'P-6200', name: 'Recreation' } });
+const GYM_SUN = planned('routine', 'rt-gym', SUN, '18:00', 'Gym', { cents: 900, segments: { entity: 'P', location: null, category: '6200', type: null, code: 'P-6200' }, coa: { account: 'P-6200', name: 'Recreation' } });
+const CINEMA_SUN = planned('routine_line', 'line-cinema', SUN, '21:00', 'Cinema', { cents: 1200, plannedMinutes: 120, segments: { entity: 'P', location: null, category: '6200', type: null, code: 'P-6200' }, coa: { account: 'P-6200', name: 'Recreation' } });
 const MARKET_SUN_1 = planned('routine_line', 'line-market-a', SUN, '10:00', 'Market', { cents: 2000 });
 const MARKET_SUN_2 = planned('routine_line', 'line-market-b', SUN, '10:00', 'Market', { cents: 2000 });
 const PARADE_SUN = planned('routine_line', 'line-parade', SUN, '15:00', 'Parade', { went: null });
@@ -290,11 +290,11 @@ test('T3 a kind picked a one-off whose stop already stands — that book, day, S
 test('T4 a new one-off is "+ expense"’s: its values are that form’s one rule’s for the row; its minutes are End Time less Start Time — past midnight, and none when the two are one; a stop still ahead is planned; the form’s refusal is the row’s, under the column its box was filled from', () => {
   const went = oneOff(landed(BOWLING, ONE_OFF('6200')).placement);
   // The values are expenseInput's, handed the row as the form's boxes — the Budget (USD) and the Total (USD) as dollars, the record's two because the row is recorded went.
-  const form = expenseInput({ day: SUN, time: '20:00', name: 'Bowling', amount: '20.00', coa: '6200', book: 'P', vendorId: '', vendorName: 'Pin Palace', actual: '18.00', stars: '', note: 'two games' }, NBO, NOW);
+  const form = expenseInput({ day: SUN, time: '20:00', name: 'Bowling', amount: '20.00', coa: '6200', book: 'P', location: '', vendorId: '', vendorName: 'Pin Palace', actual: '18.00', stars: '', note: 'two games' }, NBO, NOW); // COALEVELS-01 (2026-11-27): the form's draft holds a LOCATION box — left at none here, as the paste leaves it until it reads the column (PART 3 of this change)
   assert.ok(form.ok);
   assert.deepEqual(went.values, form.value);
   assert.deepEqual(went.values, {
-    day: SUN, time: '20:00', zone: NBO, instant: at(SUN, '20:00'), name: 'Bowling', amount: '20.00', coa: '6200', bookId: 'P',
+    day: SUN, time: '20:00', zone: NBO, instant: at(SUN, '20:00'), name: 'Bowling', amount: '20.00', coa: '6200', bookId: 'P', location: null,
     vendor: { kind: 'new', name: 'Pin Palace' }, actualCents: 1800, rating: null, note: 'two games', ahead: false,
   });
   assert.deepEqual([went.instant, went.name, went.start, went.end, went.minutes, went.budgetCents], [at(SUN, '20:00'), 'Bowling', '20:00', '21:30', 90, 2000], 'its instant and its name are the values’ own');
@@ -842,7 +842,7 @@ test('T13 the leaf: the six writers handed to the one runner and called nowhere 
 test('T14 the section hands the leaf what it does when a day is written — one line edited in place, 488 lines still; the expense form’s mount before it character for character; /time mounts what it did', () => {
   const s = code(SECTION);
   assert.equal(linesOf(SECTION).length, 488, 'no line added, none removed — the registry cites three of its lines');
-  assert.ok(s.includes('\n      <ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} />\n'), 'the line as ruled');
+  assert.ok(s.includes('<h2 className="text-sm font-bold text-brand-purple" data-ledger-title>{LEDGER_TITLE_WORDS}</h2><ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} /><span className="h-4 w-px bg-border" aria-hidden="true" />\n'), 'the mounts as ruled'); // COALEVELS-01 (2026-11-27): at the head of the controls row, after the title and before a divider — a line of their own above the table until then; each mount character for character
   assert.deepEqual([countOf(s, /<PasteRows\b/g), countOf(s, /<ExpenseForm\b/g), countOf(s, /days\.forEach\(announceDayWritten\)/g)], [1, 1, 1]);
   // The time sheet reads again once a save, however many days it reached; each day's card is told.
   assert.match(s, /<PasteRows onWritten=\{\(days\) => \{ setWrites\(\(n\) => n \+ 1\); days\.forEach\(announceDayWritten\); \}\} \/>/);

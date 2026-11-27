@@ -99,7 +99,7 @@ const RECORDS: LedgerRecordInput[] = [
 
 const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over, // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
 });
 const ledger = ledgerOf(input());
 const rowOf = (id: string): LedgerRow => {
@@ -152,12 +152,12 @@ test('R1 the row: book from the matched line’s book (personal → Personal, so
 
 // ── R2 · THE COLUMNS AND THE CELLS ──────────────────────────────────────────
 
-test('R2 the twenty-three head words in Alex’s order (TIMESHEET-04b: INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION; TIMESHEET-01: START · END after DATE, WENT after VENDOR; TIME-03: PLANNED MIN · LOGGED MIN after STARS); the cells each one fact: DAY the full weekday, DATE the day, BOOK the word, ACCOUNT the code with its letter, ACCOUNT NAME the chart’s, ACTUAL the amount alone, VARIANCE signed dollars or EMPTY, MATCH empty, UNDER / OVER the word or EMPTY', () => {
+test('R2 the twenty-five head words in Alex’s order (COALEVELS-01: his sheet’s words and order — REGION, LOCATION, CATEGORY, ENTITY, TYPE, ITEMS, COA; TIMESHEET-04b: INSTAGRAM TAG after VENDOR, NOTES; TIMESHEET-01: START · END after DATE, WENT after VENDOR; TIME-03: PLANNED MIN · LOGGED MIN after STARS); the cells each one fact: DAY the full weekday, DATE the day, ENTITY the book’s word, COA the row’s whole code, CATEGORY the chart’s name, ACTUAL the amount alone, VARIANCE signed dollars or EMPTY, MATCH empty, UNDER / OVER the word or EMPTY', () => {
   // LEDGER-04 (Alex, 2026-10-20): SUB ACCOUNT NAME where DESCRIPTION stood (the stop's name IS the sub-account's) and DESCRIPTION where NOTES stood (the record's note). Moved, not loosened.
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION', 'NOTES']); // TIMESHEET-01 (Alex, 2026-11-24): twenty-one — START · END after DATE, WENT after VENDOR, nothing else moved; eighteen until then · TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then
-  assert.equal(LEDGER_HEAD_WORDS.length, 23); // TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION; twenty-one until then
-  assert.equal(new Set(LEDGER_HEAD_WORDS).size, 23, 'no head word twice');
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'REGION', 'COUNTRY', 'LOCATION', 'CATEGORY', 'ENTITY', 'TYPE', 'ITEMS', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'COA', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES']); // TIMESHEET-01 (Alex, 2026-11-24): twenty-one — START · END after DATE, WENT after VENDOR, nothing else moved; eighteen until then · TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then · COALEVELS-01 (2026-11-27): twenty-five, in his sheet's words and order — REGION after CITY, LOCATION after COUNTRY; CATEGORY · ENTITY · TYPE · ITEMS where ACCOUNT NAME · BOOK · SUB ACCOUNT NAME · DESCRIPTION stood; COA (was ACCOUNT) before BUDGET; NOTES last — twenty-three until then
+  assert.equal(LEDGER_HEAD_WORDS.length, 25); // TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION; twenty-one until then · COALEVELS-01 (2026-11-27): twenty-five — REGION and LOCATION; twenty-three until then
+  assert.equal(new Set(LEDGER_HEAD_WORDS).size, 25, 'no head word twice');
   assert.deepEqual(MONEY_HEAD_WORDS, ['BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH'], 'the money columns, right-aligned');
   assert.equal(dayLongWords('2026-10-13'), 'Tuesday');
   assert.equal(dayLongWords('2026-10-11'), 'Sunday');
@@ -191,14 +191,14 @@ test('R2 the twenty-three head words in Alex’s order (TIMESHEET-04b: INSTAGRAM
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
   // LEDGER-04 (Alex, 2026-10-20): the cells carry the column's name — sub-account-name prints row.description, description prints row.note.
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
-  assert.deepEqual(cells, ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'instagram-tag', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description', 'notes'], 'one cell per head word, in its order'); // TIMESHEET-01 (Alex, 2026-11-24): start and end after date, went after vendor — eighteen cells until then · TIMESHEET-04b (2026-11-27): the instagram-tag cell after vendor's, the notes cell after description's — twenty-three cells
+  assert.deepEqual(cells, ['day', 'date', 'start', 'end', 'city', 'region', 'country', 'location', 'account-name', 'book', 'sub-account-name', 'description', 'vendor', 'instagram-tag', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'account', 'budget', 'actual', 'variance', 'match', 'under-over', 'notes'], 'one cell per head word, in its order'); // TIMESHEET-01 (Alex, 2026-11-24): start and end after date, went after vendor — eighteen cells until then · TIMESHEET-04b (2026-11-27): the instagram-tag cell after vendor's, the notes cell after description's — twenty-three cells · COALEVELS-01 (2026-11-27): twenty-five cells in the head's new order — region and location new; account-name, book, sub-account-name, description; the account before the budget; the notes last
   assert.equal(cells.length, LEDGER_HEAD_WORDS.length);
   assert.match(s, /data-ledger-cell="day">\{dayLongWords\(row\.day\)\}/, 'DAY the full weekday');
   assert.match(s, /data-ledger-cell="date">\{row\.day\}/, 'DATE the day alone — the weekday left the cell');
   assert.doesNotMatch(s, /dayShortWords/, 'no short weekday in any cell');
-  assert.match(s, /data-ledger-cell="book">\{bookPill === null \? bookCellWords\(row\) : <span className=\{bookPill\} data-ledger-pill="book">\{bookCellWords\(row\)\}<\/span>\}/); // TIMESHEET-03 (Alex, 2026-11-24): the word in a pill toned by the book, bare when there is none — `data-ledger-cell="book">{bookCellWords(row)}` until then
-  assert.match(s, /data-ledger-cell="account">\{accountCellWords\(row\)\}/);
-  assert.match(s, /data-ledger-cell="account-name">\{accountPill === null \? accountNameCellWords\(row\) : <span className=\{accountPill\} data-ledger-pill="account-name">\{accountNameCellWords\(row\)\}<\/span>\}/); // TIMESHEET-03 (Alex, 2026-11-24): the name in a pill toned by the account, bare when there is none — `data-ledger-cell="account-name">{accountNameCellWords(row)}` until then
+  assert.match(s, /data-ledger-cell="book">\{row\.segments !== null && row\.segments\.entity !== null && <span className=\{CODE_CLASS\}>\{row\.segments\.entity\}<\/span>\}\{bookPill === null \? bookCellWords\(row\) : <span className=\{bookPill\} data-ledger-pill="book">\{bookCellWords\(row\)\}<\/span>\}/); // COALEVELS-01 (2026-11-27): the entity's letter before the pill, in the code's class, where the row's levels hold one. TIMESHEET-03 (Alex, 2026-11-24): the word in a pill toned by the book, bare when there is none — `data-ledger-cell="book">{bookCellWords(row)}` until then
+  assert.match(s, /data-ledger-cell="account">\{codeCellWords\(row\)\}/); // COALEVELS-01 (2026-11-27): the COA cell prints the row's WHOLE code (codeCellWords) — accountCellWords, the entity and the code alone, until then
+  assert.match(s, /data-ledger-cell="account-name">\{row\.segments !== null && <span className=\{CODE_CLASS\}>\{row\.segments\.category\}<\/span>\}\{accountPill === null \? accountNameCellWords\(row\) : <span className=\{accountPill\} data-ledger-pill="account-name">\{accountNameCellWords\(row\)\}<\/span>\}/); // COALEVELS-01 (2026-11-27): the category's code before the pill, in the code's class, on every row that has a line. TIMESHEET-03 (Alex, 2026-11-24): the name in a pill toned by the account, bare when there is none — `data-ledger-cell="account-name">{accountNameCellWords(row)}` until then
   assert.doesNotMatch(s, /CELL_WORDS\.coa\(row\)|data-ledger-cell="coa"/, 'the combined COA cell is gone');
   assert.match(s, /data-ledger-cell="actual">\{actualCellWords\(row\)\}/);
   assert.match(s, /className=\{`\$\{money\} \$\{NOT_TYPED_TINT\} \$\{row\.varianceCents === null \? BLANK_CLASS : `font-semibold \$\{actualTone\(delta\.over\)\}`\}`\} data-ledger-cell="variance">\{varianceCellWords\(row\.varianceCents\)\}/, 'VARIANCE in the row’s tone, the blank class when null (amended)'); // TIMESHEET-03 (Alex, 2026-11-24): the cell carries the tint of the cells nobody types on a row — `${money} ${row.varianceCents === null ? …` until then
@@ -214,7 +214,7 @@ test('R2 the twenty-three head words in Alex’s order (TIMESHEET-04b: INSTAGRAM
   // LEDGER-03 (Alex, 2026-10-19): the MATCH line is its coverage now, in the same place.
   // LEDGER-04 (Alex, 2026-10-20): both lines inside the notes toggle's open state — still adjacent, the coverage line first.
   assert.match(s, /data-ledger-said-variance>[^\n]*<\/p>\}\n\s*\{shown\.length > 0 && <p data-ledger-said-match>\{matchCoverageWords\(totals\.withMatch, shown\.length\)\}<\/p>\}/, 'the MATCH line under the table, after the coverage line');
-  assert.match(s, /<h2 className="text-lg font-bold text-brand-purple">\{LEDGER_TITLE_WORDS\}<\/h2>/);
+  assert.match(s, /<h2 className="text-sm font-bold text-brand-purple" data-ledger-title>\{LEDGER_TITLE_WORDS\}<\/h2>/); // COALEVELS-01 (2026-11-27): the title stands at the head of the controls row, one size down, named by its attribute — `text-lg` on a line of its own above the table until then
 });
 
 // ── R3 · THE TOTAL ROW ──────────────────────────────────────────────────────
@@ -234,21 +234,21 @@ test('R3 the TOTAL row: colSpan the columns before BUDGET; VARIANCE the two tota
   assert.deepEqual([mixed.budgetCents, mixed.actualCents, mixed.varianceCents, mixed.withVariance], [1000, 1398, -102, 1], 'the yoga’s $5 is in the ACTUAL total but not in the VARIANCE total — its row has no variance (1398 − 1000 = 398 is NOT the answer)');
   const s = code(SECTION);
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The span grows by two; the minutes are summed in the summary as hours, not in the TOTAL row.
-  assert.match(s, /<th scope="row" colSpan=\{16 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then. TIMESHEET-01 (Alex, 2026-11-24): the label spans fifteen — START, END and WENT sit before BUDGET too; colSpan={12} until then · TIMESHEET-04b (2026-11-27): sixteen — INSTAGRAM TAG sits among the columns before BUDGET (`15 - dayFoldCount(period)` until then)
-  assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 16, 'the colSpan is the columns before BUDGET');
-  inOrder(s, ['data-ledger-total>', 'data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}', 'data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>', "data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}", 'data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>', 'data-ledger-total-under-over>{underOverWords(totals.varianceCents)}', '<td className={cell} data-ledger-total-description />', '<td className={cell} data-ledger-total-notes />'], 'the TOTAL row’s cells, under their columns'); // LEDGER-04: the last cell is DESCRIPTION's · TIMESHEET-04b (2026-11-27): and one more after it, under NOTES
+  assert.match(s, /<th scope="row" colSpan=\{19 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // COALEVELS-01 (2026-11-27): nineteen — REGION, LOCATION and ITEMS sit among the columns before BUDGET now, and the COA (`16 - dayFoldCount(period)` until then; a single day folds five). TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then. TIMESHEET-01 (Alex, 2026-11-24): the label spans fifteen — START, END and WENT sit before BUDGET too; colSpan={12} until then · TIMESHEET-04b (2026-11-27): sixteen — INSTAGRAM TAG sits among the columns before BUDGET (`15 - dayFoldCount(period)` until then)
+  assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 19, 'the colSpan is the columns before BUDGET');
+  inOrder(s, ['data-ledger-total>', 'data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}', 'data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>', "data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}", 'data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>', 'data-ledger-total-under-over>{underOverWords(totals.varianceCents)}', '<td className={cell} data-ledger-total-notes />'], 'the TOTAL row’s cells, under their columns'); // LEDGER-04: the last cell is DESCRIPTION's · TIMESHEET-04b (2026-11-27): and one more after it, under NOTES · COALEVELS-01 (2026-11-27): the description's cell left the row — ITEMS stands before BUDGET, under the label's span; the one cell after the five is NOTES'
   assert.match(s, /const varianceTone = \(cents: number \| null\): string => \(cents === null \? BLANK_CLASS : actualTone\(cents > 0\)\);/, 'the sign’s tone (amended)');
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
-  assert.equal((tfoot.match(/<td\b/g) ?? []).length, 7, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · DESCRIPTION · NOTES — seven cells after the span of sixteen (TIMESHEET-04b; six after fifteen since TIMESHEET-01; twelve since TIME-03)'); // TIMESHEET-04b (2026-11-27): one more cell, under NOTES — six until then
+  assert.equal((tfoot.match(/<td\b/g) ?? []).length, 6, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES — six cells after the span of nineteen (COALEVELS-01; seven after sixteen since TIMESHEET-04b; six after fifteen since TIMESHEET-01; twelve since TIME-03)'); // TIMESHEET-04b (2026-11-27): one more cell, under NOTES — six until then · COALEVELS-01 (2026-11-27): six again — the description's cell left the row; seven until then
   assert.doesNotMatch(tfoot, /totals\.words|totals\.over/, 'no delta words and no recorded-rows tone in the TOTAL row (amended: one truth per row)');
 });
 
 // ── R4 · THE SUMMARY ────────────────────────────────────────────────────────
 
-test('R4 the summary: a seventh group, BOOK, after COA; rows with no book under "no account"; the title says by book; the math unchanged', () => {
-  assert.deepEqual(GROUP_KEYS, ['day', 'week', 'month', 'city', 'country', 'coa', 'book']);
-  assert.equal(GROUP_WORDS.book, 'Book');
-  assert.equal(SUMMARY_TITLE_WORDS, 'over time, by place and by book');
+test('R4 the summary: ten groups (COALEVELS-01, 2026-11-27 — region, location and type joined the seven), the book’s — its chip reads Entity — last, after the category and the type; rows with no book under "no account"; the title says by entity; the math unchanged', () => {
+  assert.deepEqual(GROUP_KEYS, ['day', 'week', 'month', 'city', 'region', 'country', 'location', 'coa', 'type', 'book']); // COALEVELS-01 (2026-11-27): ten — region after city, location after country, type after the category; seven until then
+  assert.equal(GROUP_WORDS.book, 'Entity'); // COALEVELS-01 (2026-11-27): the chip says his sheet's word — 'Book' until then; the key keeps its name
+  assert.equal(SUMMARY_TITLE_WORDS, 'over time, by place and by entity'); // COALEVELS-01 (2026-11-27): 'over time, by place and by book' until then
   assert.equal(NO_BOOK_GROUP_WORDS, 'no account');
   assert.equal(bookGroupWords(rowOf('r-yoga-12')), 'no account');
   assert.equal(bookGroupWords(rowOf('r-client-13')), 'Business');
@@ -260,7 +260,7 @@ test('R4 the summary: a seventh group, BOOK, after COA; rows with no book under 
   assert.deepEqual([byBook[1].totals.budgetCents, byBook[1].totals.actualCents, byBook[1].totals.varianceCents], [null, 500, null], 'no book, no budget — nothing summed from a blank');
   assert.deepEqual(SUMMARY_HEAD_WORDS, ['DAYS', 'BUDGET', 'ACTUAL', 'UNDER / OVER', 'ACTUAL PER RECORDED DAY', 'STARS', 'PLANNED HOURS', 'LOGGED HOURS'], 'the summary’s columns — TIME-03: PLANNED HOURS · LOGGED HOURS after STARS'); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
   const rules = code(RULES);
-  assert.match(rules, /by === 'book' \? bookGroupWords\(row\) : CELL_WORDS\[by\]\(row\)/, 'the group key');
+  assert.match(rules, /by === 'book' \? bookGroupWords\(row\) : by === 'region' \? regionWords\(row\) : by === 'location' \? locationCellWords\(row\) : by === 'type' \? typeGroupWords\(row\) : CELL_WORDS\[by\]\(row\)/, 'the group key'); // COALEVELS-01 (2026-11-27): a row's key by region, by location and by type, each its own words — then the place's and the account's as they were
   const s = code(SECTION);
   assert.match(s, /\{GROUP_KEYS\.map\(\(g\) => \(/, 'the chips from the one list');
   assert.match(s, /data-ledger-group-words>\{g\.totals\.words\}/, 'each group still prints its delta words');
@@ -306,7 +306,7 @@ test('R5 the rename: "Task ledger" (TIMESHEET-01: the title reads "Time sheet" n
 
 // ── R6 · THE CSV ────────────────────────────────────────────────────────────
 
-test('R6 ledgerCsv: the twenty-three head words (TIMESHEET-04b; twenty-one since TIMESHEET-01; eighteen since TIME-03), one line per row in table order, RFC 4180 minimal quoting with doubled quotes, money as dollars with two decimals, null an EMPTY field, stars a number, dates YYYY-MM-DD, CRLF on every line, no BOM', () => {
+test('R6 ledgerCsv: the twenty-five head words (COALEVELS-01; twenty-three since TIMESHEET-04b; twenty-one since TIMESHEET-01; eighteen since TIME-03), one line per row in table order, RFC 4180 minimal quoting with doubled quotes, money as dollars with two decimals, null an EMPTY field, stars a number, dates YYYY-MM-DD, CRLF on every line, no BOM', () => {
   const csv = ledgerCsv(ledger.rows);
   const lines = csv.split('\r\n');
   assert.equal(lines[lines.length - 1], '', 'the last line ends CRLF too');
@@ -314,16 +314,16 @@ test('R6 ledgerCsv: the twenty-three head words (TIMESHEET-04b; twenty-one since
   assert.equal(lines.length, ledger.rows.length + 1, 'the header and one line per row');
   // LEDGER-04 (Alex, 2026-10-20): the header follows the heads — SUB ACCOUNT NAME and DESCRIPTION; the fields under them are as they were (row.description, row.note).
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Two bare fields after STARS; empty here (no fixture states minutes — time03.test.ts does).
-  assert.equal(lines[0], 'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,INSTAGRAM TAG,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION,NOTES'); // TIMESHEET-01 (Alex, 2026-11-24): three fields more in each line — START and END after DATE (END empty: no fixture here states minutes), WENT after VENDOR; the other eighteen as they were · TIMESHEET-04b (2026-11-27): the header gains INSTAGRAM TAG after VENDOR and NOTES at its end; every line below an empty field after VENDOR and one at its end — no vendor of this fixture holds a tag, no record notes
+  assert.equal(lines[0], 'DAY,DATE,START,END,CITY,REGION,COUNTRY,LOCATION,CATEGORY,ENTITY,TYPE,ITEMS,VENDOR,INSTAGRAM TAG,WENT,STARS,PLANNED MIN,LOGGED MIN,COA,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,NOTES'); // TIMESHEET-01 (Alex, 2026-11-24): three fields more in each line — START and END after DATE (END empty: no fixture here states minutes), WENT after VENDOR; the other eighteen as they were · TIMESHEET-04b (2026-11-27): the header gains INSTAGRAM TAG after VENDOR and NOTES at its end; every line below an empty field after VENDOR and one at its end — no vendor of this fixture holds a tag, no record notes · COALEVELS-01 (2026-11-27): the header is the twenty-five head words
   assert.equal(lines[0], LEDGER_HEAD_WORDS.join(','), 'the head words, none needing quotes');
   assert.deepEqual(lines.slice(1), [
-    'Tuesday,2026-10-13,06:30,,Chiang Mai,Thailand 🇹🇭,Personal,P-5100,Meals,Stretch,,,skipped,,,,8.00,,,,,rain,',
-    'Tuesday,2026-10-13,07:30,,Chiang Mai,Thailand 🇹🇭,Personal,P-5100,Meals,Coffee,Luka Café,,went,4,,,10.00,8.98,-1.02,,under,"khao soi, ""the good one""",',
-    'Tuesday,2026-10-13,12:00,,Chiang Mai,Thailand 🇹🇭,Personal,P-5200,,Lunch,,,went,3,,,15.00,,,,,,',
-    'Tuesday,2026-10-13,12:30,,Chiang Mai,Thailand 🇹🇭,Business,B-6100,Client meals,Client lunch,,,went,5,,,25.00,30.00,5.00,,over,,',
-    'Monday,2026-10-12,07:30,,,,Personal,P-5100,Meals,Coffee,Luka Café,,went,5,,,10.00,12.00,2.00,,over,latte,',
-    'Monday,2026-10-12,17:00,,,,,,,Yoga,,,went,2,,,,5.00,,,,,',
-    'Sunday,2026-10-11,07:30,,,,Personal,P-5100,Meals,Coffee,Luka Café,,went,,,,10.00,10.00,0.00,,even,,',
+    'Tuesday,2026-10-13,06:30,,Chiang Mai,,Thailand 🇹🇭,,Meals,Personal,Stretch,rain,,,skipped,,,,P-5100,8.00,,,,,', // COALEVELS-01 (2026-11-27): this line and each below it — the fields follow the columns' new order: an empty REGION after CITY and an empty LOCATION after COUNTRY (no place of this fixture names a region, no routine says a Location); CATEGORY · ENTITY · TYPE · ITEMS; the COA before BUDGET; NOTES last
+    'Tuesday,2026-10-13,07:30,,Chiang Mai,,Thailand 🇹🇭,,Meals,Personal,Coffee,"khao soi, ""the good one""",Luka Café,,went,4,,,P-5100,10.00,8.98,-1.02,,under,',
+    'Tuesday,2026-10-13,12:00,,Chiang Mai,,Thailand 🇹🇭,,,Personal,Lunch,,,,went,3,,,P-5200,15.00,,,,,',
+    'Tuesday,2026-10-13,12:30,,Chiang Mai,,Thailand 🇹🇭,,Client meals,Business,Client lunch,,,,went,5,,,B-6100,25.00,30.00,5.00,,over,',
+    'Monday,2026-10-12,07:30,,,,,,Meals,Personal,Coffee,latte,Luka Café,,went,5,,,P-5100,10.00,12.00,2.00,,over,',
+    'Monday,2026-10-12,17:00,,,,,,,,Yoga,,,,went,2,,,,,5.00,,,,',
+    'Sunday,2026-10-11,07:30,,,,,,Meals,Personal,Coffee,,Luka Café,,went,,,,P-5100,10.00,10.00,0.00,,even,',
   ], 'each field the table’s fact: the weekday, the day, the place (empty with no stay), the book, the code and the name, the stars as a number, the money, MATCH empty, the sign, the note');
   assert.doesNotMatch(csv, /(^|[^\r])\n/, 'no bare LF');
   assert.doesNotMatch(csv, /—/, 'no "—" in the file — a null is an empty field');
@@ -331,15 +331,15 @@ test('R6 ledgerCsv: the twenty-three head words (TIMESHEET-04b; twenty-one since
   assert.notEqual(csv.charCodeAt(0), 0xfeff, 'no BOM');
   assert.ok(csv.startsWith('DAY,'));
   // The comma and the quotes in a NOTES value survive: the field is quoted, its quotes doubled — read back, it is the note.
-  // TIMESHEET-04b (2026-11-27): DESCRIPTION is the field before the last now — the line ends with the empty NOTES field after it; the quoted field itself is as it was.
-  assert.ok(lines[2].endsWith('""",'), 'the quoted DESCRIPTION, then the empty NOTES field');
-  const quoted = lines[2].slice(lines[2].indexOf('"khao'), -1);
+  // COALEVELS-01 (2026-11-27): the quoted field — ITEMS, the description — stands after the TYPE now, mid-line, before the VENDOR; the quoted field itself is as it was. TIMESHEET-04b (2026-11-27): DESCRIPTION is the field before the last now — the line ends with the empty NOTES field after it; the quoted field itself is as it was.
+  assert.ok(lines[2].includes(',Coffee,"khao soi, ""the good one""",Luka Café,'), 'the quoted ITEMS field, between the TYPE and the VENDOR');
+  const quoted = lines[2].slice(lines[2].indexOf('"khao'), lines[2].indexOf(',Luka Café'));
   assert.equal(quoted, '"khao soi, ""the good one"""');
   assert.equal(quoted.slice(1, -1).replace(/""/g, '"'), 'khao soi, "the good one"');
   // A CR or an LF in a field is quoted too; a bare field is written bare.
   const cr = ledgerCsv([{ ...rowOf('r-coffee-11'), note: 'line one\r\nline two', description: 'plain' }]).split('\r\n');
-  assert.equal(cr[1], 'Sunday,2026-10-11,07:30,,,,Personal,P-5100,Meals,plain,Luka Café,,went,,,,10.00,10.00,0.00,,even,"line one'); // TIME-03: the two empty minutes fields. TIMESHEET-01: START, an empty END, WENT · TIMESHEET-04b (2026-11-27): an empty INSTAGRAM TAG after VENDOR
-  assert.equal(cr[2], 'line two",'); // TIMESHEET-04b (2026-11-27): the quoted field closes, then the empty NOTES field ('line two"' until then)
+  assert.equal(cr[1], 'Sunday,2026-10-11,07:30,,,,,,Meals,Personal,plain,"line one'); // COALEVELS-01 (2026-11-27): the line is cut inside its quoted ITEMS field, the twelfth — the fields before it in the columns' new order ('…,even,"line one', the field before the last, until then) · TIME-03: the two empty minutes fields. TIMESHEET-01: START, an empty END, WENT · TIMESHEET-04b (2026-11-27): an empty INSTAGRAM TAG after VENDOR
+  assert.equal(cr[2], 'line two",Luka Café,,went,,,,P-5100,10.00,10.00,0.00,,even,'); // COALEVELS-01 (2026-11-27): the quoted field closes, then the rest of the line — the VENDOR to the empty NOTES · TIMESHEET-04b (2026-11-27): the quoted field closes, then the empty NOTES field ('line two"' until then)
   assert.equal(ledgerCsv([]), `${LEDGER_HEAD_WORDS.join(',')}\r\n`, 'no rows: the header alone');
   assert.equal(ledgerCsvFileName('2026-10-01', '2026-10-31'), 'time-sheet_2026-10-01_2026-10-31.csv'); // TIMESHEET-01 (Alex, 2026-11-24): the file is named for the sheet — 'task-ledger_2026-10-01_2026-10-31.csv' until then
   assert.equal(CSV_DOWNLOAD_WORDS, 'download CSV');
@@ -394,7 +394,7 @@ test('A1 one marker: on screen every null cell prints "—" — VARIANCE, MATCH 
   assert.equal(matchCellWords(null), '—'); // LEDGER-03: no link is "—"
   // The CSV of the same row: empty fields where the screen prints "—".
   const line = ledgerCsv([yoga]).split('\r\n')[1];
-  assert.equal(line, 'Monday,2026-10-12,17:00,,,,,,,Yoga,,,went,2,,,,5.00,,,,,', 'END · BOOK · ACCOUNT · ACCOUNT NAME · PLANNED MIN · LOGGED MIN · BUDGET · VARIANCE · MATCH · UNDER / OVER each an empty field'); // TIME-03: the two minutes fields, empty. TIMESHEET-01: START 17:00, END empty, WENT went · TIMESHEET-04b (2026-11-27): INSTAGRAM TAG and NOTES each an empty field too
+  assert.equal(line, 'Monday,2026-10-12,17:00,,,,,,,,Yoga,,,,went,2,,,,,5.00,,,,', 'END · BOOK · ACCOUNT · ACCOUNT NAME · PLANNED MIN · LOGGED MIN · BUDGET · VARIANCE · MATCH · UNDER / OVER each an empty field'); // TIME-03: the two minutes fields, empty. TIMESHEET-01: START 17:00, END empty, WENT went · TIMESHEET-04b (2026-11-27): INSTAGRAM TAG and NOTES each an empty field too · COALEVELS-01 (2026-11-27): the line's fields follow the columns' new order — an empty REGION after CITY and an empty LOCATION after COUNTRY (no place of this fixture names a region, no routine says a Location); CATEGORY · ENTITY · TYPE · ITEMS; the COA before BUDGET; NOTES last
   assert.doesNotMatch(ledgerCsv(ledger.rows), /—/, 'no "—" anywhere in the file');
   // The sign rule is one function the screen and the CSV both call; the CSV calls it directly, never a screen helper.
   assert.deepEqual([varianceSignWords(-1), varianceSignWords(1), varianceSignWords(0)], ['under', 'over', 'even']);

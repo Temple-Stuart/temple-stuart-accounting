@@ -158,7 +158,7 @@ test('T2 the create route’s body: the routine’s name is the dated one and it
     byhour: '20', byminute: '00', timezone: NBO,
     ideal_time_label: '', fail_threshold_minutes: '0', role: 'place',
     start_date: SUN, end_date: '', start_time: '20:00', end_time: '', is_active: true,
-    budget_amount: '', coa_code: '', location: '', latitude: '', longitude: '',
+    budget_amount: '', coa_code: '', location: '', latitude: '', longitude: '', location_class: null, // COALEVELS-01 (2026-11-27): the body says the stop's Location — null: not said (`location` beside it is the venue's text, as it was)
     lines: [{ activity: 'Bowling', budget_amount: '20.00', coa_code: '6200' }],
   });
   // The LINE keeps the bare name — what the time sheet prints under SUB ACCOUNT NAME, and Expenses under its own.
@@ -285,10 +285,10 @@ test('T5 a second row that would be the same new one-off — one Type, one day, 
 // ── T6 · AFTER A SAVE (ruling B — nothing else in the file changes) ──────────
 
 test('T6 after a save, the one-off’s own row on the time sheet — its name the bare name — takes its row on a second paste: the placement is on the stop that stands, and nothing is a new one-off', () => {
-  /** A one-off as the time sheet lists it once it is written: a plan row whose `description` is the LINE's name — the bare name. */
+  /** A one-off as the time sheet lists it once it is written: a plan row whose `description` is the LINE's name — the bare name. COALEVELS-01 (2026-11-27): a row says its location (none) and its segments — its entity's letter and its account's code, as its `coa` says them; a row whose `coa` is its own says its own segments too. */
   const written = (id: string, day: string, clock: string, name: string, over: Partial<LedgerPlanRow> = {}): LedgerPlanRow => ({
     id: null, key: `routine_line:${id}:${at(day, clock)}`, address: { kind: 'routine_line', id, instant: at(day, clock) }, match: null, day, time: clock,
-    place: null, book: 'Personal', coa: { account: 'P-6200', name: 'Recreation' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
+    place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6200', type: null, code: 'P-6200' }, coa: { account: 'P-6200', name: 'Recreation' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
     cents: 2000, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 90, loggedMinutes: null, allDay: false, went: NOT_RECORDED_WORDS, ...over,
   });
   const record = (id: string, day: string): StopRecordRow => ({ id: `rec-${id}`, kind: 'routine_line', target_id: id, occurrence_at: at(day, '20:00'), outcome: 'done', done_at: at(day, '20:00'), actual_cents: 1800, rating: null, note: 'two games', notes: null, actual_minutes: null });
