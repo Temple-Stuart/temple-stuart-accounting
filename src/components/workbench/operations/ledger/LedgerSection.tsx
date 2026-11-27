@@ -295,7 +295,7 @@ export default function LedgerSection() {
         <h2 className="text-lg font-bold text-brand-purple">{LEDGER_TITLE_WORDS}</h2>
       </div>
       {/* RETRO-01: "+ expense" — a one-off stop, its vendor and its record for a day; the ledger and that day's card read again. */}
-      <ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows />
+      <ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} />
       {/* IDIOM-01 (Alex, 2026-10-24): the controls row (with "download CSV", "clear filters" and the reason), the headers, the one popover, the "no row matches"
           state and the table element are the shared DataTable's (components/table/DataTable.tsx) — the ledger's spec, its rows loaded and shown, and its state
           handed in; its own period controls, its lines, each row's cells and the TOTAL row rendered HERE and handed to it, so every cell is still the ledger's words. */}
