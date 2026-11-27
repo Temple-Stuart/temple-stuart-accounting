@@ -760,22 +760,22 @@ test('T12 in the source: LedgerSection.tsx is 488 lines with the tag’s cell on
 
 // ── T13 · THE PASTE (ruling D) ───────────────────────────────────────────────
 
-test('T13 the paste: pasteRows.ts changed in two places — it fills no notes (RECORD_HEADS excludes the box, and a refusal on it is thrown by name) and the record’s draft it builds says none; pasteSave.ts, PasteRows.tsx and ledgerWrites.ts name neither notes nor a tag', () => {
+test('T13 the paste (re-pointed by COALEVELS-01, 2026-11-27 — until that change it filled no notes and named no tag): pasteRows.ts fills the record’s notes from the row — RECORD_HEADS holds the box, and a refusal is thrown by name for stars and minutes alone — and the record’s draft it builds carries them; pasteSave.ts, PasteRows.tsx and ledgerWrites.ts each name the tag’s writer', () => {
   const p = code(PASTE_RULE);
-  assert.equal(linesOf(PASTE_RULE).length, 941, 'the file keeps its length');
-  // 1. The boxes the paste fills: went, ACTUAL and DESCRIPTION — no stars, no minutes, no notes.
-  assert.match(p, /const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' \| 'minutes' \| 'notes'>, PasteHead>> = \{ went: 'Start Date', actual: 'Total \(USD\)', note: 'Items' \};/);
-  assert.match(p, /if \(field === 'stars' \|\| field === 'minutes' \|\| field === 'notes'\) throw new Error\(`pasteRows: the record's rule refused \$\{field\}, which the paste never fills — \$\{message\}`\);/);
-  // 2. The record's draft it builds says its notes: blank.
-  assert.match(p, /recordInput\(\{ went: WENT_WORD, actual: csvMoney\(happened\.cents\), stars: '', minutes: '', note: happened\.items === null \? '' : happened\.items, notes: '' \}, stop\.address, \{ plannedAt: entry\.plannedAt, held: entry\.held \}, context\.now\);/);
-  // …and those are the file's only words about notes; it names no tag's field and no planned items of a row.
-  assert.equal(countOf(p, /\bnotes\b/g), 3, 'the exclusion, the throw, the draft');
-  assert.doesNotMatch(p, /instagramTag|instagram_tag|plannedItems|rowDraftOf|NOTES_MAX/);
-  // The heads the paste reads no column from are as they were — the tag and the notes among them.
-  assert.match(p, /export const PASTE_NO_COLUMN_HEADS = \['Instagram Tag', 'Currency', 'Total', 'Location', 'Notes'\] as const;/);
-  // The three files this change does not edit: neither notes nor a tag, in code or comment.
+  assert.equal(linesOf(PASTE_RULE).length, 1188, 'the file’s new length — 941 until COALEVELS-01');
+  // 1. The boxes the paste fills: went, ACTUAL, DESCRIPTION and — COALEVELS-01 (2026-11-27) — the NOTES; no stars, no minutes.
+  assert.match(p, /const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' \| 'minutes'>, PasteHead>> = \{ went: 'Start Date', actual: 'Total \(USD\)', note: 'Items', notes: 'Notes' \};/);
+  assert.match(p, /if \(field === 'stars' \|\| field === 'minutes'\) throw new Error\(`pasteRows: the record's rule refused \$\{field\}, which the paste never fills — \$\{message\}`\);/);
+  // 2. The record's draft it builds carries the row's notes — blank with none.
+  assert.match(p, /recordInput\(\{ went: WENT_WORD, actual: csvMoney\(happened\.cents\), stars: '', minutes: '', note: happened\.items === null \? '' : happened\.items, notes: happened\.notes === null \? '' : happened\.notes \}, stop\.address, \{ plannedAt: entry\.plannedAt, held: entry\.held \}, context\.now\);/);
+  // …and the file's words about notes are no longer those three: it reads them, carries them, and says where they are not written. It names the tag's field, the bound on the notes and the planned items of a stop's row; it builds no row's draft.
+  assert.equal(countOf(p, /\bnotes\b/g), 22, 'three until COALEVELS-01: the exclusion, the throw, the draft');
+  for (const named of [/instagram_tag/, /readInstagramTag/, /plannedItems/, /NOTES_MAX/]) assert.match(p, named); assert.doesNotMatch(p, /rowDraftOf/);
+  // The heads the paste reads no column from are two: the tag, the notes and the Location are read now.
+  assert.match(p, /export const PASTE_NO_COLUMN_HEADS = \['Currency', 'Total'\] as const;/);
+  // The three files TIMESHEET-04b did not edit, and this change does: each names the tag's writer.
   for (const file of [PASTE_SAVE, PASTE_LEAF, LEDGER_WRITES]) {
-    for (const text of [code(file), comments(file)]) assert.doesNotMatch(text, /\bnotes\b|instagram|\btag\b|plannedItems|planned items/i, `${file}: names neither notes nor a tag`);
+    assert.match(code(file), /\bsetVendorTag\b/, `${file}: names the tag’s writer`);
   }
 });
 

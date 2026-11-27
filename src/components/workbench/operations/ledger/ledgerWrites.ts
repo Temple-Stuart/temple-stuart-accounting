@@ -6,12 +6,18 @@
  *   · POST /api/operations/vendor-directory      addVendor      — a new vendor in the book (VENDOR-01's route)
  *   · POST /api/operations/plan-vendors          setVendor      — the vendor on the line's occurrence (VENDOR-01's route)
  *   · PATCH /api/operations/routines/steps/[id]  setLineMinutes — the line's minutes (the line's own route)
+ *   · PATCH /api/operations/vendor-directory     setVendorTag   — a vendor's Instagram tag (the directory's own PATCH)
+ *   · POST /api/chart-of-accounts/sub-accounts   addSubAccount  — a sub-account under an account of the chart (the chart's own route)
  *   · the record: stops/stopWrites.ts setStopRecord — the one writer of a stop's record
  *
  * PASTE-02 (Alex, 2026-11-27): the pasted rows are saved through these (src/lib/operations/pasteSave.ts runs them; ledger/PasteRows.tsx
  * hands them in). Three changes for it, and no other: the one helper takes the method (it was `post(url, body)` — still ONE request
  * in this file); setVendor takes a routine's address too (a plan that holds its own amount is a routine — ledger.ts LedgerAddress);
  * and setLineMinutes is new.
+ *
+ * COALEVELS-01 (Alex, 2026-11-27) — for the paste, which now carries TIMESHEET-04c: setVendor's body may carry the plan's items (sent as
+ * it is handed; absent says nothing of them), and two writers are new, at the file's end — setVendorTag and addSubAccount. The file's
+ * one request function is not touched.
  *
  * Each answer is read the one way the vendor box reads its own
  * (budget/VendorBox.tsx answerOf): ok with the route's body, or the route's
@@ -77,8 +83,8 @@ export async function addVendor(entityId: string, name: string): Promise<WriteAn
   return { ok: true, value: { vendorId: answer.body.id } };
 }
 
-/** The vendor on the line's one occurrence — or, PASTE-02 (2026-11-27), on a routine's own (`kind: 'routine_line'` alone until then). */
-export async function setVendor(body: { readonly kind: 'routine_line' | 'routine'; readonly id: string; readonly instant: string; readonly vendorId: string }): Promise<WriteAnswer<{ readonly outcome: string }>> {
+/** The vendor on the line's one occurrence — or, PASTE-02 (2026-11-27), on a routine's own (`kind: 'routine_line'` alone until then). COALEVELS-01 (2026-11-27): with the plan's items, when the caller hands any — sent as handed; a body without the key says nothing of them. */
+export async function setVendor(body: { readonly kind: 'routine_line' | 'routine'; readonly id: string; readonly instant: string; readonly vendorId: string; readonly items?: string }): Promise<WriteAnswer<{ readonly outcome: string }>> {
   const answer = await send('POST', '/api/operations/plan-vendors', body);
   if (!answer.ok) return answer;
   return { ok: true, value: { outcome: typeof answer.body.outcome === 'string' ? answer.body.outcome : '' } };
@@ -87,6 +93,20 @@ export async function setVendor(body: { readonly kind: 'routine_line' | 'routine
 /** PASTE-02 (2026-11-27): the line's minutes — a stop's planned length, from which the time sheet reads its END. The route answers the line; nothing of it is read back here. */
 export async function setLineMinutes(lineId: string, minutes: number): Promise<WriteAnswer<null>> {
   const answer = await send('PATCH', `/api/operations/routines/steps/${lineId}`, { duration_minutes: minutes });
+  if (!answer.ok) return answer;
+  return { ok: true, value: null };
+}
+
+/** COALEVELS-01 (2026-11-27): a vendor's Instagram tag — the directory's PATCH, by the vendor's id. The route answers the vendor; nothing of it is read back here. */
+export async function setVendorTag(vendorId: string, tag: string): Promise<WriteAnswer<null>> {
+  const answer = await send('PATCH', '/api/operations/vendor-directory', { id: vendorId, instagramTag: tag });
+  if (!answer.ok) return answer;
+  return { ok: true, value: null };
+}
+
+/** COALEVELS-01 (2026-11-27): a sub-account under an account of the chart — its name and its two-digit code. The route answers the sub-account; nothing of it is read back here. */
+export async function addSubAccount(accountId: string, name: string, code: string): Promise<WriteAnswer<null>> {
+  const answer = await send('POST', '/api/chart-of-accounts/sub-accounts', { accountId, name, code });
   if (!answer.ok) return answer;
   return { ok: true, value: null };
 }
