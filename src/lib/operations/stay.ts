@@ -134,21 +134,29 @@ export function endsOnFor(startsOn: string, preset: StayPreset): string {
 
 /**
  * LEDGER-01 (Alex, 2026-10-16): THE ONE SPLIT OF A PLACE — the city before the
- * place's FIRST comma, the country after it, each trimmed ("Chiang Mai, Thailand
- * 🇹🇭" → Chiang Mai · Thailand 🇹🇭). No comma: the whole place is the city and
- * there is no country (null — never a guessed one). The caption's tags
- * (day/dayCard.ts captionTags) and the ledger's CITY and COUNTRY read it; a
- * second split would let the two disagree.
+ * place's FIRST comma, the country after it, each trimmed. No comma: the whole
+ * place is the city and there is no country (null — never a guessed one). The
+ * caption's tags (day/dayCard.ts captionTags) and the ledger's CITY and COUNTRY
+ * read it; a second split would let the two disagree.
+ *
+ * COALEVELS-01 (Alex, 2026-11-27): THE PLACE HAS THREE PARTS — city, REGION,
+ * country. No comma: the city alone (region and country null). ONE comma: the
+ * city and the country, no region — as it always read. MORE: the city before the
+ * FIRST comma, the country after the LAST, and the region what stands between,
+ * trimmed (a place of four parts keeps its two middle ones together, comma and
+ * all). The ledger's REGION reads it, and the caption tags it.
  */
 export interface PlaceParts {
   readonly city: string;
+  readonly region: string | null;
   readonly country: string | null;
 }
 
 export function placeParts(place: string): PlaceParts {
-  const comma = place.indexOf(',');
-  if (comma < 0) return { city: place.trim(), country: null };
-  return { city: place.slice(0, comma).trim(), country: place.slice(comma + 1).trim() };
+  const first = place.indexOf(',');
+  if (first < 0) return { city: place.trim(), region: null, country: null };
+  const last = place.lastIndexOf(',');
+  return { city: place.slice(0, first).trim(), region: last === first ? null : place.slice(first + 1, last).trim(), country: place.slice(last + 1).trim() };
 }
 
 // ── WORDS ───────────────────────────────────────────────────────────────────

@@ -408,10 +408,10 @@ const refusalOf = (draft: RecordDraft, given: Pick<LedgerRecordingTaken, 'planne
 };
 
 test('T5 the draft: from a held record its outcome, dollars, stars, minutes and note; with none — went, every box blank; the dollars read back to the held cents', () => {
-  assert.deepEqual(recordDraftOf(null), { went: 'went', actual: '', stars: '', minutes: '', note: '' });
-  assert.deepEqual(recordDraftOf(SOUP_DONE), { went: 'went', actual: '6.00', stars: '4', minutes: '18', note: 'with rice' });
-  assert.deepEqual(recordDraftOf(BREAD_SKIPPED), { went: 'skipped', actual: '', stars: '', minutes: '', note: 'sold out' }, 'a null is a blank box, never 0');
-  assert.deepEqual(recordDraftOf(record({ ...SOUP_DONE, actual_cents: 0, actual_minutes: 0 })), { went: 'went', actual: '0.00', stars: '4', minutes: '0', note: 'with rice' }, 'a held 0 is a 0, not a blank');
+  assert.deepEqual(recordDraftOf(null), { went: 'went', actual: '', stars: '', minutes: '', note: '', notes: '' }); // TIMESHEET-04b (2026-11-27): the draft holds a NOTES box — the held record's notes, '' with none (these records hold none); this draft and the three below without it until then
+  assert.deepEqual(recordDraftOf(SOUP_DONE), { went: 'went', actual: '6.00', stars: '4', minutes: '18', note: 'with rice', notes: '' });
+  assert.deepEqual(recordDraftOf(BREAD_SKIPPED), { went: 'skipped', actual: '', stars: '', minutes: '', note: 'sold out', notes: '' }, 'a null is a blank box, never 0');
+  assert.deepEqual(recordDraftOf(record({ ...SOUP_DONE, actual_cents: 0, actual_minutes: 0 })), { went: 'went', actual: '0.00', stars: '4', minutes: '0', note: 'with rice', notes: '' }, 'a held 0 is a 0, not a blank');
   assert.deepEqual([WENT_WORD, SKIPPED_WORD], ['went', 'skipped'], 'the WENT column’s own two words for a record');
   // The dollars a draft opens with read back to the held cents — to the cent, at every size.
   for (const cents of [0, 1, 5, 50, 99, 100, 101, 600, 1234, 99999, 100000, 2147483647]) {

@@ -134,22 +134,23 @@ function inOrder(body: string, steps: readonly string[], what: string): void {
 
 // ── T1 · THE ONE PLACE SPLIT ────────────────────────────────────────────────
 
-test('T1 placeParts: the city before the first comma, the country after, trimmed; no comma — the whole place, no country; captionTags reads it and is unchanged', () => {
-  assert.deepEqual(placeParts('Chiang Mai, Thailand 🇹🇭'), { city: 'Chiang Mai', country: 'Thailand 🇹🇭' });
-  assert.deepEqual(placeParts('Bali'), { city: 'Bali', country: null }, 'no comma: no country, never a guessed one');
-  assert.deepEqual(placeParts('Ho Chi Minh City, Vietnam, Asia'), { city: 'Ho Chi Minh City', country: 'Vietnam, Asia' }, 'only the first comma splits');
-  assert.deepEqual(placeParts('  Lisbon ,  Portugal  '), { city: 'Lisbon', country: 'Portugal' }, 'each part trimmed');
-  assert.deepEqual(placeParts('🇹🇭, Thailand'), { city: '🇹🇭', country: 'Thailand' });
+test('T1 placeParts: the city before the first comma, the country after the LAST, the region between (COALEVELS-01; the country after the first, and no region, until then), trimmed; no comma — the whole place, no region, no country; captionTags reads it', () => {
+  assert.deepEqual(placeParts('Chiang Mai, Thailand 🇹🇭'), { city: 'Chiang Mai', region: null, country: 'Thailand 🇹🇭' });
+  assert.deepEqual(placeParts('Bali'), { city: 'Bali', region: null, country: null }, 'no comma: no country, never a guessed one');
+  assert.deepEqual(placeParts('Ho Chi Minh City, Vietnam, Asia'), { city: 'Ho Chi Minh City', region: 'Vietnam', country: 'Asia' }, 'three parts: the city before the first comma, the country after the last, the region between'); // COALEVELS-01 (2026-11-27): the place has three parts — { city, country: 'Vietnam, Asia' }, 'only the first comma splits', until then; every place of one or two parts above and below gains region: null
+  assert.deepEqual(placeParts('  Lisbon ,  Portugal  '), { city: 'Lisbon', region: null, country: 'Portugal' }, 'each part trimmed');
+  assert.deepEqual(placeParts('🇹🇭, Thailand'), { city: '🇹🇭', region: null, country: 'Thailand' });
+  assert.deepEqual(placeParts(' A ,  B , C ,D '), { city: 'A', region: 'B , C', country: 'D' }, `COALEVELS-01 (2026-11-27): four parts — the two middle ones stay together, as written between the first comma and the last`);
   // REEL-01's tags, word for word (reel01.test.ts pins them too) — the split moved, the output did not.
   assert.deepEqual(captionTags('Chiang Mai, Thailand 🇹🇭'), ['#chiangmai', '#thailand', ...CAPTION_TAGS]);
   assert.deepEqual(captionTags('Bali'), ['#bali', ...CAPTION_TAGS]);
-  assert.deepEqual(captionTags('Ho Chi Minh City, Vietnam, Asia'), ['#hochiminhcity', '#vietnamasia', ...CAPTION_TAGS]);
+  assert.deepEqual(captionTags('Ho Chi Minh City, Vietnam, Asia'), ['#hochiminhcity', '#vietnam', '#asia', ...CAPTION_TAGS]); // COALEVELS-01 (2026-11-27): the region is tagged too — one tag '#vietnamasia' for the two until then; a place of one or two parts tags what it always did
   assert.deepEqual(captionTags('🇹🇭, Thailand'), ['#thailand', ...CAPTION_TAGS]);
   const card = code(CARD_RULES);
-  assert.match(card, /export function captionTags\(stayPlace: string\): string\[\] \{\n\s*const place = placeParts\(stayPlace\);\n\s*const parts = place\.country === null \? \[place\.city\] : \[place\.city, place\.country\];/, 'the caption reads the one split');
+  assert.match(card, /export function captionTags\(stayPlace: string\): string\[\] \{\n\s*const place = placeParts\(stayPlace\);\n\s*const parts = \[place\.city, place\.region, place\.country\]\.filter\(\(part\): part is string => part !== null\);/, 'the caption reads the one split'); // COALEVELS-01 (2026-11-27): the three parts, those that are not null — "place.country === null ? [place.city] : [place.city, place.country]" until then
   assert.doesNotMatch(card, /indexOf\(','\)/, 'no second split on the card');
   assert.doesNotMatch(code(RULES), /indexOf\(','\)|split\(','\)/, 'no second split in the ledger');
-  assert.match(code(STAY), /export function placeParts\(place: string\): PlaceParts \{\n\s*const comma = place\.indexOf\(','\);\n\s*if \(comma < 0\) return \{ city: place\.trim\(\), country: null \};\n\s*return \{ city: place\.slice\(0, comma\)\.trim\(\), country: place\.slice\(comma \+ 1\)\.trim\(\) \};\n\}/);
+  assert.match(code(STAY), /export function placeParts\(place: string\): PlaceParts \{\n\s*const first = place\.indexOf\(','\);\n\s*if \(first < 0\) return \{ city: place\.trim\(\), region: null, country: null \};\n\s*const last = place\.lastIndexOf\(','\);\n\s*return \{ city: place\.slice\(0, first\)\.trim\(\), region: last === first \? null : place\.slice\(first \+ 1, last\)\.trim\(\), country: place\.slice\(last \+ 1\)\.trim\(\) \};\n\}/); // COALEVELS-01 (2026-11-27): the split in three — the first comma, the last, and what stands between; the two-part body ("const comma = place.indexOf(',')") until then
 });
 
 // ── T2 · THE RULE ───────────────────────────────────────────────────────────
@@ -175,7 +176,7 @@ test('T2 each row: BUDGET the card’s matched line (one, at the exact instant),
   assert.equal(coffee.vendor, 'Luka Café', 'the every-occurrence vendor');
   assert.equal(coffee.description, 'Coffee', 'the line’s activity');
   assert.deepEqual([coffee.rating, coffee.note, coffee.actualCents, coffee.outcome], [4, 'khao soi', 1200, 'done']);
-  assert.deepEqual(coffee.place, { city: 'Chiang Mai', country: 'Thailand 🇹🇭' });
+  assert.deepEqual(coffee.place, { city: 'Chiang Mai', region: null, country: 'Thailand 🇹🇭' });
   const gym13 = rowOf('r-gym-13');
   assert.equal(gym13.cents, 2000);
   assert.deepEqual(gym13.coa, { account: 'P-5300', name: 'Fitness' });

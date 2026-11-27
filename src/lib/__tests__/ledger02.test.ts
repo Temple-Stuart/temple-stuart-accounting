@@ -124,7 +124,7 @@ test('R1 the row: book from the matched line’s book (personal → Personal, so
   assert.deepEqual(ledger.rows.map((r) => r.id), ['r-stretch-13', 'r-coffee-13', 'r-lunch-13', 'r-client-13', 'r-coffee-12', 'r-yoga-12', 'r-coffee-11'], 'newest day first, then the clock');
   const coffee = rowOf('r-coffee-13');
   assert.deepEqual([coffee.book, coffee.coa, coffee.cents, coffee.actualCents, coffee.varianceCents], ['Personal', { account: 'P-5100', name: 'Meals' }, 1000, 898, -102], 'under by $1.02');
-  assert.deepEqual(coffee.place, { city: 'Chiang Mai', country: 'Thailand 🇹🇭' });
+  assert.deepEqual(coffee.place, { city: 'Chiang Mai', region: null, country: 'Thailand 🇹🇭' });
   const client = rowOf('r-client-13');
   assert.deepEqual([client.book, client.coa, client.cents, client.actualCents, client.varianceCents], ['Business', { account: 'B-6100', name: 'Client meals' }, 2500, 3000, 500], 'the business book, over by $5');
   const over = rowOf('r-coffee-12');

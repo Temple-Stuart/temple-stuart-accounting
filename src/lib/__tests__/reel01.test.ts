@@ -182,12 +182,12 @@ test('T2 the caption of a day fully recorded carries the card’s verdict; no bu
   assert.equal(noStayReelWords(DAY), 'no caption and no script — no stay covers Thu Oct 15 (the place and the day count come from the stay)');
 });
 
-test('T2 the tags: split at the FIRST comma — the city, the country — lowercased, Unicode letters and digits only; no comma → the city tag; then the three constants', () => {
+test('T2 the tags: the place’s parts — the city, the region, the country (COALEVELS-01: three; split at the FIRST comma alone until then) — lowercased, Unicode letters and digits only; no comma → the city tag; then the three constants', () => {
   assert.deepEqual(CAPTION_TAGS, ['#digitalnomad', '#costofliving', '#buildinpublic']);
   assert.deepEqual(captionTags('Chiang Mai, Thailand 🇹🇭'), ['#chiangmai', '#thailand', ...CAPTION_TAGS], 'the flag and the space go');
   assert.deepEqual(captionTags('Bali'), ['#bali', ...CAPTION_TAGS], 'no comma: the city tag and the three constants');
   assert.deepEqual(captionTags('Hội An, Việt Nam 🇻🇳'), ['#hộian', '#việtnam', ...CAPTION_TAGS], 'Unicode letters kept');
-  assert.deepEqual(captionTags('Ho Chi Minh City, Vietnam, Asia'), ['#hochiminhcity', '#vietnamasia', ...CAPTION_TAGS], 'only the first comma splits — the rest is the country part, as written');
+  assert.deepEqual(captionTags('Ho Chi Minh City, Vietnam, Asia'), ['#hochiminhcity', '#vietnam', '#asia', ...CAPTION_TAGS], 'three parts: the city, the region, the country — a tag each'); // COALEVELS-01 (2026-11-27): the place has three parts (stay.ts placeParts) and the region is tagged — ['#hochiminhcity', '#vietnamasia'], 'only the first comma splits — the rest is the country part, as written', until then
   assert.deepEqual(captionTags('🇹🇭, Thailand'), ['#thailand', ...CAPTION_TAGS], 'a part with no letter or digit gives no tag — never a guessed one');
   assert.deepEqual(captionTags('Phuket 2'), ['#phuket2', ...CAPTION_TAGS], 'digits stay');
   assert.match(comments(RULES), /A place with no comma gives the city tag and the three\s*\n\s*\* constants\./, 'the rule says so in its comment');

@@ -163,9 +163,9 @@ test('T3 typed items are one line: null and blank are none, every run of spaces 
 
 // ── T4 · THE MIGRATION ───────────────────────────────────────────────────────
 
-test('T4 the migration is the newest and holds six statements and no other: three columns that admit NULL and three CHECKs — no row written, no default; authored, not applied', () => {
+test('T4 the migration (the newest until COALEVELS-01’s followed) holds six statements and no other: three columns that admit NULL and three CHECKs — no row written, no default; authored, not applied', () => {
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (COALEVELS-01 followed)'); // COALEVELS-01 (2026-11-27): its migration, 20261127230000_coa_levels_01_sub_accounts_location, is the newest now — `dirs[dirs.length - 1]`, 'the newest migration', until then
   const statements = code(MIGRATION).split(';').map(flat).filter(Boolean);
   assert.deepEqual(statements, [
     'ALTER TABLE "operations_vendor_directory" ADD COLUMN "instagram_tag" VARCHAR(30)',

@@ -70,7 +70,7 @@ import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS,
 import { RekeyRefused, rekeyPlan, rekeyedWords, occupiedWords, type RekeyCounts, type RekeySchedule } from '@/lib/operations/routineRekey';
 import { lockRoutine, moveCompletions } from '@/lib/operations/routineCompletion';
 import { movedWords, stopRecordRowOf, type StopRecordRow } from '@/lib/operations/stopRecord';
-import { parsePlaceInput } from '@/lib/operations/routineInput';
+import { parsePlaceInput } from '@/lib/operations/routineInput'; import { readLocationClass } from '@/lib/operations/locationClass'; // COALEVELS-01 (2026-11-27): the Location's rule — imported on this line so no line the registry cites above it moves
 import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
@@ -421,6 +421,14 @@ export async function PATCH(
       data.location = place.value.location;
       data.latitude = place.value.latitude;
       data.longitude = place.value.longitude;
+    }
+
+    // COALEVELS-01 (Alex, 2026-11-27): the stop's Location. Sent → read by the one rule (locationClass.ts readLocationClass)
+    // and written — null clears it; not sent → untouched.
+    if ('location_class' in body) {
+      const locationClass = readLocationClass(body.location_class);
+      if (!locationClass.ok) return NextResponse.json({ error: 'Validation', field: 'location_class', message: locationClass.words }, { status: 400 });
+      data.location_class = locationClass.value;
     }
 
     // If cadence/timezone/anchor/end changed, recompute next_due_at — anchored on

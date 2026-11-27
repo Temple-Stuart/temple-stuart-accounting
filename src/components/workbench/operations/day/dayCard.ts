@@ -1728,10 +1728,11 @@ const tagWord = (part: string): string => part.normalize('NFC').toLowerCase().re
  * LEDGER-01 (Alex, 2026-10-16): the split is stay.ts placeParts — the one split,
  * shared with the ledger's CITY and COUNTRY; the tags are unchanged (tagWord drops
  * the whitespace the split now trims).
+ * COALEVELS-01 (Alex, 2026-11-27): the place has three parts — the city, the region and the country are tagged, those that are not null; a place of one or two parts tags what it always did.
  */
 export function captionTags(stayPlace: string): string[] {
   const place = placeParts(stayPlace);
-  const parts = place.country === null ? [place.city] : [place.city, place.country];
+  const parts = [place.city, place.region, place.country].filter((part): part is string => part !== null);
   return [...parts.map(tagWord).filter((w) => w !== '').map((w) => `#${w}`), ...CAPTION_TAGS];
 }
 

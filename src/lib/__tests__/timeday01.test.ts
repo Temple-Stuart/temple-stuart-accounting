@@ -44,10 +44,10 @@ const ONE_DAY: Period = { from: TUE, to: TUE };
 const WEEK: Period = { from: MON, to: '2027-03-07' };
 const MONTH: Period = { from: MON, to: '2027-03-31' };
 
-const NORTHPORT: PlaceParts = { city: 'Northport', country: 'Freedonia' };
-const NORTHPORT_ALONE: PlaceParts = { city: 'Northport', country: null };
-const SOUTHGATE: PlaceParts = { city: 'Southgate', country: 'Freedonia' };
-const NORTHPORT_ELSEWHERE: PlaceParts = { city: 'Northport', country: 'Ruritania' };
+const NORTHPORT: PlaceParts = { city: 'Northport', region: null, country: 'Freedonia' };
+const NORTHPORT_ALONE: PlaceParts = { city: 'Northport', region: null, country: null };
+const SOUTHGATE: PlaceParts = { city: 'Southgate', region: null, country: 'Freedonia' };
+const NORTHPORT_ELSEWHERE: PlaceParts = { city: 'Northport', region: null, country: 'Ruritania' };
 
 /** A recorded row in the ledger's own shape (timesheet01.test.ts's builder) — the day and the place are what each case sets. */
 const recorded = (id: string, day: string, place: PlaceParts | null): LedgerRow => ({
@@ -186,7 +186,7 @@ test('T7 dayPlaceWords: one place on every row of the day → "· City, Country"
   // No country: the city alone — a null country is a value, and every row holds it.
   assert.equal(dayPlaceWords(ONE_DAY, [recorded('porridge', TUE, NORTHPORT_ALONE), planned('climbing', TUE, NORTHPORT_ALONE)]), '· Northport');
   // The place is equal by its words, not by the object: two rows built apart agree.
-  assert.equal(dayPlaceWords(ONE_DAY, [recorded('porridge', TUE, { city: 'Northport', country: 'Freedonia' }), planned('climbing', TUE, { city: 'Northport', country: 'Freedonia' })]), '· Northport, Freedonia');
+  assert.equal(dayPlaceWords(ONE_DAY, [recorded('porridge', TUE, { city: 'Northport', region: null, country: 'Freedonia' }), planned('climbing', TUE, { city: 'Northport', region: null, country: 'Freedonia' })]), '· Northport, Freedonia');
   // Beside the period's own words it reads as the line above the table.
   assert.equal(`${periodWords(ONE_DAY)} ${dayPlaceWords(ONE_DAY, [planned('climbing', TUE, NORTHPORT)])}`, 'Tue Mar 2 · Northport, Freedonia');
   // It changes nothing it is handed.

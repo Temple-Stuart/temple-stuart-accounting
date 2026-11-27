@@ -57,7 +57,7 @@ function inOrder(body: string, steps: readonly string[], what: string): void {
 
 const row = (over: Partial<LedgerRow> & { readonly id: string }): LedgerRow => ({
   key: `routine:${over.id}:2026-10-13T00:30:00.000Z`, address: { kind: 'routine', id: over.id, instant: '2026-10-13T00:30:00.000Z' }, match: null, day: '2026-10-13', time: '07:30',
-  place: { city: 'Chiang Mai', country: 'Thailand 🇹🇭' }, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Brunch', rating: null, note: null, notes: null, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag, no notes
+  place: { city: 'Chiang Mai', region: null, country: 'Thailand 🇹🇭' }, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Brunch', rating: null, note: null, notes: null, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag, no notes
   cents: null, budgetState: 'none', outcome: 'done', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null, ...over, // TIME-03: the row's two minutes fields
 });
 /** Saturday: the gym, skipped — a budget, no actual, no variance. */
@@ -69,7 +69,7 @@ const DINNER = row({ id: 'b', description: 'Dinner', rating: 5, note: 'Pad thai'
 /** Monday: yoga on a day no stay covers — no place, no book, no COA, no budget, no note. */
 const YOGA = row({ id: 'c', day: '2026-10-12', place: null, book: null, coa: null, description: 'Yoga', rating: 2, actualCents: 500 });
 /** Sunday: a client lunch in Bangkok on the business book, even, linked but unreadable, no stars. */
-const CLIENT = row({ id: 'd', day: '2026-10-11', place: { city: 'Bangkok', country: 'Thailand 🇹🇭' }, book: 'Business', coa: { account: 'B-6100', name: 'Client meals' }, vendor: 'Som Tam Nua', description: 'Client lunch', note: 'with Pim', cents: 2500, actualCents: 2500, varianceCents: 0, budgetState: 'matched', match: { cents: null, postings: 1, unreadable: 1, reversed: 0 } });
+const CLIENT = row({ id: 'd', day: '2026-10-11', place: { city: 'Bangkok', region: null, country: 'Thailand 🇹🇭' }, book: 'Business', coa: { account: 'B-6100', name: 'Client meals' }, vendor: 'Som Tam Nua', description: 'Client lunch', note: 'with Pim', cents: 2500, actualCents: 2500, varianceCents: 0, budgetState: 'matched', match: { cents: null, postings: 1, unreadable: 1, reversed: 0 } });
 const ROWS: readonly LedgerRow[] = [GYM, BRUNCH, DINNER, YOGA, CLIENT];
 const ids = (rows: readonly LedgerRow[]): string[] => rows.map((r) => r.id);
 const withFilter = (over: Partial<ColumnFilters>): ColumnFilters => ({ ...NO_COLUMN_FILTERS, ...over });

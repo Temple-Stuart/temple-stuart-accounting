@@ -53,7 +53,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, allDayTimeInput, canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
-import { parseLinesInput, parsePlaceInput } from '@/lib/operations/routineInput';
+import { parseLinesInput, parsePlaceInput } from '@/lib/operations/routineInput'; import { readLocationClass } from '@/lib/operations/locationClass'; // COALEVELS-01 (2026-11-27): the Location's rule — imported on this line so no line the registry cites above it moves
 import { carriesPlanMoney, planMoney, type PlanBook, type PlanMoney } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
@@ -302,6 +302,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Validation', ...place.error }, { status: 400 });
     }
 
+    // COALEVELS-01 (Alex, 2026-11-27): the stop's Location — travel, homebase, or not said (null). Not the place above, which
+    // is the venue. A word that is neither is refused in the rule's own words (locationClass.ts readLocationClass).
+    const locationClass = readLocationClass(body.location_class);
+    if (!locationClass.ok) {
+      return NextResponse.json({ error: 'Validation', field: 'location_class', message: locationClass.words }, { status: 400 });
+    }
+
     // ONEOFF-01: the lines the routine is created with — each an activity with
     // its own amount and account, validated by the one leaf the step writers use.
     const lines = parseLinesInput(body.lines);
@@ -397,6 +404,8 @@ export async function POST(request: NextRequest) {
           location: place.value.location,
           latitude: place.value.latitude,
           longitude: place.value.longitude,
+          // COALEVELS-01: the stop's Location, or null — not said.
+          location_class: locationClass.value,
           created_by: userEmail,
         },
       });

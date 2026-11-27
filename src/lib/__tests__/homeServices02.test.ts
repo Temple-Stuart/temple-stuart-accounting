@@ -686,8 +686,8 @@ test('T9 budgets follow the billing: the three project services today\'s bands u
 
 test('T10 the migration adds answers, jsonb, relaxes only the old questions\' columns, and touches no row; the schema moves with it (ruling m)', () => {
   const dirs = readdirSync(resolve(ROOT, 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
-  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more.
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (TIMESHEET-04a followed)');
+  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more. COALEVELS-01 (2026-11-27): and its migration, 20261127230000_coa_levels_01_sub_accounts_location (a table of the chart's sub-accounts, and a routine's Location), is the newest now — every position moved by one more again.
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration before the newest (TIMESHEET-04a followed)');
   const statements = code(MIGRATION).split(';').map(flat).filter(Boolean);
   assert.deepEqual(statements, [
     'ALTER TABLE "proposals" ADD COLUMN "answers" JSONB',
@@ -704,7 +704,7 @@ test('T10 the migration adds answers, jsonb, relaxes only the old questions\' co
   const model = schema.slice(schema.findIndex((l) => l === 'model proposals {'));
   const field = (name: string): string => { const line = model.find((l) => l.trimStart().startsWith(`${name} `)); assert.ok(line, name); return flat(line); };
   assert.equal(field('answers'), 'answers Json?', 'answers: Json, NULL');
-  assert.equal(schema[1683].trimEnd(), '  answers        Json?', 'on the line that was blank, so no line below it moves');
+  assert.equal(schema[1710].trimEnd(), '  answers        Json?', 'on the line that was blank, so no line below it moved'); // COALEVELS-01 (2026-11-27): the schema grew ABOVE it since (the model chart_of_sub_accounts after chart_of_accounts, and a relation line in users) — index 1683 → 1710; HOME-SERVICES-02 itself still added no line
   assert.equal(field('currentStack'), 'currentStack String? @db.Text @map("current_stack")');
   assert.equal(field('modules'), 'modules Json?', 'no default');
   assert.equal(field('startWindow'), 'startWindow String? @db.VarChar(20) @map("start_window")', 'no default');
