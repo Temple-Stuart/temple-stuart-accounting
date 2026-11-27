@@ -40,6 +40,7 @@
  */
 import { isValidUuid } from '@/lib/operations/parseUuid';
 import { routinePlanned } from '@/lib/operations/routineLines';
+import { holdsControl } from '@/lib/operations/stopRecord';
 import type { LinkableKind } from '@/lib/calendar/linkKeys';
 import type { IsoDay } from '@/lib/budget/report';
 import {
@@ -88,6 +89,58 @@ export const vendorNameKey = (raw: string): string => spaced(raw).toLowerCase();
 export function takenBy<V extends { readonly vendor_name: string }>(name: string, vendors: readonly V[]): V | null {
   const key = vendorNameKey(name);
   return vendors.find((v) => vendorNameKey(v.vendor_name) === key) ?? null;
+}
+
+// ── TIMESHEET-04a (Alex, 2026-11-27): THE TAG, AND THE PLANNED ITEMS ─────────
+//
+// Two things a vendor's rows hold beside the name, each in a column of its own (the migration
+// 20261127160000_timesheet_04_tag_items_notes), each read here ONE way and written by ONE route:
+//   · a vendor's INSTAGRAM TAG — operations_vendor_directory.instagram_tag, written by the directory route's PATCH. "tag is own
+//     column". It is the handle without its @: letters, digits, dots and underscores, 1 to 30 — the column's own CHECK. It is kept
+//     as typed: nothing is lower-cased, and nothing is looked up — whether such an account exists is not this rule's to know;
+//   · a plan's PLANNED ITEMS — planned_item_vendors.items, written by the plan-vendors route on the row that names the plan's
+//     vendor: what is planned at a stop still ahead, one line, at most 280 characters, never blank.
+// null is NONE for both, and it is said, never guessed: a blank text is none, and a body that says nothing of items leaves what
+// the row holds (itemsAfter).
+
+/** operations_vendor_directory.instagram_tag is VarChar(30), and its CHECK holds the same shape. */
+export const INSTAGRAM_TAG_MAX = 30;
+export const INSTAGRAM_TAG_WORDS = `an Instagram tag is letters, digits, dots and underscores, ${INSTAGRAM_TAG_MAX} at most`;
+
+/** A typed tag → the tag as the directory keeps it (no @), null for none, or why not. ONE leading @ is dropped; what is left is kept as typed. */
+export function readInstagramTag(raw: unknown): { readonly ok: true; readonly tag: string | null } | Refusal {
+  if (raw === null) return { ok: true, tag: null };
+  if (typeof raw !== 'string') return refuse(400, 'bad-tag', 'instagramTag must be text, or null for none');
+  const typed = raw.trim();
+  if (typed === '') return { ok: true, tag: null };
+  const tag = typed.startsWith('@') ? typed.slice(1) : typed;
+  if (!/^[A-Za-z0-9._]{1,30}$/.test(tag)) return refuse(400, 'bad-tag', `${INSTAGRAM_TAG_WORDS} — ${JSON.stringify(typed)} is not one`);
+  return { ok: true, tag };
+}
+
+/** A vendor's id as a route is handed it: a UUID is itself; anything else names no row — null, and no query is made for it. */
+export function readVendorId(raw: unknown): string | null {
+  return isValidUuid(raw) ? raw : null;
+}
+
+/** planned_item_vendors.items is VarChar(280) — counted in characters, as readVendorName counts a name. */
+export const PLANNED_ITEMS_MAX = 280;
+
+/** Typed items → the one line the row keeps, null for none, or why not. */
+export function readPlannedItems(raw: unknown): { readonly ok: true; readonly items: string | null } | Refusal {
+  if (raw === null) return { ok: true, items: null };
+  if (typeof raw !== 'string') return refuse(400, 'bad-items', 'items must be text, or null for none');
+  const items = spaced(raw);
+  if (items === '') return { ok: true, items: null };
+  if (holdsControl(items)) return refuse(400, 'bad-items', 'control characters are not planned items');
+  const length = Array.from(items).length;
+  if (length > PLANNED_ITEMS_MAX) return refuse(400, 'bad-items', `planned items are at most ${PLANNED_ITEMS_MAX} characters — these are ${length}`);
+  return { ok: true, items };
+}
+
+/** The items a row holds after a write: a body that says nothing of items (undefined) leaves what the row holds; null clears them; a text sets them. */
+export function itemsAfter(held: string | null, said: string | null | undefined): string | null {
+  return said === undefined ? held : said;
 }
 
 // ── THE ADDRESS ─────────────────────────────────────────────────────────────

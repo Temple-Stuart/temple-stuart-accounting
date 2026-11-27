@@ -686,7 +686,8 @@ test('T9 budgets follow the billing: the three project services today\'s bands u
 
 test('T10 the migration adds answers, jsonb, relaxes only the old questions\' columns, and touches no row; the schema moves with it (ruling m)', () => {
   const dirs = readdirSync(resolve(ROOT, 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
+  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more.
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (TIMESHEET-04a followed)');
   const statements = code(MIGRATION).split(';').map(flat).filter(Boolean);
   assert.deepEqual(statements, [
     'ALTER TABLE "proposals" ADD COLUMN "answers" JSONB',

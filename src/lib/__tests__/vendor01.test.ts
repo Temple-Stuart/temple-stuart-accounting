@@ -301,11 +301,19 @@ test('T7 the directory POST locks and reads the book in one read, reads the name
   assert.match(post, /action: \{ type: 'operations_vendor_added',/);
   assert.match(post, /return NextResponse\.json\(outcome\.vendor, \{ status: 201 \}\);/);
   assert.match(post, /vendor: \{ id: v\.id, vendor_name: v\.vendor_name, is_active: v\.is_active \}/, 'the 409 names the vendor, its id and whether it is active');
-  assert.doesNotMatch(src, /operations_vendor_directory\.(update|updateMany|upsert|delete|deleteMany)\(/);
-  // The GET is as it was.
+  // TIMESHEET-04a (Alex, 2026-11-27 — "tag is own column"): the file holds ONE update now — the PATCH's, a vendor's Instagram tag. Until then it held no update, updateMany, upsert,
+  // delete or deleteMany of the directory at all. It still holds no updateMany, upsert, delete or deleteMany; the POST's handler holds no update; and the one update is the ruled
+  // line, character for character, in the PATCH's handler.
+  assert.doesNotMatch(src, /operations_vendor_directory\.(updateMany|upsert|delete|deleteMany)\(/);
+  assert.doesNotMatch(post, /operations_vendor_directory\.update\(/, 'the POST writes the name only');
+  assert.equal((src.match(/operations_vendor_directory\.update\(/g) ?? []).length, 1, 'exactly one update in the file');
+  const TAG_WRITE = 'const after = await prisma.operations_vendor_directory.update({ where: { id: before.id, user_id: user.id }, data: { instagram_tag: read.tag }, select: { id: true, vendor_name: true, entity_id: true, instagram_tag: true } });';
+  assert.ok(handler(src, 'PATCH').includes(`\n    ${TAG_WRITE}\n`), 'the one update, on one line, in the PATCH');
+  // The GET is as it was — and its select reads the tag (TIMESHEET-04a, 2026-11-27: it ended `category: true` until then).
   const get = handler(src, 'GET');
-  assert.match(get, /where: \{ user_id: user\.id, is_active: true \},\s*orderBy: \{ vendor_name: 'asc' \},\s*select: \{ id: true, vendor_name: true, entity_id: true, category: true \},/);
-  assert.match(comments(DIRECTORY), /this file now CREATES vendors[\s\S]*never updates or deletes one/);
+  assert.match(get, /where: \{ user_id: user\.id, is_active: true \},\s*orderBy: \{ vendor_name: 'asc' \},\s*select: \{ id: true, vendor_name: true, entity_id: true, category: true, instagram_tag: true \},/);
+  // The file's note (TIMESHEET-04a, 2026-11-27): it read 'this file now CREATES vendors … It never updates or deletes one' until then.
+  assert.match(comments(DIRECTORY), /this file CREATES vendors \(the POST\) and holds ONE update — the PATCH's,\n\/\/ a vendor's Instagram tag, a column of its own \("tag is own column"[^\n]*No vendor is renamed,\n\/\/ archived or removed here \(the vendor law, scripts\/assert-tool-registry\.ts\)\./);
 });
 
 test('T7 the migration holds it: the CHECKs, one vendor per address, the grain trigger locking FOR NO KEY UPDATE, RESTRICT and CASCADE — authored, not applied, no backfill', () => {
@@ -330,7 +338,7 @@ test('T7 the migration holds it: the CHECKs, one vendor per address, the grain t
   assert.match(comments(MIGRATION), /NO BACKFILL/);
 });
 
-test('T7 the schema model\'s columns match the migration\'s, and no column of the plan tables or the directory changes', () => {
+test('T7 the schema model\'s columns are the migration\'s and the one TIMESHEET-04a adds, and VENDOR-01 changes no column of the plan tables or the directory', () => {
   const schema = code('prisma/schema.prisma');
   const model = /model planned_item_vendors \{([\s\S]*?)\n\}/.exec(schema);
   assert.ok(model);
@@ -341,7 +349,12 @@ test('T7 the schema model\'s columns match the migration\'s, and no column of th
   const table = /CREATE TABLE "planned_item_vendors" \(([\s\S]*?)CONSTRAINT/.exec(code(MIGRATION));
   assert.ok(table);
   const sqlColumns = [...table[1].matchAll(/"(\w+)" (UUID|TEXT|TIMESTAMPTZ\(6\))( NOT NULL)?/g)].map((m) => `${m[1]} ${m[2]}${m[3] ?? ''}`);
-  assert.deepEqual(columns, sqlColumns);
+  // TIMESHEET-04a (2026-11-27): the model holds ONE column more than VENDOR-01's migration made — `items`, a plan's planned items, which the migration
+  // 20261127160000_timesheet_04_tag_items_notes adds. Until then the model's columns were that migration's, exactly: `assert.deepEqual(columns, sqlColumns)`.
+  assert.deepEqual(columns.slice(0, sqlColumns.length), sqlColumns, 'VENDOR-01’s columns, in its order');
+  assert.deepEqual(columns.slice(sqlColumns.length), ['items TEXT'], 'and ONE more: items, text that may be none');
+  assert.match(model[1], /^[ \t]+items[ \t]+String\?[ \t]+@db\.VarChar\(280\)[ \t]*$/m);
+  assert.match(code('prisma/migrations/20261127160000_timesheet_04_tag_items_notes/migration.sql'), /^ALTER TABLE "planned_item_vendors" ADD COLUMN "items" VARCHAR\(280\);$/m, 'the migration that adds it holds its ADD COLUMN');
   assert.match(model[1], /vendor\s+operations_vendor_directory @relation\(fields: \[vendor_id\], references: \[id\], onDelete: Restrict\)/);
   for (const rel of ['user    users', 'routine operations_routines?', 'step    operations_routine_steps?', 'task    operations_project_tasks?']) {
     assert.match(model[1], new RegExp(`${rel.replace(/[?]/g, '\\?')}\\s+@relation\\(fields: \\[\\w+\\], references: \\[id\\], onDelete: Cascade\\)`), rel);

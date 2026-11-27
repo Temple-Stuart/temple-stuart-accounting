@@ -1,7 +1,7 @@
 /**
  * VENDOR-01 (2026-09-29) — /api/operations/plan-vendors: WHO A PLAN'S MONEY IS PAID TO.
  *
- * POST   { kind, id, instant, vendorId } → set the vendor at that address.
+ * POST   { kind, id, instant, vendorId, items? } → set the vendor at that address. TIMESHEET-04a (2026-11-27): items, when the body says them, are the plan's planned items there — a text sets them, null clears them, absent keeps what the row holds; the same vendor with other items is one write, answered 'items'.
  *        instant null = EVERY occurrence (a subscription); an instant = that ONE
  *        occurrence (today's lunch). The same vendor already there → 200, nothing
  *        written, nothing audited. Another vendor there → replaced. None → created.
@@ -50,7 +50,7 @@ import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { BudgetDaysError, buildRoutineBudgetLines, type RoutinePlanInput } from '@/lib/budget/days';
 import { BudgetInputError, toReportEntity, toRoutinePlanInput } from '@/lib/budget/reportInputs';
 import {
-  bookOf, grainAllows, isGrainRefusal, moneyIsHere, occurrenceIn, occurrenceWindow, readPlanAddress, routineAsBudgetReads,
+  bookOf, grainAllows, isGrainRefusal, itemsAfter, moneyIsHere, occurrenceIn, occurrenceWindow, readPlanAddress, readPlannedItems, routineAsBudgetReads,
   taskAsBudgetReads, vendorFits, writeFor, type Book, type HeldVendor, type PlanAddress, type PlanFacts, type Refusal,
 } from '@/lib/operations/planVendor';
 
@@ -95,12 +95,22 @@ export async function POST(request: NextRequest) {
     if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
       return NextResponse.json({ error: 'A JSON object body is required.' }, { status: 400 });
     }
-    const body = raw as { kind?: unknown; id?: unknown; instant?: unknown; vendorId?: unknown };
+    const body = raw as { kind?: unknown; id?: unknown; instant?: unknown; vendorId?: unknown; items?: unknown };
 
     // (b) The address.
     const read = readPlanAddress(body.kind, body.id, body.instant);
     if (!read.ok) return refused(read);
     const address = read.address;
+
+    // TIMESHEET-04a (2026-11-27): THE PLANNED ITEMS — what is planned at this address, one line, kept on the row that names its vendor (planned_item_vendors.items). They are
+    // said only when the body carries `items`: a text sets them, null clears them. Absent, nothing is said of them and the row keeps what it holds (itemsAfter, at the write).
+    // Read by the rule, before any query; its refusal is answered like every other.
+    let said: string | null | undefined;
+    if (body.items !== undefined) {
+      const items = readPlannedItems(body.items);
+      if (!items.ok) return refused(items);
+      said = items.items;
+    }
 
     // (c) The plan is the caller's — and what (d)–(f) need of it.
     let routineRef: { id: string; name: string; entity_id: string } | null = null;
@@ -169,7 +179,7 @@ export async function POST(request: NextRequest) {
     // (h) The grain.
     const rows = await prisma.planned_item_vendors.findMany({
       where: { user_id: user.id, ...planWhere(address) },
-      select: { id: true, occurrence_at: true, vendor_id: true, vendor: { select: { vendor_name: true } } },
+      select: { id: true, occurrence_at: true, vendor_id: true, items: true, vendor: { select: { vendor_name: true } } },
     });
     const held: HeldVendor[] = rows.map((r) => ({ id: r.id, occurrenceAt: r.occurrence_at, vendorId: r.vendor_id, vendorName: r.vendor.vendor_name }));
     const grain = grainAllows(address, held, routineInput === null ? null : routineInput.timezone);
@@ -178,17 +188,21 @@ export async function POST(request: NextRequest) {
     // The write, then the audit.
     const existing = grain.existing;
     const write = writeFor(existing, fits.vendor.id);
-    if (write === 'unchanged') {
-      return NextResponse.json({ outcome: 'unchanged', address: addressMeta(address), vendor: { id: fits.vendor.id, vendor_name: fits.vendor.vendor_name } });
-    }
     const before = existing === null ? null : rows.find((r) => r.id === existing.id) ?? null;
+    // TIMESHEET-04a (2026-11-27): the items the row holds now — none with no row — and the items it holds after: a body that says nothing of items leaves them. A row whose vendor
+    // is replaced keeps its items unless the body says otherwise. Nothing is written only when neither the vendor nor the items change.
+    const itemsNow = before === null ? null : before.items;
+    const itemsNext = itemsAfter(itemsNow, said);
+    if (write === 'unchanged' && itemsNext === itemsNow) {
+      return NextResponse.json({ outcome: 'unchanged', address: addressMeta(address), vendor: { id: fits.vendor.id, vendor_name: fits.vendor.vendor_name }, items: itemsNow });
+    }
     const after = write === 'create'
-      ? await prisma.planned_item_vendors.create({ data: { user_id: user.id, ...addressWhere(address), vendor_id: fits.vendor.id } })
-      : await prisma.planned_item_vendors.update({ where: { id: (existing as HeldVendor).id, user_id: user.id }, data: { vendor_id: fits.vendor.id } });
+      ? await prisma.planned_item_vendors.create({ data: { user_id: user.id, ...addressWhere(address), vendor_id: fits.vendor.id, items: itemsNext } })
+      : await prisma.planned_item_vendors.update({ where: { id: (existing as HeldVendor).id, user_id: user.id }, data: { vendor_id: fits.vendor.id, items: itemsNext } });
 
     await writeAuditLog({
       actor: { user_id: user.id, email: userEmail, type: 'human_user' },
-      action: { type: 'operations_plan_vendor_set', description: `Set the vendor of a plan to "${fits.vendor.vendor_name}"` },
+      action: { type: 'operations_plan_vendor_set', description: write === 'unchanged' ? `${itemsNext === null ? 'Cleared' : 'Set'} the planned items of a plan at "${fits.vendor.vendor_name}"` : `Set the vendor of a plan to "${fits.vendor.vendor_name}"` },
       target: { table: 'planned_item_vendors', id: after.id },
       payload: {
         before,
@@ -198,7 +212,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(
-      { outcome: write === 'create' ? 'set' : 'replaced', address: addressMeta(address), vendor: { id: fits.vendor.id, vendor_name: fits.vendor.vendor_name } },
+      { outcome: write === 'create' ? 'set' : write === 'replace' ? 'replaced' : 'items', address: addressMeta(address), vendor: { id: fits.vendor.id, vendor_name: fits.vendor.vendor_name }, items: itemsNext },
       { status: write === 'create' ? 201 : 200 },
     );
   } catch (error) {
