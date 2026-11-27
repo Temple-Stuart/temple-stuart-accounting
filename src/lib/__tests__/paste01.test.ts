@@ -20,7 +20,7 @@ import { CENTS_MAX, NOTE_MAX, NOT_RECORDED_WORDS, type StopRecordRow } from '../
 import { PLANNED_WORD, WENT_WORD, headWordOf, type LedgerPlanRow, type LedgerRecording, type LedgerRow, type LedgerSheetRow } from '../operations/ledger';
 import * as rule from '../operations/pasteRows';
 import {
-  ALREADY_ON_SHEET_WORDS, ALREADY_RECORDED_WORDS, AMOUNT_MOST_WORDS, BLANK_DATE_WORDS, BOOKING_WORDS, ITEMS_AHEAD_WORDS, ITEMS_CONTROL_WORDS, ITEMS_LONG_WORDS, ITEMS_NO_TOTAL_WORDS,
+  ALREADY_RECORDED_WORDS, AMOUNT_MOST_WORDS, BLANK_DATE_WORDS, BOOKING_WORDS, ITEMS_AHEAD_WORDS, ITEMS_CONTROL_WORDS, ITEMS_LONG_WORDS, ITEMS_NO_TOTAL_WORDS,
   LANDS_WORDS, NOTHING_PASTED_WORDS, NO_ROW_WORDS, NO_TOTAL_WORDS, ONE_OFF_NO_BUDGET_WORDS, ONE_OFF_NO_START_WORDS, ON_TIME_SHEET_COLUMNS, ON_TIME_SHEET_KEYS, ON_TIME_SHEET_WORDS,
   PASTE_NO_COLUMN_HEADS, PASTE_READ_HEADS, PASTE_REQUIRED_HEADS, PASTE_WORKED_OUT_HEADS, PLANNED_AHEAD_WORDS, RECORDED_NOT_WRITTEN_WORDS, TOTAL_AHEAD_WORDS, UNCLOSED_QUOTE_WORDS, YOUR_SHEET_COLUMNS, YOUR_SHEET_WORDS,
   accountWords, blankCellWords, bookNamed, chartOf, chartUnreadWords, countsWords, kindKeyOf, notReadLines, offeredBooksOf, pasteKindsOf, pasteShown, pasteSpanOf, pastedVendorOf,
@@ -422,15 +422,21 @@ test('T7 on a plan, refused: the stop an earlier row of the paste already holds;
   assert.equal(landed({ 'Start Date': '5/10/27', Category: 'Food', Entity: 'Personal', Type: 'Market' }, ON_PLAN('Market')).placement.kind, 'plan', 'the same plan’s stop that does take one');
 });
 
-test('T7 the paste never writes over what stands: a stop already recorded keeps its record, and a stop whose planned vendor is another name keeps it — each said; the same name is nothing to write', () => {
-  // A stop already recorded: the row lands on it, and what it typed for the record is said as not written.
+test('T7 the paste never writes over what stands: a stop already recorded keeps its record, and a stop whose planned vendor is another name keeps it — each said where the row says something else; the same record and the same name are quiet', () => {
+  // PASTE-02 (Alex, 2026-11-27, ruling A.1): what stands is said ONLY WHERE THE ROW SAYS SOMETHING ELSE. Until then the record's sentence was said whenever the row held a
+  // Total (USD) or Items, and this test's first case — the record's own Total (USD) and Items — expected it. That case is quiet now; the said case types another Total (USD).
   const dinner: Typed = { 'Start Date': '5/10/27', Category: 'Dining', Entity: 'Personal', Type: 'Dinner' };
-  const both = landed({ ...dinner, Items: 'the set menu', 'Total (USD)': '$15' }, ON_PLAN('Dinner'));
+  // The record's own two — done, its amount the row's Total (USD), its note the row's Items: the row lands on the stop, and nothing is said.
+  const quiet = landed({ ...dinner, Items: 'the set menu', 'Total (USD)': '$15' }, ON_PLAN('Dinner'));
+  assert.deepEqual(quiet.placement.kind === 'plan' && [quiet.placement.stop.key, quiet.placement.happened, quiet.placement.notWritten], [DINNER.key, { kind: 'recorded' }, []]);
+  assert.equal(quiet.shown.lands, `on "Dinner", its 19:00 stop · ${ALREADY_RECORDED_WORDS}`, 'the same rows pasted again are no warning');
+  // Another Total (USD): the record is kept, and what the row typed for it is said as not written.
+  const both = landed({ ...dinner, Items: 'the set menu', 'Total (USD)': '$16' }, ON_PLAN('Dinner'));
   assert.deepEqual(both.placement.kind === 'plan' && [both.placement.stop.key, both.placement.happened, both.placement.notWritten], [DINNER.key, { kind: 'recorded' }, ['Total (USD), Items — not written: this stop is already recorded — the paste does not write over a record']]);
   assert.deepEqual(sheetCells(both.shown.sheet), { start: '19:00', end: BLANK, account: 'P-6150', accountName: 'Dining Out', subAccountName: 'Dinner', went: WENT_WORD, budget: '$15', actual: '$15' }, 'the record that stands, as the time sheet prints it');
   assert.equal(both.shown.lands, `on "Dinner", its 19:00 stop · ${ALREADY_RECORDED_WORDS} · Total (USD), Items — not written: this stop is already recorded — the paste does not write over a record`);
   assert.equal(RECORDED_NOT_WRITTEN_WORDS, 'Total (USD), Items — not written: this stop is already recorded — the paste does not write over a record');
-  // The one sentence, as ruled, when the row holds either of the two.
+  // The one sentence, as ruled, in every other case where the row holds either of the two: the record's Total (USD) without its note, its note without its Total (USD).
   assert.equal(landed({ ...dinner, 'Total (USD)': '$15' }, ON_PLAN('Dinner')).shown.lands, `on "Dinner", its 19:00 stop · already recorded · ${RECORDED_NOT_WRITTEN_WORDS}`);
   assert.equal(landed({ ...dinner, Items: 'the set menu' }, ON_PLAN('Dinner')).shown.lands, `on "Dinner", its 19:00 stop · already recorded · ${RECORDED_NOT_WRITTEN_WORDS}`);
   assert.equal(landed(dinner, ON_PLAN('Dinner')).shown.lands, 'on "Dinner", its 19:00 stop · already recorded', 'nothing typed for the record: nothing said');
@@ -478,7 +484,7 @@ test('T8 a one-off, under an account of the book: at its day and Start Time in t
   assert.equal(landed({ ...climbing, Entity: 'Business', Type: 'Paper' }, ONE_OFF('6400')).shown.lands, 'a one-off at 20:00, under B-6400 Supplies · vendor: Business\'s own · recorded: went, $18.00');
 });
 
-test('T8 a one-off, refused: no such account in the book’s chart; no Start Time; no Budget (USD), or 0; a stop of this name already on the time sheet at this day and time', () => {
+test('T8 a one-off, refused: no such account in the book’s chart; no Start Time; no Budget (USD), or 0 — and a stop of this name already on the time sheet at this day and time takes the row', () => {
   const climbing: Typed = { 'Start Date': '5/10/27', 'Start Time': '8:00 PM', Category: 'Fun', Entity: 'Personal', Type: 'Climbing', 'Total (USD)': '18', 'Budget (USD)': '18' };
   assert.deepEqual(refusedRow(landed(climbing, ONE_OFF('9999'))), ['Category', 'the book\'s chart has no account "9999"']);
   assert.deepEqual(refusedRow(landed(climbing, ONE_OFF('6400'))), ['Category', 'the book\'s chart has no account "6400"'], 'another book’s account is not this book’s');
@@ -489,10 +495,13 @@ test('T8 a one-off, refused: no such account in the book’s chart; no Start Tim
   // In the ruling's order: the account, then the Start Time, then the Budget.
   assert.deepEqual(refusedRow(landed({ ...climbing, 'Start Time': '', 'Budget (USD)': '' }, ONE_OFF('9999')))[0], 'Category');
   assert.deepEqual(refusedRow(landed({ ...climbing, 'Start Time': '', 'Budget (USD)': '' }, ONE_OFF('6200')))[0], 'Start Time');
-  // Already on the time sheet: that book, day, start time and name.
+  // PASTE-02 (Alex, 2026-11-27, ruling A.4): a stop of the row's own name already on the time sheet — that book, day, start time and name — TAKES the row. Until then the row was
+  // refused on Type: 'already on the time sheet — a stop of this name stands at this day and time' (ALREADY_ON_SHEET_WORDS, which is gone).
   const cinema: Typed = { ...climbing, 'Start Time': '9:00 PM', Type: 'Cinema' };
-  assert.deepEqual(refusedRow(landed(cinema, ONE_OFF('6200'))), ['Type', ALREADY_ON_SHEET_WORDS]);
-  assert.equal(ALREADY_ON_SHEET_WORDS, 'already on the time sheet — a stop of this name stands at this day and time');
+  const taken = landed(cinema, ONE_OFF('6200'));
+  assert.deepEqual(taken.placement.kind === 'plan' && [taken.placement.standing, taken.placement.plan, taken.placement.stop.key], [true, 'Cinema', CINEMA_MON.key]);
+  assert.equal(taken.shown.lands, 'on the stop "Cinema" at 21:00, already on the time sheet · recorded: went, $18.00');
+  assert.ok(!('ALREADY_ON_SHEET_WORDS' in rule), 'the refusal is gone from the rule file');
   for (const over of [{ 'Start Time': '9:30 PM' }, { 'Start Date': '5/11/27' }, { Type: 'Cinema club' }, { Entity: 'Business' }] as const) {
     assert.equal(landed({ ...cinema, ...over }, over.Entity === undefined ? ONE_OFF('6200') : ONE_OFF('6400')).placement.kind, 'oneOff', `another ${Object.keys(over)[0]} is another stop`);
   }
@@ -591,10 +600,11 @@ test('T11 the counts, one line — every row counted once, under what became of 
   const picks = { [key('Dining', 'Lunch')]: ON_PLAN('Lunch'), [key('Dining', 'Tea')]: ON_PLAN('Tea'), [key('Fun', 'Climbing')]: ONE_OFF('6200') };
   const placed = placePaste(paste, picks, CONTEXT);
   assert.deepEqual(placed.map((p) => p.kind), ['plan', 'refused', 'plan', 'oneOff', 'oneOff', 'booking', 'blank', 'blank', 'pick', 'refused']);
-  assert.equal(countsWords(placed), '10 rows read · 2 on a plan · 2 one-offs · 1 booking · 1 waiting for a pick · 2 that cannot be placed · 2 dates with nothing on them');
+  // PASTE-02 (Alex, 2026-11-27, ruling A.5): the one-offs say how many are new — '2 one-offs' and '1 one-off' until then; with none the line still reads '0 one-offs'.
+  assert.equal(countsWords(placed), '10 rows read · 2 on a plan · 2 one-offs (2 new) · 1 booking · 1 waiting for a pick · 2 that cannot be placed · 2 dates with nothing on them');
   // The singulars.
   assert.equal(countsWords(placePaste(pasteOf({ 'Start Date': '5/12/27' }), {}, CONTEXT)), '1 row read · 0 on a plan · 0 one-offs · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 1 date with nothing on it');
-  assert.equal(landed({ 'Start Date': '5/10/27', 'Start Time': '8:00 PM', Category: 'Fun', Entity: 'Personal', Type: 'Climbing', 'Budget (USD)': '18' }, ONE_OFF('6200')).counts, '1 row read · 0 on a plan · 1 one-off · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 0 dates with nothing on them');
+  assert.equal(landed({ 'Start Date': '5/10/27', 'Start Time': '8:00 PM', Category: 'Fun', Entity: 'Personal', Type: 'Climbing', 'Budget (USD)': '18' }, ONE_OFF('6200')).counts, '1 row read · 0 on a plan · 1 one-off (1 new) · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 0 dates with nothing on them');
   assert.equal(landed(LUNCH, ON_PLAN('Lunch')).counts, '1 row read · 1 on a plan · 0 one-offs · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 0 dates with nothing on them');
   // Every row is counted once: the six after "rows read" add up to it.
   const numbers = countsWords(placed).split(' · ').map((part) => Number(part.split(' ')[0]));
@@ -612,11 +622,12 @@ test('T12 the rule file is pure and names no function previewOf; its header quot
   assert.doesNotMatch(rules, /\bpreviewOf\b/, 'src/lib/table/preview.ts owns that name');
   assert.match(comments(RULES), /^\/\*\*\n \* pasteRows — ROWS PASTED FROM A SHEET: EVERY ROW READ, PLACED AND SHOWN\. NOTHING IS WRITTEN \(PASTE-01, Alex, 2026-11-25\)\./);
   // What it reads from the rules that already stand — one import of each, none of a writer.
-  for (const from of ['@/lib/accountString', '@/lib/budget/days', '@/lib/budget/format', '@/lib/operations/ledger', '@/lib/operations/planVendor', '@/lib/operations/stopRecord', '@/lib/time']) assert.equal(countOf(rules, new RegExp(`from '${from}';`, 'g')), 1, from);
-  assert.equal(countOf(rules, /^import /gm), 7, 'and nothing else');
+  // PASTE-02 (Alex, 2026-11-27): nine, not seven — @/lib/calendar/day (a one-off's minutes) and @/lib/table/csv (an amount as the two forms' rules read one) join.
+  for (const from of ['@/lib/accountString', '@/lib/budget/days', '@/lib/budget/format', '@/lib/calendar/day', '@/lib/operations/ledger', '@/lib/operations/planVendor', '@/lib/operations/stopRecord', '@/lib/table/csv', '@/lib/time']) assert.equal(countOf(rules, new RegExp(`from '${from}';`, 'g')), 1, from);
+  assert.equal(countOf(rules, /^import /gm), 9, 'and nothing else');
   // The leaf's own words, as they read.
   assert.deepEqual([rule.PASTE_OPEN_WORDS, rule.PASTE_TITLE_WORDS, rule.PASTE_HOW_WORDS, rule.PASTE_READ_WORDS, rule.PASTE_CLEAR_WORDS, rule.PASTE_CLOSE_WORDS, rule.PASTE_PICKS_WORDS, rule.PASTE_NO_PICK_WORDS, rule.PASTE_ON_PLAN_WORDS, rule.PASTE_ONE_OFF_WORDS], [
-    '+ paste rows from a sheet', 'rows from your sheet — read and placed here; nothing is written', 'copy the rows in your sheet with its header row, and paste them here',
+    '+ paste rows from a sheet', 'rows from your sheet — read and placed here; nothing is written until you save' /* PASTE-02 (2026-11-27): '… nothing is written' until then */, 'copy the rows in your sheet with its header row, and paste them here',
     'read the rows', 'clear', 'close', 'where each kind of row goes — nothing is chosen for you', '— pick —', 'on your plan', 'a one-off, under',
   ]);
   assert.equal(PLANNED_AHEAD_WORDS, 'planned: still ahead');

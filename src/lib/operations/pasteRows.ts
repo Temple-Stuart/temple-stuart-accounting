@@ -18,16 +18,31 @@
  *   6. WHERE A ROW LANDS — one placement a row, decided in one order, nothing guessed and nothing written over.
  *   7. THE ROW SHOWN — YOUR SHEET, ON THE TIME SHEET, LANDS, a tone; and the one line of counts.
  * Every word the leaf prints is typed here, once. The only words of his sheet in this file are its column head words.
+ *
+ * PASTE-02 (Alex, 2026-11-27) — THE SAVE EXISTS NOW (its rule is src/lib/operations/pasteSave.ts; this file is still the read
+ * and the placing), so a placement is exactly what the save does, and says no more than it does:
+ *   · a row ON A STOP THAT STANDS writes only what the stop lacks — its vendor for the day, its record. What stands is kept,
+ *     and is said only where the row says something else: a record that says what the row says is quiet (it was said on every
+ *     such row until then — the same rows pasted after a save would have read as a warning a row);
+ *   · that row's record is the record form's own body (ledger.ts recordInput), carried on the placement;
+ *   · a NEW ONE-OFF is "+ expense"'s own (ledger.ts expenseInput): the placement carries that rule's values, and the stop's
+ *     minutes — End Time less Start Time;
+ *   · a stop of the row's own name already on the time sheet TAKES the row (it was refused until then);
+ *   · the counts say how many one-offs are new; the picks that still stand after a read are worked here (standingPicks); and
+ *     the vendor directory's answer is read here (vendorsOf).
+ * Until then this file's title said nothing is written, and it was true. The file is still pure.
  */
 import { deriveAccountString } from '@/lib/accountString';
 import { centsFromDecimalString, isIsoDay } from '@/lib/budget/days';
 import { BLANK, formatCents } from '@/lib/budget/format';
+import { minutesOf } from '@/lib/calendar/day';
 import {
-  BOOK_WORDS, PLANNED_WORD, WENT_WORD, bookWordOf, budgetCellWords, cellWordsOf, headWordOf,
-  type BookWord, type LedgerColumn, type LedgerRecording, type LedgerSheetRow,
+  BOOK_WORDS, PLANNED_WORD, WENT_WORD, bookWordOf, budgetCellWords, cellWordsOf, expenseInput, headWordOf, recordInput,
+  type BookWord, type ExpenseField, type ExpenseValues, type LedgerColumn, type LedgerRecording, type LedgerSheetRow, type RecordField, type RecordInputResult,
 } from '@/lib/operations/ledger';
 import { readVendorName, vendorNameKey } from '@/lib/operations/planVendor';
 import { CENTS_MAX, DONE_AT_SKEW_MS, NOTE_MAX, NOT_RECORDED_WORDS, holdsControl } from '@/lib/operations/stopRecord';
+import { csvMoney } from '@/lib/table/csv';
 import { zonedToInstant } from '@/lib/time';
 
 // ── 1 · THE COLUMNS ─────────────────────────────────────────────────────────
@@ -443,6 +458,25 @@ export interface PasteVendor {
   readonly entity_id: string;
 }
 
+export const VENDORS_NO_LIST_WORDS = 'the list came back without its vendors';
+/**
+ * PASTE-02 (2026-11-27): the vendor directory's answer, read — `{ vendors: [{ id, vendor_name, entity_id }] }` as the caller's
+ * vendors, or that it is not one: an answer that holds no list, or an entry that lacks one of the three. Never an empty list
+ * for an answer that holds none. (The leaf read the list through the Budget's hook until then.)
+ */
+export function vendorsOf(answer: Readonly<Record<string, unknown>>): { readonly ok: true; readonly vendors: readonly PasteVendor[] } | { readonly ok: false; readonly words: string } {
+  const listed = answer.vendors;
+  if (!Array.isArray(listed)) return { ok: false, words: VENDORS_NO_LIST_WORDS };
+  const vendors: PasteVendor[] = [];
+  for (const vendor of listed as readonly unknown[]) {
+    if (typeof vendor !== 'object' || vendor === null) return { ok: false, words: VENDORS_NO_LIST_WORDS };
+    const { id, vendor_name, entity_id } = vendor as { readonly id?: unknown; readonly vendor_name?: unknown; readonly entity_id?: unknown };
+    if (typeof id !== 'string' || typeof vendor_name !== 'string' || typeof entity_id !== 'string') return { ok: false, words: VENDORS_NO_LIST_WORDS };
+    vendors.push({ id, vendor_name, entity_id });
+  }
+  return { ok: true, vendors };
+}
+
 // ── THE PICK ────────────────────────────────────────────────────────────────
 
 /** Where he sends a kind: one of the book's plans, or a one-off under an account of the book. Nothing is picked for him. */
@@ -464,6 +498,24 @@ export function pickOffersOf(kind: Pick<PasteKind, 'entity'>, context: Pick<Past
   const named = bookNamed(kind.entity, context.books);
   if (named.kind !== 'one') return null;
   return { plans: plansOf(named.book.word, context.sheet, context.recording), accounts: chartFor(named.book, context.charts) };
+}
+
+/**
+ * PASTE-02 (2026-11-27) — THE PICKS THAT STILL STAND. A pick is kept while the page is open, through a read and through closing
+ * the box. After each read it is applied — and shown in its select — only while its kind is in the paste and what it names is
+ * still offered (pickOffersOf): the plan among that book's plans, the account in that book's chart. A pick that no longer stands
+ * is dropped here: never applied unseen.
+ */
+export function standingPicks(picks: Readonly<Record<string, PastePick>>, kinds: readonly Pick<PasteKind, 'key' | 'entity'>[], context: Pick<PasteContext, 'books' | 'sheet' | 'recording' | 'charts'>): Record<string, PastePick> {
+  const standing: Record<string, PastePick> = {};
+  for (const kind of kinds) {
+    if (!Object.prototype.hasOwnProperty.call(picks, kind.key)) continue;
+    const pick = picks[kind.key];
+    const offers = pickOffersOf(kind, context);
+    if (offers === null) continue;
+    if (pick.kind === 'plan' ? offers.plans.includes(pick.plan) : offers.accounts.some((account) => account.code === pick.code)) standing[kind.key] = pick;
+  }
+  return standing;
 }
 
 // ── 6 · WHERE A ROW LANDS ───────────────────────────────────────────────────
@@ -499,7 +551,8 @@ export const stopTakenWords = (row: number, plan: string): string => `row ${row}
 export const noAccountWords = (code: string): string => `the book's chart has no account ${JSON.stringify(code)}`;
 export const ONE_OFF_NO_START_WORDS = 'a one-off needs a Start Time';
 export const ONE_OFF_NO_BUDGET_WORDS = 'a one-off needs a Budget (USD) above 0';
-export const ALREADY_ON_SHEET_WORDS = 'already on the time sheet — a stop of this name stands at this day and time';
+/** PASTE-02 (2026-11-27): one stop of the row's own name at its day and time takes the row; more than one cannot be told apart. ('already on the time sheet — …' refused the row until then.) */
+export const manyNamedWords = (name: string): string => `more than one stop named ${JSON.stringify(name)} stands at this day and time — the paste cannot tell which`;
 
 /** What is typed on a row and not written, each said by its head word. */
 export const RECORDED_NOT_WRITTEN_WORDS = 'Total (USD), Items — not written: this stop is already recorded — the paste does not write over a record';
@@ -507,6 +560,9 @@ export const vendorNotWrittenWords = (standing: string): string => `Vendor — n
 export const ITEMS_AHEAD_WORDS = 'Items — not written: the stop is still ahead, and a planned stop holds none yet';
 export const TOTAL_AHEAD_WORDS = 'Total (USD) — not written: the stop is still ahead';
 export const ITEMS_NO_TOTAL_WORDS = 'Items — not written: the row holds no Total (USD), so no record is made';
+/** PASTE-02 (2026-11-27): the End Time of a one-off — a new one whose End Time is its Start Time has no minutes to write; one that already stands keeps its own end. */
+export const END_IS_START_WORDS = 'End Time — not written: it is the Start Time';
+export const END_STANDS_WORDS = 'End Time — not written: this stop already stands, with its own end';
 
 /** THE VENDOR of a placed row: none; the book's own, by the directory's own name rule; or new to the book. */
 export type PastedVendor = { readonly kind: 'none' } | { readonly kind: 'own'; readonly id: string; readonly name: string } | { readonly kind: 'new'; readonly name: string };
@@ -516,8 +572,14 @@ export type PastedOutcome =
   | { readonly kind: 'went'; readonly cents: number; readonly items: string | null }
   | { readonly kind: 'planned' }
   | { readonly kind: 'not recorded' };
-/** …or, on a plan's stop alone, the stop's own record stands. A one-off is a new stop: it has no record to stand. */
+/** …or, on a stop that stands, the stop's own record stands. A new one-off is a new stop: it has no record to stand. */
 export type PastedHappened = PastedOutcome | { readonly kind: 'recorded' };
+
+/**
+ * PASTE-02 (2026-11-27): the stops POST's body as the record form's rule reads it (ledger.ts recordInput) — typed from that rule's
+ * result: neither this file nor pasteSave.ts reads the one writer's file.
+ */
+export type PasteRecordBody = Extract<RecordInputResult, { readonly ok: true }>['body'];
 
 /** Where a row lands — one placement a row. */
 export type PastePlacement =
@@ -525,11 +587,21 @@ export type PastePlacement =
   | { readonly kind: 'blank' }
   | { readonly kind: 'booking' }
   | { readonly kind: 'pick'; readonly words: string }
-  | { readonly kind: 'plan'; readonly book: OfferedBook; readonly plan: string; readonly stop: LedgerSheetRow; readonly instant: string; readonly vendor: PastedVendor; readonly happened: PastedHappened; readonly notWritten: readonly string[] }
   | {
+    /** ON A STOP THAT STANDS. `standing` false: the day's stop of the plan picked, `plan` that plan's name. `standing` true (PASTE-02): a kind picked a one-off whose stop — its own name, at its day and Start Time — already stood on the time sheet; `plan` is that stop's name. */
+    readonly kind: 'plan'; readonly book: OfferedBook; readonly plan: string; readonly standing: boolean;
+    readonly stop: LedgerSheetRow; readonly instant: string; readonly vendor: PastedVendor; readonly happened: PastedHappened;
+    /** PASTE-02: the record the save sends when this row is recorded went — the record form's own body, done at the stop's planned instant; null when no record is written. */
+    readonly record: PasteRecordBody | null;
+    readonly notWritten: readonly string[];
+  }
+  | {
+    /** A NEW ONE-OFF. */
     readonly kind: 'oneOff'; readonly book: OfferedBook; readonly account: PasteAccount;
-    /** The new stop's own facts, as the row holds them: its Start Time and End Time ('HH:MM'), its name (the row's Type) and its Budget (USD), above 0. */
-    readonly start: string; readonly end: string | null; readonly name: string; readonly budgetCents: number;
+    /** PASTE-02: what "+ expense"'s own rule read for this stop (ledger.ts expenseInput) — the bodies the save sends are built from it. */
+    readonly values: ExpenseValues;
+    /** The new stop's own facts: its Start Time ('HH:MM'); its End Time, when its minutes are written (PASTE-02), and those minutes; its name and its instant, the values' own; its Budget (USD), above 0. */
+    readonly start: string; readonly end: string | null; readonly minutes: number | null; readonly name: string; readonly budgetCents: number;
     readonly instant: string; readonly vendor: PastedVendor; readonly happened: PastedOutcome; readonly notWritten: readonly string[];
   };
 
@@ -555,20 +627,87 @@ function happenedAt(instant: string, cells: PasteCells, now: Date): { readonly h
   return { happened: { kind: 'not recorded' }, notWritten: cells.items === null ? [] : [ITEMS_NO_TOTAL_WORDS] };
 }
 
+/** The record form's boxes the paste fills, each under the sheet column it is filled from. It fills no stars and no minutes. */
+const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' | 'minutes'>, PasteHead>> = { went: 'Start Date', actual: 'Total (USD)', note: 'Items' };
+/** "+ expense"'s boxes the paste fills, each under the sheet column it is filled from. It fills no stars. */
+const EXPENSE_HEADS: Readonly<Record<Exclude<ExpenseField, 'stars'>, PasteHead>> = {
+  day: 'Start Date', time: 'Start Time', name: 'Type', amount: 'Budget (USD)', coa: 'Category', book: 'Entity', vendor: 'Vendor', actual: 'Total (USD)', note: 'Items',
+};
+/** A refusal of the record form's rule, in its own words, under the column its box was filled from. A box the paste never fills is this file's error, thrown by name. */
+function refusedByRecord(field: RecordField, message: string): PastePlacement {
+  if (field === 'stars' || field === 'minutes') throw new Error(`pasteRows: the record's rule refused ${field}, which the paste never fills — ${message}`);
+  return { kind: 'refused', head: RECORD_HEADS[field], why: message };
+}
+/** A refusal of "+ expense"'s rule, in the form's own words, under the column its box was filled from. */
+function refusedByExpense(field: ExpenseField, message: string): PastePlacement {
+  if (field === 'stars') throw new Error(`pasteRows: "+ expense"'s rule refused stars, which the paste never fills — ${message}`);
+  return { kind: 'refused', head: EXPENSE_HEADS[field], why: message };
+}
+
+const DAY_MINUTES = 24 * 60;
+/** A row's clock ('HH:MM', as readClockCell reads one) as minutes past midnight (calendar/day.ts minutesOf); a text that is no clock is this file's error, thrown by name. */
+const clockMinutes = (clock: string): number => {
+  const minutes = minutesOf(clock);
+  if (minutes === null) throw new Error(`pasteRows: ${JSON.stringify(clock)} is not a clock — a row's time is HH:MM`);
+  return minutes;
+};
+
 /**
  * WHERE EVERY ROW LANDS — one placement a row, in the paste's order, decided in this order and nothing guessed:
  *   a. its unread cell → refused, that cell named;       b. a date with nothing on it → blank;
  *   c. Days more than 1 → a booking;                      d. no book, or two, carry its Entity's word → refused on Entity;
  *   e. no pick for its kind → waiting for a pick;         f. picked on a plan → that plan's one stop of the day;
- *   g. picked a one-off → a new stop at its day and Start Time in the viewer's zone;
+ *   g. picked a one-off → the stop of its own name already standing at its day and Start Time (PASTE-02), else a new stop
+ *      at its day and Start Time in the viewer's zone, read by "+ expense"'s own rule;
  *   h. the vendor;                                        i. what happened.
  * The paste never writes over what stands: a stop that already has a record keeps it, and a stop whose planned vendor is
- * another name keeps it — each said. A stop an earlier row of the paste already holds is not taken twice.
+ * another name keeps it — each said only where the row says something else (PASTE-02). A stop an earlier row of the paste
+ * already holds is not taken twice.
  */
 export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<string, PastePick>>, context: PasteContext): PastePlacement[] {
   const offered = offeredBooksOf(context.books);
   /** The stops rows of this paste already hold, by the sheet row's key → the paste row's number. */
   const held = new Map<string, number>();
+
+  /**
+   * A ROW ON A STOP THAT STANDS (PASTE-02, ruling A.1) — ONE path for the day's stop of a plan and for a stop of the row's own
+   * name already on the time sheet (`standing`). Of the row, only what the stop lacks is written: its VENDOR for this day when the
+   * stop has none; its RECORD when the stop has none, the row holds a Total (USD) and its time has come. What stands is never
+   * written over, and is said only where the row says something else.
+   */
+  const onStop = (number: number, cells: PasteCells, book: OfferedBook, stop: LedgerSheetRow, plan: string, standing: boolean): PastePlacement => {
+    const entry = entryOf(stop, context.recording);
+    if (!entry.takes) return { kind: 'refused', head: 'Type', why: entry.words };
+    const earlier = held.get(stop.key);
+    if (earlier !== undefined) return { kind: 'refused', head: 'Type', why: stopTakenWords(earlier, plan) };
+    // The vendor: the stop's own planned vendor stands — another name is kept and said, the same name is nothing to write.
+    const planned = stop.vendor;
+    const vendorSaid = planned !== null && cells.vendor !== null && vendorNameKey(planned) !== vendorNameKey(cells.vendor) ? [vendorNotWrittenWords(planned)] : [];
+    const vendor = planned === null ? pastedVendorOf(cells.vendor, book, context.vendors) : { kind: 'none' as const };
+    // A stop of the row's own name keeps its own end: an End Time typed that is not its END cell is said. (A plan's stop is found by its day and its plan — the row's times are not read for it.)
+    const endSaid = standing && cells.end !== null && cells.end !== cellWordsOf(stop, 'end') ? [END_STANDS_WORDS] : [];
+    if (entry.held !== null) {
+      // A record stands: kept. It is quiet when it says what the row says — done, the row's Total (USD) its amount, the row's Items its note (none equal to none). In every other
+      // case where the row holds a Total (USD) or Items, it is said. A skipped record is a record: kept, and said.
+      const same = entry.held.outcome === 'done' && entry.held.actual_cents === cells.totalCents && entry.held.note === cells.items;
+      const recordSaid = !same && (cells.totalCents !== null || cells.items !== null) ? [RECORDED_NOT_WRITTEN_WORDS] : [];
+      held.set(stop.key, number);
+      return { kind: 'plan', book, plan, standing, stop, instant: entry.plannedAt, vendor, happened: { kind: 'recorded' }, record: null, notWritten: [...recordSaid, ...vendorSaid, ...endSaid] };
+    }
+    const { happened, notWritten } = happenedAt(entry.plannedAt, cells, context.now);
+    // THE RECORD'S BODY IS THE RECORD FORM'S (ruling A.2): read by the one rule for a row's record, its boxes filled from the row — went, the Total (USD) as dollars, the Items — at
+    // the sheet row's own address, with the entry's planned instant and the clock the rows are placed with. So it is done at the stop's planned instant, as the row's own form
+    // saves a first went. A refusal of that rule refuses the row, in the rule's words, and the row holds no stop.
+    let record: PasteRecordBody | null = null;
+    if (happened.kind === 'went') {
+      const read = recordInput({ went: WENT_WORD, actual: csvMoney(happened.cents), stars: '', minutes: '', note: happened.items === null ? '' : happened.items }, stop.address, { plannedAt: entry.plannedAt, held: entry.held }, context.now);
+      if (!read.ok) return refusedByRecord(read.field, read.message);
+      record = read.body;
+    }
+    held.set(stop.key, number);
+    return { kind: 'plan', book, plan, standing, stop, instant: entry.plannedAt, vendor, happened, record, notWritten: [...notWritten, ...vendorSaid, ...endSaid] };
+  };
+
   return paste.rows.map((row): PastePlacement => {
     if (row.kind === 'refused') return { kind: 'refused', head: row.head, why: row.why };
     if (row.kind === 'blank') return { kind: 'blank' };
@@ -586,33 +725,45 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
       const stops = context.sheet.filter((stop) => stop.day === cells.day && stop.book === book.word && stop.description === pick.plan);
       if (stops.length === 0) return { kind: 'refused', head: 'Start Date', why: noStopWords(pick.plan) };
       if (stops.length > 1) return { kind: 'refused', head: 'Start Date', why: manyStopsWords(pick.plan) };
-      const stop = stops[0];
-      const entry = entryOf(stop, context.recording);
-      if (!entry.takes) return { kind: 'refused', head: 'Type', why: entry.words };
-      const earlier = held.get(stop.key);
-      if (earlier !== undefined) return { kind: 'refused', head: 'Type', why: stopTakenWords(earlier, pick.plan) };
-      held.set(stop.key, row.number);
-      // The vendor: the stop's own planned vendor stands — another name is kept and said, the same name is nothing to write.
-      const standing = stop.vendor;
-      const vendorSaid = standing !== null && cells.vendor !== null && vendorNameKey(standing) !== vendorNameKey(cells.vendor) ? [vendorNotWrittenWords(standing)] : [];
-      const vendor = standing === null ? pastedVendorOf(cells.vendor, book, context.vendors) : { kind: 'none' as const };
-      // A stop that already has a record keeps it — said, when the row holds a Total (USD) or Items.
-      if (entry.held !== null) {
-        const typed = cells.totalCents !== null || cells.items !== null;
-        return { kind: 'plan', book, plan: pick.plan, stop, instant: entry.plannedAt, vendor, happened: { kind: 'recorded' }, notWritten: [...(typed ? [RECORDED_NOT_WRITTEN_WORDS] : []), ...vendorSaid] };
-      }
-      const { happened, notWritten } = happenedAt(entry.plannedAt, cells, context.now);
-      return { kind: 'plan', book, plan: pick.plan, stop, instant: entry.plannedAt, vendor, happened, notWritten: [...notWritten, ...vendorSaid] };
+      return onStop(row.number, cells, book, stops[0], pick.plan, false);
     }
 
     const account = chartFor(book, context.charts).find((listed) => listed.code === pick.code);
     if (account === undefined) return { kind: 'refused', head: 'Category', why: noAccountWords(pick.code) };
-    if (cells.start === null) return { kind: 'refused', head: 'Start Time', why: ONE_OFF_NO_START_WORDS };
+    const start = cells.start;
+    if (start === null) return { kind: 'refused', head: 'Start Time', why: ONE_OFF_NO_START_WORDS };
+    // PASTE-02 (ruling A.4) — A STOP OF THE ROW'S OWN NAME ALREADY ON THE TIME SHEET TAKES THE ROW: that book, that day, that Start Time and that name (the row's Type, exactly). One
+    // such stop → the row lands on it, by the one path above, and needs no Budget (USD). More than one cannot be told apart. (The row was refused as 'already on the time sheet' until
+    // then — so a one-off the save had written could never take its own row again.)
+    const own = context.sheet.filter((stop) => stop.book === book.word && stop.day === cells.day && stop.time === start && stop.description === cells.type);
+    if (own.length > 1) return { kind: 'refused', head: 'Type', why: manyNamedWords(cells.type) };
+    if (own.length === 1) return onStop(row.number, cells, book, own[0], own[0].description, true);
     if (cells.budgetCents === null || cells.budgetCents === 0) return { kind: 'refused', head: 'Budget (USD)', why: ONE_OFF_NO_BUDGET_WORDS };
-    if (context.sheet.some((stop) => stop.book === book.word && stop.day === cells.day && stop.time === cells.start && stop.description === cells.type)) return { kind: 'refused', head: 'Type', why: ALREADY_ON_SHEET_WORDS };
-    const instant = zonedToInstant(cells.day, cells.start, context.zone).toISOString();
+
+    // PASTE-02 (ruling A.3) — A NEW ONE-OFF IS "+ EXPENSE"'S: read by that form's ONE rule, its boxes filled from the row. The record's two boxes are filled only when the row is
+    // recorded went — a stop still ahead, or a row with no Total (USD), has no record to make. A refusal of that rule refuses the row, in the form's words.
+    const instant = zonedToInstant(cells.day, start, context.zone).toISOString();
     const { happened, notWritten } = happenedAt(instant, cells, context.now);
-    return { kind: 'oneOff', book, account, start: cells.start, end: cells.end, name: cells.type, budgetCents: cells.budgetCents, instant, vendor: pastedVendorOf(cells.vendor, book, context.vendors), happened, notWritten };
+    const vendor = pastedVendorOf(cells.vendor, book, context.vendors);
+    const read = expenseInput({
+      day: cells.day, time: start, name: cells.type, amount: csvMoney(cells.budgetCents), coa: account.code, book: book.id,
+      vendorId: vendor.kind === 'own' ? vendor.id : '', vendorName: vendor.kind === 'new' ? vendor.name : '',
+      actual: happened.kind === 'went' ? csvMoney(happened.cents) : '', stars: '', note: happened.kind === 'went' && happened.items !== null ? happened.items : '',
+    }, context.zone, context.now);
+    if (!read.ok) return refusedByExpense(read.field, read.message);
+    const values = read.value;
+    // The form's rule reads the stop's instant, and whether it is still ahead, by the same test this file placed the row with. The two disagreeing is this file's error, thrown by name.
+    if (values.instant !== instant || values.ahead !== (happened.kind === 'planned')) {
+      throw new Error(`pasteRows: row ${row.number} was placed at ${instant} (${happened.kind}) and "+ expense"'s rule reads ${values.instant} (${values.ahead ? 'still ahead' : 'not ahead'})`);
+    }
+    // ITS MINUTES: End Time less Start Time; an End Time earlier than the Start Time ends the next day (23:00 to 01:00 is 120). No End Time → none. An End Time that IS the Start
+    // Time → none, and said. The END cell shows the End Time only when its minutes are written.
+    const span = cells.end === null ? null : (clockMinutes(cells.end) - clockMinutes(start) + DAY_MINUTES) % DAY_MINUTES;
+    const minutes = span === null || span === 0 ? null : span;
+    return {
+      kind: 'oneOff', book, account, values, start, end: minutes === null ? null : cells.end, minutes, name: values.name, budgetCents: cells.budgetCents, instant: values.instant,
+      vendor, happened, notWritten: span === 0 ? [...notWritten, END_IS_START_WORDS] : notWritten,
+    };
   });
 }
 
@@ -680,7 +831,7 @@ function sheetCells(placement: PastePlacement): readonly string[] {
     });
   }
   if (placement.kind === 'oneOff') {
-    // A new stop: its own Start Time and End Time, the account's label and name, its Type, what happened, and its two amounts.
+    // A new stop: its own Start Time and End Time (PASTE-02: the End Time only when its minutes are written — `end` is null otherwise), the account's label and name, its Type, what happened, and its two amounts.
     const cell: Readonly<Record<SheetKey, string>> = {
       start: placement.start,
       end: placement.end === null ? BLANK : placement.end,
@@ -698,6 +849,8 @@ function sheetCells(placement: PastePlacement): readonly string[] {
 
 /** LANDS — a placed row's parts, joined by ' · '. */
 export const onPlanWords = (plan: string, start: string): string => `on ${JSON.stringify(plan)}, its ${start} stop`;
+/** PASTE-02 (2026-11-27): a kind picked a one-off whose stop already stands. */
+export const onStandingWords = (name: string, start: string): string => `on the stop ${JSON.stringify(name)} at ${start}, already on the time sheet`;
 export const oneOffWords = (start: string, label: string, name: string): string => `a one-off at ${start}, under ${label} ${name}`;
 export const vendorOwnWords = (book: string): string => `vendor: ${book}'s own`;
 export const vendorNewWords = (book: string): string => `vendor: new to ${book}`;
@@ -718,7 +871,10 @@ export function landsWords(placement: PastePlacement): string {
     case 'blank': return BLANK_DATE_WORDS;
     case 'booking': return BOOKING_WORDS;
     case 'pick': return placement.words;
-    case 'plan': return [onPlanWords(placement.plan, cellWordsOf(placement.stop, 'start')), ...vendorPart(placement.vendor, placement.book), happenedWords(placement.happened), ...placement.notWritten].join(' · ');
+    case 'plan': {
+      const start = cellWordsOf(placement.stop, 'start');
+      return [placement.standing ? onStandingWords(placement.plan, start) : onPlanWords(placement.plan, start), ...vendorPart(placement.vendor, placement.book), happenedWords(placement.happened), ...placement.notWritten].join(' · ');
+    }
     case 'oneOff': {
       const label = deriveAccountString({ entityType: placement.book.entityType, code: placement.account.code });
       return [oneOffWords(placement.start, label, placement.account.name), ...vendorPart(placement.vendor, placement.book), happenedWords(placement.happened), ...placement.notWritten].join(' · ');
@@ -734,14 +890,21 @@ export function pasteShown(paste: Pick<Paste, 'rows'>, placements: readonly Past
   return paste.rows.map((row, i) => ({ number: row.number, yours: yourCells(row), sheet: sheetCells(placements[i]), lands: landsWords(placements[i]), tone: toneOf(placements[i]) }));
 }
 
-/** The one line that counts the paste. */
+/**
+ * The one line that counts the paste — every row once. PASTE-02 (2026-11-27): "on a plan" counts the rows on a plan's stop; a row of
+ * a kind picked a one-off that landed on its own stop, already on the time sheet, is a one-off — so the one-offs are those and the
+ * new ones, and the new ones (which the save would add) are said: '3 one-offs (2 new)', '1 one-off (1 new)'; with none, '0 one-offs'.
+ */
 export function countsWords(placements: readonly PastePlacement[]): string {
   const count = (kind: PastePlacement['kind']): number => placements.filter((placement) => placement.kind === kind).length;
   const said = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+  const standing = placements.filter((placement) => placement.kind === 'plan' && placement.standing).length;
+  const fresh = count('oneOff');
+  const oneOffs = standing + fresh;
   return [
     said(placements.length, 'row read', 'rows read'),
-    `${count('plan')} on a plan`,
-    said(count('oneOff'), 'one-off', 'one-offs'),
+    `${count('plan') - standing} on a plan`,
+    oneOffs === 0 ? '0 one-offs' : `${said(oneOffs, 'one-off', 'one-offs')} (${fresh} new)`,
     said(count('booking'), 'booking', 'bookings'),
     `${count('pick')} waiting for a pick`,
     `${count('refused')} that cannot be placed`,
@@ -752,7 +915,8 @@ export function countsWords(placements: readonly PastePlacement[]): string {
 // ── THE LEAF'S OWN WORDS ────────────────────────────────────────────────────
 
 export const PASTE_OPEN_WORDS = '+ paste rows from a sheet';
-export const PASTE_TITLE_WORDS = 'rows from your sheet — read and placed here; nothing is written';
+/** PASTE-02 (2026-11-27): '… nothing is written' until then — there was no save. */
+export const PASTE_TITLE_WORDS = 'rows from your sheet — read and placed here; nothing is written until you save';
 export const PASTE_HOW_WORDS = 'copy the rows in your sheet with its header row, and paste them here';
 export const PASTE_READ_WORDS = 'read the rows';
 export const PASTE_CLEAR_WORDS = 'clear';
