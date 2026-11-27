@@ -99,7 +99,7 @@ export function takenBy<V extends { readonly vendor_name: string }>(name: string
 //     column". It is the handle without its @: letters, digits, dots and underscores, 1 to 30 — the column's own CHECK. It is kept
 //     as typed: nothing is lower-cased, and nothing is looked up — whether such an account exists is not this rule's to know;
 //   · a plan's PLANNED ITEMS — planned_item_vendors.items, written by the plan-vendors route on the row that names the plan's
-//     vendor: what is planned at a stop still ahead, one line, at most 280 characters, never blank.
+//     vendor, at that row's own grain: what is planned to be had at a stop — whether the stop is ahead is not the column's to say, and the route does not ask it — one line, at most 280 characters, never blank.
 // null is NONE for both, and it is said, never guessed: a blank text is none, and a body that says nothing of items leaves what
 // the row holds (itemsAfter).
 

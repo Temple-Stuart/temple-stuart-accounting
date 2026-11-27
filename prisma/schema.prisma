@@ -381,7 +381,7 @@ model planned_item_vendors {
   vendor_id     String    @db.Uuid
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at    DateTime  @updatedAt @db.Timestamptz(6)
-  items         String?   @db.VarChar(280) // TIMESHEET-04a (2026-11-27): the items planned at a stop still ahead — one line, never blank (the migration's CHECK); written by the plan-vendors route. NULL on every row until one is written.
+  items         String?   @db.VarChar(280) // TIMESHEET-04a (2026-11-27): what is planned to be had at a stop, on the plan's vendor row at that row's own grain — one line, never blank (the migration's CHECK); written by the plan-vendors route. Whether the stop is ahead is not the column's to say. NULL on every row until one is written.
   user    users                       @relation(fields: [user_id], references: [id], onDelete: Cascade)
   routine operations_routines?        @relation(fields: [routine_id], references: [id], onDelete: Cascade)
   step    operations_routine_steps?   @relation(fields: [step_id], references: [id], onDelete: Cascade)

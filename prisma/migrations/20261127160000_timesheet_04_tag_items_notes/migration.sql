@@ -8,9 +8,10 @@
 --     readInstagramTag. Ruled 2026-11-27: "tag is own column". WRITTEN by the directory route's PATCH
 --     (src/app/api/operations/vendor-directory/route.ts) — that route's one update, which the vendor law pins to its shape.
 --
---   planned_item_vendors.items — the items planned at a stop still ahead: one line, at most 280 characters, never blank (the
+--   planned_item_vendors.items — what is planned to be had at a stop: one line, at most 280 characters, never blank (the
 --     CHECK; the rule is planVendor.ts readPlannedItems). WRITTEN by the plan-vendors route
---     (src/app/api/operations/plan-vendors/route.ts), on the row that names the plan's vendor.
+--     (src/app/api/operations/plan-vendors/route.ts), on the plan's vendor row, at that row's own grain. Whether the stop is
+--     ahead is not the column's to say: that route does not ask it.
 --
 --   operations_stop_records.notes — notes on a stop: at most 2000 characters, never blank (the CHECK —
 --     operations_stop_records_note_not_blank's own idiom, on the same table). It has NO READER AND NO WRITER until TIMESHEET-04b,

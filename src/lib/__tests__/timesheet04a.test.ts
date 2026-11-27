@@ -175,6 +175,9 @@ test('T4 the migration is the newest and holds six statements and no other: thre
     'ALTER TABLE "operations_stop_records" ADD COLUMN "notes" VARCHAR(2000)',
     'ALTER TABLE "operations_stop_records" ADD CONSTRAINT "operations_stop_records_notes_not_blank" CHECK ("notes" IS NULL OR length(btrim("notes")) > 0)',
   ]);
+  // TIMESHEET-04a-fix (2026-11-27): the header's words were put right before the merge — a migration's file is never edited once it has been applied — and not one statement moved by
+  // a character: each stands on a line of its own, exactly as listed above.
+  assert.deepEqual(code(MIGRATION).split('\n').map((l) => l.trimEnd()).filter(Boolean), statements.map((s) => `${s};`), 'the six statements, each on its own line, character for character');
   const sql = flat(code(MIGRATION));
   assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE)\b/i, 'no row is written — nothing is backfilled');
   assert.doesNotMatch(sql, /\bDEFAULT\b/i, 'no default — a column that admits NULL rewrites no row');
@@ -193,6 +196,11 @@ test('T4 the migration is the newest and holds six statements and no other: thre
   assert.match(header, /WRITTEN by the plan-vendors route/);
   assert.match(header, /NO READER AND NO WRITER until TIMESHEET-04b/);
   assert.match(header, /scripts\/migrate-gate\.ts; PREVIEW-DB-01: a preview never migrates/);
+  // TIMESHEET-04a-fix (2026-11-27), ruling C: what the items column holds, in its own words — what is planned to be had at a stop, on the plan's vendor row at that row's own grain.
+  // Whether the stop is ahead is not the column's to say, so the header no longer says that it is.
+  assert.match(header, /planned_item_vendors\.items — what is planned to be had at a stop:/);
+  assert.match(header, /on the plan's vendor row, at that row's own grain\./);
+  assert.doesNotMatch(header, /still ahead/);
 });
 
 // ── T5 · THE SCHEMA, AND THE RULES' BOUNDS ───────────────────────────────────
@@ -219,6 +227,15 @@ test('T5 the schema moves with it: each model declares its new field once, with 
     assert.match(noteLines[i], /\/\/ TIMESHEET-04a \(2026-11-27\): /, `${model}.${field} carries its dated note on its own line`);
     assert.match(sql, new RegExp(`^ALTER TABLE "${model}" ADD COLUMN "${field}" VARCHAR\\(${max}\\);$`, 'm'), `${model}.${field} is the column the migration adds`);
   }
+  // TIMESHEET-04a-fix (2026-11-27), ruling C: the schema's note on `items` and the rule's own comment say what the column holds — what is planned to be had at a stop, on the plan's
+  // vendor row at that row's own grain — and neither says the stop is ahead: that is not the column's to say (neither the route nor the rule reads a clock — vendor01.test.ts T7).
+  const itemsAt = schemaLines.findIndex((l) => /^[ \t]+items[ \t]+String\?[ \t]+@db\.VarChar\(280\)[ \t]*$/.test(l));
+  assert.ok(itemsAt >= 0, 'the schema declares items');
+  assert.match(noteLines[itemsAt], /what is planned to be had at a stop, on the plan's vendor row at that row's own grain/);
+  const ruleNotes = comments(RULE);
+  const bullet = ruleNotes.slice(ruleNotes.indexOf('a plan\'s PLANNED ITEMS'), ruleNotes.indexOf('null is NONE for both'));
+  assert.match(bullet, /at that row's own grain: what is planned to be had at a stop/);
+  for (const words of [noteLines[itemsAt], bullet]) assert.doesNotMatch(words, /still ahead/);
   // No enum value is added: the tag's audit type was in AuditActionType already.
   assert.match(code(SCHEMA), /enum AuditActionType \{[^}]*\boperations_vendor_updated\b[^}]*\}/);
   assert.match(code('src/app/api/audit-log/route.ts'), /'operations_vendor_updated'/);
@@ -354,6 +371,13 @@ test('T7 the plan-vendors POST reads items by the rule only when the body says t
   const del = handler(route, 'DELETE');
   assert.match(comments(ROUTE), /POST {3}\{ kind, id, instant, vendorId, items\? \} → set the vendor at that address\./);
   assert.ok(code(REGISTRY).includes(`POST src/app/api/operations/plan-vendors/route.ts:${lineOf(route, 'export async function POST(')} at instant null`), 'nothing was added above the POST: the registry cites it by its line');
+  // TIMESHEET-04a-fix (2026-11-27), ruling A: the registry cites the DELETE where it stands too — in the Expenses row's citation and in the note above the row — read from the
+  // route's source as the POST's cite is, so a line added above the DELETE fails here. The lines the POST gained had moved the handler, and the two cites were not moved with it
+  // until this fix; the row's dated note says what moved. The PR that moves a cited line re-points the cite.
+  const deleteAt = lineOf(route, 'export async function DELETE(');
+  assert.ok(code(REGISTRY).includes(`clear → route.ts:${deleteAt} (DELETE); add → vendor-directory/route.ts:`), 'the registry\'s line for the DELETE, in the Expenses row\'s citation');
+  assert.match(comments(REGISTRY), new RegExp(`"clear" is the route's DELETE\\n[ \\t]*//[ \\t]+\\(:${deleteAt}\\) at the same address`), 'and in the note above the row');
+  assert.match(comments(REGISTRY), /TIMESHEET-04a \(Alex, 2026-11-27\): the plan-vendors route grew \(its POST reads a plan's planned items\) — :\d+ → :\d+ \(DELETE\); what it cites is unchanged/, 'the dated note on the row says what moved');
   assert.ok(post.includes('const body = raw as { kind?: unknown; id?: unknown; instant?: unknown; vendorId?: unknown; items?: unknown };'));
 
   // Each step once, in order: the address, then the items — only when said — then the plan, the grain, the write, the audit.
@@ -394,6 +418,10 @@ test('T7 the plan-vendors POST reads items by the rule only when the body says t
   assert.ok(fold(post).includes("action: { type: 'operations_plan_vendor_set', description: write === 'unchanged' ? `${itemsNext === null ? 'Cleared' : 'Set'} the planned items of a plan at \"${fits.vendor.vendor_name}\"` : `Set the vendor of a plan to \"${fits.vendor.vendor_name}\"` },"));
   assert.equal(count(route, "'operations_plan_vendor_set'"), 1);
   assert.equal(count(route, "'operations_plan_vendor_cleared'"), 1);
+  // TIMESHEET-04a-fix (2026-11-27), ruling B: the audit names a replaced vendor only when one is replaced — the standing vendor's name when the write replaces it, and null for a
+  // created row and for a write of the items alone. Until then it named the standing vendor whenever a row stood (`existing === null ? null : existing.vendorName`).
+  assert.ok(fold(post).includes("payload: { before, after, metadata: { address: addressMeta(address), vendor_name: fits.vendor.vendor_name, replaced: write === 'replace' ? (existing as HeldVendor).vendorName : null }, },"));
+  assert.equal(count(post, 'replaced:'), 1);
   // The three outcomes, the items in the answer, the statuses as they were.
   assert.ok(fold(post).includes("return NextResponse.json( { outcome: write === 'create' ? 'set' : write === 'replace' ? 'replaced' : 'items', address: addressMeta(address), vendor: { id: fits.vendor.id, vendor_name: fits.vendor.vendor_name }, items: itemsNext }, { status: write === 'create' ? 201 : 200 }, );"));
 
@@ -427,6 +455,11 @@ test('T7 the plan-vendors POST reads items by the rule only when the body says t
     ['another vendor, its items cleared', row(OTHER), 'two buns', null, ['replaced', null]],
   ];
   for (const [what, existing, held, said, expected] of cases) assert.deepEqual(decide(existing, held, VENDOR, said), expected, what);
+  // … and the audit's `replaced`, as the route's expression reads it, over the three writes (TIMESHEET-04a-fix, ruling B).
+  const replacedOf = (existing: HeldVendor | null, vendorId: string): string | null => (writeFor(existing, vendorId) === 'replace' ? (existing as HeldVendor).vendorName : null);
+  assert.equal(replacedOf(null, VENDOR), null, 'a created row replaces no vendor');
+  assert.equal(replacedOf(row(VENDOR), VENDOR), null, 'a write of the items alone replaces no vendor');
+  assert.equal(replacedOf(row(OTHER), VENDOR), 'Made Up One', 'another vendor stood there: it is the one named');
 });
 
 // ── T8 · THE VENDOR LAW ──────────────────────────────────────────────────────

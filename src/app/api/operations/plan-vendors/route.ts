@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
       payload: {
         before,
         after,
-        metadata: { address: addressMeta(address), vendor_name: fits.vendor.vendor_name, replaced: existing === null ? null : existing.vendorName },
+        metadata: { address: addressMeta(address), vendor_name: fits.vendor.vendor_name, replaced: write === 'replace' ? (existing as HeldVendor).vendorName : null },
       },
     });
 
