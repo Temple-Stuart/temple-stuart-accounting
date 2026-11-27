@@ -5,7 +5,13 @@
  *   · GET  /api/operations/routines/[id]         readOneOffLine — the line's id, read back (the create answers the routine alone)
  *   · POST /api/operations/vendor-directory      addVendor      — a new vendor in the book (VENDOR-01's route)
  *   · POST /api/operations/plan-vendors          setVendor      — the vendor on the line's occurrence (VENDOR-01's route)
+ *   · PATCH /api/operations/routines/steps/[id]  setLineMinutes — the line's minutes (the line's own route)
  *   · the record: stops/stopWrites.ts setStopRecord — the one writer of a stop's record
+ *
+ * PASTE-02 (Alex, 2026-11-27): the pasted rows are saved through these (src/lib/operations/pasteSave.ts runs them; ledger/PasteRows.tsx
+ * hands them in). Three changes for it, and no other: the one helper takes the method (it was `post(url, body)` — still ONE request
+ * in this file); setVendor takes a routine's address too (a plan that holds its own amount is a routine — ledger.ts LedgerAddress);
+ * and setLineMinutes is new.
  *
  * Each answer is read the one way the vendor box reads its own
  * (budget/VendorBox.tsx answerOf): ok with the route's body, or the route's
@@ -21,11 +27,11 @@ export type WriteAnswer<T> = { readonly ok: true; readonly value: T } | { readon
 
 const SIGNED_OUT_WORDS = 'You are signed out — sign in to add an expense.';
 
-/** A POST read the one way: a redirect or a 401 is signed out; a refusal is the route's own message; no JSON is said as such. */
-async function post(url: string, body: unknown): Promise<{ readonly ok: true; readonly body: Record<string, unknown> } | { readonly ok: false; readonly words: string }> {
+/** A write read the one way: a redirect or a 401 is signed out; a refusal is the route's own message; no JSON is said as such. PASTE-02 (2026-11-27): it takes the method — `post(url, body)` until then. */
+async function send(method: 'POST' | 'PATCH', url: string, body: unknown): Promise<{ readonly ok: true; readonly body: Record<string, unknown> } | { readonly ok: false; readonly words: string }> {
   let res: Response;
   try {
-    res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), redirect: 'manual' });
+    res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), redirect: 'manual' });
   } catch (error) {
     return { ok: false, words: `the request did not reach the server: ${error instanceof Error ? error.message : String(error)}` };
   }
@@ -45,7 +51,7 @@ async function post(url: string, body: unknown): Promise<{ readonly ok: true; re
 
 /** The one-off stop, created whole with its one line; the new routine's id. */
 export async function createOneOff(body: RoutineForm): Promise<WriteAnswer<{ readonly routineId: string }>> {
-  const answer = await post('/api/operations/routines', body);
+  const answer = await send('POST', '/api/operations/routines', body);
   if (!answer.ok) return answer;
   const routine = answer.body.routine;
   if (typeof routine !== 'object' || routine === null || typeof (routine as { id?: unknown }).id !== 'string') return { ok: false, words: ROUTINE_NO_ID_WORDS };
@@ -65,15 +71,22 @@ export async function readOneOffLine(routineId: string): Promise<WriteAnswer<{ r
 
 /** A new vendor in the book, by name — the route answers the row itself ({ id, vendor_name, entity_id }); its refusals (a name the book already has) are its words. */
 export async function addVendor(entityId: string, name: string): Promise<WriteAnswer<{ readonly vendorId: string }>> {
-  const answer = await post('/api/operations/vendor-directory', { entityId, name });
+  const answer = await send('POST', '/api/operations/vendor-directory', { entityId, name });
   if (!answer.ok) return answer;
   if (typeof answer.body.id !== 'string') return { ok: false, words: VENDOR_NO_ID_WORDS };
   return { ok: true, value: { vendorId: answer.body.id } };
 }
 
-/** The vendor on the line's one occurrence. */
-export async function setVendor(body: { readonly kind: 'routine_line'; readonly id: string; readonly instant: string; readonly vendorId: string }): Promise<WriteAnswer<{ readonly outcome: string }>> {
-  const answer = await post('/api/operations/plan-vendors', body);
+/** The vendor on the line's one occurrence — or, PASTE-02 (2026-11-27), on a routine's own (`kind: 'routine_line'` alone until then). */
+export async function setVendor(body: { readonly kind: 'routine_line' | 'routine'; readonly id: string; readonly instant: string; readonly vendorId: string }): Promise<WriteAnswer<{ readonly outcome: string }>> {
+  const answer = await send('POST', '/api/operations/plan-vendors', body);
   if (!answer.ok) return answer;
   return { ok: true, value: { outcome: typeof answer.body.outcome === 'string' ? answer.body.outcome : '' } };
+}
+
+/** PASTE-02 (2026-11-27): the line's minutes — a stop's planned length, from which the time sheet reads its END. The route answers the line; nothing of it is read back here. */
+export async function setLineMinutes(lineId: string, minutes: number): Promise<WriteAnswer<null>> {
+  const answer = await send('PATCH', `/api/operations/routines/steps/${lineId}`, { duration_minutes: minutes });
+  if (!answer.ok) return answer;
+  return { ok: true, value: null };
 }
