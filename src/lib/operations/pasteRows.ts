@@ -31,13 +31,17 @@
  *   · the counts say how many one-offs are new; the picks that still stand after a read are worked here (standingPicks); and
  *     the vendor directory's answer is read here (vendorsOf).
  * Until then this file's title said nothing is written, and it was true. The file is still pure.
+ *
+ * PASTE-02b (Alex, 2026-11-27): a new one-off's routine is named for its day and time (ledger.ts oneOffRoutineName), so one Type on
+ * many days is as many one-offs. Two rows of ONE paste that would be the same new one-off — one name, day and Start Time — are told
+ * apart here first: the second is refused on Type, before anything is written.
  */
 import { deriveAccountString } from '@/lib/accountString';
 import { centsFromDecimalString, isIsoDay } from '@/lib/budget/days';
 import { BLANK, formatCents } from '@/lib/budget/format';
 import { minutesOf } from '@/lib/calendar/day';
 import {
-  BOOK_WORDS, PLANNED_WORD, WENT_WORD, bookWordOf, budgetCellWords, cellWordsOf, expenseInput, headWordOf, recordInput,
+  BOOK_WORDS, PLANNED_WORD, WENT_WORD, bookWordOf, budgetCellWords, cellWordsOf, expenseInput, headWordOf, oneOffRoutineName, recordInput,
   type BookWord, type ExpenseField, type ExpenseValues, type LedgerColumn, type LedgerRecording, type LedgerSheetRow, type RecordField, type RecordInputResult,
 } from '@/lib/operations/ledger';
 import { readVendorName, vendorNameKey } from '@/lib/operations/planVendor';
@@ -553,6 +557,8 @@ export const ONE_OFF_NO_START_WORDS = 'a one-off needs a Start Time';
 export const ONE_OFF_NO_BUDGET_WORDS = 'a one-off needs a Budget (USD) above 0';
 /** PASTE-02 (2026-11-27): one stop of the row's own name at its day and time takes the row; more than one cannot be told apart. ('already on the time sheet — …' refused the row until then.) */
 export const manyNamedWords = (name: string): string => `more than one stop named ${JSON.stringify(name)} stands at this day and time — the paste cannot tell which`;
+/** PASTE-02b (2026-11-27): a second row of the paste that would be the same new one-off — one name, day and Start Time. The routines hold one name a user, so only the first could be written. */
+export const oneOffTwiceWords = (row: number, name: string): string => `row ${row} of the paste is already a new one-off named ${JSON.stringify(name)} at this day and Start Time — a second one needs its own Start Time`;
 
 /** What is typed on a row and not written, each said by its head word. */
 export const RECORDED_NOT_WRITTEN_WORDS = 'Total (USD), Items — not written: this stop is already recorded — the paste does not write over a record';
@@ -668,6 +674,8 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
   const offered = offeredBooksOf(context.books);
   /** The stops rows of this paste already hold, by the sheet row's key → the paste row's number. */
   const held = new Map<string, number>();
+  /** PASTE-02b: the new one-offs the rows of this paste already are, by the routine's name the save would send (ledger.ts oneOffRoutineName) → the paste row's number. The name alone, never the book: the routines hold one name a user, in any book. */
+  const fresh = new Map<string, number>();
 
   /**
    * A ROW ON A STOP THAT STANDS (PASTE-02, ruling A.1) — ONE path for the day's stop of a plan and for a stop of the row's own
@@ -756,6 +764,12 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
     if (values.instant !== instant || values.ahead !== (happened.kind === 'planned')) {
       throw new Error(`pasteRows: row ${row.number} was placed at ${instant} (${happened.kind}) and "+ expense"'s rule reads ${values.instant} (${values.ahead ? 'still ahead' : 'not ahead'})`);
     }
+    // PASTE-02b — TWO ROWS OF ONE PASTE THAT WOULD BE THE SAME NEW ONE-OFF. The routine the save would create is named for the row's name, its day and its Start Time, and the routines
+    // hold one name a user: the second could never be written. It is refused here, on Type, before anything is — and only a row that is placed holds its name.
+    const routine = oneOffRoutineName(values);
+    const first = fresh.get(routine);
+    if (first !== undefined) return { kind: 'refused', head: 'Type', why: oneOffTwiceWords(first, values.name) };
+    fresh.set(routine, row.number);
     // ITS MINUTES: End Time less Start Time; an End Time earlier than the Start Time ends the next day (23:00 to 01:00 is 120). No End Time → none. An End Time that IS the Start
     // Time → none, and said. The END cell shows the End Time only when its minutes are written.
     const span = cells.end === null ? null : (clockMinutes(cells.end) - clockMinutes(start) + DAY_MINUTES) % DAY_MINUTES;
