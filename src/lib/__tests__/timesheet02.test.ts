@@ -21,7 +21,7 @@ import { resolve } from 'node:path';
 import { code, comments } from '../sourceText';
 import { buildRoutineBudgetLines, occurrenceKey, type RoutinePlanInput } from '../budget/days';
 import type { BudgetLine } from '../budget/report';
-import type { PlanVendorRow, RoutineWords } from '../budget/planLines';
+import type { RoutineWords } from '../budget/planLines';
 import type { StayRow } from '../operations/stay';
 import {
   DONE_AT_SKEW_MS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTE_MAX, NOT_RECORDED_WORDS, RATING_WORDS, SKIPPED_WORD, SKIP_REASON_WORDS, amountWords, minutesTypedWords, stopInput, unchanged,
@@ -36,7 +36,7 @@ import {
   ACCOUNT_TONES, BOOK_TONES, CANCEL_EXPENSE_WORDS, CLEAR_RECORD_WORDS, DOUBLED_NO_VENDOR_WORDS, EXPENSE_FIELD_WORDS, LEDGER_COLUMNS, MINUTES_RANGE_WORDS, NEUTRAL_TONE, NOTE_LONG_WORDS, NOT_TYPED_WORDS, NO_LINE_NO_VENDOR_WORDS, PILL_CLASS, PLANNED_WORD, RECORD_FIELDS, RECORD_FIELD_WORDS,
   RECORD_ON_OWN_ROW_WORDS, RECORD_TITLE_WORDS, RECORD_WORDS, SAVE_RECORD_WORDS, SKIP_REASON_PLACEHOLDER_WORDS, STARS_RUBRIC_WORDS, STOP_AHEAD_WORDS, TWO_LINES_NO_RECORD_WORDS, WENT_WORD,
   accountPlacesOf, headWordOf, ledgerFailedWords, ledgerOf, noStayWords, notRecordedWords, notesCount, planMinutesOf, recordBody, recordDraftOf, recordInput, startOf, starsTypedWords, wentCellWords, wentOf,
-  type LedgerInput, type LedgerLinkInput, type LedgerPlanRow, type LedgerRecordInput, type LedgerRecording, type LedgerRecordingTaken, type LedgerRow, type LedgerSaid, type LedgerSheetRow, type RecordDraft,
+  type LedgerInput, type LedgerLinkInput, type LedgerPlanRow, type LedgerRecordInput, type LedgerRecording, type LedgerRecordingTaken, type LedgerRow, type LedgerVendorRow, type LedgerSaid, type LedgerSheetRow, type RecordDraft,
 } from '../operations/ledger';
 
 const RULES = 'src/lib/operations/ledger.ts';
@@ -96,8 +96,8 @@ const STEP_WORDS: Readonly<Record<string, readonly [string, { activity: string; 
 };
 const wordsOf = (steps: typeof STEP_WORDS): Map<string, RoutineWords> => new Map(ROUTINES.map((r): [string, RoutineWords] => [r.id, { name: r.name, timezone: NBO, steps: new Map(r.id in steps ? steps[r.id] : []) }]));
 const WORDS = wordsOf(STEP_WORDS);
-const VENDORS: PlanVendorRow[] = [
-  { id: 'pv-soup', routine_id: null, step_id: 'soup', task_id: null, occurrence_at: null, vendor: { id: 'v1', vendor_name: 'Ladle & Co', entity_id: 'P' }, routine: null, step: { activity: 'Soup', routine_id: 'lunch', routine: { name: 'Lunch', timezone: NBO } }, task: null },
+const VENDORS: LedgerVendorRow[] = [ // TIMESHEET-04b (2026-11-27): the ledger's vendor rows carry their planned items and their vendor's Instagram tag (ledger.ts LedgerVendorRow; PlanVendorRow until then) — none in this fixture
+  { id: 'pv-soup', routine_id: null, step_id: 'soup', task_id: null, occurrence_at: null, items: null, vendor: { id: 'v1', vendor_name: 'Ladle & Co', entity_id: 'P', instagram_tag: null }, routine: null, step: { activity: 'Soup', routine_id: 'lunch', routine: { name: 'Lunch', timezone: NBO } }, task: null },
 ];
 /** Tuesday on — Monday has no stay. */
 const STAYS: StayRow[] = [{ id: 'em', place: 'Eastmere, Sylvania', starts_on: TUE, ends_on: '2027-05-20' }];
@@ -105,7 +105,7 @@ const ACCOUNTS = [{ entityId: 'P', code: '6150', name: 'Dining Out' }, { entityI
 const BOOKS = [{ id: 'P', entityType: 'personal' }];
 
 const record = (over: Partial<StopRecordRow> & { id: string; kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
-  outcome: 'done', done_at: over.occurrence_at, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+  outcome: 'done', done_at: over.occurrence_at, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
 });
 const line = (r: StopRecordRow, activity: string, timeOfDay: string | null, durationMinutes: number | null): LedgerRecordInput => ({ record: r, routineId: 'lunch', routineName: 'Lunch', zone: NBO, role: 'place', activity, timeOfDay, durationMinutes });
 const stop = (routineId: string, routineName: string, role: string, r: StopRecordRow): LedgerRecordInput => ({ record: r, routineId, routineName, zone: NBO, role, activity: null, timeOfDay: null, durationMinutes: null });
@@ -162,11 +162,13 @@ const refusedWith = (entry: LedgerRecording | undefined, what: string): string =
 // ── WHAT MAIN GIVES: ledgerOf(input()).rows, computed on main e0fd7bf over this fixture (the rule before this change) — pinned here so
 //    the old list cannot drift under the new key. On main the same fixture said noStay 4, notRecorded 3 and reversed 1 (T4). ──
 
+// TIMESHEET-04b (2026-11-27): a recorded row holds two fields more — instagramTag after vendor, notes after note. Each row below says them: null, for this fixture's
+// vendors hold no tag and its records no notes. Every other field of every row is as it was pinned.
 const MAIN_ROWS: readonly LedgerRow[] = [
-  { id: 'r-kiosk-1', key: 'routine:kiosk:2027-05-10T07:00:00.000Z', address: { kind: 'routine', id: 'kiosk', instant: '2027-05-10T07:00:00.000Z' }, match: null, day: '2027-05-10', time: '10:00', place: null, book: null, coa: null, vendor: null, description: 'Kiosk', rating: null, note: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 150, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-bread-1', key: 'line:bread:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'bread', instant: '2027-05-10T09:30:00.000Z' }, match: null, day: '2027-05-10', time: '12:30', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, description: 'Bread', rating: null, note: 'sold out', cents: 225, budgetState: 'matched', outcome: 'skipped', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-soup-1', key: 'line:soup:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'soup', instant: '2027-05-10T09:30:00.000Z' }, match: { cents: 600, postings: 1, unreadable: 0, reversed: 1 }, day: '2027-05-10', time: '12:45', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Ladle & Co', description: 'Soup', rating: 4, note: 'with rice', cents: 550, budgetState: 'matched', outcome: 'done', actualCents: 600, varianceCents: 50, plannedMinutes: 20, loggedMinutes: 18 },
-  { id: 'r-tea-1', key: 'routine:tea:2027-05-10T12:00:00.000Z', address: { kind: 'routine', id: 'tea', instant: '2027-05-10T12:00:00.000Z' }, match: null, day: '2027-05-10', time: '15:00', place: null, book: null, coa: null, vendor: null, description: 'Tea', rating: null, note: null, cents: null, budgetState: 'doubled', outcome: 'done', actualCents: 300, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-kiosk-1', key: 'routine:kiosk:2027-05-10T07:00:00.000Z', address: { kind: 'routine', id: 'kiosk', instant: '2027-05-10T07:00:00.000Z' }, match: null, day: '2027-05-10', time: '10:00', place: null, book: null, coa: null, vendor: null, instagramTag: null, description: 'Kiosk', rating: null, note: null, notes: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 150, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-bread-1', key: 'line:bread:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'bread', instant: '2027-05-10T09:30:00.000Z' }, match: null, day: '2027-05-10', time: '12:30', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Bread', rating: null, note: 'sold out', notes: null, cents: 225, budgetState: 'matched', outcome: 'skipped', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-soup-1', key: 'line:soup:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'soup', instant: '2027-05-10T09:30:00.000Z' }, match: { cents: 600, postings: 1, unreadable: 0, reversed: 1 }, day: '2027-05-10', time: '12:45', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Ladle & Co', instagramTag: null, description: 'Soup', rating: 4, note: 'with rice', notes: null, cents: 550, budgetState: 'matched', outcome: 'done', actualCents: 600, varianceCents: 50, plannedMinutes: 20, loggedMinutes: 18 },
+  { id: 'r-tea-1', key: 'routine:tea:2027-05-10T12:00:00.000Z', address: { kind: 'routine', id: 'tea', instant: '2027-05-10T12:00:00.000Z' }, match: null, day: '2027-05-10', time: '15:00', place: null, book: null, coa: null, vendor: null, instagramTag: null, description: 'Tea', rating: null, note: null, notes: null, cents: null, budgetState: 'doubled', outcome: 'done', actualCents: 300, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
 ];
 
 // ── T1 · THE OLD LIST STAYS; ONE KEY MORE (ruling B) ─────────────────────────
@@ -174,7 +176,7 @@ const MAIN_ROWS: readonly LedgerRow[] = [
 test('T1 `rows` is what main gives for the same fixture and no field is added to a row of it; the rule gains ONE key, `recording`, after `sheet` — exactly the sheet’s keys, in its order', () => {
   assert.deepEqual(ledger.rows, MAIN_ROWS, 'the recorded expenses, cell for cell, in main’s order');
   for (const row of ledger.rows) assert.deepEqual(Object.keys(row), Object.keys(MAIN_ROWS[0]), `${row.id}: the row’s shape is main’s — nothing added to LedgerRow`);
-  assert.deepEqual(Object.keys(MAIN_ROWS[0]), ['id', 'key', 'address', 'match', 'day', 'time', 'place', 'book', 'coa', 'vendor', 'description', 'rating', 'note', 'cents', 'budgetState', 'outcome', 'actualCents', 'varianceCents', 'plannedMinutes', 'loggedMinutes']);
+  assert.deepEqual(Object.keys(MAIN_ROWS[0]), ['id', 'key', 'address', 'match', 'day', 'time', 'place', 'book', 'coa', 'vendor', 'instagramTag', 'description', 'rating', 'note', 'notes', 'cents', 'budgetState', 'outcome', 'actualCents', 'varianceCents', 'plannedMinutes', 'loggedMinutes']); // TIMESHEET-04b (2026-11-27): a recorded row holds two fields more — instagramTag after vendor, notes after note (the twenty without them until then). TIMESHEET-02 itself added none.
   assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'said'], 'ONE key more, after the sheet');
   // One entry for EVERY row of the sheet, by the row's key, in the sheet's order — and no entry besides.
   assert.equal(sheet.length, 20);
@@ -189,7 +191,7 @@ test('T1 `rows` is what main gives for the same fixture and no field is added to
   const rules = code(RULES);
   assert.match(rules, /rows,\n\s*sheet,\n\s*recording,\n\s*said: \{/, 'rows, then the sheet, then recording, then what is said');
   assert.match(rules, /const rows: LedgerRow\[\] = expenses\.map\(\(\{ r, day, time \}\) => \{/);
-  assert.match(rules, /export interface LedgerInput \{\n\s*readonly from: string;\n\s*readonly to: string;\n\s*readonly now: Date;\n\s*readonly records: readonly LedgerRecordInput\[\];\n\s*readonly links: readonly LedgerLinkInput\[\];\n\s*readonly lines: readonly BudgetLine\[\];\n\s*readonly notPlaced: readonly NotPlaced\[\];\n\s*readonly routines: ReadonlyMap<string, RoutineWords>;\n\s*readonly roles: ReadonlyMap<string, string>;\n\s*readonly minutes: ReadonlyMap<string, number \| null>;\n\s*readonly vendors: readonly PlanVendorRow\[\];\n\s*readonly stays: readonly StayRow\[\];\n\s*readonly accounts: readonly LedgerAccount\[\];\n\s*readonly books: readonly LedgerBook\[\];\n\}/, 'LedgerInput gains nothing');
+  assert.match(rules, /export interface LedgerInput \{\n\s*readonly from: string;\n\s*readonly to: string;\n\s*readonly now: Date;\n\s*readonly records: readonly LedgerRecordInput\[\];\n\s*readonly links: readonly LedgerLinkInput\[\];\n\s*readonly lines: readonly BudgetLine\[\];\n\s*readonly notPlaced: readonly NotPlaced\[\];\n\s*readonly routines: ReadonlyMap<string, RoutineWords>;\n\s*readonly roles: ReadonlyMap<string, string>;\n\s*readonly minutes: ReadonlyMap<string, number \| null>;\n\s*readonly vendors: readonly LedgerVendorRow\[\];\n\s*readonly stays: readonly StayRow\[\];\n\s*readonly accounts: readonly LedgerAccount\[\];\n\s*readonly books: readonly LedgerBook\[\];\n\}/, 'LedgerInput gains no key'); // TIMESHEET-04b (2026-11-27): the vendors' rows are LedgerVendorRow — the Budget's row with its planned items and its vendor's tag. "readonly PlanVendorRow[]" and 'LedgerInput gains nothing' until then
 });
 
 // ── T2 · WHICH ROWS TAKE A RECORD (ruling A) ─────────────────────────────────
@@ -387,7 +389,7 @@ test('T4 the three notes that count rows count the sheet’s rows: the rows that
 
 // ── T5 · THE DRAFT (ruling C) ────────────────────────────────────────────────
 
-const BLANK_DRAFT: RecordDraft = { went: 'went', actual: '', stars: '', minutes: '', note: '' };
+const BLANK_DRAFT: RecordDraft = { went: 'went', actual: '', stars: '', minutes: '', note: '', notes: '' }; // TIMESHEET-04b (2026-11-27): the draft holds a NOTES box — blank in these drafts
 /** A stop at a made-up address, its planned instant fifteen minutes after its occurrence. */
 const ADDRESS = { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30') } as const;
 const PLANNED = at(MON, '12:45');
@@ -423,12 +425,12 @@ test('T5 the draft: from a held record its outcome, dollars, stars, minutes and 
 
 test('T6 the body: a first went is done at the planned instant; an edited went keeps the held done time; a went over a held skip is done at the planned instant; a skip has no done time and needs its reason; every blank box is null', () => {
   // A first went from the sheet: the stops POST's body at the row's own address, done at the stop's planned instant.
-  assert.deepEqual(bodyOf(BLANK_DRAFT), { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30'), outcome: 'done', done_at: PLANNED, actual_cents: null, rating: null, note: null, actual_minutes: null }, 'every blank box null — never 0');
-  assert.deepEqual(Object.keys(bodyOf(BLANK_DRAFT)), ['kind', 'id', 'instant', 'outcome', 'done_at', 'actual_cents', 'rating', 'note', 'actual_minutes'], 'the one writer’s body');
+  assert.deepEqual(bodyOf(BLANK_DRAFT), { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30'), outcome: 'done', done_at: PLANNED, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null }, 'every blank box null — never 0'); // TIMESHEET-04b (2026-11-27): the body says its notes — null, the draft's NOTES box is blank
+  assert.deepEqual(Object.keys(bodyOf(BLANK_DRAFT)), ['kind', 'id', 'instant', 'outcome', 'done_at', 'actual_cents', 'rating', 'note', 'notes', 'actual_minutes'], 'the one writer’s body'); // TIMESHEET-04b (2026-11-27): the body says its notes, after the note — the nine keys without it until then
   // What "+ expense" records at a stop is the same shape, done at the stop's own instant.
   assert.deepEqual(Object.keys(recordBody({ day: MON, time: '12:30', zone: NBO, instant: at(MON, '12:30'), name: 'x', amount: '1', coa: '6150', bookId: 'P', vendor: { kind: 'none' }, actualCents: null, rating: null, note: null, ahead: false }, 'soup')), Object.keys(bodyOf(BLANK_DRAFT))); // FORM-BOUNDS-01 (Alex, 2026-11-25): an expense's value says whether its stop is still ahead (ledger.ts ExpenseValues) — this one, built by hand, is not; no `ahead` until then (the test passed without it and the type check did not)
   // Every box typed.
-  assert.deepEqual(bodyOf({ went: 'went', actual: ' 6.9 ', stars: ' 5 ', minutes: ' 25 ', note: '  two   kinds\tof  soup ' }), { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30'), outcome: 'done', done_at: PLANNED, actual_cents: 690, rating: 5, note: 'two kinds of soup', actual_minutes: 25 }, 'trimmed; the note’s spaces collapsed');
+  assert.deepEqual(bodyOf({ went: 'went', actual: ' 6.9 ', stars: ' 5 ', minutes: ' 25 ', note: '  two   kinds\tof  soup ', notes: '' }), { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30'), outcome: 'done', done_at: PLANNED, actual_cents: 690, rating: 5, note: 'two kinds of soup', notes: null, actual_minutes: 25 }, 'trimmed; the note’s spaces collapsed'); // TIMESHEET-04b (2026-11-27): the body says its notes — null, the draft's NOTES box is blank
   assert.equal(bodyOf({ ...BLANK_DRAFT, actual: '0', minutes: '0' }).actual_cents, 0, 'a typed 0 is 0');
   assert.equal(bodyOf({ ...BLANK_DRAFT, actual: '0', minutes: '0' }).actual_minutes, 0);
   // An EDIT of a done record keeps that record's own done time — the sheet has no box for it, so it is never rewritten unseen.
@@ -437,9 +439,9 @@ test('T6 the body: a first went is done at the planned instant; an edited went k
   assert.equal(bodyOf({ ...recordDraftOf(SOUP_DONE), actual: '7' }, edit).done_at, at(MON, '12:50'), 'the held done_at, kept');
   // A went over a held SKIP is a first went: done at the planned instant.
   const overSkip = { plannedAt: at(MON, '12:30'), held: BREAD_SKIPPED };
-  assert.deepEqual(bodyOf({ ...recordDraftOf(BREAD_SKIPPED), went: 'went' }, overSkip), { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30'), outcome: 'done', done_at: at(MON, '12:30'), actual_cents: null, rating: null, note: 'sold out', actual_minutes: null });
+  assert.deepEqual(bodyOf({ ...recordDraftOf(BREAD_SKIPPED), went: 'went' }, overSkip), { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30'), outcome: 'done', done_at: at(MON, '12:30'), actual_cents: null, rating: null, note: 'sold out', notes: null, actual_minutes: null }); // TIMESHEET-04b (2026-11-27): the body says its notes — null, the draft's NOTES box is blank
   // A skip: no done time — over a held done record too — and its reason required.
-  assert.deepEqual(bodyOf({ ...BLANK_DRAFT, went: 'skipped', note: 'closed' }), { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30'), outcome: 'skipped', done_at: null, actual_cents: null, rating: null, note: 'closed', actual_minutes: null });
+  assert.deepEqual(bodyOf({ ...BLANK_DRAFT, went: 'skipped', note: 'closed' }), { kind: 'routine_line', id: 'soup', instant: at(MON, '12:30'), outcome: 'skipped', done_at: null, actual_cents: null, rating: null, note: 'closed', notes: null, actual_minutes: null }); // TIMESHEET-04b (2026-11-27): the body says its notes — null, the draft's NOTES box is blank
   assert.equal(bodyOf({ ...recordDraftOf(SOUP_DONE), went: 'skipped' }, edit).done_at, null);
   assert.deepEqual(refusalOf({ ...BLANK_DRAFT, went: 'skipped' }), ['note', SKIP_REASON_WORDS]);
   assert.deepEqual(refusalOf({ ...BLANK_DRAFT, went: 'skipped', note: '   ' }), ['note', SKIP_REASON_WORDS], 'spaces are no reason');
@@ -450,7 +452,7 @@ test('T6 the body: a first went is done at the planned instant; an edited went k
   // From the sheet itself: a row's own address and its own entry.
   const row = rowAt(ledgerOf(input({ now: new Date(at(WED, '13:00')) })).sheet, lineAt('soup', WED, '12:30'));
   const read = recordInput(BLANK_DRAFT, row.address, taken(recording[row.key], 'Wednesday’s soup'), new Date(at(WED, '13:00')));
-  assert.deepEqual(read, { ok: true, body: { kind: 'routine_line', id: 'soup', instant: at(WED, '12:30'), outcome: 'done', done_at: at(WED, '12:45'), actual_cents: null, rating: null, note: null, actual_minutes: null } });
+  assert.deepEqual(read, { ok: true, body: { kind: 'routine_line', id: 'soup', instant: at(WED, '12:30'), outcome: 'done', done_at: at(WED, '12:45'), actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null } }); // TIMESHEET-04b (2026-11-27): the body says its notes — null, the draft's NOTES box is blank
 });
 
 test('T6 each refusal by name — the amount, a negative one, the stars, the minutes typed, the minutes’ range, the long note — the first bad box named, nothing filled in', () => {
@@ -478,9 +480,9 @@ test('T6 each refusal by name — the amount, a negative one, the stars, the min
   assert.equal(bodyOf({ ...BLANK_DRAFT, note: ` ${'a  '.repeat(140)}` }).note?.length, 279, 'collapsed before it is counted');
   assert.deepEqual([NOTE_MAX, NOTE_LONG_WORDS], [280, 'DESCRIPTION is at most 280 characters']);
   assert.equal(NOTE_LONG_WORDS, `${EXPENSE_FIELD_WORDS.note} is at most ${NOTE_MAX} characters`);
-  // The first bad box is named — in the boxes' own order: went, ACTUAL, STARS, LOGGED MIN, DESCRIPTION.
-  assert.deepEqual(RECORD_FIELDS, ['went', 'actual', 'stars', 'minutes', 'note']);
-  const all: RecordDraft = { went: 'went', actual: 'six', stars: '9', minutes: 'ten', note: 'n'.repeat(NOTE_MAX + 1) };
+  // The first bad box is named — in the boxes' own order: went, ACTUAL, STARS, LOGGED MIN, DESCRIPTION, NOTES.
+  assert.deepEqual(RECORD_FIELDS, ['went', 'actual', 'stars', 'minutes', 'note', 'notes']); // TIMESHEET-04b (2026-11-27): NOTES last, after DESCRIPTION — the five without it until then
+  const all: RecordDraft = { went: 'went', actual: 'six', stars: '9', minutes: 'ten', note: 'n'.repeat(NOTE_MAX + 1), notes: '' };
   const ahead = new Date(Date.parse(PLANNED) - DONE_AT_SKEW_MS - 1);
   assert.equal(refusalOf(all, first, ahead)[0], 'went');
   assert.equal(refusalOf(all)[0], 'actual');
@@ -524,11 +526,11 @@ test('T6 a stop still ahead cannot be saved as went — by the route’s own tes
 test('T7 every body the rule accepts here, stopInput accepts with the same clock; a draft built from a held record and saved untouched is `unchanged` against that record', () => {
   const accepted: { readonly draft: RecordDraft; readonly given: Pick<LedgerRecordingTaken, 'plannedAt' | 'held'>; readonly now: Date }[] = [
     { draft: BLANK_DRAFT, given: first, now: NOW },
-    { draft: { went: 'went', actual: '6.9', stars: '5', minutes: '25', note: 'two   kinds of soup' }, given: first, now: NOW },
-    { draft: { went: 'went', actual: '0', stars: '1', minutes: '0', note: '' }, given: first, now: NOW },
-    { draft: { went: 'went', actual: '', stars: '', minutes: String(MINUTES_MAX), note: 'n'.repeat(NOTE_MAX) }, given: first, now: NOW },
-    { draft: { went: 'skipped', actual: '', stars: '', minutes: '', note: 'closed' }, given: first, now: NOW },
-    { draft: { went: 'skipped', actual: '4', stars: '2', minutes: '5', note: 'left early' }, given: first, now: NOW },
+    { draft: { went: 'went', actual: '6.9', stars: '5', minutes: '25', note: 'two   kinds of soup', notes: '' }, given: first, now: NOW },
+    { draft: { went: 'went', actual: '0', stars: '1', minutes: '0', note: '', notes: '' }, given: first, now: NOW },
+    { draft: { went: 'went', actual: '', stars: '', minutes: String(MINUTES_MAX), note: 'n'.repeat(NOTE_MAX), notes: '' }, given: first, now: NOW },
+    { draft: { went: 'skipped', actual: '', stars: '', minutes: '', note: 'closed', notes: '' }, given: first, now: NOW },
+    { draft: { went: 'skipped', actual: '4', stars: '2', minutes: '5', note: 'left early', notes: '' }, given: first, now: NOW },
     { draft: BLANK_DRAFT, given: first, now: new Date(Date.parse(PLANNED) - DONE_AT_SKEW_MS) },
     { draft: { ...recordDraftOf(SOUP_DONE), actual: '7' }, given: { plannedAt: PLANNED, held: SOUP_DONE }, now: NOW },
     { draft: { ...recordDraftOf(BREAD_SKIPPED), went: 'went' }, given: { plannedAt: at(MON, '12:30'), held: BREAD_SKIPPED }, now: NOW },
@@ -615,7 +617,7 @@ test('T9 the answer function: `recording` rides the one answer after `tones` —
     { id: 'swim', name: 'Swim', role: 'none', is_active: true, end_date: null, start_date: null, budget_amount: 4, coa_code: '6200', schedule_rrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null, steps: [] },
   ];
   const RECORD_ROW = {
-    id: 'rec-swim', routine_id: 'swim', step_id: null, occurrence_at: day(at(TUE, '07:00')), outcome: 'done', done_at: day(at(TUE, '07:40')), actual_cents: 400, rating: 3, note: null, actual_minutes: 35,
+    id: 'rec-swim', routine_id: 'swim', step_id: null, occurrence_at: day(at(TUE, '07:00')), outcome: 'done', done_at: day(at(TUE, '07:40')), actual_cents: 400, rating: 3, note: null, notes: null, actual_minutes: 35, // TIMESHEET-04b (2026-11-27): the table holds a notes column — the fake row says it, as the database would
     routine: { name: 'Swim', timezone: NBO, role: 'none', start_time: null, end_time: null }, step: null,
   };
   const calls: Call[] = [];
@@ -695,7 +697,7 @@ test('T9 the read: the client carries `recording`; an answer without it, or whos
 
 // ── T10 · THE LEAF AND THE SECTION (rulings D, E) ────────────────────────────
 
-test('T10 the leaf: the vendor’s block above the form and outside it; went | skipped and four boxes in a <form> that Enter saves; save and clear through the one writer; every word the rule’s — no route named, nothing fetched, nothing stored', () => {
+test('T10 the leaf: the vendor’s block above the form and outside it; went | skipped and five boxes (TIMESHEET-04b: NOTES; four until then) in a <form> that Enter saves; save and clear through the one writer; every word the rule’s — no route named, nothing fetched, nothing stored', () => {
   const f = code(LEAF);
   assert.match(f, /^'use client';/m);
   // Its imports: the one writer's two, and the day card's own vendor block.
@@ -735,11 +737,12 @@ test('T10 the leaf: the vendor’s block above the form and outside it; went | s
   // The title line, always.
   assert.match(f, /<p className="[^"]*" data-record-form-title>\{RECORD_TITLE_WORDS\}<\/p>/);
   assert.equal(RECORD_TITLE_WORDS, 'this row\'s record — went is saved at the stop\'s own time; a done time already recorded is kept');
-  // The form: Enter saves; went | skipped are buttons that save nothing; the four boxes; save, clear only when a record is held, cancel.
+  // The form: Enter saves; went | skipped are buttons that save nothing; the five boxes (TIMESHEET-04b, 2026-11-27: NOTES after DESCRIPTION — four until then); save, clear only when a record is held, cancel.
   assert.match(f, /<form className="[^"]*" onSubmit=\{\(e\) => \{ e\.preventDefault\(\); save\(\); \}\} data-record-form-boxes>/);
   assert.match(form, /<button type="button" className=\{draft\.went === WENT_WORD \? chipOn : chip\} disabled=\{busy\} aria-pressed=\{draft\.went === WENT_WORD\} onClick=\{\(\) => went\(WENT_WORD\)\} data-record-form-went=\{WENT_WORD\}>\{WENT_WORD\}<\/button>/);
   assert.match(form, /<button type="button" className=\{draft\.went === SKIPPED_WORD \? chipOn : chip\} disabled=\{busy\} aria-pressed=\{draft\.went === SKIPPED_WORD\} onClick=\{\(\) => went\(SKIPPED_WORD\)\} data-record-form-went=\{SKIPPED_WORD\}>\{SKIPPED_WORD\}<\/button>/);
-  assert.deepEqual([...form.matchAll(/\{field\('([a-z]+)', <input type="text"/g)].map((m) => m[1]), ['actual', 'stars', 'minutes', 'note'], 'ACTUAL, STARS, LOGGED MIN, DESCRIPTION — in the rule’s order');
+  assert.deepEqual([...form.matchAll(/\{field\('([a-z]+)', <input type="text"/g)].map((m) => m[1]), ['actual', 'stars', 'minutes', 'note', 'notes'], 'ACTUAL, STARS, LOGGED MIN, DESCRIPTION, NOTES — in the rule’s order'); // TIMESHEET-04b (2026-11-27): the NOTES box, on DESCRIPTION's line after it — the four without it until then
+  assert.match(form, /\{field\('notes', <input type="text" value=\{draft\.notes\} onChange=\{\(e\) => set\('notes'\)\(e\.target\.value\)\} className=\{`\$\{box\} w-96`\} maxLength=\{NOTES_MAX\} data-record-form-notes \/>\)\}/, 'the NOTES box: the same box class, wider, at most NOTES_MAX — never required, so no placeholder');
   assert.match(form, /maxLength=\{1\} title=\{STARS_RUBRIC_WORDS\} data-record-form-stars/, 'a box, 1 to 5, its title the rubric');
   assert.match(form, /maxLength=\{NOTE_MAX\} placeholder=\{draft\.went === SKIPPED_WORD \? SKIP_REASON_PLACEHOLDER_WORDS : undefined\} data-record-form-note/);
   assert.equal((form.match(/type="submit"/g) ?? []).length, 1, 'one submit — save');
@@ -751,7 +754,7 @@ test('T10 the leaf: the vendor’s block above the form and outside it; went | s
   assert.match(f, /if \(!read\.ok\) \{ setRefusal\(read\); return; \}\n\s*const body = read\.body;\n\s*void write\(\(\) => setStopRecord\(body\)\);/);
   assert.match(f, /if \(held === null \|\| busy \|\| !window\.confirm\(clearStopQuestion\(wentCellWords\(row\)\)\)\) return;\n\s*void write\(\(\) => clearStopRecord\(held\.id\)\);/);
   assert.match(f, /const answer = await send\(\);\n\s*if \(!answer\.ok\) \{ setRefusal\(\{ field: null, message: answer\.message \}\); return; \}\n\s*onWritten\(row\.day\);/, 'the route’s refusal in its own words; accepted, the caller is told the day');
-  assert.match(f, /const \[draft, setDraft\] = useState<RecordDraft>\(\(\) => recordDraftOf\(entry\.held\)\);/, 'it opens with what the row holds');
+  assert.match(f, /const \[draft, setDraft\] = useState<RecordDraft>\(\(\) => rowDraftOf\(row, entry\.held\)\);/, 'it opens with what the row holds'); // TIMESHEET-04b (2026-11-27): the row's own draft — its record's, or the blank draft with DESCRIPTION holding the row's planned items (ledger.ts rowDraftOf); "recordDraftOf(entry.held)" until then
   // No sentence of its own: every printed word is an identifier of the rule's, and no prose stands between tags.
   const printed = [...f.matchAll(/>\{([^}]+)\}<\//g)].map((m) => m[1]);
   assert.deepEqual(printed, ['RECORD_FIELD_WORDS[name]', 'RECORD_TITLE_WORDS', 'RECORD_FIELD_WORDS.went', 'WENT_WORD', 'SKIPPED_WORD', 'SAVE_RECORD_WORDS', 'CLEAR_RECORD_WORDS', 'CANCEL_EXPENSE_WORDS', 'refusal.message'], 'as the source prints them — a box’s label first: its helper stands above the markup that calls it');
@@ -759,9 +762,9 @@ test('T10 the leaf: the vendor’s block above the form and outside it; went | s
   assert.doesNotMatch(f, /placeholder="|title="|aria-label="/, 'no word typed in an attribute');
   // The words themselves.
   assert.deepEqual([RECORD_WORDS, SAVE_RECORD_WORDS, CLEAR_RECORD_WORDS, CANCEL_EXPENSE_WORDS, SKIP_REASON_PLACEHOLDER_WORDS], ['record', 'save', 'clear', 'cancel', 'why — required']);
-  assert.deepEqual(RECORD_FIELD_WORDS, { went: 'WENT', actual: 'ACTUAL', stars: 'STARS', minutes: 'LOGGED MIN', note: 'DESCRIPTION' }, 'a label is the column’s own head word — no second word for a thing the table already names');
-  for (const column of ['went', 'actual', 'stars', 'loggedMinutes', 'description'] as const) assert.ok(Object.values(RECORD_FIELD_WORDS).includes(headWordOf(column)), `${column}: the head word`);
-  assert.equal(LEDGER_COLUMNS.length, 21, 'no column is added');
+  assert.deepEqual(RECORD_FIELD_WORDS, { went: 'WENT', actual: 'ACTUAL', stars: 'STARS', minutes: 'LOGGED MIN', note: 'DESCRIPTION', notes: 'NOTES' }, 'a label is the column’s own head word — no second word for a thing the table already names'); // TIMESHEET-04b (2026-11-27): NOTES, the new column's own head word
+  for (const column of ['went', 'actual', 'stars', 'loggedMinutes', 'description', 'notes'] as const) assert.ok(Object.values(RECORD_FIELD_WORDS).includes(headWordOf(column)), `${column}: the head word`);
+  assert.equal(LEDGER_COLUMNS.length, 23, 'TIMESHEET-02 added no column; TIMESHEET-04b two'); // TIMESHEET-04b (2026-11-27): twenty-three — 21, and 'no column is added', until then
   assert.equal(STARS_RUBRIC_WORDS, [5, 4, 3, 2, 1].map((n) => `${n} — ${RATING_WORDS[n as 1 | 2 | 3 | 4 | 5]}`).join(' · '), 'the rubric, five to one');
   assert.match(comments(LEAF), /RecordForm — A ROW'S RECORD, ON THE TIME SHEET \(TIMESHEET-02, Alex, 2026-11-24\)\./);
 });
@@ -793,9 +796,9 @@ test('T10 the section: the "record" chip in the WENT cell on every row whose ent
   assert.match(s, /\{period !== null && \(answer === null \|\| reading\) && <div className="text-xs text-text-muted" data-ledger-loading>\{LEDGER_LOADING_WORDS\}<\/div>\}/);
   assert.match(s, /loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName=\{LEDGER_TABLE_CLASS\}/, 'loaded as it was; the table’s floor as it was, inside the rule’s class'); // TIMEWIDE-01 (Alex, 2026-11-24): the table's class is the rule file's LEDGER_TABLE_CLASS — its floor still min-w-[96rem] (timewide01.test.ts); `tableClassName="min-w-[96rem]"`, 'the table’s width as it was', until then
   assert.match(code(TABLE), /\{loaded && rows\.length > 0 && \(\n\s*<div className="overflow-x-auto border border-border rounded bg-white">/, 'the shared table still draws only while loaded — it is not edited');
-  // One cell per head word, in its order — no column added.
+  // One cell per head word, in its order — TIMESHEET-02 added no column. TIMESHEET-04b (2026-11-27): twenty-three — the instagram-tag cell after vendor's, the notes cell after description's; 21 until then.
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
-  assert.equal(cells.length, 21);
+  assert.equal(cells.length, 23);
   assert.equal((s.match(/colSpan=\{LEDGER_HEAD_WORDS\.length - dayFoldCount\(period\)\}/g) ?? []).length, 2, 'the two rows beneath span every column shown'); // TIMEDAY-01 (Alex, 2026-11-24): both rows span the columns still shown, the same way — `/colSpan=\{LEDGER_HEAD_WORDS\.length\}/g`, 'the two rows beneath span every column', until then
   assert.match(comments(SECTION), /TIMESHEET-02 \(Alex, 2026-11-24\): THE TIME SHEET, PART TWO — RECORD ON THE ROW\./);
   assert.match(comments(RULES), /TIMESHEET-02 \(Alex, 2026-11-24\) — THE TIME SHEET, PART TWO: RECORD ON THE ROW\./);
@@ -826,7 +829,7 @@ test('T10 on top of TIMESHEET-03: the answer’s nine keys in order, `tones` bui
   assert.match(s, /<td className=\{`\$\{cell\} \$\{row\.coa === null \|\| row\.coa\.name === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="account-name">\{accountPill === null \? accountNameCellWords\(row\) : <span className=\{accountPill\} data-ledger-pill="account-name">\{accountNameCellWords\(row\)\}<\/span>\}<\/td>/);
   // The tint: on BUDGET, VARIANCE, MATCH and UNDER / OVER and on no other cell — WENT, where the chip stands, is not tinted.
   const cells = [...s.matchAll(/<td className=\{`([^\n]*?)`\} data-ledger-cell="([a-z-]+)"/g)].map((m) => ({ name: m[2], tinted: m[1].includes('${NOT_TYPED_TINT}') }));
-  assert.equal(cells.length, 21);
+  assert.equal(cells.length, 23); // TIMESHEET-04b (2026-11-27): twenty-three cells, the two new ones untinted (a tag and notes are typed, not worked out) — 21 until then
   assert.deepEqual(cells.filter((c) => c.tinted).map((c) => c.name), ['budget', 'variance', 'match', 'under-over']);
   assert.match(s, /const NOT_TYPED_TINT = 'bg-blue-50';/);
   // The legend: where it stood, on the same condition — it does not read `reading`, so it stays while a re-read of the same span is in flight (rows are still shown).

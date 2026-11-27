@@ -222,7 +222,7 @@ test('C Expenses: the month leaves the reversed posting out of MATCH and says so
 // The ledger: a stepless client lunch with a record of $30 and two links, one reversed.
 const CLIENT_13 = '2026-10-13T05:30:00.000Z';
 const CLIENT: RoutinePlanInput = { id: 'client', name: 'Client lunch', entityId: 'B', entityType: 'sole_prop', timezone: BKK, scheduleRrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=30', startDate: null, endDate: null, budgetAmount: 25, coaCode: '6100', steps: [], startTime: null, endTime: null, role: 'place' }; // SUPERSEDE-01c (2026-11-08): the role, stated — the place its record names
-const clientRecord: StopRecordRow = { id: 'r-client-13', kind: 'routine', target_id: 'client', occurrence_at: CLIENT_13, outcome: 'done', done_at: CLIENT_13, actual_cents: 3000, rating: null, note: null, actual_minutes: null };
+const clientRecord: StopRecordRow = { id: 'r-client-13', kind: 'routine', target_id: 'client', occurrence_at: CLIENT_13, outcome: 'done', done_at: CLIENT_13, actual_cents: 3000, rating: null, note: null, notes: null, actual_minutes: null };
 const RECORDS: LedgerRecordInput[] = [{ record: clientRecord, routineId: 'client', routineName: 'Client lunch', zone: BKK, role: 'place', activity: null, timeOfDay: null, durationMinutes: null }];
 const built = buildRoutineBudgetLines([CLIENT], '2026-10-13', '2026-10-13');
 const ledgerInput = (links: readonly LedgerLinkInput[]): LedgerInput => ({

@@ -11,7 +11,7 @@
  *      plan words (StopRecordPlan: the routine's name and zone, the line's
  *      activity), so the card can name a record that matches no stop and the
  *      stop it may attach to; the record's own shape is unchanged.
- * POST { kind, id, instant, outcome, done_at?, actual_cents?, rating?, note?,
+ * POST { kind, id, instant, outcome, done_at?, actual_cents?, rating?, note?, notes?,
  *      actual_minutes? } → 201 { record, changed: true } (new) · 200 (changed)
  *      · 200 { record, changed: false } (the same values again — nothing
  *      written, nothing audited). Read by the one rule (stopInput — a 400 names
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
     }
 
     const plan = planOf(v.kind, v.id);
-    const data = { outcome: v.outcome, done_at: v.doneAt, actual_cents: v.actualCents, rating: v.rating, note: v.note, actual_minutes: v.actualMinutes };
+    const data = { outcome: v.outcome, done_at: v.doneAt, actual_cents: v.actualCents, rating: v.rating, note: v.note, notes: v.notes, actual_minutes: v.actualMinutes }; // TIMESHEET-04b (2026-11-27): the stop's notes ride with the record (stopRecord.ts stopInput reads them) — a record is still written whole: a body that names no notes writes none
     // TASKS-ONE-02: the record and the routine's completion in ONE transaction, the routine's row held first.
     let written: { readonly unchanged: StopRecordRow } | { readonly before: StopRecordRow | null; readonly after: StopRecordRow; readonly change: CompletionChange | null };
     try {

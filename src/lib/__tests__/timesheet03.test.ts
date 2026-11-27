@@ -18,7 +18,7 @@ import { createHash } from 'node:crypto';
 import colors from 'tailwindcss/colors';
 import { code, comments, functionBody, rejoin } from '../sourceText';
 import { buildRoutineBudgetLines, type RoutineLinePlanInput, type RoutinePlanInput } from '../budget/days';
-import type { PlanVendorRow, RoutineWords } from '../budget/planLines';
+import type { RoutineWords } from '../budget/planLines';
 import type { StayRow } from '../operations/stay';
 import type { StopRecordRow } from '../operations/stopRecord';
 import { TOOL_REGISTRY } from '../toolRegistry';
@@ -27,7 +27,7 @@ import { readLedger } from '@/components/workbench/operations/ledger/ledgerReads
 import {
   ACCOUNT_TONES, BOOK_TONES, BOOK_WORDS, LEDGER_COLUMNS, LEDGER_HEAD_WORDS, NEUTRAL_TONE, NOT_TYPED_WORDS, PILL_CLASS,
   accountCellWords, accountNameCellWords, accountPillClassOf, accountPlacesOf, bookCellWords, bookPillClassOf, ledgerCsv, ledgerFailedWords, ledgerOf, placeOf, planMinutesOf, toneOfPlace,
-  type AccountPlaces, type LedgerInput, type LedgerLinkInput, type LedgerRecordInput, type LedgerRow,
+  type AccountPlaces, type LedgerInput, type LedgerLinkInput, type LedgerRecordInput, type LedgerRow, type LedgerVendorRow,
 } from '../operations/ledger';
 
 const RULES = 'src/lib/operations/ledger.ts';
@@ -242,8 +242,8 @@ const WORDS = new Map<string, RoutineWords>(ROUTINES.map((r): [string, RoutineWo
   name: r.name, timezone: NBO,
   steps: new Map(r.id === 'lunch' ? [['soup', { activity: 'Soup', timeOfDay: '12:45' }], ['bread', { activity: 'Bread', timeOfDay: null }]] : []),
 }]));
-const VENDORS: PlanVendorRow[] = [
-  { id: 'pv-soup', routine_id: null, step_id: 'soup', task_id: null, occurrence_at: null, vendor: { id: 'v1', vendor_name: 'Ladle & Co', entity_id: 'P' }, routine: null, step: { activity: 'Soup', routine_id: 'lunch', routine: { name: 'Lunch', timezone: NBO } }, task: null },
+const VENDORS: LedgerVendorRow[] = [ // TIMESHEET-04b (2026-11-27): the ledger's vendor rows carry their planned items and their vendor's Instagram tag (ledger.ts LedgerVendorRow; PlanVendorRow until then) — none in this fixture
+  { id: 'pv-soup', routine_id: null, step_id: 'soup', task_id: null, occurrence_at: null, items: null, vendor: { id: 'v1', vendor_name: 'Ladle & Co', entity_id: 'P', instagram_tag: null }, routine: null, step: { activity: 'Soup', routine_id: 'lunch', routine: { name: 'Lunch', timezone: NBO } }, task: null },
 ];
 /** Tuesday on — Monday has no stay. */
 const STAYS: StayRow[] = [{ id: 'em', place: 'Eastmere, Sylvania', starts_on: TUE, ends_on: '2027-05-20' }];
@@ -251,7 +251,7 @@ const ACCOUNTS = [{ entityId: 'P', code: '6150', name: 'Dining Out' }, { entityI
 const BOOKS = [{ id: 'P', entityType: 'personal' }, { id: 'B', entityType: 'sole_prop' }, { id: 'T', entityType: 'trading' }];
 
 const record = (over: Partial<StopRecordRow> & { id: string; kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
-  outcome: 'done', done_at: over.occurrence_at, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+  outcome: 'done', done_at: over.occurrence_at, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
 });
 const line = (r: StopRecordRow, activity: string, timeOfDay: string | null, durationMinutes: number | null): LedgerRecordInput => ({ record: r, routineId: 'lunch', routineName: 'Lunch', zone: NBO, role: 'place', activity, timeOfDay, durationMinutes });
 const stop = (routineId: string, routineName: string, role: string, r: StopRecordRow): LedgerRecordInput => ({ record: r, routineId, routineName, zone: NBO, role, activity: null, timeOfDay: null, durationMinutes: null });
@@ -272,31 +272,35 @@ const ledger = ledgerOf(INPUT);
 // ── WHAT MAIN GIVES: ledgerOf(INPUT).rows and ledgerCsv(ledgerOf(INPUT).sheet), computed on main e0fd7bf over this fixture — the rule
 //    before this change — pinned here so neither can drift under the new look. ──
 
+// TIMESHEET-04b (2026-11-27): a recorded row holds two fields more — instagramTag after vendor, notes after note. Each row below says them: null, for this fixture's
+// vendors hold no tag and its records no notes. Every other field of every row is as it was pinned.
 const MAIN_ROWS: readonly LedgerRow[] = [
-  { id: 'r-kiosk-1', key: 'routine:kiosk:2027-05-10T07:00:00.000Z', address: { kind: 'routine', id: 'kiosk', instant: '2027-05-10T07:00:00.000Z' }, match: null, day: '2027-05-10', time: '10:00', place: null, book: null, coa: null, vendor: null, description: 'Kiosk', rating: null, note: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 150, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-print-1', key: 'routine:print:2027-05-10T08:00:00.000Z', address: { kind: 'routine', id: 'print', instant: '2027-05-10T08:00:00.000Z' }, match: null, day: '2027-05-10', time: '11:00', place: null, book: 'Business', coa: { account: 'B-6400', name: 'Printing' }, vendor: null, description: 'Print shop', rating: null, note: 'thirty copies, two-sided', cents: 750, budgetState: 'matched', outcome: 'done', actualCents: 700, varianceCents: -50, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-bread-1', key: 'line:bread:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'bread', instant: '2027-05-10T09:30:00.000Z' }, match: null, day: '2027-05-10', time: '12:30', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, description: 'Bread', rating: null, note: 'sold out', cents: 225, budgetState: 'matched', outcome: 'skipped', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-soup-1', key: 'line:soup:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'soup', instant: '2027-05-10T09:30:00.000Z' }, match: { cents: 600, postings: 1, unreadable: 0, reversed: 0 }, day: '2027-05-10', time: '12:45', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Ladle & Co', description: 'Soup', rating: 4, note: 'with rice', cents: 550, budgetState: 'matched', outcome: 'done', actualCents: 600, varianceCents: 50, plannedMinutes: 20, loggedMinutes: 18 },
+  { id: 'r-kiosk-1', key: 'routine:kiosk:2027-05-10T07:00:00.000Z', address: { kind: 'routine', id: 'kiosk', instant: '2027-05-10T07:00:00.000Z' }, match: null, day: '2027-05-10', time: '10:00', place: null, book: null, coa: null, vendor: null, instagramTag: null, description: 'Kiosk', rating: null, note: null, notes: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 150, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-print-1', key: 'routine:print:2027-05-10T08:00:00.000Z', address: { kind: 'routine', id: 'print', instant: '2027-05-10T08:00:00.000Z' }, match: null, day: '2027-05-10', time: '11:00', place: null, book: 'Business', coa: { account: 'B-6400', name: 'Printing' }, vendor: null, instagramTag: null, description: 'Print shop', rating: null, note: 'thirty copies, two-sided', notes: null, cents: 750, budgetState: 'matched', outcome: 'done', actualCents: 700, varianceCents: -50, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-bread-1', key: 'line:bread:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'bread', instant: '2027-05-10T09:30:00.000Z' }, match: null, day: '2027-05-10', time: '12:30', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Bread', rating: null, note: 'sold out', notes: null, cents: 225, budgetState: 'matched', outcome: 'skipped', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-soup-1', key: 'line:soup:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'soup', instant: '2027-05-10T09:30:00.000Z' }, match: { cents: 600, postings: 1, unreadable: 0, reversed: 0 }, day: '2027-05-10', time: '12:45', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Ladle & Co', instagramTag: null, description: 'Soup', rating: 4, note: 'with rice', notes: null, cents: 550, budgetState: 'matched', outcome: 'done', actualCents: 600, varianceCents: 50, plannedMinutes: 20, loggedMinutes: 18 },
 ];
+// TIMESHEET-04b (2026-11-27): each line below gained an empty field after VENDOR (INSTAGRAM TAG) and an empty field at its end (NOTES), and the header its two words — no
+// vendor of this fixture holds a tag, no plan planned items, no record notes. Every other field of every line is as main wrote it.
 const MAIN_CSV_LINES: readonly string[] = [
-  'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION',
-  'Monday,2027-05-10,07:00,,,,Personal,P-6200,Sport,Swim,,not recorded,,,,4.00,,,,,',
-  'Monday,2027-05-10,10:00,,,,,,,Kiosk,,went,,,,,1.50,,,,',
-  'Monday,2027-05-10,11:00,,,,Business,B-6400,Printing,Print shop,,went,,,,7.50,7.00,-0.50,,under,"thirty copies, two-sided"',
-  'Monday,2027-05-10,12:30,,,,Personal,P-6150,Dining Out,Bread,,skipped,,,,2.25,,,,,sold out',
-  'Monday,2027-05-10,12:45,13:05,,,Personal,P-6150,Dining Out,Soup,Ladle & Co,went,4,20,18,5.50,6.00,0.50,6.00,over,with rice',
-  'Monday,2027-05-10,15:00,,,,Personal,P-6150,Dining Out,Tea,,not recorded,,,,3.00,,,,,',
-  'Tuesday,2027-05-11,all day,,Eastmere,Sylvania,Trading,T-5010,,Desk fee,,,,,,9.75,,,,,',
-  'Tuesday,2027-05-11,07:00,,Eastmere,Sylvania,Personal,P-6200,Sport,Swim,,not recorded,,,,4.00,,,,,',
-  'Tuesday,2027-05-11,11:00,,Eastmere,Sylvania,Business,B-6400,Printing,Print shop,,not recorded,,,,7.50,,,,,',
-  'Tuesday,2027-05-11,12:30,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Bread,,planned,,,,2.25,,,,,',
-  'Tuesday,2027-05-11,12:45,13:05,Eastmere,Sylvania,Personal,P-6150,Dining Out,Soup,Ladle & Co,planned,,20,,5.50,,,,,',
-  'Tuesday,2027-05-11,15:00,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Tea,,planned,,,,3.00,,,,,',
-  'Wednesday,2027-05-12,07:00,,Eastmere,Sylvania,Personal,P-6200,Sport,Swim,,planned,,,,4.00,,,,,',
-  'Wednesday,2027-05-12,11:00,,Eastmere,Sylvania,Business,B-6400,Printing,Print shop,,planned,,,,7.50,,,,,',
-  'Wednesday,2027-05-12,12:30,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Bread,,planned,,,,2.25,,,,,',
-  'Wednesday,2027-05-12,12:45,13:05,Eastmere,Sylvania,Personal,P-6150,Dining Out,Soup,Ladle & Co,planned,,20,,5.50,,,,,',
-  'Wednesday,2027-05-12,15:00,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Tea,,planned,,,,3.00,,,,,',
+  'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,INSTAGRAM TAG,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION,NOTES',
+  'Monday,2027-05-10,07:00,,,,Personal,P-6200,Sport,Swim,,,not recorded,,,,4.00,,,,,,',
+  'Monday,2027-05-10,10:00,,,,,,,Kiosk,,,went,,,,,1.50,,,,,',
+  'Monday,2027-05-10,11:00,,,,Business,B-6400,Printing,Print shop,,,went,,,,7.50,7.00,-0.50,,under,"thirty copies, two-sided",',
+  'Monday,2027-05-10,12:30,,,,Personal,P-6150,Dining Out,Bread,,,skipped,,,,2.25,,,,,sold out,',
+  'Monday,2027-05-10,12:45,13:05,,,Personal,P-6150,Dining Out,Soup,Ladle & Co,,went,4,20,18,5.50,6.00,0.50,6.00,over,with rice,',
+  'Monday,2027-05-10,15:00,,,,Personal,P-6150,Dining Out,Tea,,,not recorded,,,,3.00,,,,,,',
+  'Tuesday,2027-05-11,all day,,Eastmere,Sylvania,Trading,T-5010,,Desk fee,,,,,,,9.75,,,,,,',
+  'Tuesday,2027-05-11,07:00,,Eastmere,Sylvania,Personal,P-6200,Sport,Swim,,,not recorded,,,,4.00,,,,,,',
+  'Tuesday,2027-05-11,11:00,,Eastmere,Sylvania,Business,B-6400,Printing,Print shop,,,not recorded,,,,7.50,,,,,,',
+  'Tuesday,2027-05-11,12:30,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Bread,,,planned,,,,2.25,,,,,,',
+  'Tuesday,2027-05-11,12:45,13:05,Eastmere,Sylvania,Personal,P-6150,Dining Out,Soup,Ladle & Co,,planned,,20,,5.50,,,,,,',
+  'Tuesday,2027-05-11,15:00,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Tea,,,planned,,,,3.00,,,,,,',
+  'Wednesday,2027-05-12,07:00,,Eastmere,Sylvania,Personal,P-6200,Sport,Swim,,,planned,,,,4.00,,,,,,',
+  'Wednesday,2027-05-12,11:00,,Eastmere,Sylvania,Business,B-6400,Printing,Print shop,,,planned,,,,7.50,,,,,,',
+  'Wednesday,2027-05-12,12:30,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Bread,,,planned,,,,2.25,,,,,,',
+  'Wednesday,2027-05-12,12:45,13:05,Eastmere,Sylvania,Personal,P-6150,Dining Out,Soup,Ladle & Co,,planned,,20,,5.50,,,,,,',
+  'Wednesday,2027-05-12,15:00,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Tea,,,planned,,,,3.00,,,,,,',
 ];
 const MAIN_CSV = MAIN_CSV_LINES.map((l) => `${l}\r\n`).join('');
 
@@ -323,10 +327,10 @@ test('T4 the CSV for the fixture is byte for byte what it is on main — no colu
   const csv = ledgerCsv(ledger.sheet);
   assert.equal(csv, MAIN_CSV);
   assert.deepEqual(csv.split('\r\n'), [...MAIN_CSV_LINES, ''], 'line for line');
-  assert.deepEqual([Buffer.byteLength(csv, 'utf8'), sha256(csv)], [1862, '7c8be5dde9b1ffcd5e4a8d013d5ea5a21d60d4315ebae646e922834cf127256b'], 'the bytes main writes');
-  assert.equal(MAIN_CSV_LINES[0], LEDGER_HEAD_WORDS.join(','), 'the twenty-one heads, in their order');
-  assert.equal(LEDGER_COLUMNS.length, 21);
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
+  assert.deepEqual([Buffer.byteLength(csv, 'utf8'), sha256(csv)], [1916, '6f4915962b062b5a49617aa940bc98633bf81ec86804d9082c6f17218e2f6d30'], 'the bytes main writes'); // TIMESHEET-04b (2026-11-27): the file gains two columns — the header its two words (20 bytes), each of the seventeen lines an empty field after VENDOR and one at its end (34 bytes); every other byte is as it was. 1862 bytes, 7c8be5dde9b1ffcd5e4a8d013d5ea5a21d60d4315ebae646e922834cf127256b until then
+  assert.equal(MAIN_CSV_LINES[0], LEDGER_HEAD_WORDS.join(','), 'the twenty-three heads, in their order');
+  assert.equal(LEDGER_COLUMNS.length, 23); // TIMESHEET-04b (2026-11-27): twenty-three — 21 until then
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION', 'NOTES']); // TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then
   assert.doesNotMatch(csv, /bg-|text-|rounded|inline-block/, 'no class in the file');
   // The CSV's fields are the spec's, as they were: nothing here reads a tone.
   const rules = code(RULES);
@@ -368,7 +372,7 @@ test('T5 the answer carries `tones` beside the rest, after `sheet` — the place
     { id: 'dues', name: 'Dues', role: 'all_day', is_active: true, end_date: null, start_date: null, budget_amount: 30, coa_code: '7450', schedule_rrule: 'FREQ=MONTHLY;BYMONTHDAY=28;BYHOUR=0;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null, steps: [] },
   ];
   const RECORD_ROW = {
-    id: 'rec-swim', routine_id: 'swim', step_id: null, occurrence_at: day(at(TUE, '07:00')), outcome: 'done', done_at: day(at(TUE, '07:40')), actual_cents: 400, rating: 3, note: null, actual_minutes: 35,
+    id: 'rec-swim', routine_id: 'swim', step_id: null, occurrence_at: day(at(TUE, '07:00')), outcome: 'done', done_at: day(at(TUE, '07:40')), actual_cents: 400, rating: 3, note: null, notes: null, actual_minutes: 35, // TIMESHEET-04b (2026-11-27): the table holds a notes column — the fake row says it, as the database would
     routine: { name: 'Swim', timezone: NBO, role: 'none', start_time: null, end_time: null }, step: null,
   };
   const calls: Call[] = [];
@@ -488,7 +492,7 @@ test('T6 the tint: BUDGET, VARIANCE, MATCH and UNDER / OVER carry it on every bo
   assert.match(s, /<td className=\{`\$\{cell\} whitespace-nowrap \$\{NOT_TYPED_TINT\} \$\{row\.varianceCents === null \? BLANK_CLASS : actualTone\(delta\.over\)\}`\} data-ledger-cell="under-over">\{underOverWords\(row\.varianceCents\)\}<\/td>/);
   // Exactly those four of the twenty-one — ACTUAL, among them, is typed on a row and is not tinted.
   const cells = [...s.matchAll(/<td className=\{`([^\n]*?)`\} data-ledger-cell="([a-z-]+)"/g)].map((m) => ({ name: m[2], tinted: m[1].includes('${NOT_TYPED_TINT}') }));
-  assert.deepEqual(cells.map((c) => c.name), ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description'], 'one cell per head word, in its order — none added, none moved');
+  assert.deepEqual(cells.map((c) => c.name), ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'instagram-tag', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description', 'notes'], 'one cell per head word, in its order — none added, none moved'); // TIMESHEET-04b (2026-11-27): the instagram-tag cell after vendor's, the notes cell after description's — twenty-three cells
   assert.deepEqual(cells.filter((c) => c.tinted).map((c) => c.name), ['budget', 'variance', 'match', 'under-over']);
   // The TOTAL row is not tinted.
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));

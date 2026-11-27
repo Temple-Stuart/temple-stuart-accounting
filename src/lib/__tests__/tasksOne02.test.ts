@@ -153,7 +153,7 @@ function fakeTx(opts: { lines?: string[]; records?: StopRecordDbRow[]; completio
   };
   return { tx: tx as never, calls, completions };
 }
-const record = (over: Partial<StopRecordDbRow>): StopRecordDbRow => ({ id: 'rec-1', routine_id: ROUTINE, step_id: null, occurrence_at: new Date(AT), outcome: 'done', done_at: new Date('2026-10-13T00:12:00.000Z'), actual_cents: null, rating: null, note: null, actual_minutes: null, ...over });
+const record = (over: Partial<StopRecordDbRow>): StopRecordDbRow => ({ id: 'rec-1', routine_id: ROUTINE, step_id: null, occurrence_at: new Date(AT), outcome: 'done', done_at: new Date('2026-10-13T00:12:00.000Z'), actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over });
 const completion = (over: Partial<Completion> = {}): Completion => ({ id: 'c-old', routine_id: ROUTINE, user_id: USER, expected_at: new Date(AT), completed_at: new Date('2026-10-13T00:12:00.000Z'), delta_minutes: 12, notes: null, created_at: new Date(AT), ...over });
 const NOW = new Date('2026-10-15T05:00:00.000Z'); // two days on — so "from completed_at" and "from now" answer differently
 const sync = (tx: never) => syncCompletion(tx, { userId: USER, routineId: ROUTINE, expectedAt: new Date(AT), now: NOW });

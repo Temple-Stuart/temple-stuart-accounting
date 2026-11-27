@@ -34,13 +34,22 @@
  * card mounts stops/StopVendor.tsx above this form, by day/dayCard.ts
  * vendorSlot. "A PLACE stop asks for its vendor" above now reads: every priced
  * stop shows its vendor box; a place stop with no line keeps its one reason.
+ *
+ * TIMESHEET-04b (Alex, 2026-11-27) — A RECORD'S NOTES RIDE WITH EVERY SAVE FROM THE
+ * CARD. A record may hold notes now (stopRecord.ts — up to NOTES_MAX characters,
+ * typed on the time sheet's row). No role asks for them here, so by this form's
+ * own idiom for such a box they are SHOWN whenever the held record carries some —
+ * read, corrected or cleared in the open — and sent with the body, trimmed, null
+ * when blank. A record is written whole (the stops POST), so without the box a
+ * save from the card would clear them unseen. With none held, no notes box is
+ * drawn: the card is not where notes are first typed.
  */
 
 'use client';
 
 import { useState } from 'react';
 import { centsFromDecimalString } from '@/lib/budget/days';
-import { NEGATIVE_AMOUNT_WORDS, RATING_WORDS, SKIP_REASON_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, minutesTypedWords, timeBoxWords, type StopOutcome } from '@/lib/operations/stopRecord';
+import { NEGATIVE_AMOUNT_WORDS, NOTES_MAX, RATING_WORDS, SKIP_REASON_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, minutesTypedWords, timeBoxWords, type StopOutcome } from '@/lib/operations/stopRecord';
 import { NOTE_PROMPT_WORDS, type StopRole } from '@/lib/operations/stopRole';
 import { JOURNAL_RECORD_WORDS } from '@/lib/operations/journal';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
@@ -61,6 +70,8 @@ interface Draft {
   readonly rating: number | null;
   readonly minutes: string;
   readonly note: string;
+  /** TIMESHEET-04b (2026-11-27): the record's notes — '' with none. */
+  readonly notes: string;
 }
 
 /** Cents as the dollars box shows them: '12.50', '12', '' for none. */
@@ -76,6 +87,7 @@ function draftOf(stop: Stop, day: string): Draft {
     rating: r === null ? null : r.rating,
     minutes: r === null || r.actual_minutes === null ? '' : String(r.actual_minutes),
     note: r === null || r.note === null ? '' : r.note,
+    notes: r === null || r.notes === null ? '' : r.notes,
   };
 }
 
@@ -115,6 +127,8 @@ export default function StopForm({ stop, day, viewerZone, onChanged }: { stop: S
     rating: asks.rating || draft.rating !== null,
     minutes: asks.minutes || draft.minutes !== '',
     note: asks.note || draft.note !== '',
+    // TIMESHEET-04b (2026-11-27): no role asks for notes — the box shows only while the record holds some.
+    notes: draft.notes !== '',
   };
 
   /** The body the route reads, or the form's own refusal — nothing guessed. */
@@ -144,9 +158,11 @@ export default function StopForm({ stop, day, viewerZone, onChanged }: { stop: S
     }
     const note = shown.note ? d.note.trim() : '';
     if (d.outcome === 'skipped' && note === '') return { ok: false, message: SKIP_REASON_WORDS };
+    // TIMESHEET-04b (2026-11-27): the notes box is on the screen exactly while it holds text, so what is sent is what is shown — trimmed, null when blank.
+    const notes = d.notes.trim();
     return {
       ok: true,
-      body: { kind: address.kind, id: address.id, instant: address.instant, outcome: d.outcome, done_at: doneAt, actual_cents: actualCents, rating: shown.rating ? d.rating : null, note: note === '' ? null : note, actual_minutes: actualMinutes },
+      body: { kind: address.kind, id: address.id, instant: address.instant, outcome: d.outcome, done_at: doneAt, actual_cents: actualCents, rating: shown.rating ? d.rating : null, note: note === '' ? null : note, notes: notes === '' ? null : notes, actual_minutes: actualMinutes },
     };
   };
 
@@ -230,6 +246,9 @@ export default function StopForm({ stop, day, viewerZone, onChanged }: { stop: S
         )}
         {shown.note && (
           <input type="text" value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder={draft.outcome === 'skipped' ? 'why — required' : NOTE_PROMPT_WORDS[role]} aria-label="Description" className={`${box} w-56`} maxLength={280} data-stop-note />
+        )}
+        {shown.notes && (
+          <input type="text" value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} placeholder="notes" aria-label="Notes" className={`${box} w-72`} maxLength={NOTES_MAX} data-stop-notes />
         )}
         <button type="submit" className={chip} disabled={busy}>save</button>
         {stop.record !== null && <button type="button" className={chip} disabled={busy} onClick={clear} data-stop-clear>clear</button>}

@@ -1,7 +1,7 @@
 /**
  * stopWrites — the ONE writer of a stop's record from the screen (STOP-01, 2026-10-12).
  *
- *   · set:   POST /api/operations/stops            { kind, id, instant, outcome, done_at, actual_cents, rating, note, actual_minutes }
+ *   · set:   POST /api/operations/stops            { kind, id, instant, outcome, done_at, actual_cents, rating, note, notes, actual_minutes }
  *   · clear: DELETE /api/operations/stops/[id]
  *   · move:  PATCH /api/operations/stops/[id]       { instant } — RETRO-01 (2026-10-16): a record that matches no stop re-attaches to its stop
  *
@@ -25,7 +25,7 @@ export interface StopBody {
   readonly done_at: string | null;
   readonly actual_cents: number | null;
   readonly rating: number | null;
-  readonly note: string | null;
+  readonly note: string | null; readonly notes: string | null; // TIMESHEET-04b (2026-11-27): the stop's notes — on this line so no line the registry cites in this file moves. Every sender of a body SAYS its notes (null for none): a record is written whole, so a body that left them out would clear them
   readonly actual_minutes: number | null;
 }
 

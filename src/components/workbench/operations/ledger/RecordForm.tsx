@@ -27,7 +27,7 @@
  * this leaf bounds its own width, so the block sits with the form, to the left.
  *
  * THE FORM: went | skipped (the WENT column's own two words), ACTUAL, STARS
- * (a box, 1 to 5, its title the rubric), LOGGED MIN, DESCRIPTION, then save,
+ * (a box, 1 to 5, its title the rubric), LOGGED MIN, DESCRIPTION, NOTES (TIMESHEET-04b, 2026-11-27: the record's notes, never required; the draft is the row's — ledger.ts rowDraftOf, the blank draft with DESCRIPTION holding the row's planned items), then save,
  * clear (only when a record is held) and cancel. A <form>: Enter saves. The
  * draft, the rule and the body are ledger.ts's (recordDraftOf, recordInput —
  * the clock handed in: the browser's, read once at save); every label is the
@@ -49,10 +49,10 @@
 
 import { useState } from 'react';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
-import { NOTE_MAX, SKIPPED_WORD, clearStopQuestion } from '@/lib/operations/stopRecord';
+import { NOTES_MAX, NOTE_MAX, SKIPPED_WORD, clearStopQuestion } from '@/lib/operations/stopRecord';
 import {
   CANCEL_EXPENSE_WORDS, CLEAR_RECORD_WORDS, RECORD_FIELD_WORDS, RECORD_TITLE_WORDS, SAVE_RECORD_WORDS, SKIP_REASON_PLACEHOLDER_WORDS, STARS_RUBRIC_WORDS, WENT_WORD,
-  recordDraftOf, recordInput, wentCellWords,
+  recordInput, rowDraftOf, wentCellWords,
   type LedgerRecordingTaken, type LedgerSheetRow, type RecordDraft, type RecordField, type RecordWent,
 } from '@/lib/operations/ledger';
 import { useOperationsEntity } from '../EntitySelector';
@@ -81,7 +81,7 @@ type Refusal = { readonly field: RecordField | null; readonly message: string };
 
 export default function RecordForm({ row, entry, onWritten, onVendor, onClose }: Props) {
   const { entities } = useOperationsEntity();
-  const [draft, setDraft] = useState<RecordDraft>(() => recordDraftOf(entry.held));
+  const [draft, setDraft] = useState<RecordDraft>(() => rowDraftOf(row, entry.held)); // TIMESHEET-04b (2026-11-27): the row's own draft — its record's, or the blank draft with DESCRIPTION holding the row's planned items (recordDraftOf(entry.held) until then)
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -153,7 +153,7 @@ export default function RecordForm({ row, entry, onWritten, onVendor, onClose }:
         {field('actual', <input type="text" inputMode="decimal" value={draft.actual} onChange={(e) => set('actual')(e.target.value)} className={`${box} w-20 font-mono tabular-nums`} data-record-form-actual />)}
         {field('stars', <input type="text" inputMode="numeric" value={draft.stars} onChange={(e) => set('stars')(e.target.value)} className={`${box} w-10`} maxLength={1} title={STARS_RUBRIC_WORDS} data-record-form-stars />)}
         {field('minutes', <input type="text" inputMode="numeric" value={draft.minutes} onChange={(e) => set('minutes')(e.target.value)} className={`${box} w-16 font-mono tabular-nums`} data-record-form-minutes />)}
-        {field('note', <input type="text" value={draft.note} onChange={(e) => set('note')(e.target.value)} className={`${box} w-64`} maxLength={NOTE_MAX} placeholder={draft.went === SKIPPED_WORD ? SKIP_REASON_PLACEHOLDER_WORDS : undefined} data-record-form-note />)}
+        {field('note', <input type="text" value={draft.note} onChange={(e) => set('note')(e.target.value)} className={`${box} w-64`} maxLength={NOTE_MAX} placeholder={draft.went === SKIPPED_WORD ? SKIP_REASON_PLACEHOLDER_WORDS : undefined} data-record-form-note />)}{field('notes', <input type="text" value={draft.notes} onChange={(e) => set('notes')(e.target.value)} className={`${box} w-96`} maxLength={NOTES_MAX} data-record-form-notes />)}
         <button type="submit" className={chip} disabled={busy} aria-busy={busy} data-record-form-save>{SAVE_RECORD_WORDS}</button>
         {entry.held !== null && <button type="button" className={chip} disabled={busy} onClick={clear} data-record-form-clear>{CLEAR_RECORD_WORDS}</button>}
         <button type="button" className={chip} disabled={busy} onClick={onClose} data-record-form-cancel>{CANCEL_EXPENSE_WORDS}</button>

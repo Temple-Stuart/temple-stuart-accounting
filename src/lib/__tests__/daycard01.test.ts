@@ -801,7 +801,7 @@ type CleanId = (typeof CLEAN_STOPS)[number]['id'];
 /** The day with these actuals recorded (each a done record with its amount); null — the records were not read. */
 function cleanDay(actuals: Partial<Record<CleanId, number>> | null, more: TodayRoutineEntry[] = []) {
   const records = actuals === null ? null : CLEAN_STOPS.filter((s) => actuals[s.id] !== undefined).map((s): StopRecordRow => ({
-    id: `rec-${s.id}`, kind: 'routine', target_id: s.id, occurrence_at: s.at, outcome: 'done', done_at: s.at, actual_cents: actuals[s.id] as number, rating: null, note: null, actual_minutes: null,
+    id: `rec-${s.id}`, kind: 'routine', target_id: s.id, occurrence_at: s.at, outcome: 'done', done_at: s.at, actual_cents: actuals[s.id] as number, rating: null, note: null, notes: null, actual_minutes: null,
   }));
   return dayStops(input({
     entries: [...CLEAN_STOPS.map((s) => entry(routine({ id: s.id, name: s.name, role: 'place', schedule_rrule: `FREQ=DAILY;BYHOUR=${s.hour};BYMINUTE=0` }), 'pending', s.at)), ...more],

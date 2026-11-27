@@ -101,7 +101,7 @@ const lines = [
   line({ address: { kind: 'routine', id: 'gym', instant: AT.gym }, cents: 2000, label: 'Gym' }),
 ];
 const record = (id: 'cowork' | 'dinner' | 'gym', actual: number): StopRecordRow => ({
-  id: `rec-${id}`, kind: 'routine', target_id: id, occurrence_at: AT[id], outcome: 'done', done_at: AT[id], actual_cents: actual, rating: null, note: null, actual_minutes: null,
+  id: `rec-${id}`, kind: 'routine', target_id: id, occurrence_at: AT[id], outcome: 'done', done_at: AT[id], actual_cents: actual, rating: null, note: null, notes: null, actual_minutes: null,
 });
 /** SUPERSEDE-01b (ruling J): a fixture routine as the report's plan input — the loader's fields; this file's routines carry no lines. */
 const planInputOf = (r: Routine): RoutinePlanInput => {

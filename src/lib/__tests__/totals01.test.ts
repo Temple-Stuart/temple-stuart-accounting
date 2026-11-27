@@ -72,7 +72,7 @@ const hboLine = line({ address: { kind: 'routine', id: 'hbo', instant: HBO_AT },
 /** The day with these actuals recorded (done records with amounts); null — the records were not read; extra entries and lines on top. */
 function day(actuals: Partial<Record<Id, number>> | null, more: { entries?: TodayRoutineEntry[]; lines?: PlanLine[] } = {}) {
   const records = actuals === null ? null : STOPS.filter((s) => actuals[s.id] !== undefined).map((s): StopRecordRow => ({
-    id: `rec-${s.id}`, kind: 'routine', target_id: s.id, occurrence_at: s.at, outcome: 'done', done_at: s.at, actual_cents: actuals[s.id] as number, rating: null, note: null, actual_minutes: null,
+    id: `rec-${s.id}`, kind: 'routine', target_id: s.id, occurrence_at: s.at, outcome: 'done', done_at: s.at, actual_cents: actuals[s.id] as number, rating: null, note: null, notes: null, actual_minutes: null,
   }));
   return dayStops(input({
     entries: [...STOPS.map((s) => entry(routine({ id: s.id, name: s.name, role: 'place', schedule_rrule: `FREQ=DAILY;BYHOUR=${s.hour};BYMINUTE=0` }), s.at)), ...(more.entries ?? [])],
@@ -188,7 +188,7 @@ test('T1 the meter and the verdict measure the TOTAL row — its ACTUAL against 
   const gymOnly = dayStops(input({
     entries: [entry(routine({ id: 'gym', name: 'Gym', role: 'place', schedule_rrule: 'FREQ=DAILY;BYHOUR=20;BYMINUTE=0' }), GYM_AT), entry(hbo, HBO_AT)],
     lines: [hboLine],
-    records: [{ id: 'rec-gym', kind: 'routine', target_id: 'gym', occurrence_at: GYM_AT, outcome: 'done', done_at: GYM_AT, actual_cents: 500, rating: null, note: null, actual_minutes: null }],
+    records: [{ id: 'rec-gym', kind: 'routine', target_id: 'gym', occurrence_at: GYM_AT, outcome: 'done', done_at: GYM_AT, actual_cents: 500, rating: null, note: null, notes: null, actual_minutes: null }],
   }));
   const t = dayTotals(gymOnly, gymOnly.plannedCents);
   assert.deepEqual([gymOnly.plannedCents, t.budgetCents, t.actualCents], [1100, null, 500], 'the row reads TOTAL — | $5; the hero $11');

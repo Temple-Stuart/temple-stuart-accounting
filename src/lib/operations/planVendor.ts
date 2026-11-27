@@ -123,6 +123,9 @@ export function readVendorId(raw: unknown): string | null {
   return isValidUuid(raw) ? raw : null;
 }
 
+/** TIMESHEET-04b (2026-11-27): a tag as it is PRINTED — with its @. The directory keeps it without (readInstagramTag); the time sheet's cell and its CSV field print it through this one word (ledger.ts tagCellWords). */
+export const instagramTagWords = (tag: string): string => `@${tag}`;
+
 /** planned_item_vendors.items is VarChar(280) — counted in characters, as readVendorName counts a name. */
 export const PLANNED_ITEMS_MAX = 280;
 

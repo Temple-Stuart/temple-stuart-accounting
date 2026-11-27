@@ -633,15 +633,15 @@ function happenedAt(instant: string, cells: PasteCells, now: Date): { readonly h
   return { happened: { kind: 'not recorded' }, notWritten: cells.items === null ? [] : [ITEMS_NO_TOTAL_WORDS] };
 }
 
-/** The record form's boxes the paste fills, each under the sheet column it is filled from. It fills no stars and no minutes. */
-const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' | 'minutes'>, PasteHead>> = { went: 'Start Date', actual: 'Total (USD)', note: 'Items' };
+/** The record form's boxes the paste fills, each under the sheet column it is filled from. It fills no stars and no minutes. TIMESHEET-04b (2026-11-27): and no notes — the record form holds a NOTES box now, and the paste fills none until it reads a Notes column (TIMESHEET-04c). */
+const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' | 'minutes' | 'notes'>, PasteHead>> = { went: 'Start Date', actual: 'Total (USD)', note: 'Items' };
 /** "+ expense"'s boxes the paste fills, each under the sheet column it is filled from. It fills no stars. */
 const EXPENSE_HEADS: Readonly<Record<Exclude<ExpenseField, 'stars'>, PasteHead>> = {
   day: 'Start Date', time: 'Start Time', name: 'Type', amount: 'Budget (USD)', coa: 'Category', book: 'Entity', vendor: 'Vendor', actual: 'Total (USD)', note: 'Items',
 };
 /** A refusal of the record form's rule, in its own words, under the column its box was filled from. A box the paste never fills is this file's error, thrown by name. */
 function refusedByRecord(field: RecordField, message: string): PastePlacement {
-  if (field === 'stars' || field === 'minutes') throw new Error(`pasteRows: the record's rule refused ${field}, which the paste never fills — ${message}`);
+  if (field === 'stars' || field === 'minutes' || field === 'notes') throw new Error(`pasteRows: the record's rule refused ${field}, which the paste never fills — ${message}`);
   return { kind: 'refused', head: RECORD_HEADS[field], why: message };
 }
 /** A refusal of "+ expense"'s rule, in the form's own words, under the column its box was filled from. */
@@ -708,7 +708,7 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
     // saves a first went. A refusal of that rule refuses the row, in the rule's words, and the row holds no stop.
     let record: PasteRecordBody | null = null;
     if (happened.kind === 'went') {
-      const read = recordInput({ went: WENT_WORD, actual: csvMoney(happened.cents), stars: '', minutes: '', note: happened.items === null ? '' : happened.items }, stop.address, { plannedAt: entry.plannedAt, held: entry.held }, context.now);
+      const read = recordInput({ went: WENT_WORD, actual: csvMoney(happened.cents), stars: '', minutes: '', note: happened.items === null ? '' : happened.items, notes: '' }, stop.address, { plannedAt: entry.plannedAt, held: entry.held }, context.now);
       if (!read.ok) return refusedByRecord(read.field, read.message);
       record = read.body;
     }

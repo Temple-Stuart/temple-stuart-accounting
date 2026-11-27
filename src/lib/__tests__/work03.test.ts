@@ -54,8 +54,8 @@ const step = (over: Partial<RoutineStep> & { id: string; routine_id: string; act
 });
 const WORK: Routine = routine({ id: 'work', name: 'Work', role: 'execute', schedule_rrule: 'FREQ=DAILY;BYHOUR=10;BYMINUTE=0', steps: [step({ id: 's1', routine_id: 'work', activity: 'Deep work' })] });
 const BRUNCH: Routine = routine({ id: 'brunch', name: 'Brunch', role: 'place', schedule_rrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=0' });
-const brunchRecord: StopRecordRow = { id: 'rec-brunch', kind: 'routine', target_id: 'brunch', occurrence_at: BRUNCH_AT, outcome: 'done', done_at: BRUNCH_AT, actual_cents: 969, rating: 4, note: 'Eggs benedict', actual_minutes: null };
-const workRecord = (over: Partial<StopRecordRow> = {}): StopRecordRow => ({ id: 'rec-work', kind: 'routine_line', target_id: 's1', occurrence_at: WORK_AT, outcome: 'done', done_at: WORK_AT, actual_cents: 400, rating: 4, note: 'focused', actual_minutes: 420, ...over });
+const brunchRecord: StopRecordRow = { id: 'rec-brunch', kind: 'routine', target_id: 'brunch', occurrence_at: BRUNCH_AT, outcome: 'done', done_at: BRUNCH_AT, actual_cents: 969, rating: 4, note: 'Eggs benedict', notes: null, actual_minutes: null };
+const workRecord = (over: Partial<StopRecordRow> = {}): StopRecordRow => ({ id: 'rec-work', kind: 'routine_line', target_id: 's1', occurrence_at: WORK_AT, outcome: 'done', done_at: WORK_AT, actual_cents: 400, rating: 4, note: 'focused', notes: null, actual_minutes: 420, ...over });
 function workDay(opts: { readonly money: boolean; readonly record: StopRecordRow | null }) {
   return dayStops(input({
     entries: [entry(WORK, WORK_AT), entry(BRUNCH, BRUNCH_AT)],

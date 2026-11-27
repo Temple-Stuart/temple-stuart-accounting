@@ -129,7 +129,7 @@ test('2 the card: a stepless execute routine 10:00–18:00 Bangkok has 480 minut
 test('2 the ledger: a stepless record’s PLANNED MIN prints the window’s length — the route reads the routine’s start_time and end_time with the record’s plan words (RECORD_PLAN, additive) and applies the one rule to both kinds; the Time row cites the two lines', () => {
   const GYM_13 = '2026-10-13T13:00:00.000Z'; // 20:00 Bangkok
   const record = (over: Partial<StopRecordRow> & { id: string; kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
-    outcome: 'done', done_at: `${over.occurrence_at.slice(0, 11)}13:41:00.000Z`, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+    outcome: 'done', done_at: `${over.occurrence_at.slice(0, 11)}13:41:00.000Z`, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null, ...over,
   });
   const WORDS = new Map<string, RoutineWords>([['gym', { name: 'Gym', timezone: BKK, steps: new Map() }]]);
   // What the route hands the rule for a stepless record at a 20:00–21:00 routine: plannedMinutesOf over its Dates.
@@ -143,7 +143,7 @@ test('2 the ledger: a stepless record’s PLANNED MIN prints the window’s leng
   const ledger = ledgerOf(INPUT);
   assert.equal(ledger.rows.length, 1);
   assert.deepEqual([ledger.rows[0].plannedMinutes, ledger.rows[0].loggedMinutes], [60, 30], 'PLANNED MIN 60 — the window’s length; LOGGED MIN the record’s own');
-  assert.equal(ledgerCsv(ledger.rows).split('\r\n')[1], 'Tuesday,2026-10-13,20:00,21:00,,,,,,Gym,,went,,60,30,,,,,,', 'the CSV: 60 where TIME-03’s stepless fixture printed nothing'); // TIMESHEET-01 (Alex, 2026-11-24): START 20:00, END 21:00 (the window's 60 minutes on), WENT went — the other eighteen fields as they were
+  assert.equal(ledgerCsv(ledger.rows).split('\r\n')[1], 'Tuesday,2026-10-13,20:00,21:00,,,,,,Gym,,,went,,60,30,,,,,,,', 'the CSV: 60 where TIME-03’s stepless fixture printed nothing'); // TIMESHEET-01 (Alex, 2026-11-24): START 20:00, END 21:00 (the window's 60 minutes on), WENT went — the other eighteen fields as they were · TIMESHEET-04b (2026-11-27): an empty field after VENDOR (INSTAGRAM TAG) and one at the end (NOTES) — the line without the two until then
   // The route: the routine select grows by the two times; the step's select is TIME-03's, byte for byte; both kinds through the one rule.
   const route = code(ANSWER);
   assert.match(route, /routine: \{ select: \{ name: true, timezone: true, role: true, start_time: true, end_time: true \} \},\n\s*step: \{ select: \{ activity: true, time_of_day: true, duration_minutes: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true, role: true \} \} \} \},/);
