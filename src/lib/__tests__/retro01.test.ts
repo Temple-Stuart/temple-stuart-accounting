@@ -17,6 +17,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { isOnceRRule } from '../operations/rruleHelpers'; // EDIT-01 (2026-11-28): the fixture states each routine's one-off-ness by the rule's own test
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AuditActionType } from '@prisma/client';
@@ -97,7 +98,7 @@ const RECORDS: LedgerRecordInput[] = [
 const built = buildRoutineBudgetLines(ROUTINES, DAY, DAY);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
   from: DAY, to: DAY, now: NOW, records: RECORDS, links: [], lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: [], stays: [], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
-  accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
+  accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none); EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
 });
 
 // ── T1 · R1 EXPENSES ONLY ───────────────────────────────────────────────────
@@ -443,9 +444,9 @@ test('T7 ledgerWrites: the one-off, its line read back, the vendor added, the ve
   assert.match(f, /setZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\);/, 'the viewer’s zone');
   assert.match(f, /data-ledger-expense-zone>\{zoneWords\(zone\)\}/, 'shown');
   for (const attr of ['data-ledger-expense', 'data-ledger-expense-open', 'data-ledger-expense-form', 'data-ledger-expense-cell={key}', 'data-ledger-expense-box="day"', 'data-ledger-expense-box="time"', 'data-ledger-expense-box="name"', 'data-ledger-expense-box="amount"', 'data-ledger-expense-box="book"', 'data-ledger-expense-box="vendor"', 'data-ledger-expense-vendors', 'data-ledger-expense-box="actual"', 'data-ledger-expense-box="stars"', 'data-ledger-expense-box="note"', 'data-ledger-expense-said', 'data-ledger-expense-save', 'data-ledger-expense-cancel', 'data-ledger-expense-refused={refusal.field}', 'data-ledger-expense-outcome', 'data-ledger-expense-step={o.step}', 'data-ledger-expense-state={o.state}', 'data-ledger-expense-landed', 'data-ledger-expense-no-book']) { // SHEET-01 (2026-11-28): the row's attributes — a box per column (data-ledger-expense-box), one typed VENDOR over the book's names; the new-vendor box and the form's own fields until then
-    assert.ok(f.includes(attr), `the form carries ${attr}`);
+    assert.ok((attr.startsWith('data-ledger-expense-box=') || attr === 'data-ledger-expense-vendors' ? code('src/components/workbench/operations/ledger/ColumnBox.tsx') : f).includes(attr), `the form carries ${attr}`); // EDIT-01 (2026-11-28): a box's attribute is the one box's (ColumnBox.tsx), which the row draws under its column
   }
-  assert.match(f, /<CoaSelect entityId=\{draft\.book\} value=\{draft\.coa\} onChange=\{set\('coa'\)\} className=\{box\} \/>/, 'the book’s chart');
+  assert.match(f, /<ColumnBox column="accountName" value=\{draft\.coa\} onChange=\{set\('coa'\)\} entityId=\{draft\.book\} \/>/, 'the book’s chart'); assert.match(code('src/components/workbench/operations/ledger/ColumnBox.tsx'), /<CoaSelect entityId=\{entityId\} value=\{value\} onChange=\{onChange\} className=\{box\} \/>/); // EDIT-01 (2026-11-28): CATEGORY is ColumnBox's — the row hands it the book
   assert.match(f, /vendorsRead\.vendors\.filter\(\(v\) => v\.entity_id === draft\.book\)/, 'the book’s vendors'); // SHEET-01 (2026-11-28): the vendors as the paste's rule read them — the Budget's useDirectory until then
   assert.doesNotMatch(f, />[A-Za-z][^<>{}]*[a-z][^<>{}]*</, 'no bare prose between tags');
   assert.doesNotMatch(f, /\b(bg-black|bg-panel|bg-brand-red|bg-brand-gold|bg-brand-green|bg-brand-purple)\b/, 'no dark fill (the repaint law)');

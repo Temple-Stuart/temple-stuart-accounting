@@ -185,7 +185,7 @@
 
 'use client';
 
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { localToday } from '@/lib/localToday';
 import type { Read } from '../week/weekReads';
 import { deltaWords } from '../day/dayCard';
@@ -193,6 +193,8 @@ import { readLedger, type LedgerAnswer } from './ledgerReads';
 import ExpenseRow, { ExpenseOpen } from './ExpenseForm'; import PasteRows from './PasteRows';
 import LinkPicker from './LinkPicker';
 import RecordForm from './RecordForm';
+import ColumnBox, { type ColumnBoxProps } from './ColumnBox'; // EDIT-01 (2026-11-28): the one box of a column — an open cell draws it
+import { clearRecordCell, deleteRow, readCellVendors, saveCell, type CellSave, type CellVendors } from './cellSaves'; // EDIT-01 (2026-11-28): what a cell's save writes
 import DataTable, { cellClass as cell, chipClass as chip, moneyClass as money } from '@/components/table/DataTable';
 import { announceDayWritten } from '../dayWritten';
 import {
@@ -207,6 +209,7 @@ import {
   NOT_TYPED_WORDS, accountPillClassOf, bookPillClassOf, type AccountPlaces, // TIMESHEET-03 (2026-11-24): the legend's words, the two pills' classes, and the accounts' places they are toned by
   RECORD_WORDS, type LedgerRecording, PLANNED_ITEMS_TITLE_WORDS, descriptionOf, plannedDescription, tagCellWords, // TIMESHEET-02 (2026-11-24): the chip's word, and a row's entry in the answer's `recording` · TIMESHEET-04b (2026-11-27): the planned cell's title, what DESCRIPTION says of a row and whether it is planned, and the tag's cell
   type ColumnFilters, type LedgerColumn, type LedgerSheetRow, type LedgerSort, type MatchState, type Period, type PeriodKind,
+  CELL_KEYS_WORDS, CLEAR_CELL_QUESTION, CLEAR_RECORD_WORDS, DELETE_ROW_WORDS, DELETE_WORDS, KEEP_WORDS, NEVER_OPENS_WORDS, boxTextOf, cellOpens, cellReachWords, headWordOf, isTypedColumn, nextOpeningColumn, rowDeleteOf, type CellOpen, type LedgerEditing, type RowDelete, type TypedColumn, // EDIT-01 (2026-11-28): the frame's rule and its words
 } from '@/lib/operations/ledger';
 
 // IDIOM-01 (2026-10-24): the chip, head, cell and money classes are the shared table's (DataTable.tsx), imported under the names this file always used.
@@ -283,6 +286,10 @@ export default function LedgerSection() {
   const tones: AccountPlaces = answer !== null && answer.read.ok ? answer.read.value.tones : {};
   // TIMESHEET-02 (Alex, 2026-11-24): whether each row takes a record, and what its form is given — the answer's `recording`, by the row's key (the read refuses an answer that lacks a row's entry). No row is asked which kind it is.
   const recording: Readonly<Record<string, LedgerRecording>> = answer !== null && answer.read.ok ? answer.read.value.recording : {};
+  // EDIT-01 (Alex, 2026-11-28): what each row's cells can change — the answer's `editing`, by the row's key (the read refuses an answer that lacks a row's entry).
+  const editing: Readonly<Record<string, LedgerEditing>> = answer !== null && answer.read.ok ? answer.read.value.editing : {};
+  // EDIT-01 (Alex, 2026-11-28): THE FRAME — the open cell, its keys, its save (useCellFrame, below the section in this file); an accepted save reads the span again and announces the day, as "+ expense" does.
+  const { open, clearing, cellRefusal, setOpenCell, titleOf, clickCell, boxIn, clearCell, asking, questionOf, askDelete, keepRow, deleteAsked } = useCellFrame(rows, recording, editing, (day) => { setWrites((n) => n + 1); announceDayWritten(day); });
   // LEDGER-04: the rows filtered (every column, AND across), then sorted — the TOTAL row and the CSV read these (SHEET-01, 2026-11-28: the coverage and the summary are gone).
   const shown = sortRows(applyColumnFilters(rows, filters), sort);
   const totals = ledgerTotals(shown);
@@ -290,6 +297,7 @@ export default function LedgerSection() {
   // LEDGER_TABLE — a Blob, UTF-8, no BOM, an object URL revoked after the click) is DataTable's; this file names the file, and nothing to download until a row is shown.
   const csvPeriod: Period | null = answer !== null && answer.read.ok && shown.length > 0 ? answer.period : null;
   const csv = csvPeriod === null ? null : { name: ledgerCsvFileName(csvPeriod.from, csvPeriod.to) };
+
 
   return (
     <section className="space-y-1.5 [&_div:has(>[data-ledger-table])]:max-h-[calc(100vh-8rem)] [&_div:has(>[data-ledger-table])]:overflow-y-auto" data-ledger>
@@ -347,39 +355,61 @@ export default function LedgerSection() {
           return (
             <Fragment key={row.key}>
               <tr className="border-t border-border" data-ledger-row={row.key} data-ledger-day={row.day}>
-                <td className={`${cell} whitespace-nowrap`} data-ledger-cell="day">{dayLongWords(row.day)}</td>
-                <td className={`${cell} whitespace-nowrap tabular-nums`} data-ledger-cell="date">{row.day}</td>
+                <td className={`${cell} whitespace-nowrap`} data-ledger-cell="day" title={titleOf(row, 'day')}>{questionOf(row) !== null && <button type="button" className={`${chip} mr-1 text-text-faint hover:text-brand-red focus:text-brand-red`} aria-label={DELETE_ROW_WORDS} aria-expanded={asking !== null && asking.key === row.key} onClick={() => askDelete(row)} data-ledger-delete={row.key}>✕</button>}{dayLongWords(row.day)}</td>
+                <td className={`${cell} whitespace-nowrap tabular-nums`} data-ledger-cell="date" title={titleOf(row, 'date')}>{row.day}</td>
                 {/* TIMESHEET-01 (2026-11-24): START and END after DATE — the clock, the all-day word on a charge, "—" for a blank. */}
-                <td className={`${cell} whitespace-nowrap tabular-nums ${startOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="start">{startCellWords(row)}</td>
-                <td className={`${cell} whitespace-nowrap tabular-nums ${endOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="end">{endCellWords(row)}</td>
-                <td className={`${cell} ${row.place === null ? BLANK_CLASS : ''}`} data-ledger-cell="city">{CELL_WORDS.city(row)}</td><td className={`${cell} ${row.place === null || row.place.region === null ? BLANK_CLASS : ''}`} data-ledger-cell="region">{regionWords(row)}</td>
-                <td className={`${cell} ${row.place === null || row.place.country === null ? BLANK_CLASS : ''}`} data-ledger-cell="country">{CELL_WORDS.country(row)}</td><td className={`${cell} ${row.location === null ? BLANK_CLASS : ''}`} data-ledger-cell="location">{row.segments !== null && row.segments.location !== null && <span className={CODE_CLASS}>{row.segments.location}</span>}{locationCellWords(row)}</td>
+                <td className={`${cell} whitespace-nowrap tabular-nums ${startOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="start" title={titleOf(row, 'start')} onClick={(e) => clickCell(e, row, 'start')}>{boxIn(row, 'start') ?? startCellWords(row)}</td>
+                <td className={`${cell} whitespace-nowrap tabular-nums ${endOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="end" title={titleOf(row, 'end')} onClick={(e) => clickCell(e, row, 'end')}>{boxIn(row, 'end') ?? endCellWords(row)}</td>
+                <td className={`${cell} ${row.place === null ? BLANK_CLASS : ''}`} data-ledger-cell="city" title={titleOf(row, 'city')}>{CELL_WORDS.city(row)}</td><td className={`${cell} ${row.place === null || row.place.region === null ? BLANK_CLASS : ''}`} data-ledger-cell="region" title={titleOf(row, 'region')}>{regionWords(row)}</td>
+                <td className={`${cell} ${row.place === null || row.place.country === null ? BLANK_CLASS : ''}`} data-ledger-cell="country" title={titleOf(row, 'country')}>{CELL_WORDS.country(row)}</td><td className={`${cell} ${row.location === null ? BLANK_CLASS : ''}`} data-ledger-cell="location" title={titleOf(row, 'location')} onClick={(e) => clickCell(e, row, 'location')}>{boxIn(row, 'location') ?? <>{row.segments !== null && row.segments.location !== null && <span className={CODE_CLASS}>{row.segments.location}</span>}{locationCellWords(row)}</>}</td>
                 {/* COALEVELS-01 (2026-11-27): THE SHEET'S ORDER AND ITS CODES — CITY · REGION · COUNTRY · LOCATION above; CATEGORY · ENTITY · TYPE · ITEMS below (the book's cell stood on this line and the account's code on the next: the entity is the second of the four now, and the row's WHOLE code — COA — stands before BUDGET). A level's code is printed before its word (CODE_CLASS), and never where the row has none. A cell the table's class cuts says itself whole in its title. Each cell keeps its data-ledger-cell name. */}
-                <td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : ''}`} data-ledger-cell="account-name">{row.segments !== null && <span className={CODE_CLASS}>{row.segments.category}</span>}{accountPill === null ? accountNameCellWords(row) : <span className={accountPill} data-ledger-pill="account-name">{accountNameCellWords(row)}</span>}</td>
-                <td className={`${cell} whitespace-nowrap ${row.book === null ? BLANK_CLASS : ''}`} data-ledger-cell="book">{row.segments !== null && row.segments.entity !== null && <span className={CODE_CLASS}>{row.segments.entity}</span>}{bookPill === null ? bookCellWords(row) : <span className={bookPill} data-ledger-pill="book">{bookCellWords(row)}</span>}</td>
-                <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name" title={row.description}>{row.segments !== null && row.segments.type !== null && <span className={CODE_CLASS}>{row.segments.type}</span>}{row.description}</td><td className={`${cell} ${descriptionOf(row) === null ? BLANK_CLASS : plannedDescription(row) ? PLANNED_CLASS : 'text-text-muted'}`} data-ledger-cell="description" data-ledger-planned={plannedDescription(row) ? '' : undefined} title={plannedDescription(row) ? `${PLANNED_ITEMS_TITLE_WORDS} — ${noteCellWords(descriptionOf(row))}` : descriptionOf(row) ?? undefined}>{noteCellWords(descriptionOf(row))}</td>
-                <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor" title={row.vendor ?? undefined}>{vendorCellWords(row.vendor)}</td><td className={`${cell} whitespace-nowrap ${row.instagramTag === null ? BLANK_CLASS : ''}`} data-ledger-cell="instagram-tag">{tagCellWords(row.instagramTag)}</td>
+                <td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : ''}`} data-ledger-cell="account-name" title={titleOf(row, 'accountName')} onClick={(e) => clickCell(e, row, 'accountName')}>{boxIn(row, 'accountName') ?? <>{row.segments !== null && <span className={CODE_CLASS}>{row.segments.category}</span>}{accountPill === null ? accountNameCellWords(row) : <span className={accountPill} data-ledger-pill="account-name">{accountNameCellWords(row)}</span>}</>}</td>
+                <td className={`${cell} whitespace-nowrap ${row.book === null ? BLANK_CLASS : ''}`} data-ledger-cell="book" title={titleOf(row, 'book')}>{row.segments !== null && row.segments.entity !== null && <span className={CODE_CLASS}>{row.segments.entity}</span>}{bookPill === null ? bookCellWords(row) : <span className={bookPill} data-ledger-pill="book">{bookCellWords(row)}</span>}</td>
+                <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name" title={titleOf(row, 'subAccountName', row.description)} onClick={(e) => clickCell(e, row, 'subAccountName')}>{boxIn(row, 'subAccountName') ?? <>{row.segments !== null && row.segments.type !== null && <span className={CODE_CLASS}>{row.segments.type}</span>}{row.description}</>}</td><td className={`${cell} ${descriptionOf(row) === null ? BLANK_CLASS : plannedDescription(row) ? PLANNED_CLASS : 'text-text-muted'}`} data-ledger-cell="description" data-ledger-planned={plannedDescription(row) ? '' : undefined} title={titleOf(row, 'description', plannedDescription(row) ? `${PLANNED_ITEMS_TITLE_WORDS} — ${noteCellWords(descriptionOf(row))}` : descriptionOf(row) ?? undefined)} onClick={(e) => clickCell(e, row, 'description')}>{boxIn(row, 'description') ?? noteCellWords(descriptionOf(row))}</td>
+                <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor" title={titleOf(row, 'vendor', row.vendor ?? undefined)} onClick={(e) => clickCell(e, row, 'vendor')}>{boxIn(row, 'vendor') ?? vendorCellWords(row.vendor)}</td><td className={`${cell} whitespace-nowrap ${row.instagramTag === null ? BLANK_CLASS : ''}`} data-ledger-cell="instagram-tag" title={titleOf(row, 'instagramTag')} onClick={(e) => clickCell(e, row, 'instagramTag')}>{boxIn(row, 'instagramTag') ?? tagCellWords(row.instagramTag)}</td>
                 {/* TIMESHEET-01 (2026-11-24): WENT after VENDOR — went, skipped, planned, not recorded; "—" on a charge. TIMESHEET-02 (2026-11-24): after the word, the
                     "record" chip on every row whose entry takes a record — it opens the row's form beneath; a row that takes none has no chip, its WENT reads "—", and the
                     cell's title is the entry's own sentence saying why. */}
-                <td className={`${cell} whitespace-nowrap ${wentOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="went" title={entry.takes ? undefined : entry.words}>
-                  <span data-ledger-went>{wentCellWords(row)}</span>
+                <td className={`${cell} whitespace-nowrap ${wentOf(row) === null ? BLANK_CLASS : ''}`} data-ledger-cell="went" title={titleOf(row, 'went')} onClick={(e) => clickCell(e, row, 'went')}>
+                  {boxIn(row, 'went') ?? <span data-ledger-went>{wentCellWords(row)}</span>}
                   {entry.takes && <button type="button" className={`${chip} ml-1 font-normal`} onClick={() => setEntering(entering === row.key ? null : row.key)} data-ledger-record={row.key} aria-expanded={entering === row.key}>{RECORD_WORDS}</button>}
                 </td>
-                <td className={`${cell} whitespace-nowrap ${row.rating === null ? BLANK_CLASS : ''}`} data-ledger-cell="stars">{starsCellWords(row.rating)}</td>
+                <td className={`${cell} whitespace-nowrap ${row.rating === null ? BLANK_CLASS : ''}`} data-ledger-cell="stars" title={titleOf(row, 'stars')} onClick={(e) => clickCell(e, row, 'stars')}>{boxIn(row, 'stars') ?? starsCellWords(row.rating)}</td>
                 {/* TIME-03 (2026-10-26): the minutes after STARS — the line's planned and the record's logged, whole minutes, "—" for null. */}
-                <td className={`${cell} whitespace-nowrap tabular-nums ${row.plannedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-cell="planned-minutes">{minutesCellWords(row.plannedMinutes)}</td>
-                <td className={`${cell} whitespace-nowrap tabular-nums ${row.loggedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-cell="logged-minutes">{minutesCellWords(row.loggedMinutes)}</td><td className={`${cell} whitespace-nowrap ${row.segments === null ? BLANK_CLASS : 'font-mono text-[11px] font-semibold text-text-primary'}`} data-ledger-cell="account">{codeCellWords(row)}</td>
-                <td className={`${money} ${NOT_TYPED_TINT} ${row.cents === null ? BLANK_CLASS : 'font-semibold text-text-primary'}`} data-ledger-cell="budget">{budgetCellWords(row.cents)}</td>
-                <td className={`${money} ${row.outcome === 'skipped' ? 'text-text-muted' : row.actualCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="actual">{actualCellWords(row)}</td>
-                <td className={`${money} ${NOT_TYPED_TINT} ${row.varianceCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}</td>
-                <td className={`${money} ${NOT_TYPED_TINT} ${readableMatchCents(row.match) === null ? BLANK_CLASS : `font-semibold ${matchTone(matchState(row.match, row.actualCents))}`}`} data-ledger-cell="match" title={matchCellTitle(row.match) ?? undefined}>
+                <td className={`${cell} whitespace-nowrap tabular-nums ${row.plannedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-cell="planned-minutes" title={titleOf(row, 'plannedMinutes')}>{minutesCellWords(row.plannedMinutes)}</td>
+                <td className={`${cell} whitespace-nowrap tabular-nums ${row.loggedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-cell="logged-minutes" title={titleOf(row, 'loggedMinutes')} onClick={(e) => clickCell(e, row, 'loggedMinutes')}>{boxIn(row, 'loggedMinutes') ?? minutesCellWords(row.loggedMinutes)}</td><td className={`${cell} whitespace-nowrap ${row.segments === null ? BLANK_CLASS : 'font-mono text-[11px] font-semibold text-text-primary'}`} data-ledger-cell="account" title={titleOf(row, 'account')}>{codeCellWords(row)}</td>
+                <td className={`${money} ${NOT_TYPED_TINT} ${row.cents === null ? BLANK_CLASS : 'font-semibold text-text-primary'}`} data-ledger-cell="budget" title={titleOf(row, 'budget')} onClick={(e) => clickCell(e, row, 'budget')}>{boxIn(row, 'budget') ?? budgetCellWords(row.cents)}</td>
+                <td className={`${money} ${row.outcome === 'skipped' ? 'text-text-muted' : row.actualCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="actual" title={titleOf(row, 'actual')} onClick={(e) => clickCell(e, row, 'actual')}>{boxIn(row, 'actual') ?? actualCellWords(row)}</td>
+                <td className={`${money} ${NOT_TYPED_TINT} ${row.varianceCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="variance" title={titleOf(row, 'variance')}>{varianceCellWords(row.varianceCents)}</td>
+                <td className={`${money} ${NOT_TYPED_TINT} ${readableMatchCents(row.match) === null ? BLANK_CLASS : `font-semibold ${matchTone(matchState(row.match, row.actualCents))}`}`} data-ledger-cell="match" title={titleOf(row, 'match', matchCellTitle(row.match) ?? undefined)}>
                   <span data-ledger-match>{matchCellWords(row.match)}</span>
                   <button type="button" className={`${chip} ml-1 font-normal`} onClick={() => setPicking(picking === row.key ? null : row.key)} data-ledger-link={row.key} aria-expanded={picking === row.key}>{LINK_WORDS}</button>
                 </td>
-                <td className={`${cell} whitespace-nowrap ${NOT_TYPED_TINT} ${row.varianceCents === null ? BLANK_CLASS : actualTone(delta.over)}`} data-ledger-cell="under-over">{underOverWords(row.varianceCents)}</td>
-                <td className={`${cell} ${row.notes === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="notes" title={row.notes ?? undefined}>{noteCellWords(row.notes)}</td>
+                <td className={`${cell} whitespace-nowrap ${NOT_TYPED_TINT} ${row.varianceCents === null ? BLANK_CLASS : actualTone(delta.over)}`} data-ledger-cell="under-over" title={titleOf(row, 'underOver')}>{underOverWords(row.varianceCents)}</td>
+                <td className={`${cell} ${row.notes === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="notes" title={titleOf(row, 'notes', row.notes ?? undefined)} onClick={(e) => clickCell(e, row, 'notes')}>{boxIn(row, 'notes') ?? noteCellWords(row.notes)}</td>
               </tr>
+              {/* EDIT-01 (Alex, 2026-11-28): THE OPEN CELL'S LINE — the column's head word, what the change reaches, the keys; WENT none asks first (clear · keep);
+                  a refusal in red, the box staying open with what was typed. */}
+              {open !== null && open.key === row.key && (
+                <tr className="border-t border-border" data-ledger-cell-said={row.key}>
+                  <td colSpan={LEDGER_COLUMNS.length} className={cell}>
+                    <span className="inline-flex flex-wrap items-center gap-2"><span className="font-semibold text-text-primary" data-ledger-cell-head>{headWordOf(open.column)}</span><span data-ledger-cell-reach>{cellReachWords(open.column, editing[row.key])}</span><span className="text-text-muted" data-ledger-cell-keys>{CELL_KEYS_WORDS}</span>
+                      {clearing && <><span className="text-brand-red" data-ledger-cell-clear>{CLEAR_CELL_QUESTION}</span><button type="button" className={chip} onClick={() => void clearCell(row)} data-ledger-cell-clear-yes>{CLEAR_RECORD_WORDS}</button><button type="button" className={chip} onClick={() => setOpenCell(null)} data-ledger-cell-keep>{KEEP_WORDS}</button></>}
+                      {cellRefusal !== null && <span className="text-brand-red" data-ledger-cell-refused>{cellRefusal}</span>}
+                    </span>
+                  </td>
+                </tr>
+              )}
+              {/* EDIT-01 (Alex, 2026-11-28): THE ✕'S QUESTION — asked in place, in red, by the row's entry: delete · keep; a refusal in the route's words, nothing changed. */}
+              {asking !== null && asking.key === row.key && (
+                <tr className="border-t border-border" data-ledger-delete-ask={row.key}>
+                  <td colSpan={LEDGER_COLUMNS.length} className={cell}>
+                    <span className="inline-flex flex-wrap items-center gap-2 text-brand-red"><span data-ledger-delete-question>{questionOf(row)}</span><button type="button" className={`${chip} text-brand-red`} onClick={() => void deleteAsked(row)} data-ledger-delete-yes>{DELETE_WORDS}</button><button type="button" className={chip} onClick={keepRow} data-ledger-delete-keep>{KEEP_WORDS}</button>
+                      {asking.refusal !== null && <span data-ledger-delete-refused>{asking.refusal}</span>}
+                    </span>
+                  </td>
+                </tr>
+              )}
               {picking === row.key && (
                 <tr className="border-t border-border" data-ledger-picker={row.key}>
                   <td colSpan={LEDGER_COLUMNS.length} className={cell}>
@@ -432,4 +462,164 @@ export default function LedgerSection() {
           both are deleted, with the state only they used. The page is the table; nothing stands under it. Their words stay in ledger.ts, uncalled. */}
     </section>
   );
+}
+
+// ── EDIT-01 (Alex, 2026-11-28): THE FRAME — a cell he types opens as its box and saves where its value lives ──────
+//
+// "built like an excel table. Filterable, Editable, so I can clean my data !!!" The section's own hook, in its own file: THE OPEN CELL — its row's key
+// and its column, or none (one cell at a time) — the text in its box, the last save's refusal, and WENT none asking first; React state only, nothing
+// stored, the refs holding the same for a save that runs on past the render that started it. A typed cell opens on click where the rule says its row's
+// entries allow (ledger.ts cellOpens), holding the cell's value as typed text (boxTextOf), in its column's own box (ColumnBox.tsx). Enter saves; Tab
+// saves, then opens the next cell to the right on the row that opens; Esc puts it back, nothing written; leaving the box saves when its text changed and
+// closes when it did not; opening another cell saves the open one first. A save goes through its column's writer (cellSaves.ts); refused, the words
+// stay on the line beneath in red and the box stays open with what was typed; accepted, `written` is told the row's day. It stands below the section so
+// that the section's lines the registry cites stay where they stand while the frame grows.
+//   PART 3 (2026-11-28): the plan's cells and the vendor's open by the row's `editing` entry too, and a cell that does not open says why after its own
+// title. A VENDOR cell reads the book's vendors once when it opens (cellSaves.ts readCellVendors) and lists the row's book's under its box; CATEGORY
+// lists the row's book's chart. Every save goes through cellSaves.ts saveCell, which sorts a cell to its writer.
+//   PART 4 (2026-11-28): THE ✕'S QUESTION — the row whose ✕ was pressed, and the route's refusal, or none (one question at a time; React state only).
+// What a ✕ deletes and what it asks are the rule's (ledger.ts rowDeleteOf); delete goes through cellSaves.ts deleteRow; keep closes the question,
+// nothing deleted. Opening a cell, or another ✕, closes it; so does its row leaving the sheet. No window.confirm, no browser pop-up.
+
+/** An open cell — its row's key and its column. */
+type OpenCell = { readonly key: string; readonly column: TypedColumn };
+
+function useCellFrame(rows: readonly LedgerSheetRow[], recording: Readonly<Record<string, LedgerRecording>>, editing: Readonly<Record<string, LedgerEditing>>, written: (day: string) => void) {
+  const [open, setOpen] = useState<OpenCell | null>(null);
+  const [text, setText] = useState('');
+  const [cellRefusal, setCellRefusal] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const openRef = useRef<OpenCell | null>(null);
+  const textRef = useRef('');
+  const heldRef = useRef('');
+  const refusedRef = useRef<string | null>(null);
+  const savingRef = useRef<Promise<boolean> | null>(null);
+  const [vendors, setVendors] = useState<CellVendors>({ kind: 'reading' });
+  const vendorsRef = useRef<CellVendors>({ kind: 'reading' });
+  const vendorsAsked = useRef(0);
+  const [asking, setAsking] = useState<{ readonly key: string; readonly refusal: string | null } | null>(null);
+  const deletingRef = useRef(false);
+  /** The book's vendors, read once a VENDOR cell opens — the last read asked is the one kept; a name refused while they were read may be sent again once they are. */
+  const readTheVendors = () => {
+    const asked = vendorsAsked.current + 1;
+    vendorsAsked.current = asked; vendorsRef.current = { kind: 'reading' }; setVendors({ kind: 'reading' });
+    void readCellVendors().then((read) => { if (vendorsAsked.current !== asked) return; vendorsRef.current = read; refusedRef.current = null; setVendors(read); });
+  };
+  /** The open cell, set in state and in its refs together: a cell opens with its text, and nothing is refused yet; a VENDOR cell reads the vendors. */
+  const setOpenCell = (next: OpenCell | null, opened = '') => {
+    openRef.current = next; textRef.current = opened; heldRef.current = opened; refusedRef.current = null;
+    setOpen(next); setText(opened); setCellRefusal(null); setClearing(false);
+    if (next !== null && next.column === 'vendor') readTheVendors();
+    if (next !== null) setAsking(null);
+  };
+  const typeInCell = (value: string) => { textRef.current = value; refusedRef.current = null; setText(value); setClearing(false); };
+  // An open cell whose row is no longer on the sheet (another period, or a write that moved the row) closes — there is no row to save it to.
+  useEffect(() => {
+    setAsking((held) => (held === null || rows.some((r) => r.key === held.key) ? held : null));
+    const at = openRef.current;
+    if (at === null || rows.some((r) => r.key === at.key)) return;
+    openRef.current = null; setOpen(null); setCellRefusal(null); setClearing(false);
+  }, [rows]);
+  /** Whether a typed cell opens on a row — the rule's, by the row's entries. */
+  const opensOf = (row: LedgerSheetRow, column: TypedColumn): CellOpen => cellOpens(column, recording[row.key], editing[row.key]);
+  /** A cell's title: a column that never opens says why, and a typed cell that does not open says why — each after the cell's own, when it has one; else the cell's own. */
+  const titleOf = (row: LedgerSheetRow, column: LedgerColumn, own?: string): string | undefined => {
+    if (!isTypedColumn(column)) return own === undefined ? NEVER_OPENS_WORDS[column] : `${own} — ${NEVER_OPENS_WORDS[column]}`;
+    const can = opensOf(row, column);
+    if (can.opens) return own;
+    return own === undefined ? can.words : `${own} — ${can.words}`;
+  };
+  /** A cell's save, by its column and the row's entries — sorted to its writer by cellSaves.ts; VENDOR with the vendors as read. */
+  const saveOf = (row: LedgerSheetRow, column: TypedColumn, typed: string): Promise<CellSave> => saveCell(row, recording[row.key], editing[row.key], column, typed, vendorsRef.current, new Date());
+  /** Saves the open cell when its text changed: true when it closed (saved, or nothing changed), false when it stays open (refused, or WENT none asking first). One save at a time. */
+  const commit = (): Promise<boolean> => {
+    if (savingRef.current !== null) return savingRef.current;
+    const at = openRef.current;
+    if (at === null) return Promise.resolve(true);
+    const row = rows.find((r) => r.key === at.key);
+    if (row === undefined || textRef.current === heldRef.current) { setOpenCell(null); return Promise.resolve(true); }
+    const typed = textRef.current;
+    // Refused as it stands: said already on the line beneath, not sent again until it changes.
+    if (refusedRef.current === typed) return Promise.resolve(false);
+    // WENT none on a held record is a clear — asked first, on the line beneath.
+    if (at.column === 'went' && typed === '') { setClearing(true); return Promise.resolve(false); }
+    const run = (async (): Promise<boolean> => {
+      setCellRefusal(null);
+      const saved = await saveOf(row, at.column, typed);
+      if (!saved.ok) { refusedRef.current = typed; setCellRefusal(saved.words); return false; }
+      setOpenCell(null);
+      written(row.day);
+      return true;
+    })();
+    savingRef.current = run;
+    void run.finally(() => { savingRef.current = null; });
+    return run;
+  };
+  /** WENT none, asked and answered: the record cleared through the one writer. */
+  const clearCell = async (row: LedgerSheetRow) => {
+    const entry = recording[row.key];
+    if (!entry.takes || entry.held === null) throw new Error(`LedgerSection: ${row.key} was asked to clear a record it does not hold`);
+    const cleared = await clearRecordCell(entry.held);
+    if (!cleared.ok) { setClearing(false); refusedRef.current = textRef.current; setCellRefusal(cleared.words); return; }
+    setOpenCell(null);
+    written(row.day);
+  };
+  /** What a row's ✕ deletes, and its question — the rule's; null: the row has no ✕. */
+  const deleteOf = (row: LedgerSheetRow): RowDelete | null => rowDeleteOf(row, recording[row.key], editing[row.key]);
+  const questionOf = (row: LedgerSheetRow): string | null => { const target = deleteOf(row); return target === null ? null : target.question; };
+  /** A ✕ pressed: its question asked on the line beneath the row — one at a time, another ✕ asks its own instead. */
+  const askDelete = (row: LedgerSheetRow) => setAsking({ key: row.key, refusal: null });
+  /** keep: the question closed, nothing deleted. */
+  const keepRow = () => setAsking(null);
+  /** delete, answered: the row's routine or its record deleted through its writer — refused, the route's words on the line and nothing changed; accepted, the span read again and the day told. One at a time. */
+  const deleteAsked = async (row: LedgerSheetRow) => {
+    const target = deleteOf(row);
+    if (target === null) throw new Error(`LedgerSection: ${row.key} was asked to delete, and it has nothing to delete`);
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    try {
+      const done = await deleteRow(target);
+      if (!done.ok) { setAsking({ key: row.key, refusal: done.words }); return; }
+      setAsking(null);
+      written(row.day);
+    } finally {
+      deletingRef.current = false;
+    }
+  };
+  /** A typed cell opens when its row's entries allow — the open one saved first (refused, it stays open, and this one does not). */
+  const openCell = async (row: LedgerSheetRow, column: TypedColumn) => {
+    const at = openRef.current;
+    if (at !== null && at.key === row.key && at.column === column) return;
+    if (!opensOf(row, column).opens) return;
+    if (at !== null && !(await commit())) return;
+    setOpenCell({ key: row.key, column }, boxTextOf(row, column));
+  };
+  /** A click on a typed cell — a chip in it (the record's, the link's) and the open box keep their own clicks. */
+  const clickCell = (e: MouseEvent<HTMLElement>, row: LedgerSheetRow, column: TypedColumn) => {
+    if ((e.target as HTMLElement).closest('button, input, select, a') !== null) return;
+    void openCell(row, column);
+  };
+  /** The open box's keys: Enter saves; Tab saves, then opens the next cell to the right on the row that opens; Esc puts it back, nothing written. */
+  const keyOf = (e: KeyboardEvent<HTMLElement>, row: LedgerSheetRow, column: TypedColumn) => {
+    if (e.key === 'Escape') { e.preventDefault(); setOpenCell(null); return; }
+    if (e.key === 'Enter') { e.preventDefault(); void commit(); return; }
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      const next = nextOpeningColumn(column, (c) => opensOf(row, c).opens);
+      void commit().then((closed) => { if (closed && next !== null) setOpenCell({ key: row.key, column: next }, boxTextOf(row, next)); });
+    }
+  };
+  /** What an open box lists: CATEGORY the row's book's chart; VENDOR the row's book's vendors as read — none while they are read or when the read failed (a name typed then is refused on save, in the read's words). */
+  const listsOf = (row: LedgerSheetRow, column: TypedColumn): Pick<ColumnBoxProps, 'entityId' | 'vendors' | 'listId'> => {
+    if (column !== 'accountName' && column !== 'vendor') return {};
+    const can = editing[row.key];
+    if (!can.plan) throw new Error(`LedgerSection: ${column} of ${row.key} opened on a row with no plan`);
+    if (column === 'accountName') return { entityId: can.entityId };
+    return { vendors: vendors.kind === 'read' ? vendors.vendors.filter((v) => v.entity_id === can.entityId) : [], listId: 'ledger-cell-vendors' };
+  };
+  /** The open cell's box — its column's own (ColumnBox), holding the text, with what it lists, its keys, its leaving (blur saves a change) and its focus; null on every other cell. */
+  const boxIn = (row: LedgerSheetRow, column: TypedColumn): ReactNode => (open !== null && open.key === row.key && open.column === column
+    ? <ColumnBox column={column} value={text} onChange={typeInCell} {...listsOf(row, column)} onKeyDown={(e) => keyOf(e, row, column)} onBlur={() => void commit()} autoFocus />
+    : null);
+  return { open, clearing, cellRefusal, setOpenCell, titleOf, clickCell, boxIn, clearCell, asking, questionOf, askDelete, keepRow, deleteAsked };
 }

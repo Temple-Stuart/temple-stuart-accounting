@@ -20,6 +20,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { isOnceRRule } from '../operations/rruleHelpers'; // EDIT-01 (2026-11-28): the fixture states each routine's one-off-ness by the rule's own test
 import { createHash } from 'node:crypto';
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -130,7 +131,7 @@ const LINKS: LedgerLinkInput[] = [
 
 const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here; EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
 });
 const ledger = ledgerOf(input());
 const rowOf = (id: string): LedgerRow => {
@@ -277,7 +278,7 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
   assert.match(rules, /csvMoney\(readableMatchCents\(row\.match\)\),/);
   // The section: the cell, its tone, its title; the TOTAL row's MATCH; the coverage line where the note was.
   const s = code(SECTION);
-  assert.match(s, /<td className=\{`\$\{money\} \$\{NOT_TYPED_TINT\} \$\{readableMatchCents\(row\.match\) === null \? BLANK_CLASS : `font-semibold \$\{matchTone\(matchState\(row\.match, row\.actualCents\)\)\}`\}`\} data-ledger-cell="match" title=\{matchCellTitle\(row\.match\) \?\? undefined\}>/, 'the cell'); // TIMESHEET-03 (Alex, 2026-11-24): the cell carries the tint of the cells nobody types on a row — `${money} ${readableMatchCents(row.match) === null ? …` until then
+  assert.match(s, /<td className=\{`\$\{money\} \$\{NOT_TYPED_TINT\} \$\{readableMatchCents\(row\.match\) === null \? BLANK_CLASS : `font-semibold \$\{matchTone\(matchState\(row\.match, row\.actualCents\)\)\}`\}`\} data-ledger-cell="match" title=\{titleOf\(row, 'match', matchCellTitle\(row\.match\) \?\? undefined\)\}>/, 'the cell'); // TIMESHEET-03 (Alex, 2026-11-24): the cell carries the tint of the cells nobody types on a row — `${money} ${readableMatchCents(row.match) === null ? …` until then; EDIT-01 (2026-11-28): every cell carries a title now — why it never opens, why it does not open here, or its own — and a cell he types its click and its box
   assert.match(s, /const matchTone = \(state: MatchState \| null\): string => \(state === null \? '' : state === 'equal' \? 'text-brand-green' : 'text-brand-red'\);/, 'the cue — and no third colour');
   assert.match(s, /<span data-ledger-match>\{matchCellWords\(row\.match\)\}<\/span>/);
   assert.match(s, /<td className=\{`\$\{money\} \$\{totals\.matchCents === null \? BLANK_CLASS : ''\}`\} data-ledger-total-match>\{matchTotalWords\(totals\.matchCents\)\}<\/td>/, 'the TOTAL row’s MATCH, no tone');

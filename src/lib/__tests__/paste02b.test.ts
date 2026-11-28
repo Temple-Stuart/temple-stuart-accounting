@@ -332,7 +332,7 @@ test('T7 in the source: the dated name stands once, in the one body both callers
   const body = between(ledger, 'export const oneOffBody = (v: ExpenseValues): RoutineForm => ({', '\n});');
   assert.match(body, /\n {2}name: oneOffRoutineName\(v\), description: '', entity_id: v\.bookId,\n/);
   assert.match(body, /\n {2}lines: \[\{ activity: v\.name, budget_amount: v\.amount, coa_code: v\.coa \}\],$/);
-  assert.equal(countOf(ledger, /\boneOffRoutineName\b/g), 2, 'declared, and called by the one body — nowhere else in the rule file');
+  assert.equal(countOf(ledger, /\boneOffRoutineName\b/g), 3, 'declared, called by the one body, and by the plan cells’ write — nowhere else in the rule file'); // EDIT-01 (2026-11-28) (PART 3): the plan cells' write names a one-off as the body does (planCellWrite's oneOffNameOf — START's new clock, TYPE's new name, as ruled); 2 until then
   // The vendor's and the record's bodies are as they were.
   assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, vendorId }\);/);
   assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, outcome: 'done', done_at: v\.instant, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, notes: v\.notes, actual_minutes: v\.logged }\);/); // TIMESHEET-04b (2026-11-27): the record's body says "notes: null" after the note — the line without it until then; SHEET-01 (2026-11-28): NOTES and LOGGED MIN ride the record

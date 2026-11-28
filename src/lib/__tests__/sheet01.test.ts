@@ -421,7 +421,7 @@ test('T12 the section draws no notes and no summary — nothing stands under the
   }
   // Nothing after the shared table but the section's end and the dated comment.
   const after = code(SECTION).slice(code(SECTION).indexOf('</DataTable>') + '</DataTable>'.length);
-  assert.match(after, /^\n\s*\{\s*\}\n\s*<\/section>\n\s*\);\n\}\n?$/, 'only the dated comment stands under the table');
+  assert.match(after, /^\n\s*\{\s*\}\n\s*<\/section>\n\s*\);\n\}\n\s*type OpenCell = \{ readonly key: string; readonly column: TypedColumn \};\n\s*function useCellFrame\(/, 'only the dated comment stands under the table — the section ends, and its frame hook follows it in the file'); // EDIT-01 (2026-11-28): the open cell's frame (useCellFrame) stands below the section in its file — no markup
   assert.match(comments(SECTION), /SHEET-01 \(Alex, 2026-11-28\): "just one, bad ass table … built like an excel table"\. THE NOTES stood here/);
   // The words stay, each still the rule file's export — and the page calls none.
   for (const name of UNCALLED) {
@@ -784,7 +784,7 @@ test('T26 the form: "+ expense" opens and shuts the row; the cells drawn from th
   assert.match(f, /\}, \[draft\.day, reads\]\);/);
   // TRIP ENDS follows DATE, in its box — never a hidden choice.
   assert.ok(f.includes('const setDay = (value: string) => { setDraft((d) => ({ ...d, day: value })); setTrip((t) => ({ ...t, endsOn: value })); };'));
-  assert.ok(f.includes('<input type="date" value={draft.day} onChange={(e) => setDay(e.target.value)}'));
+  assert.ok(f.includes('<ColumnBox column="date" value={draft.day} onChange={setDay} />')); // EDIT-01 (2026-11-28): DATE's box is ColumnBox's — handed setDay, so TRIP ENDS still follows it
   // The save.
   const save = f.slice(f.indexOf('const save = async () => {'), f.indexOf('const onKeyDown = ('));
   assert.match(save, /if \(tripRead\.kind === 'failed'\) \{ refuse\('city', tripRead\.words\); return; \}\n\s*if \(tripRead\.kind !== 'read'\) \{ refuse\('city', STAY_LOADING_WORDS\); return; \}\n\s*if \(tripRead\.covering === null\) \{\n\s*const read = rowTripInput\(trip, draft\.day\);\n\s*if \(read\.kind === 'refused'\) \{ refuse\(read\.field, read\.message\); return; \}\n\s*if \(read\.kind === 'add'\) tripToAdd = read;/);

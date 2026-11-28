@@ -14,6 +14,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { isOnceRRule } from '../operations/rruleHelpers'; // EDIT-01 (2026-11-28): the fixture states each routine's one-off-ness by the rule's own test
 import { code, comments } from '../sourceText';
 import { OCCURRENCE_ROUTINE_SELECT, notAnOccurrenceWords, occurrenceCheck, type OccurrenceRoutine } from '../operations/linkOccurrence';
 import {
@@ -228,7 +229,7 @@ const built = buildRoutineBudgetLines([CLIENT], '2026-10-13', '2026-10-13');
 const ledgerInput = (links: readonly LedgerLinkInput[]): LedgerInput => ({
   from: '2026-10-13', to: '2026-10-13', now: new Date('2026-10-14T00:00:00.000Z'), records: RECORDS, links, lines: built.lines, open: [], notPlaced: built.notPlaced, // PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
   routines: new Map([['client', { name: 'Client lunch', timezone: BKK, steps: new Map() }]]), roles: new Map([['client', 'place']]), minutes: planMinutesOf([CLIENT]), vendors: [], stays: [], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
-  accounts: [{ entityId: 'B', code: '6100', name: 'Client meals' }], books: [{ id: 'B', entityType: 'sole_prop' }], locations: new Map([['client', null]]), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
+  accounts: [{ entityId: 'B', code: '6100', name: 'Client meals' }], books: [{ id: 'B', entityType: 'sole_prop' }], once: new Map([CLIENT].map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([['client', null]]), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none); EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
 });
 const clientLink = (journalEntryId: string, amountCents: number, reversed: boolean): LedgerLinkInput => ({ kind: 'routine', targetId: 'client', instant: CLIENT_13, journalEntryId, amountCents, reversed });
 
