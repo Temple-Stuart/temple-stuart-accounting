@@ -518,14 +518,14 @@ test('X11 the routine PATCH moves a one-off’s rows with its date inside the re
 test('X12 DATE on a one-off sends its start date and the one-off’s name with the new day — the route moves its rows; a day that is no day refused in the blank row’s words; on a repeating plan it is refused before any typing', async () => {
   const lunch = rowOf('Lunch', THU, false);
   const L = planOf(lunch);
-  assert.deepEqual(planCellWrite(lunch, L, 'date', '2027-03-06'), { ok: true, write: { to: 'routine', routineId: 'lunch', body: { start_date: '2027-03-06', name: 'Lunch · 2027-03-06 12:00' } } });
+  assert.deepEqual(planCellWrite(lunch, L, 'date', '2027-03-06'), { ok: true, write: { to: 'routine', routineId: 'lunch', body: { start_date: '2027-03-06', end_date: '2027-03-06', name: 'Lunch · 2027-03-06 12:00' } } }); // EDIT-03 (2026-11-29): its end with its day — { start_date, name } until then, which the route refused against the stored end
   const rent = rowOf('Rent', FRI, false);
-  assert.deepEqual(planCellWrite(rent, planOf(rent), 'date', '2027-03-08'), { ok: true, write: { to: 'routine', routineId: 'rent', body: { start_date: '2027-03-08', name: 'Rent · 2027-03-08' } } }, 'a charge is named for its day alone');
+  assert.deepEqual(planCellWrite(rent, planOf(rent), 'date', '2027-03-08'), { ok: true, write: { to: 'routine', routineId: 'rent', body: { start_date: '2027-03-08', end_date: '2027-03-08', name: 'Rent · 2027-03-08' } } }, 'a charge is named for its day alone'); // EDIT-03 (2026-11-29): its end with its day — { start_date, name } until then
   assert.deepEqual(planCellWrite(lunch, L, 'date', '06/03/2027'), { ok: false, words: dayTypedWords('06/03/2027') });
   assert.equal(cellReachWords('date', ledger.editing[lunch.key], THU), 'this row');
   // Through the routines PATCH; a move the route cannot make is said in its words.
   let run = await standIn([[200, { routine: {}, rekeyed: {} }]], () => savePlanCell(lunch, L, 'date', '2027-03-06'));
-  assert.deepEqual([run.result, ...run.sent], [{ ok: true }, { url: '/api/operations/routines/lunch', method: 'PATCH', body: { start_date: '2027-03-06', name: 'Lunch · 2027-03-06 12:00' } }]);
+  assert.deepEqual([run.result, ...run.sent], [{ ok: true }, { url: '/api/operations/routines/lunch', method: 'PATCH', body: { start_date: '2027-03-06', end_date: '2027-03-06', name: 'Lunch · 2027-03-06 12:00' } }]); // EDIT-03 (2026-11-29): the PATCH carries the end with the day — { start_date, name } until then
   run = await standIn([[400, { error: 'Validation', field: 'start_date', message: ONE_OFF_ROWS_OFF_DAY_WORDS }]], () => savePlanCell(lunch, L, 'date', '2027-03-06'));
   assert.deepEqual(run.result, { ok: false, words: ONE_OFF_ROWS_OFF_DAY_WORDS });
   // A repeating plan: refused before any typing (its days are how it repeats), and never written.

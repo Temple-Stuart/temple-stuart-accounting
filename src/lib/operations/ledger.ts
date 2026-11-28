@@ -2569,6 +2569,8 @@ export interface PlanRoutineBody {
   readonly end_time?: string | null;
   /** EDIT-02 (2026-11-28): a one-off's DATE — its day moves, and its rows with it (the route's rekey). */
   readonly start_date?: string;
+  /** EDIT-03 (2026-11-29): and its end, the same day — a one-off ends on the day it happens (the route's own contract: "leave end_date empty or equal to start_date"); sent alone, the start met the stored end, the old day, and was refused. */
+  readonly end_date?: string;
   readonly coa_code?: string;
   readonly budget_amount?: string;
 }
@@ -2612,8 +2614,9 @@ const oneOffNameOf = (type: string, day: string, clock: string | null): string =
  *   plan's name is its own; TYPE: the line's TYPE alone; LOCATION, END, CATEGORY and BUDGET as on a one-off. ON A ROUTINE WITH NO LINE OF ITS OWN — the
  *   line's four are the routine's own fields: END its end time (START to the clock typed, read as above; cleared, none), CATEGORY its account, BUDGET
  *   its amount, TYPE its name (trimmed, its spaces one; blank refused) — each read by the route. ENTITY moves a row to another book: not written.
- *   DATE on a one-off: a day (YYYY-MM-DD, else refused in the blank row's words) — the routine's start date and the one-off's name with that day; the
- *   route moves its record, vendor and links with it (its rekey) or refuses by name.
+ *   DATE on a one-off: a day (YYYY-MM-DD, else refused in the blank row's words) — the routine's start date, its end date the same day (EDIT-03,
+ *   2026-11-29: a one-off ends on its day), and the one-off's name with that day; the route moves its record, vendor and links with it (its rekey) or
+ *   refuses by name.
  */
 export function planCellWrite(row: LedgerSheetRow, editing: LedgerEditingPlan, column: TypedColumn, typed: string): PlanCellRead {
   const charge = row.id === null && row.allDay;
@@ -2630,7 +2633,7 @@ export function planCellWrite(row: LedgerSheetRow, editing: LedgerEditingPlan, c
       if (!editing.once) throw new Error(`ledger: DATE on a day of the plan "${editing.routineName}" is how it repeats — no such cell saves`);
       const day = typed.trim();
       if (!isIsoDay(day)) return { ok: false, words: dayTypedWords(typed) };
-      return routine({ start_date: day, name: oneOffNameOf(row.description, day, clock) });
+      return routine({ start_date: day, end_date: day, name: oneOffNameOf(row.description, day, clock) });
     }
     case 'start': {
       const time = typed.trim();
