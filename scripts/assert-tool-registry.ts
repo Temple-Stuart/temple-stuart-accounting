@@ -3542,7 +3542,7 @@ lawGuard('The vendor law', () => {
 //
 //   1. ONE WRITER. Anywhere under src, planned_item_vendors is created, updated or deleted only in the plan-vendors route;
 //      operations_vendor_directory is created only in the directory route and never deleted — by the client, in raw SQL, or
-//      through a relation. TWO exceptions, each ONE write pinned to its shape:
+//      through a relation. THREE exceptions, each pinned to its shape:
 //      ROUTINE-02b (2026-10-18): a routine's history follows its time (routines/[id] PATCH, inside the rekey transaction), so a
 //      single-occurrence vendor's occurrence_at moves to the new instant there. That file may hold exactly one
 //      planned_item_vendors write, pinned to its shape — an .update by id of occurrence_at and nothing else. Which vendor a plan
@@ -3550,7 +3550,7 @@ lawGuard('The vendor law', () => {
 //      TIMESHEET-04 (Alex, 2026-11-27 — "tag is own column"): the directory route's one update is a vendor's Instagram tag —
 //      instagram_tag alone, where id and the caller. That file may hold exactly one update of the directory, pinned to its
 //      shape, and no other file may update it at all (until then the directory was never updated). A vendor is never renamed,
-//      archived or deleted, anywhere.
+//      archived or deleted, anywhere. EDIT-03 (Alex, 2026-11-28 — "they should all be able to be edited, eccept for formula driven cells"; this exception his yes, 2026-11-29): a plan moves to another book with its vendors (routines/[id] PATCH, inside the book move's one transaction), so that file may hold ONE more planned_item_vendors write — the re-point, an .update by id of vendor_id and nothing else (the row's items and occurrence stay) — and ONE create of the directory: the target book's copy of a vendor the plan already names, the source vendor's own vendor_name and instagram_tag, user_id the caller, entity_id the target book, nothing else — never a typed name. Each pinned to its shape; the file then holds exactly two planned_item_vendors writes, each in its pinned shape, no create and no delete of them, and no other write of the directory. The directory is still updated only by its route's one tag write, and never deleted anywhere.
 //   2. THE CALLER FIRST. Both routes export exactly their handlers; every handler
 //      opens with the cart-plan gate; every query in them names the caller; no 403
 //      anywhere in either file (a helper a handler answers through included);
@@ -3568,7 +3568,7 @@ const PV_DIRECTORY = 'src/app/api/operations/vendor-directory/route.ts';
 const PV_MIGRATION = 'prisma/migrations/20260929190000_vendor_01_planned_item_vendors/migration.sql';
 // ROUTINE-02b (2026-10-18): the rekey's one move — the instant alone (clause 1's exception).
 const PV_REKEY_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
-const PV_REKEY_WRITE = /\.planned_item_vendors\.update\(\{ where: \{ id: v\.id \}, data: \{ occurrence_at: to \} \}\)/;
+const PV_REKEY_WRITE = /\.planned_item_vendors\.update\(\{ where: \{ id: v\.id \}, data: \{ occurrence_at: to \} \}\)/; const PV_MOVE_WRITE = /\.planned_item_vendors\.update\(\{ where: \{ id: p\.id \}, data: \{ vendor_id: to \} \}\)/; const PV_MOVE_CREATE = /\.operations_vendor_directory\.create\(\{ data: \{ user_id: user\.id, entity_id: target\.id, vendor_name: add\.source\.vendor_name, instagram_tag: add\.source\.instagram_tag \}, select: \{ id: true, vendor_name: true, instagram_tag: true, entity_id: true \} \}\)/; // EDIT-03 (2026-11-29): the book move's re-point — the vendor alone, by id — and its copy of a vendor the plan names (clause 1's third exception), beside the rekey's
 const PV_TAG_WRITE = /\.operations_vendor_directory\.update\(\{ where: \{ id: before\.id, user_id: user\.id \}, data: \{ instagram_tag: read\.tag \}, select: /; const PV_HANDLERS: Record<string, readonly string[]> = { [PV_DIRECTORY]: ['GET', 'POST', 'PATCH'], [PV_ROUTE]: ['POST', 'DELETE'] }; // TIMESHEET-04 (2026-11-27): the directory route gains its PATCH and its ONE update — a vendor's Instagram tag, pinned to this shape (clause 1's second exception); ['GET', 'POST'] and no update until then
 const PV_WRITE = '(create|createMany|createManyAndReturn|update|updateMany|upsert|delete|deleteMany)';
 let pvViolations = 0;
@@ -3578,15 +3578,15 @@ const pvFail = (m: string) => { pvViolations += 1; violations.push(`vendor law: 
 for (const { file, src } of srcFiles) {
   const pvWrites = [...src.matchAll(new RegExp(`\\.planned_item_vendors\\s*\\.\\s*${PV_WRITE}\\s*\\(`, 'g'))];
   if (file === PV_REKEY_ROUTE) {
-    // ROUTINE-02b (2026-10-18): exactly one write, the rekey's move of occurrence_at, in its pinned shape.
-    if (pvWrites.length !== 1 || pvWrites[0][1] !== 'update' || !PV_REKEY_WRITE.test(src)) pvFail(`${file} writes planned_item_vendors (${pvWrites.map((m) => `.${m[1]}`).join(', ') || 'no write'}) in a shape other than the rekey's one move of occurrence_at — the instant alone, by id`);
+    // ROUTINE-02b (2026-10-18): exactly one write, the rekey's move of occurrence_at, in its pinned shape. EDIT-03 (2026-11-29): and at most one more, the book move's re-point of vendor_id, in its own — every write an update in one of the two shapes, none else; and its creates of the directory held to the book move's ONE copy, in its shape (at most one while the move is unwritten; the move holds exactly one).
+    const rekeys = (src.match(new RegExp(PV_REKEY_WRITE.source, 'g')) ?? []).length; const moves = (src.match(new RegExp(PV_MOVE_WRITE.source, 'g')) ?? []).length; if (rekeys !== 1 || moves > 1 || pvWrites.length !== rekeys + moves || pvWrites.some((m) => m[1] !== 'update')) pvFail(`${file} writes planned_item_vendors (${pvWrites.map((m) => `.${m[1]}`).join(', ') || 'no write'}) in a shape other than the rekey's one move of occurrence_at — the instant alone, by id — and the book move's one re-point of vendor_id — the vendor alone, by id`); const creates = (src.match(/\.operations_vendor_directory\s*\.\s*create\s*\(/g) ?? []).length; const copies = (src.match(new RegExp(PV_MOVE_CREATE.source, 'g')) ?? []).length; if (creates > 1 || creates !== copies) pvFail(`${file}: its creates of the vendor directory are not the book move’s ONE copy of a vendor the plan names — the source vendor’s own vendor_name and instagram_tag, user_id the caller, entity_id the target book, nothing else (EDIT-03)`);
   } else {
     for (const m of pvWrites) {
       if (file !== PV_ROUTE) pvFail(`${file} writes planned_item_vendors (.${m[1]}) — a plan’s vendor is written by ${PV_ROUTE} alone (its occurrence_at moved by ${PV_REKEY_ROUTE} alone)`);
     }
   }
   for (const m of src.matchAll(new RegExp(`\\.operations_vendor_directory\\s*\\.\\s*${PV_WRITE}\\s*\\(`, 'g'))) {
-    if ((m[1] === 'create' || m[1] === 'update') && file === PV_DIRECTORY) continue; // TIMESHEET-04 (2026-11-27): the directory route's update is let through here and held to ONE, in its shape, under the loop — a create alone was let through until then
+    if (((m[1] === 'create' || m[1] === 'update') && file === PV_DIRECTORY) || (m[1] === 'create' && file === PV_REKEY_ROUTE)) continue; // TIMESHEET-04 (2026-11-27): the directory route's update is let through here and held to ONE, in its shape, under the loop — a create alone was let through until then. EDIT-03 (2026-11-29): and the routine route's create — held to the book move's ONE copy, in its shape, by its own check above
     if (m[1].startsWith('create')) pvFail(`${file} creates a vendor (.${m[1]}) — a vendor is created by ${PV_DIRECTORY} alone`); else pvFail(`${file} ${m[1]}s the vendor directory — a vendor is created, and its Instagram tag set, by ${PV_DIRECTORY} alone; it is never renamed, archived or deleted`);
   }
   if (file === PV_DIRECTORY && ((src.match(/\.operations_vendor_directory\s*\.\s*update\s*\(/g) ?? []).length !== 1 || !PV_TAG_WRITE.test(src))) pvFail(`${file}: its updates of the vendor directory are not the tag’s ONE write — exactly one update, instagram_tag alone, where id and the caller`);
@@ -3676,7 +3676,7 @@ else {
   if (VENDOR_NAME_MAX !== 200 || !at200.ok || at201.ok) pvFail('a 201-character vendor name is not refused, or a 200-character one is (planVendor.ts readVendorName) — vendor_name is VarChar(200)');
 }
 
-if (pvViolations === 0) console.log(`✔ The vendor law passed — planned_item_vendors is written only by ${PV_ROUTE} (its occurrence_at moved, by id and nothing else, by ${PV_REKEY_ROUTE}'s rekey alone — ROUTINE-02b) and the vendor directory is created only by ${PV_DIRECTORY}, never deleted, and updated only there, once — a vendor’s Instagram tag alone, by id and the caller (TIMESHEET-04); every handler of both opens with the cart-plan gate, every query names the caller, no 403, neither path public; the migration holds one plan per row, no instant on a task, one vendor per address, the grain (a trigger locking the plan’s row FOR NO KEY UPDATE) and RESTRICT on vendor_id; the rule refuses the other grain both ways, reads " pho  24 " as "Pho 24" and refuses a 201-character name.`);
+if (pvViolations === 0) console.log(`✔ The vendor law passed — planned_item_vendors is written only by ${PV_ROUTE} (its occurrence_at moved, by id and nothing else, by ${PV_REKEY_ROUTE}'s rekey alone — ROUTINE-02b; its vendor re-pointed, by id and nothing else, by the same route's book move alone — EDIT-03) and the vendor directory is created only by ${PV_DIRECTORY} (and, in a plan's book move, the target book's copy of a vendor the plan names — its own name and tag — by ${PV_REKEY_ROUTE} alone, EDIT-03), never deleted, and updated only there, once — a vendor’s Instagram tag alone, by id and the caller (TIMESHEET-04); every handler of both opens with the cart-plan gate, every query names the caller, no 403, neither path public; the migration holds one plan per row, no instant on a task, one vendor per address, the grain (a trigger locking the plan’s row FOR NO KEY UPDATE) and RESTRICT on vendor_id; the rule refuses the other grain both ways, reads " pho  24 " as "Pho 24" and refuses a 201-character name.`);
 else console.log(`✖ The vendor law FAILED — ${pvViolations} violation(s).`);
 });
 lawGuard('The one-off law', () => {

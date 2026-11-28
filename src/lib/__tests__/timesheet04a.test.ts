@@ -475,9 +475,10 @@ test('T8 the vendor law, read from its source: the directory route may hold ONE 
   assert.ok(lawLines.includes("const PV_WRITE = '(create|createMany|createManyAndReturn|update|updateMany|upsert|delete|deleteMany)';"));
 
   // The directory-write loop, five lines: a create and an update are let through in the directory route ONLY, and the
-  // one-update check stands directly under the loop.
-  const skip = lawLines.indexOf("    if ((m[1] === 'create' || m[1] === 'update') && file === PV_DIRECTORY) continue;");
-  assert.ok(skip > 0, 'the loop lets a create and an update through in the directory route only');
+  // one-update check stands directly under the loop. EDIT-03 (2026-11-29): its first line lets the routine route's create through too — the book
+  // move's copy of a vendor, held to ONE in its shape by the routine route's own check (clause 1's third exception; edit03.test.ts Y3 runs it).
+  const skip = lawLines.indexOf("    if (((m[1] === 'create' || m[1] === 'update') && file === PV_DIRECTORY) || (m[1] === 'create' && file === PV_REKEY_ROUTE)) continue;"); // EDIT-03 (2026-11-29): and the routine route's create — "    if ((m[1] === 'create' || m[1] === 'update') && file === PV_DIRECTORY) continue;" until then
+  assert.ok(skip > 0, 'the loop lets a create and an update through in the directory route only — and a create in the routine route, held to the book move\'s copy');
   assert.equal(lawLines[skip - 1], "  for (const m of src.matchAll(new RegExp(`\\\\.operations_vendor_directory\\\\s*\\\\.\\\\s*${PV_WRITE}\\\\s*\\\\(`, 'g'))) {");
   assert.equal(lawLines[skip + 1], "    if (m[1].startsWith('create')) pvFail(`${file} creates a vendor (.${m[1]}) — a vendor is created by ${PV_DIRECTORY} alone`); else pvFail(`${file} ${m[1]}s the vendor directory — a vendor is created, and its Instagram tag set, by ${PV_DIRECTORY} alone; it is never renamed, archived or deleted`);");
   assert.equal(lawLines[skip + 2], '  }');
@@ -540,7 +541,7 @@ test('T8 the vendor law, read from its source: the directory route may hold ONE 
   }
 
   // The law's own words: clause 1's second exception, and what its ✔ line says of the directory.
-  assert.match(comments(LAW), /TWO exceptions, each ONE write pinned to its shape:/);
+  assert.match(comments(LAW), /THREE exceptions, each pinned to its shape:/); // EDIT-03 (2026-11-29): the book move is the third — /TWO exceptions, each ONE write pinned to its shape:/ until then
   assert.match(comments(LAW), /TIMESHEET-04 \(Alex, 2026-11-27 — "tag is own column"\): the directory route's one update is a vendor's Instagram tag —/);
-  assert.ok(code(LAW).includes('the vendor directory is created only by ${PV_DIRECTORY}, never deleted, and updated only there, once — a vendor’s Instagram tag alone, by id and the caller (TIMESHEET-04);'));
+  assert.ok(code(LAW).includes("the vendor directory is created only by ${PV_DIRECTORY} (and, in a plan's book move, the target book's copy of a vendor the plan names — its own name and tag — by ${PV_REKEY_ROUTE} alone, EDIT-03), never deleted, and updated only there, once — a vendor’s Instagram tag alone, by id and the caller (TIMESHEET-04);")); // EDIT-03 (2026-11-29): the ✔ line names the book move's copy — '…created only by ${PV_DIRECTORY}, never deleted…' until then
 });
