@@ -381,7 +381,7 @@ test('R7 nothing else: the route still answers ledgerOf’s rows whole; the said
   for (const gone of ['data-ledger-notes-toggle', 'data-ledger-said-match', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-left-out', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book']) assert.equal(s.includes(gone), false, `${gone} — nothing is said under the table`); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
   assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n/); // SHEET-01 (2026-11-28): the totals follow the rows shown; the summary's groups are gone (no ledgerSummary, no `by`)
   assert.doesNotMatch(s, /\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie/, 'no fetch of its own, nothing stored');
-  assert.match(s, /<ExpenseForm onWritten=/, 'the "+ expense" form stands');
+  assert.match(s, /<ExpenseOpen open=\{adding\}[\s\S]*first=\{adding \? <ExpenseRow onWritten=|first=\{adding \? <ExpenseRow onWritten=[\s\S]*<ExpenseOpen open=\{adding\}/, 'the "+ expense" chip and its blank row stand'); // SHEET-01 (2026-11-28): "+ expense" is the sheet's blank row (ExpenseForm.tsx ExpenseRow)
 });
 
 // ── THE AMENDMENT (Alex, 2026-10-19): one marker, one truth, "every stop" ───

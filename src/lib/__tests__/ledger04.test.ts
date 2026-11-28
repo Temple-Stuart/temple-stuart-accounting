@@ -85,7 +85,7 @@ test('R1 the heads: TYPE (COALEVELS-01, 2026-11-27 — SUB ACCOUNT NAME since LE
   // The "+ expense" form's labels — the ledger's own heads for the stop's name and the note; the refusal names the field by its label. COALEVELS-01 (2026-11-27): THE FORMS SAY THE SHEET'S WORDS — TYPE and ITEMS; SUB ACCOUNT NAME and DESCRIPTION until then.
   assert.deepEqual([EXPENSE_FIELD_WORDS.name, EXPENSE_FIELD_WORDS.note], ['TYPE', 'ITEMS']);
   assert.equal(requiredWords('name'), 'TYPE is required');
-  assert.match(code(EXPENSE_FORM), /<span className=\{label\}>\{EXPENSE_FIELD_WORDS\[name\]\}<\/span>/, 'the form prints the one map');
+  assert.match(code(EXPENSE_FORM), /aria-label=\{EXPENSE_FIELD_WORDS\.name\}/, 'the form labels each box by the one map'); assert.match(code(EXPENSE_FORM), /aria-label=\{EXPENSE_FIELD_WORDS\.note\}/); // SHEET-01 (2026-11-28): a box's label is its aria-label — the row prints no word beside its boxes; the printed label until then
   // The stop form's note box: the aria-label says Description; its placeholder words are the role's, unchanged.
   const stop = code(STOP_FORM);
   assert.match(stop, /placeholder=\{draft\.outcome === 'skipped' \? 'why — required' : NOTE_PROMPT_WORDS\[role\]\} aria-label="Description" className=\{`\$\{box\} w-56`\} maxLength=\{280\} data-stop-note \/>/);
@@ -308,7 +308,7 @@ test('the section: no dropdown; every header a sort button and a ▾; one popove
   assert.match(t, /\{openFilter !== null && popover\(openFilter\)\}/);
   assert.match(t, /const closeFilter = useCallback\(\(\) => onOpenFilter\(null\), \[onOpenFilter\]\);/);
   assert.equal((t.match(/<ColumnFilter /g) ?? []).length, 3, 'one mount per kind, one open at a time');
-  assert.match(t, /\{loaded && rows\.length > 0 && \(\n\s*<div className="overflow-x-auto border border-border rounded bg-white">\n\s*<table className=\{`w-full \$\{tableClassName\} border-collapse text-xs`\} \{\.\.\.dataAttr\(name, 'table'\)\}>/, 'the table — its headers hold the filters — stays while rows are loaded, even when a filter leaves none shown');
+  assert.match(t, /\{loaded && \(rows\.length > 0 \|\| first !== undefined\) && \(\n\s*<div className="overflow-x-auto border border-border rounded bg-white">\n\s*<table className=\{`w-full \$\{tableClassName\} border-collapse text-xs`\} \{\.\.\.dataAttr\(name, 'table'\)\}>/, 'the table — its headers hold the filters — stays while rows are loaded, even when a filter leaves none shown, and while a first row is given'); // SHEET-01 (2026-11-28): DataTable's one new prop — the table stands for a first row with no row loaded
   assert.match(t, /\{loaded && rows\.length > 0 && shown\.length === 0 && <div className="text-xs text-text-muted" \{\.\.\.dataAttr\(name, 'none-shown'\)\}>\{NO_ROWS_SHOWN_WORDS\}<\/div>\}/, 'and says no row matches');
   // "clear filters" beside "download CSV", only while a filter is on.
   assert.match(t, /\{\.\.\.dataAttr\(name, 'csv'\)\}>\{CSV_DOWNLOAD_WORDS\}<\/button>\n\s*\{anyFilterOn\(columns, filters\) && <button type="button" className=\{chipClass\} onClick=\{\(\) => onFilters\(noFilters\)\} \{\.\.\.dataAttr\(name, 'clear-filters'\)\}>\{CLEAR_FILTERS_WORDS\}<\/button>\}/);

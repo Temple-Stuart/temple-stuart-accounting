@@ -8,18 +8,36 @@
  *
  * HERMETIC, on paste03.test.ts's model — no database, no network, and the only clock is the `now` handed in. The rules are DRIVEN
  * directly over made-up rows; the screens and the files that must not change are anchored to their source with comments stripped (the
- * reader law). Every place, trip, name, day, account and amount below is invented. No pin here names a line number.
+ * reader law). PART 3 also DRAWS the blank row and the shared table to static markup (react-dom/server) — no effect runs there, so
+ * nothing is read and nothing is written. Every place, trip, name, day, account and amount below is invented. No pin here names a line number.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import * as React from 'react';
+import { createElement, type ReactNode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+Object.assign(globalThis, { React }); // PART 3 draws the blank row and the shared table — their JSX reads React as a global under tsx (booksPipe.test.ts's way)
 import { code, comments } from '../sourceText';
 import { BLANK } from '../budget/format';
 import * as ledgerRule from '../operations/ledger';
-import { LEDGER_COLUMNS, NO_COLUMN_FILTERS, PLANNED_WORD, WENT_WORD, applyColumnFilters, cellWordsOf, ledgerTotals, minutesCellWords, type LedgerPlanRow, type LedgerRecording, type LedgerRow, type LedgerSheetRow } from '../operations/ledger';
+import {
+  CANCEL_EXPENSE_WORDS, EMPTY_EXPENSE, EMPTY_ROW_TRIP, END_AT_START_WORDS, END_NEEDS_START_WORDS, EXPENSE_FIELDS, EXPENSE_FIELD_WORDS, EXPENSE_STEPS, EXPENSE_WORDS, LEDGER_COLUMNS, LEDGER_TABLE, LEDGER_TABLE_CLASS,
+  LOCATION_CLASSES, LOCATION_WORDS, MINUTES_RANGE_WORDS, NOTES_CONTROL_WORDS, NOTES_LONG_WORDS, NO_BOOK_WORDS, NO_COLUMN_FILTERS, NO_LOCATION_WORDS, PLACE_NEEDS_CITY_WORDS, PLANNED_WORD, REGION_NEEDS_COUNTRY_WORDS,
+  ROW_LATER_MARK, ROW_LATER_WORDS, ROW_TRIP_FIELD_WORDS, SAVE_EXPENSE_WORDS, STEP_WORDS, TAG_NEEDS_VENDOR_WORDS, TAG_SAME_WORDS, TAG_STANDS_WORDS, TRIP_ENDS_WORDS, WENT_WORD,
+  aheadFieldWords, applyColumnFilters, cellWordsOf, chargeFieldWords, coveringTripWords, dayTypedWords, expenseInput, headWordOf, ledgerTotals, minutesCellWords, minutesFromTo, noTripRowWords, outcomeWords,
+  recordBody, rowPlannedMinutes, rowTripInput, timeTypedWords, tripEndsBeforeWords, withNotTried,
+  type ColumnFilters, type ExpenseDraft, type ExpenseField, type LedgerColumn, type LedgerPlanRow, type LedgerRecording, type LedgerRow, type LedgerSheetRow, type RowTripDraft,
+} from '../operations/ledger';
 import { TOOL_REGISTRY } from '../toolRegistry';
-import { NOT_RECORDED_WORDS } from '../operations/stopRecord';
+import { MINUTES_MAX, NOTES_MAX, NOT_RECORDED_WORDS, minutesTypedWords } from '../operations/stopRecord';
 import { NOT_A_STOP_RECORD_WORDS } from '../operations/stopRole';
-import { overlapWords, type StayRow } from '../operations/stay';
+import { overlapWords, placeParts, stayInput, type StayRow } from '../operations/stay';
+import { INSTAGRAM_TAG_WORDS, readInstagramTag } from '../operations/planVendor';
+import DataTable from '../../components/table/DataTable';
+import ExpenseRow, { ExpenseOpen } from '../../components/workbench/operations/ledger/ExpenseForm';
+import { OperationsEntityContext, type Entity } from '../../components/workbench/operations/EntitySelector';
 import {
   CHARGE_HAPPENED_WORDS, CHARGE_TOTAL_WORDS, NO_TOTAL_WORDS, ON_TIME_SHEET_KEYS, PASTE_READ_HEADS, PASTE_TRIP_HEAD, PASTE_WORKED_OUT_HEADS, PLANNED_AHEAD_WORDS,
   headTwiceWords, isChargePlacement, kindKeyOf, notReadLines, pasteShown, placePaste, readPaste, recordedWentWords,
@@ -484,4 +502,343 @@ test('T15 the registry’s Time row: LIVE with its four beats; the customer line
   assert.match(code(REGISTRY), /slug: 'time', status: 'LIVE', beats: ALL, home: '\/time',/);
   assert.match(comments(REGISTRY), /SHEET-01 \(Alex, 2026-11-28\): the page is the table — the journal's read and its two tables leave the citation/);
   assert.equal(linesOf(REGISTRY).length, 761, 'no line added or removed — Landing.tsx cites lines of this file');
+});
+
+// ── PART 3 — "+ EXPENSE" IS THE SHEET'S BLANK ROW ────────────────────────────
+
+const FORM = 'src/components/workbench/operations/ledger/ExpenseForm.tsx';
+const TABLE = 'src/components/table/DataTable.tsx';
+const rx = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** A row as he types it — Monday at nine, past; every box the rule requires, and none of the four new ones. */
+const ROW: ExpenseDraft = { ...EMPTY_EXPENSE, day: MON, time: '09:00', name: 'Kayak', coa: '6200', book: 'P' };
+const readRow = (boxes: Partial<ExpenseDraft>) => expenseInput({ ...ROW, ...boxes }, NBO, NOW);
+const valueOf = (boxes: Partial<ExpenseDraft>) => {
+  const read = readRow(boxes);
+  if (!read.ok) return assert.fail(`refused on ${read.field}: ${read.message}`);
+  return read.value;
+};
+const refusedOn = (boxes: Partial<ExpenseDraft>): readonly [ExpenseField, string] => {
+  const read = readRow(boxes);
+  if (read.ok) return assert.fail(`read: ${JSON.stringify(boxes)}`);
+  return [read.field, read.message];
+};
+
+// ── T16 · THE BOXES ARE THE SHEET'S HEAD WORDS (ruling 3.2) ──────────────────
+
+test('T16 EXPENSE_FIELDS are fifteen boxes in the sheet’s order, each worded by its own column’s head word (headWordOf) — none typed; the draft gains END, INSTAGRAM TAG, NOTES and LOGGED MIN, each blank in EMPTY_EXPENSE', () => {
+  assert.deepEqual(EXPENSE_FIELDS, ['day', 'time', 'end', 'location', 'coa', 'book', 'name', 'note', 'vendor', 'tag', 'stars', 'logged', 'amount', 'actual', 'notes']);
+  const COLUMN_OF = {
+    day: 'date', time: 'start', end: 'end', location: 'location', coa: 'accountName', book: 'book', name: 'subAccountName', note: 'description', vendor: 'vendor', tag: 'instagramTag',
+    stars: 'stars', logged: 'loggedMinutes', amount: 'budget', actual: 'actual', notes: 'notes',
+  } as const satisfies Record<ExpenseField, LedgerColumn>;
+  for (const field of EXPENSE_FIELDS) assert.equal(EXPENSE_FIELD_WORDS[field], headWordOf(COLUMN_OF[field]), field);
+  assert.deepEqual(EXPENSE_FIELDS.map((f) => EXPENSE_FIELD_WORDS[f]), ['DATE', 'START', 'END', 'LOCATION', 'CATEGORY', 'ENTITY', 'TYPE', 'ITEMS', 'VENDOR', 'INSTAGRAM TAG', 'STARS', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'NOTES']);
+  const at = EXPENSE_FIELDS.map((f) => LEDGER_COLUMNS.indexOf(COLUMN_OF[f]));
+  assert.deepEqual(at, [...at].sort((a, b) => a - b), 'the boxes run left to right as the sheet’s columns do');
+  const words = code(SHEET_RULES).match(/^export const EXPENSE_FIELD_WORDS: Readonly<Record<ExpenseField, string>> = \{[^\n]*\};/m)?.[0] ?? assert.fail('EXPENSE_FIELD_WORDS on its one line');
+  assert.equal(countOf(words, /headWordOf\('\w+'\)/g), EXPENSE_FIELDS.length);
+  assert.doesNotMatch(words, /'[A-Z]/, 'no head word typed');
+  for (const box of ['end', 'tag', 'notes', 'logged'] as const) assert.equal(EMPTY_EXPENSE[box], '', `${box}: blank`);
+});
+
+// ── T17 · END (ruling 3.2) ───────────────────────────────────────────────────
+
+test('T17 END, read after ITEMS: blank is none; typed with no START, refused — a charge has no clock; not HH:MM, timeTypedWords; at START, refused; else the minutes START to END, across midnight, by minutesFromTo — the one arithmetic', () => {
+  assert.equal(END_NEEDS_START_WORDS, 'END needs a START — with no START this is a charge on its date, and a charge has no clock');
+  assert.equal(END_AT_START_WORDS, 'END is START — give the stop a length, or leave END blank');
+  assert.equal(valueOf({}).minutes, null);
+  assert.equal(valueOf({ end: '   ' }).minutes, null, 'spaces are blank');
+  assert.deepEqual(refusedOn({ time: '', end: '10:00' }), ['end', END_NEEDS_START_WORDS]);
+  for (const typed of ['9:30', '24:00', '10:60', 'noon', '10.30']) assert.deepEqual(refusedOn({ end: typed }), ['end', timeTypedWords(typed)], typed);
+  assert.deepEqual(refusedOn({ end: '09:00' }), ['end', END_AT_START_WORDS]);
+  assert.equal(valueOf({ end: '10:30' }).minutes, 90);
+  assert.equal(valueOf({ time: '22:30', end: '01:15' }).minutes, 165, 'across midnight');
+  assert.equal(valueOf({ end: '08:59' }).minutes, 1439, 'a minute short of a day');
+  assert.deepEqual([minutesFromTo('09:00', '10:30'), minutesFromTo('22:30', '01:15'), minutesFromTo('09:00', '09:00'), minutesFromTo('00:00', '23:59')], [90, 165, 0, 1439]);
+  assert.throws(() => minutesFromTo('9:00', '10:00'), /^Error: ledger: "9:00" is not a time \(HH:MM\)$/);
+  assert.equal(refusedOn({ note: 'two\u0001paddles', end: 'noon' })[0], 'note', 'ITEMS first');
+  assert.equal(refusedOn({ end: 'noon', vendorName: 'Cove Kayaks', tag: 'cove kayaks' })[0], 'end', 'then END, before INSTAGRAM TAG');
+});
+
+// ── T18 · INSTAGRAM TAG (ruling 3.2) ─────────────────────────────────────────
+
+test('T18 INSTAGRAM TAG, read after END: blank is none; typed with no VENDOR, refused — the tag is the vendor’s; else planVendor.ts readInstagramTag, its words — for a vendor of the book and for a new name alike', () => {
+  assert.equal(TAG_NEEDS_VENDOR_WORDS, "an INSTAGRAM TAG is the vendor's — pick a VENDOR or name a new one");
+  assert.equal(valueOf({ vendorName: 'Cove Kayaks' }).tag, null);
+  assert.deepEqual(refusedOn({ tag: '@cove.kayaks' }), ['tag', TAG_NEEDS_VENDOR_WORDS]);
+  for (const vendor of [{ vendorId: 'vendor-cove' }, { vendorName: 'Cove Kayaks' }]) {
+    assert.equal(valueOf({ ...vendor, tag: '@cove.kayaks' }).tag, 'cove.kayaks', 'the @ is the handle’s mark');
+    assert.equal(valueOf({ ...vendor, tag: ' cove_kayaks ' }).tag, 'cove_kayaks');
+    for (const bad of ['cove kayaks', '@cove-kayaks', 'c'.repeat(31)]) {
+      const read = readInstagramTag(bad);
+      if (read.ok) return assert.fail(`${bad} read`);
+      assert.match(read.message, new RegExp(`^${rx(INSTAGRAM_TAG_WORDS)} — `));
+      assert.deepEqual(refusedOn({ ...vendor, tag: bad }), ['tag', read.message], bad);
+    }
+  }
+  assert.equal(refusedOn({ vendorName: 'Cove Kayaks', tag: 'cove kayaks', notes: 'calm\u0007water' })[0], 'tag', 'before NOTES');
+});
+
+// ── T19 · NOTES (ruling 3.2) ─────────────────────────────────────────────────
+
+test('T19 NOTES, read after INSTAGRAM TAG: trimmed, its spaces one; for a charge, chargeFieldWords(\'notes\') — the sentence names START; ahead, aheadFieldWords(\'notes\'); then the record form’s own reading — a control character, then longer than NOTES_MAX', () => {
+  assert.equal(valueOf({}).notes, null);
+  assert.equal(valueOf({ notes: '  calm   water\tall day ' }).notes, 'calm water all day');
+  assert.deepEqual(refusedOn({ time: '', notes: 'calm water' }), ['notes', chargeFieldWords('notes')]);
+  assert.equal(chargeFieldWords('notes'), "NOTES is the record's, and with no START this is a charge on its date — it takes no record; give it a START, or leave this blank");
+  assert.deepEqual(refusedOn({ day: WED, notes: 'calm water' }), ['notes', aheadFieldWords('notes')]);
+  assert.equal(aheadFieldWords('notes'), "NOTES is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come");
+  assert.deepEqual(refusedOn({ notes: 'calm\u0007water' }), ['notes', NOTES_CONTROL_WORDS]);
+  assert.deepEqual(refusedOn({ notes: 'w'.repeat(NOTES_MAX + 1) }), ['notes', NOTES_LONG_WORDS]);
+  assert.deepEqual(refusedOn({ notes: `\u0007${'w'.repeat(NOTES_MAX + 1)}` }), ['notes', NOTES_CONTROL_WORDS], 'controls before length');
+  assert.equal(valueOf({ notes: 'w'.repeat(NOTES_MAX) }).notes, 'w'.repeat(NOTES_MAX), 'NOTES_MAX itself is read');
+  assert.equal(refusedOn({ notes: 'calm\u0007water', logged: 'many' })[0], 'notes', 'before LOGGED MIN');
+});
+
+// ── T20 · LOGGED MIN (ruling 3.2) ────────────────────────────────────────────
+
+test('T20 LOGGED MIN, read last: blank is none; for a charge and ahead, refused by name; not a whole number, minutesTypedWords; above MINUTES_MAX, MINUTES_RANGE_WORDS — the record form’s own reading', () => {
+  assert.equal(valueOf({}).logged, null);
+  assert.deepEqual(refusedOn({ time: '', logged: '45' }), ['logged', chargeFieldWords('logged')]);
+  assert.deepEqual(refusedOn({ day: WED, logged: '45' }), ['logged', aheadFieldWords('logged')]);
+  for (const typed of ['1.5', 'many', '-3', '45 min', '4 5']) assert.deepEqual(refusedOn({ logged: typed }), ['logged', minutesTypedWords(typed)], typed);
+  assert.deepEqual(refusedOn({ logged: String(MINUTES_MAX + 1) }), ['logged', MINUTES_RANGE_WORDS]);
+  assert.equal(MINUTES_RANGE_WORDS, `LOGGED MIN is 0 to ${MINUTES_MAX}`);
+  assert.deepEqual([valueOf({ logged: '0' }).logged, valueOf({ logged: ' 75 ' }).logged, valueOf({ logged: String(MINUTES_MAX) }).logged], [0, 75, MINUTES_MAX]);
+});
+
+// ── T21 · IN ORDER, AND THE RECORD CARRIES THEM (ruling 3.2) ─────────────────
+
+test('T21 the four new boxes are read after ITEMS in the ruled order — END, INSTAGRAM TAG, NOTES, LOGGED MIN — the first bad one named; the value carries them last; recordBody carries NOTES and LOGGED MIN', () => {
+  const bad: Partial<ExpenseDraft> = { end: '09:00', tag: 'cove kayaks', notes: 'calm\u0007water', logged: 'many' };
+  const fixed = { end: '10:30', tag: '@cove.kayaks', notes: 'calm water', logged: '75' } as const;
+  let boxes: Partial<ExpenseDraft> = { vendorName: 'Cove Kayaks', ...bad };
+  const named: ExpenseField[] = [];
+  for (const box of ['end', 'tag', 'notes', 'logged'] as const) {
+    named.push(refusedOn(boxes)[0]);
+    boxes = { ...boxes, [box]: fixed[box] };
+  }
+  assert.deepEqual(named, ['end', 'tag', 'notes', 'logged']);
+  assert.equal(refusedOn({ vendorName: 'Cove Kayaks', ...bad, note: 'two\u0001paddles' })[0], 'note', 'ITEMS before all four');
+  const v = valueOf({ vendorName: 'Cove Kayaks', ...fixed, actual: '7.50', stars: '4', note: 'two paddles' });
+  assert.deepEqual(Object.keys(v).slice(-4), ['minutes', 'tag', 'notes', 'logged']);
+  assert.deepEqual([v.minutes, v.tag, v.notes, v.logged], [90, 'cove.kayaks', 'calm water', 75]);
+  assert.deepEqual(recordBody(v, 'line-kayak'), {
+    kind: 'routine_line', id: 'line-kayak', instant: v.instant, outcome: 'done', done_at: v.instant, actual_cents: 750, rating: 4, note: 'two paddles', notes: 'calm water', actual_minutes: 75,
+  });
+  const bare = valueOf({});
+  assert.deepEqual(recordBody(bare, 'line-kayak'), {
+    kind: 'routine_line', id: 'line-kayak', instant: bare.instant, outcome: 'done', done_at: bare.instant, actual_cents: null, rating: null, note: null, notes: null, actual_minutes: null,
+  }, 'none typed: null and null');
+});
+
+// ── T22 · THE EIGHT STEPS (ruling 3.2) ───────────────────────────────────────
+
+test('T22 the writes are eight steps — the trip first, END’s minutes after the line, the tag after the vendor; a tag that stands is said in its own words — the same handle, or the one the vendor carries; every step after a failure, not tried', () => {
+  assert.deepEqual(EXPENSE_STEPS, ['trip', 'stop', 'line', 'minutes', 'directory', 'vendor', 'tag', 'record']);
+  assert.deepEqual([STEP_WORDS.trip, STEP_WORDS.minutes, STEP_WORDS.tag], ['the trip — the place of every row on its days', "the stop's END", "the vendor's Instagram tag"]);
+  assert.equal(TAG_STANDS_WORDS('cove.paddles'), 'not written — the vendor already carries @cove.paddles');
+  assert.equal(TAG_SAME_WORDS('cove.kayaks'), "@cove.kayaks — already the vendor's");
+  assert.equal(outcomeWords({ step: 'tag', state: 'stands', words: TAG_SAME_WORDS('cove.kayaks') }), "the vendor's Instagram tag — @cove.kayaks — already the vendor's");
+  assert.equal(outcomeWords({ step: 'tag', state: 'stands', words: TAG_STANDS_WORDS('cove.paddles') }), "the vendor's Instagram tag — not written — the vendor already carries @cove.paddles");
+  assert.deepEqual(withNotTried([{ step: 'trip', state: 'failed', words: 'refused' }]).map((o) => `${o.step}:${o.state}`),
+    ['trip:failed', 'stop:not tried', 'line:not tried', 'minutes:not tried', 'directory:not tried', 'vendor:not tried', 'tag:not tried', 'record:not tried']);
+});
+
+// ── T23 · PLANNED MIN AS HE TYPES (ruling 3.2) ───────────────────────────────
+
+test('T23 rowPlannedMinutes — PLANNED MIN as he types: START and END both HH:MM and not the same, their minutes (across midnight); else none — the sheet’s blank', () => {
+  const planned = (time: string, end: string): number | null => rowPlannedMinutes({ time, end });
+  assert.deepEqual([planned('09:00', '10:30'), planned('22:30', '01:15')], [90, 165]);
+  for (const [time, end] of [['09:00', '09:00'], ['09:00', ''], ['', '10:30'], ['', ''], ['9:00', '10:30'], ['09:00', '10:3'], ['09:00', 'noon']] as const) {
+    assert.equal(planned(time, end), null, `${time} → ${end}`);
+  }
+  assert.equal(minutesCellWords(planned('09:00', '')), BLANK);
+  assert.equal(minutesCellWords(planned('09:00', '10:30')), minutesCellWords(90));
+});
+
+// ── T24 · THE ROW'S TRIP (ruling 3.2) ────────────────────────────────────────
+
+test('T24 rowTripInput, each branch: none typed is none; CITY blank with another typed, refused on CITY; REGION with no COUNTRY, refused on COUNTRY; TRIP ENDS not a day or before DATE, refused on TRIP ENDS; the place by stay.ts stayInput, its words on CITY; else a trip to add, DATE to TRIP ENDS', () => {
+  const DAY = '2027-03-03';
+  const trip = (boxes: Partial<RowTripDraft>) => rowTripInput({ ...EMPTY_ROW_TRIP, endsOn: DAY, ...boxes }, DAY);
+  assert.equal(TRIP_ENDS_WORDS, 'TRIP ENDS');
+  assert.equal(PLACE_NEEDS_CITY_WORDS, "a trip's place starts with its CITY");
+  assert.equal(REGION_NEEDS_COUNTRY_WORDS, 'REGION needs its COUNTRY — a place of two parts reads as a city and a country');
+  assert.equal(tripEndsBeforeWords(DAY, '2027-03-01'), "TRIP ENDS 2027-03-01 is before the row's DATE 2027-03-03");
+  assert.deepEqual(ROW_TRIP_FIELD_WORDS, { city: 'CITY', region: 'REGION', country: 'COUNTRY', endsOn: 'TRIP ENDS' });
+  // None typed.
+  assert.deepEqual(trip({}), { kind: 'none' });
+  assert.deepEqual(trip({ city: '  ', region: '\t', country: ' ', endsOn: 'soon' }), { kind: 'none' }, 'spaces are blank; TRIP ENDS is not read for no trip');
+  // CITY first.
+  assert.deepEqual(trip({ region: 'Coast Province', country: 'Examplia' }), { kind: 'refused', field: 'city', message: PLACE_NEEDS_CITY_WORDS });
+  assert.deepEqual(trip({ country: 'Examplia' }), { kind: 'refused', field: 'city', message: PLACE_NEEDS_CITY_WORDS });
+  // REGION needs its COUNTRY — stay.ts placeParts reads a place of two parts as a city and a country.
+  assert.deepEqual(trip({ city: 'Harbor Town', region: 'Coast Province' }), { kind: 'refused', field: 'country', message: REGION_NEEDS_COUNTRY_WORDS });
+  assert.deepEqual(placeParts('Harbor Town, Coast Province'), { city: 'Harbor Town', region: null, country: 'Coast Province' }, 'why: the region would be read as the country');
+  // TRIP ENDS.
+  for (const endsOn of ['', 'soon', '2027-02-30', '3/9/27']) assert.deepEqual(trip({ city: 'Harbor Town', endsOn }), { kind: 'refused', field: 'endsOn', message: dayTypedWords(endsOn) }, endsOn);
+  assert.deepEqual(trip({ city: 'Harbor Town', endsOn: '2027-03-02' }), { kind: 'refused', field: 'endsOn', message: tripEndsBeforeWords(DAY, '2027-03-02') });
+  // The place, by stayInput — its words, on CITY.
+  assert.deepEqual(trip({ city: 'Harbor\u0001Town' }), { kind: 'refused', field: 'city', message: 'control characters are not a place' });
+  const long = { city: 'H'.repeat(40), region: 'C'.repeat(30), country: 'E'.repeat(20) };
+  const said = stayInput({ place: [long.city, long.region, long.country].join(', '), starts_on: DAY, ends_on: DAY });
+  if (said.ok) return assert.fail('a place of 94 characters read');
+  assert.deepEqual(trip(long), { kind: 'refused', field: 'city', message: said.message });
+  // A trip to add: DATE to TRIP ENDS, the typed parts joined.
+  assert.deepEqual(trip({ city: ' Harbor   Town ', region: 'Coast  Province', country: 'Examplia', endsOn: '2027-03-09' }), { kind: 'add', place: 'Harbor Town, Coast Province, Examplia', startsOn: DAY, endsOn: '2027-03-09' });
+  assert.deepEqual(trip({ city: 'Harbor Town', country: 'Examplia' }), { kind: 'add', place: 'Harbor Town, Examplia', startsOn: DAY, endsOn: DAY }, 'a one-day trip, a place of two parts');
+  assert.deepEqual(trip({ city: 'Harbor Town' }), { kind: 'add', place: 'Harbor Town', startsOn: DAY, endsOn: DAY });
+  assert.throws(() => rowTripInput(EMPTY_ROW_TRIP, ''), /^Error: ledger: the row's trip is read for a day — "" is not one$/);
+  // What the row says of a trip.
+  const covering: StayRow = { id: 'stay-harbor', place: 'Harbor Town, Coast Province, Examplia', starts_on: DAY, ends_on: '2027-03-09' };
+  assert.equal(coveringTripWords(covering), 'TRIP Harbor Town, Coast Province, Examplia · 2027-03-03 → 2027-03-09');
+  assert.equal(noTripRowWords(DAY), 'no trip covers 2027-03-03 — a CITY typed in the row is written as a trip, 2027-03-03 to');
+});
+
+// ── T25 · THE BLANK ROW, DRAWN (ruling 3.4) ──────────────────────────────────
+
+/** Four made-up books: one personal, two of one type (they say their names), one of a type the sheet has no word for (it says its name). */
+const BOOKS: Entity[] = [
+  { id: 'P', name: 'Home', entity_type: 'personal', is_default: true },
+  { id: 'B1', name: 'Cove Studio', entity_type: 'sole_prop', is_default: false },
+  { id: 'B2', name: 'Ridge Works', entity_type: 'sole_prop', is_default: false },
+  { id: 'L', name: 'Pine Holdings', entity_type: 'llc', is_default: false },
+];
+const drawRow = (entities: Entity[]): string => renderToStaticMarkup(createElement('table', null, createElement('tbody', null,
+  createElement(OperationsEntityContext.Provider, { value: { entities, selectedEntityId: null, setSelectedEntityId: () => undefined, selectedEntity: null } },
+    createElement(ExpenseRow, { onWritten: () => undefined, close: () => undefined })))));
+const cellIn = (row: string, key: LedgerColumn): string => {
+  const at = row.indexOf(`data-ledger-expense-cell="${key}"`);
+  assert.ok(at >= 0, `the ${key} cell`);
+  return row.slice(at, row.indexOf('</td>', at));
+};
+
+test('T25 the blank row, drawn: one cell under every column, in LEDGER_COLUMNS’ order — a box under every column he types, each labelled by its word; DAY and PLANNED MIN worked out as he types; WENT, COA, VARIANCE, MATCH and UNDER / OVER the sheet’s blank until saved; the row beneath, one cell across the twenty-five', () => {
+  const html = drawRow(BOOKS);
+  const row = html.slice(html.indexOf('data-ledger-expense-form'), html.indexOf('data-ledger-expense-said'));
+  const beneath = html.slice(html.indexOf('data-ledger-expense-said'));
+  assert.deepEqual([...row.matchAll(/data-ledger-expense-cell="(\w+)"/g)].map((m) => m[1]), [...LEDGER_COLUMNS], 'one cell a column, in its order');
+  assert.equal(countOf(row, /<td\b/g), LEDGER_COLUMNS.length);
+  // A box under every column he types — the rule's fifteen and the trip's three — each labelled by its word.
+  assert.deepEqual([...row.matchAll(/aria-label="([^"]+)"/g)].map((m) => m[1]),
+    ['DATE', 'START', 'END', 'CITY', 'REGION', 'COUNTRY', 'LOCATION', 'CATEGORY', 'ENTITY', 'TYPE', 'ITEMS', 'VENDOR', 'INSTAGRAM TAG', 'STARS', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'NOTES']);
+  const words = new Set<string>([...Object.values(EXPENSE_FIELD_WORDS), ...Object.values(ROW_TRIP_FIELD_WORDS)]);
+  for (const m of row.matchAll(/aria-label="([^"]+)"/g)) assert.ok(words.has(m[1]), `${m[1]} is a box’s word`);
+  assert.deepEqual([...row.matchAll(/data-ledger-expense-box="(\w+)"/g)].map((m) => m[1]).sort(), [...EXPENSE_FIELDS, 'city', 'region', 'country'].sort());
+  // No trip read yet (no DATE): the trip's three are boxes, 80 at most.
+  for (const key of ['city', 'region', 'country'] as const) assert.match(cellIn(row, key), new RegExp(`<input type="text" maxLength="80" aria-label="${ROW_TRIP_FIELD_WORDS[key]}"`));
+  // DAY nothing until DATE is a day; PLANNED MIN the sheet's blank until START and END are typed.
+  assert.equal(cellIn(row, 'day'), 'data-ledger-expense-cell="day">');
+  assert.match(cellIn(row, 'plannedMinutes'), new RegExp(`<span data-ledger-expense-planned-minutes="true">${BLANK}</span>$`));
+  // The five the rule works out once saved.
+  for (const key of ['went', 'account', 'variance', 'match', 'underOver'] as const) {
+    assert.match(cellIn(row, key), new RegExp(`><span title="${rx(ROW_LATER_WORDS)}" data-ledger-expense-later="true">${rx(ROW_LATER_MARK)}</span>$`), key);
+  }
+  assert.equal(countOf(row, /data-ledger-expense-later/g), 5);
+  // LOCATION: none, then the rule file's classes in its words. ENTITY: each book by its sheet word.
+  const options = (cell: string): string[][] => [...cell.matchAll(/<option value="([^"]*)"[^>]*>([^<]*)<\/option>/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(options(cellIn(row, 'location')), [['', NO_LOCATION_WORDS], ...LOCATION_CLASSES.map((c) => [c, LOCATION_WORDS[c]])]);
+  assert.deepEqual(options(cellIn(row, 'book')), [['P', 'Personal'], ['B1', 'Business — Cove Studio'], ['B2', 'Business — Ridge Works'], ['L', 'Pine Holdings']]);
+  assert.match(cellIn(drawRow([]), 'book'), new RegExp(`data-ledger-expense-no-book="true">${rx(NO_BOOK_WORDS)}</span>$`));
+  // CATEGORY: the book's chart, in a group that carries the box's word. VENDOR: ONE typed box over the book's vendors.
+  assert.match(cellIn(row, 'accountName'), /<div role="group" aria-label="CATEGORY" data-ledger-expense-box="coa"><select /);
+  const vendor = cellIn(row, 'vendor');
+  assert.equal(countOf(vendor, /<input\b/g), 1);
+  assert.doesNotMatch(vendor, /<select\b/);
+  assert.match(vendor, /<input type="text" list="ledger-expense-vendors" aria-label="VENDOR"[^>]*\/><datalist id="ledger-expense-vendors" data-ledger-expense-vendors="true"><\/datalist>$/);
+  // The row beneath: one cell across the twenty-five — save (waiting for the zone, read on mount) and cancel; nothing read yet, nothing said.
+  assert.equal(countOf(beneath, /<td\b/g), 1);
+  assert.match(beneath, new RegExp(`<td colSpan="${LEDGER_COLUMNS.length}" `));
+  assert.match(beneath, new RegExp(`disabled="" aria-busy="false" data-ledger-expense-save="true">${rx(SAVE_EXPENSE_WORDS)}</button>`));
+  assert.match(beneath, new RegExp(`data-ledger-expense-cancel="true">${rx(CANCEL_EXPENSE_WORDS)}</button>`));
+  assert.doesNotMatch(beneath, /data-ledger-expense-(zone|trip|refused|outcome|landed)/);
+  assert.equal(countOf(html, /<tr class="border-t border-border bg-amber-50"/g), 2, 'both rows in the light tint');
+});
+
+// ── T26 · THE FORM'S SOURCE (rulings 3.4, 3.5) ───────────────────────────────
+
+test('T26 the form: "+ expense" opens and shuts the row; the cells drawn from the list; the vendors by the directory’s GET and vendorsOf, the trip by readStays — both again after a save; VENDOR one of the book’s by pastedVendorOf; the writes in EXPENSE_STEPS’ order — the trip first and only on add, END’s minutes by setLineMinutes, the tag never over a standing one; nothing stored in the browser', () => {
+  // "+ expense", drawn shut and open: pressed while open, outlined — no dark fill.
+  const shut = renderToStaticMarkup(createElement(ExpenseOpen, { open: false, onToggle: () => undefined }));
+  const open = renderToStaticMarkup(createElement(ExpenseOpen, { open: true, onToggle: () => undefined }));
+  assert.match(shut, new RegExp(`aria-pressed="false" data-ledger-expense-open="true">${rx(EXPENSE_WORDS)}</button>$`));
+  assert.match(open, new RegExp(`aria-pressed="true" data-ledger-expense-open="true">${rx(EXPENSE_WORDS)}</button>$`));
+  assert.notEqual(shut.match(/class="([^"]+)"/)?.[1], open.match(/class="([^"]+)"/)?.[1], 'the pressed class while open');
+  assert.doesNotMatch(open, /bg-brand-purple|text-white/);
+  const f = code(FORM);
+  assert.match(f, /export function ExpenseOpen\(\{ open, onToggle \}: \{ open: boolean; onToggle: \(\) => void \}\) \{\n\s*return <button type="button" className=\{open \? chipOn : chip\} onClick=\{onToggle\} aria-pressed=\{open\} data-ledger-expense-open>\{EXPENSE_WORDS\}<\/button>;/);
+  assert.match(f, /export default function ExpenseRow\(\{ onWritten, close \}: \{ onWritten: \(day: string\) => void; close: \(\) => void \}\) \{/);
+  assert.match(f, /onClick=\{close\} data-ledger-expense-cancel>/, 'cancel shuts the row');
+  // The cells drawn from LEDGER_COLUMNS — never a retyped list; a case a column, in its order; a column with no case is the file's error.
+  assert.ok(f.includes('{LEDGER_COLUMNS.map((key) => <td key={key} className={`${cell} align-middle`} data-ledger-expense-cell={key}>{cellOf(key)}</td>)}'));
+  assert.doesNotMatch(f, /data-ledger-expense-cell="/, 'no cell typed by hand');
+  assert.deepEqual([...f.matchAll(/^\s*case '(\w+)':/gm)].map((m) => m[1]), [...LEDGER_COLUMNS]);
+  assert.ok(f.includes('default: { const none: never = key; throw new Error(`ExpenseForm: no cell for the column ${String(none)}`); }'));
+  // The reads — again after a save.
+  assert.match(f, /const listed = await readJson\('\/api\/operations\/vendor-directory'\);\n\s*if \(!live\) return;\n\s*if \(!listed\.ok\) \{ setVendorsRead\(\{ kind: 'failed', words: vendorsUnreadWords\(listed\.words\) \}\); return; \}\n\s*const read = vendorsOf\(listed\.value\);/);
+  assert.match(f, /setVendorsRead\(read\.ok \? \{ kind: 'read', vendors: read\.vendors \} : \{ kind: 'failed', words: vendorsUnreadWords\(read\.words\) \}\);/);
+  assert.doesNotMatch(f, /useDirectory/, 'the Budget’s directory reader is read no more');
+  assert.match(f, /const read = await readStays\(draft\.day\);\n\s*if \(!live\) return;\n\s*setTripRead\(read\.ok \? \{ kind: 'read', covering: read\.value\.covering \} : \{ kind: 'failed', words: read\.words \}\);/);
+  assert.match(f, /\}, \[reads\]\);/);
+  assert.match(f, /\}, \[draft\.day, reads\]\);/);
+  // TRIP ENDS follows DATE, in its box — never a hidden choice.
+  assert.ok(f.includes('const setDay = (value: string) => { setDraft((d) => ({ ...d, day: value })); setTrip((t) => ({ ...t, endsOn: value })); };'));
+  assert.ok(f.includes('<input type="date" value={draft.day} onChange={(e) => setDay(e.target.value)}'));
+  // The save.
+  const save = f.slice(f.indexOf('const save = async () => {'), f.indexOf('const onKeyDown = ('));
+  assert.match(save, /if \(tripRead\.kind === 'failed'\) \{ refuse\('city', tripRead\.words\); return; \}\n\s*if \(tripRead\.kind !== 'read'\) \{ refuse\('city', STAY_LOADING_WORDS\); return; \}\n\s*if \(tripRead\.covering === null\) \{\n\s*const read = rowTripInput\(trip, draft\.day\);\n\s*if \(read\.kind === 'refused'\) \{ refuse\(read\.field, read\.message\); return; \}\n\s*if \(read\.kind === 'add'\) tripToAdd = read;/);
+  assert.equal(countOf(save, /\bcreateStay\(/g), 1);
+  assert.match(save, /if \(tripToAdd !== null\) \{[\s\S]*?added = await createStay\(\{ place: tripToAdd\.place, starts_on: tripToAdd\.startsOn, ends_on: tripToAdd\.endsOn \}\);[\s\S]*?\} else \{\n\s*done\.push\(\{ step: 'trip', state: 'not asked', words: '' \}\);/, 'the trip only on add; else not asked');
+  assert.match(save, /if \(vendorsRead\.kind === 'reading'\) \{ refuse\('vendor', VENDORS_LOADING_WORDS\); return; \}\n\s*if \(vendorsRead\.kind === 'failed'\) \{ refuse\('vendor', vendorsRead\.words\); return; \}\n\s*const picked = pastedVendorOf\(typed, \{ id: draft\.book \}, vendorsRead\.vendors\);/, 'never guessed while unread');
+  assert.match(save, /carries = own\.instagram_tag;/, 'what the vendor carries is the directory’s, as read');
+  assert.match(save, /if \(v\.minutes !== null\) \{\n\s*const timed = await setLineMinutes\(line\.value\.lineId, v\.minutes\);[\s\S]*?\} else \{\n\s*done\.push\(\{ step: 'minutes', state: 'not asked', words: '' \}\);/);
+  assert.equal(countOf(save, /\bsetVendorTag\(/g), 1);
+  assert.match(save, /\} else if \(carries !== null\) \{\n\s*done\.push\(\{ step: 'tag', state: 'stands', words: instagramTagKey\(carries\) === instagramTagKey\(v\.tag\) \? TAG_SAME_WORDS\(v\.tag\) : TAG_STANDS_WORDS\(carries\) \}\);\n\s*\} else \{\n\s*const tagged = await setVendorTag\(onStop, v\.tag\);/, 'the tag only on a vendor that carries none');
+  inOrder(save, [
+    'rowTripInput(trip, draft.day)', 'pastedVendorOf(typed', 'expenseInput({ ...draft, vendorId, vendorName }, zone, new Date())', 'createStay(', 'createOneOff(oneOffBody(v))', 'readOneOffLine(created.value.routineId)',
+    'setLineMinutes(line.value.lineId, v.minutes)', 'addVendor(v.bookId, v.vendor.name)', 'setVendor(vendorBody(v, line.value.lineId, onStop))', 'setVendorTag(onStop, v.tag)', 'setStopRecord(recordBody(v, line.value.lineId))',
+    'setOutcome(done);', 'setDraft((d) => ({ ...EMPTY_EXPENSE, book: d.book }));', 'setVendorTyped(\'\');', 'setTrip(EMPTY_ROW_TRIP);', 'setReads((n) => n + 1);', 'onWritten(v.day);',
+  ], 'the save');
+  // Enter in a box saves; nothing is stored in the browser.
+  assert.match(f, /const onKeyDown = \(e: KeyboardEvent<HTMLTableRowElement>\) => \{\n\s*if \(e\.key !== 'Enter'\) return;[\s\S]*?void save\(\);\n\s*\};/);
+  assert.ok(f.includes('<tr className={`border-t border-border ${ROW_TINT}`} onKeyDown={onKeyDown} data-ledger-expense-form>'));
+  assert.doesNotMatch(f, /localStorage|sessionStorage|indexedDB|document\.cookie/);
+});
+
+// ── T27 · THE SHARED TABLE'S ONE NEW PROP (rulings 3.1, 3.5) ─────────────────
+
+test('T27 DataTable’s `first`: drawn before the rows shown; while given, the table stands once loaded with no row loaded; not given, the table draws what it drew; the time sheet alone passes it — the blank row, while "+ expense" is open', () => {
+  const draw = (rows: readonly LedgerSheetRow[], first: ReactNode, loaded = true): string => renderToStaticMarkup(createElement(DataTable<LedgerSheetRow, LedgerColumn, ColumnFilters>, {
+    name: 'ledger', columns: LEDGER_TABLE, rows, shown: rows, loaded, tableClassName: LEDGER_TABLE_CLASS, renderRow: (row: LedgerSheetRow) => createElement('tr', { key: row.key, 'data-ledger-row': row.key }), foot: null,
+    filters: NO_COLUMN_FILTERS, onFilters: () => undefined, noFilters: NO_COLUMN_FILTERS, sort: null, onSort: () => undefined, openFilter: null, onOpenFilter: () => undefined, csv: null, controls: null, first,
+  }));
+  const body = (html: string): string => html.slice(html.indexOf('<tbody>'), html.indexOf('</tbody>') + '</tbody>'.length);
+  const FIRST = createElement('tr', { 'data-sheet01-first': '' });
+  const kayak = recordedRow('kayak', 'Pine Cove', 30, 20);
+  assert.equal(body(draw([], FIRST)), '<tbody><tr data-sheet01-first=""></tr></tbody>', 'given, with no row loaded: the table stands, the blank row in its body');
+  assert.equal(body(draw([kayak], FIRST)), `<tbody><tr data-sheet01-first=""></tr><tr data-ledger-row="${kayak.key}"></tr></tbody>`, 'drawn before the rows shown');
+  assert.equal(body(draw([kayak], undefined)), `<tbody><tr data-ledger-row="${kayak.key}"></tr></tbody>`, 'not given: as it was');
+  assert.doesNotMatch(draw([], undefined), /<table\b/, 'not given, no row loaded: no table, as it was');
+  assert.doesNotMatch(draw([], FIRST, false), /<table\b/, 'not loaded: no table, given or not');
+  // The source: one optional prop, destructured with the rest; the table's condition; the body.
+  const t = code(TABLE);
+  assert.match(t, /readonly children\?: ReactNode;\n\s*readonly first\?: ReactNode;\n\}/);
+  assert.ok(t.includes('onOpenFilter, csv, controls, trailing, children, first } = props;'));
+  assert.ok(t.includes('{loaded && (rows.length > 0 || first !== undefined) && ('));
+  assert.match(t, /<tbody>\n\s*\{first\}\n\s*\{shown\.map\(renderRow\)\}\n\s*<\/tbody>/);
+  // Every caller: the time sheet alone passes it.
+  const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : n.endsWith('.tsx') ? [p] : []; });
+  const callers = walk('src').filter((file) => /<DataTable\b/.test(code(file)));
+  assert.ok(callers.includes(SECTION) && callers.length > 1, callers.join(', '));
+  for (const file of callers) assert.equal(countOf(code(file), /\bfirst=\{/g), file === SECTION ? 1 : 0, file);
+  // The section: `adding`, shut at first; the chip in the controls; the blank row handed in while open.
+  const s = code(SECTION);
+  assert.ok(s.includes("import ExpenseRow, { ExpenseOpen } from './ExpenseForm';"));
+  assert.ok(s.includes('const [adding, setAdding] = useState(false);'));
+  const mount = s.slice(s.indexOf('<DataTable'), s.indexOf('</DataTable>'));
+  assert.ok(mount.includes('first={adding ? <ExpenseRow onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} close={() => setAdding(false)} /> : undefined}'));
+  assert.ok(mount.includes('<ExpenseOpen open={adding} onToggle={() => setAdding((open) => !open)} />'));
+  assert.equal(countOf(s, /<ExpenseRow\b/g), 1);
+  assert.equal(countOf(s, /<ExpenseOpen\b/g), 1);
 });

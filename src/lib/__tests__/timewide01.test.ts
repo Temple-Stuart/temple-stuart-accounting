@@ -200,7 +200,7 @@ test('T5 compiled with the repo’s own Tailwind config, each variant is a class
 
 test('T6 the section hands the shared table that class on the line that held its width, and imports the name on a line that was there — 488 lines still; the mount’s props are the same; no other file takes the class', () => {
   const s = code(SECTION);
-  assert.equal(linesOf(SECTION).length, 432, 'the registry cites two of its lines'); // SHEET-01 (2026-11-28): 432 — the notes, the summary and the fold are gone, the TOTAL row sums the minutes; 488 until then
+  assert.equal(linesOf(SECTION).length, 435, 'the registry cites two of its lines'); // SHEET-01 (2026-11-28): 432 — the notes, the summary and the fold are gone, the TOTAL row sums the minutes; 488 until then; SHEET-01 (2026-11-28) (PART 3): 435 — the `adding` state and its note, the `first` prop; 432 until then
   assert.equal(countOf(s, /\bLEDGER_TABLE_CLASS\b/g), 2, 'the import and the mount');
   assert.match(s, /\n {2}CELL_WORDS, LEDGER_COLUMNS, LEDGER_LOADING_WORDS, LEDGER_TABLE, LEDGER_TABLE_CLASS, LEDGER_TITLE_WORDS, LINK_WORDS, NEXT_WORDS, NO_COLUMN_FILTERS,\n/, 'on the import’s first line of names, in its place'); // SHEET-01 (2026-11-28): the names only the notes and the summary read left the import; LEDGER_COLUMNS joined it
   assert.doesNotMatch(s, /min-w-\[96rem\]|tableClassName="/, 'the sheet’s table class is typed in the rule file alone');
@@ -208,7 +208,7 @@ test('T6 the section hands the shared table that class on the line that held its
   assert.equal(countOf(s, /<table className="w-full min-w-\[48rem\] border-collapse text-xs" data-ledger-summary-table>/g), 0, 'the summary’s own table is gone'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
   assert.equal(countOf(s, /min-w-\[/g), 0, 'no width typed here — the summary’s went with it'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
   // The mount, prop for prop — the one line differs.
-  assert.match(s, /<DataTable\n\s*name="ledger"\n\s*columns=\{LEDGER_TABLE\}\n\s*rows=\{rows\}\n\s*shown=\{shown\}\n\s*loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName=\{LEDGER_TABLE_CLASS\}\n\s*filters=\{filters\}\n\s*onFilters=\{setFilters\}\n\s*noFilters=\{NO_COLUMN_FILTERS\}\n\s*sort=\{sort\}\n\s*onSort=\{setSort\}\n\s*openFilter=\{openFilter\}\n\s*onOpenFilter=\{setOpenFilter\}\n\s*csv=\{csv\}\n\s*controls=\{\(/);
+  assert.match(s, /<DataTable\n\s*name="ledger"\n\s*columns=\{LEDGER_TABLE\}\n\s*rows=\{rows\}\n\s*shown=\{shown\}\n\s*loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName=\{LEDGER_TABLE_CLASS\}\n\s*filters=\{filters\}\n\s*onFilters=\{setFilters\}\n\s*noFilters=\{NO_COLUMN_FILTERS\}\n\s*sort=\{sort\}\n\s*onSort=\{setSort\}\n\s*openFilter=\{openFilter\}\n\s*onOpenFilter=\{setOpenFilter\}\n\s*csv=\{csv\}\n\s*first=\{adding \? <ExpenseRow [^\n]*\n\s*controls=\{\(/); // SHEET-01 (2026-11-28): and the one new prop, `first`
   assert.equal(countOf(s, /<DataTable\n/g), 1);
   // No cell's own class changed for this: a body cell and a head cell still take the shared table's.
   assert.match(s, /import DataTable, \{[^}]*\} from '@\/components\/table\/DataTable';/);
@@ -225,7 +225,7 @@ test('T7 the files this change may not edit: toolRegistry.ts keeps its 761 lines
   for (const file of [REGISTRY, LAW, TABLE]) assert.doesNotMatch(whole(file), /TIMEWIDE|LEDGER_TABLE_CLASS|\bwide\?: boolean/, `${file}: not touched by this change`);
   // The shared table, every character, as it stood on main when this branch was cut (43f750f).
   const table = whole(TABLE);
-  assert.deepEqual([Buffer.byteLength(table, 'utf8'), sha256(table)], [10887, '58f411487e2f6e4b36da6bf9f7ba59c4bdf9af4bd3b1675aedd2881eeeac31f5'], 'DataTable.tsx is not among the files this change edits');
+  assert.deepEqual([Buffer.byteLength(table, 'utf8'), sha256(table)], [11187, '53c549ac1efbd01cb2e4049d260789995472125e60972f7af4d53f42b15e67de'], 'DataTable.tsx as SHEET-01 left it — its one new optional prop, first'); // SHEET-01 (2026-11-28): the shared table gains ONE optional prop (ruling 3.1) — [10887, '58f41148…'] until then
 });
 
 // ── T8 · THE REGISTRY'S CITED LINES (ruling D) ───────────────────────────────
@@ -241,12 +241,12 @@ test('T8 the registry’s Time row cites the same thirteen lines as on main, and
     ['src/app/api/operations/journal/route.ts:61', 'src/app/api/operations/journal/route.ts', /^export async function PUT\(request: NextRequest\) \{/],
     ['stops/stopWrites.ts:39', `${OPS}/stops/stopWrites.ts`, /const res = await fetch\('\/api\/operations\/stops', \{/],
     ['ledger/RecordForm.tsx:126', `${OPS}/ledger/RecordForm.tsx`, /void write\(\(\) => setStopRecord\(body\)\);/],
-    ['ledger/ExpenseForm.tsx:87', `${OPS}/ledger/ExpenseForm.tsx`, /const created = await createOneOff\(oneOffBody\(v\)\);/],
+    ['ledger/ExpenseForm.tsx:78', `${OPS}/ledger/ExpenseForm.tsx`, /^export default function ExpenseRow\(/], // SHEET-01 (2026-11-28) (PART 3): "+ expense" is its blank row — :87 until then
     ['src/lib/operations/ledger.ts:1561', RULES, /^export const LEDGER_HEAD_WORDS = \[/], // PASTE-03 (2026-11-28): the rule file grew above this line again (a stop may have no budget — the open occurrences, the one read of a line's cents) and the registry re-pointed its cite — :1518 until then. COALEVELS-01 (2026-11-27): the rule file grew above this line again (a row's Location and its account's levels, the twenty-five columns, the ten groups) and the registry re-pointed its cite — :1426 until then. TIMESHEET-04b (2026-11-27): the rule file grew above this line (the sheet's two columns, a plan row's planned items, the record form's NOTES) and the registry re-pointed its cite — :1342 until then
     ['src/lib/operations/ledgerAnswer.ts:43', 'src/lib/operations/ledgerAnswer.ts', /duration_minutes: true/],
     ['src/lib/operations/ledgerAnswer.ts:42', 'src/lib/operations/ledgerAnswer.ts', /start_time: true, end_time: true/],
-    ['src/components/workbench/operations/ledger/LedgerSection.tsx:368', SECTION, /data-ledger-cell="planned-minutes"/],
-    ['LedgerSection.tsx:407', SECTION, /data-ledger-total-planned-minutes/], // SHEET-01 (2026-11-28): the TOTAL row's two sums — the summary's PLANNED HOURS · LOGGED HOURS at :475 until then
+    ['src/components/workbench/operations/ledger/LedgerSection.tsx:371', SECTION, /data-ledger-cell="planned-minutes"/], // SHEET-01 (2026-11-28) (PART 3): three lines more above it — :368 until then
+    ['LedgerSection.tsx:410', SECTION, /data-ledger-total-planned-minutes/], // SHEET-01 (2026-11-28): the TOTAL row's two sums — the summary's PLANNED HOURS · LOGGED HOURS at :475 until then; SHEET-01 (2026-11-28) (PART 3): three lines more above it — :407 in PART 2
   ];
   assert.deepEqual(cited, HOLDS.map(([citation]) => citation), 'the same lines, in the same order'); // SHEET-01 (2026-11-28): ten — the journal's read, the summary's words and the coverage line cited no longer
   for (const gone of ['journal/journalReads.ts', 'SUMMARY_HEAD_WORDS', 'data-ledger-said', 'their coverage said at']) assert.equal(time.citation.includes(gone), false, `${gone} — cited no longer`);

@@ -335,7 +335,7 @@ test('T7 in the source: the dated name stands once, in the one body both callers
   assert.equal(countOf(ledger, /\boneOffRoutineName\b/g), 2, 'declared, and called by the one body — nowhere else in the rule file');
   // The vendor's and the record's bodies are as they were.
   assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, vendorId }\);/);
-  assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, outcome: 'done', done_at: v\.instant, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, notes: null, actual_minutes: null }\);/); // TIMESHEET-04b (2026-11-27): the record's body says "notes: null" after the note — the line without it until then
+  assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, outcome: 'done', done_at: v\.instant, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, notes: v\.notes, actual_minutes: v\.logged }\);/); // TIMESHEET-04b (2026-11-27): the record's body says "notes: null" after the note — the line without it until then; SHEET-01 (2026-11-28): NOTES and LOGGED MIN ride the record
   // Both callers still send that one body, and neither names this change: "+ expense"'s form and the save's rule were not edited.
   assert.equal(countOf(code(FORM), /await createOneOff\(oneOffBody\(v\)\);/g), 1);
   assert.equal(countOf(code(SAVE), /await writers\.createOneOff\(oneOffBody\(values\)\);/g), 1);

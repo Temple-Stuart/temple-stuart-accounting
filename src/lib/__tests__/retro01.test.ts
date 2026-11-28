@@ -335,14 +335,14 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
   const read = expenseInput(DRAFT, BKK, NOW); // FORM-BOUNDS-01 (Alex, 2026-11-25): the rule takes the clock — this file's NOW, by which every stop of the day is past; `expenseInput(DRAFT, BKK)` until then, here and on the six calls below
   assert.ok(read.ok);
   const v: ExpenseValues = read.value;
-  assert.deepEqual(v, { day: DAY, time: '12:30', allDay: false, zone: BKK, instant: '2026-10-13T05:30:00.000Z', name: 'Khao soi', amount: '7.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: 700, rating: 4, note: 'Khao soi at Luka', ahead: false }); // PASTE-03 (2026-11-28): the value says whether the stop is all day — not here, a TIME is typed. COALEVELS-01 (2026-11-27): the value says the stop's Location — null here: the draft's box is left at none. FORM-BOUNDS-01 (Alex, 2026-11-25): the value says whether the stop is still ahead of the clock — not here; no `ahead` until then
+  assert.deepEqual(v, { day: DAY, time: '12:30', allDay: false, zone: BKK, instant: '2026-10-13T05:30:00.000Z', name: 'Khao soi', amount: '7.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: 700, rating: 4, note: 'Khao soi at Luka', ahead: false, minutes: null, tag: null, notes: null, logged: null }); // PASTE-03 (2026-11-28): the value says whether the stop is all day — not here, a TIME is typed. COALEVELS-01 (2026-11-27): the value says the stop's Location — null here: the draft's box is left at none. FORM-BOUNDS-01 (Alex, 2026-11-25): the value says whether the stop is still ahead of the clock — not here; no `ahead` until then; SHEET-01 (2026-11-28): and the four new boxes' readings — none typed
   assert.deepEqual(expenseInput({ ...DRAFT, vendorId: 'v1' }, BKK, NOW), { ok: true, value: { ...v, vendor: { kind: 'existing', id: 'v1' } } });
   assert.deepEqual(expenseInput({ ...DRAFT, vendorName: '  Luka  Café ' }, BKK, NOW), { ok: true, value: { ...v, vendor: { kind: 'new', name: 'Luka Café' } } });
   assert.deepEqual(expenseInput({ ...DRAFT, actual: '', stars: '', note: '  ' }, BKK, NOW), { ok: true, value: { ...v, actualCents: null, rating: null, note: null } }, 'blank is not given — never 0, never an empty note');
   assert.deepEqual(expenseInput({ ...DRAFT, time: '12:30' }, 'America/Los_Angeles', new Date('2026-10-13T20:00:00.000Z')).ok && expenseInput({ ...DRAFT }, 'America/Los_Angeles', new Date('2026-10-13T20:00:00.000Z')), { ok: true, value: { ...v, zone: 'America/Los_Angeles', instant: '2026-10-13T19:30:00.000Z' } }, 'the zone is the viewer’s'); // FORM-BOUNDS-01 (Alex, 2026-11-25): in that zone the stop is at 19:30Z, past NOW — so a later clock, 20:00Z, by which it has come; no clock until then
   const refusals: [Partial<ExpenseDraft>, string, string][] = [
     [{ day: '' }, 'day', requiredWords('day')], [{ day: 'Oct 13' }, 'day', dayTypedWords('Oct 13')],
-    /* PASTE-03 (2026-11-28): a blank TIME is a charge on its date, not a refusal — so this draft's typed ACTUAL is the first box refused, in the charge's words; ['time', 'TIME is required'] until then */ [{ time: '' }, 'actual', "ACTUAL is the record's, and with no TIME this is a charge on its date — it takes no record; give it a TIME, or leave this blank"], [{ time: '25:00' }, 'time', timeTypedWords('25:00')], [{ time: '9:30' }, 'time', timeTypedWords('9:30')],
+    /* PASTE-03 (2026-11-28): a blank TIME is a charge on its date, not a refusal — so this draft's typed ACTUAL is the first box refused, in the charge's words; ['time', 'TIME is required'] until then */ [{ time: '' }, 'actual', "ACTUAL is the record's, and with no START this is a charge on its date — it takes no record; give it a START, or leave this blank"], [{ time: '25:00' }, 'time', timeTypedWords('25:00')], [{ time: '9:30' }, 'time', timeTypedWords('9:30')], // SHEET-01 (2026-11-28): a charge's sentence names the box by its word — START; TIME until then
     [{ name: '  ' }, 'name', requiredWords('name')], [{ name: 'x'.repeat(182) }, 'name', 'NAME is at most 181 characters'], // PASTE-02b (Alex, 2026-11-27): a name is at most 181 — the one-off's routine carries its day and time after the name, and the two fit the column's 200; 201 characters and 'NAME is at most 200 characters' until then
     /* PASTE-03 (2026-11-28): a blank AMOUNT left this table — it is taken now (a stop with no budget), asserted under the loop below; 'AMOUNT is required' until then */ [{ amount: '0' }, 'amount', AMOUNT_ZERO_WORDS], [{ amount: '-5' }, 'amount', 'an amount is 0 or more'], [{ amount: 'ten' }, 'amount', '"ten" is not an amount (dollars, at most two decimals)'],
     [{ coa: '' }, 'coa', requiredWords('coa')], [{ book: '' }, 'book', requiredWords('book')],
@@ -351,7 +351,7 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
     [{ stars: '6' }, 'stars', starsTypedWords('6')], [{ stars: 'four' }, 'stars', starsTypedWords('four')],
   ];
   for (const [over, field, message] of refusals) assert.deepEqual(expenseInput({ ...DRAFT, ...over }, BKK, NOW), { ok: false, field, message }, `${field}: ${message}`); assert.deepEqual(expenseInput({ ...DRAFT, amount: '  ' }, BKK, NOW), { ok: true, value: { ...v, amount: '' } }, 'a blank AMOUNT is a stop with no budget — the value holds none, never 0'); assert.deepEqual(oneOffBody({ ...v, amount: '' }).lines, [{ activity: v.name, budget_amount: '', coa_code: '6150' }], 'its line is sent with its account and no amount');
-  assert.deepEqual(EXPENSE_FIELDS, ['day', 'time', 'name', 'amount', 'coa', 'book', 'location', 'vendor', 'actual', 'stars', 'note']); // COALEVELS-01 (2026-11-27): eleven boxes — LOCATION after the book; ten until then
+  assert.deepEqual(EXPENSE_FIELDS, ['day', 'time', 'end', 'location', 'coa', 'book', 'name', 'note', 'vendor', 'tag', 'stars', 'logged', 'amount', 'actual', 'notes']); // COALEVELS-01 (2026-11-27): eleven boxes — LOCATION after the book; ten until then; SHEET-01 (2026-11-28): fifteen boxes, in the sheet's order — END, INSTAGRAM TAG, LOGGED MIN and NOTES joined
   assert.deepEqual(Object.keys(EXPENSE_FIELD_WORDS), [...EXPENSE_FIELDS]);
   // The one-off: cadence once on the day at the time in the zone, role place, ONE line — the thing itself, the amount and the COA on it, nothing on the routine.
   const body = oneOffBody(v);
@@ -362,13 +362,13 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
   assert.deepEqual(vendorBody(v, 'line-1', 'v1'), { kind: 'routine_line', id: 'line-1', instant: '2026-10-13T05:30:00.000Z', vendorId: 'v1' });
   assert.deepEqual(recordBody(v, 'line-1'), { kind: 'routine_line', id: 'line-1', instant: '2026-10-13T05:30:00.000Z', outcome: 'done', done_at: '2026-10-13T05:30:00.000Z', actual_cents: 700, rating: 4, note: 'Khao soi at Luka', notes: null, actual_minutes: null }, 'done at the stop’s own instant'); // TIMESHEET-04b (2026-11-27): the record's body says its notes — null: "+ expense" has no NOTES box. The body without it until then
   // The outcome: five steps, each said by name; what was not reached is "not tried", what was not given "none given".
-  assert.deepEqual(EXPENSE_STEPS, ['stop', 'line', 'directory', 'vendor', 'record']);
+  assert.deepEqual(EXPENSE_STEPS, ['trip', 'stop', 'line', 'minutes', 'directory', 'vendor', 'tag', 'record']); // SHEET-01 (2026-11-28): eight — the trip first, END's minutes after the line, the tag after the vendor; five until then
   assert.deepEqual(Object.keys(STEP_WORDS), [...EXPENSE_STEPS]);
   assert.equal(outcomeWords({ step: 'stop', state: 'written', words: '' }), `the one-off stop — ${WRITTEN_WORDS}`);
   assert.equal(outcomeWords({ step: 'vendor', state: 'failed', words: 'No such plan' }), 'the vendor, on the stop — not written: No such plan');
   assert.equal(outcomeWords({ step: 'record', state: 'not tried', words: '' }), `the record — ${NOT_TRIED_WORDS}`);
   assert.equal(outcomeWords({ step: 'directory', state: 'not asked', words: '' }), `the vendor, added to the book — ${NOT_ASKED_WORDS}`);
-  assert.deepEqual(withNotTried([{ step: 'stop', state: 'written', words: '' }, { step: 'line', state: 'failed', words: 'x' }]).map((o) => `${o.step}:${o.state}`), ['stop:written', 'line:failed', 'directory:not tried', 'vendor:not tried', 'record:not tried']);
+  assert.deepEqual(withNotTried([{ step: 'stop', state: 'written', words: '' }, { step: 'line', state: 'failed', words: 'x' }]).map((o) => `${o.step}:${o.state}`), ['stop:written', 'line:failed', 'trip:not tried', 'minutes:not tried', 'directory:not tried', 'vendor:not tried', 'tag:not tried', 'record:not tried']); // SHEET-01 (2026-11-28): every step after the failure, in EXPENSE_STEPS' order
   assert.equal(expenseLandedWords(DAY), "the expense is on Tue Oct 13's card and in the ledger");
   assert.equal(EXPENSE_WORDS, '+ expense');
   assert.equal(zoneWords(BKK), "times in Asia/Bangkok — your browser's zone");
@@ -423,31 +423,35 @@ test('T7 ledgerWrites: the one-off, its line read back, the vendor added, the ve
   // The form: the writes in order, stopped at the first failure, every step said; the zone shown; the books from the provider's list, never its selection.
   const f = code(FORM);
   assert.match(f, /^'use client';/m);
+  // SHEET-01 (2026-11-28): the blank row's save, in EXPENSE_STEPS' order — the trip first, END's minutes after the line, the tag after the vendor; the five steps until then.
   inOrder(f, [
-    'const read = expenseInput(draft, zone, new Date());', 'if (!read.ok) { setRefusal(read); return; }', // FORM-BOUNDS-01 (Alex, 2026-11-25): the form hands the rule the browser's clock, read once at save — 'const read = expenseInput(draft, zone);' until then. The writes below still stand in the form, in this order (the record's three inside the branch of a stop that is not ahead — formbounds01.test.ts)
+    'const read = expenseInput({ ...draft, vendorId, vendorName }, zone, new Date());', 'if (!read.ok) { refuse(read.field, read.message); return; }',
+    'added = await createStay({ place: tripToAdd.place, starts_on: tripToAdd.startsOn, ends_on: tripToAdd.endsOn });', "if (!added.ok) { failed('trip', added.message); return; }", "done.push({ step: 'trip', state: 'written', words: '' });", "done.push({ step: 'trip', state: 'not asked', words: '' });",
     'const created = await createOneOff(oneOffBody(v));', "if (!created.ok) { failed('stop', created.words); return; }", "done.push({ step: 'stop', state: 'written', words: '' });",
     'const line = await readOneOffLine(created.value.routineId);', "if (!line.ok) { failed('line', line.words); return; }",
+    'const timed = await setLineMinutes(line.value.lineId, v.minutes);', "if (!timed.ok) { failed('minutes', timed.words); return; }", "done.push({ step: 'minutes', state: 'not asked', words: '' });",
     "if (v.vendor.kind === 'new') {", 'const added = await addVendor(v.bookId, v.vendor.name);', "if (!added.ok) { failed('directory', added.words); return; }", "done.push({ step: 'directory', state: 'not asked', words: '' });",
-    'const setAnswer = await setVendor(vendorBody(v, line.value.lineId, vendorId));', "if (!setAnswer.ok) { failed('vendor', setAnswer.words); return; }", "done.push({ step: 'vendor', state: 'not asked', words: '' });",
+    'const setAnswer = await setVendor(vendorBody(v, line.value.lineId, onStop));', "if (!setAnswer.ok) { failed('vendor', setAnswer.words); return; }", "done.push({ step: 'vendor', state: 'not asked', words: '' });",
+    "done.push({ step: 'tag', state: 'not asked', words: '' });", 'const tagged = await setVendorTag(onStop, v.tag);', "if (!tagged.ok) { failed('tag', tagged.words); return; }",
     'record = await setStopRecord(recordBody(v, line.value.lineId));', "if (!record.ok) { failed('record', record.message); return; }", "done.push({ step: 'record', state: 'written', words: '' });",
     'setOutcome(done);', 'setLanded(v.day);', 'onWritten(v.day);',
   ], 'the form, in order');
   assert.match(f, /const failed = \(step: ExpenseOutcome\['step'\], words: string\) => \{ done\.push\(\{ step, state: 'failed', words \}\); setOutcome\(withNotTried\(done\)\); \};/, 'a failure is said with every step after it not tried');
   assert.match(f, /import \{ setStopRecord \} from '\.\.\/stops\/stopWrites';/, 'the record through the one writer');
   assert.match(f, /const \{ entities \} = useOperationsEntity\(\);/);
-  assert.doesNotMatch(f, /selectedEntityId|\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie|method:/, 'the selector’s choice not read; no route named; nothing stored');
+  assert.doesNotMatch(f, /selectedEntityId|\bfetch\s*\(|localStorage|sessionStorage|document\.cookie|method:/, 'the selector’s choice not read; no request of its own; nothing stored'); assert.deepEqual([...f.matchAll(/\/api\/[\w/-]+/g)].map((m) => m[0]), ['/api/operations/vendor-directory'], 'one route named — the directory’s GET, through readJson'); // SHEET-01 (2026-11-28): the row reads the vendors by the directory's GET (ruling 3.4) — no route named until then
   assert.match(f, /setZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\);/, 'the viewer’s zone');
   assert.match(f, /data-ledger-expense-zone>\{zoneWords\(zone\)\}/, 'shown');
-  for (const attr of ['data-ledger-expense', 'data-ledger-expense-open', 'data-ledger-expense-form', 'data-ledger-expense-day', 'data-ledger-expense-time', 'data-ledger-expense-name', 'data-ledger-expense-amount', 'data-ledger-expense-book', 'data-ledger-expense-vendor', 'data-ledger-expense-vendor-name', 'data-ledger-expense-actual', 'data-ledger-expense-stars', 'data-ledger-expense-note', 'data-ledger-expense-save', 'data-ledger-expense-cancel', 'data-ledger-expense-refused={refusal.field}', 'data-ledger-expense-outcome', 'data-ledger-expense-step={o.step}', 'data-ledger-expense-state={o.state}', 'data-ledger-expense-landed', 'data-ledger-expense-no-book']) {
+  for (const attr of ['data-ledger-expense', 'data-ledger-expense-open', 'data-ledger-expense-form', 'data-ledger-expense-cell={key}', 'data-ledger-expense-box="day"', 'data-ledger-expense-box="time"', 'data-ledger-expense-box="name"', 'data-ledger-expense-box="amount"', 'data-ledger-expense-box="book"', 'data-ledger-expense-box="vendor"', 'data-ledger-expense-vendors', 'data-ledger-expense-box="actual"', 'data-ledger-expense-box="stars"', 'data-ledger-expense-box="note"', 'data-ledger-expense-said', 'data-ledger-expense-save', 'data-ledger-expense-cancel', 'data-ledger-expense-refused={refusal.field}', 'data-ledger-expense-outcome', 'data-ledger-expense-step={o.step}', 'data-ledger-expense-state={o.state}', 'data-ledger-expense-landed', 'data-ledger-expense-no-book']) { // SHEET-01 (2026-11-28): the row's attributes — a box per column (data-ledger-expense-box), one typed VENDOR over the book's names; the new-vendor box and the form's own fields until then
     assert.ok(f.includes(attr), `the form carries ${attr}`);
   }
   assert.match(f, /<CoaSelect entityId=\{draft\.book\} value=\{draft\.coa\} onChange=\{set\('coa'\)\} className=\{box\} \/>/, 'the book’s chart');
-  assert.match(f, /directory\.vendors\.filter\(\(v\) => v\.entity_id === draft\.book\)/, 'the book’s vendors');
+  assert.match(f, /vendorsRead\.vendors\.filter\(\(v\) => v\.entity_id === draft\.book\)/, 'the book’s vendors'); // SHEET-01 (2026-11-28): the vendors as the paste's rule read them — the Budget's useDirectory until then
   assert.doesNotMatch(f, />[A-Za-z][^<>{}]*[a-z][^<>{}]*</, 'no bare prose between tags');
   assert.doesNotMatch(f, /\b(bg-black|bg-panel|bg-brand-red|bg-brand-gold|bg-brand-green|bg-brand-purple)\b/, 'no dark fill (the repaint law)');
   // The section mounts it; a written day reads the ledger again and tells the card; the signal.
   const s = code(SECTION);
-  assert.match(s, /<ExpenseForm onWritten=\{\(day\) => \{ setWrites\(\(n\) => n \+ 1\); announceDayWritten\(day\); \}\} \/>/);
+  assert.match(s, /first=\{adding \? <ExpenseRow onWritten=\{\(day\) => \{ setWrites\(\(n\) => n \+ 1\); announceDayWritten\(day\); \}\} close=\{\(\) => setAdding\(false\)\} \/> : undefined\}/); assert.match(s, /<ExpenseOpen open=\{adding\} onToggle=\{\(\) => setAdding\(\(open\) => !open\)\} \/>/); // SHEET-01 (2026-11-28): the chip in the controls, the row handed to the shared table as its first — the written day handed up as before
   assert.match(s, /\}, \[period\?\.from, period\?\.to, writes\]\);/, 'the period read again after a write');
   assert.match(s, /import \{ announceDayWritten \} from '\.\.\/dayWritten';/);
   const g = code(SIGNAL);

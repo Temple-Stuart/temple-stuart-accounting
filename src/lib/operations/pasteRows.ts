@@ -802,8 +802,9 @@ function chargeHappened(instant: string, cells: PasteCells, now: Date): { readon
 /** The record form's boxes the paste fills, each under the sheet column it is filled from. It fills no stars and no minutes. COALEVELS-01 (2026-11-27): the NOTES box is filled from the Notes column — the paste filled none until it read one. */
 const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' | 'minutes'>, PasteHead>> = { went: 'Start Date', actual: 'Total (USD)', note: 'Items', notes: 'Notes' };
 /** "+ expense"'s boxes the paste fills, each under the sheet column it is filled from. It fills no stars. COALEVELS-01 (2026-11-27): the LOCATION box is filled from the Location column. */
-const EXPENSE_HEADS: Readonly<Record<Exclude<ExpenseField, 'stars'>, PasteHead>> = {
+const EXPENSE_HEADS: Readonly<Record<Exclude<ExpenseField, 'stars' | 'logged'>, PasteHead>> = {
   day: 'Start Date', time: 'Start Time', name: 'Type', amount: 'Budget (USD)', coa: 'Category', book: 'Entity', location: 'Location', vendor: 'Vendor', actual: 'Total (USD)', note: 'Items',
+  end: 'End Time', tag: 'Instagram Tag', notes: 'Notes', // SHEET-01 (2026-11-28): the rule's three new boxes the paste could fill, each under its own column — it hands them blank; LOGGED MIN it never fills, as STARS
 };
 /** A refusal of the record form's rule, in its own words, under the column its box was filled from. A box the paste never fills is this file's error, thrown by name. */
 function refusedByRecord(field: RecordField, message: string): PastePlacement {
@@ -812,7 +813,7 @@ function refusedByRecord(field: RecordField, message: string): PastePlacement {
 }
 /** A refusal of "+ expense"'s rule, in the form's own words, under the column its box was filled from. */
 function refusedByExpense(field: ExpenseField, message: string): PastePlacement {
-  if (field === 'stars') throw new Error(`pasteRows: "+ expense"'s rule refused stars, which the paste never fills — ${message}`);
+  if (field === 'stars' || field === 'logged') throw new Error(`pasteRows: "+ expense"'s rule refused ${field}, which the paste never fills — ${message}`); // SHEET-01 (2026-11-28): LOGGED MIN too
   return { kind: 'refused', head: EXPENSE_HEADS[field], why: message };
 }
 
@@ -1009,6 +1010,7 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
       day: cells.day, time: start === null ? '' : start, name: cells.type, amount: cells.budgetCents === null ? '' : csvMoney(cells.budgetCents), coa: account.code, book: book.id, location: cells.location === null ? '' : cells.location,
       vendorId: vendor.kind === 'own' ? vendor.id : '', vendorName: vendor.kind === 'new' ? vendor.name : '',
       actual: happened.kind === 'went' ? csvMoney(happened.cents) : '', stars: '', note: happened.kind === 'went' && happened.items !== null ? happened.items : '',
+      end: '', tag: '', notes: '', logged: '', // SHEET-01 (2026-11-28): the rule's four new boxes, blank — the paste writes the minutes, the tag and the notes by its own steps, as before
     }, context.zone, context.now);
     if (!read.ok) return refusedByExpense(read.field, read.message);
     const values = read.value;

@@ -84,10 +84,12 @@ export interface DataTableProps<Row, Key extends string, F extends TableFilters>
   readonly trailing?: ReactNode;
   /** Between the controls row and the table: the caller's loading, failed and nothing-recorded lines. */
   readonly children?: ReactNode;
+  /** SHEET-01 (Alex, 2026-11-28): rows drawn FIRST in the body, above the rows shown — the time sheet's blank row. While given, the table stands once loaded, even with no row loaded. No other caller passes it. */
+  readonly first?: ReactNode;
 }
 
 export default function DataTable<Row, Key extends string, F extends TableFilters>(props: DataTableProps<Row, Key, F>) {
-  const { name, columns, rows, shown, loaded, tableClassName, renderRow, foot, filters, onFilters, noFilters, sort, onSort, openFilter, onOpenFilter, csv, controls, trailing, children } = props;
+  const { name, columns, rows, shown, loaded, tableClassName, renderRow, foot, filters, onFilters, noFilters, sort, onSort, openFilter, onOpenFilter, csv, controls, trailing, children, first } = props;
   // The ▾ buttons by column (a ref map): the open popover is anchored under its own.
   const filterButtons = useRef(new Map<Key, HTMLButtonElement>());
   const closeFilter = useCallback(() => onOpenFilter(null), [onOpenFilter]);
@@ -125,7 +127,7 @@ export default function DataTable<Row, Key extends string, F extends TableFilter
       {children}
       {loaded && rows.length > 0 && shown.length === 0 && <div className="text-xs text-text-muted" {...dataAttr(name, 'none-shown')}>{NO_ROWS_SHOWN_WORDS}</div>}
       {/* The table stays while rows are LOADED, even when a filter leaves none shown — the filters live in its headers, so they must stay to be undone. */}
-      {loaded && rows.length > 0 && (
+      {loaded && (rows.length > 0 || first !== undefined) && (
         <div className="overflow-x-auto border border-border rounded bg-white">
           <table className={`w-full ${tableClassName} border-collapse text-xs`} {...dataAttr(name, 'table')}>
             <thead>
@@ -151,6 +153,7 @@ export default function DataTable<Row, Key extends string, F extends TableFilter
               </tr>
             </thead>
             <tbody>
+              {first}
               {shown.map(renderRow)}
             </tbody>
             {foot}

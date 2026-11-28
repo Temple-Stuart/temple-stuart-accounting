@@ -310,7 +310,8 @@ test('T7 the extraction: the five modules are pure; ledger.ts imports the rules 
     assert.match(code(file), /ColumnFilterValue|applyColumnFilters/, `${file} keeps its own filter code`);
   }
   // Ruling D: no route change, no migration — the ledger's route and its reads name nothing of the idiom.
-  for (const file of ['src/app/api/operations/ledger/route.ts', 'src/lib/operations/ledgerAnswer.ts', 'src/components/workbench/operations/ledger/ledgerReads.ts', 'src/components/workbench/operations/ledger/ExpenseForm.tsx', 'src/components/workbench/operations/ledger/LinkPicker.tsx']) { // READS-01b (2026-11-07): the route's answer function too
+  for (const file of ['src/app/api/operations/ledger/route.ts', 'src/lib/operations/ledgerAnswer.ts', 'src/components/workbench/operations/ledger/ledgerReads.ts', 'src/components/workbench/operations/ledger/LinkPicker.tsx']) { // READS-01b (2026-11-07): the route's answer function too; SHEET-01 (2026-11-28): the expense form left this list — its blank row is the table's own row (below)
     assert.doesNotMatch(code(file), /lib\/table|components\/table|DataTable|dataAttr/, `${file} is untouched by the idiom`);
   }
+  assert.deepEqual([...code('src/components/workbench/operations/ledger/ExpenseForm.tsx').matchAll(/(?:lib\/table|components\/table|DataTable|dataAttr)[^\n]*/g)].map((m) => m[0]), ["components/table/DataTable';"], 'the blank row is the table’s row — it wears the table’s cell class, and reads nothing else of the idiom'); // SHEET-01 (2026-11-28): untouched by the idiom until then
 });

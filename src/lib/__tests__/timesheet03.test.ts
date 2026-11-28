@@ -518,18 +518,18 @@ test('T6 the tint: BUDGET, VARIANCE, MATCH and UNDER / OVER carry it on every bo
 
 test('T6 the shared table: mounted with the same props, and not edited — DataTable.tsx is byte for byte what it is on main', () => {
   const s = code(SECTION);
-  assert.match(s, /<DataTable\n\s*name="ledger"\n\s*columns=\{LEDGER_TABLE\}\n\s*rows=\{rows\}\n\s*shown=\{shown\}\n\s*loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName=\{LEDGER_TABLE_CLASS\}\n\s*filters=\{filters\}\n\s*onFilters=\{setFilters\}\n\s*noFilters=\{NO_COLUMN_FILTERS\}\n\s*sort=\{sort\}\n\s*onSort=\{setSort\}\n\s*openFilter=\{openFilter\}\n\s*onOpenFilter=\{setOpenFilter\}\n\s*csv=\{csv\}\n\s*controls=\{\(/, 'the same props, in the same order'); // TIMEWIDE-01 (Alex, 2026-11-24): the same props; the table's class is the rule file's LEDGER_TABLE_CLASS now — its floor still min-w-[96rem] (timewide01.test.ts); `tableClassName="min-w-[96rem]"` until then. The shared table itself is still byte for byte (below)
+  assert.match(s, /<DataTable\n\s*name="ledger"\n\s*columns=\{LEDGER_TABLE\}\n\s*rows=\{rows\}\n\s*shown=\{shown\}\n\s*loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName=\{LEDGER_TABLE_CLASS\}\n\s*filters=\{filters\}\n\s*onFilters=\{setFilters\}\n\s*noFilters=\{NO_COLUMN_FILTERS\}\n\s*sort=\{sort\}\n\s*onSort=\{setSort\}\n\s*openFilter=\{openFilter\}\n\s*onOpenFilter=\{setOpenFilter\}\n\s*csv=\{csv\}\n\s*first=\{adding \? <ExpenseRow [^\n]*\n\s*controls=\{\(/, 'the same props, in the same order — and the one new one, first, before the controls'); // TIMEWIDE-01 (Alex, 2026-11-24): the same props; the table's class is the rule file's LEDGER_TABLE_CLASS now — its floor still min-w-[96rem] (timewide01.test.ts); `tableClassName="min-w-[96rem]"` until then. The shared table itself is still byte for byte (below); SHEET-01 (2026-11-28): DataTable's one new prop, `first` — "+ expense"'s blank row
   const mount = s.slice(s.indexOf('<DataTable\n'), s.indexOf('</DataTable>'));
-  assert.deepEqual([...mount.matchAll(/^ {8}([a-zA-Z]+)=\{/gm)].map((m) => m[1]).concat([...mount.matchAll(/^ {8}([a-zA-Z]+)="/gm)].map((m) => m[1])).sort(), ['columns', 'controls', 'csv', 'filters', 'foot', 'loaded', 'name', 'noFilters', 'onFilters', 'onOpenFilter', 'onSort', 'openFilter', 'renderRow', 'rows', 'shown', 'sort', 'tableClassName', 'trailing'].sort(), 'no prop added, none removed');
+  assert.deepEqual([...mount.matchAll(/^ {8}([a-zA-Z]+)=\{/gm)].map((m) => m[1]).concat([...mount.matchAll(/^ {8}([a-zA-Z]+)="/gm)].map((m) => m[1])).sort(), ['columns', 'controls', 'csv', 'filters', 'first', 'foot', 'loaded', 'name', 'noFilters', 'onFilters', 'onOpenFilter', 'onSort', 'openFilter', 'renderRow', 'rows', 'shown', 'sort', 'tableClassName', 'trailing'].sort(), 'one prop added — first; none removed'); // SHEET-01 (2026-11-28): the shared table's one new prop, handed "+ expense"'s blank row
   assert.equal((s.match(/<DataTable\n/g) ?? []).length, 1);
   // The table itself, as it stood on main when this branch was cut (e0fd7bf): every character.
   const table = whole(TABLE);
-  assert.deepEqual([Buffer.byteLength(table, 'utf8'), sha256(table)], [10887, '58f411487e2f6e4b36da6bf9f7ba59c4bdf9af4bd3b1675aedd2881eeeac31f5'], 'DataTable.tsx is not among the files this change edits');
+  assert.deepEqual([Buffer.byteLength(table, 'utf8'), sha256(table)], [11187, '53c549ac1efbd01cb2e4049d260789995472125e60972f7af4d53f42b15e67de'], 'DataTable.tsx as SHEET-01 left it — its one new optional prop, first'); // SHEET-01 (2026-11-28): the shared table gains ONE optional prop (ruling 3.1) — [10887, '58f41148…'] until then
   // What the section leans on in it, by content: its classes, the children slot between the controls and the table, each row through renderRow.
   const t = code(TABLE);
   assert.match(t, /export const cellClass = 'px-2 py-1\.5 align-top';\nexport const moneyClass = 'px-2 py-1\.5 align-top text-right tabular-nums whitespace-nowrap';/);
   assert.match(t, /\{trailing\}\n\s*<\/div>\n\s*\{children\}\n/, 'the caller’s lines stand between the controls and the table');
-  assert.match(t, /<tbody>\n\s*\{shown\.map\(renderRow\)\}\n\s*<\/tbody>/);
+  assert.match(t, /<tbody>\n\s*\{first\}\n\s*\{shown\.map\(renderRow\)\}\n\s*<\/tbody>/); // SHEET-01 (2026-11-28): the first rows, drawn before the rows shown — DataTable's one new prop
   assert.doesNotMatch(t, /PILL_CLASS|_TONES?\b|NOT_TYPED|rounded-full|bg-blue|data-ledger-/, 'the shared table knows no pill, no tone, no tint and no ledger');
 });
 

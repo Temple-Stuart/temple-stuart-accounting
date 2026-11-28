@@ -190,7 +190,7 @@ import { localToday } from '@/lib/localToday';
 import type { Read } from '../week/weekReads';
 import { deltaWords } from '../day/dayCard';
 import { readLedger, type LedgerAnswer } from './ledgerReads';
-import ExpenseForm from './ExpenseForm'; import PasteRows from './PasteRows';
+import ExpenseRow, { ExpenseOpen } from './ExpenseForm'; import PasteRows from './PasteRows';
 import LinkPicker from './LinkPicker';
 import RecordForm from './RecordForm';
 import DataTable, { cellClass as cell, chipClass as chip, moneyClass as money } from '@/components/table/DataTable';
@@ -241,6 +241,8 @@ export default function LedgerSection() {
   const [picking, setPicking] = useState<string | null>(null);
   // TIMESHEET-02 (2026-11-24): the row whose record form is open (its key), or none — its own state, beside the picker's; both may be open. React state only — nothing stored.
   const [entering, setEntering] = useState<string | null>(null);
+  // SHEET-01 (Alex, 2026-11-28): "+ expense" is open — its blank row stands at the top of the table, handed to the shared table as its `first`. Shut at first; React state only.
+  const [adding, setAdding] = useState(false);
   // TIMESHEET-02 (2026-11-24): a read is in flight — said where the loading line stands while the answer already on screen stays drawn.
   const [reading, setReading] = useState(false);
 
@@ -314,8 +316,9 @@ export default function LedgerSection() {
         openFilter={openFilter}
         onOpenFilter={setOpenFilter}
         csv={csv}
+        first={adding ? <ExpenseRow onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} close={() => setAdding(false)} /> : undefined}
         controls={(
-          <><h2 className="text-sm font-bold text-brand-purple" data-ledger-title>{LEDGER_TITLE_WORDS}</h2><ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} /><span className="h-4 w-px bg-border" aria-hidden="true" />
+          <><h2 className="text-sm font-bold text-brand-purple" data-ledger-title>{LEDGER_TITLE_WORDS}</h2><ExpenseOpen open={adding} onToggle={() => setAdding((open) => !open)} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} /><span className="h-4 w-px bg-border" aria-hidden="true" />
             {PERIOD_KINDS.map((k) => (
               <button key={k} type="button" className={kind === k ? chipOn : chip} onClick={() => setKind(k)} data-ledger-period={k} aria-pressed={kind === k}>{PERIOD_WORDS[k]}</button>
             ))}

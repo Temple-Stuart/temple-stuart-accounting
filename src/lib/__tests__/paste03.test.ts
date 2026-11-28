@@ -421,8 +421,8 @@ test('T12 “+ expense”: a blank TIME is a stop ALL DAY — a charge on its da
   for (const [over, field] of boxes) {
     for (const day of [MON, WED]) assert.deepEqual(expenseInput({ ...DRAFT, ...over, day, time: '' }, NBO, NOW), { ok: false, field, message: chargeFieldWords(field) }, `${JSON.stringify(over)} on ${day}`);
   }
-  assert.equal(chargeFieldWords('actual'), "ACTUAL is the record's, and with no TIME this is a charge on its date — it takes no record; give it a TIME, or leave this blank");
-  assert.equal(chargeFieldWords('note'), "ITEMS is the record's, and with no TIME this is a charge on its date — it takes no record; give it a TIME, or leave this blank");
+  assert.equal(chargeFieldWords('actual'), "ACTUAL is the record's, and with no START this is a charge on its date — it takes no record; give it a START, or leave this blank"); // SHEET-01 (2026-11-28): the box named by its word — START; TIME until then
+  assert.equal(chargeFieldWords('note'), "ITEMS is the record's, and with no START this is a charge on its date — it takes no record; give it a START, or leave this blank"); // SHEET-01 (2026-11-28): a charge's sentence names the box by its word — START; TIME until then
   // The routine's name: its day alone; a timed one keeps its time.
   assert.equal(oneOffRoutineName(charge.value), `Picnic · ${MON}`);
   assert.equal(oneOffRoutineName(timed.value), `Picnic · ${MON} 12:30`);
@@ -451,7 +451,7 @@ test('T13 the form: a charge’s record step is not asked — it reads “the re
   assert.match(form, /if \(v\.allDay\) \{\n\s*done\.push\(\{ step: 'record', state: 'charge', words: '' \}\);\n\s*\} else if \(v\.ahead\) \{\n\s*done\.push\(\{ step: 'record', state: 'ahead', words: '' \}\);\n\s*\} else \{/);
   assert.equal(countOf(form, /\bsetStopRecord\(/g), 1, 'one call');
   assert.ok(form.indexOf('setStopRecord(') > form.indexOf('} else if (v.ahead) {'), 'in the branch that asks the record — after the charge and the stop ahead');
-  assert.match(form.split('\n')[86], /const created = await createOneOff\(oneOffBody\(v\)\);/, 'ExpenseForm.tsx:87 — the line the registry cites');
+  assert.match(form.split('\n')[77], /^export default function ExpenseRow\(/, 'ExpenseForm.tsx:78 — the line the registry cites: the blank row'); // SHEET-01 (2026-11-28): the registry's cite follows ExpenseRow — the create at :87 until then
 });
 
 // ── T14 · THE PASTE: A NEW CHARGE ON ITS DATE (ruling 2.3) ───────────────────
