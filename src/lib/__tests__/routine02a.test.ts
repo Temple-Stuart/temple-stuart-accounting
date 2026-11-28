@@ -260,7 +260,7 @@ test('T7 the zone list: Intl\'s own names, matched without case, stored as spell
   // differs only by case is the same zone — a canonicalising save enters no move, so no record or completion is touched.
   const patchHandler = patch.slice(patch.indexOf('export async function PATCH('), patch.indexOf('export async function DELETE('));
   assert.match(patchHandler, /const zoneMoved = canonicalZone\(existing\.timezone\) !== canonicalZone\(nextTz\);/);
-  assert.ok(patchHandler.indexOf('operations_stop_records') > patchHandler.indexOf('if (clockMoved || zoneMoved) {'), 'the records are reached only inside the move');
+  assert.ok(patchHandler.indexOf('operations_stop_records') > patchHandler.indexOf('if (clockMoved || zoneMoved || dateMoved) {'), 'the records are reached only inside the move'); // EDIT-02 (2026-11-28) (PART 3): the move's guard names a one-off's date too — a canonicalising save still enters no move
   // The builder: a select over the list — the viewer's zone first (read after mount), the rest by region; an unlisted stored value visible, named.
   // MOVE-01 (2026-10-19): the select and its viewer-zone effect moved into the one zone picker (routines/ZoneSelect.tsx), which the
   // builder mounts for the routine's zone and the move control mounts for the new one. Moved, never loosened.

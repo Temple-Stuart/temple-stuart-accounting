@@ -20,14 +20,20 @@
  * day card's own reader), so 18:00 Bangkok on Oct 14 becomes 18:00 Makassar on
  * Oct 14. An instant is on the old clock iff the old rule's occurrence on its
  * day IS that instant. Pure: no Prisma, no request, no clock but the caller's.
+ *
+ * EDIT-02 (Alex, 2026-11-28) — A ONE-OFF MOVES WITH ITS DATE (rekeyOneOffDate). A one-off happens once: every row keyed to it sits at its one
+ * occurrence. When its date moves (a one-off staying a one-off), each of those rows moves to the one occurrence of the moved one-off — routineDay
+ * over its new start day, with its new clock and zone — in the same transaction, with the same proof and the same writes as a clock's move. A row
+ * that is not at the old one occurrence is refused by name, nothing moved. The plan is rekeyPlan's own shape.
  */
 import { instantToZoned } from '@/lib/time';
 import { routineDay, type RoutineDayInput } from './routineDay';
+import { isOnceRRule } from './rruleHelpers';
 
 /** What the rule reads of a routine's schedule — the day card's own input. */
 export type RekeySchedule = RoutineDayInput;
 
-/** One day's move: the old instant and the new, on the same local day. */
+/** One day's move: the old instant and the new, on the same local day — EDIT-02 (2026-11-28): a one-off's date move names the day it moves to. */
 export interface RekeyMove {
   readonly day: string;
   readonly from: Date;
@@ -114,6 +120,33 @@ export function rekeyPlan(before: RekeySchedule, after: RekeySchedule, instants:
   const targets = new Set(moves.map((m) => m.to.getTime()));
   if (targets.size !== moves.length) return { ok: false, status: 400, message: "cannot move the routine's history: two days would share one instant under the new rule" };
   return { ok: true, moves, notOnOldClock };
+}
+
+/** EDIT-02 (2026-11-28): a row of a one-off that is not at its one occurrence — its date cannot carry it; refused by name. */
+export const ONE_OFF_ROWS_OFF_DAY_WORDS = "cannot move the routine's history: a row sits off the one-off's day";
+
+/**
+ * EDIT-02 (Alex, 2026-11-28): the plan of a one-off's date move. Both schedules are one-offs (rruleHelpers.ts isOnceRRule) holding their date —
+ * anything else is the caller's error, thrown by name: a rule that repeats moves by rekeyPlan. Every instant must be the old one occurrence
+ * (routineDay over the old start day) — else ONE_OFF_ROWS_OFF_DAY_WORDS, nothing moved; each moves to the new one occurrence (routineDay over the new
+ * start day, its clock, its zone), routineDay's own refusals said. routineDay reads its `now` only to prove the zone readable — the day is handed in —
+ * so each schedule's own start date serves: no clock is read.
+ */
+export function rekeyOneOffDate(before: RekeySchedule, after: RekeySchedule, instants: readonly Date[]): RekeyPlan {
+  if (!isOnceRRule(before.schedule_rrule) || !isOnceRRule(after.schedule_rrule)) throw new Error("routineRekey: a one-off's date move reads two one-offs — a rule that repeats moves by rekeyPlan");
+  if (before.start_date === null || after.start_date === null) throw new Error("routineRekey: a one-off holds its date — a schedule with none has no day to move from or to");
+  const distinct = [...new Map(instants.map((d) => [d.getTime(), d])).values()];
+  const oldDay = before.start_date.toISOString().slice(0, 10);
+  const old = routineDay(before, oldDay, before.start_date);
+  if (old.kind === 'refused') return { ok: false, status: 400, message: `cannot move the routine's history: ${old.reason} — ${old.detail}` };
+  if (distinct.length === 0) return { ok: true, moves: [], notOnOldClock: [] };
+  if (old.kind === 'none' || distinct.some((d) => d.getTime() !== old.expectedAt.getTime())) return { ok: false, status: 400, message: ONE_OFF_ROWS_OFF_DAY_WORDS };
+  const newDay = after.start_date.toISOString().slice(0, 10);
+  const next = routineDay(after, newDay, after.start_date);
+  if (next.kind === 'refused') return { ok: false, status: 400, message: `cannot move the routine's history: ${next.reason} — ${next.detail}` };
+  if (next.kind === 'none') return { ok: false, status: 400, message: noOccurrenceWords(newDay, instants.length) };
+  if (next.expectedAt.getTime() === old.expectedAt.getTime()) return { ok: true, moves: [], notOnOldClock: [] };
+  return { ok: true, moves: [{ day: newDay, from: old.expectedAt, to: next.expectedAt }], notOnOldClock: [] };
 }
 
 /** The route's refusal, thrown inside the transaction so nothing is written: 400 (no occurrence) or 409 (a target occupied). */

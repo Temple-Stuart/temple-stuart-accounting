@@ -23,14 +23,20 @@
  * PART 4 (2026-11-28): A ROW'S ✕, once the frame has asked: what it deletes is the rule's (ledger.ts rowDeleteOf) — the row's routine, through the
  * routines DELETE that stands (ledgerWrites.ts deleteRoutine), or a record with no plan, through the stops' one writer's clear (clearStopRecord). A
  * refusal — a posting linked in Books, said by name — comes back as the route's words, and nothing is changed.
+ *
+ * EDIT-02 (Alex, 2026-11-28): THE TRIP'S CELLS — CITY · REGION · COUNTRY on any row — read by ledger.ts tripCellWrite and written by the stays' one writer
+ * (stays/stayWrites.ts changeStay for the trip covering the day, createStay for a day no trip covers); its refusals (an overlap, the place rule) said in
+ * its words, and a request that never reached the route (that writer throws then) too. ITEMS with no record held, on a past row that takes one, writes its
+ * FIRST record — the note typed — through the record form's rule and writer, as ACTUAL writes one (ledger.ts itemsWritesRecord decides it).
  */
 import {
-  VENDORS_LOADING_WORDS, isRecordCell, planCellWrite, recordCellDraft, recordInput, nameNotPutBackWords, vendorAddedNotSetWords,
+  VENDORS_LOADING_WORDS, isRecordCell, itemsWritesRecord, planCellWrite, recordCellDraft, recordInput, nameNotPutBackWords, tripCellWrite, vendorAddedNotSetWords,
   type LedgerEditing, type LedgerEditingPlan, type LedgerRecording, type LedgerRecordingTaken, type LedgerSheetRow, type PlanCellWrite, type RowDelete, type TypedColumn,
 } from '@/lib/operations/ledger';
 import { pastedVendorOf, type PasteVendor } from '@/lib/operations/pasteRows';
 import type { StopRecordRow } from '@/lib/operations/stopRecord';
 import { clearStopRecord, setStopRecord } from '../stops/stopWrites';
+import { changeStay, createStay } from '../stays/stayWrites';
 import { addVendor, clearVendor, deleteRoutine, patchLine, patchRoutine, readVendors, setLineMinutes, setVendor, setVendorTag, type WriteAnswer } from './ledgerWrites';
 
 /** A cell's save: accepted, or refused in words. */
@@ -131,9 +137,22 @@ export async function saveVendorCell(row: LedgerSheetRow, editing: LedgerEditing
   }
 }
 
-/** A cell's save, by its column and its row's entries — the record's cells by the record's rule, VENDOR by its box, the rest by the plan's rule. A cell that opens on no such row is the frame's error, thrown by name. */
+/** EDIT-02 (2026-11-28): a trip cell — the trip covering the row's day changed whole, or a new trip of the day — read by the rule, written by the stays' one writer. */
+export async function saveTripCell(row: LedgerSheetRow, editing: LedgerEditing, column: 'city' | 'region' | 'country', text: string): Promise<CellSave> {
+  try {
+    const read = tripCellWrite(row, editing, column, text);
+    if (!read.ok) return { ok: false, words: read.words };
+    const answer = read.write.to === 'change' ? await changeStay(read.write.stayId, read.write.body) : await createStay(read.write.body);
+    return answer.ok ? { ok: true } : { ok: false, words: answer.message };
+  } catch (error) {
+    return { ok: false, words: wordsOf(error) };
+  }
+}
+
+/** A cell's save, by its column and its row's entries — the trip's cells by the trip's rule; the record's cells, and ITEMS's first record, by the record's rule; VENDOR by its box; the rest by the plan's rule. A cell saved on a row that cannot take it is the frame's error, thrown by name. */
 export function saveCell(row: LedgerSheetRow, recording: LedgerRecording, editing: LedgerEditing, column: TypedColumn, text: string, vendors: CellVendors, now: Date): Promise<CellSave> {
-  if (isRecordCell(column, recording)) {
+  if (column === 'city' || column === 'region' || column === 'country') return saveTripCell(row, editing, column, text);
+  if (isRecordCell(column, recording) || (column === 'description' && itemsWritesRecord(row, recording))) {
     if (!recording.takes) throw new Error(`cellSaves: ${column} of ${row.key} is the record's, and the row takes no record`);
     return saveRecordCell(row, recording, column, text, now);
   }

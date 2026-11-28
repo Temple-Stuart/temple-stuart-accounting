@@ -32,7 +32,7 @@ import type { StayRow } from '../operations/stay';
 import type { StopRecordRow } from '../operations/stopRecord';
 import { POSTING_LINES_SELECT, amountCentsOf } from '../calendar/postingAmount';
 import {
-  CANDIDATES_WORDS, LEDGER_HEAD_WORDS, LINKED_POSTINGS_WORDS, LINKS_LOADING_WORDS, LINK_WORDS, NO_CANDIDATES_WORDS, NO_LINKED_POSTINGS_WORDS, NO_READABLE_AMOUNT_WORDS, NO_SUGGESTION_WORDS,
+  routineClocksOf, CANDIDATES_WORDS, LEDGER_HEAD_WORDS, LINKED_POSTINGS_WORDS, LINKS_LOADING_WORDS, LINK_WORDS, NO_CANDIDATES_WORDS, NO_LINKED_POSTINGS_WORDS, NO_READABLE_AMOUNT_WORDS, NO_SUGGESTION_WORDS,
   PICKER_CANCEL_WORDS, UNLINK_WORDS,
   ledgerCsv, ledgerOf, ledgerTotals, linkKeyOf, matchCellTitle, matchCellWords, matchCoverageWords, matchOf, matchState, matchTotalWords, planMinutesOf, postingAmountWords, postingDateWords, readableMatchCents,
   unreadableWords, varianceCoverageWords,
@@ -131,7 +131,7 @@ const LINKS: LedgerLinkInput[] = [
 
 const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here; EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), clocks: routineClocksOf(ROUTINES), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here; EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
 });
 const ledger = ledgerOf(input());
 const rowOf = (id: string): LedgerRow => {
@@ -193,7 +193,7 @@ test('R2 the join: a record meets its links by (kind, target_id, occurrence_at) 
   assert.match(route, /links: linkRows\.map\(linkInputOf\),/);
   // ROUTINES-03 (Alex, 2026-10-25): linkInputOf moved to ledger.ts, unchanged, so the routines' month route reads a link the same way — the pins moved with it.
   // READS-01b (Alex, 2026-11-07): the import split with the body — the route keeps spanInput; the answer file takes ledgerOf, linkInputOf and the input type.
-  assert.match(route, /import \{ accountPlacesOf, ledgerOf, linkInputOf, planMinutesOf, type LedgerRecordInput \} from '@\/lib\/operations\/ledger';/); // TIMESHEET-03 (Alex, 2026-11-24): and accountPlacesOf (each account's place, for the pills' tones) — `{ ledgerOf, linkInputOf, planMinutesOf, type LedgerRecordInput }` until then. TIMESHEET-01 (Alex, 2026-11-24): the answer function reads planMinutesOf too (each plan's planned minutes, for the sheet) — `{ ledgerOf, linkInputOf, type LedgerRecordInput }` until then
+  assert.match(route, /import \{ accountPlacesOf, ledgerOf, linkInputOf, planMinutesOf, routineClocksOf, type LedgerRecordInput \} from '@\/lib\/operations\/ledger';/); // TIMESHEET-03 (Alex, 2026-11-24): and accountPlacesOf (each account's place, for the pills' tones) — `{ ledgerOf, linkInputOf, planMinutesOf, type LedgerRecordInput }` until then. TIMESHEET-01 (Alex, 2026-11-24): the answer function reads planMinutesOf too (each plan's planned minutes, for the sheet) — `{ ledgerOf, linkInputOf, type LedgerRecordInput }` until then; EDIT-02 (2026-11-28) (PART 1): and routineClocksOf — each routine's own clock, for the editing entry
   assert.match(code(LEDGER_ROUTE), /import \{ spanInput \} from '@\/lib\/operations\/ledger';/);
   for (const f of [LEDGER_ROUTE, LEDGER_ANSWER]) assert.doesNotMatch(code(f), /function linkInputOf\(/, `${f}: the mapper lives in ledger.ts now`);
   // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the mapper reads the posting's reversal state too (LinkedPostingRow) and says whether it was reversed.
