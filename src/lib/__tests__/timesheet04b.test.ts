@@ -762,7 +762,7 @@ test('T12 in the source: LedgerSection.tsx is 488 lines with the tag’s cell on
 
 test('T13 the paste (re-pointed by COALEVELS-01, 2026-11-27 — until that change it filled no notes and named no tag): pasteRows.ts fills the record’s notes from the row — RECORD_HEADS holds the box, and a refusal is thrown by name for stars and minutes alone — and the record’s draft it builds carries them; pasteSave.ts, PasteRows.tsx and ledgerWrites.ts each name the tag’s writer', () => {
   const p = code(PASTE_RULE);
-  assert.equal(linesOf(PASTE_RULE).length, 1246, 'the file’s new length — 941 until COALEVELS-01'); // PASTE-03 (2026-11-28): 1246 — a row with no Start Time is a charge on its date, and the charge of its name takes the row; 1,188 until then
+  assert.equal(linesOf(PASTE_RULE).length, 1250, 'the file’s new length — 941 until COALEVELS-01'); // PASTE-03 (2026-11-28): 1246 — a row with no Start Time is a charge on its date, and the charge of its name takes the row; 1,188 until then; SHEET-01 (2026-11-28): 1250 — a charge says it takes no record, and its WENT is the sheet's blank; 1,246 until then
   // 1. The boxes the paste fills: went, ACTUAL, DESCRIPTION and — COALEVELS-01 (2026-11-27) — the NOTES; no stars, no minutes.
   assert.match(p, /const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' \| 'minutes'>, PasteHead>> = \{ went: 'Start Date', actual: 'Total \(USD\)', note: 'Items', notes: 'Notes' \};/);
   assert.match(p, /if \(field === 'stars' \|\| field === 'minutes'\) throw new Error\(`pasteRows: the record's rule refused \$\{field\}, which the paste never fills — \$\{message\}`\);/);

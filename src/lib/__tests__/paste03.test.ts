@@ -476,7 +476,7 @@ test('T14 the paste: a row with no Start Time is a NEW CHARGE on its date — at
   const [shown] = pasteShown(paste, [placement]);
   const cell = (key: (typeof ON_TIME_SHEET_KEYS)[number]): string => shown.sheet[ON_TIME_SHEET_KEYS.indexOf(key)];
   assert.deepEqual([cell('start'), cell('end'), cell('budget')], [ROLE_SHORT_WORDS.all_day, BLANK, BLANK]);
-  assert.equal(shown.lands, `${chargeWords('P-6200', 'Recreation')} · vendor: new to Personal · tag: @gallery.one · not recorded: no Total (USD) · items: planned · ${CHARGE_SAID.join(' · ')}`);
+  assert.equal(shown.lands, `${chargeWords('P-6200', 'Recreation')} · vendor: new to Personal · tag: @gallery.one · a charge on its date: no record · items: planned · ${CHARGE_SAID.join(' · ')}`); // SHEET-01 (2026-11-28): a charge says it takes no record — "not recorded: no Total (USD)" until then
   assert.equal(chargeWords('P-6200', 'Recreation'), 'a new charge on its date, all day — no Start Time — under P-6200 Recreation');
   // Still ahead: planned — never went.
   const [ahead] = placedAll(pasteOf({ ...MUSEUM_FULL, 'Start Date': '8/11/27' }), ONE_OFF);
@@ -536,7 +536,7 @@ test('T15 a row on the charge of its own name that stands — that book, that da
   if (on.kind !== 'plan') return assert.fail(`placed: ${on.kind}`);
   assert.deepEqual([on.standing, on.stop.key, on.instant, on.record, on.happened, on.vendor, on.items, on.tag], [true, chargeRow().key, at(MON, '00:00'), null, { kind: 'not recorded' }, { kind: 'new', name: 'Gallery One' }, 'two tickets', { vendorId: null, tag: 'gallery.one' }]);
   assert.deepEqual(on.notWritten, CHARGE_SAID);
-  assert.equal(fresh.shown[0].lands, `${onChargeWords('Museum')} · vendor: new to Personal · tag: @gallery.one · not recorded: no Total (USD) · items: planned · ${CHARGE_SAID.join(' · ')}`);
+  assert.equal(fresh.shown[0].lands, `${onChargeWords('Museum')} · vendor: new to Personal · tag: @gallery.one · a charge on its date: no record · items: planned · ${CHARGE_SAID.join(' · ')}`); // SHEET-01 (2026-11-28): a charge says it takes no record — "not recorded: no Total (USD)" until then
   assert.equal(onChargeWords('Museum'), 'on the charge "Museum", all day, already on the time sheet');
   assert.deepEqual(fresh.writes.map((w) => [w.kind, w.vendor.kind, w.items, w.kind === 'stop' ? w.record : 'one-off']), [['stop', 'new', 'two tickets', null]]);
   assert.equal(countsWords(fresh.placements), '1 row read · 0 on a plan · 1 one-off (0 new) · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 0 dates with nothing on them');

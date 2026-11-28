@@ -274,7 +274,7 @@ export default function LedgerSection() {
     setFilters(NO_COLUMN_FILTERS);
     setOpenFilter(null);
   }, [period?.from, period?.to]);
-  // TIMESHEET-01 (Alex, 2026-11-24): the table's rows are the answer's `sheet` — every priced line of the period, planned and recorded (its `rows`, the recorded expenses alone, are the home ledger's).
+  // TIMESHEET-01 (Alex, 2026-11-24): the table's rows are the answer's `sheet` — every line of the period (SHEET-01, 2026-11-28: "every priced line" until then), planned and recorded (its `rows`, the recorded expenses alone, are the home ledger's).
   const rows: readonly LedgerSheetRow[] = answer !== null && answer.read.ok ? answer.read.value.sheet : [];
   // TIMESHEET-03 (Alex, 2026-11-24): each account's place among the accounts the active plans use — the answer's `tones`; the ACCOUNT NAME pill is toned by it (ledger.ts accountPillClassOf).
   const tones: AccountPlaces = answer !== null && answer.read.ok ? answer.read.value.tones : {};

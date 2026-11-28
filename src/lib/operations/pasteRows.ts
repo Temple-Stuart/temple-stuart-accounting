@@ -1091,14 +1091,16 @@ function yourCells(row: PasteRow): string[] {
 const NOWHERE_CELLS: readonly string[] = ON_TIME_SHEET_KEYS.map(() => BLANK);
 /** WENT, for a stop that has no record — the time sheet's own three words. */
 const OUTCOME_WORD: Readonly<Record<PastedOutcome['kind'], string>> = { went: WENT_WORD, planned: PLANNED_WORD, 'not recorded': NOT_RECORDED_WORDS };
+/** SHEET-01 (Alex, 2026-11-28): A CHARGE — a new one-off with no Start Time, or the charge of the row's own name that stands (its stop all day, with no record). It takes no record: its WENT is the sheet's blank and it says CHARGE_HAPPENED_WORDS. */
+export const isChargePlacement = (placement: PastePlacement): boolean => (placement.kind === 'oneOff' && placement.start === null) || (placement.kind === 'plan' && placement.standing && placement.stop.id === null && placement.stop.allDay);
 
 /** ON THE TIME SHEET, for a placed row. A row placed nowhere: every cell blank. */
 function sheetCells(placement: PastePlacement): readonly string[] {
   if (placement.kind === 'plan') {
-    // The stop's own cells — but WENT reads went when this row is recorded and planned when its stop is still ahead, and ACTUAL reads this row's amount when it is recorded.
+    // The stop's own cells — but WENT reads went when this row is recorded and planned when its stop is still ahead (SHEET-01, 2026-11-28: never on a charge — its own cell, the sheet's blank), and ACTUAL reads this row's amount when it is recorded.
     const { stop, happened } = placement;
     return ON_TIME_SHEET_KEYS.map((key) => {
-      if (key === 'went' && (happened.kind === 'went' || happened.kind === 'planned')) return OUTCOME_WORD[happened.kind];
+      if (key === 'went' && !isChargePlacement(placement) && (happened.kind === 'went' || happened.kind === 'planned')) return OUTCOME_WORD[happened.kind];
       if (key === 'actual' && happened.kind === 'went') return budgetCellWords(happened.cents);
       return cellWordsOf(stop, key);
     });
@@ -1111,7 +1113,7 @@ function sheetCells(placement: PastePlacement): readonly string[] {
       account: deriveAccountString({ entityType: placement.book.entityType, code: placement.account.code }),
       accountName: placement.account.name,
       subAccountName: placement.name,
-      went: OUTCOME_WORD[placement.happened.kind],
+      went: isChargePlacement(placement) ? BLANK : OUTCOME_WORD[placement.happened.kind], // SHEET-01 (2026-11-28): a charge's WENT is the sheet's blank, as the time sheet prints an all-day line (ledger.ts wentCellWords)
       budget: budgetCellWords(placement.budgetCents),
       actual: budgetCellWords(placement.happened.kind === 'went' ? placement.happened.cents : null),
     };
@@ -1134,6 +1136,8 @@ export const recordedWentWords = (cents: number): string => `recorded: went, ${f
 export const PLANNED_AHEAD_WORDS = 'planned: still ahead';
 export const ALREADY_RECORDED_WORDS = 'already recorded';
 export const NO_TOTAL_WORDS = 'not recorded: no Total (USD)';
+/** SHEET-01 (Alex, 2026-11-28): what a CHARGE says happened, ahead or past, with a Total (USD) or none — NO_TOTAL_WORDS was false beside CHARGE_TOTAL_WORDS. The placement's `happened` stands. */
+export const CHARGE_HAPPENED_WORDS = 'a charge on its date: no record';
 /** COALEVELS-01 (2026-11-27): the tag a row sets on its vendor, and that it writes planned items. */
 export const tagSetWords = (tag: string): string => `tag: ${instagramTagWords(tag)}`;
 export const PLANNED_ITEMS_SET_WORDS = 'items: planned';
@@ -1155,11 +1159,11 @@ export function landsWords(placement: PastePlacement): string {
     case 'pick': return placement.words;
     case 'plan': {
       const start = cellWordsOf(placement.stop, 'start');
-      return [placement.standing && placement.stop.id === null && placement.stop.allDay ? onChargeWords(placement.plan) : placement.standing ? onStandingWords(placement.plan, start) : onPlanWords(placement.plan, start), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
+      return [isChargePlacement(placement) ? onChargeWords(placement.plan) : placement.standing ? onStandingWords(placement.plan, start) : onPlanWords(placement.plan, start), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), isChargePlacement(placement) ? CHARGE_HAPPENED_WORDS : happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
     }
     case 'oneOff': {
       const label = deriveAccountString({ entityType: placement.book.entityType, code: placement.account.code });
-      return [placement.start === null ? chargeWords(label, placement.account.name) : oneOffWords(placement.start, label, placement.account.name), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
+      return [placement.start === null ? chargeWords(label, placement.account.name) : oneOffWords(placement.start, label, placement.account.name), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), isChargePlacement(placement) ? CHARGE_HAPPENED_WORDS : happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
     }
   }
 }

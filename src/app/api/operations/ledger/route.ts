@@ -57,7 +57,7 @@
  * and hands it in, and the same catch. /api/home-ledger calls the function directly — no route calls a route.
  *
  * TIMESHEET-01 (Alex, 2026-11-24): the answer carries ONE more list — { from, to, as_of, first_record, rows, sheet,
- * said }. `sheet` is the table's rows: every priced line of the span that takes money or is all day, planned and
+ * said }. `sheet` is the table's rows: every line of the span that names its account or is all day, planned and
  * recorded (ledger.ts LedgerSheetRow — a recorded expense on its line's row, a line with no record as its plan), by the
  * same rule over the same reads; `rows` is as it was. No query is added and this route's code is unchanged.
  */
