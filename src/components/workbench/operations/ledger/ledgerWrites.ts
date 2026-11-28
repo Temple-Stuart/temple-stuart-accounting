@@ -8,6 +8,10 @@
  *   · PATCH /api/operations/routines/steps/[id]  setLineMinutes — the line's minutes (the line's own route)
  *   · PATCH /api/operations/vendor-directory     setVendorTag   — a vendor's Instagram tag (the directory's own PATCH)
  *   · POST /api/chart-of-accounts/sub-accounts   addSubAccount  — a sub-account under an account of the chart (the chart's own route)
+ *   · PATCH /api/operations/routines/[id]        patchRoutine   — a routine's own fields (the routine's own route)
+ *   · PATCH /api/operations/routines/steps/[id]  patchLine      — a line's own fields (the line's own route)
+ *   · DELETE /api/operations/plan-vendors        clearVendor    — the vendor at one address cleared (VENDOR-01's route)
+ *   · GET  /api/operations/vendor-directory      readVendors    — the caller's vendors, each with its tag (the directory's own GET)
  *   · the record: stops/stopWrites.ts setStopRecord — the one writer of a stop's record
  *
  * PASTE-02 (Alex, 2026-11-27): the pasted rows are saved through these (src/lib/operations/pasteSave.ts runs them; ledger/PasteRows.tsx
@@ -19,6 +23,11 @@
  * it is handed; absent says nothing of them), and two writers are new, at the file's end — setVendorTag and addSubAccount. The file's
  * one request function is not touched.
  *
+ * EDIT-01 (Alex, 2026-11-28) — for the time sheet's cells (ledger/cellSaves.ts runs them): three writers and one read are new, at the
+ * file's end — patchRoutine, patchLine, clearVendor and readVendors (the directory's list read by the paste's own rule, pasteRows.ts
+ * vendorsOf). The one helper takes DELETE too (no body is sent with it), and setVendor takes an instant of null — the plan's
+ * every-occurrence row, whose planned items a cell sets at that grain. Still ONE request in this file.
+ *
  * Each answer is read the one way the vendor box reads its own
  * (budget/VendorBox.tsx answerOf): ok with the route's body, or the route's
  * own words — message, else error; signed out by name; a request that never
@@ -27,14 +36,15 @@
  */
 import type { RoutineForm } from '../routines/types';
 import { readJson } from '../week/weekReads';
-import { ROUTINE_NO_ID_WORDS, VENDOR_NO_ID_WORDS, lineCountWords } from '@/lib/operations/ledger';
+import { ROUTINE_NO_ID_WORDS, VENDOR_NO_ID_WORDS, lineCountWords, type PlanLineBody, type PlanRoutineBody, type PlanVendorAddress } from '@/lib/operations/ledger';
+import { vendorsOf, vendorsUnreadWords, type PasteVendor } from '@/lib/operations/pasteRows';
 
 export type WriteAnswer<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly words: string };
 
 const SIGNED_OUT_WORDS = 'You are signed out — sign in to add an expense.';
 
-/** A write read the one way: a redirect or a 401 is signed out; a refusal is the route's own message; no JSON is said as such. PASTE-02 (2026-11-27): it takes the method — `post(url, body)` until then. */
-async function send(method: 'POST' | 'PATCH', url: string, body: unknown): Promise<{ readonly ok: true; readonly body: Record<string, unknown> } | { readonly ok: false; readonly words: string }> {
+/** A write read the one way: a redirect or a 401 is signed out; a refusal is the route's own message; no JSON is said as such. PASTE-02 (2026-11-27): it takes the method — `post(url, body)` until then. EDIT-01 (2026-11-28): and DELETE — its body undefined, none is sent. */
+async function send(method: 'POST' | 'PATCH' | 'DELETE', url: string, body: unknown): Promise<{ readonly ok: true; readonly body: Record<string, unknown> } | { readonly ok: false; readonly words: string }> {
   let res: Response;
   try {
     res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), redirect: 'manual' });
@@ -83,8 +93,8 @@ export async function addVendor(entityId: string, name: string): Promise<WriteAn
   return { ok: true, value: { vendorId: answer.body.id } };
 }
 
-/** The vendor on the line's one occurrence — or, PASTE-02 (2026-11-27), on a routine's own (`kind: 'routine_line'` alone until then). COALEVELS-01 (2026-11-27): with the plan's items, when the caller hands any — sent as handed; a body without the key says nothing of them. */
-export async function setVendor(body: { readonly kind: 'routine_line' | 'routine'; readonly id: string; readonly instant: string; readonly vendorId: string; readonly items?: string }): Promise<WriteAnswer<{ readonly outcome: string }>> {
+/** The vendor on the line's one occurrence — or, PASTE-02 (2026-11-27), on a routine's own (`kind: 'routine_line'` alone until then). COALEVELS-01 (2026-11-27): with the plan's items, when the caller hands any — sent as handed; a body without the key says nothing of them. EDIT-01 (2026-11-28): or on every occurrence — the instant null, as the route reads it (a string until then). */
+export async function setVendor(body: { readonly kind: 'routine_line' | 'routine'; readonly id: string; readonly instant: string | null; readonly vendorId: string; readonly items?: string }): Promise<WriteAnswer<{ readonly outcome: string }>> {
   const answer = await send('POST', '/api/operations/plan-vendors', body);
   if (!answer.ok) return answer;
   return { ok: true, value: { outcome: typeof answer.body.outcome === 'string' ? answer.body.outcome : '' } };
@@ -109,4 +119,34 @@ export async function addSubAccount(accountId: string, name: string, code: strin
   const answer = await send('POST', '/api/chart-of-accounts/sub-accounts', { accountId, name, code });
   if (!answer.ok) return answer;
   return { ok: true, value: null };
+}
+
+/** EDIT-01 (2026-11-28): a routine's own fields — the routines PATCH, the body as handed (its name, its role, its start time, its Location). The route moves what its clock keys, or refuses by name; nothing of its answer is read back here. */
+export async function patchRoutine(routineId: string, body: PlanRoutineBody): Promise<WriteAnswer<null>> {
+  const answer = await send('PATCH', `/api/operations/routines/${routineId}`, body);
+  if (!answer.ok) return answer;
+  return { ok: true, value: null };
+}
+
+/** EDIT-01 (2026-11-28): a line's own fields — the line's PATCH, the body as handed (its TYPE, its minutes cleared, its account, its amount). The route answers the line; nothing of it is read back here. */
+export async function patchLine(lineId: string, body: PlanLineBody): Promise<WriteAnswer<null>> {
+  const answer = await send('PATCH', `/api/operations/routines/steps/${lineId}`, body);
+  if (!answer.ok) return answer;
+  return { ok: true, value: null };
+}
+
+/** EDIT-01 (2026-11-28): the vendor at exactly one address cleared — the plan-vendors DELETE, the address in the query (no instant: every occurrence). Nothing there is the route's refusal, in its words. */
+export async function clearVendor(address: PlanVendorAddress): Promise<WriteAnswer<null>> {
+  const query = new URLSearchParams(address.instant === null ? { kind: address.kind, id: address.id } : { kind: address.kind, id: address.id, instant: address.instant });
+  const answer = await send('DELETE', `/api/operations/plan-vendors?${query.toString()}`, undefined);
+  if (!answer.ok) return answer;
+  return { ok: true, value: null };
+}
+
+/** EDIT-01 (2026-11-28): the caller's vendors as the directory lists them, read by the paste's own rule (pasteRows.ts vendorsOf) — each with the tag it carries. A read that fails is said in its words, never taken as none. */
+export async function readVendors(): Promise<WriteAnswer<readonly PasteVendor[]>> {
+  const listed = await readJson('/api/operations/vendor-directory');
+  if (!listed.ok) return { ok: false, words: vendorsUnreadWords(listed.words) };
+  const read = vendorsOf(listed.value);
+  return read.ok ? { ok: true, value: read.vendors } : { ok: false, words: vendorsUnreadWords(read.words) };
 }

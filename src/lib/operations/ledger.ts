@@ -2411,13 +2411,27 @@ export const NEVER_OPENS_WORDS: Readonly<Record<Exclude<LedgerColumn, TypedColum
 };
 /** The record's cells — each through the record form's one rule and writer. ITEMS is one of them on a row whose record is held: the record's note. */
 export const RECORD_CELLS = ['went', 'stars', 'loggedMinutes', 'actual', 'notes'] as const satisfies readonly TypedColumn[];
-/** A typed cell opens on a row — or it does not, and why (null: the cell's own title stands). */
-export type CellOpen = { readonly opens: true } | { readonly opens: false; readonly words: string | null };
-const isRecordCell = (column: TypedColumn, recording: LedgerRecording): boolean => (RECORD_CELLS as readonly TypedColumn[]).includes(column) || (column === 'description' && recording.takes && recording.held !== null);
-/** Whether a typed cell opens on a row, by its entry in `recording`: the record's cells open on a row that takes a record; on one that takes none, its own sentence says why. */
-export function cellOpens(column: TypedColumn, recording: LedgerRecording): CellOpen {
+/** A typed cell opens on a row — or it does not, and why. Every typed cell that does not open says why (PART 3 — PART 2 left the cells it did not open to their own titles). */
+export type CellOpen = { readonly opens: true } | { readonly opens: false; readonly words: string };
+/** The cell is the record's on this row: a record cell, or ITEMS on a row whose record is held (the record's note). Else it is the plan's or its vendor's. */
+export const isRecordCell = (column: TypedColumn, recording: LedgerRecording): boolean => (RECORD_CELLS as readonly TypedColumn[]).includes(column) || (column === 'description' && recording.takes && recording.held !== null);
+/**
+ * Whether a typed cell opens on a row, by its entries. The record's cells by `recording`: they open on a row that takes a record; on one that takes
+ * none, its own sentence says why. The rest by `editing` (PART 3): on a row with no plan none opens — the entry's sentence says why; the plan's own
+ * cells open on a one-off (a day of a repeating plan says so, by the plan's name; a one-off with no line of its own opens none of the line's cells);
+ * VENDOR opens on any row with its plan; INSTAGRAM TAG and ITEMS with the row's vendor — with none, each says to give it one.
+ */
+export function cellOpens(column: TypedColumn, recording: LedgerRecording, editing: LedgerEditing): CellOpen {
   if (isRecordCell(column, recording)) return recording.takes ? { opens: true } : { opens: false, words: recording.words };
-  return { opens: false, words: null };
+  if (!editing.plan) return { opens: false, words: editing.words };
+  if ((PLAN_CELLS as readonly TypedColumn[]).includes(column)) {
+    if (!editing.once) return { opens: false, words: REPEATING_PLAN_WORDS(editing.routineName) };
+    return (LINE_CELLS as readonly TypedColumn[]).includes(column) && editing.lineId === null ? { opens: false, words: NO_LINE_CELL_WORDS } : { opens: true };
+  }
+  if (column === 'vendor') return { opens: true };
+  if (column === 'instagramTag') return editing.vendor === null ? { opens: false, words: TAG_NEEDS_VENDOR_WORDS } : { opens: true };
+  if (column === 'description') return editing.vendor === null ? { opens: false, words: ITEMS_CELL_NO_VENDOR_WORDS } : { opens: true };
+  throw new Error(`ledger: ${headWordOf(column)} is a record's cell — the record's entry decides it`);
 }
 /** The next cell to the right on the row that opens — where Tab goes after its save; null when none does. */
 export const nextOpeningColumn = (column: TypedColumn, opens: (next: TypedColumn) => boolean): TypedColumn | null => {
@@ -2478,6 +2492,123 @@ export function cellReachWords(column: TypedColumn, editing: LedgerEditing): str
 export const CELL_WENT_NONE_WORDS = 'none';
 export const CLEAR_CELL_QUESTION = "clear this row's record?";
 export const KEEP_WORDS = 'keep';
+
+// ── EDIT-01 (Alex, 2026-11-28): A ONE-OFF'S PLAN CELLS, THE VENDOR, ITS TAG AND ITS ITEMS ──
+//
+// The plan's own cells — START, END, LOCATION, CATEGORY, TYPE, BUDGET — open on a ONE-OFF (its `editing` entry has its plan, and once): every
+// row the paste or "+ expense" wrote. On a day of a repeating plan they do not: a change there is every row of the plan, made on Expenses.
+// VENDOR, INSTAGRAM TAG, and ITEMS on a row with no record open on ANY row with its plan — the vendor at the row's own address, the tag the
+// vendor's (every row with that vendor carries it), the planned items on the row's vendor plan at its own grain. Here: which of them open
+// (cellOpens, above), the words, and the write each one's text makes — pure, each body the route's own keys, sent by the writers that
+// stand (ledger/ledgerWrites.ts; ledger/cellSaves.ts runs them). The one-off keeps the name "+ expense" and the paste give it
+// (oneOffRoutineName): START and TYPE send it with the new clock or the new TYPE. Each text is read by a rule that stands — a clock by the
+// blank row's (TIME_RE, timeTypedWords), END's minutes by minutesFromTo, the TYPE by the blank row's name rule, the rest by the route that
+// takes it (LOCATION by locationClass.ts, CATEGORY and BUDGET by planMoney.ts, the tag and the items by planVendor.ts). VENDOR's text is
+// decided where the book's vendors are read (cellSaves.ts — the paste's rule, pasteRows.ts pastedVendorOf); its words are here.
+/** The plan's own cells — a one-off's: on a day of a repeating plan they do not open. */
+export const PLAN_CELLS = ['start', 'end', 'location', 'accountName', 'subAccountName', 'budget'] as const satisfies readonly TypedColumn[];
+/** Of those, the cells whose value sits on the plan's line — END (its minutes), CATEGORY, TYPE, BUDGET. */
+export const LINE_CELLS = ['end', 'accountName', 'subAccountName', 'budget'] as const satisfies readonly TypedColumn[];
+export const REPEATING_PLAN_WORDS = (name: string): string => `a day of the plan "${name}" — it repeats; the plan is changed on Expenses, where a change is every row of it`;
+export const CHARGE_HAS_RECORD_WORDS = "a charge takes no record — clear this row's record first, then its START";
+export const ITEMS_CELL_NO_VENDOR_WORDS = "planned items sit with the stop's vendor — give it a VENDOR first";
+/** A one-off whose plan is its routine's own line — a routine with no line: the cells the line holds have no line to be written to. */
+export const NO_LINE_CELL_WORDS = `this one-off has no line of its own — ${headWordOf('end')}, ${headWordOf('accountName')}, ${headWordOf('subAccountName')} and ${headWordOf('budget')} are written to a line`;
+/** TYPE is two writes — the routine's name, then the line's TYPE; refused there, the name is put back, and a name not put back is said with the refusal. */
+export const nameNotPutBackWords = (name: string, words: string): string => `the routine's name was not put back to "${name}" — ${words}`;
+/** VENDOR new to the book: added, then set on the row — refused there, the add that stands is said with the refusal. */
+export const vendorAddedNotSetWords = (name: string, words: string): string => `${name} was added to the book's vendors — not set on this row: ${words}`;
+/** The routines PATCH a plan cell sends — the route's own keys (routines/[id]/route.ts). */
+export interface PlanRoutineBody {
+  readonly name?: string;
+  readonly role?: 'place' | 'all_day';
+  readonly start_time?: string;
+  readonly location_class?: string;
+}
+/** The line's PATCH a plan cell sends — the route's own keys (routines/steps/[stepId]/route.ts). */
+export interface PlanLineBody {
+  readonly activity?: string;
+  readonly duration_minutes?: null;
+  readonly coa_code?: string;
+  readonly budget_amount?: string;
+}
+/** A vendor plan's address, as the plan-vendors route takes it: the row's own kind and id, and an instant — null for every occurrence. */
+export interface PlanVendorAddress {
+  readonly kind: LedgerAddress['kind'];
+  readonly id: string;
+  readonly instant: string | null;
+}
+/** What a plan cell's text writes, and through which writer. TYPE: the name first, then the line's TYPE, the name put back if that is refused. */
+export type PlanCellWrite =
+  | { readonly to: 'routine'; readonly routineId: string; readonly body: PlanRoutineBody }
+  | { readonly to: 'minutes'; readonly lineId: string; readonly minutes: number }
+  | { readonly to: 'line'; readonly lineId: string; readonly body: PlanLineBody }
+  | { readonly to: 'type'; readonly routineId: string; readonly name: string; readonly lineId: string; readonly activity: string; readonly nameBack: string }
+  | { readonly to: 'tag'; readonly vendorId: string; readonly tag: string }
+  | { readonly to: 'items'; readonly address: PlanVendorAddress; readonly vendorId: string; readonly items: string };
+/** A plan cell's text, read: its write — or refused in the rule's words, before any write. */
+export type PlanCellRead = { readonly ok: true; readonly write: PlanCellWrite } | { readonly ok: false; readonly words: string };
+/** The one-off's name as "+ expense" and the paste give it: its TYPE, its day, its clock — none on a charge on its date. */
+const oneOffNameOf = (type: string, day: string, clock: string | null): string => oneOffRoutineName({ name: type, day, time: clock ?? '', allDay: clock === null });
+/**
+ * A plan cell's text → its write, by the cell's column. The row's START is its clock as it stands — none on a charge.
+ *   START: a clock (HH:MM, else refused in the blank row's words) — the routine's start time and the name with that clock; on a charge, with
+ *   role place (ALLDAY-01's change). Cleared on a timed row — role all_day and the name of a charge, refused first when the row holds a record.
+ *   END: cleared → the line's minutes cleared; else, with no START, refused (END_NEEDS_START_WORDS); a clock — the minutes from START
+ *   (minutesFromTo), none refused (END_AT_START_WORDS). LOCATION: the box's choice, read by the route. CATEGORY: the account's code, read by the
+ *   route against the row's book. TYPE: trimmed, its spaces one; blank or too long for the name refused in the blank row's words — then the
+ *   name with the new TYPE, the line's TYPE, and the name it held. BUDGET: as typed — blank is no amount; the route reads the rest.
+ *   INSTAGRAM TAG: the row's vendor's, as typed (blank clears it). ITEMS: the row's vendor plan's, at its grain — every occurrence, or this one.
+ * A cell that is no plan cell, a line's cell on a one-off with no line, or the vendor's with none, is this file's error, thrown by name: no such cell opens.
+ */
+export function planCellWrite(row: LedgerSheetRow, editing: LedgerEditingPlan, column: TypedColumn, typed: string): PlanCellRead {
+  const charge = row.id === null && row.allDay;
+  const clock = charge ? null : row.time;
+  const routine = (body: PlanRoutineBody): PlanCellRead => ({ ok: true, write: { to: 'routine', routineId: editing.routineId, body } });
+  const lineId = (): string => {
+    if (editing.lineId === null) throw new Error(`ledger: ${headWordOf(column)} is written to a line — the row ${row.key} has none, and no such cell opens`);
+    return editing.lineId;
+  };
+  const vendor = (): LedgerEditingVendor => {
+    if (editing.vendor === null) throw new Error(`ledger: ${headWordOf(column)} is the vendor's — the row ${row.key} has none, and no such cell opens`);
+    return editing.vendor;
+  };
+  switch (column) {
+    case 'start': {
+      const time = typed.trim();
+      if (time === '') return row.id !== null ? { ok: false, words: CHARGE_HAS_RECORD_WORDS } : routine({ role: 'all_day', name: oneOffNameOf(row.description, row.day, null) });
+      if (!TIME_RE.test(time)) return { ok: false, words: timeTypedWords(typed) };
+      const name = oneOffNameOf(row.description, row.day, time);
+      return routine(charge ? { role: 'place', start_time: time, name } : { start_time: time, name });
+    }
+    case 'end': {
+      const line = lineId();
+      const end = typed.trim();
+      if (end === '') return { ok: true, write: { to: 'line', lineId: line, body: { duration_minutes: null } } };
+      if (clock === null) return { ok: false, words: END_NEEDS_START_WORDS };
+      if (!TIME_RE.test(end)) return { ok: false, words: timeTypedWords(typed) };
+      const minutes = minutesFromTo(clock, end);
+      if (minutes === 0) return { ok: false, words: END_AT_START_WORDS };
+      return { ok: true, write: { to: 'minutes', lineId: line, minutes } };
+    }
+    case 'location': return routine({ location_class: typed });
+    case 'accountName': return { ok: true, write: { to: 'line', lineId: lineId(), body: { coa_code: typed } } };
+    case 'subAccountName': {
+      const line = lineId();
+      const type = typed.trim().replace(/\s+/g, ' ');
+      if (type === '') return { ok: false, words: requiredWords('name') };
+      if (type.length > ONE_OFF_NAME_MAX) return { ok: false, words: NAME_LONG_WORDS };
+      return { ok: true, write: { to: 'type', routineId: editing.routineId, name: oneOffNameOf(type, row.day, clock), lineId: line, activity: type, nameBack: editing.routineName } };
+    }
+    case 'budget': return { ok: true, write: { to: 'line', lineId: lineId(), body: { budget_amount: typed } } };
+    case 'instagramTag': return { ok: true, write: { to: 'tag', vendorId: vendor().id, tag: typed } };
+    case 'description': {
+      const v = vendor();
+      return { ok: true, write: { to: 'items', address: { kind: row.address.kind, id: row.address.id, instant: v.every ? null : row.address.instant }, vendorId: v.id, items: typed } };
+    }
+    default: throw new Error(`ledger: ${headWordOf(column)} is no plan cell — its write is the record's or the vendor box's`);
+  }
+}
 
 // ── TIMEWIDE-01 (Alex, 2026-11-24): THE SHEET'S TABLE CLASS ──────────────────
 //

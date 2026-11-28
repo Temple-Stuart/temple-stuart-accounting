@@ -198,7 +198,7 @@ const kebab = (key: string): string => key.replace(/[A-Z]/g, (letter) => `-${let
 
 test('T10 the section: the five lines as ruled and the three names on one import line; the mount untouched; the twenty-five cells of a row (COALEVELS-01; twenty-three until then) still drawn, in order; 488 lines — SHEET-01 (Alex, 2026-11-28): re-pointed: the section reads none of the fold’s names and prints no place line; the mount untouched; the twenty-five cells of a row drawn, in order, on every view; 432 lines', () => {
   const s = code(SECTION);
-  assert.equal(linesOf(SECTION).length, 568, 'SHEET-01 (2026-11-28): 432 — the notes, the summary and the fold are gone, the TOTAL row sums the minutes; 488 until then — 435 with the `adding` state and the `first` prop of PART 3'); // EDIT-01 (2026-11-28): 568 — a cell opens as its box; 435 until then
+  assert.equal(linesOf(SECTION).length, 586, 'SHEET-01 (2026-11-28): 432 — the notes, the summary and the fold are gone, the TOTAL row sums the minutes; 488 until then — 435 with the `adding` state and the `first` prop of PART 3'); // EDIT-01 (2026-11-28): 568 — a cell opens as its box; 435 until then; EDIT-01 (2026-11-28) (PART 3): 586 — the frame, below the section, reads the vendors once a VENDOR cell opens and hands the box what it lists; no cited line moved; 568 until then
   assert.doesNotMatch(s, /dayFoldClass|dayFoldCount|dayPlaceWords|isOneDay|DAY_FOLD|:hidden|data-ledger-day-place/, 'no fold, no class, no place line');
   assert.match(s, /const rows: readonly LedgerSheetRow\[\] = answer !== null && answer\.read\.ok \? answer\.read\.value\.sheet : \[\];/);
   // THE MOUNT: the shared table is handed every column on every view — its CSV is built from them.

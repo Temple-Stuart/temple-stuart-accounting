@@ -193,8 +193,8 @@ import { readLedger, type LedgerAnswer } from './ledgerReads';
 import ExpenseRow, { ExpenseOpen } from './ExpenseForm'; import PasteRows from './PasteRows';
 import LinkPicker from './LinkPicker';
 import RecordForm from './RecordForm';
-import ColumnBox from './ColumnBox'; // EDIT-01 (2026-11-28): the one box of a column — an open cell draws it
-import { clearRecordCell, saveRecordCell, type CellSave } from './cellSaves'; // EDIT-01 (2026-11-28): what a cell's save writes
+import ColumnBox, { type ColumnBoxProps } from './ColumnBox'; // EDIT-01 (2026-11-28): the one box of a column — an open cell draws it
+import { clearRecordCell, readCellVendors, saveCell, type CellSave, type CellVendors } from './cellSaves'; // EDIT-01 (2026-11-28): what a cell's save writes
 import DataTable, { cellClass as cell, chipClass as chip, moneyClass as money } from '@/components/table/DataTable';
 import { announceDayWritten } from '../dayWritten';
 import {
@@ -464,6 +464,9 @@ export default function LedgerSection() {
 // closes when it did not; opening another cell saves the open one first. A save goes through its column's writer (cellSaves.ts); refused, the words
 // stay on the line beneath in red and the box stays open with what was typed; accepted, `written` is told the row's day. It stands below the section so
 // that the section's lines the registry cites stay where they stand while the frame grows.
+//   PART 3 (2026-11-28): the plan's cells and the vendor's open by the row's `editing` entry too, and a cell that does not open says why after its own
+// title. A VENDOR cell reads the book's vendors once when it opens (cellSaves.ts readCellVendors) and lists the row's book's under its box; CATEGORY
+// lists the row's book's chart. Every save goes through cellSaves.ts saveCell, which sorts a cell to its writer.
 
 /** An open cell — its row's key and its column. */
 type OpenCell = { readonly key: string; readonly column: TypedColumn };
@@ -478,10 +481,20 @@ function useCellFrame(rows: readonly LedgerSheetRow[], recording: Readonly<Recor
   const heldRef = useRef('');
   const refusedRef = useRef<string | null>(null);
   const savingRef = useRef<Promise<boolean> | null>(null);
-  /** The open cell, set in state and in its refs together: a cell opens with its text, and nothing is refused yet. */
+  const [vendors, setVendors] = useState<CellVendors>({ kind: 'reading' });
+  const vendorsRef = useRef<CellVendors>({ kind: 'reading' });
+  const vendorsAsked = useRef(0);
+  /** The book's vendors, read once a VENDOR cell opens — the last read asked is the one kept; a name refused while they were read may be sent again once they are. */
+  const readTheVendors = () => {
+    const asked = vendorsAsked.current + 1;
+    vendorsAsked.current = asked; vendorsRef.current = { kind: 'reading' }; setVendors({ kind: 'reading' });
+    void readCellVendors().then((read) => { if (vendorsAsked.current !== asked) return; vendorsRef.current = read; refusedRef.current = null; setVendors(read); });
+  };
+  /** The open cell, set in state and in its refs together: a cell opens with its text, and nothing is refused yet; a VENDOR cell reads the vendors. */
   const setOpenCell = (next: OpenCell | null, opened = '') => {
     openRef.current = next; textRef.current = opened; heldRef.current = opened; refusedRef.current = null;
     setOpen(next); setText(opened); setCellRefusal(null); setClearing(false);
+    if (next !== null && next.column === 'vendor') readTheVendors();
   };
   const typeInCell = (value: string) => { textRef.current = value; refusedRef.current = null; setText(value); setClearing(false); };
   // An open cell whose row is no longer on the sheet (another period, or a write that moved the row) closes — there is no row to save it to.
@@ -491,19 +504,16 @@ function useCellFrame(rows: readonly LedgerSheetRow[], recording: Readonly<Recor
     openRef.current = null; setOpen(null); setCellRefusal(null); setClearing(false);
   }, [rows]);
   /** Whether a typed cell opens on a row — the rule's, by the row's entries. */
-  const opensOf = (row: LedgerSheetRow, column: TypedColumn): CellOpen => cellOpens(column, recording[row.key]);
-  /** A cell's title: a column that never opens says why (after the cell's own, MATCH's); a typed cell that does not open says why when the rule says; else the cell's own. */
+  const opensOf = (row: LedgerSheetRow, column: TypedColumn): CellOpen => cellOpens(column, recording[row.key], editing[row.key]);
+  /** A cell's title: a column that never opens says why, and a typed cell that does not open says why — each after the cell's own, when it has one; else the cell's own. */
   const titleOf = (row: LedgerSheetRow, column: LedgerColumn, own?: string): string | undefined => {
     if (!isTypedColumn(column)) return own === undefined ? NEVER_OPENS_WORDS[column] : `${own} — ${NEVER_OPENS_WORDS[column]}`;
     const can = opensOf(row, column);
-    return can.opens || can.words === null ? own : can.words;
+    if (can.opens) return own;
+    return own === undefined ? can.words : `${own} — ${can.words}`;
   };
-  /** A cell's save, by its column — the record's cells through the record form's rule and its one writer (cellSaves.ts). */
-  const saveOf = (row: LedgerSheetRow, column: TypedColumn, typed: string): Promise<CellSave> => {
-    const entry = recording[row.key];
-    if (!entry.takes) throw new Error(`LedgerSection: the cell ${column} of ${row.key} opened on a row that takes no record`);
-    return saveRecordCell(row, entry, column, typed, new Date());
-  };
+  /** A cell's save, by its column and the row's entries — sorted to its writer by cellSaves.ts; VENDOR with the vendors as read. */
+  const saveOf = (row: LedgerSheetRow, column: TypedColumn, typed: string): Promise<CellSave> => saveCell(row, recording[row.key], editing[row.key], column, typed, vendorsRef.current, new Date());
   /** Saves the open cell when its text changed: true when it closed (saved, or nothing changed), false when it stays open (refused, or WENT none asking first). One save at a time. */
   const commit = (): Promise<boolean> => {
     if (savingRef.current !== null) return savingRef.current;
@@ -560,9 +570,17 @@ function useCellFrame(rows: readonly LedgerSheetRow[], recording: Readonly<Recor
       void commit().then((closed) => { if (closed && next !== null) setOpenCell({ key: row.key, column: next }, boxTextOf(row, next)); });
     }
   };
-  /** The open cell's box — its column's own (ColumnBox), holding the text, with its keys, its leaving (blur saves a change) and its focus; null on every other cell. */
+  /** What an open box lists: CATEGORY the row's book's chart; VENDOR the row's book's vendors as read — none while they are read or when the read failed (a name typed then is refused on save, in the read's words). */
+  const listsOf = (row: LedgerSheetRow, column: TypedColumn): Pick<ColumnBoxProps, 'entityId' | 'vendors' | 'listId'> => {
+    if (column !== 'accountName' && column !== 'vendor') return {};
+    const can = editing[row.key];
+    if (!can.plan) throw new Error(`LedgerSection: ${column} of ${row.key} opened on a row with no plan`);
+    if (column === 'accountName') return { entityId: can.entityId };
+    return { vendors: vendors.kind === 'read' ? vendors.vendors.filter((v) => v.entity_id === can.entityId) : [], listId: 'ledger-cell-vendors' };
+  };
+  /** The open cell's box — its column's own (ColumnBox), holding the text, with what it lists, its keys, its leaving (blur saves a change) and its focus; null on every other cell. */
   const boxIn = (row: LedgerSheetRow, column: TypedColumn): ReactNode => (open !== null && open.key === row.key && open.column === column
-    ? <ColumnBox column={column} value={text} onChange={typeInCell} onKeyDown={(e) => keyOf(e, row, column)} onBlur={() => void commit()} autoFocus />
+    ? <ColumnBox column={column} value={text} onChange={typeInCell} {...listsOf(row, column)} onKeyDown={(e) => keyOf(e, row, column)} onBlur={() => void commit()} autoFocus />
     : null);
   return { open, clearing, cellRefusal, setOpenCell, titleOf, clickCell, boxIn, clearCell };
 }
