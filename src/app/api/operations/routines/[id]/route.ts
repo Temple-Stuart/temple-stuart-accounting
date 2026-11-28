@@ -71,6 +71,13 @@
  * vendor of the name added by another edit meanwhile → 409, nothing written (the directory's unique key). Audited after the commit: the
  * routine (operations_routine_updated — the book from → to, the lines moved), each vendor added (operations_vendor_added), each vendor row
  * re-pointed (operations_plan_vendor_set — from → to). The answer names each vendor added.
+ *
+ * EDIT-04 (Alex, 2026-11-29) — THE MOVE TAKES THE ACCOUNT PICKED IN THE NEW BOOK (HARD GATE: it writes the plan's account). No account number
+ * carries over by itself: two books may give one number to two different accounts. A move's body is { entity_id } or { entity_id, coa_code }.
+ * The plan's accounts — the routine's and every line's, read by its own book's rule — decide (bookMove.ts): none, and a CATEGORY sent is
+ * refused; one, and none picked is refused, else the code picked is read by the money rule for the target book (loadPlanBook, planMoney —
+ * each row's own amount as stored) and its answer written on the routine and each line that carried the account, beside the book; two or
+ * more, refused by name. The audit's metadata and the answer name the account { from, to }.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -198,28 +205,34 @@ export async function PATCH(
         : null;
       if (!target) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       if (target.id !== existing.entity_id) {
-        if (Object.keys(body).some((key) => key !== 'entity_id')) {
+        if (Object.keys(body).some((key) => key !== 'entity_id' && key !== 'coa_code')) { // EDIT-04 (2026-11-29): the CATEGORY picked in the target book beside it — entity_id alone until then
           return NextResponse.json({ error: 'Validation', field: 'entity_id', message: ENTITY_MOVES_ALONE_WORDS }, { status: 400 });
         }
         const word = bookWordOf(target.entity_type);
+        // EDIT-04 (2026-11-29): the plan's own book beside the target — its entity type reads the plan's codes (bookMove.ts planAccounts) — and the
+        // CATEGORY picked in the target book, as sent.
+        const source = await prisma.entities.findFirst({ where: { id: existing.entity_id, userId: user.id }, select: { entity_type: true } });
+        if (!source) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        const picked = typeof body.coa_code === 'string' ? body.coa_code.trim() : null;
         // ONE transaction: the routine locked; every read, then the plan's every check (bookMove.ts), before the first write.
         const move = () => prisma.$transaction(async (tx) => {
           await lockRoutine(tx, id, user.id);
-          const lines = await tx.operations_routine_steps.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true, coa_code: true }, orderBy: { step_order: 'asc' } });
+          const lines = await tx.operations_routine_steps.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true, coa_code: true, budget_amount: true }, orderBy: { step_order: 'asc' } });
           const lineIds = lines.map((l) => l.id);
           const linked = await tx.planned_item_links.count({ where: routineLinksWhere(user.id, id, lineIds) });
           const coded = await tx.ledger_line_links.count({ where: { routine_id: id } });
           const scheduled = await tx.hub_scheduled_items.count({ where: { user_id: user.id, OR: [{ routine_id: id }, ...(lineIds.length > 0 ? [{ routine_step_id: { in: lineIds } }] : [])] } });
           const scenes = await tx.operations_content_scene_groups.count({ where: { user_id: user.id, routine_id: id } });
-          const chart = await tx.chart_of_accounts.findMany({ where: { entity_id: target.id, entity: { userId: user.id } }, select: { code: true } });
+          const targetBook = await loadPlanBook(tx, user.id, target.id);
+          if (!targetBook) throw new MoveRefused(404, 'entity_id', 'Not found');
           const held = await tx.operations_vendor_directory.findMany({ where: { user_id: user.id, entity_id: target.id }, select: { id: true, vendor_name: true } });
           const vendorRows = await tx.planned_item_vendors.findMany({
             where: { user_id: user.id, OR: [{ routine_id: id }, ...(lineIds.length > 0 ? [{ step_id: { in: lineIds } }] : [])] },
             select: { id: true, routine_id: true, step_id: true, occurrence_at: true, items: true, vendor_id: true, vendor: { select: { id: true, vendor_name: true, instagram_tag: true } } },
             orderBy: { created_at: 'asc' },
           });
-          const plan = bookMove({ routine: existing, lines, vendorRows, target: { word, entityType: target.entity_type, codes: chart.map((c) => c.code), vendors: held }, counts: { links: linked, coded, otherBook: scheduled + scenes } });
-          if (!plan.ok) throw new MoveRefused(plan.words);
+          const plan = bookMove({ routine: existing, lines, vendorRows, source: { entityType: source.entity_type }, target: { word, book: targetBook, vendors: held }, picked, counts: { links: linked, coded, otherBook: scheduled + scenes } });
+          if (!plan.ok) throw new MoveRefused(plan.status, plan.field, plan.words);
           // The writes, as the plan returns them: each vendor the target book lacks, added there first — its source's own name and tag.
           const added: { readonly key: string; readonly row: { id: string; vendor_name: string; instagram_tag: string | null; entity_id: string } }[] = [];
           for (const add of plan.adds) {
@@ -241,16 +254,20 @@ export async function PATCH(
             const after = await tx.planned_item_vendors.update({ where: { id: p.id }, data: { vendor_id: to } });
             repointed.push({ before: p, after });
           }
-          // Every line's book, then the routine's.
-          await tx.operations_routine_steps.updateMany({ where: { id: { in: [...plan.lines] }, user_id: user.id }, data: { entity_id: target.id } });
-          const routine = await tx.operations_routines.update({ where: { id }, data: { entity_id: target.id } });
-          return { routine, added: added.map((a) => a.row), repointed, lines: plan.lines.length };
+          // Every line's book, then the routine's — and, EDIT-04 (2026-11-29), beside the book, the plan's account in the new book (the money rule's
+          // answer) on the routine and each line that carried it; a line that carried none, the book alone.
+          const money = plan.money;
+          const carried = new Set(money === null ? [] : money.lines);
+          await tx.operations_routine_steps.updateMany({ where: { id: { in: plan.lines.filter((l) => !carried.has(l)) }, user_id: user.id }, data: { entity_id: target.id } });
+          if (money !== null && money.lines.length > 0) await tx.operations_routine_steps.updateMany({ where: { id: { in: [...money.lines] }, user_id: user.id }, data: { entity_id: target.id, coa_code: money.coaCode } });
+          const routine = await tx.operations_routines.update({ where: { id }, data: money !== null && money.routine ? { entity_id: target.id, coa_code: money.coaCode } : { entity_id: target.id } });
+          return { routine, added: added.map((a) => a.row), repointed, lines: plan.lines.length, account: money === null ? null : { from: money.from, to: money.coaCode } };
         }, { timeout: 60000 });
         let moved: Awaited<ReturnType<typeof move>>;
         try {
           moved = await move();
         } catch (error) {
-          if (error instanceof MoveRefused) return NextResponse.json({ error: 'Conflict', field: 'entity_id', message: error.words }, { status: 409 });
+          if (error instanceof MoveRefused) return NextResponse.json({ error: error.status === 409 ? 'Conflict' : error.status === 404 ? 'Not found' : 'Validation', field: error.field, message: error.words }, { status: error.status });
           // The move's one create is the target book's copy of a vendor: the directory's unique key (user, book, name) is the one it can meet.
           if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
             return NextResponse.json({ error: 'Conflict', field: 'entity_id', message: MOVE_VENDOR_RACE_WORDS(word) }, { status: 409 });
@@ -262,7 +279,7 @@ export async function PATCH(
           actor: { user_id: user.id, email: userEmail, type: 'human_user' },
           action: { type: 'operations_routine_updated', description: `Moved routine "${existing.name}" to ${word}` },
           target: { table: 'operations_routines', id: moved.routine.id },
-          payload: { before: existing, after: moved.routine, metadata: { book: { from: existing.entity_id, to: target.id }, lines_moved: moved.lines } },
+          payload: { before: existing, after: moved.routine, metadata: { book: { from: existing.entity_id, to: target.id }, lines_moved: moved.lines, account: moved.account } },
         });
         for (const v of moved.added) {
           await writeAuditLog({
@@ -280,7 +297,7 @@ export async function PATCH(
             payload: { before: r.before, after: r.after, metadata: { from: r.before.vendor_id, to: r.after.vendor_id, routine_id: id, moved_with: 'operations_routine_updated' } },
           });
         }
-        return NextResponse.json({ routine: moved.routine, moved: { from: existing.entity_id, to: target.id, lines: moved.lines, vendor_rows: moved.repointed.length, vendors_added: moved.added.map((v) => v.vendor_name) } });
+        return NextResponse.json({ routine: moved.routine, moved: { from: existing.entity_id, to: target.id, lines: moved.lines, vendor_rows: moved.repointed.length, vendors_added: moved.added.map((v) => v.vendor_name), account: moved.account } });
       }
       // The routine's own book: nothing moved, nothing logged. A body naming it and nothing else is answered as the routine stands; the rest of
       // a fuller body is read below, as before (the Expenses edit form sends its whole form, the book it cannot change among it).
