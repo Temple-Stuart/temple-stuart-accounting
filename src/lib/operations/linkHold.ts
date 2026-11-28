@@ -22,7 +22,9 @@
  *
  * EDIT-03 (Alex, 2026-11-29) — A PLAN MOVES TO ANOTHER BOOK (routines/[id]/route.ts PATCH, entity_id; the plan, src/lib/operations/bookMove.ts).
  * The same two holds refuse the move, by name, with nothing moved — a posting linked to the plan, a Books line coded to it — and two more: an
- * account its book's chart does not hold, and another record of the plan that keeps its own book.
+ * account its book's chart does not hold, and another record of the plan that keeps its own book. EDIT-04 (Alex, 2026-11-29): no account
+ * carries over by its number — the plan's CATEGORY is picked in the new book: a plan with none takes no pick, a plan with one takes one, a
+ * plan whose lines carry two or more is refused.
  */
 
 const postings = (n: number): string => `${n} posting${n === 1 ? '' : 's'}`;
@@ -35,12 +37,13 @@ export const routineHoldsLinksWords = (n: number): string =>
 export const ROUTINE_CODED_ON_BOOKS_WORDS = (n: number): string =>
   `this plan is coded on ${n} line${n === 1 ? '' : 's'} in Books — re-code ${n === 1 ? 'it' : 'them'} there first, or deactivate the plan on Expenses`;
 
-/** EDIT-03 (2026-11-29): the book move's refusals (bookMove.ts) — (a) a posting linked to the plan, (b) Books lines coded to it, (c) accounts the target book's chart does not hold, (d) other records of the plan that keep their own book. Nothing is moved. */
+/** EDIT-03 (2026-11-29): the book move's refusals (bookMove.ts) — (a) a posting linked to the plan, (b) Books lines coded to it, (d) other records of the plan that keep their own book; EDIT-04 (2026-11-29): the account, where (c) stood — a CATEGORY sent for a plan with none, none picked for a plan with one, a plan whose lines carry two or more ((c), accounts the target book's chart did not hold by their number, until then). Nothing is moved. */
 export const BOOKS_LINK_MOVE_WORDS = 'a posting in Books is linked to this plan — unlink it there before moving the plan to another book';
 export const BOOKS_CODED_MOVE_WORDS = (n: number): string =>
   `this plan is coded on ${n} line${n === 1 ? '' : 's'} in Books — re-code ${n === 1 ? 'it' : 'them'} there before moving the plan to another book`;
-export const MOVE_ACCOUNTS_MISSING_WORDS = (book: string, codes: readonly string[]): string =>
-  `${codes.join(', ')} ${codes.length === 1 ? 'is' : 'are'} not in ${book}'s chart — add ${codes.length === 1 ? 'it' : 'them'} there, or pick another CATEGORY first`;
+export const MOVE_NO_ACCOUNT_WORDS = 'this plan has no CATEGORY — pick the book alone';
+export const MOVE_PICK_ACCOUNT_WORDS = (book: string): string => `pick its CATEGORY in ${book} — the list under ENTITY holds that book's accounts`;
+export const MOVE_ACCOUNTS_MANY_WORDS = (codes: readonly string[]): string => `this plan's lines carry ${codes.join(' and ')} — give them one CATEGORY, then move it`;
 export const MOVE_OTHER_BOOK_ROWS_WORDS = (n: number): string =>
   `${n} other record${n === 1 ? '' : 's'} of this plan — on the hub's schedule or in Content — ${n === 1 ? 'keeps its' : 'keep their'} book; nothing was moved`;
 

@@ -20,11 +20,11 @@ import type { RoutineWords } from '../budget/planLines';
 import { isOnceRRule } from '../operations/rruleHelpers';
 import type { StopRecordRow } from '../operations/stopRecord';
 import {
-  ENTITY_VENDOR_REACH_WORDS, REPEATING_REACH_WORDS, boxTextOf, cellOpens, cellReachWords, ledgerOf, planCellWrite, planMinutesOf, routineClocksOf,
+  ENTITY_ACCOUNT_REACH_WORDS, ENTITY_VENDOR_REACH_WORDS, REPEATING_REACH_WORDS, boxTextOf, cellOpens, cellReachWords, ledgerOf, planCellWrite, planMinutesOf, routineClocksOf,
   type LedgerEditingPlan, type LedgerInput, type LedgerRecordInput, type LedgerSheetRow, type LedgerVendorRow,
 } from '../operations/ledger';
-import { BOOKS_CODED_MOVE_WORDS, BOOKS_LINK_MOVE_WORDS, MOVE_ACCOUNTS_MISSING_WORDS, MOVE_OTHER_BOOK_ROWS_WORDS } from '../operations/linkHold';
-import { ENTITY_MOVES_ALONE_WORDS, MOVE_VENDOR_NAME_TWICE_WORDS, MOVE_VENDOR_RACE_WORDS, bookMove, codesNotHeld, type BookMoveInput, type BookMoveVendor } from '../operations/bookMove';
+import { BOOKS_CODED_MOVE_WORDS, BOOKS_LINK_MOVE_WORDS, MOVE_OTHER_BOOK_ROWS_WORDS, MOVE_PICK_ACCOUNT_WORDS } from '../operations/linkHold'; // EDIT-04 (2026-11-29): MOVE_ACCOUNTS_MISSING_WORDS went with (c); the CATEGORY's own words (edit04.test.ts)
+import { ENTITY_MOVES_ALONE_WORDS, MOVE_VENDOR_NAME_TWICE_WORDS, MOVE_VENDOR_RACE_WORDS, bookMove, type BookMoveInput, type BookMoveVendor } from '../operations/bookMove'; // EDIT-04 (2026-11-29): codesNotHeld went with (c)
 import { savePlanCell } from '../../components/workbench/operations/ledger/cellSaves';
 
 const ROUTINE_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
@@ -285,11 +285,15 @@ test('Y3 the vendor law, read from its source: clause 1’s third exception — 
 
 /** The move's plan over a made-up plan: Lunch at Harbor Cafe, moving from the personal book to the business one. */
 const HARBOR_P: BookMoveVendor = { id: 'v-harbor-p', vendor_name: 'Harbor Cafe', instagram_tag: 'harbor.cafe' };
+// EDIT-04 (2026-11-29): the plan carries no account here — its CATEGORY's move is EDIT-04's (edit04.test.ts); the inputs gain the source book's
+// type, the target book as the money rule reads it and the pick, each row its amount. Lines on 6150 and 6200 against a chart holding both, until then.
 const MOVE_BASE: BookMoveInput = {
-  routine: { coa_code: null },
-  lines: [{ id: 'lunch-line', coa_code: '6150' }, { id: 'lunch-old-line', coa_code: '6200' }],
+  routine: { coa_code: null, budget_amount: null },
+  lines: [{ id: 'lunch-line', coa_code: null, budget_amount: null }, { id: 'lunch-old-line', coa_code: null, budget_amount: null }],
   vendorRows: [{ id: 'pv-lunch', vendor_id: 'v-harbor-p', vendor: HARBOR_P }],
-  target: { word: 'Business', entityType: 'sole_prop', codes: ['B-6150', '6200'], vendors: [] },
+  source: { entityType: 'personal' },
+  target: { word: 'Business', book: { id: 'B', name: 'Business', entityType: 'sole_prop', chart: [] }, vendors: [] },
+  picked: null,
   counts: { links: 0, coded: 0, otherBook: 0 },
 };
 const moveWith = (over: Partial<BookMoveInput>): BookMoveInput => ({ ...MOVE_BASE, ...over });
@@ -297,13 +301,12 @@ const refusedWith = (over: Partial<BookMoveInput>): string => { const plan = boo
 
 // ── Y4 · THE MOVE'S REFUSALS, (a) TO (e), IN THEIR WORDS AND ORDER (rulings 3.2, 3.3) ──
 
-test('Y4 bookMove refuses by name, in order, nothing moved: (a) a posting linked to the plan, (b) Books lines coded to it, (c) an account the target book’s chart does not hold — the routine’s or any line’s, read by the chart’s own rule — (d) other records that keep their own book, (e) two of the target book’s vendors answering one name', () => {
+test('Y4 bookMove refuses by name, in order, nothing moved: (a) a posting linked to the plan, (b) Books lines coded to it, the account — EDIT-04, where (c) stood — (d) other records that keep their own book, (e) two of the target book’s vendors answering one name', () => { // EDIT-04 (2026-11-29): (c) — an account the target chart did not hold by its number — went; the account is picked in the new book
   // The words, as ruled.
   assert.equal(BOOKS_LINK_MOVE_WORDS, 'a posting in Books is linked to this plan — unlink it there before moving the plan to another book');
   assert.equal(BOOKS_CODED_MOVE_WORDS(1), 'this plan is coded on 1 line in Books — re-code it there before moving the plan to another book');
   assert.equal(BOOKS_CODED_MOVE_WORDS(3), 'this plan is coded on 3 lines in Books — re-code them there before moving the plan to another book');
-  assert.equal(MOVE_ACCOUNTS_MISSING_WORDS('Business', ['6300']), "6300 is not in Business's chart — add it there, or pick another CATEGORY first");
-  assert.equal(MOVE_ACCOUNTS_MISSING_WORDS('Business', ['6300', 'P-6400']), "6300, P-6400 are not in Business's chart — add them there, or pick another CATEGORY first");
+  // EDIT-04 (2026-11-29): MOVE_ACCOUNTS_MISSING_WORDS went with (c) — the CATEGORY's words are edit04.test.ts's.
   assert.equal(MOVE_OTHER_BOOK_ROWS_WORDS(1), "1 other record of this plan — on the hub's schedule or in Content — keeps its book; nothing was moved");
   assert.equal(MOVE_OTHER_BOOK_ROWS_WORDS(2), "2 other records of this plan — on the hub's schedule or in Content — keep their book; nothing was moved");
   assert.equal(MOVE_VENDOR_NAME_TWICE_WORDS('Business', 'Harbor Cafe'), 'Business holds two vendors named "Harbor Cafe" — nothing was moved');
@@ -313,12 +316,8 @@ test('Y4 bookMove refuses by name, in order, nothing moved: (a) a posting linked
   assert.equal(refusedWith({ counts: { links: 2, coded: 0, otherBook: 0 } }), BOOKS_LINK_MOVE_WORDS);
   // (b)
   assert.equal(refusedWith({ counts: { links: 0, coded: 1, otherBook: 0 } }), BOOKS_CODED_MOVE_WORDS(1));
-  // (c) — the routine's own account, a line's, and an archived line's all count; read by the chart's rule.
-  assert.equal(refusedWith({ routine: { coa_code: '6300' } }), MOVE_ACCOUNTS_MISSING_WORDS('Business', ['6300']), 'the routine’s own account');
-  assert.equal(refusedWith({ lines: [...MOVE_BASE.lines, { id: 'lunch-archived-line', coa_code: '6300' }] }), MOVE_ACCOUNTS_MISSING_WORDS('Business', ['6300']), 'a line no longer active still names its account');
-  assert.equal(refusedWith({ lines: [{ id: 'lunch-line', coa_code: 'P-6150' }] }), MOVE_ACCOUNTS_MISSING_WORDS('Business', ['P-6150']), 'another book’s letter is not this book’s account');
-  assert.equal(refusedWith({ routine: { coa_code: '6300' }, lines: [{ id: 'a', coa_code: 'P-6400' }, { id: 'b', coa_code: '6300' }] }), MOVE_ACCOUNTS_MISSING_WORDS('Business', ['6300', 'P-6400']), 'each once, the routine’s first');
-  assert.deepEqual(codesNotHeld(moveWith({ lines: [{ id: 'a', coa_code: '6150' }, { id: 'b', coa_code: 'b-6200' }, { id: 'c', coa_code: null }, { id: 'd', coa_code: ' ' }] })), [], 'bare or lettered for the book, held; no account is nothing to hold');
+  // The account — EDIT-04 (2026-11-29), where (c) stood: a plan with one, and none picked, is refused (edit04.test.ts holds the rest).
+  assert.equal(refusedWith({ routine: { coa_code: '6300', budget_amount: '20.00' } }), MOVE_PICK_ACCOUNT_WORDS('Business'), 'the routine’s own account, none picked');
   // (d)
   assert.equal(refusedWith({ counts: { links: 0, coded: 0, otherBook: 2 } }), MOVE_OTHER_BOOK_ROWS_WORDS(2));
   // (e) — case and spaces differing are one name.
@@ -326,10 +325,10 @@ test('Y4 bookMove refuses by name, in order, nothing moved: (a) a posting linked
   assert.equal(refusedWith({ target: { ...MOVE_BASE.target, vendors: twice } }), MOVE_VENDOR_NAME_TWICE_WORDS('Business', 'Harbor Cafe'));
   assert.equal(bookMove(moveWith({ vendorRows: [], target: { ...MOVE_BASE.target, vendors: twice } })).ok, true, 'two of a name the plan does not carry refuse nothing');
   // In order: each refusal before the ones after it.
-  const all: Partial<BookMoveInput> = { routine: { coa_code: '6300' }, target: { ...MOVE_BASE.target, vendors: twice } };
+  const all: Partial<BookMoveInput> = { routine: { coa_code: '6300', budget_amount: '20.00' }, target: { ...MOVE_BASE.target, vendors: twice } }; // EDIT-04 (2026-11-29): an account, none picked — (c)'s 6300 not in the chart until then
   assert.equal(refusedWith({ ...all, counts: { links: 1, coded: 1, otherBook: 1 } }), BOOKS_LINK_MOVE_WORDS, '(a) first');
-  assert.equal(refusedWith({ ...all, counts: { links: 0, coded: 1, otherBook: 1 } }), BOOKS_CODED_MOVE_WORDS(1), '(b) before (c)');
-  assert.equal(refusedWith({ ...all, counts: { links: 0, coded: 0, otherBook: 1 } }), MOVE_ACCOUNTS_MISSING_WORDS('Business', ['6300']), '(c) before (d)');
+  assert.equal(refusedWith({ ...all, counts: { links: 0, coded: 1, otherBook: 1 } }), BOOKS_CODED_MOVE_WORDS(1), '(b) before the account');
+  assert.equal(refusedWith({ ...all, counts: { links: 0, coded: 0, otherBook: 1 } }), MOVE_PICK_ACCOUNT_WORDS('Business'), 'the account before (d)'); // EDIT-04 (2026-11-29): the account where (c) stood
   assert.equal(refusedWith({ target: { ...MOVE_BASE.target, vendors: twice }, counts: { links: 0, coded: 0, otherBook: 1 } }), MOVE_OTHER_BOOK_ROWS_WORDS(1), '(d) before (e)');
 });
 
@@ -338,10 +337,10 @@ test('Y4 bookMove refuses by name, in order, nothing moved: (a) a posting linked
 test('Y5 bookMove’s move: every line, active or not; each vendor row re-pointed to the target book’s vendor of the same name (case and spaces differing), or to one added there with the source vendor’s own name and tag — once for a name, whatever rows carry it; a row already on the book’s vendor left', () => {
   // A vendor of the name in the target book — written differently.
   const held = bookMove(moveWith({ target: { ...MOVE_BASE.target, vendors: [{ id: 'v-harbor-b', vendor_name: '  harbor   CAFE ' }, { id: 'v-iron-b', vendor_name: 'Iron Works' }] } }));
-  assert.deepEqual(held, { ok: true, lines: ['lunch-line', 'lunch-old-line'], adds: [], repoints: [{ id: 'pv-lunch', from: HARBOR_P, to: { kind: 'held', vendorId: 'v-harbor-b' } }] });
+  assert.deepEqual(held, { ok: true, lines: ['lunch-line', 'lunch-old-line'], money: null, adds: [], repoints: [{ id: 'pv-lunch', from: HARBOR_P, to: { kind: 'held', vendorId: 'v-harbor-b' } }] }); // EDIT-04 (2026-11-29): the plan names its account (money) — none here
   // None of the name: added with the source's own name and tag, and the row points at it.
   const added = bookMove(MOVE_BASE);
-  assert.deepEqual(added, { ok: true, lines: ['lunch-line', 'lunch-old-line'], adds: [{ key: 'harbor cafe', source: HARBOR_P }], repoints: [{ id: 'pv-lunch', from: HARBOR_P, to: { kind: 'added', key: 'harbor cafe' } }] });
+  assert.deepEqual(added, { ok: true, lines: ['lunch-line', 'lunch-old-line'], money: null, adds: [{ key: 'harbor cafe', source: HARBOR_P }], repoints: [{ id: 'pv-lunch', from: HARBOR_P, to: { kind: 'added', key: 'harbor cafe' } }] });
   // Two rows of one name — a repeating plan's occurrences — one add; and a second vendor of another name, its own.
   const IRON: BookMoveVendor = { id: 'v-iron-p', vendor_name: 'Iron Works', instagram_tag: null };
   const many = bookMove(moveWith({ vendorRows: [
@@ -354,9 +353,9 @@ test('Y5 bookMove’s move: every line, active or not; each vendor row re-pointe
   assert.deepEqual(many.repoints.map((r) => [r.id, r.to]), [['pv-1', { kind: 'added', key: 'harbor cafe' }], ['pv-2', { kind: 'added', key: 'harbor cafe' }], ['pv-3', { kind: 'added', key: 'iron works' }]]);
   // A row that names the target book's vendor already: nothing to re-point.
   const already = bookMove(moveWith({ vendorRows: [{ id: 'pv-lunch', vendor_id: 'v-harbor-b', vendor: { id: 'v-harbor-b', vendor_name: 'Harbor Cafe', instagram_tag: null } }], target: { ...MOVE_BASE.target, vendors: [{ id: 'v-harbor-b', vendor_name: 'Harbor Cafe' }] } }));
-  assert.deepEqual(already, { ok: true, lines: ['lunch-line', 'lunch-old-line'], adds: [], repoints: [] });
+  assert.deepEqual(already, { ok: true, lines: ['lunch-line', 'lunch-old-line'], money: null, adds: [], repoints: [] });
   // No vendor rows, no lines: the routine alone moves.
-  assert.deepEqual(bookMove(moveWith({ lines: [], vendorRows: [] })), { ok: true, lines: [], adds: [], repoints: [] });
+  assert.deepEqual(bookMove(moveWith({ lines: [], vendorRows: [] })), { ok: true, lines: [], money: null, adds: [], repoints: [] });
   // The plan names ids and targets only — what a row holds besides its vendor is not the plan's to write.
   for (const r of added.ok ? added.repoints : []) assert.deepEqual(Object.keys(r).sort(), ['from', 'id', 'to']);
 });
@@ -378,44 +377,45 @@ test('Y6 the routines PATCH moves the routine to another book: after the gate, t
     "if (!target) return NextResponse.json({ error: 'Not found' }, { status: 404 });",
     // Another book: alone, else 400 — before anything of the move is read.
     'if (target.id !== existing.entity_id) {',
-    "if (Object.keys(body).some((key) => key !== 'entity_id')) {",
+    "if (Object.keys(body).some((key) => key !== 'entity_id' && key !== 'coa_code')) {", // EDIT-04 (2026-11-29): the CATEGORY picked beside the book
     "return NextResponse.json({ error: 'Validation', field: 'entity_id', message: ENTITY_MOVES_ALONE_WORDS }, { status: 400 });",
     'const word = bookWordOf(target.entity_type);',
     // ONE transaction: locked, every read, the plan's checks…
     'const move = () => prisma.$transaction(async (tx) => {',
     'await lockRoutine(tx, id, user.id);',
-    "const lines = await tx.operations_routine_steps.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true, coa_code: true }, orderBy: { step_order: 'asc' } });",
+    "const lines = await tx.operations_routine_steps.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true, coa_code: true, budget_amount: true }, orderBy: { step_order: 'asc' } });", // EDIT-04 (2026-11-29): each line's amount, for the money rule
     'const linked = await tx.planned_item_links.count({ where: routineLinksWhere(user.id, id, lineIds) });',
     'const coded = await tx.ledger_line_links.count({ where: { routine_id: id } });',
     'const scheduled = await tx.hub_scheduled_items.count({ where: { user_id: user.id, OR: [{ routine_id: id }, ...(lineIds.length > 0 ? [{ routine_step_id: { in: lineIds } }] : [])] } });',
     'const scenes = await tx.operations_content_scene_groups.count({ where: { user_id: user.id, routine_id: id } });',
-    'const chart = await tx.chart_of_accounts.findMany({ where: { entity_id: target.id, entity: { userId: user.id } }, select: { code: true } });',
+    'const targetBook = await loadPlanBook(tx, user.id, target.id);', "if (!targetBook) throw new MoveRefused(404, 'entity_id', 'Not found');", // EDIT-04 (2026-11-29): the target book as the money rule reads it — its chart's codes alone until then
     'const held = await tx.operations_vendor_directory.findMany({ where: { user_id: user.id, entity_id: target.id }, select: { id: true, vendor_name: true } });',
     'const vendorRows = await tx.planned_item_vendors.findMany({',
     "where: { user_id: user.id, OR: [{ routine_id: id }, ...(lineIds.length > 0 ? [{ step_id: { in: lineIds } }] : [])] },",
-    'const plan = bookMove({ routine: existing, lines, vendorRows, target: { word, entityType: target.entity_type, codes: chart.map((c) => c.code), vendors: held }, counts: { links: linked, coded, otherBook: scheduled + scenes } });',
-    'if (!plan.ok) throw new MoveRefused(plan.words);',
+    'const plan = bookMove({ routine: existing, lines, vendorRows, source: { entityType: source.entity_type }, target: { word, book: targetBook, vendors: held }, picked, counts: { links: linked, coded, otherBook: scheduled + scenes } });',
+    'if (!plan.ok) throw new MoveRefused(plan.status, plan.field, plan.words);', // EDIT-04 (2026-11-29): the source book, the pick, the refusal's status and field
     // …then the writes, as the plan returns them.
     'for (const add of plan.adds) {',
     'await tx.operations_vendor_directory.create({ data: { user_id: user.id, entity_id: target.id, vendor_name: add.source.vendor_name, instagram_tag: add.source.instagram_tag }, select: { id: true, vendor_name: true, instagram_tag: true, entity_id: true } });',
     'for (const p of vendorRows) {',
     'await tx.planned_item_vendors.update({ where: { id: p.id }, data: { vendor_id: to } });',
-    'await tx.operations_routine_steps.updateMany({ where: { id: { in: [...plan.lines] }, user_id: user.id }, data: { entity_id: target.id } });',
-    'const routine = await tx.operations_routines.update({ where: { id }, data: { entity_id: target.id } });',
+    'await tx.operations_routine_steps.updateMany({ where: { id: { in: plan.lines.filter((l) => !carried.has(l)) }, user_id: user.id }, data: { entity_id: target.id } });',
+    'if (money !== null && money.lines.length > 0) await tx.operations_routine_steps.updateMany({ where: { id: { in: [...money.lines] }, user_id: user.id }, data: { entity_id: target.id, coa_code: money.coaCode } });',
+    'const routine = await tx.operations_routines.update({ where: { id }, data: money !== null && money.routine ? { entity_id: target.id, coa_code: money.coaCode } : { entity_id: target.id } });', // EDIT-04 (2026-11-29): the account beside the book
     '}, { timeout: 60000 });',
     // Refused by name, the clash by the directory's key — 409, nothing written.
     'moved = await move();',
-    "if (error instanceof MoveRefused) return NextResponse.json({ error: 'Conflict', field: 'entity_id', message: error.words }, { status: 409 });",
+    "if (error instanceof MoveRefused) return NextResponse.json({ error: error.status === 409 ? 'Conflict' : error.status === 404 ? 'Not found' : 'Validation', field: error.field, message: error.words }, { status: error.status });", // EDIT-04 (2026-11-29): each refusal's own status and field
     "if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {",
     "return NextResponse.json({ error: 'Conflict', field: 'entity_id', message: MOVE_VENDOR_RACE_WORDS(word) }, { status: 409 });",
     // Audited after the commit: the routine, each vendor added, each vendor row re-pointed.
     "action: { type: 'operations_routine_updated', description: `Moved routine \"${existing.name}\" to ${word}` },",
-    'payload: { before: existing, after: moved.routine, metadata: { book: { from: existing.entity_id, to: target.id }, lines_moved: moved.lines } },',
+    'payload: { before: existing, after: moved.routine, metadata: { book: { from: existing.entity_id, to: target.id }, lines_moved: moved.lines, account: moved.account } },', // EDIT-04 (2026-11-29): and the account
     'for (const v of moved.added) {', "action: { type: 'operations_vendor_added',", "target: { table: 'operations_vendor_directory', id: v.id },",
     'for (const r of moved.repointed) {', "action: { type: 'operations_plan_vendor_set',", "target: { table: 'planned_item_vendors', id: r.after.id },",
     'metadata: { from: r.before.vendor_id, to: r.after.vendor_id, routine_id: id, moved_with: \'operations_routine_updated\' } },',
     // The answer names each vendor added.
-    'vendors_added: moved.added.map((v) => v.vendor_name) } });',
+    'vendors_added: moved.added.map((v) => v.vendor_name), account: moved.account } });', // EDIT-04 (2026-11-29): and the account
     // The routine's own book: nothing moved, nothing logged.
     'if (Object.keys(body).length === 1) return NextResponse.json({ routine: existing, rekeyed: null });',
     // Then the PATCH as it was.
@@ -424,10 +424,11 @@ test('Y6 the routines PATCH moves the routine to another book: after the gate, t
   // Every read and check before the first write, inside the one transaction.
   const tx = patch.slice(patch.indexOf('const move = () => prisma.$transaction(async (tx) => {'), patch.indexOf('}, { timeout: 60000 });', patch.indexOf('const move = () => prisma.$transaction(')));
   const firstWrite = tx.search(/\.(create|update|updateMany|upsert|delete|deleteMany)\(/);
-  assert.ok(firstWrite > tx.indexOf('if (!plan.ok) throw new MoveRefused(plan.words);'), 'nothing written before the plan’s every check');
-  assert.equal(tx.slice(0, firstWrite).match(/await tx\.\w+\.(findMany|count)\(/g)?.length, 8, 'eight reads, all before the first write');
+  assert.ok(firstWrite > tx.indexOf('if (!plan.ok) throw new MoveRefused(plan.status, plan.field, plan.words);'), 'nothing written before the plan’s every check');
+  assert.equal(tx.slice(0, firstWrite).match(/await tx\.\w+\.(findMany|count)\(/g)?.length, 7, 'seven reads, all before the first write'); // EDIT-04 (2026-11-29): the chart's read became loadPlanBook — eight until then
+  assert.ok(tx.indexOf('const targetBook = await loadPlanBook(tx, user.id, target.id);') < firstWrite, 'and the target book, read before it');
   // The move writes these four, and nothing else: no vendor row created or deleted, no directory row updated or deleted, no link written.
-  assert.deepEqual(tx.match(/tx\.\w+\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\(/g), ['tx.operations_vendor_directory.create(', 'tx.planned_item_vendors.update(', 'tx.operations_routine_steps.updateMany(', 'tx.operations_routines.update(']);
+  assert.deepEqual(tx.match(/tx\.\w+\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\(/g), ['tx.operations_vendor_directory.create(', 'tx.planned_item_vendors.update(', 'tx.operations_routine_steps.updateMany(', 'tx.operations_routine_steps.updateMany(', 'tx.operations_routines.update(']);
   // The re-point: vendor_id alone — the row's items and occurrence untouched; the file's two vendor-row writes each in its pinned shape.
   assert.deepEqual(route.match(/\.planned_item_vendors\.update\(\{[^)]*\}\)/g), ['.planned_item_vendors.update({ where: { id: p.id }, data: { vendor_id: to } })', '.planned_item_vendors.update({ where: { id: v.id }, data: { occurrence_at: to } })']);
   assert.equal((route.match(/\.operations_vendor_directory\.create\(/g) ?? []).length, 1, 'one copy, in the move');
@@ -435,7 +436,7 @@ test('Y6 the routines PATCH moves the routine to another book: after the gate, t
   for (const read of tx.match(/await tx\.\w+\.(findMany|count)\(\{ where: [^\n]*/g) ?? []) assert.match(read, /user_id: user\.id|userId: user\.id|routine_id: id \}|routineLinksWhere\(user\.id, id, lineIds\)/, read);
   // The money rule's book stays the routine's own, read once (INTAKE-01), and the move is not it.
   assert.equal((patch.match(/book = await loadPlanBook\(prisma, user\.id, existing\.entity_id\);/g) ?? []).length, 1);
-  assert.doesNotMatch(patch, /loadPlanBook\([^)]*target/);
+  assert.equal((patch.match(/loadPlanBook\(tx, user\.id, target\.id\)/g) ?? []).length, 1, 'the move reads the target book once, with the same loader, inside its transaction'); // EDIT-04 (2026-11-29): the move reads the target as the money rule does — never read with loadPlanBook until then
 });
 
 // ── Y7 · THE ENTITY CELL (ruling 3.6) ──
@@ -448,15 +449,16 @@ test('Y7 the ENTITY cell sends the book picked, alone, to the routines PATCH; it
   assert.equal(boxTextOf(lunch, 'book', ledger.editing[lunch.key]), 'P');
   // The reach, before the save.
   assert.equal(ENTITY_VENDOR_REACH_WORDS, ' — its vendor goes with it: that book\'s vendor of the same name, added there when it has none');
-  assert.equal(cellReachWords('book', ledger.editing[lunch.key], THU), `this row${ENTITY_VENDOR_REACH_WORDS}`, 'a one-off with a vendor');
-  assert.equal(cellReachWords('book', ledger.editing[rowOf('Snack', THU).key], THU), 'this row', 'a one-off with none');
-  assert.equal(cellReachWords('book', ledger.editing[rowOf('Morning Gym', FRI).key], FRI), `${REPEATING_REACH_WORDS('Morning Gym')}${ENTITY_VENDOR_REACH_WORDS}`, 'a repeating plan with a vendor: every row of it, and its vendor');
-  assert.equal(cellReachWords('book', ledger.editing[rowOf('Rent', FRI).key], FRI), 'this row', 'a charge with none');
+  // EDIT-04 (2026-11-29): every row here names a CATEGORY — each line adds that its CATEGORY is picked in that book (ENTITY_ACCOUNT_REACH_WORDS).
+  assert.equal(cellReachWords('book', ledger.editing[lunch.key], THU), `this row${ENTITY_VENDOR_REACH_WORDS}${ENTITY_ACCOUNT_REACH_WORDS}`, 'a one-off with a vendor');
+  assert.equal(cellReachWords('book', ledger.editing[rowOf('Snack', THU).key], THU), `this row${ENTITY_ACCOUNT_REACH_WORDS}`, 'a one-off with none');
+  assert.equal(cellReachWords('book', ledger.editing[rowOf('Morning Gym', FRI).key], FRI), `${REPEATING_REACH_WORDS('Morning Gym')}${ENTITY_VENDOR_REACH_WORDS}${ENTITY_ACCOUNT_REACH_WORDS}`, 'a repeating plan with a vendor: every row of it, and its vendor');
+  assert.equal(cellReachWords('book', ledger.editing[rowOf('Rent', FRI).key], FRI), `this row${ENTITY_ACCOUNT_REACH_WORDS}`, 'a charge with none');
   // Through the routines PATCH — the book alone.
   let run = await standIn([[200, { routine: {}, moved: { vendors_added: ['Harbor Cafe'] } }]], () => savePlanCell(lunch, L, 'book', 'B'));
   assert.deepEqual([run.result, ...run.sent], [{ ok: true }, { url: '/api/operations/routines/lunch', method: 'PATCH', body: { entity_id: 'B' } }]);
   // Each refusal said on the line in its words — nothing moved.
-  for (const words of [BOOKS_LINK_MOVE_WORDS, BOOKS_CODED_MOVE_WORDS(2), MOVE_ACCOUNTS_MISSING_WORDS('Business', ['6150']), MOVE_OTHER_BOOK_ROWS_WORDS(1), MOVE_VENDOR_NAME_TWICE_WORDS('Business', 'Harbor Cafe'), MOVE_VENDOR_RACE_WORDS('Business')]) {
+  for (const words of [BOOKS_LINK_MOVE_WORDS, BOOKS_CODED_MOVE_WORDS(2), MOVE_PICK_ACCOUNT_WORDS('Business'), MOVE_OTHER_BOOK_ROWS_WORDS(1), MOVE_VENDOR_NAME_TWICE_WORDS('Business', 'Harbor Cafe'), MOVE_VENDOR_RACE_WORDS('Business')]) {
     run = await standIn([[409, { error: 'Conflict', field: 'entity_id', message: words }]], () => savePlanCell(lunch, L, 'book', 'B'));
     assert.deepEqual(run.result, { ok: false, words });
   }

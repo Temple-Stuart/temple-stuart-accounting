@@ -617,8 +617,8 @@ function useCellFrame(rows: readonly LedgerSheetRow[], recording: Readonly<Recor
     }
   };
   /** What an open box lists: CATEGORY the row's book's chart; VENDOR the row's book's vendors as read — none while they are read or when the read failed (a name typed then is refused on save, in the read's words). */
-  const listsOf = (row: LedgerSheetRow, column: TypedColumn): Pick<ColumnBoxProps, 'entityId' | 'vendors' | 'listId' | 'books'> => {
-    if (column === 'book') return { books: entities };
+  const listsOf = (row: LedgerSheetRow, column: TypedColumn): Pick<ColumnBoxProps, 'entityId' | 'vendors' | 'listId' | 'books' | 'code'> => {
+    if (column === 'book') return { books: entities, code: boxTextOf(row, 'accountName', editing[row.key]) }; // EDIT-04 (2026-11-29): and the row's CATEGORY — each other book's accounts listed under ENTITY; { books: entities } until then
     if (column !== 'accountName' && column !== 'vendor') return {};
     const can = editing[row.key];
     // A row with no plan has no book — no chart, no vendors; its line says why nothing there saves (the rule's refusal, before any typing).

@@ -324,7 +324,8 @@ test('T3 the edits and assign derive their pair through the one helper each', ()
   assert.match(code(W1), /routine_id: created\.id,\s*user_id: user\.id,\s*entity_id: entityId,/);
   assert.match(code(W3), /entity_id: routine\.entity_id,/);
   assert.doesNotMatch(handler(W2, 'PATCH'), /data\.entity_id/, 'the routine edit’s own data never carries entity_id');
-  assert.deepEqual(handler(W2, 'PATCH').match(/\bdata: \{ entity_id: [^}]*\}/g), ['data: { entity_id: target.id }', 'data: { entity_id: target.id }'], 'the book move alone writes it — every line, then the routine — to the book read by id AND the caller'); // EDIT-03 (2026-11-29): /data\.entity_id|\bentity_id\s*:/ refused until then
+  assert.deepEqual(handler(W2, 'PATCH').match(/\bdata: \{ entity_id: [^}]*\}/g), ['data: { entity_id: target.id }', 'data: { entity_id: target.id, coa_code: money.coaCode }'], 'the book move alone writes it — every line (each that carried the plan’s account with its account in the new book beside it, the money rule’s answer), then the routine — to the book read by id AND the caller'); // EDIT-04 (2026-11-29): the lines that carried the account take it beside the book — ['data: { entity_id: target.id }', 'data: { entity_id: target.id }'] until then; EDIT-03 (2026-11-29): /data\.entity_id|\bentity_id\s*:/ refused until then
+  assert.ok(handler(W2, 'PATCH').includes('data: money !== null && money.routine ? { entity_id: target.id, coa_code: money.coaCode } : { entity_id: target.id } })'), 'the routine’s book — and its account beside it when it carried the plan’s'); // EDIT-04 (2026-11-29)
   assert.equal((handler(W2, 'PATCH').match(/body\.entity_id/g) ?? []).length, 2, 'read once, for the book move: its type, then the book by id AND the caller'); // EDIT-03 (2026-11-29): /body\.entity_id/ refused until then
 });
 
@@ -354,8 +355,12 @@ test('T4 an edit checks the EFFECTIVE pair; a stored lowercase code re-resolves 
   assert.equal(editedPlanMoney(undefined, undefined, stored), null);
   for (const f of [W2, W4, W6]) {
     const h = code(f);
-    assert.ok(h.indexOf('if (sent !== null) {') < h.indexOf('loadPlanBook('), `${f}: the chart is read only inside the edit of the pair`);
+    assert.ok(h.indexOf('if (sent !== null) {') < h.indexOf('loadPlanBook(prisma'), `${f}: the chart is read only inside the edit of the pair`); // EDIT-04 (2026-11-29): the edit's own read — h.indexOf('loadPlanBook(') until then, which the book move's read now precedes in the routine edit
   }
+  // EDIT-04 (2026-11-29): the routine edit's book move reads its TARGET book with the same loader, inside its own transaction alone.
+  const routineEdit = code(W2);
+  assert.ok(routineEdit.indexOf('const move = () => prisma.$transaction(async (tx) => {') < routineEdit.indexOf('loadPlanBook(tx, user.id, target.id)'), 'the target book read inside the move’s transaction');
+  assert.equal((routineEdit.match(/loadPlanBook\(/g) ?? []).length, 2, 'the edit’s pair, and the move’s target — nothing else reads a chart');
 });
 
 // ── T5 · THE ASSIGN ROUTE ────────────────────────────────────────────────────

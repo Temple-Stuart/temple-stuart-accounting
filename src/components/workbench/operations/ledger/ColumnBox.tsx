@@ -7,7 +7,8 @@
  * column. Each box is labelled by its column's own word (ledger.ts EXPENSE_FIELD_WORDS, ROW_TRIP_FIELD_WORDS; WENT — the sheet's alone, the
  * blank row draws none — by its head word) and carries data-ledger-expense-box with its field's name, as the blank row's boxes always did.
  * CATEGORY is the book's chart (routines/CoaSelect.tsx) inside a group that carries the box's word — CoaSelect takes no label of its own, nor
- * an open cell's keys or its leaving, so the group carries those too. ENTITY is the books, each by its sheet word. VENDOR is ONE typed box over
+ * an open cell's keys or its leaving, so the group carries those too. ENTITY is the books, each by its sheet word — EDIT-04 (2026-11-29): on a
+ * row whose CATEGORY holds a code, each other book's accounts under it (EntityAccountSelect.tsx), the CATEGORY picked there. VENDOR is ONE typed box over
  * the book's vendors (a datalist, its id the caller's). WENT is a choice: went · skipped · none.
  *
  * The value is the caller's text, handed back whole on every change; the box reads nothing, writes nothing and stores nothing. An open cell
@@ -22,6 +23,7 @@ import { SKIPPED_WORD } from '@/lib/operations/stopRecord';
 import type { PasteVendor } from '@/lib/operations/pasteRows';
 import type { Entity } from '../EntitySelector';
 import CoaSelect from '../routines/CoaSelect';
+import EntityAccountSelect from './EntityAccountSelect';
 
 /** A box in a cell: it takes the cell's width. */
 const box = 'w-full min-w-[3.5rem] px-1 py-0.5 border border-border rounded text-xs bg-white';
@@ -39,6 +41,8 @@ export interface ColumnBoxProps {
   readonly entityId?: string;
   /** ENTITY: the books, each named by its sheet word. */
   readonly books?: readonly Entity[];
+  /** ENTITY (EDIT-04, 2026-11-29): the row's CATEGORY code — an open cell hands it; with one, each other book's accounts are listed under it. The blank row hands none. */
+  readonly code?: string;
   /** VENDOR: the book's vendors, listed under the box, and the list's id. */
   readonly vendors?: readonly PasteVendor[];
   readonly listId?: string;
@@ -55,7 +59,7 @@ const bookWordsOf = (books: readonly Entity[]) => (e: Entity): string => {
   return books.filter((other) => other.entity_type === e.entity_type).length > 1 ? `${word} — ${e.name}` : word;
 };
 
-export default function ColumnBox({ column, value, onChange, entityId, books, vendors, listId, onKeyDown, onBlur, autoFocus }: ColumnBoxProps) {
+export default function ColumnBox({ column, value, onChange, entityId, books, code, vendors, listId, onKeyDown, onBlur, autoFocus }: ColumnBoxProps) {
   // CATEGORY's select is CoaSelect's own: an open cell focuses it through its group.
   const group = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -77,6 +81,8 @@ export default function ColumnBox({ column, value, onChange, entityId, books, ve
     case 'book': {
       if (books === undefined || books.length === 0) throw new Error('ColumnBox: ENTITY lists the books — none were handed in');
       const bookWords = bookWordsOf(books);
+      // EDIT-04 (2026-11-29): a row whose CATEGORY holds a code picks the CATEGORY in the new book; with no code, the books.
+      if (code !== undefined && code !== '') return <EntityAccountSelect books={books} value={value} onChange={onChange} wordOf={bookWords} className={box} {...keys} />;
       return <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.book} className={box} data-ledger-expense-box="book" {...keys}>{books.map((e) => <option key={e.id} value={e.id}>{bookWords(e)}</option>)}</select>;
     }
     case 'subAccountName': return <input type="text" value={value} onChange={(e) => onChange(e.target.value)} maxLength={200} aria-label={EXPENSE_FIELD_WORDS.name} className={box} data-ledger-expense-box="name" {...keys} />;
