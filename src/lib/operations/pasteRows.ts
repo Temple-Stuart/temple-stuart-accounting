@@ -79,8 +79,10 @@ export type PasteHead = (typeof PASTE_READ_HEADS)[number];
 export const PASTE_REQUIRED_HEADS: readonly PasteHead[] = ['Start Date', 'Category', 'Entity', 'Type', 'Vendor'];
 /** The sheet's columns the app has no column for yet — named, and not read. COALEVELS-01 (2026-11-27): two — the Instagram Tag, the Location and the Notes are read now; five until then. */
 export const PASTE_NO_COLUMN_HEADS = ['Currency', 'Total'] as const;
-/** The sheet's columns the app works out itself, or that are a booking's — named, and not read. */
-export const PASTE_WORKED_OUT_HEADS = ['End Date', 'Trip Name', 'Covers From', 'Covers To', 'Daily Cost (USD)', 'Under/Over'] as const;
+/** The sheet's columns the app works out itself, or that are a booking's — named, and not read. SHEET-01 (2026-11-28): five — the Trip Name is read now (PASTE_TRIP_HEAD); six until then. */
+export const PASTE_WORKED_OUT_HEADS = ['End Date', 'Covers From', 'Covers To', 'Daily Cost (USD)', 'Under/Over'] as const;
+/** SHEET-01 (Alex, 2026-11-28): THE TRIP NAME — read as the paste's trips (Paste.trips; src/lib/operations/tripName.ts reads each), a KNOWN head: never "not one of the sheet's columns". No row's cell is read from it. */
+export const PASTE_TRIP_HEAD = 'Trip Name';
 
 /** A cell as it is read: trimmed, its runs of spaces (a tab and a line break among them) each one space. */
 const clean = (cell: string): string => cell.trim().replace(/\s+/g, ' ');
@@ -146,7 +148,7 @@ export function splitPaste(text: string): PasteSplit {
 
 export const NOTHING_PASTED_WORDS = 'nothing was pasted';
 export const NO_ROW_WORDS = 'the header row was read, and no row under it';
-export const headTwiceWords = (head: PasteHead): string => `the header row has "${head}" twice`;
+export const headTwiceWords = (head: PasteHead | typeof PASTE_TRIP_HEAD): string => `the header row has "${head}" twice`; // SHEET-01 (2026-11-28): and the Trip Name, read now
 export const headsMissingWords = (heads: readonly PasteHead[]): string => `the first row must be the sheet's header row — it has no ${heads.map((head) => `"${head}"`).join(', ')}`;
 
 /** A cell's refusals, each said after its head word. */
@@ -218,6 +220,8 @@ export interface Paste {
   readonly noColumn: readonly string[];
   readonly workedOut: readonly string[];
   readonly unknown: readonly string[];
+  /** SHEET-01 (Alex, 2026-11-28): the distinct Trip Name cells, cleaned, in the paste's order, from rows that are not blank — none when the header has no Trip Name. */
+  readonly trips: readonly string[];
 }
 
 export type PasteRead = { readonly ok: true; readonly value: Paste } | { readonly ok: false; readonly words: string };
@@ -359,12 +363,15 @@ export function readPaste(text: string): PasteRead {
     if (found.length > 1) return { ok: false, words: headTwiceWords(head) };
     if (found.length === 1) at.set(head, found[0]);
   }
+  // SHEET-01 (2026-11-28): the Trip Name's column, by its head word — read for the paste's trips; twice is refused as a read head twice is.
+  const tripAt = header.flatMap((cell, i) => (cell === keyOf(PASTE_TRIP_HEAD) ? [i] : []));
+  if (tripAt.length > 1) return { ok: false, words: headTwiceWords(PASTE_TRIP_HEAD) };
   const missing = PASTE_REQUIRED_HEADS.filter((head) => !at.has(head));
   if (missing.length > 0) return { ok: false, words: headsMissingWords(missing) };
   // The columns not read, each named once: the sheet's own two lists by their head words, any other as it was typed.
   const read = new Set(PASTE_READ_HEADS.map(keyOf));
   const named = (list: readonly string[]): string[] => list.filter((head) => header.includes(keyOf(head)));
-  const known = new Set([...PASTE_NO_COLUMN_HEADS, ...PASTE_WORKED_OUT_HEADS].map(keyOf));
+  const known = new Set([...PASTE_NO_COLUMN_HEADS, ...PASTE_WORKED_OUT_HEADS, PASTE_TRIP_HEAD].map(keyOf));
   const unknown: string[] = [];
   for (const cell of split.rows[headerAt]) {
     const typed = clean(cell);
@@ -372,9 +379,12 @@ export function readPaste(text: string): PasteRead {
     unknown.push(typed);
   }
   const rows: PasteRow[] = [];
+  const trips: string[] = [];
   for (let i = headerAt + 1; i < split.rows.length; i += 1) {
     const cells = split.rows[i];
     if (blank(cells)) continue;
+    const trip = tripAt.length === 1 && tripAt[0] < cells.length ? clean(cells[tripAt[0]]) : '';
+    if (trip !== '' && !trips.includes(trip)) trips.push(trip);
     rows.push(readRow(i - headerAt + 1, (head) => {
       const column = at.get(head);
       // A read column the header does not carry is a blank cell on every row; a row shorter than the header ends in blank cells.
@@ -382,7 +392,7 @@ export function readPaste(text: string): PasteRead {
     }));
   }
   if (rows.length === 0) return { ok: false, words: NO_ROW_WORDS };
-  return { ok: true, value: { rows, noColumn: named(PASTE_NO_COLUMN_HEADS), workedOut: named(PASTE_WORKED_OUT_HEADS), unknown } };
+  return { ok: true, value: { rows, noColumn: named(PASTE_NO_COLUMN_HEADS), workedOut: named(PASTE_WORKED_OUT_HEADS), unknown, trips } };
 }
 
 /** The lines over the table for the columns not read — one for each list that names a column. */

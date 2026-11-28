@@ -199,7 +199,7 @@ test('T3 the columns: the fourteen read (COALEVELS-01, 2026-11-27 — eleven unt
   assert.deepEqual([...PASTE_READ_HEADS], ['Start Date', 'Start Time', 'End Time', 'Location', 'Category', 'Entity', 'Type', 'Items', 'Notes', 'Vendor', 'Instagram Tag', 'Total (USD)', 'Budget (USD)', 'Days']); // COALEVELS-01 (2026-11-27): fourteen — Location before Category, Notes after Items, Instagram Tag after Vendor
   assert.deepEqual([...PASTE_REQUIRED_HEADS], ['Start Date', 'Category', 'Entity', 'Type', 'Vendor']);
   assert.deepEqual([...PASTE_NO_COLUMN_HEADS], ['Currency', 'Total']); // COALEVELS-01 (2026-11-27): two — the Instagram Tag, the Location and the Notes are read now
-  assert.deepEqual([...PASTE_WORKED_OUT_HEADS], ['End Date', 'Trip Name', 'Covers From', 'Covers To', 'Daily Cost (USD)', 'Under/Over']);
+  assert.deepEqual([...PASTE_WORKED_OUT_HEADS], ['End Date', 'Covers From', 'Covers To', 'Daily Cost (USD)', 'Under/Over']); // SHEET-01 (2026-11-28): five — the Trip Name is read as the paste's trips (PASTE_TRIP_HEAD), a known head; six until then
   assert.ok(PASTE_REQUIRED_HEADS.every((head) => PASTE_READ_HEADS.includes(head)), 'a required head is a read one');
   const all = [...PASTE_READ_HEADS, ...PASTE_NO_COLUMN_HEADS, ...PASTE_WORKED_OUT_HEADS].map((head) => head.toLowerCase());
   assert.equal(new Set(all).size, all.length, 'no head word is in two lists');
@@ -646,8 +646,8 @@ test('T13 the leaf writes through the one runner alone: the eight writers (COALE
   // The eight writers (COALEVELS-01 (2026-11-27): the tag's and the chart's joined the six): imported, handed to the ONE runner in one object — and named nowhere else, so the leaf calls none itself.
   assert.match(leaf, /import \{ setStopRecord \} from '\.\.\/stops\/stopWrites';/);
   assert.match(leaf, /import \{ addSubAccount, addVendor, createOneOff, readOneOffLine, setLineMinutes, setVendor, setVendorTag \} from '\.\/ledgerWrites';/);
-  assert.match(leaf, /const outcomes = await runPaste\(placed\.writes, \{ createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setVendorTag, addSubAccount, setRecord: setStopRecord \}, \(progress\) => \{/);
-  for (const writer of ['createOneOff', 'readOneOffLine', 'setLineMinutes', 'addVendor', 'setVendor', 'setVendorTag', 'addSubAccount', 'setStopRecord']) assert.equal(countOf(leaf, new RegExp(`\\b${writer}\\b`, 'g')), 2, `${writer}: imported, and handed to the runner`);
+  assert.match(leaf, /const outcomes = await runPaste\(placed\.writes, \{ createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setVendorTag, addSubAccount, addStay, setRecord: setStopRecord \}, \(progress\) => \{/); // SHEET-01 (2026-11-28): the tenth writer, addStay — over the stays' one writer
+  for (const writer of ['createOneOff', 'readOneOffLine', 'setLineMinutes', 'addVendor', 'setVendor', 'setVendorTag', 'addSubAccount', 'setStopRecord', 'addStay', 'createStay']) assert.equal(countOf(leaf, new RegExp(`\\b${writer}\\b`, 'g')), 2, `${writer}: imported, and handed to the runner`); // SHEET-01 (2026-11-28): addStay — defined, and handed to the runner; createStay — imported, and called in addStay alone
   assert.equal(countOf(leaf, /\brunPaste\(/g), 1, 'the one runner, once');
   assert.doesNotMatch(leaf, /clearStopRecord|moveStopRecord|clearVendor/, 'nothing is cleared, moved or undone');
   // Nothing stored in the browser.
@@ -662,13 +662,13 @@ test('T13 the leaf writes through the one runner alone: the eight writers (COALE
   assert.match(leaf, /const listed = await readJson\('\/api\/operations\/vendor-directory'\);\n\s*if \(!listed\.ok\) return \{ ok: false, words: vendorsUnreadWords\(listed\.words\) \};\n\s*const vendors = vendorsOf\(listed\.value\);\n\s*if \(!vendors\.ok\) return \{ ok: false, words: vendorsUnreadWords\(vendors\.words\) \};/);
   assert.deepEqual([...leaf.matchAll(/\/api\/[\w/-]+/g)].map((m) => m[0]), ['/api/chart-of-accounts', '/api/chart-of-accounts/sub-accounts', '/api/operations/vendor-directory'], 'the chart route, its sub-accounts route and the directory route, each read — and no other'); // COALEVELS-01 (2026-11-27): a book's sub-accounts are read beside its chart — two routes until then
   // ONE read function: the sheet's own span rule first — its refusal is the answer and nothing is sent; no readable row, nothing read.
-  assert.equal(countOf(leaf, /async function readAgainst\(paste: Paste, books: readonly PasteBook\[\], zone: string\): Promise<Read<PasteContext>> \{/g), 1);
-  assert.match(leaf, /const span = pasteSpanOf\(paste\);\n\s*if \(span === null\) return \{ ok: true, value: \{ books, sheet: \[\], recording: \{\}, charts: \{\}, subAccounts: \{\}, vendors: \[\], zone, now \} \};\n\s*const days = spanInput\(span\.from, span\.to\);\n\s*if \(!days\.ok\) return \{ ok: false, words: days\.message \};\n\s*const ledger = await readLedger\(days\.from, days\.to\);/);
+  assert.equal(countOf(leaf, /async function readAgainst\(paste: Paste, books: readonly PasteBook\[\], zone: string\): Promise<Read<Omit<ReadRows, 'paste'>>> \{/g), 1); // SHEET-01 (2026-11-28): it answers the context and the stays
+  assert.match(leaf, /const span = pasteSpanOf\(paste\);\n\s*if \(span === null\) return \{ ok: true, value: \{ context: \{ books, sheet: \[\], recording: \{\}, charts: \{\}, subAccounts: \{\}, vendors: \[\], zone, now \}, stays \} \};\n\s*const days = spanInput\(span\.from, span\.to\);\n\s*if \(!days\.ok\) return \{ ok: false, words: days\.message \};\n\s*const ledger = await readLedger\(days\.from, days\.to\);/); // SHEET-01 (2026-11-28): the stays beside the context
   // A chart that cannot be read is said with the book's name — never taken as an empty list.
   assert.match(leaf, /if \(!answer\.ok\) return \{ ok: false, words: chartUnreadWords\(book\.name, answer\.words\) \};\n\s*const chart = chartOf\(answer\.value\);\n\s*if \(!chart\.ok\) return \{ ok: false, words: chartUnreadWords\(book\.name, chart\.words\) \};\n\s*charts\[book\.id\] = chart\.accounts;/);
   // The clock is the browser's, read once per read — in the one read function; the zone is the browser's, read on mount.
   assert.equal(countOf(leaf, /new Date\(/g), 1);
-  assert.match(leaf, /async function readAgainst\([^)]*\): Promise<Read<PasteContext>> \{\n\s*const now = new Date\(\);/);
+  assert.match(leaf, /async function readAgainst\([^)]*\): Promise<Read<Omit<ReadRows, 'paste'>>> \{\n\s*const now = new Date\(\);/); // SHEET-01 (2026-11-28): it answers the context and the stays
   assert.match(leaf, /useEffect\(\(\) => \{ setZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\); \}, \[\]\);/);
   // A new read forgets the rows, the run and the changed line — and KEEPS the picks; "clear" alone forgets them.
   assert.match(leaf, /setRefusal\(null\);\n\s*setRows\(null\);\n\s*setRun\(null\);\n\s*setChanged\(false\);\n\s*const paste = readPaste\(text\);\n\s*if \(!paste\.ok\) \{ setRefusal\(paste\.words\); return; \}/);
@@ -694,7 +694,7 @@ test('T13 every sentence the leaf prints comes from the two rule files, and the 
     'LANDS_WORDS', 'ON_TIME_SHEET_WORDS', 'PASTE_ADDS_WORDS', 'chartAddWords(add)', 'addOutcomeWords(outcome)', /* COALEVELS-01 (2026-11-27): the chart's additions, a line each, and how each came out */ 'PASTE_CLEAR_WORDS', 'PASTE_CLOSE_WORDS', 'PASTE_HOW_WORDS', 'PASTE_NO_PICK_WORDS', 'PASTE_OPEN_WORDS', 'PASTE_PICKS_WORDS', 'PASTE_READ_WORDS', 'PASTE_TITLE_WORDS', 'YOUR_SHEET_WORDS',
     'accountWords(account)', 'column.head', 'kind.label', 'kind.rows', 'line', 'plan', 'refusal', 'row.lands', 'shown.counts', 'words',
     // The save's: the amber line, the button, nothing to save, the two lines while it runs, the changed line, the run's line, the read-again line, a row's outcome — and the zone.
-    'VENDORS_STAY_WORDS', 'saveWords(shown.writes, shown.saveAdds)', 'NOTHING_TO_SAVE_WORDS', 'CHECKING_WORDS', 'savingWords(saving.i, saving.of, saving.row)', 'CHANGED_WORDS', 'runWords(run.outcomes)', 'SPENT_WORDS', 'pasteOutcomeWords(outcome)', 'zoneWords(zone)',
+    'VENDORS_STAY_WORDS', 'saveWords(shown.writes, shown.saveAdds, shown.tripWrites)', 'NOTHING_TO_SAVE_WORDS', 'CHECKING_WORDS', 'savingWords(saving.i, saving.of, saving.row)', 'CHANGED_WORDS', 'runWords(run.outcomes)', 'SPENT_WORDS', 'pasteOutcomeWords(outcome)', 'zoneWords(zone)', /* SHEET-01 (2026-11-28): the trips' block — tripName.ts's words, pinned in sheet01.test.ts — and the button counts them */ 'PASTE_TRIPS_WORDS', 'tripAddWords(entry)', 'tripOutcomeWords(outcome)', 'tripRefusedWords(refused)',
   ].sort());
   // And in attributes: the box's label and the two groups of a pick.
   assert.deepEqual([...leaf.matchAll(/(?:aria-label|label)=\{([^{}]+)\}/g)].map((m) => m[1]), ['PASTE_HOW_WORDS', 'PASTE_ON_PLAN_WORDS', 'PASTE_ONE_OFF_WORDS']);
@@ -703,7 +703,7 @@ test('T13 every sentence the leaf prints comes from the two rule files, and the 
   assert.deepEqual([...leaf.matchAll(/setRefusal\(([^;]*)\);/g)].map((m) => m[1]), ['null', 'paste.words', 'against.words', 'null', 'null', 'against.words']);
   // …and that answer's words are the span rule's, a read's own, or a rule's sentence over a read's own.
   assert.deepEqual([...leaf.matchAll(/return \{ ok: false, words: ([^;]*) \};/g)].map((m) => m[1]), [
-    'days.message', 'ledger.words', 'chartUnreadWords(book.name, answer.words)', 'chartUnreadWords(book.name, chart.words)', 'subAccountsUnreadWords(book.name, listedSubs.words)', 'subAccountsUnreadWords(book.name, subs.words)', 'vendorsUnreadWords(listed.words)', 'vendorsUnreadWords(vendors.words)',
+    'listedStays.words', 'days.message', 'ledger.words', 'chartUnreadWords(book.name, answer.words)', 'chartUnreadWords(book.name, chart.words)', 'subAccountsUnreadWords(book.name, listedSubs.words)', 'subAccountsUnreadWords(book.name, subs.words)', 'vendorsUnreadWords(listed.words)', 'vendorsUnreadWords(vendors.words)', // SHEET-01 (2026-11-28): the stays' read, first — a read that fails is said, and nothing is placed
   ]);
   // Each printed name is a rule file's — imported from it, and from nowhere else; the zone's line is ledger.ts's.
   const importedFrom = (module: string): string[] => {
@@ -717,7 +717,7 @@ test('T13 every sentence the leaf prints comes from the two rule files, and the 
   }
   for (const name of names) assert.ok(name in rule, `${name} is exported by the rule file`);
   const saveNames = importedFrom('pasteSave');
-  assert.deepEqual([...saveNames].sort(), ['CHANGED_WORDS', 'CHECKING_WORDS', 'NOTHING_TO_SAVE_WORDS', 'SPENT_WORDS', 'VENDORS_STAY_WORDS', 'addOutcomeWords', 'daysReached', 'newVendorLines', 'pasteAddsOf', 'pasteOutcomeWords', 'pasteWritesOf', 'runPaste', 'runStopped', 'runWords', 'saveWords', 'savingWords', 'shownChanged'].sort());
+  assert.deepEqual([...saveNames].sort(), ['CHANGED_WORDS', 'CHECKING_WORDS', 'NOTHING_TO_SAVE_WORDS', 'SPENT_WORDS', 'VENDORS_STAY_WORDS', 'addOutcomeWords', 'daysReached', 'newVendorLines', 'pasteAddsOf', 'pasteOutcomeWords', 'pasteWritesOf', 'runPaste', 'runStopped', 'runWords', 'saveWords', 'savingWords', 'shownChanged', 'tripOutcomeWords'].sort()); // SHEET-01 (2026-11-28): a trip's outcome on its line
   for (const name of saveNames) assert.ok(name in saveRule, `${name} is exported by the save's rule file`);
   assert.match(leaf, /import \{ spanInput, zoneWords \} from '@\/lib\/operations\/ledger';/, 'the zone’s line is "+ expense"’s own');
   // No sentence of either rule is typed again in the leaf: every one of their words of two or more is in its rule file alone.

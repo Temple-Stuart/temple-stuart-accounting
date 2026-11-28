@@ -23,6 +23,10 @@
  * of one is said on its line and stops nothing (a stop's name is its Type either way); a row's planned items, WITH its vendor's
  * write; its vendor's Instagram tag, after the vendor and before the record; and a one-off's record carries the row's notes. Nine
  * steps, eight writers. Still pure, still one runner.
+ *
+ * SHEET-01 (Alex, 2026-11-28) — THE SAVE WRITES THE PASTE'S TRIPS, FIRST: before the sub-accounts and before any row, one call a trip
+ * (the stays' one writer, stays/stayWrites.ts createStay, handed in as addStay). A trip a route refuses is said on its line and stops
+ * nothing, as a sub-account is. Ten steps, ten writers.
  */
 import { NOT_TRIED_WORDS, STEP_WORDS, oneOffBody, recordBody, vendorBody, type BookWord, type ExpenseValues, type LedgerAddress } from '@/lib/operations/ledger';
 import type { PasteChartAdd, PastePlacement, PasteRecordBody, PasteRow, PasteShownRow, PastedTag, PastedVendor } from '@/lib/operations/pasteRows';
@@ -83,18 +87,18 @@ export const pasteAddsOf = (listed: readonly PasteChartAdd[]): PasteAdd[] =>
 
 // ── 2 · A ROW'S STEPS ───────────────────────────────────────────────────────
 
-/** The save's steps, in the order they run — the chart's addition first, before any row; then a row's, each only when the row has it. COALEVELS-01 (2026-11-27): nine — 'sub-account' at the head, 'items' and 'tag' after 'vendor'; six until then. */
-export const PASTE_STEPS = ['sub-account', 'stop', 'line', 'minutes', 'directory', 'vendor', 'items', 'tag', 'record'] as const;
+/** The save's steps, in the order they run — the trips and the chart's additions first, before any row; then a row's, each only when the row has it. COALEVELS-01 (2026-11-27): nine — 'sub-account' at the head, 'items' and 'tag' after 'vendor'; six until then. SHEET-01 (2026-11-28): ten — 'stay' at the head. */
+export const PASTE_STEPS = ['stay', 'sub-account', 'stop', 'line', 'minutes', 'directory', 'vendor', 'items', 'tag', 'record'] as const;
 export type PasteStep = (typeof PASTE_STEPS)[number];
 /** Their words are "+ expense"'s own (ledger.ts STEP_WORDS), and four more. */
-export const PASTE_STEP_WORDS: Readonly<Record<PasteStep, string>> = { ...STEP_WORDS, 'sub-account': 'the sub-account', minutes: "the stop's minutes", items: 'the planned items', tag: "the vendor's Instagram tag" };
+export const PASTE_STEP_WORDS: Readonly<Record<PasteStep, string>> = { ...STEP_WORDS, stay: 'the trip', 'sub-account': 'the sub-account', minutes: "the stop's minutes", items: 'the planned items', tag: "the vendor's Instagram tag" };
 
 /** A writer's answer: what came back, or the route's own words. */
 export type PasteAnswer<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly words: string };
 
 /**
- * THE WRITERS, handed in — the eight the leaf hands: ledger/ledgerWrites.ts's seven and the stops' one writer (stops/stopWrites.ts
- * setStopRecord). This file reads neither: their shapes are typed here from the bodies ledger.ts builds. (Six until COALEVELS-01.)
+ * THE WRITERS, handed in — the ten the leaf hands: ledger/ledgerWrites.ts's seven, the stops' one writer (stops/stopWrites.ts
+ * setStopRecord) and the stays' (stays/stayWrites.ts createStay — SHEET-01). This file reads none: their shapes are typed here. (Six until COALEVELS-01; eight until SHEET-01.)
  */
 export interface PasteWriters {
   /** The one-off stop with its one line; the new routine's id. */
@@ -111,6 +115,8 @@ export interface PasteWriters {
   readonly setVendorTag: (vendorId: string, tag: string) => Promise<PasteAnswer<unknown>>;
   /** A sub-account under an account of the chart. */
   readonly addSubAccount: (accountId: string, name: string, code: string) => Promise<PasteAnswer<unknown>>;
+  /** SHEET-01 (2026-11-28): a trip — a stay of its place from its first day to its last. It throws when the request never reached the route. */
+  readonly addStay: (place: string, startsOn: string, endsOn: string) => Promise<PasteAnswer<unknown>>;
   /** The stop's record. It throws when the request never reached the route. */
   readonly setRecord: (body: PasteRecordBody) => Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }>;
 }
@@ -124,11 +130,20 @@ export type PasteOutcome =
   | { readonly row: number; readonly state: 'failed'; readonly steps: readonly PasteStep[]; readonly step: PasteStep; readonly words: string }
   | { readonly row: number; readonly state: 'not tried' };
 
+/** SHEET-01 (Alex, 2026-11-28): a trip a save writes — tripName.ts tripAddsOf's 'add' entries: the place and its two days. */
+export interface PasteTripWrite {
+  readonly place: string;
+  readonly startsOn: string;
+  readonly endsOn: string;
+}
+
 /** How an addition to the chart came out: written, or the route's own words. A refusal stops nothing — a stop's name is its Type either way. */
 export type PasteAddOutcome = { readonly state: 'written' } | { readonly state: 'failed'; readonly words: string };
 
 /** What the runner says as it goes: how each addition came out (they are written first — one outcome an addition, in their order); the rows' outcomes so far; and the row about to be written — its place among the writes, and its number in the paste — or null once, at the end. */
 export interface PasteProgress {
+  /** SHEET-01 (2026-11-28): how each trip came out — written first, one outcome a trip, in their order. */
+  readonly trips: readonly PasteAddOutcome[];
   readonly adds: readonly PasteAddOutcome[];
   readonly outcomes: readonly PasteOutcome[];
   readonly at: { readonly i: number; readonly of: number; readonly row: number } | null;
@@ -245,14 +260,25 @@ async function runWrite(write: PasteWrite, writers: PasteWriters, added: Map<str
 }
 
 /**
- * THE ONE RUNNER — the additions to the chart first, one call each, then the writes, a row at a time, in the paste's order. An
+ * THE ONE RUNNER — the trips first (SHEET-01), then the additions to the chart, one call each, then the writes, a row at a time, in the paste's order. An
  * addition a route refuses is said on its line and STOPS NOTHING: the rows are still saved — a stop's name is its Type either way.
  * A row's write a route refuses STOPS the save: that row's outcome is failed — the steps written before it, the step, the route's
  * own words — and every row after it is not tried: nothing after the refusal is asked. Nothing is retried and nothing is undone.
  * `said` is told before each row (the additions' outcomes, the rows' outcomes so far, and that row's place) and once at the end.
  * One outcome a write, in the writes' order. The additions are handed in whole — none is a save that adds none.
  */
-export async function runPaste(writes: readonly PasteWrite[], writers: PasteWriters, said: (progress: PasteProgress) => void, adds: readonly PasteAdd[]): Promise<PasteOutcome[]> {
+export async function runPaste(writes: readonly PasteWrite[], writers: PasteWriters, said: (progress: PasteProgress) => void, adds: readonly PasteAdd[], trips: readonly PasteTripWrite[]): Promise<PasteOutcome[]> {
+  // SHEET-01 (2026-11-28): the trips, FIRST — one call each. A refusal is its outcome and stops nothing; a request that never reached the route is its refusal, in the error's words, as a row's record is.
+  const tripOutcomes: PasteAddOutcome[] = [];
+  for (const trip of trips) {
+    let answer: PasteAnswer<unknown>;
+    try {
+      answer = await writers.addStay(trip.place, trip.startsOn, trip.endsOn);
+    } catch (error) {
+      answer = { ok: false, words: error instanceof Error ? error.message : String(error) };
+    }
+    tripOutcomes.push(answer.ok ? { state: 'written' } : { state: 'failed', words: answer.words });
+  }
   const addOutcomes: PasteAddOutcome[] = [];
   for (const add of adds) {
     const answer = await writers.addSubAccount(add.accountId, add.name, add.code);
@@ -267,12 +293,12 @@ export async function runPaste(writes: readonly PasteWrite[], writers: PasteWrit
       outcomes.push({ row: write.row, state: 'not tried' });
       continue;
     }
-    said({ adds: [...addOutcomes], outcomes: [...outcomes], at: { i: i + 1, of: writes.length, row: write.row } });
+    said({ trips: [...tripOutcomes], adds: [...addOutcomes], outcomes: [...outcomes], at: { i: i + 1, of: writes.length, row: write.row } });
     const outcome = await runWrite(write, writers, added);
     outcomes.push(outcome);
     if (outcome.state === 'failed') stopped = true;
   }
-  said({ adds: [...addOutcomes], outcomes: [...outcomes], at: null });
+  said({ trips: [...tripOutcomes], adds: [...addOutcomes], outcomes: [...outcomes], at: null });
   return outcomes;
 }
 
@@ -329,22 +355,24 @@ export const newVendorLines = (writes: readonly PasteWrite[]): string[] => newVe
 export const VENDORS_STAY_WORDS = 'a vendor added to a book is never renamed or removed — read the names before you save';
 
 /**
- * The button — what the save writes: its rows; the sub-accounts added to the chart; the vendors added to a book (a new name once a book); the vendors set on a stop — the book's own and
+ * The button — what the save writes: its rows; the trips added (SHEET-01); the sub-accounts added to the chart; the vendors added to a book (a new name once a book); the vendors set on a stop — the book's own and
  * the new: a standing one is not set; the tags set on a vendor; the stops given planned items; the records; the one-offs.
  */
-export function saveWords(writes: readonly PasteWrite[], adds: readonly PasteAdd[]): string {
+export function saveWords(writes: readonly PasteWrite[], adds: readonly PasteAdd[], trips: readonly PasteTripWrite[]): string {
   const added = newVendorsOf(writes).reduce((sum, entry) => sum + entry.names.length, 0);
   const set = writes.filter((write) => write.vendor.kind === 'own' || write.vendor.kind === 'new').length;
   const tags = writes.filter((write) => write.tag !== null).length;
   const items = writes.filter((write) => write.items !== null).length;
   const records = writes.filter((write) => (write.kind === 'oneOff' ? write.went : write.record !== null)).length;
   const oneOffs = writes.filter((write) => write.kind === 'oneOff').length;
-  return `save ${counted(writes.length, 'row', 'rows')} — ${counted(adds.length, 'sub-account added to the chart', 'sub-accounts added to the chart')} · ${counted(added, 'vendor added to a book', 'vendors added to a book')} · ${counted(set, 'vendor set on a stop', 'vendors set on a stop')} · ${counted(tags, 'tag set on a vendor', 'tags set on a vendor')} · ${counted(items, 'stop given planned items', 'stops given planned items')} · ${counted(records, 'record', 'records')} · ${counted(oneOffs, 'one-off', 'one-offs')}`;
+  return `save ${counted(writes.length, 'row', 'rows')} — ${counted(trips.length, 'trip added', 'trips added')} · ${counted(adds.length, 'sub-account added to the chart', 'sub-accounts added to the chart')} · ${counted(added, 'vendor added to a book', 'vendors added to a book')} · ${counted(set, 'vendor set on a stop', 'vendors set on a stop')} · ${counted(tags, 'tag set on a vendor', 'tags set on a vendor')} · ${counted(items, 'stop given planned items', 'stops given planned items')} · ${counted(records, 'record', 'records')} · ${counted(oneOffs, 'one-off', 'one-offs')}`;
 }
 /** No write at all. */
 export const NOTHING_TO_SAVE_WORDS = 'nothing to save — no placed row has a vendor to plan, a tag to set, planned items to write, a record to make or a one-off to add';
 /** An addition's outcome, on its line: written, or not written and the route's own words. */
 export const addOutcomeWords = (outcome: PasteAddOutcome): string => (outcome.state === 'written' ? `written: ${PASTE_STEP_WORDS['sub-account']}` : `not written: ${PASTE_STEP_WORDS['sub-account']} — ${outcome.words}`);
+/** SHEET-01 (2026-11-28): a trip's outcome, on its line — as an addition's. */
+export const tripOutcomeWords = (outcome: PasteAddOutcome): string => (outcome.state === 'written' ? `written: ${PASTE_STEP_WORDS.stay}` : `not written: ${PASTE_STEP_WORDS.stay} — ${outcome.words}`);
 
 /** While it runs. */
 export const CHECKING_WORDS = 'reading the time sheet again before anything is written…';

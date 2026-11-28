@@ -454,7 +454,7 @@ function recorder(refuse: Refusals = {}) {
     readOneOffLine: async (routineId) => { calls.push(['readOneOffLine', routineId]); return refuse.line !== undefined ? no('line') : { ok: true, value: { lineId: `line-of-${routineId}` } }; },
     setLineMinutes: async (lineId, minutes) => { calls.push(['setLineMinutes', lineId, minutes]); return refuse.minutes !== undefined ? no('minutes') : { ok: true, value: null }; },
     addVendor: async (entityId, name) => { calls.push(['addVendor', entityId, name]); if (refuse.directory !== undefined) return no('directory'); vendors += 1; return { ok: true, value: { vendorId: `v-new-${vendors}` } }; },
-    setVendor: async (body) => { calls.push(['setVendor', body]); return refuse.vendor !== undefined ? no('vendor') : { ok: true, value: { outcome: 'set' } }; }, setVendorTag: async (vendorId, tag) => { calls.push(['setVendorTag', vendorId, tag]); return refuse.tag !== undefined ? no('tag') : { ok: true, value: null }; }, addSubAccount: async (accountId, name, code) => { calls.push(['addSubAccount', accountId, name, code]); return refuse['sub-account'] !== undefined ? no('sub-account') : { ok: true, value: null }; }, // COALEVELS-01 (2026-11-27): the stand-in writers are eight — the tag's and the chart's, each recording its call
+    setVendor: async (body) => { calls.push(['setVendor', body]); return refuse.vendor !== undefined ? no('vendor') : { ok: true, value: { outcome: 'set' } }; }, setVendorTag: async (vendorId, tag) => { calls.push(['setVendorTag', vendorId, tag]); return refuse.tag !== undefined ? no('tag') : { ok: true, value: null }; }, addSubAccount: async (accountId, name, code) => { calls.push(['addSubAccount', accountId, name, code]); return refuse['sub-account'] !== undefined ? no('sub-account') : { ok: true, value: null }; }, addStay: async () => assert.fail('no trip is handed in'), // SHEET-01 (2026-11-28): ten — the stays' writer too, never called here. COALEVELS-01 (2026-11-27): the stand-in writers are eight — the tag's and the chart's, each recording its call
     setRecord: async (body) => {
       calls.push(['setRecord', body]);
       if (refuse.recordThrows !== undefined) throw new Error(refuse.recordThrows);
@@ -502,11 +502,11 @@ test('T8 the writes of a paste: the placed rows that have something to write, in
   assert.throws(() => pasteWritesOf(SAVE_PASTE.rows, SAVE_PLACED.slice(1)), /pasteSave: 7 placements for 8 rows — one placement a row/);
 
   // THE BUTTON: what the save writes — handed the writes and the additions to the chart (COALEVELS-01 (2026-11-27): the sub-accounts first, then the tags and the stops given planned items among the counts). A new vendor is counted once a book — "Pin Palace" twice in one book is one, and one more in the other.
-  assert.equal(saveWords(SAVE_WRITES, pasteAddsOf(chartAddsOf(SAVE_PLACED, CONTEXT))), 'save 5 rows — 2 sub-accounts added to the chart · 3 vendors added to a book · 5 vendors set on a stop · 0 tags set on a vendor · 0 stops given planned items · 4 records · 3 one-offs');
+  assert.equal(saveWords(SAVE_WRITES, pasteAddsOf(chartAddsOf(SAVE_PLACED, CONTEXT)), []), 'save 5 rows — 0 trips added · 2 sub-accounts added to the chart · 3 vendors added to a book · 5 vendors set on a stop · 0 tags set on a vendor · 0 stops given planned items · 4 records · 3 one-offs'); // SHEET-01 (2026-11-28): the trips, handed in — none here
   // The singulars: "row", "vendor", "record", "one-off" for 1.
   const one = pasteOf(BOWLING);
-  assert.equal(saveWords(pasteWritesOf(one.rows, placePaste(one, SAVE_PICKS, CONTEXT)), pasteAddsOf(chartAddsOf(placePaste(one, SAVE_PICKS, CONTEXT), CONTEXT))), 'save 1 row — 1 sub-account added to the chart · 1 vendor added to a book · 1 vendor set on a stop · 0 tags set on a vendor · 0 stops given planned items · 1 record · 1 one-off');
-  assert.equal(saveWords(pasteWritesOf(alone.rows, placePaste(alone, SAVE_PICKS, CONTEXT)), []), 'save 2 rows — 0 sub-accounts added to the chart · 0 vendors added to a book · 1 vendor set on a stop · 0 tags set on a vendor · 1 stop given planned items · 1 record · 0 one-offs');
+  assert.equal(saveWords(pasteWritesOf(one.rows, placePaste(one, SAVE_PICKS, CONTEXT)), pasteAddsOf(chartAddsOf(placePaste(one, SAVE_PICKS, CONTEXT), CONTEXT)), []), 'save 1 row — 0 trips added · 1 sub-account added to the chart · 1 vendor added to a book · 1 vendor set on a stop · 0 tags set on a vendor · 0 stops given planned items · 1 record · 1 one-off'); // SHEET-01 (2026-11-28): the trips, handed in — none here
+  assert.equal(saveWords(pasteWritesOf(alone.rows, placePaste(alone, SAVE_PICKS, CONTEXT)), [], []), 'save 2 rows — 0 trips added · 0 sub-accounts added to the chart · 0 vendors added to a book · 1 vendor set on a stop · 0 tags set on a vendor · 1 stop given planned items · 1 record · 0 one-offs'); // SHEET-01 (2026-11-28): the trips, handed in — none here
 
   // THE NAMES a save would add: a line a book, the books in the paste's order; each name once, as its first row spells it; a book's names in name order.
   assert.deepEqual(newVendorsOf(SAVE_WRITES), [{ book: { id: 'P', word: 'Personal' }, names: ['Corner Cup', 'Pin Palace'] }, { book: { id: 'B', word: 'Business' }, names: ['Pin Palace'] }]);
@@ -520,7 +520,7 @@ test('T8 the writes of a paste: the placed rows that have something to write, in
 test('T9 the runner writes a row at a time, each step in its order with its own body: on a stop — the vendor added (a new name), the vendor at the sheet row’s own address, the record; a new one-off — the stop, its line, its minutes, the vendor, the record; a new vendor is added once a save', async () => {
   const { calls, writers } = recorder();
   const told: PasteProgress[] = [];
-  const outcomes = await runPaste(SAVE_WRITES, writers, (progress) => told.push(progress), []); // COALEVELS-01 (2026-11-27): the runner is handed the additions to the chart — none in this run
+  const outcomes = await runPaste(SAVE_WRITES, writers, (progress) => told.push(progress), [], []); // COALEVELS-01 (2026-11-27): the runner is handed the additions to the chart — none in this run; SHEET-01 (2026-11-28): the trips, handed in — none here
   const bowling = oneOff(SAVE_PLACED[2]).values;
   const ahead = oneOff(SAVE_PLACED[3]).values;
   const paper = oneOff(SAVE_PLACED[5]).values;
@@ -579,8 +579,8 @@ test('T9 the runner writes a row at a time, each step in its order with its own 
   // No write at all: nothing asked, and said once.
   const none = recorder();
   const quiet: PasteProgress[] = [];
-  assert.deepEqual(await runPaste([], none.writers, (progress) => quiet.push(progress), []), []);
-  assert.deepEqual([none.calls, quiet], [[], [{ adds: [], outcomes: [], at: null }]]); // COALEVELS-01 (2026-11-27): the progress says how each addition to the chart came out — none here
+  assert.deepEqual(await runPaste([], none.writers, (progress) => quiet.push(progress), [], []), []); // SHEET-01 (2026-11-28): the trips, handed in — none here
+  assert.deepEqual([none.calls, quiet], [[], [{ trips: [], adds: [], outcomes: [], at: null }]]); // COALEVELS-01 (2026-11-27): the progress says how each addition to the chart came out — none here; SHEET-01 (2026-11-28): and how each trip came out — none here
 });
 
 // ── T10 · THE ONE RUNNER — A REFUSAL STOPS THE SAVE (ruling B.4) ─────────────
@@ -591,7 +591,7 @@ test('T10 a write a route refuses stops the save, at each of the six steps: that
   const stoppedAt = async (refuse: Refusals) => {
     const { calls, writers } = recorder(refuse);
     const told: PasteProgress[] = [];
-    const outcomes = await runPaste(SAVE_WRITES, writers, (progress) => told.push(progress), []); // COALEVELS-01 (2026-11-27): no additions in this run
+    const outcomes = await runPaste(SAVE_WRITES, writers, (progress) => told.push(progress), [], []); // COALEVELS-01 (2026-11-27): no additions in this run; SHEET-01 (2026-11-28): the trips, handed in — none here
     return { asked: names(calls), outcomes, told };
   };
   const notTried = (...rows: number[]): PasteOutcome[] => rows.map((row) => ({ row, state: 'not tried' }));
@@ -640,9 +640,9 @@ test('T10 a write a route refuses stops the save, at each of the six steps: that
 // ── T11 · THE WORDS (ruling B.5) ─────────────────────────────────────────────
 
 test('T11 the save’s words: the nine steps (COALEVELS-01, 2026-11-27 — six until then) — "+ expense"’s own and four more; a row’s outcome — every step written, the steps written and the one refused, or not tried; the lines while it runs and after; the compare that stops a save', () => {
-  assert.deepEqual([...PASTE_STEPS], ['sub-account', 'stop', 'line', 'minutes', 'directory', 'vendor', 'items', 'tag', 'record']); // COALEVELS-01 (2026-11-27): 'sub-account' at the head — the chart's addition, before any row — and 'items' and 'tag' after 'vendor'
-  assert.deepEqual(PASTE_STEP_WORDS, { 'sub-account': 'the sub-account', stop: STEP_WORDS.stop, line: STEP_WORDS.line, minutes: "the stop's minutes", directory: STEP_WORDS.directory, vendor: STEP_WORDS.vendor, items: 'the planned items', tag: "the vendor's Instagram tag", record: STEP_WORDS.record });
-  assert.deepEqual(PASTE_STEPS.map((step) => PASTE_STEP_WORDS[step]), ['the sub-account', 'the one-off stop', "the stop's line, read back", "the stop's minutes", 'the vendor, added to the book', 'the vendor, on the stop', 'the planned items', "the vendor's Instagram tag", 'the record']);
+  assert.deepEqual([...PASTE_STEPS], ['stay', 'sub-account', 'stop', 'line', 'minutes', 'directory', 'vendor', 'items', 'tag', 'record']); // COALEVELS-01 (2026-11-27): 'sub-account' at the head — the chart's addition, before any row — and 'items' and 'tag' after 'vendor'; SHEET-01 (2026-11-28): 'stay' at the head — the trips, before the chart's additions and any row
+  assert.deepEqual(PASTE_STEP_WORDS, { stay: 'the trip', 'sub-account': 'the sub-account', stop: STEP_WORDS.stop, line: STEP_WORDS.line, minutes: "the stop's minutes", directory: STEP_WORDS.directory, vendor: STEP_WORDS.vendor, items: 'the planned items', tag: "the vendor's Instagram tag", record: STEP_WORDS.record }); // SHEET-01 (2026-11-28): the trip's word, first
+  assert.deepEqual(PASTE_STEPS.map((step) => PASTE_STEP_WORDS[step]), ['the trip', 'the sub-account', 'the one-off stop', "the stop's line, read back", "the stop's minutes", 'the vendor, added to the book', 'the vendor, on the stop', 'the planned items', "the vendor's Instagram tag", 'the record']); // SHEET-01 (2026-11-28): the trip's step, first
   // A row's outcome.
   assert.equal(pasteOutcomeWords({ row: 2, state: 'written', steps: ['vendor', 'record'] }), 'written: the vendor, on the stop · the record');
   assert.equal(pasteOutcomeWords({ row: 4, state: 'written', steps: ['stop', 'line', 'minutes', 'directory', 'vendor', 'record'] }), "written: the one-off stop · the stop's line, read back · the stop's minutes · the vendor, added to the book · the vendor, on the stop · the record");
@@ -763,7 +763,7 @@ test('T13 the leaf: the eight writers (COALEVELS-01, 2026-11-27 — six until th
 
   // THE EIGHT WRITERS (COALEVELS-01 (2026-11-27): the tag's and the chart's joined the six): handed to the one runner in one object, and named nowhere else — the leaf calls no writer itself, and sends no request of its own.
   for (const writer of ['createOneOff', 'readOneOffLine', 'setLineMinutes', 'addVendor', 'setVendor', 'setVendorTag', 'addSubAccount', 'setStopRecord']) assert.equal(countOf(leaf, new RegExp(`\\b${writer}\\b`, 'g')), 2, `${writer}: its import, and the runner's hand`);
-  assert.equal(countOf(leaf, /await runPaste\(placed\.writes, \{ createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setVendorTag, addSubAccount, setRecord: setStopRecord \}, /g), 1);
+  assert.equal(countOf(leaf, /await runPaste\(placed\.writes, \{ createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setVendorTag, addSubAccount, addStay, setRecord: setStopRecord \}, /g), 1); // SHEET-01 (2026-11-28): ten writers — addStay
   assert.doesNotMatch(leaf, /\bfetch\s*\(|\bmethod\b|\bPOST\b|\bPATCH\b|\bDELETE\b/, 'no request and no method of its own');
   assert.doesNotMatch(leaf, /localStorage|sessionStorage|document\.cookie|indexedDB|\bcookie\b/i, 'nothing stored in the browser');
 
@@ -774,24 +774,24 @@ test('T13 the leaf: the eight writers (COALEVELS-01, 2026-11-27 — six until th
   const save = between(leaf, 'const save = async () => {', '\n  return (\n    <div className="space-y-2 text-xs border');
   assert.match(read, /const against = await readAgainst\(paste\.value, booksNow\(\), zone\);/);
   // A read keeps his picks — it forgets the rows, the run and the changed line; "clear" forgets the picks too. COALEVELS-01 (2026-11-27): and a read STARTS each kind that has no pick of its own on the account its Category names — by the rule's one function, once, after the read; the read named no setter of the picks until then.
-  assert.equal(countOf(read, /setPicks/g), 1); assert.match(read, /if \(!against\.ok\) \{ setRefusal\(against\.words\); return; \}\n\s*setPicks\(\(held\) => picksAtRead\(held, pasteKindsOf\(paste\.value\), against\.value\)\);\n\s*setRows\(\{ paste: paste\.value, context: against\.value \}\);/);
+  assert.equal(countOf(read, /setPicks/g), 1); assert.match(read, /if \(!against\.ok\) \{ setRefusal\(against\.words\); return; \}\n\s*setPicks\(\(held\) => picksAtRead\(held, pasteKindsOf\(paste\.value\), against\.value\.context\)\);\n\s*setRows\(\{ paste: paste\.value, \.\.\.against\.value \}\);/); // SHEET-01 (2026-11-28): the read answers the context and the stays
   inOrder(read, ['setRefusal(null);', 'setRows(null);', 'setRun(null);', 'setChanged(false);', 'const paste = readPaste(text);'], 'a new read');
   inOrder(clear, ["setText('');", 'setRefusal(null);', 'setRows(null);', 'setRun(null);', 'setChanged(false);', 'setPicks({});'], '"clear"');
   assert.doesNotMatch(save, /setPicks/, 'the save places the rows with the same picks');
 
   // PRESSING SAVE, in order.
   inOrder(save, [
-    'if (busy || zone === null || rows === null || shown === null || spent || shown.writes.length === 0) return;',
+    'if (busy || zone === null || rows === null || shown === null || spent || (shown.writes.length === 0 && shown.tripWrites.length === 0)) return;', // SHEET-01 (2026-11-28): the save runs when there are writes OR trips to add
     'setBusy(true);', // (1) busy from the press on
     "setSaving('checking');",
     'const against = await readAgainst(rows.paste, booksNow(), zone);', // (2) the one read function, again
     'if (!against.ok) { setRefusal(against.words); return; }', //     a read that fails: said, and nothing written
-    'const again: ReadRows = { paste: rows.paste, context: against.value };',
+    'const again: ReadRows = { paste: rows.paste, ...against.value };', // SHEET-01 (2026-11-28): the context and the stays, read again
     'const placed = placedOf(again, picks);', // (3) placed again with the same picks…
     'setRows(again);', //     …and shown
     'if (shownChanged(shown.table, placed.table)) { setChanged(true); return; }', // (4) not what was on screen: nothing written
     'const outcomes = await runPaste(placed.writes, ', // (5) the writes of the NEW placements
-    'setRun({ adds: added, outcomes, done: true });', // COALEVELS-01 (2026-11-27): the run says how each addition came out too
+    'setRun({ trips: tripsOut, adds: added, outcomes, done: true });', // COALEVELS-01 (2026-11-27): the run says how each addition came out too; SHEET-01 (2026-11-28): and how each trip came out
     'onWritten(daysReached(placed.writes, outcomes));', // (6) every day a write reached, once
     '} finally {', 'setSaving(null);', 'setBusy(false);',
   ], 'pressing save');
@@ -800,11 +800,11 @@ test('T13 the leaf: the eight writers (COALEVELS-01, 2026-11-27 — six until th
   assert.ok(save.indexOf('await readAgainst(') < save.indexOf('shownChanged(') && save.indexOf('shownChanged(') < save.indexOf('await runPaste('), 'read again, then compare, then write');
   assert.deepEqual([countOf(save, /await runPaste\(/g), countOf(save, /\bonWritten\(/g), countOf(save, /pasteWritesOf|placePaste\(/g)], [1, 1, 0], 'one run, the days handed up once, and the rows placed by the one helper');
   // The runner's progress is shown as it comes: each row's outcome so far, and the row being written.
-  assert.match(save, /\(progress\) => \{\n\s*added = progress\.adds;\n\s*setRun\(\{ adds: progress\.adds, outcomes: progress\.outcomes, done: false \}\);\n\s*setSaving\(progress\.at\);\n\s*\}, placed\.saveAdds\);/); // COALEVELS-01 (2026-11-27): the progress carries the additions' outcomes, and the runner is handed the additions
+  assert.match(save, /\(progress\) => \{\n\s*tripsOut = progress\.trips;\n\s*added = progress\.adds;\n\s*setRun\(\{ trips: progress\.trips, adds: progress\.adds, outcomes: progress\.outcomes, done: false \}\);\n\s*setSaving\(progress\.at\);\n\s*\}, placed\.saveAdds, placed\.tripWrites\);/); // COALEVELS-01 (2026-11-27): the progress carries the additions' outcomes, and the runner is handed the additions; SHEET-01 (2026-11-28): and the trips' outcomes, and the runner is handed the trips
 
   // AFTER A RUN THERE IS NO SAVE BUTTON until the rows are read again.
   assert.match(leaf, /const spent = run !== null && run\.done;/);
-  assert.match(leaf, /\{!spent && shown\.writes\.length > 0 && <button type="button" className=\{chip\} disabled=\{busy\} aria-busy=\{saving !== null\} onClick=\{save\} data-ledger-paste-save>\{saveWords\(shown\.writes, shown\.saveAdds\)\}<\/button>\}/);
+  assert.match(leaf, /\{!spent && \(shown\.writes\.length > 0 \|\| shown\.tripWrites\.length > 0\) && <button type="button" className=\{chip\} disabled=\{busy\} aria-busy=\{saving !== null\} onClick=\{save\} data-ledger-paste-save>\{saveWords\(shown\.writes, shown\.saveAdds, shown\.tripWrites\)\}<\/button>\}/); // SHEET-01 (2026-11-28): the button stands when there are writes OR trips to add, and counts the trips
   assert.equal(countOf(leaf, /data-ledger-paste-save>/g), 1);
 
   // THE HOOKS THE LOOK READS. The zone, beside the title (D.4).
@@ -815,8 +815,8 @@ test('T13 the leaf: the eight writers (COALEVELS-01, 2026-11-27 — six until th
   inOrder(saveBox, [
     '{!spent && shown.newVendors.map((line) => <p key={line} className="text-text-muted" data-ledger-paste-new-vendors>{line}</p>)}',
     '{!spent && shown.newVendors.length > 0 && <p className="text-brand-amber" data-ledger-paste-vendors-stay>{VENDORS_STAY_WORDS}</p>}',
-    'data-ledger-paste-save>{saveWords(shown.writes, shown.saveAdds)}</button>}',
-    '{!spent && shown.writes.length === 0 && <p className="text-text-muted" data-ledger-paste-nothing>{NOTHING_TO_SAVE_WORDS}</p>}',
+    'data-ledger-paste-save>{saveWords(shown.writes, shown.saveAdds, shown.tripWrites)}</button>}', // SHEET-01 (2026-11-28): the button counts the trips
+    '{!spent && shown.writes.length === 0 && shown.tripWrites.length === 0 && <p className="text-text-muted" data-ledger-paste-nothing>{NOTHING_TO_SAVE_WORDS}</p>}', // SHEET-01 (2026-11-28): nothing to save only when there are neither writes nor trips
     "{saving === 'checking' && <p className=\"text-text-muted\" data-ledger-paste-checking>{CHECKING_WORDS}</p>}",
     "{saving !== null && saving !== 'checking' && <p className=\"text-text-muted\" data-ledger-paste-saving>{savingWords(saving.i, saving.of, saving.row)}</p>}",
     '{changed && <p className="text-brand-red" data-ledger-paste-changed>{CHANGED_WORDS}</p>}',

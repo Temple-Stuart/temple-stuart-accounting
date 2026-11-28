@@ -499,10 +499,10 @@ test('T14 the paste: a row with no Start Time is a NEW CHARGE on its date — at
     addVendor: async () => { calls.push('addVendor'); return { ok: true, value: { vendorId: 'v-1' } }; },
     setVendor: async (b) => { calls.push('setVendor'); bodies.push(b); return { ok: true, value: null }; },
     setVendorTag: async () => { calls.push('setVendorTag'); return { ok: true, value: null }; },
-    addSubAccount: async () => { calls.push('addSubAccount'); return { ok: true, value: null }; },
+    addSubAccount: async () => { calls.push('addSubAccount'); return { ok: true, value: null }; }, addStay: async () => assert.fail('no trip is handed in'), // SHEET-01 (2026-11-28): the tenth writer — never called here
     setRecord: async () => { calls.push('setRecord'); return { ok: true }; },
   };
-  const outcomes = await runPaste(pasteWritesOf(paste.rows, [placement]), writers, () => undefined, []);
+  const outcomes = await runPaste(pasteWritesOf(paste.rows, [placement]), writers, () => undefined, [], []); // SHEET-01 (2026-11-28): the trips, handed in — none here
   assert.deepEqual(outcomes, [{ row: 2, state: 'written', steps: ['stop', 'line', 'directory', 'vendor', 'items', 'tag'] }]);
   assert.deepEqual(calls, ['createOneOff', 'readOneOffLine', 'addVendor', 'setVendor', 'setVendorTag']);
   assert.deepEqual([(bodies[0] as { readonly role: string }).role, bodies[1]], ['all_day', { kind: 'routine_line', id: 'line-1', instant: at(MON, '00:00'), vendorId: 'v-1', items: 'two tickets' }]);

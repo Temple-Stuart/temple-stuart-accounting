@@ -37,7 +37,13 @@
  * Category names (pasteRows.ts picksAtRead); under the picks, the sub-accounts a save would add — a line each, and after a save how
  * each came out; the runner is handed EIGHT writers (six until then); and the table has no LANDS column — nineteen cells a row
  * left it no room — so each row is one <tbody> of two lines.
- * Every sentence printed here is typed in one of the two rule files; the zone's line is "+ expense"'s own (ledger.ts zoneWords).
+ *
+ * SHEET-01 (Alex, 2026-11-28) — THE TRIP NAME IS THE PLACE OF EVERY ROW ON ITS DAYS. The one read function reads the caller's stays
+ * first, by the day card's own reader (day/dayReads.ts readStays — any day's answer lists every stay; a read that fails is said, and
+ * nothing is placed). The paste's trips (pasteRows.ts Paste.trips) are read and set against them by tripName.ts — tripsOf, tripAddsOf —
+ * and listed above the sub-accounts: a line a trip, the names not read under them. The save runs when there are writes OR trips to
+ * add; the runner writes the trips first, through a tenth writer, addStay, over the stays' one writer (stays/stayWrites.ts createStay).
+ * Every sentence printed here is typed in one of the rule files; the zone's line is "+ expense"'s own (ledger.ts zoneWords).
  */
 
 'use client';
@@ -54,10 +60,15 @@ import {
 } from '@/lib/operations/pasteRows';
 import {
   CHANGED_WORDS, CHECKING_WORDS, NOTHING_TO_SAVE_WORDS, SPENT_WORDS, VENDORS_STAY_WORDS,
-  addOutcomeWords, daysReached, newVendorLines, pasteAddsOf, pasteOutcomeWords, pasteWritesOf, runPaste, runStopped, runWords, saveWords, savingWords, shownChanged,
-  type PasteAddOutcome, type PasteOutcome, type PasteProgress,
+  addOutcomeWords, daysReached, newVendorLines, pasteAddsOf, pasteOutcomeWords, pasteWritesOf, runPaste, runStopped, runWords, saveWords, savingWords, shownChanged, tripOutcomeWords,
+  type PasteAddOutcome, type PasteAnswer, type PasteOutcome, type PasteProgress, type PasteTripWrite,
 } from '@/lib/operations/pasteSave';
+import type { StayRow } from '@/lib/operations/stay';
+import { PASTE_TRIPS_WORDS, tripAddWords, tripAddsOf, tripRefusedWords, tripsOf } from '@/lib/operations/tripName';
+import { instantToZoned } from '@/lib/time';
+import { readStays } from '../day/dayReads';
 import { useOperationsEntity } from '../EntitySelector';
+import { createStay } from '../stays/stayWrites';
 import { setStopRecord } from '../stops/stopWrites';
 import { readJson, type Read } from '../week/weekReads';
 import { readLedger } from './ledgerReads';
@@ -82,6 +93,12 @@ const SAVED_CLASS: Readonly<Record<PasteOutcome['state'], string>> = {
 const cellOf = (column: PasteColumn): string => (column.money ? money : column.short ? `${cell} whitespace-nowrap` : cell);
 const headOf = (column: PasteColumn): string => (column.money ? `${head} text-right` : head);
 
+/** SHEET-01 (2026-11-28): THE TENTH WRITER — a trip, by the stays' one writer (stays/stayWrites.ts createStay); its answer's message is the words. Handed to the runner; this leaf never calls it. */
+const addStay = async (place: string, startsOn: string, endsOn: string): Promise<PasteAnswer<null>> => {
+  const answer = await createStay({ place, starts_on: startsOn, ends_on: endsOn });
+  return answer.ok ? { ok: true, value: null } : { ok: false, words: answer.message };
+};
+
 /** The picks he has made, by a kind's key. */
 type Picks = Readonly<Record<string, PastePick>>;
 
@@ -101,6 +118,7 @@ export default function PasteRows({ onWritten }: { onWritten: (days: readonly st
 interface ReadRows {
   readonly paste: Paste;
   readonly context: PasteContext;
+  readonly stays: readonly StayRow[]; // SHEET-01 (2026-11-28): the caller's stays, every one — the trips are set against them
 }
 
 /**
@@ -109,11 +127,15 @@ interface ReadRows {
  * the vendors as they stand at that moment. The sheet's own span rule first: its refusal is the answer, and nothing is sent. A
  * read that fails is said in its own words — a chart or its sub-accounts with the book's name — and never taken as an empty list.
  */
-async function readAgainst(paste: Paste, books: readonly PasteBook[], zone: string): Promise<Read<PasteContext>> {
+async function readAgainst(paste: Paste, books: readonly PasteBook[], zone: string): Promise<Read<Omit<ReadRows, 'paste'>>> {
   const now = new Date();
-  // The days the readable rows cover. No readable row: no row is placed against anything, so nothing is read.
+  // SHEET-01 (2026-11-28): the caller's stays, first — the day card's own reader, asked for the browser's today; any day's answer lists every stay. A read that fails is said, and nothing is placed.
+  const listedStays = await readStays(instantToZoned(now, zone).date);
+  if (!listedStays.ok) return { ok: false, words: listedStays.words };
+  const stays = listedStays.value.stays;
+  // The days the readable rows cover. No readable row: no row is placed against anything, so nothing more is read.
   const span = pasteSpanOf(paste);
-  if (span === null) return { ok: true, value: { books, sheet: [], recording: {}, charts: {}, subAccounts: {}, vendors: [], zone, now } };
+  if (span === null) return { ok: true, value: { context: { books, sheet: [], recording: {}, charts: {}, subAccounts: {}, vendors: [], zone, now }, stays } };
   const days = spanInput(span.from, span.to);
   if (!days.ok) return { ok: false, words: days.message };
   const ledger = await readLedger(days.from, days.to);
@@ -137,7 +159,7 @@ async function readAgainst(paste: Paste, books: readonly PasteBook[], zone: stri
   if (!listed.ok) return { ok: false, words: vendorsUnreadWords(listed.words) };
   const vendors = vendorsOf(listed.value);
   if (!vendors.ok) return { ok: false, words: vendorsUnreadWords(vendors.words) };
-  return { ok: true, value: { books, sheet: ledger.value.sheet, recording: ledger.value.recording, charts, subAccounts, vendors: vendors.vendors, zone, now } };
+  return { ok: true, value: { context: { books, sheet: ledger.value.sheet, recording: ledger.value.recording, charts, subAccounts, vendors: vendors.vendors, zone, now }, stays } };
 }
 
 /**
@@ -150,7 +172,11 @@ function placedOf(read: ReadRows, picks: Picks) {
   const placed = placePaste(read.paste, standing, read.context);
   const writes = pasteWritesOf(read.paste.rows, placed);
   const adds = chartAddsOf(placed, read.context);
-  return { kinds, standing, counts: countsWords(placed), table: pasteShown(read.paste, placed), notRead: notReadLines(read.paste), writes, newVendors: newVendorLines(writes), adds, saveAdds: pasteAddsOf(adds) };
+  // SHEET-01 (2026-11-28): the paste's trips — read or refused, each set against the stays that stand; the added ones are what the save writes first.
+  const trips = tripsOf(read.paste.trips);
+  const tripAdds = tripAddsOf(trips.trips, read.stays);
+  const tripWrites: PasteTripWrite[] = tripAdds.flatMap((entry) => (entry.kind === 'add' ? [{ place: entry.trip.place, startsOn: entry.trip.startsOn, endsOn: entry.trip.endsOn }] : []));
+  return { kinds, standing, counts: countsWords(placed), table: pasteShown(read.paste, placed), notRead: notReadLines(read.paste), writes, newVendors: newVendorLines(writes), adds, saveAdds: pasteAddsOf(adds), tripAdds, tripsRefused: trips.refused, tripWrites };
 }
 
 /** The box, mounted only while it is open. The picks are the outer component's, handed in with their setter. */
@@ -163,7 +189,7 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
   const [rows, setRows] = useState<ReadRows | null>(null);
   /** THE SAVE: where it is while it runs ('checking' — reading again; then the row being written); how each addition to the chart came out, each row's outcome as it comes, and whether the run has finished; whether the time sheet had changed. */
   const [saving, setSaving] = useState<'checking' | NonNullable<PasteProgress['at']> | null>(null);
-  const [run, setRun] = useState<{ readonly adds: readonly PasteAddOutcome[]; readonly outcomes: readonly PasteOutcome[]; readonly done: boolean } | null>(null);
+  const [run, setRun] = useState<{ readonly trips: readonly PasteAddOutcome[]; readonly adds: readonly PasteAddOutcome[]; readonly outcomes: readonly PasteOutcome[]; readonly done: boolean } | null>(null);
   const [changed, setChanged] = useState(false);
 
   // The browser's zone, read on mount only — the server render has no business guessing it.
@@ -186,8 +212,8 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
       const against = await readAgainst(paste.value, booksNow(), zone);
       if (!against.ok) { setRefusal(against.words); return; }
       // COALEVELS-01: a read starts each kind that has no pick of its own on the account its Category names — the rule's, pure; his own picks are kept.
-      setPicks((held) => picksAtRead(held, pasteKindsOf(paste.value), against.value));
-      setRows({ paste: paste.value, context: against.value });
+      setPicks((held) => picksAtRead(held, pasteKindsOf(paste.value), against.value.context));
+      setRows({ paste: paste.value, ...against.value });
     } finally {
       setBusy(false);
     }
@@ -217,7 +243,7 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
   const spent = run !== null && run.done;
 
   const save = async () => {
-    if (busy || zone === null || rows === null || shown === null || spent || shown.writes.length === 0) return;
+    if (busy || zone === null || rows === null || shown === null || spent || (shown.writes.length === 0 && shown.tripWrites.length === 0)) return;
     // (1) Busy from the press on — set before the first await.
     setBusy(true);
     setRefusal(null);
@@ -228,19 +254,21 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
       const against = await readAgainst(rows.paste, booksNow(), zone);
       if (!against.ok) { setRefusal(against.words); return; }
       // (3) The rows placed again with the same picks, and shown.
-      const again: ReadRows = { paste: rows.paste, context: against.value };
+      const again: ReadRows = { paste: rows.paste, ...against.value };
       const placed = placedOf(again, picks);
       setRows(again);
       // (4) The table's rows are not what was on screen at the press: the changed line, and nothing is written.
       if (shownChanged(shown.table, placed.table)) { setChanged(true); return; }
-      // (5) The additions and the writes of the NEW placements, run by the one runner through the eight writers. This leaf calls no writer itself.
+      // (5) The trips, the additions and the writes of the NEW placements, run by the one runner through the ten writers. This leaf calls no writer itself.
+      let tripsOut: readonly PasteAddOutcome[] = [];
       let added: readonly PasteAddOutcome[] = [];
-      const outcomes = await runPaste(placed.writes, { createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setVendorTag, addSubAccount, setRecord: setStopRecord }, (progress) => {
+      const outcomes = await runPaste(placed.writes, { createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setVendorTag, addSubAccount, addStay, setRecord: setStopRecord }, (progress) => {
+        tripsOut = progress.trips;
         added = progress.adds;
-        setRun({ adds: progress.adds, outcomes: progress.outcomes, done: false });
+        setRun({ trips: progress.trips, adds: progress.adds, outcomes: progress.outcomes, done: false });
         setSaving(progress.at);
-      }, placed.saveAdds);
-      setRun({ adds: added, outcomes, done: true });
+      }, placed.saveAdds, placed.tripWrites);
+      setRun({ trips: tripsOut, adds: added, outcomes, done: true });
       // (6) Every day a write reached, handed up once: the time sheet reads again, and the day's card is told.
       onWritten(daysReached(placed.writes, outcomes));
     } finally {
@@ -296,6 +324,22 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
               </div>
             </div>
           )}
+          {(shown.tripAdds.length > 0 || shown.tripsRefused.length > 0) && (
+            <div className="space-y-0.5" data-ledger-paste-trips>
+              <p className="text-text-muted">{PASTE_TRIPS_WORDS}</p>
+              {shown.tripAdds.map((entry, i) => {
+                // SHEET-01: how an added trip came out of the save — the trips' outcomes are the added ones', in their order.
+                const outcome = run === null || entry.kind !== 'add' ? undefined : run.trips[shown.tripAdds.slice(0, i).filter((before) => before.kind === 'add').length];
+                return (
+                  <p key={entry.trip.name} className={entry.kind === 'meets' ? 'text-brand-amber' : entry.kind === 'stands' ? 'text-text-muted' : undefined} data-ledger-paste-trip={entry.kind}>
+                    <span>{tripAddWords(entry)}</span>
+                    {outcome !== undefined && <span className={`${SAVED_CLASS[outcome.state]} ml-3`} data-ledger-paste-trip-saved={outcome.state}>{tripOutcomeWords(outcome)}</span>}
+                  </p>
+                );
+              })}
+              {shown.tripsRefused.map((refused) => <p key={refused.name} className="text-brand-amber" data-ledger-paste-trip="refused">{tripRefusedWords(refused)}</p>)}
+            </div>
+          )}
           {shown.adds.length > 0 && (
             <div className="space-y-0.5" data-ledger-paste-adds>
               <p className="text-text-muted">{PASTE_ADDS_WORDS}</p>
@@ -314,8 +358,8 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
           <div className="space-y-1" data-ledger-paste-save-box>
             {!spent && shown.newVendors.map((line) => <p key={line} className="text-text-muted" data-ledger-paste-new-vendors>{line}</p>)}
             {!spent && shown.newVendors.length > 0 && <p className="text-brand-amber" data-ledger-paste-vendors-stay>{VENDORS_STAY_WORDS}</p>}
-            {!spent && shown.writes.length > 0 && <button type="button" className={chip} disabled={busy} aria-busy={saving !== null} onClick={save} data-ledger-paste-save>{saveWords(shown.writes, shown.saveAdds)}</button>}
-            {!spent && shown.writes.length === 0 && <p className="text-text-muted" data-ledger-paste-nothing>{NOTHING_TO_SAVE_WORDS}</p>}
+            {!spent && (shown.writes.length > 0 || shown.tripWrites.length > 0) && <button type="button" className={chip} disabled={busy} aria-busy={saving !== null} onClick={save} data-ledger-paste-save>{saveWords(shown.writes, shown.saveAdds, shown.tripWrites)}</button>}
+            {!spent && shown.writes.length === 0 && shown.tripWrites.length === 0 && <p className="text-text-muted" data-ledger-paste-nothing>{NOTHING_TO_SAVE_WORDS}</p>}
             {saving === 'checking' && <p className="text-text-muted" data-ledger-paste-checking>{CHECKING_WORDS}</p>}
             {saving !== null && saving !== 'checking' && <p className="text-text-muted" data-ledger-paste-saving>{savingWords(saving.i, saving.of, saving.row)}</p>}
             {changed && <p className="text-brand-red" data-ledger-paste-changed>{CHANGED_WORDS}</p>}
