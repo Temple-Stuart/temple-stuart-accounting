@@ -14,6 +14,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { isOnceRRule } from '../operations/rruleHelpers'; // EDIT-01 (2026-11-28): the fixture states each routine's one-off-ness by the rule's own test
 import { createHash } from 'node:crypto';
 import colors from 'tailwindcss/colors';
 import { code, comments, functionBody, rejoin } from '../sourceText';
@@ -265,7 +266,7 @@ const RECORDS: LedgerRecordInput[] = [
 const LINKS: LedgerLinkInput[] = [{ kind: 'routine_line', targetId: 'soup', instant: at(MON, '12:30'), journalEntryId: 'je-soup', amountCents: 600, reversed: false }];
 const built = buildRoutineBudgetLines(ROUTINES, MON, WED);
 const INPUT: LedgerInput = {
-  from: MON, to: WED, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
+  from: MON, to: WED, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here; EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
 };
 const ledger = ledgerOf(INPUT);
 
@@ -309,7 +310,7 @@ const MAIN_CSV = MAIN_CSV_LINES.map((l) => `${l}\r\n`).join('');
 test('T4 `rows` is what main gives for the same fixture, and the rule’s own keys are as they were — the places are no part of ledgerOf', () => {
   assert.deepEqual(ledger.rows, MAIN_ROWS, 'the recorded expenses, cell for cell, in main’s order');
   for (const row of ledger.rows) assert.deepEqual(Object.keys(row), Object.keys(MAIN_ROWS[0]), `${row.id}: the row’s shape is main’s`);
-  assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'said'], 'the rule returns what it returned'); // TIMESHEET-02 (Alex, 2026-11-24, ruling B): the rule gains ONE key, `recording`, after `sheet` — five keys until then; the places are still no part of it
+  assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'editing', 'said'], 'the rule returns what it returned'); // TIMESHEET-02 (Alex, 2026-11-24, ruling B): the rule gains ONE key, `recording`, after `sheet` — five keys until then; the places are still no part of it; EDIT-01 (2026-11-28): and `editing` after `recording`
   assert.equal(ledger.sheet.length, 17);
   for (const row of ledger.sheet) assert.equal('tone' in row || 'tones' in row, false, `${row.key}: no row carries a tone — every row’s own fields are as they were`);
   // The fixture's own places: the accounts its five plans use — the lunch has no code of its own, three plans share one account.
@@ -355,7 +356,7 @@ function fakeDb(rows: Readonly<Record<string, readonly unknown[]>>, calls: Call[
 
 test('T5 the answer carries `tones` beside the rest, after `sheet` — the places of the accounts the caller’s active plans use, from the routines the loader already read: no query added, removed, widened or reordered', async () => {
   const a = code(ANSWER);
-  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, said: ledger\.said \};/); // TIMESHEET-02 (Alex, 2026-11-24): `recording` after `tones` — `tones: accountPlacesOf(routineInputs), said: ledger.said` until then; `tones` is built as it was
+  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, editing: ledger\.editing, said: ledger\.said \};/); // TIMESHEET-02 (Alex, 2026-11-24): `recording` after `tones` — `tones: accountPlacesOf(routineInputs), said: ledger.said` until then; `tones` is built as it was; EDIT-01 (2026-11-28): `editing: ledger.editing` after `recording`
   assert.match(a, /const routineInputs = routineGroups\.flatMap\(\(group\) => group\.rows\.map\(\(row\) => toRoutinePlanInput\(row, bookOf\(group\.entityId, `the routines of entity \$\{group\.entityId\}`\)\)\)\);/, 'the routines the loader already read');
   assert.match(a, /minutes: planMinutesOf\(routineInputs\),/, 'as planMinutesOf reads them');
   assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 9, 'the nine reads'); // COALEVELS-01 (2026-11-27): nine — the caller's active sub-accounts joined the eight (ledgerAnswer.ts); no other query added
@@ -381,7 +382,7 @@ test('T5 the answer carries `tones` beside the rest, after `sheet` — the place
     operations_routines: P_ROUTINES, planned_item_vendors: [], operations_stays: [], operations_stop_records: [RECORD_ROW], planned_item_links: [],
   }, calls);
   const answer = await taskLedgerAnswerOf(db, 'someone', { from: TUE, to: TUE }, NOW);
-  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'said'], 'ONE key more, after the sheet'); // TIMESHEET-02 (Alex, 2026-11-24): `recording` after `tones` — eight keys until then
+  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'editing', 'said'], 'ONE key more, after the sheet'); // TIMESHEET-02 (Alex, 2026-11-24): `recording` after `tones` — eight keys until then; EDIT-01 (2026-11-28): and `editing` after `recording`
   assert.deepEqual(answer.tones, { 'P-6150': 0, 'P-6200': 1, 'P-7450': 2 }, 'an account’s label → its place');
   assert.deepEqual(Object.keys(answer.tones), ['P-6150', 'P-6200', 'P-7450']);
   assert.deepEqual(JSON.parse(JSON.stringify(answer)), answer, 'wire-shaped as built');
@@ -399,20 +400,20 @@ test('T5 the answer carries `tones` beside the rest, after `sheet` — the place
 
 test('T5 the read: the client carries `tones`; an answer without it is a failure in words, as one without its sheet is; the home ledger reads `rows` alone', async () => {
   const reads = code(READS);
-  assert.match(reads, /readonly sheet: readonly LedgerSheetRow\[\];\s*\n\s*readonly tones: AccountPlaces;\s*\n\s*readonly recording: Readonly<Record<string, LedgerRecording>>;\s*\n\s*readonly said: LedgerSaid;/, 'after the sheet, before what is said'); // TIMESHEET-02 (Alex, 2026-11-24): `recording` stands between `tones` and `said` — `tones` then `said` until then
+  assert.match(reads, /readonly sheet: readonly LedgerSheetRow\[\];\s*\n\s*readonly tones: AccountPlaces;\s*\n\s*readonly recording: Readonly<Record<string, LedgerRecording>>; readonly editing: Readonly<Record<string, LedgerEditing>>;\s*\n\s*readonly said: LedgerSaid;/, 'after the sheet, before what is said'); // TIMESHEET-02 (Alex, 2026-11-24): `recording` stands between `tones` and `said` — `tones` then `said` until then; EDIT-01 (2026-11-28): `editing` beside `recording`, on its line
   assert.match(reads, /if \(typeof read\.value\.tones !== 'object' \|\| read\.value\.tones === null \|\| Array\.isArray\(read\.value\.tones\)\) return \{ ok: false, words: ledgerFailedWords\('the ledger came back without its tones'\) \};/);
   assert.equal((reads.match(/readJson\(/g) ?? []).length, 1, 'still one read');
   const g = globalThis as unknown as { fetch: unknown };
   const real = g.fetch;
   const answers = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
   const places = accountPlacesOf(ROUTINES);
-  const whole = { from: MON, to: WED, as_of: NOW.toISOString(), first_record: { day: MON }, rows: ledger.rows, sheet: ledger.sheet, tones: places, recording: ledger.recording, said: ledger.said }; // TIMESHEET-02 (Alex, 2026-11-24): the answer carries its `recording` too — one without it is a failure in words (timesheet02.test.ts); `tones: places, said: ledger.said` until then
+  const whole = { from: MON, to: WED, as_of: NOW.toISOString(), first_record: { day: MON }, rows: ledger.rows, sheet: ledger.sheet, tones: places, recording: ledger.recording, editing: ledger.editing, said: ledger.said }; // TIMESHEET-02 (Alex, 2026-11-24): the answer carries its `recording` too — one without it is a failure in words (timesheet02.test.ts); `tones: places, said: ledger.said` until then; EDIT-01 (2026-11-28): and its `editing`
   try {
     g.fetch = answers(whole);
     const ok = await readLedger(MON, WED);
     assert.equal(ok.ok, true);
     if (ok.ok) assert.deepEqual(ok.value.tones, places, 'as the rule built them, through the wire');
-    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, said: {} }); // TIMESHEET-02 (Alex, 2026-11-24): with its `recording` — `tones: {}, said: {}` until then
+    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, editing: {}, said: {} }); // TIMESHEET-02 (Alex, 2026-11-24): with its `recording` — `tones: {}, said: {}` until then; EDIT-01 (2026-11-28): and its `editing`
     assert.equal((await readLedger(MON, WED)).ok, true, 'no plan uses an account: no place, and that is an answer');
     // Without them.
     g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], sheet: [], said: {} });

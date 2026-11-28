@@ -17,6 +17,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { isOnceRRule } from '../operations/rruleHelpers'; // EDIT-01 (2026-11-28): the fixture states each routine's one-off-ness by the rule's own test
 import { readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { code, comments } from '../sourceText';
@@ -516,7 +517,7 @@ const PLAN_STAYS: StayRow[] = [{ id: 'hv', place: 'Harborview, Eastmarch, Rurita
 const planBuilt = buildRoutineBudgetLines(PLANS, D1, D3);
 const sheetInput = (over: Partial<LedgerInput> = {}): LedgerInput => ({
   from: D1, to: D3, now: SHEET_NOW, records: PLAN_RECORDS, links: [], lines: planBuilt.lines, open: [], notPlaced: planBuilt.notPlaced, routines: PLAN_WORDS, // PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
-  roles: new Map(PLANS.map((r): [string, string] => [r.id, r.role])), locations: PLAN_LOCATIONS, subAccounts: PLAN_SUBS, minutes: planMinutesOf(PLANS), vendors: [], stays: PLAN_STAYS,
+  roles: new Map(PLANS.map((r): [string, string] => [r.id, r.role])), once: new Map(PLANS.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: PLAN_LOCATIONS, subAccounts: PLAN_SUBS, minutes: planMinutesOf(PLANS), vendors: [], stays: PLAN_STAYS, // EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
   accounts: [{ entityId: 'P', code: '6150', name: 'Dining Out' }, { entityId: 'P', code: '6200', name: 'Recreation' }, { entityId: 'B', code: '6400', name: 'Printing' }],
   books: [{ id: 'P', entityType: 'personal' }, { id: 'B', entityType: 'sole_prop' }], ...over,
 });
@@ -931,12 +932,12 @@ test('G11 the answer reads NINE — the caller’s active sub-accounts beside th
   assert.ok(time);
   assert.deepEqual([time.status, time.beats, time.home, time.why], ['LIVE', { discover: true, decide: true, commit: true, record: true }, '/time', undefined]);
   const cited = (re: RegExp): number => { const m = time.citation.match(re); if (m === null) return assert.fail(`the citation names ${re}`); return Number(m[1]); };
-  const heads = cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS — PASTE-03, 2026-11-28: was :\d+/); // PASTE-03 (2026-11-28): the cite's own "was" is that change's now — the rule file grew above both lines again (a stop may have no budget) and the registry's two cites followed; "COALEVELS-01, 2026-11-27: was" stood there until then
+  const heads = cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS — EDIT-01, 2026-11-28: was :\d+/); // PASTE-03 (2026-11-28): the cite's own "was" is that change's now — the rule file grew above both lines again (a stop may have no budget) and the registry's two cites followed; "COALEVELS-01, 2026-11-27: was" stood there until then; EDIT-01 (2026-11-28): the cite's own "was" is this change's now — the rule file grew above the line again (each row's plan in the answer)
   assert.doesNotMatch(time.citation, /the summary's sums|SUMMARY_HEAD_WORDS/, 'the summary’s words left the citation with the summary'); // SHEET-01 (2026-11-28): re-pointed to its absence
   assert.match(linesOf(SHEET_RULES)[heads - 1], /^export const LEDGER_HEAD_WORDS = \[/);
   assert.ok(linesOf(SHEET_RULES).some((l) => /^export const SUMMARY_HEAD_WORDS = \[/.test(l)), 'the words stay in the rule file, uncalled'); // SHEET-01 (2026-11-28): the words stay, uncalled
   assert.equal(countOf(time.citation, /src\/lib\/operations\/ledger\.ts:\d+/g), 1, 'the rule file cited once — LEDGER_HEAD_WORDS'); // SHEET-01 (2026-11-28): twice until then
   const said = comments(REGISTRY).split('\n').find((l) => l.includes('COALEVELS-01 (Alex, 2026-11-27): ledger.ts grew'));
   assert.ok(said !== undefined, 'the dated sentence, on the row’s comment line');
-  assert.match(said, new RegExp(`ledger\\.ts :\\d+ → :${heads} \\(LEDGER_HEAD_WORDS\\), :\\d+ → :\\d+ \\(SUMMARY_HEAD_WORDS\\); what each cites unchanged\\.`)); // SHEET-01 (2026-11-28): the sentence is PASTE-03's history; no cite names SUMMARY_HEAD_WORDS now
+  assert.match(said, new RegExp(`ledger\\.ts :\\d+ → :${heads} \\(LEDGER_HEAD_WORDS\\); what it cites unchanged\\.`)); // SHEET-01 (2026-11-28): the sentence is PASTE-03's history; no cite names SUMMARY_HEAD_WORDS now; EDIT-01 (2026-11-28): the sentence is this change's — the same line, one cite
 });

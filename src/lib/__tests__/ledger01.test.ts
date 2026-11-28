@@ -17,6 +17,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { isOnceRRule } from '../operations/rruleHelpers'; // EDIT-01 (2026-11-28): the fixture states each routine's one-off-ness by the rule's own test
 import { code, comments } from '../sourceText';
 import { buildRoutineBudgetLines, occurrenceKey, type RoutinePlanInput } from '../budget/days';
 import type { BudgetLine } from '../budget/report';
@@ -112,7 +113,7 @@ const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const doubled: BudgetLine[] = [...built.lines, built.lines.find((l) => l.sourceId === occurrenceKey({ routineId: 'gym', lineId: null, instant: new Date(GYM_12) })) as BudgetLine];
 
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: doubled, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: doubled, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here; EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
 });
 
 const ledger = ledgerOf(input());
@@ -405,7 +406,7 @@ test('T5 the route: GET only, the stops GET’s gate first, from and to by the o
     'const built = buildRoutineBudgetLines(routineInputs, from, to);',
     'toReportAccount(row, bookOf(row.entity_id',
     'const ledger = ledgerOf({',
-    'return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, tones: accountPlacesOf(routineInputs), recording: ledger.recording, said: ledger.said };', // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet`, between rows and said — `rows: ledger.rows, said: ledger.said` until then. TIMESHEET-03 (Alex, 2026-11-24): and ONE key, `tones`, after `sheet` — `sheet: ledger.sheet, said: ledger.said` until then. TIMESHEET-02 (Alex, 2026-11-24): and ONE key, `recording`, after `tones` — `tones: accountPlacesOf(routineInputs), said: ledger.said` until then
+    'return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, tones: accountPlacesOf(routineInputs), recording: ledger.recording, editing: ledger.editing, said: ledger.said };', // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet`, between rows and said — `rows: ledger.rows, said: ledger.said` until then. TIMESHEET-03 (Alex, 2026-11-24): and ONE key, `tones`, after `sheet` — `sheet: ledger.sheet, said: ledger.said` until then. TIMESHEET-02 (Alex, 2026-11-24): and ONE key, `recording`, after `tones` — `tones: accountPlacesOf(routineInputs), said: ledger.said` until then; EDIT-01 (2026-11-28): and ONE key, `editing`, after `recording`
   ], 'the reads, the rules, the answer — in the route’s order, every one by the caller’s id');
   for (const [f, src] of [[ROUTE, r], [ANSWER, a]] as const) {
     assert.doesNotMatch(src, /\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(|\$executeRaw|\$queryRaw|writeAuditLog/, `${f}: read only — nothing is written`);
@@ -440,7 +441,7 @@ test('T6 the read: one URL through the one reader; an answer without its rows is
   const calls: string[] = [];
   const g = globalThis as unknown as { fetch: unknown };
   const real = g.fetch;
-  g.fetch = async (url: string) => { calls.push(url); return new Response(JSON.stringify({ from: '2026-10-01', to: '2026-10-31', as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, said: {} }), { status: 200, headers: { 'content-type': 'application/json' } }); }; // TIMESHEET-02 (Alex, 2026-11-24): and its `recording` — one without it is a failure in words (timesheet02.test.ts); `tones: {}, said: {}` until then. TIMESHEET-03 (Alex, 2026-11-24): and its `tones` — one without them is a failure in words (timesheet03.test.ts); `sheet: [], said: {}` until then. TIMESHEET-01 (Alex, 2026-11-24): the answer carries its `sheet` — one without it is a failure in words (timesheet01.test.ts); `rows: [], said: {}` until then
+  g.fetch = async (url: string) => { calls.push(url); return new Response(JSON.stringify({ from: '2026-10-01', to: '2026-10-31', as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, editing: {}, said: {} }), { status: 200, headers: { 'content-type': 'application/json' } }); }; // TIMESHEET-02 (Alex, 2026-11-24): and its `recording` — one without it is a failure in words (timesheet02.test.ts); `tones: {}, said: {}` until then. TIMESHEET-03 (Alex, 2026-11-24): and its `tones` — one without them is a failure in words (timesheet03.test.ts); `sheet: [], said: {}` until then. TIMESHEET-01 (Alex, 2026-11-24): the answer carries its `sheet` — one without it is a failure in words (timesheet01.test.ts); `rows: [], said: {}` until then; EDIT-01 (2026-11-28): and its `editing` — an answer without it is a failure in words
   try {
     const read = await readLedger('2026-10-01', '2026-10-31');
     assert.ok(read.ok);

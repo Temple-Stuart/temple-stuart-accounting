@@ -546,6 +546,8 @@ export interface LedgerInput {
   readonly roles: ReadonlyMap<string, string>;
   /** COALEVELS-01 (2026-11-27): routine id → its Location (locationClass.ts — travel, homebase, or null: not said), for EVERY routine a line can be of. A routine it does not hold is this rule's error, thrown by name. */
   readonly locations: ReadonlyMap<string, LocationClass | null>;
+  /** EDIT-01 (Alex, 2026-11-28): routine id → whether it is a one-off (rruleHelpers.ts isOnceRRule over its rule), for EVERY routine a line can be of — what a row's plan cells may change (`editing`). A routine it does not hold is this rule's error, thrown by name. */
+  readonly once: ReadonlyMap<string, boolean>;
   /** COALEVELS-01 (2026-11-27): the caller's active sub-accounts — a row's TYPE is the one of its line's account whose name is the stop's. */
   readonly subAccounts: readonly LedgerSubAccount[];
   /** TIMESHEET-01: plan key (planKeyOf) → the plan's planned minutes by the one rule (planMinutesOf) — a sheet row with no record prints them. null is stated, never absent. */
@@ -663,6 +665,13 @@ export type Went = typeof WENT_WORD | typeof SKIPPED_WORD | typeof PLANNED_WORD 
  */
 export const RECORD_ON_OWN_ROW_WORDS = "this stop's record is on its own row — it could not be joined to one plan line";
 export const TWO_LINES_NO_RECORD_WORDS = 'two plan lines stand at this stop — neither is taken, so this row takes no record';
+/**
+ * EDIT-01 (Alex, 2026-11-28): why a row has no plan line to change — one sentence per cause, the row's entry in `editing` (LedgerEditing).
+ * A recorded row joined to no line (its budgetState 'none' — the record the sentence above says is on its own row); and two plan lines at
+ * the row's stop — a recorded row 'doubled', or a plan row whose address is not its alone.
+ */
+export const NO_PLAN_LINE_WORDS = 'no plan line is joined to this record — it has no plan to change here';
+export const TWO_LINES_NO_PLAN_WORDS = "two plan lines stand at this stop — neither is this row's alone, so no plan is changed here";
 
 /**
  * A PLAN LINE OF THE PERIOD WITH NO RECORD ON IT — the plan, and null where a record would be. The fields are LedgerRow's,
@@ -744,6 +753,25 @@ export type LedgerRecording =
 /** The entry of a row that takes a record — what the form and its rule are handed. */
 export type LedgerRecordingTaken = Extract<LedgerRecording, { readonly takes: true }>;
 
+/**
+ * EDIT-01 (Alex, 2026-11-28): A SHEET ROW'S ENTRY IN `editing` — what its cells can change, beside its entry in `recording`.
+ * `plan: true` on a row with its plan line (a plan row, or a recorded row joined to one line): the line's routine and the line itself,
+ * read from the line's occurrence key (days.ts readOccurrenceKey — lineId null on a routine's own line); whether that routine is a
+ * one-off (LedgerInput.once); its name; the line's book; and the vendor planned at the row by the plan's one grain, as the row's VENDOR
+ * is read — `every` when it is the plan's vendor for every occurrence — or null. `plan: false` carries the one sentence saying why the
+ * row has no plan line to change. Wire-shaped: strings, booleans and nulls.
+ */
+export interface LedgerEditingVendor {
+  readonly id: string;
+  readonly name: string;
+  readonly every: boolean;
+}
+export type LedgerEditing =
+  | { readonly plan: true; readonly routineId: string; readonly lineId: string | null; readonly once: boolean; readonly routineName: string; readonly entityId: string; readonly vendor: LedgerEditingVendor | null }
+  | { readonly plan: false; readonly words: string };
+/** The entry of a row with its plan line. */
+export type LedgerEditingPlan = Extract<LedgerEditing, { readonly plan: true }>;
+
 /** START: 'all day' on an all-day line (the one word — stopRole.ts ROLE_SHORT_WORDS.all_day; TIMESHEET-02, 2026-11-24: work.ts's until then); else the row's clock, 'HH:MM'; null when the row has none. */
 export const startOf = (row: LedgerSheetRow): string | null => (row.id === null && row.allDay ? ROLE_SHORT_WORDS.all_day : row.time);
 
@@ -810,6 +838,8 @@ export interface Ledger {
   readonly sheet: readonly LedgerSheetRow[];
   /** TIMESHEET-02 (2026-11-24): by the sheet row's key, one entry for EVERY row of `sheet`, in the sheet's order — whether the row takes a record, and what its form is given. */
   readonly recording: Readonly<Record<string, LedgerRecording>>;
+  /** EDIT-01 (Alex, 2026-11-28): by the sheet row's key, one entry for EVERY row of `sheet`, in the sheet's order — what the row's cells can change (LedgerEditing). */
+  readonly editing: Readonly<Record<string, LedgerEditing>>;
   readonly said: LedgerSaid;
 }
 
@@ -996,6 +1026,25 @@ export function ledgerOf(input: LedgerInput): Ledger {
   // TIMESHEET-02 (Alex, 2026-11-24): what each sheet row's record form is given, by the row's key — a recorded row's entry is set where
   // its row is built (the record, its matched line and its line's time are in hand there); a plan row's by the sheet, below.
   const recordingAt = new Map<string, LedgerRecording>();
+  // EDIT-01 (Alex, 2026-11-28): what each sheet row's cells can change, by the row's key — set beside its `recording` entry, from the same line.
+  const editingAt = new Map<string, LedgerEditing>();
+  /**
+   * A row's entry on its plan line. The line and its routine are its OCCURRENCE KEY's: the line's address is that key as the one reader read it (planLines.ts
+   * dayPlanOf — days.ts readOccurrenceKey), so the line is the address's id, null on a routine's own line; its routine is the address's id on a routine's own
+   * line, else the routine whose active lines hold it (routineOfLine — the key's routine: dayPlanOf takes a line only from the routine its key names). Then
+   * whether that routine is a one-off (LedgerInput.once — one it does not hold is thrown by name), its name, the line's book, and the vendor planned at the row
+   * by the plan's one grain, the row's VENDOR's.
+   */
+  const editingOf = (l: PlanLine, key: string): LedgerEditing => {
+    const { kind, id } = l.address;
+    if (kind === 'project_task') throw new Error(`ledger: line ${key} is a task's — no row of the sheet is`);
+    const routineId = kind === 'routine' ? id : routineOfLine.get(id);
+    const routine = routineId === undefined ? undefined : input.routines.get(routineId);
+    if (routineId === undefined || routine === undefined) throw new Error(`ledger: line ${key} names no routine the loader read, so what its row can change has none to be read from`);
+    const once = input.once.get(routineId);
+    if (once === undefined) throw new Error(`ledger: line ${key} is of routine ${routineId}, whether it is a one-off was not read`);
+    return { plan: true, routineId, lineId: kind === 'routine_line' ? id : null, once, routineName: routine.name, entityId: l.entityId, vendor: l.vendor === null ? null : { id: l.vendor.id, name: l.vendor.name, every: l.vendor.grain === 'every' } };
+  };
 
   const rows: LedgerRow[] = expenses.map(({ r, day, time }) => {
     const key = recordKey(r.record);
@@ -1030,6 +1079,8 @@ export function ledgerOf(input: LedgerInput): Ledger {
       held: r.record,
       vendor: line !== null ? { kind: 'box', line } : { kind: 'reason', words: budgetState === 'doubled' ? DOUBLED_NO_VENDOR_WORDS : NO_LINE_NO_VENDOR_WORDS },
     });
+    // EDIT-01 (Alex, 2026-11-28): its entry in `editing` — the matched line, or the one sentence why it has none to change.
+    editingAt.set(key, line !== null ? editingOf(line, key) : { plan: false, words: budgetState === 'doubled' ? TWO_LINES_NO_PLAN_WORDS : NO_PLAN_LINE_WORDS });
     return {
       id: r.record.id,
       key,
@@ -1167,6 +1218,8 @@ export function ledgerOf(input: LedgerInput): Ledger {
       recordingAt.set(row.key, noRecordWords !== null
         ? { takes: false, words: noRecordWords }
         : { takes: true, plannedAt: plannedAtOf(day, kind === 'routine_line' ? l.time : null, routine.timezone, instant), held: null, vendor: { kind: 'box', line: l } });
+      // EDIT-01 (Alex, 2026-11-28): and its entry in `editing` — its own line, or, two plan lines standing at its stop, the one sentence why it has none to change.
+      editingAt.set(row.key, lines > 1 ? { plan: false, words: TWO_LINES_NO_PLAN_WORDS } : editingOf(l, key));
       sheeted.push({ row, label: l.label, line: l.line });
     }
   }
@@ -1181,11 +1234,16 @@ export function ledgerOf(input: LedgerInput): Ledger {
 
   // TIMESHEET-02 (ruling B): `recording` — one entry for EVERY row of the sheet, by the row's key, in the sheet's order. A row with none
   // is this rule's error, thrown by name — never a row whose form opens on nothing.
+  // EDIT-01 (Alex, 2026-11-28): `editing` the same way, in the same loop — one entry for every row of the sheet, a row with none thrown by name.
   const recording: Record<string, LedgerRecording> = {};
+  const editing: Record<string, LedgerEditing> = {};
   for (const row of sheet) {
     const entry = recordingAt.get(row.key);
     if (entry === undefined) throw new Error(`ledger: sheet row ${row.key} has no entry in recording — every row of the sheet has one`);
     recording[row.key] = entry;
+    const can = editingAt.get(row.key);
+    if (can === undefined) throw new Error(`ledger: sheet row ${row.key} has no entry in editing — every row of the sheet has one`);
+    editing[row.key] = can;
   }
 
   return {
@@ -1194,6 +1252,7 @@ export function ledgerOf(input: LedgerInput): Ledger {
     rows,
     sheet,
     recording,
+    editing,
     said: {
       noLine: rows.filter((row) => row.budgetState !== 'matched').length,
       doubled: rows.filter((row) => row.budgetState === 'doubled').length,

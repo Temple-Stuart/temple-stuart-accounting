@@ -6,7 +6,7 @@
  * Through the week's reader (week/weekReads.ts readJson — the one way an answer
  * is read: ok, or the route's own words; signed out by name; nothing filled in). LedgerSection.tsx fetches nothing itself.
  */
-import { ledgerFailedWords, type AccountPlaces, type LedgerRecording, type LedgerRow, type LedgerSaid, type LedgerSheetRow } from '@/lib/operations/ledger';
+import { ledgerFailedWords, type AccountPlaces, type LedgerEditing, type LedgerRecording, type LedgerRow, type LedgerSaid, type LedgerSheetRow } from '@/lib/operations/ledger';
 import { readJson, type Read } from '../week/weekReads';
 
 export interface LedgerAnswer {
@@ -19,11 +19,11 @@ export interface LedgerAnswer {
   readonly rows: readonly LedgerRow[];
   readonly sheet: readonly LedgerSheetRow[]; // TIMESHEET-01 (Alex, 2026-11-24): the table's rows — every line of the period (SHEET-01, 2026-11-28: "every priced line" until then), planned and recorded; `rows` (the recorded expenses) is as it was
   readonly tones: AccountPlaces; // TIMESHEET-03 (Alex, 2026-11-24): an account's label → its place among the accounts the caller's active plans use — what the ACCOUNT NAME pill is toned by (ledger.ts toneOfPlace)
-  readonly recording: Readonly<Record<string, LedgerRecording>>; // TIMESHEET-02 (Alex, 2026-11-24): by the sheet row's key, one entry for every row of `sheet` — whether the row takes a record, and what its form is given (no read when a form opens)
+  readonly recording: Readonly<Record<string, LedgerRecording>>; readonly editing: Readonly<Record<string, LedgerEditing>>; // TIMESHEET-02 (Alex, 2026-11-24): by the sheet row's key, one entry for every row of `sheet` — whether the row takes a record, and what its form is given (no read when a form opens). EDIT-01 (Alex, 2026-11-28): and `editing` beside it — what each row's cells can change; on this line so the read the registry cites (:28) does not move
   readonly said: LedgerSaid;
 }
 
-/** The ledger for a span of days; an answer without its rows — or, TIMESHEET-01, without its sheet; or, TIMESHEET-03, without its tones; or, TIMESHEET-02, without its recording, or whose recording lacks a sheet row's key — is a failure in words, never read as an empty period, drawn in a guessed tone, or shown as a row with no form. */
+/** The ledger for a span of days; an answer without its rows — or, TIMESHEET-01, without its sheet; or, TIMESHEET-03, without its tones; or, TIMESHEET-02, without its recording, or whose recording lacks a sheet row's key; or, EDIT-01, without its editing, or whose editing lacks a sheet row's key — is a failure in words, never read as an empty period, drawn in a guessed tone, shown as a row with no form, or a cell that guesses what it may change. */
 export async function readLedger(from: string, to: string): Promise<Read<LedgerAnswer>> {
   const read = await readJson(`/api/operations/ledger?${new URLSearchParams({ from, to }).toString()}`);
   if (!read.ok) return { ok: false, words: ledgerFailedWords(read.words) };
@@ -38,6 +38,12 @@ export async function readLedger(from: string, to: string): Promise<Read<LedgerA
   if (typeof recording !== 'object' || recording === null || Array.isArray(recording)) return { ok: false, words: ledgerFailedWords('the ledger came back without its recording') };
   for (const row of read.value.sheet as readonly { readonly key?: unknown }[]) {
     if (typeof row.key !== 'string' || !Object.prototype.hasOwnProperty.call(recording, row.key)) return { ok: false, words: ledgerFailedWords(`the ledger came back with no recording for the row ${JSON.stringify(row.key)}`) };
+  }
+  // EDIT-01 (Alex, 2026-11-28): what every row's cells can change rides it too — read as `recording` is: an object holding every sheet row's key, else the read fails by name.
+  const editing = read.value.editing;
+  if (typeof editing !== 'object' || editing === null || Array.isArray(editing)) return { ok: false, words: ledgerFailedWords('the ledger came back without its editing') };
+  for (const row of read.value.sheet as readonly { readonly key?: unknown }[]) {
+    if (typeof row.key !== 'string' || !Object.prototype.hasOwnProperty.call(editing, row.key)) return { ok: false, words: ledgerFailedWords(`the ledger came back with no editing for the row ${JSON.stringify(row.key)}`) };
   }
   return { ok: true, value: read.value as unknown as LedgerAnswer };
 }

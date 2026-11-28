@@ -15,6 +15,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { isOnceRRule } from '../operations/rruleHelpers'; // EDIT-01 (2026-11-28): the fixture states each routine's one-off-ness by the rule's own test
 import { code, comments } from '../sourceText';
 import { BLANK } from '../budget/format';
 import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
@@ -114,7 +115,7 @@ const RECORDS: LedgerRecordInput[] = [line(EGGS_MON, 'Eggs', '08:10', 25), line(
 
 const built = buildRoutineBudgetLines(ROUTINES, MON, WED);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: MON, to: WED, now: NOW, records: RECORDS, links: [], lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
+  from: MON, to: WED, now: NOW, records: RECORDS, links: [], lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here; EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
 });
 const ledger = ledgerOf(input());
 const { sheet, recording } = ledger;
@@ -657,7 +658,7 @@ function fakeDb(rows: Readonly<Record<string, readonly unknown[]>>, calls: Call[
 
 test('T11 the answer function: the tag, the planned items and the notes ride the one answer from the reads it already makes — two columns more in the plan-vendor select, no query added; a read that hands a vendor row without them is refused by name, never printed blank', async () => {
   const a = code(ANSWER);
-  assert.equal(linesOf(ANSWER).length, 169, 'the file’s length'); // PASTE-03 (2026-11-28): 169 — the occurrences that carry no money are built beside the lines and handed to the rule, the two not-placed lists together; 166 until then. COALEVELS-01 (2026-11-27): 166 — the caller's sub-accounts read and the Locations handed to the rule; 154 until then
+  assert.equal(linesOf(ANSWER).length, 171, 'the file’s length'); // PASTE-03 (2026-11-28): 169 — the occurrences that carry no money are built beside the lines and handed to the rule, the two not-placed lists together; 166 until then. COALEVELS-01 (2026-11-27): 166 — the caller's sub-accounts read and the Locations handed to the rule; 154 until then; EDIT-01 (2026-11-28): 171 — each routine's one-off-ness handed to the rule (two lines, below the two the registry cites); 169 until then
   assert.equal(countOf(a, /db\.[a-z_]+\.(findMany|findFirst)\(/g), 9, 'the nine reads'); // COALEVELS-01 (2026-11-27): nine — the caller's active sub-accounts joined the eight; no other query added
   assert.match(a, /select: \{\n\s*id: true, routine_id: true, step_id: true, task_id: true, occurrence_at: true, items: true,\s*\n\s*vendor: \{ select: \{ id: true, vendor_name: true, entity_id: true, instagram_tag: true \} \},\n\s*routine: \{ select: \{ name: true, timezone: true \} \},/);
   assert.equal(countOf(a, /\bitems: true\b/g), 1);
@@ -683,7 +684,7 @@ test('T11 the answer function: the tag, the planned items and the notes ride the
   const calls: Call[] = [];
   const answer = await taskLedgerAnswerOf(fakeDb(tables(VENDORS), calls), 'someone', { from: MON, to: TUE }, NOW);
   assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'chart_of_sub_accounts.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany'], 'the reads, in their order'); // COALEVELS-01 (2026-11-27): the sub-accounts read stands after the roles read — the one read added
-  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'said'], 'the answer’s nine keys, as they were');
+  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'editing', 'said'], 'the answer’s ten keys — `editing` after `recording`'); // EDIT-01 (2026-11-28): nine until then
   assert.deepEqual(answer.sheet.map((r) => [r.day, r.description, r.vendor, r.instagramTag, descriptionOf(r), plannedDescription(r), r.notes]), [
     [MON, 'Eggs', 'Yolk & Rye', 'made.up_yolk', null, false, EGGS_NOTES],
     [MON, 'Noodles', 'Broth Cart', null, null, false, null],
@@ -796,13 +797,13 @@ test('T14 the registry’s Time row: its two cites into the rule file stand wher
   assert.ok(linesOf(RULES).some((l) => /^export const SUMMARY_HEAD_WORDS = \[/.test(l)), 'the words stay in the rule file, uncalled'); // SHEET-01 (2026-11-28): the words stay, uncalled
   assert.equal(countOf(time.citation, /src\/lib\/operations\/ledger\.ts:\d+/g), 1, 'the row cites the rule file once — LEDGER_HEAD_WORDS'); // SHEET-01 (2026-11-28): twice until then — the summary's cite left with the summary
   // Each cite says where the line stood until this change, in the row's own way.
-  const was = [cited(/LEDGER_HEAD_WORDS — PASTE-03, 2026-11-28: was :(\d+)/)]; // COALEVELS-01 (2026-11-27): the cite's own "was" is this change's now — the rule file grew again and the two cites followed; TIMESHEET-04b's stood there until then. PASTE-03 (2026-11-28): and again — "COALEVELS-01, 2026-11-27: was" until then; SHEET-01 (2026-11-28): one cite — the summary's left with the summary
+  const was = [cited(/LEDGER_HEAD_WORDS — EDIT-01, 2026-11-28: was :(\d+)/)]; // COALEVELS-01 (2026-11-27): the cite's own "was" is this change's now — the rule file grew again and the two cites followed; TIMESHEET-04b's stood there until then. PASTE-03 (2026-11-28): and again — "COALEVELS-01, 2026-11-27: was" until then; SHEET-01 (2026-11-28): one cite — the summary's left with the summary; EDIT-01 (2026-11-28): and again — "PASTE-03, 2026-11-28: was" until then
   assert.ok(was[0] < heads, 'the rule file grew above it'); // SHEET-01 (2026-11-28): one cite
   assert.doesNotMatch(time.citation, /their coverage said at|PLANNED HOURS · LOGGED HOURS — the summary/, 'the summary’s hours and their coverage left the citation'); // SHEET-01 (2026-11-28): re-pointed to its absence
   // The dated sentence on the row's comment line: from which number to which, that what each cites is unchanged, and which cites did not move.
-  const said = comments(REGISTRY).split('\n').find((l) => l.includes('PASTE-03 (Alex, 2026-11-28): ledger.ts grew')); // PASTE-03 (2026-11-28): that change's sentence — on the line COALEVELS-01 said its own (the match two lines below); 'COALEVELS-01 (Alex, 2026-11-27): ledger.ts grew' was looked for until then
+  const said = comments(REGISTRY).split('\n').find((l) => l.includes('EDIT-01 (Alex, 2026-11-28): ledger.ts grew')); // PASTE-03 (2026-11-28): that change's sentence — on the line COALEVELS-01 said its own (the match two lines below); 'COALEVELS-01 (Alex, 2026-11-27): ledger.ts grew' was looked for until then; EDIT-01 (2026-11-28): this change's sentence, on the same line
   assert.ok(said !== undefined, 'the sentence');
-  assert.match(said, new RegExp(`ledger\\.ts :${was[0]} → :${heads} \\(LEDGER_HEAD_WORDS\\), :\\d+ → :\\d+ \\(SUMMARY_HEAD_WORDS\\); what each cites unchanged\\.`)); // SHEET-01 (2026-11-28): the sentence is PASTE-03's history
+  assert.match(said, new RegExp(`ledger\\.ts :${was[0]} → :${heads} \\(LEDGER_HEAD_WORDS\\); what it cites unchanged\\.`)); // SHEET-01 (2026-11-28): the sentence is PASTE-03's history; EDIT-01 (2026-11-28): this change's sentence — one cite
   assert.match(said, /TIMESHEET-01 \(Alex, 2026-11-24\)[^\n]*TIMESHEET-04b \(Alex, 2026-11-27\)[^\n]*COALEVELS-01 \(Alex, 2026-11-27\)[^\n]*PASTE-03 \(Alex, 2026-11-28\)/, 'on the line where TIMESHEET-01, TIMESHEET-04b and COALEVELS-01 said their own');
   assert.match(said, /LedgerSection\.tsx:\d+, :\d+ and :\d+, ledgerReads\.ts:\d+, ledgerAnswer\.ts:\d+, :\d+, stops\/stopWrites\.ts:\d+, ledger\/RecordForm\.tsx:\d+, ledger\/ExpenseForm\.tsx:\d+ and stops\/route\.ts:\d+ did not move\./);
   // The cites that did not move hold what they cite: the writer's request, the leaf's save, the two selects, the read, the section's three lines.

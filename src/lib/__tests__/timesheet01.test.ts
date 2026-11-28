@@ -13,6 +13,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { isOnceRRule } from '../operations/rruleHelpers'; // EDIT-01 (2026-11-28): the fixture states each routine's one-off-ness by the rule's own test
 import { code, comments } from '../sourceText';
 import { BLANK } from '../budget/format';
 import { buildRoutineBudgetLines, occurrenceKey, readOccurrenceKey, type RoutinePlanInput } from '../budget/days';
@@ -119,7 +120,7 @@ const LINKS: LedgerLinkInput[] = [
 ];
 const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here; EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
 });
 const ledger = ledgerOf(input());
 const sheet = ledger.sheet;
@@ -163,7 +164,7 @@ const MAIN_SAID: LedgerSaid = { noLine: 1, doubled: 0, noStay: 6, unplaced: [], 
 test('T1 `rows` and what is said are what main gives for the same fixture — one row per recorded expense, newest day first; the answer gains one list beside them', () => {
   assert.deepEqual(ledger.rows, MAIN_ROWS, 'the recorded expenses, cell for cell, in main’s order');
   assert.deepEqual(ledger.said, MAIN_SAID, 'every note keeps its count');
-  assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'said'], 'ONE list more'); // TIMESHEET-02 (Alex, 2026-11-24, ruling B): and ONE key, `recording`, after `sheet` — five keys until then
+  assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'editing', 'said'], 'ONE list more'); // TIMESHEET-02 (Alex, 2026-11-24, ruling B): and ONE key, `recording`, after `sheet` — five keys until then; EDIT-01 (2026-11-28): and `editing` after `recording` — six keys until then
   assert.deepEqual(ledger.rows.map((r) => r.id), ['r-porridge-2', 'r-print-2', 'r-juice-1', 'r-porridge-1', 'r-ferry-1', 'r-climbing-1'], 'newest day first, then the card’s clock');
   // A row of `rows` carries no new field: the three facts are read from the fields it always had.
   for (const row of ledger.rows) assert.deepEqual(Object.keys(row), Object.keys(MAIN_ROWS[0]), `${row.id}: the row’s shape is main’s`);
@@ -172,7 +173,7 @@ test('T1 `rows` and what is said are what main gives for the same fixture — on
   assert.match(rules, /const rows: LedgerRow\[\] = expenses\.map\(\(\{ r, day, time \}\) => \{/);
   assert.match(rules, /rows\.sort\(\(a, b\) => cmp\(b\.day, a\.day\) \|\| cmpMaybe\(a\.time, b\.time\) \|\| cmp\(label\.get\(a\.id\)!\.label, label\.get\(b\.id\)!\.label\) \|\| cmpMaybe\(label\.get\(a\.id\)!\.line, label\.get\(b\.id\)!\.line\) \|\| cmp\(a\.id, b\.id\)\);/, 'newest day first — untouched');
   assert.match(rules, /const sheet: readonly LedgerSheetRow\[\] = sheeted\.map\(\(s\) => s\.row\);/);
-  assert.match(rules, /rows,\n\s*sheet,\n\s*recording,\n\s*said: \{/, 'the sheet beside the rows, in the one answer'); // TIMESHEET-02 (Alex, 2026-11-24): the sheet is named once, above (the notes count its rows), and `recording` stands after it — `rows,` / `sheet: sheeted.map((s) => s.row),` / `said: {` until then
+  assert.match(rules, /rows,\n\s*sheet,\n\s*recording,\n\s*editing,\n\s*said: \{/, 'the sheet beside the rows, in the one answer'); // TIMESHEET-02 (Alex, 2026-11-24): the sheet is named once, above (the notes count its rows), and `recording` stands after it — `rows,` / `sheet: sheeted.map((s) => s.row),` / `said: {` until then; EDIT-01 (2026-11-28): and `editing` after `recording`
 });
 
 // ── T2 · THE SHEET'S ROWS (ruling B.2) ───────────────────────────────────────
@@ -386,7 +387,7 @@ test('T6 the sheet’s order: day ascending; within a day the all-day rows first
   const ties = ledgerOf({
     from: FROM, to: FROM, now: NOW, records: [], links: [], lines: buildRoutineBudgetLines(TIES, FROM, FROM).lines, open: [], notPlaced: [], // PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
     routines: new Map(TIES.map((r): [string, RoutineWords] => [r.id, { name: r.name, timezone: MVD, steps: new Map(r.id === 'pair' ? [['pear', { activity: 'Pear', timeOfDay: null }], ['apple', { activity: 'Apple', timeOfDay: null }]] : []) }])),
-    roles: new Map(TIES.map((r): [string, string] => [r.id, r.role])), minutes: planMinutesOf(TIES), vendors: [], stays: [], accounts: [], books: BOOKS, locations: new Map(TIES.map((r): [string, null] => [r.id, null])), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
+    roles: new Map(TIES.map((r): [string, string] => [r.id, r.role])), minutes: planMinutesOf(TIES), vendors: [], stays: [], accounts: [], books: BOOKS, once: new Map(TIES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map(TIES.map((r): [string, null] => [r.id, null])), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none); EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
   });
   assert.deepEqual(ties.sheet.map((r) => `${startCellWords(r)} ${r.description}`), ['all day Zz dues', '00:00 Early', '09:00 Alpha', '09:00 Apple', '09:00 Pear', '09:00 Zeta'], 'the charge first though its name is last and a stop shares its midnight; Alpha · Pair (Apple, Pear) · Zeta at 09:00');
   const rules = code(RULES);
@@ -563,7 +564,7 @@ test('T8 the words: the title reads "Time sheet", the file is time-sheet_<from>_
 
 test('T9 one answer, one read — { from, to, as_of, first_record, rows, sheet, said }: no query added; the client reads `sheet`; an answer without it is a failure in words', async () => {
   const a = code(ANSWER);
-  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, said: ledger\.said \};/); // TIMESHEET-02 (Alex, 2026-11-24): and ONE key, `recording`, after `tones` — `tones: accountPlacesOf(routineInputs), said: ledger.said` until then. TIMESHEET-03 (Alex, 2026-11-24): the answer gains ONE key, `tones`, after `sheet` — `sheet: ledger.sheet, said: ledger.said` until then
+  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, editing: ledger\.editing, said: ledger\.said \};/); // TIMESHEET-02 (Alex, 2026-11-24): and ONE key, `recording`, after `tones` — `tones: accountPlacesOf(routineInputs), said: ledger.said` until then. TIMESHEET-03 (Alex, 2026-11-24): the answer gains ONE key, `tones`, after `sheet` — `sheet: ledger.sheet, said: ledger.said` until then; EDIT-01 (2026-11-28): `editing: ledger.editing` after `recording`
   assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 9, 'the nine reads'); // COALEVELS-01 (2026-11-27): nine — the caller's active sub-accounts joined the eight (ledgerAnswer.ts); no other query added
   assert.match(a, /minutes: planMinutesOf\(routineInputs\),/, 'the planned minutes from the routines the loader already read');
   assert.match(a, /const routineInputs = routineGroups\.flatMap\(\(group\) => group\.rows\.map\(\(row\) => toRoutinePlanInput\(row, bookOf\(group\.entityId, `the routines of entity \$\{group\.entityId\}`\)\)\)\);/);
@@ -578,7 +579,7 @@ test('T9 one answer, one read — { from, to, as_of, first_record, rows, sheet, 
   const real = g.fetch;
   const answers = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
   try {
-    g.fetch = answers({ from: FROM, to: TO, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, said: {} }); // TIMESHEET-02 (Alex, 2026-11-24): and its `recording` — one without it is a failure in words (timesheet02.test.ts); `tones: {}, said: {}` until then. TIMESHEET-03 (Alex, 2026-11-24): the answer carries its `tones` too — one without them is a failure in words (timesheet03.test.ts); `sheet: [], said: {}` until then
+    g.fetch = answers({ from: FROM, to: TO, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, editing: {}, said: {} }); // TIMESHEET-02 (Alex, 2026-11-24): and its `recording` — one without it is a failure in words (timesheet02.test.ts); `tones: {}, said: {}` until then. TIMESHEET-03 (Alex, 2026-11-24): the answer carries its `tones` too — one without them is a failure in words (timesheet03.test.ts); `sheet: [], said: {}` until then; EDIT-01 (2026-11-28): and its `editing` — one without it is a failure in words
     assert.equal((await readLedger(FROM, TO)).ok, true);
     g.fetch = answers({ from: FROM, to: TO, as_of: 'x', first_record: null, rows: [], said: {} });
     assert.deepEqual(await readLedger(FROM, TO), { ok: false, words: ledgerFailedWords('the ledger came back without its sheet') }, 'never read as an empty period');
@@ -623,7 +624,7 @@ test('T9 the answer function: the sheet rides the one answer from the reads it a
     operations_stop_records: [RECORD_ROW], planned_item_links: [],
   }, calls);
   const answer = await taskLedgerAnswerOf(db, 'someone', { from: '2027-03-02', to: '2027-03-02' }, NOW);
-  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'said']); // TIMESHEET-02 (Alex, 2026-11-24): `recording` after `tones` — eight keys until then. TIMESHEET-03 (Alex, 2026-11-24): `tones` after `sheet` — seven keys until then
+  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'editing', 'said']); // TIMESHEET-02 (Alex, 2026-11-24): `recording` after `tones` — eight keys until then. TIMESHEET-03 (Alex, 2026-11-24): `tones` after `sheet` — seven keys until then; EDIT-01 (2026-11-28): `editing` after `recording` — nine keys until then
   assert.deepEqual(JSON.parse(JSON.stringify(answer)), answer, 'wire-shaped as built');
   assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'chart_of_sub_accounts.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany'], 'the reads, in their order — the loader’s (once an entity) among them'); // COALEVELS-01 (2026-11-27): the sub-accounts read stands after the roles read — the one read added; 'the same reads, in the same order' until then
   assert.deepEqual(answer.rows.map((r) => r.id), ['rec-porridge'], 'the recorded expense, as before');

@@ -8,7 +8,7 @@ import { accountPlacesOf, ledgerOf, linkInputOf, planMinutesOf, type LedgerRecor
 import { recordsWindowOf, refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
 import { plannedMinutesOf } from '@/lib/operations/supersession';
 import { stayRowOf } from '@/lib/operations/stay'; import { locationClassOf } from '@/lib/operations/locationClass'; // COALEVELS-01 (2026-11-27): a routine's stored Location, read by its one rule — imported on this line so the two lines the registry cites below do not move
-import { instantToZoned } from '@/lib/time';
+import { instantToZoned } from '@/lib/time'; import { isOnceRRule } from '@/lib/operations/rruleHelpers'; // EDIT-01 (2026-11-28): whether a routine is a one-off — imported on this line so the two lines the registry cites below do not move
 
 /**
  * READS-01b (Alex, 2026-11-07, ruling A) — THE TASK LEDGER'S ANSWER, AS A FUNCTION.
@@ -18,7 +18,7 @@ import { instantToZoned } from '@/lib/time';
  * other (the chart, the ONE loader per entity, the routine roles, the plan's vendors, the stays, the records in the
  * span's window with their plan's words, the first record, the occurrence links with each posting's lines), the words,
  * the accounts, the first record's day, ledgerOf, and the exact answer object the route serializes —
- * `{ from, to, as_of, first_record, rows, sheet, tones, recording, said }` (sheet: TIMESHEET-01, 2026-11-24; tones: TIMESHEET-03, 2026-11-24; recording: TIMESHEET-02, 2026-11-24). RECORD_PLAN and its helpers (RecordRow, recordInputOf, HOUR_MS,
+ * `{ from, to, as_of, first_record, rows, sheet, tones, recording, editing, said }` (sheet: TIMESHEET-01, 2026-11-24; tones: TIMESHEET-03, 2026-11-24; recording: TIMESHEET-02, 2026-11-24; editing: EDIT-01, 2026-11-28). RECORD_PLAN and its helpers (RecordRow, recordInputOf, HOUR_MS,
  * DAY_MS, messageOf) moved with it (SUPERSEDE-00 decision 9); the registry's Time row cites RECORD_PLAN's two lines here.
  * SUPERSEDE-01c (Alex, 2026-11-08, ruling D): HOUR_MS retired; the records' window is stopRecord.ts recordsWindowOf. PASTE-03 (Alex, 2026-11-28): beside the Budget's lines the answer builds the occurrences that carry no money (budget/openLines.ts — the lines that name their account and no amount), once, over the routines it already read — no query added — and hands ledgerOf both, with the two builders' not-placed lists together.
  *
@@ -155,6 +155,8 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
     // COALEVELS-01 (2026-11-27): every routine's Location, read by its one rule (a stored one that is neither of the two is thrown by name), and the sub-accounts.
     locations: new Map(roles.map((r) => [r.id, locationClassOf(r.location_class, `routine ${r.id}`)])),
     subAccounts,
+    // EDIT-01 (Alex, 2026-11-28): each routine's one-off-ness by its one rule (rruleHelpers.ts isOnceRRule), over the routines the loader already read (routineInputs) — what a row's plan cells may change; no query added.
+    once: new Map(routineInputs.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])),
     // TIMESHEET-01 (Alex, 2026-11-24): each plan's planned minutes by the one rule, over the routines the loader already read (routineInputs) — the sheet prints them on a line with no record; no query added.
     minutes: planMinutesOf(routineInputs),
     vendors: planVendors,
@@ -162,8 +164,8 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
     accounts: accounts.map((a) => ({ entityId: a.entityId, code: a.code, name: a.name })),
     books: books.map((b) => ({ id: b.id, entityType: b.entityType })),
   });
-  // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet` — the table's rows; `rows` is as it was (/api/home-ledger reads it). TIMESHEET-03 (Alex, 2026-11-24, ruling B.5): and ONE key, `tones`, after `sheet` — each account's place among the accounts the caller's active plans use (ledger.ts accountPlacesOf), from the routines the loader already read (routineInputs, as planMinutesOf reads them above): no query is added, removed, widened or reordered. TIMESHEET-02 (Alex, 2026-11-24, rulings B and J.2): and ONE key, `recording`, after `tones` — what each sheet row's record form is given, by the row's key, built by the rule from what it already holds (ledger.ts ledgerOf): again no query is added, removed, widened or reordered.
-  return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, tones: accountPlacesOf(routineInputs), recording: ledger.recording, said: ledger.said };
+  // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet` — the table's rows; `rows` is as it was (/api/home-ledger reads it). TIMESHEET-03 (Alex, 2026-11-24, ruling B.5): and ONE key, `tones`, after `sheet` — each account's place among the accounts the caller's active plans use (ledger.ts accountPlacesOf), from the routines the loader already read (routineInputs, as planMinutesOf reads them above): no query is added, removed, widened or reordered. TIMESHEET-02 (Alex, 2026-11-24, rulings B and J.2): and ONE key, `recording`, after `tones` — what each sheet row's record form is given, by the row's key, built by the rule from what it already holds (ledger.ts ledgerOf): again no query is added, removed, widened or reordered. EDIT-01 (Alex, 2026-11-28): and ONE key, `editing`, after `recording` — what each sheet row's cells can change, by the row's key, built by the rule beside `recording` (ledger.ts ledgerOf); no query is added.
+  return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, tones: accountPlacesOf(routineInputs), recording: ledger.recording, editing: ledger.editing, said: ledger.said };
 }
 
 export type TaskLedgerAnswer = Awaited<ReturnType<typeof taskLedgerAnswerOf>>;

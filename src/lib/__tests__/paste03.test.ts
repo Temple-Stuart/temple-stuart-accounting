@@ -25,7 +25,7 @@ import { PLAN_COLUMN_DIGITS, planMoney, type PlanBook, type PlanColumn, type Pla
 import { moneyIsHere, occurrenceIn, occurrenceWindow, type PlanFacts } from '../operations/planVendor';
 import { NOT_RECORDED_WORDS, type StopRecordRow } from '../operations/stopRecord';
 import { NOT_A_STOP_RECORD_WORDS, ROLE_SHORT_WORDS } from '../operations/stopRole';
-import { ALL_DAY_CLOCK, allDayTimeInput, clockWords, compileFormToRRule } from '../operations/rruleHelpers';
+import { ALL_DAY_CLOCK, allDayTimeInput, clockWords, compileFormToRRule, isOnceRRule } from '../operations/rruleHelpers'; // EDIT-01 (2026-11-28): isOnceRRule — the fixture states each routine's one-off-ness
 import { zonedToInstant } from '../time';
 import {
   AMOUNT_ZERO_WORDS, EMPTY_EXPENSE, PLANNED_WORD, RECORD_CHARGE_WORDS, cellWordsOf, chargeFieldWords, expenseInput, ledgerOf, ledgerTotals, notRecordedWords, oneOffBody, oneOffRoutineName, outcomeWords, planMinutesOf, timeTypedWords,
@@ -266,7 +266,7 @@ const BUILT = buildRoutineBudgetLines([WALKS], MON, WED);
 const OPENED = buildRoutineOpenLines([WALKS], MON, WED);
 const sheetInput = (over: Partial<LedgerInput> = {}): LedgerInput => ({
   from: MON, to: WED, now: NOW, records: RECORDS, links: [], lines: BUILT.lines, open: OPENED.open, notPlaced: [...BUILT.notPlaced, ...OPENED.notPlaced], routines: WORDS,
-  roles: new Map([['walks', 'place']]), locations: new Map([['walks', null]]), subAccounts: [], minutes: planMinutesOf([WALKS]), vendors: [TRAIL], stays: [],
+  roles: new Map([['walks', 'place']]), once: new Map([WALKS].map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([['walks', null]]), subAccounts: [], minutes: planMinutesOf([WALKS]), vendors: [TRAIL], stays: [], // EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
   accounts: [{ entityId: 'P', code: '6150', name: 'Dining Out' }, { entityId: 'P', code: '6200', name: 'Recreation' }], books: [{ id: 'P', entityType: 'personal' }], ...over,
 });
 

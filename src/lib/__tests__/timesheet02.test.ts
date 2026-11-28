@@ -16,6 +16,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { isOnceRRule } from '../operations/rruleHelpers'; // EDIT-01 (2026-11-28): the fixture states each routine's one-off-ness by the rule's own test
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { code, comments } from '../sourceText';
@@ -134,7 +135,7 @@ const teaOn = (day: string): BudgetLine => {
 /** Monday's tea twice (and a record there), Tuesday's tea twice (and none). */
 const LINES: readonly BudgetLine[] = [...built.lines, teaOn(MON), teaOn(TUE)];
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: MON, to: WED, now: NOW, records: RECORDS, links: LINKS, lines: LINES, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
+  from: MON, to: WED, now: NOW, records: RECORDS, links: LINKS, lines: LINES, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here; EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
 });
 const ledger = ledgerOf(input());
 const { sheet, recording } = ledger;
@@ -177,7 +178,7 @@ test('T1 `rows` is what main gives for the same fixture and no field is added to
   assert.deepEqual(ledger.rows, MAIN_ROWS, 'the recorded expenses, cell for cell, in main’s order');
   for (const row of ledger.rows) assert.deepEqual(Object.keys(row), Object.keys(MAIN_ROWS[0]), `${row.id}: the row’s shape is main’s — nothing added to LedgerRow`);
   assert.deepEqual(Object.keys(MAIN_ROWS[0]), ['id', 'key', 'address', 'match', 'day', 'time', 'place', 'book', 'location', 'segments', 'coa', 'vendor', 'instagramTag', 'description', 'rating', 'note', 'notes', 'cents', 'budgetState', 'outcome', 'actualCents', 'varianceCents', 'plannedMinutes', 'loggedMinutes']); // TIMESHEET-04b (2026-11-27): a recorded row holds two fields more — instagramTag after vendor, notes after note (the twenty without them until then). TIMESHEET-02 itself added none. COALEVELS-01 (2026-11-27): and two more — location and segments after book (the twenty-two without them until then).
-  assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'said'], 'ONE key more, after the sheet');
+  assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'editing', 'said'], 'ONE key more, after the sheet'); // EDIT-01 (2026-11-28): and `editing` after `recording` — what each row's cells can change
   // One entry for EVERY row of the sheet, by the row's key, in the sheet's order — and no entry besides.
   assert.equal(sheet.length, 20);
   assert.deepEqual(Object.keys(recording), sheet.map((r) => r.key));
@@ -189,9 +190,9 @@ test('T1 `rows` is what main gives for the same fixture and no field is added to
   assert.deepEqual(JSON.parse(JSON.stringify(recording)), recording);
   // In the source: the key beside the sheet, in the one answer; the rows builder as it stood.
   const rules = code(RULES);
-  assert.match(rules, /rows,\n\s*sheet,\n\s*recording,\n\s*said: \{/, 'rows, then the sheet, then recording, then what is said');
+  assert.match(rules, /rows,\n\s*sheet,\n\s*recording,\n\s*editing,\n\s*said: \{/, 'rows, then the sheet, then recording, then editing, then what is said'); // EDIT-01 (2026-11-28): `editing` after `recording`
   assert.match(rules, /const rows: LedgerRow\[\] = expenses\.map\(\(\{ r, day, time \}\) => \{/);
-  assert.match(rules, /export interface LedgerInput \{\n\s*readonly from: string;\n\s*readonly to: string;\n\s*readonly now: Date;\n\s*readonly records: readonly LedgerRecordInput\[\];\n\s*readonly links: readonly LedgerLinkInput\[\];\n\s*readonly lines: readonly BudgetLine\[\];\n\s*readonly open: readonly OpenLine\[\];\n\s*readonly notPlaced: readonly NotPlaced\[\];\n\s*readonly routines: ReadonlyMap<string, RoutineWords>;\n\s*readonly roles: ReadonlyMap<string, string>;\n\s*readonly locations: ReadonlyMap<string, LocationClass \| null>;\n\s*readonly subAccounts: readonly LedgerSubAccount\[\];\n\s*readonly minutes: ReadonlyMap<string, number \| null>;\n\s*readonly vendors: readonly LedgerVendorRow\[\];\n\s*readonly stays: readonly StayRow\[\];\n\s*readonly accounts: readonly LedgerAccount\[\];\n\s*readonly books: readonly LedgerBook\[\];\n\}/, 'LedgerInput, key by key'); // PASTE-03 (2026-11-28): the input gains ONE key, right after `lines` — `open`, the occurrences that carry no money (a line that names its account and no amount). COALEVELS-01 (2026-11-27): the input gains two keys, after roles — every routine's Location and the caller's sub-accounts; 'LedgerInput gains no key' until then. TIMESHEET-04b (2026-11-27): the vendors' rows are LedgerVendorRow — the Budget's row with its planned items and its vendor's tag. "readonly PlanVendorRow[]" and 'LedgerInput gains nothing' until then
+  assert.match(rules, /export interface LedgerInput \{\n\s*readonly from: string;\n\s*readonly to: string;\n\s*readonly now: Date;\n\s*readonly records: readonly LedgerRecordInput\[\];\n\s*readonly links: readonly LedgerLinkInput\[\];\n\s*readonly lines: readonly BudgetLine\[\];\n\s*readonly open: readonly OpenLine\[\];\n\s*readonly notPlaced: readonly NotPlaced\[\];\n\s*readonly routines: ReadonlyMap<string, RoutineWords>;\n\s*readonly roles: ReadonlyMap<string, string>;\n\s*readonly locations: ReadonlyMap<string, LocationClass \| null>;\n\s*readonly once: ReadonlyMap<string, boolean>;\n\s*readonly subAccounts: readonly LedgerSubAccount\[\];\n\s*readonly minutes: ReadonlyMap<string, number \| null>;\n\s*readonly vendors: readonly LedgerVendorRow\[\];\n\s*readonly stays: readonly StayRow\[\];\n\s*readonly accounts: readonly LedgerAccount\[\];\n\s*readonly books: readonly LedgerBook\[\];\n\}/, 'LedgerInput, key by key'); // PASTE-03 (2026-11-28): the input gains ONE key, right after `lines` — `open`, the occurrences that carry no money (a line that names its account and no amount). COALEVELS-01 (2026-11-27): the input gains two keys, after roles — every routine's Location and the caller's sub-accounts; 'LedgerInput gains no key' until then. TIMESHEET-04b (2026-11-27): the vendors' rows are LedgerVendorRow — the Budget's row with its planned items and its vendor's tag. "readonly PlanVendorRow[]" and 'LedgerInput gains nothing' until then; EDIT-01 (2026-11-28): the input gains ONE key after `locations` — `once`, each routine's one-off-ness (what a row's plan cells may change)
 });
 
 // ── T2 · WHICH ROWS TAKE A RECORD (ruling A) ─────────────────────────────────
@@ -601,7 +602,7 @@ function fakeDb(rows: Readonly<Record<string, readonly unknown[]>>, calls: Call[
 
 test('T9 the answer function: `recording` rides the one answer after `tones` — nine keys — from the reads it already makes: no query added, removed, widened or reordered; it round-trips JSON', async () => {
   const a = code(ANSWER);
-  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, said: ledger\.said \};/);
+  assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, editing: ledger\.editing, said: ledger\.said \};/); // EDIT-01 (2026-11-28): `editing: ledger.editing` after `recording`
   assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 9, 'the nine reads'); // COALEVELS-01 (2026-11-27): nine — the caller's active sub-accounts joined the eight (ledgerAnswer.ts); no other query added
   assert.doesNotMatch(a, /\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/, 'writes nothing');
   assert.match(code(ROUTE), /return NextResponse\.json\(await taskLedgerAnswerOf\(prisma, user\.id, \{ from, to \}, new Date\(\)\)\);/, 'the route’s code is unchanged');
@@ -626,7 +627,7 @@ test('T9 the answer function: `recording` rides the one answer after `tones` —
     operations_routines: ROUTINE_ROWS, planned_item_vendors: [], operations_stays: [], operations_stop_records: [RECORD_ROW], planned_item_links: [],
   }, calls);
   const answer = await taskLedgerAnswerOf(db, 'someone', { from: TUE, to: TUE }, NOW);
-  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'said'], 'nine keys: `recording` after `tones`, before what is said');
+  assert.deepEqual(Object.keys(answer), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'editing', 'said'], 'ten keys: `recording` after `tones`, `editing` after it, before what is said'); // EDIT-01 (2026-11-28): `editing` after `recording` — nine until then
   assert.deepEqual(answer.tones, { 'P-6150': 0, 'P-6200': 1, 'P-7450': 2 }, 'the accounts’ places, as they were — the lunch’s line and the market share one');
   assert.deepEqual(JSON.parse(JSON.stringify(answer)), answer, 'wire-shaped as built');
   assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'chart_of_sub_accounts.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany'], 'the reads, in their order — the loader’s (once an entity) among them'); // COALEVELS-01 (2026-11-27): the sub-accounts read stands after the roles read — the one read added; 'the same reads, in the same order' until then
@@ -643,7 +644,7 @@ test('T9 the answer function: `recording` rides the one answer after `tones` —
 
 test('T9 the read: the client carries `recording`; an answer without it, or whose `recording` lacks a sheet row’s key, is a failure in words — never a row with no form', async () => {
   const reads = code(READS);
-  assert.match(reads, /readonly sheet: readonly LedgerSheetRow\[\];\s*\n\s*readonly tones: AccountPlaces;\s*\n\s*readonly recording: Readonly<Record<string, LedgerRecording>>;\s*\n\s*readonly said: LedgerSaid;/, 'rows, sheet, tones, recording — in that order');
+  assert.match(reads, /readonly sheet: readonly LedgerSheetRow\[\];\s*\n\s*readonly tones: AccountPlaces;\s*\n\s*readonly recording: Readonly<Record<string, LedgerRecording>>; readonly editing: Readonly<Record<string, LedgerEditing>>;\s*\n\s*readonly said: LedgerSaid;/, 'rows, sheet, tones, recording — in that order'); // EDIT-01 (2026-11-28): `editing` beside `recording`, on its line — the read the registry cites (:28) does not move
   // The refusals stand in the same order: rows, the sheet, the tones, then the recording.
   const order = ['the ledger came back without its rows', 'the ledger came back without its sheet', 'the ledger came back without its tones', 'the ledger came back without its recording', 'the ledger came back with no recording for the row'].map((words) => reads.indexOf(words));
   assert.ok(order.every((at) => at > -1), 'the five refusals');
@@ -654,13 +655,13 @@ test('T9 the read: the client carries `recording`; an answer without it, or whos
   const real = g.fetch;
   const answers = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
   const tones = accountPlacesOf(ROUTINES);
-  const whole = { from: MON, to: WED, as_of: NOW.toISOString(), first_record: { day: MON }, rows: ledger.rows, sheet, tones, recording, said: ledger.said };
+  const whole = { from: MON, to: WED, as_of: NOW.toISOString(), first_record: { day: MON }, rows: ledger.rows, sheet, tones, recording, editing: ledger.editing, said: ledger.said }; // EDIT-01 (2026-11-28): the answer carries its `editing` too
   try {
     g.fetch = answers(whole);
     const ok = await readLedger(MON, WED);
     assert.equal(ok.ok, true);
     if (ok.ok) assert.deepEqual(ok.value.recording, recording, 'as the rule built it, through the wire');
-    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, said: {} });
+    g.fetch = answers({ from: MON, to: WED, as_of: 'x', first_record: null, rows: [], sheet: [], tones: {}, recording: {}, editing: {}, said: {} }); // EDIT-01 (2026-11-28): and its `editing`
     assert.equal((await readLedger(MON, WED)).ok, true, 'an empty period: no row, no entry');
     // Without it.
     const { recording: _left, ...without } = whole;
@@ -809,9 +810,9 @@ test('T10 on top of TIMESHEET-03: the answer’s nine keys in order, `tones` bui
   const a = code(ANSWER);
   const returned = /return \{ ([^}]+) \};\n\}/.exec(a);
   if (returned === null) return assert.fail('the answer function ends on its return');
-  assert.deepEqual(returned[1].split(', ').map((part) => part.split(':')[0]), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'said']);
+  assert.deepEqual(returned[1].split(', ').map((part) => part.split(':')[0]), ['from', 'to', 'as_of', 'first_record', 'rows', 'sheet', 'tones', 'recording', 'editing', 'said']); // EDIT-01 (2026-11-28): ten — `editing` after `recording`
   // `tones` is built as it was — by the places' own function over the routines already read, never by the rule.
-  assert.match(a, /sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, said: ledger\.said/);
+  assert.match(a, /sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, editing: ledger\.editing, said: ledger\.said/); // EDIT-01 (2026-11-28): `editing` after `recording`
   assert.deepEqual(accountPlacesOf(ROUTINES), { 'P-6150': 0, 'P-6200': 1, 'P-7450': 2 }, 'the fixture’s accounts: the lunch’s lines, the tea and the market share one; the stalls carry no code');
   assert.equal('tones' in ledger, false, 'the rule returns no tones — its six keys are from, to, rows, sheet, recording, said');
   // The look's own rule, as it was.
