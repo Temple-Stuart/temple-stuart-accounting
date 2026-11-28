@@ -243,12 +243,12 @@ test('T8 the registry’s Time row cites the same thirteen lines as on main, and
     ['stops/stopWrites.ts:39', `${OPS}/stops/stopWrites.ts`, /const res = await fetch\('\/api\/operations\/stops', \{/],
     ['ledger/RecordForm.tsx:126', `${OPS}/ledger/RecordForm.tsx`, /void write\(\(\) => setStopRecord\(body\)\);/],
     ['ledger/ExpenseForm.tsx:87', `${OPS}/ledger/ExpenseForm.tsx`, /const created = await createOneOff\(oneOffBody\(v\)\);/],
-    ['src/lib/operations/ledger.ts:1518', RULES, /^export const LEDGER_HEAD_WORDS = \[/], // COALEVELS-01 (2026-11-27): the rule file grew above this line again (a row's Location and its account's levels, the twenty-five columns, the ten groups) and the registry re-pointed its cite — :1426 until then. TIMESHEET-04b (2026-11-27): the rule file grew above this line (the sheet's two columns, a plan row's planned items, the record form's NOTES) and the registry re-pointed its cite — :1342 until then
+    ['src/lib/operations/ledger.ts:1561', RULES, /^export const LEDGER_HEAD_WORDS = \[/], // PASTE-03 (2026-11-28): the rule file grew above this line again (a stop may have no budget — the open occurrences, the one read of a line's cents) and the registry re-pointed its cite — :1518 until then. COALEVELS-01 (2026-11-27): the rule file grew above this line again (a row's Location and its account's levels, the twenty-five columns, the ten groups) and the registry re-pointed its cite — :1426 until then. TIMESHEET-04b (2026-11-27): the rule file grew above this line (the sheet's two columns, a plan row's planned items, the record form's NOTES) and the registry re-pointed its cite — :1342 until then
     ['src/lib/operations/ledgerAnswer.ts:43', 'src/lib/operations/ledgerAnswer.ts', /duration_minutes: true/],
     ['src/lib/operations/ledgerAnswer.ts:42', 'src/lib/operations/ledgerAnswer.ts', /start_time: true, end_time: true/],
     ['src/components/workbench/operations/ledger/LedgerSection.tsx:368', SECTION, /data-ledger-cell="planned-minutes"/],
     ['LedgerSection.tsx:475', SECTION, /data-ledger-group-planned-hours/],
-    ['src/lib/operations/ledger.ts:1535', RULES, /^export const SUMMARY_HEAD_WORDS = \[/], // COALEVELS-01 (2026-11-27): re-pointed with it — :1443 until then. TIMESHEET-04b (2026-11-27): re-pointed with it — :1359 until then
+    ['src/lib/operations/ledger.ts:1578', RULES, /^export const SUMMARY_HEAD_WORDS = \[/], // PASTE-03 (2026-11-28): re-pointed with it — :1535 until then. COALEVELS-01 (2026-11-27): re-pointed with it — :1443 until then. TIMESHEET-04b (2026-11-27): re-pointed with it — :1359 until then
     ['LedgerSection.tsx:432', SECTION, /data-ledger-said-planned/],
   ];
   assert.deepEqual(cited, HOLDS.map(([citation]) => citation), 'the same lines, in the same order');
@@ -261,7 +261,7 @@ test('T8 the registry’s Time row cites the same thirteen lines as on main, and
   assert.match(linesOf('src/app/api/operations/stops/route.ts')[176] ?? '', /operations_stop_records\.create\(/);
   // Nothing cites a line of the rule file below its last cited one, so a constant added at its end moves no citation.
   const ruleLines = cited.filter((c) => c.startsWith(`${RULES}:`)).map((c) => Number(c.slice(c.lastIndexOf(':') + 1)));
-  assert.deepEqual(ruleLines, [1518, 1535]); // COALEVELS-01 (2026-11-27): [1426, 1443] until then. TIMESHEET-04b (2026-11-27): [1342, 1359] until then
+  assert.deepEqual(ruleLines, [1561, 1578]); // PASTE-03 (2026-11-28): [1518, 1535] until then. COALEVELS-01 (2026-11-27): [1426, 1443] until then. TIMESHEET-04b (2026-11-27): [1342, 1359] until then
   assert.ok(linesOf(RULES).length > Math.max(...ruleLines));
   assert.equal(linesOf(RULES).findIndex((line) => line.startsWith('export const LEDGER_TABLE_CLASS')) + 1, linesOf(RULES).length, 'the constant is the last line — below every cited one');
 });

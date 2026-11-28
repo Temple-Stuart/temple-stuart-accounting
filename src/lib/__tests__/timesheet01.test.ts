@@ -119,7 +119,7 @@ const LINKS: LedgerLinkInput[] = [
 ];
 const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
 });
 const ledger = ledgerOf(input());
 const sheet = ledger.sheet;
@@ -264,7 +264,7 @@ test('T3 the rows that read "not recorded" are exactly the count said under the 
     counts.push(l.said.notRecorded);
   }
   assert.deepEqual(counts, [0, 0, 3, 3, 10], 'nothing past · the print shop AT the clock is not past yet · the three · the same at 19:00 sharp · every line without a record once the span is behind');
-  assert.equal(notRecordedWords(3), '3 priced stops planned in the period, already past, with no record', 'the note keeps its words');
+  assert.equal(notRecordedWords(3), '3 stops planned in the period, already past, with no record', 'the note keeps its words'); // PASTE-03 (2026-11-28): a stop with no budget is counted too — '3 priced stops …' until then
 });
 
 test('T3 a priced line of a role that takes no money is not a row — journal, plan and execute alike; the same line under a role that asks an amount is', () => {
@@ -384,7 +384,7 @@ test('T6 the sheet’s order: day ascending; within a day the all-day rows first
     routine({ id: 'dues', name: 'Zz dues', scheduleRrule: 'FREQ=DAILY;BYHOUR=0;BYMINUTE=0', budgetAmount: 6, coaCode: '6150', role: 'all_day' }),
   ];
   const ties = ledgerOf({
-    from: FROM, to: FROM, now: NOW, records: [], links: [], lines: buildRoutineBudgetLines(TIES, FROM, FROM).lines, notPlaced: [],
+    from: FROM, to: FROM, now: NOW, records: [], links: [], lines: buildRoutineBudgetLines(TIES, FROM, FROM).lines, open: [], notPlaced: [], // PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
     routines: new Map(TIES.map((r): [string, RoutineWords] => [r.id, { name: r.name, timezone: MVD, steps: new Map(r.id === 'pair' ? [['pear', { activity: 'Pear', timeOfDay: null }], ['apple', { activity: 'Apple', timeOfDay: null }]] : []) }])),
     roles: new Map(TIES.map((r): [string, string] => [r.id, r.role])), minutes: planMinutesOf(TIES), vendors: [], stays: [], accounts: [], books: BOOKS, locations: new Map(TIES.map((r): [string, null] => [r.id, null])), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
   });
@@ -690,7 +690,7 @@ test('T11 the section draws `sheet`: three cells more in their places, each the 
   for (const p of printed) assert.doesNotMatch(p, /^'[^']*'$|^"[^"]*"$|^`[^`]*`$/, `${p} is not a literal sentence`);
   assert.doesNotMatch(s, />[A-Za-z][^<>{}]*[a-z][^<>{}]*</, 'no bare prose between tags');
   assert.match(comments(SECTION), /TIMESHEET-01 \(Alex, 2026-11-24\): THE TIME SHEET, PART ONE\./);
-  assert.match(comments(RULES), /TIMESHEET-01 \(Alex, 2026-11-24\) — THE TIME SHEET, PART ONE: EVERY PRICED LINE/);
+  assert.match(comments(RULES), /TIMESHEET-01 \(Alex, 2026-11-24\) — THE TIME SHEET, PART ONE: EVERY LINE OF THE PERIOD THAT NAMES AN ACCOUNT \(every priced line until PASTE-03, below\),/); // PASTE-03 (2026-11-28): the title says what the sheet lists now — a line names its account, with an amount or with none; 'PART ONE: EVERY PRICED LINE' until then
 });
 
 // ── T12 · A KEY OF ITS OWN ───────────────────────────────────────────────────

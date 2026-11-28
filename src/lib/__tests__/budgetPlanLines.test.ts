@@ -63,7 +63,7 @@ function plan(view: BudgetView, vendors: readonly PlanVendorRow[] | null, routin
   const r = buildRoutineBudgetLines(routines, rangeFrom, rangeTo);
   const t = buildTaskBudgetLines([brakes], rangeFrom, rangeTo);
   // SUPERSEDE-01b (2026-11-08): the plan takes marked lines — these stated unmarked (no block in these fixtures).
-  return dayPlanOf({ view, lines: markLines([...r.lines, ...t.lines], new Map()), notPlaced: [...r.notPlaced, ...t.notPlaced], routines: words, tasks: TITLES, vendors });
+  return dayPlanOf({ view, lines: markLines([...r.lines, ...t.lines], new Map()), notPlaced: [...r.notPlaced, ...t.notPlaced], open: [], routines: words, tasks: TITLES, vendors }); // PASTE-03 (2026-11-28): the input says the occurrences that carry no money — none in these plans
 }
 const listed = (result: ReturnType<typeof plan>): Extract<DayPlan, { listed: true }> => {
   assert.ok(result.ok, result.ok ? '' : result.message);

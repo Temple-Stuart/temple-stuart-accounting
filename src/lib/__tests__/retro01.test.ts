@@ -96,7 +96,7 @@ const RECORDS: LedgerRecordInput[] = [
 ];
 const built = buildRoutineBudgetLines(ROUTINES, DAY, DAY);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: DAY, to: DAY, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: [], stays: [], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
+  from: DAY, to: DAY, now: NOW, records: RECORDS, links: [], lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: [], stays: [], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
   accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
 });
 
@@ -344,13 +344,13 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
     [{ day: '' }, 'day', requiredWords('day')], [{ day: 'Oct 13' }, 'day', dayTypedWords('Oct 13')],
     [{ time: '' }, 'time', requiredWords('time')], [{ time: '25:00' }, 'time', timeTypedWords('25:00')], [{ time: '9:30' }, 'time', timeTypedWords('9:30')],
     [{ name: '  ' }, 'name', requiredWords('name')], [{ name: 'x'.repeat(182) }, 'name', 'NAME is at most 181 characters'], // PASTE-02b (Alex, 2026-11-27): a name is at most 181 — the one-off's routine carries its day and time after the name, and the two fit the column's 200; 201 characters and 'NAME is at most 200 characters' until then
-    [{ amount: '' }, 'amount', requiredWords('amount')], [{ amount: '0' }, 'amount', AMOUNT_ZERO_WORDS], [{ amount: '-5' }, 'amount', 'an amount is 0 or more'], [{ amount: 'ten' }, 'amount', '"ten" is not an amount (dollars, at most two decimals)'],
+    /* PASTE-03 (2026-11-28): a blank AMOUNT left this table — it is taken now (a stop with no budget), asserted under the loop below; 'AMOUNT is required' until then */ [{ amount: '0' }, 'amount', AMOUNT_ZERO_WORDS], [{ amount: '-5' }, 'amount', 'an amount is 0 or more'], [{ amount: 'ten' }, 'amount', '"ten" is not an amount (dollars, at most two decimals)'],
     [{ coa: '' }, 'coa', requiredWords('coa')], [{ book: '' }, 'book', requiredWords('book')],
     [{ vendorId: 'v1', vendorName: 'Luka' }, 'vendor', VENDOR_BOTH_WORDS],
     [{ actual: 'lots' }, 'actual', '"lots" is not an amount (dollars, at most two decimals)'], [{ actual: '-1' }, 'actual', 'an amount is 0 or more'],
     [{ stars: '6' }, 'stars', starsTypedWords('6')], [{ stars: 'four' }, 'stars', starsTypedWords('four')],
   ];
-  for (const [over, field, message] of refusals) assert.deepEqual(expenseInput({ ...DRAFT, ...over }, BKK, NOW), { ok: false, field, message }, `${field}: ${message}`);
+  for (const [over, field, message] of refusals) assert.deepEqual(expenseInput({ ...DRAFT, ...over }, BKK, NOW), { ok: false, field, message }, `${field}: ${message}`); assert.deepEqual(expenseInput({ ...DRAFT, amount: '  ' }, BKK, NOW), { ok: true, value: { ...v, amount: '' } }, 'a blank AMOUNT is a stop with no budget — the value holds none, never 0'); assert.deepEqual(oneOffBody({ ...v, amount: '' }).lines, [{ activity: v.name, budget_amount: '', coa_code: '6150' }], 'its line is sent with its account and no amount');
   assert.deepEqual(EXPENSE_FIELDS, ['day', 'time', 'name', 'amount', 'coa', 'book', 'location', 'vendor', 'actual', 'stars', 'note']); // COALEVELS-01 (2026-11-27): eleven boxes — LOCATION after the book; ten until then
   assert.deepEqual(Object.keys(EXPENSE_FIELD_WORDS), [...EXPENSE_FIELDS]);
   // The one-off: cadence once on the day at the time in the zone, role place, ONE line — the thing itself, the amount and the COA on it, nothing on the routine.

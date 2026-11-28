@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { code, comments } from '../sourceText';
 import { LINKABLE_KINDS } from '../calendar/linkKeys';
 import { closingOf } from '../security/ownershipLaw';
-import { buildRoutineBudgetLines, occurrenceKey, type RoutinePlanInput } from '../budget/days';
+import { buildRoutineBudgetLines, occurrenceKey, type RoutinePlanInput } from '../budget/days'; import { buildRoutineOpenLines } from '../budget/openLines'; // PASTE-03 (2026-11-28): the occurrences that carry no money — what the route hands occurrenceIn beside the builder's own
 import {
   GRAIN_TAG, PLAN_VENDOR_KINDS, VENDOR_NAME_MAX, grainAllows, isGrainRefusal, moneyIsHere, occurrenceIn,
   occurrenceWindow, readPlanAddress, readVendorName, routineAsBudgetReads, takenBy, taskAsBudgetReads, vendorFits, vendorNameKey,
@@ -135,7 +135,7 @@ test('T3 (d) the plan as /budget reads it: a routine the loader did not return, 
 
 const ask = (r: RoutinePlanInput, address: PlanAddress & { instant: Date }) => {
   const w = occurrenceWindow(address.instant);
-  return occurrenceIn(buildRoutineBudgetLines([r], w.rangeFrom, w.rangeTo), r, address);
+  return occurrenceIn(buildRoutineBudgetLines([r], w.rangeFrom, w.rangeTo), r, address, buildRoutineOpenLines([r], w.rangeFrom, w.rangeTo).open); // PASTE-03 (2026-11-28): the fourth argument, as the route hands it — the same routine's occurrences that carry no money, over the same window (three arguments until then)
 };
 
 test('T4 a real instant is accepted — placed, or not placed because the chart cannot read its account — and one minute off is refused', () => {

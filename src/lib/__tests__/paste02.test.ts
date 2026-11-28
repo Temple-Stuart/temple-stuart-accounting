@@ -276,9 +276,9 @@ test('T3 a kind picked a one-off whose stop already stands — that book, day, S
   const twice = placedWith(pasteOf(cinema, { ...cinema, Items: 'again' }, { ...cinema, 'Start Time': '9:30 PM', 'Budget (USD)': '12' }), ONE_OFF('6200'));
   assert.deepEqual(twice.placements.map((p) => p.kind), ['plan', 'refused', 'oneOff']);
   assert.deepEqual(refusedAt(twice.placements[1]), ['Type', 'row 2 of the paste is already on this day\'s stop of "Cinema" — a second one needs its own Start Time and a one-off']);
-  // Another day, time, name or book is no such stop: a new one-off, which does need its Budget (USD).
+  // Another day, time, name or book is no such stop: a NEW one-off. PASTE-03 (2026-11-28): with no Budget (USD) it lands, with no budget — it was refused until then ('a one-off needs a Budget (USD) above 0'); a Budget (USD) of 0 is still refused.
   for (const over of [{ 'Start Date': '6/12/27' }, { 'Start Time': '9:05 PM' }, { Type: 'cinema' }] as const) {
-    assert.deepEqual(refusedAt(landed({ ...cinema, ...over }, ONE_OFF('6200')).placement), ['Budget (USD)', 'a one-off needs a Budget (USD) above 0'], JSON.stringify(over));
+    assert.deepEqual([oneOff(landed({ ...cinema, ...over }, ONE_OFF('6200')).placement).budgetCents, refusedAt(landed({ ...cinema, ...over, 'Budget (USD)': '0' }, ONE_OFF('6200')).placement)], [null, ['Budget (USD)', 'a Budget (USD) of 0 is not a budget — leave the cell blank for a stop with no budget, or type one above 0']], JSON.stringify(over));
   }
   // The account is asked first, and the Start Time: a standing stop is found by its Start Time.
   assert.deepEqual(refusedAt(landed(cinema, ONE_OFF('9999')).placement)[0], 'Category');

@@ -27,6 +27,13 @@
  *
  * THE PAIR (ruling F). An amount needs its account and an account needs its
  * amount: a plan /budget cannot place is not saved.
+ * PASTE-03 (Alex, 2026-11-28) — THE PAIR BENDS ONE WAY, FOR A LINE ONLY. A
+ * routine's LINE may name its account with no amount: a stop with no budget.
+ * It is saved with its account and a null amount (never 0); /budget counts
+ * nothing for it and lists nothing, and the time sheet lists it with BUDGET
+ * blank (src/lib/budget/openLines.ts). An amount still needs its account,
+ * everywhere; a routine's own figure and a task still need the pair. Which of
+ * the three a writer saves is its `column`: 'routine', 'line' or 'task'.
  *
  * Every message shows an account as its account string (accountString.ts) —
  * B-6110, never 6110. Pure: no Prisma client, no request, no clock.
@@ -36,11 +43,11 @@ import { parseCode } from '@/lib/coa/scheme';
 import { deriveAccountString } from '@/lib/accountString';
 import { parseBudgetAmountOrNull, type InputRefusal } from '@/lib/operations/routineInput';
 
-/** Which column the amount lands in: a routine's or a line's Decimal(12,2), or a task's Decimal(15,2). */
-export type PlanColumn = 'routine' | 'task';
+/** Which column the amount lands in: a routine's or a line's Decimal(12,2), or a task's Decimal(15,2). PASTE-03 (2026-11-28): a line is its own — the pair bends for it alone ('routine' | 'task' until then; a line's writer said 'routine'). */
+export type PlanColumn = 'routine' | 'line' | 'task';
 
 /** Digits before the point each column holds (precision − scale). */
-export const PLAN_COLUMN_DIGITS: Readonly<Record<PlanColumn, number>> = { routine: 10, task: 13 };
+export const PLAN_COLUMN_DIGITS: Readonly<Record<PlanColumn, number>> = { routine: 10, line: 10, task: 13 };
 
 /** One chart row as the book's chart saves it. */
 export interface PlanChartRow {
@@ -164,16 +171,17 @@ export function planMoney(
       const whole = amount.split('.')[0].replace(/^0+(?=\d)/, '');
       const digits = PLAN_COLUMN_DIGITS[column];
       if (whole.length > digits) {
-        return { error: { field: fields.amount, message: `${amount} is too large — ${column === 'routine' ? "a routine's" : "a task's"} amount holds at most ${digits} digits before the point` } };
+        return { error: { field: fields.amount, message: `${amount} is too large — ${column === 'task' ? "a task's" : "a routine's"} amount holds at most ${digits} digits before the point` } };
       }
     }
   }
 
-  // R4 · the pair — both or neither.
+  // R4 · the pair — both or neither. PASTE-03 (2026-11-28): it bends ONE way, for a LINE only — a line's account with no amount is
+  // not refused: it is read by R2 below exactly as any account is, and saved with a null amount. An amount with no account is refused for every column.
   if (noAccount) {
     return { error: { field: fields.account, message: 'an amount needs its account — choose the income or expense account this money goes on' } };
   }
-  if (noAmount) {
+  if (noAmount && column !== 'line') {
     return { error: { field: fields.amount, message: 'an account needs its amount — enter the amount, or clear the account' } };
   }
   if (book === null) {

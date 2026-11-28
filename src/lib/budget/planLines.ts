@@ -23,7 +23,7 @@
  *
  * STRANDED. An occurrence vendor whose occurrence falls on a day column of this
  * view — its routine-local day, in the zone of its plan's routine — and whose
- * address matches no occurrence this view built (placed or not placed) is listed
+ * address matches no occurrence this view built (placed, not placed, or — PASTE-03, 2026-11-28 — carrying no money: `open`) is listed
  * by name, never dropped and never matched to a neighbour. A row whose routine's
  * zone cannot be read cannot be dated: it is listed too, undated, with that reason.
  *
@@ -75,6 +75,8 @@ export interface DayPlanInput {
   readonly lines: readonly MarkedBudgetLine[];
   /** What the view built and could not place — with the lines, every occurrence the view built. */
   readonly notPlaced: readonly NotPlaced[];
+  /** PASTE-03 (Alex, 2026-11-28): the occurrences that carry no money — of the lines that name their account and no amount (openLines.ts buildRoutineOpenLines, over the view's range). Only their keys are read here: an occurrence vendor at one is not stranded. They are no plan line of this file — nothing lists them, nothing sums them. Required: an empty list says there are none. */
+  readonly open: readonly { readonly sourceId: string }[];
   readonly routines: ReadonlyMap<string, RoutineWords>;
   /** Task id → title. */
   readonly tasks: ReadonlyMap<string, string>;
@@ -346,8 +348,8 @@ export function dayPlanOf(input: DayPlanInput): DayPlanResult {
   const matched = planLinesOn({ days, lines: input.lines, routines: input.routines, tasks: input.tasks, vendors: input.vendors });
   if (!matched.ok) return matched;
 
-  // Stranded: an occurrence vendor on a day of this view that matches no occurrence the view built.
-  const built = new Set<string>([...input.lines.map((l) => l.sourceId), ...input.notPlaced.map((n) => n.sourceId)]);
+  // Stranded: an occurrence vendor on a day of this view that matches no occurrence the view built. PASTE-03 (2026-11-28): an occurrence that carries no money (input.open) is one the view built — a vendor planned at a stop with no budget is not stranded.
+  const built = new Set<string>([...input.lines.map((l) => l.sourceId), ...input.notPlaced.map((n) => n.sourceId), ...input.open.map((o) => o.sourceId)]);
   const stranded: StrandedVendor[] = [];
   for (const row of input.vendors) {
     if (row.occurrence_at === null) continue;

@@ -108,7 +108,7 @@ export async function POST(
       book = await loadPlanBook(prisma, user.id, routine.entity_id);
       if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-    const money = planMoney(sent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' });
+    const money = planMoney(sent, book, 'line', { amount: 'budget_amount', account: 'coa_code' }); // PASTE-03 (2026-11-28): a LINE's own column — its account may stand with no amount ('routine' until then)
     if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
 
     // step_order = max+1 within the routine (α-1 documented race-acceptance).

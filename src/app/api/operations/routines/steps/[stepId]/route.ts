@@ -149,7 +149,7 @@ export async function PATCH(
         book = await loadPlanBook(prisma, user.id, existing.entity_id);
         if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
-      const money = planMoney(sent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' });
+      const money = planMoney(sent, book, 'line', { amount: 'budget_amount', account: 'coa_code' }); // PASTE-03 (2026-11-28): a LINE's own column — its account may stand with no amount ('routine' until then)
       if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
       data.budget_amount = money.value.amount;
       data.coa_code = money.value.coaCode;

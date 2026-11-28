@@ -22,7 +22,7 @@ import * as rule from '../operations/pasteRows';
 import * as saveRule from '../operations/pasteSave';
 import {
   ALREADY_RECORDED_WORDS, AMOUNT_MOST_WORDS, BLANK_DATE_WORDS, BOOKING_WORDS, ITEMS_CONTROL_WORDS, ITEMS_LONG_WORDS, ITEMS_NO_VENDOR_WORDS, // COALEVELS-01 (2026-11-27): ITEMS_AHEAD_WORDS and ITEMS_NO_TOTAL_WORDS are gone — the Items of a row that makes no record are planned items
-  LANDS_WORDS, NOTHING_PASTED_WORDS, NO_ROW_WORDS, NO_TOTAL_WORDS, ONE_OFF_NO_BUDGET_WORDS, ONE_OFF_NO_START_WORDS, ON_TIME_SHEET_COLUMNS, ON_TIME_SHEET_KEYS, ON_TIME_SHEET_WORDS,
+  LANDS_WORDS, NOTHING_PASTED_WORDS, NO_ROW_WORDS, NO_TOTAL_WORDS, ONE_OFF_ZERO_BUDGET_WORDS, ONE_OFF_NO_START_WORDS, ON_TIME_SHEET_COLUMNS, ON_TIME_SHEET_KEYS, ON_TIME_SHEET_WORDS,
   PASTE_NO_COLUMN_HEADS, PASTE_READ_HEADS, PASTE_REQUIRED_HEADS, PASTE_WORKED_OUT_HEADS, PLANNED_AHEAD_WORDS, RECORDED_NOT_WRITTEN_WORDS, TOTAL_AHEAD_WORDS, UNCLOSED_QUOTE_WORDS, YOUR_SHEET_COLUMNS, YOUR_SHEET_WORDS,
   accountWords, blankCellWords, bookNamed, chartOf, chartUnreadWords, countsWords, kindKeyOf, notReadLines, offeredBooksOf, pasteKindsOf, pasteShown, pasteSpanOf, pastedVendorOf,
   pickOfValue, pickOffersOf, pickValueOf, placePaste, plansOf, readAmountCell, readClockCell, readDayCell, readDaysCell, readPaste, splitPaste, vendorsUnreadWords,
@@ -485,13 +485,13 @@ test('T8 a one-off, under an account of the book: at its day and Start Time in t
   assert.equal(landed({ ...climbing, Entity: 'Business', Type: 'Paper' }, ONE_OFF('6400')).shown.lands, 'a one-off at 20:00, under B-6400 Supplies · vendor: Business\'s own · recorded: went, $18.00');
 });
 
-test('T8 a one-off, refused: no such account in the book’s chart; no Start Time; no Budget (USD), or 0 — and a stop of this name already on the time sheet at this day and time takes the row', () => {
+test('T8 a one-off, refused: no such account in the book’s chart; no Start Time; a Budget (USD) of 0 — a blank Budget (USD) is placed, its budget none (PASTE-03, 2026-11-28: it was refused until then) — and a stop of this name already on the time sheet at this day and time takes the row', () => {
   const climbing: Typed = { 'Start Date': '5/10/27', 'Start Time': '8:00 PM', Category: 'Fun', Entity: 'Personal', Type: 'Climbing', 'Total (USD)': '18', 'Budget (USD)': '18' };
   assert.deepEqual(refusedRow(landed(climbing, ONE_OFF('9999'))), ['Category', 'the book\'s chart has no account "9999"']);
   assert.deepEqual(refusedRow(landed(climbing, ONE_OFF('6400'))), ['Category', 'the book\'s chart has no account "6400"'], 'another book’s account is not this book’s');
   assert.deepEqual(refusedRow(landed({ ...climbing, 'Start Time': '' }, ONE_OFF('6200'))), ['Start Time', ONE_OFF_NO_START_WORDS]);
-  assert.deepEqual(refusedRow(landed({ ...climbing, 'Budget (USD)': '' }, ONE_OFF('6200'))), ['Budget (USD)', ONE_OFF_NO_BUDGET_WORDS]);
-  assert.deepEqual(refusedRow(landed({ ...climbing, 'Budget (USD)': '$0.00' }, ONE_OFF('6200'))), ['Budget (USD)', 'a one-off needs a Budget (USD) above 0']);
+  const unbudgeted = landed({ ...climbing, 'Budget (USD)': '' }, ONE_OFF('6200')); assert.deepEqual(unbudgeted.placement.kind === 'oneOff' && [unbudgeted.placement.budgetCents, unbudgeted.placement.values.amount, unbudgeted.shown.sheet[ON_TIME_SHEET_KEYS.indexOf('budget')], unbudgeted.shown.tone], [null, '', BLANK, 'placed']); // PASTE-03 (2026-11-28): a blank Budget (USD) is placed, its budget none — its cents null, the form's rule handed '', the preview's BUDGET the sheet's blank; ['Budget (USD)', 'a one-off needs a Budget (USD) above 0'] until then
+  assert.deepEqual(refusedRow(landed({ ...climbing, 'Budget (USD)': '$0.00' }, ONE_OFF('6200'))), ['Budget (USD)', 'a Budget (USD) of 0 is not a budget — leave the cell blank for a stop with no budget, or type one above 0']); assert.equal(ONE_OFF_ZERO_BUDGET_WORDS, 'a Budget (USD) of 0 is not a budget — leave the cell blank for a stop with no budget, or type one above 0'); // PASTE-03 (2026-11-28): a 0 is refused in its own words — never read as a blank
   assert.equal(ONE_OFF_NO_START_WORDS, 'a one-off needs a Start Time');
   // In the ruling's order: the account, then the Start Time, then the Budget.
   assert.deepEqual(refusedRow(landed({ ...climbing, 'Start Time': '', 'Budget (USD)': '' }, ONE_OFF('9999')))[0], 'Category');

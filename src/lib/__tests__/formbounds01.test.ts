@@ -212,7 +212,7 @@ test('T4 a stop ahead with nothing typed is taken — planned: ahead true, actua
   assert.deepEqual(expense({ stars: '9' }, AFTER), { ok: false, field: 'stars', message: starsTypedWords('9') });
   // The plan's own boxes are read first, ahead or not — the first bad box is still the one named.
   assert.deepEqual(expense({ name: '  ', actual: '7' }, DAY_BEFORE), { ok: false, field: 'name', message: requiredWords('name') });
-  assert.deepEqual(expense({ amount: '', note: 'thick' }, DAY_BEFORE), { ok: false, field: 'amount', message: requiredWords('amount') });
+  assert.deepEqual(expense({ amount: '0', note: 'thick' }, DAY_BEFORE), { ok: false, field: 'amount', message: 'an expense has an amount above 0' }); assert.deepEqual(expense({ amount: '', note: 'thick' }, DAY_BEFORE), { ok: false, field: 'note', message: aheadFieldWords('note') }); // PASTE-03 (2026-11-28): a blank AMOUNT is no refusal — a stop with no budget — so the box of the record is the first bad one; a typed 0 is still the AMOUNT's own refusal, read before the record's boxes. A blank AMOUNT was refused here as required until then
   assert.deepEqual(expense({ vendorId: 'v1', vendorName: 'Oat House', stars: '4' }, DAY_BEFORE), { ok: false, field: 'vendor', message: VENDOR_BOTH_WORDS });
   // The words, as they read.
   assert.equal(aheadFieldWords('actual'), "ACTUAL is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come");

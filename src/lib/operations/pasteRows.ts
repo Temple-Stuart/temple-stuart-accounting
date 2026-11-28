@@ -653,7 +653,7 @@ export const manyStopsWords = (plan: string): string => `the plan ${JSON.stringi
 export const stopTakenWords = (row: number, plan: string): string => `row ${row} of the paste is already on this day's stop of ${JSON.stringify(plan)} — a second one needs its own Start Time and a one-off`;
 export const noAccountWords = (code: string): string => `the book's chart has no account ${JSON.stringify(code)}`;
 export const ONE_OFF_NO_START_WORDS = 'a one-off needs a Start Time';
-export const ONE_OFF_NO_BUDGET_WORDS = 'a one-off needs a Budget (USD) above 0';
+export const ONE_OFF_ZERO_BUDGET_WORDS = 'a Budget (USD) of 0 is not a budget — leave the cell blank for a stop with no budget, or type one above 0'; // PASTE-03 (2026-11-28): a row whose Budget (USD) is blank is placed, its budget none — 'a one-off needs a Budget (USD) above 0' (ONE_OFF_NO_BUDGET_WORDS) refused it until then
 /** PASTE-02 (2026-11-27): one stop of the row's own name at its day and time takes the row; more than one cannot be told apart. ('already on the time sheet — …' refused the row until then.) */
 export const manyNamedWords = (name: string): string => `more than one stop named ${JSON.stringify(name)} stands at this day and time — the paste cannot tell which`;
 /** PASTE-02b (2026-11-27): a second row of the paste that would be the same new one-off — one name, day and Start Time. The routines hold one name a user, so only the first could be written. */
@@ -735,8 +735,8 @@ export type PastePlacement =
     readonly kind: 'oneOff'; readonly book: OfferedBook; readonly account: PasteAccount;
     /** PASTE-02: what "+ expense"'s own rule read for this stop (ledger.ts expenseInput) — the bodies the save sends are built from it. */
     readonly values: ExpenseValues;
-    /** The new stop's own facts: its Start Time ('HH:MM'); its End Time, when its minutes are written (PASTE-02), and those minutes; its name and its instant, the values' own; its Budget (USD), above 0; its Location, the values' own (COALEVELS-01). */
-    readonly start: string; readonly end: string | null; readonly minutes: number | null; readonly name: string; readonly budgetCents: number; readonly location: LocationClass | null;
+    /** The new stop's own facts: its Start Time ('HH:MM'); its End Time, when its minutes are written (PASTE-02), and those minutes; its name and its instant, the values' own; its Budget (USD) — above 0, or null: a stop with no budget (PASTE-03, 2026-11-28); its Location, the values' own (COALEVELS-01). */
+    readonly start: string; readonly end: string | null; readonly minutes: number | null; readonly name: string; readonly budgetCents: number | null; readonly location: LocationClass | null;
     readonly instant: string; readonly vendor: PastedVendor; readonly tag: PastedTag | null; readonly items: string | null; readonly happened: PastedOutcome; readonly notWritten: readonly string[];
   };
 
@@ -932,7 +932,7 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
     const own = context.sheet.filter((stop) => stop.book === book.word && stop.day === cells.day && stop.time === start && stop.description === cells.type);
     if (own.length > 1) return { kind: 'refused', head: 'Type', why: manyNamedWords(cells.type) };
     if (own.length === 1) return onStop(row.number, cells, book, own[0], own[0].description, true);
-    if (cells.budgetCents === null || cells.budgetCents === 0) return { kind: 'refused', head: 'Budget (USD)', why: ONE_OFF_NO_BUDGET_WORDS };
+    if (cells.budgetCents === 0) return { kind: 'refused', head: 'Budget (USD)', why: ONE_OFF_ZERO_BUDGET_WORDS }; // PASTE-03 (Alex, 2026-11-28): a blank Budget (USD) is placed, its budget none — its budgetCents null, the form's rule handed '' (a blank AMOUNT is a stop with no budget); a 0 is no budget typed, refused by name — never read as a blank, and never written
 
     // PASTE-02 (ruling A.3) — A NEW ONE-OFF IS "+ EXPENSE"'S: read by that form's ONE rule, its boxes filled from the row — its LOCATION among them (COALEVELS-01). The record's two
     // boxes are filled only when the row is recorded went — a stop still ahead, or a row with no Total (USD), has no record to make. A refusal of that rule refuses the row, in the
@@ -941,7 +941,7 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
     const { happened, notWritten } = happenedAt(instant, cells, context.now);
     const vendor = pastedVendorOf(cells.vendor, book, context.vendors);
     const read = expenseInput({
-      day: cells.day, time: start, name: cells.type, amount: csvMoney(cells.budgetCents), coa: account.code, book: book.id, location: cells.location === null ? '' : cells.location,
+      day: cells.day, time: start, name: cells.type, amount: cells.budgetCents === null ? '' : csvMoney(cells.budgetCents), coa: account.code, book: book.id, location: cells.location === null ? '' : cells.location,
       vendorId: vendor.kind === 'own' ? vendor.id : '', vendorName: vendor.kind === 'new' ? vendor.name : '',
       actual: happened.kind === 'went' ? csvMoney(happened.cents) : '', stars: '', note: happened.kind === 'went' && happened.items !== null ? happened.items : '',
     }, context.zone, context.now);

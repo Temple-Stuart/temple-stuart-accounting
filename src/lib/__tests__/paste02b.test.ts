@@ -260,10 +260,10 @@ test('T5 a second row that would be the same new one-off — one Type, one day, 
   // …and the other way round: the first row holds the name, whichever book it is in.
   const reversed = placedOn(pasteOf({ ...BOWLING, Entity: 'Business' }, BOWLING), EMPTY);
   assert.deepEqual([kindsOf(reversed.placements), oneOff(reversed.placements[0]).book.id, refusedAt(reversed.placements[1])], [['oneOff', 'refused'], 'B', ['Type', oneOffTwiceWords(2, 'Bowling')]]);
-  // A first row refused for another reason — no Budget (USD) — holds no name: the second is placed.
-  const freed = placedOn(pasteOf({ ...BOWLING, 'Budget (USD)': '' }, BOWLING), EMPTY);
+  // A first row refused for another reason — a Budget (USD) of 0 — holds no name: the second is placed. PASTE-03 (2026-11-28): a blank Budget (USD) is placed now, so that row HOLDS the name and the second is refused; it was the refused first row here until then.
+  const freed = placedOn(pasteOf({ ...BOWLING, 'Budget (USD)': '0' }, BOWLING), EMPTY);
   assert.deepEqual(kindsOf(freed.placements), ['refused', 'oneOff']);
-  assert.deepEqual(refusedAt(freed.placements[0]), ['Budget (USD)', 'a one-off needs a Budget (USD) above 0']);
+  assert.deepEqual(refusedAt(freed.placements[0]), ['Budget (USD)', 'a Budget (USD) of 0 is not a budget — leave the cell blank for a stop with no budget, or type one above 0']); assert.deepEqual(kindsOf(placedOn(pasteOf({ ...BOWLING, 'Budget (USD)': '' }, BOWLING), EMPTY).placements), ['oneOff', 'refused'], 'a first row with no Budget (USD) is placed, and holds the name');
   // …and so does a row the form's rule refuses, or one whose kind has no pick.
   const noPick = placePaste(pasteOf(BOWLING, BOWLING), {}, EMPTY);
   assert.deepEqual(kindsOf(noPick), ['pick', 'pick'], 'neither is placed, so neither holds a name');
