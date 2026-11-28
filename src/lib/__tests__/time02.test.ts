@@ -45,7 +45,7 @@ const GONE = [
 // HOME-01 (Alex, 2026-10-24, ruling C): the Time row's words are the tables' — the card is shown on the dashboard.
 // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The why left with the status (undefined on a LIVE row); the customer line gained the cost, the time against its plan and the hours; the note lost its "not done" sentence.
 const WHY = undefined;
-const CUSTOMER = 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.';
+const CUSTOMER = 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'; // SHEET-01 (2026-11-28): the customer line names no journal answer — the journal tables are mounted nowhere
 // HOME-03 (Alex, 2026-10-27): the note says the card is on the home page, /home — the dashboard's Runway panel until then.
 const NOTE = 'HOME-03 (2026-10-27): the day itself is entered on the day card — Time\'s component, shown on the home page, /home, between the answers and the sheet (HOME-01, 2026-10-24, had it on the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.';
 const SURFACE_NOTE = 'TIME-02 (2026-10-19): drawn nowhere — /time renders no StageStrip (src/app/time/page.tsx); the day card is not a pipe; PIPES-01 retires the pipe';
@@ -66,8 +66,8 @@ test('T1 the page: /time is the three tables (HOME-01: the card is on the dashbo
   const box = page.slice(page.indexOf('data-tool-page="Time"'), page.indexOf('</OperationsEntityProvider>'));
   // JOURNAL-07 (Alex, 2026-10-24): the container is four — the two journal tables under the ledger (TIME-02's "nothing beneath" the ledger held until then).
   // HOME-01 (Alex, 2026-10-24): the card and its boundary moved to the dashboard — the container is the three tables.
-  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['LedgerSection', 'MorningJournalTable', 'EveningJournalTable']);
-  assert.match(page, /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['LedgerSection']); // SHEET-01 (2026-11-28): the ledger alone in the container
+  assert.match(page, /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // SHEET-01 (2026-11-28): the page mounts the ledger alone — the two journal tables after it until then
   assert.doesNotMatch(page, /DayCard|Suspense/);
   assert.match(comments(TIME_PAGE), /HOME-01 \(Alex, 2026-10-24\) — THE CARD MOVED TO THE DASHBOARD; \/time IS THE\s*\n\s*\* TABLES/);
   assert.doesNotMatch(page, /ContentPipeline|operations\/content\/|PIPE_PHASES|<StageStrip/);
@@ -104,8 +104,8 @@ test('T3 the laws: /time draws nothing; the content pipe stays defined, declared
   assert.match(comments(NAV), /TIME-02 \(2026-10-19\): the content pipeline is retired/);
   const law = code(LAW);
   // HOME-01 (Alex, 2026-10-24): three mounts; the card's boundary check reads the cockpit component.
-  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection MorningJournalTable EveningJournalTable'/);
+  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>'\];/); // SHEET-01 (2026-11-28): the page is the table — the ledger alone; the two journal tables after it until then
+  assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection'/); // SHEET-01 (2026-11-28): exactly the ledger
   assert.match(law, /if \(\/ContentPipeline\|operations\\\/content\\\/\/\.test\(timePage\)\) twoListsFail\(/, 'the pipeline may not come back unnoticed');
   assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(host\)\) twoListsFail\(/, 'the card in its boundary — on /home (HOME-03, 2026-10-27; the Runway panel until then)');
   assert.match(comments(LAW), /TIME-02 \(2026-10-19\): the third mount, the content pipeline, is retired/);

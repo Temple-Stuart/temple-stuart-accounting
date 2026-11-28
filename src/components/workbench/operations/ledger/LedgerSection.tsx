@@ -177,6 +177,10 @@
  * line stands while the read is in flight; the new answer replaces it when it
  * arrives, and a read that fails replaces it with its failure, as before. No
  * column is added; the table's width is what it was.
+ *
+ * SHEET-01 (Alex, 2026-11-28) — THE PAGE IS THE TABLE. Every view, Day too, draws the twenty-five columns (TIMEDAY-01's fold is
+ * gone with its class and its place line); the TOTAL row sums PLANNED MIN and LOGGED MIN under their own columns, over the rows
+ * shown; and nothing stands under the table — the notes and the summary are deleted here (their words stay in ledger.ts, uncalled).
  */
 
 'use client';
@@ -186,24 +190,23 @@ import { localToday } from '@/lib/localToday';
 import type { Read } from '../week/weekReads';
 import { deltaWords } from '../day/dayCard';
 import { readLedger, type LedgerAnswer } from './ledgerReads';
-import ExpenseForm from './ExpenseForm'; import PasteRows from './PasteRows';
+import ExpenseRow, { ExpenseOpen } from './ExpenseForm'; import PasteRows from './PasteRows';
 import LinkPicker from './LinkPicker';
 import RecordForm from './RecordForm';
-import { reversedLinkedWords } from '@/lib/calendar/postingAmount';
-import DataTable, { cellClass as cell, chipClass as chip, headClass as head, moneyClass as money } from '@/components/table/DataTable';
+import DataTable, { cellClass as cell, chipClass as chip, moneyClass as money } from '@/components/table/DataTable';
 import { announceDayWritten } from '../dayWritten';
 import {
-  BY_WORDS, CELL_WORDS, EVERY_BOOK_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_LOADING_WORDS, LEDGER_TABLE, LEDGER_TABLE_CLASS, LEDGER_TITLE_WORDS, LINK_WORDS, NEXT_WORDS, NO_COLUMN_FILTERS,
-  NO_FIRST_RECORD_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
-  accountNameCellWords, actualCellWords, applyColumnFilters, averageStarsWords, bookCellWords, budgetCellWords, codeCellWords, dayFoldClass, dayFoldCount, dayLongWords, dayPlaceWords, daysWords, firstRecordUnplacedWords,
-  ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutTotal, leftOutWords, locationCellWords, matchCellTitle, matchCellWords, matchCoverageWords, matchState, matchTotalWords, noLineWords, noRowsWords,
-  noStayWords, notPlacedWords, notRecordedWords, noteCellWords, notesCount, notesToggleWords, perDayWords, periodOf, periodWords, readableMatchCents, regionWords, sortRows, starsCellWords, stepAnchor,
-  underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords, vendorCellWords,
+  CELL_WORDS, LEDGER_COLUMNS, LEDGER_LOADING_WORDS, LEDGER_TABLE, LEDGER_TABLE_CLASS, LEDGER_TITLE_WORDS, LINK_WORDS, NEXT_WORDS, NO_COLUMN_FILTERS,
+  NO_FIRST_RECORD_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, TOTAL_WORDS,
+  accountNameCellWords, actualCellWords, applyColumnFilters, bookCellWords, budgetCellWords, codeCellWords, dayLongWords, firstRecordUnplacedWords,
+  ledgerCsvFileName, ledgerTotals, locationCellWords, matchCellTitle, matchCellWords, matchState, matchTotalWords, noRowsWords,
+  noteCellWords, periodOf, periodWords, readableMatchCents, regionWords, sortRows, starsCellWords, stepAnchor,
+  underOverWords, varianceCellWords, vendorCellWords,
   endCellWords, endOf, startCellWords, startOf, wentCellWords, wentOf, // TIMESHEET-01 (2026-11-24): the three facts of a sheet row and their cells
-  hoursWords, loggedCoverageWords, minutesCellWords, plannedCoverageWords, // TIME-03 (2026-10-26): the minutes cells, the hours and their coverage
+  minutesCellWords, // TIME-03 (2026-10-26): the minutes cells — SHEET-01 (2026-11-28): and the TOTAL row's two sums; the hours and their coverage went with the summary and the notes
   NOT_TYPED_WORDS, accountPillClassOf, bookPillClassOf, type AccountPlaces, // TIMESHEET-03 (2026-11-24): the legend's words, the two pills' classes, and the accounts' places they are toned by
   RECORD_WORDS, type LedgerRecording, PLANNED_ITEMS_TITLE_WORDS, descriptionOf, plannedDescription, tagCellWords, // TIMESHEET-02 (2026-11-24): the chip's word, and a row's entry in the answer's `recording` · TIMESHEET-04b (2026-11-27): the planned cell's title, what DESCRIPTION says of a row and whether it is planned, and the tag's cell
-  type ColumnFilters, type GroupKey, type LedgerColumn, type LedgerSheetRow, type LedgerSort, type MatchState, type Period, type PeriodKind,
+  type ColumnFilters, type LedgerColumn, type LedgerSheetRow, type LedgerSort, type MatchState, type Period, type PeriodKind,
 } from '@/lib/operations/ledger';
 
 // IDIOM-01 (2026-10-24): the chip, head, cell and money classes are the shared table's (DataTable.tsx), imported under the names this file always used.
@@ -224,13 +227,11 @@ export default function LedgerSection() {
   // TIMESHEET-03 (Alex, 2026-11-24, ruling A): TODAY FIRST — the period starts on Day, anchored today (below); 'month' until then. Month, Week and All are one tap away, as before.
   const [kind, setKind] = useState<PeriodKind>('day');
   const [anchor, setAnchor] = useState<string | null>(null);
-  // LEDGER-04: one filter per column (ledger.ts ColumnFilters), the sort (one column, or the ledger's own order), the column whose popover is
-  // open and the notes toggle — React state only, nothing stored. IDIOM-01 (2026-10-24): the ▾ buttons' ref map is DataTable's now; the state stays here.
+  // LEDGER-04: one filter per column (ledger.ts ColumnFilters), the sort (one column, or the ledger's own order) and the column whose popover is
+  // open — React state only, nothing stored. IDIOM-01 (2026-10-24): the ▾ buttons' ref map is DataTable's now; the state stays here. SHEET-01 (2026-11-28): the notes toggle and the summary's grouping went with them.
   const [filters, setFilters] = useState<ColumnFilters>(NO_COLUMN_FILTERS);
   const [sort, setSort] = useState<LedgerSort | null>(null);
   const [openFilter, setOpenFilter] = useState<LedgerColumn | null>(null);
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [by, setBy] = useState<GroupKey>('city');
   // The last answer and the period it was read for; the first record's day rides every answer, so ALL can start from it.
   const [answer, setAnswer] = useState<{ readonly period: Period; readonly read: Read<LedgerAnswer> } | null>(null);
   const [firstRecord, setFirstRecord] = useState<LedgerAnswer['first_record'] | null>(null);
@@ -240,6 +241,8 @@ export default function LedgerSection() {
   const [picking, setPicking] = useState<string | null>(null);
   // TIMESHEET-02 (2026-11-24): the row whose record form is open (its key), or none — its own state, beside the picker's; both may be open. React state only — nothing stored.
   const [entering, setEntering] = useState<string | null>(null);
+  // SHEET-01 (Alex, 2026-11-28): "+ expense" is open — its blank row stands at the top of the table, handed to the shared table as its `first`. Shut at first; React state only.
+  const [adding, setAdding] = useState(false);
   // TIMESHEET-02 (2026-11-24): a read is in flight — said where the loading line stands while the answer already on screen stays drawn.
   const [reading, setReading] = useState(false);
 
@@ -274,23 +277,22 @@ export default function LedgerSection() {
     setFilters(NO_COLUMN_FILTERS);
     setOpenFilter(null);
   }, [period?.from, period?.to]);
-  // TIMESHEET-01 (Alex, 2026-11-24): the table's rows are the answer's `sheet` — every priced line of the period, planned and recorded (its `rows`, the recorded expenses alone, are the home ledger's).
+  // TIMESHEET-01 (Alex, 2026-11-24): the table's rows are the answer's `sheet` — every line of the period (SHEET-01, 2026-11-28: "every priced line" until then), planned and recorded (its `rows`, the recorded expenses alone, are the home ledger's).
   const rows: readonly LedgerSheetRow[] = answer !== null && answer.read.ok ? answer.read.value.sheet : [];
   // TIMESHEET-03 (Alex, 2026-11-24): each account's place among the accounts the active plans use — the answer's `tones`; the ACCOUNT NAME pill is toned by it (ledger.ts accountPillClassOf).
   const tones: AccountPlaces = answer !== null && answer.read.ok ? answer.read.value.tones : {};
   // TIMESHEET-02 (Alex, 2026-11-24): whether each row takes a record, and what its form is given — the answer's `recording`, by the row's key (the read refuses an answer that lacks a row's entry). No row is asked which kind it is.
   const recording: Readonly<Record<string, LedgerRecording>> = answer !== null && answer.read.ok ? answer.read.value.recording : {};
-  // LEDGER-04: the rows filtered (every column, AND across), then sorted — the TOTAL row, the coverage, the summary and the CSV read these.
+  // LEDGER-04: the rows filtered (every column, AND across), then sorted — the TOTAL row and the CSV read these (SHEET-01, 2026-11-28: the coverage and the summary are gone).
   const shown = sortRows(applyColumnFilters(rows, filters), sort);
   const totals = ledgerTotals(shown);
-  const groups = ledgerSummary(shown, by);
   // LEDGER-02: the rows SHOWN as a CSV, named by the period read. IDIOM-01 (2026-10-24): the writing (ledger.ts ledgerCsv = the idiom's tableCsv over
   // LEDGER_TABLE — a Blob, UTF-8, no BOM, an object URL revoked after the click) is DataTable's; this file names the file, and nothing to download until a row is shown.
   const csvPeriod: Period | null = answer !== null && answer.read.ok && shown.length > 0 ? answer.period : null;
   const csv = csvPeriod === null ? null : { name: ledgerCsvFileName(csvPeriod.from, csvPeriod.to) };
 
   return (
-    <section className={dayFoldClass('space-y-1.5 [&_div:has(>[data-ledger-table])]:max-h-[calc(100vh-8rem)] [&_div:has(>[data-ledger-table])]:overflow-y-auto', period)} data-ledger>
+    <section className="space-y-1.5 [&_div:has(>[data-ledger-table])]:max-h-[calc(100vh-8rem)] [&_div:has(>[data-ledger-table])]:overflow-y-auto" data-ledger>
       {/* COALEVELS-01 (2026-11-27), Alex — ONE LINE OF CONTROLS. Here stood, each on a line of its own above the table, the title's block,
           then RETRO-01's "+ expense" (a one-off stop, its vendor and its record for a day; the ledger and that day's card read again) and "+ paste rows from a sheet" beside it.
           They stand at the HEAD of the shared table's controls row now (below, where the period's chips begin), so that one row is all that stands above the table. A leaf that is
@@ -314,15 +316,16 @@ export default function LedgerSection() {
         openFilter={openFilter}
         onOpenFilter={setOpenFilter}
         csv={csv}
+        first={adding ? <ExpenseRow onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} close={() => setAdding(false)} /> : undefined}
         controls={(
-          <><h2 className="text-sm font-bold text-brand-purple" data-ledger-title>{LEDGER_TITLE_WORDS}</h2><ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} /><span className="h-4 w-px bg-border" aria-hidden="true" />
+          <><h2 className="text-sm font-bold text-brand-purple" data-ledger-title>{LEDGER_TITLE_WORDS}</h2><ExpenseOpen open={adding} onToggle={() => setAdding((open) => !open)} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} /><span className="h-4 w-px bg-border" aria-hidden="true" />
             {PERIOD_KINDS.map((k) => (
               <button key={k} type="button" className={kind === k ? chipOn : chip} onClick={() => setKind(k)} data-ledger-period={k} aria-pressed={kind === k}>{PERIOD_WORDS[k]}</button>
             ))}
             <button type="button" className={chip} disabled={kind === 'all' || anchor === null} onClick={() => anchor !== null && setAnchor(stepAnchor(kind, anchor, -1))} data-ledger-previous aria-label="previous">{PREVIOUS_WORDS}</button>
             <input type="date" value={anchor ?? ''} disabled={kind === 'all'} onChange={(e) => { if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) setAnchor(e.target.value); }} className="px-1.5 py-0.5 border border-border rounded text-xs" data-ledger-anchor />
             <button type="button" className={chip} disabled={kind === 'all' || anchor === null} onClick={() => anchor !== null && setAnchor(stepAnchor(kind, anchor, 1))} data-ledger-next aria-label="next">{NEXT_WORDS}</button>
-            {period !== null && <span className="font-semibold text-text-secondary" data-ledger-period-words>{periodWords(period)}</span>}{dayPlaceWords(period, rows) !== null && <span className="font-semibold text-text-secondary" data-ledger-day-place>{dayPlaceWords(period, rows)}</span>}
+            {period !== null && <span className="font-semibold text-text-secondary" data-ledger-period-words>{periodWords(period)}</span>}
           </>
         )}
         trailing={(
@@ -379,7 +382,7 @@ export default function LedgerSection() {
               </tr>
               {picking === row.key && (
                 <tr className="border-t border-border" data-ledger-picker={row.key}>
-                  <td colSpan={LEDGER_HEAD_WORDS.length - dayFoldCount(period)} className={cell}>
+                  <td colSpan={LEDGER_COLUMNS.length} className={cell}>
                     <LinkPicker kind={row.address.kind} id={row.address.id} instant={row.address.instant} near={row.day} onChanged={() => setWrites((n) => n + 1)} onClose={() => setPicking(null)} />
                   </td>
                 </tr>
@@ -388,7 +391,7 @@ export default function LedgerSection() {
                   write closes it, reads the span again and announces the day ("+ expense"'s own two); the vendor's box reads the span again and leaves it open. */}
               {entering === row.key && entry.takes && (
                 <tr className="border-t border-border" data-ledger-recording={row.key}>
-                  <td colSpan={LEDGER_HEAD_WORDS.length - dayFoldCount(period)} className={cell}>
+                  <td colSpan={LEDGER_COLUMNS.length} className={cell}>
                     <RecordForm key={row.key} row={row} entry={entry} onWritten={(day) => { setEntering(null); setWrites((n) => n + 1); announceDayWritten(day); }} onVendor={() => setWrites((n) => n + 1)} onClose={() => setEntering(null)} />
                   </td>
                 </tr>
@@ -400,7 +403,13 @@ export default function LedgerSection() {
           <tfoot>
             {/* LEDGER-02 (amended): TOTAL spans the columns before BUDGET (nineteen since COALEVELS-01 (2026-11-27) — REGION, LOCATION, ITEMS and COA sit among them, and one cell follows the five, under NOTES; sixteen since TIMESHEET-04b, 2026-11-27 — INSTAGRAM TAG sits among them; fifteen since TIMESHEET-01, 2026-11-24 — START, END and WENT sit among them; less the columns a single day folds, TIMEDAY-01, 2026-11-24 — ledger.ts dayFoldCount; twelve since TIME-03 — PLANNED MIN and LOGGED MIN sit among them; their sums are the summary's hours, not this row's); VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
             <tr className="border-t border-border font-bold text-text-primary" data-ledger-total>
-              <th scope="row" colSpan={19 - dayFoldCount(period)} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
+              {/* SHEET-01 (Alex, 2026-11-28): the label spans the columns before PLANNED MIN — LEDGER_COLUMNS.indexOf('plannedMinutes'), sixteen, worked out and never typed;
+                  then PLANNED MIN and LOGGED MIN, each its column's sum over the rows shown (ledgerTotals, by any filter; "—" when no row shown carries one); then COA's
+                  cell, empty; then BUDGET … NOTES as before. Nineteen, typed, until then — and the day view's fold took its five off. */}
+              <th scope="row" colSpan={LEDGER_COLUMNS.indexOf('plannedMinutes')} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
+              <td className={`${cell} whitespace-nowrap tabular-nums ${totals.plannedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-total-planned-minutes>{minutesCellWords(totals.plannedMinutes)}</td>
+              <td className={`${cell} whitespace-nowrap tabular-nums ${totals.loggedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-total-logged-minutes>{minutesCellWords(totals.loggedMinutes)}</td>
+              <td className={cell} data-ledger-total-account />
               <td className={`${money} ${totals.budgetCents === null ? BLANK_CLASS : ''}`} data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}</td>
               <td className={`${money} ${totals.actualCents === null ? BLANK_CLASS : totals.varianceCents === null ? '' : varianceTone(totals.varianceCents)}`} data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>
               <td className={`${money} ${varianceTone(totals.varianceCents)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
@@ -418,71 +427,9 @@ export default function LedgerSection() {
         {/* COALEVELS-01 (2026-11-27), Alex — THE TINT'S LEGEND IS ITS SWATCH: it stands in the controls row's trailing now (above), and what it means — ledger.ts NOT_TYPED_WORDS — is its label and its title,
             said on hover. The line of its own it stood on here (TIMESHEET-03, 2026-11-24: the swatch, and the sentence beside it) went with the white space above the table. */}
       </DataTable>
-      {answer !== null && answer.read.ok && (
-        <>
-          {/* LEDGER-04 (Alex, 2026-10-20): THE NOTES — the sentences under the TOTAL row, folded into one toggle closed on every load: "n notes ▸" (notesCount — the lines
-              with something to say; a line whose count is 0 is neither counted nor shown; the TODAY rule and the every-book line shown only when open, never counted). Open, the
-              same words as before, one per line. React state only. */}
-          <div className="text-xs text-text-muted" data-ledger-notes>
-            <button type="button" className="hover:text-text-primary" onClick={() => setNotesOpen(!notesOpen)} aria-expanded={notesOpen} data-ledger-notes-toggle>{notesToggleWords(notesCount(answer.read.value.said, shown.length), notesOpen)}</button>
-            {notesOpen && (
-              <div className="space-y-0.5 mt-1" data-ledger-said>
-                {shown.length > 0 && <p data-ledger-said-variance>{varianceCoverageWords(totals.withVariance, shown.length)}</p>}
-                {shown.length > 0 && <p data-ledger-said-match>{matchCoverageWords(totals.withMatch, shown.length)}</p>}
-                {shown.length > 0 && <p data-ledger-said-planned>{plannedCoverageWords(totals.withPlanned, shown.length)}</p>}
-                {shown.length > 0 && <p data-ledger-said-logged>{loggedCoverageWords(totals.withLogged, shown.length)}</p>}
-                {answer.read.value.said.noLine > 0 && <p data-ledger-said-no-line>{noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)}</p>}
-                {answer.read.value.said.noStay > 0 && <p data-ledger-said-no-stay>{noStayWords(answer.read.value.said.noStay)}</p>}
-                {answer.read.value.said.unplaced.length > 0 && <p data-ledger-said-unplaced>{unplacedWords(answer.read.value.said.unplaced)}</p>}
-                {answer.read.value.said.notRecorded > 0 && <p data-ledger-said-not-recorded>{notRecordedWords(answer.read.value.said.notRecorded)}</p>}
-                {leftOutTotal(answer.read.value.said.leftOut) > 0 && <p data-ledger-said-left-out>{leftOutWords(answer.read.value.said.leftOut)}</p>}
-                {answer.read.value.said.notPlaced > 0 && <p data-ledger-said-not-placed>{notPlacedWords(answer.read.value.said.notPlaced)}</p>}
-                {/* LINK-LAW-01 (ruling C): the linked postings MATCH left out because they were reversed. */}
-                {answer.read.value.said.reversed > 0 && <p data-ledger-said-reversed>{reversedLinkedWords(answer.read.value.said.reversed)}</p>}
-                <p data-ledger-said-today-rule>{TODAY_RULE_WORDS}</p>
-                <p data-ledger-said-every-book>{EVERY_BOOK_WORDS}</p>
-              </div>
-            )}
-          </div>
-          {shown.length > 0 && (
-            <div className="space-y-2" data-ledger-summary>
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="font-semibold text-text-secondary">{SUMMARY_TITLE_WORDS}</span>
-                <span className="text-text-faint">{BY_WORDS}</span>
-                {GROUP_KEYS.map((g) => (
-                  <button key={g} type="button" className={by === g ? chipOn : chip} onClick={() => setBy(g)} data-ledger-by={g} aria-pressed={by === g}>{GROUP_WORDS[g]}</button>
-                ))}
-              </div>
-              <div className="overflow-x-auto border border-border rounded bg-white">
-                <table className="w-full min-w-[48rem] border-collapse text-xs" data-ledger-summary-table>
-                  <thead>
-                    <tr className="text-text-faint uppercase tracking-wide">
-                      <th className={head}>{GROUP_WORDS[by]}</th>
-                      {SUMMARY_HEAD_WORDS.map((h) => <th key={h} className={h === 'STARS' || h === 'DAYS' ? head : `${head} text-right`}>{h}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groups.map((g) => (
-                      <tr key={g.key} className="border-t border-border" data-ledger-group={g.key}>
-                        <td className={`${cell} font-semibold text-text-primary`} data-ledger-group-label>{g.label}</td>
-                        <td className={`${cell} whitespace-nowrap`} data-ledger-group-days>{daysWords(g.days)}</td>
-                        <td className={`${money} ${g.totals.budgetCents === null ? BLANK_CLASS : ''}`} data-ledger-group-budget>{budgetCellWords(g.totals.budgetCents)}</td>
-                        <td className={`${money} ${g.totals.actualCents === null ? BLANK_CLASS : actualTone(g.totals.over)}`} data-ledger-group-actual>{budgetCellWords(g.totals.actualCents)}</td>
-                        <td className={`${money} ${g.totals.over === null ? BLANK_CLASS : actualTone(g.totals.over)}`} data-ledger-group-words>{g.totals.words}</td>
-                        <td className={`${money} ${g.perDayCents === null ? BLANK_CLASS : ''}`} data-ledger-group-per-day>{perDayWords(g.perDayCents)}</td>
-                        <td className={`${cell} whitespace-nowrap ${g.stars === null ? BLANK_CLASS : ''}`} data-ledger-group-stars>{g.stars === null ? starsCellWords(null) : averageStarsWords(g.stars)}</td>
-                        {/* TIME-03 (2026-10-26): the group's minutes as hours to one decimal; "—" when no row of the group carries them. */}
-                        <td className={`${money} ${g.totals.plannedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-group-planned-hours>{hoursWords(g.totals.plannedMinutes)}</td>
-                        <td className={`${money} ${g.totals.loggedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-group-logged-hours>{hoursWords(g.totals.loggedMinutes)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      {/* SHEET-01 (Alex, 2026-11-28): "just one, bad ass table … built like an excel table". THE NOTES stood here (LEDGER-04's toggle, the four coverage lines,
+          the said lines, the TODAY rule, the every-book line) and THE SUMMARY under them (over time, by place and by entity — the groups, their days, sums and hours):
+          both are deleted, with the state only they used. The page is the table; nothing stands under it. Their words stay in ledger.ts, uncalled. */}
     </section>
   );
 }

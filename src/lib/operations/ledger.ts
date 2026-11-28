@@ -318,11 +318,11 @@ import { markLines, type BudgetLine } from '@/lib/budget/report'; import type { 
 import { dayPlanOf, daysOf, type PlanLine, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
 import { shiftDay } from '@/lib/budget/reportView';
 import { deriveAccountString, entityLetter } from '@/lib/accountString';
-import { coveringStay, placeParts, type PlaceParts, type StayRow } from '@/lib/operations/stay';
+import { coveringStay, placeParts, stayInput, type PlaceParts, type StayRow } from '@/lib/operations/stay';
 import { CENTS_MAX, DONE_AT_SKEW_MS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTES_MAX, NOTE_MAX, NOT_RECORDED_WORDS, RATING_WORDS, SKIPPED_WORD, SKIP_REASON_WORDS, amountWords, holdsControl, minutesTypedWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { NOT_A_STOP_RECORD_WORDS, ROLE_SHORT_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
 // TIMESHEET-04b (2026-11-27): the tag as it is printed, with its @ — the vendor rule's one word for it (planVendor.ts imports nothing of this file).
-import { instagramTagWords } from '@/lib/operations/planVendor';
+import { instagramTagWords, readInstagramTag } from '@/lib/operations/planVendor';
 // COALEVELS-01 (2026-11-27): the two rules a row's account levels are read by — a Location's words, codes and reading, and the join of a stop to its sub-account by name (pure leaves; neither imports this file).
 import { LOCATION_CODES, LOCATION_WORDS, readLocationClass, type LocationClass } from '@/lib/operations/locationClass';
 import { subAccountOf, type SubAccountRef } from '@/lib/coa/subAccounts';
@@ -1779,7 +1779,7 @@ export function ledgerCsv(rows: readonly LedgerSheetRow[]): string {
 // stops at its step and is said by name; nothing is retried, nothing is rolled
 // back — what was written is said as written.
 
-export const EXPENSE_FIELDS = ['day', 'time', 'name', 'amount', 'coa', 'book', 'location', 'vendor', 'actual', 'stars', 'note'] as const; // COALEVELS-01 (2026-11-27): LOCATION after the book — ten boxes until then
+export const EXPENSE_FIELDS = ['day', 'time', 'end', 'location', 'coa', 'book', 'name', 'note', 'vendor', 'tag', 'stars', 'logged', 'amount', 'actual', 'notes'] as const; // COALEVELS-01 (2026-11-27): LOCATION after the book — ten boxes until then. SHEET-01 (2026-11-28): fifteen, in the sheet's order — END, INSTAGRAM TAG, LOGGED MIN and NOTES joined; eleven until then
 export type ExpenseField = (typeof EXPENSE_FIELDS)[number];
 
 /** The form's draft — every box a string; vendorId '' and vendorName '' mean no vendor. */
@@ -1797,8 +1797,13 @@ export interface ExpenseDraft {
   readonly actual: string;
   readonly stars: string;
   readonly note: string;
+  /** SHEET-01 (2026-11-28): END ('HH:MM'), INSTAGRAM TAG, NOTES and LOGGED MIN — four boxes more, each blank for none. */
+  readonly end: string;
+  readonly tag: string;
+  readonly notes: string;
+  readonly logged: string;
 }
-export const EMPTY_EXPENSE: ExpenseDraft = { day: '', time: '', name: '', amount: '', coa: '', book: '', location: '', vendorId: '', vendorName: '', actual: '', stars: '', note: '' };
+export const EMPTY_EXPENSE: ExpenseDraft = { day: '', time: '', name: '', amount: '', coa: '', book: '', location: '', vendorId: '', vendorName: '', actual: '', stars: '', note: '', end: '', tag: '', notes: '', logged: '' };
 
 export type ExpenseVendor = { readonly kind: 'none' } | { readonly kind: 'existing'; readonly id: string } | { readonly kind: 'new'; readonly name: string };
 
@@ -1824,6 +1829,14 @@ export interface ExpenseValues {
   readonly note: string | null;
   /** FORM-BOUNDS-01 (2026-11-25): the stop is past the clock handed in by more than the stops rule allows a done time (stopRecord.ts DONE_AT_SKEW_MS) — it is PLANNED, and takes no record yet. */
   readonly ahead: boolean;
+  /** SHEET-01 (2026-11-28): the minutes from START to END (minutesFromTo — across midnight), or null: no END. */
+  readonly minutes: number | null;
+  /** SHEET-01: the vendor's Instagram tag as typed and read (planVendor.ts readInstagramTag), or null. */
+  readonly tag: string | null;
+  /** SHEET-01: the record's NOTES, trimmed, or null. */
+  readonly notes: string | null;
+  /** SHEET-01: the record's LOGGED MIN, or null. */
+  readonly logged: number | null;
 }
 
 export type ExpenseInputResult = { readonly ok: true; readonly value: ExpenseValues } | { readonly ok: false; readonly field: ExpenseField; readonly message: string };
@@ -1832,7 +1845,7 @@ const refuseExpense = (field: ExpenseField, message: string): ExpenseInputResult
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 /** LEDGER-04 (Alex, 2026-10-20): the stop's name is the SUB ACCOUNT NAME and the note the DESCRIPTION — the ledger's own heads; the fields keep their names. COALEVELS-01 (Alex, 2026-11-27): THE FORM SAYS THE SHEET'S WORDS — the name is the TYPE, the account the CATEGORY, the book the ENTITY, the note the ITEMS, and the new box the LOCATION: each the column's own head word (headWordOf), so every sentence built from them follows. 'SUB ACCOUNT NAME', 'COA', 'BOOK' and 'DESCRIPTION', typed here, until then. */
-export const EXPENSE_FIELD_WORDS: Readonly<Record<ExpenseField, string>> = { day: 'DAY', time: 'TIME', name: headWordOf('subAccountName'), amount: 'AMOUNT', coa: headWordOf('accountName'), book: headWordOf('book'), location: headWordOf('location'), vendor: 'VENDOR', actual: 'ACTUAL', stars: 'STARS', note: headWordOf('description') };
+export const EXPENSE_FIELD_WORDS: Readonly<Record<ExpenseField, string>> = { day: headWordOf('date'), time: headWordOf('start'), end: headWordOf('end'), location: headWordOf('location'), coa: headWordOf('accountName'), book: headWordOf('book'), name: headWordOf('subAccountName'), note: headWordOf('description'), vendor: headWordOf('vendor'), tag: headWordOf('instagramTag'), stars: headWordOf('stars'), logged: headWordOf('loggedMinutes'), amount: headWordOf('budget'), actual: headWordOf('actual'), notes: headWordOf('notes') }; // SHEET-01 (Alex, 2026-11-28): EVERY BOX BY ITS COLUMN'S OWN HEAD WORD — DATE, START, END, … NOTES; DAY, TIME, AMOUNT, VENDOR, ACTUAL and STARS typed until then
 /** COALEVELS-01 (2026-11-27): the Location's choices, for the form that asks it — the rule file's own (locationClass.ts), read here so the form names one home for its words. */
 export { LOCATION_CLASSES, LOCATION_WORDS } from '@/lib/operations/locationClass';
 /** COALEVELS-01 (2026-11-27): the LOCATION box's first choice — none: the stop says no Location. The sheet's own marker for a blank. */
@@ -1880,7 +1893,7 @@ export const ACTUAL_RANGE_WORDS = `${EXPENSE_FIELD_WORDS.actual} is at most ${fo
 /** DESCRIPTION holding a control character or a surrogate half with no partner — both forms. */
 export const NOTE_CONTROL_WORDS = `${EXPENSE_FIELD_WORDS.note} holds a control character — type it again without it`;
 /** A box of the record, typed in "+ expense" for a stop still ahead. */
-export const aheadFieldWords = (field: 'actual' | 'stars' | 'note'): string => `${EXPENSE_FIELD_WORDS[field]} is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come`;
+export const aheadFieldWords = (field: 'actual' | 'stars' | 'note' | 'notes' | 'logged'): string => `${EXPENSE_FIELD_WORDS[field]} is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come`; // SHEET-01 (2026-11-28): NOTES and LOGGED MIN too
 
 // ── PASTE-03 (Alex, 2026-11-28): A STOP WITH NO TIME IS A CHARGE ON ITS DATE ──
 //
@@ -1893,7 +1906,7 @@ export const aheadFieldWords = (field: 'actual' | 'stars' | 'note'): string => `
 // are each refused by name before that box's own reading (chargeFieldWords), and the form never asks the record (ExpenseForm.tsx —
 // the step is said as 'charge'). Its vendor is planned as any stop's. A typed TIME is read as it was.
 /** A box of the record, typed in "+ expense" with no TIME — a charge on its date. */
-export const chargeFieldWords = (field: 'actual' | 'stars' | 'note'): string => `${EXPENSE_FIELD_WORDS[field]} is the record's, and with no TIME this is a charge on its date — it takes no record; give it a TIME, or leave this blank`;
+export const chargeFieldWords = (field: 'actual' | 'stars' | 'note' | 'notes' | 'logged'): string => `${EXPENSE_FIELD_WORDS[field]} is the record's, and with no ${EXPENSE_FIELD_WORDS.time} this is a charge on its date — it takes no record; give it a ${EXPENSE_FIELD_WORDS.time}, or leave this blank`; // SHEET-01 (2026-11-28): NOTES and LOGGED MIN too, and the box named by its word — START; TIME until then
 
 /** Dollars typed → cents by the Budget's own rule, or the words. */
 function centsOf(typed: string): { readonly ok: true; readonly cents: number } | { readonly ok: false; readonly message: string } {
@@ -1970,11 +1983,45 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
   if (note !== '' && ahead) return refuseExpense('note', aheadFieldWords('note'));
   if (holdsControl(note)) return refuseExpense('note', NOTE_CONTROL_WORDS);
   if (note.length > NOTE_MAX) return refuseExpense('note', NOTE_LONG_WORDS);
+  // SHEET-01 (Alex, 2026-11-28): FOUR BOXES MORE, after ITEMS, in this order — each blank for none, each refused by name.
+  // END: typed with no START (a charge has no clock), or not HH:MM, refused; the minutes from START to END across midnight (minutesFromTo); none, refused.
+  let minutes: number | null = null;
+  if (draft.end.trim() !== '') {
+    if (allDay) return refuseExpense('end', END_NEEDS_START_WORDS);
+    if (!TIME_RE.test(draft.end)) return refuseExpense('end', timeTypedWords(draft.end));
+    minutes = minutesFromTo(draft.time, draft.end);
+    if (minutes === 0) return refuseExpense('end', END_AT_START_WORDS);
+  }
+  // INSTAGRAM TAG: the vendor's — typed with no VENDOR, refused; else the directory's own reading (planVendor.ts readInstagramTag), its words.
+  let tag: string | null = null;
+  if (draft.tag.trim() !== '') {
+    if (vendor.kind === 'none') return refuseExpense('tag', TAG_NEEDS_VENDOR_WORDS);
+    const read = readInstagramTag(draft.tag);
+    if (!read.ok) return refuseExpense('tag', read.message);
+    tag = read.tag;
+  }
+  // NOTES: trimmed, spaces one — the record's: refused for a charge and for a stop ahead; then the record form's own reading, controls, then length.
+  const notes = draft.notes.trim().replace(/\s+/g, ' ');
+  if (notes !== '' && allDay) return refuseExpense('notes', chargeFieldWords('notes'));
+  if (notes !== '' && ahead) return refuseExpense('notes', aheadFieldWords('notes'));
+  if (holdsControl(notes)) return refuseExpense('notes', NOTES_CONTROL_WORDS);
+  if (notes.length > NOTES_MAX) return refuseExpense('notes', NOTES_LONG_WORDS);
+  // LOGGED MIN: the record's — refused for a charge and for a stop ahead; then the record form's own reading: a whole number, at most MINUTES_MAX.
+  let logged: number | null = null;
+  if (draft.logged.trim() !== '') {
+    if (allDay) return refuseExpense('logged', chargeFieldWords('logged'));
+    if (ahead) return refuseExpense('logged', aheadFieldWords('logged'));
+    if (!/^\d+$/.test(draft.logged.trim())) return refuseExpense('logged', minutesTypedWords(draft.logged));
+    const typed = Number(draft.logged.trim());
+    if (typed > MINUTES_MAX) return refuseExpense('logged', MINUTES_RANGE_WORDS);
+    logged = typed;
+  }
   return {
     ok: true,
     value: {
       day: draft.day, time: allDay ? '' : draft.time, allDay, zone, instant: instant.toISOString(),
       name, amount, coa, bookId: draft.book, location: location.value, vendor, actualCents, rating, note: note === '' ? null : note, ahead,
+      minutes, tag, notes: notes === '' ? null : notes, logged,
     },
   };
 }
@@ -1995,22 +2042,22 @@ export const oneOffBody = (v: ExpenseValues): RoutineForm => ({
 export const vendorBody = (v: ExpenseValues, lineId: string, vendorId: string): { readonly kind: 'routine_line'; readonly id: string; readonly instant: string; readonly vendorId: string } =>
   ({ kind: 'routine_line', id: lineId, instant: v.instant, vendorId });
 
-/** The stops POST's body: the line's record at its occurrence — done at the stop's own instant, the actual, the stars, the note. TIMESHEET-04b (2026-11-27): it SAYS its notes — null: "+ expense" has no NOTES box. */
+/** The stops POST's body: the line's record at its occurrence — done at the stop's own instant, the actual, the stars, the note. TIMESHEET-04b (2026-11-27): it SAYS its notes — null: "+ expense" has no NOTES box. SHEET-01 (2026-11-28): it has — NOTES and LOGGED MIN ride the record. */
 export const recordBody = (v: ExpenseValues, lineId: string): StopBody =>
-  ({ kind: 'routine_line', id: lineId, instant: v.instant, outcome: 'done', done_at: v.instant, actual_cents: v.actualCents, rating: v.rating, note: v.note, notes: null, actual_minutes: null });
+  ({ kind: 'routine_line', id: lineId, instant: v.instant, outcome: 'done', done_at: v.instant, actual_cents: v.actualCents, rating: v.rating, note: v.note, notes: v.notes, actual_minutes: v.logged });
 
 // The outcome: one line per step, each said by name.
-export const EXPENSE_STEPS = ['stop', 'line', 'directory', 'vendor', 'record'] as const;
+export const EXPENSE_STEPS = ['trip', 'stop', 'line', 'minutes', 'directory', 'vendor', 'tag', 'record'] as const; // SHEET-01 (2026-11-28): eight — the trip first, END's minutes after the line, the tag after the vendor; five until then
 export type ExpenseStep = (typeof EXPENSE_STEPS)[number];
-export type ExpenseState = 'written' | 'failed' | 'not tried' | 'not asked' | 'ahead' | 'charge'; // FORM-BOUNDS-01 (2026-11-25): 'ahead' — the record of a stop still ahead: planned, not asked. PASTE-03 (2026-11-28): 'charge' — the record of a charge on its date: it takes none, never asked
+export type ExpenseState = 'written' | 'failed' | 'not tried' | 'not asked' | 'ahead' | 'charge' | 'stands'; // FORM-BOUNDS-01 (2026-11-25): 'ahead' — the record of a stop still ahead: planned, not asked. PASTE-03 (2026-11-28): 'charge' — the record of a charge on its date: it takes none, never asked. SHEET-01 (2026-11-28): 'stands' — what stands already is not written over; the outcome says it in its own words
 export interface ExpenseOutcome {
   readonly step: ExpenseStep;
   readonly state: ExpenseState;
-  /** The route's words on a failure; '' otherwise. */
+  /** The route's words on a failure, or what stands (SHEET-01: 'stands'); '' otherwise. */
   readonly words: string;
 }
 export const STEP_WORDS: Readonly<Record<ExpenseStep, string>> = {
-  stop: 'the one-off stop', line: "the stop's line, read back", directory: 'the vendor, added to the book', vendor: 'the vendor, on the stop', record: 'the record',
+  trip: 'the trip — the place of every row on its days', stop: 'the one-off stop', line: "the stop's line, read back", minutes: "the stop's END", directory: 'the vendor, added to the book', vendor: 'the vendor, on the stop', tag: "the vendor's Instagram tag", record: 'the record', // SHEET-01 (2026-11-28): the trip, END's minutes and the tag
 };
 export const WRITTEN_WORDS = 'written';
 export const NOT_TRIED_WORDS = 'not tried — stopped at the failure before it';
@@ -2020,13 +2067,78 @@ export const RECORD_AHEAD_WORDS = 'not asked — this stop is still ahead; recor
 /** PASTE-03 (2026-11-28): the record step of a charge on its date — it reads "the record — a charge on its date takes no record". */
 export const RECORD_CHARGE_WORDS = 'a charge on its date takes no record';
 export const outcomeWords = (o: ExpenseOutcome): string =>
-  `${STEP_WORDS[o.step]} — ${o.state === 'written' ? WRITTEN_WORDS : o.state === 'not tried' ? NOT_TRIED_WORDS : o.state === 'not asked' ? NOT_ASKED_WORDS : o.state === 'ahead' ? RECORD_AHEAD_WORDS : o.state === 'charge' ? RECORD_CHARGE_WORDS : `not written: ${o.words}`}`;
-/** Every step after a failure, not tried — so the list always names all five. */
+  `${STEP_WORDS[o.step]} — ${o.state === 'written' ? WRITTEN_WORDS : o.state === 'not tried' ? NOT_TRIED_WORDS : o.state === 'not asked' ? NOT_ASKED_WORDS : o.state === 'ahead' ? RECORD_AHEAD_WORDS : o.state === 'charge' ? RECORD_CHARGE_WORDS : o.state === 'stands' ? o.words : `not written: ${o.words}`}`;
+/** Every step after a failure, not tried — so the list always names every step (SHEET-01: eight; five until then). */
 export const withNotTried = (done: readonly ExpenseOutcome[]): ExpenseOutcome[] => {
   const said = new Set(done.map((o) => o.step));
   return [...done, ...EXPENSE_STEPS.filter((step) => !said.has(step)).map((step): ExpenseOutcome => ({ step, state: 'not tried', words: '' }))];
 };
 export const expenseLandedWords = (day: string): string => `the expense is on ${dayShortWords(day)}'s card and in the ledger`;
+
+// ── SHEET-01 (Alex, 2026-11-28): "+ EXPENSE" IS THE SHEET'S BLANK ROW ─────────────────
+//
+// "the add expense should have a field to add data to all columns... as they are". The form is a blank row at the top of the time
+// sheet (ledger/ExpenseForm.tsx ExpenseRow), a box under every column he types and the rule's own words under the rest. Here: the
+// one arithmetic of a row's minutes, START to END (minutesFromTo — expenseInput's END reads it; rowPlannedMinutes fills PLANNED MIN
+// as he types); the row's TRIP — on a date no trip covers, CITY · REGION · COUNTRY are boxes and saving writes that trip first,
+// from the date to TRIP ENDS (rowTripInput reads them by stay.ts stayInput's own place rule; a trip is a stay); and the words.
+/** The minutes from START to END, both HH:MM, across midnight: ((end − start) + 1440) % 1440. A clock that is not HH:MM is this file's error, thrown by name. */
+export const minutesFromTo = (start: string, end: string): number => {
+  const at = (clock: string): number => { const m = TIME_RE.exec(clock); if (m === null) throw new Error(`ledger: ${JSON.stringify(clock)} is not a time (HH:MM)`); return Number(m[1]) * 60 + Number(m[2]); };
+  return ((at(end) - at(start)) + 1440) % 1440;
+};
+/** PLANNED MIN as he types: START and END both HH:MM and not the same → their minutes; else null. */
+export const rowPlannedMinutes = (draft: Pick<ExpenseDraft, 'time' | 'end'>): number | null => (TIME_RE.test(draft.time) && TIME_RE.test(draft.end) && draft.time !== draft.end ? minutesFromTo(draft.time, draft.end) : null);
+/** The row's trip, as typed: its place's three parts and the day it ends — each box a string. */
+export interface RowTripDraft {
+  readonly city: string;
+  readonly region: string;
+  readonly country: string;
+  readonly endsOn: string;
+}
+export const EMPTY_ROW_TRIP: RowTripDraft = { city: '', region: '', country: '', endsOn: '' };
+export type RowTripField = keyof RowTripDraft;
+/** None typed; a trip to add — its place and its two days; or the first box refused, by name. */
+export type RowTripRead = { readonly kind: 'none' } | { readonly kind: 'add'; readonly place: string; readonly startsOn: string; readonly endsOn: string } | { readonly kind: 'refused'; readonly field: RowTripField; readonly message: string };
+export const TRIP_ENDS_WORDS = 'TRIP ENDS';
+export const PLACE_NEEDS_CITY_WORDS = `a trip's place starts with its ${headWordOf('city')}`;
+export const REGION_NEEDS_COUNTRY_WORDS = `${headWordOf('region')} needs its ${headWordOf('country')} — a place of two parts reads as a city and a country`;
+export const tripEndsBeforeWords = (day: string, endsOn: string): string => `${TRIP_ENDS_WORDS} ${endsOn} is before the row's ${headWordOf('date')} ${day}`;
+/**
+ * The row's trip, read: each box trimmed, its spaces one. None typed → none. CITY blank with another typed → refused on CITY; REGION
+ * with no COUNTRY → refused on COUNTRY (stay.ts placeParts reads a place of two parts as a city and a country); TRIP ENDS not a day,
+ * or before DATE → refused on TRIP ENDS; then the place — the typed parts joined by ", " — by stay.ts stayInput, its words on CITY.
+ * The day is the row's DATE, read already; one that is not a day is this file's error, thrown by name.
+ */
+export function rowTripInput(trip: RowTripDraft, day: string): RowTripRead {
+  if (!isIsoDay(day)) throw new Error(`ledger: the row's trip is read for a day — ${JSON.stringify(day)} is not one`);
+  const clean = (box: string): string => box.trim().replace(/\s+/g, ' ');
+  const city = clean(trip.city);
+  const region = clean(trip.region);
+  const country = clean(trip.country);
+  if (city === '' && region === '' && country === '') return { kind: 'none' };
+  if (city === '') return { kind: 'refused', field: 'city', message: PLACE_NEEDS_CITY_WORDS };
+  if (region !== '' && country === '') return { kind: 'refused', field: 'country', message: REGION_NEEDS_COUNTRY_WORDS };
+  const endsOn = trip.endsOn.trim();
+  if (!isIsoDay(endsOn)) return { kind: 'refused', field: 'endsOn', message: dayTypedWords(trip.endsOn) };
+  if (endsOn < day) return { kind: 'refused', field: 'endsOn', message: tripEndsBeforeWords(day, endsOn) };
+  const stay = stayInput({ place: [city, region, country].filter((part) => part !== '').join(', '), starts_on: day, ends_on: endsOn });
+  if (!stay.ok) return { kind: 'refused', field: 'city', message: stay.message };
+  return { kind: 'add', place: stay.value.place, startsOn: day, endsOn };
+}
+export const ROW_TRIP_FIELD_WORDS: Readonly<Record<RowTripField, string>> = { city: headWordOf('city'), region: headWordOf('region'), country: headWordOf('country'), endsOn: TRIP_ENDS_WORDS };
+/** The trip covering the row's DATE, said under the row and on its three cells. */
+export const coveringTripWords = (stay: StayRow): string => `TRIP ${stay.place} · ${stay.starts_on} → ${stay.ends_on}`;
+export const noTripRowWords = (day: string): string => `no trip covers ${day} — a ${headWordOf('city')} typed in the row is written as a trip, ${day} to`;
+/** The five cells the rule works out once the row is saved — WENT, COA, VARIANCE, MATCH, UNDER / OVER: the sheet's blank, and why. */
+export const ROW_LATER_MARK = BLANK;
+export const ROW_LATER_WORDS = 'filled when the row is saved — the rule works it out, as on every row';
+/** The four new boxes' refusals and what a tag that stands says — typed whole. */
+export const END_NEEDS_START_WORDS = 'END needs a START — with no START this is a charge on its date, and a charge has no clock';
+export const END_AT_START_WORDS = 'END is START — give the stop a length, or leave END blank';
+export const TAG_NEEDS_VENDOR_WORDS = "an INSTAGRAM TAG is the vendor's — pick a VENDOR or name a new one";
+export const TAG_STANDS_WORDS = (tag: string): string => `not written — the vendor already carries ${instagramTagWords(tag)}`;
+export const TAG_SAME_WORDS = (tag: string): string => `${instagramTagWords(tag)} — already the vendor's`;
 
 export const EXPENSE_WORDS = '+ expense';
 export const EXPENSE_TITLE_WORDS = 'an expense on a day — a one-off stop, its vendor, its record: three writes, each said';
@@ -2208,57 +2320,8 @@ export const NO_READABLE_AMOUNT_WORDS = 'no readable amount';
 export const postingAmountWords = (cents: number | null): string => (cents === null ? NO_READABLE_AMOUNT_WORDS : formatCents(cents));
 export const postingDateWords = (date: string | null): string => (date === null ? BLANK : date);
 
-// ── TIMEDAY-01 (Alex, 2026-11-24): THE DAY VIEW IS A DAY ─────────────────────
-//
-// "i sent what I want the table to look like and its not the same we agreed?" — and his standing word:
-// "Its hard to think if I cant see everything". On ONE day, DAY, DATE, CITY and COUNTRY say the same thing on every row: the day and
-// its place go in the line above the table, and those four columns leave the screen — on that view only. A period of one day is one
-// whose `from` is its `to`, whatever chip it was reached by; Week, Month and All draw every column and read the period alone, as they
-// did.
-//   The four are folded by a CLASS set on an element above the table (ledger/LedgerSection.tsx — its <section>): the cells stay in the
-// document and the class takes them off the screen. So the shared table (components/table/DataTable.tsx) is handed the same twenty-one
-// columns on every view — its CSV, built from them, is what it was — and its file is not edited. A head cell is found by its own sort
-// button (data-ledger-sort is the column's key, and every head has one), a body cell by its data-ledger-cell. The rows beneath a row
-// and the TOTAL's label span the columns still shown (dayFoldCount).
-//   The place is worked from the rows the page already holds — never asked for, never guessed. Every row carries its day's covering
-// stay (ledgerOf: coveringStay → placeParts), so the rows of one day agree; with no row of that day, a row with no place, or two rows
-// that differ, there are no words and the line reads the day alone.
-//   This block stands above the table's class so that class stays the file's last export and last line; its code names no other
-// block's class.
-
-/** The columns a single day folds, in the sheet's own order — keys of LEDGER_COLUMNS, never head words. All sit before BUDGET. COALEVELS-01 (2026-11-27): FIVE — region after city, the place's middle part folding with the place; four until then. */
-export const DAY_FOLD_COLUMNS: readonly LedgerColumn[] = ['day', 'date', 'city', 'region', 'country'];
-/** A period of ONE day: its `from` is its `to`, whatever chip it was reached by. No period (null) is not one. */
-export const isOneDay = (period: Period | null): boolean => period !== null && period.from === period.to;
-/**
- * The class that takes them off the screen — ten variants (COALEVELS-01 (2026-11-27): region's two; eight until then), a head cell and a body cell for each column, each `display: none`
- * on a th that holds that column's sort button or a td that is that column's cell. Typed WHOLE on one line: tailwind scans src/lib for
- * whole class strings (tailwind.config.ts), and a class assembled from parts is never compiled.
- */
-export const DAY_FOLD_CLASS = '[&_th:has([data-ledger-sort=day])]:hidden [&_th:has([data-ledger-sort=date])]:hidden [&_th:has([data-ledger-sort=city])]:hidden [&_th:has([data-ledger-sort=region])]:hidden [&_th:has([data-ledger-sort=country])]:hidden [&_td[data-ledger-cell=day]]:hidden [&_td[data-ledger-cell=date]]:hidden [&_td[data-ledger-cell=city]]:hidden [&_td[data-ledger-cell=region]]:hidden [&_td[data-ledger-cell=country]]:hidden';
-/** An element's own class as handed in; on one day, that class, one space, DAY_FOLD_CLASS. Never a trailing space. */
-export const dayFoldClass = (own: string, period: Period | null): string => (isOneDay(period) ? `${own} ${DAY_FOLD_CLASS}` : own);
-/** How many columns the period folds: every one of DAY_FOLD_COLUMNS on one day, none otherwise. */
-export const dayFoldCount = (period: Period | null): number => (isOneDay(period) ? DAY_FOLD_COLUMNS.length : 0);
-/**
- * The day's place as the line above the table prints it — '· City, Country', or '· City' when the stay names no country — or null.
- * COALEVELS-01 (2026-11-27): '· City, Region, Country' when the stay's place names a region — and the day's rows must share it too.
- * It reads ONLY the sheet rows whose `day` is the period's day (the answer of the period before can still be in hand for one render:
- * a row of another day is never read). There are words only when at least one such row stands and every one holds the same place —
- * the same city, the same region and the same country, a null region and a null country each being a value. No such row, a row whose place is null, two rows that differ, a
- * period that is not one day, or no period → null. Nothing stands in for it.
- */
-export function dayPlaceWords(period: Period | null, rows: readonly LedgerSheetRow[]): string | null {
-  if (period === null || !isOneDay(period)) return null;
-  const ofDay = rows.filter((row) => row.day === period.from);
-  if (ofDay.length === 0) return null;
-  const place = ofDay[0].place;
-  if (place === null) return null;
-  for (const row of ofDay) {
-    if (row.place === null || row.place.city !== place.city || row.place.region !== place.region || row.place.country !== place.country) return null;
-  }
-  return `· ${[place.city, place.region, place.country].filter((part): part is string => part !== null).join(', ')}`;
-}
+// SHEET-01 (Alex, 2026-11-28): THE DAY VIEW FOLDS NOTHING — the TIMEDAY-01 block stood here (DAY_FOLD_COLUMNS, isOneDay, DAY_FOLD_CLASS,
+// dayFoldClass, dayFoldCount, dayPlaceWords) and is deleted: every view draws the same twenty-five columns.
 
 // ── TIMEWIDE-01 (Alex, 2026-11-24): THE SHEET'S TABLE CLASS ──────────────────
 //

@@ -43,15 +43,7 @@ const EXPENSE_FORM = 'src/components/workbench/operations/ledger/ExpenseForm.tsx
 const STOP_FORM = 'src/components/workbench/operations/stops/StopForm.tsx';
 const REGISTRY = 'src/lib/toolRegistry.ts';
 
-/** Each step found AFTER the one before it — a step that is missing, or out of order, fails by name. */
-function inOrder(body: string, steps: readonly string[], what: string): void {
-  let at = 0;
-  for (const stepText of steps) {
-    const i = body.indexOf(stepText, at);
-    assert.notEqual(i, -1, `${what}: ${JSON.stringify(stepText)} comes after the step before it`);
-    at = i + stepText.length;
-  }
-}
+/** SHEET-01 (2026-11-28): the one order this file pinned — the notes after the table, in their order — is pinned gone now; its helper went with it. */
 
 // ── THE FIXTURE: five rows in the ledger's own shape and order (newest day first) ──
 
@@ -93,7 +85,7 @@ test('R1 the heads: TYPE (COALEVELS-01, 2026-11-27 — SUB ACCOUNT NAME since LE
   // The "+ expense" form's labels — the ledger's own heads for the stop's name and the note; the refusal names the field by its label. COALEVELS-01 (2026-11-27): THE FORMS SAY THE SHEET'S WORDS — TYPE and ITEMS; SUB ACCOUNT NAME and DESCRIPTION until then.
   assert.deepEqual([EXPENSE_FIELD_WORDS.name, EXPENSE_FIELD_WORDS.note], ['TYPE', 'ITEMS']);
   assert.equal(requiredWords('name'), 'TYPE is required');
-  assert.match(code(EXPENSE_FORM), /<span className=\{label\}>\{EXPENSE_FIELD_WORDS\[name\]\}<\/span>/, 'the form prints the one map');
+  assert.match(code(EXPENSE_FORM), /aria-label=\{EXPENSE_FIELD_WORDS\.name\}/, 'the form labels each box by the one map'); assert.match(code(EXPENSE_FORM), /aria-label=\{EXPENSE_FIELD_WORDS\.note\}/); // SHEET-01 (2026-11-28): a box's label is its aria-label — the row prints no word beside its boxes; the printed label until then
   // The stop form's note box: the aria-label says Description; its placeholder words are the role's, unchanged.
   const stop = code(STOP_FORM);
   assert.match(stop, /placeholder=\{draft\.outcome === 'skipped' \? 'why — required' : NOTE_PROMPT_WORDS\[role\]\} aria-label="Description" className=\{`\$\{box\} w-56`\} maxLength=\{280\} data-stop-note \/>/);
@@ -291,10 +283,10 @@ test('the section: no dropdown; every header a sort button and a ▾; one popove
   assert.doesNotMatch(s, /<select|<option|FILTER_KEYS|choicesOf|filterRows|NO_FILTERS/, 'the three dropdowns are gone');
   assert.doesNotMatch(s, /\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie/, 'nothing fetched here, nothing stored');
   assert.doesNotMatch(t, /\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie|operations\/ledger/, 'the shared table fetches nothing, stores nothing, and knows no ledger');
-  assert.match(s, /const \[filters, setFilters\] = useState<ColumnFilters>\(NO_COLUMN_FILTERS\);\n\s*const \[sort, setSort\] = useState<LedgerSort \| null>\(null\);\n\s*const \[openFilter, setOpenFilter\] = useState<LedgerColumn \| null>\(null\);\n\s*const \[notesOpen, setNotesOpen\] = useState\(false\);/, 'React state only: the filters, the sort, the column open, the toggle — closed at first');
+  assert.match(s, /const \[filters, setFilters\] = useState<ColumnFilters>\(NO_COLUMN_FILTERS\);\n\s*const \[sort, setSort\] = useState<LedgerSort \| null>\(null\);\n\s*const \[openFilter, setOpenFilter\] = useState<LedgerColumn \| null>\(null\);/, 'React state only: the filters, the sort, the column open'); assert.doesNotMatch(s, /notesOpen|setNotesOpen/, 'no notes toggle — the notes are gone'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
   assert.match(t, /const filterButtons = useRef\(new Map<Key, HTMLButtonElement>\(\)\);/, 'the ▾ buttons in a ref map — the table’s, where the buttons render');
   assert.match(s, /<DataTable\n\s*name="ledger"\n\s*columns=\{LEDGER_TABLE\}\n\s*rows=\{rows\}\n\s*shown=\{shown\}\n\s*loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName=\{LEDGER_TABLE_CLASS\}\n\s*filters=\{filters\}\n\s*onFilters=\{setFilters\}\n\s*noFilters=\{NO_COLUMN_FILTERS\}\n\s*sort=\{sort\}\n\s*onSort=\{setSort\}\n\s*openFilter=\{openFilter\}\n\s*onOpenFilter=\{setOpenFilter\}\n\s*csv=\{csv\}/, 'the ledger’s name, its spec, the rows loaded and shown, its width, and the state handed in — controlled'); // TIMEWIDE-01 (Alex, 2026-11-24): the table's class is the rule file's LEDGER_TABLE_CLASS — its floor still min-w-[96rem], and its head cells may wrap (timewide01.test.ts); `tableClassName="min-w-[96rem]"` until then
-  assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/, 'filtered, then sorted; the totals and the summary follow');
+  assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n/, 'filtered, then sorted; the totals and the summary follow'); // SHEET-01 (2026-11-28): the totals follow the rows shown; the summary's groups are gone (no ledgerSummary, no `by`)
   assert.match(t, /new Blob\(\[tableCsv\(columns, shown\)\]/, 'the CSV in the shown order — the idiom’s writer over the spec (ledgerCsv is the same call: idiom01.test.ts)');
   // The filters reset when the period changes — its own effect; the read effect (a write re-reads the same period) no longer touches them.
   assert.match(s, /useEffect\(\(\) => \{\n\s*setFilters\(NO_COLUMN_FILTERS\);\n\s*setOpenFilter\(null\);\n\s*\}, \[period\?\.from, period\?\.to\]\);/);
@@ -316,7 +308,7 @@ test('the section: no dropdown; every header a sort button and a ▾; one popove
   assert.match(t, /\{openFilter !== null && popover\(openFilter\)\}/);
   assert.match(t, /const closeFilter = useCallback\(\(\) => onOpenFilter\(null\), \[onOpenFilter\]\);/);
   assert.equal((t.match(/<ColumnFilter /g) ?? []).length, 3, 'one mount per kind, one open at a time');
-  assert.match(t, /\{loaded && rows\.length > 0 && \(\n\s*<div className="overflow-x-auto border border-border rounded bg-white">\n\s*<table className=\{`w-full \$\{tableClassName\} border-collapse text-xs`\} \{\.\.\.dataAttr\(name, 'table'\)\}>/, 'the table — its headers hold the filters — stays while rows are loaded, even when a filter leaves none shown');
+  assert.match(t, /\{loaded && \(rows\.length > 0 \|\| first !== undefined\) && \(\n\s*<div className="overflow-x-auto border border-border rounded bg-white">\n\s*<table className=\{`w-full \$\{tableClassName\} border-collapse text-xs`\} \{\.\.\.dataAttr\(name, 'table'\)\}>/, 'the table — its headers hold the filters — stays while rows are loaded, even when a filter leaves none shown, and while a first row is given'); // SHEET-01 (2026-11-28): DataTable's one new prop — the table stands for a first row with no row loaded
   assert.match(t, /\{loaded && rows\.length > 0 && shown\.length === 0 && <div className="text-xs text-text-muted" \{\.\.\.dataAttr\(name, 'none-shown'\)\}>\{NO_ROWS_SHOWN_WORDS\}<\/div>\}/, 'and says no row matches');
   // "clear filters" beside "download CSV", only while a filter is on.
   assert.match(t, /\{\.\.\.dataAttr\(name, 'csv'\)\}>\{CSV_DOWNLOAD_WORDS\}<\/button>\n\s*\{anyFilterOn\(columns, filters\) && <button type="button" className=\{chipClass\} onClick=\{\(\) => onFilters\(noFilters\)\} \{\.\.\.dataAttr\(name, 'clear-filters'\)\}>\{CLEAR_FILTERS_WORDS\}<\/button>\}/);
@@ -325,9 +317,9 @@ test('the section: no dropdown; every header a sort button and a ▾; one popove
   assert.match(s, /\n\s*<td [^\n]*data-ledger-cell="notes" title=\{row\.notes \?\? undefined\}>\{noteCellWords\(row\.notes\)\}<\/td>\n\s*<\/tr>/); // COALEVELS-01 (2026-11-27): the notes' cell alone on the row's last line — the description's cell stood before it on this line until then. TIMESHEET-04b (2026-11-27): DESCRIPTION prints what descriptionOf says of the row — a plan row's planned items, marked and titled; a recorded row's note
   assert.match(s, /<td className=\{cell\} data-ledger-total-notes \/>\n\s*<\/tr>\n\s*<\/tfoot>/); assert.doesNotMatch(s, /data-ledger-total-description/); // COALEVELS-01 (2026-11-27): the TOTAL row's last cell stands under NOTES — the description's cell left the row (ITEMS is under the label's span)
   // The notes: the toggle under the TOTAL row with the count's words; open, the lines each guarded by its count; the two uncounted lines unguarded.
-  assert.match(s, /<button type="button" className="hover:text-text-primary" onClick=\{\(\) => setNotesOpen\(!notesOpen\)\} aria-expanded=\{notesOpen\} data-ledger-notes-toggle>\{notesToggleWords\(notesCount\(answer\.read\.value\.said, shown\.length\), notesOpen\)\}<\/button>/);
+  assert.doesNotMatch(s, /<button type="button" className="hover:text-text-primary" onClick=\{\(\) => setNotesOpen\(!notesOpen\)\} aria-expanded=\{notesOpen\} data-ledger-notes-toggle>\{notesToggleWords\(notesCount\(answer\.read\.value\.said, shown\.length\), notesOpen\)\}<\/button>/); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
   // IDIOM-01 (Alex, 2026-10-24): the table element is DataTable's — the notes follow its mount in the section, as they followed </table>.
-  inOrder(s, ['</DataTable>', 'data-ledger-notes>', 'data-ledger-notes-toggle', '{notesOpen && (', 'data-ledger-said>',
+  for (const gone of ['data-ledger-notes>', 'data-ledger-notes-toggle', '{notesOpen && (', 'data-ledger-said>', // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
     '{shown.length > 0 && <p data-ledger-said-variance>{varianceCoverageWords(totals.withVariance, shown.length)}</p>}',
     '{shown.length > 0 && <p data-ledger-said-match>{matchCoverageWords(totals.withMatch, shown.length)}</p>}',
     '{answer.read.value.said.noLine > 0 && <p data-ledger-said-no-line>{noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)}</p>}',
@@ -336,8 +328,8 @@ test('the section: no dropdown; every header a sort button and a ▾; one popove
     '{answer.read.value.said.notRecorded > 0 && <p data-ledger-said-not-recorded>{notRecordedWords(answer.read.value.said.notRecorded)}</p>}',
     '{leftOutTotal(answer.read.value.said.leftOut) > 0 && <p data-ledger-said-left-out>{leftOutWords(answer.read.value.said.leftOut)}</p>}',
     '{answer.read.value.said.notPlaced > 0 && <p data-ledger-said-not-placed>{notPlacedWords(answer.read.value.said.notPlaced)}</p>}',
-    '<p data-ledger-said-today-rule>{TODAY_RULE_WORDS}</p>', '<p data-ledger-said-every-book>{EVERY_BOOK_WORDS}</p>', 'data-ledger-summary'], 'the toggle after the table, the lines in their order, the summary after');
-  assert.equal((s.match(/data-ledger-said>/g) ?? []).length, 1, 'one block');
+    '<p data-ledger-said-today-rule>{TODAY_RULE_WORDS}</p>', '<p data-ledger-said-every-book>{EVERY_BOOK_WORDS}</p>', 'data-ledger-summary']) assert.equal(s.includes(gone), false, `${gone} — the notes and the summary are gone`); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
+  assert.equal((s.match(/data-ledger-said>/g) ?? []).length, 0, 'no block'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
   // No sentence of its own.
   const printed = [...s.matchAll(/>\{([^}]+)\}<\//g)].map((m) => m[1]);
   assert.ok(printed.length > 20);

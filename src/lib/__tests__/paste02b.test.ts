@@ -223,11 +223,11 @@ test('T4 the paste, a kind sent to a one-off, an empty time sheet: one Type on t
     readOneOffLine: async (routineId) => ({ ok: true, value: { lineId: `line-of-${routineId}` } }),
     setLineMinutes: async () => ({ ok: true, value: null }),
     addVendor: async () => assert.fail('no row names a vendor'),
-    setVendor: async () => assert.fail('no row names a vendor'), setVendorTag: async () => assert.fail('no row names a tag'), addSubAccount: async () => assert.fail('no addition is handed in'), // COALEVELS-01 (2026-11-27): the stand-in writers are eight
+    setVendor: async () => assert.fail('no row names a vendor'), setVendorTag: async () => assert.fail('no row names a tag'), addSubAccount: async () => assert.fail('no addition is handed in'), addStay: async () => assert.fail('no trip is handed in'), // SHEET-01 (2026-11-28): ten — the stays' writer too, never called here. COALEVELS-01 (2026-11-27): the stand-in writers are eight
     setRecord: async () => ({ ok: true }),
   };
-  assert.equal(saveWords(writes, []), 'save 3 rows — 0 sub-accounts added to the chart · 0 vendors added to a book · 0 vendors set on a stop · 0 tags set on a vendor · 0 stops given planned items · 2 records · 3 one-offs'); // COALEVELS-01 (2026-11-27): the button is handed the additions to the chart — none here — and counts them first, then the tags and the stops given planned items
-  const outcomes = await runPaste(writes, writers, () => undefined, []);
+  assert.equal(saveWords(writes, [], []), 'save 3 rows — 0 trips added · 0 sub-accounts added to the chart · 0 vendors added to a book · 0 vendors set on a stop · 0 tags set on a vendor · 0 stops given planned items · 2 records · 3 one-offs'); // COALEVELS-01 (2026-11-27): the button is handed the additions to the chart — none here — and counts them first, then the tags and the stops given planned items; SHEET-01 (2026-11-28): the trips, handed in — none here
+  const outcomes = await runPaste(writes, writers, () => undefined, [], []); // SHEET-01 (2026-11-28): the trips, handed in — none here
   assert.deepEqual(asked, ['Bowling · 2027-06-12 20:00', 'Bowling · 2027-06-13 20:00', 'Bowling · 2027-06-14 20:00']);
   assert.deepEqual(outcomes.map((outcome) => [outcome.row, outcome.state]), [[2, 'written'], [3, 'written'], [4, 'written']]);
 });
@@ -335,7 +335,7 @@ test('T7 in the source: the dated name stands once, in the one body both callers
   assert.equal(countOf(ledger, /\boneOffRoutineName\b/g), 2, 'declared, and called by the one body — nowhere else in the rule file');
   // The vendor's and the record's bodies are as they were.
   assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, vendorId }\);/);
-  assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, outcome: 'done', done_at: v\.instant, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, notes: null, actual_minutes: null }\);/); // TIMESHEET-04b (2026-11-27): the record's body says "notes: null" after the note — the line without it until then
+  assert.match(ledger, /\({ kind: 'routine_line', id: lineId, instant: v\.instant, outcome: 'done', done_at: v\.instant, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, notes: v\.notes, actual_minutes: v\.logged }\);/); // TIMESHEET-04b (2026-11-27): the record's body says "notes: null" after the note — the line without it until then; SHEET-01 (2026-11-28): NOTES and LOGGED MIN ride the record
   // Both callers still send that one body, and neither names this change: "+ expense"'s form and the save's rule were not edited.
   assert.equal(countOf(code(FORM), /await createOneOff\(oneOffBody\(v\)\);/g), 1);
   assert.equal(countOf(code(SAVE), /await writers\.createOneOff\(oneOffBody\(values\)\);/g), 1);

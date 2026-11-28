@@ -17,7 +17,7 @@ export interface LedgerAnswer {
   /** The caller's earliest record's day, for ALL; its reason when its zone could not be read; null when nothing was recorded. */
   readonly first_record: { readonly day: string } | { readonly words: string } | null;
   readonly rows: readonly LedgerRow[];
-  readonly sheet: readonly LedgerSheetRow[]; // TIMESHEET-01 (Alex, 2026-11-24): the table's rows — every priced line of the period, planned and recorded; `rows` (the recorded expenses) is as it was
+  readonly sheet: readonly LedgerSheetRow[]; // TIMESHEET-01 (Alex, 2026-11-24): the table's rows — every line of the period (SHEET-01, 2026-11-28: "every priced line" until then), planned and recorded; `rows` (the recorded expenses) is as it was
   readonly tones: AccountPlaces; // TIMESHEET-03 (Alex, 2026-11-24): an account's label → its place among the accounts the caller's active plans use — what the ACCOUNT NAME pill is toned by (ledger.ts toneOfPlace)
   readonly recording: Readonly<Record<string, LedgerRecording>>; // TIMESHEET-02 (Alex, 2026-11-24): by the sheet row's key, one entry for every row of `sheet` — whether the row takes a record, and what its form is given (no read when a form opens)
   readonly said: LedgerSaid;

@@ -243,7 +243,7 @@ test('C the ledger: a row’s MATCH leaves the reversed posting out; said.revers
   const none = ledgerOf(ledgerInput([clientLink('je-a', 3000, false)]));
   assert.equal(none.said.reversed, 0);
   const section = code('src/components/workbench/operations/ledger/LedgerSection.tsx');
-  assert.match(section, /\{answer\.read\.value\.said\.reversed > 0 && <p data-ledger-said-reversed>\{reversedLinkedWords\(answer\.read\.value\.said\.reversed\)\}<\/p>\}/);
+  assert.doesNotMatch(section, /\{answer\.read\.value\.said\.reversed > 0 && <p data-ledger-said-reversed>\{reversedLinkedWords\(answer\.read\.value\.said\.reversed\)\}<\/p>\}/, 'the reversed count is not said under the table — the notes are gone; the answer still counts it'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
 });
 
 const entryOf = (debit: number, state: { status: string; is_reversal: boolean; reversed_by_entry_id: string | null }): TaskLinkRow['journal_entry'] => ({ ...state, ledger_entries: [{ entry_type: 'D', amount: BigInt(debit) }, { entry_type: 'C', amount: BigInt(debit) }] });

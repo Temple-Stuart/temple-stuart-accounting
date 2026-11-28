@@ -3961,16 +3961,16 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // day in the shared idiom, read-only — so the container is exactly the four, in this order, and nothing beneath.
   // HOME-01 (Alex, 2026-10-24): the day card moved to the dashboard — the cockpit's Runway panel (COCKPIT_COMPONENT, /runway);
   // /time is exactly the three tables, in this order, and the card's boundary check moved to the panel's mount below.
-  const TIME_MOUNTS = ['<LedgerSection />', '<MorningJournalTable />', '<EveningJournalTable />'];
+  const TIME_MOUNTS = ['<LedgerSection />']; // SHEET-01 (Alex, 2026-11-28): the page is the table — the task ledger alone; the morning and the evening journal tables after it until then (HOME-01)
   const timePage = codeOf(TIME_PAGE);
   for (const section of TIME_MOUNTS) {
-    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the task ledger and the two journal tables (HOME-01 moved the day card to the dashboard; TIME-01; TIME-02; LEDGER-02 renamed it; JOURNAL-07 added the tables)`);
+    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the table: the task ledger alone (SHEET-01, 2026-11-28; the two journal tables until then — HOME-01 moved the day card to the dashboard; TIME-01; TIME-02; LEDGER-02 renamed it; JOURNAL-07 added the tables)`);
   }
   const timeAt = TIME_MOUNTS.map((section) => timePage.indexOf(section));
-  if (timeAt.some((at, i) => i > 0 && at < timeAt[i - 1])) twoListsFail(`${TIME_PAGE} mounts its sections out of order — the ledger first, then the morning and the evening journal tables (HOME-01; TIME-01; TIME-02; JOURNAL-07)`);
+  if (timeAt.some((at, i) => i > 0 && at < timeAt[i - 1])) twoListsFail(`${TIME_PAGE} mounts its sections out of order — the page is the table: the ledger alone (SHEET-01, 2026-11-28; the ledger first, then the morning and the evening journal tables until then — HOME-01; TIME-01; TIME-02; JOURNAL-07)`);
   const timeBox = timePage.slice(timePage.indexOf('data-tool-page="Time"'), timePage.indexOf('</OperationsEntityProvider>'));
   const timeMounts = [...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
-  if (timeMounts.join(' ') !== 'LedgerSection MorningJournalTable EveningJournalTable') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — exactly the task ledger and the two journal tables, nothing else (HOME-01; TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it; JOURNAL-07 added the tables)`);
+  if (timeMounts.join(' ') !== 'LedgerSection') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — the page is the table: exactly the task ledger, nothing else (SHEET-01, 2026-11-28; the two journal tables beside it until then — HOME-01; TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it; JOURNAL-07 added the tables)`);
   if (/ContentPipeline|operations\/content\//.test(timePage)) twoListsFail(`${TIME_PAGE} names the content pipeline — retired by TIME-02 (2026-10-19)`);
   if (/DayCard|<Suspense/.test(timePage)) twoListsFail(`${TIME_PAGE} mounts the day card or a Suspense boundary — the card moved to the dashboard, and the tables read no URL (HOME-01)`);
   // HOME-01: the card's boundary check follows the card — the Runway panel mounts <Suspense><DayCard /></Suspense> FIRST, above

@@ -320,14 +320,14 @@ test('T4 recordDraftOf reads the held record’s notes — a blank box with none
   assert.equal(unchanged(EGGS_MON, valueOf(bodyOf({ ...recordDraftOf(EGGS_MON), notes: 'window seat' }, { plannedAt: PLANNED, held: EGGS_MON }))), false);
   assert.equal(unchanged(EGGS_MON, valueOf(bodyOf({ ...recordDraftOf(EGGS_MON), notes: '' }, { plannedAt: PLANNED, held: EGGS_MON }))), false, 'cleared in the box');
   // "+ expense" has no NOTES box: the body of the record it writes says none.
-  const expense: ExpenseValues = { day: MON, time: '10:00', allDay: false, zone: NBO, instant: at(MON, '10:00'), name: 'Kiosk', amount: '1.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: 150, rating: null, note: 'one coffee', ahead: false }; // COALEVELS-01 (2026-11-27): an expense's value says its stop's Location — none here · PASTE-03 (2026-11-28): the value says whether the stop is all day — not here: a TIME is typed
+  const expense: ExpenseValues = { day: MON, time: '10:00', allDay: false, zone: NBO, instant: at(MON, '10:00'), name: 'Kiosk', amount: '1.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: 150, rating: null, note: 'one coffee', ahead: false, minutes: null, tag: null, notes: null, logged: null }; // COALEVELS-01 (2026-11-27): an expense's value says its stop's Location — none here · PASTE-03 (2026-11-28): the value says whether the stop is all day — not here: a TIME is typed; SHEET-01 (2026-11-28): and the four new boxes' readings — none
   assert.deepEqual(recordBody(expense, 'line-1'), { kind: 'routine_line', id: 'line-1', instant: at(MON, '10:00'), outcome: 'done', done_at: at(MON, '10:00'), actual_cents: 150, rating: null, note: 'one coffee', notes: null, actual_minutes: null });
   assert.deepEqual(Object.keys(recordBody(expense, 'line-1')), Object.keys(bodyOf(BLANK_DRAFT)), 'the one writer’s body, from either form');
   // In the source.
   const rules = code(RULES);
   assert.match(rules, /export function recordDraftOf\(held: StopRecordRow \| null\): RecordDraft \{\n\s*if \(held === null\) return \{ went: WENT_WORD, actual: '', stars: '', minutes: '', note: '', notes: '' \};/);
   assert.match(rules, /note: held\.note === null \? '' : held\.note,\n\s*notes: held\.notes === null \? '' : held\.notes,\n\s*\};/);
-  assert.match(rules, /rating: v\.rating, note: v\.note, notes: null, actual_minutes: null \}\);/);
+  assert.match(rules, /rating: v\.rating, note: v\.note, notes: v\.notes, actual_minutes: v\.logged \}\);/); // SHEET-01 (2026-11-28): NOTES and LOGGED MIN ride the record
 });
 
 // ── T5 · THE DRAFT A ROW'S FORM OPENS WITH (ruling B.2) ──────────────────────
@@ -568,7 +568,7 @@ test('T9 DESCRIPTION’s words, text, sort key and CSV field are a plan row’s 
   assert.equal(countOf(rules, /\brow\.note\b(?!s)/g), 1, 'the record’s note is read in ONE place — descriptionOf');
   assert.match(rules, /export const tagCellWords = \(tag: string \| null\): string => \(tag === null \? BLANK : instagramTagWords\(tag\)\);/);
   assert.match(rules, /instagramTag: \(row\) => row\.instagramTag === null \? '' : instagramTagWords\(row\.instagramTag\),/);
-  assert.match(rules, /import \{ instagramTagWords \} from '@\/lib\/operations\/planVendor';/);
+  assert.match(rules, /import \{ instagramTagWords, readInstagramTag \} from '@\/lib\/operations\/planVendor';/); // SHEET-01 (2026-11-28): the import gains readInstagramTag, on its own line — "+ expense"'s INSTAGRAM TAG is the directory's own reading
   assert.match(code(VENDOR_RULE), /export const instagramTagWords = \(tag: string\): string => `@\$\{tag\}`;/);
   assert.equal(countOf(rules, /`@\$\{/g), 0, 'the @ is typed once, in the vendor’s rule file');
 });
@@ -704,17 +704,17 @@ test('T11 the answer function: the tag, the planned items and the notes ride the
 test('T12 in the source: LedgerSection.tsx is 488 lines with the tag’s cell on the vendor’s line, the description’s cell on the sub-account-name’s and the notes’ cell on a line of its own (COALEVELS-01, 2026-11-27), and the planned class; RecordForm.tsx is 164 with the NOTES box on DESCRIPTION’s line and its draft through rowDraftOf; stopWrites.ts is 60; the stops route’s data line names notes; the day card’s form shows the notes a record holds', () => {
   // THE SECTION — six edits in place: no line added, none removed.
   const s = code(SECTION);
-  assert.equal(linesOf(SECTION).length, 488);
+  assert.equal(linesOf(SECTION).length, 435); // SHEET-01 (2026-11-28): 432 — the notes, the summary and the fold are gone, the TOTAL row sums the minutes; 488 until then; SHEET-01 (2026-11-28) (PART 3): 435 — the `adding` state and its note, the `first` prop; 432 until then
   assert.match(s, /\n[ \t]*RECORD_WORDS, type LedgerRecording, PLANNED_ITEMS_TITLE_WORDS, descriptionOf, plannedDescription, tagCellWords,[ \t]*\n/, 'the new names on the import’s TIMESHEET-02 line');
   assert.match(s, /\nconst BLANK_CLASS = 'text-text-faint'; const PLANNED_CLASS = 'text-text-faint italic'; const CODE_CLASS = 'font-mono text-\[11px\] text-text-muted mr-1\.5 tabular-nums';[ \t]*\n/, 'the planned class on the blank class’s line — and the class of a level’s code after it'); // COALEVELS-01 (2026-11-27): CODE_CLASS joined the line
   assert.match(s, /\n[ \t]*<td className=\{`\$\{cell\} \$\{row\.vendor === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="vendor" title=\{row\.vendor \?\? undefined\}>\{vendorCellWords\(row\.vendor\)\}<\/td><td className=\{`\$\{cell\} whitespace-nowrap \$\{row\.instagramTag === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="instagram-tag">\{tagCellWords\(row\.instagramTag\)\}<\/td>[ \t]*\n/, 'the tag’s cell on the vendor cell’s line, after it'); // COALEVELS-01 (2026-11-27): the vendor's cell says itself whole in its title — the table's class cuts it
   assert.match(s, /\n[ \t]*<td className=\{`\$\{cell\} font-semibold text-text-primary`\} data-ledger-cell="sub-account-name" title=\{row\.description\}>\{row\.segments !== null && row\.segments\.type !== null && <span className=\{CODE_CLASS\}>\{row\.segments\.type\}<\/span>\}\{row\.description\}<\/td><td className=\{`\$\{cell\} \$\{descriptionOf\(row\) === null \? BLANK_CLASS : plannedDescription\(row\) \? PLANNED_CLASS : 'text-text-muted'\}`\} data-ledger-cell="description" data-ledger-planned=\{plannedDescription\(row\) \? '' : undefined\} title=\{plannedDescription\(row\) \? `\$\{PLANNED_ITEMS_TITLE_WORDS\} — \$\{noteCellWords\(descriptionOf\(row\)\)\}` : descriptionOf\(row\) \?\? undefined\}>\{noteCellWords\(descriptionOf\(row\)\)\}<\/td>[ \t]*\n/, 'ITEMS — the description — by the one rule (blank, planned or the record’s), on the TYPE cell’s line, after it'); assert.match(s, /\n[ \t]*<td className=\{`\$\{cell\} \$\{row\.notes === null \? BLANK_CLASS : 'text-text-muted'\}`\} data-ledger-cell="notes" title=\{row\.notes \?\? undefined\}>\{noteCellWords\(row\.notes\)\}<\/td>[ \t]*\n/, 'the notes’ cell, the row’s last, on a line of its own'); // COALEVELS-01 (2026-11-27): the description moved up to stand after the TYPE (its title says the text whole — a planned one after PLANNED_ITEMS_TITLE_WORDS); the notes' cell stays where the two stood
-  assert.match(s, /<th scope="row" colSpan=\{19 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/, 'TOTAL spans the nineteen columns before BUDGET, less the ones a single day folds'); // COALEVELS-01 (2026-11-27): nineteen — sixteen until then
+  assert.match(s, /<th scope="row" colSpan=\{LEDGER_COLUMNS\.indexOf\('plannedMinutes'\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/, 'TOTAL spans the nineteen columns before BUDGET, less the ones a single day folds'); // COALEVELS-01 (2026-11-27): nineteen — sixteen until then; SHEET-01 (2026-11-28): the label spans the columns before PLANNED MIN, worked out — nineteen less the fold until then
   assert.match(s, /\n[ \t]*<td className=\{cell\} data-ledger-total-notes \/>[ \t]*\n/, 'one cell after the five, under NOTES'); // COALEVELS-01 (2026-11-27): the description's cell left the TOTAL row — ITEMS stands before BUDGET now, under the label's span
   // One cell per head word, in the head's order; the TOTAL row's label and its six cells make the twenty-five (COALEVELS-01 (2026-11-27): seven and twenty-three until then).
   assert.deepEqual([...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]), ['day', 'date', 'start', 'end', 'city', 'region', 'country', 'location', 'account-name', 'book', 'sub-account-name', 'description', 'vendor', 'instagram-tag', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'account', 'budget', 'actual', 'variance', 'match', 'under-over', 'notes']);
-  assert.deepEqual([...s.matchAll(/data-ledger-total-([a-z-]+)/g)].map((m) => m[1]), ['budget', 'actual', 'variance', 'match', 'under-over', 'notes']);
-  assert.equal(19 + 6, LEDGER_HEAD_WORDS.length, 'the label’s span and the cells after it');
+  assert.deepEqual([...s.matchAll(/data-ledger-total-([a-z-]+)/g)].map((m) => m[1]), ['planned-minutes', 'logged-minutes', 'account', 'budget', 'actual', 'variance', 'match', 'under-over', 'notes']); // SHEET-01 (2026-11-28): nine — PLANNED MIN and LOGGED MIN, each its sum, and COA's empty cell before the six; the label spans sixteen
+  assert.equal(LEDGER_COLUMNS.indexOf('plannedMinutes') + 3 + 6, LEDGER_HEAD_WORDS.length, 'the label’s span and the cells after it'); // SHEET-01 (2026-11-28): sixteen, the three, the six — 19 + 6 until then
   assert.equal(LEDGER_COLUMNS.indexOf('budget'), 19, 'nineteen columns stand before BUDGET');
   // The planned look is the rule's to decide, the class and the title are typed once; no cell asks which kind of row it draws.
   assert.equal(countOf(s, /PLANNED_CLASS/g), 2, 'defined, and read by the one cell');
@@ -762,14 +762,14 @@ test('T12 in the source: LedgerSection.tsx is 488 lines with the tag’s cell on
 
 test('T13 the paste (re-pointed by COALEVELS-01, 2026-11-27 — until that change it filled no notes and named no tag): pasteRows.ts fills the record’s notes from the row — RECORD_HEADS holds the box, and a refusal is thrown by name for stars and minutes alone — and the record’s draft it builds carries them; pasteSave.ts, PasteRows.tsx and ledgerWrites.ts each name the tag’s writer', () => {
   const p = code(PASTE_RULE);
-  assert.equal(linesOf(PASTE_RULE).length, 1246, 'the file’s new length — 941 until COALEVELS-01'); // PASTE-03 (2026-11-28): 1246 — a row with no Start Time is a charge on its date, and the charge of its name takes the row; 1,188 until then
+  assert.equal(linesOf(PASTE_RULE).length, 1262, 'the file’s new length — 941 until COALEVELS-01'); // PASTE-03 (2026-11-28): 1246 — a row with no Start Time is a charge on its date, and the charge of its name takes the row; 1,188 until then; SHEET-01 (2026-11-28): 1250 — a charge says it takes no record, and its WENT is the sheet's blank; 1,246 until then; SHEET-01 (2026-11-28): 1260 — the Trip Name is read as the paste's trips; 1,250 until then; SHEET-01 (2026-11-28) (PART 3): 1262 — the paste hands "+ expense"'s four new boxes blank; 1,260 until then
   // 1. The boxes the paste fills: went, ACTUAL, DESCRIPTION and — COALEVELS-01 (2026-11-27) — the NOTES; no stars, no minutes.
   assert.match(p, /const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' \| 'minutes'>, PasteHead>> = \{ went: 'Start Date', actual: 'Total \(USD\)', note: 'Items', notes: 'Notes' \};/);
   assert.match(p, /if \(field === 'stars' \|\| field === 'minutes'\) throw new Error\(`pasteRows: the record's rule refused \$\{field\}, which the paste never fills — \$\{message\}`\);/);
   // 2. The record's draft it builds carries the row's notes — blank with none.
   assert.match(p, /recordInput\(\{ went: WENT_WORD, actual: csvMoney\(happened\.cents\), stars: '', minutes: '', note: happened\.items === null \? '' : happened\.items, notes: happened\.notes === null \? '' : happened\.notes \}, stop\.address, \{ plannedAt: entry\.plannedAt, held: entry\.held \}, context\.now\);/);
   // …and the file's words about notes are no longer those three: it reads them, carries them, and says where they are not written. It names the tag's field, the bound on the notes and the planned items of a stop's row; it builds no row's draft.
-  assert.equal(countOf(p, /\bnotes\b/g), 24, 'three until COALEVELS-01: the exclusion, the throw, the draft'); // PASTE-03 (2026-11-28): 24 — a charge on its date says its Notes as not written (CHARGE_NOTES_WORDS: "notes sit on a record", and its test of the row's notes in chargeHappened); 22 until then
+  assert.equal(countOf(p, /\bnotes\b/g), 26, 'three until COALEVELS-01: the exclusion, the throw, the draft'); // PASTE-03 (2026-11-28): 24 — a charge on its date says its Notes as not written (CHARGE_NOTES_WORDS: "notes sit on a record", and its test of the row's notes in chargeHappened); 22 until then; SHEET-01 (2026-11-28): 26 — "+ expense"'s NOTES box under the Notes column, and handed blank; 24 until then
   for (const named of [/instagram_tag/, /readInstagramTag/, /plannedItems/, /NOTES_MAX/]) assert.match(p, named); assert.doesNotMatch(p, /rowDraftOf/);
   // The heads the paste reads no column from are two: the tag, the notes and the Location are read now.
   assert.match(p, /export const PASTE_NO_COLUMN_HEADS = \['Currency', 'Total'\] as const;/);
@@ -785,24 +785,24 @@ test('T14 the registry’s Time row: its two cites into the rule file stand wher
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time');
   assert.ok(time);
   assert.deepEqual([time.status, time.beats, time.home, time.why], ['LIVE', { discover: true, decide: true, commit: true, record: true }, '/time', undefined]);
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
+  assert.equal(time.customer, 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // SHEET-01 (2026-11-28): the customer line names no journal answer — the journal tables are mounted nowhere
   assert.match(time.note ?? '', /^HOME-03 \(2026-10-27\): the day itself is entered on the day card/);
   // The number a citation names, read from the citation itself — and the line it names, by content.
   const cited = (re: RegExp): number => { const m = time.citation.match(re); if (m === null) return assert.fail(`the citation names ${re}`); return Number(m[1]); };
   const lineOf = (file: string, n: number): string => linesOf(file)[n - 1] ?? '';
   const heads = cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS/);
-  const sums = cited(/the summary's sums, src\/lib\/operations\/ledger\.ts:(\d+)/);
+  assert.doesNotMatch(time.citation, /the summary's sums|SUMMARY_HEAD_WORDS/, 'the summary’s words left the citation with the summary'); // SHEET-01 (2026-11-28): re-pointed to its absence
   assert.match(lineOf(RULES, heads), /^export const LEDGER_HEAD_WORDS = \[/);
-  assert.match(lineOf(RULES, sums), /^export const SUMMARY_HEAD_WORDS = \[/);
-  assert.equal(countOf(time.citation, /src\/lib\/operations\/ledger\.ts:\d+/g), 2, 'the row cites the rule file twice — once each');
+  assert.ok(linesOf(RULES).some((l) => /^export const SUMMARY_HEAD_WORDS = \[/.test(l)), 'the words stay in the rule file, uncalled'); // SHEET-01 (2026-11-28): the words stay, uncalled
+  assert.equal(countOf(time.citation, /src\/lib\/operations\/ledger\.ts:\d+/g), 1, 'the row cites the rule file once — LEDGER_HEAD_WORDS'); // SHEET-01 (2026-11-28): twice until then — the summary's cite left with the summary
   // Each cite says where the line stood until this change, in the row's own way.
-  const was = [cited(/LEDGER_HEAD_WORDS — PASTE-03, 2026-11-28: was :(\d+)/), cited(/the summary's sums, src\/lib\/operations\/ledger\.ts:\d+ \(was :(\d+)\)/)]; // COALEVELS-01 (2026-11-27): the cite's own "was" is this change's now — the rule file grew again and the two cites followed; TIMESHEET-04b's stood there until then. PASTE-03 (2026-11-28): and again — "COALEVELS-01, 2026-11-27: was" until then
-  assert.ok(was[0] < heads && was[1] < sums, 'the rule file grew above both');
-  assert.equal(heads - was[0], sums - was[1], 'by the same number of lines — nothing was added between the two');
+  const was = [cited(/LEDGER_HEAD_WORDS — PASTE-03, 2026-11-28: was :(\d+)/)]; // COALEVELS-01 (2026-11-27): the cite's own "was" is this change's now — the rule file grew again and the two cites followed; TIMESHEET-04b's stood there until then. PASTE-03 (2026-11-28): and again — "COALEVELS-01, 2026-11-27: was" until then; SHEET-01 (2026-11-28): one cite — the summary's left with the summary
+  assert.ok(was[0] < heads, 'the rule file grew above it'); // SHEET-01 (2026-11-28): one cite
+  assert.doesNotMatch(time.citation, /their coverage said at|PLANNED HOURS · LOGGED HOURS — the summary/, 'the summary’s hours and their coverage left the citation'); // SHEET-01 (2026-11-28): re-pointed to its absence
   // The dated sentence on the row's comment line: from which number to which, that what each cites is unchanged, and which cites did not move.
   const said = comments(REGISTRY).split('\n').find((l) => l.includes('PASTE-03 (Alex, 2026-11-28): ledger.ts grew')); // PASTE-03 (2026-11-28): that change's sentence — on the line COALEVELS-01 said its own (the match two lines below); 'COALEVELS-01 (Alex, 2026-11-27): ledger.ts grew' was looked for until then
   assert.ok(said !== undefined, 'the sentence');
-  assert.ok(said.includes(`ledger.ts :${was[0]} → :${heads} (LEDGER_HEAD_WORDS), :${was[1]} → :${sums} (SUMMARY_HEAD_WORDS); what each cites unchanged.`));
+  assert.match(said, new RegExp(`ledger\\.ts :${was[0]} → :${heads} \\(LEDGER_HEAD_WORDS\\), :\\d+ → :\\d+ \\(SUMMARY_HEAD_WORDS\\); what each cites unchanged\\.`)); // SHEET-01 (2026-11-28): the sentence is PASTE-03's history
   assert.match(said, /TIMESHEET-01 \(Alex, 2026-11-24\)[^\n]*TIMESHEET-04b \(Alex, 2026-11-27\)[^\n]*COALEVELS-01 \(Alex, 2026-11-27\)[^\n]*PASTE-03 \(Alex, 2026-11-28\)/, 'on the line where TIMESHEET-01, TIMESHEET-04b and COALEVELS-01 said their own');
   assert.match(said, /LedgerSection\.tsx:\d+, :\d+ and :\d+, ledgerReads\.ts:\d+, ledgerAnswer\.ts:\d+, :\d+, stops\/stopWrites\.ts:\d+, ledger\/RecordForm\.tsx:\d+, ledger\/ExpenseForm\.tsx:\d+ and stops\/route\.ts:\d+ did not move\./);
   // The cites that did not move hold what they cite: the writer's request, the leaf's save, the two selects, the read, the section's three lines.
@@ -811,8 +811,8 @@ test('T14 the registry’s Time row: its two cites into the rule file stand wher
   assert.match(lineOf(ANSWER, cited(/src\/lib\/operations\/ledgerAnswer\.ts:(\d+) \(the line's duration\)/)), /duration_minutes: true/);
   assert.match(lineOf(ANSWER, cited(/src\/lib\/operations\/ledgerAnswer\.ts:(\d+) \(the routine's window\)/)), /start_time: true, end_time: true/);
   assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(the two cells\)/)), /data-ledger-cell="planned-minutes"/);
-  assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(PLANNED HOURS · LOGGED HOURS/)), /data-ledger-group-planned-hours/);
-  assert.match(lineOf(SECTION, cited(/their coverage said at LedgerSection\.tsx:(\d+)/)), /data-ledger-said-planned/);
+  assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(the TOTAL row\'s two sums, PLANNED MIN · LOGGED MIN — over the rows shown, by any filter/)), /data-ledger-total-planned-minutes/); // SHEET-01 (2026-11-28): the hours are the TOTAL row's two sums — the summary's PLANNED HOURS · LOGGED HOURS until then
+  assert.doesNotMatch(time.citation, /their coverage said at/, 'the coverage left with the notes'); // SHEET-01 (2026-11-28): re-pointed to its absence
   assert.equal(linesOf(REGISTRY).length, 761);
 });
 
@@ -824,7 +824,7 @@ test('T15 the rules stay pure and read no clock of their own; the Budget’s ven
     assert.doesNotMatch(code(file), /new Date\(\)|Date\.now\(/, `${file}: no clock of its own`);
   }
   // The rule file's one new import is the tag's words; the vendor's rule file gains ONE export, after readVendorId.
-  assert.match(code(RULES), /import \{ instagramTagWords \} from '@\/lib\/operations\/planVendor';/);
+  assert.match(code(RULES), /import \{ instagramTagWords, readInstagramTag \} from '@\/lib\/operations\/planVendor';/); // SHEET-01 (2026-11-28): the import gains readInstagramTag, on its own line — "+ expense"'s INSTAGRAM TAG is the directory's own reading
   const vendorRule = code(VENDOR_RULE);
   assert.ok(vendorRule.indexOf('export function readVendorId(') < vendorRule.indexOf('export const instagramTagWords = ') && vendorRule.indexOf('export const instagramTagWords = ') < vendorRule.indexOf('export const PLANNED_ITEMS_MAX = '), 'after readVendorId, before the planned items');
   // The Budget, Expenses, bill pay and the month read PlanVendorRow as they did: the type is extended beside it, never edited.

@@ -11,70 +11,167 @@
  * when one was given, the record. The rule and every body are
  * src/lib/operations/ledger.ts's (expenseInput, oneOffBody, vendorBody,
  * recordBody); every sentence is its words. A failure stops at its step: the
- * outcome lists all five steps — written, not written with the route's words,
+ * outcome lists every step — written, not written with the route's words,
  * not tried, or none given — never a silent retry, never a silent roll-back.
  * On success the caller is told the day (the ledger reads again; the card is
  * told through dayWritten.ts). The books are the provider's list (the entity
- * selector's choice is not read); the COA list is the book's (CoaSelect); the
- * vendors are the directory's (budget/VendorBox.tsx useDirectory), the
- * book's own. Nothing is stored in the browser.
+ * selector's choice is not read); the COA list is the book's (CoaSelect).
+ * Nothing is stored in the browser.
+ *
+ * SHEET-01 (Alex, 2026-11-28) — "+ EXPENSE" IS THE SHEET'S BLANK ROW. "+ expense" (ExpenseOpen) opens a blank row at the TOP of the time
+ * sheet's table — ExpenseRow, handed to the shared table as its `first` (LedgerSection.tsx) — and the next tap shuts it. The row is one
+ * cell under every column of the sheet, drawn from LEDGER_COLUMNS: a box under every column he types (DATE, START, END, LOCATION,
+ * CATEGORY, ENTITY, TYPE, ITEMS, VENDOR, INSTAGRAM TAG, STARS, LOGGED MIN, BUDGET, ACTUAL, NOTES); DAY and PLANNED MIN worked out as he
+ * types; WENT, COA, VARIANCE, MATCH and UNDER / OVER the sheet's blank until the row is saved. CITY · REGION · COUNTRY are the trip that
+ * covers DATE (day/dayReads.ts readStays — the day card's own reader); on a date no trip covers they are three boxes, and saving writes
+ * that trip FIRST (stays/stayWrites.ts createStay), from DATE to TRIP ENDS. VENDOR is ONE typed box over the book's vendors — the
+ * directory's GET (week/weekReads.ts readJson), read by the paste's own rule (pasteRows.ts vendorsOf, with the tag each carries; one of
+ * the book's by pastedVendorOf, else new) in place of the Budget's useDirectory. Under the row: save, cancel, the zone, the trip, the
+ * refusal and what each write did, in EXPENSE_STEPS' order — the trip, the stop, its line, END's minutes, the vendor added, the vendor
+ * set, the tag (only on a vendor that carries none), the record (now carrying NOTES and LOGGED MIN). Enter in a box saves; after a save
+ * the row clears (the book kept), stays open, and both reads run again. Every sentence is ledger.ts's or a rule file's.
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useDirectory } from '@/components/budget/VendorBox';
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { cellClass as cell } from '@/components/table/DataTable';
+import { isIsoDay } from '@/lib/budget/days';
+import { BLANK } from '@/lib/budget/format';
 import {
-  CANCEL_EXPENSE_WORDS, EMPTY_EXPENSE, EXPENSE_FIELD_WORDS, EXPENSE_TITLE_WORDS, EXPENSE_WORDS, LOCATION_CLASSES, LOCATION_WORDS, NEW_VENDOR_WORDS, NO_BOOK_WORDS, NO_LOCATION_WORDS, NO_VENDOR_WORDS, SAVE_EXPENSE_WORDS, VENDORS_LOADING_WORDS,
-  expenseInput, expenseLandedWords, oneOffBody, outcomeWords, recordBody, vendorBody, withNotTried, zoneWords,
-  type ExpenseDraft, type ExpenseField, type ExpenseOutcome,
+  BOOK_WORDS, CANCEL_EXPENSE_WORDS, EMPTY_EXPENSE, EMPTY_ROW_TRIP, EXPENSE_FIELD_WORDS, EXPENSE_WORDS, LEDGER_COLUMNS, LOCATION_CLASSES, LOCATION_WORDS, NO_BOOK_WORDS, NO_LOCATION_WORDS,
+  ROW_LATER_MARK, ROW_LATER_WORDS, ROW_TRIP_FIELD_WORDS, SAVE_EXPENSE_WORDS, TAG_SAME_WORDS, TAG_STANDS_WORDS, VENDORS_LOADING_WORDS,
+  coveringTripWords, dayLongWords, expenseInput, expenseLandedWords, minutesCellWords, noTripRowWords, oneOffBody, outcomeWords, recordBody, rowPlannedMinutes, rowTripInput, vendorBody, withNotTried, zoneWords,
+  type ExpenseDraft, type ExpenseField, type ExpenseOutcome, type LedgerColumn, type RowTripDraft, type RowTripField, type RowTripRead,
 } from '@/lib/operations/ledger';
-import { useOperationsEntity } from '../EntitySelector';
+import { pastedVendorOf, vendorsOf, vendorsUnreadWords, type PasteVendor } from '@/lib/operations/pasteRows';
+import { instagramTagKey } from '@/lib/operations/planVendor';
+import { STAY_LOADING_WORDS, placeParts, type StayRow } from '@/lib/operations/stay';
+import { readStays } from '../day/dayReads';
+import { useOperationsEntity, type Entity } from '../EntitySelector';
 import CoaSelect from '../routines/CoaSelect';
 import { setStopRecord } from '../stops/stopWrites';
-import { addVendor, createOneOff, readOneOffLine, setVendor } from './ledgerWrites';
+import { createStay } from '../stays/stayWrites';
+import { readJson } from '../week/weekReads';
+import { addVendor, createOneOff, readOneOffLine, setLineMinutes, setVendor, setVendorTag } from './ledgerWrites';
 
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
-const box = 'px-1.5 py-0.5 border border-border rounded text-xs';
-const label = 'text-text-faint tracking-wide';
+/** The chip while the row is open — pressed: outlined in the brand's ink, no dark fill. Typed whole. */
+const chipOn = 'px-2 py-0.5 border border-brand-purple text-brand-purple font-semibold rounded text-xs';
+/** A box in a cell of the blank row: it takes the cell's width. */
+const box = 'w-full min-w-[3.5rem] px-1 py-0.5 border border-border rounded text-xs bg-white';
+const clockBox = `${box} font-mono tabular-nums`;
+/** The blank row's light tint — both its rows. */
+const ROW_TINT = 'bg-amber-50';
 
-export default function ExpenseForm({ onWritten }: { onWritten: (day: string) => void }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={open ? 'order-last w-full space-y-2' : 'contents'} data-ledger-expense>
-      {!open && <button type="button" className={chip} onClick={() => setOpen(true)} data-ledger-expense-open>{EXPENSE_WORDS}</button>}
-      {open && <Fields onWritten={onWritten} close={() => setOpen(false)} />}
-    </div>
-  );
+/** The vendors as read: still reading, read, or not readable — said in the read's own words, never taken as none. */
+type VendorsRead = { readonly kind: 'reading' } | { readonly kind: 'read'; readonly vendors: readonly PasteVendor[] } | { readonly kind: 'failed'; readonly words: string };
+/** The trip that covers DATE: no DATE yet, reading, read (the trip or none), or not readable. */
+type TripRead = { readonly kind: 'no day' } | { readonly kind: 'reading' } | { readonly kind: 'read'; readonly covering: StayRow | null } | { readonly kind: 'failed'; readonly words: string };
+
+/** "+ expense" — one tap opens the blank row at the top of the table, the next shuts it. */
+export function ExpenseOpen({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return <button type="button" className={open ? chipOn : chip} onClick={onToggle} aria-pressed={open} data-ledger-expense-open>{EXPENSE_WORDS}</button>;
 }
 
-/** The boxes, mounted only while the form is open — the directory is read then, not before. */
-function Fields({ onWritten, close }: { onWritten: (day: string) => void; close: () => void }) {
+/** THE BLANK ROW and the row beneath it — mounted only while "+ expense" is open; the reads run then, not before. */
+export default function ExpenseRow({ onWritten, close }: { onWritten: (day: string) => void; close: () => void }) {
   const { entities } = useOperationsEntity();
-  const directory = useDirectory();
   const [zone, setZone] = useState<string | null>(null);
   const [draft, setDraft] = useState<ExpenseDraft>(EMPTY_EXPENSE);
-  const [refusal, setRefusal] = useState<{ readonly field: ExpenseField; readonly message: string } | null>(null);
+  const [vendorTyped, setVendorTyped] = useState('');
+  const [trip, setTrip] = useState<RowTripDraft>(EMPTY_ROW_TRIP);
+  const [vendorsRead, setVendorsRead] = useState<VendorsRead>({ kind: 'reading' });
+  const [tripRead, setTripRead] = useState<TripRead>({ kind: 'no day' });
+  /** Bumped after a save: both reads run again. */
+  const [reads, setReads] = useState(0);
+  const [refusal, setRefusal] = useState<{ readonly field: ExpenseField | RowTripField; readonly message: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<readonly ExpenseOutcome[] | null>(null);
   const [landed, setLanded] = useState<string | null>(null);
 
   // The browser's zone, read on mount only — the server render has no business guessing it.
   useEffect(() => { setZone(Intl.DateTimeFormat().resolvedOptions().timeZone); }, []);
-  // The book: the default one once the list is in, shown in the box — never a hidden choice.
+  // The book: the default one once the list is in, shown in its box — never a hidden choice.
   useEffect(() => {
     if (draft.book !== '' || entities.length === 0) return;
     const first = entities.find((e) => e.is_default) ?? entities[0];
     setDraft((d) => (d.book === '' ? { ...d, book: first.id } : d));
   }, [entities, draft.book]);
+  // The vendors: the directory's GET, read by the paste's rule — each with the tag it carries. Read again after a save.
+  useEffect(() => {
+    let live = true;
+    setVendorsRead({ kind: 'reading' });
+    void (async () => {
+      const listed = await readJson('/api/operations/vendor-directory');
+      if (!live) return;
+      if (!listed.ok) { setVendorsRead({ kind: 'failed', words: vendorsUnreadWords(listed.words) }); return; }
+      const read = vendorsOf(listed.value);
+      setVendorsRead(read.ok ? { kind: 'read', vendors: read.vendors } : { kind: 'failed', words: vendorsUnreadWords(read.words) });
+    })();
+    return () => { live = false; };
+  }, [reads]);
+  // The trip that covers DATE: the day card's own reader, once DATE is a day. Read again after a save.
+  useEffect(() => {
+    if (!isIsoDay(draft.day)) { setTripRead({ kind: 'no day' }); return; }
+    let live = true;
+    setTripRead({ kind: 'reading' });
+    void (async () => {
+      const read = await readStays(draft.day);
+      if (!live) return;
+      setTripRead(read.ok ? { kind: 'read', covering: read.value.covering } : { kind: 'failed', words: read.words });
+    })();
+    return () => { live = false; };
+  }, [draft.day, reads]);
 
-  const vendors = directory.vendors === null ? null : directory.vendors.filter((v) => v.entity_id === draft.book);
   const set = (field: keyof ExpenseDraft) => (value: string) => setDraft((d) => ({ ...d, [field]: value }));
+  /** DATE — and TRIP ENDS follows it, in its box: never a hidden choice. */
+  const setDay = (value: string) => { setDraft((d) => ({ ...d, day: value })); setTrip((t) => ({ ...t, endsOn: value })); };
+  const setTripBox = (field: RowTripField) => (value: string) => setTrip((t) => ({ ...t, [field]: value }));
+  const vendors = vendorsRead.kind === 'read' ? vendorsRead.vendors.filter((v) => v.entity_id === draft.book) : [];
+  const covering = tripRead.kind === 'read' ? tripRead.covering : null;
+  /** A book by its sheet word — "word — name" when two books share a type; its own name when its type has no word. */
+  const bookWords = (e: Entity): string => {
+    const word = (BOOK_WORDS as Readonly<Record<string, string | undefined>>)[e.entity_type];
+    if (word === undefined) return e.name;
+    return entities.filter((other) => other.entity_type === e.entity_type).length > 1 ? `${word} — ${e.name}` : word;
+  };
 
   const save = async () => {
     if (busy || zone === null) return;
-    const read = expenseInput(draft, zone, new Date());
-    if (!read.ok) { setRefusal(read); return; }
+    const refuse = (field: ExpenseField | RowTripField, message: string) => setRefusal({ field, message });
+    // (1) THE TRIP — while no trip covers DATE, its boxes are read (a refusal is said, nothing written). The covering trip must be read first.
+    let tripToAdd: Extract<RowTripRead, { readonly kind: 'add' }> | null = null;
+    if (isIsoDay(draft.day)) {
+      if (tripRead.kind === 'failed') { refuse('city', tripRead.words); return; }
+      if (tripRead.kind !== 'read') { refuse('city', STAY_LOADING_WORDS); return; }
+      if (tripRead.covering === null) {
+        const read = rowTripInput(trip, draft.day);
+        if (read.kind === 'refused') { refuse(read.field, read.message); return; }
+        if (read.kind === 'add') tripToAdd = read;
+      }
+    }
+    // (2) VENDOR, typed — one of the book's by the paste's own rule, else new; none typed, none. A name typed while the vendors are unread is refused, never guessed.
+    const typed = vendorTyped.trim();
+    let vendorId = '';
+    let vendorName = '';
+    let carries: string | null = null;
+    if (typed !== '') {
+      if (vendorsRead.kind === 'reading') { refuse('vendor', VENDORS_LOADING_WORDS); return; }
+      if (vendorsRead.kind === 'failed') { refuse('vendor', vendorsRead.words); return; }
+      const picked = pastedVendorOf(typed, { id: draft.book }, vendorsRead.vendors);
+      if (picked.kind === 'own') {
+        const own = vendorsRead.vendors.find((v) => v.id === picked.id);
+        if (own === undefined) throw new Error(`ExpenseForm: the vendor ${picked.id} the rule picked is not among the vendors read`);
+        vendorId = own.id;
+        carries = own.instagram_tag;
+      } else if (picked.kind === 'new') {
+        vendorName = picked.name;
+      }
+    }
+    // (3) THE RULE — every box, the first bad one named.
+    const read = expenseInput({ ...draft, vendorId, vendorName }, zone, new Date());
+    if (!read.ok) { refuse(read.field, read.message); return; }
     setRefusal(null);
     setBusy(true);
     setOutcome(null);
@@ -83,36 +180,66 @@ function Fields({ onWritten, close }: { onWritten: (day: string) => void; close:
     const done: ExpenseOutcome[] = [];
     const failed = (step: ExpenseOutcome['step'], words: string) => { done.push({ step, state: 'failed', words }); setOutcome(withNotTried(done)); };
     try {
-      // 1. The one-off stop, with its one line.
+      // 1. The trip — only on a date no trip covers, its place typed; else not asked. A request that never reached the route is its refusal, in the error's words.
+      if (tripToAdd !== null) {
+        let added: Awaited<ReturnType<typeof createStay>>;
+        try {
+          added = await createStay({ place: tripToAdd.place, starts_on: tripToAdd.startsOn, ends_on: tripToAdd.endsOn });
+        } catch (error) {
+          failed('trip', error instanceof Error ? error.message : String(error));
+          return;
+        }
+        if (!added.ok) { failed('trip', added.message); return; }
+        done.push({ step: 'trip', state: 'written', words: '' });
+      } else {
+        done.push({ step: 'trip', state: 'not asked', words: '' });
+      }
+      // 2. The one-off stop, with its one line; the line read back.
       const created = await createOneOff(oneOffBody(v));
       if (!created.ok) { failed('stop', created.words); return; }
       done.push({ step: 'stop', state: 'written', words: '' });
       const line = await readOneOffLine(created.value.routineId);
       if (!line.ok) { failed('line', line.words); return; }
       done.push({ step: 'line', state: 'written', words: '' });
-      // 2. The vendor — added when a new name was given, then set on the line's occurrence; none given, none asked.
-      let vendorId: string | null = v.vendor.kind === 'existing' ? v.vendor.id : null;
+      // 3. END's minutes, on the line; no END, not asked.
+      if (v.minutes !== null) {
+        const timed = await setLineMinutes(line.value.lineId, v.minutes);
+        if (!timed.ok) { failed('minutes', timed.words); return; }
+        done.push({ step: 'minutes', state: 'written', words: '' });
+      } else {
+        done.push({ step: 'minutes', state: 'not asked', words: '' });
+      }
+      // 4. The vendor — added when a new name was typed, then set on the line's occurrence; none typed, none asked.
+      let onStop: string | null = v.vendor.kind === 'existing' ? v.vendor.id : null;
       if (v.vendor.kind === 'new') {
         const added = await addVendor(v.bookId, v.vendor.name);
         if (!added.ok) { failed('directory', added.words); return; }
         done.push({ step: 'directory', state: 'written', words: '' });
-        vendorId = added.value.vendorId;
+        onStop = added.value.vendorId;
       } else {
         done.push({ step: 'directory', state: 'not asked', words: '' });
       }
-      if (vendorId !== null) {
-        const setAnswer = await setVendor(vendorBody(v, line.value.lineId, vendorId));
+      if (onStop !== null) {
+        const setAnswer = await setVendor(vendorBody(v, line.value.lineId, onStop));
         if (!setAnswer.ok) { failed('vendor', setAnswer.words); return; }
         done.push({ step: 'vendor', state: 'written', words: '' });
       } else {
         done.push({ step: 'vendor', state: 'not asked', words: '' });
       }
-      // 3. The record, through the one writer. FORM-BOUNDS-01 (Alex, 2026-11-25): a stop still AHEAD is planned — its record is not asked (the rule
-      // read the stop against the clock handed in above, by the stops route's own test, and refused any box of the record typed for it): the step is
-      // said as 'ahead', and the row's "record" chip takes what happened once its time has come. Until then the record was asked on every save, and the
-      // route refused it for a stop ahead — after the stop was written. The tail below runs after both: the form clears and the sheet reads again.
+      // 5. The tag — only on a vendor that carries none; one that carries one STANDS, said in its own words; none typed, not asked.
+      if (v.tag === null) {
+        done.push({ step: 'tag', state: 'not asked', words: '' });
+      } else if (onStop === null) {
+        throw new Error('ExpenseForm: an INSTAGRAM TAG with no vendor on the stop — the rule refuses one before any write (TAG_NEEDS_VENDOR_WORDS)');
+      } else if (carries !== null) {
+        done.push({ step: 'tag', state: 'stands', words: instagramTagKey(carries) === instagramTagKey(v.tag) ? TAG_SAME_WORDS(v.tag) : TAG_STANDS_WORDS(carries) });
+      } else {
+        const tagged = await setVendorTag(onStop, v.tag);
+        if (!tagged.ok) { failed('tag', tagged.words); return; }
+        done.push({ step: 'tag', state: 'written', words: '' });
+      }
+      // 6. The record, through the one writer — a charge on its date takes none, a stop ahead is planned, else the record with its NOTES and LOGGED MIN.
       if (v.allDay) {
-        // PASTE-03 (Alex, 2026-11-28): a charge on its date takes no record — the step is said as 'charge', and the stops route is never asked (it refuses a record on an all-day line).
         done.push({ step: 'record', state: 'charge', words: '' });
       } else if (v.ahead) {
         done.push({ step: 'record', state: 'ahead', words: '' });
@@ -129,59 +256,106 @@ function Fields({ onWritten, close }: { onWritten: (day: string) => void; close:
       }
       setOutcome(done);
       setLanded(v.day);
+      // The row clears — the book kept — and stays open for the next one; both reads run again.
       setDraft((d) => ({ ...EMPTY_EXPENSE, book: d.book }));
+      setVendorTyped('');
+      setTrip(EMPTY_ROW_TRIP);
+      setReads((n) => n + 1);
       onWritten(v.day);
     } finally {
       setBusy(false);
     }
   };
 
-  const field = (name: ExpenseField, control: React.ReactNode) => (
-    <label className="flex items-center gap-1" data-ledger-expense-field={name}>
-      <span className={label}>{EXPENSE_FIELD_WORDS[name]}</span>
-      {control}
-    </label>
-  );
+  /** Enter in a box saves. */
+  const onKeyDown = (e: KeyboardEvent<HTMLTableRowElement>) => {
+    if (e.key !== 'Enter') return;
+    const target = e.target as HTMLElement;
+    if (target.tagName !== 'INPUT' && target.tagName !== 'SELECT') return;
+    e.preventDefault();
+    void save();
+  };
+
+  /** What stands under one column of the sheet — a box he types, the rule's work as he types, the covering trip, or the sheet's blank until the row is saved. */
+  const cellOf = (key: LedgerColumn): ReactNode => {
+    switch (key) {
+      case 'day': return isIsoDay(draft.day) ? dayLongWords(draft.day) : null;
+      case 'date': return <input type="date" value={draft.day} onChange={(e) => setDay(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.day} className={box} data-ledger-expense-box="day" />;
+      case 'start': return <input type="text" inputMode="numeric" value={draft.time} onChange={(e) => set('time')(e.target.value)} placeholder="HH:MM" maxLength={5} aria-label={EXPENSE_FIELD_WORDS.time} className={clockBox} data-ledger-expense-box="time" />;
+      case 'end': return <input type="text" inputMode="numeric" value={draft.end} onChange={(e) => set('end')(e.target.value)} placeholder="HH:MM" maxLength={5} aria-label={EXPENSE_FIELD_WORDS.end} className={clockBox} data-ledger-expense-box="end" />;
+      case 'city': {
+        if (covering !== null) return <span title={coveringTripWords(covering)} data-ledger-expense-trip-part="city">{placeParts(covering.place).city}</span>;
+        if (tripRead.kind === 'failed') return <span className="text-brand-red" data-ledger-expense-trip-failed>{tripRead.words}</span>;
+        return <input type="text" value={trip.city} onChange={(e) => setTripBox('city')(e.target.value)} maxLength={80} aria-label={ROW_TRIP_FIELD_WORDS.city} className={box} data-ledger-expense-box="city" />;
+      }
+      case 'region': {
+        if (covering !== null) { const part = placeParts(covering.place).region; return <span title={coveringTripWords(covering)} data-ledger-expense-trip-part="region">{part === null ? BLANK : part}</span>; }
+        if (tripRead.kind === 'failed') return null;
+        return <input type="text" value={trip.region} onChange={(e) => setTripBox('region')(e.target.value)} maxLength={80} aria-label={ROW_TRIP_FIELD_WORDS.region} className={box} data-ledger-expense-box="region" />;
+      }
+      case 'country': {
+        if (covering !== null) { const part = placeParts(covering.place).country; return <span title={coveringTripWords(covering)} data-ledger-expense-trip-part="country">{part === null ? BLANK : part}</span>; }
+        if (tripRead.kind === 'failed') return null;
+        return <input type="text" value={trip.country} onChange={(e) => setTripBox('country')(e.target.value)} maxLength={80} aria-label={ROW_TRIP_FIELD_WORDS.country} className={box} data-ledger-expense-box="country" />;
+      }
+      case 'location': return <select value={draft.location} onChange={(e) => set('location')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.location} className={box} data-ledger-expense-box="location"><option value="">{NO_LOCATION_WORDS}</option>{LOCATION_CLASSES.map((c) => <option key={c} value={c}>{LOCATION_WORDS[c]}</option>)}</select>;
+      // CoaSelect takes no label of its own: its wrapper carries the box's word.
+      case 'accountName': return <div role="group" aria-label={EXPENSE_FIELD_WORDS.coa} data-ledger-expense-box="coa"><CoaSelect entityId={draft.book} value={draft.coa} onChange={set('coa')} className={box} /></div>;
+      case 'book': return entities.length === 0
+        ? <span className="text-brand-amber" data-ledger-expense-no-book>{NO_BOOK_WORDS}</span>
+        : <select value={draft.book} onChange={(e) => set('book')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.book} className={box} data-ledger-expense-box="book">{entities.map((e) => <option key={e.id} value={e.id}>{bookWords(e)}</option>)}</select>;
+      case 'subAccountName': return <input type="text" value={draft.name} onChange={(e) => set('name')(e.target.value)} maxLength={200} aria-label={EXPENSE_FIELD_WORDS.name} className={box} data-ledger-expense-box="name" />;
+      case 'description': return <input type="text" value={draft.note} onChange={(e) => set('note')(e.target.value)} maxLength={280} aria-label={EXPENSE_FIELD_WORDS.note} className={box} data-ledger-expense-box="note" />;
+      case 'vendor': return (
+        <>
+          <input type="text" list="ledger-expense-vendors" value={vendorTyped} onChange={(e) => setVendorTyped(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.vendor} className={box} data-ledger-expense-box="vendor" />
+          <datalist id="ledger-expense-vendors" data-ledger-expense-vendors>{vendors.map((v) => <option key={v.id} value={v.vendor_name} />)}</datalist>
+        </>
+      );
+      case 'instagramTag': return <input type="text" value={draft.tag} onChange={(e) => set('tag')(e.target.value)} maxLength={31} aria-label={EXPENSE_FIELD_WORDS.tag} className={box} data-ledger-expense-box="tag" />;
+      case 'went': return <span title={ROW_LATER_WORDS} data-ledger-expense-later>{ROW_LATER_MARK}</span>;
+      case 'stars': return <input type="text" inputMode="numeric" value={draft.stars} onChange={(e) => set('stars')(e.target.value)} maxLength={1} aria-label={EXPENSE_FIELD_WORDS.stars} className={box} data-ledger-expense-box="stars" />;
+      case 'plannedMinutes': return <span data-ledger-expense-planned-minutes>{minutesCellWords(rowPlannedMinutes(draft))}</span>;
+      case 'loggedMinutes': return <input type="text" inputMode="numeric" value={draft.logged} onChange={(e) => set('logged')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.logged} className={clockBox} data-ledger-expense-box="logged" />;
+      case 'account': return <span title={ROW_LATER_WORDS} data-ledger-expense-later>{ROW_LATER_MARK}</span>;
+      case 'budget': return <input type="text" inputMode="decimal" value={draft.amount} onChange={(e) => set('amount')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.amount} className={clockBox} data-ledger-expense-box="amount" />;
+      case 'actual': return <input type="text" inputMode="decimal" value={draft.actual} onChange={(e) => set('actual')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.actual} className={clockBox} data-ledger-expense-box="actual" />;
+      case 'variance': return <span title={ROW_LATER_WORDS} data-ledger-expense-later>{ROW_LATER_MARK}</span>;
+      case 'match': return <span title={ROW_LATER_WORDS} data-ledger-expense-later>{ROW_LATER_MARK}</span>;
+      case 'underOver': return <span title={ROW_LATER_WORDS} data-ledger-expense-later>{ROW_LATER_MARK}</span>;
+      case 'notes': return <input type="text" value={draft.notes} onChange={(e) => set('notes')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.notes} className={box} data-ledger-expense-box="notes" />;
+      default: { const none: never = key; throw new Error(`ExpenseForm: no cell for the column ${String(none)}`); }
+    }
+  };
 
   return (
-    <div className="space-y-2 text-xs border border-border rounded p-2 bg-white" data-ledger-expense-form>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold text-text-secondary">{EXPENSE_TITLE_WORDS}</span>
-        {zone !== null && <span className="text-text-muted" data-ledger-expense-zone>{zoneWords(zone)}</span>}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {field('day', <input type="date" value={draft.day} onChange={(e) => set('day')(e.target.value)} className={box} data-ledger-expense-day />)}
-        {field('time', <input type="text" inputMode="numeric" value={draft.time} onChange={(e) => set('time')(e.target.value)} placeholder="HH:MM" maxLength={5} className={`${box} w-16 font-mono`} data-ledger-expense-time />)}
-        {field('name', <input type="text" value={draft.name} onChange={(e) => set('name')(e.target.value)} className={`${box} w-44`} maxLength={200} data-ledger-expense-name />)}
-        {field('amount', <input type="text" inputMode="decimal" value={draft.amount} onChange={(e) => set('amount')(e.target.value)} className={`${box} w-20 font-mono tabular-nums`} data-ledger-expense-amount />)}
-        {field('book', entities.length === 0
-          ? <span className="text-brand-amber" data-ledger-expense-no-book>{NO_BOOK_WORDS}</span>
-          : <select value={draft.book} onChange={(e) => set('book')(e.target.value)} className={box} data-ledger-expense-book>{entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>)}
-        {/* COALEVELS-01 (2026-11-27): the stop's LOCATION — none, or one of the rule's two (locationClass.ts, through ledger.ts); never required. The form stands in the sheet's controls row: shut, its root is `contents` and its button is one of the row's; open, the root takes the row's whole width beneath it. */}
-        {field('location', <select value={draft.location} onChange={(e) => set('location')(e.target.value)} className={box} data-ledger-expense-location><option value="">{NO_LOCATION_WORDS}</option>{LOCATION_CLASSES.map((c) => <option key={c} value={c}>{LOCATION_WORDS[c]}</option>)}</select>)}
-        {field('coa', <CoaSelect entityId={draft.book} value={draft.coa} onChange={set('coa')} className={box} />)}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {field('vendor', vendors === null
-          ? <span className="text-text-muted" data-ledger-expense-vendors-loading>{directory.words ?? VENDORS_LOADING_WORDS}</span>
-          : <select value={draft.vendorId} onChange={(e) => set('vendorId')(e.target.value)} className={box} data-ledger-expense-vendor><option value="">{NO_VENDOR_WORDS}</option>{vendors.map((v) => <option key={v.id} value={v.id}>{v.vendor_name}</option>)}</select>)}
-        <span className={label}>{NEW_VENDOR_WORDS}</span>
-        <input type="text" value={draft.vendorName} onChange={(e) => set('vendorName')(e.target.value)} className={`${box} w-40`} data-ledger-expense-vendor-name />
-        {field('actual', <input type="text" inputMode="decimal" value={draft.actual} onChange={(e) => set('actual')(e.target.value)} className={`${box} w-20 font-mono tabular-nums`} data-ledger-expense-actual />)}
-        {field('stars', <input type="text" inputMode="numeric" value={draft.stars} onChange={(e) => set('stars')(e.target.value)} className={`${box} w-10`} maxLength={1} data-ledger-expense-stars />)}
-        {field('note', <input type="text" value={draft.note} onChange={(e) => set('note')(e.target.value)} className={`${box} w-56`} maxLength={280} data-ledger-expense-note />)}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={chip} disabled={busy || zone === null} aria-busy={busy} onClick={save} data-ledger-expense-save>{SAVE_EXPENSE_WORDS}</button>
-        <button type="button" className={chip} disabled={busy} onClick={close} data-ledger-expense-cancel>{CANCEL_EXPENSE_WORDS}</button>
-        {refusal !== null && <span className="text-brand-red" data-ledger-expense-refused={refusal.field}>{refusal.message}</span>}
-      </div>
-      {outcome !== null && (
-        <ul className="space-y-0.5" data-ledger-expense-outcome>
-          {outcome.map((o) => <li key={o.step} className={o.state === 'failed' ? 'text-brand-red' : o.state === 'written' ? 'text-brand-green' : 'text-text-muted'} data-ledger-expense-step={o.step} data-ledger-expense-state={o.state}>{outcomeWords(o)}</li>)}
-        </ul>
-      )}
-      {landed !== null && <p className="text-text-muted" data-ledger-expense-landed>{expenseLandedWords(landed)}</p>}
-    </div>
+    <>
+      <tr className={`border-t border-border ${ROW_TINT}`} onKeyDown={onKeyDown} data-ledger-expense-form>
+        {LEDGER_COLUMNS.map((key) => <td key={key} className={`${cell} align-middle`} data-ledger-expense-cell={key}>{cellOf(key)}</td>)}
+      </tr>
+      <tr className={`border-t border-border ${ROW_TINT}`} data-ledger-expense-said>
+        <td colSpan={LEDGER_COLUMNS.length} className={cell}>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <button type="button" className={chip} disabled={busy || zone === null} aria-busy={busy} onClick={save} data-ledger-expense-save>{SAVE_EXPENSE_WORDS}</button>
+            <button type="button" className={chip} disabled={busy} onClick={close} data-ledger-expense-cancel>{CANCEL_EXPENSE_WORDS}</button>
+            {zone !== null && <span className="text-text-muted" data-ledger-expense-zone>{zoneWords(zone)}</span>}
+            {covering !== null && <span className="text-text-muted" data-ledger-expense-trip>{coveringTripWords(covering)}</span>}
+            {tripRead.kind === 'read' && covering === null && (
+              <span className="inline-flex items-center gap-1 text-text-muted" data-ledger-expense-trip-none>
+                <span>{noTripRowWords(draft.day)}</span>
+                <input type="date" value={trip.endsOn} onChange={(e) => setTripBox('endsOn')(e.target.value)} aria-label={ROW_TRIP_FIELD_WORDS.endsOn} className="px-1 py-0.5 border border-border rounded text-xs bg-white" data-ledger-expense-trip-ends />
+              </span>
+            )}
+            {refusal !== null && <span className="text-brand-red" data-ledger-expense-refused={refusal.field}>{refusal.message}</span>}
+          </div>
+          {outcome !== null && (
+            <ul className="space-y-0.5 text-xs mt-1" data-ledger-expense-outcome>
+              {outcome.map((o) => <li key={o.step} className={o.state === 'failed' ? 'text-brand-red' : o.state === 'written' ? 'text-brand-green' : 'text-text-muted'} data-ledger-expense-step={o.step} data-ledger-expense-state={o.state}>{outcomeWords(o)}</li>)}
+            </ul>
+          )}
+          {landed !== null && <p className="text-xs text-text-muted" data-ledger-expense-landed>{expenseLandedWords(landed)}</p>}
+        </td>
+      </tr>
+    </>
   );
 }

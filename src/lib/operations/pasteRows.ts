@@ -79,8 +79,10 @@ export type PasteHead = (typeof PASTE_READ_HEADS)[number];
 export const PASTE_REQUIRED_HEADS: readonly PasteHead[] = ['Start Date', 'Category', 'Entity', 'Type', 'Vendor'];
 /** The sheet's columns the app has no column for yet — named, and not read. COALEVELS-01 (2026-11-27): two — the Instagram Tag, the Location and the Notes are read now; five until then. */
 export const PASTE_NO_COLUMN_HEADS = ['Currency', 'Total'] as const;
-/** The sheet's columns the app works out itself, or that are a booking's — named, and not read. */
-export const PASTE_WORKED_OUT_HEADS = ['End Date', 'Trip Name', 'Covers From', 'Covers To', 'Daily Cost (USD)', 'Under/Over'] as const;
+/** The sheet's columns the app works out itself, or that are a booking's — named, and not read. SHEET-01 (2026-11-28): five — the Trip Name is read now (PASTE_TRIP_HEAD); six until then. */
+export const PASTE_WORKED_OUT_HEADS = ['End Date', 'Covers From', 'Covers To', 'Daily Cost (USD)', 'Under/Over'] as const;
+/** SHEET-01 (Alex, 2026-11-28): THE TRIP NAME — read as the paste's trips (Paste.trips; src/lib/operations/tripName.ts reads each), a KNOWN head: never "not one of the sheet's columns". No row's cell is read from it. */
+export const PASTE_TRIP_HEAD = 'Trip Name';
 
 /** A cell as it is read: trimmed, its runs of spaces (a tab and a line break among them) each one space. */
 const clean = (cell: string): string => cell.trim().replace(/\s+/g, ' ');
@@ -146,7 +148,7 @@ export function splitPaste(text: string): PasteSplit {
 
 export const NOTHING_PASTED_WORDS = 'nothing was pasted';
 export const NO_ROW_WORDS = 'the header row was read, and no row under it';
-export const headTwiceWords = (head: PasteHead): string => `the header row has "${head}" twice`;
+export const headTwiceWords = (head: PasteHead | typeof PASTE_TRIP_HEAD): string => `the header row has "${head}" twice`; // SHEET-01 (2026-11-28): and the Trip Name, read now
 export const headsMissingWords = (heads: readonly PasteHead[]): string => `the first row must be the sheet's header row — it has no ${heads.map((head) => `"${head}"`).join(', ')}`;
 
 /** A cell's refusals, each said after its head word. */
@@ -218,6 +220,8 @@ export interface Paste {
   readonly noColumn: readonly string[];
   readonly workedOut: readonly string[];
   readonly unknown: readonly string[];
+  /** SHEET-01 (Alex, 2026-11-28): the distinct Trip Name cells, cleaned, in the paste's order, from rows that are not blank — none when the header has no Trip Name. */
+  readonly trips: readonly string[];
 }
 
 export type PasteRead = { readonly ok: true; readonly value: Paste } | { readonly ok: false; readonly words: string };
@@ -359,12 +363,15 @@ export function readPaste(text: string): PasteRead {
     if (found.length > 1) return { ok: false, words: headTwiceWords(head) };
     if (found.length === 1) at.set(head, found[0]);
   }
+  // SHEET-01 (2026-11-28): the Trip Name's column, by its head word — read for the paste's trips; twice is refused as a read head twice is.
+  const tripAt = header.flatMap((cell, i) => (cell === keyOf(PASTE_TRIP_HEAD) ? [i] : []));
+  if (tripAt.length > 1) return { ok: false, words: headTwiceWords(PASTE_TRIP_HEAD) };
   const missing = PASTE_REQUIRED_HEADS.filter((head) => !at.has(head));
   if (missing.length > 0) return { ok: false, words: headsMissingWords(missing) };
   // The columns not read, each named once: the sheet's own two lists by their head words, any other as it was typed.
   const read = new Set(PASTE_READ_HEADS.map(keyOf));
   const named = (list: readonly string[]): string[] => list.filter((head) => header.includes(keyOf(head)));
-  const known = new Set([...PASTE_NO_COLUMN_HEADS, ...PASTE_WORKED_OUT_HEADS].map(keyOf));
+  const known = new Set([...PASTE_NO_COLUMN_HEADS, ...PASTE_WORKED_OUT_HEADS, PASTE_TRIP_HEAD].map(keyOf));
   const unknown: string[] = [];
   for (const cell of split.rows[headerAt]) {
     const typed = clean(cell);
@@ -372,9 +379,12 @@ export function readPaste(text: string): PasteRead {
     unknown.push(typed);
   }
   const rows: PasteRow[] = [];
+  const trips: string[] = [];
   for (let i = headerAt + 1; i < split.rows.length; i += 1) {
     const cells = split.rows[i];
     if (blank(cells)) continue;
+    const trip = tripAt.length === 1 && tripAt[0] < cells.length ? clean(cells[tripAt[0]]) : '';
+    if (trip !== '' && !trips.includes(trip)) trips.push(trip);
     rows.push(readRow(i - headerAt + 1, (head) => {
       const column = at.get(head);
       // A read column the header does not carry is a blank cell on every row; a row shorter than the header ends in blank cells.
@@ -382,7 +392,7 @@ export function readPaste(text: string): PasteRead {
     }));
   }
   if (rows.length === 0) return { ok: false, words: NO_ROW_WORDS };
-  return { ok: true, value: { rows, noColumn: named(PASTE_NO_COLUMN_HEADS), workedOut: named(PASTE_WORKED_OUT_HEADS), unknown } };
+  return { ok: true, value: { rows, noColumn: named(PASTE_NO_COLUMN_HEADS), workedOut: named(PASTE_WORKED_OUT_HEADS), unknown, trips } };
 }
 
 /** The lines over the table for the columns not read — one for each list that names a column. */
@@ -792,8 +802,9 @@ function chargeHappened(instant: string, cells: PasteCells, now: Date): { readon
 /** The record form's boxes the paste fills, each under the sheet column it is filled from. It fills no stars and no minutes. COALEVELS-01 (2026-11-27): the NOTES box is filled from the Notes column — the paste filled none until it read one. */
 const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' | 'minutes'>, PasteHead>> = { went: 'Start Date', actual: 'Total (USD)', note: 'Items', notes: 'Notes' };
 /** "+ expense"'s boxes the paste fills, each under the sheet column it is filled from. It fills no stars. COALEVELS-01 (2026-11-27): the LOCATION box is filled from the Location column. */
-const EXPENSE_HEADS: Readonly<Record<Exclude<ExpenseField, 'stars'>, PasteHead>> = {
+const EXPENSE_HEADS: Readonly<Record<Exclude<ExpenseField, 'stars' | 'logged'>, PasteHead>> = {
   day: 'Start Date', time: 'Start Time', name: 'Type', amount: 'Budget (USD)', coa: 'Category', book: 'Entity', location: 'Location', vendor: 'Vendor', actual: 'Total (USD)', note: 'Items',
+  end: 'End Time', tag: 'Instagram Tag', notes: 'Notes', // SHEET-01 (2026-11-28): the rule's three new boxes the paste could fill, each under its own column — it hands them blank; LOGGED MIN it never fills, as STARS
 };
 /** A refusal of the record form's rule, in its own words, under the column its box was filled from. A box the paste never fills is this file's error, thrown by name. */
 function refusedByRecord(field: RecordField, message: string): PastePlacement {
@@ -802,7 +813,7 @@ function refusedByRecord(field: RecordField, message: string): PastePlacement {
 }
 /** A refusal of "+ expense"'s rule, in the form's own words, under the column its box was filled from. */
 function refusedByExpense(field: ExpenseField, message: string): PastePlacement {
-  if (field === 'stars') throw new Error(`pasteRows: "+ expense"'s rule refused stars, which the paste never fills — ${message}`);
+  if (field === 'stars' || field === 'logged') throw new Error(`pasteRows: "+ expense"'s rule refused ${field}, which the paste never fills — ${message}`); // SHEET-01 (2026-11-28): LOGGED MIN too
   return { kind: 'refused', head: EXPENSE_HEADS[field], why: message };
 }
 
@@ -999,6 +1010,7 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
       day: cells.day, time: start === null ? '' : start, name: cells.type, amount: cells.budgetCents === null ? '' : csvMoney(cells.budgetCents), coa: account.code, book: book.id, location: cells.location === null ? '' : cells.location,
       vendorId: vendor.kind === 'own' ? vendor.id : '', vendorName: vendor.kind === 'new' ? vendor.name : '',
       actual: happened.kind === 'went' ? csvMoney(happened.cents) : '', stars: '', note: happened.kind === 'went' && happened.items !== null ? happened.items : '',
+      end: '', tag: '', notes: '', logged: '', // SHEET-01 (2026-11-28): the rule's four new boxes, blank — the paste writes the minutes, the tag and the notes by its own steps, as before
     }, context.zone, context.now);
     if (!read.ok) return refusedByExpense(read.field, read.message);
     const values = read.value;
@@ -1091,14 +1103,16 @@ function yourCells(row: PasteRow): string[] {
 const NOWHERE_CELLS: readonly string[] = ON_TIME_SHEET_KEYS.map(() => BLANK);
 /** WENT, for a stop that has no record — the time sheet's own three words. */
 const OUTCOME_WORD: Readonly<Record<PastedOutcome['kind'], string>> = { went: WENT_WORD, planned: PLANNED_WORD, 'not recorded': NOT_RECORDED_WORDS };
+/** SHEET-01 (Alex, 2026-11-28): A CHARGE — a new one-off with no Start Time, or the charge of the row's own name that stands (its stop all day, with no record). It takes no record: its WENT is the sheet's blank and it says CHARGE_HAPPENED_WORDS. */
+export const isChargePlacement = (placement: PastePlacement): boolean => (placement.kind === 'oneOff' && placement.start === null) || (placement.kind === 'plan' && placement.standing && placement.stop.id === null && placement.stop.allDay);
 
 /** ON THE TIME SHEET, for a placed row. A row placed nowhere: every cell blank. */
 function sheetCells(placement: PastePlacement): readonly string[] {
   if (placement.kind === 'plan') {
-    // The stop's own cells — but WENT reads went when this row is recorded and planned when its stop is still ahead, and ACTUAL reads this row's amount when it is recorded.
+    // The stop's own cells — but WENT reads went when this row is recorded and planned when its stop is still ahead (SHEET-01, 2026-11-28: never on a charge — its own cell, the sheet's blank), and ACTUAL reads this row's amount when it is recorded.
     const { stop, happened } = placement;
     return ON_TIME_SHEET_KEYS.map((key) => {
-      if (key === 'went' && (happened.kind === 'went' || happened.kind === 'planned')) return OUTCOME_WORD[happened.kind];
+      if (key === 'went' && !isChargePlacement(placement) && (happened.kind === 'went' || happened.kind === 'planned')) return OUTCOME_WORD[happened.kind];
       if (key === 'actual' && happened.kind === 'went') return budgetCellWords(happened.cents);
       return cellWordsOf(stop, key);
     });
@@ -1111,7 +1125,7 @@ function sheetCells(placement: PastePlacement): readonly string[] {
       account: deriveAccountString({ entityType: placement.book.entityType, code: placement.account.code }),
       accountName: placement.account.name,
       subAccountName: placement.name,
-      went: OUTCOME_WORD[placement.happened.kind],
+      went: isChargePlacement(placement) ? BLANK : OUTCOME_WORD[placement.happened.kind], // SHEET-01 (2026-11-28): a charge's WENT is the sheet's blank, as the time sheet prints an all-day line (ledger.ts wentCellWords)
       budget: budgetCellWords(placement.budgetCents),
       actual: budgetCellWords(placement.happened.kind === 'went' ? placement.happened.cents : null),
     };
@@ -1134,6 +1148,8 @@ export const recordedWentWords = (cents: number): string => `recorded: went, ${f
 export const PLANNED_AHEAD_WORDS = 'planned: still ahead';
 export const ALREADY_RECORDED_WORDS = 'already recorded';
 export const NO_TOTAL_WORDS = 'not recorded: no Total (USD)';
+/** SHEET-01 (Alex, 2026-11-28): what a CHARGE says happened, ahead or past, with a Total (USD) or none — NO_TOTAL_WORDS was false beside CHARGE_TOTAL_WORDS. The placement's `happened` stands. */
+export const CHARGE_HAPPENED_WORDS = 'a charge on its date: no record';
 /** COALEVELS-01 (2026-11-27): the tag a row sets on its vendor, and that it writes planned items. */
 export const tagSetWords = (tag: string): string => `tag: ${instagramTagWords(tag)}`;
 export const PLANNED_ITEMS_SET_WORDS = 'items: planned';
@@ -1155,11 +1171,11 @@ export function landsWords(placement: PastePlacement): string {
     case 'pick': return placement.words;
     case 'plan': {
       const start = cellWordsOf(placement.stop, 'start');
-      return [placement.standing && placement.stop.id === null && placement.stop.allDay ? onChargeWords(placement.plan) : placement.standing ? onStandingWords(placement.plan, start) : onPlanWords(placement.plan, start), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
+      return [isChargePlacement(placement) ? onChargeWords(placement.plan) : placement.standing ? onStandingWords(placement.plan, start) : onPlanWords(placement.plan, start), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), isChargePlacement(placement) ? CHARGE_HAPPENED_WORDS : happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
     }
     case 'oneOff': {
       const label = deriveAccountString({ entityType: placement.book.entityType, code: placement.account.code });
-      return [placement.start === null ? chargeWords(label, placement.account.name) : oneOffWords(placement.start, label, placement.account.name), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
+      return [placement.start === null ? chargeWords(label, placement.account.name) : oneOffWords(placement.start, label, placement.account.name), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), isChargePlacement(placement) ? CHARGE_HAPPENED_WORDS : happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
     }
   }
 }

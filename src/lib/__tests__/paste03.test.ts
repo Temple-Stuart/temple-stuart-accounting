@@ -421,8 +421,8 @@ test('T12 “+ expense”: a blank TIME is a stop ALL DAY — a charge on its da
   for (const [over, field] of boxes) {
     for (const day of [MON, WED]) assert.deepEqual(expenseInput({ ...DRAFT, ...over, day, time: '' }, NBO, NOW), { ok: false, field, message: chargeFieldWords(field) }, `${JSON.stringify(over)} on ${day}`);
   }
-  assert.equal(chargeFieldWords('actual'), "ACTUAL is the record's, and with no TIME this is a charge on its date — it takes no record; give it a TIME, or leave this blank");
-  assert.equal(chargeFieldWords('note'), "ITEMS is the record's, and with no TIME this is a charge on its date — it takes no record; give it a TIME, or leave this blank");
+  assert.equal(chargeFieldWords('actual'), "ACTUAL is the record's, and with no START this is a charge on its date — it takes no record; give it a START, or leave this blank"); // SHEET-01 (2026-11-28): the box named by its word — START; TIME until then
+  assert.equal(chargeFieldWords('note'), "ITEMS is the record's, and with no START this is a charge on its date — it takes no record; give it a START, or leave this blank"); // SHEET-01 (2026-11-28): a charge's sentence names the box by its word — START; TIME until then
   // The routine's name: its day alone; a timed one keeps its time.
   assert.equal(oneOffRoutineName(charge.value), `Picnic · ${MON}`);
   assert.equal(oneOffRoutineName(timed.value), `Picnic · ${MON} 12:30`);
@@ -451,7 +451,7 @@ test('T13 the form: a charge’s record step is not asked — it reads “the re
   assert.match(form, /if \(v\.allDay\) \{\n\s*done\.push\(\{ step: 'record', state: 'charge', words: '' \}\);\n\s*\} else if \(v\.ahead\) \{\n\s*done\.push\(\{ step: 'record', state: 'ahead', words: '' \}\);\n\s*\} else \{/);
   assert.equal(countOf(form, /\bsetStopRecord\(/g), 1, 'one call');
   assert.ok(form.indexOf('setStopRecord(') > form.indexOf('} else if (v.ahead) {'), 'in the branch that asks the record — after the charge and the stop ahead');
-  assert.match(form.split('\n')[86], /const created = await createOneOff\(oneOffBody\(v\)\);/, 'ExpenseForm.tsx:87 — the line the registry cites');
+  assert.match(form.split('\n')[77], /^export default function ExpenseRow\(/, 'ExpenseForm.tsx:78 — the line the registry cites: the blank row'); // SHEET-01 (2026-11-28): the registry's cite follows ExpenseRow — the create at :87 until then
 });
 
 // ── T14 · THE PASTE: A NEW CHARGE ON ITS DATE (ruling 2.3) ───────────────────
@@ -476,7 +476,7 @@ test('T14 the paste: a row with no Start Time is a NEW CHARGE on its date — at
   const [shown] = pasteShown(paste, [placement]);
   const cell = (key: (typeof ON_TIME_SHEET_KEYS)[number]): string => shown.sheet[ON_TIME_SHEET_KEYS.indexOf(key)];
   assert.deepEqual([cell('start'), cell('end'), cell('budget')], [ROLE_SHORT_WORDS.all_day, BLANK, BLANK]);
-  assert.equal(shown.lands, `${chargeWords('P-6200', 'Recreation')} · vendor: new to Personal · tag: @gallery.one · not recorded: no Total (USD) · items: planned · ${CHARGE_SAID.join(' · ')}`);
+  assert.equal(shown.lands, `${chargeWords('P-6200', 'Recreation')} · vendor: new to Personal · tag: @gallery.one · a charge on its date: no record · items: planned · ${CHARGE_SAID.join(' · ')}`); // SHEET-01 (2026-11-28): a charge says it takes no record — "not recorded: no Total (USD)" until then
   assert.equal(chargeWords('P-6200', 'Recreation'), 'a new charge on its date, all day — no Start Time — under P-6200 Recreation');
   // Still ahead: planned — never went.
   const [ahead] = placedAll(pasteOf({ ...MUSEUM_FULL, 'Start Date': '8/11/27' }), ONE_OFF);
@@ -499,10 +499,10 @@ test('T14 the paste: a row with no Start Time is a NEW CHARGE on its date — at
     addVendor: async () => { calls.push('addVendor'); return { ok: true, value: { vendorId: 'v-1' } }; },
     setVendor: async (b) => { calls.push('setVendor'); bodies.push(b); return { ok: true, value: null }; },
     setVendorTag: async () => { calls.push('setVendorTag'); return { ok: true, value: null }; },
-    addSubAccount: async () => { calls.push('addSubAccount'); return { ok: true, value: null }; },
+    addSubAccount: async () => { calls.push('addSubAccount'); return { ok: true, value: null }; }, addStay: async () => assert.fail('no trip is handed in'), // SHEET-01 (2026-11-28): the tenth writer — never called here
     setRecord: async () => { calls.push('setRecord'); return { ok: true }; },
   };
-  const outcomes = await runPaste(pasteWritesOf(paste.rows, [placement]), writers, () => undefined, []);
+  const outcomes = await runPaste(pasteWritesOf(paste.rows, [placement]), writers, () => undefined, [], []); // SHEET-01 (2026-11-28): the trips, handed in — none here
   assert.deepEqual(outcomes, [{ row: 2, state: 'written', steps: ['stop', 'line', 'directory', 'vendor', 'items', 'tag'] }]);
   assert.deepEqual(calls, ['createOneOff', 'readOneOffLine', 'addVendor', 'setVendor', 'setVendorTag']);
   assert.deepEqual([(bodies[0] as { readonly role: string }).role, bodies[1]], ['all_day', { kind: 'routine_line', id: 'line-1', instant: at(MON, '00:00'), vendorId: 'v-1', items: 'two tickets' }]);
@@ -536,7 +536,7 @@ test('T15 a row on the charge of its own name that stands — that book, that da
   if (on.kind !== 'plan') return assert.fail(`placed: ${on.kind}`);
   assert.deepEqual([on.standing, on.stop.key, on.instant, on.record, on.happened, on.vendor, on.items, on.tag], [true, chargeRow().key, at(MON, '00:00'), null, { kind: 'not recorded' }, { kind: 'new', name: 'Gallery One' }, 'two tickets', { vendorId: null, tag: 'gallery.one' }]);
   assert.deepEqual(on.notWritten, CHARGE_SAID);
-  assert.equal(fresh.shown[0].lands, `${onChargeWords('Museum')} · vendor: new to Personal · tag: @gallery.one · not recorded: no Total (USD) · items: planned · ${CHARGE_SAID.join(' · ')}`);
+  assert.equal(fresh.shown[0].lands, `${onChargeWords('Museum')} · vendor: new to Personal · tag: @gallery.one · a charge on its date: no record · items: planned · ${CHARGE_SAID.join(' · ')}`); // SHEET-01 (2026-11-28): a charge says it takes no record — "not recorded: no Total (USD)" until then
   assert.equal(onChargeWords('Museum'), 'on the charge "Museum", all day, already on the time sheet');
   assert.deepEqual(fresh.writes.map((w) => [w.kind, w.vendor.kind, w.items, w.kind === 'stop' ? w.record : 'one-off']), [['stop', 'new', 'two tickets', null]]);
   assert.equal(countsWords(fresh.placements), '1 row read · 0 on a plan · 1 one-off (0 new) · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 0 dates with nothing on them');

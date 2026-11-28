@@ -210,7 +210,7 @@ function recorder(refuse: Refusals = {}) {
     addVendor: async (entityId, name) => { calls.push(['addVendor', entityId, name]); if (refuse.directory !== undefined) return no('directory'); vendors += 1; return { ok: true, value: { vendorId: `v-new-${vendors}` } }; },
     setVendor: async (body) => { calls.push(['setVendor', body]); return refuse.vendor !== undefined ? no('vendor') : { ok: true, value: { outcome: 'set' } }; },
     setVendorTag: async (vendorId, tag) => { calls.push(['setVendorTag', vendorId, tag]); return refuse.tag !== undefined ? no('tag') : { ok: true, value: null }; },
-    addSubAccount: async (accountId, name, subCode) => { calls.push(['addSubAccount', accountId, name, subCode]); return refuse['sub-account'] !== undefined ? no('sub-account') : { ok: true, value: null }; },
+    addSubAccount: async (accountId, name, subCode) => { calls.push(['addSubAccount', accountId, name, subCode]); return refuse['sub-account'] !== undefined ? no('sub-account') : { ok: true, value: null }; }, addStay: async () => assert.fail('no trip is handed in'), // SHEET-01 (2026-11-28): the tenth writer — never called here
     setRecord: async (body) => { calls.push(['setRecord', body]); return refuse.record !== undefined ? { ok: false, message: refuse.record } : { ok: true }; },
   };
   return { calls, writers };
@@ -226,7 +226,7 @@ const callOf = (calls: readonly (readonly [string, ...unknown[]])[], name: strin
 const ran = async (typed: Typed, pick: PastePick, refuse: Refusals = {}, context: PasteContext = CONTEXT) => {
   const { writes } = landed(typed, pick, context);
   const { calls, writers } = recorder(refuse);
-  const outcomes = await runPaste(writes, writers, () => undefined, []);
+  const outcomes = await runPaste(writes, writers, () => undefined, [], []); // SHEET-01 (2026-11-28): the trips, handed in — none here
   return { writes, calls, outcome: outcomes[0] };
 };
 
@@ -297,7 +297,7 @@ test('T3 the notes: a row that went carries them into what happened and into the
   assert.deepEqual([write.went, write.notes], [true, 'lane four']);
   assert.equal(recordBody(bowling.values, 'line-of-rt-1').notes, null, '"+ expense" has no NOTES box');
   const { calls, writers } = recorder();
-  await runPaste(fresh.writes, writers, () => undefined, []);
+  await runPaste(fresh.writes, writers, () => undefined, [], []); // SHEET-01 (2026-11-28): the trips, handed in — none here
   assert.deepEqual(callOf(calls, 'setRecord'), ['setRecord', { ...recordBody(bowling.values, 'line-of-rt-1'), notes: 'lane four' }]);
   // A one-off that makes no record carries none, and says its Notes.
   const noTotal = landed({ ...BOWLING, 'Total (USD)': '' }, ONE_OFF('6200'));
@@ -433,7 +433,7 @@ test('T6 the tag is its vendor’s, asked last: set on the book’s own by its i
   assert.deepEqual([dinner.happened, dinner.vendor, dinner.record, dinner.items, dinner.tag, dinner.notWritten], [{ kind: 'recorded' }, { kind: 'none' }, null, null, { vendorId: 'v-oat', tag: 'oat.house' }, []]);
   assert.deepEqual(tagged.writes, [{ kind: 'stop', row: 2, day: SUN, book: { id: 'P', word: 'Personal' }, vendor: { kind: 'none' }, tag: { vendorId: 'v-oat', tag: 'oat.house' }, items: null, address: DINNER_SUN.address, record: null }]);
   const { calls, writers } = recorder();
-  assert.deepEqual(await runPaste(tagged.writes, writers, () => undefined, []), [{ row: 2, state: 'written', steps: ['tag'] }]);
+  assert.deepEqual(await runPaste(tagged.writes, writers, () => undefined, [], []), [{ row: 2, state: 'written', steps: ['tag'] }]); // SHEET-01 (2026-11-28): the trips, handed in — none here
   assert.deepEqual(calls, [['setVendorTag', 'v-oat', 'oat.house']]);
   // The same row with no tag has nothing to write.
   assert.deepEqual(landed({ 'Start Date': '6/13/27', Category: 'Dining Out', Entity: 'Personal', Type: 'Dinner', Vendor: 'Oat House' }, ON_PLAN('Dinner')).writes, []);
@@ -447,9 +447,9 @@ test('T6 the tag is its vendor’s, asked last: set on the book’s own by its i
 // ── T7 · THE RUNNER (rulings C.2 to C.4) ─────────────────────────────────────
 
 test('T7 the runner, over writers that record their calls: the nine steps and their words; the vendor’s call carries the items, and no `items` key without any; a standing vendor is ONE call whose step is ‘items’, and its refusal fails ‘items’; the tag is set after the vendor — on the book’s own id, and on the id the add answered; a refused tag fails ‘tag’ with the steps before it, and no record is tried; a one-off’s record carries the row’s notes', async () => {
-  assert.deepEqual([...PASTE_STEPS], ['sub-account', 'stop', 'line', 'minutes', 'directory', 'vendor', 'items', 'tag', 'record']);
+  assert.deepEqual([...PASTE_STEPS], ['stay', 'sub-account', 'stop', 'line', 'minutes', 'directory', 'vendor', 'items', 'tag', 'record']); // SHEET-01 (2026-11-28): 'stay' at the head
   assert.deepEqual(PASTE_STEPS.map((step) => PASTE_STEP_WORDS[step]), [
-    'the sub-account', 'the one-off stop', "the stop's line, read back", "the stop's minutes", 'the vendor, added to the book', 'the vendor, on the stop', 'the planned items', "the vendor's Instagram tag", 'the record',
+    'the trip', 'the sub-account', 'the one-off stop', "the stop's line, read back", "the stop's minutes", 'the vendor, added to the book', 'the vendor, on the stop', 'the planned items', "the vendor's Instagram tag", 'the record', // SHEET-01 (2026-11-28): the trip's step, first
   ]);
   // The vendor's call carries the row's planned items — ONE call, two steps.
   const planning = await ran({ ...SOUP_PLAN, 'Start Date': '6/14/27' }, ON_PLAN('Soup'));
@@ -495,9 +495,9 @@ test('T7 the runner, over writers that record their calls: the nine steps and th
   const address = { kind: 'routine_line' as const, id: 'line-soup', instant: at(SUN, '12:30') };
   const book = { id: 'P', word: 'Personal' as const };
   const orphanTag: PasteWrite = { kind: 'stop', row: 9, day: SUN, book, vendor: { kind: 'none' }, tag: { vendorId: null, tag: 'oat.house' }, items: null, address, record: null };
-  await assert.rejects(runPaste([orphanTag], recorder().writers, () => undefined, []), /pasteSave: row 9 sets a tag on the vendor it adds, and its vendor step ended on no vendor/);
+  await assert.rejects(runPaste([orphanTag], recorder().writers, () => undefined, [], []), /pasteSave: row 9 sets a tag on the vendor it adds, and its vendor step ended on no vendor/); // SHEET-01 (2026-11-28): the trips, handed in — none here
   const bareStanding: PasteWrite = { kind: 'stop', row: 9, day: SUN, book, vendor: { kind: 'standing', id: 'v-bean', name: 'Bean Bar' }, tag: null, items: null, address, record: null };
-  await assert.rejects(runPaste([bareStanding], recorder().writers, () => undefined, []), /pasteSave: row 9 names its stop's standing vendor and writes no planned items/);
+  await assert.rejects(runPaste([bareStanding], recorder().writers, () => undefined, [], []), /pasteSave: row 9 names its stop's standing vendor and writes no planned items/); // SHEET-01 (2026-11-28): the trips, handed in — none here
 });
 
 // ── T8 · THE WORDS (rulings B.5, C.5) ────────────────────────────────────────
@@ -510,10 +510,10 @@ test('T8 the words: the button counts the tags set and the stops given planned i
   assert.deepEqual(writes.map((write) => [write.row, write.vendor.kind, write.tag, write.items]), [
     [2, 'own', { vendorId: 'v-oat', tag: 'oat.house' }, null], [3, 'new', { vendorId: null, tag: 'fern.room' }, 'two bowls'], [4, 'standing', null, 'a pot of mint'],
   ]);
-  assert.equal(saveWords(writes, []), 'save 3 rows — 0 sub-accounts added to the chart · 1 vendor added to a book · 2 vendors set on a stop · 2 tags set on a vendor · 2 stops given planned items · 1 record · 0 one-offs');
+  assert.equal(saveWords(writes, [], []), 'save 3 rows — 0 trips added · 0 sub-accounts added to the chart · 1 vendor added to a book · 2 vendors set on a stop · 2 tags set on a vendor · 2 stops given planned items · 1 record · 0 one-offs'); // SHEET-01 (2026-11-28): the trips, handed in — none here
   // The singulars — and the standing vendor alone: a stop given planned items, and no vendor set.
-  assert.equal(saveWords(writes.slice(1, 2), []), 'save 1 row — 0 sub-accounts added to the chart · 1 vendor added to a book · 1 vendor set on a stop · 1 tag set on a vendor · 1 stop given planned items · 0 records · 0 one-offs');
-  assert.equal(saveWords(writes.slice(2), []), 'save 1 row — 0 sub-accounts added to the chart · 0 vendors added to a book · 0 vendors set on a stop · 0 tags set on a vendor · 1 stop given planned items · 0 records · 0 one-offs');
+  assert.equal(saveWords(writes.slice(1, 2), [], []), 'save 1 row — 0 trips added · 0 sub-accounts added to the chart · 1 vendor added to a book · 1 vendor set on a stop · 1 tag set on a vendor · 1 stop given planned items · 0 records · 0 one-offs'); // SHEET-01 (2026-11-28): the trips, handed in — none here
+  assert.equal(saveWords(writes.slice(2), [], []), 'save 1 row — 0 trips added · 0 sub-accounts added to the chart · 0 vendors added to a book · 0 vendors set on a stop · 0 tags set on a vendor · 1 stop given planned items · 0 records · 0 one-offs'); // SHEET-01 (2026-11-28): the trips, handed in — none here
   assert.equal(NOTHING_TO_SAVE_WORDS, 'nothing to save — no placed row has a vendor to plan, a tag to set, planned items to write, a record to make or a one-off to add');
   // YOUR SHEET: eleven columns — LOCATION first of the row's own facts, INSTAGRAM TAG after VENDOR, NOTES after ITEMS.
   assert.deepEqual(YOUR_SHEET_COLUMNS.map((column) => column.head), ['ROW', 'DATE', 'TIME', 'ENTITY', 'LOCATION', 'CATEGORY › TYPE', 'VENDOR', 'INSTAGRAM TAG', 'ITEMS', 'NOTES', 'TOTAL (USD)']);
@@ -572,7 +572,7 @@ test('T10 in the source: the leaf hands eight writers to the one runner and call
     assert.equal(countOf(leaf, new RegExp(`\\b${writer}\\b`, 'g')), 2, `${writer}: imported, and handed to the runner`);
     assert.doesNotMatch(leaf, new RegExp(`\\b${writer}\\(`), `${writer} is not called here`);
   }
-  assert.equal(countOf(leaf, /await runPaste\(placed\.writes, \{ createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setVendorTag, addSubAccount, setRecord: setStopRecord \}, /g), 1);
+  assert.equal(countOf(leaf, /await runPaste\(placed\.writes, \{ createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setVendorTag, addSubAccount, addStay, setRecord: setStopRecord \}, /g), 1); // SHEET-01 (2026-11-28): ten writers — addStay
   assert.equal(countOf(leaf, /\brunPaste\b/g), 2, 'imported, and called once');
   assert.doesNotMatch(leaf, /\bfetch\s*\(/, 'the leaf sends no request of its own');
   assert.match(comments(LEAF), /handed the eight writers — ledgerWrites\.ts's seven and the stops' one/);
@@ -729,22 +729,22 @@ test('T15 the runner writes the additions first, one call each, before any row; 
   const adds = pasteAddsOf(chartAddsOf(placements, CONTEXT));
   assert.deepEqual(adds, [{ accountId: 'acct-6200', rendered: 'P-6200', code: '10', name: 'Bowling' }, { accountId: 'acct-6200', rendered: 'P-6200', code: '20', name: 'Darts' }]);
   // THE BUTTON: the sub-accounts first. (The second row's vendor is the one the first adds, and its tag the same handle: one vendor added, one tag set.)
-  assert.equal(saveWords(writes, adds), 'save 2 rows — 2 sub-accounts added to the chart · 1 vendor added to a book · 2 vendors set on a stop · 1 tag set on a vendor · 0 stops given planned items · 2 records · 2 one-offs');
-  assert.equal(saveWords(writes.slice(0, 1), adds.slice(0, 1)), 'save 1 row — 1 sub-account added to the chart · 1 vendor added to a book · 1 vendor set on a stop · 1 tag set on a vendor · 0 stops given planned items · 1 record · 1 one-off');
+  assert.equal(saveWords(writes, adds, []), 'save 2 rows — 0 trips added · 2 sub-accounts added to the chart · 1 vendor added to a book · 2 vendors set on a stop · 1 tag set on a vendor · 0 stops given planned items · 2 records · 2 one-offs'); // SHEET-01 (2026-11-28): the trips, handed in — none here
+  assert.equal(saveWords(writes.slice(0, 1), adds.slice(0, 1), []), 'save 1 row — 0 trips added · 1 sub-account added to the chart · 1 vendor added to a book · 1 vendor set on a stop · 1 tag set on a vendor · 0 stops given planned items · 1 record · 1 one-off'); // SHEET-01 (2026-11-28): the trips, handed in — none here
   // THE RUN: each addition, in its order — its account's id, its name, its code — and only then the first row.
   const first = recorder();
   const told: PasteProgress[] = [];
-  const outcomes = await runPaste(writes, first.writers, (progress) => told.push(progress), adds);
+  const outcomes = await runPaste(writes, first.writers, (progress) => told.push(progress), adds, []); // SHEET-01 (2026-11-28): the trips, handed in — none here
   assert.deepEqual(first.calls.slice(0, 3).map((call) => (call[0] === 'addSubAccount' ? call : call[0])), [['addSubAccount', 'acct-6200', 'Bowling', '10'], ['addSubAccount', 'acct-6200', 'Darts', '20'], 'createOneOff']);
   assert.equal(countOf(names(first.calls).join(' '), /addSubAccount/g), 2, 'one call an addition');
-  assert.deepEqual(told[0], { adds: [{ state: 'written' }, { state: 'written' }], outcomes: [], at: { i: 1, of: 2, row: 2 } }, 'before the first row is written, both additions have come out');
+  assert.deepEqual(told[0], { trips: [], adds: [{ state: 'written' }, { state: 'written' }], outcomes: [], at: { i: 1, of: 2, row: 2 } }, 'before the first row is written, both additions have come out'); // SHEET-01 (2026-11-28): and the trips' outcomes — none here
   assert.deepEqual(told[told.length - 1].adds, [{ state: 'written' }, { state: 'written' }]);
   assert.deepEqual(outcomes.map((outcome) => outcome.state), ['written', 'written']);
   assert.equal(addOutcomeWords({ state: 'written' }), 'written: the sub-account');
   // A REFUSAL stops nothing: it is said on the addition's line, the next addition is still asked, and every row is saved — a stop's name is its Type either way.
   const second = recorder({ 'sub-account': 'that name already stands under this account' });
   const said: PasteProgress[] = [];
-  const saved = await runPaste(writes, second.writers, (progress) => said.push(progress), adds);
+  const saved = await runPaste(writes, second.writers, (progress) => said.push(progress), adds, []); // SHEET-01 (2026-11-28): the trips, handed in — none here
   assert.equal(countOf(names(second.calls).join(' '), /addSubAccount/g), 2);
   assert.deepEqual(said[said.length - 1].adds, [{ state: 'failed', words: 'that name already stands under this account' }, { state: 'failed', words: 'that name already stands under this account' }]);
   assert.deepEqual([saved.map((outcome) => outcome.state), runStopped(saved), runWords(saved)], [['written', 'written'], false, '2 rows saved']);
@@ -752,7 +752,7 @@ test('T15 the runner writes the additions first, one call each, before any row; 
   assert.equal(addOutcomeWords({ state: 'failed', words: 'that name already stands under this account' }), 'not written: the sub-account — that name already stands under this account');
   // No addition: the runner asks the chart nothing.
   const none = recorder();
-  await runPaste(writes, none.writers, () => undefined, []);
+  await runPaste(writes, none.writers, () => undefined, [], []); // SHEET-01 (2026-11-28): the trips, handed in — none here
   assert.ok(!names(none.calls).includes('addSubAccount'));
 });
 
@@ -836,13 +836,13 @@ test('T17 the chart’s answers, read: chartOf takes each account’s id — an 
   assert.equal(countOf(leaf, /\/api\/chart-of-accounts\/sub-accounts/g), 1);
   // A READ starts the picks, once, by the rule's own function — and "clear" still forgets them.
   assert.equal(countOf(leaf, /picksAtRead\(/g), 1);
-  assert.match(leaf, /setPicks\(\(held\) => picksAtRead\(held, pasteKindsOf\(paste\.value\), against\.value\)\);\n\s*setRows\(\{ paste: paste\.value, context: against\.value \}\);/);
+  assert.match(leaf, /setPicks\(\(held\) => picksAtRead\(held, pasteKindsOf\(paste\.value\), against\.value\.context\)\);\n\s*setRows\(\{ paste: paste\.value, \.\.\.against\.value \}\);/); // SHEET-01 (2026-11-28): the read answers the context and the stays
   assert.match(leaf, /setPicks\(\{\}\);/);
   // THE ADDITIONS: worked by the rule, listed under the picks and over the save box — no line when there is none — and handed to the runner and to the button.
   assert.match(leaf, /const adds = chartAddsOf\(placed, read\.context\);/);
   inOrder(leaf, ['data-ledger-paste-picks>', '{shown.adds.length > 0 && (', 'data-ledger-paste-adds>', '{PASTE_ADDS_WORDS}', '<span>{chartAddWords(add)}</span>', '{addOutcomeWords(outcome)}', 'data-ledger-paste-save-box>', 'data-ledger-paste-table>'], 'the box, in order');
-  assert.match(leaf, /\}, placed\.saveAdds\);/);
-  assert.match(leaf, /data-ledger-paste-save>\{saveWords\(shown\.writes, shown\.saveAdds\)\}<\/button>/);
+  assert.match(leaf, /\}, placed\.saveAdds, placed\.tripWrites\);/); // SHEET-01 (2026-11-28): and the trips, written first
+  assert.match(leaf, /data-ledger-paste-save>\{saveWords\(shown\.writes, shown\.saveAdds, shown\.tripWrites\)\}<\/button>/); // SHEET-01 (2026-11-28): the button counts the trips
   // The two rules are still pure: no request, no clock of their own, neither writer's file.
   for (const rule of [RULES, SAVE]) assert.doesNotMatch(code(rule), /\bfetch\b|new Date\(\)|Date\.now\(|@prisma\/client|from 'react'|from 'next|localStorage|sessionStorage|document\.|stopWrites|ledgerWrites/, rule);
 });

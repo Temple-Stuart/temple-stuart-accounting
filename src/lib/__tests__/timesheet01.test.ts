@@ -502,9 +502,9 @@ test('T8 the TOTAL row is ledgerTotals over the rows shown, as it stood: BUDGET 
   // The span.
   assert.equal(LEDGER_COLUMNS.indexOf('budget'), 19, 'the columns before BUDGET'); // TIMESHEET-04b (2026-11-27): INSTAGRAM TAG sits among them — 15 until then · COALEVELS-01 (2026-11-27): REGION, LOCATION and ITEMS sit among them too, and the COA stands before BUDGET — 16 until then
   const s = code(SECTION);
-  assert.match(s, /<th scope="row" colSpan=\{19 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // COALEVELS-01 (2026-11-27): nineteen less the folded — `16 - dayFoldCount(period)` until then. TIMESHEET-04b (2026-11-27): sixteen less the folded — `15 - dayFoldCount(period)` until then. TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then
+  assert.match(s, /<th scope="row" colSpan=\{LEDGER_COLUMNS\.indexOf\('plannedMinutes'\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // COALEVELS-01 (2026-11-27): nineteen less the folded — `16 - dayFoldCount(period)` until then. TIMESHEET-04b (2026-11-27): sixteen less the folded — `15 - dayFoldCount(period)` until then. TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then; SHEET-01 (2026-11-28): the label spans the columns before PLANNED MIN, worked out — nineteen less the fold until then
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
-  assert.equal((tfoot.match(/<td\b/g) ?? []).length, 6, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES after the span'); // TIMESHEET-04b (2026-11-27): one more cell, under NOTES — six until then · COALEVELS-01 (2026-11-27): six again — the description's cell left the row (ITEMS stands before BUDGET now, under the label's span); seven until then
+  assert.equal((tfoot.match(/<td\b/g) ?? []).length, 9, 'PLANNED MIN · LOGGED MIN · COA · BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES after the span'); // TIMESHEET-04b (2026-11-27): one more cell, under NOTES — six until then · COALEVELS-01 (2026-11-27): six again — the description's cell left the row (ITEMS stands before BUDGET now, under the label's span); seven until then; SHEET-01 (2026-11-28): nine — PLANNED MIN and LOGGED MIN, each its sum, and COA's empty cell before the six; the label spans sixteen
   // No new arithmetic: the totals' body is the one ledger01 pins; only what it is handed widened.
   assert.match(code(RULES), /export function ledgerTotals\(rows: readonly LedgerSheetRow\[\]\): LedgerTotals \{\n\s*const actuals = rows\.map\(\(r\) => r\.actualCents\)\.filter\(\(c\): c is number => c !== null\);\n\s*const totals = dayTotals\(\{ stops: rows, spentCents: actuals\.reduce\(\(sum, c\) => sum \+ c, 0\), withActual: actuals\.length \}, null\);/);
 });
@@ -546,16 +546,16 @@ test('T8 the words: the title reads "Time sheet", the file is time-sheet_<from>_
   assert.doesNotMatch(s, /Time sheet|Task ledger/, 'the title is the rule’s word, not typed in the section');
   // Nothing else renamed: the component, its mount, the route, the functions, the attributes.
   assert.match(s, /export default function LedgerSection\(\)/);
-  assert.match(code(TIME_PAGE), /<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>/);
+  assert.match(code(TIME_PAGE), /<LedgerSection \/>\n\s*<\/div>/); // SHEET-01 (2026-11-28): the page mounts the ledger alone — the two journal tables after it until then
   assert.match(code(READS), /readJson\(`\/api\/operations\/ledger\?/);
   assert.match(code(ANSWER), /export async function taskLedgerAnswerOf\(db: Db, userId: string, span: \{ from: string; to: string \}, now: Date\)/);
   assert.match(code(RULES), /export function ledgerOf\(input: LedgerInput\): Ledger \{/);
-  for (const attr of ['data-ledger>', 'data-ledger-row={row.key}', 'data-ledger-day={row.day}', 'data-ledger-total>', 'data-ledger-notes>', 'data-ledger-summary>']) assert.ok(s.includes(attr), `the section still carries ${attr}`);
+  for (const attr of ['data-ledger>', 'data-ledger-row={row.key}', 'data-ledger-day={row.day}', 'data-ledger-total>']) assert.ok(s.includes(attr), `the section still carries ${attr}`); for (const gone of ['data-ledger-notes>', 'data-ledger-summary>']) assert.equal(s.includes(gone), false, `the section no longer carries ${gone}`); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
   // The registry's Time row: its status, beats, why, note and customer line as they were.
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time');
   assert.ok(time);
   assert.deepEqual([time.status, time.beats, time.home, time.why], ['LIVE', { discover: true, decide: true, commit: true, record: true }, '/time', undefined]);
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
+  assert.equal(time.customer, 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // SHEET-01 (2026-11-28): the customer line names no journal answer — the journal tables are mounted nowhere
   assert.match(time.note ?? '', /^HOME-03 \(2026-10-27\): the day itself is entered on the day card/);
 });
 
@@ -669,7 +669,7 @@ test('T11 the section draws `sheet`: three cells more in their places, each the 
   const s = code(SECTION);
   assert.match(s, /const rows: readonly LedgerSheetRow\[\] = answer !== null && answer\.read\.ok \? answer\.read\.value\.sheet : \[\];/, 'the rows loaded are the sheet');
   assert.doesNotMatch(s, /answer\.read\.value\.rows/, 'the old list is the home ledger’s — not drawn here');
-  assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/, 'filtered, sorted, totalled and summed as before');
+  assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n/, 'filtered, sorted, totalled and summed as before'); // SHEET-01 (2026-11-28): the totals follow the rows shown; the summary's groups are gone (no ledgerSummary, no `by`)
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
   assert.deepEqual(cells, ['day', 'date', 'start', 'end', 'city', 'region', 'country', 'location', 'account-name', 'book', 'sub-account-name', 'description', 'vendor', 'instagram-tag', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'account', 'budget', 'actual', 'variance', 'match', 'under-over', 'notes'], 'one cell per head word, in its order'); // TIMESHEET-04b (2026-11-27): the instagram-tag cell after vendor's, the notes cell after description's — twenty-three cells · COALEVELS-01 (2026-11-27): twenty-five cells in the head's new order — region and location new; account-name, book, sub-account-name, description; the account before the budget; the notes last
   assert.equal(cells.length, LEDGER_HEAD_WORDS.length);

@@ -132,7 +132,7 @@ test('D Calendar, Time, Budget and the day card read routines as before — none
   const untouched: Array<[string, RegExp]> = [
     ['src/app/calendar/page.tsx', /<HubCalendar \/>/],
     ['src/components/hub/HubCalendar.tsx', /fetch\(`\/api\/hub\/operations-routines\?from=\$\{from\}&to=\$\{to\}`\)/],
-    ['src/app/time/page.tsx', /<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>/],
+    ['src/app/time/page.tsx', /<LedgerSection \/>\n\s*<\/div>/], // SHEET-01 (2026-11-28): the page mounts the ledger alone — the two journal tables after it until then
     ['src/app/budget/page.tsx', /BudgetReport/],
     ['src/components/budget/BudgetReport.tsx', /`\/api\/budget\/report\?\$\{query\}`/],
     ['src/components/workbench/operations/day/DayCard.tsx', /./],
