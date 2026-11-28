@@ -3,8 +3,8 @@
  * ruling, "they should all be able to be edited, eccept for formula driven cells", met on the two cells it left: DATE on a one-off was refused
  * by the route every time, and ENTITY threw by name.
  *
- * PART 1 — DATE on a one-off sends its end with its day (ledger.ts planCellWrite; the route unchanged). Each part's tests land in the commit
- * that builds it.
+ * PART 1 — DATE on a one-off sends its end with its day (ledger.ts planCellWrite; the route unchanged). PART 2 — the vendor law's third
+ * exception (scripts/assert-tool-registry.ts clause 1), read from its source. Each part's tests land in the commit that builds it.
  *
  * HERMETIC, on edit02.test.ts's model — no database, no network, the only clock the one handed in. The rules are DRIVEN directly over
  * made-up rows; the routes are anchored to their source with comments stripped (the reader law). Every plan, vendor, book, day, account and
@@ -12,7 +12,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { code } from '../sourceText';
+import { code, comments } from '../sourceText';
 import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
 import { buildRoutineOpenLines } from '../budget/openLines';
 import type { RoutineWords } from '../budget/planLines';
@@ -21,6 +21,9 @@ import { cellReachWords, ledgerOf, planCellWrite, planMinutesOf, routineClocksOf
 import { savePlanCell } from '../../components/workbench/operations/ledger/cellSaves';
 
 const ROUTINE_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
+const LAW = 'scripts/assert-tool-registry.ts';
+const PLAN_VENDORS_ROUTE = 'src/app/api/operations/plan-vendors/route.ts';
+const DIRECTORY_ROUTE = 'src/app/api/operations/vendor-directory/route.ts';
 
 /** A handler's body in a route's source: from its export to the next export. */
 const bodyOf = (src: string, verb: string): string => {
@@ -161,4 +164,92 @@ test('Y2 the routines PATCH still holds the two rules the body answers — the o
   // EDIT-02's body — the start alone — against the stored end: refused both ways, as the chat's run of the real route was.
   assert.equal(patchDatesRefusal(stored, { start_date: '2027-03-06' }), ORDER_WORDS, 'later: the order rule');
   assert.equal(patchDatesRefusal(stored, { start_date: '2027-03-02' }), ONE_OFF_END_WORDS, 'earlier: the one-off rule');
+});
+
+// ── PART 2 — THE VENDOR LAW'S THIRD EXCEPTION ────────────────────────────────
+
+// ── Y3 · CLAUSE 1, READ FROM ITS SOURCE (rulings 2.1, 2.2) ──
+
+test('Y3 the vendor law, read from its source: clause 1’s third exception — in routines/[id] alone, the book move’s re-point (vendor_id alone, by id) and its copy of a vendor (the source’s own name and tag, the caller, the target book), each held to one in its pinned shape; every other write of either table refused, there and anywhere', () => {
+  const lawLines = code(LAW).split('\n').map((l) => l.trimEnd());
+  // Edited in place: tests and laws read the law's lines by number, so it keeps every one where it stood.
+  assert.equal(lawLines.length - 1, 11254, 'the law keeps its 11,254 lines');
+  /** A pinned shape, read from the law's own line: the regex after `const NAME = /`, to its closing `/;`. */
+  const shapeOf = (name: string): { readonly line: number; readonly re: RegExp } => {
+    const head = `const ${name} = /`;
+    const line = lawLines.findIndex((l) => l.includes(head));
+    assert.ok(line >= 0, name);
+    const from = lawLines[line].indexOf(head) + head.length;
+    return { line, re: new RegExp(lawLines[line].slice(from, lawLines[line].indexOf('/;', from))) };
+  };
+  // The two shapes, beside the rekey's — on its own line, as ruled.
+  const REKEY = shapeOf('PV_REKEY_WRITE');
+  const MOVE = shapeOf('PV_MOVE_WRITE');
+  const COPY = shapeOf('PV_MOVE_CREATE');
+  assert.ok(lawLines[REKEY.line].startsWith('const PV_REKEY_WRITE = /'), 'the rekey’s line');
+  assert.equal(MOVE.line, REKEY.line, 'the re-point’s const beside PV_REKEY_WRITE');
+  assert.equal(COPY.line, REKEY.line, 'and the copy’s');
+  assert.equal(REKEY.re.source, String.raw`\.planned_item_vendors\.update\(\{ where: \{ id: v\.id \}, data: \{ occurrence_at: to \} \}\)`, 'the rekey’s shape unchanged');
+  assert.equal(MOVE.re.source, String.raw`\.planned_item_vendors\.update\(\{ where: \{ id: p\.id \}, data: \{ vendor_id: to \} \}\)`, 'an update by id of vendor_id and nothing else');
+  assert.equal(COPY.re.source, String.raw`\.operations_vendor_directory\.create\(\{ data: \{ user_id: user\.id, entity_id: target\.id, vendor_name: add\.source\.vendor_name, instagram_tag: add\.source\.instagram_tag \}, select: \{ id: true, vendor_name: true, instagram_tag: true, entity_id: true \} \}\)`, 'the source vendor’s own name and tag, the caller, the target book — nothing else');
+  const MOVE_RE = MOVE.re;
+  const COPY_RE = COPY.re;
+  const REKEY_RE = REKEY.re;
+  // The routine route's branch runs it, in place: its vendor rows' writes, then its creates of the directory — one line.
+  const branch = lawLines.indexOf('  if (file === PV_REKEY_ROUTE) {');
+  assert.ok(branch > 0, 'the routine route’s branch');
+  let check = branch + 1;
+  while (lawLines[check] === '') check += 1;
+  assert.ok(lawLines[check].startsWith("    const rekeys = (src.match(new RegExp(PV_REKEY_WRITE.source, 'g')) ?? []).length; const moves = (src.match(new RegExp(PV_MOVE_WRITE.source, 'g')) ?? []).length; if (rekeys !== 1 || moves > 1 || pvWrites.length !== rekeys + moves || pvWrites.some((m) => m[1] !== 'update')) pvFail("), 'every write of the routine route an update in one of the two shapes — the rekey’s once, the re-point at most once');
+  assert.ok(lawLines[check].includes("const creates = (src.match(/\\.operations_vendor_directory\\s*\\.\\s*create\\s*\\(/g) ?? []).length; const copies = (src.match(new RegExp(PV_MOVE_CREATE.source, 'g')) ?? []).length; if (creates > 1 || creates !== copies) pvFail("), 'its creates held to the one copy in its shape');
+  assert.equal(lawLines[check + 1], '  } else {');
+  // The directory loop lets the routine route's create through — its check above holds it.
+  assert.ok(lawLines.includes("    if (((m[1] === 'create' || m[1] === 'update') && file === PV_DIRECTORY) || (m[1] === 'create' && file === PV_REKEY_ROUTE)) continue;"), 'the loop’s first line');
+
+  // Clause 1 as those lines run it, over a file's source: whether its vendor rows' writes stand, and the directory writes refused.
+  const count = (src: string, re: RegExp): number => (src.match(new RegExp(re.source, 'g')) ?? []).length;
+  const judge = (file: string, src: string): { readonly rows: boolean; readonly directory: readonly string[] } => {
+    const writes = [...src.matchAll(/\.planned_item_vendors\s*\.\s*(create|createMany|createManyAndReturn|update|updateMany|upsert|delete|deleteMany)\s*\(/g)].map((m) => m[1]);
+    const rekeys = count(src, REKEY_RE);
+    const moves = count(src, MOVE_RE);
+    const rows = file === ROUTINE_ROUTE
+      ? rekeys === 1 && moves <= 1 && writes.length === rekeys + moves && writes.every((w) => w === 'update')
+      : file === PLAN_VENDORS_ROUTE || writes.length === 0;
+    const refused = [...src.matchAll(/\.operations_vendor_directory\s*\.\s*(create|createMany|createManyAndReturn|update|updateMany|upsert|delete|deleteMany)\s*\(/g)].map((m) => m[1])
+      .filter((op) => !(op === 'create' && file === ROUTINE_ROUTE) && !((op === 'create' || op === 'update') && file === DIRECTORY_ROUTE));
+    const creates = count(src, /\.operations_vendor_directory\s*\.\s*create\s*\(/);
+    const copyHeld = file !== ROUTINE_ROUTE || (creates <= 1 && creates === count(src, COPY_RE));
+    return { rows, directory: copyHeld ? refused : [...refused, 'create (not the copy)'] };
+  };
+  const route = code(ROUTINE_ROUTE);
+  assert.deepEqual(judge(ROUTINE_ROUTE, route), { rows: true, directory: [] }, 'the routine route as it stands');
+  const REPOINT = 'await tx.planned_item_vendors.update({ where: { id: p.id }, data: { vendor_id: to } });';
+  const COPY_CALL = 'await tx.operations_vendor_directory.create({ data: { user_id: user.id, entity_id: target.id, vendor_name: add.source.vendor_name, instagram_tag: add.source.instagram_tag }, select: { id: true, vendor_name: true, instagram_tag: true, entity_id: true } });';
+  const without = (src: string): string => src.replace(REPOINT, '').replace(COPY_CALL, '');
+  // The exception's own two writes, alone, stand.
+  assert.deepEqual(judge(ROUTINE_ROUTE, `${without(route)}\n${REPOINT}\n${COPY_CALL}`), { rows: true, directory: [] }, 'the re-point and the copy, each once in its shape');
+  const broken: ReadonlyArray<readonly [string, string, string, { readonly rows: boolean; readonly directory: readonly string[] }]> = [
+    ['the re-point twice', ROUTINE_ROUTE, `${without(route)}\n${REPOINT}\n${REPOINT}`, { rows: false, directory: [] }],
+    ['a second re-point shape — vendor_id with its items', ROUTINE_ROUTE, `${without(route)}\nawait tx.planned_item_vendors.update({ where: { id: p.id }, data: { vendor_id: to, items: null } });`, { rows: false, directory: [] }],
+    ['a re-point by another key', ROUTINE_ROUTE, `${without(route)}\nawait tx.planned_item_vendors.update({ where: { id: body.id }, data: { vendor_id: to } });`, { rows: false, directory: [] }],
+    ['a planned_item_vendors delete', ROUTINE_ROUTE, `${route}\nawait tx.planned_item_vendors.delete({ where: { id: p.id } });`, { rows: false, directory: [] }],
+    ['a planned_item_vendors create', ROUTINE_ROUTE, `${route}\nawait tx.planned_item_vendors.create({ data: {} });`, { rows: false, directory: [] }],
+    ['a copy whose name is not the source vendor’s', ROUTINE_ROUTE, `${without(route)}\n${COPY_CALL.replace('vendor_name: add.source.vendor_name', 'vendor_name: body.vendor_name')}`, { rows: true, directory: ['create (not the copy)'] }],
+    ['a copy with a field more', ROUTINE_ROUTE, `${without(route)}\n${COPY_CALL.replace('instagram_tag: add.source.instagram_tag }', 'instagram_tag: add.source.instagram_tag, is_active: false }')}`, { rows: true, directory: ['create (not the copy)'] }],
+    ['the copy twice', ROUTINE_ROUTE, `${without(route)}\n${COPY_CALL}\n${COPY_CALL}`, { rows: true, directory: ['create (not the copy)'] }],
+    ['a directory update in routines/[id]', ROUTINE_ROUTE, `${route}\nawait tx.operations_vendor_directory.update({ where: { id: x.id, user_id: user.id }, data: { instagram_tag: null } });`, { rows: true, directory: ['update'] }],
+    ['a directory delete in routines/[id]', ROUTINE_ROUTE, `${route}\nawait tx.operations_vendor_directory.delete({ where: { id: x.id } });`, { rows: true, directory: ['delete'] }],
+    ['the re-point copied into the plan-vendors route’s neighbour', 'src/lib/operations/bookMove.ts', `${REPOINT}`, { rows: false, directory: [] }],
+    ['the copy made in another file', 'src/lib/operations/bookMove.ts', `${COPY_CALL}`, { rows: true, directory: ['create'] }],
+  ];
+  for (const [why, file, src, expected] of broken) assert.deepEqual(judge(file, src), expected, why);
+
+  // The law's own words: three exceptions, the third quoting Alex, and its ✔ line naming the third.
+  assert.match(comments(LAW), /through a relation\. THREE exceptions, each pinned to its shape:/);
+  assert.match(comments(LAW), /\/\/ {6}archived or deleted, anywhere\. EDIT-03 \(Alex, 2026-11-28 — "they should all be able to be edited, eccept for formula driven cells"; this exception his yes, 2026-11-29\): a plan moves to another book with its vendors/, 'the third, on clause 1’s last line (in place)');
+  assert.match(comments(LAW), /never a typed name\. Each pinned to its shape; the file then holds exactly two planned_item_vendors writes, each in its pinned shape, no create and no delete of them, and no other write of the directory\. The directory is still updated only by its route's one tag write, and never deleted anywhere\.\n\/\/ {3}2\. THE CALLER FIRST\./);
+  assert.ok(code(LAW).includes("its vendor re-pointed, by id and nothing else, by the same route's book move alone — EDIT-03)"));
+  assert.ok(code(LAW).includes("(and, in a plan's book move, the target book's copy of a vendor the plan names — its own name and tag — by ${PV_REKEY_ROUTE} alone, EDIT-03)"));
+  // Clauses 2–4 hold their words.
+  for (const clause of ['//   2. THE CALLER FIRST.', '//   3. THE DATABASE HOLDS IT.', '//   4. THE RULE, PROBED at build time:']) assert.ok(comments(LAW).includes(clause), clause);
 });
