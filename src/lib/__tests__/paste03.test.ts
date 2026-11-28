@@ -24,15 +24,19 @@ import { STRANDED_WORDS, dayPlanOf, type PlanVendorRow, type RoutineWords } from
 import { PLAN_COLUMN_DIGITS, planMoney, type PlanBook, type PlanColumn, type PlanMoneySent } from '../operations/planMoney';
 import { moneyIsHere, occurrenceIn, occurrenceWindow, type PlanFacts } from '../operations/planVendor';
 import { NOT_RECORDED_WORDS, type StopRecordRow } from '../operations/stopRecord';
+import { NOT_A_STOP_RECORD_WORDS, ROLE_SHORT_WORDS } from '../operations/stopRole';
+import { ALL_DAY_CLOCK, allDayTimeInput, clockWords, compileFormToRRule } from '../operations/rruleHelpers';
+import { zonedToInstant } from '../time';
 import {
-  AMOUNT_ZERO_WORDS, EMPTY_EXPENSE, PLANNED_WORD, cellWordsOf, expenseInput, ledgerOf, ledgerTotals, notRecordedWords, oneOffBody, planMinutesOf,
+  AMOUNT_ZERO_WORDS, EMPTY_EXPENSE, PLANNED_WORD, RECORD_CHARGE_WORDS, cellWordsOf, chargeFieldWords, expenseInput, ledgerOf, ledgerTotals, notRecordedWords, oneOffBody, oneOffRoutineName, outcomeWords, planMinutesOf, timeTypedWords,
   type ExpenseDraft, type LedgerInput, type LedgerPlanRow, type LedgerRecordInput, type LedgerRecording, type LedgerSheetRow, type LedgerVendorRow,
 } from '../operations/ledger';
 import {
-  ONE_OFF_ZERO_BUDGET_WORDS, ON_TIME_SHEET_KEYS, PASTE_READ_HEADS, countsWords, kindKeyOf, pasteShown, placePaste, readPaste,
+  CHARGE_NOTES_WORDS, CHARGE_TOTAL_WORDS, END_NO_START_WORDS, ITEMS_CHARGE_STANDS_WORDS, ITEMS_NO_VENDOR_WORDS, ITEMS_OTHER_VENDOR_WORDS, ONE_OFF_ZERO_BUDGET_WORDS, ON_TIME_SHEET_KEYS, PASTE_READ_HEADS,
+  chargeTwiceWords, chargeWords, countsWords, itemsStandWords, kindKeyOf, manyNamedWords, onChargeWords, pasteShown, placePaste, readPaste, stopTakenWords, vendorNotWrittenWords,
   type Paste, type PasteContext, type PasteHead, type PastePick, type PastePlacement,
 } from '../operations/pasteRows';
-import { pasteWritesOf } from '../operations/pasteSave';
+import { pasteWritesOf, runPaste, type PasteWriters } from '../operations/pasteSave';
 
 const DAYS = 'src/lib/budget/days.ts';
 const OPEN = 'src/lib/budget/openLines.ts';
@@ -393,4 +397,183 @@ test('T11 days.ts is as it stood on main — its exports, its length, its skip o
   for (const file of ['src/lib/budget/report.ts', 'src/lib/budget/days.ts', 'src/lib/budget/planLines.ts']) assert.doesNotMatch(code(file), /openLines/, `${file} reads no open line`);
   assert.equal(countOf(code('src/lib/budget/reportInputs.ts'), /buildRoutineOpenLines\(/g), 1, 'the report builds them once — for the day plan’s `open`');
   assert.match(code('src/lib/budget/reportInputs.ts'), /notPlaced: \[\.\.\.routines\.notPlaced, \.\.\.tasks\.notPlaced\], open: buildRoutineOpenLines\(routineInputs, rangeFrom, rangeTo\)\.open,/);
+});
+
+// ── T12 · "+ EXPENSE": NO TIME IS A CHARGE ON ITS DATE (ruling 2.1) ──────────
+
+test('T12 “+ expense”: a blank TIME is a stop ALL DAY — a charge on its date, at the day’s start in the zone by ALL_DAY_CLOCK’s own words, ahead read against it; ACTUAL, STARS and ITEMS refused by name before their own reading, ahead or not; its routine named for its day alone; its one-off an all-day routine with no clock, which the create route’s rule takes', () => {
+  const charge = expenseInput({ ...DRAFT, time: '' }, NBO, NOW);
+  assert.ok(charge.ok);
+  assert.deepEqual([charge.value.allDay, charge.value.time, charge.value.instant, charge.value.ahead], [true, '', at(MON, '00:00'), false]);
+  assert.equal(clockWords(ALL_DAY_CLOCK), '00:00');
+  assert.equal(charge.value.instant, zonedToInstant(MON, clockWords(ALL_DAY_CLOCK), NBO).toISOString(), 'the clock every all-day routine carries');
+  assert.deepEqual(expenseInput({ ...DRAFT, time: '   ' }, NBO, NOW), charge, 'spaces are a blank');
+  const wednesday = expenseInput({ ...DRAFT, day: WED, time: '' }, NBO, NOW);
+  assert.ok(wednesday.ok && wednesday.value.ahead && wednesday.value.instant === at(WED, '00:00'), 'ahead of the clock: planned');
+  // A typed TIME is read as before.
+  const timed = expenseInput(DRAFT, NBO, NOW);
+  assert.ok(timed.ok && !timed.value.allDay && timed.value.time === '12:30' && timed.value.instant === at(MON, '12:30'));
+  assert.deepEqual(expenseInput({ ...DRAFT, time: '9:30' }, NBO, NOW), { ok: false, field: 'time', message: timeTypedWords('9:30') });
+  // A charge takes no record: each box of the record, typed, refused by name — before its own reading, and before the ahead refusal.
+  const boxes: readonly (readonly [Partial<ExpenseDraft>, 'actual' | 'stars' | 'note'])[] = [
+    [{ actual: '5' }, 'actual'], [{ actual: 'lots' }, 'actual'], [{ stars: '4' }, 'stars'], [{ stars: '9' }, 'stars'], [{ note: 'by the lake' }, 'note'], [{ note: 'so\u0000up' }, 'note'], [{ actual: '5', stars: '4', note: 'x' }, 'actual'],
+  ];
+  for (const [over, field] of boxes) {
+    for (const day of [MON, WED]) assert.deepEqual(expenseInput({ ...DRAFT, ...over, day, time: '' }, NBO, NOW), { ok: false, field, message: chargeFieldWords(field) }, `${JSON.stringify(over)} on ${day}`);
+  }
+  assert.equal(chargeFieldWords('actual'), "ACTUAL is the record's, and with no TIME this is a charge on its date — it takes no record; give it a TIME, or leave this blank");
+  assert.equal(chargeFieldWords('note'), "ITEMS is the record's, and with no TIME this is a charge on its date — it takes no record; give it a TIME, or leave this blank");
+  // The routine's name: its day alone; a timed one keeps its time.
+  assert.equal(oneOffRoutineName(charge.value), `Picnic · ${MON}`);
+  assert.equal(oneOffRoutineName(timed.value), `Picnic · ${MON} 12:30`);
+  // Its one-off: an all-day routine, no clock sent — no hour, no minute, no start or end time; a timed one as before.
+  const body = oneOffBody(charge.value);
+  assert.deepEqual([body.role, body.byhour, body.byminute, body.start_time, body.end_time, body.name, body.cadence_mode, body.start_date, body.timezone], ['all_day', '', '', '', '', `Picnic · ${MON}`, 'once', MON, NBO]);
+  assert.deepEqual(body.lines, [{ activity: 'Picnic', budget_amount: '', coa_code: '6200' }]);
+  const timedBody = oneOffBody(timed.value);
+  assert.deepEqual([timedBody.role, timedBody.byhour, timedBody.byminute, timedBody.start_time], ['place', '12', '30', '12:30']);
+  // The create route's own rule takes it: no time sent, the clock derived; the compile anchors its one occurrence at that clock.
+  assert.deepEqual(allDayTimeInput('all_day', body), { ok: true, allDay: true, start_time: '00:00' });
+  assert.match(compileFormToRRule({ ...body, start_time: '00:00' }), /^FREQ=DAILY;COUNT=1;/);
+  assert.match(compileFormToRRule({ ...body, start_time: '00:00' }), /BYHOUR=0;BYMINUTE=0/);
+  // In the source: the instant names the clock's one home — no clock typed in the rule.
+  const rule = code('src/lib/operations/ledger.ts');
+  assert.match(rule, /const instant = zonedToInstant\(draft\.day, allDay \? clockWords\(ALL_DAY_CLOCK\) : draft\.time, zone\);/);
+  assert.doesNotMatch(rule.slice(rule.indexOf('export function expenseInput('), rule.indexOf('export const oneOffBody')), /'00:00'/);
+});
+
+// ── T13 · THE FORM (ruling 2.2) ──────────────────────────────────────────────
+
+test('T13 the form: a charge’s record step is not asked — it reads “the record — a charge on its date takes no record”, and the stops route is never called for it; the line the registry cites holds', () => {
+  assert.equal(RECORD_CHARGE_WORDS, 'a charge on its date takes no record');
+  assert.equal(outcomeWords({ step: 'record', state: 'charge', words: '' }), 'the record — a charge on its date takes no record');
+  const form = code('src/components/workbench/operations/ledger/ExpenseForm.tsx');
+  assert.match(form, /if \(v\.allDay\) \{\n\s*done\.push\(\{ step: 'record', state: 'charge', words: '' \}\);\n\s*\} else if \(v\.ahead\) \{\n\s*done\.push\(\{ step: 'record', state: 'ahead', words: '' \}\);\n\s*\} else \{/);
+  assert.equal(countOf(form, /\bsetStopRecord\(/g), 1, 'one call');
+  assert.ok(form.indexOf('setStopRecord(') > form.indexOf('} else if (v.ahead) {'), 'in the branch that asks the record — after the charge and the stop ahead');
+  assert.match(form.split('\n')[86], /const created = await createOneOff\(oneOffBody\(v\)\);/, 'ExpenseForm.tsx:87 — the line the registry cites');
+});
+
+// ── T14 · THE PASTE: A NEW CHARGE ON ITS DATE (ruling 2.3) ───────────────────
+
+const MUSEUM: Typed = { 'Start Date': '8/9/27', Category: 'Recreation', Entity: 'Personal', Type: 'Museum' };
+/** The same row with everything a charge may carry, and the three it takes no box for. */
+const MUSEUM_FULL: Typed = { ...MUSEUM, Vendor: 'Gallery One', 'Instagram Tag': 'gallery.one', Items: 'two tickets', Notes: 'free on Mondays', 'Total (USD)': '12', 'End Time': '5:00 PM' };
+const CHARGE_SAID = [CHARGE_TOTAL_WORDS, CHARGE_NOTES_WORDS, END_NO_START_WORDS];
+
+test('T14 the paste: a row with no Start Time is a NEW CHARGE on its date — at the day’s start, never went; its Total (USD), Notes and End Time each said; the vendor, the tag and the planned items placed as for a timed row that makes no record; START all day; two of one name on one day refused, naming the first; the save writes it by the steps it has — no record asked', async () => {
+  const paste = pasteOf(MUSEUM_FULL);
+  const [placement] = placedAll(paste, ONE_OFF);
+  if (placement.kind !== 'oneOff') return assert.fail(`placed: ${placement.kind}${placement.kind === 'refused' ? ` — ${placement.head}: ${placement.why}` : ''}`);
+  assert.deepEqual([placement.start, placement.end, placement.minutes, placement.values.allDay, placement.values.time, placement.instant, placement.happened, placement.budgetCents], [null, null, null, true, '', at(MON, '00:00'), { kind: 'not recorded' }, null]);
+  assert.deepEqual([placement.vendor, placement.tag, placement.items], [{ kind: 'new', name: 'Gallery One' }, { vendorId: null, tag: 'gallery.one' }, 'two tickets']);
+  assert.deepEqual(placement.notWritten, CHARGE_SAID);
+  assert.deepEqual(CHARGE_SAID, [
+    'Total (USD) — not written: the row has no Start Time, so it is a charge on its date — and a charge on a date takes no record',
+    'Notes — not written: the row has no Start Time, so it is a charge on its date — notes sit on a record',
+    'End Time — not written: the row has no Start Time',
+  ]);
+  const [shown] = pasteShown(paste, [placement]);
+  const cell = (key: (typeof ON_TIME_SHEET_KEYS)[number]): string => shown.sheet[ON_TIME_SHEET_KEYS.indexOf(key)];
+  assert.deepEqual([cell('start'), cell('end'), cell('budget')], [ROLE_SHORT_WORDS.all_day, BLANK, BLANK]);
+  assert.equal(shown.lands, `${chargeWords('P-6200', 'Recreation')} · vendor: new to Personal · tag: @gallery.one · not recorded: no Total (USD) · items: planned · ${CHARGE_SAID.join(' · ')}`);
+  assert.equal(chargeWords('P-6200', 'Recreation'), 'a new charge on its date, all day — no Start Time — under P-6200 Recreation');
+  // Still ahead: planned — never went.
+  const [ahead] = placedAll(pasteOf({ ...MUSEUM_FULL, 'Start Date': '8/11/27' }), ONE_OFF);
+  assert.deepEqual(ahead.kind === 'oneOff' && [ahead.happened, ahead.instant], [{ kind: 'planned' }, at(WED, '00:00')]);
+  // No vendor named: its Items said, as a timed row's.
+  const [bare] = placedAll(pasteOf({ ...MUSEUM, Items: 'two tickets' }), ONE_OFF);
+  assert.deepEqual(bare.kind === 'oneOff' && [bare.items, bare.notWritten], [null, [ITEMS_NO_VENDOR_WORDS]]);
+  // Two rows of one name on one day with no Start Time: the second refused on Type, naming the first; a timed one of the name is another stop.
+  const twice = placedAll(pasteOf(MUSEUM, { ...MUSEUM, Notes: 'again' }, { ...MUSEUM, 'Start Time': '2:00 PM' }), ONE_OFF);
+  assert.deepEqual(twice.map((p) => p.kind), ['oneOff', 'refused', 'oneOff']);
+  assert.deepEqual(twice[1].kind === 'refused' && [twice[1].head, twice[1].why], ['Type', chargeTwiceWords(2, 'Museum')]);
+  assert.equal(chargeTwiceWords(2, 'Museum'), 'row 2 of the paste is already a new charge named "Museum" on this day — a second one needs a Start Time');
+  // The save: the stop, its line, the vendor added and set with its planned items, its tag — no minutes and no record.
+  const calls: string[] = [];
+  const bodies: unknown[] = [];
+  const writers: PasteWriters = {
+    createOneOff: async (b) => { calls.push('createOneOff'); bodies.push(b); return { ok: true, value: { routineId: 'rt-1' } }; },
+    readOneOffLine: async () => { calls.push('readOneOffLine'); return { ok: true, value: { lineId: 'line-1' } }; },
+    setLineMinutes: async () => { calls.push('setLineMinutes'); return { ok: true, value: null }; },
+    addVendor: async () => { calls.push('addVendor'); return { ok: true, value: { vendorId: 'v-1' } }; },
+    setVendor: async (b) => { calls.push('setVendor'); bodies.push(b); return { ok: true, value: null }; },
+    setVendorTag: async () => { calls.push('setVendorTag'); return { ok: true, value: null }; },
+    addSubAccount: async () => { calls.push('addSubAccount'); return { ok: true, value: null }; },
+    setRecord: async () => { calls.push('setRecord'); return { ok: true }; },
+  };
+  const outcomes = await runPaste(pasteWritesOf(paste.rows, [placement]), writers, () => undefined, []);
+  assert.deepEqual(outcomes, [{ row: 2, state: 'written', steps: ['stop', 'line', 'directory', 'vendor', 'items', 'tag'] }]);
+  assert.deepEqual(calls, ['createOneOff', 'readOneOffLine', 'addVendor', 'setVendor', 'setVendorTag']);
+  assert.deepEqual([(bodies[0] as { readonly role: string }).role, bodies[1]], ['all_day', { kind: 'routine_line', id: 'line-1', instant: at(MON, '00:00'), vendorId: 'v-1', items: 'two tickets' }]);
+});
+
+// ── T15 · A ROW ON A CHARGE THAT STANDS (ruling 2.4) ─────────────────────────
+
+/** A charge on a date as the sheet lists it: an all-day plan row — no time, no WENT, no budget; it takes no record. */
+const chargeRow = (over: Partial<LedgerPlanRow> = {}): LedgerPlanRow => {
+  const instant = at(over.day ?? MON, '00:00');
+  return {
+    id: null, key: `line:museum-line:${instant}`, address: { kind: 'routine_line', id: 'museum-line', instant }, match: null, day: MON, time: null, place: null, book: 'Personal', location: null,
+    segments: { entity: 'P', location: null, category: '6200', type: null, code: 'P-6200' }, coa: { account: 'P-6200', name: 'Recreation' }, vendor: null, instagramTag: null, description: 'Museum',
+    rating: null, note: null, plannedItems: null, notes: null, cents: null, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null, allDay: true, went: null, ...over,
+  };
+};
+const onSheet = (rows: readonly LedgerPlanRow[], over: Partial<PasteContext> = {}): PasteContext => ({
+  ...CONTEXT, sheet: rows, recording: Object.fromEntries(rows.map((r): [string, LedgerRecording] => [r.key, { takes: false, words: NOT_A_STOP_RECORD_WORDS }])), ...over,
+});
+const landOn = (context: PasteContext, ...typed: readonly Typed[]) => {
+  const paste = pasteOf(...typed);
+  const placements = placedAll(paste, ONE_OFF, context);
+  return { placements, shown: pasteShown(paste, placements), writes: pasteWritesOf(paste.rows, placements) };
+};
+const said = (placement: PastePlacement): readonly string[] => (placement.kind === 'plan' || placement.kind === 'oneOff' ? placement.notWritten : assert.fail(`placed: ${placement.kind}`));
+
+test('T15 a row on the charge of its own name that stands — that book, that day, an all-day row of that name — lands on it, at its own instant, never with a record: an earlier row there refuses it; its vendor stands or the row’s is set; its planned items by the four branches; its Total (USD), Notes and End Time said; two of the name refuse it; a plan picked onto it is still refused; a timed row is another stop; the same rows again are nothing new and nothing to save', () => {
+  // The charge plans no vendor and prints no items: the row's vendor is set, with its planned items; the rest said.
+  const fresh = landOn(onSheet([chargeRow()]), MUSEUM_FULL);
+  const on = fresh.placements[0];
+  if (on.kind !== 'plan') return assert.fail(`placed: ${on.kind}`);
+  assert.deepEqual([on.standing, on.stop.key, on.instant, on.record, on.happened, on.vendor, on.items, on.tag], [true, chargeRow().key, at(MON, '00:00'), null, { kind: 'not recorded' }, { kind: 'new', name: 'Gallery One' }, 'two tickets', { vendorId: null, tag: 'gallery.one' }]);
+  assert.deepEqual(on.notWritten, CHARGE_SAID);
+  assert.equal(fresh.shown[0].lands, `${onChargeWords('Museum')} · vendor: new to Personal · tag: @gallery.one · not recorded: no Total (USD) · items: planned · ${CHARGE_SAID.join(' · ')}`);
+  assert.equal(onChargeWords('Museum'), 'on the charge "Museum", all day, already on the time sheet');
+  assert.deepEqual(fresh.writes.map((w) => [w.kind, w.vendor.kind, w.items, w.kind === 'stop' ? w.record : 'one-off']), [['stop', 'new', 'two tickets', null]]);
+  assert.equal(countsWords(fresh.placements), '1 row read · 0 on a plan · 1 one-off (0 new) · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 0 dates with nothing on them');
+  // An earlier row of the paste on it: the second is refused, naming the first.
+  const two = landOn(onSheet([chargeRow()]), MUSEUM, MUSEUM);
+  assert.deepEqual(two.placements[1].kind === 'refused' && [two.placements[1].head, two.placements[1].why], ['Type', stopTakenWords(2, 'Museum')]);
+  // Its vendor stands: the same name is nothing to write; another is said.
+  const vendored = onSheet([chargeRow({ vendor: 'Gallery One' })]);
+  const same = landOn(vendored, { ...MUSEUM, Vendor: 'gallery  ONE' }).placements[0];
+  assert.deepEqual(same.kind === 'plan' && [same.vendor, same.notWritten], [{ kind: 'none' }, []]);
+  assert.deepEqual(said(landOn(vendored, { ...MUSEUM, Vendor: 'Other Hall' }).placements[0]), [vendorNotWrittenWords('Gallery One')]);
+  // Its planned items — it prints some: the same quiet, others said.
+  const printed = onSheet([chargeRow({ vendor: 'Gallery One', plannedItems: 'two tickets' })]);
+  assert.deepEqual(said(landOn(printed, { ...MUSEUM, Items: 'two tickets' }).placements[0]), []);
+  assert.deepEqual(said(landOn(printed, { ...MUSEUM, Items: 'three tickets' }).placements[0]), [itemsStandWords('two tickets')]);
+  // …it prints none and plans no vendor: the row names none — said.
+  assert.deepEqual(said(landOn(onSheet([chargeRow()]), { ...MUSEUM, Items: 'two tickets' }).placements[0]), [ITEMS_NO_VENDOR_WORDS]);
+  // …it prints none and its vendor stands: another vendor named — the Items’ sentence, then the vendor’s; none or the same — the charge stands with its own.
+  assert.deepEqual(said(landOn(vendored, { ...MUSEUM, Vendor: 'Other Hall', Items: 'two tickets' }).placements[0]), [ITEMS_OTHER_VENDOR_WORDS, vendorNotWrittenWords('Gallery One')]);
+  assert.deepEqual(said(landOn(vendored, { ...MUSEUM, Items: 'two tickets' }).placements[0]), [ITEMS_CHARGE_STANDS_WORDS]);
+  assert.deepEqual(said(landOn(vendored, { ...MUSEUM, Vendor: 'Gallery One', Items: 'two tickets' }).placements[0]), [ITEMS_CHARGE_STANDS_WORDS]);
+  assert.equal(ITEMS_CHARGE_STANDS_WORDS, 'Items — not written: this charge already stands with its vendor');
+  // Ahead of the clock: planned — never went.
+  const wed = landOn(onSheet([chargeRow({ day: WED })]), { ...MUSEUM, 'Start Date': '8/11/27' }).placements[0];
+  assert.deepEqual(wed.kind === 'plan' && [wed.happened, wed.instant], [{ kind: 'planned' }, at(WED, '00:00')]);
+  // Two charges of the name that day: the paste cannot tell which.
+  const doubled = landOn(onSheet([chargeRow(), chargeRow({ key: 'line:museum-two', address: { kind: 'routine_line', id: 'museum-two', instant: at(MON, '00:00') } })]), MUSEUM).placements[0];
+  assert.deepEqual(doubled.kind === 'refused' && [doubled.head, doubled.why], ['Type', manyNamedWords('Museum')]);
+  // A plan picked onto the charge is still refused, in its own words — only the row's own name takes it.
+  const asPlan = placePaste(pasteOf(MUSEUM), { [kindKeyOf({ entity: 'Personal', category: 'Recreation', type: 'Museum' })]: { kind: 'plan', plan: 'Museum' } }, onSheet([chargeRow()]))[0];
+  assert.deepEqual(asPlan.kind === 'refused' && [asPlan.head, asPlan.why], ['Type', NOT_A_STOP_RECORD_WORDS]);
+  // A timed row of the name is another stop: a new one-off.
+  assert.equal(landOn(onSheet([chargeRow()]), { ...MUSEUM, 'Start Time': '10:00 AM' }).placements[0].kind, 'oneOff');
+  // THE SAME ROWS AGAIN, over the sheet and the directory that hold what the save wrote: on the charge, nothing new, nothing to save — what it takes no box for still said.
+  const saved = onSheet([chargeRow({ vendor: 'Gallery One', plannedItems: 'two tickets' })], { vendors: [{ id: 'v-gallery', vendor_name: 'Gallery One', entity_id: 'P', instagram_tag: 'gallery.one' }] });
+  const again = landOn(saved, MUSEUM_FULL);
+  assert.deepEqual(again.placements[0].kind === 'plan' && [again.placements[0].vendor, again.placements[0].items, again.placements[0].tag, again.placements[0].notWritten], [{ kind: 'none' }, null, null, CHARGE_SAID]);
+  assert.deepEqual(again.writes, []);
+  assert.equal(countsWords(again.placements), '1 row read · 0 on a plan · 1 one-off (0 new) · 0 bookings · 0 waiting for a pick · 0 that cannot be placed · 0 dates with nothing on them');
 });

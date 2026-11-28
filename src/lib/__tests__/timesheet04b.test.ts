@@ -320,7 +320,7 @@ test('T4 recordDraftOf reads the held record’s notes — a blank box with none
   assert.equal(unchanged(EGGS_MON, valueOf(bodyOf({ ...recordDraftOf(EGGS_MON), notes: 'window seat' }, { plannedAt: PLANNED, held: EGGS_MON }))), false);
   assert.equal(unchanged(EGGS_MON, valueOf(bodyOf({ ...recordDraftOf(EGGS_MON), notes: '' }, { plannedAt: PLANNED, held: EGGS_MON }))), false, 'cleared in the box');
   // "+ expense" has no NOTES box: the body of the record it writes says none.
-  const expense: ExpenseValues = { day: MON, time: '10:00', zone: NBO, instant: at(MON, '10:00'), name: 'Kiosk', amount: '1.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: 150, rating: null, note: 'one coffee', ahead: false }; // COALEVELS-01 (2026-11-27): an expense's value says its stop's Location — none here
+  const expense: ExpenseValues = { day: MON, time: '10:00', allDay: false, zone: NBO, instant: at(MON, '10:00'), name: 'Kiosk', amount: '1.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: 150, rating: null, note: 'one coffee', ahead: false }; // COALEVELS-01 (2026-11-27): an expense's value says its stop's Location — none here · PASTE-03 (2026-11-28): the value says whether the stop is all day — not here: a TIME is typed
   assert.deepEqual(recordBody(expense, 'line-1'), { kind: 'routine_line', id: 'line-1', instant: at(MON, '10:00'), outcome: 'done', done_at: at(MON, '10:00'), actual_cents: 150, rating: null, note: 'one coffee', notes: null, actual_minutes: null });
   assert.deepEqual(Object.keys(recordBody(expense, 'line-1')), Object.keys(bodyOf(BLANK_DRAFT)), 'the one writer’s body, from either form');
   // In the source.
@@ -762,14 +762,14 @@ test('T12 in the source: LedgerSection.tsx is 488 lines with the tag’s cell on
 
 test('T13 the paste (re-pointed by COALEVELS-01, 2026-11-27 — until that change it filled no notes and named no tag): pasteRows.ts fills the record’s notes from the row — RECORD_HEADS holds the box, and a refusal is thrown by name for stars and minutes alone — and the record’s draft it builds carries them; pasteSave.ts, PasteRows.tsx and ledgerWrites.ts each name the tag’s writer', () => {
   const p = code(PASTE_RULE);
-  assert.equal(linesOf(PASTE_RULE).length, 1188, 'the file’s new length — 941 until COALEVELS-01');
+  assert.equal(linesOf(PASTE_RULE).length, 1246, 'the file’s new length — 941 until COALEVELS-01'); // PASTE-03 (2026-11-28): 1246 — a row with no Start Time is a charge on its date, and the charge of its name takes the row; 1,188 until then
   // 1. The boxes the paste fills: went, ACTUAL, DESCRIPTION and — COALEVELS-01 (2026-11-27) — the NOTES; no stars, no minutes.
   assert.match(p, /const RECORD_HEADS: Readonly<Record<Exclude<RecordField, 'stars' \| 'minutes'>, PasteHead>> = \{ went: 'Start Date', actual: 'Total \(USD\)', note: 'Items', notes: 'Notes' \};/);
   assert.match(p, /if \(field === 'stars' \|\| field === 'minutes'\) throw new Error\(`pasteRows: the record's rule refused \$\{field\}, which the paste never fills — \$\{message\}`\);/);
   // 2. The record's draft it builds carries the row's notes — blank with none.
   assert.match(p, /recordInput\(\{ went: WENT_WORD, actual: csvMoney\(happened\.cents\), stars: '', minutes: '', note: happened\.items === null \? '' : happened\.items, notes: happened\.notes === null \? '' : happened\.notes \}, stop\.address, \{ plannedAt: entry\.plannedAt, held: entry\.held \}, context\.now\);/);
   // …and the file's words about notes are no longer those three: it reads them, carries them, and says where they are not written. It names the tag's field, the bound on the notes and the planned items of a stop's row; it builds no row's draft.
-  assert.equal(countOf(p, /\bnotes\b/g), 22, 'three until COALEVELS-01: the exclusion, the throw, the draft');
+  assert.equal(countOf(p, /\bnotes\b/g), 24, 'three until COALEVELS-01: the exclusion, the throw, the draft'); // PASTE-03 (2026-11-28): 24 — a charge on its date says its Notes as not written (CHARGE_NOTES_WORDS: "notes sit on a record", and its test of the row's notes in chargeHappened); 22 until then
   for (const named of [/instagram_tag/, /readInstagramTag/, /plannedItems/, /NOTES_MAX/]) assert.match(p, named); assert.doesNotMatch(p, /rowDraftOf/);
   // The heads the paste reads no column from are two: the tag, the notes and the Location are read now.
   assert.match(p, /export const PASTE_NO_COLUMN_HEADS = \['Currency', 'Total'\] as const;/);

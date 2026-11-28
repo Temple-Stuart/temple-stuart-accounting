@@ -328,7 +328,7 @@ test('T4 START: the line’s own time; else the occurrence’s local time in the
   assert.doesNotMatch(rules, /from '@\/lib\/operations\/work'/); // TIMESHEET-02 (Alex, 2026-11-24, ruling F.1): the word is stopRole.ts's, read there by this file and by work.ts — `import { ALL_DAY_WORDS } from '@/lib/operations/work';` until then
   assert.match(rules, /row\.id === null && row\.allDay \? ROLE_SHORT_WORDS\.all_day : row\.time/);
   assert.match(rules, /import \{ minutesOf \} from '@\/lib\/calendar\/day';/);
-  assert.match(rules, /import \{ clockWords \} from '@\/lib\/operations\/rruleHelpers';/);
+  assert.match(rules, /import \{ ALL_DAY_CLOCK, clockWords \} from '@\/lib\/operations\/rruleHelpers';/); // PASTE-03 (2026-11-28): the import gains ALL_DAY_CLOCK, in place — "+ expense"'s charge on its date is at that clock (its one home); clockWords alone until then
   assert.doesNotMatch(rules, /'all day'/, 'the word is not typed in the rule');
   assert.match(rules, /time: allDay \? null : l\.time !== null \? l\.time : instantToZoned\(new Date\(instant\), routine\.timezone\)\.time,/, 'the rule `rows` uses for `time`');
 });

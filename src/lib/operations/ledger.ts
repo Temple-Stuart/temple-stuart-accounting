@@ -329,7 +329,7 @@ import { subAccountOf, type SubAccountRef } from '@/lib/coa/subAccounts';
 // TIMESHEET-01 (2026-11-24): the planned minutes by the one rule (a pure leaf) and the clock's arithmetic (the calendar's minutesOf, the rule helpers' clockWords — reused,
 // not rebuilt). TIMESHEET-02 (2026-11-24): the one all-day word is stopRole.ts's (ROLE_SHORT_WORDS.all_day, above) — this file imports nothing from work.ts, which reads it there too.
 import { plannedMinutesOf } from '@/lib/operations/supersession';
-import { clockWords } from '@/lib/operations/rruleHelpers';
+import { ALL_DAY_CLOCK, clockWords } from '@/lib/operations/rruleHelpers';
 import { minutesOf } from '@/lib/calendar/day';
 import { asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, stopName } from '@/components/workbench/operations/day/dayCard';
 // TIMESHEET-02 (2026-11-24): the day card's own vendor slot — the shape a row's record form is handed (a type; nothing of the card runs here).
@@ -1804,7 +1804,10 @@ export type ExpenseVendor = { readonly kind: 'none' } | { readonly kind: 'existi
 
 export interface ExpenseValues {
   readonly day: string;
+  /** 'HH:MM' — or '' when the stop is all day (PASTE-03). */
   readonly time: string;
+  /** PASTE-03 (Alex, 2026-11-28): no TIME was typed — the stop is ALL DAY, a charge on its date: its instant is the day at ALL_DAY_CLOCK in the zone, and it takes no record. */
+  readonly allDay: boolean;
   readonly zone: string;
   /** The one-off's stop: the day and time in the zone, ISO text. */
   readonly instant: string;
@@ -1853,7 +1856,7 @@ export const starsTypedWords = (typed: string): string => `${JSON.stringify(type
 // read or touched by this: a one-off made before it has the name it was given.
 export const ONE_OFF_NAME_TAIL = ' · YYYY-MM-DD HH:MM'.length;
 export const ONE_OFF_NAME_MAX = 200 - ONE_OFF_NAME_TAIL;
-export const oneOffRoutineName = (v: Pick<ExpenseValues, 'name' | 'day' | 'time'>): string => `${v.name} · ${v.day} ${v.time}`;
+export const oneOffRoutineName = (v: Pick<ExpenseValues, 'name' | 'day' | 'time' | 'allDay'>): string => (v.allDay ? `${v.name} · ${v.day}` : `${v.name} · ${v.day} ${v.time}`); // PASTE-03 (2026-11-28): a charge on its date is named for its day alone — it has no time
 export const NAME_LONG_WORDS = `NAME is at most ${ONE_OFF_NAME_MAX} characters`;
 export const AMOUNT_ZERO_WORDS = 'an expense has an amount above 0';
 export const VENDOR_BOTH_WORDS = 'pick a vendor or type a new name — not both';
@@ -1879,6 +1882,19 @@ export const NOTE_CONTROL_WORDS = `${EXPENSE_FIELD_WORDS.note} holds a control c
 /** A box of the record, typed in "+ expense" for a stop still ahead. */
 export const aheadFieldWords = (field: 'actual' | 'stars' | 'note'): string => `${EXPENSE_FIELD_WORDS[field]} is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come`;
 
+// ── PASTE-03 (Alex, 2026-11-28): A STOP WITH NO TIME IS A CHARGE ON ITS DATE ──
+//
+// "+ expense" required a TIME, and the paste a Start Time — so a row of his sheet with none was refused, and his sheet has a Start
+// Time on fewer than half its rows. A blank TIME is now a stop ALL DAY: a charge on its date, as an all-day routine already is
+// (rruleHelpers.ts ALLDAY-01). Its instant is the day at ALL_DAY_CLOCK in the viewer's zone — that clock's own words, the clock every
+// all-day routine carries — and `ahead` is read against it as for any stop. Its one-off is an all-day routine (oneOffBody: role
+// all_day, no clock sent — the create route derives it, allDayTimeInput), named for its day alone (oneOffRoutineName). A charge
+// TAKES NO RECORD — the stops route refuses one on an all-day line, and it is not edited: ACTUAL, STARS and ITEMS typed with no TIME
+// are each refused by name before that box's own reading (chargeFieldWords), and the form never asks the record (ExpenseForm.tsx —
+// the step is said as 'charge'). Its vendor is planned as any stop's. A typed TIME is read as it was.
+/** A box of the record, typed in "+ expense" with no TIME — a charge on its date. */
+export const chargeFieldWords = (field: 'actual' | 'stars' | 'note'): string => `${EXPENSE_FIELD_WORDS[field]} is the record's, and with no TIME this is a charge on its date — it takes no record; give it a TIME, or leave this blank`;
+
 /** Dollars typed → cents by the Budget's own rule, or the words. */
 function centsOf(typed: string): { readonly ok: true; readonly cents: number } | { readonly ok: false; readonly message: string } {
   let read: ReturnType<typeof centsFromDecimalString>;
@@ -1893,7 +1909,7 @@ function centsOf(typed: string): { readonly ok: true; readonly cents: number } |
 }
 
 /**
- * The one rule for what the form is given: the day a real day; the time HH:MM;
+ * The one rule for what the form is given: the day a real day; the time HH:MM, or blank (PASTE-03: all day — a charge on its date, which takes no record);
  * the name 1–200 characters; the amount blank (PASTE-03: a stop with no budget) or dollars above 0; the COA and the book
  * required; the vendor one of the two ways or none; the actual dollars 0 or more
  * or blank; the stars 1–5 or blank; the note trimmed or blank. The stop is the
@@ -1906,8 +1922,9 @@ function centsOf(typed: string): { readonly ok: true; readonly cents: number } |
 export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): ExpenseInputResult {
   if (draft.day === '') return refuseExpense('day', requiredWords('day'));
   if (!isIsoDay(draft.day)) return refuseExpense('day', dayTypedWords(draft.day));
-  if (draft.time === '') return refuseExpense('time', requiredWords('time'));
-  if (!TIME_RE.test(draft.time)) return refuseExpense('time', timeTypedWords(draft.time));
+  // PASTE-03 (Alex, 2026-11-28): TIME MAY BE LEFT BLANK — the stop is ALL DAY, a charge on its date. A typed time is read as it was.
+  const allDay = draft.time.trim() === '';
+  if (!allDay && !TIME_RE.test(draft.time)) return refuseExpense('time', timeTypedWords(draft.time));
   const name = draft.name.trim().replace(/\s+/g, ' ');
   if (name === '') return refuseExpense('name', requiredWords('name'));
   if (name.length > ONE_OFF_NAME_MAX) return refuseExpense('name', NAME_LONG_WORDS);
@@ -1928,11 +1945,13 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
   const vendorName = draft.vendorName.trim().replace(/\s+/g, ' ');
   if (draft.vendorId !== '' && vendorName !== '') return refuseExpense('vendor', VENDOR_BOTH_WORDS);
   const vendor: ExpenseVendor = draft.vendorId !== '' ? { kind: 'existing', id: draft.vendorId } : vendorName !== '' ? { kind: 'new', name: vendorName } : { kind: 'none' };
-  // The stop's instant, read once — and whether it is still ahead of the clock handed in, by the stops rule's own test for a done time.
-  const instant = zonedToInstant(draft.day, draft.time, zone);
+  // The stop's instant, read once — and whether it is still ahead of the clock handed in, by the stops rule's own test for a done time. PASTE-03: all day, the
+  // day at ALL_DAY_CLOCK — the clock every all-day routine carries, in its own words.
+  const instant = zonedToInstant(draft.day, allDay ? clockWords(ALL_DAY_CLOCK) : draft.time, zone);
   const ahead = instant.getTime() > now.getTime() + DONE_AT_SKEW_MS;
   let actualCents: number | null = null;
   if (draft.actual.trim() !== '') {
+    if (allDay) return refuseExpense('actual', chargeFieldWords('actual'));
     if (ahead) return refuseExpense('actual', aheadFieldWords('actual'));
     const read = centsOf(draft.actual.trim());
     if (!read.ok) return refuseExpense('actual', read.message);
@@ -1941,18 +1960,20 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
   }
   let rating: number | null = null;
   if (draft.stars.trim() !== '') {
+    if (allDay) return refuseExpense('stars', chargeFieldWords('stars'));
     if (ahead) return refuseExpense('stars', aheadFieldWords('stars'));
     if (!/^[1-5]$/.test(draft.stars.trim())) return refuseExpense('stars', starsTypedWords(draft.stars));
     rating = Number(draft.stars.trim());
   }
   const note = draft.note.trim().replace(/\s+/g, ' ');
+  if (note !== '' && allDay) return refuseExpense('note', chargeFieldWords('note'));
   if (note !== '' && ahead) return refuseExpense('note', aheadFieldWords('note'));
   if (holdsControl(note)) return refuseExpense('note', NOTE_CONTROL_WORDS);
   if (note.length > NOTE_MAX) return refuseExpense('note', NOTE_LONG_WORDS);
   return {
     ok: true,
     value: {
-      day: draft.day, time: draft.time, zone, instant: instant.toISOString(),
+      day: draft.day, time: allDay ? '' : draft.time, allDay, zone, instant: instant.toISOString(),
       name, amount, coa, bookId: draft.book, location: location.value, vendor, actualCents, rating, note: note === '' ? null : note, ahead,
     },
   };
@@ -1962,9 +1983,10 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
 export const oneOffBody = (v: ExpenseValues): RoutineForm => ({
   name: oneOffRoutineName(v), description: '', entity_id: v.bookId,
   cadence_mode: 'once', days: 'once' /* FORM-01 (2026-10-19): the form's days choice — a one-off */, weekly_byday: [], monthly_day_of_month: '1', monthly_nth: '1', monthly_weekday: 'MO', custom_rrule: '',
-  byhour: v.time.slice(0, 2), byminute: v.time.slice(3, 5), timezone: v.zone,
-  ideal_time_label: '', fail_threshold_minutes: '0', role: 'place',
-  start_date: v.day, end_date: '', start_time: v.time, end_time: '', is_active: true,
+  // PASTE-03 (2026-11-28): ALL DAY — a charge on its date: role all_day and NO clock — no hour, no minute, no start time — the create route derives it (rruleHelpers.ts allDayTimeInput).
+  byhour: v.allDay ? '' : v.time.slice(0, 2), byminute: v.allDay ? '' : v.time.slice(3, 5), timezone: v.zone,
+  ideal_time_label: '', fail_threshold_minutes: '0', role: v.allDay ? 'all_day' : 'place',
+  start_date: v.day, end_date: '', start_time: v.allDay ? '' : v.time, end_time: '', is_active: true,
   budget_amount: '', coa_code: '', location: '', latitude: '', longitude: '', location_class: v.location, // COALEVELS-01 (2026-11-27): the stop's Location, or null — not said (`location` beside it is the venue's text)
   lines: [{ activity: v.name, budget_amount: v.amount, coa_code: v.coa }],
 });
@@ -1980,7 +2002,7 @@ export const recordBody = (v: ExpenseValues, lineId: string): StopBody =>
 // The outcome: one line per step, each said by name.
 export const EXPENSE_STEPS = ['stop', 'line', 'directory', 'vendor', 'record'] as const;
 export type ExpenseStep = (typeof EXPENSE_STEPS)[number];
-export type ExpenseState = 'written' | 'failed' | 'not tried' | 'not asked' | 'ahead'; // FORM-BOUNDS-01 (2026-11-25): 'ahead' — the record of a stop still ahead: planned, not asked
+export type ExpenseState = 'written' | 'failed' | 'not tried' | 'not asked' | 'ahead' | 'charge'; // FORM-BOUNDS-01 (2026-11-25): 'ahead' — the record of a stop still ahead: planned, not asked. PASTE-03 (2026-11-28): 'charge' — the record of a charge on its date: it takes none, never asked
 export interface ExpenseOutcome {
   readonly step: ExpenseStep;
   readonly state: ExpenseState;
@@ -1995,8 +2017,10 @@ export const NOT_TRIED_WORDS = 'not tried — stopped at the failure before it';
 export const NOT_ASKED_WORDS = 'none given';
 /** FORM-BOUNDS-01 (2026-11-25): the record step of a stop still ahead — it reads "the record — not asked — this stop is still ahead; record it on its row once its time has come". */
 export const RECORD_AHEAD_WORDS = 'not asked — this stop is still ahead; record it on its row once its time has come';
+/** PASTE-03 (2026-11-28): the record step of a charge on its date — it reads "the record — a charge on its date takes no record". */
+export const RECORD_CHARGE_WORDS = 'a charge on its date takes no record';
 export const outcomeWords = (o: ExpenseOutcome): string =>
-  `${STEP_WORDS[o.step]} — ${o.state === 'written' ? WRITTEN_WORDS : o.state === 'not tried' ? NOT_TRIED_WORDS : o.state === 'not asked' ? NOT_ASKED_WORDS : o.state === 'ahead' ? RECORD_AHEAD_WORDS : `not written: ${o.words}`}`;
+  `${STEP_WORDS[o.step]} — ${o.state === 'written' ? WRITTEN_WORDS : o.state === 'not tried' ? NOT_TRIED_WORDS : o.state === 'not asked' ? NOT_ASKED_WORDS : o.state === 'ahead' ? RECORD_AHEAD_WORDS : o.state === 'charge' ? RECORD_CHARGE_WORDS : `not written: ${o.words}`}`;
 /** Every step after a failure, not tried — so the list always names all five. */
 export const withNotTried = (done: readonly ExpenseOutcome[]): ExpenseOutcome[] => {
   const said = new Set(done.map((o) => o.step));

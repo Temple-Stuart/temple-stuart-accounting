@@ -45,6 +45,12 @@
  *   · a kind's pick STARTS on the one account of its book's chart that carries its Category's name (namedPicksOf), and a save first
  *     gives the chart a sub-account for every new one-off's Type that has none under that account (chartAddsOf) — a stop's name is its sub-account's.
  * The file is still pure, and the paste still never writes over what stands.
+ *
+ * PASTE-03 (Alex, 2026-11-28) — THE PASTE TAKES THE SHEET AS IT IS. A row's Budget (USD) may be blank: a new one-off is placed with no budget
+ * (its line names its account and no amount — planMoney.ts, the pair bends for a line); a Budget (USD) of 0 is refused by name. A row's Start
+ * Time may be blank: it is a CHARGE ON ITS DATE — an all-day one-off at the day's start in the zone, with no record: what it has no box for (its
+ * Total (USD), its Notes, an End Time) is said, not written; the vendor, the tag and the planned items are placed as for a timed row with no record.
+ * The all-day stop of its own name already on the sheet takes the row (onCharge). Two rows that would be one new charge are refused on Type.
  */
 import { deriveAccountString } from '@/lib/accountString';
 import { centsFromDecimalString, isIsoDay } from '@/lib/budget/days';
@@ -54,11 +60,13 @@ import { renderCode } from '@/lib/coa/scheme';
 import { SUB_CODES_USED_UP_WORDS, nextSubCode, subAccountNameKey } from '@/lib/coa/subAccounts';
 import {
   BOOK_WORDS, PLANNED_WORD, WENT_WORD, bookWordOf, budgetCellWords, cellWordsOf, expenseInput, headWordOf, oneOffRoutineName, recordInput,
-  type BookWord, type ExpenseField, type ExpenseValues, type LedgerColumn, type LedgerRecording, type LedgerRecordingTaken, type LedgerSheetRow, type RecordField, type RecordInputResult,
+  type BookWord, type ExpenseField, type ExpenseValues, type LedgerColumn, type LedgerPlanRow, type LedgerRecording, type LedgerRecordingTaken, type LedgerSheetRow, type RecordField, type RecordInputResult,
 } from '@/lib/operations/ledger';
 import { LOCATION_WORDS, readLocationClass, type LocationClass } from '@/lib/operations/locationClass';
 import { instagramTagKey, instagramTagWords, readInstagramTag, readVendorName, vendorNameKey } from '@/lib/operations/planVendor';
+import { ALL_DAY_CLOCK, clockWords } from '@/lib/operations/rruleHelpers';
 import { CENTS_MAX, DONE_AT_SKEW_MS, NOTES_MAX, NOTE_MAX, NOT_RECORDED_WORDS, holdsControl } from '@/lib/operations/stopRecord';
+import { ROLE_SHORT_WORDS } from '@/lib/operations/stopRole';
 import { csvMoney } from '@/lib/table/csv';
 import { zonedToInstant } from '@/lib/time';
 
@@ -652,7 +660,12 @@ export const noStopWords = (plan: string): string => `the plan ${JSON.stringify(
 export const manyStopsWords = (plan: string): string => `the plan ${JSON.stringify(plan)} has more than one stop on this day — the paste cannot tell which`;
 export const stopTakenWords = (row: number, plan: string): string => `row ${row} of the paste is already on this day's stop of ${JSON.stringify(plan)} — a second one needs its own Start Time and a one-off`;
 export const noAccountWords = (code: string): string => `the book's chart has no account ${JSON.stringify(code)}`;
-export const ONE_OFF_NO_START_WORDS = 'a one-off needs a Start Time';
+/** PASTE-03 (Alex, 2026-11-28): a row with NO Start Time is a charge on its date — 'a one-off needs a Start Time' (ONE_OFF_NO_START_WORDS) refused it until then. What a charge takes no box for, said; and the two rows that would be one new charge. */
+export const CHARGE_TOTAL_WORDS = 'Total (USD) — not written: the row has no Start Time, so it is a charge on its date — and a charge on a date takes no record';
+export const CHARGE_NOTES_WORDS = 'Notes — not written: the row has no Start Time, so it is a charge on its date — notes sit on a record';
+export const END_NO_START_WORDS = 'End Time — not written: the row has no Start Time';
+export const ITEMS_CHARGE_STANDS_WORDS = 'Items — not written: this charge already stands with its vendor';
+export const chargeTwiceWords = (row: number, name: string): string => `row ${row} of the paste is already a new charge named ${JSON.stringify(name)} on this day — a second one needs a Start Time`;
 export const ONE_OFF_ZERO_BUDGET_WORDS = 'a Budget (USD) of 0 is not a budget — leave the cell blank for a stop with no budget, or type one above 0'; // PASTE-03 (2026-11-28): a row whose Budget (USD) is blank is placed, its budget none — 'a one-off needs a Budget (USD) above 0' (ONE_OFF_NO_BUDGET_WORDS) refused it until then
 /** PASTE-02 (2026-11-27): one stop of the row's own name at its day and time takes the row; more than one cannot be told apart. ('already on the time sheet — …' refused the row until then.) */
 export const manyNamedWords = (name: string): string => `more than one stop named ${JSON.stringify(name)} stands at this day and time — the paste cannot tell which`;
@@ -735,8 +748,8 @@ export type PastePlacement =
     readonly kind: 'oneOff'; readonly book: OfferedBook; readonly account: PasteAccount;
     /** PASTE-02: what "+ expense"'s own rule read for this stop (ledger.ts expenseInput) — the bodies the save sends are built from it. */
     readonly values: ExpenseValues;
-    /** The new stop's own facts: its Start Time ('HH:MM'); its End Time, when its minutes are written (PASTE-02), and those minutes; its name and its instant, the values' own; its Budget (USD) — above 0, or null: a stop with no budget (PASTE-03, 2026-11-28); its Location, the values' own (COALEVELS-01). */
-    readonly start: string; readonly end: string | null; readonly minutes: number | null; readonly name: string; readonly budgetCents: number | null; readonly location: LocationClass | null;
+    /** The new stop's own facts: its Start Time ('HH:MM' — or null: no Start Time, a charge on its date, PASTE-03); its End Time, when its minutes are written (PASTE-02), and those minutes; its name and its instant, the values' own; its Budget (USD) — above 0, or null: a stop with no budget (PASTE-03, 2026-11-28); its Location, the values' own (COALEVELS-01). */
+    readonly start: string | null; readonly end: string | null; readonly minutes: number | null; readonly name: string; readonly budgetCents: number | null; readonly location: LocationClass | null;
     readonly instant: string; readonly vendor: PastedVendor; readonly tag: PastedTag | null; readonly items: string | null; readonly happened: PastedOutcome; readonly notWritten: readonly string[];
   };
 
@@ -762,6 +775,18 @@ function happenedAt(instant: string, cells: PasteCells, now: Date): { readonly h
   }
   if (cells.totalCents !== null) return { happened: { kind: 'went', cents: cells.totalCents, items: cells.items, notes: cells.notes }, notWritten: [] };
   return { happened: { kind: 'not recorded' }, notWritten: cells.notes === null ? [] : [NOTES_NO_TOTAL_WORDS] };
+}
+
+/**
+ * PASTE-03 (Alex, 2026-11-28): WHAT HAPPENED AT A CHARGE ON A DATE — a row with no Start Time (rulings 2.3, 2.4). Planned while its instant is
+ * ahead of the clock by the stops rule's own test (DONE_AT_SKEW_MS), else not recorded — NEVER went: a charge takes no record (the stops route
+ * refuses one on an all-day line). Its Total (USD) and its Notes, if typed, are each said.
+ */
+function chargeHappened(instant: string, cells: PasteCells, now: Date): { readonly happened: PastedOutcome; readonly notWritten: readonly string[] } {
+  const at = Date.parse(instant);
+  if (!Number.isFinite(at)) throw new Error(`pasteRows: ${JSON.stringify(instant)} is no instant — a charge's day is ISO text`);
+  const said = [...(cells.totalCents === null ? [] : [CHARGE_TOTAL_WORDS]), ...(cells.notes === null ? [] : [CHARGE_NOTES_WORDS])];
+  return { happened: at > now.getTime() + DONE_AT_SKEW_MS ? { kind: 'planned' } : { kind: 'not recorded' }, notWritten: said };
 }
 
 /** The record form's boxes the paste fills, each under the sheet column it is filled from. It fills no stars and no minutes. COALEVELS-01 (2026-11-27): the NOTES box is filled from the Notes column — the paste filled none until it read one. */
@@ -859,6 +884,37 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
   };
 
   /**
+   * PASTE-03 (Alex, 2026-11-28) — A ROW ON A CHARGE THAT STANDS (ruling 2.4). A stop that takes no record refuses the row — every such stop but
+   * this one: an ALL-DAY plan row of the sheet found by the row's own name (that book, that day, that name — place, below), a charge on its date.
+   * It takes the row as a standing stop does, at its own instant, and never with a record. Of the row, only what the charge lacks is written: its
+   * VENDOR when it plans none; its PLANNED ITEMS when it prints none and the row plans the vendor that carries them. What stands is kept, and is
+   * said only where the row says something else.
+   */
+  const onCharge = (number: number, cells: PasteCells, book: OfferedBook, stop: LedgerPlanRow, plan: string): PastePlacement => {
+    const earlier = held.get(stop.key);
+    if (earlier !== undefined) return { kind: 'refused', head: 'Type', why: stopTakenWords(earlier, plan) };
+    // Its vendor stands: the same name is nothing to write, another is said; none planned → the row's is set.
+    const planned = stop.vendor;
+    const otherVendor = planned !== null && cells.vendor !== null && vendorNameKey(planned) !== vendorNameKey(cells.vendor);
+    const vendorSaid = planned !== null && otherVendor ? [vendorNotWrittenWords(planned)] : [];
+    const vendor = planned === null ? pastedVendorOf(cells.vendor, book, context.vendors) : { kind: 'none' as const };
+    // Its planned items: it prints some — the same are quiet, others are said; it prints none and plans no vendor — written with the row's vendor, or
+    // said when the row names none; it prints none and its vendor stands — said: the row's other vendor is not written, or the charge stands with its own.
+    let items: string | null = null;
+    let itemsSaid: readonly string[] = [];
+    if (cells.items !== null) {
+      if (stop.plannedItems !== null) itemsSaid = stop.plannedItems === cells.items ? [] : [itemsStandWords(stop.plannedItems)];
+      else if (planned === null) { if (vendor.kind === 'none') itemsSaid = [ITEMS_NO_VENDOR_WORDS]; else items = cells.items; }
+      else itemsSaid = [otherVendor ? ITEMS_OTHER_VENDOR_WORDS : ITEMS_CHARGE_STANDS_WORDS];
+    }
+    // What happened, and the Total (USD) and Notes it says, are a charge's (chargeHappened); an End Time is said — the row has no Start Time. No record, ever.
+    const instant = stop.address.instant;
+    const { happened, notWritten } = chargeHappened(instant, cells, context.now);
+    held.set(stop.key, number);
+    return { kind: 'plan', book, plan, standing: true, stop, instant, vendor, tag: null, items, happened, record: null, notWritten: [...itemsSaid, ...notWritten, ...vendorSaid, ...(cells.end === null ? [] : [END_NO_START_WORDS])] };
+  };
+
+  /**
    * A ROW ON A STOP THAT STANDS (PASTE-02, ruling A.1) — ONE path for the day's stop of a plan and for a stop of the row's own
    * name already on the time sheet (`standing`). Of the row, only what the stop lacks is written: its VENDOR for this day when the
    * stop has none; its RECORD when the stop has none, the row holds a Total (USD) and its time has come; its PLANNED ITEMS when the
@@ -867,7 +923,7 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
    */
   const onStop = (number: number, cells: PasteCells, book: OfferedBook, stop: LedgerSheetRow, plan: string, standing: boolean): PastePlacement => {
     const entry = entryOf(stop, context.recording);
-    if (!entry.takes) return { kind: 'refused', head: 'Type', why: entry.words };
+    if (!entry.takes) return standing && stop.id === null && stop.allDay ? onCharge(number, cells, book, stop, plan) : { kind: 'refused', head: 'Type', why: entry.words }; // PASTE-03 (2026-11-28): a stop that takes no record refuses the row — but a charge on its date found by the row's own name takes it (onCharge)
     const earlier = held.get(stop.key);
     if (earlier !== undefined) return { kind: 'refused', head: 'Type', why: stopTakenWords(earlier, plan) };
     // The vendor: the stop's own planned vendor stands — another name is kept and said, the same name is nothing to write.
@@ -925,11 +981,10 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
     const account = chartFor(book, context.charts).find((listed) => listed.code === pick.code);
     if (account === undefined) return { kind: 'refused', head: 'Category', why: noAccountWords(pick.code) };
     const start = cells.start;
-    if (start === null) return { kind: 'refused', head: 'Start Time', why: ONE_OFF_NO_START_WORDS };
     // PASTE-02 (ruling A.4) — A STOP OF THE ROW'S OWN NAME ALREADY ON THE TIME SHEET TAKES THE ROW: that book, that day, that Start Time and that name (the row's Type, exactly). One
     // such stop → the row lands on it, by the one path above, and needs no Budget (USD). More than one cannot be told apart. (The row was refused as 'already on the time sheet' until
     // then — so a one-off the save had written could never take its own row again.)
-    const own = context.sheet.filter((stop) => stop.book === book.word && stop.day === cells.day && stop.time === start && stop.description === cells.type);
+    const own = context.sheet.filter((stop) => stop.book === book.word && stop.day === cells.day && (start === null ? stop.id === null && stop.allDay : stop.time === start) && stop.description === cells.type); // PASTE-03 (Alex, 2026-11-28, ruling 2.3): with NO Start Time the stop of its own name is an ALL-DAY plan row — that book, that day, that name: a charge on its date, which takes the row (onStop → onCharge). 'a one-off needs a Start Time' refused the row until then
     if (own.length > 1) return { kind: 'refused', head: 'Type', why: manyNamedWords(cells.type) };
     if (own.length === 1) return onStop(row.number, cells, book, own[0], own[0].description, true);
     if (cells.budgetCents === 0) return { kind: 'refused', head: 'Budget (USD)', why: ONE_OFF_ZERO_BUDGET_WORDS }; // PASTE-03 (Alex, 2026-11-28): a blank Budget (USD) is placed, its budget none — its budgetCents null, the form's rule handed '' (a blank AMOUNT is a stop with no budget); a 0 is no budget typed, refused by name — never read as a blank, and never written
@@ -937,11 +992,11 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
     // PASTE-02 (ruling A.3) — A NEW ONE-OFF IS "+ EXPENSE"'S: read by that form's ONE rule, its boxes filled from the row — its LOCATION among them (COALEVELS-01). The record's two
     // boxes are filled only when the row is recorded went — a stop still ahead, or a row with no Total (USD), has no record to make. A refusal of that rule refuses the row, in the
     // form's words.
-    const instant = zonedToInstant(cells.day, start, context.zone).toISOString();
-    const { happened, notWritten } = happenedAt(instant, cells, context.now);
+    const instant = zonedToInstant(cells.day, start === null ? clockWords(ALL_DAY_CLOCK) : start, context.zone).toISOString(); // PASTE-03: a NEW CHARGE is at the day's start in the zone — ALL_DAY_CLOCK, the clock every all-day routine carries, in its own words
+    const { happened, notWritten } = start === null ? chargeHappened(instant, cells, context.now) : happenedAt(instant, cells, context.now); // …and what happened is a charge's — never went
     const vendor = pastedVendorOf(cells.vendor, book, context.vendors);
     const read = expenseInput({
-      day: cells.day, time: start, name: cells.type, amount: cells.budgetCents === null ? '' : csvMoney(cells.budgetCents), coa: account.code, book: book.id, location: cells.location === null ? '' : cells.location,
+      day: cells.day, time: start === null ? '' : start, name: cells.type, amount: cells.budgetCents === null ? '' : csvMoney(cells.budgetCents), coa: account.code, book: book.id, location: cells.location === null ? '' : cells.location,
       vendorId: vendor.kind === 'own' ? vendor.id : '', vendorName: vendor.kind === 'new' ? vendor.name : '',
       actual: happened.kind === 'went' ? csvMoney(happened.cents) : '', stars: '', note: happened.kind === 'went' && happened.items !== null ? happened.items : '',
     }, context.zone, context.now);
@@ -955,11 +1010,11 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
     // hold one name a user: the second could never be written. It is refused here, on Type, before anything is — and only a row that is placed holds its name.
     const routine = oneOffRoutineName(values);
     const first = fresh.get(routine);
-    if (first !== undefined) return { kind: 'refused', head: 'Type', why: oneOffTwiceWords(first, values.name) };
+    if (first !== undefined) return { kind: 'refused', head: 'Type', why: values.allDay ? chargeTwiceWords(first, values.name) : oneOffTwiceWords(first, values.name) }; // PASTE-03 (2026-11-28): a charge's routine is named for its day alone — two rows of one name on one day with no Start Time would be one
     fresh.set(routine, row.number);
     // ITS MINUTES: End Time less Start Time; an End Time earlier than the Start Time ends the next day (23:00 to 01:00 is 120). No End Time → none. An End Time that IS the Start
     // Time → none, and said. The END cell shows the End Time only when its minutes are written.
-    const span = cells.end === null ? null : (clockMinutes(cells.end) - clockMinutes(start) + DAY_MINUTES) % DAY_MINUTES;
+    const span = cells.end === null || start === null ? null : (clockMinutes(cells.end) - clockMinutes(start) + DAY_MINUTES) % DAY_MINUTES; // PASTE-03: a charge has no minutes — its End Time is said (END_NO_START_WORDS)
     const minutes = span === null || span === 0 ? null : span;
     // ITS PLANNED ITEMS (COALEVELS-01): the Items of a row that makes no record, written with the vendor the row plans; a row that names no vendor has none to plan them with. A row
     // recorded went writes none — its Items are its record's line.
@@ -967,7 +1022,7 @@ export function placePaste(paste: Pick<Paste, 'rows'>, picks: Readonly<Record<st
     return {
       kind: 'oneOff', book, account, values, start, end: minutes === null ? null : cells.end, minutes, name: values.name, budgetCents: cells.budgetCents, location: values.location, instant: values.instant,
       vendor, tag: null, items: plans && vendor.kind !== 'none' ? cells.items : null, happened,
-      notWritten: [...(plans && vendor.kind === 'none' ? [ITEMS_NO_VENDOR_WORDS] : []), ...notWritten, ...(span === 0 ? [END_IS_START_WORDS] : [])],
+      notWritten: [...(plans && vendor.kind === 'none' ? [ITEMS_NO_VENDOR_WORDS] : []), ...notWritten, ...(span === 0 ? [END_IS_START_WORDS] : []), ...(start === null && cells.end !== null ? [END_NO_START_WORDS] : [])],
     };
   };
 
@@ -1051,7 +1106,7 @@ function sheetCells(placement: PastePlacement): readonly string[] {
   if (placement.kind === 'oneOff') {
     // A new stop: its own Start Time and End Time (PASTE-02: the End Time only when its minutes are written — `end` is null otherwise), the account's label and name, its Type, what happened, and its two amounts.
     const cell: Readonly<Record<SheetKey, string>> = {
-      start: placement.start,
+      start: placement.start === null ? ROLE_SHORT_WORDS.all_day : placement.start, // PASTE-03 (2026-11-28): no Start Time — the START cell holds the all-day word, as the sheet prints an all-day line
       end: placement.end === null ? BLANK : placement.end,
       account: deriveAccountString({ entityType: placement.book.entityType, code: placement.account.code }),
       accountName: placement.account.name,
@@ -1070,6 +1125,9 @@ export const onPlanWords = (plan: string, start: string): string => `on ${JSON.s
 /** PASTE-02 (2026-11-27): a kind picked a one-off whose stop already stands. */
 export const onStandingWords = (name: string, start: string): string => `on the stop ${JSON.stringify(name)} at ${start}, already on the time sheet`;
 export const oneOffWords = (start: string, label: string, name: string): string => `a one-off at ${start}, under ${label} ${name}`;
+/** PASTE-03 (2026-11-28): a new charge on its date — a row with no Start Time; and a row on the charge of its name that already stands. */
+export const chargeWords = (label: string, name: string): string => `a new charge on its date, all day — no Start Time — under ${label} ${name}`;
+export const onChargeWords = (name: string): string => `on the charge ${JSON.stringify(name)}, all day, already on the time sheet`;
 export const vendorOwnWords = (book: string): string => `vendor: ${book}'s own`;
 export const vendorNewWords = (book: string): string => `vendor: new to ${book}`;
 export const recordedWentWords = (cents: number): string => `recorded: went, ${formatCents(cents)}`;
@@ -1097,11 +1155,11 @@ export function landsWords(placement: PastePlacement): string {
     case 'pick': return placement.words;
     case 'plan': {
       const start = cellWordsOf(placement.stop, 'start');
-      return [placement.standing ? onStandingWords(placement.plan, start) : onPlanWords(placement.plan, start), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
+      return [placement.standing && placement.stop.id === null && placement.stop.allDay ? onChargeWords(placement.plan) : placement.standing ? onStandingWords(placement.plan, start) : onPlanWords(placement.plan, start), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
     }
     case 'oneOff': {
       const label = deriveAccountString({ entityType: placement.book.entityType, code: placement.account.code });
-      return [oneOffWords(placement.start, label, placement.account.name), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
+      return [placement.start === null ? chargeWords(label, placement.account.name) : oneOffWords(placement.start, label, placement.account.name), ...vendorPart(placement.vendor, placement.book), ...tagPart(placement.tag), happenedWords(placement.happened), ...itemsPart(placement.items), ...placement.notWritten].join(' · ');
     }
   }
 }
