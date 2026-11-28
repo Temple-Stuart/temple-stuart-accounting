@@ -3,7 +3,8 @@
  * number to two different accounts; EDIT-03's move kept the number, and the account's meaning changed with nothing said before the save.
  *
  * PART 1 — the book move takes the account picked in the new book, read by the money rule for that book (src/lib/operations/bookMove.ts;
- * routines/[id]/route.ts PATCH, the move path). Each part's tests land in the commit that builds it.
+ * routines/[id]/route.ts PATCH, the move path). PART 2 — ENTITY's box lists each other book's accounts (EntityAccountSelect.tsx; ledger.ts entityPickOf,
+ * the reach), and Expenses' edit form says where a book is moved. Each part's tests land in the commit that builds it.
  *
  * HERMETIC, on edit03.test.ts's model — no database, no network, no clock. The rules are DRIVEN directly over made-up plans and made-up charts
  * in which one number means two different accounts in two books; the route is anchored to its source with comments stripped (the reader law).
@@ -11,10 +12,24 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import * as React from 'react';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { code } from '../sourceText';
+import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
+import type { RoutineWords } from '../budget/planLines';
+import { isOnceRRule } from '../operations/rruleHelpers';
+import {
+  ENTITY_ACCOUNT_REACH_WORDS, ENTITY_CHART_EMPTY_WORDS, ENTITY_CHART_READING_WORDS, ENTITY_CHART_UNREAD_WORDS, ENTITY_VENDOR_REACH_WORDS, REPEATING_REACH_WORDS,
+  boxTextOf, cellReachWords, entityPickOf, entityPickValue, ledgerOf, planCellWrite, planMinutesOf, routineClocksOf, type LedgerEditingPlan,
+} from '../operations/ledger';
+import ColumnBox from '../../components/workbench/operations/ledger/ColumnBox';
+import { BOOK_FIXED_WORDS } from '../../components/workbench/operations/routines/RoutineEditForm';
 import { planMoney, type PlanBook } from '../operations/planMoney';
 import { MOVE_ACCOUNTS_MANY_WORDS, MOVE_NO_ACCOUNT_WORDS, MOVE_PICK_ACCOUNT_WORDS } from '../operations/linkHold';
 import { bookMove, moveMoneyOf, planAccounts, type BookMoveInput, type BookMovePlan, type BookMoveVendor } from '../operations/bookMove';
+
+Object.assign(globalThis, { React }); // PART 2 draws ENTITY's box — its JSX reads React as a global under tsx (edit01.test.ts's way)
 
 const ROUTINE_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
 const BOOK_MOVE = 'src/lib/operations/bookMove.ts';
@@ -192,4 +207,110 @@ test('Z5 the account is decided where (c) stood — after the Books links and li
   assert.ok(tx.indexOf('const targetBook = await loadPlanBook(tx, user.id, target.id);') < firstWrite && tx.indexOf('if (!plan.ok) throw new MoveRefused(plan.status, plan.field, plan.words);') < firstWrite, 'the target book and every check before the first write');
   assert.deepEqual(tx.match(/coa_code: [^,}\s]+/g), ['coa_code: true', 'coa_code: money.coaCode', 'coa_code: money.coaCode'], 'coa_code read, then written only as the money rule answered it');
   assert.doesNotMatch(patch, /coa_code: (picked|body\.coa_code)/, 'never the code as sent');
+});
+
+// ── PART 2 — THE ENTITY BOX LISTS EACH BOOK'S ACCOUNTS ───────────────────────
+
+const ENTITY_SELECT = 'src/components/workbench/operations/ledger/EntityAccountSelect.tsx';
+const BOX = 'src/components/workbench/operations/ledger/ColumnBox.tsx';
+const SECTION = 'src/components/workbench/operations/ledger/LedgerSection.tsx';
+const EDIT_FORM = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
+const noop = (): void => undefined;
+const drawBox = (props: Parameters<typeof ColumnBox>[0]): string => renderToStaticMarkup(createElement(ColumnBox, props));
+const BOOKS = [
+  { id: 'P', name: 'Home', entity_type: 'personal', is_default: true },
+  { id: 'B', name: 'Harbor Works', entity_type: 'sole_prop', is_default: false },
+  { id: 'T', name: 'Desk', entity_type: 'trading', is_default: false },
+];
+/** Lunch at Harbor Cafe, a one-off on the personal book, its line on 6150 — the row's entry as the sheet builds it (made up). */
+const NBO = 'Africa/Nairobi';
+const THU = '2027-03-04';
+const LUNCH_ROUTINE: RoutinePlanInput = {
+  id: 'lunch', name: 'Lunch · 2027-03-04 12:00', scheduleRrule: 'FREQ=DAILY;COUNT=1;BYHOUR=12;BYMINUTE=0', entityId: 'P', entityType: 'personal', timezone: NBO, startDate: THU, endDate: THU,
+  budgetAmount: null, coaCode: null, steps: [{ id: 'lunch-line', stepOrder: 1, budgetAmount: 15, coaCode: '6150', durationMinutes: 45, timeOfDay: null }], startTime: '1970-01-01T12:00:00.000Z', endTime: null, role: 'place',
+};
+const lunchLedger = ledgerOf({
+  from: THU, to: THU, now: new Date('2027-03-04T15:00:00.000Z'), records: [], links: [], lines: buildRoutineBudgetLines([LUNCH_ROUTINE], THU, THU).lines, open: [], notPlaced: [],
+  routines: new Map<string, RoutineWords>([['lunch', { name: LUNCH_ROUTINE.name, timezone: NBO, steps: new Map([['lunch-line', { activity: 'Lunch', timeOfDay: null }]]) }]]), roles: new Map([['lunch', 'place']]),
+  locations: new Map([['lunch', null]]), once: new Map([['lunch', isOnceRRule(LUNCH_ROUTINE.scheduleRrule)]]), clocks: routineClocksOf([LUNCH_ROUTINE]), subAccounts: [], minutes: planMinutesOf([LUNCH_ROUTINE]),
+  vendors: [{ id: 'pv-lunch', routine_id: null, step_id: 'lunch-line', task_id: null, occurrence_at: new Date('2027-03-04T09:00:00.000Z'), items: null, vendor: { id: 'v-harbor', vendor_name: 'Harbor Cafe', entity_id: 'P', instagram_tag: null }, routine: null, step: { activity: 'Lunch', routine_id: 'lunch', routine: { name: LUNCH_ROUTINE.name, timezone: NBO } }, task: null }],
+  stays: [], accounts: [{ entityId: 'P', code: '6150', name: 'Dining Out' }], books: [{ id: 'P', entityType: 'personal' }],
+});
+const lunchRow = lunchLedger.sheet.find((r) => r.description === 'Lunch' && r.id === null) ?? assert.fail('no Lunch row');
+const lunchEntry = ((): LedgerEditingPlan => { const e = lunchLedger.editing[lunchRow.key]; return e.plan ? e : assert.fail('Lunch has no plan'); })();
+
+// ── Z6 · THE PICK'S VALUE AND ITS ONE READER; THE CELL'S BODY (rulings 2.1, 2.3) ──
+
+test('Z6 an ENTITY pick names the book and the CATEGORY, read back by ONE function: a book alone is its id (the value the box opens with), a book and a code the id, a colon and the code; the cell sends { entity_id } or { entity_id, coa_code }', () => {
+  assert.equal(entityPickValue('B', null), 'B');
+  assert.equal(entityPickValue('B', 'B-6150'), 'B:B-6150');
+  assert.deepEqual(entityPickOf('B'), { entityId: 'B', code: null }, 'a book alone');
+  assert.deepEqual(entityPickOf('B:B-6150'), { entityId: 'B', code: 'B-6150' }, 'a book and a code');
+  assert.deepEqual(entityPickOf('B:x:y'), { entityId: 'B', code: 'x:y' }, 'a code read whole after the first colon');
+  for (const [id, c] of [['P', null], ['T', '5100'], ['B', 'B-6150']] as const) assert.deepEqual(entityPickOf(entityPickValue(id, c)), { entityId: id, code: c }, 'both ways');
+  assert.equal(boxTextOf(lunchRow, 'book', lunchEntry), 'P', 'the box opens on the row’s own book — a book alone');
+  // The cell's body.
+  assert.deepEqual(planCellWrite(lunchRow, lunchEntry, 'book', 'B:B-6150'), { ok: true, write: { to: 'routine', routineId: 'lunch', body: { entity_id: 'B', coa_code: 'B-6150' } } });
+  assert.deepEqual(planCellWrite(lunchRow, lunchEntry, 'book', 'B'), { ok: true, write: { to: 'routine', routineId: 'lunch', body: { entity_id: 'B' } } }, 'a book alone — the route refuses it for a plan with a CATEGORY, by name');
+});
+
+// ── Z7 · THE REACH (ruling 2.4) ──
+
+test('Z7 ENTITY’s line says its reach, then — on a row with a vendor — that the vendor goes with it, then — on a row with a CATEGORY — that its CATEGORY is picked in that book; the entry’s CATEGORY is the one CATEGORY’s box opens with', () => {
+  assert.equal(ENTITY_ACCOUNT_REACH_WORDS, ' — its CATEGORY is picked in that book');
+  assert.equal(lunchEntry.category, '6150');
+  assert.equal(lunchEntry.category, boxTextOf(lunchRow, 'accountName', lunchEntry), 'in lockstep with the box ENTITY is handed');
+  const vendorless: LedgerEditingPlan = { ...lunchEntry, vendor: null };
+  const uncoded: LedgerEditingPlan = { ...lunchEntry, category: '' };
+  assert.equal(cellReachWords('book', lunchEntry, THU), `this row${ENTITY_VENDOR_REACH_WORDS}${ENTITY_ACCOUNT_REACH_WORDS}`, 'a vendor and a CATEGORY');
+  assert.equal(cellReachWords('book', vendorless, THU), `this row${ENTITY_ACCOUNT_REACH_WORDS}`, 'a CATEGORY, no vendor');
+  assert.equal(cellReachWords('book', uncoded, THU), `this row${ENTITY_VENDOR_REACH_WORDS}`, 'a vendor, no CATEGORY');
+  assert.equal(cellReachWords('book', { ...uncoded, vendor: null }, THU), 'this row', 'neither');
+  assert.equal(cellReachWords('book', { ...lunchEntry, once: false, routineName: 'Morning Gym' }, THU), `${REPEATING_REACH_WORDS('Morning Gym')}${ENTITY_VENDOR_REACH_WORDS}${ENTITY_ACCOUNT_REACH_WORDS}`, 'a repeating plan: every row of it');
+  assert.equal(cellReachWords('book', { plan: false, words: 'no plan', trip: null }, THU), 'this row', 'a row with no plan, as EDIT-02 ruled');
+  assert.equal(cellReachWords('accountName', lunchEntry, THU), 'this row', 'the other cells’ reach unchanged');
+});
+
+// ── Z8 · THE BOX, READ AS TEXT AND DRAWN (ruling 2.1) ──
+
+test('Z8 EntityAccountSelect is ONE select: the row’s own book first by its sheet word, then a group per other book under its sheet word holding that book’s chart as CATEGORY’s box reads it, each option naming the book and the code; a group is never empty — a chart being read, read and empty, or unread, each said', () => {
+  assert.equal(ENTITY_CHART_UNREAD_WORDS('Business'), "Business's chart could not be read — reload to move this row there");
+  assert.equal(ENTITY_CHART_READING_WORDS('Business'), "reading Business's chart…");
+  assert.equal(ENTITY_CHART_EMPTY_WORDS('Business'), "Business's chart holds no open account — add one in Books to move this row there");
+  const box = code(ENTITY_SELECT);
+  // The chart read as CATEGORY's box reads it — and a failed read, or an answer that is not a list, is the read's failure, said.
+  assert.ok(box.includes('fetch(`/api/chart-of-accounts?entity_id=${encodeURIComponent(entityId)}`)'), 'CoaSelect’s own read');
+  inOrder(box, ["if (!res.ok) throw new Error(`the chart route answered ${res.status}`);", "if (!Array.isArray(body.accounts)) throw new Error('the chart route answered no list of accounts');"], 'an answer that is not one is no chart');
+  inOrder(box, ["(accounts) => { if (!cancelled) setCharts((held) => ({ ...held, [id]: { kind: 'read', accounts } })); },", "() => { if (!cancelled) setCharts((held) => ({ ...held, [id]: { kind: 'unread' } })); },"], 'read, or unread — never answered as none');
+  assert.doesNotMatch(box, /accounts: \[\] \}|setAccounts\(\[\]\)/, 'CoaSelect’s silence is not copied');
+  // The options: the row's own book, then each other book's group of "CODE — Name", each naming the book and the code.
+  inOrder(box, ['<option value={entityPickValue(own, null)}>{wordOf(ownBook)}</option>', '<optgroup key={book.id} label={word} data-ledger-entity-book={book.id}>', 'ENTITY_CHART_READING_WORDS(word)', 'ENTITY_CHART_UNREAD_WORDS(word)', 'ENTITY_CHART_EMPTY_WORDS(word)', '<option key={a.code} value={entityPickValue(book.id, a.code)}>{`${a.code} — ${a.name}`}</option>'], 'the select');
+  // Drawn by ColumnBox with the row's code: the first paint — the own book, then each other book's group, being read.
+  const drawn = drawBox({ column: 'book', value: 'P', onChange: noop, books: BOOKS, code: '6150' });
+  assert.match(drawn, /^<select aria-label="ENTITY" class="[^"]+" data-ledger-expense-box="book" data-ledger-entity-accounts="true">/);
+  assert.ok(drawn.includes('<option value="P" selected="">Personal</option>'), 'the row’s own book first, by its sheet word, the value');
+  assert.ok(drawn.indexOf('<optgroup label="Business" data-ledger-entity-book="B"><option value="" disabled="">reading Business&#x27;s chart…</option></optgroup>') > drawn.indexOf('Personal</option>'), 'Business’s group, its chart being read — never empty');
+  assert.ok(drawn.includes('<optgroup label="Trading" data-ledger-entity-book="T"><option value="" disabled="">reading Trading&#x27;s chart…</option></optgroup>'));
+  assert.equal((drawn.match(/<optgroup /g) ?? []).length, 2, 'a group for each OTHER book');
+  assert.throws(() => drawBox({ column: 'book', value: 'nowhere', onChange: noop, books: BOOKS, code: '6150' }), /^Error: EntityAccountSelect: the row's book nowhere is not one of the books handed in$/);
+});
+
+// ── Z9 · COLUMNBOX DRAWS IT ONLY WITH A CODE; THE SECTION HANDS THE CODE (rulings 2.1, 2.2) ──
+
+test('Z9 ColumnBox draws the accounts box only when handed the row’s code — with none (the blank row, a row with no CATEGORY) the books, as before; the section hands ENTITY’s box the row’s CATEGORY beside the books', () => {
+  const books = drawBox({ column: 'book', value: 'P', onChange: noop, books: BOOKS });
+  assert.equal(books, '<select aria-label="ENTITY" class="w-full min-w-[3.5rem] px-1 py-0.5 border border-border rounded text-xs bg-white" data-ledger-expense-box="book"><option value="P" selected="">Personal</option><option value="B">Business</option><option value="T">Trading</option></select>', 'the books, as the blank row draws them');
+  assert.equal(drawBox({ column: 'book', value: 'P', onChange: noop, books: BOOKS, code: '' }), books, 'a row with no CATEGORY: the books');
+  assert.ok(code(BOX).includes("if (code !== undefined && code !== '') return <EntityAccountSelect books={books} value={value} onChange={onChange} wordOf={bookWords} className={box} {...keys} />;"));
+  assert.ok(code(SECTION).includes("if (column === 'book') return { books: entities, code: boxTextOf(row, 'accountName', editing[row.key]) };"), 'the row’s CATEGORY, as CATEGORY’s box opens with it');
+});
+
+// ── Z10 · EXPENSES' EDIT FORM SAYS WHERE A BOOK IS MOVED (ruling 2.5) ──
+
+test('Z10 Expenses’ edit form says the book is moved on the time sheet’s ENTITY cell — its book select still disabled, sending its book unchanged', () => {
+  assert.equal(BOOK_FIXED_WORDS, 'the book is moved on the time sheet — its ENTITY cell');
+  const form = code(EDIT_FORM);
+  assert.match(form, /disabled\n\s*title=\{BOOK_FIXED_WORDS\}\n\s*data-routine-book-select\n\s*>/, 'still disabled, titled by the words');
+  assert.equal((form.match(/\{BOOK_FIXED_WORDS\}/g) ?? []).length, 2, 'drawn as its title and under the select');
+  assert.doesNotMatch(form, /end it and create it there/);
 });

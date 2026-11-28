@@ -20,7 +20,7 @@ import { isOnceRRule } from '../operations/rruleHelpers';
 import { ONE_OFF_ROWS_OFF_DAY_WORDS, rekeyOneOffDate, type RekeySchedule } from '../operations/routineRekey';
 import type { StopRecordRow } from '../operations/stopRecord';
 import {
-  CELL_REACH_WORDS, CHARGE_TAKES_NO_RECORD_WORDS, END_AT_START_WORDS, ENTITY_VENDOR_REACH_WORDS, dayTypedWords, ITEMS_CELL_NO_VENDOR_WORDS, NEW_TRIP_REACH_WORDS, PLACE_NEEDS_CITY_WORDS, REGION_NEEDS_COUNTRY_WORDS, TRIP_REACH_WORDS, itemsWritesRecord, requiredWords, timeTypedWords, tripCellWrite, LEDGER_COLUMNS, NEVER_OPENS_WORDS, NO_PLAN_LINE_WORDS, PLAN_CELLS, REPEATING_DATE_WORDS, REPEATING_REACH_WORDS, TAG_NEEDS_VENDOR_WORDS, TYPED_COLUMNS,
+  CELL_REACH_WORDS, CHARGE_TAKES_NO_RECORD_WORDS, END_AT_START_WORDS, ENTITY_ACCOUNT_REACH_WORDS, ENTITY_VENDOR_REACH_WORDS, dayTypedWords, ITEMS_CELL_NO_VENDOR_WORDS, NEW_TRIP_REACH_WORDS, PLACE_NEEDS_CITY_WORDS, REGION_NEEDS_COUNTRY_WORDS, TRIP_REACH_WORDS, itemsWritesRecord, requiredWords, timeTypedWords, tripCellWrite, LEDGER_COLUMNS, NEVER_OPENS_WORDS, NO_PLAN_LINE_WORDS, PLAN_CELLS, REPEATING_DATE_WORDS, REPEATING_REACH_WORDS, TAG_NEEDS_VENDOR_WORDS, TYPED_COLUMNS,
   boxTextOf, cellOpens, cellReachWords, ledgerOf, nextOpeningColumn, planCellWrite, planMinutesOf, routineClocksOf,
   type LedgerEditingPlan, type LedgerInput, type LedgerRecordInput, type LedgerSheetRow, type LedgerVendorRow,
 } from '../operations/ledger';
@@ -279,7 +279,7 @@ test('X4 every typed cell opens on every kind of row, and every cell that cannot
   assert.match(s, /import \{ useOperationsEntity \} from '\.\.\/EntitySelector';/);
   assert.match(frame, /const \{ entities \} = useOperationsEntity\(\);/);
   assert.doesNotMatch(s, /selectedEntityId|setSelectedEntityId|selectedEntity\b/, 'the selection is never read');
-  assert.match(frame, /if \(column === 'book'\) return \{ books: entities \};/);
+  assert.match(frame, /if \(column === 'book'\) return \{ books: entities, code: boxTextOf\(row, 'accountName', editing\[row\.key\]\) \};/); // EDIT-04 (2026-11-29): and the row's CATEGORY — /return \{ books: entities \};/ until then
   assert.match(frame, /if \(column === 'book' && entities\.length === 0\) return <span className="text-brand-amber" data-ledger-cell-no-book>\{NO_BOOK_WORDS\}<\/span>;/);
   // The box opens with the cell's value: DATE the day; CITY · REGION · COUNTRY the trip's parts; ENTITY the plan's book.
   const lunch = rowOf('Lunch', THU, false);
@@ -296,13 +296,13 @@ test('X4 every typed cell opens on every kind of row, and every cell that cannot
 test('X5 the line under an open cell says what the change reaches before a save: this row; a repeating plan’s own cell and its ENTITY — every row of the plan; the tag — every row with its vendor', () => {
   const gym = ledger.editing[rowOf('Morning Gym', FRI, false).key];
   for (const c of PLAN_CELLS) assert.equal(cellReachWords(c, gym, FRI), 'every row of the plan "Morning Gym" — every day it repeats, past days too', c);
-  assert.equal(cellReachWords('book', gym, FRI), `every row of the plan "Morning Gym" — every day it repeats, past days too${ENTITY_VENDOR_REACH_WORDS}`, 'book'); // EDIT-03 (2026-11-29): ENTITY on a row with a vendor adds that the vendor goes with it — the plan's reach alone until then
+  assert.equal(cellReachWords('book', gym, FRI), `every row of the plan "Morning Gym" — every day it repeats, past days too${ENTITY_VENDOR_REACH_WORDS}${ENTITY_ACCOUNT_REACH_WORDS}`, 'book'); // EDIT-04 (2026-11-29): and its CATEGORY picked in that book (Morning Gym is on 6200) // EDIT-03 (2026-11-29): ENTITY on a row with a vendor adds that the vendor goes with it — the plan's reach alone until then
   assert.equal(REPEATING_REACH_WORDS('Morning Gym'), 'every row of the plan "Morning Gym" — every day it repeats, past days too');
   for (const c of ['vendor', 'description', 'went', 'notes'] as const) assert.equal(cellReachWords(c, gym, FRI), CELL_REACH_WORDS, `${c}: this row`);
   assert.equal(cellReachWords('instagramTag', gym, FRI), 'the tag of Iron Works — every row with Iron Works');
   const lunch = ledger.editing[rowOf('Lunch', THU, false).key];
   for (const c of [...PLAN_CELLS, 'date'] as const) assert.equal(cellReachWords(c, lunch, THU), 'this row', `a one-off’s ${c}: this row`);
-  assert.equal(cellReachWords('book', lunch, THU), `this row${ENTITY_VENDOR_REACH_WORDS}`, 'a one-off’s book: this row, and its vendor with it'); // EDIT-03 (2026-11-29): Lunch has Harbor Cafe — "this row" alone until then
+  assert.equal(cellReachWords('book', lunch, THU), `this row${ENTITY_VENDOR_REACH_WORDS}${ENTITY_ACCOUNT_REACH_WORDS}`, 'a one-off’s book: this row, its vendor with it, its CATEGORY picked there'); // EDIT-04 (2026-11-29): and its CATEGORY (Lunch is on 6150) // EDIT-03 (2026-11-29): Lunch has Harbor Cafe — "this row" alone until then
   assert.equal(cellReachWords('instagramTag', ledger.editing[rowOf('Dinner', FRI, false).key], FRI), 'this row', 'a tag with no vendor saves nothing — its line says why');
   assert.equal(cellReachWords('start', ledger.editing[rowOf('Kiosk', THU, true).key], THU), 'this row', 'a row with no plan');
 });

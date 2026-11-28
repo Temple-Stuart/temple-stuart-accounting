@@ -158,7 +158,7 @@ export const COA_ON_LINES_WORDS = 'the lines carry the money — set the account
 /** ROUTINE-02b: the pair rule, said beside the select before the save (planMoney.ts's own words). */
 export const COA_NEEDS_AMOUNT_WORDS = 'an account needs its amount — enter the amount, or clear the account';
 /** ROUTINE-02b: the book is not changeable — lines, codes and ledger links belong to one book. */
-export const BOOK_FIXED_WORDS = 'to move a routine to another book, end it and create it there';
+export const BOOK_FIXED_WORDS = 'the book is moved on the time sheet — its ENTITY cell'; // EDIT-04 (2026-11-29): ENTITY moves a routine to another book (EDIT-03) — 'to move a routine to another book, end it and create it there' until then; the select stays disabled, sending its book unchanged
 
 export default function RoutineEditForm({ routine, end, entities, onChanged, onClose }: Props & { }) {
   // LINES-01: ONE leaf decides the routine's figure. Read here, rendered below.

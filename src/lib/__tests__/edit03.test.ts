@@ -20,7 +20,7 @@ import type { RoutineWords } from '../budget/planLines';
 import { isOnceRRule } from '../operations/rruleHelpers';
 import type { StopRecordRow } from '../operations/stopRecord';
 import {
-  ENTITY_VENDOR_REACH_WORDS, REPEATING_REACH_WORDS, boxTextOf, cellOpens, cellReachWords, ledgerOf, planCellWrite, planMinutesOf, routineClocksOf,
+  ENTITY_ACCOUNT_REACH_WORDS, ENTITY_VENDOR_REACH_WORDS, REPEATING_REACH_WORDS, boxTextOf, cellOpens, cellReachWords, ledgerOf, planCellWrite, planMinutesOf, routineClocksOf,
   type LedgerEditingPlan, type LedgerInput, type LedgerRecordInput, type LedgerSheetRow, type LedgerVendorRow,
 } from '../operations/ledger';
 import { BOOKS_CODED_MOVE_WORDS, BOOKS_LINK_MOVE_WORDS, MOVE_OTHER_BOOK_ROWS_WORDS, MOVE_PICK_ACCOUNT_WORDS } from '../operations/linkHold'; // EDIT-04 (2026-11-29): MOVE_ACCOUNTS_MISSING_WORDS went with (c); the CATEGORY's own words (edit04.test.ts)
@@ -449,10 +449,11 @@ test('Y7 the ENTITY cell sends the book picked, alone, to the routines PATCH; it
   assert.equal(boxTextOf(lunch, 'book', ledger.editing[lunch.key]), 'P');
   // The reach, before the save.
   assert.equal(ENTITY_VENDOR_REACH_WORDS, ' — its vendor goes with it: that book\'s vendor of the same name, added there when it has none');
-  assert.equal(cellReachWords('book', ledger.editing[lunch.key], THU), `this row${ENTITY_VENDOR_REACH_WORDS}`, 'a one-off with a vendor');
-  assert.equal(cellReachWords('book', ledger.editing[rowOf('Snack', THU).key], THU), 'this row', 'a one-off with none');
-  assert.equal(cellReachWords('book', ledger.editing[rowOf('Morning Gym', FRI).key], FRI), `${REPEATING_REACH_WORDS('Morning Gym')}${ENTITY_VENDOR_REACH_WORDS}`, 'a repeating plan with a vendor: every row of it, and its vendor');
-  assert.equal(cellReachWords('book', ledger.editing[rowOf('Rent', FRI).key], FRI), 'this row', 'a charge with none');
+  // EDIT-04 (2026-11-29): every row here names a CATEGORY — each line adds that its CATEGORY is picked in that book (ENTITY_ACCOUNT_REACH_WORDS).
+  assert.equal(cellReachWords('book', ledger.editing[lunch.key], THU), `this row${ENTITY_VENDOR_REACH_WORDS}${ENTITY_ACCOUNT_REACH_WORDS}`, 'a one-off with a vendor');
+  assert.equal(cellReachWords('book', ledger.editing[rowOf('Snack', THU).key], THU), `this row${ENTITY_ACCOUNT_REACH_WORDS}`, 'a one-off with none');
+  assert.equal(cellReachWords('book', ledger.editing[rowOf('Morning Gym', FRI).key], FRI), `${REPEATING_REACH_WORDS('Morning Gym')}${ENTITY_VENDOR_REACH_WORDS}${ENTITY_ACCOUNT_REACH_WORDS}`, 'a repeating plan with a vendor: every row of it, and its vendor');
+  assert.equal(cellReachWords('book', ledger.editing[rowOf('Rent', FRI).key], FRI), `this row${ENTITY_ACCOUNT_REACH_WORDS}`, 'a charge with none');
   // Through the routines PATCH — the book alone.
   let run = await standIn([[200, { routine: {}, moved: { vendors_added: ['Harbor Cafe'] } }]], () => savePlanCell(lunch, L, 'book', 'B'));
   assert.deepEqual([run.result, ...run.sent], [{ ok: true }, { url: '/api/operations/routines/lunch', method: 'PATCH', body: { entity_id: 'B' } }]);

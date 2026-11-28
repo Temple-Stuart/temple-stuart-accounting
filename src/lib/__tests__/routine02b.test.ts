@@ -233,7 +233,7 @@ test('T5 the COA: the routine-level select is disabled, and says why, when a lin
   // The book: disabled stays; the sentence beside it.
   assert.match(row, /disabled\n\s*title=\{BOOK_FIXED_WORDS\}\n\s*data-routine-book-select\n\s*>/);
   assert.match(row, /<div className="text-text-faint text-\[10px\] mt-1" data-routine-book-fixed>\{BOOK_FIXED_WORDS\}<\/div>/);
-  assert.equal(BOOK_FIXED_WORDS, 'to move a routine to another book, end it and create it there');
+  assert.equal(BOOK_FIXED_WORDS, 'the book is moved on the time sheet — its ENTITY cell'); // EDIT-04 (2026-11-29): ENTITY moves a routine to another book (EDIT-03) — 'to move a routine to another book, end it and create it there' until then
   assert.doesNotMatch(code(PATCH_ROUTE), /data\.entity_id/, 'the PATCH’s edit writes no entity'); assert.equal((code(PATCH_ROUTE).match(/body\.entity_id/g) ?? []).length, 2, 'read by the book move alone — its type, then the book by id AND the caller'); // EDIT-03 (2026-11-29): ENTITY moves a routine to another book (routines/[id] PATCH, its own path) — /body\.entity_id|data\.entity_id/ refused until then; the Expenses form still says BOOK_FIXED_WORDS (its forms are not this change's)
   // A line's own COA: the line's row edits it (RoutineStepList inputCells) through the lines route, the same pair rule.
   assert.match(code(LINES), /<CoaSelect\n\s*entityId=\{routine\.entity_id\}\n\s*value=\{form\.coa_code\}\n\s*onChange=\{\(code\) => setForm\(\{ \.\.\.form, coa_code: code \}\)\}\n\s*className=\{inputClass\}\n\s*\/>/, 'the line’s select, enabled');

@@ -126,11 +126,11 @@ test('E2 `editing`: ONE entry for EVERY sheet row, by its key, in the sheet’s 
   assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'editing', 'said'], '`editing` after `recording`');
   const entryOf = (description: string, day: string, recorded: boolean): LedgerEditing[] => rowOf(description, day, recorded).map((r) => ledger.editing[r.key]);
   // A one-off's plan row: its line, a one-off, its name, its book, the vendor planned at this occurrence.
-  assert.deepEqual(entryOf('Lunch', THU, false), [{ plan: true, routineId: 'lunch', lineId: 'lunch-line', once: true, routineName: 'Lunch · 2027-03-04 12:00', entityId: 'P', vendor: { id: 'v-harbor', name: 'Harbor Cafe', every: false }, start: null, end: null, trip: null }]); // EDIT-02 (2026-11-28): and its routine's own clock and its day's trip — none here
+  assert.deepEqual(entryOf('Lunch', THU, false), [{ plan: true, routineId: 'lunch', lineId: 'lunch-line', once: true, routineName: 'Lunch · 2027-03-04 12:00', entityId: 'P', vendor: { id: 'v-harbor', name: 'Harbor Cafe', every: false }, start: null, end: null, trip: null, category: '6150' }]); // EDIT-02 (2026-11-28): and its routine's own clock and its day's trip — none here; EDIT-04 (2026-11-29): and its CATEGORY, its line's code
   // A one-off with no vendor.
-  assert.deepEqual(entryOf('Dinner', FRI, false), [{ plan: true, routineId: 'dinner', lineId: 'dinner-line', once: true, routineName: 'Dinner · 2027-03-05 19:00', entityId: 'P', vendor: null, start: null, end: null, trip: null }]);
+  assert.deepEqual(entryOf('Dinner', FRI, false), [{ plan: true, routineId: 'dinner', lineId: 'dinner-line', once: true, routineName: 'Dinner · 2027-03-05 19:00', entityId: 'P', vendor: null, start: null, end: null, trip: null, category: '6150' }]); // EDIT-04 (2026-11-29): and its CATEGORY
   // A repeating plan's row: its own line (no line id), not a one-off, the vendor for every occurrence.
-  const gym = { plan: true, routineId: 'gym', lineId: null, once: false, routineName: 'Morning Gym', entityId: 'P', vendor: { id: 'v-iron', name: 'Iron Works', every: true }, start: null, end: null, trip: null };
+  const gym = { plan: true, routineId: 'gym', lineId: null, once: false, routineName: 'Morning Gym', entityId: 'P', vendor: { id: 'v-iron', name: 'Iron Works', every: true }, start: null, end: null, trip: null, category: '6200' }; // EDIT-04 (2026-11-29): and its CATEGORY
   assert.deepEqual(entryOf('Morning Gym', FRI, false), [gym]);
   // A recorded row joined to its line: that line's entry — the same as its plan row would carry.
   assert.deepEqual(entryOf('Morning Gym', THU, true), [gym]);
