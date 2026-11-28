@@ -2382,6 +2382,103 @@ export const postingDateWords = (date: string | null): string => (date === null 
 // SHEET-01 (Alex, 2026-11-28): THE DAY VIEW FOLDS NOTHING — the TIMEDAY-01 block stood here (DAY_FOLD_COLUMNS, isOneDay, DAY_FOLD_CLASS,
 // dayFoldClass, dayFoldCount, dayPlaceWords) and is deleted: every view draws the same twenty-five columns.
 
+// ── EDIT-01 (Alex, 2026-11-28): A CELL OPENS AS ITS BOX ──────────────────────
+//
+// "built like an excel table. Filterable, Editable, so I can clean my data !!!" A cell of a column he types opens as that column's box — the
+// blank row's own (ledger/ColumnBox.tsx) — on any row of the sheet, and saves where its value lives: LedgerSection.tsx is the frame (the open
+// cell, its keys, the line beneath it), ledger/cellSaves.ts the writes. Here: the columns he types, and why each other column never opens;
+// whether a typed cell opens on a row, by the row's entries in `recording` and `editing` — the record's cells (WENT, STARS, LOGGED MIN, ACTUAL,
+// NOTES, and ITEMS on a row whose record is held) open on a row that takes a record; the text a box opens with; the record's draft with one
+// box replaced, for the record form's own rule (recordInput) and its one writer; and the words. Every word the frame says is here. Placed
+// above the TIMEWIDE-01 block, so its constant stays this file's last line and no cited line moves.
+/** The columns he types, in the sheet's order — a cell of one opens as its box where the row's entries allow. */
+export const TYPED_COLUMNS = ['start', 'end', 'location', 'accountName', 'subAccountName', 'description', 'vendor', 'instagramTag', 'went', 'stars', 'loggedMinutes', 'budget', 'actual', 'notes'] as const satisfies readonly LedgerColumn[];
+export type TypedColumn = (typeof TYPED_COLUMNS)[number];
+export const isTypedColumn = (column: LedgerColumn): column is TypedColumn => (TYPED_COLUMNS as readonly LedgerColumn[]).includes(column);
+/** Why each column that never opens never does — said on hover, in its cell's title. */
+export const NEVER_OPENS_WORDS: Readonly<Record<Exclude<LedgerColumn, TypedColumn>, string>> = {
+  day: `worked out from ${headWordOf('date')}`,
+  date: 'moving a row to another day carries its record and its vendor with it — that is not done in a cell yet',
+  city: `the trip's — the trip that covers ${headWordOf('date')}`,
+  region: `the trip's — the trip that covers ${headWordOf('date')}`,
+  country: `the trip's — the trip that covers ${headWordOf('date')}`,
+  book: 'moving a row to another book carries its record and its vendor with it — that is not done in a cell yet',
+  plannedMinutes: `worked out from ${headWordOf('start')} and ${headWordOf('end')}`,
+  account: `worked out from the codes of ${headWordOf('location')}, ${headWordOf('accountName')}, ${headWordOf('book')} and ${headWordOf('subAccountName')}`,
+  variance: `worked out — ${headWordOf('actual')} less ${headWordOf('budget')}`,
+  match: `the postings linked in Books — changed by its "${LINK_WORDS}"`,
+  underOver: `worked out from the sign of ${headWordOf('variance')}`,
+};
+/** The record's cells — each through the record form's one rule and writer. ITEMS is one of them on a row whose record is held: the record's note. */
+export const RECORD_CELLS = ['went', 'stars', 'loggedMinutes', 'actual', 'notes'] as const satisfies readonly TypedColumn[];
+/** A typed cell opens on a row — or it does not, and why (null: the cell's own title stands). */
+export type CellOpen = { readonly opens: true } | { readonly opens: false; readonly words: string | null };
+const isRecordCell = (column: TypedColumn, recording: LedgerRecording): boolean => (RECORD_CELLS as readonly TypedColumn[]).includes(column) || (column === 'description' && recording.takes && recording.held !== null);
+/** Whether a typed cell opens on a row, by its entry in `recording`: the record's cells open on a row that takes a record; on one that takes none, its own sentence says why. */
+export function cellOpens(column: TypedColumn, recording: LedgerRecording): CellOpen {
+  if (isRecordCell(column, recording)) return recording.takes ? { opens: true } : { opens: false, words: recording.words };
+  return { opens: false, words: null };
+}
+/** The next cell to the right on the row that opens — where Tab goes after its save; null when none does. */
+export const nextOpeningColumn = (column: TypedColumn, opens: (next: TypedColumn) => boolean): TypedColumn | null => {
+  const found = TYPED_COLUMNS.slice(TYPED_COLUMNS.indexOf(column) + 1).find(opens);
+  return found === undefined ? null : found;
+};
+/** The text a typed cell's box opens with — the cell's value as typed: BUDGET and ACTUAL in dollars, START and END as HH:MM, STARS 1 to 5, LOGGED MIN whole minutes, the tag with its @; '' for a blank (a charge's START is none). */
+export function boxTextOf(row: LedgerSheetRow, column: TypedColumn): string {
+  switch (column) {
+    case 'start': return row.time === null || (row.id === null && row.allDay) ? '' : row.time;
+    case 'end': return endOf(row) ?? '';
+    case 'location': return row.location ?? '';
+    case 'accountName': return row.segments === null ? '' : row.segments.category;
+    case 'subAccountName': return row.description;
+    case 'description': return descriptionOf(row) ?? '';
+    case 'vendor': return row.vendor ?? '';
+    case 'instagramTag': return row.instagramTag === null ? '' : instagramTagWords(row.instagramTag);
+    case 'went': return row.id === null ? '' : row.outcome === 'skipped' ? SKIPPED_WORD : WENT_WORD;
+    case 'stars': return row.rating === null ? '' : String(row.rating);
+    case 'loggedMinutes': return row.loggedMinutes === null ? '' : String(row.loggedMinutes);
+    case 'budget': return csvMoney(row.cents);
+    case 'actual': return csvMoney(row.actualCents);
+    case 'notes': return row.notes ?? '';
+    default: { const none: never = column; throw new Error(`ledger: no box text for the column ${String(none)}`); }
+  }
+}
+/**
+ * The record's draft with one box replaced: the record form's own draft (rowDraftOf — the held record's, or the blank draft with ITEMS holding
+ * the row's planned items, as the form writes a first record) with the cell's text in its box, for recordInput and the one writer. WENT is
+ * went or skipped here; its third choice, none, is a clear — asked first, never a draft — and handed here is this file's error, thrown by name.
+ */
+export function recordCellDraft(row: LedgerSheetRow, held: StopRecordRow | null, column: TypedColumn, text: string): RecordDraft {
+  const draft = rowDraftOf(row, held);
+  switch (column) {
+    case 'went':
+      if (text !== WENT_WORD && text !== SKIPPED_WORD) throw new Error(`ledger: WENT is ${WENT_WORD} or ${SKIPPED_WORD} in a record's draft — ${JSON.stringify(text)} is a clear, asked first`);
+      return { ...draft, went: text };
+    case 'stars': return { ...draft, stars: text };
+    case 'loggedMinutes': return { ...draft, minutes: text };
+    case 'actual': return { ...draft, actual: text };
+    case 'notes': return { ...draft, notes: text };
+    case 'description': return { ...draft, note: text };
+    default: throw new Error(`ledger: ${headWordOf(column)} is no box of the record`);
+  }
+}
+/** The line beneath an open cell: what the change reaches, then the keys. */
+export const CELL_REACH_WORDS = 'this row';
+export const CELL_KEYS_WORDS = 'Enter saves · Tab saves and opens the next cell · Esc puts it back';
+/** A tag's reach: it is the vendor's, so every row with that vendor carries it. */
+export const tagReachWords = (vendor: string): string => `the tag of ${vendor} — every row with ${vendor}`;
+/** What a change to an open cell reaches: this row — or, INSTAGRAM TAG, every row with the row's vendor. A tag open on a row with no vendor is this file's error, thrown by name (no such cell opens). */
+export function cellReachWords(column: TypedColumn, editing: LedgerEditing): string {
+  if (column !== 'instagramTag') return CELL_REACH_WORDS;
+  if (!editing.plan || editing.vendor === null) throw new Error("ledger: INSTAGRAM TAG is the vendor's — a row with no vendor opens no tag");
+  return tagReachWords(editing.vendor.name);
+}
+/** WENT's third choice: no record. On a held record it is a clear — asked first on the line beneath (clear · keep). */
+export const CELL_WENT_NONE_WORDS = 'none';
+export const CLEAR_CELL_QUESTION = "clear this row's record?";
+export const KEEP_WORDS = 'keep';
+
 // ── TIMEWIDE-01 (Alex, 2026-11-24): THE SHEET'S TABLE CLASS ──────────────────
 //
 // The class the time sheet hands the shared table for its <table> (ledger/LedgerSection.tsx tableClassName; the shared table sets it

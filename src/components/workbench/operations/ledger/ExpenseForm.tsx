@@ -39,7 +39,7 @@ import { cellClass as cell } from '@/components/table/DataTable';
 import { isIsoDay } from '@/lib/budget/days';
 import { BLANK } from '@/lib/budget/format';
 import {
-  BOOK_WORDS, CANCEL_EXPENSE_WORDS, EMPTY_EXPENSE, EMPTY_ROW_TRIP, EXPENSE_FIELD_WORDS, EXPENSE_WORDS, LEDGER_COLUMNS, LOCATION_CLASSES, LOCATION_WORDS, NO_BOOK_WORDS, NO_LOCATION_WORDS,
+  CANCEL_EXPENSE_WORDS, EMPTY_EXPENSE, EMPTY_ROW_TRIP, EXPENSE_WORDS, LEDGER_COLUMNS, NO_BOOK_WORDS,
   ROW_LATER_MARK, ROW_LATER_WORDS, ROW_TRIP_FIELD_WORDS, SAVE_EXPENSE_WORDS, TAG_SAME_WORDS, TAG_STANDS_WORDS, VENDORS_LOADING_WORDS,
   coveringTripWords, dayLongWords, expenseInput, expenseLandedWords, minutesCellWords, noTripRowWords, oneOffBody, outcomeWords, recordBody, rowPlannedMinutes, rowTripInput, vendorBody, withNotTried, zoneWords,
   type ExpenseDraft, type ExpenseField, type ExpenseOutcome, type LedgerColumn, type RowTripDraft, type RowTripField, type RowTripRead,
@@ -48,8 +48,8 @@ import { pastedVendorOf, vendorsOf, vendorsUnreadWords, type PasteVendor } from 
 import { instagramTagKey } from '@/lib/operations/planVendor';
 import { STAY_LOADING_WORDS, placeParts, type StayRow } from '@/lib/operations/stay';
 import { readStays } from '../day/dayReads';
-import { useOperationsEntity, type Entity } from '../EntitySelector';
-import CoaSelect from '../routines/CoaSelect';
+import { useOperationsEntity } from '../EntitySelector';
+import ColumnBox from './ColumnBox'; // EDIT-01 (2026-11-28): the one box of a column — this row's boxes, and the sheet's open cell
 import { setStopRecord } from '../stops/stopWrites';
 import { createStay } from '../stays/stayWrites';
 import { readJson } from '../week/weekReads';
@@ -58,9 +58,9 @@ import { addVendor, createOneOff, readOneOffLine, setLineMinutes, setVendor, set
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
 /** The chip while the row is open — pressed: outlined in the brand's ink, no dark fill. Typed whole. */
 const chipOn = 'px-2 py-0.5 border border-brand-purple text-brand-purple font-semibold rounded text-xs';
-/** A box in a cell of the blank row: it takes the cell's width. */
-const box = 'w-full min-w-[3.5rem] px-1 py-0.5 border border-border rounded text-xs bg-white';
-const clockBox = `${box} font-mono tabular-nums`;
+// EDIT-01 (Alex, 2026-11-28): the boxes' two classes stood here; they went with the boxes to ColumnBox.tsx — the one box of a column, which this
+// row draws under every column he types and the sheet draws in a cell that opens. These three lines keep the file's line count, so ExpenseRow
+// keeps the line the registry cites.
 /** The blank row's light tint — both its rows. */
 const ROW_TINT = 'bg-amber-50';
 
@@ -130,12 +130,6 @@ export default function ExpenseRow({ onWritten, close }: { onWritten: (day: stri
   const setTripBox = (field: RowTripField) => (value: string) => setTrip((t) => ({ ...t, [field]: value }));
   const vendors = vendorsRead.kind === 'read' ? vendorsRead.vendors.filter((v) => v.entity_id === draft.book) : [];
   const covering = tripRead.kind === 'read' ? tripRead.covering : null;
-  /** A book by its sheet word — "word — name" when two books share a type; its own name when its type has no word. */
-  const bookWords = (e: Entity): string => {
-    const word = (BOOK_WORDS as Readonly<Record<string, string | undefined>>)[e.entity_type];
-    if (word === undefined) return e.name;
-    return entities.filter((other) => other.entity_type === e.entity_type).length > 1 ? `${word} — ${e.name}` : word;
-  };
 
   const save = async () => {
     if (busy || zone === null) return;
@@ -280,50 +274,45 @@ export default function ExpenseRow({ onWritten, close }: { onWritten: (day: stri
   const cellOf = (key: LedgerColumn): ReactNode => {
     switch (key) {
       case 'day': return isIsoDay(draft.day) ? dayLongWords(draft.day) : null;
-      case 'date': return <input type="date" value={draft.day} onChange={(e) => setDay(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.day} className={box} data-ledger-expense-box="day" />;
-      case 'start': return <input type="text" inputMode="numeric" value={draft.time} onChange={(e) => set('time')(e.target.value)} placeholder="HH:MM" maxLength={5} aria-label={EXPENSE_FIELD_WORDS.time} className={clockBox} data-ledger-expense-box="time" />;
-      case 'end': return <input type="text" inputMode="numeric" value={draft.end} onChange={(e) => set('end')(e.target.value)} placeholder="HH:MM" maxLength={5} aria-label={EXPENSE_FIELD_WORDS.end} className={clockBox} data-ledger-expense-box="end" />;
+      case 'date': return <ColumnBox column="date" value={draft.day} onChange={setDay} />;
+      case 'start': return <ColumnBox column="start" value={draft.time} onChange={set('time')} />;
+      case 'end': return <ColumnBox column="end" value={draft.end} onChange={set('end')} />;
       case 'city': {
         if (covering !== null) return <span title={coveringTripWords(covering)} data-ledger-expense-trip-part="city">{placeParts(covering.place).city}</span>;
         if (tripRead.kind === 'failed') return <span className="text-brand-red" data-ledger-expense-trip-failed>{tripRead.words}</span>;
-        return <input type="text" value={trip.city} onChange={(e) => setTripBox('city')(e.target.value)} maxLength={80} aria-label={ROW_TRIP_FIELD_WORDS.city} className={box} data-ledger-expense-box="city" />;
+        return <ColumnBox column="city" value={trip.city} onChange={setTripBox('city')} />;
       }
       case 'region': {
         if (covering !== null) { const part = placeParts(covering.place).region; return <span title={coveringTripWords(covering)} data-ledger-expense-trip-part="region">{part === null ? BLANK : part}</span>; }
         if (tripRead.kind === 'failed') return null;
-        return <input type="text" value={trip.region} onChange={(e) => setTripBox('region')(e.target.value)} maxLength={80} aria-label={ROW_TRIP_FIELD_WORDS.region} className={box} data-ledger-expense-box="region" />;
+        return <ColumnBox column="region" value={trip.region} onChange={setTripBox('region')} />;
       }
       case 'country': {
         if (covering !== null) { const part = placeParts(covering.place).country; return <span title={coveringTripWords(covering)} data-ledger-expense-trip-part="country">{part === null ? BLANK : part}</span>; }
         if (tripRead.kind === 'failed') return null;
-        return <input type="text" value={trip.country} onChange={(e) => setTripBox('country')(e.target.value)} maxLength={80} aria-label={ROW_TRIP_FIELD_WORDS.country} className={box} data-ledger-expense-box="country" />;
+        return <ColumnBox column="country" value={trip.country} onChange={setTripBox('country')} />;
       }
-      case 'location': return <select value={draft.location} onChange={(e) => set('location')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.location} className={box} data-ledger-expense-box="location"><option value="">{NO_LOCATION_WORDS}</option>{LOCATION_CLASSES.map((c) => <option key={c} value={c}>{LOCATION_WORDS[c]}</option>)}</select>;
-      // CoaSelect takes no label of its own: its wrapper carries the box's word.
-      case 'accountName': return <div role="group" aria-label={EXPENSE_FIELD_WORDS.coa} data-ledger-expense-box="coa"><CoaSelect entityId={draft.book} value={draft.coa} onChange={set('coa')} className={box} /></div>;
+      case 'location': return <ColumnBox column="location" value={draft.location} onChange={set('location')} />;
+      // CATEGORY is the book's chart, in a group that carries the box's word (ColumnBox).
+      case 'accountName': return <ColumnBox column="accountName" value={draft.coa} onChange={set('coa')} entityId={draft.book} />;
       case 'book': return entities.length === 0
         ? <span className="text-brand-amber" data-ledger-expense-no-book>{NO_BOOK_WORDS}</span>
-        : <select value={draft.book} onChange={(e) => set('book')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.book} className={box} data-ledger-expense-box="book">{entities.map((e) => <option key={e.id} value={e.id}>{bookWords(e)}</option>)}</select>;
-      case 'subAccountName': return <input type="text" value={draft.name} onChange={(e) => set('name')(e.target.value)} maxLength={200} aria-label={EXPENSE_FIELD_WORDS.name} className={box} data-ledger-expense-box="name" />;
-      case 'description': return <input type="text" value={draft.note} onChange={(e) => set('note')(e.target.value)} maxLength={280} aria-label={EXPENSE_FIELD_WORDS.note} className={box} data-ledger-expense-box="note" />;
-      case 'vendor': return (
-        <>
-          <input type="text" list="ledger-expense-vendors" value={vendorTyped} onChange={(e) => setVendorTyped(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.vendor} className={box} data-ledger-expense-box="vendor" />
-          <datalist id="ledger-expense-vendors" data-ledger-expense-vendors>{vendors.map((v) => <option key={v.id} value={v.vendor_name} />)}</datalist>
-        </>
-      );
-      case 'instagramTag': return <input type="text" value={draft.tag} onChange={(e) => set('tag')(e.target.value)} maxLength={31} aria-label={EXPENSE_FIELD_WORDS.tag} className={box} data-ledger-expense-box="tag" />;
+        : <ColumnBox column="book" value={draft.book} onChange={set('book')} books={entities} />;
+      case 'subAccountName': return <ColumnBox column="subAccountName" value={draft.name} onChange={set('name')} />;
+      case 'description': return <ColumnBox column="description" value={draft.note} onChange={set('note')} />;
+      case 'vendor': return <ColumnBox column="vendor" value={vendorTyped} onChange={setVendorTyped} vendors={vendors} listId="ledger-expense-vendors" />;
+      case 'instagramTag': return <ColumnBox column="instagramTag" value={draft.tag} onChange={set('tag')} />;
       case 'went': return <span title={ROW_LATER_WORDS} data-ledger-expense-later>{ROW_LATER_MARK}</span>;
-      case 'stars': return <input type="text" inputMode="numeric" value={draft.stars} onChange={(e) => set('stars')(e.target.value)} maxLength={1} aria-label={EXPENSE_FIELD_WORDS.stars} className={box} data-ledger-expense-box="stars" />;
+      case 'stars': return <ColumnBox column="stars" value={draft.stars} onChange={set('stars')} />;
       case 'plannedMinutes': return <span data-ledger-expense-planned-minutes>{minutesCellWords(rowPlannedMinutes(draft))}</span>;
-      case 'loggedMinutes': return <input type="text" inputMode="numeric" value={draft.logged} onChange={(e) => set('logged')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.logged} className={clockBox} data-ledger-expense-box="logged" />;
+      case 'loggedMinutes': return <ColumnBox column="loggedMinutes" value={draft.logged} onChange={set('logged')} />;
       case 'account': return <span title={ROW_LATER_WORDS} data-ledger-expense-later>{ROW_LATER_MARK}</span>;
-      case 'budget': return <input type="text" inputMode="decimal" value={draft.amount} onChange={(e) => set('amount')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.amount} className={clockBox} data-ledger-expense-box="amount" />;
-      case 'actual': return <input type="text" inputMode="decimal" value={draft.actual} onChange={(e) => set('actual')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.actual} className={clockBox} data-ledger-expense-box="actual" />;
+      case 'budget': return <ColumnBox column="budget" value={draft.amount} onChange={set('amount')} />;
+      case 'actual': return <ColumnBox column="actual" value={draft.actual} onChange={set('actual')} />;
       case 'variance': return <span title={ROW_LATER_WORDS} data-ledger-expense-later>{ROW_LATER_MARK}</span>;
       case 'match': return <span title={ROW_LATER_WORDS} data-ledger-expense-later>{ROW_LATER_MARK}</span>;
       case 'underOver': return <span title={ROW_LATER_WORDS} data-ledger-expense-later>{ROW_LATER_MARK}</span>;
-      case 'notes': return <input type="text" value={draft.notes} onChange={(e) => set('notes')(e.target.value)} aria-label={EXPENSE_FIELD_WORDS.notes} className={box} data-ledger-expense-box="notes" />;
+      case 'notes': return <ColumnBox column="notes" value={draft.notes} onChange={set('notes')} />;
       default: { const none: never = key; throw new Error(`ExpenseForm: no cell for the column ${String(none)}`); }
     }
   };

@@ -12,18 +12,29 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { code } from '../sourceText';
+import * as React from 'react';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+Object.assign(globalThis, { React }); // PART 2 draws the one box of a column — its JSX reads React as a global under tsx (booksPipe.test.ts's way)
+import { code, comments } from '../sourceText';
 import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
 import type { RoutineWords } from '../budget/planLines';
 import { isOnceRRule } from '../operations/rruleHelpers';
 import type { StopRecordRow } from '../operations/stopRecord';
 import {
-  NO_PLAN_LINE_WORDS, TWO_LINES_NO_PLAN_WORDS, ledgerFailedWords, ledgerOf, planMinutesOf,
-  type LedgerEditing, type LedgerInput, type LedgerRecordInput, type LedgerVendorRow,
+  CELL_KEYS_WORDS, CELL_REACH_WORDS, CELL_WENT_NONE_WORDS, CLEAR_CELL_QUESTION, KEEP_WORDS, LEDGER_COLUMNS, NEVER_OPENS_WORDS, NO_PLAN_LINE_WORDS, RECORD_CELLS, STOP_AHEAD_WORDS, TWO_LINES_NO_PLAN_WORDS, TYPED_COLUMNS,
+  boxTextOf, cellOpens, cellReachWords, isTypedColumn, ledgerFailedWords, ledgerOf, nextOpeningColumn, planMinutesOf, recordCellDraft, recordInput, rowDraftOf, starsTypedWords, tagReachWords,
+  type LedgerEditing, type LedgerInput, type LedgerRecordInput, type LedgerRecordingTaken, type LedgerSheetRow, type LedgerVendorRow, type TypedColumn,
 } from '../operations/ledger';
 import { readLedger } from '../../components/workbench/operations/ledger/ledgerReads';
+import ColumnBox from '../../components/workbench/operations/ledger/ColumnBox';
+import { clearRecordCell, saveRecordCell } from '../../components/workbench/operations/ledger/cellSaves';
 
 const SHEET_RULES = 'src/lib/operations/ledger.ts';
+const SECTION = 'src/components/workbench/operations/ledger/LedgerSection.tsx';
+const FORM = 'src/components/workbench/operations/ledger/ExpenseForm.tsx';
+const BOX = 'src/components/workbench/operations/ledger/ColumnBox.tsx';
+const SAVES = 'src/components/workbench/operations/ledger/cellSaves.ts';
 const ANSWER = 'src/lib/operations/ledgerAnswer.ts';
 const READS = 'src/components/workbench/operations/ledger/ledgerReads.ts';
 
@@ -173,4 +184,171 @@ test('E4 the read carries `editing` as it carries `recording` — an answer with
   } finally {
     g.fetch = real;
   }
+});
+
+// ── PART 2 — THE CELL OPENS; THE RECORD'S CELLS ──────────────────────────────
+
+const takenOf = (row: LedgerSheetRow): LedgerRecordingTaken => { const e = ledger.recording[row.key]; if (!e.takes) return assert.fail(`${row.key} takes no record`); return e; };
+const opensWhich = (row: LedgerSheetRow): TypedColumn[] => TYPED_COLUMNS.filter((c) => cellOpens(c, ledger.recording[row.key]).opens);
+const drawBox = (props: Parameters<typeof ColumnBox>[0]): string => renderToStaticMarkup(createElement(ColumnBox, props));
+const noop = () => undefined;
+
+// ── E5 · THE ONE BOX OF A COLUMN (ruling 2.1) ────────────────────────────────
+
+test('E5 the box is ONE renderer — ColumnBox — drawn by the blank row under every column he types and by a cell of the sheet when it opens: one set of words, one data attribute per column; WENT a choice; the blank row draws nothing of its own', () => {
+  const f = code(FORM);
+  // The blank row: every box is ColumnBox's — handed its draft's box; no input or select of its own but TRIP ENDS.
+  assert.deepEqual([...f.matchAll(/<ColumnBox column="(\w+)"/g)].map((m) => m[1]), ['date', 'start', 'end', 'city', 'region', 'country', 'location', 'accountName', 'book', 'subAccountName', 'description', 'vendor', 'instagramTag', 'stars', 'loggedMinutes', 'budget', 'actual', 'notes']);
+  assert.equal((f.match(/<input\b/g) ?? []).length, 1, 'TRIP ENDS alone — its box is the trip line’s, under the row');
+  assert.equal((f.match(/<select\b|<CoaSelect\b/g) ?? []).length, 0);
+  assert.ok(f.includes('<ColumnBox column="vendor" value={vendorTyped} onChange={setVendorTyped} vendors={vendors} listId="ledger-expense-vendors" />'));
+  assert.ok(f.includes('<ColumnBox column="date" value={draft.day} onChange={setDay} />'), 'TRIP ENDS still follows DATE');
+  assert.match(comments(FORM), /EDIT-01 \(Alex, 2026-11-28\): the boxes' two classes stood here; they went with the boxes to ColumnBox\.tsx/);
+  // A cell of the sheet: the same box, handed the open cell's text, its keys, its leaving and its focus.
+  assert.ok(code(SECTION).includes('<ColumnBox column={column} value={text} onChange={typeInCell} onKeyDown={(e) => keyOf(e, row, column)} onBlur={() => void commit()} autoFocus />'));
+  // One renderer: the same box in either place — the cell's adds only its focus (keys and leaving are handlers, drawn by no attribute).
+  const plain = drawBox({ column: 'stars', value: '4', onChange: noop });
+  assert.equal(plain, '<input type="text" inputMode="numeric" maxLength="1" aria-label="STARS" class="w-full min-w-[3.5rem] px-1 py-0.5 border border-border rounded text-xs bg-white" data-ledger-expense-box="stars" value="4"/>');
+  assert.equal(drawBox({ column: 'stars', value: '4', onChange: noop, onKeyDown: noop, onBlur: noop, autoFocus: true }), plain.replace(' value="4"/>', ' autofocus="" value="4"/>'));
+  // WENT — the sheet's alone: went · skipped · none (no record).
+  assert.equal(drawBox({ column: 'went', value: '', onChange: noop }), '<select aria-label="WENT" class="w-full min-w-[3.5rem] px-1 py-0.5 border border-border rounded text-xs bg-white" data-ledger-expense-box="went"><option value="went">went</option><option value="skipped">skipped</option><option value="" selected="">none</option></select>');
+  assert.equal(CELL_WENT_NONE_WORDS, 'none');
+  // A box that lists something is handed it — never drawn on a guess.
+  assert.throws(() => drawBox({ column: 'accountName', value: '', onChange: noop }), /^Error: ColumnBox: CATEGORY lists a book’s chart — no book was handed in$/);
+  assert.throws(() => drawBox({ column: 'vendor', value: '', onChange: noop }), /^Error: ColumnBox: VENDOR lists the book’s vendors — none were handed in$/);
+  assert.throws(() => drawBox({ column: 'book', value: '', onChange: noop, books: [] }), /^Error: ColumnBox: ENTITY lists the books — none were handed in$/);
+  assert.doesNotMatch(code(BOX), /\bfetch\s*\(|localStorage|sessionStorage|document\.cookie|indexedDB/, 'the box reads, writes and stores nothing');
+});
+
+// ── E6 · THE FRAME (ruling 2.2) ──────────────────────────────────────────────
+
+test('E6 the frame: the open cell is React state — one at a time — opened on a click where its row’s entries allow; Enter saves, Tab saves then opens the next cell that opens, Esc puts it back, leaving saves only a change; the line beneath names the column, its reach and the keys; nothing is stored', () => {
+  const s = code(SECTION);
+  assert.match(s, /const editing: Readonly<Record<string, LedgerEditing>> = answer !== null && answer\.read\.ok \? answer\.read\.value\.editing : \{\};/, '`editing` read from the answer');
+  assert.match(s, /const \{ open, clearing, cellRefusal, setOpenCell, titleOf, clickCell, boxIn, clearCell \} = useCellFrame\(rows, recording, editing, \(day\) => \{ setWrites\(\(n\) => n \+ 1\); announceDayWritten\(day\); \}\);/, 'an accepted save reads the span again and announces the day');
+  const frame = s.slice(s.indexOf('function useCellFrame('));
+  assert.match(frame, /const \[open, setOpen\] = useState<OpenCell \| null>\(null\);/, 'ONE open cell: its row’s key and its column, or none');
+  assert.match(s, /type OpenCell = \{ readonly key: string; readonly column: TypedColumn \};/);
+  // A click opens a typed cell where the rule allows — the open one saved first; a chip in the cell and the box keep their clicks.
+  assert.match(frame, /const openCell = async \(row: LedgerSheetRow, column: TypedColumn\) => \{\n\s*const at = openRef\.current;\n\s*if \(at !== null && at\.key === row\.key && at\.column === column\) return;\n\s*if \(!opensOf\(row, column\)\.opens\) return;\n\s*if \(at !== null && !\(await commit\(\)\)\) return;\n\s*setOpenCell\(\{ key: row\.key, column \}, boxTextOf\(row, column\)\);/);
+  assert.match(frame, /if \(\(e\.target as HTMLElement\)\.closest\('button, input, select, a'\) !== null\) return;/);
+  // The keys.
+  assert.match(frame, /if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); setOpenCell\(null\); return; \}/, 'Esc: closed, nothing written');
+  assert.match(frame, /if \(e\.key === 'Enter'\) \{ e\.preventDefault\(\); void commit\(\); return; \}/);
+  assert.match(frame, /if \(e\.key === 'Tab' && !e\.shiftKey\) \{\n\s*e\.preventDefault\(\);\n\s*const next = nextOpeningColumn\(column, \(c\) => opensOf\(row, c\)\.opens\);\n\s*void commit\(\)\.then\(\(closed\) => \{ if \(closed && next !== null\) setOpenCell\(\{ key: row\.key, column: next \}, boxTextOf\(row, next\)\); \}\);/);
+  // Leaving saves only a change: an unchanged text closes, nothing sent; a refused text is not sent again until it changes; one save at a time.
+  assert.match(frame, /if \(row === undefined \|\| textRef\.current === heldRef\.current\) \{ setOpenCell\(null\); return Promise\.resolve\(true\); \}/);
+  assert.match(frame, /if \(refusedRef\.current === typed\) return Promise\.resolve\(false\);/);
+  assert.match(frame, /if \(savingRef\.current !== null\) return savingRef\.current;/);
+  assert.match(frame, /if \(!saved\.ok\) \{ refusedRef\.current = typed; setCellRefusal\(saved\.words\); return false; \}\n\s*setOpenCell\(null\);\n\s*written\(row\.day\);/, 'refused: the words, the box open with the text; accepted: closed, and the day told');
+  // Tab's next cell — the next one to the right on the row that opens.
+  const recorded = rowOf('Morning Gym', THU, true)[0];
+  assert.deepEqual(opensWhich(recorded), ['description', 'went', 'stars', 'loggedMinutes', 'actual', 'notes'], 'a held record: ITEMS is its note');
+  assert.equal(nextOpeningColumn('went', (c) => opensWhich(recorded).includes(c)), 'stars');
+  assert.equal(nextOpeningColumn('actual', (c) => opensWhich(recorded).includes(c)), 'notes');
+  assert.equal(nextOpeningColumn('notes', (c) => opensWhich(recorded).includes(c)), null, 'none to the right: it closes');
+  // The line beneath: the column's head word, its reach, the keys — and the refusal in red; WENT none asks first.
+  assert.match(s, /<tr className="border-t border-border" data-ledger-cell-said=\{row\.key\}>\n\s*<td colSpan=\{LEDGER_COLUMNS\.length\} className=\{cell\}>/);
+  assert.ok(s.includes('<span className="font-semibold text-text-primary" data-ledger-cell-head>{headWordOf(open.column)}</span><span data-ledger-cell-reach>{cellReachWords(open.column, editing[row.key])}</span><span className="text-text-muted" data-ledger-cell-keys>{CELL_KEYS_WORDS}</span>'));
+  assert.ok(s.includes('{cellRefusal !== null && <span className="text-brand-red" data-ledger-cell-refused>{cellRefusal}</span>}'));
+  assert.equal(CELL_REACH_WORDS, 'this row');
+  assert.equal(CELL_KEYS_WORDS, 'Enter saves · Tab saves and opens the next cell · Esc puts it back');
+  assert.equal(cellReachWords('stars', ledger.editing[recorded.key]), 'this row');
+  const lunch = rowOf('Lunch', THU, false)[0];
+  assert.equal(cellReachWords('instagramTag', ledger.editing[lunch.key]), 'the tag of Harbor Cafe — every row with Harbor Cafe');
+  assert.equal(tagReachWords('Harbor Cafe'), 'the tag of Harbor Cafe — every row with Harbor Cafe');
+  assert.throws(() => cellReachWords('instagramTag', ledger.editing[rowOf('Dinner', FRI, false)[0].key]), /INSTAGRAM TAG is the vendor's — a row with no vendor opens no tag/);
+  assert.doesNotMatch(s, /localStorage|sessionStorage|document\.cookie|indexedDB|window\.confirm|confirm\(/, 'nothing stored in the browser; no browser pop-up');
+});
+
+// ── E7 · THE RECORD'S CELLS (ruling 2.3) ─────────────────────────────────────
+
+test('E7 the record’s cells — WENT, STARS, LOGGED MIN, ACTUAL, NOTES, and ITEMS on a held record — open on a row that takes a record and go through the record form’s own rule and writer: rowDraftOf with the one box replaced, recordInput, setStopRecord; WENT none is a clear, asked first; a row that takes none says why', async () => {
+  assert.deepEqual([...RECORD_CELLS], ['went', 'stars', 'loggedMinutes', 'actual', 'notes']);
+  const recorded = rowOf('Morning Gym', THU, true)[0];
+  const lunch = rowOf('Lunch', THU, false)[0];
+  const dinner = rowOf('Dinner', FRI, false)[0];
+  const teaRow = rowOf('Tea', FRI, false)[0];
+  // Which open, by the row's entry in `recording`.
+  assert.deepEqual(opensWhich(lunch), ['went', 'stars', 'loggedMinutes', 'actual', 'notes'], 'a plan row with no record: ITEMS is its planned items — not a record cell');
+  assert.deepEqual(opensWhich(teaRow), [], 'a row that takes no record');
+  const why = ledger.recording[teaRow.key];
+  assert.ok(!why.takes);
+  for (const c of RECORD_CELLS) assert.deepEqual(cellOpens(c, why), { opens: false, words: why.words }, `${c}: the entry’s own sentence`);
+  for (const c of ['start', 'end', 'location', 'accountName', 'subAccountName', 'vendor', 'instagramTag', 'budget'] as const) assert.deepEqual(cellOpens(c, ledger.recording[lunch.key]), { opens: false, words: null }, `${c}: not this part’s`);
+  // The text each box opens with.
+  assert.deepEqual(['went', 'stars', 'loggedMinutes', 'actual', 'notes', 'description'].map((c) => boxTextOf(recorded, c as TypedColumn)), ['went', '', '', '20.00', '', '']);
+  assert.deepEqual(['went', 'actual', 'description'].map((c) => boxTextOf(lunch, c as TypedColumn)), ['', '', 'soup and bread']);
+  // The draft: the record form's own, the one box replaced.
+  assert.deepEqual(recordCellDraft(recorded, takenOf(recorded).held, 'stars', '4'), { ...rowDraftOf(recorded, takenOf(recorded).held), stars: '4' });
+  assert.deepEqual(recordCellDraft(lunch, null, 'actual', '7.50'), { went: 'went', actual: '7.50', stars: '', minutes: '', note: 'soup and bread', notes: '' }, 'a first record, as the form writes one — ITEMS holding what was planned');
+  assert.deepEqual(recordCellDraft(recorded, takenOf(recorded).held, 'went', 'skipped').went, 'skipped');
+  assert.deepEqual(recordCellDraft(recorded, takenOf(recorded).held, 'description', 'two sets').note, 'two sets');
+  assert.throws(() => recordCellDraft(recorded, takenOf(recorded).held, 'went', ''), /WENT is went or skipped in a record's draft — "" is a clear, asked first/);
+  // The rule's refusals stand, in its words — a bad value, a stop ahead.
+  const ruled = (row: LedgerSheetRow, column: TypedColumn, text: string) => recordInput(recordCellDraft(row, takenOf(row).held, column, text), row.address, takenOf(row), NOW);
+  assert.deepEqual(ruled(recorded, 'stars', '9'), { ok: false, field: 'stars', message: starsTypedWords('9') });
+  assert.deepEqual(ruled(dinner, 'actual', '25'), { ok: false, field: 'went', message: STOP_AHEAD_WORDS });
+  // Through the one writer — the stops POST with the rule's body; WENT none through its clear.
+  const g = globalThis as unknown as { fetch: unknown };
+  const real = g.fetch;
+  const sent: { url: string; method: string; body: unknown }[] = [];
+  const answer = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  try {
+    g.fetch = async (url: string, init: RequestInit) => { sent.push({ url, method: init.method ?? 'GET', body: init.body === undefined ? null : JSON.parse(String(init.body)) }); return answer(201, { record: {}, changed: true }); };
+    assert.deepEqual(await saveRecordCell(lunch, takenOf(lunch), 'actual', '7.50', NOW), { ok: true });
+    assert.deepEqual([...sent], [{ url: '/api/operations/stops', method: 'POST', body: { kind: 'routine_line', id: 'lunch-line', instant: lunch.address.instant, outcome: 'done', done_at: takenOf(lunch).plannedAt, actual_cents: 750, rating: null, note: 'soup and bread', notes: null, actual_minutes: null } }]);
+    sent.length = 0;
+    assert.deepEqual(await saveRecordCell(recorded, takenOf(recorded), 'stars', '9', NOW), { ok: false, words: starsTypedWords('9') });
+    assert.equal(sent.length, 0, 'refused by the rule: nothing sent');
+    g.fetch = async () => answer(400, { error: 'Validation', field: 'instant', message: 'the route’s own words' });
+    assert.deepEqual(await saveRecordCell(recorded, takenOf(recorded), 'stars', '4', NOW), { ok: false, words: 'the route’s own words' });
+    g.fetch = async () => { throw new Error('offline'); };
+    assert.deepEqual(await saveRecordCell(recorded, takenOf(recorded), 'stars', '4', NOW), { ok: false, words: 'offline' }, 'a request that never reached the route: its words');
+    g.fetch = async (url: string, init: RequestInit) => { sent.push({ url, method: init.method ?? 'GET', body: null }); return answer(200, { deleted: true }); };
+    const held = takenOf(recorded).held;
+    if (held === null) return assert.fail('the recorded row holds its record');
+    assert.deepEqual(await clearRecordCell(held), { ok: true });
+    assert.deepEqual([...sent], [{ url: '/api/operations/stops/r-gym', method: 'DELETE', body: null }]);
+  } finally {
+    g.fetch = real;
+  }
+  // In the source: the leaf goes through the rule and the one writer; the frame asks before a clear.
+  const saves = code(SAVES);
+  assert.match(saves, /read = recordInput\(recordCellDraft\(row, entry\.held, column, text\), row\.address, entry, now\);/);
+  assert.match(saves, /const answer = await setStopRecord\(read\.body\);/);
+  assert.match(saves, /const answer = await clearStopRecord\(held\.id\);/);
+  assert.doesNotMatch(saves, /\bfetch\s*\(|\/api\//, 'no request of its own');
+  const s = code(SECTION);
+  assert.match(s, /if \(at\.column === 'went' && typed === ''\) \{ setClearing\(true\); return Promise\.resolve\(false\); \}/, 'WENT none: asked, nothing written');
+  assert.ok(s.includes('{clearing && <><span className="text-brand-red" data-ledger-cell-clear>{CLEAR_CELL_QUESTION}</span><button type="button" className={chip} onClick={() => void clearCell(row)} data-ledger-cell-clear-yes>{CLEAR_RECORD_WORDS}</button><button type="button" className={chip} onClick={() => setOpenCell(null)} data-ledger-cell-keep>{KEEP_WORDS}</button></>}'));
+  assert.match(s, /const cleared = await clearRecordCell\(entry\.held\);/);
+  assert.equal(CLEAR_CELL_QUESTION, "clear this row's record?");
+  assert.equal(KEEP_WORDS, 'keep');
+});
+
+// ── E8 · CELLS THAT NEVER OPEN (rulings 2.2, 2.3) ────────────────────────────
+
+test('E8 the fourteen columns he types, in the sheet’s order; the eleven that never open each say why on hover; every cell of the sheet carries a title, and a typed one its click and its box', () => {
+  assert.deepEqual([...TYPED_COLUMNS], ['start', 'end', 'location', 'accountName', 'subAccountName', 'description', 'vendor', 'instagramTag', 'went', 'stars', 'loggedMinutes', 'budget', 'actual', 'notes']);
+  assert.deepEqual(LEDGER_COLUMNS.filter((c) => isTypedColumn(c)), [...TYPED_COLUMNS], 'in the sheet’s order');
+  assert.deepEqual(NEVER_OPENS_WORDS, {
+    day: 'worked out from DATE',
+    date: 'moving a row to another day carries its record and its vendor with it — that is not done in a cell yet',
+    city: "the trip's — the trip that covers DATE", region: "the trip's — the trip that covers DATE", country: "the trip's — the trip that covers DATE",
+    book: 'moving a row to another book carries its record and its vendor with it — that is not done in a cell yet',
+    plannedMinutes: 'worked out from START and END',
+    account: 'worked out from the codes of LOCATION, CATEGORY, ENTITY and TYPE',
+    variance: 'worked out — ACTUAL less BUDGET',
+    match: 'the postings linked in Books — changed by its "link"',
+    underOver: 'worked out from the sign of VARIANCE',
+  });
+  assert.deepEqual(LEDGER_COLUMNS.filter((c) => !isTypedColumn(c)), Object.keys(NEVER_OPENS_WORDS), 'the eleven, in the sheet’s order');
+  const s = code(SECTION);
+  const row = s.slice(s.indexOf('data-ledger-row={row.key}'), s.indexOf('{open !== null && open.key === row.key && ('));
+  assert.deepEqual([...row.matchAll(/ title=\{titleOf\(row, '(\w+)'/g)].map((m) => m[1]), [...LEDGER_COLUMNS], 'every cell titled, in the sheet’s order');
+  assert.deepEqual([...row.matchAll(/onClick=\{\(e\) => clickCell\(e, row, '(\w+)'\)\}/g)].map((m) => m[1]), [...TYPED_COLUMNS], 'a typed cell’s click — and no other cell’s');
+  assert.deepEqual([...row.matchAll(/\{boxIn\(row, '(\w+)'\) \?\? /g)].map((m) => m[1]), [...TYPED_COLUMNS], 'a typed cell’s box, else what it printed');
+  assert.match(s, /if \(!isTypedColumn\(column\)\) return own === undefined \? NEVER_OPENS_WORDS\[column\] : `\$\{own\} — \$\{NEVER_OPENS_WORDS\[column\]\}`;/, 'MATCH says its postings first, then why');
+  assert.match(s, /return can\.opens \|\| can\.words === null \? own : can\.words;/);
 });
