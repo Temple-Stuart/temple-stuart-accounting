@@ -19,6 +19,10 @@
  * ledger_line_links; migration 20260722000000_dim_links_vendor): a routine a Books line is coded to cannot be deleted, and the DELETE
  * failed in the generic fail-closed words. It now counts those lines in the same transaction and refuses 409 by name, nothing deleted —
  * "this plan is coded on N lines in Books — re-code them there first, or deactivate the plan on Expenses".
+ *
+ * EDIT-03 (Alex, 2026-11-29) — A PLAN MOVES TO ANOTHER BOOK (routines/[id]/route.ts PATCH, entity_id; the plan, src/lib/operations/bookMove.ts).
+ * The same two holds refuse the move, by name, with nothing moved — a posting linked to the plan, a Books line coded to it — and two more: an
+ * account its book's chart does not hold, and another record of the plan that keeps its own book.
  */
 
 const postings = (n: number): string => `${n} posting${n === 1 ? '' : 's'}`;
@@ -30,6 +34,15 @@ export const routineHoldsLinksWords = (n: number): string =>
 /** EDIT-02 (2026-11-28): the routine DELETE's refusal while Books lines are coded to the plan (ledger_line_links — RESTRICT). */
 export const ROUTINE_CODED_ON_BOOKS_WORDS = (n: number): string =>
   `this plan is coded on ${n} line${n === 1 ? '' : 's'} in Books — re-code ${n === 1 ? 'it' : 'them'} there first, or deactivate the plan on Expenses`;
+
+/** EDIT-03 (2026-11-29): the book move's refusals (bookMove.ts) — (a) a posting linked to the plan, (b) Books lines coded to it, (c) accounts the target book's chart does not hold, (d) other records of the plan that keep their own book. Nothing is moved. */
+export const BOOKS_LINK_MOVE_WORDS = 'a posting in Books is linked to this plan — unlink it there before moving the plan to another book';
+export const BOOKS_CODED_MOVE_WORDS = (n: number): string =>
+  `this plan is coded on ${n} line${n === 1 ? '' : 's'} in Books — re-code ${n === 1 ? 'it' : 'them'} there before moving the plan to another book`;
+export const MOVE_ACCOUNTS_MISSING_WORDS = (book: string, codes: readonly string[]): string =>
+  `${codes.join(', ')} ${codes.length === 1 ? 'is' : 'are'} not in ${book}'s chart — add ${codes.length === 1 ? 'it' : 'them'} there, or pick another CATEGORY first`;
+export const MOVE_OTHER_BOOK_ROWS_WORDS = (n: number): string =>
+  `${n} other record${n === 1 ? '' : 's'} of this plan — on the hub's schedule or in Content — ${n === 1 ? 'keeps its' : 'keep their'} book; nothing was moved`;
 
 /** The line DELETE's refusal — the line's own count; a line's DELETE is its deactivation, so the routine's is named. */
 export const lineHoldsLinksWords = (n: number): string =>

@@ -133,8 +133,8 @@ export function assignedPlanMoney(sentAmount: unknown, sentAccount: unknown, sto
   };
 }
 
-/** The four digits a saved chart code reads as by the chart's rule, or null for a row the rule cannot read. */
-function readsAs(saved: string, entityType: string): string | null {
+/** The four digits a saved chart code reads as by the chart's rule, or null for a row the rule cannot read. EDIT-03 (2026-11-29): exported — the book move reads a plan's codes against the target book's chart by it (bookMove.ts). */
+export function readsAs(saved: string, entityType: string): string | null {
   try {
     return parseCode(saved, entityType);
   } catch (error) {

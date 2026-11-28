@@ -319,11 +319,13 @@ test('T3 the edits and assign derive their pair through the one helper each', ()
     once(code(f), 'if (sent !== null) {', f);
   }
   for (const f of [W1, W3, W5]) assert.doesNotMatch(code(f), /editedPlanMoney|assignedPlanMoney/, `${f} creates — no stored pair`);
-  // A line's book is its routine's: both line writers copy the routine's entity, and the routine's never changes.
+  // A line's book is its routine's: both line writers copy the routine's entity — and EDIT-03 (2026-11-29): when the routine moves to another book (the
+  // routine edit's book move, its own path and transaction) every line moves with it; "and the routine's never changes" until then.
   assert.match(code(W1), /routine_id: created\.id,\s*user_id: user\.id,\s*entity_id: entityId,/);
   assert.match(code(W3), /entity_id: routine\.entity_id,/);
-  assert.doesNotMatch(handler(W2, 'PATCH'), /data\.entity_id|\bentity_id\s*:/, 'the routine edit never writes entity_id');
-  assert.doesNotMatch(handler(W2, 'PATCH'), /body\.entity_id/, 'nor reads one from the body');
+  assert.doesNotMatch(handler(W2, 'PATCH'), /data\.entity_id/, 'the routine edit’s own data never carries entity_id');
+  assert.deepEqual(handler(W2, 'PATCH').match(/\bdata: \{ entity_id: [^}]*\}/g), ['data: { entity_id: target.id }', 'data: { entity_id: target.id }'], 'the book move alone writes it — every line, then the routine — to the book read by id AND the caller'); // EDIT-03 (2026-11-29): /data\.entity_id|\bentity_id\s*:/ refused until then
+  assert.equal((handler(W2, 'PATCH').match(/body\.entity_id/g) ?? []).length, 2, 'read once, for the book move: its type, then the book by id AND the caller'); // EDIT-03 (2026-11-29): /body\.entity_id/ refused until then
 });
 
 // ── T4 · THE EDIT RULE ───────────────────────────────────────────────────────

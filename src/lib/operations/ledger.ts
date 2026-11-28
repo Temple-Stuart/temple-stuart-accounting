@@ -2517,10 +2517,12 @@ export const tagReachWords = (vendor: string): string => `the tag of ${vendor} �
  * repeating plan, the plan's own cells and ENTITY — every row of the plan, every day it repeats (REPEATING_REACH_WORDS). A tag on a row with no vendor
  * saves nothing — its line says so — and reaches this row (thrown by name until EDIT-02, when no such cell opened). CITY · REGION · COUNTRY reach the
  * trip covering the row's day — every row from its first day to its last — or, on a day no trip covers, the new trip of that day (the row's day, handed in).
+ * EDIT-03 (2026-11-29): ENTITY on a row with a vendor says, after its reach, that the vendor goes with it (ENTITY_VENDOR_REACH_WORDS).
  */
 export function cellReachWords(column: TypedColumn, editing: LedgerEditing, day: string): string {
   if (column === 'city' || column === 'region' || column === 'country') return editing.trip === null ? NEW_TRIP_REACH_WORDS(day) : TRIP_REACH_WORDS(editing.trip.place, editing.trip.startsOn, editing.trip.endsOn);
   if (column === 'instagramTag') return editing.plan && editing.vendor !== null ? tagReachWords(editing.vendor.name) : CELL_REACH_WORDS;
+  if (column === 'book' && editing.plan && editing.vendor !== null) return `${editing.once ? CELL_REACH_WORDS : REPEATING_REACH_WORDS(editing.routineName)}${ENTITY_VENDOR_REACH_WORDS}`;
   if (editing.plan && !editing.once && (column === 'book' || (PLAN_CELLS as readonly TypedColumn[]).includes(column))) return REPEATING_REACH_WORDS(editing.routineName);
   return CELL_REACH_WORDS;
 }
@@ -2530,6 +2532,8 @@ export const CHARGE_TAKES_NO_RECORD_WORDS = 'a charge takes no record — give i
 export const REPEATING_DATE_WORDS = (name: string): string => `a day of the plan "${name}" — its days are how it repeats; that is changed on Expenses`;
 /** EDIT-02 (2026-11-28): what a repeating plan's own cell, or its ENTITY, reaches. */
 export const REPEATING_REACH_WORDS = (name: string): string => `every row of the plan "${name}" — every day it repeats, past days too`;
+/** EDIT-03 (2026-11-29): ENTITY on a row with a vendor — said after its reach, before the save: the vendor moves with the plan, as the book's own. */
+export const ENTITY_VENDOR_REACH_WORDS = ' — its vendor goes with it: that book\'s vendor of the same name, added there when it has none';
 /** WENT's third choice: no record. On a held record it is a clear — asked first on the line beneath (clear · keep). */
 export const CELL_WENT_NONE_WORDS = 'none';
 export const CLEAR_CELL_QUESTION = "clear this row's record?";
@@ -2571,6 +2575,8 @@ export interface PlanRoutineBody {
   readonly start_date?: string;
   /** EDIT-03 (2026-11-29): and its end, the same day — a one-off ends on the day it happens (the route's own contract: "leave end_date empty or equal to start_date"); sent alone, the start met the stored end, the old day, and was refused. */
   readonly end_date?: string;
+  /** EDIT-03 (2026-11-29): ENTITY — the book picked, by its id; sent alone (the route's book move is its own path). */
+  readonly entity_id?: string;
   readonly coa_code?: string;
   readonly budget_amount?: string;
 }
@@ -2613,7 +2619,8 @@ const oneOffNameOf = (type: string, day: string, clock: string | null): string =
  *   it stands (the route asks for both on a routine that is no one-off; a start at its end, or no end, is the route's refusal), no name — a repeating
  *   plan's name is its own; TYPE: the line's TYPE alone; LOCATION, END, CATEGORY and BUDGET as on a one-off. ON A ROUTINE WITH NO LINE OF ITS OWN — the
  *   line's four are the routine's own fields: END its end time (START to the clock typed, read as above; cleared, none), CATEGORY its account, BUDGET
- *   its amount, TYPE its name (trimmed, its spaces one; blank refused) — each read by the route. ENTITY moves a row to another book: not written.
+ *   its amount, TYPE its name (trimmed, its spaces one; blank refused) — each read by the route. ENTITY (EDIT-03, 2026-11-29): the book picked, sent alone —
+ *   the route moves the routine there with every line and vendor row (its book move), or refuses by name.
  *   DATE on a one-off: a day (YYYY-MM-DD, else refused in the blank row's words) — the routine's start date, its end date the same day (EDIT-03,
  *   2026-11-29: a one-off ends on its day), and the one-off's name with that day; the route moves its record, vendor and links with it (its rekey) or
  *   refuses by name.
@@ -2628,7 +2635,7 @@ export function planCellWrite(row: LedgerSheetRow, editing: LedgerEditingPlan, c
     return editing.vendor;
   };
   switch (column) {
-    case 'book': throw new Error('ledger: ENTITY moves a row to another book — not written yet');
+    case 'book': return routine({ entity_id: typed });
     case 'date': {
       if (!editing.once) throw new Error(`ledger: DATE on a day of the plan "${editing.routineName}" is how it repeats — no such cell saves`);
       const day = typed.trim();

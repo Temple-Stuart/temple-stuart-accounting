@@ -57,6 +57,20 @@
  * still carrying a typed clock, re-clocks through the rekey below like any
  * clock change, moving the rows it has (none, when it has none). A role change
  * FROM all_day needs its start time (and its end with it): it had none.
+ *
+ * EDIT-03 (Alex, 2026-11-29) — ENTITY MOVES A ROUTINE TO ANOTHER BOOK (HARD GATE 2: it writes the plan's book and its vendor rows). A body
+ * carrying entity_id names a book: the caller's, by id AND userId, else the defensive 404 — never 403. The routine's own book: nothing moved,
+ * nothing logged (the Expenses edit form sends its whole form, the book it cannot change among it — the rest of that body is read as before).
+ * Another book: the move, its own path and its own transaction — a body that carries anything else is refused 400 ("ENTITY moves alone — save
+ * the other change first"). Inside the one transaction, the routine locked and every read and check before the first write: its lines, active
+ * or not; the Books links (routineLinksWhere — the DELETE's reader); the Books lines coded to it (the DELETE's count); the other rows that keep
+ * their own book (hub_scheduled_items, operations_content_scene_groups); the target book's chart and vendors; the vendor rows of the routine and
+ * its lines. The plan is bookMove.ts's (pure): refused 409 by name with nothing written, or written as it returns — each vendor the target
+ * book lacks added there first (its source's own name and tag), each vendor row re-pointed to the target book's vendor of the same name
+ * (vendor_id alone — its items and occurrence stay; the vendor law's third exception, both writes), every line's book, the routine's book. A
+ * vendor of the name added by another edit meanwhile → 409, nothing written (the directory's unique key). Audited after the commit: the
+ * routine (operations_routine_updated — the book from → to, the lines moved), each vendor added (operations_vendor_added), each vendor row
+ * re-pointed (operations_plan_vendor_set — from → to). The answer names each vendor added.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -68,7 +82,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, allDayTimeInput, canonicalZone, clockOfRule, clockOfTime, clockWords, compileFormToRRule, expandForward, isOnceRRule, sameClock, scheduleAnchor, withClock, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
 import { RekeyRefused, rekeyOneOffDate, rekeyPlan, rekeyedWords, occupiedWords, type RekeyCounts, type RekeySchedule } from '@/lib/operations/routineRekey';
-import { lockRoutine, moveCompletions } from '@/lib/operations/routineCompletion';
+import { lockRoutine, moveCompletions } from '@/lib/operations/routineCompletion'; import { ENTITY_MOVES_ALONE_WORDS, MOVE_VENDOR_RACE_WORDS, MoveRefused, bookMove } from '@/lib/operations/bookMove'; import { bookWordOf } from '@/lib/operations/ledger'; // EDIT-03 (2026-11-29): the book move's plan and words, and the sheet's word for a book
 import { movedWords, stopRecordRowOf, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { parsePlaceInput } from '@/lib/operations/routineInput'; import { readLocationClass } from '@/lib/operations/locationClass'; // COALEVELS-01 (2026-11-27): the Location's rule — imported on this line so no line the registry cites above it moves
 import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
@@ -175,6 +189,103 @@ export async function PATCH(
 
     const body = (await request.json()) as Partial<RoutineForm>;
     const now = new Date();
+
+    // EDIT-03 (Alex, 2026-11-29) — HARD GATE 2: ENTITY moves the routine to another book (the header's paragraph). The book named is the
+    // caller's, by id AND userId, else the defensive 404. The routine's own book: nothing moved, nothing logged. Another book: the move.
+    if ('entity_id' in body) {
+      const target = typeof body.entity_id === 'string'
+        ? await prisma.entities.findFirst({ where: { id: body.entity_id, userId: user.id }, select: { id: true, entity_type: true } })
+        : null;
+      if (!target) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      if (target.id !== existing.entity_id) {
+        if (Object.keys(body).some((key) => key !== 'entity_id')) {
+          return NextResponse.json({ error: 'Validation', field: 'entity_id', message: ENTITY_MOVES_ALONE_WORDS }, { status: 400 });
+        }
+        const word = bookWordOf(target.entity_type);
+        // ONE transaction: the routine locked; every read, then the plan's every check (bookMove.ts), before the first write.
+        const move = () => prisma.$transaction(async (tx) => {
+          await lockRoutine(tx, id, user.id);
+          const lines = await tx.operations_routine_steps.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true, coa_code: true }, orderBy: { step_order: 'asc' } });
+          const lineIds = lines.map((l) => l.id);
+          const linked = await tx.planned_item_links.count({ where: routineLinksWhere(user.id, id, lineIds) });
+          const coded = await tx.ledger_line_links.count({ where: { routine_id: id } });
+          const scheduled = await tx.hub_scheduled_items.count({ where: { user_id: user.id, OR: [{ routine_id: id }, ...(lineIds.length > 0 ? [{ routine_step_id: { in: lineIds } }] : [])] } });
+          const scenes = await tx.operations_content_scene_groups.count({ where: { user_id: user.id, routine_id: id } });
+          const chart = await tx.chart_of_accounts.findMany({ where: { entity_id: target.id, entity: { userId: user.id } }, select: { code: true } });
+          const held = await tx.operations_vendor_directory.findMany({ where: { user_id: user.id, entity_id: target.id }, select: { id: true, vendor_name: true } });
+          const vendorRows = await tx.planned_item_vendors.findMany({
+            where: { user_id: user.id, OR: [{ routine_id: id }, ...(lineIds.length > 0 ? [{ step_id: { in: lineIds } }] : [])] },
+            select: { id: true, routine_id: true, step_id: true, occurrence_at: true, items: true, vendor_id: true, vendor: { select: { id: true, vendor_name: true, instagram_tag: true } } },
+            orderBy: { created_at: 'asc' },
+          });
+          const plan = bookMove({ routine: existing, lines, vendorRows, target: { word, entityType: target.entity_type, codes: chart.map((c) => c.code), vendors: held }, counts: { links: linked, coded, otherBook: scheduled + scenes } });
+          if (!plan.ok) throw new MoveRefused(plan.words);
+          // The writes, as the plan returns them: each vendor the target book lacks, added there first — its source's own name and tag.
+          const added: { readonly key: string; readonly row: { id: string; vendor_name: string; instagram_tag: string | null; entity_id: string } }[] = [];
+          for (const add of plan.adds) {
+            const created = await tx.operations_vendor_directory.create({ data: { user_id: user.id, entity_id: target.id, vendor_name: add.source.vendor_name, instagram_tag: add.source.instagram_tag }, select: { id: true, vendor_name: true, instagram_tag: true, entity_id: true } });
+            added.push({ key: add.key, row: created });
+          }
+          const addedId = new Map(added.map((a): [string, string] => [a.key, a.row.id]));
+          const toOf = new Map(plan.repoints.map((r): [string, string] => {
+            if (r.to.kind === 'held') return [r.id, r.to.vendorId];
+            const made = addedId.get(r.to.key);
+            if (made === undefined) throw new Error(`routines PATCH: the book move points a vendor row at "${r.to.key}", a vendor it did not add`);
+            return [r.id, made];
+          }));
+          // Each vendor row re-pointed — vendor_id alone; its items and occurrence stay. A row the plan leaves names the target book's vendor already.
+          const repointed: { readonly before: (typeof vendorRows)[number]; readonly after: { id: string; vendor_id: string } }[] = [];
+          for (const p of vendorRows) {
+            const to = toOf.get(p.id);
+            if (to === undefined) continue;
+            const after = await tx.planned_item_vendors.update({ where: { id: p.id }, data: { vendor_id: to } });
+            repointed.push({ before: p, after });
+          }
+          // Every line's book, then the routine's.
+          await tx.operations_routine_steps.updateMany({ where: { id: { in: [...plan.lines] }, user_id: user.id }, data: { entity_id: target.id } });
+          const routine = await tx.operations_routines.update({ where: { id }, data: { entity_id: target.id } });
+          return { routine, added: added.map((a) => a.row), repointed, lines: plan.lines.length };
+        }, { timeout: 60000 });
+        let moved: Awaited<ReturnType<typeof move>>;
+        try {
+          moved = await move();
+        } catch (error) {
+          if (error instanceof MoveRefused) return NextResponse.json({ error: 'Conflict', field: 'entity_id', message: error.words }, { status: 409 });
+          // The move's one create is the target book's copy of a vendor: the directory's unique key (user, book, name) is the one it can meet.
+          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            return NextResponse.json({ error: 'Conflict', field: 'entity_id', message: MOVE_VENDOR_RACE_WORDS(word) }, { status: 409 });
+          }
+          throw error;
+        }
+        // Audited after the commit, as this PATCH audits: the routine, each vendor added, each vendor row re-pointed.
+        await writeAuditLog({
+          actor: { user_id: user.id, email: userEmail, type: 'human_user' },
+          action: { type: 'operations_routine_updated', description: `Moved routine "${existing.name}" to ${word}` },
+          target: { table: 'operations_routines', id: moved.routine.id },
+          payload: { before: existing, after: moved.routine, metadata: { book: { from: existing.entity_id, to: target.id }, lines_moved: moved.lines } },
+        });
+        for (const v of moved.added) {
+          await writeAuditLog({
+            actor: { user_id: user.id, email: userEmail, type: 'human_user' },
+            action: { type: 'operations_vendor_added', description: `Added vendor "${v.vendor_name}" to ${word} — moved there with routine "${existing.name}"` },
+            target: { table: 'operations_vendor_directory', id: v.id },
+            payload: { before: null, after: v, metadata: { entity_id: v.entity_id, routine_id: id, moved_with: 'operations_routine_updated' } },
+          });
+        }
+        for (const r of moved.repointed) {
+          await writeAuditLog({
+            actor: { user_id: user.id, email: userEmail, type: 'human_user' },
+            action: { type: 'operations_plan_vendor_set', description: `Moved the vendor of a row of routine "${existing.name}" to ${word}'s "${r.before.vendor.vendor_name}"` },
+            target: { table: 'planned_item_vendors', id: r.after.id },
+            payload: { before: r.before, after: r.after, metadata: { from: r.before.vendor_id, to: r.after.vendor_id, routine_id: id, moved_with: 'operations_routine_updated' } },
+          });
+        }
+        return NextResponse.json({ routine: moved.routine, moved: { from: existing.entity_id, to: target.id, lines: moved.lines, vendor_rows: moved.repointed.length, vendors_added: moved.added.map((v) => v.vendor_name) } });
+      }
+      // The routine's own book: nothing moved, nothing logged. A body naming it and nothing else is answered as the routine stands; the rest of
+      // a fuller body is read below, as before (the Expenses edit form sends its whole form, the book it cannot change among it).
+      if (Object.keys(body).length === 1) return NextResponse.json({ routine: existing, rekeyed: null });
+    }
 
     const data: Prisma.operations_routinesUpdateInput = {};
     let scheduleChanged = false;

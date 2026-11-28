@@ -20,7 +20,7 @@ import { isOnceRRule } from '../operations/rruleHelpers';
 import { ONE_OFF_ROWS_OFF_DAY_WORDS, rekeyOneOffDate, type RekeySchedule } from '../operations/routineRekey';
 import type { StopRecordRow } from '../operations/stopRecord';
 import {
-  CELL_REACH_WORDS, CHARGE_TAKES_NO_RECORD_WORDS, END_AT_START_WORDS, dayTypedWords, ITEMS_CELL_NO_VENDOR_WORDS, NEW_TRIP_REACH_WORDS, PLACE_NEEDS_CITY_WORDS, REGION_NEEDS_COUNTRY_WORDS, TRIP_REACH_WORDS, itemsWritesRecord, requiredWords, timeTypedWords, tripCellWrite, LEDGER_COLUMNS, NEVER_OPENS_WORDS, NO_PLAN_LINE_WORDS, PLAN_CELLS, REPEATING_DATE_WORDS, REPEATING_REACH_WORDS, TAG_NEEDS_VENDOR_WORDS, TYPED_COLUMNS,
+  CELL_REACH_WORDS, CHARGE_TAKES_NO_RECORD_WORDS, END_AT_START_WORDS, ENTITY_VENDOR_REACH_WORDS, dayTypedWords, ITEMS_CELL_NO_VENDOR_WORDS, NEW_TRIP_REACH_WORDS, PLACE_NEEDS_CITY_WORDS, REGION_NEEDS_COUNTRY_WORDS, TRIP_REACH_WORDS, itemsWritesRecord, requiredWords, timeTypedWords, tripCellWrite, LEDGER_COLUMNS, NEVER_OPENS_WORDS, NO_PLAN_LINE_WORDS, PLAN_CELLS, REPEATING_DATE_WORDS, REPEATING_REACH_WORDS, TAG_NEEDS_VENDOR_WORDS, TYPED_COLUMNS,
   boxTextOf, cellOpens, cellReachWords, ledgerOf, nextOpeningColumn, planCellWrite, planMinutesOf, routineClocksOf,
   type LedgerEditingPlan, type LedgerInput, type LedgerRecordInput, type LedgerSheetRow, type LedgerVendorRow,
 } from '../operations/ledger';
@@ -179,7 +179,7 @@ test('X1 the routine DELETE counts the Books lines coded to the plan inside the 
   const tx = del.slice(del.indexOf('const linked = await prisma.$transaction(async (tx) => {'), del.indexOf('if (linked > 0) return'));
   assert.ok(tx.indexOf('if (coded > 0) return 0;') < tx.indexOf('await tx.operations_routines.delete({ where: { id } });'), 'refused before the delete, in the same transaction');
   assert.equal((route.match(/operations_routines\.delete\(/g) ?? []).length, 1, 'one delete, inside the transaction');
-  assert.equal((route.match(/ledger_line_links\./g) ?? []).length, 1, 'the Books lines are counted — and nothing else is done with them');
+  assert.equal((route.match(/ledger_line_links\./g) ?? []).length, 2, 'the Books lines are counted — by the DELETE, and by the book move — and nothing else is done with them'); // EDIT-03 (2026-11-29): the book move counts them too (refusal b) — 1 until then
   assert.doesNotMatch(route, /ledger_line_links\.(delete|deleteMany|update|updateMany|create|upsert)\(/, 'never written here');
   // The ✕'s line: the route's refusal read the writers' one way — said in its words, nothing else sent.
   const run = await standIn([[409, { error: ROUTINE_CODED_ON_BOOKS_WORDS(2) }]], () => deleteRow({ kind: 'routine', routineId: 'lunch', question: 'delete this row — Lunch on 2027-03-04, with its record and its vendor?' }));
@@ -295,12 +295,14 @@ test('X4 every typed cell opens on every kind of row, and every cell that cannot
 
 test('X5 the line under an open cell says what the change reaches before a save: this row; a repeating plan’s own cell and its ENTITY — every row of the plan; the tag — every row with its vendor', () => {
   const gym = ledger.editing[rowOf('Morning Gym', FRI, false).key];
-  for (const c of [...PLAN_CELLS, 'book'] as const) assert.equal(cellReachWords(c, gym, FRI), 'every row of the plan "Morning Gym" — every day it repeats, past days too', c);
+  for (const c of PLAN_CELLS) assert.equal(cellReachWords(c, gym, FRI), 'every row of the plan "Morning Gym" — every day it repeats, past days too', c);
+  assert.equal(cellReachWords('book', gym, FRI), `every row of the plan "Morning Gym" — every day it repeats, past days too${ENTITY_VENDOR_REACH_WORDS}`, 'book'); // EDIT-03 (2026-11-29): ENTITY on a row with a vendor adds that the vendor goes with it — the plan's reach alone until then
   assert.equal(REPEATING_REACH_WORDS('Morning Gym'), 'every row of the plan "Morning Gym" — every day it repeats, past days too');
   for (const c of ['vendor', 'description', 'went', 'notes'] as const) assert.equal(cellReachWords(c, gym, FRI), CELL_REACH_WORDS, `${c}: this row`);
   assert.equal(cellReachWords('instagramTag', gym, FRI), 'the tag of Iron Works — every row with Iron Works');
   const lunch = ledger.editing[rowOf('Lunch', THU, false).key];
-  for (const c of [...PLAN_CELLS, 'book', 'date'] as const) assert.equal(cellReachWords(c, lunch, THU), 'this row', `a one-off’s ${c}: this row`);
+  for (const c of [...PLAN_CELLS, 'date'] as const) assert.equal(cellReachWords(c, lunch, THU), 'this row', `a one-off’s ${c}: this row`);
+  assert.equal(cellReachWords('book', lunch, THU), `this row${ENTITY_VENDOR_REACH_WORDS}`, 'a one-off’s book: this row, and its vendor with it'); // EDIT-03 (2026-11-29): Lunch has Harbor Cafe — "this row" alone until then
   assert.equal(cellReachWords('instagramTag', ledger.editing[rowOf('Dinner', FRI, false).key], FRI), 'this row', 'a tag with no vendor saves nothing — its line says why');
   assert.equal(cellReachWords('start', ledger.editing[rowOf('Kiosk', THU, true).key], THU), 'this row', 'a row with no plan');
 });
@@ -508,7 +510,7 @@ test('X11 the routine PATCH moves a one-off’s rows with its date inside the re
     "field: dateMoved ? 'start_date' : 'start_time', message: \"cannot move the routine's history: a row already sits at a target instant",
   ], 'the block, for a date move too');
   assert.equal((patch.match(/rekeyOneOffDate\(/g) ?? []).length, 1, 'planned once, inside the transaction');
-  assert.equal((patch.match(/\.planned_item_vendors\.update\(/g) ?? []).length, 1, 'the vendor rows’ one move — the law’s one shape');
+  assert.equal((patch.match(/\.planned_item_vendors\.update\(/g) ?? []).length, 2, 'the vendor rows’ two writes — the rekey’s move and the book move’s re-point, each in the law’s shape'); // EDIT-03 (2026-11-29): the book move's re-point is the vendor law's third exception — 1 until then
   assert.equal((patch.match(/\.planned_item_links\.update\(/g) ?? []).length, 1, 'the links’ one move — the law’s one shape');
   assert.match(code(ROUTINE_ROUTE), /import \{ RekeyRefused, rekeyOneOffDate, rekeyPlan, rekeyedWords, occupiedWords, type RekeyCounts, type RekeySchedule \} from '@\/lib\/operations\/routineRekey';/);
 });
