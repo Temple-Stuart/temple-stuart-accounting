@@ -255,6 +255,10 @@ export function moneyIsHere(plan: PlanFacts): { readonly ok: true } | Refusal {
   }
   const line = planned.lines.find((l) => l.id === plan.lineId);
   if (planned.from === 'lines' && line !== undefined && line.amount !== null) return { ok: true };
+  // PASTE-03 (Alex, 2026-11-28) — THE VENDOR GOES WHERE THE ACCOUNT IS. One more pass: an active line that names its account and no
+  // amount — a stop with no budget (planMoney.ts: the pair bends for a line) — takes a vendor too, unless the routine's own figure is
+  // in force. Every refusal below stands, in its own words.
+  if (planned.from !== 'routine' && line !== undefined && line.amount === null && line.coaCode !== null) return { ok: true };
   if (planned.from === 'routine') {
     return refuse(409, 'no-money', `this line carries no amount — ${NO_MONEY}; this routine's own figure is in force — its vendor goes on the routine`);
   }
@@ -281,11 +285,17 @@ export function occurrenceWindow(instant: Date): { readonly rangeFrom: IsoDay; r
   return window;
 }
 
-/** Does the builder's own output hold this exact occurrence — placed or not placed? */
+/**
+ * Does the builder's own output hold this exact occurrence — placed or not placed? PASTE-03 (Alex, 2026-11-28): or is it an
+ * occurrence that carries no money — `open`, the occurrences of the lines that name their account and no amount
+ * (src/lib/budget/openLines.ts buildRoutineOpenLines, over the same window). Required: a caller says them, an empty list when
+ * there are none. Looked up by the same key, after the built lines and before the not-placed entries.
+ */
 export function occurrenceIn(
   built: DayRuleResult,
   routine: { readonly id: string; readonly name: string },
   address: PlanAddress & { readonly instant: Date },
+  open: readonly { readonly sourceId: string; readonly day: IsoDay }[],
 ): { readonly ok: true; readonly day: IsoDay | null } | Refusal {
   const whole = built.notPlaced.find((n) => n.sourceId === wholeRoutineKey(routine.id));
   if (whole) return refuse(409, 'cannot-place', `/budget cannot place "${routine.name}": ${whole.reason}${whole.detail === null ? '' : ` — ${whole.detail}`}`);
@@ -293,6 +303,8 @@ export function occurrenceIn(
   const key = occurrenceKey({ routineId: routine.id, lineId: address.kind === 'routine_line' ? address.id : null, instant: address.instant });
   const line = built.lines.find((l) => l.sourceId === key);
   if (line) return { ok: true, day: line.day };
+  const opened = open.find((o) => o.sourceId === key);
+  if (opened) return { ok: true, day: opened.day };
   const notPlaced = built.notPlaced.find((n) => n.sourceId === key);
   if (notPlaced) return { ok: true, day: notPlaced.day };
   return refuse(409, 'not-an-occurrence', `"${routine.name}" has no occurrence at ${address.instant.toISOString()} — /budget builds none at that instant`);

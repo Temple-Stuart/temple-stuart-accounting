@@ -120,13 +120,13 @@ const BOWLING: Typed = { 'Start Date': '6/13/27', 'Start Time': '8:00 PM', 'End 
 // ── T1 · THE NAME (ruling A.1) ───────────────────────────────────────────────
 
 test('T1 a one-off’s routine name: the name, a space, a middle dot, a space, the day, a space, the time — the values’ own; one name on two days is two names, and at two times of one day two names; the tail is 19 characters and a name at most 181', () => {
-  const name = oneOffRoutineName({ name: 'Bowling', day: SUN, time: '20:00' });
+  const name = oneOffRoutineName({ name: 'Bowling', day: SUN, time: '20:00', allDay: false }); // PASTE-03 (2026-11-28): the name rule asks whether the stop is all day — a timed one here
   assert.equal(name, 'Bowling · 2027-06-13 20:00');
   // Its parts, in order: the name; the separator — a space, U+00B7, a space; the day; a space; the time.
   assert.deepEqual([name.slice(0, 7), name.slice(7, 10), name.slice(10, 20), name.slice(20, 21), name.slice(21)], ['Bowling', ' · ', SUN, ' ', '20:00']);
   assert.deepEqual([name.charCodeAt(7), name.charCodeAt(8), name.charCodeAt(9)], [0x20, 0xb7, 0x20], 'a space, U+00B7, a space');
   // One name on two days → two names; one name at two times of one day → two names. The same day and time → the one name.
-  const on = (day: string, time: string): string => oneOffRoutineName({ name: 'Bowling', day, time });
+  const on = (day: string, time: string): string => oneOffRoutineName({ name: 'Bowling', day, time, allDay: false }); // PASTE-03 (2026-11-28): the name rule asks whether the stop is all day — a timed one here
   assert.notEqual(on(SAT, '20:00'), on(SUN, '20:00'));
   assert.notEqual(on(SUN, '20:00'), on(SUN, '20:30'));
   assert.equal(on(SUN, '20:00'), on(SUN, '20:00'));
@@ -141,7 +141,7 @@ test('T1 a one-off’s routine name: the name, a space, a middle dot, a space, t
   assert.equal(ONE_OFF_NAME_MAX, 181);
   assert.equal(ONE_OFF_NAME_MAX + ONE_OFF_NAME_TAIL, 200, 'the routine’s name column holds 200');
   assert.equal(' · 2027-06-13 20:00'.length, ONE_OFF_NAME_TAIL);
-  for (const typed of ['B', 'Bowling', 'n'.repeat(181)]) assert.equal(oneOffRoutineName({ name: typed, day: SUN, time: '20:00' }).length, typed.length + ONE_OFF_NAME_TAIL, `${typed.length} characters`);
+  for (const typed of ['B', 'Bowling', 'n'.repeat(181)]) assert.equal(oneOffRoutineName({ name: typed, day: SUN, time: '20:00', allDay: false }).length, typed.length + ONE_OFF_NAME_TAIL, `${typed.length} characters`); // PASTE-03 (2026-11-28): the name rule asks whether the stop is all day — a timed one here
 });
 
 // ── T2 · THE BODY (ruling A.3) ───────────────────────────────────────────────
@@ -198,7 +198,7 @@ test('T3 the bound: a name of 181 characters lands and its routine’s name is e
   assert.match(ledger, /\n {2}if \(name\.length > ONE_OFF_NAME_MAX\) return refuseExpense\('name', NAME_LONG_WORDS\);\n/);
   assert.doesNotMatch(between(ledger, 'export function expenseInput(', '\nexport const oneOffBody'), /name\.length > 200/);
   // The three new exports stand directly over NAME_LONG_WORDS, in this order, under one dated comment.
-  assert.match(ledger, /\nexport const ONE_OFF_NAME_TAIL = ' · YYYY-MM-DD HH:MM'\.length;\nexport const ONE_OFF_NAME_MAX = 200 - ONE_OFF_NAME_TAIL;\nexport const oneOffRoutineName = \(v: Pick<ExpenseValues, 'name' \| 'day' \| 'time'>\): string => `\$\{v\.name\} · \$\{v\.day\} \$\{v\.time\}`;\nexport const NAME_LONG_WORDS = `NAME is at most \$\{ONE_OFF_NAME_MAX\} characters`;\n/);
+  assert.match(ledger, /\nexport const ONE_OFF_NAME_TAIL = ' · YYYY-MM-DD HH:MM'\.length;\nexport const ONE_OFF_NAME_MAX = 200 - ONE_OFF_NAME_TAIL;\nexport const oneOffRoutineName = \(v: Pick<ExpenseValues, 'name' \| 'day' \| 'time' \| 'allDay'>\): string => \(v\.allDay \? `\$\{v\.name\} · \$\{v\.day\}` : `\$\{v\.name\} · \$\{v\.day\} \$\{v\.time\}`\);[ \t]*\nexport const NAME_LONG_WORDS = `NAME is at most \$\{ONE_OFF_NAME_MAX\} characters`;\n/); // PASTE-03 (2026-11-28): the name rule asks whether the stop is all day — a charge on its date is named for its day alone (its trailing note is stripped to spaces by the reader); the timed name as it was
   assert.equal(countOf(comments(LEDGER), /PASTE-02b \(Alex, 2026-11-27\)/g), 1, 'one dated comment over the three');
 });
 
@@ -260,10 +260,10 @@ test('T5 a second row that would be the same new one-off — one Type, one day, 
   // …and the other way round: the first row holds the name, whichever book it is in.
   const reversed = placedOn(pasteOf({ ...BOWLING, Entity: 'Business' }, BOWLING), EMPTY);
   assert.deepEqual([kindsOf(reversed.placements), oneOff(reversed.placements[0]).book.id, refusedAt(reversed.placements[1])], [['oneOff', 'refused'], 'B', ['Type', oneOffTwiceWords(2, 'Bowling')]]);
-  // A first row refused for another reason — no Budget (USD) — holds no name: the second is placed.
-  const freed = placedOn(pasteOf({ ...BOWLING, 'Budget (USD)': '' }, BOWLING), EMPTY);
+  // A first row refused for another reason — a Budget (USD) of 0 — holds no name: the second is placed. PASTE-03 (2026-11-28): a blank Budget (USD) is placed now, so that row HOLDS the name and the second is refused; it was the refused first row here until then.
+  const freed = placedOn(pasteOf({ ...BOWLING, 'Budget (USD)': '0' }, BOWLING), EMPTY);
   assert.deepEqual(kindsOf(freed.placements), ['refused', 'oneOff']);
-  assert.deepEqual(refusedAt(freed.placements[0]), ['Budget (USD)', 'a one-off needs a Budget (USD) above 0']);
+  assert.deepEqual(refusedAt(freed.placements[0]), ['Budget (USD)', 'a Budget (USD) of 0 is not a budget — leave the cell blank for a stop with no budget, or type one above 0']); assert.deepEqual(kindsOf(placedOn(pasteOf({ ...BOWLING, 'Budget (USD)': '' }, BOWLING), EMPTY).placements), ['oneOff', 'refused'], 'a first row with no Budget (USD) is placed, and holds the name');
   // …and so does a row the form's rule refuses, or one whose kind has no pick.
   const noPick = placePaste(pasteOf(BOWLING, BOWLING), {}, EMPTY);
   assert.deepEqual(kindsOf(noPick), ['pick', 'pick'], 'neither is placed, so neither holds a name');
@@ -351,13 +351,13 @@ test('T7 in the source: the dated name stands once, in the one body both callers
     "if (values.instant !== instant || values.ahead !== (happened.kind === 'planned')) {",
     'const routine = oneOffRoutineName(values);',
     'const first = fresh.get(routine);',
-    "if (first !== undefined) return { kind: 'refused', head: 'Type', why: oneOffTwiceWords(first, values.name) };",
+    "if (first !== undefined) return { kind: 'refused', head: 'Type', why: values.allDay ? chargeTwiceWords(first, values.name) : oneOffTwiceWords(first, values.name) };", // PASTE-03 (2026-11-28): a second new charge is refused in its own words (chargeTwiceWords); a timed one as it was
     'fresh.set(routine, row.number);',
-    'const span = cells.end === null ? null : (clockMinutes(cells.end) - clockMinutes(start) + DAY_MINUTES) % DAY_MINUTES;',
+    'const span = cells.end === null || start === null ? null : (clockMinutes(cells.end) - clockMinutes(start) + DAY_MINUTES) % DAY_MINUTES;', // PASTE-03 (2026-11-28): a charge has no minutes
   ], 'the new one-off branch');
   assert.deepEqual([countOf(rules, /\bfresh\.(get|set)\(/g), countOf(rules, /\boneOffRoutineName\(/g)], [2, 1], 'the map is read once and written once; the key is the routine’s name alone — no book in it');
   // The stop of a row's own name already standing is found by the bare name, as it was.
-  assert.match(rules, /const own = context\.sheet\.filter\(\(stop\) => stop\.book === book\.word && stop\.day === cells\.day && stop\.time === start && stop\.description === cells\.type\);/);
+  assert.match(rules, /const own = context\.sheet\.filter\(\(stop\) => stop\.book === book\.word && stop\.day === cells\.day && \(start === null \? stop\.id === null && stop\.allDay : stop\.time === start\) && stop\.description === cells\.type\);/); // PASTE-03 (2026-11-28): with no Start Time the stop of the row's own name is an all-day plan row — the bare name still finds it
   assert.match(comments(RULES), /\n \* PASTE-02b \(Alex, 2026-11-27\): a new one-off's routine is named for its day and time \(ledger\.ts oneOffRoutineName\)/);
   // THE ONE-NAME RULE STAYS: the table's own, the create route's check before it creates, and the rename's.
   assert.match(code(SCHEMA), /\n {2}@@unique\(\[user_id, name\]\)\n/);

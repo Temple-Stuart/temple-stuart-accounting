@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { buildRoutineBudgetLines } from '@/lib/budget/days';
+import { buildRoutineBudgetLines } from '@/lib/budget/days'; import { buildRoutineOpenLines } from '@/lib/budget/openLines'; // PASTE-03 (2026-11-28): the occurrences that carry no money — imported on this line so the two lines the registry cites below do not move
 import { BudgetInputError, toReportAccount, toReportEntity, toRoutinePlanInput } from '@/lib/budget/reportInputs';
 import type { RoutineWords } from '@/lib/budget/planLines';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
@@ -20,7 +20,7 @@ import { instantToZoned } from '@/lib/time';
  * the accounts, the first record's day, ledgerOf, and the exact answer object the route serializes —
  * `{ from, to, as_of, first_record, rows, sheet, tones, recording, said }` (sheet: TIMESHEET-01, 2026-11-24; tones: TIMESHEET-03, 2026-11-24; recording: TIMESHEET-02, 2026-11-24). RECORD_PLAN and its helpers (RecordRow, recordInputOf, HOUR_MS,
  * DAY_MS, messageOf) moved with it (SUPERSEDE-00 decision 9); the registry's Time row cites RECORD_PLAN's two lines here.
- * SUPERSEDE-01c (Alex, 2026-11-08, ruling D): HOUR_MS retired; the records' window is stopRecord.ts recordsWindowOf.
+ * SUPERSEDE-01c (Alex, 2026-11-08, ruling D): HOUR_MS retired; the records' window is stopRecord.ts recordsWindowOf. PASTE-03 (Alex, 2026-11-28): beside the Budget's lines the answer builds the occurrences that carry no money (budget/openLines.ts — the lines that name their account and no amount), once, over the routines it already read — no query added — and hands ledgerOf both, with the two builders' not-placed lists together.
  *
  * The caller's id is the parameter: every where names it (userId / user_id: userId). THE CLOCK IS NOT READ HERE: `now`
  * is a parameter — the route reads it once and hands it in, and so does /api/home-ledger, which calls this function
@@ -114,6 +114,8 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
   };
   const routineInputs = routineGroups.flatMap((group) => group.rows.map((row) => toRoutinePlanInput(row, bookOf(group.entityId, `the routines of entity ${group.entityId}`))));
   const built = buildRoutineBudgetLines(routineInputs, from, to);
+  // PASTE-03 (Alex, 2026-11-28): the occurrences that carry no money — of the lines that name their account and no amount — built ONCE, by the same expansion as the lines above, from the routines the loader already read.
+  const opened = buildRoutineOpenLines(routineInputs, from, to);
   const routineWords = new Map<string, RoutineWords>(routineGroups.flatMap((group) => group.rows.map((row): [string, RoutineWords] => [row.id, {
     name: row.name,
     timezone: row.timezone,
@@ -146,7 +148,8 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
     records: recordRows.map(recordInputOf),
     links: linkRows.map(linkInputOf),
     lines: built.lines,
-    notPlaced: built.notPlaced,
+    open: opened.open,
+    notPlaced: [...built.notPlaced, ...opened.notPlaced],
     routines: routineWords,
     roles: new Map(roles.map((r) => [r.id, r.role])),
     // COALEVELS-01 (2026-11-27): every routine's Location, read by its one rule (a stored one that is neither of the two is thrown by name), and the sub-accounts.

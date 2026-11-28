@@ -276,13 +276,13 @@ test('T3 a kind picked a one-off whose stop already stands — that book, day, S
   const twice = placedWith(pasteOf(cinema, { ...cinema, Items: 'again' }, { ...cinema, 'Start Time': '9:30 PM', 'Budget (USD)': '12' }), ONE_OFF('6200'));
   assert.deepEqual(twice.placements.map((p) => p.kind), ['plan', 'refused', 'oneOff']);
   assert.deepEqual(refusedAt(twice.placements[1]), ['Type', 'row 2 of the paste is already on this day\'s stop of "Cinema" — a second one needs its own Start Time and a one-off']);
-  // Another day, time, name or book is no such stop: a new one-off, which does need its Budget (USD).
+  // Another day, time, name or book is no such stop: a NEW one-off. PASTE-03 (2026-11-28): with no Budget (USD) it lands, with no budget — it was refused until then ('a one-off needs a Budget (USD) above 0'); a Budget (USD) of 0 is still refused.
   for (const over of [{ 'Start Date': '6/12/27' }, { 'Start Time': '9:05 PM' }, { Type: 'cinema' }] as const) {
-    assert.deepEqual(refusedAt(landed({ ...cinema, ...over }, ONE_OFF('6200')).placement), ['Budget (USD)', 'a one-off needs a Budget (USD) above 0'], JSON.stringify(over));
+    assert.deepEqual([oneOff(landed({ ...cinema, ...over }, ONE_OFF('6200')).placement).budgetCents, refusedAt(landed({ ...cinema, ...over, 'Budget (USD)': '0' }, ONE_OFF('6200')).placement)], [null, ['Budget (USD)', 'a Budget (USD) of 0 is not a budget — leave the cell blank for a stop with no budget, or type one above 0']], JSON.stringify(over));
   }
-  // The account is asked first, and the Start Time: a standing stop is found by its Start Time.
+  // The account is asked first, and the Start Time: a standing stop is found by its Start Time. PASTE-03 (2026-11-28): with none, the row is a NEW CHARGE on its date — no all-day stop of its name stands — its vendor the book's own, its Total (USD) said; ['Start Time', 'a one-off needs a Start Time'] until then.
   assert.deepEqual(refusedAt(landed(cinema, ONE_OFF('9999')).placement)[0], 'Category');
-  assert.deepEqual(refusedAt(landed({ ...cinema, 'Start Time': '' }, ONE_OFF('6200')).placement), ['Start Time', 'a one-off needs a Start Time']);
+  const charge = oneOff(landed({ ...cinema, 'Start Time': '' }, ONE_OFF('6200')).placement); assert.deepEqual([charge.start, charge.values.allDay, charge.vendor, charge.notWritten], [null, true, { kind: 'own', id: 'v-oat', name: 'Oat House' }, ['Total (USD) — not written: the row has no Start Time, so it is a charge on its date — and a charge on a date takes no record']]);
 });
 
 // ── T4 · A NEW ONE-OFF (ruling A.3) ──────────────────────────────────────────
@@ -294,7 +294,7 @@ test('T4 a new one-off is "+ expense"’s: its values are that form’s one rule
   assert.ok(form.ok);
   assert.deepEqual(went.values, form.value);
   assert.deepEqual(went.values, {
-    day: SUN, time: '20:00', zone: NBO, instant: at(SUN, '20:00'), name: 'Bowling', amount: '20.00', coa: '6200', bookId: 'P', location: null,
+    day: SUN, time: '20:00', allDay: false, zone: NBO, instant: at(SUN, '20:00'), name: 'Bowling', amount: '20.00', coa: '6200', bookId: 'P', location: null, // PASTE-03 (2026-11-28): the value says whether the stop is all day — not here
     vendor: { kind: 'new', name: 'Pin Palace' }, actualCents: 1800, rating: null, note: 'two games', ahead: false,
   });
   assert.deepEqual([went.instant, went.name, went.start, went.end, went.minutes, went.budgetCents], [at(SUN, '20:00'), 'Bowling', '20:00', '21:30', 90, 2000], 'its instant and its name are the values’ own');

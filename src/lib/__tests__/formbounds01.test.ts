@@ -61,7 +61,7 @@ const DAY_BEFORE = new Date(STOP_MS - 24 * 60 * MINUTE_MS);
 
 /** "+ expense", every box of the plan typed and no box of the record. */
 const DRAFT: ExpenseDraft = { ...EMPTY_EXPENSE, day: MON, time: '12:30', name: 'Soup', amount: '6.50', coa: '6150', book: 'P' };
-const PLANNED_VALUE: ExpenseValues = { day: MON, time: '12:30', zone: NBO, instant: STOP, name: 'Soup', amount: '6.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: null, rating: null, note: null, ahead: true }; // COALEVELS-01 (2026-11-27): the value says the stop's Location — null: the draft's box is left at none
+const PLANNED_VALUE: ExpenseValues = { day: MON, time: '12:30', allDay: false, zone: NBO, instant: STOP, name: 'Soup', amount: '6.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: null, rating: null, note: null, ahead: true }; // COALEVELS-01 (2026-11-27): the value says the stop's Location — null: the draft's box is left at none · PASTE-03 (2026-11-28): the value says whether the stop is all day — not here: a TIME is typed
 const expense = (over: Partial<ExpenseDraft>, now: Date) => expenseInput({ ...DRAFT, ...over }, NBO, now);
 /** An accepted "+ expense" — or the test fails with the refusal's words. */
 const expenseValue = (over: Partial<ExpenseDraft>, now: Date): ExpenseValues => {
@@ -179,7 +179,7 @@ test('T3 expenseInput and the clock: a stop at exactly the skew is not ahead; a 
   const rule = bodyOfFunction(RULES, 'expenseInput');
   assert.match(rule, /^export function expenseInput\(draft: ExpenseDraft, zone: string, now: Date\): ExpenseInputResult \{/);
   assert.equal(countOf(rule, /zonedToInstant\(/g), 1, 'the instant is read once');
-  assert.match(rule, /const instant = zonedToInstant\(draft\.day, draft\.time, zone\);\n\s*const ahead = instant\.getTime\(\) > now\.getTime\(\) \+ DONE_AT_SKEW_MS;\n\s*let actualCents: number \| null = null;/);
+  assert.match(rule, /const instant = zonedToInstant\(draft\.day, allDay \? clockWords\(ALL_DAY_CLOCK\) : draft\.time, zone\);\n\s*const ahead = instant\.getTime\(\) > now\.getTime\(\) \+ DONE_AT_SKEW_MS;\n\s*let actualCents: number \| null = null;/); // PASTE-03 (2026-11-28): the instant is the day at its TIME — or, with none, at ALL_DAY_CLOCK, the clock every all-day routine carries; 'zonedToInstant(draft.day, draft.time, zone)' until then
   assert.match(rule, /instant: instant\.toISOString\(\),/);
   assert.match(bodyOfFunction(STOPS, 'stopInput'), /if \(doneAt\.getTime\(\) > now\.getTime\(\) \+ DONE_AT_SKEW_MS\) return refuse\('done_at', /);
   assert.doesNotMatch(code(RULES), /new Date\(\)|Date\.now\(/, 'the rule file reads no clock of its own');
@@ -212,7 +212,7 @@ test('T4 a stop ahead with nothing typed is taken — planned: ahead true, actua
   assert.deepEqual(expense({ stars: '9' }, AFTER), { ok: false, field: 'stars', message: starsTypedWords('9') });
   // The plan's own boxes are read first, ahead or not — the first bad box is still the one named.
   assert.deepEqual(expense({ name: '  ', actual: '7' }, DAY_BEFORE), { ok: false, field: 'name', message: requiredWords('name') });
-  assert.deepEqual(expense({ amount: '', note: 'thick' }, DAY_BEFORE), { ok: false, field: 'amount', message: requiredWords('amount') });
+  assert.deepEqual(expense({ amount: '0', note: 'thick' }, DAY_BEFORE), { ok: false, field: 'amount', message: 'an expense has an amount above 0' }); assert.deepEqual(expense({ amount: '', note: 'thick' }, DAY_BEFORE), { ok: false, field: 'note', message: aheadFieldWords('note') }); // PASTE-03 (2026-11-28): a blank AMOUNT is no refusal — a stop with no budget — so the box of the record is the first bad one; a typed 0 is still the AMOUNT's own refusal, read before the record's boxes. A blank AMOUNT was refused here as required until then
   assert.deepEqual(expense({ vendorId: 'v1', vendorName: 'Oat House', stars: '4' }, DAY_BEFORE), { ok: false, field: 'vendor', message: VENDOR_BOTH_WORDS });
   // The words, as they read.
   assert.equal(aheadFieldWords('actual'), "ACTUAL is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come");
@@ -272,7 +272,7 @@ test('T5 both forms: a control in ITEMS (COALEVELS-01, 2026-11-27 — DESCRIPTIO
   assert.deepEqual(record({ went: 'skipped', note: '\u0001' }, AFTER), { ok: false, field: 'note', message: NOTE_CONTROL_WORDS });
   assert.deepEqual(record({ went: 'skipped', note: ' \t ' }, AFTER), { ok: false, field: 'note', message: SKIP_REASON_WORDS }, 'spaces alone are still no reason');
   // In the source: the collapse, the one named test, then the length — in each form's rule; the rule file holds no regex of its own for it.
-  assert.match(bodyOfFunction(RULES, 'expenseInput'), /const note = draft\.note\.trim\(\)\.replace\(\/\\s\+\/g, ' '\);\n\s*if \(note !== '' && ahead\) return refuseExpense\('note', aheadFieldWords\('note'\)\);\n\s*if \(holdsControl\(note\)\) return refuseExpense\('note', NOTE_CONTROL_WORDS\);\n\s*if \(note\.length > NOTE_MAX\) return refuseExpense\('note', NOTE_LONG_WORDS\);/);
+  assert.match(bodyOfFunction(RULES, 'expenseInput'), /const note = draft\.note\.trim\(\)\.replace\(\/\\s\+\/g, ' '\);\n\s*if \(note !== '' && allDay\) return refuseExpense\('note', chargeFieldWords\('note'\)\);\n\s*if \(note !== '' && ahead\) return refuseExpense\('note', aheadFieldWords\('note'\)\);\n\s*if \(holdsControl\(note\)\) return refuseExpense\('note', NOTE_CONTROL_WORDS\);\n\s*if \(note\.length > NOTE_MAX\) return refuseExpense\('note', NOTE_LONG_WORDS\);/); // PASTE-03 (2026-11-28): with no TIME a typed ITEMS is the charge's refusal, read first — a charge takes no record
   assert.match(bodyOfFunction(RULES, 'recordInput'), /const note = draft\.note\.trim\(\)\.replace\(\/\\s\+\/g, ' '\);\n\s*if \(holdsControl\(note\)\) return refuseRecord\('note', NOTE_CONTROL_WORDS\);\s*\n\s*if \(note\.length > NOTE_MAX\) return refuseRecord\('note', NOTE_LONG_WORDS\);/);
   assert.equal(countOf(code(RULES), /\bholdsControl\(/g), 3, 'the one test, read by the two rules — the record form on DESCRIPTION and on NOTES'); // TIMESHEET-04b (2026-11-27): recordInput reads NOTES by the same test — 2, 'the one test, read by the two rules', until then
   assert.doesNotMatch(code(RULES), /\\u0000|\\u001f|\\ud800/, 'no second test in the rule file');
@@ -353,7 +353,7 @@ test('T7 outcomeWords says RECORD_AHEAD_WORDS for the record ahead; the four sta
   assert.deepEqual(plannedStop.map(outcomeWords).at(-1), 'the record — not asked — this stop is still ahead; record it on its row once its time has come');
   // In the source: the state, the words under "none given", the value's `ahead` last — and recordBody as it was.
   const rules = code(RULES);
-  assert.match(rules, /export type ExpenseState = 'written' \| 'failed' \| 'not tried' \| 'not asked' \| 'ahead';/);
+  assert.match(rules, /export type ExpenseState = 'written' \| 'failed' \| 'not tried' \| 'not asked' \| 'ahead' \| 'charge';/); // PASTE-03 (2026-11-28): 'charge' — the record step of a charge on its date, never asked; the five states until then
   assert.match(rules, /export const NOT_ASKED_WORDS = 'none given';\n(?:[ \t]*\n)*export const RECORD_AHEAD_WORDS = 'not asked — this stop is still ahead; record it on its row once its time has come';\n/);
   assert.match(rules, /readonly note: string \| null;\n(?:[ \t]*\n)* {2}readonly ahead: boolean;\n\}\n\nexport type ExpenseInputResult/);
   assert.ok(rules.includes("({ kind: 'routine_line', id: lineId, instant: v.instant, outcome: 'done', done_at: v.instant, actual_cents: v.actualCents, rating: v.rating, note: v.note, notes: null, actual_minutes: null });"), 'recordBody: done at the stop’s own instant, as it was — and it says its notes: none'); // TIMESHEET-04b (2026-11-27): "+ expense" has no NOTES box, so its body says null — the body without "notes: null" until then
@@ -369,7 +369,7 @@ test('T8 the rule file: the import gains CENTS_MAX and holdsControl in place; th
   const file = whole(RULES);
   assert.match(file, /\nexport const VENDOR_BOTH_WORDS = '[^\n]*';\n\n\/\/ ── FORM-BOUNDS-01 \(Alex, 2026-11-25\): [^\n]*\n\/\/\n/);
   const block = rules.slice(rules.indexOf('export const VENDOR_BOTH_WORDS'), rules.indexOf('function centsOf('));
-  assert.deepEqual([...block.matchAll(/^export const (\w+)/gm)].map((m) => m[1]), ['VENDOR_BOTH_WORDS', 'ACTUAL_RANGE_WORDS', 'NOTE_CONTROL_WORDS', 'aheadFieldWords']);
+  assert.deepEqual([...block.matchAll(/^export const (\w+)/gm)].map((m) => m[1]), ['VENDOR_BOTH_WORDS', 'ACTUAL_RANGE_WORDS', 'NOTE_CONTROL_WORDS', 'aheadFieldWords', 'chargeFieldWords']); // PASTE-03 (2026-11-28): chargeFieldWords stands after aheadFieldWords, under its own dated heading, before the rule's helper — the four until then
   assert.ok(block.includes('export const ACTUAL_RANGE_WORDS = `${EXPENSE_FIELD_WORDS.actual} is at most ${formatCents(CENTS_MAX)}`;'));
   assert.ok(block.includes('export const NOTE_CONTROL_WORDS = `${EXPENSE_FIELD_WORDS.note} holds a control character — type it again without it`;'));
   assert.ok(block.includes("export const aheadFieldWords = (field: 'actual' | 'stars' | 'note'): string => `${EXPENSE_FIELD_WORDS[field]} is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come`;"));

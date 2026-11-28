@@ -78,8 +78,8 @@ test('T1 the start time IS the clock: the compiler derives BYHOUR/BYMINUTE from 
   assert.equal(compileFormToRRule({ ...custom, custom_rrule: 'FREQ=WEEKLY;BYDAY=MO;BYHOUR=9;BYMINUTE=15' }), 'FREQ=WEEKLY;BYDAY=MO;BYHOUR=9;BYMINUTE=15');
   assert.throws(() => compileFormToRRule({ ...custom, custom_rrule: 'FREQ=WEEKLY;BYDAY=MO;BYHOUR=10;BYMINUTE=0' }), (e: unknown) => e instanceof ValidationError && e.message === clockDisagreeWords("the raw rule's BYHOUR/BYMINUTE", '10:00', '09:15'));
   // The ledger's "+ expense" (outside this PR) sends an agreeing pair with its start time — accepted as before.
-  assert.match(code(LEDGER), /byhour: v\.time\.slice\(0, 2\), byminute: v\.time\.slice\(3, 5\), timezone: v\.zone,/);
-  assert.match(code(LEDGER), /start_time: v\.time, end_time: '', is_active: true,/, 'a one-off with no end time — its window is its day');
+  assert.match(code(LEDGER), /byhour: v\.allDay \? '' : v\.time\.slice\(0, 2\), byminute: v\.allDay \? '' : v\.time\.slice\(3, 5\), timezone: v\.zone,/); // PASTE-03 (2026-11-28): a timed one-off sends the agreeing pair as before; an all-day one — a charge on its date — sends none, and the create route derives its clock (allDayTimeInput)
+  assert.match(code(LEDGER), /start_time: v\.allDay \? '' : v\.time, end_time: '', is_active: true,/, 'a one-off with no end time — its window is its day');
   assert.equal(END_TIME_REQUIRED_WORDS, 'end time is required when a start time is set — the window');
   assert.match(code(HELPERS), /if \(form\.cadence_mode === 'once'\) \{\n\s*requireOnceDate\(form\);\n\s*\}\n\s*const clock = requireClock\(form\);/, 'the date, then the clock');
   assert.match(comments(HELPERS), /ROUTINE-02b \(Alex, 2026-10-18\) — ONE TIME PER ROUTINE/);

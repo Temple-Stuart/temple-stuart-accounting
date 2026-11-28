@@ -111,7 +111,10 @@ function Fields({ onWritten, close }: { onWritten: (day: string) => void; close:
       // read the stop against the clock handed in above, by the stops route's own test, and refused any box of the record typed for it): the step is
       // said as 'ahead', and the row's "record" chip takes what happened once its time has come. Until then the record was asked on every save, and the
       // route refused it for a stop ahead — after the stop was written. The tail below runs after both: the form clears and the sheet reads again.
-      if (v.ahead) {
+      if (v.allDay) {
+        // PASTE-03 (Alex, 2026-11-28): a charge on its date takes no record — the step is said as 'charge', and the stops route is never asked (it refuses a record on an all-day line).
+        done.push({ step: 'record', state: 'charge', words: '' });
+      } else if (v.ahead) {
         done.push({ step: 'record', state: 'ahead', words: '' });
       } else {
         let record: Awaited<ReturnType<typeof setStopRecord>>;

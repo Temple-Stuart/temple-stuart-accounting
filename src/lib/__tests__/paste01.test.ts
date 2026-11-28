@@ -22,7 +22,7 @@ import * as rule from '../operations/pasteRows';
 import * as saveRule from '../operations/pasteSave';
 import {
   ALREADY_RECORDED_WORDS, AMOUNT_MOST_WORDS, BLANK_DATE_WORDS, BOOKING_WORDS, ITEMS_CONTROL_WORDS, ITEMS_LONG_WORDS, ITEMS_NO_VENDOR_WORDS, // COALEVELS-01 (2026-11-27): ITEMS_AHEAD_WORDS and ITEMS_NO_TOTAL_WORDS are gone — the Items of a row that makes no record are planned items
-  LANDS_WORDS, NOTHING_PASTED_WORDS, NO_ROW_WORDS, NO_TOTAL_WORDS, ONE_OFF_NO_BUDGET_WORDS, ONE_OFF_NO_START_WORDS, ON_TIME_SHEET_COLUMNS, ON_TIME_SHEET_KEYS, ON_TIME_SHEET_WORDS,
+  LANDS_WORDS, NOTHING_PASTED_WORDS, NO_ROW_WORDS, NO_TOTAL_WORDS, ONE_OFF_ZERO_BUDGET_WORDS, CHARGE_TOTAL_WORDS, ON_TIME_SHEET_COLUMNS, ON_TIME_SHEET_KEYS, ON_TIME_SHEET_WORDS,
   PASTE_NO_COLUMN_HEADS, PASTE_READ_HEADS, PASTE_REQUIRED_HEADS, PASTE_WORKED_OUT_HEADS, PLANNED_AHEAD_WORDS, RECORDED_NOT_WRITTEN_WORDS, TOTAL_AHEAD_WORDS, UNCLOSED_QUOTE_WORDS, YOUR_SHEET_COLUMNS, YOUR_SHEET_WORDS,
   accountWords, blankCellWords, bookNamed, chartOf, chartUnreadWords, countsWords, kindKeyOf, notReadLines, offeredBooksOf, pasteKindsOf, pasteShown, pasteSpanOf, pastedVendorOf,
   pickOfValue, pickOffersOf, pickValueOf, placePaste, plansOf, readAmountCell, readClockCell, readDayCell, readDaysCell, readPaste, splitPaste, vendorsUnreadWords,
@@ -485,17 +485,17 @@ test('T8 a one-off, under an account of the book: at its day and Start Time in t
   assert.equal(landed({ ...climbing, Entity: 'Business', Type: 'Paper' }, ONE_OFF('6400')).shown.lands, 'a one-off at 20:00, under B-6400 Supplies · vendor: Business\'s own · recorded: went, $18.00');
 });
 
-test('T8 a one-off, refused: no such account in the book’s chart; no Start Time; no Budget (USD), or 0 — and a stop of this name already on the time sheet at this day and time takes the row', () => {
+test('T8 a one-off, refused: no such account in the book’s chart; no Start Time; a Budget (USD) of 0 — a blank Budget (USD) is placed, its budget none (PASTE-03, 2026-11-28: it was refused until then) — and a stop of this name already on the time sheet at this day and time takes the row', () => {
   const climbing: Typed = { 'Start Date': '5/10/27', 'Start Time': '8:00 PM', Category: 'Fun', Entity: 'Personal', Type: 'Climbing', 'Total (USD)': '18', 'Budget (USD)': '18' };
   assert.deepEqual(refusedRow(landed(climbing, ONE_OFF('9999'))), ['Category', 'the book\'s chart has no account "9999"']);
   assert.deepEqual(refusedRow(landed(climbing, ONE_OFF('6400'))), ['Category', 'the book\'s chart has no account "6400"'], 'another book’s account is not this book’s');
-  assert.deepEqual(refusedRow(landed({ ...climbing, 'Start Time': '' }, ONE_OFF('6200'))), ['Start Time', ONE_OFF_NO_START_WORDS]);
-  assert.deepEqual(refusedRow(landed({ ...climbing, 'Budget (USD)': '' }, ONE_OFF('6200'))), ['Budget (USD)', ONE_OFF_NO_BUDGET_WORDS]);
-  assert.deepEqual(refusedRow(landed({ ...climbing, 'Budget (USD)': '$0.00' }, ONE_OFF('6200'))), ['Budget (USD)', 'a one-off needs a Budget (USD) above 0']);
-  assert.equal(ONE_OFF_NO_START_WORDS, 'a one-off needs a Start Time');
-  // In the ruling's order: the account, then the Start Time, then the Budget.
+  const charge = landed({ ...climbing, 'Start Time': '' }, ONE_OFF('6200')); assert.deepEqual(charge.placement.kind === 'oneOff' && [charge.placement.start, charge.placement.values.allDay, charge.placement.notWritten], [null, true, [CHARGE_TOTAL_WORDS]]); // PASTE-03 (2026-11-28): a blank Start Time is a charge on its date — placed, its Total (USD) said; ['Start Time', 'a one-off needs a Start Time'] until then
+  const unbudgeted = landed({ ...climbing, 'Budget (USD)': '' }, ONE_OFF('6200')); assert.deepEqual(unbudgeted.placement.kind === 'oneOff' && [unbudgeted.placement.budgetCents, unbudgeted.placement.values.amount, unbudgeted.shown.sheet[ON_TIME_SHEET_KEYS.indexOf('budget')], unbudgeted.shown.tone], [null, '', BLANK, 'placed']); // PASTE-03 (2026-11-28): a blank Budget (USD) is placed, its budget none — its cents null, the form's rule handed '', the preview's BUDGET the sheet's blank; ['Budget (USD)', 'a one-off needs a Budget (USD) above 0'] until then
+  assert.deepEqual(refusedRow(landed({ ...climbing, 'Budget (USD)': '$0.00' }, ONE_OFF('6200'))), ['Budget (USD)', 'a Budget (USD) of 0 is not a budget — leave the cell blank for a stop with no budget, or type one above 0']); assert.equal(ONE_OFF_ZERO_BUDGET_WORDS, 'a Budget (USD) of 0 is not a budget — leave the cell blank for a stop with no budget, or type one above 0'); // PASTE-03 (2026-11-28): a 0 is refused in its own words — never read as a blank
+  assert.ok(!('ONE_OFF_NO_START_WORDS' in rule), 'the refusal is gone from the rule file'); // PASTE-03 (2026-11-28): 'a one-off needs a Start Time' stood here
+  // In the ruling's order: the account first. PASTE-03 (2026-11-28): then nothing — a blank Start Time and a blank Budget (USD) are a charge with no budget; 'Start Time' was the next refusal until then.
   assert.deepEqual(refusedRow(landed({ ...climbing, 'Start Time': '', 'Budget (USD)': '' }, ONE_OFF('9999')))[0], 'Category');
-  assert.deepEqual(refusedRow(landed({ ...climbing, 'Start Time': '', 'Budget (USD)': '' }, ONE_OFF('6200')))[0], 'Start Time');
+  const both = landed({ ...climbing, 'Start Time': '', 'Budget (USD)': '' }, ONE_OFF('6200')).placement; assert.deepEqual(both.kind === 'oneOff' && [both.start, both.budgetCents], [null, null]);
   // PASTE-02 (Alex, 2026-11-27, ruling A.4): a stop of the row's own name already on the time sheet — that book, day, start time and name — TAKES the row. Until then the row was
   // refused on Type: 'already on the time sheet — a stop of this name stands at this day and time' (ALREADY_ON_SHEET_WORDS, which is gone).
   const cinema: Typed = { ...climbing, 'Start Time': '9:00 PM', Type: 'Cinema' };
@@ -624,8 +624,8 @@ test('T12 the rule file is pure and names no function previewOf; its header quot
   assert.match(comments(RULES), /^\/\*\*\n \* pasteRows — ROWS PASTED FROM A SHEET: EVERY ROW READ, PLACED AND SHOWN\. NOTHING IS WRITTEN \(PASTE-01, Alex, 2026-11-25\)\./);
   // What it reads from the rules that already stand — one import of each, none of a writer.
   // PASTE-02 (Alex, 2026-11-27): nine, not seven — @/lib/calendar/day (a one-off's minutes) and @/lib/table/csv (an amount as the two forms' rules read one) join. COALEVELS-01 (2026-11-27): twelve — @/lib/coa/scheme (an account as it renders), @/lib/coa/subAccounts (a sub-account's name key and its next code) and @/lib/operations/locationClass (a Location, read by its one rule) join: the rows are coded now.
-  for (const from of ['@/lib/accountString', '@/lib/budget/days', '@/lib/budget/format', '@/lib/calendar/day', '@/lib/coa/scheme', '@/lib/coa/subAccounts', '@/lib/operations/ledger', '@/lib/operations/locationClass', '@/lib/operations/planVendor', '@/lib/operations/stopRecord', '@/lib/table/csv', '@/lib/time']) assert.equal(countOf(rules, new RegExp(`from '${from}';`, 'g')), 1, from);
-  assert.equal(countOf(rules, /^import /gm), 12, 'and nothing else');
+  for (const from of ['@/lib/accountString', '@/lib/budget/days', '@/lib/budget/format', '@/lib/calendar/day', '@/lib/coa/scheme', '@/lib/coa/subAccounts', '@/lib/operations/ledger', '@/lib/operations/locationClass', '@/lib/operations/planVendor', '@/lib/operations/rruleHelpers', '@/lib/operations/stopRecord', '@/lib/operations/stopRole', '@/lib/table/csv', '@/lib/time']) assert.equal(countOf(rules, new RegExp(`from '${from}';`, 'g')), 1, from);
+  assert.equal(countOf(rules, /^import /gm), 14, 'and nothing else'); // PASTE-03 (2026-11-28): fourteen — @/lib/operations/rruleHelpers (ALL_DAY_CLOCK, a charge's instant, and the clock's words) and @/lib/operations/stopRole (the all-day word its START prints) join; twelve until then
   // The leaf's own words, as they read.
   assert.deepEqual([rule.PASTE_OPEN_WORDS, rule.PASTE_TITLE_WORDS, rule.PASTE_HOW_WORDS, rule.PASTE_READ_WORDS, rule.PASTE_CLEAR_WORDS, rule.PASTE_CLOSE_WORDS, rule.PASTE_PICKS_WORDS, rule.PASTE_NO_PICK_WORDS, rule.PASTE_ON_PLAN_WORDS, rule.PASTE_ONE_OFF_WORDS], [
     '+ paste rows from a sheet', 'rows from your sheet — read and placed here; nothing is written until you save' /* PASTE-02 (2026-11-27): '… nothing is written' until then */, 'copy the rows in your sheet with its header row, and paste them here',

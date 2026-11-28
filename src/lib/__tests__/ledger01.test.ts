@@ -112,7 +112,7 @@ const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const doubled: BudgetLine[] = [...built.lines, built.lines.find((l) => l.sourceId === occurrenceKey({ routineId: 'gym', lineId: null, instant: new Date(GYM_12) })) as BudgetLine];
 
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: doubled, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: doubled, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
 });
 
 const ledger = ledgerOf(input());
@@ -244,8 +244,8 @@ test('T2 said, not hidden: no line (the doubled named), no stay, the zone, the p
   assert.equal(noStayWords(1), '1 row on days no stay covers');
   assert.equal(unplacedWords([]), '0 records whose routine\'s zone could not be read');
   assert.match(unplacedWords(ledger.said.unplaced), /^1 record whose routine's zone could not be read — r-mars: the routine's day cannot be read — timezone not recognised/);
-  assert.equal(notRecordedWords(2), '2 priced stops planned in the period, already past, with no record');
-  assert.equal(notRecordedWords(1), '1 priced stop planned in the period, already past, with no record');
+  assert.equal(notRecordedWords(2), '2 stops planned in the period, already past, with no record'); // PASTE-03 (2026-11-28): a stop with no budget is counted too — '2 priced stops …' until then
+  assert.equal(notRecordedWords(1), '1 stop planned in the period, already past, with no record'); // PASTE-03 (2026-11-28): a stop with no budget is counted too — '1 priced stop …' until then
   assert.equal(notPlacedWords(1), '1 routine line the Budget could not place in the period (no budget here for its stops)');
   assert.equal(TODAY_RULE_WORDS, "budgets and COAs are the routines' as they stand today — editing a routine changes past rows until budget history exists");
   assert.equal(EVERY_BOOK_WORDS, 'every book — the COA says which; the entity selector does not filter the ledger');
@@ -544,7 +544,7 @@ test('T6 the ledger mounts first on /time (HOME-01: the day card is on the dashb
   assert.match(rules, /const noRecordWords = allDay \? NOT_A_STOP_RECORD_WORDS\s*\n/, 'an all-day line is in the plan, not a stop');
   assert.doesNotMatch(rules, /read\.address\.instant\.getTime\(\) >= input\.now\.getTime\(\)|if \(!isStop\(role\)\) continue;/, 'the loop that counted apart is gone');
   // SUPERSEDE-01b (2026-11-08): the plan takes marked lines — the task ledger states its lines unmarked (markLines over no marks).
-  assert.match(rules, /const plan = dayPlanOf\(\{ view: \{ kind: 'day', day \}, lines: markLines\(input\.lines, new Map\(\)\), notPlaced: input\.notPlaced, routines: input\.routines, tasks: new Map\(\), vendors: input\.vendors \}\);/, 'the vendor by the plan’s grain — planLines.ts’s rule, reused');
+  assert.match(rules, /const plan = dayPlanOf\(\{ view: \{ kind: 'day', day \}, lines: markLines\(\[\.\.\.input\.lines, \.\.\.opened\], new Map\(\)\), notPlaced: input\.notPlaced, open: input\.open, routines: input\.routines, tasks: new Map\(\), vendors: input\.vendors \}\);/, 'the vendor by the plan’s grain — planLines.ts’s rule, reused'); assert.match(rules, /const opened: readonly BudgetLine\[\] = input\.open\.map\(\(o\) => \(\{ entityId: o\.entityId, code: o\.code, day: o\.day, cents: OPEN_LINE_CENTS, source: o\.source, sourceId: o\.sourceId \}\)\);/); // PASTE-03 (2026-11-28): the one reader is handed BOTH — the Budget's lines and each occurrence that carries no money as a line of its own shape — and is told the open ones (a vendor at one is not stranded); the lines alone until then
   assert.match(rules, /const exact = linesByDay\.get\(day\)\?\.get\(key\) \?\? \[\];\n\s*const line = exact\.length === 1 \? exact\[0\] : null;/, 'the card’s match: one line at the exact instant');
   assert.match(rules, /description: line !== null \? stopName\(\{ line: line\.line, label: line\.label \}\) : stopName\(\{ line: r\.activity, label: r\.routineName \}\),/, 'the card’s bold name, either way');
   assert.match(rules, /place: stay === null \? null : placeParts\(stay\.place\),/);

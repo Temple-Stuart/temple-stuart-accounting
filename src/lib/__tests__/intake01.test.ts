@@ -121,7 +121,7 @@ test('T1 the amount: exact to the cent, never negative, never rounded, and it fi
   assert.deepEqual(ok({ amount: 12.5, account: '5100' }), { amount: '12.5', coaCode: '5100' }, 'a number that is exact in two decimals');
   assert.deepEqual(ok({ amount: ' 0 ', account: '5100' }), { amount: '0', coaCode: '5100' }, 'zero is an amount; blank is not');
   // Decimal(12,2): 10 digits before the point on a routine or line; Decimal(15,2): 13 on a task.
-  assert.deepEqual(PLAN_COLUMN_DIGITS, { routine: 10, task: 13 });
+  assert.deepEqual(PLAN_COLUMN_DIGITS, { routine: 10, line: 10, task: 13 }); // PASTE-03 (2026-11-28): a line is a column of its own — the pair bends for it alone — and holds what a routine's holds; { routine: 10, task: 13 } until then
   assert.equal(ok({ amount: '1234567890.99', account: '5100' }).amount, '1234567890.99');
   assert.deepEqual(refused({ amount: '12345678901', account: '5100' }), { field: 'budget_amount', message: "12345678901 is too large — a routine's amount holds at most 10 digits before the point" });
   assert.equal(ok({ amount: '000000000001', account: '5100' }).amount, '000000000001', 'leading zeros are not digits the column holds');
@@ -232,7 +232,7 @@ const NOT_FOUND = "if (!book) return NextResponse.json({ error: 'Not found' }, {
 const WRITER_PINS: { file: string; verb: string; entity: string; calls: string[]; refusals: string[]; firstWrite: string; writes: string[] }[] = [
   {
     file: W1, verb: 'POST', entity: 'entityId',
-    calls: ["planMoney(routineSent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' })", "planMoney(lineSent[i], book, 'routine', { amount: `lines[${i}].budget_amount`, account: `lines[${i}].coa_code` })"],
+    calls: ["planMoney(routineSent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' })", "planMoney(lineSent[i], book, 'line', { amount: `lines[${i}].budget_amount`, account: `lines[${i}].coa_code` })"], // PASTE-03 (2026-11-28): the lines' loop names the LINE's column — 'routine' until then
     refusals: ['routineMoney', 'm'],
     firstWrite: 'await prisma.$transaction(',
     writes: ['budget_amount: routineMoney.value.amount,', 'coa_code: routineMoney.value.coaCode,', 'budget_amount: lineMoney[i].amount,', 'coa_code: lineMoney[i].coaCode,'],
@@ -246,14 +246,14 @@ const WRITER_PINS: { file: string; verb: string; entity: string; calls: string[]
   },
   {
     file: W3, verb: 'POST', entity: 'routine.entity_id',
-    calls: ["planMoney(sent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' })"],
+    calls: ["planMoney(sent, book, 'line', { amount: 'budget_amount', account: 'coa_code' })"], // PASTE-03 (2026-11-28): a line's writer names the LINE's column — 'routine' until then
     refusals: ['money'],
     firstWrite: 'await prisma.operations_routine_steps.create(',
     writes: ['budget_amount: money.value.amount,', 'coa_code: money.value.coaCode,'],
   },
   {
     file: W4, verb: 'PATCH', entity: 'existing.entity_id',
-    calls: ["planMoney(sent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' })"],
+    calls: ["planMoney(sent, book, 'line', { amount: 'budget_amount', account: 'coa_code' })"], // PASTE-03 (2026-11-28): a line's writer names the LINE's column — 'routine' until then
     refusals: ['money'],
     firstWrite: 'await prisma.operations_routine_steps.update(',
     writes: ['data.budget_amount = money.value.amount;', 'data.coa_code = money.value.coaCode;'],

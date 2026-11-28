@@ -82,7 +82,7 @@ import {
   buildRoutineBudgetLines, buildTaskBudgetLines, centsFromDollars, isIsoDay, parseBudgetCode, readOccurrenceKey, routineSupersessionOf,
   type ExcludedByStatus, type NotPlaced, type ParsedCode, type RoutinePlanInput, type TaskPlanInput,
 } from '@/lib/budget/days';
-import { dayPlanOf, daysOf, planLinesOn, type DayPlan, type PlanLinesErrorCode, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
+import { dayPlanOf, daysOf, planLinesOn, type DayPlan, type PlanLinesErrorCode, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines'; import { buildRoutineOpenLines } from '@/lib/budget/openLines'; // PASTE-03 (2026-11-28): the occurrences that carry no money — imported on this line so the line the registry cites below (reportInputOf) does not move
 // SUPERSEDE-01b: the one record key (pure — no imports) and the one rule's types (pure — its one import is the calendar's minutesOf).
 import { recordKey } from '@/lib/operations/stopRecord';
 import type { Supersession, TravelBlock, TravelBlocksLeftOut } from '@/lib/operations/supersession';
@@ -721,7 +721,7 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
   const plans = dayPlanOf({
     view: report.view,
     lines: budgetLines,
-    notPlaced: [...routines.notPlaced, ...tasks.notPlaced],
+    notPlaced: [...routines.notPlaced, ...tasks.notPlaced], open: buildRoutineOpenLines(routineInputs, rangeFrom, rangeTo).open, // PASTE-03 (Alex, 2026-11-28): `open` — the occurrences that carry no money (the lines that name their account and no amount), so a vendor planned at one is not listed as stranded. Their keys alone are read (planLines.ts): no figure, no budget line and no plan line of this report comes of them. On this line so the lines the registry cites below do not move.
     routines: routineWords,
     tasks: new Map(rows.tasks.map((t) => [t.id, t.title])),
     vendors: rows.planVendors,

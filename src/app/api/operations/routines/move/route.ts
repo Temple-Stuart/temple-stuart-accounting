@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       if ('error' in routineMoney) return NextResponse.json({ error: 'Validation', ...routineMoney.error }, { status: 400 });
       const lines: PlanMoney[] = [];
       for (let i = 0; i < lineSent.length; i += 1) {
-        const m = planMoney(lineSent[i], book, 'routine', { amount: `${from.name}.lines[${i}].budget_amount`, account: `${from.name}.lines[${i}].coa_code` });
+        const m = planMoney(lineSent[i], book, 'line', { amount: `${from.name}.lines[${i}].budget_amount`, account: `${from.name}.lines[${i}].coa_code` }); // PASTE-03 (2026-11-28): a LINE's own column — its account may stand with no amount ('routine' until then)
         if ('error' in m) return NextResponse.json({ error: 'Validation', ...m.error }, { status: 400 });
         lines.push(m.value);
       }

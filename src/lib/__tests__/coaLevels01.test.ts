@@ -515,7 +515,7 @@ const PLAN_RECORDS: LedgerRecordInput[] = [
 const PLAN_STAYS: StayRow[] = [{ id: 'hv', place: 'Harborview, Eastmarch, Ruritania', starts_on: D2, ends_on: '2027-10-20' }];
 const planBuilt = buildRoutineBudgetLines(PLANS, D1, D3);
 const sheetInput = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: D1, to: D3, now: SHEET_NOW, records: PLAN_RECORDS, links: [], lines: planBuilt.lines, notPlaced: planBuilt.notPlaced, routines: PLAN_WORDS,
+  from: D1, to: D3, now: SHEET_NOW, records: PLAN_RECORDS, links: [], lines: planBuilt.lines, open: [], notPlaced: planBuilt.notPlaced, routines: PLAN_WORDS, // PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
   roles: new Map(PLANS.map((r): [string, string] => [r.id, r.role])), locations: PLAN_LOCATIONS, subAccounts: PLAN_SUBS, minutes: planMinutesOf(PLANS), vendors: [], stays: PLAN_STAYS,
   accounts: [{ entityId: 'P', code: '6150', name: 'Dining Out' }, { entityId: 'P', code: '6200', name: 'Recreation' }, { entityId: 'B', code: '6400', name: 'Printing' }],
   books: [{ id: 'P', entityType: 'personal' }, { id: 'B', entityType: 'sole_prop' }], ...over,
@@ -937,7 +937,7 @@ test('G11 the answer reads NINE — the caller’s active sub-accounts beside th
   assert.ok(time);
   assert.deepEqual([time.status, time.beats, time.home, time.why], ['LIVE', { discover: true, decide: true, commit: true, record: true }, '/time', undefined]);
   const cited = (re: RegExp): number => { const m = time.citation.match(re); if (m === null) return assert.fail(`the citation names ${re}`); return Number(m[1]); };
-  const heads = cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS — COALEVELS-01, 2026-11-27: was :\d+/);
+  const heads = cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS — PASTE-03, 2026-11-28: was :\d+/); // PASTE-03 (2026-11-28): the cite's own "was" is that change's now — the rule file grew above both lines again (a stop may have no budget) and the registry's two cites followed; "COALEVELS-01, 2026-11-27: was" stood there until then
   const sums = cited(/the summary's sums, src\/lib\/operations\/ledger\.ts:(\d+) \(was :\d+\)/);
   assert.match(linesOf(SHEET_RULES)[heads - 1], /^export const LEDGER_HEAD_WORDS = \[/);
   assert.match(linesOf(SHEET_RULES)[sums - 1], /^export const SUMMARY_HEAD_WORDS = \[/);

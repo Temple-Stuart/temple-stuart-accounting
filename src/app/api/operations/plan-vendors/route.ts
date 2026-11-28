@@ -22,11 +22,11 @@
  *       ONE loader for its book (loadRoutineBudgetInputs), mapped by the report's
  *       own mappers (reportInputs.ts toReportEntity, toRoutinePlanInput); a task
  *       in PLAN_TASK_STATUSES — else 409;
- *   (e) the money is where the vendor goes (D4) — else 409 in words;
+ *   (e) the money is where the vendor goes (D4) — or, PASTE-03 (Alex, 2026-11-28), the ACCOUNT: a line that names its account and no amount — else 409 in words;
  *   (f) an instant is an occurrence /budget builds — buildRoutineBudgetLines for
  *       that one routine over the rule's window (ruled D1 (b): the instant's UTC
- *       day ±2), the exact address deciding — else 409 in the builder's words, or
- *       naming the routine and the instant;
+ *       day ±2), the exact address deciding — or, PASTE-03, an occurrence that carries no money (budget/openLines.ts buildRoutineOpenLines, the same
+ *       window) — else 409 in the builder's words, or naming the routine and the instant;
  *   (g) the vendor — the caller's (else 404), active, in the plan's book — else 409;
  *   (h) the grain (D2) — a plan holding one grain refuses the other: 409. The
  *       migration's trigger refuses the same, and its unique indexes a race: both
@@ -47,7 +47,7 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { isValidUuid } from '@/lib/operations/parseUuid';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
-import { BudgetDaysError, buildRoutineBudgetLines, type RoutinePlanInput } from '@/lib/budget/days';
+import { BudgetDaysError, buildRoutineBudgetLines, type RoutinePlanInput } from '@/lib/budget/days'; import { buildRoutineOpenLines } from '@/lib/budget/openLines'; // PASTE-03 (2026-11-28): the occurrences that carry no money — imported on this line so that no line of the route moves (the registry cites its POST)
 import { BudgetInputError, toReportEntity, toRoutinePlanInput } from '@/lib/budget/reportInputs';
 import {
   bookOf, grainAllows, isGrainRefusal, itemsAfter, moneyIsHere, occurrenceIn, occurrenceWindow, readPlanAddress, readPlannedItems, routineAsBudgetReads,
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
     if (address.instant !== null && routineInput !== null) {
       const window = occurrenceWindow(address.instant);
       const built = buildRoutineBudgetLines([routineInput], window.rangeFrom, window.rangeTo);
-      const occurrence = occurrenceIn(built, routineInput, { ...address, instant: address.instant });
+      const occurrence = occurrenceIn(built, routineInput, { ...address, instant: address.instant }, buildRoutineOpenLines([routineInput], window.rangeFrom, window.rangeTo).open); // PASTE-03 (2026-11-28): or an occurrence that carries no money — a line that names its account and no amount
       if (!occurrence.ok) return refused(occurrence);
     }
 

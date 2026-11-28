@@ -265,7 +265,7 @@ const RECORDS: LedgerRecordInput[] = [
 const LINKS: LedgerLinkInput[] = [{ kind: 'routine_line', targetId: 'soup', instant: at(MON, '12:30'), journalEntryId: 'je-soup', amountCents: 600, reversed: false }];
 const built = buildRoutineBudgetLines(ROUTINES, MON, WED);
 const INPUT: LedgerInput = {
-  from: MON, to: WED, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
+  from: MON, to: WED, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
 };
 const ledger = ledgerOf(INPUT);
 

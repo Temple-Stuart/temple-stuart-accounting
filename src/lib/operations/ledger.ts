@@ -20,7 +20,7 @@
  * rule (dayTotals), reused — never rewritten.
  *
  * SAID, NOT HIDDEN. Records no line matches, records on days no stay covers,
- * records whose zone could not be read, and priced stops already past with no
+ * records whose zone could not be read, and stops already past with no
  * record are each counted by name under the table; so are the Budget's lines it
  * could not place. The budgets and COAs are the routines' as they stand today —
  * said in words, because editing a routine changes past rows until budget
@@ -29,7 +29,7 @@
  * RETRO-01 (Alex, 2026-10-16) — EXPENSES ONLY. The ledger is an expense ledger:
  * a record stays only when its plan's role takes money (dayCard.ts asksAmount —
  * place, none); a journal, plan, execute or all-day record leaves the rows and
- * every total, counted by role under the table (said.leftOut). The priced
+ * every total, counted by role under the table (said.leftOut). The
  * stops past with no record are counted by the same rule.
  *
  * LEDGER-02 (Alex, 2026-10-19) — A REAL DATA TABLE. "It's really a Task Ledger,
@@ -128,8 +128,8 @@
  * notesCount counts four coverage lines). Eighteen columns now. The journal
  * tables, the day card, the stops route and the minutes input are unchanged.
  *
- * TIMESHEET-01 (Alex, 2026-11-24) — THE TIME SHEET, PART ONE: EVERY PRICED LINE
- * OF THE PERIOD, PLANNED AND RECORDED. "its so much more than trip sheet... this is just all time sheet...."
+ * TIMESHEET-01 (Alex, 2026-11-24) — THE TIME SHEET, PART ONE: EVERY LINE OF THE PERIOD THAT NAMES AN ACCOUNT (every priced line until PASTE-03, below),
+ * PLANNED AND RECORDED. "its so much more than trip sheet... this is just all time sheet...."
  * "I can even add in recurring expenses here, right???? like on date... all day, no time..."
  * "i think this master table can basically connect with the expenses tab.... where if something is added there, it adds here... and vice versa..."
  * The table stops being a list of what was recorded and becomes the sheet of
@@ -291,14 +291,30 @@
  * form's rule and body after it (TIMESHEET-02), the pills' classes and tones
  * (TIMESHEET-03, after the inputs' mappers), and the words. No fetch, no
  * Prisma, no React; the clock is handed in (now). The tests drive every rule.
+ *
+ * PASTE-03 (Alex, 2026-11-28) — A STOP MAY HAVE NO BUDGET. The sheet's rows were /budget's lines, and /budget builds a line only
+ * for an AMOUNT: a stop with no budget was on no row. A routine's LINE may now name its ACCOUNT with no AMOUNT (planMoney.ts — the
+ * pair bends one way, for a line only), and its occurrences are built beside the Budget's lines, by the same expansion, with NO
+ * figure (src/lib/budget/openLines.ts). LedgerInput gains ONE list, `open`, right after `lines`. dayLines hands the one reader
+ * (planLines.ts dayPlanOf) BOTH — the lines, and each open occurrence as a line of that reader's shape — so an open occurrence's
+ * label, line, time and vendor are matched by the one rule, not a second one. That shape holds a figure and an open occurrence has
+ * none: the shape is filled with OPEN_LINE_CENTS and THAT FIGURE IS NEVER READ — ledgerOf holds the open occurrences' keys (each
+ * read back by days.ts readOccurrenceKey into the card's lineKey; a key that is no routine occurrence's, or one that is also a
+ * budget line's, is thrown by name) and reads every line's cents through ONE function (lineCentsOf), which answers null at an open
+ * key. So a plan row on such a line holds cents null — BUDGET blank, never 0 — and a recorded row matched to one is 'matched' with
+ * cents null and varianceCents null. The totals, the cells, the filters, the sort and the CSV already read a null as a blank (a
+ * recorded row no line matched has always held one). A vendor is planned on such a row through the Budget's own box, as on any
+ * other (planVendor.ts — the vendor goes where the account is). The note under the table counts the stops past with no record,
+ * with a budget or with none ('priced stops' until then). "+ expense" no longer requires AMOUNT: blank is a stop with no budget;
+ * a typed amount is still above 0.
  */
-import { centsFromDecimalString, isIsoDay, type NotPlaced, type RoutinePlanInput } from '@/lib/budget/days';
+import { centsFromDecimalString, isIsoDay, readOccurrenceKey, type NotPlaced, type RoutinePlanInput } from '@/lib/budget/days';
 import { columnOf, type ColumnKind, type SortKey, type TableColumn } from '@/lib/table/columns';
 import { csvMoney, tableCsv } from '@/lib/table/csv';
 import { NO_MONEY_FILTER, NO_TEXT_FILTER, NO_VALUE_FILTER, anyFilterOn, columnValuesOf, filterOn, filterRows, rowPasses, type ColumnValue, type MoneyFilter, type TextFilter, type ValueFilter } from '@/lib/table/filters';
 import { numberKey as num, sortRows as sortTableRows, textKey as text, type TableSort } from '@/lib/table/sort';
 import { BLANK, formatCents } from '@/lib/budget/format';
-import { markLines, type BudgetLine } from '@/lib/budget/report';
+import { markLines, type BudgetLine } from '@/lib/budget/report'; import type { OpenLine } from '@/lib/budget/openLines'; // PASTE-03 (2026-11-28): an occurrence that carries no money
 import { dayPlanOf, daysOf, type PlanLine, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
 import { shiftDay } from '@/lib/budget/reportView';
 import { deriveAccountString, entityLetter } from '@/lib/accountString';
@@ -313,7 +329,7 @@ import { subAccountOf, type SubAccountRef } from '@/lib/coa/subAccounts';
 // TIMESHEET-01 (2026-11-24): the planned minutes by the one rule (a pure leaf) and the clock's arithmetic (the calendar's minutesOf, the rule helpers' clockWords — reused,
 // not rebuilt). TIMESHEET-02 (2026-11-24): the one all-day word is stopRole.ts's (ROLE_SHORT_WORDS.all_day, above) — this file imports nothing from work.ts, which reads it there too.
 import { plannedMinutesOf } from '@/lib/operations/supersession';
-import { clockWords } from '@/lib/operations/rruleHelpers';
+import { ALL_DAY_CLOCK, clockWords } from '@/lib/operations/rruleHelpers';
 import { minutesOf } from '@/lib/calendar/day';
 import { asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, stopName } from '@/components/workbench/operations/day/dayCard';
 // TIMESHEET-02 (2026-11-24): the day card's own vendor slot — the shape a row's record form is handed (a type; nothing of the card runs here).
@@ -520,6 +536,9 @@ export interface LedgerInput {
   readonly links: readonly LedgerLinkInput[];
   /** buildRoutineBudgetLines over [from, to] — the routines' lines as they stand today. */
   readonly lines: readonly BudgetLine[];
+  /** PASTE-03 (Alex, 2026-11-28): buildRoutineOpenLines over [from, to] — the occurrences of the lines that name their account and NO amount (openLines.ts). They hold no cents: a row on one prints BUDGET blank. Required — an empty list says there are none. */
+  readonly open: readonly OpenLine[];
+  /** What the two builders could not place in the span — the Budget's and, PASTE-03, the open occurrences' — together. */
   readonly notPlaced: readonly NotPlaced[];
   /** The loader's routines by id — the plan lines' words (planLines.ts). */
   readonly routines: ReadonlyMap<string, RoutineWords>;
@@ -649,7 +668,7 @@ export const TWO_LINES_NO_RECORD_WORDS = 'two plan lines stand at this stop — 
  * A PLAN LINE OF THE PERIOD WITH NO RECORD ON IT — the plan, and null where a record would be. The fields are LedgerRow's,
  * under LedgerRow's names, so every cell, filter, sort, total and CSV field reads either row by the one spec; the ones only
  * a record fills are typed null here (never 0, never a guess), and `id` — the record's id — is null: that is how the two are
- * told apart. A plan line always has its book, its account and its cents (the Budget's line holds them).
+ * told apart. A plan line always has its book and its account; its cents when its line names an amount — null on a line that names none (PASTE-03).
  */
 export interface LedgerPlanRow {
   /** No record. */
@@ -687,8 +706,8 @@ export interface LedgerPlanRow {
   readonly plannedItems: string | null;
   /** TIMESHEET-04b (2026-11-27): notes are a record's — a row with no record has none. */
   readonly notes: null;
-  /** The line's cents — BUDGET. */
-  readonly cents: number;
+  /** The line's cents — BUDGET. PASTE-03 (2026-11-28): null on a line that names its account and no amount — a stop with no budget; never 0 for a blank (`number` until then). */
+  readonly cents: number | null;
   readonly outcome: null;
   readonly actualCents: null;
   readonly varianceCents: null;
@@ -768,9 +787,9 @@ export interface LedgerSaid {
   readonly noStay: number;
   /** Records whose routine's zone could not be read — named with the reason, never placed in UTC. */
   readonly unplaced: readonly { readonly record: StopRecordRow; readonly detail: string }[];
-  /** Priced stops planned in the period, already past, with no record. TIMESHEET-02 (2026-11-24, ruling F.2): exactly the sheet's rows whose WENT reads 'not recorded' (a separate count over the budget lines until then). */
+  /** Stops planned in the period, already past, with no record — with a budget or, PASTE-03 (2026-11-28), with none ('priced stops' until then). TIMESHEET-02 (2026-11-24, ruling F.2): exactly the sheet's rows whose WENT reads 'not recorded' (a separate count over the budget lines until then). */
   readonly notRecorded: number;
-  /** The Budget's routine lines in the period it could not place (days.ts NotPlaced). */
+  /** The Budget's routine lines in the period it could not place (days.ts NotPlaced) — and, PASTE-03 (2026-11-28), the occurrences that carry no money that could not be placed (openLines.ts): the two builders' lists together. */
   readonly notPlaced: number;
   /** RETRO-01: records in the period left out because their plan's role takes no money, by role. */
   readonly leftOut: Readonly<Record<NoMoneyRole, number>>;
@@ -787,7 +806,7 @@ export interface Ledger {
   readonly to: string;
   /** Newest day first, then the card's clock order. */
   readonly rows: readonly LedgerRow[];
-  /** TIMESHEET-01: the table's rows — every priced line of the period that takes money or is all day, planned and recorded, and each recorded expense no line's row took. Day ascending; within a day the all-day rows, then the clock. */
+  /** TIMESHEET-01: the table's rows — every line of the period that names its account (with an amount or, PASTE-03, 2026-11-28, with none — 'every priced line' until then) and whose routine's role takes money or is all day, planned and recorded, and each recorded expense no line's row took. Day ascending; within a day the all-day rows, then the clock. */
   readonly sheet: readonly LedgerSheetRow[];
   /** TIMESHEET-02 (2026-11-24): by the sheet row's key, one entry for EVERY row of `sheet`, in the sheet's order — whether the row takes a record, and what its form is given. */
   readonly recording: Readonly<Record<string, LedgerRecording>>;
@@ -804,11 +823,22 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
 /** The card's key for a plan line — the words recordKey gives a record (`line:<step>:<instant>` · `routine:<routine>:<instant>`). */
 const lineKey = (address: PlanLine['address']): string => `${address.kind === 'routine_line' ? 'line' : 'routine'}:${address.id}:${address.instant}`;
 
-/** The day's plan lines, their words and vendors — the one rule the day card's report reads (planLines.ts), for this day. */
+/**
+ * PASTE-03 (Alex, 2026-11-28): THE FIGURE AN OPEN OCCURRENCE CARRIES THROUGH THE ONE READER. The reader's line (report.ts BudgetLine) holds cents and an open
+ * occurrence has none. It is carried as this — and NEVER READ: ledgerOf's lineCentsOf is the one read of a line's cents, and it answers null at an open key.
+ */
+const OPEN_LINE_CENTS = 0;
+
+/**
+ * The day's plan lines, their words and vendors — the one rule the day card's report reads (planLines.ts), for this day. PASTE-03 (2026-11-28): the reader is
+ * handed BOTH — the Budget's lines, and each occurrence that carries no money as a line of the reader's own shape — so an open occurrence's label, its line, its
+ * time and its vendor are matched by that one rule. `open` is stated to the reader too (a vendor at one is not stranded).
+ */
 function dayLines(input: LedgerInput, day: string): readonly PlanLine[] {
   // SUPERSEDE-01b (Alex, 2026-11-08, CLOSED): the task ledger keeps its routine lines UNMARKED — it reads no travel block (a mark
   // is Budget's and the card's); stated as no marks (report.ts markLines over an empty map), never left absent. No row reads the mark.
-  const plan = dayPlanOf({ view: { kind: 'day', day }, lines: markLines(input.lines, new Map()), notPlaced: input.notPlaced, routines: input.routines, tasks: new Map(), vendors: input.vendors });
+  const opened: readonly BudgetLine[] = input.open.map((o) => ({ entityId: o.entityId, code: o.code, day: o.day, cents: OPEN_LINE_CENTS, source: o.source, sourceId: o.sourceId }));
+  const plan = dayPlanOf({ view: { kind: 'day', day }, lines: markLines([...input.lines, ...opened], new Map()), notPlaced: input.notPlaced, open: input.open, routines: input.routines, tasks: new Map(), vendors: input.vendors });
   if (!plan.ok) throw new Error(`ledger: ${plan.code} — ${plan.message}`);
   if (!plan.plan.listed) throw new Error(`ledger: a DAY view lists its plan lines — ${plan.plan.words}`);
   return plan.plan.lines;
@@ -842,6 +872,19 @@ export function ledgerOf(input: LedgerInput): Ledger {
   const { from, to } = input;
   if (!isIsoDay(from) || !isIsoDay(to) || from > to) throw new Error(`ledger: ${JSON.stringify(from)}..${JSON.stringify(to)} is not a span of days`);
   const books = new Map(input.books.map((b) => [b.id, b]));
+  // PASTE-03 (Alex, 2026-11-28): THE OPEN OCCURRENCES' KEYS, AND THE ONE READ OF A LINE'S CENTS. Each open occurrence's key is read back by the one
+  // reader of an occurrence's key (days.ts readOccurrenceKey) into the card's key for its line (lineKey). A key that is no routine occurrence's is this
+  // rule's error, thrown by name; so is an occurrence handed in as BOTH a budget line and an open one — a line names an amount or it names none.
+  const budgeted = new Set(input.lines.map((l) => l.sourceId));
+  const openKeys = new Set<string>();
+  for (const o of input.open) {
+    const read = readOccurrenceKey(o.sourceId);
+    if (read === null || read.address.kind === 'project_task' || read.address.instant === null) throw new Error(`ledger: open line ${JSON.stringify(o.sourceId)} is no routine occurrence's key`);
+    if (budgeted.has(o.sourceId)) throw new Error(`ledger: ${o.sourceId} is handed in as a budget line AND as an open line — a line names an amount, or it names none`);
+    openKeys.add(lineKey({ kind: read.address.kind, id: read.address.id, instant: read.address.instant.toISOString() }));
+  }
+  /** A line's cents — the ONE read of them in this file: null at an open occurrence (its line names no amount; the figure the reader's shape carried is not read), else the Budget's line's own. */
+  const lineCentsOf = (l: PlanLine): number | null => (openKeys.has(lineKey(l.address)) ? null : l.cents);
   // LEDGER-03: the links by the record's own key — no per-record query.
   const linksByKey = new Map<string, LedgerLinkInput[]>();
   for (const l of input.links) {
@@ -974,7 +1017,7 @@ export function ledgerOf(input: LedgerInput): Ledger {
       segments = segmentsOf(line, book.entityType, location, stopName({ line: line.line, label: line.label }));
     }
     const stay = coveringStay(input.stays, day);
-    const cents = line === null ? null : line.cents;
+    const cents = line === null ? null : lineCentsOf(line); // PASTE-03 (2026-11-28): null too on a line that names no amount — 'matched', BUDGET and VARIANCE blank
     const actualCents = r.record.actual_cents;
     // LEDGER-03: the record's own address, and its links by that address — byte for byte.
     const address: LedgerAddress = { kind: r.record.kind, id: r.record.target_id, instant: r.record.occurrence_at };
@@ -1021,12 +1064,12 @@ export function ledgerOf(input: LedgerInput): Ledger {
   const label = new Map(expenses.map((p) => [p.r.record.id, { label: p.r.routineName, line: p.r.activity }]));
   rows.sort((a, b) => cmp(b.day, a.day) || cmpMaybe(a.time, b.time) || cmp(label.get(a.id)!.label, label.get(b.id)!.label) || cmpMaybe(label.get(a.id)!.line, label.get(b.id)!.line) || cmp(a.id, b.id));
 
-  // TIMESHEET-02 (Alex, 2026-11-24, ruling F.2): the priced stops past with no record are counted from the sheet's own rows, below — the
+  // TIMESHEET-02 (Alex, 2026-11-24, ruling F.2): the stops past with no record are counted from the sheet's own rows, below — the
   // rows whose WENT reads 'not recorded'. The separate count over the budget lines that stood here (a key counted once, and never one a
   // record held) is gone with it: one rule says which rows read 'not recorded', and the note counts those rows.
 
-  // ── TIMESHEET-01 (Alex, 2026-11-24): THE SHEET — every priced line of the period, planned and recorded ──
-  // The rows above are untouched. For every day of the span: the day's plan lines (planOn — the rule's own reader) whose
+  // ── TIMESHEET-01 (Alex, 2026-11-24): THE SHEET — every line of the period that names its account, planned and recorded (PASTE-03, 2026-11-28: with an amount or with none — 'every priced line' until then) ──
+  // The rows above are untouched. For every day of the span: the day's plan lines (planOn — the rule's own reader; the open occurrences among them) whose
   // routine's role asks an amount or is all day. A recorded expense whose key names exactly one line of its day ('matched') is
   // printed on that line's row — the row of `rows`, itself; every other listed line is a row without a record. Then each
   // recorded expense no line's row took ('none', 'doubled') is its own row, as `rows` gives it: nothing recorded leaves the
@@ -1108,7 +1151,7 @@ export function ledgerOf(input: LedgerInput): Ledger {
         note: null,
         plannedItems: plannedItemsOf(l.vendor, planKeyOf(kind, id), instant, key),
         notes: null,
-        cents: l.cents,
+        cents: lineCentsOf(l), // PASTE-03 (2026-11-28): null on a line that names no amount
         outcome: null,
         actualCents: null,
         varianceCents: null,
@@ -1636,7 +1679,7 @@ export const noLineWords = (n: number, doubled: number): string =>
 export const noStayWords = (n: number): string => `${n} row${n === 1 ? '' : 's'} on days no stay covers`;
 export const unplacedWords = (list: readonly { readonly record: StopRecordRow; readonly detail: string }[]): string =>
   `${list.length} record${list.length === 1 ? '' : 's'} whose routine's zone could not be read${list.length === 0 ? '' : ` — ${list.map((u) => `${u.record.id}: ${u.detail}`).join('; ')}`}`;
-export const notRecordedWords = (n: number): string => `${n} priced stop${n === 1 ? '' : 's'} planned in the period, already past, with no record`;
+export const notRecordedWords = (n: number): string => `${n} stop${n === 1 ? '' : 's'} planned in the period, already past, with no record`; // PASTE-03 (2026-11-28): a stop with no budget is counted too — 'N priced stop(s) …' until then
 export const notPlacedWords = (n: number): string => `${n} routine line${n === 1 ? '' : 's'} the Budget could not place in the period (no budget here for its stops)`;
 /** RETRO-01: "2 records left out — not expenses (no money at a journal, plan or execute stop): journal 1 · plan 1". */
 export const leftOutWords = (left: Readonly<Record<NoMoneyRole, number>>): string => {
@@ -1761,12 +1804,15 @@ export type ExpenseVendor = { readonly kind: 'none' } | { readonly kind: 'existi
 
 export interface ExpenseValues {
   readonly day: string;
+  /** 'HH:MM' — or '' when the stop is all day (PASTE-03). */
   readonly time: string;
+  /** PASTE-03 (Alex, 2026-11-28): no TIME was typed — the stop is ALL DAY, a charge on its date: its instant is the day at ALL_DAY_CLOCK in the zone, and it takes no record. */
+  readonly allDay: boolean;
   readonly zone: string;
   /** The one-off's stop: the day and time in the zone, ISO text. */
   readonly instant: string;
   readonly name: string;
-  /** The amount as typed (dollars) — the create route reads it by its own rule (planMoney). */
+  /** The amount as typed (dollars) — the create route reads it by its own rule (planMoney). PASTE-03 (2026-11-28): '' when none was typed — a stop with no budget; never '0'. */
   readonly amount: string;
   readonly coa: string;
   readonly bookId: string;
@@ -1810,7 +1856,7 @@ export const starsTypedWords = (typed: string): string => `${JSON.stringify(type
 // read or touched by this: a one-off made before it has the name it was given.
 export const ONE_OFF_NAME_TAIL = ' · YYYY-MM-DD HH:MM'.length;
 export const ONE_OFF_NAME_MAX = 200 - ONE_OFF_NAME_TAIL;
-export const oneOffRoutineName = (v: Pick<ExpenseValues, 'name' | 'day' | 'time'>): string => `${v.name} · ${v.day} ${v.time}`;
+export const oneOffRoutineName = (v: Pick<ExpenseValues, 'name' | 'day' | 'time' | 'allDay'>): string => (v.allDay ? `${v.name} · ${v.day}` : `${v.name} · ${v.day} ${v.time}`); // PASTE-03 (2026-11-28): a charge on its date is named for its day alone — it has no time
 export const NAME_LONG_WORDS = `NAME is at most ${ONE_OFF_NAME_MAX} characters`;
 export const AMOUNT_ZERO_WORDS = 'an expense has an amount above 0';
 export const VENDOR_BOTH_WORDS = 'pick a vendor or type a new name — not both';
@@ -1836,6 +1882,19 @@ export const NOTE_CONTROL_WORDS = `${EXPENSE_FIELD_WORDS.note} holds a control c
 /** A box of the record, typed in "+ expense" for a stop still ahead. */
 export const aheadFieldWords = (field: 'actual' | 'stars' | 'note'): string => `${EXPENSE_FIELD_WORDS[field]} is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come`;
 
+// ── PASTE-03 (Alex, 2026-11-28): A STOP WITH NO TIME IS A CHARGE ON ITS DATE ──
+//
+// "+ expense" required a TIME, and the paste a Start Time — so a row of his sheet with none was refused, and his sheet has a Start
+// Time on fewer than half its rows. A blank TIME is now a stop ALL DAY: a charge on its date, as an all-day routine already is
+// (rruleHelpers.ts ALLDAY-01). Its instant is the day at ALL_DAY_CLOCK in the viewer's zone — that clock's own words, the clock every
+// all-day routine carries — and `ahead` is read against it as for any stop. Its one-off is an all-day routine (oneOffBody: role
+// all_day, no clock sent — the create route derives it, allDayTimeInput), named for its day alone (oneOffRoutineName). A charge
+// TAKES NO RECORD — the stops route refuses one on an all-day line, and it is not edited: ACTUAL, STARS and ITEMS typed with no TIME
+// are each refused by name before that box's own reading (chargeFieldWords), and the form never asks the record (ExpenseForm.tsx —
+// the step is said as 'charge'). Its vendor is planned as any stop's. A typed TIME is read as it was.
+/** A box of the record, typed in "+ expense" with no TIME — a charge on its date. */
+export const chargeFieldWords = (field: 'actual' | 'stars' | 'note'): string => `${EXPENSE_FIELD_WORDS[field]} is the record's, and with no TIME this is a charge on its date — it takes no record; give it a TIME, or leave this blank`;
+
 /** Dollars typed → cents by the Budget's own rule, or the words. */
 function centsOf(typed: string): { readonly ok: true; readonly cents: number } | { readonly ok: false; readonly message: string } {
   let read: ReturnType<typeof centsFromDecimalString>;
@@ -1850,8 +1909,8 @@ function centsOf(typed: string): { readonly ok: true; readonly cents: number } |
 }
 
 /**
- * The one rule for what the form is given: the day a real day; the time HH:MM;
- * the name 1–200 characters; the amount dollars above 0; the COA and the book
+ * The one rule for what the form is given: the day a real day; the time HH:MM, or blank (PASTE-03: all day — a charge on its date, which takes no record);
+ * the name 1–200 characters; the amount blank (PASTE-03: a stop with no budget) or dollars above 0; the COA and the book
  * required; the vendor one of the two ways or none; the actual dollars 0 or more
  * or blank; the stars 1–5 or blank; the note trimmed or blank. The stop is the
  * day and time in the viewer's zone. The first bad field is named.
@@ -1863,16 +1922,20 @@ function centsOf(typed: string): { readonly ok: true; readonly cents: number } |
 export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): ExpenseInputResult {
   if (draft.day === '') return refuseExpense('day', requiredWords('day'));
   if (!isIsoDay(draft.day)) return refuseExpense('day', dayTypedWords(draft.day));
-  if (draft.time === '') return refuseExpense('time', requiredWords('time'));
-  if (!TIME_RE.test(draft.time)) return refuseExpense('time', timeTypedWords(draft.time));
+  // PASTE-03 (Alex, 2026-11-28): TIME MAY BE LEFT BLANK — the stop is ALL DAY, a charge on its date. A typed time is read as it was.
+  const allDay = draft.time.trim() === '';
+  if (!allDay && !TIME_RE.test(draft.time)) return refuseExpense('time', timeTypedWords(draft.time));
   const name = draft.name.trim().replace(/\s+/g, ' ');
   if (name === '') return refuseExpense('name', requiredWords('name'));
   if (name.length > ONE_OFF_NAME_MAX) return refuseExpense('name', NAME_LONG_WORDS);
+  // PASTE-03 (Alex, 2026-11-28): AMOUNT MAY BE LEFT BLANK — a stop with no budget. The value's amount is then '' and the one-off's line is sent with none
+  // (oneOffBody; the create route saves its account with a null amount — planMoney.ts, the pair bends for a line). A typed amount is read as it was, and 0 is still refused.
   const amount = draft.amount.trim();
-  if (amount === '') return refuseExpense('amount', requiredWords('amount'));
-  const amountCents = centsOf(amount);
-  if (!amountCents.ok) return refuseExpense('amount', amountCents.message);
-  if (amountCents.cents === 0) return refuseExpense('amount', AMOUNT_ZERO_WORDS);
+  if (amount !== '') {
+    const amountCents = centsOf(amount);
+    if (!amountCents.ok) return refuseExpense('amount', amountCents.message);
+    if (amountCents.cents === 0) return refuseExpense('amount', AMOUNT_ZERO_WORDS);
+  }
   const coa = draft.coa.trim();
   if (coa === '') return refuseExpense('coa', requiredWords('coa'));
   if (draft.book === '') return refuseExpense('book', requiredWords('book'));
@@ -1882,11 +1945,13 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
   const vendorName = draft.vendorName.trim().replace(/\s+/g, ' ');
   if (draft.vendorId !== '' && vendorName !== '') return refuseExpense('vendor', VENDOR_BOTH_WORDS);
   const vendor: ExpenseVendor = draft.vendorId !== '' ? { kind: 'existing', id: draft.vendorId } : vendorName !== '' ? { kind: 'new', name: vendorName } : { kind: 'none' };
-  // The stop's instant, read once — and whether it is still ahead of the clock handed in, by the stops rule's own test for a done time.
-  const instant = zonedToInstant(draft.day, draft.time, zone);
+  // The stop's instant, read once — and whether it is still ahead of the clock handed in, by the stops rule's own test for a done time. PASTE-03: all day, the
+  // day at ALL_DAY_CLOCK — the clock every all-day routine carries, in its own words.
+  const instant = zonedToInstant(draft.day, allDay ? clockWords(ALL_DAY_CLOCK) : draft.time, zone);
   const ahead = instant.getTime() > now.getTime() + DONE_AT_SKEW_MS;
   let actualCents: number | null = null;
   if (draft.actual.trim() !== '') {
+    if (allDay) return refuseExpense('actual', chargeFieldWords('actual'));
     if (ahead) return refuseExpense('actual', aheadFieldWords('actual'));
     const read = centsOf(draft.actual.trim());
     if (!read.ok) return refuseExpense('actual', read.message);
@@ -1895,18 +1960,20 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
   }
   let rating: number | null = null;
   if (draft.stars.trim() !== '') {
+    if (allDay) return refuseExpense('stars', chargeFieldWords('stars'));
     if (ahead) return refuseExpense('stars', aheadFieldWords('stars'));
     if (!/^[1-5]$/.test(draft.stars.trim())) return refuseExpense('stars', starsTypedWords(draft.stars));
     rating = Number(draft.stars.trim());
   }
   const note = draft.note.trim().replace(/\s+/g, ' ');
+  if (note !== '' && allDay) return refuseExpense('note', chargeFieldWords('note'));
   if (note !== '' && ahead) return refuseExpense('note', aheadFieldWords('note'));
   if (holdsControl(note)) return refuseExpense('note', NOTE_CONTROL_WORDS);
   if (note.length > NOTE_MAX) return refuseExpense('note', NOTE_LONG_WORDS);
   return {
     ok: true,
     value: {
-      day: draft.day, time: draft.time, zone, instant: instant.toISOString(),
+      day: draft.day, time: allDay ? '' : draft.time, allDay, zone, instant: instant.toISOString(),
       name, amount, coa, bookId: draft.book, location: location.value, vendor, actualCents, rating, note: note === '' ? null : note, ahead,
     },
   };
@@ -1916,9 +1983,10 @@ export function expenseInput(draft: ExpenseDraft, zone: string, now: Date): Expe
 export const oneOffBody = (v: ExpenseValues): RoutineForm => ({
   name: oneOffRoutineName(v), description: '', entity_id: v.bookId,
   cadence_mode: 'once', days: 'once' /* FORM-01 (2026-10-19): the form's days choice — a one-off */, weekly_byday: [], monthly_day_of_month: '1', monthly_nth: '1', monthly_weekday: 'MO', custom_rrule: '',
-  byhour: v.time.slice(0, 2), byminute: v.time.slice(3, 5), timezone: v.zone,
-  ideal_time_label: '', fail_threshold_minutes: '0', role: 'place',
-  start_date: v.day, end_date: '', start_time: v.time, end_time: '', is_active: true,
+  // PASTE-03 (2026-11-28): ALL DAY — a charge on its date: role all_day and NO clock — no hour, no minute, no start time — the create route derives it (rruleHelpers.ts allDayTimeInput).
+  byhour: v.allDay ? '' : v.time.slice(0, 2), byminute: v.allDay ? '' : v.time.slice(3, 5), timezone: v.zone,
+  ideal_time_label: '', fail_threshold_minutes: '0', role: v.allDay ? 'all_day' : 'place',
+  start_date: v.day, end_date: '', start_time: v.allDay ? '' : v.time, end_time: '', is_active: true,
   budget_amount: '', coa_code: '', location: '', latitude: '', longitude: '', location_class: v.location, // COALEVELS-01 (2026-11-27): the stop's Location, or null — not said (`location` beside it is the venue's text)
   lines: [{ activity: v.name, budget_amount: v.amount, coa_code: v.coa }],
 });
@@ -1934,7 +2002,7 @@ export const recordBody = (v: ExpenseValues, lineId: string): StopBody =>
 // The outcome: one line per step, each said by name.
 export const EXPENSE_STEPS = ['stop', 'line', 'directory', 'vendor', 'record'] as const;
 export type ExpenseStep = (typeof EXPENSE_STEPS)[number];
-export type ExpenseState = 'written' | 'failed' | 'not tried' | 'not asked' | 'ahead'; // FORM-BOUNDS-01 (2026-11-25): 'ahead' — the record of a stop still ahead: planned, not asked
+export type ExpenseState = 'written' | 'failed' | 'not tried' | 'not asked' | 'ahead' | 'charge'; // FORM-BOUNDS-01 (2026-11-25): 'ahead' — the record of a stop still ahead: planned, not asked. PASTE-03 (2026-11-28): 'charge' — the record of a charge on its date: it takes none, never asked
 export interface ExpenseOutcome {
   readonly step: ExpenseStep;
   readonly state: ExpenseState;
@@ -1949,8 +2017,10 @@ export const NOT_TRIED_WORDS = 'not tried — stopped at the failure before it';
 export const NOT_ASKED_WORDS = 'none given';
 /** FORM-BOUNDS-01 (2026-11-25): the record step of a stop still ahead — it reads "the record — not asked — this stop is still ahead; record it on its row once its time has come". */
 export const RECORD_AHEAD_WORDS = 'not asked — this stop is still ahead; record it on its row once its time has come';
+/** PASTE-03 (2026-11-28): the record step of a charge on its date — it reads "the record — a charge on its date takes no record". */
+export const RECORD_CHARGE_WORDS = 'a charge on its date takes no record';
 export const outcomeWords = (o: ExpenseOutcome): string =>
-  `${STEP_WORDS[o.step]} — ${o.state === 'written' ? WRITTEN_WORDS : o.state === 'not tried' ? NOT_TRIED_WORDS : o.state === 'not asked' ? NOT_ASKED_WORDS : o.state === 'ahead' ? RECORD_AHEAD_WORDS : `not written: ${o.words}`}`;
+  `${STEP_WORDS[o.step]} — ${o.state === 'written' ? WRITTEN_WORDS : o.state === 'not tried' ? NOT_TRIED_WORDS : o.state === 'not asked' ? NOT_ASKED_WORDS : o.state === 'ahead' ? RECORD_AHEAD_WORDS : o.state === 'charge' ? RECORD_CHARGE_WORDS : `not written: ${o.words}`}`;
 /** Every step after a failure, not tried — so the list always names all five. */
 export const withNotTried = (done: readonly ExpenseOutcome[]): ExpenseOutcome[] => {
   const said = new Set(done.map((o) => o.step));
