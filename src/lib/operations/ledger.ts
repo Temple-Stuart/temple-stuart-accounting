@@ -2439,7 +2439,7 @@ export type CellOpen = { readonly refusal: string | null };
 /** The cell is the record's on this row: a record cell, or ITEMS on a row whose record is held (the record's note). Else it is the plan's or its vendor's. */
 export const isRecordCell = (column: TypedColumn, recording: LedgerRecording): boolean => (RECORD_CELLS as readonly TypedColumn[]).includes(column) || (column === 'description' && recording.takes && recording.held !== null);
 /** ITEMS with no record held writes the row's FIRST record — the record's note — on a row that takes one and is no longer ahead (its WENT is not "planned"). */
-const itemsWritesRecord = (row: LedgerSheetRow, recording: LedgerRecording): boolean => recording.takes && recording.held === null && row.id === null && row.went !== PLANNED_WORD;
+export const itemsWritesRecord = (row: LedgerSheetRow, recording: LedgerRecording): boolean => recording.takes && recording.held === null && row.id === null && row.went !== PLANNED_WORD;
 /**
  * EDIT-02 (2026-11-28): every typed cell opens on every row, and its refusal — the one its save meets whatever is typed — is known here, by the row's
  * entries, before any typing. The record's cells by `recording`: on a row that takes no record, its entry's own sentence — a charge's,
@@ -2515,9 +2515,11 @@ export const tagReachWords = (vendor: string): string => `the tag of ${vendor} �
 /**
  * What a change to an open cell reaches: this row — or, INSTAGRAM TAG, every row with the row's vendor; EDIT-02 (2026-11-28): or, on a day of a
  * repeating plan, the plan's own cells and ENTITY — every row of the plan, every day it repeats (REPEATING_REACH_WORDS). A tag on a row with no vendor
- * saves nothing — its line says so — and reaches this row (thrown by name until EDIT-02, when no such cell opened).
+ * saves nothing — its line says so — and reaches this row (thrown by name until EDIT-02, when no such cell opened). CITY · REGION · COUNTRY reach the
+ * trip covering the row's day — every row from its first day to its last — or, on a day no trip covers, the new trip of that day (the row's day, handed in).
  */
-export function cellReachWords(column: TypedColumn, editing: LedgerEditing): string {
+export function cellReachWords(column: TypedColumn, editing: LedgerEditing, day: string): string {
+  if (column === 'city' || column === 'region' || column === 'country') return editing.trip === null ? NEW_TRIP_REACH_WORDS(day) : TRIP_REACH_WORDS(editing.trip.place, editing.trip.startsOn, editing.trip.endsOn);
   if (column === 'instagramTag') return editing.plan && editing.vendor !== null ? tagReachWords(editing.vendor.name) : CELL_REACH_WORDS;
   if (editing.plan && !editing.once && (column === 'book' || (PLAN_CELLS as readonly TypedColumn[]).includes(column))) return REPEATING_REACH_WORDS(editing.routineName);
   return CELL_REACH_WORDS;
@@ -2563,6 +2565,10 @@ export interface PlanRoutineBody {
   readonly role?: 'place' | 'all_day';
   readonly start_time?: string;
   readonly location_class?: string;
+  /** EDIT-02 (2026-11-28): a repeating plan's START sends its END with it (the route asks for both); a routine with no line of its own takes its END, CATEGORY and BUDGET on itself. */
+  readonly end_time?: string | null;
+  readonly coa_code?: string;
+  readonly budget_amount?: string;
 }
 /** The line's PATCH a plan cell sends — the route's own keys (routines/steps/[stepId]/route.ts). */
 export interface PlanLineBody {
@@ -2598,19 +2604,18 @@ const oneOffNameOf = (type: string, day: string, clock: string | null): string =
  *   route against the row's book. TYPE: trimmed, its spaces one; blank or too long for the name refused in the blank row's words — then the
  *   name with the new TYPE, the line's TYPE, and the name it held. BUDGET: as typed — blank is no amount; the route reads the rest.
  *   INSTAGRAM TAG: the row's vendor's, as typed (blank clears it). ITEMS: the row's vendor plan's, at its grain — every occurrence, or this one.
- * A cell that is no plan cell, or the vendor's with none, is this file's error, thrown by name. EDIT-02 (2026-11-28) — between its two commits that open them
- * and write them: a repeating plan's own cell, a line's cell on a routine with no line of its own, and ENTITY are refused here by name — a repeating plan is
- * never sent a one-off's body.
+ * A cell that is no plan cell, or the vendor's with none, is this file's error, thrown by name.
+ *   EDIT-02 (Alex, 2026-11-28): ON A DAY OF A REPEATING PLAN — START: a clock (else refused in the blank row's words), sent with the routine's own END as
+ *   it stands (the route asks for both on a routine that is no one-off; a start at its end, or no end, is the route's refusal), no name — a repeating
+ *   plan's name is its own; TYPE: the line's TYPE alone; LOCATION, END, CATEGORY and BUDGET as on a one-off. ON A ROUTINE WITH NO LINE OF ITS OWN — the
+ *   line's four are the routine's own fields: END its end time (START to the clock typed, read as above; cleared, none), CATEGORY its account, BUDGET
+ *   its amount, TYPE its name (trimmed, its spaces one; blank refused) — each read by the route. ENTITY moves a row to another book: not written.
  */
 export function planCellWrite(row: LedgerSheetRow, editing: LedgerEditingPlan, column: TypedColumn, typed: string): PlanCellRead {
   const charge = row.id === null && row.allDay;
   const clock = charge ? null : row.time;
   const routine = (body: PlanRoutineBody): PlanCellRead => ({ ok: true, write: { to: 'routine', routineId: editing.routineId, body } });
-  if (!editing.once && (PLAN_CELLS as readonly TypedColumn[]).includes(column)) throw new Error(`ledger: ${headWordOf(column)} on a day of the plan "${editing.routineName}" is not written yet`);
-  const lineId = (): string => {
-    if (editing.lineId === null) throw new Error(`ledger: ${headWordOf(column)} of a routine with no line of its own is not written yet — the row ${row.key}`);
-    return editing.lineId;
-  };
+  const line = (lineId: string, body: PlanLineBody): PlanCellRead => ({ ok: true, write: { to: 'line', lineId, body } });
   const vendor = (): LedgerEditingVendor => {
     if (editing.vendor === null) throw new Error(`ledger: ${headWordOf(column)} is the vendor's — the row ${row.key} has none, and no such cell saves`);
     return editing.vendor;
@@ -2619,31 +2624,32 @@ export function planCellWrite(row: LedgerSheetRow, editing: LedgerEditingPlan, c
     case 'book': throw new Error('ledger: ENTITY moves a row to another book — not written yet');
     case 'start': {
       const time = typed.trim();
+      if (!editing.once) return TIME_RE.test(time) ? routine({ start_time: time, end_time: editing.end }) : { ok: false, words: timeTypedWords(typed) };
       if (time === '') return row.id !== null ? { ok: false, words: CHARGE_HAS_RECORD_WORDS } : routine({ role: 'all_day', name: oneOffNameOf(row.description, row.day, null) });
       if (!TIME_RE.test(time)) return { ok: false, words: timeTypedWords(typed) };
       const name = oneOffNameOf(row.description, row.day, time);
       return routine(charge ? { role: 'place', start_time: time, name } : { start_time: time, name });
     }
     case 'end': {
-      const line = lineId();
       const end = typed.trim();
-      if (end === '') return { ok: true, write: { to: 'line', lineId: line, body: { duration_minutes: null } } };
+      if (end === '') return editing.lineId === null ? routine({ end_time: null }) : line(editing.lineId, { duration_minutes: null });
       if (clock === null) return { ok: false, words: END_NEEDS_START_WORDS };
       if (!TIME_RE.test(end)) return { ok: false, words: timeTypedWords(typed) };
       const minutes = minutesFromTo(clock, end);
       if (minutes === 0) return { ok: false, words: END_AT_START_WORDS };
-      return { ok: true, write: { to: 'minutes', lineId: line, minutes } };
+      return editing.lineId === null ? routine({ end_time: end }) : { ok: true, write: { to: 'minutes', lineId: editing.lineId, minutes } };
     }
     case 'location': return routine({ location_class: typed });
-    case 'accountName': return { ok: true, write: { to: 'line', lineId: lineId(), body: { coa_code: typed } } };
+    case 'accountName': return editing.lineId === null ? routine({ coa_code: typed }) : line(editing.lineId, { coa_code: typed });
     case 'subAccountName': {
-      const line = lineId();
       const type = typed.trim().replace(/\s+/g, ' ');
       if (type === '') return { ok: false, words: requiredWords('name') };
+      if (editing.lineId === null) return routine({ name: type });
+      if (!editing.once) return line(editing.lineId, { activity: type });
       if (type.length > ONE_OFF_NAME_MAX) return { ok: false, words: NAME_LONG_WORDS };
-      return { ok: true, write: { to: 'type', routineId: editing.routineId, name: oneOffNameOf(type, row.day, clock), lineId: line, activity: type, nameBack: editing.routineName } };
+      return { ok: true, write: { to: 'type', routineId: editing.routineId, name: oneOffNameOf(type, row.day, clock), lineId: editing.lineId, activity: type, nameBack: editing.routineName } };
     }
-    case 'budget': return { ok: true, write: { to: 'line', lineId: lineId(), body: { budget_amount: typed } } };
+    case 'budget': return editing.lineId === null ? routine({ budget_amount: typed }) : line(editing.lineId, { budget_amount: typed });
     case 'instagramTag': return { ok: true, write: { to: 'tag', vendorId: vendor().id, tag: typed } };
     case 'description': {
       const v = vendor();
@@ -2651,6 +2657,37 @@ export function planCellWrite(row: LedgerSheetRow, editing: LedgerEditingPlan, c
     }
     default: throw new Error(`ledger: ${headWordOf(column)} is no plan cell — its write is the record's or the vendor box's`);
   }
+}
+
+// ── EDIT-02 (Alex, 2026-11-28): THE TRIP'S PLACE — CITY · REGION · COUNTRY ──
+//
+// The trip is the day's, plan or no plan: a row's CITY · REGION · COUNTRY are the place of the stay covering its day, split (stay.ts placeParts), and a
+// cell of them writes that trip. The place to write is the trip's three parts with the typed one in its place, read by the blank row's own place rule
+// (rowTripInput — CITY first; a REGION needs its COUNTRY; stay.ts stayInput, its words). A day a trip covers changes the trip whole — its place, and its two
+// days as they stand (the stays route takes the whole stay); a day no trip covers gets a new trip of that one day. A trip's place left with no CITY is
+// refused by that rule — a trip is removed on Home's day card, not here. Here: the write, pure — the stays' one writer sends it (cellSaves.ts) — and the reach.
+export const TRIP_REACH_WORDS = (place: string, startsOn: string, endsOn: string): string => `the trip "${place}" — every row from ${startsOn} to ${endsOn}`;
+export const NEW_TRIP_REACH_WORDS = (day: string): string => `a new trip on ${day} — the place of every row on it`;
+/** The stays route's body — the whole stay, under its keys (stays/stayWrites.ts StayBody). */
+export interface TripCellBody {
+  readonly place: string;
+  readonly starts_on: string;
+  readonly ends_on: string;
+}
+/** A trip cell's write: the trip that covers the day changed, or a new trip of the day; or the place rule's refusal, before any write. */
+export type TripCellWrite = { readonly to: 'change'; readonly stayId: string; readonly body: TripCellBody } | { readonly to: 'create'; readonly body: TripCellBody };
+export type TripCellRead = { readonly ok: true; readonly write: TripCellWrite } | { readonly ok: false; readonly words: string };
+/** A trip cell's text → its write: the trip's three parts (none, on a day no trip covers) with the typed one in its place, read by rowTripInput over the trip's own two days (the row's day, for a new trip). */
+export function tripCellWrite(row: LedgerSheetRow, editing: LedgerEditing, column: 'city' | 'region' | 'country', typed: string): TripCellRead {
+  const trip = editing.trip;
+  const held = trip === null ? null : placeParts(trip.place);
+  const parts = held === null ? { city: '', region: '', country: '' } : { city: held.city, region: held.region === null ? '' : held.region, country: held.country === null ? '' : held.country };
+  const read = rowTripInput({ ...parts, [column]: typed, endsOn: trip === null ? row.day : trip.endsOn }, trip === null ? row.day : trip.startsOn);
+  if (read.kind === 'refused') return { ok: false, words: read.message };
+  // Every part blank: a place starts with its CITY — the place rule's own first words.
+  if (read.kind === 'none') return { ok: false, words: PLACE_NEEDS_CITY_WORDS };
+  const body: TripCellBody = { place: read.place, starts_on: read.startsOn, ends_on: read.endsOn };
+  return trip === null ? { ok: true, write: { to: 'create', body } } : { ok: true, write: { to: 'change', stayId: trip.id, body } };
 }
 
 // ── EDIT-01 (Alex, 2026-11-28): EVERY ROW'S ✕ — ASKED IN PLACE, THEN DELETED ──

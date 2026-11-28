@@ -256,15 +256,15 @@ test('E6 the frame: the open cell is React state — one at a time — opened on
   assert.equal(nextOpeningColumn('notes'), null, 'none to the right: it closes');
   // The line beneath: the column's head word, its reach, the keys — and the refusal in red; WENT none asks first.
   assert.match(s, /<tr className="border-t border-border" data-ledger-cell-said=\{row\.key\}>\n\s*<td colSpan=\{LEDGER_COLUMNS\.length\} className=\{cell\}>/);
-  assert.ok(s.includes('<span className="font-semibold text-text-primary" data-ledger-cell-head>{headWordOf(open.column)}</span><span data-ledger-cell-reach>{cellReachWords(open.column, editing[row.key])}</span><span className="text-text-muted" data-ledger-cell-keys>{CELL_KEYS_WORDS}</span>'));
+  assert.ok(s.includes('<span className="font-semibold text-text-primary" data-ledger-cell-head>{headWordOf(open.column)}</span><span data-ledger-cell-reach>{cellReachWords(open.column, editing[row.key], row.day)}</span><span className="text-text-muted" data-ledger-cell-keys>{CELL_KEYS_WORDS}</span>'));
   assert.ok(s.includes('{cellRefusal !== null && <span className="text-brand-red" data-ledger-cell-refused>{cellRefusal}</span>}'));
   assert.equal(CELL_REACH_WORDS, 'this row');
   assert.equal(CELL_KEYS_WORDS, 'Enter saves · Tab saves and opens the next cell · Esc puts it back');
-  assert.equal(cellReachWords('stars', ledger.editing[recorded.key]), 'this row');
+  assert.equal(cellReachWords('stars', ledger.editing[recorded.key], recorded.day), 'this row'); // EDIT-02 (2026-11-28) (PART 2): the reach takes the row's day — a new trip's
   const lunch = rowOf('Lunch', THU, false)[0];
-  assert.equal(cellReachWords('instagramTag', ledger.editing[lunch.key]), 'the tag of Harbor Cafe — every row with Harbor Cafe');
+  assert.equal(cellReachWords('instagramTag', ledger.editing[lunch.key], lunch.day), 'the tag of Harbor Cafe — every row with Harbor Cafe');
   assert.equal(tagReachWords('Harbor Cafe'), 'the tag of Harbor Cafe — every row with Harbor Cafe');
-  assert.equal(cellReachWords('instagramTag', ledger.editing[rowOf('Dinner', FRI, false)[0].key]), 'this row', 'EDIT-02 (2026-11-28): a tag with no vendor opens and saves nothing (its line says why) — it reaches this row; thrown by name until then, when no such cell opened');
+  assert.equal(cellReachWords('instagramTag', ledger.editing[rowOf('Dinner', FRI, false)[0].key], FRI), 'this row', 'EDIT-02 (2026-11-28): a tag with no vendor opens and saves nothing (its line says why) — it reaches this row; thrown by name until then, when no such cell opened');
   assert.doesNotMatch(s, /localStorage|sessionStorage|document\.cookie|indexedDB|window\.confirm|confirm\(/, 'nothing stored in the browser; no browser pop-up');
 });
 
@@ -456,7 +456,7 @@ test('E10 each plan cell’s writer and its body: START (the clock and the one-o
   assert.deepEqual(write(lunch, L, 'subAccountName', '   '), { ok: false, words: requiredWords('name') });
   assert.deepEqual(write(lunch, L, 'subAccountName', 'x'.repeat(ONE_OFF_NAME_MAX + 1)), { ok: false, words: NAME_LONG_WORDS });
   // No such cell opens: thrown by name.
-  assert.throws(() => write(lunch, { ...L, lineId: null }, 'budget', '5'), /^Error: ledger: BUDGET of a routine with no line of its own is not written yet — the row line:lunch-line:\S+$/); // EDIT-02 (2026-11-28): such a cell opens now; its write is PART 2's
+  assert.deepEqual(write(lunch, { ...L, lineId: null }, 'budget', '5'), { ok: true, write: { to: 'routine', routineId: 'lunch', body: { budget_amount: '5' } } }); // EDIT-02 (2026-11-28) (PART 2): a routine with no line of its own takes its BUDGET on itself (thrown by name until then — no such cell opened)
   assert.throws(() => write(lunch, L, 'stars', '4'), /^Error: ledger: STARS is no plan cell/);
   // Through the writers: each request, its method and its body.
   const routes = { routine: '/api/operations/routines/lunch', line: '/api/operations/routines/steps/lunch-line' };
@@ -564,8 +564,8 @@ test('E12 every save goes through saveCell, sorted by the rule’s own test and 
   assert.deepEqual([run.sent[0].url, run.sent[0].method], ['/api/operations/stops', 'POST'], 'a record’s cell');
   run = await standIn([[200, { record: {}, changed: true }]], () => save(gymThu, 'description', 'two sets'));
   assert.deepEqual([run.sent[0].url, (run.sent[0].body as { note: string }).note], ['/api/operations/stops', 'two sets'], 'ITEMS on a held record: its note');
-  run = await standIn([OK], () => save(lunch, 'description', 'soup only'));
-  assert.deepEqual([run.sent[0].url, run.sent[0].method], ['/api/operations/plan-vendors', 'POST'], 'ITEMS on a row with no record: the planned items');
+  run = await standIn([[201, { record: {}, changed: true }]], () => save(lunch, 'description', 'soup only'));
+  assert.deepEqual([run.sent[0].url, run.sent[0].method, (run.sent[0].body as { note: string }).note], ['/api/operations/stops', 'POST', 'soup only'], 'EDIT-02 (2026-11-28) (PART 2): ITEMS on a past row with no record writes its first record, the note typed — the planned items until then (they stay so ahead, E11)');
   run = await standIn([OK], () => save(lunch, 'budget', '9'));
   assert.deepEqual([run.sent[0].url, run.sent[0].method], ['/api/operations/routines/steps/lunch-line', 'PATCH']);
   run = await standIn([OK], () => save(lunch, 'vendor', ''));

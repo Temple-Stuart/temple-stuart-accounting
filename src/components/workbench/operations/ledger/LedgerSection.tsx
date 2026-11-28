@@ -393,7 +393,7 @@ export default function LedgerSection() {
               {open !== null && open.key === row.key && (
                 <tr className="border-t border-border" data-ledger-cell-said={row.key}>
                   <td colSpan={LEDGER_COLUMNS.length} className={cell}>
-                    <span className="inline-flex flex-wrap items-center gap-2"><span className="font-semibold text-text-primary" data-ledger-cell-head>{headWordOf(open.column)}</span><span data-ledger-cell-reach>{cellReachWords(open.column, editing[row.key])}</span><span className="text-text-muted" data-ledger-cell-keys>{CELL_KEYS_WORDS}</span>
+                    <span className="inline-flex flex-wrap items-center gap-2"><span className="font-semibold text-text-primary" data-ledger-cell-head>{headWordOf(open.column)}</span><span data-ledger-cell-reach>{cellReachWords(open.column, editing[row.key], row.day)}</span><span className="text-text-muted" data-ledger-cell-keys>{CELL_KEYS_WORDS}</span>
                       {clearing && <><span className="text-brand-red" data-ledger-cell-clear>{CLEAR_CELL_QUESTION}</span><button type="button" className={chip} onClick={() => void clearCell(row)} data-ledger-cell-clear-yes>{CLEAR_RECORD_WORDS}</button><button type="button" className={chip} onClick={() => setOpenCell(null)} data-ledger-cell-keep>{KEEP_WORDS}</button></>}
                       {cellRefusal !== null && <span className="text-brand-red" data-ledger-cell-refused>{cellRefusal}</span>}
                     </span>
