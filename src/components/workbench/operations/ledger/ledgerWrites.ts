@@ -12,6 +12,7 @@
  *   · PATCH /api/operations/routines/steps/[id]  patchLine      — a line's own fields (the line's own route)
  *   · DELETE /api/operations/plan-vendors        clearVendor    — the vendor at one address cleared (VENDOR-01's route)
  *   · GET  /api/operations/vendor-directory      readVendors    — the caller's vendors, each with its tag (the directory's own GET)
+ *   · DELETE /api/operations/routines/[id]       deleteRoutine  — a routine deleted, every row of it with it (the routine's own route)
  *   · the record: stops/stopWrites.ts setStopRecord — the one writer of a stop's record
  *
  * PASTE-02 (Alex, 2026-11-27): the pasted rows are saved through these (src/lib/operations/pasteSave.ts runs them; ledger/PasteRows.tsx
@@ -26,7 +27,8 @@
  * EDIT-01 (Alex, 2026-11-28) — for the time sheet's cells (ledger/cellSaves.ts runs them): three writers and one read are new, at the
  * file's end — patchRoutine, patchLine, clearVendor and readVendors (the directory's list read by the paste's own rule, pasteRows.ts
  * vendorsOf). The one helper takes DELETE too (no body is sent with it), and setVendor takes an instant of null — the plan's
- * every-occurrence row, whose planned items a cell sets at that grain. Still ONE request in this file.
+ * every-occurrence row, whose planned items a cell sets at that grain. Still ONE request in this file. And for a row's ✕: deleteRoutine,
+ * after them.
  *
  * Each answer is read the one way the vendor box reads its own
  * (budget/VendorBox.tsx answerOf): ok with the route's body, or the route's
@@ -149,4 +151,11 @@ export async function readVendors(): Promise<WriteAnswer<readonly PasteVendor[]>
   if (!listed.ok) return { ok: false, words: vendorsUnreadWords(listed.words) };
   const read = vendorsOf(listed.value);
   return read.ok ? { ok: true, value: read.vendors } : { ok: false, words: vendorsUnreadWords(read.words) };
+}
+
+/** EDIT-01 (2026-11-28): a routine deleted — the routines DELETE that stands; its lines, stop records, vendor plans and completions go with it, by their foreign keys. A posting linked in Books refuses it by name, and nothing is deleted: the route's words. */
+export async function deleteRoutine(routineId: string): Promise<WriteAnswer<null>> {
+  const answer = await send('DELETE', `/api/operations/routines/${routineId}`, undefined);
+  if (!answer.ok) return answer;
+  return { ok: true, value: null };
 }

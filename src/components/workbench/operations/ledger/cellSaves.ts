@@ -19,15 +19,19 @@
  * the vendor at the row's address; else the paste's own rule (pasteRows.ts pastedVendorOf) decides one of the book's — set at the row's address
  * — or a new one — added to the book, then set. A name typed while the vendors are unread is refused, never guessed. saveCell sorts a cell to its
  * save by the rule's own test (ledger.ts isRecordCell) and the row's entries.
+ *
+ * PART 4 (2026-11-28): A ROW'S ✕, once the frame has asked: what it deletes is the rule's (ledger.ts rowDeleteOf) — the row's routine, through the
+ * routines DELETE that stands (ledgerWrites.ts deleteRoutine), or a record with no plan, through the stops' one writer's clear (clearStopRecord). A
+ * refusal — a posting linked in Books, said by name — comes back as the route's words, and nothing is changed.
  */
 import {
   VENDORS_LOADING_WORDS, isRecordCell, planCellWrite, recordCellDraft, recordInput, nameNotPutBackWords, vendorAddedNotSetWords,
-  type LedgerEditing, type LedgerEditingPlan, type LedgerRecording, type LedgerRecordingTaken, type LedgerSheetRow, type PlanCellWrite, type TypedColumn,
+  type LedgerEditing, type LedgerEditingPlan, type LedgerRecording, type LedgerRecordingTaken, type LedgerSheetRow, type PlanCellWrite, type RowDelete, type TypedColumn,
 } from '@/lib/operations/ledger';
 import { pastedVendorOf, type PasteVendor } from '@/lib/operations/pasteRows';
 import type { StopRecordRow } from '@/lib/operations/stopRecord';
 import { clearStopRecord, setStopRecord } from '../stops/stopWrites';
-import { addVendor, clearVendor, patchLine, patchRoutine, readVendors, setLineMinutes, setVendor, setVendorTag, type WriteAnswer } from './ledgerWrites';
+import { addVendor, clearVendor, deleteRoutine, patchLine, patchRoutine, readVendors, setLineMinutes, setVendor, setVendorTag, type WriteAnswer } from './ledgerWrites';
 
 /** A cell's save: accepted, or refused in words. */
 export type CellSave = { readonly ok: true } | { readonly ok: false; readonly words: string };
@@ -135,4 +139,15 @@ export function saveCell(row: LedgerSheetRow, recording: LedgerRecording, editin
   }
   if (!editing.plan) throw new Error(`cellSaves: ${column} of ${row.key} is the plan's, and the row has none to change`);
   return column === 'vendor' ? saveVendorCell(row, editing, text, vendors) : savePlanCell(row, editing, column, text);
+}
+
+/** A row's ✕, asked and answered: its routine deleted, or its record cleared. A refusal is the route's words; nothing is changed then. */
+export async function deleteRow(target: RowDelete): Promise<CellSave> {
+  try {
+    if (target.kind === 'routine') return savedOf(await deleteRoutine(target.routineId));
+    const answer = await clearStopRecord(target.held.id);
+    return answer.ok ? { ok: true } : { ok: false, words: answer.message };
+  } catch (error) {
+    return { ok: false, words: wordsOf(error) };
+  }
 }

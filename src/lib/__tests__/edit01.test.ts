@@ -27,11 +27,13 @@ import {
   type LedgerEditing, type LedgerInput, type LedgerRecordInput, type LedgerRecordingTaken, type LedgerSheetRow, type LedgerVendorRow, type TypedColumn,
   CHARGE_HAS_RECORD_WORDS, END_AT_START_WORDS, END_NEEDS_START_WORDS, ITEMS_CELL_NO_VENDOR_WORDS, LINE_CELLS, NAME_LONG_WORDS, NO_LINE_CELL_WORDS, ONE_OFF_NAME_MAX, PLAN_CELLS, RECORD_ON_OWN_ROW_WORDS, REPEATING_PLAN_WORDS,
   TAG_NEEDS_VENDOR_WORDS, VENDORS_LOADING_WORDS, isRecordCell, nameNotPutBackWords, planCellWrite, requiredWords, timeTypedWords, vendorAddedNotSetWords, type LedgerEditingPlan, type LedgerPlanRow,
+  DELETE_ROW_WORDS, DELETE_WORDS, deleteOneOffQuestion, deletePlanQuestion, deleteRecordQuestion, rowDeleteOf,
 } from '../operations/ledger';
 import { VENDORS_NO_LIST_WORDS, vendorsUnreadWords } from '../operations/pasteRows';
 import { readLedger } from '../../components/workbench/operations/ledger/ledgerReads';
 import ColumnBox from '../../components/workbench/operations/ledger/ColumnBox';
-import { clearRecordCell, readCellVendors, saveCell, savePlanCell, saveRecordCell, saveVendorCell, type CellVendors } from '../../components/workbench/operations/ledger/cellSaves';
+import { clearRecordCell, deleteRow, readCellVendors, saveCell, savePlanCell, saveRecordCell, saveVendorCell, type CellVendors } from '../../components/workbench/operations/ledger/cellSaves';
+import { routineHoldsLinksWords } from '../operations/linkHold';
 import { clearVendor, patchLine, patchRoutine, setVendor } from '../../components/workbench/operations/ledger/ledgerWrites';
 
 const SHEET_RULES = 'src/lib/operations/ledger.ts';
@@ -230,7 +232,7 @@ test('E5 the box is ONE renderer — ColumnBox — drawn by the blank row under 
 test('E6 the frame: the open cell is React state — one at a time — opened on a click where its row’s entries allow; Enter saves, Tab saves then opens the next cell that opens, Esc puts it back, leaving saves only a change; the line beneath names the column, its reach and the keys; nothing is stored', () => {
   const s = code(SECTION);
   assert.match(s, /const editing: Readonly<Record<string, LedgerEditing>> = answer !== null && answer\.read\.ok \? answer\.read\.value\.editing : \{\};/, '`editing` read from the answer');
-  assert.match(s, /const \{ open, clearing, cellRefusal, setOpenCell, titleOf, clickCell, boxIn, clearCell \} = useCellFrame\(rows, recording, editing, \(day\) => \{ setWrites\(\(n\) => n \+ 1\); announceDayWritten\(day\); \}\);/, 'an accepted save reads the span again and announces the day');
+  assert.match(s, /const \{ open, clearing, cellRefusal, setOpenCell, titleOf, clickCell, boxIn, clearCell, asking, questionOf, askDelete, keepRow, deleteAsked \} = useCellFrame\(rows, recording, editing, \(day\) => \{ setWrites\(\(n\) => n \+ 1\); announceDayWritten\(day\); \}\);/, 'an accepted save reads the span again and announces the day');
   const frame = s.slice(s.indexOf('function useCellFrame('));
   assert.match(frame, /const \[open, setOpen\] = useState<OpenCell \| null>\(null\);/, 'ONE open cell: its row’s key and its column, or none');
   assert.match(s, /type OpenCell = \{ readonly key: string; readonly column: TypedColumn \};/);
@@ -589,7 +591,7 @@ test('E13 the writers file: patchRoutine, patchLine and clearVendor through the 
   assert.equal((w.match(/\bfetch\s*\(/g) ?? []).length, 1, 'one request in the file');
   assert.match(w, /async function send\(method: 'POST' \| 'PATCH' \| 'DELETE', url: string, body: unknown\)/);
   assert.match(w, /readonly instant: string \| null; readonly vendorId: string; readonly items\?: string \}\)/, 'setVendor: an instant, or none — every occurrence');
-  assert.deepEqual([...w.matchAll(/^export async function (\w+)/gm)].map((m) => m[1]).slice(-4), ['patchRoutine', 'patchLine', 'clearVendor', 'readVendors'], 'at the file’s end');
+  assert.deepEqual([...w.matchAll(/^export async function (\w+)/gm)].map((m) => m[1]).slice(7), ['patchRoutine', 'patchLine', 'clearVendor', 'readVendors', 'deleteRoutine'], 'after the seven that stood — PART 4’s deleteRoutine last');
   let run = await standIn([OK], async () => patchRoutine('lunch', { location_class: 'homebase' }));
   assert.deepEqual([run.result, ...run.sent], [{ ok: true, value: null }, { url: '/api/operations/routines/lunch', method: 'PATCH', body: { location_class: 'homebase' } }]);
   run = await standIn([[400, { error: 'Validation', field: 'activity', message: 'activity cannot be empty' }]], async () => patchLine('lunch-line', { activity: ' ' }));
@@ -599,4 +601,78 @@ test('E13 the writers file: patchRoutine, patchLine and clearVendor through the 
   const saves = code(SAVES);
   assert.doesNotMatch(saves, /\bfetch\s*\(|\/api\//, 'the leaf names no route');
   for (const file of [SAVES, WRITERS, SECTION]) assert.doesNotMatch(code(file), /localStorage|sessionStorage|document\.cookie|indexedDB/, `${file}: nothing stored in the browser`);
+});
+
+// ── PART 4 — EVERY ROW'S ✕ ───────────────────────────────────────────────────
+
+// ── E14 · WHAT A ✕ DELETES, AND WHAT IT ASKS (ruling 4.1) ────────────────────
+
+test('E14 the ✕’s three questions, by the row’s entries: a one-off — this row, with its record and its vendor; a day of a repeating plan — the plan, every row of it; no plan and a held record — the record; no plan and no record — no ✕', () => {
+  const lunch = rowOf('Lunch', THU, false)[0];
+  const dinner = rowOf('Dinner', FRI, false)[0];
+  const gymFri = rowOf('Morning Gym', FRI, false)[0];
+  const gymThu = rowOf('Morning Gym', THU, true)[0];
+  const kiosk = rowOf('Kiosk', THU, true)[0];
+  const teaRecorded = rowOf('Tea', THU, true)[0];
+  const teaPlans = [...rowOf('Tea', THU, false), ...rowOf('Tea', FRI, false)];
+  const del = (row: LedgerSheetRow) => rowDeleteOf(row, ledger.recording[row.key], ledger.editing[row.key]);
+  // A one-off: its routine — the row, with its record and its vendor.
+  assert.deepEqual(del(lunch), { kind: 'routine', routineId: 'lunch', question: 'delete this row — Lunch on 2027-03-04, with its record and its vendor?' });
+  assert.deepEqual(del(dinner), { kind: 'routine', routineId: 'dinner', question: deleteOneOffQuestion('Dinner', FRI) });
+  // A day of a repeating plan — its row with no record, and its recorded row: the plan, every row of it.
+  const plan = { kind: 'routine', routineId: 'gym', question: 'delete the plan "Morning Gym" — every row of it, before and after this day, with their records and vendors?' };
+  assert.deepEqual([del(gymFri), del(gymThu)], [plan, plan]);
+  // No plan and a held record: the record, by its id.
+  const kioskHeld = takenOf(kiosk).held;
+  assert.deepEqual(del(kiosk), { kind: 'record', held: kioskHeld, question: 'delete this record — Kiosk on 2027-03-04?' });
+  assert.deepEqual(del(teaRecorded), { kind: 'record', held: takenOf(teaRecorded).held, question: deleteRecordQuestion('Tea', THU) });
+  // No plan and no record: no ✕.
+  for (const row of teaPlans) assert.equal(del(row), null, `${row.key}: nothing to delete`);
+  // The words, typed whole.
+  assert.equal(DELETE_ROW_WORDS, 'delete this row');
+  assert.equal(DELETE_WORDS, 'delete');
+  assert.equal(KEEP_WORDS, 'keep');
+  assert.equal(deletePlanQuestion('Morning Gym'), plan.question);
+  assert.equal(deleteRecordQuestion('Lunch', THU), 'delete this record — Lunch on 2027-03-04?');
+});
+
+// ── E15 · ASKED IN PLACE, THEN DELETED (ruling 4.1, the HARD GATE) ───────────
+
+test('E15 the ✕ asks in place and only then deletes — the routine through the routines DELETE that stands, a record with no plan through the stops’ one writer; a refusal is the route’s words, nothing changed; one question at a time, closed by a cell or another ✕; no confirm(), nothing stored', async () => {
+  const lunch = rowOf('Lunch', THU, false)[0];
+  const kiosk = rowOf('Kiosk', THU, true)[0];
+  const del = (row: LedgerSheetRow) => { const d = rowDeleteOf(row, ledger.recording[row.key], ledger.editing[row.key]); if (d === null) return assert.fail(`${row.key} has no ✕`); return d; };
+  // delete → the routine, through the routines DELETE that stands; its answer read the file's one way.
+  let run = await standIn([[200, { deleted: true, id: 'lunch' }]], () => deleteRow(del(lunch)));
+  assert.deepEqual([run.result, ...run.sent], [{ ok: true }, { url: '/api/operations/routines/lunch', method: 'DELETE', body: null }]);
+  // …refused while a posting is linked in Books — the route's words, and nothing else sent.
+  run = await standIn([[409, { error: routineHoldsLinksWords(1) }]], () => deleteRow(del(lunch)));
+  assert.deepEqual([run.result, run.sent.length], [{ ok: false, words: routineHoldsLinksWords(1) }, 1]);
+  // …or a record with no plan, through the stops' one writer's clear.
+  run = await standIn([[200, { deleted: true }]], () => deleteRow(del(kiosk)));
+  assert.deepEqual([run.result, ...run.sent], [{ ok: true }, { url: '/api/operations/stops/r-kiosk', method: 'DELETE', body: null }]);
+  run = await standIn([[404, { error: 'Not found' }]], () => deleteRow(del(kiosk)));
+  assert.equal(run.result.ok, false, 'a refusal is said');
+  // The writer: the routines DELETE, through the one helper — at the file's end.
+  const w = code(WRITERS);
+  assert.match(w, /export async function deleteRoutine\(routineId: string\): Promise<WriteAnswer<null>> \{\n\s*const answer = await send\('DELETE', `\/api\/operations\/routines\/\$\{routineId\}`, undefined\);/);
+  assert.equal([...w.matchAll(/^export async function (\w+)/gm)].map((m) => m[1]).pop(), 'deleteRoutine');
+  assert.equal((w.match(/\bfetch\s*\(/g) ?? []).length, 1, 'still one request in the file');
+  // THE ✕: the DAY cell starts with it — the app's faint chip, red on hover and focus — on a row that has something to delete.
+  const s = code(SECTION);
+  assert.ok(s.includes('data-ledger-cell="day" title={titleOf(row, \'day\')}>{questionOf(row) !== null && <button type="button" className={`${chip} mr-1 text-text-faint hover:text-brand-red focus:text-brand-red`} aria-label={DELETE_ROW_WORDS} aria-expanded={asking !== null && asking.key === row.key} onClick={() => askDelete(row)} data-ledger-delete={row.key}>✕</button>}{dayLongWords(row.day)}</td>'));
+  // ITS QUESTION — a row beneath, spanning every column, in red: delete · keep, and a refusal on that line.
+  assert.match(s, /\{asking !== null && asking\.key === row\.key && \(\n\s*<tr className="border-t border-border" data-ledger-delete-ask=\{row\.key\}>\n\s*<td colSpan=\{LEDGER_COLUMNS\.length\} className=\{cell\}>\n\s*<span className="inline-flex flex-wrap items-center gap-2 text-brand-red"><span data-ledger-delete-question>\{questionOf\(row\)\}<\/span><button type="button" className=\{`\$\{chip\} text-brand-red`\} onClick=\{\(\) => void deleteAsked\(row\)\} data-ledger-delete-yes>\{DELETE_WORDS\}<\/button><button type="button" className=\{chip\} onClick=\{keepRow\} data-ledger-delete-keep>\{KEEP_WORDS\}<\/button>\n\s*\{asking\.refusal !== null && <span data-ledger-delete-refused>\{asking\.refusal\}<\/span>\}/);
+  // Nothing is deleted on the first tap: the ✕ asks; delete is the answer.
+  const frame = s.slice(s.indexOf('function useCellFrame('));
+  assert.match(frame, /const askDelete = \(row: LedgerSheetRow\) => setAsking\(\{ key: row\.key, refusal: null \}\);/, 'the ✕ only asks');
+  assert.match(frame, /const keepRow = \(\) => setAsking\(null\);/);
+  assert.match(frame, /const done = await deleteRow\(target\);\n\s*if \(!done\.ok\) \{ setAsking\(\{ key: row\.key, refusal: done\.words \}\); return; \}\n\s*setAsking\(null\);\n\s*written\(row\.day\);/, 'refused: the words, nothing changed; accepted: the span read again and the day told');
+  assert.equal((frame.match(/deleteRow\(/g) ?? []).length, 1, 'the one delete — behind the question');
+  // One question at a time: ONE state; a cell opening closes it; so does its row leaving the sheet.
+  assert.match(frame, /const \[asking, setAsking\] = useState<\{ readonly key: string; readonly refusal: string \| null \} \| null>\(null\);/);
+  assert.match(frame, /if \(next !== null\) setAsking\(null\);/, 'opening a cell closes the question');
+  assert.match(frame, /setAsking\(\(held\) => \(held === null \|\| rows\.some\(\(r\) => r\.key === held\.key\) \? held : null\)\);/);
+  // No browser pop-up, nothing stored — in the frame, the leaf or the writers.
+  for (const file of [SECTION, SAVES, WRITERS]) assert.doesNotMatch(code(file), /window\.confirm|\bconfirm\(|\balert\(|\bprompt\(|localStorage|sessionStorage|document\.cookie|indexedDB/, `${file}: no pop-up, nothing stored`);
 });

@@ -800,7 +800,7 @@ test('T10 the section: the "record" chip in the WENT cell on every row whose ent
   // One cell per head word, in its order — TIMESHEET-02 added no column. TIMESHEET-04b (2026-11-27): twenty-three — the instagram-tag cell after vendor's, the notes cell after description's; 21 until then. COALEVELS-01 (2026-11-27): twenty-five — the region's and the location's cells; 23 until then.
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
   assert.equal(cells.length, 25);
-  assert.equal((s.match(/colSpan=\{LEDGER_COLUMNS\.length\}/g) ?? []).length, 3, 'the three rows beneath span every column shown'); // TIMEDAY-01 (Alex, 2026-11-24): both rows span the columns still shown, the same way — `/colSpan=\{LEDGER_HEAD_WORDS\.length\}/g`, 'the two rows beneath span every column', until then; SHEET-01 (2026-11-28): every column — the fold is gone; EDIT-01 (2026-11-28): and the open cell's line
+  assert.equal((s.match(/colSpan=\{LEDGER_COLUMNS\.length\}/g) ?? []).length, 4, 'the four rows beneath span every column shown'); // TIMEDAY-01 (Alex, 2026-11-24): both rows span the columns still shown, the same way — `/colSpan=\{LEDGER_HEAD_WORDS\.length\}/g`, 'the two rows beneath span every column', until then; SHEET-01 (2026-11-28): every column — the fold is gone; EDIT-01 (2026-11-28): and the open cell's line; EDIT-01 (2026-11-28) (PART 4): the ✕'s question beneath its row spans every column too — three until then
   assert.match(comments(SECTION), /TIMESHEET-02 \(Alex, 2026-11-24\): THE TIME SHEET, PART TWO — RECORD ON THE ROW\./);
   assert.match(comments(RULES), /TIMESHEET-02 \(Alex, 2026-11-24\) — THE TIME SHEET, PART TWO: RECORD ON THE ROW\./);
 });

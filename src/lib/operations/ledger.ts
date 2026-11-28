@@ -2610,6 +2610,30 @@ export function planCellWrite(row: LedgerSheetRow, editing: LedgerEditingPlan, c
   }
 }
 
+// ── EDIT-01 (Alex, 2026-11-28): EVERY ROW'S ✕ — ASKED IN PLACE, THEN DELETED ──
+//
+// "still im seeing the data I added myself... no way to remove it?" A row with something to delete starts with a ✕ (its DAY cell), and the ✕
+// asks first, in place, on a red line beneath the row — never a browser pop-up. By the row's entries: a row with its plan deletes its ROUTINE
+// through the routines DELETE that stands (its lines, stop records, vendor plans and completions go with it, by their foreign keys; a posting
+// linked in Books refuses it by name and nothing is deleted) — a one-off asks for this row, with its record and its vendor; a day of a
+// repeating plan asks for the plan, every row of it. A row with no plan that holds a record deletes that record (the stops' one writer's
+// clear). A row with neither has no ✕. Here: what a ✕ deletes, the question it asks, and the words.
+export const DELETE_ROW_WORDS = 'delete this row';
+export const DELETE_WORDS = 'delete';
+export const deleteOneOffQuestion = (type: string, day: string): string => `delete this row — ${type} on ${day}, with its record and its vendor?`;
+export const deletePlanQuestion = (name: string): string => `delete the plan "${name}" — every row of it, before and after this day, with their records and vendors?`;
+export const deleteRecordQuestion = (type: string, day: string): string => `delete this record — ${type} on ${day}?`;
+/** What a row's ✕ deletes — its routine, or the record it holds — with the question asked first. */
+export type RowDelete =
+  | { readonly kind: 'routine'; readonly routineId: string; readonly question: string }
+  | { readonly kind: 'record'; readonly held: StopRecordRow; readonly question: string };
+/** A row's ✕, by its entries: with its plan, its routine — a one-off's question, or the repeating plan's; with no plan and a held record, the record; with neither, null — no ✕. */
+export function rowDeleteOf(row: LedgerSheetRow, recording: LedgerRecording, editing: LedgerEditing): RowDelete | null {
+  if (editing.plan) return { kind: 'routine', routineId: editing.routineId, question: editing.once ? deleteOneOffQuestion(row.description, row.day) : deletePlanQuestion(editing.routineName) };
+  if (recording.takes && recording.held !== null) return { kind: 'record', held: recording.held, question: deleteRecordQuestion(row.description, row.day) };
+  return null;
+}
+
 // ── TIMEWIDE-01 (Alex, 2026-11-24): THE SHEET'S TABLE CLASS ──────────────────
 //
 // The class the time sheet hands the shared table for its <table> (ledger/LedgerSection.tsx tableClassName; the shared table sets it
