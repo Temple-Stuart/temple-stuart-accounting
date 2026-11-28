@@ -105,17 +105,17 @@ test('T2 the schema\'s need names the CHECK, the seven words (\'close\' legacy) 
   assert.match(schema, /prisma\/migrations\/20261108111500_services_01_bookkeeping_need/);
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
   // HOME-SERVICES-02 (2026-11-16): its migration, 20261116132400_home_services_02_answers (proposals gains answers), is the newest now — every position read from the end below moved by one, and a message that says "the newest" names the one before it.
-  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more.
-  assert.equal(dirs[dirs.length - 7], MIGRATION_DIR, 'the migration before the newest (CRM-01a followed)');
-  assert.equal(dirs[dirs.length - 8], '20261103200000_travel_02c_stay_link_living_baselines');
+  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more. COALEVELS-01 (2026-11-27): and its migration, 20261127230000_coa_levels_01_sub_accounts_location (a table of the chart's sub-accounts, and a routine's Location), is the newest now — every position moved by one more again.
+  assert.equal(dirs[dirs.length - 8], MIGRATION_DIR, 'the migration before the newest (CRM-01a followed)');
+  assert.equal(dirs[dirs.length - 9], '20261103200000_travel_02c_stay_link_living_baselines');
   // CRM-01a (2026-11-07): crm_contacts, the CRM's working table, followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 6], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
+  assert.equal(dirs[dirs.length - 7], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
   // CRM-02 (2026-11-07): crm_forms and crm_form_submissions, the intake form's two tables, followed — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 5], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 6], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
   // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 4], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 5], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
   // CASH-02a (2026-11-08): travel_expenses gains paid_with — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 3], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  assert.equal(dirs[dirs.length - 4], '20261108120000_cash_02a_paid_with', 'the newest migration');
 });
 
 // ── T3 · THE SERVER PAGE ─────────────────────────────────────────────────────

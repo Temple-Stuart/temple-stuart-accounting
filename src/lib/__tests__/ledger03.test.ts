@@ -130,7 +130,7 @@ const LINKS: LedgerLinkInput[] = [
 
 const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over, // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
 });
 const ledger = ledgerOf(input());
 const rowOf = (id: string): LedgerRow => {
@@ -188,7 +188,7 @@ test('R2 the join: a record meets its links by (kind, target_id, occurrence_at) 
   // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the select is LINKED_POSTING_SELECT — the lines plus the reversal state.
   // SUPERSEDE-01c (Alex, 2026-11-08, ruling D): the records' window by its one owner, stopRecord.ts recordsWindowOf — the links' instants in it (pin moved).
   assert.match(route, /db\.planned_item_links\.findMany\(\{\n\s*where: \{ user_id: userId, target_kind: \{ in: \['routine', 'routine_line'\] \}, target_instant: recordsWindowOf\(from, to\), journal_entry: \{ userId: userId \} \},\n\s*select: \{ target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: \{ select: LINKED_POSTING_SELECT \} \},/, 'the records’ own window, user-scoped twice');
-  assert.match(route, /const \[chart, routineGroups, roles, planVendors, stayRows, recordRows, firstRow, linkRows\] = await Promise\.all\(\[/, 'read beside the records, not per record');
+  assert.match(route, /const \[chart, routineGroups, roles, subAccountRows, planVendors, stayRows, recordRows, firstRow, linkRows\] = await Promise\.all\(\[/, 'read beside the records, not per record'); // COALEVELS-01 (2026-11-27): nine reads side by side — the caller's sub-accounts (subAccountRows) after the roles; eight until then
   assert.match(route, /links: linkRows\.map\(linkInputOf\),/);
   // ROUTINES-03 (Alex, 2026-10-25): linkInputOf moved to ledger.ts, unchanged, so the routines' month route reads a link the same way — the pins moved with it.
   // READS-01b (Alex, 2026-11-07): the import split with the body — the route keeps spanInput; the answer file takes ledgerOf, linkInputOf and the input type.
@@ -265,12 +265,12 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
   assert.doesNotMatch(rules, /MATCH_NOTE_WORDS|MATCH_CELL_WORDS|nothing is linked yet/, 'the LEDGER-02 note is gone');
   // The CSV: the readable sum, two decimals; empty with no link or an unreadable posting.
   const lines = ledgerCsv(ledger.rows).split('\r\n');
-  const field = (id: string, i: number): string => lines[1 + ledger.rows.findIndex((r) => r.id === id)].split(',')[i];
+  const field = (id: string, i: number): string => lines[1 + ledger.rows.findIndex((r) => r.id === id)].split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)[i]; // COALEVELS-01 (2026-11-27): split at the commas OUTSIDE a quoted field — a quoted ITEMS field (its own comma inside) stands before MATCH now; a bare split(',') until then, when the one quoted field was the line's last
   const MATCH = LEDGER_HEAD_WORDS.indexOf('MATCH');
-  assert.equal(MATCH, 19); // TIMESHEET-04b (2026-11-27): INSTAGRAM TAG sits before it too, after VENDOR — 18 until then. TIMESHEET-01 (Alex, 2026-11-24): START, END and WENT sit before it — 15 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
+  assert.equal(MATCH, 22); // COALEVELS-01 (2026-11-27): REGION, LOCATION and ITEMS sit before it too — 19 until then. TIMESHEET-04b (2026-11-27): INSTAGRAM TAG sits before it too, after VENDOR — 18 until then. TIMESHEET-01 (Alex, 2026-11-24): START, END and WENT sit before it — 15 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
   assert.equal(field('r-coffee-13', MATCH), '8.98');
-  assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-coffee-13')], /,10\.00,8\.98,-1\.02,8\.98,under,"khao soi, ""the good one""",$/, 'BUDGET · ACTUAL · VARIANCE · MATCH 8.98 · UNDER / OVER'); // TIMESHEET-04b (2026-11-27): the line ends with the empty NOTES field after DESCRIPTION — it ended with DESCRIPTION until then
-  assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-client-13')], /,25\.00,30\.00,5\.00,30\.00,over,,$/); // TIMESHEET-04b (2026-11-27): an empty DESCRIPTION, then the empty NOTES
+  assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-coffee-13')], /,"khao soi, ""the good one""",,,went,4,,,P-5100,10\.00,8\.98,-1\.02,8\.98,under,$/, 'BUDGET · ACTUAL · VARIANCE · MATCH 8.98 · UNDER / OVER'); // COALEVELS-01 (2026-11-27): the quoted ITEMS field stands before the (empty) VENDOR, the COA before BUDGET, and the line ends with the empty NOTES field after UNDER / OVER · TIMESHEET-04b (2026-11-27): the line ends with the empty NOTES field after DESCRIPTION — it ended with DESCRIPTION until then
+  assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-client-13')], /,B-6100,25\.00,30\.00,5\.00,30\.00,over,$/); // COALEVELS-01 (2026-11-27): the COA, the five, then the empty NOTES — the empty ITEMS stands before the VENDOR now · TIMESHEET-04b (2026-11-27): an empty DESCRIPTION, then the empty NOTES
   assert.equal(field('r-yoga-12', MATCH), '', 'unreadable: empty');
   assert.equal(field('r-stretch-13', MATCH), '', 'no link: empty');
   assert.equal(field('r-lunch-13', MATCH), '15.00');
@@ -283,7 +283,7 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
   assert.match(s, /<td className=\{`\$\{money\} \$\{totals\.matchCents === null \? BLANK_CLASS : ''\}`\} data-ledger-total-match>\{matchTotalWords\(totals\.matchCents\)\}<\/td>/, 'the TOTAL row’s MATCH, no tone');
   assert.match(s, /\{shown\.length > 0 && <p data-ledger-said-match>\{matchCoverageWords\(totals\.withMatch, shown\.length\)\}<\/p>\}/, 'the coverage line');
   assert.doesNotMatch(s, /MATCH_NOTE_WORDS|MATCH_CELL_WORDS/);
-  assert.equal(LEDGER_HEAD_WORDS.length, 23, 'the cue is a tone, not a column (TIME-03 added the two minutes columns, TIMESHEET-01 START, END and WENT, TIMESHEET-04b INSTAGRAM TAG and NOTES — not a MATCH cue)'); // TIMESHEET-04b (2026-11-27): twenty-three — 21 until then. TIMESHEET-01 (Alex, 2026-11-24): twenty-one — 18 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
+  assert.equal(LEDGER_HEAD_WORDS.length, 25, 'the cue is a tone, not a column (TIME-03 added the two minutes columns, TIMESHEET-01 START, END and WENT, TIMESHEET-04b INSTAGRAM TAG and NOTES, COALEVELS-01 REGION and LOCATION — not a MATCH cue)'); // COALEVELS-01 (2026-11-27): twenty-five — 23 until then. TIMESHEET-04b (2026-11-27): twenty-three — 21 until then. TIMESHEET-01 (Alex, 2026-11-24): twenty-one — 18 until then. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
 });
 
 // ── R4 · THE PICKER ─────────────────────────────────────────────────────────
@@ -357,36 +357,36 @@ test('R5 the audit: the migration adds the two values the MOVE-01 way and says a
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // DOCUMENTS-02 (Alex, 2026-10-30): the reconciliation's supersession — the newest; every position above moved by one.
   // HOME-SERVICES-02 (2026-11-16): its migration, 20261116132400_home_services_02_answers (proposals gains answers), is the newest now — every position read from the end below moved by one, and a message that says "the newest" names the one before it.
-  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more.
-  assert.equal(dirs[dirs.length - 17], MIGRATION_DIR, 'the migration before the newest (BACKLOG-01 followed)');
+  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more. COALEVELS-01 (2026-11-27): and its migration, 20261127230000_coa_levels_01_sub_accounts_location (a table of the chart's sub-accounts, and a routine's Location), is the newest now — every position moved by one more again.
+  assert.equal(dirs[dirs.length - 18], MIGRATION_DIR, 'the migration before the newest (BACKLOG-01 followed)');
   // BACKLOG-01 (Alex, 2026-10-20): the capture's columns and the four statuses — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 16], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
+  assert.equal(dirs[dirs.length - 17], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
   // BACKLOG-01b (Alex, 2026-10-20): the brief's three columns — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 15], '20261020140000_backlog_01b_brief', 'the migration before the newest (JOURNAL-06 followed)');
+  assert.equal(dirs[dirs.length - 16], '20261020140000_backlog_01b_brief', 'the migration before the newest (JOURNAL-06 followed)');
   // JOURNAL-06 (Alex, 2026-10-20): the evening's five columns, the two CHECKs re-made — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 14], '20261020150000_journal_06_reflection', 'the migration before the newest (BACKLOG-02 followed)');
+  assert.equal(dirs[dirs.length - 15], '20261020150000_journal_06_reflection', 'the migration before the newest (BACKLOG-02 followed)');
   // BACKLOG-02 (Alex, 2026-10-20): the reorder route's one audit value — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 13], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
+  assert.equal(dirs[dirs.length - 14], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
   // DOCUMENTS-01 (Alex, 2026-10-28): source_documents, the receipt on its posting — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 12], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
-  assert.equal(dirs[dirs.length - 11], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
+  assert.equal(dirs[dirs.length - 13], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
+  assert.equal(dirs[dirs.length - 12], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
   // FX-01 (2026-10-30): the transactions currency migration followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 10], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
+  assert.equal(dirs[dirs.length - 11], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
   // TRAVEL-02b (2026-11-03): travel_expenses and the sixth link kind followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 9], '20261103120000_travel_02b_travel_expenses', 'the migration before the newest (TRAVEL-02c followed)');
+  assert.equal(dirs[dirs.length - 10], '20261103120000_travel_02b_travel_expenses', 'the migration before the newest (TRAVEL-02c followed)');
   // TRAVEL-02c (2026-11-03): living_baselines and the seventh link kind followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 8], '20261103200000_travel_02c_stay_link_living_baselines', 'the migration before the newest (ONE-FORM-01 followed)');
+  assert.equal(dirs[dirs.length - 9], '20261103200000_travel_02c_stay_link_living_baselines', 'the migration before the newest (ONE-FORM-01 followed)');
   // ONE-FORM-01 (2026-11-06): the sixth need, 'close', followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 7], '20261106120000_one_form_01_close_need', 'the migration before the newest (CRM-01a followed)');
+  assert.equal(dirs[dirs.length - 8], '20261106120000_one_form_01_close_need', 'the migration before the newest (CRM-01a followed)');
   // CRM-01a (2026-11-07): crm_contacts, the CRM's working table, followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 6], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
+  assert.equal(dirs[dirs.length - 7], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
   // CRM-02 (2026-11-07): crm_forms and crm_form_submissions, the intake form's two tables, followed — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 5], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 6], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
   // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 4], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 5], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
   // CASH-02a (2026-11-08): travel_expenses gains paid_with — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 3], '20261108120000_cash_02a_paid_with', 'the newest migration');
-  assert.equal(dirs[dirs.length - 18], '20261019210000_journal_04_evening_answers', 'right after JOURNAL-04’s');
+  assert.equal(dirs[dirs.length - 4], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  assert.equal(dirs[dirs.length - 19], '20261019210000_journal_04_evening_answers', 'right after JOURNAL-04’s');
   const sql = code(MIGRATION);
   assert.equal(sql.trim(), `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'planned_item_linked';\nALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'planned_item_unlinked';`, 'the two lines and nothing else');
   assert.doesNotMatch(sql, /ALTER TABLE|CREATE TABLE|ADD COLUMN|UPDATE|INSERT|DELETE/i, 'no table, no column, no row');

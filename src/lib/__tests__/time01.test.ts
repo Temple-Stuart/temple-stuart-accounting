@@ -52,7 +52,7 @@ test('T1 the pages: /time is the three tables (HOME-01: the card is on the dashb
   assert.doesNotMatch(time, /import \{ Suspense \} from 'react';|DayCard/);
   for (const imp of ["import LedgerSection from '@/components/workbench/operations/ledger/LedgerSection';"]) assert.ok(time.includes(imp), imp);
   // JOURNAL-07 (Alex, 2026-10-24): the two journal tables mount under the ledger — the /time container is four (TIME_MOUNTS), the ledger still the section after the card.
-  assert.match(time, /<ToolOpener tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // HOME-01 (2026-10-24): the three tables
+  assert.match(time, /<ToolOpener compact tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // COALEVELS-01 (2026-11-27): the page passes its opener `compact` — one line above the sheet. HOME-01 (2026-10-24): the three tables
   const timeBox = time.slice(time.indexOf('data-tool-page="Time"'), time.indexOf('</OperationsEntityProvider>'));
   // JOURNAL-07 (Alex, 2026-10-24): the container is four — the two journal tables under the ledger, in the shared idiom, read-only.
   assert.deepEqual([...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['LedgerSection', 'MorningJournalTable', 'EveningJournalTable']); // HOME-01 (2026-10-24): the card is the dashboard's

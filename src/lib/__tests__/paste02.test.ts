@@ -25,13 +25,13 @@ import {
 } from '../operations/ledger';
 import {
   END_IS_START_WORDS, END_STANDS_WORDS, ON_TIME_SHEET_KEYS, PASTE_READ_HEADS, PASTE_TITLE_WORDS, RECORDED_NOT_WRITTEN_WORDS, VENDORS_NO_LIST_WORDS,
-  countsWords, kindKeyOf, pasteKindsOf, pasteShown, placePaste, readPaste, standingPicks, vendorsOf, vendorsUnreadWords,
+  chartAddsOf, countsWords, kindKeyOf, pasteKindsOf, pasteShown, placePaste, readPaste, standingPicks, vendorsOf, vendorsUnreadWords,
   type Paste, type PasteContext, type PasteHead, type PastePick, type PastePlacement,
 } from '../operations/pasteRows';
 
 import {
   CHANGED_WORDS, CHECKING_WORDS, NOTHING_TO_SAVE_WORDS, PASTE_STEPS, PASTE_STEP_WORDS, SPENT_WORDS, VENDORS_STAY_WORDS,
-  daysReached, newVendorLines, newVendorsOf, pasteOutcomeWords, pasteWritesOf, runPaste, runStopped, runWords, saveWords, savingWords, shownChanged,
+  daysReached, newVendorLines, newVendorsOf, pasteAddsOf, pasteOutcomeWords, pasteWritesOf, runPaste, runStopped, runWords, saveWords, savingWords, shownChanged,
   type PasteOutcome, type PasteProgress, type PasteStep, type PasteWrite, type PasteWriters,
 } from '../operations/pasteSave';
 
@@ -86,10 +86,10 @@ const at = (day: string, clock: string): string => new Date(`${day}T${clock}:00.
 /** Monday noon in the zone: Saturday and Sunday are past, Monday's 12:30 is half an hour ahead. */
 const NOW = new Date('2027-06-14T09:00:00.000Z');
 
-/** A plan row of the sheet — a priced stop with no record on it — in the ledger's own shape, at a line's address or (kind 'routine') a routine's own. */
+/** A plan row of the sheet — a priced stop with no record on it — in the ledger's own shape, at a line's address or (kind 'routine') a routine's own. COALEVELS-01 (2026-11-27): a row says its location (none) and its segments — its entity's letter and its account's code, as its `coa` says them; a row whose `coa` is its own says its own segments too. */
 const planned = (kind: 'routine_line' | 'routine', id: string, day: string, clock: string, name: string, over: Partial<LedgerPlanRow> = {}): LedgerPlanRow => ({
   id: null, key: `${kind}:${id}:${at(day, clock)}`, address: { kind, id, instant: at(day, clock) }, match: null, day, time: clock,
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
+  place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
   cents: 650, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 30, loggedMinutes: null, allDay: false, went: NOT_RECORDED_WORDS, ...over,
 });
 /** A recorded row, and the record it holds as the stops GET answers one. */
@@ -98,15 +98,15 @@ const recordOf = (id: string, target: string, day: string, clock: string, over: 
 });
 const recorded = (record: StopRecordRow, day: string, clock: string, name: string, over: Partial<LedgerRow> = {}): LedgerRow => ({
   id: record.id, key: `routine_line:${record.target_id}:${at(day, clock)}`, address: { kind: 'routine_line', id: record.target_id, instant: at(day, clock) }, match: null, day, time: clock,
-  place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: record.rating, note: record.note, notes: record.notes, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag; the record's notes
+  place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: name, rating: record.rating, note: record.note, notes: record.notes, // TIMESHEET-04b (2026-11-27): the row's two new fields — no tag; the record's notes
   cents: 1500, budgetState: 'matched', outcome: record.outcome, actualCents: record.actual_cents, varianceCents: null, plannedMinutes: null, loggedMinutes: record.actual_minutes, ...over,
 });
 
 const LUNCH_SUN = planned('routine_line', 'line-lunch', SUN, '12:30', 'Lunch');
 const LUNCH_MON = planned('routine_line', 'line-lunch', MON, '12:30', 'Lunch', { went: PLANNED_WORD });
 const COFFEE_SUN = planned('routine_line', 'line-coffee', SUN, '08:00', 'Coffee', { cents: 250, vendor: 'Bean Bar' });
-const GYM_SUN = planned('routine', 'rt-gym', SUN, '18:00', 'Gym', { cents: 900, coa: { account: 'P-6200', name: 'Recreation' } });
-const CINEMA_SUN = planned('routine_line', 'line-cinema', SUN, '21:00', 'Cinema', { cents: 1200, plannedMinutes: 120, coa: { account: 'P-6200', name: 'Recreation' } });
+const GYM_SUN = planned('routine', 'rt-gym', SUN, '18:00', 'Gym', { cents: 900, segments: { entity: 'P', location: null, category: '6200', type: null, code: 'P-6200' }, coa: { account: 'P-6200', name: 'Recreation' } });
+const CINEMA_SUN = planned('routine_line', 'line-cinema', SUN, '21:00', 'Cinema', { cents: 1200, plannedMinutes: 120, segments: { entity: 'P', location: null, category: '6200', type: null, code: 'P-6200' }, coa: { account: 'P-6200', name: 'Recreation' } });
 const MARKET_SUN_1 = planned('routine_line', 'line-market-a', SUN, '10:00', 'Market', { cents: 2000 });
 const MARKET_SUN_2 = planned('routine_line', 'line-market-b', SUN, '10:00', 'Market', { cents: 2000 });
 const PARADE_SUN = planned('routine_line', 'line-parade', SUN, '15:00', 'Parade', { went: null });
@@ -128,8 +128,8 @@ const RECORDING: Readonly<Record<string, LedgerRecording>> = {
 const BOOKS = [{ id: 'P', name: 'Home', entityType: 'personal' }, { id: 'B', name: 'Shop', entityType: 'sole_prop' }];
 const CONTEXT: PasteContext = {
   books: BOOKS, sheet: SHEET, recording: RECORDING,
-  charts: { P: [{ code: '6150', name: 'Dining Out' }, { code: '6200', name: 'Recreation' }], B: [{ code: '6400', name: 'Supplies' }] },
-  vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: 'P' }, { id: 'v-ink', vendor_name: 'Ink Works', entity_id: 'B' }],
+  charts: { P: [{ id: 'acct-6150', code: '6150', name: 'Dining Out' }, { id: 'acct-6200', code: '6200', name: 'Recreation' }], B: [{ id: 'acct-6400', code: '6400', name: 'Supplies' }] }, subAccounts: { P: [], B: [] }, // COALEVELS-01 (2026-11-27): a chart entry says its id, and the context holds each book's sub-accounts — none
+  vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: 'P', instagram_tag: null }, { id: 'v-ink', vendor_name: 'Ink Works', entity_id: 'B', instagram_tag: null }], // COALEVELS-01 (2026-11-27): each vendor says the tag it carries — none
   zone: NBO, now: NOW,
 };
 
@@ -174,7 +174,7 @@ const BOWLING: Typed = { 'Start Date': '6/13/27', 'Start Time': '8:00 PM', 'End 
 
 test('T1 a row on a stop that stands, recorded went: its record is the record form’s own body — recordInput’s for that row, at the sheet row’s own address, done at the stop’s planned instant — and the stops rule takes it', () => {
   const went = onStop(landed(LUNCH, ON_PLAN('Lunch')).placement);
-  assert.deepEqual([went.standing, went.plan, went.stop.key, went.happened], [false, 'Lunch', LUNCH_SUN.key, { kind: 'went', cents: 690, items: 'two kinds of soup' }]);
+  assert.deepEqual([went.standing, went.plan, went.stop.key, went.happened], [false, 'Lunch', LUNCH_SUN.key, { kind: 'went', cents: 690, items: 'two kinds of soup', notes: null }]); // COALEVELS-01 (2026-11-27): what happened carries the row's notes — none typed
   // The body is the one rule's, handed the row as the record form's boxes: went, the Total (USD) as dollars, no stars, no minutes, the Items.
   const form = recordInput({ went: WENT_WORD, actual: '6.90', stars: '', minutes: '', note: 'two kinds of soup', notes: '' }, LUNCH_SUN.address, { plannedAt: at(SUN, '12:30'), held: null }, NOW);
   assert.ok(form.ok);
@@ -207,7 +207,7 @@ test('T2 of the row, only what the stop lacks is written; what stands is said on
   // Another vendor standing → kept and said; the record is still made.
   const coffee: Typed = { 'Start Date': '6/13/27', Category: 'Dining', Entity: 'Personal', Type: 'Coffee', Vendor: 'Corner Cup', 'Total (USD)': '2.50' };
   const other = onStop(landed(coffee, ON_PLAN('Coffee')).placement);
-  assert.deepEqual([other.vendor, other.happened, other.notWritten], [{ kind: 'none' }, { kind: 'went', cents: 250, items: null }, ['Vendor — not written: this stop already has the vendor "Bean Bar" — the paste does not change a vendor']]);
+  assert.deepEqual([other.vendor, other.happened, other.notWritten], [{ kind: 'none' }, { kind: 'went', cents: 250, items: null, notes: null }, ['Vendor — not written: this stop already has the vendor "Bean Bar" — the paste does not change a vendor']]);
   assert.deepEqual(other.record === null ? null : [other.record.id, other.record.actual_cents, other.record.done_at], ['line-coffee', 250, at(SUN, '08:00')], 'the record is the stop’s to take: it has none');
   // A record that says the same — done, its amount the row's Total (USD), its note the row's Items → nothing is said; the vendor the stop lacks is still planned.
   const dinner: Typed = { 'Start Date': '6/13/27', Category: 'Dining', Entity: 'Personal', Type: 'Dinner', Vendor: 'Oat House', Items: 'the set menu', 'Total (USD)': '$15.00' };
@@ -249,7 +249,7 @@ test('T3 a kind picked a one-off whose stop already stands — that book, day, S
   const row = landed(cinema, ONE_OFF('6200'));
   const stood = onStop(row.placement);
   assert.deepEqual([stood.standing, stood.plan, stood.stop.key, stood.instant], [true, 'Cinema', CINEMA_SUN.key, at(SUN, '21:00')]);
-  assert.deepEqual([stood.vendor, stood.happened, stood.notWritten], [{ kind: 'own', id: 'v-oat', name: 'Oat House' }, { kind: 'went', cents: 1200, items: null }, []]);
+  assert.deepEqual([stood.vendor, stood.happened, stood.notWritten], [{ kind: 'own', id: 'v-oat', name: 'Oat House' }, { kind: 'went', cents: 1200, items: null, notes: null }, []]); // COALEVELS-01 (2026-11-27): and its notes
   assert.deepEqual(stood.record === null ? null : [stood.record.kind, stood.record.id, stood.record.instant, stood.record.done_at], ['routine_line', 'line-cinema', at(SUN, '21:00'), at(SUN, '21:00')], 'the record at the sheet row’s own address');
   // The preview: the stop's own cells — its END its own — and LANDS says it already stands.
   assert.deepEqual(sheetCells(row.shown.sheet), { start: '21:00', end: '23:00', account: 'P-6200', accountName: 'Recreation', subAccountName: 'Cinema', went: WENT_WORD, budget: '$12', actual: '$12' });
@@ -290,27 +290,27 @@ test('T3 a kind picked a one-off whose stop already stands — that book, day, S
 test('T4 a new one-off is "+ expense"’s: its values are that form’s one rule’s for the row; its minutes are End Time less Start Time — past midnight, and none when the two are one; a stop still ahead is planned; the form’s refusal is the row’s, under the column its box was filled from', () => {
   const went = oneOff(landed(BOWLING, ONE_OFF('6200')).placement);
   // The values are expenseInput's, handed the row as the form's boxes — the Budget (USD) and the Total (USD) as dollars, the record's two because the row is recorded went.
-  const form = expenseInput({ day: SUN, time: '20:00', name: 'Bowling', amount: '20.00', coa: '6200', book: 'P', vendorId: '', vendorName: 'Pin Palace', actual: '18.00', stars: '', note: 'two games' }, NBO, NOW);
+  const form = expenseInput({ day: SUN, time: '20:00', name: 'Bowling', amount: '20.00', coa: '6200', book: 'P', location: '', vendorId: '', vendorName: 'Pin Palace', actual: '18.00', stars: '', note: 'two games' }, NBO, NOW); // COALEVELS-01 (2026-11-27): the form's draft holds a LOCATION box — left at none here, as the paste leaves it until it reads the column (PART 3 of this change)
   assert.ok(form.ok);
   assert.deepEqual(went.values, form.value);
   assert.deepEqual(went.values, {
-    day: SUN, time: '20:00', zone: NBO, instant: at(SUN, '20:00'), name: 'Bowling', amount: '20.00', coa: '6200', bookId: 'P',
+    day: SUN, time: '20:00', zone: NBO, instant: at(SUN, '20:00'), name: 'Bowling', amount: '20.00', coa: '6200', bookId: 'P', location: null,
     vendor: { kind: 'new', name: 'Pin Palace' }, actualCents: 1800, rating: null, note: 'two games', ahead: false,
   });
   assert.deepEqual([went.instant, went.name, went.start, went.end, went.minutes, went.budgetCents], [at(SUN, '20:00'), 'Bowling', '20:00', '21:30', 90, 2000], 'its instant and its name are the values’ own');
-  assert.deepEqual([went.vendor, went.happened, went.notWritten], [{ kind: 'new', name: 'Pin Palace' }, { kind: 'went', cents: 1800, items: 'two games' }, []]);
+  assert.deepEqual([went.vendor, went.happened, went.notWritten], [{ kind: 'new', name: 'Pin Palace' }, { kind: 'went', cents: 1800, items: 'two games', notes: null }, []]); // COALEVELS-01 (2026-11-27): and its notes
   // Another day is another stop, on that day.
   assert.deepEqual([oneOff(landed({ ...BOWLING, 'Start Date': '6/12/27' }, ONE_OFF('6200')).placement).values.day, oneOff(landed({ ...BOWLING, 'Start Date': '6/12/27' }, ONE_OFF('6200')).placement).instant], [SAT, at(SAT, '20:00')]);
   // The book's own vendor goes in by its id; no vendor, none.
   assert.deepEqual(oneOff(landed({ ...BOWLING, Vendor: ' oat  HOUSE ' }, ONE_OFF('6200')).placement).values.vendor, { kind: 'existing', id: 'v-oat' });
   assert.deepEqual(oneOff(landed({ ...BOWLING, Vendor: '' }, ONE_OFF('6200')).placement).values.vendor, { kind: 'none' });
-  // No Total (USD): not recorded — the record's boxes are not filled, and the Items is said.
+  // No Total (USD): not recorded — the record's boxes are not filled, and its Items are the stop's PLANNED ITEMS, written with the vendor the row names. COALEVELS-01 (2026-11-27): the Items were said as not written until then.
   const none = oneOff(landed({ ...BOWLING, 'Total (USD)': '' }, ONE_OFF('6200')).placement);
-  assert.deepEqual([none.values.actualCents, none.values.note, none.happened, none.notWritten], [null, null, { kind: 'not recorded' }, ['Items — not written: the row holds no Total (USD), so no record is made']]);
-  // Still ahead → planned: no record's box is filled, and each one typed is said.
+  assert.deepEqual([none.values.actualCents, none.values.note, none.happened, none.notWritten], [null, null, { kind: 'not recorded' }, []]); assert.deepEqual([none.items, none.vendor], ['two games', { kind: 'new', name: 'Pin Palace' }]);
+  // Still ahead → planned: no record's box is filled; the Total (USD) is said, and the Items are planned with the vendor. COALEVELS-01 (2026-11-27).
   const ahead = oneOff(landed({ ...BOWLING, 'Start Date': '6/14/27' }, ONE_OFF('6200')).placement);
   assert.deepEqual([ahead.values.ahead, ahead.values.actualCents, ahead.values.note, ahead.happened], [true, null, null, { kind: 'planned' }]);
-  assert.deepEqual(ahead.notWritten, ['Items — not written: the stop is still ahead, and a planned stop holds none yet', 'Total (USD) — not written: the stop is still ahead']);
+  assert.deepEqual([ahead.notWritten, ahead.items], [['Total (USD) — not written: the stop is still ahead'], 'two games']);
   // The clock decides by the form's own test: at the skew's edge the stop is not ahead; a minute past it, it is.
   const edge = (minutes: number) => oneOff(landed(BOWLING, ONE_OFF('6200'), { ...CONTEXT, now: new Date(Date.parse(at(SUN, '20:00')) - minutes * 60_000) }).placement);
   assert.deepEqual([[edge(10).values.ahead, edge(10).happened.kind], [edge(11).values.ahead, edge(11).happened.kind]], [[false, 'went'], [true, 'planned']]);
@@ -377,7 +377,7 @@ test('T6 standingPicks: a pick is applied only while its kind is in the paste an
   assert.deepEqual(standingPicks(picks, kinds, noLunch), { [bowling]: ONE_OFF('6200') });
   assert.deepEqual(standingPicks({ [lunch]: ON_PLAN('Parade') }, kinds, CONTEXT), {}, 'a plan whose only stop takes no record is not offered');
   // Its account no longer in the chart.
-  const noAccount: PasteContext = { ...CONTEXT, charts: { ...CONTEXT.charts, P: [{ code: '6150', name: 'Dining Out' }] } };
+  const noAccount: PasteContext = { ...CONTEXT, charts: { ...CONTEXT.charts, P: [{ id: 'acct-6150', code: '6150', name: 'Dining Out' }] } };
   assert.deepEqual(standingPicks(picks, kinds, noAccount), { [lunch]: ON_PLAN('Lunch') });
   // Another book's account is not this book's.
   assert.deepEqual(standingPicks({ [bowling]: ONE_OFF('6400') }, kinds, CONTEXT), {});
@@ -393,18 +393,18 @@ test('T6 standingPicks: a pick is applied only while its kind is in the paste an
 
 // ── T7 · THE VENDORS, READ (ruling A.7) ──────────────────────────────────────
 
-test('T7 vendorsOf: the directory’s answer as the caller’s vendors — the list; an answer with no list, or an entry that lacks one of the three, is refused in words, never read as an empty list', () => {
-  assert.deepEqual(vendorsOf({ vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: 'P', category: null }, { id: 'v-ink', vendor_name: 'Ink Works', entity_id: 'B', category: 'print' }] }), {
-    ok: true, vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: 'P' }, { id: 'v-ink', vendor_name: 'Ink Works', entity_id: 'B' }],
-  }, 'the three the paste reads, and nothing else of the row');
+test('T7 vendorsOf: the directory’s answer as the caller’s vendors — the list; an answer with no list, or an entry that lacks one of the four (COALEVELS-01, 2026-11-27: its tag among them — three until then), is refused in words, never read as an empty list', () => {
+  assert.deepEqual(vendorsOf({ vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: 'P', instagram_tag: null, category: null }, { id: 'v-ink', vendor_name: 'Ink Works', entity_id: 'B', instagram_tag: 'made.up_ink', category: 'print' }] }), {
+    ok: true, vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: 'P', instagram_tag: null }, { id: 'v-ink', vendor_name: 'Ink Works', entity_id: 'B', instagram_tag: 'made.up_ink' }], // COALEVELS-01 (2026-11-27): the tag each carries — none, or text
+  }, 'the four the paste reads, and nothing else of the row');
   assert.deepEqual(vendorsOf({ vendors: [] }), { ok: true, vendors: [] }, 'a caller with no vendor is a list of none');
   const refused = { ok: false, words: 'the list came back without its vendors' };
   for (const bad of [{}, { vendors: null }, { vendors: 'none' }, { error: 'Failed to fetch vendors' }, { vendors: [null] }, { vendors: ['Oat House'] }]) assert.deepEqual(vendorsOf(bad), refused, JSON.stringify(bad));
-  // An entry without its id; without its name; without its book.
-  assert.deepEqual(vendorsOf({ vendors: [{ vendor_name: 'Oat House', entity_id: 'P' }] }), refused, 'an entry without its id');
-  assert.deepEqual(vendorsOf({ vendors: [{ id: 'v-oat', entity_id: 'P' }] }), refused);
-  assert.deepEqual(vendorsOf({ vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: null }] }), refused);
-  assert.deepEqual(vendorsOf({ vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: 'P' }, { id: 7, vendor_name: 'Ink Works', entity_id: 'B' }] }), refused, 'one bad entry refuses the list');
+  // An entry without its id; without its name; without its book; COALEVELS-01 (2026-11-27): without its tag's key, or holding anything but text or null there.
+  assert.deepEqual(vendorsOf({ vendors: [{ vendor_name: 'Oat House', entity_id: 'P', instagram_tag: null }] }), refused, 'an entry without its id');
+  assert.deepEqual(vendorsOf({ vendors: [{ id: 'v-oat', entity_id: 'P', instagram_tag: null }] }), refused);
+  assert.deepEqual(vendorsOf({ vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: null, instagram_tag: null }] }), refused); assert.deepEqual(vendorsOf({ vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: 'P' }] }), refused, 'an entry without instagram_tag is not the directory’s answer'); assert.deepEqual(vendorsOf({ vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: 'P', instagram_tag: 7 }] }), refused, 'a tag that is neither text nor null');
+  assert.deepEqual(vendorsOf({ vendors: [{ id: 'v-oat', vendor_name: 'Oat House', entity_id: 'P', instagram_tag: null }, { id: 7, vendor_name: 'Ink Works', entity_id: 'B', instagram_tag: null }] }), refused, 'one bad entry refuses the list');
   assert.equal(VENDORS_NO_LIST_WORDS, 'the list came back without its vendors');
   assert.equal(vendorsUnreadWords(VENDORS_NO_LIST_WORDS), 'the vendors could not be read — the list came back without its vendors', 'as the leaf says it');
   // The rule file is still pure, and reads neither writer's file.
@@ -454,7 +454,7 @@ function recorder(refuse: Refusals = {}) {
     readOneOffLine: async (routineId) => { calls.push(['readOneOffLine', routineId]); return refuse.line !== undefined ? no('line') : { ok: true, value: { lineId: `line-of-${routineId}` } }; },
     setLineMinutes: async (lineId, minutes) => { calls.push(['setLineMinutes', lineId, minutes]); return refuse.minutes !== undefined ? no('minutes') : { ok: true, value: null }; },
     addVendor: async (entityId, name) => { calls.push(['addVendor', entityId, name]); if (refuse.directory !== undefined) return no('directory'); vendors += 1; return { ok: true, value: { vendorId: `v-new-${vendors}` } }; },
-    setVendor: async (body) => { calls.push(['setVendor', body]); return refuse.vendor !== undefined ? no('vendor') : { ok: true, value: { outcome: 'set' } }; },
+    setVendor: async (body) => { calls.push(['setVendor', body]); return refuse.vendor !== undefined ? no('vendor') : { ok: true, value: { outcome: 'set' } }; }, setVendorTag: async (vendorId, tag) => { calls.push(['setVendorTag', vendorId, tag]); return refuse.tag !== undefined ? no('tag') : { ok: true, value: null }; }, addSubAccount: async (accountId, name, code) => { calls.push(['addSubAccount', accountId, name, code]); return refuse['sub-account'] !== undefined ? no('sub-account') : { ok: true, value: null }; }, // COALEVELS-01 (2026-11-27): the stand-in writers are eight — the tag's and the chart's, each recording its call
     setRecord: async (body) => {
       calls.push(['setRecord', body]);
       if (refuse.recordThrows !== undefined) throw new Error(refuse.recordThrows);
@@ -495,18 +495,18 @@ test('T8 the writes of a paste: the placed rows that have something to write, in
   const quietPlaced = placePaste(quiet, { ...SAVE_PICKS, [kindOf('Dining', 'Dinner')]: ON_PLAN('Dinner') }, CONTEXT);
   assert.deepEqual(quietPlaced.map((p) => p.kind), ['plan', 'plan', 'plan', 'plan']);
   assert.deepEqual(pasteWritesOf(quiet.rows, quietPlaced), [], 'four rows on stops, and nothing to save');
-  assert.equal(NOTHING_TO_SAVE_WORDS, 'nothing to save — no placed row has a vendor to plan, a record to make or a one-off to add');
+  assert.equal(NOTHING_TO_SAVE_WORDS, 'nothing to save — no placed row has a vendor to plan, a tag to set, planned items to write, a record to make or a one-off to add'); // COALEVELS-01 (2026-11-27): a tag and planned items are things a row may write
   // A vendor alone is a write; a record alone is a write.
   const alone = pasteOf({ ...LUNCH, 'Start Date': '6/14/27' }, { ...LUNCH, Vendor: '' });
   assert.deepEqual(pasteWritesOf(alone.rows, placePaste(alone, SAVE_PICKS, CONTEXT)).map((write) => [write.row, write.vendor.kind, stopWrite(write).record === null]), [[2, 'own', true], [3, 'none', false]]);
   assert.throws(() => pasteWritesOf(SAVE_PASTE.rows, SAVE_PLACED.slice(1)), /pasteSave: 7 placements for 8 rows — one placement a row/);
 
-  // THE BUTTON: what the save writes. A new vendor is counted once a book — "Pin Palace" twice in one book is one, and one more in the other.
-  assert.equal(saveWords(SAVE_WRITES), 'save 5 rows — 3 vendors added to a book · 5 vendors set on a stop · 4 records · 3 one-offs');
+  // THE BUTTON: what the save writes — handed the writes and the additions to the chart (COALEVELS-01 (2026-11-27): the sub-accounts first, then the tags and the stops given planned items among the counts). A new vendor is counted once a book — "Pin Palace" twice in one book is one, and one more in the other.
+  assert.equal(saveWords(SAVE_WRITES, pasteAddsOf(chartAddsOf(SAVE_PLACED, CONTEXT))), 'save 5 rows — 2 sub-accounts added to the chart · 3 vendors added to a book · 5 vendors set on a stop · 0 tags set on a vendor · 0 stops given planned items · 4 records · 3 one-offs');
   // The singulars: "row", "vendor", "record", "one-off" for 1.
   const one = pasteOf(BOWLING);
-  assert.equal(saveWords(pasteWritesOf(one.rows, placePaste(one, SAVE_PICKS, CONTEXT))), 'save 1 row — 1 vendor added to a book · 1 vendor set on a stop · 1 record · 1 one-off');
-  assert.equal(saveWords(pasteWritesOf(alone.rows, placePaste(alone, SAVE_PICKS, CONTEXT))), 'save 2 rows — 0 vendors added to a book · 1 vendor set on a stop · 1 record · 0 one-offs');
+  assert.equal(saveWords(pasteWritesOf(one.rows, placePaste(one, SAVE_PICKS, CONTEXT)), pasteAddsOf(chartAddsOf(placePaste(one, SAVE_PICKS, CONTEXT), CONTEXT))), 'save 1 row — 1 sub-account added to the chart · 1 vendor added to a book · 1 vendor set on a stop · 0 tags set on a vendor · 0 stops given planned items · 1 record · 1 one-off');
+  assert.equal(saveWords(pasteWritesOf(alone.rows, placePaste(alone, SAVE_PICKS, CONTEXT)), []), 'save 2 rows — 0 sub-accounts added to the chart · 0 vendors added to a book · 1 vendor set on a stop · 0 tags set on a vendor · 1 stop given planned items · 1 record · 0 one-offs');
 
   // THE NAMES a save would add: a line a book, the books in the paste's order; each name once, as its first row spells it; a book's names in name order.
   assert.deepEqual(newVendorsOf(SAVE_WRITES), [{ book: { id: 'P', word: 'Personal' }, names: ['Corner Cup', 'Pin Palace'] }, { book: { id: 'B', word: 'Business' }, names: ['Pin Palace'] }]);
@@ -520,7 +520,7 @@ test('T8 the writes of a paste: the placed rows that have something to write, in
 test('T9 the runner writes a row at a time, each step in its order with its own body: on a stop — the vendor added (a new name), the vendor at the sheet row’s own address, the record; a new one-off — the stop, its line, its minutes, the vendor, the record; a new vendor is added once a save', async () => {
   const { calls, writers } = recorder();
   const told: PasteProgress[] = [];
-  const outcomes = await runPaste(SAVE_WRITES, writers, (progress) => told.push(progress));
+  const outcomes = await runPaste(SAVE_WRITES, writers, (progress) => told.push(progress), []); // COALEVELS-01 (2026-11-27): the runner is handed the additions to the chart — none in this run
   const bowling = oneOff(SAVE_PLACED[2]).values;
   const ahead = oneOff(SAVE_PLACED[3]).values;
   const paper = oneOff(SAVE_PLACED[5]).values;
@@ -579,8 +579,8 @@ test('T9 the runner writes a row at a time, each step in its order with its own 
   // No write at all: nothing asked, and said once.
   const none = recorder();
   const quiet: PasteProgress[] = [];
-  assert.deepEqual(await runPaste([], none.writers, (progress) => quiet.push(progress)), []);
-  assert.deepEqual([none.calls, quiet], [[], [{ outcomes: [], at: null }]]);
+  assert.deepEqual(await runPaste([], none.writers, (progress) => quiet.push(progress), []), []);
+  assert.deepEqual([none.calls, quiet], [[], [{ adds: [], outcomes: [], at: null }]]); // COALEVELS-01 (2026-11-27): the progress says how each addition to the chart came out — none here
 });
 
 // ── T10 · THE ONE RUNNER — A REFUSAL STOPS THE SAVE (ruling B.4) ─────────────
@@ -591,7 +591,7 @@ test('T10 a write a route refuses stops the save, at each of the six steps: that
   const stoppedAt = async (refuse: Refusals) => {
     const { calls, writers } = recorder(refuse);
     const told: PasteProgress[] = [];
-    const outcomes = await runPaste(SAVE_WRITES, writers, (progress) => told.push(progress));
+    const outcomes = await runPaste(SAVE_WRITES, writers, (progress) => told.push(progress), []); // COALEVELS-01 (2026-11-27): no additions in this run
     return { asked: names(calls), outcomes, told };
   };
   const notTried = (...rows: number[]): PasteOutcome[] => rows.map((row) => ({ row, state: 'not tried' }));
@@ -639,10 +639,10 @@ test('T10 a write a route refuses stops the save, at each of the six steps: that
 
 // ── T11 · THE WORDS (ruling B.5) ─────────────────────────────────────────────
 
-test('T11 the save’s words: the six steps — "+ expense"’s own and one more; a row’s outcome — every step written, the steps written and the one refused, or not tried; the lines while it runs and after; the compare that stops a save', () => {
-  assert.deepEqual([...PASTE_STEPS], ['stop', 'line', 'minutes', 'directory', 'vendor', 'record']);
-  assert.deepEqual(PASTE_STEP_WORDS, { stop: STEP_WORDS.stop, line: STEP_WORDS.line, minutes: "the stop's minutes", directory: STEP_WORDS.directory, vendor: STEP_WORDS.vendor, record: STEP_WORDS.record });
-  assert.deepEqual(PASTE_STEPS.map((step) => PASTE_STEP_WORDS[step]), ['the one-off stop', "the stop's line, read back", "the stop's minutes", 'the vendor, added to the book', 'the vendor, on the stop', 'the record']);
+test('T11 the save’s words: the nine steps (COALEVELS-01, 2026-11-27 — six until then) — "+ expense"’s own and four more; a row’s outcome — every step written, the steps written and the one refused, or not tried; the lines while it runs and after; the compare that stops a save', () => {
+  assert.deepEqual([...PASTE_STEPS], ['sub-account', 'stop', 'line', 'minutes', 'directory', 'vendor', 'items', 'tag', 'record']); // COALEVELS-01 (2026-11-27): 'sub-account' at the head — the chart's addition, before any row — and 'items' and 'tag' after 'vendor'
+  assert.deepEqual(PASTE_STEP_WORDS, { 'sub-account': 'the sub-account', stop: STEP_WORDS.stop, line: STEP_WORDS.line, minutes: "the stop's minutes", directory: STEP_WORDS.directory, vendor: STEP_WORDS.vendor, items: 'the planned items', tag: "the vendor's Instagram tag", record: STEP_WORDS.record });
+  assert.deepEqual(PASTE_STEPS.map((step) => PASTE_STEP_WORDS[step]), ['the sub-account', 'the one-off stop', "the stop's line, read back", "the stop's minutes", 'the vendor, added to the book', 'the vendor, on the stop', 'the planned items', "the vendor's Instagram tag", 'the record']);
   // A row's outcome.
   assert.equal(pasteOutcomeWords({ row: 2, state: 'written', steps: ['vendor', 'record'] }), 'written: the vendor, on the stop · the record');
   assert.equal(pasteOutcomeWords({ row: 4, state: 'written', steps: ['stop', 'line', 'minutes', 'directory', 'vendor', 'record'] }), "written: the one-off stop · the stop's line, read back · the stop's minutes · the vendor, added to the book · the vendor, on the stop · the record");
@@ -735,21 +735,21 @@ test('T12 the writers, over a stand-in fetch: one request in the file, handed it
   assert.equal(sent[6].init?.body, JSON.stringify({ kind: 'routine_line', id: 'line-9', instant: at(SUN, '20:00'), vendorId: 'v-oat' }));
   assert.equal(sent[8].init?.body, JSON.stringify(oneOffBody(bowling)));
   assert.equal(sent[9].init?.body, JSON.stringify({ entityId: 'P', name: 'Pin Palace' }));
-  // The file: ONE request, in the one helper, which takes the method; the three POSTs and the one PATCH go through it.
+  // The file: ONE request, in the one helper, which takes the method; the four POSTs and the two PATCHes go through it. COALEVELS-01 (2026-11-27): setVendorTag (a PATCH) and addSubAccount (a POST) are new — three and one until then.
   const w = code(WRITERS);
   assert.equal(countOf(w, /\bfetch\s*\(/g), 1, 'still one request in the file');
   assert.match(w, /async function send\(method: 'POST' \| 'PATCH', url: string, body: unknown\)/);
   assert.match(w, /res = await fetch\(url, \{ method, headers: \{ 'Content-Type': 'application\/json' \}, body: JSON\.stringify\(body\), redirect: 'manual' \}\);/);
-  assert.deepEqual([countOf(w, /await send\('POST', /g), countOf(w, /await send\('PATCH', /g), countOf(w, /\bpost\(/g)], [3, 1, 0]);
-  assert.match(w, /export async function setVendor\(body: \{ readonly kind: 'routine_line' \| 'routine'; readonly id: string; readonly instant: string; readonly vendorId: string \}\)/);
+  assert.deepEqual([countOf(w, /await send\('POST', /g), countOf(w, /await send\('PATCH', /g), countOf(w, /\bpost\(/g)], [4, 2, 0]);
+  assert.match(w, /export async function setVendor\(body: \{ readonly kind: 'routine_line' \| 'routine'; readonly id: string; readonly instant: string; readonly vendorId: string; readonly items\?: string \}\)/); // COALEVELS-01 (2026-11-27): the body may carry the plan's items
   assert.match(w, /export async function setLineMinutes\(lineId: string, minutes: number\): Promise<WriteAnswer<null>> \{\n\s*const answer = await send\('PATCH', `\/api\/operations\/routines\/steps\/\$\{lineId\}`, \{ duration_minutes: minutes \}\);/);
-  assert.deepEqual([...w.matchAll(/^export async function (\w+)/gm)].map((m) => m[1]), ['createOneOff', 'readOneOffLine', 'addVendor', 'setVendor', 'setLineMinutes']);
+  assert.deepEqual([...w.matchAll(/^export async function (\w+)/gm)].map((m) => m[1]), ['createOneOff', 'readOneOffLine', 'addVendor', 'setVendor', 'setLineMinutes', 'setVendorTag', 'addSubAccount']); // COALEVELS-01 (2026-11-27): seven exported writers, the two new ones at the file's end
   assert.doesNotMatch(w, /\/api\/operations\/stops/, 'the record is the stops’ one writer’s');
 });
 
 // ── T13 · THE LEAF (ruling D) ────────────────────────────────────────────────
 
-test('T13 the leaf: the six writers handed to the one runner and called nowhere else; pressing save reads again before any write and compares before the writes; no save button after a run; a read keeps the picks and "clear" forgets them; nothing stored; the hooks the look reads', () => {
+test('T13 the leaf: the eight writers (COALEVELS-01, 2026-11-27 — six until then) handed to the one runner and called nowhere else; pressing save reads again before any write and compares before the writes; no save button after a run; a read keeps his picks — and starts each kind with none on the account its Category names — and "clear" forgets them; nothing stored; the hooks the look reads', () => {
   const leaf = code(LEAF);
   // Its default export takes the one thing; the picks live in it, above the box, and are handed down with their setter.
   const outer = between(leaf, 'export default function PasteRows(', '\ninterface ReadRows');
@@ -761,9 +761,9 @@ test('T13 the leaf: the six writers handed to the one runner and called nowhere 
   assert.equal(countOf(leaf.slice(boxAt), /useState<Picks>/g), 0, 'the box holds no picks of its own: closing it keeps them');
   assert.match(leaf.slice(boxAt), /const pick = \(kind: string, value: string\) => setPicks\(\(held\) => \{/, 'a pick is set through the outer setter');
 
-  // THE SIX WRITERS: handed to the one runner in one object, and named nowhere else — the leaf calls no writer itself, and sends no request of its own.
-  for (const writer of ['createOneOff', 'readOneOffLine', 'setLineMinutes', 'addVendor', 'setVendor', 'setStopRecord']) assert.equal(countOf(leaf, new RegExp(`\\b${writer}\\b`, 'g')), 2, `${writer}: its import, and the runner's hand`);
-  assert.equal(countOf(leaf, /await runPaste\(placed\.writes, \{ createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setRecord: setStopRecord \}, /g), 1);
+  // THE EIGHT WRITERS (COALEVELS-01 (2026-11-27): the tag's and the chart's joined the six): handed to the one runner in one object, and named nowhere else — the leaf calls no writer itself, and sends no request of its own.
+  for (const writer of ['createOneOff', 'readOneOffLine', 'setLineMinutes', 'addVendor', 'setVendor', 'setVendorTag', 'addSubAccount', 'setStopRecord']) assert.equal(countOf(leaf, new RegExp(`\\b${writer}\\b`, 'g')), 2, `${writer}: its import, and the runner's hand`);
+  assert.equal(countOf(leaf, /await runPaste\(placed\.writes, \{ createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setVendorTag, addSubAccount, setRecord: setStopRecord \}, /g), 1);
   assert.doesNotMatch(leaf, /\bfetch\s*\(|\bmethod\b|\bPOST\b|\bPATCH\b|\bDELETE\b/, 'no request and no method of its own');
   assert.doesNotMatch(leaf, /localStorage|sessionStorage|document\.cookie|indexedDB|\bcookie\b/i, 'nothing stored in the browser');
 
@@ -773,8 +773,8 @@ test('T13 the leaf: the six writers handed to the one runner and called nowhere 
   const clear = between(leaf, 'const clear = () => {', '\n  const pick = (kind: string, value: string)');
   const save = between(leaf, 'const save = async () => {', '\n  return (\n    <div className="space-y-2 text-xs border');
   assert.match(read, /const against = await readAgainst\(paste\.value, booksNow\(\), zone\);/);
-  // A read keeps the picks — it forgets the rows, the run and the changed line; "clear" forgets the picks too.
-  assert.doesNotMatch(read, /setPicks/);
+  // A read keeps his picks — it forgets the rows, the run and the changed line; "clear" forgets the picks too. COALEVELS-01 (2026-11-27): and a read STARTS each kind that has no pick of its own on the account its Category names — by the rule's one function, once, after the read; the read named no setter of the picks until then.
+  assert.equal(countOf(read, /setPicks/g), 1); assert.match(read, /if \(!against\.ok\) \{ setRefusal\(against\.words\); return; \}\n\s*setPicks\(\(held\) => picksAtRead\(held, pasteKindsOf\(paste\.value\), against\.value\)\);\n\s*setRows\(\{ paste: paste\.value, context: against\.value \}\);/);
   inOrder(read, ['setRefusal(null);', 'setRows(null);', 'setRun(null);', 'setChanged(false);', 'const paste = readPaste(text);'], 'a new read');
   inOrder(clear, ["setText('');", 'setRefusal(null);', 'setRows(null);', 'setRun(null);', 'setChanged(false);', 'setPicks({});'], '"clear"');
   assert.doesNotMatch(save, /setPicks/, 'the save places the rows with the same picks');
@@ -791,7 +791,7 @@ test('T13 the leaf: the six writers handed to the one runner and called nowhere 
     'setRows(again);', //     …and shown
     'if (shownChanged(shown.table, placed.table)) { setChanged(true); return; }', // (4) not what was on screen: nothing written
     'const outcomes = await runPaste(placed.writes, ', // (5) the writes of the NEW placements
-    'setRun({ outcomes, done: true });',
+    'setRun({ adds: added, outcomes, done: true });', // COALEVELS-01 (2026-11-27): the run says how each addition came out too
     'onWritten(daysReached(placed.writes, outcomes));', // (6) every day a write reached, once
     '} finally {', 'setSaving(null);', 'setBusy(false);',
   ], 'pressing save');
@@ -800,11 +800,11 @@ test('T13 the leaf: the six writers handed to the one runner and called nowhere 
   assert.ok(save.indexOf('await readAgainst(') < save.indexOf('shownChanged(') && save.indexOf('shownChanged(') < save.indexOf('await runPaste('), 'read again, then compare, then write');
   assert.deepEqual([countOf(save, /await runPaste\(/g), countOf(save, /\bonWritten\(/g), countOf(save, /pasteWritesOf|placePaste\(/g)], [1, 1, 0], 'one run, the days handed up once, and the rows placed by the one helper');
   // The runner's progress is shown as it comes: each row's outcome so far, and the row being written.
-  assert.match(save, /\(progress\) => \{\n\s*setRun\(\{ outcomes: progress\.outcomes, done: false \}\);\n\s*setSaving\(progress\.at\);\n\s*\}\);/);
+  assert.match(save, /\(progress\) => \{\n\s*added = progress\.adds;\n\s*setRun\(\{ adds: progress\.adds, outcomes: progress\.outcomes, done: false \}\);\n\s*setSaving\(progress\.at\);\n\s*\}, placed\.saveAdds\);/); // COALEVELS-01 (2026-11-27): the progress carries the additions' outcomes, and the runner is handed the additions
 
   // AFTER A RUN THERE IS NO SAVE BUTTON until the rows are read again.
   assert.match(leaf, /const spent = run !== null && run\.done;/);
-  assert.match(leaf, /\{!spent && shown\.writes\.length > 0 && <button type="button" className=\{chip\} disabled=\{busy\} aria-busy=\{saving !== null\} onClick=\{save\} data-ledger-paste-save>\{saveWords\(shown\.writes\)\}<\/button>\}/);
+  assert.match(leaf, /\{!spent && shown\.writes\.length > 0 && <button type="button" className=\{chip\} disabled=\{busy\} aria-busy=\{saving !== null\} onClick=\{save\} data-ledger-paste-save>\{saveWords\(shown\.writes, shown\.saveAdds\)\}<\/button>\}/);
   assert.equal(countOf(leaf, /data-ledger-paste-save>/g), 1);
 
   // THE HOOKS THE LOOK READS. The zone, beside the title (D.4).
@@ -815,7 +815,7 @@ test('T13 the leaf: the six writers handed to the one runner and called nowhere 
   inOrder(saveBox, [
     '{!spent && shown.newVendors.map((line) => <p key={line} className="text-text-muted" data-ledger-paste-new-vendors>{line}</p>)}',
     '{!spent && shown.newVendors.length > 0 && <p className="text-brand-amber" data-ledger-paste-vendors-stay>{VENDORS_STAY_WORDS}</p>}',
-    'data-ledger-paste-save>{saveWords(shown.writes)}</button>}',
+    'data-ledger-paste-save>{saveWords(shown.writes, shown.saveAdds)}</button>}',
     '{!spent && shown.writes.length === 0 && <p className="text-text-muted" data-ledger-paste-nothing>{NOTHING_TO_SAVE_WORDS}</p>}',
     "{saving === 'checking' && <p className=\"text-text-muted\" data-ledger-paste-checking>{CHECKING_WORDS}</p>}",
     "{saving !== null && saving !== 'checking' && <p className=\"text-text-muted\" data-ledger-paste-saving>{savingWords(saving.i, saving.of, saving.row)}</p>}",
@@ -824,8 +824,8 @@ test('T13 the leaf: the six writers handed to the one runner and called nowhere 
     '{spent && <p className="text-text-muted" data-ledger-paste-spent>{SPENT_WORDS}</p>}',
   ], 'the save box');
   assert.deepEqual([...saveBox.matchAll(/data-ledger-paste-([a-z-]+)/g)].map((m) => m[1]), ['save-box', 'new-vendors', 'vendors-stay', 'save', 'nothing', 'checking', 'saving', 'changed', 'saved-line', 'spent']);
-  // A row's outcome (D.8): under its LANDS words, on its own line, in its state's colour — green · red · muted.
-  assert.match(leaf, /<td className=\{`\$\{cell\} border-l border-border`\} data-ledger-paste-lands>\n\s*<span>\{row\.lands\}<\/span>\n\s*\{outcome !== undefined && <div className=\{SAVED_CLASS\[outcome\.state\]\} data-ledger-paste-saved=\{outcome\.state\}>\{pasteOutcomeWords\(outcome\)\}<\/div>\}\n\s*<\/td>/);
+  // A row's outcome (D.8): after its LANDS words, in its state's colour — green · red · muted. COALEVELS-01 (2026-11-27): a row's landing has a line to itself — an empty cell under ROW, then ONE cell across the others: the word, the sentence, and the outcome after it; a last column, the outcome a <div> under the sentence, until then.
+  assert.match(leaf, /<tr>\n\s*<td \/>\n\s*<td colSpan=\{YOUR_SHEET_COLUMNS\.length \+ ON_TIME_SHEET_COLUMNS\.length - 1\} className=\{`\$\{cell\} pt-0`\} data-ledger-paste-lands>\n\s*<span className=\{`\$\{label\} uppercase mr-2`\}>\{LANDS_WORDS\}<\/span><span>\{row\.lands\}<\/span>\{outcome !== undefined && <span className=\{`\$\{SAVED_CLASS\[outcome\.state\]\} ml-3`\} data-ledger-paste-saved=\{outcome\.state\}>\{pasteOutcomeWords\(outcome\)\}<\/span>\}\n\s*<\/td>\n\s*<\/tr>/); assert.match(leaf, /<tbody key=\{row\.number\} className=\{ROW_CLASS\[row\.tone\]\} data-ledger-paste-row=\{row\.number\} data-ledger-paste-tone=\{row\.tone\}>/); assert.doesNotMatch(leaf, /data-ledger-paste-group="lands"|rowSpan/, 'LANDS is no column');
   assert.match(leaf, /const SAVED_CLASS: Readonly<Record<PasteOutcome\['state'\], string>> = \{\n\s*written: 'text-brand-green',\n\s*failed: 'text-brand-red',\n\s*'not tried': 'text-text-muted',\n\s*\};/);
   assert.match(leaf, /const outcome = run === null \? undefined : run\.outcomes\.find\(\(o\) => o\.row === row\.number\);/);
   // While it reads or saves, the textarea, the three buttons, the picks and the save button are off.
@@ -842,7 +842,7 @@ test('T13 the leaf: the six writers handed to the one runner and called nowhere 
 test('T14 the section hands the leaf what it does when a day is written — one line edited in place, 488 lines still; the expense form’s mount before it character for character; /time mounts what it did', () => {
   const s = code(SECTION);
   assert.equal(linesOf(SECTION).length, 488, 'no line added, none removed — the registry cites three of its lines');
-  assert.ok(s.includes('\n      <ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} />\n'), 'the line as ruled');
+  assert.ok(s.includes('<h2 className="text-sm font-bold text-brand-purple" data-ledger-title>{LEDGER_TITLE_WORDS}</h2><ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} /><span className="h-4 w-px bg-border" aria-hidden="true" />\n'), 'the mounts as ruled'); // COALEVELS-01 (2026-11-27): at the head of the controls row, after the title and before a divider — a line of their own above the table until then; each mount character for character
   assert.deepEqual([countOf(s, /<PasteRows\b/g), countOf(s, /<ExpenseForm\b/g), countOf(s, /days\.forEach\(announceDayWritten\)/g)], [1, 1, 1]);
   // The time sheet reads again once a save, however many days it reached; each day's card is told.
   assert.match(s, /<PasteRows onWritten=\{\(days\) => \{ setWrites\(\(n\) => n \+ 1\); days\.forEach\(announceDayWritten\); \}\} \/>/);

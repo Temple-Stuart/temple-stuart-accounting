@@ -1,6 +1,7 @@
 // ─── DIM-2: the dimensional display string ───────────────────────────────────
 // deriveAccountString builds the 'B-5100-10-API'-style ENTITY-ACCOUNT-SUB-OBJECT
-// string from STRUCTURED parts. The string is a RENDER, never stored — the
+// string from STRUCTURED parts (COALEVELS-01, 2026-11-27: ENTITY-LOCATION-ACCOUNT-SUB-OBJECT
+// when the caller sends a location code). The string is a RENDER, never stored — the
 // structured columns (entity FK, code, sub_type, and DIM-3's transaction-level
 // object) stay the source of truth (the ruled no-code-string-migration design).
 //
@@ -8,6 +9,11 @@
 //   E — from the account's entity_type: personal→P, sole_prop→B, trading→T.
 //       ANY OTHER entity_type renders NO letter (partial string), never a
 //       guessed one.
+//   L — COALEVELS-01 (Alex, 2026-11-27): the LOCATION segment, after the entity's letter
+//       and before the code — a caller-supplied locationCode (the time sheet sends
+//       src/lib/operations/locationClass.ts LOCATION_CODES of a stop's Location),
+//       trimmed, only when present. Absent → absent: every caller that sends none
+//       renders exactly what it rendered.
 //   A — the account code, verbatim (today's flat numeric codes, e.g. '5100').
 //   S — sub_type VERBATIM, only when present. Today's real values are category
 //       tokens ('investment', 'retirement', 'credit_card', 'loan' —
@@ -48,6 +54,8 @@ export function entityTypeOfLetter(letter: string): string | null {
 export interface AccountStringParts {
   /** entities.entity_type ('personal' | 'sole_prop' | 'trading' | other). */
   entityType?: string | null;
+  /** COALEVELS-01 (2026-11-27): the Location's code — rendered after the entity's letter and before the code, when present. */
+  locationCode?: string | null;
   /** chart_of_accounts.code — the one required segment. */
   code: string;
   /** chart_of_accounts.sub_type — rendered verbatim when present. */
@@ -56,10 +64,12 @@ export interface AccountStringParts {
   objectCode?: string | null;
 }
 
-export function deriveAccountString({ entityType, code, subType, objectCode }: AccountStringParts): string {
+export function deriveAccountString({ entityType, locationCode, code, subType, objectCode }: AccountStringParts): string {
   const segments: string[] = [];
   const letter = entityType ? ENTITY_LETTER[entityType] : undefined;
   if (letter) segments.push(letter);
+  const location = locationCode?.trim();
+  if (location) segments.push(location);
   segments.push(code);
   const sub = subType?.trim();
   if (sub) segments.push(sub);

@@ -245,6 +245,9 @@ export interface RoutineForm {
   location: string;
   latitude: string;
   longitude: string;
+  // COALEVELS-01 (2026-11-27): the stop's Location — 'travel' | 'homebase' | null (not said); optional: a body that says
+  // nothing of it creates a routine with none, and an edit that says nothing of it leaves what the routine holds. NOT `location`.
+  location_class?: string | null;
   // ONEOFF-01: the lines (LINES-01) a routine is created WITH, so a one-off can
   // be authored whole — "one line $300 / 8150" — in one act. Each line is a
   // routine step; the create route writes them with the routine.

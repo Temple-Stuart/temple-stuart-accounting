@@ -25,7 +25,7 @@
 import { useEffect, useState } from 'react';
 import { useDirectory } from '@/components/budget/VendorBox';
 import {
-  CANCEL_EXPENSE_WORDS, EMPTY_EXPENSE, EXPENSE_FIELD_WORDS, EXPENSE_TITLE_WORDS, EXPENSE_WORDS, NEW_VENDOR_WORDS, NO_BOOK_WORDS, NO_VENDOR_WORDS, SAVE_EXPENSE_WORDS, VENDORS_LOADING_WORDS,
+  CANCEL_EXPENSE_WORDS, EMPTY_EXPENSE, EXPENSE_FIELD_WORDS, EXPENSE_TITLE_WORDS, EXPENSE_WORDS, LOCATION_CLASSES, LOCATION_WORDS, NEW_VENDOR_WORDS, NO_BOOK_WORDS, NO_LOCATION_WORDS, NO_VENDOR_WORDS, SAVE_EXPENSE_WORDS, VENDORS_LOADING_WORDS,
   expenseInput, expenseLandedWords, oneOffBody, outcomeWords, recordBody, vendorBody, withNotTried, zoneWords,
   type ExpenseDraft, type ExpenseField, type ExpenseOutcome,
 } from '@/lib/operations/ledger';
@@ -41,7 +41,7 @@ const label = 'text-text-faint tracking-wide';
 export default function ExpenseForm({ onWritten }: { onWritten: (day: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="space-y-2" data-ledger-expense>
+    <div className={open ? 'order-last w-full space-y-2' : 'contents'} data-ledger-expense>
       {!open && <button type="button" className={chip} onClick={() => setOpen(true)} data-ledger-expense-open>{EXPENSE_WORDS}</button>}
       {open && <Fields onWritten={onWritten} close={() => setOpen(false)} />}
     </div>
@@ -154,6 +154,8 @@ function Fields({ onWritten, close }: { onWritten: (day: string) => void; close:
         {field('book', entities.length === 0
           ? <span className="text-brand-amber" data-ledger-expense-no-book>{NO_BOOK_WORDS}</span>
           : <select value={draft.book} onChange={(e) => set('book')(e.target.value)} className={box} data-ledger-expense-book>{entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>)}
+        {/* COALEVELS-01 (2026-11-27): the stop's LOCATION — none, or one of the rule's two (locationClass.ts, through ledger.ts); never required. The form stands in the sheet's controls row: shut, its root is `contents` and its button is one of the row's; open, the root takes the row's whole width beneath it. */}
+        {field('location', <select value={draft.location} onChange={(e) => set('location')(e.target.value)} className={box} data-ledger-expense-location><option value="">{NO_LOCATION_WORDS}</option>{LOCATION_CLASSES.map((c) => <option key={c} value={c}>{LOCATION_WORDS[c]}</option>)}</select>)}
         {field('coa', <CoaSelect entityId={draft.book} value={draft.coa} onChange={set('coa')} className={box} />)}
       </div>
       <div className="flex flex-wrap items-center gap-2">

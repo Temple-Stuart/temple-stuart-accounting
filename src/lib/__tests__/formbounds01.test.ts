@@ -61,7 +61,7 @@ const DAY_BEFORE = new Date(STOP_MS - 24 * 60 * MINUTE_MS);
 
 /** "+ expense", every box of the plan typed and no box of the record. */
 const DRAFT: ExpenseDraft = { ...EMPTY_EXPENSE, day: MON, time: '12:30', name: 'Soup', amount: '6.50', coa: '6150', book: 'P' };
-const PLANNED_VALUE: ExpenseValues = { day: MON, time: '12:30', zone: NBO, instant: STOP, name: 'Soup', amount: '6.50', coa: '6150', bookId: 'P', vendor: { kind: 'none' }, actualCents: null, rating: null, note: null, ahead: true };
+const PLANNED_VALUE: ExpenseValues = { day: MON, time: '12:30', zone: NBO, instant: STOP, name: 'Soup', amount: '6.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: null, rating: null, note: null, ahead: true }; // COALEVELS-01 (2026-11-27): the value says the stop's Location — null: the draft's box is left at none
 const expense = (over: Partial<ExpenseDraft>, now: Date) => expenseInput({ ...DRAFT, ...over }, NBO, now);
 /** An accepted "+ expense" — or the test fails with the refusal's words. */
 const expenseValue = (over: Partial<ExpenseDraft>, now: Date): ExpenseValues => {
@@ -187,7 +187,7 @@ test('T3 expenseInput and the clock: a stop at exactly the skew is not ahead; a 
 
 // ── T4 · A STOP STILL AHEAD (ruling B.3) ─────────────────────────────────────
 
-test('T4 a stop ahead with nothing typed is taken — planned: ahead true, actualCents, rating and note null; with ACTUAL, STARS or DESCRIPTION typed it is refused by aheadFieldWords, the first typed box named, before that box’s own reading', () => {
+test('T4 a stop ahead with nothing typed is taken — planned: ahead true, actualCents, rating and note null; with ACTUAL, STARS or ITEMS (COALEVELS-01, 2026-11-27 — DESCRIPTION until then) typed it is refused by aheadFieldWords, the first typed box named, before that box’s own reading', () => {
   // Nothing of the record typed: the stop is planned.
   assert.deepEqual(expense({}, DAY_BEFORE), { ok: true, value: PLANNED_VALUE });
   assert.deepEqual(expense({ actual: '  ', stars: ' ', note: ' \t ' }, DAY_BEFORE), { ok: true, value: PLANNED_VALUE }, 'a box of spaces is a blank box');
@@ -217,7 +217,7 @@ test('T4 a stop ahead with nothing typed is taken — planned: ahead true, actua
   // The words, as they read.
   assert.equal(aheadFieldWords('actual'), "ACTUAL is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come");
   assert.equal(aheadFieldWords('stars'), "STARS is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come");
-  assert.equal(aheadFieldWords('note'), "DESCRIPTION is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come");
+  assert.equal(aheadFieldWords('note'), "ITEMS is the record's, and this stop is still ahead — leave it blank, and record it on its row once its time has come"); // COALEVELS-01 (2026-11-27): the form says the sheet's word for the note's box — "DESCRIPTION is the record's…" until then
 });
 
 // ── T5 · THE TWO BOUNDS, IN BOTH FORMS (rulings B.3 and B.5) ─────────────────
@@ -246,9 +246,9 @@ test('T5 both forms: ACTUAL 21474836.47 is taken — the column’s whole range 
   }
 });
 
-test('T5 both forms: a control in DESCRIPTION is refused by NOTE_CONTROL_WORDS, before its length; a tab and a line break are read as a space and taken; "+ expense" refuses 281 characters by NOTE_LONG_WORDS', () => {
-  assert.equal(NOTE_CONTROL_WORDS, 'DESCRIPTION holds a control character — type it again without it');
-  assert.equal(NOTE_LONG_WORDS, 'DESCRIPTION is at most 280 characters');
+test('T5 both forms: a control in ITEMS (COALEVELS-01, 2026-11-27 — DESCRIPTION until then) is refused by NOTE_CONTROL_WORDS, before its length; a tab and a line break are read as a space and taken; "+ expense" refuses 281 characters by NOTE_LONG_WORDS', () => {
+  assert.equal(NOTE_CONTROL_WORDS, 'ITEMS holds a control character — type it again without it'); // COALEVELS-01 (2026-11-27): the sheet's word — 'DESCRIPTION holds a control character…' until then
+  assert.equal(NOTE_LONG_WORDS, 'ITEMS is at most 280 characters'); // COALEVELS-01 (2026-11-27): 'DESCRIPTION is at most 280 characters' until then
   for (const [c, name] of CONTROLS) {
     assert.deepEqual(expense({ note: `so${c}up` }, AFTER), { ok: false, field: 'note', message: NOTE_CONTROL_WORDS }, `+ expense: ${name}`);
     assert.deepEqual(record({ note: `so${c}up` }, AFTER), { ok: false, field: 'note', message: NOTE_CONTROL_WORDS }, `the record form: ${name}`);

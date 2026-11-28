@@ -76,29 +76,29 @@ const OWNED: readonly OwnedProject[] = [
 test('T1 the migration: the newest; ONE ADD VALUE IF NOT EXISTS line, the precedent’s way, nothing else; the schema and the client carry the value; the audit read lists it', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // HOME-SERVICES-02 (2026-11-16): its migration, 20261116132400_home_services_02_answers (proposals gains answers), is the newest now — every position read from the end below moved by one, and a message that says "the newest" names the one before it.
-  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more.
-  assert.equal(dirs[dirs.length - 13], MIGRATION_DIR, 'the migration before the newest (DOCUMENTS-01 followed)');
+  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more. COALEVELS-01 (2026-11-27): and its migration, 20261127230000_coa_levels_01_sub_accounts_location (a table of the chart's sub-accounts, and a routine's Location), is the newest now — every position moved by one more again.
+  assert.equal(dirs[dirs.length - 14], MIGRATION_DIR, 'the migration before the newest (DOCUMENTS-01 followed)');
   // DOCUMENTS-01 (Alex, 2026-10-28): source_documents, the receipt on its posting — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 12], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
+  assert.equal(dirs[dirs.length - 13], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
   // DOCUMENTS-02 (Alex, 2026-10-30): the reconciliation's supersession — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 11], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
+  assert.equal(dirs[dirs.length - 12], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
   // FX-01 (2026-10-30): the transactions currency migration followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 10], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
+  assert.equal(dirs[dirs.length - 11], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
   // TRAVEL-02b (2026-11-03): travel_expenses and the sixth link kind followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 9], '20261103120000_travel_02b_travel_expenses', 'the migration before the newest (TRAVEL-02c followed)');
+  assert.equal(dirs[dirs.length - 10], '20261103120000_travel_02b_travel_expenses', 'the migration before the newest (TRAVEL-02c followed)');
   // TRAVEL-02c (2026-11-03): living_baselines and the seventh link kind followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 8], '20261103200000_travel_02c_stay_link_living_baselines', 'the migration before the newest (ONE-FORM-01 followed)');
+  assert.equal(dirs[dirs.length - 9], '20261103200000_travel_02c_stay_link_living_baselines', 'the migration before the newest (ONE-FORM-01 followed)');
   // ONE-FORM-01 (2026-11-06): the sixth need, 'close', followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 7], '20261106120000_one_form_01_close_need', 'the migration before the newest (CRM-01a followed)');
+  assert.equal(dirs[dirs.length - 8], '20261106120000_one_form_01_close_need', 'the migration before the newest (CRM-01a followed)');
   // CRM-01a (2026-11-07): crm_contacts, the CRM's working table, followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 6], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
+  assert.equal(dirs[dirs.length - 7], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
   // CRM-02 (2026-11-07): crm_forms and crm_form_submissions, the intake form's two tables, followed — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 5], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 6], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
   // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 4], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 5], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
   // CASH-02a (2026-11-08): travel_expenses gains paid_with — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 3], '20261108120000_cash_02a_paid_with', 'the newest migration');
-  assert.equal(dirs[dirs.length - 14], '20261020150000_journal_06_reflection', 'right after JOURNAL-06’s');
+  assert.equal(dirs[dirs.length - 4], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  assert.equal(dirs[dirs.length - 15], '20261020150000_journal_06_reflection', 'right after JOURNAL-06’s');
   const sql = code(MIGRATION).trim();
   assert.equal(sql, `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_project_reranked';`, 'the one statement, and nothing else — no BEGIN, no row, no column');
   const head = comments(MIGRATION);

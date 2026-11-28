@@ -174,10 +174,36 @@ model chart_of_accounts {
   entity               entities               @relation(fields: [entity_id], references: [id])
   ledger_entries       ledger_entries[]
   account_tax_mappings account_tax_mappings[]
+  // COALEVELS-01 (2026-11-27): the sub-accounts under this account — chart_of_sub_accounts, below.
+  sub_accounts         chart_of_sub_accounts[]
 
   @@unique([userId, entity_id, code])
   @@index([entity_id, account_type])
   @@index([userId, code])
+}
+
+// COALEVELS-01 (Alex, 2026-11-27): A SUB-ACCOUNT — a two-digit code and a name under ONE chart account. The account is the
+// CATEGORY; the sub-account is the TYPE. A stop is tied to its sub-account by its NAME (the one rule,
+// src/lib/coa/subAccounts.ts subAccountOf), so no plan row stores a sub-account's code. None is deleted: is_archived retires
+// one, and a retired one keeps its code and its name. The two CHECKs — the code two digits, the name not blank — are the
+// migration's (20261127230000_coa_levels_01_sub_accounts_location); the account cannot be deleted from under one (Restrict).
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model chart_of_sub_accounts {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String
+  account_id  String            @db.Uuid
+  code        String            @db.VarChar(2)
+  name        String            @db.VarChar(100)
+  is_archived Boolean           @default(false)
+  created_at  DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime          @updatedAt @db.Timestamptz(6)
+  created_by  String?
+  user        users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account     chart_of_accounts @relation(fields: [account_id], references: [id])
+
+  @@unique([account_id, code])
+  @@unique([account_id, name])
+  @@index([userId])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -824,6 +850,7 @@ model users {
   entities                entities[]
   trips                   trips[]
   chart_of_accounts       chart_of_accounts[]
+  chart_of_sub_accounts   chart_of_sub_accounts[]
   budget_line_items       budget_line_items[]
   stock_lots              stock_lots[]
   tax_scenarios           tax_scenarios[]
@@ -3880,6 +3907,10 @@ model operations_routines {
   // card asks; 'all_day' is in the day's plan but not a stop. A line takes its
   // routine's role. NOT NULL, default 'none' — no row rewritten.
   role                          String    @default("none") @db.VarChar(10)
+  // COALEVELS-01 (Alex, 2026-11-27): the stop's LOCATION — 'travel' | 'homebase' | NULL (not said): the migration's CHECK;
+  // the one rule src/lib/operations/locationClass.ts. The stop's own, and every line of the routine shares it. It is NOT
+  // `location` above, which is the venue's text. Nullable, no default — no row rewritten.
+  location_class                String?   @db.VarChar(10)
   created_at                    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at                    DateTime  @updatedAt @db.Timestamptz(6)
   created_by                    String?

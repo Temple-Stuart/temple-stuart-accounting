@@ -17,9 +17,15 @@
  * A new vendor is added ONCE a save, however many rows name it. The paste never writes over what stands: pasteRows.ts places a row
  * so that it writes only what its stop lacks, so what is in is never written twice — a save that stopped is finished by reading
  * the rows and saving again. Every word the save prints is typed here, once.
+ *
+ * COALEVELS-01 (Alex, 2026-11-27) — THE SAVE WRITES FOUR THINGS MORE (it carries TIMESHEET-04c, which was written and never run on
+ * its own): the additions to the chart — a sub-account for a Type that has none under its account — FIRST, before any row, and a refusal
+ * of one is said on its line and stops nothing (a stop's name is its Type either way); a row's planned items, WITH its vendor's
+ * write; its vendor's Instagram tag, after the vendor and before the record; and a one-off's record carries the row's notes. Nine
+ * steps, eight writers. Still pure, still one runner.
  */
 import { NOT_TRIED_WORDS, STEP_WORDS, oneOffBody, recordBody, vendorBody, type BookWord, type ExpenseValues, type LedgerAddress } from '@/lib/operations/ledger';
-import type { PastePlacement, PasteRecordBody, PasteRow, PasteShownRow, PastedVendor } from '@/lib/operations/pasteRows';
+import type { PasteChartAdd, PastePlacement, PasteRecordBody, PasteRow, PasteShownRow, PastedTag, PastedVendor } from '@/lib/operations/pasteRows';
 import { vendorNameKey } from '@/lib/operations/planVendor';
 
 // ── 1 · THE WRITES ──────────────────────────────────────────────────────────
@@ -32,17 +38,19 @@ export interface PasteWriteBook {
 
 /**
  * What ONE placed row writes. `stop`: a row on a stop that stands — the sheet row's own address, and the record's body or null.
- * `oneOff`: a new one-off — "+ expense"'s own values for it, its minutes or null, and whether it is recorded went. Both carry the
- * row's number in the paste, its day, its book and its vendor (none · the book's own · new to the book).
+ * `oneOff`: a new one-off — "+ expense"'s own values for it, its minutes or null, whether it is recorded went, and the notes of
+ * that record. Both carry the row's number in the paste, its day, its book, its vendor (none · the book's own · new to the book ·
+ * standing), the tag it sets on its vendor or null, and the planned items it writes or null.
  */
 export type PasteWrite =
-  | { readonly kind: 'stop'; readonly row: number; readonly day: string; readonly book: PasteWriteBook; readonly vendor: PastedVendor; readonly address: LedgerAddress; readonly record: PasteRecordBody | null }
-  | { readonly kind: 'oneOff'; readonly row: number; readonly day: string; readonly book: PasteWriteBook; readonly vendor: PastedVendor; readonly values: ExpenseValues; readonly minutes: number | null; readonly went: boolean };
+  | { readonly kind: 'stop'; readonly row: number; readonly day: string; readonly book: PasteWriteBook; readonly vendor: PastedVendor; readonly tag: PastedTag | null; readonly items: string | null; readonly address: LedgerAddress; readonly record: PasteRecordBody | null }
+  | { readonly kind: 'oneOff'; readonly row: number; readonly day: string; readonly book: PasteWriteBook; readonly vendor: PastedVendor; readonly tag: PastedTag | null; readonly items: string | null; readonly values: ExpenseValues; readonly minutes: number | null; readonly went: boolean; readonly notes: string | null };
 
 /**
  * THE WRITES of a paste: the placed rows that have something to write, in the paste's order. A row on a stop is one when it has a
- * vendor to plan (the book's own, or new) or a record's body; every new one-off is one. A row on a stop with neither — its vendor
- * and its record already stand, or it holds none — is not. The placements are placePaste's, row for row.
+ * vendor (the book's own, new, or the stop's standing one — named to carry planned items), a record's body, or a tag to set; every
+ * new one-off is one. A row on a stop with none of the three — its vendor and its record already stand, or it holds none — is
+ * not. The placements are placePaste's, row for row.
  */
 export function pasteWritesOf(rows: readonly Pick<PasteRow, 'number'>[], placements: readonly PastePlacement[]): PasteWrite[] {
   if (placements.length !== rows.length) throw new Error(`pasteSave: ${placements.length} placements for ${rows.length} rows — one placement a row`);
@@ -50,29 +58,43 @@ export function pasteWritesOf(rows: readonly Pick<PasteRow, 'number'>[], placeme
   placements.forEach((placement, i) => {
     const row = rows[i].number;
     if (placement.kind === 'plan') {
-      if (placement.vendor.kind === 'none' && placement.record === null) return;
-      writes.push({ kind: 'stop', row, day: placement.stop.day, book: { id: placement.book.id, word: placement.book.word }, vendor: placement.vendor, address: placement.stop.address, record: placement.record });
+      if (placement.vendor.kind === 'none' && placement.record === null && placement.tag === null) return;
+      writes.push({ kind: 'stop', row, day: placement.stop.day, book: { id: placement.book.id, word: placement.book.word }, vendor: placement.vendor, tag: placement.tag, items: placement.items, address: placement.stop.address, record: placement.record });
     } else if (placement.kind === 'oneOff') {
-      writes.push({ kind: 'oneOff', row, day: placement.values.day, book: { id: placement.book.id, word: placement.book.word }, vendor: placement.vendor, values: placement.values, minutes: placement.minutes, went: placement.happened.kind === 'went' });
+      writes.push({
+        kind: 'oneOff', row, day: placement.values.day, book: { id: placement.book.id, word: placement.book.word }, vendor: placement.vendor, tag: placement.tag, items: placement.items,
+        values: placement.values, minutes: placement.minutes, went: placement.happened.kind === 'went', notes: placement.happened.kind === 'went' ? placement.happened.notes : null,
+      });
     }
   });
   return writes;
 }
 
+/** A sub-account a save adds to the chart: its account's id, that account as it renders, its code and its name. */
+export interface PasteAdd {
+  readonly accountId: string;
+  readonly rendered: string;
+  readonly code: string;
+  readonly name: string;
+}
+/** THE ADDITIONS a save writes: those pasteRows.ts chartAddsOf listed that took a code — one with none (no ten is left) is said where it is listed, and not written. */
+export const pasteAddsOf = (listed: readonly PasteChartAdd[]): PasteAdd[] =>
+  listed.flatMap((add) => (add.code === null ? [] : [{ accountId: add.accountId, rendered: add.rendered, code: add.code, name: add.name }]));
+
 // ── 2 · A ROW'S STEPS ───────────────────────────────────────────────────────
 
-/** A row's steps, in the order they run — each only when the row has it. */
-export const PASTE_STEPS = ['stop', 'line', 'minutes', 'directory', 'vendor', 'record'] as const;
+/** The save's steps, in the order they run — the chart's addition first, before any row; then a row's, each only when the row has it. COALEVELS-01 (2026-11-27): nine — 'sub-account' at the head, 'items' and 'tag' after 'vendor'; six until then. */
+export const PASTE_STEPS = ['sub-account', 'stop', 'line', 'minutes', 'directory', 'vendor', 'items', 'tag', 'record'] as const;
 export type PasteStep = (typeof PASTE_STEPS)[number];
-/** Their words are "+ expense"'s own (ledger.ts STEP_WORDS), and one more. */
-export const PASTE_STEP_WORDS: Readonly<Record<PasteStep, string>> = { ...STEP_WORDS, minutes: "the stop's minutes" };
+/** Their words are "+ expense"'s own (ledger.ts STEP_WORDS), and four more. */
+export const PASTE_STEP_WORDS: Readonly<Record<PasteStep, string>> = { ...STEP_WORDS, 'sub-account': 'the sub-account', minutes: "the stop's minutes", items: 'the planned items', tag: "the vendor's Instagram tag" };
 
 /** A writer's answer: what came back, or the route's own words. */
 export type PasteAnswer<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly words: string };
 
 /**
- * THE WRITERS, handed in — the six the leaf hands: ledger/ledgerWrites.ts's five and the stops' one writer (stops/stopWrites.ts
- * setStopRecord). This file reads neither: their shapes are typed here from the bodies ledger.ts builds.
+ * THE WRITERS, handed in — the eight the leaf hands: ledger/ledgerWrites.ts's seven and the stops' one writer (stops/stopWrites.ts
+ * setStopRecord). This file reads neither: their shapes are typed here from the bodies ledger.ts builds. (Six until COALEVELS-01.)
  */
 export interface PasteWriters {
   /** The one-off stop with its one line; the new routine's id. */
@@ -83,8 +105,12 @@ export interface PasteWriters {
   readonly setLineMinutes: (lineId: string, minutes: number) => Promise<PasteAnswer<unknown>>;
   /** A new vendor in the book; its id. */
   readonly addVendor: (entityId: string, name: string) => Promise<PasteAnswer<{ readonly vendorId: string }>>;
-  /** The vendor on the stop — a line's occurrence, or a routine's own. */
-  readonly setVendor: (body: { readonly kind: LedgerAddress['kind']; readonly id: string; readonly instant: string; readonly vendorId: string }) => Promise<PasteAnswer<unknown>>;
+  /** The vendor on the stop — a line's occurrence, or a routine's own — and, when the row writes any, its planned items with it. */
+  readonly setVendor: (body: { readonly kind: LedgerAddress['kind']; readonly id: string; readonly instant: string; readonly vendorId: string; readonly items?: string }) => Promise<PasteAnswer<unknown>>;
+  /** A vendor's Instagram tag. */
+  readonly setVendorTag: (vendorId: string, tag: string) => Promise<PasteAnswer<unknown>>;
+  /** A sub-account under an account of the chart. */
+  readonly addSubAccount: (accountId: string, name: string, code: string) => Promise<PasteAnswer<unknown>>;
   /** The stop's record. It throws when the request never reached the route. */
   readonly setRecord: (body: PasteRecordBody) => Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }>;
 }
@@ -98,8 +124,12 @@ export type PasteOutcome =
   | { readonly row: number; readonly state: 'failed'; readonly steps: readonly PasteStep[]; readonly step: PasteStep; readonly words: string }
   | { readonly row: number; readonly state: 'not tried' };
 
-/** What the runner says as it goes: the outcomes so far, and the row about to be written — its place among the writes, and its number in the paste — or null once, at the end. */
+/** How an addition to the chart came out: written, or the route's own words. A refusal stops nothing — a stop's name is its Type either way. */
+export type PasteAddOutcome = { readonly state: 'written' } | { readonly state: 'failed'; readonly words: string };
+
+/** What the runner says as it goes: how each addition came out (they are written first — one outcome an addition, in their order); the rows' outcomes so far; and the row about to be written — its place among the writes, and its number in the paste — or null once, at the end. */
 export interface PasteProgress {
+  readonly adds: readonly PasteAddOutcome[];
   readonly outcomes: readonly PasteOutcome[];
   readonly at: { readonly i: number; readonly of: number; readonly row: number } | null;
 }
@@ -113,12 +143,18 @@ const newVendorKey = (bookId: string, name: string): string => JSON.stringify([b
 async function runWrite(write: PasteWrite, writers: PasteWriters, added: Map<string, string>): Promise<PasteOutcome> {
   const steps: PasteStep[] = [];
   const failed = (step: PasteStep, words: string): PasteOutcome => ({ row: write.row, state: 'failed', steps: [...steps], step, words });
+  /** The vendor's id the vendor step ended on — what a tag on the vendor this row adds is set on. */
+  let endedOn: string | null = null;
 
-  /** The vendor: added to the book when the name is new — once a save: a row before this one that added it is where its id comes from — then set on the stop. The failure, or null. */
+  /**
+   * The vendor: added to the book when the name is new — once a save: a row before this one that added it is where its id comes from — then set on the stop, the row's planned items
+   * WITH that write when it writes any (no `items` key otherwise): the step 'vendor' and, with items, the step 'items'. A STANDING vendor is ONE call — the stop's own vendor id and the
+   * items: nothing of the vendor is written, so its step is 'items' alone and a refusal fails 'items'. The failure, or null.
+   */
   const vendorOn = async (bodyOf: (vendorId: string) => Parameters<PasteWriters['setVendor']>[0]): Promise<PasteOutcome | null> => {
     if (write.vendor.kind === 'none') return null;
     let vendorId: string;
-    if (write.vendor.kind === 'own') {
+    if (write.vendor.kind === 'own' || write.vendor.kind === 'standing') {
       vendorId = write.vendor.id;
     } else {
       const key = newVendorKey(write.book.id, write.vendor.name);
@@ -133,9 +169,29 @@ async function runWrite(write: PasteWrite, writers: PasteWriters, added: Map<str
         vendorId = earlier;
       }
     }
-    const set = await writers.setVendor(bodyOf(vendorId));
-    if (!set.ok) return failed('vendor', set.words);
-    steps.push('vendor');
+    const body = bodyOf(vendorId);
+    if (write.vendor.kind === 'standing') {
+      if (write.items === null) throw new Error(`pasteSave: row ${write.row} names its stop's standing vendor and writes no planned items — a standing vendor is named only to carry them`);
+      const set = await writers.setVendor({ ...body, items: write.items });
+      if (!set.ok) return failed('items', set.words);
+      steps.push('items');
+    } else {
+      const set = await writers.setVendor(write.items === null ? body : { ...body, items: write.items });
+      if (!set.ok) return failed('vendor', set.words);
+      steps.push('vendor');
+      if (write.items !== null) steps.push('items');
+    }
+    endedOn = vendorId;
+    return null;
+  };
+  /** The tag, after the vendor and before the record: on the vendor it names — or, null, on the id the vendor step ended on (none there is this file's error). The failure, or null. */
+  const tagOn = async (): Promise<PasteOutcome | null> => {
+    if (write.tag === null) return null;
+    const vendorId = write.tag.vendorId !== null ? write.tag.vendorId : endedOn;
+    if (vendorId === null) throw new Error(`pasteSave: row ${write.row} sets a tag on the vendor it adds, and its vendor step ended on no vendor`);
+    const set = await writers.setVendorTag(vendorId, write.tag.tag);
+    if (!set.ok) return failed('tag', set.words);
+    steps.push('tag');
     return null;
   };
   /** The record, when the row has one. The stops' writer throws when the request never reached the route: that is this row's refusal, with the error's words. The failure, or null. */
@@ -153,16 +209,18 @@ async function runWrite(write: PasteWrite, writers: PasteWriters, added: Map<str
   };
 
   if (write.kind === 'stop') {
-    // ON A STOP THAT STANDS: the vendor at the sheet row's own address — the address that row's own vendor box plans "this day" at — then the record form's own body.
+    // ON A STOP THAT STANDS: the vendor at the sheet row's own address — the address that row's own vendor box plans "this day" at — its tag, then the record form's own body.
     const address = write.address;
     const vendorFailed = await vendorOn((vendorId) => ({ kind: address.kind, id: address.id, instant: address.instant, vendorId }));
     if (vendorFailed !== null) return vendorFailed;
+    const tagFailed = await tagOn();
+    if (tagFailed !== null) return tagFailed;
     const recordFailed = await recordOf(write.record);
     if (recordFailed !== null) return recordFailed;
     return { row: write.row, state: 'written', steps };
   }
 
-  // A NEW ONE-OFF: the stop, its line read back, the stop's minutes — then its vendor and its record on that line's one occurrence, the record only when it is recorded went.
+  // A NEW ONE-OFF: the stop, its line read back, the stop's minutes — then its vendor, its vendor's tag and its record on that line's one occurrence, the record only when it is recorded went.
   const values = write.values;
   const created = await writers.createOneOff(oneOffBody(values));
   if (!created.ok) return failed('stop', created.words);
@@ -178,18 +236,28 @@ async function runWrite(write: PasteWrite, writers: PasteWriters, added: Map<str
   }
   const vendorFailed = await vendorOn((vendorId) => vendorBody(values, lineId, vendorId));
   if (vendorFailed !== null) return vendorFailed;
-  const recordFailed = await recordOf(write.went ? recordBody(values, lineId) : null);
+  const tagFailed = await tagOn();
+  if (tagFailed !== null) return tagFailed;
+  // "+ expense"'s body holds no notes — it has no NOTES box; the row's own ride the record.
+  const recordFailed = await recordOf(write.went ? { ...recordBody(values, lineId), notes: write.notes } : null);
   if (recordFailed !== null) return recordFailed;
   return { row: write.row, state: 'written', steps };
 }
 
 /**
- * THE ONE RUNNER — the writes, a row at a time, in the paste's order. A write a route refuses STOPS the save: that row's outcome is
- * failed — the steps written before it, the step, the route's own words — and every row after it is not tried: nothing after the
- * refusal is asked. Nothing is retried and nothing is undone. `said` is told before each row (the outcomes so far, and that row's
- * place) and once at the end. One outcome a write, in the writes' order.
+ * THE ONE RUNNER — the additions to the chart first, one call each, then the writes, a row at a time, in the paste's order. An
+ * addition a route refuses is said on its line and STOPS NOTHING: the rows are still saved — a stop's name is its Type either way.
+ * A row's write a route refuses STOPS the save: that row's outcome is failed — the steps written before it, the step, the route's
+ * own words — and every row after it is not tried: nothing after the refusal is asked. Nothing is retried and nothing is undone.
+ * `said` is told before each row (the additions' outcomes, the rows' outcomes so far, and that row's place) and once at the end.
+ * One outcome a write, in the writes' order. The additions are handed in whole — none is a save that adds none.
  */
-export async function runPaste(writes: readonly PasteWrite[], writers: PasteWriters, said: (progress: PasteProgress) => void): Promise<PasteOutcome[]> {
+export async function runPaste(writes: readonly PasteWrite[], writers: PasteWriters, said: (progress: PasteProgress) => void, adds: readonly PasteAdd[]): Promise<PasteOutcome[]> {
+  const addOutcomes: PasteAddOutcome[] = [];
+  for (const add of adds) {
+    const answer = await writers.addSubAccount(add.accountId, add.name, add.code);
+    addOutcomes.push(answer.ok ? { state: 'written' } : { state: 'failed', words: answer.words });
+  }
   const outcomes: PasteOutcome[] = [];
   const added = new Map<string, string>();
   let stopped = false;
@@ -199,12 +267,12 @@ export async function runPaste(writes: readonly PasteWrite[], writers: PasteWrit
       outcomes.push({ row: write.row, state: 'not tried' });
       continue;
     }
-    said({ outcomes: [...outcomes], at: { i: i + 1, of: writes.length, row: write.row } });
+    said({ adds: [...addOutcomes], outcomes: [...outcomes], at: { i: i + 1, of: writes.length, row: write.row } });
     const outcome = await runWrite(write, writers, added);
     outcomes.push(outcome);
     if (outcome.state === 'failed') stopped = true;
   }
-  said({ outcomes: [...outcomes], at: null });
+  said({ adds: [...addOutcomes], outcomes: [...outcomes], at: null });
   return outcomes;
 }
 
@@ -260,16 +328,23 @@ export function newVendorsOf(writes: readonly PasteWrite[]): { readonly book: Pa
 export const newVendorLines = (writes: readonly PasteWrite[]): string[] => newVendorsOf(writes).map(({ book, names }) => `new to ${book.word} (${names.length}): ${names.join(' · ')}`);
 export const VENDORS_STAY_WORDS = 'a vendor added to a book is never renamed or removed — read the names before you save';
 
-/** The button — what the save writes: its rows; the vendors added to a book (a new name once a book); the vendors set on a stop; the records; the one-offs. */
-export function saveWords(writes: readonly PasteWrite[]): string {
+/**
+ * The button — what the save writes: its rows; the sub-accounts added to the chart; the vendors added to a book (a new name once a book); the vendors set on a stop — the book's own and
+ * the new: a standing one is not set; the tags set on a vendor; the stops given planned items; the records; the one-offs.
+ */
+export function saveWords(writes: readonly PasteWrite[], adds: readonly PasteAdd[]): string {
   const added = newVendorsOf(writes).reduce((sum, entry) => sum + entry.names.length, 0);
-  const set = writes.filter((write) => write.vendor.kind !== 'none').length;
+  const set = writes.filter((write) => write.vendor.kind === 'own' || write.vendor.kind === 'new').length;
+  const tags = writes.filter((write) => write.tag !== null).length;
+  const items = writes.filter((write) => write.items !== null).length;
   const records = writes.filter((write) => (write.kind === 'oneOff' ? write.went : write.record !== null)).length;
   const oneOffs = writes.filter((write) => write.kind === 'oneOff').length;
-  return `save ${counted(writes.length, 'row', 'rows')} — ${counted(added, 'vendor added to a book', 'vendors added to a book')} · ${counted(set, 'vendor set on a stop', 'vendors set on a stop')} · ${counted(records, 'record', 'records')} · ${counted(oneOffs, 'one-off', 'one-offs')}`;
+  return `save ${counted(writes.length, 'row', 'rows')} — ${counted(adds.length, 'sub-account added to the chart', 'sub-accounts added to the chart')} · ${counted(added, 'vendor added to a book', 'vendors added to a book')} · ${counted(set, 'vendor set on a stop', 'vendors set on a stop')} · ${counted(tags, 'tag set on a vendor', 'tags set on a vendor')} · ${counted(items, 'stop given planned items', 'stops given planned items')} · ${counted(records, 'record', 'records')} · ${counted(oneOffs, 'one-off', 'one-offs')}`;
 }
 /** No write at all. */
-export const NOTHING_TO_SAVE_WORDS = 'nothing to save — no placed row has a vendor to plan, a record to make or a one-off to add';
+export const NOTHING_TO_SAVE_WORDS = 'nothing to save — no placed row has a vendor to plan, a tag to set, planned items to write, a record to make or a one-off to add';
+/** An addition's outcome, on its line: written, or not written and the route's own words. */
+export const addOutcomeWords = (outcome: PasteAddOutcome): string => (outcome.state === 'written' ? `written: ${PASTE_STEP_WORDS['sub-account']}` : `not written: ${PASTE_STEP_WORDS['sub-account']} — ${outcome.words}`);
 
 /** While it runs. */
 export const CHECKING_WORDS = 'reading the time sheet again before anything is written…';

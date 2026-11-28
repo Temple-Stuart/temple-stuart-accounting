@@ -25,21 +25,21 @@ const inOrder = (src: string, pieces: readonly string[], label: string) => {
   }
 };
 
-// ── A · THE FUNCTION, THE EIGHT READS IN THE ROUTE'S ORDER, RECORD_PLAN WITH ITS TWO CITED LINES ─────────────────────
+// ── A · THE FUNCTION, THE NINE READS (COALEVELS-01, 2026-11-27 — EIGHT UNTIL THEN) IN THE ROUTE'S ORDER, RECORD_PLAN WITH ITS TWO CITED LINES ─────────────────────
 
-test('A taskLedgerAnswerOf(db, userId, span, now) holds the route\'s body verbatim — the two windows, the entities, the eight reads in order, the words, the first record, ledgerOf and the exact answer object; the clock is never read inside', () => {
+test('A taskLedgerAnswerOf(db, userId, span, now) holds the route\'s body verbatim — the two windows, the entities, the nine reads in order (COALEVELS-01, 2026-11-27 — the caller\'s sub-accounts joined the eight), the words, the first record, ledgerOf and the exact answer object; the clock is never read inside', () => {
   const a = code(ANSWER);
   assert.match(a, /export async function taskLedgerAnswerOf\(db: Db, userId: string, span: \{ from: string; to: string \}, now: Date\) \{\n\s*const \{ from, to \} = span;/);
-  assert.match(a, /type Db = Pick<PrismaClient, 'entities' \| 'chart_of_accounts' \| 'operations_routines' \| 'planned_item_vendors' \| 'operations_stays' \| 'operations_stop_records' \| 'planned_item_links'>;/);
+  assert.match(a, /type Db = Pick<PrismaClient, 'entities' \| 'chart_of_accounts' \| 'chart_of_sub_accounts' \| 'operations_routines' \| 'planned_item_vendors' \| 'operations_stays' \| 'operations_stop_records' \| 'planned_item_links'>;/); // COALEVELS-01 (2026-11-27): the client's eighth table — the chart's sub-accounts
   inOrder(a, [
     // SUPERSEDE-01c (Alex, 2026-11-08, ruling D): the records' window by its one owner, stopRecord.ts recordsWindowOf — the two consts went; the wheres below read it (pins moved).
     'const vendorsFrom = new Date(Date.parse(`${from}T00:00:00.000Z`) - DAY_MS);',
     'const vendorsTo = new Date(Date.parse(`${to}T00:00:00.000Z`) + 2 * DAY_MS);',
     "const entities = await db.entities.findMany({ where: { userId: userId }, select: { id: true, name: true, entity_type: true }, orderBy: { name: 'asc' } });",
-    'const [chart, routineGroups, roles, planVendors, stayRows, recordRows, firstRow, linkRows] = await Promise.all([',
-    'db.chart_of_accounts.findMany({', 'where: { entity_id: { in: entityIds }, entity: { userId: userId } },', 'select: { entity_id: true, code: true, name: true, account_type: true, balance_type: true },',
+    'const [chart, routineGroups, roles, subAccountRows, planVendors, stayRows, recordRows, firstRow, linkRows] = await Promise.all([', // COALEVELS-01 (2026-11-27): nine — subAccountRows after roles
+    'db.chart_of_accounts.findMany({', 'where: { entity_id: { in: entityIds }, entity: { userId: userId } },', 'select: { id: true, entity_id: true, code: true, name: true, account_type: true, balance_type: true },', // COALEVELS-01 (2026-11-27): the chart read selects its id too — a sub-account names its account by it
     'Promise.all(entities.map(async (e) => ({ entityId: e.id, rows: await loadRoutineBudgetInputs(db, userId, e.id) }))),',
-    'db.operations_routines.findMany({ where: { user_id: userId }, select: { id: true, role: true } }),',
+    'db.operations_routines.findMany({ where: { user_id: userId }, select: { id: true, role: true, location_class: true } }),', 'db.chart_of_sub_accounts.findMany({ where: { userId: userId, is_archived: false }, select: { account_id: true, code: true, name: true } }),', // COALEVELS-01 (2026-11-27): the roles read selects the routine's Location too, and THE ONE READ ADDED stands after it — the caller's active sub-accounts
     'db.planned_item_vendors.findMany({', 'where: { user_id: userId, OR: [{ occurrence_at: null }, { occurrence_at: { gte: vendorsFrom, lt: vendorsTo } }] },',
     // TIMESHEET-04b (2026-11-27): the plan-vendor read's select reads two more columns of the rows it already read — the row's planned items (on the select's first line) and its vendor's
     // Instagram tag. No query is added, removed, widened or reordered. Until then the vendor's line read 'vendor: { select: { id: true, vendor_name: true, entity_id: true } },'.
@@ -58,7 +58,7 @@ test('A taskLedgerAnswerOf(db, userId, span, now) holds the route\'s body verbat
     'const ledger = ledgerOf({', 'records: recordRows.map(recordInputOf),', 'links: linkRows.map(linkInputOf),', 'stays: stayRows.map(stayRowOf),',
     'return { from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, sheet: ledger.sheet, tones: accountPlacesOf(routineInputs), recording: ledger.recording, said: ledger.said };', // TIMESHEET-01 (Alex, 2026-11-24): the answer gains ONE list, `sheet` — `rows: ledger.rows, said: ledger.said` until then; no read is added (the count below stands at eight). TIMESHEET-03 (Alex, 2026-11-24): and ONE key, `tones`, after `sheet`, from the routines already read — `sheet: ledger.sheet, said: ledger.said` until then; the count still stands at eight. TIMESHEET-02 (Alex, 2026-11-24): and ONE key, `recording`, after `tones`, built by the rule from what it already holds — `tones: accountPlacesOf(routineInputs), said: ledger.said` until then; the count still stands at eight
   ], 'the body, in the route\'s order');
-  assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'the eight reads — no query added');
+  assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 9, 'the nine reads'); // COALEVELS-01 (2026-11-27): nine — the caller's active sub-accounts joined the eight (ledgerAnswer.ts); no other query added
   assert.equal((a.match(/new Date\(\)/g) ?? []).length, 0, 'the clock is a parameter, never read here');
   assert.doesNotMatch(a, /\bprisma\.|user\.id|getVerifiedEmail|NextResponse|NextRequest/, 'the client and the caller are handed in; no gate, no response here — only the PrismaClient type is named');
   // RECORD_PLAN and its helpers moved with the body; the Time row cites its two lines, each what it says.
@@ -146,9 +146,9 @@ const RECORD = {
   step: null,
 } as const;
 
-test('D the answer is wire-shaped as built — fixture rows with Dates in, an object of strings, numbers, booleans, nulls, arrays and plain objects out; JSON round-trips it unchanged; the eight reads run in order, every one with the caller\'s id; the clock is the parameter', async () => {
+test('D the answer is wire-shaped as built — fixture rows with Dates in, an object of strings, numbers, booleans, nulls, arrays and plain objects out; JSON round-trips it unchanged; the nine reads (COALEVELS-01, 2026-11-27 — eight until then) run in order, every one with the caller\'s id; the clock is the parameter', async () => {
   const calls: Call[] = [];
-  const db = fakeDb({ entities: [], chart_of_accounts: [], operations_routines: [{ id: 'r-gym', role: 'place' }], planned_item_vendors: [], operations_stays: [], operations_stop_records: [RECORD], planned_item_links: [] }, calls);
+  const db = fakeDb({ entities: [], chart_of_accounts: [], chart_of_sub_accounts: [], operations_routines: [{ id: 'r-gym', role: 'place', location_class: null }], planned_item_vendors: [], operations_stays: [], operations_stop_records: [RECORD], planned_item_links: [] }, calls); // COALEVELS-01 (2026-11-27): the caller's sub-accounts (none), and the routine row says its Location (none) — the roles read selects it now
   const now = at('2026-11-21T00:00:00Z');
   const a = await taskLedgerAnswerOf(db, 'alex', { from: '2026-11-20', to: '2026-11-20' }, now);
   assert.deepEqual(JSON.parse(JSON.stringify(a)), a, 'the task ledger answer round-trips');
@@ -156,9 +156,9 @@ test('D the answer is wire-shaped as built — fixture rows with Dates in, an ob
   assert.equal(a.rows.length, 1);
   assert.deepEqual([a.rows[0].id, a.rows[0].day, a.rows[0].description, a.rows[0].actualCents, a.rows[0].plannedMinutes, a.rows[0].loggedMinutes, a.rows[0].outcome, a.rows[0].address.instant], ['rec-gym', '2026-11-20', 'Gym', 500, 60, 50, 'done', '2026-11-20T12:00:00.000Z']);
   assert.deepEqual(a.said.unplaced, []);
-  assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany']);
+  assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'chart_of_sub_accounts.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany']); // COALEVELS-01 (2026-11-27): the sub-accounts read after the roles read (no entity here, so the loader's routines read does not run) — read with the caller's id, as every one is
   for (const c of calls) assert.ok(JSON.stringify(c.where).includes('"alex"'), `${c.table}.${c.method} read with the caller's id`);
-  const windows = calls[5].where as { occurrence_at: { gte: Date; lt: Date } };
+  const windows = calls[6].where as { occurrence_at: { gte: Date; lt: Date } }; // COALEVELS-01 (2026-11-27): the records read is the seventh call now — calls[5] until then
   assert.deepEqual([windows.occurrence_at.gte.toISOString(), windows.occurrence_at.lt.toISOString()], ['2026-11-19T10:00:00.000Z', '2026-11-21T12:00:00.000Z'], 'the any-zone window over the span');
 });
 

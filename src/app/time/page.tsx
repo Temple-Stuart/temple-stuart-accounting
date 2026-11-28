@@ -81,7 +81,7 @@ import EveningJournalTable from '@/components/workbench/operations/journal/Eveni
 export default function TimePage() {
   return (
     <AppLayout page wide>
-      <ToolOpener tools={[navToolByName('Time', TOOL_GATE)]} />
+      <ToolOpener compact tools={[navToolByName('Time', TOOL_GATE)]} />
       <OperationsEntityProvider>
         <div className="space-y-3" data-tool-page="Time">
           <LedgerSection />

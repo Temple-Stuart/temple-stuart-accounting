@@ -266,11 +266,11 @@ const COLS = routineTable(BOOKS, CHARTS, MONTH);
 const cell = (id: string, key: typeof ROUTINE_COLUMNS[number]) => COLS.find((c) => c.key === key)!.words(ROWS.find((r) => r.id === id)!);
 const csvOf = (id: string, key: typeof ROUTINE_COLUMNS[number]) => COLS.find((c) => c.key === key)!.csv(ROWS.find((r) => r.id === id)!);
 
-test('A the 21 heads in Alex\'s order — the task ledger\'s words wherever the fact is the same', () => {
+test('A the 21 heads in Alex\'s order — the time sheet\'s words on the five heads the two tables still share (COALEVELS-01, 2026-11-27: the sheet took his sheet\'s words; this table keeps the app\'s)', () => {
   assert.deepEqual([...ROUTINE_COLUMNS], ['start', 'end', 'kind', 'book', 'account', 'account_name', 'sub_account', 'vendor', 'routine', 'time', 'days', 'cadence', 'next', 'budget', 'this_month', 'to_date', 'actual', 'match', 'variance', 'status', 'id']);
   assert.deepEqual(COLS.map((c) => c.label), ['START', 'END', 'KIND', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'ROUTINE', 'TIME', 'DAYS', 'CADENCE', 'NEXT', 'BUDGET', 'THIS MONTH', 'TO DATE', 'ACTUAL', 'MATCH', 'VARIANCE', 'STATUS', 'ID']);
   assert.deepEqual(COLS.map((c) => c.label), ROUTINE_COLUMNS.map((k) => ROUTINE_HEAD_WORDS[k]));
-  for (const word of ['BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH']) assert.ok((LEDGER_HEAD_WORDS as readonly string[]).includes(word), `${word} is the ledger's word`);
+  for (const word of ['VENDOR', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH']) assert.ok((LEDGER_HEAD_WORDS as readonly string[]).includes(word), `${word} is the ledger's word`); // COALEVELS-01 (2026-11-27): the five still shared. The time sheet took his sheet's words — ENTITY, COA, CATEGORY and TYPE where BOOK, ACCOUNT, ACCOUNT NAME and SUB ACCOUNT NAME stood — and the Routines table keeps the app's: the nine, those four among them, until then
   assert.deepEqual(Object.fromEntries(COLS.map((c) => [c.key, c.kind])), {
     start: 'value', end: 'value', kind: 'value', book: 'value', account: 'value', account_name: 'value', sub_account: 'text', vendor: 'value', routine: 'text', time: 'value', days: 'value',
     cadence: 'value', next: 'value', budget: 'money', this_month: 'money', to_date: 'money', actual: 'money', match: 'money', variance: 'money', status: 'value', id: 'text',

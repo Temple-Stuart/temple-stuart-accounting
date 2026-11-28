@@ -302,9 +302,9 @@ test('T5 /owner is the accounts console: no Proposals section, no fetch of /api/
   const schemaCode = code(SCHEMA).split('\n');
   const schemaNotes = comments(SCHEMA).split('\n');
   // CRM-02 (2026-11-07): the users model's two new relation lines (crm_forms, crm_form_submissions) moved every line below it by two — :1679-1680 → :1681-1682; 4764 → 4807 (those two, and CRM-02's forty-one at the end).
-  assert.match(schemaCode[1680], /^\s+status\s+String\s+@default\("new"\) @db\.VarChar\(20\)/);
-  assert.match(schemaCode[1681], /^\s+ownerNotes\s+String\?\s+@db\.Text @map\("owner_notes"\)/);
-  for (const i of [1680, 1681]) assert.match(schemaNotes[i], /CRM-01b \(2026-11-07\): no longer written — the CRM's stage and next step live in crm_contacts; CLEAN rules on dropping/);
+  assert.match(schemaCode[1707], /^\s+status\s+String\s+@default\("new"\) @db\.VarChar\(20\)/); // COALEVELS-01 (2026-11-27): the schema grew above them (the model chart_of_sub_accounts after chart_of_accounts, and a relation line in users) — :1681-1682 → :1708-1709; the indexes 1680 and 1681 until then
+  assert.match(schemaCode[1708], /^\s+ownerNotes\s+String\?\s+@db\.Text @map\("owner_notes"\)/);
+  for (const i of [1707, 1708]) assert.match(schemaNotes[i], /CRM-01b \(2026-11-07\): no longer written — the CRM's stage and next step live in crm_contacts; CLEAN rules on dropping/);
   // CASH-02a (2026-11-08): the schema's whole-file line count retired — no test pins a shared file's total line count
   // (HOME-FINISH-01's rule, first for the law file): CASH-02a's paid_with and its two /// lines moved it 4807 → 4810 with
   // nothing of CRM's touched. What the count guarded is pinned by content: the two notes on the columns' own lines (above —

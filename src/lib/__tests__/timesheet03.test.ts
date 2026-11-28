@@ -265,7 +265,7 @@ const RECORDS: LedgerRecordInput[] = [
 const LINKS: LedgerLinkInput[] = [{ kind: 'routine_line', targetId: 'soup', instant: at(MON, '12:30'), journalEntryId: 'je-soup', amountCents: 600, reversed: false }];
 const built = buildRoutineBudgetLines(ROUTINES, MON, WED);
 const INPUT: LedgerInput = {
-  from: MON, to: WED, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS,
+  from: MON, to: WED, now: NOW, records: RECORDS, links: LINKS, lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
 };
 const ledger = ledgerOf(INPUT);
 
@@ -273,34 +273,34 @@ const ledger = ledgerOf(INPUT);
 //    before this change — pinned here so neither can drift under the new look. ──
 
 // TIMESHEET-04b (2026-11-27): a recorded row holds two fields more — instagramTag after vendor, notes after note. Each row below says them: null, for this fixture's
-// vendors hold no tag and its records no notes. Every other field of every row is as it was pinned.
+// vendors hold no tag and its records no notes. Every other field of every row is as it was pinned. COALEVELS-01 (2026-11-27): and two more, after book — location and segments: no routine of this fixture says a Location and none of its accounts holds a sub-account, so a row with a line holds { entity, category, code } and null for the other two levels; a row with no line holds null for both.
 const MAIN_ROWS: readonly LedgerRow[] = [
-  { id: 'r-kiosk-1', key: 'routine:kiosk:2027-05-10T07:00:00.000Z', address: { kind: 'routine', id: 'kiosk', instant: '2027-05-10T07:00:00.000Z' }, match: null, day: '2027-05-10', time: '10:00', place: null, book: null, coa: null, vendor: null, instagramTag: null, description: 'Kiosk', rating: null, note: null, notes: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 150, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-print-1', key: 'routine:print:2027-05-10T08:00:00.000Z', address: { kind: 'routine', id: 'print', instant: '2027-05-10T08:00:00.000Z' }, match: null, day: '2027-05-10', time: '11:00', place: null, book: 'Business', coa: { account: 'B-6400', name: 'Printing' }, vendor: null, instagramTag: null, description: 'Print shop', rating: null, note: 'thirty copies, two-sided', notes: null, cents: 750, budgetState: 'matched', outcome: 'done', actualCents: 700, varianceCents: -50, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-bread-1', key: 'line:bread:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'bread', instant: '2027-05-10T09:30:00.000Z' }, match: null, day: '2027-05-10', time: '12:30', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Bread', rating: null, note: 'sold out', notes: null, cents: 225, budgetState: 'matched', outcome: 'skipped', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
-  { id: 'r-soup-1', key: 'line:soup:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'soup', instant: '2027-05-10T09:30:00.000Z' }, match: { cents: 600, postings: 1, unreadable: 0, reversed: 0 }, day: '2027-05-10', time: '12:45', place: null, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Ladle & Co', instagramTag: null, description: 'Soup', rating: 4, note: 'with rice', notes: null, cents: 550, budgetState: 'matched', outcome: 'done', actualCents: 600, varianceCents: 50, plannedMinutes: 20, loggedMinutes: 18 },
+  { id: 'r-kiosk-1', key: 'routine:kiosk:2027-05-10T07:00:00.000Z', address: { kind: 'routine', id: 'kiosk', instant: '2027-05-10T07:00:00.000Z' }, match: null, day: '2027-05-10', time: '10:00', place: null, book: null, location: null, segments: null, coa: null, vendor: null, instagramTag: null, description: 'Kiosk', rating: null, note: null, notes: null, cents: null, budgetState: 'none', outcome: 'done', actualCents: 150, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-print-1', key: 'routine:print:2027-05-10T08:00:00.000Z', address: { kind: 'routine', id: 'print', instant: '2027-05-10T08:00:00.000Z' }, match: null, day: '2027-05-10', time: '11:00', place: null, book: 'Business', location: null, segments: { entity: 'B', location: null, category: '6400', type: null, code: 'B-6400' }, coa: { account: 'B-6400', name: 'Printing' }, vendor: null, instagramTag: null, description: 'Print shop', rating: null, note: 'thirty copies, two-sided', notes: null, cents: 750, budgetState: 'matched', outcome: 'done', actualCents: 700, varianceCents: -50, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-bread-1', key: 'line:bread:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'bread', instant: '2027-05-10T09:30:00.000Z' }, match: null, day: '2027-05-10', time: '12:30', place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, instagramTag: null, description: 'Bread', rating: null, note: 'sold out', notes: null, cents: 225, budgetState: 'matched', outcome: 'skipped', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null },
+  { id: 'r-soup-1', key: 'line:soup:2027-05-10T09:30:00.000Z', address: { kind: 'routine_line', id: 'soup', instant: '2027-05-10T09:30:00.000Z' }, match: { cents: 600, postings: 1, unreadable: 0, reversed: 0 }, day: '2027-05-10', time: '12:45', place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6150', type: null, code: 'P-6150' }, coa: { account: 'P-6150', name: 'Dining Out' }, vendor: 'Ladle & Co', instagramTag: null, description: 'Soup', rating: 4, note: 'with rice', notes: null, cents: 550, budgetState: 'matched', outcome: 'done', actualCents: 600, varianceCents: 50, plannedMinutes: 20, loggedMinutes: 18 },
 ];
 // TIMESHEET-04b (2026-11-27): each line below gained an empty field after VENDOR (INSTAGRAM TAG) and an empty field at its end (NOTES), and the header its two words — no
 // vendor of this fixture holds a tag, no plan planned items, no record notes. Every other field of every line is as main wrote it.
 const MAIN_CSV_LINES: readonly string[] = [
-  'DAY,DATE,START,END,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,INSTAGRAM TAG,WENT,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION,NOTES',
-  'Monday,2027-05-10,07:00,,,,Personal,P-6200,Sport,Swim,,,not recorded,,,,4.00,,,,,,',
-  'Monday,2027-05-10,10:00,,,,,,,Kiosk,,,went,,,,,1.50,,,,,',
-  'Monday,2027-05-10,11:00,,,,Business,B-6400,Printing,Print shop,,,went,,,,7.50,7.00,-0.50,,under,"thirty copies, two-sided",',
-  'Monday,2027-05-10,12:30,,,,Personal,P-6150,Dining Out,Bread,,,skipped,,,,2.25,,,,,sold out,',
-  'Monday,2027-05-10,12:45,13:05,,,Personal,P-6150,Dining Out,Soup,Ladle & Co,,went,4,20,18,5.50,6.00,0.50,6.00,over,with rice,',
-  'Monday,2027-05-10,15:00,,,,Personal,P-6150,Dining Out,Tea,,,not recorded,,,,3.00,,,,,,',
-  'Tuesday,2027-05-11,all day,,Eastmere,Sylvania,Trading,T-5010,,Desk fee,,,,,,,9.75,,,,,,',
-  'Tuesday,2027-05-11,07:00,,Eastmere,Sylvania,Personal,P-6200,Sport,Swim,,,not recorded,,,,4.00,,,,,,',
-  'Tuesday,2027-05-11,11:00,,Eastmere,Sylvania,Business,B-6400,Printing,Print shop,,,not recorded,,,,7.50,,,,,,',
-  'Tuesday,2027-05-11,12:30,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Bread,,,planned,,,,2.25,,,,,,',
-  'Tuesday,2027-05-11,12:45,13:05,Eastmere,Sylvania,Personal,P-6150,Dining Out,Soup,Ladle & Co,,planned,,20,,5.50,,,,,,',
-  'Tuesday,2027-05-11,15:00,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Tea,,,planned,,,,3.00,,,,,,',
-  'Wednesday,2027-05-12,07:00,,Eastmere,Sylvania,Personal,P-6200,Sport,Swim,,,planned,,,,4.00,,,,,,',
-  'Wednesday,2027-05-12,11:00,,Eastmere,Sylvania,Business,B-6400,Printing,Print shop,,,planned,,,,7.50,,,,,,',
-  'Wednesday,2027-05-12,12:30,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Bread,,,planned,,,,2.25,,,,,,',
-  'Wednesday,2027-05-12,12:45,13:05,Eastmere,Sylvania,Personal,P-6150,Dining Out,Soup,Ladle & Co,,planned,,20,,5.50,,,,,,',
-  'Wednesday,2027-05-12,15:00,,Eastmere,Sylvania,Personal,P-6150,Dining Out,Tea,,,planned,,,,3.00,,,,,,',
+  'DAY,DATE,START,END,CITY,REGION,COUNTRY,LOCATION,CATEGORY,ENTITY,TYPE,ITEMS,VENDOR,INSTAGRAM TAG,WENT,STARS,PLANNED MIN,LOGGED MIN,COA,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,NOTES', // COALEVELS-01 (2026-11-27): the header is the twenty-five head words
+  'Monday,2027-05-10,07:00,,,,,,Sport,Personal,Swim,,,,not recorded,,,,P-6200,4.00,,,,,', // COALEVELS-01 (2026-11-27): this line and each below it — the fields follow the columns' new order: an empty REGION after CITY and an empty LOCATION after COUNTRY (no place of this fixture names a region, no routine says a Location); CATEGORY · ENTITY · TYPE · ITEMS; the COA before BUDGET; NOTES last
+  'Monday,2027-05-10,10:00,,,,,,,,Kiosk,,,,went,,,,,,1.50,,,,',
+  'Monday,2027-05-10,11:00,,,,,,Printing,Business,Print shop,"thirty copies, two-sided",,,went,,,,B-6400,7.50,7.00,-0.50,,under,',
+  'Monday,2027-05-10,12:30,,,,,,Dining Out,Personal,Bread,sold out,,,skipped,,,,P-6150,2.25,,,,,',
+  'Monday,2027-05-10,12:45,13:05,,,,,Dining Out,Personal,Soup,with rice,Ladle & Co,,went,4,20,18,P-6150,5.50,6.00,0.50,6.00,over,',
+  'Monday,2027-05-10,15:00,,,,,,Dining Out,Personal,Tea,,,,not recorded,,,,P-6150,3.00,,,,,',
+  'Tuesday,2027-05-11,all day,,Eastmere,,Sylvania,,,Trading,Desk fee,,,,,,,,T-5010,9.75,,,,,',
+  'Tuesday,2027-05-11,07:00,,Eastmere,,Sylvania,,Sport,Personal,Swim,,,,not recorded,,,,P-6200,4.00,,,,,',
+  'Tuesday,2027-05-11,11:00,,Eastmere,,Sylvania,,Printing,Business,Print shop,,,,not recorded,,,,B-6400,7.50,,,,,',
+  'Tuesday,2027-05-11,12:30,,Eastmere,,Sylvania,,Dining Out,Personal,Bread,,,,planned,,,,P-6150,2.25,,,,,',
+  'Tuesday,2027-05-11,12:45,13:05,Eastmere,,Sylvania,,Dining Out,Personal,Soup,,Ladle & Co,,planned,,20,,P-6150,5.50,,,,,',
+  'Tuesday,2027-05-11,15:00,,Eastmere,,Sylvania,,Dining Out,Personal,Tea,,,,planned,,,,P-6150,3.00,,,,,',
+  'Wednesday,2027-05-12,07:00,,Eastmere,,Sylvania,,Sport,Personal,Swim,,,,planned,,,,P-6200,4.00,,,,,',
+  'Wednesday,2027-05-12,11:00,,Eastmere,,Sylvania,,Printing,Business,Print shop,,,,planned,,,,B-6400,7.50,,,,,',
+  'Wednesday,2027-05-12,12:30,,Eastmere,,Sylvania,,Dining Out,Personal,Bread,,,,planned,,,,P-6150,2.25,,,,,',
+  'Wednesday,2027-05-12,12:45,13:05,Eastmere,,Sylvania,,Dining Out,Personal,Soup,,Ladle & Co,,planned,,20,,P-6150,5.50,,,,,',
+  'Wednesday,2027-05-12,15:00,,Eastmere,,Sylvania,,Dining Out,Personal,Tea,,,,planned,,,,P-6150,3.00,,,,,',
 ];
 const MAIN_CSV = MAIN_CSV_LINES.map((l) => `${l}\r\n`).join('');
 
@@ -323,20 +323,20 @@ test('T4 `rows` is what main gives for the same fixture, and the rule’s own ke
   assert.deepEqual(accountPlacesOf(ROUTINES), places);
 });
 
-test('T4 the CSV for the fixture is byte for byte what it is on main — no column moved, no word changed, no tone in the file', () => {
+test('T4 the CSV for the fixture, byte for byte — the twenty-five columns in his sheet’s words and order (COALEVELS-01, 2026-11-27; main’s bytes, no column moved and no word changed, until then); no tone in the file', () => {
   const csv = ledgerCsv(ledger.sheet);
   assert.equal(csv, MAIN_CSV);
   assert.deepEqual(csv.split('\r\n'), [...MAIN_CSV_LINES, ''], 'line for line');
-  assert.deepEqual([Buffer.byteLength(csv, 'utf8'), sha256(csv)], [1916, '6f4915962b062b5a49617aa940bc98633bf81ec86804d9082c6f17218e2f6d30'], 'the bytes main writes'); // TIMESHEET-04b (2026-11-27): the file gains two columns — the header its two words (20 bytes), each of the seventeen lines an empty field after VENDOR and one at its end (34 bytes); every other byte is as it was. 1862 bytes, 7c8be5dde9b1ffcd5e4a8d013d5ea5a21d60d4315ebae646e922834cf127256b until then
-  assert.equal(MAIN_CSV_LINES[0], LEDGER_HEAD_WORDS.join(','), 'the twenty-three heads, in their order');
-  assert.equal(LEDGER_COLUMNS.length, 23); // TIMESHEET-04b (2026-11-27): twenty-three — 21 until then
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION', 'NOTES']); // TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then
+  assert.deepEqual([Buffer.byteLength(csv, 'utf8'), sha256(csv)], [1942, 'cadfc3f81e0eb1aeea6722ea67936e3dbd8cd2d35649a9d0ef76c3bc1b5fc85b'], 'the bytes the rule writes'); // COALEVELS-01 (2026-11-27): the file's columns are his sheet's — the header's seven new words for five old ones (8 bytes fewer), each of the seventeen lines an empty REGION and an empty LOCATION (34 bytes), every field in the columns' new order; 1916 bytes, 6f4915962b062b5a49617aa940bc98633bf81ec86804d9082c6f17218e2f6d30, 'the bytes main writes', until then. TIMESHEET-04b (2026-11-27): the file gains two columns — the header its two words (20 bytes), each of the seventeen lines an empty field after VENDOR and one at its end (34 bytes); every other byte is as it was. 1862 bytes, 7c8be5dde9b1ffcd5e4a8d013d5ea5a21d60d4315ebae646e922834cf127256b until then
+  assert.equal(MAIN_CSV_LINES[0], LEDGER_HEAD_WORDS.join(','), 'the twenty-five heads, in their order');
+  assert.equal(LEDGER_COLUMNS.length, 25); // TIMESHEET-04b (2026-11-27): twenty-three — 21 until then · COALEVELS-01 (2026-11-27): twenty-five — 23 until then
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'START', 'END', 'CITY', 'REGION', 'COUNTRY', 'LOCATION', 'CATEGORY', 'ENTITY', 'TYPE', 'ITEMS', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'COA', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES']); // TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then · COALEVELS-01 (2026-11-27): twenty-five, in his sheet's words and order — REGION after CITY, LOCATION after COUNTRY; CATEGORY · ENTITY · TYPE · ITEMS where ACCOUNT NAME · BOOK · SUB ACCOUNT NAME · DESCRIPTION stood; COA (was ACCOUNT) before BUDGET; NOTES last — twenty-three until then
   assert.doesNotMatch(csv, /bg-|text-|rounded|inline-block/, 'no class in the file');
   // The CSV's fields are the spec's, as they were: nothing here reads a tone.
   const rules = code(RULES);
   const block = rules.slice(rules.indexOf('export const LEDGER_CSV'), rules.indexOf('export const LEDGER_TABLE'));
   assert.doesNotMatch(block, /PILL|TONE|tones|placeOf/i);
-  assert.match(block, /book: \(row\) => row\.book \?\? '',\n\s*account: \(row\) => row\.coa === null \? '' : row\.coa\.account,\n\s*accountName: \(row\) => row\.coa === null \|\| row\.coa\.name === null \? '' : row\.coa\.name,/);
+  assert.match(block, /book: \(row\) => row\.book \?\? '',\n\s*account: \(row\) => row\.segments === null \? '' : row\.segments\.code,\n\s*accountName: \(row\) => row\.coa === null \|\| row\.coa\.name === null \? '' : row\.coa\.name,/); // COALEVELS-01 (2026-11-27): the account's field is the row's WHOLE code (its levels' own) — the entity and the code alone, off row.coa, until then
 });
 
 // ── T5 · THE ANSWER AND THE READ (ruling B.5) ────────────────────────────────
@@ -358,18 +358,18 @@ test('T5 the answer carries `tones` beside the rest, after `sheet` — the place
   assert.match(a, /return \{ from, to, as_of: now\.toISOString\(\), first_record: firstRecord, rows: ledger\.rows, sheet: ledger\.sheet, tones: accountPlacesOf\(routineInputs\), recording: ledger\.recording, said: ledger\.said \};/); // TIMESHEET-02 (Alex, 2026-11-24): `recording` after `tones` — `tones: accountPlacesOf(routineInputs), said: ledger.said` until then; `tones` is built as it was
   assert.match(a, /const routineInputs = routineGroups\.flatMap\(\(group\) => group\.rows\.map\(\(row\) => toRoutinePlanInput\(row, bookOf\(group\.entityId, `the routines of entity \$\{group\.entityId\}`\)\)\)\);/, 'the routines the loader already read');
   assert.match(a, /minutes: planMinutesOf\(routineInputs\),/, 'as planMinutesOf reads them');
-  assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 8, 'the eight reads — no query added');
+  assert.equal((a.match(/db\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 9, 'the nine reads'); // COALEVELS-01 (2026-11-27): nine — the caller's active sub-accounts joined the eight (ledgerAnswer.ts); no other query added
   assert.doesNotMatch(a, /\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/, 'writes nothing');
   assert.match(code(ROUTE), /return NextResponse\.json\(await taskLedgerAnswerOf\(prisma, user\.id, \{ from, to \}, new Date\(\)\)\);/, 'the route’s code is unchanged');
   const day = (iso: string): Date => new Date(iso);
   const time = (clock: string): Date => new Date(`1970-01-01T${clock}:00.000Z`);
-  // The rows as the client reads them: one routine row serves the loader's read and the roles read. Two books.
+  // The rows as the client reads them: one routine row serves the loader's read and the roles read. Two books. COALEVELS-01 (2026-11-27): each row says its Location (none) — the roles read selects location_class now.
   const P_ROUTINES = [
-    { id: 'lunch', name: 'Lunch', role: 'place', is_active: true, end_date: null, start_date: null, budget_amount: null, coa_code: null, schedule_rrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=30', timezone: NBO, start_time: null, end_time: null,
+    { id: 'lunch', name: 'Lunch', role: 'place', location_class: null, is_active: true, end_date: null, start_date: null, budget_amount: null, coa_code: null, schedule_rrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=30', timezone: NBO, start_time: null, end_time: null,
       steps: [{ id: 'soup', is_active: true, budget_amount: 5.5, coa_code: '6150', step_order: 1, activity: 'Soup', time_of_day: time('12:45'), duration_minutes: 20 }] },
-    { id: 'swim', name: 'Swim', role: 'none', is_active: true, end_date: null, start_date: null, budget_amount: 4, coa_code: '6200', schedule_rrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null, steps: [] },
+    { id: 'swim', name: 'Swim', role: 'none', location_class: null, is_active: true, end_date: null, start_date: null, budget_amount: 4, coa_code: '6200', schedule_rrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null, steps: [] },
     // A plan that falls on no day of the span still gives its account a place: the places are the plans', not the period's.
-    { id: 'dues', name: 'Dues', role: 'all_day', is_active: true, end_date: null, start_date: null, budget_amount: 30, coa_code: '7450', schedule_rrule: 'FREQ=MONTHLY;BYMONTHDAY=28;BYHOUR=0;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null, steps: [] },
+    { id: 'dues', name: 'Dues', role: 'all_day', location_class: null, is_active: true, end_date: null, start_date: null, budget_amount: 30, coa_code: '7450', schedule_rrule: 'FREQ=MONTHLY;BYMONTHDAY=28;BYHOUR=0;BYMINUTE=0', timezone: NBO, start_time: null, end_time: null, steps: [] },
   ];
   const RECORD_ROW = {
     id: 'rec-swim', routine_id: 'swim', step_id: null, occurrence_at: day(at(TUE, '07:00')), outcome: 'done', done_at: day(at(TUE, '07:40')), actual_cents: 400, rating: 3, note: null, notes: null, actual_minutes: 35, // TIMESHEET-04b (2026-11-27): the table holds a notes column — the fake row says it, as the database would
@@ -377,7 +377,7 @@ test('T5 the answer carries `tones` beside the rest, after `sheet` — the place
   };
   const calls: Call[] = [];
   const db = fakeDb({
-    entities: [{ id: 'P', name: 'Personal', entity_type: 'personal' }], chart_of_accounts: [{ entity_id: 'P', code: '6150', name: 'Dining Out', account_type: 'expense', balance_type: 'D' }],
+    entities: [{ id: 'P', name: 'Personal', entity_type: 'personal' }], chart_of_accounts: [{ id: 'acct-6150', entity_id: 'P', code: '6150', name: 'Dining Out', account_type: 'expense', balance_type: 'D' }], chart_of_sub_accounts: [], // COALEVELS-01 (2026-11-27): the chart row's id (the read selects it now) and the caller's sub-accounts — none
     operations_routines: P_ROUTINES, planned_item_vendors: [], operations_stays: [], operations_stop_records: [RECORD_ROW], planned_item_links: [],
   }, calls);
   const answer = await taskLedgerAnswerOf(db, 'someone', { from: TUE, to: TUE }, NOW);
@@ -385,14 +385,14 @@ test('T5 the answer carries `tones` beside the rest, after `sheet` — the place
   assert.deepEqual(answer.tones, { 'P-6150': 0, 'P-6200': 1, 'P-7450': 2 }, 'an account’s label → its place');
   assert.deepEqual(Object.keys(answer.tones), ['P-6150', 'P-6200', 'P-7450']);
   assert.deepEqual(JSON.parse(JSON.stringify(answer)), answer, 'wire-shaped as built');
-  assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany'], 'the same reads, in the same order — the loader’s (once an entity) among them');
+  assert.deepEqual(calls.map((c) => `${c.table}.${c.method}`), ['entities.findMany', 'chart_of_accounts.findMany', 'operations_routines.findMany', 'operations_routines.findMany', 'chart_of_sub_accounts.findMany', 'planned_item_vendors.findMany', 'operations_stays.findMany', 'operations_stop_records.findMany', 'operations_stop_records.findFirst', 'planned_item_links.findMany'], 'the reads, in their order — the loader’s (once an entity) among them'); // COALEVELS-01 (2026-11-27): the sub-accounts read stands after the roles read — the one read added; 'the same reads, in the same order' until then
   assert.deepEqual(answer.rows.map((r) => r.id), ['rec-swim'], 'the recorded expense, as before');
   assert.deepEqual(answer.sheet.map((r) => [r.description, r.coa === null ? null : r.coa.account]), [['Swim', 'P-6200'], ['Soup', 'P-6150']], 'Tuesday’s two rows — the dues fall on no day of it');
   for (const r of answer.sheet) assert.notEqual(placeOf(answer.tones, r.coa === null ? '' : r.coa.account), null);
   assert.equal(placeOf(answer.tones, 'P-7450'), 2, 'the account of a plan with no row in the period keeps its place');
   // The same routines read for another span give the same places.
   const month = await taskLedgerAnswerOf(fakeDb({
-    entities: [{ id: 'P', name: 'Personal', entity_type: 'personal' }], chart_of_accounts: [], operations_routines: P_ROUTINES, planned_item_vendors: [], operations_stays: [], operations_stop_records: [], planned_item_links: [],
+    entities: [{ id: 'P', name: 'Personal', entity_type: 'personal' }], chart_of_accounts: [], chart_of_sub_accounts: [], operations_routines: P_ROUTINES, planned_item_vendors: [], operations_stays: [], operations_stop_records: [], planned_item_links: [],
   }, []), 'someone', { from: '2027-05-01', to: '2027-05-31' }, NOW);
   assert.deepEqual(month.tones, answer.tones, 'a tone does not change with the period shown');
 });
@@ -452,19 +452,19 @@ test('T6 today first: the section’s period starts on Day, anchored today as be
   assert.match(s, /\{period !== null && <span className="font-semibold text-text-secondary" data-ledger-period-words>\{periodWords\(period\)\}<\/span>\}/);
 });
 
-test('T6 the pills: the BOOK and ACCOUNT NAME cells draw the pill with the rule’s classes and their blank without one; the ACCOUNT cell is not touched; the places are the answer’s `tones`', () => {
+test('T6 the pills: the ENTITY (book) and CATEGORY (account-name) cells draw the pill with the rule’s classes and their blank without one, each after its level’s code (COALEVELS-01, 2026-11-27); the COA (account) cell prints the row’s whole code and no pill; the places are the answer’s `tones`', () => {
   const s = code(SECTION);
   assert.match(s, /const tones: AccountPlaces = answer !== null && answer\.read\.ok \? answer\.read\.value\.tones : \{\};/);
   assert.match(s, /const bookPill = bookPillClassOf\(row\);\n\s*const accountPill = accountPillClassOf\(row, tones\);/, 'the classes by the rule — null for a blank');
-  // BOOK: the word in the pill, or the blank as before, bare.
-  assert.match(s, /<td className=\{`\$\{cell\} whitespace-nowrap \$\{row\.book === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="book">\{bookPill === null \? bookCellWords\(row\) : <span className=\{bookPill\} data-ledger-pill="book">\{bookCellWords\(row\)\}<\/span>\}<\/td>/);
-  // ACCOUNT, between them: as it was.
-  assert.match(s, /<td className=\{`\$\{cell\} whitespace-nowrap \$\{row\.coa === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="account">\{accountCellWords\(row\)\}<\/td>/);
-  // ACCOUNT NAME: the name in the pill, or the blank as before, bare.
-  assert.match(s, /<td className=\{`\$\{cell\} \$\{row\.coa === null \|\| row\.coa\.name === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="account-name">\{accountPill === null \? accountNameCellWords\(row\) : <span className=\{accountPill\} data-ledger-pill="account-name">\{accountNameCellWords\(row\)\}<\/span>\}<\/td>/);
+  // ENTITY (the book): the word in the pill, or the blank as before, bare — after the entity's letter, in the code's class, where the row's levels hold one (COALEVELS-01 (2026-11-27)).
+  assert.match(s, /<td className=\{`\$\{cell\} whitespace-nowrap \$\{row\.book === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="book">\{row\.segments !== null && row\.segments\.entity !== null && <span className=\{CODE_CLASS\}>\{row\.segments\.entity\}<\/span>\}\{bookPill === null \? bookCellWords\(row\) : <span className=\{bookPill\} data-ledger-pill="book">\{bookCellWords\(row\)\}<\/span>\}<\/td>/);
+  // COA (the account): the row's whole code, mono — no pill; it stands before BUDGET now (COALEVELS-01 (2026-11-27): 'ACCOUNT, between them: as it was', printing accountCellWords, until then).
+  assert.match(s, /<td className=\{`\$\{cell\} whitespace-nowrap \$\{row\.segments === null \? BLANK_CLASS : 'font-mono text-\[11px\] font-semibold text-text-primary'\}`\} data-ledger-cell="account">\{codeCellWords\(row\)\}<\/td>/);
+  // CATEGORY (the account's name): the name in the pill, or the blank as before, bare — after the category's code on every row that has a line (COALEVELS-01 (2026-11-27)).
+  assert.match(s, /<td className=\{`\$\{cell\} \$\{row\.coa === null \|\| row\.coa\.name === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="account-name">\{row\.segments !== null && <span className=\{CODE_CLASS\}>\{row\.segments\.category\}<\/span>\}\{accountPill === null \? accountNameCellWords\(row\) : <span className=\{accountPill\} data-ledger-pill="account-name">\{accountNameCellWords\(row\)\}<\/span>\}<\/td>/);
   assert.equal((s.match(/data-ledger-pill=/g) ?? []).length, 2, 'two pills, and no other');
-  // The three stand together, in their order.
-  assert.match(s, /data-ledger-cell="book">[^\n]*<\/td>\n\s*<td [^\n]*data-ledger-cell="account">[^\n]*<\/td>\n\s*<td [^\n]*data-ledger-cell="account-name">[^\n]*<\/td>\n\s*<td [^\n]*data-ledger-cell="sub-account-name">/);
+  // The three stand together, in the sheet's order — CATEGORY, ENTITY, TYPE (COALEVELS-01 (2026-11-27): book, account, account-name, then the sub-account's name, until then).
+  assert.match(s, /data-ledger-cell="account-name">[^\n]*<\/td>\n\s*<td [^\n]*data-ledger-cell="book">[^\n]*<\/td>\n\s*<td [^\n]*data-ledger-cell="sub-account-name"/);
   // The section types no pill class and no tone of its own: they are the rule's.
   assert.doesNotMatch(s, /rounded-full|bg-(gray|violet|emerald|orange|green|pink|teal|amber|purple|cyan|rose|lime|indigo|yellow|sky)-\d|bg-blue-(100|200|300)/, 'no pill class, no tone typed here');
   assert.doesNotMatch(s, /BOOK_TONES|ACCOUNT_TONES|NEUTRAL_TONE|PILL_CLASS|toneOfPlace/, 'it reads the two classes, never the wheel');
@@ -482,7 +482,7 @@ test('T6 the pills: the BOOK and ACCOUNT NAME cells draw the pill with the rule�
   ], 'a book by its word; an account by its place; the record no line matches and the account with no name print their blank');
 });
 
-test('T6 the tint: BUDGET, VARIANCE, MATCH and UNDER / OVER carry it on every body row, whatever else their classes say; no other cell and not the TOTAL row; one legend line above the table while rows are shown', () => {
+test('T6 the tint: BUDGET, VARIANCE, MATCH and UNDER / OVER carry it on every body row, whatever else their classes say; no other cell and not the TOTAL row; its legend the swatch in the controls row while rows are shown (COALEVELS-01, 2026-11-27 — a line of its own above the table until then)', () => {
   const s = code(SECTION);
   assert.match(s, /const NOT_TYPED_TINT = 'bg-blue-50';/, 'one class, typed whole');
   // The four cells, each with the tint before its own classes.
@@ -492,7 +492,7 @@ test('T6 the tint: BUDGET, VARIANCE, MATCH and UNDER / OVER carry it on every bo
   assert.match(s, /<td className=\{`\$\{cell\} whitespace-nowrap \$\{NOT_TYPED_TINT\} \$\{row\.varianceCents === null \? BLANK_CLASS : actualTone\(delta\.over\)\}`\} data-ledger-cell="under-over">\{underOverWords\(row\.varianceCents\)\}<\/td>/);
   // Exactly those four of the twenty-one — ACTUAL, among them, is typed on a row and is not tinted.
   const cells = [...s.matchAll(/<td className=\{`([^\n]*?)`\} data-ledger-cell="([a-z-]+)"/g)].map((m) => ({ name: m[2], tinted: m[1].includes('${NOT_TYPED_TINT}') }));
-  assert.deepEqual(cells.map((c) => c.name), ['day', 'date', 'start', 'end', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'instagram-tag', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'budget', 'actual', 'variance', 'match', 'under-over', 'description', 'notes'], 'one cell per head word, in its order — none added, none moved'); // TIMESHEET-04b (2026-11-27): the instagram-tag cell after vendor's, the notes cell after description's — twenty-three cells
+  assert.deepEqual(cells.map((c) => c.name), ['day', 'date', 'start', 'end', 'city', 'region', 'country', 'location', 'account-name', 'book', 'sub-account-name', 'description', 'vendor', 'instagram-tag', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'account', 'budget', 'actual', 'variance', 'match', 'under-over', 'notes'], 'one cell per head word, in its order'); // TIMESHEET-04b (2026-11-27): the instagram-tag cell after vendor's, the notes cell after description's — twenty-three cells · COALEVELS-01 (2026-11-27): twenty-five cells in the head's new order — region and location new; account-name, book, sub-account-name, description; the account before the budget; the notes last
   assert.deepEqual(cells.filter((c) => c.tinted).map((c) => c.name), ['budget', 'variance', 'match', 'under-over']);
   // The TOTAL row is not tinted.
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
@@ -500,8 +500,8 @@ test('T6 the tint: BUDGET, VARIANCE, MATCH and UNDER / OVER carry it on every bo
   assert.doesNotMatch(tfoot, /NOT_TYPED_TINT|bg-blue/, 'the TOTAL row carries no tint');
   assert.equal((s.match(/\$\{NOT_TYPED_TINT\}/g) ?? []).length, 5, 'the four cells and the legend’s swatch');
   assert.equal((s.match(/bg-blue-50/g) ?? []).length, 1, 'typed once');
-  // The legend: one line, in the shared table's children slot, after the nothing-recorded line — while rows are shown.
-  assert.match(s, /\{answer !== null && answer\.read\.ok && rows\.length === 0 && <div className="text-xs text-text-muted" data-ledger-none>\{noRowsWords\(answer\.period\)\}<\/div>\}\n(?:\s*\{\s*\}\n)?\s*\{answer !== null && answer\.read\.ok && shown\.length > 0 && <div className="flex items-center gap-1\.5 text-xs text-text-muted" data-ledger-legend><span className=\{`inline-block h-3 w-3 rounded-sm border border-border \$\{NOT_TYPED_TINT\}`\} aria-hidden="true" data-ledger-legend-swatch \/><span>\{NOT_TYPED_WORDS\}<\/span><\/div>\}\n\s*<\/DataTable>/);
+  // The legend: the swatch alone, first in the controls row's trailing, its meaning in its label and title — while rows are shown; the nothing-recorded line is the children slot's last. COALEVELS-01 (2026-11-27): one line in that slot after the nothing-recorded line — the swatch and the sentence beside it — until then.
+  assert.match(s, /\{answer !== null && answer\.read\.ok && rows\.length === 0 && <div className="text-xs text-text-muted" data-ledger-none>\{noRowsWords\(answer\.period\)\}<\/div>\}\n(?:\s*\{\s*\}\n)?\s*<\/DataTable>/); assert.match(s, /\n\s*<>\{answer !== null && answer\.read\.ok && shown\.length > 0 && <span className=\{`inline-block h-3 w-3 rounded-sm border border-border \$\{NOT_TYPED_TINT\}`\} role="img" aria-label=\{NOT_TYPED_WORDS\} title=\{NOT_TYPED_WORDS\} data-ledger-legend data-ledger-legend-swatch \/>\}/);
   assert.equal(NOT_TYPED_WORDS, 'not typed on a row — from your plan, from Books, or worked out');
   assert.ok(code(RULES).includes("export const NOT_TYPED_WORDS = 'not typed on a row — from your plan, from Books, or worked out';"), 'the words are the rule’s');
   assert.doesNotMatch(s, /not typed on a row/, 'and are not typed in the section');

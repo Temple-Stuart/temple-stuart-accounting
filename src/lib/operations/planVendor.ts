@@ -85,6 +85,13 @@ export function readVendorName(raw: unknown): { readonly ok: true; readonly name
 /** Two names are one vendor when, read the same way, they are equal ignoring case. */
 export const vendorNameKey = (raw: string): string => spaced(raw).toLowerCase();
 
+/**
+ * COALEVELS-01 (TIMESHEET-04c, Alex, 2026-11-27): two Instagram tags are ONE handle when they are equal ignoring case — how the paste compares a row's
+ * tag with the tag a vendor already carries, or with one an earlier row gave it. It sits here, beside the name's key, and not in the tag's section
+ * below: that section lower-cases nothing. The tag is KEPT as typed (readInstagramTag); this is only how two are compared.
+ */
+export const instagramTagKey = (tag: string): string => tag.toLowerCase();
+
 /** The book's vendor that already carries this name — active or archived — or null. */
 export function takenBy<V extends { readonly vendor_name: string }>(name: string, vendors: readonly V[]): V | null {
   const key = vendorNameKey(name);

@@ -111,11 +111,11 @@ test('T6 held still: /developer was never public; the registry\'s CRM row and th
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
   // CASH-02a (2026-11-08): travel_expenses gains paid_with — the newest now; every pin below moved by one more.
   // HOME-SERVICES-02 (2026-11-16): its migration, 20261116132400_home_services_02_answers (proposals gains answers), is the newest now — every position read from the end below moved by one, and a message that says "the newest" names the one before it.
-  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more.
-  assert.equal(dirs[dirs.length - 3], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more. COALEVELS-01 (2026-11-27): and its migration, 20261127230000_coa_levels_01_sub_accounts_location (a table of the chart's sub-accounts, and a routine's Location), is the newest now — every position moved by one more again.
+  assert.equal(dirs[dirs.length - 4], '20261108120000_cash_02a_paid_with', 'the newest migration');
   // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — the newest now; every pin below moved by one more.
-  assert.equal(dirs[dirs.length - 4], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 5], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
   // CRM-02 (2026-11-07) authored the newest since; DEV-RETIRE-01 itself authored none — CRM-01a's sits right before it.
-  assert.equal(dirs[dirs.length - 5], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
-  assert.equal(dirs[dirs.length - 6], '20261106150000_crm_01a_crm_contacts', 'no migration of DEV-RETIRE-01\'s own — CRM-01a\'s is right before CRM-02\'s');
+  assert.equal(dirs[dirs.length - 6], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 7], '20261106150000_crm_01a_crm_contacts', 'no migration of DEV-RETIRE-01\'s own — CRM-01a\'s is right before CRM-02\'s');
 });

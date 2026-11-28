@@ -22,6 +22,12 @@
  *
  * Nothing here is typed: every family name, tool name, number, status, line and
  * phase name is read from the registry or from pipePhases.ts.
+ *
+ * COALEVELS-01 (2026-11-27), Alex — `compact`: ONE LINE. A page that is its table (/time passes it,
+ * and no other page does) opens with the family, then each tool's number, name and
+ * status, and its registry line cut to what is left of the line — said whole in its
+ * title. The family, the name and the registry line: no other prose (TOOL-LAW-01) —
+ * no phases line, no `line`, no actions. Not passed, the opener is as it always was.
  */
 import { usePathname } from 'next/navigation';
 import { StatusChip } from '@/components/home/ToolChrome';
@@ -32,16 +38,36 @@ function familyWord(family: string): string {
   return family.charAt(0) + family.slice(1).toLowerCase();
 }
 
-export default function ToolOpener({ tools, line, actions }: {
+export default function ToolOpener({ tools, line, actions, compact = false }: {
   /** The tools this screen serves, in registry order — one, or several on a shared screen. */
   tools: readonly NavTool[];
   /** A truer line than the registry's, in the room's own words — never marketing. */
   line?: string;
   actions?: React.ReactNode;
+  /** COALEVELS-01 (2026-11-27): one line — the family, each tool's number, name, status and its registry line cut to the line (whole in its title). False when not passed. */
+  compact?: boolean;
 }) {
   const pathname = usePathname() ?? '';
   const [first] = tools;
   if (!first) return null;
+  if (compact) {
+    return (
+      <header className="mb-1.5 flex items-baseline gap-x-2 text-xs" data-tool-opener={tools.map((t) => t.name).join(' + ')}>
+        <p className="font-mono text-[10px] sm:text-xs uppercase tracking-[0.2em] text-text-faint whitespace-nowrap">
+          {familyWord(first.family)}
+        </p>
+        {tools.map((tool) => (
+          <span key={tool.name} className="flex min-w-0 flex-1 items-baseline gap-x-2" data-opener-tool={tool.name} id={tool.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}>
+            <span className="font-mono text-[10px] text-text-faint" aria-hidden="true">{tool.n}</span>
+            <h1 className="text-sm font-semibold tracking-tight text-text-primary">{tool.name}</h1>
+            <StatusChip status={tool.status} />
+            {/* The registry's `why`, or nothing — never the citation (as below). */}
+            {tool.line && <span className="min-w-0 flex-1 truncate text-text-muted" title={tool.line}>{tool.line}</span>}
+          </span>
+        ))}
+      </header>
+    );
+  }
   return (
     <header className="mb-5" data-tool-opener={tools.map((t) => t.name).join(' + ')}>
       <p className="font-mono text-[10px] sm:text-xs uppercase tracking-[0.2em] text-text-faint">

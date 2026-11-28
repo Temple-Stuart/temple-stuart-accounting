@@ -97,7 +97,7 @@ const RECORDS: LedgerRecordInput[] = [
 const built = buildRoutineBudgetLines(ROUTINES, DAY, DAY);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
   from: DAY, to: DAY, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: [], stays: [], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any)
-  accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], ...over,
+  accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none)
 });
 
 // ── T1 · R1 EXPENSES ONLY ───────────────────────────────────────────────────
@@ -284,43 +284,43 @@ test('T5 the audit type: the enum value last, the one ADD VALUE line applied at 
   // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
   // DOCUMENTS-02 (Alex, 2026-10-30): the reconciliation's supersession — the newest; every position above moved by one.
   // HOME-SERVICES-02 (2026-11-16): its migration, 20261116132400_home_services_02_answers (proposals gains answers), is the newest now — every position read from the end below moved by one, and a message that says "the newest" names the one before it.
-  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more.
-  assert.equal(dirs[dirs.length - 21], MIGRATION_DIR, 'the migration before the newest (ROUTINE-02b followed)');
+  // TIMESHEET-04a (2026-11-27): its migration, 20261127160000_timesheet_04_tag_items_notes (three columns — a vendor's Instagram tag, a plan's planned items, a stop's notes), is the newest now — every position read from the end below moved by one more. COALEVELS-01 (2026-11-27): and its migration, 20261127230000_coa_levels_01_sub_accounts_location (a table of the chart's sub-accounts, and a routine's Location), is the newest now — every position moved by one more again.
+  assert.equal(dirs[dirs.length - 22], MIGRATION_DIR, 'the migration before the newest (ROUTINE-02b followed)');
   // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 20], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
+  assert.equal(dirs[dirs.length - 21], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
   // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 19], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
-  assert.equal(dirs[dirs.length - 18], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
+  assert.equal(dirs[dirs.length - 20], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 19], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
   // LEDGER-03 (Alex, 2026-10-19): two audit values for the planned-item link — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 17], '20261019230000_ledger_03_planned_item_link_audit', 'the migration before the newest (BACKLOG-01 followed)');
+  assert.equal(dirs[dirs.length - 18], '20261019230000_ledger_03_planned_item_link_audit', 'the migration before the newest (BACKLOG-01 followed)');
   // BACKLOG-01 (Alex, 2026-10-20): the capture's columns and the four statuses — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 16], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
+  assert.equal(dirs[dirs.length - 17], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
   // BACKLOG-01b (Alex, 2026-10-20): the brief's three columns — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 15], '20261020140000_backlog_01b_brief', 'the migration before the newest (JOURNAL-06 followed)');
+  assert.equal(dirs[dirs.length - 16], '20261020140000_backlog_01b_brief', 'the migration before the newest (JOURNAL-06 followed)');
   // JOURNAL-06 (Alex, 2026-10-20): the evening's five columns, the two CHECKs re-made — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 14], '20261020150000_journal_06_reflection', 'the migration before the newest (BACKLOG-02 followed)');
+  assert.equal(dirs[dirs.length - 15], '20261020150000_journal_06_reflection', 'the migration before the newest (BACKLOG-02 followed)');
   // BACKLOG-02 (Alex, 2026-10-20): the reorder route's one audit value — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 13], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
+  assert.equal(dirs[dirs.length - 14], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
   // DOCUMENTS-01 (Alex, 2026-10-28): source_documents, the receipt on its posting — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 12], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
-  assert.equal(dirs[dirs.length - 11], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
+  assert.equal(dirs[dirs.length - 13], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
+  assert.equal(dirs[dirs.length - 12], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
   // FX-01 (2026-10-30): the transactions currency migration followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 10], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
+  assert.equal(dirs[dirs.length - 11], '20261030150000_fx_01_transactions_currency', 'the migration before the newest (TRAVEL-02b followed)');
   // TRAVEL-02b (2026-11-03): travel_expenses and the sixth link kind followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 9], '20261103120000_travel_02b_travel_expenses', 'the migration before the newest (TRAVEL-02c followed)');
+  assert.equal(dirs[dirs.length - 10], '20261103120000_travel_02b_travel_expenses', 'the migration before the newest (TRAVEL-02c followed)');
   // TRAVEL-02c (2026-11-03): living_baselines and the seventh link kind followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 8], '20261103200000_travel_02c_stay_link_living_baselines', 'the migration before the newest (ONE-FORM-01 followed)');
+  assert.equal(dirs[dirs.length - 9], '20261103200000_travel_02c_stay_link_living_baselines', 'the migration before the newest (ONE-FORM-01 followed)');
   // ONE-FORM-01 (2026-11-06): the sixth need, 'close', followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 7], '20261106120000_one_form_01_close_need', 'the migration before the newest (CRM-01a followed)');
+  assert.equal(dirs[dirs.length - 8], '20261106120000_one_form_01_close_need', 'the migration before the newest (CRM-01a followed)');
   // CRM-01a (2026-11-07): crm_contacts, the CRM's working table, followed — every pin above moved by one.
-  assert.equal(dirs[dirs.length - 6], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
+  assert.equal(dirs[dirs.length - 7], '20261106150000_crm_01a_crm_contacts', 'right before CRM-02\'s');
   // CRM-02 (2026-11-07): crm_forms and crm_form_submissions, the intake form's two tables, followed — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 5], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
+  assert.equal(dirs[dirs.length - 6], '20261107212000_crm_02_intake_forms', 'right before SERVICES-01\'s');
   // SERVICES-01 (2026-11-08): proposals_need_chk gains 'bookkeeping' — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 4], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
+  assert.equal(dirs[dirs.length - 5], '20261108111500_services_01_bookkeeping_need', 'right before CASH-02a\'s');
   // CASH-02a (2026-11-08): travel_expenses gains paid_with — every pin above moved by one more.
-  assert.equal(dirs[dirs.length - 3], '20261108120000_cash_02a_paid_with', 'the newest migration');
-  assert.equal(dirs[dirs.length - 22], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 4], '20261108120000_cash_02a_paid_with', 'the newest migration');
+  assert.equal(dirs[dirs.length - 23], '20261014090000_tasks_one_02_completion_audit_types');
   const ops = code(AUDIT_LOG).slice(code(AUDIT_LOG).indexOf('operations_: ['));
   // ROUTINE-02b (2026-10-18): the rekeyed type follows the stop-moved type in the list.
   // MOVE-01 (2026-10-19): the moved type follows the rekeyed type in the list.
@@ -335,7 +335,7 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
   const read = expenseInput(DRAFT, BKK, NOW); // FORM-BOUNDS-01 (Alex, 2026-11-25): the rule takes the clock — this file's NOW, by which every stop of the day is past; `expenseInput(DRAFT, BKK)` until then, here and on the six calls below
   assert.ok(read.ok);
   const v: ExpenseValues = read.value;
-  assert.deepEqual(v, { day: DAY, time: '12:30', zone: BKK, instant: '2026-10-13T05:30:00.000Z', name: 'Khao soi', amount: '7.50', coa: '6150', bookId: 'P', vendor: { kind: 'none' }, actualCents: 700, rating: 4, note: 'Khao soi at Luka', ahead: false }); // FORM-BOUNDS-01 (Alex, 2026-11-25): the value says whether the stop is still ahead of the clock — not here; no `ahead` until then
+  assert.deepEqual(v, { day: DAY, time: '12:30', zone: BKK, instant: '2026-10-13T05:30:00.000Z', name: 'Khao soi', amount: '7.50', coa: '6150', bookId: 'P', location: null, vendor: { kind: 'none' }, actualCents: 700, rating: 4, note: 'Khao soi at Luka', ahead: false }); // COALEVELS-01 (2026-11-27): the value says the stop's Location — null here: the draft's box is left at none. FORM-BOUNDS-01 (Alex, 2026-11-25): the value says whether the stop is still ahead of the clock — not here; no `ahead` until then
   assert.deepEqual(expenseInput({ ...DRAFT, vendorId: 'v1' }, BKK, NOW), { ok: true, value: { ...v, vendor: { kind: 'existing', id: 'v1' } } });
   assert.deepEqual(expenseInput({ ...DRAFT, vendorName: '  Luka  Café ' }, BKK, NOW), { ok: true, value: { ...v, vendor: { kind: 'new', name: 'Luka Café' } } });
   assert.deepEqual(expenseInput({ ...DRAFT, actual: '', stars: '', note: '  ' }, BKK, NOW), { ok: true, value: { ...v, actualCents: null, rating: null, note: null } }, 'blank is not given — never 0, never an empty note');
@@ -351,16 +351,16 @@ test('T6 expenseInput: the first bad field named; the stop is the day and time i
     [{ stars: '6' }, 'stars', starsTypedWords('6')], [{ stars: 'four' }, 'stars', starsTypedWords('four')],
   ];
   for (const [over, field, message] of refusals) assert.deepEqual(expenseInput({ ...DRAFT, ...over }, BKK, NOW), { ok: false, field, message }, `${field}: ${message}`);
-  assert.deepEqual(EXPENSE_FIELDS, ['day', 'time', 'name', 'amount', 'coa', 'book', 'vendor', 'actual', 'stars', 'note']);
+  assert.deepEqual(EXPENSE_FIELDS, ['day', 'time', 'name', 'amount', 'coa', 'book', 'location', 'vendor', 'actual', 'stars', 'note']); // COALEVELS-01 (2026-11-27): eleven boxes — LOCATION after the book; ten until then
   assert.deepEqual(Object.keys(EXPENSE_FIELD_WORDS), [...EXPENSE_FIELDS]);
   // The one-off: cadence once on the day at the time in the zone, role place, ONE line — the thing itself, the amount and the COA on it, nothing on the routine.
   const body = oneOffBody(v);
   assert.equal(body.cadence_mode, 'once');
   assert.deepEqual([body.start_date, body.end_date, body.start_time, body.byhour, body.byminute, body.timezone, body.role, body.entity_id, body.name, body.is_active], [DAY, '', '12:30', '12', '30', BKK, 'place', 'P', `Khao soi · ${DAY} 12:30`, true]); // PASTE-02b (Alex, 2026-11-27): the routine is named for its day and time — the name, ' · ', the day, a space, the time; the bare name until then. The line, below, keeps the bare name
   assert.deepEqual(body.lines, [{ activity: 'Khao soi', budget_amount: '7.50', coa_code: '6150' }]);
-  assert.deepEqual([body.budget_amount, body.coa_code, body.location, body.latitude, body.longitude, body.description, body.custom_rrule, body.weekly_byday], ['', '', '', '', '', '', '', []]);
+  assert.deepEqual([body.budget_amount, body.coa_code, body.location, body.latitude, body.longitude, body.description, body.custom_rrule, body.weekly_byday], ['', '', '', '', '', '', '', []]); assert.equal(body.location_class, null, 'the stop’s Location: not said'); // COALEVELS-01 (2026-11-27): the one-off's body says its Location — null, the value's (`location` beside it is the venue's text, as it was)
   assert.deepEqual(vendorBody(v, 'line-1', 'v1'), { kind: 'routine_line', id: 'line-1', instant: '2026-10-13T05:30:00.000Z', vendorId: 'v1' });
-  assert.deepEqual(recordBody(v, 'line-1'), { kind: 'routine_line', id: 'line-1', instant: '2026-10-13T05:30:00.000Z', outcome: 'done', done_at: '2026-10-13T05:30:00.000Z', actual_cents: 700, rating: 4, note: 'Khao soi at Luka', actual_minutes: null }, 'done at the stop’s own instant');
+  assert.deepEqual(recordBody(v, 'line-1'), { kind: 'routine_line', id: 'line-1', instant: '2026-10-13T05:30:00.000Z', outcome: 'done', done_at: '2026-10-13T05:30:00.000Z', actual_cents: 700, rating: 4, note: 'Khao soi at Luka', notes: null, actual_minutes: null }, 'done at the stop’s own instant'); // TIMESHEET-04b (2026-11-27): the record's body says its notes — null: "+ expense" has no NOTES box. The body without it until then
   // The outcome: five steps, each said by name; what was not reached is "not tried", what was not given "none given".
   assert.deepEqual(EXPENSE_STEPS, ['stop', 'line', 'directory', 'vendor', 'record']);
   assert.deepEqual(Object.keys(STEP_WORDS), [...EXPENSE_STEPS]);

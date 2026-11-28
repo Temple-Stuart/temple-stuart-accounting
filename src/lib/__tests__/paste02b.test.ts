@@ -92,7 +92,7 @@ const BOOKS = [{ id: 'P', name: 'Home', entityType: 'personal' }, { id: 'B', nam
 /** What a paste is placed against when nothing stands yet: an EMPTY time sheet. */
 const EMPTY: PasteContext = {
   books: BOOKS, sheet: [], recording: {},
-  charts: { P: [{ code: '6150', name: 'Dining Out' }, { code: '6200', name: 'Recreation' }], B: [{ code: '6400', name: 'Supplies' }] },
+  charts: { P: [{ id: 'acct-6150', code: '6150', name: 'Dining Out' }, { id: 'acct-6200', code: '6200', name: 'Recreation' }], B: [{ id: 'acct-6400', code: '6400', name: 'Supplies' }] }, subAccounts: { P: [], B: [] }, // COALEVELS-01 (2026-11-27): a chart entry says its id, and the context holds each book's sub-accounts — none
   vendors: [], zone: NBO, now: NOW,
 };
 const ONE_OFF = (account: string): PastePick => ({ kind: 'oneOff', code: account });
@@ -158,7 +158,7 @@ test('T2 the create route’s body: the routine’s name is the dated one and it
     byhour: '20', byminute: '00', timezone: NBO,
     ideal_time_label: '', fail_threshold_minutes: '0', role: 'place',
     start_date: SUN, end_date: '', start_time: '20:00', end_time: '', is_active: true,
-    budget_amount: '', coa_code: '', location: '', latitude: '', longitude: '',
+    budget_amount: '', coa_code: '', location: '', latitude: '', longitude: '', location_class: null, // COALEVELS-01 (2026-11-27): the body says the stop's Location — null: not said (`location` beside it is the venue's text, as it was)
     lines: [{ activity: 'Bowling', budget_amount: '20.00', coa_code: '6200' }],
   });
   // The LINE keeps the bare name — what the time sheet prints under SUB ACCOUNT NAME, and Expenses under its own.
@@ -223,11 +223,11 @@ test('T4 the paste, a kind sent to a one-off, an empty time sheet: one Type on t
     readOneOffLine: async (routineId) => ({ ok: true, value: { lineId: `line-of-${routineId}` } }),
     setLineMinutes: async () => ({ ok: true, value: null }),
     addVendor: async () => assert.fail('no row names a vendor'),
-    setVendor: async () => assert.fail('no row names a vendor'),
+    setVendor: async () => assert.fail('no row names a vendor'), setVendorTag: async () => assert.fail('no row names a tag'), addSubAccount: async () => assert.fail('no addition is handed in'), // COALEVELS-01 (2026-11-27): the stand-in writers are eight
     setRecord: async () => ({ ok: true }),
   };
-  assert.equal(saveWords(writes), 'save 3 rows — 0 vendors added to a book · 0 vendors set on a stop · 2 records · 3 one-offs');
-  const outcomes = await runPaste(writes, writers, () => undefined);
+  assert.equal(saveWords(writes, []), 'save 3 rows — 0 sub-accounts added to the chart · 0 vendors added to a book · 0 vendors set on a stop · 0 tags set on a vendor · 0 stops given planned items · 2 records · 3 one-offs'); // COALEVELS-01 (2026-11-27): the button is handed the additions to the chart — none here — and counts them first, then the tags and the stops given planned items
+  const outcomes = await runPaste(writes, writers, () => undefined, []);
   assert.deepEqual(asked, ['Bowling · 2027-06-12 20:00', 'Bowling · 2027-06-13 20:00', 'Bowling · 2027-06-14 20:00']);
   assert.deepEqual(outcomes.map((outcome) => [outcome.row, outcome.state]), [[2, 'written'], [3, 'written'], [4, 'written']]);
 });
@@ -285,10 +285,10 @@ test('T5 a second row that would be the same new one-off — one Type, one day, 
 // ── T6 · AFTER A SAVE (ruling B — nothing else in the file changes) ──────────
 
 test('T6 after a save, the one-off’s own row on the time sheet — its name the bare name — takes its row on a second paste: the placement is on the stop that stands, and nothing is a new one-off', () => {
-  /** A one-off as the time sheet lists it once it is written: a plan row whose `description` is the LINE's name — the bare name. */
+  /** A one-off as the time sheet lists it once it is written: a plan row whose `description` is the LINE's name — the bare name. COALEVELS-01 (2026-11-27): a row says its location (none) and its segments — its entity's letter and its account's code, as its `coa` says them; a row whose `coa` is its own says its own segments too. */
   const written = (id: string, day: string, clock: string, name: string, over: Partial<LedgerPlanRow> = {}): LedgerPlanRow => ({
     id: null, key: `routine_line:${id}:${at(day, clock)}`, address: { kind: 'routine_line', id, instant: at(day, clock) }, match: null, day, time: clock,
-    place: null, book: 'Personal', coa: { account: 'P-6200', name: 'Recreation' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
+    place: null, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6200', type: null, code: 'P-6200' }, coa: { account: 'P-6200', name: 'Recreation' }, vendor: null, instagramTag: null, description: name, rating: null, note: null, plannedItems: null, notes: null, // TIMESHEET-04b (2026-11-27): a plan row's three new fields — no tag, nothing planned to be had, and no notes (a row with no record has none)
     cents: 2000, outcome: null, actualCents: null, varianceCents: null, plannedMinutes: 90, loggedMinutes: null, allDay: false, went: NOT_RECORDED_WORDS, ...over,
   });
   const record = (id: string, day: string): StopRecordRow => ({ id: `rec-${id}`, kind: 'routine_line', target_id: id, occurrence_at: at(day, '20:00'), outcome: 'done', done_at: at(day, '20:00'), actual_cents: 1800, rating: null, note: 'two games', notes: null, actual_minutes: null });
@@ -307,7 +307,7 @@ test('T6 after a save, the one-off’s own row on the time sheet — its name th
   assert.equal(again.shown[1].lands, 'on the stop "Bowling" at 20:00, already on the time sheet · already recorded');
   // What is in is never written twice: the same rows have nothing to save.
   assert.deepEqual(again.writes, []);
-  assert.equal(NOTHING_TO_SAVE_WORDS, 'nothing to save — no placed row has a vendor to plan, a record to make or a one-off to add');
+  assert.equal(NOTHING_TO_SAVE_WORDS, 'nothing to save — no placed row has a vendor to plan, a tag to set, planned items to write, a record to make or a one-off to add'); // COALEVELS-01 (2026-11-27): a tag and planned items are things a row may write
   // Before the save the same rows were three NEW one-offs: the time sheet alone tells the two apart.
   assert.deepEqual(kindsOf(placedOn(pasteOf(...rows), EMPTY).placements), ['oneOff', 'oneOff', 'oneOff']);
   // A fourth day is still a new one-off, beside the three that stand.

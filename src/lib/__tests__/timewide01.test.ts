@@ -46,10 +46,10 @@ const walk = (dir: string, ending: RegExp): string[] => readdirSync(dir).flatMap
 const countOf = (text: string, word: RegExp): number => (text.match(word) ?? []).length;
 
 // The main's three arms, each typed whole — and the choice between them exactly as ruling A writes it.
-const WIDE_ARM = 'w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8';
+const WIDE_ARM = 'w-full min-w-0 px-3 py-2'; // COALEVELS-01 (2026-11-27): the wide page's own padding — the page's (px-4 lg:px-8 py-6 sm:py-8) until then
 const PAGE_ARM = 'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8';
 const ROOM_ARM = 'max-w-[1800px] mx-auto w-full';
-const RULED_CLASS = "page && wide ? 'w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : page ? 'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : 'max-w-[1800px] mx-auto w-full'";
+const RULED_CLASS = "page && wide ? 'w-full min-w-0 px-3 py-2' : page ? 'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : 'max-w-[1800px] mx-auto w-full'";
 
 // ── T1 · THE PROP (ruling A) ─────────────────────────────────────────────────
 
@@ -80,17 +80,17 @@ test('T1 AppLayout gains ONE prop, `wide`, beside `page`, with its dated doc; it
 
 // ── T2 · THE MAIN'S CLASS (ruling A) ─────────────────────────────────────────
 
-test('T2 the main’s class is the three-way choice as ruled: with `page` and `wide`, the page’s own gutter and padding and no cap; the two arms that were there, byte for byte; the header, the bars and the rail as they are', () => {
+test('T2 the main’s class is the three-way choice as ruled: with `page` and `wide`, no cap and the wide page’s own padding (COALEVELS-01, 2026-11-27: px-3 py-2 — the page’s own gutter and padding until then); the two arms that were there, byte for byte; the header, the bars and the rail as they are', () => {
   const layout = code(LAYOUT);
   const mains = layout.split('\n').filter((line) => line.includes('<main')).map((line) => line.trim());
   assert.deepEqual(mains, [`<main className={${RULED_CLASS}}>`], 'one main, its class exactly as ruled');
   assert.equal(RULED_CLASS, `page && wide ? '${WIDE_ARM}' : page ? '${PAGE_ARM}' : '${ROOM_ARM}'`, 'three arms');
   // The two arms that were there: the line ends in exactly what the whole expression was.
   assert.ok(mains[0].endsWith(`page ? '${PAGE_ARM}' : '${ROOM_ARM}'}>`), 'a page without `wide`, and a room, get the class they had');
-  // The wide arm is the page's arm without its cap and its centring — nothing else differs.
-  assert.equal(PAGE_ARM.replace('max-w-7xl mx-auto ', ''), WIDE_ARM);
+  // The wide arm: the page's width words, no cap and no centring, and a padding of its own. COALEVELS-01 (2026-11-27): 'the page's arm without its cap and its centring — nothing else differs' until then.
+  assert.deepEqual([WIDE_ARM, PAGE_ARM.replace('max-w-7xl mx-auto ', '')], ['w-full min-w-0 px-3 py-2', 'w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8']);
   assert.doesNotMatch(WIDE_ARM, /max-w-|mx-auto/, 'no cap, so nothing to centre');
-  for (const kept of ['w-full', 'min-w-0', 'px-4', 'lg:px-8', 'py-6', 'sm:py-8']) assert.ok(WIDE_ARM.split(' ').includes(kept), `${kept}: the page's own`);
+  for (const kept of ['w-full', 'min-w-0']) assert.ok(WIDE_ARM.split(' ').includes(kept), `${kept}: the page's own`); assert.deepEqual(WIDE_ARM.split(' ').filter((c) => /^(sm:|lg:)?p[xy]-/.test(c)), ['px-3', 'py-2'], 'one padding, at every width');
   // `wide` without `page` is not read: the first test is `page && wide`.
   assert.match(mains[0], /^<main className=\{page && wide \? /);
   // Each arm is a whole literal — no class assembled from parts.
@@ -120,7 +120,7 @@ test('T3 of every file under src that mounts AppLayout, exactly one passes `wide
   // The Time page: one mount, and inside it what was there — the opener, the provider, the three sections in their order.
   const page = code(TIME_PAGE);
   assert.equal(countOf(page, /<AppLayout\b/g), 1);
-  assert.match(page, /<AppLayout page wide>\n\s*<ToolOpener tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>\n\s*<\/AppLayout>/);
+  assert.match(page, /<AppLayout page wide>\n\s*<ToolOpener compact tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>\n\s*<\/AppLayout>/); // COALEVELS-01 (2026-11-27): the opener is passed `compact` — one line; the sections as they were
   // Its header carries the dated paragraph.
   assert.match(comments(TIME_PAGE), /TIMEWIDE-01 \(Alex, 2026-11-24\) — THE PAGE TAKES THE WINDOW'S WIDTH\./);
   assert.match(comments(TIME_PAGE), /passes `wide` beside `page`: the page's own gutter and padding, and no cap/);
@@ -128,10 +128,10 @@ test('T3 of every file under src that mounts AppLayout, exactly one passes `wide
 
 // ── T4 · THE TABLE'S CLASS (ruling C) ────────────────────────────────────────
 
-const CLASS_LINE = "export const LEDGER_TABLE_CLASS = 'min-w-[96rem] [&_th]:whitespace-normal [&_th]:px-1.5 [&_td]:px-1.5';";
+const CLASS_LINE = "export const LEDGER_TABLE_CLASS = 'min-w-[96rem] [&_th]:whitespace-normal [&_th]:px-1.5 [&_th]:py-1 [&_th]:align-bottom [&_td]:px-1.5 [&_td[data-ledger-cell]]:py-0.5 [&_td[data-ledger-cell]]:align-middle [&_td[data-ledger-cell]]:whitespace-nowrap [&_th]:border-l [&_th]:border-border [&_td]:border-l [&_td]:border-border [&_th:first-child]:border-l-0 [&_td:first-child]:border-l-0 [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-bg-row [&_thead_th]:shadow-[inset_0_-1px_0_rgb(var(--ts-border))] [&_tfoot_th]:sticky [&_tfoot_th]:bottom-0 [&_tfoot_th]:bg-bg-row [&_tfoot_th]:py-0.5 [&_tfoot_th]:shadow-[inset_0_1px_0_rgb(var(--ts-border))] [&_tfoot_td]:sticky [&_tfoot_td]:bottom-0 [&_tfoot_td]:bg-bg-row [&_tfoot_td]:py-0.5 [&_tfoot_td]:shadow-[inset_0_1px_0_rgb(var(--ts-border))] [&_tr[data-ledger-row]:hover]:bg-bg-row [&_[data-ledger-pill]]:px-1.5 [&_[data-ledger-pill]]:py-0 [&_td[data-ledger-cell]_button]:px-1 [&_td[data-ledger-cell]_button]:py-0 [&_td[data-ledger-cell]_button]:leading-[14px] [&_td[data-ledger-cell=sub-account-name]]:max-w-[12rem] [&_td[data-ledger-cell=sub-account-name]]:truncate [&_td[data-ledger-cell=description]]:max-w-[16rem] [&_td[data-ledger-cell=description]]:truncate [&_td[data-ledger-cell=vendor]]:max-w-[11rem] [&_td[data-ledger-cell=vendor]]:truncate [&_td[data-ledger-cell=notes]]:max-w-[14rem] [&_td[data-ledger-cell=notes]]:truncate';"; // COALEVELS-01 (2026-11-27): THE GRID — the floor and forty-three variants; "…= 'min-w-[96rem] [&_th]:whitespace-normal [&_th]:px-1.5 [&_td]:px-1.5';" until then
 
-test('T4 LEDGER_TABLE_CLASS is the whole literal, typed once and whole — the last export and the last line of ledger.ts, its dated note above it; four classes, the three variants once each; tailwind scans the file', () => {
-  assert.equal(LEDGER_TABLE_CLASS, 'min-w-[96rem] [&_th]:whitespace-normal [&_th]:px-1.5 [&_td]:px-1.5');
+test('T4 LEDGER_TABLE_CLASS is the whole literal, typed once and whole — the last export and the last line of ledger.ts, its dated note above it; forty-four classes (COALEVELS-01, 2026-11-27 — the grid; four until then), each once; tailwind scans the file', () => {
+  assert.equal(LEDGER_TABLE_CLASS, 'min-w-[96rem] [&_th]:whitespace-normal [&_th]:px-1.5 [&_th]:py-1 [&_th]:align-bottom [&_td]:px-1.5 [&_td[data-ledger-cell]]:py-0.5 [&_td[data-ledger-cell]]:align-middle [&_td[data-ledger-cell]]:whitespace-nowrap [&_th]:border-l [&_th]:border-border [&_td]:border-l [&_td]:border-border [&_th:first-child]:border-l-0 [&_td:first-child]:border-l-0 [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-bg-row [&_thead_th]:shadow-[inset_0_-1px_0_rgb(var(--ts-border))] [&_tfoot_th]:sticky [&_tfoot_th]:bottom-0 [&_tfoot_th]:bg-bg-row [&_tfoot_th]:py-0.5 [&_tfoot_th]:shadow-[inset_0_1px_0_rgb(var(--ts-border))] [&_tfoot_td]:sticky [&_tfoot_td]:bottom-0 [&_tfoot_td]:bg-bg-row [&_tfoot_td]:py-0.5 [&_tfoot_td]:shadow-[inset_0_1px_0_rgb(var(--ts-border))] [&_tr[data-ledger-row]:hover]:bg-bg-row [&_[data-ledger-pill]]:px-1.5 [&_[data-ledger-pill]]:py-0 [&_td[data-ledger-cell]_button]:px-1 [&_td[data-ledger-cell]_button]:py-0 [&_td[data-ledger-cell]_button]:leading-[14px] [&_td[data-ledger-cell=sub-account-name]]:max-w-[12rem] [&_td[data-ledger-cell=sub-account-name]]:truncate [&_td[data-ledger-cell=description]]:max-w-[16rem] [&_td[data-ledger-cell=description]]:truncate [&_td[data-ledger-cell=vendor]]:max-w-[11rem] [&_td[data-ledger-cell=vendor]]:truncate [&_td[data-ledger-cell=notes]]:max-w-[14rem] [&_td[data-ledger-cell=notes]]:truncate');
   const rules = code(RULES);
   assert.equal(rules.split(CLASS_LINE).length - 1, 1, 'typed once, whole, on one line');
   assert.equal(countOf(rules, /\bLEDGER_TABLE_CLASS\b/g), 1, 'and named nowhere else in the rule file');
@@ -142,13 +142,13 @@ test('T4 LEDGER_TABLE_CLASS is the whole literal, typed once and whole — the l
   // Its dated note is the comment right above it.
   const file = whole(RULES);
   const note = file.slice(file.lastIndexOf('// ── TIMEWIDE-01'), file.lastIndexOf(CLASS_LINE));
-  assert.match(note, /^\/\/ ── TIMEWIDE-01 \(Alex, 2026-11-24\): THE SHEET'S TABLE CLASS ─+\n/);
+  assert.match(note, /^\/\/ ── TIMEWIDE-01 \(Alex, 2026-11-24\): THE SHEET'S TABLE CLASS ─+\n/); assert.match(note, /\/\/ {3}COALEVELS-01 \(Alex, 2026-11-27\): THE GRID\./, 'and what the variants do now, said in the same note');
   assert.ok(note.split('\n').filter((line) => line !== '').every((line) => line.startsWith('//')), 'nothing but the note between its heading and the constant');
-  // Four classes: the floor the table had, and the three variants — once each.
+  // Forty-four classes: the floor the table had, the three variants it had, and the grid's forty — once each. COALEVELS-01 (2026-11-27): four until then.
   const classes = LEDGER_TABLE_CLASS.split(' ');
-  assert.deepEqual(classes, ['min-w-[96rem]', '[&_th]:whitespace-normal', '[&_th]:px-1.5', '[&_td]:px-1.5']);
+  assert.deepEqual([classes.slice(0, 3), classes[5], classes.slice(1).every((c) => c.startsWith('[&_'))], [['min-w-[96rem]', '[&_th]:whitespace-normal', '[&_th]:px-1.5'], '[&_td]:px-1.5', true], 'the floor first; the three it had, where they stood; every other a variant');
   for (const one of classes) assert.equal(classes.filter((c) => c === one).length, 1, `${one}: once`);
-  assert.equal(new Set(classes).size, 4);
+  assert.equal(new Set(classes).size, 44);
   // Typed whole where tailwind reads whole class strings: no template, nothing joined.
   assert.doesNotMatch(rules, /LEDGER_TABLE_CLASS = (?!')/, 'a plain string literal');
   assert.doesNotMatch(CLASS_LINE, /\$\{|`| \+ |\.join\(/);
@@ -188,12 +188,12 @@ test('T5 compiled with the repo’s own Tailwind config, each variant is a class
   const weight = (selector: string): [number, number] => [countOf(selector, /\.(?:\\.|[^\s.\\])+/g), countOf(selector, /(?:^|\s)[a-z]+(?=$|\s)/g)];
   for (const variant of ['.\\[\\&_th\\]\\:whitespace-normal th', '.\\[\\&_th\\]\\:px-1\\.5 th', '.\\[\\&_td\\]\\:px-1\\.5 td']) assert.deepEqual(weight(variant), [1, 1], variant);
   for (const own of ['.whitespace-nowrap', '.px-2']) assert.deepEqual(weight(own), [1, 0], own);
-  // Only the head cells may wrap: no variant sets a body cell's white-space, so a money cell keeps its own nowrap.
-  assert.deepEqual(compiled.filter((rule) => / td$/.test(rule.selector)).map((rule) => rule.body), ['padding-left: 0.375rem; padding-right: 0.375rem']);
+  // Only the head cells may wrap: one variant sets white-space: normal, and it is the head's; a body cell of the sheet is one line. COALEVELS-01 (2026-11-27): the grid — `td[data-ledger-cell]` is nowrap; 'no variant sets a body cell's white-space' until then.
+  assert.deepEqual(compiled.filter((rule) => rule.body === 'white-space: normal').map((rule) => rule.selector), ['.\\[\\&_th\\]\\:whitespace-normal th']); assert.equal(bodyOf('.\\[\\&_td\\[data-ledger-cell\\]\\]\\:whitespace-nowrap td[data-ledger-cell]'), 'white-space: nowrap'); assert.deepEqual([bodyOf('.\\[\\&_thead_th\\]\\:sticky thead th'), bodyOf('.\\[\\&_thead_th\\]\\:top-0 thead th'), bodyOf('.\\[\\&_tfoot_td\\]\\:sticky tfoot td'), bodyOf('.\\[\\&_tfoot_td\\]\\:bottom-0 tfoot td')], ['position: sticky', 'top: 0px', 'position: sticky', 'bottom: 0px'], 'the head stays at the top of the table’s box and the TOTAL at its bottom');
   // The floor is the width the table always had.
   assert.equal(bodyOf('.min-w-\\[96rem\\]'), 'min-width: 96rem');
   // Every class of the constant compiled to a rule — none is a silent no-op.
-  assert.equal(compiled.filter((rule) => /96rem|_th|_td/.test(rule.selector)).length, 4);
+  assert.equal(compiled.filter((rule) => rule.selector === '.min-w-\\[96rem\\]' || rule.selector.startsWith('.\\[\\&_')).length, LEDGER_TABLE_CLASS.split(' ').length); assert.equal(LEDGER_TABLE_CLASS.split(' ').length, 44); // COALEVELS-01 (2026-11-27): forty-four classes, forty-four rules — four until then
 });
 
 // ── T6 · THE SECTION (ruling C) ──────────────────────────────────────────────
@@ -243,12 +243,12 @@ test('T8 the registry’s Time row cites the same thirteen lines as on main, and
     ['stops/stopWrites.ts:39', `${OPS}/stops/stopWrites.ts`, /const res = await fetch\('\/api\/operations\/stops', \{/],
     ['ledger/RecordForm.tsx:126', `${OPS}/ledger/RecordForm.tsx`, /void write\(\(\) => setStopRecord\(body\)\);/],
     ['ledger/ExpenseForm.tsx:87', `${OPS}/ledger/ExpenseForm.tsx`, /const created = await createOneOff\(oneOffBody\(v\)\);/],
-    ['src/lib/operations/ledger.ts:1426', RULES, /^export const LEDGER_HEAD_WORDS = \[/], // TIMESHEET-04b (2026-11-27): the rule file grew above this line (the sheet's two columns, a plan row's planned items, the record form's NOTES) and the registry re-pointed its cite — :1342 until then
+    ['src/lib/operations/ledger.ts:1518', RULES, /^export const LEDGER_HEAD_WORDS = \[/], // COALEVELS-01 (2026-11-27): the rule file grew above this line again (a row's Location and its account's levels, the twenty-five columns, the ten groups) and the registry re-pointed its cite — :1426 until then. TIMESHEET-04b (2026-11-27): the rule file grew above this line (the sheet's two columns, a plan row's planned items, the record form's NOTES) and the registry re-pointed its cite — :1342 until then
     ['src/lib/operations/ledgerAnswer.ts:43', 'src/lib/operations/ledgerAnswer.ts', /duration_minutes: true/],
     ['src/lib/operations/ledgerAnswer.ts:42', 'src/lib/operations/ledgerAnswer.ts', /start_time: true, end_time: true/],
     ['src/components/workbench/operations/ledger/LedgerSection.tsx:368', SECTION, /data-ledger-cell="planned-minutes"/],
     ['LedgerSection.tsx:475', SECTION, /data-ledger-group-planned-hours/],
-    ['src/lib/operations/ledger.ts:1443', RULES, /^export const SUMMARY_HEAD_WORDS = \[/], // TIMESHEET-04b (2026-11-27): re-pointed with it — :1359 until then
+    ['src/lib/operations/ledger.ts:1535', RULES, /^export const SUMMARY_HEAD_WORDS = \[/], // COALEVELS-01 (2026-11-27): re-pointed with it — :1443 until then. TIMESHEET-04b (2026-11-27): re-pointed with it — :1359 until then
     ['LedgerSection.tsx:432', SECTION, /data-ledger-said-planned/],
   ];
   assert.deepEqual(cited, HOLDS.map(([citation]) => citation), 'the same lines, in the same order');
@@ -261,21 +261,21 @@ test('T8 the registry’s Time row cites the same thirteen lines as on main, and
   assert.match(linesOf('src/app/api/operations/stops/route.ts')[176] ?? '', /operations_stop_records\.create\(/);
   // Nothing cites a line of the rule file below its last cited one, so a constant added at its end moves no citation.
   const ruleLines = cited.filter((c) => c.startsWith(`${RULES}:`)).map((c) => Number(c.slice(c.lastIndexOf(':') + 1)));
-  assert.deepEqual(ruleLines, [1426, 1443]); // TIMESHEET-04b (2026-11-27): [1342, 1359] until then
+  assert.deepEqual(ruleLines, [1518, 1535]); // COALEVELS-01 (2026-11-27): [1426, 1443] until then. TIMESHEET-04b (2026-11-27): [1342, 1359] until then
   assert.ok(linesOf(RULES).length > Math.max(...ruleLines));
   assert.equal(linesOf(RULES).findIndex((line) => line.startsWith('export const LEDGER_TABLE_CLASS')) + 1, linesOf(RULES).length, 'the constant is the last line — below every cited one');
 });
 
 // ── T9 · THE SHEET'S WORDS ───────────────────────────────────────────────────
 
-test('T9 the sheet’s columns are as they were — twenty-three head words in their order (TIMESHEET-04b; twenty-one until then); the long heads the class lets wrap are each of several words; the class changes no word', () => {
-  assert.deepEqual([...LEDGER_HEAD_WORDS], ['DAY', 'DATE', 'START', 'END', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION', 'NOTES']); // TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then
-  assert.equal(LEDGER_HEAD_WORDS.length, 23); // TIMESHEET-04b (2026-11-27): 21 until then
-  // A head can go onto a second line only at a space: the four long ones each have one (TIMESHEET-04b: INSTAGRAM TAG is a fifth head of two words — the class lets it wrap as it lets these).
+test('T9 the sheet’s columns — twenty-five head words in their order, his sheet’s words (COALEVELS-01, 2026-11-27; twenty-three until then); the long heads the class lets wrap are each of several words; the class changes no word — it cuts four long cells, each said whole in its title', () => {
+  assert.deepEqual([...LEDGER_HEAD_WORDS], ['DAY', 'DATE', 'START', 'END', 'CITY', 'REGION', 'COUNTRY', 'LOCATION', 'CATEGORY', 'ENTITY', 'TYPE', 'ITEMS', 'VENDOR', 'INSTAGRAM TAG', 'WENT', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'COA', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES']); // TIMESHEET-04b (2026-11-27): twenty-three — INSTAGRAM TAG after VENDOR, NOTES after DESCRIPTION, nothing else moved; twenty-one until then · COALEVELS-01 (2026-11-27): twenty-five, in his sheet's words and order — REGION after CITY, LOCATION after COUNTRY; CATEGORY · ENTITY · TYPE · ITEMS where ACCOUNT NAME · BOOK · SUB ACCOUNT NAME · DESCRIPTION stood; COA (was ACCOUNT) before BUDGET; NOTES last — twenty-three until then
+  assert.equal(LEDGER_HEAD_WORDS.length, 25); // COALEVELS-01 (2026-11-27): 23 until then. TIMESHEET-04b (2026-11-27): 21 until then
+  // A head can go onto a second line only at a space: the four long ones each have one. COALEVELS-01 (2026-11-27): INSTAGRAM TAG, PLANNED MIN, LOGGED MIN and UNDER / OVER — SUB ACCOUNT NAME, the fifth until then, is TYPE now, one word.
   const several = LEDGER_HEAD_WORDS.filter((head) => head.includes(' '));
-  for (const long of ['SUB ACCOUNT NAME', 'PLANNED MIN', 'LOGGED MIN', 'UNDER / OVER']) assert.ok(several.includes(long as (typeof several)[number]), `${long}: of several words`);
-  // The class is classes only: a width and three variants of two utilities — no content, no order, no visibility.
-  assert.doesNotMatch(LEDGER_TABLE_CLASS, /content-|order-|hidden|invisible|sr-only|truncate|line-clamp|uppercase|lowercase|capitalize/);
+  for (const long of ['INSTAGRAM TAG', 'PLANNED MIN', 'LOGGED MIN', 'UNDER / OVER']) assert.ok(several.includes(long as (typeof several)[number]), `${long}: of several words`);
+  // The class is classes only — no content, no order, no visibility. COALEVELS-01 (2026-11-27): the grid cuts four long cells to their column (truncate) — the TYPE, the ITEMS, the VENDOR and the NOTES, each said whole in its title (the section) — and nothing else; 'a width and three variants of two utilities', with no truncate, until then.
+  assert.doesNotMatch(LEDGER_TABLE_CLASS, /content-|(?<!b)order-|hidden|invisible|sr-only|line-clamp|uppercase|lowercase|capitalize/); assert.deepEqual(LEDGER_TABLE_CLASS.split(' ').filter((c) => c.endsWith(':truncate')), ['sub-account-name', 'description', 'vendor', 'notes'].map((cell) => `[&_td[data-ledger-cell=${cell}]]:truncate`));
   // And the rule file's functions are not this change's: the constant is a string, read by the section and by nothing in the rule.
   assert.equal(typeof LEDGER_TABLE_CLASS, 'string');
 });

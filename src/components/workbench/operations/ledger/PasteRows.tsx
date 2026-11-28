@@ -7,15 +7,16 @@
  * rule (src/lib/operations/pasteRows.ts readPaste) and then reads what the paste is placed against — ONE read function, by GET
  * only, each read awaited: the sheet's own span rule first (ledger.ts spanInput: its refusal is shown and nothing is sent), then
  *   · the time sheet's answer for those days (ledgerReads.ts readLedger);
- *   · each offered book's chart (week/weekReads.ts readJson over the chart route; a chart that cannot be read is said with the
- *     book's name, never shown as an empty list);
+ *   · each offered book's chart, and beside it its sub-accounts (week/weekReads.ts readJson over the chart route and the
+ *     sub-accounts route; a chart or a list that cannot be read is said with the book's name, never shown as an empty list);
  *   · the vendors (readJson over the directory route, through pasteRows.ts vendorsOf; a list that cannot be read is said);
  *   · the books (the provider's list).
  * The clock is the browser's, read once per read; the zone is the browser's, read on mount.
  *
- * Then, in order: the lines naming the columns not read; the one line of counts; the picks — one select a kind of row, nothing
- * chosen for him; the save box; and the table, every row twice on one line (YOUR SHEET, ON THE TIME SHEET) with where it LANDS
- * last and, under that, how the row came out of a save. A pick places every row again, at once (pasteRows.ts placePaste — pure).
+ * Then, in order: the lines naming the columns not read; the one line of counts; the picks — one select a kind of row, each
+ * started where the chart carries its Category's name, any of them his to change; the sub-accounts a save would add; the save
+ * box; and the table, every row twice on one line (YOUR SHEET, ON THE TIME SHEET) and, beneath it on its own line, where it LANDS
+ * and how the row came out of a save. A pick places every row again, at once (pasteRows.ts placePaste — pure).
  *
  * PASTE-02 (Alex, 2026-11-27) — THE SAVE. Until then this leaf wrote nothing, read the vendors through the Budget's hook
  * (budget/VendorBox.tsx useDirectory), and a new read forgot the picks. Now:
@@ -25,11 +26,17 @@
  *   · ONE button over the table says what it writes. Pressing it reads everything again first — the same one read function —
  *     and places the rows again with the same picks. If the table's rows are no longer what was on screen at the press, NOTHING
  *     is written: the rows are shown placed again, and a line says so. Else the writes of the new placements are run by the ONE
- *     runner (src/lib/operations/pasteSave.ts runPaste), handed the six writers — ledgerWrites.ts's five and the stops' one.
+ *     runner (src/lib/operations/pasteSave.ts runPaste), handed the eight writers — ledgerWrites.ts's seven and the stops' one.
  *     This leaf calls no writer itself, and sends no request of its own;
  *   · each row says how it came out, under where it lands. A write a route refuses stops the save; nothing is retried or undone;
  *   · every day a write reached is handed up, once (onWritten): the time sheet above reads again and the day's card is told;
  *   · after a run there is no save until the rows are read again — what is in is never written twice.
+ *
+ * COALEVELS-01 (Alex, 2026-11-27) — the paste reads three more columns and codes the rows (it carries TIMESHEET-04c). Here: each
+ * offered book's sub-accounts are read beside its chart; a read starts each kind that has no pick of its own on the account its
+ * Category names (pasteRows.ts picksAtRead); under the picks, the sub-accounts a save would add — a line each, and after a save how
+ * each came out; the runner is handed EIGHT writers (six until then); and the table has no LANDS column — nineteen cells a row
+ * left it no room — so each row is one <tbody> of two lines.
  * Every sentence printed here is typed in one of the two rule files; the zone's line is "+ expense"'s own (ledger.ts zoneWords).
  */
 
@@ -39,22 +46,22 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import { cellClass as cell, chipClass as chip, headClass as head, moneyClass as money } from '@/components/table/DataTable';
 import { spanInput, zoneWords } from '@/lib/operations/ledger';
 import {
-  LANDS_WORDS, ON_TIME_SHEET_COLUMNS, ON_TIME_SHEET_WORDS, PASTE_CLEAR_WORDS, PASTE_CLOSE_WORDS, PASTE_HOW_WORDS, PASTE_NO_PICK_WORDS, PASTE_ONE_OFF_WORDS, PASTE_ON_PLAN_WORDS,
+  LANDS_WORDS, ON_TIME_SHEET_COLUMNS, ON_TIME_SHEET_WORDS, PASTE_ADDS_WORDS, PASTE_CLEAR_WORDS, PASTE_CLOSE_WORDS, PASTE_HOW_WORDS, PASTE_NO_PICK_WORDS, PASTE_ONE_OFF_WORDS, PASTE_ON_PLAN_WORDS,
   PASTE_OPEN_WORDS, PASTE_PICKS_WORDS, PASTE_READ_WORDS, PASTE_TITLE_WORDS, YOUR_SHEET_COLUMNS, YOUR_SHEET_WORDS,
-  accountWords, chartOf, chartUnreadWords, countsWords, notReadLines, offeredBooksOf, pasteKindsOf, pasteShown, pasteSpanOf, pickOfValue, pickOffersOf, pickValueOf, placePaste, readPaste, standingPicks,
-  vendorsOf, vendorsUnreadWords,
-  type Paste, type PasteAccount, type PasteBook, type PasteColumn, type PasteContext, type PastePick, type PasteTone,
+  accountWords, chartAddWords, chartAddsOf, chartOf, chartUnreadWords, countsWords, notReadLines, offeredBooksOf, pasteKindsOf, pasteShown, pasteSpanOf, pickOfValue, pickOffersOf, pickValueOf, picksAtRead, placePaste, readPaste, standingPicks,
+  subAccountsOf, subAccountsUnreadWords, vendorsOf, vendorsUnreadWords,
+  type Paste, type PasteAccount, type PasteBook, type PasteColumn, type PasteContext, type PastePick, type PasteSubAccount, type PasteTone,
 } from '@/lib/operations/pasteRows';
 import {
   CHANGED_WORDS, CHECKING_WORDS, NOTHING_TO_SAVE_WORDS, SPENT_WORDS, VENDORS_STAY_WORDS,
-  daysReached, newVendorLines, pasteOutcomeWords, pasteWritesOf, runPaste, runStopped, runWords, saveWords, savingWords, shownChanged,
-  type PasteOutcome, type PasteProgress,
+  addOutcomeWords, daysReached, newVendorLines, pasteAddsOf, pasteOutcomeWords, pasteWritesOf, runPaste, runStopped, runWords, saveWords, savingWords, shownChanged,
+  type PasteAddOutcome, type PasteOutcome, type PasteProgress,
 } from '@/lib/operations/pasteSave';
 import { useOperationsEntity } from '../EntitySelector';
 import { setStopRecord } from '../stops/stopWrites';
 import { readJson, type Read } from '../week/weekReads';
 import { readLedger } from './ledgerReads';
-import { addVendor, createOneOff, readOneOffLine, setLineMinutes, setVendor } from './ledgerWrites';
+import { addSubAccount, addVendor, createOneOff, readOneOffLine, setLineMinutes, setVendor, setVendorTag } from './ledgerWrites';
 
 const box = 'px-1.5 py-0.5 border border-border rounded text-xs';
 const label = 'text-text-faint tracking-wide';
@@ -65,7 +72,7 @@ const ROW_CLASS: Readonly<Record<PasteTone, string>> = {
   refused: 'border-t border-border text-brand-red',
   quiet: 'border-t border-border text-text-muted',
 };
-/** How a row came out of a save, by its state — green · red · muted, as "+ expense" colours its steps. */
+/** How a row — or an addition to the chart — came out of a save, by its state — green · red · muted, as "+ expense" colours its steps. */
 const SAVED_CLASS: Readonly<Record<PasteOutcome['state'], string>> = {
   written: 'text-brand-green',
   failed: 'text-brand-red',
@@ -83,7 +90,7 @@ export default function PasteRows({ onWritten }: { onWritten: (days: readonly st
   // PASTE-02: the picks live here, above the box — kept through a read and through closing the box. React state only: nothing is stored.
   const [picks, setPicks] = useState<Picks>({});
   return (
-    <div className="space-y-2" data-ledger-paste>
+    <div className={open ? 'order-last w-full space-y-2' : 'contents'} data-ledger-paste>
       {!open && <button type="button" className={chip} onClick={() => setOpen(true)} data-ledger-paste-open>{PASTE_OPEN_WORDS}</button>}
       {open && <Box close={() => setOpen(false)} picks={picks} setPicks={setPicks} onWritten={onWritten} />}
     </div>
@@ -98,44 +105,52 @@ interface ReadRows {
 
 /**
  * THE ONE READ FUNCTION — what a paste is placed against, read by GET, each read awaited; the browser's clock, read once per read.
- * "read the rows" and the save's second read are this one function, so both hold the time sheet, the charts and the vendors as
- * they stand at that moment. The sheet's own span rule first: its refusal is the answer, and nothing is sent. A read that fails
- * is said in its own words — a chart with its book's name — and never taken as an empty list.
+ * "read the rows" and the save's second read are this one function, so both hold the time sheet, the charts, the sub-accounts and
+ * the vendors as they stand at that moment. The sheet's own span rule first: its refusal is the answer, and nothing is sent. A
+ * read that fails is said in its own words — a chart or its sub-accounts with the book's name — and never taken as an empty list.
  */
 async function readAgainst(paste: Paste, books: readonly PasteBook[], zone: string): Promise<Read<PasteContext>> {
   const now = new Date();
   // The days the readable rows cover. No readable row: no row is placed against anything, so nothing is read.
   const span = pasteSpanOf(paste);
-  if (span === null) return { ok: true, value: { books, sheet: [], recording: {}, charts: {}, vendors: [], zone, now } };
+  if (span === null) return { ok: true, value: { books, sheet: [], recording: {}, charts: {}, subAccounts: {}, vendors: [], zone, now } };
   const days = spanInput(span.from, span.to);
   if (!days.ok) return { ok: false, words: days.message };
   const ledger = await readLedger(days.from, days.to);
   if (!ledger.ok) return { ok: false, words: ledger.words };
   const charts: Record<string, readonly PasteAccount[]> = {};
+  const subAccounts: Record<string, readonly PasteSubAccount[]> = {};
   for (const book of offeredBooksOf(books)) {
     const answer = await readJson(`/api/chart-of-accounts?entity_id=${encodeURIComponent(book.id)}`);
     if (!answer.ok) return { ok: false, words: chartUnreadWords(book.name, answer.words) };
     const chart = chartOf(answer.value);
     if (!chart.ok) return { ok: false, words: chartUnreadWords(book.name, chart.words) };
     charts[book.id] = chart.accounts;
+    // COALEVELS-01: the book's sub-accounts, beside its chart — the additions to the chart are worked against them.
+    const listedSubs = await readJson(`/api/chart-of-accounts/sub-accounts?entity_id=${encodeURIComponent(book.id)}`);
+    if (!listedSubs.ok) return { ok: false, words: subAccountsUnreadWords(book.name, listedSubs.words) };
+    const subs = subAccountsOf(listedSubs.value);
+    if (!subs.ok) return { ok: false, words: subAccountsUnreadWords(book.name, subs.words) };
+    subAccounts[book.id] = subs.subAccounts;
   }
   const listed = await readJson('/api/operations/vendor-directory');
   if (!listed.ok) return { ok: false, words: vendorsUnreadWords(listed.words) };
   const vendors = vendorsOf(listed.value);
   if (!vendors.ok) return { ok: false, words: vendorsUnreadWords(vendors.words) };
-  return { ok: true, value: { books, sheet: ledger.value.sheet, recording: ledger.value.recording, charts, vendors: vendors.vendors, zone, now } };
+  return { ok: true, value: { books, sheet: ledger.value.sheet, recording: ledger.value.recording, charts, subAccounts, vendors: vendors.vendors, zone, now } };
 }
 
 /**
- * Every row placed against what was read, by the picks that still stand — and what a save of them would write. The two rules',
- * pure: nothing here decides where a row lands or what is written.
+ * Every row placed against what was read, by the picks that still stand — what the save would add to the chart, and what a save
+ * of the rows would write. The two rules', pure: nothing here decides where a row lands, what is added or what is written.
  */
 function placedOf(read: ReadRows, picks: Picks) {
   const kinds = pasteKindsOf(read.paste);
   const standing = standingPicks(picks, kinds, read.context);
   const placed = placePaste(read.paste, standing, read.context);
   const writes = pasteWritesOf(read.paste.rows, placed);
-  return { kinds, standing, counts: countsWords(placed), table: pasteShown(read.paste, placed), notRead: notReadLines(read.paste), writes, newVendors: newVendorLines(writes) };
+  const adds = chartAddsOf(placed, read.context);
+  return { kinds, standing, counts: countsWords(placed), table: pasteShown(read.paste, placed), notRead: notReadLines(read.paste), writes, newVendors: newVendorLines(writes), adds, saveAdds: pasteAddsOf(adds) };
 }
 
 /** The box, mounted only while it is open. The picks are the outer component's, handed in with their setter. */
@@ -146,9 +161,9 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
   const [refusal, setRefusal] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<ReadRows | null>(null);
-  /** THE SAVE: where it is while it runs ('checking' — reading again; then the row being written); each row's outcome as it comes, and whether the run has finished; whether the time sheet had changed. */
+  /** THE SAVE: where it is while it runs ('checking' — reading again; then the row being written); how each addition to the chart came out, each row's outcome as it comes, and whether the run has finished; whether the time sheet had changed. */
   const [saving, setSaving] = useState<'checking' | NonNullable<PasteProgress['at']> | null>(null);
-  const [run, setRun] = useState<{ readonly outcomes: readonly PasteOutcome[]; readonly done: boolean } | null>(null);
+  const [run, setRun] = useState<{ readonly adds: readonly PasteAddOutcome[]; readonly outcomes: readonly PasteOutcome[]; readonly done: boolean } | null>(null);
   const [changed, setChanged] = useState(false);
 
   // The browser's zone, read on mount only — the server render has no business guessing it.
@@ -170,6 +185,8 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
     try {
       const against = await readAgainst(paste.value, booksNow(), zone);
       if (!against.ok) { setRefusal(against.words); return; }
+      // COALEVELS-01: a read starts each kind that has no pick of its own on the account its Category names — the rule's, pure; his own picks are kept.
+      setPicks((held) => picksAtRead(held, pasteKindsOf(paste.value), against.value));
       setRows({ paste: paste.value, context: against.value });
     } finally {
       setBusy(false);
@@ -216,12 +233,14 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
       setRows(again);
       // (4) The table's rows are not what was on screen at the press: the changed line, and nothing is written.
       if (shownChanged(shown.table, placed.table)) { setChanged(true); return; }
-      // (5) The writes of the NEW placements, run by the one runner through the six writers. This leaf calls no writer itself.
-      const outcomes = await runPaste(placed.writes, { createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setRecord: setStopRecord }, (progress) => {
-        setRun({ outcomes: progress.outcomes, done: false });
+      // (5) The additions and the writes of the NEW placements, run by the one runner through the eight writers. This leaf calls no writer itself.
+      let added: readonly PasteAddOutcome[] = [];
+      const outcomes = await runPaste(placed.writes, { createOneOff, readOneOffLine, setLineMinutes, addVendor, setVendor, setVendorTag, addSubAccount, setRecord: setStopRecord }, (progress) => {
+        added = progress.adds;
+        setRun({ adds: progress.adds, outcomes: progress.outcomes, done: false });
         setSaving(progress.at);
-      });
-      setRun({ outcomes, done: true });
+      }, placed.saveAdds);
+      setRun({ adds: added, outcomes, done: true });
       // (6) Every day a write reached, handed up once: the time sheet reads again, and the day's card is told.
       onWritten(daysReached(placed.writes, outcomes));
     } finally {
@@ -277,10 +296,25 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
               </div>
             </div>
           )}
+          {shown.adds.length > 0 && (
+            <div className="space-y-0.5" data-ledger-paste-adds>
+              <p className="text-text-muted">{PASTE_ADDS_WORDS}</p>
+              {shown.adds.map((add, i) => {
+                // How this addition came out of the save: the outcomes are the written ones', in their order — an addition with no code is not written, and has none.
+                const outcome = run === null || add.code === null ? undefined : run.adds[shown.adds.slice(0, i).filter((before) => before.code !== null).length];
+                return (
+                  <p key={`${add.accountId} ${add.name}`} className={add.code === null ? 'text-brand-amber' : undefined} data-ledger-paste-add>
+                    <span>{chartAddWords(add)}</span>
+                    {outcome !== undefined && <span className={`${SAVED_CLASS[outcome.state]} ml-3`} data-ledger-paste-add-saved={outcome.state}>{addOutcomeWords(outcome)}</span>}
+                  </p>
+                );
+              })}
+            </div>
+          )}
           <div className="space-y-1" data-ledger-paste-save-box>
             {!spent && shown.newVendors.map((line) => <p key={line} className="text-text-muted" data-ledger-paste-new-vendors>{line}</p>)}
             {!spent && shown.newVendors.length > 0 && <p className="text-brand-amber" data-ledger-paste-vendors-stay>{VENDORS_STAY_WORDS}</p>}
-            {!spent && shown.writes.length > 0 && <button type="button" className={chip} disabled={busy} aria-busy={saving !== null} onClick={save} data-ledger-paste-save>{saveWords(shown.writes)}</button>}
+            {!spent && shown.writes.length > 0 && <button type="button" className={chip} disabled={busy} aria-busy={saving !== null} onClick={save} data-ledger-paste-save>{saveWords(shown.writes, shown.saveAdds)}</button>}
             {!spent && shown.writes.length === 0 && <p className="text-text-muted" data-ledger-paste-nothing>{NOTHING_TO_SAVE_WORDS}</p>}
             {saving === 'checking' && <p className="text-text-muted" data-ledger-paste-checking>{CHECKING_WORDS}</p>}
             {saving !== null && saving !== 'checking' && <p className="text-text-muted" data-ledger-paste-saving>{savingWords(saving.i, saving.of, saving.row)}</p>}
@@ -294,29 +328,31 @@ function Box({ close, picks, setPicks, onWritten }: { close: () => void; picks: 
                 <tr className="text-text-faint uppercase tracking-wide">
                   <th colSpan={YOUR_SHEET_COLUMNS.length} className={head} data-ledger-paste-group="yours">{YOUR_SHEET_WORDS}</th>
                   <th colSpan={ON_TIME_SHEET_COLUMNS.length} className={`${head} border-l border-border`} data-ledger-paste-group="sheet">{ON_TIME_SHEET_WORDS}</th>
-                  <th rowSpan={2} className={`${head} border-l border-border align-bottom`} data-ledger-paste-group="lands">{LANDS_WORDS}</th>
                 </tr>
                 <tr className="text-text-faint uppercase tracking-wide">
                   {YOUR_SHEET_COLUMNS.map((column) => <th key={column.head} className={headOf(column)}>{column.head}</th>)}
                   {ON_TIME_SHEET_COLUMNS.map((column, i) => <th key={column.head} className={i === 0 ? `${headOf(column)} border-l border-border` : headOf(column)}>{column.head}</th>)}
                 </tr>
               </thead>
-              <tbody>
-                {shown.table.map((row) => {
-                  // How this row came out of the save — while it runs, as each row is written; after it, every row a write was made for.
-                  const outcome = run === null ? undefined : run.outcomes.find((o) => o.row === row.number);
-                  return (
-                    <tr key={row.number} className={ROW_CLASS[row.tone]} data-ledger-paste-row={row.number} data-ledger-paste-tone={row.tone}>
+              {shown.table.map((row) => {
+                // How this row came out of the save — while it runs, as each row is written; after it, every row a write was made for.
+                const outcome = run === null ? undefined : run.outcomes.find((o) => o.row === row.number);
+                // COALEVELS-01: ONE <tbody> a row, of two lines — its cells, then where it lands: an empty cell under ROW, and one cell across the others.
+                return (
+                  <tbody key={row.number} className={ROW_CLASS[row.tone]} data-ledger-paste-row={row.number} data-ledger-paste-tone={row.tone}>
+                    <tr>
                       {row.yours.map((words, i) => <td key={YOUR_SHEET_COLUMNS[i].head} className={cellOf(YOUR_SHEET_COLUMNS[i])}>{words}</td>)}
                       {row.sheet.map((words, i) => <td key={ON_TIME_SHEET_COLUMNS[i].head} className={i === 0 ? `${cellOf(ON_TIME_SHEET_COLUMNS[i])} border-l border-border` : cellOf(ON_TIME_SHEET_COLUMNS[i])}>{words}</td>)}
-                      <td className={`${cell} border-l border-border`} data-ledger-paste-lands>
-                        <span>{row.lands}</span>
-                        {outcome !== undefined && <div className={SAVED_CLASS[outcome.state]} data-ledger-paste-saved={outcome.state}>{pasteOutcomeWords(outcome)}</div>}
+                    </tr>
+                    <tr>
+                      <td />
+                      <td colSpan={YOUR_SHEET_COLUMNS.length + ON_TIME_SHEET_COLUMNS.length - 1} className={`${cell} pt-0`} data-ledger-paste-lands>
+                        <span className={`${label} uppercase mr-2`}>{LANDS_WORDS}</span><span>{row.lands}</span>{outcome !== undefined && <span className={`${SAVED_CLASS[outcome.state]} ml-3`} data-ledger-paste-saved={outcome.state}>{pasteOutcomeWords(outcome)}</span>}
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
+                  </tbody>
+                );
+              })}
             </table>
           </div>
         </>
