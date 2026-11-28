@@ -68,6 +68,13 @@
  * the sheet and the two journal tables under it take the width the window
  * gives beside the rail. Nothing else here changes: the same three sections in
  * the same order, and the rail as it is.
+ *
+ * SHEET-01 (Alex, 2026-11-28) — THE PAGE IS THE TABLE. "we dont want this on here
+ * either!" — of the summary under the sheet and the two journals. This page mounts
+ * the task ledger alone. The journal is still written on the day card, on the
+ * home page (/home); its two tables — journal/MorningJournalTable.tsx and
+ * journal/EveningJournalTable.tsx — are kept, unedited, and mounted nowhere until
+ * he says where. The two-lists law holds the container to the one (TIME_MOUNTS).
  */
 import AppLayout from '@/components/ui/AppLayout';
 import ToolOpener from '@/components/shell/ToolOpener';
@@ -75,8 +82,6 @@ import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
 import LedgerSection from '@/components/workbench/operations/ledger/LedgerSection';
-import MorningJournalTable from '@/components/workbench/operations/journal/MorningJournalTable';
-import EveningJournalTable from '@/components/workbench/operations/journal/EveningJournalTable';
 
 export default function TimePage() {
   return (
@@ -85,8 +90,6 @@ export default function TimePage() {
       <OperationsEntityProvider>
         <div className="space-y-3" data-tool-page="Time">
           <LedgerSection />
-          <MorningJournalTable />
-          <EveningJournalTable />
         </div>
       </OperationsEntityProvider>
     </AppLayout>

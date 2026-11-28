@@ -209,7 +209,7 @@ test('D the Time row: the note says /home (HOME-03), the customer line\'s "home 
   assert.equal(time.status, 'LIVE');
   assert.equal(time.why, undefined);
   assert.equal(time.note, 'HOME-03 (2026-10-27): the day itself is entered on the day card — Time\'s component, shown on the home page, /home, between the answers and the sheet (HOME-01, 2026-10-24, had it on the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.');
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
+  assert.equal(time.customer, 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // SHEET-01 (2026-11-28): the customer line names no journal answer — the journal tables are mounted nowhere
   assert.ok(time.citation.includes('written by the day card: Time\'s component, shown on the home page, /home — HOME-03; the dashboard until then, HOME-01)'));
   assert.doesNotMatch(time.customer ?? '', /\b(discover|decide|commit|record)\b|\/runway|\/home/, 'no beat word, no path on the customer line');
   assert.equal(TOOL_REGISTRY.filter((t) => t.home === '/runway' || t.home === '/home').length, 0, 'no registry row lives on /runway or /home');
@@ -230,7 +230,7 @@ test('D the two-lists law reads the card\'s host on /home — once, in its bound
   assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(host\)\) twoListsFail\(/);
   assert.match(law, /const netWorthAt = host\.indexOf\('data-net-worth'\);\n\s*const cardAt = host\.indexOf\('<DayCard \/>'\);\n\s*const sheetAt = host\.indexOf\('<TheSheet \/>'\);\n\s*if \(netWorthAt < 0 \|\| sheetAt < 0 \|\| cardAt < netWorthAt \|\| cardAt > sheetAt\) twoListsFail\(/);
   assert.match(law, /if \(\/DayCard\/\.test\(codeOf\(CARD_HOST_UNTIL_HOME_03\)\)\) twoListsFail\(/);
-  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
+  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>'\];/); // SHEET-01 (2026-11-28): the page is the table — the ledger alone; the two journal tables after it until then
   assert.match(law, /if \(\/DayCard\|<Suspense\/\.test\(timePage\)\) twoListsFail\(/);
   assert.match(comments(LAW), /HOME-03 \(Alex, 2026-10-27\): THE DAY CARD MOVED TO THE HOME PAGE — \/home/);
   // The tool law's rule 5 skips /home — no tool's page (SHELL_PAGES lists it as the shell's) — so Time's component on it is no violation.

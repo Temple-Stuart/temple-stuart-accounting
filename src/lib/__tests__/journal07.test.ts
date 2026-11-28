@@ -44,7 +44,6 @@ const LEDGER_SECTION = 'src/components/workbench/operations/ledger/LedgerSection
 const TIME_PAGE = 'src/app/time/page.tsx';
 const LAW = 'scripts/assert-tool-registry.ts';
 const MIDDLEWARE = 'src/middleware.ts';
-const REGISTRY = 'src/lib/toolRegistry.ts';
 /** The day route's code as it stood on origin/main 024895cd (#1847 merged) — the file this PR does not touch (ruling A; journal06 T11). */
 const DAY_ROUTE_SHA256 = '31ba6039f01d3c7e41dbc528830c8446f7fc0410cd98bcd30043e42541e6f793';
 
@@ -309,25 +308,25 @@ test('T7 the sections: one component with its kind; the period control copied ve
   assert.match(code(EVENING), /export default function EveningJournalTable\(\) \{\n\s*return <JournalDayTable kind="evening" \/>;\n\}/);
   // The page: the two under the ledger, in order, inside the provider, no boundary (they read no URL).
   const page = code(TIME_PAGE);
-  assert.match(page, /import MorningJournalTable from '@\/components\/workbench\/operations\/journal\/MorningJournalTable';\nimport EveningJournalTable from '@\/components\/workbench\/operations\/journal\/EveningJournalTable';/);
+  assert.doesNotMatch(page, /MorningJournalTable|EveningJournalTable/, 'the page imports neither journal table — they are kept, mounted nowhere'); // SHEET-01 (2026-11-28): the page is the table
   // HOME-01 (Alex, 2026-10-24): the card left for the dashboard — the container is the three tables, the ledger first.
-  assert.match(page, /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  assert.match(page, /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // SHEET-01 (2026-11-28): the page mounts the ledger alone — the two journal tables after it until then
   const box = page.slice(page.indexOf('data-tool-page="Time"'), page.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['LedgerSection', 'MorningJournalTable', 'EveningJournalTable']);
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['LedgerSection']); // SHEET-01 (2026-11-28): the ledger alone in the container
   assert.match(comments(TIME_PAGE), /JOURNAL-07 \(Alex, 2026-10-24\) — THE JOURNALS DAY OVER DAY/);
   // The law: TIME_MOUNTS is the four, in order; the messages name the tables; dated.
   const law = code(LAW);
   // HOME-01 (Alex, 2026-10-24): TIME_MOUNTS is the three — the card is the Runway panel's.
-  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection MorningJournalTable EveningJournalTable'/);
-  assert.match(law, /the ledger first, then the morning and the evening journal tables \(HOME-01; TIME-01; TIME-02; JOURNAL-07\)/);
+  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>'\];/); // SHEET-01 (2026-11-28): the page is the table — the ledger alone; the two journal tables after it until then
+  assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection'/); // SHEET-01 (2026-11-28): exactly the ledger
+  assert.match(law, /the page is the table: the ledger alone \(SHEET-01, 2026-11-28; the ledger first, then the morning and the evening journal tables until then — HOME-01; TIME-01; TIME-02; JOURNAL-07\)/); // SHEET-01 (2026-11-28): the order message says the page is the table
   assert.match(comments(LAW), /JOURNAL-07 \(Alex, 2026-10-24\): two more mounts under the ledger — the MORNING and the EVENING journal tables/);
   // Ruling F: the Time registry row's prose was not changed by JOURNAL-07. HOME-01 (Alex, 2026-10-24, ruling C) rewrote it to the tables' — time02.test.ts pins the words.
   const time = TOOL_REGISTRY.find((tool) => tool.name === 'Time')!;
   assert.equal(time.why, undefined); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. A LIVE row carries no why — the tables' line left with the status (time03.test.ts pins the row).
   // HOME-01 (Alex, 2026-10-24) rewrote the row once, to the tables — the citation names the tables and their range read now (home01.test.ts).
-  assert.match(code(REGISTRY), /MorningJournalTable\.tsx · src\/components\/workbench\/operations\/journal\/EveningJournalTable\.tsx/);
-  assert.match(code(REGISTRY), /journalReads\.ts:26 \(GET \/api\/operations\/journal\/range/);
+  assert.doesNotMatch(time.citation, /MorningJournalTable|EveningJournalTable|JournalDayTable/, 'the record beat names no journal table'); // SHEET-01 (2026-11-28): the journal tables leave the citation — mounted nowhere
+  assert.doesNotMatch(time.citation, /journalReads\.ts/, 'the discover beat names no journal read'); // SHEET-01 (2026-11-28): the journal's read leaves the citation
   // Nothing else: the ledger's section, the card's journal forms and the day route are untouched by the tables.
   for (const f of [LEDGER_SECTION, 'src/components/workbench/operations/stops/JournalForm.tsx', 'src/components/workbench/operations/stops/EveningForm.tsx', 'src/components/workbench/operations/day/DayCard.tsx']) {
     assert.doesNotMatch(code(f), /journalTables|JournalDayTable|journal\/range|readJournalRange/, `${f} knows nothing of the tables`);

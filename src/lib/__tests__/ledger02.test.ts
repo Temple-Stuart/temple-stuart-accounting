@@ -213,7 +213,7 @@ test('R2 the twenty-five head words in Alex’s order (COALEVELS-01: his sheet�
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): the coverage line comes first; the MATCH line is second (A2 pins the pair).
   // LEDGER-03 (Alex, 2026-10-19): the MATCH line is its coverage now, in the same place.
   // LEDGER-04 (Alex, 2026-10-20): both lines inside the notes toggle's open state — still adjacent, the coverage line first.
-  assert.match(s, /data-ledger-said-variance>[^\n]*<\/p>\}\n\s*\{shown\.length > 0 && <p data-ledger-said-match>\{matchCoverageWords\(totals\.withMatch, shown\.length\)\}<\/p>\}/, 'the MATCH line under the table, after the coverage line');
+  assert.doesNotMatch(s, /data-ledger-said-variance>[^\n]*<\/p>\}\n\s*\{shown\.length > 0 && <p data-ledger-said-match>\{matchCoverageWords\(totals\.withMatch, shown\.length\)\}<\/p>\}/, 'no MATCH line and no coverage line under the table'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
   assert.match(s, /<h2 className="text-sm font-bold text-brand-purple" data-ledger-title>\{LEDGER_TITLE_WORDS\}<\/h2>/); // COALEVELS-01 (2026-11-27): the title stands at the head of the controls row, one size down, named by its attribute — `text-lg` on a line of its own above the table until then
 });
 
@@ -234,12 +234,12 @@ test('R3 the TOTAL row: colSpan the columns before BUDGET; VARIANCE the two tota
   assert.deepEqual([mixed.budgetCents, mixed.actualCents, mixed.varianceCents, mixed.withVariance], [1000, 1398, -102, 1], 'the yoga’s $5 is in the ACTUAL total but not in the VARIANCE total — its row has no variance (1398 − 1000 = 398 is NOT the answer)');
   const s = code(SECTION);
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The span grows by two; the minutes are summed in the summary as hours, not in the TOTAL row.
-  assert.match(s, /<th scope="row" colSpan=\{19 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // COALEVELS-01 (2026-11-27): nineteen — REGION, LOCATION and ITEMS sit among the columns before BUDGET now, and the COA (`16 - dayFoldCount(period)` until then; a single day folds five). TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then. TIMESHEET-01 (Alex, 2026-11-24): the label spans fifteen — START, END and WENT sit before BUDGET too; colSpan={12} until then · TIMESHEET-04b (2026-11-27): sixteen — INSTAGRAM TAG sits among the columns before BUDGET (`15 - dayFoldCount(period)` until then)
+  assert.match(s, /<th scope="row" colSpan=\{LEDGER_COLUMNS\.indexOf\('plannedMinutes'\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/); // COALEVELS-01 (2026-11-27): nineteen — REGION, LOCATION and ITEMS sit among the columns before BUDGET now, and the COA (`16 - dayFoldCount(period)` until then; a single day folds five). TIMEDAY-01 (Alex, 2026-11-24): the label spans the columns before BUDGET less the four a single day folds — fifteen on every other period, eleven on one day (ledger.ts dayFoldCount; timeday01.test.ts); `colSpan={15}` until then. TIMESHEET-01 (Alex, 2026-11-24): the label spans fifteen — START, END and WENT sit before BUDGET too; colSpan={12} until then · TIMESHEET-04b (2026-11-27): sixteen — INSTAGRAM TAG sits among the columns before BUDGET (`15 - dayFoldCount(period)` until then); SHEET-01 (2026-11-28): the label spans the columns before PLANNED MIN, worked out — nineteen less the fold until then
   assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 19, 'the colSpan is the columns before BUDGET');
   inOrder(s, ['data-ledger-total>', 'data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}', 'data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>', "data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}", 'data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>', 'data-ledger-total-under-over>{underOverWords(totals.varianceCents)}', '<td className={cell} data-ledger-total-notes />'], 'the TOTAL row’s cells, under their columns'); // LEDGER-04: the last cell is DESCRIPTION's · TIMESHEET-04b (2026-11-27): and one more after it, under NOTES · COALEVELS-01 (2026-11-27): the description's cell left the row — ITEMS stands before BUDGET, under the label's span; the one cell after the five is NOTES'
   assert.match(s, /const varianceTone = \(cents: number \| null\): string => \(cents === null \? BLANK_CLASS : actualTone\(cents > 0\)\);/, 'the sign’s tone (amended)');
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
-  assert.equal((tfoot.match(/<td\b/g) ?? []).length, 6, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES — six cells after the span of nineteen (COALEVELS-01; seven after sixteen since TIMESHEET-04b; six after fifteen since TIMESHEET-01; twelve since TIME-03)'); // TIMESHEET-04b (2026-11-27): one more cell, under NOTES — six until then · COALEVELS-01 (2026-11-27): six again — the description's cell left the row; seven until then
+  assert.equal((tfoot.match(/<td\b/g) ?? []).length, 9, 'PLANNED MIN · LOGGED MIN · COA · BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES — nine cells after the span of sixteen (SHEET-01; six after nineteen since COALEVELS-01; seven after sixteen since TIMESHEET-04b; six after fifteen since TIMESHEET-01; twelve since TIME-03)'); // TIMESHEET-04b (2026-11-27): one more cell, under NOTES — six until then · COALEVELS-01 (2026-11-27): six again — the description's cell left the row; seven until then; SHEET-01 (2026-11-28): nine — PLANNED MIN and LOGGED MIN, each its sum, and COA's empty cell before the six; the label spans sixteen
   assert.doesNotMatch(tfoot, /totals\.words|totals\.over/, 'no delta words and no recorded-rows tone in the TOTAL row (amended: one truth per row)');
 });
 
@@ -262,8 +262,8 @@ test('R4 the summary: ten groups (COALEVELS-01, 2026-11-27 — region, location 
   const rules = code(RULES);
   assert.match(rules, /by === 'book' \? bookGroupWords\(row\) : by === 'region' \? regionWords\(row\) : by === 'location' \? locationCellWords\(row\) : by === 'type' \? typeGroupWords\(row\) : CELL_WORDS\[by\]\(row\)/, 'the group key'); // COALEVELS-01 (2026-11-27): a row's key by region, by location and by type, each its own words — then the place's and the account's as they were
   const s = code(SECTION);
-  assert.match(s, /\{GROUP_KEYS\.map\(\(g\) => \(/, 'the chips from the one list');
-  assert.match(s, /data-ledger-group-words>\{g\.totals\.words\}/, 'each group still prints its delta words');
+  assert.doesNotMatch(s, /\{GROUP_KEYS\.map\(\(g\) => \(/, 'no chips — the summary is gone'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
+  assert.doesNotMatch(s, /data-ledger-group-words>\{g\.totals\.words\}/, 'no group prints — the summary is gone'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
 });
 
 // ── R5 · THE RENAME ─────────────────────────────────────────────────────────
@@ -275,19 +275,19 @@ test('R5 the rename: "Task ledger" (TIMESHEET-01: the title reads "Time sheet" n
   // HOME-01 (Alex, 2026-10-24, ruling C): the row's words are the tables' — "the task ledger" and "every stop" kept, the card's narration gone with the card (time02.test.ts pins the words).
   assert.equal(time.why, undefined); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. A LIVE row carries no why — the tables' line left with the status (time03.test.ts pins the row).
   // TIME-03 (Alex, 2026-10-26): the customer line gained the cost, the time against its plan and the hours — "every stop" kept; the why is gone, so "the task ledger" is the title's (LEDGER_TITLE_WORDS above) and the registry comment's.
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
+  assert.equal(time.customer, 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // SHEET-01 (2026-11-28): the customer line names no journal answer — the journal tables are mounted nowhere
   assert.match(time.customer, /every stop/);
   assert.doesNotMatch(time.customer, /the ledger of every stop|city ledger/i);
   assert.match(comments(REGISTRY), /LEDGER-02 \(Alex, 2026-10-19\): THE CITY LEDGER IS THE TASK LEDGER/);
   const law = code(LAW);
   // JOURNAL-07 (Alex, 2026-10-24): the messages name the two journal tables too — the container is four; LEDGER-02's words stay inside them.
   // HOME-01 (Alex, 2026-10-24): the day card left the messages with the page — LEDGER-02's words stay inside them.
-  assert.match(law, /the page is the task ledger and the two journal tables \(HOME-01 moved the day card to the dashboard; TIME-01; TIME-02; LEDGER-02 renamed it; JOURNAL-07 added the tables\)/);
-  assert.match(law, /exactly the task ledger and the two journal tables, nothing else \(HOME-01; TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it; JOURNAL-07 added the tables\)/);
+  assert.match(law, /the page is the table: the task ledger alone \(SHEET-01, 2026-11-28; the two journal tables until then — HOME-01 moved the day card to the dashboard; TIME-01; TIME-02; LEDGER-02 renamed it; JOURNAL-07 added the tables\)/); // SHEET-01 (2026-11-28): the message says the page is the table
+  assert.match(law, /the page is the table: exactly the task ledger, nothing else \(SHEET-01, 2026-11-28; the two journal tables beside it until then — HOME-01; TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it; JOURNAL-07 added the tables\)/); // SHEET-01 (2026-11-28): the message says the page is the table
   assert.doesNotMatch(law, /city ledger/, 'no message of the law names the old name (the comments keep the history)');
   assert.match(comments(LAW), /LEDGER-02 \(Alex, 2026-10-19\): the city ledger is the TASK LEDGER — renamed; the mount is the same component/);
   assert.match(comments(LAW), /LEDGER-01 — the ruling \(Alex, 2026-10-16\): the city ledger is a fourth section, under Routines/, 'the history line keeps its words');
-  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/, 'the mount unchanged; JOURNAL-07 (2026-10-24) added the two journal tables after it; HOME-01 (2026-10-24) moved the day card to the dashboard'); 
+  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>'\];/, 'the mount unchanged; JOURNAL-07 (2026-10-24) added the two journal tables after it; HOME-01 (2026-10-24) moved the day card to the dashboard');  // SHEET-01 (2026-11-28): the page is the table — the ledger alone; the two journal tables after it until then
   for (const [file, note] of [
     [RULES, /LEDGER-02, Alex, 2026-10-19: renamed — it is a task ledger/],
     [SECTION, /LEDGER-02, Alex, 2026-10-19: renamed — it is a task ledger/],
@@ -378,8 +378,8 @@ test('R7 nothing else: the route still answers ledgerOf’s rows whole; the said
   for (const f of ['src/app/api/operations/ledger/route.ts', 'src/lib/operations/ledgerAnswer.ts']) assert.doesNotMatch(code(f), /varianceCents|bookWordOf|BOOK_WORDS/, `${f}: no route code for the two fields`);
   const s = code(SECTION);
   // LEDGER-04 (Alex, 2026-10-20): the same lines, in the same order, inside the notes toggle; the rows shown are filtered by every column then sorted.
-  inOrder(s, ['data-ledger-notes-toggle', 'data-ledger-said-match', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-left-out', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book'], 'what is said, in order, the MATCH note first');
-  assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/);
+  for (const gone of ['data-ledger-notes-toggle', 'data-ledger-said-match', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-left-out', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book']) assert.equal(s.includes(gone), false, `${gone} — nothing is said under the table`); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
+  assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n/); // SHEET-01 (2026-11-28): the totals follow the rows shown; the summary's groups are gone (no ledgerSummary, no `by`)
   assert.doesNotMatch(s, /\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie/, 'no fetch of its own, nothing stored');
   assert.match(s, /<ExpenseForm onWritten=/, 'the "+ expense" form stands');
 });
@@ -446,9 +446,9 @@ test('A2 one truth: the VARIANCE total is the column’s sum over the rows that 
   assert.match(s, /className=\{`\$\{cell\} whitespace-nowrap \$\{varianceTone\(totals\.varianceCents\)\}`\} data-ledger-total-under-over>\{underOverWords\(totals\.varianceCents\)\}/);
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
   assert.doesNotMatch(tfoot, /totals\.over|totals\.words|delta\b/, 'nothing in the TOTAL row from the recorded-rows comparison');
-  assert.match(s, /data-ledger-group-actual>\{budgetCellWords\(g\.totals\.actualCents\)\}/);
-  assert.match(s, /actualTone\(g\.totals\.over\)\}`\} data-ledger-group-words>\{g\.totals\.words\}/, 'the summary keeps printing its words, in their tone');
-  assert.match(s, /data-ledger-said>\n\s*\{shown\.length > 0 && <p data-ledger-said-variance>\{varianceCoverageWords\(totals\.withVariance, shown\.length\)\}<\/p>\}\n\s*\{shown\.length > 0 && <p data-ledger-said-match>/, 'the coverage line, before the MATCH line (LEDGER-03: the MATCH line is its own coverage)');
+  assert.doesNotMatch(s, /data-ledger-group-actual>\{budgetCellWords\(g\.totals\.actualCents\)\}/, 'the summary is gone'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
+  assert.doesNotMatch(s, /actualTone\(g\.totals\.over\)\}`\} data-ledger-group-words>\{g\.totals\.words\}/, 'the summary is gone'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
+  assert.doesNotMatch(s, /data-ledger-said>\n\s*\{shown\.length > 0 && <p data-ledger-said-variance>\{varianceCoverageWords\(totals\.withVariance, shown\.length\)\}<\/p>\}\n\s*\{shown\.length > 0 && <p data-ledger-said-match>/, 'no coverage line and no MATCH line — the notes are gone'); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
 });
 
 test('A3 the registry words keep "every stop": the why and the customer line say "the task ledger of every stop … by city, account and book", the rest unchanged', () => {
@@ -456,7 +456,7 @@ test('A3 the registry words keep "every stop": the why and the customer line say
   // HOME-01 (Alex, 2026-10-24, ruling C): the row's words are the tables' — "the task ledger" and "every stop" kept, the card's narration gone with the card (time02.test.ts pins the words).
   assert.equal(time.why, undefined); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. A LIVE row carries no why — the tables' line left with the status (time03.test.ts pins the row).
   // TIME-03 (Alex, 2026-10-26): the customer line gained the cost, the time against its plan and the hours — "every stop" kept; the why is gone, so "the task ledger" is the title's (LEDGER_TITLE_WORDS above) and the registry comment's.
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
+  assert.equal(time.customer, 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // SHEET-01 (2026-11-28): the customer line names no journal answer — the journal tables are mounted nowhere
   assert.match(time.customer, /every stop/);
   assert.match(comments(REGISTRY), /the amendment\s*\n\s*\/\/ kept "every stop" and added the book/);
 });

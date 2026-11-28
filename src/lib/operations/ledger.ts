@@ -2208,57 +2208,8 @@ export const NO_READABLE_AMOUNT_WORDS = 'no readable amount';
 export const postingAmountWords = (cents: number | null): string => (cents === null ? NO_READABLE_AMOUNT_WORDS : formatCents(cents));
 export const postingDateWords = (date: string | null): string => (date === null ? BLANK : date);
 
-// ── TIMEDAY-01 (Alex, 2026-11-24): THE DAY VIEW IS A DAY ─────────────────────
-//
-// "i sent what I want the table to look like and its not the same we agreed?" — and his standing word:
-// "Its hard to think if I cant see everything". On ONE day, DAY, DATE, CITY and COUNTRY say the same thing on every row: the day and
-// its place go in the line above the table, and those four columns leave the screen — on that view only. A period of one day is one
-// whose `from` is its `to`, whatever chip it was reached by; Week, Month and All draw every column and read the period alone, as they
-// did.
-//   The four are folded by a CLASS set on an element above the table (ledger/LedgerSection.tsx — its <section>): the cells stay in the
-// document and the class takes them off the screen. So the shared table (components/table/DataTable.tsx) is handed the same twenty-one
-// columns on every view — its CSV, built from them, is what it was — and its file is not edited. A head cell is found by its own sort
-// button (data-ledger-sort is the column's key, and every head has one), a body cell by its data-ledger-cell. The rows beneath a row
-// and the TOTAL's label span the columns still shown (dayFoldCount).
-//   The place is worked from the rows the page already holds — never asked for, never guessed. Every row carries its day's covering
-// stay (ledgerOf: coveringStay → placeParts), so the rows of one day agree; with no row of that day, a row with no place, or two rows
-// that differ, there are no words and the line reads the day alone.
-//   This block stands above the table's class so that class stays the file's last export and last line; its code names no other
-// block's class.
-
-/** The columns a single day folds, in the sheet's own order — keys of LEDGER_COLUMNS, never head words. All sit before BUDGET. COALEVELS-01 (2026-11-27): FIVE — region after city, the place's middle part folding with the place; four until then. */
-export const DAY_FOLD_COLUMNS: readonly LedgerColumn[] = ['day', 'date', 'city', 'region', 'country'];
-/** A period of ONE day: its `from` is its `to`, whatever chip it was reached by. No period (null) is not one. */
-export const isOneDay = (period: Period | null): boolean => period !== null && period.from === period.to;
-/**
- * The class that takes them off the screen — ten variants (COALEVELS-01 (2026-11-27): region's two; eight until then), a head cell and a body cell for each column, each `display: none`
- * on a th that holds that column's sort button or a td that is that column's cell. Typed WHOLE on one line: tailwind scans src/lib for
- * whole class strings (tailwind.config.ts), and a class assembled from parts is never compiled.
- */
-export const DAY_FOLD_CLASS = '[&_th:has([data-ledger-sort=day])]:hidden [&_th:has([data-ledger-sort=date])]:hidden [&_th:has([data-ledger-sort=city])]:hidden [&_th:has([data-ledger-sort=region])]:hidden [&_th:has([data-ledger-sort=country])]:hidden [&_td[data-ledger-cell=day]]:hidden [&_td[data-ledger-cell=date]]:hidden [&_td[data-ledger-cell=city]]:hidden [&_td[data-ledger-cell=region]]:hidden [&_td[data-ledger-cell=country]]:hidden';
-/** An element's own class as handed in; on one day, that class, one space, DAY_FOLD_CLASS. Never a trailing space. */
-export const dayFoldClass = (own: string, period: Period | null): string => (isOneDay(period) ? `${own} ${DAY_FOLD_CLASS}` : own);
-/** How many columns the period folds: every one of DAY_FOLD_COLUMNS on one day, none otherwise. */
-export const dayFoldCount = (period: Period | null): number => (isOneDay(period) ? DAY_FOLD_COLUMNS.length : 0);
-/**
- * The day's place as the line above the table prints it — '· City, Country', or '· City' when the stay names no country — or null.
- * COALEVELS-01 (2026-11-27): '· City, Region, Country' when the stay's place names a region — and the day's rows must share it too.
- * It reads ONLY the sheet rows whose `day` is the period's day (the answer of the period before can still be in hand for one render:
- * a row of another day is never read). There are words only when at least one such row stands and every one holds the same place —
- * the same city, the same region and the same country, a null region and a null country each being a value. No such row, a row whose place is null, two rows that differ, a
- * period that is not one day, or no period → null. Nothing stands in for it.
- */
-export function dayPlaceWords(period: Period | null, rows: readonly LedgerSheetRow[]): string | null {
-  if (period === null || !isOneDay(period)) return null;
-  const ofDay = rows.filter((row) => row.day === period.from);
-  if (ofDay.length === 0) return null;
-  const place = ofDay[0].place;
-  if (place === null) return null;
-  for (const row of ofDay) {
-    if (row.place === null || row.place.city !== place.city || row.place.region !== place.region || row.place.country !== place.country) return null;
-  }
-  return `· ${[place.city, place.region, place.country].filter((part): part is string => part !== null).join(', ')}`;
-}
+// SHEET-01 (Alex, 2026-11-28): THE DAY VIEW FOLDS NOTHING — the TIMEDAY-01 block stood here (DAY_FOLD_COLUMNS, isOneDay, DAY_FOLD_CLASS,
+// dayFoldClass, dayFoldCount, dayPlaceWords) and is deleted: every view draws the same twenty-five columns.
 
 // ── TIMEWIDE-01 (Alex, 2026-11-24): THE SHEET'S TABLE CLASS ──────────────────
 //

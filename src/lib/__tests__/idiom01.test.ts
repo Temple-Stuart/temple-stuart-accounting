@@ -288,8 +288,8 @@ test('T7 the extraction: the five modules are pure; ledger.ts imports the rules 
   assert.match(comments(RULES), /IDIOM-01 \(Alex, 2026-10-24\): THE FILTERS AND THE SORT ARE THE SHARED IDIOM'S/);
   // The screens.
   const section = code(SECTION);
-  assert.match(section, /import DataTable, \{ cellClass as cell, chipClass as chip, headClass as head, moneyClass as money \} from '@\/components\/table\/DataTable';/, 'the section renders through DataTable and wears its classes under the names it always used');
-  assert.doesNotMatch(section, /<ColumnFilter kind=|from '\.\/ColumnFilter'|filterButtons|useCallback|ledgerCsv\(|headWordOf|columnKind|MONEY_HEAD_WORDS|LEDGER_COLUMNS/, 'the section mounts no popover, holds no ▾ map, writes no CSV, draws no header of its own');
+  assert.match(section, /import DataTable, \{ cellClass as cell, chipClass as chip, moneyClass as money \} from '@\/components\/table\/DataTable';/, 'the section renders through DataTable and wears its classes under the names it always used'); // SHEET-01 (2026-11-28): the head class left with the summary's table — the shared table draws every head
+  assert.doesNotMatch(section, /<ColumnFilter kind=|from '\.\/ColumnFilter'|filterButtons|useCallback|ledgerCsv\(|headWordOf|columnKind|MONEY_HEAD_WORDS/, 'the section mounts no popover, holds no ▾ map, writes no CSV, draws no header of its own'); assert.deepEqual([...section.matchAll(/LEDGER_COLUMNS[.\w]*(?:\('\w+'\))?/g)].map((m) => m[0]), ['LEDGER_COLUMNS', 'LEDGER_COLUMNS.length', 'LEDGER_COLUMNS.length', "LEDGER_COLUMNS.indexOf('plannedMinutes')"], 'the columns read for their count alone — the rows beneath a row and the TOTAL’s label — never to draw a header'); // SHEET-01 (2026-11-28): the section reads LEDGER_COLUMNS for its spans — the rows beneath a row and the TOTAL's label, worked out — and draws no header
   assert.equal(existsSync(resolve(process.cwd(), OLD_LEAF)), false, 'the ledger’s leaf moved — its one importer moved with it; no re-export left behind');
   assert.match(code(TABLE), /import ColumnFilter from '\.\/ColumnFilter';/);
   assert.match(code(TABLE), /^'use client';/m);

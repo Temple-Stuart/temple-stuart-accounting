@@ -52,10 +52,10 @@ test('T1 the pages: /time is the three tables (HOME-01: the card is on the dashb
   assert.doesNotMatch(time, /import \{ Suspense \} from 'react';|DayCard/);
   for (const imp of ["import LedgerSection from '@/components/workbench/operations/ledger/LedgerSection';"]) assert.ok(time.includes(imp), imp);
   // JOURNAL-07 (Alex, 2026-10-24): the two journal tables mount under the ledger — the /time container is four (TIME_MOUNTS), the ledger still the section after the card.
-  assert.match(time, /<ToolOpener compact tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // COALEVELS-01 (2026-11-27): the page passes its opener `compact` — one line above the sheet. HOME-01 (2026-10-24): the three tables
+  assert.match(time, /<ToolOpener compact tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // COALEVELS-01 (2026-11-27): the page passes its opener `compact` — one line above the sheet. HOME-01 (2026-10-24): the three tables; SHEET-01 (2026-11-28): the ledger alone — the two journal tables after it until then
   const timeBox = time.slice(time.indexOf('data-tool-page="Time"'), time.indexOf('</OperationsEntityProvider>'));
   // JOURNAL-07 (Alex, 2026-10-24): the container is four — the two journal tables under the ledger, in the shared idiom, read-only.
-  assert.deepEqual([...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['LedgerSection', 'MorningJournalTable', 'EveningJournalTable']); // HOME-01 (2026-10-24): the card is the dashboard's
+  assert.deepEqual([...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['LedgerSection']); // HOME-01 (2026-10-24): the card is the dashboard's; SHEET-01 (2026-11-28): the ledger alone
   assert.equal((time.match(/<ToolOpener/g) ?? []).length, 1);
   // /tasks — the two lists, nothing else; no card, no ledger.
   // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's: the page itself still reads no URL (the list does, in its boundary).
@@ -147,8 +147,8 @@ test('T4 the laws: the two-lists law holds /tasks to the two lists and /time to 
   assert.match(law, /const EXPENSES_PAGE = 'src\/app\/expenses\/page\.tsx';/);
   assert.match(law, /if \(\/DayCard\|LedgerSection\/\.test\(page\)\) twoListsFail\(/, 'the two that went may not come back unnoticed');
   // HOME-01 (Alex, 2026-10-24): three mounts on /time; the card's boundary check reads the cockpit component.
-  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection MorningJournalTable EveningJournalTable'/);
+  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>'\];/); // SHEET-01 (2026-11-28): the page is the table — the ledger alone; the two journal tables after it until then
+  assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection'/); // SHEET-01 (2026-11-28): exactly the ledger
   assert.match(law, /if \(\/DayCard\|<Suspense\/\.test\(timePage\)\) twoListsFail\(/, 'the card may not come back to /time unnoticed');
   assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(host\)\) twoListsFail\(/, 'the card in its boundary — on /home (HOME-03, 2026-10-27; the Runway panel until then)');
   assert.match(comments(LAW), /TIME-01 — the ruling \(Alex, 2026-10-19\): the day card and the city ledger moved to \/time/);
@@ -175,13 +175,13 @@ test('T5 the registry: the Time row says the tables (HOME-01, ruling C); the Tas
   assert.equal(time.why, undefined); // TIME-03 (Alex, 2026-10-26): a LIVE row carries no why — the tables' line left with the status (time03.test.ts pins the row)
   // HOME-01 (Alex, 2026-10-24): discover is the two tables' reads; the card's routes stay the decide and commit beats (the card is Time's, on the dashboard).
   assert.match(time.citation, /discover: src\/components\/workbench\/operations\/ledger\/ledgerReads\.ts:28 \(GET \/api\/operations\/ledger\?from=&to=/); // TIMESHEET-02 (Alex, 2026-11-24): the ledger's read re-cited, :27 → :28 — the answer's interface gained its `recording` line above it
-  assert.match(time.citation, /src\/components\/workbench\/operations\/journal\/journalReads\.ts:26 \(GET \/api\/operations\/journal\/range\?from=&to=/);
+  assert.doesNotMatch(time.citation, /journal\/journalReads\.ts/, 'the journal’s read leaves the discover beat — its tables are mounted nowhere'); // SHEET-01 (2026-11-28): re-pointed to its absence
   assert.match(time.citation, /decide: src\/app\/api\/operations\/journal\/route\.ts:61 \(PUT/); // REGISTRY-TRUTH-01 (2026-11-10): the PUT re-cited, :51 → :61
   assert.match(time.citation, /commit: src\/app\/api\/operations\/stops\/route\.ts \(POST/);
   assert.match(time.citation, /record: src\/components\/workbench\/operations\/ledger\/LedgerSection\.tsx/);
   // HOME-03 (Alex, 2026-10-27): the note says the card is on the home page, /home.
   assert.equal(time.note, 'HOME-03 (2026-10-27): the day itself is entered on the day card — Time\'s component, shown on the home page, /home, between the answers and the sheet (HOME-01, 2026-10-24, had it on the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.'); // TIME-03: the "not done" sentence left — the ledger adds up the hours now
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // TIME-03
+  assert.equal(time.customer, 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // TIME-03; SHEET-01 (2026-11-28): the customer line names no journal answer — the journal tables are mounted nowhere
   assert.doesNotMatch(time.customer ?? '', /\b(discover|decide|commit|record)\b/, 'no beat word on a public line (the plan law)');
   assert.equal(tasks.home, '/tasks');
   assert.equal(tasks.why, undefined); // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.

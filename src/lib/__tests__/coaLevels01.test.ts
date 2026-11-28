@@ -38,9 +38,9 @@ import { placeParts, type StayRow } from '../operations/stay';
 import type { StopRecordRow } from '../operations/stopRecord';
 import { taskLedgerAnswerOf } from '../operations/ledgerAnswer';
 import {
-  DAY_FOLD_CLASS, DAY_FOLD_COLUMNS, EMPTY_EXPENSE, EXPENSE_FIELDS, EXPENSE_FIELD_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_COLUMNS, LEDGER_CSV, LEDGER_HEAD_WORDS, LEDGER_TABLE, LEDGER_TABLE_CLASS,
+  EMPTY_EXPENSE, EXPENSE_FIELDS, EXPENSE_FIELD_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_COLUMNS, LEDGER_CSV, LEDGER_HEAD_WORDS, LEDGER_TABLE, LEDGER_TABLE_CLASS, // SHEET-01 (2026-11-28): the fold's class and columns are gone from the rule file
   LOCATION_CLASSES as SHEET_LOCATION_CLASSES, LOCATION_WORDS as SHEET_LOCATION_WORDS, NO_COLUMN_FILTERS, NO_LOCATION_WORDS, NO_VALUE_FILTER, SUMMARY_TITLE_WORDS, TEXT_COLUMNS, VALUE_COLUMNS,
-  accountCellWords, applyColumnFilters, cellWordsOf, codeCellWords, columnKind, columnValues, dayFoldCount, dayPlaceWords, expenseInput, headWordOf, ledgerCsv, ledgerOf, ledgerSummary, locationCellWords,
+  accountCellWords, applyColumnFilters, cellWordsOf, codeCellWords, columnKind, columnValues, expenseInput, headWordOf, ledgerCsv, ledgerOf, ledgerSummary, locationCellWords, // SHEET-01 (2026-11-28): the fold's count and place words are gone
   oneOffBody, planMinutesOf, regionWords, requiredWords, sortKeyOf, sortRows, typeGroupWords,
   type ExpenseDraft, type LedgerInput, type LedgerRecordInput, type LedgerSegments, type LedgerSheetRow, type LedgerSubAccount,
 } from '../operations/ledger';
@@ -672,24 +672,18 @@ test('G4 the twenty-five columns in his sheet’s words and order; REGION and LO
   assert.match(rules, /export const accountCellWords = /, 'the entity and the code alone stay exported for what else reads them');
 });
 
-test('G5 a single day folds FIVE columns — REGION with the place — and its line above the table says the place’s three parts when every row of the day shares them; a region is a value, null too', () => {
-  assert.deepEqual([...DAY_FOLD_COLUMNS], ['day', 'date', 'city', 'region', 'country']);
-  assert.deepEqual(DAY_FOLD_CLASS.split(' '), [...DAY_FOLD_COLUMNS.map((key) => `[&_th:has([data-ledger-sort=${key}])]:hidden`), ...DAY_FOLD_COLUMNS.map((key) => `[&_td[data-ledger-cell=${key}]]:hidden`)]);
-  assert.ok(code(SHEET_RULES).includes(`export const DAY_FOLD_CLASS = '${DAY_FOLD_CLASS}';`), 'typed whole, on one line');
-  const tuesday = { from: D2, to: D2 };
-  assert.deepEqual([dayFoldCount(tuesday), dayFoldCount({ from: D1, to: D3 }), dayFoldCount(null)], [5, 0, 0]);
-  assert.ok(DAY_FOLD_COLUMNS.every((key) => LEDGER_COLUMNS.indexOf(key) < LEDGER_COLUMNS.indexOf('budget')), 'all five sit before BUDGET');
-  assert.deepEqual([LEDGER_COLUMNS.indexOf('budget'), LEDGER_COLUMNS.indexOf('budget') - dayFoldCount(tuesday), LEDGER_COLUMNS.length - dayFoldCount(tuesday)], [19, 14, 20], 'the TOTAL’s label spans nineteen, fourteen on one day; twenty columns shown');
-  // The day's place.
-  assert.equal(dayPlaceWords(tuesday, planSheet), '· Harborview, Eastmarch, Ruritania');
-  assert.equal(dayPlaceWords({ from: D1, to: D1 }, planSheet), null, 'no stay covers Monday');
-  assert.equal(dayPlaceWords({ from: D2, to: D3 }, planSheet), null, 'two days are not one');
+test('G5 a single day folds FIVE columns — REGION with the place — and its line above the table says the place’s three parts when every row of the day shares them; a region is a value, null too — SHEET-01 (Alex, 2026-11-28): re-pointed to its absence: a single day folds NOTHING, and the place is on every row', () => {
+  // SHEET-01 (2026-11-28): the fold and its line above the table are deleted (ledger.ts's TIMEDAY-01 block). What this test pinned is pinned gone: no fold is typed in the rule file;
+  // the twenty-five columns are drawn on one day as on any; and the day's place stands on every row, in its three cells — a region a value, null too.
+  assert.doesNotMatch(code(SHEET_RULES), /DAY_FOLD|dayFold|dayPlaceWords|isOneDay|\]:hidden/, 'no fold, no class that hides a column, no line above the table');
+  assert.deepEqual([LEDGER_COLUMNS.indexOf('plannedMinutes'), LEDGER_COLUMNS.indexOf('budget'), LEDGER_COLUMNS.length], [16, 19, 25], 'the TOTAL’s label spans sixteen, on one day as on any; twenty-five columns drawn');
   const ofTuesday = planSheet.filter((r) => r.day === D2);
+  assert.ok(ofTuesday.length > 1);
+  for (const r of ofTuesday) assert.deepEqual([cellWordsOf(r, 'city'), cellWordsOf(r, 'region'), cellWordsOf(r, 'country')], ['Harborview', 'Eastmarch', 'Ruritania'], 'the place’s three parts, on the row itself');
+  for (const r of planSheet.filter((row) => row.day === D1)) assert.deepEqual([cellWordsOf(r, 'city'), cellWordsOf(r, 'region'), cellWordsOf(r, 'country')], [BLANK, BLANK, BLANK], 'no stay covers Monday — its rows say so, each');
   const withRegion = (region: string | null, rows: readonly LedgerSheetRow[] = ofTuesday): LedgerSheetRow[] => rows.map((r) => ({ ...r, place: r.place === null ? null : { ...r.place, region } }));
-  assert.equal(dayPlaceWords(tuesday, withRegion(null)), '· Harborview, Ruritania', 'a place that names no region: the two parts, as before');
-  assert.equal(dayPlaceWords(tuesday, [...withRegion('Southmarch', ofTuesday.slice(0, 1)), ...ofTuesday.slice(1)]), null, 'two rows of the day differ by their region alone: no words');
-  assert.equal(dayPlaceWords(tuesday, [...withRegion(null, ofTuesday.slice(0, 1)), ...ofTuesday.slice(1)]), null, 'a null region is a value: it differs from a named one');
-  assert.match(code(SHEET_RULES), /row\.place\.city !== place\.city \|\| row\.place\.region !== place\.region \|\| row\.place\.country !== place\.country/);
+  for (const r of withRegion(null)) assert.deepEqual([cellWordsOf(r, 'city'), cellWordsOf(r, 'region'), cellWordsOf(r, 'country')], ['Harborview', BLANK, 'Ruritania'], 'a place that names no region: its cell is blank');
+  assert.deepEqual(withRegion('Southmarch', ofTuesday.slice(0, 1)).map((r) => cellWordsOf(r, 'region')), ['Southmarch'], 'a region is the row’s own');
 });
 
 test('G6 the summary groups by TEN: region after city, location after country, type after the category — a row’s key by region and by location its cell’s words, by type its category’s name and its own; the chips say his sheet’s words; the title says by entity', () => {
@@ -754,12 +748,12 @@ test('G7 "+ expense" asks the stop’s LOCATION after the ENTITY — none, Trave
 test('G8 in the source, the section: 488 lines, the three lines the registry cites where they stood; the controls on ONE line — title, two leaves, divider — and the tint’s swatch in the trailing; the cells in the sheet’s order, a level’s code before its word in four, a cut cell titled; the TOTAL’s label over nineteen and one cell under NOTES', () => {
   const s = code(SHEET_SECTION);
   const lines = linesOf(SHEET_SECTION);
-  assert.equal(lines.length, 488);
+  assert.equal(lines.length, 432); // SHEET-01 (2026-11-28): 432 — the notes, the summary and the fold are gone, the TOTAL row sums the minutes; 488 until then
   assert.match(lines[367], /data-ledger-cell="planned-minutes"/, ':368');
-  assert.match(lines[431], /data-ledger-said-planned/, ':432');
-  assert.match(lines[474], /data-ledger-group-planned-hours/, ':475');
+  assert.match(lines[406], /data-ledger-total-planned-minutes/, ':407 — the TOTAL row’s two sums, which the registry cites now'); // SHEET-01 (2026-11-28): the coverage line is gone; the registry cites the TOTAL row's two sums
+  assert.doesNotMatch(s, /data-ledger-group-planned-hours|data-ledger-said-planned/, 'the summary’s hours and the coverage line are gone — the registry cites neither'); // SHEET-01 (2026-11-28): re-pointed to its absence
   // The section's class: the table's box takes what is left of the window.
-  assert.ok(lines[292].includes("<section className={dayFoldClass('space-y-1.5 [&_div:has(>[data-ledger-table])]:max-h-[calc(100vh-8rem)] [&_div:has(>[data-ledger-table])]:overflow-y-auto', period)} data-ledger>"), ':293');
+  assert.ok(lines[292].includes('<section className="space-y-1.5 [&_div:has(>[data-ledger-table])]:max-h-[calc(100vh-8rem)] [&_div:has(>[data-ledger-table])]:overflow-y-auto" data-ledger>'), ':293 — its own class alone'); // SHEET-01 (2026-11-28): the section's class is its own alone — no fold
   // The five lines under it are a note: no markup stands between the section's tag and the shared table.
   assert.equal(lines.slice(293, 298).join('').replace(/\s+/g, ''), '{}', ':294–:298 hold one comment and nothing else');
   // The controls on ONE line: title, the two leaves exactly as they were mounted, a divider — at the head of the shared table's controls.
@@ -804,9 +798,9 @@ test('G8 in the source, the section: 488 lines, the three lines the registry cit
   assert.deepEqual(LEDGER_TABLE_CLASS.split(' ').filter((c) => c.endsWith(':truncate')), ['sub-account-name', 'description', 'vendor', 'notes'].map((name) => `[&_td[data-ledger-cell=${name}]]:truncate`), 'the same four');
   // The TOTAL row: its label over the nineteen columns before BUDGET (less a single day's fold), the five it has, then ONE cell under NOTES.
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
-  assert.ok(tfoot.includes('<th scope="row" colSpan={19 - dayFoldCount(period)} className={`${cell} text-left`}>{TOTAL_WORDS}</th>'));
-  assert.deepEqual([...tfoot.matchAll(/data-ledger-total-([a-z-]+)/g)].map((m) => m[1]), ['budget', 'actual', 'variance', 'match', 'under-over', 'notes']);
-  assert.equal(19 + 6, LEDGER_COLUMNS.length);
+  assert.ok(tfoot.includes('<th scope="row" colSpan={LEDGER_COLUMNS.indexOf(\'plannedMinutes\')} className={`${cell} text-left`}>{TOTAL_WORDS}</th>')); // SHEET-01 (2026-11-28): the label spans the columns before PLANNED MIN, worked out — nineteen less the fold until then
+  assert.deepEqual([...tfoot.matchAll(/data-ledger-total-([a-z-]+)/g)].map((m) => m[1]), ['planned-minutes', 'logged-minutes', 'account', 'budget', 'actual', 'variance', 'match', 'under-over', 'notes']); // SHEET-01 (2026-11-28): the two minutes' sums and COA's empty cell before BUDGET
+  assert.equal(LEDGER_COLUMNS.indexOf('plannedMinutes') + 2 + 1 + 6, LEDGER_COLUMNS.length); // SHEET-01 (2026-11-28): the label, the two sums, COA's cell and the six — 19 + 6 until then
   assert.doesNotMatch(s, /data-ledger-total-description/);
   // The section imports the three cell rules it prints, and no longer the entity-and-code one.
   assert.deepEqual([countOf(s, /\bcodeCellWords\b/g), countOf(s, /\blocationCellWords\b/g), countOf(s, /\bregionWords\b/g), countOf(s, /\baccountCellWords\b/g)], [2, 2, 2, 0]);
@@ -938,11 +932,11 @@ test('G11 the answer reads NINE — the caller’s active sub-accounts beside th
   assert.deepEqual([time.status, time.beats, time.home, time.why], ['LIVE', { discover: true, decide: true, commit: true, record: true }, '/time', undefined]);
   const cited = (re: RegExp): number => { const m = time.citation.match(re); if (m === null) return assert.fail(`the citation names ${re}`); return Number(m[1]); };
   const heads = cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS — PASTE-03, 2026-11-28: was :\d+/); // PASTE-03 (2026-11-28): the cite's own "was" is that change's now — the rule file grew above both lines again (a stop may have no budget) and the registry's two cites followed; "COALEVELS-01, 2026-11-27: was" stood there until then
-  const sums = cited(/the summary's sums, src\/lib\/operations\/ledger\.ts:(\d+) \(was :\d+\)/);
+  assert.doesNotMatch(time.citation, /the summary's sums|SUMMARY_HEAD_WORDS/, 'the summary’s words left the citation with the summary'); // SHEET-01 (2026-11-28): re-pointed to its absence
   assert.match(linesOf(SHEET_RULES)[heads - 1], /^export const LEDGER_HEAD_WORDS = \[/);
-  assert.match(linesOf(SHEET_RULES)[sums - 1], /^export const SUMMARY_HEAD_WORDS = \[/);
-  assert.equal(countOf(time.citation, /src\/lib\/operations\/ledger\.ts:\d+/g), 2);
+  assert.ok(linesOf(SHEET_RULES).some((l) => /^export const SUMMARY_HEAD_WORDS = \[/.test(l)), 'the words stay in the rule file, uncalled'); // SHEET-01 (2026-11-28): the words stay, uncalled
+  assert.equal(countOf(time.citation, /src\/lib\/operations\/ledger\.ts:\d+/g), 1, 'the rule file cited once — LEDGER_HEAD_WORDS'); // SHEET-01 (2026-11-28): twice until then
   const said = comments(REGISTRY).split('\n').find((l) => l.includes('COALEVELS-01 (Alex, 2026-11-27): ledger.ts grew'));
   assert.ok(said !== undefined, 'the dated sentence, on the row’s comment line');
-  assert.match(said, new RegExp(`ledger\\.ts :\\d+ → :${heads} \\(LEDGER_HEAD_WORDS\\), :\\d+ → :${sums} \\(SUMMARY_HEAD_WORDS\\); what each cites unchanged\\.`));
+  assert.match(said, new RegExp(`ledger\\.ts :\\d+ → :${heads} \\(LEDGER_HEAD_WORDS\\), :\\d+ → :\\d+ \\(SUMMARY_HEAD_WORDS\\); what each cites unchanged\\.`)); // SHEET-01 (2026-11-28): the sentence is PASTE-03's history; no cite names SUMMARY_HEAD_WORDS now
 });

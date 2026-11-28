@@ -704,17 +704,17 @@ test('T11 the answer function: the tag, the planned items and the notes ride the
 test('T12 in the source: LedgerSection.tsx is 488 lines with the tag’s cell on the vendor’s line, the description’s cell on the sub-account-name’s and the notes’ cell on a line of its own (COALEVELS-01, 2026-11-27), and the planned class; RecordForm.tsx is 164 with the NOTES box on DESCRIPTION’s line and its draft through rowDraftOf; stopWrites.ts is 60; the stops route’s data line names notes; the day card’s form shows the notes a record holds', () => {
   // THE SECTION — six edits in place: no line added, none removed.
   const s = code(SECTION);
-  assert.equal(linesOf(SECTION).length, 488);
+  assert.equal(linesOf(SECTION).length, 432); // SHEET-01 (2026-11-28): 432 — the notes, the summary and the fold are gone, the TOTAL row sums the minutes; 488 until then
   assert.match(s, /\n[ \t]*RECORD_WORDS, type LedgerRecording, PLANNED_ITEMS_TITLE_WORDS, descriptionOf, plannedDescription, tagCellWords,[ \t]*\n/, 'the new names on the import’s TIMESHEET-02 line');
   assert.match(s, /\nconst BLANK_CLASS = 'text-text-faint'; const PLANNED_CLASS = 'text-text-faint italic'; const CODE_CLASS = 'font-mono text-\[11px\] text-text-muted mr-1\.5 tabular-nums';[ \t]*\n/, 'the planned class on the blank class’s line — and the class of a level’s code after it'); // COALEVELS-01 (2026-11-27): CODE_CLASS joined the line
   assert.match(s, /\n[ \t]*<td className=\{`\$\{cell\} \$\{row\.vendor === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="vendor" title=\{row\.vendor \?\? undefined\}>\{vendorCellWords\(row\.vendor\)\}<\/td><td className=\{`\$\{cell\} whitespace-nowrap \$\{row\.instagramTag === null \? BLANK_CLASS : ''\}`\} data-ledger-cell="instagram-tag">\{tagCellWords\(row\.instagramTag\)\}<\/td>[ \t]*\n/, 'the tag’s cell on the vendor cell’s line, after it'); // COALEVELS-01 (2026-11-27): the vendor's cell says itself whole in its title — the table's class cuts it
   assert.match(s, /\n[ \t]*<td className=\{`\$\{cell\} font-semibold text-text-primary`\} data-ledger-cell="sub-account-name" title=\{row\.description\}>\{row\.segments !== null && row\.segments\.type !== null && <span className=\{CODE_CLASS\}>\{row\.segments\.type\}<\/span>\}\{row\.description\}<\/td><td className=\{`\$\{cell\} \$\{descriptionOf\(row\) === null \? BLANK_CLASS : plannedDescription\(row\) \? PLANNED_CLASS : 'text-text-muted'\}`\} data-ledger-cell="description" data-ledger-planned=\{plannedDescription\(row\) \? '' : undefined\} title=\{plannedDescription\(row\) \? `\$\{PLANNED_ITEMS_TITLE_WORDS\} — \$\{noteCellWords\(descriptionOf\(row\)\)\}` : descriptionOf\(row\) \?\? undefined\}>\{noteCellWords\(descriptionOf\(row\)\)\}<\/td>[ \t]*\n/, 'ITEMS — the description — by the one rule (blank, planned or the record’s), on the TYPE cell’s line, after it'); assert.match(s, /\n[ \t]*<td className=\{`\$\{cell\} \$\{row\.notes === null \? BLANK_CLASS : 'text-text-muted'\}`\} data-ledger-cell="notes" title=\{row\.notes \?\? undefined\}>\{noteCellWords\(row\.notes\)\}<\/td>[ \t]*\n/, 'the notes’ cell, the row’s last, on a line of its own'); // COALEVELS-01 (2026-11-27): the description moved up to stand after the TYPE (its title says the text whole — a planned one after PLANNED_ITEMS_TITLE_WORDS); the notes' cell stays where the two stood
-  assert.match(s, /<th scope="row" colSpan=\{19 - dayFoldCount\(period\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/, 'TOTAL spans the nineteen columns before BUDGET, less the ones a single day folds'); // COALEVELS-01 (2026-11-27): nineteen — sixteen until then
+  assert.match(s, /<th scope="row" colSpan=\{LEDGER_COLUMNS\.indexOf\('plannedMinutes'\)\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/, 'TOTAL spans the nineteen columns before BUDGET, less the ones a single day folds'); // COALEVELS-01 (2026-11-27): nineteen — sixteen until then; SHEET-01 (2026-11-28): the label spans the columns before PLANNED MIN, worked out — nineteen less the fold until then
   assert.match(s, /\n[ \t]*<td className=\{cell\} data-ledger-total-notes \/>[ \t]*\n/, 'one cell after the five, under NOTES'); // COALEVELS-01 (2026-11-27): the description's cell left the TOTAL row — ITEMS stands before BUDGET now, under the label's span
   // One cell per head word, in the head's order; the TOTAL row's label and its six cells make the twenty-five (COALEVELS-01 (2026-11-27): seven and twenty-three until then).
   assert.deepEqual([...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]), ['day', 'date', 'start', 'end', 'city', 'region', 'country', 'location', 'account-name', 'book', 'sub-account-name', 'description', 'vendor', 'instagram-tag', 'went', 'stars', 'planned-minutes', 'logged-minutes', 'account', 'budget', 'actual', 'variance', 'match', 'under-over', 'notes']);
-  assert.deepEqual([...s.matchAll(/data-ledger-total-([a-z-]+)/g)].map((m) => m[1]), ['budget', 'actual', 'variance', 'match', 'under-over', 'notes']);
-  assert.equal(19 + 6, LEDGER_HEAD_WORDS.length, 'the label’s span and the cells after it');
+  assert.deepEqual([...s.matchAll(/data-ledger-total-([a-z-]+)/g)].map((m) => m[1]), ['planned-minutes', 'logged-minutes', 'account', 'budget', 'actual', 'variance', 'match', 'under-over', 'notes']); // SHEET-01 (2026-11-28): nine — PLANNED MIN and LOGGED MIN, each its sum, and COA's empty cell before the six; the label spans sixteen
+  assert.equal(LEDGER_COLUMNS.indexOf('plannedMinutes') + 3 + 6, LEDGER_HEAD_WORDS.length, 'the label’s span and the cells after it'); // SHEET-01 (2026-11-28): sixteen, the three, the six — 19 + 6 until then
   assert.equal(LEDGER_COLUMNS.indexOf('budget'), 19, 'nineteen columns stand before BUDGET');
   // The planned look is the rule's to decide, the class and the title are typed once; no cell asks which kind of row it draws.
   assert.equal(countOf(s, /PLANNED_CLASS/g), 2, 'defined, and read by the one cell');
@@ -785,24 +785,24 @@ test('T14 the registry’s Time row: its two cites into the rule file stand wher
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time');
   assert.ok(time);
   assert.deepEqual([time.status, time.beats, time.home, time.why], ['LIVE', { discover: true, decide: true, commit: true, record: true }, '/time', undefined]);
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
+  assert.equal(time.customer, 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // SHEET-01 (2026-11-28): the customer line names no journal answer — the journal tables are mounted nowhere
   assert.match(time.note ?? '', /^HOME-03 \(2026-10-27\): the day itself is entered on the day card/);
   // The number a citation names, read from the citation itself — and the line it names, by content.
   const cited = (re: RegExp): number => { const m = time.citation.match(re); if (m === null) return assert.fail(`the citation names ${re}`); return Number(m[1]); };
   const lineOf = (file: string, n: number): string => linesOf(file)[n - 1] ?? '';
   const heads = cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS/);
-  const sums = cited(/the summary's sums, src\/lib\/operations\/ledger\.ts:(\d+)/);
+  assert.doesNotMatch(time.citation, /the summary's sums|SUMMARY_HEAD_WORDS/, 'the summary’s words left the citation with the summary'); // SHEET-01 (2026-11-28): re-pointed to its absence
   assert.match(lineOf(RULES, heads), /^export const LEDGER_HEAD_WORDS = \[/);
-  assert.match(lineOf(RULES, sums), /^export const SUMMARY_HEAD_WORDS = \[/);
-  assert.equal(countOf(time.citation, /src\/lib\/operations\/ledger\.ts:\d+/g), 2, 'the row cites the rule file twice — once each');
+  assert.ok(linesOf(RULES).some((l) => /^export const SUMMARY_HEAD_WORDS = \[/.test(l)), 'the words stay in the rule file, uncalled'); // SHEET-01 (2026-11-28): the words stay, uncalled
+  assert.equal(countOf(time.citation, /src\/lib\/operations\/ledger\.ts:\d+/g), 1, 'the row cites the rule file once — LEDGER_HEAD_WORDS'); // SHEET-01 (2026-11-28): twice until then — the summary's cite left with the summary
   // Each cite says where the line stood until this change, in the row's own way.
-  const was = [cited(/LEDGER_HEAD_WORDS — PASTE-03, 2026-11-28: was :(\d+)/), cited(/the summary's sums, src\/lib\/operations\/ledger\.ts:\d+ \(was :(\d+)\)/)]; // COALEVELS-01 (2026-11-27): the cite's own "was" is this change's now — the rule file grew again and the two cites followed; TIMESHEET-04b's stood there until then. PASTE-03 (2026-11-28): and again — "COALEVELS-01, 2026-11-27: was" until then
-  assert.ok(was[0] < heads && was[1] < sums, 'the rule file grew above both');
-  assert.equal(heads - was[0], sums - was[1], 'by the same number of lines — nothing was added between the two');
+  const was = [cited(/LEDGER_HEAD_WORDS — PASTE-03, 2026-11-28: was :(\d+)/)]; // COALEVELS-01 (2026-11-27): the cite's own "was" is this change's now — the rule file grew again and the two cites followed; TIMESHEET-04b's stood there until then. PASTE-03 (2026-11-28): and again — "COALEVELS-01, 2026-11-27: was" until then; SHEET-01 (2026-11-28): one cite — the summary's left with the summary
+  assert.ok(was[0] < heads, 'the rule file grew above it'); // SHEET-01 (2026-11-28): one cite
+  assert.doesNotMatch(time.citation, /their coverage said at|PLANNED HOURS · LOGGED HOURS — the summary/, 'the summary’s hours and their coverage left the citation'); // SHEET-01 (2026-11-28): re-pointed to its absence
   // The dated sentence on the row's comment line: from which number to which, that what each cites is unchanged, and which cites did not move.
   const said = comments(REGISTRY).split('\n').find((l) => l.includes('PASTE-03 (Alex, 2026-11-28): ledger.ts grew')); // PASTE-03 (2026-11-28): that change's sentence — on the line COALEVELS-01 said its own (the match two lines below); 'COALEVELS-01 (Alex, 2026-11-27): ledger.ts grew' was looked for until then
   assert.ok(said !== undefined, 'the sentence');
-  assert.ok(said.includes(`ledger.ts :${was[0]} → :${heads} (LEDGER_HEAD_WORDS), :${was[1]} → :${sums} (SUMMARY_HEAD_WORDS); what each cites unchanged.`));
+  assert.match(said, new RegExp(`ledger\\.ts :${was[0]} → :${heads} \\(LEDGER_HEAD_WORDS\\), :\\d+ → :\\d+ \\(SUMMARY_HEAD_WORDS\\); what each cites unchanged\\.`)); // SHEET-01 (2026-11-28): the sentence is PASTE-03's history
   assert.match(said, /TIMESHEET-01 \(Alex, 2026-11-24\)[^\n]*TIMESHEET-04b \(Alex, 2026-11-27\)[^\n]*COALEVELS-01 \(Alex, 2026-11-27\)[^\n]*PASTE-03 \(Alex, 2026-11-28\)/, 'on the line where TIMESHEET-01, TIMESHEET-04b and COALEVELS-01 said their own');
   assert.match(said, /LedgerSection\.tsx:\d+, :\d+ and :\d+, ledgerReads\.ts:\d+, ledgerAnswer\.ts:\d+, :\d+, stops\/stopWrites\.ts:\d+, ledger\/RecordForm\.tsx:\d+, ledger\/ExpenseForm\.tsx:\d+ and stops\/route\.ts:\d+ did not move\./);
   // The cites that did not move hold what they cite: the writer's request, the leaf's save, the two selects, the read, the section's three lines.
@@ -811,8 +811,8 @@ test('T14 the registry’s Time row: its two cites into the rule file stand wher
   assert.match(lineOf(ANSWER, cited(/src\/lib\/operations\/ledgerAnswer\.ts:(\d+) \(the line's duration\)/)), /duration_minutes: true/);
   assert.match(lineOf(ANSWER, cited(/src\/lib\/operations\/ledgerAnswer\.ts:(\d+) \(the routine's window\)/)), /start_time: true, end_time: true/);
   assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(the two cells\)/)), /data-ledger-cell="planned-minutes"/);
-  assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(PLANNED HOURS · LOGGED HOURS/)), /data-ledger-group-planned-hours/);
-  assert.match(lineOf(SECTION, cited(/their coverage said at LedgerSection\.tsx:(\d+)/)), /data-ledger-said-planned/);
+  assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(the TOTAL row\'s two sums, PLANNED MIN · LOGGED MIN — over the rows shown, by any filter/)), /data-ledger-total-planned-minutes/); // SHEET-01 (2026-11-28): the hours are the TOTAL row's two sums — the summary's PLANNED HOURS · LOGGED HOURS until then
+  assert.doesNotMatch(time.citation, /their coverage said at/, 'the coverage left with the notes'); // SHEET-01 (2026-11-28): re-pointed to its absence
   assert.equal(linesOf(REGISTRY).length, 761);
 });
 

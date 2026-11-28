@@ -132,7 +132,7 @@ test('T1 ledgerOf lists a record only when its plan’s role takes money (asksAm
   assert.equal(leftOutWords({ journal: 0, plan: 0, execute: 0, all_day: 2 }), '2 records left out — not expenses (no money at a journal, plan or execute stop): all day 2');
   // The section says it, under the not-recorded line, from the rules file.
   const s = code(SECTION);
-  inOrder(s, ['notRecordedWords(answer.read.value.said.notRecorded)', '<p data-ledger-said-left-out>{leftOutWords(answer.read.value.said.leftOut)}</p>'], 'said, by role, under the table');
+  for (const gone of ['notRecordedWords(answer.read.value.said.notRecorded)', '<p data-ledger-said-left-out>{leftOutWords(answer.read.value.said.leftOut)}</p>']) assert.equal(s.includes(gone), false, `${gone} — nothing is said under the table; the answer still counts them`); // SHEET-01 (2026-11-28): re-pointed to its absence — the notes and the summary under the table are gone
   assert.match(comments(RULES), /RETRO-01 \(Alex, 2026-10-16\) — EXPENSES ONLY/);
 });
 

@@ -149,15 +149,15 @@ test('B the cockpit\'s tab-switch rewrite keeps every other parameter — ?date 
 
 test('C /time mounts exactly the three tables, in order, in the one provider — no card, no boundary; the header says so', () => {
   const page = code(TIME_PAGE);
-  assert.match(page, /<ToolOpener compact tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // COALEVELS-01 (2026-11-27): the page passes its opener `compact` — one line above the sheet; the three tables as they were
+  assert.match(page, /<ToolOpener compact tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // COALEVELS-01 (2026-11-27): the page passes its opener `compact` — one line above the sheet; the three tables as they were; SHEET-01 (2026-11-28): the ledger alone — the two journal tables after it until then
   assert.doesNotMatch(page, /DayCard|Suspense|useSearchParams/);
   for (const f of [`${OPS}/ledger/LedgerSection.tsx`, `${OPS}/journal/MorningJournalTable.tsx`, `${OPS}/journal/EveningJournalTable.tsx`, `${OPS}/journal/JournalDayTable.tsx`]) assert.doesNotMatch(code(f), /useSearchParams/, `${f} reads no URL — no boundary needed`);
   assert.match(comments(TIME_PAGE), /HOME-01 \(Alex, 2026-10-24\) — THE CARD MOVED TO THE DASHBOARD; \/time IS THE\s*\n\s*\* TABLES/);
   assert.match(comments(TIME_PAGE), /TIME-01 \(Alex, 2026-10-19\)/, 'the history stays');
   // The law: TIME_MOUNTS is the three; the card may not come back; the boundary check reads the cockpit component.
   const law = code(LAW);
-  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection MorningJournalTable EveningJournalTable'/);
+  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>'\];/); // SHEET-01 (2026-11-28): the page is the table — the ledger alone; the two journal tables after it until then
+  assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection'/); // SHEET-01 (2026-11-28): exactly the ledger
   assert.match(law, /if \(\/DayCard\|<Suspense\/\.test\(timePage\)\) twoListsFail\(/);
   // HOME-03 (Alex, 2026-10-27): the boundary check follows the card to /home — the host is answers/AnswersClient.tsx; the cockpit may not name the card.
   assert.match(law, /const CARD_HOST = 'src\/components\/answers\/AnswersClient\.tsx';[^\n]*\n\s*const host = codeOf\(CARD_HOST\);\n\s*const cardMounts = \(host\.match\(\/<DayCard \\\/>\/g\) \?\? \[\]\)\.length;\n\s*if \(cardMounts !== 1\) twoListsFail\(/);
@@ -176,9 +176,9 @@ test('C the Time row: home /time, LIVE since TIME-03 (no why); the citation and 
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The why left with the status (a LIVE row carries none); the customer line gained the cost, the time against its plan and the hours.
   assert.equal(time.status, 'LIVE');
   assert.equal(time.why, undefined);
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
+  assert.equal(time.customer, 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // SHEET-01 (2026-11-28): the customer line names no journal answer — the journal tables are mounted nowhere
   // TIMESHEET-02 (Alex, 2026-11-24): the ledger's read is cited at :28 — the answer's interface gained its `recording` line above it; `ledgerReads.ts:27` and `split('\n')[26]` until then.
-  for (const f of ['src/components/workbench/operations/ledger/ledgerReads.ts:28', 'src/components/workbench/operations/journal/journalReads.ts:26', 'src/components/workbench/operations/ledger/LedgerSection.tsx', 'src/components/workbench/operations/journal/MorningJournalTable.tsx', 'src/components/workbench/operations/journal/EveningJournalTable.tsx']) {
+  for (const f of ['src/components/workbench/operations/journal/journalReads.ts', 'src/components/workbench/operations/journal/MorningJournalTable.tsx', 'src/components/workbench/operations/journal/EveningJournalTable.tsx']) assert.equal(time.citation.includes(f), false, `the citation no longer names ${f}`); for (const f of ['src/components/workbench/operations/ledger/ledgerReads.ts:28', 'src/components/workbench/operations/ledger/LedgerSection.tsx']) { // SHEET-01 (2026-11-28): the journal's read and its two tables leave the citation
     assert.ok(time.citation.includes(f), `the citation names ${f}`);
   }
   assert.doesNotMatch(time.citation, /dayReads\.ts/, 'the card\'s six GETs are not the tables\' evidence');

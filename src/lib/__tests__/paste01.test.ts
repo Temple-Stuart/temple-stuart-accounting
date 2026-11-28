@@ -738,7 +738,7 @@ test('T13 every sentence the leaf prints comes from the two rule files, and the 
 
 test('T14 the section mounts the leaf after the expense form, on the same line — at the head of the controls row (COALEVELS-01, 2026-11-27) — and imports it beside it — two lines, 488 lines still; the expense form’s mount is unchanged; /time mounts what it did', () => {
   const s = code(SECTION);
-  assert.equal(linesOf(SECTION).length, 488, 'no line added, none removed — the registry cites three of its lines');
+  assert.equal(linesOf(SECTION).length, 432, 'the registry cites two of its lines'); // SHEET-01 (2026-11-28): 432 — the notes, the summary and the fold are gone, the TOTAL row sums the minutes; 488 until then
   assert.ok(s.includes("\nimport ExpenseForm from './ExpenseForm'; import PasteRows from './PasteRows';\n"), 'the two imports on the one line');
   // PASTE-02 (Alex, 2026-11-27, ruling E): the leaf is handed what the section does when a day is written — read the time sheet again, and tell the day's card — for every day a save
   // reached. Until then it was mounted bare (`<PasteRows />`): it wrote nothing, so the section had nothing to read again. ONE line edited in place; no line added.
@@ -753,7 +753,7 @@ test('T14 the section mounts the leaf after the expense form, on the same line �
   assert.doesNotMatch(code(TIME_PAGE), /PasteRows|pasteRows/);
   // /time mounts what it did: the time sheet, then the two journal tables — the leaf is the section's, not the page's.
   const page = code(TIME_PAGE);
-  assert.match(page, /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  assert.match(page, /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // SHEET-01 (2026-11-28): the page mounts the ledger alone — the two journal tables after it until then
   // The section's file names neither change: the dated notes are the leaf's and the rules'.
   assert.doesNotMatch(whole(SECTION), /PASTE-01|PASTE-02/);
   assert.match(comments(LEAF), /PasteRows — "\+ paste rows from a sheet" on the time sheet \(PASTE-01, Alex, 2026-11-25\)\./);

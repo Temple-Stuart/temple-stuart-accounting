@@ -12,9 +12,11 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { code } from '../sourceText';
+import { code, comments } from '../sourceText';
 import { BLANK } from '../budget/format';
-import { PLANNED_WORD, WENT_WORD, cellWordsOf, type LedgerPlanRow, type LedgerRecording } from '../operations/ledger';
+import * as ledgerRule from '../operations/ledger';
+import { LEDGER_COLUMNS, NO_COLUMN_FILTERS, PLANNED_WORD, WENT_WORD, applyColumnFilters, cellWordsOf, ledgerTotals, minutesCellWords, type LedgerPlanRow, type LedgerRecording, type LedgerRow, type LedgerSheetRow } from '../operations/ledger';
+import { TOOL_REGISTRY } from '../toolRegistry';
 import { NOT_RECORDED_WORDS } from '../operations/stopRecord';
 import { NOT_A_STOP_RECORD_WORDS } from '../operations/stopRole';
 import { overlapWords, type StayRow } from '../operations/stay';
@@ -29,6 +31,12 @@ import {
 } from '../operations/tripName';
 
 const LEAF = 'src/components/workbench/operations/ledger/PasteRows.tsx';
+const SHEET_RULES = 'src/lib/operations/ledger.ts';
+const SECTION = 'src/components/workbench/operations/ledger/LedgerSection.tsx';
+const TIME_PAGE = 'src/app/time/page.tsx';
+const LAW = 'scripts/assert-tool-registry.ts';
+const REGISTRY = 'src/lib/toolRegistry.ts';
+const linesOf = (file: string): string[] => code(file).replace(/\n$/, '').split('\n');
 const TRIP_RULE = 'src/lib/operations/tripName.ts';
 const countOf = (text: string, word: RegExp): number => (text.match(word) ?? []).length;
 const inOrder = (text: string, parts: readonly string[], what: string): void => {
@@ -362,4 +370,118 @@ test('T10 the leaf reads the stays by the day card’s own reader in its one rea
   assert.match(leaf, /<p key=\{refused\.name\} className="text-brand-amber" data-ledger-paste-trip="refused">/);
   // The rule is pure: no request, no clock, no database, no screen file.
   assert.doesNotMatch(code(TRIP_RULE), /\bfetch\b|new Date\(\)|Date\.now\(|@prisma\/client|from 'react'|from 'next|localStorage|sessionStorage|document\.|Writes'/);
+});
+
+// ── T11 · NO FOLD (ruling 2.1) ───────────────────────────────────────────────
+
+test('T11 no fold export is left in ledger.ts — the TIMEDAY-01 block is deleted, a dated note where it stood — and the section passes its own class alone: every view draws the twenty-five columns', () => {
+  for (const name of ['DAY_FOLD_COLUMNS', 'isOneDay', 'DAY_FOLD_CLASS', 'dayFoldClass', 'dayFoldCount', 'dayPlaceWords']) {
+    assert.equal(name in ledgerRule, false, `${name} is no export`);
+    assert.doesNotMatch(code(SHEET_RULES), new RegExp(`\\b${name}\\b`), `${name} is typed nowhere in the rule file's code`);
+    assert.doesNotMatch(code(SECTION), new RegExp(`\\b${name}\\b`), `${name} is read nowhere in the section`);
+  }
+  assert.match(comments(SHEET_RULES), /SHEET-01 \(Alex, 2026-11-28\): THE DAY VIEW FOLDS NOTHING — the TIMEDAY-01 block stood here/);
+  assert.doesNotMatch(comments(SHEET_RULES), /── TIMEDAY-01/, 'its heading went with it');
+  const s = code(SECTION);
+  assert.match(s, /<section className="space-y-1\.5 \[&_div:has\(>\[data-ledger-table\]\)\]:max-h-\[calc\(100vh-8rem\)\] \[&_div:has\(>\[data-ledger-table\]\)\]:overflow-y-auto" data-ledger>/, 'its own class — a plain literal, handed no period');
+  assert.doesNotMatch(s, /:hidden|data-ledger-day-place/, 'no class takes a column off the screen; no place line above the table');
+  assert.equal(LEDGER_COLUMNS.length, 25);
+});
+
+// ── T12 · NOTHING UNDER THE TABLE (ruling 2.2) ───────────────────────────────
+
+/** The rule file's exports only the deleted notes and summary called — they stay in ledger.ts, with their tests; the page stops calling them. */
+const UNCALLED = [
+  'BY_WORDS', 'EVERY_BOOK_WORDS', 'GROUP_KEYS', 'GROUP_WORDS', 'SUMMARY_HEAD_WORDS', 'SUMMARY_TITLE_WORDS', 'TODAY_RULE_WORDS', 'averageStarsWords', 'daysWords', 'ledgerSummary', 'leftOutTotal', 'leftOutWords',
+  'matchCoverageWords', 'noLineWords', 'noStayWords', 'notPlacedWords', 'notRecordedWords', 'notesCount', 'notesToggleWords', 'perDayWords', 'unplacedWords', 'varianceCoverageWords', 'hoursWords', 'loggedCoverageWords', 'plannedCoverageWords',
+] as const;
+
+test('T12 the section draws no notes and no summary — nothing stands under the table; the state and the imports only they used are gone; a dated comment stands where they stood; their words stay in ledger.ts, uncalled by the page', () => {
+  const s = code(SECTION);
+  for (const gone of ['data-ledger-notes', 'data-ledger-said', 'data-ledger-summary', 'data-ledger-group', 'data-ledger-by', 'notesOpen', 'setNotesOpen', 'setBy', 'useState<GroupKey>', 'const groups', 'headClass as head', 'reversedLinkedWords']) {
+    assert.equal(s.includes(gone), false, `${gone} — gone with the notes and the summary`);
+  }
+  // Nothing after the shared table but the section's end and the dated comment.
+  const after = code(SECTION).slice(code(SECTION).indexOf('</DataTable>') + '</DataTable>'.length);
+  assert.match(after, /^\n\s*\{\s*\}\n\s*<\/section>\n\s*\);\n\}\n?$/, 'only the dated comment stands under the table');
+  assert.match(comments(SECTION), /SHEET-01 \(Alex, 2026-11-28\): "just one, bad ass table … built like an excel table"\. THE NOTES stood here/);
+  // The words stay, each still the rule file's export — and the page calls none.
+  for (const name of UNCALLED) {
+    assert.ok(name in ledgerRule, `${name} stays in ledger.ts`);
+    assert.doesNotMatch(s, new RegExp(`\\b${name}\\b`), `${name} — the page calls it no more`);
+  }
+  assert.ok(code(SHEET_RULES).includes('export type GroupKey'), 'the summary’s key type stays too');
+});
+
+// ── T13 · THE TOTAL ROW SUMS THE MINUTES (ruling 2.2) ────────────────────────
+
+/** A plan row — its planned minutes, no logged ones; and a recorded row — both. */
+const planRow = (key: string, city: string, planned: number | null): LedgerPlanRow => ({
+  ...chargeRow(MON), key, allDay: false, time: '09:00', place: { city, region: null, country: 'Norland' }, plannedMinutes: planned, went: NOT_RECORDED_WORDS,
+});
+const recordedRow = (id: string, city: string, planned: number | null, logged: number | null): LedgerRow => ({
+  id, key: `routine:${id}:${MON}T06:00:00.000Z`, address: { kind: 'routine', id, instant: `${MON}T06:00:00.000Z` }, match: null, day: MON, time: '09:00',
+  place: { city, region: null, country: 'Norland' }, book: 'Personal', location: null, segments: { entity: 'P', location: null, category: '6200', type: null, code: 'P-6200' }, coa: { account: 'P-6200', name: 'Recreation' },
+  vendor: null, instagramTag: null, description: 'Kayak', rating: null, note: null, notes: null, cents: 650, budgetState: 'matched', outcome: 'done', actualCents: 690, varianceCents: 40, plannedMinutes: planned, loggedMinutes: logged,
+});
+
+test('T13 the TOTAL row: its label spans LEDGER_COLUMNS.indexOf(\'plannedMinutes\') — the sixteen before PLANNED MIN, worked out — then PLANNED MIN and LOGGED MIN, each ledgerTotals’ sum over the rows shown (filter a city: that city’s minutes; "—" when no row shown carries one), then COA’s cell empty, then BUDGET … NOTES', () => {
+  const s = code(SECTION);
+  const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
+  assert.ok(tfoot.includes("<th scope=\"row\" colSpan={LEDGER_COLUMNS.indexOf('plannedMinutes')} className={`${cell} text-left`}>{TOTAL_WORDS}</th>"), 'the span worked out, never typed');
+  assert.doesNotMatch(tfoot, /colSpan=\{\d/, 'no number typed for the span');
+  assert.equal(LEDGER_COLUMNS.indexOf('plannedMinutes'), 16);
+  assert.deepEqual([...tfoot.matchAll(/data-ledger-total-([a-z-]+)/g)].map((m) => m[1]), ['planned-minutes', 'logged-minutes', 'account', 'budget', 'actual', 'variance', 'match', 'under-over', 'notes']);
+  assert.match(tfoot, /data-ledger-total-planned-minutes>\{minutesCellWords\(totals\.plannedMinutes\)\}<\/td>/);
+  assert.match(tfoot, /data-ledger-total-logged-minutes>\{minutesCellWords\(totals\.loggedMinutes\)\}<\/td>/);
+  assert.match(tfoot, /<td className=\{cell\} data-ledger-total-account \/>/, 'COA’s cell, empty');
+  assert.equal(LEDGER_COLUMNS.indexOf('plannedMinutes') + [...tfoot.matchAll(/<td\b/g)].length, LEDGER_COLUMNS.length, 'the label and its cells fill the twenty-five');
+  assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);/, 'the totals are the rows shown’s');
+  // The sums, over the rows shown — by any filter.
+  const rows: readonly LedgerSheetRow[] = [planRow('a', 'Pine Cove', 30), recordedRow('b', 'Pine Cove', 45, 20), planRow('c', 'Ridge Camp', 60), recordedRow('d', 'Ridge Camp', null, 50), planRow('e', 'Ridge Camp', null)];
+  const all = ledgerTotals(rows);
+  assert.deepEqual([all.plannedMinutes, all.loggedMinutes], [135, 70], 'every row shown: the planned and the logged, each summed where a row carries one');
+  const pine = ledgerTotals(applyColumnFilters(rows, { ...NO_COLUMN_FILTERS, city: { dropped: ['Ridge Camp'] } }));
+  assert.deepEqual([pine.plannedMinutes, pine.loggedMinutes], [75, 20], 'filter a city: that city’s minutes');
+  const none = ledgerTotals([planRow('e', 'Ridge Camp', null)]);
+  assert.deepEqual([minutesCellWords(none.plannedMinutes), minutesCellWords(none.loggedMinutes)], [BLANK, BLANK], '"—" when no row shown carries one');
+});
+
+// ── T14 · /time IS THE TABLE (rulings 2.3, 2.4) ──────────────────────────────
+
+test('T14 /time mounts LedgerSection alone — the journal tables imported and mounted nowhere there, kept as files; its dated paragraph says why; the law’s TIME_MOUNTS is the ledger alone and its container check wants the ledger', () => {
+  const page = code(TIME_PAGE);
+  const box = page.slice(page.indexOf('data-tool-page="Time"'), page.indexOf('</OperationsEntityProvider>'));
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['LedgerSection']);
+  assert.doesNotMatch(page, /MorningJournalTable|EveningJournalTable/);
+  assert.match(comments(TIME_PAGE), /SHEET-01 \(Alex, 2026-11-28\) — THE PAGE IS THE TABLE\. "we dont want this on here\n \* either!" — of the summary under the sheet and the two journals\./);
+  assert.match(comments(TIME_PAGE), /journal is still written on the day card, on the\n \* home page \(\/home\)/);
+  for (const table of ['MorningJournalTable', 'EveningJournalTable']) {
+    assert.match(code(`src/components/workbench/operations/journal/${table}.tsx`), new RegExp(`export default function ${table}\\(\\)`), `${table} is kept`);
+  }
+  const law = code(LAW);
+  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>'\];/);
+  assert.match(law, /if \(timeMounts\.join\(' '\) !== 'LedgerSection'\) twoListsFail\(`\$\{TIME_PAGE\} mounts \[\$\{timeMounts\.join\(' '\)\}\] in the Time container — the page is the table: exactly the task ledger, nothing else \(SHEET-01, 2026-11-28; the two journal tables beside it until then — HOME-01;/);
+  assert.match(comments(LAW), /SHEET-01 \(Alex, 2026-11-28\): the page is the table — the task ledger alone; the morning and the evening journal tables after it until then \(HOME-01\)/);
+  assert.equal(linesOf(LAW).length, 11254, 'the law edited in place');
+});
+
+// ── T15 · THE REGISTRY'S TIME ROW (ruling 2.5) ───────────────────────────────
+
+test('T15 the registry’s Time row: LIVE with its four beats; the customer line verbatim; no journal cite; the hours the TOTAL row’s two sums; every re-cited line holds what it names; the dated note on the slug line; the file’s line count unchanged', () => {
+  const time = TOOL_REGISTRY.find((t) => t.name === 'Time');
+  assert.ok(time);
+  assert.deepEqual([time.status, time.beats, time.home, time.why], ['LIVE', { discover: true, decide: true, commit: true, record: true }, '/time', undefined]);
+  assert.equal(time.customer, 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
+  assert.doesNotMatch(time.citation, /journalReads|MorningJournalTable|EveningJournalTable|JournalDayTable|SUMMARY_HEAD_WORDS|their coverage said at|PLANNED HOURS · LOGGED HOURS — the summary/, 'no journal read, no journal table, no summary cite');
+  assert.match(time.citation, /decide: src\/app\/api\/operations\/journal\/route\.ts:61 \(PUT/, 'decide stands: the journal’s PUT from the day card');
+  const cited = (re: RegExp): number => { const m = time.citation.match(re); if (m === null) return assert.fail(`the citation names ${re}`); return Number(m[1]); };
+  const at = (file: string, n: number): string => linesOf(file)[n - 1] ?? '';
+  assert.match(at('src/components/workbench/operations/ledger/ledgerReads.ts', cited(/ledger\/ledgerReads\.ts:(\d+)/)), /readJson\(`\/api\/operations\/ledger\?/);
+  assert.match(at(SECTION, cited(/LedgerSection\.tsx:(\d+) \(the two cells\)/)), /data-ledger-cell="planned-minutes"/);
+  assert.match(at(SECTION, cited(/LedgerSection\.tsx:(\d+) \(the TOTAL row's two sums, PLANNED MIN · LOGGED MIN — over the rows shown, by any filter — the summary's PLANNED HOURS · LOGGED HOURS until SHEET-01\)/)), /data-ledger-total-planned-minutes/);
+  assert.match(at(SHEET_RULES, cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS/)), /^export const LEDGER_HEAD_WORDS = \[/);
+  assert.match(code(REGISTRY), /slug: 'time', status: 'LIVE', beats: ALL, home: '\/time',/);
+  assert.match(comments(REGISTRY), /SHEET-01 \(Alex, 2026-11-28\): the page is the table — the journal's read and its two tables leave the citation/);
+  assert.equal(linesOf(REGISTRY).length, 761, 'no line added or removed — Landing.tsx cites lines of this file');
 });

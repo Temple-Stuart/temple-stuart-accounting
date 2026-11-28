@@ -841,7 +841,7 @@ test('T13 the leaf: the eight writers (COALEVELS-01, 2026-11-27 — six until th
 
 test('T14 the section hands the leaf what it does when a day is written — one line edited in place, 488 lines still; the expense form’s mount before it character for character; /time mounts what it did', () => {
   const s = code(SECTION);
-  assert.equal(linesOf(SECTION).length, 488, 'no line added, none removed — the registry cites three of its lines');
+  assert.equal(linesOf(SECTION).length, 432, 'the registry cites two of its lines'); // SHEET-01 (2026-11-28): 432 — the notes, the summary and the fold are gone, the TOTAL row sums the minutes; 488 until then
   assert.ok(s.includes('<h2 className="text-sm font-bold text-brand-purple" data-ledger-title>{LEDGER_TITLE_WORDS}</h2><ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} /><PasteRows onWritten={(days) => { setWrites((n) => n + 1); days.forEach(announceDayWritten); }} /><span className="h-4 w-px bg-border" aria-hidden="true" />\n'), 'the mounts as ruled'); // COALEVELS-01 (2026-11-27): at the head of the controls row, after the title and before a divider — a line of their own above the table until then; each mount character for character
   assert.deepEqual([countOf(s, /<PasteRows\b/g), countOf(s, /<ExpenseForm\b/g), countOf(s, /days\.forEach\(announceDayWritten\)/g)], [1, 1, 1]);
   // The time sheet reads again once a save, however many days it reached; each day's card is told.
@@ -850,6 +850,6 @@ test('T14 the section hands the leaf what it does when a day is written — one 
   assert.doesNotMatch(comments(SECTION), /PASTE-02/);
   assert.doesNotMatch(s, /pasteSave|runPaste|ledgerWrites|\/api\//);
   // /time mounts what it did — the two-lists law reads this page alone for its three.
-  assert.match(code(TIME_PAGE), /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  assert.match(code(TIME_PAGE), /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/); // SHEET-01 (2026-11-28): the page mounts the ledger alone — the two journal tables after it until then
   assert.doesNotMatch(code(TIME_PAGE), /PasteRows|pasteRows|pasteSave/);
 });

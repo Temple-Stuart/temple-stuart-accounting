@@ -542,17 +542,17 @@ test('T7 the registry’s Time row: status, beats, why, note and customer line u
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time');
   assert.ok(time);
   assert.deepEqual([time.status, time.beats, time.home, time.why], ['LIVE', { discover: true, decide: true, commit: true, record: true }, '/time', undefined]);
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
+  assert.equal(time.customer, 'You can see every stop you logged, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // SHEET-01 (2026-11-28): the customer line names no journal answer — the journal tables are mounted nowhere
   assert.match(time.note ?? '', /^HOME-03 \(2026-10-27\): the day itself is entered on the day card/);
   // The number a citation names, read from the citation itself — and the line it names, by content.
   const cited = (re: RegExp): number => { const m = time.citation.match(re); if (m === null) return assert.fail(`the citation names ${re}`); return Number(m[1]); };
   const lineOf = (file: string, n: number): string => linesOf(file)[n - 1] ?? '';
   // Every citation this change moved, re-cited: each line is what it says.
   assert.match(lineOf(RULES, cited(/src\/lib\/operations\/ledger\.ts:(\d+) \(LEDGER_HEAD_WORDS/)), /^export const LEDGER_HEAD_WORDS = \[/);
-  assert.match(lineOf(RULES, cited(/the summary's sums, src\/lib\/operations\/ledger\.ts:(\d+)/)), /^export const SUMMARY_HEAD_WORDS = \[/);
+  assert.doesNotMatch(time.citation, /the summary's sums|SUMMARY_HEAD_WORDS/, 'the summary’s words left the citation with the summary — they stay in the rule file, uncalled'); // SHEET-01 (2026-11-28): re-pointed to its absence
   assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(the two cells\)/)), /data-ledger-cell="planned-minutes"/);
-  assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(PLANNED HOURS · LOGGED HOURS/)), /data-ledger-group-planned-hours/);
-  assert.match(lineOf(SECTION, cited(/their coverage said at LedgerSection\.tsx:(\d+)/)), /data-ledger-said-planned/);
+  assert.match(lineOf(SECTION, cited(/LedgerSection\.tsx:(\d+) \(the TOTAL row\'s two sums, PLANNED MIN · LOGGED MIN — over the rows shown, by any filter/)), /data-ledger-total-planned-minutes/); // SHEET-01 (2026-11-28): the hours are the TOTAL row's two sums — the summary's PLANNED HOURS · LOGGED HOURS until then
+  assert.doesNotMatch(time.citation, /their coverage said at/, 'the coverage left with the notes'); // SHEET-01 (2026-11-28): re-pointed to its absence
   // And the ones that did not move.
   assert.match(lineOf(READS, cited(/discover: src\/components\/workbench\/operations\/ledger\/ledgerReads\.ts:(\d+)/)), /readJson\(`\/api\/operations\/ledger\?/);
   assert.match(lineOf(ANSWER, cited(/src\/lib\/operations\/ledgerAnswer\.ts:(\d+) \(the line's duration\)/)), /duration_minutes: true/);
