@@ -2567,6 +2567,8 @@ export interface PlanRoutineBody {
   readonly location_class?: string;
   /** EDIT-02 (2026-11-28): a repeating plan's START sends its END with it (the route asks for both); a routine with no line of its own takes its END, CATEGORY and BUDGET on itself. */
   readonly end_time?: string | null;
+  /** EDIT-02 (2026-11-28): a one-off's DATE — its day moves, and its rows with it (the route's rekey). */
+  readonly start_date?: string;
   readonly coa_code?: string;
   readonly budget_amount?: string;
 }
@@ -2610,6 +2612,8 @@ const oneOffNameOf = (type: string, day: string, clock: string | null): string =
  *   plan's name is its own; TYPE: the line's TYPE alone; LOCATION, END, CATEGORY and BUDGET as on a one-off. ON A ROUTINE WITH NO LINE OF ITS OWN — the
  *   line's four are the routine's own fields: END its end time (START to the clock typed, read as above; cleared, none), CATEGORY its account, BUDGET
  *   its amount, TYPE its name (trimmed, its spaces one; blank refused) — each read by the route. ENTITY moves a row to another book: not written.
+ *   DATE on a one-off: a day (YYYY-MM-DD, else refused in the blank row's words) — the routine's start date and the one-off's name with that day; the
+ *   route moves its record, vendor and links with it (its rekey) or refuses by name.
  */
 export function planCellWrite(row: LedgerSheetRow, editing: LedgerEditingPlan, column: TypedColumn, typed: string): PlanCellRead {
   const charge = row.id === null && row.allDay;
@@ -2622,6 +2626,12 @@ export function planCellWrite(row: LedgerSheetRow, editing: LedgerEditingPlan, c
   };
   switch (column) {
     case 'book': throw new Error('ledger: ENTITY moves a row to another book — not written yet');
+    case 'date': {
+      if (!editing.once) throw new Error(`ledger: DATE on a day of the plan "${editing.routineName}" is how it repeats — no such cell saves`);
+      const day = typed.trim();
+      if (!isIsoDay(day)) return { ok: false, words: dayTypedWords(typed) };
+      return routine({ start_date: day, name: oneOffNameOf(row.description, day, clock) });
+    }
     case 'start': {
       const time = typed.trim();
       if (!editing.once) return TIME_RE.test(time) ? routine({ start_time: time, end_time: editing.end }) : { ok: false, words: timeTypedWords(typed) };

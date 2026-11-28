@@ -17,9 +17,10 @@ import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
 import { buildRoutineOpenLines } from '../budget/openLines';
 import type { RoutineWords } from '../budget/planLines';
 import { isOnceRRule } from '../operations/rruleHelpers';
+import { ONE_OFF_ROWS_OFF_DAY_WORDS, rekeyOneOffDate, type RekeySchedule } from '../operations/routineRekey';
 import type { StopRecordRow } from '../operations/stopRecord';
 import {
-  CELL_REACH_WORDS, CHARGE_TAKES_NO_RECORD_WORDS, END_AT_START_WORDS, ITEMS_CELL_NO_VENDOR_WORDS, NEW_TRIP_REACH_WORDS, PLACE_NEEDS_CITY_WORDS, REGION_NEEDS_COUNTRY_WORDS, TRIP_REACH_WORDS, itemsWritesRecord, requiredWords, timeTypedWords, tripCellWrite, LEDGER_COLUMNS, NEVER_OPENS_WORDS, NO_PLAN_LINE_WORDS, PLAN_CELLS, REPEATING_DATE_WORDS, REPEATING_REACH_WORDS, TAG_NEEDS_VENDOR_WORDS, TYPED_COLUMNS,
+  CELL_REACH_WORDS, CHARGE_TAKES_NO_RECORD_WORDS, END_AT_START_WORDS, dayTypedWords, ITEMS_CELL_NO_VENDOR_WORDS, NEW_TRIP_REACH_WORDS, PLACE_NEEDS_CITY_WORDS, REGION_NEEDS_COUNTRY_WORDS, TRIP_REACH_WORDS, itemsWritesRecord, requiredWords, timeTypedWords, tripCellWrite, LEDGER_COLUMNS, NEVER_OPENS_WORDS, NO_PLAN_LINE_WORDS, PLAN_CELLS, REPEATING_DATE_WORDS, REPEATING_REACH_WORDS, TAG_NEEDS_VENDOR_WORDS, TYPED_COLUMNS,
   boxTextOf, cellOpens, cellReachWords, ledgerOf, nextOpeningColumn, planCellWrite, planMinutesOf, routineClocksOf,
   type LedgerEditingPlan, type LedgerInput, type LedgerRecordInput, type LedgerSheetRow, type LedgerVendorRow,
 } from '../operations/ledger';
@@ -440,4 +441,95 @@ test('X9 a trip cell writes the trip of the row’s day: the trip’s three part
   assert.match(saves, /import \{ changeStay, createStay \} from '\.\.\/stays\/stayWrites';/);
   assert.doesNotMatch(saves, /\/api\//, 'the leaf names no route');
   assert.ok(code(SECTION).includes('<span data-ledger-cell-reach>{cellReachWords(open.column, editing[row.key], row.day)}</span>'));
+});
+
+// ── PART 3 — DATE: A ONE-OFF MOVES WITH ITS ROWS (HARD GATE 1) ───────────────
+
+/** A one-off's schedule, as the route hands the rule — its date at UTC midnight, its clock in its rule. */
+const oneOff = (day: string, clock = '12:00', timezone = NBO): RekeySchedule => ({
+  timezone, schedule_rrule: `FREQ=DAILY;COUNT=1;BYHOUR=${Number(clock.slice(0, 2))};BYMINUTE=${Number(clock.slice(3, 5))}`, start_date: new Date(`${day}T00:00:00.000Z`), end_date: new Date(`${day}T00:00:00.000Z`),
+});
+
+// ── X10 · THE RULE (ruling 3.1) ──────────────────────────────────────────────
+
+test('X10 rekeyOneOffDate: every row at the one-off’s one occurrence moves to the moved one-off’s one occurrence — a row off that occurrence refused by name, nothing moved; both schedules one-offs, else the caller’s error', () => {
+  const thuNoon = new Date(at(THU, '12:00'));
+  // Three rows at the one occurrence — a record, a vendor row, a link: one move, Thursday noon → Friday noon.
+  assert.deepEqual(rekeyOneOffDate(oneOff(THU), oneOff(FRI), [thuNoon, thuNoon, thuNoon]), { ok: true, moves: [{ day: FRI, from: thuNoon, to: new Date(at(FRI, '12:00')) }], notOnOldClock: [] });
+  // The new day with a new clock, or a new zone: the one occurrence of the moved one-off.
+  assert.deepEqual(rekeyOneOffDate(oneOff(THU), oneOff(FRI, '13:30'), [thuNoon]), { ok: true, moves: [{ day: FRI, from: thuNoon, to: new Date(at(FRI, '13:30')) }], notOnOldClock: [] });
+  const accra = rekeyOneOffDate(oneOff(THU), oneOff(FRI, '12:00', 'Africa/Accra'), [thuNoon]);
+  assert.deepEqual(accra, { ok: true, moves: [{ day: FRI, from: thuNoon, to: new Date('2027-03-05T12:00:00.000Z') }], notOnOldClock: [] }, 'noon on the new day in the new zone');
+  // No rows: nothing to move.
+  assert.deepEqual(rekeyOneOffDate(oneOff(THU), oneOff(FRI), []), { ok: true, moves: [], notOnOldClock: [] });
+  // A row off the one occurrence — another time that day, or another day: refused by name, nothing moved.
+  assert.deepEqual(rekeyOneOffDate(oneOff(THU), oneOff(FRI), [thuNoon, new Date(at(THU, '09:00'))]), { ok: false, status: 400, message: ONE_OFF_ROWS_OFF_DAY_WORDS });
+  assert.equal(ONE_OFF_ROWS_OFF_DAY_WORDS, "cannot move the routine's history: a row sits off the one-off's day");
+  // routineDay's own refusals: an unreadable zone.
+  const bad = rekeyOneOffDate(oneOff(THU), oneOff(FRI, '12:00', 'Mars/Olympus'), [thuNoon]);
+  assert.ok(!bad.ok && bad.status === 400 && bad.message.startsWith("cannot move the routine's history: timezone not recognised — "), 'said in routineDay’s words');
+  // Both rules one-offs, holding their date: anything else is the caller's error, thrown by name.
+  assert.throws(() => rekeyOneOffDate(oneOff(THU), { ...oneOff(FRI), schedule_rrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=0' }, [thuNoon]), /^Error: routineRekey: a one-off's date move reads two one-offs — a rule that repeats moves by rekeyPlan$/);
+  assert.throws(() => rekeyOneOffDate({ ...oneOff(THU), start_date: null }, oneOff(FRI), [thuNoon]), /^Error: routineRekey: a one-off holds its date/);
+});
+
+// ── X11 · THE ROUTE (ruling 3.2, HARD GATE 1) ────────────────────────────────
+
+test('X11 the routine PATCH moves a one-off’s rows with its date inside the rekey block it has — the same transaction, the same proof every target is empty, the same writes — and refuses a date move by name on start_date; the gates in their order', () => {
+  const patch = bodyOf(code(ROUTINE_ROUTE), 'PATCH');
+  // The gates first: the verified cookie, the user, the routine by id AND the user, else 404.
+  inOrder(patch, [
+    'const userEmail = await getVerifiedEmail();',
+    "if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });",
+    'const existing = await loadAuthorizedRoutine(id, user.id);',
+    "if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });",
+  ], 'the gates');
+  // dateMoved: both rules once, and the effective start date not the stored one.
+  assert.match(patch, /const startDayOf = \(d: Date \| null\): number \| null => \(d === null \? null : d\.getTime\(\)\);\n\s*const dateMoved = isOnceRRule\(existing\.schedule_rrule\) && isOnceRRule\(nextRrule\) && startDayOf\(effectiveStart\) !== startDayOf\(existing\.start_date\);/);
+  // The block runs for it; its plan is the one-off's; every proof and write as it was.
+  inOrder(patch, [
+    'const zoneMoved = canonicalZone(existing.timezone) !== canonicalZone(nextTz);',
+    'const dateMoved = ',
+    'if (clockMoved || zoneMoved || dateMoved) {',
+    'const after: RekeySchedule = { timezone: nextTz, schedule_rrule: nextRrule, start_date: effectiveStart, end_date: effectiveEnd };',
+    'await prisma.$transaction(async (tx) => {',
+    'await lockRoutine(tx, id, user.id);',
+    'const plan = dateMoved ? rekeyOneOffDate(before, after, instants) : rekeyPlan(before, after, instants, now);',
+    'if (!plan.ok) throw new RekeyRefused(plan.status, plan.message);',
+    "throw new RekeyRefused(409, occupiedWords('completions', to, nextTz))",
+    "throw new RekeyRefused(409, occupiedWords('stop_records', to, nextTz))",
+    "throw new RekeyRefused(409, occupiedWords('plan_vendors', to, nextTz))",
+    'counts.completions = await moveCompletions(tx, { userId: user.id, routineId: id, to: toOf });',
+    'tx.operations_stop_records.update({ where: { id: r.id }, data: { occurrence_at: to } })',
+    'tx.planned_item_vendors.update({ where: { id: v.id }, data: { occurrence_at: to } })',
+    'tx.planned_item_links.update({ where: { id: l.id }, data: { target_instant: to } })',
+    'const row = await tx.operations_routines.update({ where: { id }, data });',
+    "field: dateMoved ? 'start_date' : 'start_time', message: error.message",
+    "field: dateMoved ? 'start_date' : 'start_time', message: \"cannot move the routine's history: a row already sits at a target instant",
+  ], 'the block, for a date move too');
+  assert.equal((patch.match(/rekeyOneOffDate\(/g) ?? []).length, 1, 'planned once, inside the transaction');
+  assert.equal((patch.match(/\.planned_item_vendors\.update\(/g) ?? []).length, 1, 'the vendor rows’ one move — the law’s one shape');
+  assert.equal((patch.match(/\.planned_item_links\.update\(/g) ?? []).length, 1, 'the links’ one move — the law’s one shape');
+  assert.match(code(ROUTINE_ROUTE), /import \{ RekeyRefused, rekeyOneOffDate, rekeyPlan, rekeyedWords, occupiedWords, type RekeyCounts, type RekeySchedule \} from '@\/lib\/operations\/routineRekey';/);
+});
+
+// ── X12 · THE DATE CELL (ruling 3.3) ─────────────────────────────────────────
+
+test('X12 DATE on a one-off sends its start date and the one-off’s name with the new day — the route moves its rows; a day that is no day refused in the blank row’s words; on a repeating plan it is refused before any typing', async () => {
+  const lunch = rowOf('Lunch', THU, false);
+  const L = planOf(lunch);
+  assert.deepEqual(planCellWrite(lunch, L, 'date', '2027-03-06'), { ok: true, write: { to: 'routine', routineId: 'lunch', body: { start_date: '2027-03-06', name: 'Lunch · 2027-03-06 12:00' } } });
+  const rent = rowOf('Rent', FRI, false);
+  assert.deepEqual(planCellWrite(rent, planOf(rent), 'date', '2027-03-08'), { ok: true, write: { to: 'routine', routineId: 'rent', body: { start_date: '2027-03-08', name: 'Rent · 2027-03-08' } } }, 'a charge is named for its day alone');
+  assert.deepEqual(planCellWrite(lunch, L, 'date', '06/03/2027'), { ok: false, words: dayTypedWords('06/03/2027') });
+  assert.equal(cellReachWords('date', ledger.editing[lunch.key], THU), 'this row');
+  // Through the routines PATCH; a move the route cannot make is said in its words.
+  let run = await standIn([[200, { routine: {}, rekeyed: {} }]], () => savePlanCell(lunch, L, 'date', '2027-03-06'));
+  assert.deepEqual([run.result, ...run.sent], [{ ok: true }, { url: '/api/operations/routines/lunch', method: 'PATCH', body: { start_date: '2027-03-06', name: 'Lunch · 2027-03-06 12:00' } }]);
+  run = await standIn([[400, { error: 'Validation', field: 'start_date', message: ONE_OFF_ROWS_OFF_DAY_WORDS }]], () => savePlanCell(lunch, L, 'date', '2027-03-06'));
+  assert.deepEqual(run.result, { ok: false, words: ONE_OFF_ROWS_OFF_DAY_WORDS });
+  // A repeating plan: refused before any typing (its days are how it repeats), and never written.
+  const gym = rowOf('Morning Gym', FRI, false);
+  assert.equal(cellOpens('date', gym, ledger.recording[gym.key], ledger.editing[gym.key]).refusal, REPEATING_DATE_WORDS('Morning Gym'));
+  assert.throws(() => planCellWrite(gym, planOf(gym), 'date', '2027-03-06'), /^Error: ledger: DATE on a day of the plan "Morning Gym" is how it repeats — no such cell saves$/);
 });

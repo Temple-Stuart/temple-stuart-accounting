@@ -67,7 +67,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, allDayTimeInput, canonicalZone, clockOfRule, clockOfTime, clockWords, compileFormToRRule, expandForward, isOnceRRule, sameClock, scheduleAnchor, withClock, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
-import { RekeyRefused, rekeyPlan, rekeyedWords, occupiedWords, type RekeyCounts, type RekeySchedule } from '@/lib/operations/routineRekey';
+import { RekeyRefused, rekeyOneOffDate, rekeyPlan, rekeyedWords, occupiedWords, type RekeyCounts, type RekeySchedule } from '@/lib/operations/routineRekey';
 import { lockRoutine, moveCompletions } from '@/lib/operations/routineCompletion';
 import { movedWords, stopRecordRowOf, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { parsePlaceInput } from '@/lib/operations/routineInput'; import { readLocationClass } from '@/lib/operations/locationClass'; // COALEVELS-01 (2026-11-27): the Location's rule — imported on this line so no line the registry cites above it moves
@@ -450,10 +450,15 @@ export async function PATCH(
     const clockMoved = !sameClock(clockOfRule(existing.schedule_rrule), clockOfRule(nextRrule)) && clockOfRule(nextRrule) !== null;
     // A stored name that differs only by case names the same zone (ROUTINE-02a): no move.
     const zoneMoved = canonicalZone(existing.timezone) !== canonicalZone(nextTz);
+    // EDIT-02 (Alex, 2026-11-28) — HARD GATE 1: a one-off's date. A one-off staying a one-off whose start date moves strands its record, its vendor
+    // rows and its links on the old day; they move with it, to the moved one-off's one occurrence (routineRekey.ts rekeyOneOffDate), in this same block —
+    // the same transaction, the same proof that every target is empty, the same writes — or the whole edit is refused by name, on start_date.
+    const startDayOf = (d: Date | null): number | null => (d === null ? null : d.getTime());
+    const dateMoved = isOnceRRule(existing.schedule_rrule) && isOnceRRule(nextRrule) && startDayOf(effectiveStart) !== startDayOf(existing.start_date);
     let routine: Prisma.operations_routinesGetPayload<Record<string, never>>;
     let rekeyed: RekeyCounts | null = null;
     let movedRecords: { readonly before: StopRecordRow; readonly after: StopRecordRow }[] = [];
-    if (clockMoved || zoneMoved) {
+    if (clockMoved || zoneMoved || dateMoved) {
       const before: RekeySchedule = { timezone: existing.timezone, schedule_rrule: existing.schedule_rrule, start_date: existing.start_date, end_date: existing.end_date };
       const after: RekeySchedule = { timezone: nextTz, schedule_rrule: nextRrule, start_date: effectiveStart, end_date: effectiveEnd };
       try {
@@ -473,7 +478,7 @@ export async function PATCH(
             ...vendors.map((v) => v.occurrence_at as Date),
             ...links.map((l) => l.target_instant as Date),
           ];
-          const plan = rekeyPlan(before, after, instants, now);
+          const plan = dateMoved ? rekeyOneOffDate(before, after, instants) : rekeyPlan(before, after, instants, now);
           if (!plan.ok) throw new RekeyRefused(plan.status, plan.message);
           const toOf = new Map(plan.moves.map((m) => [m.from.getTime(), m.to]));
           const targets = plan.moves.map((m) => m.to);
@@ -503,10 +508,10 @@ export async function PATCH(
         movedRecords = outcome.moved;
       } catch (error) {
         if (error instanceof RekeyRefused) {
-          return NextResponse.json({ error: error.status === 409 ? 'Conflict' : 'Validation', field: 'start_time', message: error.message }, { status: error.status });
+          return NextResponse.json({ error: error.status === 409 ? 'Conflict' : 'Validation', field: dateMoved ? 'start_date' : 'start_time', message: error.message }, { status: error.status });
         }
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-          return NextResponse.json({ error: 'Conflict', field: 'start_time', message: "cannot move the routine's history: a row already sits at a target instant (written while this edit ran) — try again" }, { status: 409 });
+          return NextResponse.json({ error: 'Conflict', field: dateMoved ? 'start_date' : 'start_time', message: "cannot move the routine's history: a row already sits at a target instant (written while this edit ran) — try again" }, { status: 409 });
         }
         throw error;
       }

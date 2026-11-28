@@ -150,7 +150,7 @@ test('T3 the routes: start time required, end time with it (a one-off excepted);
   assert.match(handler, /const clockMoved = !sameClock\(clockOfRule\(existing\.schedule_rrule\), clockOfRule\(nextRrule\)\) && clockOfRule\(nextRrule\) !== null;/);
   assert.match(handler, /const zoneMoved = canonicalZone\(existing\.timezone\) !== canonicalZone\(nextTz\);/);
   const steps = [
-    'if (clockMoved || zoneMoved) {',
+    'if (clockMoved || zoneMoved || dateMoved) {', // EDIT-02 (2026-11-28) (PART 3): HARD GATE 1 — and a one-off's date (dateMoved), in the same block
     'await prisma.$transaction(async (tx) => {',
     'await lockRoutine(tx, id, user.id);',
     'tx.operations_routine_steps.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true } })',
@@ -158,7 +158,7 @@ test('T3 the routes: start time required, end time with it (a one-off excepted);
     'tx.operations_stop_records.findMany({ where: { user_id: user.id, OR: planOr } })',
     'tx.planned_item_vendors.findMany({ where: { user_id: user.id, occurrence_at: { not: null }, OR: planOr }',
     'tx.planned_item_links.findMany({ where: { user_id: user.id, target_instant: { not: null }, OR: linkOr }',
-    'const plan = rekeyPlan(before, after, instants, now);',
+    'const plan = dateMoved ? rekeyOneOffDate(before, after, instants) : rekeyPlan(before, after, instants, now);', // EDIT-02 (2026-11-28) (PART 3): a one-off's date move plans by rekeyOneOffDate; every other move by rekeyPlan, as it was
     'if (!plan.ok) throw new RekeyRefused(plan.status, plan.message);',
     "throw new RekeyRefused(409, occupiedWords('completions', to, nextTz))",
     "throw new RekeyRefused(409, occupiedWords('stop_records', to, nextTz))",
