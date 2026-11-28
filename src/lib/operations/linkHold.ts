@@ -14,6 +14,11 @@
  * line (is_active false), its row stays — so it refuses the same way while the line holds links, and its words send
  * the founder to the routine's deactivate: archiving a line drops it from ROUTINE EXPENSES' plans, and its links with
  * it. Deactivate is unchanged. Pure: the words and the query's shape, no Prisma.
+ *
+ * EDIT-02 (Alex, 2026-11-28) — A PLAN CODED ON A BOOKS LINE. ledger_line_links.routine_id is ON DELETE RESTRICT (prisma/schema.prisma
+ * ledger_line_links; migration 20260722000000_dim_links_vendor): a routine a Books line is coded to cannot be deleted, and the DELETE
+ * failed in the generic fail-closed words. It now counts those lines in the same transaction and refuses 409 by name, nothing deleted —
+ * "this plan is coded on N lines in Books — re-code them there first, or deactivate the plan on Expenses".
  */
 
 const postings = (n: number): string => `${n} posting${n === 1 ? '' : 's'}`;
@@ -21,6 +26,10 @@ const postings = (n: number): string => `${n} posting${n === 1 ? '' : 's'}`;
 /** The routine DELETE's refusal (the ruling's words). */
 export const routineHoldsLinksWords = (n: number): string =>
   `this routine has ${postings(n)} linked in Books — deactivate it instead (every record stays)`;
+
+/** EDIT-02 (2026-11-28): the routine DELETE's refusal while Books lines are coded to the plan (ledger_line_links — RESTRICT). */
+export const ROUTINE_CODED_ON_BOOKS_WORDS = (n: number): string =>
+  `this plan is coded on ${n} line${n === 1 ? '' : 's'} in Books — re-code ${n === 1 ? 'it' : 'them'} there first, or deactivate the plan on Expenses`;
 
 /** The line DELETE's refusal — the line's own count; a line's DELETE is its deactivation, so the routine's is named. */
 export const lineHoldsLinksWords = (n: number): string =>

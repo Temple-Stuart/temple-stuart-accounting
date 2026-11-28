@@ -75,7 +75,7 @@ import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/l
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
-import { routineHoldsLinksWords, routineLinksWhere } from '@/lib/operations/linkHold';
+import { ROUTINE_CODED_ON_BOOKS_WORDS, routineHoldsLinksWords, routineLinksWhere } from '@/lib/operations/linkHold';
 
 /**
  * Parse an optional YYYY-MM-DD date-bound value. Empty/null/undefined → null
@@ -605,14 +605,22 @@ export async function DELETE(
 
     // LINK-LAW-01 (ruling D): the links the routine and its lines hold — every line, active or archived (the delete cascades them all) —
     // counted inside the transaction that deletes; any held refuses the delete by name, and nothing is written.
+    // EDIT-02 (Alex, 2026-11-28): and the Books lines coded to the routine — ledger_line_links.routine_id is ON DELETE RESTRICT (migration
+    // 20260722000000_dim_links_vendor), so a delete under one failed in the generic words: counted in the same transaction, after the links
+    // and before the delete; any coded refuses 409 by name, and nothing is written. The table carries no user column — the routine is the
+    // caller's (loadAuthorizedRoutine above, by id AND user_id), and the count is of that routine's rows alone.
+    let coded = 0;
     const linked = await prisma.$transaction(async (tx) => {
       const lineIds = (await tx.operations_routine_steps.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true } })).map((s) => s.id);
       const held = await tx.planned_item_links.count({ where: routineLinksWhere(user.id, id, lineIds) });
       if (held > 0) return held;
+      coded = await tx.ledger_line_links.count({ where: { routine_id: id } });
+      if (coded > 0) return 0;
       await tx.operations_routines.delete({ where: { id } });
       return 0;
     });
     if (linked > 0) return NextResponse.json({ error: routineHoldsLinksWords(linked) }, { status: 409 });
+    if (coded > 0) return NextResponse.json({ error: ROUTINE_CODED_ON_BOOKS_WORDS(coded) }, { status: 409 });
 
     await writeAuditLog({
       actor: {
