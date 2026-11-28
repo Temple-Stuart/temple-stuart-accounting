@@ -79,7 +79,7 @@ const RECORDS: LedgerRecordInput[] = [
 ];
 const INPUT: LedgerInput = {
   from: '2026-10-12', to: '2026-10-13', now: new Date('2026-10-14T00:00:00.000Z'), records: RECORDS, links: [], lines: [], open: [], notPlaced: [], routines: WORDS, // PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
-  roles: new Map([['morning', 'place'], ['gym', 'place']]), minutes: new Map(), vendors: [], stays: [], accounts: [], books: [{ id: 'P', entityType: 'personal' }], once: new Map(), locations: new Map([['morning', null], ['gym', null]]), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes; this fixture hands the rule no plan line, so none is asked; EDIT-01 (2026-11-28): no line here, so no routine's one-off-ness is read — none stated
+  roles: new Map([['morning', 'place'], ['gym', 'place']]), minutes: new Map(), vendors: [], stays: [], accounts: [], books: [{ id: 'P', entityType: 'personal' }], once: new Map(), clocks: new Map(), locations: new Map([['morning', null], ['gym', null]]), subAccounts: [], // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none). TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes; this fixture hands the rule no plan line, so none is asked; EDIT-01 (2026-11-28): no line here, so no routine's one-off-ness is read — none stated
 };
 const ledger = ledgerOf(INPUT);
 const rowOf = (id: string): LedgerRow => {

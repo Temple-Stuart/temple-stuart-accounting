@@ -22,10 +22,10 @@ import type { RoutineWords } from '../budget/planLines';
 import { isOnceRRule } from '../operations/rruleHelpers';
 import type { StopRecordRow } from '../operations/stopRecord';
 import {
-  CELL_KEYS_WORDS, CELL_REACH_WORDS, CELL_WENT_NONE_WORDS, CLEAR_CELL_QUESTION, KEEP_WORDS, LEDGER_COLUMNS, NEVER_OPENS_WORDS, NO_PLAN_LINE_WORDS, RECORD_CELLS, STOP_AHEAD_WORDS, TWO_LINES_NO_PLAN_WORDS, TYPED_COLUMNS,
+  routineClocksOf, CELL_KEYS_WORDS, CELL_REACH_WORDS, CELL_WENT_NONE_WORDS, CLEAR_CELL_QUESTION, KEEP_WORDS, LEDGER_COLUMNS, NEVER_OPENS_WORDS, NO_PLAN_LINE_WORDS, RECORD_CELLS, STOP_AHEAD_WORDS, TWO_LINES_NO_PLAN_WORDS, TYPED_COLUMNS,
   boxTextOf, cellOpens, cellReachWords, isTypedColumn, ledgerFailedWords, ledgerOf, nextOpeningColumn, planMinutesOf, recordCellDraft, recordInput, rowDraftOf, starsTypedWords, tagReachWords,
   type LedgerEditing, type LedgerInput, type LedgerRecordInput, type LedgerRecordingTaken, type LedgerSheetRow, type LedgerVendorRow, type TypedColumn,
-  CHARGE_HAS_RECORD_WORDS, END_AT_START_WORDS, END_NEEDS_START_WORDS, ITEMS_CELL_NO_VENDOR_WORDS, LINE_CELLS, NAME_LONG_WORDS, NO_LINE_CELL_WORDS, ONE_OFF_NAME_MAX, PLAN_CELLS, RECORD_ON_OWN_ROW_WORDS, REPEATING_PLAN_WORDS,
+  CHARGE_HAS_RECORD_WORDS, END_AT_START_WORDS, END_NEEDS_START_WORDS, ITEMS_CELL_NO_VENDOR_WORDS, LINE_CELLS, NAME_LONG_WORDS, ONE_OFF_NAME_MAX, PLAN_CELLS, RECORD_ON_OWN_ROW_WORDS, REPEATING_DATE_WORDS,
   TAG_NEEDS_VENDOR_WORDS, VENDORS_LOADING_WORDS, isRecordCell, nameNotPutBackWords, planCellWrite, requiredWords, timeTypedWords, vendorAddedNotSetWords, type LedgerEditingPlan, type LedgerPlanRow,
   DELETE_ROW_WORDS, DELETE_WORDS, deleteOneOffQuestion, deletePlanQuestion, deleteRecordQuestion, rowDeleteOf,
 } from '../operations/ledger';
@@ -96,7 +96,7 @@ const built = buildRoutineBudgetLines(ROUTINES, THU, FRI);
 const teaLines = built.lines.filter((l) => l.sourceId.startsWith('routine:tea:'));
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
   from: THU, to: FRI, now: NOW, records: RECORDS, links: [], lines: [...built.lines, ...teaLines], open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES,
-  locations: new Map(ROUTINES.map((r): [string, null] => [r.id, null])), once: ONCE, subAccounts: [], minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: [],
+  locations: new Map(ROUTINES.map((r): [string, null] => [r.id, null])), once: ONCE, clocks: routineClocksOf(ROUTINES), subAccounts: [], minutes: planMinutesOf(ROUTINES), vendors: VENDORS, stays: [],
   accounts: [{ entityId: 'P', code: '6150', name: 'Dining Out' }, { entityId: 'P', code: '6200', name: 'Sport' }], books: [{ id: 'P', entityType: 'personal' }], ...over,
 });
 const ledger = ledgerOf(input());
@@ -126,20 +126,20 @@ test('E2 `editing`: ONE entry for EVERY sheet row, by its key, in the sheet’s 
   assert.deepEqual(Object.keys(ledger), ['from', 'to', 'rows', 'sheet', 'recording', 'editing', 'said'], '`editing` after `recording`');
   const entryOf = (description: string, day: string, recorded: boolean): LedgerEditing[] => rowOf(description, day, recorded).map((r) => ledger.editing[r.key]);
   // A one-off's plan row: its line, a one-off, its name, its book, the vendor planned at this occurrence.
-  assert.deepEqual(entryOf('Lunch', THU, false), [{ plan: true, routineId: 'lunch', lineId: 'lunch-line', once: true, routineName: 'Lunch · 2027-03-04 12:00', entityId: 'P', vendor: { id: 'v-harbor', name: 'Harbor Cafe', every: false } }]);
+  assert.deepEqual(entryOf('Lunch', THU, false), [{ plan: true, routineId: 'lunch', lineId: 'lunch-line', once: true, routineName: 'Lunch · 2027-03-04 12:00', entityId: 'P', vendor: { id: 'v-harbor', name: 'Harbor Cafe', every: false }, start: null, end: null, trip: null }]); // EDIT-02 (2026-11-28): and its routine's own clock and its day's trip — none here
   // A one-off with no vendor.
-  assert.deepEqual(entryOf('Dinner', FRI, false), [{ plan: true, routineId: 'dinner', lineId: 'dinner-line', once: true, routineName: 'Dinner · 2027-03-05 19:00', entityId: 'P', vendor: null }]);
+  assert.deepEqual(entryOf('Dinner', FRI, false), [{ plan: true, routineId: 'dinner', lineId: 'dinner-line', once: true, routineName: 'Dinner · 2027-03-05 19:00', entityId: 'P', vendor: null, start: null, end: null, trip: null }]);
   // A repeating plan's row: its own line (no line id), not a one-off, the vendor for every occurrence.
-  const gym = { plan: true, routineId: 'gym', lineId: null, once: false, routineName: 'Morning Gym', entityId: 'P', vendor: { id: 'v-iron', name: 'Iron Works', every: true } };
+  const gym = { plan: true, routineId: 'gym', lineId: null, once: false, routineName: 'Morning Gym', entityId: 'P', vendor: { id: 'v-iron', name: 'Iron Works', every: true }, start: null, end: null, trip: null };
   assert.deepEqual(entryOf('Morning Gym', FRI, false), [gym]);
   // A recorded row joined to its line: that line's entry — the same as its plan row would carry.
   assert.deepEqual(entryOf('Morning Gym', THU, true), [gym]);
   // A recorded row joined to none.
-  assert.deepEqual(entryOf('Kiosk', THU, true), [{ plan: false, words: NO_PLAN_LINE_WORDS }]);
+  assert.deepEqual(entryOf('Kiosk', THU, true), [{ plan: false, words: NO_PLAN_LINE_WORDS, trip: null }]); // EDIT-02 (2026-11-28): the trip on both kinds of entry
   // Two plan lines at a stop: each plan row, and the record that stands there on its own row.
-  assert.deepEqual(entryOf('Tea', FRI, false), [{ plan: false, words: TWO_LINES_NO_PLAN_WORDS }, { plan: false, words: TWO_LINES_NO_PLAN_WORDS }]);
-  assert.deepEqual(entryOf('Tea', THU, false), [{ plan: false, words: TWO_LINES_NO_PLAN_WORDS }, { plan: false, words: TWO_LINES_NO_PLAN_WORDS }]);
-  assert.deepEqual(entryOf('Tea', THU, true), [{ plan: false, words: TWO_LINES_NO_PLAN_WORDS }]);
+  assert.deepEqual(entryOf('Tea', FRI, false), [{ plan: false, words: TWO_LINES_NO_PLAN_WORDS, trip: null }, { plan: false, words: TWO_LINES_NO_PLAN_WORDS, trip: null }]);
+  assert.deepEqual(entryOf('Tea', THU, false), [{ plan: false, words: TWO_LINES_NO_PLAN_WORDS, trip: null }, { plan: false, words: TWO_LINES_NO_PLAN_WORDS, trip: null }]);
+  assert.deepEqual(entryOf('Tea', THU, true), [{ plan: false, words: TWO_LINES_NO_PLAN_WORDS, trip: null }]);
   // The words, typed whole; wire-shaped as built.
   assert.equal(NO_PLAN_LINE_WORDS, 'no plan line is joined to this record — it has no plan to change here');
   assert.equal(TWO_LINES_NO_PLAN_WORDS, "two plan lines stand at this stop — neither is this row's alone, so no plan is changed here");
@@ -152,8 +152,8 @@ test('E3 in the source: `editing` is built where `recording` is — a recorded r
   const rules = code(SHEET_RULES);
   assert.match(rules, /readonly recording: Readonly<Record<string, LedgerRecording>>;\n\s*readonly editing: Readonly<Record<string, LedgerEditing>>;\n\s*readonly said: LedgerSaid;/, 'Ledger: `editing` after `recording`');
   assert.match(rules, /const recordingAt = new Map<string, LedgerRecording>\(\);\n\s*const editingAt = new Map<string, LedgerEditing>\(\);/);
-  assert.match(rules, /\n\s*\}\);\n\s*editingAt\.set\(key, line !== null \? editingOf\(line, key\) : \{ plan: false, words: budgetState === 'doubled' \? TWO_LINES_NO_PLAN_WORDS : NO_PLAN_LINE_WORDS \}\);\n\s*return \{\n\s*id: r\.record\.id,/, 'a recorded row’s, after its `recording` entry');
-  assert.match(rules, /vendor: \{ kind: 'box', line: l \} \}\);\n\s*editingAt\.set\(row\.key, lines > 1 \? \{ plan: false, words: TWO_LINES_NO_PLAN_WORDS \} : editingOf\(l, key\)\);\n\s*sheeted\.push\(\{ row, label: l\.label, line: l\.line \}\);/, 'a plan row’s, after its own');
+  assert.match(rules, /\n\s*\}\);\n\s*editingAt\.set\(key, line !== null \? editingOf\(line, key, stay\) : \{ plan: false, words: budgetState === 'doubled' \? TWO_LINES_NO_PLAN_WORDS : NO_PLAN_LINE_WORDS, trip: editingTripOf\(stay\) \}\);\n\s*return \{\n\s*id: r\.record\.id,/, 'a recorded row’s, after its `recording` entry');
+  assert.match(rules, /vendor: \{ kind: 'box', line: l \} \}\);\n\s*editingAt\.set\(row\.key, lines > 1 \? \{ plan: false, words: TWO_LINES_NO_PLAN_WORDS, trip: editingTripOf\(stay\) \} : editingOf\(l, key, stay\)\);\n\s*sheeted\.push\(\{ row, label: l\.label, line: l\.line \}\);/, 'a plan row’s, after its own');
   assert.match(rules, /recording\[row\.key\] = entry;\n\s*const can = editingAt\.get\(row\.key\);\n\s*if \(can === undefined\) throw new Error\(`ledger: sheet row \$\{row\.key\} has no entry in editing — every row of the sheet has one`\);\n\s*editing\[row\.key\] = can;/);
   assert.match(rules, /const routineId = kind === 'routine' \? id : routineOfLine\.get\(id\);/, 'the line’s routine: its own on a routine’s own line, else the routine whose active lines hold it — the key’s');
   assert.match(rules, /lineId: kind === 'routine_line' \? id : null, once, routineName: routine\.name, entityId: l\.entityId, vendor: l\.vendor === null \? null : \{ id: l\.vendor\.id, name: l\.vendor\.name, every: l\.vendor\.grain === 'every' \}/);
@@ -196,7 +196,7 @@ test('E4 the read carries `editing` as it carries `recording` — an answer with
 // ── PART 2 — THE CELL OPENS; THE RECORD'S CELLS ──────────────────────────────
 
 const takenOf = (row: LedgerSheetRow): LedgerRecordingTaken => { const e = ledger.recording[row.key]; if (!e.takes) return assert.fail(`${row.key} takes no record`); return e; };
-const opensWhich = (row: LedgerSheetRow): TypedColumn[] => TYPED_COLUMNS.filter((c) => cellOpens(c, ledger.recording[row.key], ledger.editing[row.key]).opens); // PART 3: by the row's `editing` entry too
+const opensWhich = (row: LedgerSheetRow): TypedColumn[] => TYPED_COLUMNS.filter((c) => cellOpens(c, row, ledger.recording[row.key], ledger.editing[row.key]).refusal === null); // PART 3: by the row's `editing` entry too; EDIT-02 (2026-11-28): every typed cell opens — these are the ones whose save is not refused before any typing
 const drawBox = (props: Parameters<typeof ColumnBox>[0]): string => renderToStaticMarkup(createElement(ColumnBox, props));
 const noop = () => undefined;
 
@@ -237,12 +237,12 @@ test('E6 the frame: the open cell is React state — one at a time — opened on
   assert.match(frame, /const \[open, setOpen\] = useState<OpenCell \| null>\(null\);/, 'ONE open cell: its row’s key and its column, or none');
   assert.match(s, /type OpenCell = \{ readonly key: string; readonly column: TypedColumn \};/);
   // A click opens a typed cell where the rule allows — the open one saved first; a chip in the cell and the box keep their clicks.
-  assert.match(frame, /const openCell = async \(row: LedgerSheetRow, column: TypedColumn\) => \{\n\s*const at = openRef\.current;\n\s*if \(at !== null && at\.key === row\.key && at\.column === column\) return;\n\s*if \(!opensOf\(row, column\)\.opens\) return;\n\s*if \(at !== null && !\(await commit\(\)\)\) return;\n\s*setOpenCell\(\{ key: row\.key, column \}, boxTextOf\(row, column\)\);/);
+  assert.match(frame, /const openCell = async \(row: LedgerSheetRow, column: TypedColumn\) => \{\n\s*const at = openRef\.current;\n\s*if \(at !== null && at\.key === row\.key && at\.column === column\) return;\n\s*if \(at !== null && !\(await commit\(\)\)\) return;\n\s*setOpenCell\(\{ key: row\.key, column \}, boxTextOf\(row, column, editing\[row\.key\]\), refusalOf\(row, column\)\);/); // EDIT-02 (2026-11-28): every typed cell opens — with the refusal the rule knows before any typing
   assert.match(frame, /if \(\(e\.target as HTMLElement\)\.closest\('button, input, select, a'\) !== null\) return;/);
   // The keys.
   assert.match(frame, /if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); setOpenCell\(null\); return; \}/, 'Esc: closed, nothing written');
   assert.match(frame, /if \(e\.key === 'Enter'\) \{ e\.preventDefault\(\); void commit\(\); return; \}/);
-  assert.match(frame, /if \(e\.key === 'Tab' && !e\.shiftKey\) \{\n\s*e\.preventDefault\(\);\n\s*const next = nextOpeningColumn\(column, \(c\) => opensOf\(row, c\)\.opens\);\n\s*void commit\(\)\.then\(\(closed\) => \{ if \(closed && next !== null\) setOpenCell\(\{ key: row\.key, column: next \}, boxTextOf\(row, next\)\); \}\);/);
+  assert.match(frame, /if \(e\.key === 'Tab' && !e\.shiftKey\) \{\n\s*e\.preventDefault\(\);\n\s*const next = nextOpeningColumn\(column\);\n\s*void commit\(\)\.then\(\(closed\) => \{ if \(closed && next !== null\) setOpenCell\(\{ key: row\.key, column: next \}, boxTextOf\(row, next, editing\[row\.key\]\), refusalOf\(row, next\)\); \}\);/); // EDIT-02 (2026-11-28): the next typed cell — every one opens
   // Leaving saves only a change: an unchanged text closes, nothing sent; a refused text is not sent again until it changes; one save at a time.
   assert.match(frame, /if \(row === undefined \|\| textRef\.current === heldRef\.current\) \{ setOpenCell\(null\); return Promise\.resolve\(true\); \}/);
   assert.match(frame, /if \(refusedRef\.current === typed\) return Promise\.resolve\(false\);/);
@@ -250,10 +250,10 @@ test('E6 the frame: the open cell is React state — one at a time — opened on
   assert.match(frame, /if \(!saved\.ok\) \{ refusedRef\.current = typed; setCellRefusal\(saved\.words\); return false; \}\n\s*setOpenCell\(null\);\n\s*written\(row\.day\);/, 'refused: the words, the box open with the text; accepted: closed, and the day told');
   // Tab's next cell — the next one to the right on the row that opens.
   const recorded = rowOf('Morning Gym', THU, true)[0];
-  assert.deepEqual(opensWhich(recorded), ['description', 'vendor', 'instagramTag', 'went', 'stars', 'loggedMinutes', 'actual', 'notes'], 'a held record: ITEMS is its note; PART 3: its plan repeats — VENDOR and its tag open, the plan’s own cells do not');
-  assert.equal(nextOpeningColumn('went', (c) => opensWhich(recorded).includes(c)), 'stars');
-  assert.equal(nextOpeningColumn('actual', (c) => opensWhich(recorded).includes(c)), 'notes');
-  assert.equal(nextOpeningColumn('notes', (c) => opensWhich(recorded).includes(c)), null, 'none to the right: it closes');
+  assert.deepEqual(opensWhich(recorded), TYPED_COLUMNS.filter((c) => c !== 'date'), 'EDIT-02 (2026-11-28): every cell of a repeating plan’s recorded row saves but DATE (its days are how it repeats)'); assert.deepEqual(['description', 'vendor', 'instagramTag', 'went', 'stars', 'loggedMinutes', 'actual', 'notes'].filter((c) => !opensWhich(recorded).includes(c as TypedColumn)), [], 'a held record: ITEMS is its note; PART 3: its plan repeats — VENDOR and its tag open, the plan’s own cells do not');
+  assert.equal(nextOpeningColumn('went'), 'stars'); // EDIT-02 (2026-11-28): every typed cell opens — Tab goes to the next typed column
+  assert.equal(nextOpeningColumn('actual'), 'notes');
+  assert.equal(nextOpeningColumn('notes'), null, 'none to the right: it closes');
   // The line beneath: the column's head word, its reach, the keys — and the refusal in red; WENT none asks first.
   assert.match(s, /<tr className="border-t border-border" data-ledger-cell-said=\{row\.key\}>\n\s*<td colSpan=\{LEDGER_COLUMNS\.length\} className=\{cell\}>/);
   assert.ok(s.includes('<span className="font-semibold text-text-primary" data-ledger-cell-head>{headWordOf(open.column)}</span><span data-ledger-cell-reach>{cellReachWords(open.column, editing[row.key])}</span><span className="text-text-muted" data-ledger-cell-keys>{CELL_KEYS_WORDS}</span>'));
@@ -264,7 +264,7 @@ test('E6 the frame: the open cell is React state — one at a time — opened on
   const lunch = rowOf('Lunch', THU, false)[0];
   assert.equal(cellReachWords('instagramTag', ledger.editing[lunch.key]), 'the tag of Harbor Cafe — every row with Harbor Cafe');
   assert.equal(tagReachWords('Harbor Cafe'), 'the tag of Harbor Cafe — every row with Harbor Cafe');
-  assert.throws(() => cellReachWords('instagramTag', ledger.editing[rowOf('Dinner', FRI, false)[0].key]), /INSTAGRAM TAG is the vendor's — a row with no vendor opens no tag/);
+  assert.equal(cellReachWords('instagramTag', ledger.editing[rowOf('Dinner', FRI, false)[0].key]), 'this row', 'EDIT-02 (2026-11-28): a tag with no vendor opens and saves nothing (its line says why) — it reaches this row; thrown by name until then, when no such cell opened');
   assert.doesNotMatch(s, /localStorage|sessionStorage|document\.cookie|indexedDB|window\.confirm|confirm\(/, 'nothing stored in the browser; no browser pop-up');
 });
 
@@ -280,13 +280,13 @@ test('E7 the record’s cells — WENT, STARS, LOGGED MIN, ACTUAL, NOTES, and IT
   assert.deepEqual(TYPED_COLUMNS.filter((c) => isRecordCell(c, ledger.recording[lunch.key])), [...RECORD_CELLS], 'a plan row with no record: ITEMS is its planned items — not a record cell');
   assert.deepEqual(TYPED_COLUMNS.filter((c) => isRecordCell(c, ledger.recording[recorded.key])), ['description', ...RECORD_CELLS], 'a held record: ITEMS is its note');
   assert.deepEqual(opensWhich(lunch).filter((c) => isRecordCell(c, ledger.recording[lunch.key])), [...RECORD_CELLS]);
-  assert.deepEqual(opensWhich(teaRow), [], 'a row that takes no record');
+  assert.deepEqual(opensWhich(teaRow), ['city', 'region', 'country'], 'a row that takes no record, with no plan: only the trip’s cells save — EDIT-02 (2026-11-28): none until then (they did not open)');
   const why = ledger.recording[teaRow.key];
   assert.ok(!why.takes);
-  for (const c of RECORD_CELLS) assert.deepEqual(cellOpens(c, why, ledger.editing[teaRow.key]), { opens: false, words: why.words }, `${c}: the entry’s own sentence`);
+  for (const c of RECORD_CELLS) assert.deepEqual(cellOpens(c, teaRow, why, ledger.editing[teaRow.key]), { refusal: why.words }, `${c}: the entry’s own sentence — EDIT-02 (2026-11-28): said as the cell opens`);
   // The text each box opens with.
-  assert.deepEqual(['went', 'stars', 'loggedMinutes', 'actual', 'notes', 'description'].map((c) => boxTextOf(recorded, c as TypedColumn)), ['went', '', '', '20.00', '', '']);
-  assert.deepEqual(['went', 'actual', 'description'].map((c) => boxTextOf(lunch, c as TypedColumn)), ['', '', 'soup and bread']);
+  assert.deepEqual(['went', 'stars', 'loggedMinutes', 'actual', 'notes', 'description'].map((c) => boxTextOf(recorded, c as TypedColumn, ledger.editing[recorded.key])), ['went', '', '', '20.00', '', '']); // EDIT-02 (2026-11-28): the box's text reads the row's entry (ENTITY's is its plan's book)
+  assert.deepEqual(['went', 'actual', 'description'].map((c) => boxTextOf(lunch, c as TypedColumn, ledger.editing[lunch.key])), ['', '', 'soup and bread']);
   // The draft: the record form's own, the one box replaced.
   assert.deepEqual(recordCellDraft(recorded, takenOf(recorded).held, 'stars', '4'), { ...rowDraftOf(recorded, takenOf(recorded).held), stars: '4' });
   assert.deepEqual(recordCellDraft(lunch, null, 'actual', '7.50'), { went: 'went', actual: '7.50', stars: '', minutes: '', note: 'soup and bread', notes: '' }, 'a first record, as the form writes one — ITEMS holding what was planned');
@@ -337,28 +337,25 @@ test('E7 the record’s cells — WENT, STARS, LOGGED MIN, ACTUAL, NOTES, and IT
 
 // ── E8 · CELLS THAT NEVER OPEN (rulings 2.2, 2.3) ────────────────────────────
 
-test('E8 the fourteen columns he types, in the sheet’s order; the eleven that never open each say why on hover; every cell of the sheet carries a title, and a typed one its click and its box', () => {
-  assert.deepEqual([...TYPED_COLUMNS], ['start', 'end', 'location', 'accountName', 'subAccountName', 'description', 'vendor', 'instagramTag', 'went', 'stars', 'loggedMinutes', 'budget', 'actual', 'notes']);
+test('E8 (re-pointed by EDIT-02 (2026-11-28) — nineteen columns he types and six that never open; fourteen and eleven until then) the columns he types, in the sheet’s order; the ones that never open each say why on hover; every cell of the sheet carries a title, and a typed one its click and its box', () => {
+  assert.deepEqual([...TYPED_COLUMNS], ['date', 'start', 'end', 'city', 'region', 'country', 'location', 'accountName', 'book', 'subAccountName', 'description', 'vendor', 'instagramTag', 'went', 'stars', 'loggedMinutes', 'budget', 'actual', 'notes']); // EDIT-02 (2026-11-28): DATE, CITY, REGION, COUNTRY and ENTITY joined
   assert.deepEqual(LEDGER_COLUMNS.filter((c) => isTypedColumn(c)), [...TYPED_COLUMNS], 'in the sheet’s order');
   assert.deepEqual(NEVER_OPENS_WORDS, {
-    day: 'worked out from DATE',
-    date: 'moving a row to another day carries its record and its vendor with it — that is not done in a cell yet',
-    city: "the trip's — the trip that covers DATE", region: "the trip's — the trip that covers DATE", country: "the trip's — the trip that covers DATE",
-    book: 'moving a row to another book carries its record and its vendor with it — that is not done in a cell yet',
+    day: 'worked out from DATE', // EDIT-02 (2026-11-28): the six alone — DATE, CITY, REGION, COUNTRY and ENTITY open
     plannedMinutes: 'worked out from START and END',
     account: 'worked out from the codes of LOCATION, CATEGORY, ENTITY and TYPE',
     variance: 'worked out — ACTUAL less BUDGET',
     match: 'the postings linked in Books — changed by its "link"',
     underOver: 'worked out from the sign of VARIANCE',
   });
-  assert.deepEqual(LEDGER_COLUMNS.filter((c) => !isTypedColumn(c)), Object.keys(NEVER_OPENS_WORDS), 'the eleven, in the sheet’s order');
+  assert.deepEqual(LEDGER_COLUMNS.filter((c) => !isTypedColumn(c)), Object.keys(NEVER_OPENS_WORDS), 'the six, in the sheet’s order');
   const s = code(SECTION);
   const row = s.slice(s.indexOf('data-ledger-row={row.key}'), s.indexOf('{open !== null && open.key === row.key && ('));
   assert.deepEqual([...row.matchAll(/ title=\{titleOf\(row, '(\w+)'/g)].map((m) => m[1]), [...LEDGER_COLUMNS], 'every cell titled, in the sheet’s order');
   assert.deepEqual([...row.matchAll(/onClick=\{\(e\) => clickCell\(e, row, '(\w+)'\)\}/g)].map((m) => m[1]), [...TYPED_COLUMNS], 'a typed cell’s click — and no other cell’s');
   assert.deepEqual([...row.matchAll(/\{boxIn\(row, '(\w+)'\) \?\? /g)].map((m) => m[1]), [...TYPED_COLUMNS], 'a typed cell’s box, else what it printed');
   assert.match(s, /if \(!isTypedColumn\(column\)\) return own === undefined \? NEVER_OPENS_WORDS\[column\] : `\$\{own\} — \$\{NEVER_OPENS_WORDS\[column\]\}`;/, 'MATCH says its postings first, then why');
-  assert.match(s, /if \(can\.opens\) return own;\n\s*return own === undefined \? can\.words : `\$\{own\} — \$\{can\.words\}`;/, 'PART 3: a typed cell that does not open says why — after its own title, as MATCH does');
+  assert.match(s, /if \(ruled === null\) return own;\n\s*return own === undefined \? ruled : `\$\{own\} — \$\{ruled\}`;/, 'PART 3: a typed cell that does not open says why — after its own title, as MATCH does; EDIT-02 (2026-11-28): a typed cell whose save is refused before any typing');
 });
 
 // ── PART 3 — A ONE-OFF'S PLAN CELLS, THE VENDOR, ITS TAG AND ITS ITEMS ───────
@@ -389,7 +386,7 @@ const OK: readonly [number, unknown] = [200, {}];
 
 // ── E9 · WHICH OPEN, AND WHY NOT (rulings 3.1, 3.2) ──────────────────────────
 
-test('E9 the plan’s own cells open on a one-off; on a day of a repeating plan they say the plan repeats; VENDOR opens on any row with its plan, INSTAGRAM TAG and ITEMS with its vendor; a row with no plan opens none of them — each cell that does not open says why, after its own title', () => {
+test('E9 (re-pointed by EDIT-02 (2026-11-28) — every typed cell opens on every row; until then the plan’s own cells opened on a one-off alone, and a cell that could not save did not open) a one-off’s cells all save; a repeating plan’s own cells save, its DATE alone refused; INSTAGRAM TAG and ITEMS ask for a vendor where they need one; a row with no plan says why its plan’s cells, VENDOR, TAG, ENTITY and DATE save nothing; the trip’s cells save on every row', () => {
   assert.deepEqual([...PLAN_CELLS], ['start', 'end', 'location', 'accountName', 'subAccountName', 'budget']);
   assert.deepEqual([...LINE_CELLS], ['end', 'accountName', 'subAccountName', 'budget']);
   const lunch = rowOf('Lunch', THU, false)[0];
@@ -398,36 +395,30 @@ test('E9 the plan’s own cells open on a one-off; on a day of a repeating plan 
   const gymThu = rowOf('Morning Gym', THU, true)[0];
   const kiosk = rowOf('Kiosk', THU, true)[0];
   const teaRows = [...rowOf('Tea', THU, true), ...rowOf('Tea', THU, false), ...rowOf('Tea', FRI, false)];
-  const closedOf = (row: LedgerSheetRow): Record<string, string> => Object.fromEntries(TYPED_COLUMNS.map((c) => [c, cellOpens(c, ledger.recording[row.key], ledger.editing[row.key])] as const).flatMap(([c, o]) => (o.opens ? [] : [[c, o.words]])));
-  // A one-off with its vendor — every cell he types opens.
+  const closedOf = (row: LedgerSheetRow): Record<string, string> => Object.fromEntries(TYPED_COLUMNS.flatMap((c) => { const refusal = cellOpens(c, row, ledger.recording[row.key], ledger.editing[row.key]).refusal; return refusal === null ? [] : [[c, refusal]]; }));
+  // A one-off with its vendor — every cell he types saves.
   assert.deepEqual(opensWhich(lunch), [...TYPED_COLUMNS]);
-  // A one-off with no vendor: its tag and its planned items ask for one.
+  // A one-off with no vendor, ahead: its tag and its planned items ask for one.
   assert.deepEqual(closedOf(dinner), { description: ITEMS_CELL_NO_VENDOR_WORDS, instagramTag: TAG_NEEDS_VENDOR_WORDS });
-  // A day of a repeating plan — its row with no record, and its recorded row: the plan's own cells say the plan repeats; VENDOR and its tag open.
-  const repeats = REPEATING_PLAN_WORDS('Morning Gym');
-  for (const row of [gymFri, gymThu]) {
-    assert.deepEqual(closedOf(row), Object.fromEntries(PLAN_CELLS.map((c) => [c, repeats])), `${row.key}: the plan's cells`);
-    assert.ok(opensWhich(row).includes('vendor') && opensWhich(row).includes('instagramTag'));
-  }
-  assert.ok(opensWhich(gymFri).includes('description'), 'ITEMS on a row with no record: the planned items, with its vendor');
-  // A row with no plan: none of the plan's cells nor the vendor's — the entry's own sentence; its record's cells by its record.
-  assert.deepEqual(closedOf(kiosk), Object.fromEntries([...PLAN_CELLS, 'vendor', 'instagramTag'].map((c) => [c, NO_PLAN_LINE_WORDS])));
-  for (const row of teaRows) for (const c of [...PLAN_CELLS, 'vendor', 'instagramTag'] as const) assert.deepEqual(cellOpens(c, ledger.recording[row.key], ledger.editing[row.key]), { opens: false, words: TWO_LINES_NO_PLAN_WORDS }, `${row.key} ${c}`);
-  // A one-off with no line of its own — its routine's own line: START and LOCATION open, the line's four do not.
+  // A day of a repeating plan — its row with no record, and its recorded row: every cell saves (its own reach every row of the plan) but DATE.
+  for (const row of [gymFri, gymThu]) assert.deepEqual(closedOf(row), { date: REPEATING_DATE_WORDS('Morning Gym') }, `${row.key}: DATE alone`);
+  assert.ok(opensWhich(gymFri).includes('description'), 'ITEMS on a row with no record, ahead: the planned items, with its vendor');
+  // A row with no plan: its plan's cells, VENDOR, TAG, ENTITY and DATE say the entry's own sentence; its record's cells by its record; the trip's save.
+  assert.deepEqual(closedOf(kiosk), Object.fromEntries(['date', ...PLAN_CELLS, 'book', 'vendor', 'instagramTag'].map((c) => [c, NO_PLAN_LINE_WORDS])));
+  for (const row of teaRows) for (const c of ['date', ...PLAN_CELLS, 'book', 'vendor', 'instagramTag'] as const) assert.deepEqual(cellOpens(c, row, ledger.recording[row.key], ledger.editing[row.key]), { refusal: TWO_LINES_NO_PLAN_WORDS }, `${row.key} ${c}`);
+  // A one-off with no line of its own — its routine's own line: every cell saves (its line's four write the routine's own fields).
   const noLine = { ...planOf(lunch), lineId: null };
-  assert.deepEqual(TYPED_COLUMNS.filter((c) => !cellOpens(c, ledger.recording[lunch.key], noLine).opens), [...LINE_CELLS]);
-  for (const c of LINE_CELLS) assert.deepEqual(cellOpens(c, ledger.recording[lunch.key], noLine), { opens: false, words: NO_LINE_CELL_WORDS });
+  assert.deepEqual(TYPED_COLUMNS.filter((c) => cellOpens(c, lunch, ledger.recording[lunch.key], noLine).refusal !== null), []);
+  assert.deepEqual([...LINE_CELLS], ['end', 'accountName', 'subAccountName', 'budget']);
   // The words, typed whole.
-  assert.equal(repeats, 'a day of the plan "Morning Gym" — it repeats; the plan is changed on Expenses, where a change is every row of it');
   assert.equal(CHARGE_HAS_RECORD_WORDS, "a charge takes no record — clear this row's record first, then its START");
   assert.equal(ITEMS_CELL_NO_VENDOR_WORDS, "planned items sit with the stop's vendor — give it a VENDOR first");
   assert.equal(TAG_NEEDS_VENDOR_WORDS, "an INSTAGRAM TAG is the vendor's — pick a VENDOR or name a new one");
-  assert.equal(NO_LINE_CELL_WORDS, 'this one-off has no line of its own — END, CATEGORY, TYPE and BUDGET are written to a line');
   assert.equal(RECORD_ON_OWN_ROW_WORDS, "this stop's record is on its own row — it could not be joined to one plan line");
-  // In the source: the frame asks the rule with both entries; a cell that does not open says why after its own title.
+  // In the source: the frame asks the rule with the row and both entries; a cell refused before any typing says why after its own title.
   const s = code(SECTION);
-  assert.match(s, /const opensOf = \(row: LedgerSheetRow, column: TypedColumn\): CellOpen => cellOpens\(column, recording\[row\.key\], editing\[row\.key\]\);/);
-  assert.match(s, /if \(can\.opens\) return own;\n\s*return own === undefined \? can\.words : `\$\{own\} — \$\{can\.words\}`;/);
+  assert.match(s, /const refusalOf = \(row: LedgerSheetRow, column: TypedColumn\): string \| null => cellOpens\(column, row, recording\[row\.key\], editing\[row\.key\]\)\.refusal;/);
+  assert.match(s, /if \(ruled === null\) return own;\n\s*return own === undefined \? ruled : `\$\{own\} — \$\{ruled\}`;/);
 });
 
 // ── E10 · THE PLAN'S CELLS — EACH WRITER AND ITS BODY (ruling 3.1) ───────────
@@ -465,7 +456,7 @@ test('E10 each plan cell’s writer and its body: START (the clock and the one-o
   assert.deepEqual(write(lunch, L, 'subAccountName', '   '), { ok: false, words: requiredWords('name') });
   assert.deepEqual(write(lunch, L, 'subAccountName', 'x'.repeat(ONE_OFF_NAME_MAX + 1)), { ok: false, words: NAME_LONG_WORDS });
   // No such cell opens: thrown by name.
-  assert.throws(() => write(lunch, { ...L, lineId: null }, 'budget', '5'), /^Error: ledger: BUDGET is written to a line — the row line:lunch-line:\S+ has none, and no such cell opens$/);
+  assert.throws(() => write(lunch, { ...L, lineId: null }, 'budget', '5'), /^Error: ledger: BUDGET of a routine with no line of its own is not written yet — the row line:lunch-line:\S+$/); // EDIT-02 (2026-11-28): such a cell opens now; its write is PART 2's
   assert.throws(() => write(lunch, L, 'stars', '4'), /^Error: ledger: STARS is no plan cell/);
   // Through the writers: each request, its method and its body.
   const routes = { routine: '/api/operations/routines/lunch', line: '/api/operations/routines/steps/lunch-line' };
@@ -558,7 +549,7 @@ test('E11 the vendor’s three cells: VENDOR at the row’s address — one of t
   const s = code(SECTION);
   assert.match(s, /if \(next !== null && next\.column === 'vendor'\) readTheVendors\(\);/);
   assert.match(s, /void readCellVendors\(\)\.then\(\(read\) => \{ if \(vendorsAsked\.current !== asked\) return; vendorsRef\.current = read; refusedRef\.current = null; setVendors\(read\); \}\);/, 'a name refused while the vendors were read may be sent again once they are');
-  assert.match(s, /if \(column === 'accountName'\) return \{ entityId: can\.entityId \};\n\s*return \{ vendors: vendors\.kind === 'read' \? vendors\.vendors\.filter\(\(v\) => v\.entity_id === can\.entityId\) : \[\], listId: 'ledger-cell-vendors' \};/);
+  assert.match(s, /if \(column === 'accountName'\) return \{ entityId: can\.plan \? can\.entityId : '' \};\n\s*return \{ vendors: can\.plan && vendors\.kind === 'read' \? vendors\.vendors\.filter\(\(v\) => v\.entity_id === can\.entityId\) : \[\], listId: 'ledger-cell-vendors' \};/); // EDIT-02 (2026-11-28): a row with no plan opens these too — it has no book
   assert.doesNotMatch(s, /vendor-directory|plan-vendors|\/api\//, 'the frame names no route');
 });
 

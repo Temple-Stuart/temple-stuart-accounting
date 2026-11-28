@@ -4,7 +4,7 @@ import { BudgetInputError, toReportAccount, toReportEntity, toRoutinePlanInput }
 import type { RoutineWords } from '@/lib/budget/planLines';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { LINKED_POSTING_SELECT } from '@/lib/calendar/postingAmount';
-import { accountPlacesOf, ledgerOf, linkInputOf, planMinutesOf, type LedgerRecordInput } from '@/lib/operations/ledger';
+import { accountPlacesOf, ledgerOf, linkInputOf, planMinutesOf, routineClocksOf, type LedgerRecordInput } from '@/lib/operations/ledger';
 import { recordsWindowOf, refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
 import { plannedMinutesOf } from '@/lib/operations/supersession';
 import { stayRowOf } from '@/lib/operations/stay'; import { locationClassOf } from '@/lib/operations/locationClass'; // COALEVELS-01 (2026-11-27): a routine's stored Location, read by its one rule — imported on this line so the two lines the registry cites below do not move
@@ -157,6 +157,8 @@ export async function taskLedgerAnswerOf(db: Db, userId: string, span: { from: s
     subAccounts,
     // EDIT-01 (Alex, 2026-11-28): each routine's one-off-ness by its one rule (rruleHelpers.ts isOnceRRule), over the routines the loader already read (routineInputs) — what a row's plan cells may change; no query added.
     once: new Map(routineInputs.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])),
+    // EDIT-02 (Alex, 2026-11-28): each routine's own clock, START and END as its row holds them (routineClocksOf), over the routines the loader already read — what a repeating plan's START sends its END with; no query added.
+    clocks: routineClocksOf(routineInputs),
     // TIMESHEET-01 (Alex, 2026-11-24): each plan's planned minutes by the one rule, over the routines the loader already read (routineInputs) — the sheet prints them on a line with no record; no query added.
     minutes: planMinutesOf(routineInputs),
     vendors: planVendors,

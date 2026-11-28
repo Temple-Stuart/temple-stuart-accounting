@@ -25,7 +25,7 @@ import { code, comments } from '../sourceText';
 import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
 import type { RoutineWords } from '../budget/planLines';
 import {
-  AMOUNT_ZERO_WORDS, EMPTY_EXPENSE, EXPENSE_FIELDS, EXPENSE_FIELD_WORDS, EXPENSE_STEPS, EXPENSE_WORDS, NO_MONEY_ROLES, NOT_ASKED_WORDS, NOT_TRIED_WORDS, STEP_WORDS, VENDOR_BOTH_WORDS, WRITTEN_WORDS,
+  routineClocksOf, AMOUNT_ZERO_WORDS, EMPTY_EXPENSE, EXPENSE_FIELDS, EXPENSE_FIELD_WORDS, EXPENSE_STEPS, EXPENSE_WORDS, NO_MONEY_ROLES, NOT_ASKED_WORDS, NOT_TRIED_WORDS, STEP_WORDS, VENDOR_BOTH_WORDS, WRITTEN_WORDS,
   dayTypedWords, expenseInput, expenseLandedWords, ledgerOf, ledgerTotals, leftOutWords, lineCountWords, oneOffBody, outcomeWords, planMinutesOf, recordBody, requiredWords, starsTypedWords, timeTypedWords, vendorBody, withNotTried, zoneWords,
   type ExpenseDraft, type ExpenseValues, type LedgerInput, type LedgerRecordInput,
 } from '../operations/ledger';
@@ -98,7 +98,7 @@ const RECORDS: LedgerRecordInput[] = [
 const built = buildRoutineBudgetLines(ROUTINES, DAY, DAY);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
   from: DAY, to: DAY, now: NOW, records: RECORDS, links: [], lines: built.lines, open: [], notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, minutes: planMinutesOf(ROUTINES), vendors: [], stays: [], // TIMESHEET-01 (2026-11-24): the input grows additively — each plan's planned minutes, stated (planMinutesOf over this fixture's routines; none states any) · PASTE-03 (2026-11-28): the input says its open occurrences — the lines that name their account and no amount; none here
-  accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none); EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
+  accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], once: new Map(ROUTINES.map((r): [string, boolean] => [r.id, isOnceRRule(r.scheduleRrule)])), clocks: routineClocksOf(ROUTINES), locations: new Map([...ROLES.keys()].map((id): [string, null] => [id, null])), subAccounts: [], ...over, // COALEVELS-01 (2026-11-27): the input grows additively — every routine's Location (none says one in this fixture) and the caller's sub-accounts (none); EDIT-01 (2026-11-28): and each routine's one-off-ness — isOnceRRule over its own rule, as the answer builds it
 });
 
 // ── T1 · R1 EXPENSES ONLY ───────────────────────────────────────────────────
